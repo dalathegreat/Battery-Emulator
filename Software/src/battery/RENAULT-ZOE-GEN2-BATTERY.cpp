@@ -24,35 +24,35 @@ https://github.com/fesch/CanZE/tree/master/app/src/main/assets/ZOE_Ph2
 
 void RenaultZoeGen2Battery::update_values() {
 
-  datalayer.battery.status.soh_pptt = battery_soh;
+  datalayer_battery->status.soh_pptt = battery_soh;
 
   if (battery_soc >= 300) {
-    datalayer.battery.status.real_soc = battery_soc - 300;
+    datalayer_battery->status.real_soc = battery_soc - 300;
   } else {
-    datalayer.battery.status.real_soc = 0;
+    datalayer_battery->status.real_soc = 0;
   }
 
-  datalayer.battery.status.voltage_dV = battery_pack_voltage;
+  datalayer_battery->status.voltage_dV = battery_pack_voltage;
 
-  datalayer.battery.status.current_dA = ((battery_current - 32640) * 0.3125);
+  datalayer_battery->status.current_dA = ((battery_current - 32640) * 0.3125);
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
-  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W = battery_max_available * 10;
+  datalayer_battery->status.max_discharge_power_W = battery_max_available * 10;
 
-  datalayer.battery.status.max_charge_power_W = battery_max_generated * 10;
+  datalayer_battery->status.max_charge_power_W = battery_max_generated * 10;
 
   //Temperatures and voltages update at slow rate. Only publish new values once both have been sampled to avoid events
   if ((battery_min_temp != 920) && (battery_max_temp != 920)) {
-    datalayer.battery.status.temperature_min_dC = ((battery_min_temp - 640) * 0.625);
-    datalayer.battery.status.temperature_max_dC = ((battery_max_temp - 640) * 0.625);
+    datalayer_battery->status.temperature_min_dC = ((battery_min_temp - 640) * 0.625);
+    datalayer_battery->status.temperature_max_dC = ((battery_max_temp - 640) * 0.625);
   }
 
   if ((battery_min_cell_voltage != 3700) && (battery_max_cell_voltage != 3700)) {
-    datalayer.battery.status.cell_min_voltage_mV = (battery_min_cell_voltage * 0.976563);
-    datalayer.battery.status.cell_max_voltage_mV = (battery_max_cell_voltage * 0.976563);
+    datalayer_battery->status.cell_min_voltage_mV = (battery_min_cell_voltage * 0.976563);
+    datalayer_battery->status.cell_max_voltage_mV = (battery_max_cell_voltage * 0.976563);
   }
 
   if (battery_12v < 11000) {  //11.000V
@@ -103,12 +103,12 @@ void RenaultZoeGen2Battery::update_values() {
 }
 
 void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x18DAF1DB:  // LBC Reply from active polling
 
       if (rx_frame.data.u8[0] == 0x10) {  //First frame of a group
-        transmit_can_frame(&ZOE_POLL_FLOW_CONTROL, can_config.battery);
+        transmit_can_frame(&ZOE_POLL_FLOW_CONTROL, can_interface);
         //frame 2 & 3 contains which PID is sent
         reply_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
       }
@@ -360,292 +360,292 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           battery_soc_max = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_0:
-          datalayer.battery.status.cell_voltages_mV[0] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[0] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_1:
-          datalayer.battery.status.cell_voltages_mV[1] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[1] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_2:
-          datalayer.battery.status.cell_voltages_mV[2] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[2] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_3:
-          datalayer.battery.status.cell_voltages_mV[3] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[3] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_4:
-          datalayer.battery.status.cell_voltages_mV[4] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[4] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_5:
-          datalayer.battery.status.cell_voltages_mV[5] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[5] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_6:
-          datalayer.battery.status.cell_voltages_mV[6] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[6] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_7:
-          datalayer.battery.status.cell_voltages_mV[7] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[7] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_8:
-          datalayer.battery.status.cell_voltages_mV[8] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[8] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_9:
-          datalayer.battery.status.cell_voltages_mV[9] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[9] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_10:
-          datalayer.battery.status.cell_voltages_mV[10] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[10] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_11:
-          datalayer.battery.status.cell_voltages_mV[11] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[11] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_12:
-          datalayer.battery.status.cell_voltages_mV[12] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[12] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_13:
-          datalayer.battery.status.cell_voltages_mV[13] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[13] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_14:
-          datalayer.battery.status.cell_voltages_mV[14] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[14] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_15:
-          datalayer.battery.status.cell_voltages_mV[15] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[15] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_16:
-          datalayer.battery.status.cell_voltages_mV[16] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[16] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_17:
-          datalayer.battery.status.cell_voltages_mV[17] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[17] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_18:
-          datalayer.battery.status.cell_voltages_mV[18] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[18] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_19:
-          datalayer.battery.status.cell_voltages_mV[19] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[19] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_20:
-          datalayer.battery.status.cell_voltages_mV[20] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[20] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_21:
-          datalayer.battery.status.cell_voltages_mV[21] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[21] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_22:
-          datalayer.battery.status.cell_voltages_mV[22] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[22] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_23:
-          datalayer.battery.status.cell_voltages_mV[23] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[23] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_24:
-          datalayer.battery.status.cell_voltages_mV[24] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[24] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_25:
-          datalayer.battery.status.cell_voltages_mV[25] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[25] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_26:
-          datalayer.battery.status.cell_voltages_mV[26] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[26] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_27:
-          datalayer.battery.status.cell_voltages_mV[27] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[27] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_28:
-          datalayer.battery.status.cell_voltages_mV[28] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[28] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_29:
-          datalayer.battery.status.cell_voltages_mV[29] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[29] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_30:
-          datalayer.battery.status.cell_voltages_mV[30] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[30] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_31:
-          datalayer.battery.status.cell_voltages_mV[31] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[31] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_32:
-          datalayer.battery.status.cell_voltages_mV[32] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[32] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_33:
-          datalayer.battery.status.cell_voltages_mV[33] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[33] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_34:
-          datalayer.battery.status.cell_voltages_mV[34] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[34] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_35:
-          datalayer.battery.status.cell_voltages_mV[35] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[35] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_36:
-          datalayer.battery.status.cell_voltages_mV[36] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[36] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_37:
-          datalayer.battery.status.cell_voltages_mV[37] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[37] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_38:
-          datalayer.battery.status.cell_voltages_mV[38] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[38] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_39:
-          datalayer.battery.status.cell_voltages_mV[39] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[39] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_40:
-          datalayer.battery.status.cell_voltages_mV[40] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[40] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_41:
-          datalayer.battery.status.cell_voltages_mV[41] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[41] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_42:
-          datalayer.battery.status.cell_voltages_mV[42] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[42] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_43:
-          datalayer.battery.status.cell_voltages_mV[43] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[43] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_44:
-          datalayer.battery.status.cell_voltages_mV[44] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[44] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_45:
-          datalayer.battery.status.cell_voltages_mV[45] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[45] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_46:
-          datalayer.battery.status.cell_voltages_mV[46] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[46] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_47:
-          datalayer.battery.status.cell_voltages_mV[47] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[47] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_48:
-          datalayer.battery.status.cell_voltages_mV[48] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[48] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_49:
-          datalayer.battery.status.cell_voltages_mV[49] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[49] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_50:
-          datalayer.battery.status.cell_voltages_mV[50] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[50] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_51:
-          datalayer.battery.status.cell_voltages_mV[51] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[51] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_52:
-          datalayer.battery.status.cell_voltages_mV[52] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[52] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_53:
-          datalayer.battery.status.cell_voltages_mV[53] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[53] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_54:
-          datalayer.battery.status.cell_voltages_mV[54] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[54] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_55:
-          datalayer.battery.status.cell_voltages_mV[55] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[55] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_56:
-          datalayer.battery.status.cell_voltages_mV[56] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[56] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_57:
-          datalayer.battery.status.cell_voltages_mV[57] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[57] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_58:
-          datalayer.battery.status.cell_voltages_mV[58] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[58] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_59:
-          datalayer.battery.status.cell_voltages_mV[59] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[59] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_60:
-          datalayer.battery.status.cell_voltages_mV[60] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[60] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_61:
-          datalayer.battery.status.cell_voltages_mV[61] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[61] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_62:
-          datalayer.battery.status.cell_voltages_mV[62] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[62] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_63:
-          datalayer.battery.status.cell_voltages_mV[63] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[63] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_64:
-          datalayer.battery.status.cell_voltages_mV[64] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[64] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_65:
-          datalayer.battery.status.cell_voltages_mV[65] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[65] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_66:
-          datalayer.battery.status.cell_voltages_mV[66] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[66] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_67:
-          datalayer.battery.status.cell_voltages_mV[67] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[67] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_68:
-          datalayer.battery.status.cell_voltages_mV[68] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[68] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_69:
-          datalayer.battery.status.cell_voltages_mV[69] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[69] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_70:
-          datalayer.battery.status.cell_voltages_mV[70] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[70] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_71:
-          datalayer.battery.status.cell_voltages_mV[71] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[71] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_72:
-          datalayer.battery.status.cell_voltages_mV[72] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[72] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_73:
-          datalayer.battery.status.cell_voltages_mV[73] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[73] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_74:
-          datalayer.battery.status.cell_voltages_mV[74] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[74] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_75:
-          datalayer.battery.status.cell_voltages_mV[75] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[75] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_76:
-          datalayer.battery.status.cell_voltages_mV[76] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[76] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_77:
-          datalayer.battery.status.cell_voltages_mV[77] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[77] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_78:
-          datalayer.battery.status.cell_voltages_mV[78] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[78] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_79:
-          datalayer.battery.status.cell_voltages_mV[79] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[79] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_80:
-          datalayer.battery.status.cell_voltages_mV[80] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[80] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_81:
-          datalayer.battery.status.cell_voltages_mV[81] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[81] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_82:
-          datalayer.battery.status.cell_voltages_mV[82] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[82] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_83:
-          datalayer.battery.status.cell_voltages_mV[83] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[83] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_84:
-          datalayer.battery.status.cell_voltages_mV[84] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[84] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_85:
-          datalayer.battery.status.cell_voltages_mV[85] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[85] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_86:
-          datalayer.battery.status.cell_voltages_mV[86] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[86] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_87:
-          datalayer.battery.status.cell_voltages_mV[87] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[87] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_88:
-          datalayer.battery.status.cell_voltages_mV[88] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[88] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_89:
-          datalayer.battery.status.cell_voltages_mV[89] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[89] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_90:
-          datalayer.battery.status.cell_voltages_mV[90] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[90] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_91:
-          datalayer.battery.status.cell_voltages_mV[91] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[91] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_92:
-          datalayer.battery.status.cell_voltages_mV[92] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[92] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_93:
-          datalayer.battery.status.cell_voltages_mV[93] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[93] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_94:
-          datalayer.battery.status.cell_voltages_mV[94] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[94] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_CELL_95:
-          datalayer.battery.status.cell_voltages_mV[95] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[95] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         default:  // Unknown reply
           break;
@@ -676,7 +676,7 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
       counter_373 = (counter_373 + 1) % 10;
       */
 
-      transmit_can_frame(&ZOE_373, can_config.battery);
+      transmit_can_frame(&ZOE_373, can_interface);
       transmit_can_frame_376();
     }
 
@@ -691,7 +691,7 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
       ZOE_POLL_18DADBF1.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
       ZOE_POLL_18DADBF1.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
-      transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+      transmit_can_frame(&ZOE_POLL_18DADBF1, can_interface);
     }
 
     if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
@@ -707,12 +707,12 @@ void RenaultZoeGen2Battery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
-  datalayer.battery.info.number_of_cells = 96;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer_battery->info.number_of_cells = 96;
+  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 
 void RenaultZoeGen2Battery::transmit_can_frame_376(void) {
@@ -733,7 +733,7 @@ void RenaultZoeGen2Battery::transmit_can_frame_376(void) {
   ZOE_376.data.u8[4] = hourSeg;
   ZOE_376.data.u8[5] = minuteSeg;
 
-  transmit_can_frame(&ZOE_376, can_config.battery);
+  transmit_can_frame(&ZOE_376, can_interface);
 }
 
 void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
@@ -742,14 +742,14 @@ void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
       startTimeNVROL = millis();
       // NVROL reset, part 1: send 0x021003AAAAAAAAAA
       ZOE_POLL_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
-      transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+      transmit_can_frame(&ZOE_POLL_18DADBF1, can_interface);
       NVROLstateMachine = 1;
       break;
     case 1:  // wait 100 ms
       if ((millis() - startTimeNVROL) > INTERVAL_100_MS) {
         // NVROL reset, part 2: send 0x043101B00900AAAA
         ZOE_POLL_18DADBF1.data = {0x04, 0x31, 0x01, 0xB0, 0x09, 0x00, 0xAA, 0xAA};
-        transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+        transmit_can_frame(&ZOE_POLL_18DADBF1, can_interface);
         startTimeNVROL = millis();  //Reset time start, so we can check time for next step
         NVROLstateMachine = 2;
       }
@@ -758,7 +758,7 @@ void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
       if ((millis() - startTimeNVROL) > INTERVAL_1_S) {
         // Enable temporisation before sleep, part 1: send 0x021003AAAAAAAAAA
         ZOE_POLL_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
-        transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+        transmit_can_frame(&ZOE_POLL_18DADBF1, can_interface);
         startTimeNVROL = millis();  //Reset time start, so we can check time for next step
         NVROLstateMachine = 3;
       }
@@ -767,7 +767,7 @@ void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
       if ((millis() - startTimeNVROL) > INTERVAL_100_MS) {
         // Enable temporisation before sleep, part 2: send 0x042E928101AAAAAA
         ZOE_POLL_18DADBF1.data = {0x04, 0x2E, 0x92, 0x81, 0x01, 0xAA, 0xAA, 0xAA};
-        transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+        transmit_can_frame(&ZOE_POLL_18DADBF1, can_interface);
         // Set data back to init values, we are done with the ZOE_POLL_18DADBF1 frame
         ZOE_POLL_18DADBF1.data = {0x03, 0x22, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00};
         poll_index = 0;
