@@ -3,6 +3,7 @@
 
 #include "src/communication/Transmitter.h"
 #include "src/communication/can/CanReceiver.h"
+#include "src/communication/can/comm_can.h"
 #include "src/devboard/utils/types.h"
 
 class CanShunt : public Transmitter, CanReceiver {

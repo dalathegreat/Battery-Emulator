@@ -11,6 +11,7 @@
 Battery* battery = nullptr;
 Battery* battery2 = nullptr;
 
+#ifdef COMMON_IMAGE
 std::vector<BatteryType> supported_battery_types() {
   std::vector<BatteryType> types;
 
@@ -131,6 +132,7 @@ const char* name_for_battery_type(BatteryType type) {
       return nullptr;
   }
 }
+#endif
 
 #ifdef LFP_CHEMISTRY
 const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum::LFP;

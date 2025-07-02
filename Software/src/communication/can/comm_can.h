@@ -12,8 +12,8 @@ class CanReceiver;
 
 // Register a receiver object for a given CAN interface.
 // By default receivers expect the CAN interface to be operated at "fast" speed.
-// If low_speed is true, half speed is used.
-void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, bool low_speed = false);
+// If halfSpeed is true, half speed is used.
+void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, bool halfSpeed = false);
 
 /**
  * @brief Initializes all CAN interfaces requested earlier by other modules (see register_can_receiver)

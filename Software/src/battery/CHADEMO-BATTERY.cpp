@@ -714,7 +714,7 @@ void ChademoBattery::handle_chademo_sequence() {
 	 * with timers to have higher confidence of certain conditions hitting
 	 * a steady state
 	 */
-        LOG_PRINTLN("CHADEMO plug is not inserted, cannot connect d2 relay to begin initialization.");
+        DEBUG_PRINTLN("CHADEMO plug is not inserted, cannot connect d2 relay to begin initialization.");
         CHADEMO_Status = CHADEMO_IDLE;
       }
       break;
@@ -723,7 +723,7 @@ void ChademoBattery::handle_chademo_sequence() {
        * Used for triggers/error handling elsewhere;
        * State change to CHADEMO_NEGOTIATE occurs in handle_incoming_can_frame_battery(..)
        */
-      LOG_PRINTLN("Awaiting initial vehicle CAN to trigger negotiation");
+      DEBUG_PRINTLN("Awaiting initial vehicle CAN to trigger negotiation");
       evse_init();
       break;
     case CHADEMO_NEGOTIATE:

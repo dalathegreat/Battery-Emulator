@@ -19,15 +19,11 @@ class Logging : public Print {
 extern Logging logging;
 
 #ifdef DEBUG_LOG
-#define LOG_PRINT(fmt, ...) logging.printf(fmt, ##__VA_ARGS__)
-#define LOG_PRINTLN(str) logging.println(str)
+#define DEBUG_PRINTF(fmt, ...) logging.printf(fmt, ##__VA_ARGS__)
+#define DEBUG_PRINTLN(str) logging.println(str)
 #else
-#define LOG_PRINT(fmt, ...) \
-  do {                      \
-  } while (0)
-#define LOG_PRINTLN(str) \
-  do {                   \
-  } while (0)
+#define DEBUG_PRINTF(fmt, ...) ((void)0)
+#define DEBUG_PRINTLN(fmt, ...) ((void)0)
 #endif
 
 #endif  // __LOGGING_H__

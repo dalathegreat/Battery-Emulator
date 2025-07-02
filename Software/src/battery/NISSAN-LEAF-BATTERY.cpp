@@ -7,6 +7,7 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 
 #include "../charger/CanCharger.h"
 

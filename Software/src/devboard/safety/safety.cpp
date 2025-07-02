@@ -330,6 +330,7 @@ void update_machineryprotection() {
 
 //battery pause status begin
 void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bool store_settings) {
+  DEBUG_PRINTF("Battery pause begin %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
 
   // First handle equipment stop / resume
   if (equipment_stop && !datalayer.system.settings.equipment_stop_active) {
@@ -396,12 +397,12 @@ void update_pause_state() {
   allowed_to_send_CAN = (!emulator_pause_CAN_send_ON || emulator_pause_status == NORMAL);
 
   if (previous_allowed_to_send_CAN && !allowed_to_send_CAN) {
-    LOG_PRINT("Safety: Pausing CAN sending\n");
+    DEBUG_PRINTF("Safety: Pausing CAN sending\n");
     //completely force stop the CAN communication
     stop_can();
   } else if (!previous_allowed_to_send_CAN && allowed_to_send_CAN) {
     //resume CAN communication
-    LOG_PRINT("Safety: Resuming CAN sending\n");
+    DEBUG_PRINTF("Safety: Resuming CAN sending\n");
     restart_can();
   }
 }

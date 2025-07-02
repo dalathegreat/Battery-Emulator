@@ -35,7 +35,7 @@ class KiaHyundai64Battery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "Kia/Hyundai 64/40kWh battery";
+  static constexpr const char* Name = "Kia/Hyundai 64/40kWh battery";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 

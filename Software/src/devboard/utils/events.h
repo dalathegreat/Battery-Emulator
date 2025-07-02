@@ -1,6 +1,8 @@
 #ifndef __EVENTS_H__
 #define __EVENTS_H__
 
+#include <WString.h>
+#include <src/devboard/utils/types.h>
 #include <stdint.h>
 
 #define GENERATE_ENUM(ENUM) ENUM,
@@ -146,7 +148,7 @@ struct EventData {
 };
 
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
-const char* get_event_message_string(EVENTS_ENUM_TYPE event);
+String get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
 
 EVENTS_LEVEL_TYPE get_event_level(void);

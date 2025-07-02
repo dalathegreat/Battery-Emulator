@@ -14,7 +14,7 @@ class SmaLvInverter : public CanInverterProtocol {
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
-  static constexpr char* Name = "SMA Low Voltage (48V) protocol via CAN";
+  static constexpr const char* Name = "SMA Low Voltage (48V) protocol via CAN";
 
  private:
   static const int READY_STATE = 0x03;

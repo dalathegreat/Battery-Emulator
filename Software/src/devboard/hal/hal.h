@@ -31,13 +31,16 @@ class Esp32Hal {
     for (gpio_num_t pin : requested_pins) {
       if (pin < 0) {
         set_event(EVENT_GPIO_NOT_DEFINED, (int)pin);
-        LOG_PRINT("%s attempted to allocate pin %d that wasn't defined for the selected HW.\n", name, (int)pin);
+        allocator_name = name;
+        DEBUG_PRINTF("%s attempted to allocate pin %d that wasn't defined for the selected HW.\n", name, (int)pin);
         return false;
       }
 
       auto it = allocated_pins.find(pin);
       if (it != allocated_pins.end()) {
-        LOG_PRINT("GPIO conflict for pin %d between %s and %s.\n", (int)pin, name, it->second.c_str());
+        allocator_name = name;
+        allocated_name = it->second.c_str();
+        DEBUG_PRINTF("GPIO conflict for pin %d between %s and %s.\n", (int)pin, name, it->second.c_str());
         set_event(EVENT_GPIO_CONFLICT, (int)pin);
         return false;
       }
@@ -143,8 +146,16 @@ class Esp32Hal {
   // Returns the available comm interfaces on this HW
   virtual std::vector<comm_interface> available_interfaces() = 0;
 
+  String failed_allocator() { return allocator_name; }
+  String conflicting_allocator() { return allocated_name; }
+
  private:
   std::unordered_map<gpio_num_t, std::string> allocated_pins;
+
+  // For event logging, store the name of the allocator/allocated
+  // for failed gpio allocations.
+  String allocator_name;
+  String allocated_name;
 };
 
 extern Esp32Hal* esp32hal;

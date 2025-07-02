@@ -1257,7 +1257,7 @@ String processor(const String& var) {
 
       if (contactor_control_enabled) {
         content += "<h4>Contactors controlled by emulator, state: ";
-        if (datalayer.system.status.contactors_battery2_engaged) {
+        if (datalayer.system.status.contactors_engaged) {
           content += "<span style='color: green;'>ON</span>";
         } else {
           content += "<span style='color: red;'>OFF</span>";

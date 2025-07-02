@@ -13,7 +13,7 @@ class DalyBms : public RS485Battery {
   void update_values();
   void transmit_rs485(unsigned long currentMillis);
   void receive();
-  static constexpr char* Name = "DALY RS485";
+  static constexpr const char* Name = "DALY RS485";
 
  private:
   /* Tweak these according to your battery build */

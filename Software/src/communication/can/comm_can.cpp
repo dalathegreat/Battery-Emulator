@@ -6,6 +6,14 @@
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
 #include "src/devboard/sdcard/sdcard.h"
+#include "src/devboard/utils/logging.h"
+
+struct CanReceiverRegistration {
+  CanReceiver* receiver;
+  bool halfSpeed;
+};
+
+static std::multimap<CAN_Interface, CanReceiverRegistration> can_receivers;
 
 // Parameters
 CAN_device_t CAN_cfg;              // CAN Config
@@ -22,17 +30,11 @@ const bool use_canfd_as_can_default = false;
 #endif
 bool use_canfd_as_can = use_canfd_as_can_default;
 
-struct CanInterfaceRegistration {
-  CanReceiver* receiver;
-  bool lowSpeed;
-};
-
 void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface);
 
-static std::multimap<CAN_Interface, CanInterfaceRegistration> can_receivers;
-
-void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, bool low_speed) {
-  can_receivers.insert({interface, {receiver, low_speed}});
+void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, bool halfSpeed) {
+  can_receivers.insert({interface, {receiver, halfSpeed}});
+  DEBUG_PRINTF("CAN receiver registered, total: %d\n", can_receivers.size());
 }
 
 static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
@@ -65,7 +67,7 @@ bool init_CAN() {
       digitalWrite(se_pin, LOW);
     }
 
-    if (nativeIt->second.lowSpeed) {
+    if (nativeIt->second.halfSpeed) {
       CAN_cfg.speed = CAN_SPEED_250KBPS;
     } else {
       CAN_cfg.speed = CAN_SPEED_500KBPS;
@@ -104,7 +106,7 @@ bool init_CAN() {
     SPI2515.begin(sck_pin, miso_pin, mosi_pin);
 
     // CAN bit rate 250 or 500 kb/s
-    auto bitRate = addonIt->second.lowSpeed ? 250UL * 1000UL : 500UL * 1000UL;
+    auto bitRate = addonIt->second.halfSpeed ? 250UL * 1000UL : 500UL * 1000UL;
 
     settings2515 = new ACAN2515Settings(QUARTZ_FREQUENCY, bitRate);
     settings2515->mRequestedMode = ACAN2515Settings::NormalMode;
@@ -128,8 +130,8 @@ bool init_CAN() {
 
   if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end()) {
 
-    auto slow = (fdNativeIt != can_receivers.end() && fdNativeIt->second.lowSpeed) ||
-                (fdAddonIt != can_receivers.end() && fdAddonIt->second.lowSpeed);
+    auto slow = (fdNativeIt != can_receivers.end() && fdNativeIt->second.halfSpeed) ||
+                (fdAddonIt != can_receivers.end() && fdAddonIt->second.halfSpeed);
 
     auto cs_pin = esp32hal->MCP2517_CS();
     auto int_pin = esp32hal->MCP2517_INT();
@@ -201,6 +203,7 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface) {
 
   switch (interface) {
     case CAN_NATIVE:
+
       CAN_frame_t frame;
       frame.MsgID = tx_frame->ID;
       frame.FIR.B.FF = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;

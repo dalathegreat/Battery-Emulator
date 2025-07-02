@@ -54,7 +54,7 @@ String events_processor(const String& var) {
                      String(timestamp_now - event_pointer->timestamp) + "</div>");
       content.concat("<div>" + String(event_pointer->occurences) + "</div>");
       content.concat("<div>" + String(event_pointer->data) + "</div>");
-      content.concat("<div>" + String(get_event_message_string(event_handle)) + "</div>");
+      content.concat("<div>" + get_event_message_string(event_handle) + "</div>");
       content.concat("</div>");  // End of event row
     }
 

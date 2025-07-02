@@ -15,7 +15,7 @@ class RenaultKangooBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "Renault Kangoo";
+  static constexpr const char* Name = "Renault Kangoo";
 
  private:
   static const int MAX_PACK_VOLTAGE_DV = 4150;  //5000 = 500.0V

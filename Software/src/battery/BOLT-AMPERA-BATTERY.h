@@ -17,7 +17,7 @@ class BoltAmperaBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
-  static constexpr char* Name = "Chevrolet Bolt EV/Opel Ampera-e";
+  static constexpr const char* Name = "Chevrolet Bolt EV/Opel Ampera-e";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 

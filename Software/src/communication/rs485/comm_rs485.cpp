@@ -30,6 +30,8 @@ bool init_rs485() {
 
   // Inverters and batteries are expected to initialize their serial port in their setup-function
   // for RS485 or Modbus comms.
+
+  return true;
 }
 
 static std::list<Rs485Receiver*> receivers;

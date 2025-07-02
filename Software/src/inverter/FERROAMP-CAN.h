@@ -15,7 +15,7 @@ class FerroampCanInverter : public CanInverterProtocol {
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
 
-  static constexpr char* Name = "Ferroamp Pylon battery over CAN bus";
+  static constexpr const char* Name = "Ferroamp Pylon battery over CAN bus";
 
  private:
   void send_system_data();

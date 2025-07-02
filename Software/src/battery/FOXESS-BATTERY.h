@@ -15,7 +15,7 @@ class FoxessBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "FoxESS HV2600/ECS4100 OEM battery";
+  static constexpr const char* Name = "FoxESS HV2600/ECS4100 OEM battery";
 
  private:
   static const int MAX_PACK_VOLTAGE_DV = 4672;  //467.2V for HS20.8 (used during startup, refined later)

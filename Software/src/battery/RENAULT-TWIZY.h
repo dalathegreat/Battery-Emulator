@@ -13,7 +13,7 @@ class RenaultTwizyBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "Renault Twizy";
+  static constexpr const char* Name = "Renault Twizy";
 
  private:
   static const int MAX_PACK_VOLTAGE_DV = 579;  // 57.9V at 100% SOC (with 70% SOH, new one might be higher)

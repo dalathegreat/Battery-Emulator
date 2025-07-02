@@ -30,7 +30,7 @@ class ChademoBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
-  static constexpr char* Name = "Chademo V2X mode";
+  static constexpr const char* Name = "Chademo V2X mode";
 
  private:
   gpio_num_t pin2, pin10, pin4, pin7, pin_lock, precharge, positive_contactor;

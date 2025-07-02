@@ -16,6 +16,7 @@ void init_stored_settings() {
   // Always get the equipment stop status
   datalayer.system.settings.equipment_stop_active = settings.getBool("EQUIPMENT_STOP", false);
   if (datalayer.system.settings.equipment_stop_active) {
+    DEBUG_PRINTF("Equipment stop status set in boot.");
     set_event(EVENT_EQUIPMENT_STOP, 1);
   }
 

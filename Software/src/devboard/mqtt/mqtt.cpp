@@ -415,7 +415,7 @@ bool publish_events() {
       doc["severity"] = String(get_event_level_string(event_handle));
       doc["count"] = String(event_pointer->occurences);
       doc["data"] = String(event_pointer->data);
-      doc["message"] = String(get_event_message_string(event_handle));
+      doc["message"] = get_event_message_string(event_handle);
       doc["millis"] = String(event_pointer->timestamp);
 
       serializeJson(doc, mqtt_msg);

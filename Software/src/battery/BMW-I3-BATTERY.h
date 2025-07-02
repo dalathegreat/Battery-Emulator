@@ -38,7 +38,7 @@ class BmwI3Battery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "BMW i3";
+  static constexpr const char* Name = "BMW i3";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 

@@ -15,7 +15,7 @@ class SonoBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "Sono Motors Sion 64kWh LFP ";
+  static constexpr const char* Name = "Sono Motors Sion 64kWh LFP ";
 
  private:
   static const int MAX_PACK_VOLTAGE_DV = 5000;  //5000 = 500.0V
