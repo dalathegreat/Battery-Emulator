@@ -289,7 +289,7 @@ String settings_processor(const String& var) {
         "updatePassword?value='+encodeURIComponent(value),true);xhr.send();}}";
     content +=
         "function editSofarID(){var value=prompt('For double battery setups. Which battery ID should this emulator "
-        "send? Enter new value between "
+        "send? Remember to reboot after configuring this! Enter new value between "
         "(0-15):');if(value!==null){if(value>=0&&value<=15){var xhr=new "
         "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
         "updateSofarID?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 "
