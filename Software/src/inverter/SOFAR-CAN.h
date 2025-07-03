@@ -19,8 +19,8 @@ class SofarInverter : public CanInverterProtocol {
  private:
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   uint8_t battery_index = 0;            // Predefined battery ID (0–15)
-  uint16_t BatteryCapacity_Ah = 180;
-  const char* BatteryType = "BAT-EMU";
+  uint16_t calculated_capacity_AH = 0;  // Pack Capacity in AH (Updates based on battery stats)
+  const char* BatteryType = "BATxEMU";  // Manufacturer name in ASCII
 
   //Actual content messages
   //Note that these are technically extended frames. If more batteries are put in parallel,the first battery sends 0x351 the next battery sends 0x1351 etc. 16 batteries in parallel supported

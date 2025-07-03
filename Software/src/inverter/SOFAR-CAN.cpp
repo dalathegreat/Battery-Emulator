@@ -33,6 +33,17 @@ void SofarInverter::
   SOFAR_356.data.u8[4] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
   SOFAR_356.data.u8[5] = (datalayer.battery.status.temperature_max_dC >> 8);
 
+  // frame 0x35E – Manufacturer Name ASCII
+  memset(SOFAR_35E.data.u8, 0, 8);
+  strncpy((char*)SOFAR_35E.data.u8, BatteryType, 8);
+
+  //Gets automatically rescaled with SOC scaling. Calculated with max design voltage, better would be to calculate with nominal voltage
+  calculated_capacity_AH =
+      (datalayer.battery.info.reported_total_capacity_Wh / (datalayer.battery.info.max_design_voltage_dV * 0.1));
+  //Battery Nominal Capacity
+  SOFAR_35F.data.u8[4] = calculated_capacity_AH & 0x00FF;
+  SOFAR_35F.data.u8[5] = (calculated_capacity_AH >> 8);
+
   // Charge and discharge consent dependent on SoC with hysteresis at 99% soc
   //SoC deception only to CAN (we do not touch datalayer)
   uint16_t spoofed_soc = datalayer.battery.status.reported_soc;
@@ -56,7 +67,7 @@ void SofarInverter::
     enable_flags = 0x03;  // Both charge and discharge allowed
   }
 
-  // Ramka 0x30F – operation mode
+  // Frame 0x30F – operation mode
   SOFAR_30F.data.u8[0] = 0x00;  // Normal mode
   SOFAR_30F.data.u8[1] = enable_flags;
 }
