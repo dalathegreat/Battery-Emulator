@@ -6,16 +6,23 @@
 
 #ifdef CHADEMO_PIN_2  // Only support chademo for certain platforms
 
-/* CHADEMO handling runs at 6.25 times the rate of most other code, so, rather than the
- *  default value of 12 (for 12 iterations of the 5s value update loop) * 5 for a 60s timeout,
- *  instead use 75 for 75*0.8s = 60s
- */
-#undef CAN_STILL_ALIVE
-#define CAN_STILL_ALIVE 75
-//#define CH_CAN_DEBUG
-
 //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 void ChademoBattery::update_values() {
+
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  //On this integration, we don't care if no CAN messages flow (normal before user plugs in)
+  //Always write the CAN as alive!
+
+  //Check if user is requesting an action, if so, have statemachine jump there
+  if (datalayer_extended.chademo.UserRequestStop) {
+    CHADEMO_Status = CHADEMO_STOP;
+    datalayer_extended.chademo.UserRequestStop = false;
+  }
+
+  if (datalayer_extended.chademo.UserRequestRestart) {
+    CHADEMO_Status = CHADEMO_IDLE;
+    datalayer_extended.chademo.UserRequestRestart = false;
+  }
 
   datalayer.battery.status.real_soc = x102_chg_session.StateOfCharge * 100;  //Convert % to pptt
 
@@ -49,6 +56,15 @@ void ChademoBattery::update_values() {
       chargingrate = x102_chg_session.StateOfCharge / x100_chg_lim.ConstantOfChargingRateIndication * 100;
     }
   }
+
+  //Update extended datalayer for easier visualization of what's going on
+  datalayer_extended.chademo.CHADEMO_Status = CHADEMO_Status;
+  datalayer_extended.chademo.ControlProtocolNumberEV = x102_chg_session.ControlProtocolNumberEV;
+  datalayer_extended.chademo.FaultBatteryVoltageDeviation = x102_chg_session.f.fault.FaultBatteryVoltageDeviation;
+  datalayer_extended.chademo.FaultHighBatteryTemperature = x102_chg_session.f.fault.FaultHighBatteryTemperature;
+  datalayer_extended.chademo.FaultBatteryCurrentDeviation = x102_chg_session.f.fault.FaultBatteryCurrentDeviation;
+  datalayer_extended.chademo.FaultBatteryUnderVoltage = x102_chg_session.f.fault.FaultBatteryUnderVoltage;
+  datalayer_extended.chademo.FaultBatteryOverVoltage = x102_chg_session.f.fault.FaultBatteryOverVoltage;
 }
 
 //TODO simplified start/stop helper functions
@@ -278,19 +294,6 @@ void ChademoBattery::process_vehicle_vendor_ID(CAN_frame rx_frame) {
 }
 
 void ChademoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-#ifdef CH_CAN_DEBUG
-  logging.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
-  logging.print("  ");
-  logging.print(rx_frame.ID, HEX);
-  logging.print("  ");
-  logging.print(rx_frame.DLC);
-  logging.print("  ");
-  for (int i = 0; i < rx_frame.DLC; ++i) {
-    logging.print(rx_frame.data.u8[i], HEX);
-    logging.print(" ");
-  }
-  logging.println("");
-#endif
 
   // CHADEMO coexists with a CAN-based shunt. Only process CHADEMO-specific IDs
   // 202 is unknown
@@ -303,9 +306,6 @@ void ChademoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   /*  CHADEMO_INIT state is a transient, used to indicate when CAN
    *  has not yet been receied from a vehicle 
    */
-
-  datalayer.battery.status.CAN_battery_still_alive =
-      CAN_STILL_ALIVE;  //We are getting CAN messages from the vehicle, inform the watchdog
 
   switch (rx_frame.ID) {
     case 0x100:
