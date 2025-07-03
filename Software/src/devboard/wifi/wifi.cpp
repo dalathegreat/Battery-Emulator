@@ -186,7 +186,7 @@ void init_mDNS() {
   // e.g batteryemulator8C.local where the mac address is 08:F9:E0:D1:06:8C
   String mac = WiFi.macAddress();
   String mdnsHost = "batteryemulator" + mac.substring(mac.length() - 2);
-#ifdef HOSTNAME // If HOSTNAME is defined, use the same hostname from USER_SETTINGS.h also for mDNS
+#ifdef HOSTNAME  // If HOSTNAME is defined, use the same hostname from USER_SETTINGS.h also for mDNS
   mdnsHost = hostname;
 #endif
 
