@@ -70,6 +70,10 @@ void init_stored_settings() {
     datalayer.battery.settings.max_user_set_discharge_voltage_dV = temp;
   }
   datalayer.battery.settings.user_set_voltage_limits_active = settings.getBool("USEVOLTLIMITS", false);
+  temp = settings.getUInt("SOFAR_ID", false);
+  if (temp < 16) {
+    datalayer.battery.settings.sofar_user_specified_battery_id = temp;
+  }
 
 #ifdef COMMON_IMAGE
   user_selected_battery_type = (BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None);
@@ -134,6 +138,9 @@ void store_settings() {
   }
   if (!settings.putUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 11);
+  }
+  if (!settings.putUInt("SOFAR_ID", datalayer.battery.settings.sofar_user_specified_battery_id)) {
+    set_event(EVENT_PERSISTENT_SAVE_INFO, 12);
   }
 
   settings.end();  // Close preferences handle

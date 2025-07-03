@@ -162,6 +162,9 @@ typedef struct {
   /* Maximum voltage for entire battery pack during forced balancing */
   uint16_t balancing_max_pack_voltage_dV = 3940;
 
+  /** Sofar CAN Battery ID (0-15) used to parallel multiple packs */
+  uint8_t sofar_user_specified_battery_id = 0;
+
 } DATALAYER_BATTERY_SETTINGS_TYPE;
 
 typedef struct {
