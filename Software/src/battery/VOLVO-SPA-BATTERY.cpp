@@ -102,8 +102,6 @@ void VolvoSpaBattery::
   logging.println(MAX_U);
   logging.print("Battery minimum voltage limit: ");
   logging.println(MIN_U);
-  logging.print("Remaining Energy: ");
-  logging.println(remaining_capacity);
   logging.print("Discharge limit: ");
   logging.println(HvBattPwrLimDchaSoft);
   logging.print("Battery Error Indication: ");

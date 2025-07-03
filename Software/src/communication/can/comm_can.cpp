@@ -2,6 +2,24 @@
 #include <map>
 #include "../../include.h"
 #include "src/devboard/sdcard/sdcard.h"
+#include "src/devboard/utils/logging.h"
+
+struct CanReceiverRegistration {
+  CanReceiver* receiver;
+  bool halfSpeed;
+};
+
+static std::multimap<CAN_Interface, CanReceiverRegistration> can_receivers;
+
+bool hasHalfSpeedReceivers(const CAN_Interface& iface) {
+  auto range = can_receivers.equal_range(iface);
+  for (auto it = range.first; it != range.second; ++it) {
+    if (it->second.halfSpeed) {
+      return true;
+    }
+  }
+  return false;
+}
 
 // Parameters
 CAN_device_t CAN_cfg;              // CAN Config
@@ -27,20 +45,24 @@ ACAN2517FD canfd(MCP2517_CS, SPI2517, MCP2517_INT);
 // Initialization functions
 
 void init_CAN() {
+  DEBUG_PRINTF("init_CAN called\n");
 // CAN pins
 #ifdef CAN_SE_PIN
   pinMode(CAN_SE_PIN, OUTPUT);
   digitalWrite(CAN_SE_PIN, LOW);
 #endif  // CAN_SE_PIN
-  CAN_cfg.speed = CAN_SPEED_500KBPS;
-#ifdef NATIVECAN_250KBPS  // Some component is requesting lower CAN speed
-  CAN_cfg.speed = CAN_SPEED_250KBPS;
-#endif  // NATIVECAN_250KBPS
+
+  // Half-speed currently only supported for CAN_NATIVE
+  auto anyHalfSpeedNative = hasHalfSpeedReceivers(CAN_Interface::CAN_NATIVE);
+
+  CAN_cfg.speed = anyHalfSpeedNative ? CAN_SPEED_250KBPS : CAN_SPEED_500KBPS;
   CAN_cfg.tx_pin_id = CAN_TX_PIN;
   CAN_cfg.rx_pin_id = CAN_RX_PIN;
   CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
   // Init CAN Module
   ESP32Can.CANInit();
+
+  DEBUG_PRINTF("init_CAN performed\n");
 
 #ifdef CAN_ADDON
 #ifdef DEBUG_LOG
@@ -119,6 +141,7 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface) {
 
   switch (interface) {
     case CAN_NATIVE:
+
       CAN_frame_t frame;
       frame.MsgID = tx_frame->ID;
       frame.FIR.B.FF = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
@@ -276,10 +299,9 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
   }
 }
 
-static std::multimap<CAN_Interface, CanReceiver*> can_receivers;
-
-void register_can_receiver(CanReceiver* receiver, CAN_Interface interface) {
-  can_receivers.insert({interface, receiver});
+void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, bool halfSpeed) {
+  can_receivers.insert({interface, {receiver, halfSpeed}});
+  DEBUG_PRINTF("CAN receiver registered, total: %d\n", can_receivers.size());
 }
 
 void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
@@ -302,7 +324,7 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
 
   for (auto it = receivers.first; it != receivers.second; ++it) {
     auto& receiver = it->second;
-    receiver->receive_can_frame(rx_frame);
+    receiver.receiver->receive_can_frame(rx_frame);
   }
 }
 

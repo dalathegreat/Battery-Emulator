@@ -513,14 +513,14 @@ class TeslaModel3YBattery : public TeslaBattery {
     operate_contactors = true;
 #endif
   }
-  static constexpr char* Name = "Tesla Model 3/Y";
+  static constexpr const char* Name = "Tesla Model 3/Y";
   virtual void setup(void);
 };
 
 class TeslaModelSXBattery : public TeslaBattery {
  public:
   TeslaModelSXBattery() { operate_contactors = true; }
-  static constexpr char* Name = "Tesla Model S/X";
+  static constexpr const char* Name = "Tesla Model S/X";
   virtual void setup(void);
 };
 

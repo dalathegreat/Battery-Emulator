@@ -12,6 +12,15 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) {
        b->clear_isolation();
      }},
+    {"chademoRestart", "Restart", "restart the V2X session?",
+     [](Battery* b) { return b && b->supports_chademo_restart(); },
+     [](Battery* b) {
+       b->chademo_restart();
+     }},
+    {"chademoStop", "Stop", "stop V2X?", [](Battery* b) { return b && b->supports_chademo_restart(); },
+     [](Battery* b) {
+       b->chademo_restart();
+     }},
     {"resetBMS", "BMS reset", "reset the BMS?", [](Battery* b) { return b && b->supports_reset_BMS(); },
      [](Battery* b) {
        b->reset_BMS();

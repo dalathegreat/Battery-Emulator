@@ -15,7 +15,7 @@ class RangeRoverPhevBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "Range Rover 13kWh PHEV battery (L494/L405)";
+  static constexpr const char* Name = "Range Rover 13kWh PHEV battery (L494/L405)";
 
  private:
   /* Change the following to suit your battery */

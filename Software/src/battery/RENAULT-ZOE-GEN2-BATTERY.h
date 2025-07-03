@@ -11,11 +11,28 @@
 
 class RenaultZoeGen2Battery : public CanBattery {
  public:
+  // Use this constructor for the second battery.
+  RenaultZoeGen2Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_ZOE_PH2* extended,
+                        CAN_Interface targetCan)
+      : CanBattery(targetCan) {
+    datalayer_battery = datalayer_ptr;
+    allows_contactor_closing = nullptr;
+    datalayer_zoePH2 = extended;
+
+    battery_pack_voltage = 0;
+  }
+
+  // Use the default constructor to create the first or single battery.
+  RenaultZoeGen2Battery() {
+    datalayer_battery = &datalayer.battery;
+    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+    datalayer_zoePH2 = &datalayer_extended.zoePH2;
+  }
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "Renault Zoe Gen2 50kWh";
+  static constexpr const char* Name = "Renault Zoe Gen2 50kWh";
 
   bool supports_reset_NVROL() { return true; }
 
@@ -25,6 +42,13 @@ class RenaultZoeGen2Battery : public CanBattery {
 
  private:
   RenaultZoeGen2HtmlRenderer renderer;
+
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+  DATALAYER_INFO_ZOE_PH2* datalayer_zoePH2;
+
+  // If not null, this battery decides when the contactor can be closed and writes the value here.
+  bool* allows_contactor_closing;
+
   static const int MAX_PACK_VOLTAGE_DV = 4100;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 3000;
   static const int MAX_CELL_DEVIATION_MV = 150;
@@ -174,7 +198,7 @@ class RenaultZoeGen2Battery : public CanBattery {
   uint16_t battery_soc = 0;
   uint16_t battery_usable_soc = 5000;
   uint16_t battery_soh = 10000;
-  uint16_t battery_pack_voltage = 370;
+  uint16_t battery_pack_voltage = 3700;
   uint16_t battery_max_cell_voltage = 3700;
   uint16_t battery_min_cell_voltage = 3700;
   uint16_t battery_12v = 12000;

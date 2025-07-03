@@ -16,7 +16,7 @@ class EcmpBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "Stellantis ECMP battery";
+  static constexpr const char* Name = "Stellantis ECMP battery";
 
   bool supports_clear_isolation() { return true; }
   void clear_isolation() { datalayer_extended.stellantisECMP.UserRequestIsolationReset = true; }
