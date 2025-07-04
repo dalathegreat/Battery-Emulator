@@ -125,48 +125,6 @@ typedef struct {
 } DATALAYER_INFO_BMWPHEV;
 
 typedef struct {
-  /** uint16_t */
-  /** SOC% raw battery value. Might not always reach 100% */
-  uint16_t SOC_raw = 0;
-  /** uint16_t */
-  /** SOC% instrumentation cluster value. Will always reach 100% */
-  uint16_t SOC_dash = 0;
-  /** uint16_t */
-  /** SOC% OBD2 value, polled actively */
-  uint16_t SOC_OBD2 = 0;
-  /** uint8_t */
-  /** Status isolation external, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal*/
-  uint8_t ST_iso_ext = 0;
-  /** uint8_t */
-  /** Status isolation external, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal*/
-  uint8_t ST_iso_int = 0;
-  /** uint8_t */
-  /** Status cooling valve error, 0 not evaluated, 1 OK valve closed, 2 error active valve open, 3 Invalid signal*/
-  uint8_t ST_valve_cooling = 0;
-  /** uint8_t */
-  /** Status interlock error, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal*/
-  uint8_t ST_interlock = 0;
-  /** uint8_t */
-  /** Status precharge, 0 no statement, 1 Not active closing not blocked, 2 error precharge blocked, 3 Invalid signal*/
-  uint8_t ST_precharge = 0;
-  /** uint8_t */
-  /** Status DC switch, 0 contactors open, 1 precharge ongoing, 2 contactors engaged, 3 Invalid signal*/
-  uint8_t ST_DCSW = 0;
-  /** uint8_t */
-  /** Status emergency, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal*/
-  uint8_t ST_EMG = 0;
-  /** uint8_t */
-  /** Status welding detection, 0 Contactors OK, 1 One contactor welded, 2 Two contactors welded, 3 Invalid signal*/
-  uint8_t ST_WELD = 0;
-  /** uint8_t */
-  /** Status isolation, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal*/
-  uint8_t ST_isolation = 0;
-  /** uint8_t */
-  /** Status cold shutoff valve, 0 OK, 1 Short circuit to GND, 2 Short circuit to 12V, 3 Line break, 6 Driver error, 12 Stuck, 13 Stuck, 15 Invalid Signal*/
-  uint8_t ST_cold_shutoff_valve = 0;
-} DATALAYER_INFO_BMWI3;
-
-typedef struct {
   /** bool */
   /** User requesting crash reset via WebUI*/
   bool UserRequestCrashReset = false;
@@ -895,7 +853,6 @@ class DataLayerExtended {
   DATALAYER_INFO_BOLTAMPERA boltampera;
   DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BMWPHEV bmwphev;
-  DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
   DATALAYER_INFO_CELLPOWER cellpower;
   DATALAYER_INFO_CHADEMO chademo;
