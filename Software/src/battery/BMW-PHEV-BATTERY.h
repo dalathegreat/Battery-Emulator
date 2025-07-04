@@ -5,8 +5,9 @@
 #include "BMW-PHEV-HTML.h"
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef BMW_PHEV_BATTERY
 #define SELECTED_BATTERY_CLASS BmwPhevBattery
+#endif
 
 class BmwPhevBattery : public CanBattery {
  public:

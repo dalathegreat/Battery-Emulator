@@ -89,10 +89,6 @@ void setup() {
                           &logging_loop_task, WIFI_CORE);
 #endif
 
-  init_CAN();
-
-  init_contactors();
-
 #ifdef PRECHARGE_CONTROL
   init_precharge_control();
 #endif  // PRECHARGE_CONTROL
@@ -100,6 +96,12 @@ void setup() {
   setup_charger();
   setup_inverter();
   setup_battery();
+  setup_can_shunt();
+
+  // Init CAN only after any CAN receivers have had a chance to register.
+  init_CAN();
+
+  init_contactors();
 
   init_rs485();
 
@@ -107,7 +109,6 @@ void setup() {
   init_equipment_stop_button();
 #endif
 
-  setup_can_shunt();
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 
@@ -123,6 +124,8 @@ void setup() {
   // Start tasks
 
 #ifdef MQTT
+  init_mqtt();
+
   xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
                           WIFI_CORE);
 #endif
@@ -137,6 +140,8 @@ void setup() {
     set_event(EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS, 0);
   }
 #endif
+
+  DEBUG_PRINTF("setup() complete\n");
 }
 
 // Loop empty, all functionality runs in tasks
@@ -191,8 +196,6 @@ void connectivity_loop(void*) {
 void mqtt_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
 
-  init_mqtt();
-
   while (true) {
     START_TIME_MEASUREMENT(mqtt);
     mqtt_loop();
@@ -207,6 +210,7 @@ static std::list<Transmitter*> transmitters;
 
 void register_transmitter(Transmitter* transmitter) {
   transmitters.push_back(transmitter);
+  DEBUG_PRINTF("transmitter registered, total: %d\n", transmitters.size());
 }
 
 void core_loop(void*) {

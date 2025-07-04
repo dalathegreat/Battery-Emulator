@@ -7,15 +7,9 @@
 #include "CanBattery.h"
 #include "NISSAN-LEAF-HTML.h"
 
-#define BATTERY_SELECTED
+#ifdef NISSAN_LEAF_BATTERY
 #define SELECTED_BATTERY_CLASS NissanLeafBattery
-#define EXTENDED_DATA_PTR (&datalayer_extended.nissanleaf)
-
-#define MAX_PACK_VOLTAGE_DV 4040  //5000 = 500.0V
-#define MIN_PACK_VOLTAGE_DV 2600
-#define MAX_CELL_DEVIATION_MV 150
-#define MAX_CELL_VOLTAGE_MV 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
+#endif
 
 class NissanLeafBattery : public CanBattery {
  public:
@@ -52,8 +46,15 @@ class NissanLeafBattery : public CanBattery {
   }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+  static constexpr const char* Name = "Nissan LEAF battery";
 
  private:
+  static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
+  static const int MIN_PACK_VOLTAGE_DV = 2600;
+  static const int MAX_CELL_DEVIATION_MV = 150;
+  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
+  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+
   NissanLeafHtmlRenderer renderer;
 
   bool is_message_corrupt(CAN_frame rx_frame);

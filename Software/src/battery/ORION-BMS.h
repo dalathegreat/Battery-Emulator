@@ -5,8 +5,9 @@
 
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef ORION_BMS
 #define SELECTED_BATTERY_CLASS OrionBms
+#endif
 
 class OrionBms : public CanBattery {
  public:
@@ -14,6 +15,7 @@ class OrionBms : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr const char* Name = "DIY battery with Orion BMS (Victron setting)";
 
  private:
   /* Change the following to suit your battery */

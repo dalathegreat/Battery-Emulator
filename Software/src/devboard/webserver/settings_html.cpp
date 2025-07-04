@@ -1,8 +1,71 @@
 #include "settings_html.h"
 #include <Arduino.h>
+#include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../charger/CHARGERS.h"
+#include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
 #include "../../include.h"
+
+extern bool settingsUpdated;
+
+template <typename E>
+constexpr auto to_underlying(E e) noexcept {
+  return static_cast<std::underlying_type_t<E>>(e);
+}
+
+template <typename EnumType>
+std::vector<EnumType> enum_values() {
+  static_assert(std::is_enum_v<EnumType>, "Template argument must be an enum type.");
+
+  constexpr auto count = to_underlying(EnumType::Highest);
+  std::vector<EnumType> values;
+  for (int i = 1; i < count; ++i) {
+    values.push_back(static_cast<EnumType>(i));
+  }
+  return values;
+}
+
+template <typename EnumType, typename Func>
+std::vector<std::pair<String, EnumType>> enum_values_and_names(Func name_for_type) {
+  auto values = enum_values<EnumType>();
+
+  std::vector<std::pair<String, EnumType>> pairs;
+
+  for (auto& type : values) {
+    auto name = name_for_type(type);
+    if (name != nullptr) {
+      pairs.push_back(std::pair(String(name), type));
+    }
+  }
+
+  std::sort(pairs.begin(), pairs.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+
+  pairs.insert(pairs.begin(), std::pair(name_for_type(EnumType::None), EnumType::None));
+
+  return pairs;
+}
+
+template <typename TEnum, typename Func>
+String options_for_enum(TEnum selected, Func name_for_type) {
+  String options;
+  auto values = enum_values_and_names<TEnum>(name_for_type);
+  for (const auto& [name, type] : values) {
+    options +=
+        ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">");
+    options += name;
+    options += "</option>";
+  }
+  return options;
+}
+
+void render_checkbox(String& content, const char* label, bool enabled, const char* name) {
+  content += "<label>" + String(label) + "</label>";
+  content += "<input id='" + String(name) + "' name='" + String(name) +
+             "' type='checkbox' "
+             "style=\"margin-left: 0;\"";
+  content += (enabled ? " checked" : "");
+  content += " value='on'/>";
+}
 
 String settings_processor(const String& var) {
   if (var == "X") {
@@ -14,6 +77,7 @@ String settings_processor(const String& var) {
         "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
         "cursor: pointer; border-radius: 10px; }";
     content += "button:hover { background-color: #3A4A52; }";
+    content += "h4 { margin: 0.6em 0; line-height: 1.2; }";
     content += "</style>";
 
     content += "<button onclick='goToMainPage()'>Back to main page</button>";
@@ -27,11 +91,58 @@ String settings_processor(const String& var) {
         "<h4 style='color: white;'>Password: ######## <span id='Password'></span> <button "
         "onclick='editPassword()'>Edit</button></h4>";
 
+#ifdef COMMON_IMAGE
+    BatteryEmulatorSettingsStore settings;
+
+    // It's important that we read/write settings directly to settings store instead of the run-time values
+    // since the run-time values may have direct effect on operation.
     content +=
-        "<h4 style='color: white;'>Battery interface: <span id='Battery'>" + battery->interface_name() + "</span></h4>";
+        "<div style='background-color: #404E47; padding: 10px; margin-bottom: 10px;border-radius: 50px;'><div "
+        "style='max-width: 500px;'>";
+    content +=
+        "<form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 2fr; gap: 10px; "
+        "align-items: center;'>";
+    content += "<label>Battery: </label><select style='max-width: 250px;' name='battery'>";
+
+    content +=
+        options_for_enum((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None), name_for_battery_type);
+    content += "</select>";
+    content += "<label>Inverter protocol: </label><select style='max-width: 250px;' name='inverter'>";
+    content += options_for_enum((InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None),
+                                name_for_inverter_type);
+    content += "</select>";
+    content += "<label>Charger: </label><select style='max-width: 250px;' name='charger'>";
+    content +=
+        options_for_enum((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None), name_for_charger_type);
+    content += "</select>";
+
+    // TODO: Generalize settings: define settings in one place and use the definitions to render
+    // UI and handle load/save
+    render_checkbox(content, "Double battery", settings.getBool("DBLBTR"), "DBLBTR");
+    render_checkbox(content, "Contactor control", settings.getBool("CNTCTRL"), "CNTCTRL");
+    render_checkbox(content, "Contactor control double battery", settings.getBool("CNTCTRLDBL"), "CNTCTRLDBL");
+    render_checkbox(content, "PWM contactor control", settings.getBool("PWMCNTCTRL"), "PWMCNTCTRL");
+    render_checkbox(content, "Periodic BMS reset", settings.getBool("PERBMSRESET"), "PERBMSRESET");
+    render_checkbox(content, "Remote BMS reset", settings.getBool("REMBMSRESET"), "REMBMSRESET");
+
+    content +=
+        "<div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button "
+        "type='submit'>Save</button></div>";
+
+    if (settingsUpdated) {
+      content += "<p>Settings saved. Reboot to take the settings into use.</p>";
+    }
+
+    content += "</form></div></div>";
+#endif
+
+    if (battery) {
+      content += "<h4 style='color: white;'>Battery interface: <span id='Battery'>" + battery->interface_name() +
+                 "</span></h4>";
+    }
 
     if (battery2) {
-      content += "<h4 style='color: white;'>Battery #2 interface: <span id='Battery'>" + battery->interface_name() +
+      content += "<h4 style='color: white;'>Battery #2 interface: <span id='Battery'>" + battery2->interface_name() +
                  "</span></h4>";
     }
 
@@ -40,10 +151,10 @@ String settings_processor(const String& var) {
                  String(inverter->interface_name()) + "</span></h4>";
     }
 
-#ifdef CAN_SHUNT_SELECTED
-    content += "<h4 style='color: white;'>Shunt Interface: <span id='Shunt'>" +
-               String(getCANInterfaceName(can_config.shunt)) + "</span></h4>";
-#endif  //CAN_SHUNT_SELECTED
+    if (shunt) {
+      content +=
+          "<h4 style='color: white;'>Shunt Interface: <span id='Shunt'>" + shunt->interface_name() + "</span></h4>";
+    }
 
     // Close the block
     content += "</div>";
@@ -89,14 +200,14 @@ String settings_processor(const String& var) {
     // Close the block
     content += "</div>";
 
-    if (battery->supports_set_fake_voltage()) {
+    if (battery && battery->supports_set_fake_voltage()) {
       content += "<div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
       content += "<h4 style='color: white;'>Fake battery voltage: " + String(battery->get_voltage(), 1) +
                  " V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>";
       content += "</div>";
     }
 
-    if (battery->supports_manual_balancing()) {
+    if (battery && battery->supports_manual_balancing()) {
       // Start a new block with grey background color
       content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
@@ -281,7 +392,7 @@ String settings_processor(const String& var) {
         "BalMaxDevCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value "
         "between 300 and 600');}}}";
 
-    if (battery->supports_set_fake_voltage()) {
+    if (battery && battery->supports_set_fake_voltage()) {
       content +=
           "function editFakeBatteryVoltage(){var value=prompt('Enter new fake battery "
           "voltage');if(value!==null){if(value>=0&&value<=5000){var xhr=new "

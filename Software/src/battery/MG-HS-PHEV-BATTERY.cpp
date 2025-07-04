@@ -9,6 +9,11 @@
 - Get contactor closing working
 - Figure out which CAN messages need to be sent towards the battery to keep it alive
 - Map all values from battery CAN messages
+- Note: Charge power/discharge power is estimated for now
+
+# row3 pin2 needs strobing to 12V (via a 1k) to wake up the BMU
+# but contactor won't come on until deasserted
+# BMU goes to sleep after after ~18s of no CAN
 */
 
 void MgHsPHEVBattery::
@@ -34,10 +39,9 @@ void MgHsPHEVBattery::
 }
 
 void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x171:  //Following messages were detected on a MG5 battery BMS
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x172:
       break;
@@ -50,13 +54,14 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x297:
       break;
     case 0x29B:  //This ID is on the MG HS RX WITHOUT ANY TX PRESENT
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x29C:
       break;
     case 0x2A0:
       break;
     case 0x2A2:  //This ID is on the MG HS RX WITHOUT ANY TX PRESENT
-                 //	print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x322:
       break;
@@ -65,12 +70,15 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x33F:
       break;
     case 0x391:  //This ID is on the MG HS RX WITHOUT ANY TX PRESENT
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x393:
       break;
     case 0x3AB:  //This ID is on the MG HS RX WITHOUT ANY TX PRESENT
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x3AC:  //This ID is on the MG HS RX WITHOUT ANY TX PRESENT
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x3B8:
       break;
@@ -83,6 +91,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x3C0:
       break;
     case 0x3C2:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x400:
       break;
@@ -91,23 +100,18 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x418:
       break;
     case 0x44C:  //This ID is on the MG HS RX WITHOUT ANY TX PRESENT
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x620:
       break;     //This is the last on the list in the MG5 template.
     case 0x3a8:  //This ID is on the MG HS RX WITHOUT ANY TX PRESENT
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x508:  //This ID is a new one MG HS RX WHEN TRANSMITTING 03 22 B0 41 00 00 00 00. Rx data is 00 00 00 00 00 00 00 00
-                 //	print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x7ED:  //This ID is the battery BMS.
-                 //	Serial.print(rx_frame.data.u8[1], HEX);
-                 //	Serial.print(rx_frame.data.u8[1], DEC);
-
-      //Print CAN frames where they are valid
-      if (rx_frame.data.u8[1] != 0x7F) {
-        //		print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
-      }
-
+    case 0x7ED:  //This ID is the battery BMS
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //Process rx data for incoming responses to "Read data by ID" Tx
       if (rx_frame.data.u8[1] == 0x62) {
         if (rx_frame.data.u8[2] == 0xB0) {                                   //Battery information
@@ -155,18 +159,6 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             //				datalayer.battery.status.PARAMETER = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
             //				Serial.print ("Battery error = ");
             //				Serial.println (datalayer.battery.status.PARAMETER);
-            if (rx_frame.data.u8[4] !=
-                0x04) {  //Frame has changed from the persistent state of 0x04. It looks like we had 0x05 when first logged and now 0x04
-              Serial.print(byteB0);
-              Serial.print(byteB1);
-              Serial.print(byteB2);
-              Serial.print(byteB3);
-              Serial.print(byteB4);
-              Serial.print(byteB5);
-              Serial.print(byteB6);
-              Serial.println(byteB7);
-              print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
-            }
           }
 
           if (rx_frame.data.u8[3] == 0x48) {  //    && rx_frame.data.u8[0] == 0x05) {	   // BMS status code
@@ -175,17 +167,6 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             //				datalayer.battery.status.PARAMETER = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
             //				Serial.print ("Battery Status = ");
             //				Serial.println (datalayer.battery.status.PARAMETER);
-            if (rx_frame.data.u8[4] != 0x0F) {  //Frame has changed from the persistent state of 0x0F
-              Serial.print(byteB0);
-              Serial.print(byteB1);
-              Serial.print(byteB2);
-              Serial.print(byteB3);
-              Serial.print(byteB4);
-              Serial.print(byteB5);
-              Serial.print(byteB6);
-              Serial.println(byteB7);
-              print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
-            }
           }
 
           if (rx_frame.data.u8[3] == 0x49) {  //    && rx_frame.data.u8[0] == 0x05) {	   // System main relay B status
@@ -194,17 +175,6 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             //				datalayer.battery.status.PARAMETER = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
             //				Serial.print ("Main relay B status = ");
             //				Serial.println (datalayer.battery.status.PARAMETER);
-            if (rx_frame.data.u8[4] != 0x01) {  //Frame has changed from the persistent state of 0x01
-              Serial.print(byteB0);
-              Serial.print(byteB1);
-              Serial.print(byteB2);
-              Serial.print(byteB3);
-              Serial.print(byteB4);
-              Serial.print(byteB5);
-              Serial.print(byteB6);
-              Serial.println(byteB7);
-              print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
-            }
           }
 
           if (rx_frame.data.u8[3] == 0x4A) {  //    && rx_frame.data.u8[0] == 0x05) {	   // System main relay G status
@@ -213,17 +183,6 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             //				datalayer.battery.status.PARAMETER = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
             //				Serial.print ("Main relay G status = ");
             //				Serial.println (datalayer.battery.status.PARAMETER);
-            if (rx_frame.data.u8[4] != 0x01) {  //Frame has changed from the persistent state of 0x01
-              Serial.print(byteB0);
-              Serial.print(byteB1);
-              Serial.print(byteB2);
-              Serial.print(byteB3);
-              Serial.print(byteB4);
-              Serial.print(byteB5);
-              Serial.print(byteB6);
-              Serial.println(byteB7);
-              print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
-            }
           }
 
           if (rx_frame.data.u8[3] == 0x52) {  //    && rx_frame.data.u8[0] == 0x05) {	   // System main relay P status
@@ -232,17 +191,6 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             //				datalayer.battery.status.PARAMETER = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
             //				Serial.print ("BMain relay P status = ");
             //				Serial.println (datalayer.battery.status.PARAMETER);
-            if (rx_frame.data.u8[4] != 0x00) {  //Frame has changed from the persistent state of 0x00
-              Serial.print(byteB0);
-              Serial.print(byteB1);
-              Serial.print(byteB2);
-              Serial.print(byteB3);
-              Serial.print(byteB4);
-              Serial.print(byteB5);
-              Serial.print(byteB6);
-              Serial.println(byteB7);
-              print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
-            }
           }
 
           if (rx_frame.data.u8[3] == 0x56 && rx_frame.data.u8[0] == 0x05) {  // Max cell temperature
@@ -333,22 +281,77 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
-  //Send 10ms message
-  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
-    previousMillis10 = currentMillis;
+  // Send 70ms CAN Message
+  if (currentMillis - previousMillis70 >= INTERVAL_70_MS) {
+    previousMillis70 = currentMillis;
 
-    //transmit_can_frame(&MG_5_100, can_config.battery);
-  }
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    previousMillis100 = currentMillis;
+    if (datalayer.battery.status.bms_status == FAULT) {
+      //Open contactors!
+      MG_HS_8A.data.u8[5] = 0x00;
+    } else {  // Not in faulted mode, Close contactors!
+      MG_HS_8A.data.u8[5] = 0x02;
+    }
 
-    //transmit_can_frame(&MG_5_100, can_config.battery);
+    transmit_can_frame(&MG_HS_8A, can_config.battery);
+    transmit_can_frame(&MG_HS_1F1, can_config.battery);
   }
+  // Send 200ms CAN Message
+  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+    previousMillis200 = currentMillis;
+
+    switch (messageindex) {
+      case 1:
+        transmit_can_frame(&MG_HS_7E5_B0_42, can_config.battery);  //Battery voltage
+        break;
+      case 2:
+        transmit_can_frame(&MG_HS_7E5_B0_43, can_config.battery);  //Battery current
+        break;
+      case 3:
+        transmit_can_frame(&MG_HS_7E5_B0_46, can_config.battery);  //Battery SoC
+        break;
+      case 4:
+        transmit_can_frame(&MG_HS_7E5_B0_47, can_config.battery);  // Get BMS error code
+        break;
+      case 5:
+        transmit_can_frame(&MG_HS_7E5_B0_48, can_config.battery);  // Get BMS status
+        break;
+      case 6:
+        transmit_can_frame(&MG_HS_7E5_B0_49, can_config.battery);  // Get System main relay B status
+        break;
+      case 7:
+        transmit_can_frame(&MG_HS_7E5_B0_4A, can_config.battery);  // Get System main relay G status
+        break;
+      case 8:
+        transmit_can_frame(&MG_HS_7E5_B0_52, can_config.battery);  // Get System main relay P status
+        break;
+      case 9:
+        transmit_can_frame(&MG_HS_7E5_B0_56, can_config.battery);  //Max cell temperature
+        break;
+      case 10:
+        transmit_can_frame(&MG_HS_7E5_B0_57, can_config.battery);  //Min cell temperature
+        break;
+      case 11:
+        transmit_can_frame(&MG_HS_7E5_B0_58, can_config.battery);  //Max cell voltage
+        break;
+      case 12:
+        transmit_can_frame(&MG_HS_7E5_B0_59, can_config.battery);  //Min cell voltage
+        break;
+      case 13:
+        transmit_can_frame(&MG_HS_7E5_B0_61, can_config.battery);  //Battery SoH
+        messageindex = 0;  //Return to the first message index. This goes in the last message entry
+        break;
+      default:
+        break;
+
+    }  //switch
+
+    messageindex++;  //Increment the message index
+
+  }  //endif
 }
 
 void MgHsPHEVBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "MG HS PHEV 16.6kWh battery", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;

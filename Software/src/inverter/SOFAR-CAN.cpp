@@ -68,6 +68,6 @@ void SofarInverter::transmit_can(unsigned long currentMillis) {
 }
 
 void SofarInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "Sofar BMS (Extended Frame) over CAN bus", 63);
+  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }

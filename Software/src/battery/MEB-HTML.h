@@ -20,119 +20,119 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>HVIL status: ";
     switch (datalayer_extended.meb.HVIL) {
       case 0:
-        content += String("Init");
+        content += "Init";
         break;
       case 1:
-        content += String("Closed");
+        content += "Closed";
         break;
       case 2:
-        content += String("Open!");
+        content += "Open!";
         break;
       case 3:
-        content += String("Fault");
+        content += "Fault";
         break;
       default:
-        content += String("?");
+        content += "?";
     }
     content += "</h4><h4>KL30C status: ";
     switch (datalayer_extended.meb.BMS_Kl30c_Status) {
       case 0:
-        content += String("Init");
+        content += "Init";
         break;
       case 1:
-        content += String("Closed");
+        content += "Closed";
         break;
       case 2:
-        content += String("Open!");
+        content += "Open!";
         break;
       case 3:
-        content += String("Fault");
+        content += "Fault";
         break;
       default:
-        content += String("?");
+        content += "?";
     }
     content += "</h4><h4>BMS mode: ";
     switch (datalayer_extended.meb.BMS_mode) {
       case 0:
-        content += String("HV inactive");
+        content += "HV inactive";
         break;
       case 1:
-        content += String("HV active");
+        content += "HV active";
         break;
       case 2:
-        content += String("Balancing");
+        content += "Balancing";
         break;
       case 3:
-        content += String("Extern charging");
+        content += "Extern charging";
         break;
       case 4:
-        content += String("AC charging");
+        content += "AC charging";
         break;
       case 5:
-        content += String("Battery error");
+        content += "Battery error";
         break;
       case 6:
-        content += String("DC charging");
+        content += "DC charging";
         break;
       case 7:
-        content += String("Init");
+        content += "Init";
         break;
       default:
-        content += String("?");
+        content += "?";
     }
     content += String("</h4><h4>Charging: ") + (datalayer_extended.meb.charging_active ? "active" : "not active");
     content += String("</h4><h4>Balancing: ");
     switch (datalayer_extended.meb.balancing_active) {
       case 0:
-        content += String("init");
+        content += "init";
         break;
       case 1:
-        content += String("active");
+        content += "active";
         break;
       case 2:
-        content += String("inactive");
+        content += "inactive";
         break;
       default:
-        content += String("?");
+        content += "?";
     }
     content +=
         String("</h4><h4>Slow charging: ") + (datalayer_extended.meb.balancing_request ? "requested" : "not requested");
     content += "</h4><h4>Diagnostic: ";
     switch (datalayer_extended.meb.battery_diagnostic) {
       case 0:
-        content += String("Init");
+        content += "Init";
         break;
       case 1:
-        content += String("Battery display");
+        content += "Battery display";
         break;
       case 4:
-        content += String("Battery display OK");
+        content += "Battery display OK";
         break;
       case 6:
-        content += String("Battery display check");
+        content += "Battery display check";
         break;
       case 7:
-        content += String("Fault");
+        content += "Fault";
         break;
       default:
-        content += String("?");
+        content += "?";
     }
     content += "</h4><h4>HV line status: ";
     switch (datalayer_extended.meb.status_HV_line) {
       case 0:
-        content += String("Init");
+        content += "Init";
         break;
       case 1:
-        content += String("No open HV line detected");
+        content += "No open HV line detected";
         break;
       case 2:
-        content += String("Open HV line");
+        content += "Open HV line";
         break;
       case 3:
-        content += String("Fault");
+        content += "Fault";
         break;
       default:
-        content += String("? ") + String(datalayer_extended.meb.status_HV_line);
+        content += "? " + String(datalayer_extended.meb.status_HV_line);
     }
     content += "</h4>";
     content += datalayer_extended.meb.BMS_fault_performance ? "<h4>BMS fault performance: Active!</h4>"
@@ -147,83 +147,83 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Welded contactors: ";
     switch (datalayer_extended.meb.BMS_welded_contactors_status) {
       case 0:
-        content += String("Init");
+        content += "Init";
         break;
       case 1:
-        content += String("No contactor welded");
+        content += "No contactor welded";
         break;
       case 2:
-        content += String("At least 1 contactor welded");
+        content += "At least 1 contactor welded";
         break;
       case 3:
-        content += String("Protection status detection error");
+        content += "Protection status detection error";
         break;
       default:
-        content += String("?");
+        content += "?";
     }
     content += "</h4><h4>Warning support: ";
     switch (datalayer_extended.meb.warning_support) {
       case 0:
-        content += String("OK");
+        content += "OK";
         break;
       case 1:
-        content += String("Not OK");
+        content += "Not OK";
         break;
       case 6:
-        content += String("Init");
+        content += "Init";
         break;
       case 7:
-        content += String("Fault");
+        content += "Fault";
         break;
       default:
-        content += String("?");
+        content += "?";
     }
     content += "</h4><h4>Interm. Voltage (" + String(datalayer_extended.meb.BMS_voltage_intermediate_dV / 10.0, 1) +
                "V) status: ";
     switch (datalayer_extended.meb.BMS_status_voltage_free) {
       case 0:
-        content += String("Init");
+        content += "Init";
         break;
       case 1:
-        content += String("BMS interm circuit voltage free (U<20V)");
+        content += "BMS interm circuit voltage free (U<20V)";
         break;
       case 2:
-        content += String("BMS interm circuit not voltage free (U >= 25V)");
+        content += "BMS interm circuit not voltage free (U >= 25V)";
         break;
       case 3:
-        content += String("Error");
+        content += "Error";
         break;
       default:
-        content += String("?");
+        content += "?";
     }
     content += "</h4><h4>BMS error status: ";
     switch (datalayer_extended.meb.BMS_error_status) {
       case 0:
-        content += String("Component IO");
+        content += "Component IO";
         break;
       case 1:
-        content += String("Iso Error 1");
+        content += "Iso Error 1";
         break;
       case 2:
-        content += String("Iso Error 2");
+        content += "Iso Error 2";
         break;
       case 3:
-        content += String("Interlock");
+        content += "Interlock";
         break;
       case 4:
-        content += String("SD");
+        content += "SD";
         break;
       case 5:
-        content += String("Performance red");
+        content += "Performance red";
         break;
       case 6:
-        content += String("No component function");
+        content += "No component function";
         break;
       case 7:
-        content += String("Init");
+        content += "Init";
         break;
       default:
-        content += String("?");
+        content += "?";
     }
     content += "</h4><h4>BMS voltage: " + String(datalayer_extended.meb.BMS_voltage_dV / 10.0, 1) + "</h4>";
     content += datalayer_extended.meb.BMS_OBD_MIL ? "<h4>OBD MIL: ON!</h4>" : "<h4>OBD MIL: Off</h4>";

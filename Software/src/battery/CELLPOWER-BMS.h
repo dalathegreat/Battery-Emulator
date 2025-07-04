@@ -5,15 +5,20 @@
 #include "CELLPOWER-HTML.h"
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef CELLPOWER_BMS
 #define SELECTED_BATTERY_CLASS CellPowerBms
+#endif
 
 class CellPowerBms : public CanBattery {
  public:
+  CellPowerBms() : CanBattery(true) {}
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+
+  static constexpr const char* Name = "Cellpower BMS";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
@@ -128,8 +133,5 @@ class CellPowerBms : public CanBattery {
   bool requested_exceeding_average_current = 0;
   bool error_state = false;
 };
-
-/* Do not modify any rows below*/
-#define NATIVECAN_250KBPS
 
 #endif

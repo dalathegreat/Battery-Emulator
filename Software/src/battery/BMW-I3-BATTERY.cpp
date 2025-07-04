@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef BMW_I3_BATTERY
+#include "BMW-I3-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "BMW-I3-BATTERY.h"
+#include "../include.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
@@ -34,7 +33,7 @@ static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_
   return crc;
 }
 
-static uint8_t increment_alive_counter(uint8_t counter) {
+uint8_t BmwI3Battery::increment_alive_counter(uint8_t counter) {
   counter++;
   if (counter > ALIVE_MAX_VALUE) {
     counter = 0;
@@ -104,21 +103,6 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   } else {
     clear_event(EVENT_CONTACTOR_WELDED);
   }
-
-  // Update webserver datalayer
-  datalayer_extended.bmwi3.SOC_raw = (battery_HVBatt_SOC * 10);
-  datalayer_extended.bmwi3.SOC_dash = (battery_display_SOC * 50);
-  datalayer_extended.bmwi3.SOC_OBD2 = battery_soc;
-  datalayer_extended.bmwi3.ST_iso_ext = battery_status_error_isolation_external_Bordnetz;
-  datalayer_extended.bmwi3.ST_iso_int = battery_status_error_isolation_internal_Bordnetz;
-  datalayer_extended.bmwi3.ST_valve_cooling = battery_status_valve_cooling;
-  datalayer_extended.bmwi3.ST_interlock = battery_status_error_locking;
-  datalayer_extended.bmwi3.ST_precharge = battery_status_precharge_locked;
-  datalayer_extended.bmwi3.ST_DCSW = battery_status_disconnecting_switch;
-  datalayer_extended.bmwi3.ST_EMG = battery_status_emergency_mode;
-  datalayer_extended.bmwi3.ST_WELD = battery_status_error_disconnecting_switch;
-  datalayer_extended.bmwi3.ST_isolation = battery_status_warning_isolation;
-  datalayer_extended.bmwi3.ST_cold_shutoff_valve = battery_status_cold_shutoff_valve;
 }
 
 void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -509,7 +493,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 }
 
 void BmwI3Battery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "BMW i3", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
   //Before we have started up and detected which battery is in use, use 60AH values
@@ -525,5 +509,3 @@ void BmwI3Battery::setup(void) {  // Performs one time setup at startup
   pinMode(wakeup_pin, OUTPUT);
   digitalWrite(wakeup_pin, HIGH);  // Wake up the battery
 }
-
-#endif

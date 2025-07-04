@@ -5,15 +5,19 @@
 
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef RJXZS_BMS
 #define SELECTED_BATTERY_CLASS RjxzsBms
+#endif
 
 class RjxzsBms : public CanBattery {
  public:
+  RjxzsBms() : CanBattery(true) {}
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr const char* Name = "RJXZS BMS, DIY battery";
 
  private:
   /* Tweak these according to your battery build */
@@ -100,8 +104,5 @@ class RjxzsBms : public CanBattery {
   bool charging_active = false;
   bool discharging_active = false;
 };
-
-/* Do not modify any rows below*/
-#define NATIVECAN_250KBPS
 
 #endif

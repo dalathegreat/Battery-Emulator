@@ -5,8 +5,9 @@
 #include "BMW-IX-HTML.h"
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef BMW_IX_BATTERY
 #define SELECTED_BATTERY_CLASS BmwIXBattery
+#endif
 
 class BmwIXBattery : public CanBattery {
  public:
@@ -20,6 +21,8 @@ class BmwIXBattery : public CanBattery {
 
   void request_open_contactors() { datalayer_extended.bmwix.UserRequestContactorOpen = true; }
   void request_close_contactors() { datalayer_extended.bmwix.UserRequestContactorClose = true; }
+
+  static constexpr const char* Name = "BMW iX and i4-7 platform";
 
  private:
   BmwIXHtmlRenderer renderer;

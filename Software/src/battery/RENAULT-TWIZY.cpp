@@ -1,9 +1,8 @@
+#include "RENAULT-TWIZY.h"
 #include <cstdint>
-#include "../include.h"
-#ifdef RENAULT_TWIZY_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "RENAULT-TWIZY.h"
+#include "../include.h"
 
 int16_t max_value(int16_t* entries, size_t len) {
   int result = INT16_MIN;
@@ -119,7 +118,7 @@ void RenaultTwizyBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void RenaultTwizyBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Renault Twizy", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 14;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -129,5 +128,3 @@ void RenaultTwizyBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.total_capacity_Wh = 6600;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif
