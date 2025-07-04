@@ -149,6 +149,9 @@ String settings_processor(const String& var) {
     if (inverter) {
       content += "<h4 style='color: white;'>Inverter interface: <span id='Inverter'>" +
                  String(inverter->interface_name()) + "</span></h4>";
+      content += "<h4 style='color: white;'>Sofar battery ID: " +
+                 String(datalayer.battery.settings.sofar_user_specified_battery_id) +
+                 " </span> <button onclick='editSofarID()'>Edit</button></h4>";
     }
 
     if (shunt) {
@@ -284,6 +287,13 @@ String settings_processor(const String& var) {
         "function editPassword(){var value=prompt('Enter new password:');if(value!==null){var xhr=new "
         "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
         "updatePassword?value='+encodeURIComponent(value),true);xhr.send();}}";
+    content +=
+        "function editSofarID(){var value=prompt('For double battery setups. Which battery ID should this emulator "
+        "send? Remember to reboot after configuring this! Enter new value between "
+        "(0-15):');if(value!==null){if(value>=0&&value<=15){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateSofarID?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 "
+        "and 15.');}}}";
     content +=
         "function editWh(){var value=prompt('How much energy the battery can store. Enter new Wh value "
         "(1-120000):');if(value!==null){if(value>=1&&value<=120000){var xhr=new "

@@ -487,6 +487,20 @@ void init_webserver() {
     }
   });
 
+  // Route for editing Sofar ID
+  server.on("/updateSofarID", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      datalayer.battery.settings.sofar_user_specified_battery_id = value.toInt();
+      store_settings();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
   // Route for editing Wh
   server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
