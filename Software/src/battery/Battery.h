@@ -42,6 +42,7 @@ enum class BatteryType {
   TestFake = 34,
   VolvoSpa = 35,
   VolvoSpaHybrid = 36,
+  HyundaiIoniq28 = 37,
   Highest
 };
 
