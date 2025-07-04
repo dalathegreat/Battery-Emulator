@@ -15,6 +15,11 @@ void setUp(void) {
 
 void tearDown(void) {}
 
+bool is_event_set(EVENTS_ENUM_TYPE event) {
+  const EVENTS_STRUCT_TYPE* event_pointer = get_event_pointer(event);
+  return event_pointer->state == EVENT_STATE_ACTIVE || event_pointer->state == EVENT_STATE_ACTIVE_LATCHED;
+}
+
 // Test CPU temperature protection - normal temperature
 void test_update_machineryprotection_cpu_normal_temperature(void) {
   datalayer.system.info.CPU_temperature = 25.0f;

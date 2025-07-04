@@ -398,11 +398,6 @@ EVENTS_LEVEL_TYPE get_event_level(void) {
 
 /* Local functions */
 
-bool is_event_set(EVENTS_ENUM_TYPE event) {
-  return (events.entries[event].state == EVENT_STATE_ACTIVE) ||
-         (events.entries[event].state == EVENT_STATE_ACTIVE_LATCHED);
-}
-
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   // Just some defensive stuff if someone sets an unknown event
   if (event >= EVENT_NOF_EVENTS) {
