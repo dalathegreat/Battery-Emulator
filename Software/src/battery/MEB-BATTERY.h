@@ -17,7 +17,7 @@ class MebBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   bool supports_real_BMS_status() { return true; }
   bool supports_charged_energy() { return true; }
-  static constexpr char* Name = "Volkswagen Group MEB platform via CAN-FD";
+  static constexpr const char* Name = "Volkswagen Group MEB platform via CAN-FD";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 

@@ -11,16 +11,39 @@
 
 class CmfaEvBattery : public CanBattery {
  public:
+  // Use this constructor for the second battery.
+  CmfaEvBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_CMFAEV* extended, CAN_Interface targetCan)
+      : CanBattery(targetCan) {
+    datalayer_battery = datalayer_ptr;
+    allows_contactor_closing = nullptr;
+    datalayer_cmfa = extended;
+
+    average_voltage_of_cells = 0;
+  }
+
+  // Use the default constructor to create the first or single battery.
+  CmfaEvBattery() {
+    datalayer_battery = &datalayer.battery;
+    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+    datalayer_cmfa = &datalayer_extended.CMFAEV;
+  }
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "CMFA platform, 27 kWh battery";
+  static constexpr const char* Name = "CMFA platform, 27 kWh battery";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
   CmfaEvHtmlRenderer renderer;
+
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+  DATALAYER_INFO_CMFAEV* datalayer_cmfa;
+
+  // If not null, this battery decides when the contactor can be closed and writes the value here.
+  bool* allows_contactor_closing;
 
   uint16_t rescale_raw_SOC(uint32_t raw_SOC);
 

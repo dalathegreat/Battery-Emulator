@@ -16,7 +16,7 @@ class EcmpBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "Stellantis ECMP battery";
+  static constexpr const char* Name = "Stellantis ECMP battery";
 
   bool supports_clear_isolation() { return true; }
   void clear_isolation() { datalayer_extended.stellantisECMP.UserRequestIsolationReset = true; }
@@ -39,6 +39,8 @@ class EcmpBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 100;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
   static const int MIN_CELL_VOLTAGE_MV = 2700;
+  bool simulateEntireCar =
+      false;  //Set this to true to simulate the whole car (useful for when using external diagnostic tools)
   static const int NOT_SAMPLED_YET = 255;
   static const int COMPLETED_STATE = 0;
   bool battery_RelayOpenRequest = false;
@@ -219,7 +221,7 @@ class EcmpBattery : public CanBattery {
   uint16_t poll_state = PID_WELD_CHECK;
   uint16_t incoming_poll = 0;
 
-  CAN_frame ECMP_010 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x010, .data = {0xB4}};
+  CAN_frame ECMP_010 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x010, .data = {0xB4}};  //VCU_BCM_Crash 100ms
   CAN_frame ECMP_041 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x041, .data = {0x00}};
   CAN_frame ECMP_0A6 = {.FD = false,
                         .ext_ID = false,
@@ -335,7 +337,7 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x3A3,
                         .data = {0x4A, 0x4A, 0x40, 0x00, 0x00, 0x08, 0x00, 0x0F}};
-  CAN_frame ECMP_439 = {.FD = false,      //??? 1s periodic (Perfectly emulated in Battery-Emulator)
+  CAN_frame ECMP_439 = {.FD = false,      //OBC4 1s periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  //Same content always, fully static
                         .DLC = 8,
                         .ID = 0x439,
@@ -414,16 +416,12 @@ class EcmpBattery : public CanBattery {
                                             .DLC = 5,
                                             .ID = 0x6B4,
                                             .data = {0x04, 0x2E, 0xD9, 0x00, 0x01}};
-  CAN_frame ECMP_FACTORY_MODE_ACTIVATION_NEW = {.FD = false,
-                                                .ext_ID = false,
-                                                .DLC = 4,
-                                                .ID = 0x6B4,
-                                                .data = {0x04, 0x2E, 0x19, 0x01}};
   CAN_frame ECMP_DISABLE_ISOLATION_REQ = {.FD = false,
                                           .ext_ID = false,
                                           .DLC = 5,
                                           .ID = 0x6B4,
                                           .data = {0x04, 0x31, 0x02, 0xDF, 0xE1}};
+  CAN_frame ECMP_ACK_MESSAGE = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x6B4, .data = {0x02, 0x3E, 0x00}};
   uint8_t data_010_CRC[8] = {0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E, 0xF0, 0xD2};
   uint8_t data_3A2_CRC[16] = {0x0C, 0x1B, 0x2A, 0x39, 0x48, 0x57,
                               0x66, 0x75, 0x84, 0x93, 0xA2, 0xB1};                 // NOTE. Changes on BMS state

@@ -22,12 +22,12 @@ class CanBattery : public Battery, Transmitter, CanReceiver {
  protected:
   CAN_Interface can_interface;
 
-  CanBattery();
+  CanBattery(bool halfSpeed = false);
 
-  CanBattery(CAN_Interface interface) {
+  CanBattery(CAN_Interface interface, bool halfSpeed = false) {
     can_interface = interface;
     register_transmitter(this);
-    register_can_receiver(this, can_interface);
+    register_can_receiver(this, can_interface, halfSpeed);
   }
 };
 

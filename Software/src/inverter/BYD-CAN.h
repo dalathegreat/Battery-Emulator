@@ -14,7 +14,7 @@ class BydCanInverter : public CanInverterProtocol {
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
   void update_values();
-  static constexpr char* Name = "BYD Battery-Box Premium HVS over CAN Bus";
+  static constexpr const char* Name = "BYD Battery-Box Premium HVS over CAN Bus";
 
  private:
   void send_initial_data();

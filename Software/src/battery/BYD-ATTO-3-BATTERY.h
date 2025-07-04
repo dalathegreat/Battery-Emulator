@@ -44,7 +44,7 @@ class BydAttoBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
-  static constexpr char* Name = "BYD Atto 3";
+  static constexpr const char* Name = "BYD Atto 3";
 
   bool supports_charged_energy() { return true; }
   bool supports_reset_crash() { return true; }
