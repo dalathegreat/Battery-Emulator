@@ -4,7 +4,7 @@
 
 // Helper function for safe array access
 static const char* safeArrayAccess(const char* const arr[], size_t arrSize, int idx) {
-  if (idx >= 0 && static_cast<size_t>(idx) < arrSize && arr[idx][0] != '\0') {
+  if (idx >= 0 && static_cast<size_t>(idx) < arrSize) {
     return arr[idx];
   }
   return "Unknown";
