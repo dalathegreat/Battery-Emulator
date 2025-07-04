@@ -52,7 +52,7 @@ static void publish_values(void) {
   }
 #endif
 
-#ifdef MQTT_PUBLISH_CELL_BALANCING
+#ifdef MQTT_PUBLISH_CELL_VOLTAGES
   if (publish_cell_balancing() == false) {
     return;
   }
@@ -102,8 +102,7 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"max_charge_power", "Battery Max Charge Power", "", "W", "power", always},
     {"charged_energy", "Battery Charged Energy", "", "Wh", "energy", supports_charged},
     {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged},
-    {"balancing_active_cells", "Balancing Active Cells", "", "", "", always},
-    {"user_requests_balancing", "User Requests Balancing", "", "", "", always}};
+    {"balancing_active_cells", "Balancing Active Cells", "", "", "", always}};
 
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
                                              {"pause_status", "Pause Status", "", "", "", always}};
@@ -224,7 +223,6 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     }
   }
   doc["balancing_active_cells" + suffix] = active_cells;
-  doc["user_requests_balancing" + suffix] = battery.settings.user_requests_balancing;
 }
 
 static std::vector<EventData> order_events;

@@ -128,7 +128,6 @@
 // #define MQTT     // Enable this line to enable MQTT
 #define MQTT_QOS 0                  // MQTT Quality of Service (0, 1, or 2)
 #define MQTT_PUBLISH_CELL_VOLTAGES  // Enable this line to publish cell voltages to MQTT
-#define MQTT_PUBLISH_CELL_BALANCING // Enable this line to publish cell balancing status to MQTT
 #define MQTT_TIMEOUT 2000           // MQTT timeout in milliseconds
 #define MQTT_MANUAL_TOPIC_OBJECT_NAME
 // Enable MQTT_MANUAL_TOPIC_OBJECT_NAME to use custom MQTT topic, object ID prefix, and device name.
