@@ -41,34 +41,6 @@ typedef struct {
 } DATALAYER_INFO_BOLTAMPERA;
 
 typedef struct {
-  /** User requesting contactor open or close via WebUI*/
-  bool UserRequestContactorClose = false;
-  bool UserRequestContactorOpen = false;
-  /** uint16_t */
-  /** Terminal 30 - 12V SME Supply Voltage */
-  uint16_t T30_Voltage = 0;
-  /** Status HVIL, 1 HVIL OK, 0 HVIL disconnected*/
-  uint8_t hvil_status = 0;
-  /** Min/Max Cell SOH*/
-  uint16_t min_soh_state = 0;
-  uint16_t max_soh_state = 0;
-  uint32_t bms_uptime = 0;
-  uint8_t pyro_status_pss1 = 0;
-  uint8_t pyro_status_pss4 = 0;
-  uint8_t pyro_status_pss6 = 0;
-  int32_t iso_safety_positive = 0;
-  int32_t iso_safety_negative = 0;
-  int32_t iso_safety_parallel = 0;
-  int32_t allowable_charge_amps = 0;
-  int32_t allowable_discharge_amps = 0;
-  int16_t balancing_status = 0;
-  int16_t battery_voltage_after_contactor = 0;
-  unsigned long min_cell_voltage_data_age = 0;
-  unsigned long max_cell_voltage_data_age = 0;
-
-} DATALAYER_INFO_BMWIX;
-
-typedef struct {
   /** uint8_t */
   /** Status isolation external, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal*/
   uint8_t ST_iso_ext = 0;
@@ -851,7 +823,6 @@ typedef struct {
 class DataLayerExtended {
  public:
   DATALAYER_INFO_BOLTAMPERA boltampera;
-  DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BMWPHEV bmwphev;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
   DATALAYER_INFO_CELLPOWER cellpower;
