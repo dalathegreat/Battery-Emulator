@@ -5,10 +5,6 @@
 #include <string>
 #include "../../include.h"
 
-#ifdef MDNSRESPONDER
-#include <ESPmDNS.h>
-#endif  // MDNSRESONDER
-
 extern std::string ssid;
 extern std::string password;
 extern const uint8_t wifi_channel;
@@ -29,5 +25,6 @@ void init_WiFi_AP();
 void init_mDNS();
 
 extern bool wifi_enabled;
+extern bool mdns_enabled;
 
 #endif

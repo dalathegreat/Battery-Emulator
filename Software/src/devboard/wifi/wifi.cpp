@@ -1,14 +1,30 @@
 #include "wifi.h"
+#include <ESPmDNS.h>
 #include "../../include.h"
 #include "../utils/events.h"
 
-#ifdef WIFI
+#if defined(WIFI) || defined(WEBSERVER)
 const bool wifi_enabled_default = true;
 #else
 const bool wifi_enabled_default = false;
 #endif
 
 bool wifi_enabled = wifi_enabled_default;
+
+#ifdef WIFIAP
+const bool wifiap_enabled_default = true;
+#else
+const bool wifiap_enabled_default = false;
+#endif
+
+bool wifiap_enabled = wifiap_enabled_default;
+
+#ifdef MDNSRESPONDER
+const bool mdns_enabled_default = true;
+#else
+const bool mdns_enabled_default = false;
+#endif
+bool mdns_enabled = mdns_enabled_default;
 
 // Configuration Parameters
 static const uint16_t WIFI_CHECK_INTERVAL = 2000;       // 1 seconds normal check interval when last connected
@@ -36,12 +52,12 @@ static bool connected_once = false;
 
 void init_WiFi() {
 
-#ifdef WIFIAP
-  WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
-  init_WiFi_AP();
-#else
-  WiFi.mode(WIFI_STA);  // Only Router connection
-#endif  // WIFIAP
+  if (!wifiap_enabled) {
+    WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
+    init_WiFi_AP();
+  } else {
+    WiFi.mode(WIFI_AP);  // Only AP mode
+  }
 
   // Set WiFi to auto reconnect
   WiFi.setAutoReconnect(true);
@@ -183,7 +199,6 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   //normal reconnect retry start at first 2 seconds
 }
 
-#ifdef MDNSRESPONDER
 // Initialise mDNS
 void init_mDNS() {
   // Calulate the host name using the last two chars from the MAC address so each one is likely unique on a network.
@@ -201,9 +216,7 @@ void init_mDNS() {
     MDNS.addService("battery_emulator", "tcp", 80);
   }
 }
-#endif  // MDNSRESPONDER
 
-#ifdef WIFIAP
 void init_WiFi_AP() {
 #ifdef DEBUG_LOG
   logging.println("Creating Access Point: " + String(ssidAP));
@@ -217,4 +230,3 @@ void init_WiFi_AP() {
   logging.println(IP.toString());
 #endif
 }
-#endif  // WIFIAP

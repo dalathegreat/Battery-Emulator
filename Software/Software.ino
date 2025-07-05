@@ -28,14 +28,9 @@
 #error \
     "Initial setup not completed, USER_SECRETS.h is missing. Please rename the file USER_SECRETS.TEMPLATE.h to USER_SECRETS.h and fill in the required credentials. This file is ignored by version control to keep sensitive information private."
 #endif
+#include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"
-
-#ifdef MDNSRESPONDER
-#include <ESPmDNS.h>
-#endif  // MDNSRESONDER
-
-#include "src/devboard/mqtt/mqtt.h"
 
 #ifdef PERIODIC_BMS_RESET_AT
 #include "src/devboard/utils/ntp_time.h"
@@ -183,9 +178,9 @@ void connectivity_loop(void*) {
     init_webserver();
   }
 
-#ifdef MDNSRESPONDER
-  init_mDNS();
-#endif
+  if (mdns_enabled) {
+    init_mDNS();
+  }
 
   while (true) {
     START_TIME_MEASUREMENT(wifi);
