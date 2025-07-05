@@ -27,17 +27,14 @@ const char* ssidAP = "Battery Emulator";  // Maximum of 63 characters, also used
 const char* passwordAP = AP_PASSWORD;     // Set in USER_SECRETS.h
 const uint8_t wifi_channel = 0;           // Set to 0 for automatic channel selection
 
-#ifdef WEBSERVER
 const char* http_username = HTTP_USERNAME;  // Set in USER_SECRETS.h
 const char* http_password = HTTP_PASSWORD;  // Set in USER_SECRETS.h
 // Set your Static IP address. Only used incase WIFICONFIG is set in USER_SETTINGS.h
 IPAddress local_IP(192, 168, 10, 150);
 IPAddress gateway(192, 168, 10, 1);
 IPAddress subnet(255, 255, 255, 0);
-#endif  // WEBSERVER
 
 // MQTT
-#ifdef MQTT
 const char* mqtt_user = MQTT_USER;          // Set in USER_SECRETS.h
 const char* mqtt_password = MQTT_PASSWORD;  // Set in USER_SECRETS.h
 #ifdef MQTT_MANUAL_TOPIC_OBJECT_NAME
@@ -50,7 +47,6 @@ const char* mqtt_device_name =
 const char* ha_device_id =
     "battery-emulator";  // Custom device ID in Home Assistant. Previously, the ID was always "battery-emulator"
 #endif                   // MQTT_MANUAL_TOPIC_OBJECT_NAME
-#endif                   // USE_MQTT
 
 /* Charger settings (Optional, when using generator charging) */
 volatile float CHARGER_SET_HV = 384;      // Reasonably appropriate 4.0v per cell charging of a 96s pack

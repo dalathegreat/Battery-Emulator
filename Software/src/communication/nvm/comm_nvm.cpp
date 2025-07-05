@@ -27,7 +27,6 @@ void init_stored_settings() {
   settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
 #endif  // LOAD_SAVED_SETTINGS_ON_BOOT
 
-#ifdef WIFI
   char tempSSIDstring[63];  // Allocate buffer with sufficient size
   size_t lengthSSID = settings.getString("SSID", tempSSIDstring, sizeof(tempSSIDstring));
   if (lengthSSID > 0) {  // Successfully read the string from memory. Set it to SSID!
@@ -40,7 +39,6 @@ void init_stored_settings() {
     password = tempPasswordString;
   } else {  // Reading from settings failed. Do nothing with SSID. Raise event?
   }
-#endif  // WIFI
 
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
@@ -128,14 +126,12 @@ void store_settings() {
     return;
   }
 
-#ifdef WIFI
   if (!settings.putString("SSID", String(ssid.c_str()))) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 1);
   }
   if (!settings.putString("PASSWORD", String(password.c_str()))) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 2);
   }
-#endif
 
   if (!settings.putUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 3);

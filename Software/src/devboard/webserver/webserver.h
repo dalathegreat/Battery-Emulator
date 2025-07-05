@@ -9,6 +9,8 @@
 #include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
 #include "../../lib/mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
 
+extern bool webserver_enabled;
+
 extern const char* version_number;  // The current software version, shown on webserver
 
 #include <string>

@@ -28,22 +28,15 @@
 #error \
     "Initial setup not completed, USER_SECRETS.h is missing. Please rename the file USER_SECRETS.TEMPLATE.h to USER_SECRETS.h and fill in the required credentials. This file is ignored by version control to keep sensitive information private."
 #endif
-#ifdef WIFI
-#include "src/devboard/wifi/wifi.h"
-#ifdef WEBSERVER
 #include "src/devboard/webserver/webserver.h"
+#include "src/devboard/wifi/wifi.h"
+
 #ifdef MDNSRESPONDER
 #include <ESPmDNS.h>
 #endif  // MDNSRESONDER
-#else   // WEBSERVER
-#ifdef MDNSRESPONDER
-#error WEBSERVER needs to be enabled for MDNSRESPONDER!
-#endif  // MDNSRSPONDER
-#endif  // WEBSERVER
-#ifdef MQTT
+
 #include "src/devboard/mqtt/mqtt.h"
-#endif  // MQTT
-#endif  // WIFI
+
 #ifdef PERIODIC_BMS_RESET_AT
 #include "src/devboard/utils/ntp_time.h"
 #endif
@@ -81,10 +74,10 @@ void setup() {
 
   init_stored_settings();
 
-#ifdef WIFI
-  xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
-                          &connectivity_loop_task, esp32hal->WIFICORE());
-#endif
+  if (wifi_enabled) {
+    xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
+                            &connectivity_loop_task, esp32hal->WIFICORE());
+  }
 
   if (!led_init()) {
     return;
@@ -132,21 +125,23 @@ void setup() {
   // Initialize Task Watchdog for subscribed tasks
   esp_task_wdt_config_t wdt_config = {
       .timeout_ms = INTERVAL_5_S,  // If task hangs for longer than this, reboot
-      .idle_core_mask = (1 << esp32hal->CORE_FUNCTION_CORE()) | (1 << esp32hal->WIFICORE()),  // Watch both cores
+      .idle_core_mask =
+          (uint32_t)(1 << esp32hal->CORE_FUNCTION_CORE()) | (uint32_t)(1 << esp32hal->WIFICORE()),  // Watch both cores
       .trigger_panic = true  // Enable panic reset on timeout
   };
 
   // Start tasks
 
-#ifdef MQTT
-  init_mqtt();
+  if (mqtt_enabled) {
+    init_mqtt();
 
-  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
-                          esp32hal->WIFICORE());
-#endif
+    xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
+                            esp32hal->WIFICORE());
+  }
 
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
                           esp32hal->CORE_FUNCTION_CORE());
+
 #ifdef PERIODIC_BMS_RESET_AT
   bmsResetTimeOffset = getTimeOffsetfromNowUntil(PERIODIC_BMS_RESET_AT);
   if (bmsResetTimeOffset == 0) {
@@ -179,16 +174,15 @@ void logging_loop(void*) {
 }
 #endif
 
-#ifdef WIFI
 void connectivity_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
   // Init wifi
   init_WiFi();
 
-#ifdef WEBSERVER
-  // Init webserver
-  init_webserver();
-#endif
+  if (webserver_enabled) {
+    init_webserver();
+  }
+
 #ifdef MDNSRESPONDER
   init_mDNS();
 #endif
@@ -196,18 +190,18 @@ void connectivity_loop(void*) {
   while (true) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
-#ifdef WEBSERVER
-    ota_monitor();
-#endif
+
+    if (webserver_enabled) {
+      ota_monitor();
+    }
+
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
 
     esp_task_wdt_reset();  // Reset watchdog
     delay(1);
   }
 }
-#endif
 
-#ifdef MQTT
 void mqtt_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
 
@@ -219,7 +213,6 @@ void mqtt_loop(void*) {
     delay(1);
   }
 }
-#endif
 
 static std::list<Transmitter*> transmitters;
 
@@ -245,11 +238,12 @@ void core_loop(void*) {
     receive_rs485();  // Process serial2 RS485 interface
 
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
-#ifdef WEBSERVER
-    START_TIME_MEASUREMENT(ota);
-    ElegantOTA.loop();
-    END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
-#endif  // WEBSERVER
+
+    if (webserver_enabled) {
+      START_TIME_MEASUREMENT(ota);
+      ElegantOTA.loop();
+      END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
+    }
 
     // Process
     currentMillis = millis();

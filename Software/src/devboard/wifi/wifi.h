@@ -23,13 +23,11 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info);
 void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info);
 void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info);
 
-#ifdef WIFIAP
 void init_WiFi_AP();
-#endif  // WIFIAP
 
-#ifdef MDNSRESPONDER
 // Initialise mDNS
 void init_mDNS();
-#endif  // MDNSRESPONDER
+
+extern bool wifi_enabled;
 
 #endif

@@ -18,6 +18,14 @@
 
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
+#ifdef WEBSERVER
+const bool webserver_enabled_default = true;
+#else
+const bool webserver_enabled_default = false;
+#endif
+
+bool webserver_enabled = webserver_enabled_default;  // Global flag to enable or disable the webserver
+
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 

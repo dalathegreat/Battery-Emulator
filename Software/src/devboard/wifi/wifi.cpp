@@ -2,6 +2,14 @@
 #include "../../include.h"
 #include "../utils/events.h"
 
+#ifdef WIFI
+const bool wifi_enabled_default = true;
+#else
+const bool wifi_enabled_default = false;
+#endif
+
+bool wifi_enabled = wifi_enabled_default;
+
 // Configuration Parameters
 static const uint16_t WIFI_CHECK_INTERVAL = 2000;       // 1 seconds normal check interval when last connected
 static const uint16_t STEP_WIFI_CHECK_INTERVAL = 2000;  // 3 seconds wait step increase in checks for normal reconnects

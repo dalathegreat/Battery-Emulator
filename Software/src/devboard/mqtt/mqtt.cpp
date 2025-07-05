@@ -13,6 +13,14 @@
 #include "../utils/timer.h"
 #include "mqtt_client.h"
 
+#ifdef MQTT
+const bool mqtt_enabled_default = true;
+#else
+const bool mqtt_enabled_default = false;
+#endif
+
+bool mqtt_enabled = mqtt_enabled_default;
+
 esp_mqtt_client_config_t mqtt_cfg;
 esp_mqtt_client_handle_t client;
 char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
