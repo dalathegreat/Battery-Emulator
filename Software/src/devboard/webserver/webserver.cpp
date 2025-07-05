@@ -18,6 +18,14 @@
 
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
+#ifdef WEBSERVER
+const bool webserver_enabled_default = true;
+#else
+const bool webserver_enabled_default = false;
+#endif
+
+bool webserver_enabled = webserver_enabled_default;  // Global flag to enable or disable the webserver
+
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
@@ -388,16 +396,19 @@ void init_webserver() {
     request->send(200, "text/html", response);
   });
 
+#ifdef COMMON_IMAGE
   struct BoolSetting {
     const char* name;
     bool existingValue;
     bool newValue;
   };
 
-  const char* boolSettingNames[] = {"DBLBTR", "CNTCTRL", "CNTCTRLDBL", "PWMCNTCTRL", "PERBMSRESET", "REMBMSRESET"};
+  const char* boolSettingNames[] = {
+      "DBLBTR",     "CNTCTRL",       "CNTCTRLDBL",  "PWMCNTCTRL", "PERBMSRESET", "REMBMSRESET",
+      "CANFDASCAN", "WIFIAPENABLED", "MQTTENABLED", "HADISC",     "MQTTTOPICS",
+  };
 
-#ifdef COMMON_IMAGE
-  // Handles the form POST from UI to save certain settings: battery/inverter type and double battery on/off
+  // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST, [boolSettingNames](AsyncWebServerRequest* request) {
     BatteryEmulatorSettingsStore settings;
 
@@ -416,22 +427,48 @@ void init_webserver() {
       } else if (p->name() == "battery") {
         auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
         settings.saveUInt("BATTTYPE", (int)type);
+      } else if (p->name() == "BATTCHEM") {
+        auto type = static_cast<battery_chemistry_enum>(atoi(p->value().c_str()));
+        settings.saveUInt("BATTCHEM", (int)type);
       } else if (p->name() == "charger") {
         auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
         settings.saveUInt("CHGTYPE", (int)type);
-      } /*else if (p->name() == "dblbtr") {
-        newDoubleBattery = p->value() == "on";
-      } else if (p->name() == "contctrl") {
-        settings.saveBool("CNTCTRL", p->value() == "on");
-      } else if (p->name() == "contctrldbl") {
-        settings.saveBool("CNTCTRLDBL", p->value() == "on");
-      } else if (p->name() == "pwmcontctrl") {
-        settings.saveBool("PWMCNTCTRL", p->value() == "on");
-      } else if (p->name() == "PERBMSRESET") {
-        settings.saveBool("PERBMSRESET", p->value() == "on");
-      } else if (p->name() == "REMBMSRESET") {
-        settings.saveBool("REMBMSRESET", p->value() == "on");
-      }*/
+      } else if (p->name() == "EQSTOP") {
+        auto type = static_cast<STOP_BUTTON_BEHAVIOR>(atoi(p->value().c_str()));
+        settings.saveUInt("EQSTOP", (int)type);
+      } else if (p->name() == "BATTCOMM") {
+        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+        settings.saveUInt("BATTCOMM", (int)type);
+      } else if (p->name() == "BATT2COMM") {
+        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+        settings.saveUInt("BATT2COMM", (int)type);
+      } else if (p->name() == "INVCOMM") {
+        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+        settings.saveUInt("INVCOMM", (int)type);
+      } else if (p->name() == "CHGCOMM") {
+        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+        settings.saveUInt("CHGCOMM", (int)type);
+      } else if (p->name() == "SHUNTCOMM") {
+        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+        settings.saveUInt("SHUNTCOMM", (int)type);
+      } else if (p->name() == "MQTTSERVER") {
+        settings.saveString("MQTTSERVER", p->value().c_str());
+      } else if (p->name() == "MQTTPORT") {
+        auto port = atoi(p->value().c_str());
+        settings.saveUInt("MQTTPORT", port);
+      } else if (p->name() == "MQTTUSER") {
+        settings.saveString("MQTTUSER", p->value().c_str());
+      } else if (p->name() == "MQTTPASSWORD") {
+        settings.saveString("MQTTPASSWORD", p->value().c_str());
+      } else if (p->name() == "MQTTTOPIC") {
+        settings.saveString("MQTTTOPIC", p->value().c_str());
+      } else if (p->name() == "MQTTOBJIDPREFIX") {
+        settings.saveString("MQTTOBJIDPREFIX", p->value().c_str());
+      } else if (p->name() == "MQTTDEVICENAME") {
+        settings.saveString("MQTTDEVICENAME", p->value().c_str());
+      } else if (p->name() == "HADEVICEID") {
+        settings.saveString("HADEVICEID", p->value().c_str());
+      }
 
       for (auto& boolSetting : boolSettings) {
         if (p->name() == boolSetting.name) {
@@ -446,7 +483,7 @@ void init_webserver() {
       }
     }
 
-    settingsUpdated = true;
+    settingsUpdated = settings.were_settings_updated();
     request->redirect("/settings");
   });
 #endif
@@ -929,19 +966,8 @@ String get_firmware_info_processor(const String& var) {
   if (var == "X") {
     String content = "";
     static JsonDocument doc;
-#ifdef HW_LILYGO
-    doc["hardware"] = "LilyGo T-CAN485";
-#endif  // HW_LILYGO
-#ifdef HW_STARK
-    doc["hardware"] = "Stark CMR Module";
-#endif  // HW_STARK
-#ifdef HW_3LB
-    doc["hardware"] = "3LB board";
-#endif  // HW_3LB
-#ifdef HW_DEVKIT
-    doc["hardware"] = "ESP32 DevKit V1";
-#endif  // HW_DEVKIT
 
+    doc["hardware"] = esp32hal->name();
     doc["firmware"] = String(version_number);
     serializeJson(doc, content);
     return content;
@@ -1022,7 +1048,7 @@ String processor(const String& var) {
       // Display which components are used
       if (inverter) {
         content += "<h4 style='color: white;'>Inverter protocol: ";
-        content += datalayer.system.info.inverter_protocol;
+        content += inverter->name();
         content += " ";
         content += datalayer.system.info.inverter_brand;
         content += "</h4>";
@@ -1276,9 +1302,11 @@ String processor(const String& var) {
               content += " Cont. Pos.: ";
               content += "<span style='color: red;'>&#10005;</span>";
             }
-          } else {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
+          } else if (
+              esp32hal->SECOND_BATTERY_CONTACTORS_PIN() !=
+              GPIO_NUM_NC) {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
             content += "<h4>Cont. Neg.: ";
-            if (digitalRead(SECOND_BATTERY_CONTACTORS_PIN) == HIGH) {
+            if (digitalRead(esp32hal->SECOND_BATTERY_CONTACTORS_PIN()) == HIGH) {
               content += "<span style='color: green;'>&#10003;</span>";
             } else {
               content += "<span style='color: red;'>&#10005;</span>";
@@ -1543,15 +1571,6 @@ String processor(const String& var) {
     content += "function CANreplay() { window.location.href = '/canreplay'; }";
     content += "function Log() { window.location.href = '/log'; }";
     content += "function Events() { window.location.href = '/events'; }";
-    content +=
-        "function askReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
-        "emulator is handling contactors, they will open during reboot!')) { "
-        "reboot(); } }";
-    content += "function reboot() {";
-    content += "  var xhr = new XMLHttpRequest();";
-    content += "  xhr.open('GET', '/reboot', true);";
-    content += "  xhr.send();";
-    content += "}";
     if (WEBSERVER_AUTH_REQUIRED) {
       content += "function logout() {";
       content += "  var xhr = new XMLHttpRequest();";

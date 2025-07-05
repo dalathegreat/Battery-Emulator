@@ -1,5 +1,6 @@
 #include "events.h"
 #include "../../datalayer/datalayer.h"
+#include "../../include.h"
 
 #include "../../../USER_SETTINGS.h"
 
@@ -132,6 +133,9 @@ void init_events(void) {
   events.entries[EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_GPIO_CONFLICT].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_GPIO_NOT_DEFINED].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -170,7 +174,7 @@ void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
   events.entries[event].MQTTpublished = true;
 }
 
-const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
+String get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CANMCP2517FD_INIT_FAILURE:
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
@@ -373,6 +377,11 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED:
       return "Failed to syncronise with the NTP Server. BMS will reset every 24 hours from when the emulator was "
              "powered on";
+    case EVENT_GPIO_CONFLICT:
+      return "There is a GPIO pin conflict between SW components: " + esp32hal->failed_allocator() + " / " +
+             esp32hal->conflicting_allocator();
+    case EVENT_GPIO_NOT_DEFINED:
+      return "SW module requires GPIO that is not defined for this hardware: " + esp32hal->failed_allocator();
     default:
       return "";
   }
@@ -409,10 +418,8 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
     events.entries[event].occurences++;
     events.entries[event].MQTTpublished = false;
-#ifdef DEBUG_LOG
-    logging.print("Event: ");
-    logging.println(get_event_message_string(event));
-#endif
+
+    DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
   }
 
   // We should set the event, update event info

@@ -66,8 +66,3 @@ void SofarInverter::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&SOFAR_35A, can_config.inverter);
   }
 }
-
-void SofarInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-}

@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../charger/CHARGERS.h"
+#include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
 #include "../../include.h"
@@ -26,7 +27,8 @@ std::vector<EnumType> enum_values() {
 }
 
 template <typename EnumType, typename Func>
-std::vector<std::pair<String, EnumType>> enum_values_and_names(Func name_for_type) {
+std::vector<std::pair<String, EnumType>> enum_values_and_names(Func name_for_type,
+                                                               const EnumType* noneValue = nullptr) {
   auto values = enum_values<EnumType>();
 
   std::vector<std::pair<String, EnumType>> pairs;
@@ -40,15 +42,31 @@ std::vector<std::pair<String, EnumType>> enum_values_and_names(Func name_for_typ
 
   std::sort(pairs.begin(), pairs.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
 
-  pairs.insert(pairs.begin(), std::pair(name_for_type(EnumType::None), EnumType::None));
+  if (noneValue) {
+    pairs.insert(pairs.begin(), std::pair(name_for_type(*noneValue), *noneValue));
+  }
 
   return pairs;
 }
 
 template <typename TEnum, typename Func>
+String options_for_enum_with_none(TEnum selected, Func name_for_type, TEnum noneValue) {
+  String options;
+  TEnum none = noneValue;
+  auto values = enum_values_and_names<TEnum>(name_for_type, &none);
+  for (const auto& [name, type] : values) {
+    options +=
+        ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">");
+    options += name;
+    options += "</option>";
+  }
+  return options;
+}
+
+template <typename TEnum, typename Func>
 String options_for_enum(TEnum selected, Func name_for_type) {
   String options;
-  auto values = enum_values_and_names<TEnum>(name_for_type);
+  auto values = enum_values_and_names<TEnum>(name_for_type, nullptr);
   for (const auto& [name, type] : values) {
     options +=
         ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">");
@@ -65,6 +83,39 @@ void render_checkbox(String& content, const char* label, bool enabled, const cha
              "style=\"margin-left: 0;\"";
   content += (enabled ? " checked" : "");
   content += " value='on'/>";
+}
+
+const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
+  switch (behavior) {
+    case STOP_BUTTON_BEHAVIOR::LATCHING_SWITCH:
+      return "Latching";
+    case STOP_BUTTON_BEHAVIOR::MOMENTARY_SWITCH:
+      return "Momentary";
+    case STOP_BUTTON_BEHAVIOR::NOT_CONNECTED:
+      return "Not connected";
+    default:
+      return nullptr;
+  }
+}
+
+void render_textbox(String& content, const char* label, const char* name, BatteryEmulatorSettingsStore& settings,
+                    bool password = false, bool number = false) {
+  content += "<label>";
+  content += label;
+  content += ": </label><input style='max-width: 250px;' ";
+  if (password) {
+    content += "type='password'";
+  } else {
+    content += "type='text'";
+  }
+  content += " name='";
+  content += name;
+  content += "' value=\"";
+
+  auto value = number ? String(settings.getUInt(name, 0)) : settings.getString(name);
+  value.replace("\"", "&quot;");  // Escape quotes for HTML
+  content += value;
+  content += "\"/>";
 }
 
 String settings_processor(const String& var) {
@@ -92,7 +143,7 @@ String settings_processor(const String& var) {
         "onclick='editPassword()'>Edit</button></h4>";
 
 #ifdef COMMON_IMAGE
-    BatteryEmulatorSettingsStore settings;
+    BatteryEmulatorSettingsStore settings(true);
 
     // It's important that we read/write settings directly to settings store instead of the run-time values
     // since the run-time values may have direct effect on operation.
@@ -102,35 +153,88 @@ String settings_processor(const String& var) {
     content +=
         "<form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 2fr; gap: 10px; "
         "align-items: center;'>";
-    content += "<label>Battery: </label><select style='max-width: 250px;' name='battery'>";
 
-    content +=
-        options_for_enum((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None), name_for_battery_type);
+    content += "<label>Battery: </label><select style='max-width: 250px;' name='battery'>";
+    content += options_for_enum_with_none((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None),
+                                          name_for_battery_type, BatteryType::None);
     content += "</select>";
+
+    content += "<label>Battery comm I/F: </label><select style='max-width: 250px;' name='BATTCOMM'>";
+    content += options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
+                                name_for_comm_interface);
+    content += "</select>";
+
+    content += "<label>Battery chemistry: </label><select style='max-width: 250px;' name='BATTCHEM'>";
+    content += options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA),
+                                name_for_chemistry);
+    content += "</select>";
+
     content += "<label>Inverter protocol: </label><select style='max-width: 250px;' name='inverter'>";
-    content += options_for_enum((InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None),
-                                name_for_inverter_type);
-    content += "</select>";
-    content += "<label>Charger: </label><select style='max-width: 250px;' name='charger'>";
     content +=
-        options_for_enum((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None), name_for_charger_type);
+        options_for_enum_with_none((InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None),
+                                   name_for_inverter_type, InverterProtocolType::None);
+    content += "</select>";
+
+    content += "<label>Inverter comm I/F: </label><select style='max-width: 250px;' name='INVCOMM'>";
+    content += options_for_enum((comm_interface)settings.getUInt("INVCOMM", (int)comm_interface::CanNative),
+                                name_for_comm_interface);
+    content += "</select>";
+
+    content += "<label>Charger: </label><select style='max-width: 250px;' name='charger'>";
+    content += options_for_enum_with_none((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None),
+                                          name_for_charger_type, ChargerType::None);
+    content += "</select>";
+
+    content += "<label>Charger comm I/F: </label><select style='max-width: 250px;' name='CHGCOMM'>";
+    content += options_for_enum((comm_interface)settings.getUInt("CHGCOMM", (int)comm_interface::CanNative),
+                                name_for_comm_interface);
+    content += "</select>";
+
+    content += "<label>Equipment stop button: </label><select style='max-width: 250px;' name='EQSTOP'>";
+    content += options_for_enum_with_none(
+        (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
+        name_for_button_type, STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
     content += "</select>";
 
     // TODO: Generalize settings: define settings in one place and use the definitions to render
     // UI and handle load/save
     render_checkbox(content, "Double battery", settings.getBool("DBLBTR"), "DBLBTR");
+
+    content += "<label>Battery 2 comm I/F: </label><select style='max-width: 250px;' name='BATT2COMM'>";
+    content += options_for_enum((comm_interface)settings.getUInt("BATT2COMM", (int)comm_interface::CanNative),
+                                name_for_comm_interface);
+    content += "</select>";
+
     render_checkbox(content, "Contactor control", settings.getBool("CNTCTRL"), "CNTCTRL");
     render_checkbox(content, "Contactor control double battery", settings.getBool("CNTCTRLDBL"), "CNTCTRLDBL");
     render_checkbox(content, "PWM contactor control", settings.getBool("PWMCNTCTRL"), "PWMCNTCTRL");
     render_checkbox(content, "Periodic BMS reset", settings.getBool("PERBMSRESET"), "PERBMSRESET");
     render_checkbox(content, "Remote BMS reset", settings.getBool("REMBMSRESET"), "REMBMSRESET");
+    render_checkbox(content, "Use CanFD as classic CAN", settings.getBool("CANFDASCAN"), "CANFDASCAN");
+
+    render_checkbox(content, "Enable WiFi AP", settings.getBool("WIFIAPENABLED"), "WIFIAPENABLED");
+    render_checkbox(content, "Enable MQTT", settings.getBool("MQTTENABLED"), "MQTTENABLED");
+
+    render_textbox(content, "MQTT server", "MQTTSERVER", settings);
+    render_textbox(content, "MQTT port", "MQTTPORT", settings, false, true);
+    render_textbox(content, "MQTT user", "MQTTUSER", settings);
+    render_textbox(content, "MQTT password", "MQTTPASSWORD", settings, true);
+
+    render_checkbox(content, "Customized MQTT topics", settings.getBool("MQTTTOPICS"), "MQTTTOPICS");
+    render_textbox(content, "MQTT topic name", "MQTTTOPIC", settings);
+    render_textbox(content, "Prefix for MQTT object ID", "MQTTOBJIDPREFIX", settings);
+    render_textbox(content, "HA device name", "MQTTDEVICENAME", settings);
+    render_textbox(content, "HA device ID", "HADEVICEID", settings);
+
+    render_checkbox(content, "Enable Home Assistant auto discovery", settings.getBool("HADISC"), "HADISC");
 
     content +=
         "<div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button "
         "type='submit'>Save</button></div>";
 
     if (settingsUpdated) {
-      content += "<p>Settings saved. Reboot to take the settings into use.</p>";
+      content += "<p>Settings saved. Reboot to take the settings into use.";
+      content += "<button onclick='askReboot()'>Reboot</button></p>";
     }
 
     content += "</form></div></div>";
@@ -454,19 +558,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     case CAN_NATIVE:
       return "CAN";
     case CANFD_NATIVE:
-#ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
-      return "CAN-FD Native (Classic CAN)";
-#else
-      return "CAN-FD Native";
-#endif
+      if (use_canfd_as_can) {
+        return "CAN-FD Native (Classic CAN)";
+      } else {
+        return "CAN-FD Native";
+      }
     case CAN_ADDON_MCP2515:
       return "Add-on CAN via GPIO MCP2515";
     case CANFD_ADDON_MCP2518:
-#ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
-      return "Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
-#else
-      return "Add-on CAN-FD via GPIO MCP2518";
-#endif
+      if (use_canfd_as_can) {
+        return "Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
+      } else {
+        return "Add-on CAN-FD via GPIO MCP2518";
+      }
     default:
       return "UNKNOWN";
   }

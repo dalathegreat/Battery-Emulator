@@ -2,6 +2,7 @@
 #define BATTERY_H
 
 #include <vector>
+#include "src/devboard/utils/types.h"
 #include "src/devboard/webserver/BatteryHtmlRenderer.h"
 
 enum class BatteryType {
@@ -47,9 +48,13 @@ enum class BatteryType {
 
 extern std::vector<BatteryType> supported_battery_types();
 extern const char* name_for_battery_type(BatteryType type);
+extern const char* name_for_chemistry(battery_chemistry_enum chem);
+extern const char* name_for_comm_interface(comm_interface comm);
 
 extern BatteryType user_selected_battery_type;
 extern bool user_selected_second_battery;
+
+extern battery_chemistry_enum user_selected_battery_chemistry;
 
 // Abstract base class for next-generation battery implementations.
 // Defines the interface to call battery specific functionality.
