@@ -115,6 +115,11 @@ void init_stored_settings() {
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
 
+  mqtt_server = settings.getString("MQTTSERVER").c_str();
+  mqtt_port = settings.getUInt("MQTTPORT", 0);
+  mqtt_user = settings.getString("MQTTUSER").c_str();
+  mqtt_password = settings.getString("MQTTPASSWORD").c_str();
+
 #endif
 
   settings.end();

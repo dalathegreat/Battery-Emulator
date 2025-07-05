@@ -403,8 +403,10 @@ void init_webserver() {
     bool newValue;
   };
 
-  const char* boolSettingNames[] = {"DBLBTR",      "CNTCTRL",    "CNTCTRLDBL",    "PWMCNTCTRL",  "PERBMSRESET",
-                                    "REMBMSRESET", "CANFDASCAN", "WIFIAPENABLED", "MQTTENABLED", "HADISC"};
+  const char* boolSettingNames[] = {
+      "DBLBTR",     "CNTCTRL",       "CNTCTRLDBL",  "PWMCNTCTRL", "PERBMSRESET", "REMBMSRESET",
+      "CANFDASCAN", "WIFIAPENABLED", "MQTTENABLED", "HADISC",     "MQTTTOPICS",
+  };
 
   // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST, [boolSettingNames](AsyncWebServerRequest* request) {
@@ -449,6 +451,23 @@ void init_webserver() {
       } else if (p->name() == "SHUNTCOMM") {
         auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
         settings.saveUInt("SHUNTCOMM", (int)type);
+      } else if (p->name() == "MQTTSERVER") {
+        settings.saveString("MQTTSERVER", p->value().c_str());
+      } else if (p->name() == "MQTTPORT") {
+        auto port = atoi(p->value().c_str());
+        settings.saveUInt("MQTTPORT", port);
+      } else if (p->name() == "MQTTUSER") {
+        settings.saveString("MQTTUSER", p->value().c_str());
+      } else if (p->name() == "MQTTPASSWORD") {
+        settings.saveString("MQTTPASSWORD", p->value().c_str());
+      } else if (p->name() == "MQTTTOPIC") {
+        settings.saveString("MQTTTOPIC", p->value().c_str());
+      } else if (p->name() == "MQTTOBJIDPREFIX") {
+        settings.saveString("MQTTOBJIDPREFIX", p->value().c_str());
+      } else if (p->name() == "MQTTDEVICENAME") {
+        settings.saveString("MQTTDEVICENAME", p->value().c_str());
+      } else if (p->name() == "HADEVICEID") {
+        settings.saveString("HADEVICEID", p->value().c_str());
       }
 
       for (auto& boolSetting : boolSettings) {

@@ -63,6 +63,18 @@ class BatteryEmulatorSettingsStore {
     settingsUpdated = settingsUpdated || value != oldValue;
   }
 
+  String getString(const char* name) { return settings.getString(name, String()); }
+
+  String getString(const char* name, const char* defaultValue) {
+    return settings.getString(name, String(defaultValue));
+  }
+
+  void saveString(const char* name, const char* value) {
+    auto oldValue = settings.getString(name);
+    settings.putString(name, value);
+    settingsUpdated = settingsUpdated || String(value) != oldValue;
+  }
+
   bool were_settings_updated() const { return settingsUpdated; }
 
  private:

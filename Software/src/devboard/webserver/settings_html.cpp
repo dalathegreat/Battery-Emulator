@@ -98,6 +98,26 @@ const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   }
 }
 
+void render_textbox(String& content, const char* label, const char* name, BatteryEmulatorSettingsStore& settings,
+                    bool password = false, bool number = false) {
+  content += "<label>";
+  content += label;
+  content += ": </label><input style='max-width: 250px;' ";
+  if (password) {
+    content += "type='password'";
+  } else {
+    content += "type='text'";
+  }
+  content += " name='";
+  content += name;
+  content += "' value=\"";
+
+  auto value = number ? String(settings.getUInt(name, 0)) : settings.getString(name);
+  value.replace("\"", "&quot;");  // Escape quotes for HTML
+  content += value;
+  content += "\"/>";
+}
+
 String settings_processor(const String& var) {
   if (var == "X") {
     String content = "";
@@ -194,6 +214,18 @@ String settings_processor(const String& var) {
 
     render_checkbox(content, "Enable WiFi AP", settings.getBool("WIFIAPENABLED"), "WIFIAPENABLED");
     render_checkbox(content, "Enable MQTT", settings.getBool("MQTTENABLED"), "MQTTENABLED");
+
+    render_textbox(content, "MQTT server", "MQTTSERVER", settings);
+    render_textbox(content, "MQTT port", "MQTTPORT", settings, false, true);
+    render_textbox(content, "MQTT user", "MQTTUSER", settings);
+    render_textbox(content, "MQTT password", "MQTTPASSWORD", settings, true);
+
+    render_checkbox(content, "Customized MQTT topics", settings.getBool("MQTTTOPICS"), "MQTTTOPICS");
+    render_textbox(content, "MQTT topic name", "MQTTTOPIC", settings);
+    render_textbox(content, "Prefix for MQTT object ID", "MQTTOBJIDPREFIX", settings);
+    render_textbox(content, "HA device name", "MQTTDEVICENAME", settings);
+    render_textbox(content, "HA device ID", "HADEVICEID", settings);
+
     render_checkbox(content, "Enable Home Assistant auto discovery", settings.getBool("HADISC"), "HADISC");
 
     content +=

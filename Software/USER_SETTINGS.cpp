@@ -35,9 +35,14 @@ IPAddress gateway(192, 168, 10, 1);
 IPAddress subnet(255, 255, 255, 0);
 
 // MQTT
-const char* mqtt_user = MQTT_USER;          // Set in USER_SECRETS.h
-const char* mqtt_password = MQTT_PASSWORD;  // Set in USER_SECRETS.h
-#ifdef MQTT_MANUAL_TOPIC_OBJECT_NAME
+#ifdef COMMON_IMAGE
+std::string mqtt_user;
+std::string mqtt_password;
+#else
+std::string mqtt_user = MQTT_USER;          // Set in USER_SECRETS.h
+std::string mqtt_password = MQTT_PASSWORD;  // Set in USER_SECRETS.h
+#endif
+
 const char* mqtt_topic_name =
     "BE";  // Custom MQTT topic name. Previously, the name was automatically set to "battery-emulator_esp32-XXXXXX"
 const char* mqtt_object_id_prefix =
@@ -46,7 +51,6 @@ const char* mqtt_device_name =
     "Battery Emulator";  // Custom device name in Home Assistant. Previously, the name was automatically set to "BatteryEmulator_esp32-XXXXXX"
 const char* ha_device_id =
     "battery-emulator";  // Custom device ID in Home Assistant. Previously, the ID was always "battery-emulator"
-#endif                   // MQTT_MANUAL_TOPIC_OBJECT_NAME
 
 /* Charger settings (Optional, when using generator charging) */
 volatile float CHARGER_SET_HV = 384;      // Reasonably appropriate 4.0v per cell charging of a 96s pack

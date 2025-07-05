@@ -128,7 +128,9 @@ void setup() {
   // Start tasks
 
   if (mqtt_enabled) {
-    init_mqtt();
+    if (!init_mqtt()) {
+      return;
+    }
 
     xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
                             esp32hal->WIFICORE());

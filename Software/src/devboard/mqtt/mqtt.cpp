@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <freertos/FreeRTOS.h>
+#include <src/communication/nvm/comm_nvm.h>
 #include <list>
 #include "../../../USER_SECRETS.h"
 #include "../../../USER_SETTINGS.h"
@@ -28,6 +29,25 @@ const bool ha_autodiscovery_enabled_default = false;
 #endif
 
 bool ha_autodiscovery_enabled = ha_autodiscovery_enabled_default;
+
+#ifdef COMMON_IMAGE
+const int mqtt_port_default = 0;
+const char* mqtt_server_default = "";
+#else
+const int mqtt_port_default = MQTT_PORT;
+const char* mqtt_server_default = MQTT_SERVER;
+#endif
+
+int mqtt_port = mqtt_port_default;
+std::string mqtt_server = mqtt_server_default;
+
+#ifdef MQTT_MANUAL_TOPIC_OBJECT_NAME
+const bool mqtt_manual_topic_object_name_default = true;
+#else
+const bool mqtt_manual_topic_object_name_default = false;
+#endif
+
+bool mqtt_manual_topic_object_name = mqtt_manual_topic_object_name_default;
 
 esp_mqtt_client_config_t mqtt_cfg;
 esp_mqtt_client_handle_t client;
@@ -550,34 +570,42 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
   }
 }
 
-void init_mqtt(void) {
+bool init_mqtt(void) {
   if (ha_autodiscovery_enabled) {
     create_battery_sensor_configs();
     create_global_sensor_configs();
   }
 
-#ifdef MQTT_MANUAL_TOPIC_OBJECT_NAME
-  // Use custom topic name, object ID prefix, and device name from user settings
-  topic_name = mqtt_topic_name;
-  object_id_prefix = mqtt_object_id_prefix;
-  device_name = mqtt_device_name;
-  device_id = ha_device_id;
+  if (mqtt_manual_topic_object_name) {
+#ifdef COMMON_IMAGE
+    BatteryEmulatorSettingsStore settings;
+    topic_name = settings.getString("MQTTTOPIC", mqtt_topic_name);
+    object_id_prefix = settings.getString("MQTTOBJIDPREFIX", mqtt_object_id_prefix);
+    device_name = settings.getString("MQTTDEVICENAME", mqtt_device_name);
+    device_id = settings.getString("HADEVICEID", ha_device_id);
 #else
-  // Use default naming based on WiFi hostname for topic, object ID prefix, and device name
-  topic_name = "battery-emulator_" + String(WiFi.getHostname());
-  object_id_prefix = String(WiFi.getHostname()) + String("_");
-  device_name = "BatteryEmulator_" + String(WiFi.getHostname());
-  device_id = "battery-emulator";
+    // Use custom topic name, object ID prefix, and device name from user settings
+    topic_name = mqtt_topic_name;
+    object_id_prefix = mqtt_object_id_prefix;
+    device_name = mqtt_device_name;
+    device_id = ha_device_id;
 #endif
+  } else {
+    // Use default naming based on WiFi hostname for topic, object ID prefix, and device name
+    topic_name = "battery-emulator_" + String(WiFi.getHostname());
+    object_id_prefix = String(WiFi.getHostname()) + String("_");
+    device_name = "BatteryEmulator_" + String(WiFi.getHostname());
+    device_id = "battery-emulator";
+  }
 
   String clientId = String("BatteryEmulatorClient-") + WiFi.getHostname();
 
   mqtt_cfg.broker.address.transport = MQTT_TRANSPORT_OVER_TCP;
-  mqtt_cfg.broker.address.hostname = MQTT_SERVER;
-  mqtt_cfg.broker.address.port = MQTT_PORT;
+  mqtt_cfg.broker.address.hostname = mqtt_server.c_str();
+  mqtt_cfg.broker.address.port = mqtt_port;
   mqtt_cfg.credentials.client_id = clientId.c_str();
-  mqtt_cfg.credentials.username = MQTT_USER;
-  mqtt_cfg.credentials.authentication.password = MQTT_PASSWORD;
+  mqtt_cfg.credentials.username = mqtt_user.c_str();
+  mqtt_cfg.credentials.authentication.password = mqtt_password.c_str();
   lwt_topic = topic_name + "/status";
   mqtt_cfg.session.last_will.topic = lwt_topic.c_str();
   mqtt_cfg.session.last_will.qos = 1;
@@ -586,7 +614,16 @@ void init_mqtt(void) {
   mqtt_cfg.session.last_will.msg_len = strlen(mqtt_cfg.session.last_will.msg);
   mqtt_cfg.network.timeout_ms = MQTT_TIMEOUT;
   client = esp_mqtt_client_init(&mqtt_cfg);
-  esp_mqtt_client_register_event(client, MQTT_EVENT_ANY, mqtt_event_handler, client);
+
+  if (client == nullptr) {
+    return false;
+  }
+
+  if (esp_mqtt_client_register_event(client, MQTT_EVENT_ANY, mqtt_event_handler, client) != ESP_OK) {
+    return false;
+  }
+
+  return true;
 }
 
 void mqtt_loop(void) {
