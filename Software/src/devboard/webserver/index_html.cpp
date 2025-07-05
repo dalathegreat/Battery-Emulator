@@ -4,7 +4,23 @@
   R"rawliteral(<!doctype html><html><head><title>Battery Emulator</title><meta content="width=device-width"name=viewport><style>html{font-family:Arial;display:inline-block;text-align:center}h2{font-size:3rem}body{max-width:800px;margin:0 auto}</style><body>)rawliteral"
 #define INDEX_HTML_FOOTER R"rawliteral(</body></html>)rawliteral";
 
-const char index_html[] = INDEX_HTML_HEADER "%X%" INDEX_HTML_FOOTER;
+#define COMMON_JAVASCRIPT \
+  R"rawliteral(
+<script>
+function askReboot() {
+  if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If emulator is handling contactors, they will open during reboot!')) {
+    reboot();
+  }
+}
+function reboot() {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', '/reboot', true);
+  xhr.send();
+}
+</script>
+)rawliteral"
+
+const char index_html[] = INDEX_HTML_HEADER COMMON_JAVASCRIPT "%X%" INDEX_HTML_FOOTER;
 const char index_html_header[] = INDEX_HTML_HEADER;
 const char index_html_footer[] = INDEX_HTML_FOOTER;
 

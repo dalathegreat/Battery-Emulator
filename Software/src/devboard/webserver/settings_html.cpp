@@ -192,12 +192,17 @@ String settings_processor(const String& var) {
     render_checkbox(content, "Remote BMS reset", settings.getBool("REMBMSRESET"), "REMBMSRESET");
     render_checkbox(content, "Use CanFD as classic CAN", settings.getBool("CANFDASCAN"), "CANFDASCAN");
 
+    render_checkbox(content, "Enable WiFi AP", settings.getBool("WIFIAPENABLED"), "WIFIAPENABLED");
+    render_checkbox(content, "Enable MQTT", settings.getBool("MQTTENABLED"), "MQTTENABLED");
+    render_checkbox(content, "Enable Home Assistant auto discovery", settings.getBool("HADISC"), "HADISC");
+
     content +=
         "<div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button "
         "type='submit'>Save</button></div>";
 
     if (settingsUpdated) {
-      content += "<p>Settings saved. Reboot to take the settings into use.</p>";
+      content += "<p>Settings saved. Reboot to take the settings into use.";
+      content += "<button onclick='askReboot()'>Reboot</button></p>";
     }
 
     content += "</form></div></div>";

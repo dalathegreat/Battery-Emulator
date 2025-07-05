@@ -25,6 +25,7 @@ void init_WiFi_AP();
 void init_mDNS();
 
 extern bool wifi_enabled;
+extern bool wifiap_enabled;
 extern bool mdns_enabled;
 
 #endif

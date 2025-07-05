@@ -3,6 +3,7 @@
 
 #include "../../include.h"
 
+#include <limits>
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/events.h"
 #include "../../devboard/wifi/wifi.h"
@@ -48,14 +49,27 @@ class BatteryEmulatorSettingsStore {
 
   uint32_t getUInt(const char* name, uint32_t defaultValue) { return settings.getUInt(name, defaultValue); }
 
-  void saveUInt(const char* name, uint32_t value) { settings.putUInt(name, value); }
+  void saveUInt(const char* name, uint32_t value) {
+    auto oldValue = settings.getUInt(name, std::numeric_limits<uint32_t>::max());
+    settings.putUInt(name, value);
+    settingsUpdated = settingsUpdated || value != oldValue;
+  }
 
   bool getBool(const char* name) { return settings.getBool(name, false); }
 
-  void saveBool(const char* name, bool value) { settings.putBool(name, value); }
+  void saveBool(const char* name, bool value) {
+    auto oldValue = settings.getBool(name, false);
+    settings.putBool(name, value);
+    settingsUpdated = settingsUpdated || value != oldValue;
+  }
+
+  bool were_settings_updated() const { return settingsUpdated; }
 
  private:
   Preferences settings;
+
+  // To track if settings were updated
+  bool settingsUpdated = false;
 };
 
 #endif

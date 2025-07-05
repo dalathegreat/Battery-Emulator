@@ -396,17 +396,17 @@ void init_webserver() {
     request->send(200, "text/html", response);
   });
 
+#ifdef COMMON_IMAGE
   struct BoolSetting {
     const char* name;
     bool existingValue;
     bool newValue;
   };
 
-  const char* boolSettingNames[] = {"DBLBTR",      "CNTCTRL",     "CNTCTRLDBL", "PWMCNTCTRL",
-                                    "PERBMSRESET", "REMBMSRESET", "CANFDASCAN"};
+  const char* boolSettingNames[] = {"DBLBTR",      "CNTCTRL",    "CNTCTRLDBL",    "PWMCNTCTRL",  "PERBMSRESET",
+                                    "REMBMSRESET", "CANFDASCAN", "WIFIAPENABLED", "MQTTENABLED", "HADISC"};
 
-#ifdef COMMON_IMAGE
-  // Handles the form POST from UI to save certain settings: battery/inverter type and double battery on/off
+  // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST, [boolSettingNames](AsyncWebServerRequest* request) {
     BatteryEmulatorSettingsStore settings;
 
@@ -464,7 +464,7 @@ void init_webserver() {
       }
     }
 
-    settingsUpdated = true;
+    settingsUpdated = settings.were_settings_updated();
     request->redirect("/settings");
   });
 #endif
@@ -1552,15 +1552,6 @@ String processor(const String& var) {
     content += "function CANreplay() { window.location.href = '/canreplay'; }";
     content += "function Log() { window.location.href = '/log'; }";
     content += "function Events() { window.location.href = '/events'; }";
-    content +=
-        "function askReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
-        "emulator is handling contactors, they will open during reboot!')) { "
-        "reboot(); } }";
-    content += "function reboot() {";
-    content += "  var xhr = new XMLHttpRequest();";
-    content += "  xhr.open('GET', '/reboot', true);";
-    content += "  xhr.send();";
-    content += "}";
     if (WEBSERVER_AUTH_REQUIRED) {
       content += "function logout() {";
       content += "  var xhr = new XMLHttpRequest();";

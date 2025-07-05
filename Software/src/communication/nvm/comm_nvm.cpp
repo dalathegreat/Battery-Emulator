@@ -1,5 +1,7 @@
 #include "comm_nvm.h"
 #include "../../communication/can/comm_can.h"
+#include "../../devboard/mqtt/mqtt.h"
+#include "../../devboard/wifi/wifi.h"
 #include "../../include.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
 
@@ -108,6 +110,11 @@ void init_stored_settings() {
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
+
+  wifiap_enabled = settings.getBool("WIFIAPENABLED", false);
+  mqtt_enabled = settings.getBool("MQTTENABLED", false);
+  ha_autodiscovery_enabled = settings.getBool("HADISC", false);
+
 #endif
 
   settings.end();
