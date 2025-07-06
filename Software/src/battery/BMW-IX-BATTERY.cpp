@@ -101,36 +101,6 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
 
   datalayer.battery.info.number_of_cells = detected_number_of_cells;
 
-  datalayer_extended.bmwix.min_cell_voltage_data_age = (millis() - min_cell_voltage_lastchanged);
-
-  datalayer_extended.bmwix.max_cell_voltage_data_age = (millis() - max_cell_voltage_lastchanged);
-
-  datalayer_extended.bmwix.T30_Voltage = terminal30_12v_voltage;
-
-  datalayer_extended.bmwix.hvil_status = hvil_status;
-
-  datalayer_extended.bmwix.bms_uptime = sme_uptime;
-
-  datalayer_extended.bmwix.pyro_status_pss1 = pyro_status_pss1;
-
-  datalayer_extended.bmwix.pyro_status_pss4 = pyro_status_pss4;
-
-  datalayer_extended.bmwix.pyro_status_pss6 = pyro_status_pss6;
-
-  datalayer_extended.bmwix.iso_safety_positive = iso_safety_positive;
-
-  datalayer_extended.bmwix.iso_safety_negative = iso_safety_negative;
-
-  datalayer_extended.bmwix.iso_safety_parallel = iso_safety_parallel;
-
-  datalayer_extended.bmwix.allowable_charge_amps = allowable_charge_amps;
-
-  datalayer_extended.bmwix.allowable_discharge_amps = allowable_discharge_amps;
-
-  datalayer_extended.bmwix.balancing_status = balancing_status;
-
-  datalayer_extended.bmwix.battery_voltage_after_contactor = battery_voltage_after_contactor;
-
   if (battery_info_available) {
     // If we have data from battery - override the defaults to suit
     datalayer.battery.info.max_design_voltage_dV = max_design_voltage;
@@ -493,30 +463,26 @@ void BmwIXBattery::HandleIncomingUserRequest(void) {
   // Debug user request to open or close the contactors
 #ifdef DEBUG_LOG
   logging.print("User request: contactor close: ");
-  logging.print(datalayer_extended.bmwix.UserRequestContactorClose);
+  logging.print(userRequestContactorClose);
   logging.print("  User request: contactor open: ");
-  logging.println(datalayer_extended.bmwix.UserRequestContactorOpen);
+  logging.println(userRequestContactorOpen);
 #endif  // DEBUG_LOG
-  if ((datalayer_extended.bmwix.UserRequestContactorClose == false) &&
-      (datalayer_extended.bmwix.UserRequestContactorOpen == false)) {
+  if ((userRequestContactorClose == false) && (userRequestContactorOpen == false)) {
     // do nothing
-  } else if ((datalayer_extended.bmwix.UserRequestContactorClose == true) &&
-             (datalayer_extended.bmwix.UserRequestContactorOpen == false)) {
+  } else if ((userRequestContactorClose == true) && (userRequestContactorOpen == false)) {
     BmwIxCloseContactors();
     // set user request to false
-    datalayer_extended.bmwix.UserRequestContactorClose = false;
-  } else if ((datalayer_extended.bmwix.UserRequestContactorClose == false) &&
-             (datalayer_extended.bmwix.UserRequestContactorOpen == true)) {
+    userRequestContactorClose = false;
+  } else if ((userRequestContactorClose == false) && (userRequestContactorOpen == true)) {
     BmwIxOpenContactors();
     // set user request to false
-    datalayer_extended.bmwix.UserRequestContactorOpen = false;
-  } else if ((datalayer_extended.bmwix.UserRequestContactorClose == true) &&
-             (datalayer_extended.bmwix.UserRequestContactorOpen == true)) {
+    userRequestContactorOpen = false;
+  } else if ((userRequestContactorClose == true) && (userRequestContactorOpen == true)) {
     // these flasgs should not be true at the same time, therefore open contactors, as that is the safest state
     BmwIxOpenContactors();
     // set user request to false
-    datalayer_extended.bmwix.UserRequestContactorClose = false;
-    datalayer_extended.bmwix.UserRequestContactorOpen = false;
+    userRequestContactorClose = false;
+    userRequestContactorOpen = false;
 // print error, as both these flags shall not be true at the same time
 #ifdef DEBUG_LOG
     logging.println(
@@ -694,4 +660,51 @@ void BmwIXBattery::HandleBmwIxOpenContactorsRequest(uint16_t counter_10ms) {
       }
     }
   }
+}
+
+// Getter implementations for HTML renderer
+int BmwIXBattery::get_battery_voltage_after_contactor() const {
+  return battery_voltage_after_contactor;
+}
+unsigned long BmwIXBattery::get_min_cell_voltage_data_age() const {
+  return millis() - min_cell_voltage_lastchanged;
+}
+unsigned long BmwIXBattery::get_max_cell_voltage_data_age() const {
+  return millis() - max_cell_voltage_lastchanged;
+}
+int BmwIXBattery::get_T30_Voltage() const {
+  return terminal30_12v_voltage;
+}
+int BmwIXBattery::get_balancing_status() const {
+  return balancing_status;
+}
+int BmwIXBattery::get_hvil_status() const {
+  return hvil_status;
+}
+unsigned long BmwIXBattery::get_bms_uptime() const {
+  return sme_uptime;
+}
+int BmwIXBattery::get_allowable_charge_amps() const {
+  return allowable_charge_amps;
+}
+int BmwIXBattery::get_allowable_discharge_amps() const {
+  return allowable_discharge_amps;
+}
+int BmwIXBattery::get_iso_safety_positive() const {
+  return iso_safety_positive;
+}
+int BmwIXBattery::get_iso_safety_negative() const {
+  return iso_safety_negative;
+}
+int BmwIXBattery::get_iso_safety_parallel() const {
+  return iso_safety_parallel;
+}
+int BmwIXBattery::get_pyro_status_pss1() const {
+  return pyro_status_pss1;
+}
+int BmwIXBattery::get_pyro_status_pss4() const {
+  return pyro_status_pss4;
+}
+int BmwIXBattery::get_pyro_status_pss6() const {
+  return pyro_status_pss6;
 }
