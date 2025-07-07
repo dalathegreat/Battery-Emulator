@@ -118,7 +118,7 @@
 /* Connectivity options */
 #define WIFI
 //#define WIFICONFIG  //Enable this line to set a static IP address / gateway /subnet mask for the device. see USER_SETTINGS.cpp for the settings
-#define CUSTOM_HOSTNAME \
+//#define CUSTOM_HOSTNAME \
   "battery-emulator"  //Enable this line to use a custom hostname for the device, if disabled the default naming format 'esp32-XXXXXX' will be used.
 #define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
 #define WIFIAP  //When enabled, the emulator will broadcast its own access point Wifi. Can be used at the same time as a normal Wifi connection to a router.
