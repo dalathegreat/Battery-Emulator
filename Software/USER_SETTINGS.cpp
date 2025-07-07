@@ -21,11 +21,11 @@ volatile CAN_Configuration can_config = {
     .shunt = CAN_NATIVE                   // (OPTIONAL) Which CAN is your shunt connected to?
 };
 
-std::string ssid = WIFI_SSID;               // Set in USER_SECRETS.h
-std::string password = WIFI_PASSWORD;       // Set in USER_SECRETS.h
-const char* ssidAP = "Battery Emulator";    // Maximum of 63 characters, also used for device name on web interface
-const char* passwordAP = AP_PASSWORD;       // Set in USER_SECRETS.h
-const uint8_t wifi_channel = 0;             // Set to 0 for automatic channel selection
+std::string ssid = WIFI_SSID;             // Set in USER_SECRETS.h
+std::string password = WIFI_PASSWORD;     // Set in USER_SECRETS.h
+const char* ssidAP = "Battery Emulator";  // Maximum of 63 characters, also used for device name on web interface
+const char* passwordAP = AP_PASSWORD;     // Set in USER_SECRETS.h
+const uint8_t wifi_channel = 0;           // Set to 0 for automatic channel selection
 
 #ifdef WEBSERVER
 const char* http_username = HTTP_USERNAME;  // Set in USER_SECRETS.h
