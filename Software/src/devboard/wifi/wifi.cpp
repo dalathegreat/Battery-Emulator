@@ -28,8 +28,8 @@ static bool connected_once = false;
 
 void init_WiFi() {
 
-#ifdef HOSTNAME
-  WiFi.setHostname(hostname);
+#ifdef CUSTOM_HOSTNAME
+  WiFi.setHostname(CUSTOM_HOSTNAME);  // Set custom hostname if defined in USER_SETTINGS.h
 #endif
 
 #ifdef WIFIAP
@@ -186,8 +186,8 @@ void init_mDNS() {
   // e.g batteryemulator8C.local where the mac address is 08:F9:E0:D1:06:8C
   String mac = WiFi.macAddress();
   String mdnsHost = "batteryemulator" + mac.substring(mac.length() - 2);
-#ifdef HOSTNAME  // If HOSTNAME is defined, use the same hostname from USER_SETTINGS.h also for mDNS
-  mdnsHost = hostname;
+#ifdef CUSTOM_HOSTNAME // If CUSTOM_HOSTNAME is defined, use the same hostname also for mDNS
+  mdnsHost = CUSTOM_HOSTNAME;
 #endif
 
   // Initialize mDNS .local resolution
