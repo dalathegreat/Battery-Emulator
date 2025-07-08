@@ -10,7 +10,7 @@ ci:
 
 repos:
 - repo: https://github.com/pre-commit/mirrors-clang-format
-  rev: v20.1.5
+  rev: v20.1.7
   hooks:
   - id: clang-format
     args: [-Werror]  # change formatting warnings to errors, hook includes -i (Inplace edit) by default
