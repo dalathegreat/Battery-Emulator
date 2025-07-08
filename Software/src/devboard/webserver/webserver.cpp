@@ -187,9 +187,15 @@ void init_webserver() {
 
   // Route for going to settings web page
   server.on("/settings", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
       return request->requestAuthentication();
-    request->send(200, "text/html", index_html, settings_processor);
+    }
+
+    // Using make_shared to ensure lifetime for the settings object during send() lambda execution
+    auto settings = std::make_shared<BatteryEmulatorSettingsStore>(true);
+
+    request->send(200, "text/html", settings_html,
+                  [settings](const String& content) { return settings_processor(content, *settings); });
   });
 
   // Route for going to advanced battery info web page
