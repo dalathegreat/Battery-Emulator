@@ -77,15 +77,6 @@ String options_for_enum(TEnum selected, Func name_for_type) {
   return options;
 }
 
-void render_checkbox(String& content, const char* label, bool enabled, const char* name) {
-  content += "<label>" + String(label) + "</label>";
-  content += "<input id='" + String(name) + "' name='" + String(name) +
-             "' type='checkbox' "
-             "style=\"margin-left: 0;\"";
-  content += (enabled ? " checked" : "");
-  content += " value='on'/>";
-}
-
 const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   switch (behavior) {
     case STOP_BUTTON_BEHAVIOR::LATCHING_SWITCH:
@@ -99,27 +90,8 @@ const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   }
 }
 
-void render_textbox(String& content, const char* label, const char* name, BatteryEmulatorSettingsStore& settings,
-                    bool password = false, bool number = false) {
-  content += "<label>";
-  content += label;
-  content += ": </label><input style='max-width: 250px;' ";
-  if (password) {
-    content += "type='password'";
-  } else {
-    content += "type='text'";
-  }
-  content += " name='";
-  content += name;
-  content += "' value=\"";
-
-  auto value = number ? String(settings.getUInt(name, 0)) : settings.getString(name);
-  value.replace("\"", "&quot;");  // Escape quotes for HTML
-  content += value;
-  content += "\"/>";
-}
-
 String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
+
   if (var == "BATTERYINTF") {
     if (battery) {
       return battery->interface_name();
@@ -252,6 +224,46 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("MQTTENABLED") ? "checked" : "";
   }
 
+  if (var == "MQTTSERVER") {
+    return settings.getString("MQTTSERVER");
+  }
+
+  if (var == "MQTTPORT") {
+    return String(settings.getUInt("MQTTPORT", 1883));
+  }
+
+  if (var == "MQTTUSER") {
+    return settings.getString("MQTTUSER");
+  }
+
+  if (var == "MQTTPASSWORD") {
+    return settings.getString("MQTTPASSWORD");
+  }
+
+  if (var == "MQTTTOPICS") {
+    return settings.getBool("MQTTTOPICS") ? "checked" : "";
+  }
+
+  if (var == "MQTTTOPIC") {
+    return settings.getString("MQTTTOPIC");
+  }
+
+  if (var == "MQTTOBJIDPREFIX") {
+    return settings.getString("MQTTOBJIDPREFIX");
+  }
+
+  if (var == "MQTTDEVICENAME") {
+    return settings.getString("MQTTDEVICENAME");
+  }
+
+  if (var == "HADEVICEID") {
+    return settings.getString("HADEVICEID");
+  }
+
+  if (var == "HADISC") {
+    return settings.getBool("HADISC") ? "checked" : "";
+  }
+
   if (var == "BATTERY_WH_MAX") {
     return String(datalayer.battery.info.total_capacity_Wh);
   }
@@ -300,6 +312,18 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return battery && battery->supports_set_fake_voltage() ? "" : "hidden";
   }
 
+  if (var == "MANUAL_BALANCING_CLASS") {
+    return datalayer.battery.settings.user_requests_balancing ? "" : "inactiveSoc";
+  }
+
+  if (var == "MANUAL_BALANCING") {
+    if (datalayer.battery.settings.user_requests_balancing) {
+      return "&#10003;";
+    } else {
+      return "&#10005;";
+    }
+  }
+
   if (var == "BATTERY_VOLTAGE") {
     if (battery) {
       return String(battery->get_voltage(), 1);
@@ -314,247 +338,74 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     }
   }
 
-  if (var == "X") {
-    String content = "";
-    //Page format
-
-#ifdef COMMON_IMAGE
-    //BatteryEmulatorSettingsStore settings(true);
-
-    // It's important that we read/write settings directly to settings store instead of the run-time values
-    // since the run-time values may have direct effect on operation.
-    content +=
-        "<div style='background-color: #404E47; padding: 10px; margin-bottom: 10px;border-radius: 50px;'><div "
-        "style='max-width: 500px;'>";
-    content +=
-        "<form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 2fr; gap: 10px; "
-        "align-items: center;'>";
-
-    content += "<label>Battery: </label><select style='max-width: 250px;' name='battery'>";
-    content += options_for_enum_with_none((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None),
-                                          name_for_battery_type, BatteryType::None);
-    content += "</select>";
-
-    content += "<label>Battery comm I/F: </label><select style='max-width: 250px;' name='BATTCOMM'>";
-    content += options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
-                                name_for_comm_interface);
-    content += "</select>";
-
-    content += "<label>Battery chemistry: </label><select style='max-width: 250px;' name='BATTCHEM'>";
-    content += options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA),
-                                name_for_chemistry);
-    content += "</select>";
-
-    content += "<label>Inverter protocol: </label><select style='max-width: 250px;' name='inverter'>";
-    content +=
-        options_for_enum_with_none((InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None),
-                                   name_for_inverter_type, InverterProtocolType::None);
-    content += "</select>";
-
-    content += "<label>Inverter comm I/F: </label><select style='max-width: 250px;' name='INVCOMM'>";
-    content += options_for_enum((comm_interface)settings.getUInt("INVCOMM", (int)comm_interface::CanNative),
-                                name_for_comm_interface);
-    content += "</select>";
-
-    content += "<label>Charger: </label><select style='max-width: 250px;' name='charger'>";
-    content += options_for_enum_with_none((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None),
-                                          name_for_charger_type, ChargerType::None);
-    content += "</select>";
-
-    content += "<label>Charger comm I/F: </label><select style='max-width: 250px;' name='CHGCOMM'>";
-    content += options_for_enum((comm_interface)settings.getUInt("CHGCOMM", (int)comm_interface::CanNative),
-                                name_for_comm_interface);
-    content += "</select>";
-
-    content += "<label>Equipment stop button: </label><select style='max-width: 250px;' name='EQSTOP'>";
-    content += options_for_enum_with_none(
-        (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
-        name_for_button_type, STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
-    content += "</select>";
-
-    // TODO: Generalize settings: define settings in one place and use the definitions to render
-    // UI and handle load/save
-    render_checkbox(content, "Double battery", settings.getBool("DBLBTR"), "DBLBTR");
-
-    content += "<label>Battery 2 comm I/F: </label><select style='max-width: 250px;' name='BATT2COMM'>";
-    content += options_for_enum((comm_interface)settings.getUInt("BATT2COMM", (int)comm_interface::CanNative),
-                                name_for_comm_interface);
-    content += "</select>";
-
-    render_checkbox(content, "Contactor control", settings.getBool("CNTCTRL"), "CNTCTRL");
-    render_checkbox(content, "Contactor control double battery", settings.getBool("CNTCTRLDBL"), "CNTCTRLDBL");
-    render_checkbox(content, "PWM contactor control", settings.getBool("PWMCNTCTRL"), "PWMCNTCTRL");
-    render_checkbox(content, "Periodic BMS reset", settings.getBool("PERBMSRESET"), "PERBMSRESET");
-    render_checkbox(content, "Remote BMS reset", settings.getBool("REMBMSRESET"), "REMBMSRESET");
-    render_checkbox(content, "Use CanFD as classic CAN", settings.getBool("CANFDASCAN"), "CANFDASCAN");
-
-    render_checkbox(content, "Enable WiFi AP", settings.getBool("WIFIAPENABLED"), "WIFIAPENABLED");
-    render_checkbox(content, "Enable MQTT", settings.getBool("MQTTENABLED"), "MQTTENABLED");
-
-    render_textbox(content, "MQTT server", "MQTTSERVER", settings);
-    render_textbox(content, "MQTT port", "MQTTPORT", settings, false, true);
-    render_textbox(content, "MQTT user", "MQTTUSER", settings);
-    render_textbox(content, "MQTT password", "MQTTPASSWORD", settings, true);
-
-    render_checkbox(content, "Customized MQTT topics", settings.getBool("MQTTTOPICS"), "MQTTTOPICS");
-    render_textbox(content, "MQTT topic name", "MQTTTOPIC", settings);
-    render_textbox(content, "Prefix for MQTT object ID", "MQTTOBJIDPREFIX", settings);
-    render_textbox(content, "HA device name", "MQTTDEVICENAME", settings);
-    render_textbox(content, "HA device ID", "HADEVICEID", settings);
-
-    render_checkbox(content, "Enable Home Assistant auto discovery", settings.getBool("HADISC"), "HADISC");
-
-    content +=
-        "<div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button "
-        "type='submit'>Save</button></div>";
-
-    if (settingsUpdated) {
-      content += "<p>Settings saved. Reboot to take the settings into use.";
-      content += "<button onclick='askReboot()'>Reboot</button></p>";
-    }
-
-    content += "</form></div></div>";
-#endif
-
-    if (battery) {
-      content += "<h4 style='color: white;'>Battery interface: <span id='Battery'>" + battery->interface_name() +
-                 "</span></h4>";
-    }
-
-    if (battery2) {
-      content += "<h4 style='color: white;'>Battery #2 interface: <span id='Battery'>" + battery2->interface_name() +
-                 "</span></h4>";
-    }
-
-    if (inverter) {
-      content += "<h4 style='color: white;'>Inverter interface: <span id='Inverter'>" +
-                 String(inverter->interface_name()) + "</span></h4>";
-    }
-
-    if (shunt) {
-      content +=
-          "<h4 style='color: white;'>Shunt Interface: <span id='Shunt'>" + shunt->interface_name() + "</span></h4>";
-    }
-
-    // Close the block
-    content += "</div>";
-
-    // Start a new block with a specific background color
-    content += "<div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
-
-    // Show current settings with edit buttons and input fields
-    content += "<h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>" +
-               String(datalayer.battery.info.total_capacity_Wh) +
-               " Wh </span> <button onclick='editWh()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'>" +
-               String(datalayer.battery.settings.soc_scaling_active ? "<span>&#10003;</span>"
-                                                                    : "<span style='color: red;'>&#10005;</span>") +
-               "</span> <button onclick='editUseScaledSOC()'>Edit</button></h4>";
-    content += "<h4 style='color: " + String(datalayer.battery.settings.soc_scaling_active ? "white" : "darkgrey") +
-               ";'>SOC max percentage: " + String(datalayer.battery.settings.max_percentage / 100.0, 1) +
-               " </span> <button onclick='editSocMax()'>Edit</button></h4>";
-    content += "<h4 style='color: " + String(datalayer.battery.settings.soc_scaling_active ? "white" : "darkgrey") +
-               ";'>SOC min percentage: " + String(datalayer.battery.settings.min_percentage / 100.0, 1) +
-               " </span> <button onclick='editSocMin()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>Max charge speed: " +
-               String(datalayer.battery.settings.max_user_set_charge_dA / 10.0, 1) +
-               " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>Max discharge speed: " +
-               String(datalayer.battery.settings.max_user_set_discharge_dA / 10.0, 1) +
-               " A </span> <button onclick='editMaxDischargeA()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>Manual charge voltage limits: <span id='BATTERY_USE_VOLTAGE_LIMITS'>" +
-               String(datalayer.battery.settings.user_set_voltage_limits_active
-                          ? "<span>&#10003;</span>"
-                          : "<span style='color: red;'>&#10005;</span>") +
-               "</span> <button onclick='editUseVoltageLimit()'>Edit</button></h4>";
-    content +=
-        "<h4 style='color: " +
-        String(datalayer.battery.settings.user_set_voltage_limits_active ? "white" : "darkgrey") +
-        ";'>Target charge voltage: " + String(datalayer.battery.settings.max_user_set_charge_voltage_dV / 10.0, 1) +
-        " V </span> <button onclick='editMaxChargeVoltage()'>Edit</button></h4>";
-    content += "<h4 style='color: " +
-               String(datalayer.battery.settings.user_set_voltage_limits_active ? "white" : "darkgrey") +
-               ";'>Target discharge voltage: " +
-               String(datalayer.battery.settings.max_user_set_discharge_voltage_dV / 10.0, 1) +
-               " V </span> <button onclick='editMaxDischargeVoltage()'>Edit</button></h4>";
-    // Close the block
-    content += "</div>";
-
-    if (battery && battery->supports_set_fake_voltage()) {
-      content += "<div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
-      content += "<h4 style='color: white;'>Fake battery voltage: " + String(battery->get_voltage(), 1) +
-                 " V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>";
-      content += "</div>";
-    }
-
-    if (battery && battery->supports_manual_balancing()) {
-      // Start a new block with grey background color
-      content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
-
-      content +=
-          "<h4 style='color: white;'>Manual LFP balancing: <span id='TSL_BAL_ACT'>" +
-          String(datalayer.battery.settings.user_requests_balancing ? "<span>&#10003;</span>"
-                                                                    : "<span style='color: red;'>&#10005;</span>") +
-          "</span> <button onclick='editTeslaBalAct()'>Edit</button></h4>";
-      content +=
-          "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-          ";'>Balancing max time: " + String(datalayer.battery.settings.balancing_time_ms / 60000.0, 1) +
-          " Minutes </span> <button onclick='editBalTime()'>Edit</button></h4>";
-      content +=
-          "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-          ";'>Balancing float power: " + String(datalayer.battery.settings.balancing_float_power_W / 1.0, 0) +
-          " W </span> <button onclick='editBalFloatPower()'>Edit</button></h4>";
-      content +=
-          "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-          ";'>Max battery voltage: " + String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0, 0) +
-          " V </span> <button onclick='editBalMaxPackV()'>Edit</button></h4>";
-      content +=
-          "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-          ";'>Max cell voltage: " + String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0, 0) +
-          " mV </span> <button onclick='editBalMaxCellV()'>Edit</button></h4>";
-      content +=
-          "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-          ";'>Max cell voltage deviation: " +
-          String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0, 0) +
-          " mV </span> <button onclick='editBalMaxDevCellV()'>Edit</button></h4>";
-
-      // Close the block
-      content += "</div>";
-    }
-
-    if (charger) {
-      // Start a new block with orange background color
-      content += "<div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
-
-      content += "<h4 style='color: white;'>Charger HVDC Enabled: ";
-      if (datalayer.charger.charger_HV_enabled) {
-        content += "<span>&#10003;</span>";
-      } else {
-        content += "<span style='color: red;'>&#10005;</span>";
-      }
-      content += " <button onclick='editChargerHVDCEnabled()'>Edit</button></h4>";
-
-      content += "<h4 style='color: white;'>Charger Aux12VDC Enabled: ";
-      if (datalayer.charger.charger_aux12V_enabled) {
-        content += "<span>&#10003;</span>";
-      } else {
-        content += "<span style='color: red;'>&#10005;</span>";
-      }
-      content += " <button onclick='editChargerAux12vEnabled()'>Edit</button></h4>";
-
-      content += "<h4 style='color: white;'>Charger Voltage Setpoint: " +
-                 String(datalayer.charger.charger_setpoint_HV_VDC, 1) +
-                 " V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>";
-      content += "<h4 style='color: white;'>Charger Current Setpoint: " +
-                 String(datalayer.charger.charger_setpoint_HV_IDC, 1) +
-                 " A </span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>";
-
-      // Close the block
-      content += "</div>";
-    }
-
-    return content;
+  if (var == "BALANCING_CLASS") {
+    return datalayer.battery.settings.user_requests_balancing ? "active" : "inactive";
   }
+
+  if (var == "BALANCING_MAX_TIME") {
+    return String(datalayer.battery.settings.balancing_time_ms / 60000.0, 1);
+  }
+
+  if (var == "BAL_POWER") {
+    return String(datalayer.battery.settings.balancing_float_power_W / 1.0, 0);
+  }
+
+  if (var == "BAL_MAX_PACK_VOLTAGE") {
+    return String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0, 0);
+  }
+  if (var == "BAL_MAX_CELL_VOLTAGE") {
+    return String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0, 0);
+  }
+  if (var == "BAL_MAX_DEV_CELL_VOLTAGE") {
+    return String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0, 0);
+  }
+
+  if (var == "CHARGER_CLASS") {
+    if (!charger) {
+      return "hidden";
+    }
+  }
+
+  if (var == "CHG_HV_CLASS") {
+    if (datalayer.charger.charger_HV_enabled) {
+      return "active";
+    } else {
+      return "inactiveSoc";
+    }
+  }
+
+  if (var == "CHG_HV") {
+    if (datalayer.charger.charger_HV_enabled) {
+      return "&#10003;";
+    } else {
+      return "&#10005;";
+    }
+  }
+
+  if (var == "CHG_AUX12V_CLASS") {
+    if (datalayer.charger.charger_aux12V_enabled) {
+      return "active";
+    } else {
+      return "inactiveSoc";
+    }
+  }
+
+  if (var == "CHG_AUX12V") {
+    if (datalayer.charger.charger_aux12V_enabled) {
+      return "&#10003;";
+    } else {
+      return "&#10005;";
+    }
+  }
+
+  if (var == "CHG_VOLTAGE_SETPOINT") {
+    return String(datalayer.charger.charger_setpoint_HV_VDC, 1);
+  }
+
+  if (var == "CHG_CURRENT_SETPOINT") {
+    return String(datalayer.charger.charger_setpoint_HV_IDC, 1);
+  }
+
   return String();
 }
 
@@ -798,40 +649,38 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     </div>
     </div>
 
-    <h4 style='color: white;'>Battery interface: <span id='Battery'>%BATTERYINTF%</span></h4>
+      <h4 style='color: white;'>Battery interface: <span id='Battery'>%BATTERYINTF%</span></h4>
 
-    <h4 style='color: white;' class="%BATTERY2CLASS%">Battery interface: <span id='Battery2'>%BATTERY2INTF%</span></h4>
+      <h4 style='color: white;' class="%BATTERY2CLASS%">Battery interface: <span id='Battery2'>%BATTERY2INTF%</span></h4>
 
-    <h4 style='color: white;' class="%INVCLASS%">Inverter interface: <span id='Inverter'>%INVINTF%</span></h4>
+      <h4 style='color: white;' class="%INVCLASS%">Inverter interface: <span id='Inverter'>%INVINTF%</span></h4>
 
-    <h4 style='color: white;' class="%SHUNTCLASS%">Shunt interface: <span id='Inverter'>%SHUNTINTF%</span></h4>
+      <h4 style='color: white;' class="%SHUNTCLASS%">Shunt interface: <span id='Inverter'>%SHUNTINTF%</span></h4>
 
     </div>
 
     <div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
 
-    <!-- Show current settings with edit buttons and input fields -->
+      <h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
 
-    <h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
+      <h4 style='color: white;'>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'><span class='%SOC_SCALING_CLASS%'>%SOC_SCALING%</span>
+                </span> <button onclick='editUseScaledSOC()'>Edit</button></h4>
 
-    <h4 style='color: white;'>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'><span class='%SOC_SCALING_CLASS%'>%SOC_SCALING%</span>
-               </span> <button onclick='editUseScaledSOC()'>Edit</button></h4>
+      <h4 class='%SOC_SCALING_ACTIVE_CLASS%'><span>SOC max percentage: %SOC_MAX_PERCENTAGE%</span> <button onclick='editSocMax()'>Edit</button></h4>
 
-    <h4 class='%SOC_SCALING_ACTIVE_CLASS%'><span>SOC max percentage: %SOC_MAX_PERCENTAGE%</span> <button onclick='editSocMax()'>Edit</button></h4>";
+      <h4 class='%SOC_SCALING_ACTIVE_CLASS%'><span>SOC min percentage: %SOC_MIN_PERCENTAGE%</span> <button onclick='editSocMin()'>Edit</button></h4>
+      
+      <h4 style='color: white;'>Max charge speed: %MAX_CHARGE_SPEED% A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>
 
-    <h4 class='%SOC_SCALING_ACTIVE_CLASS%'><span>SOC min percentage: %SOC_MAX_PERCENTAGE%</span> <button onclick='editSocMin()'>Edit</button></h4>";
-    
-    <h4 style='color: white;'>Max charge speed: %MAX_CHARGE_SPEED% A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>
+      <h4 style='color: white;'>Max discharge speed: %MAX_DISCHARGE_SPEED% A </span><button onclick='editMaxDischargeA()'>Edit</button></h4>
 
-    <h4 style='color: white;'>Max discharge speed: %MAX_DISCHARGE_SPEED% A </span><button onclick='editMaxDischargeA()'>Edit</button></h4>
+      <h4 style='color: white;'>Manual charge voltage limits: <span id='BATTERY_USE_VOLTAGE_LIMITS'>
+        <span class='%VOLTAGE_LIMITS_CLASS%'>%VOLTAGE_LIMITS%</span>
+                </span> <button onclick='editUseVoltageLimit()'>Edit</button></h4>
 
-    <h4 style='color: white;'>Manual charge voltage limits: <span id='BATTERY_USE_VOLTAGE_LIMITS'>
-      <span class='%VOLTAGE_LIMITS_CLASS%'>%VOLTAGE_LIMITS%</span>
-               </span> <button onclick='editUseVoltageLimit()'>Edit</button></h4>
+      <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target charge voltage: %CHARGE_VOLTAGE% V </span> <button onclick='editMaxChargeVoltage()'>Edit</button></h4>
 
-    <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target charge voltage: %CHARGE_VOLTAGE% V </span> <button onclick='editMaxChargeVoltage()'>Edit</button></h4>
-
-    <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target discharge voltage: %DISCHARGE_VOLTAGE% V </span> <button onclick='editMaxDischargeVoltage()'>Edit</button></h4>
+      <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target discharge voltage: %DISCHARGE_VOLTAGE% V </span> <button onclick='editMaxDischargeVoltage()'>Edit</button></h4>
 
     </div>
 
@@ -843,32 +692,38 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       
     <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%MANUAL_BAL_CLASS%">
 
-          <h4 style='color: white;'>Manual LFP balancing: <span id='TSL_BAL_ACT'><span></span>
-          String(datalayer.battery.settings.user_requests_balancing ? "<span>&#10003;</span>"
-                                                                    : "<span style='color: red;'>&#10005;</span>") +
+          <h4 style='color: white;'>Manual LFP balancing: <span id='TSL_BAL_ACT'><span class="%MANUAL_BALANCING_CLASS%">%MANUAL_BALANCING%</span>
           </span> <button onclick='editTeslaBalAct()'>Edit</button></h4>
-          <h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-          ;'>Balancing max time: " + String(datalayer.battery.settings.balancing_time_ms / 60000.0, 1) +
-           Minutes </span> <button onclick='editBalTime()'>Edit</button></h4>
 
-          <h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-          ;'>Balancing float power: " + String(datalayer.battery.settings.balancing_float_power_W / 1.0, 0) +
-           W </span> <button onclick='editBalFloatPower()'>Edit</button></h4>";
+          <h4 class="%BALANCING_CLASS%"><span>Balancing max time: %BAL_MAX_TIME% Minutes</span> <button onclick='editBalTime()'>Edit</button></h4>
 
-           <h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-          ;'>Max battery voltage: " + String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0, 0) +
-           V </span> <button onclick='editBalMaxPackV()'>Edit</button></h4>";
+          <h4 class="%BALANCING_CLASS%"><span>Balancing float power: %BAL_POWER% W </span> <button onclick='editBalFloatPower()'>Edit</button></h4>
 
-           <h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-          ;'>Max cell voltage: " + String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0, 0) +
-           mV </span> <button onclick='editBalMaxCellV()'>Edit</button></h4>";
+           <h4 class="%BALANCING_CLASS%"><span>Max battery voltage: %BAL_MAX_PACK_VOLTAGE% V</span> <button onclick='editBalMaxPackV()'>Edit</button></h4>
 
-          <h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-          ;'>Max cell voltage deviation: 
-          String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0, 0) +
-           mV </span> <button onclick='editBalMaxDevCellV()'>Edit</button></h4>
+           <h4 class="%BALANCING_CLASS%"><span>Max cell voltage: %BAL_MAX_CELL_VOLTAGE% mV</span> <button onclick='editBalMaxCellV()'>Edit</button></h4>
+
+          <h4 class="%BALANCING_CLASS%"><span>Max cell voltage deviation: %BAL_MAX_DEV_CELL_VOLTAGE% mV</span> <button onclick='editBalMaxDevCellV()'>Edit</button></h4>
 
     </div>
+
+     <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS%">
+
+      <h4 style='color: white;'>
+        Charger HVDC Enabled: <span class="%CHG_HV_CLASS%">%CHG_HV%</span>
+        <button onclick='editChargerHVDCEnabled()'>Edit</button>
+      </h4>
+
+      <h4 style='color: white;'>
+        Charger Aux12VDC Enabled: <span class="%CHG_AUX12V_CLASS%">%CHG_AUX12V%</span>
+        <button onclick='editChargerAux12vEnabled()'>Edit</button>
+      </h4>
+
+      <h4 style='color: white;'><span>Charger Voltage Setpoint: %CHG_VOLTAGE_SETPOINT% V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>
+
+      <h4 style='color: white;'><span>Charger Current Setpoint: %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
+
+      </div>
 
     
   </div>
