@@ -11,12 +11,12 @@ TODOs left for this implementation
 - Current implementation only seems to get the 7E7 polls working.
 - We might need to poll on 7E6 also?
 
-- The values missing for a working implementation is:
-- SOC% missing! This is absolutely mandatory to fix before starting to use this!
-- Capacity (kWh) (can be estimated)
-- Charge max power (can be estimated)
-- Discharge max power (can be estimated)
-- SOH% (low prio))
+- The values missing for a fully working implementation is:
+- SOC% missing! (now estimated based on voltage)
+- Capacity (kWh) (now estimated)
+- Charge max power (now estimated)
+- Discharge max power (now estimated)
+- SOH% (now hardcoded to 99%)
 */
 
 /*TODO, messages we might need to send towards the battery to keep it happy and close contactors
@@ -39,24 +39,85 @@ TODOs left for this implementation
 0x460 Energy Storage System Temp HV (Who sends this? Battery?)
 */
 
+// Define the data points for %SOC depending on pack voltage
+const uint8_t numEntries = 28;
+const uint16_t SOC[numEntries] = {10000, 9985, 9970, 9730, 9490, 8980, 8470, 8110, 7750, 7270, 6790, 6145, 5500, 5200,
+                                  4900,  4405, 3910, 3455, 3000, 2640, 2280, 1940, 1600, 1040, 480,  240,  120,  0};
+
+const uint16_t voltage_lookup[numEntries] = {  //403 V fully charged, 335V empty
+    4032, 4005, 3978, 3951, 3924, 3897, 3870, 3843, 3816, 3789, 3762, 3735, 3708, 3681,
+    3654, 3627, 3600, 3573, 3546, 3519, 3492, 3465, 3438, 3411, 3384, 3357, 3350, 3350};
+
+uint16_t estimateSOC(uint16_t packVoltage) {  // Linear interpolation function
+  if (packVoltage >= voltage_lookup[0]) {
+    return SOC[0];
+  }
+  if (packVoltage <= voltage_lookup[numEntries - 1]) {
+    return SOC[numEntries - 1];
+  }
+
+  for (int i = 1; i < numEntries; ++i) {
+    if (packVoltage >= voltage_lookup[i]) {
+      double t = (packVoltage - voltage_lookup[i]) / (voltage_lookup[i - 1] - voltage_lookup[i]);
+      return SOC[i] + t * (SOC[i - 1] - SOC[i]);
+    }
+  }
+  return 0;  // Default return for safety, should never reach here
+}
+
+void findMinMaxCells(const uint16_t arr[], size_t size, uint16_t& Minimum_Cell_Voltage,
+                     uint16_t& Maximum_Cell_Voltage) {
+  Minimum_Cell_Voltage = std::numeric_limits<uint16_t>::max();
+  Maximum_Cell_Voltage = 0;
+  bool foundValidValue = false;
+
+  for (size_t i = 0; i < size; ++i) {
+    if (arr[i] != 0) {  // Skip zero values
+      if (arr[i] < Minimum_Cell_Voltage)
+        Minimum_Cell_Voltage = arr[i];
+      if (arr[i] > Maximum_Cell_Voltage)
+        Maximum_Cell_Voltage = arr[i];
+      foundValidValue = true;
+    }
+  }
+
+  // If all values were zero, set min and max to 3700
+  if (!foundValidValue) {
+    Minimum_Cell_Voltage = 3700;
+    Maximum_Cell_Voltage = 3700;
+  }
+}
+
 void BoltAmperaBattery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
 
-  datalayer.battery.status.real_soc = battery_SOC_display;
+  //datalayer.battery.status.real_soc = battery_SOC_display; //TODO: this poll does not work
+
+  datalayer.battery.status.real_soc = estimateSOC(datalayer.battery.status.voltage_dV);
 
   //datalayer.battery.status.voltage_dV = battery_voltage * 0.52;
   datalayer.battery.status.voltage_dV = (battery_voltage_periodic / 8) * 10;
 
   datalayer.battery.status.current_dA = battery_current_7E7;
 
-  datalayer.battery.info.total_capacity_Wh;
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.remaining_capacity_Wh;
+  datalayer.battery.status.soh_pptt = 9900;  //TODO: Fix me when real SOH% value has been found
 
-  datalayer.battery.status.soh_pptt;
+  // Charge power is set in .h file (TODO: Remove this estimation when real value has been found)
+  if (datalayer.battery.status.real_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
+  } else if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
+    // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+    datalayer.battery.status.max_charge_power_W =
+        MAX_CHARGE_POWER_ALLOWED_W *
+        (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
+  } else {  // No limits, max charging power allowed
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_ALLOWED_W;
+  }
 
-  datalayer.battery.status.max_discharge_power_W;
-
-  datalayer.battery.status.max_charge_power_W;
+  // Discharge power is also set in .h file (TODO: Remove this estimation when real value has been found)
+  datalayer.battery.status.max_discharge_power_W = MAX_DISCHARGE_POWER_ALLOWED_W;
 
   // Store temperatures in an array
   int16_t temperatures[] = {temperature_1, temperature_2, temperature_3, temperature_4, temperature_5, temperature_6};
@@ -81,6 +142,14 @@ void BoltAmperaBattery::update_values() {  //This function maps all the values f
 
   //Map all cell voltages to the global array
   memcpy(datalayer.battery.status.cell_voltages_mV, battery_cell_voltages, 96 * sizeof(uint16_t));
+
+  //Find min and max cellvoltage from the array
+  findMinMaxCells(battery_cell_voltages, datalayer.battery.info.number_of_cells, Minimum_Cell_Voltage,
+                  Maximum_Cell_Voltage);
+
+  datalayer.battery.status.cell_max_voltage_mV = Maximum_Cell_Voltage;
+
+  datalayer.battery.status.cell_min_voltage_mV = Minimum_Cell_Voltage;
 
   // Update webserver datalayer
   datalayer_extended.boltampera.battery_5V_ref = battery_5V_ref;
@@ -647,6 +716,7 @@ void BoltAmperaBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 96;
+  datalayer.battery.info.total_capacity_Wh = 64000;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
