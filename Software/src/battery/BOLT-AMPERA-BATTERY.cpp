@@ -41,14 +41,14 @@ TODOs left for this implementation
 
 // Define the data points for %SOC depending on pack voltage
 const uint8_t numEntries = 28;
-const uint16_t SOC[numEntries] = {10000, 9985, 9970, 9730, 9490, 8980, 8470, 8110, 7750, 7270, 6790, 6145, 5500, 5200,
-                                  4900,  4405, 3910, 3455, 3000, 2640, 2280, 1940, 1600, 1040, 480,  240,  120,  0};
+const uint16_t SOC[28] = {10000, 9985, 9970, 9730, 9490, 8980, 8470, 8110, 7750, 7270, 6790, 6145, 5500, 5200,
+                          4900,  4405, 3910, 3455, 3000, 2640, 2280, 1940, 1600, 1040, 480,  240,  120,  0};
 
-const uint16_t voltage_lookup[numEntries] = {  //403 V fully charged, 335V empty
+const uint16_t voltage_lookup[28] = {  //403 V fully charged, 335V empty
     4032, 4005, 3978, 3951, 3924, 3897, 3870, 3843, 3816, 3789, 3762, 3735, 3708, 3681,
     3654, 3627, 3600, 3573, 3546, 3519, 3492, 3465, 3438, 3411, 3384, 3357, 3350, 3350};
 
-uint16_t estimateSOC(uint16_t packVoltage) {  // Linear interpolation function
+static uint16_t estimateSOC(uint16_t packVoltage) {  // Linear interpolation function
   if (packVoltage >= voltage_lookup[0]) {
     return SOC[0];
   }
@@ -92,10 +92,10 @@ void BoltAmperaBattery::update_values() {  //This function maps all the values f
 
   //datalayer.battery.status.real_soc = battery_SOC_display; //TODO: this poll does not work
 
-  datalayer.battery.status.real_soc = estimateSOC(datalayer.battery.status.voltage_dV);
+  datalayer.battery.status.real_soc = estimateSOC(((battery_voltage_periodic / 8) * 10));
 
   //datalayer.battery.status.voltage_dV = battery_voltage * 0.52;
-  datalayer.battery.status.voltage_dV = (battery_voltage_periodic / 8) * 10;
+  datalayer.battery.status.voltage_dV = ((battery_voltage_periodic / 8) * 10);
 
   datalayer.battery.status.current_dA = battery_current_7E7;
 
