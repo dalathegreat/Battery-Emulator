@@ -62,8 +62,8 @@ void SmaBydHvsInverter::
   }
 
   //Sum of all cellvoltages
-  //SMA_518.data.u8[4] = Scaling unknown
-  //SMA_518.data.u8[5] = Scaling unknown
+  SMA_518.data.u8[4] = (datalayer.battery.status.voltage_dV >> 8);
+  SMA_518.data.u8[5] = (datalayer.battery.status.voltage_dV & 0x00FF);
   //Cell min/max voltage (mV / 25)
   SMA_518.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV / 25);
   SMA_518.data.u8[7] = (datalayer.battery.status.cell_max_voltage_mV / 25);
