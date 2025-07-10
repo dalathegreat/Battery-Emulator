@@ -69,6 +69,13 @@ void SmaBydHInverter::
     SMA_158.data.u8[2] = 0x6A;
   }
 
+  //Sum of all cellvoltages
+  //SMA_518.data.u8[4] = Scaling unknown
+  //SMA_518.data.u8[5] = Scaling unknown
+  //Cell min/max voltage (mV / 25)
+  SMA_518.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV / 25);
+  SMA_518.data.u8[7] = (datalayer.battery.status.cell_max_voltage_mV / 25);
+
 #ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
   // Inverter allows contactor closing
   if (datalayer.system.status.inverter_allows_contactor_closing) {

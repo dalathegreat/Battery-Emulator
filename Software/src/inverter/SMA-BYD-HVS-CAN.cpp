@@ -61,6 +61,13 @@ void SmaBydHvsInverter::
     SMA_4D8.data.u8[6] = STOP_STATE;
   }
 
+  //Sum of all cellvoltages
+  //SMA_518.data.u8[4] = Scaling unknown
+  //SMA_518.data.u8[5] = Scaling unknown
+  //Cell min/max voltage (mV / 25)
+  SMA_518.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV / 25);
+  SMA_518.data.u8[7] = (datalayer.battery.status.cell_max_voltage_mV / 25);
+
   //Error bits
   if (datalayer.system.status.battery_allows_contactor_closing) {
     SMA_158.data.u8[2] = 0xAA;
@@ -257,8 +264,12 @@ void SmaBydHvsInverter::transmit_can(unsigned long currentMillis) {
       // Increment message index and wrap around if needed
       batch_send_index++;
 
-      if (transmit_can_init == false) {
+      if (transmit_can_init == false) {  //We completed sending the batches
         batch_send_index = 0;
+        retry_pairing_count++;
+        if (retry_pairing_count < MAX_RETRY_ATTEMPTS) {
+          transmit_can_init = true;  //Start over
+        }
       }
     }
   }

@@ -27,9 +27,12 @@ class SmaBydHvsInverter : public CanInverterProtocol {
 
   unsigned long previousMillis100ms = 0;
   unsigned long previousMillisBatch = 0;
+
+  const uint8_t delay_between_batches_ms = 7;  //TODO, tweak to as low as possible before CAN errors appear
+#define MAX_RETRY_ATTEMPTS 0                   // TODO, Set your desired retry count on pairing messages
+
   uint8_t batch_send_index = 0;
-  const uint8_t delay_between_batches_ms =
-      7;  //TODO, tweak to as low as possible before performance issues/crashes appear
+  uint8_t retry_pairing_count = 0;
   bool transmit_can_init = false;
 
   uint8_t pairing_events = 0;
@@ -68,7 +71,7 @@ class SmaBydHvsInverter : public CanInverterProtocol {
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x518,
-                       .data = {0x01, 0x4A, 0x01, 0x25, 0xFF, 0xFF, 0xFF, 0xFF}};
+                       .data = {0x01, 0x4A, 0x01, 0x25, 0x10, 0x10, 0xFF, 0xFF}};
 
   // Pairing/Battery setup information
 
@@ -81,7 +84,7 @@ class SmaBydHvsInverter : public CanInverterProtocol {
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x598,
-                       .data = {0x00, 0x01, 0x0F, 0x2C, 0x5C, 0x98, 0xB6, 0xEE}};
+                       .data = {0x00, 0x01, 0x0F, 0x2C, 0x5C, 0x98, 0xB6, 0xEE}};  //B0-4 Serial, rest unknown
   CAN_frame SMA_5D8 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
