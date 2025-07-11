@@ -204,7 +204,7 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x206:  //High voltage Battery Cell Voltage Matrix 4
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
-      soc_periodic = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
+      soc_periodic = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
       break;
     case 0x208:  //High voltage Battery Cell Voltage Matrix 5
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
