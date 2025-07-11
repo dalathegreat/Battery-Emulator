@@ -92,7 +92,9 @@ void BoltAmperaBattery::update_values() {  //This function maps all the values f
 
   //datalayer.battery.status.real_soc = battery_SOC_display; //TODO: this poll does not work
 
-  datalayer.battery.status.real_soc = estimateSOC(((battery_voltage_periodic / 8) * 10));
+  //datalayer.battery.status.real_soc = estimateSOC(((battery_voltage_periodic / 8) * 10)); //TODO, this is bad and barely works
+
+  datalayer.battery.status.real_soc = soc_periodic;
 
   //datalayer.battery.status.voltage_dV = battery_voltage * 0.52;
   datalayer.battery.status.voltage_dV = ((battery_voltage_periodic / 8) * 10);
@@ -202,6 +204,7 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x206:  //High voltage Battery Cell Voltage Matrix 4
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
+      soc_periodic = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
       break;
     case 0x208:  //High voltage Battery Cell Voltage Matrix 5
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -249,7 +252,10 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x307:  //High Voltage Battery SOC HV
       //TODO: Is this CAN message on all packs? If so, SOC is here
       break;
-    case 0x3E3:
+    case 0x308:  //24 92 49 24 90
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x3E3:  //Battery kWh ???
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x460:  //Energy Storage System Temp HV

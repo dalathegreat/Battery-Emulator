@@ -238,6 +238,7 @@ class BoltAmperaBattery : public CanBattery {
   // VICM2_HV - 0x7E6 replies 0x7EF (Tis is battery also)
   // VITM_HV - 0x7E7 replies on 7EF (This is battery)
 
+  uint16_t soc_periodic = 0;
   uint16_t battery_cell_voltages[96];  //array with all the cellvoltages
   uint16_t battery_capacity_my17_18 = 0;
   uint16_t battery_capacity_my19plus = 0;
