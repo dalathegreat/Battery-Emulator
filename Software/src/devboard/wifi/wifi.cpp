@@ -30,6 +30,12 @@ const bool mdns_enabled_default = false;
 #endif
 bool mdns_enabled = mdns_enabled_default;
 
+#ifdef CUSTOM_HOSTNAME
+std::string custom_hostname = CUSTOM_HOSTNAME;
+#else
+std::string custom_hostname;
+#endif
+
 std::string ssidAP;
 
 // Configuration Parameters
@@ -60,9 +66,9 @@ void init_WiFi() {
   DEBUG_PRINTF("init_Wifi enabled=%d, apå=%d, ssid=%s, password=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str(),
                password.c_str());
 
-#ifdef CUSTOM_HOSTNAME
-  WiFi.setHostname(CUSTOM_HOSTNAME);  // Set custom hostname if defined in USER_SETTINGS.h
-#endif
+  if (!custom_hostname.empty()) {
+    WiFi.setHostname(custom_hostname.c_str());
+  }
 
   if (wifiap_enabled) {
     WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
@@ -236,9 +242,10 @@ void init_mDNS() {
   // e.g batteryemulator8C.local where the mac address is 08:F9:E0:D1:06:8C
   String mac = WiFi.macAddress();
   String mdnsHost = "batteryemulator" + mac.substring(mac.length() - 2);
-#ifdef CUSTOM_HOSTNAME  // If CUSTOM_HOSTNAME is defined, use the same hostname also for mDNS
-  mdnsHost = CUSTOM_HOSTNAME;
-#endif
+
+  if (!custom_hostname.empty()) {
+    mdnsHost = String(custom_hostname.c_str());
+  }
 
   // Initialize mDNS .local resolution
   if (!MDNS.begin(mdnsHost)) {

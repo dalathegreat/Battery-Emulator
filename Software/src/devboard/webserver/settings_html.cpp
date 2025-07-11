@@ -92,6 +92,10 @@ const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
 
 String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
 
+  if (var == "HOSTNAME") {
+    return settings.getString("HOSTNAME");
+  }
+
   if (var == "BATTERYINTF") {
     if (battery) {
       return battery->interface_name();
@@ -128,6 +132,12 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "INVCLASS") {
     if (!inverter) {
       return "hidden";
+    }
+  }
+
+  if (var == "INVINTF") {
+    if (inverter) {
+      return inverter->interface_name();
     }
   }
 
@@ -262,6 +272,14 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "HADISC") {
     return settings.getBool("HADISC") ? "checked" : "";
+  }
+
+  if (var == "MANUAL_BAL_CLASS") {
+    if (battery && battery->supports_manual_balancing()) {
+      return "";
+    } else {
+      return "hidden";
+    }
   }
 
   if (var == "BATTERY_WH_MAX") {
@@ -663,6 +681,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Enable WiFi AP: </label>
         <input type='checkbox' name='WIFIAPENABLED' value='on' style='margin-left: 0;' %WIFIAPENABLED% />
+
+        <label>Custom hostname: </label>
+        <input style='max-width: 250px;' type='text' name='HOSTNAME' value="%HOSTNAME%" />
 
         <label>Enable MQTT: </label>
         <input type='checkbox' name='MQTTENABLED' value='on' onchange='toggleMqtt()' style='margin-left: 0;' %MQTTENABLED% />

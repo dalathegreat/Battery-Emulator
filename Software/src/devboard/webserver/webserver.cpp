@@ -459,6 +459,8 @@ void init_webserver() {
       } else if (p->name() == "SHUNTCOMM") {
         auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
         settings.saveUInt("SHUNTCOMM", (int)type);
+      } else if (p->name() == "HOSTNAME") {
+        settings.saveString("HOSTNAME", p->value().c_str());
       } else if (p->name() == "MQTTSERVER") {
         settings.saveString("MQTTSERVER", p->value().c_str());
       } else if (p->name() == "MQTTPORT") {
@@ -799,7 +801,7 @@ String processor(const String& var) {
     content += "</style>";
 
     // Compact header
-    content += "<h2>" + String(ssidAP.c_str()) + "</h2>";
+    content += "<h2>Battery Emulator</h2>";
 
     // Start content block
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
