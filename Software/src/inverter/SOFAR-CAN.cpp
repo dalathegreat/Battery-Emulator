@@ -32,19 +32,67 @@ void SofarInverter::
   SOFAR_356.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
   SOFAR_356.data.u8[4] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
   SOFAR_356.data.u8[5] = (datalayer.battery.status.temperature_max_dC >> 8);
+
+  // frame 0x35E – Manufacturer Name ASCII
+  memset(SOFAR_35E.data.u8, 0, 8);
+  strncpy((char*)SOFAR_35E.data.u8, BatteryType, 8);
+
+  //Gets automatically rescaled with SOC scaling. Calculated with max design voltage, better would be to calculate with nominal voltage
+  calculated_capacity_AH =
+      (datalayer.battery.info.reported_total_capacity_Wh / (datalayer.battery.info.max_design_voltage_dV * 0.1));
+  //Battery Nominal Capacity
+  SOFAR_35F.data.u8[4] = calculated_capacity_AH & 0x00FF;
+  SOFAR_35F.data.u8[5] = (calculated_capacity_AH >> 8);
+
+  // Charge and discharge consent dependent on SoC with hysteresis at 99% soc
+  //SoC deception only to CAN (we do not touch datalayer)
+  uint16_t spoofed_soc = datalayer.battery.status.reported_soc;
+  if (spoofed_soc >= 10000) {
+    spoofed_soc = 9900;  // limit to 99%
+  }
+
+  // Frame 0x355 – SoC and SoH
+  SOFAR_355.data.u8[0] = spoofed_soc / 100;
+  SOFAR_355.data.u8[2] = datalayer.battery.status.soh_pptt / 100;
+
+  // Set charge and discharge consent flags
+  uint8_t soc_percent = spoofed_soc / 100;
+  uint8_t enable_flags = 0x00;
+
+  if (soc_percent <= 1) {
+    enable_flags = 0x02;  // Only charging allowed
+  } else if (soc_percent >= 100) {
+    enable_flags = 0x01;  // Only discharge allowed
+  } else {
+    enable_flags = 0x03;  // Both charge and discharge allowed
+  }
+
+  // Frame 0x30F – operation mode
+  SOFAR_30F.data.u8[0] = 0x00;  // Normal mode
+  SOFAR_30F.data.u8[1] = enable_flags;
 }
 
 void SofarInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
-  switch (rx_frame.ID) {  //In here we need to respond to the inverter. TODO: make logic
+  switch (rx_frame.ID) {
     case 0x605:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      //frame1_605 = rx_frame.data.u8[1];
-      //frame3_605 = rx_frame.data.u8[3];
-      break;
     case 0x705:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      //frame1_705 = rx_frame.data.u8[1];
-      //frame3_705 = rx_frame.data.u8[3];
+      switch (rx_frame.data.u8[0]) {
+        case 0x00:
+          transmit_can_frame(&SOFAR_683, can_config.inverter);
+          break;
+        case 0x01:
+          transmit_can_frame(&SOFAR_684, can_config.inverter);
+          break;
+        case 0x02:
+          transmit_can_frame(&SOFAR_685, can_config.inverter);
+          break;
+        case 0x03:
+          transmit_can_frame(&SOFAR_690, can_config.inverter);
+          break;
+        default:
+          break;
+      }
       break;
     default:
       break;
@@ -68,6 +116,33 @@ void SofarInverter::transmit_can(unsigned long currentMillis) {
 }
 
 void SofarInverter::setup(void) {  // Performs one time setup at startup over CAN bus
+  // Dymanically set CAN ID according to which battery index we are on
+  uint16_t base_offset = (datalayer.battery.settings.sofar_user_specified_battery_id << 12);
+  auto init_frame = [&](CAN_frame& frame, uint16_t base_id) {
+    frame.FD = false;
+    frame.ext_ID = true;
+    frame.DLC = 8;
+    frame.ID = base_id + base_offset;
+    memset(frame.data.u8, 0, 8);
+  };
+
+  init_frame(SOFAR_351, 0x351);
+  init_frame(SOFAR_355, 0x355);
+  init_frame(SOFAR_356, 0x356);
+  init_frame(SOFAR_30F, 0x30F);
+  init_frame(SOFAR_359, 0x359);
+  init_frame(SOFAR_35E, 0x35E);
+  init_frame(SOFAR_35F, 0x35F);
+  init_frame(SOFAR_35A, 0x35A);
+
+  init_frame(SOFAR_683, 0x683);
+  init_frame(SOFAR_684, 0x684);
+  init_frame(SOFAR_685, 0x685);
+  init_frame(SOFAR_690, 0x690);
+
   strncpy(datalayer.system.info.inverter_protocol, Name, 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
+  String tempStr(datalayer.battery.settings.sofar_user_specified_battery_id);
+  strncpy(datalayer.system.info.inverter_brand, tempStr.c_str(), 7);
+  datalayer.system.info.inverter_brand[7] = '\0';
 }
