@@ -187,6 +187,17 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum((comm_interface)settings.getUInt("CHGCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
   }
+
+  if (var == "SHUNTTYPE") {
+    return options_for_enum_with_none((ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None),
+                                      name_for_shunt_type, ShuntType::None);
+  }
+
+  if (var == "SHUNTCOMM") {
+    return options_for_enum((comm_interface)settings.getUInt("SHUNTCOMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+
   if (var == "EQSTOP") {
     return options_for_enum_with_none(
         (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
@@ -648,6 +659,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Charger comm I/F: </label><select name='CHGCOMM'>
         %CHGCOMM%
+        </select>
+
+        <label>Shunt: </label><select name='SHUNT'>
+        %SHUNTTYPE%
+        </select>
+
+        <label>Shunt comm I/F: </label><select name='SHUNTCOMM'>
+        %SHUNTCOMM%
         </select>
 
         <label>Equipment stop button: </label><select name='EQSTOP'>

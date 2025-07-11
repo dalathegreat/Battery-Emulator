@@ -432,30 +432,33 @@ void init_webserver() {
       if (p->name() == "inverter") {
         auto type = static_cast<InverterProtocolType>(atoi(p->value().c_str()));
         settings.saveUInt("INVTYPE", (int)type);
+      } else if (p->name() == "INVCOMM") {
+        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+        settings.saveUInt("INVCOMM", (int)type);
       } else if (p->name() == "battery") {
         auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
         settings.saveUInt("BATTTYPE", (int)type);
       } else if (p->name() == "BATTCHEM") {
         auto type = static_cast<battery_chemistry_enum>(atoi(p->value().c_str()));
         settings.saveUInt("BATTCHEM", (int)type);
-      } else if (p->name() == "charger") {
-        auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
-        settings.saveUInt("CHGTYPE", (int)type);
-      } else if (p->name() == "EQSTOP") {
-        auto type = static_cast<STOP_BUTTON_BEHAVIOR>(atoi(p->value().c_str()));
-        settings.saveUInt("EQSTOP", (int)type);
       } else if (p->name() == "BATTCOMM") {
         auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
         settings.saveUInt("BATTCOMM", (int)type);
-      } else if (p->name() == "BATT2COMM") {
-        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-        settings.saveUInt("BATT2COMM", (int)type);
-      } else if (p->name() == "INVCOMM") {
-        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-        settings.saveUInt("INVCOMM", (int)type);
+      } else if (p->name() == "charger") {
+        auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
+        settings.saveUInt("CHGTYPE", (int)type);
       } else if (p->name() == "CHGCOMM") {
         auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
         settings.saveUInt("CHGCOMM", (int)type);
+      } else if (p->name() == "EQSTOP") {
+        auto type = static_cast<STOP_BUTTON_BEHAVIOR>(atoi(p->value().c_str()));
+        settings.saveUInt("EQSTOP", (int)type);
+      } else if (p->name() == "BATT2COMM") {
+        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+        settings.saveUInt("BATT2COMM", (int)type);
+      } else if (p->name() == "shunt") {
+        auto type = static_cast<ShuntType>(atoi(p->value().c_str()));
+        settings.saveUInt("SHUNTTYPE", (int)type);
       } else if (p->name() == "SHUNTCOMM") {
         auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
         settings.saveUInt("SHUNTCOMM", (int)type);

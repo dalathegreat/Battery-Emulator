@@ -79,6 +79,7 @@ void init_stored_settings() {
       (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA);
   user_selected_inverter_protocol = (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None);
   user_selected_charger_type = (ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None);
+  user_selected_shunt_type = (ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None);
 
   auto readIf = [](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
