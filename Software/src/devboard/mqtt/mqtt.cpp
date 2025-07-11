@@ -64,6 +64,7 @@ static String device_id = "";
 
 static bool publish_common_info(void);
 static bool publish_cell_voltages(void);
+static bool publish_cell_balancing(void);
 static bool publish_events(void);
 
 /** Publish global values and call callbacks for specific modules */
@@ -83,6 +84,12 @@ static void publish_values(void) {
 
 #ifdef MQTT_PUBLISH_CELL_VOLTAGES
   if (publish_cell_voltages() == false) {
+    return;
+  }
+#endif
+
+#ifdef MQTT_PUBLISH_CELL_VOLTAGES
+  if (publish_cell_balancing() == false) {
     return;
   }
 #endif
@@ -129,7 +136,8 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"max_discharge_power", "Battery Max Discharge Power", "", "W", "power", always},
     {"max_charge_power", "Battery Max Charge Power", "", "W", "power", always},
     {"charged_energy", "Battery Charged Energy", "", "Wh", "energy", supports_charged},
-    {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged}};
+    {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged},
+    {"balancing_active_cells", "Balancing Active Cells", "", "", "", always}};
 
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
                                              {"pause_status", "Pause Status", "", "", "", always}};
@@ -238,6 +246,17 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
       doc["discharged_energy" + suffix] = ((float)datalayer.battery.status.total_discharged_battery_Wh);
     }
   }
+
+  // Add balancing data
+  uint16_t active_cells = 0;
+  if (battery.info.number_of_cells != 0u) {
+    for (size_t i = 0; i < battery.info.number_of_cells; ++i) {
+      if (battery.status.cell_balancing_status[i]) {
+        active_cells++;
+      }
+    }
+  }
+  doc["balancing_active_cells" + suffix] = active_cells;
 }
 
 static std::vector<EventData> order_events;
@@ -389,6 +408,53 @@ static bool publish_cell_voltages(void) {
       if (!mqtt_publish(state_topic_2.c_str(), mqtt_msg, false)) {
 #ifdef DEBUG_LOG
         logging.println("Cell voltage MQTT msg could not be sent");
+#endif  // DEBUG_LOG
+        return false;
+      }
+      doc.clear();
+    }
+  }
+  return true;
+}
+
+static bool publish_cell_balancing(void) {
+  static JsonDocument doc;
+  static String state_topic = topic_name + "/balancing_data";
+  static String state_topic_2 = topic_name + "/balancing_data_2";
+
+  // If cell balancing data is available...
+  if (datalayer.battery.info.number_of_cells != 0u) {
+
+    JsonArray cell_balancing = doc["cell_balancing"].to<JsonArray>();
+    for (size_t i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
+      cell_balancing.add(datalayer.battery.status.cell_balancing_status[i]);
+    }
+
+    serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+
+    if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
+#ifdef DEBUG_LOG
+      logging.println("Cell balancing MQTT msg could not be sent");
+#endif  // DEBUG_LOG
+      return false;
+    }
+    doc.clear();
+  }
+
+  // Handle second battery if available
+  if (battery2) {
+    if (datalayer.battery2.info.number_of_cells != 0u) {
+
+      JsonArray cell_balancing = doc["cell_balancing"].to<JsonArray>();
+      for (size_t i = 0; i < datalayer.battery2.info.number_of_cells; ++i) {
+        cell_balancing.add(datalayer.battery2.status.cell_balancing_status[i]);
+      }
+
+      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+
+      if (!mqtt_publish(state_topic_2.c_str(), mqtt_msg, false)) {
+#ifdef DEBUG_LOG
+        logging.println("Cell balancing MQTT msg could not be sent");
 #endif  // DEBUG_LOG
         return false;
       }

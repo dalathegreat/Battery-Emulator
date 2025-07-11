@@ -60,6 +60,10 @@ void init_WiFi() {
   DEBUG_PRINTF("init_Wifi enabled=%d, apå=%d, ssid=%s, password=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str(),
                password.c_str());
 
+#ifdef CUSTOM_HOSTNAME
+  WiFi.setHostname(CUSTOM_HOSTNAME);  // Set custom hostname if defined in USER_SETTINGS.h
+#endif
+
   if (wifiap_enabled) {
     WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
     init_WiFi_AP();
@@ -232,6 +236,9 @@ void init_mDNS() {
   // e.g batteryemulator8C.local where the mac address is 08:F9:E0:D1:06:8C
   String mac = WiFi.macAddress();
   String mdnsHost = "batteryemulator" + mac.substring(mac.length() - 2);
+#ifdef CUSTOM_HOSTNAME  // If CUSTOM_HOSTNAME is defined, use the same hostname also for mDNS
+  mdnsHost = CUSTOM_HOSTNAME;
+#endif
 
   // Initialize mDNS .local resolution
   if (!MDNS.begin(mdnsHost)) {
@@ -240,7 +247,7 @@ void init_mDNS() {
 #endif
   } else {
     // Advertise via bonjour the service so we can auto discover these battery emulators on the local network.
-    MDNS.addService("battery_emulator", "tcp", 80);
+    MDNS.addService(mdnsHost, "tcp", 80);
   }
 }
 

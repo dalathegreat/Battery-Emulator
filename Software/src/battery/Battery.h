@@ -43,6 +43,7 @@ enum class BatteryType {
   TestFake = 34,
   VolvoSpa = 35,
   VolvoSpaHybrid = 36,
+  MgHsPhev = 37,
   Highest
 };
 

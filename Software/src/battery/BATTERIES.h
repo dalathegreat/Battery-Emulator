@@ -33,6 +33,7 @@ void setup_can_shunt();
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
 #include "MEB-BATTERY.h"
 #include "MG-5-BATTERY.h"
+#include "MG-HS-PHEV-BATTERY.h"
 #include "NISSAN-LEAF-BATTERY.h"
 #include "ORION-BMS.h"
 #include "PYLON-BATTERY.h"

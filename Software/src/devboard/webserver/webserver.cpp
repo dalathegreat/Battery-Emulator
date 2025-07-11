@@ -844,6 +844,7 @@ String processor(const String& var) {
     }
     content += "</h4>";
     if (status == WL_CONNECTED) {
+      content += "<h4>Hostname: " + String(WiFi.getHostname()) + "</h4>";
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
     } else {
       content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
