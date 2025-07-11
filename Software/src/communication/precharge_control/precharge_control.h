@@ -12,7 +12,7 @@
  *
  * @return void
  */
-void init_precharge_control();
+bool init_precharge_control();
 
 /**
  * @brief Handle contactors

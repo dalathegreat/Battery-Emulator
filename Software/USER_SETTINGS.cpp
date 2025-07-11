@@ -21,26 +21,40 @@ volatile CAN_Configuration can_config = {
     .shunt = CAN_NATIVE                   // (OPTIONAL) Which CAN is your shunt connected to?
 };
 
-std::string ssid = WIFI_SSID;             // Set in USER_SECRETS.h
-std::string password = WIFI_PASSWORD;     // Set in USER_SECRETS.h
-const char* ssidAP = "Battery Emulator";  // Maximum of 63 characters, also used for device name on web interface
-const char* passwordAP = AP_PASSWORD;     // Set in USER_SECRETS.h
-const uint8_t wifi_channel = 0;           // Set to 0 for automatic channel selection
+#ifdef COMMON_IMAGE
+std::string ssid;
+std::string password;
+std::string passwordAP;
+#else
+std::string ssid = WIFI_SSID;          // Set in USER_SECRETS.h
+std::string password = WIFI_PASSWORD;  // Set in USER_SECRETS.h
+std::string passwordAP = AP_PASSWORD;  // Set in USER_SECRETS.h
+#endif
 
-#ifdef WEBSERVER
-const char* http_username = HTTP_USERNAME;  // Set in USER_SECRETS.h
-const char* http_password = HTTP_PASSWORD;  // Set in USER_SECRETS.h
+const uint8_t wifi_channel = 0;  // Set to 0 for automatic channel selection
+
+#ifdef COMMON_IMAGE
+std::string http_username;
+std::string http_password;
+#else
+std::string http_username = HTTP_USERNAME;  // Set in USER_SECRETS.h
+std::string http_password = HTTP_PASSWORD;  // Set in USER_SECRETS.h
+#endif
+
 // Set your Static IP address. Only used incase WIFICONFIG is set in USER_SETTINGS.h
 IPAddress local_IP(192, 168, 10, 150);
 IPAddress gateway(192, 168, 10, 1);
 IPAddress subnet(255, 255, 255, 0);
-#endif  // WEBSERVER
 
 // MQTT
-#ifdef MQTT
-const char* mqtt_user = MQTT_USER;          // Set in USER_SECRETS.h
-const char* mqtt_password = MQTT_PASSWORD;  // Set in USER_SECRETS.h
-#ifdef MQTT_MANUAL_TOPIC_OBJECT_NAME
+#ifdef COMMON_IMAGE
+std::string mqtt_user;
+std::string mqtt_password;
+#else
+std::string mqtt_user = MQTT_USER;          // Set in USER_SECRETS.h
+std::string mqtt_password = MQTT_PASSWORD;  // Set in USER_SECRETS.h
+#endif
+
 const char* mqtt_topic_name =
     "BE";  // Custom MQTT topic name. Previously, the name was automatically set to "battery-emulator_esp32-XXXXXX"
 const char* mqtt_object_id_prefix =
@@ -49,15 +63,6 @@ const char* mqtt_device_name =
     "Battery Emulator";  // Custom device name in Home Assistant. Previously, the name was automatically set to "BatteryEmulator_esp32-XXXXXX"
 const char* ha_device_id =
     "battery-emulator";  // Custom device ID in Home Assistant. Previously, the ID was always "battery-emulator"
-#endif                   // MQTT_MANUAL_TOPIC_OBJECT_NAME
-#endif                   // USE_MQTT
-
-#ifdef EQUIPMENT_STOP_BUTTON
-// Equipment stop button behavior. Use NC button for safety reasons.
-//LATCHING_SWITCH  - Normally closed (NC), latching switch. When pressed it activates e-stop
-//MOMENTARY_SWITCH - Short press to activate e-stop, long 15s press to deactivate. E-stop is persistent between reboots
-volatile STOP_BUTTON_BEHAVIOR equipment_stop_behavior = LATCHING_SWITCH;
-#endif
 
 /* Charger settings (Optional, when using generator charging) */
 volatile float CHARGER_SET_HV = 384;      // Reasonably appropriate 4.0v per cell charging of a 96s pack

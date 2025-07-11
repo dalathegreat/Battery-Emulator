@@ -1765,20 +1765,20 @@ void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
 
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-#ifdef LFP_CHEMISTRY
-  datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
-#else   // Startup in NCM/A mode
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
-#endif  // !LFP_CHEMISTRY
+
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
+    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
+    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
+    datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
+  } else {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
+    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+    datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
+  }
 }
 
 void TeslaModelSXBattery::setup(void) {
