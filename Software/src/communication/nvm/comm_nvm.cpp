@@ -111,7 +111,9 @@ void init_stored_settings() {
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
 
-  wifiap_enabled = settings.getBool("WIFIAPENABLED", false);
+  // WIFI AP is enabled by default unless disabled in the settings
+  wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
+  passwordAP = settings.getString("APPASSWORD", "123456789").c_str();
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
 

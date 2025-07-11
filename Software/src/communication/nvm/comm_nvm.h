@@ -48,6 +48,11 @@ class BatteryEmulatorSettingsStore {
 
   ~BatteryEmulatorSettingsStore() { settings.end(); }
 
+  void clearAll() {
+    settings.clear();
+    settingsUpdated = true;
+  }
+
   uint32_t getUInt(const char* name, uint32_t defaultValue) { return settings.getUInt(name, defaultValue); }
 
   void saveUInt(const char* name, uint32_t value) {
@@ -56,7 +61,9 @@ class BatteryEmulatorSettingsStore {
     settingsUpdated = settingsUpdated || value != oldValue;
   }
 
-  bool getBool(const char* name) { return settings.getBool(name, false); }
+  bool settingExists(const char* name) { return settings.isKey(name); }
+
+  bool getBool(const char* name, bool defaultValue = false) { return settings.getBool(name, defaultValue); }
 
   void saveBool(const char* name, bool value) {
     auto oldValue = settings.getBool(name, false);

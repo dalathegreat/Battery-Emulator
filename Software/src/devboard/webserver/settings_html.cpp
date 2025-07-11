@@ -217,7 +217,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "WIFIAPENABLED") {
-    return settings.getBool("WIFIAPENABLED") ? "checked" : "";
+    return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
   }
 
   if (var == "MQTTENABLED") {
@@ -435,6 +435,26 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
     <script>
+
+    function askFactoryReset() {
+      if (confirm('Are you sure you want to reset the device to factory settings? This will erase all settings and data.')) {
+        var xhr = new XMLHttpRequest();
+        xhr.onload = function() {
+          if (this.status == 200) {
+            alert('Factory reset successful. The device will now restart.');
+            reboot();
+          } else {
+            alert('Factory reset failed. Please try again.');
+          }
+        };
+        xhr.onerror = function() {
+          alert('An error occurred while trying to reset the device.');
+        };
+        xhr.open('POST', '/factoryReset', true);
+        xhr.send();
+      }
+    }
+
     function editComplete(){if(this.status==200){window.location.reload();}}
 
     function editError(){alert('Invalid input');}
@@ -725,6 +745,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       </div>
 
+      <button onclick="askFactoryReset()">Factory reset</button>
     
   </div>
 

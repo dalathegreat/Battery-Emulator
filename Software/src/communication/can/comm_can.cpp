@@ -51,6 +51,8 @@ ACAN2517FDSettings* settings2517;
 
 // Initialization functions
 
+bool native_can_initialized = false;
+
 bool init_CAN() {
 
   auto nativeIt = can_receivers.find(CAN_NATIVE);
@@ -82,6 +84,7 @@ bool init_CAN() {
     CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
     // Init CAN Module
     ESP32Can.CANInit();
+    native_can_initialized = true;
   }
 
   auto addonIt = can_receivers.find(CAN_ADDON_MCP2515);
@@ -260,7 +263,9 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface) {
 
 // Receive functions
 void receive_can() {
-  receive_frame_can_native();  // Receive CAN messages from native CAN port
+  if (native_can_initialized) {
+    receive_frame_can_native();  // Receive CAN messages from native CAN port
+  }
 
   if (can2515) {
     receive_frame_can_addon();  // Receive CAN messages on add-on MCP2515 chip

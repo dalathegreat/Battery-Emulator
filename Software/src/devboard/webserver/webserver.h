@@ -13,12 +13,6 @@ extern bool webserver_enabled;
 
 extern const char* version_number;  // The current software version, shown on webserver
 
-#include <string>
-extern const char* http_username;
-extern const char* http_password;
-
-extern const char* ssidAP;
-
 // Common charger parameters
 extern float charger_stat_HVcur;
 extern float charger_stat_HVvol;
