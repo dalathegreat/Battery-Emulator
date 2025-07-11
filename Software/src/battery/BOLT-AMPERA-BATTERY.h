@@ -23,6 +23,14 @@ class BoltAmperaBattery : public CanBattery {
 
  private:
   BoltAmperaHtmlRenderer renderer;
+  uint16_t Maximum_Cell_Voltage = 3700;
+  uint16_t Minimum_Cell_Voltage = 3700;
+  static const int MAX_DISCHARGE_POWER_ALLOWED_W = 5000;
+  static const int MAX_CHARGE_POWER_ALLOWED_W = 5000;
+  static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
+  static const int RAMPDOWN_SOC =
+      9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
+
   static const int MAX_PACK_VOLTAGE_DV = 4150;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2500;
   static const int MAX_CELL_DEVIATION_MV = 150;
