@@ -539,6 +539,24 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeEndA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 100');}}}
 
           function goToMainPage() { window.location.href = '/'; }
+
+          function toggleMqtt() {
+            var mqttEnabled = document.querySelector('input[name="MQTTENABLED"]').checked;
+            document.querySelectorAll('.mqtt-settings').forEach(function (el) {
+              el.style.display = mqttEnabled ? 'contents' : 'none';
+            });
+          }
+
+          document.addEventListener('DOMContentLoaded', toggleMqtt);
+
+          function toggleTopics() {
+            var topicsEnabled = document.querySelector('input[name="MQTTTOPICS"]').checked;
+            document.querySelectorAll('.mqtt-topics').forEach(function (el) {
+              el.style.display = topicsEnabled ? 'contents' : 'none';
+            });
+          }
+
+          document.addEventListener('DOMContentLoaded', toggleTopics);
     </script>
 )rawliteral"
 
@@ -642,22 +660,30 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='WIFIAPENABLED' value='on' style='margin-left: 0;' %WIFIAPENABLED% />
 
         <label>Enable MQTT: </label>
-        <input type='checkbox' name='MQTTENABLED' value='on' style='margin-left: 0;' %MQTTENABLED% />
+        <input type='checkbox' name='MQTTENABLED' value='on' onchange='toggleMqtt()' style='margin-left: 0;' %MQTTENABLED% />
 
+        <div class='mqtt-settings' style='display: contents; grid-column: span 2;'>
         <label>MQTT server: </label><input style='max-width: 250px;' type='text' name='MQTTSERVER' value="%MQTTSERVER%" />
         <label>MQTT port: </label><input style='max-width: 250px;' type='text' name='MQTTPORT' value="%MQTTPORT%" />
         <label>MQTT user: </label><input style='max-width: 250px;' type='text' name='MQTTUSER' value="%MQTTUSER%" />
         <label>MQTT password: </label><input style='max-width: 250px;' type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" />
 
         <label>Customized MQTT topics: </label>
-        <input type='checkbox' name='MQTTTOPICS' value='on' style='margin-left: 0;' %MQTTTOPICS% />
+        <input type='checkbox' name='MQTTTOPICS' value='on' onchange='toggleTopics()' style='margin-left: 0;' %MQTTTOPICS% />
+
+        <div class='mqtt-topics' style='display: contents; grid-column: span 2;'>
+
         <label>MQTT topic name: </label><input style='max-width: 250px;' type='text' name='MQTTTOPIC' value="%MQTTTOPIC%" />
         <label>Prefix for MQTT object ID: </label><input style='max-width: 250px;' type='text' name='MQTTOBJIDPREFIX' value="%MQTTOBJIDPREFIX%" />
         <label>HA device name: </label><input style='max-width: 250px;' type='text' name='MQTTDEVICENAME' value="%MQTTDEVICENAME%" />
         <label>HA device ID: </label><input style='max-width: 250px;' type='text' name='HADEVICEID' value="%HADEVICEID%" />
 
+        </div>
+
         <label>Enable Home Assistant auto discovery: </label>
         <input type='checkbox' name='HADISC' value='on' style='margin-left: 0;' %HADISC% />
+
+        </div>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button "type='submit'>Save</button></div>
 
