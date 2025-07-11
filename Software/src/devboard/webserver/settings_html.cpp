@@ -583,6 +583,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       color: red;
     }
 
+    .mqtt-settings, .mqtt-topics {
+      display: none;
+      grid-column: span 2;
+    }
+
     </style>
 )rawliteral"
 
@@ -599,11 +604,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 2fr; gap: 10px;
         align-items: center;'>
 
-        <label>Battery: </label><select name='battery'>
+        <label for='battery'>Battery: </label><select name='battery' if='battery'>
         %BATTTYPE%
         </select>
 
-        <label>Battery comm I/F: </label><select name='BATTCOMM'>
+        <label for='BATTCOMM'>Battery comm I/F: </label><select name='BATTCOMM' id='BATTCOMM'>
         %BATTCOMM%
         </select>
 
@@ -662,7 +667,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Enable MQTT: </label>
         <input type='checkbox' name='MQTTENABLED' value='on' onchange='toggleMqtt()' style='margin-left: 0;' %MQTTENABLED% />
 
-        <div class='mqtt-settings' style='display: contents; grid-column: span 2;'>
+        <div class='mqtt-settings'>
         <label>MQTT server: </label><input style='max-width: 250px;' type='text' name='MQTTSERVER' value="%MQTTSERVER%" />
         <label>MQTT port: </label><input style='max-width: 250px;' type='text' name='MQTTPORT' value="%MQTTPORT%" />
         <label>MQTT user: </label><input style='max-width: 250px;' type='text' name='MQTTUSER' value="%MQTTUSER%" />
@@ -671,7 +676,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Customized MQTT topics: </label>
         <input type='checkbox' name='MQTTTOPICS' value='on' onchange='toggleTopics()' style='margin-left: 0;' %MQTTTOPICS% />
 
-        <div class='mqtt-topics' style='display: contents; grid-column: span 2;'>
+        <div class='mqtt-topics'>
 
         <label>MQTT topic name: </label><input style='max-width: 250px;' type='text' name='MQTTTOPIC' value="%MQTTTOPIC%" />
         <label>Prefix for MQTT object ID: </label><input style='max-width: 250px;' type='text' name='MQTTOBJIDPREFIX' value="%MQTTOBJIDPREFIX%" />
