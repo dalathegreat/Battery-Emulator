@@ -5,275 +5,212 @@
 #include "../devboard/utils/events.h"
 #include "MG-HS-PHEV-BATTERY.h"
 
-/* TODO:
-- Get contactor closing working
-- Figure out which CAN messages need to be sent towards the battery to keep it alive
-- Map all values from battery CAN messages
-- Note: Charge power/discharge power is estimated for now
-
-# row3 pin2 needs strobing to 12V (via a 1k) to wake up the BMU
-# but contactor won't come on until deasserted
-# BMU goes to sleep after after ~18s of no CAN
+/*
+Note:
+- Charge power/discharge power is estimated for now
+- The built-in SoC indicator tops out at 4.1V/cell. To use up to 4.2V/cell, you should define:
+  #define MG_HS_PHEV_USE_FULL_CAPACITY true
+  in USER_SETTINGS.h
 */
 
 void MgHsPHEVBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc;
+  // Should be called every second
+  if(voltageValidTime>0) {
+    voltageValidTime--;
+  }
+}
 
-  datalayer.battery.status.voltage_dV;
+void MgHsPHEVBattery::update_soc(uint16_t soc_times_ten) {
+#if MG_HS_PHEV_USE_FULL_CAPACITY
+  // The SoC hits 100% at 4.1V/cell. To get the full 4.2V/cell we need to use
+  // voltage instead for the last bit.
 
-  datalayer.battery.status.current_dA;
+  if(voltageValidTime==0) {
+    // We don't have a recent voltage reading, so can't do voltage-based SoC.
+  } else if(soc_times_ten > 900 && datalayer.battery.status.voltage_dV < 3600) {
+    // Something is wrong with our voltage reading (it is too low), so don't
+    // trust it - we'll just let the SoC hit 100%.
+  } else if(soc_times_ten == 1000 && datalayer.battery.status.voltage_dV >= 3600) {
+    // We've hit 100%, so use voltage-based-SoC calculation for the last bit.
 
-  datalayer.battery.info.total_capacity_Wh;
+    // We usually hit 92% at ~369V, and the pack max is 378V.
 
-  datalayer.battery.status.remaining_capacity_Wh;
+    // Scale so that 100% becomes 92%
+    soc_times_ten = (uint16_t)(((uint32_t)soc_times_ten*9200)/10000);
 
-  datalayer.battery.status.max_discharge_power_W;
+    if(datalayer.battery.status.voltage_dV > 3690) {
+      // Add on the last 9 volts as the last 8% of SoC.
+      soc_times_ten += (uint16_t)((((uint32_t)datalayer.battery.status.voltage_dV - 3690) * 800) / 900);
+      if(soc_times_ten > 1000) {
+        soc_times_ten = 1000;  // Don't let it go above 100%
+      }
+    }
+  } else {
+    // Scale so that 100% becomes 92%
+    soc_times_ten = (uint16_t)(((uint32_t)soc_times_ten*9200)/10000);
+  }
+#endif
 
-  datalayer.battery.status.max_charge_power_W;
+  // Set the state of charge in the datalayer
+  datalayer.battery.status.real_soc = soc_times_ten * 10;
 
-  datalayer.battery.status.temperature_min_dC;
+  RealSoC = datalayer.battery.status.real_soc / 100;
 
-  datalayer.battery.status.temperature_max_dC;
+  // Calculate the remaining capacity.
+  tempfloat = datalayer.battery.info.total_capacity_Wh * (RealSoC - MinSoC) / 100;
+  if (tempfloat > 0) {
+    datalayer.battery.status.remaining_capacity_Wh = tempfloat;
+  } else {
+    datalayer.battery.status.remaining_capacity_Wh = 0;
+  }
+
+  // Calculate the maximum charge power. Taper the charge power between 90% and 100% SoC, as 100% SoC is approached
+  if (RealSoC < StartChargeTaper) {
+    datalayer.battery.status.max_charge_power_W = MaxChargePower;
+  } else if (RealSoC >= 100) {
+    datalayer.battery.status.max_charge_power_W = TricklePower;
+  } else {
+    //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
+    datalayer.battery.status.max_charge_power_W =
+        (MaxChargePower * pow(((100 - RealSoC) / (100 - StartChargeTaper)), ChargeTaperExponent)) + TricklePower;
+  }
+
+  // Calculate the maximum discharge power. Taper the discharge power between 35% and Min% SoC, as Min% SoC is approached
+  if (RealSoC > StartDischargeTaper) {
+    datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
+  } else if (RealSoC < MinSoC) {
+    datalayer.battery.status.max_discharge_power_W = TricklePower;
+  } else {
+    //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
+    datalayer.battery.status.max_discharge_power_W =
+        (MaxDischargePower * pow(((RealSoC - MinSoC) / (StartDischargeTaper - MinSoC)), DischargeTaperExponent)) +
+        TricklePower;
+  }
 }
 
 void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  uint16_t soc1, soc2;
   switch (rx_frame.ID) {
-    case 0x171:  //Following messages were detected on a MG5 battery BMS
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x172:
-      break;
     case 0x173:
-      break;
-    case 0x293:
-      break;
-    case 0x295:
+      // Contains cell min/max voltages
+      // Note: these seem a bit high? 
+
+      datalayer.battery.status.cell_max_voltage_mV = ((rx_frame.data.u8[4]<<16) | (rx_frame.data.u8[5]<<8))/250;
+      datalayer.battery.status.cell_min_voltage_mV = ((rx_frame.data.u8[6]<<16) | (rx_frame.data.u8[7]<<8))/250;
+
       break;
     case 0x297:
+      // Contains battery status in rx_frame.data.u8[1]
+      // Presumed mapping:
+      // 1 = disconnected
+      // 2 = precharge
+      // 3 = connected
+      // 15 = isolation faault
+      // 0/8 = checking
+
       break;
-    case 0x29B:  //This ID is on the MG HS RX WITHOUT ANY TX PRESENT
+    case 0x2A2:
+      // Contains temperatures.
+
+      // Max cell temp
+      datalayer.battery.status.temperature_max_dC = ((rx_frame.data.u8[0] << 8)/50) - 400;
+      // Min cell temp
+      datalayer.battery.status.temperature_min_dC = ((rx_frame.data.u8[5] << 8)/50) - 400;
+      // Coolant temp
+      // ((rx_frame.data.u8[1] << 8)/50) - 400;
+
+      // There is another unknown temp in [6]/[7]
+
+      break;
+    case 0x3AC:  
+      // Contains SoCs, voltage, current. Is emitted by both CAN1 and CAN2, but
+      // the CAN2 version only has one SoC (soc2), the CAN1 version has all four
+      // values. 
+
+      // Both SoCs top out at about ~4.1V/cell, the first SoC at 92%, and the
+      // second at 100%.
+      
+      // They are scaled differently, the relationship seems to be:
+      // soc2 = (1.392*soc1) - 28.064
+
+      soc1 = (rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1]);
+      soc2 = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3]);
+
+      // soc2 is present in both CAN1 and CAN2 messages
+      update_soc(soc2);
+
+      if (((rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5]) != 0) {
+        // 3AC message contains a valid voltage (so must come from CAN1
+
+        datalayer.battery.status.voltage_dV = ((rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5]) * 2.5;
+        datalayer.battery.status.current_dA = ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) - 20000)  * 0.5;
+        voltageValidTime = VOLTAGE_TIMEOUT;
+      }
+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x29C:
-      break;
-    case 0x2A0:
-      break;
-    case 0x2A2:  //This ID is on the MG HS RX WITHOUT ANY TX PRESENT
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x322:
-      break;
-    case 0x334:
-      break;
-    case 0x33F:
-      break;
-    case 0x391:  //This ID is on the MG HS RX WITHOUT ANY TX PRESENT
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x393:
-      break;
-    case 0x3AB:  //This ID is on the MG HS RX WITHOUT ANY TX PRESENT
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x3AC:  //This ID is on the MG HS RX WITHOUT ANY TX PRESENT
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x3B8:
-      break;
-    case 0x3BA:
-      break;
-    case 0x3BC:
-      break;
-    case 0x3BE:
-      break;
-    case 0x3C0:
-      break;
-    case 0x3C2:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x400:
-      break;
-    case 0x402:
-      break;
-    case 0x418:
-      break;
-    case 0x44C:  //This ID is on the MG HS RX WITHOUT ANY TX PRESENT
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x620:
-      break;     //This is the last on the list in the MG5 template.
-    case 0x3a8:  //This ID is on the MG HS RX WITHOUT ANY TX PRESENT
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x508:  //This ID is a new one MG HS RX WHEN TRANSMITTING 03 22 B0 41 00 00 00 00. Rx data is 00 00 00 00 00 00 00 00
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x7ED:  //This ID is the battery BMS
+    case 0x7ED: 
+      // A response from our CAN2 OBD requests
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //Process rx data for incoming responses to "Read data by ID" Tx
       if (rx_frame.data.u8[1] == 0x62) {
         if (rx_frame.data.u8[2] == 0xB0) {                                   //Battery information
           if (rx_frame.data.u8[3] == 0x41 && rx_frame.data.u8[0] == 0x05) {  // Battery bus voltage
-            //				Serial.print ("Battery Bus voltage frame = ");
-            //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
-            //				datalayer.battery.status.PARAMETER = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) * 2.5;
-            //				Serial.print ("Battery Bus Voltage = ");
-            //				Serial.println (datalayer.battery.status.PARAMETER);
-          }
-          if (rx_frame.data.u8[3] == 0x42 && rx_frame.data.u8[0] == 0x05) {  // Battery voltage
-            //				Serial.print ("Battery voltage frame = ");
-            //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
+            // Battery bus voltage
+            // (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) * 2.5;
+          } else if (rx_frame.data.u8[3] == 0x42 && rx_frame.data.u8[0] == 0x05) {  
+            // Battery voltage
             datalayer.battery.status.voltage_dV = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) * 2.5;
-            //				Serial.print ("Battery voltage = ");
-            //				Serial.println (datalayer.battery.status.voltage_dV);
-          }
-          if (rx_frame.data.u8[3] == 0x43 && rx_frame.data.u8[0] == 0x05) {  // Battery current
-            //				Serial.print ("Battery current frame = ");
-            //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
+            voltageValidTime = VOLTAGE_TIMEOUT;
+          } else if (rx_frame.data.u8[3] == 0x43 && rx_frame.data.u8[0] == 0x05) {  
+            // Battery current
             datalayer.battery.status.current_dA = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) - 40000) / -4;
-            //				Serial.print ("Battery current = ");
-            //				Serial.println (datalayer.battery.status.current_dA);
-          }
-
-          if (rx_frame.data.u8[3] == 0x45 && rx_frame.data.u8[0] == 0x05) {  // Battery resistance
-            //				Serial.print ("Battery resistance frame = ");
-            //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
-            //				datalayer.battery.status.PARAMETER = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);
-            //				Serial.print ("Battery resistance = ");
-            //				Serial.println (datalayer.battery.status.PARAMETER);
-          }
-          if (rx_frame.data.u8[3] == 0x46 && rx_frame.data.u8[0] == 0x05) {  // Battery SoC
-            //				Serial.print ("Battery SoC frame = ");
-            //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
-            datalayer.battery.status.real_soc = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) * 10;
-            //				Serial.print ("Battery SoC = ");
-            //				Serial.println (datalayer.battery.status.real_soc);
-            RealSoC = datalayer.battery.status.real_soc / 100;  // For calculation of charge and discharge rates
-          }
-
-          if (rx_frame.data.u8[3] == 0x47) {  //    && rx_frame.data.u8[0] == 0x05) {	   // BMS error code
-                                              //				Serial.print ("BMS error code frame = ");
-                                              //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
-            //				datalayer.battery.status.PARAMETER = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
-            //				Serial.print ("Battery error = ");
-            //				Serial.println (datalayer.battery.status.PARAMETER);
-          }
-
-          if (rx_frame.data.u8[3] == 0x48) {  //    && rx_frame.data.u8[0] == 0x05) {	   // BMS status code
-                                              //				Serial.print ("BMS status code frame = ");
-                                              //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
-            //				datalayer.battery.status.PARAMETER = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
-            //				Serial.print ("Battery Status = ");
-            //				Serial.println (datalayer.battery.status.PARAMETER);
-          }
-
-          if (rx_frame.data.u8[3] == 0x49) {  //    && rx_frame.data.u8[0] == 0x05) {	   // System main relay B status
-                                              //				Serial.print ("System main relay B status frame = ");
-                                              //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
-            //				datalayer.battery.status.PARAMETER = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
-            //				Serial.print ("Main relay B status = ");
-            //				Serial.println (datalayer.battery.status.PARAMETER);
-          }
-
-          if (rx_frame.data.u8[3] == 0x4A) {  //    && rx_frame.data.u8[0] == 0x05) {	   // System main relay G status
-                                              //				Serial.print ("System main relay G status frame = ");
-                                              //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
-            //				datalayer.battery.status.PARAMETER = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
-            //				Serial.print ("Main relay G status = ");
-            //				Serial.println (datalayer.battery.status.PARAMETER);
-          }
-
-          if (rx_frame.data.u8[3] == 0x52) {  //    && rx_frame.data.u8[0] == 0x05) {	   // System main relay P status
-                                              //				Serial.print ("System main relay P status frame = ");
-                                              //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
-            //				datalayer.battery.status.PARAMETER = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
-            //				Serial.print ("BMain relay P status = ");
-            //				Serial.println (datalayer.battery.status.PARAMETER);
-          }
-
-          if (rx_frame.data.u8[3] == 0x56 && rx_frame.data.u8[0] == 0x05) {  // Max cell temperature
-            //				Serial.print ("Max cell temperature frame = ");
-            //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
+          } else if (rx_frame.data.u8[3] == 0x45 && rx_frame.data.u8[0] == 0x05) {  
+            // Battery resistance
+            // rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);
+          } else if (rx_frame.data.u8[3] == 0x46 && rx_frame.data.u8[0] == 0x05) {
+            // The battery SoC, the same as soc2 in 3AC. Hits 100% at 4.1V/cell.
+            soc2 = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);
+            update_soc(soc2);
+          } else if (rx_frame.data.u8[3] == 0x47) {
+            // BMS error code
+            // (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
+          } else if (rx_frame.data.u8[3] == 0x48) {
+            // BMS status coded
+            // (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
+          } else if (rx_frame.data.u8[3] == 0x49) {
+            // System main relay B status
+            // (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
+          } else if (rx_frame.data.u8[3] == 0x4A) {
+            // System main relay G status
+            // (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
+          } else if (rx_frame.data.u8[3] == 0x52) {  //    && rx_frame.data.u8[0] == 0x05) {	   // System main relay P status
+            // System main relay P status
+            // (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
+          } else if (rx_frame.data.u8[3] == 0x56 && rx_frame.data.u8[0] == 0x05) {  
+            // Max cell temperature
             datalayer.battery.status.temperature_max_dC =
                 (((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) / 500) - 40) * 10;
-            //				Serial.print ("Max cell temperature = ");
-            //				Serial.println (datalayer.battery.status.temperature_max_dC);
-          }
-
-          if (rx_frame.data.u8[3] == 0x57 && rx_frame.data.u8[0] == 0x05) {  // Min cell temperature
-            //				Serial.print ("Min cell temperature frame = ");
-            //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
+          } else if (rx_frame.data.u8[3] == 0x57 && rx_frame.data.u8[0] == 0x05) {  
+            // Min cell temperature
             datalayer.battery.status.temperature_min_dC =
                 (((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) / 500) - 40) * 10;
-            //				Serial.print ("Min cell temperature = ");
-            //				Serial.println (datalayer.battery.status.temperature_min_dC);
-          }
-
-          if (rx_frame.data.u8[3] == 0x58 && rx_frame.data.u8[0] == 0x06) {  // Max cell voltage
-            //				Serial.print ("Max cell voltage frame = ");
-            //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
+          } else if (rx_frame.data.u8[3] == 0x58 && rx_frame.data.u8[0] == 0x06) {  
+            // Max cell voltage
             datalayer.battery.status.cell_max_voltage_mV =
                 (rx_frame.data.u8[4] << 16 | rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 250;
-            //				Serial.print ("Max cell voltage = ");
-            //				Serial.println (datalayer.battery.status.cell_max_voltage_mV);
-          }
-
-          if (rx_frame.data.u8[3] == 0x59 && rx_frame.data.u8[0] == 0x06) {  // Min cell voltage
-            //				Serial.print ("Min cell voltage frame = ");
-            //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
+          } else if (rx_frame.data.u8[3] == 0x59 && rx_frame.data.u8[0] == 0x06) {  
+            // Min cell voltage
             datalayer.battery.status.cell_min_voltage_mV =
                 (rx_frame.data.u8[4] << 16 | rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 250;
-            //				Serial.print ("Min cell voltage = ");
-            //				Serial.println (datalayer.battery.status.cell_min_voltage_mV);
-          }
-
-          if (rx_frame.data.u8[3] == 0x61 && rx_frame.data.u8[0] == 0x05) {  // Battery SoH
-            //				Serial.print ("Battery SoH frame = ");
-            //				print_can_frame_MG5(rx_frame, frameDirection(MSG_RX));
+          } else if (rx_frame.data.u8[3] == 0x61 && rx_frame.data.u8[0] == 0x05) {  
+            // Battery SoH
             datalayer.battery.status.soh_pptt = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);
-            //				Serial.print ("Battery SoH = ");
-            //				Serial.println (datalayer.battery.status.soh_pptt);
           }
-
         }  // data.u8[2]=0xB0
       }  // data.u8[1] = 0x62)
-
-      //Set calculated and derived parameters
-
-      // Calculate the remaining capacity.
-      tempfloat = datalayer.battery.info.total_capacity_Wh * (RealSoC - MinSoC) / 100;
-      //	Serial.print ("Remaining capacity calculated = ");
-      //	Serial.println (tempfloat);
-      if (tempfloat > 0) {
-        datalayer.battery.status.remaining_capacity_Wh = tempfloat;
-      } else {
-        datalayer.battery.status.remaining_capacity_Wh = 0;
-      }
-
-      // Calculate the maximum charge power. Taper the charge power between 90% and 100% SoC, as 100% SoC is approached
-      if (RealSoC < StartChargeTaper) {
-        datalayer.battery.status.max_charge_power_W = MaxChargePower;
-      } else if (RealSoC >= 100) {
-        datalayer.battery.status.max_charge_power_W = TricklePower;
-      } else {
-        //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
-        datalayer.battery.status.max_charge_power_W =
-            (MaxChargePower * pow(((100 - RealSoC) / (100 - StartChargeTaper)), ChargeTaperExponent)) + TricklePower;
-      }
-
-      // Calculate the maximum discharge power. Taper the discharge power between 35% and Min% SoC, as Min% SoC is approached
-      if (RealSoC > StartDischargeTaper) {
-        datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
-      } else if (RealSoC < MinSoC) {
-        datalayer.battery.status.max_discharge_power_W = TricklePower;
-      } else {
-        //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
-        datalayer.battery.status.max_discharge_power_W =
-            (MaxDischargePower * pow(((RealSoC - MinSoC) / (StartDischargeTaper - MinSoC)), DischargeTaperExponent)) +
-            TricklePower;
-      }
 
       break;
     default:
@@ -281,9 +218,9 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
-  // Send 70ms CAN Message
-  if (currentMillis - previousMillis70 >= INTERVAL_70_MS) {
-    previousMillis70 = currentMillis;
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
 
     if (datalayer.battery.status.bms_status == FAULT) {
       //Open contactors!
@@ -299,7 +236,7 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     previousMillis200 = currentMillis;
 
-    switch (messageindex) {
+    switch (transmitIndex) {
       case 1:
         transmit_can_frame(&MG_HS_7E5_B0_42, can_config.battery);  //Battery voltage
         break;
@@ -338,14 +275,14 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
         break;
       case 13:
         transmit_can_frame(&MG_HS_7E5_B0_61, can_config.battery);  //Battery SoH
-        messageindex = 0;  //Return to the first message index. This goes in the last message entry
+        transmitIndex = 0;  //Return to the first message index. This goes in the last message entry
         break;
       default:
         break;
 
     }  //switch
 
-    messageindex++;  //Increment the message index
+    transmitIndex++;  //Increment the message index
 
   }  //endif
 }
@@ -358,6 +295,7 @@ void MgHsPHEVBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
 }
 
 #endif
