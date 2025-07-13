@@ -24,7 +24,7 @@
 #include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/value_mapping.h"
 #include "src/include.h"
-#ifndef AP_PASSWORD
+#if !defined(AP_PASSWORD) && !defined(COMMON_IMAGE)
 #error \
     "Initial setup not completed, USER_SECRETS.h is missing. Please rename the file USER_SECRETS.TEMPLATE.h to USER_SECRETS.h and fill in the required credentials. This file is ignored by version control to keep sensitive information private."
 #endif
