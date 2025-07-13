@@ -378,10 +378,11 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Failed to syncronise with the NTP Server. BMS will reset every 24 hours from when the emulator was "
              "powered on";
     case EVENT_GPIO_CONFLICT:
-      return "There is a GPIO pin conflict between SW components: " + esp32hal->failed_allocator() + " / " +
-             esp32hal->conflicting_allocator();
+      return "GPIO Pin Conflict: The pin used by '" + esp32hal->failed_allocator() + "' is already allocated by '" +
+             esp32hal->conflicting_allocator() + "'. Please check your configuration and assign different pins.";
     case EVENT_GPIO_NOT_DEFINED:
-      return "SW module requires GPIO that is not defined for this hardware: " + esp32hal->failed_allocator();
+      return "Missing GPIO Assignment: The component '" + esp32hal->failed_allocator() +
+             "' requires a GPIO pin that isn't configured. Please define a valid pin number in your settings.";
     default:
       return "";
   }
