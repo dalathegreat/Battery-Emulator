@@ -188,7 +188,7 @@ void BmwPhevBattery::wake_battery_via_canbus() {
   // Followed by a Recessive interval of at least ~3 µs (min) and at most ~10 µs (max)
   // Then a second dominant pulse of similar timing.
 
-  auto original_speed = change_can_speed(CAN_Speed::CAN_SPEED_250KBPS);
+  auto original_speed = change_can_speed(CAN_Speed::CAN_SPEED_100KBPS);
 
   transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST, can_config.battery);
   transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST, can_config.battery);
