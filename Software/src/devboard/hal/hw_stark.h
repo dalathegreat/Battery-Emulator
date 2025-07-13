@@ -20,7 +20,6 @@ GPIOs on extra header
 class StarkHal : public Esp32Hal {
  public:
   const char* name() { return "Stark CMR Module"; }
-  duration BOOTUP_TIME() { return milliseconds(5000); }
 
   // Not needed, GPIO 16 has hardware pullup for PSRAM compatibility
   virtual gpio_num_t PIN_5V_EN() { return GPIO_NUM_NC; }

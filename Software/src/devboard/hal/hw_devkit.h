@@ -14,7 +14,6 @@ The pin layout below supports the following:
 class DevKitHal : public Esp32Hal {
  public:
   const char* name() { return "ESP32 DevKit V1"; }
-  duration BOOTUP_TIME() { return milliseconds(1000); }
 
   virtual gpio_num_t RS485_TX_PIN() { return GPIO_NUM_1; }
   virtual gpio_num_t RS485_RX_PIN() { return GPIO_NUM_3; }

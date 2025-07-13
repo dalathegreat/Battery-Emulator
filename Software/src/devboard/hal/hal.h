@@ -16,7 +16,7 @@ class Esp32Hal {
   virtual const char* name() = 0;
 
   // Time it takes before system is considered fully started up.
-  virtual duration BOOTUP_TIME() = 0;
+  virtual duration BOOTUP_TIME() { return milliseconds(1000); }
   virtual bool system_booted_up();
 
   // Core assignment

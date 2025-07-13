@@ -6,7 +6,6 @@
 class LilyGoHal : public Esp32Hal {
  public:
   const char* name() { return "LilyGo T-CAN485"; }
-  duration BOOTUP_TIME() { return milliseconds(1000); }
 
   virtual gpio_num_t PIN_5V_EN() { return GPIO_NUM_16; }
   virtual gpio_num_t RS485_EN_PIN() { return GPIO_NUM_17; }
