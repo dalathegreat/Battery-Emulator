@@ -23,16 +23,15 @@ class CanBattery : public Battery, Transmitter, CanReceiver {
  protected:
   CAN_Interface can_interface;
 
-  CanBattery(bool halfSpeed = false);
+  CanBattery(CAN_Speed speed = CAN_Speed::CAN_SPEED_500KBPS);
 
-  CanBattery(CAN_Interface interface, bool halfSpeed = false) {
+  CanBattery(CAN_Interface interface, CAN_Speed speed = CAN_Speed::CAN_SPEED_500KBPS) {
     can_interface = interface;
     register_transmitter(this);
-    register_can_receiver(this, can_interface, halfSpeed);
+    register_can_receiver(this, can_interface, speed);
   }
 
-  void slow_down_can();
-  void resume_full_speed();
+  CAN_Speed change_can_speed(CAN_Speed speed);
 };
 
 #endif

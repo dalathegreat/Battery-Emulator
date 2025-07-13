@@ -5,12 +5,13 @@
 #include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
+#include "comm_can.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/logging.h"
 
 struct CanReceiverRegistration {
   CanReceiver* receiver;
-  bool halfSpeed;
+  CAN_Speed speed;
 };
 
 static std::multimap<CAN_Interface, CanReceiverRegistration> can_receivers;
@@ -32,8 +33,8 @@ bool use_canfd_as_can = use_canfd_as_can_default;
 
 void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface);
 
-void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, bool halfSpeed) {
-  can_receivers.insert({interface, {receiver, halfSpeed}});
+void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_Speed speed) {
+  can_receivers.insert({interface, {receiver, speed}});
   DEBUG_PRINTF("CAN receiver registered, total: %d\n", can_receivers.size());
 }
 
@@ -69,11 +70,7 @@ bool init_CAN() {
       digitalWrite(se_pin, LOW);
     }
 
-    if (nativeIt->second.halfSpeed) {
-      CAN_cfg.speed = CAN_SPEED_250KBPS;
-    } else {
-      CAN_cfg.speed = CAN_SPEED_500KBPS;
-    }
+    CAN_cfg.speed = (CAN_speed_t)nativeIt->second.speed;
 
     if (!esp32hal->alloc_pins("CAN", tx_pin, rx_pin)) {
       return false;
@@ -109,7 +106,7 @@ bool init_CAN() {
     SPI2515.begin(sck_pin, miso_pin, mosi_pin);
 
     // CAN bit rate 250 or 500 kb/s
-    auto bitRate = addonIt->second.halfSpeed ? 250UL * 1000UL : 500UL * 1000UL;
+    auto bitRate = (int)addonIt->second.speed * 1000UL;
 
     settings2515 = new ACAN2515Settings(QUARTZ_FREQUENCY, bitRate);
     settings2515->mRequestedMode = ACAN2515Settings::NormalMode;
@@ -133,8 +130,7 @@ bool init_CAN() {
 
   if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end()) {
 
-    auto slow = (fdNativeIt != can_receivers.end() && fdNativeIt->second.halfSpeed) ||
-                (fdAddonIt != can_receivers.end() && fdAddonIt->second.halfSpeed);
+    auto speed = (fdNativeIt != can_receivers.end()) ? fdNativeIt->second.speed : fdAddonIt->second.speed;
 
     auto cs_pin = esp32hal->MCP2517_CS();
     auto int_pin = esp32hal->MCP2517_INT();
@@ -152,7 +148,7 @@ bool init_CAN() {
     logging.println("CAN FD add-on (ESP32+MCP2517) selected");
 #endif  // DEBUG_LOG
     SPI2517.begin(sck_pin, sdo_pin, sdi_pin);
-    auto bitRate = slow ? 250UL * 1000UL : 500UL * 1000UL;
+    auto bitRate = (int)speed * 1000UL;
     settings2517 = new ACAN2517FDSettings(
         CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, bitRate,
         DataBitRateFactor::x4);  // Arbitration bit rate: 250/500 kbit/s, data bit rate: 1/2 Mbit/s
@@ -446,16 +442,12 @@ void restart_can() {
   }
 }
 
-void slow_down_can(CAN_Interface interface) {
+CAN_Speed change_can_speed(CAN_Interface interface, CAN_Speed speed) {
+  auto oldSpeed = (CAN_Speed)CAN_cfg.speed;
   if (interface == CAN_Interface::CAN_NATIVE) {
-    CAN_cfg.speed = CAN_SPEED_100KBPS;  //Slow down canbus to achieve wakeup timings
-    ESP32Can.CANInit();                 // ReInit native CAN module at new speed
+    CAN_cfg.speed = (CAN_speed_t)speed;
+    // ReInit native CAN module at new speed
+    ESP32Can.CANInit();
   }
-}
-
-void resume_full_speed(CAN_Interface interface) {
-  if (interface == CAN_Interface::CAN_NATIVE) {
-    CAN_cfg.speed = CAN_SPEED_500KBPS;  //Resume fullspeed
-    ESP32Can.CANInit();                 // ReInit native CAN module at new speed
-  }
+  return oldSpeed;
 }
