@@ -114,7 +114,6 @@ class Esp32Hal {
   virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t BMS_POWER() { return GPIO_NUM_NC; }
-  virtual gpio_num_t BMS2_POWER() { return GPIO_NUM_NC; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
 
   // Automatic precharging

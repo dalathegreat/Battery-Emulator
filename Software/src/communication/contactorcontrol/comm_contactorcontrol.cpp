@@ -293,7 +293,6 @@ Feature is only used if user has enabled PERIODIC_BMS_RESET in the USER_SETTINGS
 void handle_BMSpower() {
   if (periodic_bms_reset || remote_bms_reset) {
     auto bms_power_pin = esp32hal->BMS_POWER();
-    auto bms2_power_pin = esp32hal->BMS2_POWER();
 
     // Get current time
     currentTime = millis();
@@ -309,9 +308,6 @@ void handle_BMSpower() {
     if (datalayer.system.status.BMS_reset_in_progress && currentTime - lastPowerRemovalTime >= powerRemovalDuration) {
       // Reapply power to the BMS
       digitalWrite(bms_power_pin, HIGH);
-      if (bms2_power_pin != GPIO_NUM_NC) {
-        digitalWrite(bms2_power_pin, HIGH);  // Same for battery 2
-      }
       bmsPowerOnTime = currentTime;
       datalayer.system.status.BMS_reset_in_progress = false;   // Reset the power removal flag
       datalayer.system.status.BMS_startup_in_progress = true;  // Set the BMS warmup flag
@@ -330,7 +326,6 @@ void handle_BMSpower() {
 void start_bms_reset() {
   if (periodic_bms_reset || remote_bms_reset) {
     auto bms_power_pin = esp32hal->BMS_POWER();
-    auto bms2_power_pin = esp32hal->BMS2_POWER();
 
     if (!datalayer.system.status.BMS_reset_in_progress) {
       lastPowerRemovalTime = currentTime;  // Record the time when BMS reset was started
@@ -345,10 +340,6 @@ void start_bms_reset() {
       setBatteryPause(true, false, false, false);
 
       digitalWrite(bms_power_pin, LOW);  // Remove power by setting the BMS power pin to LOW
-
-      if (bms2_power_pin != GPIO_NUM_NC) {
-        digitalWrite(bms2_power_pin, LOW);  // Same for battery 2
-      }
     }
   }
 }

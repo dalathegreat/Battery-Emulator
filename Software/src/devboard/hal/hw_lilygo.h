@@ -49,7 +49,6 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_33; }
   virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_25; }
   virtual gpio_num_t BMS_POWER() { return GPIO_NUM_18; }
-  //virtual gpio_num_t BMS2_POWER() { return GPIO_NUM_NC; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_15; }
 
   // Automatic precharging
