@@ -27,7 +27,7 @@ class MgHsPHEVBattery : public CanBattery {
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
 
-  unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
+  unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
 
   //int BMS_SOC = 0;
@@ -36,7 +36,7 @@ class MgHsPHEVBattery : public CanBattery {
   float RealSoC;
   float tempfloat;
 
-  static const uint16_t VOLTAGE_TIMEOUT = 10; // in seconds
+  static const uint16_t VOLTAGE_TIMEOUT = 10;  // in seconds
   uint16_t voltageValidTime = 0;
 
   uint8_t transmitIndex = 0;  //For polling switchcase

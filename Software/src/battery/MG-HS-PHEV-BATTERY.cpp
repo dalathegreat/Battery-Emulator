@@ -17,7 +17,7 @@ void MgHsPHEVBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   // Should be called every second
-  if(voltageValidTime>0) {
+  if (voltageValidTime > 0) {
     voltageValidTime--;
   }
 }
@@ -27,29 +27,29 @@ void MgHsPHEVBattery::update_soc(uint16_t soc_times_ten) {
   // The SoC hits 100% at 4.1V/cell. To get the full 4.2V/cell we need to use
   // voltage instead for the last bit.
 
-  if(voltageValidTime==0) {
+  if (voltageValidTime == 0) {
     // We don't have a recent voltage reading, so can't do voltage-based SoC.
-  } else if(soc_times_ten > 900 && datalayer.battery.status.voltage_dV < 3600) {
+  } else if (soc_times_ten > 900 && datalayer.battery.status.voltage_dV < 3600) {
     // Something is wrong with our voltage reading (it is too low), so don't
     // trust it - we'll just let the SoC hit 100%.
-  } else if(soc_times_ten == 1000 && datalayer.battery.status.voltage_dV >= 3600) {
+  } else if (soc_times_ten == 1000 && datalayer.battery.status.voltage_dV >= 3600) {
     // We've hit 100%, so use voltage-based-SoC calculation for the last bit.
 
     // We usually hit 92% at ~369V, and the pack max is 378V.
 
     // Scale so that 100% becomes 92%
-    soc_times_ten = (uint16_t)(((uint32_t)soc_times_ten*9200)/10000);
+    soc_times_ten = (uint16_t)(((uint32_t)soc_times_ten * 9200) / 10000);
 
-    if(datalayer.battery.status.voltage_dV > 3690) {
+    if (datalayer.battery.status.voltage_dV > 3690) {
       // Add on the last 9 volts as the last 8% of SoC.
       soc_times_ten += (uint16_t)((((uint32_t)datalayer.battery.status.voltage_dV - 3690) * 800) / 900);
-      if(soc_times_ten > 1000) {
+      if (soc_times_ten > 1000) {
         soc_times_ten = 1000;  // Don't let it go above 100%
       }
     }
   } else {
     // Scale so that 100% becomes 92%
-    soc_times_ten = (uint16_t)(((uint32_t)soc_times_ten*9200)/10000);
+    soc_times_ten = (uint16_t)(((uint32_t)soc_times_ten * 9200) / 10000);
   }
 #endif
 
@@ -95,10 +95,10 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x173:
       // Contains cell min/max voltages
-      // Note: these seem a bit high? 
+      // Note: these seem a bit high?
 
-      datalayer.battery.status.cell_max_voltage_mV = ((rx_frame.data.u8[4]<<16) | (rx_frame.data.u8[5]<<8))/250;
-      datalayer.battery.status.cell_min_voltage_mV = ((rx_frame.data.u8[6]<<16) | (rx_frame.data.u8[7]<<8))/250;
+      datalayer.battery.status.cell_max_voltage_mV = ((rx_frame.data.u8[4] << 16) | (rx_frame.data.u8[5] << 8)) / 250;
+      datalayer.battery.status.cell_min_voltage_mV = ((rx_frame.data.u8[6] << 16) | (rx_frame.data.u8[7] << 8)) / 250;
 
       break;
     case 0x297:
@@ -115,23 +115,23 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // Contains temperatures.
 
       // Max cell temp
-      datalayer.battery.status.temperature_max_dC = ((rx_frame.data.u8[0] << 8)/50) - 400;
+      datalayer.battery.status.temperature_max_dC = ((rx_frame.data.u8[0] << 8) / 50) - 400;
       // Min cell temp
-      datalayer.battery.status.temperature_min_dC = ((rx_frame.data.u8[5] << 8)/50) - 400;
+      datalayer.battery.status.temperature_min_dC = ((rx_frame.data.u8[5] << 8) / 50) - 400;
       // Coolant temp
       // ((rx_frame.data.u8[1] << 8)/50) - 400;
 
       // There is another unknown temp in [6]/[7]
 
       break;
-    case 0x3AC:  
+    case 0x3AC:
       // Contains SoCs, voltage, current. Is emitted by both CAN1 and CAN2, but
       // the CAN2 version only has one SoC (soc2), the CAN1 version has all four
-      // values. 
+      // values.
 
       // Both SoCs top out at about ~4.1V/cell, the first SoC at 92%, and the
       // second at 100%.
-      
+
       // They are scaled differently, the relationship seems to be:
       // soc2 = (1.392*soc1) - 28.064
 
@@ -145,13 +145,13 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         // 3AC message contains a valid voltage (so must come from CAN1
 
         datalayer.battery.status.voltage_dV = ((rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5]) * 2.5;
-        datalayer.battery.status.current_dA = ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) - 20000)  * 0.5;
+        datalayer.battery.status.current_dA = ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) - 20000) * 0.5;
         voltageValidTime = VOLTAGE_TIMEOUT;
       }
 
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x7ED: 
+    case 0x7ED:
       // A response from our CAN2 OBD requests
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //Process rx data for incoming responses to "Read data by ID" Tx
@@ -160,14 +160,14 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           if (rx_frame.data.u8[3] == 0x41 && rx_frame.data.u8[0] == 0x05) {  // Battery bus voltage
             // Battery bus voltage
             // (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) * 2.5;
-          } else if (rx_frame.data.u8[3] == 0x42 && rx_frame.data.u8[0] == 0x05) {  
+          } else if (rx_frame.data.u8[3] == 0x42 && rx_frame.data.u8[0] == 0x05) {
             // Battery voltage
             datalayer.battery.status.voltage_dV = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) * 2.5;
             voltageValidTime = VOLTAGE_TIMEOUT;
-          } else if (rx_frame.data.u8[3] == 0x43 && rx_frame.data.u8[0] == 0x05) {  
+          } else if (rx_frame.data.u8[3] == 0x43 && rx_frame.data.u8[0] == 0x05) {
             // Battery current
             datalayer.battery.status.current_dA = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) - 40000) / -4;
-          } else if (rx_frame.data.u8[3] == 0x45 && rx_frame.data.u8[0] == 0x05) {  
+          } else if (rx_frame.data.u8[3] == 0x45 && rx_frame.data.u8[0] == 0x05) {
             // Battery resistance
             // rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);
           } else if (rx_frame.data.u8[3] == 0x46 && rx_frame.data.u8[0] == 0x05) {
@@ -186,26 +186,27 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           } else if (rx_frame.data.u8[3] == 0x4A) {
             // System main relay G status
             // (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
-          } else if (rx_frame.data.u8[3] == 0x52) {  //    && rx_frame.data.u8[0] == 0x05) {	   // System main relay P status
+          } else if (rx_frame.data.u8[3] ==
+                     0x52) {  //    && rx_frame.data.u8[0] == 0x05) {	   // System main relay P status
             // System main relay P status
             // (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
-          } else if (rx_frame.data.u8[3] == 0x56 && rx_frame.data.u8[0] == 0x05) {  
+          } else if (rx_frame.data.u8[3] == 0x56 && rx_frame.data.u8[0] == 0x05) {
             // Max cell temperature
             datalayer.battery.status.temperature_max_dC =
                 (((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) / 500) - 40) * 10;
-          } else if (rx_frame.data.u8[3] == 0x57 && rx_frame.data.u8[0] == 0x05) {  
+          } else if (rx_frame.data.u8[3] == 0x57 && rx_frame.data.u8[0] == 0x05) {
             // Min cell temperature
             datalayer.battery.status.temperature_min_dC =
                 (((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) / 500) - 40) * 10;
-          } else if (rx_frame.data.u8[3] == 0x58 && rx_frame.data.u8[0] == 0x06) {  
+          } else if (rx_frame.data.u8[3] == 0x58 && rx_frame.data.u8[0] == 0x06) {
             // Max cell voltage
             datalayer.battery.status.cell_max_voltage_mV =
                 (rx_frame.data.u8[4] << 16 | rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 250;
-          } else if (rx_frame.data.u8[3] == 0x59 && rx_frame.data.u8[0] == 0x06) {  
+          } else if (rx_frame.data.u8[3] == 0x59 && rx_frame.data.u8[0] == 0x06) {
             // Min cell voltage
             datalayer.battery.status.cell_min_voltage_mV =
                 (rx_frame.data.u8[4] << 16 | rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 250;
-          } else if (rx_frame.data.u8[3] == 0x61 && rx_frame.data.u8[0] == 0x05) {  
+          } else if (rx_frame.data.u8[3] == 0x61 && rx_frame.data.u8[0] == 0x05) {
             // Battery SoH
             datalayer.battery.status.soh_pptt = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);
           }
