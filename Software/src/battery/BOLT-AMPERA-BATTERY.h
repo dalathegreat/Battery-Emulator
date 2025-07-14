@@ -31,11 +31,11 @@ class BoltAmperaBattery : public CanBattery {
   static const int RAMPDOWN_SOC =
       9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
 
-  static const int MAX_PACK_VOLTAGE_DV = 4050;  //5000 = 500.0V
-  static const int MIN_PACK_VOLTAGE_DV = 3100;
+  static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
+  static const int MIN_PACK_VOLTAGE_DV = 2510;
   static const int MAX_CELL_DEVIATION_MV = 150;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 3200;  //Battery is put into emergency stop if one cell goes below this value
+  static const int MAX_CELL_VOLTAGE_MV = 4220;  //Battery is put into emergency stop if one cell goes over this value
+  static const int MIN_CELL_VOLTAGE_MV = 3000;  //Battery is put into emergency stop if one cell goes below this value
   static const int POLL_7E4_CAPACITY_EST_GEN1 = 0x41A3;
   static const int POLL_7E4_CAPACITY_EST_GEN2 = 0x45F9;
   static const int POLL_7E4_SOC_DISPLAY = 0x8334;
@@ -175,30 +175,6 @@ class BoltAmperaBattery : public CanBattery {
   static const int POLL_7E7_CELL_94 = 0x423E;
   static const int POLL_7E7_CELL_95 = 0x423F;
   static const int POLL_7E7_CELL_96 = 0x4240;
-  static const int POLL_7E7_CELL_97 = 0x4241;  // Normal pack ends at 96, these cells might be unpopulated
-  static const int POLL_7E7_CELL_98 = 0x4242;
-  static const int POLL_7E7_CELL_99 = 0x4243;
-  static const int POLL_7E7_CELL_100 = 0x4244;
-  static const int POLL_7E7_CELL_101 = 0x4245;
-  static const int POLL_7E7_CELL_102 = 0x4246;
-  static const int POLL_7E7_CELL_103 = 0x4247;
-  static const int POLL_7E7_CELL_104 = 0x4248;
-  static const int POLL_7E7_CELL_105 = 0x4249;
-  static const int POLL_7E7_CELL_106 = 0x424A;
-  static const int POLL_7E7_CELL_107 = 0x424B;
-  static const int POLL_7E7_CELL_108 = 0x424C;
-  static const int POLL_7E7_CELL_109 = 0x424D;
-  static const int POLL_7E7_CELL_110 = 0x424E;
-  static const int POLL_7E7_CELL_111 = 0x424F;
-  static const int POLL_7E7_CELL_112 = 0x4250;
-  static const int POLL_7E7_CELL_113 = 0x4251;
-  static const int POLL_7E7_CELL_114 = 0x4252;
-  static const int POLL_7E7_CELL_115 = 0x4253;
-  static const int POLL_7E7_CELL_116 = 0x4254;
-  static const int POLL_7E7_CELL_117 = 0x4255;
-  static const int POLL_7E7_CELL_118 = 0x4256;
-  static const int POLL_7E7_CELL_119 = 0x4257;
-  static const int POLL_7E7_CELL_120 = 0x4258;
 
   unsigned long previousMillis20ms = 0;   // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
@@ -239,7 +215,8 @@ class BoltAmperaBattery : public CanBattery {
   // VITM_HV - 0x7E7 replies on 7EF (This is battery)
 
   uint16_t soc_periodic = 0;
-  uint16_t battery_cell_voltages[96];  //array with all the cellvoltages
+  uint16_t battery_cell_voltages[96];  //array with all the cellvoltages polled via PID
+  uint16_t cellblock_voltage[96];      //array with all the cellvoltages, constantly broadcasted
   uint16_t battery_capacity_my17_18 = 0;
   uint16_t battery_capacity_my19plus = 0;
   uint16_t battery_SOC_display = 0;
@@ -272,6 +249,7 @@ class BoltAmperaBattery : public CanBattery {
   uint16_t battery_terminal_voltage = 0;
   uint16_t battery_ignition_power_mode = 0;
   int16_t battery_current_7E7 = 0;
+  int16_t coolant_temperature = 0;
   int16_t temperature_1 = 0;
   int16_t temperature_2 = 0;
   int16_t temperature_3 = 0;
@@ -280,7 +258,7 @@ class BoltAmperaBattery : public CanBattery {
   int16_t temperature_6 = 0;
   int16_t temperature_highest = 0;
   int16_t temperature_lowest = 0;
-  uint8_t mux = 0;
+  uint8_t cellbank_mux = 0;
   uint8_t poll_index_7E4 = 0;
   uint16_t currentpoll_7E4 = POLL_7E4_CAPACITY_EST_GEN1;
   uint16_t reply_poll_7E4 = 0;
