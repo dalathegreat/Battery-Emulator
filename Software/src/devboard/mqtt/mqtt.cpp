@@ -649,6 +649,23 @@ bool init_mqtt(void) {
     object_id_prefix = settings.getString("MQTTOBJIDPREFIX", mqtt_object_id_prefix);
     device_name = settings.getString("MQTTDEVICENAME", mqtt_device_name);
     device_id = settings.getString("HADEVICEID", ha_device_id);
+
+    if (topic_name.length() == 0) {
+      topic_name = mqtt_topic_name;
+    }
+
+    if (object_id_prefix.length() == 0) {
+      object_id_prefix = mqtt_object_id_prefix;
+    }
+
+    if (device_name.length() == 0) {
+      device_name = mqtt_device_name;
+    }
+
+    if (device_id.length() == 0) {
+      device_id = ha_device_id;
+    }
+
 #else
     // Use custom topic name, object ID prefix, and device name from user settings
     topic_name = mqtt_topic_name;
