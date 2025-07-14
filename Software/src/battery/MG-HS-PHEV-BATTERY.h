@@ -36,8 +36,8 @@ class MgHsPHEVBattery : public CanBattery {
   float RealSoC;
   float tempfloat;
 
-  static const uint16_t VOLTAGE_TIMEOUT = 10;  // in seconds
-  uint16_t voltageValidTime = 0;
+  static const uint16_t CELL_VOLTAGE_TIMEOUT = 10;  // in seconds
+  uint16_t cellVoltageValidTime = 0;
 
   uint8_t transmitIndex = 0;  //For polling switchcase
 
