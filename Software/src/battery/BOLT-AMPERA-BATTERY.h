@@ -23,8 +23,6 @@ class BoltAmperaBattery : public CanBattery {
 
  private:
   BoltAmperaHtmlRenderer renderer;
-  uint16_t Maximum_Cell_Voltage = 3700;
-  uint16_t Minimum_Cell_Voltage = 3700;
   static const int MAX_DISCHARGE_POWER_ALLOWED_W = 5000;
   static const int MAX_CHARGE_POWER_ALLOWED_W = 5000;
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
@@ -210,13 +208,16 @@ class BoltAmperaBattery : public CanBattery {
   // All HV ECUs - 0x101
   // HPCC HV - 0x243 replies on 0x643
   // OBCM HV - 0x244 replies on 0x644
-  // VICM_HV - 0x7E4 replies 0x7EC (This is battery)
-  // VICM2_HV - 0x7E6 replies 0x7EF (Tis is battery also)
+  // VICM_HV - 0x7E4 replies 0x7EC (This is battery?)
+  // VICM2_HV - 0x7E6 replies 0x7EF (Tis is battery also?)
   // VITM_HV - 0x7E7 replies on 7EF (This is battery)
 
   uint16_t soc_periodic = 0;
   uint16_t battery_cell_voltages[96];  //array with all the cellvoltages polled via PID
   uint16_t cellblock_voltage[96];      //array with all the cellvoltages, constantly broadcasted
+  uint32_t sensed_battery_voltage_mV = 0;
+  int16_t sensed_current_sensor_1 = 0;
+  int16_t sensed_current_sensor_2 = 0;
   uint16_t battery_capacity_my17_18 = 0;
   uint16_t battery_capacity_my19plus = 0;
   uint16_t battery_SOC_display = 0;
@@ -231,7 +232,7 @@ class BoltAmperaBattery : public CanBattery {
   uint16_t battery_voltage_polled = 0;
   uint16_t battery_voltage_periodic = 0;
   uint16_t battery_vehicle_isolation = 0;
-  uint16_t battery_isolation_kohm = 0;
+  uint16_t battery_isolation_kohm = 9999;
   uint16_t battery_HV_locked = 0;
   uint16_t battery_crash_event = 0;
   uint16_t battery_HVIL = 0;
@@ -244,20 +245,23 @@ class BoltAmperaBattery : public CanBattery {
   int16_t battery_module_temp_4 = 0;
   int16_t battery_module_temp_5 = 0;
   int16_t battery_module_temp_6 = 0;
+  uint16_t battery_cell_voltage_max_mV = 3700;
+  uint16_t battery_cell_voltage_min_mV = 3700;
   uint16_t battery_cell_average_voltage = 0;
   uint16_t battery_cell_average_voltage_2 = 0;
   uint16_t battery_terminal_voltage = 0;
   uint16_t battery_ignition_power_mode = 0;
   int16_t battery_current_7E7 = 0;
-  int16_t coolant_temperature = 0;
+  int16_t inlet_coolant_temperature = 0;
+  int16_t outlet_coolant_temperature = 0;
   int16_t temperature_1 = 0;
   int16_t temperature_2 = 0;
   int16_t temperature_3 = 0;
   int16_t temperature_4 = 0;
   int16_t temperature_5 = 0;
   int16_t temperature_6 = 0;
-  int16_t temperature_highest = 0;
-  int16_t temperature_lowest = 0;
+  int16_t temperature_highest_C = 0;
+  int16_t temperature_lowest_C = 0;
   uint8_t cellbank_mux = 0;
   uint8_t poll_index_7E4 = 0;
   uint16_t currentpoll_7E4 = POLL_7E4_CAPACITY_EST_GEN1;

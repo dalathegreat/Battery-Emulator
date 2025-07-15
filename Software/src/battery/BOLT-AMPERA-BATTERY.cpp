@@ -9,21 +9,17 @@
 TODOs left for this implementation
 - The battery has 3 CAN ports. One of the internal modules is responsible for the 7E4 polls, the battery for the 7E7 polls
 - Current implementation only seems to get the 7E7 polls working.
-- We might need to poll on 7E6 also?
 
 - The values missing for a fully working implementation is:
 - SOC% missing! (now estimated based on voltage)
 - Capacity (kWh) (now estimated)
 - Charge max power (now estimated)
 - Discharge max power (now estimated)
-- SOH% (now hardcoded to 99%)
+- Current is updating extremely slow, consider switching to sensed_ value
+- Balancing info seems to be in 0x270 but unsure how its coded (nice to have)
 */
 
 /*TODO, messages we might need to send towards the battery to keep it happy and close contactors
-0x262 Battery Block Voltage Diag Status HV (Who sends this? Battery?)
-0x272 Battery Cell Voltage Diag Status HV (Who sends this? Battery?)
-0x274 Battery Temperature Sensor diagnostic status HV (Who sends this? Battery?)
-0x270 Battery VoltageSensor BalancingSwitches diagnostic status (Who sends this? Battery?)
 0x214 Charger coolant temp info HV
 0x20E Hybrid balancing request HV
 0x30E High Voltage Charger Command HV
@@ -65,29 +61,6 @@ static uint16_t estimateSOC(uint16_t packVoltage) {  // Linear interpolation fun
   return 0;  // Default return for safety, should never reach here
 }
 
-void findMinMaxCells(const uint16_t arr[], size_t size, uint16_t& Minimum_Cell_Voltage,
-                     uint16_t& Maximum_Cell_Voltage) {
-  Minimum_Cell_Voltage = std::numeric_limits<uint16_t>::max();
-  Maximum_Cell_Voltage = 0;
-  bool foundValidValue = false;
-
-  for (size_t i = 0; i < size; ++i) {
-    if (arr[i] != 0) {  // Skip zero values
-      if (arr[i] < Minimum_Cell_Voltage)
-        Minimum_Cell_Voltage = arr[i];
-      if (arr[i] > Maximum_Cell_Voltage)
-        Maximum_Cell_Voltage = arr[i];
-      foundValidValue = true;
-    }
-  }
-
-  // If all values were zero, set min and max to 3700
-  if (!foundValidValue) {
-    Minimum_Cell_Voltage = 3700;
-    Maximum_Cell_Voltage = 3700;
-  }
-}
-
 void BoltAmperaBattery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
 
   //datalayer.battery.status.real_soc = battery_SOC_display; //TODO: this poll does not work
@@ -99,7 +72,8 @@ void BoltAmperaBattery::update_values() {  //This function maps all the values f
   //datalayer.battery.status.voltage_dV = battery_voltage * 0.52;
   datalayer.battery.status.voltage_dV = ((battery_voltage_periodic / 8) * 10);
 
-  datalayer.battery.status.current_dA = battery_current_7E7 / 2;
+  datalayer.battery.status.current_dA =
+      battery_current_7E7 / 2;  //TODO: Consider switching to the sensed_ value that updates more often
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
@@ -121,37 +95,16 @@ void BoltAmperaBattery::update_values() {  //This function maps all the values f
   // Discharge power is also set in .h file (TODO: Remove this estimation when real value has been found)
   datalayer.battery.status.max_discharge_power_W = MAX_DISCHARGE_POWER_ALLOWED_W;
 
-  // Store temperatures in an array
-  int16_t temperatures[] = {temperature_1, temperature_2, temperature_3, temperature_4, temperature_5, temperature_6};
+  datalayer.battery.status.temperature_min_dC = temperature_lowest_C * 10;
 
-  // Initialize highest and lowest to the first element
-  temperature_highest = temperatures[0];
-  temperature_lowest = temperatures[0];
-
-  // Iterate through the array to find the highest and lowest values
-  for (uint8_t i = 1; i < 6; ++i) {
-    if (temperatures[i] > temperature_highest) {
-      temperature_highest = temperatures[i];
-    }
-    if (temperatures[i] < temperature_lowest) {
-      temperature_lowest = temperatures[i];
-    }
-  }
-
-  datalayer.battery.status.temperature_min_dC = temperature_lowest * 10;
-
-  datalayer.battery.status.temperature_max_dC = temperature_highest * 10;
+  datalayer.battery.status.temperature_max_dC = temperature_highest_C * 10;
 
   //Map all cell voltages to the global array
-  memcpy(datalayer.battery.status.cell_voltages_mV, battery_cell_voltages, 96 * sizeof(uint16_t));
+  memcpy(datalayer.battery.status.cell_voltages_mV, cellblock_voltage, 96 * sizeof(uint16_t));
 
-  //Find min and max cellvoltage from the array
-  findMinMaxCells(battery_cell_voltages, datalayer.battery.info.number_of_cells, Minimum_Cell_Voltage,
-                  Maximum_Cell_Voltage);
+  datalayer.battery.status.cell_max_voltage_mV = battery_cell_voltage_max_mV;
 
-  datalayer.battery.status.cell_max_voltage_mV = Maximum_Cell_Voltage;
-
-  datalayer.battery.status.cell_min_voltage_mV = Minimum_Cell_Voltage;
+  datalayer.battery.status.cell_min_voltage_mV = battery_cell_voltage_min_mV;
 
   // Update webserver datalayer
   datalayer_extended.boltampera.battery_5V_ref = battery_5V_ref;
@@ -194,44 +147,44 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cellbank_mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //Goes from 0-7
       switch (cellbank_mux) {
         case 0:
-          cellblock_voltage[0] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[1] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[2] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[0] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[1] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[2] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 1:
-          cellblock_voltage[3] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[4] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[5] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[3] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[4] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[5] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 2:
-          cellblock_voltage[6] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[7] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[8] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[6] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[7] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[8] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 3:
-          cellblock_voltage[9] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[10] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[11] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[9] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[10] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[11] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 4:
-          cellblock_voltage[12] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[13] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[14] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[12] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[13] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[14] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 5:
-          cellblock_voltage[15] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[16] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[17] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[15] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[16] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[17] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 6:
-          cellblock_voltage[18] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[19] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[20] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[18] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[19] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[20] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 7:
-          cellblock_voltage[21] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[22] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[23] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[21] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[22] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[23] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         default:
           break;
@@ -242,44 +195,44 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cellbank_mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       switch (cellbank_mux) {
         case 0:
-          cellblock_voltage[24] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[25] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[26] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[24] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[25] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[26] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 1:
-          cellblock_voltage[27] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[28] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[29] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[27] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[28] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[29] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 2:
-          cellblock_voltage[30] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[31] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[32] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[30] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[31] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[32] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 3:
-          cellblock_voltage[33] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[34] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[35] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[33] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[34] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[35] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 4:
-          cellblock_voltage[36] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[37] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[38] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[36] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[37] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[38] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 5:
-          cellblock_voltage[39] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[40] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[41] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[39] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[40] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[41] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 6:
-          cellblock_voltage[42] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[43] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[44] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[42] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[43] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[44] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 7:
-          cellblock_voltage[45] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[46] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[47] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[45] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[46] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[47] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         default:
           break;
@@ -290,44 +243,44 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cellbank_mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       switch (cellbank_mux) {
         case 0:
-          cellblock_voltage[48] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[49] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[50] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[48] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[49] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[50] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 1:
-          cellblock_voltage[51] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[52] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[53] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[51] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[52] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[53] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 2:
-          cellblock_voltage[54] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[55] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[56] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[54] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[55] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[56] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 3:
-          cellblock_voltage[57] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[58] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[59] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[57] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[58] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[59] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 4:
-          cellblock_voltage[60] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[61] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[62] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[60] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[61] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[62] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 5:
-          cellblock_voltage[63] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[64] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[65] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[63] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[64] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[65] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 6:
-          cellblock_voltage[66] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[67] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[68] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[66] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[67] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[68] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 7:
-          cellblock_voltage[69] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[70] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[71] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[69] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[70] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[71] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         default:
           break;
@@ -338,44 +291,44 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cellbank_mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       switch (cellbank_mux) {
         case 0:
-          cellblock_voltage[72] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[73] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[74] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[72] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[73] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[74] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 1:
-          cellblock_voltage[75] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[76] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[77] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[75] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[76] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[77] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 2:
-          cellblock_voltage[78] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[79] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[80] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[78] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[79] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[80] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 3:
-          cellblock_voltage[81] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[82] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[83] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[81] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[82] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[83] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 4:
-          cellblock_voltage[84] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[85] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[86] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[84] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[85] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[86] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 5:
-          cellblock_voltage[87] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[88] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[89] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[87] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[88] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[89] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 6:
-          cellblock_voltage[90] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[91] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[92] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[90] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[91] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[92] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         case 7:
-          cellblock_voltage[93] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[94] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1, 25;
-          cellblock_voltage[95] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1, 25;
+          cellblock_voltage[93] = (((rx_frame.data.u8[0] & 0x1F) << 7) | ((rx_frame.data.u8[1] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[94] = (((rx_frame.data.u8[2] & 0x1F) << 7) | ((rx_frame.data.u8[3] & 0xFE) >> 1)) * 1.25;
+          cellblock_voltage[95] = (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25;
           break;
         default:
           break;
@@ -390,9 +343,15 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x20C:  //VITM Status HV
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_isolation_kohm = (rx_frame.data.u8[1] * 25);
+      battery_cell_voltage_max_mV = (rx_frame.data.u8[4] * 20);
+      battery_cell_voltage_min_mV = (rx_frame.data.u8[5] * 20);
       break;
     case 0x216:  // High voltage battery sensed Output HV
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      sensed_battery_voltage_mV = (((rx_frame.data.u8[1] & 0x0F) << 4) | rx_frame.data.u8[2]) * 125;  //mV
+      sensed_current_sensor_1 = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) * 0.02;            //Amps
+      sensed_current_sensor_2 = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]) * 0.02;            //Amps
       break;
     case 0x2C7:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -401,7 +360,7 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       360V 2C7 [6] 03 20 00 AD D0 00
       396V 2C7 [6] 03 20 53 C7 30 00*/
       break;
-    case 0x260:  //VITM Diagnostic Status 1 HV
+    case 0x260:  //VITM Diagnostic Status 1 HV (Contains which DTCs are active)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x262:  //Battery block voltage diagnostic status
@@ -424,32 +383,32 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       temperature_4 = ((rx_frame.data.u8[4] / 2) - 40);  //Module 4 Temperature
       temperature_5 = ((rx_frame.data.u8[5] / 2) - 40);  //Module 5 Temperature
       temperature_6 = ((rx_frame.data.u8[6] / 2) - 40);  //Module 6 Temperature
-      break;
-    case 0x304:  //High Voltage Control Energy Management HV
-      break;
-    case 0x307:  //High Voltage Battery SOC HV
-      //TODO: Is this CAN message on all packs? If so, SOC is here
+      //There is also a mux here to get more temps, but not required for our integration
+      //since we only care about min and max temps (from message 3E3)
       break;
     case 0x308:  //24 92 49 24 90
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x3E3:  //Battery kWh ???
-                 /*355V RX0 3E3 [7] B7 B8 7D A5 7A 01 B7
-      360V RX0 3E3 [7] B8 B9 7F A5 7B 01 B9
-      396V RX0 3E3 [7] CC CD 88 A5 7E 01 CC*/
+    case 0x3E3:  //Min and maximum values
+      //Frame0 is cellvoltage min * 20
+      //Frame1 is cellvoltage max * 20
+      //Frame7 is cellvoltage avg * 20
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      temperature_lowest_C = ((rx_frame.data.u8[2] / 2) - 40);
+      temperature_highest_C = ((rx_frame.data.u8[4] / 2) - 40);
       break;
     case 0x460:  //Energy Storage System Temp HV
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      coolant_temperature = ((rx_frame.data.u8[1] / 2) - 40);
+      inlet_coolant_temperature = ((((rx_frame.data.u8[0] & 0x03) << 8) | rx_frame.data.u8[1]) / 2) - 40;
+      outlet_coolant_temperature = ((((rx_frame.data.u8[2] & 0x03) << 8) | rx_frame.data.u8[3]) / 2) - 40;
       break;
-    case 0x5EF:  //OBD7E7 Unsolicited tester responce (ECU to tester)
+    case 0x5EF:  //OBD7E7 Unsolicited tester responce (UUDT)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x5EC:  //OBD7E4 Unsolicited tester responce (ECU to tester)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x7EC:  //When polling 7E4 BMS replies with 7EC
+    case 0x7EC:  //When polling 7E4 BMS replies with 7EC (This is not working for some reason)
 
       if (rx_frame.data.u8[0] == 0x10) {  //"PID Header"
         transmit_can_frame(&BOLT_ACK_7E4, can_config.battery);
@@ -896,7 +855,7 @@ void BoltAmperaBattery::transmit_can(unsigned long currentMillis) {
     BOLT_POLL_7E4.data.u8[2] = (uint8_t)((currentpoll_7E4 & 0xFF00) >> 8);
     BOLT_POLL_7E4.data.u8[3] = (uint8_t)(currentpoll_7E4 & 0x00FF);
 
-    transmit_can_frame(&BOLT_POLL_7E4, can_config.battery);
+    //transmit_can_frame(&BOLT_POLL_7E4, can_config.battery); //TODO: Battery does not seem to reply on this poll
   }
 }
 
