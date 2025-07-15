@@ -17,6 +17,11 @@
 //Make sure you understand risks associated with disabling. Values can be read via "More Battery info"
 //#define SKIP_TEMPERATURE_SENSOR_NUMBER 1
 
+// Ramp down settings that are used when SOC is estimated from voltage
+static const int RAMPDOWN_SOC = 100;  // SOC to start ramping down from. Value set here is scaled by 10 (100 = 10.0%)
+static const int RAMPDOWN_POWER_ALLOWED =
+    10000;  // The power to start ramping down from, can be set to a lower value if you want to limit the power at the end of discharge even further
+
 /* Do not modify the rows below */
 #ifdef BYD_ATTO_3_BATTERY
 #define SELECTED_BATTERY_CLASS BydAttoBattery

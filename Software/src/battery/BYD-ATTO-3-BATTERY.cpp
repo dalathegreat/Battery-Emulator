@@ -176,6 +176,14 @@ void BydAttoBattery::
 
   datalayer_battery->status.max_charge_power_W = BMS_allowed_charge_power * 10;  //TODO: Scaling unknown, *10 best guess
 
+  if (SOC_method ==
+      ESTIMATED) {  // If we are using estimated SOC, maximum discharge power is ramped down towards the end.
+    if (battery_estimated_SOC * 0.1 < RAMPDOWN_SOC) {
+      datalayer.battery.status.max_discharge_power_W =
+          RAMPDOWN_POWER_ALLOWED * ((battery_estimated_SOC * 0.1) / RAMPDOWN_SOC);
+    }
+  }
+
   datalayer_battery->status.cell_max_voltage_mV = BMS_highest_cell_voltage_mV;
 
   datalayer_battery->status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
