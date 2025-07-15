@@ -541,6 +541,27 @@ typedef struct {
   uint8_t HVP_shuntAuxCurrentStatus = 0;
   uint8_t HVP_shuntBarTempStatus = 0;
   uint8_t HVP_shuntAsicTempStatus = 0;
+  uint16_t BMS_info_buildConfigId = 0;
+  uint16_t BMS_info_hardwareId = 0;
+  uint16_t BMS_info_componentId = 0;
+  uint8_t BMS_info_pcbaId = 0;
+  uint8_t BMS_info_assemblyId = 0;
+  uint16_t BMS_info_usageId = 0;
+  uint16_t BMS_info_subUsageId = 0;
+  uint8_t BMS_info_platformType = 0;
+  uint32_t BMS_info_appCrc = 0;
+  uint64_t BMS_info_bootGitHash = 0;
+  uint8_t BMS_info_bootUdsProtoVersion = 0;
+  uint32_t BMS_info_bootCrc = 0;
+  uint16_t HVP_info_buildConfigId = 0;
+  uint16_t HVP_info_hardwareId = 0;
+  uint16_t HVP_info_componentId = 0;
+  uint8_t battery_serialNumber[14] = {0};  // Stores raw HEX values for ASCII chars
+  uint8_t battery_partNumber[12] = {0};
+  uint8_t PCS_partNumber[12] = {0};  //stores raw HEX values for ASCII chars
+  uint16_t PCS_info_buildConfigId = 0;
+  uint16_t PCS_info_hardwareId = 0;
+  uint16_t PCS_info_componentId = 0;
 } DATALAYER_INFO_TESLA;
 
 typedef struct {

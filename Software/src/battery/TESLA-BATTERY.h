@@ -43,7 +43,25 @@ class TeslaBattery : public CanBattery {
   static const int MAXDISCHARGEPOWERALLOWED =
       60000;  // 60000W we use a define since the value supplied by Tesla is always 0
 
-  /* Do not change the defines below */
+  // Set this to true to try to close contactors/full startup even with no inverter defined/connected
+  bool batteryTestOverride = false;
+
+  // 0x7FF gateway config, "Gen3" vehicles only, not applicable to Gen2 "classic" Model S and Model X
+  //
+  // ** MANUALLY SET FOR NOW **, TODO: change based on USER_SETTINGS.h or preset
+  //
+  static const uint16_t GTW_country =
+      18242;  // "US" (USA): 21843, "CA" (Canada): 17217, "GB" (UK & N Ireland): 18242, "DK" (Denmark): 17483, "DE" (Germany): 17477, "AU" (Australia): 16725  [HVP shows errors if EU/US region mismatch for example]
+  // GTW_country is ISO 3166-1 Alpha-2 code, each letter converted to binary (8-bit chunks), those 8-bit chunks concatenated and then converted to decimal
+  static const uint8_t GTW_rightHandDrive =
+      1;  // Left: 0, Right: 1 (not sure this matters but there for consistency in emulating the car - make sure correct for GTW_country, e.g. 0 for USA)
+  static const uint8_t GTW_mapRegion =
+      1;  // "ME": 8, "NONE": 2, "CN": 3, "TW": 6, "JP": 5, "US": 0, "KR": 7, "AU": 4, "EU": 1 (not sure this matters but there for consistency)
+  static const uint8_t GTW_chassisType =
+      2;  // "MODEL_3_CHASSIS": 2, "MODEL_Y_CHASSIS": 3  ("MODEL_S_CHASSIS": 0, "MODEL_X_CHASSIS": 1)
+  static const uint8_t GTW_packEnergy = 1;  // "PACK_50_KWH": 0, "PACK_74_KWH": 1, "PACK_62_KWH": 2, "PACK_100_KWH": 3
+
+  /* Do not change anything below this line! */
   static const int RAMPDOWN_SOC = 900;  // 90.0 SOC% to start ramping down from max charge power towards 0 at 100.00%
   static const int RAMPDOWNPOWERALLOWED = 10000;      // What power we ramp down from towards top balancing
   static const int FLOAT_MAX_POWER_W = 200;           // W, what power to allow for top balancing battery
@@ -75,53 +93,391 @@ class TeslaBattery : public CanBattery {
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
   unsigned long previousMillis500 = 0;   // will store last time a 500ms CAN Message was sent
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
-  bool alternate243 = false;
-  //0x221 545 VCFRONT_LVPowerState: "GenMsgCycleTime" 50ms
-  CAN_frame TESLA_221_1 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x221,
-      .data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}};  //Contactor frame 221 - close contactors
-  CAN_frame TESLA_221_2 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x221,
-      .data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};  //Contactor Frame 221 - hv_up_for_drive
-  //0x241 VCFRONT_coolant 100ms
+
+  //UDS session tracker
+  //static bool uds_SessionInProgress = false; // Future use
+  //0x221 VCFRONT_LVPowerState
+  uint8_t muxNumber_TESLA_221 = 0;
+  uint8_t frameCounter_TESLA_221 = 15;  // Start at 15 for Mux 0
+  uint8_t vehicleState = 1;             // "OFF": 0, "DRIVE": 1, "ACCESSORY": 2, "GOING_DOWN": 3
+  uint16_t powerDownTimer = 180;  // Car power down (i.e. contactor open) tracking timer, 3 seconds per sendingState
+  //0x2E1 VCFRONT_status, 6 mux tracker
+  uint8_t muxNumber_TESLA_2E1 = 0;
+  //0x334 UI
+  bool TESLA_334_INITIAL_SENT = false;
+  //0x3A1 VCFRONT_vehicleStatus, 15 frame counter (temporary)
+  uint8_t frameCounter_TESLA_3A1 = 0;
+  //0x3C2 VCLEFT_switchStatus
+  uint8_t muxNumber_TESLA_3C2 = 0;
+  //0x504 TWC_status
+  bool TESLA_504_INITIAL_SENT = false;
+  //0x7FF GTW_carConfig, 5 mux tracker
+  uint8_t muxNumber_TESLA_7FF = 0;
+  //Max percentage charge tracker
+  uint16_t previous_max_percentage = datalayer.battery.settings.max_percentage;
+
+  //0x082 UI_tripPlanning: "cycle_time" 1000ms
+  CAN_frame TESLA_082 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x082,
+                         .data = {0x00, 0x00, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80}};
+
+  //0x102 VCLEFT_doorStatus: "cycle_time" 100ms
+  CAN_frame TESLA_102 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x102,
+                         .data = {0x22, 0x33, 0x00, 0x00, 0xC0, 0x38, 0x21, 0x08}};
+
+  //0x103 VCRIGHT_doorStatus: "cycle_time" 100ms
+  CAN_frame TESLA_103 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x103,
+                         .data = {0x22, 0x33, 0x00, 0x00, 0x30, 0xF2, 0x20, 0x02}};
+
+  //0x118 DI_systemStatus: "cycle_time" 50ms, DI_systemStatusChecksum/DI_systemStatusCounter generated via generateFrameCounterChecksum
+  CAN_frame TESLA_118 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x118,
+                         .data = {0xAB, 0x60, 0x2A, 0x00, 0x00, 0x08, 0x00, 0x00}};
+
+  //0x2A8 CMPD_state: "cycle_time" 100ms, different depending on firmware, semi-manual increment for now
+  CAN_frame TESLA_2A8 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x2A8,
+                         .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x2C}};
+
+  //0x213 UI_cruiseControl: "cycle_time" 500ms, UI_speedLimitTick/UI_cruiseControlCounter - different depending on firmware, semi-manual increment for now
+  CAN_frame TESLA_213 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x213, .data = {0x00, 0x15}};
+
+  //0x221 These frames will/should eventually be migrated to 2 base frames (1 per mux), and then just the relevant bits changed
+
+  //0x221 VCFRONT_LVPowerState "Drive"
+  //VCFRONT_vehiclePowerState VEHICLE_POWER_STATE_DRIVE (Mux0, Counter 15): "cycle_time" 50ms each mux/LVPowerStateIndex, VCFRONT_LVPowerStateChecksum/VCFRONT_LVPowerStateCounter generated via generateMuxFrameCounterChecksum
+  CAN_frame TESLA_221_DRIVE_Mux0 = {.FD = false,
+                                    .ext_ID = false,
+                                    .DLC = 8,
+                                    .ID = 0x221,
+                                    .data = {0x60, 0x55, 0x55, 0x15, 0x54, 0x51, 0xF1, 0xD8}};
+
+  //0x221 VCFRONT_LVPowerState "Drive"
+  //VCFRONT_vehiclePowerState VEHICLE_POWER_STATE_DRIVE (Mux1, Counter 0): "cycle_time" 50ms each mux/LVPowerStateIndex, VCFRONT_LVPowerStateChecksum/VCFRONT_LVPowerStateCounter generated via generateMuxFrameCounterChecksum
+  CAN_frame TESLA_221_DRIVE_Mux1 = {.FD = false,
+                                    .ext_ID = false,
+                                    .DLC = 8,
+                                    .ID = 0x221,
+                                    .data = {0x61, 0x05, 0x55, 0x05, 0x00, 0x00, 0x00, 0xE3}};
+
+  //0x221 VCFRONT_LVPowerState "Accessory"
+  //VCFRONT_vehiclePowerState VEHICLE_POWER_STATE_ACCESSORY (Mux0, Counter 15): "cycle_time" 50ms each mux/LVPowerStateIndex, VCFRONT_LVPowerStateChecksum/VCFRONT_LVPowerStateCounter generated via generateMuxFrameCounterChecksum
+  CAN_frame TESLA_221_ACCESSORY_Mux0 = {.FD = false,
+                                        .ext_ID = false,
+                                        .DLC = 8,
+                                        .ID = 0x221,
+                                        .data = {0x40, 0x55, 0x55, 0x05, 0x54, 0x51, 0xF5, 0xAC}};
+
+  //0x221 VCFRONT_LVPowerState "Accessory"
+  //VCFRONT_vehiclePowerState VEHICLE_POWER_STATE_ACCESSORY (Mux1, Counter 0): "cycle_time" 50ms each mux/LVPowerStateIndex, VCFRONT_LVPowerStateChecksum/VCFRONT_LVPowerStateCounter generated via generateMuxFrameCounterChecksum
+  CAN_frame TESLA_221_ACCESSORY_Mux1 = {.FD = false,
+                                        .ext_ID = false,
+                                        .DLC = 8,
+                                        .ID = 0x221,
+                                        .data = {0x41, 0x05, 0x55, 0x55, 0x01, 0x00, 0x04, 0x18}};
+
+  //0x221 VCFRONT_LVPowerState "Going Down"
+  //VCFRONT_vehiclePowerState VEHICLE_POWER_STATE_OFF, key parts GOING_DOWN (Mux0, Counter 15): "cycle_time" 50ms each mux/LVPowerStateIndex, VCFRONT_LVPowerStateChecksum/VCFRONT_LVPowerStateCounter generated via generateMuxFrameCounterChecksum
+  CAN_frame TESLA_221_GOING_DOWN_Mux0 = {.FD = false,
+                                         .ext_ID = false,
+                                         .DLC = 8,
+                                         .ID = 0x221,
+                                         .data = {0x00, 0x89, 0x55, 0x06, 0xA4, 0x51, 0xF1, 0xED}};
+
+  //0x221 VCFRONT_LVPowerState "Going Down"
+  //VCFRONT_vehiclePowerState VEHICLE_POWER_STATE_OFF, key parts GOING_DOWN (Mux1, Counter 0): "cycle_time" 50ms each mux/LVPowerStateIndex, VCFRONT_LVPowerStateChecksum/VCFRONT_LVPowerStateCounter generated via generateMuxFrameCounterChecksum
+  CAN_frame TESLA_221_GOING_DOWN_Mux1 = {.FD = false,
+                                         .ext_ID = false,
+                                         .DLC = 8,
+                                         .ID = 0x221,
+                                         .data = {0x01, 0x09, 0x55, 0x59, 0x00, 0x00, 0x00, 0xDB}};
+
+  //0x221 VCFRONT_LVPowerState "Off"
+  //VCFRONT_vehiclePowerState VEHICLE_POWER_STATE_OFF, key parts OFF (Mux0, Counter 15): "cycle_time" 50ms each mux/LVPowerStateIndex, VCFRONT_LVPowerStateChecksum/VCFRONT_LVPowerStateCounter generated via generateMuxFrameCounterChecksum
+  CAN_frame TESLA_221_OFF_Mux0 = {.FD = false,
+                                  .ext_ID = false,
+                                  .DLC = 8,
+                                  .ID = 0x221,
+                                  .data = {0x00, 0x01, 0x00, 0x00, 0x00, 0x50, 0xF1, 0x65}};
+
+  //0x221 VCFRONT_LVPowerState "Off"
+  //VCFRONT_vehiclePowerState VEHICLE_POWER_STATE_OFF, key parts OFF (Mux1, Counter 0): "cycle_time" 50ms each mux/LVPowerStateIndex, VCFRONT_LVPowerStateChecksum/VCFRONT_LVPowerStateCounter generated via generateMuxFrameCounterChecksum
+  CAN_frame TESLA_221_OFF_Mux1 = {.FD = false,
+                                  .ext_ID = false,
+                                  .DLC = 8,
+                                  .ID = 0x221,
+                                  .data = {0x01, 0x01, 0x01, 0x50, 0x00, 0x00, 0x00, 0x76}};
+
+  //0x229 SCCM_rightStalk: "cycle_time" 100ms, SCCM_rightStalkChecksum/SCCM_rightStalkCounter generated via dedicated generateTESLA_229 function for now
+  //CRC seemingly related to AUTOSAR ID array... "autosarDataIds": [124,182,240,47,105,163,221,28,86,144,202,9,67,125,183,241] found in Model 3 firmware
+  CAN_frame TESLA_229 = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x229, .data = {0x46, 0x00, 0x00}};
+
+  //0x241 VCFRONT_coolant: "cycle_time" 100ms
   CAN_frame TESLA_241 = {.FD = false,
                          .ext_ID = false,
                          .DLC = 7,
                          .ID = 0x241,
-                         .data = {0x3C, 0x78, 0x2C, 0x0F, 0x1E, 0x5B, 0x00}};
-  //0x242 VCLEFT_LVPowerState 100ms
-  CAN_frame TESLA_242 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x242, .data = {0x10, 0x95}};
-  //0x243 VCRIGHT_hvacStatus 50ms
-  CAN_frame TESLA_243_1 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x243,
-                           .data = {0xC9, 0x00, 0xEB, 0xD4, 0x31, 0x32, 0x02, 0x00}};
-  CAN_frame TESLA_243_2 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x243,
-                           .data = {0x08, 0x81, 0x42, 0x60, 0x92, 0x2C, 0x0E, 0x09}};
-  //0x129 SteeringAngle 10ms
-  CAN_frame TESLA_129 = {.FD = false,
+                         .data = {0x35, 0x34, 0x0C, 0x0F, 0x8F, 0x55, 0x00}};
+
+  //0x2D1 VCFRONT_okToUseHighPower: "cycle_time" 100ms
+  CAN_frame TESLA_2D1 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x2D1, .data = {0xFF, 0x01}};
+
+  //0x2E1, 6 muxes
+  //0x2E1 VCFRONT_status: "cycle_time" 10ms each mux/statusIndex
+  CAN_frame TESLA_2E1_VEHICLE_AND_RAILS = {.FD = false,
+                                           .ext_ID = false,
+                                           .DLC = 8,
+                                           .ID = 0x2E1,
+                                           .data = {0x29, 0x0A, 0x00, 0xFF, 0x0F, 0x00, 0x00, 0x00}};
+
+  //{0x29, 0x0A, 0x00, 0xFF, 0x0F, 0x00, 0x00, 0x00} INIT
+  //{0x29, 0x0A, 0x0D, 0xFF, 0x0F, 0x00, 0x00, 0x00} DRIVE
+  //{0x29, 0x0A, 0x09, 0xFF, 0x0F, 0x00, 0x00, 0x00} HV_UP_STANDBY
+  //{0x29, 0x0A, 0x0A, 0xFF, 0x0F, 0x00, 0x00, 0x00} ACCESSORY
+  //{0x29, 0x0A, 0x06, 0xFF, 0x0F, 0x00, 0x00, 0x00} SLEEP_STANDBY
+
+  //0x2E1 VCFRONT_status: "cycle_time" 10ms each mux/statusIndex
+  CAN_frame TESLA_2E1_HOMELINK = {.FD = false,
+                                  .ext_ID = false,
+                                  .DLC = 8,
+                                  .ID = 0x2E1,
+                                  .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00}};
+
+  //0x2E1 VCFRONT_status: "cycle_time" 10ms each mux/statusIndex
+  CAN_frame TESLA_2E1_REFRIGERANT_SYSTEM = {.FD = false,
+                                            .ext_ID = false,
+                                            .DLC = 8,
+                                            .ID = 0x2E1,
+                                            .data = {0x03, 0x6D, 0x99, 0x02, 0x1B, 0x57, 0x00, 0x00}};
+
+  //0x2E1 VCFRONT_status: "cycle_time" 10ms each mux/statusIndex
+  CAN_frame TESLA_2E1_LV_BATTERY_DEBUG = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 8,
+                                          .ID = 0x2E1,
+                                          .data = {0xFC, 0x1B, 0xD1, 0x99, 0x9A, 0xD8, 0x09, 0x00}};
+
+  //0x2E1 VCFRONT_status: "cycle_time" 10ms each mux/statusIndex
+  CAN_frame TESLA_2E1_MUX_5 = {.FD = false,
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = 0x2E1,
+                               .data = {0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+  //0x2E1 VCFRONT_status: "cycle_time" 10ms each mux/statusIndex
+  CAN_frame TESLA_2E1_BODY_CONTROLS = {.FD = false,
+                                       .ext_ID = false,
+                                       .DLC = 8,
+                                       .ID = 0x2E1,
+                                       .data = {0x08, 0x21, 0x04, 0x6E, 0xA0, 0x88, 0x06, 0x04}};
+
+  //0x2E8 EPBR_status: "cycle_time" 100ms
+  CAN_frame TESLA_2E8 = {.FD = false,
                          .ext_ID = false,
                          .DLC = 8,
-                         .ID = 0x129,
-                         .data = {0x21, 0x24, 0x36, 0x5F, 0x00, 0x20, 0xFF, 0x3F}};
-  //0x612 UDS diagnostic requests - on demand
+                         .ID = 0x2E8,
+                         .data = {0x02, 0x00, 0x10, 0x00, 0x00, 0x80, 0x00, 0x6C}};
+
+  //0x284 UI_vehicleModes: "cycle_time" 500ms
+  CAN_frame TESLA_284 = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x284, .data = {0x10, 0x00, 0x00, 0x00, 0x00}};
+
+  //0x293 UI_chassisControl: "cycle_time" 500ms, UI_chassisControlChecksum/UI_chassisControlCounter generated via generateFrameCounterChecksum
+  CAN_frame TESLA_293 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x293,
+                         .data = {0x01, 0x0C, 0x55, 0x91, 0x55, 0x15, 0x01, 0xF3}};
+
+  //0x3A1 VCFRONT_vehicleStatus: "cycle_time" 50ms, VCFRONT_vehicleStatusChecksum/VCFRONT_vehicleStatusCounter eventually need to be generated via generateMuxFrameCounterChecksum
+  //Looks like 2 muxes, counter at bit 52 width 4 and checksum at bit 56 width 8? Need later software Model3_ETH.compact.json signal file or DBC.
+  //Migrated to an array until figured out
+  CAN_frame TESLA_3A1[16] = {
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0xD0, 0x01}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0xE2, 0xCB}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0xF0, 0x21}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0x02, 0xEB}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0x10, 0x41}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0x22, 0x0B}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0x30, 0x61}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0x42, 0x2B}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0x50, 0x81}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0x62, 0x4B}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0x70, 0xA1}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0x82, 0x6B}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0x90, 0xC1}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0xA2, 0x8B}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0xB0, 0xE1}},
+      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0xC2, 0xAB}}};
+
+  //0x313 UI_powertrainControl: "cycle_time" 500ms, UI_powertrainControlChecksum/UI_powertrainControlCounter generated via generateFrameCounterChecksum
+  CAN_frame TESLA_313 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x313,
+                         .data = {0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x1B}};
+
+  //0x321 VCFRONT_sensors: "cycle_time" 1000ms
+  CAN_frame TESLA_321 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x321,
+      .data = {0xEC, 0x71, 0xA7, 0x6E, 0x02, 0x6C, 0x00, 0x04}};  // Last 2 bytes are counter and checksum
+
+  //0x333 UI_chargeRequest: "cycle_time" 500ms, UI_chargeTerminationPct value = 900 [bit 16, width 10, scale 0.1, min 25, max 100]
+  CAN_frame TESLA_333 = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x333, .data = {0x84, 0x30, 0x84, 0x07, 0x02}};
+
+  //0x334 UI request: "cycle_time" 500ms, initial frame car sends
+  CAN_frame TESLA_334_INITIAL = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x334,
+                                 .data = {0x3F, 0x3F, 0xC8, 0x00, 0xE2, 0x3F, 0x80, 0x1E}};
+
+  //0x334 UI request: "cycle_time" 500ms, generated via generateFrameCounterChecksum
+  CAN_frame TESLA_334 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x334,
+                         .data = {0x3F, 0x3F, 0x00, 0x0F, 0xE2, 0x3F, 0x90, 0x75}};
+
+  //0x3B3 UI_vehicleControl2: "cycle_time" 500ms
+  CAN_frame TESLA_3B3 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x3B3,
+                         .data = {0x90, 0x80, 0x05, 0x08, 0x00, 0x00, 0x00, 0x01}};
+
+  //0x39D IBST_status: "cycle_time" 50ms, IBST_statusChecksum/IBST_statusCounter generated via generateFrameCounterChecksum
+  CAN_frame TESLA_39D = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x39D, .data = {0xE1, 0x59, 0xC1, 0x27, 0x00}};
+
+  //0x3C2 VCLEFT_switchStatus (Mux0, initial frame car sends): "cycle_time" 50ms, sent once
+  CAN_frame TESLA_3C2_INITIAL = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x3C2,
+                                 .data = {0x00, 0x55, 0x55, 0x55, 0x00, 0x00, 0x5A, 0x05}};
+
+  //0x3C2 VCLEFT_switchStatus (Mux0): "cycle_time" 50ms each mux/SwitchStatusIndex
+  CAN_frame TESLA_3C2_Mux0 = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x3C2,
+                              .data = {0x00, 0x55, 0x55, 0x55, 0x00, 0x00, 0x5A, 0x45}};
+
+  //0x3C2 VCLEFT_switchStatus (Mux1): "cycle_time" 50ms each mux/SwitchStatusIndex
+  CAN_frame TESLA_3C2_Mux1 = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x3C2,
+                              .data = {0x29, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+  //0x504 Initially sent
+  CAN_frame TESLA_504_INITIAL = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x504,
+                                 .data = {0x00, 0x1B, 0x06, 0x03, 0x00, 0x01, 0x00, 0x01}};
+
+  //0x55A Unknown but always sent: "cycle_time" 500ms
+  CAN_frame TESLA_55A = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x55A,
+                         .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+  //0x7FF GTW_carConfig: "cycle_time" 100ms each mux/carConfigMultiplexer (UK/RHD)
+  CAN_frame TESLA_7FF_Mux1 = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7FF,
+                              .data = {0x01, 0x49, 0x42, 0x47, 0x00, 0x03, 0x15, 0x01}};
+
+  //0x7FF GTW_carConfig: "cycle_time" 100ms each mux/carConfigMultiplexer
+  CAN_frame TESLA_7FF_Mux2 = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7FF,
+                              .data = {0x02, 0x66, 0x32, 0x24, 0x04, 0x49, 0x95, 0x82}};
+
+  //0x7FF GTW_carConfig: "cycle_time" 100ms each mux/carConfigMultiplexer (EU/Long Range)
+  CAN_frame TESLA_7FF_Mux3 = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7FF,
+                              .data = {0x03, 0x01, 0x08, 0x48, 0x01, 0x00, 0x00, 0x12}};
+
+  //0x7FF GTW_carConfig: "cycle_time" 100ms each mux/carConfigMultiplexer
+  CAN_frame TESLA_7FF_Mux4 = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7FF,
+                              .data = {0x04, 0x73, 0x03, 0x67, 0x5C, 0x00, 0x00, 0x00}};
+
+  //0x7FF GTW_carConfig: "cycle_time" 100ms each mux/carConfigMultiplexer
+  CAN_frame TESLA_7FF_Mux5 = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7FF,
+                              .data = {0x05, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00}};
+
+  //0x7FF GTW_carConfig: "cycle_time" 100ms each mux/carConfigMultiplexer - later firmware has muxes 6 & 7, needed?
+  CAN_frame TESLA_7FF_Mux6 = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7FF,
+                              .data = {0x06, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0xD0}};
+
+  //0x7FF GTW_carConfig: "cycle_time" 100ms each mux/carConfigMultiplexer - later firmware has muxes 6 & 7, needed?
+  CAN_frame TESLA_7FF_Mux7 = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7FF,
+                              .data = {0x07, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00}};
+
+  //0x722 BMS_bmbKeepAlive: "cycle_time" 100ms, should only be sent when testing packs or diagnosing problems
+  CAN_frame TESLA_722 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x722,
+                         .data = {0x02, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80}};
+
+  //0x25D CP_status: "cycle_time" 100ms, stops some cpMia errors, but not necessary for standalone pack operation so not used/necessary. Note CP_type for different regions, the below has "IEC_CCS"
+  CAN_frame TESLA_25D = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x25D,
+                         .data = {0x37, 0x41, 0x01, 0x16, 0x08, 0x00, 0x00, 0x00}};
+
+  //0x602 BMS UDS diagnostic request: on demand
   CAN_frame TESLA_602 = {.FD = false,
                          .ext_ID = false,
                          .DLC = 8,
                          .ID = 0x602,
-                         .data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                         .data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  // Define initial UDS request
+
+  //0x610 BMS Query UDS request: on demand
+  CAN_frame TESLA_610 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x610,
+                         .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  // Define initial UDS request
+
   uint8_t stateMachineClearIsolationFault = 0xFF;
   uint8_t stateMachineBMSReset = 0xFF;
+  uint8_t stateMachineBMSQuery = 0xFF;
   uint16_t sendContactorClosingMessagesStill = 300;
   uint16_t battery_cell_max_v = 3300;
   uint16_t battery_cell_min_v = 3300;
@@ -216,8 +572,29 @@ class TeslaBattery : public CanBattery {
   uint8_t battery_fcCtrsRequestStatus = 0;
   bool battery_fcCtrsResetRequestRequired = false;  // Change to bool
   bool battery_fcLinkAllowedToEnergize = false;     // Change to bool
-  //0x72A: BMS_serialNumber
-  uint8_t BMS_SerialNumber[14] = {0};  // Stores raw HEX values for ASCII chars
+                                                    //0x72A: BMS_serialNumber
+  uint8_t battery_serialNumber[14] = {0};           // Stores raw HEX values for ASCII chars
+  bool parsed_battery_serialNumber = false;
+  char* battery_manufactureDate;         // YYYY-MM-DD\0
+                                         //Via UDS
+  uint8_t battery_partNumber[12] = {0};  //stores raw HEX values for ASCII chars
+  bool parsed_battery_partNumber = false;
+  //Via UDS
+  //static uint8_t BMS_partNumber[12] = {0};  //stores raw HEX values for ASCII chars
+  //static bool parsed_BMS_partNumber = false;
+  //0x300: BMS_info
+  uint16_t BMS_info_buildConfigId = 0;
+  uint16_t BMS_info_hardwareId = 0;
+  uint16_t BMS_info_componentId = 0;
+  uint8_t BMS_info_pcbaId = 0;
+  uint8_t BMS_info_assemblyId = 0;
+  uint16_t BMS_info_usageId = 0;
+  uint16_t BMS_info_subUsageId = 0;
+  uint8_t BMS_info_platformType = 0;
+  uint32_t BMS_info_appCrc = 0;
+  uint64_t BMS_info_bootGitHash = 0;
+  uint8_t BMS_info_bootUdsProtoVersion = 0;
+  uint32_t BMS_info_bootCrc = 0;
   //0x212: 530 BMS_status
   bool battery_BMS_hvacPowerRequest = false;          //Change to bool
   bool battery_BMS_notEnoughPowerForDrive = false;    //Change to bool
@@ -268,6 +645,22 @@ class TeslaBattery : public CanBattery {
   uint16_t BMS_packTMax = 0;
   bool BMS_pcsNoFlowRequest = false;
   bool BMS_noFlowRequest = false;
+  //0x3C4: PCS_info
+  uint8_t PCS_partNumber[12] = {0};  //stores raw HEX values for ASCII chars
+  bool parsed_PCS_partNumber = false;
+  uint16_t PCS_info_buildConfigId = 0;
+  uint16_t PCS_info_hardwareId = 0;
+  uint16_t PCS_info_componentId = 0;
+  uint8_t PCS_info_pcbaId = 0;
+  uint8_t PCS_info_assemblyId = 0;
+  uint16_t PCS_info_usageId = 0;
+  uint16_t PCS_info_subUsageId = 0;
+  uint8_t PCS_info_platformType = 0;
+  uint32_t PCS_info_appCrc = 0;
+  uint32_t PCS_info_cpu2AppCrc = 0;
+  uint64_t PCS_info_bootGitHash = 0;
+  uint8_t PCS_info_bootUdsProtoVersion = 0;
+  uint32_t PCS_info_bootCrc = 0;
   //0x2A4; 676 PCS_thermalStatus
   int16_t PCS_chgPhATemp = 0;
   int16_t PCS_chgPhBTemp = 0;
@@ -330,6 +723,18 @@ class TeslaBattery : public CanBattery {
   bool HVP_shuntRefVoltageMismatch = false;  //Change to bool
   bool HVP_shuntThermistorMia = false;       //Change to bool
   bool HVP_shuntHwMia = false;               //Change to bool
+  uint16_t HVP_info_buildConfigId = 0;
+  uint16_t HVP_info_hardwareId = 0;
+  uint16_t HVP_info_componentId = 0;
+  uint8_t HVP_info_pcbaId = 0;
+  uint8_t HVP_info_assemblyId = 0;
+  uint16_t HVP_info_usageId = 0;
+  uint16_t HVP_info_subUsageId = 0;
+  uint8_t HVP_info_platformType = 0;
+  uint32_t HVP_info_appCrc = 0;
+  uint64_t HVP_info_bootGitHash = 0;
+  uint8_t HVP_info_bootUdsProtoVersion = 0;
+  uint32_t HVP_info_bootCrc = 0;
   int16_t HVP_dcLinkVoltage = 0;
   int16_t HVP_packVoltage = 0;
   int16_t HVP_fcLinkVoltage = 0;

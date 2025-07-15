@@ -326,6 +326,263 @@ inline const char* getFault(bool value) {
   return value ? "ACTIVE" : "NOT_ACTIVE";
 }
 
+// Clamp DLC to 0–8 bytes for classic CAN
+inline int getDataLen(uint8_t dlc) {
+  return std::min<int>(dlc, 8);
+}
+
+// Fast bit‐field writer: writes 'bitLen' bits of 'value' starting at 'startBit'
+inline void setBitField(uint8_t* data, int bytes, int startBit, int bitLen, uint64_t value) {
+  int bit = startBit;
+  for (int i = 0; i < bitLen && bit < bytes * 8; ++i, ++bit) {
+    uint8_t* p = data + (bit >> 3);
+    uint8_t m = uint8_t(1u << (bit & 7));
+    *p = (*p & ~m) | (uint8_t((value >> i) & 1) << (bit & 7));
+  }
+}
+
+/// Increment a counter field and recompute an 8‑bit checksum as part of a mux
+void generateMuxFrameCounterChecksum(CAN_frame& f,
+                                     uint8_t frameCounter,  // counter value
+                                     int ctrStartBit,       // bit index of counter LSB
+                                     int ctrBitLength,      // width of counter in bits
+                                     int csumStartBit,      // bit index of checksum LSB
+                                     int csumBitLength      // width of checksum in bits
+) {
+  int bytes = getDataLen(f.DLC);
+  auto data = f.data.u8;
+
+  // Pack payload into a 64‑bit word
+  uint64_t w = 0;
+  for (uint8_t i = 0; i < bytes; ++i) {
+    w |= uint64_t(data[i]) << (8 * i);
+  }
+
+  // Increment the counter
+  {
+    uint64_t mask = (uint64_t(1) << ctrBitLength) - 1;
+    uint64_t ctr = frameCounter & mask;  // External counter 0-15
+    w = (w & ~(mask << ctrStartBit)) | (ctr << ctrStartBit);
+  }
+
+  // Unpack back into the frame bytes
+  for (uint8_t i = 0; i < bytes; ++i) {
+    data[i] = uint8_t((w >> (8 * i)) & 0xFF);
+  }
+
+  // Build a small buffer and zero out the checksum bits
+  uint8_t buf[8];
+  for (uint8_t i = 0; i < bytes; ++i) {
+    buf[i] = data[i];
+  }
+  for (int bit = csumStartBit; bit < csumStartBit + csumBitLength; ++bit) {
+    int b = bit >> 3;
+    if (b >= bytes)
+      break;
+    buf[b] &= uint8_t(~(1u << (bit & 7)));
+  }
+
+  // Compute checksum offset from most significant hex digit of CAN ID
+  uint8_t checksum_offset = uint8_t((f.ID >> 8) & 0xF);  // high nibble of top byte
+
+  // Sum the low byte of ID + buf[]
+  uint8_t sum = uint8_t(f.ID & 0xFF);
+  for (int i = 0; i < bytes; ++i) {
+    sum = uint8_t(sum + buf[i]);
+  }
+  uint8_t checksum = uint8_t(sum + checksum_offset);
+
+  // Write the checksum back into the frame
+  setBitField(data, bytes, csumStartBit, csumBitLength, checksum);
+}
+
+// Increment a counter field and recompute an 8‑bit checksum
+void generateFrameCounterChecksum(CAN_frame& f,
+                                  int ctrStartBit,   // bit index of counter LSB
+                                  int ctrBitLength,  // width of counter in bits
+                                  int csumStartBit,  // bit index of checksum LSB
+                                  int csumBitLength  // width of checksum in bits
+) {
+  int bytes = getDataLen(f.DLC);
+  auto data = f.data.u8;
+
+  // Pack payload into a 64‑bit word
+  uint64_t w = 0;
+  for (int i = 0; i < bytes; ++i) {
+    w |= uint64_t(data[i]) << (8 * i);
+  }
+
+  // Increment the counter by +1 modulo its width
+  {
+    uint64_t mask = (uint64_t(1) << ctrBitLength) - 1;
+    uint64_t ctr = ((w >> ctrStartBit) & mask) + 1;
+    ctr &= mask;
+    w = (w & ~(mask << ctrStartBit)) | (ctr << ctrStartBit);
+  }
+
+  // Unpack back into the frame bytes
+  for (int i = 0; i < bytes; ++i) {
+    data[i] = uint8_t((w >> (8 * i)) & 0xFF);
+  }
+
+  // Build a small buffer and zero out the checksum bits
+  uint8_t buf[8];
+  for (int i = 0; i < bytes; ++i) {
+    buf[i] = data[i];
+  }
+  for (int bit = csumStartBit; bit < csumStartBit + csumBitLength; ++bit) {
+    int b = bit >> 3;
+    if (b >= bytes)
+      break;
+    buf[b] &= uint8_t(~(1u << (bit & 7)));
+  }
+
+  // Compute checksum offset from most significant hex digit of CAN ID
+  uint8_t checksum_offset = uint8_t((f.ID >> 8) & 0xF);  // high nibble of top byte
+
+  // Sum the low byte of ID + buf[]
+  uint8_t sum = uint8_t(f.ID & 0xFF);
+  for (int i = 0; i < bytes; ++i) {
+    sum = uint8_t(sum + buf[i]);
+  }
+  uint8_t checksum = uint8_t(sum + checksum_offset);
+
+  // Write the checksum back into the frame
+  setBitField(data, bytes, csumStartBit, csumBitLength, checksum);
+}
+
+// Function to write a value to a given CAN frame signal
+void write_signal_value(CAN_frame* frame, uint16_t start_bit, uint8_t bit_length, int64_t value, bool is_signed) {
+  if (bit_length == 0 || bit_length > 64 || frame == nullptr)
+    return;
+
+  uint64_t uvalue;
+
+  if (is_signed) {
+    int64_t min_val = -(1LL << (bit_length - 1));
+    int64_t max_val = (1LL << (bit_length - 1)) - 1;
+
+    // Clamp to valid range
+    if (value < min_val)
+      value = min_val;
+    if (value > max_val)
+      value = max_val;
+
+    // Two's complement encoding
+    uvalue = static_cast<uint64_t>(value) & ((1ULL << bit_length) - 1);
+  } else {
+    uvalue = static_cast<uint64_t>(value) & ((1ULL << bit_length) - 1);
+  }
+
+  // Write value into frame->data.u8 using little-endian bit layout
+  for (uint8_t i = 0; i < bit_length; ++i) {
+    uint8_t bit_val = (uvalue >> i) & 1;
+    uint16_t bit_pos = start_bit + i;
+
+    uint8_t byte_index = bit_pos / 8;
+    uint8_t bit_index = bit_pos % 8;
+
+    if (byte_index >= frame->DLC)
+      continue;  // Prevent overrun
+
+    if (bit_val)
+      frame->data.u8[byte_index] |= (1 << bit_index);
+    else
+      frame->data.u8[byte_index] &= ~(1 << bit_index);
+  }
+}
+
+void generateTESLA_229(CAN_frame& f) {
+  static const uint8_t checksumLookup[16] = {0x46, 0x44, 0x52, 0x6D, 0x43, 0x41, 0xDD, 0xF9,
+                                             0x4C, 0xA5, 0xF6, 0x8C, 0x49, 0x2F, 0x31, 0x3B};
+
+  // Safety, only run if this is the right ID
+  if (f.ID != 0x229)
+    return;
+
+  const int ctrStartBit = 8;
+  const int ctrBitLength = 4;
+  const int csumStartBit = 0;
+  const int csumBitLength = 8;
+
+  int bytes = getDataLen(f.DLC);
+  auto data = f.data.u8;
+
+  // Pack the first few bytes into a word
+  uint64_t w = 0;
+  for (int i = 0; i < bytes; ++i) {
+    w |= uint64_t(data[i]) << (8 * i);
+  }
+
+  // Extract current counter
+  uint64_t mask = (uint64_t(1) << ctrBitLength) - 1;
+  uint8_t ctr = (w >> ctrStartBit) & mask;
+
+  // Increment counter mod 16
+  ctr = (ctr + 1) & 0xF;
+
+  // Write updated counter back
+  w = (w & ~(mask << ctrStartBit)) | (uint64_t(ctr) << ctrStartBit);
+  for (int i = 0; i < bytes; ++i) {
+    data[i] = uint8_t((w >> (8 * i)) & 0xFF);
+  }
+
+  // Look up and insert checksum
+  uint8_t checksum = checksumLookup[ctr];
+  setBitField(data, bytes, csumStartBit, csumBitLength, checksum);
+}
+
+void generateTESLA_213(CAN_frame& f) {
+  static uint8_t counter = 0;
+
+  // Increment counter (wrap at 16)
+  counter = (counter + 1) & 0xF;
+
+  // Safety, only modify if ID is 0x213 and DLC is at least 2
+  if (f.ID != 0x213 || f.DLC < 2)
+    return;
+
+  // Byte 0: counter in high nibble
+  uint8_t value = counter << 4;
+
+  // Byte 1: checksum = value + 0x15
+  uint8_t checksum = (value + 0x15) & 0xFF;
+
+  f.data.u8[0] = value;
+  f.data.u8[1] = checksum;
+}
+
+// Function to check if a year is a leap year
+bool isLeapYear(int year) {
+  if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) {
+    return true;
+  }
+  return false;
+}
+
+// Function to convert year and day of year (i.e. Julian date) into human readable date
+char* dayOfYearToDate(int year, int dayOfYear) {
+
+  // Arrays to hold the number of days in each month for standard/leap years
+  int daysInMonthStandard[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  int daysInMonthLeap[] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+  // Select the appropriate array for the given year
+  int* daysInMonth = isLeapYear(year) ? daysInMonthLeap : daysInMonthStandard;
+  int month = 0;
+
+  // Find the month and the day within the month
+  while (dayOfYear > daysInMonth[month]) {
+    dayOfYear -= daysInMonth[month];
+    month++;
+  }
+
+  static char dateString[11];  // For "YYYY-MM-DD\0"
+  // Format the date string in "YYYY-MM-DD" format
+  snprintf(dateString, sizeof(dateString), "%d-%02d-%02d", year, month + 1, dayOfYear);
+  return dateString;
+}
+
 void TeslaBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
@@ -444,6 +701,10 @@ void TeslaBattery::
     }
   }
 
+  //Update 0x333 UI_chargeTerminationPct (bit 16, width 10) value to SOC max value - expose via UI?
+  //One firmware version this was seen at bit 17 width 11
+  write_signal_value(&TESLA_333, 16, 10, static_cast<int64_t>(datalayer.battery.settings.max_percentage / 10), false);
+
   // Update webserver datalayer
   //0x20A
   datalayer_extended.tesla.status_contactor = battery_contactor;
@@ -459,7 +720,22 @@ void TeslaBattery::
   datalayer_extended.tesla.battery_packCtrsResetRequestRequired = battery_packCtrsResetRequestRequired;
   datalayer_extended.tesla.battery_dcLinkAllowedToEnergize = battery_dcLinkAllowedToEnergize;
   //0x72A
-  memcpy(datalayer_extended.tesla.BMS_SerialNumber, BMS_SerialNumber, sizeof(BMS_SerialNumber));
+  if (parsed_battery_serialNumber && battery_serialNumber[13] != 0) {
+    memcpy(datalayer_extended.tesla.battery_serialNumber, battery_serialNumber, sizeof(battery_serialNumber));
+    //datalayer_extended.tesla.battery_manufactureDate = battery_manufactureDate;
+    //We have valid data and comms with the battery, attempt to query part number
+    if (!parsed_battery_partNumber && stateMachineBMSQuery == 0xFF) {
+      stateMachineBMSQuery = 0;
+    }
+  }
+  //Via UDS
+  if (parsed_battery_partNumber && battery_partNumber[11] != 0) {
+    memcpy(datalayer_extended.tesla.battery_partNumber, battery_partNumber, sizeof(battery_partNumber));
+  }
+  //0x3C4
+  if (parsed_PCS_partNumber && PCS_partNumber[11] != 0) {
+    memcpy(datalayer_extended.tesla.PCS_partNumber, PCS_partNumber, sizeof(PCS_partNumber));
+  }
   //0x2B4
   datalayer_extended.tesla.battery_dcdcLvBusVolt = battery_dcdcLvBusVolt;
   datalayer_extended.tesla.battery_dcdcHvBusVolt = battery_dcdcHvBusVolt;
@@ -538,6 +814,19 @@ void TeslaBattery::
   datalayer_extended.tesla.BMS_notEnoughPowerForHeatPump = BMS_notEnoughPowerForHeatPump;
   datalayer_extended.tesla.BMS_powerLimitState = BMS_powerLimitState;
   datalayer_extended.tesla.BMS_inverterTQF = BMS_inverterTQF;
+  //0x300
+  datalayer_extended.tesla.BMS_info_buildConfigId = BMS_info_buildConfigId;
+  datalayer_extended.tesla.BMS_info_hardwareId = BMS_info_hardwareId;
+  datalayer_extended.tesla.BMS_info_componentId = BMS_info_componentId;
+  datalayer_extended.tesla.BMS_info_pcbaId = BMS_info_pcbaId;
+  datalayer_extended.tesla.BMS_info_assemblyId = BMS_info_assemblyId;
+  datalayer_extended.tesla.BMS_info_usageId = BMS_info_usageId;
+  datalayer_extended.tesla.BMS_info_subUsageId = BMS_info_subUsageId;
+  datalayer_extended.tesla.BMS_info_platformType = BMS_info_platformType;
+  datalayer_extended.tesla.BMS_info_appCrc = BMS_info_appCrc;
+  datalayer_extended.tesla.BMS_info_bootGitHash = BMS_info_bootGitHash;
+  datalayer_extended.tesla.BMS_info_bootUdsProtoVersion = BMS_info_bootUdsProtoVersion;
+  datalayer_extended.tesla.BMS_info_bootCrc = BMS_info_bootCrc;
   //0x312
   datalayer_extended.tesla.BMS_powerDissipation = BMS_powerDissipation;
   datalayer_extended.tesla.BMS_flowRequest = BMS_flowRequest;
@@ -548,6 +837,10 @@ void TeslaBattery::
   datalayer_extended.tesla.BMS_packTMax = BMS_packTMax;
   datalayer_extended.tesla.BMS_pcsNoFlowRequest = BMS_pcsNoFlowRequest;
   datalayer_extended.tesla.BMS_noFlowRequest = BMS_noFlowRequest;
+  //0x3C4
+  datalayer_extended.tesla.PCS_info_buildConfigId = PCS_info_buildConfigId;
+  datalayer_extended.tesla.PCS_info_hardwareId = PCS_info_hardwareId;
+  datalayer_extended.tesla.PCS_info_componentId = PCS_info_componentId;
   //0x2A4
   datalayer_extended.tesla.PCS_dcdcTemp = PCS_dcdcTemp;
   datalayer_extended.tesla.PCS_ambientTemp = PCS_ambientTemp;
@@ -575,6 +868,10 @@ void TeslaBattery::
   datalayer_extended.tesla.PCS_dcdcIntervalMinLvBusVolt = PCS_dcdcIntervalMinLvBusVolt;
   datalayer_extended.tesla.PCS_dcdcIntervalMinLvOutputCurr = PCS_dcdcIntervalMinLvOutputCurr;
   datalayer_extended.tesla.PCS_dcdc12vSupportLifetimekWh = PCS_dcdc12vSupportLifetimekWh;
+  //0x310
+  datalayer_extended.tesla.HVP_info_buildConfigId = HVP_info_buildConfigId;
+  datalayer_extended.tesla.HVP_info_hardwareId = HVP_info_hardwareId;
+  datalayer_extended.tesla.HVP_info_componentId = HVP_info_componentId;
   //0x7AA
   datalayer_extended.tesla.HVP_gpioPassivePyroDepl = HVP_gpioPassivePyroDepl;
   datalayer_extended.tesla.HVP_gpioPyroIsoEn = HVP_gpioPyroIsoEn;
@@ -632,6 +929,29 @@ void TeslaBattery::
   datalayer_extended.tesla.HVP_shuntAuxCurrentStatus = HVP_shuntAuxCurrentStatus;
   datalayer_extended.tesla.HVP_shuntBarTempStatus = HVP_shuntBarTempStatus;
   datalayer_extended.tesla.HVP_shuntAsicTempStatus = HVP_shuntAsicTempStatus;
+
+  //Safety checks for CAN message sesnding
+  if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
+      (datalayer.battery.status.bms_status != FAULT) && (!datalayer.system.settings.equipment_stop_active)) {
+    // Carry on: 0x221 DRIVE state & reset power down timer
+    vehicleState = 1;
+    powerDownTimer = 180;  //0x221 50ms cyclic, 20 calls/second
+  } else {
+    // Faulted state, or inverter blocks contactor closing
+    // Shut down: 0x221 ACCESSORY state for 3 seconds, followed by GOING_DOWN, then OFF
+    if (powerDownTimer <= 180 && powerDownTimer > 120) {
+      vehicleState = 2;  //ACCESSORY
+      powerDownTimer--;
+    }
+    if (powerDownTimer <= 120 && powerDownTimer > 60) {
+      vehicleState = 3;  //GOING_DOWN
+      powerDownTimer--;
+    }
+    if (powerDownTimer <= 60 && powerDownTimer > 0) {
+      vehicleState = 0;  //OFF
+      powerDownTimer--;
+    }
+  }
 
 #ifdef DEBUG_LOG
 
@@ -1346,25 +1666,39 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_BMS_a180_SW_ECU_reset_blocked = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""  X
       }
       break;
-    case 0x72A:  //1834 ID72ABMS_serialNumber
-      //Work in progress to display BMS Serial Number in ASCII: 00 54 47 33 32 31 32 30 (mux 0) .TG32120 + 01 32 30 30 33 41 48 58 (mux 1) .2003AHX = TG321202003AHX
-      if (rx_frame.data.u8[0] == 0x00) {
-        BMS_SerialNumber[0] = rx_frame.data.u8[1];
-        BMS_SerialNumber[1] = rx_frame.data.u8[2];
-        BMS_SerialNumber[2] = rx_frame.data.u8[3];
-        BMS_SerialNumber[3] = rx_frame.data.u8[4];
-        BMS_SerialNumber[4] = rx_frame.data.u8[5];
-        BMS_SerialNumber[5] = rx_frame.data.u8[6];
-        BMS_SerialNumber[6] = rx_frame.data.u8[7];
+    case 0x72A:  //BMS_serialNumber
+      //Pack serial number in ASCII: 00 54 47 33 32 31 32 30 (mux 0) .TG32120 + 01 32 30 30 33 41 48 58 (mux 1) .2003AHX = TG321202003AHX
+      if (rx_frame.data.u8[0] == 0x00 && !parsed_battery_serialNumber) {  // Serial number 1-7
+        battery_serialNumber[0] = rx_frame.data.u8[1];
+        battery_serialNumber[1] = rx_frame.data.u8[2];
+        battery_serialNumber[2] = rx_frame.data.u8[3];
+        battery_serialNumber[3] = rx_frame.data.u8[4];
+        battery_serialNumber[4] = rx_frame.data.u8[5];
+        battery_serialNumber[5] = rx_frame.data.u8[6];
+        battery_serialNumber[6] = rx_frame.data.u8[7];
       }
-      if (rx_frame.data.u8[0] == 0x01) {
-        BMS_SerialNumber[7] = rx_frame.data.u8[1];
-        BMS_SerialNumber[8] = rx_frame.data.u8[2];
-        BMS_SerialNumber[9] = rx_frame.data.u8[3];
-        BMS_SerialNumber[10] = rx_frame.data.u8[4];
-        BMS_SerialNumber[11] = rx_frame.data.u8[5];
-        BMS_SerialNumber[12] = rx_frame.data.u8[6];
-        BMS_SerialNumber[13] = rx_frame.data.u8[7];
+      if (rx_frame.data.u8[0] == 0x01 && !parsed_battery_serialNumber) {  // Serial number 8-14
+        battery_serialNumber[7] = rx_frame.data.u8[1];
+        battery_serialNumber[8] = rx_frame.data.u8[2];
+        battery_serialNumber[9] = rx_frame.data.u8[3];
+        battery_serialNumber[10] = rx_frame.data.u8[4];
+        battery_serialNumber[11] = rx_frame.data.u8[5];
+        battery_serialNumber[12] = rx_frame.data.u8[6];
+        battery_serialNumber[13] = rx_frame.data.u8[7];
+      }
+      if (battery_serialNumber[6] != 0 && battery_serialNumber[12] != 0 &&
+          !parsed_battery_serialNumber) {  // Serial number complete
+        //Manufacture year
+        char yearStr[5];  // Full year string (including the "20" prefix)
+        snprintf(yearStr, sizeof(yearStr), "20%c%c", battery_serialNumber[3], battery_serialNumber[4]);
+        int year = atoi(yearStr);
+        //Manufacture day (Julian calendar)
+        char dayStr[4];
+        snprintf(dayStr, sizeof(dayStr), "%c%c%c", battery_serialNumber[5], battery_serialNumber[6],
+                 battery_serialNumber[7]);
+        int day = atoi(dayStr);
+        battery_manufactureDate = dayOfYearToDate(year, day);
+        parsed_battery_serialNumber = true;
       }
       break;
     case 0x612:  // CAN UDS responses for BMS ECU reset
@@ -1416,16 +1750,8 @@ int index_1CF = 0;
 int index_118 = 0;
 
 void TeslaBattery::transmit_can(unsigned long currentMillis) {
-  /*From bielec: My fist 221 message, to close the contactors is 0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96 and then, 
-to cause "hv_up_for_drive" I send an additional 221 message 0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA  so 
-two 221 messages are being continuously transmitted.   When I want to shut down, I stop the second message and only send 
-the first, for a few cycles, then stop all  messages which causes the contactor to open. */
 
-  if (!cellvoltagesRead) {
-    return;  //All cellvoltages not read yet, do not proceed with contactor closing
-  }
-
-  if (operate_contactors) {
+  if (operate_contactors) {  //Special S/X mode
     if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
       if (currentMillis - lastSend1CF >= 10) {
         transmit_can_frame(&can_msg_1CF[index_1CF], can_config.battery);
@@ -1446,47 +1772,205 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     }
   }
 
-  //Send 10ms message
+  //Send 10ms messages
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
-    transmit_can_frame(&TESLA_129, can_config.battery);
+    //0x118 DI_systemStatus
+    transmit_can_frame(&TESLA_118, can_config.battery);
+
+    //0x2E1 VCFRONT_status
+    switch (muxNumber_TESLA_2E1) {
+      case 0:
+        transmit_can_frame(&TESLA_2E1_VEHICLE_AND_RAILS, can_config.battery);
+        muxNumber_TESLA_2E1++;
+        break;
+      case 1:
+        transmit_can_frame(&TESLA_2E1_HOMELINK, can_config.battery);
+        muxNumber_TESLA_2E1++;
+        break;
+      case 2:
+        transmit_can_frame(&TESLA_2E1_REFRIGERANT_SYSTEM, can_config.battery);
+        muxNumber_TESLA_2E1++;
+        break;
+      case 3:
+        transmit_can_frame(&TESLA_2E1_LV_BATTERY_DEBUG, can_config.battery);
+        muxNumber_TESLA_2E1++;
+        break;
+      case 4:
+        transmit_can_frame(&TESLA_2E1_MUX_5, can_config.battery);
+        muxNumber_TESLA_2E1++;
+        break;
+      case 5:
+        transmit_can_frame(&TESLA_2E1_BODY_CONTROLS, can_config.battery);
+        muxNumber_TESLA_2E1 = 0;
+        break;
+      default:
+        break;
+    }
+    //Generate next frames
+    generateFrameCounterChecksum(TESLA_118, 8, 4, 0, 8);
   }
 
-  //Send 50ms message
+  //Send 50ms messages
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     previousMillis50 = currentMillis;
 
-    if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
-        (datalayer.battery.status.bms_status != FAULT)) {
-      sendContactorClosingMessagesStill = 300;
-      transmit_can_frame(&TESLA_221_1, can_config.battery);
-      transmit_can_frame(&TESLA_221_2, can_config.battery);
-    } else {  // Faulted state, or inverter blocks contactor closing
-      if (sendContactorClosingMessagesStill > 0) {
-        transmit_can_frame(&TESLA_221_1, can_config.battery);
-        sendContactorClosingMessagesStill--;
+    //0x221 VCFRONT_LVPowerState
+    if (vehicleState == 1) {  // Drive
+      switch (muxNumber_TESLA_221) {
+        case 0:
+          generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_DRIVE_Mux0, can_config.battery);
+          muxNumber_TESLA_221++;
+          break;
+        case 1:
+          generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_DRIVE_Mux1, can_config.battery);
+          muxNumber_TESLA_221 = 0;
+          break;
+        default:
+          break;
       }
+      //Generate next new frame
+      frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
     }
+    if (vehicleState == 2) {  // Accessory
+      switch (muxNumber_TESLA_221) {
+        case 0:
+          generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_ACCESSORY_Mux0, can_config.battery);
+          muxNumber_TESLA_221++;
+          break;
+        case 1:
+          generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_ACCESSORY_Mux1, can_config.battery);
+          muxNumber_TESLA_221 = 0;
+          break;
+        default:
+          break;
+      }
+      //Generate next new frame
+      frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
+    }
+    if (vehicleState == 3) {  // Going down
+      switch (muxNumber_TESLA_221) {
+        case 0:
+          generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_GOING_DOWN_Mux0, can_config.battery);
+          muxNumber_TESLA_221++;
+          break;
+        case 1:
+          generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_GOING_DOWN_Mux1, can_config.battery);
+          muxNumber_TESLA_221 = 0;
+          break;
+        default:
+          break;
+      }
+      //Generate next new frame
+      frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
+    }
+    if (vehicleState == 0) {  // Off
+      switch (muxNumber_TESLA_221) {
+        case 0:
+          generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_OFF_Mux0, can_config.battery);
+          muxNumber_TESLA_221++;
+          break;
+        case 1:
+          generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_OFF_Mux1, can_config.battery);
+          muxNumber_TESLA_221 = 0;
+          break;
+        default:
+          break;
+      }
+      //Generate next new frame
+      frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
+    }
+
+    //0x3C2 VCLEFT_switchStatus
+    switch (muxNumber_TESLA_3C2) {
+      case 0:
+        transmit_can_frame(&TESLA_3C2_Mux0, can_config.battery);
+        muxNumber_TESLA_3C2++;
+        break;
+      case 1:
+        transmit_can_frame(&TESLA_3C2_Mux1, can_config.battery);
+        muxNumber_TESLA_3C2 = 0;
+        break;
+      default:
+        break;
+    }
+
+    //0x39D IBST_status
+    transmit_can_frame(&TESLA_39D, can_config.battery);
+
+    if (battery_contactor == 4) {  // Contactors closed
+
+      // Frames to be sent only when contactors closed
+
+      //0x3A1 VCFRONT_vehicleStatus, critical otherwise VCFRONT_MIA triggered
+      transmit_can_frame(&TESLA_3A1[frameCounter_TESLA_3A1], can_config.battery);
+      frameCounter_TESLA_3A1 = (frameCounter_TESLA_3A1 + 1) % 16;
+    }
+
+    //Generate next frame
+    generateFrameCounterChecksum(TESLA_39D, 8, 4, 0, 8);
   }
 
-  //Send 100ms message
+  //Send 100ms messages
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    transmit_can_frame(&TESLA_129, can_config.battery);
+    //0x102 VCLEFT_doorStatus, static
+    transmit_can_frame(&TESLA_102, can_config.battery);
+    //0x103 VCRIGHT_doorStatus, static
+    transmit_can_frame(&TESLA_103, can_config.battery);
+    //0x229 SCCM_rightStalk
+    transmit_can_frame(&TESLA_229, can_config.battery);
+    //0x241 VCFRONT_coolant, static
     transmit_can_frame(&TESLA_241, can_config.battery);
-    transmit_can_frame(&TESLA_242, can_config.battery);
-    if (alternate243) {
-      transmit_can_frame(&TESLA_243_1, can_config.battery);
-      alternate243 = false;
-    } else {
-      transmit_can_frame(&TESLA_243_2, can_config.battery);
-      alternate243 = true;
+    //0x2D1 VCFRONT_okToUseHighPower, static
+    transmit_can_frame(&TESLA_2D1, can_config.battery);
+    //0x2A8 CMPD_state
+    transmit_can_frame(&TESLA_2A8, can_config.battery);
+    //0x2E8 EPBR_status
+    transmit_can_frame(&TESLA_2E8, can_config.battery);
+    //0x7FF GTW_carConfig
+    switch (muxNumber_TESLA_7FF) {
+      case 0:
+        transmit_can_frame(&TESLA_7FF_Mux1, can_config.battery);
+        muxNumber_TESLA_7FF++;
+        break;
+      case 1:
+        transmit_can_frame(&TESLA_7FF_Mux2, can_config.battery);
+        muxNumber_TESLA_7FF++;
+        break;
+      case 2:
+        transmit_can_frame(&TESLA_7FF_Mux3, can_config.battery);
+        muxNumber_TESLA_7FF++;
+        break;
+      case 3:
+        transmit_can_frame(&TESLA_7FF_Mux4, can_config.battery);
+        muxNumber_TESLA_7FF++;
+        break;
+      case 4:
+        transmit_can_frame(&TESLA_7FF_Mux5, can_config.battery);
+        muxNumber_TESLA_7FF = 0;
+        break;
+      default:
+        break;
     }
 
+    //Generate next frames
+    generateTESLA_229(TESLA_229);
+    generateFrameCounterChecksum(TESLA_2A8, 52, 4, 56, 8);
+    generateFrameCounterChecksum(TESLA_2E8, 52, 4, 56, 8);
+
     if (stateMachineClearIsolationFault != 0xFF) {
-      //This implementation should be rewritten to actually replying to the UDS replied sent by the BMS
+      //This implementation should be rewritten to actually reply to the UDS responses sent by the BMS
       //While this may work, it is not the correct way to implement this clearing logic
       switch (stateMachineClearIsolationFault) {
         case 0:
@@ -1527,59 +2011,133 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
           stateMachineClearIsolationFault = 0xFF;
           break;
       }
-      if (stateMachineBMSReset != 0xFF) {
-        //This implementation should be rewritten to actually replying to the UDS replied sent by the BMS
-        //While this may work, it is not the correct way to implement this clearing logic
-        switch (stateMachineBMSReset) {
-          case 0:
-            TESLA_602.data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            stateMachineBMSReset = 1;
-            break;
-          case 1:
-            TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            stateMachineBMSReset = 2;
-            break;
-          case 2:
-            TESLA_602.data = {0x10, 0x12, 0x27, 0x06, 0x35, 0x34, 0x37, 0x36};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            stateMachineBMSReset = 3;
-            break;
-          case 3:
-            TESLA_602.data = {0x21, 0x31, 0x30, 0x33, 0x32, 0x3D, 0x3C, 0x3F};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            stateMachineBMSReset = 4;
-            break;
-          case 4:
-            TESLA_602.data = {0x22, 0x3E, 0x39, 0x38, 0x3B, 0x3A, 0x00, 0x00};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            //Should generate a CAN UDS log message indicating ECU unlocked
-            stateMachineBMSReset = 5;
-            break;
-          case 5:
-            TESLA_602.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            stateMachineBMSReset = 6;
-            break;
-          case 6:
-            TESLA_602.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            stateMachineBMSReset = 7;
-            break;
-          case 7:
-            TESLA_602.data = {0x02, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            //Should generate a CAN UDS log message(s) indicating ECU has reset
-            stateMachineBMSReset = 0xFF;
-            break;
-          default:
-            //Something went wrong. Reset all and cancel
-            stateMachineBMSReset = 0xFF;
-            break;
-        }
+    }
+    if (stateMachineBMSReset != 0xFF) {
+      //This implementation should be rewritten to actually reply to the UDS responses sent by the BMS
+      //While this may work, it is not the correct way to implement this reset logic
+      switch (stateMachineBMSReset) {
+        case 0:
+          TESLA_602.data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          stateMachineBMSReset = 1;
+          break;
+        case 1:
+          TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          stateMachineBMSReset = 2;
+          break;
+        case 2:
+          TESLA_602.data = {0x10, 0x12, 0x27, 0x06, 0x35, 0x34, 0x37, 0x36};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          stateMachineBMSReset = 3;
+          break;
+        case 3:
+          TESLA_602.data = {0x21, 0x31, 0x30, 0x33, 0x32, 0x3D, 0x3C, 0x3F};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          stateMachineBMSReset = 4;
+          break;
+        case 4:
+          TESLA_602.data = {0x22, 0x3E, 0x39, 0x38, 0x3B, 0x3A, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          //Should generate a CAN UDS log message indicating ECU unlocked
+          stateMachineBMSReset = 5;
+          break;
+        case 5:
+          TESLA_602.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          stateMachineBMSReset = 6;
+          break;
+        case 6:
+          TESLA_602.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          stateMachineBMSReset = 7;
+          break;
+        case 7:
+          TESLA_602.data = {0x02, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          //Should generate a CAN UDS log message(s) indicating ECU has reset
+          stateMachineBMSReset = 0xFF;
+          break;
+        default:
+          //Something went wrong. Reset all and cancel
+          stateMachineBMSReset = 0xFF;
+          break;
       }
     }
+    if (stateMachineBMSQuery != 0xFF) {
+      //This implementation should be rewritten to actually reply to the UDS responses sent by the BMS
+      //While this may work, it is not the correct way to implement this query logic
+      switch (stateMachineBMSQuery) {
+        case 0:
+          //Initial request
+#ifdef DEBUG_LOG
+          logging.println("CAN UDS: Sending BMS query initial handshake");
+#endif  //DEBUG_LOG
+          TESLA_602.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          break;
+        case 1:
+          //Send query
+#ifdef DEBUG_LOG
+          logging.println("CAN UDS: Sending BMS query for pack part number");
+#endif  //DEBUG_LOG
+          TESLA_602.data = {0x03, 0x22, 0xF0, 0x14, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          break;
+        case 2:
+          //Flow control
+#ifdef DEBUG_LOG
+          logging.println("CAN UDS: Sending BMS query flow control");
+#endif  //DEBUG_LOG
+          TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          break;
+        case 3:
+          break;
+        case 4:
+          break;
+        default:
+          //Something went wrong. Reset all and cancel
+          stateMachineBMSQuery = 0xFF;
+          break;
+      }
+    }
+  }
+
+  //Send 500ms messages
+  if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
+    previousMillis500 = currentMillis;
+
+    transmit_can_frame(&TESLA_213, can_config.battery);
+    transmit_can_frame(&TESLA_284, can_config.battery);
+    transmit_can_frame(&TESLA_293, can_config.battery);
+    transmit_can_frame(&TESLA_313, can_config.battery);
+    transmit_can_frame(&TESLA_333, can_config.battery);
+    if (TESLA_334_INITIAL_SENT == false) {
+      transmit_can_frame(&TESLA_334_INITIAL, can_config.battery);
+      TESLA_334_INITIAL_SENT = true;
+    } else {
+      transmit_can_frame(&TESLA_334, can_config.battery);
+    }
+    transmit_can_frame(&TESLA_3B3, can_config.battery);
+    transmit_can_frame(&TESLA_55A, can_config.battery);
+
+    //Generate next frames
+    generateTESLA_213(TESLA_213);
+    generateFrameCounterChecksum(TESLA_293, 52, 4, 56, 8);
+    generateFrameCounterChecksum(TESLA_313, 52, 4, 56, 8);
+    generateFrameCounterChecksum(TESLA_334, 52, 4, 56, 8);
+  }
+
+  //Send 1000ms messages
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+    previousMillis1000 = currentMillis;
+
+    transmit_can_frame(&TESLA_082, can_config.battery);
+    transmit_can_frame(&TESLA_321, can_config.battery);
+
+    //Generate next frames
+    generateFrameCounterChecksum(TESLA_321, 52, 4, 56, 8);
   }
 }
 
@@ -1762,6 +2320,15 @@ void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
   if (allows_contactor_closing) {
     *allows_contactor_closing = true;
   }
+
+  //0x7FF GTW CAN frame values
+  //Mux1
+  write_signal_value(&TESLA_7FF_Mux1, 16, 16, GTW_country, false);
+  write_signal_value(&TESLA_7FF_Mux1, 11, 1, GTW_rightHandDrive, false);
+  //Mux3
+  write_signal_value(&TESLA_7FF_Mux3, 8, 4, GTW_mapRegion, false);
+  write_signal_value(&TESLA_7FF_Mux3, 18, 3, GTW_chassisType, false);
+  write_signal_value(&TESLA_7FF_Mux3, 32, 5, GTW_packEnergy, false);
 
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
