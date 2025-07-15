@@ -230,7 +230,7 @@ class BoltAmperaBattery : public CanBattery {
   uint16_t battery_lowest_cell = 0;
   uint16_t battery_highest_cell = 0;
   uint16_t battery_voltage_polled = 0;
-  uint16_t battery_voltage_periodic = 0;
+  uint16_t battery_voltage_periodic_dV = 3700;
   uint16_t battery_vehicle_isolation = 0;
   uint16_t battery_isolation_kohm = 9999;
   uint16_t battery_HV_locked = 0;

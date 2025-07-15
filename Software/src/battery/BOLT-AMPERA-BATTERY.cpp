@@ -16,7 +16,7 @@ TODOs left for this implementation
 - Charge max power (now estimated)
 - Discharge max power (now estimated)
 - Current is updating extremely slow, consider switching to sensed_ value
-- Balancing info seems to be in 0x270 but unsure how its coded (nice to have)
+- Balancing info seems to be available via OBD/ISO-TP service $22OBD/ISO-TP service $22 , 4340 and onwards
 */
 
 /*TODO, messages we might need to send towards the battery to keep it happy and close contactors
@@ -63,14 +63,11 @@ static uint16_t estimateSOC(uint16_t packVoltage) {  // Linear interpolation fun
 
 void BoltAmperaBattery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
 
-  //datalayer.battery.status.real_soc = battery_SOC_display; //TODO: this poll does not work
+  //datalayer.battery.status.real_soc = battery_SOC_display; //TODO: this 7E4 poll does not work
 
-  //datalayer.battery.status.real_soc = estimateSOC(((battery_voltage_periodic / 8) * 10)); //TODO, this is bad and barely works
+  datalayer.battery.status.real_soc = estimateSOC(battery_voltage_periodic_dV);  //TODO, this is bad and barely works
 
-  datalayer.battery.status.real_soc = soc_periodic;
-
-  //datalayer.battery.status.voltage_dV = battery_voltage * 0.52;
-  datalayer.battery.status.voltage_dV = ((battery_voltage_periodic / 8) * 10);
+  datalayer.battery.status.voltage_dV = battery_voltage_periodic_dV;
 
   datalayer.battery.status.current_dA =
       battery_current_7E7 / 2;  //TODO: Consider switching to the sensed_ value that updates more often
@@ -78,7 +75,7 @@ void BoltAmperaBattery::update_values() {  //This function maps all the values f
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.soh_pptt = 9900;  //TODO: Fix me when real SOH% value has been found
+  datalayer.battery.status.soh_pptt = 9900;
 
   // Charge power is set in .h file (TODO: Remove this estimation when real value has been found)
   if (datalayer.battery.status.real_soc > 9900) {
@@ -355,7 +352,7 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x2C7:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_voltage_periodic = (rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[4] >> 4);
+      battery_voltage_periodic_dV = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[4] >> 4)) * 1.25;
       /*355V 2C7 [6] 03 20 00 AF A0 00
       360V 2C7 [6] 03 20 00 AD D0 00
       396V 2C7 [6] 03 20 53 C7 30 00*/
