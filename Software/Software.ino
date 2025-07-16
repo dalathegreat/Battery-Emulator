@@ -17,20 +17,16 @@
 #include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/datalayer/datalayer.h"
+#include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/logging.h"
 #include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/value_mapping.h"
-#include "src/include.h"
-#if !defined(AP_PASSWORD) && !defined(COMMON_IMAGE)
-#error \
-    "Initial setup not completed, USER_SECRETS.h is missing. Please rename the file USER_SECRETS.TEMPLATE.h to USER_SECRETS.h and fill in the required credentials. This file is ignored by version control to keep sensitive information private."
-#endif
-#include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"
+#include "src/include.h"
 
 #ifdef PERIODIC_BMS_RESET_AT
 #include "src/devboard/utils/ntp_time.h"
