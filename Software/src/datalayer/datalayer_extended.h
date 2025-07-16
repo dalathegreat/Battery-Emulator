@@ -355,9 +355,9 @@ typedef struct {
 typedef struct {
   /** uint8_t */
   /** Contactor status */
-  uint8_t status_contactor = 0;
+  //uint8_t status_contactor = 0;
   /** uint8_t */
-  /** Contactor status */
+  /** HVIL status */
   uint8_t hvil_status = 0;
   /** uint8_t */
   /** Negative contactor state */
@@ -366,12 +366,12 @@ typedef struct {
   /** Positive contactor state */
   uint8_t packContPositiveState = 0;
   /** uint8_t */
-  /** Set state of contactors */
+  /** HVP set state of contactors */
   uint8_t packContactorSetState = 0;
-  /** uint8_t */
-  /** Battery pack allows closing of contacors */
-  uint8_t packCtrsClosingAllowed = 0;
-  /** uint8_t */
+  /** bool */
+  /** Battery pack allows closing of contactors */
+  bool packCtrsClosingBlocked = false;
+  /** bool */
   /** Pyro test in progress */
   bool pyroTestInProgress = false;
   bool battery_packCtrsOpenNowRequested = false;
@@ -379,7 +379,22 @@ typedef struct {
   uint8_t battery_packCtrsRequestStatus = 0;
   bool battery_packCtrsResetRequestRequired = false;
   bool battery_dcLinkAllowedToEnergize = false;
-  uint8_t BMS_SerialNumber[15] = {0};  //stores raw HEX values for ASCII chars
+  uint8_t BMS_partNumber[12] = {0};  //stores raw HEX values for ASCII chars
+  uint16_t BMS_info_buildConfigId = 0;
+  uint16_t BMS_info_hardwareId = 0;
+  uint16_t BMS_info_componentId = 0;
+  uint8_t BMS_info_pcbaId = 0;
+  uint8_t BMS_info_assemblyId = 0;
+  uint16_t BMS_info_usageId = 0;
+  uint16_t BMS_info_subUsageId = 0;
+  uint8_t BMS_info_platformType = 0;
+  uint32_t BMS_info_appCrc = 0;
+  uint64_t BMS_info_bootGitHash = 0;
+  uint8_t BMS_info_bootUdsProtoVersion = 0;
+  uint32_t BMS_info_bootCrc = 0;
+  uint8_t battery_serialNumber[15] = {0};  //stores raw HEX values for ASCII chars
+  uint8_t battery_partNumber[12] = {0};    //stores raw HEX values for ASCII chars
+  char* battery_manufactureDate;
   uint8_t battery_beginning_of_life = 0;
   uint8_t battery_battTempPct = 0;
   uint16_t battery_dcdcLvBusVolt = 0;
@@ -413,37 +428,23 @@ typedef struct {
   uint16_t battery_reservedConfig = 0;
   uint32_t battery_packMass = 0;
   uint32_t battery_platformMaxBusVoltage = 0;
-  uint32_t battery_bms_min_voltage = 0;
-  uint32_t battery_bms_max_voltage = 0;
+  uint32_t BMS_min_voltage = 0;
+  uint32_t BMS_max_voltage = 0;
   uint32_t battery_max_charge_current = 0;
   uint32_t battery_max_discharge_current = 0;
   uint32_t battery_soc_min = 0;
   uint32_t battery_soc_max = 0;
   uint32_t battery_soc_ave = 0;
   uint32_t battery_soc_ui = 0;
-  uint8_t battery_BMS_contactorState = 0;
-  uint8_t battery_BMS_state = 0;
-  uint8_t battery_BMS_hvState = 0;
-  uint16_t battery_BMS_isolationResistance = 0;
-  uint8_t battery_BMS_uiChargeStatus = 0;
-  bool battery_BMS_diLimpRequest = false;
-  uint16_t battery_BMS_chgPowerAvailable = 0;
-  bool battery_BMS_pcsPwmEnabled = false;
-  uint8_t battery_PCS_dcdcPrechargeStatus = 0;
-  uint8_t battery_PCS_dcdc12VSupportStatus = 0;
-  uint8_t battery_PCS_dcdcHvBusDischargeStatus = 0;
-  uint8_t battery_PCS_dcdcMainState = 0;
-  uint8_t battery_PCS_dcdcSubState = 0;
-  bool battery_PCS_dcdcFaulted = false;
-  bool battery_PCS_dcdcOutputIsLimited = false;
-  uint16_t battery_PCS_dcdcMaxOutputCurrentAllowed = 0;
-  uint8_t battery_PCS_dcdcPrechargeRtyCnt = 0;
-  uint8_t battery_PCS_dcdc12VSupportRtyCnt = 0;
-  uint8_t battery_PCS_dcdcDischargeRtyCnt = 0;
-  uint8_t battery_PCS_dcdcPwmEnableLine = 0;
-  uint8_t battery_PCS_dcdcSupportingFixedLvTarget = 0;
-  uint8_t battery_PCS_dcdcPrechargeRestartCnt = 0;
-  uint8_t battery_PCS_dcdcInitialPrechargeSubState = 0;
+  bool BMS_hvilFault = false;
+  uint8_t BMS_contactorState = 0;
+  uint8_t BMS_state = 0;
+  uint8_t BMS_hvState = 0;
+  uint16_t BMS_isolationResistance = 0;
+  uint8_t BMS_uiChargeStatus = 0;
+  bool BMS_diLimpRequest = false;
+  uint16_t BMS_chgPowerAvailable = 0;
+  bool BMS_pcsPwmEnabled = false;
   uint16_t BMS_maxRegenPower = 0;
   uint16_t BMS_maxDischargePower = 0;
   uint16_t BMS_maxStationaryHeatPower = 0;
@@ -460,6 +461,35 @@ typedef struct {
   uint16_t BMS_packTMax = 0;
   bool BMS_pcsNoFlowRequest = false;
   bool BMS_noFlowRequest = false;
+  uint8_t PCS_dcdcPrechargeStatus = 0;
+  uint8_t PCS_dcdc12VSupportStatus = 0;
+  uint8_t PCS_dcdcHvBusDischargeStatus = 0;
+  uint8_t PCS_dcdcMainState = 0;
+  uint8_t PCS_dcdcSubState = 0;
+  bool PCS_dcdcFaulted = false;
+  bool PCS_dcdcOutputIsLimited = false;
+  uint16_t PCS_dcdcMaxOutputCurrentAllowed = 0;
+  uint8_t PCS_dcdcPrechargeRtyCnt = 0;
+  uint8_t PCS_dcdc12VSupportRtyCnt = 0;
+  uint8_t PCS_dcdcDischargeRtyCnt = 0;
+  uint8_t PCS_dcdcPwmEnableLine = 0;
+  uint8_t PCS_dcdcSupportingFixedLvTarget = 0;
+  uint8_t PCS_dcdcPrechargeRestartCnt = 0;
+  uint8_t PCS_dcdcInitialPrechargeSubState = 0;
+  uint8_t PCS_partNumber[13] = {0};  //stores raw HEX values for ASCII chars
+  uint16_t PCS_info_buildConfigId = 0;
+  uint16_t PCS_info_hardwareId = 0;
+  uint16_t PCS_info_componentId = 0;
+  uint8_t PCS_info_pcbaId = 0;
+  uint8_t PCS_info_assemblyId = 0;
+  uint16_t PCS_info_usageId = 0;
+  uint16_t PCS_info_subUsageId = 0;
+  uint8_t PCS_info_platformType = 0;
+  uint32_t PCS_info_appCrc = 0;
+  uint32_t PCS_info_cpu2AppCrc = 0;
+  uint64_t PCS_info_bootGitHash = 0;
+  uint8_t PCS_info_bootUdsProtoVersion = 0;
+  uint32_t PCS_info_bootCrc = 0;
   uint16_t PCS_dcdcTemp = 0;
   uint16_t PCS_ambientTemp = 0;
   uint16_t PCS_chgPhATemp = 0;
@@ -516,6 +546,19 @@ typedef struct {
   bool HVP_currentSenseMia = false;
   bool HVP_shuntRefVoltageMismatch = false;
   bool HVP_shuntThermistorMia = false;
+  uint8_t HVP_partNumber[13] = {0};  //stores raw HEX values for ASCII chars
+  uint16_t HVP_info_buildConfigId = 0;
+  uint16_t HVP_info_hardwareId = 0;
+  uint16_t HVP_info_componentId = 0;
+  uint8_t HVP_info_pcbaId = 0;
+  uint8_t HVP_info_assemblyId = 0;
+  uint16_t HVP_info_usageId = 0;
+  uint16_t HVP_info_subUsageId = 0;
+  uint8_t HVP_info_platformType = 0;
+  uint32_t HVP_info_appCrc = 0;
+  uint64_t HVP_info_bootGitHash = 0;
+  uint8_t HVP_info_bootUdsProtoVersion = 0;
+  uint32_t HVP_info_bootCrc = 0;
   uint8_t HVP_shuntHwMia = 0;
   uint16_t HVP_dcLinkVoltage = 0;
   uint16_t HVP_packVoltage = 0;
@@ -541,27 +584,6 @@ typedef struct {
   uint8_t HVP_shuntAuxCurrentStatus = 0;
   uint8_t HVP_shuntBarTempStatus = 0;
   uint8_t HVP_shuntAsicTempStatus = 0;
-  uint16_t BMS_info_buildConfigId = 0;
-  uint16_t BMS_info_hardwareId = 0;
-  uint16_t BMS_info_componentId = 0;
-  uint8_t BMS_info_pcbaId = 0;
-  uint8_t BMS_info_assemblyId = 0;
-  uint16_t BMS_info_usageId = 0;
-  uint16_t BMS_info_subUsageId = 0;
-  uint8_t BMS_info_platformType = 0;
-  uint32_t BMS_info_appCrc = 0;
-  uint64_t BMS_info_bootGitHash = 0;
-  uint8_t BMS_info_bootUdsProtoVersion = 0;
-  uint32_t BMS_info_bootCrc = 0;
-  uint16_t HVP_info_buildConfigId = 0;
-  uint16_t HVP_info_hardwareId = 0;
-  uint16_t HVP_info_componentId = 0;
-  uint8_t battery_serialNumber[14] = {0};  // Stores raw HEX values for ASCII chars
-  uint8_t battery_partNumber[12] = {0};
-  uint8_t PCS_partNumber[12] = {0};  //stores raw HEX values for ASCII chars
-  uint16_t PCS_info_buildConfigId = 0;
-  uint16_t PCS_info_hardwareId = 0;
-  uint16_t PCS_info_componentId = 0;
 } DATALAYER_INFO_TESLA;
 
 typedef struct {
