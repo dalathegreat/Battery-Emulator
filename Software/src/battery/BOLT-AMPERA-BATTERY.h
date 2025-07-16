@@ -25,17 +25,17 @@ class BoltAmperaBattery : public CanBattery {
   BoltAmperaHtmlRenderer renderer;
   uint16_t Maximum_Cell_Voltage = 3700;
   uint16_t Minimum_Cell_Voltage = 3700;
-  static const int MAX_DISCHARGE_POWER_ALLOWED_W = 5000;
+  static const int MAX_DISCHARGE_POWER_ALLOWED_W = 8000;
   static const int MAX_CHARGE_POWER_ALLOWED_W = 5000;
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
   static const int RAMPDOWN_SOC =
       9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
 
-  static const int MAX_PACK_VOLTAGE_DV = 4150;  //5000 = 500.0V
-  static const int MIN_PACK_VOLTAGE_DV = 2500;
+  static const int MAX_PACK_VOLTAGE_DV = 4050;  //5000 = 500.0V
+  static const int MIN_PACK_VOLTAGE_DV = 2400;
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+  static const int MIN_CELL_VOLTAGE_MV = 2500;  //Battery is put into emergency stop if one cell goes below this value
   static const int POLL_7E4_CAPACITY_EST_GEN1 = 0x41A3;
   static const int POLL_7E4_CAPACITY_EST_GEN2 = 0x45F9;
   static const int POLL_7E4_SOC_DISPLAY = 0x8334;
