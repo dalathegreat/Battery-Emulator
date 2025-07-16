@@ -12,6 +12,11 @@
 #define SELECTED_BATTERY_CLASS TeslaModelSXBattery
 #endif
 
+/*NOTE! IMPORTANT INFORMATION!
+Be sure to scroll down in this file and configure all "GTW_" parameters to suit your battery. 
+Failure to configure these will result in VCFRONT and GTW MIA errors
+*/
+
 //#define EXP_TESLA_BMS_DIGITAL_HVIL    // Experimental parameter. Forces the transmission of additional CAN frames for experimental purposes, to test potential HVIL issues in 3/Y packs with newer firmware.
 
 class TeslaBattery : public CanBattery {
