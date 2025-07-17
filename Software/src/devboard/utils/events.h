@@ -1,8 +1,6 @@
 #ifndef __EVENTS_H__
 #define __EVENTS_H__
-#ifndef UNIT_TEST
 #include "../../include.h"
-#endif
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
