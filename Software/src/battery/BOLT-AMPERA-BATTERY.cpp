@@ -69,8 +69,7 @@ void BoltAmperaBattery::update_values() {  //This function maps all the values f
 
   datalayer.battery.status.voltage_dV = battery_voltage_periodic_dV;
 
-  datalayer.battery.status.current_dA =
-      battery_current_7E7 / 2;  //TODO: Consider switching to the sensed_ value that updates more often
+  datalayer.battery.status.current_dA = (sensed_current_sensor_1 * 0.2);  //TODO: Is sensor 1 OK?
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
@@ -347,8 +346,8 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x216:  // High voltage battery sensed Output HV
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       sensed_battery_voltage_mV = (((rx_frame.data.u8[1] & 0x0F) << 4) | rx_frame.data.u8[2]) * 125;  //mV
-      sensed_current_sensor_1 = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) * 0.02;            //Amps
-      sensed_current_sensor_2 = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]) * 0.02;            //Amps
+      sensed_current_sensor_1 = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]);
+      sensed_current_sensor_2 = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
       break;
     case 0x2C7:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
