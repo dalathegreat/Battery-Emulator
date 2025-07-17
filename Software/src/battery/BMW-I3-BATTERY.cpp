@@ -44,7 +44,7 @@ uint8_t BmwI3Battery::increment_alive_counter(uint8_t counter) {
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
   if (datalayer.system.settings.equipment_stop_active == true) {
     digitalWrite(wakeup_pin, LOW);  // Turn off wakeup pin
-  } else {
+  } else if (millis() > INTERVAL_1_S) {
     digitalWrite(wakeup_pin, HIGH);  // Wake up the battery
   }
 
@@ -507,5 +507,5 @@ void BmwI3Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.number_of_cells = NUMBER_OF_CELLS;
 
   pinMode(wakeup_pin, OUTPUT);
-  digitalWrite(wakeup_pin, HIGH);  // Wake up the battery
+  digitalWrite(wakeup_pin, LOW);  // Set pin to low, prepare to wakeup later on!
 }
