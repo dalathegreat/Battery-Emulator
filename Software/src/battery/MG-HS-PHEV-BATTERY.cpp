@@ -252,7 +252,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x3BE:
       // Per-cell voltages and temps
       cell_id = rx_frame.data.u8[5];
-      if(cell_id < 90) {
+      if (cell_id < 90) {
         datalayer.battery.status.cell_voltages_mV[cell_id] = 1000 + (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         // cell temperature is rx_frame.data.u8[1]-40
       }
