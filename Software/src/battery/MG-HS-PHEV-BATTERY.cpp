@@ -6,11 +6,50 @@
 #include "MG-HS-PHEV-BATTERY.h"
 
 /*
-Note:
+MG HS PHEV 16.6kWh battery integration
+
+This may work on other MG batteries, but will need some hardcoded constants
+changing.
+
+
+OPTIONAL SETTINGS
+
+Put these in your USER_SETTINGS.h:
+
+// This will scale the SoC so the batteries top out at 4.2V/cell instead of 4.1V/cell.
+// The car only seems to use up to 4.1V/cell in service.
+#define MG_HS_PHEV_USE_FULL_CAPACITY true
+
+// If you have bypassed the contactors, you can avoid them being activated
+// (which also disables isolation resistance measuring).
+#define MG_HS_PHEV_DISABLE_CONTACTORS true
+
+
+CAN CONNECTIONS
+
+Battery Emulator should be connected via CAN to either:
+
+- CAN1 (pins 1+2 on the LV connector)
+
+This provides efficient data updates including individual cell voltages, and
+allows control over the contactors.
+
+- CAN2 (pins 3+4 on the LV connector)
+
+This allows less efficient data access via ODB PID queries, but also access to
+information such as SoH which is not available over CAN1. The contactors cannot
+be controlled (so will need to be bypassed).
+
+- Both CAN1 and CAN2 in parallel
+
+This provides the benefits of both, and works in practice despite the potential
+problems with connecting CAN buses in parallel.
+
+
+NOTES
+
 - Charge power/discharge power is estimated for now
-- The built-in SoC indicator tops out at 4.1V/cell. To use up to 4.2V/cell, you should define:
-  #define MG_HS_PHEV_USE_FULL_CAPACITY true
-  in USER_SETTINGS.h
+
 */
 
 void MgHsPHEVBattery::
@@ -90,7 +129,7 @@ void MgHsPHEVBattery::update_soc(uint16_t soc_times_ten) {
 }
 
 void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  uint16_t soc1, soc2;
+  uint16_t soc1, soc2, cell_id;
   switch (rx_frame.ID) {
     case 0x173:
       // Contains cell min/max voltages
@@ -141,7 +180,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       update_soc(soc2);
 
       if (((rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5]) != 0) {
-        // 3AC message contains a valid voltage (so must come from CAN1
+        // 3AC message contains a valid voltage (so must have come from CAN1)
 
         datalayer.battery.status.voltage_dV = ((rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5]) * 2.5;
         datalayer.battery.status.current_dA = ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) - 20000) * 0.5;
@@ -210,6 +249,14 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }  // data.u8[1] = 0x62)
 
       break;
+    case 0x3BE:
+      // Per-cell voltages and temps
+      cell_id = rx_frame.data.u8[5];
+      if(cell_id < 90) {
+        datalayer.battery.status.cell_voltages_mV[cell_id] = 1000 + (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+        // cell temperature is rx_frame.data.u8[1]-40
+      }
+
     default:
       break;
   }
@@ -219,12 +266,17 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
+#if MG_HS_PHEV_DISABLE_CONTACTORS
+    // Leave the contactors open
+    MG_HS_8A.data.u8[5] = 0x00;
+#else
     if (datalayer.battery.status.bms_status == FAULT) {
       //Open contactors!
       MG_HS_8A.data.u8[5] = 0x00;
     } else {  // Not in faulted mode, Close contactors!
       MG_HS_8A.data.u8[5] = 0x02;
     }
+#endif  // MG_HS_PHEV_DISABLE_CONTACTORS
 
     transmit_can_frame(&MG_HS_8A, can_config.battery);
     transmit_can_frame(&MG_HS_1F1, can_config.battery);
