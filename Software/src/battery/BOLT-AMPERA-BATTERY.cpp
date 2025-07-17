@@ -35,26 +35,42 @@ TODOs left for this implementation
 0x460 Energy Storage System Temp HV (Who sends this? Battery?)
 */
 
-// Define the data points for %SOC depending on pack voltage
-const uint8_t numEntries = 28;
-const uint16_t SOC[28] = {10000, 9985, 9970, 9730, 9490, 8980, 8470, 8110, 7750, 7270, 6790, 6145, 5500, 5200,
-                          4900,  4405, 3910, 3455, 3000, 2640, 2280, 1940, 1600, 1040, 480,  240,  120,  0};
+// Define the data points for %SOC depending on cell voltage
+// NCM Discharge Curve Lookup Table (100 points, 4.2V-3.0V)
+// SOC[100] = State of Charge (0.01% units, e.g., 10000 = 100.00%)
+// voltage_lookup[100] = Pack voltage (mV)
+const uint8_t numEntries = 100;
+const uint16_t SOC[100] = {
+    10000, 9985, 9970, 9955, 9940, 9925, 9910, 9895, 9880, 9865,  // 4.20V - 4.15V (High plateau)
+    9850,  9820, 9790, 9760, 9730, 9700, 9660, 9620, 9580, 9540,  // 4.14V - 4.00V
+    9500,  9450, 9400, 9350, 9300, 9250, 9200, 9150, 9100, 9050,  // 3.99V - 3.90V
+    9000,  8900, 8800, 8700, 8600, 8500, 8400, 8300, 8200, 8100,  // 3.89V - 3.80V
+    8000,  7850, 7700, 7550, 7400, 7250, 7100, 6950, 6800, 6650,  // 3.79V - 3.70V
+    6500,  6300, 6100, 5900, 5700, 5500, 5300, 5100, 4900, 4700,  // 3.69V - 3.60V
+    4500,  4300, 4100, 3900, 3700, 3500, 3300, 3100, 2900, 2700,  // 3.59V - 3.50V
+    2500,  2250, 2000, 1750, 1500, 1250, 1000, 800,  600,  400,   // 3.49V - 3.40V (Steep drop)
+    300,   200,  150,  100,  80,   60,   40,   30,   20,   10,    // 3.39V - 3.30V
+    5,     2,    1,    0,    0,    0,    0,    0,    0,    0      // <3.30V (Cutoff)
+};
 
-const uint16_t voltage_lookup[28] = {  //403 V fully charged, 335V empty
-    4032, 4005, 3978, 3951, 3924, 3897, 3870, 3843, 3816, 3789, 3762, 3735, 3708, 3681,
-    3654, 3627, 3600, 3573, 3546, 3519, 3492, 3465, 3438, 3411, 3384, 3357, 3350, 3350};
-
-static uint16_t estimateSOC(uint16_t packVoltage) {  // Linear interpolation function
-  if (packVoltage >= voltage_lookup[0]) {
+const uint16_t voltage_lookup[100] = {
+    4200, 4195, 4190, 4185, 4180, 4175, 4170, 4165, 4160, 4155,  // High plateau
+    4150, 4140, 4130, 4120, 4110, 4100, 4090, 4080, 4070, 4060, 4050, 4040, 4030, 4020, 4010, 4000, 3990, 3980,
+    3970, 3960, 3950, 3940, 3930, 3920, 3910, 3900, 3890, 3880, 3870, 3860, 3850, 3840, 3830, 3820, 3810, 3800,
+    3790, 3780, 3770, 3760, 3750, 3740, 3730, 3720, 3710, 3700, 3690, 3680, 3670, 3660, 3650, 3640, 3630, 3620,
+    3610, 3600, 3590, 3580, 3570, 3560, 3550, 3540, 3530, 3520, 3510, 3500, 3490, 3480, 3470, 3460, 3450, 3440,
+    3430, 3420, 3410, 3400, 3390, 3380, 3370, 3360, 3350, 3340, 3330, 3320, 3310, 3300, 3290, 3280, 3270, 3260};
+static uint16_t estimateSOC(uint16_t cellVoltage) {  // Linear interpolation function
+  if (cellVoltage >= voltage_lookup[0]) {
     return SOC[0];
   }
-  if (packVoltage <= voltage_lookup[numEntries - 1]) {
+  if (cellVoltage <= voltage_lookup[numEntries - 1]) {
     return SOC[numEntries - 1];
   }
 
   for (int i = 1; i < numEntries; ++i) {
-    if (packVoltage >= voltage_lookup[i]) {
-      double t = (packVoltage - voltage_lookup[i]) / (voltage_lookup[i - 1] - voltage_lookup[i]);
+    if (cellVoltage >= voltage_lookup[i]) {
+      double t = (cellVoltage - voltage_lookup[i]) / (voltage_lookup[i - 1] - voltage_lookup[i]);
       return SOC[i] + t * (SOC[i - 1] - SOC[i]);
     }
   }
@@ -63,9 +79,7 @@ static uint16_t estimateSOC(uint16_t packVoltage) {  // Linear interpolation fun
 
 void BoltAmperaBattery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
 
-  //datalayer.battery.status.real_soc = battery_SOC_display; //TODO: this 7E4 poll does not work
-
-  datalayer.battery.status.real_soc = estimateSOC(battery_voltage_periodic_dV);  //TODO, this is bad and barely works
+  datalayer.battery.status.real_soc = estimateSOC(battery_cell_voltage_max_mV);  //TODO, this is bad and barely works
 
   datalayer.battery.status.voltage_dV = battery_voltage_periodic_dV;
 
