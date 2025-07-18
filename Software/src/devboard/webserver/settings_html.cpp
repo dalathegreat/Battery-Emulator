@@ -135,6 +135,18 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     }
   }
 
+  if (var == "INVBIDCLASS") {
+    if (!inverter || !inverter->supports_battery_id()) {
+      return "hidden";
+    }
+  }
+
+  if (var == "INVBID") {
+    if (inverter && inverter->supports_battery_id()) {
+      return String(datalayer.battery.settings.sofar_user_specified_battery_id);
+    }
+  }
+
   if (var == "INVINTF") {
     if (inverter) {
       return inverter->interface_name();
@@ -493,7 +505,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         
         function editPassword(){var value=prompt('Enter new password:');if(value!==null){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updatePassword?value='+encodeURIComponent(value),true);xhr.send();}}
-    
+
+        function editSofarID(){var value=prompt('For double battery setups. Which battery ID should this emulator send? Remember to reboot after configuring this! Enter new value between (0-15):');
+          if(value!==null){if(value>=0&&value<=15){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSofarID?value='+value,true);xhr.send();}
+          else {alert('Invalid value. Please enter a value between 0 and 15.');}}}
+        
         function editWh(){var value=prompt('How much energy the battery can store. Enter new Wh value (1-120000):');
           if(value!==null){if(value>=1&&value<=120000){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBatterySize?value='+value,true);xhr.send();}else{
@@ -746,6 +762,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       <h4 style='color: white;' class="%INVCLASS%">Inverter interface: <span id='Inverter'>%INVINTF%</span></h4>
 
+      <h4 style='color: white;' class="%INVBIDCLASS%">Battery ID: <span>%INVBID%</span> <button onclick='editSofarID()'>Edit</button></h4>
+      
       <h4 style='color: white;' class="%SHUNTCLASS%">Shunt interface: <span id='Inverter'>%SHUNTINTF%</span></h4>
 
     </div>

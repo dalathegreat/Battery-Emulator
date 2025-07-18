@@ -1290,7 +1290,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
 void MebBattery::transmit_can(unsigned long currentMillis) {
 
-  if (currentMillis > last_can_msg_timestamp + 500) {
+  if (currentMillis - last_can_msg_timestamp > 500) {
 #ifdef DEBUG_LOG
     if (first_can_msg)
       logging.printf("MEB: No CAN msg received for 500ms\n");

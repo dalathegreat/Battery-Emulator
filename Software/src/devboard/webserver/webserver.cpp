@@ -566,6 +566,10 @@ void init_webserver() {
     update_string_setting(route, [setter](String value) { setter(value.toInt()); });
   };
 
+  // Route for editing Sofar ID
+  update_int_setting("/updateSofarID",
+                     [](int value) { datalayer.battery.settings.sofar_user_specified_battery_id = value; });
+
   // Route for editing Wh
   update_int_setting("/updateBatterySize", [](int value) { datalayer.battery.info.total_capacity_Wh = value; });
 
