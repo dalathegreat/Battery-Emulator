@@ -10,6 +10,8 @@ class Rs485InverterProtocol : public InverterProtocol, Rs485Receiver {
   virtual const char* interface_name() { return "RS485"; }
   InverterInterfaceType interface_type() { return InverterInterfaceType::Rs485; }
   virtual int baud_rate() = 0;
+
+  Rs485InverterProtocol() { register_receiver(this); }
 };
 
 #endif
