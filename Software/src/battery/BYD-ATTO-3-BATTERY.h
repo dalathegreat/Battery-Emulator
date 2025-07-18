@@ -20,7 +20,7 @@
 // Ramp down settings that are used when SOC is estimated from voltage
 static const int RAMPDOWN_SOC = 100;  // SOC to start ramping down from. Value set here is scaled by 10 (100 = 10.0%)
 static const int RAMPDOWN_POWER_ALLOWED =
-    10000;  // The power to start ramping down from, can be set to a lower value if you want to limit the power at the end of discharge even further
+    10000;  // Power to start ramp down from, set a lower value to limit the power even further as SOC decreases
 
 /* Do not modify the rows below */
 #ifdef BYD_ATTO_3_BATTERY
@@ -134,6 +134,7 @@ class BydAttoBattery : public CanBattery {
   uint8_t BMS_unknown13 = 0;
   uint8_t battery_frame_index = 0;
   uint16_t battery_cellvoltages[CELLCOUNT_EXTENDED] = {0};
+  uint16_t rampdown_power = 0;
 
   uint16_t poll_state = POLL_FOR_BATTERY_SOC;
   uint16_t pid_reply = 0;

@@ -172,17 +172,20 @@ void BydAttoBattery::
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  datalayer_battery->status.max_discharge_power_W = MAXPOWER_DISCHARGE_W;  //TODO: Map from CAN later on
+  if (SOC_method == ESTIMATED && battery_estimated_SOC * 0.1 < RAMPDOWN_SOC && RAMPDOWN_SOC > 0) {
+    // If using estimated SOC, ramp down max discharge power as SOC decreases.
+    rampdown_power = RAMPDOWN_POWER_ALLOWED * ((battery_estimated_SOC * 0.1) / RAMPDOWN_SOC);
+
+    if (rampdown_power < MAXPOWER_DISCHARGE_W) {  // Never allow more than MAXPOWER_DISCHARGE_W
+      datalayer_battery->status.max_discharge_power_W = rampdown_power;
+    } else {
+      datalayer_battery->status.max_discharge_power_W = MAXPOWER_DISCHARGE_W;  //TODO: Map from CAN later on
+    }
+  } else {
+    datalayer_battery->status.max_discharge_power_W = MAXPOWER_DISCHARGE_W;  //TODO: Map from CAN later on
+  }
 
   datalayer_battery->status.max_charge_power_W = BMS_allowed_charge_power * 10;  //TODO: Scaling unknown, *10 best guess
-
-  if (SOC_method ==
-      ESTIMATED) {  // If we are using estimated SOC, maximum discharge power is ramped down towards the end.
-    if (battery_estimated_SOC * 0.1 < RAMPDOWN_SOC) {
-      datalayer.battery.status.max_discharge_power_W =
-          RAMPDOWN_POWER_ALLOWED * ((battery_estimated_SOC * 0.1) / RAMPDOWN_SOC);
-    }
-  }
 
   datalayer_battery->status.cell_max_voltage_mV = BMS_highest_cell_voltage_mV;
 
