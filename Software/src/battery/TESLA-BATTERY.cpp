@@ -5,7 +5,9 @@
 #include "../devboard/utils/events.h"
 #include "../include.h"
 
-/* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
+/* Credits: */
+/* Some of the original CAN frame parsing code below comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
+/* Most of the additional CAN frame parsing/information/display comes from Josiah Higgs (https://github.com/josiahhiggs/) */
 
 inline const char* getContactorText(int index) {
   switch (index) {
