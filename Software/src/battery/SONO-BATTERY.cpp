@@ -128,7 +128,7 @@ void SonoBattery::transmit_can(unsigned long currentMillis) {
 
     //Time and date
     //Let's see if the battery is happy with just getting seconds incrementing
-    SONO_401.data.u8[0] = 2025;     //Year
+    SONO_401.data.u8[0] = 25;       //Year
     SONO_401.data.u8[1] = 1;        //Month
     SONO_401.data.u8[2] = 1;        //Day
     SONO_401.data.u8[3] = 12;       //Hour
