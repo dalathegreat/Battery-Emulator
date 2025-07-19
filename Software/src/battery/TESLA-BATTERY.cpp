@@ -999,8 +999,6 @@ void TeslaBattery::
   logging.print(getContactorState(battery_packContPositiveState));
   logging.print(", setState: ");
   logging.print(getContactorState(battery_packContactorSetState));
-  logging.print(", close allowed: ");
-  logging.print(getNoYes(battery_packCtrsClosingAllowed));
   logging.print(", Pyrotest: ");
   logging.println(getNoYes(battery_pyroTestInProgress));
 
