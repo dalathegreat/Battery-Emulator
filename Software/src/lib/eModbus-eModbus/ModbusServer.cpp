@@ -30,7 +30,6 @@ MBSworker ModbusServer::getWorker(uint8_t serverID, uint8_t functionCode) {
     svmap = workerMap.find(ANY_SERVER);
     if (svmap != workerMap.end()) {
       serverFound = true;
-      serverID = ANY_SERVER;
     }
   }
   // Did we find a serverID?
@@ -49,7 +48,6 @@ MBSworker ModbusServer::getWorker(uint8_t serverID, uint8_t functionCode) {
       if (fcmap != svmap->second.end()) {
         // Yes. Return the function pointer for it.
         functionCodeFound = true;
-        functionCode = ANY_FUNCTION_CODE;
       }
     }
     if (functionCodeFound) {
@@ -104,6 +102,11 @@ bool ModbusServer::isServerFor(uint8_t serverID) {
   // Is there one?
   if (svmap != workerMap.end()) {
     return true;
+  } else {
+    svmap = workerMap.find(ANY_SERVER);
+    if (svmap != workerMap.end()) {
+      return true;
+    }
   }
   return false;
 }
