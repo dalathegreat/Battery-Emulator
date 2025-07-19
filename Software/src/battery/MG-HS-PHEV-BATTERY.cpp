@@ -16,12 +16,12 @@ OPTIONAL SETTINGS
 
 Put these in your USER_SETTINGS.h:
 
-// This will scale the SoC so the batteries top out at 4.2V/cell instead of 4.1V/cell.
-// The car only seems to use up to 4.1V/cell in service.
+// This will scale the SoC so the batteries top out at 4.2V/cell instead of
+4.1V/cell. The car only seems to use up to 4.1V/cell in service. 
 #define MG_HS_PHEV_USE_FULL_CAPACITY true
 
-// If you have bypassed the contactors, you can avoid them being activated
-// (which also disables isolation resistance measuring).
+// If you have bypassed the contactors, you can avoid them being activated //
+(which also disables isolation resistance measuring). 
 #define MG_HS_PHEV_DISABLE_CONTACTORS true
 
 
@@ -34,17 +34,10 @@ Battery Emulator should be connected via CAN to either:
 This provides efficient data updates including individual cell voltages, and
 allows control over the contactors.
 
-- CAN2 (pins 3+4 on the LV connector)
+- CAN1 and CAN2 (pins 3+4) in parallel
 
-This allows less efficient data access via ODB PID queries, but also access to
-information such as SoH which is not available over CAN1. The contactors cannot
-be controlled (so will need to be bypassed).
-
-- Both CAN1 and CAN2 in parallel
-
-This provides the benefits of both, and works in practice despite the potential
-problems with connecting CAN buses in parallel.
-
+This adds extra information (currently just SoH), and works in practice despite
+the potential problems with connecting CAN buses in parallel.
 
 NOTES
 
@@ -58,6 +51,10 @@ void MgHsPHEVBattery::
   // Should be called every second
   if (cellVoltageValidTime > 0) {
     cellVoltageValidTime--;
+  }
+
+  if(contactor_close_delay > 0) {
+    contactor_close_delay--;
   }
 }
 
@@ -88,7 +85,8 @@ void MgHsPHEVBattery::update_soc(uint16_t soc_times_ten) {
   } else {
     // Scale so that 100% becomes 92%
     soc_times_ten = (uint16_t)(((uint32_t)soc_times_ten * 9200) / 10000);
-  }
+  }#include "src/communication/nvm/comm_nvm.h"
+
 #endif
 
   // Set the state of charge in the datalayer
@@ -129,14 +127,20 @@ void MgHsPHEVBattery::update_soc(uint16_t soc_times_ten) {
 }
 
 void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  uint16_t soc1, soc2, cell_id;
+  uint16_t soc1, soc2, cell_id, v;
   switch (rx_frame.ID) {
     case 0x173:
       // Contains cell min/max voltages
 
-      datalayer.battery.status.cell_max_voltage_mV = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      datalayer.battery.status.cell_min_voltage_mV = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      cellVoltageValidTime = CELL_VOLTAGE_TIMEOUT;
+      v = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      if(v > 0 && v < 0x2000) {
+        datalayer.battery.status.cell_max_voltage_mV = v;
+        v = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        if(v > 0 && v < 0x2000) {
+          datalayer.battery.status.cell_min_voltage_mV = v;
+          cellVoltageValidTime = CELL_VOLTAGE_TIMEOUT;
+        }
+      }
 
       break;
     case 0x297:
@@ -147,15 +151,36 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // 3 = connected
       // 15 = isolation faault
       // 0/8 = checking
+      
+      // If contactors are currently open, and we're not delaying
+      if(rx_frame.data.u8[1]==0x1 && contactor_close_delayed==0) {
+        // Then set a 5s delay before closing them. This to try and workaround
+        // an occasional situation where the contactors won't close.
+        contactor_close_delay = 5;
+        contactor_close_delayed = 1;
+      }
+
+      if(rx_frame.data.u8[1]==0xf && previousState != 0xf) {
+        // Isolation fault, set event
+        set_event(EVENT_BATTERY_ISOLATION, rx_frame.data.u8[0]);
+      } else if(rx_frame.data.u8[1]!= 0xf && previousState == 0xf) {
+        // Isolation fault has cleared, clear event
+        clear_event(EVENT_BATTERY_ISOLATION);
+      }
+      previousState = rx_frame.data.u8[1];
 
       break;
     case 0x2A2:
       // Contains temperatures.
 
-      // Max cell temp
-      datalayer.battery.status.temperature_max_dC = ((rx_frame.data.u8[0] << 8) / 50) - 400;
-      // Min cell temp
-      datalayer.battery.status.temperature_min_dC = ((rx_frame.data.u8[5] << 8) / 50) - 400;
+      if(rx_frame.data.u8[0] < 0xfe) {
+        // Max cell temp
+        datalayer.battery.status.temperature_max_dC = ((rx_frame.data.u8[0] << 8) / 50) - 400;
+      }
+      if(rx_frame.data.u8[5] < 0xfe) {
+        // Min cell temp
+        datalayer.battery.status.temperature_min_dC = ((rx_frame.data.u8[5] << 8) / 50) - 400;
+      }
       // Coolant temp
       // ((rx_frame.data.u8[1] << 8)/50) - 400;
 
@@ -177,21 +202,39 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       soc2 = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3]);
 
       // soc2 is present in both CAN1 and CAN2 messages
-      update_soc(soc2);
-
-      if (((rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5]) != 0) {
-        // 3AC message contains a valid voltage (so must have come from CAN1)
-
-        datalayer.battery.status.voltage_dV = ((rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5]) * 2.5;
-        datalayer.battery.status.current_dA = ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) - 20000) * 0.5;
+      if(soc2 < 1022) {
+        update_soc(soc2);
+        datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       }
 
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (((rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5]) != 0) {
+        // 3AC message contains a nonzero voltage (so must have come from CAN1)
+        v = (rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5];
+        if(v>0 && v<0x1000) {
+          datalayer.battery.status.voltage_dV = v * 2.5;
+        }
+        // Current
+        v = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
+        if(v>0 && v<0xf000) {
+          datalayer.battery.status.current_dA = -(v - 20000) * 0.5;
+        }
+      }
+
+      break;
+    case 0x3BE:
+      // Per-cell voltages and temps
+      cell_id = rx_frame.data.u8[5];
+      if(cell_id < 90) {
+        v = 1000 + (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+        datalayer.battery.status.cell_voltages_mV[cell_id] = v < 10000 ? v : 0;
+        // cell temperature is rx_frame.data.u8[1]-40 but BE doesn't use it
+      }
+
       break;
     case 0x7ED:
       // A response from our CAN2 OBD requests
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //Process rx data for incoming responses to "Read data by ID" Tx
+      // We mostly ignore these, apart from SoH, and also the voltage as a
+      // safety measure (in case CAN1 misbehaves).
       if (rx_frame.data.u8[1] == 0x62) {
         if (rx_frame.data.u8[2] == 0xB0) {                                   //Battery information
           if (rx_frame.data.u8[3] == 0x41 && rx_frame.data.u8[0] == 0x05) {  // Battery bus voltage
@@ -202,20 +245,22 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             datalayer.battery.status.voltage_dV = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) * 2.5;
           } else if (rx_frame.data.u8[3] == 0x43 && rx_frame.data.u8[0] == 0x05) {
             // Battery current
-            datalayer.battery.status.current_dA = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) - 40000) / -4;
+            // we won't update this as it differs in rounding from the CAN1 version
+            //datalayer.battery.status.current_dA = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) - 40000) / -4;
           } else if (rx_frame.data.u8[3] == 0x45 && rx_frame.data.u8[0] == 0x05) {
             // Battery resistance
             // rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);
           } else if (rx_frame.data.u8[3] == 0x46 && rx_frame.data.u8[0] == 0x05) {
-            // The battery SoC, the same as soc2 in 3AC. Hits 100% at 4.1V/cell.
-            soc2 = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);
-            update_soc(soc2);
+            // The battery SoC, the same as soc1 in 3AC.
+            soc1 = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);
+            // We won't use since we're using soc2
           } else if (rx_frame.data.u8[3] == 0x47) {
             // BMS error code
             // (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
           } else if (rx_frame.data.u8[3] == 0x48) {
             // BMS status coded
             // (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
+            // This is the same as 297[1]
           } else if (rx_frame.data.u8[3] == 0x49) {
             // System main relay B status
             // (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
@@ -228,19 +273,19 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             // (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);	// HOLD: What to do with this data
           } else if (rx_frame.data.u8[3] == 0x56 && rx_frame.data.u8[0] == 0x05) {
             // Max cell temperature
-            datalayer.battery.status.temperature_max_dC =
-                (((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) / 500) - 40) * 10;
+            // datalayer.battery.status.temperature_max_dC =
+            //     (((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) / 500) - 40) * 10;
           } else if (rx_frame.data.u8[3] == 0x57 && rx_frame.data.u8[0] == 0x05) {
             // Min cell temperature
-            datalayer.battery.status.temperature_min_dC =
-                (((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) / 500) - 40) * 10;
+            // datalayer.battery.status.temperature_min_dC =
+            //     (((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) / 500) - 40) * 10;
           } else if (rx_frame.data.u8[3] == 0x58 && rx_frame.data.u8[0] == 0x06) {
             // Max cell voltage
-            datalayer.battery.status.cell_max_voltage_mV = rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5];
-            cellVoltageValidTime = CELL_VOLTAGE_TIMEOUT;
+            // datalayer.battery.status.cell_max_voltage_mV = rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5];
+            // cellVoltageValidTime = CELL_VOLTAGE_TIMEOUT;
           } else if (rx_frame.data.u8[3] == 0x59 && rx_frame.data.u8[0] == 0x06) {
             // Min cell voltage
-            datalayer.battery.status.cell_min_voltage_mV = rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5];
+            // datalayer.battery.status.cell_min_voltage_mV = rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5];
           } else if (rx_frame.data.u8[3] == 0x61 && rx_frame.data.u8[0] == 0x05) {
             // Battery SoH
             datalayer.battery.status.soh_pptt = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);
@@ -249,13 +294,6 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }  // data.u8[1] = 0x62)
 
       break;
-    case 0x3BE:
-      // Per-cell voltages and temps
-      cell_id = rx_frame.data.u8[5];
-      if (cell_id < 90) {
-        datalayer.battery.status.cell_voltages_mV[cell_id] = 1000 + (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-        // cell temperature is rx_frame.data.u8[1]-40
-      }
 
     default:
       break;
@@ -272,6 +310,13 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
 #else
     if (datalayer.battery.status.bms_status == FAULT) {
       //Open contactors!
+      MG_HS_8A.data.u8[5] = 0x00;
+    } else if(contactor_close_delayed && contactor_close_delay>0) {
+      // leave open during delay
+#ifdef DEBUG_LOG
+      logging.printf("Delaying contactor close %d\n", contactor_close_delay);
+#endif
+
       MG_HS_8A.data.u8[5] = 0x00;
     } else {  // Not in faulted mode, Close contactors!
       MG_HS_8A.data.u8[5] = 0x02;
@@ -290,39 +335,6 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
         transmit_can_frame(&MG_HS_7E5_B0_42, can_config.battery);  //Battery voltage
         break;
       case 2:
-        transmit_can_frame(&MG_HS_7E5_B0_43, can_config.battery);  //Battery current
-        break;
-      case 3:
-        transmit_can_frame(&MG_HS_7E5_B0_46, can_config.battery);  //Battery SoC
-        break;
-      case 4:
-        transmit_can_frame(&MG_HS_7E5_B0_47, can_config.battery);  // Get BMS error code
-        break;
-      case 5:
-        transmit_can_frame(&MG_HS_7E5_B0_48, can_config.battery);  // Get BMS status
-        break;
-      case 6:
-        transmit_can_frame(&MG_HS_7E5_B0_49, can_config.battery);  // Get System main relay B status
-        break;
-      case 7:
-        transmit_can_frame(&MG_HS_7E5_B0_4A, can_config.battery);  // Get System main relay G status
-        break;
-      case 8:
-        transmit_can_frame(&MG_HS_7E5_B0_52, can_config.battery);  // Get System main relay P status
-        break;
-      case 9:
-        transmit_can_frame(&MG_HS_7E5_B0_56, can_config.battery);  //Max cell temperature
-        break;
-      case 10:
-        transmit_can_frame(&MG_HS_7E5_B0_57, can_config.battery);  //Min cell temperature
-        break;
-      case 11:
-        transmit_can_frame(&MG_HS_7E5_B0_58, can_config.battery);  //Max cell voltage
-        break;
-      case 12:
-        transmit_can_frame(&MG_HS_7E5_B0_59, can_config.battery);  //Min cell voltage
-        break;
-      case 13:
         transmit_can_frame(&MG_HS_7E5_B0_61, can_config.battery);  //Battery SoH
         transmitIndex = 0;  //Return to the first message index. This goes in the last message entry
         break;
@@ -345,6 +357,7 @@ void MgHsPHEVBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
+  datalayer.battery.info.number_of_cells = 90;
 }
 
 #endif
