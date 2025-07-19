@@ -28,6 +28,7 @@ extern InverterProtocol* inverter;
 #include "SMA-TRIPOWER-CAN.h"
 #include "SOFAR-CAN.h"
 #include "SOLAX-CAN.h"
+#include "SOLXPOW-CAN.h"
 #include "SUNGROW-CAN.h"
 
 // Call to initialize the build-time selected inverter. Safe to call even though inverter was not selected.
