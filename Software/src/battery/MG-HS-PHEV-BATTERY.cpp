@@ -53,7 +53,7 @@ void MgHsPHEVBattery::
     cellVoltageValidTime--;
   }
 
-  if(contactor_close_delay > 0) {
+  if (contactor_close_delay > 0) {
     contactor_close_delay--;
   }
 }
@@ -85,12 +85,13 @@ void MgHsPHEVBattery::update_soc(uint16_t soc_times_ten) {
   } else {
     // Scale so that 100% becomes 92%
     soc_times_ten = (uint16_t)(((uint32_t)soc_times_ten * 9200) / 10000);
-  }#include "src/communication/nvm/comm_nvm.h"
+  }
+#include "src/communication/nvm/comm_nvm.h"
 
 #endif
 
-  // Set the state of charge in the datalayer
-  datalayer.battery.status.real_soc = soc_times_ten * 10;
+      // Set the state of charge in the datalayer
+      datalayer.battery.status.real_soc = soc_times_ten * 10;
 
   RealSoC = datalayer.battery.status.real_soc / 100;
 
@@ -133,10 +134,10 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // Contains cell min/max voltages
 
       v = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      if(v > 0 && v < 0x2000) {
+      if (v > 0 && v < 0x2000) {
         datalayer.battery.status.cell_max_voltage_mV = v;
         v = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-        if(v > 0 && v < 0x2000) {
+        if (v > 0 && v < 0x2000) {
           datalayer.battery.status.cell_min_voltage_mV = v;
           cellVoltageValidTime = CELL_VOLTAGE_TIMEOUT;
         }
@@ -151,19 +152,19 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // 3 = connected
       // 15 = isolation faault
       // 0/8 = checking
-      
+
       // If contactors are currently open, and we're not delaying
-      if(rx_frame.data.u8[1]==0x1 && contactor_close_delayed==0) {
+      if (rx_frame.data.u8[1] == 0x1 && contactor_close_delayed == 0) {
         // Then set a 5s delay before closing them. This to try and workaround
         // an occasional situation where the contactors won't close.
         contactor_close_delay = 5;
         contactor_close_delayed = 1;
       }
 
-      if(rx_frame.data.u8[1]==0xf && previousState != 0xf) {
+      if (rx_frame.data.u8[1] == 0xf && previousState != 0xf) {
         // Isolation fault, set event
         set_event(EVENT_BATTERY_ISOLATION, rx_frame.data.u8[0]);
-      } else if(rx_frame.data.u8[1]!= 0xf && previousState == 0xf) {
+      } else if (rx_frame.data.u8[1] != 0xf && previousState == 0xf) {
         // Isolation fault has cleared, clear event
         clear_event(EVENT_BATTERY_ISOLATION);
       }
@@ -173,11 +174,11 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x2A2:
       // Contains temperatures.
 
-      if(rx_frame.data.u8[0] < 0xfe) {
+      if (rx_frame.data.u8[0] < 0xfe) {
         // Max cell temp
         datalayer.battery.status.temperature_max_dC = ((rx_frame.data.u8[0] << 8) / 50) - 400;
       }
-      if(rx_frame.data.u8[5] < 0xfe) {
+      if (rx_frame.data.u8[5] < 0xfe) {
         // Min cell temp
         datalayer.battery.status.temperature_min_dC = ((rx_frame.data.u8[5] << 8) / 50) - 400;
       }
@@ -202,7 +203,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       soc2 = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3]);
 
       // soc2 is present in both CAN1 and CAN2 messages
-      if(soc2 < 1022) {
+      if (soc2 < 1022) {
         update_soc(soc2);
         datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       }
@@ -210,12 +211,12 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (((rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5]) != 0) {
         // 3AC message contains a nonzero voltage (so must have come from CAN1)
         v = (rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5];
-        if(v>0 && v<0x1000) {
+        if (v > 0 && v < 0x1000) {
           datalayer.battery.status.voltage_dV = v * 2.5;
         }
         // Current
         v = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
-        if(v>0 && v<0xf000) {
+        if (v > 0 && v < 0xf000) {
           datalayer.battery.status.current_dA = -(v - 20000) * 0.5;
         }
       }
@@ -224,7 +225,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x3BE:
       // Per-cell voltages and temps
       cell_id = rx_frame.data.u8[5];
-      if(cell_id < 90) {
+      if (cell_id < 90) {
         v = 1000 + (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         datalayer.battery.status.cell_voltages_mV[cell_id] = v < 10000 ? v : 0;
         // cell temperature is rx_frame.data.u8[1]-40 but BE doesn't use it
@@ -311,7 +312,7 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
     if (datalayer.battery.status.bms_status == FAULT) {
       //Open contactors!
       MG_HS_8A.data.u8[5] = 0x00;
-    } else if(contactor_close_delayed && contactor_close_delay>0) {
+    } else if (contactor_close_delayed && contactor_close_delay > 0) {
       // leave open during delay
 #ifdef DEBUG_LOG
       logging.printf("Delaying contactor close %d\n", contactor_close_delay);
