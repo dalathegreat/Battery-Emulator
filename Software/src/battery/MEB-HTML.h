@@ -253,8 +253,15 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Cell imbalance: " + String(rt_enum[datalayer_extended.meb.rt_cell_imbalance & 0x03]) + "</h4>";
     content +=
         "<h4>Battery unathorized: " + String(rt_enum[datalayer_extended.meb.rt_battery_unathorized & 0x03]) + "</h4>";
-    content +=
-        "<h4>Battery temperature: " + String(datalayer_extended.meb.battery_temperature_dC / 10.f, 1) + " &deg;C</h4>";
+    content += "<h4>Battery temperature: ";
+    if (datalayer_extended.meb.battery_temperature_dC == 875) {  //Raw value 255
+      content += "ERROR</h4>";
+    } else if (datalayer_extended.meb.battery_temperature_dC == 870) {  //Raw value 254
+      content += "INIT</h4>";
+    } else {
+      content += String(datalayer_extended.meb.battery_temperature_dC / 10.f, 1) + " &deg;C</h4>";
+    }
+
     for (int i = 0; i < 3; i++) {
       content += "<h4>Temperature points " + String(i * 6 + 1) + "-" + String(i * 6 + 6) + " :";
       for (int j = 0; j < 6; j++)
