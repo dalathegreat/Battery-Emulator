@@ -146,13 +146,11 @@ void    ModbusMessage::setServerID(uint8_t serverID) {
 }
 
 void    ModbusMessage::setFunctionCode(uint8_t FC) {
-  // We accept here that [0], [1] may allocate bytes!
-  if (MM_data.empty()) {
-    MM_data.reserve(3);  // At least an error message should fit
+  if (MM_data.size() < 2) {
+    MM_data.resize(2);    // Resize to at least 2 to ensure indices 0 and 1 are valid
+    MM_data[0] = 0;       // Optional:  Invalid server ID as a placeholder
   }
-  // No serverID set yet? use a 0 to initialize it to an error-generating value
-  if (MM_data.size() < 2) MM_data[0] = 0; // intentional invalid server ID!
-  MM_data[1] = FC;
+  MM_data[1] = FC;        // Safely set the function code
 }
 
 // add() variant to copy a buffer into MM_data. Returns updated size
