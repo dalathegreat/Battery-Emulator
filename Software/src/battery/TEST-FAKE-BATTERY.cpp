@@ -2,7 +2,7 @@
 #include "../datalayer/datalayer.h"
 #include "../include.h"
 
-static void print_units(char* header, int value, char* units) {
+static void print_units(const char* header, int value, const char* units) {
   logging.print(header);
   logging.print(value);
   logging.print(units);

@@ -561,7 +561,3 @@ void FoxessCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
     }
   }
 }
-void FoxessCanInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-}

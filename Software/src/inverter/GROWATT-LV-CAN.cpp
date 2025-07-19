@@ -202,8 +202,3 @@ void GrowattLvInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 void GrowattLvInverter::transmit_can(unsigned long currentMillis) {
   // No periodic sending for this battery type. Data is sent when inverter requests it
 }
-
-void GrowattLvInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-}

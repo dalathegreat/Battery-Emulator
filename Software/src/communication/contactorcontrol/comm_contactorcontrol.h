@@ -36,9 +36,9 @@ void start_bms_reset();
  *
  * @param[in] void
  *
- * @return void
+ * @return true if contactor init was successful, false otherwise.
  */
-void init_contactors();
+bool init_contactors();
 
 /**
  * @brief Handle contactors

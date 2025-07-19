@@ -225,8 +225,3 @@ void SchneiderInverter::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&SE_333, can_config.inverter);
   }
 }
-
-void SchneiderInverter::setup(void) {  // Performs one time setup
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-}

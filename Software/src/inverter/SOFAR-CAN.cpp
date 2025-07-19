@@ -115,7 +115,7 @@ void SofarInverter::transmit_can(unsigned long currentMillis) {
   }
 }
 
-void SofarInverter::setup(void) {  // Performs one time setup at startup over CAN bus
+bool SofarInverter::setup() {  // Performs one time setup at startup over CAN bus
   // Dymanically set CAN ID according to which battery index we are on
   uint16_t base_offset = (datalayer.battery.settings.sofar_user_specified_battery_id << 12);
   auto init_frame = [&](CAN_frame& frame, uint16_t base_id) {
@@ -140,9 +140,9 @@ void SofarInverter::setup(void) {  // Performs one time setup at startup over CA
   init_frame(SOFAR_685, 0x685);
   init_frame(SOFAR_690, 0x690);
 
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
   String tempStr(datalayer.battery.settings.sofar_user_specified_battery_id);
   strncpy(datalayer.system.info.inverter_brand, tempStr.c_str(), 7);
   datalayer.system.info.inverter_brand[7] = '\0';
+
+  return true;
 }

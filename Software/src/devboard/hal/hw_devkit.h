@@ -11,83 +11,68 @@ The pin layout below supports the following:
 - 1x CANFD (via MCP2518FD (SPI))
 */
 
-// Board boot-up time
-#define BOOTUP_TIME 1000  // Time in ms it takes before system is considered fully started up
+class DevKitHal : public Esp32Hal {
+ public:
+  const char* name() { return "ESP32 DevKit V1"; }
 
-// Core assignment
-#define CORE_FUNCTION_CORE 1
-#define MODBUS_CORE 0
-#define WIFI_CORE 0
+  virtual gpio_num_t RS485_TX_PIN() { return GPIO_NUM_1; }
+  virtual gpio_num_t RS485_RX_PIN() { return GPIO_NUM_3; }
 
-// RS485
-#define RS485_TX_PIN GPIO_NUM_1
-#define RS485_RX_PIN GPIO_NUM_3
+  virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_27; }
+  virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_26; }
 
-// CAN settings
-#define CAN_1_TYPE ESP32CAN
-//#define CAN_2_TYPE MCP2515
-//#define CAN_3_TYPE MCP2518FD
+  // CAN_ADDON
+  // SCK input of MCP2515
+  virtual gpio_num_t MCP2515_SCK() { return GPIO_NUM_22; }
+  // SDI input of MCP2515
+  virtual gpio_num_t MCP2515_MOSI() { return GPIO_NUM_21; }
+  // SDO output of MCP2515
+  virtual gpio_num_t MCP2515_MISO() { return GPIO_NUM_19; }
+  // CS input of MCP2515
+  virtual gpio_num_t MCP2515_CS() { return GPIO_NUM_18; }
+  // INT output of MCP2515
+  virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_23; }
 
-// CAN1 PIN mappings, do not change these unless you are adding on extra hardware to the PCB
-#define CAN_TX_PIN GPIO_NUM_27
-#define CAN_RX_PIN GPIO_NUM_26
+  // CANFD_ADDON defines for MCP2517
+  virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_33; }
+  virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_32; }
+  virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_35; }
+  virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_25; }
+  virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_34; }
 
-// CAN_ADDON defines
-#define MCP2515_SCK GPIO_NUM_22   // SCK input of MCP2515
-#define MCP2515_MOSI GPIO_NUM_21  // SDI input of MCP2515
-#define MCP2515_MISO GPIO_NUM_19  // SDO output of MCP2515
-#define MCP2515_CS GPIO_NUM_18    // CS input of MCP2515
-#define MCP2515_INT GPIO_NUM_23   // INT output of MCP2515
+  // Contactor handling
+  virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_5; }
+  virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_16; }
+  virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_17; }
+  virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_32; }
 
-// CANFD_ADDON defines
-#define MCP2517_SCK GPIO_NUM_33  // SCK input of MCP2517
-#define MCP2517_SDI GPIO_NUM_32  // SDI input of MCP2517
-#define MCP2517_SDO GPIO_NUM_35  // SDO output of MCP2517 | Pin 35 is input only, without pullup/down resistors
-#define MCP2517_CS GPIO_NUM_25   // CS input of MCP2517
-#define MCP2517_INT GPIO_NUM_34  // INT output of MCP2517 | Pin 34 is input only, without pullup/down resistors
+  // Automatic precharging
+  virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_4; }
+  virtual gpio_num_t INVERTER_DISCONNECT_CONTACTOR_PIN() { return GPIO_NUM_5; }
 
-// Contactor handling
-#define POSITIVE_CONTACTOR_PIN GPIO_NUM_5
-#define NEGATIVE_CONTACTOR_PIN GPIO_NUM_16
-#define PRECHARGE_PIN GPIO_NUM_17
-#define SECOND_BATTERY_CONTACTORS_PIN GPIO_NUM_32
-// SMA CAN contactor pins
-#define INVERTER_CONTACTOR_ENABLE_PIN GPIO_NUM_14
+  // SMA CAN contactor pins
+  virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() { return GPIO_NUM_14; }
 
-// LED
-#define LED_PIN GPIO_NUM_4
-#define LED_MAX_BRIGHTNESS 40
-#define INVERTER_CONTACTOR_ENABLE_LED_PIN GPIO_NUM_2
+  virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_2; }
 
-// Equipment stop pin
-#define EQUIPMENT_STOP_PIN GPIO_NUM_12
+  // LED
+  virtual gpio_num_t LED_PIN() { return GPIO_NUM_4; }
+  virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
 
-// Automatic precharging
-#define HIA4V1_PIN GPIO_NUM_17
-#define INVERTER_DISCONNECT_CONTACTOR_PIN GPIO_NUM_5
+  // Equipment stop pin
+  virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_12; }
 
-// BMW_I3_BATTERY wake up pin
-#define WUP_PIN1 GPIO_NUM_25  // Wake up pin for battery 1
-#define WUP_PIN2 GPIO_NUM_32  // Wake up pin for battery 2
+  // Battery wake up pins
+  virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_25; }
+  virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_32; }
 
-/* ----- Error checks below, don't change (can't be moved to separate file) ----- */
-#ifndef HW_CONFIGURED
-#define HW_CONFIGURED
-#else
-#error Multiple HW defined! Please select a single HW
-#endif  // HW_CONFIGURED
-
-#ifdef CHADEMO_BATTERY
-#error CHADEMO pins are not defined for this hardware.
-#endif  // CHADEMO_BATTERY
-
-#ifdef BMW_I3_BATTERY
-#if defined(WUP_PIN1) && defined(CANFD_ADDON)
-#error GPIO PIN 25 cannot be used for both BMWi3 Wakeup and a CANFD addon board using these pins. Choose between BMW_I3_BATTERY and CANFD_ADDON
-#endif  // defined(WUP_PIN1) && defined(CANFD_ADDON)
-#if defined(WUP_PIN2) && defined(CANFD_ADDON)
-#error GPIO PIN 32 cannot be used for both BMWi3 Wakeup and a CANFD addon board using these pins. Choose between BMW_I3_BATTERY and CANFD_ADDON
-#endif  // defined(WUP_PIN2) && defined(CANFD_ADDON)
-#endif  // BMW_I3_BATTERY
+  std::vector<comm_interface> available_interfaces() {
+    return {
+        comm_interface::Modbus,
+        comm_interface::RS485,
+        comm_interface::CanNative,
+    };
+  }
+};
 
 #endif  // __HW_DEVKIT_H__
