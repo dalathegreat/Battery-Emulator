@@ -989,16 +989,22 @@ void TeslaBattery::
 #ifdef DEBUG_LOG
 
   printFaultCodesIfActive();
-
-  logging.print(getContactorText(battery_contactor));  // Display what state the contactor is in
+  logging.print("BMS Contactors State: ");
+  logging.print(getBMSContactorState(battery_contactor));  // Display what state the BMS thinks the contactors are in
   logging.print(", HVIL: ");
   logging.print(getHvilStatusState(battery_hvil_status));
   logging.print(", NegativeState: ");
   logging.print(getContactorState(battery_packContNegativeState));
   logging.print(", PositiveState: ");
-  logging.print(getContactorState(battery_packContPositiveState));
-  logging.print(", setState: ");
-  logging.print(getContactorState(battery_packContactorSetState));
+  logging.println(getContactorState(battery_packContPositiveState));
+  logging.print("HVP Contactors setState: ");
+  logging.print(
+      getContactorText(battery_packContactorSetState));  // Display what state the HVP has set the contactors to be in
+  logging.print(", Closing blocked: ");
+  logging.print(getNoYes(battery_packCtrsClosingBlocked));
+  if (battery_packContactorSetState == 5) {
+    logging.print(" (already CLOSED)");
+  }
   logging.print(", Pyrotest: ");
   logging.println(getNoYes(battery_pyroTestInProgress));
 
