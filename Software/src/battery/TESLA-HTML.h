@@ -183,9 +183,6 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     static const char* noYes[] = {"No", "Yes"};
     static const char* Fault[] = {"NOT_ACTIVE", "ACTIVE"};
 
-    //Buttons for user action
-    content += "<button onclick='askTeslaClearIsolation()'>Clear isolation fault</button>";
-    content += "<button onclick='askTeslaResetBMS()'>BMS reset</button>";
     //Main battery info
     char readableBatterySerialNumber[15];  // One extra space for null terminator
     memcpy(readableBatterySerialNumber, datalayer_extended.tesla.battery_serialNumber,
