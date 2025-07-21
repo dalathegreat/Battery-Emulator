@@ -70,6 +70,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::Solax:
       return SolaxInverter::Name;
 
+    case InverterProtocolType::Solxpow:
+      return SolxpowInverter::Name;
+
     case InverterProtocolType::Sungrow:
       return SungrowInverter::Name;
   }
@@ -153,6 +156,10 @@ void setup_inverter() {
 
     case InverterProtocolType::Solax:
       inverter = new SolaxInverter();
+      break;
+
+    case InverterProtocolType::Solxpow:
+      inverter = new SolxpowInverter();
       break;
 
     case InverterProtocolType::Sungrow:

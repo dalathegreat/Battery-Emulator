@@ -20,6 +20,7 @@ enum class InverterProtocolType {
   SmaTripower,
   Sofar,
   Solax,
+  Solxpow,
   Sungrow,
   Highest
 };
