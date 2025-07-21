@@ -94,7 +94,7 @@ void ModbusServerRTU::doBegin(uint32_t baudRate, int coreID, uint32_t userInterv
   snprintf(taskName, 18, "MBsrv%02XRTU", instanceCounter);
 
   // Start task to handle the client
-  xTaskCreatePinnedToCore((TaskFunction_t)&serve, taskName, SERVER_TASK_STACK, this, 8, &serverTask, coreID >= 0 ? coreID : NULL);
+  xTaskCreatePinnedToCore((TaskFunction_t)&serve, taskName, SERVER_TASK_STACK, this, 8, &serverTask, coreID >= 0 ? coreID : tskNO_AFFINITY);
 
   LOG_D("Server task %d started. Interval=%d\n", (uint32_t)serverTask, MSRinterval);
 }
@@ -124,6 +124,12 @@ void ModbusServerRTU::useModbusRTU() {
 // Inquire protocol mode
 bool ModbusServerRTU::isModbusASCII() {
   return MSRuseASCII;
+}
+
+// set timeout
+void ModbusServerRTU::setModbusTimeout(unsigned long timeout)
+{
+  serverTimeout = timeout;
 }
 
 // Toggle skipping of leading 0x00 byte
@@ -231,8 +237,8 @@ void ModbusServerRTU::serve(ModbusServerRTU *myServer) {
             response = m;
           }
         } else {
-          // No callback. Is at least the serverID valid and no broadcast?
-          if (myServer->isServerFor(request[0]) && request[0] != 0x00) {
+          // No callback. Is at least the serverID valid?
+          if (myServer->isServerFor(request[0])) {
             // Yes. Send back a ILLEGAL_FUNCTION error
             response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_FUNCTION);
           }
@@ -256,9 +262,7 @@ void ModbusServerRTU::serve(ModbusServerRTU *myServer) {
       if (request[0] != TIMEOUT) {
         // Any other error could be important for debugging, so print it
         ModbusError me((Error)request[0]);
-        #ifdef DEBUG_VIA_USB
         LOG_E("RTU receive: %02X - %s\n", (int)me, (const char *)me);
-        #endif //DEBUG_VIA_USB
       }
     }
     // Give scheduler room to breathe
