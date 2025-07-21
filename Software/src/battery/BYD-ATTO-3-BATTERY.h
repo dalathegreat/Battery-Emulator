@@ -10,8 +10,6 @@
 
 #define USE_ESTIMATED_SOC  // If enabled, SOC is estimated from pack voltage. Useful for locked packs. \
                            // Comment out this only if you know your BMS is unlocked and able to send SOC%
-#define MAXPOWER_CHARGE_W 10000
-#define MAXPOWER_DISCHARGE_W 10000
 
 //Uncomment and configure this line, if you want to filter out a broken temperature sensor (1-10)
 //Make sure you understand risks associated with disabling. Values can be read via "More Battery info"
@@ -121,13 +119,13 @@ class BydAttoBattery : public CanBattery {
   uint32_t BMS_unknown0 = 0;
   uint32_t BMS_unknown1 = 0;
   uint16_t BMS_allowed_charge_power = 0;
-  uint16_t BMS_unknown3 = 0;
-  uint16_t BMS_unknown4 = 0;
+  uint16_t BMS_charge_times = 0;
+  uint16_t BMS_allowed_discharge_power = 0;
   uint16_t BMS_total_charged_ah = 0;
   uint16_t BMS_total_discharged_ah = 0;
   uint16_t BMS_total_charged_kwh = 0;
   uint16_t BMS_total_discharged_kwh = 0;
-  uint16_t BMS_unknown9 = 0;
+  uint16_t BMS_times_full_power = 0;
   uint8_t BMS_unknown10 = 0;
   uint8_t BMS_unknown11 = 0;
   uint8_t BMS_unknown12 = 0;
