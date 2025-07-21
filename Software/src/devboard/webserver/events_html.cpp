@@ -16,6 +16,8 @@ button:hover { background-color: #3A4A52; }</style>
 </script>
 )=====";
 
+uint64_t get_timestamp(unsigned long currentMillis);
+
 static std::vector<EventData> order_events;
 
 String events_processor(const String& var) {
@@ -37,9 +39,7 @@ String events_processor(const String& var) {
     }
     // Sort events by timestamp
     std::sort(order_events.begin(), order_events.end(), compareEventsByTimestampDesc);
-    uint64_t current_timestamp =
-        (uint64_t)datalayer.system.status.millisrolloverCount * (uint64_t)std::numeric_limits<uint32_t>::max() +
-        (uint64_t)millis();
+    uint64_t current_timestamp = get_timestamp(millis());
 
     // Generate HTML and debug output
     for (const auto& event : order_events) {
