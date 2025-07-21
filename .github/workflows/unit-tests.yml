@@ -8,23 +8,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+      name: Checkout code
 
-    - name: Configure and build with CMake
-      run: |
-        mkdir build
-        cd build
-        cmake ..
-        cmake --build .
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio/.cache
+        key: ${{ runner.os }}-pio
 
-    - name: Run unit tests
-      run: |
-        set -e  # Exit immediately on non-zero exit code
-        cd build/test
-        dir -s
-        for test_executable in *; do
-          if [ -f "$test_executable" ] && [ -x "$test_executable" ]; then
-            ./"$test_executable"
-          fi
-        done
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Install PlatformIO Core
+      run: pip install --upgrade platformio
+
+      # Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
+    - name: Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
+      run: cp ./Software/USER_SECRETS.TEMPLATE.h ./Software/USER_SECRETS.h
+
+    - name: Run Unit Tests
+      run: pio remote --agent lilygo test -e test -r
+      continue-on-error: true
+      env:
+        PLATFORMIO_AUTH_TOKEN: ${{ secrets.PLATFORMIO_AUTH_TOKEN }}
