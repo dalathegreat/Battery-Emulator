@@ -354,8 +354,3 @@ void SolxpowInverter::send_system_data() {  //System equipment information
   transmit_can_frame(&SOLXPOW_4291, can_config.inverter);
 #endif
 }
-
-void SolxpowInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-}
