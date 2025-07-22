@@ -370,7 +370,14 @@ void check_interconnect_available() {
 
 void update_calculated_values() {
   /* Update CPU temperature*/
-  datalayer.system.info.CPU_temperature = temperatureRead();
+  union {
+    float temp;
+    uint32_t hex;
+  } temp = {.temp = temperatureRead()};
+  if (temp.hex != 0x42555555) {
+    // Ignoring erroneous temperature value that ESP32 sometimes returns
+    datalayer.system.info.CPU_temperature = temp.temp;
+  }
 
   /* Calculate allowed charge/discharge currents*/
   if (datalayer.battery.status.voltage_dV > 10) {
