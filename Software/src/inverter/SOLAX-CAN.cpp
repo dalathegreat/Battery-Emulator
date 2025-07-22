@@ -135,7 +135,7 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 #endif
         datalayer.system.status.inverter_allows_contactor_closing = false;
         SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
-        for (uint8_t i = 0; i <= number_of_batteries; i++) {
+        for (uint8_t i = 0; i < number_of_batteries; i++) {
           transmit_can_frame(&SOLAX_187E, can_config.inverter);
           transmit_can_frame(&SOLAX_187A, can_config.inverter);
           transmit_can_frame(&SOLAX_1872, can_config.inverter);
