@@ -281,16 +281,32 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
-  // Send 70ms CAN Message
-  if (currentMillis - previousMillis70 >= INTERVAL_70_MS) {
-    previousMillis70 = currentMillis;
+  if (datalayer.system.status.BMS_reset_in_progress || datalayer.system.status.BMS_startup_in_progress) {
+    // Transmitting towards battery is halted while BMS is being reset
+    previousMillis100 = currentMillis;
+    previousMillis200 = currentMillis;
+    return;
+  }
 
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
+
+#if MG_HS_PHEV_DISABLE_CONTACTORS
+    // Leave the contactors open
+    MG_HS_8A.data.u8[5] = 0x00;
+#else
     if (datalayer.battery.status.bms_status == FAULT) {
-      //Open contactors!
+      // Fault, so open contactors!
       MG_HS_8A.data.u8[5] = 0x00;
-    } else {  // Not in faulted mode, Close contactors!
+    } else if (!datalayer.system.status.inverter_allows_contactor_closing) {
+      // Inverter requests contactor opening
+      MG_HS_8A.data.u8[5] = 0x00;
+    } else {
+      // Everything ready, close contactors
       MG_HS_8A.data.u8[5] = 0x02;
     }
+#endif  // MG_HS_PHEV_DISABLE_CONTACTORS
 
     transmit_can_frame(&MG_HS_8A, can_config.battery);
     transmit_can_frame(&MG_HS_1F1, can_config.battery);
