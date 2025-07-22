@@ -6,15 +6,44 @@
 #include "../devboard/utils/events.h"
 #include "MG-HS-PHEV-BATTERY.h"
 
-/* TODO:
-- Get contactor closing working
-- Figure out which CAN messages need to be sent towards the battery to keep it alive
-- Map all values from battery CAN messages
-- Note: Charge power/discharge power is estimated for now
+/*
+MG HS PHEV 16.6kWh battery integration
 
-# row3 pin2 needs strobing to 12V (via a 1k) to wake up the BMU
-# but contactor won't come on until deasserted
-# BMU goes to sleep after after ~18s of no CAN
+This may work on other MG batteries, but will need some hardcoded constants
+changing.
+
+
+OPTIONAL SETTINGS
+
+Put these in your USER_SETTINGS.h:
+
+// This will scale the SoC so the batteries top out at 4.2V/cell instead of
+4.1V/cell. The car only seems to use up to 4.1V/cell in service. 
+#define MG_HS_PHEV_USE_FULL_CAPACITY true
+
+// If you have bypassed the contactors, you can avoid them being activated //
+(which also disables isolation resistance measuring). 
+#define MG_HS_PHEV_DISABLE_CONTACTORS true
+
+
+CAN CONNECTIONS
+
+Battery Emulator should be connected via CAN to either:
+
+- CAN1 (pins 1+2 on the LV connector)
+
+This provides efficient data updates including individual cell voltages, and
+allows control over the contactors.
+
+- CAN1 and CAN2 (pins 3+4) in parallel
+
+This adds extra information (currently just SoH), and works in practice despite
+the potential problems with connecting CAN buses in parallel.
+
+NOTES
+
+- Charge power/discharge power is estimated for now
+
 */
 
 void MgHsPHEVBattery::
@@ -350,6 +379,8 @@ void MgHsPHEVBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
+  datalayer.battery.info.number_of_cells = 90;
 }
 
 #endif

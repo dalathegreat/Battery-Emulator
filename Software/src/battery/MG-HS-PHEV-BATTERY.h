@@ -21,14 +21,15 @@ class MgHsPHEVBattery : public CanBattery {
  private:
   void update_soc(uint16_t soc_times_ten);
 
+  static const int MAX_PACK_VOLTAGE_DV = 3780;  //5000 = 500.0V
+  static const int MIN_PACK_VOLTAGE_DV = 2790;
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+  static const int MIN_CELL_VOLTAGE_MV = 2610;  //Battery is put into emergency stop if one cell goes below this value
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
 
-  int BMS_SOC = 0;
   // For calculating charge and discharge power
   float RealVoltage;
   float RealSoC;
