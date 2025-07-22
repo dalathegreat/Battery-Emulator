@@ -19,8 +19,8 @@ class MgHsPHEVBattery : public CanBattery {
   static constexpr const char* Name = "MG HS PHEV 16.6kWh battery";
 
  private:
-  static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
-  static const int MIN_PACK_VOLTAGE_DV = 3100;
+  void update_soc(uint16_t soc_times_ten);
+
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
@@ -33,6 +33,8 @@ class MgHsPHEVBattery : public CanBattery {
   float RealVoltage;
   float RealSoC;
   float tempfloat;
+  
+  uint8_t previousState = 0;
 
   uint8_t messageindex = 0;  //For polling switchcase
 
