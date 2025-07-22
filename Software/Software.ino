@@ -17,33 +17,17 @@
 #include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/datalayer/datalayer.h"
+#include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/logging.h"
 #include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/value_mapping.h"
-#include "src/include.h"
-#ifndef AP_PASSWORD
-#error \
-    "Initial setup not completed, USER_SECRETS.h is missing. Please rename the file USER_SECRETS.TEMPLATE.h to USER_SECRETS.h and fill in the required credentials. This file is ignored by version control to keep sensitive information private."
-#endif
-#ifdef WIFI
-#include "src/devboard/wifi/wifi.h"
-#ifdef WEBSERVER
 #include "src/devboard/webserver/webserver.h"
-#ifdef MDNSRESPONDER
-#include <ESPmDNS.h>
-#endif  // MDNSRESONDER
-#else   // WEBSERVER
-#ifdef MDNSRESPONDER
-#error WEBSERVER needs to be enabled for MDNSRESPONDER!
-#endif  // MDNSRSPONDER
-#endif  // WEBSERVER
-#ifdef MQTT
-#include "src/devboard/mqtt/mqtt.h"
-#endif  // MQTT
-#endif  // WIFI
+#include "src/devboard/wifi/wifi.h"
+#include "src/include.h"
+
 #ifdef PERIODIC_BMS_RESET_AT
 #include "src/devboard/utils/ntp_time.h"
 #endif
@@ -70,6 +54,8 @@ Logging logging;
 
 // Initialization
 void setup() {
+  init_hal();
+
   init_serial();
 
   // We print this after setting up serial, such that is also printed to serial with DEBUG_VIA_USB set.
@@ -79,35 +65,48 @@ void setup() {
 
   init_stored_settings();
 
-#ifdef WIFI
-  xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
-                          &connectivity_loop_task, WIFI_CORE);
-#endif
+  if (wifi_enabled) {
+    xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
+                            &connectivity_loop_task, esp32hal->WIFICORE());
+  }
+
+  if (!led_init()) {
+    return;
+  }
 
 #if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
   xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
-                          &logging_loop_task, WIFI_CORE);
+                          &logging_loop_task, esp32hal->WIFICORE());
 #endif
 
-#ifdef PRECHARGE_CONTROL
-  init_precharge_control();
-#endif  // PRECHARGE_CONTROL
+  if (!init_contactors()) {
+    return;
+  }
+
+  if (!init_precharge_control()) {
+    return;
+  }
 
   setup_charger();
-  setup_inverter();
+
+  if (!setup_inverter()) {
+    return;
+  }
   setup_battery();
   setup_can_shunt();
 
   // Init CAN only after any CAN receivers have had a chance to register.
-  init_CAN();
+  if (!init_CAN()) {
+    return;
+  }
 
-  init_contactors();
+  if (!init_rs485()) {
+    return;
+  }
 
-  init_rs485();
-
-#ifdef EQUIPMENT_STOP_BUTTON
-  init_equipment_stop_button();
-#endif
+  if (!init_equipment_stop_button()) {
+    return;
+  }
 
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
@@ -116,22 +115,26 @@ void setup() {
 
   // Initialize Task Watchdog for subscribed tasks
   esp_task_wdt_config_t wdt_config = {
-      .timeout_ms = INTERVAL_5_S,                                      // If task hangs for longer than this, reboot
-      .idle_core_mask = (1 << CORE_FUNCTION_CORE) | (1 << WIFI_CORE),  // Watch both cores
-      .trigger_panic = true                                            // Enable panic reset on timeout
+      .timeout_ms = INTERVAL_5_S,  // If task hangs for longer than this, reboot
+      .idle_core_mask =
+          (uint32_t)(1 << esp32hal->CORE_FUNCTION_CORE()) | (uint32_t)(1 << esp32hal->WIFICORE()),  // Watch both cores
+      .trigger_panic = true  // Enable panic reset on timeout
   };
 
   // Start tasks
 
-#ifdef MQTT
-  init_mqtt();
+  if (mqtt_enabled) {
+    if (!init_mqtt()) {
+      return;
+    }
 
-  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
-                          WIFI_CORE);
-#endif
+    xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
+                            esp32hal->WIFICORE());
+  }
 
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
-                          CORE_FUNCTION_CORE);
+                          esp32hal->CORE_FUNCTION_CORE());
+
 #ifdef PERIODIC_BMS_RESET_AT
   bmsResetTimeOffset = getTimeOffsetfromNowUntil(PERIODIC_BMS_RESET_AT);
   if (bmsResetTimeOffset == 0) {
@@ -164,35 +167,34 @@ void logging_loop(void*) {
 }
 #endif
 
-#ifdef WIFI
 void connectivity_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
   // Init wifi
   init_WiFi();
 
-#ifdef WEBSERVER
-  // Init webserver
-  init_webserver();
-#endif
-#ifdef MDNSRESPONDER
-  init_mDNS();
-#endif
+  if (webserver_enabled) {
+    init_webserver();
+  }
+
+  if (mdns_enabled) {
+    init_mDNS();
+  }
 
   while (true) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
-#ifdef WEBSERVER
-    ota_monitor();
-#endif
+
+    if (webserver_enabled) {
+      ota_monitor();
+    }
+
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
 
     esp_task_wdt_reset();  // Reset watchdog
     delay(1);
   }
 }
-#endif
 
-#ifdef MQTT
 void mqtt_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
 
@@ -204,7 +206,6 @@ void mqtt_loop(void*) {
     delay(1);
   }
 }
-#endif
 
 static std::list<Transmitter*> transmitters;
 
@@ -217,31 +218,31 @@ void core_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
-  led_init();
 
   while (true) {
 
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
-#ifdef EQUIPMENT_STOP_BUTTON
+
     monitor_equipment_stop_button();
-#endif
 
     // Input, Runs as fast as possible
     receive_can();    // Receive CAN messages
     receive_rs485();  // Process serial2 RS485 interface
 
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
-#ifdef WEBSERVER
-    START_TIME_MEASUREMENT(ota);
-    ElegantOTA.loop();
-    END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
-#endif  // WEBSERVER
+
+    if (webserver_enabled) {
+      START_TIME_MEASUREMENT(ota);
+      ElegantOTA.loop();
+      END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
+    }
 
     // Process
     currentMillis = millis();
     if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
-      if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) &&
+          (milliseconds(currentMillis) > esp32hal->BOOTUP_TIME())) {
         set_event(EVENT_TASK_OVERRUN, (currentMillis - previousMillis10ms));
       }
       previousMillis10ms = currentMillis;

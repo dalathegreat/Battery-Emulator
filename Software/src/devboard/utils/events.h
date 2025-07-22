@@ -1,8 +1,9 @@
 #ifndef __EVENTS_H__
 #define __EVENTS_H__
-#ifndef UNIT_TEST
-#include "../../include.h"
-#endif
+
+#include <WString.h>
+#include <src/devboard/utils/types.h>
+#include <stdint.h>
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -107,6 +108,8 @@
   XX(EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS) \
   XX(EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED)  \
   XX(EVENT_BATTERY_TEMP_DEVIATION_HIGH)        \
+  XX(EVENT_GPIO_NOT_DEFINED)                   \
+  XX(EVENT_GPIO_CONFLICT)                      \
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
@@ -144,7 +147,7 @@ struct EventData {
 };
 
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
-const char* get_event_message_string(EVENTS_ENUM_TYPE event);
+String get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
 
 EVENTS_LEVEL_TYPE get_event_level(void);

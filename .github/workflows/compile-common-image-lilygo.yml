@@ -54,4 +54,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
+          name: battery-emulator-lilygo.bin
           path: Software.ino.bin

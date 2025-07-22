@@ -188,12 +188,12 @@ void BmwPhevBattery::wake_battery_via_canbus() {
   // Followed by a Recessive interval of at least ~3 µs (min) and at most ~10 µs (max)
   // Then a second dominant pulse of similar timing.
 
-  CAN_cfg.speed = CAN_SPEED_100KBPS;  //Slow down canbus to achieve wakeup timings
-  ESP32Can.CANInit();                 // ReInit native CAN module at new speed
+  auto original_speed = change_can_speed(CAN_Speed::CAN_SPEED_100KBPS);
+
   transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST, can_config.battery);
   transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST, can_config.battery);
-  CAN_cfg.speed = CAN_SPEED_500KBPS;  //Resume fullspeed
-  ESP32Can.CANInit();                 // ReInit native CAN module at new speed
+
+  change_can_speed(original_speed);
 
 #ifdef DEBUG_LOG
   logging.println("Sent magic wakeup packet to SME at 100kbps...");

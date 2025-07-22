@@ -9,13 +9,9 @@
 #include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
 #include "../../lib/mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
 
+extern bool webserver_enabled;
+
 extern const char* version_number;  // The current software version, shown on webserver
-
-#include <string>
-extern const char* http_username;
-extern const char* http_password;
-
-extern const char* ssidAP;
 
 // Common charger parameters
 extern float charger_stat_HVcur;

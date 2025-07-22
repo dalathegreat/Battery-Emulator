@@ -3,8 +3,10 @@
 
 #include "../../include.h"
 
+#include <limits>
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/events.h"
+#include "../../devboard/utils/logging.h"
 #include "../../devboard/wifi/wifi.h"
 
 /**
@@ -46,16 +48,48 @@ class BatteryEmulatorSettingsStore {
 
   ~BatteryEmulatorSettingsStore() { settings.end(); }
 
+  void clearAll() {
+    settings.clear();
+    settingsUpdated = true;
+  }
+
   uint32_t getUInt(const char* name, uint32_t defaultValue) { return settings.getUInt(name, defaultValue); }
 
-  void saveUInt(const char* name, uint32_t value) { settings.putUInt(name, value); }
+  void saveUInt(const char* name, uint32_t value) {
+    auto oldValue = settings.getUInt(name, std::numeric_limits<uint32_t>::max());
+    settings.putUInt(name, value);
+    settingsUpdated = settingsUpdated || value != oldValue;
+  }
 
-  bool getBool(const char* name) { return settings.getBool(name, false); }
+  bool settingExists(const char* name) { return settings.isKey(name); }
 
-  void saveBool(const char* name, bool value) { settings.putBool(name, value); }
+  bool getBool(const char* name, bool defaultValue = false) { return settings.getBool(name, defaultValue); }
+
+  void saveBool(const char* name, bool value) {
+    auto oldValue = settings.getBool(name, false);
+    settings.putBool(name, value);
+    settingsUpdated = settingsUpdated || value != oldValue;
+  }
+
+  String getString(const char* name) { return settings.getString(name, String()); }
+
+  String getString(const char* name, const char* defaultValue) {
+    return settings.getString(name, String(defaultValue));
+  }
+
+  void saveString(const char* name, const char* value) {
+    auto oldValue = settings.getString(name);
+    settings.putString(name, value);
+    settingsUpdated = settingsUpdated || String(value) != oldValue;
+  }
+
+  bool were_settings_updated() const { return settingsUpdated; }
 
  private:
   Preferences settings;
+
+  // To track if settings were updated
+  bool settingsUpdated = false;
 };
 
 #endif

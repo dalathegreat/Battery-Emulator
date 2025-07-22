@@ -1,4 +1,6 @@
+#include "safety.h"
 #include "../../datalayer/datalayer.h"
+#include "../../include.h"
 #include "../utils/events.h"
 
 static uint16_t cell_deviation_mV = 0;
@@ -328,6 +330,7 @@ void update_machineryprotection() {
 
 //battery pause status begin
 void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bool store_settings) {
+  DEBUG_PRINTF("Battery pause begin %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
 
   // First handle equipment stop / resume
   if (equipment_stop && !datalayer.system.settings.equipment_stop_active) {
@@ -394,17 +397,13 @@ void update_pause_state() {
   allowed_to_send_CAN = (!emulator_pause_CAN_send_ON || emulator_pause_status == NORMAL);
 
   if (previous_allowed_to_send_CAN && !allowed_to_send_CAN) {
-#ifdef DEBUG_LOG
-    logging.printf("Safety: Pausing CAN sending\n");
-#endif
+    DEBUG_PRINTF("Safety: Pausing CAN sending\n");
     //completely force stop the CAN communication
-    ESP32Can.CANStop();  //Note: This only stops the NATIVE_CAN port, it will no longer ACK messages
+    stop_can();
   } else if (!previous_allowed_to_send_CAN && allowed_to_send_CAN) {
     //resume CAN communication
-#ifdef DEBUG_LOG
-    logging.printf("Safety: Resuming CAN sending\n");
-#endif
-    ESP32Can.CANInit();  //Note: This only resumes the NATIVE_CAN port
+    DEBUG_PRINTF("Safety: Resuming CAN sending\n");
+    restart_can();
   }
 }
 

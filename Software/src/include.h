@@ -19,15 +19,8 @@
 
 /* - ERROR CHECKS BELOW, DON'T TOUCH - */
 
-#if !defined(HW_CONFIGURED)
+#if !defined(HW_LILYGO) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_DEVKIT)
 #error You must select a target hardware in the USER_SETTINGS.h file!
-#endif
-
-#ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
-#if !defined(CANFD_ADDON)
-// Check that user did not try to use classic CAN over FD, without FD component
-#error PLEASE ENABLE CANFD_ADDON TO USE CLASSIC CAN OVER CANFD INTERFACE
-#endif
 #endif
 
 #ifdef HW_LILYGO

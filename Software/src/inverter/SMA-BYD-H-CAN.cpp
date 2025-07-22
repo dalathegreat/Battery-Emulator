@@ -69,16 +69,7 @@ void SmaBydHInverter::
     SMA_158.data.u8[2] = 0x6A;
   }
 
-#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
-  // Inverter allows contactor closing
-  if (datalayer.system.status.inverter_allows_contactor_closing) {
-    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
-                 HIGH);  // Turn on LED to indicate that SMA inverter allows contactor closing
-  } else {
-    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
-                 LOW);  // Turn off LED to indicate that SMA inverter does not allow contactor closing
-  }
-#endif  // INVERTER_CONTACTOR_ENABLE_LED_PIN
+  control_contactor_led();
 
   // Check if Enable line is working. If we go too long without any input, raise an event
   if (!datalayer.system.status.inverter_allows_contactor_closing) {
@@ -257,15 +248,4 @@ void SmaBydHInverter::transmit_can_init() {
   transmit_can_frame(&SMA_458, can_config.inverter);
   transmit_can_frame(&SMA_518, can_config.inverter);
   transmit_can_frame(&SMA_4D8, can_config.inverter);
-}
-
-void SmaBydHInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
-  pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);
-#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
-  pinMode(INVERTER_CONTACTOR_ENABLE_LED_PIN, OUTPUT);
-  digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN, LOW);  // Turn LED off, until inverter allows contactor closing
-#endif                                                   // INVERTER_CONTACTOR_ENABLE_LED_PIN
 }

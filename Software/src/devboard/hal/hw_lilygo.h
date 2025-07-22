@@ -1,126 +1,93 @@
 #ifndef __HW_LILYGO_H__
 #define __HW_LILYGO_H__
 
-// Board boot-up time
-#define BOOTUP_TIME 1000  // Time in ms it takes before system is considered fully started up
+#include "hal.h"
 
-// Core assignment
-#define CORE_FUNCTION_CORE 1
-#define MODBUS_CORE 0
-#define WIFI_CORE 0
+class LilyGoHal : public Esp32Hal {
+ public:
+  const char* name() { return "LilyGo T-CAN485"; }
 
-// RS485
-#define PIN_5V_EN 16
-#define RS485_EN_PIN 17  // 17 /RE
-#define RS485_TX_PIN 22  // 21
-#define RS485_RX_PIN 21  // 22
-#define RS485_SE_PIN 19  // 22 /SHDN
+  virtual gpio_num_t PIN_5V_EN() { return GPIO_NUM_16; }
+  virtual gpio_num_t RS485_EN_PIN() { return GPIO_NUM_17; }
+  virtual gpio_num_t RS485_TX_PIN() { return GPIO_NUM_22; }
+  virtual gpio_num_t RS485_RX_PIN() { return GPIO_NUM_21; }
+  virtual gpio_num_t RS485_SE_PIN() { return GPIO_NUM_19; }
 
-// CAN settings. CAN_2 is not defined as it can be either MCP2515 or MCP2517, defined by the user settings
-#define CAN_1_TYPE ESP32CAN
+  virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_27; }
+  virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_26; }
+  virtual gpio_num_t CAN_SE_PIN() { return GPIO_NUM_23; }
 
-// CAN1 PIN mappings, do not change these unless you are adding on extra hardware to the PCB
-#define CAN_TX_PIN GPIO_NUM_27
-#define CAN_RX_PIN GPIO_NUM_26
-#define CAN_SE_PIN 23
+  // CAN_ADDON
+  // SCK input of MCP2515
+  virtual gpio_num_t MCP2515_SCK() { return GPIO_NUM_12; }
+  // SDI input of MCP2515
+  virtual gpio_num_t MCP2515_MOSI() { return GPIO_NUM_5; }
+  // SDO output of MCP2515
+  virtual gpio_num_t MCP2515_MISO() { return GPIO_NUM_34; }
+  // CS input of MCP2515
+  virtual gpio_num_t MCP2515_CS() { return GPIO_NUM_18; }
+  // INT output of MCP2515
+  virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_35; }
 
-// CAN2 defines below
+  // CANFD_ADDON defines for MCP2517
+  virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_12; }
+  virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_5; }
+  virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_34; }
+  virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_18; }
+  virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_35; }
 
-// CAN_ADDON defines
-#define MCP2515_SCK 12   // SCK input of MCP2515
-#define MCP2515_MOSI 5   // SDI input of MCP2515
-#define MCP2515_MISO 34  // SDO output of MCP2515 | Pin 34 is input only, without pullup/down resistors
-#define MCP2515_CS 18    // CS input of MCP2515
-#define MCP2515_INT 35   // INT output of MCP2515 |  | Pin 35 is input only, without pullup/down resistors
+  // CHAdeMO support pin dependencies
+  virtual gpio_num_t CHADEMO_PIN_2() { return GPIO_NUM_12; }
+  virtual gpio_num_t CHADEMO_PIN_10() { return GPIO_NUM_5; }
+  virtual gpio_num_t CHADEMO_PIN_7() { return GPIO_NUM_34; }
+  virtual gpio_num_t CHADEMO_PIN_4() { return GPIO_NUM_35; }
+  virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_18; }
 
-// CANFD_ADDON defines
-#define MCP2517_SCK 12  // SCK input of MCP2517
-#define MCP2517_SDI 5   // SDI input of MCP2517
-#define MCP2517_SDO 34  // SDO output of MCP2517
-#define MCP2517_CS 18   // CS input of MCP2517
-#define MCP2517_INT 35  // INT output of MCP2517
+  // Contactor handling
+  virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_32; }
+  virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_33; }
+  virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_25; }
+  virtual gpio_num_t BMS_POWER() { return GPIO_NUM_18; }
+  virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_15; }
 
-// CHAdeMO support pin dependencies
-#define CHADEMO_PIN_2 12
-#define CHADEMO_PIN_10 5
-#define CHADEMO_PIN_7 34
-#define CHADEMO_PIN_4 35
-#define CHADEMO_LOCK 18
+  // Automatic precharging
+  virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_25; }
+  virtual gpio_num_t INVERTER_DISCONNECT_CONTACTOR_PIN() { return GPIO_NUM_32; }
 
-// Contactor handling
-#define POSITIVE_CONTACTOR_PIN 32
-#define NEGATIVE_CONTACTOR_PIN 33
-#define PRECHARGE_PIN 25
-#define BMS_POWER 18                      // Note, this pin collides with CAN add-ons and Chademo
-#define SECOND_BATTERY_CONTACTORS_PIN 15  //Note, this pin collides with SD card pins
+  // SMA CAN contactor pins
+  virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() { return GPIO_NUM_5; }
 
-// Automatic precharging
-#define HIA4V1_PIN 25
-#define INVERTER_DISCONNECT_CONTACTOR_PIN 32
+  //        virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
 
-// SMA CAN contactor pins
-#define INVERTER_CONTACTOR_ENABLE_PIN 5
+  // SD card
+  virtual gpio_num_t SD_MISO_PIN() { return GPIO_NUM_2; }
+  virtual gpio_num_t SD_MOSI_PIN() { return GPIO_NUM_15; }
+  virtual gpio_num_t SD_SCLK_PIN() { return GPIO_NUM_14; }
+  virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_13; }
 
-// SD card
-#define SD_MISO_PIN 2
-#define SD_MOSI_PIN 15
-#define SD_SCLK_PIN 14
-#define SD_CS_PIN 13
+  // LED
+  virtual gpio_num_t LED_PIN() { return GPIO_NUM_4; }
 
-// LED
-#define LED_PIN 4
-#define LED_MAX_BRIGHTNESS 40
+  // Equipment stop pin
+  virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_35; }
 
-// Equipment stop pin
-#define EQUIPMENT_STOP_PIN 35
+  // Battery wake up pins
+  virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_25; }
+  virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_32; }
 
-// BMW_I3_BATTERY wake up pin
-#define WUP_PIN1 GPIO_NUM_25  // Wake up pin for battery 1
-#define WUP_PIN2 GPIO_NUM_32  // Wake up pin for battery 2
+  std::vector<comm_interface> available_interfaces() {
+    return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,
+            comm_interface::CanFdAddonMcp2518};
+  }
+};
+
+#define HalClass LilyGoHal
 
 /* ----- Error checks below, don't change (can't be moved to separate file) ----- */
 #ifndef HW_CONFIGURED
 #define HW_CONFIGURED
 #else
 #error Multiple HW defined! Please select a single HW
-#endif
-
-#if defined(CAN_ADDON) && defined(CANFD_ADDON)
-// Check that user did not try to use dual can and fd-can on same hardware pins
-#error CAN_ADDON AND CANFD_ADDON CANNOT BE USED SIMULTANEOUSLY
-#endif
-
-#if defined(SMA_BYD_H_CAN) || defined(SMA_BYD_HVS_CAN) || defined(SMA_TRIPOWER_CAN)
-#if defined(CAN_ADDON) || defined(CANFD_ADDON)
-#error Pin 5 used by both Enable line and for CAN-ADDON. Please reconfigure this, and remove this line to proceed
-#endif
-#endif
-
-#ifdef CHADEMO_BATTERY
-#ifdef CAN_ADDON
-#error CHADEMO and CAN_ADDON cannot coexist due to overlapping GPIO pin usage
-#endif
-#endif
-
-#ifdef EQUIPMENT_STOP_BUTTON
-#ifdef CAN_ADDON
-#error EQUIPMENT_STOP_BUTTON and CAN_ADDON cannot coexist due to overlapping GPIO pin usage
-#endif
-#ifdef CANFD_ADDON
-#error EQUIPMENT_STOP_BUTTON and CANFD_ADDON cannot coexist due to overlapping GPIO pin usage
-#endif
-#ifdef CHADEMO_BATTERY
-#error EQUIPMENT_STOP_BUTTON and CHADEMO_BATTERY cannot coexist due to overlapping GPIO pin usage
-#endif
-#endif
-
-#ifdef BMW_I3_BATTERY
-#if defined(CONTACTOR_CONTROL) && defined(WUP_PIN1)
-#error GPIO PIN 25 cannot be used for both BMWi3 Wakeup and contactor control. Disable CONTACTOR_CONTROL
-#endif
-#if defined(CONTACTOR_CONTROL) && defined(WUP_PIN2)
-#error GPIO PIN 32 cannot be used for both BMWi3 Wakeup and contactor control. Disable CONTACTOR_CONTROL
-#endif
 #endif
 
 #endif

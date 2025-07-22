@@ -144,8 +144,3 @@ void PylonLvInverter::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&PYLON_35E, can_config.inverter);
   }
 }
-
-void PylonLvInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-}

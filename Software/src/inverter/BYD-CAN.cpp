@@ -169,8 +169,3 @@ void BydCanInverter::send_initial_data() {
   transmit_can_frame(&BYD_3D0_2, can_config.inverter);
   transmit_can_frame(&BYD_3D0_3, can_config.inverter);
 }
-
-void BydCanInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-}

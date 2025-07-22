@@ -230,8 +230,6 @@ typedef struct {
   float CPU_temperature = 0;
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
-  /** array with type of inverter protocol used, for displaying on webserver */
-  char inverter_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
   char shunt_protocol[64] = {0};
   /** array with type of inverter brand used, for displaying on webserver */

@@ -301,11 +301,18 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
   }
 }
 
-void KostalInverterProtocol::setup(void) {  // Performs one time setup at startup
+bool KostalInverterProtocol::setup(void) {  // Performs one time setup at startup
   datalayer.system.status.inverter_allows_contactor_closing = false;
   dbg_message("inverter_allows_contactor_closing -> false");
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
 
-  Serial2.begin(baud_rate(), SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+  auto rx_pin = esp32hal->RS485_RX_PIN();
+  auto tx_pin = esp32hal->RS485_TX_PIN();
+
+  if (!esp32hal->alloc_pins(Name, rx_pin, tx_pin)) {
+    return false;
+  }
+
+  Serial2.begin(baud_rate(), SERIAL_8N1, rx_pin, tx_pin);
+
+  return true;
 }

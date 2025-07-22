@@ -10,11 +10,13 @@
 
 class SofarInverter : public CanInverterProtocol {
  public:
-  void setup();
+  bool setup() override;
+  const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
   static constexpr const char* Name = "Sofar BMS (Extended) via CAN, Battery ID";
+  bool supports_battery_id() { return true; }
 
  private:
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send

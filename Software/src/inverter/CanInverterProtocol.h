@@ -4,6 +4,7 @@
 #include "InverterProtocol.h"
 
 #include "src/communication/can/CanReceiver.h"
+#include "src/communication/can/comm_can.h"
 #include "src/devboard/utils/types.h"
 
 class CanInverterProtocol : public InverterProtocol, Transmitter, CanReceiver {

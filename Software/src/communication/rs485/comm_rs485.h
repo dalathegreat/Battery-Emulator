@@ -6,9 +6,9 @@
  *
  * @param[in] void
  *
- * @return void
+ * @return true if init was successful, false otherwise.
  */
-void init_rs485();
+bool init_rs485();
 
 // Defines an interface for any object that needs to receive a signal to handle RS485 comm.
 // Can be extended later for more complex operation.
