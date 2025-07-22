@@ -1,9 +1,12 @@
 #ifndef KIA_E_GMP_BATTERY_H
 #define KIA_E_GMP_BATTERY_H
 #include <Arduino.h>
+#include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "../include.h"
 #include "../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "CanBattery.h"
+#include "KIA-E-GMP-HTML.h"
 
 extern ACAN2517FD canfd;
 
@@ -15,13 +18,24 @@ extern ACAN2517FD canfd;
 
 class KiaEGmpBattery : public CanBattery {
  public:
+  // Use the default constructor to create the first or single battery.
+  KiaEGmpBattery() : renderer(&datalayer_extended.KiaEGMP) {
+    datalayer_battery = &datalayer.battery;
+    // allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+    // contactor_closing_allowed = nullptr;
+    datalayer_battery_extended = &datalayer_extended.KiaEGMP;
+  }
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Kia/Hyundai EGMP platform";
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
+  KiaEGMPHtmlRenderer renderer;
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+  DATALAYER_INFO_KIAEGMP* datalayer_battery_extended;
   uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps);
   void set_voltage_minmax_limits();
 
@@ -44,9 +58,9 @@ class KiaEGmpBattery : public CanBattery {
 
   uint16_t inverterVoltageFrameHigh = 0;
   uint16_t inverterVoltage = 0;
-  uint16_t soc_calculated = 0;
-  uint16_t SOC_BMS = 0;
-  uint16_t SOC_Display = 0;
+  uint16_t soc_calculated = 500;
+  uint16_t SOC_BMS = 500;
+  uint16_t SOC_Display = 500;
   uint16_t SOC_estimated_lowest = 0;
   uint16_t SOC_estimated_highest = 0;
   uint16_t batterySOH = 1000;
@@ -55,24 +69,24 @@ class KiaEGmpBattery : public CanBattery {
   uint16_t batteryVoltage = 6700;
   int16_t leadAcidBatteryVoltage = 120;
   int16_t batteryAmps = 0;
-  int16_t temperatureMax = 0;
-  int16_t temperatureMin = 0;
+  int16_t temperatureMax = 20;
+  int16_t temperatureMin = 20;
   int16_t allowedDischargePower = 0;
   int16_t allowedChargePower = 0;
   int16_t poll_data_pid = 0;
   uint8_t CellVmaxNo = 0;
   uint8_t CellVminNo = 0;
   uint8_t batteryManagementMode = 0;
-  uint8_t BMS_ign = 0;
+  uint8_t BMS_ign = 0xff;
   uint8_t batteryRelay = 0;
   uint8_t waterleakageSensor = 164;
   bool startedUp = false;
   bool ok_start_polling_battery = false;
   uint8_t counter_200 = 0;
   uint8_t KIA_7E4_COUNTER = 0x01;
-  int8_t temperature_water_inlet = 0;
-  int8_t powerRelayTemperature = 0;
-  int8_t heatertemp = 0;
+  int8_t temperature_water_inlet = 20;
+  int8_t powerRelayTemperature = 10;
+  int8_t heatertemp = 20;
   bool set_voltage_limits = false;
   uint8_t ticks_200ms_counter = 0;
   uint8_t EGMP_1CF_counter = 0;
