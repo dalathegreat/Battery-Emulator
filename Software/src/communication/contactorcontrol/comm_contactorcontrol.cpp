@@ -73,7 +73,11 @@ unsigned long currentTime = 0;
 unsigned long lastPowerRemovalTime = 0;
 unsigned long bmsPowerOnTime = 0;
 const unsigned long powerRemovalInterval = 24 * 60 * 60 * 1000;  // 24 hours in milliseconds
-const unsigned long powerRemovalDuration = 30000;                // 30 seconds in milliseconds
+#ifdef BMS_POWER_REMOVAL_TIME_MS
+const unsigned long powerRemovalDuration = BMS_POWER_REMOVAL_TIME_MS;
+#else
+const unsigned long powerRemovalDuration = 30000;  // 30 seconds in milliseconds
+#endif  // BMS_POWER_REMOVAL_TIME_MS
 const unsigned long bmsWarmupDuration = 3000;
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {

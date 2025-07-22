@@ -87,6 +87,7 @@
 //#define REMOTE_BMS_RESET      //Enable to allow the emulator to remotely trigger a powercycle of the battery via MQTT. Useful for some batteries like Nissan LEAF
 // PERIODIC_BMS_RESET_AT Uses NTP server, internet required. In 24 Hour format WITHOUT leading 0. e.g 0230 should be 230. Time Zone is set in USER_SETTINGS.cpp
 //#define PERIODIC_BMS_RESET_AT 525
+//#define BMS_POWER_REMOVAL_TIME_MS 30000  // Power removal time in milliseconds during a GPIO BMS reset.
 
 /* Shunt/Contactor settings (Optional) */
 //#define BMW_SBOX  // SBOX relay control & battery current/voltage measurement
