@@ -73,7 +73,6 @@ unsigned long currentTime = 0;
 unsigned long lastPowerRemovalTime = 0;
 unsigned long bmsPowerOnTime = 0;
 const unsigned long powerRemovalInterval = 24 * 60 * 60 * 1000;  // 24 hours in milliseconds
-const unsigned long powerRemovalDuration = 30000;                // 30 seconds in milliseconds
 const unsigned long bmsWarmupDuration = 3000;
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
@@ -304,8 +303,9 @@ void handle_BMSpower() {
       }
     }
 
-    // If power has been removed for 30 seconds, restore the power
-    if (datalayer.system.status.BMS_reset_in_progress && currentTime - lastPowerRemovalTime >= powerRemovalDuration) {
+    // If power has been removed for user configured interval (1-59 seconds), restore the power
+    if (datalayer.system.status.BMS_reset_in_progress &&
+        currentTime - lastPowerRemovalTime >= datalayer.battery.settings.user_set_bms_reset_duration_ms) {
       // Reapply power to the BMS
       digitalWrite(bms_power_pin, HIGH);
       bmsPowerOnTime = currentTime;

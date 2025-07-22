@@ -139,6 +139,9 @@ typedef struct {
   /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
   uint16_t max_user_set_discharge_voltage_dV = BATTERY_MAX_DISCHARGE_VOLTAGE;
 
+  /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset */
+  uint16_t user_set_bms_reset_duration_ms = 30000;
+
   /** Parameters for keeping track of the limiting factor in the system */
   bool user_settings_limit_discharge = false;
   bool user_settings_limit_charge = false;
