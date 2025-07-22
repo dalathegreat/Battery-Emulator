@@ -149,7 +149,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // 0/8 = checking
 
 #ifdef DEBUG_LOG
-      if(rx_frame.data.u8[1] != previousState) {
+      if (rx_frame.data.u8[1] != previousState) {
         logging.printf("MG_HS_PHEV: Battery status changed to %d (%d)\n", rx_frame.data.u8[1], rx_frame.data.u8[0]);
       }
 #endif
@@ -165,19 +165,19 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (datalayer.battery.status.bms_status == FAULT) {
         // If in fault state, don't try resetting things yet as it'll turn the
         // BMS off and we'll lose CAN info
-      } else if((rx_frame.data.u8[0] == 0x02 || rx_frame.data.u8[0] == 0x06) && rx_frame.data.u8[1] == 0x01) {
+      } else if ((rx_frame.data.u8[0] == 0x02 || rx_frame.data.u8[0] == 0x06) && rx_frame.data.u8[1] == 0x01) {
         // A weird 'stuck' state where the battery won't reconnect
         datalayer.system.status.battery_allows_contactor_closing = false;
-        if(!datalayer.system.status.BMS_startup_in_progress) {
+        if (!datalayer.system.status.BMS_startup_in_progress) {
 #ifdef DEBUG_LOG
           logging.printf("MG_HS_PHEV: Stuck, resetting.\n");
 #endif
           start_bms_reset();
         }
-      } else if(rx_frame.data.u8[1] == 0xf) {
+      } else if (rx_frame.data.u8[1] == 0xf) {
         // A fault state (likely isolation failure)
         datalayer.system.status.battery_allows_contactor_closing = false;
-        if(!datalayer.system.status.BMS_startup_in_progress) {
+        if (!datalayer.system.status.BMS_startup_in_progress) {
 #ifdef DEBUG_LOG
           logging.printf("MG_HS_PHEV: Fault, resetting.\n");
 #endif

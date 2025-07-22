@@ -34,7 +34,7 @@ class MgHsPHEVBattery : public CanBattery {
   float RealVoltage;
   float RealSoC;
   float tempfloat;
-  
+
   uint8_t previousState = 0;
 
   static const uint16_t CELL_VOLTAGE_TIMEOUT = 10;  // in seconds
