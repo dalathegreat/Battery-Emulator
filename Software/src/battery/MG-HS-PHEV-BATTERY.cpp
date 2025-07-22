@@ -20,26 +20,41 @@
 void MgHsPHEVBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc;
-
-  datalayer.battery.status.voltage_dV;
-
-  datalayer.battery.status.current_dA;
-
-  datalayer.battery.info.total_capacity_Wh;
-
-  datalayer.battery.status.remaining_capacity_Wh;
-
-  datalayer.battery.status.max_discharge_power_W;
-
-  datalayer.battery.status.max_charge_power_W;
-
-  datalayer.battery.status.temperature_min_dC;
-
-  datalayer.battery.status.temperature_max_dC;
+  // Should be called every second
+  if (cellVoltageValidTime > 0) {
+    cellVoltageValidTime--;
+  }
 }
 
 void MgHsPHEVBattery::update_soc(uint16_t soc_times_ten) {
+#if MG_HS_PHEV_USE_FULL_CAPACITY
+  // The SoC hits 100% at 4.1V/cell. To get the full 4.2V/cell we need to use
+  // voltage instead for the last bit.
+
+  if (cellVoltageValidTime == 0) {
+    // We don't have a recent cell max voltage reading, so can't do
+    // voltage-based SoC.
+  } else if (soc_times_ten > 900 && datalayer.battery.status.cell_max_voltage_mV < 4000) {
+    // Something is wrong with our max cell voltage reading (it is too low), so
+    // don't trust it - we'll just let the SoC hit 100%.
+  } else if (soc_times_ten == 1000 && datalayer.battery.status.cell_max_voltage_mV >= 4100) {
+    // We've hit 100%, so use voltage-based-SoC calculation for the last bit.
+
+    // We usually hit 92% at ~369V, and the pack max is 378V.
+
+    // Scale so that 100% becomes 92%
+    soc_times_ten = (uint16_t)(((uint32_t)soc_times_ten * 9200) / 10000);
+
+    // Add on the last 100mV as the last 8% of SoC.
+    soc_times_ten += (uint16_t)((((uint32_t)datalayer.battery.status.cell_max_voltage_mV - 4100) * 800) / 1000);
+    if (soc_times_ten > 1000) {
+      soc_times_ten = 1000;  // Don't let it go above 100%
+    }
+  } else {
+    // Scale so that 100% becomes 92%
+    soc_times_ten = (uint16_t)(((uint32_t)soc_times_ten * 9200) / 10000);
+  }
+#endif
 
   // Set the state of charge in the datalayer
   datalayer.battery.status.real_soc = soc_times_ten * 10;
@@ -90,17 +105,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         v = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         if (v > 0 && v < 0x2000) {
           datalayer.battery.status.cell_min_voltage_mV = v;
-      // Calculate the maximum discharge power. Taper the discharge power between 35% and Min% SoC, as Min% SoC is approached
-      if (RealSoC > StartDischargeTaper) {
-        datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
-      } else if (RealSoC < MinSoC) {
-        datalayer.battery.status.max_discharge_power_W = TricklePower;
-      } else {
-        //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
-        datalayer.battery.status.max_discharge_power_W =
-            (MaxDischargePower * pow(((RealSoC - MinSoC) / (StartDischargeTaper - MinSoC)), DischargeTaperExponent)) +
-            TricklePower;
-      }
+          cellVoltageValidTime = CELL_VOLTAGE_TIMEOUT;
         }
       }
 
@@ -268,17 +273,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           } else if (rx_frame.data.u8[3] == 0x58 && rx_frame.data.u8[0] == 0x06) {
             // Max cell voltage
             // datalayer.battery.status.cell_max_voltage_mV = rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5];
-      // Calculate the maximum discharge power. Taper the discharge power between 35% and Min% SoC, as Min% SoC is approached
-      if (RealSoC > StartDischargeTaper) {
-        datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
-      } else if (RealSoC < MinSoC) {
-        datalayer.battery.status.max_discharge_power_W = TricklePower;
-      } else {
-        //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
-        datalayer.battery.status.max_discharge_power_W =
-            (MaxDischargePower * pow(((RealSoC - MinSoC) / (StartDischargeTaper - MinSoC)), DischargeTaperExponent)) +
-            TricklePower;
-      }
+            // cellVoltageValidTime = CELL_VOLTAGE_TIMEOUT;
           } else if (rx_frame.data.u8[3] == 0x59 && rx_frame.data.u8[0] == 0x06) {
             // Min cell voltage
             // datalayer.battery.status.cell_min_voltage_mV = rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5];
