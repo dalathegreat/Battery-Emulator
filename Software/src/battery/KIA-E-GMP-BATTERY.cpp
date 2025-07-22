@@ -749,6 +749,16 @@ void KiaEGmpBattery::
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
   }
 
+  // Update webserver datalayer
+  datalayer_extended.KiaEGMP.total_cell_count = datalayer.battery.info.number_of_cells;
+  datalayer_extended.KiaEGMP.battery_12V = leadAcidBatteryVoltage;
+  datalayer_extended.KiaEGMP.waterleakageSensor = waterleakageSensor;
+  datalayer_extended.KiaEGMP.temperature_water_inlet = temperature_water_inlet;
+  datalayer_extended.KiaEGMP.powerRelayTemperature = powerRelayTemperature;
+  datalayer_extended.KiaEGMP.batteryManagementMode = batteryManagementMode;
+  datalayer_extended.KiaEGMP.BMS_ign = BMS_ign;
+  datalayer_extended.KiaEGMP.batteryRelay = batteryRelay;
+
   /* Safeties verified. Perform USB serial printout if configured to do so */
 
 #ifdef DEBUG_LOG
