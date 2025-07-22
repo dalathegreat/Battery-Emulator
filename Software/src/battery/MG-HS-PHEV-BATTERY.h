@@ -19,22 +19,28 @@ class MgHsPHEVBattery : public CanBattery {
   static constexpr const char* Name = "MG HS PHEV 16.6kWh battery";
 
  private:
-  static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
-  static const int MIN_PACK_VOLTAGE_DV = 3100;
+  void update_soc(uint16_t soc_times_ten);
+
+  static const int MAX_PACK_VOLTAGE_DV = 3780;  //5000 = 500.0V
+  static const int MIN_PACK_VOLTAGE_DV = 2790;
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+  static const int MIN_CELL_VOLTAGE_MV = 2610;  //Battery is put into emergency stop if one cell goes below this value
 
-  unsigned long previousMillis70 = 0;   // will store last time a 70ms CAN Message was send
+  unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
 
-  int BMS_SOC = 0;
   // For calculating charge and discharge power
   float RealVoltage;
   float RealSoC;
   float tempfloat;
 
-  uint8_t messageindex = 0;  //For polling switchcase
+  uint8_t previousState = 0;
+
+  static const uint16_t CELL_VOLTAGE_TIMEOUT = 10;  // in seconds
+  uint16_t cellVoltageValidTime = 0;
+
+  uint8_t transmitIndex = 0;  //For polling switchcase
 
   const int MaxChargePower = 3000;  // Maximum allowable charge power, excluding the taper
   const int StartChargeTaper = 90;  // Battery percentage above which the charge power will taper to zero
@@ -52,7 +58,7 @@ class MgHsPHEVBattery : public CanBattery {
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x08A,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x36, 0xB0}};
+                        .data = {0x80, 0x00, 0x00, 0x04, 0x00, 0x02, 0x36, 0xB0}};
   CAN_frame MG_HS_1F1 = {.FD = false,
                          .ext_ID = false,
                          .DLC = 8,
