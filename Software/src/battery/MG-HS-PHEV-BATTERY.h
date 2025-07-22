@@ -39,6 +39,7 @@ class MgHsPHEVBattery : public CanBattery {
   static const uint16_t CELL_VOLTAGE_TIMEOUT = 10;  // in seconds
   uint16_t cellVoltageValidTime = 0;
 
+  uint8_t transmitIndex = 0;  //For polling switchcase
 
   const int MaxChargePower = 3000;  // Maximum allowable charge power, excluding the taper
   const int StartChargeTaper = 90;  // Battery percentage above which the charge power will taper to zero

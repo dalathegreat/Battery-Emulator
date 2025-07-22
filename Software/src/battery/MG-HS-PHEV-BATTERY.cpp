@@ -324,53 +324,20 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     previousMillis200 = currentMillis;
 
-    switch (messageindex) {
+    switch (transmitIndex) {
       case 1:
         transmit_can_frame(&MG_HS_7E5_B0_42, can_config.battery);  //Battery voltage
         break;
       case 2:
-        transmit_can_frame(&MG_HS_7E5_B0_43, can_config.battery);  //Battery current
-        break;
-      case 3:
-        transmit_can_frame(&MG_HS_7E5_B0_46, can_config.battery);  //Battery SoC
-        break;
-      case 4:
-        transmit_can_frame(&MG_HS_7E5_B0_47, can_config.battery);  // Get BMS error code
-        break;
-      case 5:
-        transmit_can_frame(&MG_HS_7E5_B0_48, can_config.battery);  // Get BMS status
-        break;
-      case 6:
-        transmit_can_frame(&MG_HS_7E5_B0_49, can_config.battery);  // Get System main relay B status
-        break;
-      case 7:
-        transmit_can_frame(&MG_HS_7E5_B0_4A, can_config.battery);  // Get System main relay G status
-        break;
-      case 8:
-        transmit_can_frame(&MG_HS_7E5_B0_52, can_config.battery);  // Get System main relay P status
-        break;
-      case 9:
-        transmit_can_frame(&MG_HS_7E5_B0_56, can_config.battery);  //Max cell temperature
-        break;
-      case 10:
-        transmit_can_frame(&MG_HS_7E5_B0_57, can_config.battery);  //Min cell temperature
-        break;
-      case 11:
-        transmit_can_frame(&MG_HS_7E5_B0_58, can_config.battery);  //Max cell voltage
-        break;
-      case 12:
-        transmit_can_frame(&MG_HS_7E5_B0_59, can_config.battery);  //Min cell voltage
-        break;
-      case 13:
         transmit_can_frame(&MG_HS_7E5_B0_61, can_config.battery);  //Battery SoH
-        messageindex = 0;  //Return to the first message index. This goes in the last message entry
+        transmitIndex = 0;  //Return to the first message index. This goes in the last message entry
         break;
       default:
         break;
 
     }  //switch
 
-    messageindex++;  //Increment the message index
+    transmitIndex++;  //Increment the message index
 
   }  //endif
 }
