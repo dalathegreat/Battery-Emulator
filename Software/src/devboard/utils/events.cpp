@@ -4,13 +4,6 @@
 #include "../../../USER_SETTINGS.h"
 
 typedef struct {
-  EVENTS_ENUM_TYPE event;
-  uint8_t millisrolloverCount;
-  uint32_t timestamp;
-  uint8_t data;
-} EVENT_LOG_ENTRY_TYPE;
-
-typedef struct {
   EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
   EVENTS_LEVEL_TYPE level;
 } EVENT_TYPE;
@@ -30,7 +23,6 @@ void init_events(void) {
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
     events.entries[i].data = 0;
     events.entries[i].timestamp = 0;
-    events.entries[i].millisrolloverCount = 0;
     events.entries[i].occurences = 0;
     events.entries[i].MQTTpublished = false;  // Not published by default
   }
@@ -155,7 +147,6 @@ void reset_all_events() {
     events.entries[i].data = 0;
     events.entries[i].state = EVENT_STATE_INACTIVE;
     events.entries[i].timestamp = 0;
-    events.entries[i].millisrolloverCount = 0;
     events.entries[i].occurences = 0;
     events.entries[i].MQTTpublished = false;  // Not published by default
   }
@@ -396,6 +387,8 @@ EVENTS_LEVEL_TYPE get_event_level(void) {
   return events.level;
 }
 
+uint64_t get_timestamp(unsigned long currentMillis);
+
 /* Local functions */
 
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
@@ -416,8 +409,7 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   }
 
   // We should set the event, update event info
-  events.entries[event].timestamp = millis();
-  events.entries[event].millisrolloverCount = datalayer.system.status.millisrolloverCount;
+  events.entries[event].timestamp = get_timestamp(millis());
   events.entries[event].data = data;
   // Check if the event is latching
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;
@@ -448,17 +440,11 @@ static void update_bms_status(void) {
 
 // Function to compare events by timestamp descending
 bool compareEventsByTimestampDesc(const EventData& a, const EventData& b) {
-  if (a.event_pointer->millisrolloverCount != b.event_pointer->millisrolloverCount) {
-    return a.event_pointer->millisrolloverCount > b.event_pointer->millisrolloverCount;
-  }
   return a.event_pointer->timestamp > b.event_pointer->timestamp;
 }
 
 // Function to compare events by timestamp ascending
 bool compareEventsByTimestampAsc(const EventData& a, const EventData& b) {
-  if (a.event_pointer->millisrolloverCount != b.event_pointer->millisrolloverCount) {
-    return a.event_pointer->millisrolloverCount < b.event_pointer->millisrolloverCount;
-  }
   return a.event_pointer->timestamp < b.event_pointer->timestamp;
 }
 

@@ -129,12 +129,11 @@ typedef enum {
 } EVENTS_STATE_TYPE;
 
 typedef struct {
-  uint32_t timestamp;           // Time in seconds since startup when the event occurred
-  uint8_t millisrolloverCount;  // number of times millis rollovers before timestamp
-  uint8_t data;                 // Custom data passed when setting the event, for example cell number for under voltage
-  uint8_t occurences;           // Number of occurrences since startup
-  EVENTS_LEVEL_TYPE level;      // Event level, i.e. ERROR/WARNING...
-  EVENTS_STATE_TYPE state;      // Event state, i.e. ACTIVE/INACTIVE...
+  uint64_t timestamp;
+  uint8_t data;             // Custom data passed when setting the event, for example cell number for under voltage
+  uint8_t occurences;       // Number of occurrences since startup
+  EVENTS_LEVEL_TYPE level;  // Event level, i.e. ERROR/WARNING...
+  EVENTS_STATE_TYPE state;  // Event state, i.e. ACTIVE/INACTIVE...
   bool MQTTpublished;
 } EVENTS_STRUCT_TYPE;
 
