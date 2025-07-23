@@ -233,7 +233,7 @@ void update_machineryprotection() {
     // Assuming chargers are all CAN here.
     // Check if the charger is still sending CAN messages. If we go 60s without messages we raise a warning
     if (!datalayer.charger.CAN_charger_still_alive) {
-      set_event(EVENT_CAN_CHARGER_MISSING, can_config.charger);
+      set_event(EVENT_CAN_CHARGER_MISSING, charger->interface());
     } else {
       datalayer.charger.CAN_charger_still_alive--;
       clear_event(EVENT_CAN_CHARGER_MISSING);
