@@ -218,7 +218,7 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   }
 }
 
-bool SolaxInverter::setup(void) {                                     // Performs one time setup at startup
+bool SolaxInverter::setup(void) {  // Performs one time setup at startup
 #ifndef DISCOURAGE_CONTACTOR_OPENING
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
 #endif
