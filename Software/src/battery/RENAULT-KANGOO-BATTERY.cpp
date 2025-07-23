@@ -162,7 +162,7 @@ void RenaultKangooBattery::transmit_can(unsigned long currentMillis) {
   // Send 100ms CAN Message (for 2.4s, then pause 10s)
   if ((currentMillis - previousMillis100) >= (INTERVAL_100_MS + GVL_pause)) {
     previousMillis100 = currentMillis;
-    transmit_can_frame(&KANGOO_423, can_config.battery);
+    transmit_can_frame(&KANGOO_423);
     GVI_Pollcounter++;
     GVL_pause = 0;
     if (GVI_Pollcounter >= 24) {
@@ -174,9 +174,9 @@ void RenaultKangooBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
     if (GVB_79B_Continue)
-      transmit_can_frame(&KANGOO_79B_Continue, can_config.battery);
+      transmit_can_frame(&KANGOO_79B_Continue);
   } else {
-    transmit_can_frame(&KANGOO_79B, can_config.battery);
+    transmit_can_frame(&KANGOO_79B);
   }
 }
 

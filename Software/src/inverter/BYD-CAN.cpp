@@ -142,30 +142,30 @@ void BydCanInverter::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
     previousMillis2s = currentMillis;
 
-    transmit_can_frame(&BYD_110, can_config.inverter);
+    transmit_can_frame(&BYD_110);
   }
   // Send 10s CAN Message
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
 
-    transmit_can_frame(&BYD_150, can_config.inverter);
-    transmit_can_frame(&BYD_1D0, can_config.inverter);
-    transmit_can_frame(&BYD_210, can_config.inverter);
+    transmit_can_frame(&BYD_150);
+    transmit_can_frame(&BYD_1D0);
+    transmit_can_frame(&BYD_210);
   }
   //Send 60s message
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
 
-    transmit_can_frame(&BYD_190, can_config.inverter);
+    transmit_can_frame(&BYD_190);
   }
 }
 
 void BydCanInverter::send_initial_data() {
-  transmit_can_frame(&BYD_250, can_config.inverter);
-  transmit_can_frame(&BYD_290, can_config.inverter);
-  transmit_can_frame(&BYD_2D0, can_config.inverter);
-  transmit_can_frame(&BYD_3D0_0, can_config.inverter);
-  transmit_can_frame(&BYD_3D0_1, can_config.inverter);
-  transmit_can_frame(&BYD_3D0_2, can_config.inverter);
-  transmit_can_frame(&BYD_3D0_3, can_config.inverter);
+  transmit_can_frame(&BYD_250);
+  transmit_can_frame(&BYD_290);
+  transmit_can_frame(&BYD_2D0);
+  transmit_can_frame(&BYD_3D0_0);
+  transmit_can_frame(&BYD_3D0_1);
+  transmit_can_frame(&BYD_3D0_2);
+  transmit_can_frame(&BYD_3D0_3);
 }

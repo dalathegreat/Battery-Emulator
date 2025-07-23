@@ -236,6 +236,10 @@ inline void ISA_handle528(CAN_frame* frame) {
   lastWh = wh;
 }
 
+static void transmit_can_frame(CAN_frame* frame, CAN_Interface can_interface) {
+  transmit_can_frame_to_interface(frame, can_interface);
+}
+
 void ISA_initialize() {
   firstframe = false;
   ISA_STOP();

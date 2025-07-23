@@ -346,8 +346,8 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
     }
 #endif  // MG_HS_PHEV_DISABLE_CONTACTORS
 
-    transmit_can_frame(&MG_HS_8A, can_config.battery);
-    transmit_can_frame(&MG_HS_1F1, can_config.battery);
+    transmit_can_frame(&MG_HS_8A);
+    transmit_can_frame(&MG_HS_1F1);
   }
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -355,11 +355,11 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
 
     switch (transmitIndex) {
       case 1:
-        transmit_can_frame(&MG_HS_7E5_B0_42, can_config.battery);  //Battery voltage
+        transmit_can_frame(&MG_HS_7E5_B0_42);  //Battery voltage
         break;
       case 2:
-        transmit_can_frame(&MG_HS_7E5_B0_61, can_config.battery);  //Battery SoH
-        transmitIndex = 0;  //Return to the first message index. This goes in the last message entry
+        transmit_can_frame(&MG_HS_7E5_B0_61);  //Battery SoH
+        transmitIndex = 0;                     //Return to the first message index. This goes in the last message entry
         break;
       default:
         break;

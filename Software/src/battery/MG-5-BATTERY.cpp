@@ -102,13 +102,13 @@ void Mg5Battery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
-    transmit_can_frame(&MG_5_100, can_config.battery);
+    transmit_can_frame(&MG_5_100);
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    //transmit_can_frame(&MG_5_100, can_config.battery);
+    //transmit_can_frame(&MG_5_100);
   }
 }
 

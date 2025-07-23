@@ -421,7 +421,7 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x7EC:  //When polling 7E4 BMS replies with 7EC (This is not working for some reason)
 
       if (rx_frame.data.u8[0] == 0x10) {  //"PID Header"
-        transmit_can_frame(&BOLT_ACK_7E4, can_config.battery);
+        transmit_can_frame(&BOLT_ACK_7E4);
       }
 
       //Frame 2 & 3 contains reply
@@ -493,7 +493,7 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x7EF:  //When polling 7E7 BMS replies with 7EF
 
       if (rx_frame.data.u8[0] == 0x10) {  //"PID Header"
-        transmit_can_frame(&BOLT_ACK_7E7, can_config.battery);
+        transmit_can_frame(&BOLT_ACK_7E7);
       }
 
       //Frame 2 & 3 contains reply
@@ -837,7 +837,7 @@ void BoltAmperaBattery::transmit_can(unsigned long currentMillis) {
   //Send 20ms message
   if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
     previousMillis20ms = currentMillis;
-    transmit_can_frame(&BOLT_778, can_config.battery);
+    transmit_can_frame(&BOLT_778);
   }
 
   //Send 100ms message
@@ -851,7 +851,7 @@ void BoltAmperaBattery::transmit_can(unsigned long currentMillis) {
     BOLT_POLL_7E7.data.u8[2] = (uint8_t)((currentpoll_7E7 & 0xFF00) >> 8);
     BOLT_POLL_7E7.data.u8[3] = (uint8_t)(currentpoll_7E7 & 0x00FF);
 
-    transmit_can_frame(&BOLT_POLL_7E7, can_config.battery);
+    transmit_can_frame(&BOLT_POLL_7E7);
   }
 
   //Send 120ms message
@@ -865,7 +865,7 @@ void BoltAmperaBattery::transmit_can(unsigned long currentMillis) {
     BOLT_POLL_7E4.data.u8[2] = (uint8_t)((currentpoll_7E4 & 0xFF00) >> 8);
     BOLT_POLL_7E4.data.u8[3] = (uint8_t)(currentpoll_7E4 & 0x00FF);
 
-    //transmit_can_frame(&BOLT_POLL_7E4, can_config.battery); //TODO: Battery does not seem to reply on this poll
+    //transmit_can_frame(&BOLT_POLL_7E4); //TODO: Battery does not seem to reply on this poll
   }
 }
 

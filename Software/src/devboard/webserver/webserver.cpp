@@ -5,6 +5,7 @@
 #include "../../../USER_SECRETS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
+#include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
@@ -19,8 +20,6 @@
 #include <string>
 extern std::string http_username;
 extern std::string http_password;
-
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
 #ifdef WEBSERVER
 const bool webserver_enabled_default = true;
@@ -167,7 +166,7 @@ void canReplayTask(void* param) {
                           (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518);
         currentFrame.ext_ID = (currentFrame.ID > 0x7F0);
 
-        transmit_can_frame(&currentFrame, datalayer.system.info.can_replay_interface);
+        transmit_can_frame_to_interface(&currentFrame, datalayer.system.info.can_replay_interface);
       }
     } while (datalayer.system.info.loop_playback);
 

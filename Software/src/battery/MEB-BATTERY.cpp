@@ -750,7 +750,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x1C42007B:                      // Reply from battery
       if (rx_frame.data.u8[0] == 0x10) {  //PID header
-        transmit_can_frame(&MEB_ACK_FRAME, can_config.battery);
+        transmit_can_frame(&MEB_ACK_FRAME);
       }
       if (rx_frame.DLC == 8) {
         pid_reply = (rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3];
@@ -1311,7 +1311,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
     counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
-    transmit_can_frame(&MEB_0FC, can_config.battery);  // Required for contactor closing
+    transmit_can_frame(&MEB_0FC);  // Required for contactor closing
   }
   // Send 20ms CAN Message
   if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
@@ -1322,7 +1322,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
     counter_20ms = (counter_20ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
-    transmit_can_frame(&MEB_0FD, can_config.battery);  // Required for contactor closing
+    transmit_can_frame(&MEB_0FD);  // Required for contactor closing
   }
   // Send 40ms CAN Message
   if (currentMillis - previousMillis40ms >= INTERVAL_40_MS) {
@@ -1339,7 +1339,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     }
     toggle = !toggle;  // Flip the toggle each time the code block is executed
 
-    transmit_can_frame(&MEB_040, can_config.battery);  // Airbag message - Needed for contactor closing
+    transmit_can_frame(&MEB_040);  // Airbag message - Needed for contactor closing
   }
   // Send 50ms CAN Message
   if (currentMillis - previousMillis50ms >= INTERVAL_50_MS) {
@@ -1355,7 +1355,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     MEB_0C0.data.u8[0] = vw_crc_calc(MEB_0C0.data.u8, MEB_0C0.DLC, MEB_0C0.ID);
     counter_50ms = (counter_50ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
-    transmit_can_frame(&MEB_0C0, can_config.battery);  //  Needed for contactor closing
+    transmit_can_frame(&MEB_0C0);  //  Needed for contactor closing
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
@@ -1443,11 +1443,11 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     MEB_14C.data.u8[0] = vw_crc_calc(MEB_14C.data.u8, MEB_14C.DLC, MEB_14C.ID);
 
     counter_100ms = (counter_100ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-    transmit_can_frame(&MEB_503, can_config.battery);
-    transmit_can_frame(&MEB_272, can_config.battery);
-    transmit_can_frame(&MEB_3C0, can_config.battery);
-    transmit_can_frame(&MEB_3BE, can_config.battery);
-    transmit_can_frame(&MEB_14C, can_config.battery);
+    transmit_can_frame(&MEB_503);
+    transmit_can_frame(&MEB_272);
+    transmit_can_frame(&MEB_3C0);
+    transmit_can_frame(&MEB_3BE);
+    transmit_can_frame(&MEB_14C);
   }
   //Send 200ms message
   if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
@@ -1457,11 +1457,11 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
     //TODO: MEB_1B0000B9 & MEB_1B000010 & MEB_1B000046 has CAN sleep commands. May be removed?
 
-    transmit_can_frame(&MEB_5E1, can_config.battery);
-    transmit_can_frame(&MEB_153, can_config.battery);
-    transmit_can_frame(&MEB_1B0000B9, can_config.battery);
-    transmit_can_frame(&MEB_1B000010, can_config.battery);
-    transmit_can_frame(&MEB_1B000046, can_config.battery);
+    transmit_can_frame(&MEB_5E1);
+    transmit_can_frame(&MEB_153);
+    transmit_can_frame(&MEB_1B0000B9);
+    transmit_can_frame(&MEB_1B000010);
+    transmit_can_frame(&MEB_1B000046);
 
     switch (poll_pid) {
       case PID_SOC:
@@ -1990,7 +1990,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
         break;
     }
     if (first_can_msg > 0 && currentMillis > first_can_msg + 1000) {
-      transmit_can_frame(&MEB_POLLING_FRAME, can_config.battery);
+      transmit_can_frame(&MEB_POLLING_FRAME);
     }
   }
 
@@ -1998,11 +1998,11 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
     previousMillis500ms = currentMillis;
 
-    transmit_can_frame(&MEB_16A954B4, can_config.battery);  //eTM, Cooling valves and pumps for BMS
-    transmit_can_frame(&MEB_569, can_config.battery);       // Battery heating requests
-    transmit_can_frame(&MEB_1A55552B, can_config.battery);  //Climate, heatpump and priorities
-    transmit_can_frame(&MEB_1A555548, can_config.battery);  //ORU, OTA update message for reserving battery
-    transmit_can_frame(&MEB_16A954FB, can_config.battery);  //Climate, request to BMS for starting preconditioning
+    transmit_can_frame(&MEB_16A954B4);  //eTM, Cooling valves and pumps for BMS
+    transmit_can_frame(&MEB_569);       // Battery heating requests
+    transmit_can_frame(&MEB_1A55552B);  //Climate, heatpump and priorities
+    transmit_can_frame(&MEB_1A555548);  //ORU, OTA update message for reserving battery
+    transmit_can_frame(&MEB_16A954FB);  //Climate, request to BMS for starting preconditioning
   }
 
   //Send 1s CANFD message
@@ -2023,12 +2023,12 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     MEB_6B2.data.u8[7] = (uint8_t)((seconds & 0x3E) >> 1);
     seconds = (seconds + 1) % 60;
 
-    counter_1000ms = (counter_1000ms + 1) % 16;             //Goes from 0-1-2-3...15-0-1-2-3..
-    transmit_can_frame(&MEB_6B2, can_config.battery);       // Diagnostics - Needed for contactor closing
-    transmit_can_frame(&MEB_641, can_config.battery);       // Motor - OBD
-    transmit_can_frame(&MEB_5F5, can_config.battery);       // Loading profile
-    transmit_can_frame(&MEB_585, can_config.battery);       // Systeminfo
-    transmit_can_frame(&MEB_1A5555A6, can_config.battery);  // Temperature QBit
+    counter_1000ms = (counter_1000ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
+    transmit_can_frame(&MEB_6B2);                // Diagnostics - Needed for contactor closing
+    transmit_can_frame(&MEB_641);                // Motor - OBD
+    transmit_can_frame(&MEB_5F5);                // Loading profile
+    transmit_can_frame(&MEB_585);                // Systeminfo
+    transmit_can_frame(&MEB_1A5555A6);           // Temperature QBit
 
     transmit_obd_can_frame(0x18DA05F1, can_config.battery, true);
   }

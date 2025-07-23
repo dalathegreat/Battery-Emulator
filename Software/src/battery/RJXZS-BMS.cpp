@@ -509,8 +509,8 @@ void RjxzsBms::transmit_can(unsigned long currentMillis) {
     }
 
     if (!setup_completed) {
-      transmit_can_frame(&RJXZS_10, can_config.battery);  // Communication connected flag
-      transmit_can_frame(&RJXZS_1C, can_config.battery);  // CAN OK
+      transmit_can_frame(&RJXZS_10);  // Communication connected flag
+      transmit_can_frame(&RJXZS_1C);  // CAN OK
     }
   }
 }
