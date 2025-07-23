@@ -201,27 +201,27 @@ void SchneiderInverter::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
     previousMillis500ms = currentMillis;
 
-    transmit_can_frame(&SE_321, can_config.inverter);
-    transmit_can_frame(&SE_322, can_config.inverter);
-    transmit_can_frame(&SE_323, can_config.inverter);
-    transmit_can_frame(&SE_324, can_config.inverter);
-    transmit_can_frame(&SE_325, can_config.inverter);
+    transmit_can_frame(&SE_321);
+    transmit_can_frame(&SE_322);
+    transmit_can_frame(&SE_323);
+    transmit_can_frame(&SE_324);
+    transmit_can_frame(&SE_325);
   }
   // Send 2s CAN Message
   if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
     previousMillis2s = currentMillis;
 
-    transmit_can_frame(&SE_320, can_config.inverter);
-    transmit_can_frame(&SE_326, can_config.inverter);
-    transmit_can_frame(&SE_327, can_config.inverter);
+    transmit_can_frame(&SE_320);
+    transmit_can_frame(&SE_326);
+    transmit_can_frame(&SE_327);
   }
   // Send 10s CAN Message
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
-    transmit_can_frame(&SE_328, can_config.inverter);
-    transmit_can_frame(&SE_330, can_config.inverter);
-    transmit_can_frame(&SE_331, can_config.inverter);
-    transmit_can_frame(&SE_332, can_config.inverter);
-    transmit_can_frame(&SE_333, can_config.inverter);
+    transmit_can_frame(&SE_328);
+    transmit_can_frame(&SE_330);
+    transmit_can_frame(&SE_331);
+    transmit_can_frame(&SE_332);
+    transmit_can_frame(&SE_333);
   }
 }

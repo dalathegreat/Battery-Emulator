@@ -202,7 +202,7 @@ void RangeRoverPhevBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis50ms >= INTERVAL_50_MS) {
     previousMillis50ms = currentMillis;
 
-    transmit_can_frame(&RANGE_ROVER_18B, can_config.battery);
+    transmit_can_frame(&RANGE_ROVER_18B);
   }
 }
 

@@ -79,16 +79,16 @@ void SofarInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       switch (rx_frame.data.u8[0]) {
         case 0x00:
-          transmit_can_frame(&SOFAR_683, can_config.inverter);
+          transmit_can_frame(&SOFAR_683);
           break;
         case 0x01:
-          transmit_can_frame(&SOFAR_684, can_config.inverter);
+          transmit_can_frame(&SOFAR_684);
           break;
         case 0x02:
-          transmit_can_frame(&SOFAR_685, can_config.inverter);
+          transmit_can_frame(&SOFAR_685);
           break;
         case 0x03:
-          transmit_can_frame(&SOFAR_690, can_config.inverter);
+          transmit_can_frame(&SOFAR_690);
           break;
         default:
           break;
@@ -104,14 +104,14 @@ void SofarInverter::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
     //Frames actively reported by BMS
-    transmit_can_frame(&SOFAR_351, can_config.inverter);
-    transmit_can_frame(&SOFAR_355, can_config.inverter);
-    transmit_can_frame(&SOFAR_356, can_config.inverter);
-    transmit_can_frame(&SOFAR_30F, can_config.inverter);
-    transmit_can_frame(&SOFAR_359, can_config.inverter);
-    transmit_can_frame(&SOFAR_35E, can_config.inverter);
-    transmit_can_frame(&SOFAR_35F, can_config.inverter);
-    transmit_can_frame(&SOFAR_35A, can_config.inverter);
+    transmit_can_frame(&SOFAR_351);
+    transmit_can_frame(&SOFAR_355);
+    transmit_can_frame(&SOFAR_356);
+    transmit_can_frame(&SOFAR_30F);
+    transmit_can_frame(&SOFAR_359);
+    transmit_can_frame(&SOFAR_35E);
+    transmit_can_frame(&SOFAR_35F);
+    transmit_can_frame(&SOFAR_35A);
   }
 }
 

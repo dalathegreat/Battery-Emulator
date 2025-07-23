@@ -155,17 +155,17 @@ void AforeCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 
 void AforeCanInverter::transmit_can(unsigned long currentMillis) {
   if (time_to_send_info) {  // Set every 1s if we get message from inverter
-    transmit_can_frame(&AFORE_350, can_config.inverter);
-    transmit_can_frame(&AFORE_351, can_config.inverter);
-    transmit_can_frame(&AFORE_352, can_config.inverter);
-    transmit_can_frame(&AFORE_353, can_config.inverter);
-    transmit_can_frame(&AFORE_354, can_config.inverter);
-    transmit_can_frame(&AFORE_355, can_config.inverter);
-    transmit_can_frame(&AFORE_356, can_config.inverter);
-    transmit_can_frame(&AFORE_357, can_config.inverter);
-    transmit_can_frame(&AFORE_358, can_config.inverter);
-    transmit_can_frame(&AFORE_359, can_config.inverter);
-    transmit_can_frame(&AFORE_35A, can_config.inverter);
+    transmit_can_frame(&AFORE_350);
+    transmit_can_frame(&AFORE_351);
+    transmit_can_frame(&AFORE_352);
+    transmit_can_frame(&AFORE_353);
+    transmit_can_frame(&AFORE_354);
+    transmit_can_frame(&AFORE_355);
+    transmit_can_frame(&AFORE_356);
+    transmit_can_frame(&AFORE_357);
+    transmit_can_frame(&AFORE_358);
+    transmit_can_frame(&AFORE_359);
+    transmit_can_frame(&AFORE_35A);
     time_to_send_info = false;
   }
 }

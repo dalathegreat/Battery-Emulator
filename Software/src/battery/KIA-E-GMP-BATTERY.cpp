@@ -871,7 +871,7 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           // logging.println ("Send ack");
           poll_data_pid = rx_frame.data.u8[4];
           // if (rx_frame.data.u8[4] == poll_data_pid) {
-          transmit_can_frame(&EGMP_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
+          transmit_can_frame(&EGMP_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
           // }
           break;
         case 0x21:  //First frame in PID group
@@ -1052,7 +1052,7 @@ void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
       if (currentMillis - startMillis >= messageDelays[messageIndex]) {
 
         // Transmit the current message
-        transmit_can_frame(messages[messageIndex], can_config.battery);
+        transmit_can_frame(messages[messageIndex]);
 
         // Move to the next message
         messageIndex++;
@@ -1071,7 +1071,7 @@ void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
       EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
 
       if (ok_start_polling_battery) {
-        transmit_can_frame(&EGMP_7E4, can_config.battery);
+        transmit_can_frame(&EGMP_7E4);
       }
 
       KIA_7E4_COUNTER++;

@@ -116,8 +116,7 @@ void SantaFePhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[4] == poll_data_pid) {
-            transmit_can_frame(&SANTAFE_7E4_ack,
-                               can_interface);  //Send ack to BMS if the same frame is sent as polled
+            transmit_can_frame(&SANTAFE_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:  //First frame in PID group
@@ -290,9 +289,9 @@ void SantaFePhevBattery::transmit_can(unsigned long currentMillis) {
 
     SANTAFE_200.data.u8[7] = checksum_200;
 
-    transmit_can_frame(&SANTAFE_200, can_interface);
-    transmit_can_frame(&SANTAFE_2A1, can_interface);
-    transmit_can_frame(&SANTAFE_2F0, can_interface);
+    transmit_can_frame(&SANTAFE_200);
+    transmit_can_frame(&SANTAFE_2A1);
+    transmit_can_frame(&SANTAFE_2F0);
 
     counter_200++;
     if (counter_200 > 0xF) {
@@ -304,7 +303,7 @@ void SantaFePhevBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    transmit_can_frame(&SANTAFE_523, can_interface);
+    transmit_can_frame(&SANTAFE_523);
   }
 
   // Send 500ms CAN Message
@@ -314,7 +313,7 @@ void SantaFePhevBattery::transmit_can(unsigned long currentMillis) {
     // PID data is polled after last message sent from battery:
     poll_data_pid = (poll_data_pid % 5) + 1;
     SANTAFE_7E4_poll.data.u8[3] = (uint8_t)poll_data_pid;
-    transmit_can_frame(&SANTAFE_7E4_poll, can_interface);
+    transmit_can_frame(&SANTAFE_7E4_poll);
   }
 }
 

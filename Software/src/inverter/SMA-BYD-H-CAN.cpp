@@ -147,12 +147,12 @@ void SmaBydHInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       //Frame0-3 Timestamp
       /*
-      transmit_can_frame(&SMA_158, can_config.inverter);
-      transmit_can_frame(&SMA_358, can_config.inverter);
-      transmit_can_frame(&SMA_3D8, can_config.inverter);
-      transmit_can_frame(&SMA_458, can_config.inverter);
-      transmit_can_frame(&SMA_518, can_config.inverter);
-      transmit_can_frame(&SMA_4D8, can_config.inverter);
+      transmit_can_frame(&SMA_158);
+      transmit_can_frame(&SMA_358);
+      transmit_can_frame(&SMA_3D8);
+      transmit_can_frame(&SMA_458);
+      transmit_can_frame(&SMA_518);
+      transmit_can_frame(&SMA_4D8);
       */
       inverter_time =
           (rx_frame.data.u8[0] << 24) | (rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
@@ -225,27 +225,27 @@ void SmaBydHInverter::transmit_can(unsigned long currentMillis) {
   if (datalayer.system.status.inverter_allows_contactor_closing) {
     if (currentMillis - previousMillis100ms >= 100) {
       previousMillis100ms = currentMillis;
-      transmit_can_frame(&SMA_158, can_config.inverter);
-      transmit_can_frame(&SMA_358, can_config.inverter);
-      transmit_can_frame(&SMA_3D8, can_config.inverter);
-      transmit_can_frame(&SMA_458, can_config.inverter);
-      transmit_can_frame(&SMA_518, can_config.inverter);
-      transmit_can_frame(&SMA_4D8, can_config.inverter);
+      transmit_can_frame(&SMA_158);
+      transmit_can_frame(&SMA_358);
+      transmit_can_frame(&SMA_3D8);
+      transmit_can_frame(&SMA_458);
+      transmit_can_frame(&SMA_518);
+      transmit_can_frame(&SMA_4D8);
     }
   }
 }
 
 void SmaBydHInverter::transmit_can_init() {
-  transmit_can_frame(&SMA_558, can_config.inverter);
-  transmit_can_frame(&SMA_598, can_config.inverter);
-  transmit_can_frame(&SMA_5D8, can_config.inverter);
-  transmit_can_frame(&SMA_618_1, can_config.inverter);
-  transmit_can_frame(&SMA_618_2, can_config.inverter);
-  transmit_can_frame(&SMA_618_3, can_config.inverter);
-  transmit_can_frame(&SMA_158, can_config.inverter);
-  transmit_can_frame(&SMA_358, can_config.inverter);
-  transmit_can_frame(&SMA_3D8, can_config.inverter);
-  transmit_can_frame(&SMA_458, can_config.inverter);
-  transmit_can_frame(&SMA_518, can_config.inverter);
-  transmit_can_frame(&SMA_4D8, can_config.inverter);
+  transmit_can_frame(&SMA_558);
+  transmit_can_frame(&SMA_598);
+  transmit_can_frame(&SMA_5D8);
+  transmit_can_frame(&SMA_618_1);
+  transmit_can_frame(&SMA_618_2);
+  transmit_can_frame(&SMA_618_3);
+  transmit_can_frame(&SMA_158);
+  transmit_can_frame(&SMA_358);
+  transmit_can_frame(&SMA_3D8);
+  transmit_can_frame(&SMA_458);
+  transmit_can_frame(&SMA_518);
+  transmit_can_frame(&SMA_4D8);
 }

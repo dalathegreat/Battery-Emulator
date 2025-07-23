@@ -319,38 +319,38 @@ void SolxpowInverter::transmit_can(unsigned long currentMillis) {
 
 void SolxpowInverter::send_setup_info() {  //Ensemble information
 #ifdef SEND_0
-  transmit_can_frame(&SOLXPOW_7310, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_7320, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_7330, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_7340, can_config.inverter);
+  transmit_can_frame(&SOLXPOW_7310);
+  transmit_can_frame(&SOLXPOW_7320);
+  transmit_can_frame(&SOLXPOW_7330);
+  transmit_can_frame(&SOLXPOW_7340);
 #endif
 #ifdef SEND_1
-  transmit_can_frame(&SOLXPOW_7311, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_7321, can_config.inverter);
+  transmit_can_frame(&SOLXPOW_7311);
+  transmit_can_frame(&SOLXPOW_7321);
 #endif
 }
 
 void SolxpowInverter::send_system_data() {  //System equipment information
 #ifdef SEND_0
-  transmit_can_frame(&SOLXPOW_4210, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4220, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4230, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4240, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4250, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4260, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4270, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4280, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4290, can_config.inverter);
+  transmit_can_frame(&SOLXPOW_4210);
+  transmit_can_frame(&SOLXPOW_4220);
+  transmit_can_frame(&SOLXPOW_4230);
+  transmit_can_frame(&SOLXPOW_4240);
+  transmit_can_frame(&SOLXPOW_4250);
+  transmit_can_frame(&SOLXPOW_4260);
+  transmit_can_frame(&SOLXPOW_4270);
+  transmit_can_frame(&SOLXPOW_4280);
+  transmit_can_frame(&SOLXPOW_4290);
 #endif
 #ifdef SEND_1
-  transmit_can_frame(&SOLXPOW_4211, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4221, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4231, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4241, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4251, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4261, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4271, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4281, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4291, can_config.inverter);
+  transmit_can_frame(&SOLXPOW_4211);
+  transmit_can_frame(&SOLXPOW_4221);
+  transmit_can_frame(&SOLXPOW_4231);
+  transmit_can_frame(&SOLXPOW_4241);
+  transmit_can_frame(&SOLXPOW_4251);
+  transmit_can_frame(&SOLXPOW_4261);
+  transmit_can_frame(&SOLXPOW_4271);
+  transmit_can_frame(&SOLXPOW_4281);
+  transmit_can_frame(&SOLXPOW_4291);
 #endif
 }
