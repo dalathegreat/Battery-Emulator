@@ -1,8 +1,6 @@
 #ifndef CELLMONITOR_H
 #define CELLMONITOR_H
 
-#include "../../include.h"
-
 /**
  * @brief Replaces placeholder with content section in web page
  *

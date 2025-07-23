@@ -3,7 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 void KiaHyundai64Battery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus

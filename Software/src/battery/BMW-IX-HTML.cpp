@@ -1,5 +1,4 @@
 #include "BMW-IX-HTML.h"
-#include "../include.h"
 #include "BMW-IX-BATTERY.h"
 
 String BmwIXHtmlRenderer::get_status_html() {

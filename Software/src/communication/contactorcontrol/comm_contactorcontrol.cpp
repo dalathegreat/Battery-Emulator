@@ -1,5 +1,4 @@
 #include "comm_contactorcontrol.h"
-#include "../../include.h"
 
 #ifdef CONTACTOR_CONTROL
 const bool contactor_control_enabled_default = true;

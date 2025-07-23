@@ -23,7 +23,7 @@ extern Logging logging;
 #define DEBUG_PRINTLN(str) logging.println(str)
 #else
 #define DEBUG_PRINTF(fmt, ...) ((void)0)
-#define DEBUG_PRINTLN(fmt, ...) ((void)0)
+#define DEBUG_PRINTLN(str) ((void)0)
 #endif
 
 #endif  // __LOGGING_H__

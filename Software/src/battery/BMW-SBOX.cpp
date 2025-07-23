@@ -1,7 +1,6 @@
 #include "BMW-SBOX.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 uint8_t reverse_bits(uint8_t byte) {
   uint8_t reversed = 0;

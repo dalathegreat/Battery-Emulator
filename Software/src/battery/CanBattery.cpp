@@ -1,5 +1,4 @@
 #include "CanBattery.h"
-#include "../../src/include.h"
 
 CanBattery::CanBattery(CAN_Speed speed) {
   can_interface = can_config.battery;

@@ -1,6 +1,5 @@
 #ifndef RENAULT_TWIZY_BATTERY_H
 #define RENAULT_TWIZY_BATTERY_H
-#include "../include.h"
 #include "CanBattery.h"
 
 #ifdef RENAULT_TWIZY_BATTERY

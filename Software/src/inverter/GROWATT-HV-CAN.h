@@ -1,6 +1,5 @@
 #ifndef GROWATT_HV_CAN_H
 #define GROWATT_HV_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 

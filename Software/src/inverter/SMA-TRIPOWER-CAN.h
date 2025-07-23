@@ -1,6 +1,5 @@
 #ifndef SMA_CAN_TRIPOWER_H
 #define SMA_CAN_TRIPOWER_H
-#include "../include.h"
 
 #include "SmaInverterBase.h"
 #include "src/devboard/hal/hal.h"

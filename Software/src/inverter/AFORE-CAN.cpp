@@ -1,7 +1,6 @@
 #include "AFORE-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 #define SOCMAX 100
 #define SOCMIN 1

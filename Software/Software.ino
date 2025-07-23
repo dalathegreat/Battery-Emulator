@@ -26,7 +26,10 @@
 #include "src/devboard/utils/value_mapping.h"
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"
-#include "src/include.h"
+
+#if !defined(HW_LILYGO) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_DEVKIT)
+#error You must select a target hardware in the USER_SETTINGS.h file!
+#endif
 
 #ifdef PERIODIC_BMS_RESET_AT
 #include "src/devboard/utils/ntp_time.h"

@@ -1,6 +1,5 @@
 #ifndef SMA_LV_CAN_H
 #define SMA_LV_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 

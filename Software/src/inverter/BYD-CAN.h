@@ -1,6 +1,5 @@
 #ifndef BYD_CAN_H
 #define BYD_CAN_H
-#include "../include.h"
 
 #ifdef BYD_CAN
 #define SELECTED_INVERTER_CLASS BydCanInverter

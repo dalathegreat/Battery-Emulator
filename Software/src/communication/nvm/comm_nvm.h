@@ -1,8 +1,6 @@
 #ifndef _COMM_NVM_H_
 #define _COMM_NVM_H_
 
-#include "../../include.h"
-
 #include <limits>
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/events.h"

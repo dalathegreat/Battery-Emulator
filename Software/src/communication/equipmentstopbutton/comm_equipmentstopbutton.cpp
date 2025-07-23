@@ -1,5 +1,4 @@
 #include "comm_equipmentstopbutton.h"
-#include "../../include.h"
 
 STOP_BUTTON_BEHAVIOR equipment_stop_behavior = stop_button_default_behavior;
 

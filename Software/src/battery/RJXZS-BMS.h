@@ -1,7 +1,6 @@
 #ifndef RJXZS_BMS_H
 #define RJXZS_BMS_H
 #include <Arduino.h>
-#include "../include.h"
 
 #include "CanBattery.h"
 

@@ -1,7 +1,6 @@
 #include "GROWATT-HV-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 /* TODO:
 This protocol has not been tested with any inverter. Proceed with extreme caution.

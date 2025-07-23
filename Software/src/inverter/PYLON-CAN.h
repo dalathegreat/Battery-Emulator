@@ -1,6 +1,5 @@
 #ifndef PYLON_CAN_H
 #define PYLON_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 

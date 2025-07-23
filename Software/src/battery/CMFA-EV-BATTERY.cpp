@@ -3,7 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 /* The raw SOC value sits at 90% when the battery is full, so we should report back 100% once this value is reached
 Same goes for low point, when 10% is reached we report 0% */

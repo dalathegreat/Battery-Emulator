@@ -1,6 +1,5 @@
 #ifndef SUNGROW_CAN_H
 #define SUNGROW_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 

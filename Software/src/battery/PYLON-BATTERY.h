@@ -3,7 +3,6 @@
 #include <Arduino.h>
 
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 #include "CanBattery.h"
 
 #ifdef PYLON_BATTERY

@@ -1,6 +1,5 @@
 #ifndef FOXESS_CAN_H
 #define FOXESS_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 

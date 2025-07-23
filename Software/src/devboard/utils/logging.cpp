@@ -1,6 +1,13 @@
 #include "logging.h"
+#include "../../../USER_SETTINGS.h"
 #include "../../datalayer/datalayer.h"
 #include "../sdcard/sdcard.h"
+
+#if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
+#if !defined(HW_LILYGO)
+#error The SD card logging feature is only available on LilyGo hardware
+#endif
+#endif
 
 #define MAX_LINE_LENGTH_PRINTF 128
 #define MAX_LENGTH_TIME_STR 14

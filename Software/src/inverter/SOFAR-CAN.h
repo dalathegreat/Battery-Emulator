@@ -1,6 +1,5 @@
 #ifndef SOFAR_CAN_H
 #define SOFAR_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 

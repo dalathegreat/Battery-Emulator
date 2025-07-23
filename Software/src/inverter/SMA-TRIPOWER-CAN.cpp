@@ -2,7 +2,6 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 /* TODO:
 - Figure out the manufacturer info needed in transmit_can_init() CAN messages

@@ -2,7 +2,6 @@
 #include "../../communication/can/comm_can.h"
 #include "../../devboard/mqtt/mqtt.h"
 #include "../../devboard/wifi/wifi.h"
-#include "../../include.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
 
 // Parameters

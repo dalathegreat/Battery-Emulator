@@ -1,6 +1,5 @@
 #ifndef SOLAX_CAN_H
 #define SOLAX_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 

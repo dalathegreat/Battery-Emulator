@@ -1,6 +1,5 @@
 #ifndef AFORE_CAN_H
 #define AFORE_CAN_H
-#include "../include.h"
 
 #ifdef AFORE_CAN
 #define SELECTED_INVERTER_CLASS AforeCanInverter

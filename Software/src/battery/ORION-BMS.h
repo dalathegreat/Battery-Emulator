@@ -1,7 +1,6 @@
 #ifndef ORION_BMS_H
 #define ORION_BMS_H
 #include <Arduino.h>
-#include "../include.h"
 
 #include "CanBattery.h"
 
