@@ -533,7 +533,7 @@ void init_webserver() {
 
   auto update_string = [](const char* route, std::function<void(String)> setter,
                           std::function<bool(String)> validator = nullptr) {
-    def_route_with_auth(route, server, HTTP_GET, [&](AsyncWebServerRequest* request) {
+    def_route_with_auth(route, server, HTTP_GET, [=](AsyncWebServerRequest* request) {
       if (request->hasParam("value")) {
         String value = request->getParam("value")->value();
 
