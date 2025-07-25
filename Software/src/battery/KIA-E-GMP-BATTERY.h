@@ -28,7 +28,7 @@ class KiaEGmpBattery : public CanBattery {
   int get_batteryManagementMode() const;
   int get_BMS_ign() const;
   int get_batRelay() const;
-  
+
  private:
   KiaEGMPHtmlRenderer renderer;
   uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps);
