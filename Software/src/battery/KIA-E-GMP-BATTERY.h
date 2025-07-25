@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include "../include.h"
 #include "CanBattery.h"
+#include "KIA-E-GMP-HTML.h"
 
 #define ESTIMATE_SOC_FROM_CELLVOLTAGE
 
@@ -12,13 +13,24 @@
 
 class KiaEGmpBattery : public CanBattery {
  public:
+  KiaEGmpBattery() : renderer(*this) {}
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Kia/Hyundai EGMP platform";
-
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+  // Getter implementations for HTML renderer
+  int get_battery_12V() const;
+  int get_waterleakageSensor() const;
+  int get_temperature_water_inlet() const;
+  int get_powerRelayTemperature() const;
+  int get_batteryManagementMode() const;
+  int get_BMS_ign() const;
+  int get_batRelay() const;
+  
  private:
+  KiaEGMPHtmlRenderer renderer;
   uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps);
   void set_voltage_minmax_limits();
 
@@ -41,9 +53,9 @@ class KiaEGmpBattery : public CanBattery {
 
   uint16_t inverterVoltageFrameHigh = 0;
   uint16_t inverterVoltage = 0;
-  uint16_t soc_calculated = 0;
-  uint16_t SOC_BMS = 0;
-  uint16_t SOC_Display = 0;
+  uint16_t soc_calculated = 500;
+  uint16_t SOC_BMS = 500;
+  uint16_t SOC_Display = 500;
   uint16_t SOC_estimated_lowest = 0;
   uint16_t SOC_estimated_highest = 0;
   uint16_t batterySOH = 1000;
@@ -52,24 +64,24 @@ class KiaEGmpBattery : public CanBattery {
   uint16_t batteryVoltage = 6700;
   int16_t leadAcidBatteryVoltage = 120;
   int16_t batteryAmps = 0;
-  int16_t temperatureMax = 0;
-  int16_t temperatureMin = 0;
+  int16_t temperatureMax = 20;
+  int16_t temperatureMin = 20;
   int16_t allowedDischargePower = 0;
   int16_t allowedChargePower = 0;
   int16_t poll_data_pid = 0;
   uint8_t CellVmaxNo = 0;
   uint8_t CellVminNo = 0;
   uint8_t batteryManagementMode = 0;
-  uint8_t BMS_ign = 0;
+  uint8_t BMS_ign = 0xff;
   uint8_t batteryRelay = 0;
   uint8_t waterleakageSensor = 164;
   bool startedUp = false;
   bool ok_start_polling_battery = false;
   uint8_t counter_200 = 0;
   uint8_t KIA_7E4_COUNTER = 0x01;
-  int8_t temperature_water_inlet = 0;
-  int8_t powerRelayTemperature = 0;
-  int8_t heatertemp = 0;
+  int8_t temperature_water_inlet = 20;
+  int8_t powerRelayTemperature = 10;
+  int8_t heatertemp = 20;
   bool set_voltage_limits = false;
   uint8_t ticks_200ms_counter = 0;
   uint8_t EGMP_1CF_counter = 0;
