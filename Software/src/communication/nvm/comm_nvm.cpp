@@ -1,7 +1,11 @@
 #include "comm_nvm.h"
+#include "../../battery/Battery.h"
+#include "../../battery/Shunt.h"
+#include "../../charger/CanCharger.h"
 #include "../../communication/can/comm_can.h"
 #include "../../devboard/mqtt/mqtt.h"
 #include "../../devboard/wifi/wifi.h"
+#include "../../inverter/INVERTERS.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
 
 // Parameters

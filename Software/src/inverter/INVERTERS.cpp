@@ -1,3 +1,4 @@
+#include "INVERTERS.h"
 
 InverterProtocol* inverter = nullptr;
 

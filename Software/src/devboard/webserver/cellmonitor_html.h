@@ -1,6 +1,8 @@
 #ifndef CELLMONITOR_H
 #define CELLMONITOR_H
 
+#include <WString.h>
+
 /**
  * @brief Replaces placeholder with content section in web page
  *

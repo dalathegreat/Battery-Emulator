@@ -1,5 +1,8 @@
 #include "safety.h"
+#include "../../battery/BATTERIES.h"
+#include "../../charger/CHARGERS.h"
 #include "../../datalayer/datalayer.h"
+#include "../../inverter/INVERTERS.h"
 #include "../utils/events.h"
 
 static uint16_t cell_deviation_mV = 0;

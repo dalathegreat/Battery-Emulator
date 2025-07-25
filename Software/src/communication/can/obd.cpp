@@ -1,4 +1,5 @@
 #include "obd.h"
+#include "../../devboard/utils/logging.h"
 #include "comm_can.h"
 
 void show_dtc(uint8_t byte0, uint8_t byte1);

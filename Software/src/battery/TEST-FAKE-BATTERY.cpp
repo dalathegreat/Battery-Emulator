@@ -1,5 +1,6 @@
 #include "TEST-FAKE-BATTERY.h"
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/logging.h"
 
 static void print_units(const char* header, int value, const char* units) {
   logging.print(header);

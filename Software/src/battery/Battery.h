@@ -64,7 +64,7 @@ class Battery {
   virtual void update_values() = 0;
 
   // The name of the comm interface the battery is using.
-  virtual String interface_name() = 0;
+  virtual const char* interface_name() = 0;
 
   // These are commands from external I/O (UI, MQTT etc.)
   // Override in battery if it supports them. Otherwise they are NOP.

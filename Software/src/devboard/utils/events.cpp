@@ -1,7 +1,8 @@
 #include "events.h"
-#include "../../datalayer/datalayer.h"
-
 #include "../../../USER_SETTINGS.h"
+#include "../../datalayer/datalayer.h"
+#include "../../devboard/hal/hal.h"
+#include "../../devboard/utils/logging.h"
 
 typedef struct {
   EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];

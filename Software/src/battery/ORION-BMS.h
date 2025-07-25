@@ -2,6 +2,7 @@
 #define ORION_BMS_H
 #include <Arduino.h>
 
+#include "../system_settings.h"
 #include "CanBattery.h"
 
 #ifdef ORION_BMS

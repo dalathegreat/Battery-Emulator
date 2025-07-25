@@ -1,6 +1,7 @@
 #ifndef LED_H_
 #define LED_H_
 
+#include "../../devboard/utils/types.h"
 #include "../../lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
 
 class LED {

@@ -12,6 +12,7 @@
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
 #include "../utils/timer.h"
+#include "mqtt.h"
 #include "mqtt_client.h"
 
 #ifdef MQTT

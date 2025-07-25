@@ -5,6 +5,7 @@
 #define SELECTED_INVERTER_CLASS BydCanInverter
 #endif
 
+#include "../../USER_SETTINGS.h"
 #include "CanInverterProtocol.h"
 
 class BydCanInverter : public CanInverterProtocol {

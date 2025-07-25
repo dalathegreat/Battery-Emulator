@@ -1,5 +1,7 @@
 #include "comm_rs485.h"
+#include "../../devboard/hal/hal.h"
 
+#include <Arduino.h>
 #include <list>
 
 bool init_rs485() {

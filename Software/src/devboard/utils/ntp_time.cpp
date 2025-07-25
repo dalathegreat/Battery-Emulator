@@ -1,4 +1,6 @@
 #include "ntp_time.h"
+#include <Arduino.h>
+#include "../../devboard/utils/logging.h"
 #include "time.h"
 
 const unsigned long millisInADay = 24 * 60 * 60 * 1000;  // 24 hours in milliseconds

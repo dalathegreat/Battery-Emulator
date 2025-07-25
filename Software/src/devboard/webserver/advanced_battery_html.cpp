@@ -1,6 +1,7 @@
 #include "advanced_battery_html.h"
 #include <Arduino.h>
 #include <vector>
+#include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 

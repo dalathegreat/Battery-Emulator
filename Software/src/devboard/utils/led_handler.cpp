@@ -1,5 +1,6 @@
 #include "led_handler.h"
 #include "../../datalayer/datalayer.h"
+#include "../../devboard/hal/hal.h"
 #include "events.h"
 #include "value_mapping.h"
 
@@ -27,9 +28,11 @@ bool led_init(void) {
 
   return true;
 }
+
 void led_exe(void) {
   led->exe();
 }
+
 led_color led_get_color() {
   return led->color;
 }

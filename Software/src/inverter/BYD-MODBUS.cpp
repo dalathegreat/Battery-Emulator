@@ -1,5 +1,6 @@
 #include "BYD-MODBUS.h"
 #include "../datalayer/datalayer.h"
+#include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
 #include "../lib/eModbus-eModbus/scripts/mbServerFCs.h"
 

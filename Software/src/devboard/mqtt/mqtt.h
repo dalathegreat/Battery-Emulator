@@ -35,6 +35,7 @@
 #define __MQTT_H__
 
 #include <Arduino.h>
+#include <string>
 #include <vector>
 
 #define MQTT_MSG_BUFFER_SIZE (1024)

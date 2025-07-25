@@ -1,3 +1,4 @@
+#include "BMW-SBOX.h"
 #include "Shunt.h"
 
 CanShunt* shunt = nullptr;

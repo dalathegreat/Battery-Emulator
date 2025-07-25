@@ -1,5 +1,7 @@
 #include "KOSTAL-RS485.h"
+#include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
+#include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
 
 void KostalInverterProtocol::float2frame(byte* arr, float value, byte framepointer) {

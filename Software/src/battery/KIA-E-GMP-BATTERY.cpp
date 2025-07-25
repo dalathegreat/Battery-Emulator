@@ -2,6 +2,7 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../system_settings.h"
 
 const unsigned char crc8_table[256] =
     {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies

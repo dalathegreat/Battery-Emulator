@@ -5,6 +5,7 @@
 #include "../datalayer/datalayer_extended.h"
 #include "CHADEMO-BATTERY-HTML.h"
 #include "CanBattery.h"
+#include "src/devboard/hal/hal.h"
 
 #ifdef CHADEMO_BATTERY
 #define SELECTED_BATTERY_CLASS ChademoBattery
