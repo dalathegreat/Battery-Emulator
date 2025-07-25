@@ -119,7 +119,7 @@ void SonoBattery::transmit_can(unsigned long currentMillis) {
     if (datalayer.battery.status.bms_status == FAULT) {
       SONO_400.data.u8[0] = 0x14;  //Charging DISABLED
     }
-    transmit_can_frame(&SONO_400, can_config.battery);
+    transmit_can_frame(&SONO_400);
   }
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
@@ -134,7 +134,7 @@ void SonoBattery::transmit_can(unsigned long currentMillis) {
     SONO_401.data.u8[4] = 15;       //Minute
     SONO_401.data.u8[5] = seconds;  //Second
     seconds = (seconds + 1) % 61;
-    transmit_can_frame(&SONO_401, can_config.battery);
+    transmit_can_frame(&SONO_401);
   }
 }
 

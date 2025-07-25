@@ -263,16 +263,16 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
       switch (can_message_bms_index) {
         case 0:
           //TODO, should we limit this incase NUMBER_OF_PACKS =! 8?
-          transmit_can_frame(&FOXESS_1872, can_config.inverter);
-          transmit_can_frame(&FOXESS_1873, can_config.inverter);
-          transmit_can_frame(&FOXESS_1874, can_config.inverter);
-          transmit_can_frame(&FOXESS_1875, can_config.inverter);
+          transmit_can_frame(&FOXESS_1872);
+          transmit_can_frame(&FOXESS_1873);
+          transmit_can_frame(&FOXESS_1874);
+          transmit_can_frame(&FOXESS_1875);
           break;
         case 1:
-          transmit_can_frame(&FOXESS_1876, can_config.inverter);
-          transmit_can_frame(&FOXESS_1877, can_config.inverter);
-          transmit_can_frame(&FOXESS_1878, can_config.inverter);
-          transmit_can_frame(&FOXESS_1879, can_config.inverter);
+          transmit_can_frame(&FOXESS_1876);
+          transmit_can_frame(&FOXESS_1877);
+          transmit_can_frame(&FOXESS_1878);
+          transmit_can_frame(&FOXESS_1879);
           send_bms_info = false;
           break;
         default:
@@ -298,16 +298,16 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
       switch (can_message_individualpack_index) {
         case 0:
           //TODO, should we limit this incase NUMBER_OF_PACKS =! 8?
-          transmit_can_frame(&FOXESS_0C05, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C06, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C07, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C08, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C05);
+          transmit_can_frame(&FOXESS_0C06);
+          transmit_can_frame(&FOXESS_0C07);
+          transmit_can_frame(&FOXESS_0C08);
           break;
         case 1:
-          transmit_can_frame(&FOXESS_0C09, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C0A, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C0B, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C0C, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C09);
+          transmit_can_frame(&FOXESS_0C0A);
+          transmit_can_frame(&FOXESS_0C0B);
+          transmit_can_frame(&FOXESS_0C0C);
           send_individual_pack_status = false;
           break;
         default:
@@ -335,18 +335,18 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
           FOXESS_1881.data.u8[0] = 0;
           FOXESS_1882.data.u8[0] = 0;
           FOXESS_1883.data.u8[0] = 0;
-          transmit_can_frame(&FOXESS_1881, can_config.inverter);
-          transmit_can_frame(&FOXESS_1882, can_config.inverter);
-          transmit_can_frame(&FOXESS_1883, can_config.inverter);
+          transmit_can_frame(&FOXESS_1881);
+          transmit_can_frame(&FOXESS_1882);
+          transmit_can_frame(&FOXESS_1883);
           break;
         case 1:
           if (NUMBER_OF_PACKS > 0) {
             FOXESS_1881.data.u8[0] = 1;
             FOXESS_1882.data.u8[0] = 1;
             FOXESS_1883.data.u8[0] = 1;
-            transmit_can_frame(&FOXESS_1881, can_config.inverter);
-            transmit_can_frame(&FOXESS_1882, can_config.inverter);
-            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+            transmit_can_frame(&FOXESS_1881);
+            transmit_can_frame(&FOXESS_1882);
+            transmit_can_frame(&FOXESS_1883);
           }
           break;
         case 2:
@@ -354,9 +354,9 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
             FOXESS_1881.data.u8[0] = 2;
             FOXESS_1882.data.u8[0] = 2;
             FOXESS_1883.data.u8[0] = 2;
-            transmit_can_frame(&FOXESS_1881, can_config.inverter);
-            transmit_can_frame(&FOXESS_1882, can_config.inverter);
-            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+            transmit_can_frame(&FOXESS_1881);
+            transmit_can_frame(&FOXESS_1882);
+            transmit_can_frame(&FOXESS_1883);
           }
           break;
         case 3:
@@ -364,9 +364,9 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
             FOXESS_1881.data.u8[0] = 3;
             FOXESS_1882.data.u8[0] = 3;
             FOXESS_1883.data.u8[0] = 3;
-            transmit_can_frame(&FOXESS_1881, can_config.inverter);
-            transmit_can_frame(&FOXESS_1882, can_config.inverter);
-            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+            transmit_can_frame(&FOXESS_1881);
+            transmit_can_frame(&FOXESS_1882);
+            transmit_can_frame(&FOXESS_1883);
           }
           break;
         case 4:
@@ -374,9 +374,9 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
             FOXESS_1881.data.u8[0] = 4;
             FOXESS_1882.data.u8[0] = 4;
             FOXESS_1883.data.u8[0] = 4;
-            transmit_can_frame(&FOXESS_1881, can_config.inverter);
-            transmit_can_frame(&FOXESS_1882, can_config.inverter);
-            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+            transmit_can_frame(&FOXESS_1881);
+            transmit_can_frame(&FOXESS_1882);
+            transmit_can_frame(&FOXESS_1883);
           }
           break;
         case 5:
@@ -384,9 +384,9 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
             FOXESS_1881.data.u8[0] = 5;
             FOXESS_1882.data.u8[0] = 5;
             FOXESS_1883.data.u8[0] = 5;
-            transmit_can_frame(&FOXESS_1881, can_config.inverter);
-            transmit_can_frame(&FOXESS_1882, can_config.inverter);
-            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+            transmit_can_frame(&FOXESS_1881);
+            transmit_can_frame(&FOXESS_1882);
+            transmit_can_frame(&FOXESS_1883);
           }
           break;
         case 6:
@@ -394,9 +394,9 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
             FOXESS_1881.data.u8[0] = 6;
             FOXESS_1882.data.u8[0] = 6;
             FOXESS_1883.data.u8[0] = 6;
-            transmit_can_frame(&FOXESS_1881, can_config.inverter);
-            transmit_can_frame(&FOXESS_1882, can_config.inverter);
-            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+            transmit_can_frame(&FOXESS_1881);
+            transmit_can_frame(&FOXESS_1882);
+            transmit_can_frame(&FOXESS_1883);
           }
           break;
         case 7:
@@ -404,9 +404,9 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
             FOXESS_1881.data.u8[0] = 7;
             FOXESS_1882.data.u8[0] = 7;
             FOXESS_1883.data.u8[0] = 7;
-            transmit_can_frame(&FOXESS_1881, can_config.inverter);
-            transmit_can_frame(&FOXESS_1882, can_config.inverter);
-            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+            transmit_can_frame(&FOXESS_1881);
+            transmit_can_frame(&FOXESS_1882);
+            transmit_can_frame(&FOXESS_1883);
           }
           break;
         case 8:
@@ -414,9 +414,9 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
             FOXESS_1881.data.u8[0] = 8;
             FOXESS_1882.data.u8[0] = 8;
             FOXESS_1883.data.u8[0] = 8;
-            transmit_can_frame(&FOXESS_1881, can_config.inverter);
-            transmit_can_frame(&FOXESS_1882, can_config.inverter);
-            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+            transmit_can_frame(&FOXESS_1881);
+            transmit_can_frame(&FOXESS_1882);
+            transmit_can_frame(&FOXESS_1883);
           }
           send_serial_numbers = false;
           break;
@@ -442,65 +442,65 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
       // Send a subset of messages per iteration to avoid overloading the CAN bus / transmit buffer
       switch (can_message_cellvolt_index) {
         case 0:
-          transmit_can_frame(&FOXESS_0C1D, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C21, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C29, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C2D, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C31, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C1D);
+          transmit_can_frame(&FOXESS_0C21);
+          transmit_can_frame(&FOXESS_0C29);
+          transmit_can_frame(&FOXESS_0C2D);
+          transmit_can_frame(&FOXESS_0C31);
           break;
         case 1:
-          transmit_can_frame(&FOXESS_0C35, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C39, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C3D, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C41, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C45, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C35);
+          transmit_can_frame(&FOXESS_0C39);
+          transmit_can_frame(&FOXESS_0C3D);
+          transmit_can_frame(&FOXESS_0C41);
+          transmit_can_frame(&FOXESS_0C45);
           break;
         case 2:
-          transmit_can_frame(&FOXESS_0C49, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C4D, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C51, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C55, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C59, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C49);
+          transmit_can_frame(&FOXESS_0C4D);
+          transmit_can_frame(&FOXESS_0C51);
+          transmit_can_frame(&FOXESS_0C55);
+          transmit_can_frame(&FOXESS_0C59);
           break;
         case 3:
-          transmit_can_frame(&FOXESS_0C5D, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C61, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C65, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C69, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C6D, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C5D);
+          transmit_can_frame(&FOXESS_0C61);
+          transmit_can_frame(&FOXESS_0C65);
+          transmit_can_frame(&FOXESS_0C69);
+          transmit_can_frame(&FOXESS_0C6D);
           break;
         case 4:
-          transmit_can_frame(&FOXESS_0C71, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C75, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C79, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C7D, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C81, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C71);
+          transmit_can_frame(&FOXESS_0C75);
+          transmit_can_frame(&FOXESS_0C79);
+          transmit_can_frame(&FOXESS_0C7D);
+          transmit_can_frame(&FOXESS_0C81);
           break;
         case 5:
-          transmit_can_frame(&FOXESS_0C85, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C89, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C8D, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C91, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C95, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C85);
+          transmit_can_frame(&FOXESS_0C89);
+          transmit_can_frame(&FOXESS_0C8D);
+          transmit_can_frame(&FOXESS_0C91);
+          transmit_can_frame(&FOXESS_0C95);
           break;
         case 6:
-          transmit_can_frame(&FOXESS_0C99, can_config.inverter);
-          transmit_can_frame(&FOXESS_0C9D, can_config.inverter);
-          transmit_can_frame(&FOXESS_0CA1, can_config.inverter);
-          transmit_can_frame(&FOXESS_0CA5, can_config.inverter);
-          transmit_can_frame(&FOXESS_0CA9, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C99);
+          transmit_can_frame(&FOXESS_0C9D);
+          transmit_can_frame(&FOXESS_0CA1);
+          transmit_can_frame(&FOXESS_0CA5);
+          transmit_can_frame(&FOXESS_0CA9);
           break;
         case 7:  //Celltemperatures
-          transmit_can_frame(&FOXESS_0D21, can_config.inverter);
-          transmit_can_frame(&FOXESS_0D29, can_config.inverter);
-          transmit_can_frame(&FOXESS_0D31, can_config.inverter);
-          transmit_can_frame(&FOXESS_0D39, can_config.inverter);
+          transmit_can_frame(&FOXESS_0D21);
+          transmit_can_frame(&FOXESS_0D29);
+          transmit_can_frame(&FOXESS_0D31);
+          transmit_can_frame(&FOXESS_0D39);
           break;
         case 8:  //Celltemperatures
-          transmit_can_frame(&FOXESS_0D41, can_config.inverter);
-          transmit_can_frame(&FOXESS_0D49, can_config.inverter);
-          transmit_can_frame(&FOXESS_0D51, can_config.inverter);
-          transmit_can_frame(&FOXESS_0D59, can_config.inverter);
+          transmit_can_frame(&FOXESS_0D41);
+          transmit_can_frame(&FOXESS_0D49);
+          transmit_can_frame(&FOXESS_0D51);
+          transmit_can_frame(&FOXESS_0D59);
           send_cellvoltages = false;
           break;
         default:

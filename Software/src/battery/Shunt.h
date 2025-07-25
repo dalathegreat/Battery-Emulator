@@ -30,10 +30,12 @@ class CanShunt : public Transmitter, CanReceiver {
   CAN_Interface can_interface;
 
   CanShunt() {
-    can_interface = can_config.battery;
+    can_interface = can_config.shunt;
     register_transmitter(this);
     register_can_receiver(this, can_interface);
   }
+
+  void transmit_can_frame(CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
 };
 
 extern CanShunt* shunt;

@@ -1,8 +1,6 @@
 #include "obd.h"
 #include "comm_can.h"
 
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
-
 void show_dtc(uint8_t byte0, uint8_t byte1);
 
 void show_dtc(uint8_t byte0, uint8_t byte1) {
@@ -128,21 +126,21 @@ void transmit_obd_can_frame(unsigned int address, int interface, bool canFD) {
   static int cnt = 0;
   switch (cnt) {
     case 2:
-      transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
+      transmit_can_frame_to_interface(&OBD_frame, interface);  // DTC TP-ISO
       break;
     case 3:
       OBD_frame.data.u8[1] = 0x07;
-      transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
+      transmit_can_frame_to_interface(&OBD_frame, interface);  // DTC TP-ISO
       break;
     case 4:
       OBD_frame.data.u8[1] = 0x0A;
-      transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
+      transmit_can_frame_to_interface(&OBD_frame, interface);  // DTC TP-ISO
       break;
     case 5:
       OBD_frame.data.u8[0] = 0x02;
       OBD_frame.data.u8[1] = 0x01;
       OBD_frame.data.u8[2] = 0x1C;
-      transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
+      transmit_can_frame_to_interface(&OBD_frame, interface);  // DTC TP-ISO
       break;
   }
   cnt++;

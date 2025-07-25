@@ -127,7 +127,7 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x7BB:                           // Reply from battery
       if (rx_frame.data.u8[0] == 0x10) {  //PID header
-        transmit_can_frame(&CMFA_ACK, can_config.battery);
+        transmit_can_frame(&CMFA_ACK);
       }
 
       pid_reply = (rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3];
@@ -439,10 +439,10 @@ void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
     previousMillis10ms = currentMillis;
-    transmit_can_frame(&CMFA_1EA, can_config.battery);
-    transmit_can_frame(&CMFA_135, can_config.battery);
-    transmit_can_frame(&CMFA_134, can_config.battery);
-    transmit_can_frame(&CMFA_125, can_config.battery);
+    transmit_can_frame(&CMFA_1EA);
+    transmit_can_frame(&CMFA_135);
+    transmit_can_frame(&CMFA_134);
+    transmit_can_frame(&CMFA_125);
 
     CMFA_135.data.u8[1] = content_135[counter_10ms];
     CMFA_125.data.u8[3] = content_125[counter_10ms];
@@ -452,8 +452,8 @@ void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
-    transmit_can_frame(&CMFA_59B, can_config.battery);
-    transmit_can_frame(&CMFA_3D3, can_config.battery);
+    transmit_can_frame(&CMFA_59B);
+    transmit_can_frame(&CMFA_3D3);
   }
   //Send 200ms message
   if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
@@ -934,7 +934,7 @@ void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
         break;
     }
 
-    transmit_can_frame(&CMFA_POLLING_FRAME, can_config.battery);
+    transmit_can_frame(&CMFA_POLLING_FRAME);
   }
 }
 

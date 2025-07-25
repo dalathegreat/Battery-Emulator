@@ -104,7 +104,7 @@ void ChevyVoltCharger::transmit_can(unsigned long currentMillis) {
 
     charger_keepalive_frame.data.u8[0] = charger_mode;
 
-    transmit_can_frame(&charger_keepalive_frame, can_config.charger);
+    transmit_can_frame(&charger_keepalive_frame);
   }
 
   /* Send current targets every 200ms */
@@ -141,7 +141,7 @@ void ChevyVoltCharger::transmit_can(unsigned long currentMillis) {
     /* LSB of the voltage command. Then MSB LSB is divided by 2 */
     charger_set_targets.data.u8[3] = lowByte(Vol_temp);
 
-    transmit_can_frame(&charger_set_targets, can_config.charger);
+    transmit_can_frame(&charger_set_targets);
   }
 
 #ifdef DEBUG_LOG

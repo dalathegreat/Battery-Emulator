@@ -66,7 +66,7 @@ void TestFakeBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
     // Put fake messages here incase you want to test sending CAN
-    //transmit_can_frame(&TEST, can_interface);
+    //transmit_can_frame(&TEST);
   }
 }
 

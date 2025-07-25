@@ -135,11 +135,11 @@ void PylonLvInverter::transmit_can(unsigned long currentMillis) {
     dump_frame(&PYLON_35E);
 #endif
 
-    transmit_can_frame(&PYLON_351, can_config.inverter);
-    transmit_can_frame(&PYLON_355, can_config.inverter);
-    transmit_can_frame(&PYLON_356, can_config.inverter);
-    transmit_can_frame(&PYLON_359, can_config.inverter);
-    transmit_can_frame(&PYLON_35C, can_config.inverter);
-    transmit_can_frame(&PYLON_35E, can_config.inverter);
+    transmit_can_frame(&PYLON_351);
+    transmit_can_frame(&PYLON_355);
+    transmit_can_frame(&PYLON_356);
+    transmit_can_frame(&PYLON_359);
+    transmit_can_frame(&PYLON_35C);
+    transmit_can_frame(&PYLON_35E);
   }
 }

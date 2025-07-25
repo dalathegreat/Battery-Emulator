@@ -410,7 +410,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x7EF:  //OBD2 PID reply from battery
       if (rx_frame.data.u8[0] == 0x10) {
-        transmit_can_frame(&ATTO_3_7E7_ACK, can_interface);  //Send next line request
+        transmit_can_frame(&ATTO_3_7E7_ACK);  //Send next line request
       }
       pid_reply = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
       switch (pid_reply) {
@@ -527,7 +527,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     ATTO_3_12D.data.u8[6] = (0x0F | (frame6_counter << 4));
     ATTO_3_12D.data.u8[7] = (0x09 | (frame7_counter << 4));
 
-    transmit_can_frame(&ATTO_3_12D, can_interface);
+    transmit_can_frame(&ATTO_3_12D);
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -544,21 +544,21 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
       ATTO_3_441.data.u8[7] = 0xF5;
     }
 
-    transmit_can_frame(&ATTO_3_441, can_interface);
+    transmit_can_frame(&ATTO_3_441);
     switch (stateMachineClearCrash) {
       case STARTED:
         ATTO_3_7E7_CLEAR_CRASH.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
-        transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH, can_interface);
+        transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
         stateMachineClearCrash = RUNNING_STEP_1;
         break;
       case RUNNING_STEP_1:
         ATTO_3_7E7_CLEAR_CRASH.data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00};
-        transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH, can_interface);
+        transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
         stateMachineClearCrash = RUNNING_STEP_2;
         break;
       case RUNNING_STEP_2:
         ATTO_3_7E7_CLEAR_CRASH.data = {0x03, 0x19, 0x02, 0x09, 0x00, 0x00, 0x00, 0x00};
-        transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH, can_interface);
+        transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
         stateMachineClearCrash = NOT_RUNNING;
         break;
       case NOT_RUNNING:
@@ -688,7 +688,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     }
 
     if (stateMachineClearCrash == NOT_RUNNING) {  //Don't poll battery for data if clear crash running
-      transmit_can_frame(&ATTO_3_7E7_POLL, can_interface);
+      transmit_can_frame(&ATTO_3_7E7_POLL);
     }
   }
 }

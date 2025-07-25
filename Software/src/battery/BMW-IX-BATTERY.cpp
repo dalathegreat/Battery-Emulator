@@ -172,7 +172,7 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
 
         //Frame has continued data  - so request it
-        transmit_can_frame(&BMWiX_6F4_CONTINUE_DATA, can_config.battery);
+        transmit_can_frame(&BMWiX_6F4_CONTINUE_DATA);
       }
 
       if (rx_frame.DLC = 64 && rx_frame.data.u8[0] == 0xF4 &&
@@ -306,7 +306,7 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           logging.println("Cell MinMax Qualifier Invalid - Requesting BMS Reset");
 #endif  // DEBUG_LOG
           //set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, (millis())); //Eventually need new Info level event type
-          transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET, can_config.battery);
+          transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET);
         } else {  //Only ingest values if they are not the 10V Error state
           min_cell_voltage = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
           max_cell_voltage = (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]);
@@ -404,8 +404,8 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
         ContactorState.closed ==
             true) {  // Do not send unless the contactors are requested to be closed and are closed, as sending these does not allow the contactors to close
       uds_req_id_counter = increment_uds_req_id_counter(uds_req_id_counter);
-      transmit_can_frame(UDS_REQUESTS100MS[uds_req_id_counter],
-                         can_config.battery);  // FIXME: sending these does not allow the contactors to close
+      transmit_can_frame(
+          UDS_REQUESTS100MS[uds_req_id_counter]);  // FIXME: sending these does not allow the contactors to close
     } else {  // FIXME: hotfix: If contactors are not requested to be closed, ensure the battery is reported as alive, even if no CAN messages are received
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
     }
@@ -418,7 +418,7 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
     }
 
     //Send SME Keep alive values 100ms
-    //transmit_can_frame(&BMWiX_510, can_config.battery);
+    //transmit_can_frame(&BMWiX_510);
   }
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -426,7 +426,7 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
 
     //Send SME Keep alive values 200ms
     //BMWiX_C0.data.u8[0] = increment_C0_counter(BMWiX_C0.data.u8[0]);  //Keep Alive 1
-    //transmit_can_frame(&BMWiX_C0, can_config.battery);
+    //transmit_can_frame(&BMWiX_C0);
   }
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
@@ -437,8 +437,8 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
   // Send 10000ms CAN Message
   if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
     previousMillis10000 = currentMillis;
-    //transmit_can_frame(&BMWiX_6F4_REQUEST_BALANCING_START2, can_config.battery);
-    //transmit_can_frame(&BMWiX_6F4_REQUEST_BALANCING_START, can_config.battery);
+    //transmit_can_frame(&BMWiX_6F4_REQUEST_BALANCING_START2);
+    //transmit_can_frame(&BMWiX_6F4_REQUEST_BALANCING_START);
   }
 }
 
@@ -447,7 +447,7 @@ void BmwIXBattery::setup(void) {  // Performs one time setup at startup
   datalayer.system.info.battery_protocol[63] = '\0';
 
   //Reset Battery at bootup
-  //transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET, can_config.battery);
+  //transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET);
 
   //Before we have started up and detected which battery is in use, use 108S values
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -546,20 +546,20 @@ void BmwIXBattery::HandleBmwIxCloseContactorsRequest(uint16_t counter_10ms) {
 
       if (counter_10ms == 0) {
         // @0 ms
-        transmit_can_frame(&BMWiX_510, can_config.battery);
+        transmit_can_frame(&BMWiX_510);
 #ifdef DEBUG_LOG
         logging.println("Transmitted 0x510 - 1/6");
 #endif  // DEBUG_LOG
       } else if (counter_10ms == 5) {
         // @50 ms
-        transmit_can_frame(&BMWiX_276, can_config.battery);
+        transmit_can_frame(&BMWiX_276);
 #ifdef DEBUG_LOG
         logging.println("Transmitted 0x276 - 2/6");
 #endif  // DEBUG_LOG
       } else if (counter_10ms == 10) {
         // @100 ms
         BMWiX_510.data.u8[2] = 0x04;  // TODO: check if needed
-        transmit_can_frame(&BMWiX_510, can_config.battery);
+        transmit_can_frame(&BMWiX_510);
 #ifdef DEBUG_LOG
         logging.println("Transmitted 0x510 - 3/6");
 #endif  // DEBUG_LOG
@@ -567,7 +567,7 @@ void BmwIXBattery::HandleBmwIxCloseContactorsRequest(uint16_t counter_10ms) {
         // @200 ms
         BMWiX_510.data.u8[2] = 0x10;  // TODO: check if needed
         BMWiX_510.data.u8[5] = 0x80;  // needed to close contactors
-        transmit_can_frame(&BMWiX_510, can_config.battery);
+        transmit_can_frame(&BMWiX_510);
 #ifdef DEBUG_LOG
         logging.println("Transmitted 0x510 - 4/6");
 #endif  // DEBUG_LOG
@@ -575,7 +575,7 @@ void BmwIXBattery::HandleBmwIxCloseContactorsRequest(uint16_t counter_10ms) {
         // @300 ms
         BMWiX_16E.data.u8[0] = 0x6A;
         BMWiX_16E.data.u8[1] = 0xAD;
-        transmit_can_frame(&BMWiX_16E, can_config.battery);
+        transmit_can_frame(&BMWiX_16E);
 #ifdef DEBUG_LOG
         logging.println("Transmitted 0x16E - 5/6");
 #endif  // DEBUG_LOG
@@ -583,7 +583,7 @@ void BmwIXBattery::HandleBmwIxCloseContactorsRequest(uint16_t counter_10ms) {
         // @500 ms
         BMWiX_16E.data.u8[0] = 0x03;
         BMWiX_16E.data.u8[1] = 0xA9;
-        transmit_can_frame(&BMWiX_16E, can_config.battery);
+        transmit_can_frame(&BMWiX_16E);
 #ifdef DEBUG_LOG
         logging.println("Transmitted 0x16E - 6/6");
 #endif  // DEBUG_LOG
@@ -612,20 +612,20 @@ void BmwIXBattery::BmwIxKeepContactorsClosed(uint8_t counter_100ms) {
       logging.println("Sending keep contactors closed messages started");
 #endif  // DEBUG_LOG
       // @0 ms
-      transmit_can_frame(&BMWiX_510, can_config.battery);
+      transmit_can_frame(&BMWiX_510);
     } else if (counter_100ms == 7) {
       // @ 730 ms
       BMWiX_16E.data.u8[0] = 0x8C;
       BMWiX_16E.data.u8[1] = 0xA0;
-      transmit_can_frame(&BMWiX_16E, can_config.battery);
+      transmit_can_frame(&BMWiX_16E);
     } else if (counter_100ms == 24) {
       // @2380 ms
-      transmit_can_frame(&BMWiX_510, can_config.battery);
+      transmit_can_frame(&BMWiX_510);
     } else if (counter_100ms == 29) {
       // @ 2900 ms
       BMWiX_16E.data.u8[0] = 0x02;
       BMWiX_16E.data.u8[1] = 0xA7;
-      transmit_can_frame(&BMWiX_16E, can_config.battery);
+      transmit_can_frame(&BMWiX_16E);
 #ifdef DEBUG_LOG
       logging.println("Sending keep contactors closed messages finished");
 #endif  // DEBUG_LOG
@@ -644,14 +644,14 @@ void BmwIXBattery::HandleBmwIxOpenContactorsRequest(uint16_t counter_10ms) {
         // @0 ms (0.00) RX0 510 [8] 40 10 00 00 00 80 00 00
         BMWiX_510.data = {0x40, 0x10, 0x00, 0x00,
                           0x00, 0x80, 0x00, 0x00};  // Explicit declaration, to prevent modification by other functions
-        transmit_can_frame(&BMWiX_510, can_config.battery);
+        transmit_can_frame(&BMWiX_510);
         // set back to default values
         BMWiX_510.data = {0x40, 0x10, 0x04, 0x00, 0x00, 0x80, 0x01, 0x00};  // default values
       } else if (counter_10ms == 6) {
         // @60 ms  (0.06) RX0 16E [8] E6 A4 C8 FF 60 C9 33 F0
         BMWiX_16E.data = {0xE6, 0xA4, 0xC8, 0xFF,
                           0x60, 0xC9, 0x33, 0xF0};  // Explicit declaration, to prevent modification by other functions
-        transmit_can_frame(&BMWiX_16E, can_config.battery);
+        transmit_can_frame(&BMWiX_16E);
         // set back to default values
         BMWiX_16E.data = {0x00, 0xA0, 0xC9, 0xFF, 0x60, 0xC9, 0x3A, 0xF7};  // default values
         ContactorState.closed = false;

@@ -116,10 +116,10 @@ void PylonBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
 
-    transmit_can_frame(&PYLON_3010, can_config.battery);  // Heartbeat
-    transmit_can_frame(&PYLON_4200, can_config.battery);  // Ensemble OR System equipment info, depends on frame0
-    transmit_can_frame(&PYLON_8200, can_config.battery);  // Control device quit sleep status
-    transmit_can_frame(&PYLON_8210, can_config.battery);  // Charge command
+    transmit_can_frame(&PYLON_3010);  // Heartbeat
+    transmit_can_frame(&PYLON_4200);  // Ensemble OR System equipment info, depends on frame0
+    transmit_can_frame(&PYLON_8200);  // Control device quit sleep status
+    transmit_can_frame(&PYLON_8210);  // Charge command
 
     if (ensemble_info_ack) {
       PYLON_4200.data.u8[0] = 0x00;  //Request system equipment info

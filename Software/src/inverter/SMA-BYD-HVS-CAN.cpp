@@ -220,24 +220,24 @@ void SmaBydHvsInverter::transmit_can(unsigned long currentMillis) {
       // Send a subset of messages per iteration to avoid overloading the CAN bus / transmit buffer
       switch (batch_send_index) {
         case 0:
-          transmit_can_frame(&SMA_558, can_config.inverter);
-          transmit_can_frame(&SMA_598, can_config.inverter);
-          transmit_can_frame(&SMA_5D8, can_config.inverter);
+          transmit_can_frame(&SMA_558);
+          transmit_can_frame(&SMA_598);
+          transmit_can_frame(&SMA_5D8);
           break;
         case 1:
-          transmit_can_frame(&SMA_618_1, can_config.inverter);
-          transmit_can_frame(&SMA_618_2, can_config.inverter);
-          transmit_can_frame(&SMA_618_3, can_config.inverter);
+          transmit_can_frame(&SMA_618_1);
+          transmit_can_frame(&SMA_618_2);
+          transmit_can_frame(&SMA_618_3);
           break;
         case 2:
-          transmit_can_frame(&SMA_158, can_config.inverter);
-          transmit_can_frame(&SMA_358, can_config.inverter);
-          transmit_can_frame(&SMA_3D8, can_config.inverter);
+          transmit_can_frame(&SMA_158);
+          transmit_can_frame(&SMA_358);
+          transmit_can_frame(&SMA_3D8);
           break;
         case 3:
-          transmit_can_frame(&SMA_458, can_config.inverter);
-          transmit_can_frame(&SMA_518, can_config.inverter);
-          transmit_can_frame(&SMA_4D8, can_config.inverter);
+          transmit_can_frame(&SMA_458);
+          transmit_can_frame(&SMA_518);
+          transmit_can_frame(&SMA_4D8);
           transmit_can_init = false;
           break;
         default:
@@ -257,12 +257,12 @@ void SmaBydHvsInverter::transmit_can(unsigned long currentMillis) {
   if (datalayer.system.status.inverter_allows_contactor_closing) {
     if (currentMillis - previousMillis100ms >= 100) {
       previousMillis100ms = currentMillis;
-      transmit_can_frame(&SMA_158, can_config.inverter);
-      transmit_can_frame(&SMA_358, can_config.inverter);
-      transmit_can_frame(&SMA_3D8, can_config.inverter);
-      transmit_can_frame(&SMA_458, can_config.inverter);
-      transmit_can_frame(&SMA_518, can_config.inverter);
-      transmit_can_frame(&SMA_4D8, can_config.inverter);
+      transmit_can_frame(&SMA_158);
+      transmit_can_frame(&SMA_358);
+      transmit_can_frame(&SMA_3D8);
+      transmit_can_frame(&SMA_458);
+      transmit_can_frame(&SMA_518);
+      transmit_can_frame(&SMA_4D8);
     }
   }
 }

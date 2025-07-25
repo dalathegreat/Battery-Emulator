@@ -220,7 +220,7 @@ void JaguarIpaceBattery::transmit_can(unsigned long currentMillis) {
   /* Send keep-alive every 200ms */
   if (currentMillis - previousMillisKeepAlive >= INTERVAL_200_MS) {
     previousMillisKeepAlive = currentMillis;
-    transmit_can_frame(&ipace_keep_alive, can_config.battery);
+    transmit_can_frame(&ipace_keep_alive);
   }
 }
 

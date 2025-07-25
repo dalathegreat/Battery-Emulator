@@ -106,13 +106,13 @@ void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
 #ifndef NISSAN_LEAF_BATTERY
 
     // VCM message, containing info if battery should sleep or stay awake
-    transmit_can_frame(&LEAF_50B, can_config.charger);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+    transmit_can_frame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
     LEAF_1DB.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DB);
-    transmit_can_frame(&LEAF_1DB, can_config.charger);
+    transmit_can_frame(&LEAF_1DB);
 
     LEAF_1DC.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DC);
-    transmit_can_frame(&LEAF_1DC, can_config.charger);
+    transmit_can_frame(&LEAF_1DC);
 #endif
 
     OBCpowerSetpoint = ((datalayer.charger.charger_setpoint_HV_IDC * 4) + 0x64);
@@ -158,9 +158,7 @@ void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
     LEAF_1F2.data.u8[6] = mprun10;
     LEAF_1F2.data.u8[7] = calculate_checksum_nibble(&LEAF_1F2);
 
-    transmit_can_frame(
-        &LEAF_1F2,
-        can_config.charger);  // Sending of 1F2 message is halted in LEAF-BATTERY function incase used here
+    transmit_can_frame(&LEAF_1F2);  // Sending of 1F2 message is halted in LEAF-BATTERY function incase used here
   }
 
   /* Send messages every 100ms here */
@@ -175,11 +173,11 @@ void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
     LEAF_55B.data.u8[6] = ((0x1 << 4) | (mprun100));
 
     LEAF_55B.data.u8[7] = calculate_CRC_Nissan(&LEAF_55B);
-    transmit_can_frame(&LEAF_55B, can_config.charger);
+    transmit_can_frame(&LEAF_55B);
 
-    transmit_can_frame(&LEAF_59E, can_config.charger);
+    transmit_can_frame(&LEAF_59E);
 
-    transmit_can_frame(&LEAF_5BC, can_config.charger);
+    transmit_can_frame(&LEAF_5BC);
 #endif
   }
 }

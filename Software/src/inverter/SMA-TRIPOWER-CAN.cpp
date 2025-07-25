@@ -136,7 +136,7 @@ void SmaTripowerInverter::transmit_can(unsigned long currentMillis) {
     previousMillis250ms = currentMillis;
     // Send next frame.
     Frame frame = framesToSend[0];
-    transmit_can_frame(frame.frame, can_config.inverter);
+    transmit_can_frame(frame.frame);
     frame.callback();
     for (int i = 0; i < listLength - 1; i++) {
       framesToSend[i] = framesToSend[i + 1];

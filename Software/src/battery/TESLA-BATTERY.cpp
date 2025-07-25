@@ -2001,14 +2001,14 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
   if (operate_contactors) {  //Special S/X mode
     if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
       if (currentMillis - lastSend1CF >= 10) {
-        transmit_can_frame(&can_msg_1CF[index_1CF], can_config.battery);
+        transmit_can_frame(&can_msg_1CF[index_1CF]);
 
         index_1CF = (index_1CF + 1) % 8;
         lastSend1CF = currentMillis;
       }
 
       if (currentMillis - lastSend118 >= 10) {
-        transmit_can_frame(&can_msg_118[index_118], can_config.battery);
+        transmit_can_frame(&can_msg_118[index_118]);
 
         index_118 = (index_118 + 1) % 16;
         lastSend118 = currentMillis;
@@ -2024,32 +2024,32 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     previousMillis10 = currentMillis;
 
     //0x118 DI_systemStatus
-    transmit_can_frame(&TESLA_118, can_config.battery);
+    transmit_can_frame(&TESLA_118);
 
     //0x2E1 VCFRONT_status
     switch (muxNumber_TESLA_2E1) {
       case 0:
-        transmit_can_frame(&TESLA_2E1_VEHICLE_AND_RAILS, can_config.battery);
+        transmit_can_frame(&TESLA_2E1_VEHICLE_AND_RAILS);
         muxNumber_TESLA_2E1++;
         break;
       case 1:
-        transmit_can_frame(&TESLA_2E1_HOMELINK, can_config.battery);
+        transmit_can_frame(&TESLA_2E1_HOMELINK);
         muxNumber_TESLA_2E1++;
         break;
       case 2:
-        transmit_can_frame(&TESLA_2E1_REFRIGERANT_SYSTEM, can_config.battery);
+        transmit_can_frame(&TESLA_2E1_REFRIGERANT_SYSTEM);
         muxNumber_TESLA_2E1++;
         break;
       case 3:
-        transmit_can_frame(&TESLA_2E1_LV_BATTERY_DEBUG, can_config.battery);
+        transmit_can_frame(&TESLA_2E1_LV_BATTERY_DEBUG);
         muxNumber_TESLA_2E1++;
         break;
       case 4:
-        transmit_can_frame(&TESLA_2E1_MUX_5, can_config.battery);
+        transmit_can_frame(&TESLA_2E1_MUX_5);
         muxNumber_TESLA_2E1++;
         break;
       case 5:
-        transmit_can_frame(&TESLA_2E1_BODY_CONTROLS, can_config.battery);
+        transmit_can_frame(&TESLA_2E1_BODY_CONTROLS);
         muxNumber_TESLA_2E1 = 0;
         break;
       default:
@@ -2068,12 +2068,12 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
       switch (muxNumber_TESLA_221) {
         case 0:
           generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_DRIVE_Mux0, can_config.battery);
+          transmit_can_frame(&TESLA_221_DRIVE_Mux0);
           muxNumber_TESLA_221++;
           break;
         case 1:
           generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_DRIVE_Mux1, can_config.battery);
+          transmit_can_frame(&TESLA_221_DRIVE_Mux1);
           muxNumber_TESLA_221 = 0;
           break;
         default:
@@ -2086,12 +2086,12 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
       switch (muxNumber_TESLA_221) {
         case 0:
           generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_ACCESSORY_Mux0, can_config.battery);
+          transmit_can_frame(&TESLA_221_ACCESSORY_Mux0);
           muxNumber_TESLA_221++;
           break;
         case 1:
           generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_ACCESSORY_Mux1, can_config.battery);
+          transmit_can_frame(&TESLA_221_ACCESSORY_Mux1);
           muxNumber_TESLA_221 = 0;
           break;
         default:
@@ -2104,12 +2104,12 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
       switch (muxNumber_TESLA_221) {
         case 0:
           generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_GOING_DOWN_Mux0, can_config.battery);
+          transmit_can_frame(&TESLA_221_GOING_DOWN_Mux0);
           muxNumber_TESLA_221++;
           break;
         case 1:
           generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_GOING_DOWN_Mux1, can_config.battery);
+          transmit_can_frame(&TESLA_221_GOING_DOWN_Mux1);
           muxNumber_TESLA_221 = 0;
           break;
         default:
@@ -2122,12 +2122,12 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
       switch (muxNumber_TESLA_221) {
         case 0:
           generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_OFF_Mux0, can_config.battery);
+          transmit_can_frame(&TESLA_221_OFF_Mux0);
           muxNumber_TESLA_221++;
           break;
         case 1:
           generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_OFF_Mux1, can_config.battery);
+          transmit_can_frame(&TESLA_221_OFF_Mux1);
           muxNumber_TESLA_221 = 0;
           break;
         default:
@@ -2140,11 +2140,11 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     //0x3C2 VCLEFT_switchStatus
     switch (muxNumber_TESLA_3C2) {
       case 0:
-        transmit_can_frame(&TESLA_3C2_Mux0, can_config.battery);
+        transmit_can_frame(&TESLA_3C2_Mux0);
         muxNumber_TESLA_3C2++;
         break;
       case 1:
-        transmit_can_frame(&TESLA_3C2_Mux1, can_config.battery);
+        transmit_can_frame(&TESLA_3C2_Mux1);
         muxNumber_TESLA_3C2 = 0;
         break;
       default:
@@ -2152,14 +2152,14 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     }
 
     //0x39D IBST_status
-    transmit_can_frame(&TESLA_39D, can_config.battery);
+    transmit_can_frame(&TESLA_39D);
 
     if (battery_contactor == 4) {  // Contactors closed
 
       // Frames to be sent only when contactors closed
 
       //0x3A1 VCFRONT_vehicleStatus, critical otherwise VCFRONT_MIA triggered
-      transmit_can_frame(&TESLA_3A1[frameCounter_TESLA_3A1], can_config.battery);
+      transmit_can_frame(&TESLA_3A1[frameCounter_TESLA_3A1]);
       frameCounter_TESLA_3A1 = (frameCounter_TESLA_3A1 + 1) % 16;
     }
 
@@ -2172,39 +2172,39 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     previousMillis100 = currentMillis;
 
     //0x102 VCLEFT_doorStatus, static
-    transmit_can_frame(&TESLA_102, can_config.battery);
+    transmit_can_frame(&TESLA_102);
     //0x103 VCRIGHT_doorStatus, static
-    transmit_can_frame(&TESLA_103, can_config.battery);
+    transmit_can_frame(&TESLA_103);
     //0x229 SCCM_rightStalk
-    transmit_can_frame(&TESLA_229, can_config.battery);
+    transmit_can_frame(&TESLA_229);
     //0x241 VCFRONT_coolant, static
-    transmit_can_frame(&TESLA_241, can_config.battery);
+    transmit_can_frame(&TESLA_241);
     //0x2D1 VCFRONT_okToUseHighPower, static
-    transmit_can_frame(&TESLA_2D1, can_config.battery);
+    transmit_can_frame(&TESLA_2D1);
     //0x2A8 CMPD_state
-    transmit_can_frame(&TESLA_2A8, can_config.battery);
+    transmit_can_frame(&TESLA_2A8);
     //0x2E8 EPBR_status
-    transmit_can_frame(&TESLA_2E8, can_config.battery);
+    transmit_can_frame(&TESLA_2E8);
     //0x7FF GTW_carConfig
     switch (muxNumber_TESLA_7FF) {
       case 0:
-        transmit_can_frame(&TESLA_7FF_Mux1, can_config.battery);
+        transmit_can_frame(&TESLA_7FF_Mux1);
         muxNumber_TESLA_7FF++;
         break;
       case 1:
-        transmit_can_frame(&TESLA_7FF_Mux2, can_config.battery);
+        transmit_can_frame(&TESLA_7FF_Mux2);
         muxNumber_TESLA_7FF++;
         break;
       case 2:
-        transmit_can_frame(&TESLA_7FF_Mux3, can_config.battery);
+        transmit_can_frame(&TESLA_7FF_Mux3);
         muxNumber_TESLA_7FF++;
         break;
       case 3:
-        transmit_can_frame(&TESLA_7FF_Mux4, can_config.battery);
+        transmit_can_frame(&TESLA_7FF_Mux4);
         muxNumber_TESLA_7FF++;
         break;
       case 4:
-        transmit_can_frame(&TESLA_7FF_Mux5, can_config.battery);
+        transmit_can_frame(&TESLA_7FF_Mux5);
         muxNumber_TESLA_7FF = 0;
         break;
       default:
@@ -2222,35 +2222,35 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
       switch (stateMachineClearIsolationFault) {
         case 0:
           TESLA_602.data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           stateMachineClearIsolationFault = 1;
           break;
         case 1:
           TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           // BMS should reply 02 50 C0 FF FF FF FF FF
           stateMachineClearIsolationFault = 2;
           break;
         case 2:
           TESLA_602.data = {0x10, 0x12, 0x27, 0x06, 0x35, 0x34, 0x37, 0x36};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           // BMS should reply 7E FF FF FF FF FF FF
           stateMachineClearIsolationFault = 3;
           break;
         case 3:
           TESLA_602.data = {0x21, 0x31, 0x30, 0x33, 0x32, 0x3D, 0x3C, 0x3F};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           stateMachineClearIsolationFault = 4;
           break;
         case 4:
           TESLA_602.data = {0x22, 0x3E, 0x39, 0x38, 0x3B, 0x3A, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           //Should generate a CAN UDS log message indicating ECU unlocked
           stateMachineClearIsolationFault = 5;
           break;
         case 5:
           TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x0A, 0x00, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           stateMachineClearIsolationFault = 0xFF;
           break;
         default:
@@ -2265,43 +2265,43 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
       switch (stateMachineBMSReset) {
         case 0:
           TESLA_602.data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           stateMachineBMSReset = 1;
           break;
         case 1:
           TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           stateMachineBMSReset = 2;
           break;
         case 2:
           TESLA_602.data = {0x10, 0x12, 0x27, 0x06, 0x35, 0x34, 0x37, 0x36};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           stateMachineBMSReset = 3;
           break;
         case 3:
           TESLA_602.data = {0x21, 0x31, 0x30, 0x33, 0x32, 0x3D, 0x3C, 0x3F};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           stateMachineBMSReset = 4;
           break;
         case 4:
           TESLA_602.data = {0x22, 0x3E, 0x39, 0x38, 0x3B, 0x3A, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           //Should generate a CAN UDS log message indicating ECU unlocked
           stateMachineBMSReset = 5;
           break;
         case 5:
           TESLA_602.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           stateMachineBMSReset = 6;
           break;
         case 6:
           TESLA_602.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           stateMachineBMSReset = 7;
           break;
         case 7:
           TESLA_602.data = {0x02, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           //Should generate a CAN UDS log message(s) indicating ECU has reset
           stateMachineBMSReset = 0xFF;
           break;
@@ -2321,7 +2321,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
           logging.println("CAN UDS: Sending BMS query initial handshake");
 #endif  //DEBUG_LOG
           TESLA_602.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           break;
         case 1:
           //Send query
@@ -2329,7 +2329,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
           logging.println("CAN UDS: Sending BMS query for pack part number");
 #endif  //DEBUG_LOG
           TESLA_602.data = {0x03, 0x22, 0xF0, 0x14, 0x00, 0x00, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           break;
         case 2:
           //Flow control
@@ -2337,7 +2337,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
           logging.println("CAN UDS: Sending BMS query flow control");
 #endif  //DEBUG_LOG
           TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           break;
         case 3:
           break;
@@ -2355,19 +2355,19 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
     previousMillis500 = currentMillis;
 
-    transmit_can_frame(&TESLA_213, can_config.battery);
-    transmit_can_frame(&TESLA_284, can_config.battery);
-    transmit_can_frame(&TESLA_293, can_config.battery);
-    transmit_can_frame(&TESLA_313, can_config.battery);
-    transmit_can_frame(&TESLA_333, can_config.battery);
+    transmit_can_frame(&TESLA_213);
+    transmit_can_frame(&TESLA_284);
+    transmit_can_frame(&TESLA_293);
+    transmit_can_frame(&TESLA_313);
+    transmit_can_frame(&TESLA_333);
     if (TESLA_334_INITIAL_SENT == false) {
-      transmit_can_frame(&TESLA_334_INITIAL, can_config.battery);
+      transmit_can_frame(&TESLA_334_INITIAL);
       TESLA_334_INITIAL_SENT = true;
     } else {
-      transmit_can_frame(&TESLA_334, can_config.battery);
+      transmit_can_frame(&TESLA_334);
     }
-    transmit_can_frame(&TESLA_3B3, can_config.battery);
-    transmit_can_frame(&TESLA_55A, can_config.battery);
+    transmit_can_frame(&TESLA_3B3);
+    transmit_can_frame(&TESLA_55A);
 
     //Generate next frames
     generateTESLA_213(TESLA_213);
@@ -2380,8 +2380,8 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
 
-    transmit_can_frame(&TESLA_082, can_config.battery);
-    transmit_can_frame(&TESLA_321, can_config.battery);
+    transmit_can_frame(&TESLA_082);
+    transmit_can_frame(&TESLA_321);
 
     //Generate next frames
     generateFrameCounterChecksum(TESLA_321, 52, 4, 56, 8);
