@@ -7,10 +7,10 @@
 class KiaEGmpBattery;
 
 class KiaEGMPHtmlRenderer : public BatteryHtmlRenderer {
-private:
+ private:
   KiaEGmpBattery& batt;
 
-public:
+ public:
   KiaEGMPHtmlRenderer(KiaEGmpBattery& b) : batt(b) {}
   String get_status_html();
 };
