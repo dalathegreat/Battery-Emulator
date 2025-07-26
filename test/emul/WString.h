@@ -1,17 +1,7 @@
 #ifndef WSTRING_H
 #define WSTRING_H
 
-/*#include <string>
-
-class String : public std::string {
-public:
-    String() : std::string() {}
-    String(uint32_t val) : std::string(std::to_string(val)) {}
-    String(double value, unsigned int decimalPlaces) : std::string(std::to_string(value)) {}
-    String(const char* str) : std::string(str) {}
-};
-*/
-
+#include <stdint.h>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
