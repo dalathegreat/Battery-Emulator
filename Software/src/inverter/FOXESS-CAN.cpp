@@ -2,6 +2,7 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 
 /* Based on info from this excellent repo: https://github.com/FozzieUK/FoxESS-Canbus-Protocol */
 /* The FoxESS protocol emulates the stackable (1-8) 48V towers found in the HV2600 / ECS4100 batteries
