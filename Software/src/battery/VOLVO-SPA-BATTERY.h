@@ -1,6 +1,5 @@
 #ifndef VOLVO_SPA_BATTERY_H
 #define VOLVO_SPA_BATTERY_H
-#include <Arduino.h>
 
 #include "CanBattery.h"
 #include "VOLVO-SPA-HTML.h"

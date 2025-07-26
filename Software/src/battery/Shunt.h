@@ -1,12 +1,14 @@
 #ifndef _SHUNT_H
 #define _SHUNT_H
 
-#include "USER_SETTINGS.h"
-#include "src/communication/Transmitter.h"
-#include "src/communication/can/CanReceiver.h"
-#include "src/communication/can/comm_can.h"
-#include "src/devboard/safety/safety.h"
-#include "src/devboard/utils/types.h"
+#include "../../USER_SETTINGS.h"
+#include "../../src/communication/Transmitter.h"
+#include "../../src/communication/can/CanReceiver.h"
+#include "../../src/communication/can/comm_can.h"
+#include "../../src/devboard/safety/safety.h"
+#include "../../src/devboard/utils/types.h"
+
+#include <vector>
 
 enum class ShuntType { None = 0, BmwSbox = 1, Highest };
 

@@ -1,8 +1,8 @@
 #ifndef __LOGGING_H__
 #define __LOGGING_H__
 
+#include <Print.h>
 #include <inttypes.h>
-#include "Print.h"
 #include "types.h"
 
 class Logging : public Print {

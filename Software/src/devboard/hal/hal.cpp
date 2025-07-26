@@ -2,6 +2,7 @@
 
 #include "../../../USER_SETTINGS.h"
 
+#include <Arduino.h>
 #include "hw_3LB.h"
 #include "hw_devkit.h"
 #include "hw_lilygo.h"
@@ -22,8 +23,6 @@ void init_hal() {
 #error "No HW defined."
 #endif
 }
-
-unsigned long millis();
 
 bool Esp32Hal::system_booted_up() {
   return milliseconds(millis()) > BOOTUP_TIME();

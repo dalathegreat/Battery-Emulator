@@ -1,4 +1,5 @@
 #include "MEB-BATTERY.h"
+#include <Arduino.h>
 #include <algorithm>  // For std::min and std::max
 #include "../communication/can/comm_can.h"
 #include "../communication/can/obd.h"

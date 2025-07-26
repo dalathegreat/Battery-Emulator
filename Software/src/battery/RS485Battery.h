@@ -3,10 +3,9 @@
 
 #include "Battery.h"
 
-#include "src/communication/Transmitter.h"
-#include "src/devboard/utils/types.h"
-
-#include "src/communication/rs485/comm_rs485.h"
+#include "../communication/Transmitter.h"
+#include "../communication/rs485/comm_rs485.h"
+#include "../devboard/utils/types.h"
 
 // Abstract base class for batteries using the RS485 interface
 class RS485Battery : public Battery, Transmitter, Rs485Receiver {

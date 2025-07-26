@@ -1,9 +1,10 @@
 #ifndef _NISSAN_LEAF_HTML_H
 #define _NISSAN_LEAF_HTML_H
 
+#include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
-#include "src/devboard/webserver/BatteryHtmlRenderer.h"
+#include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
  public:

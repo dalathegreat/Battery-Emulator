@@ -1,6 +1,5 @@
 #ifndef KIA_HYUNDAI_64_BATTERY_H
 #define KIA_HYUNDAI_64_BATTERY_H
-#include <Arduino.h>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"

@@ -747,11 +747,16 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
   }
 }
 
-bool NissanLeafBattery::is_message_corrupt(CAN_frame rx_frame) {
+uint8_t NissanLeafBattery::calculate_crc(CAN_frame& rx_frame) {
   uint8_t crc = 0;
   for (uint8_t j = 0; j < 7; j++) {
     crc = crctable[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
   }
+  return crc;
+}
+
+bool NissanLeafBattery::is_message_corrupt(CAN_frame rx_frame) {
+  uint8_t crc = calculate_crc(rx_frame);
   return crc != rx_frame.data.u8[7];
 }
 

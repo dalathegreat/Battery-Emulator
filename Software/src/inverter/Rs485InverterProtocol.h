@@ -3,7 +3,7 @@
 
 #include "InverterProtocol.h"
 
-#include "src/communication/rs485/comm_rs485.h"
+#include "../communication/rs485/comm_rs485.h"
 
 class Rs485InverterProtocol : public InverterProtocol, Rs485Receiver {
  public:

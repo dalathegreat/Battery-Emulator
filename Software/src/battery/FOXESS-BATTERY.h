@@ -1,7 +1,5 @@
 #ifndef FOXESS_BATTERY_H
 #define FOXESS_BATTERY_H
-#include <Arduino.h>
-
 #include "CanBattery.h"
 
 #ifdef FOXESS_BATTERY

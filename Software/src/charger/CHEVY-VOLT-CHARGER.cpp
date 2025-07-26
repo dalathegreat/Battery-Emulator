@@ -1,4 +1,5 @@
 #include "CHEVY-VOLT-CHARGER.h"
+#include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/logging.h"
