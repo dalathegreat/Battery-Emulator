@@ -28,6 +28,7 @@
 //#define KIA_HYUNDAI_HYBRID_BATTERY
 //#define MEB_BATTERY
 //#define MG_5_BATTERY
+//#define MG_HS_PHEV_BATTERY
 //#define NISSAN_LEAF_BATTERY
 //#define ORION_BMS
 //#define PYLON_BATTERY
@@ -68,6 +69,7 @@
 //#define SMA_TRIPOWER_CAN //Enable this line to emulate a "SMA Home Storage battery" over CAN bus
 //#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
 //#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
+//#define SOLXPOW_CAN      //Enable this line to emulate a "Solxpow compatible battery" over CAN bus
 //#define SUNGROW_CAN      //Enable this line to emulate a "Sungrow SBR064" over CAN bus
 
 /* Select hardware used for Battery-Emulator */
@@ -78,7 +80,7 @@
 
 /* Contactor settings. If you have a battery that does not activate contactors via CAN, configure this section */
 #define PRECHARGE_TIME_MS 500  //Precharge time in milliseconds. Modify to suit your inverter (See wiki for more info)
-//#define CONTACTOR_CONTROL     //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
+//#define CONTACTOR_CONTROL    //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
 //#define CONTACTOR_CONTROL_DOUBLE_BATTERY //Enable this line to have the emulator hardware control secondary set of contactors for double battery setups (See wiki for pins)
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM for CONTACTOR_CONTROL, which lowers power consumption and heat generation. CONTACTOR_CONTROL must be enabled.
 //#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
@@ -109,7 +111,7 @@
 //#define DEBUG_CAN_DATA  //Enable this line to print incoming/outgoing CAN & CAN-FD messages to USB serial (WARNING, raises CPU load, do not use for production)
 
 /* CAN options */
-//#define CAN_ADDON              //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 chip (Needed for some inverters / double battery)
+//#define CAN_ADDON  //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 chip (Needed for some inverters / double battery)
 #define CRYSTAL_FREQUENCY_MHZ 8  //CAN_ADDON option, what is your MCP2515 add-on boards crystal frequency?
 //#define CANFD_ADDON           //Enable this line to activate an isolated secondary CAN-FD bus using add-on MCP2518FD chip / Native CANFD on Stark board
 #define CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ \
@@ -119,6 +121,8 @@
 /* Connectivity options */
 #define WIFI
 //#define WIFICONFIG  //Enable this line to set a static IP address / gateway /subnet mask for the device. see USER_SETTINGS.cpp for the settings
+//#define CUSTOM_HOSTNAME \
+  "battery-emulator"  //Enable this line to use a custom hostname for the device, if disabled the default naming format 'esp32-XXXXXX' will be used.
 #define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
 #define WIFIAP  //When enabled, the emulator will broadcast its own access point Wifi. Can be used at the same time as a normal Wifi connection to a router.
 #define MDNSRESPONDER  //Enable this line to enable MDNS, allows battery monitor te be found by .local address. Requires WEBSERVER to be enabled.
@@ -194,9 +198,16 @@ extern volatile float CHARGER_END_A;
 
 extern volatile unsigned long long bmsResetTimeOffset;
 
+#include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
+
+// Equipment stop button behavior. Use NC button for safety reasons.
+//LATCHING_SWITCH  - Normally closed (NC), latching switch. When pressed it activates e-stop
+//MOMENTARY_SWITCH - Short press to activate e-stop, long 15s press to deactivate. E-stop is persistent between reboots
+
 #ifdef EQUIPMENT_STOP_BUTTON
-typedef enum { LATCHING_SWITCH = 0, MOMENTARY_SWITCH = 1 } STOP_BUTTON_BEHAVIOR;
-extern volatile STOP_BUTTON_BEHAVIOR equipment_stop_behavior;
+const STOP_BUTTON_BEHAVIOR stop_button_default_behavior = STOP_BUTTON_BEHAVIOR::MOMENTARY_SWITCH;
+#else
+const STOP_BUTTON_BEHAVIOR stop_button_default_behavior = STOP_BUTTON_BEHAVIOR::NOT_CONNECTED;
 #endif
 
 #ifdef WIFICONFIG

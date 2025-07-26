@@ -2,7 +2,6 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 /* TODO: Map error bits in 0x158 */
 
@@ -69,16 +68,7 @@ void SmaBydHInverter::
     SMA_158.data.u8[2] = 0x6A;
   }
 
-#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
-  // Inverter allows contactor closing
-  if (datalayer.system.status.inverter_allows_contactor_closing) {
-    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
-                 HIGH);  // Turn on LED to indicate that SMA inverter allows contactor closing
-  } else {
-    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
-                 LOW);  // Turn off LED to indicate that SMA inverter does not allow contactor closing
-  }
-#endif  // INVERTER_CONTACTOR_ENABLE_LED_PIN
+  control_contactor_led();
 
   // Check if Enable line is working. If we go too long without any input, raise an event
   if (!datalayer.system.status.inverter_allows_contactor_closing) {
@@ -156,12 +146,12 @@ void SmaBydHInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       //Frame0-3 Timestamp
       /*
-      transmit_can_frame(&SMA_158, can_config.inverter);
-      transmit_can_frame(&SMA_358, can_config.inverter);
-      transmit_can_frame(&SMA_3D8, can_config.inverter);
-      transmit_can_frame(&SMA_458, can_config.inverter);
-      transmit_can_frame(&SMA_518, can_config.inverter);
-      transmit_can_frame(&SMA_4D8, can_config.inverter);
+      transmit_can_frame(&SMA_158);
+      transmit_can_frame(&SMA_358);
+      transmit_can_frame(&SMA_3D8);
+      transmit_can_frame(&SMA_458);
+      transmit_can_frame(&SMA_518);
+      transmit_can_frame(&SMA_4D8);
       */
       inverter_time =
           (rx_frame.data.u8[0] << 24) | (rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
@@ -234,38 +224,27 @@ void SmaBydHInverter::transmit_can(unsigned long currentMillis) {
   if (datalayer.system.status.inverter_allows_contactor_closing) {
     if (currentMillis - previousMillis100ms >= 100) {
       previousMillis100ms = currentMillis;
-      transmit_can_frame(&SMA_158, can_config.inverter);
-      transmit_can_frame(&SMA_358, can_config.inverter);
-      transmit_can_frame(&SMA_3D8, can_config.inverter);
-      transmit_can_frame(&SMA_458, can_config.inverter);
-      transmit_can_frame(&SMA_518, can_config.inverter);
-      transmit_can_frame(&SMA_4D8, can_config.inverter);
+      transmit_can_frame(&SMA_158);
+      transmit_can_frame(&SMA_358);
+      transmit_can_frame(&SMA_3D8);
+      transmit_can_frame(&SMA_458);
+      transmit_can_frame(&SMA_518);
+      transmit_can_frame(&SMA_4D8);
     }
   }
 }
 
 void SmaBydHInverter::transmit_can_init() {
-  transmit_can_frame(&SMA_558, can_config.inverter);
-  transmit_can_frame(&SMA_598, can_config.inverter);
-  transmit_can_frame(&SMA_5D8, can_config.inverter);
-  transmit_can_frame(&SMA_618_1, can_config.inverter);
-  transmit_can_frame(&SMA_618_2, can_config.inverter);
-  transmit_can_frame(&SMA_618_3, can_config.inverter);
-  transmit_can_frame(&SMA_158, can_config.inverter);
-  transmit_can_frame(&SMA_358, can_config.inverter);
-  transmit_can_frame(&SMA_3D8, can_config.inverter);
-  transmit_can_frame(&SMA_458, can_config.inverter);
-  transmit_can_frame(&SMA_518, can_config.inverter);
-  transmit_can_frame(&SMA_4D8, can_config.inverter);
-}
-
-void SmaBydHInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
-  pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);
-#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
-  pinMode(INVERTER_CONTACTOR_ENABLE_LED_PIN, OUTPUT);
-  digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN, LOW);  // Turn LED off, until inverter allows contactor closing
-#endif                                                   // INVERTER_CONTACTOR_ENABLE_LED_PIN
+  transmit_can_frame(&SMA_558);
+  transmit_can_frame(&SMA_598);
+  transmit_can_frame(&SMA_5D8);
+  transmit_can_frame(&SMA_618_1);
+  transmit_can_frame(&SMA_618_2);
+  transmit_can_frame(&SMA_618_3);
+  transmit_can_frame(&SMA_158);
+  transmit_can_frame(&SMA_358);
+  transmit_can_frame(&SMA_3D8);
+  transmit_can_frame(&SMA_458);
+  transmit_can_frame(&SMA_518);
+  transmit_can_frame(&SMA_4D8);
 }

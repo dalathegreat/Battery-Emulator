@@ -13,7 +13,7 @@ class RS485Battery : public Battery, Transmitter, Rs485Receiver {
  public:
   virtual void transmit_rs485(unsigned long currentMillis) = 0;
 
-  String interface_name() { return "RS485"; }
+  const char* interface_name() { return "RS485"; }
 
   void transmit(unsigned long currentMillis) { transmit_rs485(currentMillis); }
 

@@ -1,8 +1,8 @@
 #include "TEST-FAKE-BATTERY.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
+#include "../devboard/utils/logging.h"
 
-static void print_units(char* header, int value, char* units) {
+static void print_units(const char* header, int value, const char* units) {
   logging.print(header);
   logging.print(value);
   logging.print(units);
@@ -67,7 +67,7 @@ void TestFakeBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
     // Put fake messages here incase you want to test sending CAN
-    //transmit_can_frame(&TEST, can_interface);
+    //transmit_can_frame(&TEST);
   }
 }
 

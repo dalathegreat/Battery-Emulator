@@ -3,7 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 void KiaHyundai64Battery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -178,17 +177,17 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
         poll_data_pid++;
         if (poll_data_pid == 1) {
-          transmit_can_frame(&KIA64_7E4_id1, can_interface);
+          transmit_can_frame(&KIA64_7E4_id1);
         } else if (poll_data_pid == 2) {
-          transmit_can_frame(&KIA64_7E4_id2, can_interface);
+          transmit_can_frame(&KIA64_7E4_id2);
         } else if (poll_data_pid == 3) {
-          transmit_can_frame(&KIA64_7E4_id3, can_interface);
+          transmit_can_frame(&KIA64_7E4_id3);
         } else if (poll_data_pid == 4) {
-          transmit_can_frame(&KIA64_7E4_id4, can_interface);
+          transmit_can_frame(&KIA64_7E4_id4);
         } else if (poll_data_pid == 5) {
-          transmit_can_frame(&KIA64_7E4_id5, can_interface);
+          transmit_can_frame(&KIA64_7E4_id5);
         } else if (poll_data_pid == 6) {
-          transmit_can_frame(&KIA64_7E4_id6, can_interface);
+          transmit_can_frame(&KIA64_7E4_id6);
         }
       }
       break;
@@ -196,8 +195,7 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[4] == poll_data_pid) {
-            transmit_can_frame(&KIA64_7E4_ack,
-                               can_interface);  //Send ack to BMS if the same frame is sent as polled
+            transmit_can_frame(&KIA64_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:  //First frame in PID group
@@ -403,9 +401,9 @@ void KiaHyundai64Battery::transmit_can(unsigned long currentMillis) {
     previousMillis100 = currentMillis;
 
     if (contactor_closing_allowed == nullptr || *contactor_closing_allowed) {
-      transmit_can_frame(&KIA64_553, can_interface);
-      transmit_can_frame(&KIA64_57F, can_interface);
-      transmit_can_frame(&KIA64_2A1, can_interface);
+      transmit_can_frame(&KIA64_553);
+      transmit_can_frame(&KIA64_57F);
+      transmit_can_frame(&KIA64_2A1);
     }
   }
 
@@ -455,9 +453,9 @@ void KiaHyundai64Battery::transmit_can(unsigned long currentMillis) {
           break;
       }
 
-      transmit_can_frame(&KIA_HYUNDAI_200, can_interface);
-      transmit_can_frame(&KIA_HYUNDAI_523, can_interface);
-      transmit_can_frame(&KIA_HYUNDAI_524, can_interface);
+      transmit_can_frame(&KIA_HYUNDAI_200);
+      transmit_can_frame(&KIA_HYUNDAI_523);
+      transmit_can_frame(&KIA_HYUNDAI_524);
     }
   }
 }

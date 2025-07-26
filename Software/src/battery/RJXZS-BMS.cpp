@@ -2,7 +2,6 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 void RjxzsBms::update_values() {
 
@@ -509,8 +508,8 @@ void RjxzsBms::transmit_can(unsigned long currentMillis) {
     }
 
     if (!setup_completed) {
-      transmit_can_frame(&RJXZS_10, can_config.battery);  // Communication connected flag
-      transmit_can_frame(&RJXZS_1C, can_config.battery);  // CAN OK
+      transmit_can_frame(&RJXZS_10);  // Communication connected flag
+      transmit_can_frame(&RJXZS_1C);  // CAN OK
     }
   }
 }

@@ -6,6 +6,8 @@
 #include "../datalayer/datalayer.h"
 #include "src/communication/Transmitter.h"
 #include "src/communication/can/CanReceiver.h"
+#include "src/communication/can/comm_can.h"
+#include "src/devboard/safety/safety.h"
 
 enum class ChargerType { None, NissanLeaf, ChevyVolt, Highest };
 
@@ -56,11 +58,18 @@ class CanCharger : public Charger, Transmitter, CanReceiver {
 
   void receive_can_frame(CAN_frame* frame) { map_can_frame_to_variable(*frame); }
 
+  CAN_Interface interface() { return can_interface; }
+
  protected:
+  CAN_Interface can_interface;
+
   CanCharger(ChargerType type) : Charger(type) {
+    can_interface = can_config.charger;
     register_transmitter(this);
-    register_can_receiver(this, can_config.charger);
+    register_can_receiver(this, can_interface);
   }
+
+  void transmit_can_frame(CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
 };
 
 #endif

@@ -2,11 +2,11 @@
 #define BATTERY_H
 
 #include <vector>
+#include "src/devboard/utils/types.h"
 #include "src/devboard/webserver/BatteryHtmlRenderer.h"
 
 enum class BatteryType {
   None = 0,
-  BmwSbox = 1,
   BmwI3 = 2,
   BmwIx = 3,
   BoltAmpera = 4,
@@ -42,15 +42,20 @@ enum class BatteryType {
   TestFake = 34,
   VolvoSpa = 35,
   VolvoSpaHybrid = 36,
-  HyundaiIoniq28 = 37,
+  MgHsPhev = 37,
+  HyundaiIoniq28 = 38,
   Highest
 };
 
 extern std::vector<BatteryType> supported_battery_types();
 extern const char* name_for_battery_type(BatteryType type);
+extern const char* name_for_chemistry(battery_chemistry_enum chem);
+extern const char* name_for_comm_interface(comm_interface comm);
 
 extern BatteryType user_selected_battery_type;
 extern bool user_selected_second_battery;
+
+extern battery_chemistry_enum user_selected_battery_chemistry;
 
 // Abstract base class for next-generation battery implementations.
 // Defines the interface to call battery specific functionality.
@@ -60,7 +65,7 @@ class Battery {
   virtual void update_values() = 0;
 
   // The name of the comm interface the battery is using.
-  virtual String interface_name() = 0;
+  virtual const char* interface_name() = 0;
 
   // These are commands from external I/O (UI, MQTT etc.)
   // Override in battery if it supports them. Otherwise they are NOP.
@@ -80,6 +85,8 @@ class Battery {
   virtual bool supports_real_BMS_status() { return false; }
   virtual bool supports_toggle_SOC_method() { return false; }
   virtual bool supports_factory_mode_method() { return false; }
+  virtual bool supports_chademo_restart() { return false; }
+  virtual bool supports_chademo_stop() { return false; }
 
   virtual void clear_isolation() {}
   virtual void reset_BMS() {}
@@ -94,6 +101,8 @@ class Battery {
   virtual void request_close_contactors() {}
   virtual void toggle_SOC_method() {}
   virtual void set_factory_mode() {}
+  virtual void chademo_restart() {}
+  virtual void chademo_stop() {}
 
   virtual void set_fake_voltage(float v) {}
   virtual float get_voltage();

@@ -47,6 +47,8 @@ CoilData::~CoilData() {
 
 // Assignment operator
 CoilData& CoilData::operator=(const CoilData& m) {
+  // Avoid self-assignment
+  if (this == &m) return *this;
   // Remove old data
   if (CDbuffer) {
     delete CDbuffer;

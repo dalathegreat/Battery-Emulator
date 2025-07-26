@@ -3,7 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
@@ -44,7 +43,7 @@ uint8_t BmwI3Battery::increment_alive_counter(uint8_t counter) {
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
   if (datalayer.system.settings.equipment_stop_active == true) {
     digitalWrite(wakeup_pin, LOW);  // Turn off wakeup pin
-  } else {
+  } else if (millis() > INTERVAL_1_S) {
     digitalWrite(wakeup_pin, HIGH);  // Wake up the battery
   }
 
@@ -103,21 +102,6 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   } else {
     clear_event(EVENT_CONTACTOR_WELDED);
   }
-
-  // Update webserver datalayer
-  datalayer_extended.bmwi3.SOC_raw = (battery_HVBatt_SOC * 10);
-  datalayer_extended.bmwi3.SOC_dash = (battery_display_SOC * 50);
-  datalayer_extended.bmwi3.SOC_OBD2 = battery_soc;
-  datalayer_extended.bmwi3.ST_iso_ext = battery_status_error_isolation_external_Bordnetz;
-  datalayer_extended.bmwi3.ST_iso_int = battery_status_error_isolation_internal_Bordnetz;
-  datalayer_extended.bmwi3.ST_valve_cooling = battery_status_valve_cooling;
-  datalayer_extended.bmwi3.ST_interlock = battery_status_error_locking;
-  datalayer_extended.bmwi3.ST_precharge = battery_status_precharge_locked;
-  datalayer_extended.bmwi3.ST_DCSW = battery_status_disconnecting_switch;
-  datalayer_extended.bmwi3.ST_EMG = battery_status_emergency_mode;
-  datalayer_extended.bmwi3.ST_WELD = battery_status_error_disconnecting_switch;
-  datalayer_extended.bmwi3.ST_isolation = battery_status_warning_isolation;
-  datalayer_extended.bmwi3.ST_cold_shutoff_valve = battery_status_cold_shutoff_valve;
 }
 
 void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -250,7 +234,7 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x607:  //BMS - responses to message requests on 0x615
       if ((cmdState == CELL_VOLTAGE_CELLNO || cmdState == CELL_VOLTAGE_CELLNO_LAST) && (rx_frame.data.u8[0] == 0xF4)) {
         if (rx_frame.DLC == 6) {
-          transmit_can_frame(&BMW_6F4_CELL_CONTINUE, can_interface);  // tell battery to send the cellvoltage
+          transmit_can_frame(&BMW_6F4_CELL_CONTINUE);  // tell battery to send the cellvoltage
         }
         if (rx_frame.DLC == 8) {  // We have the full value, map it
           datalayer_battery->status.cell_voltages_mV[current_cell_polled - 1] =
@@ -263,7 +247,7 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         while (count < rx_frame.DLC && next_data < 49) {
           message_data[next_data++] = rx_frame.data.u8[count++];
         }
-        transmit_can_frame(&BMW_6F1_CONTINUE, can_interface);  // tell battery to send additional messages
+        transmit_can_frame(&BMW_6F1_CONTINUE);  // tell battery to send additional messages
 
       } else if (rx_frame.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
                  ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
@@ -331,9 +315,9 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       } else if (allows_contactor_closing) {
         //If battery is not in Fault mode, and we are allowed to control contactors, we allow contactor to close by sending 10B
         *allows_contactor_closing = true;
-        transmit_can_frame(&BMW_10B, can_interface);
+        transmit_can_frame(&BMW_10B);
       } else if (contactor_closing_allowed && *contactor_closing_allowed) {
-        transmit_can_frame(&BMW_10B, can_interface);
+        transmit_can_frame(&BMW_10B);
       }
     }
 
@@ -346,7 +330,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
       alive_counter_100ms = increment_alive_counter(alive_counter_100ms);
 
-      transmit_can_frame(&BMW_12F, can_interface);
+      transmit_can_frame(&BMW_12F);
     }
     // Send 200ms CAN Message
     if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -357,7 +341,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
       alive_counter_200ms = increment_alive_counter(alive_counter_200ms);
 
-      transmit_can_frame(&BMW_19B, can_interface);
+      transmit_can_frame(&BMW_19B);
     }
     // Send 500ms CAN Message
     if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
@@ -368,14 +352,14 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
       alive_counter_500ms = increment_alive_counter(alive_counter_500ms);
 
-      transmit_can_frame(&BMW_30B, can_interface);
+      transmit_can_frame(&BMW_30B);
     }
     // Send 640ms CAN Message
     if (currentMillis - previousMillis640 >= INTERVAL_640_MS) {
       previousMillis640 = currentMillis;
 
-      transmit_can_frame(&BMW_512, can_interface);  // Keep BMS alive
-      transmit_can_frame(&BMW_5F8, can_interface);
+      transmit_can_frame(&BMW_512);  // Keep BMS alive
+      transmit_can_frame(&BMW_5F8);
     }
     // Send 1000ms CAN Message
     if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
@@ -412,22 +396,22 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
       alive_counter_1000ms = increment_alive_counter(alive_counter_1000ms);
 
-      transmit_can_frame(&BMW_3E8, can_interface);  //Order comes from CAN logs
-      transmit_can_frame(&BMW_328, can_interface);
-      transmit_can_frame(&BMW_3F9, can_interface);
-      transmit_can_frame(&BMW_2E2, can_interface);
-      transmit_can_frame(&BMW_41D, can_interface);
-      transmit_can_frame(&BMW_3D0, can_interface);
-      transmit_can_frame(&BMW_3CA, can_interface);
-      transmit_can_frame(&BMW_3A7, can_interface);
-      transmit_can_frame(&BMW_2CA, can_interface);
-      transmit_can_frame(&BMW_3FB, can_interface);
-      transmit_can_frame(&BMW_418, can_interface);
-      transmit_can_frame(&BMW_1D0, can_interface);
-      transmit_can_frame(&BMW_3EC, can_interface);
-      transmit_can_frame(&BMW_192, can_interface);
-      transmit_can_frame(&BMW_13E, can_interface);
-      transmit_can_frame(&BMW_433, can_interface);
+      transmit_can_frame(&BMW_3E8);  //Order comes from CAN logs
+      transmit_can_frame(&BMW_328);
+      transmit_can_frame(&BMW_3F9);
+      transmit_can_frame(&BMW_2E2);
+      transmit_can_frame(&BMW_41D);
+      transmit_can_frame(&BMW_3D0);
+      transmit_can_frame(&BMW_3CA);
+      transmit_can_frame(&BMW_3A7);
+      transmit_can_frame(&BMW_2CA);
+      transmit_can_frame(&BMW_3FB);
+      transmit_can_frame(&BMW_418);
+      transmit_can_frame(&BMW_1D0);
+      transmit_can_frame(&BMW_3EC);
+      transmit_can_frame(&BMW_192);
+      transmit_can_frame(&BMW_13E);
+      transmit_can_frame(&BMW_433);
 
       BMW_433.data.u8[1] = 0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
       BMW_3E8.data.u8[0] = 0xF1;  // First 3E8 message byte0 we send is unique, once we sent initial value send this
@@ -435,15 +419,15 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       next_data = 0;
       switch (cmdState) {
         case SOC:
-          transmit_can_frame(&BMW_6F1_CELL, can_interface);
+          transmit_can_frame(&BMW_6F1_CELL);
           cmdState = CELL_VOLTAGE_MINMAX;
           break;
         case CELL_VOLTAGE_MINMAX:
-          transmit_can_frame(&BMW_6F1_SOH, can_interface);
+          transmit_can_frame(&BMW_6F1_SOH);
           cmdState = SOH;
           break;
         case SOH:
-          transmit_can_frame(&BMW_6F1_CELL_VOLTAGE_AVG, can_interface);
+          transmit_can_frame(&BMW_6F1_CELL_VOLTAGE_AVG);
           cmdState = CELL_VOLTAGE_CELLNO;
           current_cell_polled = 0;
 
@@ -456,11 +440,11 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
             cmdState = CELL_VOLTAGE_CELLNO;
 
             BMW_6F4_CELL_VOLTAGE_CELLNO.data.u8[6] = current_cell_polled;
-            transmit_can_frame(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_interface);
+            transmit_can_frame(&BMW_6F4_CELL_VOLTAGE_CELLNO);
           }
           break;
         case CELL_VOLTAGE_CELLNO_LAST:
-          transmit_can_frame(&BMW_6F1_SOC, can_interface);
+          transmit_can_frame(&BMW_6F1_SOC);
           cmdState = SOC;
           break;
       }
@@ -472,16 +456,16 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
       BMW_3C5.data.u8[0] = ((BMW_3C5.data.u8[0] & 0xF0) + alive_counter_5000ms);
 
-      transmit_can_frame(&BMW_3FC, can_interface);  //Order comes from CAN logs
-      transmit_can_frame(&BMW_3C5, can_interface);
-      transmit_can_frame(&BMW_3A0, can_interface);
-      transmit_can_frame(&BMW_592_0, can_interface);
-      transmit_can_frame(&BMW_592_1, can_interface);
+      transmit_can_frame(&BMW_3FC);  //Order comes from CAN logs
+      transmit_can_frame(&BMW_3C5);
+      transmit_can_frame(&BMW_3A0);
+      transmit_can_frame(&BMW_592_0);
+      transmit_can_frame(&BMW_592_1);
 
       alive_counter_5000ms = increment_alive_counter(alive_counter_5000ms);
 
       if (BMW_380_counter < 3) {
-        transmit_can_frame(&BMW_380, can_interface);  // This message stops after 3 times on startup
+        transmit_can_frame(&BMW_380);  // This message stops after 3 times on startup
         BMW_380_counter++;
       }
     }
@@ -489,9 +473,9 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
       previousMillis10000 = currentMillis;
 
-      transmit_can_frame(&BMW_3E5, can_interface);  //Order comes from CAN logs
-      transmit_can_frame(&BMW_3E4, can_interface);
-      transmit_can_frame(&BMW_37B, can_interface);
+      transmit_can_frame(&BMW_3E5);  //Order comes from CAN logs
+      transmit_can_frame(&BMW_3E4);
+      transmit_can_frame(&BMW_37B);
 
       BMW_3E5.data.u8[0] = 0xFD;  // First 3E5 message byte0 we send is unique, once we sent initial value send this
     }
@@ -508,6 +492,10 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 }
 
 void BmwI3Battery::setup(void) {  // Performs one time setup at startup
+  if (!esp32hal->alloc_pins(Name, wakeup_pin)) {
+    return;
+  }
+
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
@@ -522,5 +510,5 @@ void BmwI3Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.number_of_cells = NUMBER_OF_CELLS;
 
   pinMode(wakeup_pin, OUTPUT);
-  digitalWrite(wakeup_pin, HIGH);  // Wake up the battery
+  digitalWrite(wakeup_pin, LOW);  // Set pin to low, prepare to wakeup later on!
 }

@@ -1,6 +1,42 @@
 #include "wifi.h"
-#include "../../include.h"
+#include <ESPmDNS.h>
 #include "../utils/events.h"
+#include "../utils/logging.h"
+
+#if defined(WIFI) || defined(WEBSERVER)
+const bool wifi_enabled_default = true;
+#else
+const bool wifi_enabled_default = false;
+#endif
+
+bool wifi_enabled = wifi_enabled_default;
+
+#ifdef COMMON_IMAGE
+const bool wifiap_enabled_default = true;
+#else
+#ifdef WIFIAP
+const bool wifiap_enabled_default = true;
+#else
+const bool wifiap_enabled_default = false;
+#endif
+#endif
+
+bool wifiap_enabled = wifiap_enabled_default;
+
+#ifdef MDNSRESPONDER
+const bool mdns_enabled_default = true;
+#else
+const bool mdns_enabled_default = false;
+#endif
+bool mdns_enabled = mdns_enabled_default;
+
+#ifdef CUSTOM_HOSTNAME
+std::string custom_hostname = CUSTOM_HOSTNAME;
+#else
+std::string custom_hostname;
+#endif
+
+std::string ssidAP;
 
 // Configuration Parameters
 static const uint16_t WIFI_CHECK_INTERVAL = 2000;       // 1 seconds normal check interval when last connected
@@ -27,13 +63,19 @@ static uint16_t current_check_interval = WIFI_CHECK_INTERVAL;
 static bool connected_once = false;
 
 void init_WiFi() {
+  DEBUG_PRINTF("init_Wifi enabled=%d, apå=%d, ssid=%s, password=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str(),
+               password.c_str());
 
-#ifdef WIFIAP
-  WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
-  init_WiFi_AP();
-#else
-  WiFi.mode(WIFI_STA);  // Only Router connection
-#endif  // WIFIAP
+  if (!custom_hostname.empty()) {
+    WiFi.setHostname(custom_hostname.c_str());
+  }
+
+  if (wifiap_enabled) {
+    WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
+    init_WiFi_AP();
+  } else if (wifi_enabled) {
+    WiFi.mode(WIFI_STA);  // Only Router connection
+  }
 
   // Set WiFi to auto reconnect
   WiFi.setAutoReconnect(true);
@@ -43,17 +85,26 @@ void init_WiFi() {
   WiFi.config(local_IP, gateway, subnet);
 #endif
 
+  DEBUG_PRINTF("init_Wifi set event handlers\n");
+
   // Initialize Wi-Fi event handlers
   WiFi.onEvent(onWifiConnect, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
   WiFi.onEvent(onWifiDisconnect, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   WiFi.onEvent(onWifiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
 
   // Start Wi-Fi connection
+  DEBUG_PRINTF("start Wifi\n");
   connectToWiFi();
+
+  DEBUG_PRINTF("init_Wifi complete\n");
 }
 
 // Task to monitor Wi-Fi status and handle reconnections
 void wifi_monitor() {
+  if (ssid.empty() || password.empty()) {
+    return;
+  }
+
   unsigned long currentMillis = millis();
 
   // Check if it's time to monitor the Wi-Fi status
@@ -100,6 +151,11 @@ void wifi_monitor() {
 #ifdef DEBUG_LOG
           logging.println("No previous OK connection, force a full connection attempt...");
 #endif
+
+          wifiap_enabled = true;
+          WiFi.mode(WIFI_AP_STA);
+          init_WiFi_AP();
+
           FullReconnectToWiFi();
         }
       }
@@ -121,11 +177,18 @@ void FullReconnectToWiFi() {
 
 // Function to handle Wi-Fi connection
 void connectToWiFi() {
+  if (ssid.empty() || password.empty()) {
+    return;
+  }
+
   if (WiFi.status() != WL_CONNECTED) {
     lastReconnectAttempt = millis();  // Reset the reconnect attempt timer
 #ifdef DEBUG_LOG
     logging.println("Connecting to Wi-Fi...");
 #endif
+
+    DEBUG_PRINTF("Connecting to Wi-Fi SSID: %s, password: %s, Channel: %d\n", ssid.c_str(), password.c_str(),
+                 wifi_channel);
     WiFi.begin(ssid.c_str(), password.c_str(), wifi_channel);
   } else {
 #ifdef DEBUG_LOG
@@ -139,12 +202,8 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   clear_event(EVENT_WIFI_DISCONNECT);
   set_event(EVENT_WIFI_CONNECT, 0);
   connected_once = true;
-#ifdef DEBUG_LOG
-  logging.print("Wi-Fi connected. RSSI: ");
-  logging.print(-WiFi.RSSI());
-  logging.print(" dBm, IP address: ");
-  logging.println(WiFi.localIP().toString());
-#endif
+  DEBUG_PRINTF("Wi-Fi connected. RSSI: %d dBm, IP address: %s, SSID: %s\n", -WiFi.RSSI(),
+               WiFi.localIP().toString().c_str(), WiFi.SSID().c_str());
   hasConnectedBefore = true;                                            // Mark as successfully connected at least once
   reconnectAttempts = 0;                                                // Reset the attempt counter
   current_full_reconnect_interval = INIT_WIFI_FULL_RECONNECT_INTERVAL;  // Reset the full reconnect interval
@@ -165,8 +224,10 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
 
 // Event handler for Wi-Fi disconnection
 void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
-  if (connected_once)
+
+  if (connected_once) {
     set_event(EVENT_WIFI_DISCONNECT, 0);
+  }
 #ifdef DEBUG_LOG
   logging.println("Wi-Fi disconnected.");
 #endif
@@ -175,13 +236,16 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   //normal reconnect retry start at first 2 seconds
 }
 
-#ifdef MDNSRESPONDER
 // Initialise mDNS
 void init_mDNS() {
   // Calulate the host name using the last two chars from the MAC address so each one is likely unique on a network.
   // e.g batteryemulator8C.local where the mac address is 08:F9:E0:D1:06:8C
   String mac = WiFi.macAddress();
   String mdnsHost = "batteryemulator" + mac.substring(mac.length() - 2);
+
+  if (!custom_hostname.empty()) {
+    mdnsHost = String(custom_hostname.c_str());
+  }
 
   // Initialize mDNS .local resolution
   if (!MDNS.begin(mdnsHost)) {
@@ -190,23 +254,18 @@ void init_mDNS() {
 #endif
   } else {
     // Advertise via bonjour the service so we can auto discover these battery emulators on the local network.
-    MDNS.addService("battery_emulator", "tcp", 80);
+    MDNS.addService(mdnsHost, "tcp", 80);
   }
 }
-#endif  // MDNSRESPONDER
 
-#ifdef WIFIAP
 void init_WiFi_AP() {
-#ifdef DEBUG_LOG
-  logging.println("Creating Access Point: " + String(ssidAP));
-  logging.println("With password: " + String(passwordAP));
-#endif
-  WiFi.softAP(ssidAP, passwordAP);
+  ssidAP = std::string("BatteryEmulator") + WiFi.macAddress().c_str();
+
+  DEBUG_PRINTF("Creating Access Point: %s\n", ssidAP.c_str());
+  DEBUG_PRINTF("With password: %s\n", passwordAP.c_str());
+
+  WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
   IPAddress IP = WiFi.softAPIP();
-#ifdef DEBUG_LOG
-  logging.println("Access Point created.");
-  logging.print("IP address: ");
-  logging.println(IP.toString());
-#endif
+
+  DEBUG_PRINTF("Access Point created.\nIP address: %s\n", IP.toString().c_str());
 }
-#endif  // WIFIAP

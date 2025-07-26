@@ -3,7 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 void CellPowerBms::update_values() {
 
@@ -220,10 +219,10 @@ void CellPowerBms::transmit_can(unsigned long currentMillis) {
     previousMillis1s = currentMillis;
 
     /*
-    transmit_can_frame(&CELLPOWER_18FF50E9, can_config.battery);
-    transmit_can_frame(&CELLPOWER_18FF50E8, can_config.battery);
-    transmit_can_frame(&CELLPOWER_18FF50E7, can_config.battery);
-    transmit_can_frame(&CELLPOWER_18FF50E5, can_config.battery);
+    transmit_can_frame(&CELLPOWER_18FF50E9);
+    transmit_can_frame(&CELLPOWER_18FF50E8);
+    transmit_can_frame(&CELLPOWER_18FF50E7);
+    transmit_can_frame(&CELLPOWER_18FF50E5);
     */
   }
 }

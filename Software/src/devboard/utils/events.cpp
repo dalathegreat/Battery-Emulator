@@ -1,14 +1,8 @@
 #include "events.h"
-#include "../../datalayer/datalayer.h"
-
 #include "../../../USER_SETTINGS.h"
-
-typedef struct {
-  EVENTS_ENUM_TYPE event;
-  uint8_t millisrolloverCount;
-  uint32_t timestamp;
-  uint8_t data;
-} EVENT_LOG_ENTRY_TYPE;
+#include "../../datalayer/datalayer.h"
+#include "../../devboard/hal/hal.h"
+#include "../../devboard/utils/logging.h"
 
 typedef struct {
   EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
@@ -30,7 +24,6 @@ void init_events(void) {
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
     events.entries[i].data = 0;
     events.entries[i].timestamp = 0;
-    events.entries[i].millisrolloverCount = 0;
     events.entries[i].occurences = 0;
     events.entries[i].MQTTpublished = false;  // Not published by default
   }
@@ -132,6 +125,9 @@ void init_events(void) {
   events.entries[EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_GPIO_CONFLICT].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_GPIO_NOT_DEFINED].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -155,7 +151,6 @@ void reset_all_events() {
     events.entries[i].data = 0;
     events.entries[i].state = EVENT_STATE_INACTIVE;
     events.entries[i].timestamp = 0;
-    events.entries[i].millisrolloverCount = 0;
     events.entries[i].occurences = 0;
     events.entries[i].MQTTpublished = false;  // Not published by default
   }
@@ -170,7 +165,7 @@ void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
   events.entries[event].MQTTpublished = true;
 }
 
-const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
+String get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CANMCP2517FD_INIT_FAILURE:
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
@@ -373,6 +368,12 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED:
       return "Failed to syncronise with the NTP Server. BMS will reset every 24 hours from when the emulator was "
              "powered on";
+    case EVENT_GPIO_CONFLICT:
+      return "GPIO Pin Conflict: The pin used by '" + esp32hal->failed_allocator() + "' is already allocated by '" +
+             esp32hal->conflicting_allocator() + "'. Please check your configuration and assign different pins.";
+    case EVENT_GPIO_NOT_DEFINED:
+      return "Missing GPIO Assignment: The component '" + esp32hal->failed_allocator() +
+             "' requires a GPIO pin that isn't configured. Please define a valid pin number in your settings.";
     default:
       return "";
   }
@@ -409,15 +410,12 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
     events.entries[event].occurences++;
     events.entries[event].MQTTpublished = false;
-#ifdef DEBUG_LOG
-    logging.print("Event: ");
-    logging.println(get_event_message_string(event));
-#endif
+
+    DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
   }
 
   // We should set the event, update event info
-  events.entries[event].timestamp = millis();
-  events.entries[event].millisrolloverCount = datalayer.system.status.millisrolloverCount;
+  events.entries[event].timestamp = millis64();
   events.entries[event].data = data;
   // Check if the event is latching
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;
@@ -448,17 +446,11 @@ static void update_bms_status(void) {
 
 // Function to compare events by timestamp descending
 bool compareEventsByTimestampDesc(const EventData& a, const EventData& b) {
-  if (a.event_pointer->millisrolloverCount != b.event_pointer->millisrolloverCount) {
-    return a.event_pointer->millisrolloverCount > b.event_pointer->millisrolloverCount;
-  }
   return a.event_pointer->timestamp > b.event_pointer->timestamp;
 }
 
 // Function to compare events by timestamp ascending
 bool compareEventsByTimestampAsc(const EventData& a, const EventData& b) {
-  if (a.event_pointer->millisrolloverCount != b.event_pointer->millisrolloverCount) {
-    return a.event_pointer->millisrolloverCount < b.event_pointer->millisrolloverCount;
-  }
   return a.event_pointer->timestamp < b.event_pointer->timestamp;
 }
 

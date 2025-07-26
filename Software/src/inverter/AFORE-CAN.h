@@ -1,6 +1,5 @@
 #ifndef AFORE_CAN_H
 #define AFORE_CAN_H
-#include "../include.h"
 
 #ifdef AFORE_CAN
 #define SELECTED_INVERTER_CLASS AforeCanInverter
@@ -10,7 +9,7 @@
 
 class AforeCanInverter : public CanInverterProtocol {
  public:
-  void setup();
+  const char* name() override { return Name; }
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
   void update_values();

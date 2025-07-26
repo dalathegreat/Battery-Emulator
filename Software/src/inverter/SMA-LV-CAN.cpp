@@ -1,7 +1,6 @@
 #include "SMA-LV-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 /* SMA Sunny Island Low Voltage (48V) CAN protocol:
 CAN 2.0A
@@ -91,24 +90,19 @@ void SmaLvInverter::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
-    transmit_can_frame(&SMA_351, can_config.inverter);
-    transmit_can_frame(&SMA_355, can_config.inverter);
-    transmit_can_frame(&SMA_356, can_config.inverter);
-    transmit_can_frame(&SMA_35A, can_config.inverter);
-    transmit_can_frame(&SMA_35B, can_config.inverter);
-    transmit_can_frame(&SMA_35E, can_config.inverter);
-    transmit_can_frame(&SMA_35F, can_config.inverter);
+    transmit_can_frame(&SMA_351);
+    transmit_can_frame(&SMA_355);
+    transmit_can_frame(&SMA_356);
+    transmit_can_frame(&SMA_35A);
+    transmit_can_frame(&SMA_35B);
+    transmit_can_frame(&SMA_35E);
+    transmit_can_frame(&SMA_35F);
 
     //Remote quick stop (optional)
     if (datalayer.battery.status.bms_status == FAULT) {
-      transmit_can_frame(&SMA_00F, can_config.inverter);
+      transmit_can_frame(&SMA_00F);
       //After receiving this message, Sunny Island will immediately go into standby.
       //Please send start command, to start again. Manual start is also possible.
     }
   }
-}
-
-void SmaLvInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
 }

@@ -1,8 +1,8 @@
 #ifndef RJXZS_BMS_H
 #define RJXZS_BMS_H
 #include <Arduino.h>
-#include "../include.h"
 
+#include "../system_settings.h"
 #include "CanBattery.h"
 
 #ifdef RJXZS_BMS
@@ -11,6 +11,8 @@
 
 class RjxzsBms : public CanBattery {
  public:
+  RjxzsBms() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) {}
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -102,8 +104,5 @@ class RjxzsBms : public CanBattery {
   bool charging_active = false;
   bool discharging_active = false;
 };
-
-/* Do not modify any rows below*/
-#define NATIVECAN_250KBPS
 
 #endif

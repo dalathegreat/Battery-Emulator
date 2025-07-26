@@ -109,8 +109,11 @@ It is also based on the information found in the following excellent repositorie
 - Pylon hacking https://www.eevblog.com/forum/programming/pylontech-sc0500-protocol-hacking/
 
 ## Like this project? 💖
-Leave a ⭐ If you think this project is useful. Consider hopping onto my Patreon to encourage more open-source projects!
+Leave a ⭐ If you think this project is useful. Consider hopping onto my Patreon to encourage more open-source projects! As a bonus, you will get access to the Discord server, where we hangout, develop, support, share, discuss etc. all things related to DIY EV storage solutions. See you on the server? ;)
 
 <a href="https://www.patreon.com/dala">
 	<img src="https://c5.patreon.com/external/logo/become_a_patron_button@2x.png" width="160">
-</a>
+</a> <------ Click here to learn more!
+
+
+![image](https://github.com/user-attachments/assets/66b8e967-7f5e-409d-91ec-d012489a86d2)

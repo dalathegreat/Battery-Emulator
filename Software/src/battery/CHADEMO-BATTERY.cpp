@@ -1,21 +1,25 @@
 #include "CHADEMO-BATTERY.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 #include "CHADEMO-SHUNTS.h"
-
-#ifdef CHADEMO_PIN_2  // Only support chademo for certain platforms
-
-/* CHADEMO handling runs at 6.25 times the rate of most other code, so, rather than the
- *  default value of 12 (for 12 iterations of the 5s value update loop) * 5 for a 60s timeout,
- *  instead use 75 for 75*0.8s = 60s
- */
-#undef CAN_STILL_ALIVE
-#define CAN_STILL_ALIVE 75
-//#define CH_CAN_DEBUG
 
 //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 void ChademoBattery::update_values() {
+
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  //On this integration, we don't care if no CAN messages flow (normal before user plugs in)
+  //Always write the CAN as alive!
+
+  //Check if user is requesting an action, if so, have statemachine jump there
+  if (datalayer_extended.chademo.UserRequestStop) {
+    CHADEMO_Status = CHADEMO_STOP;
+    datalayer_extended.chademo.UserRequestStop = false;
+  }
+
+  if (datalayer_extended.chademo.UserRequestRestart) {
+    CHADEMO_Status = CHADEMO_IDLE;
+    datalayer_extended.chademo.UserRequestRestart = false;
+  }
 
   datalayer.battery.status.real_soc = x102_chg_session.StateOfCharge * 100;  //Convert % to pptt
 
@@ -49,6 +53,15 @@ void ChademoBattery::update_values() {
       chargingrate = x102_chg_session.StateOfCharge / x100_chg_lim.ConstantOfChargingRateIndication * 100;
     }
   }
+
+  //Update extended datalayer for easier visualization of what's going on
+  datalayer_extended.chademo.CHADEMO_Status = CHADEMO_Status;
+  datalayer_extended.chademo.ControlProtocolNumberEV = x102_chg_session.ControlProtocolNumberEV;
+  datalayer_extended.chademo.FaultBatteryVoltageDeviation = x102_chg_session.f.fault.FaultBatteryVoltageDeviation;
+  datalayer_extended.chademo.FaultHighBatteryTemperature = x102_chg_session.f.fault.FaultHighBatteryTemperature;
+  datalayer_extended.chademo.FaultBatteryCurrentDeviation = x102_chg_session.f.fault.FaultBatteryCurrentDeviation;
+  datalayer_extended.chademo.FaultBatteryUnderVoltage = x102_chg_session.f.fault.FaultBatteryUnderVoltage;
+  datalayer_extended.chademo.FaultBatteryOverVoltage = x102_chg_session.f.fault.FaultBatteryOverVoltage;
 }
 
 //TODO simplified start/stop helper functions
@@ -77,7 +90,7 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
 
   vehicle_can_initialized = true;
 
-  vehicle_permission = digitalRead(CHADEMO_PIN_4);
+  vehicle_permission = digitalRead(pin4);
 
   x102_chg_session.ControlProtocolNumberEV = rx_frame.data.u8[0];
 
@@ -278,19 +291,6 @@ void ChademoBattery::process_vehicle_vendor_ID(CAN_frame rx_frame) {
 }
 
 void ChademoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-#ifdef CH_CAN_DEBUG
-  logging.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
-  logging.print("  ");
-  logging.print(rx_frame.ID, HEX);
-  logging.print("  ");
-  logging.print(rx_frame.DLC);
-  logging.print("  ");
-  for (int i = 0; i < rx_frame.DLC; ++i) {
-    logging.print(rx_frame.data.u8[i], HEX);
-    logging.print(" ");
-  }
-  logging.println("");
-#endif
 
   // CHADEMO coexists with a CAN-based shunt. Only process CHADEMO-specific IDs
   // 202 is unknown
@@ -303,9 +303,6 @@ void ChademoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   /*  CHADEMO_INIT state is a transient, used to indicate when CAN
    *  has not yet been receied from a vehicle 
    */
-
-  datalayer.battery.status.CAN_battery_still_alive =
-      CAN_STILL_ALIVE;  //We are getting CAN messages from the vehicle, inform the watchdog
 
   switch (rx_frame.ID) {
     case 0x100:
@@ -598,8 +595,8 @@ void ChademoBattery::transmit_can(unsigned long currentMillis) {
      * that is the limiting factor. Therefore, we
      * can generally send as is without tweaks here.
      */
-    transmit_can_frame(&CHADEMO_108, can_config.battery);
-    transmit_can_frame(&CHADEMO_109, can_config.battery);
+    transmit_can_frame(&CHADEMO_108);
+    transmit_can_frame(&CHADEMO_109);
 
     /* TODO for dynamic control: can send x118 with byte 6 bit 0 set to 0 for 1s (before flipping back to 1) as a way of giving vehicle a chance to update 101.1 and 101.2
      * 	within 6 seconds of x118 toggle.
@@ -608,9 +605,9 @@ void ChademoBattery::transmit_can(unsigned long currentMillis) {
      */
 
     if (EVSE_mode == CHADEMO_DISCHARGE || EVSE_mode == CHADEMO_BIDIRECTIONAL) {
-      transmit_can_frame(&CHADEMO_208, can_config.battery);
+      transmit_can_frame(&CHADEMO_208);
       if (x201_received) {
-        transmit_can_frame(&CHADEMO_209, can_config.battery);
+        transmit_can_frame(&CHADEMO_209);
         x209_sent = true;
       }
     }
@@ -622,7 +619,7 @@ void ChademoBattery::transmit_can(unsigned long currentMillis) {
       //FIXME REMOVE
       logging.println("REMOVE: proto 2.0");
 #endif
-      transmit_can_frame(&CHADEMO_118, can_config.battery);
+      transmit_can_frame(&CHADEMO_118);
     }
   }
 }
@@ -650,10 +647,11 @@ void ChademoBattery::transmit_can(unsigned long currentMillis) {
  */
 void ChademoBattery::handle_chademo_sequence() {
 
-  precharge_low = digitalRead(PRECHARGE_PIN) == LOW;
-  positive_high = digitalRead(POSITIVE_CONTACTOR_PIN) == HIGH;
+  precharge_low = digitalRead(precharge) == LOW;
+  positive_high = digitalRead(positive_contactor) == HIGH;
   contactors_ready = precharge_low && positive_high;
-  vehicle_permission = digitalRead(CHADEMO_PIN_4);
+
+  vehicle_permission = digitalRead(pin4);
 
   /* -------------------    State override conditions checks	------------------- */
   /* ------------------------------------------------------------------------------ */
@@ -676,8 +674,8 @@ void ChademoBattery::handle_chademo_sequence() {
   switch (CHADEMO_Status) {
     case CHADEMO_IDLE:
       /* this is where we can unlock connector */
-      digitalWrite(CHADEMO_LOCK, LOW);
-      plug_inserted = digitalRead(CHADEMO_PIN_7);
+      digitalWrite(pin_lock, LOW);
+      plug_inserted = digitalRead(pin7);
 
       if (!plug_inserted) {
 #ifdef DEBUG_LOG
@@ -704,7 +702,7 @@ void ChademoBattery::handle_chademo_sequence() {
         /* If connection is detectable, jumpstart handshake by 
 			 * indicate that the EVSE is ready to begin
 			 */
-        digitalWrite(CHADEMO_PIN_2, HIGH);
+        digitalWrite(pin2, HIGH);
 
         /* State change to initializing. We will re-enter the handler upon receipt of CAN */
         CHADEMO_Status = CHADEMO_INIT;
@@ -715,9 +713,7 @@ void ChademoBattery::handle_chademo_sequence() {
 	 * with timers to have higher confidence of certain conditions hitting
 	 * a steady state
 	 */
-#ifdef DEBUG_LOG
-        logging.println("CHADEMO plug is not inserted, cannot connect d2 relay to begin initialization.");
-#endif
+        DEBUG_PRINTLN("CHADEMO plug is not inserted, cannot connect d2 relay to begin initialization.");
         CHADEMO_Status = CHADEMO_IDLE;
       }
       break;
@@ -726,9 +722,7 @@ void ChademoBattery::handle_chademo_sequence() {
        * Used for triggers/error handling elsewhere;
        * State change to CHADEMO_NEGOTIATE occurs in handle_incoming_can_frame_battery(..)
        */
-#ifdef DEBUG_LOG
-//      logging.println("Awaiting initial vehicle CAN to trigger negotiation");
-#endif
+      DEBUG_PRINTLN("Awaiting initial vehicle CAN to trigger negotiation");
       evse_init();
       break;
     case CHADEMO_NEGOTIATE:
@@ -750,7 +744,7 @@ void ChademoBattery::handle_chademo_sequence() {
       // that pin 4 (j) reads high
       if (vehicle_permission) {
         //lock connector here
-        digitalWrite(CHADEMO_LOCK, HIGH);
+        digitalWrite(pin_lock, HIGH);
 
         //TODO spec requires test to validate solenoid has indeed engaged.
         // example uses a comparator/current consumption check around solenoid
@@ -780,7 +774,7 @@ void ChademoBattery::handle_chademo_sequence() {
       if (x102_chg_session.s.status.StatusVehicleChargingEnabled) {
         if (get_measured_voltage() < 20) {
 
-          digitalWrite(CHADEMO_PIN_10, HIGH);
+          digitalWrite(pin10, HIGH);
           evse_permission = true;
         } else {
           logging.println("Insulation check measures > 20v ");
@@ -898,8 +892,8 @@ void ChademoBattery::handle_chademo_sequence() {
        */
       if (get_measured_current() <= 5 && get_measured_voltage() <= 10) {
         /* welding detection ideally here */
-        digitalWrite(CHADEMO_PIN_10, LOW);
-        digitalWrite(CHADEMO_PIN_2, LOW);
+        digitalWrite(pin10, LOW);
+        digitalWrite(pin2, LOW);
         CHADEMO_Status = CHADEMO_IDLE;
       }
 
@@ -916,8 +910,8 @@ void ChademoBattery::handle_chademo_sequence() {
 #ifdef DEBUG_LOG
       logging.println("CHADEMO fault encountered, tearing down to make safe");
 #endif
-      digitalWrite(CHADEMO_PIN_10, LOW);
-      digitalWrite(CHADEMO_PIN_2, LOW);
+      digitalWrite(pin10, LOW);
+      digitalWrite(pin2, LOW);
       evse_permission = false;
       vehicle_permission = false;
       x209_sent = false;
@@ -937,14 +931,18 @@ void ChademoBattery::handle_chademo_sequence() {
 
 void ChademoBattery::setup(void) {  // Performs one time setup at startup
 
-  pinMode(CHADEMO_PIN_2, OUTPUT);
-  digitalWrite(CHADEMO_PIN_2, LOW);
-  pinMode(CHADEMO_PIN_10, OUTPUT);
-  digitalWrite(CHADEMO_PIN_10, LOW);
-  pinMode(CHADEMO_LOCK, OUTPUT);
-  digitalWrite(CHADEMO_LOCK, LOW);
-  pinMode(CHADEMO_PIN_4, INPUT);
-  pinMode(CHADEMO_PIN_7, INPUT);
+  if (!esp32hal->alloc_pins(Name, pin2, pin10, pin4, pin7, pin_lock)) {
+    return;
+  }
+
+  pinMode(pin2, OUTPUT);
+  digitalWrite(pin2, LOW);
+  pinMode(pin10, OUTPUT);
+  digitalWrite(pin10, LOW);
+  pinMode(pin_lock, OUTPUT);
+  digitalWrite(pin_lock, LOW);
+  pinMode(pin4, INPUT);
+  pinMode(pin7, INPUT);
 
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
@@ -995,5 +993,3 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
 
   setupMillis = millis();
 }
-
-#endif

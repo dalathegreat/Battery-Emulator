@@ -1,9 +1,9 @@
 #include "advanced_battery_html.h"
 #include <Arduino.h>
 #include <vector>
+#include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
-#include "../../include.h"
 
 // Available generic battery commands that are taken into use based on what the selected battery supports.
 std::vector<BatteryCommand> battery_commands = {
@@ -11,6 +11,15 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) { return b && b->supports_clear_isolation(); },
      [](Battery* b) {
        b->clear_isolation();
+     }},
+    {"chademoRestart", "Restart", "restart the V2X session?",
+     [](Battery* b) { return b && b->supports_chademo_restart(); },
+     [](Battery* b) {
+       b->chademo_restart();
+     }},
+    {"chademoStop", "Stop", "stop V2X?", [](Battery* b) { return b && b->supports_chademo_restart(); },
+     [](Battery* b) {
+       b->chademo_restart();
      }},
     {"resetBMS", "BMS reset", "reset the BMS?", [](Battery* b) { return b && b->supports_reset_BMS(); },
      [](Battery* b) {

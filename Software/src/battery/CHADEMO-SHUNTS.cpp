@@ -21,8 +21,8 @@
 #include "CHADEMO-SHUNTS.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 #include "CHADEMO-BATTERY.h"
+#include "src/devboard/utils/logging.h"
 
 /* Initial frames received from ISA shunts provide invalid during initialization */
 static int framecount = 0;
@@ -234,6 +234,10 @@ inline void ISA_handle528(CAN_frame* frame) {
   wh = (long)((frame->data.u8[2] << 24) | (frame->data.u8[3] << 16) | (frame->data.u8[4] << 8) | (frame->data.u8[5]));
   KWH += (wh - lastWh) / 1000.0f;
   lastWh = wh;
+}
+
+static void transmit_can_frame(CAN_frame* frame, CAN_Interface can_interface) {
+  transmit_can_frame_to_interface(frame, can_interface);
 }
 
 void ISA_initialize() {

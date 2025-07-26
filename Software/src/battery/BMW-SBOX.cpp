@@ -1,7 +1,6 @@
 #include "BMW-SBOX.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 uint8_t reverse_bits(uint8_t byte) {
   uint8_t reversed = 0;
@@ -172,8 +171,8 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
     SBOX_100.data.u8[1] = CAN100_cnt << 4 | 0x01;
     SBOX_100.data.u8[3] = 0x00;
     SBOX_100.data.u8[3] = calculateCRC(SBOX_100);
-    transmit_can_frame(&SBOX_100, can_config.shunt);
-    transmit_can_frame(&SBOX_300, can_config.shunt);
+    transmit_can_frame(&SBOX_100);
+    transmit_can_frame(&SBOX_300);
   }
 }
 

@@ -162,6 +162,9 @@ typedef struct {
   /* Maximum voltage for entire battery pack during forced balancing */
   uint16_t balancing_max_pack_voltage_dV = 3940;
 
+  /** Sofar CAN Battery ID (0-15) used to parallel multiple packs */
+  uint8_t sofar_user_specified_battery_id = 0;
+
 } DATALAYER_BATTERY_SETTINGS_TYPE;
 
 typedef struct {
@@ -227,8 +230,6 @@ typedef struct {
   float CPU_temperature = 0;
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
-  /** array with type of inverter protocol used, for displaying on webserver */
-  char inverter_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
   char shunt_protocol[64] = {0};
   /** array with type of inverter brand used, for displaying on webserver */
@@ -252,8 +253,6 @@ typedef struct {
 } DATALAYER_SYSTEM_INFO_TYPE;
 
 typedef struct {
-  /** Millis rollover count. Increments every 49.7 days. Used for keeping track on events */
-  uint8_t millisrolloverCount = 0;
 #ifdef FUNCTION_TIME_MEASUREMENT
   /** Core task measurement variable */
   int64_t core_task_max_us = 0;
