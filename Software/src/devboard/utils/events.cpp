@@ -1,4 +1,5 @@
 #include "events.h"
+#include <Arduino.h>
 #include "../../../USER_SETTINGS.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/hal/hal.h"

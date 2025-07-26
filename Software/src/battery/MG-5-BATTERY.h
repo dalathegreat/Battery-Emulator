@@ -1,7 +1,5 @@
 #ifndef MG_5_BATTERY_H
 #define MG_5_BATTERY_H
-#include <Arduino.h>
-
 #include "CanBattery.h"
 
 #ifdef MG_5_BATTERY

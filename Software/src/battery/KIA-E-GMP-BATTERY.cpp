@@ -1,4 +1,5 @@
 #include "KIA-E-GMP-BATTERY.h"
+#include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"

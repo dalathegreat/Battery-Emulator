@@ -1,6 +1,7 @@
 #include "comm_equipmentstopbutton.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
+#include "../../devboard/utils/debounce_button.h"
 #include "USER_SETTINGS.h"
 
 STOP_BUTTON_BEHAVIOR equipment_stop_behavior = stop_button_default_behavior;

@@ -13,6 +13,7 @@ jobs:
 
     - name: Configure and build with CMake
       run: |
+        cd test
         mkdir build
         cd build
         cmake ..
@@ -20,11 +21,4 @@ jobs:
 
     - name: Run unit tests
       run: |
-        set -e  # Exit immediately on non-zero exit code
-        cd build/test
-        dir -s
-        for test_executable in *; do
-          if [ -f "$test_executable" ] && [ -x "$test_executable" ]; then
-            ./"$test_executable"
-          fi
-        done
+        ctest

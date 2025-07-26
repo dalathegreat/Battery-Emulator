@@ -1,9 +1,10 @@
 #ifndef _SMA_INVERTER_BASE_H
 #define _SMA_INVERTER_BASE_H
 
+#include <Arduino.h>
 #include "../datalayer/datalayer.h"
+#include "../devboard/hal/hal.h"
 #include "CanInverterProtocol.h"
-#include "src/devboard/hal/hal.h"
 
 class SmaInverterBase : public CanInverterProtocol {
  public:

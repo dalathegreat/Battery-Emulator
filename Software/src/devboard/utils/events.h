@@ -2,8 +2,8 @@
 #define __EVENTS_H__
 
 #include <WString.h>
-#include <src/devboard/utils/types.h>
 #include <stdint.h>
+#include "types.h"
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,

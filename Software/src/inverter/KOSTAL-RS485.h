@@ -1,7 +1,6 @@
 #ifndef BYD_KOSTAL_RS485_H
 #define BYD_KOSTAL_RS485_H
-#include <Arduino.h>
-
+#include <stdint.h>
 #include "Rs485InverterProtocol.h"
 
 #ifdef BYD_KOSTAL_RS485
@@ -26,7 +25,7 @@ class KostalInverterProtocol : public Rs485InverterProtocol {
 
  private:
   int baud_rate() { return 57600; }
-  void float2frame(byte* arr, float value, byte framepointer);
+  void float2frame(uint8_t* arr, float value, uint8_t framepointer);
   bool check_kostal_frame_crc(int len);
 
   // How many value updates we can go without inverter gets reported as missing \
@@ -40,18 +39,18 @@ class KostalInverterProtocol : public Rs485InverterProtocol {
   uint8_t incoming_message_counter = RS485_HEALTHY;
   int8_t f2_startup_count = 0;
 
-  boolean B1_delay = false;
+  bool B1_delay = false;
   unsigned long B1_last_millis = 0;
   unsigned long currentMillis;
   unsigned long startupMillis = 0;
   unsigned long contactorMillis = 0;
 
   uint16_t rx_index = 0;
-  boolean RX_allow = false;
+  bool RX_allow = false;
 
   union f32b {
     float f;
-    byte b[4];
+    uint8_t b[4];
   };
 
   // clang-format off

@@ -1,6 +1,5 @@
 #ifndef CHEVYVOLT_CHARGER_H
 #define CHEVYVOLT_CHARGER_H
-#include <Arduino.h>
 #include "../datalayer/datalayer.h"
 #include "CanCharger.h"
 

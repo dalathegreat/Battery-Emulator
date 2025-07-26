@@ -1,6 +1,5 @@
 #ifndef KIA_E_GMP_BATTERY_H
 #define KIA_E_GMP_BATTERY_H
-#include <Arduino.h>
 #include "CanBattery.h"
 
 #define ESTIMATE_SOC_FROM_CELLVOLTAGE

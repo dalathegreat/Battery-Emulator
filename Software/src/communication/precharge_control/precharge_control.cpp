@@ -1,4 +1,5 @@
 #include "precharge_control.h"
+#include <Arduino.h>
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/hal/hal.h"
