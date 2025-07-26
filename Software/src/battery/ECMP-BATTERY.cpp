@@ -3,7 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For More Battery Info page
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 /* TODO:
 This integration is still ongoing. Here is what still needs to be done in order to use this battery type

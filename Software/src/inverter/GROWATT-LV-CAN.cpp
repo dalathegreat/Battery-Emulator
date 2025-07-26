@@ -1,7 +1,6 @@
 #include "GROWATT-LV-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 /* Growatt BMS CAN-Bus-protocol Low Voltage Rev_04
 CAN 2.0A

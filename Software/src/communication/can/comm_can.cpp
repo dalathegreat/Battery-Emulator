@@ -1,11 +1,14 @@
 #include "comm_can.h"
 #include <algorithm>
 #include <map>
-#include "../../include.h"
 #include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
+#include "CanReceiver.h"
+#include "USER_SETTINGS.h"
 #include "comm_can.h"
+#include "src/datalayer/datalayer.h"
+#include "src/devboard/safety/safety.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/logging.h"
 

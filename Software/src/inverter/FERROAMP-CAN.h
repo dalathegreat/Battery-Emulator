@@ -1,6 +1,5 @@
 #ifndef FERROAMP_CAN_H
 #define FERROAMP_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 

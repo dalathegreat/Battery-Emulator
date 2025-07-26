@@ -2,7 +2,6 @@
 #define SANTA_FE_PHEV_BATTERY_H
 #include <Arduino.h>
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 #include "CanBattery.h"
 
 #ifdef SANTA_FE_PHEV_BATTERY

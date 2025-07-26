@@ -1,7 +1,6 @@
 #include "SMA-LV-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 /* SMA Sunny Island Low Voltage (48V) CAN protocol:
 CAN 2.0A

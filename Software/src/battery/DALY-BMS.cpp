@@ -1,8 +1,8 @@
 #include "DALY-BMS.h"
 #include <cstdint>
 #include "../datalayer/datalayer.h"
+#include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 /* Do not change code below unless you are sure what you are doing */
 

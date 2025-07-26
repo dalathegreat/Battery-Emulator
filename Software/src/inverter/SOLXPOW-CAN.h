@@ -1,6 +1,5 @@
 #ifndef SOLXPOW_CAN_H
 #define SOLXPOW_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 

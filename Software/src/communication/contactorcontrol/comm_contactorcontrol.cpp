@@ -1,5 +1,7 @@
 #include "comm_contactorcontrol.h"
-#include "../../include.h"
+#include "../../devboard/hal/hal.h"
+#include "../../devboard/safety/safety.h"
+#include "../../inverter/INVERTERS.h"
 
 #ifdef CONTACTOR_CONTROL
 const bool contactor_control_enabled_default = true;

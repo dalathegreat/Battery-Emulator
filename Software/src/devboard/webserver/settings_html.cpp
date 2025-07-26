@@ -5,8 +5,9 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
-#include "../../include.h"
 #include "index_html.h"
+#include "src/battery/BATTERIES.h"
+#include "src/inverter/INVERTERS.h"
 
 extern bool settingsUpdated;
 

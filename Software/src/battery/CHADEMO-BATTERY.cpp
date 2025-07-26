@@ -1,7 +1,6 @@
 #include "CHADEMO-BATTERY.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 #include "CHADEMO-SHUNTS.h"
 
 //This function maps all the values fetched via CAN to the correct parameters used for the inverter

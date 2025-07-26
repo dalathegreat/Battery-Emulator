@@ -3,7 +3,6 @@
 
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
-#include "../include.h"
 
 #include "BYD-ATTO-3-HTML.h"
 #include "CanBattery.h"

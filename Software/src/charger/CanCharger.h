@@ -6,6 +6,8 @@
 #include "../datalayer/datalayer.h"
 #include "src/communication/Transmitter.h"
 #include "src/communication/can/CanReceiver.h"
+#include "src/communication/can/comm_can.h"
+#include "src/devboard/safety/safety.h"
 
 enum class ChargerType { None, NissanLeaf, ChevyVolt, Highest };
 

@@ -3,7 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 // Function to check if a value has gone stale over a specified time period
 bool BmwIXBattery::isStale(int16_t currentValue, uint16_t& lastValue, unsigned long& lastChangeTime) {

@@ -1,6 +1,5 @@
 #ifndef SCHNEIDER_CAN_H
 #define SCHNEIDER_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 

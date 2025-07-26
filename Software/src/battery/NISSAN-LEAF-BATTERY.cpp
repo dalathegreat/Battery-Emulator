@@ -4,8 +4,8 @@
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
-#include "../include.h"
 
+#include "../charger/CHARGERS.h"
 #include "../charger/CanCharger.h"
 
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);

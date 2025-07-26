@@ -1,6 +1,5 @@
 #ifndef BYD_MODBUS_H
 #define BYD_MODBUS_H
-#include "../include.h"
 
 #ifdef BYD_MODBUS
 #define SELECTED_INVERTER_CLASS BydModbusInverter

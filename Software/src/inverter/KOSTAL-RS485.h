@@ -1,7 +1,6 @@
 #ifndef BYD_KOSTAL_RS485_H
 #define BYD_KOSTAL_RS485_H
 #include <Arduino.h>
-#include "../include.h"
 
 #include "Rs485InverterProtocol.h"
 

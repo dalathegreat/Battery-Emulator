@@ -1,6 +1,8 @@
 #ifndef INVERTER_PROTOCOL_H
 #define INVERTER_PROTOCOL_H
 
+#include <vector>
+
 enum class InverterProtocolType {
   None = 0,
   AforeCan,

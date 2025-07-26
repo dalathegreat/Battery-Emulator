@@ -2,7 +2,6 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 

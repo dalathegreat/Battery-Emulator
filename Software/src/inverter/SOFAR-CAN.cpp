@@ -1,7 +1,6 @@
 #include "SOFAR-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 /* This implementation of the SOFAR can protocol is halfway done. What's missing is implementing the inverter replies, all the CAN messages are listed, but the can sending is missing. */
 

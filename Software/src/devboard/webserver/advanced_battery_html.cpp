@@ -1,9 +1,9 @@
 #include "advanced_battery_html.h"
 #include <Arduino.h>
 #include <vector>
+#include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
-#include "../../include.h"
 
 // Available generic battery commands that are taken into use based on what the selected battery supports.
 std::vector<BatteryCommand> battery_commands = {

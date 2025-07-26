@@ -2,7 +2,6 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 void findMinMaxCellvoltages(const uint16_t arr[], size_t size, uint16_t& Minimum_Cell_Voltage,
                             uint16_t& Maximum_Cell_Voltage) {

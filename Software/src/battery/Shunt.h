@@ -1,9 +1,11 @@
 #ifndef _SHUNT_H
 #define _SHUNT_H
 
+#include "USER_SETTINGS.h"
 #include "src/communication/Transmitter.h"
 #include "src/communication/can/CanReceiver.h"
 #include "src/communication/can/comm_can.h"
+#include "src/devboard/safety/safety.h"
 #include "src/devboard/utils/types.h"
 
 enum class ShuntType { None = 0, BmwSbox = 1, Highest };
@@ -15,7 +17,7 @@ class CanShunt : public Transmitter, CanReceiver {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame) = 0;
 
   // The name of the comm interface the shunt is using.
-  virtual String interface_name() { return getCANInterfaceName(can_config.shunt); }
+  virtual const char* interface_name() { return getCANInterfaceName(can_config.shunt); }
 
   void transmit(unsigned long currentMillis) {
     if (allowed_to_send_CAN) {

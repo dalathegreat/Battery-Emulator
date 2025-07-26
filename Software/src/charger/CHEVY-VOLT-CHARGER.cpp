@@ -1,7 +1,6 @@
 #include "CHEVY-VOLT-CHARGER.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 /* This implements Chevy Volt / Ampera charger support (2011-2015 model years).
  *

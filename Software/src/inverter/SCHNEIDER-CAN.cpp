@@ -1,7 +1,6 @@
 #include "SCHNEIDER-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 /* Version 2: SE BMS Communication Protocol 
 Protocol: CAN 2.0 Specification

@@ -1,7 +1,6 @@
 #ifndef TEST_FAKE_BATTERY_H
 #define TEST_FAKE_BATTERY_H
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 #include "CanBattery.h"
 
 #ifdef TEST_FAKE_BATTERY

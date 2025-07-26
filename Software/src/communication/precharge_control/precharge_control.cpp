@@ -1,7 +1,7 @@
 #include "precharge_control.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
-#include "../../include.h"
+#include "../../devboard/hal/hal.h"
 
 #ifdef PRECHARGE_CONTROL
 const bool precharge_control_enabled_default = true;

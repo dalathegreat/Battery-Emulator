@@ -1,7 +1,6 @@
 #include "BYD-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 /* Do not change code below unless you are sure what you are doing */
 

@@ -1,7 +1,6 @@
 #include "SUNGROW-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 /* TODO: 
 This protocol is still under development. It can not be used yet for Sungrow inverters, 

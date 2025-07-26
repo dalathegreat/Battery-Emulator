@@ -3,7 +3,6 @@
 
 #include <WiFi.h>
 #include <string>
-#include "../../include.h"
 
 extern std::string ssid;
 extern std::string password;

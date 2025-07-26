@@ -2,9 +2,9 @@
 #define BMW_I3_BATTERY_H
 
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 #include "BMW-I3-HTML.h"
 #include "CanBattery.h"
+#include "src/devboard/hal/hal.h"
 
 #ifdef BMW_I3_BATTERY
 #define SELECTED_BATTERY_CLASS BmwI3Battery

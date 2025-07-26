@@ -1,6 +1,5 @@
 #ifndef SMA_BYD_H_CAN_H
 #define SMA_BYD_H_CAN_H
-#include "../include.h"
 
 #include "SmaInverterBase.h"
 #include "src/devboard/hal/hal.h"
