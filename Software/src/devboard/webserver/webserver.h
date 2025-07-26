@@ -1,13 +1,6 @@
 #ifndef WEBSERVER_H
 #define WEBSERVER_H
 
-#include <Preferences.h>
-#include <WiFi.h>
-#include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
-#include "../../lib/YiannisBourkelis-Uptime-Library/src/uptime_formatter.h"
-#include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
-#include "../../lib/mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
-
 extern bool webserver_enabled;
 
 extern const char* version_number;  // The current software version, shown on webserver

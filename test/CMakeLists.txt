@@ -62,7 +62,9 @@ include_directories("${source_dir}/googletest/include"
 include_directories(emul)
 
 # For eModBus
-add_compile_definitions(__linux__ HW_LILYGO NISSAN_LEAF_BATTERY)
+add_compile_definitions(ESP32 HW_LILYGO NISSAN_LEAF_BATTERY)
+
+set_source_files_properties(../Software/Software.ino PROPERTIES LANGUAGE CXX)
 
 # add the executable
 add_executable(tests 
@@ -90,6 +92,7 @@ add_executable(tests
     emul/time.cpp
     emul/serial.cpp
     emul/Arduino.cpp
+#    ../Software/Software.ino
     )
 
 target_link_libraries(tests
