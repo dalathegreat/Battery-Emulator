@@ -2,6 +2,7 @@
 #define __EVENTS_H__
 
 #include <WString.h>
+#include <src/devboard/utils/millis64.h>
 #include <src/devboard/utils/types.h>
 #include <stdint.h>
 
