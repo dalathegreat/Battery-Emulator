@@ -22,4 +22,5 @@ jobs:
 
     - name: Run unit tests
       run: |
+        cd test/build
         ctest
