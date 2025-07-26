@@ -61,12 +61,35 @@ void SmaBydHInverter::
     SMA_4D8.data.u8[6] = STOP_STATE;
   }
 
+  //Lifetime charged energy amount
+  SMA_458.data.u8[0] = (datalayer.battery.status.total_charged_battery_Wh & 0xFF000000) >> 24;
+  SMA_458.data.u8[1] = (datalayer.battery.status.total_charged_battery_Wh & 0x00FF0000) >> 16;
+  SMA_458.data.u8[2] = (datalayer.battery.status.total_charged_battery_Wh & 0x0000FF00) >> 8;
+  SMA_458.data.u8[3] = (datalayer.battery.status.total_charged_battery_Wh & 0x000000FF);
+  //Lifetime discharged energy amount
+  SMA_458.data.u8[4] = (datalayer.battery.status.total_discharged_battery_Wh & 0xFF000000) >> 24;
+  SMA_458.data.u8[5] = (datalayer.battery.status.total_discharged_battery_Wh & 0x00FF0000) >> 16;
+  SMA_458.data.u8[6] = (datalayer.battery.status.total_discharged_battery_Wh & 0x0000FF00) >> 8;
+  SMA_458.data.u8[7] = (datalayer.battery.status.total_discharged_battery_Wh & 0x000000FF);
+
   //Error bits
   if (datalayer.system.status.battery_allows_contactor_closing) {
     SMA_158.data.u8[2] = 0xAA;
   } else {
     SMA_158.data.u8[2] = 0x6A;
   }
+  //Highest battery temperature
+  SMA_518.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
+  SMA_518.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  //Lowest battery temperature
+  SMA_518.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
+  SMA_518.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  //Sum of all cellvoltages
+  SMA_518.data.u8[4] = (datalayer.battery.status.voltage_dV >> 8);
+  SMA_518.data.u8[5] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  //Cell min/max voltage (mV / 25)
+  SMA_518.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV / 25);
+  SMA_518.data.u8[7] = (datalayer.battery.status.cell_max_voltage_mV / 25);
 
   control_contactor_led();
 
