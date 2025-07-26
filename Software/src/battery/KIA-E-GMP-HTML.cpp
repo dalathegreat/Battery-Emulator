@@ -1,5 +1,4 @@
 #include "KIA-E-GMP-HTML.h"
-#include "../include.h"
 #include "KIA-E-GMP-BATTERY.h"
 
 String KiaEGMPHtmlRenderer::get_status_html() {
