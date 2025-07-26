@@ -83,8 +83,8 @@ struct DATALAYER_INFO_BMWPHEV {
   int32_t allowable_discharge_amps = 0;
   int16_t balancing_status = 0;
   int16_t battery_voltage_after_contactor = 0;
-  unsigned long min_cell_voltage_data_age = 0;
-  unsigned long max_cell_voltage_data_age = 0;
+  uint64_t min_cell_voltage_data_age = 0;
+  uint64_t max_cell_voltage_data_age = 0;
   int32_t iso_safety_int_kohm = 0;  //STAT_ISOWIDERSTAND_INT_WERT
   int32_t iso_safety_ext_kohm = 0;  //STAT_ISOWIDERSTAND_EXT_STD_WERT
   int32_t iso_safety_trg_kohm = 0;

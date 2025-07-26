@@ -34,7 +34,6 @@ class String {
   String(int value) { data = std::to_string(value); }
   String(unsigned int value) { data = std::to_string(value); }
   String(long value) { data = std::to_string(value); }
-  String(unsigned long value) { data = std::to_string(value); }
   String(float value) { data = std::to_string(value); }
   String(double value) { data = std::to_string(value); }
 
