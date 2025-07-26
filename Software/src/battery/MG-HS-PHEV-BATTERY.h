@@ -1,6 +1,5 @@
 #ifndef MG_HS_PHEV_BATTERY_H
 #define MG_HS_PHEV_BATTERY_H
-#include <Arduino.h>
 
 #include "CanBattery.h"
 
