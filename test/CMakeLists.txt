@@ -62,7 +62,7 @@ include_directories("${source_dir}/googletest/include"
 include_directories(emul)
 
 # For eModBus
-add_compile_definitions(__linux__)
+add_compile_definitions(__linux__ HW_LILYGO NISSAN_LEAF_BATTERY)
 
 # add the executable
 add_executable(tests 
