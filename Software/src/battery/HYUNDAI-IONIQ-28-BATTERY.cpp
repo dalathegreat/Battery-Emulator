@@ -1,10 +1,8 @@
-#include "../include.h"
-#ifdef HYUNDAI_IONIQ_28_BATTERY
+#include "HYUNDAI-IONIQ-28-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "HYUNDAI-IONIQ-28-BATTERY.h"
 
 void HyundaiIoniq28Battery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -38,13 +36,6 @@ void HyundaiIoniq28Battery::
   if (leadAcidBatteryVoltage < 110) {
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
   }
-
-  // Update webserver datalayer
-  datalayer_battery_extended->battery_12V = leadAcidBatteryVoltage;
-  datalayer_battery_extended->powerRelayTemperature = powerRelayTemperature * 2;
-  datalayer_battery_extended->batteryManagementMode = batteryManagementMode;
-  datalayer_battery_extended->BMS_ign = BMS_ign;
-  datalayer_battery_extended->batteryRelay = batteryRelay;
 }
 
 void HyundaiIoniq28Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -92,7 +83,7 @@ void HyundaiIoniq28Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //We only poll multiframe messages
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
-          transmit_can_frame(&IONIQ_7E4_ACK, can_interface);
+          transmit_can_frame(&IONIQ_7E4_ACK);
           incoming_poll_group = rx_frame.data.u8[3];
           break;
         case 0x21:                         //First frame in PID group
@@ -300,7 +291,7 @@ void HyundaiIoniq28Battery::transmit_can(unsigned long currentMillis) {
         break;
     }
 
-    transmit_can_frame(&IONIQ_7E4_POLL, can_interface);
+    transmit_can_frame(&IONIQ_7E4_POLL);
   }
 
   //Send 100ms message
@@ -308,9 +299,9 @@ void HyundaiIoniq28Battery::transmit_can(unsigned long currentMillis) {
     previousMillis100 = currentMillis;
 
     if (contactor_closing_allowed == nullptr || *contactor_closing_allowed) {
-      transmit_can_frame(&IONIQ_553, can_interface);
-      transmit_can_frame(&IONIQ_57F, can_interface);
-      transmit_can_frame(&IONIQ_2A1, can_interface);
+      transmit_can_frame(&IONIQ_553);
+      transmit_can_frame(&IONIQ_57F);
+      transmit_can_frame(&IONIQ_2A1);
     }
   }
 
@@ -360,9 +351,9 @@ void HyundaiIoniq28Battery::transmit_can(unsigned long currentMillis) {
           break;
       }
 
-      transmit_can_frame(&IONIQ_200, can_interface);
-      transmit_can_frame(&IONIQ_523, can_interface);
-      transmit_can_frame(&IONIQ_524, can_interface);
+      transmit_can_frame(&IONIQ_200);
+      transmit_can_frame(&IONIQ_523);
+      transmit_can_frame(&IONIQ_524);
     }
   }
 }
@@ -382,4 +373,22 @@ void HyundaiIoniq28Battery::setup(void) {  // Performs one time setup at startup
   }
 }
 
-#endif
+uint16_t HyundaiIoniq28Battery::get_lead_acid_voltage() const {
+  return leadAcidBatteryVoltage;
+}
+
+int16_t HyundaiIoniq28Battery::get_power_relay_temperature() const {
+  return powerRelayTemperature * 2;
+}
+
+uint8_t HyundaiIoniq28Battery::get_battery_management_mode() const {
+  return batteryManagementMode;
+}
+
+uint8_t HyundaiIoniq28Battery::get_battery_ignition_mode() const {
+  return BMS_ign;
+}
+
+uint8_t HyundaiIoniq28Battery::get_battery_relay_mode() const {
+  return batteryRelay;
+}

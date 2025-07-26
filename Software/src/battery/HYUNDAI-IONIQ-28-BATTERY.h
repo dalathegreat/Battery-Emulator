@@ -3,7 +3,6 @@
 #include <Arduino.h>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
-#include "../include.h"
 #include "CanBattery.h"
 #include "HYUNDAI-IONIQ-28-BATTERY-HTML.h"
 
@@ -13,37 +12,28 @@
 
 class HyundaiIoniq28Battery : public CanBattery {
  public:
-  // Use this constructor for the second battery.
-  HyundaiIoniq28Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_IONIQ28* extended_ptr,
-                        bool* contactor_closing_allowed_ptr, CAN_Interface targetCan)
-      : CanBattery(targetCan), renderer(extended_ptr) {
-    datalayer_battery = datalayer_ptr;
-    contactor_closing_allowed = contactor_closing_allowed_ptr;
-    allows_contactor_closing = nullptr;
-    datalayer_battery_extended = extended_ptr;
-  }
+  HyundaiIoniq28Battery() : renderer(*this) {}
 
-  // Use the default constructor to create the first or single battery.
-  HyundaiIoniq28Battery() : renderer(&datalayer_extended.ioniq28) {
-    datalayer_battery = &datalayer.battery;
-    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    contactor_closing_allowed = nullptr;
-    datalayer_battery_extended = &datalayer_extended.ioniq28;
-  }
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+
   static constexpr const char* Name = "Hyundai Ioniq Electric 28kWh";
 
-  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+  // Getter methods for HTML renderer
+  uint16_t get_lead_acid_voltage() const;
+  int16_t get_power_relay_temperature() const;
+  uint8_t get_battery_management_mode() const;
+  uint8_t get_battery_ignition_mode() const;
+  uint8_t get_battery_relay_mode() const;
 
  private:
   HyundaiIoniq28BatteryHtmlRenderer renderer;
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
-  DATALAYER_INFO_IONIQ28* datalayer_battery_extended;
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
@@ -72,7 +62,7 @@ class HyundaiIoniq28Battery : public CanBattery {
   uint16_t inverterVoltageFrameHigh = 0;
   uint16_t inverterVoltage = 0;
   uint16_t cellvoltages_mv[96];
-  int16_t leadAcidBatteryVoltage = 120;
+  uint16_t leadAcidBatteryVoltage = 120;
   int16_t batteryAmps = 0;
   int16_t temperatureMax = 0;
   int16_t temperatureMin = 0;
