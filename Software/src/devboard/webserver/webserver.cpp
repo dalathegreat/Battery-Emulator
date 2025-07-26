@@ -657,6 +657,11 @@ void init_webserver() {
     datalayer.battery.settings.max_user_set_discharge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
   });
 
+  // Route for editing BMSresetDuration
+  update_string_setting("/updateBMSresetDuration", [](String value) {
+    datalayer.battery.settings.user_set_bms_reset_duration_ms = static_cast<uint16_t>(value.toFloat() * 1000);
+  });
+
   // Route for editing FakeBatteryVoltage
   update_string_setting("/updateFakeBatteryVoltage", [](String value) { battery->set_fake_voltage(value.toFloat()); });
 
