@@ -1,4 +1,3 @@
-#ifdef MG_HS_PHEV_BATTERY_H
 #include "MG-HS-PHEV-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../communication/contactorcontrol/comm_contactorcontrol.h"
@@ -381,5 +380,3 @@ void MgHsPHEVBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
   datalayer.battery.info.number_of_cells = 90;
 }
-
-#endif
