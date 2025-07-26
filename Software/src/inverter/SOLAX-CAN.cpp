@@ -2,6 +2,7 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 
 #define NUMBER_OF_MODULES 0
 #define BATTERY_TYPE 0x50

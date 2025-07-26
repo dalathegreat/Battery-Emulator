@@ -3,6 +3,7 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 
 const unsigned char crc8_table[256] =
     {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
