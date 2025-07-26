@@ -59,6 +59,7 @@ jobs:
           - DALY_BMS
           - FOXESS_BATTERY
           - GEELY_GEOMETRY_C_BATTERY
+          - HYUNDAI_IONIQ_28_BATTERY
           - IMIEV_CZERO_ION_BATTERY
           - JAGUAR_IPACE_BATTERY
           - KIA_E_GMP_BATTERY
