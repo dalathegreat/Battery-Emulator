@@ -13,6 +13,6 @@ int digitalRead(uint8_t pin);
 #undef millis
 unsigned long millis();
 
-#define max(a, b) std::max(a, b)
+int max(int a, int b);
 
 #endif

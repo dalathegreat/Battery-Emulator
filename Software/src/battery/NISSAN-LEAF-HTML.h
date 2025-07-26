@@ -1,6 +1,7 @@
 #ifndef _NISSAN_LEAF_HTML_H
 #define _NISSAN_LEAF_HTML_H
 
+#include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"

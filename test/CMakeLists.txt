@@ -89,6 +89,7 @@ add_executable(tests
     emul/can.cpp
     emul/time.cpp
     emul/serial.cpp
+    emul/Arduino.cpp
     )
 
 target_link_libraries(tests
