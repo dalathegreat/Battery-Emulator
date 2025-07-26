@@ -53,21 +53,15 @@ class uptime
     static unsigned long getDays();
       
   private:
-    static unsigned long m_milliseconds;
-    static unsigned long m_seconds;
-    static unsigned long m_minutes;
-    static unsigned long m_hours;
-    static unsigned long m_days;
+    static uint64_t m_milliseconds;
+    static uint64_t m_seconds;
+    static uint64_t m_minutes;
+    static uint64_t m_hours;
+    static uint64_t m_days;
 
     static unsigned long m_mod_milliseconds;
     static uint8_t m_mod_seconds;
     static uint8_t m_mod_minutes;
     static uint8_t m_mod_hours;
-    
-    static unsigned long m_last_milliseconds;  
-    static unsigned long m_remaining_seconds;
-    static unsigned long m_remaining_minutes;
-    static unsigned long m_remaining_hours;
-    static unsigned long m_remaining_days;
 };
 #endif

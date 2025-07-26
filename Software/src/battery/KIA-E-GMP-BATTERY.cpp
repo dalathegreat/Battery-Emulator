@@ -811,6 +811,29 @@ void KiaEGmpBattery::
 #endif
 }
 
+// Getter implementations for HTML renderer
+int KiaEGmpBattery::get_battery_12V() const {
+  return leadAcidBatteryVoltage;
+}
+int KiaEGmpBattery::get_waterleakageSensor() const {
+  return waterleakageSensor;
+}
+int KiaEGmpBattery::get_temperature_water_inlet() const {
+  return temperature_water_inlet;
+}
+int KiaEGmpBattery::get_powerRelayTemperature() const {
+  return powerRelayTemperature;
+}
+int KiaEGmpBattery::get_batteryManagementMode() const {
+  return batteryManagementMode;
+}
+int KiaEGmpBattery::get_BMS_ign() const {
+  return BMS_ign;
+}
+int KiaEGmpBattery::get_batRelay() const {
+  return batteryRelay;
+}
+
 void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   startedUp = true;
   switch (rx_frame.ID) {

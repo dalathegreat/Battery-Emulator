@@ -398,8 +398,6 @@ EVENTS_LEVEL_TYPE get_event_level(void) {
   return events.level;
 }
 
-uint64_t get_timestamp(unsigned long currentMillis);
-
 /* Local functions */
 
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
@@ -418,7 +416,7 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   }
 
   // We should set the event, update event info
-  events.entries[event].timestamp = get_timestamp(millis());
+  events.entries[event].timestamp = millis64();
   events.entries[event].data = data;
   // Check if the event is latching
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;

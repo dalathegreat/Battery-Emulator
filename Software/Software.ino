@@ -47,7 +47,6 @@ const char* version_number = "9.0.experimental";
 volatile unsigned long currentMillis = 0;
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
-unsigned long lastMillisOverflowCheck = 0;
 #ifdef FUNCTION_TIME_MEASUREMENT
 // Task time measurement for debugging
 MyTimer core_task_timer_10s(INTERVAL_10_S);
@@ -347,15 +346,6 @@ void init_serial() {
 #endif  // DEBUG_VIA_USB
 }
 
-void update_overflow(unsigned long currentMillis) {
-  // Check if millis overflowed
-  if (currentMillis < lastMillisOverflowCheck) {
-    // We have overflowed, increase rollover count
-    datalayer.system.status.millisrolloverCount++;
-  }
-  lastMillisOverflowCheck = currentMillis;
-}
-
 void check_interconnect_available() {
   if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery2.status.voltage_dV == 0) {
     return;  // Both voltage values need to be available to start check
@@ -543,8 +533,6 @@ void update_calculated_values() {
       datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
     }
   }
-
-  update_overflow(currentMillis);  // Update millis rollover count
 }
 
 void check_reset_reason() {
@@ -601,10 +589,4 @@ void check_reset_reason() {
     default:
       break;
   }
-}
-
-uint64_t get_timestamp(unsigned long currentMillis) {
-  update_overflow(currentMillis);
-  return (uint64_t)datalayer.system.status.millisrolloverCount * (uint64_t)std::numeric_limits<uint32_t>::max() +
-         (uint64_t)currentMillis;
 }

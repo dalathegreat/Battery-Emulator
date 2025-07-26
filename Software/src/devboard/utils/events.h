@@ -3,6 +3,7 @@
 
 #include <WString.h>
 #include <stdint.h>
+#include "millis64.h"
 #include "types.h"
 
 #define GENERATE_ENUM(ENUM) ENUM,

@@ -250,8 +250,6 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
 };
 
 struct DATALAYER_SYSTEM_STATUS_TYPE {
-  /** Millis rollover count. Increments every 49.7 days. Used for keeping track on events */
-  uint8_t millisrolloverCount = 0;
 #ifdef FUNCTION_TIME_MEASUREMENT
   /** Core task measurement variable */
   int64_t core_task_max_us = 0;

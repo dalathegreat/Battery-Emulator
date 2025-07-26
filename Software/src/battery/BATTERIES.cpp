@@ -94,6 +94,8 @@ const char* name_for_battery_type(BatteryType type) {
       return MebBattery::Name;
     case BatteryType::Mg5:
       return Mg5Battery::Name;
+    case BatteryType::MgHsPhev:
+      return MgHsPHEVBattery::Name;
     case BatteryType::NissanLeaf:
       return NissanLeafBattery::Name;
     case BatteryType::Pylon:
@@ -189,6 +191,8 @@ Battery* create_battery(BatteryType type) {
       return new MebBattery();
     case BatteryType::Mg5:
       return new Mg5Battery();
+    case BatteryType::MgHsPhev:
+      return new MgHsPHEVBattery();
     case BatteryType::NissanLeaf:
       return new NissanLeafBattery();
     case BatteryType::Pylon:
