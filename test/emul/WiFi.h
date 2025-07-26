@@ -1,8 +1,11 @@
 #ifndef WIFI_H
 #define WIFI_H
 
-// Just a dummy file to be able to compile code for tests.
+#include <stdint.h>
 
-typedef unsigned long IPAddress;  // Dummy type for IPAddress
+class IPAddress {
+ public:
+  IPAddress(uint8_t a, uint8_t b, uint8_t c, uint8_t d) {}
+};
 
 #endif
