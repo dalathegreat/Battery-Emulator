@@ -3,6 +3,7 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 #include "../system_settings.h"
 
 const unsigned char crc8_table[256] =

@@ -2,6 +2,7 @@
 #include <ESPmDNS.h>
 #include "../utils/events.h"
 #include "../utils/logging.h"
+#include "USER_SETTINGS.h"
 
 #if defined(WIFI) || defined(WEBSERVER)
 const bool wifi_enabled_default = true;
