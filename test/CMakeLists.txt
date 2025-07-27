@@ -74,6 +74,7 @@ add_executable(tests
     ../Software/src/devboard/safety/safety.cpp
     ../Software/src/devboard/hal/hal.cpp
     ../Software/src/devboard/utils/events.cpp
+    ../Software/src/devboard/utils/logging.cpp
     ../Software/src/datalayer/datalayer.cpp
     ../Software/src/datalayer/datalayer_extended.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusMessage.cpp
@@ -92,7 +93,7 @@ add_executable(tests
     emul/time.cpp
     emul/serial.cpp
     emul/Arduino.cpp
-#    ../Software/Software.ino
+    ../Software/Software.ino
     )
 
 target_link_libraries(tests

@@ -1,7 +1,14 @@
 #ifndef ARDUINO_H
 #define ARDUINO_H
 
+#include <inttypes.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "HardwareSerial.h"
 #include "Print.h"
@@ -18,5 +25,6 @@ unsigned long millis();
 uint64_t micros();
 
 int max(int a, int b);
+int min(int a, int b);
 
 #endif

@@ -37,6 +37,8 @@ class String {
   String& operator=(const String& other) = default;
   String& operator=(String&& other) = default;
 
+  bool operator!=(const String& other) const { return data != other.data; }
+
   // Conversion operator to std::string
   operator std::string() const { return data; }
 

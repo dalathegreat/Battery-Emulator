@@ -58,6 +58,8 @@ TaskHandle_t mqtt_loop_task;
 
 Logging logging;
 
+void init_serial();
+
 // Initialization
 void setup() {
   init_hal();

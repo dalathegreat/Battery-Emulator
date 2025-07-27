@@ -10,6 +10,7 @@ class Print {
   size_t vprintf(const char* format, va_list arg);
 
   size_t printf(const char* format, ...);
+  size_t println(const char[]);
 };
 
 #endif

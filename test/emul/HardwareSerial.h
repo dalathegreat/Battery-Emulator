@@ -2,6 +2,7 @@
 #define HARDWARESERIAL_H
 
 #include <stdint.h>
+#include <string.h>
 #include "Stream.h"
 
 enum SerialConfig {
@@ -35,10 +36,21 @@ class HardwareSerial : public Stream {
  public:
   void begin(unsigned long baud, uint32_t config = SERIAL_8N1, int8_t rxPin = -1, int8_t txPin = -1,
              bool invert = false, unsigned long timeout_ms = 20000UL, uint8_t rxfifo_full_thrhd = 120) {}
+
+  size_t write(const uint8_t* buffer, size_t size);
+  inline size_t write(const char* buffer, size_t size) { return write((uint8_t*)buffer, size); }
+  inline size_t write(const char* s) { return write((uint8_t*)s, strlen(s)); }
+
+  size_t setRxBufferSize(size_t new_size) { return new_size; };
+
+  size_t setTxBufferSize(size_t new_size) { return new_size; };
 };
 
 extern HardwareSerial Serial0;
 extern HardwareSerial Serial1;
 extern HardwareSerial Serial2;
+
+// similarly to Arduino
+#define Serial Serial0
 
 #endif
