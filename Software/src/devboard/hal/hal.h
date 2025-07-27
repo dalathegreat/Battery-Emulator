@@ -59,16 +59,31 @@ class Esp32Hal {
     return alloc_pins(name, pins[Is]...);
   }
 
+  // Base case: no more pins
+  inline bool alloc_pins_ignore_unused_impl(const char* name) {
+    return alloc_pins(name);  // Call with 0 pins
+  }
+
+  // Recursive case: process one pin at a time
+  template <typename... Rest>
+  bool alloc_pins_ignore_unused_impl(const char* name, gpio_num_t first, Rest... rest) {
+    if (first == GPIO_NUM_NC) {
+      return alloc_pins_ignore_unused_impl(name, rest...);
+    } else {
+      return call_alloc_pins_filtered(name, first, rest...);
+    }
+  }
+
+  // This helper just forwards pins after filtering is done
+  template <typename... Pins>
+  bool call_alloc_pins_filtered(const char* name, Pins... pins) {
+    return alloc_pins(name, pins...);
+  }
+
+  // Entry point
   template <typename... Pins>
   bool alloc_pins_ignore_unused(const char* name, Pins... pins) {
-    std::vector<gpio_num_t> valid_pins;
-    for (gpio_num_t pin : std::vector<gpio_num_t>{static_cast<gpio_num_t>(pins)...}) {
-      if (pin != GPIO_NUM_NC) {
-        valid_pins.push_back(pin);
-      }
-    }
-
-    return alloc_pins_from_vector(name, valid_pins, std::make_index_sequence<sizeof...(pins)>{});
+    return alloc_pins_ignore_unused_impl(name, static_cast<gpio_num_t>(pins)...);
   }
 
   virtual bool always_enable_bms_power() { return false; }
