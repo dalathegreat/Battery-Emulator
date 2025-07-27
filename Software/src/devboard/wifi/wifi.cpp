@@ -113,16 +113,20 @@ void wifi_monitor() {
   if ((hasConnectedBefore && (currentMillis - lastWiFiCheck > current_check_interval)) ||
       (!hasConnectedBefore && (currentMillis - lastWiFiCheck > INIT_WIFI_FULL_RECONNECT_INTERVAL))) {
 
+    DEBUG_PRINTF("Time to monitor Wi-Fi status: %d, %d, %d, %d, %d\n", hasConnectedBefore, currentMillis, lastWiFiCheck,
+                 current_check_interval, INIT_WIFI_FULL_RECONNECT_INTERVAL);
+
     lastWiFiCheck = currentMillis;
 
     wl_status_t status = WiFi.status();
-    if (status != WL_CONNECTED) {
+    // WL_IDLE_STATUS can mean we're connected but haven't yet gotten the IP.
+    if (status != WL_CONNECTED && status != WL_IDLE_STATUS) {
       // Increase the current check interval if it's not at the maximum
-      if (current_check_interval + STEP_WIFI_CHECK_INTERVAL <= MAX_STEP_WIFI_CHECK_INTERVAL)
+      if (current_check_interval + STEP_WIFI_CHECK_INTERVAL <= MAX_STEP_WIFI_CHECK_INTERVAL) {
         current_check_interval += STEP_WIFI_CHECK_INTERVAL;
-#ifdef DEBUG_LOG
-      logging.println("Wi-Fi not connected, attempting to reconnect...");
-#endif
+      }
+      DEBUG_PRINTF("Wi-Fi not connected (status=%d), attempting to reconnect\n", status);
+
       // Try WiFi.reconnect() if it was successfully connected at least once
       if (hasConnectedBefore) {
         lastReconnectAttempt = currentMillis;  // Reset reconnection attempt timer
@@ -203,7 +207,7 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   clear_event(EVENT_WIFI_DISCONNECT);
   set_event(EVENT_WIFI_CONNECT, 0);
   connected_once = true;
-  DEBUG_PRINTF("Wi-Fi connected. RSSI: %d dBm, IP address: %s, SSID: %s\n", -WiFi.RSSI(),
+  DEBUG_PRINTF("Wi-Fi connected. status: %d, RSSI: %d dBm, IP address: %s, SSID: %s\n", WiFi.status(), -WiFi.RSSI(),
                WiFi.localIP().toString().c_str(), WiFi.SSID().c_str());
   hasConnectedBefore = true;                                            // Mark as successfully connected at least once
   reconnectAttempts = 0;                                                // Reset the attempt counter
