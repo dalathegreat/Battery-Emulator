@@ -74,6 +74,8 @@ const char* name_for_battery_type(BatteryType type) {
       return FoxessBattery::Name;
     case BatteryType::GeelyGeometryC:
       return GeelyGeometryCBattery::Name;
+    case BatteryType::HyundaiIoniq28:
+      return HyundaiIoniq28Battery::Name;
     case BatteryType::OrionBms:
       return OrionBms::Name;
     case BatteryType::Sono:
@@ -171,6 +173,8 @@ Battery* create_battery(BatteryType type) {
       return new FoxessBattery();
     case BatteryType::GeelyGeometryC:
       return new GeelyGeometryCBattery();
+    case BatteryType::HyundaiIoniq28:
+      return new HyundaiIoniq28Battery();
     case BatteryType::OrionBms:
       return new OrionBms();
     case BatteryType::Sono:
@@ -292,6 +296,10 @@ void setup_battery() {
                                    can_config.battery_double, esp32hal->WUP_PIN2());
 #elif defined(KIA_HYUNDAI_64_BATTERY)
     battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
+                                          &datalayer.system.status.battery2_allowed_contactor_closing,
+                                          can_config.battery_double);
+#elif defined(HYUNDAI_IONIQ_28_BATTERY)
+    battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer_extended.ioniq28,
                                           &datalayer.system.status.battery2_allowed_contactor_closing,
                                           can_config.battery_double);
 #elif defined(SANTA_FE_PHEV_BATTERY) || defined(TEST_FAKE_BATTERY)
