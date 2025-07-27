@@ -1,4 +1,5 @@
 #include "DALY-BMS.h"
+#include <Arduino.h>
 #include <cstdint>
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"

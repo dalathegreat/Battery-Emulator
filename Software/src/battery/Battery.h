@@ -2,8 +2,8 @@
 #define BATTERY_H
 
 #include <vector>
-#include "src/devboard/utils/types.h"
-#include "src/devboard/webserver/BatteryHtmlRenderer.h"
+#include "../../src/devboard/utils/types.h"
+#include "../../src/devboard/webserver/BatteryHtmlRenderer.h"
 
 enum class BatteryType {
   None = 0,

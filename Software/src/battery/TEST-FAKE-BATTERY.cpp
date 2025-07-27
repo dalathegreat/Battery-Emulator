@@ -1,4 +1,5 @@
 #include "TEST-FAKE-BATTERY.h"
+#include <Arduino.h>
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/logging.h"
 

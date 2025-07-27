@@ -1,6 +1,5 @@
 #ifndef BMW_PHEV_BATTERY_H
 #define BMW_PHEV_BATTERY_H
-#include <Arduino.h>
 #include "BMW-PHEV-HTML.h"
 #include "CanBattery.h"
 
@@ -407,7 +406,7 @@ class BmwPhevBattery : public CanBattery {
   const unsigned long STALE_PERIOD =
       STALE_PERIOD_CONFIG;  // Time in milliseconds to check for staleness (e.g., 5000 ms = 5 seconds)
 
-  byte iX_0C0_counter = 0xF0;  // Initialize to 0xF0
+  uint8_t iX_0C0_counter = 0xF0;  // Initialize to 0xF0
 
   //End iX Intermediate vars
 

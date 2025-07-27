@@ -3,11 +3,11 @@
 
 #include "Battery.h"
 
-#include "USER_SETTINGS.h"
-#include "src/communication/Transmitter.h"
-#include "src/communication/can/CanReceiver.h"
-#include "src/communication/can/comm_can.h"
-#include "src/devboard/utils/types.h"
+#include "../../USER_SETTINGS.h"
+#include "../../src/communication/Transmitter.h"
+#include "../../src/communication/can/CanReceiver.h"
+#include "../../src/communication/can/comm_can.h"
+#include "../../src/devboard/utils/types.h"
 
 // Abstract base class for batteries using the CAN bus
 class CanBattery : public Battery, Transmitter, CanReceiver {

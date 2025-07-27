@@ -1,7 +1,5 @@
 #ifndef STELLANTIS_ECMP_BATTERY_H
 #define STELLANTIS_ECMP_BATTERY_H
-#include <Arduino.h>
-
 #include "CanBattery.h"
 #include "ECMP-HTML.h"
 

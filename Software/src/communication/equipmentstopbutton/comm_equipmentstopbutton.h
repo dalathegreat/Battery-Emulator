@@ -1,8 +1,6 @@
 #ifndef _COMM_EQUIPMENTSTOPBUTTON_H_
 #define _COMM_EQUIPMENTSTOPBUTTON_H_
 
-#include "../../devboard/utils/debounce_button.h"
-
 /**
  * @brief Initialization of equipment stop button
  *

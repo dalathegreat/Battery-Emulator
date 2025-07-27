@@ -2,6 +2,7 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
+#include "../lib/eModbus-eModbus/RTUutils.h"
 #include "../lib/eModbus-eModbus/scripts/mbServerFCs.h"
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
@@ -149,8 +150,10 @@ bool BydModbusInverter::setup(void) {  // Performs one time setup at startup ove
   // Init Static data to the RTU Modbus
   handle_static_data();
 
+#if HAS_FREERTOS
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
+#endif
 
   auto rx_pin = esp32hal->RS485_RX_PIN();
   auto tx_pin = esp32hal->RS485_TX_PIN();
@@ -160,14 +163,16 @@ bool BydModbusInverter::setup(void) {  // Performs one time setup at startup ove
   }
 
   Serial2.begin(9600, SERIAL_8N1, rx_pin, tx_pin);
+#if HAS_FREERTOS
   // Register served function code worker for server
-  MBserver.registerWorker(MBTCP_ID, READ_HOLD_REGISTER, &FC03);
-  MBserver.registerWorker(MBTCP_ID, WRITE_HOLD_REGISTER, &FC06);
-  MBserver.registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
-  MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
+  MBserver->registerWorker(MBTCP_ID, READ_HOLD_REGISTER, &FC03);
+  MBserver->registerWorker(MBTCP_ID, WRITE_HOLD_REGISTER, &FC06);
+  MBserver->registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
+  MBserver->registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
 
   // Start ModbusRTU background task
-  MBserver.begin(Serial2, esp32hal->MODBUS_CORE());
+  ((ModbusServerRTU*)MBserver)->begin(Serial2, esp32hal->MODBUS_CORE());
+#endif
 
   return true;
 }
