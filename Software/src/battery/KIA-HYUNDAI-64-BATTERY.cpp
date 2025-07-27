@@ -401,7 +401,8 @@ void KiaHyundai64Battery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    if ((contactor_closing_allowed == nullptr || *contactor_closing_allowed) && datalayer.system.status.inverter_allows_contactor_closing) {
+    if ((contactor_closing_allowed == nullptr || *contactor_closing_allowed) &&
+        datalayer.system.status.inverter_allows_contactor_closing) {
       transmit_can_frame(&KIA64_553);
       transmit_can_frame(&KIA64_57F);
       transmit_can_frame(&KIA64_2A1);
@@ -412,7 +413,8 @@ void KiaHyundai64Battery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
-    if ((contactor_closing_allowed == nullptr || *contactor_closing_allowed) && datalayer.system.status.inverter_allows_contactor_closing) {
+    if ((contactor_closing_allowed == nullptr || *contactor_closing_allowed) &&
+        datalayer.system.status.inverter_allows_contactor_closing) {
 
       switch (counter_200) {
         case 0:
