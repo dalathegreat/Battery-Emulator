@@ -40,8 +40,7 @@ class KostalInverterProtocol : public Rs485InverterProtocol {
   uint8_t incoming_message_counter = RS485_HEALTHY;
   int8_t f2_startup_count = 0;
 
-  boolean B1_delay = false;
-  unsigned long B1_last_millis = 0;
+  boolean info_sent = false;
   unsigned long currentMillis;
   unsigned long startupMillis = 0;
   unsigned long contactorMillis = 0;
