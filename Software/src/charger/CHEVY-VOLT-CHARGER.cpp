@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/logging.h"
 
 /* This implements Chevy Volt / Ampera charger support (2011-2015 model years).
  *
