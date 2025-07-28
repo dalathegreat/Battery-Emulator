@@ -6,8 +6,13 @@
 
 #include <Arduino.h>
 
-#ifdef ESP32
+#if defined(ESP32) || defined(LIBRETINY)
 #include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
+#ifdef LIBRETINY
+#ifdef round
+#undef round
+#endif
+#endif
 #include <mutex>
 #ifndef SSE_MAX_QUEUED_MESSAGES
 #define SSE_MAX_QUEUED_MESSAGES 32
@@ -129,7 +134,7 @@ private:
   size_t _max_inflight{SSE_MAX_INFLIGH};  // max num of unacknowledged bytes that could be written to socket buffer
   std::list<AsyncEventSourceMessage> _messageQueue;
 #ifdef ESP32
-  mutable std::mutex _lockmq;
+  mutable std::recursive_mutex _lockmq;
 #endif
   bool _queueMessage(const char *message, size_t len);
   bool _queueMessage(AsyncEvent_SharedData_t &&msg);
@@ -230,7 +235,7 @@ private:
 #ifdef ESP32
   // Same as for individual messages, protect mutations of _clients list
   // since simultaneous access from different tasks is possible
-  mutable std::mutex _client_queue_lock;
+  mutable std::recursive_mutex _client_queue_lock;
 #endif
   ArEventHandlerFunction _connectcb = nullptr;
   ArEventHandlerFunction _disconnectcb = nullptr;

@@ -17,6 +17,8 @@
 #include <rom/ets_sys.h>
 #elif defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350) || defined(ESP8266)
 #include <Hash.h>
+#elif defined(LIBRETINY)
+#include <mbedtls/sha1.h>
 #endif
 
 using namespace asyncsrv;
@@ -333,7 +335,7 @@ AsyncWebSocketClient::AsyncWebSocketClient(AsyncWebServerRequest *request, Async
 AsyncWebSocketClient::~AsyncWebSocketClient() {
   {
 #ifdef ESP32
-    std::lock_guard<std::mutex> lock(_lock);
+    std::lock_guard<std::recursive_mutex> lock(_lock);
 #endif
     _messageQueue.clear();
     _controlQueue.clear();
@@ -351,7 +353,7 @@ void AsyncWebSocketClient::_onAck(size_t len, uint32_t time) {
   _lastMessageTime = millis();
 
 #ifdef ESP32
-  std::lock_guard<std::mutex> lock(_lock);
+  std::unique_lock<std::recursive_mutex> lock(_lock);
 #endif
 
   if (!_controlQueue.empty()) {
@@ -362,6 +364,14 @@ void AsyncWebSocketClient::_onAck(size_t len, uint32_t time) {
         _controlQueue.pop_front();
         _status = WS_DISCONNECTED;
         if (_client) {
+#ifdef ESP32
+          /*
+            Unlocking has to be called before return execution otherwise std::unique_lock ::~unique_lock() will get an exception pthread_mutex_unlock.
+            Due to _client->close(true) shall call the callback function _onDisconnect()
+            The calling flow _onDisconnect() --> _handleDisconnect() --> ~AsyncWebSocketClient()
+          */
+          lock.unlock();
+#endif
           _client->close(true);
         }
         return;
@@ -385,7 +395,7 @@ void AsyncWebSocketClient::_onPoll() {
   }
 
 #ifdef ESP32
-  std::unique_lock<std::mutex> lock(_lock);
+  std::unique_lock<std::recursive_mutex> lock(_lock);
 #endif
   if (_client && _client->canSend() && (!_controlQueue.empty() || !_messageQueue.empty())) {
     _runQueue();
@@ -415,21 +425,21 @@ void AsyncWebSocketClient::_runQueue() {
 
 bool AsyncWebSocketClient::queueIsFull() const {
 #ifdef ESP32
-  std::lock_guard<std::mutex> lock(_lock);
+  std::lock_guard<std::recursive_mutex> lock(_lock);
 #endif
   return (_messageQueue.size() >= WS_MAX_QUEUED_MESSAGES) || (_status != WS_CONNECTED);
 }
 
 size_t AsyncWebSocketClient::queueLen() const {
 #ifdef ESP32
-  std::lock_guard<std::mutex> lock(_lock);
+  std::lock_guard<std::recursive_mutex> lock(_lock);
 #endif
   return _messageQueue.size();
 }
 
 bool AsyncWebSocketClient::canSend() const {
 #ifdef ESP32
-  std::lock_guard<std::mutex> lock(_lock);
+  std::lock_guard<std::recursive_mutex> lock(_lock);
 #endif
   return _messageQueue.size() < WS_MAX_QUEUED_MESSAGES;
 }
@@ -440,7 +450,7 @@ bool AsyncWebSocketClient::_queueControl(uint8_t opcode, const uint8_t *data, si
   }
 
 #ifdef ESP32
-  std::lock_guard<std::mutex> lock(_lock);
+  std::lock_guard<std::recursive_mutex> lock(_lock);
 #endif
 
   _controlQueue.emplace_back(opcode, data, len, mask);
@@ -458,7 +468,7 @@ bool AsyncWebSocketClient::_queueMessage(AsyncWebSocketSharedBuffer buffer, uint
   }
 
 #ifdef ESP32
-  std::lock_guard<std::mutex> lock(_lock);
+  std::unique_lock<std::recursive_mutex> lock(_lock);
 #endif
 
   if (_messageQueue.size() >= WS_MAX_QUEUED_MESSAGES) {
@@ -466,6 +476,14 @@ bool AsyncWebSocketClient::_queueMessage(AsyncWebSocketSharedBuffer buffer, uint
       _status = WS_DISCONNECTED;
 
       if (_client) {
+#ifdef ESP32
+        /*
+          Unlocking has to be called before return execution otherwise std::unique_lock ::~unique_lock() will get an exception pthread_mutex_unlock.
+          Due to _client->close(true) shall call the callback function _onDisconnect()
+          The calling flow _onDisconnect() --> _handleDisconnect() --> ~AsyncWebSocketClient()
+        */
+        lock.unlock();
+#endif
         _client->close(true);
       }
 
@@ -551,6 +569,7 @@ void AsyncWebSocketClient::_onTimeout(uint32_t time) {
 void AsyncWebSocketClient::_onDisconnect() {
   // Serial.println("onDis");
   _client = nullptr;
+  _server->_handleDisconnect(this);
 }
 
 void AsyncWebSocketClient::_onData(void *pbuf, size_t plen) {
@@ -855,6 +874,16 @@ AsyncWebSocketClient *AsyncWebSocket::_newClient(AsyncWebServerRequest *request)
   _clients.emplace_back(request, this);
   _handleEvent(&_clients.back(), WS_EVT_CONNECT, request, NULL, 0);
   return &_clients.back();
+}
+
+void AsyncWebSocket::_handleDisconnect(AsyncWebSocketClient *client) {
+  const auto client_id = client->id();
+  const auto iter = std::find_if(std::begin(_clients), std::end(_clients), [client_id](const AsyncWebSocketClient &c) {
+    return c.id() == client_id;
+  });
+  if (iter != std::end(_clients)) {
+    _clients.erase(iter);
+  }
 }
 
 bool AsyncWebSocket::availableForWriteAll() {
@@ -1300,11 +1329,20 @@ AsyncWebSocketResponse::AsyncWebSocketResponse(const String &key, AsyncWebSocket
   }
   k.concat(key);
   k.concat(WS_STR_UUID);
+#ifdef LIBRETINY
+  mbedtls_sha1_context ctx;
+  mbedtls_sha1_init(&ctx);
+  mbedtls_sha1_starts(&ctx);
+  mbedtls_sha1_update(&ctx, (const uint8_t *)k.c_str(), k.length());
+  mbedtls_sha1_finish(&ctx, hash);
+  mbedtls_sha1_free(&ctx);
+#else
   SHA1Builder sha1;
   sha1.begin();
   sha1.add((const uint8_t *)k.c_str(), k.length());
   sha1.calculate();
   sha1.getBytes(hash);
+#endif
 #endif
   base64_encodestate _state;
   base64_init_encodestate(&_state);
