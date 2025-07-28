@@ -594,14 +594,6 @@ void init_webserver() {
     }
   });
 
-  update_string("/equipmentStop", [](String value) {
-    if (value == "true" || value == "1") {
-      setBatteryPause(true, false, true);  //Pause battery, do not pause CAN, equipment stop on (store to flash)
-    } else {
-      setBatteryPause(false, false, false);
-    }
-  });
-
   // Route for editing SOCMin
   update_string_setting("/updateSocMin", [](String value) {
     datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
@@ -1415,7 +1407,7 @@ String processor(const String& var) {
     content +=
         "var xhr=new "
         "XMLHttpRequest();xhr.onload=function() { "
-        "window.location.reload();};xhr.open('GET','/equipmentStop?stop='+stop,true);xhr.send();";
+        "window.location.reload();};xhr.open('GET','/equipmentStop?value='+stop,true);xhr.send();";
     content += "}";
     content += "</script>";
 
