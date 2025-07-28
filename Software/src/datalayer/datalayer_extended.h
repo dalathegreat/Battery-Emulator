@@ -312,6 +312,7 @@ typedef struct {
   uint32_t pid_time_spent_over_55c = 0;
   uint32_t pid_contactor_closing_counter = 0;
   uint32_t pid_date_of_manufacture = 0;
+  uint16_t pid_SOH_cell_1 = 0;
 } DATALAYER_INFO_ECMP;
 
 typedef struct {

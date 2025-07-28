@@ -136,6 +136,7 @@ class EcmpBattery : public CanBattery {
   uint32_t pid_time_spent_over_55c = NOT_SAMPLED_YET;
   uint32_t pid_contactor_closing_counter = NOT_SAMPLED_YET;
   uint32_t pid_date_of_manufacture = NOT_SAMPLED_YET;
+  uint16_t pid_SOH_cell_1 = NOT_SAMPLED_YET;
 
   unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent
@@ -197,7 +198,7 @@ class EcmpBattery : public CanBattery {
   static const uint16_t PID_SW_VERSION_NUM = 0xF195;           //Not supported on all batteris
   static const uint16_t PID_FACTORY_MODE_CONTROL = 0xD900;
   static const uint16_t PID_BATTERY_SERIAL = 0xD901;
-  static const uint16_t PID_ALL_CELL_SOH = 0xD4B5;  //Very long message reply, too much data for this integration
+  static const uint16_t PID_ALL_CELL_SOH = 0xD4B5;
   static const uint16_t PID_AUX_FUSE_STATE = 0xD86C;
   static const uint16_t PID_BATTERY_STATE = 0xD811;
   static const uint16_t PID_PRECHARGE_SHORT_CIRCUIT = 0xD4D8;
