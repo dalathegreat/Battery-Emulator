@@ -283,10 +283,6 @@ void SmaBydHvsInverter::transmit_can(unsigned long currentMillis) {
 
       if (transmit_can_init == false) {  //We completed sending the batches
         batch_send_index = 0;
-        retry_pairing_count++;
-        if (retry_pairing_count < MAX_RETRY_ATTEMPTS) {
-          transmit_can_init = true;  //Start over
-        }
       }
     }
   }
