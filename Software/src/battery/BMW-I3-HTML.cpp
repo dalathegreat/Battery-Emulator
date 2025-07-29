@@ -1,5 +1,4 @@
 #include "BMW-I3-HTML.h"
-#include "../include.h"
 #include "BMW-I3-BATTERY.h"
 
 // Helper function for safe array access

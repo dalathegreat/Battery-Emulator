@@ -36,25 +36,16 @@
  * https://github.com/YiannisBourkelis/
  */
 
-#include <Arduino.h> //for millis()
+#include "../../../devboard/utils/millis64.h"
 #include "uptime.h"
 
 //private variabes for converting milliseconds to total seconds,minutes,hours and days
 //after each call to millis()
-unsigned long uptime::m_milliseconds;
-unsigned long uptime::m_seconds;
-unsigned long uptime::m_minutes;
-unsigned long uptime::m_hours;
-unsigned long uptime::m_days;
-
-//in case of millis() overflow, we store in these private variables
-//the existing time passed until the moment of the overflow
-//so that we can add them on the next call to compute the time passed
-unsigned long uptime::m_last_milliseconds = 0;   
-unsigned long uptime::m_remaining_seconds = 0;
-unsigned long uptime::m_remaining_minutes = 0;
-unsigned long uptime::m_remaining_hours = 0;
-unsigned long uptime::m_remaining_days = 0;
+uint64_t uptime::m_milliseconds;
+uint64_t uptime::m_seconds;
+uint64_t uptime::m_minutes;
+uint64_t uptime::m_hours;
+uint64_t uptime::m_days;
 
 //private variables that in combination hold the actual time passed
 //Use the coresponding uptime::get_.... to read these private variables
@@ -90,26 +81,13 @@ unsigned long uptime::getDays()
 //and store them in their static variables
 void uptime::calculateUptime()
 {
-  uptime::m_milliseconds = millis();
-  
-  if (uptime::m_last_milliseconds > uptime::m_milliseconds){
-    //in case of millis() overflow, store existing passed seconds,minutes,hours and days
-    uptime::m_remaining_seconds = uptime::m_mod_seconds;
-    uptime::m_remaining_minutes = uptime::m_mod_minutes;
-    uptime::m_remaining_hours   = uptime::m_mod_hours;
-    uptime::m_remaining_days    = uptime::m_days;
-  }
-  //store last millis(), so that we can detect on the next call
-  //if there is a millis() overflow ( millis() returns 0 )
-  uptime::m_last_milliseconds = uptime::m_milliseconds;
+  uptime::m_milliseconds = millis64();
 
   //convert passed millis to total seconds, minutes, hours and days.
-  //In case of overflow, the uptime::m_remaining_... variables contain the remaining time before the overflow.
-  //We add the remaining time, so that we can continue measuring the time passed from the last boot of the device.
-  uptime::m_seconds      = (uptime::m_milliseconds / 1000) + uptime::m_remaining_seconds;
-  uptime::m_minutes      = (uptime::m_seconds      / 60)   + uptime::m_remaining_minutes;
-  uptime::m_hours        = (uptime::m_minutes      / 60)   + uptime::m_remaining_hours;
-  uptime::m_days         = (uptime::m_hours        / 24)   + uptime::m_remaining_days;
+  uptime::m_seconds      = (uptime::m_milliseconds / 1000);
+  uptime::m_minutes      = (uptime::m_seconds      / 60);
+  uptime::m_hours        = (uptime::m_minutes      / 60);
+  uptime::m_days         = (uptime::m_hours        / 24);
 
   //calculate the actual time passed, using modulus, in milliseconds, seconds and hours.
   //The days are calculated allready in the previous step. 

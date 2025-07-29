@@ -3,7 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 /* TODO
 - Add //NVROL Reset
@@ -108,7 +107,7 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x18DAF1DB:  // LBC Reply from active polling
 
       if (rx_frame.data.u8[0] == 0x10) {  //First frame of a group
-        transmit_can_frame(&ZOE_POLL_FLOW_CONTROL, can_interface);
+        transmit_can_frame(&ZOE_POLL_FLOW_CONTROL);
         //frame 2 & 3 contains which PID is sent
         reply_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
       }
@@ -676,7 +675,7 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
       counter_373 = (counter_373 + 1) % 10;
       */
 
-      transmit_can_frame(&ZOE_373, can_interface);
+      transmit_can_frame(&ZOE_373);
       transmit_can_frame_376();
     }
 
@@ -691,7 +690,7 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
       ZOE_POLL_18DADBF1.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
       ZOE_POLL_18DADBF1.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
-      transmit_can_frame(&ZOE_POLL_18DADBF1, can_interface);
+      transmit_can_frame(&ZOE_POLL_18DADBF1);
     }
 
     if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
@@ -733,7 +732,7 @@ void RenaultZoeGen2Battery::transmit_can_frame_376(void) {
   ZOE_376.data.u8[4] = hourSeg;
   ZOE_376.data.u8[5] = minuteSeg;
 
-  transmit_can_frame(&ZOE_376, can_interface);
+  transmit_can_frame(&ZOE_376);
 }
 
 void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
@@ -742,14 +741,14 @@ void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
       startTimeNVROL = millis();
       // NVROL reset, part 1: send 0x021003AAAAAAAAAA
       ZOE_POLL_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
-      transmit_can_frame(&ZOE_POLL_18DADBF1, can_interface);
+      transmit_can_frame(&ZOE_POLL_18DADBF1);
       NVROLstateMachine = 1;
       break;
     case 1:  // wait 100 ms
       if ((millis() - startTimeNVROL) > INTERVAL_100_MS) {
         // NVROL reset, part 2: send 0x043101B00900AAAA
         ZOE_POLL_18DADBF1.data = {0x04, 0x31, 0x01, 0xB0, 0x09, 0x00, 0xAA, 0xAA};
-        transmit_can_frame(&ZOE_POLL_18DADBF1, can_interface);
+        transmit_can_frame(&ZOE_POLL_18DADBF1);
         startTimeNVROL = millis();  //Reset time start, so we can check time for next step
         NVROLstateMachine = 2;
       }
@@ -758,7 +757,7 @@ void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
       if ((millis() - startTimeNVROL) > INTERVAL_1_S) {
         // Enable temporisation before sleep, part 1: send 0x021003AAAAAAAAAA
         ZOE_POLL_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
-        transmit_can_frame(&ZOE_POLL_18DADBF1, can_interface);
+        transmit_can_frame(&ZOE_POLL_18DADBF1);
         startTimeNVROL = millis();  //Reset time start, so we can check time for next step
         NVROLstateMachine = 3;
       }
@@ -767,7 +766,7 @@ void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
       if ((millis() - startTimeNVROL) > INTERVAL_100_MS) {
         // Enable temporisation before sleep, part 2: send 0x042E928101AAAAAA
         ZOE_POLL_18DADBF1.data = {0x04, 0x2E, 0x92, 0x81, 0x01, 0xAA, 0xAA, 0xAA};
-        transmit_can_frame(&ZOE_POLL_18DADBF1, can_interface);
+        transmit_can_frame(&ZOE_POLL_18DADBF1);
         // Set data back to init values, we are done with the ZOE_POLL_18DADBF1 frame
         ZOE_POLL_18DADBF1.data = {0x03, 0x22, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00};
         poll_index = 0;

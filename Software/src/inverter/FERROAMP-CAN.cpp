@@ -1,7 +1,6 @@
 #include "FERROAMP-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 //#define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
 #define SEND_1                 //If defined, the messages will have ID ending with 1 (useful for some inverters)
@@ -332,41 +331,36 @@ void FerroampCanInverter::transmit_can(unsigned long currentMillis) {
 
 void FerroampCanInverter::send_setup_info() {  //Ensemble information
 #ifdef SEND_0
-  transmit_can_frame(&PYLON_7310, can_config.inverter);
-  transmit_can_frame(&PYLON_7320, can_config.inverter);
+  transmit_can_frame(&PYLON_7310);
+  transmit_can_frame(&PYLON_7320);
 #endif
 #ifdef SEND_1
-  transmit_can_frame(&PYLON_7311, can_config.inverter);
-  transmit_can_frame(&PYLON_7321, can_config.inverter);
+  transmit_can_frame(&PYLON_7311);
+  transmit_can_frame(&PYLON_7321);
 #endif
 }
 
 void FerroampCanInverter::send_system_data() {  //System equipment information
 #ifdef SEND_0
-  transmit_can_frame(&PYLON_4210, can_config.inverter);
-  transmit_can_frame(&PYLON_4220, can_config.inverter);
-  transmit_can_frame(&PYLON_4230, can_config.inverter);
-  transmit_can_frame(&PYLON_4240, can_config.inverter);
-  transmit_can_frame(&PYLON_4250, can_config.inverter);
-  transmit_can_frame(&PYLON_4260, can_config.inverter);
-  transmit_can_frame(&PYLON_4270, can_config.inverter);
-  transmit_can_frame(&PYLON_4280, can_config.inverter);
-  transmit_can_frame(&PYLON_4290, can_config.inverter);
+  transmit_can_frame(&PYLON_4210);
+  transmit_can_frame(&PYLON_4220);
+  transmit_can_frame(&PYLON_4230);
+  transmit_can_frame(&PYLON_4240);
+  transmit_can_frame(&PYLON_4250);
+  transmit_can_frame(&PYLON_4260);
+  transmit_can_frame(&PYLON_4270);
+  transmit_can_frame(&PYLON_4280);
+  transmit_can_frame(&PYLON_4290);
 #endif
 #ifdef SEND_1
-  transmit_can_frame(&PYLON_4211, can_config.inverter);
-  transmit_can_frame(&PYLON_4221, can_config.inverter);
-  transmit_can_frame(&PYLON_4231, can_config.inverter);
-  transmit_can_frame(&PYLON_4241, can_config.inverter);
-  transmit_can_frame(&PYLON_4251, can_config.inverter);
-  transmit_can_frame(&PYLON_4261, can_config.inverter);
-  transmit_can_frame(&PYLON_4271, can_config.inverter);
-  transmit_can_frame(&PYLON_4281, can_config.inverter);
-  transmit_can_frame(&PYLON_4291, can_config.inverter);
+  transmit_can_frame(&PYLON_4211);
+  transmit_can_frame(&PYLON_4221);
+  transmit_can_frame(&PYLON_4231);
+  transmit_can_frame(&PYLON_4241);
+  transmit_can_frame(&PYLON_4251);
+  transmit_can_frame(&PYLON_4261);
+  transmit_can_frame(&PYLON_4271);
+  transmit_can_frame(&PYLON_4281);
+  transmit_can_frame(&PYLON_4291);
 #endif
-}
-
-void FerroampCanInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
 }

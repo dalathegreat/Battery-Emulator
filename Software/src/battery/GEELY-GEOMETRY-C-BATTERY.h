@@ -2,7 +2,6 @@
 #define GEELY_GEOMETRY_C_BATTERY_H
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
-#include "../include.h"
 #include "CanBattery.h"
 #include "GEELY-GEOMETRY-C-HTML.h"
 

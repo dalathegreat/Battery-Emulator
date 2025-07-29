@@ -1,8 +1,6 @@
 #ifndef _PRECHARGE_CONTROL_H_
 #define _PRECHARGE_CONTROL_H_
 
-#include "../../include.h"
-
 #include "../../devboard/utils/events.h"
 
 /**
@@ -12,7 +10,7 @@
  *
  * @return void
  */
-void init_precharge_control();
+bool init_precharge_control();
 
 /**
  * @brief Handle contactors

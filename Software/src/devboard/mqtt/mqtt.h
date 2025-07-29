@@ -35,15 +35,17 @@
 #define __MQTT_H__
 
 #include <Arduino.h>
+#include <string>
 #include <vector>
-#include "../../include.h"
 
 #define MQTT_MSG_BUFFER_SIZE (1024)
 
 extern const char* version_number;  // The current software version, used for mqtt
 
-extern const char* mqtt_user;
-extern const char* mqtt_password;
+extern std::string mqtt_server;
+extern std::string mqtt_user;
+extern std::string mqtt_password;
+extern int mqtt_port;
 extern const char* mqtt_topic_name;
 extern const char* mqtt_object_id_prefix;
 extern const char* mqtt_device_name;
@@ -51,8 +53,11 @@ extern const char* ha_device_id;
 
 extern char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 
-void init_mqtt(void);
+bool init_mqtt(void);
 void mqtt_loop(void);
 bool mqtt_publish(const char* topic, const char* mqtt_msg, bool retain);
+
+extern bool mqtt_enabled;
+extern bool ha_autodiscovery_enabled;
 
 #endif

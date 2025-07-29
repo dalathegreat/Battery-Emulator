@@ -139,6 +139,9 @@ typedef struct {
   /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
   uint16_t max_user_set_discharge_voltage_dV = BATTERY_MAX_DISCHARGE_VOLTAGE;
 
+  /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset */
+  uint16_t user_set_bms_reset_duration_ms = 30000;
+
   /** Parameters for keeping track of the limiting factor in the system */
   bool user_settings_limit_discharge = false;
   bool user_settings_limit_charge = false;
@@ -161,6 +164,9 @@ typedef struct {
   uint16_t balancing_float_power_W = 1000;
   /* Maximum voltage for entire battery pack during forced balancing */
   uint16_t balancing_max_pack_voltage_dV = 3940;
+
+  /** Sofar CAN Battery ID (0-15) used to parallel multiple packs */
+  uint8_t sofar_user_specified_battery_id = 0;
 
 } DATALAYER_BATTERY_SETTINGS_TYPE;
 
@@ -227,8 +233,6 @@ typedef struct {
   float CPU_temperature = 0;
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
-  /** array with type of inverter protocol used, for displaying on webserver */
-  char inverter_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
   char shunt_protocol[64] = {0};
   /** array with type of inverter brand used, for displaying on webserver */
@@ -252,8 +256,6 @@ typedef struct {
 } DATALAYER_SYSTEM_INFO_TYPE;
 
 typedef struct {
-  /** Millis rollover count. Increments every 49.7 days. Used for keeping track on events */
-  uint8_t millisrolloverCount = 0;
 #ifdef FUNCTION_TIME_MEASUREMENT
   /** Core task measurement variable */
   int64_t core_task_max_us = 0;

@@ -1,4 +1,4 @@
-#include "../include.h"
+#include "INVERTERS.h"
 
 InverterProtocol* inverter = nullptr;
 
@@ -70,6 +70,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::Solax:
       return SolaxInverter::Name;
 
+    case InverterProtocolType::Solxpow:
+      return SolxpowInverter::Name;
+
     case InverterProtocolType::Sungrow:
       return SungrowInverter::Name;
   }
@@ -81,9 +84,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
 #error "Compile time SELECTED_INVERTER_CLASS should not be defined with COMMON_IMAGE"
 #endif
 
-void setup_inverter() {
+bool setup_inverter() {
   if (inverter) {
-    return;
+    return true;
   }
 
   switch (user_selected_inverter_protocol) {
@@ -155,11 +158,16 @@ void setup_inverter() {
       inverter = new SolaxInverter();
       break;
 
+    case InverterProtocolType::Solxpow:
+      inverter = new SolxpowInverter();
+      break;
+
     case InverterProtocolType::Sungrow:
       inverter = new SungrowInverter();
       break;
 
     case InverterProtocolType::None:
+      return true;
     case InverterProtocolType::Highest:
     default:
       inverter = nullptr;  // Or handle as error
@@ -167,23 +175,29 @@ void setup_inverter() {
   }
 
   if (inverter) {
-    inverter->setup();
+    return inverter->setup();
   }
+
+  return false;
 }
 
 #else
-void setup_inverter() {
+bool setup_inverter() {
   if (inverter) {
     // The inverter is setup only once.
-    return;
+    return true;
   }
 
 #ifdef SELECTED_INVERTER_CLASS
   inverter = new SELECTED_INVERTER_CLASS();
 
   if (inverter) {
-    inverter->setup();
+    return inverter->setup();
   }
+
+  return false;
+#else
+  return true;
 #endif
 }
 #endif

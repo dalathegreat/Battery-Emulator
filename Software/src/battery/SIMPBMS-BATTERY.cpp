@@ -1,7 +1,6 @@
 #include "SIMPBMS-BATTERY.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 void SimpBmsBattery::update_values() {
 

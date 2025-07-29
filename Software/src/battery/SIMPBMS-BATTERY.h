@@ -1,7 +1,6 @@
 #ifndef SIMPBMS_BATTERY_H
 #define SIMPBMS_BATTERY_H
 #include <Arduino.h>
-#include "../include.h"
 
 #include "CanBattery.h"
 

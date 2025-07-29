@@ -2,7 +2,7 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
+#include "../devboard/utils/logging.h"
 
 //Code still work in progress, TODO:
 //Figure out if CAN messages need to be sent to keep the system happy?

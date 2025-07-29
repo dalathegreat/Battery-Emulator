@@ -1,17 +1,15 @@
-#include "../include.h"
-
+#include "BATTERIES.h"
 #include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
 #include "RS485Battery.h"
 
 #if !defined(COMMON_IMAGE) && !defined(SELECTED_BATTERY_CLASS)
-#error No battery selected! Choose one from the USER_SETTINGS.h file
+#error No battery selected! Choose one from the USER_SETTINGS.h file or build COMMON_IMAGE.
 #endif
 
 Battery* battery = nullptr;
 Battery* battery2 = nullptr;
 
-#ifdef COMMON_IMAGE
 std::vector<BatteryType> supported_battery_types() {
   std::vector<BatteryType> types;
 
@@ -22,7 +20,39 @@ std::vector<BatteryType> supported_battery_types() {
   return types;
 }
 
-extern const char* name_for_battery_type(BatteryType type) {
+const char* name_for_chemistry(battery_chemistry_enum chem) {
+  switch (chem) {
+    case battery_chemistry_enum::LFP:
+      return "LFP";
+    case battery_chemistry_enum::NCA:
+      return "NCA";
+    case battery_chemistry_enum::NMC:
+      return "NMC";
+    default:
+      return nullptr;
+  }
+}
+
+const char* name_for_comm_interface(comm_interface comm) {
+  switch (comm) {
+    case comm_interface::Modbus:
+      return "Modbus";
+    case comm_interface::RS485:
+      return "RS485";
+    case comm_interface::CanNative:
+      return "Native CAN";
+    case comm_interface::CanFdNative:
+      return "Native CAN FD";
+    case comm_interface::CanAddonMcp2515:
+      return "CAN MCP 2515 add-on";
+    case comm_interface::CanFdAddonMcp2518:
+      return "CAN FD MCP 2518 add-on";
+    default:
+      return nullptr;
+  }
+}
+
+const char* name_for_battery_type(BatteryType type) {
   switch (type) {
     case BatteryType::None:
       return "None";
@@ -36,10 +66,8 @@ extern const char* name_for_battery_type(BatteryType type) {
       return BydAttoBattery::Name;
     case BatteryType::CellPowerBms:
       return CellPowerBms::Name;
-#ifdef CHADEMO_PIN_2  // Only support chademo for certain platforms
     case BatteryType::Chademo:
       return ChademoBattery::Name;
-#endif
     case BatteryType::CmfaEv:
       return CmfaEvBattery::Name;
     case BatteryType::Foxess:
@@ -66,6 +94,8 @@ extern const char* name_for_battery_type(BatteryType type) {
       return MebBattery::Name;
     case BatteryType::Mg5:
       return Mg5Battery::Name;
+    case BatteryType::MgHsPhev:
+      return MgHsPHEVBattery::Name;
     case BatteryType::NissanLeaf:
       return NissanLeafBattery::Name;
     case BatteryType::Pylon:
@@ -102,7 +132,14 @@ extern const char* name_for_battery_type(BatteryType type) {
       return nullptr;
   }
 }
+
+#ifdef LFP_CHEMISTRY
+const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum::LFP;
+#else
+const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum::NMC;
 #endif
+
+battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_default;
 
 #ifdef COMMON_IMAGE
 #ifdef SELECTED_BATTERY_CLASS
@@ -126,10 +163,8 @@ Battery* create_battery(BatteryType type) {
       return new BydAttoBattery();
     case BatteryType::CellPowerBms:
       return new CellPowerBms();
-#ifdef CHADEMO_PIN_2  // Only support chademo for certain platforms
     case BatteryType::Chademo:
       return new ChademoBattery();
-#endif
     case BatteryType::CmfaEv:
       return new CmfaEvBattery();
     case BatteryType::Foxess:
@@ -156,6 +191,8 @@ Battery* create_battery(BatteryType type) {
       return new MebBattery();
     case BatteryType::Mg5:
       return new Mg5Battery();
+    case BatteryType::MgHsPhev:
+      return new MgHsPHEVBattery();
     case BatteryType::NissanLeaf:
       return new NissanLeafBattery();
     case BatteryType::Pylon:
@@ -179,7 +216,7 @@ Battery* create_battery(BatteryType type) {
     case BatteryType::SimpBms:
       return new SimpBmsBattery();
     case BatteryType::TeslaModel3Y:
-      return new TeslaModel3YBattery();
+      return new TeslaModel3YBattery(user_selected_battery_chemistry);
     case BatteryType::TeslaModelSX:
       return new TeslaModelSXBattery();
     case BatteryType::TestFake:
@@ -212,7 +249,7 @@ void setup_battery() {
         break;
       case BatteryType::BmwI3:
         battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
-                                    can_config.battery_double, WUP_PIN2);
+                                    can_config.battery_double, esp32hal->WUP_PIN2());
         break;
       case BatteryType::KiaHyundai64:
         battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
@@ -220,6 +257,9 @@ void setup_battery() {
                                            can_config.battery_double);
       case BatteryType::SantaFePhev:
         battery2 = new SantaFePhevBattery(&datalayer.battery2, can_config.battery_double);
+        break;
+      case BatteryType::RenaultZoe1:
+        battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
       case BatteryType::TestFake:
         battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
@@ -236,7 +276,11 @@ void setup_battery() {
 void setup_battery() {
   // Instantiate the battery only once just in case this function gets called multiple times.
   if (battery == nullptr) {
+#ifdef TESLA_MODEL_3Y_BATTERY
+    battery = new SELECTED_BATTERY_CLASS(user_selected_battery_chemistry);
+#else
     battery = new SELECTED_BATTERY_CLASS();
+#endif
   }
   battery->setup();
 
@@ -245,7 +289,7 @@ void setup_battery() {
 #if defined(BMW_I3_BATTERY)
     battery2 =
         new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
-                                   can_config.battery_double, WUP_PIN2);
+                                   can_config.battery_double, esp32hal->WUP_PIN2());
 #elif defined(KIA_HYUNDAI_64_BATTERY)
     battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
                                           &datalayer.system.status.battery2_allowed_contactor_closing,

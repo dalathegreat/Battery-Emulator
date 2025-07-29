@@ -1,7 +1,6 @@
 #ifndef CELLPOWER_BMS_H
 #define CELLPOWER_BMS_H
 #include <Arduino.h>
-#include "../include.h"
 #include "CELLPOWER-HTML.h"
 #include "CanBattery.h"
 
@@ -11,7 +10,7 @@
 
 class CellPowerBms : public CanBattery {
  public:
-  CellPowerBms() : CanBattery(true) {}
+  CellPowerBms() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) {}
 
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
