@@ -585,8 +585,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                     (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
               break;
             case PID_ENERGY_CAPACITY:
-              pid_energy_capacity = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
-                                     (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+              pid_energy_capacity = (rx_frame.data.u8[4] << 16) | (rx_frame.data.u8[5] << 8) | (rx_frame.data.u8[6]);
               break;
             case PID_HIGH_CELL_NUM:
               pid_highest_cell_voltage_num = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
