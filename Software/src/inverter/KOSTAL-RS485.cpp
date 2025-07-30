@@ -154,26 +154,24 @@ void KostalInverterProtocol::update_values() {
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 18);  // Last current
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 22);  // Should be Avg current(1s)
 
-  // Close contactors after 7 battery info frames requested
-  if (f2_startup_count > 7) {
-    datalayer.system.status.inverter_allows_contactor_closing = true;
-    dbg_message("inverter_allows_contactor_closing -> true");
-  }
-
-  // On startup, byte 56 seems to be always 0x00 couple of frames,.
-  if (f2_startup_count < 9) {
-    CYCLIC_DATA[56] = 0x00;
-  } else {
+#ifdef KOSTAL_SECONDARY_CONTACTOR
+  if (digitalRead(SECONDARY_CONTACTOR_PIN) == LOW) {
     CYCLIC_DATA[56] = 0x01;
-  }
-
-  // On startup, byte 59 seems to be always 0x02 couple of frames,.
-  if (f2_startup_count < 14) {
-    CYCLIC_DATA[59] = 0x02;
-  } else {
     CYCLIC_DATA[59] = 0x00;
+  } else {
+    CYCLIC_DATA[56] = 0x00;
+    CYCLIC_DATA[59] = 0x02;
+  }
+#else
+  if (datalayer.system.status.inverter_allows_contactor_closing) {
+    CYCLIC_DATA[56] = 0x01;
+    CYCLIC_DATA[59] = 0x00;
+  } else {
+    CYCLIC_DATA[56] = 0x00;
+    CYCLIC_DATA[59] = 0x02;
   }
 
+#endif
 #endif
 
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_discharge_current_dA / 10, 26);
@@ -214,6 +212,29 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
 {
   currentMillis = millis();
 
+  // Auto-reset startupTimerActive after 20 seconds
+  if (startupTimerActive && (millis() - startupTimerStart >= 20000)) {
+#ifdef SECONDARY_CONTACTOR_PIN
+    digitalWrite(SECONDARY_CONTACTOR_PIN, LOW);
+    dbg_message("GPIO33 -> LOW (Startup timer ended after 20 sec)");
+#else
+    datalayer.system.status.inverter_allows_contactor_closing = true;
+#endif
+    datalayer.system.status.inverter_allows_contactor_closing = true;
+    dbg_message("inverter_allows_contactor_closing -> true (Startup timer ended after 20 sec)");
+    startupTimerActive = false;
+  }
+  // Auto-reset contactor_test_active after 5 seconds
+  if (contactortestTimerActive && (millis() - contactortestTimerStart >= 5000)) {
+#ifdef SECONDARY_CONTACTOR_PIN
+    digitalWrite(SECONDARY_CONTACTOR_PIN, LOW);
+    dbg_message("GPIO33 -> LOW (Contactor test ended)");
+#else
+    datalayer.system.status.inverter_allows_contactor_closing = true;
+#endif
+    dbg_message("inverter_allows_contactor_closing -> true (Contactor test ended)");
+    contactortestTimerActive = false;
+  }
   if (datalayer.system.status.battery_allows_contactor_closing & !contactorMillis) {
     contactorMillis = currentMillis;
   }
@@ -229,22 +250,43 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
       if (RS485_RXFRAME[rx_index - 1] == 0x00) {
         if ((rx_index > 9) && register_content_ok) {
           dbg_frame(RS485_RXFRAME, 10, "RX");
+          byte frame_copy[300];
+          memcpy(frame_copy, RS485_RXFRAME, sizeof(frame_copy));
           if (check_kostal_frame_crc(rx_index)) {
             incoming_message_counter = RS485_HEALTHY;
 
-            if (RS485_RXFRAME[1] == 'c' && info_sent) {
+            if (RS485_RXFRAME[1] == 0x63) {
               if (RS485_RXFRAME[6] == 0x47) {
                 // Set time function - Do nothing.
                 send_kostal(ACK_FRAME, 8);  // ACK
               }
-              if (RS485_RXFRAME[6] == 0x5E) {
+              if (frame_copy[6] == 0x5E) {
                 // Set State function
-                if (RS485_RXFRAME[7] == 0x00) {
+                if (frame_copy[7] == 0x02) {
+// Allow contactor closing
+#ifdef SECONDARY_CONTACTOR_PIN
+                  digitalWrite(SECONDARY_CONTACTOR_PIN, LOW);
+                  dbg_message("gpio_contactor_closing");
+#else
+                  datalayer.system.status.inverter_allows_contactor_closing = true;
+                  dbg_message("inverter_allows_contactor_closing -> true");
+#endif
                   send_kostal(ACK_FRAME, 8);  // ACK
-                } else if (RS485_RXFRAME[7] == 0x04) {
+                } else if (frame_copy[7] == 0x04) {
+// contactor test STATE, ACK sent
+#ifdef SECONDARY_CONTACTOR_PIN
+                  digitalWrite(SECONDARY_CONTACTOR_PIN, HIGH);
+                  dbg_message("GPIO33 -> HIGH (Contactor test start)");
+#else
+                  datalayer.system.status.inverter_allows_contactor_closing = false;
+                  dbg_message("inverter_allows_contactor_closing -> false (Contactor test start)");
+#endif
                   send_kostal(ACK_FRAME, 8);  // ACK
-                } else if (RS485_RXFRAME[7] == 0xFF) {
-                  // no ACK sent
+                  contactortestTimerStart = millis();
+                  contactortestTimerActive = true;
+                } else if (frame_copy[7] == 0x00) {
+                  // ERROR STATE, ACK sent
+                  send_kostal(ACK_FRAME, 8);  // ACK
                 } else {
                   // Battery deep sleep?
                   send_kostal(ACK_FRAME, 8);  // ACK
@@ -255,7 +297,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 //Reverse polarity, do nothing
               } else {
                 int code = RS485_RXFRAME[6] + RS485_RXFRAME[7] * 0x100;
-                if (code == 0x44a && info_sent) {
+                if (code == 0x44a) {
                   //Send cyclic data
                   // TODO: Probably not a good idea to use the battery object here like this.
                   if (battery) {
@@ -279,12 +321,25 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                   tmpframe[38] = calculate_kostal_crc(tmpframe, 38);
                   null_stuffer(tmpframe, 40);
                   send_kostal(tmpframe, 40);
-                  info_sent = true;
+#ifdef SECONDARY_CONTACTOR_PIN
+                  digitalWrite(SECONDARY_CONTACTOR_PIN, HIGH);
+                  dbg_message("gpio_contactor_open");
+#else
+                  datalayer.system.status.inverter_allows_contactor_closing = false;
+                  dbg_message("inverter_allows_contactor_closing -> false (battery info sent)");
+#endif
+
+                  // Start 20 sec timer every time 0x84a recieved
+                  startupTimerStart = millis();
+                  startupTimerActive = true;
+                  dbg_message("startupTimerActive -> true (20 sec timer start)");
+
+                  // Kun første gang sættes startupMillis
                   if (!startupMillis) {
                     startupMillis = currentMillis;
                   }
                 }
-                if (code == 0x353 && info_sent) {
+                if (code == 0x353) {
                   //Send  battery error/status
                   byte tmpframe[9];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, STATUS_FRAME, 9);
@@ -320,4 +375,8 @@ bool KostalInverterProtocol::setup(void) {  // Performs one time setup at startu
   Serial2.begin(baud_rate(), SERIAL_8N1, rx_pin, tx_pin);
 
   return true;
+#ifdef SECONDARY_CONTACTOR_PIN
+  pinMode(SECONDARY_CONTACTOR_PIN, OUTPUT);
+  digitalWrite(SECONDARY_CONTACTOR_PIN, LOW);  // start LOW
+#endif
 }
