@@ -1,7 +1,6 @@
 #include "GROWATT-LV-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 /* Growatt BMS CAN-Bus-protocol Low Voltage Rev_04
 CAN 2.0A
@@ -182,17 +181,17 @@ void GrowattLvInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x301:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      transmit_can_frame(&GROWATT_311, can_config.inverter);
-      transmit_can_frame(&GROWATT_312, can_config.inverter);
-      transmit_can_frame(&GROWATT_313, can_config.inverter);
-      transmit_can_frame(&GROWATT_314, can_config.inverter);
-      transmit_can_frame(&GROWATT_315, can_config.inverter);
-      transmit_can_frame(&GROWATT_316, can_config.inverter);
-      transmit_can_frame(&GROWATT_317, can_config.inverter);
-      transmit_can_frame(&GROWATT_318, can_config.inverter);
-      transmit_can_frame(&GROWATT_319, can_config.inverter);
-      transmit_can_frame(&GROWATT_320, can_config.inverter);
-      transmit_can_frame(&GROWATT_321, can_config.inverter);
+      transmit_can_frame(&GROWATT_311);
+      transmit_can_frame(&GROWATT_312);
+      transmit_can_frame(&GROWATT_313);
+      transmit_can_frame(&GROWATT_314);
+      transmit_can_frame(&GROWATT_315);
+      transmit_can_frame(&GROWATT_316);
+      transmit_can_frame(&GROWATT_317);
+      transmit_can_frame(&GROWATT_318);
+      transmit_can_frame(&GROWATT_319);
+      transmit_can_frame(&GROWATT_320);
+      transmit_can_frame(&GROWATT_321);
       break;
     default:
       break;
@@ -201,9 +200,4 @@ void GrowattLvInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 
 void GrowattLvInverter::transmit_can(unsigned long currentMillis) {
   // No periodic sending for this battery type. Data is sent when inverter requests it
-}
-
-void GrowattLvInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "Growatt Low Voltage (48V) protocol via CAN", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
 }

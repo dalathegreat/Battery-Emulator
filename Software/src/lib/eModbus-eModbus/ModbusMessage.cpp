@@ -6,6 +6,7 @@
 #undef LOCAL_LOG_LEVEL
 // #define LOCAL_LOG_LEVEL LOG_LEVEL_ERROR
 #include "Logging.h"
+#include <algorithm>
 
 // Default Constructor - takes optional size of MM_data to allocate memory
 ModbusMessage::ModbusMessage(uint16_t dataLen) {
@@ -146,21 +147,19 @@ void    ModbusMessage::setServerID(uint8_t serverID) {
 }
 
 void    ModbusMessage::setFunctionCode(uint8_t FC) {
-  // We accept here that [0], [1] may allocate bytes!
-  if (MM_data.empty()) {
-    MM_data.reserve(3);  // At least an error message should fit
+   if (MM_data.size() < 2) {
+    MM_data.resize(2);    // Resize to at least 2 to ensure indices 0 and 1 are valid
+    MM_data[0] = 0;       // Optional:  Invalid server ID as a placeholder
   }
-  // No serverID set yet? use a 0 to initialize it to an error-generating value
-  if (MM_data.size() < 2) MM_data[0] = 0; // intentional invalid server ID!
-  MM_data[1] = FC;
+  MM_data[1] = FC;        // Safely set the function code
 }
 
 // add() variant to copy a buffer into MM_data. Returns updated size
 uint16_t ModbusMessage::add(const uint8_t *arrayOfBytes, uint16_t count) {
+  uint16_t originalSize = MM_data.size();
+  MM_data.resize(originalSize + count);
   // Copy it
-  while (count--) {
-    MM_data.push_back(*arrayOfBytes++);
-  }
+  std::copy(arrayOfBytes, arrayOfBytes + count, MM_data.begin() + originalSize);
   // Return updated size (logical length of message so far)
   return MM_data.size();
 }
@@ -181,7 +180,7 @@ uint8_t ModbusMessage::determineFloatOrder() {
     uint32_t i = 77230;                             // int value to go into a float without rounding error
     float f = i;                                    // assign it
     uint8_t *b = (uint8_t *)&f;                     // Pointer to bytes of f
-    uint8_t expect[floatSize] = { 0x47, 0x96, 0xd7, 0x00 }; // IEEE754 representation 
+    const uint8_t expect[floatSize] = { 0x47, 0x96, 0xd7, 0x00 }; // IEEE754 representation 
     uint8_t matches = 0;                            // number of bytes successfully matched
      
     // Loop over the bytes of the expected sequence
@@ -225,7 +224,7 @@ uint8_t ModbusMessage::determineDoubleOrder() {
     uint64_t i = 5791007487489389;                  // int64 value to go into a double without rounding error
     double f = i;                                   // assign it
     uint8_t *b = (uint8_t *)&f;                     // Pointer to bytes of f
-    uint8_t expect[doubleSize] = { 0x43, 0x34, 0x92, 0xE4, 0x00, 0x2E, 0xF5, 0x6D }; // IEEE754 representation 
+    const uint8_t expect[doubleSize] = { 0x43, 0x34, 0x92, 0xE4, 0x00, 0x2E, 0xF5, 0x6D }; // IEEE754 representation 
     uint8_t matches = 0;                            // number of bytes successfully matched
      
     // Loop over the bytes of the expected sequence
@@ -306,10 +305,7 @@ double ModbusMessage::swapDouble(double& f, int swapRule) {
 
 // add() variant for a vector of uint8_t
 uint16_t ModbusMessage::add(vector<uint8_t> v) {
-  for (auto& b: v) {
-    MM_data.push_back(b);
-  }
-  return MM_data.size();
+  return add(v.data(), v.size());
 }
 
 // add() variants for float and double values

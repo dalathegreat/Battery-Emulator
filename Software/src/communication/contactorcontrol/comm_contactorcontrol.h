@@ -1,10 +1,15 @@
 #ifndef _COMM_CONTACTORCONTROL_H_
 #define _COMM_CONTACTORCONTROL_H_
 
-#include "../../include.h"
-
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/events.h"
+
+// Settings that can be changed at run-time
+extern bool contactor_control_enabled;
+extern bool contactor_control_enabled_double_battery;
+extern bool pwm_contactor_control;
+extern bool periodic_bms_reset;
+extern bool remote_bms_reset;
 
 /**
  * @brief Handle BMS power output
@@ -29,9 +34,9 @@ void start_bms_reset();
  *
  * @param[in] void
  *
- * @return void
+ * @return true if contactor init was successful, false otherwise.
  */
-void init_contactors();
+bool init_contactors();
 
 /**
  * @brief Handle contactors

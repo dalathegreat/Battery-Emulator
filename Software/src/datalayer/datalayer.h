@@ -81,6 +81,11 @@ typedef struct {
    * Use with battery.info.number_of_cells to get valid data.
    */
   uint16_t cell_voltages_mV[MAX_AMOUNT_CELLS];
+  /** All balancing resistors status inside the pack, either on(1) or off(0).
+   * Use with battery.info.number_of_cells to get valid data.
+   * Not available for all battery manufacturers.
+   */
+  bool cell_balancing_status[MAX_AMOUNT_CELLS];
   /** The "real" SOC reported from the battery, in integer-percent x 100. 9550 = 95.50% */
   uint16_t real_soc;
   /** The SOC reported to the inverter, in integer-percent x 100. 9550 = 95.50%.
@@ -134,6 +139,9 @@ typedef struct {
   /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
   uint16_t max_user_set_discharge_voltage_dV = BATTERY_MAX_DISCHARGE_VOLTAGE;
 
+  /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset */
+  uint16_t user_set_bms_reset_duration_ms = 30000;
+
   /** Parameters for keeping track of the limiting factor in the system */
   bool user_settings_limit_discharge = false;
   bool user_settings_limit_charge = false;
@@ -156,6 +164,9 @@ typedef struct {
   uint16_t balancing_float_power_W = 1000;
   /* Maximum voltage for entire battery pack during forced balancing */
   uint16_t balancing_max_pack_voltage_dV = 3940;
+
+  /** Sofar CAN Battery ID (0-15) used to parallel multiple packs */
+  uint8_t sofar_user_specified_battery_id = 0;
 
 } DATALAYER_BATTERY_SETTINGS_TYPE;
 
@@ -222,8 +233,6 @@ typedef struct {
   float CPU_temperature = 0;
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
-  /** array with type of inverter protocol used, for displaying on webserver */
-  char inverter_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
   char shunt_protocol[64] = {0};
   /** array with type of inverter brand used, for displaying on webserver */
@@ -247,8 +256,6 @@ typedef struct {
 } DATALAYER_SYSTEM_INFO_TYPE;
 
 typedef struct {
-  /** Millis rollover count. Increments every 49.7 days. Used for keeping track on events */
-  uint8_t millisrolloverCount = 0;
 #ifdef FUNCTION_TIME_MEASUREMENT
   /** Core task measurement variable */
   int64_t core_task_max_us = 0;
@@ -305,27 +312,24 @@ typedef struct {
 
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
-#ifdef CONTACTOR_CONTROL
+
   /** True if the contactor controlled by battery-emulator is closed */
   bool contactors_engaged = false;
   /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
   bool contactors_battery2_engaged = false;
-#endif
+
   /** True if the BMS is being reset, by cutting power towards it */
   bool BMS_reset_in_progress = false;
   /** True if the BMS is starting up */
   bool BMS_startup_in_progress = false;
-#ifdef PRECHARGE_CONTROL
+
   /** State of automatic precharge sequence */
   PrechargeState precharge_status = AUTO_PRECHARGE_IDLE;
-#endif
 } DATALAYER_SYSTEM_STATUS_TYPE;
 
 typedef struct {
   bool equipment_stop_active = false;
-#ifdef PRECHARGE_CONTROL
   bool start_precharging = false;
-#endif
 } DATALAYER_SYSTEM_SETTINGS_TYPE;
 
 typedef struct {

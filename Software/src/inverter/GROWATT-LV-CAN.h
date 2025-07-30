@@ -1,20 +1,19 @@
 #ifndef GROWATT_LV_CAN_H
 #define GROWATT_LV_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 
 #ifdef GROWATT_LV_CAN
-#define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS GrowattLvInverter
 #endif
 
 class GrowattLvInverter : public CanInverterProtocol {
  public:
-  void setup();
+  const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
+  static constexpr const char* Name = "Growatt Low Voltage (48V) protocol via CAN";
 
  private:
   //Actual content messages

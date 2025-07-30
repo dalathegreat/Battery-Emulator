@@ -1,9 +1,7 @@
 #ifndef BYD_MODBUS_H
 #define BYD_MODBUS_H
-#include "../include.h"
 
 #ifdef BYD_MODBUS
-#define MODBUS_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS BydModbusInverter
 #endif
 
@@ -11,8 +9,10 @@
 
 class BydModbusInverter : public ModbusInverterProtocol {
  public:
-  void setup();
+  const char* name() override { return Name; }
+  bool setup() override;
   void update_values();
+  static constexpr const char* Name = "BYD 11kWh HVM battery over Modbus RTU";
 
  private:
   void handle_static_data();

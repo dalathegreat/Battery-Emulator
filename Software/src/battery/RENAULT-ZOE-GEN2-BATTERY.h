@@ -1,20 +1,53 @@
 #ifndef RENAULT_ZOE_GEN2_BATTERY_H
 #define RENAULT_ZOE_GEN2_BATTERY_H
-#include "../include.h"
 
 #include "CanBattery.h"
+#include "RENAULT-ZOE-GEN2-HTML.h"
 
-#define BATTERY_SELECTED
+#ifdef RENAULT_ZOE_GEN2_BATTERY
 #define SELECTED_BATTERY_CLASS RenaultZoeGen2Battery
+#endif
 
 class RenaultZoeGen2Battery : public CanBattery {
  public:
+  // Use this constructor for the second battery.
+  RenaultZoeGen2Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_ZOE_PH2* extended,
+                        CAN_Interface targetCan)
+      : CanBattery(targetCan) {
+    datalayer_battery = datalayer_ptr;
+    allows_contactor_closing = nullptr;
+    datalayer_zoePH2 = extended;
+
+    battery_pack_voltage = 0;
+  }
+
+  // Use the default constructor to create the first or single battery.
+  RenaultZoeGen2Battery() {
+    datalayer_battery = &datalayer.battery;
+    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+    datalayer_zoePH2 = &datalayer_extended.zoePH2;
+  }
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr const char* Name = "Renault Zoe Gen2 50kWh";
+
+  bool supports_reset_NVROL() { return true; }
+
+  void reset_NVROL() { datalayer_extended.zoePH2.UserRequestNVROLReset = true; }
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
+  RenaultZoeGen2HtmlRenderer renderer;
+
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+  DATALAYER_INFO_ZOE_PH2* datalayer_zoePH2;
+
+  // If not null, this battery decides when the contactor can be closed and writes the value here.
+  bool* allows_contactor_closing;
+
   static const int MAX_PACK_VOLTAGE_DV = 4100;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 3000;
   static const int MAX_CELL_DEVIATION_MV = 150;
@@ -159,11 +192,12 @@ class RenaultZoeGen2Battery : public CanBattery {
   static const int POLL_CELL_93 = 0x9081;
   static const int POLL_CELL_94 = 0x9082;
   static const int POLL_CELL_95 = 0x9083;
-
+  volatile unsigned long startTimeNVROL = 0;
+  uint8_t NVROLstateMachine = 0;
   uint16_t battery_soc = 0;
   uint16_t battery_usable_soc = 5000;
   uint16_t battery_soh = 10000;
-  uint16_t battery_pack_voltage = 370;
+  uint16_t battery_pack_voltage = 3700;
   uint16_t battery_max_cell_voltage = 3700;
   uint16_t battery_min_cell_voltage = 3700;
   uint16_t battery_12v = 12000;
@@ -205,6 +239,7 @@ class RenaultZoeGen2Battery : public CanBattery {
   uint32_t ZOE_376_time_now_s = 1745452800;  // Initialized to make the battery think it is April 24, 2025
   unsigned long kProductionTimestamp_s =
       1614454107;  // Production timestamp in seconds since January 1, 1970. Production timestamp used: February 25, 2021 at 8:08:27 AM GMT
+  bool battery_balancing_shunts[96];
 
   CAN_frame ZOE_373 = {
       .FD = false,
@@ -225,6 +260,11 @@ class RenaultZoeGen2Battery : public CanBattery {
                                  .DLC = 8,
                                  .ID = 0x18DADBF1,
                                  .data = {0x03, 0x22, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ZOE_POLL_FLOW_CONTROL = {.FD = false,
+                                     .ext_ID = true,
+                                     .DLC = 8,
+                                     .ID = 0x18DADBF1,
+                                     .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   //NVROL Reset
   CAN_frame ZOE_NVROL_1_18DADBF1 = {.FD = false,
                                     .ext_ID = true,

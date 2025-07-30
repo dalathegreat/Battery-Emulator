@@ -3,27 +3,22 @@
 
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
-#include "../include.h"
 #include "CanBattery.h"
+#include "NISSAN-LEAF-HTML.h"
 
-#define BATTERY_SELECTED
+#ifdef NISSAN_LEAF_BATTERY
 #define SELECTED_BATTERY_CLASS NissanLeafBattery
-#define EXTENDED_DATA_PTR (&datalayer_extended.nissanleaf)
-
-#define MAX_PACK_VOLTAGE_DV 4040  //5000 = 500.0V
-#define MIN_PACK_VOLTAGE_DV 2600
-#define MAX_CELL_DEVIATION_MV 150
-#define MAX_CELL_VOLTAGE_MV 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
+#endif
 
 class NissanLeafBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  NissanLeafBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_NISSAN_LEAF* extended, int targetCan) {
+  NissanLeafBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_NISSAN_LEAF* extended,
+                    CAN_Interface targetCan)
+      : CanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = nullptr;
     datalayer_nissan = extended;
-    can_interface = targetCan;
 
     battery_Total_Voltage2 = 0;
   }
@@ -33,7 +28,6 @@ class NissanLeafBattery : public CanBattery {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     datalayer_nissan = &datalayer_extended.nissanleaf;
-    can_interface = can_config.battery;
   }
 
   virtual void setup(void);
@@ -41,7 +35,27 @@ class NissanLeafBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  bool supports_reset_SOH();
+  void reset_SOH() { datalayer_extended.nissanleaf.UserRequestSOHreset = true; }
+
+  bool soc_plausible() {
+    // When pack voltage is close to max, and SOC% is still low, SOC is not plausible
+    return !((datalayer.battery.status.voltage_dV > (datalayer.battery.info.max_design_voltage_dV - 100)) &&
+             (datalayer.battery.status.real_soc < 6500));
+  }
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+  static constexpr const char* Name = "Nissan LEAF battery";
+
  private:
+  static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
+  static const int MIN_PACK_VOLTAGE_DV = 2600;
+  static const int MAX_CELL_DEVIATION_MV = 150;
+  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
+  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+
+  NissanLeafHtmlRenderer renderer;
+
   bool is_message_corrupt(CAN_frame rx_frame);
   void clearSOH(void);
 
@@ -51,14 +65,16 @@ class NissanLeafBattery : public CanBattery {
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
 
-  int can_interface;
-
   unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
   uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
   uint8_t mprun10 = 0;                  //counter 0-3
   uint8_t mprun100 = 0;                 //counter 0-3
+
+  static const int ZE0_BATTERY = 0;
+  static const int AZE0_BATTERY = 1;
+  static const int ZE1_BATTERY = 2;
 
   // These CAN messages need to be sent towards the battery to keep it alive
   CAN_frame LEAF_1F2 = {.FD = false,
@@ -82,7 +98,7 @@ class NissanLeafBattery : public CanBattery {
                         .ID = 0x1D4,
                         .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
   // Active polling messages
-  uint8_t PIDgroups[6] = {0x01, 0x02, 0x04, 0x83, 0x84, 0x90};
+  uint8_t PIDgroups[7] = {0x01, 0x02, 0x04, 0x06, 0x83, 0x84, 0x90};
   uint8_t PIDindex = 0;
   CAN_frame LEAF_GROUP_REQUEST = {.FD = false,
                                   .ext_ID = false,
@@ -116,10 +132,7 @@ class NissanLeafBattery : public CanBattery {
       196, 65,  75,  206, 76,  201, 195, 70,  215, 82,  88,  221, 255, 122, 112, 245, 100, 225, 235, 110, 175, 42,
       32,  165, 52,  177, 187, 62,  28,  153, 147, 22,  135, 2,   8,   141};
 
-//Nissan LEAF battery parameters from constantly sent CAN
-#define ZE0_BATTERY 0
-#define AZE0_BATTERY 1
-#define ZE1_BATTERY 2
+  //Nissan LEAF battery parameters from constantly sent CAN
   uint8_t LEAF_battery_Type = ZE0_BATTERY;
   bool battery_can_alive = false;
 #define WH_PER_GID 77                          //One GID is this amount of Watt hours
@@ -155,7 +168,8 @@ class NissanLeafBattery : public CanBattery {
   uint8_t group_7bb = 0;
   bool stop_battery_query = true;
   uint8_t hold_off_with_polling_10seconds = 2;  //Paused for 20 seconds on startup
-  uint16_t battery_cell_voltages[97];           //array with all the cellvoltages
+  uint16_t battery_cell_voltages[96];           //array with all the cellvoltages
+  bool battery_balancing_shunts[96];            //array with all the balancing resistors
   uint8_t battery_cellcounter = 0;
   uint16_t battery_min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
   uint16_t battery_HX = 0;              //Internal resistance

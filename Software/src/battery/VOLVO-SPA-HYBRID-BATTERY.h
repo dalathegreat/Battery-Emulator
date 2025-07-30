@@ -1,12 +1,13 @@
 #ifndef VOLVO_SPA_HYBRID_BATTERY_H
 #define VOLVO_SPA_HYBRID_BATTERY_H
 #include <Arduino.h>
-#include "../include.h"
 
 #include "CanBattery.h"
+#include "VOLVO-SPA-HYBRID-HTML.h"
 
-#define BATTERY_SELECTED
+#ifdef VOLVO_SPA_HYBRID_BATTERY
 #define SELECTED_BATTERY_CLASS VolvoSpaHybridBattery
+#endif
 
 class VolvoSpaHybridBattery : public CanBattery {
  public:
@@ -14,8 +15,21 @@ class VolvoSpaHybridBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr const char* Name = "Volvo PHEV battery";
+
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { datalayer_extended.VolvoHybrid.UserRequestDTCreset = true; }
+
+  bool supports_read_DTC() { return true; }
+  void read_DTC() { datalayer_extended.VolvoHybrid.UserRequestDTCreadout = true; }
+
+  bool supports_reset_BECM() { return true; }
+  void reset_BECM() { datalayer_extended.VolvoHybrid.UserRequestBECMecuReset = true; }
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
+  VolvoSpaHybridHtmlRenderer renderer;
   void readCellVoltages();
 
   static const int MAX_PACK_VOLTAGE_DV = 4294;  //5000 = 500.0V

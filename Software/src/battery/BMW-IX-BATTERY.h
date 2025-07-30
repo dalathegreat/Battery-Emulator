@@ -1,20 +1,52 @@
 #ifndef BMW_IX_BATTERY_H
 #define BMW_IX_BATTERY_H
 #include <Arduino.h>
-#include "../include.h"
+#include "BMW-IX-HTML.h"
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef BMW_IX_BATTERY
 #define SELECTED_BATTERY_CLASS BmwIXBattery
+#endif
 
 class BmwIXBattery : public CanBattery {
  public:
+  BmwIXBattery() : renderer(*this) {}
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
+  bool supports_contactor_close() { return true; }
+
+  void request_open_contactors() { userRequestContactorOpen = true; }
+  void request_close_contactors() { userRequestContactorClose = true; }
+
+  static constexpr const char* Name = "BMW iX and i4-7 platform";
+
+  // Getter methods for HTML renderer
+  int get_battery_voltage_after_contactor() const;
+  unsigned long get_min_cell_voltage_data_age() const;
+  unsigned long get_max_cell_voltage_data_age() const;
+  int get_T30_Voltage() const;
+  int get_balancing_status() const;
+  int get_hvil_status() const;
+  unsigned long get_bms_uptime() const;
+  int get_allowable_charge_amps() const;
+  int get_allowable_discharge_amps() const;
+  int get_iso_safety_positive() const;
+  int get_iso_safety_negative() const;
+  int get_iso_safety_parallel() const;
+  int get_pyro_status_pss1() const;
+  int get_pyro_status_pss4() const;
+  int get_pyro_status_pss6() const;
 
  private:
+  bool userRequestContactorClose = false;
+  bool userRequestContactorOpen = false;
+
+  BmwIXHtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_DV = 4650;  //4650 = 465.0V
   static const int MIN_PACK_VOLTAGE_DV = 3000;
   static const int MAX_CELL_DEVIATION_MV = 250;

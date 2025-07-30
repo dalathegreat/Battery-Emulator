@@ -9,6 +9,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "src/battery/BATTERIES.h"
+#include "src/charger/CHARGERS.h"
+#include "src/communication/Transmitter.h"
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -16,46 +19,34 @@
 #include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/datalayer/datalayer.h"
+#include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/logging.h"
+#include "src/devboard/utils/time_meas.h"
 #include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/value_mapping.h"
-#include "src/include.h"
-#ifndef AP_PASSWORD
-#error \
-    "Initial setup not completed, USER_SECRETS.h is missing. Please rename the file USER_SECRETS.TEMPLATE.h to USER_SECRETS.h and fill in the required credentials. This file is ignored by version control to keep sensitive information private."
-#endif
-#ifdef WIFI
-#include "src/devboard/wifi/wifi.h"
-#ifdef WEBSERVER
 #include "src/devboard/webserver/webserver.h"
-#ifdef MDNSRESPONDER
-#include <ESPmDNS.h>
-#endif  // MDNSRESONDER
-#else   // WEBSERVER
-#ifdef MDNSRESPONDER
-#error WEBSERVER needs to be enabled for MDNSRESPONDER!
-#endif  // MDNSRSPONDER
-#endif  // WEBSERVER
-#ifdef MQTT
-#include "src/devboard/mqtt/mqtt.h"
-#endif  // MQTT
-#endif  // WIFI
+#include "src/devboard/wifi/wifi.h"
+#include "src/inverter/INVERTERS.h"
+
+#if !defined(HW_LILYGO) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_DEVKIT)
+#error You must select a target hardware in the USER_SETTINGS.h file!
+#endif
+
 #ifdef PERIODIC_BMS_RESET_AT
 #include "src/devboard/utils/ntp_time.h"
 #endif
 volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
-const char* version_number = "8.13.dev";
+const char* version_number = "9.0.experimental";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
-unsigned long lastMillisOverflowCheck = 0;
 #ifdef FUNCTION_TIME_MEASUREMENT
 // Task time measurement for debugging
 MyTimer core_task_timer_10s(INTERVAL_10_S);
@@ -69,6 +60,8 @@ Logging logging;
 
 // Initialization
 void setup() {
+  init_hal();
+
   init_serial();
 
   // We print this after setting up serial, such that is also printed to serial with DEBUG_VIA_USB set.
@@ -78,41 +71,49 @@ void setup() {
 
   init_stored_settings();
 
-#ifdef WIFI
-  xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
-                          &connectivity_loop_task, WIFI_CORE);
-#endif
+  if (wifi_enabled) {
+    xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
+                            &connectivity_loop_task, esp32hal->WIFICORE());
+  }
+
+  if (!led_init()) {
+    return;
+  }
 
 #if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
   xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
-                          &logging_loop_task, WIFI_CORE);
+                          &logging_loop_task, esp32hal->WIFICORE());
 #endif
 
-#ifdef MQTT
-  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
-                          WIFI_CORE);
-#endif
+  if (!init_contactors()) {
+    return;
+  }
 
-  init_CAN();
-
-  init_contactors();
-
-#ifdef PRECHARGE_CONTROL
-  init_precharge_control();
-#endif  // PRECHARGE_CONTROL
+  if (!init_precharge_control()) {
+    return;
+  }
 
   setup_charger();
-  setup_inverter();
+
+  if (!setup_inverter()) {
+    return;
+  }
   setup_battery();
-
-  init_rs485();
-
-#ifdef EQUIPMENT_STOP_BUTTON
-  init_equipment_stop_button();
-#endif
-#ifdef CAN_SHUNT_SELECTED
   setup_can_shunt();
-#endif
+
+  // Init CAN only after any CAN receivers have had a chance to register.
+  if (!init_CAN()) {
+    return;
+  }
+
+  if (!init_rs485()) {
+    return;
+  }
+
+  if (!init_equipment_stop_button()) {
+    return;
+  }
+
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 
@@ -120,14 +121,26 @@ void setup() {
 
   // Initialize Task Watchdog for subscribed tasks
   esp_task_wdt_config_t wdt_config = {
-      .timeout_ms = INTERVAL_5_S,                                      // If task hangs for longer than this, reboot
-      .idle_core_mask = (1 << CORE_FUNCTION_CORE) | (1 << WIFI_CORE),  // Watch both cores
-      .trigger_panic = true                                            // Enable panic reset on timeout
+      .timeout_ms = INTERVAL_5_S,  // If task hangs for longer than this, reboot
+      .idle_core_mask =
+          (uint32_t)(1 << esp32hal->CORE_FUNCTION_CORE()) | (uint32_t)(1 << esp32hal->WIFICORE()),  // Watch both cores
+      .trigger_panic = true  // Enable panic reset on timeout
   };
 
   // Start tasks
+
+  if (mqtt_enabled) {
+    if (!init_mqtt()) {
+      return;
+    }
+
+    xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
+                            esp32hal->WIFICORE());
+  }
+
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
-                          CORE_FUNCTION_CORE);
+                          esp32hal->CORE_FUNCTION_CORE());
+
 #ifdef PERIODIC_BMS_RESET_AT
   bmsResetTimeOffset = getTimeOffsetfromNowUntil(PERIODIC_BMS_RESET_AT);
   if (bmsResetTimeOffset == 0) {
@@ -136,6 +149,8 @@ void setup() {
     set_event(EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS, 0);
   }
 #endif
+
+  DEBUG_PRINTF("setup() complete\n");
 }
 
 // Loop empty, all functionality runs in tasks
@@ -158,39 +173,36 @@ void logging_loop(void*) {
 }
 #endif
 
-#ifdef WIFI
 void connectivity_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
   // Init wifi
   init_WiFi();
 
-#ifdef WEBSERVER
-  // Init webserver
-  init_webserver();
-#endif
-#ifdef MDNSRESPONDER
-  init_mDNS();
-#endif
+  if (webserver_enabled) {
+    init_webserver();
+  }
+
+  if (mdns_enabled) {
+    init_mDNS();
+  }
 
   while (true) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
-#ifdef WEBSERVER
-    ota_monitor();
-#endif
+
+    if (webserver_enabled) {
+      ota_monitor();
+    }
+
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
 
     esp_task_wdt_reset();  // Reset watchdog
     delay(1);
   }
 }
-#endif
 
-#ifdef MQTT
 void mqtt_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
-
-  init_mqtt();
 
   while (true) {
     START_TIME_MEASUREMENT(mqtt);
@@ -200,38 +212,43 @@ void mqtt_loop(void*) {
     delay(1);
   }
 }
-#endif
+
+static std::list<Transmitter*> transmitters;
+
+void register_transmitter(Transmitter* transmitter) {
+  transmitters.push_back(transmitter);
+  DEBUG_PRINTF("transmitter registered, total: %d\n", transmitters.size());
+}
 
 void core_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
-  led_init();
 
   while (true) {
 
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
-#ifdef EQUIPMENT_STOP_BUTTON
+
     monitor_equipment_stop_button();
-#endif
 
     // Input, Runs as fast as possible
-    receive_can();  // Receive CAN messages
-#if defined(RS485_INVERTER_SELECTED) || defined(RS485_BATTERY_SELECTED)
-    receive_RS485();  // Process serial2 RS485 interface
-#endif                // RS485_INVERTER_SELECTED
+    receive_can();    // Receive CAN messages
+    receive_rs485();  // Process serial2 RS485 interface
+
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
-#ifdef WEBSERVER
-    START_TIME_MEASUREMENT(ota);
-    ElegantOTA.loop();
-    END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
-#endif  // WEBSERVER
+
+    if (webserver_enabled) {
+      START_TIME_MEASUREMENT(ota);
+      ElegantOTA.loop();
+      END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
+    }
 
     // Process
     currentMillis = millis();
     if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
-      if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) &&
+          (milliseconds(currentMillis) > esp32hal->BOOTUP_TIME())) {
         set_event(EVENT_TASK_OVERRUN, (currentMillis - previousMillis10ms));
       }
       previousMillis10ms = currentMillis;
@@ -253,15 +270,25 @@ void core_loop(void*) {
 #ifdef FUNCTION_TIME_MEASUREMENT
       START_TIME_MEASUREMENT(time_values);
 #endif
-      update_pause_state();     // Check if we are OK to send CAN or need to pause
-      update_values_battery();  // Fetch battery values
-#ifdef DOUBLE_BATTERY
-      update_values_battery2();
-      check_interconnect_available();
-#endif  // DOUBLE_BATTERY
+      update_pause_state();  // Check if we are OK to send CAN or need to pause
+
+      // Fetch battery values
+      if (battery) {
+        battery->update_values();
+      }
+
+      if (battery2) {
+        battery2->update_values();
+        check_interconnect_available();
+      }
       update_calculated_values();
       update_machineryprotection();  // Check safeties
-      update_values_inverter();      // Update values heading towards inverter
+
+      // Update values heading towards inverter
+      if (inverter) {
+        inverter->update_values();
+      }
+
 #ifdef FUNCTION_TIME_MEASUREMENT
       END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
 #endif
@@ -269,12 +296,12 @@ void core_loop(void*) {
 #ifdef FUNCTION_TIME_MEASUREMENT
     START_TIME_MEASUREMENT(cantx);
 #endif
-    // Output
-    transmit_can(currentMillis);  // Send CAN messages to all components
 
-#ifdef RS485_BATTERY_SELECTED
-    transmit_rs485(currentMillis);
-#endif  // RS485_BATTERY_SELECTED
+    // Let all transmitter objects send their messages
+    for (auto& transmitter : transmitters) {
+      transmitter->transmit(currentMillis);
+    }
+
 #ifdef FUNCTION_TIME_MEASUREMENT
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
     END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
@@ -319,7 +346,6 @@ void init_serial() {
 #endif  // DEBUG_VIA_USB
 }
 
-#ifdef DOUBLE_BATTERY
 void check_interconnect_available() {
   if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery2.status.voltage_dV == 0) {
     return;  // Both voltage values need to be available to start check
@@ -339,11 +365,17 @@ void check_interconnect_available() {
     set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff / 10));
   }
 }
-#endif  // DOUBLE_BATTERY
 
 void update_calculated_values() {
   /* Update CPU temperature*/
-  datalayer.system.info.CPU_temperature = temperatureRead();
+  union {
+    float temp;
+    uint32_t hex;
+  } temp = {.temp = temperatureRead()};
+  if (temp.hex != 0x42555555) {
+    // Ignoring erroneous temperature value that ESP32 sometimes returns
+    datalayer.system.info.CPU_temperature = temp.temp;
+  }
 
   /* Calculate allowed charge/discharge currents*/
   if (datalayer.battery.status.voltage_dV > 10) {
@@ -399,11 +431,11 @@ void update_calculated_values() {
     }
   }
 
-#ifdef DOUBLE_BATTERY
-  /* Calculate active power based on voltage and current for battery 2*/
-  datalayer.battery2.status.active_power_W =
-      (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
-#endif  // DOUBLE_BATTERY
+  if (battery2) {
+    /* Calculate active power based on voltage and current for battery 2*/
+    datalayer.battery2.status.active_power_W =
+        (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
+  }
 
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling
@@ -428,11 +460,6 @@ void update_calculated_values() {
       scaled_soc = 10000 * (clamped_soc - datalayer.battery.settings.min_percentage) / delta_pct;
     }
 
-    // Clamp low SOCs to zero for extra safety
-    if (datalayer.battery.status.real_soc < 100) {
-      scaled_soc = 0;
-    }
-
     datalayer.battery.status.reported_soc = scaled_soc;
 
     // If battery info is valid
@@ -450,67 +477,61 @@ void update_calculated_values() {
       datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
     }
 
-#ifdef DOUBLE_BATTERY
-    // If battery info is valid
-    if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
+    if (battery2) {
+      // If battery info is valid
+      if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
 
-      datalayer.battery2.info.reported_total_capacity_Wh = scaled_total_capacity;
-      // Scale remaining capacity based on scaled SOC
-      datalayer.battery2.status.reported_remaining_capacity_Wh = (scaled_total_capacity * scaled_soc) / 10000;
+        datalayer.battery2.info.reported_total_capacity_Wh = scaled_total_capacity;
+        // Scale remaining capacity based on scaled SOC
+        datalayer.battery2.status.reported_remaining_capacity_Wh = (scaled_total_capacity * scaled_soc) / 10000;
 
-    } else {
-      // Fallback if scaling cannot be performed
-      datalayer.battery2.info.reported_total_capacity_Wh = datalayer.battery2.info.total_capacity_Wh;
-      datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+      } else {
+        // Fallback if scaling cannot be performed
+        datalayer.battery2.info.reported_total_capacity_Wh = datalayer.battery2.info.total_capacity_Wh;
+        datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+      }
+
+      //Since we are running double battery, the scaled value of battery1 becomes the sum of battery1+battery2
+      //This way the inverter connected to the system sees both batteries as one large battery
+      datalayer.battery.info.reported_total_capacity_Wh += datalayer.battery2.info.reported_total_capacity_Wh;
+      datalayer.battery.status.reported_remaining_capacity_Wh +=
+          datalayer.battery2.status.reported_remaining_capacity_Wh;
     }
-
-    //Since we are running double battery, the scaled value of battery1 becomes the sum of battery1+battery2
-    //This way the inverter connected to the system sees both batteries as one large battery
-    datalayer.battery.info.reported_total_capacity_Wh += datalayer.battery2.info.reported_total_capacity_Wh;
-    datalayer.battery.status.reported_remaining_capacity_Wh += datalayer.battery2.status.reported_remaining_capacity_Wh;
-
-#endif  // DOUBLE_BATTERY
 
   } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
     datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
     datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
-#ifdef DOUBLE_BATTERY
-    datalayer.battery2.status.reported_soc = datalayer.battery2.status.real_soc;
-    datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
-    datalayer.battery2.info.reported_total_capacity_Wh = datalayer.battery2.info.total_capacity_Wh;
-#endif
-  }
-#ifdef DOUBLE_BATTERY
-  // Perform extra SOC sanity checks on double battery setups
-  if (datalayer.battery.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
-    datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
-  }
-  if (datalayer.battery2.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
-    datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+
+    if (battery2) {
+      datalayer.battery2.status.reported_soc = datalayer.battery2.status.real_soc;
+      datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+      datalayer.battery2.info.reported_total_capacity_Wh = datalayer.battery2.info.total_capacity_Wh;
+    }
   }
 
-  if (datalayer.battery.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
-    datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
-  }
-  if (datalayer.battery2.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
-    datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
-  }
-#endif  // DOUBLE_BATTERY
-  // Check if millis has overflowed. Used in events to keep better track of time
-  if (currentMillis < lastMillisOverflowCheck) {  // Overflow detected
-    datalayer.system.status.millisrolloverCount++;
-  }
-  lastMillisOverflowCheck = currentMillis;
-}
+  if (battery2) {
+    // Perform extra SOC sanity checks on double battery setups
+    if (datalayer.battery.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
+      datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+    }
+    if (datalayer.battery2.status.real_soc <
+        100) {  //If this battery is under 1.00%, use this as SOC instead of average
+      datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+    }
 
-void update_values_inverter() {
-  if (inverter) {
-    inverter->update_values();
+    if (datalayer.battery.status.real_soc >
+        9900) {  //If this battery is over 99.00%, use this as SOC instead of average
+      datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+    }
+    if (datalayer.battery2.status.real_soc >
+        9900) {  //If this battery is over 99.00%, use this as SOC instead of average
+      datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+    }
   }
 }
 

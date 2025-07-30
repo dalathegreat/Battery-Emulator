@@ -1,8 +1,10 @@
 #ifndef __EVENTS_H__
 #define __EVENTS_H__
-#ifndef UNIT_TEST
-#include "../../include.h"
-#endif
+
+#include <WString.h>
+#include <src/devboard/utils/millis64.h>
+#include <src/devboard/utils/types.h>
+#include <stdint.h>
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -74,6 +76,7 @@
   XX(EVENT_SERIAL_RX_FAILURE)                  \
   XX(EVENT_SERIAL_TX_FAILURE)                  \
   XX(EVENT_SERIAL_TRANSMITTER_FAILURE)         \
+  XX(EVENT_SMA_PAIRING)                        \
   XX(EVENT_TASK_OVERRUN)                       \
   XX(EVENT_RESET_UNKNOWN)                      \
   XX(EVENT_RESET_POWERON)                      \
@@ -94,6 +97,7 @@
   XX(EVENT_RJXZS_LOG)                          \
   XX(EVENT_PAUSE_BEGIN)                        \
   XX(EVENT_PAUSE_END)                          \
+  XX(EVENT_PID_FAILED)                         \
   XX(EVENT_WIFI_CONNECT)                       \
   XX(EVENT_WIFI_DISCONNECT)                    \
   XX(EVENT_MQTT_CONNECT)                       \
@@ -105,6 +109,8 @@
   XX(EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS) \
   XX(EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED)  \
   XX(EVENT_BATTERY_TEMP_DEVIATION_HIGH)        \
+  XX(EVENT_GPIO_NOT_DEFINED)                   \
+  XX(EVENT_GPIO_CONFLICT)                      \
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
@@ -127,12 +133,11 @@ typedef enum {
 } EVENTS_STATE_TYPE;
 
 typedef struct {
-  uint32_t timestamp;           // Time in seconds since startup when the event occurred
-  uint8_t millisrolloverCount;  // number of times millis rollovers before timestamp
-  uint8_t data;                 // Custom data passed when setting the event, for example cell number for under voltage
-  uint8_t occurences;           // Number of occurrences since startup
-  EVENTS_LEVEL_TYPE level;      // Event level, i.e. ERROR/WARNING...
-  EVENTS_STATE_TYPE state;      // Event state, i.e. ACTIVE/INACTIVE...
+  uint64_t timestamp;
+  uint8_t data;             // Custom data passed when setting the event, for example cell number for under voltage
+  uint8_t occurences;       // Number of occurrences since startup
+  EVENTS_LEVEL_TYPE level;  // Event level, i.e. ERROR/WARNING...
+  EVENTS_STATE_TYPE state;  // Event state, i.e. ACTIVE/INACTIVE...
   bool MQTTpublished;
 } EVENTS_STRUCT_TYPE;
 
@@ -143,7 +148,7 @@ struct EventData {
 };
 
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
-const char* get_event_message_string(EVENTS_ENUM_TYPE event);
+String get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
 
 EVENTS_LEVEL_TYPE get_event_level(void);

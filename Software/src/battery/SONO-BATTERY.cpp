@@ -1,9 +1,7 @@
-#include "../include.h"
-#ifdef SONO_BATTERY
+#include "SONO-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "SONO-BATTERY.h"
 
 void SonoBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -121,7 +119,7 @@ void SonoBattery::transmit_can(unsigned long currentMillis) {
     if (datalayer.battery.status.bms_status == FAULT) {
       SONO_400.data.u8[0] = 0x14;  //Charging DISABLED
     }
-    transmit_can_frame(&SONO_400, can_config.battery);
+    transmit_can_frame(&SONO_400);
   }
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
@@ -129,19 +127,19 @@ void SonoBattery::transmit_can(unsigned long currentMillis) {
 
     //Time and date
     //Let's see if the battery is happy with just getting seconds incrementing
-    SONO_401.data.u8[0] = 2025;     //Year
+    SONO_401.data.u8[0] = 25;       //Year
     SONO_401.data.u8[1] = 1;        //Month
     SONO_401.data.u8[2] = 1;        //Day
     SONO_401.data.u8[3] = 12;       //Hour
     SONO_401.data.u8[4] = 15;       //Minute
     SONO_401.data.u8[5] = seconds;  //Second
     seconds = (seconds + 1) % 61;
-    transmit_can_frame(&SONO_401, can_config.battery);
+    transmit_can_frame(&SONO_401);
   }
 }
 
 void SonoBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Sono Motors Sion 64kWh LFP ", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 96;
   datalayer.system.status.battery_allows_contactor_closing = true;
@@ -152,5 +150,3 @@ void SonoBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
 }
-
-#endif

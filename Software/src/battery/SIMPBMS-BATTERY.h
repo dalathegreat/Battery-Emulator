@@ -1,12 +1,12 @@
 #ifndef SIMPBMS_BATTERY_H
 #define SIMPBMS_BATTERY_H
 #include <Arduino.h>
-#include "../include.h"
 
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef SIMPBMS_BATTERY
 #define SELECTED_BATTERY_CLASS SimpBmsBattery
+#endif
 
 class SimpBmsBattery : public CanBattery {
  public:
@@ -14,6 +14,7 @@ class SimpBmsBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr const char* Name = "SIMPBMS battery";
 
  private:
   /* DEFAULT VALUES BMS will send configured */

@@ -68,14 +68,11 @@ protected:
   ModbusServer();
 
   // Destructor
-  ~ModbusServer();
+  virtual ~ModbusServer();
 
   // Prevent copy construction or assignment
   ModbusServer(ModbusServer& other) = delete;
   ModbusServer& operator=(ModbusServer& other) = delete;
-
-  // Virtual function to prevent this class being instantiated
-  virtual void isInstance() = 0;
 
   std::map<uint8_t, std::map<uint8_t, MBSworker>> workerMap;      // map on serverID->functionCode->worker function
   uint32_t messageCount;         // Number of Requests processed

@@ -1,20 +1,20 @@
 #ifndef SOLAX_CAN_H
 #define SOLAX_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 
 #ifdef SOLAX_CAN
-#define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SolaxInverter
 #endif
 
 class SolaxInverter : public CanInverterProtocol {
  public:
-  void setup();
+  const char* name() override { return Name; }
+  bool setup();
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
+  static constexpr const char* Name = "SolaX Triple Power LFP over CAN bus";
 
  private:
   // Timeout in milliseconds

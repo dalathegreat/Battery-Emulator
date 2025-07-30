@@ -1,42 +1,14 @@
-#include "../include.h"
-#ifdef IMIEV_CZERO_ION_BATTERY
+#include "IMIEV-CZERO-ION-BATTERY.h"
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "IMIEV-CZERO-ION-BATTERY.h"
+#include "../devboard/utils/logging.h"
 
 //Code still work in progress, TODO:
 //Figure out if CAN messages need to be sent to keep the system happy?
 
-/* Do not change code below unless you are sure what you are doing */
-static uint8_t errorCode = 0;  //stores if we have an error code active from battery control logic
-static uint8_t BMU_Detected = 0;
-static uint8_t CMU_Detected = 0;
-
-static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was sent
-static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
-
-static int pid_index = 0;
-static int cmu_id = 0;
-static int voltage_index = 0;
-static int temp_index = 0;
-static uint8_t BMU_SOC = 0;
-static int temp_value = 0;
-static double temp1 = 0;
-static double temp2 = 0;
-static double temp3 = 0;
-static double voltage1 = 0;
-static double voltage2 = 0;
-static double BMU_Current = 0;
-static double BMU_PackVoltage = 0;
-static double BMU_Power = 0;
-static double cell_voltages[88];      //array with all the cellvoltages
-static double cell_temperatures[88];  //array with all the celltemperatures
-static double max_volt_cel = 3.70;
-static double min_volt_cel = 3.70;
-static double max_temp_cel = 20.00;
-static double min_temp_cel = 19.00;
-
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void ImievCZeroIonBattery::
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.real_soc = (uint16_t)(BMU_SOC * 100);  //increase BMU_SOC range from 0-100 -> 100.00
 
   datalayer.battery.status.voltage_dV = (uint16_t)(BMU_PackVoltage * 10);  // Multiply by 10 and cast to uint16_t
@@ -129,7 +101,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void ImievCZeroIonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x374:  //BMU message, 10ms - SOC
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -207,7 +179,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery(unsigned long currentMillis) {
+void ImievCZeroIonBattery::transmit_can(unsigned long currentMillis) {
 
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -217,8 +189,8 @@ void transmit_can_battery(unsigned long currentMillis) {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "I-Miev / C-Zero / Ion Triplet", 63);
+void ImievCZeroIonBattery::setup(void) {  // Performs one time setup at startup
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
@@ -227,5 +199,3 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif

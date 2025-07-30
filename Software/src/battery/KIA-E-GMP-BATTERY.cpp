@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef KIA_E_GMP_BATTERY
+#include "KIA-E-GMP-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
-#include "KIA-E-GMP-BATTERY.h"
+#include "../devboard/utils/logging.h"
+#include "../system_settings.h"
 
 const unsigned char crc8_table[256] =
     {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
@@ -812,6 +811,29 @@ void KiaEGmpBattery::
 #endif
 }
 
+// Getter implementations for HTML renderer
+int KiaEGmpBattery::get_battery_12V() const {
+  return leadAcidBatteryVoltage;
+}
+int KiaEGmpBattery::get_waterleakageSensor() const {
+  return waterleakageSensor;
+}
+int KiaEGmpBattery::get_temperature_water_inlet() const {
+  return temperature_water_inlet;
+}
+int KiaEGmpBattery::get_powerRelayTemperature() const {
+  return powerRelayTemperature;
+}
+int KiaEGmpBattery::get_batteryManagementMode() const {
+  return batteryManagementMode;
+}
+int KiaEGmpBattery::get_BMS_ign() const {
+  return BMS_ign;
+}
+int KiaEGmpBattery::get_batRelay() const {
+  return batteryRelay;
+}
+
 void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   startedUp = true;
   switch (rx_frame.ID) {
@@ -873,7 +895,7 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           // logging.println ("Send ack");
           poll_data_pid = rx_frame.data.u8[4];
           // if (rx_frame.data.u8[4] == poll_data_pid) {
-          transmit_can_frame(&EGMP_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
+          transmit_can_frame(&EGMP_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
           // }
           break;
         case 0x21:  //First frame in PID group
@@ -1054,7 +1076,7 @@ void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
       if (currentMillis - startMillis >= messageDelays[messageIndex]) {
 
         // Transmit the current message
-        transmit_can_frame(messages[messageIndex], can_config.battery);
+        transmit_can_frame(messages[messageIndex]);
 
         // Move to the next message
         messageIndex++;
@@ -1073,7 +1095,7 @@ void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
       EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
 
       if (ok_start_polling_battery) {
-        transmit_can_frame(&EGMP_7E4, can_config.battery);
+        transmit_can_frame(&EGMP_7E4);
       }
 
       KIA_7E4_COUNTER++;
@@ -1091,7 +1113,7 @@ void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void KiaEGmpBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai EGMP platform", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 192;  // TODO: will vary depending on battery
@@ -1101,5 +1123,3 @@ void KiaEGmpBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
-
-#endif

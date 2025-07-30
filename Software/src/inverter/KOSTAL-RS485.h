@@ -1,7 +1,6 @@
 #ifndef BYD_KOSTAL_RS485_H
 #define BYD_KOSTAL_RS485_H
 #include <Arduino.h>
-#include "../include.h"
 
 #include "Rs485InverterProtocol.h"
 
@@ -19,9 +18,11 @@
 
 class KostalInverterProtocol : public Rs485InverterProtocol {
  public:
-  void setup();
-  void receive_RS485();
+  const char* name() override { return Name; }
+  bool setup() override;
+  void receive();
   void update_values();
+  static constexpr const char* Name = "BYD battery via Kostal RS485";
 
  private:
   int baud_rate() { return 57600; }
@@ -39,8 +40,7 @@ class KostalInverterProtocol : public Rs485InverterProtocol {
   uint8_t incoming_message_counter = RS485_HEALTHY;
   int8_t f2_startup_count = 0;
 
-  boolean B1_delay = false;
-  unsigned long B1_last_millis = 0;
+  boolean info_sent = false;
   unsigned long currentMillis;
   unsigned long startupMillis = 0;
   unsigned long contactorMillis = 0;

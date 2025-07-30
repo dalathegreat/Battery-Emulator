@@ -1,9 +1,7 @@
-#include "../include.h"
-#ifdef KIA_HYUNDAI_HYBRID_BATTERY
+#include "KIA-HYUNDAI-HYBRID-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "KIA-HYUNDAI-HYBRID-BATTERY.h"
 
 /* TODO: 
 - The HEV battery seems to turn off after 1 minute of use. When this happens SOC% stops updating.
@@ -66,7 +64,7 @@ void KiaHyundaiHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[3] == poll_data_pid) {
-            transmit_can_frame(&KIA_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
+            transmit_can_frame(&KIA_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:                      //First frame in PID group
@@ -201,21 +199,21 @@ void KiaHyundaiHybridBattery::transmit_can(unsigned long currentMillis) {
     }
     poll_data_pid++;
     if (poll_data_pid == 1) {
-      transmit_can_frame(&KIA_7E4_id1, can_config.battery);
+      transmit_can_frame(&KIA_7E4_id1);
     } else if (poll_data_pid == 2) {
-      transmit_can_frame(&KIA_7E4_id2, can_config.battery);
+      transmit_can_frame(&KIA_7E4_id2);
     } else if (poll_data_pid == 3) {
-      transmit_can_frame(&KIA_7E4_id3, can_config.battery);
+      transmit_can_frame(&KIA_7E4_id3);
     } else if (poll_data_pid == 4) {
 
     } else if (poll_data_pid == 5) {
-      transmit_can_frame(&KIA_7E4_id5, can_config.battery);
+      transmit_can_frame(&KIA_7E4_id5);
     }
   }
 }
 
 void KiaHyundaiHybridBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai Hybrid", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 56;  // HEV , TODO: Make dynamic according to HEV/PHEV
@@ -224,5 +222,3 @@ void KiaHyundaiHybridBattery::setup(void) {  // Performs one time setup at start
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
-
-#endif

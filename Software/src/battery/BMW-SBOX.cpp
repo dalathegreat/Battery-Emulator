@@ -1,40 +1,6 @@
-#include "../include.h"
-#ifdef BMW_SBOX
-#include "../datalayer/datalayer.h"
 #include "BMW-SBOX.h"
-
-#define MAX_ALLOWED_FAULT_TICKS 1000
-
-enum SboxState { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
-SboxState contactorStatus = DISCONNECTED;
-
-unsigned long prechargeStartTime = 0;
-unsigned long negativeStartTime = 0;
-unsigned long positiveStartTime = 0;
-unsigned long timeSpentInFaultedMode = 0;
-unsigned long LastMsgTime = 0;  // will store last time a 20ms CAN Message was send
-unsigned long LastAvgTime = 0;  // Last current storage time
-unsigned long ShuntLastSeen = 0;
-
-uint32_t avg_mA_array[10];
-uint32_t avg_sum;
-
-uint8_t k;  //avg array pointer
-
-uint8_t CAN100_cnt = 0;
-
-CAN_frame SBOX_100 = {.FD = false,
-                      .ext_ID = false,
-                      .DLC = 4,
-                      .ID = 0x100,
-                      .data = {0x55, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00,
-                               0x00}};  // Byte 0: relay control, Byte 1: counter 0-E, Byte 4: CRC
-
-CAN_frame SBOX_300 = {.FD = false,
-                      .ext_ID = false,
-                      .DLC = 4,
-                      .ID = 0x300,
-                      .data = {0xFF, 0xFE, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00}};  // Static frame
+#include "../communication/can/comm_can.h"
+#include "../datalayer/datalayer.h"
 
 uint8_t reverse_bits(uint8_t byte) {
   uint8_t reversed = 0;
@@ -64,7 +30,7 @@ uint8_t calculateCRC(CAN_frame CAN) {
   return crc;
 }
 
-void handle_incoming_can_frame_shunt(CAN_frame rx_frame) {
+void BmwSbox::handle_incoming_can_frame(CAN_frame rx_frame) {
   unsigned long currentTime = millis();
   if (rx_frame.ID == 0x200) {
     ShuntLastSeen = currentTime;
@@ -100,7 +66,7 @@ void handle_incoming_can_frame_shunt(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_shunt(unsigned long currentMillis) {
+void BmwSbox::transmit_can(unsigned long currentMillis) {
 
   /** Shunt can frames seen? **/
   if (ShuntLastSeen + 1000 < currentMillis) {
@@ -205,13 +171,12 @@ void transmit_can_shunt(unsigned long currentMillis) {
     SBOX_100.data.u8[1] = CAN100_cnt << 4 | 0x01;
     SBOX_100.data.u8[3] = 0x00;
     SBOX_100.data.u8[3] = calculateCRC(SBOX_100);
-    transmit_can_frame(&SBOX_100, can_config.shunt);
-    transmit_can_frame(&SBOX_300, can_config.shunt);
+    transmit_can_frame(&SBOX_100);
+    transmit_can_frame(&SBOX_300);
   }
 }
 
-void setup_can_shunt() {
-  strncpy(datalayer.system.info.shunt_protocol, "BMW SBOX", 63);
+void BmwSbox::setup() {
+  strncpy(datalayer.system.info.shunt_protocol, Name, 63);
   datalayer.system.info.shunt_protocol[63] = '\0';
 }
-#endif

@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef FOXESS_BATTERY
+#include "FOXESS-BATTERY.h"
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "FOXESS-BATTERY.h"
 
 /*
 Can bus @ 500k - all Extended ID, little endian
@@ -12,81 +11,8 @@ TODO:
 - Check that current is signed right way
 */
 
-/* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
-
-CAN_frame FOX_1871 = {.FD = false,  //Inverter request data from battery. Content varies depending on state
-                      .ext_ID = true,
-                      .DLC = 8,
-                      .ID = 0x1871,
-                      .data = {0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
-static uint32_t total_watt_hours = 0;
-static uint16_t max_charge_power_dA = 0;
-static uint16_t max_discharge_power_dA = 0;
-static uint16_t cut_mv_max = 0;
-static uint16_t cut_mv_min = 0;
-static uint16_t cycle_count = 0;
-static uint16_t max_ac_voltage = 0;
-static uint16_t cellvoltages_mV[128] = {0};
-static int16_t temperature_average = 0;
-static int16_t pack1_current_sensor = 0;
-static int16_t pack2_current_sensor = 0;
-static int16_t pack3_current_sensor = 0;
-static int16_t pack4_current_sensor = 0;
-static int16_t pack5_current_sensor = 0;
-static int16_t pack6_current_sensor = 0;
-static int16_t pack7_current_sensor = 0;
-static int16_t pack8_current_sensor = 0;
-static int16_t pack1_temperature_avg_high = 0;
-static int16_t pack2_temperature_avg_high = 0;
-static int16_t pack3_temperature_avg_high = 0;
-static int16_t pack4_temperature_avg_high = 0;
-static int16_t pack5_temperature_avg_high = 0;
-static int16_t pack6_temperature_avg_high = 0;
-static int16_t pack7_temperature_avg_high = 0;
-static int16_t pack8_temperature_avg_high = 0;
-static int16_t pack1_temperature_avg_low = 0;
-static int16_t pack2_temperature_avg_low = 0;
-static int16_t pack3_temperature_avg_low = 0;
-static int16_t pack4_temperature_avg_low = 0;
-static int16_t pack5_temperature_avg_low = 0;
-static int16_t pack6_temperature_avg_low = 0;
-static int16_t pack7_temperature_avg_low = 0;
-static int16_t pack8_temperature_avg_low = 0;
-static uint16_t pack1_voltage = 0;
-static uint16_t pack2_voltage = 0;
-static uint16_t pack3_voltage = 0;
-static uint16_t pack4_voltage = 0;
-static uint16_t pack5_voltage = 0;
-static uint16_t pack6_voltage = 0;
-static uint16_t pack7_voltage = 0;
-static uint16_t pack8_voltage = 0;
-static uint8_t pack1_SOC = 0;
-static uint8_t pack2_SOC = 0;
-static uint8_t pack3_SOC = 0;
-static uint8_t pack4_SOC = 0;
-static uint8_t pack5_SOC = 0;
-static uint8_t pack6_SOC = 0;
-static uint8_t pack7_SOC = 0;
-static uint8_t pack8_SOC = 0;
-static uint8_t pack_error = 0;
-static uint8_t firmware_pack_minor = 0;
-static uint8_t firmware_pack_major = 0;
-static uint8_t STATUS_OPERATIONAL_PACKS =
-    0;  //0x1875 b2 contains status for operational packs (responding) in binary so 01111111 is pack 8 not operational, 11101101 is pack 5 & 2 not operational
-static uint8_t NUMBER_OF_PACKS = 0;  //1-8
-static uint8_t contactor_status = 0;
-static uint8_t statemachine_polling = 0;
-static bool charging_disabled = false;
-static bool b0_idle = false;
-static bool b1_ok_discharge = false;
-static bool b2_ok_charge = false;
-static bool b3_discharging = false;
-static bool b4_charging = false;
-static bool b5_operational = false;
-static bool b6_active_error = false;
-
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void FoxessBattery::
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
@@ -146,7 +72,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void FoxessBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x1872:  //BMS_Limits
       datalayer.battery.info.max_design_voltage_dV = (uint16_t)(rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
@@ -474,7 +400,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
   }
 }
-void transmit_can_battery(unsigned long currentMillis) {
+
+void FoxessBattery::transmit_can(unsigned long currentMillis) {
   // Send 500ms CAN Message
   if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
     previousMillis500 = currentMillis;
@@ -489,7 +416,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         FOX_1871.data.u8[5] = 0x00;
         FOX_1871.data.u8[6] = 0x00;
         FOX_1871.data.u8[7] = 0x00;
-        transmit_can_frame(&FOX_1871, can_config.battery);  //bms_send_pack_statistics
+        transmit_can_frame(&FOX_1871);  //bms_send_pack_statistics
         break;
       case 1:  //1s
         FOX_1871.data.u8[0] = 0x02;
@@ -500,7 +427,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         FOX_1871.data.u8[5] = 0x00;
         FOX_1871.data.u8[6] = 0x00;
         FOX_1871.data.u8[7] = 0x00;
-        transmit_can_frame(&FOX_1871, can_config.battery);  //bms_stop_sending
+        transmit_can_frame(&FOX_1871);  //bms_stop_sending
         break;
       case 2:  //1.5s
         FOX_1871.data.u8[0] = 0x05;
@@ -511,7 +438,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         FOX_1871.data.u8[5] = 0x00;
         FOX_1871.data.u8[6] = 0x00;
         FOX_1871.data.u8[7] = 0x00;
-        transmit_can_frame(&FOX_1871, can_config.battery);  //bms_serial_request
+        transmit_can_frame(&FOX_1871);  //bms_serial_request
         break;
       case 3:  //2.0s
         FOX_1871.data.u8[0] = 0x01;
@@ -522,7 +449,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         FOX_1871.data.u8[5] = 0x00;
         FOX_1871.data.u8[6] = 0x00;
         FOX_1871.data.u8[7] = 0x00;
-        transmit_can_frame(&FOX_1871, can_config.battery);  //bms_send_pack_statistics
+        transmit_can_frame(&FOX_1871);  //bms_send_pack_statistics
         break;
       case 4:  //2.5s
         FOX_1871.data.u8[0] = 0x02;
@@ -533,7 +460,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         FOX_1871.data.u8[5] = 0x00;
         FOX_1871.data.u8[6] = 0x00;
         FOX_1871.data.u8[7] = 0x00;
-        transmit_can_frame(&FOX_1871, can_config.battery);  //bms_stop_sending
+        transmit_can_frame(&FOX_1871);  //bms_stop_sending
         break;
       case 5:  //3.0s cell temp and voltages
         //0x1871 [0x01, 0x00, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00]
@@ -545,7 +472,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         FOX_1871.data.u8[5] = 0x00;
         FOX_1871.data.u8[6] = 0x00;
         FOX_1871.data.u8[7] = 0x00;
-        transmit_can_frame(&FOX_1871, can_config.battery);  //bms_send_pack_cell_volts
+        transmit_can_frame(&FOX_1871);  //bms_send_pack_cell_volts
         //0x1871 [0x01, 0x00, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00]
         FOX_1871.data.u8[0] = 0x01;
         FOX_1871.data.u8[1] = 0x00;
@@ -555,7 +482,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         FOX_1871.data.u8[5] = 0x00;
         FOX_1871.data.u8[6] = 0x00;
         FOX_1871.data.u8[7] = 0x00;
-        transmit_can_frame(&FOX_1871, can_config.battery);  //bms_send_pack_cell_temps
+        transmit_can_frame(&FOX_1871);  //bms_send_pack_cell_temps
         break;
       case 6:  //3.5s
         FOX_1871.data.u8[0] = 0x01;
@@ -566,7 +493,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         FOX_1871.data.u8[5] = 0x00;
         FOX_1871.data.u8[6] = 0x00;
         FOX_1871.data.u8[7] = 0x00;
-        transmit_can_frame(&FOX_1871, can_config.battery);  //bms_send_pack_statistics
+        transmit_can_frame(&FOX_1871);  //bms_send_pack_statistics
         break;
       case 7:  //4.0s
         FOX_1871.data.u8[0] = 0x02;
@@ -577,7 +504,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         FOX_1871.data.u8[5] = 0x00;
         FOX_1871.data.u8[6] = 0x00;
         FOX_1871.data.u8[7] = 0x00;
-        transmit_can_frame(&FOX_1871, can_config.battery);  //bms_stop_sending
+        transmit_can_frame(&FOX_1871);  //bms_stop_sending
         break;
       case 8:  //4.5s
         FOX_1871.data.u8[0] = 0x01;
@@ -588,7 +515,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         FOX_1871.data.u8[5] = 0x00;
         FOX_1871.data.u8[6] = 0x00;
         FOX_1871.data.u8[7] = 0x00;
-        transmit_can_frame(&FOX_1871, can_config.battery);  //bms_send_pack_statistics
+        transmit_can_frame(&FOX_1871);  //bms_send_pack_statistics
         break;
       case 9:  //5.0s
         FOX_1871.data.u8[0] = 0x02;
@@ -599,7 +526,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         FOX_1871.data.u8[5] = 0x00;
         FOX_1871.data.u8[6] = 0x00;
         FOX_1871.data.u8[7] = 0x00;
-        transmit_can_frame(&FOX_1871, can_config.battery);  //bms_stop_sending
+        transmit_can_frame(&FOX_1871);  //bms_stop_sending
         break;
       case 10:  //5.5s
         //0x1871 [0x01, 0x00, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00]
@@ -611,7 +538,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         FOX_1871.data.u8[5] = 0x00;
         FOX_1871.data.u8[6] = 0x00;
         FOX_1871.data.u8[7] = 0x00;
-        transmit_can_frame(&FOX_1871, can_config.battery);  //bms_send_pack_cell_volts
+        transmit_can_frame(&FOX_1871);  //bms_send_pack_cell_volts
         //0x1871 [0x01, 0x00, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00]
         FOX_1871.data.u8[0] = 0x01;
         FOX_1871.data.u8[1] = 0x00;
@@ -621,7 +548,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         FOX_1871.data.u8[5] = 0x00;
         FOX_1871.data.u8[6] = 0x00;
         FOX_1871.data.u8[7] = 0x00;
-        transmit_can_frame(&FOX_1871, can_config.battery);  //bms_send_pack_cell_temps
+        transmit_can_frame(&FOX_1871);  //bms_send_pack_cell_temps
         break;
       case 11:  //6.0s 0x1871 [0x03, 0x06, 0x17, 0x05, 0x09, 0x09, 0x28, 0x22]
         FOX_1871.data.u8[0] = 0x03;
@@ -632,7 +559,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         FOX_1871.data.u8[5] = 0x09;
         FOX_1871.data.u8[6] = 0x28;
         FOX_1871.data.u8[7] = 0x22;
-        transmit_can_frame(&FOX_1871, can_config.battery);  //timestamp
+        transmit_can_frame(&FOX_1871);  //timestamp
         break;
       default:
         statemachine_polling = 0;
@@ -643,8 +570,8 @@ void transmit_can_battery(unsigned long currentMillis) {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "FoxESS HV2600/ECS4100 OEM battery", 63);
+void FoxessBattery::setup(void) {  // Performs one time setup at startup
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 0;  //Startup with no cells, populates later when we know packsize
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -654,5 +581,3 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif

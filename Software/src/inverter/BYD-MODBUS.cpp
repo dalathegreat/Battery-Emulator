@@ -1,7 +1,7 @@
 #include "BYD-MODBUS.h"
 #include "../datalayer/datalayer.h"
+#include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 #include "../lib/eModbus-eModbus/scripts/mbServerFCs.h"
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
@@ -145,17 +145,21 @@ void BydModbusInverter::verify_inverter_modbus() {
   }
 }
 
-void BydModbusInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "BYD 11kWh HVM battery over Modbus RTU", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-
+bool BydModbusInverter::setup(void) {  // Performs one time setup at startup over CAN bus
   // Init Static data to the RTU Modbus
   handle_static_data();
 
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
 
-  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+  auto rx_pin = esp32hal->RS485_RX_PIN();
+  auto tx_pin = esp32hal->RS485_TX_PIN();
+
+  if (!esp32hal->alloc_pins(Name, rx_pin, tx_pin)) {
+    return false;
+  }
+
+  Serial2.begin(9600, SERIAL_8N1, rx_pin, tx_pin);
   // Register served function code worker for server
   MBserver.registerWorker(MBTCP_ID, READ_HOLD_REGISTER, &FC03);
   MBserver.registerWorker(MBTCP_ID, WRITE_HOLD_REGISTER, &FC06);
@@ -163,5 +167,7 @@ void BydModbusInverter::setup(void) {  // Performs one time setup at startup ove
   MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
 
   // Start ModbusRTU background task
-  MBserver.begin(Serial2, MODBUS_CORE);
+  MBserver.begin(Serial2, esp32hal->MODBUS_CORE());
+
+  return true;
 }

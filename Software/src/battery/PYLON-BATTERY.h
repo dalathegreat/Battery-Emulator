@@ -3,20 +3,20 @@
 #include <Arduino.h>
 
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef PYLON_BATTERY
 #define SELECTED_BATTERY_CLASS PylonBattery
+#endif
 
 class PylonBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  PylonBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr, int targetCan) {
+  PylonBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr, CAN_Interface targetCan)
+      : CanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
     contactor_closing_allowed = contactor_closing_allowed_ptr;
     allows_contactor_closing = nullptr;
-    can_interface = targetCan;
   }
 
   // Use the default constructor to create the first or single battery.
@@ -24,13 +24,13 @@ class PylonBattery : public CanBattery {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     contactor_closing_allowed = nullptr;
-    can_interface = can_config.battery;
   }
 
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr const char* Name = "Pylon compatible battery";
 
  private:
   /* Change the following to suit your battery */
@@ -47,8 +47,6 @@ class PylonBattery : public CanBattery {
 
   // If not null, this battery listens to this boolean to determine whether contactor closing is allowed
   bool* contactor_closing_allowed;
-
-  int can_interface;
 
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
 

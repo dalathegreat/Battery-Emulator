@@ -4,8 +4,17 @@
 #include "src/devboard/utils/types.h"
 
 #include "../datalayer/datalayer.h"
+#include "src/communication/Transmitter.h"
+#include "src/communication/can/CanReceiver.h"
+#include "src/communication/can/comm_can.h"
+#include "src/devboard/safety/safety.h"
 
-enum class ChargerType { NissanLeaf, ChevyVolt };
+enum class ChargerType { None, NissanLeaf, ChevyVolt, Highest };
+
+extern ChargerType user_selected_charger_type;
+
+extern std::vector<ChargerType> supported_charger_types();
+extern const char* name_for_charger_type(ChargerType type);
 
 // Generic base class for all chargers
 class Charger {
@@ -36,13 +45,31 @@ class Charger {
 };
 
 // Base class for chargers on a CAN bus
-class CanCharger : public Charger {
+class CanCharger : public Charger, Transmitter, CanReceiver {
  public:
   virtual void map_can_frame_to_variable(CAN_frame rx_frame) = 0;
   virtual void transmit_can(unsigned long currentMillis) = 0;
 
+  void transmit(unsigned long currentMillis) {
+    if (allowed_to_send_CAN) {
+      transmit_can(currentMillis);
+    }
+  }
+
+  void receive_can_frame(CAN_frame* frame) { map_can_frame_to_variable(*frame); }
+
+  CAN_Interface interface() { return can_interface; }
+
  protected:
-  CanCharger(ChargerType type) : Charger(type) {}
+  CAN_Interface can_interface;
+
+  CanCharger(ChargerType type) : Charger(type) {
+    can_interface = can_config.charger;
+    register_transmitter(this);
+    register_can_receiver(this, can_interface);
+  }
+
+  void transmit_can_frame(CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
 };
 
 #endif

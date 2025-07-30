@@ -1,7 +1,6 @@
 #ifndef MSB_J1_BATTERY_H
 #define MSB_J1_BATTERY_H
 #include <Arduino.h>
-#include "../include.h"
 #include "CanBattery.h"
 
 #define BATTERY_SELECTED
@@ -350,30 +349,30 @@ class MsbJ1Battery : public CanBattery {
 #define DC_FASTCHARGE_LS1 0x80
 #define DC_FASTCHARGE_LS2 0xC0
 
-  CAN_frame MEB_POLLING_FRAME = {.FD = true,
+  CAN_frame MSB_POLLING_FRAME = {.FD = true,
                                  .ext_ID = true,
                                  .DLC = 8,
                                  .ID = 0x1C40007B,  // SOC 02 8C
                                  .data = {0x03, 0x22, 0x02, 0x8C, 0x55, 0x55, 0x55, 0x55}};
-  CAN_frame MEB_ACK_FRAME = {.FD = true,
+  CAN_frame MSB_ACK_FRAME = {.FD = true,
                              .ext_ID = true,
                              .DLC = 8,
                              .ID = 0x1C40007B,  // Ack
                              .data = {0x30, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}};
   //Messages needed for contactor closing
-  CAN_frame MEB_040 = {.FD = true,  // Airbag
+  CAN_frame MSB_040 = {.FD = true,  // Airbag
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x040,  //Frame5 has HV deactivate request. Needs to be 0x00
                        .data = {0x7E, 0x83, 0x00, 0x01, 0x00, 0x00, 0x15, 0x00}};
-  CAN_frame MEB_0C0 = {
+  CAN_frame MSB_0C0 = {
       .FD = true,  // EM1 message
       .ext_ID = false,
       .DLC = 32,
       .ID = 0x0C0,  //Frame 5-6 and maybe 7-8 important (external voltage at inverter)
       .data = {0x77, 0x0A, 0xFE, 0xE7, 0x7F, 0x10, 0x27, 0x00, 0xE0, 0x7F, 0xFF, 0xF3, 0x3F, 0xFF, 0xF3, 0x3F,
                0xFC, 0x0F, 0x00, 0x00, 0xC0, 0xFF, 0xFE, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame MEB_0FC = {
+  CAN_frame MSB_0FC = {
       .FD = true,  //
       .ext_ID = false,
       .DLC = 48,
@@ -381,7 +380,7 @@ class MsbJ1Battery : public CanBattery {
       .data = {0x07, 0x08, 0x00, 0x00, 0x7E, 0x00, 0x40, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                0xFE, 0xFE, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                0x00, 0x00, 0x00, 0xF4, 0x01, 0x40, 0xFF, 0xEB, 0x7F, 0x0A, 0x88, 0xE3, 0x81, 0xAF, 0x42}};
-  CAN_frame MEB_6B2 = {.FD = true,  // Diagnostics
+  CAN_frame MSB_6B2 = {.FD = true,  // Diagnostics
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x6B2,
@@ -391,11 +390,11 @@ class MsbJ1Battery : public CanBattery {
                                  .DLC = 8,
                                  .ID = 0x17FC007B,
                                  .data = {0x03, 0x22, 0x1E, 0x3D, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame MSB_585 = { .FD = true,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x585,
-                        .data = {0x3F, 0x28, 0x02, 0x44, 0x16, 0x23, 0x01, 0xFC}};
+  CAN_frame MSB_585 = {.FD = true,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x585,
+                       .data = {0x3F, 0x28, 0x02, 0x44, 0x16, 0x23, 0x01, 0xFC}};
   CAN_frame MSB_5F5 = {.FD = true,
                        .ext_ID = false,
                        .DLC = 8,
@@ -426,7 +425,7 @@ class MsbJ1Battery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x153,  // content varies
                        .data = {0x2A, 0x0D, 0x78, 0x0A, 0x00, 0x80, 0xFF, 0xFF}};
-  CAN_frame MEB_5E1 = {.FD = true,
+  CAN_frame MSB_5E1 = {.FD = true,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x5E1,  // content always static
@@ -441,7 +440,6 @@ class MsbJ1Battery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x503,  // Content varies. Frame1 & 3 has HV req
                        .data = {0x5D, 0x61, 0x00, 0xFF, 0x7F, 0x80, 0xE3, 0x03}};
-
 };
 
 #endif

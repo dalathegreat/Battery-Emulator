@@ -1,29 +1,36 @@
 #ifndef SMA_BYD_HVS_CAN_H
 #define SMA_BYD_HVS_CAN_H
-#include "../include.h"
 
-#include "CanInverterProtocol.h"
+#include "SmaInverterBase.h"
+#include "src/devboard/hal/hal.h"
 
 #ifdef SMA_BYD_HVS_CAN
-#define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SmaBydHvsInverter
 #endif
 
-class SmaBydHvsInverter : public CanInverterProtocol {
+class SmaBydHvsInverter : public SmaInverterBase {
  public:
-  void setup();
+  const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
+  static constexpr const char* Name = "BYD Battery-Box HVS over SMA CAN";
+
+  virtual bool controls_contactor() { return true; }
 
  private:
   static const int READY_STATE = 0x03;
   static const int STOP_STATE = 0x02;
   static const int THIRTY_MINUTES = 1200;
 
-  void transmit_can_init();
   unsigned long previousMillis100ms = 0;
+  unsigned long previousMillisBatch = 0;
+  uint8_t batch_send_index = 0;
+  const uint8_t delay_between_batches_ms =
+      7;  //TODO, tweak to as low as possible before performance issues/crashes appear
+  bool transmit_can_init = false;
 
+  uint8_t pairing_events = 0;
   uint32_t inverter_time = 0;
   uint16_t inverter_voltage = 0;
   int16_t inverter_current = 0;

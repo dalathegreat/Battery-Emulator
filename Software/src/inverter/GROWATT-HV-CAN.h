@@ -1,20 +1,19 @@
 #ifndef GROWATT_HV_CAN_H
 #define GROWATT_HV_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 
 #ifdef GROWATT_HV_CAN
-#define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS GrowattHvInverter
 #endif
 
 class GrowattHvInverter : public CanInverterProtocol {
  public:
-  void setup();
+  const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
+  static constexpr const char* Name = "Growatt High Voltage protocol via CAN";
 
  private:
   //Total number of Cells (1-512)

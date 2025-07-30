@@ -1,20 +1,20 @@
 #ifndef BYD_CAN_H
 #define BYD_CAN_H
-#include "../include.h"
 
 #ifdef BYD_CAN
-#define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS BydCanInverter
 #endif
 
+#include "../../USER_SETTINGS.h"
 #include "CanInverterProtocol.h"
 
 class BydCanInverter : public CanInverterProtocol {
  public:
-  void setup();
+  const char* name() override { return Name; }
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
   void update_values();
+  static constexpr const char* Name = "BYD Battery-Box Premium HVS over CAN Bus";
 
  private:
   void send_initial_data();

@@ -2,7 +2,6 @@
 #define CHEVYVOLT_CHARGER_H
 #include <Arduino.h>
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 #include "CanCharger.h"
 
 #ifdef CHEVYVOLT_CHARGER
@@ -13,7 +12,8 @@ class ChevyVoltCharger : public CanCharger {
  public:
   ChevyVoltCharger() : CanCharger(ChargerType::ChevyVolt) {}
 
-  const char* name() { return "Chevy Volt Gen1 Charger"; }
+  const char* name() { return Name; }
+  static constexpr const char* Name = "Chevy Volt Gen1 Charger";
 
   void map_can_frame_to_variable(CAN_frame rx_frame);
   void transmit_can(unsigned long currentMillis);

@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef DALY_BMS
+#include "DALY-BMS.h"
 #include <cstdint>
 #include "../datalayer/datalayer.h"
+#include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
-#include "DALY-BMS.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
@@ -61,7 +60,7 @@ void DalyBms::update_values() {
 }
 
 void DalyBms::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "DALY RS485", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = CELL_COUNT;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -71,7 +70,14 @@ void DalyBms::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
   datalayer.system.status.battery_allows_contactor_closing = true;
 
-  Serial2.begin(baud_rate(), SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+  auto rx_pin = esp32hal->RS485_RX_PIN();
+  auto tx_pin = esp32hal->RS485_TX_PIN();
+
+  if (!esp32hal->alloc_pins(Name, rx_pin, tx_pin)) {
+    return;
+  }
+
+  Serial2.begin(baud_rate(), SERIAL_8N1, rx_pin, tx_pin);
 }
 
 uint8_t calculate_checksum(uint8_t buff[12]) {
@@ -178,7 +184,7 @@ void DalyBms::transmit_rs485(unsigned long currentMillis) {
   }
 }
 
-void DalyBms::receive_RS485() {
+void DalyBms::receive() {
   static uint8_t recv_buff[13] = {0};
   static uint8_t recv_len = 0;
 
@@ -207,5 +213,3 @@ void DalyBms::receive_RS485() {
     }
   }
 }
-
-#endif

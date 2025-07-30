@@ -1,20 +1,19 @@
 #ifndef SMA_LV_CAN_H
 #define SMA_LV_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 
 #ifdef SMA_LV_CAN
-#define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SmaLvInverter
 #endif
 
 class SmaLvInverter : public CanInverterProtocol {
  public:
-  void setup();
+  const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
+  static constexpr const char* Name = "SMA Low Voltage (48V) protocol via CAN";
 
  private:
   static const int READY_STATE = 0x03;

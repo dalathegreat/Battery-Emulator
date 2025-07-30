@@ -3,48 +3,41 @@
 
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
-#include "../include.h"
 
+#include "BYD-ATTO-3-HTML.h"
 #include "CanBattery.h"
 
 #define USE_ESTIMATED_SOC  // If enabled, SOC is estimated from pack voltage. Useful for locked packs. \
                            // Comment out this only if you know your BMS is unlocked and able to send SOC%
-#define MAXPOWER_CHARGE_W 10000
-#define MAXPOWER_DISCHARGE_W 10000
 
 //Uncomment and configure this line, if you want to filter out a broken temperature sensor (1-10)
 //Make sure you understand risks associated with disabling. Values can be read via "More Battery info"
 //#define SKIP_TEMPERATURE_SENSOR_NUMBER 1
 
-/* Do not modify the rows below */
-#define BATTERY_SELECTED
-#define SELECTED_BATTERY_CLASS BydAttoBattery
+// Ramp down settings that are used when SOC is estimated from voltage
+static const int RAMPDOWN_SOC = 100;  // SOC to start ramping down from. Value set here is scaled by 10 (100 = 10.0%)
+static const int RAMPDOWN_POWER_ALLOWED =
+    10000;  // Power to start ramp down from, set a lower value to limit the power even further as SOC decreases
 
-#define CELLCOUNT_EXTENDED 126
-#define CELLCOUNT_STANDARD 104
-#define MAX_PACK_VOLTAGE_EXTENDED_DV 4410  //Extended range
-#define MIN_PACK_VOLTAGE_EXTENDED_DV 3800  //Extended range
-#define MAX_PACK_VOLTAGE_STANDARD_DV 3640  //Standard range
-#define MIN_PACK_VOLTAGE_STANDARD_DV 3136  //Standard range
-#define MAX_CELL_DEVIATION_MV 230
-#define MAX_CELL_VOLTAGE_MV 3650  //Charging stops if one cell exceeds this value
-#define MIN_CELL_VOLTAGE_MV 2800  //Discharging stops if one cell goes below this value
+/* Do not modify the rows below */
+#ifdef BYD_ATTO_3_BATTERY
+#define SELECTED_BATTERY_CLASS BydAttoBattery
+#endif
 
 class BydAttoBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  BydAttoBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_BYDATTO3* extended, int targetCan) {
+  BydAttoBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_BYDATTO3* extended, CAN_Interface targetCan)
+      : CanBattery(targetCan), renderer(extended) {
     datalayer_battery = datalayer_ptr;
     datalayer_bydatto = extended;
     allows_contactor_closing = nullptr;
-    can_interface = targetCan;
   }
 
   // Use the default constructor to create the first or single battery.
-  BydAttoBattery() {
+  BydAttoBattery() : renderer(&datalayer_extended.bydAtto3) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    can_interface = can_config.battery;
     datalayer_bydatto = &datalayer_extended.bydAtto3;
   }
 
@@ -53,12 +46,37 @@ class BydAttoBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  static constexpr const char* Name = "BYD Atto 3";
+
+  bool supports_charged_energy() { return true; }
+  bool supports_reset_crash() { return true; }
+
+  void reset_crash() { datalayer_bydatto->UserRequestCrashReset = true; }
+
+#ifndef USE_ESTIMATED_SOC
+  // Toggle SOC method in UI is only enabled if we initially use measured SOC
+  bool supports_toggle_SOC_method() { return true; }
+#endif
+
+  void toggle_SOC_method() { SOC_method = !SOC_method; }
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  BydAtto3HtmlRenderer renderer;
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_BYDATTO3* datalayer_bydatto;
   bool* allows_contactor_closing;
 
-  int can_interface;
+  static const int CELLCOUNT_EXTENDED = 126;
+  static const int CELLCOUNT_STANDARD = 104;
+  static const int MAX_PACK_VOLTAGE_EXTENDED_DV = 4410;  //Extended range
+  static const int MIN_PACK_VOLTAGE_EXTENDED_DV = 3800;  //Extended range
+  static const int MAX_PACK_VOLTAGE_STANDARD_DV = 3640;  //Standard range
+  static const int MIN_PACK_VOLTAGE_STANDARD_DV = 3136;  //Standard range
+  static const int MAX_CELL_DEVIATION_MV = 230;
+  static const int MAX_CELL_VOLTAGE_MV = 3650;  //Charging stops if one cell exceeds this value
+  static const int MIN_CELL_VOLTAGE_MV = 2800;  //Discharging stops if one cell goes below this value
 
   static const int POLL_FOR_BATTERY_SOC = 0x0005;
   static const uint8_t NOT_DETERMINED_YET = 0;
@@ -88,6 +106,7 @@ class BydAttoBattery : public CanBattery {
   int16_t battery_calc_min_temperature = 0;
   int16_t battery_calc_max_temperature = 0;
   uint16_t battery_highprecision_SOC = 0;
+  uint16_t battery_estimated_SOC = 0;
   uint16_t BMS_SOC = 0;
   uint16_t BMS_voltage = 0;
   int16_t BMS_current = 0;
@@ -99,19 +118,20 @@ class BydAttoBattery : public CanBattery {
   uint32_t BMS_unknown0 = 0;
   uint32_t BMS_unknown1 = 0;
   uint16_t BMS_allowed_charge_power = 0;
-  uint16_t BMS_unknown3 = 0;
-  uint16_t BMS_unknown4 = 0;
-  uint16_t BMS_unknown5 = 0;
-  uint16_t BMS_unknown6 = 0;
-  uint16_t BMS_unknown7 = 0;
-  uint16_t BMS_unknown8 = 0;
-  uint16_t BMS_unknown9 = 0;
+  uint16_t BMS_charge_times = 0;
+  uint16_t BMS_allowed_discharge_power = 0;
+  uint16_t BMS_total_charged_ah = 0;
+  uint16_t BMS_total_discharged_ah = 0;
+  uint16_t BMS_total_charged_kwh = 0;
+  uint16_t BMS_total_discharged_kwh = 0;
+  uint16_t BMS_times_full_power = 0;
   uint8_t BMS_unknown10 = 0;
   uint8_t BMS_unknown11 = 0;
   uint8_t BMS_unknown12 = 0;
   uint8_t BMS_unknown13 = 0;
   uint8_t battery_frame_index = 0;
   uint16_t battery_cellvoltages[CELLCOUNT_EXTENDED] = {0};
+  uint16_t rampdown_power = 0;
 
   uint16_t poll_state = POLL_FOR_BATTERY_SOC;
   uint16_t pid_reply = 0;

@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef TEST_FAKE_BATTERY
-#include "../datalayer/datalayer.h"
 #include "TEST-FAKE-BATTERY.h"
+#include "../datalayer/datalayer.h"
+#include "../devboard/utils/logging.h"
 
-void print_units(char* header, int value, char* units) {
+static void print_units(const char* header, int value, const char* units) {
   logging.print(header);
   logging.print(value);
   logging.print(units);
@@ -68,14 +67,14 @@ void TestFakeBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
     // Put fake messages here incase you want to test sending CAN
-    //transmit_can_frame(&TEST, can_interface);
+    //transmit_can_frame(&TEST);
   }
 }
 
 void TestFakeBattery::setup(void) {  // Performs one time setup at startup
   randomSeed(analogRead(0));
 
-  strncpy(datalayer.system.info.battery_protocol, "Fake battery for testing purposes", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
   datalayer_battery->info.max_design_voltage_dV =
@@ -87,5 +86,3 @@ void TestFakeBattery::setup(void) {  // Performs one time setup at startup
     *allows_contactor_closing = true;
   }
 }
-
-#endif

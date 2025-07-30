@@ -1,12 +1,10 @@
-#include "../include.h"
-#ifdef MSB_J1_BATTERY
+#include "MSB-J1-BATTERY.h"
 #include <algorithm>  // For std::min and std::max
 #include "../communication/can/comm_can.h"
 #include "../communication/can/obd.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
-#include "MSB-J1-BATTERY.h"
 
 /*
 TODO list
@@ -39,7 +37,7 @@ const int RX_DEFAULT = 0xE000;
  * @see https://www.autosar.org/fileadmin/user_upload/standards/classic/4-3/AUTOSAR_SWS_CRCLibrary.pdf
  * @see https://web.archive.org/web/20221105210302/https://www.autosar.org/fileadmin/user_upload/standards/classic/4-3/AUTOSAR_SWS_CRCLibrary.pdf
  */
-uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint32_t address) {
+uint8_t MSB_crc_calc(uint8_t* inputBytes, uint8_t length, uint32_t address) {
 
   const uint8_t poly = 0x2F;
   const uint8_t xor_output = 0xFF;
@@ -313,7 +311,7 @@ void MsbJ1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x5CA:
     case 0x16A954A6:
       if (rx_frame.data.u8[0] !=
-          vw_crc_calc(rx_frame.data.u8, rx_frame.DLC, rx_frame.ID)) {  //If CRC does not match calc
+          MSB_crc_calc(rx_frame.data.u8, rx_frame.DLC, rx_frame.ID)) {  //If CRC does not match calc
         datalayer.battery.status.CAN_error_counter++;
 #ifdef DEBUG_LOG
         logging.printf("MSB: Msg 0x%04X CRC error\n", rx_frame.ID);
@@ -325,7 +323,39 @@ void MsbJ1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 
   switch (rx_frame.ID) {
-    case 0x17F0007B:  // BMS 500ms
+    case 0x191:  //Confirmed on MSB
+      break;
+    case 0x1A1:  //Confirmed on MSB
+      break;
+    case 0x39D:  //Confirmed on MSB
+      break;
+    case 0x457:  //Confirmed on MSB
+      break;
+    case 0x509:  //Confirmed on MSB
+      break;
+    case 0x59E:  //Confirmed on MSB
+      break;
+    case 0x12DD5556:  //Confirmed on MSB
+      break;
+    case 0x16A955EB:  //Confirmed on MSB
+      break;
+    case 0x1A555535:  //Confirmed on MSB
+      break;
+    case 0x1A555637:  //Confirmed on MSB
+      break;
+    case 0x1A555552:  //Confirmed on MSB
+      break;
+    case 0x1A555544:  //Confirmed on MSB
+      break;
+    case 0x1A555539:  //Confirmed on MSB
+      break;
+    case 0x1A555543:  //Confirmed on MSB
+      break;
+    case 0x1A555536:  //Confirmed on MSB
+      break;
+    case 0x17FE017B:  //Confirmed on MSB
+      break;
+    case 0x17F0007B:  // BMS 500ms Confirmed on MSB
       component_protection_active = (rx_frame.data.u8[0] & 0x01);
       shutdown_active = ((rx_frame.data.u8[0] & 0x02) >> 1);
       transportation_mode_active = ((rx_frame.data.u8[0] & 0x02) >> 1);
@@ -337,67 +367,14 @@ void MsbJ1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       hybrid_wakeup_reason = rx_frame.data.u8[6];  //(if several active, lowest wins)
       //0 = wakeup cause not known 1 = Bus wakeup2 = KL15 HW 3 = TPA active
       break;
-    case 0x17FE007B:  // BMS - Offboard tester diag response
+    case 0x12DD550B:  //(Confirmed on MSB)
       break;
-    case 0x1B00007B:  // BMS - 200ms
+    case 0x1B00007B:  // BMS - 200ms (Confirmed on MSB)
       wakeup_type =
           ((rx_frame.data.u8[1] & 0x10) >> 4);  //0 passive, SG has not woken up, 1 active, SG has woken up the network
       instrumentation_cluster_request = ((rx_frame.data.u8[1] & 0x40) >> 6);  //True/false
       break;
-    case 0x12DD54D0:  // BMS Limits 100ms
-      max_discharge_power_watt =
-          ((rx_frame.data.u8[6] & 0x07) << 10) | (rx_frame.data.u8[5] << 2) | (rx_frame.data.u8[4] & 0xC0) >> 6;  //*100
-      max_discharge_current_amp =
-          ((rx_frame.data.u8[3] & 0x01) << 12) | (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4);  //*0.2
-      max_charge_power_watt = (rx_frame.data.u8[7] << 5) | (rx_frame.data.u8[6] >> 3);                     //*100
-      max_charge_current_amp = ((rx_frame.data.u8[4] & 0x3F) << 7) | (rx_frame.data.u8[3] >> 1);           //*0.2
-      break;
-    case 0x12DD54D1:  // BMS 100ms
-      if (rx_frame.data.u8[6] != 0xFE || rx_frame.data.u8[7] != 0xFF) {  // Init state, values below invalid
-        battery_SOC = ((rx_frame.data.u8[3] & 0x0F) << 7) | (rx_frame.data.u8[2] >> 1);               //*0.05
-        usable_energy_amount_Wh = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];                   //*5
-        power_discharge_percentage = ((rx_frame.data.u8[4] & 0x3F) << 4) | rx_frame.data.u8[3] >> 4;  //*0.2
-        power_charge_percentage = (rx_frame.data.u8[5] << 2) | rx_frame.data.u8[4] >> 6;              //*0.2
-      }
-      status_HV_line = ((rx_frame.data.u8[2] & 0x01) << 1) | rx_frame.data.u8[1] >> 7;
-      warning_support = (rx_frame.data.u8[1] & 0x70) >> 4;
-      break;
-    case 0x12DD54D2:  // BMS 100ms
-      battery_heating_active = (rx_frame.data.u8[4] & 0x40) >> 6;
-      heating_request = (rx_frame.data.u8[5] & 0xE0) >> 5;
-      cooling_request = (rx_frame.data.u8[5] & 0x1C) >> 2;
-      power_battery_heating_watt = rx_frame.data.u8[6];
-      power_battery_heating_req_watt = rx_frame.data.u8[7];
-      break;
-    case 0x1A555550:  // BMS 500ms
-      balancing_active = (rx_frame.data.u8[1] & 0xC0) >> 6;
-      charging_active = (rx_frame.data.u8[2] & 0x01);
-      max_energy_Wh = ((rx_frame.data.u8[6] & 0x1F) << 8) | rx_frame.data.u8[5];                     //*40
-      max_charge_percent = ((rx_frame.data.u8[7] << 3) | rx_frame.data.u8[6] >> 5);                  //*0.05
-      min_charge_percent = ((rx_frame.data.u8[4] << 3) | rx_frame.data.u8[3] >> 5);                  //*0.05
-      isolation_resistance_kOhm = (((rx_frame.data.u8[3] & 0x1F) << 7) | rx_frame.data.u8[2] >> 1);  //*5
-      break;
-    case 0x1A555551:  // BMS 500ms
-      battery_heating_installed = (rx_frame.data.u8[1] & 0x20) >> 5;
-      error_NT_circuit = (rx_frame.data.u8[1] & 0x40) >> 6;
-      pump_1_control = rx_frame.data.u8[2] & 0x0F;         //*10, percent
-      pump_2_control = (rx_frame.data.u8[2] & 0xF0) >> 4;  //*10, percent
-      status_valve_1 = (rx_frame.data.u8[3] & 0x1C) >> 2;
-      status_valve_2 = (rx_frame.data.u8[3] & 0xE0) >> 5;
-      temperature_request = (((rx_frame.data.u8[2] & 0x03) << 1) | rx_frame.data.u8[1] >> 7);
-      datalayer_extended.msb.battery_temperature_dC = rx_frame.data.u8[5] * 5 - 400;  //*0,5 -40
-      target_flow_temperature_C = rx_frame.data.u8[6];                                //*0,5 -40
-      return_temperature_C = rx_frame.data.u8[7];                                     //*0,5 -40
-      break;
-    case 0x1A5555B2:  // BMS
-      performance_index_discharge_peak_temperature_percentage =
-          (((rx_frame.data.u8[3] & 0x07) << 6) | rx_frame.data.u8[2] >> 2);  //*0.2
-      performance_index_charge_peak_temperature_percentage =
-          (((rx_frame.data.u8[4] & 0x3F) << 3) | rx_frame.data.u8[3] >> 5);  //*0.2
-      temperature_status_discharge = (rx_frame.data.u8[1] & 0x70) >> 4;
-      temperature_status_charge = (((rx_frame.data.u8[2] & 0x03) << 1) | rx_frame.data.u8[1] >> 7);
-      break;
-    case 0x16A954A6:  // BMS
+    case 0x16A954A6:                                        // BMS (Confirmed on MSB)
       BMS_16A954A6_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       isolation_fault = (rx_frame.data.u8[2] & 0xE0) >> 5;
       isolation_status = (rx_frame.data.u8[2] & 0x1E) >> 1;
@@ -410,235 +387,20 @@ void MsbJ1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         datalayer.battery.status.cell_max_voltage_mV = actual_cellvoltage_highest_mV + 1000;
       }
       break;
-    case 0x16A954F8:                                                                                // BMS
-      predicted_power_dyn_standard_watt = ((rx_frame.data.u8[6] << 1) | rx_frame.data.u8[5] >> 7);  //*50
-      predicted_time_dyn_standard_minutes = rx_frame.data.u8[7];
-      break;
-    case 0x16A954E8:  // BMS Temperature and cellvoltages - 180ms
-      mux = (rx_frame.data.u8[0] & 0x0F);
-      switch (mux) {
-        case 0:  // Temperatures 1-56. Value is 0xFD if sensor not present
-          for (uint8_t i = 0; i < 56; i++) {
-            datalayer_extended.msb.celltemperature_dC[i] = (rx_frame.data.u8[i + 1] * 5) - 400;
-          }
-          break;
-        case 1:  // Cellvoltages 1-42
-          cellvoltages[0] = (((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[1]) + 1000;
-          cellvoltages[1] = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[2] >> 4)) + 1000;
-          cellvoltages[2] = (((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4]) + 1000;
-          cellvoltages[3] = ((rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[5] >> 4)) + 1000;
-          cellvoltages[4] = (((rx_frame.data.u8[8] & 0x0F) << 8) | rx_frame.data.u8[7]) + 1000;
-          cellvoltages[5] = ((rx_frame.data.u8[9] << 4) | (rx_frame.data.u8[8] >> 4)) + 1000;
-          cellvoltages[6] = (((rx_frame.data.u8[11] & 0x0F) << 8) | rx_frame.data.u8[10]) + 1000;
-          cellvoltages[7] = ((rx_frame.data.u8[12] << 4) | (rx_frame.data.u8[11] >> 4)) + 1000;
-          cellvoltages[8] = (((rx_frame.data.u8[14] & 0x0F) << 8) | rx_frame.data.u8[13]) + 1000;
-          cellvoltages[9] = ((rx_frame.data.u8[15] << 4) | (rx_frame.data.u8[14] >> 4)) + 1000;
-          cellvoltages[10] = (((rx_frame.data.u8[17] & 0x0F) << 8) | rx_frame.data.u8[16]) + 1000;
-          cellvoltages[11] = ((rx_frame.data.u8[18] << 4) | (rx_frame.data.u8[17] >> 4)) + 1000;
-          cellvoltages[12] = (((rx_frame.data.u8[20] & 0x0F) << 8) | rx_frame.data.u8[19]) + 1000;
-          cellvoltages[13] = ((rx_frame.data.u8[21] << 4) | (rx_frame.data.u8[20] >> 4)) + 1000;
-          cellvoltages[14] = (((rx_frame.data.u8[23] & 0x0F) << 8) | rx_frame.data.u8[22]) + 1000;
-          cellvoltages[15] = ((rx_frame.data.u8[24] << 4) | (rx_frame.data.u8[23] >> 4)) + 1000;
-          cellvoltages[16] = (((rx_frame.data.u8[26] & 0x0F) << 8) | rx_frame.data.u8[25]) + 1000;
-          cellvoltages[17] = ((rx_frame.data.u8[27] << 4) | (rx_frame.data.u8[26] >> 4)) + 1000;
-          cellvoltages[18] = (((rx_frame.data.u8[29] & 0x0F) << 8) | rx_frame.data.u8[28]) + 1000;
-          cellvoltages[19] = ((rx_frame.data.u8[30] << 4) | (rx_frame.data.u8[29] >> 4)) + 1000;
-          cellvoltages[20] = (((rx_frame.data.u8[32] & 0x0F) << 8) | rx_frame.data.u8[31]) + 1000;
-          cellvoltages[21] = ((rx_frame.data.u8[33] << 4) | (rx_frame.data.u8[32] >> 4)) + 1000;
-          cellvoltages[22] = (((rx_frame.data.u8[35] & 0x0F) << 8) | rx_frame.data.u8[34]) + 1000;
-          cellvoltages[23] = ((rx_frame.data.u8[36] << 4) | (rx_frame.data.u8[35] >> 4)) + 1000;
-          cellvoltages[24] = (((rx_frame.data.u8[38] & 0x0F) << 8) | rx_frame.data.u8[37]) + 1000;
-          cellvoltages[25] = ((rx_frame.data.u8[39] << 4) | (rx_frame.data.u8[38] >> 4)) + 1000;
-          cellvoltages[26] = (((rx_frame.data.u8[41] & 0x0F) << 8) | rx_frame.data.u8[40]) + 1000;
-          cellvoltages[27] = ((rx_frame.data.u8[42] << 4) | (rx_frame.data.u8[41] >> 4)) + 1000;
-          cellvoltages[28] = (((rx_frame.data.u8[44] & 0x0F) << 8) | rx_frame.data.u8[43]) + 1000;
-          cellvoltages[29] = ((rx_frame.data.u8[45] << 4) | (rx_frame.data.u8[44] >> 4)) + 1000;
-          cellvoltages[30] = (((rx_frame.data.u8[47] & 0x0F) << 8) | rx_frame.data.u8[46]) + 1000;
-          cellvoltages[31] = ((rx_frame.data.u8[48] << 4) | (rx_frame.data.u8[47] >> 4)) + 1000;
-          cellvoltages[32] = (((rx_frame.data.u8[50] & 0x0F) << 8) | rx_frame.data.u8[49]) + 1000;
-          cellvoltages[33] = ((rx_frame.data.u8[51] << 4) | (rx_frame.data.u8[50] >> 4)) + 1000;
-          cellvoltages[34] = (((rx_frame.data.u8[53] & 0x0F) << 8) | rx_frame.data.u8[52]) + 1000;
-          cellvoltages[35] = ((rx_frame.data.u8[54] << 4) | (rx_frame.data.u8[53] >> 4)) + 1000;
-          cellvoltages[36] = (((rx_frame.data.u8[56] & 0x0F) << 8) | rx_frame.data.u8[55]) + 1000;
-          cellvoltages[37] = ((rx_frame.data.u8[57] << 4) | (rx_frame.data.u8[56] >> 4)) + 1000;
-          cellvoltages[38] = (((rx_frame.data.u8[59] & 0x0F) << 8) | rx_frame.data.u8[58]) + 1000;
-          cellvoltages[39] = ((rx_frame.data.u8[60] << 4) | (rx_frame.data.u8[59] >> 4)) + 1000;
-          cellvoltages[40] = (((rx_frame.data.u8[62] & 0x0F) << 8) | rx_frame.data.u8[61]) + 1000;
-          cellvoltages[41] = ((rx_frame.data.u8[63] << 4) | (rx_frame.data.u8[62] >> 4)) + 1000;
-          break;
-        case 2:  // Cellvoltages 43-84
-          cellvoltages[42] = (((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[1]) + 1000;
-          cellvoltages[43] = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[2] >> 4)) + 1000;
-          cellvoltages[44] = (((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4]) + 1000;
-          cellvoltages[45] = ((rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[5] >> 4)) + 1000;
-          cellvoltages[46] = (((rx_frame.data.u8[8] & 0x0F) << 8) | rx_frame.data.u8[7]) + 1000;
-          cellvoltages[47] = ((rx_frame.data.u8[9] << 4) | (rx_frame.data.u8[8] >> 4)) + 1000;
-          cellvoltages[48] = (((rx_frame.data.u8[11] & 0x0F) << 8) | rx_frame.data.u8[10]) + 1000;
-          cellvoltages[49] = ((rx_frame.data.u8[12] << 4) | (rx_frame.data.u8[11] >> 4)) + 1000;
-          cellvoltages[50] = (((rx_frame.data.u8[14] & 0x0F) << 8) | rx_frame.data.u8[13]) + 1000;
-          cellvoltages[51] = ((rx_frame.data.u8[15] << 4) | (rx_frame.data.u8[14] >> 4)) + 1000;
-          cellvoltages[52] = (((rx_frame.data.u8[17] & 0x0F) << 8) | rx_frame.data.u8[16]) + 1000;
-          cellvoltages[53] = ((rx_frame.data.u8[18] << 4) | (rx_frame.data.u8[17] >> 4)) + 1000;
-          cellvoltages[54] = (((rx_frame.data.u8[20] & 0x0F) << 8) | rx_frame.data.u8[19]) + 1000;
-          cellvoltages[55] = ((rx_frame.data.u8[21] << 4) | (rx_frame.data.u8[20] >> 4)) + 1000;
-          cellvoltages[56] = (((rx_frame.data.u8[23] & 0x0F) << 8) | rx_frame.data.u8[22]) + 1000;
-          cellvoltages[57] = ((rx_frame.data.u8[24] << 4) | (rx_frame.data.u8[23] >> 4)) + 1000;
-          cellvoltages[58] = (((rx_frame.data.u8[26] & 0x0F) << 8) | rx_frame.data.u8[25]) + 1000;
-          cellvoltages[59] = ((rx_frame.data.u8[27] << 4) | (rx_frame.data.u8[26] >> 4)) + 1000;
-          cellvoltages[60] = (((rx_frame.data.u8[29] & 0x0F) << 8) | rx_frame.data.u8[28]) + 1000;
-          cellvoltages[61] = ((rx_frame.data.u8[30] << 4) | (rx_frame.data.u8[29] >> 4)) + 1000;
-          cellvoltages[62] = (((rx_frame.data.u8[32] & 0x0F) << 8) | rx_frame.data.u8[31]) + 1000;
-          cellvoltages[63] = ((rx_frame.data.u8[33] << 4) | (rx_frame.data.u8[32] >> 4)) + 1000;
-          cellvoltages[64] = (((rx_frame.data.u8[35] & 0x0F) << 8) | rx_frame.data.u8[34]) + 1000;
-          cellvoltages[65] = ((rx_frame.data.u8[36] << 4) | (rx_frame.data.u8[35] >> 4)) + 1000;
-          cellvoltages[66] = (((rx_frame.data.u8[38] & 0x0F) << 8) | rx_frame.data.u8[37]) + 1000;
-          cellvoltages[67] = ((rx_frame.data.u8[39] << 4) | (rx_frame.data.u8[38] >> 4)) + 1000;
-          cellvoltages[68] = (((rx_frame.data.u8[41] & 0x0F) << 8) | rx_frame.data.u8[40]) + 1000;
-          cellvoltages[69] = ((rx_frame.data.u8[42] << 4) | (rx_frame.data.u8[41] >> 4)) + 1000;
-          cellvoltages[70] = (((rx_frame.data.u8[44] & 0x0F) << 8) | rx_frame.data.u8[43]) + 1000;
-          cellvoltages[71] = ((rx_frame.data.u8[45] << 4) | (rx_frame.data.u8[44] >> 4)) + 1000;
-          cellvoltages[72] = (((rx_frame.data.u8[47] & 0x0F) << 8) | rx_frame.data.u8[46]) + 1000;
-          cellvoltages[73] = ((rx_frame.data.u8[48] << 4) | (rx_frame.data.u8[47] >> 4)) + 1000;
-          cellvoltages[74] = (((rx_frame.data.u8[50] & 0x0F) << 8) | rx_frame.data.u8[49]) + 1000;
-          cellvoltages[75] = ((rx_frame.data.u8[51] << 4) | (rx_frame.data.u8[50] >> 4)) + 1000;
-          cellvoltages[76] = (((rx_frame.data.u8[53] & 0x0F) << 8) | rx_frame.data.u8[52]) + 1000;
-          cellvoltages[77] = ((rx_frame.data.u8[54] << 4) | (rx_frame.data.u8[53] >> 4)) + 1000;
-          cellvoltages[78] = (((rx_frame.data.u8[56] & 0x0F) << 8) | rx_frame.data.u8[55]) + 1000;
-          cellvoltages[79] = ((rx_frame.data.u8[57] << 4) | (rx_frame.data.u8[56] >> 4)) + 1000;
-          cellvoltages[80] = (((rx_frame.data.u8[59] & 0x0F) << 8) | rx_frame.data.u8[58]) + 1000;
-          cellvoltages[81] = ((rx_frame.data.u8[60] << 4) | (rx_frame.data.u8[59] >> 4)) + 1000;
-          cellvoltages[82] = (((rx_frame.data.u8[62] & 0x0F) << 8) | rx_frame.data.u8[61]) + 1000;
-          cellvoltages[83] = ((rx_frame.data.u8[63] << 4) | (rx_frame.data.u8[62] >> 4)) + 1000;
-          break;
-        case 3:  // Cellvoltages 85-126
-          cellvoltages[84] = (((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[1]) + 1000;
-          cellvoltages[85] = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[2] >> 4)) + 1000;
-          cellvoltages[86] = (((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4]) + 1000;
-          cellvoltages[87] = ((rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[5] >> 4)) + 1000;
-          cellvoltages[88] = (((rx_frame.data.u8[8] & 0x0F) << 8) | rx_frame.data.u8[7]) + 1000;
-          cellvoltages[89] = ((rx_frame.data.u8[9] << 4) | (rx_frame.data.u8[8] >> 4)) + 1000;
-          cellvoltages[90] = (((rx_frame.data.u8[11] & 0x0F) << 8) | rx_frame.data.u8[10]) + 1000;
-          cellvoltages[91] = ((rx_frame.data.u8[12] << 4) | (rx_frame.data.u8[11] >> 4)) + 1000;
-          cellvoltages[92] = (((rx_frame.data.u8[14] & 0x0F) << 8) | rx_frame.data.u8[13]) + 1000;
-          cellvoltages[93] = ((rx_frame.data.u8[15] << 4) | (rx_frame.data.u8[14] >> 4)) + 1000;
-          cellvoltages[94] = (((rx_frame.data.u8[17] & 0x0F) << 8) | rx_frame.data.u8[16]) + 1000;
-          cellvoltages[95] = ((rx_frame.data.u8[18] << 4) | (rx_frame.data.u8[17] >> 4)) + 1000;
-          cellvoltages[96] = (((rx_frame.data.u8[20] & 0x0F) << 8) | rx_frame.data.u8[19]) + 1000;
-          cellvoltages[97] = ((rx_frame.data.u8[21] << 4) | (rx_frame.data.u8[20] >> 4)) + 1000;
-          cellvoltages[98] = (((rx_frame.data.u8[23] & 0x0F) << 8) | rx_frame.data.u8[22]) + 1000;
-          cellvoltages[99] = ((rx_frame.data.u8[24] << 4) | (rx_frame.data.u8[23] >> 4)) + 1000;
-          cellvoltages[100] = (((rx_frame.data.u8[26] & 0x0F) << 8) | rx_frame.data.u8[25]) + 1000;
-          cellvoltages[101] = ((rx_frame.data.u8[27] << 4) | (rx_frame.data.u8[26] >> 4)) + 1000;
-          cellvoltages[102] = (((rx_frame.data.u8[29] & 0x0F) << 8) | rx_frame.data.u8[28]) + 1000;
-          cellvoltages[103] = ((rx_frame.data.u8[30] << 4) | (rx_frame.data.u8[29] >> 4)) + 1000;
-          cellvoltages[104] = (((rx_frame.data.u8[32] & 0x0F) << 8) | rx_frame.data.u8[31]) + 1000;
-          cellvoltages[105] = ((rx_frame.data.u8[33] << 4) | (rx_frame.data.u8[32] >> 4)) + 1000;
-          cellvoltages[106] = (((rx_frame.data.u8[35] & 0x0F) << 8) | rx_frame.data.u8[34]) + 1000;
-          cellvoltages[107] = ((rx_frame.data.u8[36] << 4) | (rx_frame.data.u8[35] >> 4)) + 1000;
-          cellvoltages[108] = (((rx_frame.data.u8[38] & 0x0F) << 8) | rx_frame.data.u8[37]) + 1000;
-          cellvoltages[109] = ((rx_frame.data.u8[39] << 4) | (rx_frame.data.u8[38] >> 4)) + 1000;
-          cellvoltages[110] = (((rx_frame.data.u8[41] & 0x0F) << 8) | rx_frame.data.u8[40]) + 1000;
-          cellvoltages[111] = ((rx_frame.data.u8[42] << 4) | (rx_frame.data.u8[41] >> 4)) + 1000;
-          cellvoltages[112] = (((rx_frame.data.u8[44] & 0x0F) << 8) | rx_frame.data.u8[43]) + 1000;
-          cellvoltages[113] = ((rx_frame.data.u8[45] << 4) | (rx_frame.data.u8[44] >> 4)) + 1000;
-          cellvoltages[114] = (((rx_frame.data.u8[47] & 0x0F) << 8) | rx_frame.data.u8[46]) + 1000;
-          cellvoltages[115] = ((rx_frame.data.u8[48] << 4) | (rx_frame.data.u8[47] >> 4)) + 1000;
-          cellvoltages[116] = (((rx_frame.data.u8[50] & 0x0F) << 8) | rx_frame.data.u8[49]) + 1000;
-          cellvoltages[117] = ((rx_frame.data.u8[51] << 4) | (rx_frame.data.u8[50] >> 4)) + 1000;
-          cellvoltages[118] = (((rx_frame.data.u8[53] & 0x0F) << 8) | rx_frame.data.u8[52]) + 1000;
-          cellvoltages[119] = ((rx_frame.data.u8[54] << 4) | (rx_frame.data.u8[53] >> 4)) + 1000;
-          cellvoltages[120] = (((rx_frame.data.u8[56] & 0x0F) << 8) | rx_frame.data.u8[55]) + 1000;
-          cellvoltages[121] = ((rx_frame.data.u8[57] << 4) | (rx_frame.data.u8[56] >> 4)) + 1000;
-          cellvoltages[122] = (((rx_frame.data.u8[59] & 0x0F) << 8) | rx_frame.data.u8[58]) + 1000;
-          cellvoltages[123] = ((rx_frame.data.u8[60] << 4) | (rx_frame.data.u8[59] >> 4)) + 1000;
-          cellvoltages[124] = (((rx_frame.data.u8[62] & 0x0F) << 8) | rx_frame.data.u8[61]) + 1000;
-          cellvoltages[125] = ((rx_frame.data.u8[63] << 4) | (rx_frame.data.u8[62] >> 4)) + 1000;
-          break;
-        case 4:  //Cellvoltages 127-160
-          cellvoltages[126] = (((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[1]) + 1000;
-          cellvoltages[127] = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[2] >> 4)) + 1000;
-          cellvoltages[128] = (((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4]) + 1000;
-          cellvoltages[129] = ((rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[5] >> 4)) + 1000;
-          cellvoltages[130] = (((rx_frame.data.u8[8] & 0x0F) << 8) | rx_frame.data.u8[7]) + 1000;
-          cellvoltages[131] = ((rx_frame.data.u8[9] << 4) | (rx_frame.data.u8[8] >> 4)) + 1000;
-          cellvoltages[132] = (((rx_frame.data.u8[11] & 0x0F) << 8) | rx_frame.data.u8[10]) + 1000;
-          cellvoltages[133] = ((rx_frame.data.u8[12] << 4) | (rx_frame.data.u8[11] >> 4)) + 1000;
-          cellvoltages[134] = (((rx_frame.data.u8[14] & 0x0F) << 8) | rx_frame.data.u8[13]) + 1000;
-          cellvoltages[135] = ((rx_frame.data.u8[15] << 4) | (rx_frame.data.u8[14] >> 4)) + 1000;
-          cellvoltages[136] = (((rx_frame.data.u8[17] & 0x0F) << 8) | rx_frame.data.u8[16]) + 1000;
-          cellvoltages[137] = ((rx_frame.data.u8[18] << 4) | (rx_frame.data.u8[17] >> 4)) + 1000;
-          cellvoltages[138] = (((rx_frame.data.u8[20] & 0x0F) << 8) | rx_frame.data.u8[19]) + 1000;
-          cellvoltages[139] = ((rx_frame.data.u8[21] << 4) | (rx_frame.data.u8[20] >> 4)) + 1000;
-          cellvoltages[140] = (((rx_frame.data.u8[23] & 0x0F) << 8) | rx_frame.data.u8[22]) + 1000;
-          cellvoltages[141] = ((rx_frame.data.u8[24] << 4) | (rx_frame.data.u8[23] >> 4)) + 1000;
-          cellvoltages[142] = (((rx_frame.data.u8[26] & 0x0F) << 8) | rx_frame.data.u8[25]) + 1000;
-          cellvoltages[143] = ((rx_frame.data.u8[27] << 4) | (rx_frame.data.u8[26] >> 4)) + 1000;
-          cellvoltages[144] = (((rx_frame.data.u8[29] & 0x0F) << 8) | rx_frame.data.u8[28]) + 1000;
-          cellvoltages[145] = ((rx_frame.data.u8[30] << 4) | (rx_frame.data.u8[29] >> 4)) + 1000;
-          cellvoltages[146] = (((rx_frame.data.u8[32] & 0x0F) << 8) | rx_frame.data.u8[31]) + 1000;
-          cellvoltages[147] = ((rx_frame.data.u8[33] << 4) | (rx_frame.data.u8[32] >> 4)) + 1000;
-          cellvoltages[148] = (((rx_frame.data.u8[35] & 0x0F) << 8) | rx_frame.data.u8[34]) + 1000;
-          cellvoltages[149] = ((rx_frame.data.u8[36] << 4) | (rx_frame.data.u8[35] >> 4)) + 1000;
-          cellvoltages[150] = (((rx_frame.data.u8[38] & 0x0F) << 8) | rx_frame.data.u8[37]) + 1000;
-          cellvoltages[151] = ((rx_frame.data.u8[39] << 4) | (rx_frame.data.u8[38] >> 4)) + 1000;
-          cellvoltages[152] = (((rx_frame.data.u8[41] & 0x0F) << 8) | rx_frame.data.u8[40]) + 1000;
-          cellvoltages[153] = ((rx_frame.data.u8[42] << 4) | (rx_frame.data.u8[41] >> 4)) + 1000;
-          cellvoltages[154] = (((rx_frame.data.u8[44] & 0x0F) << 8) | rx_frame.data.u8[43]) + 1000;
-          cellvoltages[155] = ((rx_frame.data.u8[45] << 4) | (rx_frame.data.u8[44] >> 4)) + 1000;
-          cellvoltages[156] = (((rx_frame.data.u8[47] & 0x0F) << 8) | rx_frame.data.u8[46]) + 1000;
-          cellvoltages[157] = ((rx_frame.data.u8[48] << 4) | (rx_frame.data.u8[47] >> 4)) + 1000;
-          cellvoltages[158] = (((rx_frame.data.u8[50] & 0x0F) << 8) | rx_frame.data.u8[49]) + 1000;
-          cellvoltages[159] = ((rx_frame.data.u8[51] << 4) | (rx_frame.data.u8[50] >> 4)) + 1000;
-          break;
-        default:  //Invalid mux
-          //TODO: Add corrupted CAN message counter tick?
-          break;
-      }
-      break;
-    case 0x1C42017B:  // BMS - Non-Cyclic, TP_ISO
-      //hybrid_01_response_fd_data (Whole frame)
-      break;
-    case 0x1A5555B0:  // BMS 1000ms cyclic
-      duration_discharge_power_watt = ((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[5];
-      duration_charge_power_watt = (rx_frame.data.u8[7] << 4) | rx_frame.data.u8[6] >> 4;
-      maximum_voltage = ((rx_frame.data.u8[3] & 0x3F) << 4) | rx_frame.data.u8[2] >> 4;
-      minimum_voltage = (rx_frame.data.u8[4] << 2) | rx_frame.data.u8[3] >> 6;
-      break;
-    case 0x1A5555B1:  // BMS 1000ms cyclic
-      // All realtime_ have same enumeration, 0 = no fault, 1 = error level 1, 2 error level 2, 3 error level 3
-      realtime_overcurrent_monitor = ((rx_frame.data.u8[3] & 0x01) << 2) | rx_frame.data.u8[2] >> 6;
-      realtime_CAN_communication_fault = (rx_frame.data.u8[3] & 0x0E) >> 1;
-      realtime_overcharge_warning = (rx_frame.data.u8[3] & 0x70) >> 4;
-      realtime_SOC_too_high = ((rx_frame.data.u8[4] & 0x03) << 1) | rx_frame.data.u8[3] >> 7;
-      realtime_SOC_too_low = (rx_frame.data.u8[4] & 0x1C) >> 2;
-      realtime_SOC_jumping_warning = (rx_frame.data.u8[4] & 0xE0) >> 5;
-      realtime_temperature_difference_warning = rx_frame.data.u8[5] & 0x07;
-      realtime_cell_overtemperature_warning = (rx_frame.data.u8[5] & 0x38) >> 3;
-      realtime_cell_undertemperature_warning = ((rx_frame.data.u8[6] & 0x01) << 2) | rx_frame.data.u8[5] >> 6;
-      realtime_battery_overvoltage_warning = (rx_frame.data.u8[6] & 0x0E) >> 1;
-      realtime_battery_undervoltage_warning = (rx_frame.data.u8[6] & 0x70) >> 4;
-      realtime_cell_overvoltage_warning = ((rx_frame.data.u8[7] & 0x03) << 1) | rx_frame.data.u8[6] >> 7;
-      realtime_cell_undervoltage_warning = (rx_frame.data.u8[7] & 0x1C) >> 2;
-      realtime_cell_imbalance_warning = (rx_frame.data.u8[7] & 0xE0) >> 5;
-      for (uint8_t i = 0; i < 26; i++) {  // Frame 9 to 34 is S/N for battery
-        battery_serialnumber[i] = rx_frame.data.u8[i + 9];
-      }
-      realtime_warning_battery_unathorized = (rx_frame.data.u8[40] & 0x07);
-      break;
-    case 0x2AF:  // BMS 50ms
+    case 0x2AF:  // BMS 50ms //Confirmed on MSB
       actual_battery_voltage =
           ((rx_frame.data.u8[1] & 0x3F) << 8) | rx_frame.data.u8[0];  //*0.0625 // Seems to be 0.125 in logging
       regen_battery = ((rx_frame.data.u8[5] & 0x7F) << 8) | rx_frame.data.u8[4];
       energy_extracted_from_battery = ((rx_frame.data.u8[7] & 0x7F) << 8) | rx_frame.data.u8[6];
       break;
-    case 0x578:                                        // BMS 100ms
+    case 0x578:                                        // BMS 100ms //Confirmed on MSB
       BMS_578_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       BMS_Status_DCLS = ((rx_frame.data.u8[1] & 0x30) >> 4);
       DC_voltage_DCLS = (rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[1] >> 6);
       max_fastcharging_current_amp = ((rx_frame.data.u8[4] & 0x01) << 8) | rx_frame.data.u8[3];
       DC_voltage_chargeport = (rx_frame.data.u8[7] << 4) | (rx_frame.data.u8[6] >> 4);
       break;
-    case 0x5A2:  // BMS 500ms normal, 100ms fast
+    case 0x5A2:                                        // BMS 500ms normal, 100ms fast //Confirmed on MSB
       BMS_5A2_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       service_disconnect_switch_missing = (rx_frame.data.u8[1] & 0x20) >> 5;
       pilotline_open = (rx_frame.data.u8[1] & 0x10) >> 4;
@@ -652,7 +414,7 @@ void MsbJ1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         BMS_capacity_ah = ((rx_frame.data.u8[4] & 0x03) << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
       }
       break;
-    case 0x5CA:  // BMS 500ms
+    case 0x5CA:  // BMS 500ms (Confirmed on MSB)
       BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);
       balancing_request = (rx_frame.data.u8[5] & 0x08) >> 3;
       // balancing_request: BMS requests a low current end charge to support balancing, maybe unused.
@@ -668,7 +430,7 @@ void MsbJ1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x1C42007B:                      // Reply from battery
       if (rx_frame.data.u8[0] == 0x10) {  //PID header
-        transmit_can_frame(&MSB_ACK_FRAME, can_config.battery);
+        transmit_can_frame(&MSB_ACK_FRAME);
       }
       if (rx_frame.DLC == 8) {
         pid_reply = (rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3];
@@ -1218,57 +980,18 @@ void MsbJ1Battery::transmit_can(unsigned long currentMillis) {
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
     previousMillis10ms = currentMillis;
-
-    MEB_0FC.data.u8[1] = ((MEB_0FC.data.u8[1] & 0xF0) | counter_10ms);
-    MEB_0FC.data.u8[0] = vw_crc_calc(MEB_0FC.data.u8, MEB_0FC.DLC, MEB_0FC.ID);
-
-    counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-
-    transmit_can_frame(&MEB_0FC, can_config.battery);  // Required for contactor closing
   }
   // Send 20ms CAN Message
   if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
     previousMillis20ms = currentMillis;
-
-    MEB_0FD.data.u8[1] = ((MEB_0FD.data.u8[1] & 0xF0) | counter_20ms);
-    MEB_0FD.data.u8[0] = vw_crc_calc(MEB_0FD.data.u8, MEB_0FD.DLC, MEB_0FD.ID);
-
-    counter_20ms = (counter_20ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-
-    transmit_can_frame(&MEB_0FD, can_config.battery);  // Required for contactor closing
   }
   // Send 40ms CAN Message
   if (currentMillis - previousMillis40ms >= INTERVAL_40_MS) {
     previousMillis40ms = currentMillis;
-
-    /* Handle content for 0x040 message */
-    /* Airbag message, needed for BMS to function */
-    MEB_040.data.u8[7] = counter_040;
-    MEB_040.data.u8[1] = ((MEB_040.data.u8[1] & 0xF0) | counter_40ms);
-    MEB_040.data.u8[0] = vw_crc_calc(MEB_040.data.u8, MEB_040.DLC, MEB_040.ID);
-    counter_40ms = (counter_40ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-    if (toggle) {
-      counter_040 = (counter_040 + 1) % 256;  // Increment only on every other pass
-    }
-    toggle = !toggle;  // Flip the toggle each time the code block is executed
-
-    transmit_can_frame(&MEB_040, can_config.battery);  // Airbag message - Needed for contactor closing
   }
   // Send 50ms CAN Message
   if (currentMillis - previousMillis50ms >= INTERVAL_50_MS) {
     previousMillis50ms = currentMillis;
-
-    /* Handle content for 0x0C0 message */
-    /* BMS needs to see this EM1 message. Content located in frame5&6 especially (can be static?)*/
-    /* Also the voltage seen externally to battery is in frame 7&8. At least for the 62kWh ID3 version does not seem to matter, but we send it anyway. */
-    MEB_0C0.data.u8[1] = ((MEB_0C0.data.u8[1] & 0xF0) | counter_50ms);
-    MEB_0C0.data.u8[7] = ((datalayer.battery.status.voltage_dV / 10) * 4) & 0x00FF;
-    MEB_0C0.data.u8[8] =
-        ((MEB_0C0.data.u8[8] & 0xF0) | ((((datalayer.battery.status.voltage_dV / 10) * 4) >> 8) & 0x0F));
-    MEB_0C0.data.u8[0] = vw_crc_calc(MEB_0C0.data.u8, MEB_0C0.DLC, MEB_0C0.ID);
-    counter_50ms = (counter_50ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-
-    transmit_can_frame(&MEB_0C0, can_config.battery);  //  Needed for contactor closing
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
@@ -1286,10 +1009,10 @@ void MsbJ1Battery::transmit_can(unsigned long currentMillis) {
       hv_requested = true;
       datalayer.system.settings.start_precharging = false;
 #ifdef DEBUG_LOG
-      if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
+      if (MSB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
         logging.printf("MEB: Requesting HV\n");
       }
-      if ((MEB_503.data.u8[1] & 0x80) !=
+      if ((MSB_503.data.u8[1] & 0x80) !=
           (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00)) {
         if (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) {
           logging.printf("MEB: Precharge bit set to active\n");
@@ -1298,11 +1021,11 @@ void MsbJ1Battery::transmit_can(unsigned long currentMillis) {
         }
       }
 #endif
-      MEB_503.data.u8[1] =
+      MSB_503.data.u8[1] =
           0x30 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
-      MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;
-      MEB_503.data.u8[5] = 0x82;  // Bordnetz Active
-      MEB_503.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
+      MSB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;
+      MSB_503.data.u8[5] = 0x82;  // Bordnetz Active
+      MSB_503.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
     } else if ((first_can_msg > 0 && currentMillis > first_can_msg + 1000 && BMS_mode != 7) ||
                datalayer.system.settings.equipment_stop_active) {  //FAULT STATE, open contactors
 
@@ -1312,94 +1035,80 @@ void MsbJ1Battery::transmit_can(unsigned long currentMillis) {
       }
 
 #ifdef DEBUG_LOG
-      if (MEB_503.data.u8[3] != BMS_TARGET_HV_OFF) {
-        logging.printf("MEB: Requesting HV_OFF\n");
+      if (MSB_503.data.u8[3] != BMS_TARGET_HV_OFF) {
+        logging.printf("MSB: Requesting HV_OFF\n");
       }
-      if ((MEB_503.data.u8[1] & 0x80) !=
+      if ((MSB_503.data.u8[1] & 0x80) !=
           (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00)) {
         if (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) {
-          logging.printf("MEB: Precharge bit set to active\n");
+          logging.printf("MSB: Precharge bit set to active\n");
         } else {
-          logging.printf("MEB: Precharge bit set to inactive\n");
+          logging.printf("MSB: Precharge bit set to inactive\n");
         }
       }
 #endif
-      MEB_503.data.u8[1] =
+      MSB_503.data.u8[1] =
           0x10 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
-      MEB_503.data.u8[3] = BMS_TARGET_HV_OFF;
-      MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
-      MEB_503.data.u8[6] =
+      MSB_503.data.u8[3] = BMS_TARGET_HV_OFF;
+      MSB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
+      MSB_503.data.u8[6] =
           0xE3;  // Request emergency shutdown HV system == init (3) (not sure if we dare activate this, this is done with 0xE1)
     } else {
-      MEB_503.data.u8[3] = 0;
-      MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
+      MSB_503.data.u8[3] = 0;
+      MSB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
     }
-    MEB_503.data.u8[1] = ((MEB_503.data.u8[1] & 0xF0) | counter_100ms);
-    MEB_503.data.u8[0] = vw_crc_calc(MEB_503.data.u8, MEB_503.DLC, MEB_503.ID);
-
-    //Bidirectional charging message
-    MEB_272.data.u8[1] =
-        0x00;  //0x80;  // Bidirectional charging active (Set to 0x00 incase no bidirectional charging wanted)
-    MEB_272.data.u8[2] = 0x00;
-    //0x01;  // High load bidirectional charging active (Set to 0x00 incase no bidirectional charging wanted)
-    MEB_272.data.u8[5] = DC_FASTCHARGE_NO_START_REQUEST;  //DC_FASTCHARGE_VEHICLE;  //DC charging
+    MSB_503.data.u8[1] = ((MSB_503.data.u8[1] & 0xF0) | counter_100ms);
+    MSB_503.data.u8[0] = MSB_crc_calc(MSB_503.data.u8, MSB_503.DLC, MSB_503.ID);
 
     //Klemmen status
-    MEB_3C0.data.u8[2] = 0x02;  //bit to signal that KL_15 is ON // Always 0 in start4.log
-    MEB_3C0.data.u8[1] = ((MEB_3C0.data.u8[1] & 0xF0) | counter_100ms);
-    MEB_3C0.data.u8[0] = vw_crc_calc(MEB_3C0.data.u8, MEB_3C0.DLC, MEB_3C0.ID);
+    MSB_3C0.data.u8[2] = 0x02;  //bit to signal that KL_15 is ON // Always 0 in start4.log
+    MSB_3C0.data.u8[1] = ((MSB_3C0.data.u8[1] & 0xF0) | counter_100ms);
+    MSB_3C0.data.u8[0] = MSB_crc_calc(MSB_3C0.data.u8, MSB_3C0.DLC, MSB_3C0.ID);
 
-    MEB_3BE.data.u8[1] = ((MEB_3BE.data.u8[1] & 0xF0) | counter_100ms);
-    MEB_3BE.data.u8[0] = vw_crc_calc(MEB_3BE.data.u8, MEB_3BE.DLC, MEB_3BE.ID);
-
-    MEB_14C.data.u8[1] = ((MEB_14C.data.u8[1] & 0xF0) | counter_100ms);
-    MEB_14C.data.u8[0] = vw_crc_calc(MEB_14C.data.u8, MEB_14C.DLC, MEB_14C.ID);
+    MSB_3BE.data.u8[1] = ((MSB_3BE.data.u8[1] & 0xF0) | counter_100ms);
+    MSB_3BE.data.u8[0] = MSB_crc_calc(MSB_3BE.data.u8, MSB_3BE.DLC, MSB_3BE.ID);
 
     counter_100ms = (counter_100ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-    transmit_can_frame(&MEB_503, can_config.battery);
-    transmit_can_frame(&MEB_272, can_config.battery);
-    transmit_can_frame(&MEB_3C0, can_config.battery);
-    transmit_can_frame(&MEB_3BE, can_config.battery);
-    transmit_can_frame(&MEB_14C, can_config.battery);
+    transmit_can_frame(&MSB_503);              //Confirmed for MSB
+    transmit_can_frame(&MSB_3C0);              //Confirmed for MSB
+    transmit_can_frame(&MSB_3BE);              //Confirmed for MSB
   }
   //Send 200ms message
   if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
     previousMillis200ms = currentMillis;
 
-    // MEB_153 does not need CRC even though it has it. Empty in some logs as well.
+    // MSB_153 does not need CRC even though it has it. Empty in some logs as well.
 
-    //TODO: MEB_1B0000B9 & MEB_1B000010 & MEB_1B000046 has CAN sleep commands. May be removed?
+    //TODO: MSB_1B0000B9 & MSB_1B000010 & MSB_1B000046 has CAN sleep commands. May be removed?
 
-    transmit_can_frame(&MEB_5E1, can_config.battery);
-    transmit_can_frame(&MEB_153, can_config.battery);
-    transmit_can_frame(&MEB_1B0000B9, can_config.battery);
-    transmit_can_frame(&MEB_1B000010, can_config.battery);
-    transmit_can_frame(&MEB_1B000046, can_config.battery);
+    transmit_can_frame(&MSB_5E1);       //Confirmed for MSB
+    transmit_can_frame(&MSB_153);       //Confirmed for MSB
+    transmit_can_frame(&MSB_1B000010);  //Confirmed for MSB
 
     switch (poll_pid) {
       case PID_SOC:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_SOC >> 8);  // High byte
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_SOC;         // Low byte
+        MSB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_SOC >> 8);  // High byte
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_SOC;         // Low byte
         poll_pid = PID_VOLTAGE;
         break;
       case PID_VOLTAGE:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_VOLTAGE >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_VOLTAGE;
+        MSB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_VOLTAGE >> 8);
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_VOLTAGE;
         poll_pid = PID_CURRENT;
         break;
       case PID_CURRENT:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_CURRENT >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CURRENT;
+        MSB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_CURRENT >> 8);
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CURRENT;
         poll_pid = PID_MAX_TEMP;
         break;
       case PID_MAX_TEMP:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MAX_TEMP >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MAX_TEMP;
+        MSB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MAX_TEMP >> 8);
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MAX_TEMP;
         poll_pid = PID_MIN_TEMP;
         break;
       case PID_MIN_TEMP:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MIN_TEMP >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MIN_TEMP;
+        MSB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MIN_TEMP >> 8);
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MIN_TEMP;
         poll_pid = PID_TEMP_POINT_1;
         break;
       case PID_TEMP_POINT_1:
@@ -1419,376 +1128,376 @@ void MsbJ1Battery::transmit_can(unsigned long currentMillis) {
       case PID_TEMP_POINT_15:
       case PID_TEMP_POINT_16:
       case PID_TEMP_POINT_17:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(poll_pid >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)poll_pid;
+        MSB_POLLING_FRAME.data.u8[2] = (uint8_t)(poll_pid >> 8);
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)poll_pid;
         poll_pid = poll_pid + 1;
         break;
       case PID_TEMP_POINT_18:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(poll_pid >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)poll_pid;
+        MSB_POLLING_FRAME.data.u8[2] = (uint8_t)(poll_pid >> 8);
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)poll_pid;
         poll_pid = PID_MAX_CHARGE_VOLTAGE;
         break;
       case PID_MAX_CHARGE_VOLTAGE:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MAX_CHARGE_VOLTAGE >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MAX_CHARGE_VOLTAGE;
+        MSB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MAX_CHARGE_VOLTAGE >> 8);
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MAX_CHARGE_VOLTAGE;
         poll_pid = PID_MIN_DISCHARGE_VOLTAGE;
         break;
       case PID_MIN_DISCHARGE_VOLTAGE:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MIN_DISCHARGE_VOLTAGE >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MIN_DISCHARGE_VOLTAGE;
+        MSB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MIN_DISCHARGE_VOLTAGE >> 8);
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MIN_DISCHARGE_VOLTAGE;
         poll_pid = PID_ENERGY_COUNTERS;
         break;
       case PID_ENERGY_COUNTERS:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ENERGY_COUNTERS >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ENERGY_COUNTERS;
+        MSB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ENERGY_COUNTERS >> 8);
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ENERGY_COUNTERS;
         poll_pid = PID_ALLOWED_CHARGE_POWER;
         break;
       case PID_ALLOWED_CHARGE_POWER:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ALLOWED_CHARGE_POWER >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ALLOWED_CHARGE_POWER;
+        MSB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ALLOWED_CHARGE_POWER >> 8);
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ALLOWED_CHARGE_POWER;
         poll_pid = PID_ALLOWED_DISCHARGE_POWER;
         break;
       case PID_ALLOWED_DISCHARGE_POWER:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ALLOWED_DISCHARGE_POWER >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ALLOWED_DISCHARGE_POWER;
+        MSB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ALLOWED_DISCHARGE_POWER >> 8);
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ALLOWED_DISCHARGE_POWER;
         poll_pid = PID_CELLVOLTAGE_CELL_1;  // Start polling cell voltages
         break;
       // Cell Voltage Cases
       case PID_CELLVOLTAGE_CELL_1:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_CELLVOLTAGE_CELL_1 >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_1;
+        MSB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_CELLVOLTAGE_CELL_1 >> 8);
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_1;
         poll_pid = PID_CELLVOLTAGE_CELL_2;
         break;
       case PID_CELLVOLTAGE_CELL_2:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_2;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_2;
         poll_pid = PID_CELLVOLTAGE_CELL_3;
         break;
       case PID_CELLVOLTAGE_CELL_3:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_3;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_3;
         poll_pid = PID_CELLVOLTAGE_CELL_4;
         break;
       case PID_CELLVOLTAGE_CELL_4:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_4;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_4;
         poll_pid = PID_CELLVOLTAGE_CELL_5;
         break;
       case PID_CELLVOLTAGE_CELL_5:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_5;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_5;
         poll_pid = PID_CELLVOLTAGE_CELL_6;
         break;
       case PID_CELLVOLTAGE_CELL_6:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_6;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_6;
         poll_pid = PID_CELLVOLTAGE_CELL_7;
         break;
       case PID_CELLVOLTAGE_CELL_7:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_7;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_7;
         poll_pid = PID_CELLVOLTAGE_CELL_8;
         break;
       case PID_CELLVOLTAGE_CELL_8:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_8;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_8;
         poll_pid = PID_CELLVOLTAGE_CELL_9;
         break;
       case PID_CELLVOLTAGE_CELL_9:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_9;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_9;
         poll_pid = PID_CELLVOLTAGE_CELL_10;
         break;
       case PID_CELLVOLTAGE_CELL_10:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_10;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_10;
         poll_pid = PID_CELLVOLTAGE_CELL_11;
         break;
       case PID_CELLVOLTAGE_CELL_11:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_11;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_11;
         poll_pid = PID_CELLVOLTAGE_CELL_12;
         break;
       case PID_CELLVOLTAGE_CELL_12:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_12;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_12;
         poll_pid = PID_CELLVOLTAGE_CELL_13;
         break;
       case PID_CELLVOLTAGE_CELL_13:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_13;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_13;
         poll_pid = PID_CELLVOLTAGE_CELL_14;
         break;
       case PID_CELLVOLTAGE_CELL_14:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_14;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_14;
         poll_pid = PID_CELLVOLTAGE_CELL_15;
         break;
       case PID_CELLVOLTAGE_CELL_15:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_15;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_15;
         poll_pid = PID_CELLVOLTAGE_CELL_16;
         break;
       case PID_CELLVOLTAGE_CELL_16:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_16;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_16;
         poll_pid = PID_CELLVOLTAGE_CELL_17;
         break;
       case PID_CELLVOLTAGE_CELL_17:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_17;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_17;
         poll_pid = PID_CELLVOLTAGE_CELL_18;
         break;
       case PID_CELLVOLTAGE_CELL_18:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_18;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_18;
         poll_pid = PID_CELLVOLTAGE_CELL_19;
         break;
       case PID_CELLVOLTAGE_CELL_19:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_19;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_19;
         poll_pid = PID_CELLVOLTAGE_CELL_20;
         break;
       case PID_CELLVOLTAGE_CELL_20:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_20;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_20;
         poll_pid = PID_CELLVOLTAGE_CELL_21;
         break;
       case PID_CELLVOLTAGE_CELL_21:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_21;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_21;
         poll_pid = PID_CELLVOLTAGE_CELL_22;
         break;
       case PID_CELLVOLTAGE_CELL_22:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_22;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_22;
         poll_pid = PID_CELLVOLTAGE_CELL_23;
         break;
       case PID_CELLVOLTAGE_CELL_23:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_23;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_23;
         poll_pid = PID_CELLVOLTAGE_CELL_24;
         break;
       case PID_CELLVOLTAGE_CELL_24:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_24;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_24;
         poll_pid = PID_CELLVOLTAGE_CELL_25;
         break;
       case PID_CELLVOLTAGE_CELL_25:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_25;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_25;
         poll_pid = PID_CELLVOLTAGE_CELL_26;
         break;
       case PID_CELLVOLTAGE_CELL_26:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_26;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_26;
         poll_pid = PID_CELLVOLTAGE_CELL_27;
         break;
       case PID_CELLVOLTAGE_CELL_27:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_27;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_27;
         poll_pid = PID_CELLVOLTAGE_CELL_28;
         break;
       case PID_CELLVOLTAGE_CELL_28:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_28;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_28;
         poll_pid = PID_CELLVOLTAGE_CELL_29;
         break;
       case PID_CELLVOLTAGE_CELL_29:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_29;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_29;
         poll_pid = PID_CELLVOLTAGE_CELL_30;
         break;
       case PID_CELLVOLTAGE_CELL_30:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_30;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_30;
         poll_pid = PID_CELLVOLTAGE_CELL_31;
         break;
       case PID_CELLVOLTAGE_CELL_31:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_31;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_31;
         poll_pid = PID_CELLVOLTAGE_CELL_32;
         break;
       case PID_CELLVOLTAGE_CELL_32:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_32;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_32;
         poll_pid = PID_CELLVOLTAGE_CELL_33;
         break;
       case PID_CELLVOLTAGE_CELL_33:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_33;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_33;
         poll_pid = PID_CELLVOLTAGE_CELL_34;
         break;
       case PID_CELLVOLTAGE_CELL_34:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_34;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_34;
         poll_pid = PID_CELLVOLTAGE_CELL_35;
         break;
       case PID_CELLVOLTAGE_CELL_35:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_35;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_35;
         poll_pid = PID_CELLVOLTAGE_CELL_36;
         break;
       case PID_CELLVOLTAGE_CELL_36:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_36;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_36;
         poll_pid = PID_CELLVOLTAGE_CELL_37;
         break;
       case PID_CELLVOLTAGE_CELL_37:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_37;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_37;
         poll_pid = PID_CELLVOLTAGE_CELL_38;
         break;
       case PID_CELLVOLTAGE_CELL_38:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_38;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_38;
         poll_pid = PID_CELLVOLTAGE_CELL_39;
         break;
       case PID_CELLVOLTAGE_CELL_39:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_39;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_39;
         poll_pid = PID_CELLVOLTAGE_CELL_40;
         break;
       case PID_CELLVOLTAGE_CELL_40:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_40;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_40;
         poll_pid = PID_CELLVOLTAGE_CELL_41;
         break;
       case PID_CELLVOLTAGE_CELL_41:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_41;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_41;
         poll_pid = PID_CELLVOLTAGE_CELL_42;
         break;
       case PID_CELLVOLTAGE_CELL_42:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_42;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_42;
         poll_pid = PID_CELLVOLTAGE_CELL_43;
         break;
       case PID_CELLVOLTAGE_CELL_43:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_43;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_43;
         poll_pid = PID_CELLVOLTAGE_CELL_44;
         break;
       case PID_CELLVOLTAGE_CELL_44:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_44;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_44;
         poll_pid = PID_CELLVOLTAGE_CELL_45;
         break;
       case PID_CELLVOLTAGE_CELL_45:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_45;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_45;
         poll_pid = PID_CELLVOLTAGE_CELL_46;
         break;
       case PID_CELLVOLTAGE_CELL_46:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_46;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_46;
         poll_pid = PID_CELLVOLTAGE_CELL_47;
         break;
       case PID_CELLVOLTAGE_CELL_47:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_47;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_47;
         poll_pid = PID_CELLVOLTAGE_CELL_48;
         break;
       case PID_CELLVOLTAGE_CELL_48:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_48;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_48;
         poll_pid = PID_CELLVOLTAGE_CELL_49;
         break;
       case PID_CELLVOLTAGE_CELL_49:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_49;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_49;
         poll_pid = PID_CELLVOLTAGE_CELL_50;
         break;
       case PID_CELLVOLTAGE_CELL_50:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_50;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_50;
         poll_pid = PID_CELLVOLTAGE_CELL_51;
         break;
       case PID_CELLVOLTAGE_CELL_51:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_51;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_51;
         poll_pid = PID_CELLVOLTAGE_CELL_52;
         break;
       case PID_CELLVOLTAGE_CELL_52:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_52;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_52;
         poll_pid = PID_CELLVOLTAGE_CELL_53;
         break;
       case PID_CELLVOLTAGE_CELL_53:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_53;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_53;
         poll_pid = PID_CELLVOLTAGE_CELL_54;
         break;
       case PID_CELLVOLTAGE_CELL_54:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_54;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_54;
         poll_pid = PID_CELLVOLTAGE_CELL_55;
         break;
       case PID_CELLVOLTAGE_CELL_55:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_55;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_55;
         poll_pid = PID_CELLVOLTAGE_CELL_56;
         break;
       case PID_CELLVOLTAGE_CELL_56:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_56;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_56;
         poll_pid = PID_CELLVOLTAGE_CELL_57;
         break;
       case PID_CELLVOLTAGE_CELL_57:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_57;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_57;
         poll_pid = PID_CELLVOLTAGE_CELL_58;
         break;
       case PID_CELLVOLTAGE_CELL_58:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_58;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_58;
         poll_pid = PID_CELLVOLTAGE_CELL_59;
         break;
       case PID_CELLVOLTAGE_CELL_59:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_59;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_59;
         poll_pid = PID_CELLVOLTAGE_CELL_60;
         break;
       case PID_CELLVOLTAGE_CELL_60:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_60;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_60;
         poll_pid = PID_CELLVOLTAGE_CELL_61;
         break;
       case PID_CELLVOLTAGE_CELL_61:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_61;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_61;
         poll_pid = PID_CELLVOLTAGE_CELL_62;
         break;
       case PID_CELLVOLTAGE_CELL_62:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_62;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_62;
         poll_pid = PID_CELLVOLTAGE_CELL_63;
         break;
       case PID_CELLVOLTAGE_CELL_63:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_63;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_63;
         poll_pid = PID_CELLVOLTAGE_CELL_64;
         break;
       case PID_CELLVOLTAGE_CELL_64:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_64;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_64;
         poll_pid = PID_CELLVOLTAGE_CELL_65;
         break;
       case PID_CELLVOLTAGE_CELL_65:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_65;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_65;
         poll_pid = PID_CELLVOLTAGE_CELL_66;
         break;
       case PID_CELLVOLTAGE_CELL_66:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_66;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_66;
         poll_pid = PID_CELLVOLTAGE_CELL_67;
         break;
       case PID_CELLVOLTAGE_CELL_67:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_67;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_67;
         poll_pid = PID_CELLVOLTAGE_CELL_68;
         break;
       case PID_CELLVOLTAGE_CELL_68:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_68;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_68;
         poll_pid = PID_CELLVOLTAGE_CELL_69;
         break;
       case PID_CELLVOLTAGE_CELL_69:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_69;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_69;
         poll_pid = PID_CELLVOLTAGE_CELL_70;
         break;
       case PID_CELLVOLTAGE_CELL_70:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_70;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_70;
         poll_pid = PID_CELLVOLTAGE_CELL_71;
         break;
       case PID_CELLVOLTAGE_CELL_71:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_71;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_71;
         poll_pid = PID_CELLVOLTAGE_CELL_72;
         break;
       case PID_CELLVOLTAGE_CELL_72:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_72;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_72;
         poll_pid = PID_CELLVOLTAGE_CELL_73;
         break;
       case PID_CELLVOLTAGE_CELL_73:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_73;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_73;
         poll_pid = PID_CELLVOLTAGE_CELL_74;
         break;
       case PID_CELLVOLTAGE_CELL_74:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_74;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_74;
         poll_pid = PID_CELLVOLTAGE_CELL_75;
         break;
       case PID_CELLVOLTAGE_CELL_75:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_75;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_75;
         poll_pid = PID_CELLVOLTAGE_CELL_76;
         break;
       case PID_CELLVOLTAGE_CELL_76:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_76;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_76;
         poll_pid = PID_CELLVOLTAGE_CELL_77;
         break;
       case PID_CELLVOLTAGE_CELL_77:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_77;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_77;
         poll_pid = PID_CELLVOLTAGE_CELL_78;
         break;
       case PID_CELLVOLTAGE_CELL_78:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_78;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_78;
         poll_pid = PID_CELLVOLTAGE_CELL_79;
         break;
       case PID_CELLVOLTAGE_CELL_79:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_79;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_79;
         poll_pid = PID_CELLVOLTAGE_CELL_80;
         break;
       case PID_CELLVOLTAGE_CELL_80:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_80;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_80;
         poll_pid = PID_CELLVOLTAGE_CELL_81;
         break;
       case PID_CELLVOLTAGE_CELL_81:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_81;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_81;
         poll_pid = PID_CELLVOLTAGE_CELL_82;
         break;
       case PID_CELLVOLTAGE_CELL_82:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_82;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_82;
         poll_pid = PID_CELLVOLTAGE_CELL_83;
         break;
       case PID_CELLVOLTAGE_CELL_83:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_83;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_83;
         poll_pid = PID_CELLVOLTAGE_CELL_84;
         break;
       case PID_CELLVOLTAGE_CELL_84:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_84;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_84;
         if (datalayer.battery.info.number_of_cells > 84) {
           if (nof_cells_determined) {
             poll_pid = PID_CELLVOLTAGE_CELL_85;
@@ -1800,102 +1509,102 @@ void MsbJ1Battery::transmit_can(unsigned long currentMillis) {
         }
         break;
       case PID_CELLVOLTAGE_CELL_85:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_85;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_85;
         poll_pid = PID_CELLVOLTAGE_CELL_86;
         break;
       case PID_CELLVOLTAGE_CELL_86:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_86;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_86;
         poll_pid = PID_CELLVOLTAGE_CELL_87;
         break;
       case PID_CELLVOLTAGE_CELL_87:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_87;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_87;
         poll_pid = PID_CELLVOLTAGE_CELL_88;
         break;
       case PID_CELLVOLTAGE_CELL_88:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_88;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_88;
         poll_pid = PID_CELLVOLTAGE_CELL_89;
         break;
       case PID_CELLVOLTAGE_CELL_89:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_89;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_89;
         poll_pid = PID_CELLVOLTAGE_CELL_90;
         break;
       case PID_CELLVOLTAGE_CELL_90:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_90;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_90;
         poll_pid = PID_CELLVOLTAGE_CELL_91;
         break;
       case PID_CELLVOLTAGE_CELL_91:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_91;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_91;
         poll_pid = PID_CELLVOLTAGE_CELL_92;
         break;
       case PID_CELLVOLTAGE_CELL_92:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_92;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_92;
         poll_pid = PID_CELLVOLTAGE_CELL_93;
         break;
       case PID_CELLVOLTAGE_CELL_93:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_93;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_93;
         poll_pid = PID_CELLVOLTAGE_CELL_94;
         break;
       case PID_CELLVOLTAGE_CELL_94:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_94;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_94;
         poll_pid = PID_CELLVOLTAGE_CELL_95;
         break;
       case PID_CELLVOLTAGE_CELL_95:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_95;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_95;
         poll_pid = PID_CELLVOLTAGE_CELL_96;
         break;
       case PID_CELLVOLTAGE_CELL_96:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_96;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_96;
         if (datalayer.battery.info.number_of_cells > 96)
           poll_pid = PID_CELLVOLTAGE_CELL_97;
         else
           poll_pid = PID_SOC;
         break;
       case PID_CELLVOLTAGE_CELL_97:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_97;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_97;
         poll_pid = PID_CELLVOLTAGE_CELL_98;
         break;
       case PID_CELLVOLTAGE_CELL_98:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_98;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_98;
         poll_pid = PID_CELLVOLTAGE_CELL_99;
         break;
       case PID_CELLVOLTAGE_CELL_99:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_99;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_99;
         poll_pid = PID_CELLVOLTAGE_CELL_100;
         break;
       case PID_CELLVOLTAGE_CELL_100:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_100;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_100;
         poll_pid = PID_CELLVOLTAGE_CELL_101;
         break;
       case PID_CELLVOLTAGE_CELL_101:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_101;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_101;
         poll_pid = PID_CELLVOLTAGE_CELL_102;
         break;
       case PID_CELLVOLTAGE_CELL_102:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_102;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_102;
         poll_pid = PID_CELLVOLTAGE_CELL_103;
         break;
       case PID_CELLVOLTAGE_CELL_103:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_103;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_103;
         poll_pid = PID_CELLVOLTAGE_CELL_104;
         break;
       case PID_CELLVOLTAGE_CELL_104:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_104;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_104;
         poll_pid = PID_CELLVOLTAGE_CELL_105;
         break;
       case PID_CELLVOLTAGE_CELL_105:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_105;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_105;
         poll_pid = PID_CELLVOLTAGE_CELL_106;
         break;
       case PID_CELLVOLTAGE_CELL_106:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_106;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_106;
         poll_pid = PID_CELLVOLTAGE_CELL_107;
         break;
       case PID_CELLVOLTAGE_CELL_107:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_107;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_107;
         poll_pid = PID_CELLVOLTAGE_CELL_108;
         break;
       case PID_CELLVOLTAGE_CELL_108:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_108;
+        MSB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_108;
         poll_pid = PID_SOC;
         break;
       default:
@@ -1903,7 +1612,7 @@ void MsbJ1Battery::transmit_can(unsigned long currentMillis) {
         break;
     }
     if (first_can_msg > 0 && currentMillis > first_can_msg + 1000) {
-      transmit_can_frame(&MEB_POLLING_FRAME, can_config.battery);
+      transmit_can_frame(&MSB_POLLING_FRAME);
     }
   }
 
@@ -1911,37 +1620,30 @@ void MsbJ1Battery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
     previousMillis500ms = currentMillis;
 
-    transmit_can_frame(&MSB_16A954B4, can_config.battery);  //eTM, Cooling valves and pumps for BMS
-    transmit_can_frame(&MSB_569, can_config.battery);       // Battery heating requests
-    transmit_can_frame(&MSB_1A55552B, can_config.battery);  //Climate, heatpump and priorities
-    transmit_can_frame(&MSB_1A555548, can_config.battery);  //ORU, OTA update message for reserving battery
-    transmit_can_frame(&MSB_16A954FB, can_config.battery);  //Climate, request to BMS for starting preconditioning
+    transmit_can_frame(&MSB_1A555548);  //ORU, OTA update message for reserving battery
   }
 
   //Send 1s CANFD message
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
     previousMillis1s = currentMillis;
 
-    MEB_641.data.u8[1] = ((MEB_641.data.u8[1] & 0xF0) | counter_1000ms);
-    MEB_641.data.u8[0] = vw_crc_calc(MEB_641.data.u8, MEB_641.DLC, MEB_641.ID);
+    MSB_641.data.u8[1] = ((MSB_641.data.u8[1] & 0xF0) | counter_1000ms);
+    MSB_641.data.u8[0] = MSB_crc_calc(MSB_641.data.u8, MSB_641.DLC, MSB_641.ID);
 
-    MEB_1A5555A6.data.u8[2] = 0x7F;  //Outside temperature, factor 0.5, offset -50
-
-    MEB_6B2.data.u8[0] =  //driving cycle counter, 0-254 wrap around. 255 = invalid value
-        //MEB_6B2.data.u8[1-2-3b0-4] // Odometer, km (20 bits long)
-        MEB_6B2.data.u8[3] = (uint8_t)((TIME_YEAR - 2000) << 4) | MEB_6B2.data.u8[3];
-    MEB_6B2.data.u8[4] = (uint8_t)((TIME_DAY & 0x01) << 7 | TIME_MONTH << 3 | (TIME_YEAR - 2000) >> 4);
-    MEB_6B2.data.u8[5] = (uint8_t)((TIME_HOUR & 0x0F) << 4 | TIME_DAY >> 1);
-    MEB_6B2.data.u8[6] = (uint8_t)((seconds & 0x01) << 7 | TIME_MINUTE << 1 | TIME_HOUR >> 4);
-    MEB_6B2.data.u8[7] = (uint8_t)((seconds & 0x3E) >> 1);
+    MSB_6B2.data.u8[0] =  //driving cycle counter, 0-254 wrap around. 255 = invalid value
+                          //MSB_6B2.data.u8[1-2-3b0-4] // Odometer, km (20 bits long)
+        MSB_6B2.data.u8[3] = (uint8_t)((TIME_YEAR - 2000) << 4) | MSB_6B2.data.u8[3];
+    MSB_6B2.data.u8[4] = (uint8_t)((TIME_DAY & 0x01) << 7 | TIME_MONTH << 3 | (TIME_YEAR - 2000) >> 4);
+    MSB_6B2.data.u8[5] = (uint8_t)((TIME_HOUR & 0x0F) << 4 | TIME_DAY >> 1);
+    MSB_6B2.data.u8[6] = (uint8_t)((seconds & 0x01) << 7 | TIME_MINUTE << 1 | TIME_HOUR >> 4);
+    MSB_6B2.data.u8[7] = (uint8_t)((seconds & 0x3E) >> 1);
     seconds = (seconds + 1) % 60;
 
-    counter_1000ms = (counter_1000ms + 1) % 16;             //Goes from 0-1-2-3...15-0-1-2-3..
-    transmit_can_frame(&MEB_6B2, can_config.battery);       // Diagnostics - Needed for contactor closing
-    transmit_can_frame(&MEB_641, can_config.battery);       // Motor - OBD
-    transmit_can_frame(&MEB_5F5, can_config.battery);       // Loading profile
-    transmit_can_frame(&MEB_585, can_config.battery);       // Systeminfo
-    transmit_can_frame(&MEB_1A5555A6, can_config.battery);  // Temperature QBit
+    counter_1000ms = (counter_1000ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
+    transmit_can_frame(&MSB_6B2);                // Diagnostics - Needed for contactor closing (Confirmed on MSB)
+    transmit_can_frame(&MSB_641);                // Motor - OBD (Confirmed on MSB)
+    transmit_can_frame(&MSB_5F5);                // Loading profile (Confirmed on MSB)
+    transmit_can_frame(&MSB_585);                // Systeminfo (Confirmed on MSB)
 
     transmit_obd_can_frame(0x18DA05F1, can_config.battery, true);
   }
@@ -1957,5 +1659,3 @@ void MsbJ1Battery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
-
-#endif

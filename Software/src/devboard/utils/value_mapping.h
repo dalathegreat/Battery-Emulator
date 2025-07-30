@@ -1,8 +1,6 @@
 #ifndef __MAPPING_H__
 #define __MAPPING_H__
 
-#include "../../include.h"
-
 /** MIN macro, returns the smallest of two values
  * Warning: Side effects. MUST be called using values and/or variables only, e.g.:
  * int x = MIN(temp1, temp2);

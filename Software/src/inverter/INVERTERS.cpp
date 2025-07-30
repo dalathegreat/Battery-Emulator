@@ -1,54 +1,203 @@
-#include "../include.h"
-
-// These functions adapt the old C-style global functions inverter-API to the
-// object-oriented inverter protocol API.
+#include "INVERTERS.h"
 
 InverterProtocol* inverter = nullptr;
 
-#ifdef CAN_INVERTER_SELECTED
-CanInverterProtocol* can_inverter;
+InverterProtocolType user_selected_inverter_protocol = InverterProtocolType::BydModbus;
+
+std::vector<InverterProtocolType> supported_inverter_protocols() {
+  std::vector<InverterProtocolType> types;
+
+  for (int i = 0; i < (int)InverterProtocolType::Highest; i++) {
+    types.push_back((InverterProtocolType)i);
+  }
+
+  return types;
+}
+
+extern const char* name_for_inverter_type(InverterProtocolType type) {
+  switch (type) {
+    case InverterProtocolType::None:
+      return "None";
+
+    case InverterProtocolType::AforeCan:
+      return AforeCanInverter::Name;
+
+    case InverterProtocolType::BydCan:
+      return BydCanInverter::Name;
+
+    case InverterProtocolType::BydModbus:
+      return BydModbusInverter::Name;
+
+    case InverterProtocolType::FerroampCan:
+      return FerroampCanInverter::Name;
+
+    case InverterProtocolType::Foxess:
+      return FoxessCanInverter::Name;
+
+    case InverterProtocolType::GrowattHv:
+      return GrowattHvInverter::Name;
+
+    case InverterProtocolType::GrowattLv:
+      return GrowattLvInverter::Name;
+
+    case InverterProtocolType::Kostal:
+      return KostalInverterProtocol::Name;
+
+    case InverterProtocolType::Pylon:
+      return PylonInverter::Name;
+
+    case InverterProtocolType::PylonLv:
+      return PylonLvInverter::Name;
+
+    case InverterProtocolType::Schneider:
+      return SchneiderInverter::Name;
+
+    case InverterProtocolType::SmaBydH:
+      return SmaBydHInverter::Name;
+
+    case InverterProtocolType::SmaBydHvs:
+      return SmaBydHvsInverter::Name;
+
+    case InverterProtocolType::SmaLv:
+      return SmaLvInverter::Name;
+
+    case InverterProtocolType::SmaTripower:
+      return SmaTripowerInverter::Name;
+
+    case InverterProtocolType::Sofar:
+      return SofarInverter::Name;
+
+    case InverterProtocolType::Solax:
+      return SolaxInverter::Name;
+
+    case InverterProtocolType::Solxpow:
+      return SolxpowInverter::Name;
+
+    case InverterProtocolType::Sungrow:
+      return SungrowInverter::Name;
+  }
+  return nullptr;
+}
+
+#ifdef COMMON_IMAGE
+#ifdef SELECTED_INVERTER_CLASS
+#error "Compile time SELECTED_INVERTER_CLASS should not be defined with COMMON_IMAGE"
 #endif
 
-#ifdef MODBUS_INVERTER_SELECTED
-ModbusInverterProtocol* modbus_inverter;
-#endif
+bool setup_inverter() {
+  if (inverter) {
+    return true;
+  }
 
-void setup_inverter() {
-#ifdef MODBUS_INVERTER_SELECTED
-  modbus_inverter = new SELECTED_INVERTER_CLASS();
-  inverter = modbus_inverter;
-#endif
+  switch (user_selected_inverter_protocol) {
+    case InverterProtocolType::AforeCan:
+      inverter = new AforeCanInverter();
+      break;
 
-#ifdef CAN_INVERTER_SELECTED
-  can_inverter = new SELECTED_INVERTER_CLASS();
-  inverter = can_inverter;
-#endif
+    case InverterProtocolType::BydCan:
+      inverter = new BydCanInverter();
+      break;
 
-#ifdef RS485_INVERTER_SELECTED
-  inverter = new SELECTED_INVERTER_CLASS();
-#endif
+    case InverterProtocolType::BydModbus:
+      inverter = new BydModbusInverter();
+      break;
+
+    case InverterProtocolType::FerroampCan:
+      inverter = new FerroampCanInverter();
+      break;
+
+    case InverterProtocolType::Foxess:
+      inverter = new FoxessCanInverter();
+      break;
+
+    case InverterProtocolType::GrowattHv:
+      inverter = new GrowattHvInverter();
+      break;
+
+    case InverterProtocolType::GrowattLv:
+      inverter = new GrowattLvInverter();
+      break;
+
+    case InverterProtocolType::Kostal:
+      inverter = new KostalInverterProtocol();
+      break;
+
+    case InverterProtocolType::Pylon:
+      inverter = new PylonInverter();
+      break;
+
+    case InverterProtocolType::PylonLv:
+      inverter = new PylonLvInverter();
+      break;
+
+    case InverterProtocolType::Schneider:
+      inverter = new SchneiderInverter();
+      break;
+
+    case InverterProtocolType::SmaBydH:
+      inverter = new SmaBydHInverter();
+      break;
+
+    case InverterProtocolType::SmaBydHvs:
+      inverter = new SmaBydHvsInverter();
+      break;
+
+    case InverterProtocolType::SmaLv:
+      inverter = new SmaLvInverter();
+      break;
+
+    case InverterProtocolType::SmaTripower:
+      inverter = new SmaTripowerInverter();
+      break;
+
+    case InverterProtocolType::Sofar:
+      inverter = new SofarInverter();
+      break;
+
+    case InverterProtocolType::Solax:
+      inverter = new SolaxInverter();
+      break;
+
+    case InverterProtocolType::Solxpow:
+      inverter = new SolxpowInverter();
+      break;
+
+    case InverterProtocolType::Sungrow:
+      inverter = new SungrowInverter();
+      break;
+
+    case InverterProtocolType::None:
+      return true;
+    case InverterProtocolType::Highest:
+    default:
+      inverter = nullptr;  // Or handle as error
+      break;
+  }
 
   if (inverter) {
-    inverter->setup();
+    return inverter->setup();
   }
+
+  return false;
 }
 
-#ifdef CAN_INVERTER_SELECTED
-void update_values_can_inverter() {
-  can_inverter->update_values();
-}
+#else
+bool setup_inverter() {
+  if (inverter) {
+    // The inverter is setup only once.
+    return true;
+  }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
-  can_inverter->map_can_frame_to_variable(rx_frame);
-}
+#ifdef SELECTED_INVERTER_CLASS
+  inverter = new SELECTED_INVERTER_CLASS();
 
-void transmit_can_inverter(unsigned long currentMillis) {
-  can_inverter->transmit_can(currentMillis);
-}
+  if (inverter) {
+    return inverter->setup();
+  }
+
+  return false;
+#else
+  return true;
 #endif
-
-#ifdef RS485_INVERTER_SELECTED
-void receive_RS485() {
-  ((Rs485InverterProtocol*)inverter)->receive_RS485();
 }
 #endif

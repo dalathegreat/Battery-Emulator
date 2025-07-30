@@ -1,12 +1,12 @@
 #ifndef MG_5_BATTERY_H
 #define MG_5_BATTERY_H
 #include <Arduino.h>
-#include "../include.h"
 
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef MG_5_BATTERY
 #define SELECTED_BATTERY_CLASS Mg5Battery
+#endif
 
 class Mg5Battery : public CanBattery {
  public:
@@ -14,6 +14,7 @@ class Mg5Battery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr const char* Name = "MG 5 battery";
 
  private:
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V

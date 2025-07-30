@@ -1,9 +1,7 @@
-#include "../include.h"
-#ifdef MG_5_BATTERY_H
+#include "MG-5-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "MG-5-BATTERY.h"
 
 /* TODO: 
 - Get contactor closing working
@@ -103,13 +101,13 @@ void Mg5Battery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
-    transmit_can_frame(&MG_5_100, can_config.battery);
+    transmit_can_frame(&MG_5_100);
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    //transmit_can_frame(&MG_5_100, can_config.battery);
+    //transmit_can_frame(&MG_5_100);
   }
 }
 
@@ -122,5 +120,3 @@ void Mg5Battery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
-
-#endif

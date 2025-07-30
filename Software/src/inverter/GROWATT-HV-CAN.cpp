@@ -1,7 +1,6 @@
 #include "GROWATT-HV-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 /* TODO:
 This protocol has not been tested with any inverter. Proceed with extreme caution.
@@ -407,34 +406,34 @@ void GrowattHvInverter::transmit_can(unsigned long currentMillis) {
     // Send a subset of messages per iteration to avoid overloading the CAN bus / transmit buffer
     switch (can_message_batch_index) {
       case 0:
-        transmit_can_frame(&GROWATT_3110, can_config.inverter);
-        transmit_can_frame(&GROWATT_3120, can_config.inverter);
-        transmit_can_frame(&GROWATT_3130, can_config.inverter);
-        transmit_can_frame(&GROWATT_3140, can_config.inverter);
+        transmit_can_frame(&GROWATT_3110);
+        transmit_can_frame(&GROWATT_3120);
+        transmit_can_frame(&GROWATT_3130);
+        transmit_can_frame(&GROWATT_3140);
         break;
       case 1:
-        transmit_can_frame(&GROWATT_3150, can_config.inverter);
-        transmit_can_frame(&GROWATT_3160, can_config.inverter);
-        transmit_can_frame(&GROWATT_3170, can_config.inverter);
-        transmit_can_frame(&GROWATT_3180, can_config.inverter);
+        transmit_can_frame(&GROWATT_3150);
+        transmit_can_frame(&GROWATT_3160);
+        transmit_can_frame(&GROWATT_3170);
+        transmit_can_frame(&GROWATT_3180);
         break;
       case 2:
-        transmit_can_frame(&GROWATT_3190, can_config.inverter);
-        transmit_can_frame(&GROWATT_3200, can_config.inverter);
-        transmit_can_frame(&GROWATT_3210, can_config.inverter);
-        transmit_can_frame(&GROWATT_3220, can_config.inverter);
+        transmit_can_frame(&GROWATT_3190);
+        transmit_can_frame(&GROWATT_3200);
+        transmit_can_frame(&GROWATT_3210);
+        transmit_can_frame(&GROWATT_3220);
         break;
       case 3:
-        transmit_can_frame(&GROWATT_3230, can_config.inverter);
-        transmit_can_frame(&GROWATT_3240, can_config.inverter);
-        transmit_can_frame(&GROWATT_3250, can_config.inverter);
-        transmit_can_frame(&GROWATT_3260, can_config.inverter);
+        transmit_can_frame(&GROWATT_3230);
+        transmit_can_frame(&GROWATT_3240);
+        transmit_can_frame(&GROWATT_3250);
+        transmit_can_frame(&GROWATT_3260);
         break;
       case 4:
-        transmit_can_frame(&GROWATT_3270, can_config.inverter);
-        transmit_can_frame(&GROWATT_3280, can_config.inverter);
-        transmit_can_frame(&GROWATT_3290, can_config.inverter);
-        transmit_can_frame(&GROWATT_3F00, can_config.inverter);
+        transmit_can_frame(&GROWATT_3270);
+        transmit_can_frame(&GROWATT_3280);
+        transmit_can_frame(&GROWATT_3290);
+        transmit_can_frame(&GROWATT_3F00);
         time_to_send_1s_data = false;
         break;
       default:
@@ -448,9 +447,4 @@ void GrowattHvInverter::transmit_can(unsigned long currentMillis) {
       can_message_batch_index = 0;
     }
   }
-}
-
-void GrowattHvInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "Growatt High Voltage protocol via CAN", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
 }

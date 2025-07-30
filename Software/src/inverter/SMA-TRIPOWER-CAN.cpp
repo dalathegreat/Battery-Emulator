@@ -2,7 +2,6 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 /* TODO:
 - Figure out the manufacturer info needed in transmit_can_init() CAN messages
@@ -65,6 +64,8 @@ void SmaTripowerInverter::
     SMA_4D8.data.u8[6] = READY_STATE;
   }
 
+  control_contactor_led();
+
   // Check if Enable line is working. If we go too long without any input, raise an event
   if (!datalayer.system.status.inverter_allows_contactor_closing) {
     timeWithoutInverterAllowsContactorClosing++;
@@ -100,6 +101,11 @@ void SmaTripowerInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       //Inverter brand (frame1-3 = 0x53 0x4D 0x41) = SMA
       break;
     case 0x660:  //Message originating from SMA inverter - Pairing request
+#ifdef DEBUG_LOG
+      logging.println("Received 0x660: SMA pairing request");
+#endif  // DEBUG_LOG
+      pairing_events++;
+      set_event(EVENT_SMA_PAIRING, pairing_events);
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       transmit_can_init();
       break;
@@ -130,7 +136,7 @@ void SmaTripowerInverter::transmit_can(unsigned long currentMillis) {
     previousMillis250ms = currentMillis;
     // Send next frame.
     Frame frame = framesToSend[0];
-    transmit_can_frame(frame.frame, can_config.inverter);
+    transmit_can_frame(frame.frame);
     frame.callback();
     for (int i = 0; i < listLength - 1; i++) {
       framesToSend[i] = framesToSend[i + 1];
@@ -175,15 +181,4 @@ void SmaTripowerInverter::transmit_can_init() {
   pushFrame(&SMA_458);
   pushFrame(&SMA_4D8);
   pushFrame(&SMA_518, [this]() { this->completePairing(); });
-}
-
-void SmaTripowerInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "SMA Tripower CAN", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
-  pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);
-#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
-  pinMode(INVERTER_CONTACTOR_ENABLE_LED_PIN, OUTPUT);
-  digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN, LOW);  // Turn LED off, until inverter allows contactor closing
-#endif                                                   // INVERTER_CONTACTOR_ENABLE_LED_PIN
 }

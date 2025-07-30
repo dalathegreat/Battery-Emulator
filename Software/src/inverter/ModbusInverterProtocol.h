@@ -10,7 +10,8 @@ extern uint16_t mbPV[];
 
 // The abstract base class for all Modbus inverter protocols
 class ModbusInverterProtocol : public InverterProtocol {
-  virtual const char* interface_name() { return "RS485 / Modbus"; }
+  const char* interface_name() { return "RS485 / Modbus"; }
+  InverterInterfaceType interface_type() { return InverterInterfaceType::Modbus; }
 
  protected:
   // Create a ModbusRTU server instance with 2000ms timeout

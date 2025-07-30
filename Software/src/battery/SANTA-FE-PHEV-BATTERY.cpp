@@ -1,9 +1,7 @@
-#include "../include.h"
-#ifdef SANTA_FE_PHEV_BATTERY
+#include "SANTA-FE-PHEV-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "SANTA-FE-PHEV-BATTERY.h"
 
 /* Credits go to maciek16c for these findings!
 https://github.com/maciek16c/hyundai-santa-fe-phev-battery
@@ -117,8 +115,7 @@ void SantaFePhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[4] == poll_data_pid) {
-            transmit_can_frame(&SANTAFE_7E4_ack,
-                               can_interface);  //Send ack to BMS if the same frame is sent as polled
+            transmit_can_frame(&SANTAFE_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:  //First frame in PID group
@@ -291,9 +288,9 @@ void SantaFePhevBattery::transmit_can(unsigned long currentMillis) {
 
     SANTAFE_200.data.u8[7] = checksum_200;
 
-    transmit_can_frame(&SANTAFE_200, can_interface);
-    transmit_can_frame(&SANTAFE_2A1, can_interface);
-    transmit_can_frame(&SANTAFE_2F0, can_interface);
+    transmit_can_frame(&SANTAFE_200);
+    transmit_can_frame(&SANTAFE_2A1);
+    transmit_can_frame(&SANTAFE_2F0);
 
     counter_200++;
     if (counter_200 > 0xF) {
@@ -305,7 +302,7 @@ void SantaFePhevBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    transmit_can_frame(&SANTAFE_523, can_interface);
+    transmit_can_frame(&SANTAFE_523);
   }
 
   // Send 500ms CAN Message
@@ -315,12 +312,12 @@ void SantaFePhevBattery::transmit_can(unsigned long currentMillis) {
     // PID data is polled after last message sent from battery:
     poll_data_pid = (poll_data_pid % 5) + 1;
     SANTAFE_7E4_poll.data.u8[3] = (uint8_t)poll_data_pid;
-    transmit_can_frame(&SANTAFE_7E4_poll, can_interface);
+    transmit_can_frame(&SANTAFE_7E4_poll);
   }
 }
 
 void SantaFePhevBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Santa Fe PHEV", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.number_of_cells = 96;
   datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -333,5 +330,3 @@ void SantaFePhevBattery::setup(void) {  // Performs one time setup at startup
     *allows_contactor_closing = true;
   }
 }
-
-#endif

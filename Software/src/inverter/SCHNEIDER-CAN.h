@@ -1,20 +1,19 @@
 #ifndef SCHNEIDER_CAN_H
 #define SCHNEIDER_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 
 #ifdef SCHNEIDER_CAN
-#define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SchneiderInverter
 #endif
 
 class SchneiderInverter : public CanInverterProtocol {
  public:
-  void setup();
+  const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
+  static constexpr const char* Name = "Schneider V2 SE BMS CAN";
 
  private:
   static const int STATE_OFFLINE = 0;

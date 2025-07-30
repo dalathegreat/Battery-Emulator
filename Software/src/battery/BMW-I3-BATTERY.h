@@ -2,41 +2,74 @@
 #define BMW_I3_BATTERY_H
 
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"
-#include "../include.h"
+#include "BMW-I3-HTML.h"
 #include "CanBattery.h"
+#include "src/devboard/hal/hal.h"
 
-#define BATTERY_SELECTED
+#ifdef BMW_I3_BATTERY
 #define SELECTED_BATTERY_CLASS BmwI3Battery
+#endif
 
 class BmwI3Battery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  BmwI3Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr, int targetCan, int wakeup) {
+  BmwI3Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr, CAN_Interface targetCan,
+               gpio_num_t wakeup)
+      : CanBattery(targetCan), renderer(*this) {
     datalayer_battery = datalayer_ptr;
     contactor_closing_allowed = contactor_closing_allowed_ptr;
     allows_contactor_closing = nullptr;
-    can_interface = targetCan;
     wakeup_pin = wakeup;
-    *allows_contactor_closing = true;
 
     //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
     battery_volts = 0;
   }
 
   // Use the default constructor to create the first or single battery.
-  BmwI3Battery() {
+  BmwI3Battery() : renderer(*this) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     contactor_closing_allowed = nullptr;
-    can_interface = can_config.battery;
-    wakeup_pin = WUP_PIN1;
+    wakeup_pin = esp32hal->WUP_PIN1();
   }
 
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr const char* Name = "BMW i3";
+
+  // SOC% raw battery value. Might not always reach 100%
+  uint16_t SOC_raw() { return (battery_HVBatt_SOC * 10); }
+  // SOC% instrumentation cluster value. Will always reach 100%
+  uint16_t SOC_dash() { return (battery_display_SOC * 50); }
+  // SOC% OBD2 value, polled actively
+  uint16_t SOC_OBD2() { return battery_soc; }
+  // Status isolation external, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal
+  uint8_t ST_iso_ext() { return battery_status_error_isolation_external_Bordnetz; }
+  // Status isolation external, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal
+  uint8_t ST_iso_int() { return battery_status_error_isolation_internal_Bordnetz; }
+  // Status cooling valve error, 0 not evaluated, 1 OK valve closed, 2 error active valve open, 3 Invalid signal
+  uint8_t ST_valve_cooling() { return battery_status_valve_cooling; }
+  // Status interlock error, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal
+  uint8_t ST_interlock() { return battery_status_error_locking; }
+  // Status precharge, 0 no statement, 1 Not active closing not blocked, 2 error precharge blocked, 3 Invalid signal
+  uint8_t ST_precharge() { return battery_status_precharge_locked; }
+  // Status DC switch, 0 contactors open, 1 precharge ongoing, 2 contactors engaged, 3 Invalid signal
+  uint8_t ST_DCSW() { return battery_status_disconnecting_switch; }
+  // Status emergency, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal
+  uint8_t ST_EMG() { return battery_status_emergency_mode; }
+  // Status welding detection, 0 Contactors OK, 1 One contactor welded, 2 Two contactors welded, 3 Invalid signal
+  uint8_t ST_WELD() { return battery_status_error_disconnecting_switch; }
+  // Status isolation, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal
+  uint8_t ST_isolation() { return battery_status_warning_isolation; }
+  // Status cold shutoff valve, 0 OK, 1 Short circuit to GND, 2 Short circuit to 12V, 3 Line break, 6 Driver error, 12 Stuck, 13 Stuck, 15 Invalid Signal
+  uint8_t ST_cold_shutoff_valve() { return battery_status_cold_shutoff_valve; }
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
+ private:
+  BmwI3HtmlRenderer renderer;
 
  private:
   const int MAX_CELL_VOLTAGE_60AH = 4110;   // Battery is put into emergency stop if one cell goes over this value
@@ -62,8 +95,7 @@ class BmwI3Battery : public CanBattery {
   // If not null, this battery listens to this boolean to determine whether contactor closing is allowed
   bool* contactor_closing_allowed;
 
-  int wakeup_pin;
-  int can_interface;
+  gpio_num_t wakeup_pin;
 
   unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
@@ -74,7 +106,9 @@ class BmwI3Battery : public CanBattery {
   unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
   unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 
-#define ALIVE_MAX_VALUE 14  // BMW CAN messages contain alive counter, goes from 0...14
+  static const int ALIVE_MAX_VALUE = 14;  // BMW CAN messages contain alive counter, goes from 0...14
+
+  uint8_t increment_alive_counter(uint8_t counter);
 
   enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
   BatterySize detectedBattery = BATTERY_60AH;

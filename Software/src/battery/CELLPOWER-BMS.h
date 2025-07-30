@@ -1,20 +1,28 @@
 #ifndef CELLPOWER_BMS_H
 #define CELLPOWER_BMS_H
 #include <Arduino.h>
-#include "../include.h"
+#include "CELLPOWER-HTML.h"
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef CELLPOWER_BMS
 #define SELECTED_BATTERY_CLASS CellPowerBms
+#endif
 
 class CellPowerBms : public CanBattery {
  public:
+  CellPowerBms() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) {}
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  static constexpr const char* Name = "Cellpower BMS";
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  CellpowerHtmlRenderer renderer;
   /* Tweak these according to your battery build */
   static const int MAX_PACK_VOLTAGE_DV = 5000;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 1500;
@@ -124,8 +132,5 @@ class CellPowerBms : public CanBattery {
   bool requested_exceeding_average_current = 0;
   bool error_state = false;
 };
-
-/* Do not modify any rows below*/
-#define NATIVECAN_250KBPS
 
 #endif
