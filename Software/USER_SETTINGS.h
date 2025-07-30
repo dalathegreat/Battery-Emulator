@@ -90,6 +90,7 @@
 
 /* Shunt/Contactor settings (Optional) */
 //#define BMW_SBOX  // SBOX relay control & battery current/voltage measurement
+//#define KOSTAL_SECONDARY_CONTACTOR // Enable this line to use  (GPIO33) for controlling the secondary NC contactor. If you use battery with can controlled contactor like BMW I3 or tesla.
 
 /* Select charger used (Optional) */
 //#define CHEVYVOLT_CHARGER  //Enable this line to control a Chevrolet Volt charger connected to battery - for example, when generator charging or using an inverter without a charging function.
