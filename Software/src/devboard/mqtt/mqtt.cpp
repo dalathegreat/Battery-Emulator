@@ -9,6 +9,7 @@
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
+#include "../../inverter/KOSTAL-RS485.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
 #include "../utils/timer.h"
@@ -49,6 +50,24 @@ const bool mqtt_manual_topic_object_name_default = false;
 #endif
 
 bool mqtt_manual_topic_object_name = mqtt_manual_topic_object_name_default;
+
+#ifdef KOSTAL_SECONDARY_CONTACTOR
+#define HA_GPIO_PIN 33
+void set_ha_gpio_high() {
+  pinMode(HA_GPIO_PIN, OUTPUT);
+  digitalWrite(HA_GPIO_PIN, HIGH);
+#ifdef DEBUG_LOG
+  logging.println("GPIO33 set HIGH via MQTT");
+#endif
+}
+void set_ha_gpio_low() {
+  pinMode(HA_GPIO_PIN, OUTPUT);
+  digitalWrite(HA_GPIO_PIN, LOW);
+#ifdef DEBUG_LOG
+  logging.println("GPIO33 set LOW via MQTT");
+#endif
+}
+#endif
 
 esp_mqtt_client_config_t mqtt_cfg;
 esp_mqtt_client_handle_t client;
@@ -168,11 +187,21 @@ void create_global_sensor_configs() {
   }
 }
 
+#ifdef KOSTAL_SECONDARY_CONTACTOR
+SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS"},
+                                {"PAUSE", "Pause charge/discharge"},
+                                {"RESUME", "Resume charge/discharge"},
+                                {"RESTART", "Restart Battery Emulator"},
+                                {"STOP", "Open Contactors"},
+                                {"GPIO33_ON", "Secondary Contactor Open"},
+                                {"GPIO33_OFF", "Secondary Contactor Close"}};
+#else
 SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS"},
                                 {"PAUSE", "Pause charge/discharge"},
                                 {"RESUME", "Resume charge/discharge"},
                                 {"RESTART", "Restart Battery Emulator"},
                                 {"STOP", "Open Contactors"}};
+#endif
 
 static String generateCommonInfoAutoConfigTopic(const char* object_id) {
   return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
@@ -258,6 +287,10 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     }
   }
   doc["balancing_active_cells" + suffix] = active_cells;
+
+#ifdef KOSTAL_SECONDARY_CONTACTOR
+  doc["gpio33_output_state"] = digitalRead(33);
+#endif
 }
 
 static std::vector<EventData> order_events;
@@ -598,6 +631,16 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
   if (strcmp(topic, generateButtonTopic("STOP").c_str()) == 0) {
     setBatteryPause(true, false, true);
   }
+
+#ifdef KOSTAL_SECONDARY_CONTACTOR
+  if (strcmp(topic, generateButtonTopic("GPIO33_ON").c_str()) == 0) {
+    set_ha_gpio_high();
+  }
+  if (strcmp(topic, generateButtonTopic("GPIO33_OFF").c_str()) == 0) {
+    set_ha_gpio_low();
+  }
+#endif
+
   free(topic);
 }
 
