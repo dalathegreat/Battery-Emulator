@@ -25,9 +25,11 @@ class SmaBydHvsInverter : public SmaInverterBase {
 
   unsigned long previousMillis100ms = 0;
   unsigned long previousMillisBatch = 0;
-
   uint8_t batch_send_index = 0;
+  const uint8_t delay_between_batches_ms =
+      7;  //TODO, tweak to as low as possible before performance issues/crashes appear
   bool transmit_can_init = false;
+
   uint8_t pairing_events = 0;
   uint32_t inverter_time = 0;
   uint16_t inverter_voltage = 0;
