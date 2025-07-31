@@ -187,15 +187,6 @@ bool AsyncStaticWebHandler::_searchFile(AsyncWebServerRequest *request, const St
   return found;
 }
 
-uint8_t AsyncStaticWebHandler::_countBits(const uint8_t value) const {
-  uint8_t w = value;
-  uint8_t n;
-  for (n = 0; w != 0; n++) {
-    w &= w - 1;
-  }
-  return n;
-}
-
 void AsyncStaticWebHandler::handleRequest(AsyncWebServerRequest *request) {
   // Get the filename from request->_tempObject and free it
   String filename((char *)request->_tempObject);
@@ -218,11 +209,14 @@ void AsyncStaticWebHandler::handleRequest(AsyncWebServerRequest *request) {
     char buf[len];
     char *ret = lltoa(lw ^ request->_tempFile.size(), buf, len, 10);
     etag = ret ? String(ret) : String(request->_tempFile.size());
+#elif defined(LIBRETINY)
+    long val = lw ^ request->_tempFile.size();
+    etag = String(val);
 #else
     etag = lw ^ request->_tempFile.size();  // etag combines file size and lastmod timestamp
 #endif
   } else {
-#if defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350)
+#if defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350) || defined(LIBRETINY)
     etag = String(request->_tempFile.size());
 #else
     etag = request->_tempFile.size();
