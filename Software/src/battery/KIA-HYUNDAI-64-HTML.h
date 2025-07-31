@@ -21,15 +21,22 @@ class KiaHyundai64HtmlRenderer : public BatteryHtmlRenderer {
 
       content += "<h4>BMS serial number: " + String(readableSerialNumber) + "</h4>";
       content += "<h4>BMS software version: " + String(readableVersionNumber) + "</h4>";
-      content += "<h4>Cells: " + String(data.total_cell_count) + "S</h4>";
-      content += "<h4>12V voltage: " + String(data.battery_12V / 10.0, 1) + "</h4>";
-      content += "<h4>Waterleakage: " + String(data.waterleakageSensor) + "</h4>";
-      content += "<h4>Temperature, water inlet: " + String(data.temperature_water_inlet) + "</h4>";
-      content += "<h4>Temperature, power relay: " + String(data.powerRelayTemperature) + "</h4>";
+      content += "<h4>Cells: " + String(data.total_cell_count) + " S</h4>";
+      content += "<h4>12V voltage: " + String(data.battery_12V / 10.0, 1) + " V</h4>";
+      content += "<h4>Waterleakage: ";
+      if (data.waterleakageSensor == 0) {
+        content += " LEAK DETECTED</h4>";
+      } else if (data.waterleakageSensor == 164) {
+        content += " No leakage</h4>";
+      } else {
+        content += String(data.waterleakageSensor) + "</h4>";
+      }
+      content += "<h4>Temperature, water inlet: " + String(data.temperature_water_inlet) + " &deg;C</h4>";
+      content += "<h4>Temperature, power relay: " + String(data.powerRelayTemperature) + " &deg;C</h4>";
       content += "<h4>Batterymanagement mode: " + String(data.batteryManagementMode) + "</h4>";
       content += "<h4>BMS ignition: " + String(data.BMS_ign) + "</h4>";
       content += "<h4>Battery relay: " + String(data.batteryRelay) + "</h4>";
-      content += "<h4>Inverter voltage: " + String(data.inverterVoltage) + "</h4>";
+      content += "<h4>Inverter voltage: " + String(data.inverterVoltage) + " V</h4>";
     };
 
     print_hyundai(*kia_datalayer);
