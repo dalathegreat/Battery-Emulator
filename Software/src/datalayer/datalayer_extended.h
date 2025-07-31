@@ -351,6 +351,9 @@ typedef struct {
   uint8_t batteryManagementMode = 0;
   uint8_t BMS_ign = 0;
   uint8_t batteryRelay = 0;
+  uint16_t inverterVoltage = 0;
+  uint8_t ecu_serial_number[16] = {0};
+  uint8_t ecu_version_number[16] = {0};
 } DATALAYER_INFO_KIAHYUNDAI64;
 
 typedef struct {

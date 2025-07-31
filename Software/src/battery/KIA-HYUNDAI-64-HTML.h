@@ -11,8 +11,16 @@ class KiaHyundai64HtmlRenderer : public BatteryHtmlRenderer {
 
   String get_status_html() {
     String content;
-
     auto print_hyundai = [&content](DATALAYER_INFO_KIAHYUNDAI64& data) {
+      char readableSerialNumber[17];  // One extra space for null terminator
+      memcpy(readableSerialNumber, data.ecu_serial_number, sizeof(data.ecu_serial_number));
+      readableSerialNumber[16] = '\0';  // Null terminate the string
+      char readableVersionNumber[17];   // One extra space for null terminator
+      memcpy(readableVersionNumber, data.ecu_version_number, sizeof(data.ecu_version_number));
+      readableVersionNumber[16] = '\0';  // Null terminate the string
+
+      content += "<h4>BMS serial number: " + String(readableSerialNumber) + "</h4>";
+      content += "<h4>BMS software version: " + String(readableVersionNumber) + "</h4>";
       content += "<h4>Cells: " + String(data.total_cell_count) + "S</h4>";
       content += "<h4>12V voltage: " + String(data.battery_12V / 10.0, 1) + "</h4>";
       content += "<h4>Waterleakage: " + String(data.waterleakageSensor) + "</h4>";
@@ -21,6 +29,7 @@ class KiaHyundai64HtmlRenderer : public BatteryHtmlRenderer {
       content += "<h4>Batterymanagement mode: " + String(data.batteryManagementMode) + "</h4>";
       content += "<h4>BMS ignition: " + String(data.BMS_ign) + "</h4>";
       content += "<h4>Battery relay: " + String(data.batteryRelay) + "</h4>";
+      content += "<h4>Inverter voltage: " + String(data.inverterVoltage) + "</h4>";
     };
 
     print_hyundai(*kia_datalayer);
