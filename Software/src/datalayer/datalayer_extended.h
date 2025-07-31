@@ -750,7 +750,7 @@ typedef struct {
   uint16_t BECMsupplyVoltage = 0;
 
   uint16_t BECMBatteryVoltage = 0;
-  uint16_t BECMBatteryCurrent = 0;
+  int16_t BECMBatteryCurrent = 0;
   uint16_t BECMUDynMaxLim = 0;
   uint16_t BECMUDynMinLim = 0;
 
