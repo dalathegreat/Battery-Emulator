@@ -7,13 +7,9 @@ extern InverterProtocol* inverter;
 #include "../../USER_SETTINGS.h"
 
 #include "AFORE-CAN.h"
-
-#ifdef BYD_CAN_DEYE
-#define BYD_CAN
-#endif
-
 #include "BYD-CAN.h"
 #include "BYD-MODBUS.h"
+#include "DEYE-BYD-CAN.h"
 #include "FERROAMP-CAN.h"
 #include "FOXESS-CAN.h"
 #include "GROWATT-HV-CAN.h"
