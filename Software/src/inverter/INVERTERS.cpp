@@ -40,6 +40,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::GrowattLv:
       return GrowattLvInverter::Name;
 
+    case InverterProtocolType::GrowattWit:
+      return GrowattWitInverter::Name;
+
     case InverterProtocolType::Kostal:
       return KostalInverterProtocol::Name;
 
@@ -116,6 +119,10 @@ bool setup_inverter() {
 
     case InverterProtocolType::GrowattLv:
       inverter = new GrowattLvInverter();
+      break;
+
+    case InverterProtocolType::GrowattWit:
+      inverter = new GrowattWitInverter();
       break;
 
     case InverterProtocolType::Kostal:

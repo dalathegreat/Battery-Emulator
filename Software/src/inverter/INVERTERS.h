@@ -18,6 +18,7 @@ extern InverterProtocol* inverter;
 #include "FOXESS-CAN.h"
 #include "GROWATT-HV-CAN.h"
 #include "GROWATT-LV-CAN.h"
+#include "GROWATT-WIT-CAN.h"
 #include "KOSTAL-RS485.h"
 #include "PYLON-CAN.h"
 #include "PYLON-LV-CAN.h"

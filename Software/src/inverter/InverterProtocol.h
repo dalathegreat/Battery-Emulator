@@ -12,6 +12,7 @@ enum class InverterProtocolType {
   Foxess,
   GrowattHv,
   GrowattLv,
+  GrowattWit,
   Kostal,
   Pylon,
   PylonLv,
