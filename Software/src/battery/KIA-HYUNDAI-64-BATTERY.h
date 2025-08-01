@@ -95,6 +95,17 @@ class KiaHyundai64Battery : public CanBattery {
   bool startedUp = false;
   uint8_t ecu_serial_number[16] = {0};
   uint8_t ecu_version_number[16] = {0};
+  uint32_t cumulative_charge_current_ah = 0;
+  uint32_t cumulative_discharge_current_ah = 0;
+  uint32_t cumulative_energy_charged_kWh = 0;
+  uint16_t cumulative_energy_discharged_HIGH_BYTE = 0;
+  uint32_t cumulative_energy_discharged_kWh = 0;
+  uint32_t powered_on_total_time = 0;
+  uint16_t isolation_resistance_kOhm = 0;
+  uint16_t number_of_standard_charging_sessions = 0;
+  uint16_t number_of_fastcharging_sessions = 0;
+  uint16_t accumulated_normal_charging_energy_kWh = 0;
+  uint16_t accumulated_fastcharging_energy_kWh = 0;
 
   CAN_frame KIA_HYUNDAI_200 = {.FD = false,
                                .ext_ID = false,
@@ -146,6 +157,7 @@ class KiaHyundai64Battery : public CanBattery {
   static const int POLL_GROUP_4 = 0x0104;
   static const int POLL_GROUP_5 = 0x0105;
   static const int POLL_GROUP_6 = 0x0106;
+  static const int POLL_GROUP_11 = 0x0111;
   static const int POLL_ECU_SERIAL = 0xF18C;
   static const int POLL_ECU_VERSION = 0xF191;
 };

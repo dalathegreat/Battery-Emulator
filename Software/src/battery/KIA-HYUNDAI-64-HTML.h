@@ -37,6 +37,17 @@ class KiaHyundai64HtmlRenderer : public BatteryHtmlRenderer {
       content += "<h4>BMS ignition: " + String(data.BMS_ign) + "</h4>";
       content += "<h4>Battery relay: " + String(data.batteryRelay) + "</h4>";
       content += "<h4>Inverter voltage: " + String(data.inverterVoltage) + " V</h4>";
+      content += "<h4>Isolation resistance: " + String(data.isolation_resistance_kOhm) + " kOhm</h4>";
+      content += "<h4>Power on total time: " + String(data.powered_on_total_time) + " s</h4>";
+      content += "<h4>Fastcharging sessions: " + String(data.number_of_fastcharging_sessions) + " x</h4>";
+      content += "<h4>Slowcharging sessions: " + String(data.number_of_standard_charging_sessions) + " x</h4>";
+      content +=
+          "<h4>Normal charged energy amount: " + String(data.accumulated_normal_charging_energy_kWh) + " kWh</h4>";
+      content += "<h4>Fastcharged energy amount: " + String(data.accumulated_fastcharging_energy_kWh) + " kWh</h4>";
+      content += "<h4>Total amount charged energy: " + String(data.cumulative_energy_charged_kWh) + " kWh</h4>";
+      content += "<h4>Total amount discharged energy: " + String(data.cumulative_energy_discharged_kWh) + " kWh</h4>";
+      content += "<h4>Cumulative charge current: " + String(data.cumulative_charge_current_ah / 10) + " Ah</h4>";
+      content += "<h4>Cumulative discharge current: " + String(data.cumulative_discharge_current_ah / 10) + " Ah</h4>";
     };
 
     print_hyundai(*kia_datalayer);

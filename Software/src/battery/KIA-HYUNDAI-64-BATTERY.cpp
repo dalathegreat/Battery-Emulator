@@ -51,6 +51,16 @@ void KiaHyundai64Battery::
   datalayer_battery_extended->inverterVoltage = inverterVoltage;
   memcpy(datalayer_battery_extended->ecu_serial_number, ecu_serial_number, sizeof(ecu_serial_number));
   memcpy(datalayer_battery_extended->ecu_version_number, ecu_version_number, sizeof(ecu_version_number));
+  datalayer_battery_extended->cumulative_charge_current_ah = cumulative_charge_current_ah;
+  datalayer_battery_extended->cumulative_discharge_current_ah = cumulative_discharge_current_ah;
+  datalayer_battery_extended->cumulative_energy_charged_kWh = cumulative_energy_charged_kWh;
+  datalayer_battery_extended->cumulative_energy_discharged_kWh = cumulative_energy_discharged_kWh;
+  datalayer_battery_extended->powered_on_total_time = powered_on_total_time;
+  datalayer_battery_extended->isolation_resistance_kOhm = isolation_resistance_kOhm;
+  datalayer_battery_extended->number_of_standard_charging_sessions = number_of_standard_charging_sessions;
+  datalayer_battery_extended->number_of_fastcharging_sessions = number_of_fastcharging_sessions;
+  datalayer_battery_extended->accumulated_normal_charging_energy_kWh = accumulated_normal_charging_energy_kWh;
+  datalayer_battery_extended->accumulated_fastcharging_energy_kWh = accumulated_fastcharging_energy_kWh;
 }
 
 void KiaHyundai64Battery::update_number_of_cells() {
@@ -138,9 +148,12 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           KIA64_7E4_poll.data.u8[2] = (uint8_t)((POLL_GROUP_6 & 0xFF00) >> 8);
           KIA64_7E4_poll.data.u8[3] = (uint8_t)(POLL_GROUP_6 & 0x00FF);
         } else if (poll_data_pid == 7) {
+          KIA64_7E4_poll.data.u8[2] = (uint8_t)((POLL_GROUP_11 & 0xFF00) >> 8);
+          KIA64_7E4_poll.data.u8[3] = (uint8_t)(POLL_GROUP_11 & 0x00FF);
+        } else if (poll_data_pid == 8) {
           KIA64_7E4_poll.data.u8[2] = (uint8_t)((POLL_ECU_SERIAL & 0xFF00) >> 8);
           KIA64_7E4_poll.data.u8[3] = (uint8_t)(POLL_ECU_SERIAL & 0x00FF);
-        } else if (poll_data_pid == 8) {
+        } else if (poll_data_pid == 9) {
           KIA64_7E4_poll.data.u8[2] = (uint8_t)((POLL_ECU_VERSION & 0xFF00) >> 8);
           KIA64_7E4_poll.data.u8[3] = (uint8_t)(POLL_ECU_VERSION & 0x00FF);
           poll_data_pid = 0;
@@ -195,6 +208,8 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cellvoltages_mv[67] = (rx_frame.data.u8[5] * 20);
             cellvoltages_mv[68] = (rx_frame.data.u8[6] * 20);
             cellvoltages_mv[69] = (rx_frame.data.u8[7] * 20);
+          } else if (pid_reply == POLL_GROUP_11) {
+            number_of_standard_charging_sessions = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           } else if (pid_reply == POLL_ECU_SERIAL) {
             ecu_serial_number[3] = rx_frame.data.u8[1];
             ecu_serial_number[4] = rx_frame.data.u8[2];
@@ -214,7 +229,11 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
           break;
         case 0x22:  //Second datarow in PID group
-          if (pid_reply == POLL_GROUP_2) {
+          if (pid_reply == POLL_GROUP_1) {
+            //battery_max_temperature = rx_frame.data.u8[5];
+            //battery_min_temperature = rx_frame.data.u8[6];
+            //module_1_temperature = rx_frame.data.u8[7];
+          } else if (pid_reply == POLL_GROUP_2) {
             cellvoltages_mv[6] = (rx_frame.data.u8[1] * 20);
             cellvoltages_mv[7] = (rx_frame.data.u8[2] * 20);
             cellvoltages_mv[8] = (rx_frame.data.u8[3] * 20);
@@ -240,6 +259,9 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cellvoltages_mv[76] = (rx_frame.data.u8[7] * 20);
           } else if (pid_reply == POLL_GROUP_6) {
             batteryManagementMode = rx_frame.data.u8[5];
+          } else if (pid_reply == POLL_GROUP_11) {
+            number_of_fastcharging_sessions = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
+            accumulated_normal_charging_energy_kWh = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
           } else if (pid_reply == POLL_ECU_SERIAL) {
             ecu_serial_number[10] = rx_frame.data.u8[1];
             ecu_serial_number[11] = rx_frame.data.u8[2];
@@ -258,6 +280,9 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           break;
         case 0x23:  //Third datarow in PID group
           if (pid_reply == POLL_GROUP_1) {
+            //module_2_temperature = rx_frame.data.u8[1];
+            //module_3_temperature = rx_frame.data.u8[2];
+            //module_4_temperature = rx_frame.data.u8[3];
             temperature_water_inlet = rx_frame.data.u8[6];
             CellVoltMax_mV = (rx_frame.data.u8[7] * 20);  //(volts *50) *20 =mV
           } else if (pid_reply == POLL_GROUP_2) {
@@ -286,6 +311,8 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cellvoltages_mv[83] = (rx_frame.data.u8[7] * 20);
           } else if (pid_reply == POLL_GROUP_5) {
             heatertemp = rx_frame.data.u8[7];
+          } else if (pid_reply == POLL_GROUP_11) {
+            accumulated_fastcharging_energy_kWh = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
           }
           break;
         case 0x24:  //Fourth datarow in PID group
@@ -324,7 +351,12 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
           break;
         case 0x25:  //Fifth datarow in PID group
-          if (pid_reply == POLL_GROUP_2) {
+          if (pid_reply == POLL_GROUP_1) {
+            cumulative_charge_current_ah =
+                ((rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
+            cumulative_discharge_current_ah =
+                ((rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+          } else if (pid_reply == POLL_GROUP_2) {
             cellvoltages_mv[27] = (rx_frame.data.u8[1] * 20);
             cellvoltages_mv[28] = (rx_frame.data.u8[2] * 20);
             cellvoltages_mv[29] = (rx_frame.data.u8[3] * 20);
@@ -362,7 +394,11 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
           break;
         case 0x26:  //Sixth datarow in PID group
-          if (pid_reply == POLL_GROUP_5) {
+          if (pid_reply == POLL_GROUP_1) {
+            cumulative_energy_charged_kWh =
+                ((rx_frame.data.u8[2] << 16) | (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]);
+            cumulative_energy_discharged_HIGH_BYTE = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+          } else if (pid_reply == POLL_GROUP_5) {
             //We have read all cells, check that content is valid:
             for (uint8_t i = 85; i < 97; ++i) {
               if (cellvoltages_mv[i] < 300) {  // Zero the value if it's below 300
@@ -377,6 +413,9 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           break;
         case 0x27:  //Seventh datarow in PID group
           if (pid_reply == POLL_GROUP_1) {
+            cumulative_energy_discharged_kWh = ((cumulative_energy_discharged_HIGH_BYTE << 8) | rx_frame.data.u8[1]);
+            powered_on_total_time = ((rx_frame.data.u8[2] << 24) | (rx_frame.data.u8[3] << 16) |
+                                     (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
             BMS_ign = rx_frame.data.u8[6];
             inverterVoltageFrameHigh = rx_frame.data.u8[7];
           }
@@ -384,6 +423,7 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case 0x28:  //Eighth datarow in PID group
           if (pid_reply == POLL_GROUP_1) {
             inverterVoltage = (inverterVoltageFrameHigh << 8) + rx_frame.data.u8[1];
+            isolation_resistance_kOhm = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
           }
           break;
         default:
