@@ -1,7 +1,8 @@
 #include "comm_can.h"
 #include <algorithm>
 #include <map>
-#include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "esp_twai.h"
+#include "esp_twai_onchip.h"
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
 #include "CanReceiver.h"
@@ -20,7 +21,11 @@ struct CanReceiverRegistration {
 static std::multimap<CAN_Interface, CanReceiverRegistration> can_receivers;
 
 // Parameters
-CAN_device_t CAN_cfg;              // CAN Config
+twai_node_handle_t node_hdl = NULL;
+twai_onchip_node_config_t node_config = {
+  .tx_queue_depth = 5
+};
+
 const uint8_t rx_queue_size = 10;  // Receive Queue size
 volatile bool send_ok_native = 0;
 volatile bool send_ok_2515 = 0;
@@ -57,6 +62,32 @@ ACAN2517FDSettings* settings2517;
 
 bool native_can_initialized = false;
 
+static bool twai_rx_callback(twai_node_handle_t handle, const twai_rx_done_event_data_t *edata, void *user_ctx)
+{
+    uint8_t recv_buff[8];
+    twai_frame_t rx_frame = {
+        .buffer = recv_buff,
+        .buffer_len = sizeof(recv_buff),
+    };
+    if (ESP_OK == twai_node_receive_from_isr(handle, &rx_frame)) {
+      CAN_frame frame;
+      frame.ID = rx_frame.header.id;
+      frame.DLC = rx_frame.header.dlc;
+      frame.ext_ID = rx_frame.header.ide;
+      for (uint8_t i = 0; i < frame.DLC && i < 8; i++) {
+        frame.data.u8[i] = rx_frame.buffer[i];
+      }
+      map_can_frame_to_variable(&frame, CAN_NATIVE);
+
+    }
+    return false;
+}
+
+twai_event_callbacks_t user_cbs = {
+  .on_rx_done = twai_rx_callback
+};
+
+
 bool init_CAN() {
 
   auto nativeIt = can_receivers.find(CAN_NATIVE);
@@ -73,17 +104,17 @@ bool init_CAN() {
       digitalWrite(se_pin, LOW);
     }
 
-    CAN_cfg.speed = (CAN_speed_t)nativeIt->second.speed;
-
     if (!esp32hal->alloc_pins("CAN", tx_pin, rx_pin)) {
       return false;
     }
 
-    CAN_cfg.tx_pin_id = tx_pin;
-    CAN_cfg.rx_pin_id = rx_pin;
-    CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
-    // Init CAN Module
-    ESP32Can.CANInit();
+    node_config.io_cfg.tx = tx_pin;
+    node_config.io_cfg.rx = rx_pin;
+    node_config.bit_timing.bitrate = (int)nativeIt->second.speed * 1000UL;
+    twai_new_node_onchip(&node_config, &node_hdl);
+    twai_node_register_event_callbacks(node_hdl, &user_cbs, NULL);
+    twai_node_enable(node_hdl);
+
     native_can_initialized = true;
   }
 
@@ -103,6 +134,15 @@ bool init_CAN() {
     logging.println("Dual CAN Bus (ESP32+MCP2515) selected");
 #endif  // DEBUG_LOG
     gBuffer.initWithSize(25);
+
+    //ToDo: Refactor this
+    pinMode(9, OUTPUT);
+    digitalWrite(9, HIGH);
+    delay(100);
+    digitalWrite(9, LOW);
+    delay(100);
+    digitalWrite(9, HIGH);
+    delay(100);
 
     can2515 = new ACAN2515(cs_pin, SPI2515, int_pin);
 
@@ -206,15 +246,15 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, int interface) {
   switch (interface) {
     case CAN_NATIVE:
 
-      CAN_frame_t frame;
-      frame.MsgID = tx_frame->ID;
-      frame.FIR.B.FF = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
-      frame.FIR.B.DLC = tx_frame->DLC;
-      frame.FIR.B.RTR = CAN_no_RTR;
-      for (uint8_t i = 0; i < tx_frame->DLC; i++) {
-        frame.data.u8[i] = tx_frame->data.u8[i];
-      }
-      send_ok_native = ESP32Can.CANWriteFrame(&frame);
+      twai_frame_t frame;
+      frame.header.id = tx_frame->ID;
+      frame.header.dlc = tx_frame->DLC;
+      frame.buffer = tx_frame->data.u8;
+      frame.buffer_len = tx_frame->DLC;
+      frame.header.ide = tx_frame->ext_ID ? 1 : 0;
+
+      send_ok_native = twai_node_transmit(node_hdl, &frame, 0);
+
       if (!send_ok_native) {
         datalayer.system.info.can_native_send_fail = true;
       }
@@ -223,7 +263,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, int interface) {
       //Struct with ACAN2515 library format, needed to use the MCP2515 library for CAN2
       CANMessage MCP2515Frame;
       MCP2515Frame.id = tx_frame->ID;
-      MCP2515Frame.ext = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
+      MCP2515Frame.ext = tx_frame->ext_ID;
       MCP2515Frame.len = tx_frame->DLC;
       MCP2515Frame.rtr = false;
       for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
@@ -244,7 +284,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, int interface) {
         MCP2518Frame.type = CANFDMessage::CAN_DATA;
       }
       MCP2518Frame.id = tx_frame->ID;
-      MCP2518Frame.ext = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
+      MCP2518Frame.ext = tx_frame->ext_ID;
       MCP2518Frame.len = tx_frame->DLC;
       for (uint8_t i = 0; i < MCP2518Frame.len; i++) {
         MCP2518Frame.data[i] = tx_frame->data.u8[i];
@@ -262,10 +302,6 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, int interface) {
 
 // Receive functions
 void receive_can() {
-  if (native_can_initialized) {
-    receive_frame_can_native();  // Receive CAN messages from native CAN port
-  }
-
   if (can2515) {
     receive_frame_can_addon();  // Receive CAN messages on add-on MCP2515 chip
   }
@@ -275,24 +311,7 @@ void receive_can() {
   }
 }
 
-void receive_frame_can_native() {  // This section checks if we have a complete CAN message incoming on native CAN port
-  CAN_frame_t rx_frame_native;
-  if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame_native, 0) == pdTRUE) {
-    CAN_frame rx_frame;
-    rx_frame.ID = rx_frame_native.MsgID;
-    if (rx_frame_native.FIR.B.FF == CAN_frame_std) {
-      rx_frame.ext_ID = false;
-    } else {  //CAN_frame_ext == 1
-      rx_frame.ext_ID = true;
-    }
-    rx_frame.DLC = rx_frame_native.FIR.B.DLC;
-    for (uint8_t i = 0; i < rx_frame.DLC && i < 8; i++) {
-      rx_frame.data.u8[i] = rx_frame_native.data.u8[i];
-    }
-    //message incoming, pass it on to the handler
-    map_can_frame_to_variable(&rx_frame, CAN_NATIVE);
-  }
-}
+
 
 void receive_frame_can_addon() {  // This section checks if we have a complete CAN message incoming on add-on CAN port
   CAN_frame rx_frame;             // Struct with our CAN format
@@ -302,7 +321,7 @@ void receive_frame_can_addon() {  // This section checks if we have a complete C
     can2515->receive(MCP2515frame);
 
     rx_frame.ID = MCP2515frame.id;
-    rx_frame.ext_ID = MCP2515frame.ext ? CAN_frame_ext : CAN_frame_std;
+    rx_frame.ext_ID = MCP2515frame.ext;
     rx_frame.DLC = MCP2515frame.len;
     for (uint8_t i = 0; i < MCP2515frame.len && i < 8; i++) {
       rx_frame.data.u8[i] = MCP2515frame.data[i];
@@ -415,7 +434,8 @@ void dump_can_frame(CAN_frame& frame, frameDirection msgDir) {
 
 void stop_can() {
   if (can_receivers.find(CAN_NATIVE) != can_receivers.end()) {
-    ESP32Can.CANStop();
+    //ToDo: Implement
+    //ESP32Can.CANStop();
   }
 
   if (can2515) {
@@ -431,7 +451,8 @@ void stop_can() {
 
 void restart_can() {
   if (can_receivers.find(CAN_NATIVE) != can_receivers.end()) {
-    ESP32Can.CANInit();
+    //ToDo: Implement
+    //ESP32Can.CANInit();
   }
 
   if (can2515) {
@@ -446,11 +467,12 @@ void restart_can() {
 }
 
 CAN_Speed change_can_speed(CAN_Interface interface, CAN_Speed speed) {
-  auto oldSpeed = (CAN_Speed)CAN_cfg.speed;
-  if (interface == CAN_Interface::CAN_NATIVE) {
-    CAN_cfg.speed = (CAN_speed_t)speed;
+  //ToDo: Implement
+  //auto oldSpeed = (CAN_Speed)CAN_cfg.speed;
+  //if (interface == CAN_Interface::CAN_NATIVE) {
+  //  CAN_cfg.speed = (CAN_speed_t)speed;
     // ReInit native CAN module at new speed
-    ESP32Can.CANInit();
-  }
-  return oldSpeed;
+  //  ESP32Can.CANInit();
+  //}
+  return speed;
 }
