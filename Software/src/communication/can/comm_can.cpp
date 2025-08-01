@@ -1,13 +1,13 @@
 #include "comm_can.h"
 #include <algorithm>
 #include <map>
-#include "esp_twai.h"
-#include "esp_twai_onchip.h"
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
 #include "CanReceiver.h"
 #include "USER_SETTINGS.h"
 #include "comm_can.h"
+#include "esp_twai.h"
+#include "esp_twai_onchip.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/safety/safety.h"
 #include "src/devboard/sdcard/sdcard.h"
@@ -22,9 +22,7 @@ static std::multimap<CAN_Interface, CanReceiverRegistration> can_receivers;
 
 // Parameters
 twai_node_handle_t node_hdl = NULL;
-twai_onchip_node_config_t node_config = {
-  .tx_queue_depth = 5
-};
+twai_onchip_node_config_t node_config = {.tx_queue_depth = 5};
 
 const uint8_t rx_queue_size = 10;  // Receive Queue size
 volatile bool send_ok_native = 0;
@@ -62,31 +60,26 @@ ACAN2517FDSettings* settings2517;
 
 bool native_can_initialized = false;
 
-static bool twai_rx_callback(twai_node_handle_t handle, const twai_rx_done_event_data_t *edata, void *user_ctx)
-{
-    uint8_t recv_buff[8];
-    twai_frame_t rx_frame = {
-        .buffer = recv_buff,
-        .buffer_len = sizeof(recv_buff),
-    };
-    if (ESP_OK == twai_node_receive_from_isr(handle, &rx_frame)) {
-      CAN_frame frame;
-      frame.ID = rx_frame.header.id;
-      frame.DLC = rx_frame.header.dlc;
-      frame.ext_ID = rx_frame.header.ide;
-      for (uint8_t i = 0; i < frame.DLC && i < 8; i++) {
-        frame.data.u8[i] = rx_frame.buffer[i];
-      }
-      map_can_frame_to_variable(&frame, CAN_NATIVE);
-
+static bool twai_rx_callback(twai_node_handle_t handle, const twai_rx_done_event_data_t* edata, void* user_ctx) {
+  uint8_t recv_buff[8];
+  twai_frame_t rx_frame = {
+      .buffer = recv_buff,
+      .buffer_len = sizeof(recv_buff),
+  };
+  if (ESP_OK == twai_node_receive_from_isr(handle, &rx_frame)) {
+    CAN_frame frame;
+    frame.ID = rx_frame.header.id;
+    frame.DLC = rx_frame.header.dlc;
+    frame.ext_ID = rx_frame.header.ide;
+    for (uint8_t i = 0; i < frame.DLC && i < 8; i++) {
+      frame.data.u8[i] = rx_frame.buffer[i];
     }
-    return false;
+    map_can_frame_to_variable(&frame, CAN_NATIVE);
+  }
+  return false;
 }
 
-twai_event_callbacks_t user_cbs = {
-  .on_rx_done = twai_rx_callback
-};
-
+twai_event_callbacks_t user_cbs = {.on_rx_done = twai_rx_callback};
 
 bool init_CAN() {
 
@@ -311,8 +304,6 @@ void receive_can() {
   }
 }
 
-
-
 void receive_frame_can_addon() {  // This section checks if we have a complete CAN message incoming on add-on CAN port
   CAN_frame rx_frame;             // Struct with our CAN format
   CANMessage MCP2515frame;        // Struct with ACAN2515 library format, needed to use the MCP2515 library
@@ -471,7 +462,7 @@ CAN_Speed change_can_speed(CAN_Interface interface, CAN_Speed speed) {
   //auto oldSpeed = (CAN_Speed)CAN_cfg.speed;
   //if (interface == CAN_Interface::CAN_NATIVE) {
   //  CAN_cfg.speed = (CAN_speed_t)speed;
-    // ReInit native CAN module at new speed
+  // ReInit native CAN module at new speed
   //  ESP32Can.CANInit();
   //}
   return speed;
