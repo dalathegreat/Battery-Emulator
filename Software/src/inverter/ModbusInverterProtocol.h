@@ -2,11 +2,10 @@
 #define MODBUS_INVERTER_PROTOCOL_H
 
 #include <stdint.h>
+#include <map>
 #include "../lib/eModbus-eModbus/ModbusServerRTU.h"
 #include "HardwareSerial.h"
 #include "InverterProtocol.h"
-
-extern uint16_t mbPV[];
 
 // The abstract base class for all Modbus inverter protocols
 class ModbusInverterProtocol : public InverterProtocol {
@@ -14,13 +13,20 @@ class ModbusInverterProtocol : public InverterProtocol {
   InverterInterfaceType interface_type() { return InverterInterfaceType::Modbus; }
 
  protected:
-  // Create a ModbusRTU server instance with 2000ms timeout
-  ModbusInverterProtocol() : MBserver(2000) { mbPV = ::mbPV; }
+  ModbusInverterProtocol(int serverId);
+  ~ModbusInverterProtocol();
 
-  static const int MB_RTU_NUM_VALUES = 13100;
+  ModbusMessage FC03(ModbusMessage request);
+  ModbusMessage FC06(ModbusMessage request);
+  ModbusMessage FC16(ModbusMessage request);
+  ModbusMessage FC23(ModbusMessage request);
 
-  // Modbus register file
-  uint16_t* mbPV;
+  // The highest Modbus register we allow reads/writes from
+  static const int MBPV_MAX = 30000;
+  // Modbus server ID
+  int _serverId;
+  // The Modbus registers themselves
+  std::map<uint16_t, uint16_t> mbPV;
 
   ModbusServerRTU MBserver;
 };
