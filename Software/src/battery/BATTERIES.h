@@ -34,6 +34,7 @@ void setup_can_shunt();
 #include "MEB-BATTERY.h"
 #include "MG-5-BATTERY.h"
 #include "MG-HS-PHEV-BATTERY.h"
+#include "MSB-J1-BATTERY.h"
 #include "NISSAN-LEAF-BATTERY.h"
 #include "ORION-BMS.h"
 #include "PYLON-BATTERY.h"

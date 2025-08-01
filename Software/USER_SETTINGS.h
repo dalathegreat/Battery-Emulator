@@ -26,6 +26,7 @@
 //#define KIA_HYUNDAI_64_BATTERY
 //#define KIA_HYUNDAI_HYBRID_BATTERY
 //#define MEB_BATTERY
+//#define MSB_J1_BATTERY
 //#define MG_5_BATTERY
 //#define MG_HS_PHEV_BATTERY
 //#define NISSAN_LEAF_BATTERY
