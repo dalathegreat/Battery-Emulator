@@ -22,7 +22,7 @@ TODOs left for this implementation
 - SOC% missing! (now estimated based on voltage)
 */
 
-// ⬇️ Voeg dit toe
+// ⬇️ Add this block
 void updateSOC_CoulombCounting() {
   float voltage = battery_voltage_polled / 10.0;
   float current = battery_current_7E4 / 10.0;
@@ -57,16 +57,16 @@ void updateBatteryStatus() {
   // Check of CAN-data geldig is
   if (battery_voltage_polled > 0.0 && battery_current_7E4 != NAN && battery_capacity_my17_18 > 0.0 &&
       datalayer.battery.status.soh_pptt > 0) {
-    // Voeg dit toe op een plek na CAN-data verwerking
+    // Add this after CAN data processing
     updateSOC_CoulombCounting();
 
-    // Update SOC op basis van Coulomb Counting
+    // Update SOC based on Coulomb Counting
     updateSOC_CoulombCounting();
 
-    // Extra logging (optioneel)
+    // Optional logging
     // printf("SOC updated: %.2f %%\n", battery_SOC_display / 100.0);
   } else {
-    // Waarschuwing als data incompleet is
+    // Warning if data is incomplete
     // printf("Battery data incomplete, skipping SOC update.\n");
   }
 }
@@ -76,20 +76,21 @@ uint16_t lookupSOC(uint16_t voltage_mV) {
       return SOC[i];  // return % in honderdsten
     }
   }
-  return 0;  // bij < laagste waarde
+return 0; // fallback if voltage is below lookup range
+
 }
 
 uint16_t expected_SOC = lookupSOC((uint16_t)(voltage * 1000));  // omzetten naar mV
 
 uint16_t actual_SOC = battery_SOC_display;
 
-// Indien verschil > drempel (bijv. 20%), loggen of corrigeren
+// If difference > threshold (e.g. 20%), log or correct
 if (abs((int)actual_SOC - (int)expected_SOC) > 2000) {  // >20%
-  // Optioneel: overschrijven
+  // Optional: override
   // battery_SOC_display = expected_SOC;
 
-  // Of alleen melding maken
-  // printf("SOC afwijking: berekend %u ‰, verwacht %u ‰\n", actual_SOC, expected_SOC);
+  // Or just log warningn
+  // printf("SOC discrepancy: calculated %u ‰, expected %u ‰\n", actual_SOC, expected_SOC);
 }
 
 /*TODO, messages we might need to send towards the battery to keep it happy and close contactors
