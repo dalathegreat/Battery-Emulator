@@ -76,8 +76,7 @@ uint16_t lookupSOC(uint16_t voltage_mV) {
       return SOC[i];  // return % in honderdsten
     }
   }
-return 0; // fallback if voltage is below lookup range
-
+  return 0;  // fallback if voltage is below lookup range
 }
 
 uint16_t expected_SOC = lookupSOC((uint16_t)(voltage * 1000));  // omzetten naar mV
