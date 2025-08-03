@@ -384,8 +384,8 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             if (rx_frame.data.u8[5] > 4) {  // Perform extra checks
               cellvoltages_mv[95] = (rx_frame.data.u8[5] * 20);
             }
-          } else if (pid_reply == POLL_GROUP_5) {      // Data only valid on 98S
-            if (rx_frame.data.u8[4] > 4) {  // Perform extra checks
+          } else if (pid_reply == POLL_GROUP_5) {  // Data only valid on 98S
+            if (rx_frame.data.u8[4] > 4) {         // Perform extra checks
               cellvoltages_mv[96] = (rx_frame.data.u8[4] * 20);
             }
             if (rx_frame.data.u8[5] > 4) {  // Perform extra checks
