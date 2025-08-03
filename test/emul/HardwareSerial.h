@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <mutex>
 #include "Stream.h"
 
 enum SerialConfig {
@@ -34,8 +35,15 @@ enum SerialConfig {
 
 class HardwareSerial : public Stream {
  public:
+  virtual int available(void) { return 0; }
+  virtual int peek(void) { return 0; }
+  virtual int read(void) { return 0; }
+
   void begin(unsigned long baud, uint32_t config = SERIAL_8N1, int8_t rxPin = -1, int8_t txPin = -1,
              bool invert = false, unsigned long timeout_ms = 20000UL, uint8_t rxfifo_full_thrhd = 120) {}
+  uint32_t baudRate() {
+    return 115200;  // Default baud rate for emulation
+  }
 
   size_t write(const uint8_t* buffer, size_t size);
   inline size_t write(const char* buffer, size_t size) { return write((uint8_t*)buffer, size); }
@@ -44,6 +52,13 @@ class HardwareSerial : public Stream {
   size_t setRxBufferSize(size_t new_size) { return new_size; };
 
   size_t setTxBufferSize(size_t new_size) { return new_size; };
+  operator bool() const;
+  size_t write(uint8_t);
+
+  bool setRxFIFOFull(uint8_t fifoBytes) { return true; }
+
+ private:
+  std::mutex writeMutex;
 };
 
 extern HardwareSerial Serial0;

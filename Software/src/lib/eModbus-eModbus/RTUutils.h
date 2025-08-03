@@ -59,8 +59,8 @@ static void prepareHardwareSerial(HardwareSerial& s, uint16_t bufferSize = 260) 
 
 protected:
 // Printable characters for ASCII protocol: 012345678ABCDEF
-  static const char ASCIIwrite[];
-  static const char ASCIIread[];
+  static const unsigned char ASCIIwrite[];
+  static const unsigned char ASCIIread[];
 
   RTUutils() = delete;
 

@@ -2,18 +2,19 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <freertos/FreeRTOS.h>
-#include <src/communication/nvm/comm_nvm.h>
+#include <mqtt_client.h>
+#include <functional>
 #include <list>
 #include "../../../USER_SECRETS.h"
 #include "../../../USER_SETTINGS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
+#include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
 #include "../utils/timer.h"
 #include "mqtt.h"
-#include "mqtt_client.h"
 
 #ifdef MQTT
 const bool mqtt_enabled_default = true;

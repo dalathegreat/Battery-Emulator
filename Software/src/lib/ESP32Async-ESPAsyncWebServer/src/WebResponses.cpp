@@ -7,6 +7,7 @@
 using namespace asyncsrv;
 
 // Since ESP8266 does not link memchr by default, here's its implementation.
+#if defined(ESP8266) && !defined(ARDUINO_ARCH_ESP32)
 void *memchr(void *ptr, int ch, size_t count) {
   unsigned char *p = static_cast<unsigned char *>(ptr);
   while (count--) {
@@ -16,6 +17,7 @@ void *memchr(void *ptr, int ch, size_t count) {
   }
   return nullptr;
 }
+#endif
 
 /*
  * Abstract Response

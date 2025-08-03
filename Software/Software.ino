@@ -31,10 +31,6 @@
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
 
-#if !defined(HW_LILYGO) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_DEVKIT)
-#error You must select a target hardware in the USER_SETTINGS.h file!
-#endif
-
 #ifdef PERIODIC_BMS_RESET_AT
 #include "src/devboard/utils/ntp_time.h"
 #endif
@@ -59,6 +55,11 @@ TaskHandle_t mqtt_loop_task;
 Logging logging;
 
 void init_serial();
+void check_reset_reason();
+void connectivity_loop();
+void core_loop(void*);
+void check_interconnect_available();
+void update_calculated_values();
 
 // Initialization
 void setup() {
@@ -175,7 +176,7 @@ void logging_loop(void*) {
 }
 #endif
 
-void connectivity_loop(void*) {
+void connectivity_loop() {
   esp_task_wdt_add(NULL);  // Register this task with WDT
   // Init wifi
   init_WiFi();
@@ -239,12 +240,6 @@ void core_loop(void*) {
     receive_rs485();  // Process serial2 RS485 interface
 
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
-
-    if (webserver_enabled) {
-      START_TIME_MEASUREMENT(ota);
-      ElegantOTA.loop();
-      END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
-    }
 
     // Process
     currentMillis = millis();

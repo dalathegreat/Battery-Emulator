@@ -13,8 +13,10 @@ void stop_can() {}
 
 void restart_can() {}
 
-char const* getCANInterfaceName(CAN_Interface) {
-  return "Foobar";
+void receive_can() {}
+
+bool init_CAN(void) {
+  return true;
 }
 
-void register_transmitter(Transmitter* transmitter) {}
+bool use_canfd_as_can = false;

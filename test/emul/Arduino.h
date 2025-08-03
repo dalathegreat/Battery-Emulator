@@ -9,12 +9,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <chrono>
 
 #include "HardwareSerial.h"
 #include "Print.h"
+#include "Printable.h"
 #include "esp-hal-gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "soc/gpio_num.h"
+
+#include "WString.h"
+
+//typedef	uint64_t	time_t;
 
 void pinMode(uint8_t pin, uint8_t mode);
 void digitalWrite(uint8_t pin, uint8_t val);
@@ -43,6 +50,52 @@ typedef struct {
 
 void delay(uint32_t ms);
 
-typedef uint32_t TickType_t;
+float temperatureRead();
+
+uint32_t ledcWriteTone(uint8_t pin, uint32_t freq);
+bool ledcWrite(uint8_t pin, uint32_t duty);
+bool ledcAttachChannel(uint8_t pin, uint32_t freq, uint8_t resolution, uint8_t channel);
+
+void delayMicroseconds(uint32_t us);
+
+/*size_t strlen_P(const char *s);
+int strncmp_P (const char *, const char *, size_t);
+int	strcmp_P (const char *, const char *);
+int	memcmp_P (const void *, const void *, size_t);
+void *memcpy_P (void *, const void *, size_t);
+*/
+
+#define pgm_read_byte(addr) (*(const unsigned char*)(addr))
+
+#define PROGMEM
+#define PGM_P const char*
+#define PSTR(s) (s)
+#define __unused
+
+#define snprintf_P snprintf
+#define strlen_P strlen
+#define memcpy_P memcpy
+#define sprintf_P sprintf
+
+char* strndup(const char* str, size_t size);
+
+class EspClass {
+ public:
+  void restart();
+};
+
+extern EspClass ESP;
+
+void log_printf(const char* format, ...);
+
+#define log_d(format, ...) log_printf(format, ##__VA_ARGS__)
+#define log_e(format, ...) log_printf(format, ##__VA_ARGS__)
+#define log_i(format, ...) log_printf(format, ##__VA_ARGS__)
+#define log_w(format, ...) log_printf(format, ##__VA_ARGS__)
+#define log_v(format, ...) log_printf(format, ##__VA_ARGS__)
+
+struct tm* localtime_r(const time_t*, struct tm*);
+
+int strcasecmp(const char*, const char*);
 
 #endif

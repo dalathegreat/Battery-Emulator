@@ -10,7 +10,7 @@ class Preferences {
   bool begin(const char* name, bool read_only = false);
   void end();
 
-  bool clear();
+  bool clear() { return true; }
   bool remove(const char* key);
 
   size_t putChar(const char* key, int8_t value);
@@ -41,7 +41,7 @@ class Preferences {
   uint64_t getULong64(const char* key, uint64_t defaultValue = 0);
   bool getBool(const char* key, bool defaultValue = false);
   size_t getString(const char* key, char* value, size_t maxLen);
-  String getString(const char* key, String defaultValue = String());
+  String getString(const char* key, String defaultValue = String()) { return String(); }
   size_t getBytesLength(const char* key);
   size_t getBytes(const char* key, void* buf, size_t maxLen);
   size_t freeEntries();

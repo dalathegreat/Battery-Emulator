@@ -1,13 +1,13 @@
 #include "settings_html.h"
 #include <Arduino.h>
 #include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
+#include "../../battery/BATTERIES.h"
 #include "../../charger/CHARGERS.h"
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "../../inverter/INVERTERS.h"
 #include "index_html.h"
-#include "src/battery/BATTERIES.h"
-#include "src/inverter/INVERTERS.h"
 
 extern bool settingsUpdated;
 
