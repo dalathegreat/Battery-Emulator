@@ -40,6 +40,7 @@ void init_events(void) {
   events.entries[EVENT_CAN_CHARGER_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CONTACTOR_OPEN].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CPU_OVERHEATING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CPU_OVERHEATED].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
@@ -191,6 +192,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Inverter not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CONTACTOR_WELDED:
       return "Contactors sticking/welded. Inspect battery with caution!";
+    case EVENT_CONTACTOR_OPEN:
+      return "Battery decided to open contactors. Inspect battery!";
     case EVENT_CPU_OVERHEATING:
       return "Battery-Emulator CPU overheating! Increase airflow/cooling to increase hardware lifespan!";
     case EVENT_CPU_OVERHEATED:

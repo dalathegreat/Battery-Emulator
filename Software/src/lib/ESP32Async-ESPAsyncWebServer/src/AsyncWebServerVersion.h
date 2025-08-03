@@ -12,7 +12,7 @@ extern "C" {
 /** Minor version number (x.X.x) */
 #define ASYNCWEBSERVER_VERSION_MINOR 7
 /** Patch version number (x.x.X) */
-#define ASYNCWEBSERVER_VERSION_PATCH 2
+#define ASYNCWEBSERVER_VERSION_PATCH 10
 
 /**
  * Macro to convert version number into an integer

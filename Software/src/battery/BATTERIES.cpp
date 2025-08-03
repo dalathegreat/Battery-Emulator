@@ -116,6 +116,8 @@ const char* name_for_battery_type(BatteryType type) {
       return RenaultZoeGen1Battery::Name;
     case BatteryType::RenaultZoe2:
       return RenaultZoeGen2Battery::Name;
+    case BatteryType::SamsungSdiLv:
+      return SamsungSdiLVBattery::Name;
     case BatteryType::SantaFePhev:
       return SantaFePhevBattery::Name;
     case BatteryType::SimpBms:
@@ -215,6 +217,8 @@ Battery* create_battery(BatteryType type) {
       return new RenaultZoeGen1Battery();
     case BatteryType::RenaultZoe2:
       return new RenaultZoeGen2Battery();
+    case BatteryType::SamsungSdiLv:
+      return new SamsungSdiLVBattery();
     case BatteryType::SantaFePhev:
       return new SantaFePhevBattery();
     case BatteryType::SimpBms:

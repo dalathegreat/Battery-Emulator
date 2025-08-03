@@ -172,7 +172,11 @@ void AsyncLoggingMiddleware::run(AsyncWebServerRequest *request, ArMiddlewareNex
     return;
   }
   _out->print(F("* Connection from "));
+#ifndef LIBRETINY
   _out->print(request->client()->remoteIP().toString());
+#else
+  _out->print(request->client()->remoteIP());
+#endif
   _out->print(':');
   _out->println(request->client()->remotePort());
   _out->print('>');

@@ -44,6 +44,7 @@ void setup_can_shunt();
 #include "RENAULT-ZOE-GEN1-BATTERY.h"
 #include "RENAULT-ZOE-GEN2-BATTERY.h"
 #include "RJXZS-BMS.h"
+#include "SAMSUNG-SDI-LV-BATTERY.h"
 #include "SANTA-FE-PHEV-BATTERY.h"
 #include "SIMPBMS-BATTERY.h"
 #include "SONO-BATTERY.h"

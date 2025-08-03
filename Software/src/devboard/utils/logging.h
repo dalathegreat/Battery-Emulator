@@ -2,6 +2,7 @@
 #define __LOGGING_H__
 
 #include <inttypes.h>
+#include "../../../USER_SETTINGS.h"
 #include "Print.h"
 #include "types.h"
 
