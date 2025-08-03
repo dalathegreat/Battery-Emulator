@@ -123,6 +123,7 @@ void EcmpBattery::update_values() {
   datalayer_extended.stellantisECMP.pid_time_spent_over_55c = pid_time_spent_over_55c;
   datalayer_extended.stellantisECMP.pid_contactor_closing_counter = pid_contactor_closing_counter;
   datalayer_extended.stellantisECMP.pid_date_of_manufacture = pid_date_of_manufacture;
+  datalayer_extended.stellantisECMP.pid_SOH_cell_1 = pid_SOH_cell_1;
 
   if (battery_InterlockOpen) {
     set_event(EVENT_HVIL_FAILURE, 0);
@@ -134,6 +135,12 @@ void EcmpBattery::update_values() {
     set_event(EVENT_12V_LOW, 11);
   } else {
     clear_event(EVENT_12V_LOW);
+  }
+
+  if (pid_reason_open == 7) {  //Invalid status
+    set_event(EVENT_CONTACTOR_OPEN, 0);
+  } else {
+    clear_event(EVENT_CONTACTOR_OPEN);
   }
 }
 
@@ -578,8 +585,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                     (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
               break;
             case PID_ENERGY_CAPACITY:
-              pid_energy_capacity = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
-                                     (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+              pid_energy_capacity = (rx_frame.data.u8[4] << 16) | (rx_frame.data.u8[5] << 8) | (rx_frame.data.u8[6]);
               break;
             case PID_HIGH_CELL_NUM:
               pid_highest_cell_voltage_num = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -720,6 +726,33 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
         switch (incoming_poll)  //Multiframe responses
         {
+          case PID_ALL_CELL_SOH:
+            switch (rx_frame.data.u8[0]) {
+              case 0x10:
+                pid_SOH_cell_1 = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+                break;
+              case 0x21:
+                break;
+              case 0x22:
+                break;
+              case 0x23:
+                break;
+              case 0x24:
+                break;
+              case 0x25:
+                break;
+              case 0x26:
+                break;
+              case 0x27:
+                break;
+              case 0x28:
+                break;
+              case 0x29:
+                break;
+              default:
+                break;
+            }
+            break;
           case PID_ALL_CELL_VOLTAGES:
             switch (rx_frame.data.u8[0]) {
               case 0x10:
@@ -1291,6 +1324,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
           case PID_DATE_OF_MANUFACTURE:
             ECMP_POLL.data.u8[2] = (uint8_t)((PID_DATE_OF_MANUFACTURE & 0xFF00) >> 8);
             ECMP_POLL.data.u8[3] = (uint8_t)(PID_DATE_OF_MANUFACTURE & 0x00FF);
+            poll_state = PID_ALL_CELL_SOH;
+            break;
+          case PID_ALL_CELL_SOH:
+            ECMP_POLL.data.u8[2] = (uint8_t)((PID_ALL_CELL_SOH & 0xFF00) >> 8);
+            ECMP_POLL.data.u8[3] = (uint8_t)(PID_ALL_CELL_SOH & 0x00FF);
             poll_state = PID_WELD_CHECK;  // Loop back to beginning
             break;
           default:

@@ -3,6 +3,7 @@
 
 #include <Print.h>
 #include <inttypes.h>
+#include "../../../USER_SETTINGS.h"
 #include "types.h"
 
 class Logging : public Print {

@@ -377,6 +377,11 @@ class EcmpHtmlRenderer : public BatteryHtmlRenderer {
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_contactor_closing_counter)) +
                " cycles</h4>";
+    content += "<h4>State of Health Cell-1: " +
+               (datalayer_extended.stellantisECMP.pid_SOH_cell_1 == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_SOH_cell_1)) +
+               "</h4>";
 
     return content;
   }

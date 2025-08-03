@@ -594,14 +594,6 @@ void init_webserver() {
     }
   });
 
-  update_string("/equipmentStop", [](String value) {
-    if (value == "true" || value == "1") {
-      setBatteryPause(true, false, true);  //Pause battery, do not pause CAN, equipment stop on (store to flash)
-    } else {
-      setBatteryPause(false, false, false);
-    }
-  });
-
   // Route for editing SOCMin
   update_string_setting("/updateSocMin", [](String value) {
     datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
@@ -655,6 +647,11 @@ void init_webserver() {
   // Route for editing MaxDischargeVoltage
   update_string_setting("/updateMaxDischargeVoltage", [](String value) {
     datalayer.battery.settings.max_user_set_discharge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
+  });
+
+  // Route for editing BMSresetDuration
+  update_string_setting("/updateBMSresetDuration", [](String value) {
+    datalayer.battery.settings.user_set_bms_reset_duration_ms = static_cast<uint16_t>(value.toFloat() * 1000);
   });
 
   // Route for editing FakeBatteryVoltage
@@ -1410,7 +1407,7 @@ String processor(const String& var) {
     content +=
         "var xhr=new "
         "XMLHttpRequest();xhr.onload=function() { "
-        "window.location.reload();};xhr.open('GET','/equipmentStop?stop='+stop,true);xhr.send();";
+        "window.location.reload();};xhr.open('GET','/equipmentStop?value='+stop,true);xhr.send();";
     content += "}";
     content += "</script>";
 

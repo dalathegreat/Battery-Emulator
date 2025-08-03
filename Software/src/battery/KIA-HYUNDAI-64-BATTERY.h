@@ -78,7 +78,8 @@ class KiaHyundai64Battery : public CanBattery {
   int16_t batteryAmps = 0;
   int16_t temperatureMax = 0;
   int16_t temperatureMin = 0;
-  int16_t poll_data_pid = 0;
+  uint8_t poll_data_pid = 0;
+  uint16_t pid_reply = 0;
   bool holdPidCounter = false;
   uint8_t CellVmaxNo = 0;
   uint8_t CellVminNo = 0;
@@ -91,6 +92,19 @@ class KiaHyundai64Battery : public CanBattery {
   int8_t heatertemp = 0;
   int8_t powerRelayTemperature = 0;
   bool startedUp = false;
+  uint8_t ecu_serial_number[16] = {0};
+  uint8_t ecu_version_number[16] = {0};
+  uint32_t cumulative_charge_current_ah = 0;
+  uint32_t cumulative_discharge_current_ah = 0;
+  uint32_t cumulative_energy_charged_kWh = 0;
+  uint16_t cumulative_energy_discharged_HIGH_BYTE = 0;
+  uint32_t cumulative_energy_discharged_kWh = 0;
+  uint32_t powered_on_total_time = 0;
+  uint16_t isolation_resistance_kOhm = 0;
+  uint16_t number_of_standard_charging_sessions = 0;
+  uint16_t number_of_fastcharging_sessions = 0;
+  uint16_t accumulated_normal_charging_energy_kWh = 0;
+  uint16_t accumulated_fastcharging_energy_kWh = 0;
 
   CAN_frame KIA_HYUNDAI_200 = {.FD = false,
                                .ext_ID = false,
@@ -125,42 +139,26 @@ class KiaHyundai64Battery : public CanBattery {
                          .DLC = 8,
                          .ID = 0x2A1,
                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame KIA64_7E4_id1 = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = 0x7E4,
-                             .data = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 01
-  CAN_frame KIA64_7E4_id2 = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = 0x7E4,
-                             .data = {0x03, 0x22, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 02
-  CAN_frame KIA64_7E4_id3 = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = 0x7E4,
-                             .data = {0x03, 0x22, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 03
-  CAN_frame KIA64_7E4_id4 = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = 0x7E4,
-                             .data = {0x03, 0x22, 0x01, 0x04, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 04
-  CAN_frame KIA64_7E4_id5 = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = 0x7E4,
-                             .data = {0x03, 0x22, 0x01, 0x05, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 05
-  CAN_frame KIA64_7E4_id6 = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = 0x7E4,
-                             .data = {0x03, 0x22, 0x01, 0x06, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 06
+  CAN_frame KIA64_7E4_poll = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7E4,
+                              .data = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame KIA64_7E4_ack = {
       .FD = false,
       .ext_ID = false,
       .DLC = 8,
       .ID = 0x7E4,
-      .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Ack frame, correct PID is returned
+      .data = {0x30, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Ack frame, correct PID is returned
+  static const int POLL_GROUP_1 = 0x0101;
+  static const int POLL_GROUP_2 = 0x0102;
+  static const int POLL_GROUP_3 = 0x0103;
+  static const int POLL_GROUP_4 = 0x0104;
+  static const int POLL_GROUP_5 = 0x0105;
+  static const int POLL_GROUP_6 = 0x0106;
+  static const int POLL_GROUP_11 = 0x0111;
+  static const int POLL_ECU_SERIAL = 0xF18C;
+  static const int POLL_ECU_VERSION = 0xF191;
 };
 
 #endif

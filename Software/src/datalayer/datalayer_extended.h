@@ -310,6 +310,7 @@ struct DATALAYER_INFO_ECMP {
   uint32_t pid_time_spent_over_55c = 0;
   uint32_t pid_contactor_closing_counter = 0;
   uint32_t pid_date_of_manufacture = 0;
+  uint16_t pid_SOH_cell_1 = 0;
 };
 
 struct DATALAYER_INFO_GEELY_GEOMETRY_C {
@@ -348,6 +349,19 @@ struct DATALAYER_INFO_KIAHYUNDAI64 {
   uint8_t batteryManagementMode = 0;
   uint8_t BMS_ign = 0;
   uint8_t batteryRelay = 0;
+  uint16_t inverterVoltage = 0;
+  uint8_t ecu_serial_number[16] = {0};
+  uint8_t ecu_version_number[16] = {0};
+  uint32_t cumulative_charge_current_ah = 0;
+  uint32_t cumulative_discharge_current_ah = 0;
+  uint32_t cumulative_energy_charged_kWh = 0;
+  uint32_t cumulative_energy_discharged_kWh = 0;
+  uint32_t powered_on_total_time = 0;
+  uint16_t isolation_resistance_kOhm = 0;
+  uint16_t number_of_standard_charging_sessions = 0;
+  uint16_t number_of_fastcharging_sessions = 0;
+  uint16_t accumulated_normal_charging_energy_kWh = 0;
+  uint16_t accumulated_fastcharging_energy_kWh = 0;
 };
 
 struct DATALAYER_INFO_TESLA {
@@ -747,7 +761,7 @@ struct DATALAYER_INFO_VOLVO_POLESTAR {
   uint16_t BECMsupplyVoltage = 0;
 
   uint16_t BECMBatteryVoltage = 0;
-  uint16_t BECMBatteryCurrent = 0;
+  int16_t BECMBatteryCurrent = 0;
   uint16_t BECMUDynMaxLim = 0;
   uint16_t BECMUDynMinLim = 0;
 
