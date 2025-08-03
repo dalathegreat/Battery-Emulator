@@ -35,12 +35,6 @@ class HyundaiIoniq28Battery : public CanBattery {
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
 
-  // If not null, this battery decides when the contactor can be closed and writes the value here.
-  bool* allows_contactor_closing;
-
-  // If not null, this battery listens to this boolean to determine whether contactor closing is allowed
-  bool* contactor_closing_allowed;
-
   static const int MAX_PACK_VOLTAGE_DV = 4050;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2880;
   static const int MAX_CELL_DEVIATION_MV = 150;

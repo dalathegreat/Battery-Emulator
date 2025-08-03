@@ -298,63 +298,58 @@ void HyundaiIoniq28Battery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    if (contactor_closing_allowed == nullptr || *contactor_closing_allowed) {
-      transmit_can_frame(&IONIQ_553);
-      transmit_can_frame(&IONIQ_57F);
-      transmit_can_frame(&IONIQ_2A1);
-    }
+    transmit_can_frame(&IONIQ_553);
+    transmit_can_frame(&IONIQ_57F);
+    transmit_can_frame(&IONIQ_2A1);
   }
 
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
-    if (contactor_closing_allowed == nullptr || *contactor_closing_allowed) {
-
-      switch (counter_200) {
-        case 0:
-          IONIQ_200.data.u8[5] = 0x17;
-          ++counter_200;
-          break;
-        case 1:
-          IONIQ_200.data.u8[5] = 0x57;
-          ++counter_200;
-          break;
-        case 2:
-          IONIQ_200.data.u8[5] = 0x97;
-          ++counter_200;
-          break;
-        case 3:
-          IONIQ_200.data.u8[5] = 0xD7;
-          ++counter_200;
-          break;
-        case 4:
-          IONIQ_200.data.u8[3] = 0x10;
-          IONIQ_200.data.u8[5] = 0xFF;
-          ++counter_200;
-          break;
-        case 5:
-          IONIQ_200.data.u8[5] = 0x3B;
-          ++counter_200;
-          break;
-        case 6:
-          IONIQ_200.data.u8[5] = 0x7B;
-          ++counter_200;
-          break;
-        case 7:
-          IONIQ_200.data.u8[5] = 0xBB;
-          ++counter_200;
-          break;
-        case 8:
-          IONIQ_200.data.u8[5] = 0xFB;
-          counter_200 = 5;
-          break;
-      }
-
-      transmit_can_frame(&IONIQ_200);
-      transmit_can_frame(&IONIQ_523);
-      transmit_can_frame(&IONIQ_524);
+    switch (counter_200) {
+      case 0:
+        IONIQ_200.data.u8[5] = 0x17;
+        ++counter_200;
+        break;
+      case 1:
+        IONIQ_200.data.u8[5] = 0x57;
+        ++counter_200;
+        break;
+      case 2:
+        IONIQ_200.data.u8[5] = 0x97;
+        ++counter_200;
+        break;
+      case 3:
+        IONIQ_200.data.u8[5] = 0xD7;
+        ++counter_200;
+        break;
+      case 4:
+        IONIQ_200.data.u8[3] = 0x10;
+        IONIQ_200.data.u8[5] = 0xFF;
+        ++counter_200;
+        break;
+      case 5:
+        IONIQ_200.data.u8[5] = 0x3B;
+        ++counter_200;
+        break;
+      case 6:
+        IONIQ_200.data.u8[5] = 0x7B;
+        ++counter_200;
+        break;
+      case 7:
+        IONIQ_200.data.u8[5] = 0xBB;
+        ++counter_200;
+        break;
+      case 8:
+        IONIQ_200.data.u8[5] = 0xFB;
+        counter_200 = 5;
+        break;
     }
+
+    transmit_can_frame(&IONIQ_200);
+    transmit_can_frame(&IONIQ_523);
+    transmit_can_frame(&IONIQ_524);
   }
 }
 
@@ -368,9 +363,7 @@ void HyundaiIoniq28Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  if (allows_contactor_closing) {
-    *allows_contactor_closing = true;
-  }
+  datalayer.system.status.battery_allows_contactor_closing = true;
 }
 
 uint16_t HyundaiIoniq28Battery::get_lead_acid_voltage() const {
