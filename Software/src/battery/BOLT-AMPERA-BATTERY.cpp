@@ -41,22 +41,24 @@ void updateSOC_CoulombCounting() {
   float SOC = battery_SOC_display / 100.0;
   SOC += delta_SOC;
 
-  if (SOC > 100.0) SOC = 100.0;
-  if (SOC < 0.0) SOC = 0.0;
+  if (SOC > 100.0)
+    SOC = 100.0;
+  if (SOC < 0.0)
+    SOC = 0.0;
 
-  if (current == 0.0 && voltage > 400.0) SOC = 100.0;
-  if (voltage < 320.0 && current < 1.0) SOC = 0.0;
+  if (current == 0.0 && voltage > 400.0)
+    SOC = 100.0;
+  if (voltage < 320.0 && current < 1.0)
+    SOC = 0.0;
 
   battery_SOC_display = (uint16_t)(SOC * 100.0);
 }
 void updateBatteryStatus() {
   // Check of CAN-data geldig is
-  if (battery_voltage_polled > 0.0 &&
-      battery_current_7E4 != NAN &&
-      battery_capacity_my17_18 > 0.0 &&
+  if (battery_voltage_polled > 0.0 && battery_current_7E4 != NAN && battery_capacity_my17_18 > 0.0 &&
       datalayer.battery.status.soh_pptt > 0) {
-// Voeg dit toe op een plek na CAN-data verwerking
-updateSOC_CoulombCounting();
+    // Voeg dit toe op een plek na CAN-data verwerking
+    updateSOC_CoulombCounting();
 
     // Update SOC op basis van Coulomb Counting
     updateSOC_CoulombCounting();
@@ -71,25 +73,24 @@ updateSOC_CoulombCounting();
 uint16_t lookupSOC(uint16_t voltage_mV) {
   for (uint8_t i = 0; i < numEntries - 1; i++) {
     if (voltage_mV >= voltage_lookup[i]) {
-      return SOC[i]; // return % in honderdsten
+      return SOC[i];  // return % in honderdsten
     }
   }
-  return 0; // bij < laagste waarde
+  return 0;  // bij < laagste waarde
 }
 
-uint16_t expected_SOC = lookupSOC((uint16_t)(voltage * 1000)); // omzetten naar mV
+uint16_t expected_SOC = lookupSOC((uint16_t)(voltage * 1000));  // omzetten naar mV
 
 uint16_t actual_SOC = battery_SOC_display;
 
 // Indien verschil > drempel (bijv. 20%), loggen of corrigeren
-if (abs((int)actual_SOC - (int)expected_SOC) > 2000) { // >20%
+if (abs((int)actual_SOC - (int)expected_SOC) > 2000) {  // >20%
   // Optioneel: overschrijven
   // battery_SOC_display = expected_SOC;
 
   // Of alleen melding maken
   // printf("SOC afwijking: berekend %u ‰, verwacht %u ‰\n", actual_SOC, expected_SOC);
 }
-
 
 /*TODO, messages we might need to send towards the battery to keep it happy and close contactors
 0x214 Charger coolant temp info HV
