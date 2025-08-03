@@ -1,7 +1,7 @@
 #ifndef _CANRECEIVER_H
 #define _CANRECEIVER_H
 
-#include "src/devboard/utils/types.h"
+#include "../../devboard/utils/types.h"
 
 class CanReceiver {
  public:

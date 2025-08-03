@@ -2,7 +2,7 @@
 #define _KIA_E_GMP_HTML_H
 
 #include "../datalayer/datalayer.h"
-#include "src/devboard/webserver/BatteryHtmlRenderer.h"
+#include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class KiaEGmpBattery;
 

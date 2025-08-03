@@ -1,7 +1,5 @@
 #ifndef IMIEV_CZERO_ION_BATTERY_H
 #define IMIEV_CZERO_ION_BATTERY_H
-#include <Arduino.h>
-
 #include "CanBattery.h"
 
 #ifdef IMIEV_CZERO_ION_BATTERY

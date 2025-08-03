@@ -1,8 +1,8 @@
 #ifndef SMA_BYD_HVS_CAN_H
 #define SMA_BYD_HVS_CAN_H
 
+#include "../devboard/hal/hal.h"
 #include "SmaInverterBase.h"
-#include "src/devboard/hal/hal.h"
 
 #ifdef SMA_BYD_HVS_CAN
 #define SELECTED_INVERTER_CLASS SmaBydHvsInverter

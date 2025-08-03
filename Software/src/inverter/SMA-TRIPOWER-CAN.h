@@ -1,8 +1,8 @@
 #ifndef SMA_CAN_TRIPOWER_H
 #define SMA_CAN_TRIPOWER_H
 
+#include "../devboard/hal/hal.h"
 #include "SmaInverterBase.h"
-#include "src/devboard/hal/hal.h"
 
 #ifdef SMA_TRIPOWER_CAN
 #define SELECTED_INVERTER_CLASS SmaTripowerInverter

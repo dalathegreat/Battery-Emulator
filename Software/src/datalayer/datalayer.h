@@ -5,7 +5,7 @@
 #include "../devboard/utils/types.h"
 #include "../system_settings.h"
 
-typedef struct {
+struct DATALAYER_BATTERY_INFO_TYPE {
   /** uint32_t */
   /** Total energy capacity in Watt-hours */
   uint32_t total_capacity_Wh = BATTERY_WH_MAX;
@@ -30,9 +30,9 @@ typedef struct {
   /** Other */
   /** Chemistry of the pack. NCA, NMC or LFP (so far) */
   battery_chemistry_enum chemistry = battery_chemistry_enum::NCA;
-} DATALAYER_BATTERY_INFO_TYPE;
+};
 
-typedef struct {
+struct DATALAYER_BATTERY_STATUS_TYPE {
   /** int32_t */
   /** Instantaneous battery power in Watts. Calculated based on voltage_dV and current_dA */
   /* Positive value = Battery Charging */
@@ -111,10 +111,9 @@ typedef struct {
 
   /** LED mode, customizable by user */
   led_mode_enum led_mode = LED_MODE;
+};
 
-} DATALAYER_BATTERY_STATUS_TYPE;
-
-typedef struct {
+struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** SOC scaling setting. Set to true to use SOC scaling */
   bool soc_scaling_active = BATTERY_USE_SCALED_SOC;
   /** Minimum percentage setting. Set this value to the lowest real SOC
@@ -167,8 +166,7 @@ typedef struct {
 
   /** Sofar CAN Battery ID (0-15) used to parallel multiple packs */
   uint8_t sofar_user_specified_battery_id = 0;
-
-} DATALAYER_BATTERY_SETTINGS_TYPE;
+};
 
 typedef struct {
   DATALAYER_BATTERY_INFO_TYPE info;
@@ -176,7 +174,7 @@ typedef struct {
   DATALAYER_BATTERY_SETTINGS_TYPE settings;
 } DATALAYER_BATTERY_TYPE;
 
-typedef struct {
+struct DATALAYER_CHARGER_TYPE {
   /** Charger setpoint voltage */
   float charger_setpoint_HV_VDC = 0;
   /** Charger setpoint current */
@@ -205,9 +203,9 @@ typedef struct {
    * we report the battery as missing entirely on the CAN bus.
    */
   uint8_t CAN_charger_still_alive = CAN_STILL_ALIVE;
-} DATALAYER_CHARGER_TYPE;
+};
 
-typedef struct {
+struct DATALAYER_SHUNT_TYPE {
   /** measured voltage in deciVolts. 4200 = 420.0 V */
   uint16_t measured_voltage_dV = 0;
   /** measured amperage in deciAmperes. 300 = 30.0 A */
@@ -226,9 +224,9 @@ typedef struct {
   bool contactors_engaged = false;
   /** True if shunt communication ok **/
   bool available = false;
-} DATALAYER_SHUNT_TYPE;
+};
 
-typedef struct {
+struct DATALAYER_SYSTEM_INFO_TYPE {
   /** ESP32 main CPU temperature, for displaying on webserver and for safeties */
   float CPU_temperature = 0;
   /** array with type of battery used, for displaying on webserver */
@@ -252,10 +250,9 @@ typedef struct {
   bool can_2515_send_fail = false;
   /** uint16_t, MCP2518 CANFD failed to send flag */
   bool can_2518_send_fail = false;
+};
 
-} DATALAYER_SYSTEM_INFO_TYPE;
-
-typedef struct {
+struct DATALAYER_SYSTEM_STATUS_TYPE {
 #ifdef FUNCTION_TIME_MEASUREMENT
   /** Core task measurement variable */
   int64_t core_task_max_us = 0;
@@ -325,18 +322,18 @@ typedef struct {
 
   /** State of automatic precharge sequence */
   PrechargeState precharge_status = AUTO_PRECHARGE_IDLE;
-} DATALAYER_SYSTEM_STATUS_TYPE;
+};
 
-typedef struct {
+struct DATALAYER_SYSTEM_SETTINGS_TYPE {
   bool equipment_stop_active = false;
   bool start_precharging = false;
-} DATALAYER_SYSTEM_SETTINGS_TYPE;
+};
 
-typedef struct {
+struct DATALAYER_SYSTEM_TYPE {
   DATALAYER_SYSTEM_INFO_TYPE info;
   DATALAYER_SYSTEM_STATUS_TYPE status;
   DATALAYER_SYSTEM_SETTINGS_TYPE settings;
-} DATALAYER_SYSTEM_TYPE;
+};
 
 class DataLayer {
  public:

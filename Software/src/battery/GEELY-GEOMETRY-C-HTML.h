@@ -1,9 +1,10 @@
 #ifndef _GEELY_GEOMETRY_C_HTML_H
 #define _GEELY_GEOMETRY_C_HTML_H
 
+#include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
-#include "src/devboard/webserver/BatteryHtmlRenderer.h"
+#include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class GeelyGeometryCHtmlRenderer : public BatteryHtmlRenderer {
  public:

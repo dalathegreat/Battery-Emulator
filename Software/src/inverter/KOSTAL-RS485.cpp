@@ -4,7 +4,7 @@
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
 
-void KostalInverterProtocol::float2frame(byte* arr, float value, byte framepointer) {
+void KostalInverterProtocol::float2frame(uint8_t* arr, float value, uint8_t framepointer) {
   f32b g;
   g.f = value;
   arr[framepointer] = g.b[0];
@@ -21,7 +21,7 @@ static void dbg_timestamp(void) {
 #endif
 }
 
-static void dbg_frame(byte* frame, int len, const char* prefix) {
+static void dbg_frame(uint8_t* frame, int len, const char* prefix) {
   dbg_timestamp();
 #ifdef DEBUG_KOSTAL_RS485_DATA
   logging.print(prefix);
@@ -58,22 +58,22 @@ static void dbg_message(const char* msg) {
 
 /* https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples */
 
-static void null_stuffer(byte* lfc, int len) {
+static void null_stuffer(uint8_t* lfc, int len) {
   int last_null_byte = 0;
   for (int i = 0; i < len; i++) {
     if (lfc[i] == '\0') {
-      lfc[last_null_byte] = (byte)(i - last_null_byte);
+      lfc[last_null_byte] = (uint8_t)(i - last_null_byte);
       last_null_byte = i;
     }
   }
 }
 
-static void send_kostal(byte* frame, int len) {
+static void send_kostal(uint8_t* frame, int len) {
   dbg_frame(frame, len, "TX");
   Serial2.write(frame, len);
 }
 
-static byte calculate_kostal_crc(byte* lfc, int len) {
+static uint8_t calculate_kostal_crc(byte* lfc, int len) {
   unsigned int sum = 0;
   if (lfc[0] != 0) {
     logging.printf("WARNING: first byte should be 0, but is 0x%02x\n", lfc[0]);
@@ -81,7 +81,7 @@ static byte calculate_kostal_crc(byte* lfc, int len) {
   for (int i = 1; i < len; i++) {
     sum += lfc[i];
   }
-  return (byte)(-sum & 0xff);
+  return (uint8_t)(-sum & 0xff);
 }
 
 bool KostalInverterProtocol::check_kostal_frame_crc(int len) {
@@ -195,7 +195,7 @@ void KostalInverterProtocol::update_values() {
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.cell_max_voltage_mV / 1000, 46);
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.cell_min_voltage_mV / 1000, 50);
 
-  CYCLIC_DATA[58] = (byte)(datalayer.battery.status.reported_soc / 100);
+  CYCLIC_DATA[58] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
 
   register_content_ok = true;
 
@@ -265,7 +265,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                   if (f2_startup_count < 15) {
                     f2_startup_count++;
                   }
-                  byte tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  uint8_t tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, CYCLIC_DATA, 64);
                   tmpframe[62] = calculate_kostal_crc(tmpframe, 62);
                   null_stuffer(tmpframe, 64);
@@ -274,7 +274,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 }
                 if (code == 0x84a) {
                   //Send  battery info
-                  byte tmpframe[40];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  uint8_t tmpframe[40];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, BATTERY_INFO, 40);
                   tmpframe[38] = calculate_kostal_crc(tmpframe, 38);
                   null_stuffer(tmpframe, 40);
@@ -286,7 +286,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 }
                 if (code == 0x353 && info_sent) {
                   //Send  battery error/status
-                  byte tmpframe[9];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  uint8_t tmpframe[9];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, STATUS_FRAME, 9);
                   tmpframe[7] = calculate_kostal_crc(tmpframe, 7);
                   null_stuffer(tmpframe, 9);

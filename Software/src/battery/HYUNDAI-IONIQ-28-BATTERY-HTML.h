@@ -2,7 +2,7 @@
 #define _HYUNDAI_IONIQ_28_BATTERY_HTML_H
 
 #include "../datalayer/datalayer.h"
-#include "src/devboard/webserver/BatteryHtmlRenderer.h"
+#include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class HyundaiIoniq28Battery;
 

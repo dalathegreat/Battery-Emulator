@@ -1,4 +1,6 @@
 #include "SOFAR-CAN.h"
+#include <Arduino.h>
+#include <string.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 

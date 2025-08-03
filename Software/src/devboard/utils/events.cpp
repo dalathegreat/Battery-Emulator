@@ -1,4 +1,5 @@
 #include "events.h"
+#include <Arduino.h>
 #include "../../../USER_SETTINGS.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/hal/hal.h"
@@ -424,7 +425,7 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;
 
   // Update event level, only upwards. Downward changes are done in Software.ino:loop()
-  events.level = max(events.level, events.entries[event].level);
+  events.level = (EVENTS_LEVEL_TYPE)max(events.level, events.entries[event].level);
 
   update_bms_status();
 }
@@ -461,7 +462,7 @@ static void update_event_level(void) {
   EVENTS_LEVEL_TYPE temporary_level = EVENT_LEVEL_INFO;
   for (uint8_t i = 0u; i < EVENT_NOF_EVENTS; i++) {
     if ((events.entries[i].state == EVENT_STATE_ACTIVE) || (events.entries[i].state == EVENT_STATE_ACTIVE_LATCHED)) {
-      temporary_level = max(events.entries[i].level, temporary_level);
+      temporary_level = (EVENTS_LEVEL_TYPE)max(events.entries[i].level, temporary_level);
     }
   }
   events.level = temporary_level;
