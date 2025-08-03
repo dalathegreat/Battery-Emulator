@@ -44,10 +44,10 @@ class KiaHyundai64HtmlRenderer : public BatteryHtmlRenderer {
       content +=
           "<h4>Normal charged energy amount: " + String(data.accumulated_normal_charging_energy_kWh) + " kWh</h4>";
       content += "<h4>Fastcharged energy amount: " + String(data.accumulated_fastcharging_energy_kWh) + " kWh</h4>";
-      content += "<h4>Total amount charged energy: " + String(data.cumulative_energy_charged_kWh) + " kWh</h4>";
-      content += "<h4>Total amount discharged energy: " + String(data.cumulative_energy_discharged_kWh) + " kWh</h4>";
-      content += "<h4>Cumulative charge current: " + String(data.cumulative_charge_current_ah / 10) + " Ah</h4>";
-      content += "<h4>Cumulative discharge current: " + String(data.cumulative_discharge_current_ah / 10) + " Ah</h4>";
+      content += "<h4>Total amount charged energy: " + String(data.cumulative_energy_charged_kWh / 10.0 ) + " kWh</h4>";
+      content += "<h4>Total amount discharged energy: " + String(data.cumulative_energy_discharged_kWh / 10.0 ) + " kWh</h4>";
+      content += "<h4>Cumulative charge current: " + String(data.cumulative_charge_current_ah / 10.0 ) + " Ah</h4>";
+      content += "<h4>Cumulative discharge current: " + String(data.cumulative_discharge_current_ah / 10.0) + " Ah</h4>";
     };
 
     print_hyundai(*kia_datalayer);
