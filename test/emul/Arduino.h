@@ -21,6 +21,8 @@
 
 #include "WString.h"
 
+#include "esp32-hal-log.h"
+
 //typedef	uint64_t	time_t;
 
 void pinMode(uint8_t pin, uint8_t mode);
@@ -85,14 +87,6 @@ class EspClass {
 };
 
 extern EspClass ESP;
-
-void log_printf(const char* format, ...);
-
-#define log_d(format, ...) log_printf(format, ##__VA_ARGS__)
-#define log_e(format, ...) log_printf(format, ##__VA_ARGS__)
-#define log_i(format, ...) log_printf(format, ##__VA_ARGS__)
-#define log_w(format, ...) log_printf(format, ##__VA_ARGS__)
-#define log_v(format, ...) log_printf(format, ##__VA_ARGS__)
 
 struct tm* localtime_r(const time_t*, struct tm*);
 

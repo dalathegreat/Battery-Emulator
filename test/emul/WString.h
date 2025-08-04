@@ -252,6 +252,14 @@ class String {
     return true;
   }
 
+  bool concat(const char* cstr, unsigned int length) {
+    if (cstr && length > 0) {
+      data.append(cstr, length);
+      return true;
+    }
+    return false;
+  }
+
   void append(const char* str, size_t len) {
     if (str && len > 0) {
       data.append(str, len);

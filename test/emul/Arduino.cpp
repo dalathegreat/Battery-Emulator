@@ -6,10 +6,8 @@
 #include <vector>
 
 #include "esp_system.h"
-"
 
-    int
-    max(int a, int b) {
+int max(int a, int b) {
   return (a > b) ? a : b;
 }
 

@@ -11,6 +11,8 @@ namespace fs {
 #define FILE_WRITE "w"
 #define FILE_APPEND "a"
 
+enum SeekMode { SeekSet = 0, SeekCur = 1, SeekEnd = 2 };
+
 class File : public Stream {
  public:
   const char* name() const { return "foobar"; }
@@ -18,6 +20,9 @@ class File : public Stream {
   int read() override {
     return -1;  // EOF
   }
+
+  bool seek(uint32_t pos, SeekMode mode);
+  bool seek(uint32_t pos) { return seek(pos, SeekSet); }
 
   int peek() override { return -1; }
 

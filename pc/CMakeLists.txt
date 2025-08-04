@@ -38,6 +38,8 @@ add_executable(BatteryEmulator
     ../Software/src/lib/eModbus-eModbus/Logging.cpp
     ../Software/src/lib/eModbus-eModbus/scripts/mbServerFCs.cpp
     ../Software/src/lib/eModbus-eModbus/RTUutils.cpp
+    ../Software/src/lib/ESP32Async-ESPAsyncWebServer/src/AsyncWebHeader.cpp
+    ../Software/src/lib/ESP32Async-ESPAsyncWebServer/src/AsyncWebServerRequest.cpp
     ../Software/src/lib/ESP32Async-ESPAsyncWebServer/src/WebServer.cpp
     ../Software/src/lib/ESP32Async-ESPAsyncWebServer/src/WebRequest.cpp
     ../Software/src/lib/ESP32Async-ESPAsyncWebServer/src/WebHandlers.cpp
@@ -74,6 +76,7 @@ add_executable(BatteryEmulator
     ../Software/src/devboard/utils/led_handler.cpp
     ../Software/Software.ino
     ../test/emul/can.cpp
+    ../test/emul/cbuf.cpp
     ../test/emul/time.cpp
     ../test/emul/serial.cpp
     ../test/emul/WString.cpp
