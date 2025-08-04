@@ -74,6 +74,8 @@ const char* name_for_battery_type(BatteryType type) {
       return FoxessBattery::Name;
     case BatteryType::GeelyGeometryC:
       return GeelyGeometryCBattery::Name;
+    case BatteryType::HyundaiIoniq28:
+      return HyundaiIoniq28Battery::Name;
     case BatteryType::OrionBms:
       return OrionBms::Name;
     case BatteryType::Sono:
@@ -114,6 +116,8 @@ const char* name_for_battery_type(BatteryType type) {
       return RenaultZoeGen1Battery::Name;
     case BatteryType::RenaultZoe2:
       return RenaultZoeGen2Battery::Name;
+    case BatteryType::SamsungSdiLv:
+      return SamsungSdiLVBattery::Name;
     case BatteryType::SantaFePhev:
       return SantaFePhevBattery::Name;
     case BatteryType::SimpBms:
@@ -171,6 +175,8 @@ Battery* create_battery(BatteryType type) {
       return new FoxessBattery();
     case BatteryType::GeelyGeometryC:
       return new GeelyGeometryCBattery();
+    case BatteryType::HyundaiIoniq28:
+      return new HyundaiIoniq28Battery();
     case BatteryType::OrionBms:
       return new OrionBms();
     case BatteryType::Sono:
@@ -211,6 +217,8 @@ Battery* create_battery(BatteryType type) {
       return new RenaultZoeGen1Battery();
     case BatteryType::RenaultZoe2:
       return new RenaultZoeGen2Battery();
+    case BatteryType::SamsungSdiLv:
+      return new SamsungSdiLVBattery();
     case BatteryType::SantaFePhev:
       return new SantaFePhevBattery();
     case BatteryType::SimpBms:

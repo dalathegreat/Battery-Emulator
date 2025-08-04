@@ -4,9 +4,10 @@
 #ifndef _ESPAsyncWebServer_H_
 #define _ESPAsyncWebServer_H_
 
-#include "Arduino.h"
+#include <Arduino.h>
+#include <FS.h>
+#include <lwip/tcpbase.h>
 
-#include "FS.h"
 #include <algorithm>
 #include <deque>
 #include <functional>
@@ -14,16 +15,13 @@
 #include <unordered_map>
 #include <vector>
 
-#ifdef ESP32
+#if defined(ESP32) || defined(LIBRETINY)
 #include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
-#include <WiFi.h>
 #elif defined(ESP8266)
-#include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
 #elif defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350)
 #include <RPAsyncTCP.h>
 #include <HTTP_Method.h>
-#include <WiFi.h>
 #include <http_parser.h>
 #else
 #error Platform not supported
@@ -131,12 +129,20 @@ private:
   String _value;
 
 public:
+  AsyncWebHeader() {}
   AsyncWebHeader(const AsyncWebHeader &) = default;
+  AsyncWebHeader(AsyncWebHeader &&) = default;
   AsyncWebHeader(const char *name, const char *value) : _name(name), _value(value) {}
   AsyncWebHeader(const String &name, const String &value) : _name(name), _value(value) {}
-  AsyncWebHeader(const String &data);
+
+#ifndef ESP8266
+  [[deprecated("Use AsyncWebHeader::parse(data) instead")]]
+#endif
+  AsyncWebHeader(const String &data)
+    : AsyncWebHeader(parse(data)){};
 
   AsyncWebHeader &operator=(const AsyncWebHeader &) = default;
+  AsyncWebHeader &operator=(AsyncWebHeader &&other) = default;
 
   const String &name() const {
     return _name;
@@ -144,7 +150,18 @@ public:
   const String &value() const {
     return _value;
   }
+
   String toString() const;
+
+  // returns true if the header is valid
+  operator bool() const {
+    return _name.length();
+  }
+
+  static const AsyncWebHeader parse(const String &data) {
+    return parse(data.c_str());
+  }
+  static const AsyncWebHeader parse(const char *data);
 };
 
 /*
@@ -180,6 +197,7 @@ class AsyncWebServerRequest {
   using FS = fs::FS;
   friend class AsyncWebServer;
   friend class AsyncCallbackWebHandler;
+  friend class AsyncFileResponse;
 
 private:
   AsyncClient *_client;
@@ -250,6 +268,8 @@ private:
 
   void _send();
   void _runMiddlewareChain();
+
+  static void _getEtag(uint8_t trailer[4], char *serverETag);
 
 public:
   File _tempFile;
@@ -363,13 +383,7 @@ public:
     send(beginResponse(code, contentType, content, len, callback));
   }
 
-  void send(FS &fs, const String &path, const char *contentType = asyncsrv::empty, bool download = false, AwsTemplateProcessor callback = nullptr) {
-    if (fs.exists(path) || (!download && fs.exists(path + asyncsrv::T__gz))) {
-      send(beginResponse(fs, path, contentType, download, callback));
-    } else {
-      send(404);
-    }
-  }
+  void send(FS &fs, const String &path, const char *contentType = asyncsrv::empty, bool download = false, AwsTemplateProcessor callback = nullptr);
   void send(FS &fs, const String &path, const String &contentType, bool download = false, AwsTemplateProcessor callback = nullptr) {
     send(fs, path, contentType.c_str(), download, callback);
   }
@@ -462,7 +476,9 @@ public:
   }
 
   AsyncWebServerResponse *beginChunkedResponse(const char *contentType, AwsResponseFiller callback, AwsTemplateProcessor templateCallback = nullptr);
-  AsyncWebServerResponse *beginChunkedResponse(const String &contentType, AwsResponseFiller callback, AwsTemplateProcessor templateCallback = nullptr);
+  AsyncWebServerResponse *beginChunkedResponse(const String &contentType, AwsResponseFiller callback, AwsTemplateProcessor templateCallback = nullptr) {
+    return beginChunkedResponse(contentType.c_str(), callback, templateCallback);
+  }
 
   AsyncResponseStream *beginResponseStream(const char *contentType, size_t bufferSize = RESPONSE_STREAM_BUFFER_SIZE);
   AsyncResponseStream *beginResponseStream(const String &contentType, size_t bufferSize = RESPONSE_STREAM_BUFFER_SIZE) {
@@ -531,6 +547,9 @@ public:
      * @return const AsyncWebParameter*
      */
   const AsyncWebParameter *getParam(size_t num) const;
+  const AsyncWebParameter *getParam(int num) const {
+    return num < 0 ? nullptr : getParam((size_t)num);
+  }
 
   size_t args() const {
     return params();
@@ -545,9 +564,15 @@ public:
 #ifdef ESP8266
   const String &arg(const __FlashStringHelper *data) const;  // get request argument value by F(name)
 #endif
-  const String &arg(size_t i) const;      // get request argument value by number
+  const String &arg(size_t i) const;  // get request argument value by number
+  const String &arg(int i) const {
+    return i < 0 ? emptyString : arg((size_t)i);
+  };
   const String &argName(size_t i) const;  // get request argument name by number
-  bool hasArg(const char *name) const;    // check if argument exists
+  const String &argName(int i) const {
+    return i < 0 ? emptyString : argName((size_t)i);
+  };
+  bool hasArg(const char *name) const;  // check if argument exists
   bool hasArg(const String &name) const {
     return hasArg(name.c_str());
   };
@@ -556,6 +581,9 @@ public:
 #endif
 
   const String &ASYNCWEBSERVER_REGEX_ATTRIBUTE pathArg(size_t i) const;
+  const String &ASYNCWEBSERVER_REGEX_ATTRIBUTE pathArg(int i) const {
+    return i < 0 ? emptyString : pathArg((size_t)i);
+  }
 
   // get request header value by name
   const String &header(const char *name) const;
@@ -567,8 +595,14 @@ public:
   const String &header(const __FlashStringHelper *data) const;  // get request header value by F(name)
 #endif
 
-  const String &header(size_t i) const;      // get request header value by number
+  const String &header(size_t i) const;  // get request header value by number
+  const String &header(int i) const {
+    return i < 0 ? emptyString : header((size_t)i);
+  };
   const String &headerName(size_t i) const;  // get request header name by number
+  const String &headerName(int i) const {
+    return i < 0 ? emptyString : headerName((size_t)i);
+  };
 
   size_t headers() const;  // get header count
 
@@ -590,6 +624,9 @@ public:
 #endif
 
   const AsyncWebHeader *getHeader(size_t num) const;
+  const AsyncWebHeader *getHeader(int num) const {
+    return num < 0 ? nullptr : getHeader((size_t)num);
+  };
 
   const std::list<AsyncWebHeader> &getHeaders() const {
     return _headers;
@@ -1011,6 +1048,10 @@ public:
     setContentType(type.c_str());
   }
   void setContentType(const char *type);
+  bool addHeader(AsyncWebHeader &&header, bool replaceExisting = true);
+  bool addHeader(const AsyncWebHeader &header, bool replaceExisting = true) {
+    return header && addHeader(header.name(), header.value(), replaceExisting);
+  }
   bool addHeader(const char *name, const char *value, bool replaceExisting = true);
   bool addHeader(const String &name, const String &value, bool replaceExisting = true) {
     return addHeader(name.c_str(), value.c_str(), replaceExisting);
@@ -1068,6 +1109,15 @@ public:
 
   void begin();
   void end();
+
+  tcp_state state() const {
+#ifdef ESP8266
+    // ESPAsyncTCP and RPAsyncTCP methods are not corrected declared with const for immutable ones.
+    return static_cast<tcp_state>(const_cast<AsyncWebServer *>(this)->_server.status());
+#else
+    return static_cast<tcp_state>(_server.status());
+#endif
+  }
 
 #if ASYNC_TCP_SSL_ENABLED
   void onSslFileRequest(AcSSlFileHandler cb, void *arg);

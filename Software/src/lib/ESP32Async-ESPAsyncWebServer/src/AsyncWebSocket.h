@@ -5,8 +5,14 @@
 #define ASYNCWEBSOCKET_H_
 
 #include <Arduino.h>
-#ifdef ESP32
+
+#if defined(ESP32) || defined(LIBRETINY)
 #include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
+#ifdef LIBRETINY
+#ifdef round
+#undef round
+#endif
+#endif
 #include <mutex>
 #ifndef WS_MAX_QUEUED_MESSAGES
 #define WS_MAX_QUEUED_MESSAGES 32
@@ -208,7 +214,7 @@ private:
   uint32_t _clientId;
   AwsClientStatus _status;
 #ifdef ESP32
-  mutable std::mutex _lock;
+  mutable std::recursive_mutex _lock;
 #endif
   std::deque<AsyncWebSocketControl> _controlQueue;
   std::deque<AsyncWebSocketMessage> _messageQueue;
@@ -347,7 +353,7 @@ private:
   String _url;
   std::list<AsyncWebSocketClient> _clients;
   uint32_t _cNextId;
-  AwsEventHandler _eventHandler{nullptr};
+  AwsEventHandler _eventHandler;
   AwsHandshakeHandler _handshakeHandler;
   bool _enabled;
 #ifdef ESP32
@@ -361,8 +367,8 @@ public:
     PARTIALLY_ENQUEUED = 2,
   } SendStatus;
 
-  explicit AsyncWebSocket(const char *url) : _url(url), _cNextId(1), _enabled(true) {}
-  AsyncWebSocket(const String &url) : _url(url), _cNextId(1), _enabled(true) {}
+  explicit AsyncWebSocket(const char *url, AwsEventHandler handler = nullptr) : _url(url), _cNextId(1), _eventHandler(handler), _enabled(true) {}
+  AsyncWebSocket(const String &url, AwsEventHandler handler = nullptr) : _url(url), _cNextId(1), _eventHandler(handler), _enabled(true) {}
   ~AsyncWebSocket(){};
   const char *url() const {
     return _url.c_str();
@@ -441,6 +447,7 @@ public:
     return _cNextId++;
   }
   AsyncWebSocketClient *_newClient(AsyncWebServerRequest *request);
+  void _handleDisconnect(AsyncWebSocketClient *client);
   void _handleEvent(AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
   bool canHandle(AsyncWebServerRequest *request) const override final;
   void handleRequest(AsyncWebServerRequest *request) override final;
@@ -467,6 +474,88 @@ public:
   bool _sourceValid() const {
     return true;
   }
+};
+
+class AsyncWebSocketMessageHandler {
+public:
+  AwsEventHandler eventHandler() const {
+    return _handler;
+  }
+
+  void onConnect(std::function<void(AsyncWebSocket *server, AsyncWebSocketClient *client)> onConnect) {
+    _onConnect = onConnect;
+  }
+
+  void onDisconnect(std::function<void(AsyncWebSocket *server, uint32_t clientId)> onDisconnect) {
+    _onDisconnect = onDisconnect;
+  }
+
+  /**
+   * Error callback
+   * @param reason null-terminated string
+   * @param len length of the string
+   */
+  void onError(std::function<void(AsyncWebSocket *server, AsyncWebSocketClient *client, uint16_t errorCode, const char *reason, size_t len)> onError) {
+    _onError = onError;
+  }
+
+  /**
+   * Complete message callback
+   * @param data pointer to the data (binary or null-terminated string). This handler expects the user to know which data type he uses.
+   */
+  void onMessage(std::function<void(AsyncWebSocket *server, AsyncWebSocketClient *client, const uint8_t *data, size_t len)> onMessage) {
+    _onMessage = onMessage;
+  }
+
+  /**
+   * Fragmented message callback
+   * @param data pointer to the data (binary or null-terminated string), will be null-terminated. This handler expects the user to know which data type he uses.
+   */
+  // clang-format off
+  void onFragment(std::function<void(AsyncWebSocket *server, AsyncWebSocketClient *client, const AwsFrameInfo *frameInfo, const uint8_t *data, size_t len)> onFragment) {
+    _onFragment = onFragment;
+  }
+  // clang-format on
+
+private:
+  // clang-format off
+  std::function<void(AsyncWebSocket *server, AsyncWebSocketClient *client)> _onConnect;
+  std::function<void(AsyncWebSocket *server, AsyncWebSocketClient *client, uint16_t errorCode, const char *reason, size_t len)> _onError;
+  std::function<void(AsyncWebSocket *server, AsyncWebSocketClient *client, const uint8_t *data, size_t len)> _onMessage;
+  std::function<void(AsyncWebSocket *server, AsyncWebSocketClient *client, const AwsFrameInfo *frameInfo, const uint8_t *data, size_t len)> _onFragment;
+  std::function<void(AsyncWebSocket *server, uint32_t clientId)> _onDisconnect;
+  // clang-format on
+
+  // this handler is meant to only support 1-frame messages (== unfragmented messages)
+  AwsEventHandler _handler = [this](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+    if (type == WS_EVT_CONNECT) {
+      if (_onConnect) {
+        _onConnect(server, client);
+      }
+    } else if (type == WS_EVT_DISCONNECT) {
+      if (_onDisconnect) {
+        _onDisconnect(server, client->id());
+      }
+    } else if (type == WS_EVT_ERROR) {
+      if (_onError) {
+        _onError(server, client, *((uint16_t *)arg), (const char *)data, len);
+      }
+    } else if (type == WS_EVT_DATA) {
+      AwsFrameInfo *info = (AwsFrameInfo *)arg;
+      if (info->opcode == WS_TEXT) {
+        data[len] = 0;
+      }
+      if (info->final && info->index == 0 && info->len == len) {
+        if (_onMessage) {
+          _onMessage(server, client, data, len);
+        }
+      } else {
+        if (_onFragment) {
+          _onFragment(server, client, info, data, len);
+        }
+      }
+    }
+  };
 };
 
 #endif /* ASYNCWEBSOCKET_H_ */

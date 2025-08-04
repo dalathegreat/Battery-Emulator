@@ -79,7 +79,6 @@ protected:
   String _uri;
   WebRequestMethodComposite _method;
   ArJsonRequestHandlerFunction _onRequest;
-  size_t _contentLength;
 #if ARDUINOJSON_VERSION_MAJOR == 6
   size_t maxJsonBufferSize;
 #endif

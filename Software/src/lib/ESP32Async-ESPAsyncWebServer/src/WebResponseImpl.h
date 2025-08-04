@@ -10,7 +10,7 @@
 #undef max
 #endif
 #include "literals.h"
-#include <StreamString.h>
+#include <cbuf.h>
 #include <memory>
 #include <vector>
 
@@ -157,7 +157,7 @@ public:
 
 class AsyncResponseStream : public AsyncAbstractResponse, public Print {
 private:
-  StreamString _content;
+  std::unique_ptr<cbuf> _content;
 
 public:
   AsyncResponseStream(const char *contentType, size_t bufferSize);
@@ -168,6 +168,12 @@ public:
   size_t _fillBuffer(uint8_t *buf, size_t maxLen) override final;
   size_t write(const uint8_t *data, size_t len);
   size_t write(uint8_t data);
+  /**
+   * @brief Returns the number of bytes available in the stream.
+   */
+  size_t available() const {
+    return _content->available();
+  }
   using Print::write;
 };
 
