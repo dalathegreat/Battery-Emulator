@@ -90,6 +90,7 @@ add_executable(BatteryEmulator
     ../test/emul/mqtt.cpp
     ../test/emul/freertos/task.cpp
     ../test/emul/freertos/semphr.cpp
+    ../test/emul/freertos/ringbuf.cpp
     ../test/emul/lwip/sockets.cpp
     ../test/emul/lwip/dns.cpp
     ../test/emul/libb64/cencode.cpp

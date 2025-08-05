@@ -21,7 +21,11 @@ class File : public Stream {
     return -1;  // EOF
   }
 
-  bool seek(uint32_t pos, SeekMode mode);
+  bool seek(uint32_t pos, SeekMode mode) {
+    (void)pos;
+    (void)mode;
+    return false;  // Not supported
+  }
   bool seek(uint32_t pos) { return seek(pos, SeekSet); }
 
   int peek() override { return -1; }

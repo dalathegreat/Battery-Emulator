@@ -110,7 +110,6 @@ public:
   size_t send(AsyncClient *client);
 };
 
-
 typedef struct {
   /** Message type as defined by enum AwsFrameType.
      * Note: Applications will only see WS_TEXT and WS_BINARY.
