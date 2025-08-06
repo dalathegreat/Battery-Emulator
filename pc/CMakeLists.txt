@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 include_directories(../test/emul)
 
-add_compile_definitions(_CRT_SECURE_NO_WARNINGS _CRT_NO_POSIX_ERROR_CODES ESP32 ARDUINO HW_PC NISSAN_LEAF_BATTERY)
+add_compile_definitions(_CRT_SECURE_NO_WARNINGS _CRT_NO_POSIX_ERROR_CODES ESP32 ARDUINO HW_PC NISSAN_LEAF_BATTERY DEBUG_VIA_USB)
 
 set_source_files_properties(../Software/Software.ino PROPERTIES LANGUAGE CXX)
 

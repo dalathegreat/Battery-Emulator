@@ -3,11 +3,13 @@
 
 #include <Print.h>
 #include <inttypes.h>
+#include <mutex>
 #include "../../../USER_SETTINGS.h"
 #include "types.h"
 
 class Logging : public Print {
   void add_timestamp(size_t size);
+  std::mutex writeMutex;
 
  public:
   virtual size_t write(const uint8_t* buffer, size_t size);
