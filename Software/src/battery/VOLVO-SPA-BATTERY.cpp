@@ -158,13 +158,8 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         //logging.println("MIN_U not valid");	// Value toggles between true/false from BMS
       }
 
-      if ((rx_frame.data.u8[0] & 0x08) == 0x08)
+      if ((rx_frame.data.u8[0] & 0x08) == 0x08) {
         BATT_U = (((rx_frame.data.u8[0] & 0x07) * 256.0 + rx_frame.data.u8[1]) * 0.25);
-      else {
-        BATT_U = 0;
-#ifdef DEBUG_LOG
-        logging.println("BATT_U not valid");
-#endif
       }
 
       if ((rx_frame.data.u8[0] & 0x40) == 0x40)
@@ -255,31 +250,16 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 #endif
       }
 
-      if ((rx_frame.data.u8[0] & 0x04) == 0x04)
+      if ((rx_frame.data.u8[0] & 0x04) == 0x04) {
         CELL_U_MAX = ((rx_frame.data.u8[2] & 0x01) * 256 + rx_frame.data.u8[3]);
-      else {
-        CELL_U_MAX = 0;
-#ifdef DEBUG_LOG
-        logging.println("CELL_U_MAX not valid");
-#endif
       }
 
-      if ((rx_frame.data.u8[0] & 0x02) == 0x02)
+      if ((rx_frame.data.u8[0] & 0x02) == 0x02) {
         CELL_U_MIN = ((rx_frame.data.u8[0] & 0x01) * 256.0 + rx_frame.data.u8[1]);
-      else {
-        CELL_U_MIN = 0;
-#ifdef DEBUG_LOG
-        logging.println("CELL_U_MIN not valid");
-#endif
       }
 
-      if ((rx_frame.data.u8[0] & 0x08) == 0x08)
+      if ((rx_frame.data.u8[0] & 0x08) == 0x08) {
         CELL_ID_U_MAX = ((rx_frame.data.u8[4] & 0x01) * 256.0 + rx_frame.data.u8[5]);
-      else {
-        CELL_ID_U_MAX = 0;
-#ifdef DEBUG_LOG
-        logging.println("CELL_ID_U_MAX not valid");
-#endif
       }
       break;
     case 0x635:  // Diag request response
