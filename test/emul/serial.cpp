@@ -1,5 +1,5 @@
 #include "HardwareSerial.h"
 
-HardwareSerial Serial0;
+HardwareSerial Serial;
 HardwareSerial Serial1;
 HardwareSerial Serial2;
