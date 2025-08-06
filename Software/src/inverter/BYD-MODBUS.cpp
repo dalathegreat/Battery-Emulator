@@ -2,21 +2,8 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
-#include "../lib/eModbus-eModbus/RTUutils.h"
-#include "../lib/eModbus-eModbus/scripts/mbServerFCs.h"
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
-
-#define HISTORY_LENGTH 3  // Amount of samples(minutes) that needs to match for register to be considered stale
-static unsigned long previousMillis60s = 0;  // will store last time a 60s event occured
-static uint32_t user_configured_max_discharge_W = 0;
-static uint32_t user_configured_max_charge_W = 0;
-static uint32_t max_discharge_W = 0;
-static uint32_t max_charge_W = 0;
-static uint16_t register_401_history[HISTORY_LENGTH] = {0};
-static uint8_t history_index = 0;
-static uint8_t bms_char_dis_status = STANDBY;
-static bool all_401_values_equal = false;
 
 void BydModbusInverter::update_values() {
   verify_temperature();
@@ -41,14 +28,20 @@ void BydModbusInverter::handle_static_data() {
   static uint16_t i = 100;
   for (uint8_t arr_idx = 0; arr_idx < sizeof(data_array_pointers) / sizeof(uint16_t*); arr_idx++) {
     uint16_t data_size = data_sizes[arr_idx];
-    memcpy(&mbPV[i], data_array_pointers[arr_idx], data_size);
+    for (int j = 0; j < data_size / sizeof(uint16_t); j++) {
+      mbPV[i + j] = data_array_pointers[arr_idx][j];
+    }
     i += data_size / sizeof(uint16_t);
   }
   static uint16_t init_p201[13] = {0, 0, 0, MAX_POWER, MAX_POWER, 0, 0, 53248, 10, 53248, 10, 0, 0};
-  memcpy(&mbPV[200], init_p201, sizeof(init_p201));
+  for (int i = 0; i < sizeof(init_p201) / sizeof(uint16_t); i++) {
+    mbPV[200 + i] = init_p201[i];
+  }
   static uint16_t init_p301[24] = {0,  0,  128, 0, 0,  0,     0, 0, 0,  2000,  0,   2000,
                                    75, 95, 0,   0, 16, 22741, 0, 0, 13, 52064, 230, 9900};
-  memcpy(&mbPV[300], init_p301, sizeof(init_p301));
+  for (int i = 0; i < sizeof(init_p301) / sizeof(uint16_t); i++) {
+    mbPV[300 + i] = init_p301[i];
+  }
 }
 
 void BydModbusInverter::handle_update_data_modbusp201_byd() {
@@ -150,10 +143,8 @@ bool BydModbusInverter::setup(void) {  // Performs one time setup at startup ove
   // Init Static data to the RTU Modbus
   handle_static_data();
 
-#if HAS_FREERTOS
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
-#endif
 
   auto rx_pin = esp32hal->RS485_RX_PIN();
   auto tx_pin = esp32hal->RS485_TX_PIN();
@@ -163,16 +154,9 @@ bool BydModbusInverter::setup(void) {  // Performs one time setup at startup ove
   }
 
   Serial2.begin(9600, SERIAL_8N1, rx_pin, tx_pin);
-#if HAS_FREERTOS
-  // Register served function code worker for server
-  MBserver->registerWorker(MBTCP_ID, READ_HOLD_REGISTER, &FC03);
-  MBserver->registerWorker(MBTCP_ID, WRITE_HOLD_REGISTER, &FC06);
-  MBserver->registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
-  MBserver->registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
 
   // Start ModbusRTU background task
-  ((ModbusServerRTU*)MBserver)->begin(Serial2, esp32hal->MODBUS_CORE());
-#endif
+  MBserver.begin(Serial2, esp32hal->MODBUS_CORE());
 
   return true;
 }
