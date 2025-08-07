@@ -68,36 +68,23 @@ void SolArkLvInverter::update_values() {
     SOLARK_359.data.u8[1] |= 0x01;
 
   // WARNINGS (using same rules as errors but reporting earlier)
-  if (datalayer.battery.status.current_dA >= datalayer.battery.status.max_discharge_current_dA * WARNINGS_PERCENT / 100)
-    PYLON_359.data.u8[2] |= 0x80;
-  if (datalayer.battery.status.temperature_min_dC <=
-      warning_threshold_of_min(BATTERY_MINTEMPERATURE, BATTERY_MAXTEMPERATURE))
-    PYLON_359.data.u8[2] |= 0x10;
-  if (datalayer.battery.status.temperature_max_dC >= BATTERY_MAXTEMPERATURE * WARNINGS_PERCENT / 100)
-    PYLON_359.data.u8[2] |= 0x0C;
-  if (datalayer.battery.status.voltage_dV <= warning_threshold_of_min(datalayer.battery.info.min_design_voltage_dV,
-                                                                      datalayer.battery.info.max_design_voltage_dV))
-    PYLON_359.data.u8[2] |= 0x04;
-  // we never set PYLON_359.data.u8[3] |= 0x80 called "BMS internal"
-  if (datalayer.battery.status.current_dA <=
-      -1 * datalayer.battery.status.max_charge_current_dA * WARNINGS_PERCENT / 100)
-    PYLON_359.data.u8[3] |= 0x01;
+  // TODO: Not enabled in this integration yet. See Pylon protocol for example integration
 
-  PYLON_35C.data.u8[0] = 0xC0;  // enable charging and discharging
+  SOLARK_35C.data.u8[0] = 0xC0;  // enable charging and discharging
   if (datalayer.battery.status.bms_status == FAULT)
-    PYLON_35C.data.u8[0] = 0x00;  // disable all
+    SOLARK_35C.data.u8[0] = 0x00;  // disable all
   else if (datalayer.battery.settings.user_set_voltage_limits_active &&
            datalayer.battery.status.voltage_dV > datalayer.battery.settings.max_user_set_charge_voltage_dV)
-    PYLON_35C.data.u8[0] = 0x40;  // only allow discharging
+    SOLARK_35C.data.u8[0] = 0x40;  // only allow discharging
   else if (datalayer.battery.settings.user_set_voltage_limits_active &&
            datalayer.battery.status.voltage_dV < datalayer.battery.settings.max_user_set_discharge_voltage_dV)
-    PYLON_35C.data.u8[0] = 0xA0;  // enable charing, set charge immediately
+    SOLARK_35C.data.u8[0] = 0xA0;  // enable charing, set charge immediately
   else if (datalayer.battery.status.real_soc <= datalayer.battery.settings.min_percentage)
-    PYLON_35C.data.u8[0] = 0xA0;  // enable charing, set charge immediately
+    SOLARK_35C.data.u8[0] = 0xA0;  // enable charing, set charge immediately
   else if (datalayer.battery.status.real_soc >= datalayer.battery.settings.max_percentage)
-    PYLON_35C.data.u8[0] = 0x40;  // enable discharging only
+    SOLARK_35C.data.u8[0] = 0x40;  // enable discharging only
 
-  // PYLON_35E is pre-filled with the manufacturer name
+  // SOLARK_35E is pre-filled with the manufacturer name (BAT-EMU)
 }
 
 void SolArkLvInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
@@ -115,11 +102,11 @@ void SolArkLvInverter::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis1000ms >= INTERVAL_1_S) {
     previousMillis1000ms = currentMillis;
 
-    transmit_can_frame(&PYLON_351);
-    transmit_can_frame(&PYLON_355);
-    transmit_can_frame(&PYLON_356);
-    transmit_can_frame(&PYLON_359);
-    transmit_can_frame(&PYLON_35C);
-    transmit_can_frame(&PYLON_35E);
+    transmit_can_frame(&SOLARK_351);
+    transmit_can_frame(&SOLARK_355);
+    transmit_can_frame(&SOLARK_356);
+    transmit_can_frame(&SOLARK_359);
+    transmit_can_frame(&SOLARK_35C);
+    transmit_can_frame(&SOLARK_35E);
   }
 }
