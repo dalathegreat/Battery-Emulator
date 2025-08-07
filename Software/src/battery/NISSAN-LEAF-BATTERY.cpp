@@ -296,6 +296,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         LEAF_battery_Type = AZE0_BATTERY;
       }
       break;
+    case 0x380:
+    case 0x5EB:
+    case 0x5BF:
     case 0x1ED:
     case 0x1C2:
       //ZE1 2018-2023 battery detected!
@@ -682,6 +685,14 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       mprun10 = (mprun10 + 1) % 4;  // mprun10 cycles between 0-1-2-3-0-1...
     }
 
+    //Send 40ms message
+    if (currentMillis - previousMillis40 >= INTERVAL_40_MS) {
+      previousMillis40 = currentMillis;
+      if (LEAF_battery_Type == ZE1_BATTERY) {
+        transmit_can_frame(&LEAF_355);
+      }
+    }
+
     // Send 100ms CAN Message
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
       previousMillis100 = currentMillis;
@@ -695,6 +706,22 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         LEAF_50B.data.u8[6] = 0x20;  //Batt_Heater_Mail_Send_OK
       } else {
         LEAF_50B.data.u8[6] = 0x00;  //Batt_Heater_Mail_Send_NG
+      }
+
+      //If we are on ZE1 battery, handle some extra 100ms messages
+      if (LEAF_battery_Type == ZE1_BATTERY) {
+        counter_3B8 = (counter_3B8 + 1) % 15;
+        LEAF_3B8.data.u8[2] = counter_3B8;  // 0 - 14 (0x00 - 0x0E)
+        transmit_can_frame(&LEAF_3B8);      // Sending 3B8 removes U1000 and P318E DTC
+        transmit_can_frame(&LEAF_5C5);      // Sending 5C5 removes U214E DTC
+        transmit_can_frame(&LEAF_626);      // Sending 625 removes U215B DTC
+        if (flip_3B8) {
+          flip_3B8 = 0;
+          LEAF_3B8.data.u8[1] = 0xC8;
+        } else {
+          flip_3B8 = 1;
+          LEAF_3B8.data.u8[1] = 0xE8;
+        }
       }
 
       // VCM message, containing info if battery should sleep or stay awake
@@ -722,6 +749,14 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&LEAF_50C);
 
       mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
+    }
+
+    // Send 500ms CAN Message
+    if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
+      previousMillis500 = currentMillis;
+      if (LEAF_battery_Type == ZE1_BATTERY) {
+        transmit_can_frame(&LEAF_5EC);
+      }
     }
 
     //Send 10s CAN messages

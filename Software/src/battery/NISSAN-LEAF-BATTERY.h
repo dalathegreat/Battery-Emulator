@@ -68,15 +68,19 @@ class NissanLeafBattery : public CanBattery {
   bool* allows_contactor_closing;
 
   unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
+  unsigned long previousMillis40 = 0;   // will store last time a 40ms CAN Message was send
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
+  unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
   unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
   uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
   uint8_t mprun10 = 0;                  //counter 0-3
   uint8_t mprun100 = 0;                 //counter 0-3
+  uint8_t counter_3B8 = 0;              //counter 0-14
+  bool flip_3B8 = false;
 
-  static const int ZE0_BATTERY = 0;
-  static const int AZE0_BATTERY = 1;
-  static const int ZE1_BATTERY = 2;
+  static const uint8_t ZE0_BATTERY = 0;
+  static const uint8_t AZE0_BATTERY = 1;
+  static const uint8_t ZE1_BATTERY = 2;
 
   // These CAN messages need to be sent towards the battery to keep it alive
   CAN_frame LEAF_1F2 = {.FD = false,
@@ -99,6 +103,24 @@ class NissanLeafBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x1D4,
                         .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
+  // Extra CAN messages for ZE1 batteries
+  CAN_frame LEAF_355 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x355,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x40, 0x00}};
+  CAN_frame LEAF_3B8 = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x3B8, .data = {0x7F, 0xE8, 0x01, 0x07, 0xFF}};
+  CAN_frame LEAF_5C5 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x5C5,
+                        .data = {0x40, 0x01, 0x2F, 0x5E, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame LEAF_5EC = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x5EC, .data = {0x00}};
+  CAN_frame LEAF_626 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 6,
+                        .ID = 0x626,
+                        .data = {0x02, 0x00, 0xff, 0x1d, 0x20, 0x00}};
   // Active polling messages
   uint8_t PIDgroups[7] = {0x01, 0x02, 0x04, 0x06, 0x83, 0x84, 0x90};
   uint8_t PIDindex = 0;
