@@ -228,6 +228,11 @@ void _asynctcpsock_task(void *)
         sockList.clear();
 
         xSemaphoreGiveRecursive(_asyncsock_mutex);
+
+        // Battery-Emulator modification: Yield so that other same-priority
+        // tasks on the same core get a turn, otherwise heavy HTTP traffic will
+        // exclude them.
+        taskYIELD();
     }
 
     vTaskDelete(NULL);
