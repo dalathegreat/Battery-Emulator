@@ -51,32 +51,40 @@ class SmaTripowerInverter : public SmaInverterBase {
   uint16_t timeWithoutInverterAllowsContactorClosing = 0;
 
   //Actual content messages
-  CAN_frame SMA_358 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x358,
-                       .data = {0x12, 0x40, 0x0C, 0x80, 0x01, 0x00, 0x01, 0x00}};
-  CAN_frame SMA_3D8 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x3D8,
-                       .data = {0x04, 0x06, 0x27, 0x10, 0x00, 0x19, 0x00, 0xFA}};
+  CAN_frame SMA_358 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x358,
+      .data = {0x12, 0x40, 0x0C, 0x80, 0x01, 0x00, 0x01,
+               0x00}};  //default info [bits] sent: [0][1]=467,2V [2][3]=320V, [4][5]=25,6A [6][7]=25,6A
+  CAN_frame SMA_3D8 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x3D8,
+      .data = {0x04, 0x06, 0x27, 0x10, 0x00, 0x19, 0x00,
+               0xFA}};  //default info [bits] sent:[0][1]=10,30% [2][3]=100,00% [4][5]=2.5Ah [6][7]=250(?)
   CAN_frame SMA_458 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
-                       .ID = 0x458,
-                       .data = {0x00, 0x00, 0x73, 0xAE, 0x00, 0x00, 0x64, 0x64}};
-  CAN_frame SMA_4D8 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x4D8,
-                       .data = {0x10, 0x62, 0x00, 0x00, 0x00, 0x78, 0x02, 0x08}};
+                       .ID = 0x458,  //lifetime charge-discharge totals
+                       .data = {0x00, 0x00, 0x73, 0xAE, 0x00, 0x00, 0x64,
+                                0x64}};  //default info [bits] sent:[0][1][2][3]=29,614Wh [4][5][6][7]=25,700Wh
+  CAN_frame SMA_4D8 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x4D8,
+      .data = {0x10, 0x62, 0x00, 0x00, 0x00, 0x78, 0x02,
+               0x08}};  //default info [bits] sent:[0][1]=419,4V [2][3]=0,0A(?) [4][5]=12C [6]=2 [7]=8(?)
   CAN_frame SMA_518 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x518,
-                       .data = {0x00, 0x96, 0x00, 0x78, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SMA_558 = {.FD = false,  //Pairing first message
+                       .data = {0x00, 0x96, 0x00, 0x78, 0x00, 0x00, 0x00,
+                                0x00}};  //default info [bits] sent:[0][1]=15,0C [2][3]=12C [4][5]=0V [6]=0mV [7]=0mV
+  CAN_frame SMA_558 = {.FD = false,      //Pairing first message
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x558,  // BYD HVS 10.2 kWh (0x66 might be kWh)
@@ -85,7 +93,8 @@ class SmaTripowerInverter : public SmaInverterBase {
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x598,
-                       .data = {0x12, 0xD6, 0x43, 0xA4, 0x00, 0x00, 0x00, 0x00}};  //B0-4 Serial 301100932
+                       .data = {0x12, 0xD6, 0x43, 0xA4, 0x00, 0x00, 0x00,
+                                0x00}};  //default info [bits] sent:[0][1][2][3] Serial (316031908)
   CAN_frame SMA_5D8 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,

@@ -3,14 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 
-/* TODO:
-- Figure out the manufacturer info needed in transmit_can_init() CAN messages
-  - CAN logs from real system might be needed
-- Figure out how cellvoltages need to be displayed
-- Figure out if sending transmit_can_init() like we do now is OK
-- Figure out how to send the non-cyclic messages when needed
-*/
-
 void SmaTripowerInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the inverter CAN
   // Update values
@@ -63,7 +55,6 @@ void SmaTripowerInverter::
   } else {
     SMA_4D8.data.u8[6] = READY_STATE;
   }
-
   //Highest battery temperature
   SMA_518.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
   SMA_518.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
@@ -87,8 +78,6 @@ void SmaTripowerInverter::
   SMA_458.data.u8[5] = (datalayer.battery.status.total_discharged_battery_Wh & 0x00FF0000) >> 16;
   SMA_458.data.u8[6] = (datalayer.battery.status.total_discharged_battery_Wh & 0x0000FF00) >> 8;
   SMA_458.data.u8[7] = (datalayer.battery.status.total_discharged_battery_Wh & 0x000000FF);
-
-  control_contactor_led();
 
   // Check if Enable line is working. If we go too long without any input, raise an event
   if (!datalayer.system.status.inverter_allows_contactor_closing) {
@@ -124,9 +113,9 @@ void SmaTripowerInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       //Inverter brand (frame1-3 = 0x53 0x4D 0x41) = SMA
       break;
-    case 0x660:  //Message originating from SMA inverter - Pairing request
+    case 0x5E7:  //Message originating from SMA inverter - Pairing request
 #ifdef DEBUG_LOG
-      logging.println("Received 0x660: SMA pairing request");
+      logging.println("Received 0x5E7: SMA pairing request");
 #endif  // DEBUG_LOG
       pairing_events++;
       set_event(EVENT_SMA_PAIRING, pairing_events);
@@ -183,6 +172,11 @@ void SmaTripowerInverter::transmit_can(unsigned long currentMillis) {
     pushFrame(&SMA_518);
     pushFrame(&SMA_4D8);
     pushFrame(&SMA_3D8);
+  }
+  // Send CAN Message every 60s (potentially SMA_458 is not required for stable operation)
+  if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
+    previousMillis60s = currentMillis;
+    pushFrame(&SMA_458);
   }
 }
 
