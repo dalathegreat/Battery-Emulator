@@ -28,12 +28,24 @@ class String {
   String(String&& other) = default;
   String(const char* data, size_t len);
 
-  // Numeric constructors (Arduino-style)
-  String(uint64_t value) { data = std::to_string(value); }
+  // For integral types (but not enums)
+  template <typename T, std::enable_if_t<std::is_integral_v<T> && !std::is_enum_v<T>, int> = 0>
+  String(T value) {
+    data = std::to_string(value);
+  }
+
+  // For enum types
+  template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
+  String(T value) {
+    using Underlying = std::underlying_type_t<T>;
+    data = std::to_string(static_cast<Underlying>(value));
+  }
+  /*  String(uint64_t value) { data = std::to_string(value); }
   String(uint32_t value) { data = std::to_string(value); }
   String(int value) { data = std::to_string(value); }
   String(unsigned long value) { data = std::to_string(value); }
-  String(long value) { data = std::to_string(value); }
+  String(long value) { data = std::to_string(value); }*/
+
   String(float value) { data = std::to_string(value); }
   String(double value) { data = std::to_string(value); }
 

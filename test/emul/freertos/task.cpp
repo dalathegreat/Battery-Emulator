@@ -15,10 +15,12 @@ std::mutex taskRegistryMutex;
 BaseType_t xTaskCreatePinnedToCore(TaskFunction_t pxTaskCode, const char* const pcName, const uint32_t ulStackDepth,
                                    void* const pvParameters, UBaseType_t uxPriority, TaskHandle_t* const pxCreatedTask,
                                    const BaseType_t xCoreID) {
+  //std::clog << "xTaskCreatePinnedToCore " << pcName << ", priority: " << uxPriority << std::endl;
 
   std::thread t([=]() {
     try {
       pxTaskCode(pvParameters);
+      std::clog << "Task " << pcName << " has completed " << std::endl;
     } catch (...) {
       std::clog << "Unhandled exception in thread " << pcName << std::endl;
     }
