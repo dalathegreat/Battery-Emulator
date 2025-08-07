@@ -361,11 +361,11 @@ class MebBattery : public CanBattery {
                                  .DLC = 8,
                                  .ID = 0x1C40007B,  // SOC 02 8C
                                  .data = {0x03, 0x22, 0x02, 0x8C, 0x55, 0x55, 0x55, 0x55}};
-  CAN_frame MEB_ACK_FRAME = {.FD = true,
-                             .ext_ID = true,
-                             .DLC = 8,
-                             .ID = 0x1C40007B,  // Ack
-                             .data = {0x30, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}};
+  static constexpr CAN_frame MEB_ACK_FRAME = {.FD = true,
+                                              .ext_ID = true,
+                                              .DLC = 8,
+                                              .ID = 0x1C40007B,  // Ack
+                                              .data = {0x30, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}};
   //Messages needed for contactor closing
   CAN_frame MEB_040 = {.FD = true,  // Airbag
                        .ext_ID = false,
@@ -392,28 +392,28 @@ class MebBattery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x6B2,
                        .data = {0x6A, 0xA7, 0x37, 0x80, 0xC9, 0xBD, 0xF6, 0xC2}};
-  CAN_frame MEB_17FC007B_poll = {.FD = true,  // Non period request
-                                 .ext_ID = true,
-                                 .DLC = 8,
-                                 .ID = 0x17FC007B,
-                                 .data = {0x03, 0x22, 0x1E, 0x3D, 0x55, 0x55, 0x55, 0x55}};
+  static constexpr CAN_frame MEB_17FC007B_poll = {.FD = true,  // Non period request
+                                                  .ext_ID = true,
+                                                  .DLC = 8,
+                                                  .ID = 0x17FC007B,
+                                                  .data = {0x03, 0x22, 0x1E, 0x3D, 0x55, 0x55, 0x55, 0x55}};
   CAN_frame MEB_1A5555A6 = {.FD = true,
                             .ext_ID = true,
                             .DLC = 8,
                             .ID = 0x1A5555A6,
                             .data = {0x00, 0x00, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame MEB_585 = {
+  static constexpr CAN_frame MEB_585 = {
       .FD = true,
       .ext_ID = false,
       .DLC = 8,
       .ID = 0x585,
       .data = {0xCF, 0x38, 0xAF, 0x5B, 0x25, 0x00, 0x00, 0x00}};  // CF 38 AF 5B 25 00 00 00 in start4.log
   //                     .data = {0xCF, 0x38, 0x20, 0x02, 0x25, 0xF7, 0x30, 0x00}}; // CF 38 AF 5B 25 00 00 00 in start4.log
-  CAN_frame MEB_5F5 = {.FD = true,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x5F5,
-                       .data = {0x23, 0x02, 0x39, 0xC0, 0x1B, 0x8B, 0xC8, 0x1B}};
+  static constexpr CAN_frame MEB_5F5 = {.FD = true,
+                                        .ext_ID = false,
+                                        .DLC = 8,
+                                        .ID = 0x5F5,
+                                        .data = {0x23, 0x02, 0x39, 0xC0, 0x1B, 0x8B, 0xC8, 0x1B}};
   CAN_frame MEB_641 = {.FD = true,
                        .ext_ID = false,
                        .DLC = 8,
@@ -429,56 +429,56 @@ class MebBattery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x0FD,  //CRC and counter, otherwise static
                        .data = {0x5F, 0xD0, 0x1F, 0x81, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame MEB_16A954FB = {.FD = true,
-                            .ext_ID = true,
-                            .DLC = 8,
-                            .ID = 0x16A954FB,
-                            .data = {0x00, 0xC0, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame MEB_1A555548 = {.FD = true,
-                            .ext_ID = true,
-                            .DLC = 8,
-                            .ID = 0x1A555548,
-                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame MEB_1A55552B = {.FD = true,
-                            .ext_ID = true,
-                            .DLC = 8,
-                            .ID = 0x1A55552B,
-                            .data = {0x00, 0x00, 0x00, 0xA0, 0x02, 0x04, 0x00, 0x30}};
-  CAN_frame MEB_569 = {.FD = true,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x569,  //HVEM
-                       .data = {0x00, 0x00, 0x01, 0x3A, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame MEB_16A954B4 = {.FD = true,
-                            .ext_ID = true,
-                            .DLC = 8,
-                            .ID = 0x16A954B4,  //eTM
-                            .data = {0xFE, 0xB6, 0x0D, 0x00, 0x00, 0xD5, 0x48, 0xFD}};
-  CAN_frame MEB_1B000046 = {.FD = false,  // Not FD
-                            .ext_ID = true,
-                            .DLC = 8,
-                            .ID = 0x1B000046,  // Klima
-                            .data = {0x00, 0x40, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame MEB_1B000010 = {.FD = false,  // Not FD
-                            .ext_ID = true,
-                            .DLC = 8,
-                            .ID = 0x1B000010,  // Gateway
-                            .data = {0x00, 0x50, 0x08, 0x50, 0x01, 0xFF, 0x30, 0x00}};
-  CAN_frame MEB_1B0000B9 = {.FD = false,  // Not FD
-                            .ext_ID = true,
-                            .DLC = 8,
-                            .ID = 0x1B0000B9,  //DC/DC converter
-                            .data = {0x00, 0x40, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame MEB_153 = {.FD = true,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x153,  // content
-                       .data = {0x00, 0x00, 0x00, 0xFF, 0xEF, 0xFE, 0xFF, 0xFF}};
-  CAN_frame MEB_5E1 = {.FD = true,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x5E1,  // content
-                       .data = {0x7F, 0x2A, 0x00, 0x60, 0xFE, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame MEB_16A954FB = {.FD = true,
+                                             .ext_ID = true,
+                                             .DLC = 8,
+                                             .ID = 0x16A954FB,
+                                             .data = {0x00, 0xC0, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame MEB_1A555548 = {.FD = true,
+                                             .ext_ID = true,
+                                             .DLC = 8,
+                                             .ID = 0x1A555548,
+                                             .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame MEB_1A55552B = {.FD = true,
+                                             .ext_ID = true,
+                                             .DLC = 8,
+                                             .ID = 0x1A55552B,
+                                             .data = {0x00, 0x00, 0x00, 0xA0, 0x02, 0x04, 0x00, 0x30}};
+  static constexpr CAN_frame MEB_569 = {.FD = true,
+                                        .ext_ID = false,
+                                        .DLC = 8,
+                                        .ID = 0x569,  //HVEM
+                                        .data = {0x00, 0x00, 0x01, 0x3A, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame MEB_16A954B4 = {.FD = true,
+                                             .ext_ID = true,
+                                             .DLC = 8,
+                                             .ID = 0x16A954B4,  //eTM
+                                             .data = {0xFE, 0xB6, 0x0D, 0x00, 0x00, 0xD5, 0x48, 0xFD}};
+  static constexpr CAN_frame MEB_1B000046 = {.FD = false,  // Not FD
+                                             .ext_ID = true,
+                                             .DLC = 8,
+                                             .ID = 0x1B000046,  // Klima
+                                             .data = {0x00, 0x40, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame MEB_1B000010 = {.FD = false,  // Not FD
+                                             .ext_ID = true,
+                                             .DLC = 8,
+                                             .ID = 0x1B000010,  // Gateway
+                                             .data = {0x00, 0x50, 0x08, 0x50, 0x01, 0xFF, 0x30, 0x00}};
+  static constexpr CAN_frame MEB_1B0000B9 = {.FD = false,  // Not FD
+                                             .ext_ID = true,
+                                             .DLC = 8,
+                                             .ID = 0x1B0000B9,  //DC/DC converter
+                                             .data = {0x00, 0x40, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame MEB_153 = {.FD = true,
+                                        .ext_ID = false,
+                                        .DLC = 8,
+                                        .ID = 0x153,  // content
+                                        .data = {0x00, 0x00, 0x00, 0xFF, 0xEF, 0xFE, 0xFF, 0xFF}};
+  static constexpr CAN_frame MEB_5E1 = {.FD = true,
+                                        .ext_ID = false,
+                                        .DLC = 8,
+                                        .ID = 0x5E1,  // content
+                                        .data = {0x7F, 0x2A, 0x00, 0x60, 0xFE, 0x00, 0x00, 0x00}};
   CAN_frame MEB_3BE = {.FD = true,
                        .ext_ID = false,
                        .DLC = 8,
