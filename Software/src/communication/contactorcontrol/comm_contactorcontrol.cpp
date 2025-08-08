@@ -170,9 +170,9 @@ void handle_contactors() {
     handle_BMSpower();  // Some batteries need to be periodically power cycled
   }
 
-#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
-  handle_contactors_battery2();
-#endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
+  if (contactor_control_enabled_double_battery) {
+    handle_contactors_battery2();
+  }
 
   if (contactor_control_enabled) {
     // First check if we have any active errors, incase we do, turn off the battery
@@ -272,17 +272,17 @@ void handle_contactors() {
   }
 }
 
-#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
 void handle_contactors_battery2() {
+  auto second_contactors = esp32hal->SECOND_BATTERY_CONTACTORS_PIN();
+
   if ((contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing) {
-    set(SECOND_BATTERY_CONTACTORS_PIN, ON);
+    set(second_contactors, ON);
     datalayer.system.status.contactors_battery2_engaged = true;
   } else {  // Closing contactors on secondary battery not allowed
-    set(SECOND_BATTERY_CONTACTORS_PIN, OFF);
+    set(second_contactors, OFF);
     datalayer.system.status.contactors_battery2_engaged = false;
   }
 }
-#endif
 
 /* PERIODIC_BMS_RESET - Once every 24 hours we remove power from the BMS_power pin for 30 seconds.
 REMOTE_BMS_RESET - Allows the user to remotely powercycle the BMS by sending a command to the emulator via MQTT.
