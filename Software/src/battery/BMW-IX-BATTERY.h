@@ -533,7 +533,7 @@ CAN_frame BMWiX_49C = {.FD = true,
   uint32_t battery_serial_number = 0;
   int32_t battery_current = 0;
   uint16_t battery_voltage = 3700;  //Startup with valid values - needs fixing in future
-  uint16_t terminal30_12v_voltage = 0;
+  uint16_t terminal30_12v_voltage = 1200;
   uint16_t battery_voltage_after_contactor = 0;
   uint16_t min_soc_state = 5000;
   uint16_t avg_soc_state = 5000;
