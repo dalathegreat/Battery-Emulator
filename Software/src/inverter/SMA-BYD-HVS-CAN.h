@@ -22,7 +22,7 @@ class SmaBydHvsInverter : public SmaInverterBase {
   static const int READY_STATE = 0x03;
   static const int STOP_STATE = 0x02;
   static const int THIRTY_MINUTES = 1200;
-
+  unsigned long previousMillis60s = 0;
   unsigned long previousMillis100ms = 0;
   unsigned long previousMillisBatch = 0;
   uint8_t batch_send_index = 0;

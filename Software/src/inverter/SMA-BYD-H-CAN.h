@@ -25,7 +25,7 @@ class SmaBydHInverter : public SmaInverterBase {
   void transmit_can_init();
 
   unsigned long previousMillis100ms = 0;
-
+  unsigned long previousMillis60s = 0;
   uint8_t pairing_events = 0;
   uint32_t inverter_time = 0;
   uint16_t inverter_voltage = 0;

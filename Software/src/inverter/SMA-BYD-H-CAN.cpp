@@ -225,9 +225,10 @@ void SmaBydHInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
     case 0x5E6:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x5E7:  //Pairing request
+    case 0x5E7:  //Message originating from SMA inverter - Pairing request
+    case 0x660:  //Message originating from SMA inverter - Pairing request
 #ifdef DEBUG_LOG
-      logging.println("Received 0x5E7: SMA pairing request");
+      logging.println("Received SMA pairing request");
 #endif  // DEBUG_LOG
       pairing_events++;
       set_event(EVENT_SMA_PAIRING, pairing_events);
@@ -245,7 +246,7 @@ void SmaBydHInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 void SmaBydHInverter::transmit_can(unsigned long currentMillis) {
   // Send CAN Message every 100ms if inverter allows contactor closing
   if (datalayer.system.status.inverter_allows_contactor_closing) {
-    if (currentMillis - previousMillis100ms >= 100) {
+    if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
       previousMillis100ms = currentMillis;
       transmit_can_frame(&SMA_158);
       transmit_can_frame(&SMA_358);
@@ -253,6 +254,11 @@ void SmaBydHInverter::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&SMA_458);
       transmit_can_frame(&SMA_518);
       transmit_can_frame(&SMA_4D8);
+    }
+    // Send CAN Message every 60s (potentially SMA_458 is not required for stable operation)
+    if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
+      previousMillis60s = currentMillis;
+      transmit_can_frame(&SMA_458);
     }
   }
 }

@@ -124,9 +124,10 @@ void SmaTripowerInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       //Inverter brand (frame1-3 = 0x53 0x4D 0x41) = SMA
       break;
+    case 0x5E7:  //Message originating from SMA inverter - Pairing request
     case 0x660:  //Message originating from SMA inverter - Pairing request
 #ifdef DEBUG_LOG
-      logging.println("Received 0x660: SMA pairing request");
+      logging.println("Received SMA pairing request");
 #endif  // DEBUG_LOG
       pairing_events++;
       set_event(EVENT_SMA_PAIRING, pairing_events);
@@ -183,6 +184,11 @@ void SmaTripowerInverter::transmit_can(unsigned long currentMillis) {
     pushFrame(&SMA_518);
     pushFrame(&SMA_4D8);
     pushFrame(&SMA_3D8);
+  }
+  // Send CAN Message every 60s (potentially SMA_458 is not required for stable operation)
+  if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
+    previousMillis60s = currentMillis;
+    pushFrame(&SMA_458);
   }
 }
 
