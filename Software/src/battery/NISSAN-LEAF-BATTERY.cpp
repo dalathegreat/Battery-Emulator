@@ -187,6 +187,7 @@ void NissanLeafBattery::
     datalayer_nissan->HeatingStop = battery_Heating_Stop;
     datalayer_nissan->HeatingStart = battery_Heating_Start;
     datalayer_nissan->HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
+    datalayer_nissan->battery_HX = battery_HX;
     datalayer_nissan->CryptoChallenge = incomingChallenge;
     datalayer_nissan->SolvedChallengeMSB =
         ((solvedChallenge[7] << 24) | (solvedChallenge[6] << 16) | (solvedChallenge[5] << 8) | solvedChallenge[4]);
