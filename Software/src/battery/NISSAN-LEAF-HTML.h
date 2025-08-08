@@ -40,6 +40,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     readableBMSID[8] = '\0';  // Null terminate the string
     content += "<h4>BMS ID: " + String(readableBMSID) + "</h4>";
     content += "<h4>GIDS: " + String(datalayer_extended.nissanleaf.GIDS) + "</h4>";
+    content += "<h4>HX: " + String(datalayer_extended.nissanleaf.battery_HX) + "</h4>";
     content += "<h4>Regen kW: " + String(datalayer_extended.nissanleaf.ChargePowerLimit) + "</h4>";
     content += "<h4>Charge kW: " + String(datalayer_extended.nissanleaf.MaxPowerForCharger) + "</h4>";
     content += "<h4>Interlock: " + String(datalayer_extended.nissanleaf.Interlock) + "</h4>";
