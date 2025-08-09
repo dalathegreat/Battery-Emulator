@@ -55,8 +55,8 @@ class VolvoSpaBattery : public CanBattery {
   float BATT_T_AVG = 0;             //0x413
   uint16_t SOC_BMS = 0;             //0X37D
   uint16_t SOC_CALC = 0;
-  uint16_t CELL_U_MAX = 3700;            //0x37D
-  uint16_t CELL_U_MIN = 3700;            //0x37D
+  uint16_t CELL_U_MAX = 370;             //0x37D
+  uint16_t CELL_U_MIN = 370;             //0x37D
   uint8_t CELL_ID_U_MAX = 0;             //0x37D
   uint16_t HvBattPwrLimDchaSoft = 0;     //0x369
   uint16_t HvBattPwrLimDcha1 = 0;        //0x175
