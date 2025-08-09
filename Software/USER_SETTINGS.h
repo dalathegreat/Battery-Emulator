@@ -71,6 +71,7 @@
 //#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
 //#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
 //#define SOLXPOW_CAN      //Enable this line to emulate a "Solxpow compatible battery" over CAN bus
+//#define SOL_ARK_LV_CAN   //Enable this line to emulate a "Sol-Ark compatible LV battery" over CAN bus
 //#define SUNGROW_CAN      //Enable this line to emulate a "Sungrow SBR064" over CAN bus
 
 /* Select hardware used for Battery-Emulator */
