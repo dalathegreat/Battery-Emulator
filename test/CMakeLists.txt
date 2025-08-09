@@ -62,7 +62,7 @@ include_directories("${source_dir}/googletest/include"
 include_directories(emul)
 
 # For eModBus
-add_compile_definitions(__linux__ HW_LILYGO NISSAN_LEAF_BATTERY)
+add_compile_definitions(ESP32 HW_LILYGO NISSAN_LEAF_BATTERY)
 
 # add the executable
 add_executable(tests 
@@ -74,9 +74,12 @@ add_executable(tests
     ../Software/src/devboard/utils/events.cpp
     ../Software/src/datalayer/datalayer.cpp
     ../Software/src/datalayer/datalayer_extended.cpp
-    ../Software/src/lib/eModbus-eModbus/ModbusMessage.cpp
-    ../Software/src/lib/eModbus-eModbus/ModbusTypeDefs.cpp
     ../Software/src/lib/eModbus-eModbus/Logging.cpp
+    ../Software/src/lib/eModbus-eModbus/ModbusMessage.cpp
+    ../Software/src/lib/eModbus-eModbus/ModbusServer.cpp
+    ../Software/src/lib/eModbus-eModbus/ModbusServerRTU.cpp
+    ../Software/src/lib/eModbus-eModbus/ModbusTypeDefs.cpp
+    ../Software/src/lib/eModbus-eModbus/RTUutils.cpp
 #    ../Software/src/lib/eModbus-eModbus/scripts/mbServerFCs.cpp
     ../Software/USER_SETTINGS.cpp
     ../Software/src/battery/BATTERIES.cpp
@@ -90,6 +93,7 @@ add_executable(tests
     emul/time.cpp
     emul/serial.cpp
     emul/Arduino.cpp
+    emul/freertos/FreeRTOS.cpp
     )
 
 target_link_libraries(tests
