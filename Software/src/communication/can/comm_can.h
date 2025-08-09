@@ -6,7 +6,7 @@
 extern bool use_canfd_as_can;
 
 void dump_can_frame(CAN_frame& frame, frameDirection msgDir);
-void transmit_can_frame_to_interface(CAN_frame* tx_frame, int interface);
+void transmit_can_frame_to_interface(const CAN_frame* tx_frame, int interface);
 
 class CanReceiver;
 

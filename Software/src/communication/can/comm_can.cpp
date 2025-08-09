@@ -193,7 +193,7 @@ bool init_CAN() {
   return true;
 }
 
-void transmit_can_frame_to_interface(CAN_frame* tx_frame, int interface) {
+void transmit_can_frame_to_interface(const CAN_frame* tx_frame, int interface) {
   if (!allowed_to_send_CAN) {
     return;
   }
