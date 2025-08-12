@@ -63,7 +63,7 @@ jobs:
         mv .pio/build/stark_330/firmware.bin output/stark.bin
 
     - name: Upload to GitHub Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.vars.outputs.tag }}
         files: |
