@@ -3,9 +3,15 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "../../Software/src/lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "WString.h"
 
 class Preferences {
+ private:
+  JsonDocument doc;
+  std::string filename;
+  bool readonly;
+
  public:
   bool begin(const char* name, bool read_only = false);
   void end();

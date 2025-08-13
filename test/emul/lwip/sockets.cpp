@@ -106,6 +106,7 @@ int emul_select(int __n, emul_fd_set* __readfds, emul_fd_set* __writefds, emul_f
 
   auto retVal = select(__n, &readfds, &writefds, &exceptfds, __timeout);
   if (retVal < 0) {
+    std::cerr << "select failed with error: " << strerror(errno) << std::endl;
     return retVal;
   }
 

@@ -10,9 +10,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 include_directories(../test/emul)
 
-add_compile_definitions(_CRT_SECURE_NO_WARNINGS _CRT_NO_POSIX_ERROR_CODES ESP32 ARDUINO HW_PC NISSAN_LEAF_BATTERY DEBUG_VIA_USB)
+add_compile_definitions(_CRT_SECURE_NO_WARNINGS _CRT_NO_POSIX_ERROR_CODES ESP32 ARDUINO ASYNCTCP_ALLOW_ANY_ERRNOS_VALUES HW_PC DEBUG_VIA_USB COMMON_IMAGE)
 
 set_source_files_properties(../Software/Software.ino PROPERTIES LANGUAGE CXX)
+
+file(GLOB BATTERY_SOURCE "../Software/src/battery/*.cpp")
+file(GLOB INVERTER_SOURCE "../Software/src/inverter/*.cpp")
+file(GLOB CHARGER_SOURCE "../Software/src/charger/*.cpp")
 
 # add the executable
 add_executable(BatteryEmulator 
@@ -22,6 +26,7 @@ add_executable(BatteryEmulator
     ../Software/src/communication/equipmentstopbutton/comm_equipmentstopbutton.cpp
     ../Software/src/communication/nvm/comm_nvm.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
+    ../Software/src/communication/can/obd.cpp
     ../Software/src/devboard/wifi/wifi.cpp
     ../Software/src/devboard/mqtt/mqtt.cpp
     ../Software/src/devboard/safety/safety.cpp
@@ -53,15 +58,9 @@ add_executable(BatteryEmulator
     ../Software/src/lib/YiannisBourkelis-Uptime-Library/src/uptime_formatter.cpp
     ../Software/src/lib/YiannisBourkelis-Uptime-Library/src/uptime.cpp
     ../Software/USER_SETTINGS.cpp
-    ../Software/src/battery/BATTERIES.cpp
-    ../Software/src/battery/Battery.cpp
-    ../Software/src/battery/CanBattery.cpp
-    ../Software/src/battery/NISSAN-LEAF-BATTERY.cpp
-    ../Software/src/battery/Shunts.cpp
-    ../Software/src/inverter/INVERTERS.cpp
-    ../Software/src/inverter/BYD-MODBUS.cpp
-    ../Software/src/inverter/ModbusInverterProtocol.cpp
-    ../Software/src/charger/CHARGERS.cpp
+    ${BATTERY_SOURCE}
+    ${CHARGER_SOURCE}
+    ${INVERTER_SOURCE}
     ../Software/src/devboard/webserver/advanced_battery_html.cpp
     ../Software/src/devboard/webserver/can_logging_html.cpp
     ../Software/src/devboard/webserver/can_replay_html.cpp

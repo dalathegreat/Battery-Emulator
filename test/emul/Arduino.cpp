@@ -147,4 +147,20 @@ void log_printf(const char* format, ...) {
   std::clog << buffer.data();
 }
 
+unsigned short makeWord(unsigned char high, unsigned char low) {
+  return (static_cast<unsigned short>(high) << 8) | low;
+}
+
+unsigned short analogRead(unsigned char) {
+  return 0;
+}
+
+long random(long min, long max) {
+  return min + (std::rand() % (max - min + 1));
+}
+
+void randomSeed(unsigned long seed) {
+  std::srand(static_cast<unsigned int>(seed));
+}
+
 EspClass ESP;

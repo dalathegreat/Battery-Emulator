@@ -516,7 +516,7 @@ bool AsyncClient::connect(IPAddress ip, uint16_t port)
     memcpy(&(serveraddr.sin_addr.s_addr), &ip_addr, 4);
     serveraddr.sin_port = htons(port);
 
-#ifdef EINPROGRESS
+#if defined(EINPROGRESS) && !defined(ASYNCTCP_ALLOW_ANY_ERRNOS_VALUES)
     #if EINPROGRESS != 119
     #error EINPROGRESS invalid
     #endif

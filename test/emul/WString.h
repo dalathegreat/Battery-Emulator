@@ -118,6 +118,11 @@ class String {
     return *this;
   }
 
+  String& operator+=(char c) {
+    data += c;
+    return *this;
+  }
+
   bool equals(const String& s2) const {
     if (!data.empty() && !s2.data.empty()) {
       return data == s2.data;

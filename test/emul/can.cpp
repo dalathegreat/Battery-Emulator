@@ -20,3 +20,5 @@ bool init_CAN(void) {
 }
 
 bool use_canfd_as_can = false;
+
+void dump_can_frame(CAN_frame& frame, enum frameDirection) {}

@@ -5,40 +5,32 @@
 #include "emul_fdset.h"
 #include "ip_addr.h"
 
+typedef uint8_t u8_t;
+typedef int8_t s8_t;
+typedef uint16_t u16_t;
+typedef int16_t s16_t;
+typedef uint32_t u32_t;
+typedef int32_t s32_t;
+
+typedef s8_t err_t;
+
+#define CONFIG_LWIP_TCP_SND_BUF_DEFAULT 5760
+#define TCP_SND_BUF CONFIG_LWIP_TCP_SND_BUF_DEFAULT
+
+#ifndef _WIN32
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#else
 typedef int _ssize_t;
 
 #ifndef _SSIZE_T_DECLARED
 typedef _ssize_t ssize_t;
 #define _SSIZE_T_DECLARED
 #endif
-
-/*#ifndef	_howmany
-#define	_howmany(x,y)	(((x) + ((y) - 1)) / (y))
-#endif
-typedef unsigned long	__fd_mask;
-#define _NFDBITS	((int)sizeof(__fd_mask) * 8)
-#  define FD_SETSIZE	64
-
-typedef	struct fd_set {
-	__fd_mask	__fds_bits[_howmany(FD_SETSIZE, _NFDBITS)];
-} fd_set;
-
-typedef unsigned long __size_t;
-
-#define __fdset_mask(n)	((__fd_mask)1 << ((n) % _NFDBITS))
-#define FD_CLR(n, p)	((p)->__fds_bits[(n)/_NFDBITS] &= ~__fdset_mask(n))
-
-#define FD_ISSET(n, p)	(((p)->__fds_bits[(n)/_NFDBITS] & __fdset_mask(n)) != 0)
-#define FD_SET(n, p)	((p)->__fds_bits[(n)/_NFDBITS] |= __fdset_mask(n))
-#define FD_ZERO(p) do {					\
-        fd_set *_p;					\
-        __size_t _n;					\
-							\
-        _p = (p);					\
-        _n = _howmany(FD_SETSIZE, _NFDBITS);		\
-        while (_n > 0)					\
-                _p->__fds_bits[--_n] = 0;		\
-} while (0)*/
 
 typedef emul_fd_set fd_set;
 
@@ -135,9 +127,6 @@ int emul_select(int __n, emul_fd_set* __readfds, emul_fd_set* __writefds, emul_f
 
 int fcntl(int, int, ...);
 
-#define CONFIG_LWIP_TCP_SND_BUF_DEFAULT 5760
-#define TCP_SND_BUF CONFIG_LWIP_TCP_SND_BUF_DEFAULT
-
 #define IPPROTO_IP 0
 #define IPPROTO_ICMP 1
 #define IPPROTO_TCP 6
@@ -193,15 +182,6 @@ int fcntl(int, int, ...);
 #define TCP_KEEPINTVL 0x04 /* set pcb->keep_intvl - Use seconds for get/setsockopt */
 #define TCP_KEEPCNT 0x05   /* set pcb->keep_cnt   - Use number of probes sent for get/setsockopt */
 
-typedef uint8_t u8_t;
-typedef int8_t s8_t;
-typedef uint16_t u16_t;
-typedef int16_t s16_t;
-typedef uint32_t u32_t;
-typedef int32_t s32_t;
-
-typedef s8_t err_t;
-
 typedef u32_t socklen_t;
 typedef u8_t sa_family_t;
 typedef u16_t in_port_t;
@@ -253,10 +233,6 @@ struct sockaddr_in {
 #define SIN_ZERO_LEN 8
   char sin_zero[SIN_ZERO_LEN];
 };
-
-typedef void (*dns_found_callback)(const char* name, const ip_addr_t* ipaddr, void* callback_arg);
-
-extern "C" err_t dns_gethostbyname(const char* hostname, ip_addr_t* addr, dns_found_callback found, void* callback_arg);
 
 unsigned short htons(unsigned short x);
 unsigned short ntohs(unsigned short x);
@@ -461,5 +437,9 @@ struct linger {
   int l_onoff;  /* option on/off */
   int l_linger; /* linger time in seconds */
 };
+#endif
+
+typedef void (*dns_found_callback)(const char* name, const ip_addr_t* ipaddr, void* callback_arg);
+extern "C" err_t dns_gethostbyname(const char* hostname, ip_addr_t* addr, dns_found_callback found, void* callback_arg);
 
 #endif

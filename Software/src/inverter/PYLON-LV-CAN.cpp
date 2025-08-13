@@ -2,6 +2,10 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 
+#ifdef DEBUG_VIA_USB
+#include <HardwareSerial.h>
+#endif
+
 // when e.g. the min temperature is 0, max is 100 and the warning percent is 80%
 // a warning should be generated at 20 (i.e. at 20% of the value range)
 // this function calculates this 20% point for a given min/max
