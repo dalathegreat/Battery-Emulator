@@ -75,7 +75,6 @@ class AsyncFileResponse : public AsyncAbstractResponse {
 
 private:
   File _content;
-  String _path;
   void _setContentTypeFromPath(const String &path);
 
 public:
