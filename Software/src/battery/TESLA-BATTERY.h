@@ -121,25 +121,25 @@ class TeslaBattery : public CanBattery {
   uint16_t previous_max_percentage = datalayer.battery.settings.max_percentage;
 
   //0x082 UI_tripPlanning: "cycle_time" 1000ms
-  CAN_frame TESLA_082 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x082,
-                         .data = {0x00, 0x00, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80}};
+  static constexpr CAN_frame TESLA_082 = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 8,
+                                          .ID = 0x082,
+                                          .data = {0x00, 0x00, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80}};
 
   //0x102 VCLEFT_doorStatus: "cycle_time" 100ms
-  CAN_frame TESLA_102 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x102,
-                         .data = {0x22, 0x33, 0x00, 0x00, 0xC0, 0x38, 0x21, 0x08}};
+  static constexpr CAN_frame TESLA_102 = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 8,
+                                          .ID = 0x102,
+                                          .data = {0x22, 0x33, 0x00, 0x00, 0xC0, 0x38, 0x21, 0x08}};
 
   //0x103 VCRIGHT_doorStatus: "cycle_time" 100ms
-  CAN_frame TESLA_103 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x103,
-                         .data = {0x22, 0x33, 0x00, 0x00, 0x30, 0xF2, 0x20, 0x02}};
+  static constexpr CAN_frame TESLA_103 = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 8,
+                                          .ID = 0x103,
+                                          .data = {0x22, 0x33, 0x00, 0x00, 0x30, 0xF2, 0x20, 0x02}};
 
   //0x118 DI_systemStatus: "cycle_time" 50ms, DI_systemStatusChecksum/DI_systemStatusCounter generated via generateFrameCounterChecksum
   CAN_frame TESLA_118 = {.FD = false,
@@ -229,22 +229,22 @@ class TeslaBattery : public CanBattery {
   CAN_frame TESLA_229 = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x229, .data = {0x46, 0x00, 0x00}};
 
   //0x241 VCFRONT_coolant: "cycle_time" 100ms
-  CAN_frame TESLA_241 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 7,
-                         .ID = 0x241,
-                         .data = {0x35, 0x34, 0x0C, 0x0F, 0x8F, 0x55, 0x00}};
+  static constexpr CAN_frame TESLA_241 = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 7,
+                                          .ID = 0x241,
+                                          .data = {0x35, 0x34, 0x0C, 0x0F, 0x8F, 0x55, 0x00}};
 
   //0x2D1 VCFRONT_okToUseHighPower: "cycle_time" 100ms
-  CAN_frame TESLA_2D1 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x2D1, .data = {0xFF, 0x01}};
+  static constexpr CAN_frame TESLA_2D1 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x2D1, .data = {0xFF, 0x01}};
 
   //0x2E1, 6 muxes
   //0x2E1 VCFRONT_status: "cycle_time" 10ms each mux/statusIndex
-  CAN_frame TESLA_2E1_VEHICLE_AND_RAILS = {.FD = false,
-                                           .ext_ID = false,
-                                           .DLC = 8,
-                                           .ID = 0x2E1,
-                                           .data = {0x29, 0x0A, 0x00, 0xFF, 0x0F, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_2E1_VEHICLE_AND_RAILS = {.FD = false,
+                                                            .ext_ID = false,
+                                                            .DLC = 8,
+                                                            .ID = 0x2E1,
+                                                            .data = {0x29, 0x0A, 0x00, 0xFF, 0x0F, 0x00, 0x00, 0x00}};
 
   //{0x29, 0x0A, 0x00, 0xFF, 0x0F, 0x00, 0x00, 0x00} INIT
   //{0x29, 0x0A, 0x0D, 0xFF, 0x0F, 0x00, 0x00, 0x00} DRIVE
@@ -253,39 +253,39 @@ class TeslaBattery : public CanBattery {
   //{0x29, 0x0A, 0x06, 0xFF, 0x0F, 0x00, 0x00, 0x00} SLEEP_STANDBY
 
   //0x2E1 VCFRONT_status: "cycle_time" 10ms each mux/statusIndex
-  CAN_frame TESLA_2E1_HOMELINK = {.FD = false,
-                                  .ext_ID = false,
-                                  .DLC = 8,
-                                  .ID = 0x2E1,
-                                  .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00}};
+  static constexpr CAN_frame TESLA_2E1_HOMELINK = {.FD = false,
+                                                   .ext_ID = false,
+                                                   .DLC = 8,
+                                                   .ID = 0x2E1,
+                                                   .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00}};
 
   //0x2E1 VCFRONT_status: "cycle_time" 10ms each mux/statusIndex
-  CAN_frame TESLA_2E1_REFRIGERANT_SYSTEM = {.FD = false,
-                                            .ext_ID = false,
-                                            .DLC = 8,
-                                            .ID = 0x2E1,
-                                            .data = {0x03, 0x6D, 0x99, 0x02, 0x1B, 0x57, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_2E1_REFRIGERANT_SYSTEM = {.FD = false,
+                                                             .ext_ID = false,
+                                                             .DLC = 8,
+                                                             .ID = 0x2E1,
+                                                             .data = {0x03, 0x6D, 0x99, 0x02, 0x1B, 0x57, 0x00, 0x00}};
 
   //0x2E1 VCFRONT_status: "cycle_time" 10ms each mux/statusIndex
-  CAN_frame TESLA_2E1_LV_BATTERY_DEBUG = {.FD = false,
-                                          .ext_ID = false,
-                                          .DLC = 8,
-                                          .ID = 0x2E1,
-                                          .data = {0xFC, 0x1B, 0xD1, 0x99, 0x9A, 0xD8, 0x09, 0x00}};
+  static constexpr CAN_frame TESLA_2E1_LV_BATTERY_DEBUG = {.FD = false,
+                                                           .ext_ID = false,
+                                                           .DLC = 8,
+                                                           .ID = 0x2E1,
+                                                           .data = {0xFC, 0x1B, 0xD1, 0x99, 0x9A, 0xD8, 0x09, 0x00}};
 
   //0x2E1 VCFRONT_status: "cycle_time" 10ms each mux/statusIndex
-  CAN_frame TESLA_2E1_MUX_5 = {.FD = false,
-                               .ext_ID = false,
-                               .DLC = 8,
-                               .ID = 0x2E1,
-                               .data = {0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_2E1_MUX_5 = {.FD = false,
+                                                .ext_ID = false,
+                                                .DLC = 8,
+                                                .ID = 0x2E1,
+                                                .data = {0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
   //0x2E1 VCFRONT_status: "cycle_time" 10ms each mux/statusIndex
-  CAN_frame TESLA_2E1_BODY_CONTROLS = {.FD = false,
-                                       .ext_ID = false,
-                                       .DLC = 8,
-                                       .ID = 0x2E1,
-                                       .data = {0x08, 0x21, 0x04, 0x6E, 0xA0, 0x88, 0x06, 0x04}};
+  static constexpr CAN_frame TESLA_2E1_BODY_CONTROLS = {.FD = false,
+                                                        .ext_ID = false,
+                                                        .DLC = 8,
+                                                        .ID = 0x2E1,
+                                                        .data = {0x08, 0x21, 0x04, 0x6E, 0xA0, 0x88, 0x06, 0x04}};
 
   //0x2E8 EPBR_status: "cycle_time" 100ms
   CAN_frame TESLA_2E8 = {.FD = false,
@@ -295,7 +295,11 @@ class TeslaBattery : public CanBattery {
                          .data = {0x02, 0x00, 0x10, 0x00, 0x00, 0x80, 0x00, 0x6C}};
 
   //0x284 UI_vehicleModes: "cycle_time" 500ms
-  CAN_frame TESLA_284 = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x284, .data = {0x10, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_284 = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 5,
+                                          .ID = 0x284,
+                                          .data = {0x10, 0x00, 0x00, 0x00, 0x00}};
 
   //0x293 UI_chassisControl: "cycle_time" 500ms, UI_chassisControlChecksum/UI_chassisControlCounter generated via generateFrameCounterChecksum
   CAN_frame TESLA_293 = {.FD = false,
@@ -307,7 +311,7 @@ class TeslaBattery : public CanBattery {
   //0x3A1 VCFRONT_vehicleStatus: "cycle_time" 50ms, VCFRONT_vehicleStatusChecksum/VCFRONT_vehicleStatusCounter eventually need to be generated via generateMuxFrameCounterChecksum
   //Looks like 2 muxes, counter at bit 52 width 4 and checksum at bit 56 width 8? Need later software Model3_ETH.compact.json signal file or DBC.
   //Migrated to an array until figured out
-  CAN_frame TESLA_3A1[16] = {
+  static constexpr CAN_frame TESLA_3A1[16] = {
       {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0xD0, 0x01}},
       {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0xE2, 0xCB}},
       {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0xF0, 0x21}},
@@ -344,11 +348,11 @@ class TeslaBattery : public CanBattery {
   CAN_frame TESLA_333 = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x333, .data = {0x84, 0x30, 0x84, 0x07, 0x02}};
 
   //0x334 UI request: "cycle_time" 500ms, initial frame car sends
-  CAN_frame TESLA_334_INITIAL = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x334,
-                                 .data = {0x3F, 0x3F, 0xC8, 0x00, 0xE2, 0x3F, 0x80, 0x1E}};
+  static constexpr CAN_frame TESLA_334_INITIAL = {.FD = false,
+                                                  .ext_ID = false,
+                                                  .DLC = 8,
+                                                  .ID = 0x334,
+                                                  .data = {0x3F, 0x3F, 0xC8, 0x00, 0xE2, 0x3F, 0x80, 0x1E}};
 
   //0x334 UI request: "cycle_time" 500ms, generated via generateFrameCounterChecksum
   CAN_frame TESLA_334 = {.FD = false,
@@ -358,49 +362,49 @@ class TeslaBattery : public CanBattery {
                          .data = {0x3F, 0x3F, 0x00, 0x0F, 0xE2, 0x3F, 0x90, 0x75}};
 
   //0x3B3 UI_vehicleControl2: "cycle_time" 500ms
-  CAN_frame TESLA_3B3 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x3B3,
-                         .data = {0x90, 0x80, 0x05, 0x08, 0x00, 0x00, 0x00, 0x01}};
+  static constexpr CAN_frame TESLA_3B3 = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 8,
+                                          .ID = 0x3B3,
+                                          .data = {0x90, 0x80, 0x05, 0x08, 0x00, 0x00, 0x00, 0x01}};
 
   //0x39D IBST_status: "cycle_time" 50ms, IBST_statusChecksum/IBST_statusCounter generated via generateFrameCounterChecksum
   CAN_frame TESLA_39D = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x39D, .data = {0xE1, 0x59, 0xC1, 0x27, 0x00}};
 
   //0x3C2 VCLEFT_switchStatus (Mux0, initial frame car sends): "cycle_time" 50ms, sent once
-  CAN_frame TESLA_3C2_INITIAL = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x3C2,
-                                 .data = {0x00, 0x55, 0x55, 0x55, 0x00, 0x00, 0x5A, 0x05}};
+  static constexpr CAN_frame TESLA_3C2_INITIAL = {.FD = false,
+                                                  .ext_ID = false,
+                                                  .DLC = 8,
+                                                  .ID = 0x3C2,
+                                                  .data = {0x00, 0x55, 0x55, 0x55, 0x00, 0x00, 0x5A, 0x05}};
 
   //0x3C2 VCLEFT_switchStatus (Mux0): "cycle_time" 50ms each mux/SwitchStatusIndex
-  CAN_frame TESLA_3C2_Mux0 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x3C2,
-                              .data = {0x00, 0x55, 0x55, 0x55, 0x00, 0x00, 0x5A, 0x45}};
+  static constexpr CAN_frame TESLA_3C2_Mux0 = {.FD = false,
+                                               .ext_ID = false,
+                                               .DLC = 8,
+                                               .ID = 0x3C2,
+                                               .data = {0x00, 0x55, 0x55, 0x55, 0x00, 0x00, 0x5A, 0x45}};
 
   //0x3C2 VCLEFT_switchStatus (Mux1): "cycle_time" 50ms each mux/SwitchStatusIndex
-  CAN_frame TESLA_3C2_Mux1 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x3C2,
-                              .data = {0x29, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_3C2_Mux1 = {.FD = false,
+                                               .ext_ID = false,
+                                               .DLC = 8,
+                                               .ID = 0x3C2,
+                                               .data = {0x29, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
   //0x504 Initially sent
-  CAN_frame TESLA_504_INITIAL = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x504,
-                                 .data = {0x00, 0x1B, 0x06, 0x03, 0x00, 0x01, 0x00, 0x01}};
+  static constexpr CAN_frame TESLA_504_INITIAL = {.FD = false,
+                                                  .ext_ID = false,
+                                                  .DLC = 8,
+                                                  .ID = 0x504,
+                                                  .data = {0x00, 0x1B, 0x06, 0x03, 0x00, 0x01, 0x00, 0x01}};
 
   //0x55A Unknown but always sent: "cycle_time" 500ms
-  CAN_frame TESLA_55A = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x55A,
-                         .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_55A = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 8,
+                                          .ID = 0x55A,
+                                          .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
   //0x7FF GTW_carConfig: "cycle_time" 100ms each mux/carConfigMultiplexer (UK/RHD)
   CAN_frame TESLA_7FF_Mux1 = {.FD = false,
@@ -410,11 +414,11 @@ class TeslaBattery : public CanBattery {
                               .data = {0x01, 0x49, 0x42, 0x47, 0x00, 0x03, 0x15, 0x01}};
 
   //0x7FF GTW_carConfig: "cycle_time" 100ms each mux/carConfigMultiplexer
-  CAN_frame TESLA_7FF_Mux2 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x7FF,
-                              .data = {0x02, 0x66, 0x32, 0x24, 0x04, 0x49, 0x95, 0x82}};
+  static constexpr CAN_frame TESLA_7FF_Mux2 = {.FD = false,
+                                               .ext_ID = false,
+                                               .DLC = 8,
+                                               .ID = 0x7FF,
+                                               .data = {0x02, 0x66, 0x32, 0x24, 0x04, 0x49, 0x95, 0x82}};
 
   //0x7FF GTW_carConfig: "cycle_time" 100ms each mux/carConfigMultiplexer (EU/Long Range)
   CAN_frame TESLA_7FF_Mux3 = {.FD = false,
@@ -424,46 +428,46 @@ class TeslaBattery : public CanBattery {
                               .data = {0x03, 0x01, 0x08, 0x48, 0x01, 0x00, 0x00, 0x12}};
 
   //0x7FF GTW_carConfig: "cycle_time" 100ms each mux/carConfigMultiplexer
-  CAN_frame TESLA_7FF_Mux4 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x7FF,
-                              .data = {0x04, 0x73, 0x03, 0x67, 0x5C, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_7FF_Mux4 = {.FD = false,
+                                               .ext_ID = false,
+                                               .DLC = 8,
+                                               .ID = 0x7FF,
+                                               .data = {0x04, 0x73, 0x03, 0x67, 0x5C, 0x00, 0x00, 0x00}};
 
   //0x7FF GTW_carConfig: "cycle_time" 100ms each mux/carConfigMultiplexer
-  CAN_frame TESLA_7FF_Mux5 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x7FF,
-                              .data = {0x05, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_7FF_Mux5 = {.FD = false,
+                                               .ext_ID = false,
+                                               .DLC = 8,
+                                               .ID = 0x7FF,
+                                               .data = {0x05, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00}};
 
   //0x7FF GTW_carConfig: "cycle_time" 100ms each mux/carConfigMultiplexer - later firmware has muxes 6 & 7, needed?
-  CAN_frame TESLA_7FF_Mux6 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x7FF,
-                              .data = {0x06, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0xD0}};
+  static constexpr CAN_frame TESLA_7FF_Mux6 = {.FD = false,
+                                               .ext_ID = false,
+                                               .DLC = 8,
+                                               .ID = 0x7FF,
+                                               .data = {0x06, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0xD0}};
 
   //0x7FF GTW_carConfig: "cycle_time" 100ms each mux/carConfigMultiplexer - later firmware has muxes 6 & 7, needed?
-  CAN_frame TESLA_7FF_Mux7 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x7FF,
-                              .data = {0x07, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_7FF_Mux7 = {.FD = false,
+                                               .ext_ID = false,
+                                               .DLC = 8,
+                                               .ID = 0x7FF,
+                                               .data = {0x07, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00}};
 
   //0x722 BMS_bmbKeepAlive: "cycle_time" 100ms, should only be sent when testing packs or diagnosing problems
-  CAN_frame TESLA_722 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x722,
-                         .data = {0x02, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80}};
+  static constexpr CAN_frame TESLA_722 = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 8,
+                                          .ID = 0x722,
+                                          .data = {0x02, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80}};
 
   //0x25D CP_status: "cycle_time" 100ms, stops some cpMia errors, but not necessary for standalone pack operation so not used/necessary. Note CP_type for different regions, the below has "IEC_CCS"
-  CAN_frame TESLA_25D = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x25D,
-                         .data = {0x37, 0x41, 0x01, 0x16, 0x08, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_25D = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 8,
+                                          .ID = 0x25D,
+                                          .data = {0x37, 0x41, 0x01, 0x16, 0x08, 0x00, 0x00, 0x00}};
 
   //0x602 BMS UDS diagnostic request: on demand
   CAN_frame TESLA_602 = {.FD = false,
@@ -473,11 +477,12 @@ class TeslaBattery : public CanBattery {
                          .data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  // Define initial UDS request
 
   //0x610 BMS Query UDS request: on demand
-  CAN_frame TESLA_610 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x610,
-                         .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  // Define initial UDS request
+  static constexpr CAN_frame TESLA_610 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x610,
+      .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  // Define initial UDS request
 
   uint8_t stateMachineClearIsolationFault = 0xFF;
   uint8_t stateMachineBMSReset = 0xFF;

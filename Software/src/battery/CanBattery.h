@@ -34,7 +34,7 @@ class CanBattery : public Battery, Transmitter, CanReceiver {
 
   CAN_Speed change_can_speed(CAN_Speed speed);
 
-  void transmit_can_frame(CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
+  void transmit_can_frame(const CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
 };
 
 #endif
