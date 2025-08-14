@@ -206,7 +206,8 @@ class RenaultZoeGen2Battery : public CanBattery {
   uint16_t battery_min_temp = 920;
   uint16_t battery_max_temp = 920;
   uint16_t battery_max_power = 0;
-  uint16_t battery_interlock = 0;
+  uint16_t battery_interlock = 0xFFFE;
+  uint16_t battery_interlock_polled = 0;
   uint16_t battery_kwh = 0;
   int32_t battery_current = 32640;
   uint16_t battery_current_offset = 0;

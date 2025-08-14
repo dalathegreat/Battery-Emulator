@@ -59,6 +59,12 @@ void RenaultZoeGen2Battery::update_values() {
     set_event(EVENT_12V_LOW, battery_12v);
   }
 
+  if (battery_interlock != 0xFFFE) {
+    set_event(EVENT_HVIL_FAILURE, 0);
+  } else {
+    clear_event(EVENT_HVIL_FAILURE);
+  }
+
   // Update webserver datalayer
   datalayer_extended.zoePH2.battery_soc = battery_soc;
   datalayer_extended.zoePH2.battery_usable_soc = battery_usable_soc;
@@ -71,7 +77,7 @@ void RenaultZoeGen2Battery::update_values() {
   datalayer_extended.zoePH2.battery_min_temp = battery_min_temp;
   datalayer_extended.zoePH2.battery_max_temp = battery_max_temp;
   datalayer_extended.zoePH2.battery_max_power = battery_max_power;
-  datalayer_extended.zoePH2.battery_interlock = battery_interlock;
+  datalayer_extended.zoePH2.battery_interlock = battery_interlock_polled;
   datalayer_extended.zoePH2.battery_kwh = battery_kwh;
   datalayer_extended.zoePH2.battery_current = battery_current;
   datalayer_extended.zoePH2.battery_current_offset = battery_current_offset;
@@ -106,6 +112,7 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x0F8:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_interlock = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];  //Expected FF FE
       battery_pack_voltage_periodic_dV = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8;
       break;
     case 0x3EF:
@@ -192,7 +199,7 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           battery_max_power = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_INTERLOCK:
-          battery_interlock = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery_interlock_polled = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_KWH:
           battery_kwh = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
