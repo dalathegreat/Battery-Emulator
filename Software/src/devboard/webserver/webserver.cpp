@@ -792,6 +792,25 @@ String get_firmware_info_processor(const String& var) {
   return String();
 }
 
+String get_uptime() {
+  static uint64_t milliseconds;
+  static uint64_t seconds;
+  static uint64_t minutes;
+  static uint64_t hours;
+  static uint64_t days;
+
+  milliseconds = millis64();
+
+  //convert passed millis to total seconds, minutes, hours and days.
+  seconds = (milliseconds / 1000);
+  minutes = (seconds / 60);
+  hours = (minutes / 60);
+  days = (hours / 24);
+
+  return (String)days + " days, " + (String)hours + " hours, " + (String)minutes + " minutes, " + (String)seconds +
+         " seconds";
+}
+
 String processor(const String& var) {
   if (var == "X") {
     String content = "";
@@ -823,7 +842,7 @@ String processor(const String& var) {
     content += " Hardware: Stark CMR Module";
 #endif  // HW_STARK
     content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
-    content += "<h4>Uptime: " + uptime_formatter::getUptime() + "</h4>";
+    content += "<h4>Uptime: " + get_uptime() + "</h4>";
 #ifdef FUNCTION_TIME_MEASUREMENT
     // Load information
     content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
