@@ -22,6 +22,14 @@ https://github.com/ljames28/Renault-Zoe-PH2-ZE50-Canbus-LBC-Information?tab=read
 https://github.com/fesch/CanZE/tree/master/app/src/main/assets/ZOE_Ph2
 */
 
+uint8_t RenaultZoeGen2Battery::calculate_crc_zoe(CAN_frame& rx_frame, uint8_t crc_xor) {
+  uint8_t crc = 0;  //init value 0x00
+  for (uint8_t j = 0; j < 7; j++) {
+    crc = crctable[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) & 0xFF];
+  }
+  return crc ^ crc_xor;
+}
+
 void RenaultZoeGen2Battery::update_values() {
 
   datalayer_battery->status.soh_pptt = battery_soh;
@@ -113,9 +121,34 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x0F8:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_interlock = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];  //Expected FF FE
-      battery_pack_voltage_periodic_dV = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8;
+      battery_pack_voltage_periodic_dV = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) / 8;
+      //battery_pack_current_periodic_dA = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8; //4-5-6 current related
+      break;
+    case 0x381:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //frame0 - 373 Related
+      //frame1 - 373 Related
+      //frame2 - Maximum_Available_Power_related
+      //frame3 - Maximum_Available_Power_related/was charge complete or partial
+      //frame4 - max power/SOC_related
+      //frame5-6 -  SOC_related
+      //frame7 - Unknown status
+      break;
+    case 0x382:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Frame0-2 Max gen power
+      //frame6 cooling temp OK
+      //frame7 max temp OK
+      break;
+    case 0x387:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x388:  //Blower/Cooling/Maxpower
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x3EF:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
     case 0x4AE:
     case 0x4AF:
     case 0x4DB:
@@ -141,7 +174,6 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x5F4:
     case 0x5F7:
     case 0x612:
-    case 0x387:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
 
@@ -702,6 +734,18 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
     // Send NVROL reset frames
     transmit_reset_nvrol_frames();
   }
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    previousMillis10 = currentMillis;
+
+    counter_10ms = (counter_10ms + 1) % 16;
+
+    ZOE_0EE.data.u8[6] = counter_10ms;
+    ZOE_0EE.data.u8[7] = calculate_crc_zoe(ZOE_0EE, 0xAC);
+
+    transmit_can_frame(&ZOE_0EE);  //Pedal position
+  }
+
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
