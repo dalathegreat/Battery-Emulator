@@ -27,7 +27,7 @@ void AsyncWebServerRequest::send(FS &fs, const String &path, const char *content
 
   // Handle compressed version
   const String gzPath = path + asyncsrv::T__gz;
-  File gzFile = fs.open(gzPath, "r");
+  File gzFile = fs.open(gzPath, fs::FileOpenMode::read);
 
   // Compressed file not found or invalid
   if (!gzFile.seek(gzFile.size() - 8)) {

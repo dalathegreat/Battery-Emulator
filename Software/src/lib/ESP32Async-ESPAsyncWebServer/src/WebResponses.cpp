@@ -6,17 +6,6 @@
 
 using namespace asyncsrv;
 
-// Since ESP8266 does not link memchr by default, here's its implementation.
-void *memchr(void *ptr, int ch, size_t count) {
-  unsigned char *p = static_cast<unsigned char *>(ptr);
-  while (count--) {
-    if (*p++ == static_cast<unsigned char>(ch)) {
-      return --p;
-    }
-  }
-  return nullptr;
-}
-
 /*
  * Abstract Response
  *
@@ -642,7 +631,7 @@ void AsyncFileResponse::_setContentTypeFromPath(const String &path) {
   const char *dot = strrchr(cpath, '.');
 
   if (!dot) {
-    _contentType = T_text_plain;
+    _contentType = T_application_octet_stream;
     return;
   }
 
@@ -662,6 +651,10 @@ void AsyncFileResponse::_setContentTypeFromPath(const String &path) {
     _contentType = T_image_svg_xml;
   } else if (strcmp(dot, T__jpg) == 0) {
     _contentType = T_image_jpeg;
+  } else if (strcmp(dot, T__webp) == 0) {
+    _contentType = T_image_webp;
+  } else if (strcmp(dot, T__avif) == 0) {
+    _contentType = T_image_avif;
   } else if (strcmp(dot, T__gif) == 0) {
     _contentType = T_image_gif;
   } else if (strcmp(dot, T__woff2) == 0) {
@@ -670,18 +663,20 @@ void AsyncFileResponse::_setContentTypeFromPath(const String &path) {
     _contentType = T_font_woff;
   } else if (strcmp(dot, T__ttf) == 0) {
     _contentType = T_font_ttf;
-  } else if (strcmp(dot, T__eot) == 0) {
-    _contentType = T_font_eot;
   } else if (strcmp(dot, T__xml) == 0) {
     _contentType = T_text_xml;
   } else if (strcmp(dot, T__pdf) == 0) {
     _contentType = T_application_pdf;
-  } else if (strcmp(dot, T__zip) == 0) {
-    _contentType = T_application_zip;
-  } else if (strcmp(dot, T__gz) == 0) {
-    _contentType = T_application_x_gzip;
-  } else {
+  } else if (strcmp(dot, T__mp4) == 0) {
+    _contentType = T_video_mp4;
+  } else if (strcmp(dot, T__opus) == 0) {
+    _contentType = T_audio_opus;
+  } else if (strcmp(dot, T__webm) == 0) {
+    _contentType = T_video_webm;
+  } else if (strcmp(dot, T__txt) == 0) {
     _contentType = T_text_plain;
+  } else {
+    _contentType = T_application_octet_stream;
   }
 #endif
 }
@@ -701,15 +696,19 @@ void AsyncFileResponse::_setContentTypeFromPath(const String &path) {
  */
 AsyncFileResponse::AsyncFileResponse(FS &fs, const String &path, const char *contentType, bool download, AwsTemplateProcessor callback)
   : AsyncAbstractResponse(callback) {
+
   // Try to open the uncompressed version first
   _content = fs.open(path, fs::FileOpenMode::read);
   if (_content.available()) {
-    _path = path;
     _contentLength = _content.size();
   } else {
     // Try to open the compressed version (.gz)
-    _path = path + asyncsrv::T__gz;
-    _content = fs.open(_path, fs::FileOpenMode::read);
+    String gzPath;
+    uint16_t pathLen = path.length();
+    gzPath.reserve(pathLen + 3);
+    gzPath.concat(path);
+    gzPath.concat(asyncsrv::T__gz);
+    _content = fs.open(gzPath, fs::FileOpenMode::read);
     _contentLength = _content.size();
 
     if (_content.seek(_contentLength - 8)) {
@@ -734,7 +733,7 @@ AsyncFileResponse::AsyncFileResponse(FS &fs, const String &path, const char *con
     }
   }
 
-  if (*contentType != '\0') {
+  if (*contentType == '\0') {
     _setContentTypeFromPath(path);
   } else {
     _contentType = contentType;
@@ -745,11 +744,11 @@ AsyncFileResponse::AsyncFileResponse(FS &fs, const String &path, const char *con
     int filenameStart = path.lastIndexOf('/') + 1;
     char buf[26 + path.length() - filenameStart];
     char *filename = (char *)path.c_str() + filenameStart;
-    snprintf_P(buf, sizeof(buf), PSTR("attachment; filename=\"%s\""), filename);
+    snprintf(buf, sizeof(buf), T_attachment, filename);
     addHeader(T_Content_Disposition, buf, false);
   } else {
     // Serve file inline (display in browser)
-    addHeader(T_Content_Disposition, PSTR("inline"), false);
+    addHeader(T_Content_Disposition, T_inline, false);
   }
 
   _code = 200;
@@ -758,9 +757,8 @@ AsyncFileResponse::AsyncFileResponse(FS &fs, const String &path, const char *con
 AsyncFileResponse::AsyncFileResponse(File content, const String &path, const char *contentType, bool download, AwsTemplateProcessor callback)
   : AsyncAbstractResponse(callback) {
   _code = 200;
-  _path = path;
 
-  if (!download && String(content.name()).endsWith(T__gz) && !path.endsWith(T__gz)) {
+  if (String(content.name()).endsWith(T__gz) && !path.endsWith(T__gz)) {
     addHeader(T_Content_Encoding, T_gzip, false);
     _callback = nullptr;  // Unable to process gzipped templates
     _sendContentLength = true;
