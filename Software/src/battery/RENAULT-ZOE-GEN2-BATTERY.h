@@ -270,12 +270,18 @@ class RenaultZoeGen2Battery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x0EE,
                        .data = {0x32, 0x3, 0x20, 0xAA, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ZOE_373 = {//HEVC sender
+  CAN_frame ZOE_373 = {//HEVC sender, wakeup message
                        .FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x373,
                        .data = {0xC1, 0x40, 0x5D, 0xB2, 0x00, 0x01, 0xff, 0xe3}};
+  CAN_frame ZOE_375 = {//HEVC status message
+                       .FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x375,
+                       .data = {0x02, 0x29, 0x00, 0xBF, 0xFE, 0x64, 0x0, 0xff}};
   CAN_frame ZOE_376 = {
       //HEVC sender
       .FD = false,

@@ -775,11 +775,12 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
     }
     counter_373 = (counter_373 + 1) % 10;
 
-    transmit_can_frame(&ZOE_373);
-    transmit_can_frame_376();
+    transmit_can_frame(&ZOE_373);  //HEVC Wakeup / Sleep message
+    transmit_can_frame(&ZOE_375);  //HEVC Status message
+    transmit_can_frame_376();      //HEVC Time and Date
   }
 
-  // Send 200ms CAN Message (Only if not NVROL in progress)
+  // Send 200ms polling CAN Message (Only if not NVROL in progress)
   if ((currentMillis - previousMillis200 >= INTERVAL_200_MS) && !datalayer_extended.zoePH2.UserRequestNVROLReset) {
     previousMillis200 = currentMillis;
 
