@@ -241,14 +241,14 @@ class RenaultZoeGen2Battery : public CanBattery {
       1614454107;  // Production timestamp in seconds since January 1, 1970. Production timestamp used: February 25, 2021 at 8:08:27 AM GMT
   bool battery_balancing_shunts[96];
 
-  CAN_frame ZOE_373 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x373,
-      .data = {0xC1, 0x40, 0x5D, 0xB2, 0x00, 0x01, 0xff,
-               0xe3}};  // FIXME: remove if not needed: {0xC1, 0x80, 0x5D, 0x5D, 0x00, 0x00, 0xff, 0xcb}};
+  CAN_frame ZOE_373 = {//HEVC sender
+                       .FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x373,
+                       .data = {0xC1, 0x40, 0x5D, 0xB2, 0x00, 0x01, 0xff, 0xe3}};
   CAN_frame ZOE_376 = {
+      //HEVC sender
       .FD = false,
       .ext_ID = false,
       .DLC = 8,

@@ -660,12 +660,12 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
   if (datalayer_extended.zoePH2.UserRequestNVROLReset) {
     // Send NVROL reset frames
     transmit_reset_nvrol_frames();
-  } else {
-    // Send 100ms CAN Message
-    if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-      previousMillis100 = currentMillis;
+  }
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
 
-      /* FIXME: remove if not needed
+    /* FIXME: remove if not needed
       if ((counter_373 / 5) % 2 == 0) {  // Alternate every 5 messages between these two
         ZOE_373.data.u8[2] = 0xB2;
         ZOE_373.data.u8[3] = 0xB2;
@@ -676,30 +676,29 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
       counter_373 = (counter_373 + 1) % 10;
       */
 
-      transmit_can_frame(&ZOE_373);
-      transmit_can_frame_376();
-    }
+    transmit_can_frame(&ZOE_373);
+    transmit_can_frame_376();
+  }
 
-    // Send 200ms CAN Message
-    if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
-      previousMillis200 = currentMillis;
+  // Send 200ms CAN Message (Only if not NVROL in progress)
+  if ((currentMillis - previousMillis200 >= INTERVAL_200_MS) && !datalayer_extended.zoePH2.UserRequestNVROLReset) {
+    previousMillis200 = currentMillis;
 
-      // Update current poll from the array
-      currentpoll = poll_commands[poll_index];
-      poll_index = (poll_index + 1) % 163;
+    // Update current poll from the array
+    currentpoll = poll_commands[poll_index];
+    poll_index = (poll_index + 1) % 163;
 
-      ZOE_POLL_18DADBF1.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
-      ZOE_POLL_18DADBF1.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
+    ZOE_POLL_18DADBF1.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
+    ZOE_POLL_18DADBF1.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
-      transmit_can_frame(&ZOE_POLL_18DADBF1);
-    }
+    transmit_can_frame(&ZOE_POLL_18DADBF1);
+  }
 
-    if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
-      previousMillis1000 = currentMillis;
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+    previousMillis1000 = currentMillis;
 
-      // Time in seconds emulated
-      ZOE_376_time_now_s++;  // Increment by 1 second
-    }
+    // Time in seconds emulated
+    ZOE_376_time_now_s++;  // Increment by 1 second
   }
 }
 
@@ -775,9 +774,13 @@ void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
       }
       break;
     case 4:  //Wait 30s
+      //While waiting, stop streaming 0x373 to make battery go to sleep
+      ZOE_373.data.u8[0] = 0x01;
       if ((millis() - startTimeNVROL) > INTERVAL_30_S) {
         // after sleeping, set the nvrol reset flag to false, to continue normal operation of sending CAN messages
         datalayer_extended.zoePH2.UserRequestNVROLReset = false;
+        // Wake battery back up
+        ZOE_373.data.u8[0] = 0xC1;
         // reset state machine, we are done!
         NVROLstateMachine = 0;
       }
