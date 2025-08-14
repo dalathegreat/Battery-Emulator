@@ -63,10 +63,8 @@ void RenaultZoeGen2Battery::update_values() {
     datalayer_battery->status.temperature_max_dC = ((battery_max_temp - 640) * 0.625);
   }
 
-  if ((battery_min_cell_voltage != 3700) && (battery_max_cell_voltage != 3700)) {
-    datalayer_battery->status.cell_min_voltage_mV = (battery_min_cell_voltage * 0.976563);
-    datalayer_battery->status.cell_max_voltage_mV = (battery_max_cell_voltage * 0.976563);
-  }
+  datalayer_battery->status.cell_min_voltage_mV = battery_minimum_cell_voltage_mV;
+  datalayer_battery->status.cell_max_voltage_mV = battery_maximum_cell_voltage_mV;
 
   if (battery_12v < 11000) {  //11.000V
     set_event(EVENT_12V_LOW, battery_12v);
@@ -83,8 +81,8 @@ void RenaultZoeGen2Battery::update_values() {
   datalayer_extended.zoePH2.battery_usable_soc = battery_usable_soc;
   datalayer_extended.zoePH2.battery_soh = battery_soh;
   datalayer_extended.zoePH2.battery_pack_voltage = battery_pack_voltage_polled_dV;
-  datalayer_extended.zoePH2.battery_max_cell_voltage = battery_max_cell_voltage;
-  datalayer_extended.zoePH2.battery_min_cell_voltage = battery_min_cell_voltage;
+  datalayer_extended.zoePH2.battery_max_cell_voltage = battery_max_cell_voltage_polled;
+  datalayer_extended.zoePH2.battery_min_cell_voltage = battery_min_cell_voltage_polled;
   datalayer_extended.zoePH2.battery_12v = battery_12v;
   datalayer_extended.zoePH2.battery_avg_temp = battery_avg_temp;
   datalayer_extended.zoePH2.battery_min_temp = battery_min_temp;
@@ -160,9 +158,13 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         datalayer_battery->status.CAN_error_counter++;
       }
       break;
+    case 0x4DB:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_maximum_cell_voltage_mV = ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] & 0xF0) >> 4) + 1000;
+      battery_minimum_cell_voltage_mV = (((rx_frame.data.u8[1] & 0x0F) << 8) | (rx_frame.data.u8[2])) + 1000;
+      break;
     case 0x4AE:
     case 0x4AF:
-    case 0x4DB:
     case 0x5A1:
     case 0x5AC:
     case 0x5AD:
@@ -217,13 +219,13 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case POLL_MAX_CELL_VOLTAGE:
           temporary_variable = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           if (temporary_variable > 500) {  //Disregard messages with value unavailable
-            battery_max_cell_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            battery_max_cell_voltage_polled = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           }
           break;
         case POLL_MIN_CELL_VOLTAGE:
           temporary_variable = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           if (temporary_variable > 500) {  //Disregard messages with value unavailable
-            battery_min_cell_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            battery_min_cell_voltage_polled = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           }
           break;
         case POLL_12V:

@@ -203,8 +203,10 @@ class RenaultZoeGen2Battery : public CanBattery {
   uint16_t battery_soh = 10000;
   uint16_t battery_pack_voltage_polled_dV = 3700;
   uint16_t battery_pack_voltage_periodic_dV = 3700;
-  uint16_t battery_max_cell_voltage = 3700;
-  uint16_t battery_min_cell_voltage = 3700;
+  uint16_t battery_minimum_cell_voltage_mV = 3700;
+  uint16_t battery_maximum_cell_voltage_mV = 3700;
+  uint16_t battery_max_cell_voltage_polled = 3700;
+  uint16_t battery_min_cell_voltage_polled = 3700;
   uint16_t battery_12v = 12000;
   uint16_t battery_avg_temp = 920;
   uint16_t battery_min_temp = 920;
