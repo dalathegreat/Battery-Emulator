@@ -794,21 +794,23 @@ String get_firmware_info_processor(const String& var) {
 
 String get_uptime() {
   static uint64_t milliseconds;
-  static uint64_t seconds;
-  static uint64_t minutes;
-  static uint64_t hours;
-  static uint64_t days;
+  static uint64_t remaining_seconds;
+  static uint64_t remaining_minutes;
+  static uint64_t remaining_hours;
+  static uint64_t total_days;
+  static uint64_t remaining_seconds_in_day;
 
   milliseconds = millis64();
 
-  //convert passed millis to total seconds, minutes, hours and days.
-  seconds = (milliseconds / 1000);
-  minutes = (seconds / 60);
-  hours = (minutes / 60);
-  days = (hours / 24);
+  //convert passed millis to days, hours, minutes, seconds
+  total_days = milliseconds / (1000 * 60 * 60 * 24);
+  remaining_seconds_in_day = (milliseconds / 1000) % (60 * 60 * 24);
+  remaining_hours = remaining_seconds_in_day / (60 * 60);
+  remaining_minutes = (remaining_seconds_in_day % (60 * 60)) / 60;
+  remaining_seconds = remaining_seconds_in_day % 60;
 
-  return (String)days + " days, " + (String)hours + " hours, " + (String)minutes + " minutes, " + (String)seconds +
-         " seconds";
+  return (String)total_days + " days, " + (String)remaining_hours + " hours, " + (String)remaining_minutes +
+         " minutes, " + (String)remaining_seconds + " seconds";
 }
 
 String processor(const String& var) {
