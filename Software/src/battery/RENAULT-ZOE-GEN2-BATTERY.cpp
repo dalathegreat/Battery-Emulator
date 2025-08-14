@@ -32,7 +32,7 @@ void RenaultZoeGen2Battery::update_values() {
     datalayer_battery->status.real_soc = 0;
   }
 
-  datalayer_battery->status.voltage_dV = battery_pack_voltage;
+  datalayer_battery->status.voltage_dV = battery_pack_voltage_periodic_dV;
 
   datalayer_battery->status.current_dA = ((battery_current - 32640) * 0.3125);
 
@@ -63,7 +63,7 @@ void RenaultZoeGen2Battery::update_values() {
   datalayer_extended.zoePH2.battery_soc = battery_soc;
   datalayer_extended.zoePH2.battery_usable_soc = battery_usable_soc;
   datalayer_extended.zoePH2.battery_soh = battery_soh;
-  datalayer_extended.zoePH2.battery_pack_voltage = battery_pack_voltage;
+  datalayer_extended.zoePH2.battery_pack_voltage = battery_pack_voltage_polled_dV;
   datalayer_extended.zoePH2.battery_max_cell_voltage = battery_max_cell_voltage;
   datalayer_extended.zoePH2.battery_min_cell_voltage = battery_min_cell_voltage;
   datalayer_extended.zoePH2.battery_12v = battery_12v;
@@ -103,9 +103,43 @@ void RenaultZoeGen2Battery::update_values() {
 }
 
 void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
+    case 0x0F8:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_pack_voltage_periodic_dV = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8;
+      break;
+    case 0x3EF:
+    case 0x4AE:
+    case 0x4AF:
+    case 0x4DB:
+    case 0x5A1:
+    case 0x5AC:
+    case 0x5AD:
+    case 0x5B4:
+    case 0x5B5:
+    case 0x5B7:
+    case 0x5C9:
+    case 0x5CB:
+    case 0x5CC:
+    case 0x5D6:
+    case 0x5D7:
+    case 0x5D9:
+    case 0x5DC:
+    case 0x5DD:
+    case 0x5EA:
+    case 0x5ED:
+    case 0x5F0:
+    case 0x5F1:
+    case 0x5F2:
+    case 0x5F4:
+    case 0x5F7:
+    case 0x612:
+    case 0x387:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+
     case 0x18DAF1DB:  // LBC Reply from active polling
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
       if (rx_frame.data.u8[0] == 0x10) {  //First frame of a group
         transmit_can_frame(&ZOE_POLL_FLOW_CONTROL);
@@ -128,7 +162,7 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           battery_soh = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_PACK_VOLTAGE:
-          battery_pack_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery_pack_voltage_polled_dV = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_MAX_CELL_VOLTAGE:
           temporary_variable = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -665,16 +699,16 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    /* FIXME: remove if not needed
-      if ((counter_373 / 5) % 2 == 0) {  // Alternate every 5 messages between these two
-        ZOE_373.data.u8[2] = 0xB2;
-        ZOE_373.data.u8[3] = 0xB2;
-      } else {
-        ZOE_373.data.u8[2] = 0x5D;
-        ZOE_373.data.u8[3] = 0x5D;
-      }
-      counter_373 = (counter_373 + 1) % 10;
-      */
+    ZOE_373.data.u8[1] = 0x40;  //40 vehicle locked, 80 vehicle unlocked
+
+    if ((counter_373 / 5) % 2 == 0) {  // Alternate every 5 messages between these two patterns
+      ZOE_373.data.u8[2] = 0xB2;
+      ZOE_373.data.u8[3] = 0x5D;
+    } else {
+      ZOE_373.data.u8[2] = 0x5D;
+      ZOE_373.data.u8[3] = 0xB2;
+    }
+    counter_373 = (counter_373 + 1) % 10;
 
     transmit_can_frame(&ZOE_373);
     transmit_can_frame_376();
