@@ -798,6 +798,9 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
 
     // Time in seconds emulated
     ZOE_376_time_now_s++;  // Increment by 1 second
+
+    transmit_can_frame(&ZOE_5F8);  //Vehicle ID
+    transmit_can_frame(&ZOE_6BF);  //Total Boost Time
   }
 }
 
