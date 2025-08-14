@@ -50,6 +50,8 @@ class RenaultZoeGen2Battery : public CanBattery {
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
 
+  bool is_message_corrupt(CAN_frame rx_frame, uint8_t crc_xor);
+
   static const int MAX_PACK_VOLTAGE_DV = 4100;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 3000;
   static const int MAX_CELL_DEVIATION_MV = 150;

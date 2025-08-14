@@ -30,6 +30,11 @@ uint8_t RenaultZoeGen2Battery::calculate_crc_zoe(CAN_frame& rx_frame, uint8_t cr
   return crc ^ crc_xor;
 }
 
+bool RenaultZoeGen2Battery::is_message_corrupt(CAN_frame rx_frame, uint8_t crc_xor) {
+  uint8_t crc = calculate_crc_zoe(rx_frame, crc_xor);
+  return crc != rx_frame.data.u8[7];
+}
+
 void RenaultZoeGen2Battery::update_values() {
 
   datalayer_battery->status.soh_pptt = battery_soh;
@@ -148,6 +153,12 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x3EF:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x36C:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (is_message_corrupt(rx_frame, 0x01)) {
+        datalayer_battery->status.CAN_error_counter++;
+      }
       break;
     case 0x4AE:
     case 0x4AF:
@@ -744,6 +755,7 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
     ZOE_0EE.data.u8[7] = calculate_crc_zoe(ZOE_0EE, 0xAC);
 
     transmit_can_frame(&ZOE_0EE);  //Pedal position
+    //transmit_can_frame(&ZOE_133);  //Vehicle speed (CRC is frame3 B1A670 55 0006FFFF)
   }
 
   // Send 100ms CAN Message
