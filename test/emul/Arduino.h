@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <chrono>
+#include <cmath>
 
 #include "HardwareSerial.h"
 #include "Print.h"
@@ -70,6 +71,8 @@ typedef struct {
       idle_core_mask; /**< Bitmask of the core whose idle task should be subscribed on initialization where 1 << i means that core i's idle task will be monitored by the TWDT */
   bool trigger_panic; /**< Trigger panic when timeout occurs */
 } esp_task_wdt_config_t;
+
+esp_err_t esp_task_wdt_init(const esp_task_wdt_config_t* config);
 
 void delay(uint32_t ms);
 

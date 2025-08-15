@@ -47,7 +47,6 @@ int close(int fd) {
   }
   return 0;
 }
-#endif
 
 int fcntl(int fd, int cmd, ...) {
   va_list args;
@@ -65,9 +64,10 @@ int fcntl(int fd, int cmd, ...) {
   va_end(args);
   return 0;
 }
-
 typedef int _ssize_t;
 typedef _ssize_t ssize_t;
+
+#endif
 
 ssize_t lwip_write(int s, const void* dataptr, size_t size) {
   return ::send(s, (const char*)dataptr, size, 0);
@@ -78,6 +78,7 @@ ssize_t lwip_read(int s, void* mem, size_t len) {
   return recvStatus;
 }
 
+#ifdef _WIN32
 int emul_select(int __n, emul_fd_set* __readfds, emul_fd_set* __writefds, emul_fd_set* __exceptfds,
                 struct timeval* __timeout) {
   struct fd_set readfds, writefds, exceptfds;
@@ -142,4 +143,5 @@ int emul_select(int __n, emul_fd_set* __readfds, emul_fd_set* __writefds, emul_f
 
   return retVal;
 }
+#endif
 }

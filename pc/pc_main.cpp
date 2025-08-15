@@ -5,11 +5,14 @@
 #endif
 
 #include <chrono>
+#include <iostream>
 #include <thread>
 
 void setup();
 
 int main(int argc, char** argv) {
+
+  std::cout << "Starting Battery Emulator..." << std::endl;
 
 #ifdef _WIN32
   WSADATA wsaData;

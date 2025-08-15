@@ -5,16 +5,26 @@
 
 #include <unordered_map>
 
-std::mutex g_recursiveRegistryMutex;
-std::unordered_map<SemaphoreHandle_t, std::shared_ptr<RecursiveSemaphore>> g_recursiveRegistry;
+//std::mutex g_recursiveRegistryMutex;
+//std::unordered_map<SemaphoreHandle_t, std::shared_ptr<RecursiveSemaphore>> g_recursiveRegistry;
+
+std::unordered_map<SemaphoreHandle_t, std::shared_ptr<RecursiveSemaphore>>& recursiveRegistry() {
+  static std::unordered_map<SemaphoreHandle_t, std::shared_ptr<RecursiveSemaphore>> m;
+  return m;
+}
+
+std::mutex& recursiveRegistryMutex() {
+  static std::mutex m;
+  return m;
+}
 
 SemaphoreHandle_t xSemaphoreCreateRecursiveMutex() {
   auto wrapper = std::make_shared<RecursiveSemaphore>();
   SemaphoreHandle_t handle = wrapper->getHandle();
 
   {
-    std::lock_guard<std::mutex> lock(g_recursiveRegistryMutex);
-    g_recursiveRegistry[handle] = wrapper;
+    std::lock_guard<std::mutex> lock(recursiveRegistryMutex());
+    recursiveRegistry()[handle] = wrapper;
   }
 
   return handle;
@@ -24,9 +34,9 @@ BaseType_t xSemaphoreTakeRecursive(SemaphoreHandle_t xSemaphore, TickType_t xTic
   if (!xSemaphore)
     return pdFALSE;
 
-  std::lock_guard<std::mutex> lock(g_recursiveRegistryMutex);
-  auto it = g_recursiveRegistry.find(xSemaphore);
-  if (it == g_recursiveRegistry.end())
+  std::lock_guard<std::mutex> lock(recursiveRegistryMutex());
+  auto it = recursiveRegistry().find(xSemaphore);
+  if (it == recursiveRegistry().end())
     return pdFALSE;
 
   return it->second->take(xTicksToWait);
@@ -36,9 +46,9 @@ BaseType_t xSemaphoreGiveRecursive(SemaphoreHandle_t xSemaphore) {
   if (!xSemaphore)
     return pdFALSE;
 
-  std::lock_guard<std::mutex> lock(g_recursiveRegistryMutex);
-  auto it = g_recursiveRegistry.find(xSemaphore);
-  if (it == g_recursiveRegistry.end())
+  std::lock_guard<std::mutex> lock(recursiveRegistryMutex());
+  auto it = recursiveRegistry().find(xSemaphore);
+  if (it == recursiveRegistry().end())
     return pdFALSE;
 
   return it->second->give();
@@ -49,8 +59,8 @@ void vSemaphoreDelete(SemaphoreHandle_t& xSemaphore) {
     return;
 
   {
-    std::lock_guard<std::mutex> lock(g_recursiveRegistryMutex);
-    g_recursiveRegistry.erase(xSemaphore);
+    std::lock_guard<std::mutex> lock(recursiveRegistryMutex());
+    recursiveRegistry().erase(xSemaphore);
   }
 
   xSemaphore.reset();

@@ -208,9 +208,6 @@ int emul_bind(int s, uint32_t address, int port);
 int listen(int s, int backlog);
 int accept(int s, struct sockaddr* addr, socklen_t* addrlen);
 
-ssize_t lwip_write(int s, const void* dataptr, size_t size);
-ssize_t lwip_read(int s, void* mem, size_t len);
-
 struct sockaddr_storage {
   u8_t s2_len;
   sa_family_t ss_family;
@@ -395,6 +392,12 @@ unsigned short ntohs(unsigned short x);
 #endif
 #define EWOULDBLOCK EAGAIN /* Operation would block */
 
+struct linger {
+  int l_onoff;  /* option on/off */
+  int l_linger; /* linger time in seconds */
+};
+#endif
+
 typedef enum {
   /** No error, everything OK. */
   ERR_OK = 0,
@@ -433,11 +436,8 @@ typedef enum {
   ERR_ARG = -16
 } err_enum_t;
 
-struct linger {
-  int l_onoff;  /* option on/off */
-  int l_linger; /* linger time in seconds */
-};
-#endif
+ssize_t lwip_write(int s, const void* dataptr, size_t size);
+ssize_t lwip_read(int s, void* mem, size_t len);
 
 typedef void (*dns_found_callback)(const char* name, const ip_addr_t* ipaddr, void* callback_arg);
 extern "C" err_t dns_gethostbyname(const char* hostname, ip_addr_t* addr, dns_found_callback found, void* callback_arg);

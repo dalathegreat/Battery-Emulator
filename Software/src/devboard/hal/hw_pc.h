@@ -5,7 +5,15 @@
 
 class PcHal : public Esp32Hal {
  public:
-  const char* name() { return "PC"; }
+  const char* name() {
+#ifdef _WIN32
+    return "PC (Windows)";
+#elif defined(__linux__)
+    return "PC (Linux)";
+#else
+    return "PC (Unknown OS)";
+#endif
+  }
 
   virtual gpio_num_t PIN_5V_EN() { return GPIO_NUM_16; }
   virtual gpio_num_t RS485_EN_PIN() { return GPIO_NUM_17; }

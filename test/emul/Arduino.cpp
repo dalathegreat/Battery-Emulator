@@ -163,4 +163,9 @@ void randomSeed(unsigned long seed) {
   std::srand(static_cast<unsigned int>(seed));
 }
 
+esp_err_t esp_task_wdt_init(const esp_task_wdt_config_t* config) {
+  // Simulate initializing the watchdog timer with the provided configuration
+  return 0;  // ESP_OK
+}
+
 EspClass ESP;
