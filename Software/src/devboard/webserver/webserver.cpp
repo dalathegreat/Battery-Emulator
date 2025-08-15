@@ -793,12 +793,12 @@ String get_firmware_info_processor(const String& var) {
 }
 
 String get_uptime() {
-  static uint64_t milliseconds;
-  static uint64_t remaining_seconds;
-  static uint64_t remaining_minutes;
-  static uint64_t remaining_hours;
-  static uint64_t total_days;
-  static uint64_t remaining_seconds_in_day;
+  uint64_t milliseconds;
+  uint32_t remaining_seconds_in_day;
+  uint32_t remaining_seconds;
+  uint32_t remaining_minutes;
+  uint32_t remaining_hours;
+  uint16_t total_days;
 
   milliseconds = millis64();
 
