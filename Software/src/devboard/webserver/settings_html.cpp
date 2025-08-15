@@ -515,10 +515,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           if(value!==null){if(value>=0&&value<=15){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSofarID?value='+value,true);xhr.send();}
           else {alert('Invalid value. Please enter a value between 0 and 15.');}}}
         
-        function editWh(){var value=prompt('How much energy the battery can store. Enter new Wh value (1-120000):');
-          if(value!==null){if(value>=1&&value<=120000){var xhr=new 
+        function editWh(){var value=prompt('How much energy the battery can store. Enter new Wh value (1-400000):');
+          if(value!==null){if(value>=1&&value<=400000){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBatterySize?value='+value,true);xhr.send();}else{
-          alert('Invalid value. Please enter a value between 1 and 120000.');}}}
+          alert('Invalid value. Please enter a value between 1 and 400000.');}}}
 
         function editUseScaledSOC(){var value=prompt('Extends battery life by rescaling the SOC within the configured minimum and maximum percentage. Should SOC scaling be applied? (0 = No, 1 = Yes):');
           if(value!==null){if(value==0||value==1){var xhr=new 

@@ -95,6 +95,10 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
     datalayer.battery.status.cell_max_voltage_mV = max_cell_voltage;  //Value is alive
   }
 
+  if (terminal30_12v_voltage < 1100) {  //11.000V
+    set_event(EVENT_12V_LOW, terminal30_12v_voltage);
+  }
+
   datalayer.battery.info.max_design_voltage_dV = max_design_voltage;
 
   datalayer.battery.info.min_design_voltage_dV = min_design_voltage;

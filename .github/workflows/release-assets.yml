@@ -12,6 +12,8 @@ on:
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
     - name: Set release tag
       id: vars
@@ -49,22 +51,46 @@ jobs:
     - name: Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
       run: cp ./Software/USER_SECRETS.TEMPLATE.h ./Software/USER_SECRETS.h
 
-    - name: Build image for Lilygo
+    - name: 🛠 Build ota image for Lilygo
       run: |
         pio run -e lilygo_330
-        mkdir -p output
-        mv .pio/build/lilygo_330/firmware.bin output/lilygo.bin
+        cp .pio/build/lilygo_330/firmware.bin output/BE_${{ steps.vars.outputs.tag }}_LilygoT-CAN485.ota.bin
 
-    - name: Build image for Stark
+    - name: 🛠 Build factory image for Lilygo
+      run: |
+        esptool --chip esp32 merge-bin -o .pio/build/lilygo_330/factory.bin --flash-mode dio --flash-freq 40m --flash-size 4MB 0x1000 .pio/build/lilygo_330/bootloader.bin 0x8000 .pio/build/lilygo_330/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/lilygo_330/firmware.bin
+        mv .pio/build/lilygo_330/factory.bin output/BE_${{ steps.vars.outputs.tag }}_LilygoT-CAN485.factory.bin
+
+    - name: 🛠 Build ota image for Stark
       run: |
         pio run -e stark_330
-        mv .pio/build/stark_330/firmware.bin output/stark.bin
+        cp .pio/build/stark_330/firmware.bin output/BE_${{ steps.vars.outputs.tag }}_StarkCMR.ota.bin
 
-    - name: Upload to GitHub Release
-      uses: softprops/action-gh-release@v1
+    - name: 🛠 Build factory image for Stark
+      run: |
+        esptool --chip esp32 merge-bin -o .pio/build/stark_330/factory.bin --flash-mode dio --flash-freq 40m --flash-size 4MB 0x1000 .pio/build/stark_330/bootloader.bin 0x8000 .pio/build/stark_330/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/stark_330/firmware.bin
+        mv .pio/build/stark_330/factory.bin output/BE_${{ steps.vars.outputs.tag }}_StarkCMR.factory.bin
+
+    - name: 🌐 Deploy to Web Installer repo
+      env:
+        WEB_INSTALLER_PUSH_TOKEN: ${{ secrets.WEB_INSTALLER_PUSH_TOKEN }}
+        REPO_OWNER: ${{ github.repository_owner }}
+      run: |
+        git clone https://$WEB_INSTALLER_PUSH_TOKEN@github.com/$REPO_OWNER/BE-Web-Installer web-installer
+        cd web-installer
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        mkdir -p images/${{ steps.vars.outputs.tag }}
+        cp ../output/*.factory.bin images/${{ steps.vars.outputs.tag }}/
+        git add images
+        git commit -m "Deploy from GitHub Actions"
+        git push origin main
+
+    - name: 📡 Upload to GitHub Release
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.vars.outputs.tag }}
         files: |
-          output/*
+          output/*.ota.bin
       env:
-        GITHUB_TOKEN: ${{ secrets.WORKFLOW_SECRET }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

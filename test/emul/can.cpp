@@ -1,7 +1,7 @@
 #include "../../Software/src/communication/Transmitter.h"
 #include "../../Software/src/communication/can/comm_can.h"
 
-void transmit_can_frame_to_interface(CAN_frame* tx_frame, int interface) {}
+void transmit_can_frame_to_interface(const CAN_frame* tx_frame, int interface) {}
 
 void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_Speed speed) {}
 

@@ -123,12 +123,23 @@ void setup() {
   check_reset_reason();
 
   // Initialize Task Watchdog for subscribed tasks
-  esp_task_wdt_config_t wdt_config = {
-      .timeout_ms = INTERVAL_5_S,  // If task hangs for longer than this, reboot
-      .idle_core_mask =
-          (uint32_t)(1 << esp32hal->CORE_FUNCTION_CORE()) | (uint32_t)(1 << esp32hal->WIFICORE()),  // Watch both cores
-      .trigger_panic = true  // Enable panic reset on timeout
-  };
+  esp_task_wdt_config_t wdt_config = {// 5s should be enough for the connectivity tasks (which are all contending
+                                      // for the same core) to yield to each other and reset their watchdogs.
+                                      .timeout_ms = INTERVAL_5_S,
+                                      // We don't benefit from idle task watchdogs, our critical loops have their
+                                      // own. The idle watchdogs can cause nuisance reboots under heavy load.
+                                      .idle_core_mask = 0,
+                                      // Panic (and reboot) on timeout
+                                      .trigger_panic = true};
+#ifdef CONFIG_ESP_TASK_WDT
+  // ESP-IDF will have already initialized it, so reconfigure.
+  // Arduino and PlatformIO have different watchdog defaults, so we reconfigure
+  // for consistency.
+  esp_task_wdt_reconfigure(&wdt_config);
+#else
+  // Otherwise initialize it for the first time.
+  esp_task_wdt_init(&wdt_config);
+#endif
 
   // Start tasks
 

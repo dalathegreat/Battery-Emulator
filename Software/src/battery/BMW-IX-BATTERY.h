@@ -150,7 +150,7 @@ TODO:
 */
 
   //Vehicle CAN START
-  CAN_frame BMWiX_125 = {
+  static constexpr CAN_frame BMWiX_125 = {
       .FD = true,
       .ext_ID = false,
       .DLC = 20,
@@ -178,14 +178,14 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
                                   0x3A,    // 0x3A to close contactors, 0x33 to open contactors
                                   0xF7}};  // 0xF7 to close contactors, 0xF0 to open contactors // CCU output.
 
-  CAN_frame BMWiX_188 = {
+  static constexpr CAN_frame BMWiX_188 = {
       .FD = true,
       .ext_ID = false,
       .DLC = 8,
       .ID = 0x188,
       .data = {0x00, 0x00, 0x00, 0x00, 0x3C, 0xFF, 0xFF, 0xFF}};  // CCU output - values while driving
 
-  CAN_frame BMWiX_1EA = {
+  static constexpr CAN_frame BMWiX_1EA = {
       .FD = true,
       .ext_ID = false,
       .DLC = 8,
@@ -193,7 +193,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       //.data = {TODO:km_least_significant, TODO:, TODO:, TODO:, TODO:km_most_significant, 0xFF, TODO:, TODO:}
   };  // KOMBI output - kilometerstand
 
-  CAN_frame BMWiX_1FC = {
+  static constexpr CAN_frame BMWiX_1FC = {
       .FD = true,
       .ext_ID = false,
       .DLC = 8,
@@ -201,7 +201,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .data = {0xFF, 0xFF, 0xFF, 0xFC, 0x00, 0x00, 0xC0,
                0x00}};  // FIXME:(add transmitter node) output - heat management engine control - values
 
-  CAN_frame BMWiX_21D = {
+  static constexpr CAN_frame BMWiX_21D = {
       .FD = true,
       .ext_ID = false,
       .DLC = 8,
@@ -209,14 +209,15 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       //    .data = {TODO:, TODO:, TODO:, 0xFF, 0xFF, 0xFF, 0xFF, TODO:}
   };  // FIXME:(add transmitter node) output - request heating and air conditioning system 1
 
-  CAN_frame BMWiX_276 = {.FD = true,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x276,
-                         .data = {0xFF, 0xFF, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF,
-                                  0xFD}};  // BDC output - vehicle condition. Used for contactor closing
+  static constexpr CAN_frame BMWiX_276 = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x276,
+      .data = {0xFF, 0xFF, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF,
+               0xFD}};  // BDC output - vehicle condition. Used for contactor closing
 
-  CAN_frame BMWiX_2ED = {
+  static constexpr CAN_frame BMWiX_2ED = {
       .FD = true,
       .ext_ID = false,
       .DLC = 8,
@@ -225,14 +226,14 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
           0x75,
           0x75}};  // FIXME:(add transmitter node) output - ambient temperature (values seen in logs vary between 0x72 and 0x79)
 
-  CAN_frame BMWiX_2F1 = {
+  static constexpr CAN_frame BMWiX_2F1 = {
       .FD = true,
       .ext_ID = false,
       .DLC = 8,
       .ID = 0x2F1,
       .data = {0xFF, 0xFF, 0xD0, 0x39, 0x94, 0x00, 0xF3, 0xFF}};  // 1000ms BDC output - values - varies at startup
 
-  CAN_frame BMWiX_340 = {
+  static constexpr CAN_frame BMWiX_340 = {
       .FD = true,
       .ext_ID = false,
       .DLC = 12,
@@ -240,7 +241,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       //      .data = {TODO:, TODO:, TODO:, 0xFF, TODO:, TODO:, 0x00, 0x00, TODO:, TODO:, TODO:, 0xFF, 0xFF, }
   };  // CCU output
 
-  CAN_frame BMWiX_380 = {
+  static constexpr CAN_frame BMWiX_380 = {
       .FD = true,
       .ext_ID = false,
       .DLC = 7,
@@ -256,7 +257,7 @@ CAN_frame BMWiX_439 = {.FD = true,
                        .data = {0xFF, 0x3F, 0xFF, 0xF3}};  // 1000ms BDC output
 */
 
-  CAN_frame BMWiX_442 = {
+  static constexpr CAN_frame BMWiX_442 = {
       .FD = true,
       .ext_ID = false,
       .DLC = 6,
@@ -289,7 +290,7 @@ CAN_frame BMWiX_49C = {.FD = true,
                                 0xFF}};  // 1000ms SME output - Suspected keep alive CONFIRM NEEDED
 */
 
-  CAN_frame BMWiX_4EB = {
+  static constexpr CAN_frame BMWiX_4EB = {
       .FD = true,
       .ext_ID = false,
       .DLC = 8,
@@ -297,7 +298,7 @@ CAN_frame BMWiX_49C = {.FD = true,
       //  .data = {TODO:, TODO:, TODO: 0xE0 or 0xE5 (while driving), 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
   };  // BDC output - RSU condition
 
-  CAN_frame BMWiX_4F8 = {
+  static constexpr CAN_frame BMWiX_4F8 = {
       .FD = true,
       .ext_ID = false,
       .DLC = 8,
@@ -318,7 +319,7 @@ CAN_frame BMWiX_49C = {.FD = true,
           0x01,
           0x00}};  // 100ms BDC output - Values change in car logs, these bytes are the most common. Used for contactor closing
 
-  CAN_frame BMWiX_6D = {
+  static constexpr CAN_frame BMWiX_6D = {
       .FD = true,
       .ext_ID = false,
       .DLC = 8,
@@ -327,7 +328,7 @@ CAN_frame BMWiX_49C = {.FD = true,
           0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
           0xFF}};  // 1000ms BDC output - [0] [1,2][3,4] counter x2. 3,4 is 9 higher than 1,2 is needed? [5-7] static
 
-  CAN_frame BMWiX_C0 = {
+  static constexpr CAN_frame BMWiX_C0 = {
       .FD = true,
       .ext_ID = false,
       .DLC = 2,
@@ -338,87 +339,91 @@ CAN_frame BMWiX_49C = {.FD = true,
   //Vehicle CAN END
 
   //Request Data CAN START
-  CAN_frame BMWiX_6F4 = {
+  static constexpr CAN_frame BMWiX_6F4 = {
       .FD = true,
       .ext_ID = false,
       .DLC = 5,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5, 0xC7}};  // Generic UDS Request data from SME. byte 4 selects requested value
-  CAN_frame BMWiX_6F4_REQUEST_SLEEPMODE = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_SLEEPMODE = {
       .FD = true,
       .ext_ID = false,
       .DLC = 4,
       .ID = 0x6F4,
       .data = {0x07, 0x02, 0x11, 0x04}};  // UDS Request  Request BMS/SME goes to Sleep Mode
-  CAN_frame BMWiX_6F4_REQUEST_HARD_RESET = {.FD = true,
-                                            .ext_ID = false,
-                                            .DLC = 4,
-                                            .ID = 0x6F4,
-                                            .data = {0x07, 0x02, 0x11, 0x01}};  // UDS Request  Hard reset of BMS/SME
-  CAN_frame BMWiX_6F4_REQUEST_CELL_TEMP = {.FD = true,
-                                           .ext_ID = false,
-                                           .DLC = 5,
-                                           .ID = 0x6F4,
-                                           .data = {0x07, 0x03, 0x22, 0xDD, 0xC0}};  // UDS Request Cell Temperatures
-  CAN_frame BMWiX_6F4_REQUEST_SOC = {.FD = true,
-                                     .ext_ID = false,
-                                     .DLC = 5,
-                                     .ID = 0x6F4,
-                                     .data = {0x07, 0x03, 0x22, 0xE5, 0xCE}};  // Min/Avg/Max SOC%
-  CAN_frame BMWiX_6F4_REQUEST_CAPACITY = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_HARD_RESET = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 4,
+      .ID = 0x6F4,
+      .data = {0x07, 0x02, 0x11, 0x01}};  // UDS Request  Hard reset of BMS/SME
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_CELL_TEMP = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 5,
+      .ID = 0x6F4,
+      .data = {0x07, 0x03, 0x22, 0xDD, 0xC0}};  // UDS Request Cell Temperatures
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_SOC = {.FD = true,
+                                                      .ext_ID = false,
+                                                      .DLC = 5,
+                                                      .ID = 0x6F4,
+                                                      .data = {0x07, 0x03, 0x22, 0xE5, 0xCE}};  // Min/Avg/Max SOC%
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_CAPACITY = {
       .FD = true,
       .ext_ID = false,
       .DLC = 5,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5,
                0xC7}};  //Current and max capacity kWh. Stored in kWh as 0.01 scale with -50  bias
-  CAN_frame BMWiX_6F4_REQUEST_MINMAXCELLV = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_MINMAXCELLV = {
       .FD = true,
       .ext_ID = false,
       .DLC = 5,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5, 0x53}};  //Min and max cell voltage   10V = Qualifier Invalid
-  CAN_frame BMWiX_6F4_REQUEST_MAINVOLTAGE_POSTCONTACTOR = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_MAINVOLTAGE_POSTCONTACTOR = {
       .FD = true,
       .ext_ID = false,
       .DLC = 5,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5, 0x4A}};  //Main Battery Voltage (After Contactor)
-  CAN_frame BMWiX_6F4_REQUEST_MAINVOLTAGE_PRECONTACTOR = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_MAINVOLTAGE_PRECONTACTOR = {
       .FD = true,
       .ext_ID = false,
       .DLC = 5,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5, 0x4D}};  //Main Battery Voltage (Pre Contactor)
-  CAN_frame BMWiX_6F4_REQUEST_BATTERYCURRENT = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_BATTERYCURRENT = {
       .FD = true,
       .ext_ID = false,
       .DLC = 5,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5, 0x61}};  //Current amps 32bit signed MSB. dA . negative is discharge
-  CAN_frame BMWiX_6F4_REQUEST_CELL_VOLTAGE = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_CELL_VOLTAGE = {
       .FD = true,
       .ext_ID = false,
       .DLC = 5,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5, 0x54}};  //MultiFrameIndividual Cell Voltages
-  CAN_frame BMWiX_6F4_REQUEST_T30VOLTAGE = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_T30VOLTAGE = {
       .FD = true,
       .ext_ID = false,
       .DLC = 5,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5, 0xA7}};  //Terminal 30 Voltage (12V SME supply)
-  CAN_frame BMWiX_6F4_REQUEST_EOL_ISO = {.FD = true,
-                                         .ext_ID = false,
-                                         .DLC = 5,
-                                         .ID = 0x6F4,
-                                         .data = {0x07, 0x03, 0x22, 0xA8, 0x60}};  //Request EOL Reading including ISO
-  CAN_frame BMWiX_6F4_REQUEST_SOH = {.FD = true,
-                                     .ext_ID = false,
-                                     .DLC = 5,
-                                     .ID = 0x6F4,
-                                     .data = {0x07, 0x03, 0x22, 0xE5, 0x45}};  //SOH Max Min Mean Request
-  CAN_frame BMWiX_6F4_REQUEST_DATASUMMARY = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_EOL_ISO = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 5,
+      .ID = 0x6F4,
+      .data = {0x07, 0x03, 0x22, 0xA8, 0x60}};  //Request EOL Reading including ISO
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_SOH = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 5,
+      .ID = 0x6F4,
+      .data = {0x07, 0x03, 0x22, 0xE5, 0x45}};  //SOH Max Min Mean Request
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_DATASUMMARY = {
       .FD = true,
       .ext_ID = false,
       .DLC = 5,
@@ -426,131 +431,133 @@ CAN_frame BMWiX_49C = {.FD = true,
       .data = {
           0x07, 0x03, 0x22, 0xE5,
           0x45}};  //MultiFrame Summary Request, includes SOC/SOH/MinMax/MaxCapac/RemainCapac/max v and t at last charge. slow refreshrate
-  CAN_frame BMWiX_6F4_REQUEST_PYRO = {.FD = true,
-                                      .ext_ID = false,
-                                      .DLC = 5,
-                                      .ID = 0x6F4,
-                                      .data = {0x07, 0x03, 0x22, 0xAC, 0x93}};  //Pyro Status
-  CAN_frame BMWiX_6F4_REQUEST_UPTIME = {.FD = true,
-                                        .ext_ID = false,
-                                        .DLC = 5,
-                                        .ID = 0x6F4,
-                                        .data = {0x07, 0x03, 0x22, 0xE4, 0xC0}};  // Uptime and Vehicle Time Status
-  CAN_frame BMWiX_6F4_REQUEST_HVIL = {.FD = true,
-                                      .ext_ID = false,
-                                      .DLC = 5,
-                                      .ID = 0x6F4,
-                                      .data = {0x07, 0x03, 0x22, 0xE5, 0x69}};  // Request HVIL State
-  CAN_frame BMWiX_6F4_REQUEST_BALANCINGSTATUS = {.FD = true,
-                                                 .ext_ID = false,
-                                                 .DLC = 5,
-                                                 .ID = 0x6F4,
-                                                 .data = {0x07, 0x03, 0x22, 0xE4, 0xCA}};  // Request Balancing Data
-  CAN_frame BMWiX_6F4_REQUEST_MAX_CHARGE_DISCHARGE_AMPS = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_PYRO = {.FD = true,
+                                                       .ext_ID = false,
+                                                       .DLC = 5,
+                                                       .ID = 0x6F4,
+                                                       .data = {0x07, 0x03, 0x22, 0xAC, 0x93}};  //Pyro Status
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_UPTIME = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 5,
+      .ID = 0x6F4,
+      .data = {0x07, 0x03, 0x22, 0xE4, 0xC0}};  // Uptime and Vehicle Time Status
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_HVIL = {.FD = true,
+                                                       .ext_ID = false,
+                                                       .DLC = 5,
+                                                       .ID = 0x6F4,
+                                                       .data = {0x07, 0x03, 0x22, 0xE5, 0x69}};  // Request HVIL State
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_BALANCINGSTATUS = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 5,
+      .ID = 0x6F4,
+      .data = {0x07, 0x03, 0x22, 0xE4, 0xCA}};  // Request Balancing Data
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_MAX_CHARGE_DISCHARGE_AMPS = {
       .FD = true,
       .ext_ID = false,
       .DLC = 5,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5, 0x62}};  // Request allowable charge discharge amps
-  CAN_frame BMWiX_6F4_REQUEST_VOLTAGE_QUALIFIER_CHECK = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_VOLTAGE_QUALIFIER_CHECK = {
       .FD = true,
       .ext_ID = false,
       .DLC = 5,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5, 0x4B}};  // Request HV Voltage Qualifier
-  CAN_frame BMWiX_6F4_REQUEST_CONTACTORS_CLOSE = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_CONTACTORS_CLOSE = {
       .FD = true,
       .ext_ID = false,
       .DLC = 6,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5, 0x51, 0x01}};  // Request Contactors Close - Unconfirmed
-  CAN_frame BMWiX_6F4_REQUEST_CONTACTORS_OPEN = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_CONTACTORS_OPEN = {
       .FD = true,
       .ext_ID = false,
       .DLC = 6,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5, 0x51, 0x01}};  // Request Contactors Open - Unconfirmed
-  CAN_frame BMWiX_6F4_REQUEST_BALANCING_START = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_BALANCING_START = {
       .FD = true,
       .ext_ID = false,
       .DLC = 6,
       .ID = 0x6F4,
       .data = {0xF4, 0x04, 0x71, 0x01, 0xAE, 0x77}};  // Request Balancing command?
-  CAN_frame BMWiX_6F4_REQUEST_BALANCING_START2 = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_BALANCING_START2 = {
       .FD = true,
       .ext_ID = false,
       .DLC = 6,
       .ID = 0x6F4,
       .data = {0xF4, 0x04, 0x31, 0x01, 0xAE, 0x77}};  // Request Balancing command?
-  CAN_frame BMWiX_6F4_REQUEST_PACK_VOLTAGE_LIMITS = {
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_PACK_VOLTAGE_LIMITS = {
       .FD = true,
       .ext_ID = false,
       .DLC = 5,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5, 0x4C}};  // Request pack voltage limits
 
-  CAN_frame BMWiX_6F4_CONTINUE_DATA = {.FD = true,
-                                       .ext_ID = false,
-                                       .DLC = 4,
-                                       .ID = 0x6F4,
-                                       .data = {0x07, 0x30, 0x00, 0x02}};
+  static constexpr CAN_frame BMWiX_6F4_CONTINUE_DATA = {.FD = true,
+                                                        .ext_ID = false,
+                                                        .DLC = 4,
+                                                        .ID = 0x6F4,
+                                                        .data = {0x07, 0x30, 0x00, 0x02}};
 
   //Action Requests:
-  CAN_frame BMWiX_6F4_CELL_SOC = {.FD = true,
-                                  .ext_ID = false,
-                                  .DLC = 5,
-                                  .ID = 0x6F4,
-                                  .data = {0x07, 0x03, 0x22, 0xE5, 0x9A}};
-  CAN_frame BMWiX_6F4_CELL_TEMP = {.FD = true,
-                                   .ext_ID = false,
-                                   .DLC = 5,
-                                   .ID = 0x6F4,
-                                   .data = {0x07, 0x03, 0x22, 0xE5, 0xCA}};
+  static constexpr CAN_frame BMWiX_6F4_CELL_SOC = {.FD = true,
+                                                   .ext_ID = false,
+                                                   .DLC = 5,
+                                                   .ID = 0x6F4,
+                                                   .data = {0x07, 0x03, 0x22, 0xE5, 0x9A}};
+  static constexpr CAN_frame BMWiX_6F4_CELL_TEMP = {.FD = true,
+                                                    .ext_ID = false,
+                                                    .DLC = 5,
+                                                    .ID = 0x6F4,
+                                                    .data = {0x07, 0x03, 0x22, 0xE5, 0xCA}};
   //Request Data CAN End
 
   //Setup UDS values to poll for
-  CAN_frame* UDS_REQUESTS100MS[17] = {&BMWiX_6F4_REQUEST_CELL_TEMP,
-                                      &BMWiX_6F4_REQUEST_SOC,
-                                      &BMWiX_6F4_REQUEST_CAPACITY,
-                                      &BMWiX_6F4_REQUEST_MINMAXCELLV,
-                                      &BMWiX_6F4_REQUEST_MAINVOLTAGE_POSTCONTACTOR,
-                                      &BMWiX_6F4_REQUEST_MAINVOLTAGE_PRECONTACTOR,
-                                      &BMWiX_6F4_REQUEST_BATTERYCURRENT,
-                                      &BMWiX_6F4_REQUEST_CELL_VOLTAGE,
-                                      &BMWiX_6F4_REQUEST_T30VOLTAGE,
-                                      &BMWiX_6F4_REQUEST_SOH,
-                                      &BMWiX_6F4_REQUEST_UPTIME,
-                                      &BMWiX_6F4_REQUEST_PYRO,
-                                      &BMWiX_6F4_REQUEST_EOL_ISO,
-                                      &BMWiX_6F4_REQUEST_HVIL,
-                                      &BMWiX_6F4_REQUEST_MAX_CHARGE_DISCHARGE_AMPS,
-                                      &BMWiX_6F4_REQUEST_BALANCINGSTATUS,
-                                      &BMWiX_6F4_REQUEST_PACK_VOLTAGE_LIMITS};
+  static constexpr const CAN_frame* UDS_REQUESTS100MS[17] = {&BMWiX_6F4_REQUEST_CELL_TEMP,
+                                                             &BMWiX_6F4_REQUEST_SOC,
+                                                             &BMWiX_6F4_REQUEST_CAPACITY,
+                                                             &BMWiX_6F4_REQUEST_MINMAXCELLV,
+                                                             &BMWiX_6F4_REQUEST_MAINVOLTAGE_POSTCONTACTOR,
+                                                             &BMWiX_6F4_REQUEST_MAINVOLTAGE_PRECONTACTOR,
+                                                             &BMWiX_6F4_REQUEST_BATTERYCURRENT,
+                                                             &BMWiX_6F4_REQUEST_CELL_VOLTAGE,
+                                                             &BMWiX_6F4_REQUEST_T30VOLTAGE,
+                                                             &BMWiX_6F4_REQUEST_SOH,
+                                                             &BMWiX_6F4_REQUEST_UPTIME,
+                                                             &BMWiX_6F4_REQUEST_PYRO,
+                                                             &BMWiX_6F4_REQUEST_EOL_ISO,
+                                                             &BMWiX_6F4_REQUEST_HVIL,
+                                                             &BMWiX_6F4_REQUEST_MAX_CHARGE_DISCHARGE_AMPS,
+                                                             &BMWiX_6F4_REQUEST_BALANCINGSTATUS,
+                                                             &BMWiX_6F4_REQUEST_PACK_VOLTAGE_LIMITS};
   int numUDSreqs = sizeof(UDS_REQUESTS100MS) / sizeof(UDS_REQUESTS100MS[0]);  // Number of elements in the array
 
   //iX Intermediate vars
   bool battery_info_available = false;
   uint32_t battery_serial_number = 0;
   int32_t battery_current = 0;
-  int16_t battery_voltage = 370;  //Startup with valid values - needs fixing in future
-  int16_t terminal30_12v_voltage = 0;
-  int16_t battery_voltage_after_contactor = 0;
-  int16_t min_soc_state = 5000;
-  int16_t avg_soc_state = 5000;
-  int16_t max_soc_state = 5000;
-  int16_t min_soh_state = 9900;  // Uses E5 45, also available in 78 73
-  int16_t avg_soh_state = 9900;  // Uses E5 45, also available in 78 73
-  int16_t max_soh_state = 9900;  // Uses E5 45, also available in 78 73
+  uint16_t battery_voltage = 3700;  //Startup with valid values - needs fixing in future
+  uint16_t terminal30_12v_voltage = 1200;
+  uint16_t battery_voltage_after_contactor = 0;
+  uint16_t min_soc_state = 5000;
+  uint16_t avg_soc_state = 5000;
+  uint16_t max_soc_state = 5000;
+  uint16_t min_soh_state = 9900;  // Uses E5 45, also available in 78 73
+  uint16_t avg_soh_state = 9900;  // Uses E5 45, also available in 78 73
+  uint16_t max_soh_state = 9900;  // Uses E5 45, also available in 78 73
   uint16_t max_design_voltage = 0;
   uint16_t min_design_voltage = 0;
-  int32_t remaining_capacity = 0;
-  int32_t max_capacity = 0;
+  uint32_t remaining_capacity = 0;
+  uint32_t max_capacity = 0;
   int16_t min_battery_temperature = 0;
   int16_t avg_battery_temperature = 0;
   int16_t max_battery_temperature = 0;
   int16_t main_contactor_temperature = 0;
-  int16_t min_cell_voltage = 3700;  //Startup with valid values - needs fixing in future
-  int16_t max_cell_voltage = 3700;  //Startup with valid values - needs fixing in future
+  uint16_t min_cell_voltage = 3700;  //Startup with valid values - needs fixing in future
+  uint16_t max_cell_voltage = 3700;  //Startup with valid values - needs fixing in future
   unsigned long min_cell_voltage_lastchanged = 0;
   unsigned long max_cell_voltage_lastchanged = 0;
   unsigned min_cell_voltage_lastreceived = 0;

@@ -613,6 +613,9 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   /** uint16_t */
   /** Max regen power in kW */
   uint16_t ChargePowerLimit = 0;
+  /** uint16_t */
+  /** Internal resistance in percentage */
+  uint16_t battery_HX = 0;
   /** int16_t */
   /** Max charge power in kW */
   int16_t MaxPowerForCharger = 0;

@@ -76,6 +76,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::Solxpow:
       return SolxpowInverter::Name;
 
+    case InverterProtocolType::SolArkLv:
+      return SolArkLvInverter::Name;
+
     case InverterProtocolType::Sungrow:
       return SungrowInverter::Name;
   }
@@ -167,6 +170,10 @@ bool setup_inverter() {
 
     case InverterProtocolType::Solxpow:
       inverter = new SolxpowInverter();
+      break;
+
+    case InverterProtocolType::SolArkLv:
+      inverter = new SolArkLvInverter();
       break;
 
     case InverterProtocolType::Sungrow:
