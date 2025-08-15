@@ -22,7 +22,6 @@ class SimpBmsBattery : public CanBattery {
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
   static const int MAX_CELL_DEVIATION_MV = 500;
-  static const int CELL_COUNT = 96;
 
   static const int SIMPBMS_MAX_CELLS = 128;
 
