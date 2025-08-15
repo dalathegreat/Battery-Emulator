@@ -1,4 +1,5 @@
 #include "PYLON-BATTERY.h"
+#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -131,10 +132,17 @@ void PylonBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Pylon compatible battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.number_of_cells = 2;
+#ifdef COMMON_IMAGE
+  datalayer.battery.info.max_design_voltage_dV = user_selected_max_pack_voltage_dV;
+  datalayer.battery.info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
+  datalayer.battery.info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
+  datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
+#else
   datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+#endif
 
   datalayer.battery2.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 
