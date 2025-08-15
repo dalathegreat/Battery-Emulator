@@ -3,7 +3,6 @@
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/safety/safety.h"
 #include "../Software/src/devboard/utils/events.h"
-#include "../Software/src/inverter/ModbusInverterProtocol.h"
 
 TEST(SafetyTests, ShouldSetEventWhenTemperatureTooHigh) {
   init_events();

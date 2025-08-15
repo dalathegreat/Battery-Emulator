@@ -792,6 +792,27 @@ String get_firmware_info_processor(const String& var) {
   return String();
 }
 
+String get_uptime() {
+  uint64_t milliseconds;
+  uint32_t remaining_seconds_in_day;
+  uint32_t remaining_seconds;
+  uint32_t remaining_minutes;
+  uint32_t remaining_hours;
+  uint16_t total_days;
+
+  milliseconds = millis64();
+
+  //convert passed millis to days, hours, minutes, seconds
+  total_days = milliseconds / (1000 * 60 * 60 * 24);
+  remaining_seconds_in_day = (milliseconds / 1000) % (60 * 60 * 24);
+  remaining_hours = remaining_seconds_in_day / (60 * 60);
+  remaining_minutes = (remaining_seconds_in_day % (60 * 60)) / 60;
+  remaining_seconds = remaining_seconds_in_day % 60;
+
+  return (String)total_days + " days, " + (String)remaining_hours + " hours, " + (String)remaining_minutes +
+         " minutes, " + (String)remaining_seconds + " seconds";
+}
+
 String processor(const String& var) {
   if (var == "X") {
     String content = "";
@@ -823,7 +844,7 @@ String processor(const String& var) {
     content += " Hardware: Stark CMR Module";
 #endif  // HW_STARK
     content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
-    content += "<h4>Uptime: " + uptime_formatter::getUptime() + "</h4>";
+    content += "<h4>Uptime: " + get_uptime() + "</h4>";
 #ifdef FUNCTION_TIME_MEASUREMENT
     // Load information
     content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
