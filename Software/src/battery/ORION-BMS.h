@@ -17,13 +17,6 @@ class OrionBms : public CanBattery {
   static constexpr const char* Name = "DIY battery with Orion BMS (Victron setting)";
 
  private:
-  /* Change the following to suit your battery */
-  static const int MAX_PACK_VOLTAGE_DV = 5000;  //5000 = 500.0V
-  static const int MIN_PACK_VOLTAGE_DV = 1500;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
-  static const int MAX_CELL_DEVIATION_MV = 150;
-
   uint16_t cellvoltages[MAX_AMOUNT_CELLS];  //array with all the cellvoltages
   uint16_t Maximum_Cell_Voltage = 3700;
   uint16_t Minimum_Cell_Voltage = 3700;

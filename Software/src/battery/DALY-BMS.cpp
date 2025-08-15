@@ -1,6 +1,7 @@
 #include "DALY-BMS.h"
 #include <Arduino.h>
 #include <cstdint>
+#include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
@@ -67,10 +68,10 @@ void DalyBms::update_values() {
 void DalyBms::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_design_voltage_dV = user_selected_max_pack_voltage_dV;
+  datalayer.battery.info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
+  datalayer.battery.info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
+  datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
   datalayer.system.status.battery_allows_contactor_closing = true;
 

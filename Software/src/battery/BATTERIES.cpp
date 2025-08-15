@@ -312,3 +312,23 @@ void setup_battery() {
 #endif
 }
 #endif
+
+/* User-selected voltages used for custom-BMS batteries (RJXZS etc.) */
+#if defined(MAX_CUSTOM_PACK_VOLTAGE_DV) && defined(MIN_CUSTOM_PACK_VOLTAGE_DV) && \
+    defined(MAX_CUSTOM_CELL_VOLTAGE_MV) && defined(MIN_CUSTOM_CELL_VOLTAGE_MV)
+// Use USER_SETTINGS.h values for cell/pack voltage defaults
+uint16_t user_selected_max_pack_voltage_default_dV = MAX_CUSTOM_PACK_VOLTAGE_DV;
+uint16_t user_selected_min_pack_voltage_default_dV = MIN_CUSTOM_PACK_VOLTAGE_DV;
+uint16_t user_selected_max_cell_voltage_default_mV = MAX_CUSTOM_CELL_VOLTAGE_MV;
+uint16_t user_selected_min_cell_voltage_default_mV = MIN_CUSTOM_CELL_VOLTAGE_MV;
+#else
+// Use 0V for user selected cell/pack voltage defaults (COMMON_IMAGE will replace with saved values from NVM)
+uint16_t user_selected_max_pack_voltage_default_dV = 0;
+uint16_t user_selected_min_pack_voltage_default_dV = 0;
+uint16_t user_selected_max_cell_voltage_default_mV = 0;
+uint16_t user_selected_min_cell_voltage_default_mV = 0;
+#endif
+uint16_t user_selected_max_pack_voltage_dV = user_selected_max_pack_voltage_default_dV;
+uint16_t user_selected_min_pack_voltage_dV = user_selected_min_pack_voltage_default_dV;
+uint16_t user_selected_max_cell_voltage_mV = user_selected_max_cell_voltage_default_mV;
+uint16_t user_selected_min_cell_voltage_mV = user_selected_min_cell_voltage_default_mV;
