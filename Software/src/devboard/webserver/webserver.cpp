@@ -445,6 +445,18 @@ void init_webserver() {
       } else if (p->name() == "BATTCOMM") {
         auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
         settings.saveUInt("BATTCOMM", (int)type);
+      } else if (p->name() == "BATTPVMAX") {
+        auto type = p->value().toFloat() * 10.0;
+        settings.saveUInt("BATTPVMAX", (int)type);
+      } else if (p->name() == "BATTPVMIN") {
+        auto type = p->value().toFloat() * 10.0;
+        settings.saveUInt("BATTPVMIN", (int)type);
+      } else if (p->name() == "BATTCVMAX") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("BATTCVMAX", type);
+      } else if (p->name() == "BATTCVMIN") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("BATTCVMIN", type);
       } else if (p->name() == "charger") {
         auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
         settings.saveUInt("CHGTYPE", (int)type);

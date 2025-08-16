@@ -306,6 +306,22 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     }
   }
 
+  if (var == "BATTPVMAX") {
+    return String(static_cast<float>(settings.getUInt("BATTPVMAX", 0)) / 10.0, 1);
+  }
+
+  if (var == "BATTPVMIN") {
+    return String(static_cast<float>(settings.getUInt("BATTPVMIN", 0)) / 10.0, 1);
+  }
+
+  if (var == "BATTCVMAX") {
+    return String(settings.getUInt("BATTCVMAX", 0));
+  }
+
+  if (var == "BATTCVMIN") {
+    return String(settings.getUInt("BATTCVMIN", 0));
+  }
+
   if (var == "BATTERY_WH_MAX") {
     return String(datalayer.battery.info.total_capacity_Wh);
   }
@@ -593,23 +609,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
           function goToMainPage() { window.location.href = '/'; }
 
-          function toggleMqtt() {
-            var mqttEnabled = document.querySelector('input[name="MQTTENABLED"]').checked;
-            document.querySelectorAll('.mqtt-settings').forEach(function (el) {
-              el.style.display = mqttEnabled ? 'contents' : 'none';
-            });
-          }
-
-          document.addEventListener('DOMContentLoaded', toggleMqtt);
-
-          function toggleTopics() {
-            var topicsEnabled = document.querySelector('input[name="MQTTTOPICS"]').checked;
-            document.querySelectorAll('.mqtt-topics').forEach(function (el) {
-              el.style.display = topicsEnabled ? 'contents' : 'none';
-            });
-          }
-
-          document.addEventListener('DOMContentLoaded', toggleTopics);
+          document.querySelectorAll('select,input').forEach(function(sel) {
+            function ch() {
+              sel.closest('form').setAttribute('data-' + sel.name?.toLowerCase(), sel.type=='checkbox'?sel.checked:sel.value);
+            }
+            sel.addEventListener('change', ch);
+            ch();
+          });
     </script>
 )rawliteral"
 
@@ -621,7 +627,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         cursor: pointer; border-radius: 10px; }
     button:hover { background-color: #3A4A52; }
     h4 { margin: 0.6em 0; line-height: 1.2; }
-    select { max-width: 250px; }
+    select, input { max-width: 250px; box-sizing: border-box; }
     .hidden {
       display: none;
     }
@@ -641,6 +647,32 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       grid-column: span 2;
     }
 
+    form .if-battery, form .if-inverter, form .if-charger, form .if-shunt { display: contents; }
+    form[data-battery="0"] .if-battery { display: none; }
+    form[data-inverter="0"] .if-inverter { display: none; }    
+    form[data-charger="0"] .if-charger { display: none; }
+    form[data-shunt="0"] .if-shunt { display: none; }
+
+    form .if-cbms { display: none; }
+    form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms {
+      display: contents;
+    }
+
+    form .if-dblbtr { display: none; }
+    form[data-dblbtr="true"] .if-dblbtr {
+      display: contents;
+    }
+
+    form .if-mqtt { display: none; }
+    form[data-mqttenabled="true"] .if-mqtt {
+      display: contents;
+    }
+
+    form .if-topics { display: none; }
+    form[data-mqtttopics="true"] .if-topics {
+      display: contents;
+    }
+
     </style>
 )rawliteral"
 
@@ -654,13 +686,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     
     <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px;border-radius: 50px; class="%COMMONIMAGEDIVCLASS%">
     <div style='max-width: 500px;'>
-        <form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 2fr; gap: 10px;
-        align-items: center;'>
+        <form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label for='battery'>Battery: </label><select name='battery' if='battery'>
         %BATTTYPE%
         </select>
 
+        <div class="if-battery">
         <label for='BATTCOMM'>Battery comm I/F: </label><select name='BATTCOMM' id='BATTCOMM'>
         %BATTCOMM%
         </select>
@@ -668,30 +700,51 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Battery chemistry: </label><select name='BATTCHEM'>
         %BATTCHEM%
         </select>
+        </div>
+
+        <div class="if-cbms">
+        <label>Battery max design voltage (V): </label>
+        <input name='BATTPVMAX' pattern="^[0-9]+(\.[0-9]+)?$" type='text' value='%BATTPVMAX%' />
+
+        <label>Battery min design voltage (V): </label>
+        <input name='BATTPVMIN' pattern="^[0-9]+(\.[0-9]+)?$" type='text' value='%BATTPVMIN%' />
+
+        <label>Cell max design voltage (mV): </label>
+        <input name='BATTCVMAX' pattern="^[0-9]+$" type='text' value='%BATTCVMAX%' />
+
+        <label>Cell min design voltage (mV): </label>
+        <input name='BATTCVMIN' pattern="^[0-9]+$" type='text' value='%BATTCVMIN%' />
+        </div>
 
         <label>Inverter protocol: </label><select name='inverter'>
         %INVTYPE%
         </select>
 
+        <div class="if-inverter">        
         <label>Inverter comm I/F: </label><select name='INVCOMM'>
         %INVCOMM%     
         </select>
+        </div>
 
         <label>Charger: </label><select name='charger'>
         %CHGTYPE%
         </select>
 
+        <div class="if-charger">
         <label>Charger comm I/F: </label><select name='CHGCOMM'>
         %CHGCOMM%
         </select>
+        </div>
 
         <label>Shunt: </label><select name='SHUNT'>
         %SHUNTTYPE%
         </select>
 
+        <div class="if-shunt">
         <label>Shunt comm I/F: </label><select name='SHUNTCOMM'>
         %SHUNTCOMM%
         </select>
+        </div>
 
         <label>Equipment stop button: </label><select name='EQSTOP'>
         %EQSTOP%  
@@ -700,15 +753,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Double battery: </label>
         <input type='checkbox' name='DBLBTR' value='on' style='margin-left: 0;' %DBLBTR% />
 
+        <div class="if-dblbtr">
         <label>Battery 2 comm I/F: </label><select name='BATT2COMM'>
         %BATT2COMM%
         </select>
+        </div>
 
         <label>Contactor control: </label>
         <input type='checkbox' name='CNTCTRL' value='on' style='margin-left: 0;' %CNTCTRL% />
 
+        <div class="if-dblbtr">
         <label>Contactor control double battery: </label>
         <input type='checkbox' name='CNTCTRLDBL' value='on' style='margin-left: 0;' %CNTCTRLDBL% />
+        </div>
 
         <label>PWM contactor control: </label>
         <input type='checkbox' name='PWMCNTCTRL' value='on' style='margin-left: 0;' %PWMCNTCTRL% />
@@ -726,26 +783,26 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='WIFIAPENABLED' value='on' style='margin-left: 0;' %WIFIAPENABLED% />
 
         <label>Custom hostname: </label>
-        <input style='max-width: 250px;' type='text' name='HOSTNAME' value="%HOSTNAME%" />
+        <input type='text' name='HOSTNAME' value="%HOSTNAME%" />
 
         <label>Enable MQTT: </label>
-        <input type='checkbox' name='MQTTENABLED' value='on' onchange='toggleMqtt()' style='margin-left: 0;' %MQTTENABLED% />
+        <input type='checkbox' name='MQTTENABLED' value='on' style='margin-left: 0;' %MQTTENABLED% />
 
-        <div class='mqtt-settings'>
-        <label>MQTT server: </label><input style='max-width: 250px;' type='text' name='MQTTSERVER' value="%MQTTSERVER%" />
-        <label>MQTT port: </label><input style='max-width: 250px;' type='text' name='MQTTPORT' value="%MQTTPORT%" />
-        <label>MQTT user: </label><input style='max-width: 250px;' type='text' name='MQTTUSER' value="%MQTTUSER%" />
-        <label>MQTT password: </label><input style='max-width: 250px;' type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" />
+        <div class='if-mqtt'>
+        <label>MQTT server: </label><input type='text' name='MQTTSERVER' value="%MQTTSERVER%" />
+        <label>MQTT port: </label><input type='text' name='MQTTPORT' value="%MQTTPORT%" />
+        <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%" />
+        <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" />
 
         <label>Customized MQTT topics: </label>
-        <input type='checkbox' name='MQTTTOPICS' value='on' onchange='toggleTopics()' style='margin-left: 0;' %MQTTTOPICS% />
+        <input type='checkbox' name='MQTTTOPICS' value='on' style='margin-left: 0;' %MQTTTOPICS% />
 
-        <div class='mqtt-topics'>
+        <div class='if-topics'>
 
-        <label>MQTT topic name: </label><input style='max-width: 250px;' type='text' name='MQTTTOPIC' value="%MQTTTOPIC%" />
-        <label>Prefix for MQTT object ID: </label><input style='max-width: 250px;' type='text' name='MQTTOBJIDPREFIX' value="%MQTTOBJIDPREFIX%" />
-        <label>HA device name: </label><input style='max-width: 250px;' type='text' name='MQTTDEVICENAME' value="%MQTTDEVICENAME%" />
-        <label>HA device ID: </label><input style='max-width: 250px;' type='text' name='HADEVICEID' value="%HADEVICEID%" />
+        <label>MQTT topic name: </label><input type='text' name='MQTTTOPIC' value="%MQTTTOPIC%" />
+        <label>Prefix for MQTT object ID: </label><input type='text' name='MQTTOBJIDPREFIX' value="%MQTTOBJIDPREFIX%" />
+        <label>HA device name: </label><input type='text' name='MQTTDEVICENAME' value="%MQTTDEVICENAME%" />
+        <label>HA device ID: </label><input type='text' name='HADEVICEID' value="%HADEVICEID%" />
 
         </div>
 
@@ -754,10 +811,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         </div>
 
-        <div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button "type='submit'>Save</button></div>
+        <div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button type='submit'>Save</button></div>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
-          <p>Settings saved. Reboot to take the settings into use.<p> <button onclick='askReboot()'>Reboot</button>
+          <p>Settings saved. Reboot to take the settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
         </div>
 
         </form>
