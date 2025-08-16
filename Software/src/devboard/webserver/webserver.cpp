@@ -414,7 +414,7 @@ void init_webserver() {
 
   const char* boolSettingNames[] = {
       "DBLBTR",     "CNTCTRL",       "CNTCTRLDBL",  "PWMCNTCTRL", "PERBMSRESET", "REMBMSRESET",
-      "CANFDASCAN", "WIFIAPENABLED", "MQTTENABLED", "HADISC",     "MQTTTOPICS",
+      "CANFDASCAN", "WIFIAPENABLED", "MQTTENABLED", "HADISC",     "MQTTTOPICS",  "INVICNT",
   };
 
   // Handles the form POST from UI to save settings of the common image
@@ -497,6 +497,24 @@ void init_webserver() {
       } else if (p->name() == "SOFAR_ID") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("SOFAR_ID", type);
+      } else if (p->name() == "INVCELLS") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVCELLS", type);
+      } else if (p->name() == "INVMODULES") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVMODULES", type);
+      } else if (p->name() == "INVCELLSPER") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVCELLSPER", type);
+      } else if (p->name() == "INVVLEVEL") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVVLEVEL", type);
+      } else if (p->name() == "INVCAPACITY") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVCAPACITY", type);
+      } else if (p->name() == "INVBTYPE") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVBTYPE", (int)type);
       }
 
       for (auto& boolSetting : boolSettings) {

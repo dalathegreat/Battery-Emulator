@@ -472,6 +472,34 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return String(settings.getUInt("SOFAR_ID", 0));
   }
 
+  if (var == "INVCELLS") {
+    return String(settings.getUInt("INVCELLS", 0));
+  }
+
+  if (var == "INVMODULES") {
+    return String(settings.getUInt("INVMODULES", 0));
+  }
+
+  if (var == "INVCELLSPER") {
+    return String(settings.getUInt("INVCELLSPER", 0));
+  }
+
+  if (var == "INVVLEVEL") {
+    return String(settings.getUInt("INVVLEVEL", 0));
+  }
+
+  if (var == "INVCAPACITY") {
+    return String(settings.getUInt("INVCAPACITY", 0));
+  }
+
+  if (var == "INVBTYPE") {
+    return String(settings.getUInt("INVBTYPE", 0));
+  }
+
+  if (var == "INVICNT") {
+    return settings.getBool("INVICNT") ? "checked" : "";
+  }
+
   return String();
 }
 
@@ -668,6 +696,16 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-pylonish { display: none; }
+    form[data-inverter="4"] .if-pylonish, form[data-inverter="10"] .if-pylonish, form[data-inverter="19"] .if-pylonish {
+      display: contents;
+    }
+
+    form .if-solax { display: none; }
+    form[data-inverter="18"] .if-solax {
+      display: contents;
+    }
+
     form .if-mqtt { display: none; }
     form[data-mqttenabled="true"] .if-mqtt {
       display: contents;
@@ -734,6 +772,35 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-sofar">
         <label>Sofar Battery ID (0-15): </label>
         <input name='SOFAR_ID' type='text' value="%SOFAR_ID%" pattern="^[0-9]{1,2}$" />
+        </div>
+
+        <div class="if-pylonish">
+        <label>Reported cell count (0 for default): </label>
+        <input name='INVCELLS' type='text' value="%INVCELLS%" pattern="^[0-9]+$" />
+        </div>
+
+        <div class="if-pylonish if-solax">
+        <label>Reported module count (0 for default): </label>
+        <input name='INVMODULES' type='text' value="%INVMODULES%" pattern="^[0-9]+$" />
+        </div>
+
+        <div class="if-pylonish">
+        <label>Reported cells per module (0 for default): </label>
+        <input name='INVCELLSPER' type='text' value="%INVCELLSPER%" pattern="^[0-9]+$" />
+
+        <label>Reported voltage level (0 for default): </label>
+        <input name='INVVLEVEL' type='text' value="%INVVLEVEL%" pattern="^[0-9]+$" />
+
+        <label>Reported Ah capacity (0 for default): </label>
+        <input name='INVCAPACITY' type='text' value="%INVCAPACITY%" pattern="^[0-9]+$" />
+        </div>
+
+        <div class="if-solax">
+        <label>Reported battery type (in decimal): </label>
+        <input name='INVBTYPE' type='text' value="%INVBTYPE%" pattern="^[0-9]+$" />
+
+        <label>Inverter should ignore contactors: </label>
+        <input type='checkbox' name='INVICNT' value='on' style='margin-left: 0;' %INVICNT% />
         </div>
 
         <label>Charger: </label><select name='charger'>
