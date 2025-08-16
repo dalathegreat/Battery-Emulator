@@ -90,6 +90,15 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
 #error "Compile time SELECTED_INVERTER_CLASS should not be defined with COMMON_IMAGE"
 #endif
 
+// Some settings that can be used by inverters
+uint16_t user_selected_inverter_cells = 0;
+uint16_t user_selected_inverter_modules = 0;
+uint16_t user_selected_inverter_cells_per_module = 0;
+uint16_t user_selected_inverter_voltage_level = 0;
+uint16_t user_selected_inverter_ah_capacity = 0;
+uint16_t user_selected_inverter_battery_type = 0;
+bool user_selected_inverter_ignore_contactors = false;
+
 bool setup_inverter() {
   if (inverter) {
     return true;

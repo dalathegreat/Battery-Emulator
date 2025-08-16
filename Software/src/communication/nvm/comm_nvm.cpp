@@ -96,6 +96,13 @@ void init_stored_settings() {
   user_selected_min_pack_voltage_dV = settings.getUInt("BATTPVMIN", 0);
   user_selected_max_cell_voltage_mV = settings.getUInt("BATTCVMAX", 0);
   user_selected_min_cell_voltage_mV = settings.getUInt("BATTCVMIN", 0);
+  user_selected_inverter_cells = settings.getUInt("INVCELLS", 0);
+  user_selected_inverter_modules = settings.getUInt("INVMODULES", 0);
+  user_selected_inverter_cells_per_module = settings.getUInt("INVCELLSPER", 0);
+  user_selected_inverter_voltage_level = settings.getUInt("INVVLEVEL", 0);
+  user_selected_inverter_ah_capacity = settings.getUInt("INVAHCAPACITY", 0);
+  user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
+  user_selected_inverter_ignore_contactors = settings.getBool("INVICNT", false);
 
   auto readIf = [](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
