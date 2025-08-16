@@ -17,6 +17,9 @@ function reboot() {
   var xhr = new XMLHttpRequest();
   xhr.open('GET', '/reboot', true);
   xhr.send();
+  setTimeout(function() {
+    window.location = "/";
+  }, 3000);
 }
 </script>
 )rawliteral"

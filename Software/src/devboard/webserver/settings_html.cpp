@@ -811,10 +811,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         </div>
 
-        <div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button "type='submit'>Save</button></div>
+        <div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button type='submit'>Save</button></div>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
-          <p>Settings saved. Reboot to take the settings into use.<p> <button onclick='askReboot()'>Reboot</button>
+          <p>Settings saved. Reboot to take the settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
         </div>
 
         </form>
