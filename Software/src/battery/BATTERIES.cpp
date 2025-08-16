@@ -152,6 +152,11 @@ battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_defau
 
 BatteryType user_selected_battery_type = BatteryType::NissanLeaf;
 bool user_selected_second_battery = false;
+// Defaults for the battery voltage limits, only applied with custom-BMS batteries
+uint16_t user_selected_max_pack_voltage_dV = 0;
+uint16_t user_selected_min_pack_voltage_dV = 0;
+uint16_t user_selected_max_cell_voltage_mV = 0;
+uint16_t user_selected_min_cell_voltage_mV = 0;
 
 Battery* create_battery(BatteryType type) {
   switch (type) {

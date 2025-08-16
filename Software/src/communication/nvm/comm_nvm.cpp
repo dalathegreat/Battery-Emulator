@@ -1,4 +1,5 @@
 #include "comm_nvm.h"
+#include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../battery/Shunt.h"
 #include "../../charger/CanCharger.h"
@@ -91,6 +92,17 @@ void init_stored_settings() {
   user_selected_inverter_protocol = (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None);
   user_selected_charger_type = (ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None);
   user_selected_shunt_type = (ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None);
+  user_selected_max_pack_voltage_dV = settings.getUInt("BATTPVMAX", 0);
+  user_selected_min_pack_voltage_dV = settings.getUInt("BATTPVMIN", 0);
+  user_selected_max_cell_voltage_mV = settings.getUInt("BATTCVMAX", 0);
+  user_selected_min_cell_voltage_mV = settings.getUInt("BATTCVMIN", 0);
+  user_selected_inverter_cells = settings.getUInt("INVCELLS", 0);
+  user_selected_inverter_modules = settings.getUInt("INVMODULES", 0);
+  user_selected_inverter_cells_per_module = settings.getUInt("INVCELLSPER", 0);
+  user_selected_inverter_voltage_level = settings.getUInt("INVVLEVEL", 0);
+  user_selected_inverter_ah_capacity = settings.getUInt("INVAHCAPACITY", 0);
+  user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
+  user_selected_inverter_ignore_contactors = settings.getBool("INVICNT", false);
 
   auto readIf = [](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
@@ -188,10 +200,7 @@ void store_settings() {
   if (!settings.putUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 11);
   }
-  if (!settings.putUInt("SOFAR_ID", datalayer.battery.settings.sofar_user_specified_battery_id)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 12);
-  }
-  if (!settings.putUInt("BMSRESETDUR", datalayer.battery.settings.sofar_user_specified_battery_id)) {
+  if (!settings.putUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 13);
   }
 
