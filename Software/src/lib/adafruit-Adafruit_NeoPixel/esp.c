@@ -1,100 +1,157 @@
-// Implements the RMT peripheral on Espressif SoCs
-// Copyright (c) 2020 Lucian Copeland for Adafruit Industries
-
-/* Uses code from Espressif RGB LED Strip demo and drivers
- * Copyright 2015-2020 Espressif Systems (Shanghai) PTE LTD
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #include <Arduino.h>
-#include "driver/rmt.h"
+#include "driver/rmt_tx.h"
 
-// This code is adapted from the ESP-IDF v3.4 RMT "led_strip" example, altered
-// to work with the Arduino version of the ESP-IDF (3.2)
+// WS2812 timing parameters (in nanoseconds)
+#define WS2812_T0H_NS  350
+#define WS2812_T0L_NS 1000
+#define WS2812_T1H_NS  900
+#define WS2812_T1L_NS  350
+#define WS2812_RESET_US 280  // Recommended reset time
 
-#define WS2812_T0H_NS (400)
-#define WS2812_T0L_NS (850)
-#define WS2812_T1H_NS (800)
-#define WS2812_T1L_NS (450)
+static rmt_channel_handle_t led_chan = NULL;
+static rmt_encoder_handle_t led_encoder = NULL;
 
-static uint32_t t0h_ticks = 0;
-static uint32_t t1h_ticks = 0;
-static uint32_t t0l_ticks = 0;
-static uint32_t t1l_ticks = 0;
+typedef struct {
+    rmt_encoder_t base;
+    rmt_encoder_t *bytes_encoder;
+    rmt_encoder_t *copy_encoder;
+    int state;
+    rmt_symbol_word_t reset_code;
+} rmt_led_strip_encoder_t;
 
-static void IRAM_ATTR ws2812_rmt_adapter(const void* src, rmt_item32_t* dest, size_t src_size, size_t wanted_num,
-                                         size_t* translated_size, size_t* item_num) {
-  if (src == NULL || dest == NULL) {
-    *translated_size = 0;
-    *item_num = 0;
-    return;
-  }
-  const rmt_item32_t bit0 = {{{t0h_ticks, 1, t0l_ticks, 0}}};  //Logical 0
-  const rmt_item32_t bit1 = {{{t1h_ticks, 1, t1l_ticks, 0}}};  //Logical 1
-  size_t size = 0;
-  size_t num = 0;
-  uint8_t* psrc = (uint8_t*)src;
-  rmt_item32_t* pdest = dest;
-  while (size < src_size && num < wanted_num) {
-    for (int i = 0; i < 8; i++) {
-      // MSB first
-      if (*psrc & (1 << (7 - i))) {
-        pdest->val = bit1.val;
-      } else {
-        pdest->val = bit0.val;
-      }
-      num++;
-      pdest++;
+// Encoder function prototypes
+static size_t IRAM_ATTR rmt_encode_led_strip(rmt_encoder_t *encoder, rmt_channel_handle_t channel, 
+                                            const void *primary_data, size_t data_size, 
+                                            rmt_encode_state_t *ret_state);
+static esp_err_t rmt_del_led_strip_encoder(rmt_encoder_t *encoder);
+static esp_err_t rmt_led_strip_encoder_reset(rmt_encoder_t *encoder);
+
+// Encoder implementation
+static size_t IRAM_ATTR rmt_encode_led_strip(rmt_encoder_t *encoder, rmt_channel_handle_t channel, 
+                                            const void *primary_data, size_t data_size, 
+                                            rmt_encode_state_t *ret_state) {
+    rmt_led_strip_encoder_t *led_encoder = __containerof(encoder, rmt_led_strip_encoder_t, base);
+    rmt_encoder_handle_t bytes_encoder = led_encoder->bytes_encoder;
+    rmt_encoder_handle_t copy_encoder = led_encoder->copy_encoder;
+    rmt_encode_state_t session_state = 0;
+    rmt_encode_state_t state = 0;
+    size_t encoded_symbols = 0;
+    
+    switch (led_encoder->state) {
+    case 0: // send RGB data
+        encoded_symbols += bytes_encoder->encode(bytes_encoder, channel, primary_data, data_size, &session_state);
+        if (session_state & RMT_ENCODING_COMPLETE) {
+            led_encoder->state = 1;
+        }
+        if (session_state & RMT_ENCODING_MEM_FULL) {
+            state |= RMT_ENCODING_MEM_FULL;
+            goto out;
+        }
+        // fall-through
+    case 1: // send reset code
+        encoded_symbols += copy_encoder->encode(copy_encoder, channel, &led_encoder->reset_code,
+                                              sizeof(led_encoder->reset_code), &session_state);
+        if (session_state & RMT_ENCODING_COMPLETE) {
+            led_encoder->state = 0;
+            state |= RMT_ENCODING_COMPLETE;
+        }
+        if (session_state & RMT_ENCODING_MEM_FULL) {
+            state |= RMT_ENCODING_MEM_FULL;
+            goto out;
+        }
     }
-    size++;
-    psrc++;
-  }
-  *translated_size = size;
-  *item_num = num;
+out:
+    *ret_state = state;
+    return encoded_symbols;
 }
 
-static bool rmt_initialized = false;
+static esp_err_t rmt_del_led_strip_encoder(rmt_encoder_t *encoder) {
+    rmt_led_strip_encoder_t *led_encoder = __containerof(encoder, rmt_led_strip_encoder_t, base);
+    rmt_del_encoder(led_encoder->bytes_encoder);
+    rmt_del_encoder(led_encoder->copy_encoder);
+    free(led_encoder);
+    return ESP_OK;
+}
+
+static esp_err_t rmt_led_strip_encoder_reset(rmt_encoder_t *encoder) {
+    rmt_led_strip_encoder_t *led_encoder = __containerof(encoder, rmt_led_strip_encoder_t, base);
+    rmt_encoder_reset(led_encoder->bytes_encoder);
+    rmt_encoder_reset(led_encoder->copy_encoder);
+    led_encoder->state = 0;
+    return ESP_OK;
+}
+
+static esp_err_t rmt_new_led_strip_encoder(rmt_encoder_handle_t *ret_encoder) {
+    esp_err_t ret = ESP_OK;
+    rmt_led_strip_encoder_t *led_encoder = calloc(1, sizeof(rmt_led_strip_encoder_t));
+    if (!led_encoder) return ESP_ERR_NO_MEM;
+
+    led_encoder->base.encode = rmt_encode_led_strip;
+    led_encoder->base.del = rmt_del_led_strip_encoder;
+    led_encoder->base.reset = rmt_led_strip_encoder_reset;
+    
+    // Bytes encoder configuration
+    rmt_bytes_encoder_config_t bytes_encoder_config = {
+        .bit0 = {
+            .level0 = 1,
+            .duration0 = (WS2812_T0H_NS + 50) / 100, // T0H in ticks (100ns resolution)
+            .level1 = 0,
+            .duration1 = (WS2812_T0L_NS + 50) / 100, // T0L in ticks
+        },
+        .bit1 = {
+            .level0 = 1,
+            .duration0 = (WS2812_T1H_NS + 50) / 100, // T1H in ticks
+            .level1 = 0,
+            .duration1 = (WS2812_T1L_NS + 50) / 100, // T1L in ticks
+        },
+        .flags.msb_first = 1 // WS2812 transfer bit order
+    };
+    if ((ret = rmt_new_bytes_encoder(&bytes_encoder_config, &led_encoder->bytes_encoder)) != ESP_OK) {
+        goto err;
+    }
+    
+    rmt_copy_encoder_config_t copy_encoder_config = {};
+    if ((ret = rmt_new_copy_encoder(&copy_encoder_config, &led_encoder->copy_encoder)) != ESP_OK) {
+        goto err;
+    }
+    
+    // Reset code (280us of low signal)
+    led_encoder->reset_code = (rmt_symbol_word_t) {
+        .level0 = 0,
+        .duration0 = (WS2812_RESET_US * 1000) / 100, // Convert µs to ticks
+        .level1 = 0,
+        .duration1 = 0,
+    };
+    
+    *ret_encoder = &led_encoder->base;
+    return ESP_OK;
+
+err:
+    if (led_encoder) {
+        if (led_encoder->bytes_encoder) rmt_del_encoder(led_encoder->bytes_encoder);
+        if (led_encoder->copy_encoder) rmt_del_encoder(led_encoder->copy_encoder);
+        free(led_encoder);
+    }
+    return ret;
+}
 
 void espShow(uint8_t pin, uint8_t* pixels, uint32_t numBytes) {
-  if (rmt_initialized == false) {
-    // Reserve channel
-    rmt_channel_t channel = 0;
+    if (led_chan == NULL) {
+        rmt_tx_channel_config_t tx_chan_config = {
+            .clk_src = RMT_CLK_SRC_DEFAULT,
+            .gpio_num = pin,
+            .mem_block_symbols = 64,
+            .resolution_hz = 10 * 1000 * 1000, // 10MHz, 1 tick = 100ns
+            .trans_queue_depth = 4,
+        };
+        ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &led_chan));
+        ESP_ERROR_CHECK(rmt_new_led_strip_encoder(&led_encoder));
+        ESP_ERROR_CHECK(rmt_enable(led_chan));
+    }
 
-    rmt_config_t config = RMT_DEFAULT_CONFIG_TX(pin, channel);
-    config.clk_div = 2;
-
-    rmt_config(&config);
-    rmt_driver_install(config.channel, 0, 0);
-
-    // Convert NS timings to ticks
-    uint32_t counter_clk_hz = 0;
-
-    rmt_get_counter_clock(channel, &counter_clk_hz);
-
-    // NS to tick converter
-    float ratio = (float)counter_clk_hz / 1e9;
-
-    t0h_ticks = (uint32_t)(ratio * WS2812_T0H_NS);
-    t0l_ticks = (uint32_t)(ratio * WS2812_T0L_NS);
-    t1h_ticks = (uint32_t)(ratio * WS2812_T1H_NS);
-    t1l_ticks = (uint32_t)(ratio * WS2812_T1L_NS);
-
-    // Initialize automatic timing translator
-    rmt_translator_init(0, ws2812_rmt_adapter);
-    rmt_initialized = true;
-  }
-
-  // Write and wait to finish
-  rmt_write_sample(0, pixels, (size_t)numBytes, false);
+    rmt_transmit_config_t tx_config = {
+        .loop_count = 0,
+    };
+    ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, pixels, numBytes, &tx_config));
+    ESP_ERROR_CHECK(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
 }
