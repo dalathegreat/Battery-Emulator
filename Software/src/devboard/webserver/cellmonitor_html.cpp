@@ -236,7 +236,14 @@ String cellmonitor_processor(const String& var) {
     content += "updateVoltageValues(data);";
     content += "}";
     content += "else {";
-    content += "document.getElementById('voltageValues').textContent = '" + String(datalayer.battery.info.number_of_cells) + " cells, voltages not yet fetched, or cell amount not available';";
+    if (datalayer.battery.info.number_of_cells > 0) {
+      content += "document.getElementById('voltageValues').textContent = '" +
+                 String(datalayer.battery.info.number_of_cells) + " cells configured, but cellvoltages not yet read';";
+    } else {
+      content +=
+          "document.getElementById('voltageValues').textContent = 'Amount of cells unknown. Cellvoltages not yet "
+          "read';";
+    }
     content += "}";
 
     if (battery2) {
@@ -363,7 +370,15 @@ String cellmonitor_processor(const String& var) {
       content += "updateVoltageValues2(data2);";
       content += "}";
       content += "else {";
-      content += "document.getElementById('voltageValues2').textContent = '" + String(datalayer.battery2.info.number_of_cells) + " cells, voltages not yet fetched, or cell amount not available';";
+      if (datalayer.battery2.info.number_of_cells > 0) {
+        content += "document.getElementById('voltageValues2').textContent = '" +
+                   String(datalayer.battery2.info.number_of_cells) +
+                   " cells configured, but cellvoltages not yet read';";
+      } else {
+        content +=
+            "document.getElementById('voltageValues2').textContent = 'Amount of cells unknown. Cellvoltages not yet "
+            "read';";
+      }
       content += "}";
     }
 
