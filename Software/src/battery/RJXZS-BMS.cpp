@@ -72,14 +72,8 @@ void RjxzsBms::update_values() {
 
   datalayer.battery.status.temperature_max_dC = max_temp;
 
-  // The cellvoltages[] array can contain 0s inside it
-  populated_cellvoltages = 0;
-  for (int i = 0; i < MAX_AMOUNT_CELLS; ++i) {
-    if (cellvoltages[i] > 0) {  // We have a measurement available
-      datalayer.battery.status.cell_voltages_mV[populated_cellvoltages] = cellvoltages[i];
-      populated_cellvoltages++;
-    }
-  }
+  //Map all cell voltages to the global array
+  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages, MAX_AMOUNT_CELLS * sizeof(uint16_t));
 
   datalayer.battery.info.number_of_cells = populated_cellvoltages;  // 1-192S
 
