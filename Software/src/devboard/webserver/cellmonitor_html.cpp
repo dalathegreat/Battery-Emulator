@@ -236,9 +236,7 @@ String cellmonitor_processor(const String& var) {
     content += "updateVoltageValues(data);";
     content += "}";
     content += "else {";
-    content +=
-        "document.getElementById('voltageValues').textContent = 'Cell information not yet fetched, or information not "
-        "available';";
+    content += "document.getElementById('voltageValues').textContent = '" + String(datalayer.battery.info.number_of_cells) + " cells, voltages not yet fetched, or cell amount not available';";
     content += "}";
 
     if (battery2) {
@@ -365,10 +363,7 @@ String cellmonitor_processor(const String& var) {
       content += "updateVoltageValues2(data2);";
       content += "}";
       content += "else {";
-      content +=
-          "document.getElementById('voltageValues2').textContent = 'Cell information not yet fetched, or information "
-          "not "
-          "available';";
+      content += "document.getElementById('voltageValues2').textContent = '" + String(datalayer.battery2.info.number_of_cells) + " cells, voltages not yet fetched, or cell amount not available';";
       content += "}";
     }
 
