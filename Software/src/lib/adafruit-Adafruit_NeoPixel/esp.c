@@ -1,12 +1,12 @@
 #include <Arduino.h>
 #include "driver/rmt_tx.h"
-
+// This code is adapted for the ESP-IDF v5.x RMT driver API
 // WS2812 timing parameters (in nanoseconds)
 #define WS2812_T0H_NS  350
 #define WS2812_T0L_NS 1000
 #define WS2812_T1H_NS  900
 #define WS2812_T1L_NS  350
-#define WS2812_RESET_US 280  // Recommended reset time
+#define WS2812_RESET_US 280
 
 static rmt_channel_handle_t led_chan = NULL;
 static rmt_encoder_handle_t led_encoder = NULL;
@@ -19,17 +19,15 @@ typedef struct {
     rmt_symbol_word_t reset_code;
 } rmt_led_strip_encoder_t;
 
-// Encoder function prototypes
-static size_t IRAM_ATTR rmt_encode_led_strip(rmt_encoder_t *encoder, rmt_channel_handle_t channel, 
-                                            const void *primary_data, size_t data_size, 
-                                            rmt_encode_state_t *ret_state);
+static size_t rmt_encode_led_strip(rmt_encoder_t *encoder, rmt_channel_handle_t channel,
+                                 const void *primary_data, size_t data_size,
+                                 rmt_encode_state_t *ret_state);
 static esp_err_t rmt_del_led_strip_encoder(rmt_encoder_t *encoder);
 static esp_err_t rmt_led_strip_encoder_reset(rmt_encoder_t *encoder);
 
-// Encoder implementation
-static size_t IRAM_ATTR rmt_encode_led_strip(rmt_encoder_t *encoder, rmt_channel_handle_t channel, 
-                                            const void *primary_data, size_t data_size, 
-                                            rmt_encode_state_t *ret_state) {
+static size_t IRAM_ATTR rmt_encode_led_strip(rmt_encoder_t *encoder, rmt_channel_handle_t channel,
+                                           const void *primary_data, size_t data_size,
+                                           rmt_encode_state_t *ret_state) {
     rmt_led_strip_encoder_t *led_encoder = __containerof(encoder, rmt_led_strip_encoder_t, base);
     rmt_encoder_handle_t bytes_encoder = led_encoder->bytes_encoder;
     rmt_encoder_handle_t copy_encoder = led_encoder->copy_encoder;
@@ -90,21 +88,20 @@ static esp_err_t rmt_new_led_strip_encoder(rmt_encoder_handle_t *ret_encoder) {
     led_encoder->base.del = rmt_del_led_strip_encoder;
     led_encoder->base.reset = rmt_led_strip_encoder_reset;
     
-    // Bytes encoder configuration
     rmt_bytes_encoder_config_t bytes_encoder_config = {
         .bit0 = {
             .level0 = 1,
-            .duration0 = (WS2812_T0H_NS + 50) / 100, // T0H in ticks (100ns resolution)
+            .duration0 = (WS2812_T0H_NS + 50) / 100,
             .level1 = 0,
-            .duration1 = (WS2812_T0L_NS + 50) / 100, // T0L in ticks
+            .duration1 = (WS2812_T0L_NS + 50) / 100,
         },
         .bit1 = {
             .level0 = 1,
-            .duration0 = (WS2812_T1H_NS + 50) / 100, // T1H in ticks
+            .duration0 = (WS2812_T1H_NS + 50) / 100,
             .level1 = 0,
-            .duration1 = (WS2812_T1L_NS + 50) / 100, // T1L in ticks
+            .duration1 = (WS2812_T1L_NS + 50) / 100,
         },
-        .flags.msb_first = 1 // WS2812 transfer bit order
+        .flags.msb_first = 1
     };
     if ((ret = rmt_new_bytes_encoder(&bytes_encoder_config, &led_encoder->bytes_encoder)) != ESP_OK) {
         goto err;
@@ -115,10 +112,9 @@ static esp_err_t rmt_new_led_strip_encoder(rmt_encoder_handle_t *ret_encoder) {
         goto err;
     }
     
-    // Reset code (280us of low signal)
     led_encoder->reset_code = (rmt_symbol_word_t) {
         .level0 = 0,
-        .duration0 = (WS2812_RESET_US * 1000) / 100, // Convert µs to ticks
+        .duration0 = (WS2812_RESET_US * 1000) / 100,
         .level1 = 0,
         .duration1 = 0,
     };
@@ -141,7 +137,7 @@ void espShow(uint8_t pin, uint8_t* pixels, uint32_t numBytes) {
             .clk_src = RMT_CLK_SRC_DEFAULT,
             .gpio_num = pin,
             .mem_block_symbols = 64,
-            .resolution_hz = 10 * 1000 * 1000, // 10MHz, 1 tick = 100ns
+            .resolution_hz = 10 * 1000 * 1000,
             .trans_queue_depth = 4,
         };
         ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &led_chan));
