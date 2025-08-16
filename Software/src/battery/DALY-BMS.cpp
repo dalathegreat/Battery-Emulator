@@ -16,6 +16,7 @@ static uint32_t remaining_capacity_mAh = 0;
 static uint16_t cellvoltages_mV[48] = {0};
 static uint16_t cellvoltage_min_mV = 0;
 static uint16_t cellvoltage_max_mV = 0;
+static uint16_t cell_count = 0;
 static uint16_t SOC = 0;
 static bool has_fault = false;
 
@@ -54,6 +55,9 @@ void DalyBms::update_values() {
   datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
   datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
 
+  // Use the received value from the BMS, to avoid needing to configure it
+  datalayer.battery.info.number_of_cells = cell_count;
+
   datalayer.battery.status.temperature_min_dC = temperature_min_dC;
   datalayer.battery.status.temperature_max_dC = temperature_max_dC;
 
@@ -63,7 +67,6 @@ void DalyBms::update_values() {
 void DalyBms::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.number_of_cells = CELL_COUNT;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
@@ -138,6 +141,7 @@ void decode_packet(uint8_t command, uint8_t data[8]) {
       remaining_capacity_mAh = decode_uint32be(data, 4);
       break;
     case 0x94:
+      cell_count = data[0];
       break;
     case 0x95:
       if (data[0] > 0 && data[0] <= 16) {

@@ -18,7 +18,6 @@ class OrionBms : public CanBattery {
 
  private:
   /* Change the following to suit your battery */
-  static const int NUMBER_OF_CELLS = 96;
   static const int MAX_PACK_VOLTAGE_DV = 5000;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 1500;
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
