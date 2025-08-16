@@ -131,7 +131,7 @@ err:
     return ret;
 }
 
-void espShow(uint8_t pin, uint8_t* pixels, uint32_t numBytes) {
+void espShow(uint8_t pin, uint8_t* pixels, uint8_t numBytes) {
     if (led_chan == NULL) {
         rmt_tx_channel_config_t tx_chan_config = {
             .clk_src = RMT_CLK_SRC_DEFAULT,
