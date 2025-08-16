@@ -193,10 +193,7 @@ void store_settings() {
   if (!settings.putUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 11);
   }
-  if (!settings.putUInt("SOFAR_ID", datalayer.battery.settings.sofar_user_specified_battery_id)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 12);
-  }
-  if (!settings.putUInt("BMSRESETDUR", datalayer.battery.settings.sofar_user_specified_battery_id)) {
+  if (!settings.putUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 13);
   }
 

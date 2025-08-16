@@ -494,6 +494,9 @@ void init_webserver() {
         settings.saveString("MQTTDEVICENAME", p->value().c_str());
       } else if (p->name() == "HADEVICEID") {
         settings.saveString("HADEVICEID", p->value().c_str());
+      } else if (p->name() == "SOFAR_ID") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SOFAR_ID", type);
       }
 
       for (auto& boolSetting : boolSettings) {
@@ -578,10 +581,6 @@ void init_webserver() {
   auto update_int_setting = [=](const char* route, std::function<void(int)> setter) {
     update_string_setting(route, [setter](String value) { setter(value.toInt()); });
   };
-
-  // Route for editing Sofar ID
-  update_int_setting("/updateSofarID",
-                     [](int value) { datalayer.battery.settings.sofar_user_specified_battery_id = value; });
 
   // Route for editing Wh
   update_int_setting("/updateBatterySize", [](int value) { datalayer.battery.info.total_capacity_Wh = value; });
