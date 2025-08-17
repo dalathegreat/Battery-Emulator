@@ -6,7 +6,7 @@
 
 TEST(SafetyTests, ShouldSetEventWhenTemperatureTooHigh) {
   init_events();
-  datalayer.system.info.CPU_temperature = 82;
+  datalayer.system.info.CPU_temperature = 88;
   update_machineryprotection();
 
   auto event_pointer = get_event_pointer(EVENT_CPU_OVERHEATING);
