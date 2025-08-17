@@ -188,6 +188,10 @@ void NissanLeafBattery::
     datalayer_nissan->HeatingStart = battery_Heating_Start;
     datalayer_nissan->HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
     datalayer_nissan->battery_HX = battery_HX;
+    datalayer_nissan->temperature1 = ((Temp_fromRAW_to_F(battery_temp_raw_1) - 320) * 5) / 9;  //Convert from F to C
+    datalayer_nissan->temperature2 = ((Temp_fromRAW_to_F(battery_temp_raw_2) - 320) * 5) / 9;  //Convert from F to C
+    datalayer_nissan->temperature3 = ((Temp_fromRAW_to_F(battery_temp_raw_3) - 320) * 5) / 9;  //Convert from F to C
+    datalayer_nissan->temperature4 = ((Temp_fromRAW_to_F(battery_temp_raw_4) - 320) * 5) / 9;  //Convert from F to C
     datalayer_nissan->CryptoChallenge = incomingChallenge;
     datalayer_nissan->SolvedChallengeMSB =
         ((solvedChallenge[7] << 24) | (solvedChallenge[6] << 16) | (solvedChallenge[5] << 8) | solvedChallenge[4]);
@@ -799,6 +803,8 @@ bool NissanLeafBattery::is_message_corrupt(CAN_frame rx_frame) {
 uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrible, but apparently works well
   if (temperature == 1021) {
     return 10;
+  } else if (temperature == 65535) {  //Value unavailable, sensor does not exist
+    return 718;                       //0*C final calculation
   } else if (temperature >= 589) {
     return static_cast<uint16_t>(1620 - temperature * 1.81);
   } else if (temperature >= 569) {

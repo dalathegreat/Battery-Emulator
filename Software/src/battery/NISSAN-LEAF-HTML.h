@@ -54,6 +54,10 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Heating stopped: " + String(datalayer_extended.nissanleaf.HeatingStop) + "</h4>";
     content += "<h4>Heating started: " + String(datalayer_extended.nissanleaf.HeatingStart) + "</h4>";
     content += "<h4>Heating requested: " + String(datalayer_extended.nissanleaf.HeaterSendRequest) + "</h4>";
+    content += "<h4>Temperature 1: " + String(datalayer_extended.nissanleaf.temperature1) + " &deg;C</h4>";
+    content += "<h4>Temperature 2: " + String(datalayer_extended.nissanleaf.temperature2) + " &deg;C</h4>";
+    content += "<h4>Temperature 3: " + String(datalayer_extended.nissanleaf.temperature3) + " &deg;C</h4>";
+    content += "<h4>Temperature 4: " + String(datalayer_extended.nissanleaf.temperature4) + " &deg;C</h4>";
     content += "<h4>CryptoChallenge: " + String(datalayer_extended.nissanleaf.CryptoChallenge) + "</h4>";
     content += "<h4>SolvedChallenge: " + String(datalayer_extended.nissanleaf.SolvedChallengeMSB) +
                String(datalayer_extended.nissanleaf.SolvedChallengeLSB) + "</h4>";
