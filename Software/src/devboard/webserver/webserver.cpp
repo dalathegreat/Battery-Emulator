@@ -1278,7 +1278,7 @@ String processor(const String& var) {
             "causing this via Events page. Reboot required to resume operation!</span>";
       }
       content += "</h4></div>";
-      if (contactor_control_enabled_double_battery) {
+      if (contactor_control_enabled_double_battery && battery2) {
         content += "<h4>Secondary battery contactor, state: ";
         if (pwm_contactor_control) {
           if (datalayer.system.status.contactors_battery2_engaged) {
