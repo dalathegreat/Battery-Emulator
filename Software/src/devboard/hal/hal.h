@@ -109,6 +109,8 @@ class Esp32Hal {
   virtual gpio_num_t MCP2515_CS() { return GPIO_NUM_NC; }
   // INT output of MCP2515
   virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_NC; }
+  // Reset pin for MCP2515
+  virtual gpio_num_t MCP2515_RST() { return GPIO_NUM_NC; }
 
   // CANFD_ADDON defines for MCP2517
   virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_NC; }

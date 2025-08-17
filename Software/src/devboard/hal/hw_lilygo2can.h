@@ -16,6 +16,7 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t MCP2515_MISO() { return GPIO_NUM_13; }
   virtual gpio_num_t MCP2515_CS() { return GPIO_NUM_10; }
   virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_8; }
+  virtual gpio_num_t MCP2515_RST() { return GPIO_NUM_9; }
 
   // CANFD_ADDON defines for MCP2517
   virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_17; }
