@@ -24,7 +24,6 @@ bool led_init(void) {
   }
 
   led = new LED(datalayer.battery.status.led_mode, esp32hal->LED_PIN(), esp32hal->LED_MAX_BRIGHTNESS());
-  led->init();
 
   return true;
 }
@@ -57,20 +56,20 @@ void LED::exe(void) {
   switch (get_event_level()) {
     case EVENT_LEVEL_INFO:
       color = led_color::GREEN;
-      pixels.setPixelColor(0, COLOR_GREEN(brightness));  // Green pulsing LED
+      pixels.setPixelColor(COLOR_GREEN(brightness));  // Green pulsing LED
       break;
     case EVENT_LEVEL_WARNING:
       color = led_color::YELLOW;
-      pixels.setPixelColor(0, COLOR_YELLOW(brightness));  // Yellow pulsing LED
+      pixels.setPixelColor(COLOR_YELLOW(brightness));  // Yellow pulsing LED
       break;
     case EVENT_LEVEL_DEBUG:
     case EVENT_LEVEL_UPDATE:
       color = led_color::BLUE;
-      pixels.setPixelColor(0, COLOR_BLUE(brightness));  // Blue pulsing LED
+      pixels.setPixelColor(COLOR_BLUE(brightness));  // Blue pulsing LED
       break;
     case EVENT_LEVEL_ERROR:
       color = led_color::RED;
-      pixels.setPixelColor(0, COLOR_RED(esp32hal->LED_MAX_BRIGHTNESS()));  // Red LED full brightness
+      pixels.setPixelColor(COLOR_RED(esp32hal->LED_MAX_BRIGHTNESS()));  // Red LED full brightness
       break;
     default:
       break;
