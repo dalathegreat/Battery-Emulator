@@ -55,7 +55,7 @@ const int OFF = 0;
 #define OFF 1
 #endif  //NC_CONTACTORS
 
-#define MAX_ALLOWED_FAULT_TICKS 1000
+#define MAX_ALLOWED_FAULT_TICKS 1000  //1000 = 10 seconds
 #define NEGATIVE_CONTACTOR_TIME_MS \
   500  // Time after negative contactor is turned on, to start precharge (not actual precharge time!)
 #define PRECHARGE_COMPLETED_TIME_MS \
