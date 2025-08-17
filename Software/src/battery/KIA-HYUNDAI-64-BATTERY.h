@@ -70,7 +70,7 @@ class KiaHyundai64Battery : public CanBattery {
   uint16_t CellVoltMin_mV = 3700;
   uint16_t allowedDischargePower = 0;
   uint16_t allowedChargePower = 0;
-  uint16_t batteryVoltage = 0;
+  uint16_t batteryVoltage = 3700;
   uint16_t inverterVoltageFrameHigh = 0;
   uint16_t inverterVoltage = 0;
   uint16_t cellvoltages_mv[98];
