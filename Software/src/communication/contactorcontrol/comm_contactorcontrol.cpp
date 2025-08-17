@@ -192,7 +192,7 @@ void handle_contactors() {
       set(negPin, OFF, PWM_OFF_DUTY);
       set(posPin, OFF, PWM_OFF_DUTY);
       set_event(EVENT_ERROR_OPEN_CONTACTOR, 0);
-      datalayer.system.status.contactors_engaged = false;
+      datalayer.system.status.contactors_engaged = 2;
       return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
     }
 
@@ -201,10 +201,9 @@ void handle_contactors() {
       set(prechargePin, OFF);
       set(negPin, OFF, PWM_OFF_DUTY);
       set(posPin, OFF, PWM_OFF_DUTY);
-      datalayer.system.status.contactors_engaged = false;
+      datalayer.system.status.contactors_engaged = 0;
 
-      if (datalayer.system.status.battery_allows_contactor_closing &&
-          datalayer.system.status.inverter_allows_contactor_closing &&
+      if (datalayer.system.status.inverter_allows_contactor_closing &&
           !datalayer.system.settings.equipment_stop_active) {
         contactorStatus = START_PRECHARGE;
       }
@@ -263,7 +262,7 @@ void handle_contactors() {
           set(posPin, ON, PWM_HOLD_DUTY);
           dbg_contactors("PRECHARGE_OFF");
           contactorStatus = COMPLETED;
-          datalayer.system.status.contactors_engaged = true;
+          datalayer.system.status.contactors_engaged = 1;
         }
         break;
       default:

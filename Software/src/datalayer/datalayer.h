@@ -310,8 +310,8 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
 
-  /** True if the contactor controlled by battery-emulator is closed */
-  bool contactors_engaged = false;
+  /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
+  uint8_t contactors_engaged = 0;
   /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
   bool contactors_battery2_engaged = false;
 

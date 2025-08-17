@@ -1277,7 +1277,7 @@ String processor(const String& var) {
       content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
     }
 
-    content += "<h4>Battery allows contactor closing: ";
+    content += "<h4>Emulator allows contactor closing: ";
     if (datalayer.battery.status.bms_status == FAULT) {
       content += "<span style='color: red;'>&#10005;</span>";
     } else {
@@ -1289,11 +1289,13 @@ String processor(const String& var) {
     } else {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
-    content += "<h4>Secondary battery allowed to join ";
-    if (datalayer.system.status.battery2_allowed_contactor_closing == true) {
-      content += "<span>&#10003;</span>";
-    } else {
-      content += "<span style='color: red;'>&#10005; (voltage mismatch)</span>";
+    if (battery2) {
+      content += "<h4>Secondary battery allowed to join ";
+      if (datalayer.system.status.battery2_allowed_contactor_closing == true) {
+        content += "<span>&#10003;</span>";
+      } else {
+        content += "<span style='color: red;'>&#10005; (voltage mismatch)</span>";
+      }
     }
 
     if (!contactor_control_enabled) {
@@ -1304,13 +1306,19 @@ String processor(const String& var) {
           "powering the contactors. Battery-Emulator will have limited amount of control over the contactors!</span>";
       content += "</div>";
     } else {  //contactor_control_enabled TRUE
-      content += "<h4>Contactors controlled by emulator, state: ";
-      if (datalayer.system.status.contactors_engaged) {
+      content += "<div class=\"tooltip\"><h4>Contactors controlled by emulator, state: ";
+      if (datalayer.system.status.contactors_engaged == 0) {
+        content += "<span style='color: green;'>PRECHARGE</span>";
+      } else if (datalayer.system.status.contactors_engaged == 1) {
         content += "<span style='color: green;'>ON</span>";
-      } else {
+      } else if (datalayer.system.status.contactors_engaged == 2) {
         content += "<span style='color: red;'>OFF</span>";
+        content += "<span class=\"tooltip-icon\"> [!]</span>";
+        content +=
+            "<span class=\"tooltiptext\">Emulator spent too much time in critical FAULT event. Investigate event "
+            "causing this via Events page. Reboot required to resume operation!</span>";
       }
-      content += "</h4>";
+      content += "</h4></div>";
       if (contactor_control_enabled_double_battery) {
         if (pwm_contactor_control) {
           content += "<h4>Cont. Neg.: ";
