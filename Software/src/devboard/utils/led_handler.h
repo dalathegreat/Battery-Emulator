@@ -9,16 +9,12 @@ class LED {
   led_color color = led_color::GREEN;
 
   LED(gpio_num_t pin, uint8_t maxBrightness)
-      : pixels(1, pin, NEO_GRB),
-        max_brightness(maxBrightness),
-        brightness(maxBrightness),
-        mode(led_mode_enum::CLASSIC) {}
+      : pixels(pin), max_brightness(maxBrightness), brightness(maxBrightness), mode(led_mode_enum::CLASSIC) {}
 
   LED(led_mode_enum mode, gpio_num_t pin, uint8_t maxBrightness)
-      : pixels(1, pin, NEO_GRB), max_brightness(maxBrightness), brightness(maxBrightness), mode(mode) {}
+      : pixels(pin), max_brightness(maxBrightness), brightness(maxBrightness), mode(mode) {}
 
   void exe(void);
-  void init(void) { pixels.begin(); }
 
  private:
   Adafruit_NeoPixel pixels;
