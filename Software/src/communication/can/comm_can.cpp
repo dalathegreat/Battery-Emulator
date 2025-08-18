@@ -1,8 +1,8 @@
 #include "comm_can.h"
 #include <algorithm>
 #include <map>
-#include "../../lib/pierremolinaro-acan-esp32/ACAN_ESP32.h"
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
+#include "../../lib/pierremolinaro-acan-esp32/ACAN_ESP32.h"
 #include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
 #include "CanReceiver.h"
 #include "USER_SETTINGS.h"
@@ -83,8 +83,7 @@ bool init_CAN() {
     settingsespcan->mRxPin = rx_pin;
 
     const uint32_t errorCode = ACAN_ESP32::can.begin(*settingsespcan);
-    if (errorCode == 0)
-    {
+    if (errorCode == 0) {
       native_can_initialized = true;
 #ifdef DEBUG_LOG
       logging.println("Native Can ok");
@@ -94,8 +93,8 @@ bool init_CAN() {
       logging.println(settingsespcan->mTimeSegment1);
       logging.print("Time Segment 2:     ");
       logging.println(settingsespcan->mTimeSegment2);
-      logging.print ("RJW:                ") ;
-      logging.println (settingsespcan->mRJW) ;
+      logging.print("RJW:                ");
+      logging.println(settingsespcan->mRJW);
       logging.print("Triple Sampling:    ");
       logging.println(settingsespcan->mTripleSampling ? "yes" : "no");
       logging.print("Actual bit rate:    ");
@@ -134,7 +133,7 @@ bool init_CAN() {
 #endif  // DEBUG_LOG
     gBuffer.initWithSize(25);
 
-    if(rst_pin != GPIO_NUM_NC) {
+    if (rst_pin != GPIO_NUM_NC) {
       pinMode(rst_pin, OUTPUT);
       digitalWrite(rst_pin, HIGH);
       delay(100);
@@ -319,7 +318,7 @@ void receive_frame_can_native() {  // This section checks if we have a complete 
   CANMessage frame;
 
   if (ACAN_ESP32::can.available()) {
-    if(ACAN_ESP32::can.receive(frame)){
+    if (ACAN_ESP32::can.receive(frame)) {
 
       CAN_frame rx_frame;
       rx_frame.ID = frame.id;
