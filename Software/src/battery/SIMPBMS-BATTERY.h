@@ -16,13 +16,6 @@ class SimpBmsBattery : public CanBattery {
   static constexpr const char* Name = "SIMPBMS battery";
 
  private:
-  /* DEFAULT VALUES BMS will send configured */
-  static const int MAX_PACK_VOLTAGE_DV = 5000;  //5000 = 500.0V
-  static const int MIN_PACK_VOLTAGE_DV = 1500;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
-  static const int MAX_CELL_DEVIATION_MV = 500;
-
   static const int SIMPBMS_MAX_CELLS = 128;
 
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent

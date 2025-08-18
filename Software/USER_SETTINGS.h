@@ -171,6 +171,12 @@
 // 3000 = 300.0V, Target discharge voltage (Value can be tuned on the fly via webserver). Not used unless BATTERY_USE_VOLTAGE_LIMITS = true
 #define BATTERY_MAX_DISCHARGE_VOLTAGE 3000
 
+/* Pack/cell voltage limits for custom-BMS batteries (RJXZS, Daly, etc.) */
+//#define MAX_CUSTOM_PACK_VOLTAGE_DV 5000  // 5000 = 500.0V , Maximum pack voltage in decivolts
+//#define MIN_CUSTOM_PACK_VOLTAGE_DV 2500  // 2500 = 250.0V , Minimum pack voltage in decivolts
+//#define MAX_CUSTOM_CELL_VOLTAGE_MV 4250  // 4250 = 4.250V , Maximum cell voltage in millivolts (4250 = 4.250V)
+//#define MIN_CUSTOM_CELL_VOLTAGE_MV 2650  // 2650 = 2.650V , Minimum cell voltage in millivolts (2650 = 2.650V)
+
 /* LED settings. Optional customization for how the blinking pattern on the LED should behave.
 * CLASSIC   - Slow up/down ramp. If CLASSIC, then a ramp up and ramp down will finish in LED_PERIOD_MS milliseconds
 * FLOW      - Ramp up/down depending on flow of energy
