@@ -69,7 +69,7 @@ jobs:
     steps:
       # First we clone the repo using the `checkout` action.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       
       # Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
       - name: Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
