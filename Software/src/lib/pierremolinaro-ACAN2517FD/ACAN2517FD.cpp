@@ -5,8 +5,7 @@
 //
 //------------------------------------------------------------------------------
 
-#include "ACAN2517FD.h"
-#include "../../system_settings.h" //Contains task priority (Battery-Emulator modified line)
+#include <ACAN2517FD.h>
 
 //------------------------------------------------------------------------------
 
@@ -174,26 +173,6 @@ static uint16_t u16FromBufferAtIndex (uint8_t ioBuffer [], const uint8_t inIndex
 }
 
 //------------------------------------------------------------------------------
-
-static inline void turnOffInterrupts () {
-  #ifndef DISABLEMCP2517FDCOMPAT
-turnOffInterrupts () ;
-  #endif
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-
-static inline void turnOnInterrupts() {
-  #ifndef DISABLEMCP2517FDCOMPAT
-    #ifdef ARDUINO_ARCH_ESP32
-      taskENABLE_INTERRUPTS () ;
-    #else
-      interrupts () ;
-    #endif
-  #endif
-}
-
-//----------------------------------------------------------------------------------------------------------------------
 
 ACAN2517FD::ACAN2517FD (const uint8_t inCS, // CS input of MCP2517FD
                         SPIClass & inSPI, // Hardware SPI object
@@ -523,7 +502,7 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
       }
     }
     #ifdef ARDUINO_ARCH_ESP32
-      xTaskCreate (myESP32Task, "ACAN2517Handler", 1024, this, TASK_ACAN2517FD_PRIORITY, &mESP32TaskHandle) ; //(Battery-Emulator modified line)
+      xTaskCreate (myESP32Task, "ACAN2517Handler", 1024, this, 16, &mESP32TaskHandle) ;
     #endif
     if (mINT != 255) { // 255 means interrupt is not used
       #ifdef ARDUINO_ARCH_ESP32
@@ -548,7 +527,11 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
 
 bool ACAN2517FD::end (void) {
   mSPI.beginTransaction (mSPISettings) ;
-turnOffInterrupts () ;
+    #ifdef ARDUINO_ARCH_ESP32
+      taskDISABLE_INTERRUPTS () ;
+    #else
+      noInterrupts () ;
+    #endif
   //--- Detach interrupt pin
     if (mINT != 255) { // 255 means interrupt is not used
       const int8_t itPin = digitalPinToInterrupt (mINT) ;
@@ -601,7 +584,11 @@ bool ACAN2517FD::tryToSend (const CANFDMessage & inMessage) {
   bool ok = inMessage.isValid () ;
   if (ok) {
     mSPI.beginTransaction (mSPISettings) ;
-    turnOffInterrupts () ;
+      #ifdef ARDUINO_ARCH_ESP32
+        taskDISABLE_INTERRUPTS () ;
+      #else
+        noInterrupts () ;
+      #endif
         if (inMessage.idx == 0) {
           ok = inMessage.len <= mTransmitFIFOPayload ;
           if (ok) {
@@ -613,7 +600,11 @@ bool ACAN2517FD::tryToSend (const CANFDMessage & inMessage) {
             ok = sendViaTXQ (inMessage) ;
           }
         }
-    turnOnInterrupts();
+      #ifdef ARDUINO_ARCH_ESP32
+        taskENABLE_INTERRUPTS () ;
+      #else
+        interrupts () ;
+      #endif
     mSPI.endTransaction () ;
   }
   return ok ;
@@ -780,7 +771,11 @@ bool ACAN2517FD::sendViaTXQ (const CANFDMessage & inMessage) {
 
 bool ACAN2517FD::available (void) {
   mSPI.beginTransaction (mSPISettings) ;
-      turnOffInterrupts () ;
+    #ifdef ARDUINO_ARCH_ESP32
+      taskDISABLE_INTERRUPTS () ;
+    #else
+      noInterrupts () ;
+    #endif
       const bool hasReceivedMessage = mDriverReceiveBuffer.count () > 0 ;
     #ifdef ARDUINO_ARCH_ESP32
       taskENABLE_INTERRUPTS () ;
@@ -1107,9 +1102,17 @@ uint8_t ACAN2517FD::readRegister8Assume_SPI_transaction (const uint16_t inRegist
 
 void ACAN2517FD::writeRegister8 (const uint16_t inRegisterAddress, const uint8_t inValue) {
   mSPI.beginTransaction (mSPISettings) ;
-turnOffInterrupts () ;
+    #ifdef ARDUINO_ARCH_ESP32
+      taskDISABLE_INTERRUPTS () ;
+    #else
+      noInterrupts () ;
+    #endif
       writeRegister8Assume_SPI_transaction (inRegisterAddress, inValue) ;
-   turnOnInterrupts();
+    #ifdef ARDUINO_ARCH_ESP32
+      taskENABLE_INTERRUPTS () ;
+    #else
+      interrupts () ;
+    #endif
   mSPI.endTransaction () ;
 }
 
@@ -1117,7 +1120,11 @@ turnOffInterrupts () ;
 
 uint8_t ACAN2517FD::readRegister8 (const uint16_t inRegisterAddress) {
   mSPI.beginTransaction (mSPISettings) ;
-turnOffInterrupts () ;
+    #ifdef ARDUINO_ARCH_ESP32
+      taskDISABLE_INTERRUPTS () ;
+    #else
+      noInterrupts () ;
+    #endif
       const uint8_t result = readRegister8Assume_SPI_transaction (inRegisterAddress) ;
     #ifdef ARDUINO_ARCH_ESP32
       taskENABLE_INTERRUPTS () ;
@@ -1132,7 +1139,11 @@ turnOffInterrupts () ;
 
 uint16_t ACAN2517FD::readRegister16 (const uint16_t inRegisterAddress) {
   mSPI.beginTransaction (mSPISettings) ;
-turnOffInterrupts () ;
+    #ifdef ARDUINO_ARCH_ESP32
+      taskDISABLE_INTERRUPTS () ;
+    #else
+      noInterrupts () ;
+    #endif
       const uint16_t result = readRegister16Assume_SPI_transaction (inRegisterAddress) ;
     #ifdef ARDUINO_ARCH_ESP32
       taskENABLE_INTERRUPTS () ;
@@ -1147,7 +1158,11 @@ turnOffInterrupts () ;
 
 void ACAN2517FD::writeRegister32 (const uint16_t inRegisterAddress, const uint32_t inValue) {
   mSPI.beginTransaction (mSPISettings) ;
-turnOffInterrupts () ;
+    #ifdef ARDUINO_ARCH_ESP32
+      taskDISABLE_INTERRUPTS () ;
+    #else
+      noInterrupts () ;
+    #endif
       writeRegister32Assume_SPI_transaction (inRegisterAddress, inValue) ;
     #ifdef ARDUINO_ARCH_ESP32
       taskENABLE_INTERRUPTS () ;
@@ -1161,7 +1176,11 @@ turnOffInterrupts () ;
 
 uint32_t ACAN2517FD::readRegister32 (const uint16_t inRegisterAddress) {
   mSPI.beginTransaction (mSPISettings) ;
-turnOffInterrupts () ;
+    #ifdef ARDUINO_ARCH_ESP32
+      taskDISABLE_INTERRUPTS () ;
+    #else
+      noInterrupts () ;
+    #endif
       const uint32_t result = readRegister32Assume_SPI_transaction (inRegisterAddress) ;
     #ifdef ARDUINO_ARCH_ESP32
       taskENABLE_INTERRUPTS () ;
@@ -1219,7 +1238,11 @@ void ACAN2517FD::setOperationMode (const ACAN2517FDSettings::OperationMode inOpe
 
 void ACAN2517FD::reset2517FD (void) {
   mSPI.beginTransaction (mSPISettings) ; // Check RESET is performed with 800 kHz clock
-turnOffInterrupts () ;
+    #ifdef ARDUINO_ARCH_ESP32
+      taskDISABLE_INTERRUPTS () ;
+    #else
+      noInterrupts () ;
+    #endif
       assertCS () ;
         mSPI.transfer16 (0x00) ; // Reset instruction: 0x0000
       deassertCS () ;
