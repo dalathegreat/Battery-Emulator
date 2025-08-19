@@ -4,12 +4,6 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 
-/* Notes
-SOC% by default is now ESTIMATED.
-If you have a crash-locked pack, See the Wiki for more info on how to attempt an unlock
-After battery has been unlocked, you can remove the "USE_ESTIMATED_SOC" from the BYD-ATTO-3-BATTERY.h file
-*/
-
 #define POLL_FOR_BATTERY_VOLTAGE 0x0008
 #define POLL_FOR_BATTERY_CURRENT 0x0009
 #define POLL_FOR_LOWEST_TEMP_CELL 0x002f
