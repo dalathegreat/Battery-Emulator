@@ -25,7 +25,6 @@ const uint8_t rx_queue_size = 10;  // Receive Queue size
 volatile bool send_ok_native = 0;
 volatile bool send_ok_2515 = 0;
 volatile bool send_ok_2518 = 0;
-static unsigned long previousMillis10 = 0;
 
 #ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
 const bool use_canfd_as_can_default = true;
