@@ -7,8 +7,12 @@
 #include "BYD-ATTO-3-HTML.h"
 #include "CanBattery.h"
 
-#define USE_ESTIMATED_SOC  // If enabled, SOC is estimated from pack voltage. Useful for locked packs. \
-                           // Comment out this only if you know your BMS is unlocked and able to send SOC%
+/* Notes
+SOC% by default is now MEASURED by BMS.
+If you have a crash-locked pack, See the Wiki for more info on how to attempt an unlock.
+Remove the comment from "USE_ESTIMATED_SOC" below if you still decide to use a locked battery and want to use estimated SOC.
+*/
+//#define USE_ESTIMATED_SOC
 
 //Uncomment and configure this line, if you want to filter out a broken temperature sensor (1-10)
 //Make sure you understand risks associated with disabling. Values can be read via "More Battery info"
