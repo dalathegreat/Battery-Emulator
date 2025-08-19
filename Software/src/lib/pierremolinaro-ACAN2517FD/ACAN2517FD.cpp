@@ -929,7 +929,9 @@ void ACAN2517FD::isr_poll_core (void) {
           writeRegister8Assume_SPI_transaction (FIFOSTA_REGISTER (RECEIVE_FIFO_INDEX), ~ (1 << 3)) ;
         }
       }
-  turnOnInterrupts () ;
+    #ifdef ARDUINO_ARCH_ESP32
+      taskENABLE_INTERRUPTS () ;
+    #endif
   mSPI.endTransaction () ;
 }
 
