@@ -55,4 +55,9 @@ void setup_can_shunt();
 
 void setup_battery(void);
 
+extern uint16_t user_selected_max_pack_voltage_dV;
+extern uint16_t user_selected_min_pack_voltage_dV;
+extern uint16_t user_selected_max_cell_voltage_mV;
+extern uint16_t user_selected_min_cell_voltage_mV;
+
 #endif

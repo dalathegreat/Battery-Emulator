@@ -198,11 +198,11 @@ class NissanLeafBattery : public CanBattery {
   uint16_t battery_min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
   uint16_t battery_HX = 0;              //Internal resistance
   uint16_t battery_insulation = 0;      //Insulation resistance
-  uint16_t battery_temp_raw_1 = 0;
+  uint16_t battery_temp_raw_1 = 718;
   uint8_t battery_temp_raw_2_highnibble = 0;
-  uint16_t battery_temp_raw_2 = 0;
-  uint16_t battery_temp_raw_3 = 0;
-  uint16_t battery_temp_raw_4 = 0;
+  uint16_t battery_temp_raw_2 = 718;
+  uint16_t battery_temp_raw_3 = 718;  //This measurement not available on 2013+
+  uint16_t battery_temp_raw_4 = 718;
   uint16_t battery_temp_raw_max = 0;
   uint16_t battery_temp_raw_min = 0;
   int16_t battery_temp_polled_max = 0;

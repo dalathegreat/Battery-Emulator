@@ -61,7 +61,6 @@ include_directories("${source_dir}/googletest/include"
 
 include_directories(emul)
 
-# For eModBus
 add_compile_definitions(_CRT_SECURE_NO_WARNINGS _CRT_NO_POSIX_ERROR_CODES ESP32 ARDUINO HW_LILYGO NISSAN_LEAF_BATTERY)
 
 set_source_files_properties(../Software/Software.ino PROPERTIES LANGUAGE CXX)
@@ -91,8 +90,10 @@ add_executable(tests
     ../Software/src/lib/eModbus-eModbus/ModbusMessage.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusTypeDefs.cpp
     ../Software/src/lib/eModbus-eModbus/Logging.cpp
-    ../Software/src/lib/eModbus-eModbus/scripts/mbServerFCs.cpp
+#    ../Software/src/lib/eModbus-eModbus/scripts/mbServerFCs.cpp
     ../Software/src/lib/eModbus-eModbus/RTUutils.cpp
+    ../Software/src/lib/ESP32Async-ESPAsyncWebServer/src/AsyncWebHeader.cpp
+    ../Software/src/lib/ESP32Async-ESPAsyncWebServer/src/AsyncWebServerRequest.cpp
     ../Software/src/lib/ESP32Async-ESPAsyncWebServer/src/WebServer.cpp
     ../Software/src/lib/ESP32Async-ESPAsyncWebServer/src/WebRequest.cpp
     ../Software/src/lib/ESP32Async-ESPAsyncWebServer/src/WebHandlers.cpp
@@ -103,8 +104,6 @@ add_executable(tests
     ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
     ../Software/src/lib/ayushsharma82-ElegantOTA/src/elop.cpp
     ../Software/src/lib/ayushsharma82-ElegantOTA/src/ElegantOTA.cpp
-    ../Software/src/lib/YiannisBourkelis-Uptime-Library/src/uptime_formatter.cpp
-    ../Software/src/lib/YiannisBourkelis-Uptime-Library/src/uptime.cpp
     ../Software/USER_SETTINGS.cpp
     ../Software/src/battery/BATTERIES.cpp
     ../Software/src/battery/Battery.cpp
@@ -143,6 +142,7 @@ add_executable(tests
     emul/mqtt.cpp
     emul/freertos/task.cpp
     emul/freertos/semphr.cpp
+    emul/freertos/ringbuf.cpp
     emul/lwip/sockets.cpp
     emul/lwip/dns.cpp
     emul/libb64/cencode.cpp

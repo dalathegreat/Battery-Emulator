@@ -625,6 +625,12 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   /** int16_t */
   /** Insulation resistance, most likely kOhm */
   uint16_t Insulation = 0;
+  /** int16_t */
+  /** Temperature sensoros 1-4 */
+  int16_t temperature1 = 0;
+  int16_t temperature2 = 0;
+  int16_t temperature3 = 0;  // This sensor not available on 2013+ packs
+  int16_t temperature4 = 0;
   /** uint8_t */
   /** battery_FAIL status */
   uint8_t RelayCutRequest = 0;

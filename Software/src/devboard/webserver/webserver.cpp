@@ -1,7 +1,6 @@
 #include <Preferences.h>
 #include <WiFi.h>
 #include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
-#include "../../lib/YiannisBourkelis-Uptime-Library/src/uptime_formatter.h"
 #include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
 #include "../../lib/mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
 
@@ -452,6 +451,18 @@ void init_webserver() {
       } else if (p->name() == "BATTCOMM") {
         auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
         settings.saveUInt("BATTCOMM", (int)type);
+      } else if (p->name() == "BATTPVMAX") {
+        auto type = p->value().toFloat() * 10.0;
+        settings.saveUInt("BATTPVMAX", (int)type);
+      } else if (p->name() == "BATTPVMIN") {
+        auto type = p->value().toFloat() * 10.0;
+        settings.saveUInt("BATTPVMIN", (int)type);
+      } else if (p->name() == "BATTCVMAX") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("BATTCVMAX", type);
+      } else if (p->name() == "BATTCVMIN") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("BATTCVMIN", type);
       } else if (p->name() == "charger") {
         auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
         settings.saveUInt("CHGTYPE", (int)type);
@@ -803,6 +814,27 @@ String get_firmware_info_processor(const String& var) {
   return String();
 }
 
+String get_uptime() {
+  uint64_t milliseconds;
+  uint32_t remaining_seconds_in_day;
+  uint32_t remaining_seconds;
+  uint32_t remaining_minutes;
+  uint32_t remaining_hours;
+  uint16_t total_days;
+
+  milliseconds = millis64();
+
+  //convert passed millis to days, hours, minutes, seconds
+  total_days = milliseconds / (1000 * 60 * 60 * 24);
+  remaining_seconds_in_day = (milliseconds / 1000) % (60 * 60 * 24);
+  remaining_hours = remaining_seconds_in_day / (60 * 60);
+  remaining_minutes = (remaining_seconds_in_day % (60 * 60)) / 60;
+  remaining_seconds = remaining_seconds_in_day % 60;
+
+  return (String)total_days + " days, " + (String)remaining_hours + " hours, " + (String)remaining_minutes +
+         " minutes, " + (String)remaining_seconds + " seconds";
+}
+
 String processor(const String& var) {
   if (var == "X") {
     String content = "";
@@ -830,7 +862,7 @@ String processor(const String& var) {
     content += esp32hal->name();
 
     content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
-    content += "<h4>Uptime: " + uptime_formatter::getUptime() + "</h4>";
+    content += "<h4>Uptime: " + get_uptime() + "</h4>";
 #ifdef FUNCTION_TIME_MEASUREMENT
     // Load information
     content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";

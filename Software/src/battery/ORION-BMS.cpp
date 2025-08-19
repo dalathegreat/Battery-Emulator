@@ -1,4 +1,5 @@
 #include "ORION-BMS.h"
+#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -57,8 +58,8 @@ void OrionBms::update_values() {
 
   datalayer.battery.status.cell_min_voltage_mV = Minimum_Cell_Voltage;
 
-  //If user did not configure amount of cells correctly in the header file, update the value
-  if ((amount_of_detected_cells > NUMBER_OF_CELLS) && (amount_of_detected_cells < MAX_AMOUNT_CELLS)) {
+  //Use the reported number of cells to avoid needing to configure it
+  if (amount_of_detected_cells < MAX_AMOUNT_CELLS) {
     datalayer.battery.info.number_of_cells = amount_of_detected_cells;
   }
 }
@@ -115,10 +116,9 @@ void OrionBms::transmit_can(unsigned long currentMillis) {
 void OrionBms::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.number_of_cells = NUMBER_OF_CELLS;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_design_voltage_dV = user_selected_max_pack_voltage_dV;
+  datalayer.battery.info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
+  datalayer.battery.info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
+  datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }

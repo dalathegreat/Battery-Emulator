@@ -41,7 +41,6 @@ add_executable(BatteryEmulator
     ../Software/src/lib/eModbus-eModbus/ModbusMessage.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusTypeDefs.cpp
     ../Software/src/lib/eModbus-eModbus/Logging.cpp
-    ../Software/src/lib/eModbus-eModbus/scripts/mbServerFCs.cpp
     ../Software/src/lib/eModbus-eModbus/RTUutils.cpp
     ../Software/src/lib/ESP32Async-ESPAsyncWebServer/src/AsyncWebHeader.cpp
     ../Software/src/lib/ESP32Async-ESPAsyncWebServer/src/AsyncWebServerRequest.cpp
@@ -55,8 +54,6 @@ add_executable(BatteryEmulator
     ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
     ../Software/src/lib/ayushsharma82-ElegantOTA/src/elop.cpp
     ../Software/src/lib/ayushsharma82-ElegantOTA/src/ElegantOTA.cpp
-    ../Software/src/lib/YiannisBourkelis-Uptime-Library/src/uptime_formatter.cpp
-    ../Software/src/lib/YiannisBourkelis-Uptime-Library/src/uptime.cpp
     ../Software/USER_SETTINGS.cpp
     ${BATTERY_SOURCE}
     ${CHARGER_SOURCE}

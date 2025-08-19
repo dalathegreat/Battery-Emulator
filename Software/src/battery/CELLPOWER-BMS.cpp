@@ -1,4 +1,5 @@
 #include "CELLPOWER-BMS.h"
+#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
@@ -231,8 +232,8 @@ void CellPowerBms::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_design_voltage_dV = user_selected_max_pack_voltage_dV;
+  datalayer.battery.info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
+  datalayer.battery.info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
+  datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
 }

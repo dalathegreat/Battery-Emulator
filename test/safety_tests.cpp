@@ -3,11 +3,10 @@
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/safety/safety.h"
 #include "../Software/src/devboard/utils/events.h"
-#include "../Software/src/inverter/ModbusInverterProtocol.h"
 
 TEST(SafetyTests, ShouldSetEventWhenTemperatureTooHigh) {
   init_events();
-  datalayer.system.info.CPU_temperature = 82;
+  datalayer.system.info.CPU_temperature = 88;
   update_machineryprotection();
 
   auto event_pointer = get_event_pointer(EVENT_CPU_OVERHEATING);

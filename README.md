@@ -91,7 +91,6 @@ This code uses the following excellent libraries:
 - [miwagner/ESP32-Arduino-CAN](https://github.com/miwagner/ESP32-Arduino-CAN/) MIT-License
 - [pierremolinaro/acan2515](https://github.com/pierremolinaro/acan2515) MIT-License
 - [pierremolinaro/acan2517FD](https://github.com/pierremolinaro/acan2517FD) MIT-License
-- [YiannisBourkelis/Uptime-Library](https://github.com/YiannisBourkelis/Uptime-Library) GPL-3.0 license 
 
 It is also based on the information found in the following excellent repositories/websites:
 - https://gitlab.com/pelle8/inverter_resources //new url

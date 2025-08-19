@@ -20,11 +20,6 @@ class RjxzsBms : public CanBattery {
 
  private:
   /* Tweak these according to your battery build */
-  static const int MAX_PACK_VOLTAGE_DV = 5000;  //5000 = 500.0V
-  static const int MIN_PACK_VOLTAGE_DV = 1500;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
-  static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_DISCHARGE_POWER_ALLOWED_W = 5000;
   static const int MAX_CHARGE_POWER_ALLOWED_W = 5000;
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
@@ -41,7 +36,7 @@ class RjxzsBms : public CanBattery {
 
   uint8_t mux = 0;
   bool setup_completed = false;
-  uint16_t total_voltage = 0;
+  uint16_t total_voltage = 3700;
   int16_t total_current = 0;
   uint16_t total_power = 0;
   uint16_t battery_usage_capacity = 0;
@@ -83,9 +78,9 @@ class RjxzsBms : public CanBattery {
   uint16_t low_voltage_power_outage_delayed = 0;
   uint16_t num_of_triggering_protection_cells = 0;
   uint16_t balanced_reference_voltage = 0;
-  uint16_t minimum_cell_voltage = 0;
-  uint16_t maximum_cell_voltage = 0;
-  uint16_t cellvoltages[MAX_AMOUNT_CELLS];
+  uint16_t minimum_cell_voltage = 3300;
+  uint16_t maximum_cell_voltage = 3300;
+  uint16_t cellvoltages[MAX_AMOUNT_CELLS] = {0};
   uint8_t populated_cellvoltages = 0;
   uint16_t accumulated_total_capacity_high = 0;
   uint16_t accumulated_total_capacity_low = 0;

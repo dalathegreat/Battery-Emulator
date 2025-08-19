@@ -22,11 +22,6 @@ class CellPowerBms : public CanBattery {
 
  private:
   CellpowerHtmlRenderer renderer;
-  /* Tweak these according to your battery build */
-  static const int MAX_PACK_VOLTAGE_DV = 5000;  //5000 = 500.0V
-  static const int MIN_PACK_VOLTAGE_DV = 1500;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
 
   unsigned long previousMillis1s = 0;  // will store last time a 1s CAN Message was sent
 

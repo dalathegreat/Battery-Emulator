@@ -3,7 +3,9 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <cstddef>
 #include <mutex>
+#include "Print.h"
 #include "Stream.h"
 
 enum SerialConfig {
