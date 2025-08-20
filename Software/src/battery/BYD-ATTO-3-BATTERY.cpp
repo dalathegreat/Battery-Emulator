@@ -4,6 +4,12 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 
+/* Notes
+SOC% by default is now ESTIMATED.
+If you have a crash-locked pack, See the Wiki for more info on how to attempt an unlock
+After battery has been unlocked, you can remove the "USE_ESTIMATED_SOC" from the BYD-ATTO-3-BATTERY.h file
+*/
+
 #define POLL_FOR_BATTERY_VOLTAGE 0x0008
 #define POLL_FOR_BATTERY_CURRENT 0x0009
 #define POLL_FOR_LOWEST_TEMP_CELL 0x002f
@@ -530,14 +536,44 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     if (counter_100ms < 100) {
       counter_100ms++;
     }
-
+ 
     if (counter_100ms > 3) {
+      if (battery_type == EXTENDED_RANGE) {
       ATTO_3_441.data.u8[4] = 0x9D;
       ATTO_3_441.data.u8[5] = 0x01;
       ATTO_3_441.data.u8[6] = 0xFF;
       ATTO_3_441.data.u8[7] = 0xF5;
+      }
+      if (battery_type == STANDARD_RANGE) {
+      ATTO_3_441.data.u8[0] = 0x98;
+      ATTO_3_441.data.u8[1] = 0x3a;
+      ATTO_3_441.data.u8[2] = 0x88;
+      ATTO_3_441.data.u8[3] = 0x13; // experimental atto3 50kw only...from a log
+      ATTO_3_441.data.u8[4] = 0x3f;
+      ATTO_3_441.data.u8[5] = 0x01;
+      ATTO_3_441.data.u8[6] = 0xFF;
+      ATTO_3_441.data.u8[7] = 0x53;   
+      }
+      else                         
+        // ELSE CASE PRESENTLY ONLY for 82.5kw...todo: define new byd EV battery_type, LONG_RANGE_82KW, 550v nom, 150aH, 172s, 3.2 lfp  //B.I
+        //
+        // future byd PHEV battery type to add BYD_PHEV, 18.3kw sealion phev PETROL, 30kw shark 6 PHEV PETROL
+        // sealion 6 phev battery spec: 18.3kw, 339.2, 106s, 54aH
+        // shark 6 phev battery spec: 29.58kw, 364.8v, 81aH
+        // special thanks to fredrik & johnny5532
+      
+      ATTO_3_441.data.u8[4] = 0xff;
+      ATTO_3_441.data.u8[5] = 0x01; // else case is for 511V: flat 82kw pack 
+      ATTO_3_441.data.u8[6] = 0xFF;
+      
+      int cks = 0;
+    for (int i = 0; i < 6; ++i) {
+        cks += ATTO_3_441.data.u8[i];// atto 3 std & extended use fixed replies, else case is dynamically created, to aim for compatability. 
     }
-
+      cks = cks & 0xFF               // cks = sum(u[0:6]) & 0xFF;
+      cks = ~cks & 0xFF              // cks = NOT(cks) & 0xFF;
+      ATTO_3_441.data.u8[7] = cks;   // ATTO_3_441.data.u8[7] = cks
+    }
     transmit_can_frame(&ATTO_3_441);
     switch (stateMachineClearCrash) {
       case STARTED:
