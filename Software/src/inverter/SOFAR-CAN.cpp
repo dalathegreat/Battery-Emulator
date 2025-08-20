@@ -1,4 +1,5 @@
 #include "SOFAR-CAN.h"
+#include <WString.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 // for memcmp/memcpy used in event-driven 0x35A
