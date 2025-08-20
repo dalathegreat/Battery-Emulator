@@ -76,7 +76,9 @@ static void send_kostal(uint8_t* frame, int len) {
 static uint8_t calculate_kostal_crc(byte* lfc, int len) {
   unsigned int sum = 0;
   if (lfc[0] != 0) {
+#ifdef DEBUG_KOSTAL_RS485_DATA
     logging.printf("WARNING: first byte should be 0, but is 0x%02x\n", lfc[0]);
+#endif
   }
   for (int i = 1; i < len; i++) {
     sum += lfc[i];

@@ -20,7 +20,9 @@ void show_dtc(uint8_t byte0, uint8_t byte1) {
       letter = 'U';
       break;
   }
+#ifdef DEBUG_LOG
   logging.printf("%c%d\n", letter, ((byte0 & 0x3F) << 8) | byte1);
+#endif
 }
 
 void handle_obd_frame(CAN_frame& rx_frame) {
@@ -89,21 +91,29 @@ void handle_obd_frame(CAN_frame& rx_frame) {
         error_str = "serviceNotSupportedInActiveSession";
         break;
     }
+#ifdef DEBUG_LOG
     logging.printf("ODB reply Request for service 0x%02X: %s\n", rx_frame.data.u8[2], error_str);
+#endif
   } else {
     switch (rx_frame.data.u8[1] & 0x3F) {
       case 3:
+#ifdef DEBUG_LOG
         logging.printf("ODB reply service 03: Show stored DTCs, %d present:\n", rx_frame.data.u8[2]);
+#endif
         for (int i = 0; i < rx_frame.data.u8[2]; i++)
           show_dtc(rx_frame.data.u8[3 + 2 * i], rx_frame.data.u8[4 + 2 * i]);
         break;
       case 7:
+#ifdef DEBUG_LOG
         logging.printf("ODB reply service 07: Show pending DTCs, %d present:\n", rx_frame.data.u8[2]);
+#endif
         for (int i = 0; i < rx_frame.data.u8[2]; i++)
           show_dtc(rx_frame.data.u8[3 + 2 * i], rx_frame.data.u8[4 + 2 * i]);
         break;
       default:
+#ifdef DEBUG_LOG
         logging.printf("ODBx reply frame received:\n");
+#endif
     }
   }
   dump_can_frame(rx_frame, MSG_RX);
