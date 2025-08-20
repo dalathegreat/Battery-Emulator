@@ -4,7 +4,7 @@
 #include "../../Software/src/devboard/utils/events.h"
 #include "../../Software/src/devboard/utils/types.h"
 
-#include <filesystem>  // Requires C++17 or later
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 
@@ -12,6 +12,14 @@ namespace fs = std::filesystem;
 
 static bool endsWith(const std::string& str, const std::string& suffix) {
   return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+void printFrame(const CAN_frame& frame) {
+  std::cout << "ID: " << std::hex << frame.ID << ", DLC: " << (int)frame.DLC << ", Data: ";
+  for (int i = 0; i < frame.DLC; ++i) {
+    std::cout << std::hex << (int)frame.data.u8[i] << " ";
+  }
+  std::cout << std::dec << "\n";
 }
 
 CAN_frame parseCanLogLine(const std::string& logLine) {
@@ -102,118 +110,122 @@ std::vector<CAN_frame> parseLogFile(const fs::path& filePath) {
   return frames;
 }
 
-TEST(CanLogSafety, OverVoltage) {
-  std::string directoryPath = "../canlog/canlogs";
+class CanLogTestFixture : public testing::Test {
+ public:
+  CanLogTestFixture(fs::path path) : path_(std::move(path)) {}
+  // All of these optional, just like in regular macro usage.
+  //   static void SetUpTestSuite() { ... }
+  //   static void TearDownTestSuite() { ... }
+  //   void SetUp() override { ... }
+  //   void TearDown() override { ... }
 
-  // Assume a 90s NMC pack for custom-BMS batteries
-  user_selected_max_pack_voltage_dV = 378 + 10;
-  user_selected_min_pack_voltage_dV = 261 - 10;
-  user_selected_max_cell_voltage_mV = 4200 + 20;
-  user_selected_min_cell_voltage_mV = 2900 - 20;
-
-  for (const auto& entry : fs::directory_iterator(directoryPath)) {
-    // Process only regular files with a .txt extension
-    if (entry.is_regular_file() && endsWith(entry.path(), "_bad.txt")) {
-      std::cout << "----------------------------------------" << std::endl;
-      std::cout << "Processing file: " << entry.path().filename() << std::endl;
-      std::cout << "----------------------------------------" << std::endl;
-
-      // split filename on _
-      std::string filename = entry.path().filename().string();
-      std::string batteryId = filename.substr(0, filename.find('_'));
-      user_selected_battery_type = (BatteryType)std::stoi(batteryId);
-      setup_battery();
-
-      std::vector<CAN_frame> parsedMessages = parseLogFile(entry.path());
-
-      for (const auto& msg : parsedMessages) {
-        std::cout << "ID: " << std::hex << msg.ID << ", DLC: " << (int)msg.DLC << ", Data: ";
-        for (int i = 0; i < msg.DLC; ++i) {
-          std::cout << std::hex << (int)msg.data.u8[i] << " ";
-        }
-        std::cout << std::dec << "\n";
-
-        dynamic_cast<CanBattery*>(battery)->handle_incoming_can_frame(msg);
-        dynamic_cast<CanBattery*>(battery)->update_values();
-        std::cout << "Battery voltage: " << datalayer.battery.status.voltage_dV << " dV" << std::endl;
-        update_machineryprotection();
-
-        auto event_pointer = get_event_pointer(EVENT_BATTERY_OVERVOLTAGE);
-        EXPECT_EQ(event_pointer->occurences, 1);
-        //event_pointer = get_event_pointer((EVENTS_ENUM_TYPE)i);
-      }
-
-      // teardown battery
+  void SetUp() override {
+    // Reset the datalayer and events before each test
+    datalayer = DataLayer();
+    reset_all_events();
+    if (battery) {
       delete battery;
       battery = nullptr;
-      // reset datalayer
-      datalayer = DataLayer();
-      reset_all_events();
     }
-  }
-}
 
-TEST(CanLogSafety, AllValuesPresent) {
+    // Assume a 90s NMC pack for custom-BMS batteries
+    user_selected_max_pack_voltage_dV = 378 + 10;
+    user_selected_min_pack_voltage_dV = 261 - 10;
+    user_selected_max_cell_voltage_mV = 4200 + 20;
+    user_selected_min_cell_voltage_mV = 2900 - 20;
+
+    std::string filename = path_.filename().string();
+    std::string batteryId = filename.substr(0, filename.find('_'));
+    user_selected_battery_type = (BatteryType)std::stoi(batteryId);
+    setup_battery();
+
+    datalayer.battery.status.voltage_dV = 0;
+    datalayer.battery.status.current_dA = INT16_MIN;
+    datalayer.battery.status.cell_min_voltage_mV = 0;
+    datalayer.battery.status.cell_max_voltage_mV = 0;
+    datalayer.battery.status.real_soc = UINT16_MAX;
+    datalayer.battery.status.temperature_max_dC = INT16_MIN;
+    datalayer.battery.status.temperature_min_dC = INT16_MIN;
+  }
+
+  void ProcessLog() {
+    std::vector<CAN_frame> parsedMessages = parseLogFile(path_);
+
+    for (const auto& msg : parsedMessages) {
+      //printFrame(msg);
+
+      dynamic_cast<CanBattery*>(battery)->handle_incoming_can_frame(msg);
+      dynamic_cast<CanBattery*>(battery)->update_values();
+    }
+    // Wait till the end so we don't raise spurious events due to missing values
+    update_machineryprotection();
+  }
+
+  void PrintValues() {
+    std::cout << "Battery voltage: " << (datalayer.battery.status.voltage_dV / 10.0) << " V" << std::endl;
+    std::cout << "Battery current: " << (datalayer.battery.status.current_dA / 10.0) << " A" << std::endl;
+    std::cout << "Battery cell min voltage: " << datalayer.battery.status.cell_min_voltage_mV << " mV" << std::endl;
+    std::cout << "Battery cell max voltage: " << datalayer.battery.status.cell_max_voltage_mV << " mV" << std::endl;
+    std::cout << "Battery real SoC: " << (datalayer.battery.status.real_soc / 100.0) << " %" << std::endl;
+    std::cout << "Battery temperature max: " << (datalayer.battery.status.temperature_max_dC / 10.0) << " C"
+              << std::endl;
+    std::cout << "Battery temperature min: " << (datalayer.battery.status.temperature_min_dC / 10.0) << " C"
+              << std::endl;
+  }
+
+ private:
+  fs::path path_;
+};
+
+class AllValuesPresentTest : public CanLogTestFixture {
+ public:
+  explicit AllValuesPresentTest(fs::path path) : CanLogTestFixture(path) {}
+  void TestBody() override {
+    ProcessLog();
+    //PrintValues();
+
+    EXPECT_NE(datalayer.battery.status.voltage_dV, 0);
+    // Current isn't actually a requirement? power instead?
+    //EXPECT_NE(datalayer.battery.status.current_dA, INT16_MIN);
+    EXPECT_NE(datalayer.battery.status.cell_min_voltage_mV, 0);
+    EXPECT_NE(datalayer.battery.status.cell_max_voltage_mV, 0);
+    EXPECT_NE(datalayer.battery.status.real_soc, UINT16_MAX);
+    EXPECT_NE(datalayer.battery.status.temperature_max_dC, INT16_MIN);
+    EXPECT_NE(datalayer.battery.status.temperature_min_dC, INT16_MIN);
+
+    EXPECT_EQ(get_event_pointer(EVENT_BATTERY_OVERVOLTAGE)->occurences, 0);
+    EXPECT_EQ(get_event_pointer(EVENT_BATTERY_UNDERVOLTAGE)->occurences, 0);
+  }
+};
+
+class OverVoltageTest : public CanLogTestFixture {
+ public:
+  explicit OverVoltageTest(fs::path path) : CanLogTestFixture(path) {}
+  void TestBody() override {
+    ProcessLog();
+    //PrintValues();
+
+    EXPECT_EQ(get_event_pointer(EVENT_BATTERY_OVERVOLTAGE)->occurences, 1);
+  }
+};
+
+void RegisterCanLogTests() {
   std::string directoryPath = "../canlog/canlogs";
 
   for (const auto& entry : fs::directory_iterator(directoryPath)) {
-    // Process only regular files with a .txt extension
     if (entry.is_regular_file() && endsWith(entry.path(), "_good.txt")) {
-      std::cout << "----------------------------------------" << std::endl;
-      std::cout << "Processing file: " << entry.path().filename() << std::endl;
-      std::cout << "----------------------------------------" << std::endl;
 
-      // split filename on _
-      std::string filename = entry.path().filename().string();
-      std::string batteryId = filename.substr(0, filename.find('_'));
-      user_selected_battery_type = (BatteryType)std::stoi(batteryId);
-      setup_battery();
+      testing::RegisterTest("CanLogTestFixture", ("TestAllValuesPresent_" + entry.path().filename().string()).c_str(),
+                            nullptr, entry.path().filename().string().c_str(), __FILE__, __LINE__,
+                            // Important to use the fixture type as the return type here.
+                            [=]() -> CanLogTestFixture* { return new AllValuesPresentTest(entry.path()); });
+    }
+    if (entry.is_regular_file() && endsWith(entry.path(), "_overvoltage.txt")) {
 
-      std::vector<CAN_frame> parsedMessages = parseLogFile(entry.path());
-
-      datalayer.battery.status.voltage_dV = 0;
-      datalayer.battery.status.current_dA = INT16_MIN;
-      datalayer.battery.status.cell_min_voltage_mV = 0;
-      datalayer.battery.status.cell_max_voltage_mV = 0;
-      datalayer.battery.status.real_soc = UINT16_MAX;
-      datalayer.battery.status.temperature_max_dC = INT16_MIN;
-      datalayer.battery.status.temperature_min_dC = INT16_MIN;
-
-      for (const auto& msg : parsedMessages) {
-        std::cout << "ID: " << std::hex << msg.ID << ", DLC: " << (int)msg.DLC << ", Data: ";
-        for (int i = 0; i < msg.DLC; ++i) {
-          std::cout << std::hex << (int)msg.data.u8[i] << " ";
-        }
-        std::cout << std::dec << "\n";
-
-        dynamic_cast<CanBattery*>(battery)->handle_incoming_can_frame(msg);
-        dynamic_cast<CanBattery*>(battery)->update_values();
-      }
-
-      std::cout << "Battery voltage: " << (datalayer.battery.status.voltage_dV / 10.0) << " V" << std::endl;
-      std::cout << "Battery current: " << (datalayer.battery.status.current_dA / 10.0) << " A" << std::endl;
-      std::cout << "Battery cell min voltage: " << datalayer.battery.status.cell_min_voltage_mV << " mV" << std::endl;
-      std::cout << "Battery cell max voltage: " << datalayer.battery.status.cell_max_voltage_mV << " mV" << std::endl;
-      std::cout << "Battery real SoC: " << (datalayer.battery.status.real_soc / 100.0) << " %" << std::endl;
-      std::cout << "Battery temperature max: " << (datalayer.battery.status.temperature_max_dC / 10.0) << " C"
-                << std::endl;
-      std::cout << "Battery temperature min: " << (datalayer.battery.status.temperature_min_dC / 10.0) << " C"
-                << std::endl;
-      EXPECT_NE(datalayer.battery.status.voltage_dV, 0);
-      // Current isn't actually a requirement? power instead?
-      //EXPECT_NE(datalayer.battery.status.current_dA, INT16_MIN);
-      EXPECT_NE(datalayer.battery.status.cell_min_voltage_mV, 0);
-      EXPECT_NE(datalayer.battery.status.cell_max_voltage_mV, 0);
-      EXPECT_NE(datalayer.battery.status.real_soc, UINT16_MAX);
-      EXPECT_NE(datalayer.battery.status.temperature_max_dC, INT16_MIN);
-      EXPECT_NE(datalayer.battery.status.temperature_min_dC, INT16_MIN);
-
-      // teardown battery
-      delete battery;
-      battery = nullptr;
-      // reset datalayer
-      datalayer = DataLayer();
-      reset_all_events();
+      testing::RegisterTest("CanLogTestFixture", ("TestOverVoltage_" + entry.path().filename().string()).c_str(),
+                            nullptr, entry.path().filename().string().c_str(), __FILE__, __LINE__,
+                            // Important to use the fixture type as the return type here.
+                            [=]() -> CanLogTestFixture* { return new OverVoltageTest(entry.path()); });
     }
   }
 }
