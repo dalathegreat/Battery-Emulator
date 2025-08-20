@@ -136,6 +136,16 @@ uint16_t estimateSOCstandard(uint16_t packVoltage) {  // Linear interpolation fu
   return 0;  // Default return for safety, should never reach here
 }
 
+uint8_t compute441Checksum(const uint8_t* u8) // Computes the 441 checksum byte
+{
+    int sum = 0;
+    for (int i = 0; i < 7; ++i) {
+        sum += u8[i];
+    }
+    uint8_t lsb = static_cast<uint8_t>(sum & 0xFF);
+    return static_cast<uint8_t>(~lsb & 0xFF);
+}
+
 void BydAttoBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
@@ -532,10 +542,17 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     }
 
     if (counter_100ms > 3) {
-      ATTO_3_441.data.u8[4] = 0x9D;
-      ATTO_3_441.data.u8[5] = 0x01;
-      ATTO_3_441.data.u8[6] = 0xFF;
-      ATTO_3_441.data.u8[7] = 0xF5;
+      if (battery_voltage > 0){
+        ATTO_3_441.data.u8[4] = (uint8_t)(battery_voltage - 1);
+        ATTO_3_441.data.u8[5] = ((battery_voltage - 1) >> 8);
+        ATTO_3_441.data.u8[6] = 0xFF;
+        ATTO_3_441.data.u8[7] = compute441Checksum(ATTO_3_441.data.u8);
+      } else {
+        ATTO_3_441.data.u8[4] = 0x0C;
+        ATTO_3_441.data.u8[5] = 0x00;
+        ATTO_3_441.data.u8[6] = 0xFF;
+        ATTO_3_441.data.u8[7] = 0x87;
+      }
     }
 
     transmit_can_frame(&ATTO_3_441);
