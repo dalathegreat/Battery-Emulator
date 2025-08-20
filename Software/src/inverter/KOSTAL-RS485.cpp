@@ -154,24 +154,18 @@ void KostalInverterProtocol::update_values() {
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 18);  // Last current
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 22);  // Should be Avg current(1s)
 
-  // Close contactors after 7 battery info frames requested
-  if (f2_startup_count > 7) {
+  // Close contactors after 20 battery info frames requested
+  if (f2_startup_count > 20) {
     datalayer.system.status.inverter_allows_contactor_closing = true;
-    dbg_message("inverter_allows_contactor_closing -> true");
+    dbg_message("inverter_allows_contactor_closing -> true (info frame)");
   }
 
-  // On startup, byte 56 seems to be always 0x00 couple of frames,.
-  if (f2_startup_count < 9) {
-    CYCLIC_DATA[56] = 0x00;
-  } else {
+  if (datalayer.system.status.inverter_allows_contactor_closing) {
     CYCLIC_DATA[56] = 0x01;
-  }
-
-  // On startup, byte 59 seems to be always 0x02 couple of frames,.
-  if (f2_startup_count < 14) {
-    CYCLIC_DATA[59] = 0x02;
-  } else {
     CYCLIC_DATA[59] = 0x00;
+  } else {
+    CYCLIC_DATA[56] = 0x00;
+    CYCLIC_DATA[59] = 0x02;
   }
 
 #endif
@@ -214,6 +208,12 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
 {
   currentMillis = millis();
 
+  // Auto-reset contactor_test_active after 5 seconds
+  if (contactortestTimerActive && (millis() - contactortestTimerStart >= 5000)) {
+    datalayer.system.status.inverter_allows_contactor_closing = true;
+    dbg_message("inverter_allows_contactor_closing -> true (Contactor test ended)");
+    contactortestTimerActive = false;
+  }
   if (datalayer.system.status.battery_allows_contactor_closing & !contactorMillis) {
     contactorMillis = currentMillis;
   }
@@ -232,7 +232,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
           if (check_kostal_frame_crc(rx_index)) {
             incoming_message_counter = RS485_HEALTHY;
 
-            if (RS485_RXFRAME[1] == 'c' && info_sent) {
+            if (RS485_RXFRAME[1] == 0x63) {
               if (RS485_RXFRAME[6] == 0x47) {
                 // Set time function - Do nothing.
                 send_kostal(ACK_FRAME, 8);  // ACK
@@ -240,11 +240,20 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
               if (RS485_RXFRAME[6] == 0x5E) {
                 // Set State function
                 if (RS485_RXFRAME[7] == 0x00) {
+                  // Allow contactor closing
+                  datalayer.system.status.inverter_allows_contactor_closing = true;
+                  dbg_message("inverter_allows_contactor_closing -> true (5E 02)");
                   send_kostal(ACK_FRAME, 8);  // ACK
                 } else if (RS485_RXFRAME[7] == 0x04) {
+                  // contactor test STATE, ACK sent
+                  datalayer.system.status.inverter_allows_contactor_closing = false;
+                  dbg_message("inverter_allows_contactor_closing -> false (Contactor test start)");
                   send_kostal(ACK_FRAME, 8);  // ACK
-                } else if (RS485_RXFRAME[7] == 0xFF) {
-                  // no ACK sent
+                  contactortestTimerStart = millis();
+                  contactortestTimerActive = true;
+                } else if (RS485_RXFRAME[7] == 0x00) {
+                  // ERROR STATE, ACK sent
+                  send_kostal(ACK_FRAME, 8);  // ACK
                 } else {
                   // Battery deep sleep?
                   send_kostal(ACK_FRAME, 8);  // ACK
@@ -255,7 +264,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 //Reverse polarity, do nothing
               } else {
                 int code = RS485_RXFRAME[6] + RS485_RXFRAME[7] * 0x100;
-                if (code == 0x44a && info_sent) {
+                if (code == 0x44a) {
                   //Send cyclic data
                   // TODO: Probably not a good idea to use the battery object here like this.
                   if (battery) {
@@ -265,7 +274,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                   if (f2_startup_count < 15) {
                     f2_startup_count++;
                   }
-                  uint8_t tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  byte tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, CYCLIC_DATA, 64);
                   tmpframe[62] = calculate_kostal_crc(tmpframe, 62);
                   null_stuffer(tmpframe, 64);
@@ -274,19 +283,22 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 }
                 if (code == 0x84a) {
                   //Send  battery info
-                  uint8_t tmpframe[40];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  byte tmpframe[40];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, BATTERY_INFO, 40);
                   tmpframe[38] = calculate_kostal_crc(tmpframe, 38);
                   null_stuffer(tmpframe, 40);
                   send_kostal(tmpframe, 40);
-                  info_sent = true;
+                  datalayer.system.status.inverter_allows_contactor_closing = false;
+                  dbg_message("inverter_allows_contactor_closing -> false (battery info sent)");
+
+                  // Kun første gang sættes startupMillis
                   if (!startupMillis) {
                     startupMillis = currentMillis;
                   }
                 }
-                if (code == 0x353 && info_sent) {
+                if (code == 0x353) {
                   //Send  battery error/status
-                  uint8_t tmpframe[9];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  byte tmpframe[9];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, STATUS_FRAME, 9);
                   tmpframe[7] = calculate_kostal_crc(tmpframe, 7);
                   null_stuffer(tmpframe, 9);
