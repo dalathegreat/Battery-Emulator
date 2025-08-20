@@ -398,12 +398,12 @@ void update_calculated_values() {
   }
   /* Restrict values from user settings if needed */
   /* First apply MQTT limits if they exist */
-  if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_MQTT_set_charge_dA) {
-    datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_MQTT_set_charge_dA;
-    datalayer.battery.settings.MQTT_settings_limit_charge = true;
+  if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_external_set_charge_dA) {
+    datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_external_set_charge_dA;
+    datalayer.battery.settings.external_system_limit_charge = true;
     datalayer.battery.settings.user_settings_limit_charge = false;
   } else { /* Then apply user settings if MQTT didn't limit */
-    datalayer.battery.settings.MQTT_settings_limit_charge = false;
+    datalayer.battery.settings.external_system_limit_charge = false;
     if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_user_set_charge_dA) {
       datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
       datalayer.battery.settings.user_settings_limit_charge = true;
@@ -411,12 +411,12 @@ void update_calculated_values() {
       datalayer.battery.settings.user_settings_limit_charge = false;
     }
   }
-  if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_MQTT_set_discharge_dA) {
-    datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_MQTT_set_discharge_dA;
-    datalayer.battery.settings.MQTT_settings_limit_discharge = true;
+  if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_external_set_discharge_dA) {
+    datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_external_set_discharge_dA;
+    datalayer.battery.settings.external_system_limit_discharge = true;
     datalayer.battery.settings.user_settings_limit_discharge = false;
   } else { /* Then apply user settings if MQTT didn't limit */
-    datalayer.battery.settings.MQTT_settings_limit_discharge = false;
+    datalayer.battery.settings.external_system_limit_discharge = false;
     if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_user_set_discharge_dA) {
       datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_user_set_discharge_dA;
       datalayer.battery.settings.user_settings_limit_discharge = true;
