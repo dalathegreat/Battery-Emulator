@@ -126,9 +126,16 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   uint16_t max_percentage = BATTERY_MAXPERCENTAGE;
 
   /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A */
+  /** This value gets stored in persistent memory when user updates it */
   uint16_t max_user_set_charge_dA = BATTERY_MAX_CHARGE_AMP;
   /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A */
   uint16_t max_user_set_discharge_dA = BATTERY_MAX_DISCHARGE_AMP;
+
+  /** The MQTT specified maximum allowed charge rate, in deciAmpere. 3000 = 300.0 A */
+  /** This value defaults to a high limit on reboot. If user sends a low value in via MQTT, we use that value */
+  uint16_t max_MQTT_set_charge_dA = 3000;
+  /** The user specified maximum allowed discharge rate, in deciAmpere. 3000 = 300.0 A */
+  uint16_t max_MQTT_set_discharge_dA = 3000;
 
   /** User specified discharge/charge voltages in use. Set to true to use user specified values */
   /** Some inverters like to see a specific target voltage for charge/discharge. Use these values to override automatic voltage limits*/
@@ -144,6 +151,8 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** Parameters for keeping track of the limiting factor in the system */
   bool user_settings_limit_discharge = false;
   bool user_settings_limit_charge = false;
+  bool MQTT_settings_limit_discharge = false;
+  bool MQTT_settings_limit_charge = false;
   bool inverter_limits_discharge = false;
   bool inverter_limits_charge = false;
 
