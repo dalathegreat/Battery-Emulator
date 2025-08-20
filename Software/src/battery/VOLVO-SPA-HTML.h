@@ -9,11 +9,11 @@ class VolvoSpaHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
-
-    content += "<h4>BECM reported SOC: " + String(datalayer_extended.VolvoPolestar.soc_bms) + "</h4>";
-    content += "<h4>Calculated SOC: " + String(datalayer_extended.VolvoPolestar.soc_calc) + "</h4>";
-    content += "<h4>Rescaled SOC: " + String(datalayer_extended.VolvoPolestar.soc_rescaled / 10) + "</h4>";
-    content += "<h4>BECM reported SOH: " + String(datalayer_extended.VolvoPolestar.soh_bms) + "</h4>";
+    content += "</h4><h4>BECM reported number of DTCs: " + String(datalayer_extended.VolvoPolestar.DTCcount) + "</h4>";
+    content += "<h4>BECM reported SOC: " + String(datalayer_extended.VolvoPolestar.soc_bms / 10.0) + " %</h4>";
+    content += "<h4>Calculated SOC: " + String(datalayer_extended.VolvoPolestar.soc_calc / 10.0) + " %</h4>";
+    content += "<h4>Rescaled SOC: " + String(datalayer_extended.VolvoPolestar.soc_rescaled / 10.0) + " %</h4>";
+    content += "<h4>BECM reported SOH: " + String(datalayer_extended.VolvoPolestar.soh_bms / 100.0) + " %</h4>";
     content += "<h4>BECM supply voltage: " + String(datalayer_extended.VolvoPolestar.BECMsupplyVoltage) + " mV</h4>";
 
     content += "<h4>HV voltage: " + String(datalayer_extended.VolvoPolestar.BECMBatteryVoltage) + " V</h4>";
@@ -31,7 +31,54 @@ class VolvoSpaHtmlRenderer : public BatteryHtmlRenderer {
     content +=
         "<h4>Charge power limit slow aging: " + String(datalayer_extended.VolvoPolestar.HvBattPwrLimChrgSlowAgi) +
         " kW</h4>";
-
+    content += "<h4>HVIL Circuit A status: ";
+    switch (datalayer_extended.VolvoPolestar.HVILstatusBits & 0x01) {
+      case 0x01:
+        content += String("Open");
+        break;
+      default:
+        content += String("Not valid");
+    }
+    content += "<h4>HVIL Circuit B status: ";
+    switch (datalayer_extended.VolvoPolestar.HVILstatusBits & 0x02) {
+      case 0x02:
+        content += String("Open");
+        break;
+      default:
+        content += String("Closed");
+    }
+    content += "<h4>HVIL Circuit C status: ";
+    switch (datalayer_extended.VolvoPolestar.HVILstatusBits & 0x04) {
+      case 0x04:
+        content += String("Open");
+        break;
+      default:
+        content += String("Closed");
+    }
+    content += "<h4>Positive contactor status: ";
+    switch (datalayer_extended.VolvoPolestar.HVILstatusBits & 0x08) {
+      case 0x08:
+        content += String("Open");
+        break;
+      default:
+        content += String("Closed");
+    }
+    content += "<h4>Precharge Contactor status: ";
+    switch (datalayer_extended.VolvoPolestar.HVILstatusBits & 0x10) {
+      case 0x10:
+        content += String("Open");
+        break;
+      default:
+        content += String("Closed");
+    }
+    content += "<h4>Negative Contactor status: ";
+    switch (datalayer_extended.VolvoPolestar.HVILstatusBits & 0x20) {
+      case 0x20:
+        content += String("Open");
+        break;
+      default:
+        content += String("Closed");
+    }
     content += "<h4>HV system relay status: ";
     switch (datalayer_extended.VolvoPolestar.HVSysRlySts) {
       case 0:

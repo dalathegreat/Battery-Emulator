@@ -7,7 +7,6 @@
 
 void VolvoSpaBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
-  uint8_t cnt = 0;
 
   // Update webserver datalayer
   datalayer_extended.VolvoPolestar.soc_bms = SOC_BMS;
@@ -88,6 +87,7 @@ void VolvoSpaBattery::
   }
 
 #ifdef DEBUG_LOG
+  uint8_t cnt = 0;
   logging.print("BMS reported SOC%: ");
   logging.println(SOC_BMS);
   logging.print("Calculated SOC%: ");
@@ -127,6 +127,7 @@ void VolvoSpaBattery::
     logging.print(cell_voltages[cnt++]);
     logging.print(",");
   }
+  cnt = 0;
   logging.println(";");
 #endif
 }
@@ -272,18 +273,33 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                  (rx_frame.data.u8[3] == 0x42))  // BECM module voltage supply
       {
         datalayer_extended.VolvoPolestar.BECMsupplyVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+        transmit_can_frame(&VOLVO_BECM_HVIL_Status_Req);  //Send HVIL status readout command
+      } else if ((rx_frame.data.u8[0] == 0x04) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
+                 (rx_frame.data.u8[3] == 0x1A))  // BECM HVIL status
+      {
+        datalayer_extended.VolvoPolestar.HVILstatusBits = (rx_frame.data.u8[4]);
+        transmit_can_frame(&VOLVO_DTCreadout);  //Send DTC readout command
       } else if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[1] == 0x0B) && (rx_frame.data.u8[2] == 0x62) &&
                  (rx_frame.data.u8[3] == 0x4B))  // First response frame of cell voltages
       {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
-        rxConsecutiveFrames = 1;
+        rxConsecutiveFrames = true;
       } else if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[2] == 0x59) &&
                  (rx_frame.data.u8[3] == 0x03))  // First response frame for DTC with more than one code
       {
+        datalayer_extended.VolvoPolestar.DTCcount = ((rx_frame.data.u8[1] - 2) / 4);
         transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
-      } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames == 1)) {
+      } else if ((rx_frame.data.u8[1] == 0x59) &&
+                 (rx_frame.data.u8[2] == 0x03))  // Response frame for DTC with 0 or 1 code
+      {
+        if (rx_frame.data.u8[0] != 0x02) {
+          datalayer_extended.VolvoPolestar.DTCcount = 1;
+        } else {
+          datalayer_extended.VolvoPolestar.DTCcount = 0;
+        }
+      } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames)) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -303,7 +319,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
           transmit_can_frame(&VOLVO_SOH_Req);  //Send SOH read request
         }
-        rxConsecutiveFrames = 0;
+        rxConsecutiveFrames = false;
       }
       break;
     default:
@@ -314,7 +330,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 void VolvoSpaBattery::readCellVoltages() {
   battery_request_idx = 0;
   batteryModuleNumber = 0x10;
-  rxConsecutiveFrames = 0;
+  rxConsecutiveFrames = false;
   VOLVO_CELL_U_Req.data.u8[3] = batteryModuleNumber++;
   transmit_can_frame(&VOLVO_CELL_U_Req);  //Send cell voltage read request for first module
 }

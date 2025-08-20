@@ -783,6 +783,8 @@ struct DATALAYER_INFO_VOLVO_POLESTAR {
   uint8_t HVSysDCRlySts1 = 0;
   uint8_t HVSysDCRlySts2 = 0;
   uint8_t HVSysIsoRMonrSts = 0;
+  uint8_t DTCcount = 0;
+  uint8_t HVILstatusBits = 0;
   /** User requesting DTC reset via WebUI*/
   bool UserRequestDTCreset = false;
   /** User requesting DTC readout via WebUI*/
