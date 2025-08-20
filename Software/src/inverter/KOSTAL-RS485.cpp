@@ -232,7 +232,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
           if (check_kostal_frame_crc(rx_index)) {
             incoming_message_counter = RS485_HEALTHY;
 
-            if (RS485_RXFRAME[1] == 0x63) {
+            if (RS485_RXFRAME[1] == 'c' && info_sent) {
               if (RS485_RXFRAME[6] == 0x47) {
                 // Set time function - Do nothing.
                 send_kostal(ACK_FRAME, 8);  // ACK
@@ -251,9 +251,6 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                   send_kostal(ACK_FRAME, 8);  // ACK
                   contactortestTimerStart = millis();
                   contactortestTimerActive = true;
-                } else if (RS485_RXFRAME[7] == 0x00) {
-                  // ERROR STATE, ACK sent
-                  send_kostal(ACK_FRAME, 8);  // ACK
                 } else if (RS485_RXFRAME[7] == 0xFF) {
                   // no ACK sent
                 } else {
@@ -266,7 +263,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 //Reverse polarity, do nothing
               } else {
                 int code = RS485_RXFRAME[6] + RS485_RXFRAME[7] * 0x100;
-                if (code == 0x44a) {
+                if (code == 0x44a && info_sent) {
                   //Send cyclic data
                   // TODO: Probably not a good idea to use the battery object here like this.
                   if (battery) {
@@ -276,7 +273,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                   if (f2_startup_count < 15) {
                     f2_startup_count++;
                   }
-                  byte tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  uint8_t tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, CYCLIC_DATA, 64);
                   tmpframe[62] = calculate_kostal_crc(tmpframe, 62);
                   null_stuffer(tmpframe, 64);
@@ -285,7 +282,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 }
                 if (code == 0x84a) {
                   //Send  battery info
-                  byte tmpframe[40];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  uint8_t tmpframe[40];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, BATTERY_INFO, 40);
                   tmpframe[38] = calculate_kostal_crc(tmpframe, 38);
                   null_stuffer(tmpframe, 40);
@@ -300,7 +297,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 }
                 if (code == 0x353) {
                   //Send  battery error/status
-                  byte tmpframe[9];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  uint8_t tmpframe[9];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, STATUS_FRAME, 9);
                   tmpframe[7] = calculate_kostal_crc(tmpframe, 7);
                   null_stuffer(tmpframe, 9);
