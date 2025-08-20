@@ -254,6 +254,8 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 } else if (RS485_RXFRAME[7] == 0x00) {
                   // ERROR STATE, ACK sent
                   send_kostal(ACK_FRAME, 8);  // ACK
+                } else if (RS485_RXFRAME[7] == 0xFF) {
+                  // no ACK sent
                 } else {
                   // Battery deep sleep?
                   send_kostal(ACK_FRAME, 8);  // ACK
