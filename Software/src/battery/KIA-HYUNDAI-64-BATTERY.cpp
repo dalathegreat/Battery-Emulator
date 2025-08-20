@@ -5,6 +5,8 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
+#include <cstring>
+
 void KiaHyundai64Battery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 

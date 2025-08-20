@@ -2391,23 +2391,31 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
 
 void printDebugIfActive(uint8_t symbol, const char* message) {
   if (symbol == 1) {
+#ifdef DEBUG_LOG
     logging.println(message);
+#endif
   }
 }
 
 void TeslaBattery::printFaultCodesIfActive() {
   if (battery_packCtrsClosingBlocked &&
       battery_packContactorSetState != 5) {  // Contactors blocked closing and not already closed
+#ifdef DEBUG_LOG
     logging.println("ERROR: Check high voltage connectors and interlock circuit, closing contactors not allowed!");
+#endif
   }
   if (battery_pyroTestInProgress) {
+#ifdef DEBUG_LOG
     logging.println("ERROR: Please wait for pyro test to finish, HV cables successfully seated!");
+#endif
   }
   if (datalayer.system.status.inverter_allows_contactor_closing == false) {
+#ifdef DEBUG_LOG
     logging.println(
         "ERROR: Solar inverter does not allow for contactor closing. Check communication connection to the inverter "
         "or "
         "disable the inverter protocol to proceed in Tesla battery testing mode.");
+#endif
   }
   // Check each symbol and print debug information if its value is 1
   // 0X3AA: 938 HVP_alertMatrix1

@@ -21,8 +21,8 @@
 #include "CHADEMO-SHUNTS.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 #include "CHADEMO-BATTERY.h"
-#include "src/devboard/utils/logging.h"
 
 /* Initial frames received from ISA shunts provide invalid during initialization */
 static int framecount = 0;
@@ -87,6 +87,7 @@ void ISA_handleFrame(CAN_frame* frame) {
 
     case 0x510:
     case 0x511:
+#ifdef DEBUG_LOG
       logging.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
       logging.print("  ");
       logging.print(frame->ID, HEX);
@@ -98,6 +99,7 @@ void ISA_handleFrame(CAN_frame* frame) {
         logging.print(" ");
       }
       logging.println("");
+#endif
       break;
 
     case 0x521:
@@ -245,8 +247,10 @@ void ISA_initialize() {
   ISA_STOP();
   delay(500);
   for (int i = 0; i < 8; i++) {
+#ifdef DEBUG_LOG
     logging.print("ISA Initialization ");
     logging.println(i);
+#endif
 
     outframe.data.u8[0] = (0x20 + i);
     outframe.data.u8[1] = 0x02;
@@ -271,7 +275,9 @@ void ISA_initialize() {
 }
 
 void ISA_STOP() {
+#ifdef DEBUG_LOG
   logging.println("ISA STOP");
+#endif
 
   outframe.data.u8[0] = 0x34;
   outframe.data.u8[1] = 0x00;
@@ -286,7 +292,9 @@ void ISA_STOP() {
 }
 
 void ISA_sendSTORE() {
+#ifdef DEBUG_LOG
   logging.println("ISA send STORE");
+#endif
 
   outframe.data.u8[0] = 0x32;
   outframe.data.u8[1] = 0x00;
@@ -301,7 +309,9 @@ void ISA_sendSTORE() {
 }
 
 void ISA_START() {
+#ifdef DEBUG_LOG
   logging.println("ISA START");
+#endif
 
   outframe.data.u8[0] = 0x34;
   outframe.data.u8[1] = 0x01;
@@ -317,7 +327,9 @@ void ISA_START() {
 
 void ISA_RESTART() {
   //Has the effect of zeroing AH and KWH
+#ifdef DEBUG_LOG
   logging.println("ISA RESTART");
+#endif
 
   outframe.data.u8[0] = 0x3F;
   outframe.data.u8[1] = 0x00;
@@ -336,7 +348,9 @@ void ISA_deFAULT() {
   ISA_STOP();
   delay(500);
 
+#ifdef DEBUG_LOG
   logging.println("ISA RESTART to default");
+#endif
 
   outframe.data.u8[0] = 0x3D;
   outframe.data.u8[1] = 0x00;
@@ -358,7 +372,9 @@ void ISA_initCurrent() {
   ISA_STOP();
   delay(500);
 
+#ifdef DEBUG_LOG
   logging.println("ISA Initialization Current");
+#endif
 
   outframe.data.u8[0] = 0x21;
   outframe.data.u8[1] = 0x02;
@@ -382,8 +398,10 @@ void ISA_initCurrent() {
 }
 
 void ISA_getCONFIG(uint8_t i) {
+#ifdef DEBUG_LOG
   logging.print("ISA Get Config ");
   logging.println(i);
+#endif
 
   outframe.data.u8[0] = (0x60 + i);
   outframe.data.u8[1] = 0x00;
@@ -398,8 +416,10 @@ void ISA_getCONFIG(uint8_t i) {
 }
 
 void ISA_getCAN_ID(uint8_t i) {
+#ifdef DEBUG_LOG
   logging.print("ISA Get CAN ID ");
   logging.println(i);
+#endif
 
   outframe.data.u8[0] = (0x50 + i);
   if (i == 8)
@@ -418,8 +438,10 @@ void ISA_getCAN_ID(uint8_t i) {
 }
 
 void ISA_getINFO(uint8_t i) {
+#ifdef DEBUG_LOG
   logging.print("ISA Get INFO ");
   logging.println(i, HEX);
+#endif
 
   outframe.data.u8[0] = (0x70 + i);
   outframe.data.u8[1] = 0x00;

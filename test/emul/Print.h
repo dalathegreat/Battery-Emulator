@@ -5,6 +5,7 @@ class Print {
  public:
   virtual void flush() {}
   void printf(const char* format, ...) {}
+  void println(const char* str) {}
   virtual size_t write(uint8_t) = 0;
   virtual size_t write(const char* s) { return 0; }
   virtual size_t write(const uint8_t* buffer, size_t size) { return 0; }

@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 
+#include <cstring>
+
 /* TODO: 
 - Get contactor closing working
 - Figure out which CAN messages need to be sent towards the battery to keep it alive

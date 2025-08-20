@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 
+#include <cstring>
+
 /*
 Can bus @ 500k - all Extended ID, little endian
 All info from https://github.com/FozzieUK/FoxESS-Canbus-Protocol

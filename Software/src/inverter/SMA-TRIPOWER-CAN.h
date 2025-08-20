@@ -4,6 +4,8 @@
 #include "../devboard/hal/hal.h"
 #include "SmaInverterBase.h"
 
+#include <functional>
+
 #ifdef SMA_TRIPOWER_CAN
 #define SELECTED_INVERTER_CLASS SmaTripowerInverter
 #endif

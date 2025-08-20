@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 
+#include <cstring>
+
 /* TODO
 - LOG files from vehicle needed to determine CAN content needed to send towards battery!
   - BCCM_PMZ_A (0x18B 50ms)

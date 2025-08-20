@@ -4,9 +4,11 @@
 #include "../devboard/utils/logging.h"
 
 static void print_units(const char* header, int value, const char* units) {
+#ifdef DEBUG_LOG
   logging.print(header);
   logging.print(value);
   logging.print(units);
+#endif
 }
 
 void TestFakeBattery::

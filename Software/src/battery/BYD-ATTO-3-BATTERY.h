@@ -7,6 +7,8 @@
 #include "BYD-ATTO-3-HTML.h"
 #include "CanBattery.h"
 
+#include <cstring>
+
 /* Notes
 SOC% by default is now MEASURED by BMS.
 If you have a crash-locked pack, See the Wiki for more info on how to attempt an unlock.

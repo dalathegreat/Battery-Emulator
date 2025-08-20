@@ -44,6 +44,7 @@ class HardwareSerial : public Stream {
   void setRxBufferSize(uint16_t size) {}
   bool setRxFIFOFull(uint8_t fifoBytes) { return false; }
   size_t write(uint8_t) { return 0; }
+  size_t write(uint8_t* buffer, size_t size) { return 0; }
 };
 
 extern HardwareSerial Serial;
