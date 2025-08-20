@@ -289,13 +289,12 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                   send_kostal(tmpframe, 40);
                   datalayer.system.status.inverter_allows_contactor_closing = false;
                   dbg_message("inverter_allows_contactor_closing -> false (battery info sent)");
-
-                  // Kun første gang sættes startupMillis
+                  info_sent = true;
                   if (!startupMillis) {
                     startupMillis = currentMillis;
                   }
                 }
-                if (code == 0x353) {
+                if (code == 0x353 && info_sent) {
                   //Send  battery error/status
                   uint8_t tmpframe[9];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, STATUS_FRAME, 9);
