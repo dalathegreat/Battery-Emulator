@@ -39,6 +39,7 @@ void setup_can_shunt();
 #include "ORION-BMS.h"
 #include "PYLON-BATTERY.h"
 #include "RANGE-ROVER-PHEV-BATTERY.h"
+#include "RELION-LV-BATTERY.h"
 #include "RENAULT-KANGOO-BATTERY.h"
 #include "RENAULT-TWIZY.h"
 #include "RENAULT-ZOE-GEN1-BATTERY.h"
