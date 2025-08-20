@@ -258,7 +258,7 @@ typedef struct esp_mqtt_client_config_t {
                                              authentication (as alternative to certificate verification).
                                              PSK is enabled only if there are no other ways to
                                              verify broker. It's not copied nor freed by the client, user needs to clean up.*/
-      bool skip_cert_common_name_check; /*!< Skip any validation of server certificate CN field, this reduces the
+      bool skip_cert_common_name_check;        /*!< Skip any validation of server certificate CN field, this reduces the
                                       security of TLS and makes the *MQTT* client susceptible to MITM attacks  */
       const char** alpn_protos; /*!< NULL-terminated list of supported application protocols to be used for ALPN.*/
       const char* common_name;  /*!< Pointer to the string containing server certificate common name.
@@ -298,10 +298,10 @@ typedef struct esp_mqtt_client_config_t {
                                `key_password_len` must be correctly set.*/
       int key_password_len;     /*!< Length of the password pointed to by `key_password` */
       bool use_secure_element;  /*!< Enable secure element, available in ESP32-ROOM-32SE, for SSL connection */
-      void* ds_data;  /*!< Carrier of handle for digital signature parameters, digital signature peripheral is
+      void* ds_data;            /*!< Carrier of handle for digital signature parameters, digital signature peripheral is
                    available in some Espressif devices.  It's not copied nor freed by the client, user needs to clean up.*/
-    } authentication; /*!< Client authentication */
-  } credentials;      /*!< User credentials for broker */
+    } authentication;           /*!< Client authentication */
+  } credentials;                /*!< User credentials for broker */
   /**
      * *MQTT* Session related configuration
      */
