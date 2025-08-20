@@ -1,5 +1,6 @@
 #include "RENAULT-TWIZY.h"
 #include <cstdint>
+#include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 

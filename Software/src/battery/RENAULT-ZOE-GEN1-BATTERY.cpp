@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 
+#include <cstring>
+
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
 /* Information in this file is based of the OVMS V3 vehicle_renaultzoe.cpp component 

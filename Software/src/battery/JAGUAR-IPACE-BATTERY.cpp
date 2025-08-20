@@ -4,6 +4,8 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
+#include <cstring>
+
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillisKeepAlive = 0;
 
@@ -57,9 +59,11 @@ CAN_frame ipace_keep_alive = {.FD = false,
                               .data = {0x9E, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};*/
 
 static void print_units(const char* header, int value, const char* units) {
+#ifdef DEBUG_LOG
   logging.print(header);
   logging.print(value);
   logging.print(units);
+#endif
 }
 
 void JaguarIpaceBattery::update_values() {

@@ -4,6 +4,8 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 
+#include <cstring>
+
 /*
 TODOs left for this implementation
 - The battery has 3 CAN ports. One of the internal modules is responsible for the 7E4 polls, the battery for the 7E7 polls

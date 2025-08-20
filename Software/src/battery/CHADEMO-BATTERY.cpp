@@ -3,6 +3,8 @@
 #include "../devboard/utils/events.h"
 #include "CHADEMO-SHUNTS.h"
 
+#include <cmath>
+
 //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 void ChademoBattery::update_values() {
 
@@ -427,9 +429,9 @@ void ChademoBattery::update_evse_status(CAN_frame& f) {
     x109_evse_state.setpoint_HV_IDC = 0;
      */
     x109_evse_state.setpoint_HV_VDC =
-        min(x102_chg_session.TargetBatteryVoltage, x108_evse_cap.available_output_voltage);
+        std::min(x102_chg_session.TargetBatteryVoltage, x108_evse_cap.available_output_voltage);
     x109_evse_state.setpoint_HV_IDC =
-        min(x102_chg_session.ChargingCurrentRequest, x108_evse_cap.available_output_current);
+        std::min(x102_chg_session.ChargingCurrentRequest, x108_evse_cap.available_output_current);
 
     /* TODO calculate remaining discharge time : for now == 60m */
     x109_evse_state.remaining_time_1m = 60;
@@ -777,7 +779,9 @@ void ChademoBattery::handle_chademo_sequence() {
           digitalWrite(pin10, HIGH);
           evse_permission = true;
         } else {
+#ifdef DEBUG_LOG
           logging.println("Insulation check measures > 20v ");
+#endif
         }
 
         // likely unnecessary but just to be sure. consider removal

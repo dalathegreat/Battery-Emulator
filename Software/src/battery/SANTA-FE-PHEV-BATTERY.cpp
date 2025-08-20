@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 
+#include <cstring>
+
 /* Credits go to maciek16c for these findings!
 https://github.com/maciek16c/hyundai-santa-fe-phev-battery
 https://openinverter.org/forum/viewtopic.php?p=62256

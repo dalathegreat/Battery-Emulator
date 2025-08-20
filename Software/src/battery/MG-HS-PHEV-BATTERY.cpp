@@ -5,6 +5,9 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
+#include <cmath>
+#include <cstring>
+
 /*
 MG HS PHEV 16.6kWh battery integration
 

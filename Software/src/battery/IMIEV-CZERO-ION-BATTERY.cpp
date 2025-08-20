@@ -4,6 +4,8 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
+#include <cstring>
+
 //Code still work in progress, TODO:
 //Figure out if CAN messages need to be sent to keep the system happy?
 

@@ -5,6 +5,8 @@
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
 
+#include <cmath>
+
 /* TODO
 - Add //NVROL Reset
 - Add //Enable temporisation before sleep (see ljames28 repo)

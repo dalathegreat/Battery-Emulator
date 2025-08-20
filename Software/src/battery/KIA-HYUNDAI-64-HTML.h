@@ -5,6 +5,8 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
+#include <cstring>
+
 class KiaHyundai64HtmlRenderer : public BatteryHtmlRenderer {
  public:
   KiaHyundai64HtmlRenderer(DATALAYER_INFO_KIAHYUNDAI64* dl) : kia_datalayer(dl) {}
