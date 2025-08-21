@@ -315,7 +315,7 @@ static bool publish_common_info(void) {
     }
 
     doc["event_level"] = get_event_level_string(get_event_level());
-    doc["emulator_status"] = get_emulator_staus_string(get_emulator_status());
+    doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
 
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {

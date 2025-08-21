@@ -423,7 +423,7 @@ EMULATOR_STATUS get_emulator_status() {
   }
 }
 
-const char* get_emulator_staus_string(EMULATOR_STATUS status) {
+const char* get_emulator_status_string(EMULATOR_STATUS status) {
   // Return the status string but skip "STATUS_" that should always be first
   return EMULATOR_STATUS_STRING[status] + 7;
 }

@@ -163,7 +163,7 @@ const char* get_event_level_string(EVENTS_LEVEL_TYPE event_level);
 
 EVENTS_LEVEL_TYPE get_event_level(void);
 EMULATOR_STATUS get_emulator_status();
-const char* get_emulator_staus_string(EMULATOR_STATUS status);
+const char* get_emulator_status_string(EMULATOR_STATUS status);
 
 void init_events(void);
 void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data);
