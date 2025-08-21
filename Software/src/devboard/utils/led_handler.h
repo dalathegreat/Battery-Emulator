@@ -6,7 +6,6 @@
 
 class LED {
  public:
-
   LED(gpio_num_t pin, uint8_t maxBrightness)
       : pixels(pin), max_brightness(maxBrightness), brightness(maxBrightness), mode(led_mode_enum::CLASSIC) {}
 
