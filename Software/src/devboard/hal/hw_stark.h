@@ -38,7 +38,16 @@ class StarkHal : public Esp32Hal {
   virtual gpio_num_t CAN_SE_PIN() { return GPIO_NUM_NC; }
 
   // CANFD_ADDON defines for MCP2517
-  virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_17; }
+  // Stark CMR v1 has GPIO pin 16 for SCK, CMR v2 has GPIO pin 17. Only diff between the two boards
+  bool isStarkVersion1() {
+    size_t flashSize = ESP.getFlashChipSize();
+    if (flashSize == 4 * 1024 * 1024) {
+      return true;
+    } else {  //v2
+      return false;
+    }
+  }
+  virtual gpio_num_t MCP2517_SCK() { return isStarkVersion1() ? GPIO_NUM_16 : GPIO_NUM_17; }
   virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_5; }
   virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_34; }
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_18; }
