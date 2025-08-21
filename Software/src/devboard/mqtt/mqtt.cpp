@@ -141,7 +141,9 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"balancing_active_cells", "Balancing Active Cells", "", "", "", always}};
 
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
-                                             {"pause_status", "Pause Status", "", "", "", always}};
+                                             {"pause_status", "Pause Status", "", "", "", always},
+                                             {"event_level", "Event Level", "", "", "", always},
+                                             {"event_level_color", "Event Level Color", "", "", "", always}};
 
 static std::list<SensorConfig> sensorConfigs;
 
@@ -311,6 +313,32 @@ static bool publish_common_info(void) {
         set_battery_attributes(doc, datalayer.battery2, "_2", battery2->supports_charged_energy());
       }
     }
+
+    EVENTS_LEVEL_TYPE event_level = get_event_level();
+    doc["event_level"] = String(event_level);
+
+    // Use Home Assistant Colors https://github.com/home-assistant/core/blob/e2fdc6a98bdd22187688e70701fc3617423a714b/homeassistant/util/color.py#L19
+    String event_level_color = "";
+    switch (event_level)
+    {
+    case EVENT_LEVEL_INFO:
+      event_level_color = "green";
+      break;
+    case EVENT_LEVEL_WARNING:
+      event_level_color = "yellow";
+      break;
+    case EVENT_LEVEL_DEBUG:
+    case EVENT_LEVEL_UPDATE:
+      event_level_color = "blue";
+      break;
+    case EVENT_LEVEL_ERROR:
+      event_level_color = "red";
+    default:
+      event_level_color = "green";
+      break;
+    }
+    doc["event_level_color"] = event_level_color;
+
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
 #ifdef DEBUG_LOG
