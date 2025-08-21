@@ -32,10 +32,6 @@ void led_exe(void) {
   led->exe();
 }
 
-led_color led_get_color() {
-  return led->color;
-}
-
 void LED::exe(void) {
 
   // Update brightness
@@ -53,27 +49,21 @@ void LED::exe(void) {
   }
 
   // Set color
-  switch (get_event_level()) {
-    case EVENT_LEVEL_INFO:
-      color = led_color::GREEN;
+  switch (get_emulator_status()) {
+    case EMULATOR_STATUS::STATUS_OK:
       pixels.setPixelColor(COLOR_GREEN(brightness));  // Green pulsing LED
       break;
-    case EVENT_LEVEL_WARNING:
-      color = led_color::YELLOW;
+    case EMULATOR_STATUS::STATUS_WARNING:
       pixels.setPixelColor(COLOR_YELLOW(brightness));  // Yellow pulsing LED
       break;
-    case EVENT_LEVEL_DEBUG:
-    case EVENT_LEVEL_UPDATE:
-      color = led_color::BLUE;
-      pixels.setPixelColor(COLOR_BLUE(brightness));  // Blue pulsing LED
-      break;
-    case EVENT_LEVEL_ERROR:
-      color = led_color::RED;
+    case EMULATOR_STATUS::STATUS_ERROR:
       pixels.setPixelColor(COLOR_RED(esp32hal->LED_MAX_BRIGHTNESS()));  // Red LED full brightness
       break;
-    default:
+    case EMULATOR_STATUS::STATUS_UPDATING:
+      pixels.setPixelColor(COLOR_BLUE(brightness));  // Blue pulsing LED
       break;
   }
+
   pixels.show();  // This sends the updated pixel color to the hardware.
 }
 

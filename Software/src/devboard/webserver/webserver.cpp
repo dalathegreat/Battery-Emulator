@@ -943,21 +943,18 @@ String processor(const String& var) {
         content += "<div style='background-color: ";
       }
 
-      switch (led_get_color()) {
-        case led_color::GREEN:
+      switch (get_emulator_status()) {
+        case EMULATOR_STATUS::STATUS_OK:
           content += "#2D3F2F;";
           break;
-        case led_color::YELLOW:
+        case EMULATOR_STATUS::STATUS_WARNING:
           content += "#F5CC00;";
           break;
-        case led_color::BLUE:
-          content += "#2B35AF;";  // Blue in test mode
-          break;
-        case led_color::RED:
+        case EMULATOR_STATUS::STATUS_ERROR:
           content += "#A70107;";
           break;
-        default:  // Some new color, make background green
-          content += "#2D3F2F;";
+        case EMULATOR_STATUS::STATUS_UPDATING:
+          content += "#2B35AF;";  // Blue in test mode
           break;
       }
 
