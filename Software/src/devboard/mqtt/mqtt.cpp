@@ -577,12 +577,12 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
     setBatteryPause(true, false, true);
   }
 
-  if(strcmp(topic, generateButtonTopic("SET_LIMITS").c_str()) == 0) {
+  if (strcmp(topic, generateButtonTopic("SET_LIMITS").c_str()) == 0) {
     JsonDocument doc;
     char* data_str = strndup(data, data_len);
     deserializeJson(doc, data_str);
-    
-    if(doc["max_charge"].is<int>()) {
+
+    if (doc["max_charge"].is<int>()) {
       datalayer.battery.settings.max_remote_set_charge_dA = doc["max_charge"];
       datalayer.battery.settings.remote_settings_limit_charge = true;
     } else {
@@ -590,7 +590,7 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
       datalayer.battery.settings.remote_settings_limit_charge = false;
     }
 
-    if(doc["max_discharge"].is<int>()) {
+    if (doc["max_discharge"].is<int>()) {
       datalayer.battery.settings.max_remote_set_discharge_dA = doc["max_discharge"];
       datalayer.battery.settings.remote_settings_limit_discharge = true;
     } else {
@@ -598,7 +598,7 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
       datalayer.battery.settings.remote_settings_limit_discharge = false;
     }
 
-    if(doc["timeout"].is<int>()) {
+    if (doc["timeout"].is<int>()) {
       datalayer.battery.settings.remote_set_timeout = doc["timeout"];
     } else {
       datalayer.battery.settings.remote_set_timeout = 5000;

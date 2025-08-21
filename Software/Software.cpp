@@ -153,7 +153,7 @@ void update_calculated_values(volatile unsigned long currentMillis) {
   }
 
   /* Check is remote set limits have timed out */
-  if(currentMillis > datalayer.battery.settings.remote_set_timestamp + datalayer.battery.settings.remote_set_timeout) {
+  if (currentMillis > datalayer.battery.settings.remote_set_timestamp + datalayer.battery.settings.remote_set_timeout) {
     datalayer.battery.settings.remote_settings_limit_charge = false;
     datalayer.battery.settings.remote_settings_limit_discharge = false;
     datalayer.battery.settings.max_remote_set_charge_dA = 0;
@@ -170,8 +170,8 @@ void update_calculated_values(volatile unsigned long currentMillis) {
   }
 
   /* Apply remote restrictions if set*/
-  if(datalayer.battery.settings.remote_settings_limit_charge){
-    if(datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_remote_set_charge_dA) {
+  if (datalayer.battery.settings.remote_settings_limit_charge) {
+    if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_remote_set_charge_dA) {
       datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_remote_set_charge_dA;
     }
   } else {
@@ -185,8 +185,8 @@ void update_calculated_values(volatile unsigned long currentMillis) {
   }
 
   /* Apply remote restrictions if set*/
-  if(datalayer.battery.settings.remote_settings_limit_discharge){
-    if(datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_remote_set_charge_dA) {
+  if (datalayer.battery.settings.remote_settings_limit_discharge) {
+    if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_remote_set_charge_dA) {
       datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_remote_set_discharge_dA;
     }
   } else {
