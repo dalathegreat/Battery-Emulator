@@ -82,8 +82,6 @@ class KiaEGmpBattery : public CanBattery {
   int8_t heatertemp = 20;
   bool set_voltage_limits = false;
   uint8_t ticks_200ms_counter = 0;
-  uint8_t EGMP_1CF_counter = 0;
-  uint8_t EGMP_3XF_counter = 0;
 };
 
 #endif

@@ -90,6 +90,8 @@ const char* name_for_battery_type(BatteryType type) {
       return KiaEGmpBattery::Name;
     case BatteryType::KiaHyundai64:
       return KiaHyundai64Battery::Name;
+    case BatteryType::Kia64FD:
+      return Kia64FDBattery::Name;
     case BatteryType::KiaHyundaiHybrid:
       return KiaHyundaiHybridBattery::Name;
     case BatteryType::Meb:
@@ -187,6 +189,8 @@ Battery* create_battery(BatteryType type) {
       return new ImievCZeroIonBattery();
     case BatteryType::JaguarIpace:
       return new JaguarIpaceBattery();
+    case BatteryType::Kia64FD:
+      return new Kia64FDBattery();
     case BatteryType::KiaEGmp:
       return new KiaEGmpBattery();
     case BatteryType::KiaHyundai64:

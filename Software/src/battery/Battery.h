@@ -45,6 +45,7 @@ enum class BatteryType {
   MgHsPhev = 37,
   SamsungSdiLv = 38,
   HyundaiIoniq28 = 39,
+  Kia64FD = 40,
   Highest
 };
 
