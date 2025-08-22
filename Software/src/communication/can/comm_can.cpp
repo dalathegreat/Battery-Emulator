@@ -41,7 +41,8 @@ void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_S
 
 ACAN_ESP32_Settings* settingsespcan;
 
-static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
+uint8_t user_selected_can_addon_crystal_frequency_mhz = 0;
+static uint32_t QUARTZ_FREQUENCY;
 SPIClass SPI2515;
 
 ACAN2515* can2515;
@@ -58,6 +59,12 @@ ACAN2517FDSettings* settings2517;
 bool native_can_initialized = false;
 
 bool init_CAN() {
+
+  if(user_selected_can_addon_crystal_frequency_mhz > 0){
+    QUARTZ_FREQUENCY = user_selected_can_addon_crystal_frequency_mhz * 1000000UL;
+  } else {
+    QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;
+  }
 
   auto nativeIt = can_receivers.find(CAN_NATIVE);
   if (nativeIt != can_receivers.end()) {

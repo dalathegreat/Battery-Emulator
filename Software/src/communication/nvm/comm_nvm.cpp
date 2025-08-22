@@ -103,6 +103,7 @@ void init_stored_settings() {
   user_selected_inverter_ah_capacity = settings.getUInt("INVAHCAPACITY", 0);
   user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
   user_selected_inverter_ignore_contactors = settings.getBool("INVICNT", false);
+  user_selected_can_addon_crystal_frequency_mhz = settings.getUInt("CANFREQ", 8);
 
   auto readIf = [](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
