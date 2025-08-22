@@ -25,12 +25,12 @@ void delayMicroseconds(unsigned long us);
 int max(int a, int b);
 
 class ESPClass {
-public:
-    size_t getFlashChipSize() {
-        // This is a placeholder for the actual implementation
-        // that retrieves the flash chip size.
-        return 4 * 1024 * 1024; // Example: returning 4MB
-    }
+ public:
+  size_t getFlashChipSize() {
+    // This is a placeholder for the actual implementation
+    // that retrieves the flash chip size.
+    return 4 * 1024 * 1024;  // Example: returning 4MB
+  }
 };
 
 extern ESPClass ESP;
