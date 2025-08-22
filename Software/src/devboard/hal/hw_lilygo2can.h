@@ -7,6 +7,13 @@ class LilyGo2CANHal : public Esp32Hal {
  public:
   const char* name() { return "LilyGo T_2CAN"; }
 
+  virtual void set_default_configuration_values() {
+    BatteryEmulatorSettingsStore settings;
+    if(!settings.settingExists("CANFREQ")){
+      settings.saveUInt("CANFREQ", 16);
+    }
+  }
+
   virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_7; }
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_6; }
 

@@ -33,6 +33,8 @@ void init_stored_settings() {
   settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
 #endif  // LOAD_SAVED_SETTINGS_ON_BOOT
 
+  esp32hal->set_default_configuration_values();
+
   char tempSSIDstring[63];  // Allocate buffer with sufficient size
   size_t lengthSSID = settings.getString("SSID", tempSSIDstring, sizeof(tempSSIDstring));
   if (lengthSSID > 0) {  // Successfully read the string from memory. Set it to SSID!

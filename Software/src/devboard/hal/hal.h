@@ -7,6 +7,7 @@
 #include "../../../src/devboard/utils/events.h"
 #include "../../../src/devboard/utils/logging.h"
 #include "../../../src/devboard/utils/types.h"
+#include <src/communication/nvm/comm_nvm.h>
 
 // Hardware Abstraction Layer base class.
 // Derive a class to define board-specific parameters such as GPIO pin numbers
@@ -23,6 +24,8 @@ class Esp32Hal {
   virtual int CORE_FUNCTION_CORE() { return 1; }
   virtual int MODBUS_CORE() { return 0; }
   virtual int WIFICORE() { return 0; }
+
+  virtual void set_default_configuration_values(){}
 
   template <typename... Pins>
   bool alloc_pins(const char* name, Pins... pins) {
