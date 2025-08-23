@@ -543,7 +543,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     }
 
     if (counter_100ms > 3) {
-      if (BMS_voltage_available) { // Transmit battery voltage back to BMS when confirmed it's available, this closes the contactors
+      if (BMS_voltage_available) {  // Transmit battery voltage back to BMS when confirmed it's available, this closes the contactors
         ATTO_3_441.data.u8[4] = (uint8_t)(battery_voltage - 1);
         ATTO_3_441.data.u8[5] = ((battery_voltage - 1) >> 8);
         ATTO_3_441.data.u8[6] = 0xFF;
