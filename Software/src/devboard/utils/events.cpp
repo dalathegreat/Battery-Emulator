@@ -271,8 +271,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_INTERFACE_MISSING:
       return "Configuration trying to use CAN interface not baked into the software. Recompile software!";
     case EVENT_ERROR_OPEN_CONTACTOR:
-      return "Too much time spent in error state. Opening contactors, not safe to continue charging. "
-             "Check other error code for reason!";
+      return "Too much time spent in error state. Opening contactors, not safe to continue. "
+             "Check other active ERROR code for reason. Reboot emulator after problem is solved!";
     case EVENT_MODBUS_INVERTER_MISSING:
       return "Modbus inverter has not sent any data. Inspect communication wiring!";
     case EVENT_NO_ENABLE_DETECTED:
