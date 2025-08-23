@@ -393,6 +393,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_voltage = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[0];
       //battery_temperature_something = rx_frame.data.u8[7] - 40; resides in frame 7
+      BMS_voltage_available = true;
       break;
     case 0x445:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -542,7 +543,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     }
 
     if (counter_100ms > 3) {
-      if (battery_voltage > 0) {
+      if (BMS_voltage_available) { // Transmit battery voltage back to BMS when confirmed it's available, this closes the contactors
         ATTO_3_441.data.u8[4] = (uint8_t)(battery_voltage - 1);
         ATTO_3_441.data.u8[5] = ((battery_voltage - 1) >> 8);
         ATTO_3_441.data.u8[6] = 0xFF;
