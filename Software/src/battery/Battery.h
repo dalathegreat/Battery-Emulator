@@ -92,7 +92,7 @@ class Battery {
 
   virtual void clear_isolation() {}
   virtual void reset_BMS() {}
-  virtual void reset_SOC() {}  
+  virtual void reset_SOC() {}
   virtual void reset_crash() {}
   virtual void reset_contactor() {}
   virtual void reset_NVROL() {}
