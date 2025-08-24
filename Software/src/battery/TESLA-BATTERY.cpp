@@ -727,8 +727,24 @@ void TeslaBattery::
 #ifdef DEBUG_LOG
       logging.println("ERROR: BMS reset failed due to contactors not being open, or BMS ECU not allowing it");
 #endif  //DEBUG_LOG
-      stateMachineBMSReset = 0;
+      stateMachineBMSReset = 0xFF;
       datalayer.battery.settings.user_requests_tesla_bms_reset = false;
+    }
+  }
+  if (datalayer.battery.settings.user_requests_tesla_soc_reset) {
+    if (datalayer.battery.status.real_soc < 1500 || datalayer.battery.status.real_soc > 9000) {
+      //Start the SOC reset statemachine, only if SOC < 15% or > 90%
+      stateMachineSOCReset = 0;
+      datalayer.battery.settings.user_requests_tesla_soc_reset = false;
+#ifdef DEBUG_LOG
+      logging.println("SOC reset requested");
+#endif  //DEBUG_LOG
+    } else {
+#ifdef DEBUG_LOG
+      logging.println("ERROR: SOC reset failed due to SOC not being less than 15 or greater than 90");
+#endif  //DEBUG_LOG
+      stateMachineSOCReset = 0xFF;
+      datalayer.battery.settings.user_requests_tesla_soc_reset = false;
     }
   }
 
@@ -2304,6 +2320,47 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
           TESLA_602.data = {0x02, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
           transmit_can_frame(&TESLA_602);
           //Should generate a CAN UDS log message(s) indicating ECU has reset
+          stateMachineBMSReset = 0xFF;
+          break;
+        default:
+          //Something went wrong. Reset all and cancel
+          stateMachineBMSReset = 0xFF;
+          break;
+      }
+    }
+    if (stateMachineSOCReset != 0xFF) {
+      //This implementation should be rewritten to actually reply to the UDS responses sent by the BMS
+      //While this may work, it is not the correct way to implement this
+      switch (stateMachineBMSReset) {
+        case 0:
+          TESLA_602.data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          stateMachineBMSReset = 1;
+          break;
+        case 1:
+          TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          stateMachineBMSReset = 2;
+          break;
+        case 2:
+          TESLA_602.data = {0x10, 0x12, 0x27, 0x06, 0x35, 0x34, 0x37, 0x36};
+          transmit_can_frame(&TESLA_602);
+          stateMachineBMSReset = 3;
+          break;
+        case 3:
+          TESLA_602.data = {0x21, 0x31, 0x30, 0x33, 0x32, 0x3D, 0x3C, 0x3F};
+          transmit_can_frame(&TESLA_602);
+          stateMachineBMSReset = 4;
+          break;
+        case 4:
+          TESLA_602.data = {0x22, 0x3E, 0x39, 0x38, 0x3B, 0x3A, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          //Should generate a CAN UDS log message indicating ECU unlocked
+          stateMachineBMSReset = 5;
+          break;
+        case 5:
+          TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x07, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
           stateMachineBMSReset = 0xFF;
           break;
         default:
