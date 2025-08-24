@@ -86,13 +86,6 @@ void VolvoSpaBattery::
     }
   }
 
-  //Raise event if HVIL connector not seated
-  if ((datalayer_extended.VolvoPolestar.HVILstatusBits & 0x03) > 0) {
-    set_event(EVENT_HVIL_FAILURE, datalayer_extended.VolvoPolestar.HVILstatusBits);
-  } else {
-    clear_event(EVENT_HVIL_FAILURE);
-  }
-
 #ifdef DEBUG_LOG
   uint8_t cnt = 0;
   logging.print("BMS reported SOC%: ");
