@@ -21,7 +21,6 @@ enum class comm_interface {
   Highest
 };
 
-enum led_color { GREEN, YELLOW, RED, BLUE };
 enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT };
 enum PrechargeState {
   AUTO_PRECHARGE_IDLE,

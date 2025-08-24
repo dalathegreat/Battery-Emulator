@@ -14,6 +14,7 @@ typedef struct {
 static EVENT_TYPE events;
 static const char* EVENTS_ENUM_TYPE_STRING[] = {EVENTS_ENUM_TYPE(GENERATE_STRING)};
 static const char* EVENTS_LEVEL_TYPE_STRING[] = {EVENTS_LEVEL_TYPE(GENERATE_STRING)};
+static const char* EMULATOR_STATUS_STRING[] = {EMULATOR_STATUS(GENERATE_STRING)};
 
 /* Local function prototypes */
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
@@ -270,8 +271,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_INTERFACE_MISSING:
       return "Configuration trying to use CAN interface not baked into the software. Recompile software!";
     case EVENT_ERROR_OPEN_CONTACTOR:
-      return "Too much time spent in error state. Opening contactors, not safe to continue charging. "
-             "Check other error code for reason!";
+      return "Too much time spent in error state. Opening contactors, not safe to continue. "
+             "Check other active ERROR code for reason. Reboot emulator after problem is solved!";
     case EVENT_MODBUS_INVERTER_MISSING:
       return "Modbus inverter has not sent any data. Inspect communication wiring!";
     case EVENT_NO_ENABLE_DETECTED:
@@ -393,12 +394,38 @@ const char* get_event_level_string(EVENTS_ENUM_TYPE event) {
   return EVENTS_LEVEL_TYPE_STRING[events.entries[event].level] + 12;
 }
 
+const char* get_event_level_string(EVENTS_LEVEL_TYPE event_level) {
+  // Return the event level but skip "EVENT_LEVEL_TYPE_" that should always be first
+  return EVENTS_LEVEL_TYPE_STRING[event_level] + 17;
+}
+
 const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event) {
   return &events.entries[event];
 }
 
 EVENTS_LEVEL_TYPE get_event_level(void) {
   return events.level;
+}
+
+EMULATOR_STATUS get_emulator_status() {
+  switch (events.level) {
+    case EVENT_LEVEL_DEBUG:
+    case EVENT_LEVEL_INFO:
+      return EMULATOR_STATUS::STATUS_OK;
+    case EVENT_LEVEL_WARNING:
+      return EMULATOR_STATUS::STATUS_WARNING;
+    case EVENT_LEVEL_UPDATE:
+      return EMULATOR_STATUS::STATUS_UPDATING;
+    case EVENT_LEVEL_ERROR:
+      return EMULATOR_STATUS::STATUS_ERROR;
+    default:
+      return EMULATOR_STATUS::STATUS_OK;
+  }
+}
+
+const char* get_emulator_status_string(EMULATOR_STATUS status) {
+  // Return the status string but skip "STATUS_" that should always be first
+  return EMULATOR_STATUS_STRING[status] + 7;
 }
 
 /* Local functions */

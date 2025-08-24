@@ -846,6 +846,28 @@ String processor(const String& var) {
     content += "button:hover { background-color: #3A4A52; }";
     content += "h2 { font-size: 1.2em; margin: 0.3em 0 0.5em 0; }";
     content += "h4 { margin: 0.6em 0; line-height: 1.2; }";
+    //content += ".tooltip { position: relative; display: inline-block; }";
+    content += ".tooltip .tooltiptext {";
+    content += "  visibility: hidden;";
+    content += "  width: 200px;";
+    content += "  background-color: #3A4A52;";  // Matching your button hover color
+    content += "  color: white;";
+    content += "  text-align: center;";
+    content += "  border-radius: 6px;";
+    content += "  padding: 8px;";
+    content += "  position: absolute;";
+    content += "  z-index: 1;";
+    content += "  bottom: 125%;";
+    content += "  left: 50%;";
+    content += "  margin-left: -100px;";
+    content += "  opacity: 0;";
+    content += "  transition: opacity 0.3s;";
+    content += "  font-size: 0.9em;";
+    content += "  font-weight: normal;";
+    content += "  line-height: 1.4;";
+    content += "}";
+    content += ".tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }";
+    content += ".tooltip-icon { color: #505E67; cursor: help; }";  // Matching your button color
     content += "</style>";
 
     // Compact header
@@ -949,21 +971,18 @@ String processor(const String& var) {
         content += "<div style='background-color: ";
       }
 
-      switch (led_get_color()) {
-        case led_color::GREEN:
+      switch (get_emulator_status()) {
+        case EMULATOR_STATUS::STATUS_OK:
           content += "#2D3F2F;";
           break;
-        case led_color::YELLOW:
+        case EMULATOR_STATUS::STATUS_WARNING:
           content += "#F5CC00;";
           break;
-        case led_color::BLUE:
-          content += "#2B35AF;";  // Blue in test mode
-          break;
-        case led_color::RED:
+        case EMULATOR_STATUS::STATUS_ERROR:
           content += "#A70107;";
           break;
-        default:  // Some new color, make background green
-          content += "#2D3F2F;";
+        case EMULATOR_STATUS::STATUS_UPDATING:
+          content += "#2B35AF;";  // Blue in test mode
           break;
       }
 
@@ -1121,58 +1140,6 @@ String processor(const String& var) {
         }
       }
 
-      content += "<h4>Battery allows contactor closing: ";
-      if (datalayer.system.status.battery_allows_contactor_closing == true) {
-        content += "<span>&#10003;</span>";
-      } else {
-        content += "<span style='color: red;'>&#10005;</span>";
-      }
-
-      content += " Inverter allows contactor closing: ";
-      if (datalayer.system.status.inverter_allows_contactor_closing == true) {
-        content += "<span>&#10003;</span></h4>";
-      } else {
-        content += "<span style='color: red;'>&#10005;</span></h4>";
-      }
-      if (emulator_pause_status == NORMAL)
-        content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
-      else
-        content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
-
-      if (contactor_control_enabled) {
-        content += "<h4>Contactors controlled by emulator, state: ";
-        if (datalayer.system.status.contactors_engaged) {
-          content += "<span style='color: green;'>ON</span>";
-        } else {
-          content += "<span style='color: red;'>OFF</span>";
-        }
-        content += "</h4>";
-        if (contactor_control_enabled_double_battery) {
-          if (pwm_contactor_control) {
-            content += "<h4>Cont. Neg.: ";
-            if (datalayer.system.status.contactors_battery2_engaged) {
-              content += "<span style='color: green;'>Economized</span>";
-              content += " Cont. Pos.: ";
-              content += "<span style='color: green;'>Economized</span>";
-            } else {
-              content += "<span style='color: red;'>&#10005;</span>";
-              content += " Cont. Pos.: ";
-              content += "<span style='color: red;'>&#10005;</span>";
-            }
-          } else if (
-              esp32hal->SECOND_BATTERY_CONTACTORS_PIN() !=
-              GPIO_NUM_NC) {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
-            content += "<h4>Cont. Neg.: ";
-            if (digitalRead(esp32hal->SECOND_BATTERY_CONTACTORS_PIN()) == HIGH) {
-              content += "<span style='color: green;'>&#10003;</span>";
-            } else {
-              content += "<span style='color: red;'>&#10005;</span>";
-            }
-          }  //no PWM_CONTACTOR_CONTROL
-          content += "</h4>";
-        }
-      }
-
       // Close the block
       content += "</div>";
 
@@ -1270,71 +1237,85 @@ String processor(const String& var) {
         } else {  // > 0
           content += "<h4>Battery charging!</h4>";
         }
-
-        content += "<h4>Automatic contactor closing allowed:</h4>";
-        content += "<h4>Battery: ";
-        if (datalayer.system.status.battery2_allowed_contactor_closing == true) {
-          content += "<span>&#10003;</span>";
-        } else {
-          content += "<span style='color: red;'>&#10005;</span>";
-        }
-
-        content += " Inverter: ";
-        if (datalayer.system.status.inverter_allows_contactor_closing == true) {
-          content += "<span>&#10003;</span></h4>";
-        } else {
-          content += "<span style='color: red;'>&#10005;</span></h4>";
-        }
-
-        if (emulator_pause_status == NORMAL)
-          content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
-        else
-          content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
-
-        if (contactor_control_enabled) {
-          content += "<h4>Contactors controlled by emulator, state: ";
-          if (datalayer.system.status.contactors_battery2_engaged) {
-            content += "<span style='color: green;'>ON</span>";
-          } else {
-            content += "<span style='color: red;'>OFF</span>";
-          }
-          content += "</h4>";
-
-          if (contactor_control_enabled_double_battery) {
-            content += "<h4>Cont. Neg.: ";
-            if (pwm_contactor_control) {
-              if (datalayer.system.status.contactors_battery2_engaged) {
-                content += "<span style='color: green;'>Economized</span>";
-                content += " Cont. Pos.: ";
-                content += "<span style='color: green;'>Economized</span>";
-              } else {
-                content += "<span style='color: red;'>&#10005;</span>";
-                content += " Cont. Pos.: ";
-                content += "<span style='color: red;'>&#10005;</span>";
-              }
-            } else {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
-#if defined(SECOND_POSITIVE_CONTACTOR_PIN) && defined(SECOND_NEGATIVE_CONTACTOR_PIN)
-              if (digitalRead(SECOND_NEGATIVE_CONTACTOR_PIN) == HIGH) {
-                content += "<span style='color: green;'>&#10003;</span>";
-              } else {
-                content += "<span style='color: red;'>&#10005;</span>";
-              }
-
-              content += " Cont. Pos.: ";
-              if (digitalRead(SECOND_POSITIVE_CONTACTOR_PIN) == HIGH) {
-                content += "<span style='color: green;'>&#10003;</span>";
-              } else {
-                content += "<span style='color: red;'>&#10005;</span>";
-              }
-#endif
-            }
-            content += "</h4>";
-          }
-        }
         content += "</div>";
         content += "</div>";
       }
     }
+    // Block for Contactor status and component request status
+    // Start a new block with gray background color
+    content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+
+    if (emulator_pause_status == NORMAL) {
+      content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    } else {
+      content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    }
+
+    content += "<h4>Emulator allows contactor closing: ";
+    if (datalayer.battery.status.bms_status == FAULT) {
+      content += "<span style='color: red;'>&#10005;</span>";
+    } else {
+      content += "<span>&#10003;</span>";
+    }
+    content += " Inverter allows contactor closing: ";
+    if (datalayer.system.status.inverter_allows_contactor_closing == true) {
+      content += "<span>&#10003;</span></h4>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span></h4>";
+    }
+    if (battery2) {
+      content += "<h4>Secondary battery allowed to join ";
+      if (datalayer.system.status.battery2_allowed_contactor_closing == true) {
+        content += "<span>&#10003;</span>";
+      } else {
+        content += "<span style='color: red;'>&#10005; (voltage mismatch)</span>";
+      }
+    }
+
+    if (!contactor_control_enabled) {
+      content += "<div class=\"tooltip\">";
+      content += "<h4>Contactors not fully controlled via emulator <span style=\"color:orange\">[?]</span></h4>";
+      content +=
+          "<span class=\"tooltiptext\">This means you are either running CAN controlled contactors OR manually "
+          "powering the contactors. Battery-Emulator will have limited amount of control over the contactors!</span>";
+      content += "</div>";
+    } else {  //contactor_control_enabled TRUE
+      content += "<div class=\"tooltip\"><h4>Contactors controlled by emulator, state: ";
+      if (datalayer.system.status.contactors_engaged == 0) {
+        content += "<span style='color: green;'>PRECHARGE</span>";
+      } else if (datalayer.system.status.contactors_engaged == 1) {
+        content += "<span style='color: green;'>ON</span>";
+      } else if (datalayer.system.status.contactors_engaged == 2) {
+        content += "<span style='color: red;'>OFF</span>";
+        content += "<span class=\"tooltip-icon\"> [!]</span>";
+        content +=
+            "<span class=\"tooltiptext\">Emulator spent too much time in critical FAULT event. Investigate event "
+            "causing this via Events page. Reboot required to resume operation!</span>";
+      }
+      content += "</h4></div>";
+      if (contactor_control_enabled_double_battery && battery2) {
+        content += "<h4>Secondary battery contactor, state: ";
+        if (pwm_contactor_control) {
+          if (datalayer.system.status.contactors_battery2_engaged) {
+            content += "<span style='color: green;'>Economized</span>";
+          } else {
+            content += "<span style='color: red;'>OFF</span>";
+          }
+        } else if (
+            esp32hal->SECOND_BATTERY_CONTACTORS_PIN() !=
+            GPIO_NUM_NC) {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
+          if (digitalRead(esp32hal->SECOND_BATTERY_CONTACTORS_PIN()) == HIGH) {
+            content += "<span style='color: green;'>ON</span>";
+          } else {
+            content += "<span style='color: red;'>OFF</span>";
+          }
+        }  //no PWM_CONTACTOR_CONTROL
+        content += "</h4>";
+      }
+    }
+
+    // Close the block
+    content += "</div>";
 
     if (charger) {
       // Start a new block with orange background color

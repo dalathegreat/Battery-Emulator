@@ -108,6 +108,11 @@ char* strndup(const char* str, size_t size);
 class EspClass {
  public:
   void restart();
+  size_t getFlashChipSize() {
+    // This is a placeholder for the actual implementation
+    // that retrieves the flash chip size.
+    return 4 * 1024 * 1024;  // Example: returning 4MB
+  }
 };
 
 extern EspClass ESP;

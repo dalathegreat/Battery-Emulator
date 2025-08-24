@@ -142,7 +142,9 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"balancing_active_cells", "Balancing Active Cells", "", "", "", always}};
 
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
-                                             {"pause_status", "Pause Status", "", "", "", always}};
+                                             {"pause_status", "Pause Status", "", "", "", always},
+                                             {"event_level", "Event Level", "", "", "", always},
+                                             {"emulator_status", "Emulator Status", "", "", "", always}};
 
 static std::list<SensorConfig> sensorConfigs;
 
@@ -312,6 +314,10 @@ static bool publish_common_info(void) {
         set_battery_attributes(doc, datalayer.battery2, "_2", battery2->supports_charged_energy());
       }
     }
+
+    doc["event_level"] = get_event_level_string(get_event_level());
+    doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
+
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
 #ifdef DEBUG_LOG
