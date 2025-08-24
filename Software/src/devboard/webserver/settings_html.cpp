@@ -1,5 +1,6 @@
 #include "settings_html.h"
 #include <Arduino.h>
+#include <algorithm>
 #include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../battery/BATTERIES.h"
 #include "../../charger/CHARGERS.h"

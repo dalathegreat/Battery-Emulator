@@ -1,6 +1,8 @@
 #include "events_html.h"
 #include <limits>
+#include <vector>
 #include "../../datalayer/datalayer.h"
+#include "../../devboard/utils/events.h"
 #include "../../devboard/utils/logging.h"
 #include "../../devboard/utils/millis64.h"
 

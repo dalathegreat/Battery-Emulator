@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <freertos/FreeRTOS.h>
 #include <mqtt_client.h>
+#include <algorithm>
 #include <functional>
 #include <list>
 #include "../../../USER_SECRETS.h"
@@ -14,7 +15,6 @@
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
 #include "../utils/timer.h"
-#include "mqtt.h"
 
 #ifdef MQTT
 const bool mqtt_enabled_default = true;

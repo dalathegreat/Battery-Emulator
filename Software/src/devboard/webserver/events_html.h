@@ -2,9 +2,6 @@
 #define EVENTS_H
 
 #include <Arduino.h>
-#include <algorithm>
-#include <vector>
-#include "../utils/events.h"
 
 /**
  * @brief Replaces placeholder with content section in web page
