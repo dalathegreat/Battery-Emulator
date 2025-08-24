@@ -126,6 +126,14 @@ typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
 
 typedef enum { EVENTS_LEVEL_TYPE(GENERATE_ENUM) } EVENTS_LEVEL_TYPE;
 
+#define EMULATOR_STATUS(XX) \
+  XX(STATUS_OK)             \
+  XX(STATUS_WARNING)        \
+  XX(STATUS_ERROR)          \
+  XX(STATUS_UPDATING)
+
+typedef enum { EMULATOR_STATUS(GENERATE_ENUM) } EMULATOR_STATUS;
+
 typedef enum {
   EVENT_STATE_PENDING = 0,
   EVENT_STATE_INACTIVE,
@@ -151,8 +159,11 @@ struct EventData {
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
 String get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
+const char* get_event_level_string(EVENTS_LEVEL_TYPE event_level);
 
 EVENTS_LEVEL_TYPE get_event_level(void);
+EMULATOR_STATUS get_emulator_status();
+const char* get_emulator_status_string(EMULATOR_STATUS status);
 
 void init_events(void);
 void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data);
