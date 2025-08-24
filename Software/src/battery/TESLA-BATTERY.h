@@ -33,6 +33,9 @@ class TeslaBattery : public CanBattery {
   bool supports_reset_BMS() { return true; }
   void reset_BMS() { datalayer.battery.settings.user_requests_tesla_bms_reset = true; }
 
+  bool supports_reset_SOC() { return true; }
+  void reset_SOC() { datalayer.battery.settings.user_requests_tesla_soc_reset = true; }
+
   bool supports_charged_energy() { return true; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
@@ -486,6 +489,7 @@ class TeslaBattery : public CanBattery {
 
   uint8_t stateMachineClearIsolationFault = 0xFF;
   uint8_t stateMachineBMSReset = 0xFF;
+  uint8_t stateMachineSOCReset = 0xFF;
   uint8_t stateMachineBMSQuery = 0xFF;
   uint16_t sendContactorClosingMessagesStill = 300;
   uint16_t battery_cell_max_v = 3300;

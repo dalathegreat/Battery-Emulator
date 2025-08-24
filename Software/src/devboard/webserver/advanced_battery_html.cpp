@@ -25,6 +25,10 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) {
        b->reset_BMS();
      }},
+    {"resetSOC", "SOC reset", "reset SOC?", [](Battery* b) { return b && b->supports_reset_SOC(); },
+     [](Battery* b) {
+       b->reset_SOC();
+     }},
     {"resetCrash", "Unlock crashed BMS",
      "reset crash data? Note this will unlock your BMS and enable contactor closing and SOC calculation.",
      [](Battery* b) { return b && b->supports_reset_crash(); },
