@@ -38,28 +38,100 @@ void RelionBattery::update_values() {
 
 void RelionBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
-    case 0x02018100:  //ID1
+    case 0x02018100:  //ID1 (Example frame 10 08 01 F0 00 00 00 00)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_total_voltage = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
       break;
-    case 0x02028100:  //ID2
+    case 0x02028100:  //ID2 (Example frame 00 00 00 63 64 10 00 00)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_total_current = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
       system_state = rx_frame.data.u8[2];
       battery_soc = rx_frame.data.u8[3];
       battery_soh = rx_frame.data.u8[4];
       most_serious_fault = rx_frame.data.u8[5];
       break;
-    case 0x02038100:  //ID3
+    case 0x02038100:  //ID3 (Example frame 0C F9 01 04 0C A7 01 0F)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       max_cell_voltage = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
       min_cell_voltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
       break;
-    case 0x02628100:  //Temperatures
-      max_cell_temperature = rx_frame.data.u8[0] - 50;
-      min_cell_temperature = rx_frame.data.u8[2] - 50;
-      break;
     case 0x02648100:  //Charging limitis
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       charge_current_A = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) - 800;
       regen_charge_current_A = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) - 800;
       discharge_current_A = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) - 800;
+      break;
+    case 0x02048100:  ///Temperatures min/max 2048100 [8] 47 01 01 47 01 01 00 00
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      max_cell_temperature = rx_frame.data.u8[0] - 50;
+      min_cell_temperature = rx_frame.data.u8[2] - 50;
+      break;
+    case 0x02468100:  ///Raw temperatures 2468100 [8] 47 47 47 47 47 47 47 47
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x02478100:  ///? 2478100 [8] 32 32 32 32 32 32 32 32
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+      //ID6 = 0x02108100 ~ 0x023F8100****** Cell Voltage 1~192******
+    case 0x02108100:  ///Cellvoltages 1 2108100 [8] 0C F9 0C F8 0C F8 0C F9
+      datalayer.battery.status.cell_voltages_mV[0] = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
+      datalayer.battery.status.cell_voltages_mV[1] = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
+      datalayer.battery.status.cell_voltages_mV[2] = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      datalayer.battery.status.cell_voltages_mV[3] = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x02118100:  ///Cellvoltages 2 2118100 [8] 0C F8 0C F8 0C F9 0C F8
+      datalayer.battery.status.cell_voltages_mV[4] = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
+      datalayer.battery.status.cell_voltages_mV[5] = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
+      datalayer.battery.status.cell_voltages_mV[6] = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      datalayer.battery.status.cell_voltages_mV[7] = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x02128100:  ///Cellvoltages 3 2128100 [8] 0C F8 0C F8 0C F9 0C F8
+      datalayer.battery.status.cell_voltages_mV[8] = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
+      datalayer.battery.status.cell_voltages_mV[9] = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
+      datalayer.battery.status.cell_voltages_mV[10] = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      datalayer.battery.status.cell_voltages_mV[11] = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x02138100:  ///Cellvoltages 4 2138100 [8] 0C F9 0C CD 0C A7 00 00
+      datalayer.battery.status.cell_voltages_mV[12] = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
+      datalayer.battery.status.cell_voltages_mV[13] = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
+      datalayer.battery.status.cell_voltages_mV[14] = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x02058100:  ///? 2058100 [8] 00 0C 00 00 00 00 00 00
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x02068100:  ///? 2068100 [8] 00 00 00 00 00 00 00 00
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x02148100:  ///? 2148100 [8] 00 00 00 00 00 00 00 00
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x02508100:  ///? 2508100 [8] 00 00 00 00 00 00 00 00
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x02518100:  ///? 2518100 [8] 00 00 00 00 00 00 00 00
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x02528100:  ///? 2528100 [8] 00 00 00 00 00 00 00 00
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x02548100:  ///? 2548100 [8] 00 00 00 00 00 00 00 00
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x024A8100:  ///? 24A8100 [8] 00 00 00 00 00 00 00 00
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x02558100:  ///? 2558100 [8] 00 00 00 00 00 00 00 00
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x02538100:  ///? 2538100 [8] 00 00 00 00 00 00 00 00
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x02568100:  ///? 2568100 [8] 00 00 00 00 00 00 00 00
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     default:
       break;
