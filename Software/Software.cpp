@@ -452,7 +452,7 @@ void core_loop(void*) {
         battery2->update_values();
         check_interconnect_available();
       }
-      update_calculated_values();
+      update_calculated_values(currentMillis);
       update_machineryprotection();  // Check safeties
 
       // Update values heading towards inverter
