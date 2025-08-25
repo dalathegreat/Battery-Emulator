@@ -29,6 +29,7 @@ void setup_can_shunt();
 #include "HYUNDAI-IONIQ-28-BATTERY.h"
 #include "IMIEV-CZERO-ION-BATTERY.h"
 #include "JAGUAR-IPACE-BATTERY.h"
+#include "KIA-64FD-BATTERY.h"
 #include "KIA-E-GMP-BATTERY.h"
 #include "KIA-HYUNDAI-64-BATTERY.h"
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
