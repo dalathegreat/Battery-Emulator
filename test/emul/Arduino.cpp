@@ -14,3 +14,5 @@ void pinMode(uint8_t pin, uint8_t mode) {}
 int max(int a, int b) {
   return (a > b) ? a : b;
 }
+
+ESPClass ESP;
