@@ -102,6 +102,9 @@ struct DATALAYER_INFO_BYDATTO3 {
   /** bool */
   /** Which SOC method currently used. 0 = Estimated, 1 = Measured */
   bool SOC_method = 0;
+  /** bool */
+  /** Used if SOC method was manually overridden via WebUI */
+  bool SOC_method_manual_override = false;
   /** uint16_t */
   /** SOC% estimate. Estimated from total pack voltage */
   uint16_t SOC_estimated = 0;
