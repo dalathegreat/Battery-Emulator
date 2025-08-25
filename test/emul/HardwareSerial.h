@@ -2,7 +2,9 @@
 #define HARDWARESERIAL_H
 
 #include <stdint.h>
+#include <string.h>
 #include <cstddef>
+#include <mutex>
 #include "Print.h"
 #include "Stream.h"
 
@@ -35,19 +37,37 @@ enum SerialConfig {
 
 class HardwareSerial : public Stream {
  public:
-  int available() { return 0; }
-  uint32_t baudRate() { return 9600; }
+  virtual int available(void) { return 0; }
+  virtual int peek(void) { return 0; }
+  virtual int read(void) { return 0; }
+
   void begin(unsigned long baud, uint32_t config = SERIAL_8N1, int8_t rxPin = -1, int8_t txPin = -1,
              bool invert = false, unsigned long timeout_ms = 20000UL, uint8_t rxfifo_full_thrhd = 120) {}
-  int read() { return 0; }
-  void setTxBufferSize(uint16_t size) {}
-  void setRxBufferSize(uint16_t size) {}
-  bool setRxFIFOFull(uint8_t fifoBytes) { return false; }
-  size_t write(uint8_t) { return 0; }
+  uint32_t baudRate() {
+    return 115200;  // Default baud rate for emulation
+  }
+
+  size_t write(const uint8_t* buffer, size_t size);
+  inline size_t write(const char* buffer, size_t size) { return write((uint8_t*)buffer, size); }
+  inline size_t write(const char* s) { return write((uint8_t*)s, strlen(s)); }
+
+  size_t setRxBufferSize(size_t new_size) { return new_size; };
+
+  size_t setTxBufferSize(size_t new_size) { return new_size; };
+  operator bool() const;
+  size_t write(uint8_t);
+
+  bool setRxFIFOFull(uint8_t fifoBytes) { return true; }
+
+ private:
+  std::mutex writeMutex;
 };
 
-extern HardwareSerial Serial;
+extern HardwareSerial Serial0;
 extern HardwareSerial Serial1;
 extern HardwareSerial Serial2;
+
+// similarly to Arduino
+#define Serial Serial0
 
 #endif
