@@ -599,9 +599,9 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
     }
 
     if (doc["timeout"].is<int>()) {
-      datalayer.battery.settings.remote_set_timeout = doc["timeout"];
+      datalayer.battery.settings.remote_set_timeout = doc["timeout"] * 1000;
     } else {
-      datalayer.battery.settings.remote_set_timeout = 5000;
+      datalayer.battery.settings.remote_set_timeout = 30000;
     }
 
     datalayer.battery.settings.remote_set_timestamp = millis();
