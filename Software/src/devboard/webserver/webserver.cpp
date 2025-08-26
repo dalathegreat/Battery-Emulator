@@ -414,7 +414,7 @@ void init_webserver() {
 
   const char* boolSettingNames[] = {
       "DBLBTR",     "CNTCTRL",       "CNTCTRLDBL",  "PWMCNTCTRL", "PERBMSRESET", "REMBMSRESET",
-      "CANFDASCAN", "WIFIAPENABLED", "MQTTENABLED", "HADISC",     "MQTTTOPICS",
+      "CANFDASCAN", "WIFIAPENABLED", "MQTTENABLED", "HADISC",     "MQTTTOPICS",  "INVICNT",
   };
 
   // Handles the form POST from UI to save settings of the common image
@@ -494,6 +494,27 @@ void init_webserver() {
         settings.saveString("MQTTDEVICENAME", p->value().c_str());
       } else if (p->name() == "HADEVICEID") {
         settings.saveString("HADEVICEID", p->value().c_str());
+      } else if (p->name() == "SOFAR_ID") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SOFAR_ID", type);
+      } else if (p->name() == "INVCELLS") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVCELLS", type);
+      } else if (p->name() == "INVMODULES") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVMODULES", type);
+      } else if (p->name() == "INVCELLSPER") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVCELLSPER", type);
+      } else if (p->name() == "INVVLEVEL") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVVLEVEL", type);
+      } else if (p->name() == "INVCAPACITY") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVCAPACITY", type);
+      } else if (p->name() == "INVBTYPE") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVBTYPE", (int)type);
       }
 
       for (auto& boolSetting : boolSettings) {
@@ -578,10 +599,6 @@ void init_webserver() {
   auto update_int_setting = [=](const char* route, std::function<void(int)> setter) {
     update_string_setting(route, [setter](String value) { setter(value.toInt()); });
   };
-
-  // Route for editing Sofar ID
-  update_int_setting("/updateSofarID",
-                     [](int value) { datalayer.battery.settings.sofar_user_specified_battery_id = value; });
 
   // Route for editing Wh
   update_int_setting("/updateBatterySize", [](int value) { datalayer.battery.info.total_capacity_Wh = value; });

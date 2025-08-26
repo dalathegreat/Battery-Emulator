@@ -98,6 +98,7 @@ class BydAttoBattery : public CanBattery {
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
   bool SOC_method = false;
+  bool BMS_voltage_available = false;
   uint8_t counter_50ms = 0;
   uint8_t counter_100ms = 0;
   uint8_t frame6_counter = 0xB;

@@ -55,7 +55,7 @@ class VolvoSpaHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Closed");
     }
-    content += "<h4>Positive contactor status: ";
+    content += "<h4>Precharge contactor status: ";
     switch (datalayer_extended.VolvoPolestar.HVILstatusBits & 0x08) {
       case 0x08:
         content += String("Open");
@@ -63,7 +63,7 @@ class VolvoSpaHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Closed");
     }
-    content += "<h4>Precharge Contactor status: ";
+    content += "<h4>Positive Contactor status: ";
     switch (datalayer_extended.VolvoPolestar.HVILstatusBits & 0x10) {
       case 0x10:
         content += String("Open");
