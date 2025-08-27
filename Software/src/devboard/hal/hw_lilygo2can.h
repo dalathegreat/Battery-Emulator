@@ -9,7 +9,7 @@ class LilyGo2CANHal : public Esp32Hal {
 
   virtual void set_default_configuration_values() {
     BatteryEmulatorSettingsStore settings;
-    if(!settings.settingExists("CANFREQ")){
+    if (!settings.settingExists("CANFREQ")) {
       settings.saveUInt("CANFREQ", 16);
     }
   }

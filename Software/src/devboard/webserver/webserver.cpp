@@ -515,7 +515,7 @@ void init_webserver() {
       } else if (p->name() == "INVBTYPE") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("INVBTYPE", (int)type);
-      } else if (p->name() == "CANFREQ"){
+      } else if (p->name() == "CANFREQ") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("CANFREQ", type);
       }
