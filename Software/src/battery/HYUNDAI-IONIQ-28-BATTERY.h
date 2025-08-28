@@ -25,10 +25,9 @@ class HyundaiIoniq28Battery : public CanBattery {
 
   // Getter methods for HTML renderer
   uint16_t get_lead_acid_voltage() const;
+  uint16_t get_isolation_resistance() const;
   int16_t get_power_relay_temperature() const;
   uint8_t get_battery_management_mode() const;
-  uint8_t get_battery_ignition_mode() const;
-  uint8_t get_battery_relay_mode() const;
 
  private:
   HyundaiIoniq28BatteryHtmlRenderer renderer;
@@ -53,18 +52,17 @@ class HyundaiIoniq28Battery : public CanBattery {
   uint16_t allowedDischargePower = 0;
   uint16_t allowedChargePower = 0;
   uint16_t batteryVoltage = 3700;
-  uint16_t inverterVoltageFrameHigh = 0;
   uint16_t inverterVoltage = 0;
+  uint16_t isolation_resistance = 1000;
   uint16_t cellvoltages_mv[96];
   uint16_t leadAcidBatteryVoltage = 120;
   int16_t batteryAmps = 0;
   int16_t temperatureMax = 0;
   int16_t temperatureMin = 0;
   uint8_t batteryManagementMode = 0;
-  uint8_t BMS_ign = 0;
-  uint8_t batteryRelay = 0;
   uint8_t counter_200 = 0;
-  int8_t heatertemp = 0;
+  int8_t heatertemperature_1 = 0;
+  int8_t heatertemperature_2 = 0;
   int8_t powerRelayTemperature = 0;
   bool startedUp = false;
   uint8_t incoming_poll_group = 0xFF;
