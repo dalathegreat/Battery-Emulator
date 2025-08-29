@@ -2,6 +2,10 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 
+#ifdef DEBUG_VIA_USB
+#include <HardwareSerial.h>
+#endif
+
 /* TODO: 
 This protocol is still under development. It can not be used yet for Sungrow inverters, 
 see the Wiki for more info on how to use your Sungrow inverter */

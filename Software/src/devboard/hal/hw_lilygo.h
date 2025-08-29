@@ -81,13 +81,4 @@ class LilyGoHal : public Esp32Hal {
   }
 };
 
-#define HalClass LilyGoHal
-
-/* ----- Error checks below, don't change (can't be moved to separate file) ----- */
-#ifndef HW_CONFIGURED
-#define HW_CONFIGURED
-#else
-#error Multiple HW defined! Please select a single HW
-#endif
-
 #endif
