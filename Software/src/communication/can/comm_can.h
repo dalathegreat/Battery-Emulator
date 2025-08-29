@@ -4,6 +4,7 @@
 #include "../../devboard/utils/types.h"
 
 extern bool use_canfd_as_can;
+extern uint8_t user_selected_can_addon_crystal_frequency_mhz;
 
 void dump_can_frame(CAN_frame& frame, frameDirection msgDir);
 void transmit_can_frame_to_interface(const CAN_frame* tx_frame, int interface);

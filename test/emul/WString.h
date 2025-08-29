@@ -43,6 +43,9 @@ class String {
   // Accessor
   const std::string& str() const { return data; }
 
+  // Comparison operators
+  bool operator==(const String& rhs) const { return data == rhs.data; }
+
   // Concatenation
   String operator+(const String& rhs) const { return String(data + rhs.data); }
 

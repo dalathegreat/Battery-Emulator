@@ -500,6 +500,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("INVICNT") ? "checked" : "";
   }
 
+  if (var == "CANFREQ") {
+    return String(settings.getUInt("CANFREQ", 8));
+  }
+
   return String();
 }
 
@@ -823,6 +827,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
+        <label>Can Addon Frequency: </label>
+        <input name='CANFREQ' type='text' value="%CANFREQ%" pattern="^[0-9]+$" />
+        
         <label>Equipment stop button: </label><select name='EQSTOP'>
         %EQSTOP%  
         </select>

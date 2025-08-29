@@ -4,6 +4,7 @@
 #include <soc/gpio_num.h>
 #include <chrono>
 #include <unordered_map>
+#include "../../../src/communication/nvm/comm_nvm.h"
 #include "../../../src/devboard/utils/events.h"
 #include "../../../src/devboard/utils/logging.h"
 #include "../../../src/devboard/utils/types.h"
@@ -23,6 +24,8 @@ class Esp32Hal {
   virtual int CORE_FUNCTION_CORE() { return 1; }
   virtual int MODBUS_CORE() { return 0; }
   virtual int WIFICORE() { return 0; }
+
+  virtual void set_default_configuration_values() {}
 
   template <typename... Pins>
   bool alloc_pins(const char* name, Pins... pins) {
@@ -109,6 +112,8 @@ class Esp32Hal {
   virtual gpio_num_t MCP2515_CS() { return GPIO_NUM_NC; }
   // INT output of MCP2515
   virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_NC; }
+  // Reset pin for MCP2515
+  virtual gpio_num_t MCP2515_RST() { return GPIO_NUM_NC; }
 
   // CANFD_ADDON defines for MCP2517
   virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_NC; }
