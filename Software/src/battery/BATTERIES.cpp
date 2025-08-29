@@ -317,6 +317,14 @@ void setup_battery() {
 }
 #endif
 
+/* User-selected Tesla settings */
+bool user_selected_tesla_digital_HVIL = false;
+uint16_t user_selected_tesla_GTW_country = 0;
+bool user_selected_tesla_GTW_rightHandDrive = false;
+uint16_t user_selected_tesla_GTW_mapRegion = 0;
+uint16_t user_selected_tesla_GTW_chassisType = 0;
+uint16_t user_selected_tesla_GTW_packEnergy = 0;
+
 /* User-selected voltages used for custom-BMS batteries (RJXZS etc.) */
 #if defined(MAX_CUSTOM_PACK_VOLTAGE_DV) && defined(MIN_CUSTOM_PACK_VOLTAGE_DV) && \
     defined(MAX_CUSTOM_CELL_VOLTAGE_MV) && defined(MIN_CUSTOM_CELL_VOLTAGE_MV)

@@ -500,6 +500,30 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("INVICNT") ? "checked" : "";
   }
 
+  if (var == "DIGITALHVIL") {
+    return settings.getBool("DIGITALHVIL") ? "checked" : "";
+  }
+
+  if (var == "GTWCOUNTRY") {
+    return String(settings.getUInt("GTWCOUNTRY", 0));
+  }
+
+  if (var == "GTWRHD") {
+    return settings.getBool("GTWRHD") ? "checked" : "";
+  }
+
+  if (var == "GTWMAPREG") {
+    return String(settings.getUInt("GTWMAPREG", 0));
+  }
+
+  if (var == "GTWCHASSIS") {
+    return String(settings.getUInt("GTWCHASSIS", 0));
+  }
+
+  if (var == "GTWPACK") {
+    return String(settings.getUInt("GTWPACK", 0));
+  }
+
   return String();
 }
 
@@ -686,6 +710,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-tesla { display: none; }
+    form[data-battery="32"] .if-tesla, form[data-battery="33"] .if-tesla {
+      display: contents;
+    }
+
     form .if-dblbtr { display: none; }
     form[data-dblbtr="true"] .if-dblbtr {
       display: contents;
@@ -734,6 +763,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label for='battery'>Battery: </label><select name='battery' if='battery'>
         %BATTTYPE%
         </select>
+
+        <div class="if-tesla">
+        <label>Digital HVIL (2024+): </label>
+        <input type='checkbox' name='DIGITALHVIL' value='on' style='margin-left: 0;' %DIGITALHVIL% />
+        <label>Country code: </label>
+        <input name='GTWCOUNTRY' type='text' value="%GTWCOUNTRY%" pattern="^[0-9]{1,2}$" />
+        <label>Right hand drive: </label>
+        <input type='checkbox' name='GTWRHD' value='on' style='margin-left: 0;' %GTWRHD% />
+        <label>Map region: </label>
+        <input name='GTWMAPREG' type='text' value="%GTWMAPREG%" pattern="^[0-9]{1,2}$" />
+        <label>Chassis type: </label>
+        <input name='GTWCHASSIS' type='text' value="%GTWCHASSIS%" pattern="^[0-9]{1,2}$" />
+        <label>Pack type: </label>
+        <input name='GTWPACK' type='text' value="%GTWPACK%" pattern="^[0-9]{1,2}$" />
+        </div>
 
         <div class="if-battery">
         <label for='BATTCOMM'>Battery comm I/F: </label><select name='BATTCOMM' id='BATTCOMM'>
