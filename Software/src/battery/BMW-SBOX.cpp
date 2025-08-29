@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/logging.h"
 
 uint8_t reverse_bits(uint8_t byte) {
   uint8_t reversed = 0;
@@ -122,9 +123,7 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
         SBOX_100.data.u8[0] = 0x86;  // Precharge relay only
         prechargeStartTime = currentMillis;
         contactorStatus = NEGATIVE;
-#ifdef DEBUG_VIA_USB
-        Serial.println("S-BOX Precharge relay engaged");
-#endif
+        logging.println("S-BOX Precharge relay engaged");
         break;
       case NEGATIVE:
         if (currentMillis - prechargeStartTime >= CONTACTOR_CONTROL_T1) {
@@ -132,9 +131,7 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
           negativeStartTime = currentMillis;
           contactorStatus = POSITIVE;
           datalayer.shunt.precharging = true;
-#ifdef DEBUG_VIA_USB
-          Serial.println("S-BOX Negative relay engaged");
-#endif
+          logging.println("S-BOX Negative relay engaged");
         }
         break;
       case POSITIVE:
@@ -145,18 +142,14 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
           positiveStartTime = currentMillis;
           contactorStatus = PRECHARGE_OFF;
           datalayer.shunt.precharging = false;
-#ifdef DEBUG_VIA_USB
-          Serial.println("S-BOX Positive relay engaged");
-#endif
+          logging.println("S-BOX Positive relay engaged");
         }
         break;
       case PRECHARGE_OFF:
         if (currentMillis - positiveStartTime >= CONTACTOR_CONTROL_T3) {
           SBOX_100.data.u8[0] = 0x6A;  // Negative + Positive
           contactorStatus = COMPLETED;
-#ifdef DEBUG_VIA_USB
-          Serial.println("S-BOX Precharge relay released");
-#endif
+          logging.println("S-BOX Precharge relay released");
           datalayer.shunt.contactors_engaged = true;
         }
         break;

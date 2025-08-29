@@ -267,13 +267,13 @@ void init_webserver() {
     }
   });
 
-#if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
-  // Route for going to debug logging web page
-  server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", debug_logger_processor());
-    request->send(response);
-  });
-#endif  // DEBUG_VIA_WEB
+  if (datalayer.system.info.web_logging_active) {  //|| defined(LOG_TO_SD)
+    // Route for going to debug logging web page
+    server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      AsyncWebServerResponse* response = request->beginResponse(200, "text/html", debug_logger_processor());
+      request->send(response);
+    });
+  }
 
   // Define the handler to stop can logging
   server.on("/stop_can_logging", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -413,8 +413,8 @@ void init_webserver() {
   };
 
   const char* boolSettingNames[] = {
-      "DBLBTR",     "CNTCTRL",       "CNTCTRLDBL",  "PWMCNTCTRL", "PERBMSRESET", "REMBMSRESET",
-      "CANFDASCAN", "WIFIAPENABLED", "MQTTENABLED", "HADISC",     "MQTTTOPICS",  "INVICNT",
+      "DBLBTR",     "CNTCTRL",    "CNTCTRLDBL",    "PWMCNTCTRL",  "PERBMSRESET", "REMBMSRESET", "USBENABLED",
+      "WEBENABLED", "CANFDASCAN", "WIFIAPENABLED", "MQTTENABLED", "HADISC",      "MQTTTOPICS",  "INVICNT",
   };
 
   // Handles the form POST from UI to save settings of the common image
@@ -1388,9 +1388,9 @@ String processor(const String& var) {
     content += "<button onclick='Advanced()'>More Battery Info</button> ";
     content += "<button onclick='CANlog()'>CAN logger</button> ";
     content += "<button onclick='CANreplay()'>CAN replay</button> ";
-#if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
-    content += "<button onclick='Log()'>Log</button> ";
-#endif  // DEBUG_VIA_WEB
+    if (datalayer.system.info.web_logging_active) {  //|| defined(LOG_TO_SD)
+      content += "<button onclick='Log()'>Log</button> ";
+    }
     content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
     content += "<button onclick='Events()'>Events</button> ";
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";

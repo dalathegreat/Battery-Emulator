@@ -254,6 +254,14 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
   }
 
+  if (var == "USBENABLED") {
+    return settings.getBool("USBENABLED") ? "checked" : "";
+  }
+
+  if (var == "WEBENABLED") {
+    return settings.getBool("WEBENABLED") ? "checked" : "";
+  }
+
   if (var == "MQTTENABLED") {
     return settings.getBool("MQTTENABLED") ? "checked" : "";
   }
@@ -861,6 +869,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Custom hostname: </label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" />
+
+        <label>Enable USB serial: </label>
+        <input type='checkbox' name='USBENABLED' value='on' style='margin-left: 0;' %USBENABLED% />
+
+        <label>Enable WEB logging: </label>
+        <input type='checkbox' name='WEBENABLED' value='on' style='margin-left: 0;' %WEBENABLED% />
 
         <label>Enable MQTT: </label>
         <input type='checkbox' name='MQTTENABLED' value='on' style='margin-left: 0;' %MQTTENABLED% />

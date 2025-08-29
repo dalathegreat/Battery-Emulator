@@ -241,6 +241,10 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   size_t logged_can_messages_offset = 0;
   /** bool, determines if CAN messages should be logged for webserver */
   bool can_logging_active = false;
+  /** bool, determines if USB serial logging should occur */
+  bool usb_logging_active = false;
+  /** bool, determines if general logging should be active for webserver */
+  bool web_logging_active = false;
   /** uint8_t, enumeration which CAN interface should be used for log playback */
   uint8_t can_replay_interface = CAN_NATIVE;
   /** bool, determines if CAN replay should loop or not */

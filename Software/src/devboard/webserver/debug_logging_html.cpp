@@ -3,7 +3,6 @@
 #include "../../datalayer/datalayer.h"
 #include "index_html.h"
 
-#if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
 char* strnchr(const char* s, int c, size_t n) {
   // Like strchr, but only searches the first 'n' bytes of the string.
 
@@ -54,9 +53,9 @@ String debug_logger_processor(void) {
       ".can-message { background-color: #404E57; margin-bottom: 5px; padding: 10px; border-radius: 5px; font-family: "
       "monospace; }";
   content += "</style>";
-#ifdef DEBUG_VIA_WEB
-  content += "<button onclick='refreshPage()'>Refresh data</button> ";
-#endif
+  if (datalayer.system.info.web_logging_active) {
+    content += "<button onclick='refreshPage()'>Refresh data</button> ";
+  }
   content += "<button onclick='exportLog()'>Export to .txt</button> ";
 #ifdef LOG_TO_SD
   content += "<button onclick='deleteLog()'>Delete log file</button> ";
@@ -107,4 +106,3 @@ String debug_logger_processor(void) {
   content += index_html_footer;
   return content;
 }
-#endif

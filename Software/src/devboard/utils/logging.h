@@ -4,6 +4,7 @@
 #include <Print.h>
 #include <inttypes.h>
 #include "../../../USER_SETTINGS.h"
+#include "../../datalayer/datalayer.h"
 #include "types.h"
 
 class Logging : public Print {
@@ -13,18 +14,23 @@ class Logging : public Print {
   virtual size_t write(const uint8_t* buffer, size_t size);
   virtual size_t write(uint8_t) { return 0; }
   void printf(const char* fmt, ...);
-  void log_bms_status(real_bms_status_enum bms_status);
   Logging() {}
 };
 
 extern Logging logging;
 
-#ifdef DEBUG_LOG
-#define DEBUG_PRINTF(fmt, ...) logging.printf(fmt, ##__VA_ARGS__)
-#define DEBUG_PRINTLN(str) logging.println(str)
-#else
-#define DEBUG_PRINTF(fmt, ...) ((void)0)
-#define DEBUG_PRINTLN(str) ((void)0)
-#endif
+// Replace compile-time macros with runtime checks
+#define DEBUG_PRINTF(fmt, ...)                                                                  \
+  do {                                                                                          \
+    if (datalayer.system.info.web_logging_active || datalayer.system.info.usb_logging_active) { \
+      logging.printf(fmt, ##__VA_ARGS__);                                                       \
+    }                                                                                           \
+  } while (0)
 
+#define DEBUG_PRINTLN(str)                                                                      \
+  do {                                                                                          \
+    if (datalayer.system.info.web_logging_active || datalayer.system.info.usb_logging_active) { \
+      logging.println(str);                                                                     \
+    }                                                                                           \
+  } while (0)
 #endif  // __LOGGING_H__

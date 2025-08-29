@@ -135,6 +135,9 @@ void init_stored_settings() {
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
 
+  datalayer.system.info.usb_logging_active = settings.getBool("USBENABLED", false);
+  datalayer.system.info.web_logging_active = settings.getBool("WEBENABLED", false);
+
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
   passwordAP = settings.getString("APPASSWORD", "123456789").c_str();
