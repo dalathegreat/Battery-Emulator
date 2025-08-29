@@ -249,7 +249,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                   datalayer.system.status.inverter_allows_contactor_closing = false;
                   dbg_message("inverter_allows_contactor_closing -> false (Contactor test start)");
                   send_kostal(ACK_FRAME, 8);  // ACK
-                  contactortestTimerStart = millis();
+                  contactortestTimerStart = currentMillis;
                   contactortestTimerActive = true;
                 } else if (RS485_RXFRAME[7] == 0xFF) {
                   // no ACK sent
