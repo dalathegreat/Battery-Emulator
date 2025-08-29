@@ -159,9 +159,7 @@ void reset_all_events() {
   }
   events.level = EVENT_LEVEL_INFO;
   update_bms_status();
-#ifdef DEBUG_LOG
   logging.println("All events have been cleared.");
-#endif
 }
 
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {

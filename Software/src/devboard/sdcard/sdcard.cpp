@@ -164,9 +164,7 @@ void init_logging_buffers() {
 #if defined(LOG_CAN_TO_SD)
   can_bufferHandle = xRingbufferCreate(32 * 1024, RINGBUF_TYPE_BYTEBUF);
   if (can_bufferHandle == NULL) {
-#ifdef DEBUG_LOG
     logging.println("Failed to create CAN ring buffer!");
-#endif  // DEBUG_LOG
     return;
   }
 #endif  // defined(LOG_CAN_TO_SD)
@@ -174,9 +172,7 @@ void init_logging_buffers() {
 #if defined(LOG_TO_SD)
   log_bufferHandle = xRingbufferCreate(1024, RINGBUF_TYPE_BYTEBUF);
   if (log_bufferHandle == NULL) {
-#ifdef DEBUG_LOG
     logging.println("Failed to create log ring buffer!");
-#endif  // DEBUG_LOG
     return;
   }
 #endif  // defined(LOG_TO_SD)
@@ -196,22 +192,16 @@ bool init_sdcard() {
   SD_MMC.setPins(sclk_pin, mosi_pin, miso_pin);
   if (!SD_MMC.begin("/root", true, true, SDMMC_FREQ_HIGHSPEED)) {
     set_event_latched(EVENT_SD_INIT_FAILED, 0);
-#ifdef DEBUG_LOG
     logging.println("SD Card initialization failed!");
-#endif  // DEBUG_LOG
     return false;
   }
 
   clear_event(EVENT_SD_INIT_FAILED);
-#ifdef DEBUG_LOG
   logging.println("SD Card initialization successful.");
-#endif  // DEBUG_LOG
 
   sd_card_active = true;
 
-#ifdef DEBUG_LOG
   log_sdcard_details();
-#endif  // DEBUG_LOG
 
   return true;
 }

@@ -99,9 +99,7 @@ bool init_CAN() {
       return false;
     }
 
-#ifdef DEBUG_LOG
     logging.println("Dual CAN Bus (ESP32+MCP2515) selected");
-#endif  // DEBUG_LOG
     gBuffer.initWithSize(25);
 
     can2515 = new ACAN2515(cs_pin, SPI2515, int_pin);
@@ -115,14 +113,10 @@ bool init_CAN() {
     settings2515->mRequestedMode = ACAN2515Settings::NormalMode;
     const uint16_t errorCode2515 = can2515->begin(*settings2515, [] { can2515->isr(); });
     if (errorCode2515 == 0) {
-#ifdef DEBUG_LOG
       logging.println("Can ok");
-#endif  // DEBUG_LOG
     } else {
-#ifdef DEBUG_LOG
       logging.print("Error Can: 0x");
       logging.println(errorCode2515, HEX);
-#endif  // DEBUG_LOG
       set_event(EVENT_CANMCP2515_INIT_FAILURE, (uint8_t)errorCode2515);
       return false;
     }
@@ -147,9 +141,7 @@ bool init_CAN() {
 
     canfd = new ACAN2517FD(cs_pin, SPI2517, int_pin);
 
-#ifdef DEBUG_LOG
     logging.println("CAN FD add-on (ESP32+MCP2517) selected");
-#endif  // DEBUG_LOG
     SPI2517.begin(sck_pin, sdo_pin, sdi_pin);
     auto bitRate = (int)speed * 1000UL;
     settings2517 = new ACAN2517FDSettings(
@@ -162,7 +154,6 @@ bool init_CAN() {
     const uint32_t errorCode2517 = canfd->begin(*settings2517, [] { canfd->isr(); });
     canfd->poll();
     if (errorCode2517 == 0) {
-#ifdef DEBUG_LOG
       logging.print("Bit Rate prescaler: ");
       logging.println(settings2517->mBitRatePrescaler);
       logging.print("Arbitration Phase segment 1: ");
@@ -179,12 +170,9 @@ bool init_CAN() {
       logging.print("Arbitration Sample point: ");
       logging.print(settings2517->arbitrationSamplePointFromBitStart());
       logging.println("%");
-#endif  // DEBUG_LOG
     } else {
-#ifdef DEBUG_LOG
       logging.print("CAN-FD Configuration error 0x");
       logging.println(errorCode2517, HEX);
-#endif  // DEBUG_LOG
       set_event(EVENT_CANMCP2517FD_INIT_FAILURE, (uint8_t)errorCode2517);
       return false;
     }

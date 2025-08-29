@@ -1470,9 +1470,7 @@ void onOTAProgress(size_t current, size_t final) {
   // Log every 1 second
   if (millis() - ota_progress_millis > 1000) {
     ota_progress_millis = millis();
-#ifdef DEBUG_LOG
     logging.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
-#endif  // DEBUG_LOG
     // Reset the "watchdog"
     ota_timeout_timer.reset();
   }
@@ -1489,13 +1487,9 @@ void onOTAEnd(bool success) {
     // Max Charge/Discharge = 0; CAN = stop; contactors = open
     setBatteryPause(true, true, true, false);
     // a reboot will be done by the OTA library. no need to do anything here
-#ifdef DEBUG_LOG
     logging.println("OTA update finished successfully!");
-#endif  // DEBUG_LOG
   } else {
-#ifdef DEBUG_LOG
     logging.println("There was an error during OTA update!");
-#endif  // DEBUG_LOG
     //try to Resume the battery pause and CAN communication
     setBatteryPause(false, false);
   }
