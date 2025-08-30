@@ -676,39 +676,39 @@ void TeslaBattery::
     clear_event(EVENT_BATTERY_FUSE);
   }
 
-#ifdef TESLA_MODEL_3Y_BATTERY
-  // Autodetect algoritm for chemistry on 3/Y packs.
-  // NCM/A batteries have 96s, LFP has 102-108s
-  // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
-  if (datalayer.battery.info.number_of_cells > 101) {
-    datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
-  }
+  if (user_selected_tesla_GTW_chassisType > 1) {  //{{0, "Model S"}, {1, "Model X"}, {2, "Model 3"}, {3, "Model Y"}};
+    // Autodetect algoritm for chemistry on 3/Y packs.
+    // NCM/A batteries have 96s, LFP has 102-108s
+    // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
+    if (datalayer.battery.info.number_of_cells > 101) {
+      datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
+    }
 
-  //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
-  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
-    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
-    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
-    datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
-  } else {  // NCM/A chemistry
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
-    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
-    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
-    datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
-  }
+    //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
+    if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
+      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
+      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
+      datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
+    } else {  // NCM/A chemistry
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
+      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+      datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
+    }
 
-  // During forced balancing request via webserver, we allow the battery to exceed normal safety parameters
-  if (datalayer.battery.settings.user_requests_balancing) {
-    datalayer.battery.status.real_soc = 9900;  //Force battery to show up as 99% when balancing
-    datalayer.battery.info.max_design_voltage_dV = datalayer.battery.settings.balancing_max_pack_voltage_dV;
-    datalayer.battery.info.max_cell_voltage_mV = datalayer.battery.settings.balancing_max_cell_voltage_mV;
-    datalayer.battery.info.max_cell_voltage_deviation_mV =
-        datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV;
-    datalayer.battery.status.max_charge_power_W = datalayer.battery.settings.balancing_float_power_W;
+    // During forced balancing request via webserver, we allow the battery to exceed normal safety parameters
+    if (datalayer.battery.settings.user_requests_balancing) {
+      datalayer.battery.status.real_soc = 9900;  //Force battery to show up as 99% when balancing
+      datalayer.battery.info.max_design_voltage_dV = datalayer.battery.settings.balancing_max_pack_voltage_dV;
+      datalayer.battery.info.max_cell_voltage_mV = datalayer.battery.settings.balancing_max_cell_voltage_mV;
+      datalayer.battery.info.max_cell_voltage_deviation_mV =
+          datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV;
+      datalayer.battery.status.max_charge_power_W = datalayer.battery.settings.balancing_float_power_W;
+    }
   }
-#endif  // TESLA_MODEL_3Y_BATTERY
 
   // Check if user requests some action
   if (datalayer.battery.settings.user_requests_tesla_isolation_clear) {
@@ -2015,7 +2015,7 @@ int index_118 = 0;
 
 void TeslaBattery::transmit_can(unsigned long currentMillis) {
 
-  if (operate_contactors) {  //Special S/X mode
+  if (user_selected_tesla_digital_HVIL) {  //Special S/X? mode for 2024+ batteries
     if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
       if (currentMillis - lastSend1CF >= 10) {
         transmit_can_frame(&can_msg_1CF[index_1CF]);
@@ -2628,12 +2628,12 @@ void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
 
   //0x7FF GTW CAN frame values
   //Mux1
-  write_signal_value(&TESLA_7FF_Mux1, 16, 16, GTW_country, false);
-  write_signal_value(&TESLA_7FF_Mux1, 11, 1, GTW_rightHandDrive, false);
+  write_signal_value(&TESLA_7FF_Mux1, 16, 16, user_selected_tesla_GTW_country, false);
+  write_signal_value(&TESLA_7FF_Mux1, 11, 1, user_selected_tesla_GTW_country, false);
   //Mux3
-  write_signal_value(&TESLA_7FF_Mux3, 8, 4, GTW_mapRegion, false);
-  write_signal_value(&TESLA_7FF_Mux3, 18, 3, GTW_chassisType, false);
-  write_signal_value(&TESLA_7FF_Mux3, 32, 5, GTW_packEnergy, false);
+  write_signal_value(&TESLA_7FF_Mux3, 8, 4, user_selected_tesla_GTW_mapRegion, false);
+  write_signal_value(&TESLA_7FF_Mux3, 18, 3, user_selected_tesla_GTW_chassisType, false);
+  write_signal_value(&TESLA_7FF_Mux3, 32, 5, user_selected_tesla_GTW_packEnergy, false);
 
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
