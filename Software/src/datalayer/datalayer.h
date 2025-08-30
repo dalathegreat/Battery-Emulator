@@ -242,6 +242,8 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   /** bool, determines if CAN messages should be logged for webserver */
   bool can_logging_active = false;
   /** bool, determines if USB serial logging should occur */
+  bool CAN_usb_logging_active = false;
+  /** bool, determines if USB serial logging should occur */
   bool usb_logging_active = false;
   /** bool, determines if general logging should be active for webserver */
   bool web_logging_active = false;

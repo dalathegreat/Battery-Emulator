@@ -320,23 +320,24 @@ void receive_frame_canfd_addon() {  // This section checks if we have a complete
 
 // Support functions
 void print_can_frame(CAN_frame frame, frameDirection msgDir) {
-#ifdef DEBUG_CAN_DATA  // If enabled in user settings, print out the CAN messages via USB
-  uint8_t i = 0;
-  Serial.print("(");
-  Serial.print(millis() / 1000.0);
-  (msgDir == MSG_RX) ? Serial.print(") RX0 ") : Serial.print(") TX1 ");
-  Serial.print(frame.ID, HEX);
-  Serial.print(" [");
-  Serial.print(frame.DLC);
-  Serial.print("] ");
-  for (i = 0; i < frame.DLC; i++) {
-    Serial.print(frame.data.u8[i] < 16 ? "0" : "");
-    Serial.print(frame.data.u8[i], HEX);
-    if (i < frame.DLC - 1)
-      Serial.print(" ");
+
+  if (datalayer.system.info.CAN_usb_logging_active) {
+    uint8_t i = 0;
+    Serial.print("(");
+    Serial.print(millis() / 1000.0);
+    (msgDir == MSG_RX) ? Serial.print(") RX0 ") : Serial.print(") TX1 ");
+    Serial.print(frame.ID, HEX);
+    Serial.print(" [");
+    Serial.print(frame.DLC);
+    Serial.print("] ");
+    for (i = 0; i < frame.DLC; i++) {
+      Serial.print(frame.data.u8[i] < 16 ? "0" : "");
+      Serial.print(frame.data.u8[i], HEX);
+      if (i < frame.DLC - 1)
+        Serial.print(" ");
+    }
+    Serial.println("");
   }
-  Serial.println("");
-#endif  // DEBUG_CAN_DATA
 
   if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording
     dump_can_frame(frame, msgDir);
