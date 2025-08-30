@@ -63,9 +63,7 @@ void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir) {
                currentTime / 1000, currentTime % 1000, (msgDir == MSG_RX ? "RX0" : "TX1"), frame.ID, frame.DLC);
 
   if (xRingbufferSend(can_bufferHandle, &messagestr_buffer, size, pdMS_TO_TICKS(2)) != pdTRUE) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("Failed to send message to can ring buffer!");
-#endif  // DEBUG_VIA_USB
+    logging.println("Failed to send message to can ring buffer!");
     return;
   }
 
@@ -77,9 +75,7 @@ void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir) {
       size = snprintf(messagestr_buffer, sizeof(messagestr_buffer), "%02X\n", frame.data.u8[i]);
 
     if (xRingbufferSend(can_bufferHandle, &messagestr_buffer, size, pdMS_TO_TICKS(2)) != pdTRUE) {
-#ifdef DEBUG_VIA_USB
-      Serial.println("Failed to send message to can ring buffer!");
-#endif  // DEBUG_VIA_USB
+      logging.println("Failed to send message to can ring buffer!");
       return;
     }
   }
@@ -127,9 +123,7 @@ void add_log_to_buffer(const uint8_t* buffer, size_t size) {
     return;
 
   if (xRingbufferSend(log_bufferHandle, buffer, size, pdMS_TO_TICKS(1)) != pdTRUE) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("Failed to send message to log ring buffer!");
-#endif  // DEBUG_VIA_USB
+    logging.println("Failed to send message to log ring buffer!");
     return;
   }
 }
@@ -161,21 +155,22 @@ void write_log_to_sdcard() {
 }
 
 void init_logging_buffers() {
-#if defined(LOG_CAN_TO_SD)
-  can_bufferHandle = xRingbufferCreate(32 * 1024, RINGBUF_TYPE_BYTEBUF);
-  if (can_bufferHandle == NULL) {
-    logging.println("Failed to create CAN ring buffer!");
-    return;
-  }
-#endif  // defined(LOG_CAN_TO_SD)
 
-#if defined(LOG_TO_SD)
-  log_bufferHandle = xRingbufferCreate(1024, RINGBUF_TYPE_BYTEBUF);
-  if (log_bufferHandle == NULL) {
-    logging.println("Failed to create log ring buffer!");
-    return;
+  if (datalayer.system.info.CAN_SD_logging_active) {
+    can_bufferHandle = xRingbufferCreate(32 * 1024, RINGBUF_TYPE_BYTEBUF);
+    if (can_bufferHandle == NULL) {
+      logging.println("Failed to create CAN ring buffer!");
+      return;
+    }
   }
-#endif  // defined(LOG_TO_SD)
+
+  if (datalayer.system.info.SD_logging_active) {
+    log_bufferHandle = xRingbufferCreate(1024, RINGBUF_TYPE_BYTEBUF);
+    if (log_bufferHandle == NULL) {
+      logging.println("Failed to create log ring buffer!");
+      return;
+    }
+  }
 }
 
 bool init_sdcard() {

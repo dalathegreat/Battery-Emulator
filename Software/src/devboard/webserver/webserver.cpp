@@ -267,7 +267,7 @@ void init_webserver() {
     }
   });
 
-  if (datalayer.system.info.web_logging_active) {  //|| defined(LOG_TO_SD)
+  if (datalayer.system.info.web_logging_active || datalayer.system.info.SD_logging_active) {
     // Route for going to debug logging web page
     server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
       AsyncWebServerResponse* response = request->beginResponse(200, "text/html", debug_logger_processor());
@@ -289,93 +289,89 @@ void init_webserver() {
       },
       handleFileUpload);
 
-#ifndef LOG_CAN_TO_SD
-  // Define the handler to export can log
-  server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    String logs = String(datalayer.system.info.logged_can_messages);
-    if (logs.length() == 0) {
-      logs = "No logs available.";
-    }
+  if (datalayer.system.info.CAN_SD_logging_active) {
+    // Define the handler to export can log
+    server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      pause_can_writing();
+      request->send(SD_MMC, CAN_LOG_FILE, String(), true);
+      resume_can_writing();
+    });
 
-    // Get the current time
-    time_t now = time(nullptr);
-    struct tm timeinfo;
-    localtime_r(&now, &timeinfo);
+    // Define the handler to delete can log
+    server.on("/delete_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      delete_can_log();
+      request->send(200, "text/plain", "Log file deleted");
+    });
+  } else {
+    // Define the handler to export can log
+    server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      String logs = String(datalayer.system.info.logged_can_messages);
+      if (logs.length() == 0) {
+        logs = "No logs available.";
+      }
 
-    // Ensure time retrieval was successful
-    char filename[32];
-    if (strftime(filename, sizeof(filename), "canlog_%H-%M-%S.txt", &timeinfo)) {
-      // Valid filename created
-    } else {
-      // Fallback filename if automatic timestamping failed
-      strcpy(filename, "battery_emulator_can_log.txt");
-    }
+      // Get the current time
+      time_t now = time(nullptr);
+      struct tm timeinfo;
+      localtime_r(&now, &timeinfo);
 
-    // Use request->send with dynamic headers
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
-    response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
-    request->send(response);
-  });
-#endif
+      // Ensure time retrieval was successful
+      char filename[32];
+      if (strftime(filename, sizeof(filename), "canlog_%H-%M-%S.txt", &timeinfo)) {
+        // Valid filename created
+      } else {
+        // Fallback filename if automatic timestamping failed
+        strcpy(filename, "battery_emulator_can_log.txt");
+      }
 
-#ifdef LOG_CAN_TO_SD
-  // Define the handler to export can log
-  server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    pause_can_writing();
-    request->send(SD_MMC, CAN_LOG_FILE, String(), true);
-    resume_can_writing();
-  });
+      // Use request->send with dynamic headers
+      AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
+      response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
+      request->send(response);
+    });
+  }
 
-  // Define the handler to delete can log
-  server.on("/delete_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    delete_can_log();
-    request->send(200, "text/plain", "Log file deleted");
-  });
-#endif
+  if (datalayer.system.info.SD_logging_active) {
+    // Define the handler to delete log file
+    server.on("/delete_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      delete_log();
+      request->send(200, "text/plain", "Log file deleted");
+    });
 
-#ifdef LOG_TO_SD
-  // Define the handler to delete log file
-  server.on("/delete_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    delete_log();
-    request->send(200, "text/plain", "Log file deleted");
-  });
+    // Define the handler to export debug log
+    server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      pause_log_writing();
+      request->send(SD_MMC, LOG_FILE, String(), true);
+      resume_log_writing();
+    });
+  } else {
+    // Define the handler to export debug log
+    server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      String logs = String(datalayer.system.info.logged_can_messages);
+      if (logs.length() == 0) {
+        logs = "No logs available.";
+      }
 
-  // Define the handler to export debug log
-  server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    pause_log_writing();
-    request->send(SD_MMC, LOG_FILE, String(), true);
-    resume_log_writing();
-  });
-#endif
+      // Get the current time
+      time_t now = time(nullptr);
+      struct tm timeinfo;
+      localtime_r(&now, &timeinfo);
 
-#ifndef LOG_TO_SD
-  // Define the handler to export debug log
-  server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    String logs = String(datalayer.system.info.logged_can_messages);
-    if (logs.length() == 0) {
-      logs = "No logs available.";
-    }
+      // Ensure time retrieval was successful
+      char filename[32];
+      if (strftime(filename, sizeof(filename), "log_%H-%M-%S.txt", &timeinfo)) {
+        // Valid filename created
+      } else {
+        // Fallback filename if automatic timestamping failed
+        strcpy(filename, "battery_emulator_log.txt");
+      }
 
-    // Get the current time
-    time_t now = time(nullptr);
-    struct tm timeinfo;
-    localtime_r(&now, &timeinfo);
-
-    // Ensure time retrieval was successful
-    char filename[32];
-    if (strftime(filename, sizeof(filename), "log_%H-%M-%S.txt", &timeinfo)) {
-      // Valid filename created
-    } else {
-      // Fallback filename if automatic timestamping failed
-      strcpy(filename, "battery_emulator_log.txt");
-    }
-
-    // Use request->send with dynamic headers
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
-    response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
-    request->send(response);
-  });
-#endif
+      // Use request->send with dynamic headers
+      AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
+      response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
+      request->send(response);
+    });
+  }
 
   // Route for going to cellmonitor web page
   def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -413,8 +409,8 @@ void init_webserver() {
   };
 
   const char* boolSettingNames[] = {
-      "DBLBTR",        "CNTCTRL",     "CNTCTRLDBL", "PWMCNTCTRL", "PERBMSRESET",
-      "REMBMSRESET",   "USBENABLED",  "CANLOGUSB",  "WEBENABLED", "CANFDASCAN",
+      "DBLBTR",        "CNTCTRL",     "CNTCTRLDBL", "PWMCNTCTRL", "PERBMSRESET", "SDLOGENABLED",
+      "REMBMSRESET",   "USBENABLED",  "CANLOGUSB",  "WEBENABLED", "CANFDASCAN",  "CANLOGSD",
       "WIFIAPENABLED", "MQTTENABLED", "HADISC",     "MQTTTOPICS", "INVICNT",
   };
 
@@ -1389,7 +1385,7 @@ String processor(const String& var) {
     content += "<button onclick='Advanced()'>More Battery Info</button> ";
     content += "<button onclick='CANlog()'>CAN logger</button> ";
     content += "<button onclick='CANreplay()'>CAN replay</button> ";
-    if (datalayer.system.info.web_logging_active) {  //|| defined(LOG_TO_SD)
+    if (datalayer.system.info.web_logging_active || datalayer.system.info.SD_logging_active) {
       content += "<button onclick='Log()'>Log</button> ";
     }
     content += "<button onclick='Cellmon()'>Cellmonitor</button> ";

@@ -138,6 +138,8 @@ void init_stored_settings() {
   datalayer.system.info.CAN_usb_logging_active = settings.getBool("CANLOGUSB", false);
   datalayer.system.info.usb_logging_active = settings.getBool("USBENABLED", false);
   datalayer.system.info.web_logging_active = settings.getBool("WEBENABLED", false);
+  datalayer.system.info.CAN_SD_logging_active = settings.getBool("CANLOGSD", false);
+  datalayer.system.info.SD_logging_active = settings.getBool("SDLOGENABLED", false);
 
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
