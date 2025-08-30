@@ -152,6 +152,7 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   bool user_requests_balancing = false;
   bool user_requests_tesla_isolation_clear = false;
   bool user_requests_tesla_bms_reset = false;
+  bool user_requests_tesla_soc_reset = false;
   /* Forced balancing max time & start timestamp */
   uint32_t balancing_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
   uint32_t balancing_start_time_ms = 0;  //For keeping track when balancing started
