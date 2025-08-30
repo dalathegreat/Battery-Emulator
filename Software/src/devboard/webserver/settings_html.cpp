@@ -78,6 +78,33 @@ String options_for_enum(TEnum selected, Func name_for_type) {
   return options;
 }
 
+template <typename TMap>
+String options_from_map(int selected, const TMap& value_name_map) {
+  String options;
+  for (const auto& [value, name] : value_name_map) {
+    options += "<option value=\"" + String(value) + "\"";
+    if (selected == value) {
+      options += " selected";
+    }
+    options += ">";
+    options += name;
+    options += "</option>";
+  }
+  return options;
+}
+
+static const std::map<int, String> tesla_countries = {
+    {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
+    {17483, "DK (Denmark)"}, {17477, "DE (Germany)"}, {16725, "AU (Australia)"}};
+
+static const std::map<int, String> tesla_mapregion = {
+    {8, "ME (Middle East)"}, {2, "NONE"},       {3, "CN (China)"},     {6, "TW (Taiwan)"}, {5, "JP (Japan)"},
+    {0, "US (USA)"},         {7, "KR (Korea)"}, {4, "AU (Australia)"}, {1, "EU (Europe)"}};
+
+static const std::map<int, String> tesla_chassis = {{0, "Model S"}, {1, "Model X"}, {2, "Model 3"}, {3, "Model Y"}};
+
+static const std::map<int, String> tesla_pack = {{0, "50 kWh"}, {2, "62 kWh"}, {1, "74 kWh"}, {3, "100 kWh"}};
+
 const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   switch (behavior) {
     case STOP_BUTTON_BEHAVIOR::LATCHING_SWITCH:
@@ -520,6 +547,30 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("INVICNT") ? "checked" : "";
   }
 
+  if (var == "DIGITALHVIL") {
+    return settings.getBool("DIGITALHVIL") ? "checked" : "";
+  }
+
+  if (var == "GTWCOUNTRY") {
+    return options_from_map(settings.getUInt("GTWCOUNTRY", 0), tesla_countries);
+  }
+
+  if (var == "GTWRHD") {
+    return settings.getBool("GTWRHD") ? "checked" : "";
+  }
+
+  if (var == "GTWMAPREG") {
+    return options_from_map(settings.getUInt("GTWMAPREG", 0), tesla_mapregion);
+  }
+
+  if (var == "GTWCHASSIS") {
+    return options_from_map(settings.getUInt("GTWCHASSIS", 0), tesla_chassis);
+  }
+
+  if (var == "GTWPACK") {
+    return options_from_map(settings.getUInt("GTWPACK", 0), tesla_pack);
+  }
+
   return String();
 }
 
@@ -706,6 +757,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-tesla { display: none; }
+    form[data-battery="32"] .if-tesla, form[data-battery="33"] .if-tesla {
+      display: contents;
+    }
+
     form .if-dblbtr { display: none; }
     form[data-dblbtr="true"] .if-dblbtr {
       display: contents;
@@ -754,6 +810,25 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label for='battery'>Battery: </label><select name='battery' if='battery'>
         %BATTTYPE%
         </select>
+
+        <div class="if-tesla">
+        <label>Digital HVIL (2024+): </label>
+        <input type='checkbox' name='DIGITALHVIL' value='on' style='margin-left: 0;' %DIGITALHVIL% />
+        <label>Right hand drive: </label>
+        <input type='checkbox' name='GTWRHD' value='on' style='margin-left: 0;' %GTWRHD% />
+        <label for='GTWCOUNTRY'>Country code: </label><select name='GTWCOUNTRY' id='GTWCOUNTRY'>
+        %GTWCOUNTRY%
+        </select>
+        <label for='GTWMAPREG'>Map region: </label><select name='GTWMAPREG' id='GTWMAPREG'>
+        %GTWMAPREG%
+        </select>
+        <label for='GTWCHASSIS'>Chassis type: </label><select name='GTWCHASSIS' id='GTWCHASSIS'>
+        %GTWCHASSIS%
+        </select>
+        <label for='GTWPACK'>Pack type: </label><select name='GTWPACK' id='GTWPACK'>
+        %GTWPACK%
+        </select>
+        </div>
 
         <div class="if-battery">
         <label for='BATTCOMM'>Battery comm I/F: </label><select name='BATTCOMM' id='BATTCOMM'>
