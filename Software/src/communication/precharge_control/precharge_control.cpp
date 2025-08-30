@@ -62,6 +62,14 @@ void handle_precharge_control(unsigned long currentMillis) {
   auto hia4v1_pin = esp32hal->HIA4V1_PIN();
   auto inverter_disconnect_contactor_pin = esp32hal->INVERTER_DISCONNECT_CONTACTOR_PIN();
 
+  // If we're in FAILURE state, completely disable any further precharge attempts
+  if (datalayer.system.status.precharge_status == AUTO_PRECHARGE_FAILURE) {
+    pinMode(hia4v1_pin, OUTPUT);
+    digitalWrite(hia4v1_pin, LOW);
+    digitalWrite(inverter_disconnect_contactor_pin, ON);
+    return;  // Exit immediately - no further processing allowed. Reboot required to recover
+  }
+
   int32_t target_voltage = datalayer.battery.status.voltage_dV;
   int32_t external_voltage = datalayer_extended.meb.BMS_voltage_intermediate_dV;
 
@@ -120,10 +128,11 @@ void handle_precharge_control(unsigned long currentMillis) {
         pinMode(hia4v1_pin, OUTPUT);
         digitalWrite(hia4v1_pin, LOW);
         digitalWrite(inverter_disconnect_contactor_pin, ON);
-        datalayer.system.status.precharge_status = AUTO_PRECHARGE_OFF;
-        logging.printf("Precharge: Disabled (timeout reached / BMS fault) -> AUTO_PRECHARGE_OFF\n");
+        datalayer.system.status.precharge_status = AUTO_PRECHARGE_FAILURE;
+        logging.printf("Precharge: CRITICAL FAILURE (timeout/BMS fault) -> REQUIRES REBOOT\n");
         set_event(EVENT_AUTOMATIC_PRECHARGE_FAILURE, 0);
-
+        // Force stop any further precharge attempts
+        datalayer.system.settings.start_precharging = false;
         // Add event
       } else if (datalayer.system.status.battery_allows_contactor_closing) {
         pinMode(hia4v1_pin, OUTPUT);

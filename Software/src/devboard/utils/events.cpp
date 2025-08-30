@@ -260,7 +260,7 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_PRECHARGE_FAILURE:
       return "Battery failed to precharge. Check that capacitor is seated on high voltage output.";
     case EVENT_AUTOMATIC_PRECHARGE_FAILURE:
-      return "Automatic precharge failed to reach target voltae.";
+      return "Automatic precharge FAILURE. Failed to reach target voltage or BMS timeout. Reboot emulator to retry!";
     case EVENT_INTERNAL_OPEN_FAULT:
       return "High voltage cable removed while battery running. Opening contactors!";
     case EVENT_INVERTER_OPEN_CONTACTOR:
