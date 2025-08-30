@@ -147,11 +147,9 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // 15 = isolation fault
       // 0/8 = checking
 
-#ifdef DEBUG_LOG
       if (rx_frame.data.u8[1] != previousState) {
         logging.printf("MG_HS_PHEV: Battery status changed to %d (%d)\n", rx_frame.data.u8[1], rx_frame.data.u8[0]);
       }
-#endif
 
       if (rx_frame.data.u8[1] == 0xf && previousState != 0xf) {
         // Isolation fault, set event
@@ -168,18 +166,14 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         // A weird 'stuck' state where the battery won't reconnect
         datalayer.system.status.battery_allows_contactor_closing = false;
         if (!datalayer.system.status.BMS_startup_in_progress) {
-#ifdef DEBUG_LOG
           logging.printf("MG_HS_PHEV: Stuck, resetting.\n");
-#endif
           start_bms_reset();
         }
       } else if (rx_frame.data.u8[1] == 0xf) {
         // A fault state (likely isolation failure)
         datalayer.system.status.battery_allows_contactor_closing = false;
         if (!datalayer.system.status.BMS_startup_in_progress) {
-#ifdef DEBUG_LOG
           logging.printf("MG_HS_PHEV: Fault, resetting.\n");
-#endif
           start_bms_reset();
         }
       } else {

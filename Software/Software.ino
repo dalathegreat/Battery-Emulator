@@ -64,7 +64,7 @@ void setup() {
 
   init_serial();
 
-  // We print this after setting up serial, such that is also printed to serial with DEBUG_VIA_USB set.
+  // We print this after setting up serial, so that is also printed if configured to do so
   logging.printf("Battery emulator %s build " __DATE__ " " __TIME__ "\n", version_number);
 
   init_events();
@@ -352,9 +352,6 @@ void init_serial() {
   // Init Serial monitor
   Serial.begin(115200);
   while (!Serial) {}
-#ifdef DEBUG_VIA_USB
-  Serial.println("__ OK __");
-#endif  // DEBUG_VIA_USB
 }
 
 void check_interconnect_available() {

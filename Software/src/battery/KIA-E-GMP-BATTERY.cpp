@@ -55,7 +55,6 @@ uint16_t KiaEGmpBattery::estimateSOC(uint16_t packVoltage, uint16_t cellCount, i
   // Calculate average cell voltage in millivolts
   uint16_t avgCellVoltage = compensatedPackVoltageMv / cellCount;
 
-#ifdef DEBUG_LOG
   logging.print("Pack: ");
   logging.print(packVoltage / 10.0);
   logging.print("V, Current: ");
@@ -67,7 +66,6 @@ uint16_t KiaEGmpBattery::estimateSOC(uint16_t packVoltage, uint16_t cellCount, i
   logging.print("V, Avg Cell: ");
   logging.print(avgCellVoltage);
   logging.println("mV");
-#endif
 
   // Use the cell voltage lookup table to estimate SOC
   return estimateSOCFromCell(avgCellVoltage);
@@ -187,7 +185,6 @@ void KiaEGmpBattery::update_values() {
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
 
-#ifdef DEBUG_LOG
   logging.println();  //sepatator
   logging.println("Values from battery: ");
   logging.print("SOC BMS: ");
@@ -244,7 +241,6 @@ void KiaEGmpBattery::update_values() {
   logging.print("  |  Inverter ");
   logging.print(inverterVoltage);
   logging.println(" Volts");
-#endif
 }
 
 // Getter implementations for HTML renderer

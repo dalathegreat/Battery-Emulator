@@ -171,9 +171,7 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint32_t address) {
       magicByte = MB16A954A6[counter];
       break;
     default:  // this won't lead to correct CRC checksums
-#ifdef DEBUG_LOG
       logging.println("Checksum request unknown");
-#endif
       magicByte = 0x00;
       break;
   }
@@ -310,9 +308,7 @@ void MebBattery::
 void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   last_can_msg_timestamp = millis();
   if (first_can_msg == 0) {
-#ifdef DEBUG_LOG
     logging.printf("MEB: First CAN msg received\n");
-#endif
     first_can_msg = last_can_msg_timestamp;
   }
 
@@ -326,9 +322,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (rx_frame.data.u8[0] !=
           vw_crc_calc(rx_frame.data.u8, rx_frame.DLC, rx_frame.ID)) {  //If CRC does not match calc
         datalayer.battery.status.CAN_error_counter++;
-#ifdef DEBUG_LOG
         logging.printf("MEB: Msg 0x%04X CRC error\n", rx_frame.ID);
-#endif
         return;
       }
     default:
@@ -700,29 +694,23 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case 3:  // EXTERN CHARGING
         case 4:  // AC_CHARGING
         case 6:  // DC_CHARGING
-#ifdef DEBUG_LOG
           if (!datalayer.system.status.battery_allows_contactor_closing)
             logging.printf("MEB: Contactors closed\n");
-#endif
           if (datalayer.battery.status.real_bms_status != BMS_FAULT)
             datalayer.battery.status.real_bms_status = BMS_ACTIVE;
           datalayer.system.status.battery_allows_contactor_closing = true;
           hv_requested = false;
           break;
         case 5:  // Error
-#ifdef DEBUG_LOG
           if (datalayer.system.status.battery_allows_contactor_closing)
             logging.printf("MEB: Contactors opened\n");
-#endif
           datalayer.battery.status.real_bms_status = BMS_FAULT;
           datalayer.system.status.battery_allows_contactor_closing = false;
           hv_requested = false;
           break;
         case 7:  // Init
-#ifdef DEBUG_LOG
           if (datalayer.system.status.battery_allows_contactor_closing)
             logging.printf("MEB: Contactors opened\n");
-#endif
           if (datalayer.battery.status.real_bms_status != BMS_FAULT)
             datalayer.battery.status.real_bms_status = BMS_STANDBY;
           datalayer.system.status.battery_allows_contactor_closing = false;
@@ -730,10 +718,8 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           break;
         case 2:  // BALANCING
         default:
-#ifdef DEBUG_LOG
           if (datalayer.system.status.battery_allows_contactor_closing)
             logging.printf("MEB: Contactors opened\n");
-#endif
           if (datalayer.battery.status.real_bms_status != BMS_FAULT)
             datalayer.battery.status.real_bms_status = BMS_STANDBY;
           datalayer.system.status.battery_allows_contactor_closing = false;
@@ -1276,10 +1262,8 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       handle_obd_frame(rx_frame);
       break;
     default:
-#ifdef DEBUG_LOG
       logging.printf("Unknown CAN frame received:\n");
       dump_can_frame(rx_frame, MSG_RX);
-#endif
       break;
   }
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -1292,10 +1276,8 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 void MebBattery::transmit_can(unsigned long currentMillis) {
 
   if (currentMillis - last_can_msg_timestamp > 500) {
-#ifdef DEBUG_LOG
     if (first_can_msg)
       logging.printf("MEB: No CAN msg received for 500ms\n");
-#endif
     can_msg_received = RX_DEFAULT;
     first_can_msg = 0;
     if (datalayer.battery.status.real_bms_status != BMS_FAULT) {
@@ -1373,7 +1355,6 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
                  ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
       hv_requested = true;
       datalayer.system.settings.start_precharging = false;
-#ifdef DEBUG_LOG
       if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
         logging.printf("MEB: Requesting HV\n");
       }
@@ -1385,7 +1366,6 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
           logging.printf("MEB: Precharge bit set to inactive\n");
         }
       }
-#endif
       MEB_503.data.u8[1] =
           0x30 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
       MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;
@@ -1399,7 +1379,6 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
         datalayer.system.settings.start_precharging = true;
       }
 
-#ifdef DEBUG_LOG
       if (MEB_503.data.u8[3] != BMS_TARGET_HV_OFF) {
         logging.printf("MEB: Requesting HV_OFF\n");
       }
@@ -1411,7 +1390,6 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
           logging.printf("MEB: Precharge bit set to inactive\n");
         }
       }
-#endif
       MEB_503.data.u8[1] =
           0x10 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
       MEB_503.data.u8[3] = BMS_TARGET_HV_OFF;

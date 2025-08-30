@@ -147,9 +147,7 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 
     switch (STATE) {
       case (BATTERY_ANNOUNCE):
-#ifdef DEBUG_LOG
         logging.println("Solax Battery State: Announce");
-#endif
         datalayer.system.status.inverter_allows_contactor_closing = false;
         SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
         for (uint8_t i = 0; i < number_of_batteries; i++) {
@@ -183,9 +181,7 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
         transmit_can_frame(&SOLAX_1878);
         transmit_can_frame(&SOLAX_1801);  // Announce that the battery will be connected
         STATE = CONTACTOR_CLOSED;         // Jump to Contactor Closed State
-#ifdef DEBUG_LOG
         logging.println("Solax Battery State: Contactor Closed");
-#endif
         break;
 
       case (CONTACTOR_CLOSED):
@@ -213,14 +209,10 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   if (rx_frame.ID == 0x1871 && rx_frame.data.u64 == __builtin_bswap64(0x0500010000000000)) {
     transmit_can_frame(&SOLAX_1881);
     transmit_can_frame(&SOLAX_1882);
-#ifdef DEBUG_LOG
     logging.println("1871 05-frame received from inverter");
-#endif
   }
   if (rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x03)) {
-#ifdef DEBUG_LOG
     logging.println("1871 03-frame received from inverter");
-#endif
   }
 }
 

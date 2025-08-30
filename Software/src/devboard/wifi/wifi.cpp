@@ -130,33 +130,22 @@ void wifi_monitor() {
       // Try WiFi.reconnect() if it was successfully connected at least once
       if (hasConnectedBefore) {
         lastReconnectAttempt = currentMillis;  // Reset reconnection attempt timer
-#ifdef DEBUG_LOG
         logging.println("Wi-Fi reconnect attempt...");
-#endif
         if (WiFi.reconnect()) {
-#ifdef DEBUG_LOG
           logging.println("Wi-Fi reconnect attempt sucess...");
-#endif
           reconnectAttempts = 0;  // Reset the attempt counter on successful reconnect
         } else {
-#ifdef DEBUG_LOG
           logging.println("Wi-Fi reconnect attempt error...");
-#endif
           reconnectAttempts++;
           if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-#ifdef DEBUG_LOG
             logging.println("Failed to reconnect multiple times, forcing a full connection attempt...");
-#endif
             FullReconnectToWiFi();
           }
         }
       } else {
         // If no previous connection, force a full connection attempt
         if (currentMillis - lastReconnectAttempt > current_full_reconnect_interval) {
-#ifdef DEBUG_LOG
           logging.println("No previous OK connection, force a full connection attempt...");
-#endif
-
           wifiap_enabled = true;
           WiFi.mode(WIFI_AP_STA);
           init_WiFi_AP();
@@ -188,17 +177,13 @@ void connectToWiFi() {
 
   if (WiFi.status() != WL_CONNECTED) {
     lastReconnectAttempt = millis();  // Reset the reconnect attempt timer
-#ifdef DEBUG_LOG
     logging.println("Connecting to Wi-Fi...");
-#endif
 
     DEBUG_PRINTF("Connecting to Wi-Fi SSID: %s, password: %s, Channel: %d\n", ssid.c_str(), password.c_str(),
                  wifi_channel);
     WiFi.begin(ssid.c_str(), password.c_str(), wifi_channel);
   } else {
-#ifdef DEBUG_LOG
     logging.println("Wi-Fi already connected.");
-#endif
   }
 }
 
@@ -220,11 +205,9 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   //clear disconnects events if we got a IP
   clear_event(EVENT_WIFI_DISCONNECT);
-#ifdef DEBUG_LOG
   logging.print("Wi-Fi Got IP. ");
   logging.print("IP address: ");
   logging.println(WiFi.localIP().toString());
-#endif
 }
 
 // Event handler for Wi-Fi disconnection
@@ -233,9 +216,7 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   if (connected_once) {
     set_event(EVENT_WIFI_DISCONNECT, 0);
   }
-#ifdef DEBUG_LOG
   logging.println("Wi-Fi disconnected.");
-#endif
   //we dont do anything here, the reconnect will be handled by the monitor
   //too many events received when the connection is lost
   //normal reconnect retry start at first 2 seconds
@@ -254,9 +235,7 @@ void init_mDNS() {
 
   // Initialize mDNS .local resolution
   if (!MDNS.begin(mdnsHost)) {
-#ifdef DEBUG_LOG
     logging.println("Error setting up MDNS responder!");
-#endif
   } else {
     // Advertise via bonjour the service so we can auto discover these battery emulators on the local network.
     MDNS.addService(mdnsHost, "tcp", 80);

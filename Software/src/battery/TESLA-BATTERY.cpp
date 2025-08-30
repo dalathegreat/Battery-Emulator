@@ -720,13 +720,9 @@ void TeslaBattery::
       //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
       stateMachineBMSReset = 0;
       datalayer.battery.settings.user_requests_tesla_bms_reset = false;
-#ifdef DEBUG_LOG
       logging.println("BMS reset requested");
-#endif  //DEBUG_LOG
     } else {
-#ifdef DEBUG_LOG
       logging.println("ERROR: BMS reset failed due to contactors not being open, or BMS ECU not allowing it");
-#endif  //DEBUG_LOG
       stateMachineBMSReset = 0xFF;
       datalayer.battery.settings.user_requests_tesla_bms_reset = false;
     }
@@ -736,13 +732,9 @@ void TeslaBattery::
       //Start the SOC reset statemachine, only if SOC < 15% or > 90%
       stateMachineSOCReset = 0;
       datalayer.battery.settings.user_requests_tesla_soc_reset = false;
-#ifdef DEBUG_LOG
       logging.println("SOC reset requested");
-#endif  //DEBUG_LOG
     } else {
-#ifdef DEBUG_LOG
       logging.println("ERROR: SOC reset failed due to SOC not being less than 15 or greater than 90");
-#endif  //DEBUG_LOG
       stateMachineSOCReset = 0xFF;
       datalayer.battery.settings.user_requests_tesla_soc_reset = false;
     }
@@ -1002,8 +994,6 @@ void TeslaBattery::
     }
   }
 
-#ifdef DEBUG_LOG
-
   printFaultCodesIfActive();
   logging.print("BMS Contactors State: ");
   logging.print(getBMSContactorState(battery_contactor));  // Display what state the BMS thinks the contactors are in
@@ -1061,7 +1051,6 @@ void TeslaBattery::
   logging.printf("PCS_ambientTemp: %.2f°C, DCDC_Temp: %.2f°C, ChgPhA: %.2f°C, ChgPhB: %.2f°C, ChgPhC: %.2f°C.\n",
                  PCS_ambientTemp * 0.1 + 40, PCS_dcdcTemp * 0.1 + 40, PCS_chgPhATemp * 0.1 + 40,
                  PCS_chgPhBTemp * 0.1 + 40, PCS_chgPhCTemp * 0.1 + 40);
-#endif  //DEBUG_LOG
 }
 
 void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -1911,9 +1900,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (stateMachineBMSQuery != 0xFF && stateMachineBMSReset == 0xFF) {
         if (memcmp(rx_frame.data.u8, "\x02\x50\x03\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
           //Received initial response, proceed to actual query
-#ifdef DEBUG_LOG
           logging.println("CAN UDS: Received BMS query initial handshake reply");
-#endif  //DEBUG_LOG
           stateMachineBMSQuery = 1;
           break;
         }
@@ -1922,9 +1909,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           battery_partNumber[0] = rx_frame.data.u8[5];
           battery_partNumber[1] = rx_frame.data.u8[6];
           battery_partNumber[2] = rx_frame.data.u8[7];
-#ifdef DEBUG_LOG
           logging.println("CAN UDS: Received BMS query data frame");
-#endif  //DEBUG_LOG
           stateMachineBMSQuery = 2;
           break;
         }
@@ -1937,32 +1922,25 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           battery_partNumber[7] = rx_frame.data.u8[5];
           battery_partNumber[8] = rx_frame.data.u8[6];
           battery_partNumber[9] = rx_frame.data.u8[7];
-#ifdef DEBUG_LOG
           logging.println("CAN UDS: Received BMS query second data frame");
-#endif  //DEBUG_LOG
           break;
         }
         if (memcmp(&rx_frame.data.u8[0], "\x22", 1) == 0) {
           //Final part of part number
           battery_partNumber[10] = rx_frame.data.u8[1];
           battery_partNumber[11] = rx_frame.data.u8[2];
-#ifdef DEBUG_LOG
           logging.println("CAN UDS: Received BMS query final data frame");
-#endif  //DEBUG_LOG
           break;
         }
         if (memcmp(rx_frame.data.u8, "\x23\x00\x00\x00\xAA\xAA\xAA\xAA", 8) == 0) {
           //Received final frame
-#ifdef DEBUG_LOG
           logging.println("CAN UDS: Received BMS query termination frame");
-#endif  //DEBUG_LOG
           parsed_battery_partNumber = true;
           stateMachineBMSQuery = 0xFF;
           break;
         }
       }
       //BMS Reset
-#ifdef DEBUG_LOG
       if (stateMachineBMSQuery == 0xFF) {  // Make sure this is reset request not query
         if (memcmp(rx_frame.data.u8, "\x02\x67\x06\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
           logging.println("CAN UDS: ECU unlocked");
@@ -1972,7 +1950,6 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           logging.println("CAN UDS: ECU reset positive response, 1 second downtime");
         }
       }
-#endif  //DEBUG_LOG
       break;
     default:
       break;
@@ -2375,25 +2352,19 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
       switch (stateMachineBMSQuery) {
         case 0:
           //Initial request
-#ifdef DEBUG_LOG
           logging.println("CAN UDS: Sending BMS query initial handshake");
-#endif  //DEBUG_LOG
           TESLA_602.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
           transmit_can_frame(&TESLA_602);
           break;
         case 1:
           //Send query
-#ifdef DEBUG_LOG
           logging.println("CAN UDS: Sending BMS query for pack part number");
-#endif  //DEBUG_LOG
           TESLA_602.data = {0x03, 0x22, 0xF0, 0x14, 0x00, 0x00, 0x00, 0x00};
           transmit_can_frame(&TESLA_602);
           break;
         case 2:
           //Flow control
-#ifdef DEBUG_LOG
           logging.println("CAN UDS: Sending BMS query flow control");
-#endif  //DEBUG_LOG
           TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
           transmit_can_frame(&TESLA_602);
           break;

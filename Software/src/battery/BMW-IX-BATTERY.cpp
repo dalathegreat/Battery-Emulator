@@ -307,9 +307,7 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
         if ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) == 10000 ||
             (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) == 10000) {  //Qualifier Invalid Mode - Request Reboot
-#ifdef DEBUG_LOG
           logging.println("Cell MinMax Qualifier Invalid - Requesting BMS Reset");
-#endif  // DEBUG_LOG
           //set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, (millis())); //Eventually need new Info level event type
           transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET);
         } else {  //Only ingest values if they are not the 10V Error state
@@ -378,15 +376,11 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
     // Detect edge
     if (ContactorCloseRequest.previous == false && ContactorCloseRequest.present == true) {
       // Rising edge detected
-#ifdef DEBUG_LOG
       logging.println("Rising edge detected. Resetting 10ms counter.");
-#endif                   // DEBUG_LOG
       counter_10ms = 0;  // reset counter
     } else if (ContactorCloseRequest.previous == true && ContactorCloseRequest.present == false) {
       // Dropping edge detected
-#ifdef DEBUG_LOG
       logging.println("Dropping edge detected. Resetting 10ms counter.");
-#endif                   // DEBUG_LOG
       counter_10ms = 0;  // reset counter
     }
     ContactorCloseRequest.previous = ContactorCloseRequest.present;
@@ -465,12 +459,10 @@ void BmwIXBattery::setup(void) {  // Performs one time setup at startup
 
 void BmwIXBattery::HandleIncomingUserRequest(void) {
   // Debug user request to open or close the contactors
-#ifdef DEBUG_LOG
   logging.print("User request: contactor close: ");
   logging.print(userRequestContactorClose);
   logging.print("  User request: contactor open: ");
   logging.println(userRequestContactorOpen);
-#endif  // DEBUG_LOG
   if ((userRequestContactorClose == false) && (userRequestContactorOpen == false)) {
     // do nothing
   } else if ((userRequestContactorClose == true) && (userRequestContactorOpen == false)) {
@@ -487,11 +479,9 @@ void BmwIXBattery::HandleIncomingUserRequest(void) {
     // set user request to false
     userRequestContactorClose = false;
     userRequestContactorOpen = false;
-// print error, as both these flags shall not be true at the same time
-#ifdef DEBUG_LOG
+    // print error, as both these flags shall not be true at the same time
     logging.println(
         "Error: user requested contactors to close and open at the same time. Contactors have been opened.");
-#endif  // DEBUG_LOG
   }
 }
 
@@ -499,16 +489,12 @@ void BmwIXBattery::HandleIncomingInverterRequest(void) {
   InverterContactorCloseRequest.present = datalayer.system.status.inverter_allows_contactor_closing;
   // Detect edge
   if (InverterContactorCloseRequest.previous == false && InverterContactorCloseRequest.present == true) {
-// Rising edge detected
-#ifdef DEBUG_LOG
+    // Rising edge detected
     logging.println("Inverter requests to close contactors");
-#endif  // DEBUG_LOG
     BmwIxCloseContactors();
   } else if (InverterContactorCloseRequest.previous == true && InverterContactorCloseRequest.present == false) {
-// Falling edge detected
-#ifdef DEBUG_LOG
+    // Falling edge detected
     logging.println("Inverter requests to open contactors");
-#endif  // DEBUG_LOG
     BmwIxOpenContactors();
   }  // else: do nothing
 
@@ -517,16 +503,12 @@ void BmwIXBattery::HandleIncomingInverterRequest(void) {
 }
 
 void BmwIXBattery::BmwIxCloseContactors(void) {
-#ifdef DEBUG_LOG
   logging.println("Closing contactors");
-#endif  // DEBUG_LOG
   contactorCloseReq = true;
 }
 
 void BmwIXBattery::BmwIxOpenContactors(void) {
-#ifdef DEBUG_LOG
   logging.println("Opening contactors");
-#endif  // DEBUG_LOG
   contactorCloseReq = false;
   counter_100ms = 0;  // reset counter, such that keep contactors closed message sequence starts from the beginning
 }
@@ -552,46 +534,34 @@ void BmwIXBattery::HandleBmwIxCloseContactorsRequest(uint16_t counter_10ms) {
       if (counter_10ms == 0) {
         // @0 ms
         transmit_can_frame(&BMWiX_510);
-#ifdef DEBUG_LOG
         logging.println("Transmitted 0x510 - 1/6");
-#endif  // DEBUG_LOG
       } else if (counter_10ms == 5) {
         // @50 ms
         transmit_can_frame(&BMWiX_276);
-#ifdef DEBUG_LOG
         logging.println("Transmitted 0x276 - 2/6");
-#endif  // DEBUG_LOG
       } else if (counter_10ms == 10) {
         // @100 ms
         BMWiX_510.data.u8[2] = 0x04;  // TODO: check if needed
         transmit_can_frame(&BMWiX_510);
-#ifdef DEBUG_LOG
         logging.println("Transmitted 0x510 - 3/6");
-#endif  // DEBUG_LOG
       } else if (counter_10ms == 20) {
         // @200 ms
         BMWiX_510.data.u8[2] = 0x10;  // TODO: check if needed
         BMWiX_510.data.u8[5] = 0x80;  // needed to close contactors
         transmit_can_frame(&BMWiX_510);
-#ifdef DEBUG_LOG
         logging.println("Transmitted 0x510 - 4/6");
-#endif  // DEBUG_LOG
       } else if (counter_10ms == 30) {
         // @300 ms
         BMWiX_16E.data.u8[0] = 0x6A;
         BMWiX_16E.data.u8[1] = 0xAD;
         transmit_can_frame(&BMWiX_16E);
-#ifdef DEBUG_LOG
         logging.println("Transmitted 0x16E - 5/6");
-#endif  // DEBUG_LOG
       } else if (counter_10ms == 50) {
         // @500 ms
         BMWiX_16E.data.u8[0] = 0x03;
         BMWiX_16E.data.u8[1] = 0xA9;
         transmit_can_frame(&BMWiX_16E);
-#ifdef DEBUG_LOG
         logging.println("Transmitted 0x16E - 6/6");
-#endif  // DEBUG_LOG
         ContactorState.closed = true;
         ContactorState.open = false;
       }
@@ -613,9 +583,7 @@ void BmwIXBattery::BmwIxKeepContactorsClosed(uint8_t counter_100ms) {
                       0xC9, 0x3A, 0xF7};  // Explicit declaration, to prevent modification by other functions
 
     if (counter_100ms == 0) {
-#ifdef DEBUG_LOG
       logging.println("Sending keep contactors closed messages started");
-#endif  // DEBUG_LOG
       // @0 ms
       transmit_can_frame(&BMWiX_510);
     } else if (counter_100ms == 7) {
@@ -631,9 +599,7 @@ void BmwIXBattery::BmwIxKeepContactorsClosed(uint8_t counter_100ms) {
       BMWiX_16E.data.u8[0] = 0x02;
       BMWiX_16E.data.u8[1] = 0xA7;
       transmit_can_frame(&BMWiX_16E);
-#ifdef DEBUG_LOG
       logging.println("Sending keep contactors closed messages finished");
-#endif  // DEBUG_LOG
     } else if (counter_100ms == 140) {
       // @14000 ms
       // reset counter (outside of this function)
