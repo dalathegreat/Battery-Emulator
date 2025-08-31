@@ -1,6 +1,7 @@
 #ifndef PREFERENCES
 #define PREFERENCES
 
+#include <WString.h>
 #include <stdint.h>
 
 class Preferences {
