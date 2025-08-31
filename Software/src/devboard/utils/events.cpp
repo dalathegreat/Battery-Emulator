@@ -125,8 +125,6 @@ void init_events(void) {
   events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SD_INIT_FAILED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_PERIODIC_BMS_RESET].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_GPIO_CONFLICT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_GPIO_NOT_DEFINED].level = EVENT_LEVEL_ERROR;
@@ -365,11 +363,6 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "SD card initialization failed, check hardware. Power must be removed to reset the SD card.";
     case EVENT_PERIODIC_BMS_RESET:
       return "BMS Reset Event Completed.";
-    case EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS:
-      return "Successfully syncronised with the NTP Server. BMS will reset every 24 hours at defined time";
-    case EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED:
-      return "Failed to syncronise with the NTP Server. BMS will reset every 24 hours from when the emulator was "
-             "powered on";
     case EVENT_GPIO_CONFLICT:
       return "GPIO Pin Conflict: The pin used by '" + esp32hal->failed_allocator() + "' is already allocated by '" +
              esp32hal->conflicting_allocator() + "'. Please check your configuration and assign different pins.";

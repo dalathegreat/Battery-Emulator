@@ -35,11 +35,6 @@
 #error You must select a target hardware in the USER_SETTINGS.h file!
 #endif
 
-#ifdef PERIODIC_BMS_RESET_AT
-#include "src/devboard/utils/ntp_time.h"
-#endif
-volatile unsigned long long bmsResetTimeOffset = 0;
-
 // The current software version, shown on webserver
 const char* version_number = "9.0.RC5experimental";
 
@@ -151,15 +146,6 @@ void setup() {
 
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
                           esp32hal->CORE_FUNCTION_CORE());
-
-#ifdef PERIODIC_BMS_RESET_AT
-  bmsResetTimeOffset = getTimeOffsetfromNowUntil(PERIODIC_BMS_RESET_AT);
-  if (bmsResetTimeOffset == 0) {
-    set_event(EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED, 0);
-  } else {
-    set_event(EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS, 0);
-  }
-#endif
 
   DEBUG_PRINTF("setup() complete\n");
 }
