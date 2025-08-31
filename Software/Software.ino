@@ -64,7 +64,7 @@ void setup() {
 
   init_serial();
 
-  // We print this after setting up serial, such that is also printed to serial with DEBUG_VIA_USB set.
+  // We print this after setting up serial, so that is also printed if configured to do so
   logging.printf("Battery emulator %s build " __DATE__ " " __TIME__ "\n", version_number);
 
   init_events();
@@ -80,10 +80,10 @@ void setup() {
     return;
   }
 
-#if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
-  xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
-                          &logging_loop_task, esp32hal->WIFICORE());
-#endif
+  if (datalayer.system.info.CAN_SD_logging_active || datalayer.system.info.SD_logging_active) {
+    xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
+                            &logging_loop_task, esp32hal->WIFICORE());
+  }
 
   if (!init_contactors()) {
     return;
@@ -167,22 +167,21 @@ void setup() {
 // Loop empty, all functionality runs in tasks
 void loop() {}
 
-#if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
 void logging_loop(void*) {
 
   init_logging_buffers();
   init_sdcard();
 
   while (true) {
-#ifdef LOG_TO_SD
-    write_log_to_sdcard();
-#endif
-#ifdef LOG_CAN_TO_SD
-    write_can_frame_to_sdcard();
-#endif
+    if (datalayer.system.info.SD_logging_active) {
+      write_log_to_sdcard();
+    }
+
+    if (datalayer.system.info.CAN_SD_logging_active) {
+      write_can_frame_to_sdcard();
+    }
   }
 }
-#endif
 
 void connectivity_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
@@ -352,9 +351,6 @@ void init_serial() {
   // Init Serial monitor
   Serial.begin(115200);
   while (!Serial) {}
-#ifdef DEBUG_VIA_USB
-  Serial.println("__ OK __");
-#endif  // DEBUG_VIA_USB
 }
 
 void check_interconnect_available() {

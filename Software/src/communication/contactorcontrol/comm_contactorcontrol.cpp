@@ -147,12 +147,10 @@ bool init_contactors() {
 }
 
 static void dbg_contactors(const char* state) {
-#ifdef DEBUG_LOG
   logging.print("[");
   logging.print(millis());
   logging.print(" ms] contactors control: ");
   logging.println(state);
-#endif
 }
 
 // Main functions of the handle_contactors include checking if inverter allows for closing, checking battery 2, checking BMS power output, and actual contactor closing/precharge via GPIO

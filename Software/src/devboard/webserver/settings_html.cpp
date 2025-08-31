@@ -281,6 +281,26 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
   }
 
+  if (var == "CANLOGUSB") {
+    return settings.getBool("CANLOGUSB") ? "checked" : "";
+  }
+
+  if (var == "USBENABLED") {
+    return settings.getBool("USBENABLED") ? "checked" : "";
+  }
+
+  if (var == "WEBENABLED") {
+    return settings.getBool("WEBENABLED") ? "checked" : "";
+  }
+
+  if (var == "CANLOGSD") {
+    return settings.getBool("CANLOGSD") ? "checked" : "";
+  }
+
+  if (var == "SDLOGENABLED") {
+    return settings.getBool("SDLOGENABLED") ? "checked" : "";
+  }
+
   if (var == "MQTTENABLED") {
     return settings.getBool("MQTTENABLED") ? "checked" : "";
   }
@@ -936,6 +956,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Custom hostname: </label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" />
+
+        <label>Enable CAN logging via USB serial: </label>
+        <input type='checkbox' name='CANLOGUSB' value='on' style='margin-left: 0;' %CANLOGUSB% />
+
+        <label>Enable logging via USB serial: </label>
+        <input type='checkbox' name='USBENABLED' value='on' style='margin-left: 0;' %USBENABLED% />
+
+        <label>Enable logging via Webserver: </label>
+        <input type='checkbox' name='WEBENABLED' value='on' style='margin-left: 0;' %WEBENABLED% />
+
+        <label>Enable CAN logging via SD card: </label>
+        <input type='checkbox' name='CANLOGSD' value='on' style='margin-left: 0;' %CANLOGSD% />
+
+        <label>Enable logging via SD card: </label>
+        <input type='checkbox' name='SDLOGENABLED' value='on' style='margin-left: 0;' %SDLOGENABLED% />
 
         <label>Enable MQTT: </label>
         <input type='checkbox' name='MQTTENABLED' value='on' style='margin-left: 0;' %MQTTENABLED% />
