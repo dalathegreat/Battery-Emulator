@@ -12,7 +12,8 @@
 
 class HyundaiIoniq28Battery : public CanBattery {
  public:
-  HyundaiIoniq28Battery() : renderer(*this) {}
+  // Use the default constructor to create the first or single battery.
+  HyundaiIoniq28Battery() : renderer(*this) { datalayer_battery = &datalayer.battery; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
