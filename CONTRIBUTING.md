@@ -38,3 +38,15 @@ Or force it to check all files with
 ```
 pre-commit run --all-files
 ```
+
+## Local Unit test run
+The Unit tests run gtest. Here is how to install this on Debian/Ubuntu and run it locally
+```
+sudo apt-get install libgtest-dev
+sudo apt-get install cmake
+```
+Navigate to Battery-Emulator/test folder
+```
+sudo cmake CMakeLists.txt
+sudo make
+```
