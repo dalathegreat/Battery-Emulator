@@ -9,6 +9,19 @@
 
 class MebBattery : public CanBattery {
  public:
+  // Use this constructor for the second battery.
+  MebBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_MEB* extended, CAN_Interface targetCan)
+      : CanBattery(targetCan) {
+    datalayer_battery = datalayer_ptr;
+
+    BMS_voltage = 0;
+  }
+  // Use the default constructor to create the first or single battery.
+  MebBattery() {
+    datalayer_battery = &datalayer.battery;
+    datalayer_meb = &datalayer_extended.meb;
+  }
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -21,6 +34,10 @@ class MebBattery : public CanBattery {
 
  private:
   MebHtmlRenderer renderer;
+
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+  DATALAYER_INFO_MEB* datalayer_meb;
+
   static const int MAX_PACK_VOLTAGE_84S_DV = 3528;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_84S_DV = 2520;
   static const int MAX_PACK_VOLTAGE_96S_DV = 4032;

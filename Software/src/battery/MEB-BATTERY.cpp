@@ -200,15 +200,15 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint32_t address) {
 void MebBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc = battery_SOC * 5;  //*0.05*100
+  datalayer_battery->status.real_soc = battery_SOC * 5;  //*0.05*100
 
-  datalayer.battery.status.voltage_dV = BMS_voltage * 2.5;  // *0.25*10
+  datalayer_battery->status.voltage_dV = BMS_voltage * 2.5;  // *0.25*10
 
-  datalayer.battery.status.current_dA = (BMS_current - 16300);  // 0.1 * 10
+  datalayer_battery->status.current_dA = (BMS_current - 16300);  // 0.1 * 10
 
   if (nof_cells_determined) {
-    datalayer.battery.info.total_capacity_Wh =
-        ((float)datalayer.battery.info.number_of_cells) * 3.67 * ((float)BMS_capacity_ah) * 0.2 * 1.02564;
+    datalayer_battery->info.total_capacity_Wh =
+        ((float)datalayer_battery->info.number_of_cells) * 3.67 * ((float)BMS_capacity_ah) * 0.2 * 1.02564;
     // The factor 1.02564 = 1/0.975 is to correct for bottom 2.5% which is reported by the remaining_capacity_Wh,
     // but which is not actually usable, but if we do not include it, the remaining_capacity_Wh can be larger than
     // the total_capacity_Wh.
@@ -216,32 +216,32 @@ void MebBattery::
     // total_capacity_Wh calculated above.
 
     int Wh_max = 61832 * 0.935;  // 108 cells
-    if (datalayer.battery.info.number_of_cells <= 84)
+    if (datalayer_battery->info.number_of_cells <= 84)
       Wh_max = 48091 * 0.9025;
-    else if (datalayer.battery.info.number_of_cells <= 96)
+    else if (datalayer_battery->info.number_of_cells <= 96)
       Wh_max = 82442 * 0.9025;
     if (BMS_capacity_ah > 0)
-      datalayer.battery.status.soh_pptt = 10000 * datalayer.battery.info.total_capacity_Wh / (Wh_max * 1.02564);
+      datalayer_battery->status.soh_pptt = 10000 * datalayer_battery->info.total_capacity_Wh / (Wh_max * 1.02564);
   }
 
-  datalayer.battery.status.remaining_capacity_Wh = usable_energy_amount_Wh * 5;
+  datalayer_battery->status.remaining_capacity_Wh = usable_energy_amount_Wh * 5;
 
-  datalayer.battery.status.max_charge_power_W = (max_charge_power_watt * 100);
+  datalayer_battery->status.max_charge_power_W = (max_charge_power_watt * 100);
 
-  datalayer.battery.status.max_discharge_power_W = (max_discharge_power_watt * 100);
+  datalayer_battery->status.max_discharge_power_W = (max_discharge_power_watt * 100);
 
   //Power in watts, Negative = charging batt
-  datalayer.battery.status.active_power_W =
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
+  datalayer_battery->status.active_power_W =
+      ((datalayer_battery->status.voltage_dV * datalayer_battery->status.current_dA) / 100);
 
   // datalayer.battery.status.temperature_min_dC = actual_temperature_lowest_C*5 -400;  // We use the value below, because it has better accuracy
-  datalayer.battery.status.temperature_min_dC = (battery_min_temp * 10) / 64;
+  datalayer_battery->status.temperature_min_dC = (battery_min_temp * 10) / 64;
 
   // datalayer.battery.status.temperature_max_dC = actual_temperature_highest_C*5 -400;  // We use the value below, because it has better accuracy
-  datalayer.battery.status.temperature_max_dC = (battery_max_temp * 10) / 64;
+  datalayer_battery->status.temperature_max_dC = (battery_max_temp * 10) / 64;
 
   //Map all cell voltages to the global array
-  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_polled, 108 * sizeof(uint16_t));
+  memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages_polled, 108 * sizeof(uint16_t));
 
   if (service_disconnect_switch_missing) {
     set_event(EVENT_HVIL_FAILURE, 1);
