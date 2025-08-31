@@ -144,6 +144,13 @@ void init_stored_settings() {
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
 
+  datalayer.system.info.CAN_usb_logging_active = settings.getBool("CANLOGUSB", false);
+  datalayer.system.info.usb_logging_active = settings.getBool("USBENABLED", false);
+  datalayer.system.info.web_logging_active = settings.getBool("WEBENABLED", false);
+  datalayer.system.info.CAN_SD_logging_active = settings.getBool("CANLOGSD", false);
+  datalayer.system.info.SD_logging_active = settings.getBool("SDLOGENABLED", false);
+  datalayer.battery.status.led_mode = (led_mode_enum)settings.getUInt("LEDMODE", false);
+
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
   passwordAP = settings.getString("APPASSWORD", "123456789").c_str();

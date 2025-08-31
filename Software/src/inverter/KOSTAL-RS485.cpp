@@ -14,16 +14,13 @@ void KostalInverterProtocol::float2frame(uint8_t* arr, float value, uint8_t fram
 }
 
 static void dbg_timestamp(void) {
-#ifdef DEBUG_KOSTAL_RS485_DATA
   logging.print("[");
   logging.print(millis());
   logging.print(" ms] ");
-#endif
 }
 
 static void dbg_frame(uint8_t* frame, int len, const char* prefix) {
   dbg_timestamp();
-#ifdef DEBUG_KOSTAL_RS485_DATA
   logging.print(prefix);
   logging.print(": ");
   for (uint8_t i = 0; i < len; i++) {
@@ -34,26 +31,11 @@ static void dbg_frame(uint8_t* frame, int len, const char* prefix) {
     logging.print(" ");
   }
   logging.println("");
-#endif
-#ifdef DEBUG_KOSTAL_RS485_DATA_USB
-  Serial.print(prefix);
-  Serial.print(": ");
-  for (uint8_t i = 0; i < len; i++) {
-    if (frame[i] < 0x10) {
-      Serial.print("0");
-    }
-    Serial.print(frame[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println("");
-#endif
 }
 
 static void dbg_message(const char* msg) {
   dbg_timestamp();
-#ifdef DEBUG_KOSTAL_RS485_DATA
   logging.println(msg);
-#endif
 }
 
 /* https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples */

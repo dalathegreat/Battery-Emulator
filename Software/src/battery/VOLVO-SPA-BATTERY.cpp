@@ -85,51 +85,6 @@ void VolvoSpaBattery::
       datalayer.battery.info.total_capacity_Wh = 69511;
     }
   }
-
-#ifdef DEBUG_LOG
-  uint8_t cnt = 0;
-  logging.print("BMS reported SOC%: ");
-  logging.println(SOC_BMS);
-  logging.print("Calculated SOC%: ");
-  logging.println(SOC_CALC);
-  logging.print("Rescaled SOC%: ");
-  logging.println(datalayer.battery.status.reported_soc / 100);
-  logging.print("Battery current: ");
-  logging.println(BATT_I);
-  logging.print("Battery voltage: ");
-  logging.println(BATT_U);
-  logging.print("Battery maximum voltage limit: ");
-  logging.println(MAX_U);
-  logging.print("Battery minimum voltage limit: ");
-  logging.println(MIN_U);
-  logging.print("Discharge limit: ");
-  logging.println(HvBattPwrLimDchaSoft);
-  logging.print("Battery Error Indication: ");
-  logging.println(BATT_ERR_INDICATION);
-  logging.print("Maximum battery temperature: ");
-  logging.println(BATT_T_MAX / 10);
-  logging.print("Minimum battery temperature: ");
-  logging.println(BATT_T_MIN / 10);
-  logging.print("Average battery temperature: ");
-  logging.println(BATT_T_AVG / 10);
-  logging.print("BMS Highest cell voltage: ");
-  logging.println(CELL_U_MAX * 10);
-  logging.print("BMS Lowest cell voltage: ");
-  logging.println(CELL_U_MIN * 10);
-  logging.print("BMS Highest cell nr: ");
-  logging.println(CELL_ID_U_MAX);
-  logging.print("Highest cell voltage: ");
-  logging.println(min_max_voltage[1]);
-  logging.print("Lowest cell voltage: ");
-  logging.println(min_max_voltage[0]);
-  logging.print("Cell voltage,");
-  while (cnt < 108) {
-    logging.print(cell_voltages[cnt++]);
-    logging.print(",");
-  }
-  cnt = 0;
-  logging.println(";");
-#endif
 }
 
 void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -140,9 +95,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         BATT_I = (0 - ((((rx_frame.data.u8[6] & 0x7F) * 256.0 + rx_frame.data.u8[7]) * 0.1) - 1638));
       else {
         BATT_I = 0;
-#ifdef DEBUG_LOG
         logging.println("BATT_I not valid");
-#endif
       }
 
       if ((rx_frame.data.u8[2] & 0x08) == 0x08)
@@ -195,9 +148,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         BATT_ERR_INDICATION = ((rx_frame.data.u8[0] & 0x40) >> 6);
       else {
         BATT_ERR_INDICATION = 0;
-#ifdef DEBUG_LOG
         logging.println("BATT_ERR_INDICATION not valid");
-#endif
       }
       if ((rx_frame.data.u8[0] & 0x20) == 0x20) {
         BATT_T_MAX = ((rx_frame.data.u8[2] & 0x1F) * 256.0 + rx_frame.data.u8[3]);
@@ -207,9 +158,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         BATT_T_MAX = 0;
         BATT_T_MIN = 0;
         BATT_T_AVG = 0;
-#ifdef DEBUG_LOG
         logging.println("BATT_T not valid");
-#endif
       }
       break;
     case 0x369:
@@ -217,9 +166,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         HvBattPwrLimDchaSoft = (((rx_frame.data.u8[6] & 0x03) * 256 + rx_frame.data.u8[6]) >> 2);
       } else {
         HvBattPwrLimDchaSoft = 0;
-#ifdef DEBUG_LOG
         logging.println("HvBattPwrLimDchaSoft not valid");
-#endif
       }
       break;
     case 0x175:
@@ -246,9 +193,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         SOC_BMS = ((rx_frame.data.u8[6] & 0x03) * 256 + rx_frame.data.u8[7]);
       } else {
         SOC_BMS = 0;
-#ifdef DEBUG_LOG
         logging.println("SOC_BMS not valid");
-#endif
       }
 
       if ((rx_frame.data.u8[0] & 0x04) == 0x04) {
