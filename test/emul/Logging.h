@@ -1,9 +1,9 @@
-#ifndef LOGGING_H
-#define LOGGING_H
+#pragma once
 
 #include <cstdarg>
 #include <cstdio>
 
+namespace test {
 class Logging {
  public:
   static void printf(const char* format, ...) {
@@ -14,11 +14,9 @@ class Logging {
   }
 
   static void println(const char* message) { printf("%s\n", message); }
-
   static void print(const char* message) { printf("%s", message); }
 };
+}  // namespace test
 
-// Global logging instance
+using Logging = test::Logging;
 extern Logging logging;
-
-#endif
