@@ -411,7 +411,7 @@ void init_webserver() {
   const char* boolSettingNames[] = {
       "DBLBTR",     "CNTCTRL",    "CNTCTRLDBL", "PWMCNTCTRL", "PERBMSRESET", "SDLOGENABLED",  "REMBMSRESET",
       "USBENABLED", "CANLOGUSB",  "WEBENABLED", "CANFDASCAN", "CANLOGSD",    "WIFIAPENABLED", "MQTTENABLED",
-      "HADISC",     "MQTTTOPICS", "INVICNT",    "GTWRHD",     "DIGITALHVIL",
+      "HADISC",     "MQTTTOPICS", "INVICNT",    "GTWRHD",     "DIGITALHVIL", "PERFPROFILE",
   };
 
   // Handles the form POST from UI to save settings of the common image
@@ -914,23 +914,24 @@ String processor(const String& var) {
 #endif  // HW_STARK
     content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
     content += "<h4>Uptime: " + get_uptime() + "</h4>";
-#ifdef FUNCTION_TIME_MEASUREMENT
-    // Load information
-    content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
-    content += "<h4>Core task max load last 10 s: " + String(datalayer.system.status.core_task_10s_max_us) + " us</h4>";
-    content +=
-        "<h4>MQTT function (MQTT task) max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) +
-        " us</h4>";
-    content +=
-        "<h4>WIFI function (MQTT task) max load last 10 s: " + String(datalayer.system.status.wifi_task_10s_max_us) +
-        " us</h4>";
-    content += "<h4>Max load @ worst case execution of core task:</h4>";
-    content += "<h4>10ms function timing: " + String(datalayer.system.status.time_snap_10ms_us) + " us</h4>";
-    content += "<h4>Values function timing: " + String(datalayer.system.status.time_snap_values_us) + " us</h4>";
-    content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
-    content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
-    content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
-#endif  // FUNCTION_TIME_MEASUREMENT
+    if (datalayer.system.info.performance_measurement_active) {
+      // Load information
+      content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
+      content +=
+          "<h4>Core task max load last 10 s: " + String(datalayer.system.status.core_task_10s_max_us) + " us</h4>";
+      content +=
+          "<h4>MQTT function (MQTT task) max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) +
+          " us</h4>";
+      content +=
+          "<h4>WIFI function (MQTT task) max load last 10 s: " + String(datalayer.system.status.wifi_task_10s_max_us) +
+          " us</h4>";
+      content += "<h4>Max load @ worst case execution of core task:</h4>";
+      content += "<h4>10ms function timing: " + String(datalayer.system.status.time_snap_10ms_us) + " us</h4>";
+      content += "<h4>Values function timing: " + String(datalayer.system.status.time_snap_values_us) + " us</h4>";
+      content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
+      content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
+      content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
+    }
 
     wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP

@@ -144,6 +144,7 @@ void init_stored_settings() {
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
 
+  datalayer.system.info.performance_measurement_active = settings.getBool("PERFPROFILE", false);
   datalayer.system.info.CAN_usb_logging_active = settings.getBool("CANLOGUSB", false);
   datalayer.system.info.usb_logging_active = settings.getBool("USBENABLED", false);
   datalayer.system.info.web_logging_active = settings.getBool("WEBENABLED", false);

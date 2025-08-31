@@ -283,6 +283,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
   }
 
+  if (var == "PERFPROFILE") {
+    return settings.getBool("PERFPROFILE") ? "checked" : "";
+  }
+
   if (var == "CANLOGUSB") {
     return settings.getBool("CANLOGUSB") ? "checked" : "";
   }
@@ -969,6 +973,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Custom hostname: </label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" />
+
+        <label>Enable performance profiling: </label>
+        <input type='checkbox' name='PERFPROFILE' value='on' style='margin-left: 0;' %PERFPROFILE% />
 
         <label>Enable CAN logging via USB serial: </label>
         <input type='checkbox' name='CANLOGUSB' value='on' style='margin-left: 0;' %CANLOGUSB% />
