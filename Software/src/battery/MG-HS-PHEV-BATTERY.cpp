@@ -1,4 +1,5 @@
 #include "MG-HS-PHEV-BATTERY.h"
+#include <cmath>
 #include "../communication/can/comm_can.h"
 #include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"

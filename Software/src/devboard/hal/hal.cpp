@@ -6,6 +6,7 @@
 #include "hw_3LB.h"
 #include "hw_devkit.h"
 #include "hw_lilygo.h"
+#include "hw_pc.h"
 #include "hw_stark.h"
 
 Esp32Hal* esp32hal = nullptr;
@@ -19,6 +20,8 @@ void init_hal() {
   esp32hal = new ThreeLBHal();
 #elif defined(HW_DEVKIT)
   esp32hal = new DevKitHal();
+#elif defined(HW_PC)
+  esp32hal = new PcHal();
 #else
 #error "No HW defined."
 #endif

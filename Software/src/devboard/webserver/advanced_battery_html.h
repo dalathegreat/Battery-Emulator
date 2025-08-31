@@ -2,6 +2,7 @@
 #define ADVANCEDBATTERY_H
 
 #include <Arduino.h>
+#include <functional>
 #include <string>
 
 /**
@@ -19,6 +20,10 @@ class Battery;
 // Whether the selected battery supports the command is determined at run-time
 // by calling the condition callback.
 struct BatteryCommand {
+  BatteryCommand(const char* id, const char* t, const char* p, std::function<bool(Battery*)> cond,
+                 std::function<void(Battery*)> act)
+      : identifier(id), title(t), prompt(p), condition(cond), action(act) {}
+
   // The unique name of the route in the API to execute the command or a function in Javascript
   const char* identifier;
 

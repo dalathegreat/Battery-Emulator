@@ -1,4 +1,5 @@
 #include "logging.h"
+#include <Arduino.h>
 #include "../../../USER_SETTINGS.h"
 #include "../../datalayer/datalayer.h"
 #include "../sdcard/sdcard.h"
@@ -59,6 +60,8 @@ void Logging::add_timestamp(size_t size) {
 }
 
 size_t Logging::write(const uint8_t* buffer, size_t size) {
+  std::lock_guard<std::mutex> lock(writeMutex);
+
 #ifdef DEBUG_LOG
   if (previous_message_was_newline) {
     add_timestamp(size);
@@ -91,6 +94,7 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
 }
 
 void Logging::printf(const char* fmt, ...) {
+  std::lock_guard<std::mutex> lock(writeMutex);
 #ifdef DEBUG_LOG
   if (previous_message_was_newline) {
     add_timestamp(MAX_LINE_LENGTH_PRINTF);
