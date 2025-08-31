@@ -1,4 +1,4 @@
-name: 🔋 Compile Common Image for Lilygo
+name: 🔋 Compile Common Image for Lilygo 2CAN
 
 on:
   # The workflow is run when a commit is pushed or for a
@@ -49,10 +49,10 @@ jobs:
       run: cp ./Software/USER_SECRETS.TEMPLATE.h ./Software/USER_SECRETS.h
 
     - name: Build image for Lilygo
-      run: pio run -e lilygo_330
+      run: pio run -e lilygo_2CAN_330
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: battery-emulator-lilygo.bin
-        path: .pio/build/lilygo_330/firmware.bin
+        path: .pio/build/lilygo_2CAN_330/firmware.bin

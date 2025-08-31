@@ -33,6 +33,8 @@ void init_stored_settings() {
   settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
 #endif  // LOAD_SAVED_SETTINGS_ON_BOOT
 
+  esp32hal->set_default_configuration_values();
+
   char tempSSIDstring[63];  // Allocate buffer with sufficient size
   size_t lengthSSID = settings.getString("SSID", tempSSIDstring, sizeof(tempSSIDstring));
   if (lengthSSID > 0) {  // Successfully read the string from memory. Set it to SSID!
@@ -103,6 +105,7 @@ void init_stored_settings() {
   user_selected_inverter_ah_capacity = settings.getUInt("INVAHCAPACITY", 0);
   user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
   user_selected_inverter_ignore_contactors = settings.getBool("INVICNT", false);
+  user_selected_can_addon_crystal_frequency_mhz = settings.getUInt("CANFREQ", 8);
   user_selected_tesla_digital_HVIL = settings.getBool("DIGITALHVIL", false);
   user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", 0);
   user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", false);
@@ -140,6 +143,13 @@ void init_stored_settings() {
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
+
+  datalayer.system.info.CAN_usb_logging_active = settings.getBool("CANLOGUSB", false);
+  datalayer.system.info.usb_logging_active = settings.getBool("USBENABLED", false);
+  datalayer.system.info.web_logging_active = settings.getBool("WEBENABLED", false);
+  datalayer.system.info.CAN_SD_logging_active = settings.getBool("CANLOGSD", false);
+  datalayer.system.info.SD_logging_active = settings.getBool("SDLOGENABLED", false);
+  datalayer.battery.status.led_mode = (led_mode_enum)settings.getUInt("LEDMODE", false);
 
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);

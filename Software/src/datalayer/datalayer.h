@@ -110,7 +110,7 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
 
   /** LED mode, customizable by user */
-  led_mode_enum led_mode = LED_MODE;
+  led_mode_enum led_mode = CLASSIC;
 };
 
 struct DATALAYER_BATTERY_SETTINGS_TYPE {
@@ -241,6 +241,16 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   size_t logged_can_messages_offset = 0;
   /** bool, determines if CAN messages should be logged for webserver */
   bool can_logging_active = false;
+  /** bool, determines if USB serial logging should occur */
+  bool CAN_usb_logging_active = false;
+  /** bool, determines if USB serial logging should occur */
+  bool CAN_SD_logging_active = false;
+  /** bool, determines if USB serial logging should occur */
+  bool usb_logging_active = false;
+  /** bool, determines if general logging should be active for webserver */
+  bool web_logging_active = false;
+  /** bool, determines if general logging to SD card should be active */
+  bool SD_logging_active = false;
   /** uint8_t, enumeration which CAN interface should be used for log playback */
   uint8_t can_replay_interface = CAN_NATIVE;
   /** bool, determines if CAN replay should loop or not */

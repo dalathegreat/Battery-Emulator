@@ -15,8 +15,8 @@ static int16_t current_dA = 0;
 static uint16_t voltage_dV = 0;
 static uint32_t remaining_capacity_mAh = 0;
 static uint16_t cellvoltages_mV[48] = {0};
-static uint16_t cellvoltage_min_mV = 0;
-static uint16_t cellvoltage_max_mV = 0;
+static uint16_t cellvoltage_min_mV = 3700;
+static uint16_t cellvoltage_max_mV = 3700;
 static uint16_t cell_count = 0;
 static uint16_t SOC = 0;
 static bool has_fault = false;
@@ -108,18 +108,16 @@ uint32_t decode_uint32be(uint8_t data[8], uint8_t offset) {
          ((uint32_t)data[offset + 3]);
 }
 
-#ifdef DEBUG_VIA_USB
 void dump_buff(const char* msg, uint8_t* buff, uint8_t len) {
-  Serial.print("[DALY-BMS] ");
-  Serial.print(msg);
+  logging.print("[DALY-BMS] ");
+  logging.print(msg);
   for (int i = 0; i < len; i++) {
-    Serial.print(buff[i] >> 4, HEX);
-    Serial.print(buff[i] & 0xf, HEX);
-    Serial.print(" ");
+    logging.print(buff[i] >> 4, HEX);
+    logging.print(buff[i] & 0xf, HEX);
+    logging.print(" ");
   }
-  Serial.println();
+  logging.println();
 }
-#endif
 
 void decode_packet(uint8_t command, uint8_t data[8]) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -180,9 +178,7 @@ void DalyBms::transmit_rs485(unsigned long currentMillis) {
     tx_buff[2] = nextCommand;
     tx_buff[3] = 8;
     tx_buff[12] = calculate_checksum(tx_buff);
-#ifdef DEBUG_VIA_USB
     dump_buff("transmitting: ", tx_buff, 13);
-#endif
     Serial2.write(tx_buff, 13);
     nextCommand++;
     if (nextCommand > 0x98)
@@ -202,17 +198,12 @@ void DalyBms::receive() {
     if (recv_len > 0 && recv_buff[0] != 0xA5 || recv_len > 1 && recv_buff[1] != 0x01 ||
         recv_len > 2 && (recv_buff[2] < 0x90 || recv_buff[2] > 0x98) || recv_len > 3 && recv_buff[3] != 8 ||
         recv_len > 12 && recv_buff[12] != calculate_checksum(recv_buff)) {
-
-#ifdef DEBUG_VIA_USB
       dump_buff("dropping partial rx: ", recv_buff, recv_len);
-#endif
       recv_len = 0;
     }
 
     if (recv_len > 12) {
-#ifdef DEBUG_VIA_USB
       dump_buff("decoding successfull rx: ", recv_buff, recv_len);
-#endif
       decode_packet(recv_buff[2], &recv_buff[4]);
       recv_len = 0;
       lastPacket = millis();

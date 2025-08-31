@@ -25,6 +25,7 @@ class LED {
   void heartbeat_run(void);
 
   uint8_t up_down(float middle_point_f);
+  int LED_PERIOD_MS = 3000;
 };
 
 bool led_init(void);

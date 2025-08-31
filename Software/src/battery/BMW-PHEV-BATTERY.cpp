@@ -122,9 +122,7 @@ bool BmwPhevBattery::storeUDSPayload(const uint8_t* payload, uint8_t length) {
   if (gUDSContext.UDS_bytesReceived + length > sizeof(gUDSContext.UDS_buffer)) {
     // Overflow => abort
     gUDSContext.UDS_inProgress = false;
-#ifdef DEBUG_LOG
     logging.println("UDS Payload Overflow");
-#endif  // DEBUG_LOG
     return false;
   }
   memcpy(&gUDSContext.UDS_buffer[gUDSContext.UDS_bytesReceived], payload, length);
@@ -134,9 +132,7 @@ bool BmwPhevBattery::storeUDSPayload(const uint8_t* payload, uint8_t length) {
   // If we’ve reached or exceeded the expected length, mark complete
   if (gUDSContext.UDS_bytesReceived >= gUDSContext.UDS_expectedLength) {
     gUDSContext.UDS_inProgress = false;
-    // #ifdef DEBUG_LOG
     //     logging.println("Recived all expected UDS bytes");
-    // #endif  // DEBUG_LOG
   }
   return true;
 }
@@ -196,9 +192,7 @@ void BmwPhevBattery::wake_battery_via_canbus() {
 
   change_can_speed(original_speed);
 
-#ifdef DEBUG_LOG
   logging.println("Sent magic wakeup packet to SME at 100kbps...");
-#endif
 }
 
 void BmwPhevBattery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
@@ -246,9 +240,7 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
     datalayer.battery.status.cell_min_voltage_mV = 9999;  //Stale values force stop
     datalayer.battery.status.cell_max_voltage_mV = 9999;  //Stale values force stop
     set_event(EVENT_STALE_VALUE, 0);
-#ifdef DEBUG_LOG
     logging.println("Stale Min/Max voltage values detected during charge/discharge sending - 9999mV...");
-#endif  // DEBUG_LOG
   } else {
 
     datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;  //Value is alive
@@ -398,11 +390,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                              rx_frame.data.u8[4] ==
                                  0xAD) {  //Balancing Status  01 Active 03 Not Active    7DLC F1 05 71 03 AD 6B 01
             balancing_status = (rx_frame.data.u8[6]);
-            // #ifdef DEBUG_LOG
-
-            //             logging.println("Balancing Status received");
-
-            // #endif  // DEBUG_LOG
+            //logging.println("Balancing Status received");
           }
 
           break;
@@ -525,7 +513,6 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           battery_current = ((int32_t)((gUDSContext.UDS_buffer[3] << 24) | (gUDSContext.UDS_buffer[4] << 16) |
                                        (gUDSContext.UDS_buffer[5] << 8) | gUDSContext.UDS_buffer[6])) *
                             0.1;
-#ifdef DEBUG_LOG
           logging.print("Received current/amps measurement data: ");
           logging.print(battery_current);
           logging.print(" - ");
@@ -538,7 +525,6 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             logging.print(" ");
           }
           logging.println();  // new line at the end
-#endif                        // DEBUG_LOG
         }
 
         //Cell Min/Max
@@ -553,7 +539,6 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             min_cell_voltage = (gUDSContext.UDS_buffer[9] << 8 | gUDSContext.UDS_buffer[10]) / 10;
             max_cell_voltage = (gUDSContext.UDS_buffer[11] << 8 | gUDSContext.UDS_buffer[12]) / 10;
           } else {
-#ifdef DEBUG_LOG
             logging.println("Cell Min Max Invalid 65535 or 0...");
             logging.print("Received data: ");
             for (uint16_t i = 0; i < gUDSContext.UDS_bytesReceived; i++) {
@@ -565,7 +550,6 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               logging.print(" ");
             }
             logging.println();  // new line at the end
-#endif                          // DEBUG_LOG
           }
         }
 
@@ -618,16 +602,12 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (rx_frame.data.u8[6] > 0 && rx_frame.data.u8[6] < 255) {
         battery_temperature_min = (rx_frame.data.u8[6] - 50);
       } else {
-#ifdef DEBUG_LOG
         logging.println("Pre parsed Cell Temp Min is Invalid ");
-#endif
       }
       if (rx_frame.data.u8[7] > 0 && rx_frame.data.u8[7] < 255) {
         battery_temperature_max = (rx_frame.data.u8[7] - 50);
       } else {
-#ifdef DEBUG_LOG
         logging.println("Pre parsed Cell Temp Max is Invalid ");
-#endif
       }
 
       break;

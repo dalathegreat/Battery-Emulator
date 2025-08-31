@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "HardwareSerial.h"
+#include "Logging.h"
 #include "Print.h"
 
 #include "esp-hal-gpio.h"
