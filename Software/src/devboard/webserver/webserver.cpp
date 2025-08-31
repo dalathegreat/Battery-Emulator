@@ -413,8 +413,8 @@ void init_webserver() {
   };
 
   const char* boolSettingNames[] = {
-      "DBLBTR",     "CNTCTRL",       "CNTCTRLDBL",  "PWMCNTCTRL", "PERBMSRESET", "REMBMSRESET",
-      "CANFDASCAN", "WIFIAPENABLED", "MQTTENABLED", "HADISC",     "MQTTTOPICS",  "INVICNT",
+      "DBLBTR",        "CNTCTRL",     "CNTCTRLDBL", "PWMCNTCTRL", "PERBMSRESET", "REMBMSRESET", "CANFDASCAN",
+      "WIFIAPENABLED", "MQTTENABLED", "HADISC",     "MQTTTOPICS", "INVICNT",     "GTWRHD",      "DIGITALHVIL",
   };
 
   // Handles the form POST from UI to save settings of the common image
@@ -518,6 +518,18 @@ void init_webserver() {
       } else if (p->name() == "CANFREQ") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("CANFREQ", type);
+      } else if (p->name() == "GTWCOUNTRY") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GTWCOUNTRY", type);
+      } else if (p->name() == "GTWMAPREG") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GTWMAPREG", type);
+      } else if (p->name() == "GTWCHASSIS") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GTWCHASSIS", type);
+      } else if (p->name() == "GTWPACK") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GTWPACK", type);
       }
 
       for (auto& boolSetting : boolSettings) {
