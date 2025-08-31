@@ -35,9 +35,7 @@ ModbusMessage ModbusInverterProtocol::FC03(ModbusMessage request) {
   if ((addr + words) > MBPV_MAX) {
     // Yes - send respective error response
     response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_DATA_ADDRESS);
-#ifdef DEBUG_LOG
     logging.printf("Modbus FC03 error: illegal request addr=%d words=%d\n", addr, words);
-#endif
     return response;
   }
 
@@ -47,10 +45,6 @@ ModbusMessage ModbusInverterProtocol::FC03(ModbusMessage request) {
     // send increasing data values
     response.add((uint16_t)(mbPV[addr + i]));
   }
-
-  // #ifdef DEBUG_LOG
-  //     logging.printf("Modbus FC03 response: %d %d\n", addr, mbPV[addr]);
-  // #endif
 
   return response;
 }
@@ -67,9 +61,7 @@ ModbusMessage ModbusInverterProtocol::FC06(ModbusMessage request) {
   if ((addr) > MBPV_MAX) {
     // Yes - send respective error response
     response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_DATA_ADDRESS);
-#ifdef DEBUG_LOG
     logging.printf("Modbus FC06 error: illegal request addr=%d val=%d\n", addr, val);
-#endif
     return response;
   }
 
@@ -97,18 +89,14 @@ ModbusMessage ModbusInverterProtocol::FC16(ModbusMessage request) {
       || (words > 123))       // can't support more than this in request packet
   {                           // Yes - send respective error response
     response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_DATA_VALUE);
-#ifdef DEBUG_LOG
     logging.printf("Modbus FC16 error: bad registers addr=%d words=%d bytes=%d\n", addr, words, bytes);
-#endif
     return response;
   }
   // Address overflow?
   if ((addr + words) > MBPV_MAX) {
     // Yes - send respective error response
     response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_DATA_ADDRESS);
-#ifdef DEBUG_LOG
     logging.printf("Modbus FC16 error: overflow addr=%d words=%d\n", addr, words);
-#endif
     return response;
   }
 
@@ -145,20 +133,16 @@ ModbusMessage ModbusInverterProtocol::FC23(ModbusMessage request) {
       || (read_words > 125))              // can't fit more than this in the response packet
   {                                       // Yes - send respective error response
     response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_DATA_VALUE);
-#ifdef DEBUG_LOG
     logging.printf("Modbus FC23 error: bad registers write_addr=%d write_words=%d write_bytes=%d read_words=%d\n",
                    write_addr, write_words, write_bytes, read_words);
-#endif
     return response;
   }
   // Address overflow?
   if (((write_addr + write_words) > MBPV_MAX) ||
       ((read_addr + read_words) > MBPV_MAX)) {  // Yes - send respective error response
     response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_DATA_ADDRESS);
-#ifdef DEBUG_LOG
     logging.printf("Modbus FC23 error: overflow write_addr=%d write_words=%d read_addr=%d read_words=%d\n", write_addr,
                    write_words, read_addr, read_words);
-#endif
     return response;
   }
 

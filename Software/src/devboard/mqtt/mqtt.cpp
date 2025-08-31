@@ -141,7 +141,9 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"balancing_active_cells", "Balancing Active Cells", "", "", "", always}};
 
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
-                                             {"pause_status", "Pause Status", "", "", "", always}};
+                                             {"pause_status", "Pause Status", "", "", "", always},
+                                             {"event_level", "Event Level", "", "", "", always},
+                                             {"emulator_status", "Emulator Status", "", "", "", always}};
 
 static std::list<SensorConfig> sensorConfigs;
 
@@ -311,11 +313,13 @@ static bool publish_common_info(void) {
         set_battery_attributes(doc, datalayer.battery2, "_2", battery2->supports_charged_energy());
       }
     }
+
+    doc["event_level"] = get_event_level_string(get_event_level());
+    doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
+
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
-#ifdef DEBUG_LOG
       logging.println("Common info MQTT msg could not be sent");
-#endif  // DEBUG_LOG
       return false;
     }
     doc.clear();
@@ -386,9 +390,7 @@ static bool publish_cell_voltages(void) {
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
 
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_LOG
       logging.println("Cell voltage MQTT msg could not be sent");
-#endif  // DEBUG_LOG
       return false;
     }
     doc.clear();
@@ -407,9 +409,7 @@ static bool publish_cell_voltages(void) {
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
 
       if (!mqtt_publish(state_topic_2.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_LOG
         logging.println("Cell voltage MQTT msg could not be sent");
-#endif  // DEBUG_LOG
         return false;
       }
       doc.clear();
@@ -434,9 +434,7 @@ static bool publish_cell_balancing(void) {
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
 
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_LOG
       logging.println("Cell balancing MQTT msg could not be sent");
-#endif  // DEBUG_LOG
       return false;
     }
     doc.clear();
@@ -454,9 +452,7 @@ static bool publish_cell_balancing(void) {
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
 
       if (!mqtt_publish(state_topic_2.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_LOG
         logging.println("Cell balancing MQTT msg could not be sent");
-#endif  // DEBUG_LOG
         return false;
       }
       doc.clear();
@@ -517,9 +513,7 @@ bool publish_events() {
 
       serializeJson(doc, mqtt_msg);
       if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_LOG
         logging.println("Common info MQTT msg could not be sent");
-#endif  // DEBUG_LOG
         return false;
       } else {
         set_event_MQTTpublished(event_handle);
@@ -535,9 +529,7 @@ bool publish_events() {
 static bool publish_buttons_discovery(void) {
   if (ha_autodiscovery_enabled) {
     if (ha_buttons_published == false) {
-#ifdef DEBUG_LOG
       logging.println("Publishing buttons discovery");
-#endif  // DEBUG_LOG
 
       static JsonDocument doc;
       for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
@@ -567,16 +559,12 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   char* topic = strndup(topic_raw, topic_len);
 
-#ifdef DEBUG_LOG
   logging.printf("MQTT message arrived: [%.*s]\n", topic_len, topic);
-#endif  // DEBUG_LOG
 
 #ifdef REMOTE_BMS_RESET
   const char* bmsreset_topic = generateButtonTopic("BMSRESET").c_str();
   if (strcmp(topic, bmsreset_topic) == 0) {
-#ifdef DEBUG_LOG
     logging.println("Triggering BMS reset");
-#endif  // DEBUG_LOG
     start_bms_reset();
   }
 #endif  // REMOTE_BMS_RESET
@@ -610,21 +598,16 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
 
       publish_buttons_discovery();
       subscribe();
-#ifdef DEBUG_LOG
       logging.println("MQTT connected");
-#endif  // DEBUG_LOG
       break;
     case MQTT_EVENT_DISCONNECTED:
       set_event(EVENT_MQTT_DISCONNECT, 0);
-#ifdef DEBUG_LOG
       logging.println("MQTT disconnected!");
-#endif  // DEBUG_LOG
       break;
     case MQTT_EVENT_DATA:
       mqtt_message_received(event->topic, event->topic_len, event->data, event->data_len);
       break;
     case MQTT_EVENT_ERROR:
-#ifdef DEBUG_LOG
       logging.println("MQTT_ERROR");
       logging.print("reported from esp-tls");
       logging.println(event->error_handle->esp_tls_last_esp_err);
@@ -632,7 +615,6 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       logging.println(event->error_handle->esp_tls_stack_err);
       logging.print("captured as transport's socket errno");
       logging.println(strerror(event->error_handle->esp_transport_sock_errno));
-#endif  // DEBUG_LOG
       break;
   }
 }
@@ -717,9 +699,7 @@ void mqtt_loop(void) {
     if (client_started == false) {
       esp_mqtt_client_start(client);
       client_started = true;
-#ifdef DEBUG_LOG
       logging.println("MQTT initialized");
-#endif  // DEBUG_LOG
       return;
     }
 

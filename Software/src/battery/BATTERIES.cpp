@@ -90,6 +90,8 @@ const char* name_for_battery_type(BatteryType type) {
       return KiaEGmpBattery::Name;
     case BatteryType::KiaHyundai64:
       return KiaHyundai64Battery::Name;
+    case BatteryType::Kia64FD:
+      return Kia64FDBattery::Name;
     case BatteryType::KiaHyundaiHybrid:
       return KiaHyundaiHybridBattery::Name;
     case BatteryType::Meb:
@@ -108,6 +110,8 @@ const char* name_for_battery_type(BatteryType type) {
       return RjxzsBms::Name;
     case BatteryType::RangeRoverPhev:
       return RangeRoverPhevBattery::Name;
+    case BatteryType::RelionBattery:
+      return RelionBattery::Name;
     case BatteryType::RenaultKangoo:
       return RenaultKangooBattery::Name;
     case BatteryType::RenaultTwizy:
@@ -187,6 +191,8 @@ Battery* create_battery(BatteryType type) {
       return new ImievCZeroIonBattery();
     case BatteryType::JaguarIpace:
       return new JaguarIpaceBattery();
+    case BatteryType::Kia64FD:
+      return new Kia64FDBattery();
     case BatteryType::KiaEGmp:
       return new KiaEGmpBattery();
     case BatteryType::KiaHyundai64:
@@ -209,6 +215,8 @@ Battery* create_battery(BatteryType type) {
       return new RjxzsBms();
     case BatteryType::RangeRoverPhev:
       return new RangeRoverPhevBattery();
+    case BatteryType::RelionBattery:
+      return new RelionBattery();
     case BatteryType::RenaultKangoo:
       return new RenaultKangooBattery();
     case BatteryType::RenaultTwizy:
@@ -312,6 +320,14 @@ void setup_battery() {
 #endif
 }
 #endif
+
+/* User-selected Tesla settings */
+bool user_selected_tesla_digital_HVIL = false;
+uint16_t user_selected_tesla_GTW_country = 17477;
+bool user_selected_tesla_GTW_rightHandDrive = true;
+uint16_t user_selected_tesla_GTW_mapRegion = 2;
+uint16_t user_selected_tesla_GTW_chassisType = 2;
+uint16_t user_selected_tesla_GTW_packEnergy = 1;
 
 /* User-selected voltages used for custom-BMS batteries (RJXZS etc.) */
 #if defined(MAX_CUSTOM_PACK_VOLTAGE_DV) && defined(MIN_CUSTOM_PACK_VOLTAGE_DV) && \

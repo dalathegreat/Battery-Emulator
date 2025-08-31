@@ -8,13 +8,6 @@
 #define SELECTED_INVERTER_CLASS KostalInverterProtocol
 #endif
 
-//#define DEBUG_KOSTAL_RS485_DATA  // Enable this line to get TX / RX printed out via logging
-//#define DEBUG_KOSTAL_RS485_DATA_USB  // Enable this line to get TX / RX printed out via USB
-
-#if defined(DEBUG_KOSTAL_RS485_DATA) && !defined(DEBUG_LOG)
-#error "enable LOG_TO_SD, DEBUG_VIA_USB or DEBUG_VIA_WEB in order to use DEBUG_KOSTAL_RS485_DATA"
-#endif
-
 class KostalInverterProtocol : public Rs485InverterProtocol {
  public:
   const char* name() override { return Name; }
@@ -43,6 +36,8 @@ class KostalInverterProtocol : public Rs485InverterProtocol {
   unsigned long currentMillis;
   unsigned long startupMillis = 0;
   unsigned long contactorMillis = 0;
+  unsigned long contactortestTimerStart = 0;
+  bool contactortestTimerActive = false;
 
   uint16_t rx_index = 0;
   bool RX_allow = false;

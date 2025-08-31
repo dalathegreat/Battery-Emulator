@@ -4,6 +4,17 @@ InverterProtocol* inverter = nullptr;
 
 InverterProtocolType user_selected_inverter_protocol = InverterProtocolType::BydModbus;
 
+// Some user-configurable settings that can be used by inverters. These
+// inverters should use sensible defaults if the corresponding user_selected
+// value is zero.
+uint16_t user_selected_inverter_cells = 0;
+uint16_t user_selected_inverter_modules = 0;
+uint16_t user_selected_inverter_cells_per_module = 0;
+uint16_t user_selected_inverter_voltage_level = 0;
+uint16_t user_selected_inverter_ah_capacity = 0;
+uint16_t user_selected_inverter_battery_type = 0;
+bool user_selected_inverter_ignore_contactors = false;
+
 std::vector<InverterProtocolType> supported_inverter_protocols() {
   std::vector<InverterProtocolType> types;
 

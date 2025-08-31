@@ -267,13 +267,13 @@ void init_webserver() {
     }
   });
 
-#if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
-  // Route for going to debug logging web page
-  server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", debug_logger_processor());
-    request->send(response);
-  });
-#endif  // DEBUG_VIA_WEB
+  if (datalayer.system.info.web_logging_active || datalayer.system.info.SD_logging_active) {
+    // Route for going to debug logging web page
+    server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      AsyncWebServerResponse* response = request->beginResponse(200, "text/html", debug_logger_processor());
+      request->send(response);
+    });
+  }
 
   // Define the handler to stop can logging
   server.on("/stop_can_logging", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -289,93 +289,89 @@ void init_webserver() {
       },
       handleFileUpload);
 
-#ifndef LOG_CAN_TO_SD
-  // Define the handler to export can log
-  server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    String logs = String(datalayer.system.info.logged_can_messages);
-    if (logs.length() == 0) {
-      logs = "No logs available.";
-    }
+  if (datalayer.system.info.CAN_SD_logging_active) {
+    // Define the handler to export can log
+    server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      pause_can_writing();
+      request->send(SD_MMC, CAN_LOG_FILE, String(), true);
+      resume_can_writing();
+    });
 
-    // Get the current time
-    time_t now = time(nullptr);
-    struct tm timeinfo;
-    localtime_r(&now, &timeinfo);
+    // Define the handler to delete can log
+    server.on("/delete_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      delete_can_log();
+      request->send(200, "text/plain", "Log file deleted");
+    });
+  } else {
+    // Define the handler to export can log
+    server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      String logs = String(datalayer.system.info.logged_can_messages);
+      if (logs.length() == 0) {
+        logs = "No logs available.";
+      }
 
-    // Ensure time retrieval was successful
-    char filename[32];
-    if (strftime(filename, sizeof(filename), "canlog_%H-%M-%S.txt", &timeinfo)) {
-      // Valid filename created
-    } else {
-      // Fallback filename if automatic timestamping failed
-      strcpy(filename, "battery_emulator_can_log.txt");
-    }
+      // Get the current time
+      time_t now = time(nullptr);
+      struct tm timeinfo;
+      localtime_r(&now, &timeinfo);
 
-    // Use request->send with dynamic headers
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
-    response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
-    request->send(response);
-  });
-#endif
+      // Ensure time retrieval was successful
+      char filename[32];
+      if (strftime(filename, sizeof(filename), "canlog_%H-%M-%S.txt", &timeinfo)) {
+        // Valid filename created
+      } else {
+        // Fallback filename if automatic timestamping failed
+        strcpy(filename, "battery_emulator_can_log.txt");
+      }
 
-#ifdef LOG_CAN_TO_SD
-  // Define the handler to export can log
-  server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    pause_can_writing();
-    request->send(SD_MMC, CAN_LOG_FILE, String(), true);
-    resume_can_writing();
-  });
+      // Use request->send with dynamic headers
+      AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
+      response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
+      request->send(response);
+    });
+  }
 
-  // Define the handler to delete can log
-  server.on("/delete_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    delete_can_log();
-    request->send(200, "text/plain", "Log file deleted");
-  });
-#endif
+  if (datalayer.system.info.SD_logging_active) {
+    // Define the handler to delete log file
+    server.on("/delete_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      delete_log();
+      request->send(200, "text/plain", "Log file deleted");
+    });
 
-#ifdef LOG_TO_SD
-  // Define the handler to delete log file
-  server.on("/delete_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    delete_log();
-    request->send(200, "text/plain", "Log file deleted");
-  });
+    // Define the handler to export debug log
+    server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      pause_log_writing();
+      request->send(SD_MMC, LOG_FILE, String(), true);
+      resume_log_writing();
+    });
+  } else {
+    // Define the handler to export debug log
+    server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      String logs = String(datalayer.system.info.logged_can_messages);
+      if (logs.length() == 0) {
+        logs = "No logs available.";
+      }
 
-  // Define the handler to export debug log
-  server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    pause_log_writing();
-    request->send(SD_MMC, LOG_FILE, String(), true);
-    resume_log_writing();
-  });
-#endif
+      // Get the current time
+      time_t now = time(nullptr);
+      struct tm timeinfo;
+      localtime_r(&now, &timeinfo);
 
-#ifndef LOG_TO_SD
-  // Define the handler to export debug log
-  server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    String logs = String(datalayer.system.info.logged_can_messages);
-    if (logs.length() == 0) {
-      logs = "No logs available.";
-    }
+      // Ensure time retrieval was successful
+      char filename[32];
+      if (strftime(filename, sizeof(filename), "log_%H-%M-%S.txt", &timeinfo)) {
+        // Valid filename created
+      } else {
+        // Fallback filename if automatic timestamping failed
+        strcpy(filename, "battery_emulator_log.txt");
+      }
 
-    // Get the current time
-    time_t now = time(nullptr);
-    struct tm timeinfo;
-    localtime_r(&now, &timeinfo);
-
-    // Ensure time retrieval was successful
-    char filename[32];
-    if (strftime(filename, sizeof(filename), "log_%H-%M-%S.txt", &timeinfo)) {
-      // Valid filename created
-    } else {
-      // Fallback filename if automatic timestamping failed
-      strcpy(filename, "battery_emulator_log.txt");
-    }
-
-    // Use request->send with dynamic headers
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
-    response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
-    request->send(response);
-  });
-#endif
+      // Use request->send with dynamic headers
+      AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
+      response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
+      request->send(response);
+    });
+  }
 
   // Route for going to cellmonitor web page
   def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -413,8 +409,9 @@ void init_webserver() {
   };
 
   const char* boolSettingNames[] = {
-      "DBLBTR",     "CNTCTRL",       "CNTCTRLDBL",  "PWMCNTCTRL", "PERBMSRESET", "REMBMSRESET",
-      "CANFDASCAN", "WIFIAPENABLED", "MQTTENABLED", "HADISC",     "MQTTTOPICS",
+      "DBLBTR",     "CNTCTRL",    "CNTCTRLDBL", "PWMCNTCTRL", "PERBMSRESET", "SDLOGENABLED",  "REMBMSRESET",
+      "USBENABLED", "CANLOGUSB",  "WEBENABLED", "CANFDASCAN", "CANLOGSD",    "WIFIAPENABLED", "MQTTENABLED",
+      "HADISC",     "MQTTTOPICS", "INVICNT",    "GTWRHD",     "DIGITALHVIL",
   };
 
   // Handles the form POST from UI to save settings of the common image
@@ -494,6 +491,42 @@ void init_webserver() {
         settings.saveString("MQTTDEVICENAME", p->value().c_str());
       } else if (p->name() == "HADEVICEID") {
         settings.saveString("HADEVICEID", p->value().c_str());
+      } else if (p->name() == "SOFAR_ID") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SOFAR_ID", type);
+      } else if (p->name() == "INVCELLS") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVCELLS", type);
+      } else if (p->name() == "INVMODULES") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVMODULES", type);
+      } else if (p->name() == "INVCELLSPER") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVCELLSPER", type);
+      } else if (p->name() == "INVVLEVEL") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVVLEVEL", type);
+      } else if (p->name() == "INVCAPACITY") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVCAPACITY", type);
+      } else if (p->name() == "INVBTYPE") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVBTYPE", (int)type);
+      } else if (p->name() == "GTWCOUNTRY") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GTWCOUNTRY", type);
+      } else if (p->name() == "GTWMAPREG") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GTWMAPREG", type);
+      } else if (p->name() == "GTWCHASSIS") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GTWCHASSIS", type);
+      } else if (p->name() == "GTWPACK") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GTWPACK", type);
+      } else if (p->name() == "LEDMODE") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LEDMODE", type);
       }
 
       for (auto& boolSetting : boolSettings) {
@@ -578,10 +611,6 @@ void init_webserver() {
   auto update_int_setting = [=](const char* route, std::function<void(int)> setter) {
     update_string_setting(route, [setter](String value) { setter(value.toInt()); });
   };
-
-  // Route for editing Sofar ID
-  update_int_setting("/updateSofarID",
-                     [](int value) { datalayer.battery.settings.sofar_user_specified_battery_id = value; });
 
   // Route for editing Wh
   update_int_setting("/updateBatterySize", [](int value) { datalayer.battery.info.total_capacity_Wh = value; });
@@ -836,6 +865,28 @@ String processor(const String& var) {
     content += "button:hover { background-color: #3A4A52; }";
     content += "h2 { font-size: 1.2em; margin: 0.3em 0 0.5em 0; }";
     content += "h4 { margin: 0.6em 0; line-height: 1.2; }";
+    //content += ".tooltip { position: relative; display: inline-block; }";
+    content += ".tooltip .tooltiptext {";
+    content += "  visibility: hidden;";
+    content += "  width: 200px;";
+    content += "  background-color: #3A4A52;";  // Matching your button hover color
+    content += "  color: white;";
+    content += "  text-align: center;";
+    content += "  border-radius: 6px;";
+    content += "  padding: 8px;";
+    content += "  position: absolute;";
+    content += "  z-index: 1;";
+    content += "  bottom: 125%;";
+    content += "  left: 50%;";
+    content += "  margin-left: -100px;";
+    content += "  opacity: 0;";
+    content += "  transition: opacity 0.3s;";
+    content += "  font-size: 0.9em;";
+    content += "  font-weight: normal;";
+    content += "  line-height: 1.4;";
+    content += "}";
+    content += ".tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }";
+    content += ".tooltip-icon { color: #505E67; cursor: help; }";  // Matching your button color
     content += "</style>";
 
     // Compact header
@@ -943,21 +994,18 @@ String processor(const String& var) {
         content += "<div style='background-color: ";
       }
 
-      switch (led_get_color()) {
-        case led_color::GREEN:
+      switch (get_emulator_status()) {
+        case EMULATOR_STATUS::STATUS_OK:
           content += "#2D3F2F;";
           break;
-        case led_color::YELLOW:
+        case EMULATOR_STATUS::STATUS_WARNING:
           content += "#F5CC00;";
           break;
-        case led_color::BLUE:
-          content += "#2B35AF;";  // Blue in test mode
-          break;
-        case led_color::RED:
+        case EMULATOR_STATUS::STATUS_ERROR:
           content += "#A70107;";
           break;
-        default:  // Some new color, make background green
-          content += "#2D3F2F;";
+        case EMULATOR_STATUS::STATUS_UPDATING:
+          content += "#2B35AF;";  // Blue in test mode
           break;
       }
 
@@ -1115,58 +1163,6 @@ String processor(const String& var) {
         }
       }
 
-      content += "<h4>Battery allows contactor closing: ";
-      if (datalayer.system.status.battery_allows_contactor_closing == true) {
-        content += "<span>&#10003;</span>";
-      } else {
-        content += "<span style='color: red;'>&#10005;</span>";
-      }
-
-      content += " Inverter allows contactor closing: ";
-      if (datalayer.system.status.inverter_allows_contactor_closing == true) {
-        content += "<span>&#10003;</span></h4>";
-      } else {
-        content += "<span style='color: red;'>&#10005;</span></h4>";
-      }
-      if (emulator_pause_status == NORMAL)
-        content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
-      else
-        content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
-
-      if (contactor_control_enabled) {
-        content += "<h4>Contactors controlled by emulator, state: ";
-        if (datalayer.system.status.contactors_engaged) {
-          content += "<span style='color: green;'>ON</span>";
-        } else {
-          content += "<span style='color: red;'>OFF</span>";
-        }
-        content += "</h4>";
-        if (contactor_control_enabled_double_battery) {
-          if (pwm_contactor_control) {
-            content += "<h4>Cont. Neg.: ";
-            if (datalayer.system.status.contactors_battery2_engaged) {
-              content += "<span style='color: green;'>Economized</span>";
-              content += " Cont. Pos.: ";
-              content += "<span style='color: green;'>Economized</span>";
-            } else {
-              content += "<span style='color: red;'>&#10005;</span>";
-              content += " Cont. Pos.: ";
-              content += "<span style='color: red;'>&#10005;</span>";
-            }
-          } else if (
-              esp32hal->SECOND_BATTERY_CONTACTORS_PIN() !=
-              GPIO_NUM_NC) {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
-            content += "<h4>Cont. Neg.: ";
-            if (digitalRead(esp32hal->SECOND_BATTERY_CONTACTORS_PIN()) == HIGH) {
-              content += "<span style='color: green;'>&#10003;</span>";
-            } else {
-              content += "<span style='color: red;'>&#10005;</span>";
-            }
-          }  //no PWM_CONTACTOR_CONTROL
-          content += "</h4>";
-        }
-      }
-
       // Close the block
       content += "</div>";
 
@@ -1264,71 +1260,85 @@ String processor(const String& var) {
         } else {  // > 0
           content += "<h4>Battery charging!</h4>";
         }
-
-        content += "<h4>Automatic contactor closing allowed:</h4>";
-        content += "<h4>Battery: ";
-        if (datalayer.system.status.battery2_allowed_contactor_closing == true) {
-          content += "<span>&#10003;</span>";
-        } else {
-          content += "<span style='color: red;'>&#10005;</span>";
-        }
-
-        content += " Inverter: ";
-        if (datalayer.system.status.inverter_allows_contactor_closing == true) {
-          content += "<span>&#10003;</span></h4>";
-        } else {
-          content += "<span style='color: red;'>&#10005;</span></h4>";
-        }
-
-        if (emulator_pause_status == NORMAL)
-          content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
-        else
-          content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
-
-        if (contactor_control_enabled) {
-          content += "<h4>Contactors controlled by emulator, state: ";
-          if (datalayer.system.status.contactors_battery2_engaged) {
-            content += "<span style='color: green;'>ON</span>";
-          } else {
-            content += "<span style='color: red;'>OFF</span>";
-          }
-          content += "</h4>";
-
-          if (contactor_control_enabled_double_battery) {
-            content += "<h4>Cont. Neg.: ";
-            if (pwm_contactor_control) {
-              if (datalayer.system.status.contactors_battery2_engaged) {
-                content += "<span style='color: green;'>Economized</span>";
-                content += " Cont. Pos.: ";
-                content += "<span style='color: green;'>Economized</span>";
-              } else {
-                content += "<span style='color: red;'>&#10005;</span>";
-                content += " Cont. Pos.: ";
-                content += "<span style='color: red;'>&#10005;</span>";
-              }
-            } else {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
-#if defined(SECOND_POSITIVE_CONTACTOR_PIN) && defined(SECOND_NEGATIVE_CONTACTOR_PIN)
-              if (digitalRead(SECOND_NEGATIVE_CONTACTOR_PIN) == HIGH) {
-                content += "<span style='color: green;'>&#10003;</span>";
-              } else {
-                content += "<span style='color: red;'>&#10005;</span>";
-              }
-
-              content += " Cont. Pos.: ";
-              if (digitalRead(SECOND_POSITIVE_CONTACTOR_PIN) == HIGH) {
-                content += "<span style='color: green;'>&#10003;</span>";
-              } else {
-                content += "<span style='color: red;'>&#10005;</span>";
-              }
-#endif
-            }
-            content += "</h4>";
-          }
-        }
         content += "</div>";
         content += "</div>";
       }
     }
+    // Block for Contactor status and component request status
+    // Start a new block with gray background color
+    content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+
+    if (emulator_pause_status == NORMAL) {
+      content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    } else {
+      content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    }
+
+    content += "<h4>Emulator allows contactor closing: ";
+    if (datalayer.battery.status.bms_status == FAULT) {
+      content += "<span style='color: red;'>&#10005;</span>";
+    } else {
+      content += "<span>&#10003;</span>";
+    }
+    content += " Inverter allows contactor closing: ";
+    if (datalayer.system.status.inverter_allows_contactor_closing == true) {
+      content += "<span>&#10003;</span></h4>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span></h4>";
+    }
+    if (battery2) {
+      content += "<h4>Secondary battery allowed to join ";
+      if (datalayer.system.status.battery2_allowed_contactor_closing == true) {
+        content += "<span>&#10003;</span>";
+      } else {
+        content += "<span style='color: red;'>&#10005; (voltage mismatch)</span>";
+      }
+    }
+
+    if (!contactor_control_enabled) {
+      content += "<div class=\"tooltip\">";
+      content += "<h4>Contactors not fully controlled via emulator <span style=\"color:orange\">[?]</span></h4>";
+      content +=
+          "<span class=\"tooltiptext\">This means you are either running CAN controlled contactors OR manually "
+          "powering the contactors. Battery-Emulator will have limited amount of control over the contactors!</span>";
+      content += "</div>";
+    } else {  //contactor_control_enabled TRUE
+      content += "<div class=\"tooltip\"><h4>Contactors controlled by emulator, state: ";
+      if (datalayer.system.status.contactors_engaged == 0) {
+        content += "<span style='color: green;'>PRECHARGE</span>";
+      } else if (datalayer.system.status.contactors_engaged == 1) {
+        content += "<span style='color: green;'>ON</span>";
+      } else if (datalayer.system.status.contactors_engaged == 2) {
+        content += "<span style='color: red;'>OFF</span>";
+        content += "<span class=\"tooltip-icon\"> [!]</span>";
+        content +=
+            "<span class=\"tooltiptext\">Emulator spent too much time in critical FAULT event. Investigate event "
+            "causing this via Events page. Reboot required to resume operation!</span>";
+      }
+      content += "</h4></div>";
+      if (contactor_control_enabled_double_battery && battery2) {
+        content += "<h4>Secondary battery contactor, state: ";
+        if (pwm_contactor_control) {
+          if (datalayer.system.status.contactors_battery2_engaged) {
+            content += "<span style='color: green;'>Economized</span>";
+          } else {
+            content += "<span style='color: red;'>OFF</span>";
+          }
+        } else if (
+            esp32hal->SECOND_BATTERY_CONTACTORS_PIN() !=
+            GPIO_NUM_NC) {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
+          if (digitalRead(esp32hal->SECOND_BATTERY_CONTACTORS_PIN()) == HIGH) {
+            content += "<span style='color: green;'>ON</span>";
+          } else {
+            content += "<span style='color: red;'>OFF</span>";
+          }
+        }  //no PWM_CONTACTOR_CONTROL
+        content += "</h4>";
+      }
+    }
+
+    // Close the block
+    content += "</div>";
 
     if (charger) {
       // Start a new block with orange background color
@@ -1390,9 +1400,9 @@ String processor(const String& var) {
     content += "<button onclick='Advanced()'>More Battery Info</button> ";
     content += "<button onclick='CANlog()'>CAN logger</button> ";
     content += "<button onclick='CANreplay()'>CAN replay</button> ";
-#if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
-    content += "<button onclick='Log()'>Log</button> ";
-#endif  // DEBUG_VIA_WEB
+    if (datalayer.system.info.web_logging_active || datalayer.system.info.SD_logging_active) {
+      content += "<button onclick='Log()'>Log</button> ";
+    }
     content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
     content += "<button onclick='Events()'>Events</button> ";
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
@@ -1472,9 +1482,7 @@ void onOTAProgress(size_t current, size_t final) {
   // Log every 1 second
   if (millis() - ota_progress_millis > 1000) {
     ota_progress_millis = millis();
-#ifdef DEBUG_LOG
     logging.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
-#endif  // DEBUG_LOG
     // Reset the "watchdog"
     ota_timeout_timer.reset();
   }
@@ -1491,13 +1499,9 @@ void onOTAEnd(bool success) {
     // Max Charge/Discharge = 0; CAN = stop; contactors = open
     setBatteryPause(true, true, true, false);
     // a reboot will be done by the OTA library. no need to do anything here
-#ifdef DEBUG_LOG
     logging.println("OTA update finished successfully!");
-#endif  // DEBUG_LOG
   } else {
-#ifdef DEBUG_LOG
     logging.println("There was an error during OTA update!");
-#endif  // DEBUG_LOG
     //try to Resume the battery pause and CAN communication
     setBatteryPause(false, false);
   }

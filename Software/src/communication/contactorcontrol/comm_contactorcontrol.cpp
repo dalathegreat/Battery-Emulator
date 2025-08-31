@@ -55,7 +55,7 @@ const int OFF = 0;
 #define OFF 1
 #endif  //NC_CONTACTORS
 
-#define MAX_ALLOWED_FAULT_TICKS 1000
+#define MAX_ALLOWED_FAULT_TICKS 1000  //1000 = 10 seconds
 #define NEGATIVE_CONTACTOR_TIME_MS \
   500  // Time after negative contactor is turned on, to start precharge (not actual precharge time!)
 #define PRECHARGE_COMPLETED_TIME_MS \
@@ -147,12 +147,10 @@ bool init_contactors() {
 }
 
 static void dbg_contactors(const char* state) {
-#ifdef DEBUG_LOG
   logging.print("[");
   logging.print(millis());
   logging.print(" ms] contactors control: ");
   logging.println(state);
-#endif
 }
 
 // Main functions of the handle_contactors include checking if inverter allows for closing, checking battery 2, checking BMS power output, and actual contactor closing/precharge via GPIO
@@ -192,7 +190,7 @@ void handle_contactors() {
       set(negPin, OFF, PWM_OFF_DUTY);
       set(posPin, OFF, PWM_OFF_DUTY);
       set_event(EVENT_ERROR_OPEN_CONTACTOR, 0);
-      datalayer.system.status.contactors_engaged = false;
+      datalayer.system.status.contactors_engaged = 2;
       return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
     }
 
@@ -201,10 +199,9 @@ void handle_contactors() {
       set(prechargePin, OFF);
       set(negPin, OFF, PWM_OFF_DUTY);
       set(posPin, OFF, PWM_OFF_DUTY);
-      datalayer.system.status.contactors_engaged = false;
+      datalayer.system.status.contactors_engaged = 0;
 
-      if (datalayer.system.status.battery_allows_contactor_closing &&
-          datalayer.system.status.inverter_allows_contactor_closing &&
+      if (datalayer.system.status.inverter_allows_contactor_closing &&
           !datalayer.system.settings.equipment_stop_active) {
         contactorStatus = START_PRECHARGE;
       }
@@ -263,7 +260,7 @@ void handle_contactors() {
           set(posPin, ON, PWM_HOLD_DUTY);
           dbg_contactors("PRECHARGE_OFF");
           contactorStatus = COMPLETED;
-          datalayer.system.status.contactors_engaged = true;
+          datalayer.system.status.contactors_engaged = 1;
         }
         break;
       default:

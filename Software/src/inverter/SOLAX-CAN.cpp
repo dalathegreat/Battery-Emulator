@@ -4,11 +4,7 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
-
-#define NUMBER_OF_MODULES 0
-#define BATTERY_TYPE 0x50
-// If you are having BattVoltFault issues, configure the above values according to wiki page
-// https://github.com/dalathegreat/Battery-Emulator/wiki/Solax-inverters
+#include "../inverter/INVERTERS.h"
 
 // __builtin_bswap64 needed to convert to ESP32 little endian format
 // Byte[4] defines the requested contactor state: 1 = Closed , 0 = Open
@@ -18,7 +14,7 @@
 void SolaxInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   // If not receiveing any communication from the inverter, open contactors and return to battery announce state
-  if (millis() - LastFrameTime >= SolaxTimeout) {
+  if (millis() - LastFrameTime >= SolaxTimeout && !configured_ignore_contactors) {
     datalayer.system.status.inverter_allows_contactor_closing = false;
     STATE = BATTERY_ANNOUNCE;
   }
@@ -73,8 +69,8 @@ void SolaxInverter::
   //BMS_Status
   SOLAX_1875.data.u8[0] = (uint8_t)temperature_average;
   SOLAX_1875.data.u8[1] = (temperature_average >> 8);
-  SOLAX_1875.data.u8[2] = (uint8_t)NUMBER_OF_MODULES;  // Number of slave batteries
-  SOLAX_1875.data.u8[4] = (uint8_t)0;                  // Contactor Status 0=off, 1=on.
+  SOLAX_1875.data.u8[2] = (uint8_t)configured_number_of_modules;  // Number of slave batteries
+  SOLAX_1875.data.u8[4] = (uint8_t)0;                             // Contactor Status 0=off, 1=on.
 
   //BMS_PackTemps (strange name, since it has voltages?)
   SOLAX_1876.data.u8[0] = (int8_t)datalayer.battery.status.temperature_max_dC;
@@ -88,8 +84,8 @@ void SolaxInverter::
   SOLAX_1876.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
   //Unknown
-  SOLAX_1877.data.u8[4] = (uint8_t)BATTERY_TYPE;  // Battery type (Default 0x50)
-  SOLAX_1877.data.u8[6] = (uint8_t)0x22;          // Firmware version?
+  SOLAX_1877.data.u8[4] = (uint8_t)configured_battery_type;  // Battery type (Default 0x50)
+  SOLAX_1877.data.u8[6] = (uint8_t)0x22;                     // Firmware version?
   SOLAX_1877.data.u8[7] =
       (uint8_t)0x02;  // The above firmware version applies to:02 = Master BMS, 10 = S1, 20 = S2, 30 = S3, 40 = S4
 
@@ -129,11 +125,29 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   if (rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x01) ||
       rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x02)) {
     LastFrameTime = millis();
+
+    if (configured_ignore_contactors) {
+      // Skip the state machine since we're not going to open/close contactors,
+      // and the Solax would otherwise wait forever for us to do so.
+
+      datalayer.system.status.inverter_allows_contactor_closing = true;
+      SOLAX_1875.data.u8[4] = (0x01);  // Inform Inverter: Contactor 0=off, 1=on.
+      transmit_can_frame(&SOLAX_187E);
+      transmit_can_frame(&SOLAX_187A);
+      transmit_can_frame(&SOLAX_1872);
+      transmit_can_frame(&SOLAX_1873);
+      transmit_can_frame(&SOLAX_1874);
+      transmit_can_frame(&SOLAX_1875);
+      transmit_can_frame(&SOLAX_1876);
+      transmit_can_frame(&SOLAX_1877);
+      transmit_can_frame(&SOLAX_1878);
+      transmit_can_frame(&SOLAX_100A001);
+      return;
+    }
+
     switch (STATE) {
       case (BATTERY_ANNOUNCE):
-#ifdef DEBUG_LOG
         logging.println("Solax Battery State: Announce");
-#endif
         datalayer.system.status.inverter_allows_contactor_closing = false;
         SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
         for (uint8_t i = 0; i < number_of_batteries; i++) {
@@ -167,9 +181,7 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
         transmit_can_frame(&SOLAX_1878);
         transmit_can_frame(&SOLAX_1801);  // Announce that the battery will be connected
         STATE = CONTACTOR_CLOSED;         // Jump to Contactor Closed State
-#ifdef DEBUG_LOG
         logging.println("Solax Battery State: Contactor Closed");
-#endif
         break;
 
       case (CONTACTOR_CLOSED):
@@ -197,18 +209,33 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   if (rx_frame.ID == 0x1871 && rx_frame.data.u64 == __builtin_bswap64(0x0500010000000000)) {
     transmit_can_frame(&SOLAX_1881);
     transmit_can_frame(&SOLAX_1882);
-#ifdef DEBUG_LOG
     logging.println("1871 05-frame received from inverter");
-#endif
   }
   if (rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x03)) {
-#ifdef DEBUG_LOG
     logging.println("1871 03-frame received from inverter");
-#endif
   }
 }
 
-bool SolaxInverter::setup(void) {                                     // Performs one time setup at startup
-  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
+bool SolaxInverter::setup(void) {  // Performs one time setup at startup
+  // Use user selected values if nonzero, otherwise use defaults
+  if (user_selected_inverter_modules > 0) {
+    configured_number_of_modules = user_selected_inverter_modules;
+  } else {
+    configured_number_of_modules = NUMBER_OF_MODULES;
+  }
+
+  if (user_selected_inverter_battery_type > 0) {
+    configured_battery_type = user_selected_inverter_battery_type;
+  } else {
+    configured_battery_type = BATTERY_TYPE;
+  }
+
+  configured_ignore_contactors = user_selected_inverter_ignore_contactors;
+
+  if (!configured_ignore_contactors) {
+    // Only prevent closing if we're not ignoring contactors
+    datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
+  }
+
   return true;
 }

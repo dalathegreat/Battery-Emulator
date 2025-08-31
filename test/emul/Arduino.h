@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "HardwareSerial.h"
+#include "Logging.h"
 #include "Print.h"
 
 #include "esp-hal-gpio.h"
@@ -23,5 +24,16 @@ unsigned long millis();
 void delay(unsigned long ms);
 void delayMicroseconds(unsigned long us);
 int max(int a, int b);
+
+class ESPClass {
+ public:
+  size_t getFlashChipSize() {
+    // This is a placeholder for the actual implementation
+    // that retrieves the flash chip size.
+    return 4 * 1024 * 1024;  // Example: returning 4MB
+  }
+};
+
+extern ESPClass ESP;
 
 #endif

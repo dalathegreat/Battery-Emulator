@@ -17,6 +17,11 @@ class SolaxInverter : public CanInverterProtocol {
   static constexpr const char* Name = "SolaX Triple Power LFP over CAN bus";
 
  private:
+  static const int NUMBER_OF_MODULES = 0;
+  static const int BATTERY_TYPE = 0x50;
+  // If you are having BattVoltFault issues, configure the above values according to wiki page
+  // https://github.com/dalathegreat/Battery-Emulator/wiki/Solax-inverters
+
   // Timeout in milliseconds
   static const int SolaxTimeout = 2000;
 
@@ -33,6 +38,13 @@ class SolaxInverter : public CanInverterProtocol {
   uint8_t number_of_batteries = 1;
   uint16_t capped_capacity_Wh;
   uint16_t capped_remaining_capacity_Wh;
+
+  int configured_number_of_modules = 0;
+  int configured_battery_type = 0;
+  // If true, the integration will ignore the inverter's requests to open the
+  // battery contactors. Useful for batteries that can't open contactors on
+  // request.
+  bool configured_ignore_contactors = false;
 
   //CAN message translations from this amazing repository: https://github.com/rand12345/solax_can_bus
 

@@ -6,8 +6,6 @@
 
 class LED {
  public:
-  led_color color = led_color::GREEN;
-
   LED(gpio_num_t pin, uint8_t maxBrightness)
       : pixels(pin), max_brightness(maxBrightness), brightness(maxBrightness), mode(led_mode_enum::CLASSIC) {}
 
@@ -27,10 +25,10 @@ class LED {
   void heartbeat_run(void);
 
   uint8_t up_down(float middle_point_f);
+  int LED_PERIOD_MS = 3000;
 };
 
 bool led_init(void);
 void led_exe(void);
-led_color led_get_color(void);
 
 #endif  // LED_H_

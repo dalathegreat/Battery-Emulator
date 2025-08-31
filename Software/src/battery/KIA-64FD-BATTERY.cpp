@@ -1,5 +1,4 @@
-#include "KIA-E-GMP-BATTERY.h"
-#include <Arduino.h>
+#include "KIA-64FD-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -7,7 +6,7 @@
 #include "../system_settings.h"
 
 // Function to estimate SOC based on cell voltage
-uint16_t KiaEGmpBattery::estimateSOCFromCell(uint16_t cellVoltage) {
+uint16_t Kia64FDBattery::estimateSOCFromCell(uint16_t cellVoltage) {
   if (cellVoltage >= voltage[0]) {
     return SOC[0];
   }
@@ -31,15 +30,11 @@ uint16_t KiaEGmpBattery::estimateSOCFromCell(uint16_t cellVoltage) {
 }
 
 // Simplified version of the pack-based SOC estimation with compensation
-uint16_t KiaEGmpBattery::estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps) {
-  // If cell count is still the default 192 but we haven't confirmed it yet
-  if (!set_voltage_limits && cellCount == 192) {
-    // Fall back to BMS-reported SOC while cell count is uncertain
-    return (SOC_Display * 10);
-  }
+uint16_t Kia64FDBattery::estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps) {
 
-  if (cellCount == 0)
+  if (cellCount == 0) {
     return 0;
+  }
 
   // Convert pack voltage (decivolts) to millivolts
   uint32_t packVoltageMv = packVoltage * 100;
@@ -55,24 +50,12 @@ uint16_t KiaEGmpBattery::estimateSOC(uint16_t packVoltage, uint16_t cellCount, i
   // Calculate average cell voltage in millivolts
   uint16_t avgCellVoltage = compensatedPackVoltageMv / cellCount;
 
-  logging.print("Pack: ");
-  logging.print(packVoltage / 10.0);
-  logging.print("V, Current: ");
-  logging.print(currentAmps / 10.0);
-  logging.print("A, Drop: ");
-  logging.print(voltageDrop / 1000.0);
-  logging.print("V, Comp Pack: ");
-  logging.print(compensatedPackVoltageMv / 1000.0);
-  logging.print("V, Avg Cell: ");
-  logging.print(avgCellVoltage);
-  logging.println("mV");
-
   // Use the cell voltage lookup table to estimate SOC
   return estimateSOCFromCell(avgCellVoltage);
 }
 
 // Fix: Change parameter types to uint16_t to match SOC values
-uint16_t KiaEGmpBattery::selectSOC(uint16_t SOC_low, uint16_t SOC_high) {
+uint16_t Kia64FDBattery::selectSOC(uint16_t SOC_low, uint16_t SOC_high) {
   if (SOC_low == 0 || SOC_high == 0) {
     return 0;  // If either value is 0, return 0
   }
@@ -82,7 +65,7 @@ uint16_t KiaEGmpBattery::selectSOC(uint16_t SOC_low, uint16_t SOC_high) {
   return (SOC_low < SOC_high) ? SOC_low : SOC_high;  // Otherwise, return the lowest value
 }
 
-void KiaEGmpBattery::set_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell) {
+void write_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell) {
   for (size_t i = 0; i < length; i++) {
     if ((rx_frame.data.u8[start + i] * 20) > 1000) {
       datalayer.battery.status.cell_voltages_mV[startCell + i] = (rx_frame.data.u8[start + i] * 20);
@@ -90,33 +73,7 @@ void KiaEGmpBattery::set_cell_voltages(CAN_frame rx_frame, int start, int length
   }
 }
 
-void KiaEGmpBattery::set_voltage_minmax_limits() {
-
-  uint8_t valid_cell_count = 0;
-  for (int i = 0; i < MAX_AMOUNT_CELLS; ++i) {
-    if (datalayer.battery.status.cell_voltages_mV[i] > 0) {
-      ++valid_cell_count;
-    }
-  }
-  if (valid_cell_count == 144) {
-    datalayer.battery.info.number_of_cells = valid_cell_count;
-    datalayer.battery.info.max_design_voltage_dV = 6048;
-    datalayer.battery.info.min_design_voltage_dV = 4320;
-  } else if (valid_cell_count == 180) {
-    datalayer.battery.info.number_of_cells = valid_cell_count;
-    datalayer.battery.info.max_design_voltage_dV = 7560;
-    datalayer.battery.info.min_design_voltage_dV = 5400;
-  } else if (valid_cell_count == 192) {
-    datalayer.battery.info.number_of_cells = valid_cell_count;
-    datalayer.battery.info.max_design_voltage_dV = 8064;
-    datalayer.battery.info.min_design_voltage_dV = 5760;
-  } else {
-    // We are still starting up? Not all cells available.
-    set_voltage_limits = false;
-  }
-}
-
-uint8_t KiaEGmpBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
+uint8_t Kia64FDBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
   uint8_t crc = initial_value;
   for (uint8_t j = 1; j < length; j++) {  //start at 1, since 0 is the CRC
     crc = crc8_table[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
@@ -124,7 +81,7 @@ uint8_t KiaEGmpBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t
   return crc;
 }
 
-void KiaEGmpBattery::update_values() {
+void Kia64FDBattery::update_values() {
 
 #ifdef ESTIMATE_SOC_FROM_CELLVOLTAGE
   // Use the simplified pack-based SOC estimation with proper compensation
@@ -170,103 +127,12 @@ void KiaEGmpBattery::update_values() {
 
   datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
 
-  if ((millis() > INTERVAL_60_S) && !set_voltage_limits) {
-    set_voltage_limits = true;
-    set_voltage_minmax_limits();  // Count cells, and set voltage limits accordingly
-  }
-
-  if (waterleakageSensor == 0) {
-    set_event(EVENT_WATER_INGRESS, 0);
-  }
-
   if (leadAcidBatteryVoltage < 110) {
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
   }
-
-  /* Safeties verified. Perform USB serial printout if configured to do so */
-
-  logging.println();  //sepatator
-  logging.println("Values from battery: ");
-  logging.print("SOC BMS: ");
-  logging.print((uint16_t)SOC_BMS / 10.0, 1);
-  logging.print("%  |  SOC Display: ");
-  logging.print((uint16_t)SOC_Display / 10.0, 1);
-  logging.print("%  |  SOH ");
-  logging.print((uint16_t)batterySOH / 10.0, 1);
-  logging.println("%");
-  logging.print((int16_t)batteryAmps / 10.0, 1);
-  logging.print(" Amps  |  ");
-  logging.print((uint16_t)batteryVoltage / 10.0, 1);
-  logging.print(" Volts  |  ");
-  logging.print((int16_t)datalayer.battery.status.active_power_W);
-  logging.println(" Watts");
-  logging.print("Allowed Charge ");
-  logging.print((uint16_t)allowedChargePower * 10);
-  logging.print(" W  |  Allowed Discharge ");
-  logging.print((uint16_t)allowedDischargePower * 10);
-  logging.println(" W");
-  logging.print("MaxCellVolt ");
-  logging.print(CellVoltMax_mV);
-  logging.print(" mV  No  ");
-  logging.print(CellVmaxNo);
-  logging.print("  |  MinCellVolt ");
-  logging.print(CellVoltMin_mV);
-  logging.print(" mV  No  ");
-  logging.println(CellVminNo);
-  logging.print("TempHi ");
-  logging.print((int16_t)temperatureMax);
-  logging.print("°C  TempLo ");
-  logging.print((int16_t)temperatureMin);
-  logging.print("°C  WaterInlet ");
-  logging.print((int8_t)temperature_water_inlet);
-  logging.print("°C  PowerRelay ");
-  logging.print((int8_t)powerRelayTemperature * 2);
-  logging.println("°C");
-  logging.print("Aux12volt: ");
-  logging.print((int16_t)leadAcidBatteryVoltage / 10.0, 1);
-  logging.println("V  |  ");
-  logging.print("BmsManagementMode ");
-  logging.print((uint8_t)batteryManagementMode, BIN);
-  if (bitRead((uint8_t)BMS_ign, 2) == 1) {
-    logging.print("  |  BmsIgnition ON");
-  } else {
-    logging.print("  |  BmsIgnition OFF");
-  }
-
-  if (bitRead((uint8_t)batteryRelay, 0) == 1) {
-    logging.print("  |  PowerRelay ON");
-  } else {
-    logging.print("  |  PowerRelay OFF");
-  }
-  logging.print("  |  Inverter ");
-  logging.print(inverterVoltage);
-  logging.println(" Volts");
 }
 
-// Getter implementations for HTML renderer
-int KiaEGmpBattery::get_battery_12V() const {
-  return leadAcidBatteryVoltage;
-}
-int KiaEGmpBattery::get_waterleakageSensor() const {
-  return waterleakageSensor;
-}
-int KiaEGmpBattery::get_temperature_water_inlet() const {
-  return temperature_water_inlet;
-}
-int KiaEGmpBattery::get_powerRelayTemperature() const {
-  return powerRelayTemperature;
-}
-int KiaEGmpBattery::get_batteryManagementMode() const {
-  return batteryManagementMode;
-}
-int KiaEGmpBattery::get_BMS_ign() const {
-  return BMS_ign;
-}
-int KiaEGmpBattery::get_batRelay() const {
-  return batteryRelay;
-}
-
-void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   startedUp = true;
   switch (rx_frame.ID) {
     case 0x055:
@@ -327,7 +193,7 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           // logging.println ("Send ack");
           poll_data_pid = rx_frame.data.u8[4];
           // if (rx_frame.data.u8[4] == poll_data_pid) {
-          transmit_can_frame(&EGMP_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
+          transmit_can_frame(&KIA64FD_ack);  //Send ack to BMS if the same frame is sent as polled
           // }
           break;
         case 0x21:  //First frame in PID group
@@ -338,17 +204,17 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
           } else if (poll_data_pid == 2) {
             // set cell voltages data, start bite, data length from start, start cell
-            set_cell_voltages(rx_frame, 2, 6, 0);
+            write_cell_voltages(rx_frame, 2, 6, 0);
           } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 2, 6, 32);
+            write_cell_voltages(rx_frame, 2, 6, 32);
           } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 2, 6, 64);
+            write_cell_voltages(rx_frame, 2, 6, 64);
           } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 2, 6, 96);
+            write_cell_voltages(rx_frame, 2, 6, 96);
           } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 2, 6, 128);
+            write_cell_voltages(rx_frame, 2, 6, 128);
           } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 2, 6, 160);
+            write_cell_voltages(rx_frame, 2, 6, 160);
           }
           break;
         case 0x22:  //Second datarow in PID group
@@ -359,17 +225,17 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             temperatureMin = rx_frame.data.u8[6];
             // temp1 = rx_frame.data.u8[7];
           } else if (poll_data_pid == 2) {
-            set_cell_voltages(rx_frame, 1, 7, 6);
+            write_cell_voltages(rx_frame, 1, 7, 6);
           } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 1, 7, 38);
+            write_cell_voltages(rx_frame, 1, 7, 38);
           } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 1, 7, 70);
+            write_cell_voltages(rx_frame, 1, 7, 70);
           } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 1, 7, 102);
+            write_cell_voltages(rx_frame, 1, 7, 102);
           } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 1, 7, 134);
+            write_cell_voltages(rx_frame, 1, 7, 134);
           } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 1, 7, 166);
+            write_cell_voltages(rx_frame, 1, 7, 166);
           } else if (poll_data_pid == 6) {
             batteryManagementMode = rx_frame.data.u8[5];
           }
@@ -382,17 +248,17 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             // temp3 = rx_frame.data.u8[2];
             // temp4 = rx_frame.data.u8[3];
           } else if (poll_data_pid == 2) {
-            set_cell_voltages(rx_frame, 1, 7, 13);
+            write_cell_voltages(rx_frame, 1, 7, 13);
           } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 1, 7, 45);
+            write_cell_voltages(rx_frame, 1, 7, 45);
           } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 1, 7, 77);
+            write_cell_voltages(rx_frame, 1, 7, 77);
           } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 1, 7, 109);
+            write_cell_voltages(rx_frame, 1, 7, 109);
           } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 1, 7, 141);
+            write_cell_voltages(rx_frame, 1, 7, 141);
           } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 1, 7, 173);
+            write_cell_voltages(rx_frame, 1, 7, 173);
           } else if (poll_data_pid == 5) {
             // ac = rx_frame.data.u8[3];
             // Vdiff = rx_frame.data.u8[4];
@@ -411,17 +277,17 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             leadAcidBatteryVoltage = rx_frame.data.u8[6];  //12v Battery Volts
             //cumulative_charge_current[0] = rx_frame.data.u8[7];
           } else if (poll_data_pid == 2) {
-            set_cell_voltages(rx_frame, 1, 7, 20);
+            write_cell_voltages(rx_frame, 1, 7, 20);
           } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 1, 7, 52);
+            write_cell_voltages(rx_frame, 1, 7, 52);
           } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 1, 7, 84);
+            write_cell_voltages(rx_frame, 1, 7, 84);
           } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 1, 7, 116);
+            write_cell_voltages(rx_frame, 1, 7, 116);
           } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 1, 7, 148);
+            write_cell_voltages(rx_frame, 1, 7, 148);
           } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 1, 7, 180);
+            write_cell_voltages(rx_frame, 1, 7, 180);
           } else if (poll_data_pid == 5) {
             batterySOH = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
             // maxDetCell = rx_frame.data.u8[4];
@@ -441,17 +307,17 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             //set_cumulative_charge_current();
             //set_cumulative_discharge_current();
           } else if (poll_data_pid == 2) {
-            set_cell_voltages(rx_frame, 1, 5, 27);
+            write_cell_voltages(rx_frame, 1, 5, 27);
           } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 1, 5, 59);
+            write_cell_voltages(rx_frame, 1, 5, 59);
           } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 1, 5, 91);
+            write_cell_voltages(rx_frame, 1, 5, 91);
           } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 1, 5, 123);
+            write_cell_voltages(rx_frame, 1, 5, 123);
           } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 1, 5, 155);
+            write_cell_voltages(rx_frame, 1, 5, 155);
           } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 1, 5, 187);
+            write_cell_voltages(rx_frame, 1, 5, 187);
             //set_cell_count();
           } else if (poll_data_pid == 5) {
             // datalayer.battery.info.number_of_cells = 98;
@@ -498,7 +364,7 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 
-void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
+void Kia64FDBattery::transmit_can(unsigned long currentMillis) {
   if (startedUp) {
     //Send Contactor closing message loop
     // Check if we still have messages to send
@@ -524,10 +390,10 @@ void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
       previousMillis200ms = currentMillis;
 
-      EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
+      KIA64FD_7E4.data.u8[3] = KIA_7E4_COUNTER;
 
       if (ok_start_polling_battery) {
-        transmit_can_frame(&EGMP_7E4);
+        transmit_can_frame(&KIA64FD_7E4);
       }
 
       KIA_7E4_COUNTER++;
@@ -544,11 +410,11 @@ void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
   }
 }
 
-void KiaEGmpBattery::setup(void) {  // Performs one time setup at startup
+void Kia64FDBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
-  datalayer.battery.info.number_of_cells = 192;  // TODO: will vary depending on battery
+  datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;

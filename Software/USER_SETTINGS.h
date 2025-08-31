@@ -25,6 +25,7 @@
 //#define JAGUAR_IPACE_BATTERY
 //#define KIA_E_GMP_BATTERY
 //#define KIA_HYUNDAI_64_BATTERY
+//#define KIA_HYUNDAI_64_FD_BATTERY
 //#define KIA_HYUNDAI_HYBRID_BATTERY
 //#define MEB_BATTERY
 //#define MG_5_BATTERY
@@ -35,6 +36,7 @@
 //#define DALY_BMS
 //#define RJXZS_BMS
 //#define RANGE_ROVER_PHEV_BATTERY
+//#define RELION_BATTERY
 //#define RENAULT_KANGOO_BATTERY
 //#define RENAULT_TWIZY_BATTERY
 //#define RENAULT_ZOE_GEN1_BATTERY
@@ -106,12 +108,6 @@
 //#define EQUIPMENT_STOP_BUTTON    // Enable this to allow an equipment stop button connected to the Battery-Emulator to disengage the battery
 //#define LFP_CHEMISTRY          //Tesla specific setting, enable this line to startup in LFP mode
 //#define INTERLOCK_REQUIRED     //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
-//#define LOG_TO_SD              //Enable this line to log diagnostic data to SD card (WARNING, raises CPU load, do not use for production)
-//#define LOG_CAN_TO_SD          //Enable this line to log incoming/outgoing CAN & CAN-FD messages to SD card (WARNING, raises CPU load, do not use for production)
-//#define DEBUG_VIA_USB          //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
-//#define DEBUG_VIA_WEB          //Enable this line to log diagnostic data while program runs, which can be viewed via webpage (WARNING, slightly raises CPU load, do not use for production)
-//#define DEBUG_CAN_DATA  //Enable this line to print incoming/outgoing CAN & CAN-FD messages to USB serial (WARNING, raises CPU load, do not use for production)
-
 /* CAN options */
 //#define CAN_ADDON  //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 chip (Needed for some inverters / double battery)
 #define CRYSTAL_FREQUENCY_MHZ 8  //CAN_ADDON option, what is your MCP2515 add-on boards crystal frequency?
@@ -177,14 +173,6 @@
 //#define MAX_CUSTOM_CELL_VOLTAGE_MV 4250  // 4250 = 4.250V , Maximum cell voltage in millivolts (4250 = 4.250V)
 //#define MIN_CUSTOM_CELL_VOLTAGE_MV 2650  // 2650 = 2.650V , Minimum cell voltage in millivolts (2650 = 2.650V)
 
-/* LED settings. Optional customization for how the blinking pattern on the LED should behave.
-* CLASSIC   - Slow up/down ramp. If CLASSIC, then a ramp up and ramp down will finish in LED_PERIOD_MS milliseconds
-* FLOW      - Ramp up/down depending on flow of energy
-* HEARTBEAT - Heartbeat-like LED pattern that reacts to the system state with color and BPM
-*/
-#define LED_MODE CLASSIC
-#define LED_PERIOD_MS 3000
-
 /* Do not change any code below this line */
 /* Only change battery specific settings above and in "USER_SETTINGS.cpp" */
 typedef struct {
@@ -222,10 +210,6 @@ const STOP_BUTTON_BEHAVIOR stop_button_default_behavior = STOP_BUTTON_BEHAVIOR::
 extern IPAddress local_IP;
 extern IPAddress gateway;
 extern IPAddress subnet;
-#endif
-
-#if defined(DEBUG_VIA_USB) || defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
-#define DEBUG_LOG
 #endif
 
 #if defined(MEB_BATTERY)

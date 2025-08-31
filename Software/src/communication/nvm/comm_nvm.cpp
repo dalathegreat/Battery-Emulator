@@ -96,6 +96,19 @@ void init_stored_settings() {
   user_selected_min_pack_voltage_dV = settings.getUInt("BATTPVMIN", 0);
   user_selected_max_cell_voltage_mV = settings.getUInt("BATTCVMAX", 0);
   user_selected_min_cell_voltage_mV = settings.getUInt("BATTCVMIN", 0);
+  user_selected_inverter_cells = settings.getUInt("INVCELLS", 0);
+  user_selected_inverter_modules = settings.getUInt("INVMODULES", 0);
+  user_selected_inverter_cells_per_module = settings.getUInt("INVCELLSPER", 0);
+  user_selected_inverter_voltage_level = settings.getUInt("INVVLEVEL", 0);
+  user_selected_inverter_ah_capacity = settings.getUInt("INVAHCAPACITY", 0);
+  user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
+  user_selected_inverter_ignore_contactors = settings.getBool("INVICNT", false);
+  user_selected_tesla_digital_HVIL = settings.getBool("DIGITALHVIL", false);
+  user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", 0);
+  user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", false);
+  user_selected_tesla_GTW_mapRegion = settings.getUInt("GTWMAPREG", 0);
+  user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", 0);
+  user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", 0);
 
   auto readIf = [](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
@@ -127,6 +140,13 @@ void init_stored_settings() {
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
+
+  datalayer.system.info.CAN_usb_logging_active = settings.getBool("CANLOGUSB", false);
+  datalayer.system.info.usb_logging_active = settings.getBool("USBENABLED", false);
+  datalayer.system.info.web_logging_active = settings.getBool("WEBENABLED", false);
+  datalayer.system.info.CAN_SD_logging_active = settings.getBool("CANLOGSD", false);
+  datalayer.system.info.SD_logging_active = settings.getBool("SDLOGENABLED", false);
+  datalayer.battery.status.led_mode = (led_mode_enum)settings.getUInt("LEDMODE", false);
 
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
@@ -193,10 +213,7 @@ void store_settings() {
   if (!settings.putUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 11);
   }
-  if (!settings.putUInt("SOFAR_ID", datalayer.battery.settings.sofar_user_specified_battery_id)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 12);
-  }
-  if (!settings.putUInt("BMSRESETDUR", datalayer.battery.settings.sofar_user_specified_battery_id)) {
+  if (!settings.putUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 13);
   }
 

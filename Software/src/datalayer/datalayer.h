@@ -110,7 +110,7 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
 
   /** LED mode, customizable by user */
-  led_mode_enum led_mode = LED_MODE;
+  led_mode_enum led_mode = CLASSIC;
 };
 
 struct DATALAYER_BATTERY_SETTINGS_TYPE {
@@ -152,6 +152,7 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   bool user_requests_balancing = false;
   bool user_requests_tesla_isolation_clear = false;
   bool user_requests_tesla_bms_reset = false;
+  bool user_requests_tesla_soc_reset = false;
   /* Forced balancing max time & start timestamp */
   uint32_t balancing_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
   uint32_t balancing_start_time_ms = 0;  //For keeping track when balancing started
@@ -240,6 +241,16 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   size_t logged_can_messages_offset = 0;
   /** bool, determines if CAN messages should be logged for webserver */
   bool can_logging_active = false;
+  /** bool, determines if USB serial logging should occur */
+  bool CAN_usb_logging_active = false;
+  /** bool, determines if USB serial logging should occur */
+  bool CAN_SD_logging_active = false;
+  /** bool, determines if USB serial logging should occur */
+  bool usb_logging_active = false;
+  /** bool, determines if general logging should be active for webserver */
+  bool web_logging_active = false;
+  /** bool, determines if general logging to SD card should be active */
+  bool SD_logging_active = false;
   /** uint8_t, enumeration which CAN interface should be used for log playback */
   uint8_t can_replay_interface = CAN_NATIVE;
   /** bool, determines if CAN replay should loop or not */
@@ -310,8 +321,8 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
 
-  /** True if the contactor controlled by battery-emulator is closed */
-  bool contactors_engaged = false;
+  /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
+  uint8_t contactors_engaged = 0;
   /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
   bool contactors_battery2_engaged = false;
 
