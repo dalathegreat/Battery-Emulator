@@ -1,17 +1,16 @@
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // A CAN driver for MCP2517FD, CANFD mode
 // by Pierre Molinaro
 // https://github.com/pierremolinaro/acan2517FD
-//
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 #pragma once
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 #include "ACAN2517FDSettings.h"
-#include "ACANFDBuffer.h"
-#include "CANMessage.h"
+#include "ACAN2517FD_ACANFDBuffer.h"
+#include "ACAN2517FD_CANMessage.h"
 #include "ACAN2517FDFilters.h"
 #include <SPI.h>
 
@@ -25,23 +24,23 @@
 //
 #define DISABLEMCP2517FDCOMPAT 
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //   ACAN2517FD class
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 class ACAN2517FD {
 
-//······················································································································
-//   CONSTRUCTOR
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //   CONSTRUCTOR
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   public: ACAN2517FD (const uint8_t inCS, // CS input of MCP2517FD
                       SPIClass & inSPI, // Hardware SPI object
                       const uint8_t inINT) ; // INT output of MCP2517FD
 
-//······················································································································
-//   begin method (returns 0 if no error)
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //   begin method (returns 0 if no error)
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   public: uint32_t begin (const ACAN2517FDSettings & inSettings,
                           void (* inInterruptServiceRoutine) (void)) ;
@@ -73,22 +72,22 @@ class ACAN2517FD {
   public: static const uint32_t kISRNotNullAndNoIntPin              = uint32_t (1) << 19 ;
   public: static const uint32_t kInvalidTDCO                        = uint32_t (1) << 20 ;
 
-//······················································································································
-//   end method (resets the MCP2517FD, deallocate buffers, and detach interrupt pin)
-//   Return true if end method succeeds, and false otherwise
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //   end method (resets the MCP2517FD, deallocate buffers, and detach interrupt pin)
+  //   Return true if end method succeeds, and false otherwise
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   public: bool end (void) ;
 
-//······················································································································
-//   Send a message
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //   Send a message
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   public: bool tryToSend (const CANFDMessage & inMessage) ;
 
-//······················································································································
-//    Receive a message
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    Receive a message
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   public: bool receive (CANFDMessage & outMessage) ;
   public: bool available (void) ;
@@ -98,44 +97,44 @@ class ACAN2517FD {
 //--- Call back function array
   private: ACANFDCallBackRoutine * mCallBackFunctionArray = NULL ;
 
-//······················································································································
-//    Get error counters
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    Get error counters
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   public: uint32_t errorCounters (void) ;
 
-//······················································································································
-//    Get diagnostic information (thanks to Flole998 and turmary)
-// inIndex == 0 returns BDIAG0_REGISTER
-// inIndex != 0 returns BDIAG1_REGISTER
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    Get diagnostic information (thanks to Flole998 and turmary)
+  // inIndex == 0 returns BDIAG0_REGISTER
+  // inIndex != 0 returns BDIAG1_REGISTER
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   public: uint32_t diagInfos (const int inIndex = 1) ;
 
-//······················································································································
-//    Operation Mode
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    Operation Mode
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   public: ACAN2517FDSettings::OperationMode currentOperationMode (void) ;
 
   public: void setOperationMode (const ACAN2517FDSettings::OperationMode inMode) ;
 
-//······················································································································
-//    Recovery from Restricted Operation Mode
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    Recovery from Restricted Operation Mode
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   public: bool recoverFromRestrictedOperationMode (void) ;
 
-//······················································································································
-//    Sleep Mode to Configuration Mode
-// (returns true if MCP2517FD was in sleep mode)
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    Sleep Mode to Configuration Mode
+  // (returns true if MCP2517FD was in sleep mode)
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   public: bool performSleepModeToConfigurationMode (void) ;
 
-//······················································································································
-//    Private properties
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    Private properties
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   #ifdef ARDUINO_ARCH_ESP32
     private: TaskHandle_t mESP32TaskHandle = nullptr ;
@@ -147,40 +146,51 @@ class ACAN2517FD {
   private: bool mUsesTXQ ;
   private: bool mHardwareTxFIFOFull ;
   private: bool mRxInterruptEnabled ; // Added in 2.1.7
-  private: bool mHasDataBitRate ;
   private: uint8_t mTransmitFIFOPayload ; // in byte count
   private: uint8_t mTXQBufferPayload ; // in byte count
   private: uint8_t mReceiveFIFOPayload ; // in byte count
   private: uint8_t mTXBWS_RequestedMode ;
   private: uint8_t mHardwareReceiveBufferOverflowCount ;
 
-//······················································································································
-//    Receive buffer
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    Receive buffer
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   private: ACANFDBuffer mDriverReceiveBuffer ;
 
-  public: uint32_t driverReceiveBufferPeakCount (void) const { return mDriverReceiveBuffer.peakCount () ; }
+  public: uint32_t driverReceiveBufferPeakCount (void) const {
+    return mDriverReceiveBuffer.peakCount () ;
+  }
 
-  public: uint8_t hardwareReceiveBufferOverflowCount (void) const { return mHardwareReceiveBufferOverflowCount ; }
+  public: uint8_t hardwareReceiveBufferOverflowCount (void) const {
+    return mHardwareReceiveBufferOverflowCount ;
+  }
 
-  public: void resetHardwareReceiveBufferOverflowCount (void) { mHardwareReceiveBufferOverflowCount = 0 ; }
+  public: void resetHardwareReceiveBufferOverflowCount (void) {
+    mHardwareReceiveBufferOverflowCount = 0 ;
+  }
 
-//······················································································································
-//    Transmit buffer
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    Transmit buffer
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   private: ACANFDBuffer mDriverTransmitBuffer ;
 
-  public: uint32_t driverTransmitBufferSize (void) const { return mDriverTransmitBuffer.size () ; }
+  public: uint32_t driverTransmitBufferSize (void) const {
+    return mDriverTransmitBuffer.size () ;
+  }
 
-  public: uint32_t driverTransmitBufferCount (void) const { return mDriverTransmitBuffer.count () ; }
+  public: uint32_t driverTransmitBufferCount (void) const {
+    return mDriverTransmitBuffer.count () ;
+  }
 
-  public: uint32_t driverTransmitBufferPeakCount (void) const { return mDriverTransmitBuffer.peakCount () ; }
+  public: uint32_t driverTransmitBufferPeakCount (void) const {
+    return mDriverTransmitBuffer.peakCount () ;
+  }
 
-//······················································································································
-//    Private methods
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    Private methods
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   private: void writeRegister32Assume_SPI_transaction (const uint16_t inRegisterAddress, const uint32_t inValue) ;
   private: void writeRegister8Assume_SPI_transaction (const uint16_t inRegisterAddress, const uint8_t inValue) ;
@@ -202,15 +212,15 @@ class ACAN2517FD {
   private: bool enterInTransmitBuffer (const CANFDMessage & inMessage) ;
   private: void appendInControllerTxFIFO (const CANFDMessage & inMessage) ;
 
-//······················································································································
-//    Polling
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    Polling
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   public: void poll (void) ;
 
-//······················································································································
-//    Interrupt service routine
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    Interrupt service routine
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   public: void isr (void) ;
   public: void isr_poll_core (void) ;
@@ -220,9 +230,9 @@ class ACAN2517FD {
     public: SemaphoreHandle_t mISRSemaphore ;
   #endif
 
-//----------------------------------------------------------------------------------------------------------------------
-//    Optimized CS handling (thanks to Flole998)
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    Optimized CS handling (thanks to Flole998)
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   #if defined(__AVR__)
     private: volatile uint8_t *cs_pin_reg;
@@ -293,10 +303,8 @@ class ACAN2517FD {
       *(cs_pin_reg+8+2) = cs_pin_mask;
     }
   #elif defined(ARDUINO_ARCH_ESP8266)
-    // private: volatile uint32_t *cs_pin_reg;
     private: uint32_t cs_pin_mask;
     private: inline void initCS () {
-      // cs_pin_reg = (volatile uint32_t*)GPO;
       cs_pin_mask = 1 << mCS;
       pinMode(mCS, OUTPUT);
     }
@@ -333,9 +341,9 @@ class ACAN2517FD {
     }
   #endif
 
-//······················································································································
-//    GPIO
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    GPIO
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   public: void gpioSetMode (const uint8_t inPin, const uint8_t inMode) ;
 
@@ -345,16 +353,16 @@ class ACAN2517FD {
 
   public: void configureGPIO0AsXSTBY (void) ;
 
-//······················································································································
-//    No copy
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //    No copy
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   private: ACAN2517FD (const ACAN2517FD &) = delete ;
   private: ACAN2517FD & operator = (const ACAN2517FD &) = delete ;
 
-//······················································································································
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 } ;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
