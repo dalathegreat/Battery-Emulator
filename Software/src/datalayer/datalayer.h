@@ -110,7 +110,7 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
 
   /** LED mode, customizable by user */
-  led_mode_enum led_mode = LED_MODE;
+  led_mode_enum led_mode = CLASSIC;
 };
 
 struct DATALAYER_BATTERY_SETTINGS_TYPE {

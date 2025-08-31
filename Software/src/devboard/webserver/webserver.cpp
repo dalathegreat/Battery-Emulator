@@ -524,6 +524,9 @@ void init_webserver() {
       } else if (p->name() == "GTWPACK") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("GTWPACK", type);
+      } else if (p->name() == "LEDMODE") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LEDMODE", type);
       }
 
       for (auto& boolSetting : boolSettings) {

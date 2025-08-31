@@ -93,6 +93,8 @@ String options_from_map(int selected, const TMap& value_name_map) {
   return options;
 }
 
+static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
+
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
     {17483, "DK (Denmark)"}, {17477, "DE (Germany)"}, {16725, "AU (Australia)"}};
@@ -571,6 +573,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_from_map(settings.getUInt("GTWPACK", 0), tesla_pack);
   }
 
+  if (var == "LEDMODE") {
+    return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
+  }
+
   return String();
 }
 
@@ -971,6 +977,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Enable logging via SD card: </label>
         <input type='checkbox' name='SDLOGENABLED' value='on' style='margin-left: 0;' %SDLOGENABLED% />
+
+        <label for='LEDMODE'>Status LED pattern: </label><select name='LEDMODE' id='LEDMODE'>
+        %LEDMODE%
+        </select>
 
         <label>Enable MQTT: </label>
         <input type='checkbox' name='MQTTENABLED' value='on' style='margin-left: 0;' %MQTTENABLED% />
