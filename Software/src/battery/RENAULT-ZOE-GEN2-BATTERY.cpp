@@ -403,7 +403,7 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             battery_balancing_shunts[94] = (rx_frame.data.u8[1] & 0x02) >> 1;
             battery_balancing_shunts[95] = (rx_frame.data.u8[1] & 0x01);
 
-            memcpy(datalayer.battery.status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
+            memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
           }
           break;
         case POLL_ENERGY_COMPLETE:
