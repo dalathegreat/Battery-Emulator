@@ -259,12 +259,13 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   bool can_native_send_fail = false;
   /** bool, MCP2515 CAN failed to send flag */
   bool can_2515_send_fail = false;
-  /** uint16_t, MCP2518 CANFD failed to send flag */
+  /** bool, MCP2518 CANFD failed to send flag */
   bool can_2518_send_fail = false;
+  /** bool, determines if detailed performance measurement should be shown on webserver */
+  bool performance_measurement_active = false;
 };
 
 struct DATALAYER_SYSTEM_STATUS_TYPE {
-#ifdef FUNCTION_TIME_MEASUREMENT
   /** Core task measurement variable */
   int64_t core_task_max_us = 0;
   /** Core task measurement variable, reset each 10 seconds */
@@ -305,7 +306,6 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
    * This will show the performance of CAN TX when the total time reached a new worst case
    */
   int64_t time_snap_cantx_us = 0;
-#endif
   /** uint8_t */
   /** A counter set each time a new message comes from inverter.
    * This value then gets decremented every second. Incase we reach 0

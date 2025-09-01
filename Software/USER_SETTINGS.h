@@ -4,77 +4,9 @@
 #include <stdint.h>
 #include "src/devboard/utils/types.h"
 
-/* This file contains all the battery/inverter protocol settings Battery-Emulator software */
-/* To switch between batteries/inverters, uncomment a line to enable, comment out to disable. */
-/* There are also some options for battery limits and extra functionality */
-/* To edit battery specific limits, see also the USER_SETTINGS.cpp file*/
+/* This file is being transitioned towards COMMON_IMAGE. Use v8.16 if you are taking this software into use! */
 
-/* Select battery used */
-//#define BMW_I3_BATTERY
-//#define BMW_IX_BATTERY
-//#define BMW_PHEV_BATTERY
-//#define BOLT_AMPERA_BATTERY
-//#define BYD_ATTO_3_BATTERY
-//#define FOXESS_BATTERY
-//#define CELLPOWER_BMS
-//#define CHADEMO_BATTERY	//NOTE: inherently enables CONTACTOR_CONTROL below
-//#define GEELY_GEOMETRY_C_BATTERY
-//#define HYUNDAI_IONIQ_28_BATTERY
-//#define CMFA_EV_BATTERY
-//#define IMIEV_CZERO_ION_BATTERY
-//#define JAGUAR_IPACE_BATTERY
-//#define KIA_E_GMP_BATTERY
-//#define KIA_HYUNDAI_64_BATTERY
-//#define KIA_HYUNDAI_64_FD_BATTERY
-//#define KIA_HYUNDAI_HYBRID_BATTERY
-//#define MEB_BATTERY
-//#define MG_5_BATTERY
-//#define MG_HS_PHEV_BATTERY
-//#define NISSAN_LEAF_BATTERY
-//#define ORION_BMS
-//#define PYLON_BATTERY
-//#define DALY_BMS
-//#define RJXZS_BMS
-//#define RANGE_ROVER_PHEV_BATTERY
-//#define RELION_BATTERY
-//#define RENAULT_KANGOO_BATTERY
-//#define RENAULT_TWIZY_BATTERY
-//#define RENAULT_ZOE_GEN1_BATTERY
-//#define RENAULT_ZOE_GEN2_BATTERY
-//#define SONO_BATTERY
-//#define SAMSUNG_SDI_LV_BATTERY
-//#define SANTA_FE_PHEV_BATTERY
-//#define SIMPBMS_BATTERY
-//#define STELLANTIS_ECMP_BATTERY
-//#define TESLA_MODEL_3Y_BATTERY
-//#define TESLA_MODEL_SX_BATTERY
-//#define VOLVO_SPA_BATTERY
-//#define VOLVO_SPA_HYBRID_BATTERY
-//#define TEST_FAKE_BATTERY
-//#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires separate CAN setup)
-
-/* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/Battery-Emulator/wiki */
-//#define AFORE_CAN        //Enable this line to emulate an "Afore battery" over CAN bus
-//#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
-//#define BYD_CAN_DEYE     //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus, with Deye specific fixes
-//#define BYD_KOSTAL_RS485 //Enable this line to emulate a "BYD 11kWh HVM battery" over Kostal RS485
-//#define BYD_MODBUS       //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
-//#define FERROAMP_CAN     //Enable this line to emulate a "Pylon 4x96V Force H2" over CAN Bus
-//#define FOXESS_CAN       //Enable this line to emulate a "HV2600/ECS4100 battery" over CAN bus
-//#define GROWATT_HV_CAN   //Enable this line to emulate a "Growatt High Voltage v1.10 battery" over CAN bus
-//#define GROWATT_LV_CAN   //Enable this line to emulate a "48V Growatt Low Voltage battery" over CAN bus
-//#define PYLON_LV_CAN     //Enable this line to emulate a "48V Pylontech battery" over CAN bus
-//#define PYLON_CAN        //Enable this line to emulate a "High Voltage Pylontech battery" over CAN bus
-//#define SCHNEIDER_CAN    //Enable this line to emulate a "Schneider Version 2: SE BMS" over CAN bus
-//#define SMA_BYD_H_CAN    //Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" (SMA compatible) over CAN bus
-//#define SMA_BYD_HVS_CAN  //Enable this line to emulate a "BYD Battery-Box HVS 10.2KW battery" (SMA compatible) over CAN bus
-//#define SMA_LV_CAN       //Enable this line to emulate a "SMA Sunny Island 48V battery" over CAN bus
-//#define SMA_TRIPOWER_CAN //Enable this line to emulate a "SMA Home Storage battery" over CAN bus
-//#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
-//#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
-//#define SOLXPOW_CAN      //Enable this line to emulate a "Solxpow compatible battery" over CAN bus
-//#define SOL_ARK_LV_CAN   //Enable this line to emulate a "Sol-Ark compatible LV battery" over CAN bus
-//#define SUNGROW_CAN      //Enable this line to emulate a "Sungrow SBR064" over CAN bus
+//#define COMMON_IMAGE
 
 /* Select hardware used for Battery-Emulator */
 //#define HW_LILYGO
@@ -90,8 +22,6 @@
 //#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
 //#define PERIODIC_BMS_RESET    //Enable to have the emulator powercycle the connected battery every 24hours via GPIO. Useful for some batteries like Nissan LEAF
 //#define REMOTE_BMS_RESET      //Enable to allow the emulator to remotely trigger a powercycle of the battery via MQTT. Useful for some batteries like Nissan LEAF
-// PERIODIC_BMS_RESET_AT Uses NTP server, internet required. In 24 Hour format WITHOUT leading 0. e.g 0230 should be 230. Time Zone is set in USER_SETTINGS.cpp
-//#define PERIODIC_BMS_RESET_AT 525
 
 /* Shunt/Contactor settings (Optional) */
 //#define BMW_SBOX  // SBOX relay control & battery current/voltage measurement
@@ -125,7 +55,6 @@
 #define WIFIAP  //When enabled, the emulator will broadcast its own access point Wifi. Can be used at the same time as a normal Wifi connection to a router.
 #define MDNSRESPONDER  //Enable this line to enable MDNS, allows battery monitor te be found by .local address. Requires WEBSERVER to be enabled.
 #define LOAD_SAVED_SETTINGS_ON_BOOT  // Enable this line to read settings stored via the webserver on boot (overrides Wifi credentials set here)
-//#define FUNCTION_TIME_MEASUREMENT  // Enable this to record execution times and present them in the web UI (WARNING, raises CPU load, do not use for production)
 
 /* MQTT options */
 // #define MQTT     // Enable this line to enable MQTT
@@ -166,12 +95,6 @@
 #define BATTERY_MAX_CHARGE_VOLTAGE 5000
 // 3000 = 300.0V, Target discharge voltage (Value can be tuned on the fly via webserver). Not used unless BATTERY_USE_VOLTAGE_LIMITS = true
 #define BATTERY_MAX_DISCHARGE_VOLTAGE 3000
-
-/* Pack/cell voltage limits for custom-BMS batteries (RJXZS, Daly, etc.) */
-//#define MAX_CUSTOM_PACK_VOLTAGE_DV 5000  // 5000 = 500.0V , Maximum pack voltage in decivolts
-//#define MIN_CUSTOM_PACK_VOLTAGE_DV 2500  // 2500 = 250.0V , Minimum pack voltage in decivolts
-//#define MAX_CUSTOM_CELL_VOLTAGE_MV 4250  // 4250 = 4.250V , Maximum cell voltage in millivolts (4250 = 4.250V)
-//#define MIN_CUSTOM_CELL_VOLTAGE_MV 2650  // 2650 = 2.650V , Minimum cell voltage in millivolts (2650 = 2.650V)
 
 /* Do not change any code below this line */
 /* Only change battery specific settings above and in "USER_SETTINGS.cpp" */

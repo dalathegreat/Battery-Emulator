@@ -35,11 +35,6 @@
 #error You must select a target hardware in the USER_SETTINGS.h file!
 #endif
 
-#ifdef PERIODIC_BMS_RESET_AT
-#include "src/devboard/utils/ntp_time.h"
-#endif
-volatile unsigned long long bmsResetTimeOffset = 0;
-
 // The current software version, shown on webserver
 const char* version_number = "9.0.RC5experimental";
 
@@ -47,10 +42,11 @@ const char* version_number = "9.0.RC5experimental";
 volatile unsigned long currentMillis = 0;
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
-#ifdef FUNCTION_TIME_MEASUREMENT
 // Task time measurement for debugging
 MyTimer core_task_timer_10s(INTERVAL_10_S);
-#endif
+uint64_t start_time_10ms = 0;
+uint64_t start_time_values = 0;
+uint64_t start_time_cantx = 0;
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
 TaskHandle_t logging_loop_task;
@@ -151,15 +147,6 @@ void setup() {
 
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
                           esp32hal->CORE_FUNCTION_CORE());
-
-#ifdef PERIODIC_BMS_RESET_AT
-  bmsResetTimeOffset = getTimeOffsetfromNowUntil(PERIODIC_BMS_RESET_AT);
-  if (bmsResetTimeOffset == 0) {
-    set_event(EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED, 0);
-  } else {
-    set_event(EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS, 0);
-  }
-#endif
 
   DEBUG_PRINTF("setup() complete\n");
 }
@@ -262,24 +249,24 @@ void core_loop(void*) {
         set_event(EVENT_TASK_OVERRUN, (currentMillis - previousMillis10ms));
       }
       previousMillis10ms = currentMillis;
-#ifdef FUNCTION_TIME_MEASUREMENT
-      START_TIME_MEASUREMENT(time_10ms);
-#endif
+      if (datalayer.system.info.performance_measurement_active) {
+        START_TIME_MEASUREMENT(10ms);
+      }
       led_exe();
       handle_contactors();  // Take care of startup precharge/contactor closing
 #ifdef PRECHARGE_CONTROL
       handle_precharge_control(currentMillis);
 #endif  // PRECHARGE_CONTROL
-#ifdef FUNCTION_TIME_MEASUREMENT
-      END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
-#endif
+      if (datalayer.system.info.performance_measurement_active) {
+        END_TIME_MEASUREMENT_MAX(10ms, datalayer.system.status.time_10ms_us);
+      }
     }
 
     if (currentMillis - previousMillisUpdateVal >= INTERVAL_1_S) {
       previousMillisUpdateVal = currentMillis;  // Order matters on the update_loop!
-#ifdef FUNCTION_TIME_MEASUREMENT
-      START_TIME_MEASUREMENT(time_values);
-#endif
+      if (datalayer.system.info.performance_measurement_active) {
+        START_TIME_MEASUREMENT(values);
+      }
       update_pause_state();  // Check if we are OK to send CAN or need to pause
 
       // Fetch battery values
@@ -299,48 +286,46 @@ void core_loop(void*) {
         inverter->update_values();
       }
 
-#ifdef FUNCTION_TIME_MEASUREMENT
-      END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
-#endif
+      if (datalayer.system.info.performance_measurement_active) {
+        END_TIME_MEASUREMENT_MAX(values, datalayer.system.status.time_values_us);
+      }
     }
-#ifdef FUNCTION_TIME_MEASUREMENT
-    START_TIME_MEASUREMENT(cantx);
-#endif
+    if (datalayer.system.info.performance_measurement_active) {
+      START_TIME_MEASUREMENT(cantx);
+    }
 
     // Let all transmitter objects send their messages
     for (auto& transmitter : transmitters) {
       transmitter->transmit(currentMillis);
     }
 
-#ifdef FUNCTION_TIME_MEASUREMENT
-    END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
-    END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
-#endif
-#ifdef FUNCTION_TIME_MEASUREMENT
-    if (datalayer.system.status.core_task_10s_max_us > datalayer.system.status.core_task_max_us) {
-      // Update worst case total time
-      datalayer.system.status.core_task_max_us = datalayer.system.status.core_task_10s_max_us;
-      // Record snapshots of task times
-      datalayer.system.status.time_snap_comm_us = datalayer.system.status.time_comm_us;
-      datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
-      datalayer.system.status.time_snap_values_us = datalayer.system.status.time_values_us;
-      datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
-      datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
-    }
+    if (datalayer.system.info.performance_measurement_active) {
+      END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
+      END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
+      if (datalayer.system.status.core_task_10s_max_us > datalayer.system.status.core_task_max_us) {
+        // Update worst case total time
+        datalayer.system.status.core_task_max_us = datalayer.system.status.core_task_10s_max_us;
+        // Record snapshots of task times
+        datalayer.system.status.time_snap_comm_us = datalayer.system.status.time_comm_us;
+        datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
+        datalayer.system.status.time_snap_values_us = datalayer.system.status.time_values_us;
+        datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
+        datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
+      }
 
-    datalayer.system.status.core_task_max_us =
-        MAX(datalayer.system.status.core_task_10s_max_us, datalayer.system.status.core_task_max_us);
-    if (core_task_timer_10s.elapsed()) {
-      datalayer.system.status.time_ota_us = 0;
-      datalayer.system.status.time_comm_us = 0;
-      datalayer.system.status.time_10ms_us = 0;
-      datalayer.system.status.time_values_us = 0;
-      datalayer.system.status.time_cantx_us = 0;
-      datalayer.system.status.core_task_10s_max_us = 0;
-      datalayer.system.status.wifi_task_10s_max_us = 0;
-      datalayer.system.status.mqtt_task_10s_max_us = 0;
+      datalayer.system.status.core_task_max_us =
+          MAX(datalayer.system.status.core_task_10s_max_us, datalayer.system.status.core_task_max_us);
+      if (core_task_timer_10s.elapsed()) {
+        datalayer.system.status.time_ota_us = 0;
+        datalayer.system.status.time_comm_us = 0;
+        datalayer.system.status.time_10ms_us = 0;
+        datalayer.system.status.time_values_us = 0;
+        datalayer.system.status.time_cantx_us = 0;
+        datalayer.system.status.core_task_10s_max_us = 0;
+        datalayer.system.status.wifi_task_10s_max_us = 0;
+        datalayer.system.status.mqtt_task_10s_max_us = 0;
+      }
     }
-#endif                     // FUNCTION_TIME_MEASUREMENT
     esp_task_wdt_reset();  // Reset watchdog to prevent reset
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }

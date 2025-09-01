@@ -297,7 +297,7 @@ void handle_BMSpower() {
 
     if (periodic_bms_reset) {
       // Check if 24 hours have passed since the last power removal
-      if ((currentTime + bmsResetTimeOffset) - lastPowerRemovalTime >= powerRemovalInterval) {
+      if (currentTime - lastPowerRemovalTime >= powerRemovalInterval) {
         start_bms_reset();
       }
     }
@@ -329,7 +329,6 @@ void start_bms_reset() {
     if (!datalayer.system.status.BMS_reset_in_progress) {
       lastPowerRemovalTime = currentTime;  // Record the time when BMS reset was started
                                            // we are now resetting at the correct time. We don't need to offset anymore
-      bmsResetTimeOffset = 0;
       // Set a flag to let the rest of the system know we are cutting power to the BMS.
       // The battery CAN sending routine will then know not to try guto send anything towards battery while active
       datalayer.system.status.BMS_reset_in_progress = true;
