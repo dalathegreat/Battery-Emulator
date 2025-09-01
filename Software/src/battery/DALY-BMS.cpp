@@ -112,8 +112,8 @@ void dump_buff(const char* msg, uint8_t* buff, uint8_t len) {
   logging.printf("[DALY-BMS] ");
   logging.printf(msg);
   for (int i = 0; i < len; i++) {
-    logging.print(buff[i] >> 4);
-    logging.print(buff[i] & 0xf);
+    logging.print(buff[i] >> 4, HEX);
+    logging.print(buff[i] & 0xf, HEX);
     logging.printf(" ");
   }
   logging.println();

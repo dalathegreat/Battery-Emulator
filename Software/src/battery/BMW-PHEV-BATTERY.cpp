@@ -513,7 +513,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             if (gUDSContext.UDS_buffer[i] < 0x10) {
               logging.printf("0");
             }
-            logging.print(gUDSContext.UDS_buffer[i]);
+            logging.print(gUDSContext.UDS_buffer[i], HEX);
             logging.printf(" ");
           }
           logging.println("");  // new line at the end
@@ -538,7 +538,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               if (gUDSContext.UDS_buffer[i] < 0x10) {
                 logging.printf("0");
               }
-              logging.print(gUDSContext.UDS_buffer[i]);
+              logging.print(gUDSContext.UDS_buffer[i], HEX);
               logging.printf(" ");
             }
             logging.println();  // new line at the end
