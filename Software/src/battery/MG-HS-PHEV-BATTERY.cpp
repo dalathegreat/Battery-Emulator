@@ -373,6 +373,5 @@ void MgHsPHEVBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
   datalayer.battery.info.number_of_cells = 90;
 }

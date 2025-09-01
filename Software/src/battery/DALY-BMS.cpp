@@ -72,7 +72,6 @@ void DalyBms::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
   datalayer.battery.info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
   datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
-  datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
   datalayer.system.status.battery_allows_contactor_closing = true;
 
   auto rx_pin = esp32hal->RS485_RX_PIN();

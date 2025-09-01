@@ -85,6 +85,9 @@ void BydCanInverter::
   //Temperature min
   BYD_210.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
   BYD_210.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  //Capacity
+  BYD_250.data.u8[4] = (uint8_t)((datalayer.battery.info.reported_total_capacity_Wh / 100) >> 8);
+  BYD_250.data.u8[5] = (uint8_t)(datalayer.battery.info.reported_total_capacity_Wh / 100);
 }
 
 void BydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {

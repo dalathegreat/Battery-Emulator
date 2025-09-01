@@ -19,18 +19,9 @@ struct CanReceiverRegistration {
 
 static std::multimap<CAN_Interface, CanReceiverRegistration> can_receivers;
 
-const uint8_t rx_queue_size = 10;  // Receive Queue size
 volatile bool send_ok_native = 0;
 volatile bool send_ok_2515 = 0;
 volatile bool send_ok_2518 = 0;
-static unsigned long previousMillis10 = 0;
-
-#ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
-const bool use_canfd_as_can_default = true;
-#else
-const bool use_canfd_as_can_default = false;
-#endif
-bool use_canfd_as_can = use_canfd_as_can_default;
 
 void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface);
 
@@ -41,10 +32,9 @@ void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_S
 
 ACAN_ESP32_Settings* settingsespcan;
 
-uint8_t user_selected_can_addon_crystal_frequency_mhz = 0;
 static uint32_t QUARTZ_FREQUENCY;
 SPIClass SPI2515;
-
+uint8_t user_selected_can_addon_crystal_frequency_mhz = 0;
 ACAN2515* can2515;
 ACAN2515Settings* settings2515;
 
@@ -53,7 +43,7 @@ static ACAN2515_Buffer16 gBuffer;
 SPIClass SPI2517;
 ACAN2517FD* canfd;
 ACAN2517FDSettings* settings2517;
-
+bool use_canfd_as_can = false;
 // Initialization functions
 
 bool native_can_initialized = false;
@@ -190,7 +180,7 @@ bool init_CAN() {
         CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, bitRate,
         DataBitRateFactor::x4);  // Arbitration bit rate: 250/500 kbit/s, data bit rate: 1/2 Mbit/s
 
-    // ListenOnly / Normal20B / NormalFD
+    // ListenOnly / Normal20B / NormalFDs
     settings2517->mRequestedMode = use_canfd_as_can ? ACAN2517FDSettings::Normal20B : ACAN2517FDSettings::NormalFD;
 
     const uint32_t errorCode2517 = canfd->begin(*settings2517, [] { canfd->isr(); });
