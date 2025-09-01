@@ -1,8 +1,8 @@
 #include "SIMPBMS-BATTERY.h"
+#include <cstring>  //For unit test
 #include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-
 void SimpBmsBattery::update_values() {
 
   datalayer.battery.status.real_soc = (SOC * 100);  //increase SOC range from 0-100 -> 100.00

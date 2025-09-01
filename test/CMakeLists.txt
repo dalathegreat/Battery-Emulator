@@ -85,11 +85,80 @@ add_executable(tests
     ../Software/USER_SETTINGS.cpp
     ../Software/src/battery/BATTERIES.cpp
     ../Software/src/battery/Battery.cpp
+    ../Software/src/battery/BMW-I3-BATTERY.cpp
+    ../Software/src/battery/BMW-I3-HTML.cpp
+    ../Software/src/battery/BMW-IX-BATTERY.cpp
+    ../Software/src/battery/BMW-IX-HTML.cpp
+    ../Software/src/battery/BMW-PHEV-BATTERY.cpp
+    ../Software/src/battery/BMW-SBOX.cpp
+    ../Software/src/battery/BOLT-AMPERA-BATTERY.cpp
+    ../Software/src/battery/BYD-ATTO-3-BATTERY.cpp
     ../Software/src/battery/CanBattery.cpp
+    ../Software/src/battery/CELLPOWER-BMS.cpp
+    ../Software/src/battery/CHADEMO-BATTERY.cpp
+    ../Software/src/battery/CHADEMO-SHUNTS.cpp
+    ../Software/src/battery/CMFA-EV-BATTERY.cpp
+    ../Software/src/battery/DALY-BMS.cpp
+    ../Software/src/battery/ECMP-BATTERY.cpp
+    ../Software/src/battery/FOXESS-BATTERY.cpp
+    ../Software/src/battery/GEELY-GEOMETRY-C-BATTERY.cpp
+    ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY-HTML.cpp
+    ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY.cpp
+    ../Software/src/battery/IMIEV-CZERO-ION-BATTERY.cpp
+    ../Software/src/battery/JAGUAR-IPACE-BATTERY.cpp
+    ../Software/src/battery/KIA-E-GMP-BATTERY.cpp
+    ../Software/src/battery/KIA-E-GMP-HTML.cpp
+    ../Software/src/battery/KIA-64FD-BATTERY.cpp
+    ../Software/src/battery/KIA-HYUNDAI-64-BATTERY.cpp
+    ../Software/src/battery/KIA-HYUNDAI-HYBRID-BATTERY.cpp
+    ../Software/src/battery/MEB-BATTERY.cpp
+    ../Software/src/battery/MG-5-BATTERY.cpp
+    ../Software/src/battery/MG-HS-PHEV-BATTERY.cpp
     ../Software/src/battery/NISSAN-LEAF-BATTERY.cpp
-    ../Software/src/inverter/INVERTERS.cpp
+    ../Software/src/battery/ORION-BMS.cpp
+    ../Software/src/battery/PYLON-BATTERY.cpp
+    ../Software/src/battery/RANGE-ROVER-PHEV-BATTERY.cpp
+    ../Software/src/battery/RELION-LV-BATTERY.cpp
+    ../Software/src/battery/RENAULT-KANGOO-BATTERY.cpp
+    ../Software/src/battery/RENAULT-TWIZY.cpp
+    ../Software/src/battery/RENAULT-ZOE-GEN1-BATTERY.cpp
+    ../Software/src/battery/RENAULT-ZOE-GEN2-BATTERY.cpp
+    ../Software/src/battery/RJXZS-BMS.cpp
+    ../Software/src/battery/SAMSUNG-SDI-LV-BATTERY.cpp
+    ../Software/src/battery/SANTA-FE-PHEV-BATTERY.cpp
+    ../Software/src/battery/Shunts.cpp
+    ../Software/src/battery/SIMPBMS-BATTERY.cpp
+    ../Software/src/battery/SONO-BATTERY.cpp
+    ../Software/src/battery/TESLA-BATTERY.cpp
+    ../Software/src/battery/TEST-FAKE-BATTERY.cpp
+    ../Software/src/battery/VOLVO-SPA-BATTERY.cpp
+    ../Software/src/battery/VOLVO-SPA-HYBRID-BATTERY.cpp
+    ../Software/src/inverter/AFORE-CAN.cpp
+    ../Software/src/inverter/BYD-CAN.cpp
     ../Software/src/inverter/BYD-MODBUS.cpp
+    ../Software/src/inverter/FERROAMP-CAN.cpp
+    ../Software/src/inverter/FOXESS-CAN.cpp
+    ../Software/src/inverter/GROWATT-HV-CAN.cpp
+    ../Software/src/inverter/GROWATT-LV-CAN.cpp
+    ../Software/src/inverter/GROWATT-WIT-CAN.cpp
+    ../Software/src/inverter/INVERTERS.cpp
+    ../Software/src/inverter/KOSTAL-RS485.cpp
+    ../Software/src/inverter/ModbusInverterProtocol.cpp
+    ../Software/src/inverter/PYLON-CAN.cpp
+    ../Software/src/inverter/PYLON-LV-CAN.cpp
+    ../Software/src/inverter/SCHNEIDER-CAN.cpp
+    ../Software/src/inverter/SMA-BYD-H-CAN.cpp
+    ../Software/src/inverter/SMA-BYD-HVS-CAN.cpp
+    ../Software/src/inverter/SMA-LV-CAN.cpp
+    ../Software/src/inverter/SMA-TRIPOWER-CAN.cpp
+    ../Software/src/inverter/SOFAR-CAN.cpp
+    ../Software/src/inverter/SOL-ARK-LV-CAN.cpp
+    ../Software/src/inverter/SOLAX-CAN.cpp
+    ../Software/src/inverter/SOLXPOW-CAN.cpp
+    ../Software/src/inverter/SUNGROW-CAN.cpp
     ../Software/src/charger/CHARGERS.cpp
+    ../Software/src/charger/CHEVY-VOLT-CHARGER.cpp
+    ../Software/src/charger/NISSAN-LEAF-CHARGER.cpp
     emul/can.cpp
     emul/time.cpp
     emul/serial.cpp

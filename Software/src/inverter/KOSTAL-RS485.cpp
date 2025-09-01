@@ -14,18 +14,18 @@ void KostalInverterProtocol::float2frame(uint8_t* arr, float value, uint8_t fram
 }
 
 static void dbg_timestamp(void) {
-  logging.print("[");
+  logging.printf("[");
   logging.print(millis());
-  logging.print(" ms] ");
+  logging.printf(" ms] ");
 }
 
 static void dbg_frame(uint8_t* frame, int len, const char* prefix) {
   dbg_timestamp();
   logging.print(prefix);
-  logging.print(": ");
+  logging.printf(": ");
   for (uint8_t i = 0; i < len; i++) {
     if (frame[i] < 0x10) {
-      logging.print("0");
+      logging.printf("0");
     }
     logging.print(frame[i], HEX);
     logging.print(" ");

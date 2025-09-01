@@ -3,12 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/logging.h"
 
-static void print_units(const char* header, int value, const char* units) {
-  logging.print(header);
-  logging.print(value);
-  logging.print(units);
-}
-
 void TestFakeBattery::
     update_values() { /* This function puts fake values onto the parameters sent towards the inverter */
 

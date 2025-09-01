@@ -16,7 +16,7 @@ static uint16_t voltage_dV = 0;
 static uint32_t remaining_capacity_mAh = 0;
 static uint16_t cellvoltages_mV[48] = {0};
 static uint16_t cellvoltage_min_mV = 3700;
-static uint16_t cellvoltage_max_mV = 3700;
+static uint16_t cellvoltage_max_mV = 0;
 static uint16_t cell_count = 0;
 static uint16_t SOC = 0;
 static bool has_fault = false;
@@ -109,12 +109,12 @@ uint32_t decode_uint32be(uint8_t data[8], uint8_t offset) {
 }
 
 void dump_buff(const char* msg, uint8_t* buff, uint8_t len) {
-  logging.print("[DALY-BMS] ");
-  logging.print(msg);
+  logging.printf("[DALY-BMS] ");
+  logging.printf(msg);
   for (int i = 0; i < len; i++) {
-    logging.print(buff[i] >> 4, HEX);
-    logging.print(buff[i] & 0xf, HEX);
-    logging.print(" ");
+    logging.print(buff[i] >> 4);
+    logging.print(buff[i] & 0xf);
+    logging.printf(" ");
   }
   logging.println();
 }

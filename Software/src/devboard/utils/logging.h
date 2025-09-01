@@ -8,7 +8,6 @@
 
 #ifndef UNIT_TEST
 // Real implementation for production
-#include <Print.h>
 
 class Logging : public Print {
   void add_timestamp(size_t size);
@@ -51,12 +50,61 @@ class Logging {
     (void)fmt;
   }
 
+  // Overloaded print methods for different data types
+  static void print(const char* str) { (void)str; }
+  static void print(char c) { (void)c; }
+  static void print(int8_t num) { (void)num; }
+  static void print(uint8_t num) { (void)num; }
+  static void print(int16_t num) { (void)num; }
+  static void print(uint16_t num) { (void)num; }
+  static void print(int32_t num) { (void)num; }
+  static void print(uint32_t num) { (void)num; }
+  static void print(int64_t num) { (void)num; }
+  static void print(uint64_t num) { (void)num; }
+  static void print(float num) { (void)num; }
+  static void print(double num) { (void)num; }
+  static void print(bool b) { (void)b; }
+
+  static void print(double num, int precision) {
+    (void)num;
+    (void)precision;
+  }
+
+  static void print(float num, int precision) {
+    (void)num;
+    (void)precision;
+  }
+
+  static void print(int32_t num, int base) {
+    (void)num;
+    (void)base;
+  }
+
+  static void print(uint32_t num, int base) {
+    (void)num;
+    (void)base;
+  }
+
   static void println(const char* str) { (void)str; }
+  static void println(char c) { (void)c; }
+  static void println(int8_t num) { (void)num; }
+  static void println(uint8_t num) { (void)num; }
+  static void println(int16_t num) { (void)num; }
+  static void println(uint16_t num) { (void)num; }
+  static void println(int32_t num) { (void)num; }
+  static void println(uint32_t num) { (void)num; }
+  static void println(int64_t num) { (void)num; }
+  static void println(uint64_t num) { (void)num; }
+  static void println(float num) { (void)num; }
+  static void println(double num) { (void)num; }
+  static void println(bool b) { (void)b; }
+  static void println() {}  // Empty println
 
   Logging() {}
 };
 
 // Test macros - empty implementations
+#define DEBUG_PRINT(fmt, ...) ((void)0)
 #define DEBUG_PRINTF(fmt, ...) ((void)0)
 #define DEBUG_PRINTLN(str) ((void)0)
 

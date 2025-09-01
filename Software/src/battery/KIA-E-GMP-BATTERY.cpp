@@ -55,18 +55,6 @@ uint16_t KiaEGmpBattery::estimateSOC(uint16_t packVoltage, uint16_t cellCount, i
   // Calculate average cell voltage in millivolts
   uint16_t avgCellVoltage = compensatedPackVoltageMv / cellCount;
 
-  logging.print("Pack: ");
-  logging.print(packVoltage / 10.0);
-  logging.print("V, Current: ");
-  logging.print(currentAmps / 10.0);
-  logging.print("A, Drop: ");
-  logging.print(voltageDrop / 1000.0);
-  logging.print("V, Comp Pack: ");
-  logging.print(compensatedPackVoltageMv / 1000.0);
-  logging.print("V, Avg Cell: ");
-  logging.print(avgCellVoltage);
-  logging.println("mV");
-
   // Use the cell voltage lookup table to estimate SOC
   return estimateSOCFromCell(avgCellVoltage);
 }
@@ -182,65 +170,6 @@ void KiaEGmpBattery::update_values() {
   if (leadAcidBatteryVoltage < 110) {
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
   }
-
-  /* Safeties verified. Perform USB serial printout if configured to do so */
-
-  logging.println();  //sepatator
-  logging.println("Values from battery: ");
-  logging.print("SOC BMS: ");
-  logging.print((uint16_t)SOC_BMS / 10.0, 1);
-  logging.print("%  |  SOC Display: ");
-  logging.print((uint16_t)SOC_Display / 10.0, 1);
-  logging.print("%  |  SOH ");
-  logging.print((uint16_t)batterySOH / 10.0, 1);
-  logging.println("%");
-  logging.print((int16_t)batteryAmps / 10.0, 1);
-  logging.print(" Amps  |  ");
-  logging.print((uint16_t)batteryVoltage / 10.0, 1);
-  logging.print(" Volts  |  ");
-  logging.print((int16_t)datalayer.battery.status.active_power_W);
-  logging.println(" Watts");
-  logging.print("Allowed Charge ");
-  logging.print((uint16_t)allowedChargePower * 10);
-  logging.print(" W  |  Allowed Discharge ");
-  logging.print((uint16_t)allowedDischargePower * 10);
-  logging.println(" W");
-  logging.print("MaxCellVolt ");
-  logging.print(CellVoltMax_mV);
-  logging.print(" mV  No  ");
-  logging.print(CellVmaxNo);
-  logging.print("  |  MinCellVolt ");
-  logging.print(CellVoltMin_mV);
-  logging.print(" mV  No  ");
-  logging.println(CellVminNo);
-  logging.print("TempHi ");
-  logging.print((int16_t)temperatureMax);
-  logging.print("°C  TempLo ");
-  logging.print((int16_t)temperatureMin);
-  logging.print("°C  WaterInlet ");
-  logging.print((int8_t)temperature_water_inlet);
-  logging.print("°C  PowerRelay ");
-  logging.print((int8_t)powerRelayTemperature * 2);
-  logging.println("°C");
-  logging.print("Aux12volt: ");
-  logging.print((int16_t)leadAcidBatteryVoltage / 10.0, 1);
-  logging.println("V  |  ");
-  logging.print("BmsManagementMode ");
-  logging.print((uint8_t)batteryManagementMode, BIN);
-  if (bitRead((uint8_t)BMS_ign, 2) == 1) {
-    logging.print("  |  BmsIgnition ON");
-  } else {
-    logging.print("  |  BmsIgnition OFF");
-  }
-
-  if (bitRead((uint8_t)batteryRelay, 0) == 1) {
-    logging.print("  |  PowerRelay ON");
-  } else {
-    logging.print("  |  PowerRelay OFF");
-  }
-  logging.print("  |  Inverter ");
-  logging.print(inverterVoltage);
-  logging.println(" Volts");
 }
 
 // Getter implementations for HTML renderer
@@ -321,14 +250,10 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EC:
-      // print_canfd_frame(frame);
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
-          // logging.println ("Send ack");
           poll_data_pid = rx_frame.data.u8[4];
-          // if (rx_frame.data.u8[4] == poll_data_pid) {
-          transmit_can_frame(&EGMP_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
-          // }
+          transmit_can_frame(&EGMP_7E4_ack);  //Send ack to BMS
           break;
         case 0x21:  //First frame in PID group
           if (poll_data_pid == 1) {
