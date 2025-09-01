@@ -22,7 +22,7 @@ class KostalInverterProtocol : public Rs485InverterProtocol {
   bool check_kostal_frame_crc(int len);
 
   // How many value updates we can go without inverter gets reported as missing \
-    // e.g. value set to 12, 12*5sec=60seconds without comm before event is raised
+  // e.g. value set to 12, 12*5sec=60seconds without comm before event is raised
   const int RS485_HEALTHY = 12;
 
   const uint8_t KOSTAL_FRAMEHEADER[5] = {0x62, 0xFF, 0x02, 0xFF, 0x29};
