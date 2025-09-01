@@ -1,6 +1,7 @@
 #ifndef _GEELY_GEOMETRY_C_HTML_H
 #define _GEELY_GEOMETRY_C_HTML_H
 
+#include <cstring>  //For unit test
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 

@@ -3,10 +3,6 @@
 
 #include "CanBattery.h"
 
-#ifdef RENAULT_KANGOO_BATTERY
-#define SELECTED_BATTERY_CLASS RenaultKangooBattery
-#endif
-
 class RenaultKangooBattery : public CanBattery {
  public:
   virtual void setup(void);

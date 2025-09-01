@@ -1,9 +1,8 @@
 #include "RENAULT-ZOE-GEN1-BATTERY.h"
+#include <cstring>  //For unit test
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
 /* Information in this file is based of the OVMS V3 vehicle_renaultzoe.cpp component 
 https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_renaultzoe/src/vehicle_renaultzoe.cpp

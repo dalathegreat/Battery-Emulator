@@ -4,10 +4,6 @@
 #include "CanBattery.h"
 #include "RENAULT-ZOE-GEN1-HTML.h"
 
-#ifdef RENAULT_ZOE_GEN1_BATTERY
-#define SELECTED_BATTERY_CLASS RenaultZoeGen1Battery
-#endif
-
 class RenaultZoeGen1Battery : public CanBattery {
  public:
   // Use this constructor for the second battery.

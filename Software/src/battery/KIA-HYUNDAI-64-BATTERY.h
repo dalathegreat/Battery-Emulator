@@ -5,10 +5,6 @@
 #include "CanBattery.h"
 #include "KIA-HYUNDAI-64-HTML.h"
 
-#ifdef KIA_HYUNDAI_64_BATTERY
-#define SELECTED_BATTERY_CLASS KiaHyundai64Battery
-#endif
-
 class KiaHyundai64Battery : public CanBattery {
  public:
   // Use this constructor for the second battery.

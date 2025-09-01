@@ -35,17 +35,28 @@ enum SerialConfig {
 
 class HardwareSerial : public Stream {
  public:
-  int available() { return 0; }
+  // Implement ALL pure virtual functions from base classes
+  int available() override { return 0; }
+  int read() override { return -1; }
+  int peek() override { return -1; }
+  void flush() override {}                      // Implement flush from Print
+  size_t write(uint8_t) override { return 0; }  // Implement write from Print
+
+  // Your existing methods
   uint32_t baudRate() { return 9600; }
   void begin(unsigned long baud, uint32_t config = SERIAL_8N1, int8_t rxPin = -1, int8_t txPin = -1,
              bool invert = false, unsigned long timeout_ms = 20000UL, uint8_t rxfifo_full_thrhd = 120) {}
-  int read() { return 0; }
   void setTxBufferSize(uint16_t size) {}
   void setRxBufferSize(uint16_t size) {}
   bool setRxFIFOFull(uint8_t fifoBytes) { return false; }
-  size_t write(uint8_t) { return 0; }
-};
 
+  // Add the buffer write method
+  size_t write(const uint8_t* buffer, size_t size) override {
+    (void)buffer;
+    (void)size;
+    return 0;
+  }
+};
 extern HardwareSerial Serial;
 extern HardwareSerial Serial1;
 extern HardwareSerial Serial2;

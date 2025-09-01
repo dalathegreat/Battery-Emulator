@@ -24,9 +24,6 @@ static const int RAMPDOWN_POWER_ALLOWED =
     10000;  // Power to start ramp down from, set a lower value to limit the power even further as SOC decreases
 
 /* Do not modify the rows below */
-#ifdef BYD_ATTO_3_BATTERY
-#define SELECTED_BATTERY_CLASS BydAttoBattery
-#endif
 
 class BydAttoBattery : public CanBattery {
  public:

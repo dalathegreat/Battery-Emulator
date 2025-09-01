@@ -1,4 +1,5 @@
 #include "BOLT-AMPERA-BATTERY.h"
+#include <cstring>  //For unit test
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"

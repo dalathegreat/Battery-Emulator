@@ -1,4 +1,5 @@
 #include "TESLA-BATTERY.h"
+#include <cstring>  //For unit test
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For Advanced Battery Insights webpage
@@ -995,52 +996,52 @@ void TeslaBattery::
   }
 
   printFaultCodesIfActive();
-  logging.print("BMS Contactors State: ");
-  logging.print(getBMSContactorState(battery_contactor));  // Display what state the BMS thinks the contactors are in
-  logging.print(", HVIL: ");
-  logging.print(getHvilStatusState(battery_hvil_status));
-  logging.print(", NegativeState: ");
-  logging.print(getContactorState(battery_packContNegativeState));
-  logging.print(", PositiveState: ");
+  logging.printf("BMS Contactors State: ");
+  logging.printf(getBMSContactorState(battery_contactor));  // Display what state the BMS thinks the contactors are in
+  logging.printf(", HVIL: ");
+  logging.printf(getHvilStatusState(battery_hvil_status));
+  logging.printf(", NegativeState: ");
+  logging.printf(getContactorState(battery_packContNegativeState));
+  logging.printf(", PositiveState: ");
   logging.println(getContactorState(battery_packContPositiveState));
-  logging.print("HVP Contactors setState: ");
-  logging.print(
+  logging.printf("HVP Contactors setState: ");
+  logging.printf(
       getContactorText(battery_packContactorSetState));  // Display what state the HVP has set the contactors to be in
-  logging.print(", Closing blocked: ");
-  logging.print(getNoYes(battery_packCtrsClosingBlocked));
+  logging.printf(", Closing blocked: ");
+  logging.printf(getNoYes(battery_packCtrsClosingBlocked));
   if (battery_packContactorSetState == 5) {
-    logging.print(" (already CLOSED)");
+    logging.printf(" (already CLOSED)");
   }
-  logging.print(", Pyrotest: ");
+  logging.printf(", Pyrotest: ");
   logging.println(getNoYes(battery_pyroTestInProgress));
 
-  logging.print("Battery values: ");
-  logging.print("Real SOC: ");
+  logging.printf("Battery values: ");
+  logging.printf("Real SOC: ");
   logging.print(battery_soc_ui / 10.0, 1);
-  logging.print(", Battery voltage: ");
+  logging.printf(", Battery voltage: ");
   logging.print(battery_volts / 10.0, 1);
-  logging.print("V");
-  logging.print(", Battery HV current: ");
+  logging.printf("V");
+  logging.printf(", Battery HV current: ");
   logging.print(battery_amps / 10.0, 1);
-  logging.print("A");
-  logging.print(", Fully charged?: ");
+  logging.printf("A");
+  logging.printf(", Fully charged?: ");
   if (battery_full_charge_complete)
-    logging.print("YES, ");
+    logging.printf("YES, ");
   else
-    logging.print("NO, ");
+    logging.printf("NO, ");
   if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
-    logging.print("LFP chemistry detected!");
+    logging.printf("LFP chemistry detected!");
   }
   logging.println("");
-  logging.print("Cellstats, Max: ");
+  logging.printf("Cellstats, Max: ");
   logging.print(battery_cell_max_v);
-  logging.print("mV (cell ");
+  logging.printf("mV (cell ");
   logging.print(battery_BrickVoltageMaxNum);
-  logging.print("), Min: ");
+  logging.printf("), Min: ");
   logging.print(battery_cell_min_v);
-  logging.print("mV (cell ");
+  logging.printf("mV (cell ");
   logging.print(battery_BrickVoltageMinNum);
-  logging.print("), Imbalance: ");
+  logging.printf("), Imbalance: ");
   logging.print(battery_cell_deviation_mV);
   logging.println("mV.");
 

@@ -37,7 +37,7 @@ uint8_t BmwIXBattery::increment_alive_counter(uint8_t counter) {
   return counter;
 }
 
-static byte increment_C0_counter(byte counter) {
+static uint8_t increment_C0_counter(uint8_t counter) {
   counter++;
   // Reset to 0xF0 if it exceeds 0xFE
   if (counter > 0xFE) {
@@ -459,10 +459,12 @@ void BmwIXBattery::setup(void) {  // Performs one time setup at startup
 
 void BmwIXBattery::HandleIncomingUserRequest(void) {
   // Debug user request to open or close the contactors
-  logging.print("User request: contactor close: ");
-  logging.print(userRequestContactorClose);
-  logging.print("  User request: contactor open: ");
-  logging.println(userRequestContactorOpen);
+  if (userRequestContactorClose) {
+    logging.printf("User request: contactor close");
+  }
+  if (userRequestContactorOpen) {
+    logging.printf("User request: contactor open");
+  }
   if ((userRequestContactorClose == false) && (userRequestContactorOpen == false)) {
     // do nothing
   } else if ((userRequestContactorClose == true) && (userRequestContactorOpen == false)) {

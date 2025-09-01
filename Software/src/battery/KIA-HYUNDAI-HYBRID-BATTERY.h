@@ -2,10 +2,6 @@
 #define KIA_HYUNDAI_HYBRID_BATTERY_H
 #include "CanBattery.h"
 
-#ifdef KIA_HYUNDAI_HYBRID_BATTERY
-#define SELECTED_BATTERY_CLASS KiaHyundaiHybridBattery
-#endif
-
 class KiaHyundaiHybridBattery : public CanBattery {
  public:
   virtual void setup(void);

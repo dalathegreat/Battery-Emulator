@@ -15,4 +15,22 @@ int max(int a, int b) {
   return (a > b) ? a : b;
 }
 
+// Mock implementation for OBD
+#include "../../Software/src/communication/can/obd.h"
+void handle_obd_frame(CAN_frame& frame) {
+  (void)frame;
+}
+void transmit_obd_can_frame(unsigned int address, int interface, bool canFD) {
+  (void)interface;
+}
+
+void start_bms_reset() {}
+
+#include "../../Software/src/communication/rs485/comm_rs485.h"
+
+// Mock implementation
+void register_receiver(Rs485Receiver* receiver) {
+  (void)receiver;  // Silence unused parameter warning
+}
+
 ESPClass ESP;

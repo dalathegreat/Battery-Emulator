@@ -4,13 +4,6 @@
 #include "CanBattery.h"
 #include "TESLA-HTML.h"
 
-#ifdef TESLA_MODEL_3Y_BATTERY
-#define SELECTED_BATTERY_CLASS TeslaModel3YBattery
-#endif
-#ifdef TESLA_MODEL_SX_BATTERY
-#define SELECTED_BATTERY_CLASS TeslaModelSXBattery
-#endif
-
 // 0x7FF gateway config, "Gen3" vehicles only, not applicable to Gen2 "classic" Model S and Model X
 // These are user configurable from the Webserver UI
 extern bool user_selected_tesla_digital_HVIL;

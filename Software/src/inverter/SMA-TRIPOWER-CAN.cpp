@@ -137,34 +137,11 @@ void SmaTripowerInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   }
 }
 
-void SmaTripowerInverter::pushFrame(CAN_frame* frame, std::function<void(void)> callback) {
-  if (listLength >= 20) {
-    return;  //TODO: scream.
-  }
-  framesToSend[listLength] = {
-      .frame = frame,
-      .callback = callback,
-  };
-  listLength++;
-}
-
 void SmaTripowerInverter::transmit_can(unsigned long currentMillis) {
 
   // Send CAN Message only if we're enabled by inverter
   if (!datalayer.system.status.inverter_allows_contactor_closing) {
     return;
-  }
-
-  if (listLength > 0 && currentMillis - previousMillis250ms >= INTERVAL_250_MS) {
-    previousMillis250ms = currentMillis;
-    // Send next frame.
-    Frame frame = framesToSend[0];
-    transmit_can_frame(frame.frame);
-    frame.callback();
-    for (int i = 0; i < listLength - 1; i++) {
-      framesToSend[i] = framesToSend[i + 1];
-    }
-    listLength--;
   }
 
   if (!pairing_completed) {
@@ -174,19 +151,19 @@ void SmaTripowerInverter::transmit_can(unsigned long currentMillis) {
   // Send CAN Message every 2s
   if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
     previousMillis2s = currentMillis;
-    pushFrame(&SMA_358);
+    transmit_can_frame(&SMA_358);
   }
   // Send CAN Message every 10s
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
-    pushFrame(&SMA_518);
-    pushFrame(&SMA_4D8);
-    pushFrame(&SMA_3D8);
+    transmit_can_frame(&SMA_518);
+    transmit_can_frame(&SMA_4D8);
+    transmit_can_frame(&SMA_3D8);
   }
   // Send CAN Message every 60s (potentially SMA_458 is not required for stable operation)
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
-    pushFrame(&SMA_458);
+    transmit_can_frame(&SMA_458);
   }
 }
 
@@ -195,18 +172,17 @@ void SmaTripowerInverter::completePairing() {
 }
 
 void SmaTripowerInverter::transmit_can_init() {
-  listLength = 0;  // clear all frames
 
-  pushFrame(&SMA_558);    //Pairing start - Vendor
-  pushFrame(&SMA_598);    //Serial
-  pushFrame(&SMA_5D8);    //BYD
-  pushFrame(&SMA_618_0);  //BATTERY
-  pushFrame(&SMA_618_1);  //-Box Pr
-  pushFrame(&SMA_618_2);  //emium H
-  pushFrame(&SMA_618_3);  //VS
-  pushFrame(&SMA_358);
-  pushFrame(&SMA_3D8);
-  pushFrame(&SMA_458);
-  pushFrame(&SMA_4D8);
-  pushFrame(&SMA_518, [this]() { this->completePairing(); });
+  transmit_can_frame(&SMA_558);    //Pairing start - Vendor
+  transmit_can_frame(&SMA_598);    //Serial
+  transmit_can_frame(&SMA_5D8);    //BYD
+  transmit_can_frame(&SMA_618_0);  //BATTERY
+  transmit_can_frame(&SMA_618_1);  //-Box Pr
+  transmit_can_frame(&SMA_618_2);  //emium H
+  transmit_can_frame(&SMA_618_3);  //VS
+  transmit_can_frame(&SMA_358);
+  transmit_can_frame(&SMA_3D8);
+  transmit_can_frame(&SMA_458);
+  transmit_can_frame(&SMA_4D8);
+  transmit_can_frame(&SMA_518);
 }

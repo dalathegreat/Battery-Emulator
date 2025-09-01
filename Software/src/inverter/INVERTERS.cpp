@@ -96,11 +96,6 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
   return nullptr;
 }
 
-#ifdef COMMON_IMAGE
-#ifdef SELECTED_INVERTER_CLASS
-#error "Compile time SELECTED_INVERTER_CLASS should not be defined with COMMON_IMAGE"
-#endif
-
 bool setup_inverter() {
   if (inverter) {
     return true;
@@ -205,24 +200,3 @@ bool setup_inverter() {
 
   return false;
 }
-
-#else
-bool setup_inverter() {
-  if (inverter) {
-    // The inverter is setup only once.
-    return true;
-  }
-
-#ifdef SELECTED_INVERTER_CLASS
-  inverter = new SELECTED_INVERTER_CLASS();
-
-  if (inverter) {
-    return inverter->setup();
-  }
-
-  return false;
-#else
-  return true;
-#endif
-}
-#endif

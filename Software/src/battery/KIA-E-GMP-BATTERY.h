@@ -5,10 +5,6 @@
 
 #define ESTIMATE_SOC_FROM_CELLVOLTAGE
 
-#ifdef KIA_E_GMP_BATTERY
-#define SELECTED_BATTERY_CLASS KiaEGmpBattery
-#endif
-
 class KiaEGmpBattery : public CanBattery {
  public:
   KiaEGmpBattery() : renderer(*this) {}

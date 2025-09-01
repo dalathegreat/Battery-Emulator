@@ -1,7 +1,6 @@
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings in "USER_SETTINGS.h" */
 #include "HardwareSerial.h"
-#include "USER_SECRETS.h"
 #include "USER_SETTINGS.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"

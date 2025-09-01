@@ -4,10 +4,6 @@
 #include "CanBattery.h"
 #include "VOLVO-SPA-HTML.h"
 
-#ifdef VOLVO_SPA_BATTERY
-#define SELECTED_BATTERY_CLASS VolvoSpaBattery
-#endif
-
 class VolvoSpaBattery : public CanBattery {
  public:
   virtual void setup(void);

@@ -5,10 +5,6 @@
 
 #define ESTIMATE_SOC_FROM_CELLVOLTAGE
 
-#ifdef KIA_HYUNDAI_64_FD_BATTERY
-#define SELECTED_BATTERY_CLASS Kia64FDBattery
-#endif
-
 class Kia64FDBattery : public CanBattery {
  public:
   virtual void setup(void);

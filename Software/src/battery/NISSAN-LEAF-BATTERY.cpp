@@ -1,12 +1,12 @@
 #include "NISSAN-LEAF-BATTERY.h"
+#include <cstring>  //For unit test
+#include "../charger/CHARGERS.h"
+#include "../charger/CanCharger.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
-
-#include "../charger/CHARGERS.h"
-#include "../charger/CanCharger.h"
 
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
 //Cryptographic functions

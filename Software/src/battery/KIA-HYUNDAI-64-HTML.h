@@ -1,6 +1,7 @@
 #ifndef _KIA_HYUNDAI_64_HTML_H
 #define _KIA_HYUNDAI_64_HTML_H
 
+#include <cstring>  //For unit test
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"

@@ -3,10 +3,6 @@
 #include "CanBattery.h"
 #include "RS485Battery.h"
 
-#if !defined(COMMON_IMAGE) && !defined(SELECTED_BATTERY_CLASS)
-#error No battery selected! Choose one from the USER_SETTINGS.h file or build COMMON_IMAGE.
-#endif
-
 Battery* battery = nullptr;
 Battery* battery2 = nullptr;
 
@@ -149,11 +145,6 @@ const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum:
 
 battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_default;
 
-#ifdef COMMON_IMAGE
-#ifdef SELECTED_BATTERY_CLASS
-#error "Compile time SELECTED_BATTERY_CLASS should not be defined with COMMON_IMAGE"
-#endif
-
 BatteryType user_selected_battery_type = BatteryType::NissanLeaf;
 bool user_selected_second_battery = false;
 
@@ -287,39 +278,6 @@ void setup_battery() {
     }
   }
 }
-#else  // Battery selection has been made at build-time
-
-void setup_battery() {
-  // Instantiate the battery only once just in case this function gets called multiple times.
-  if (battery == nullptr) {
-#ifdef TESLA_MODEL_3Y_BATTERY
-    battery = new SELECTED_BATTERY_CLASS(user_selected_battery_chemistry);
-#else
-    battery = new SELECTED_BATTERY_CLASS();
-#endif
-  }
-  battery->setup();
-
-#ifdef DOUBLE_BATTERY
-  if (battery2 == nullptr) {
-#if defined(BMW_I3_BATTERY)
-    battery2 =
-        new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
-                                   can_config.battery_double, esp32hal->WUP_PIN2());
-#elif defined(KIA_HYUNDAI_64_BATTERY)
-    battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
-                                          &datalayer.system.status.battery2_allowed_contactor_closing,
-                                          can_config.battery_double);
-#elif defined(SANTA_FE_PHEV_BATTERY) || defined(TEST_FAKE_BATTERY)
-    battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, can_config.battery_double);
-#else
-    battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, nullptr, can_config.battery_double);
-#endif
-  }
-  battery2->setup();
-#endif
-}
-#endif
 
 /* User-selected Tesla settings */
 bool user_selected_tesla_digital_HVIL = false;
@@ -329,7 +287,7 @@ uint16_t user_selected_tesla_GTW_mapRegion = 2;
 uint16_t user_selected_tesla_GTW_chassisType = 2;
 uint16_t user_selected_tesla_GTW_packEnergy = 1;
 
-// Use 0V for user selected cell/pack voltage defaults (COMMON_IMAGE will replace with saved values from NVM)
+// Use 0V for user selected cell/pack voltage defaults (On boot will be replaced with saved values from NVM)
 uint16_t user_selected_max_pack_voltage_dV = 0;
 uint16_t user_selected_min_pack_voltage_dV = 0;
 uint16_t user_selected_max_cell_voltage_mV = 0;

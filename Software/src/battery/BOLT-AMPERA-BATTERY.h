@@ -3,10 +3,6 @@
 #include "BOLT-AMPERA-HTML.h"
 #include "CanBattery.h"
 
-#ifdef BOLT_AMPERA_BATTERY
-#define SELECTED_BATTERY_CLASS BoltAmperaBattery
-#endif
-
 class BoltAmperaBattery : public CanBattery {
  public:
   virtual void setup(void);

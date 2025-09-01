@@ -1,4 +1,5 @@
 #include "IMIEV-CZERO-ION-BATTERY.h"
+#include <cstring>  //for unit tests
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -76,17 +77,8 @@ void ImievCZeroIonBattery::
 
   if (!BMU_Detected) {
     logging.println("BMU not detected, check wiring!");
+    //TODO: Raise event
   }
-
-  logging.println("Battery Values");
-  logging.print("BMU SOC: ");
-  logging.print(BMU_SOC);
-  logging.print(" BMU Current: ");
-  logging.print(BMU_Current);
-  logging.print(" BMU Battery Voltage: ");
-  logging.print(BMU_PackVoltage);
-  logging.print(" BMU_Power: ");
-  logging.print(BMU_Power);
 }
 
 void ImievCZeroIonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {

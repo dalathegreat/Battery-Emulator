@@ -30,16 +30,11 @@ extern const char* name_for_charger_type(ChargerType type) {
 }
 
 void setup_charger() {
-#ifdef COMMON_IMAGE
+
   switch (user_selected_charger_type) {
     case ChargerType::ChevyVolt:
       charger = new ChevyVoltCharger();
     case ChargerType::NissanLeaf:
       charger = new NissanLeafCharger();
   }
-#else
-#ifdef SELECTED_CHARGER_CLASS
-  charger = new SELECTED_CHARGER_CLASS();
-#endif
-#endif
 }

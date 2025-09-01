@@ -4,10 +4,6 @@
 #include "../system_settings.h"
 #include "CanBattery.h"
 
-#ifdef RELION_BATTERY
-#define SELECTED_BATTERY_CLASS RelionBattery
-#endif
-
 class RelionBattery : public CanBattery {
  public:
   RelionBattery() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) {}

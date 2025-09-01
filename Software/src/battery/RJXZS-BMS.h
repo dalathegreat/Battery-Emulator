@@ -4,10 +4,6 @@
 #include "../system_settings.h"
 #include "CanBattery.h"
 
-#ifdef RJXZS_BMS
-#define SELECTED_BATTERY_CLASS RjxzsBms
-#endif
-
 class RjxzsBms : public CanBattery {
  public:
   RjxzsBms() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) {}

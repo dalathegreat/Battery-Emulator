@@ -3,10 +3,6 @@
 #include "CanBattery.h"
 #include "ECMP-HTML.h"
 
-#ifdef STELLANTIS_ECMP_BATTERY
-#define SELECTED_BATTERY_CLASS EcmpBattery
-#endif
-
 class EcmpBattery : public CanBattery {
  public:
   virtual void setup(void);

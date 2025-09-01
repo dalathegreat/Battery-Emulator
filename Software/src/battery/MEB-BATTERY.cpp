@@ -1,6 +1,7 @@
 #include "MEB-BATTERY.h"
 #include <Arduino.h>
 #include <algorithm>  // For std::min and std::max
+#include <cstring>    //For unit test
 #include "../communication/can/comm_can.h"
 #include "../communication/can/obd.h"
 #include "../datalayer/datalayer.h"
@@ -1262,8 +1263,6 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       handle_obd_frame(rx_frame);
       break;
     default:
-      logging.printf("Unknown CAN frame received:\n");
-      dump_can_frame(rx_frame, MSG_RX);
       break;
   }
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

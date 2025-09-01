@@ -4,7 +4,6 @@
 #include <freertos/FreeRTOS.h>
 #include <src/communication/nvm/comm_nvm.h>
 #include <list>
-#include "../../../USER_SECRETS.h"
 #include "../../../USER_SETTINGS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
@@ -15,29 +14,11 @@
 #include "mqtt.h"
 #include "mqtt_client.h"
 
-#ifdef MQTT
-const bool mqtt_enabled_default = true;
-#else
-const bool mqtt_enabled_default = false;
-#endif
+bool mqtt_enabled = false;
+bool ha_autodiscovery_enabled = false;
 
-bool mqtt_enabled = mqtt_enabled_default;
-
-#ifdef HA_AUTODISCOVERY
-const bool ha_autodiscovery_enabled_default = true;
-#else
-const bool ha_autodiscovery_enabled_default = false;
-#endif
-
-bool ha_autodiscovery_enabled = ha_autodiscovery_enabled_default;
-
-#ifdef COMMON_IMAGE
 const int mqtt_port_default = 0;
 const char* mqtt_server_default = "";
-#else
-const int mqtt_port_default = MQTT_PORT;
-const char* mqtt_server_default = MQTT_SERVER;
-#endif
 
 int mqtt_port = mqtt_port_default;
 std::string mqtt_server = mqtt_server_default;
@@ -626,7 +607,7 @@ bool init_mqtt(void) {
   }
 
   if (mqtt_manual_topic_object_name) {
-#ifdef COMMON_IMAGE
+
     BatteryEmulatorSettingsStore settings;
     topic_name = settings.getString("MQTTTOPIC", mqtt_topic_name);
     object_id_prefix = settings.getString("MQTTOBJIDPREFIX", mqtt_object_id_prefix);
@@ -649,13 +630,6 @@ bool init_mqtt(void) {
       device_id = ha_device_id;
     }
 
-#else
-    // Use custom topic name, object ID prefix, and device name from user settings
-    topic_name = mqtt_topic_name;
-    object_id_prefix = mqtt_object_id_prefix;
-    device_name = mqtt_device_name;
-    device_id = ha_device_id;
-#endif
   } else {
     // Use default naming based on WiFi hostname for topic, object ID prefix, and device name
     topic_name = "battery-emulator_" + String(WiFi.getHostname());

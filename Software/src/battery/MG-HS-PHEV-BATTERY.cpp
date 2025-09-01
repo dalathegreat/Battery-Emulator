@@ -1,10 +1,11 @@
 #include "MG-HS-PHEV-BATTERY.h"
+#include <cmath>    //For unit test
+#include <cstring>  //For unit test
 #include "../communication/can/comm_can.h"
 #include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
-
 /*
 MG HS PHEV 16.6kWh battery integration
 

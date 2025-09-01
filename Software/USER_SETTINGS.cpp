@@ -1,6 +1,5 @@
 #include "USER_SETTINGS.h"
 #include <string>
-#include "USER_SECRETS.h"
 #include "src/devboard/hal/hal.h"
 
 /* This file contains all the battery settings and limits */
@@ -21,25 +20,14 @@ volatile CAN_Configuration can_config = {
     .shunt = CAN_NATIVE                   // (OPTIONAL) Which CAN is your shunt connected to?
 };
 
-#ifdef COMMON_IMAGE
 std::string ssid;
 std::string password;
 std::string passwordAP;
-#else
-std::string ssid = WIFI_SSID;          // Set in USER_SECRETS.h
-std::string password = WIFI_PASSWORD;  // Set in USER_SECRETS.h
-std::string passwordAP = AP_PASSWORD;  // Set in USER_SECRETS.h
-#endif
 
 const uint8_t wifi_channel = 0;  // Set to 0 for automatic channel selection
 
-#ifdef COMMON_IMAGE
 std::string http_username;
 std::string http_password;
-#else
-std::string http_username = HTTP_USERNAME;  // Set in USER_SECRETS.h
-std::string http_password = HTTP_PASSWORD;  // Set in USER_SECRETS.h
-#endif
 
 // Set your Static IP address. Only used incase WIFICONFIG is set in USER_SETTINGS.h
 IPAddress local_IP(192, 168, 10, 150);
@@ -47,13 +35,8 @@ IPAddress gateway(192, 168, 10, 1);
 IPAddress subnet(255, 255, 255, 0);
 
 // MQTT
-#ifdef COMMON_IMAGE
 std::string mqtt_user;
 std::string mqtt_password;
-#else
-std::string mqtt_user = MQTT_USER;          // Set in USER_SECRETS.h
-std::string mqtt_password = MQTT_PASSWORD;  // Set in USER_SECRETS.h
-#endif
 
 const char* mqtt_topic_name =
     "BE";  // Custom MQTT topic name. Previously, the name was automatically set to "battery-emulator_esp32-XXXXXX"
