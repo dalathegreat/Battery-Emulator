@@ -1,3 +1,5 @@
+#ifdef ENABLE_SDCARD
+
 #ifndef SDCARD_H
 #define SDCARD_H
 
@@ -28,3 +30,5 @@ void add_log_to_buffer(const uint8_t* buffer, size_t size);
 void write_log_to_sdcard();
 
 #endif  // SDCARD_H
+
+#endif  // ENABLE_SDCARD

@@ -11,6 +11,7 @@
 #include "src/devboard/safety/safety.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/logging.h"
+#include "src/devboard/hal/hal.h"
 
 struct CanReceiverRegistration {
   CanReceiver* receiver;
@@ -40,6 +41,7 @@ void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_S
 }
 
 ACAN_ESP32_Settings* settingsespcan;
+ACAN_ESP32_Settings* settingsespcan2;
 
 uint8_t user_selected_can_addon_crystal_frequency_mhz = 0;
 static uint32_t QUARTZ_FREQUENCY;
@@ -117,6 +119,51 @@ bool init_CAN() {
       return false;
     }
   }
+
+  #ifdef HW_C6
+  auto cannative2It = can_receivers.find(CAN_NATIVE_2);
+  if (cannative2It != can_receivers.end()) {
+    auto tx_pin = esp32hal->CAN2_TX_PIN();
+    auto rx_pin = esp32hal->CAN2_RX_PIN();
+
+    if (!esp32hal->alloc_pins("CAN2", tx_pin, rx_pin)) {
+      return false;
+    }
+
+    settingsespcan2 = new ACAN_ESP32_Settings((int)nativeIt->second.speed * 1000UL);
+    settingsespcan2->mRequestedCANMode = ACAN_ESP32_Settings::NormalMode;
+    settingsespcan2->mTxPin = tx_pin;
+    settingsespcan2->mRxPin = rx_pin;
+
+    const uint32_t errorCode = ACAN_ESP32::can1.begin(*settingsespcan2);
+    if (errorCode == 0) {
+      //native_can_initialized = true;
+      logging.println("Native Can ok");
+      logging.print("Bit Rate prescaler: ");
+      logging.println(settingsespcan2->mBitRatePrescaler);
+      logging.print("Time Segment 1:     ");
+      logging.println(settingsespcan2->mTimeSegment1);
+      logging.print("Time Segment 2:     ");
+      logging.println(settingsespcan2->mTimeSegment2);
+      logging.print("RJW:                ");
+      logging.println(settingsespcan2->mRJW);
+      logging.print("Triple Sampling:    ");
+      logging.println(settingsespcan2->mTripleSampling ? "yes" : "no");
+      logging.print("Actual bit rate:    ");
+      logging.print(settingsespcan2->actualBitRate());
+      logging.println(" bit/s");
+      logging.print("Exact bit rate ?    ");
+      logging.println(settingsespcan2->exactBitRate() ? "yes" : "no");
+      logging.print("Sample point:       ");
+      logging.print(settingsespcan2->samplePointFromBitStart());
+      logging.println("%");
+    } else {
+      logging.print("Error Native Can: 0x");
+      logging.println(errorCode, HEX);
+      return false;
+    }
+  }
+  #endif // HW_C6
 
   auto addonIt = can_receivers.find(CAN_ADDON_MCP2515);
   if (addonIt != can_receivers.end()) {
@@ -229,9 +276,11 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, int interface) {
   }
   print_can_frame(*tx_frame, frameDirection(MSG_TX));
 
+#ifdef ENABLE_SDCARD
   if (datalayer.system.info.CAN_SD_logging_active) {
     add_can_frame_to_buffer(*tx_frame, frameDirection(MSG_TX));
   }
+#endif // ENABLE_SDCARD
 
   switch (interface) {
     case CAN_NATIVE: {
@@ -394,6 +443,7 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
     print_can_frame(*rx_frame, frameDirection(MSG_RX));
   }
 
+#ifdef ENABLE_SDCARD
   if (datalayer.system.info.CAN_SD_logging_active) {
     if (interface !=
         CANFD_NATIVE) {  //Avoid printing twice due to receive_frame_canfd_addon sending to both FD interfaces
@@ -401,6 +451,7 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
       add_can_frame_to_buffer(*rx_frame, frameDirection(MSG_RX));
     }
   }
+#endif // ENABLE_SDCARD
 
   // Send the frame to all the receivers registered for this interface.
   auto receivers = can_receivers.equal_range(interface);

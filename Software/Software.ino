@@ -31,7 +31,7 @@
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
 
-#if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_DEVKIT)
+#if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_DEVKIT) && !defined(HW_C6)
 #error You must select a target hardware in the USER_SETTINGS.h file!
 #endif
 
@@ -76,10 +76,12 @@ void setup() {
     return;
   }
 
+  #ifdef ENABLE_SDCARD
   if (datalayer.system.info.CAN_SD_logging_active || datalayer.system.info.SD_logging_active) {
     xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
                             &logging_loop_task, esp32hal->WIFICORE());
   }
+  #endif // ENABLE_SDCARD
 
   if (!init_contactors()) {
     return;
@@ -154,6 +156,7 @@ void setup() {
 // Loop empty, all functionality runs in tasks
 void loop() {}
 
+#ifdef ENABLE_SDCARD
 void logging_loop(void*) {
 
   init_logging_buffers();
@@ -169,6 +172,7 @@ void logging_loop(void*) {
     }
   }
 }
+#endif // ENABLE_SDCARD
 
 void connectivity_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT

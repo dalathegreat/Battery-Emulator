@@ -1,3 +1,5 @@
+#ifdef ENABLE_SDCARD
+
 #include "sdcard.h"
 #include "freertos/ringbuf.h"
 
@@ -236,3 +238,5 @@ void log_sdcard_details() {
     logging.println(" MB");
   }
 }
+
+#endif // ENABLE_SDCARD

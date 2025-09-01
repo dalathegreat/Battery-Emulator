@@ -1,0 +1,43 @@
+{
+    "build": {
+        "arduino": {
+            "ldscript": "esp32c6_out.ld"
+        },
+        "core": "esp32",
+        "extra_flags": [
+            "-DARDUINO_esp32c6_DEV",
+            "-DARDUINO_USB_MODE=1",
+            "-DARDUINO_RUNNING_CORE=1",
+            "-DARDUINO_EVENT_RUNNING_CORE=1"
+        ],
+        "f_cpu": "240000000L",
+        "f_flash": "80000000L",
+        "flash_mode": "qio",
+        "mcu": "esp32c6",
+        "variant": "esp32c6"
+    },
+    "connectivity": [
+        "wifi"
+    ],
+    "debug": {
+        "default_tool": "esp-builtin",
+        "onboard_tools": [
+            "esp-builtin"
+        ],
+        "openocd_target": "esp32c6.cfg"
+    },
+    "frameworks": [
+        "arduino",
+        "espidf"
+    ],
+    "name": "ESP32-C6-FLASH-8MB",
+    "upload": {
+        "flash_size": "8MB",
+        "maximum_ram_size": 327680,
+        "maximum_size": 8388608,
+        "require_upload_port": true,
+        "speed": 460800
+    },
+    "url": "null",
+    "vendor": "null"
+}

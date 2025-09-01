@@ -101,6 +101,10 @@ class Esp32Hal {
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t CAN_SE_PIN() { return GPIO_NUM_NC; }
 
+  // Second Native CAN
+  virtual gpio_num_t CAN2_TX_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t CAN2_RX_PIN() { return GPIO_NUM_NC; }
+
   // CAN_ADDON
   // SCK input of MCP2515
   virtual gpio_num_t MCP2515_SCK() { return GPIO_NUM_NC; }

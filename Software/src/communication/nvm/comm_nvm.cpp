@@ -124,6 +124,8 @@ void init_stored_settings() {
         return CAN_Interface::CAN_ADDON_MCP2515;
       case comm_interface::CanFdAddonMcp2518:
         return CAN_Interface::CANFD_ADDON_MCP2518;
+      case comm_interface::CanNative2:
+        return CAN_Interface::CAN_NATIVE_2;
     }
 
     return CAN_Interface::CAN_NATIVE;
