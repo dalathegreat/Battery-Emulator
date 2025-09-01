@@ -138,8 +138,11 @@ void init_stored_settings() {
   equipment_stop_behavior = (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
   user_selected_second_battery = settings.getBool("DBLBTR", false);
   contactor_control_enabled = settings.getBool("CNTCTRL", false);
+  precharge_time_ms = settings.getUInt("PRECHGMS", 100);
   contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);
   pwm_contactor_control = settings.getBool("PWMCNTCTRL", false);
+  pwm_frequency = settings.getUInt("PWMFREQ", 20000);
+  pwm_hold_duty = settings.getUInt("PWMHOLD", 250);
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);

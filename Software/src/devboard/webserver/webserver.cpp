@@ -515,6 +515,15 @@ void init_webserver() {
       } else if (p->name() == "CANFREQ") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("CANFREQ", type);
+      } else if (p->name() == "PRECHGMS") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("PRECHGMS", type);
+      } else if (p->name() == "PWMFREQ") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("PWMFREQ", type);
+      } else if (p->name() == "PWMHOLD") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("PWMHOLD", type);
       } else if (p->name() == "GTWCOUNTRY") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("GTWCOUNTRY", type);
