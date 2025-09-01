@@ -2,7 +2,6 @@
 #include <Preferences.h>
 #include <ctime>
 #include <vector>
-#include "../../../USER_SECRETS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../charger/CHARGERS.h"

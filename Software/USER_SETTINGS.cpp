@@ -1,6 +1,5 @@
 #include "USER_SETTINGS.h"
 #include <string>
-#include "USER_SECRETS.h"
 #include "src/devboard/hal/hal.h"
 
 /* This file contains all the battery settings and limits */
