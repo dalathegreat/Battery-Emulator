@@ -8,10 +8,10 @@
 #include "USER_SETTINGS.h"
 #include "comm_can.h"
 #include "src/datalayer/datalayer.h"
+#include "src/devboard/hal/hal.h"
 #include "src/devboard/safety/safety.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/logging.h"
-#include "src/devboard/hal/hal.h"
 
 struct CanReceiverRegistration {
   CanReceiver* receiver;
@@ -120,7 +120,7 @@ bool init_CAN() {
     }
   }
 
-  #ifdef HW_C6
+#ifdef HW_C6
   auto cannative2It = can_receivers.find(CAN_NATIVE_2);
   if (cannative2It != can_receivers.end()) {
     auto tx_pin = esp32hal->CAN2_TX_PIN();
@@ -163,7 +163,7 @@ bool init_CAN() {
       return false;
     }
   }
-  #endif // HW_C6
+#endif  // HW_C6
 
   auto addonIt = can_receivers.find(CAN_ADDON_MCP2515);
   if (addonIt != can_receivers.end()) {
@@ -280,7 +280,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, int interface) {
   if (datalayer.system.info.CAN_SD_logging_active) {
     add_can_frame_to_buffer(*tx_frame, frameDirection(MSG_TX));
   }
-#endif // ENABLE_SDCARD
+#endif  // ENABLE_SDCARD
 
   switch (interface) {
     case CAN_NATIVE: {
@@ -451,7 +451,7 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
       add_can_frame_to_buffer(*rx_frame, frameDirection(MSG_RX));
     }
   }
-#endif // ENABLE_SDCARD
+#endif  // ENABLE_SDCARD
 
   // Send the frame to all the receivers registered for this interface.
   auto receivers = can_receivers.equal_range(interface);

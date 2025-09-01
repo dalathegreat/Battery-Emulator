@@ -73,8 +73,8 @@ class C6Hal : public Esp32Hal {
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_26; }
 
   std::vector<comm_interface> available_interfaces() {
-    return {comm_interface::CanNative, comm_interface::CanAddonMcp2515,
-            comm_interface::CanFdAddonMcp2518, comm_interface::CanNative2};
+    return {comm_interface::CanNative, comm_interface::CanAddonMcp2515, comm_interface::CanFdAddonMcp2518,
+            comm_interface::CanNative2};
   }
 };
 

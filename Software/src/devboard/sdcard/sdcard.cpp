@@ -239,4 +239,4 @@ void log_sdcard_details() {
   }
 }
 
-#endif // ENABLE_SDCARD
+#endif  // ENABLE_SDCARD
