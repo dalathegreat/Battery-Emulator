@@ -27,8 +27,9 @@ void DalyBms::update_values() {
   datalayer.battery.status.current_dA = current_dA;  //value is *10 (150 = 15.0)
   datalayer.battery.status.remaining_capacity_Wh = (remaining_capacity_mAh * (uint32_t)voltage_dV) / 10000;
 
-  datalayer.battery.status.max_charge_power_W = (BATTERY_MAX_CHARGE_AMP * voltage_dV) / 100;
-  datalayer.battery.status.max_discharge_power_W = (BATTERY_MAX_DISCHARGE_AMP * voltage_dV) / 100;
+  datalayer.battery.status.max_charge_power_W = (datalayer.battery.settings.max_user_set_charge_dA * voltage_dV) / 100;
+  datalayer.battery.status.max_discharge_power_W =
+      (datalayer.battery.settings.max_user_set_discharge_dA * voltage_dV) / 100;
 
   // limit power when SoC is low or high
   uint32_t adaptive_power_limit = 999999;

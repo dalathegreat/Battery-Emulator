@@ -22,28 +22,9 @@
 /* Connectivity options */
 //#define WIFICONFIG  //Enable this line to set a static IP address / gateway /subnet mask for the device. see USER_SETTINGS.cpp for the settings
 
-/* MQTT options */
-// #define MQTT     // Enable this line to enable MQTT
 #define MQTT_QOS 0                  // MQTT Quality of Service (0, 1, or 2)
 #define MQTT_PUBLISH_CELL_VOLTAGES  // Enable this line to publish cell voltages to MQTT
 #define MQTT_TIMEOUT 2000           // MQTT timeout in milliseconds
-
-// 500 = 50.0 °C , Max temperature (Will produce a battery overheat event if above)
-#define BATTERY_MAXTEMPERATURE 500
-// -250 = -25.0 °C , Min temperature (Will produce a battery frozen event if below)
-#define BATTERY_MINTEMPERATURE -250
-// 150 = 15.0 °C , Max difference between min and max temperature (Will produce a battery temperature deviation event if greater)
-#define BATTERY_MAX_TEMPERATURE_DEVIATION 150
-// 300 = 30.0A , Max charge in Amp (Some inverters needs to be limited)
-#define BATTERY_MAX_CHARGE_AMP 300
-// 300 = 30.0A , Max discharge in Amp (Some inverters needs to be limited)
-#define BATTERY_MAX_DISCHARGE_AMP 300
-// Enable this to manually set voltage limits on how much battery can be discharged/charged. Normally not used.
-#define BATTERY_USE_VOLTAGE_LIMITS false
-// 5000 = 500.0V , Target charge voltage (Value can be tuned on the fly via webserver). Not used unless BATTERY_USE_VOLTAGE_LIMITS = true
-#define BATTERY_MAX_CHARGE_VOLTAGE 5000
-// 3000 = 300.0V, Target discharge voltage (Value can be tuned on the fly via webserver). Not used unless BATTERY_USE_VOLTAGE_LIMITS = true
-#define BATTERY_MAX_DISCHARGE_VOLTAGE 3000
 
 /* Do not change any code below this line */
 /* Only change battery specific settings above and in "USER_SETTINGS.cpp" */

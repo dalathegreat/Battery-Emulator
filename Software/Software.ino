@@ -51,6 +51,14 @@ TaskHandle_t connectivity_loop_task;
 TaskHandle_t logging_loop_task;
 TaskHandle_t mqtt_loop_task;
 
+/* Charger settings (Optional, when using generator charging) */
+volatile float CHARGER_SET_HV = 384;      // Reasonably appropriate 4.0v per cell charging of a 96s pack
+volatile float CHARGER_MAX_HV = 420;      // Max permissible output (VDC) of charger
+volatile float CHARGER_MIN_HV = 200;      // Min permissible output (VDC) of charger
+volatile float CHARGER_MAX_POWER = 3300;  // Max power capable of charger, as a ceiling for validating config
+volatile float CHARGER_MAX_A = 11.5;      // Max current output (amps) of charger
+volatile float CHARGER_END_A = 1.0;       // Current at which charging is considered complete
+
 Logging logging;
 
 // Initialization

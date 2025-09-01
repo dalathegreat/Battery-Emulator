@@ -128,18 +128,22 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
    * will "see" 100% Example 8000 = 80.0%*/
   uint16_t max_percentage = 8000;
 
-  /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A */
-  uint16_t max_user_set_charge_dA = BATTERY_MAX_CHARGE_AMP;
-  /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A */
-  uint16_t max_user_set_discharge_dA = BATTERY_MAX_DISCHARGE_AMP;
+  /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A 
+   * Updates later on via Settings
+  */
+  uint16_t max_user_set_charge_dA = 300;
+  /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A 
+   * Updates later on via Settings
+  */
+  uint16_t max_user_set_discharge_dA = 300;
 
   /** User specified discharge/charge voltages in use. Set to true to use user specified values */
   /** Some inverters like to see a specific target voltage for charge/discharge. Use these values to override automatic voltage limits*/
-  bool user_set_voltage_limits_active = BATTERY_USE_VOLTAGE_LIMITS;
+  bool user_set_voltage_limits_active = false;
   /** The user specified maximum allowed charge voltage, in deciVolt. 4000 = 400.0 V */
-  uint16_t max_user_set_charge_voltage_dV = BATTERY_MAX_CHARGE_VOLTAGE;
+  uint16_t max_user_set_charge_voltage_dV = 4500;
   /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
-  uint16_t max_user_set_discharge_voltage_dV = BATTERY_MAX_DISCHARGE_VOLTAGE;
+  uint16_t max_user_set_discharge_voltage_dV = 3000;
 
   /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset */
   uint16_t user_set_bms_reset_duration_ms = 30000;
