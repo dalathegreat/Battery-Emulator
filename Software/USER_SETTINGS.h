@@ -7,7 +7,7 @@
 /* This file is being transitioned towards COMMON_IMAGE. Use v8.16 if you are taking this software into use! */
 
 /* Select hardware used for Battery-Emulator */
-#define HW_LILYGO
+//#define HW_LILYGO
 //#define HW_STARK
 //#define HW_3LB
 //#define HW_DEVKIT
@@ -21,23 +21,12 @@
 
 /* Connectivity options */
 //#define WIFICONFIG  //Enable this line to set a static IP address / gateway /subnet mask for the device. see USER_SETTINGS.cpp for the settings
-//#define CUSTOM_HOSTNAME \
-  "battery-emulator"  //Enable this line to use a custom hostname for the device, if disabled the default naming format 'esp32-XXXXXX' will be used.
-#define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
-#define WIFIAP  //When enabled, the emulator will broadcast its own access point Wifi. Can be used at the same time as a normal Wifi connection to a router.
-#define MDNSRESPONDER  //Enable this line to enable MDNS, allows battery monitor te be found by .local address. Requires WEBSERVER to be enabled.
-#define LOAD_SAVED_SETTINGS_ON_BOOT  // Enable this line to read settings stored via the webserver on boot (overrides Wifi credentials set here)
 
 /* MQTT options */
 // #define MQTT     // Enable this line to enable MQTT
 #define MQTT_QOS 0                  // MQTT Quality of Service (0, 1, or 2)
 #define MQTT_PUBLISH_CELL_VOLTAGES  // Enable this line to publish cell voltages to MQTT
 #define MQTT_TIMEOUT 2000           // MQTT timeout in milliseconds
-#define MQTT_MANUAL_TOPIC_OBJECT_NAME
-// Enable MQTT_MANUAL_TOPIC_OBJECT_NAME to use custom MQTT topic, object ID prefix, and device name.
-// WARNING: If this is not defined, the previous default naming format 'battery-emulator_esp32-XXXXXX' (based on hardware ID) will be used.
-// This naming convention was in place until version 7.5.0. Users should check the version from which they are updating, as this change
-// may break compatibility with previous versions of MQTT naming. Please refer to USER_SETTINGS.cpp for configuration options.
 
 // 500 = 50.0 °C , Max temperature (Will produce a battery overheat event if above)
 #define BATTERY_MAXTEMPERATURE 500

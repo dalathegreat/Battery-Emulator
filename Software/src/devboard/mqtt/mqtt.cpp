@@ -23,13 +23,11 @@ const char* mqtt_server_default = "";
 int mqtt_port = mqtt_port_default;
 std::string mqtt_server = mqtt_server_default;
 
-#ifdef MQTT_MANUAL_TOPIC_OBJECT_NAME
-const bool mqtt_manual_topic_object_name_default = true;
-#else
-const bool mqtt_manual_topic_object_name_default = false;
-#endif
-
-bool mqtt_manual_topic_object_name = mqtt_manual_topic_object_name_default;
+bool mqtt_manual_topic_object_name =
+    true;  //TODO, should this be configurable from webserver? Or legacy option removed?
+// If this is not true, the previous default naming format 'battery-emulator_esp32-XXXXXX' (based on hardware ID) will be used.
+// This naming convention was in place until version 7.5.0. Users should check the version from which they are updating, as this change
+// may break compatibility with previous versions of MQTT naming
 
 esp_mqtt_client_config_t mqtt_cfg;
 esp_mqtt_client_handle_t client;

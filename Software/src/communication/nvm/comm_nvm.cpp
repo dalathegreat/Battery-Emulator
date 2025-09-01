@@ -26,12 +26,7 @@ void init_stored_settings() {
     set_event(EVENT_EQUIPMENT_STOP, 1);
   }
 
-#ifndef LOAD_SAVED_SETTINGS_ON_BOOT
-  settings.clear();  // If this clear function is executed, no settings will be read from storage
-
-  //always save the equipment stop status
-  settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
-#endif  // LOAD_SAVED_SETTINGS_ON_BOOT
+  //settings.clear();  // If this clear function is executed, no settings will be read from storage. For dev
 
   esp32hal->set_default_configuration_values();
 

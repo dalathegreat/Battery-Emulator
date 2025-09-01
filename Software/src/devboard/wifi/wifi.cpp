@@ -4,29 +4,11 @@
 #include "../utils/logging.h"
 #include "USER_SETTINGS.h"
 
-#if defined(WIFI) || defined(WEBSERVER)
-const bool wifi_enabled_default = true;
-#else
-const bool wifi_enabled_default = false;
-#endif
+bool wifi_enabled = true;
+bool wifiap_enabled = true;
+bool mdns_enabled = true;  //If true, allows battery monitor te be found by .local address
 
-bool wifi_enabled = wifi_enabled_default;
-
-bool wifiap_enabled = true;  //Old method was with ifdef
-
-#ifdef MDNSRESPONDER
-const bool mdns_enabled_default = true;
-#else
-const bool mdns_enabled_default = false;
-#endif
-bool mdns_enabled = mdns_enabled_default;
-
-#ifdef CUSTOM_HOSTNAME
-std::string custom_hostname = CUSTOM_HOSTNAME;
-#else
-std::string custom_hostname;
-#endif
-
+std::string custom_hostname;  //If not set, the default naming format 'esp32-XXXXXX' will be used
 std::string ssidAP;
 
 // Configuration Parameters
