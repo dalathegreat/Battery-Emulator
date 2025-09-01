@@ -23,21 +23,10 @@
 extern std::string http_username;
 extern std::string http_password;
 
-#ifdef WEBSERVER
-const bool webserver_enabled_default = true;
-#else
-const bool webserver_enabled_default = false;
-#endif
+bool webserver_enabled =
+    true;  // Global flag to enable or disable the webserver //Old method to disable was with  #ifdef WEBSERVER
 
-bool webserver_enabled = webserver_enabled_default;  // Global flag to enable or disable the webserver
-
-#ifndef COMMON_IMAGE
-const bool webserver_auth_default = WEBSERVER_AUTH_REQUIRED;
-#else
-const bool webserver_auth_default = false;
-#endif
-
-bool webserver_auth = webserver_auth_default;
+bool webserver_auth = false;
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -401,7 +390,6 @@ void init_webserver() {
     request->send(200, "text/html", "OK");
   });
 
-#ifdef COMMON_IMAGE
   struct BoolSetting {
     const char* name;
     bool existingValue;
@@ -557,7 +545,6 @@ void init_webserver() {
     settingsUpdated = settings.were_settings_updated();
     request->redirect("/settings");
   });
-#endif
 
   // Route for editing SSID
   def_route_with_auth("/updateSSID", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -908,9 +895,6 @@ String processor(const String& var) {
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
     content += "<h4>Software: " + String(version_number);
 
-#ifdef COMMON_IMAGE
-    content += " (Common image) ";
-#endif
 // Show hardware used:
 #ifdef HW_LILYGO
     content += " Hardware: LilyGo T-CAN485";

@@ -4,10 +4,6 @@
 #include "BMW-IX-HTML.h"
 #include "CanBattery.h"
 
-#ifdef BMW_IX_BATTERY
-#define SELECTED_BATTERY_CLASS BmwIXBattery
-#endif
-
 class BmwIXBattery : public CanBattery {
  public:
   BmwIXBattery() : renderer(*this) {}

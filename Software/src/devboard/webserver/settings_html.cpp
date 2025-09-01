@@ -135,12 +135,6 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return String(ssid.c_str());
   }
 
-#ifndef COMMON_IMAGE
-  if (var == "COMMONIMAGEDIVCLASS") {
-    return "hidden";
-  }
-#endif
-
   if (var == "SAVEDCLASS") {
     if (!settingsUpdated) {
       return "hidden";
@@ -839,7 +833,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     <h4 style='color: white;'>SSID: <span id='SSID'>%SSID%</span><button onclick='editSSID()'>Edit</button></h4>
     <h4 style='color: white;'>Password: ######## <span id='Password'></span> <button onclick='editPassword()'>Edit</button></h4>
     
-    <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px;border-radius: 50px; class="%COMMONIMAGEDIVCLASS%">
+    <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
     <div style='max-width: 500px;'>
         <form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 

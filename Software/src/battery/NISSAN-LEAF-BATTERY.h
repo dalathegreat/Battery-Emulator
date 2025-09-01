@@ -6,10 +6,6 @@
 #include "CanBattery.h"
 #include "NISSAN-LEAF-HTML.h"
 
-#ifdef NISSAN_LEAF_BATTERY
-#define SELECTED_BATTERY_CLASS NissanLeafBattery
-#endif
-
 class NissanLeafBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.

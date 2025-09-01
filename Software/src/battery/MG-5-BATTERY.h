@@ -2,10 +2,6 @@
 #define MG_5_BATTERY_H
 #include "CanBattery.h"
 
-#ifdef MG_5_BATTERY
-#define SELECTED_BATTERY_CLASS Mg5Battery
-#endif
-
 class Mg5Battery : public CanBattery {
  public:
   virtual void setup(void);

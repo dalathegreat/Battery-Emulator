@@ -3,10 +3,6 @@
 #include "CELLPOWER-HTML.h"
 #include "CanBattery.h"
 
-#ifdef CELLPOWER_BMS
-#define SELECTED_BATTERY_CLASS CellPowerBms
-#endif
-
 class CellPowerBms : public CanBattery {
  public:
   CellPowerBms() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) {}

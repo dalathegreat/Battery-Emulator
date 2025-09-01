@@ -6,10 +6,6 @@
 #include "CanBattery.h"
 #include "HYUNDAI-IONIQ-28-BATTERY-HTML.h"
 
-#ifdef HYUNDAI_IONIQ_28_BATTERY
-#define SELECTED_BATTERY_CLASS HyundaiIoniq28Battery
-#endif
-
 class HyundaiIoniq28Battery : public CanBattery {
  public:
   // Use the default constructor to create the first or single battery.

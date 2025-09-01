@@ -2,10 +2,6 @@
 #define FOXESS_BATTERY_H
 #include "CanBattery.h"
 
-#ifdef FOXESS_BATTERY
-#define SELECTED_BATTERY_CLASS FoxessBattery
-#endif
-
 class FoxessBattery : public CanBattery {
  public:
   virtual void setup(void);

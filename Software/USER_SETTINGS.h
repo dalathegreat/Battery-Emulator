@@ -6,8 +6,6 @@
 
 /* This file is being transitioned towards COMMON_IMAGE. Use v8.16 if you are taking this software into use! */
 
-//#define COMMON_IMAGE
-
 /* Select hardware used for Battery-Emulator */
 //#define HW_LILYGO
 //#define HW_STARK

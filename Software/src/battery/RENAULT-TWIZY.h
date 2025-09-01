@@ -2,10 +2,6 @@
 #define RENAULT_TWIZY_BATTERY_H
 #include "CanBattery.h"
 
-#ifdef RENAULT_TWIZY_BATTERY
-#define SELECTED_BATTERY_CLASS RenaultTwizyBattery
-#endif
-
 class RenaultTwizyBattery : public CanBattery {
  public:
   virtual void setup(void);

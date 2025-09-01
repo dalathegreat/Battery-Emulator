@@ -12,17 +12,7 @@ const bool wifi_enabled_default = false;
 
 bool wifi_enabled = wifi_enabled_default;
 
-#ifdef COMMON_IMAGE
-const bool wifiap_enabled_default = true;
-#else
-#ifdef WIFIAP
-const bool wifiap_enabled_default = true;
-#else
-const bool wifiap_enabled_default = false;
-#endif
-#endif
-
-bool wifiap_enabled = wifiap_enabled_default;
+bool wifiap_enabled = true;  //Old method was with ifdef
 
 #ifdef MDNSRESPONDER
 const bool mdns_enabled_default = true;

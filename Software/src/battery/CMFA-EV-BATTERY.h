@@ -4,10 +4,6 @@
 #include "CMFA-EV-HTML.h"
 #include "CanBattery.h"
 
-#ifdef CMFA_EV_BATTERY
-#define SELECTED_BATTERY_CLASS CmfaEvBattery
-#endif
-
 class CmfaEvBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.

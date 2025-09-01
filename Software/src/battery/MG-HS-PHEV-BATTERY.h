@@ -3,10 +3,6 @@
 
 #include "CanBattery.h"
 
-#ifdef MG_HS_PHEV_BATTERY
-#define SELECTED_BATTERY_CLASS MgHsPHEVBattery
-#endif
-
 class MgHsPHEVBattery : public CanBattery {
  public:
   virtual void setup(void);

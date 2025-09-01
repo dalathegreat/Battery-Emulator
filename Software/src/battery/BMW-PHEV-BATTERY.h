@@ -3,10 +3,6 @@
 #include "BMW-PHEV-HTML.h"
 #include "CanBattery.h"
 
-#ifdef BMW_PHEV_BATTERY
-#define SELECTED_BATTERY_CLASS BmwPhevBattery
-#endif
-
 class BmwPhevBattery : public CanBattery {
  public:
   virtual void setup(void);

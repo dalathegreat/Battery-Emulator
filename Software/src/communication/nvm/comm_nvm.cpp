@@ -87,7 +87,6 @@ void init_stored_settings() {
     datalayer.battery.settings.user_set_bms_reset_duration_ms = temp;
   }
 
-#ifdef COMMON_IMAGE
   user_selected_battery_type = (BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None);
   user_selected_battery_chemistry =
       (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA);
@@ -167,8 +166,6 @@ void init_stored_settings() {
   mqtt_port = settings.getUInt("MQTTPORT", 0);
   mqtt_user = settings.getString("MQTTUSER").c_str();
   mqtt_password = settings.getString("MQTTPASSWORD").c_str();
-
-#endif
 
   settings.end();
 }

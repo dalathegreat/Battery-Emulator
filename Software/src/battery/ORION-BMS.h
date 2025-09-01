@@ -4,10 +4,6 @@
 #include "../system_settings.h"
 #include "CanBattery.h"
 
-#ifdef ORION_BMS
-#define SELECTED_BATTERY_CLASS OrionBms
-#endif
-
 class OrionBms : public CanBattery {
  public:
   virtual void setup(void);
