@@ -398,7 +398,7 @@ void init_webserver() {
   const char* boolSettingNames[] = {
       "DBLBTR",     "CNTCTRL",    "CNTCTRLDBL", "PWMCNTCTRL", "PERBMSRESET", "SDLOGENABLED",  "REMBMSRESET",
       "USBENABLED", "CANLOGUSB",  "WEBENABLED", "CANFDASCAN", "CANLOGSD",    "WIFIAPENABLED", "MQTTENABLED",
-      "HADISC",     "MQTTTOPICS", "INVICNT",    "GTWRHD",     "DIGITALHVIL", "PERFPROFILE",
+      "HADISC",     "MQTTTOPICS", "INVICNT",    "GTWRHD",     "DIGITALHVIL", "PERFPROFILE",   "INTERLOCKREQ",
   };
 
   // Handles the form POST from UI to save settings of the common image

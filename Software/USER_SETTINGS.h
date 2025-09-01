@@ -15,18 +15,12 @@
 /* Shunt/Contactor settings (Optional) */
 //#define BMW_SBOX  // SBOX relay control & battery current/voltage measurement
 
-/* Select charger used (Optional) */
-//#define CHEVYVOLT_CHARGER  //Enable this line to control a Chevrolet Volt charger connected to battery - for example, when generator charging or using an inverter without a charging function.
-//#define NISSANLEAF_CHARGER  //Enable this line to control a Nissan LEAF PDM connected to battery - for example, when generator charging
-
 /* Automatic Precharge settings (Optional) If you have a battery that expects an external voltage applied before opening contactors (within the battery), configure this section */
 //#define PRECHARGE_CONTROL      //Enable this line to control a modified HIA4V1 via PWM on the HIA4V1_PIN (see Wiki and HAL for pin definition)
 //#define INVERTER_DISCONNECT_CONTACTOR_IS_NORMALLY_OPEN //Enable this line if you use a normally open contactor instead of normally closed
 
 /* Other options */
 //#define EQUIPMENT_STOP_BUTTON    // Enable this to allow an equipment stop button connected to the Battery-Emulator to disengage the battery
-//#define LFP_CHEMISTRY          //Tesla specific setting, enable this line to startup in LFP mode
-//#define INTERLOCK_REQUIRED     //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
 /* CAN options */
 //#define CAN_ADDON  //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 chip (Needed for some inverters / double battery)
 #define CRYSTAL_FREQUENCY_MHZ 8  //CAN_ADDON option, what is your MCP2515 add-on boards crystal frequency?

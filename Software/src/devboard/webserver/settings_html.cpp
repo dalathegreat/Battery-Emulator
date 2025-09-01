@@ -203,8 +203,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_comm_interface);
   }
   if (var == "BATTCHEM") {
-    return options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA),
-                            name_for_chemistry);
+    return options_for_enum(
+        (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::Autodetect),
+        name_for_chemistry);
   }
   if (var == "INVTYPE") {
     return options_for_enum_with_none(
@@ -563,6 +564,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return String(settings.getUInt("PWMHOLD", 250));
   }
 
+  if (var == "INTERLOCKREQ") {
+    return settings.getBool("INTERLOCKREQ") ? "checked" : "";
+  }
+
   if (var == "DIGITALHVIL") {
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
@@ -777,6 +782,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-nissan { display: none; }
+    form[data-battery="21"] .if-nissan {
+      display: contents;
+    }
+
     form .if-tesla { display: none; }
     form[data-battery="32"] .if-tesla, form[data-battery="33"] .if-tesla {
       display: contents;
@@ -840,6 +850,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label for='battery'>Battery: </label><select name='battery' if='battery'>
         %BATTTYPE%
         </select>
+
+        <div class="if-nissan">
+        <label>Interlock required: </label>
+        <input type='checkbox' name='INTERLOCKREQ' value='on' style='margin-left: 0;' %INTERLOCKREQ% />
+        </div>
 
         <div class="if-tesla">
         <label>Digital HVIL (2024+): </label>

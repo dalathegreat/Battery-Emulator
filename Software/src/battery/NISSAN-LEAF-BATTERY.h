@@ -6,6 +6,8 @@
 #include "CanBattery.h"
 #include "NISSAN-LEAF-HTML.h"
 
+extern bool user_selected_LEAF_interlock_mandatory;
+
 class NissanLeafBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
