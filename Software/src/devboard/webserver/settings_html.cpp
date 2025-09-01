@@ -557,6 +557,18 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return String(settings.getUInt("CANFREQ", 8));
   }
 
+  if (var == "PRECHGMS") {
+    return String(settings.getUInt("PRECHGMS", 100));
+  }
+
+  if (var == "PWMFREQ") {
+    return String(settings.getUInt("PWMFREQ", 20000));
+  }
+
+  if (var == "PWMHOLD") {
+    return String(settings.getUInt("PWMHOLD", 250));
+  }
+
   if (var == "DIGITALHVIL") {
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
@@ -781,6 +793,16 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-pwmcntctrl { display: none; }
+    form[data-pwmcntctrl="true"] .if-pwmcntctrl {
+      display: contents;
+    }
+
+    form .if-cntctrl { display: none; }
+    form[data-cntctrl="true"] .if-cntctrl {
+      display: contents;
+    }
+
     form .if-sofar { display: none; }
     form[data-inverter="17"] .if-sofar {
       display: contents;
@@ -932,7 +954,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
-        <label>Can Addon Frequency: </label>
+        <label>Can-addon frequency Mhz: </label>
         <input name='CANFREQ' type='text' value="%CANFREQ%" pattern="^[0-9]+$" />
         
         <label>Equipment stop button: </label><select name='EQSTOP'>
@@ -943,21 +965,33 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='DBLBTR' value='on' style='margin-left: 0;' %DBLBTR% />
 
         <div class="if-dblbtr">
-        <label>Battery 2 comm I/F: </label><select name='BATT2COMM'>
-        %BATT2COMM%
-        </select>
+            <label>Battery 2 comm I/F: </label>
+            <select name='BATT2COMM'>
+                %BATT2COMM%
+            </select>
+            <label>Contactor control via GPIO double battery: </label>
+            <input type='checkbox' name='CNTCTRLDBL' value='on' style='margin-left: 0;' %CNTCTRLDBL% />
         </div>
 
-        <label>Contactor control: </label>
+        <label>Contactor control via GPIO: </label>
         <input type='checkbox' name='CNTCTRL' value='on' style='margin-left: 0;' %CNTCTRL% />
 
-        <div class="if-dblbtr">
-        <label>Contactor control double battery: </label>
-        <input type='checkbox' name='CNTCTRLDBL' value='on' style='margin-left: 0;' %CNTCTRLDBL% />
-        </div>
+        <div class="if-cntctrl">
+            <label>Precharge time ms: </label>
+            <input name='PRECHGMS' type='text' value="%PRECHGMS%" pattern="^[0-9]+$" />
 
-        <label>PWM contactor control: </label>
-        <input type='checkbox' name='PWMCNTCTRL' value='on' style='margin-left: 0;' %PWMCNTCTRL% />
+            <label>PWM contactor control: </label>
+            <input type='checkbox' name='PWMCNTCTRL' value='on' style='margin-left: 0;' %PWMCNTCTRL% />
+
+             <div class="if-pwmcntctrl">
+            <label>PWM Frequency Hz: </label>
+            <input name='PWMFREQ' type='text' value="%PWMFREQ%" pattern="^[0-9]+$" />
+
+            <label>PWM Hold 0-1023: </label>
+            <input name='PWMHOLD' type='text' value="%PWMHOLD%" pattern="^[0-9]+$" />
+              </div>
+
+        </div>
 
         <label>Periodic BMS reset: </label>
         <input type='checkbox' name='PERBMSRESET' value='on' style='margin-left: 0;' %PERBMSRESET% /> 
