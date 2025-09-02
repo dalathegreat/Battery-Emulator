@@ -38,7 +38,6 @@ inline long random(long min, long max) {
   return min;  // Return the minimum value for predictability
 }
 
-// Also add randomSeed for completeness
 inline void randomSeed(unsigned long seed) {
   (void)seed;
 }
@@ -96,6 +95,21 @@ int digitalRead(uint8_t pin);
 inline int analogRead(uint8_t pin) {
   (void)pin;
   return 0;  // Return 0 for predictable tests
+}
+
+// Mock WiFi types
+typedef int WiFiEvent_t;
+typedef int WiFiEventInfo_t;
+
+// Mock WiFi functions
+inline void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
+    (void)event;
+    (void)info;
+}
+
+inline void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
+    (void)event;
+    (void)info;
 }
 
 unsigned long micros();
