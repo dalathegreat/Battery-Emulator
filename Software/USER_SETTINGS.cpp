@@ -29,8 +29,6 @@ std::string ssid;
 std::string password;
 std::string passwordAP;
 
-// MQTT
-
 const char* mqtt_topic_name =
     "BE";  // Custom MQTT topic name. Previously, the name was automatically set to "battery-emulator_esp32-XXXXXX"
 const char* mqtt_object_id_prefix =
