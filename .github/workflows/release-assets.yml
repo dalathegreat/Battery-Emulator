@@ -47,10 +47,6 @@ jobs:
     - name: Install PlatformIO Core
       run: pip install --upgrade platformio
 
-      # Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
-    - name: Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
-      run: cp ./Software/USER_SECRETS.TEMPLATE.h ./Software/USER_SECRETS.h
-
     - name: 🛠 Build ota image for Lilygo T-CAN
       run: |
         pio run -e lilygo_330
