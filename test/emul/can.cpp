@@ -18,3 +18,5 @@ char const* getCANInterfaceName(CAN_Interface) {
 }
 
 void register_transmitter(Transmitter* transmitter) {}
+
+void dump_can_frame(CAN_frame& frame, frameDirection msgDir) {}
