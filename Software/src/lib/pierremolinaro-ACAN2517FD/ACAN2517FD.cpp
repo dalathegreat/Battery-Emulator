@@ -1,20 +1,20 @@
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 // A CAN driver for MCP2517FD, CANFD mode
 // by Pierre Molinaro
 // https://github.com/pierremolinaro/acan2517FD
 //
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 #include "ACAN2517FD.h"
-#include "../../system_settings.h" //Contains task priority //Modded by Battery-Emulator
+#include "../../system_settings.h" //Contains task priority
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 static const uint8_t TXBWS = 0 ;
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 // Note about ESP32
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 //
 // It appears that Arduino ESP32 interrupts are managed in a completely different way from "usual" Arduino:
 //   - SPI.usingInterrupt is not implemented;
@@ -43,7 +43,7 @@ static const uint8_t TXBWS = 0 ;
 //             #endif
 //           mSPI.endTransaction () ;
 //
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 #ifdef ARDUINO_ARCH_ESP32
   static void myESP32Task (void * pData) {
@@ -55,9 +55,9 @@ static const uint8_t TXBWS = 0 ;
   }
 #endif
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 // ACAN2517FD register addresses
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 static const uint16_t CON_REGISTER      = 0x000 ;
 static const uint16_t NBTCFG_REGISTER   = 0x004 ;
@@ -68,85 +68,85 @@ static const uint16_t TREC_REGISTER     = 0x034 ;
 static const uint16_t BDIAG0_REGISTER   = 0x038 ;
 static const uint16_t BDIAG1_REGISTER   = 0x03C ;
 
-//------------------------------------------------------------------------------
+//······················································································································
 //   TXQ REGISTERS
-//------------------------------------------------------------------------------
+//······················································································································
 
 static const uint16_t TXQCON_REGISTER   = 0x050 ;
 static const uint16_t TXQSTA_REGISTER   = 0x054 ;
 static const uint16_t TXQUA_REGISTER    = 0x058 ;
 
-//------------------------------------------------------------------------------
+//······················································································································
 //   INTERRUPT REGISTERS
-//------------------------------------------------------------------------------
+//······················································································································
 
 static const uint16_t INT_REGISTER = 0x01C ;
 
-//------------------------------------------------------------------------------
+//······················································································································
 //   FIFO REGISTERS
-//------------------------------------------------------------------------------
+//······················································································································
 
 static uint16_t FIFOCON_REGISTER (const uint16_t inFIFOIndex) { // 1 ... 31
   return 0x05C + 12 * (inFIFOIndex - 1) ;
 }
 
-//------------------------------------------------------------------------------
+//······················································································································
 
 static uint16_t FIFOSTA_REGISTER (const uint16_t inFIFOIndex) { // 1 ... 31
   return 0x060 + 12 * (inFIFOIndex - 1) ;
 }
 
-//------------------------------------------------------------------------------
+//······················································································································
 
 static uint16_t FIFOUA_REGISTER (const uint16_t inFIFOIndex) { // 1 ... 31
   return 0x064 + 12 * (inFIFOIndex - 1) ;
 }
 
-//------------------------------------------------------------------------------
+//······················································································································
 //   FILTER REGISTERS
-//------------------------------------------------------------------------------
+//······················································································································
 
 static uint16_t FLTCON_REGISTER (const uint16_t inFilterIndex) { // 0 ... 31 (DS20005688B, page 58)
   return 0x1D0 + inFilterIndex ;
 }
 
-//------------------------------------------------------------------------------
+//······················································································································
 
 static uint16_t FLTOBJ_REGISTER (const uint16_t inFilterIndex) { // 0 ... 31 (DS20005688B, page 60)
   return 0x1F0 + 8 * inFilterIndex ;
 }
 
-//------------------------------------------------------------------------------
+//······················································································································
 
 static uint16_t MASK_REGISTER (const uint16_t inFilterIndex) { // 0 ... 31 (DS20005688B, page 61)
   return 0x1F4 + 8 * inFilterIndex ;
 }
 
-//------------------------------------------------------------------------------
+//······················································································································
 //   OSCILLATOR REGISTER
-//------------------------------------------------------------------------------
+//······················································································································
 
 static const uint16_t OSC_REGISTER = 0xE00 ;
 
-//------------------------------------------------------------------------------
+//······················································································································
 //   INPUT / OUPUT CONTROL REGISTER
-//------------------------------------------------------------------------------
+//······················································································································
 
 static const uint16_t IOCON_REGISTER_00_07 = 0xE04 ;
 static const uint16_t IOCON_REGISTER_08_15 = 0xE05 ;
 static const uint16_t IOCON_REGISTER_16_23 = 0xE06 ;
 static const uint16_t IOCON_REGISTER_24_31 = 0xE07 ;
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 //    RECEIVE FIFO INDEX
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 static const uint8_t RECEIVE_FIFO_INDEX  = 1 ;
 static const uint8_t TRANSMIT_FIFO_INDEX = 2 ;
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 //    BYTE BUFFER UTILITY FUNCTIONS
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 static void enterU32InBufferAtIndex (const uint32_t inValue, uint8_t ioBuffer [], const uint8_t inIndex) {
   ioBuffer [inIndex + 0] = (uint8_t) inValue ;
@@ -155,7 +155,7 @@ static void enterU32InBufferAtIndex (const uint32_t inValue, uint8_t ioBuffer []
   ioBuffer [inIndex + 3] = (uint8_t) (inValue >> 24) ;
 }
 
-//------------------------------------------------------------------------------
+//······················································································································
 
 static uint32_t u32FromBufferAtIndex (uint8_t ioBuffer [], const uint8_t inIndex) {
   uint32_t result = (uint32_t) ioBuffer [inIndex + 0] ;
@@ -165,7 +165,7 @@ static uint32_t u32FromBufferAtIndex (uint8_t ioBuffer [], const uint8_t inIndex
   return result ;
 }
 
-//------------------------------------------------------------------------------
+//······················································································································
 
 static uint16_t u16FromBufferAtIndex (uint8_t ioBuffer [], const uint8_t inIndex) {
   uint16_t result = (uint16_t) ioBuffer [inIndex + 0] ;
@@ -173,7 +173,8 @@ static uint16_t u16FromBufferAtIndex (uint8_t ioBuffer [], const uint8_t inIndex
   return result ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
+
 static inline void turnOffInterrupts () {
   #ifndef DISABLEMCP2517FDCOMPAT
     #ifdef ARDUINO_ARCH_ESP32
@@ -208,6 +209,7 @@ mINT (inINT),
 mUsesTXQ (false),
 mHardwareTxFIFOFull (false),
 mRxInterruptEnabled (true),
+mHasDataBitRate (false),
 mTransmitFIFOPayload (0),
 mTXQBufferPayload (0),
 mReceiveFIFOPayload (0),
@@ -221,7 +223,7 @@ mDriverTransmitBuffer ()
 {
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
                             void (* inInterruptServiceRoutine) (void)) {
@@ -232,7 +234,7 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
   return begin (inSettings, inInterruptServiceRoutine, filters) ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
                             void (* inInterruptServiceRoutine) (void),
@@ -501,14 +503,17 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
   //  bits 11-8: TSEG2 - 1
   //  bits 7-4: unused
   //  bits 3-0: SJW - 1
-    data = inSettings.mBitRatePrescaler - 1 ;
-    data <<= 8 ;
-    data |= inSettings.mDataPhaseSegment1 - 1 ;
-    data <<= 8 ;
-    data |= inSettings.mDataPhaseSegment2 - 1 ;
-    data <<= 8 ;
-    data |= inSettings.mDataSJW - 1 ;
-    writeRegister32 (DBTCFG_REGISTER, data) ;
+    mHasDataBitRate = inSettings.mDataBitRateFactor != ::DataBitRateFactor::x1 ;
+    if (mHasDataBitRate) {
+      data = inSettings.mBitRatePrescaler - 1 ;
+      data <<= 8 ;
+      data |= inSettings.mDataPhaseSegment1 - 1 ;
+      data <<= 8 ;
+      data |= inSettings.mDataPhaseSegment2 - 1 ;
+      data <<= 8 ;
+      data |= inSettings.mDataSJW - 1 ;
+      writeRegister32 (DBTCFG_REGISTER, data) ;
+    }
   //----------------------------------- Request mode (CON_REGISTER + 3, DS20005688B, page 24)
   //  bits 7-4: Transmit Bandwith Sharing Bits ---> 0
   //  bit 3: Abort All Pending Transmissions bit --> 0
@@ -526,14 +531,14 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
       }
     }
     #ifdef ARDUINO_ARCH_ESP32
-      xTaskCreate (myESP32Task, "ACAN2517Handler", 1024, this, TASK_ACAN2517FD_PRIORITY, &mESP32TaskHandle) ; //Modded by Battery-Emulator
+      xTaskCreate (myESP32Task, "ACAN2517Handler", 1024, this, TASK_ACAN2517FD_PRIORITY, &mESP32TaskHandle) ;
     #endif
     if (mINT != 255) { // 255 means interrupt is not used
       #ifdef ARDUINO_ARCH_ESP32
         attachInterrupt (itPin, inInterruptServiceRoutine, FALLING) ;
       #else
-        mSPI.usingInterrupt (itPin) ; // usingInterrupt is not implemented in Arduino ESP32
         attachInterrupt (itPin, inInterruptServiceRoutine, LOW) ; // Thank to Flole998
+        mSPI.usingInterrupt (itPin) ; // usingInterrupt is not implemented in Arduino ESP32
       #endif
     }
   // If you begin() multiple times without constructor,
@@ -545,13 +550,13 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
   return errorCode ;
 }
 
-//------------------------------------------------------------------------------
+//······················································································································
 //   end method (resets the MCP2517FD, deallocate buffers, and detach interrupt pin)
-//------------------------------------------------------------------------------
+//······················································································································
 
 bool ACAN2517FD::end (void) {
   mSPI.beginTransaction (mSPISettings) ;
-   turnOffInterrupts () ;
+    turnOffInterrupts () ;
   //--- Detach interrupt pin
     if (mINT != 255) { // 255 means interrupt is not used
       const int8_t itPin = digitalPinToInterrupt (mINT) ;
@@ -592,19 +597,15 @@ bool ACAN2517FD::end (void) {
   return ok ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 //    SEND FRAME
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 bool ACAN2517FD::tryToSend (const CANFDMessage & inMessage) {
   bool ok = inMessage.isValid () ;
   if (ok) {
     mSPI.beginTransaction (mSPISettings) ;
-      #ifdef ARDUINO_ARCH_ESP32
-        taskDISABLE_INTERRUPTS () ;
-      #else
-        noInterrupts () ;
-      #endif
+        turnOffInterrupts () ;
         if (inMessage.idx == 0) {
           ok = inMessage.len <= mTransmitFIFOPayload ;
           if (ok) {
@@ -616,13 +617,13 @@ bool ACAN2517FD::tryToSend (const CANFDMessage & inMessage) {
             ok = sendViaTXQ (inMessage) ;
           }
         }
-    turnOnInterrupts () ;
+    turnOnInterrupts();
     mSPI.endTransaction () ;
   }
   return ok ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 bool ACAN2517FD::enterInTransmitBuffer (const CANFDMessage & inMessage) {
   bool result ;
@@ -644,7 +645,7 @@ bool ACAN2517FD::enterInTransmitBuffer (const CANFDMessage & inMessage) {
   return result ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 static uint32_t lengthCodeForLength (const uint8_t inLength) {
   uint32_t result = inLength & 0x0F ;
@@ -660,7 +661,7 @@ static uint32_t lengthCodeForLength (const uint8_t inLength) {
   return result ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 void ACAN2517FD::appendInControllerTxFIFO (const CANFDMessage & inMessage) {
   const uint16_t ramAddr = uint16_t (0x400 + readRegister32Assume_SPI_transaction (FIFOUA_REGISTER (TRANSMIT_FIFO_INDEX))) ;
@@ -685,7 +686,9 @@ void ACAN2517FD::appendInControllerTxFIFO (const CANFDMessage & inMessage) {
     break ;
   case CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH :
     flags |= 1 << 7 ; // Set FDF bit
-    flags |= 1 << 6 ; // Set BRS bit
+    if (mHasDataBitRate) {
+      flags |= 1 << 6 ; // Set BRS bit
+    }
     break ;
   }
 //--- Word count
@@ -711,7 +714,7 @@ void ACAN2517FD::appendInControllerTxFIFO (const CANFDMessage & inMessage) {
   writeRegister8Assume_SPI_transaction (FIFOCON_REGISTER (TRANSMIT_FIFO_INDEX) + 1, data8);
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 bool ACAN2517FD::sendViaTXQ (const CANFDMessage & inMessage) {
   bool ok = mUsesTXQ ;
@@ -748,7 +751,9 @@ bool ACAN2517FD::sendViaTXQ (const CANFDMessage & inMessage) {
         break ;
       case CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH :
         flags |= 1 << 7 ; // Set FDF bit
-        flags |= 1 << 6 ; // Set BRS bit
+        if (mHasDataBitRate) {
+          flags |= 1 << 6 ; // Set BRS bit
+        }
         break ;
       }
     //--- Word count
@@ -777,48 +782,41 @@ bool ACAN2517FD::sendViaTXQ (const CANFDMessage & inMessage) {
   return ok ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 //    RECEIVE FRAME
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 bool ACAN2517FD::available (void) {
   mSPI.beginTransaction (mSPISettings) ;
-    turnOffInterrupts () ;
+      turnOffInterrupts () ;
       const bool hasReceivedMessage = mDriverReceiveBuffer.count () > 0 ;
-    turnOnInterrupts () ;
+      turnOnInterrupts();
   mSPI.endTransaction () ;
   return hasReceivedMessage ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 bool ACAN2517FD::receive (CANFDMessage & outMessage) {
+  mSPI.beginTransaction (mSPISettings) ;
+      turnOffInterrupts () ;
       const bool hasReceivedMessage = mDriverReceiveBuffer.remove (outMessage) ;
     //--- If receive interrupt is disabled, enable it (added in release 2.17)
       if (mINT == 255) { // No interrupt pin
         mRxInterruptEnabled = true ;
         isr_poll_core () ; // Perform polling
       }else if (!mRxInterruptEnabled) {
-
-        mSPI.beginTransaction (mSPISettings) ;
-          #ifdef ARDUINO_ARCH_ESP32
-            taskDISABLE_INTERRUPTS () ;
-          #else
-            noInterrupts () ;
-          #endif
-
         mRxInterruptEnabled = true ;
         uint8_t data8 = readRegister8Assume_SPI_transaction (INT_REGISTER + 2) ;
         data8 |= (1 << 1) ; // Receive FIFO Interrupt Enable
         writeRegister8Assume_SPI_transaction (INT_REGISTER + 2, data8) ;
-
-      turnOnInterrupts () ;
-      mSPI.endTransaction () ;
       }
+  turnOnInterrupts();
+  mSPI.endTransaction () ;
   return hasReceivedMessage ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 bool ACAN2517FD::dispatchReceivedMessage (const tFilterMatchCallBack inFilterMatchCallBack) {
   CANFDMessage receivedMessage ;
@@ -836,9 +834,9 @@ bool ACAN2517FD::dispatchReceivedMessage (const tFilterMatchCallBack inFilterMat
   return hasReceived ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 //    POLLING (ESP32)
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 #ifdef ARDUINO_ARCH_ESP32
   void ACAN2517FD::poll (void) {
@@ -848,22 +846,22 @@ bool ACAN2517FD::dispatchReceivedMessage (const tFilterMatchCallBack inFilterMat
   }
 #endif
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 //    POLLING (other than ESP32)
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 #ifndef ARDUINO_ARCH_ESP32
   void ACAN2517FD::poll (void) {
-    noInterrupts () ;
+    turnOffInterrupts () ;
       isr_poll_core () ;
-    interrupts () ;
+    turnOnInterrupts () ;
   }
 #endif
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 //   INTERRUPT SERVICE ROUTINE (ESP32)
 // https://stackoverflow.com/questions/51750377/how-to-disable-interrupt-watchdog-in-esp32-or-increase-isr-time-limit
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 #ifdef ARDUINO_ARCH_ESP32
   void ACAN2517FD::isr (void) {
@@ -873,9 +871,9 @@ bool ACAN2517FD::dispatchReceivedMessage (const tFilterMatchCallBack inFilterMat
   }
 #endif
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 //   INTERRUPT SERVICE ROUTINE (other than ESP32)
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 #ifndef ARDUINO_ARCH_ESP32
   void ACAN2517FD::isr (void) {
@@ -883,9 +881,9 @@ bool ACAN2517FD::dispatchReceivedMessage (const tFilterMatchCallBack inFilterMat
   }
 #endif
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 //   INTERRUPT SERVICE ROUTINES (common)
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 void ACAN2517FD::isr_poll_core (void) {
   mSPI.beginTransaction (mSPISettings) ;
@@ -935,7 +933,7 @@ void ACAN2517FD::isr_poll_core (void) {
   mSPI.endTransaction () ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 void ACAN2517FD::transmitInterrupt (void) { // Generated if hardware transmit FIFO is not full
   CANFDMessage message ;
@@ -950,7 +948,7 @@ void ACAN2517FD::transmitInterrupt (void) { // Generated if hardware transmit FI
   }
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 void ACAN2517FD::receiveInterrupt (void) {
   const uint16_t ramAddress = uint16_t (0x400 + readRegister32Assume_SPI_transaction (FIFOUA_REGISTER (RECEIVE_FIFO_INDEX))) ;
@@ -1009,9 +1007,9 @@ void ACAN2517FD::receiveInterrupt (void) {
   }
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 //   MCP2517FD REGISTER ACCESS, SECOND LEVEL FUNCTIONS (HANDLE CS, ASSUME WITHIN SPI TRANSACTION)
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 void ACAN2517FD::writeRegister32Assume_SPI_transaction (const uint16_t inRegisterAddress,
                                                         const uint32_t inValue) {
@@ -1029,7 +1027,7 @@ void ACAN2517FD::writeRegister32Assume_SPI_transaction (const uint16_t inRegiste
   deassertCS () ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 void ACAN2517FD::writeRegister8Assume_SPI_transaction (const uint16_t inRegisterAddress,
                                                        const uint8_t inValue) {
@@ -1044,7 +1042,7 @@ void ACAN2517FD::writeRegister8Assume_SPI_transaction (const uint16_t inRegister
   deassertCS () ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 uint32_t ACAN2517FD::readRegister32Assume_SPI_transaction (const uint16_t inRegisterAddress) {
 //--- Read word register via 6-byte buffer (speed enhancement, thanks to thomasfla)
@@ -1063,7 +1061,7 @@ uint32_t ACAN2517FD::readRegister32Assume_SPI_transaction (const uint16_t inRegi
   return result ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 uint16_t ACAN2517FD::readRegister16Assume_SPI_transaction (const uint16_t inRegisterAddress) {
 //--- Read half-word register via 4-byte buffer (speed enhancement, thanks to thomasfla)
@@ -1082,7 +1080,7 @@ uint16_t ACAN2517FD::readRegister16Assume_SPI_transaction (const uint16_t inRegi
   return result ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 uint8_t ACAN2517FD::readRegister8Assume_SPI_transaction (const uint16_t inRegisterAddress) {
 //--- Read byte register via 3-byte buffer (speed enhancement, thanks to thomasfla)
@@ -1096,71 +1094,71 @@ uint8_t ACAN2517FD::readRegister8Assume_SPI_transaction (const uint16_t inRegist
   return buffer [2] ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 //   MCP2517FD REGISTER ACCESS, THIRD LEVEL FUNCTIONS (HANDLE CS AND SPI TRANSACTION)
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 void ACAN2517FD::writeRegister8 (const uint16_t inRegisterAddress, const uint8_t inValue) {
   mSPI.beginTransaction (mSPISettings) ;
     turnOffInterrupts () ;
       writeRegister8Assume_SPI_transaction (inRegisterAddress, inValue) ;
-  turnOnInterrupts () ;
+    turnOnInterrupts () ;
   mSPI.endTransaction () ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 uint8_t ACAN2517FD::readRegister8 (const uint16_t inRegisterAddress) {
   mSPI.beginTransaction (mSPISettings) ;
     turnOffInterrupts () ;
       const uint8_t result = readRegister8Assume_SPI_transaction (inRegisterAddress) ;
-turnOnInterrupts () ;
+    turnOnInterrupts () ;
   mSPI.endTransaction () ;
   return result ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 uint16_t ACAN2517FD::readRegister16 (const uint16_t inRegisterAddress) {
   mSPI.beginTransaction (mSPISettings) ;
     turnOffInterrupts () ;
       const uint16_t result = readRegister16Assume_SPI_transaction (inRegisterAddress) ;
-turnOnInterrupts () ;
+    turnOnInterrupts () ;
   mSPI.endTransaction () ;
   return result ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 void ACAN2517FD::writeRegister32 (const uint16_t inRegisterAddress, const uint32_t inValue) {
   mSPI.beginTransaction (mSPISettings) ;
     turnOffInterrupts () ;
       writeRegister32Assume_SPI_transaction (inRegisterAddress, inValue) ;
-turnOnInterrupts () ;
+    turnOnInterrupts () ;
   mSPI.endTransaction () ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 uint32_t ACAN2517FD::readRegister32 (const uint16_t inRegisterAddress) {
   mSPI.beginTransaction (mSPISettings) ;
     turnOffInterrupts () ;
       const uint32_t result = readRegister32Assume_SPI_transaction (inRegisterAddress) ;
-turnOnInterrupts () ;
+    turnOnInterrupts () ;
   mSPI.endTransaction () ;
   return result ;
 }
 
-//------------------------------------------------------------------------------
+//······················································································································
 //    Current MCP2517FD Operation Mode
-//------------------------------------------------------------------------------
+//······················································································································
 
 ACAN2517FDSettings::OperationMode ACAN2517FD::currentOperationMode (void) {
   const uint8_t mode = readRegister8 (CON_REGISTER + 2) >> 5 ;
   return ACAN2517FDSettings::OperationMode (mode) ;
 }
 
-//------------------------------------------------------------------------------
+//······················································································································
 
 bool ACAN2517FD::recoverFromRestrictedOperationMode (void) {
    bool recoveryDone = false ;
@@ -1184,9 +1182,9 @@ bool ACAN2517FD::recoverFromRestrictedOperationMode (void) {
   return recoveryDone ;
 }
 
-//------------------------------------------------------------------------------
+//······················································································································
 //    Set MCP2517FD Operation Mode
-//------------------------------------------------------------------------------
+//······················································································································
 
 void ACAN2517FD::setOperationMode (const ACAN2517FDSettings::OperationMode inOperationMode) {
 //  bits 7-4: Transmit Bandwith Sharing Bits ---> 0
@@ -1194,7 +1192,7 @@ void ACAN2517FD::setOperationMode (const ACAN2517FDSettings::OperationMode inOpe
   writeRegister8 (CON_REGISTER + 3, uint8_t (inOperationMode));
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 void ACAN2517FD::reset2517FD (void) {
   mSPI.beginTransaction (mSPISettings) ; // Check RESET is performed with 800 kHz clock
@@ -1202,14 +1200,14 @@ void ACAN2517FD::reset2517FD (void) {
       assertCS () ;
         mSPI.transfer16 (0x00) ; // Reset instruction: 0x0000
       deassertCS () ;
-turnOnInterrupts () ;
+    turnOnInterrupts () ;
   mSPI.endTransaction () ;
 }
 
-//------------------------------------------------------------------------------
+//······················································································································
 //    Sleep Mode to Configuration Mode
 // (returns true if MCP2517FD was in sleep mode)
-//------------------------------------------------------------------------------
+//······················································································································
 // The device exits Sleep mode due to a dominant edge on RXCAN or by enabling the oscillator (clearing OSC.OSCDIS).
 // The module will transition automatically to Configuration mode.
 
@@ -1228,21 +1226,21 @@ bool ACAN2517FD::performSleepModeToConfigurationMode (void) {
   return inSleepMode ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 uint32_t ACAN2517FD::errorCounters (void) {
   return readRegister32 (TREC_REGISTER) ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 uint32_t ACAN2517FD::diagInfos (const int inIndex) { // thanks to Flole998 and turmary
   return readRegister32 (inIndex ? BDIAG1_REGISTER: BDIAG0_REGISTER) ;
 }
 
-//------------------------------------------------------------------------------
+//······················································································································
 //    GPIO
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 void ACAN2517FD::gpioSetMode (const uint8_t inPin, const uint8_t inMode) {
   if (inPin <= 1) {
@@ -1262,7 +1260,7 @@ void ACAN2517FD::gpioSetMode (const uint8_t inPin, const uint8_t inMode) {
   }
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 void ACAN2517FD::gpioWrite (const uint8_t inPin, const uint8_t inLevel) {
   if (inPin <= 1) {
@@ -1276,14 +1274,14 @@ void ACAN2517FD::gpioWrite (const uint8_t inPin, const uint8_t inLevel) {
   }
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 bool ACAN2517FD::gpioRead (const uint8_t inPin) {
   const uint8_t value = readRegister8 (IOCON_REGISTER_16_23) ;
   return (value >> inPin) & 1 ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 void ACAN2517FD::configureGPIO0AsXSTBY (void) {
   uint8_t value = readRegister8 (IOCON_REGISTER_00_07) ;
@@ -1291,4 +1289,4 @@ void ACAN2517FD::configureGPIO0AsXSTBY (void) {
   writeRegister8 (IOCON_REGISTER_00_07, value) ;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------

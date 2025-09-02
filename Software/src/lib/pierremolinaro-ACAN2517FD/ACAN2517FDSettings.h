@@ -1,25 +1,25 @@
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 // A CAN driver for MCP2517FD (CANFD mode)
 // by Pierre Molinaro
 // https://github.com/pierremolinaro/acan2517FD
 //
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 #pragma once
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
-#include "ACAN2517FD_DataBitRateFactor.h"
+#include "ACANFD_DataBitRateFactor.h"
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 //  ACAN2517FDSettings class
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
 class ACAN2517FDSettings {
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   ENUMERATED TYPES
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//   ENUMERATED TYPES
+//······················································································································
 
   public: typedef enum : uint8_t {
     OSC_4MHz,
@@ -64,9 +64,9 @@ class ACAN2517FDSettings {
     PAYLOAD_64 = 7
   } PayloadSize ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   Deprecated enumeration (now use DataBitRateFactor declared in ACANFD_DataBitRateFactor.h)
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//   Deprecated enumeration (now use DataBitRateFactor declared in ACANFD_DataBitRateFactor.h)
+//······················································································································
 
   public : typedef enum : uint8_t {
       DATA_BITRATE_x1 = 1,
@@ -81,18 +81,18 @@ class ACAN2517FDSettings {
       DATA_BITRATE_x10 = 10
   } DataBitRateFactor_Deprecated ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   CONSTRUCTOR
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//   CONSTRUCTOR
+//······················································································································
 
   public: ACAN2517FDSettings (const Oscillator inOscillator,
                               const uint32_t inDesiredArbitrationBitRate,
                               const DataBitRateFactor inDataBitRateFactor,
                               const uint32_t inTolerancePPM = 1000) ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   DEPRECATED CONSTRUCTOR (for compatibility with version < 2.1.0)
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//   DEPRECATED CONSTRUCTOR (for compatibility with version < 2.1.0)
+//······················································································································
 
   public: ACAN2517FDSettings (const Oscillator inOscillator,
                               const uint32_t inDesiredArbitrationBitRate,
@@ -101,9 +101,9 @@ class ACAN2517FDSettings {
   ACAN2517FDSettings (inOscillator, inDesiredArbitrationBitRate, DataBitRateFactor (inDataBitRateFactor), inTolerancePPM) {
   }
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   CAN BIT TIMING
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//   CAN BIT TIMING
+//······················································································································
 
   private: Oscillator mOscillator ;
   private: uint32_t mSysClock ; // In Hz
@@ -123,44 +123,44 @@ class ACAN2517FDSettings {
 //--- Transmitter Delay Compensation Offset
   public: int8_t mTDCO = 0 ; // -64 ... +63
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //    MCP2517FD TXCAN pin is Open Drain ?
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//    MCP2517FD TXCAN pin is Open Drain ?
+//······················································································································
 
   public: bool mTXCANIsOpenDrain = false ; // false --> Push/Pull Output, true --> Open Drain Output
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //    MCP2517FD INT pin is Open Drain ?
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//    MCP2517FD INT pin is Open Drain ?
+//······················································································································
 
   public: bool mINTIsOpenDrain = false ; // false --> Push/Pull Output, true --> Open Drain Output
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //    ISO CRC Enable
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//    ISO CRC Enable
+//······················································································································
 
 // false --> Do NOT include Stuff Bit Count in CRC Field and use CRC Initialization Vector with all zeros
 // true --> Include Stuff Bit Count in CRC Field and use Non-Zero CRC Initialization Vector according to ISO 11898-1:2015
   public: bool mISOCRCEnabled = true ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //    CLKO pin function (default value is MCP2517FD power on setting)
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//    CLKO pin function (default value is MCP2517FD power on setting)
+//······················································································································
 
   public: CLKOpin mCLKOPin = CLKO_DIVIDED_BY_10 ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //    Requested mode
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//    Requested mode
+//······················································································································
 
   public: OperationMode mRequestedMode = NormalFD ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   TRANSMIT FIFO
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//   TRANSMIT FIFO
+//······················································································································
 
 //--- Driver transmit buffer size
-  public: uint16_t mDriverTransmitFIFOSize = 16 ; // >= 0
+  public: uint16_t mDriverTransmitFIFOSize = 22 ; // >= 0
 
 //--- Controller transmit FIFO size
   public: uint8_t mControllerTransmitFIFOSize = 1 ; // 1 ... 32
@@ -174,9 +174,9 @@ class ACAN2517FDSettings {
 //--- Controller transmit FIFO retransmission attempts
   public: RetransmissionAttempts mControllerTransmitFIFORetransmissionAttempts = UnlimitedNumber ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   TXQ BUFFER
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//   TXQ BUFFER
+//······················································································································
 
 //--- TXQ buffer size (0 --> TXQ disabled)
   public: uint8_t mControllerTXQSize = 0 ; // 0 ... 32
@@ -191,9 +191,9 @@ class ACAN2517FDSettings {
   public: RetransmissionAttempts mControllerTXQBufferRetransmissionAttempts = UnlimitedNumber ;
 
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   RECEIVE FIFO
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//   RECEIVE FIFO
+//······················································································································
 
 //--- Driver receive buffer size
   public: uint16_t mDriverReceiveFIFOSize = 32 ; // > 0
@@ -204,15 +204,15 @@ class ACAN2517FDSettings {
 //--- Controller receive FIFO size
   public: uint8_t mControllerReceiveFIFOSize = 27 ; // 1 ... 32
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //    SYSCLOCK frequency computation
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//    SYSCLOCK frequency computation
+//······················································································································
 
   public: static uint32_t sysClock (const Oscillator inOscillator) ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //    Accessors
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//    Accessors
+//······················································································································
 
   public: Oscillator oscillator (void) const { return mOscillator ; }
   public: uint32_t sysClock (void) const { return mSysClock ; }
@@ -222,61 +222,61 @@ class ACAN2517FDSettings {
   public: bool exactDataBitRate (void) const ;
   public: bool dataBitRateIsAMultipleOfArbitrationBitRate (void) const ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //    RAM USAGE
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//    RAM USAGE
+//······················································································································
 
   public: uint32_t ramUsage (void) const ;
 
   public: static uint32_t objectSizeForPayload (const PayloadSize inPayload) ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //    Distance between actual bit rate and requested bit rate (in ppm, part-per-million)
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//    Distance between actual bit rate and requested bit rate (in ppm, part-per-million)
+//······················································································································
 
   public: uint32_t ppmFromDesiredArbitrationBitRate (void) const ;
   public: uint32_t ppmFromDesiredDataBitRate (void) const ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //    Distance of sample point from bit start (in ppc, part-per-cent, denoted by %)
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//    Distance of sample point from bit start (in ppc, part-per-cent, denoted by %)
+//······················································································································
 
   public: uint32_t arbitrationSamplePointFromBitStart (void) const ;
   public: uint32_t dataSamplePointFromBitStart (void) const ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //    Bit settings are consistent ? (returns 0 if ok)
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//    Bit settings are consistent ? (returns 0 if ok)
+//······················································································································
 
   public: uint32_t CANBitSettingConsistency (void) const ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //    Constants returned by CANBitSettingConsistency
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+//    Constants returned by CANBitSettingConsistency
+//······················································································································
 
-  public: static const uint32_t kBitRatePrescalerIsZero                 = uint32_t (1) <<  0 ;
-  public: static const uint32_t kBitRatePrescalerIsGreaterThan256       = uint32_t (1) <<  1 ;
-  public: static const uint32_t kArbitrationPhaseSegment1IsLowerThan2       = uint32_t (1) <<  2 ;
-  public: static const uint32_t kArbitrationPhaseSegment1IsGreaterThan256   = uint32_t (1) <<  3 ;
-  public: static const uint32_t kArbitrationPhaseSegment2IsZero             = uint32_t (1) <<  4 ;
-  public: static const uint32_t kArbitrationPhaseSegment2IsGreaterThan128   = uint32_t (1) <<  5 ;
-  public: static const uint32_t kArbitrationSJWIsZero                       = uint32_t (1) <<  6 ;
-  public: static const uint32_t kArbitrationSJWIsGreaterThan128             = uint32_t (1) <<  7 ;
-  public: static const uint32_t kArbitrationSJWIsGreaterThanPhaseSegment1   = uint32_t (1) <<  8 ;
-  public: static const uint32_t kArbitrationSJWIsGreaterThanPhaseSegment2   = uint32_t (1) <<  9 ;
-  public: static const uint32_t kArbitrationTQCountNotDivisibleByDataBitRateFactor = uint32_t (1) << 10 ;
-  public: static const uint32_t kDataPhaseSegment1IsLowerThan2          = uint32_t (1) << 11 ;
-  public: static const uint32_t kDataPhaseSegment1IsGreaterThan32       = uint32_t (1) << 12 ;
-  public: static const uint32_t kDataPhaseSegment2IsZero                = uint32_t (1) << 13 ;
-  public: static const uint32_t kDataPhaseSegment2IsGreaterThan16       = uint32_t (1) << 14 ;
-  public: static const uint32_t kDataSJWIsZero                          = uint32_t (1) << 15 ;
-  public: static const uint32_t kDataSJWIsGreaterThan16                 = uint32_t (1) << 16 ;
-  public: static const uint32_t kDataSJWIsGreaterThanPhaseSegment1      = uint32_t (1) << 17 ;
-  public: static const uint32_t kDataSJWIsGreaterThanPhaseSegment2      = uint32_t (1) << 18 ;
+  public: static const uint32_t kBitRatePrescalerIsZero                 = ((uint32_t) 1) <<  0 ;
+  public: static const uint32_t kBitRatePrescalerIsGreaterThan256       = ((uint32_t) 1) <<  1 ;
+  public: static const uint32_t kArbitrationPhaseSegment1IsLowerThan2       = ((uint32_t) 1) <<  2 ;
+  public: static const uint32_t kArbitrationPhaseSegment1IsGreaterThan256   = ((uint32_t) 1) <<  3 ;
+  public: static const uint32_t kArbitrationPhaseSegment2IsZero             = ((uint32_t) 1) <<  4 ;
+  public: static const uint32_t kArbitrationPhaseSegment2IsGreaterThan128   = ((uint32_t) 1) <<  5 ;
+  public: static const uint32_t kArbitrationSJWIsZero                       = ((uint32_t) 1) <<  6 ;
+  public: static const uint32_t kArbitrationSJWIsGreaterThan128             = ((uint32_t) 1) <<  7 ;
+  public: static const uint32_t kArbitrationSJWIsGreaterThanPhaseSegment1   = ((uint32_t) 1) <<  8 ;
+  public: static const uint32_t kArbitrationSJWIsGreaterThanPhaseSegment2   = ((uint32_t) 1) <<  9 ;
+  public: static const uint32_t kArbitrationTQCountNotDivisibleByDataBitRateFactor = ((uint32_t) 1) << 10 ;
+  public: static const uint32_t kDataPhaseSegment1IsLowerThan2          = ((uint32_t) 1) << 11 ;
+  public: static const uint32_t kDataPhaseSegment1IsGreaterThan32       = ((uint32_t) 1) << 12 ;
+  public: static const uint32_t kDataPhaseSegment2IsZero                = ((uint32_t) 1) << 13 ;
+  public: static const uint32_t kDataPhaseSegment2IsGreaterThan16       = ((uint32_t) 1) << 14 ;
+  public: static const uint32_t kDataSJWIsZero                          = ((uint32_t) 1) << 15 ;
+  public: static const uint32_t kDataSJWIsGreaterThan16                 = ((uint32_t) 1) << 16 ;
+  public: static const uint32_t kDataSJWIsGreaterThanPhaseSegment1      = ((uint32_t) 1) << 17 ;
+  public: static const uint32_t kDataSJWIsGreaterThanPhaseSegment2      = ((uint32_t) 1) << 18 ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // Max values
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
+// Max values
+//······················································································································
 
   public: static const uint16_t MAX_BRP = 256 ;
 
@@ -288,9 +288,9 @@ class ACAN2517FDSettings {
   public: static const uint8_t  MAX_DATA_PHASE_SEGMENT_2 = 16 ;
   public: static const uint8_t  MAX_DATA_SJW             = 16 ;
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//······················································································································
 
 } ;
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 
