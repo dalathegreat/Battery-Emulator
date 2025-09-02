@@ -103,13 +103,13 @@ typedef int WiFiEventInfo_t;
 
 // Mock WiFi functions
 inline void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
-    (void)event;
-    (void)info;
+  (void)event;
+  (void)info;
 }
 
 inline void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
-    (void)event;
-    (void)info;
+  (void)event;
+  (void)info;
 }
 
 unsigned long micros();
