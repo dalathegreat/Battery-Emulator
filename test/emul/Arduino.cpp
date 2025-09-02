@@ -3,13 +3,11 @@
 #include "../../Software/src/communication/can/comm_can.h"
 
 // Provide the definition that was previously in USER_SETTINGS.cpp
-volatile CAN_Configuration can_config = {
-    .battery = CAN_Interface::CAN_NATIVE,
-    .inverter = CAN_Interface::CAN_NATIVE,
-    .battery_double = CAN_Interface::CAN_NATIVE,
-    .charger = CAN_Interface::CAN_NATIVE,
-    .shunt = CAN_Interface::CAN_NATIVE
-};
+volatile CAN_Configuration can_config = {.battery = CAN_Interface::CAN_NATIVE,
+                                         .inverter = CAN_Interface::CAN_NATIVE,
+                                         .battery_double = CAN_Interface::CAN_NATIVE,
+                                         .charger = CAN_Interface::CAN_NATIVE,
+                                         .shunt = CAN_Interface::CAN_NATIVE};
 
 void delay(unsigned long ms) {}
 void delayMicroseconds(unsigned long us) {}
