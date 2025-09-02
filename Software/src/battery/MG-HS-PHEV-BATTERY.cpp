@@ -15,8 +15,6 @@ changing.
 
 OPTIONAL SETTINGS
 
-Put these in your USER_SETTINGS.h:
-
 // This will scale the SoC so the batteries top out at 4.2V/cell instead of
 4.1V/cell. The car only seems to use up to 4.1V/cell in service. 
 #define MG_HS_PHEV_USE_FULL_CAPACITY true

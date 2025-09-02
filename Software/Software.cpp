@@ -24,6 +24,7 @@
 #include "src/devboard/utils/logging.h"
 #include "src/devboard/utils/time_meas.h"
 #include "src/devboard/utils/timer.h"
+#include "src/devboard/utils/types.h"
 #include "src/devboard/utils/value_mapping.h"
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"

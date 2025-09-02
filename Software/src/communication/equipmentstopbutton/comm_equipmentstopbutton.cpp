@@ -2,7 +2,6 @@
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
 #include "../../devboard/utils/debounce_button.h"
-#include "USER_SETTINGS.h"
 
 const STOP_BUTTON_BEHAVIOR stop_button_default_behavior = STOP_BUTTON_BEHAVIOR::NOT_CONNECTED;
 STOP_BUTTON_BEHAVIOR equipment_stop_behavior = stop_button_default_behavior;

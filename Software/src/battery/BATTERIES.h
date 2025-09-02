@@ -1,6 +1,5 @@
 #ifndef BATTERIES_H
 #define BATTERIES_H
-#include "../../USER_SETTINGS.h"
 #include "Shunt.h"
 
 class Battery;

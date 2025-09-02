@@ -2,7 +2,6 @@
 #define _DATALAYER_EXTENDED_H_
 
 #include <stdint.h>
-#include "../../USER_SETTINGS.h"
 
 struct DATALAYER_INFO_BOLTAMPERA {
   /** uint16_t */

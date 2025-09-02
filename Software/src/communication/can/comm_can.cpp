@@ -5,7 +5,6 @@
 #include "../../lib/pierremolinaro-acan-esp32/ACAN_ESP32.h"
 #include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
 #include "CanReceiver.h"
-#include "USER_SETTINGS.h"
 #include "comm_can.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/safety/safety.h"
