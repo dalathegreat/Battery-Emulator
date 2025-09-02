@@ -20,23 +20,21 @@ volatile CAN_Configuration can_config = {
     .shunt = CAN_NATIVE                   // (OPTIONAL) Which CAN is your shunt connected to?
 };
 
-std::string ssid;
-std::string password;
-std::string passwordAP;
-
-const uint8_t wifi_channel = 0;  // Set to 0 for automatic channel selection
-
-std::string http_username;
-std::string http_password;
 
 // Set your Static IP address. Only used incase WIFICONFIG is set in USER_SETTINGS.h
 IPAddress local_IP(192, 168, 10, 150);
 IPAddress gateway(192, 168, 10, 1);
 IPAddress subnet(255, 255, 255, 0);
 
+std::string ssid;
+std::string password;
+std::string passwordAP;
+
+const uint8_t wifi_channel = 0;  // Set to 0 for automatic channel selection
+
+
 // MQTT
-std::string mqtt_user;
-std::string mqtt_password;
+
 
 const char* mqtt_topic_name =
     "BE";  // Custom MQTT topic name. Previously, the name was automatically set to "battery-emulator_esp32-XXXXXX"

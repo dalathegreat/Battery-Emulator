@@ -4,14 +4,6 @@
 #include <stdint.h>
 #include "src/devboard/utils/types.h"
 
-/* This file is being transitioned towards COMMON_IMAGE. Use v8.16 if you are taking this software into use! */
-
-/* Select hardware used for Battery-Emulator */
-//#define HW_LILYGO
-//#define HW_STARK
-//#define HW_3LB
-//#define HW_DEVKIT
-
 /* Shunt/Contactor settings (Optional) */
 //#define BMW_SBOX  // SBOX relay control & battery current/voltage measurement
 
@@ -21,10 +13,6 @@
 
 /* Connectivity options */
 //#define WIFICONFIG  //Enable this line to set a static IP address / gateway /subnet mask for the device. see USER_SETTINGS.cpp for the settings
-
-#define MQTT_QOS 0                  // MQTT Quality of Service (0, 1, or 2)
-#define MQTT_PUBLISH_CELL_VOLTAGES  // Enable this line to publish cell voltages to MQTT
-#define MQTT_TIMEOUT 2000           // MQTT timeout in milliseconds
 
 /* Do not change any code below this line */
 /* Only change battery specific settings above and in "USER_SETTINGS.cpp" */

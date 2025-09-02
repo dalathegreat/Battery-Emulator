@@ -24,10 +24,15 @@ int mqtt_port = mqtt_port_default;
 std::string mqtt_server = mqtt_server_default;
 
 bool mqtt_manual_topic_object_name =
-    true;  //TODO, should this be configurable from webserver? Or legacy option removed?
+    true;  //TODO: should this be configurable from webserver? Or legacy option removed?
 // If this is not true, the previous default naming format 'battery-emulator_esp32-XXXXXX' (based on hardware ID) will be used.
 // This naming convention was in place until version 7.5.0. Users should check the version from which they are updating, as this change
 // may break compatibility with previous versions of MQTT naming
+
+#define MQTT_PUBLISH_CELL_VOLTAGES  // Enable this line to publish cell voltages to MQTT
+#define MQTT_QOS 0                  // MQTT Quality of Service (0, 1, or 2)
+#define MQTT_TIMEOUT 2000           // MQTT timeout in milliseconds
+    //TODO: Should all these defines be a configurable option?
 
 esp_mqtt_client_config_t mqtt_cfg;
 esp_mqtt_client_handle_t client;

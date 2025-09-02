@@ -52,8 +52,12 @@ TaskHandle_t mqtt_loop_task;
 
 Logging logging;
 
-static std::list<Transmitter*> transmitters;
+std::string mqtt_user; //TODO, move?
+std::string mqtt_password; //TODO, move?
+std::string http_username; //TODO, move?
+std::string http_password; //TODO, move?
 
+static std::list<Transmitter*> transmitters;
 void register_transmitter(Transmitter* transmitter) {
   transmitters.push_back(transmitter);
   DEBUG_PRINTF("transmitter registered, total: %d\n", transmitters.size());
