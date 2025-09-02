@@ -1,6 +1,7 @@
 #include "settings_html.h"
 #include <Arduino.h>
 #include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
+#include "../../../src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../../charger/CHARGERS.h"
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
@@ -203,8 +204,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_comm_interface);
   }
   if (var == "BATTCHEM") {
-    return options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA),
-                            name_for_chemistry);
+    return options_for_enum(
+        (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::Autodetect),
+        name_for_chemistry);
   }
   if (var == "INVTYPE") {
     return options_for_enum_with_none(
@@ -269,12 +271,28 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("REMBMSRESET") ? "checked" : "";
   }
 
+  if (var == "EXTPRECHARGE") {
+    return settings.getBool("EXTPRECHARGE") ? "checked" : "";
+  }
+
+  if (var == "MAXPRETIME") {
+    return String(settings.getUInt("MAXPRETIME", 15000));
+  }
+
+  if (var == "NOINVDISC") {
+    return settings.getBool("NOINVDISC") ? "checked" : "";
+  }
+
   if (var == "CANFDASCAN") {
     return settings.getBool("CANFDASCAN") ? "checked" : "";
   }
 
   if (var == "WIFIAPENABLED") {
     return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
+  }
+
+  if (var == "WIFICHANNEL") {
+    return String(settings.getUInt("WIFICHANNEL", 0));
   }
 
   if (var == "PERFPROFILE") {
@@ -329,12 +347,20 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getString("MQTTTOPIC");
   }
 
+  if (var == "MQTTTIMEOUT") {
+    return String(settings.getUInt("MQTTTIMEOUT", 2000));
+  }
+
   if (var == "MQTTOBJIDPREFIX") {
     return settings.getString("MQTTOBJIDPREFIX");
   }
 
   if (var == "MQTTDEVICENAME") {
     return settings.getString("MQTTDEVICENAME");
+  }
+
+  if (var == "MQTTCELLV") {
+    return settings.getBool("MQTTCELLV") ? "checked" : "";
   }
 
   if (var == "HADEVICEID") {
@@ -563,6 +589,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return String(settings.getUInt("PWMHOLD", 250));
   }
 
+  if (var == "INTERLOCKREQ") {
+    return settings.getBool("INTERLOCKREQ") ? "checked" : "";
+  }
+
   if (var == "DIGITALHVIL") {
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
@@ -777,6 +807,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-nissan { display: none; }
+    form[data-battery="21"] .if-nissan {
+      display: contents;
+    }
+
     form .if-tesla { display: none; }
     form[data-battery="32"] .if-tesla, form[data-battery="33"] .if-tesla {
       display: contents;
@@ -794,6 +829,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-cntctrl { display: none; }
     form[data-cntctrl="true"] .if-cntctrl {
+      display: contents;
+    }
+
+    form .if-extprecharge { display: none; }
+    form[data-extprecharge="true"] .if-extprecharge {
       display: contents;
     }
 
@@ -832,7 +872,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
     <h4 style='color: white;'>SSID: <span id='SSID'>%SSID%</span><button onclick='editSSID()'>Edit</button></h4>
     <h4 style='color: white;'>Password: ######## <span id='Password'></span> <button onclick='editPassword()'>Edit</button></h4>
-    
+
     <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
     <div style='max-width: 500px;'>
         <form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
@@ -840,6 +880,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label for='battery'>Battery: </label><select name='battery' if='battery'>
         %BATTTYPE%
         </select>
+
+        <div class="if-nissan">
+        <label>Interlock required: </label>
+        <input type='checkbox' name='INTERLOCKREQ' value='on' style='margin-left: 0;' %INTERLOCKREQ% />
+        </div>
 
         <div class="if-tesla">
         <label>Digital HVIL (2024+): </label>
@@ -993,11 +1038,25 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Remote BMS reset: </label>
         <input type='checkbox' name='REMBMSRESET' value='on' style='margin-left: 0;' %REMBMSRESET% />
 
+        <label>External precharge via HIA4V1: </label>
+        <input type='checkbox' name='EXTPRECHARGE' value='on' style='margin-left: 0;' %EXTPRECHARGE% />
+
+        <div class="if-extprecharge">
+            <label>Precharge, maximum ms before fault: </label>
+            <input name='MAXPRETIME' type='text' value="%MAXPRETIME%" pattern="^[0-9]+$" />
+
+          <label>Normally Open inverter disconnect contactor: </label>
+          <input type='checkbox' name='NOINVDISC' value='on' style='margin-left: 0;' %NOINVDISC% />
+        </div>
+
         <label>Use CanFD as classic CAN: </label>
         <input type='checkbox' name='CANFDASCAN' value='on' style='margin-left: 0;' %CANFDASCAN% /> 
 
-        <label>Enable WiFi AP: </label>
+        <label>Enable Wifi access point: </label>
         <input type='checkbox' name='WIFIAPENABLED' value='on' style='margin-left: 0;' %WIFIAPENABLED% />
+
+        <label>Wifi channel 0-14: </label>
+        <input name='WIFICHANNEL' type='text' value="%WIFICHANNEL%" pattern="^[0-9]+$" />
 
         <label>Custom hostname: </label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" />
@@ -1032,7 +1091,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>MQTT port: </label><input type='text' name='MQTTPORT' value="%MQTTPORT%" />
         <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%" />
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" />
-
+        <label>MQTT timeout ms: </label><input name='MQTTTIMEOUT' type='text' value="%MQTTTIMEOUT%" pattern="^[0-9]+$" />
+        <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' style='margin-left: 0;' %MQTTCELLV% />
         <label>Customized MQTT topics: </label>
         <input type='checkbox' name='MQTTTOPICS' value='on' style='margin-left: 0;' %MQTTTOPICS% />
 
@@ -1042,7 +1102,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Prefix for MQTT object ID: </label><input type='text' name='MQTTOBJIDPREFIX' value="%MQTTOBJIDPREFIX%" />
         <label>HA device name: </label><input type='text' name='MQTTDEVICENAME' value="%MQTTDEVICENAME%" />
         <label>HA device ID: </label><input type='text' name='HADEVICEID' value="%HADEVICEID%" />
-
+        
         </div>
 
         <label>Enable Home Assistant auto discovery: </label>

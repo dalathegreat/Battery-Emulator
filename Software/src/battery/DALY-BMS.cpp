@@ -27,8 +27,9 @@ void DalyBms::update_values() {
   datalayer.battery.status.current_dA = current_dA;  //value is *10 (150 = 15.0)
   datalayer.battery.status.remaining_capacity_Wh = (remaining_capacity_mAh * (uint32_t)voltage_dV) / 10000;
 
-  datalayer.battery.status.max_charge_power_W = (BATTERY_MAX_CHARGE_AMP * voltage_dV) / 100;
-  datalayer.battery.status.max_discharge_power_W = (BATTERY_MAX_DISCHARGE_AMP * voltage_dV) / 100;
+  datalayer.battery.status.max_charge_power_W = (datalayer.battery.settings.max_user_set_charge_dA * voltage_dV) / 100;
+  datalayer.battery.status.max_discharge_power_W =
+      (datalayer.battery.settings.max_user_set_discharge_dA * voltage_dV) / 100;
 
   // limit power when SoC is low or high
   uint32_t adaptive_power_limit = 999999;
@@ -72,7 +73,6 @@ void DalyBms::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
   datalayer.battery.info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
   datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
-  datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
   datalayer.system.status.battery_allows_contactor_closing = true;
 
   auto rx_pin = esp32hal->RS485_RX_PIN();

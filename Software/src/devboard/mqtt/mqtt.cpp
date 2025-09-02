@@ -4,7 +4,6 @@
 #include <freertos/FreeRTOS.h>
 #include <src/communication/nvm/comm_nvm.h>
 #include <list>
-#include "../../../USER_SETTINGS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
@@ -16,6 +15,8 @@
 
 bool mqtt_enabled = false;
 bool ha_autodiscovery_enabled = false;
+bool mqtt_transmit_all_cellvoltages = false;
+uint16_t mqtt_timeout_ms = 2000;
 
 const int mqtt_port_default = 0;
 const char* mqtt_server_default = "";
@@ -23,13 +24,21 @@ const char* mqtt_server_default = "";
 int mqtt_port = mqtt_port_default;
 std::string mqtt_server = mqtt_server_default;
 
-#ifdef MQTT_MANUAL_TOPIC_OBJECT_NAME
-const bool mqtt_manual_topic_object_name_default = true;
-#else
-const bool mqtt_manual_topic_object_name_default = false;
-#endif
+bool mqtt_manual_topic_object_name =
+    true;  //TODO: should this be configurable from webserver? Or legacy option removed?
+// If this is not true, the previous default naming format 'battery-emulator_esp32-XXXXXX' (based on hardware ID) will be used.
+// This naming convention was in place until version 7.5.0. Users should check the version from which they are updating, as this change
+// may break compatibility with previous versions of MQTT naming
+const char* mqtt_topic_name =
+    "BE";  // Custom MQTT topic name. Previously, the name was automatically set to "battery-emulator_esp32-XXXXXX"
+const char* mqtt_object_id_prefix =
+    "be_";  // Custom prefix for MQTT object ID. Previously, the prefix was automatically set to "esp32-XXXXXX_"
+const char* mqtt_device_name =
+    "Battery Emulator";  // Custom device name in Home Assistant. Previously, the name was automatically set to "BatteryEmulator_esp32-XXXXXX"
+const char* ha_device_id =
+    "battery-emulator";  // Custom device ID in Home Assistant. Previously, the ID was always "battery-emulator"
 
-bool mqtt_manual_topic_object_name = mqtt_manual_topic_object_name_default;
+#define MQTT_QOS 0  // MQTT Quality of Service (0, 1, or 2) //TODO: Should this be configurable?
 
 esp_mqtt_client_config_t mqtt_cfg;
 esp_mqtt_client_handle_t client;
@@ -64,17 +73,17 @@ static void publish_values(void) {
     return;
   }
 
-#ifdef MQTT_PUBLISH_CELL_VOLTAGES
-  if (publish_cell_voltages() == false) {
-    return;
+  if (mqtt_transmit_all_cellvoltages) {
+    if (publish_cell_voltages() == false) {
+      return;
+    }
   }
-#endif
 
-#ifdef MQTT_PUBLISH_CELL_VOLTAGES
-  if (publish_cell_balancing() == false) {
-    return;
+  if (mqtt_transmit_all_cellvoltages) {
+    if (publish_cell_balancing() == false) {
+      return;
+    }
   }
-#endif
 }
 
 static bool ha_common_info_published = false;
@@ -652,7 +661,7 @@ bool init_mqtt(void) {
   mqtt_cfg.session.last_will.retain = true;
   mqtt_cfg.session.last_will.msg = "offline";
   mqtt_cfg.session.last_will.msg_len = strlen(mqtt_cfg.session.last_will.msg);
-  mqtt_cfg.network.timeout_ms = MQTT_TIMEOUT;
+  mqtt_cfg.network.timeout_ms = mqtt_timeout_ms;
   client = esp_mqtt_client_init(&mqtt_cfg);
 
   if (client == nullptr) {

@@ -4,10 +4,6 @@
 #include "../devboard/hal/hal.h"
 #include "SmaInverterBase.h"
 
-#ifdef SMA_BYD_HVS_CAN
-#define SELECTED_INVERTER_CLASS SmaBydHvsInverter
-#endif
-
 class SmaBydHvsInverter : public SmaInverterBase {
  public:
   const char* name() override { return Name; }

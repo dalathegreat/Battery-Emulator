@@ -257,7 +257,7 @@ REMOTE_BMS_RESET - Allows the user to remotely powercycle the BMS by sending a c
 
 This makes the BMS recalculate all SOC% and avoid memory leaks
 During that time we also set the emulator state to paused in order to not try and send CAN messages towards the battery
-Feature is only used if user has enabled PERIODIC_BMS_RESET in the USER_SETTINGS */
+Feature is only used if user has enabled PERIODIC_BMS_RESET */
 
 void handle_BMSpower() {
   if (periodic_bms_reset || remote_bms_reset) {

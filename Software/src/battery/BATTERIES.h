@@ -1,6 +1,5 @@
 #ifndef BATTERIES_H
 #define BATTERIES_H
-#include "../../USER_SETTINGS.h"
 #include "Shunt.h"
 
 class Battery;
@@ -62,6 +61,7 @@ extern uint16_t user_selected_min_pack_voltage_dV;
 extern uint16_t user_selected_max_cell_voltage_mV;
 extern uint16_t user_selected_min_cell_voltage_mV;
 
+extern bool user_selected_LEAF_interlock_mandatory;
 extern bool user_selected_tesla_digital_HVIL;
 extern uint16_t user_selected_tesla_GTW_country;
 extern bool user_selected_tesla_GTW_rightHandDrive;

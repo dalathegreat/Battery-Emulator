@@ -1,10 +1,6 @@
 #ifndef AFORE_CAN_H
 #define AFORE_CAN_H
 
-#ifdef AFORE_CAN
-#define SELECTED_INVERTER_CLASS AforeCanInverter
-#endif
-
 #include "CanInverterProtocol.h"
 
 class AforeCanInverter : public CanInverterProtocol {

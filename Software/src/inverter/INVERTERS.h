@@ -4,8 +4,6 @@
 #include "InverterProtocol.h"
 extern InverterProtocol* inverter;
 
-#include "../../USER_SETTINGS.h"
-
 #include "AFORE-CAN.h"
 #include "BYD-CAN.h"
 #include "BYD-MODBUS.h"

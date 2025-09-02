@@ -8,6 +8,8 @@
 #include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
+#include "../equipmentstopbutton/comm_equipmentstopbutton.h"
+#include "../precharge_control/precharge_control.h"
 
 // Parameters
 Preferences settings;  // Store user settings
@@ -26,12 +28,7 @@ void init_stored_settings() {
     set_event(EVENT_EQUIPMENT_STOP, 1);
   }
 
-#ifndef LOAD_SAVED_SETTINGS_ON_BOOT
-  settings.clear();  // If this clear function is executed, no settings will be read from storage
-
-  //always save the equipment stop status
-  settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
-#endif  // LOAD_SAVED_SETTINGS_ON_BOOT
+  //settings.clear();  // If this clear function is executed, no settings will be read from storage. For dev
 
   esp32hal->set_default_configuration_values();
 
@@ -105,6 +102,7 @@ void init_stored_settings() {
   user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
   user_selected_inverter_ignore_contactors = settings.getBool("INVICNT", false);
   user_selected_can_addon_crystal_frequency_mhz = settings.getUInt("CANFREQ", 8);
+  user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
   user_selected_tesla_digital_HVIL = settings.getBool("DIGITALHVIL", false);
   user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", 0);
   user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", false);
@@ -146,6 +144,10 @@ void init_stored_settings() {
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
 
+  precharge_control_enabled = settings.getBool("EXTPRECHARGE", false);
+  precharge_inverter_normally_open_contactor = settings.getBool("NOINVDISC", false);
+  precharge_max_precharge_time_before_fault = settings.getUInt("MAXPRETIME", 15000);
+
   datalayer.system.info.performance_measurement_active = settings.getBool("PERFPROFILE", false);
   datalayer.system.info.CAN_usb_logging_active = settings.getBool("CANLOGUSB", false);
   datalayer.system.info.usb_logging_active = settings.getBool("USBENABLED", false);
@@ -156,10 +158,12 @@ void init_stored_settings() {
 
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
+  wifi_channel = settings.getUInt("WIFICHANNEL", 2000);
   passwordAP = settings.getString("APPASSWORD", "123456789").c_str();
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
+  mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
-
+  mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();
 
   mqtt_server = settings.getString("MQTTSERVER").c_str();

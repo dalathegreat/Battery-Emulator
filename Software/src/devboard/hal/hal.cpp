@@ -1,7 +1,5 @@
 #include "hal.h"
 
-#include "../../../USER_SETTINGS.h"
-
 #include <Arduino.h>
 
 Esp32Hal* esp32hal = nullptr;

@@ -3,10 +3,6 @@
 
 #include "CanInverterProtocol.h"
 
-#ifdef SOLXPOW_CAN
-#define SELECTED_INVERTER_CLASS SolxpowInverter
-#endif
-
 class SolxpowInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }

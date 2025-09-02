@@ -2,32 +2,23 @@
 #include <ESPmDNS.h>
 #include "../utils/events.h"
 #include "../utils/logging.h"
-#include "USER_SETTINGS.h"
 
-#if defined(WIFI) || defined(WEBSERVER)
-const bool wifi_enabled_default = true;
-#else
-const bool wifi_enabled_default = false;
-#endif
+bool wifi_enabled = true;
+bool wifiap_enabled = true;
+bool mdns_enabled = true;  //If true, allows battery monitor te be found by .local address
+uint16_t wifi_channel = 0;
 
-bool wifi_enabled = wifi_enabled_default;
-
-bool wifiap_enabled = true;  //Old method was with ifdef
-
-#ifdef MDNSRESPONDER
-const bool mdns_enabled_default = true;
-#else
-const bool mdns_enabled_default = false;
-#endif
-bool mdns_enabled = mdns_enabled_default;
-
-#ifdef CUSTOM_HOSTNAME
-std::string custom_hostname = CUSTOM_HOSTNAME;
-#else
-std::string custom_hostname;
-#endif
-
+std::string custom_hostname;  //If not set, the default naming format 'esp32-XXXXXX' will be used
+std::string ssid;
+std::string password;
 std::string ssidAP;
+std::string passwordAP;
+
+// Set your Static IP address. Only used incase Static address option is set
+//TODO: Make configurable via webserver
+IPAddress local_IP(192, 168, 10, 150);
+IPAddress gateway(192, 168, 10, 1);
+IPAddress subnet(255, 255, 255, 0);
 
 // Configuration Parameters
 static const uint16_t WIFI_CHECK_INTERVAL = 2000;       // 1 seconds normal check interval when last connected
@@ -168,7 +159,9 @@ void connectToWiFi() {
   if (WiFi.status() != WL_CONNECTED) {
     lastReconnectAttempt = millis();  // Reset the reconnect attempt timer
     logging.println("Connecting to Wi-Fi...");
-
+    if (wifi_channel > 14) {
+      wifi_channel = 0;
+    }  //prevent users going out of bounds
     DEBUG_PRINTF("Connecting to Wi-Fi SSID: %s, password: %s, Channel: %d\n", ssid.c_str(), password.c_str(),
                  wifi_channel);
     WiFi.begin(ssid.c_str(), password.c_str(), wifi_channel);

@@ -150,13 +150,14 @@ void NissanLeafBattery::
     clear_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ);
   }
 
-#ifdef INTERLOCK_REQUIRED
-  if (!battery_Interlock) {
-    set_event(EVENT_HVIL_FAILURE, 0);
-  } else {
-    clear_event(EVENT_HVIL_FAILURE);
+  if (user_selected_LEAF_interlock_mandatory) {
+    //If user requires both large 80kW and small 6kW interlock to be seated for operation
+    if (!battery_Interlock) {
+      set_event(EVENT_HVIL_FAILURE, 0);
+    } else {
+      clear_event(EVENT_HVIL_FAILURE);
+    }
   }
-#endif
 
   if (battery_HeatExist) {
     if (battery_Heating_Stop) {

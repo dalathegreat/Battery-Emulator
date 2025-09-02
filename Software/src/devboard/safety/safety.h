@@ -3,7 +3,9 @@
 #include <string>
 
 #define MAX_CAN_FAILURES 50
-
+#define BATTERY_MAX_TEMPERATURE_DEVIATION 150  // 150 = 15.0 °C
+#define BATTERY_MAXTEMPERATURE 500
+#define BATTERY_MINTEMPERATURE -250
 #define MAX_CHARGE_DISCHARGE_LIMIT_FAILURES 5
 
 //battery pause status begin

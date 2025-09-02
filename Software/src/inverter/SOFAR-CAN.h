@@ -2,10 +2,6 @@
 #define SOFAR_CAN_H
 #include "CanInverterProtocol.h"
 
-#ifdef SOFAR_CAN
-#define SELECTED_INVERTER_CLASS SofarInverter
-#endif
-
 class SofarInverter : public CanInverterProtocol {
  public:
   bool setup() override;

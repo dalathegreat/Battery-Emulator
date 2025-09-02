@@ -1,14 +1,12 @@
 #ifndef CANINVERTER_PROTOCOL_H
 #define CANINVERTER_PROTOCOL_H
 
-#include "../../USER_SETTINGS.h"
-#include "InverterProtocol.h"
-
 #include "../communication/Transmitter.h"
 #include "../communication/can/CanReceiver.h"
 #include "../communication/can/comm_can.h"
 #include "../devboard/safety/safety.h"
 #include "../devboard/utils/types.h"
+#include "InverterProtocol.h"
 
 class CanInverterProtocol : public InverterProtocol, Transmitter, CanReceiver {
  public:

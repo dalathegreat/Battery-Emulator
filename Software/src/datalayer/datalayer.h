@@ -1,15 +1,16 @@
 #ifndef _DATALAYER_H_
 #define _DATALAYER_H_
 
-#include "../../USER_SETTINGS.h"
 #include "../devboard/utils/types.h"
 #include "../system_settings.h"
 
 struct DATALAYER_BATTERY_INFO_TYPE {
   /** uint32_t */
-  /** Total energy capacity in Watt-hours */
-  uint32_t total_capacity_Wh = BATTERY_WH_MAX;
-  uint32_t reported_total_capacity_Wh = BATTERY_WH_MAX;
+  /** Total energy capacity in Watt-hours 
+   * Automatically updates depending on battery integration OR from settings page
+  */
+  uint32_t total_capacity_Wh = 30000;
+  uint32_t reported_total_capacity_Wh = 30000;
 
   /** uint16_t */
   /** The maximum intended packvoltage, in deciVolt. 4900 = 490.0 V */
@@ -28,7 +29,7 @@ struct DATALAYER_BATTERY_INFO_TYPE {
   uint8_t number_of_cells;
 
   /** Other */
-  /** Chemistry of the pack. NCA, NMC or LFP (so far) */
+  /** Chemistry of the pack. Autodetect, or force specific chemistry */
   battery_chemistry_enum chemistry = battery_chemistry_enum::NCA;
 };
 
@@ -114,29 +115,34 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
 };
 
 struct DATALAYER_BATTERY_SETTINGS_TYPE {
-  /** SOC scaling setting. Set to true to use SOC scaling */
-  bool soc_scaling_active = BATTERY_USE_SCALED_SOC;
+  /** SOC scaling setting. Increases battery life. 
+   * If true will rescale SOC between the configured min/max-percentage */
+  bool soc_scaling_active = true;
   /** Minimum percentage setting. Set this value to the lowest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
-   * will "see" 0% */
-  int16_t min_percentage = BATTERY_MINPERCENTAGE;
+   * will "see" 0% , Example 2000 = 20.0%*/
+  uint16_t min_percentage = 2000;
   /** Maximum percentage setting. Set this value to the highest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
-   * will "see" 100% */
-  uint16_t max_percentage = BATTERY_MAXPERCENTAGE;
+   * will "see" 100% Example 8000 = 80.0%*/
+  uint16_t max_percentage = 8000;
 
-  /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A */
-  uint16_t max_user_set_charge_dA = BATTERY_MAX_CHARGE_AMP;
-  /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A */
-  uint16_t max_user_set_discharge_dA = BATTERY_MAX_DISCHARGE_AMP;
+  /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A 
+   * Updates later on via Settings
+  */
+  uint16_t max_user_set_charge_dA = 300;
+  /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A 
+   * Updates later on via Settings
+  */
+  uint16_t max_user_set_discharge_dA = 300;
 
   /** User specified discharge/charge voltages in use. Set to true to use user specified values */
   /** Some inverters like to see a specific target voltage for charge/discharge. Use these values to override automatic voltage limits*/
-  bool user_set_voltage_limits_active = BATTERY_USE_VOLTAGE_LIMITS;
+  bool user_set_voltage_limits_active = false;
   /** The user specified maximum allowed charge voltage, in deciVolt. 4000 = 400.0 V */
-  uint16_t max_user_set_charge_voltage_dV = BATTERY_MAX_CHARGE_VOLTAGE;
+  uint16_t max_user_set_charge_voltage_dV = 4500;
   /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
-  uint16_t max_user_set_discharge_voltage_dV = BATTERY_MAX_DISCHARGE_VOLTAGE;
+  uint16_t max_user_set_discharge_voltage_dV = 3000;
 
   /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset */
   uint16_t user_set_bms_reset_duration_ms = 30000;
