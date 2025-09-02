@@ -42,6 +42,10 @@
 
 extern const char* version_number;  // The current software version, used for mqtt
 
+extern bool mqtt_enabled;
+extern bool mqtt_transmit_all_cellvoltages;
+extern uint16_t mqtt_timeout_ms;
+extern bool ha_autodiscovery_enabled;
 extern std::string mqtt_server;
 extern std::string mqtt_user;
 extern std::string mqtt_password;
@@ -56,8 +60,5 @@ extern char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 bool init_mqtt(void);
 void mqtt_loop(void);
 bool mqtt_publish(const char* topic, const char* mqtt_msg, bool retain);
-
-extern bool mqtt_enabled;
-extern bool ha_autodiscovery_enabled;
 
 #endif

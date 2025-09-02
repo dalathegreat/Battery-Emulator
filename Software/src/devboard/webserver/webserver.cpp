@@ -396,9 +396,10 @@ void init_webserver() {
   };
 
   const char* boolSettingNames[] = {
-      "DBLBTR",     "CNTCTRL",    "CNTCTRLDBL", "PWMCNTCTRL", "PERBMSRESET", "SDLOGENABLED",  "REMBMSRESET",
-      "USBENABLED", "CANLOGUSB",  "WEBENABLED", "CANFDASCAN", "CANLOGSD",    "WIFIAPENABLED", "MQTTENABLED",
-      "HADISC",     "MQTTTOPICS", "INVICNT",    "GTWRHD",     "DIGITALHVIL", "PERFPROFILE",   "INTERLOCKREQ",
+      "DBLBTR",      "CNTCTRL",       "CNTCTRLDBL",  "PWMCNTCTRL",  "PERBMSRESET", "SDLOGENABLED",
+      "REMBMSRESET", "EXTPRECHARGE",  "USBENABLED",  "CANLOGUSB",   "WEBENABLED",  "CANFDASCAN",
+      "CANLOGSD",    "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC",   "HADISC",      "MQTTTOPICS",
+      "MQTTCELLV",   "INVICNT",       "GTWRHD",      "DIGITALHVIL", "PERFPROFILE", "INTERLOCKREQ",
   };
 
   // Handles the form POST from UI to save settings of the common image
@@ -459,6 +460,9 @@ void init_webserver() {
       } else if (p->name() == "SHUNTCOMM") {
         auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
         settings.saveUInt("SHUNTCOMM", (int)type);
+      } else if (p->name() == "MAXPRETIME") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("MAXPRETIME", type);
       } else if (p->name() == "HOSTNAME") {
         settings.saveString("HOSTNAME", p->value().c_str());
       } else if (p->name() == "MQTTSERVER") {
@@ -472,6 +476,8 @@ void init_webserver() {
         settings.saveString("MQTTPASSWORD", p->value().c_str());
       } else if (p->name() == "MQTTTOPIC") {
         settings.saveString("MQTTTOPIC", p->value().c_str());
+      } else if (p->name() == "MQTTTIMEOUT") {
+        settings.saveString("MQTTTIMEOUT", p->value().c_str());
       } else if (p->name() == "MQTTOBJIDPREFIX") {
         settings.saveString("MQTTOBJIDPREFIX", p->value().c_str());
       } else if (p->name() == "MQTTDEVICENAME") {

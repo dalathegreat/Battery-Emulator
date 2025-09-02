@@ -16,6 +16,8 @@
 
 bool mqtt_enabled = false;
 bool ha_autodiscovery_enabled = false;
+bool mqtt_transmit_all_cellvoltages = false;
+uint16_t mqtt_timeout_ms = 2000;
 
 const int mqtt_port_default = 0;
 const char* mqtt_server_default = "";
@@ -29,10 +31,7 @@ bool mqtt_manual_topic_object_name =
 // This naming convention was in place until version 7.5.0. Users should check the version from which they are updating, as this change
 // may break compatibility with previous versions of MQTT naming
 
-#define MQTT_PUBLISH_CELL_VOLTAGES  // Enable this line to publish cell voltages to MQTT
-#define MQTT_QOS 0                  // MQTT Quality of Service (0, 1, or 2)
-#define MQTT_TIMEOUT 2000           // MQTT timeout in milliseconds
-    //TODO: Should all these defines be a configurable option?
+#define MQTT_QOS 0  // MQTT Quality of Service (0, 1, or 2) //TODO: Should this be configurable?
 
 esp_mqtt_client_config_t mqtt_cfg;
 esp_mqtt_client_handle_t client;
@@ -67,17 +66,17 @@ static void publish_values(void) {
     return;
   }
 
-#ifdef MQTT_PUBLISH_CELL_VOLTAGES
-  if (publish_cell_voltages() == false) {
-    return;
+  if (mqtt_transmit_all_cellvoltages) {
+    if (publish_cell_voltages() == false) {
+      return;
+    }
   }
-#endif
 
-#ifdef MQTT_PUBLISH_CELL_VOLTAGES
-  if (publish_cell_balancing() == false) {
-    return;
+  if (mqtt_transmit_all_cellvoltages) {
+    if (publish_cell_balancing() == false) {
+      return;
+    }
   }
-#endif
 }
 
 static bool ha_common_info_published = false;
@@ -655,7 +654,7 @@ bool init_mqtt(void) {
   mqtt_cfg.session.last_will.retain = true;
   mqtt_cfg.session.last_will.msg = "offline";
   mqtt_cfg.session.last_will.msg_len = strlen(mqtt_cfg.session.last_will.msg);
-  mqtt_cfg.network.timeout_ms = MQTT_TIMEOUT;
+  mqtt_cfg.network.timeout_ms = mqtt_timeout_ms;
   client = esp_mqtt_client_init(&mqtt_cfg);
 
   if (client == nullptr) {

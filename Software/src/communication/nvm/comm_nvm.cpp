@@ -8,6 +8,7 @@
 #include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
+#include "../precharge_control/precharge_control.h"
 
 // Parameters
 Preferences settings;  // Store user settings
@@ -142,6 +143,10 @@ void init_stored_settings() {
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
 
+  precharge_control_enabled = settings.getBool("EXTPRECHARGE", false);
+  precharge_inverter_normally_open_contactor = settings.getBool("NOINVDISC", false);
+  precharge_max_precharge_time_before_fault = settings.getUInt("MAXPRETIME", 15000);
+
   datalayer.system.info.performance_measurement_active = settings.getBool("PERFPROFILE", false);
   datalayer.system.info.CAN_usb_logging_active = settings.getBool("CANLOGUSB", false);
   datalayer.system.info.usb_logging_active = settings.getBool("USBENABLED", false);
@@ -154,8 +159,9 @@ void init_stored_settings() {
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
   passwordAP = settings.getString("APPASSWORD", "123456789").c_str();
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
+  mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
-
+  mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();
 
   mqtt_server = settings.getString("MQTTSERVER").c_str();

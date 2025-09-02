@@ -7,10 +7,6 @@
 /* Shunt/Contactor settings (Optional) */
 //#define BMW_SBOX  // SBOX relay control & battery current/voltage measurement
 
-/* Automatic Precharge settings (Optional) If you have a battery that expects an external voltage applied before opening contactors (within the battery), configure this section */
-//#define PRECHARGE_CONTROL      //Enable this line to control a modified HIA4V1 via PWM on the HIA4V1_PIN (see Wiki and HAL for pin definition)
-//#define INVERTER_DISCONNECT_CONTACTOR_IS_NORMALLY_OPEN //Enable this line if you use a normally open contactor instead of normally closed
-
 /* Connectivity options */
 //#define WIFICONFIG  //Enable this line to set a static IP address / gateway /subnet mask for the device. see USER_SETTINGS.cpp for the settings
 
