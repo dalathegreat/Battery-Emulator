@@ -22,6 +22,7 @@ typedef struct {
   CAN_Interface charger;
   CAN_Interface shunt;
 } CAN_Configuration;
+
 extern volatile CAN_Configuration can_config;
 
 enum class CAN_Speed {
