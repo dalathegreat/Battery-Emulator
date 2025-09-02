@@ -166,6 +166,20 @@ void init_stored_settings() {
   mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();
 
+  static_IP_enabled = settings.getBool("STATICIP", false);
+  static_local_IP1 = settings.getUInt("LOCALIP1", 192);
+  static_local_IP2 = settings.getUInt("LOCALIP2", 168);
+  static_local_IP3 = settings.getUInt("LOCALIP3", 10);
+  static_local_IP4 = settings.getUInt("LOCALIP4", 150);
+  static_gateway1 = settings.getUInt("GATEWAY1", 192);
+  static_gateway2 = settings.getUInt("GATEWAY2", 168);
+  static_gateway3 = settings.getUInt("GATEWAY3", 10);
+  static_gateway4 = settings.getUInt("GATEWAY4", 1);
+  static_subnet1 = settings.getUInt("SUBNET1", 255);
+  static_subnet2 = settings.getUInt("SUBNET2", 255);
+  static_subnet3 = settings.getUInt("SUBNET3", 255);
+  static_subnet4 = settings.getUInt("SUBNET4", 0);
+
   mqtt_server = settings.getString("MQTTSERVER").c_str();
   mqtt_port = settings.getUInt("MQTTPORT", 0);
   mqtt_user = settings.getString("MQTTUSER").c_str();
