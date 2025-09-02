@@ -3,10 +3,6 @@
 
 #include "CanInverterProtocol.h"
 
-#ifdef FERROAMP_CAN
-#define SELECTED_INVERTER_CLASS FerroampCanInverter
-#endif
-
 class FerroampCanInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }

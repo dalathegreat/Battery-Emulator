@@ -1,10 +1,6 @@
 #ifndef BYD_CAN_H
 #define BYD_CAN_H
 
-#ifdef BYD_CAN
-#define SELECTED_INVERTER_CLASS BydCanInverter
-#endif
-
 #include "../../USER_SETTINGS.h"
 #include "../datalayer/datalayer.h"
 #include "CanInverterProtocol.h"

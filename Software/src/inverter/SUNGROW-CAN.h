@@ -3,10 +3,6 @@
 
 #include "CanInverterProtocol.h"
 
-#ifdef SUNGROW_CAN
-#define SELECTED_INVERTER_CLASS SungrowInverter
-#endif
-
 class SungrowInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }

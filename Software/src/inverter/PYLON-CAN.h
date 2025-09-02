@@ -3,10 +3,6 @@
 
 #include "CanInverterProtocol.h"
 
-#ifdef PYLON_CAN
-#define SELECTED_INVERTER_CLASS PylonInverter
-#endif
-
 class PylonInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }

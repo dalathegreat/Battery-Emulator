@@ -30,7 +30,7 @@
 #include "src/inverter/INVERTERS.h"
 
 #if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_DEVKIT)
-#error You must select a target hardware in the USER_SETTINGS.h file!
+#error You must select a target hardware!
 #endif
 
 // The current software version, shown on webserver
@@ -396,9 +396,10 @@ void core_loop(void*) {
       }
       led_exe();
       handle_contactors();  // Take care of startup precharge/contactor closing
-#ifdef PRECHARGE_CONTROL
-      handle_precharge_control(currentMillis);
-#endif  // PRECHARGE_CONTROL
+      if (precharge_control_enabled) {
+        handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
+      }
+
       if (datalayer.system.info.performance_measurement_active) {
         END_TIME_MEASUREMENT_MAX(10ms, datalayer.system.status.time_10ms_us);
       }

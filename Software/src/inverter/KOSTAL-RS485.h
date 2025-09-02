@@ -3,11 +3,6 @@
 #include <stdint.h>
 #include "Rs485InverterProtocol.h"
 
-#ifdef BYD_KOSTAL_RS485
-#define RS485_INVERTER_SELECTED
-#define SELECTED_INVERTER_CLASS KostalInverterProtocol
-#endif
-
 class KostalInverterProtocol : public Rs485InverterProtocol {
  public:
   const char* name() override { return Name; }

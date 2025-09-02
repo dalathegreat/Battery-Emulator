@@ -3,10 +3,6 @@
 
 #include "CanInverterProtocol.h"
 
-#ifdef SCHNEIDER_CAN
-#define SELECTED_INVERTER_CLASS SchneiderInverter
-#endif
-
 class SchneiderInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }
