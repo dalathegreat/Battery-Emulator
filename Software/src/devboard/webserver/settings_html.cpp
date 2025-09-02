@@ -290,6 +290,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
   }
 
+  if (var == "WIFICHANNEL") {
+    return String(settings.getUInt("WIFICHANNEL", 0));
+  }
+
   if (var == "PERFPROFILE") {
     return settings.getBool("PERFPROFILE") ? "checked" : "";
   }
@@ -867,7 +871,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
     <h4 style='color: white;'>SSID: <span id='SSID'>%SSID%</span><button onclick='editSSID()'>Edit</button></h4>
     <h4 style='color: white;'>Password: ######## <span id='Password'></span> <button onclick='editPassword()'>Edit</button></h4>
-    
+
     <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
     <div style='max-width: 500px;'>
         <form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
@@ -1042,15 +1046,16 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
           <label>Normally Open inverter disconnect contactor: </label>
           <input type='checkbox' name='NOINVDISC' value='on' style='margin-left: 0;' %NOINVDISC% />
-              </div>
-
         </div>
 
         <label>Use CanFD as classic CAN: </label>
         <input type='checkbox' name='CANFDASCAN' value='on' style='margin-left: 0;' %CANFDASCAN% /> 
 
-        <label>Enable WiFi AP: </label>
+        <label>Enable Wifi access point: </label>
         <input type='checkbox' name='WIFIAPENABLED' value='on' style='margin-left: 0;' %WIFIAPENABLED% />
+
+        <label>Wifi channel 0-14: </label>
+        <input name='WIFICHANNEL' type='text' value="%WIFICHANNEL%" pattern="^[0-9]+$" />
 
         <label>Custom hostname: </label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" />

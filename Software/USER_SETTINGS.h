@@ -21,7 +21,6 @@ typedef struct {
 } CAN_Configuration;
 extern volatile CAN_Configuration can_config;
 extern volatile uint8_t AccessPointEnabled;
-extern const uint8_t wifi_channel;
 extern volatile float CHARGER_SET_HV;
 extern volatile float CHARGER_MAX_HV;
 extern volatile float CHARGER_MIN_HV;

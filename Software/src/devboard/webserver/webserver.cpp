@@ -463,6 +463,9 @@ void init_webserver() {
       } else if (p->name() == "MAXPRETIME") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("MAXPRETIME", type);
+      } else if (p->name() == "WIFICHANNEL") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("WIFICHANNEL", type);
       } else if (p->name() == "HOSTNAME") {
         settings.saveString("HOSTNAME", p->value().c_str());
       } else if (p->name() == "MQTTSERVER") {

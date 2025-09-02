@@ -7,6 +7,7 @@
 bool wifi_enabled = true;
 bool wifiap_enabled = true;
 bool mdns_enabled = true;  //If true, allows battery monitor te be found by .local address
+uint16_t wifi_channel = 0;
 
 std::string custom_hostname;  //If not set, the default naming format 'esp32-XXXXXX' will be used
 std::string ssidAP;
@@ -150,7 +151,9 @@ void connectToWiFi() {
   if (WiFi.status() != WL_CONNECTED) {
     lastReconnectAttempt = millis();  // Reset the reconnect attempt timer
     logging.println("Connecting to Wi-Fi...");
-
+    if (wifi_channel > 14) {
+      wifi_channel = 0;
+    }  //prevent users going out of bounds
     DEBUG_PRINTF("Connecting to Wi-Fi SSID: %s, password: %s, Channel: %d\n", ssid.c_str(), password.c_str(),
                  wifi_channel);
     WiFi.begin(ssid.c_str(), password.c_str(), wifi_channel);
