@@ -2,7 +2,6 @@
 #include <ESPmDNS.h>
 #include "../utils/events.h"
 #include "../utils/logging.h"
-#include "USER_SETTINGS.h"
 
 bool wifi_enabled = true;
 bool wifiap_enabled = true;
@@ -14,6 +13,12 @@ std::string ssid;
 std::string password;
 std::string ssidAP;
 std::string passwordAP;
+
+// Set your Static IP address. Only used incase Static address option is set
+//TODO: Make configurable via webserver
+IPAddress local_IP(192, 168, 10, 150);
+IPAddress gateway(192, 168, 10, 1);
+IPAddress subnet(255, 255, 255, 0);
 
 // Configuration Parameters
 static const uint16_t WIFI_CHECK_INTERVAL = 2000;       // 1 seconds normal check interval when last connected

@@ -2,8 +2,8 @@
 #define __LOGGING_H__
 
 #include <inttypes.h>
-#include "../../../USER_SETTINGS.h"
 #include "../../datalayer/datalayer.h"
+#include "Print.h"
 #include "types.h"
 
 #ifndef UNIT_TEST

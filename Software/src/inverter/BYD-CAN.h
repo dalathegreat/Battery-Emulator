@@ -1,7 +1,6 @@
 #ifndef BYD_CAN_H
 #define BYD_CAN_H
 
-#include "../../USER_SETTINGS.h"
 #include "../datalayer/datalayer.h"
 #include "CanInverterProtocol.h"
 

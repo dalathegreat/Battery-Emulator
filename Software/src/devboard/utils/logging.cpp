@@ -1,5 +1,4 @@
 #include "logging.h"
-#include "../../../USER_SETTINGS.h"
 #include "../../datalayer/datalayer.h"
 #include "../sdcard/sdcard.h"
 
