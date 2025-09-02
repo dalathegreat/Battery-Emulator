@@ -15,10 +15,19 @@ std::string ssidAP;
 std::string passwordAP;
 
 // Set your Static IP address. Only used incase Static address option is set
-//TODO: Make configurable via webserver
-IPAddress local_IP(192, 168, 10, 150);
-IPAddress gateway(192, 168, 10, 1);
-IPAddress subnet(255, 255, 255, 0);
+bool static_IP_enabled = false;
+uint16_t static_local_IP1 = 0;
+uint16_t static_local_IP2 = 0;
+uint16_t static_local_IP3 = 0;
+uint16_t static_local_IP4 = 0;
+uint16_t static_gateway1 = 0;
+uint16_t static_gateway2 = 0;
+uint16_t static_gateway3 = 0;
+uint16_t static_gateway4 = 0;
+uint16_t static_subnet1 = 0;
+uint16_t static_subnet2 = 0;
+uint16_t static_subnet3 = 0;
+uint16_t static_subnet4 = 0;
 
 // Configuration Parameters
 static const uint16_t WIFI_CHECK_INTERVAL = 2000;       // 1 seconds normal check interval when last connected
@@ -62,11 +71,16 @@ void init_WiFi() {
   // Set WiFi to auto reconnect
   WiFi.setAutoReconnect(true);
 
-#ifdef WIFICONFIG
-  // Set static IP
-  WiFi.config(local_IP, gateway, subnet);
-#endif
-
+  if (static_IP_enabled) {
+    // Set static IP
+    IPAddress local_IP((uint8_t)static_local_IP1, (uint8_t)static_local_IP2, (uint8_t)static_local_IP3,
+                       (uint8_t)static_local_IP4);
+    IPAddress gateway((uint8_t)static_gateway1, (uint8_t)static_gateway2, (uint8_t)static_gateway3,
+                      (uint8_t)static_gateway4);
+    IPAddress subnet((uint8_t)static_subnet1, (uint8_t)static_subnet2, (uint8_t)static_subnet3,
+                     (uint8_t)static_subnet4);
+    WiFi.config(local_IP, gateway, subnet);
+  }
   DEBUG_PRINTF("init_Wifi set event handlers\n");
 
   // Initialize Wi-Fi event handlers

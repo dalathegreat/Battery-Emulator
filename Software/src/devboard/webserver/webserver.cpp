@@ -397,10 +397,10 @@ void init_webserver() {
   };
 
   const char* boolSettingNames[] = {
-      "DBLBTR",      "CNTCTRL",       "CNTCTRLDBL",  "PWMCNTCTRL",  "PERBMSRESET", "SDLOGENABLED",
-      "REMBMSRESET", "EXTPRECHARGE",  "USBENABLED",  "CANLOGUSB",   "WEBENABLED",  "CANFDASCAN",
-      "CANLOGSD",    "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC",   "HADISC",      "MQTTTOPICS",
-      "MQTTCELLV",   "INVICNT",       "GTWRHD",      "DIGITALHVIL", "PERFPROFILE", "INTERLOCKREQ",
+      "DBLBTR",        "CNTCTRL",      "CNTCTRLDBL",  "PWMCNTCTRL",   "PERBMSRESET", "SDLOGENABLED", "STATICIP",
+      "REMBMSRESET",   "EXTPRECHARGE", "USBENABLED",  "CANLOGUSB",    "WEBENABLED",  "CANFDASCAN",   "CANLOGSD",
+      "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",   "HADISC",       "MQTTTOPICS",  "MQTTCELLV",    "INVICNT",
+      "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE", "INTERLOCKREQ",
   };
 
   // Handles the form POST from UI to save settings of the common image
@@ -467,6 +467,42 @@ void init_webserver() {
       } else if (p->name() == "WIFICHANNEL") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("WIFICHANNEL", type);
+      } else if (p->name() == "LOCALIP1") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LOCALIP1", type);
+      } else if (p->name() == "LOCALIP2") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LOCALIP2", type);
+      } else if (p->name() == "LOCALIP3") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LOCALIP3", type);
+      } else if (p->name() == "LOCALIP4") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LOCALIP4", type);
+      } else if (p->name() == "GATEWAY1") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GATEWAY1", type);
+      } else if (p->name() == "GATEWAY2") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GATEWAY2", type);
+      } else if (p->name() == "GATEWAY3") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GATEWAY3", type);
+      } else if (p->name() == "GATEWAY4") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GATEWAY4", type);
+      } else if (p->name() == "SUBNET1") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SUBNET1", type);
+      } else if (p->name() == "SUBNET2") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SUBNET2", type);
+      } else if (p->name() == "SUBNET3") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SUBNET3", type);
+      } else if (p->name() == "SUBNET4") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SUBNET4", type);
       } else if (p->name() == "HOSTNAME") {
         settings.saveString("HOSTNAME", p->value().c_str());
       } else if (p->name() == "MQTTSERVER") {

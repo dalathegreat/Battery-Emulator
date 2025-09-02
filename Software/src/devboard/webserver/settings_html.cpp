@@ -291,8 +291,60 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
   }
 
+  if (var == "STATICIP") {
+    return settings.getBool("STATICIP") ? "checked" : "";
+  }
+
   if (var == "WIFICHANNEL") {
     return String(settings.getUInt("WIFICHANNEL", 0));
+  }
+
+  if (var == "LOCALIP1") {
+    return String(settings.getUInt("LOCALIP1", 0));
+  }
+
+  if (var == "LOCALIP2") {
+    return String(settings.getUInt("LOCALIP2", 0));
+  }
+
+  if (var == "LOCALIP3") {
+    return String(settings.getUInt("LOCALIP3", 0));
+  }
+
+  if (var == "LOCALIP4") {
+    return String(settings.getUInt("LOCALIP4", 0));
+  }
+
+  if (var == "GATEWAY1") {
+    return String(settings.getUInt("GATEWAY1", 0));
+  }
+
+  if (var == "GATEWAY2") {
+    return String(settings.getUInt("GATEWAY2", 0));
+  }
+
+  if (var == "GATEWAY3") {
+    return String(settings.getUInt("GATEWAY3", 0));
+  }
+
+  if (var == "GATEWAY4") {
+    return String(settings.getUInt("GATEWAY4", 0));
+  }
+
+  if (var == "SUBNET1") {
+    return String(settings.getUInt("SUBNET1", 0));
+  }
+
+  if (var == "SUBNET2") {
+    return String(settings.getUInt("SUBNET2", 0));
+  }
+
+  if (var == "SUBNET3") {
+    return String(settings.getUInt("SUBNET3", 0));
+  }
+
+  if (var == "SUBNET4") {
+    return String(settings.getUInt("SUBNET4", 0));
   }
 
   if (var == "PERFPROFILE") {
@@ -852,6 +904,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-staticip { display: none; }
+    form[data-staticip="true"] .if-staticip {
+      display: contents;
+    }
+
     form .if-mqtt { display: none; }
     form[data-mqttenabled="true"] .if-mqtt {
       display: contents;
@@ -869,40 +926,41 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   R"rawliteral(
   <button onclick='goToMainPage()'>Back to main page</button>
 
-  <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
+<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
     <h4 style='color: white;'>SSID: <span id='SSID'>%SSID%</span><button onclick='editSSID()'>Edit</button></h4>
     <h4 style='color: white;'>Password: ######## <span id='Password'></span> <button onclick='editPassword()'>Edit</button></h4>
+</div>
 
-    <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
-    <div style='max-width: 500px;'>
+<div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
         <form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
-
-        <label for='battery'>Battery: </label><select name='battery' if='battery'>
-        %BATTTYPE%
+            
+        <label for='battery'>Battery: </label>
+        <select name='battery' id='battery'>
+            %BATTTYPE%
         </select>
 
         <div class="if-nissan">
-        <label>Interlock required: </label>
-        <input type='checkbox' name='INTERLOCKREQ' value='on' style='margin-left: 0;' %INTERLOCKREQ% />
+            <label for='interlock'>Interlock required: </label>
+            <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
         </div>
 
         <div class="if-tesla">
-        <label>Digital HVIL (2024+): </label>
-        <input type='checkbox' name='DIGITALHVIL' value='on' style='margin-left: 0;' %DIGITALHVIL% />
-        <label>Right hand drive: </label>
-        <input type='checkbox' name='GTWRHD' value='on' style='margin-left: 0;' %GTWRHD% />
-        <label for='GTWCOUNTRY'>Country code: </label><select name='GTWCOUNTRY' id='GTWCOUNTRY'>
-        %GTWCOUNTRY%
-        </select>
-        <label for='GTWMAPREG'>Map region: </label><select name='GTWMAPREG' id='GTWMAPREG'>
-        %GTWMAPREG%
-        </select>
-        <label for='GTWCHASSIS'>Chassis type: </label><select name='GTWCHASSIS' id='GTWCHASSIS'>
-        %GTWCHASSIS%
-        </select>
-        <label for='GTWPACK'>Pack type: </label><select name='GTWPACK' id='GTWPACK'>
-        %GTWPACK%
-        </select>
+          <label for='digitalhvil'>Digital HVIL (2024+): </label>
+          <input type='checkbox' name='DIGITALHVIL' id='digitalhvil' value='on' %DIGITALHVIL% />
+          <label>Right hand drive: </label>
+          <input type='checkbox' name='GTWRHD' value='on' %GTWRHD% />
+          <label for='GTWCOUNTRY'>Country code: </label><select name='GTWCOUNTRY' id='GTWCOUNTRY'>
+          %GTWCOUNTRY%
+          </select>
+          <label for='GTWMAPREG'>Map region: </label><select name='GTWMAPREG' id='GTWMAPREG'>
+          %GTWMAPREG%
+          </select>
+          <label for='GTWCHASSIS'>Chassis type: </label><select name='GTWCHASSIS' id='GTWCHASSIS'>
+          %GTWCHASSIS%
+          </select>
+          <label for='GTWPACK'>Pack type: </label><select name='GTWPACK' id='GTWPACK'>
+          %GTWPACK%
+          </select>
         </div>
 
         <div class="if-battery">
@@ -970,7 +1028,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input name='INVBTYPE' type='text' value="%INVBTYPE%" pattern="^[0-9]+$" />
 
         <label>Inverter should ignore contactors: </label>
-        <input type='checkbox' name='INVICNT' value='on' style='margin-left: 0;' %INVICNT% />
+        <input type='checkbox' name='INVICNT' value='on' %INVICNT% />
         </div>
 
         <label>Charger: </label><select name='charger'>
@@ -1000,8 +1058,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         %EQSTOP%  
         </select>
 
+        <label>Use CanFD as classic CAN: </label>
+        <input type='checkbox' name='CANFDASCAN' value='on' %CANFDASCAN% /> 
+
         <label>Double battery: </label>
-        <input type='checkbox' name='DBLBTR' value='on' style='margin-left: 0;' %DBLBTR% />
+        <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% />
 
         <div class="if-dblbtr">
             <label>Battery 2 comm I/F: </label>
@@ -1009,18 +1070,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
                 %BATT2COMM%
             </select>
             <label>Contactor control via GPIO double battery: </label>
-            <input type='checkbox' name='CNTCTRLDBL' value='on' style='margin-left: 0;' %CNTCTRLDBL% />
+            <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
         </div>
 
         <label>Contactor control via GPIO: </label>
-        <input type='checkbox' name='CNTCTRL' value='on' style='margin-left: 0;' %CNTCTRL% />
+        <input type='checkbox' name='CNTCTRL' value='on' %CNTCTRL% />
 
         <div class="if-cntctrl">
             <label>Precharge time ms: </label>
             <input name='PRECHGMS' type='text' value="%PRECHGMS%" pattern="^[0-9]+$" />
 
             <label>PWM contactor control: </label>
-            <input type='checkbox' name='PWMCNTCTRL' value='on' style='margin-left: 0;' %PWMCNTCTRL% />
+            <input type='checkbox' name='PWMCNTCTRL' value='on' %PWMCNTCTRL% />
 
              <div class="if-pwmcntctrl">
             <label>PWM Frequency Hz: </label>
@@ -1033,58 +1094,85 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <label>Periodic BMS reset: </label>
-        <input type='checkbox' name='PERBMSRESET' value='on' style='margin-left: 0;' %PERBMSRESET% /> 
+        <input type='checkbox' name='PERBMSRESET' value='on' %PERBMSRESET% /> 
 
         <label>Remote BMS reset: </label>
-        <input type='checkbox' name='REMBMSRESET' value='on' style='margin-left: 0;' %REMBMSRESET% />
+        <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
 
         <label>External precharge via HIA4V1: </label>
-        <input type='checkbox' name='EXTPRECHARGE' value='on' style='margin-left: 0;' %EXTPRECHARGE% />
+        <input type='checkbox' name='EXTPRECHARGE' value='on' %EXTPRECHARGE% />
 
         <div class="if-extprecharge">
             <label>Precharge, maximum ms before fault: </label>
             <input name='MAXPRETIME' type='text' value="%MAXPRETIME%" pattern="^[0-9]+$" />
 
           <label>Normally Open inverter disconnect contactor: </label>
-          <input type='checkbox' name='NOINVDISC' value='on' style='margin-left: 0;' %NOINVDISC% />
+          <input type='checkbox' name='NOINVDISC' value='on' %NOINVDISC% />
         </div>
 
-        <label>Use CanFD as classic CAN: </label>
-        <input type='checkbox' name='CANFDASCAN' value='on' style='margin-left: 0;' %CANFDASCAN% /> 
-
-        <label>Enable Wifi access point: </label>
-        <input type='checkbox' name='WIFIAPENABLED' value='on' style='margin-left: 0;' %WIFIAPENABLED% />
+        <label>Broadcast Wifi access point: </label>
+        <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
 
         <label>Wifi channel 0-14: </label>
         <input name='WIFICHANNEL' type='text' value="%WIFICHANNEL%" pattern="^[0-9]+$" />
 
-        <label>Custom hostname: </label>
+        <label>Custom Wifi hostname: </label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" />
 
+        <label>Use static IP address: </label>
+        <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
+
+        <div class='if-staticip'>
+        <div>
+          <div>Local IP:</div>
+          <input type="number" name="LOCALIP1" min="0" max="255" size="3" value="%LOCALIP1%">.
+          <input type="number" name="LOCALIP2" min="0" max="255" size="3" value="%LOCALIP2%">.
+          <input type="number" name="LOCALIP3" min="0" max="255" size="3" value="%LOCALIP3%">.
+          <input type="number" name="LOCALIP4" min="0" max="255" size="3" value="%LOCALIP4%">
+        </div>
+            
+        <div>
+            <div>Gateway:</div>
+            <input type="number" name="GATEWAY1" min="0" max="255" size="3" value="%GATEWAY1%">.
+            <input type="number" name="GATEWAY2" min="0" max="255" size="3" value="%GATEWAY2%">.
+            <input type="number" name="GATEWAY3" min="0" max="255" size="3" value="%GATEWAY3%">.
+            <input type="number" name="GATEWAY4" min="0" max="255" size="3" value="%GATEWAY4%">
+        </div>
+    
+        <div>
+          <div>Subnet:</div>
+          <input type="number" name="SUBNET1" min="0" max="255" size="3" value="%SUBNET1%">.
+          <input type="number" name="SUBNET2" min="0" max="255" size="3" value="%SUBNET2%">.
+          <input type="number" name="SUBNET3" min="0" max="255" size="3" value="%SUBNET3%">.
+          <input type="number" name="SUBNET4" min="0" max="255" size="3" value="%SUBNET4%">
+        </div>
+        <div></div>
+        </div>
+
         <label>Enable performance profiling: </label>
-        <input type='checkbox' name='PERFPROFILE' value='on' style='margin-left: 0;' %PERFPROFILE% />
+        <input type='checkbox' name='PERFPROFILE' value='on' %PERFPROFILE% />
 
         <label>Enable CAN logging via USB serial: </label>
-        <input type='checkbox' name='CANLOGUSB' value='on' style='margin-left: 0;' %CANLOGUSB% />
+        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB% />
 
         <label>Enable logging via USB serial: </label>
-        <input type='checkbox' name='USBENABLED' value='on' style='margin-left: 0;' %USBENABLED% />
+        <input type='checkbox' name='USBENABLED' value='on' %USBENABLED% />
 
         <label>Enable logging via Webserver: </label>
-        <input type='checkbox' name='WEBENABLED' value='on' style='margin-left: 0;' %WEBENABLED% />
+        <input type='checkbox' name='WEBENABLED' value='on' %WEBENABLED% />
 
         <label>Enable CAN logging via SD card: </label>
-        <input type='checkbox' name='CANLOGSD' value='on' style='margin-left: 0;' %CANLOGSD% />
+        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% />
 
         <label>Enable logging via SD card: </label>
-        <input type='checkbox' name='SDLOGENABLED' value='on' style='margin-left: 0;' %SDLOGENABLED% />
+        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% />
 
         <label for='LEDMODE'>Status LED pattern: </label><select name='LEDMODE' id='LEDMODE'>
         %LEDMODE%
         </select>
 
         <label>Enable MQTT: </label>
-        <input type='checkbox' name='MQTTENABLED' value='on' style='margin-left: 0;' %MQTTENABLED% />
+        <input type='checkbox' name='MQTTENABLED' value='on' %MQTTENABLED% />
 
         <div class='if-mqtt'>
         <label>MQTT server: </label><input type='text' name='MQTTSERVER' value="%MQTTSERVER%" />
@@ -1092,9 +1180,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%" />
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" />
         <label>MQTT timeout ms: </label><input name='MQTTTIMEOUT' type='text' value="%MQTTTIMEOUT%" pattern="^[0-9]+$" />
-        <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' style='margin-left: 0;' %MQTTCELLV% />
+        <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
         <label>Customized MQTT topics: </label>
-        <input type='checkbox' name='MQTTTOPICS' value='on' style='margin-left: 0;' %MQTTTOPICS% />
+        <input type='checkbox' name='MQTTTOPICS' value='on' %MQTTTOPICS% />
 
         <div class='if-topics'>
 
@@ -1106,14 +1194,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <label>Enable Home Assistant auto discovery: </label>
-        <input type='checkbox' name='HADISC' value='on' style='margin-left: 0;' %HADISC% />
+        <input type='checkbox' name='HADISC' value='on' %HADISC% />
 
         </div>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button type='submit'>Save</button></div>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
-          <p>Settings saved. Reboot to take the settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
+          <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
         </div>
 
         </form>
