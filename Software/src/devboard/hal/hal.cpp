@@ -22,6 +22,9 @@ void init_hal() {
 #elif defined(HW_DEVKIT)
 #include "hw_devkit.h"
   esp32hal = new DevKitHal();
+#elif defined(HW_C6)
+#include "hw_c6.h"
+  esp32hal = new C6Hal();
 #else
 #error "No HW defined."
 #endif

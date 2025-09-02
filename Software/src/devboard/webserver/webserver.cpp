@@ -278,6 +278,7 @@ void init_webserver() {
       handleFileUpload);
 
   if (datalayer.system.info.CAN_SD_logging_active) {
+#ifdef ENABLE_SDCARD
     // Define the handler to export can log
     server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
       pause_can_writing();
@@ -290,6 +291,7 @@ void init_webserver() {
       delete_can_log();
       request->send(200, "text/plain", "Log file deleted");
     });
+#endif  // ENABLE_SDCARD
   } else {
     // Define the handler to export can log
     server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -320,6 +322,7 @@ void init_webserver() {
   }
 
   if (datalayer.system.info.SD_logging_active) {
+#ifdef ENABLE_SDCARD
     // Define the handler to delete log file
     server.on("/delete_log", HTTP_GET, [](AsyncWebServerRequest* request) {
       delete_log();
@@ -332,6 +335,7 @@ void init_webserver() {
       request->send(SD_MMC, LOG_FILE, String(), true);
       resume_log_writing();
     });
+#endif  // ENABLE_SDCARD
   } else {
     // Define the handler to export debug log
     server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {

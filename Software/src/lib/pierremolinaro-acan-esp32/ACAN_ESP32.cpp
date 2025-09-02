@@ -290,7 +290,8 @@ void ACAN_ESP32::end (void) {
   }
 
 //--------------------------------- Disable CAN module
-  periph_module_disable (PERIPH_TWAI_MODULE) ;
+//TODO: Fix
+ // periph_module_disable (PERIPH_TWAI_MODULE) ;
 }
 
 //------------------------------------------------------------------------------

@@ -18,6 +18,7 @@ enum class comm_interface {
   CanFdNative = 4,
   CanAddonMcp2515 = 5,
   CanFdAddonMcp2518 = 6,
+  CanNative2 = 7,
   Highest
 };
 
@@ -68,7 +69,10 @@ enum CAN_Interface {
   CAN_ADDON_MCP2515 = 2,
 
   // Add-on CAN-FD MCP2518 connected to GPIO pins
-  CANFD_ADDON_MCP2518 = 3
+  CANFD_ADDON_MCP2518 = 3,
+
+  // Second Native CAN port on the ESP32-C6
+  CAN_NATIVE_2 = 4
 };
 
 extern const char* getCANInterfaceName(CAN_Interface interface);
