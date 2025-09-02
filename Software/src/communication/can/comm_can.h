@@ -15,6 +15,15 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, int interface);
 
 class CanReceiver;
 
+typedef struct {
+  CAN_Interface battery;
+  CAN_Interface inverter;
+  CAN_Interface battery_double;
+  CAN_Interface charger;
+  CAN_Interface shunt;
+} CAN_Configuration;
+extern volatile CAN_Configuration can_config;
+
 enum class CAN_Speed {
   CAN_SPEED_100KBPS = 100,
   CAN_SPEED_125KBPS = 125,

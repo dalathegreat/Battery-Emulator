@@ -10,7 +10,10 @@ bool mdns_enabled = true;  //If true, allows battery monitor te be found by .loc
 uint16_t wifi_channel = 0;
 
 std::string custom_hostname;  //If not set, the default naming format 'esp32-XXXXXX' will be used
+std::string ssid;
+std::string password;
 std::string ssidAP;
+std::string passwordAP;
 
 // Configuration Parameters
 static const uint16_t WIFI_CHECK_INTERVAL = 2000;       // 1 seconds normal check interval when last connected

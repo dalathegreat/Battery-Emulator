@@ -30,6 +30,14 @@ bool mqtt_manual_topic_object_name =
 // If this is not true, the previous default naming format 'battery-emulator_esp32-XXXXXX' (based on hardware ID) will be used.
 // This naming convention was in place until version 7.5.0. Users should check the version from which they are updating, as this change
 // may break compatibility with previous versions of MQTT naming
+const char* mqtt_topic_name =
+    "BE";  // Custom MQTT topic name. Previously, the name was automatically set to "battery-emulator_esp32-XXXXXX"
+const char* mqtt_object_id_prefix =
+    "be_";  // Custom prefix for MQTT object ID. Previously, the prefix was automatically set to "esp32-XXXXXX_"
+const char* mqtt_device_name =
+    "Battery Emulator";  // Custom device name in Home Assistant. Previously, the name was automatically set to "BatteryEmulator_esp32-XXXXXX"
+const char* ha_device_id =
+    "battery-emulator";  // Custom device ID in Home Assistant. Previously, the ID was always "battery-emulator"
 
 #define MQTT_QOS 0  // MQTT Quality of Service (0, 1, or 2) //TODO: Should this be configurable?
 
