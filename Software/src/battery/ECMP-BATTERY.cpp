@@ -24,6 +24,9 @@ void EcmpBattery::update_values() {
     datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
         ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
+    datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+        (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+
     datalayer.battery.status.max_charge_power_W = battery_AllowedMaxChargeCurrent * battery_voltage;
 
     datalayer.battery.status.max_discharge_power_W = battery_AllowedMaxDischargeCurrent * battery_voltage;
@@ -53,7 +56,13 @@ void EcmpBattery::update_values() {
     datalayer.battery.status.cell_max_voltage_mV = max_cell_mv_value;
   } else {  //Some variant of the 50/75kWh battery that is not using the eCMP CAN mappings.
     // For these batteries we need to use the OBD2 PID polled values
-    datalayer.battery.status.real_soc = battery_soc * 10;  //TTOD, calculate based on cap remaining?
+
+    if (pid_energy_capacity != NOT_SAMPLED_YET) {
+      datalayer.battery.status.remaining_capacity_Wh = pid_energy_capacity;
+      // calculate SOC based on datalayer.battery.info.total_capacity_Wh and remaining_capacity_Wh
+      datalayer.battery.status.real_soc =
+          ((datalayer.battery.status.remaining_capacity_Wh / datalayer.battery.info.total_capacity_Wh) * 10000);
+    }
 
     datalayer.battery.status.soh_pptt;
 
