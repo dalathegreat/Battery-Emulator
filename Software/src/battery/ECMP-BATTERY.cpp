@@ -60,8 +60,9 @@ void EcmpBattery::update_values() {
     if (pid_energy_capacity != NOT_SAMPLED_YET) {
       datalayer.battery.status.remaining_capacity_Wh = pid_energy_capacity;
       // calculate SOC based on datalayer.battery.info.total_capacity_Wh and remaining_capacity_Wh
-      datalayer.battery.status.real_soc =
-          ((datalayer.battery.status.remaining_capacity_Wh / datalayer.battery.info.total_capacity_Wh) * 10000);
+      datalayer.battery.status.real_soc = (uint16_t)(((float)datalayer.battery.status.remaining_capacity_Wh /
+                                                      datalayer.battery.info.total_capacity_Wh) *
+                                                     10000);
     }
 
     datalayer.battery.status.soh_pptt;
