@@ -38,6 +38,7 @@ class EcmpBattery : public CanBattery {
   static const int COMPLETED_STATE = 0;
   bool battery_RelayOpenRequest = false;
   bool battery_InterlockOpen = false;
+  bool MysteryVan = false;
   uint8_t ContactorResetStatemachine = 0;
   uint8_t CollisionResetStatemachine = 0;
   uint8_t IsolationResetStatemachine = 0;
@@ -80,8 +81,8 @@ class EcmpBattery : public CanBattery {
   uint8_t pid_coldest_module = NOT_SAMPLED_YET;
   uint8_t pid_lowest_temperature = NOT_SAMPLED_YET;
   uint8_t pid_average_temperature = NOT_SAMPLED_YET;
-  uint8_t pid_highest_temperature = NOT_SAMPLED_YET;
-  uint8_t pid_hottest_module = NOT_SAMPLED_YET;
+  int8_t pid_highest_temperature = NOT_SAMPLED_YET;
+  int8_t pid_hottest_module = NOT_SAMPLED_YET;
   uint16_t pid_avg_cell_voltage = NOT_SAMPLED_YET;
   int32_t pid_current = NOT_SAMPLED_YET;
   uint32_t pid_insulation_res_neg = NOT_SAMPLED_YET;
