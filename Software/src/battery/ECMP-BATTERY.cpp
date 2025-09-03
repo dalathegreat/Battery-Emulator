@@ -86,19 +86,13 @@ void EcmpBattery::update_values() {
       datalayer.battery.status.max_discharge_power_W = pid_max_discharge_10s;
     }
 
-    if (pid_lowest_temperature != NOT_SAMPLED_YET) {
+    if ((pid_highest_temperature != NOT_SAMPLED_YET) && (pid_lowest_temperature != NOT_SAMPLED_YET)) {
+      datalayer.battery.status.temperature_max_dC = pid_highest_temperature * 10;
       datalayer.battery.status.temperature_min_dC = pid_lowest_temperature * 10;
     }
 
-    if (pid_highest_temperature != NOT_SAMPLED_YET) {
-      datalayer.battery.status.temperature_max_dC = pid_highest_temperature * 10;
-    }
-
-    if (pid_high_cell_voltage != NOT_SAMPLED_YET) {
+    if ((pid_high_cell_voltage != NOT_SAMPLED_YET) && (pid_low_cell_voltage != NOT_SAMPLED_YET)) {
       datalayer.battery.status.cell_max_voltage_mV = pid_high_cell_voltage;
-    }
-
-    if (pid_low_cell_voltage != NOT_SAMPLED_YET) {
       datalayer.battery.status.cell_min_voltage_mV = pid_low_cell_voltage;
     }
   }
