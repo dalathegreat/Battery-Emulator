@@ -156,6 +156,10 @@ void init_stored_settings() {
   datalayer.system.info.SD_logging_active = settings.getBool("SDLOGENABLED", false);
   datalayer.battery.status.led_mode = (led_mode_enum)settings.getUInt("LEDMODE", false);
 
+  //Some early integrations need manually set allowed charge/discharge power
+  datalayer.battery.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
+  datalayer.battery.status.override_discharge_power_W = settings.getUInt("DCHGPOWER", 1000);
+
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
   wifi_channel = settings.getUInt("WIFICHANNEL", 2000);

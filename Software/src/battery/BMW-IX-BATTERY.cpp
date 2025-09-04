@@ -60,7 +60,7 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
 
   datalayer.battery.status.soh_pptt = min_soh_state;
 
-  datalayer.battery.status.max_discharge_power_W = MAX_DISCHARGE_POWER_ALLOWED_W;
+  datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
 
   //datalayer.battery.status.max_charge_power_W = 3200; //10000; //Aux HV Port has 100A Fuse  Moved to Ramping
 
@@ -70,10 +70,10 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
   } else if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
     // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
     datalayer.battery.status.max_charge_power_W =
-        MAX_CHARGE_POWER_ALLOWED_W *
+        datalayer.battery.status.override_charge_power_W *
         (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
   } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_ALLOWED_W;
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
   }
 
   datalayer.battery.status.temperature_min_dC = min_battery_temperature;

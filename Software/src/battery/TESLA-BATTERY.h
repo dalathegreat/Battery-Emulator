@@ -39,15 +39,6 @@ class TeslaBattery : public CanBattery {
   TeslaHtmlRenderer renderer;
 
  protected:
-  /* Modify these if needed */
-  static const int MAXCHARGEPOWERALLOWED =
-      15000;  // 15000W we use a define since the value supplied by Tesla is always 0
-  static const int MAXDISCHARGEPOWERALLOWED =
-      60000;  // 60000W we use a define since the value supplied by Tesla is always 0
-
-  // Set this to true to try to close contactors/full startup even with no inverter defined/connected
-  bool batteryTestOverride = false;
-
   /* Do not change anything below this line! */
   static const int RAMPDOWN_SOC = 900;  // 90.0 SOC% to start ramping down from max charge power towards 0 at 100.00%
   static const int RAMPDOWNPOWERALLOWED = 10000;      // What power we ramp down from towards top balancing
