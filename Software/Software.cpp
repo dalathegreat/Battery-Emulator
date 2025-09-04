@@ -474,6 +474,18 @@ void core_loop(void*) {
   }
 }
 
+void mqtt_loop(void*) {
+  esp_task_wdt_add(NULL);  // Register this task with WDT
+
+  while (true) {
+    START_TIME_MEASUREMENT(mqtt);
+    mqtt_client_loop();
+    END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
+    esp_task_wdt_reset();  // Reset watchdog
+    delay(1);
+  }
+}
+
 // Initialization
 void setup() {
   init_hal();
@@ -573,15 +585,3 @@ void setup() {
 
 // Loop empty, all functionality runs in tasks
 void loop() {}
-
-void mqtt_loop(void*) {
-  esp_task_wdt_add(NULL);  // Register this task with WDT
-
-  while (true) {
-    START_TIME_MEASUREMENT(mqtt);
-    mqtt_loop();
-    END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
-    esp_task_wdt_reset();  // Reset watchdog
-    delay(1);
-  }
-}
