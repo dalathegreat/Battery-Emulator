@@ -627,8 +627,8 @@ void TeslaBattery::
   // Define the allowed discharge power
   datalayer.battery.status.max_discharge_power_W = (battery_max_discharge_current * (battery_volts / 10));
   // Cap the allowed discharge power if higher than the maximum discharge power allowed
-  if (datalayer.battery.status.max_discharge_power_W > MAXDISCHARGEPOWERALLOWED) {
-    datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
+  if (datalayer.battery.status.max_discharge_power_W > datalayer.battery.status.override_discharge_power_W) {
+    datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
@@ -649,7 +649,7 @@ void TeslaBattery::
       }
     }
   } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
   }
 
   datalayer.battery.status.temperature_min_dC = battery_min_temp;

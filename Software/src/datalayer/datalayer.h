@@ -69,6 +69,13 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   /** Instantaneous battery current in deciAmpere. 95 = 9.5 A */
   int16_t current_dA;
 
+  /* Some early integrations do not support reading allowed charge power from battery
+  On these integrations we need to have the user specify what limits the battery can take */
+  /** Overriden allowed battery discharge power in Watts. Set by user */
+  uint32_t override_discharge_power_W = 0;
+  /** Overriden allowed battery charge power in Watts. Set by user */
+  uint32_t override_charge_power_W = 0;
+
   /** uint16_t */
   /** State of health in integer-percent x 100. 9900 = 99.00% */
   uint16_t soh_pptt = 9900;

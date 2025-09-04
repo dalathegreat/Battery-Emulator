@@ -20,9 +20,11 @@ void ImievCZeroIonBattery::
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //We do not know the max charge/discharge power is sent by the battery. We hardcode value for now.
-  datalayer.battery.status.max_charge_power_W = 10000;  // 10kW   //TODO: Fix when CAN is decoded
+  datalayer.battery.status.max_charge_power_W =
+      datalayer.battery.status.override_charge_power_W;  //TODO: Fix when CAN is decoded
 
-  datalayer.battery.status.max_discharge_power_W = 10000;  // 10kW   //TODO: Fix when CAN is decoded
+  datalayer.battery.status.max_discharge_power_W =
+      datalayer.battery.status.override_discharge_power_W;  //TODO: Fix when CAN is decoded
 
   static int n = sizeof(cell_voltages) / sizeof(cell_voltages[0]);
   max_volt_cel = cell_voltages[0];  // Initialize max with the first element of the array

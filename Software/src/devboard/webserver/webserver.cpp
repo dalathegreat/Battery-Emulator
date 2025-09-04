@@ -467,6 +467,12 @@ void init_webserver() {
       } else if (p->name() == "WIFICHANNEL") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("WIFICHANNEL", type);
+      } else if (p->name() == "DCHGPOWER") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("DCHGPOWER", type);
+      } else if (p->name() == "CHGPOWER") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("CHGPOWER", type);
       } else if (p->name() == "LOCALIP1") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("LOCALIP1", type);

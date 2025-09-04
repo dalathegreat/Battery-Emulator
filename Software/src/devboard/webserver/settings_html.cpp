@@ -299,6 +299,14 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return String(settings.getUInt("WIFICHANNEL", 0));
   }
 
+  if (var == "CHGPOWER") {
+    return String(settings.getUInt("CHGPOWER", 0));
+  }
+
+  if (var == "DCHGPOWER") {
+    return String(settings.getUInt("DCHGPOWER", 0));
+  }
+
   if (var == "LOCALIP1") {
     return String(settings.getUInt("LOCALIP1", 0));
   }
@@ -869,6 +877,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-estimated { display: none; } /* Integrations with manually set charge/discharge power */
+    form[data-battery="3"] .if-estimated, 
+    form[data-battery="4"] .if-estimated, 
+    form[data-battery="6"] .if-estimated, 
+    form[data-battery="14"] .if-estimated, 
+    form[data-battery="24"] .if-estimated,
+    form[data-battery="32"] .if-estimated, 
+    form[data-battery="33"] .if-estimated {
+      display: contents;
+    }
+
     form .if-dblbtr { display: none; }
     form[data-dblbtr="true"] .if-dblbtr {
       display: contents;
@@ -961,6 +980,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           <label for='GTWPACK'>Pack type: </label><select name='GTWPACK' id='GTWPACK'>
           %GTWPACK%
           </select>
+        </div>
+
+        <div class="if-estimated">
+        <label>Manual charging power, watt: </label>
+        <input name='CHGPOWER' pattern="^[0-9]+$" type='text' value='%CHGPOWER%' />
+
+        <label>Manual discharge power, watt: </label>
+        <input name='DCHGPOWER' pattern="^[0-9]+$" type='text' value='%DCHGPOWER%' />
         </div>
 
         <div class="if-battery">

@@ -15,9 +15,6 @@ class RjxzsBms : public CanBattery {
   static constexpr const char* Name = "RJXZS BMS, DIY battery";
 
  private:
-  /* Tweak these according to your battery build */
-  static const int MAX_DISCHARGE_POWER_ALLOWED_W = 5000;
-  static const int MAX_CHARGE_POWER_ALLOWED_W = 5000;
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
   static const int RAMPDOWN_SOC =
       9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
