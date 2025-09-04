@@ -133,6 +133,23 @@ class EcmpBattery : public CanBattery {
   uint32_t pid_date_of_manufacture = NOT_SAMPLED_YET;
   uint16_t pid_SOH_cell_1 = NOT_SAMPLED_YET;
 
+  //MysteryVan platform
+  uint16_t SOE_MAX_CURRENT_TEMP = 0;
+  uint16_t FRONT_MACHINE_POWER_LIMIT = 0;
+  uint16_t REAR_MACHINE_POWER_LIMIT = 0;
+  uint16_t EVSE_INSTANT_DC_HV_CURRENT = 0;
+  uint8_t EVSE_STATE = 0;
+  uint16_t HV_BATT_SOE_HD = 0;
+  uint16_t HV_BATT_SOE_MAX = 0;
+  uint8_t COUNTER_NIBBLE_3B4 = 0;
+  uint8_t CHECKSUM_FRAME_3B4 = 0;
+  uint16_t TBMU_EVSE_DC_MAX_POWER = 0;
+  uint16_t HV_STORAGE_MAX_I = 0;
+  uint8_t TBMU_EVSE_CHRG_REQ = 0;
+  uint16_t TBMU_EVSE_DC_MES_CURRENT = 0;
+  uint16_t TBMU_EVSE_DC_MIN_VOLTAGE = 0;
+  uint16_t TBMU_EVSE_DC_MES_VOLTAGE = 0;
+
   unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent
   unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was sent
