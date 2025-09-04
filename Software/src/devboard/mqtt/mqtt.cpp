@@ -675,7 +675,7 @@ bool init_mqtt(void) {
   return true;
 }
 
-void mqtt_loop(void) {
+void mqtt_client_loop(void) {
   // Only attempt to publish/reconnect MQTT if Wi-Fi is connectedand checkTimmer is elapsed
   if (check_global_timer.elapsed() && WiFi.status() == WL_CONNECTED) {
 
