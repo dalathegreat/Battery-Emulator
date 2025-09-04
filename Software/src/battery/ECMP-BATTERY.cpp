@@ -68,7 +68,7 @@ void EcmpBattery::update_values() {
     datalayer.battery.status.soh_pptt;
 
     if (pid_pack_voltage != NOT_SAMPLED_YET) {
-      datalayer.battery.status.voltage_dV = pid_pack_voltage;
+      datalayer.battery.status.voltage_dV = pid_pack_voltage + 800;
     }
 
     if (pid_current != NOT_SAMPLED_YET) {
