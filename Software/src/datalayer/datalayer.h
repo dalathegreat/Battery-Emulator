@@ -128,7 +128,7 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** Minimum percentage setting. Set this value to the lowest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
    * will "see" 0% , Example 2000 = 20.0%*/
-  uint16_t min_percentage = 2000;
+  int16_t min_percentage = 2000;
   /** Maximum percentage setting. Set this value to the highest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
    * will "see" 100% Example 8000 = 80.0%*/
