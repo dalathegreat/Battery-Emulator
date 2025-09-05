@@ -192,15 +192,42 @@ void EcmpBattery::update_values() {
 
 void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
-    case 0x2D4:  //MysteryVan 50/75kWh platform
+    case 0x2D4:  //MysteryVan 50/75kWh platform (TBMU 100ms periodic)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       MysteryVan = true;
+      SOE_MAX_CURRENT_TEMP = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];                       // (Wh, 0-200000)
+      FRONT_MACHINE_POWER_LIMIT = (rx_frame.data.u8[4] << 6) | ((rx_frame.data.u8[5] & 0xFC) >> 2);  // (W 0-1000000)
+      REAR_MACHINE_POWER_LIMIT = ((rx_frame.data.u8[5] & 0x03) << 12) | (rx_frame.data.u8[6] << 4) |
+                                 ((rx_frame.data.u8[7] & 0xF0) >> 4);  // (W 0-1000000)
       break;
-    case 0x3B4:  //MysteryVan 50/75kWh platform
+    case 0x3B4:  //MysteryVan 50/75kWh platform (TBMU 100ms periodic)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      EVSE_INSTANT_DC_HV_CURRENT =
+          ((rx_frame.data.u8[2] & 0x03) << 12) | (rx_frame.data.u8[3] << 2) | ((rx_frame.data.u8[4] & 0xC0) >> 6);
+      EVSE_STATE = ((rx_frame.data.u8[4] & 0x38) >> 3); /*Enumeration below
+      000: NOT CONNECTED 
+      001: CONNECTED 
+      010: INITIALISATION 
+      011: READY 
+      100: PRECHARGE IN PROGRESS 
+      101: TRANSFER IN PROGRESS 
+      110: NOT READY
+      111: Reserved */
+      HV_BATT_SOE_HD = ((rx_frame.data.u8[4] & 0x03) << 12) | (rx_frame.data.u8[5] << 4) |
+                       ((rx_frame.data.u8[6] & 0xF0) >> 4);                         // (Wh, 0-200000)
+      HV_BATT_SOE_MAX = ((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[7];  // (Wh, 0-200000)
+      CHECKSUM_FRAME_3B4 = (rx_frame.data.u8[0] & 0xF0) >> 4;
+      COUNTER_NIBBLE_3B4 = (rx_frame.data.u8[0] & 0x0F);
       break;
-    case 0x2F4:  //MysteryVan 50/75kWh platform
+    case 0x2F4:  //MysteryVan 50/75kWh platform (Event triggered)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      TBMU_EVSE_DC_MES_VOLTAGE = (rx_frame.data.u8[0] << 6) | (rx_frame.data.u8[1] >> 2);           //V 0-1000
+      TBMU_EVSE_DC_MIN_VOLTAGE = ((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[2];         //V 0-1000
+      TBMU_EVSE_DC_MES_CURRENT = (rx_frame.data.u8[3] << 4) | ((rx_frame.data.u8[4] & 0xF0) >> 4);  //A -2000 - 2000
+      TBMU_EVSE_CHRG_REQ = (rx_frame.data.u8[4] & 0x0C) >> 2;  //00 No request, 01 Stop request
+      HV_STORAGE_MAX_I = ((rx_frame.data.u8[4] & 0x03) << 12) | (rx_frame.data.u8[5] << 2) |
+                         ((rx_frame.data.u8[6] & 0xC0) >> 6);                              //A -2000 - 2000
+      TBMU_EVSE_DC_MAX_POWER = ((rx_frame.data.u8[6] & 0x3F) << 8) | rx_frame.data.u8[7];  //W -1000000 - 0
       break;
     case 0x3F4:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
