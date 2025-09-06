@@ -133,7 +133,7 @@ class EcmpBattery : public CanBattery {
   uint32_t pid_date_of_manufacture = NOT_SAMPLED_YET;
   uint16_t pid_SOH_cell_1 = NOT_SAMPLED_YET;
 
-  //MysteryVan platform
+  //MysteryVan platform (allcaps to make code easer to co-exist)
   uint16_t SOE_MAX_CURRENT_TEMP = 0;
   uint16_t FRONT_MACHINE_POWER_LIMIT = 0;
   uint16_t REAR_MACHINE_POWER_LIMIT = 0;
@@ -141,8 +141,7 @@ class EcmpBattery : public CanBattery {
   uint8_t EVSE_STATE = 0;
   uint16_t HV_BATT_SOE_HD = 0;
   uint16_t HV_BATT_SOE_MAX = 0;
-  uint8_t COUNTER_NIBBLE_3B4 = 0;
-  uint8_t CHECKSUM_FRAME_3B4 = 0;
+  uint8_t CHECKSUM_FRAME_3B4, CHECKSUM_FRAME_554, CHECKSUM_FRAME_373, CHECKSUM_FRAME_4F4, CHECKSUM_FRAME_414 = 0;
   uint16_t TBMU_EVSE_DC_MAX_POWER = 0;
   uint16_t HV_STORAGE_MAX_I = 0;
   uint8_t TBMU_EVSE_CHRG_REQ = 0;
@@ -150,12 +149,32 @@ class EcmpBattery : public CanBattery {
   uint16_t TBMU_EVSE_DC_MIN_VOLTAGE = 0;
   uint16_t TBMU_EVSE_DC_MES_VOLTAGE = 0;
   int8_t BMS_PROBETEMP[7] = {0};
-  uint8_t CHECKSUM_FRAME_554 = 0;
-  uint8_t COUNTER_554 = 0;
+  uint8_t COUNTER_554, COUNTER_373, COUNTER_3B4, COUNTER_4F4, COUNTER_414 = 0;
   uint16_t HV_BATT_PEAK_DISCH_POWER_HD = 0;
   uint16_t HV_BATT_PEAK_CH_POWER_HD = 0;
   uint16_t HV_BATT_NOM_CH_POWER_HD = 0;
   uint16_t MAX_ALLOW_CHRG_CURRENT = 0;
+  int16_t HV_BATT_REAL_CURR_HD = 0;
+  uint16_t HV_BATT_REAL_VOLT_HD = 0;
+  uint8_t TBMU_FAULT_TYPE = 0;
+  int16_t HV_BATT_MAX_REAL_CURR = 0;
+  bool TBCU_48V_WAKEUP = false;
+  bool REQ_CLEAR_DTC_TBMU = false;
+  bool HV_BATT_DISCONT_WARNING_OPEN = false;
+  uint8_t CONTACTORS_STATE = 0;
+  uint16_t HV_BATT_SOC = 0;
+  bool CMD_RESET_MIL = 0;
+  bool REQ_BLINK_STOP_AND_SERVICE_LAMP = false;
+  bool REQ_MIL_LAMP_CONTINOUS = false;
+  uint16_t HV_BATT_GENERATED_HEAT_RATE = 0;
+  bool HV_BATT_CRASH_MEMORIZED = false;
+  bool HV_BATT_COLD_CRANK_ACK = false;
+  bool HV_BATT_CHARGE_NEEDED_STATE = false;
+  uint8_t HV_BATT_NOM_CH_CURRENT = 0;
+  uint16_t HV_BATT_NOM_CH_VOLTAGE = 0;
+  uint16_t HV_BATT_REAL_POWER_HD = 0;
+  uint16_t MAX_ALLOW_CHRG_POWER = 0;
+  uint16_t MAX_ALLOW_DISCHRG_POWER = 0;
 
   unsigned long previousMillis10 = 0;    //- will store last time a 10ms CAN Message was sent
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent

@@ -217,7 +217,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                        ((rx_frame.data.u8[6] & 0xF0) >> 4);                         // (Wh, 0-200000)
       HV_BATT_SOE_MAX = ((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[7];  // (Wh, 0-200000)
       CHECKSUM_FRAME_3B4 = (rx_frame.data.u8[0] & 0xF0) >> 4;
-      COUNTER_NIBBLE_3B4 = (rx_frame.data.u8[0] & 0x0F);
+      COUNTER_3B4 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x2F4:  //MysteryVan 50/75kWh platform (Event triggered)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -231,48 +231,78 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x3F4:  //MysteryVan 50/75kWh platform (Temperature sensors)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      switch (((rx_frame.data.u8[0] & 0xE0) >> 5)) //Mux resides in top 3 bits of frame0
+      switch (((rx_frame.data.u8[0] & 0xE0) >> 5))  //Mux resides in top 3 bits of frame0
       {
-      case 0:
-        BMS_PROBETEMP[0] = (rx_frame.data.u8[1] - 40);
-        BMS_PROBETEMP[1] = (rx_frame.data.u8[2] - 40);
-        BMS_PROBETEMP[2] = (rx_frame.data.u8[3] - 40);
-        BMS_PROBETEMP[3] = (rx_frame.data.u8[4] - 40);
-        BMS_PROBETEMP[4] = (rx_frame.data.u8[5] - 40);
-        BMS_PROBETEMP[5] = (rx_frame.data.u8[6] - 40);
-        BMS_PROBETEMP[6] = (rx_frame.data.u8[7] - 40);
-        break;
-      default: //There are in total 64 temperature measurements in the BMS. We do not need to sample them all.
-        break; //For future, we could read them all if we want to.
+        case 0:
+          BMS_PROBETEMP[0] = (rx_frame.data.u8[1] - 40);
+          BMS_PROBETEMP[1] = (rx_frame.data.u8[2] - 40);
+          BMS_PROBETEMP[2] = (rx_frame.data.u8[3] - 40);
+          BMS_PROBETEMP[3] = (rx_frame.data.u8[4] - 40);
+          BMS_PROBETEMP[4] = (rx_frame.data.u8[5] - 40);
+          BMS_PROBETEMP[5] = (rx_frame.data.u8[6] - 40);
+          BMS_PROBETEMP[6] = (rx_frame.data.u8[7] - 40);
+          break;
+        default:  //There are in total 64 temperature measurements in the BMS. We do not need to sample them all.
+          break;  //For future, we could read them all if we want to.
       }
       break;
     case 0x554:  //MysteryVan 50/75kWh platform (Discharge/Charge limits)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      HV_BATT_PEAK_DISCH_POWER_HD = (rx_frame.data.u8[1] << 6) | (rx_frame.data.u8[2] >> 2); //0-1000000 W
-      HV_BATT_PEAK_CH_POWER_HD = ((rx_frame.data.u8[2] & 0x03) << 12) | (rx_frame.data.u8[3] << 4) | ((rx_frame.data.u8[4] & 0xF0) >> 4); // -1000000 - 0 W
-      HV_BATT_NOM_CH_POWER_HD = ((rx_frame.data.u8[4] & 0x0F) << 12) | (rx_frame.data.u8[5] << 6) | ((rx_frame.data.u8[6] & 0xC0) >> 6); // -1000000 - 0 W
+      HV_BATT_PEAK_DISCH_POWER_HD = (rx_frame.data.u8[1] << 6) | (rx_frame.data.u8[2] >> 2);  //0-1000000 W
+      HV_BATT_PEAK_CH_POWER_HD = ((rx_frame.data.u8[2] & 0x03) << 12) | (rx_frame.data.u8[3] << 4) |
+                                 ((rx_frame.data.u8[4] & 0xF0) >> 4);  // -1000000 - 0 W
+      HV_BATT_NOM_CH_POWER_HD = ((rx_frame.data.u8[4] & 0x0F) << 12) | (rx_frame.data.u8[5] << 6) |
+                                ((rx_frame.data.u8[6] & 0xC0) >> 6);  // -1000000 - 0 W
       MAX_ALLOW_CHRG_CURRENT = ((rx_frame.data.u8[6] & 0x3F) << 8) | rx_frame.data.u8[7];
-      CHECKSUM_FRAME_554 = (rx_frame.data.u8[0] & 0xF0) >> 4; //Frame checksum 0xE
+      CHECKSUM_FRAME_554 = (rx_frame.data.u8[0] & 0xF0) >> 4;  //Frame checksum 0xE
       COUNTER_554 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x373:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      REQ_CLEAR_DTC_TBMU
-      TBCU_48V_WAKEUP
-      HV_BATT_MAX_REAL_CURR
-      Reserved_1_373
-      TBMU_FAULT_TYPE
-      Reserved_5_373
-      HV_BATT_REAL_VOLT_HD
-      HV_BATT_REAL_CURR_HD
-      CHECKSUM_FRAME_373 = (rx_frame.data.u8[0] & 0xF0) >> 4; //Frame checksum 0xD
+      REQ_CLEAR_DTC_TBMU = ((rx_frame.data.u8[3] & 0x40) >> 7);
+      TBCU_48V_WAKEUP = (rx_frame.data.u8[3] >> 7);
+      HV_BATT_MAX_REAL_CURR = (rx_frame.data.u8[5] << 7) | (rx_frame.data.u8[6] >> 1);  //A	-2000 -	2000	0.1 scaling
+      TBMU_FAULT_TYPE = (rx_frame.data.u8[7] & 0xE0) >> 5;
+      /*000: No fault
+        001: FirstLevelFault: Warning Lamp
+        010: SecondLevelFault: Stop Lamp
+        011: ThirdLevelFault: Stop Lamp + contactor opening (EPS shutdown) 
+        100: FourthLevelFault: Stop Lamp + Active Discharge
+        101: Inhibition of powertrain activation
+        110: Reserved 
+        111: Invalid*/
+      HV_BATT_REAL_VOLT_HD = ((rx_frame.data.u8[3] & 0x3F) << 8) | (rx_frame.data.u8[4]);  //V 0-1000 * 0.1  scaling
+      HV_BATT_REAL_CURR_HD = (rx_frame.data.u8[1] << 8) | (rx_frame.data.u8[2]);           //A	-2000 -	2000	0.1 scaling
+      CHECKSUM_FRAME_373 = (rx_frame.data.u8[0] & 0xF0) >> 4;                              //Frame checksum 0xD
       COUNTER_373 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x4F4:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      HV_BATT_CRASH_MEMORIZED = ((rx_frame.data.u8[2] & 0x08) >> 3);
+      HV_BATT_COLD_CRANK_ACK = ((rx_frame.data.u8[2] & 0x04) >> 2);
+      HV_BATT_CHARGE_NEEDED_STATE = ((rx_frame.data.u8[2] & 0x02) >> 1);
+      HV_BATT_NOM_CH_VOLTAGE = ((rx_frame.data.u8[2] & 0x01) << 8) | (rx_frame.data.u8[3]);   //V 0 - 500
+      HV_BATT_NOM_CH_CURRENT = rx_frame.data.u8[4];                                           // -120 - 0	 0.5scaling
+      HV_BATT_GENERATED_HEAT_RATE = (rx_frame.data.u8[5] << 1) | (rx_frame.data.u8[6] >> 7);  //W 0-50000
+      REQ_MIL_LAMP_CONTINOUS = (rx_frame.data.u8[7] & 0x04) >> 2;
+      REQ_BLINK_STOP_AND_SERVICE_LAMP = (rx_frame.data.u8[7] & 0x02) >> 1;
+      CMD_RESET_MIL = (rx_frame.data.u8[7] & 0x01);
+      HV_BATT_SOC = (rx_frame.data.u8[1] << 2) | (rx_frame.data.u8[2] >> 6);
+      CONTACTORS_STATE =
+          (rx_frame.data.u8[2] & 0x30) >> 4;  //00 : contactor open 01 : pre-load contactor 10 : contactor close
+      HV_BATT_DISCONT_WARNING_OPEN = (rx_frame.data.u8[7] & 0x08) >> 3;
+      CHECKSUM_FRAME_4F4 = (rx_frame.data.u8[0] & 0xF0) >> 4;
+      COUNTER_4F4 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x414:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      HV_BATT_REAL_POWER_HD = (rx_frame.data.u8[1] << 7) | (rx_frame.data.u8[2] >> 1);
+      MAX_ALLOW_CHRG_POWER =
+          ((rx_frame.data.u8[2] & 0x01) << 13) | (rx_frame.data.u8[3] << 5) | ((rx_frame.data.u8[4] & 0xF8) >> 3);
+      MAX_ALLOW_DISCHRG_POWER =
+          ((rx_frame.data.u8[5] & 0x07) << 11) | (rx_frame.data.u8[6] << 3) | ((rx_frame.data.u8[7] & 0xE0) >> 5);
+      CHECKSUM_FRAME_414 = (rx_frame.data.u8[0] & 0xF0) >> 4;  //Frame checksum 0x9
+      COUNTER_414 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x353:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
