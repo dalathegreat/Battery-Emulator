@@ -6,6 +6,12 @@ CanBattery::CanBattery(CAN_Speed speed) {
   register_can_receiver(this, can_interface, speed);
 }
 
+CanBattery::CanBattery(CAN_Interface interface, CAN_Speed speed) {
+  can_interface = interface;
+  register_transmitter(this);
+  register_can_receiver(this, can_interface, speed);
+}
+
 CAN_Speed CanBattery::change_can_speed(CAN_Speed speed) {
   return ::change_can_speed(can_interface, speed);
 }

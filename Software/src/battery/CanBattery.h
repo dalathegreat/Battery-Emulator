@@ -24,12 +24,7 @@ class CanBattery : public Battery, Transmitter, CanReceiver {
   CAN_Interface can_interface;
 
   CanBattery(CAN_Speed speed = CAN_Speed::CAN_SPEED_500KBPS);
-
-  CanBattery(CAN_Interface interface, CAN_Speed speed = CAN_Speed::CAN_SPEED_500KBPS) {
-    can_interface = interface;
-    register_transmitter(this);
-    register_can_receiver(this, can_interface, speed);
-  }
+  CanBattery(CAN_Interface interface, CAN_Speed speed = CAN_Speed::CAN_SPEED_500KBPS);
 
   CAN_Speed change_can_speed(CAN_Speed speed);
 
