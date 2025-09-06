@@ -229,14 +229,44 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                          ((rx_frame.data.u8[6] & 0xC0) >> 6);                              //A -2000 - 2000
       TBMU_EVSE_DC_MAX_POWER = ((rx_frame.data.u8[6] & 0x3F) << 8) | rx_frame.data.u8[7];  //W -1000000 - 0
       break;
-    case 0x3F4:  //MysteryVan 50/75kWh platform
+    case 0x3F4:  //MysteryVan 50/75kWh platform (Temperature sensors)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      switch (((rx_frame.data.u8[0] & 0xE0) >> 5)) //Mux resides in top 3 bits of frame0
+      {
+      case 0:
+        BMS_PROBETEMP[0] = (rx_frame.data.u8[1] - 40);
+        BMS_PROBETEMP[1] = (rx_frame.data.u8[2] - 40);
+        BMS_PROBETEMP[2] = (rx_frame.data.u8[3] - 40);
+        BMS_PROBETEMP[3] = (rx_frame.data.u8[4] - 40);
+        BMS_PROBETEMP[4] = (rx_frame.data.u8[5] - 40);
+        BMS_PROBETEMP[5] = (rx_frame.data.u8[6] - 40);
+        BMS_PROBETEMP[6] = (rx_frame.data.u8[7] - 40);
+        break;
+      default: //There are in total 64 temperature measurements in the BMS. We do not need to sample them all.
+        break; //For future, we could read them all if we want to.
+      }
       break;
-    case 0x554:  //MysteryVan 50/75kWh platform
+    case 0x554:  //MysteryVan 50/75kWh platform (Discharge/Charge limits)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      HV_BATT_PEAK_DISCH_POWER_HD = (rx_frame.data.u8[1] << 6) | (rx_frame.data.u8[2] >> 2); //0-1000000 W
+      HV_BATT_PEAK_CH_POWER_HD = ((rx_frame.data.u8[2] & 0x03) << 12) | (rx_frame.data.u8[3] << 4) | ((rx_frame.data.u8[4] & 0xF0) >> 4); // -1000000 - 0 W
+      HV_BATT_NOM_CH_POWER_HD = ((rx_frame.data.u8[4] & 0x0F) << 12) | (rx_frame.data.u8[5] << 6) | ((rx_frame.data.u8[6] & 0xC0) >> 6); // -1000000 - 0 W
+      MAX_ALLOW_CHRG_CURRENT = ((rx_frame.data.u8[6] & 0x3F) << 8) | rx_frame.data.u8[7];
+      CHECKSUM_FRAME_554 = (rx_frame.data.u8[0] & 0xF0) >> 4; //Frame checksum 0xE
+      COUNTER_554 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x373:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      REQ_CLEAR_DTC_TBMU
+      TBCU_48V_WAKEUP
+      HV_BATT_MAX_REAL_CURR
+      Reserved_1_373
+      TBMU_FAULT_TYPE
+      Reserved_5_373
+      HV_BATT_REAL_VOLT_HD
+      HV_BATT_REAL_CURR_HD
+      CHECKSUM_FRAME_373 = (rx_frame.data.u8[0] & 0xF0) >> 4; //Frame checksum 0xD
+      COUNTER_373 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x4F4:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -268,7 +298,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x4D4:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x125:  //Common
+    case 0x125:  //Common eCMP
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_soc = (rx_frame.data.u8[0] << 2) |
                     (rx_frame.data.u8[1] >> 6);  // Byte1, bit 7 length 10 (0x3FE when abnormal) (0-1000 ppt)

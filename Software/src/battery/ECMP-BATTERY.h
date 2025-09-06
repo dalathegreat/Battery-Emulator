@@ -149,8 +149,15 @@ class EcmpBattery : public CanBattery {
   uint16_t TBMU_EVSE_DC_MES_CURRENT = 0;
   uint16_t TBMU_EVSE_DC_MIN_VOLTAGE = 0;
   uint16_t TBMU_EVSE_DC_MES_VOLTAGE = 0;
+  int8_t BMS_PROBETEMP[7] = {0};
+  uint8_t CHECKSUM_FRAME_554 = 0;
+  uint8_t COUNTER_554 = 0;
+  uint16_t HV_BATT_PEAK_DISCH_POWER_HD = 0;
+  uint16_t HV_BATT_PEAK_CH_POWER_HD = 0;
+  uint16_t HV_BATT_NOM_CH_POWER_HD = 0;
+  uint16_t MAX_ALLOW_CHRG_CURRENT = 0;
 
-  unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
+  unsigned long previousMillis10 = 0;    //- will store last time a 10ms CAN Message was sent
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent
   unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was sent
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
