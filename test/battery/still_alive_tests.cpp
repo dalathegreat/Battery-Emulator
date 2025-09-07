@@ -37,10 +37,10 @@ class BatteryTestFixture : public testing::Test {
   BatteryType type;
 };
 
-// Check that the parsed logs correctly trigger an overvoltage event.
-class StillAliveTimeoutTest : public BatteryTestFixture {
+// Check that the CAN aliveness timeout isn't being renewed by bogus CAN frames
+class TestNotStillAlive : public BatteryTestFixture {
  public:
-  explicit StillAliveTimeoutTest(BatteryType type) : BatteryTestFixture(type) {}
+  explicit TestNotStillAlive(BatteryType type) : BatteryTestFixture(type) {}
   void TestBody() override {
     // check if battery is a CanBattery subclass
     auto* battery = dynamic_cast<CanBattery*>(::battery);
@@ -65,17 +65,41 @@ class StillAliveTimeoutTest : public BatteryTestFixture {
   }
 };
 
+bool IsValidCanBattery(BatteryType type) {
+  if (type == BatteryType::TestFake) {
+    return false;
+  }
+
+  // We need some minimal setup or the battery constructors may segfault
+  datalayer = DataLayer();
+  // This leaks memory (but not much...)
+  init_hal();
+
+  auto* tmp_battery = create_battery(type);
+  if (tmp_battery == nullptr) {
+    // Not a valid battery type
+    return false;
+  }
+
+  auto* as_can_battery = dynamic_cast<CanBattery*>(tmp_battery);
+  if (as_can_battery == nullptr) {
+    // Failed to cast to CanBattery, so it's not a CAN battery
+    delete tmp_battery;
+    return false;
+  }
+  delete tmp_battery;
+
+  return true;
+}
+
 void RegisterStillAliveTests() {
-  for (int i = 2; i < 42; i++) {
-    if ((BatteryType)i == BatteryType::TestFake) {
-      continue;
-    }
-    if ((BatteryType)i == BatteryType::DalyBms) {
+  for (int i = 0; i < (int)BatteryType::Highest; i++) {
+    if (!IsValidCanBattery((BatteryType)i)) {
       continue;
     }
 
-    std::string test_name = ("TestStillAliveTimeout" + snake_case_to_camel_case(name_for_battery_type((BatteryType)i)));
+    std::string test_name = ("TestNotStillAlive" + snake_case_to_camel_case(name_for_battery_type((BatteryType)i)));
     testing::RegisterTest("StillAliveTests", test_name.c_str(), nullptr, nullptr, __FILE__, __LINE__,
-                          [=]() -> BatteryTestFixture* { return new StillAliveTimeoutTest((BatteryType)i); });
+                          [=]() -> BatteryTestFixture* { return new TestNotStillAlive((BatteryType)i); });
   }
 }
