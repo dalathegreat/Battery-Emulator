@@ -332,6 +332,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
     case 0x17F0007B:  // BMS 500ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       can_msg_received |= RX_0x17F0007B;
       component_protection_active = (rx_frame.data.u8[0] & 0x01);
       shutdown_active = ((rx_frame.data.u8[0] & 0x02) >> 1);
@@ -347,11 +348,13 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x17FE007B:  // BMS - Offboard tester diag response
       break;
     case 0x1B00007B:  // BMS - 200ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       wakeup_type =
           ((rx_frame.data.u8[1] & 0x10) >> 4);  //0 passive, SG has not woken up, 1 active, SG has woken up the network
       instrumentation_cluster_request = ((rx_frame.data.u8[1] & 0x40) >> 6);  //True/false
       break;
     case 0x12DD54D0:  // BMS Limits 100ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       can_msg_received |= RX_0x12DD54D0;
       max_discharge_power_watt =
           ((rx_frame.data.u8[6] & 0x07) << 10) | (rx_frame.data.u8[5] << 2) | (rx_frame.data.u8[4] & 0xC0) >> 6;  //*100
@@ -361,6 +364,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       max_charge_current_amp = ((rx_frame.data.u8[4] & 0x3F) << 7) | (rx_frame.data.u8[3] >> 1);           //*0.2
       break;
     case 0x12DD54D1:  // BMS 100ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       can_msg_received |= RX_0x12DD54D1;
       if (rx_frame.data.u8[6] != 0xFE || rx_frame.data.u8[7] != 0xFF) {  // Init state, values below invalid
         battery_SOC = ((rx_frame.data.u8[3] & 0x0F) << 7) | (rx_frame.data.u8[2] >> 1);               //*0.05
@@ -372,6 +376,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       warning_support = (rx_frame.data.u8[1] & 0x70) >> 4;
       break;
     case 0x12DD54D2:  // BMS 100ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       can_msg_received |= RX_0x12DD54D2;
       battery_heating_active = (rx_frame.data.u8[4] & 0x40) >> 6;
       heating_request = (rx_frame.data.u8[5] & 0xE0) >> 5;
@@ -380,6 +385,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       power_battery_heating_req_watt = rx_frame.data.u8[7];
       break;
     case 0x1A555550:  // BMS 500ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       can_msg_received |= RX_0x1A555550;
       balancing_active = (rx_frame.data.u8[1] & 0xC0) >> 6;
       charging_active = (rx_frame.data.u8[2] & 0x01);
@@ -389,6 +395,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       isolation_resistance_kOhm = (((rx_frame.data.u8[3] & 0x1F) << 7) | rx_frame.data.u8[2] >> 1);  //*5
       break;
     case 0x1A555551:  // BMS 500ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       can_msg_received |= RX_0x1A555551;
       battery_heating_installed = (rx_frame.data.u8[1] & 0x20) >> 5;
       error_NT_circuit = (rx_frame.data.u8[1] & 0x40) >> 6;
@@ -402,6 +409,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       return_temperature_C = rx_frame.data.u8[7];                                     //*0,5 -40
       break;
     case 0x1A5555B2:  // BMS
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       can_msg_received |= RX_0x1A5555B2;
       performance_index_discharge_peak_temperature_percentage =
           (((rx_frame.data.u8[3] & 0x07) << 6) | rx_frame.data.u8[2] >> 2);  //*0.2
@@ -411,6 +419,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       temperature_status_charge = (((rx_frame.data.u8[2] & 0x03) << 1) | rx_frame.data.u8[1] >> 7);
       break;
     case 0x16A954A6:  // BMS
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       can_msg_received |= RX_0x16A954A6;
       BMS_16A954A6_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       isolation_fault = (rx_frame.data.u8[2] & 0xE0) >> 5;
@@ -424,11 +433,13 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         datalayer.battery.status.cell_max_voltage_mV = actual_cellvoltage_highest_mV + 1000;
       }
       break;
-    case 0x16A954F8:                                                                                // BMS
+    case 0x16A954F8:  // BMS
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       predicted_power_dyn_standard_watt = ((rx_frame.data.u8[6] << 1) | rx_frame.data.u8[5] >> 7);  //*50
       predicted_time_dyn_standard_minutes = rx_frame.data.u8[7];
       break;
     case 0x16A954E8:  // BMS Temperature and cellvoltages - 180ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & 0x0F);
       switch (mux) {
         case 0:  // Temperatures 1-56. Value is 0xFD if sensor not present
@@ -1265,7 +1276,6 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     default:
       break;
   }
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   if (can_msg_received == 0xFFFF && nof_cells_determined) {
     if (datalayer.battery.status.real_bms_status == BMS_DISCONNECTED)
       datalayer.battery.status.real_bms_status = BMS_STANDBY;
