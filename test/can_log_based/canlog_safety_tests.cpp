@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "utils.h"
+#include "../utils/utils.h"
 
 #include "../../Software/src/battery/BATTERIES.h"
 #include "../../Software/src/devboard/utils/events.h"
@@ -171,23 +171,27 @@ void RegisterCanLogTests() {
     };
 
     if (has_flag("base")) {
-      testing::RegisterTest("CanLogTestFixture", ("TestBaseValuesPresent_" + entry.path().filename().string()).c_str(),
-                            nullptr, entry.path().filename().string().c_str(), __FILE__, __LINE__,
+      testing::RegisterTest("CanLogSafetyTests",
+                            ("TestBaseValuesPresent" + snake_case_to_camel_case(entry.path().stem().string())).c_str(),
+                            nullptr, nullptr, __FILE__, __LINE__,
                             [=]() -> CanLogTestFixture* { return new BaseValuesPresentTest(entry.path()); });
     }
     if (has_flag("ov")) {
-      testing::RegisterTest("CanLogTestFixture", ("TestOverVoltage_" + entry.path().filename().string()).c_str(),
-                            nullptr, entry.path().filename().string().c_str(), __FILE__, __LINE__,
+      testing::RegisterTest("CanLogSafetyTests",
+                            ("TestOverVoltage" + snake_case_to_camel_case(entry.path().stem().string())).c_str(),
+                            nullptr, nullptr, __FILE__, __LINE__,
                             [=]() -> CanLogTestFixture* { return new OverVoltageTest(entry.path()); });
     }
     if (has_flag("cov")) {
-      testing::RegisterTest("CanLogTestFixture", ("TestCellOverVoltage_" + entry.path().filename().string()).c_str(),
-                            nullptr, entry.path().filename().string().c_str(), __FILE__, __LINE__,
+      testing::RegisterTest("CanLogSafetyTests",
+                            ("TestCellOverVoltage" + snake_case_to_camel_case(entry.path().stem().string())).c_str(),
+                            nullptr, nullptr, __FILE__, __LINE__,
                             [=]() -> CanLogTestFixture* { return new CellOverVoltageTest(entry.path()); });
     }
     if (has_flag("cuv")) {
-      testing::RegisterTest("CanLogTestFixture", ("TestCellUnderVoltage_" + entry.path().filename().string()).c_str(),
-                            nullptr, entry.path().filename().string().c_str(), __FILE__, __LINE__,
+      testing::RegisterTest("CanLogSafetyTests",
+                            ("TestCellUnderVoltage" + snake_case_to_camel_case(entry.path().stem().string())).c_str(),
+                            nullptr, nullptr, __FILE__, __LINE__,
                             [=]() -> CanLogTestFixture* { return new CellUnderVoltageTest(entry.path()); });
     }
   }
