@@ -5,8 +5,27 @@
 #include "../devboard/utils/events.h"
 
 /* TODO:
-This integration is still ongoing. Here is what still needs to be done in order to use this battery type
-- Disable the isolation resistance requirement that opens contactors after 30s under load. Factory mode?
+This integration is still ongoing. The same integration can be used on multiple variants of the Stellantis platforms
+- eCMP: Disable the isolation resistance requirement that opens contactors after 30s under load. Factory mode?
+
+- MysteryVan: Map more values from constantly transmitted instead of PID
+- ADD CAN sending towards the battery (CAN-logs of full vehicle wanted!)
+  - Following CAN messages need to be sent towards it:
+  - VCU: 4C9 , 565 , 398, 448, 458, 4F1 , 342,  3E2 , 402 , 422 , 482 4D1
+  - CMM: 478 , 558, 1A8, 4B8 1F8 498 4E8
+  - OBC: 531 441 541 551 3C1
+  - BSIInfo_382
+  - VCU_BSI_Wakeup_27A
+  - V2_BSI_552
+  - CRASH_4C8
+  - EVSE plug in (optional): 108, 109, 119
+  - CRASH_4C8
+  - CRNT_SENS_095
+  - MCU 526
+  - JDD 55F NEW
+
+- STLA medium: Everything missing
+- ADD CAN sending towards the battery (CAN-logs of full vehicle wanted!)
 */
 
 /* Do not change code below unless you are sure what you are doing */
