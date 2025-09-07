@@ -67,6 +67,9 @@ class CanLogTestFixture : public testing::Test {
     }
 
     update_machineryprotection();
+
+    // When debugging, uncomment this to see the parsed values
+    // PrintValues();
   }
 
   void PrintValues() {
@@ -85,15 +88,13 @@ class CanLogTestFixture : public testing::Test {
   fs::path path_;
 };
 
-// Check that the parsed logs populate the required datalayer values for Battery
-// Emulator to function.
-class AllValuesPresentTest : public CanLogTestFixture {
+// Check that the parsed logs populate the minimum required datalayer values for
+// Battery Emulator to function.
+class BaseValuesPresentTest : public CanLogTestFixture {
  public:
-  explicit AllValuesPresentTest(fs::path path) : CanLogTestFixture(path) {}
+  explicit BaseValuesPresentTest(fs::path path) : CanLogTestFixture(path) {}
   void TestBody() override {
     ProcessLog();
-    // When debugging, uncomment this to see the parsed values
-    //PrintValues();
 
     EXPECT_NE(datalayer.battery.status.voltage_dV, 0);
     // TODO: Current isn't actually a requirement? check power instead?
@@ -115,33 +116,79 @@ class OverVoltageTest : public CanLogTestFixture {
   explicit OverVoltageTest(fs::path path) : CanLogTestFixture(path) {}
   void TestBody() override {
     ProcessLog();
-    // When debugging, uncomment this to see the parsed values
-    //PrintValues();
 
     EXPECT_EQ(get_event_pointer(EVENT_BATTERY_OVERVOLTAGE)->occurences, 1);
   }
 };
 
+// Check that the parsed logs correctly trigger a cell overvoltage event.
+class CellOverVoltageTest : public CanLogTestFixture {
+ public:
+  explicit CellOverVoltageTest(fs::path path) : CanLogTestFixture(path) {}
+  void TestBody() override {
+    ProcessLog();
+
+    EXPECT_EQ(get_event_pointer(EVENT_CELL_OVER_VOLTAGE)->occurences, 1);
+    EXPECT_EQ(get_event_pointer(EVENT_CELL_CRITICAL_OVER_VOLTAGE)->occurences, 1);
+  }
+};
+
+// Check that the parsed logs correctly trigger a cell undervoltage event.
+class CellUnderVoltageTest : public CanLogTestFixture {
+ public:
+  explicit CellUnderVoltageTest(fs::path path) : CanLogTestFixture(path) {}
+  void TestBody() override {
+    ProcessLog();
+
+    EXPECT_EQ(get_event_pointer(EVENT_CELL_UNDER_VOLTAGE)->occurences, 1);
+    EXPECT_EQ(get_event_pointer(EVENT_CELL_CRITICAL_UNDER_VOLTAGE)->occurences, 1);
+  }
+};
+
 void RegisterCanLogTests() {
   // The logs should be named as follows:
-  // <battery_type>_<battery class name>_good.txt (all values present)
-  // <battery_type>_<battery class name>_overvoltage.txt (triggers overvoltage event)
-  // where battery_type is the integer corresponding to the BatteryType enum
+  //
+  // <battery_type>_<battery class name>_<flag1>_<flag2...>.txt
+  //
+  // where:
+  //   battery_type is the integer in the BatteryType enum
+  //   flag1/flag2... are flags that indicate which tests to run:
+  //     base: test that the minimmum required values are populated (and no events triggered)
+  //     ov:   test that an overvoltage event is triggered
+  //     cov:  test that normal and critical cell overvoltage events are triggered
+  //     cuv:  test that normal and critical cell undervoltage events are triggered
 
   std::string directoryPath = "../can_log_based/can_logs";
 
   for (const auto& entry : fs::directory_iterator(directoryPath)) {
-    if (entry.is_regular_file() && ends_with(entry.path(), "_good.txt")) {
-
-      testing::RegisterTest("CanLogTestFixture", ("TestAllValuesPresent_" + entry.path().filename().string()).c_str(),
-                            nullptr, entry.path().filename().string().c_str(), __FILE__, __LINE__,
-                            [=]() -> CanLogTestFixture* { return new AllValuesPresentTest(entry.path()); });
+    if (!entry.is_regular_file() || entry.path().extension().string() != ".txt") {
+      continue;
     }
-    if (entry.is_regular_file() && ends_with(entry.path(), "_overvoltage.txt")) {
 
+    auto bits = split(entry.path().stem(), '_');
+    auto has_flag = [&bits](const std::string& flag) -> bool {
+      return std::find(bits.begin() + 2, bits.end(), flag) != bits.end();
+    };
+
+    if (has_flag("base")) {
+      testing::RegisterTest("CanLogTestFixture", ("TestBaseValuesPresent_" + entry.path().filename().string()).c_str(),
+                            nullptr, entry.path().filename().string().c_str(), __FILE__, __LINE__,
+                            [=]() -> CanLogTestFixture* { return new BaseValuesPresentTest(entry.path()); });
+    }
+    if (has_flag("ov")) {
       testing::RegisterTest("CanLogTestFixture", ("TestOverVoltage_" + entry.path().filename().string()).c_str(),
                             nullptr, entry.path().filename().string().c_str(), __FILE__, __LINE__,
                             [=]() -> CanLogTestFixture* { return new OverVoltageTest(entry.path()); });
+    }
+    if (has_flag("cov")) {
+      testing::RegisterTest("CanLogTestFixture", ("TestCellOverVoltage_" + entry.path().filename().string()).c_str(),
+                            nullptr, entry.path().filename().string().c_str(), __FILE__, __LINE__,
+                            [=]() -> CanLogTestFixture* { return new CellOverVoltageTest(entry.path()); });
+    }
+    if (has_flag("cuv")) {
+      testing::RegisterTest("CanLogTestFixture", ("TestCellUnderVoltage_" + entry.path().filename().string()).c_str(),
+                            nullptr, entry.path().filename().string().c_str(), __FILE__, __LINE__,
+                            [=]() -> CanLogTestFixture* { return new CellUnderVoltageTest(entry.path()); });
     }
   }
 }

@@ -8,6 +8,17 @@ bool ends_with(const std::string& str, const std::string& suffix) {
   return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
+std::vector<std::string> split(const std::string& text, char sep) {
+  std::vector<std::string> tokens;
+  std::size_t start = 0, end = 0;
+  while ((end = text.find(sep, start)) != std::string::npos) {
+    tokens.push_back(text.substr(start, end - start));
+    start = end + 1;
+  }
+  tokens.push_back(text.substr(start));
+  return tokens;
+}
+
 void print_frame(const CAN_frame& frame) {
   std::cout << "ID: " << std::hex << frame.ID << ", DLC: " << (int)frame.DLC << ", Data: ";
   for (int i = 0; i < frame.DLC; ++i) {
