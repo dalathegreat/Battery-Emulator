@@ -5,4 +5,7 @@
 # highest cell
 (0.002) RX0 7ef [8] 00 00 00 31 40 ee ee ee
 
+# indicate the pack is still alive
+(0.003) RX0 244 [8] 00 00 00 00 00 00 00 00
+
 # this is enough to pass (all the other params have defaults)
