@@ -40,9 +40,10 @@ void SimpBmsBattery::update_values() {
 }
 
 void SimpBmsBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x355:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+
       SOC = (rx_frame.data.u8[1] << 8) + rx_frame.data.u8[0];
       SOH = (rx_frame.data.u8[3] << 8) + rx_frame.data.u8[2];
 
