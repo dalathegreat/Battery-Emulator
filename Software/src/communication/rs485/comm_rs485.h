@@ -6,7 +6,7 @@
  *
  * @param[in] void
  *
- * @return true if init was successful, false otherwise.
+ * @return Safe to call even if rs485 is not used
  */
 bool init_rs485();
 

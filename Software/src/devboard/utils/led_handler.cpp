@@ -20,6 +20,7 @@ static LED* led;
 
 bool led_init(void) {
   if (!esp32hal->alloc_pins("LED", esp32hal->LED_PIN())) {
+    DEBUG_PRINTF("LED setup failed\n");
     return false;
   }
 
