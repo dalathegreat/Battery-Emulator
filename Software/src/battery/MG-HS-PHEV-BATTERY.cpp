@@ -6,6 +6,7 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
+
 /*
 MG HS PHEV 16.6kWh battery integration
 

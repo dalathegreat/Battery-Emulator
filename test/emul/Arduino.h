@@ -121,6 +121,9 @@ void delay(unsigned long ms);
 void delayMicroseconds(unsigned long us);
 int max(int a, int b);
 
+bool ledcAttachChannel(uint8_t pin, uint32_t freq, uint8_t resolution, int8_t channel);
+bool ledcWrite(uint8_t pin, uint32_t duty);
+
 class ESPClass {
  public:
   size_t getFlashChipSize() {
