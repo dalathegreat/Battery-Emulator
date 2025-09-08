@@ -40,12 +40,15 @@ ACAN_ESP32_Settings* settingsespcan;
 static uint32_t QUARTZ_FREQUENCY;
 SPIClass SPI2515;
 uint8_t user_selected_can_addon_crystal_frequency_mhz = 0;
+
 ACAN2515* can2515;
 ACAN2515Settings* settings2515;
 
 static ACAN2515_Buffer16 gBuffer;
 
+static ACAN2517FDSettings::Oscillator quartz_fd_frequency;
 SPIClass SPI2517;
+uint8_t user_selected_canfd_addon_crystal_frequency_mhz = 0;
 ACAN2517FD* canfd;
 ACAN2517FDSettings* settings2517;
 bool use_canfd_as_can = false;
@@ -59,6 +62,14 @@ bool init_CAN() {
     QUARTZ_FREQUENCY = user_selected_can_addon_crystal_frequency_mhz * 1000000UL;
   } else {
     QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;
+  }
+
+  if (user_selected_canfd_addon_crystal_frequency_mhz == 20) {
+    quartz_fd_frequency = ACAN2517FDSettings::OSC_20MHz;
+  } else if (user_selected_canfd_addon_crystal_frequency_mhz == 40) {
+    quartz_fd_frequency = ACAN2517FDSettings::OSC_40MHz;
+  } else {  // Default to 40MHz incase value invalid/not set
+    quartz_fd_frequency = ACAN2517FDSettings::OSC_40MHz;
   }
 
   auto nativeIt = can_receivers.find(CAN_NATIVE);
@@ -181,9 +192,8 @@ bool init_CAN() {
     logging.println("CAN FD add-on (ESP32+MCP2517) selected");
     SPI2517.begin(sck_pin, sdo_pin, sdi_pin);
     auto bitRate = (int)speed * 1000UL;
-    settings2517 = new ACAN2517FDSettings(
-        CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, bitRate,
-        DataBitRateFactor::x4);  // Arbitration bit rate: 250/500 kbit/s, data bit rate: 1/2 Mbit/s
+    settings2517 = new ACAN2517FDSettings(quartz_fd_frequency, bitRate, DataBitRateFactor::x4);
+    // Arbitration bit rate: 250/500 kbit/s, data bit rate: 1/2 Mbit/s
 
     // ListenOnly / Normal20B / NormalFDs
     settings2517->mRequestedMode = use_canfd_as_can ? ACAN2517FDSettings::Normal20B : ACAN2517FDSettings::NormalFD;

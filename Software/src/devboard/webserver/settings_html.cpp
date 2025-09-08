@@ -637,6 +637,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return String(settings.getUInt("CANFREQ", 8));
   }
 
+  if (var == "CANFDFREQ") {
+    return String(settings.getUInt("CANFDFREQ", 40));
+  }
+
   if (var == "PRECHGMS") {
     return String(settings.getUInt("PRECHGMS", 100));
   }
@@ -1079,8 +1083,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
-        <label>Can-addon frequency Mhz: </label>
+        <label>CAN addon crystal (Mhz): </label>
         <input name='CANFREQ' type='text' value="%CANFREQ%" pattern="^[0-9]+$" />
+
+        <label>CAN-FD-addon crystal (Mhz): </label>
+        <input name='CANFDFREQ' type='text' value="%CANFDFREQ%" pattern="^[0-9]+$" />
         
         <label>Equipment stop button: </label><select name='EQSTOP'>
         %EQSTOP%  
