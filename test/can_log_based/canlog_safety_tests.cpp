@@ -94,8 +94,11 @@ class BaseValuesPresentTest : public CanLogTestFixture {
  public:
   explicit BaseValuesPresentTest(fs::path path) : CanLogTestFixture(path) {}
   void TestBody() override {
+    datalayer.battery.status.CAN_battery_still_alive = 10;
+
     ProcessLog();
 
+    EXPECT_GT(datalayer.battery.status.CAN_battery_still_alive, 10);
     EXPECT_NE(datalayer.battery.status.voltage_dV, 0);
     // TODO: Current isn't actually a requirement? check power instead?
     //EXPECT_NE(datalayer.battery.status.current_dA, INT16_MIN);
