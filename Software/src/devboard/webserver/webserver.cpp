@@ -554,6 +554,9 @@ void init_webserver() {
       } else if (p->name() == "CANFREQ") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("CANFREQ", type);
+      } else if (p->name() == "CANFDFREQ") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("CANFDFREQ", type);
       } else if (p->name() == "PRECHGMS") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("PRECHGMS", type);
