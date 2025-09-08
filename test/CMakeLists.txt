@@ -71,7 +71,7 @@ add_executable(tests
     safety_tests.cpp 
     battery/NissanLeafTest.cpp 
     can_log_based/canlog_safety_tests.cpp
-    can_log_based/utils.cpp
+    utils/utils.cpp
     ../Software/src/communication/can/obd.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp

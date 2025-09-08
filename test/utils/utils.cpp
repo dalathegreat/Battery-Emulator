@@ -27,6 +27,27 @@ void print_frame(const CAN_frame& frame) {
   std::cout << std::dec << "\n";
 }
 
+std::string snake_case_to_camel_case(const std::string& str) {
+  std::string result;
+  bool toUpper = false;
+  for (char ch : str) {
+    if (ch == '_') {
+      toUpper = true;
+    } else if (ch < '0' || (ch > '9' && ch < 'A') || (ch > 'Z' && ch < 'a') || ch > 'z') {
+      // skip non-alphanumeric characters
+      toUpper = true;
+    } else {
+      if (toUpper) {
+        result += toupper(ch);
+        toUpper = false;
+      } else {
+        result += ch;
+      }
+    }
+  }
+  return result;
+}
+
 CAN_frame parse_can_log_line(const std::string& logLine) {
   std::stringstream ss(logLine);
   CAN_frame frame = {};
