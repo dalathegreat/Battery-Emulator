@@ -147,10 +147,10 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
           if (cell_index + i >= MAX_AMOUNT_CELLS) {
             break;
           }
-          cellvoltages[i] = (rx_frame.data.u8[1 + i * 2] << 8) | rx_frame.data.u8[2 + i * 2];
-          if (cell_index + i >= populated_cellvoltages) {
-            populated_cellvoltages = cell_index + i + 1;
-          }
+          cellvoltages[cell_index + i] = (rx_frame.data.u8[1 + i * 2] << 8) | rx_frame.data.u8[2 + i * 2];
+        }
+        if (cell_index + 2 >= populated_cellvoltages) {
+          populated_cellvoltages = cell_index + 2 + 1;
         }
       } else if (mux == 0x47) {
         temperature_below_zero_mod1_4 = rx_frame.data.u8[2];
