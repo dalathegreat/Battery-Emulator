@@ -37,7 +37,6 @@ void PylonBattery::update_values() {
 }
 
 void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x7310:
     case 0x7311:
@@ -55,6 +54,7 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x4210:
     case 0x4211:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       voltage_dV = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       current_dA = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 30000;
       SOC = rx_frame.data.u8[6];
