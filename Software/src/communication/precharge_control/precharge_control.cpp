@@ -31,13 +31,11 @@ bool init_precharge_control() {
     return true;
   }
 
-  // Setup PWM Channel Frequency and Resolution
-  logging.printf("Precharge control initialised\n");
-
   auto hia4v1_pin = esp32hal->HIA4V1_PIN();
   auto inverter_disconnect_contactor_pin = esp32hal->INVERTER_DISCONNECT_CONTACTOR_PIN();
 
   if (!esp32hal->alloc_pins("Precharge control", hia4v1_pin, inverter_disconnect_contactor_pin)) {
+    DEBUG_PRINTF("Precharge control setup failed\n");
     return false;
   }
 
@@ -46,6 +44,7 @@ bool init_precharge_control() {
   pinMode(inverter_disconnect_contactor_pin, OUTPUT);
   digitalWrite(inverter_disconnect_contactor_pin, LOW);
 
+  DEBUG_PRINTF("Precharge control setup successful\n");
   return true;
 }
 
