@@ -22,11 +22,13 @@ class CanBattery : public Battery, Transmitter, CanReceiver {
 
  protected:
   CAN_Interface can_interface;
+  CAN_Speed initial_speed;
 
   CanBattery(CAN_Speed speed = CAN_Speed::CAN_SPEED_500KBPS);
   CanBattery(CAN_Interface interface, CAN_Speed speed = CAN_Speed::CAN_SPEED_500KBPS);
 
-  CAN_Speed change_can_speed(CAN_Speed speed);
+  bool change_can_speed(CAN_Speed speed);
+  void reset_can_speed();
 
   void transmit_can_frame(const CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
 };
