@@ -22,8 +22,8 @@ void RivianBattery::update_values() {
   datalayer.battery.status.voltage_dV = battery_voltage;
   datalayer.battery.status.current_dA = ((int16_t)battery_current / 10.0 - 3200) * 10;
 
-  datalayer.battery.info.total_capacity_Wh = kWh_available_total * 5;
-  datalayer.battery.status.remaining_capacity_Wh = kWh_available_max * 5;
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //static lower limits for testing
   //  datalayer.battery.info.total_capacity_Wh = 10000;

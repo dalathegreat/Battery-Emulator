@@ -20,7 +20,7 @@ class RivianBattery : public CanBattery {
   uint8_t BMS_state = 0;
   uint16_t battery_voltage = 3700;
   uint16_t battery_SOC = 5000;
-  int32_t battery_current = 0;
+  int32_t battery_current = 32000;
   uint16_t kWh_available_total = 135;
   uint16_t kWh_available_max = 135;
   int16_t battery_min_temperature = 0;
