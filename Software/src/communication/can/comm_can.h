@@ -102,7 +102,7 @@ void stop_can();
 // Restart CAN communication for all interfaces
 void restart_can();
 
-// Change the speed of the CAN interface and return the old speed.
-CAN_Speed change_can_speed(CAN_Interface interface, CAN_Speed speed);
+// Change the speed of the CAN interface. Returns true if successful.
+bool change_can_speed(CAN_Interface interface, CAN_Speed speed);
 
 #endif

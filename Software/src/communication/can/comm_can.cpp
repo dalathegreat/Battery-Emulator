@@ -1,6 +1,4 @@
 #include "comm_can.h"
-#include <algorithm>
-#include <map>
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "../../lib/pierremolinaro-acan-esp32/ACAN_ESP32.h"
 #include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
@@ -10,6 +8,11 @@
 #include "src/devboard/safety/safety.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/logging.h"
+
+#include <esp_private/periph_ctrl.h>
+
+#include <algorithm>
+#include <map>
 
 volatile CAN_Configuration can_config = {.battery = CAN_NATIVE,
                                          .inverter = CAN_NATIVE,
@@ -35,7 +38,9 @@ void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_S
   DEBUG_PRINTF("CAN receiver registered, total: %d\n", can_receivers.size());
 }
 
-ACAN_ESP32_Settings* settingsespcan;
+uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin);
+
+ACAN_ESP32_Settings* settingsespcan = nullptr;
 
 static uint32_t QUARTZ_FREQUENCY;
 SPIClass SPI2515;
@@ -90,12 +95,7 @@ bool init_CAN() {
       return false;
     }
 
-    settingsespcan = new ACAN_ESP32_Settings((int)nativeIt->second.speed * 1000UL);
-    settingsespcan->mRequestedCANMode = ACAN_ESP32_Settings::NormalMode;
-    settingsespcan->mTxPin = tx_pin;
-    settingsespcan->mRxPin = rx_pin;
-
-    const uint32_t errorCode = ACAN_ESP32::can.begin(*settingsespcan);
+    const uint32_t errorCode = init_native_can(nativeIt->second.speed, tx_pin, rx_pin);
     if (errorCode == 0) {
       native_can_initialized = true;
       logging.println("Native Can ok");
@@ -482,11 +482,41 @@ void restart_can() {
   }
 }
 
-CAN_Speed change_can_speed(CAN_Interface interface, CAN_Speed speed) {
-  auto oldSpeed = (CAN_Speed)settingsespcan->mDesiredBitRate;
-  if (interface == CAN_Interface::CAN_NATIVE) {
-    settingsespcan->mDesiredBitRate = (int)speed;
-    ACAN_ESP32::can.begin(*settingsespcan);
+// Initialize the native CAN interface with the given speed and pins.
+// This can be called repeatedly to change the interface speed (as some
+// batteries require).
+uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin) {
+
+  // TODO: check whether this is necessary? It seems to help with
+  // reinitialization.
+  periph_module_reset(PERIPH_TWAI_MODULE);
+
+  if (settingsespcan != nullptr) {
+    delete settingsespcan;
   }
-  return speed;
+
+  // Create a new settings object (as it does the bitrate calcs in the constructor)
+  settingsespcan = new ACAN_ESP32_Settings((int)speed * 1000UL);
+  settingsespcan->mRequestedCANMode = ACAN_ESP32_Settings::NormalMode;
+  settingsespcan->mTxPin = tx_pin;
+  settingsespcan->mRxPin = rx_pin;
+
+  // (Re)start the CAN interface
+  return ACAN_ESP32::can.begin(*settingsespcan);
+}
+
+// Change the speed of the given CAN interface. Returns true if successful.
+bool change_can_speed(CAN_Interface interface, CAN_Speed speed) {
+  if (interface == CAN_Interface::CAN_NATIVE && settingsespcan != nullptr) {
+    // Reinitialize the native CAN interface with the new speed
+    const uint32_t errorCode = init_native_can(speed, settingsespcan->mTxPin, settingsespcan->mRxPin);
+    if (errorCode != 0) {
+      logging.print("Error Native Can: 0x");
+      logging.println(errorCode, HEX);
+      return false;
+    }
+    return true;
+  }
+
+  return false;
 }
