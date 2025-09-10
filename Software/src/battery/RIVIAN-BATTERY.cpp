@@ -8,7 +8,7 @@
 /*
 Initial support for Rivian BIG battery (135kWh)
 The battery has 3x CAN channels
-- Failover CAN (CAN-FD) lots of content, not required for operation 
+- Failover CAN (CAN-FD) lots of content, not required for operation. Has all cellvoltages!
 - Platform CAN (500kbps) with all the control messages needed to control the battery <- This is the one we want
 - Battery CAN (500kbps) lots of content, not required for operation 
 */
@@ -25,17 +25,8 @@ void RivianBattery::update_values() {
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  //static lower limits for testing
-  //  datalayer.battery.info.total_capacity_Wh = 10000;
-  //  datalayer.battery.status.remaining_capacity_Wh = 9800;
-
-  datalayer.battery.status.max_charge_power_W = ((battery_voltage / 10) * ((battery_charge_limit_amp / 20)));
-  datalayer.battery.status.max_discharge_power_W =
-      (abs((battery_voltage / 10) * ((battery_discharge_limit_amp / 20) - 3276.75)));
-
-  //static lower limits for testing
-  //  datalayer.battery.status.max_charge_power_W = 2000;
-  //  datalayer.battery.status.max_discharge_power_W = 3000;
+  datalayer.battery.status.max_charge_power_W = ((battery_voltage / 10) * battery_charge_limit_amp);
+  datalayer.battery.status.max_discharge_power_W = ((battery_voltage / 10) * battery_discharge_limit_amp);
 
   datalayer.battery.status.cell_min_voltage_mV = 3700 - BMS_state;
   datalayer.battery.status.cell_max_voltage_mV = 3700;
@@ -74,22 +65,18 @@ void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMS_state = (rx_frame.data.u8[0] & 0x03);
       break;
-    case 0x100:  //Discharge/Charge speed (Not visible on Platform-CAN?)
-      battery_charge_limit_amp = ((uint32_t)((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) |
-                                             (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) &
-                                  0b1111111111111111000000000000) >>
-                                 12;
+    case 0x100:  //Discharge/Charge speed
+      battery_charge_limit_amp =
+          (((rx_frame.data.u8[3] & 0x0F) << 8) | (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4)) / 20;
       battery_discharge_limit_amp =
-          ((uint32_t)((rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[3]) &
-           0b11111111111111110000) >>
-          4;
+          (((rx_frame.data.u8[5] & 0x0F) << 8) | (rx_frame.data.u8[4] << 4) | (rx_frame.data.u8[3] >> 4)) / 20;
       break;
-    case 0x153:  //Temperatures (Not visible on Platform-CAN?)+
+    case 0x153:  //Temperatures
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_max_temperature = (rx_frame.data.u8[5] / 2) - 40;
       battery_min_temperature = (rx_frame.data.u8[6] / 2) - 40;
       break;
-    case 0x55B:  //Temperatures (Not visible on Platform-CAN?)+
+    case 0x55B:  //Temperatures
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_SOC = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       break;
