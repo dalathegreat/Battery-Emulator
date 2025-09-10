@@ -28,8 +28,8 @@ void RivianBattery::update_values() {
   datalayer.battery.status.max_charge_power_W = ((battery_voltage / 10) * battery_charge_limit_amp);
   datalayer.battery.status.max_discharge_power_W = ((battery_voltage / 10) * battery_discharge_limit_amp);
 
-  datalayer.battery.status.cell_min_voltage_mV = 3700 - BMS_state;
-  datalayer.battery.status.cell_max_voltage_mV = 3700;
+  //datalayer.battery.status.cell_min_voltage_mV = 3700; //TODO: Take from failover CAN?
+  //datalayer.battery.status.cell_max_voltage_mV = 3700; //TODO: Take from failover CAN?
 
   datalayer.battery.status.temperature_min_dC = battery_min_temperature * 10;
   datalayer.battery.status.temperature_max_dC = battery_max_temperature * 10;
@@ -51,15 +51,10 @@ void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x25A:  //SOC and kWh [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //battery_SOC = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);
-      kWh_available_max = ((uint32_t)((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) |
-                                      (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) &
-                           0b11111111111111110000000000) >>
-                          10;
-      kWh_available_total = ((uint32_t)((rx_frame.data.u8[6] << 24) | (rx_frame.data.u8[5] << 16) |
-                                        (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[3]) &
-                             0b111111111111111100) >>
-                            2;
-      ;
+      kWh_available_max =
+          (((rx_frame.data.u8[3] & 0x03) << 14) | (rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[1] >> 2)) / 200;
+      kWh_available_total =
+          (((rx_frame.data.u8[5] & 0x03) << 14) | (rx_frame.data.u8[4] << 6) | (rx_frame.data.u8[3] >> 2)) / 200;
       break;
     case 0x405:  //State [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
