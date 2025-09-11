@@ -384,7 +384,16 @@ class EcmpHtmlRenderer : public BatteryHtmlRenderer {
                "</h4>";
 
     if (datalayer_extended.stellantisECMP.MysteryVan) {
-      content += "<h4>MysteryVan platform detected!</h4>";
+      content += "<h3>MysteryVan platform detected!</h3>";
+      content += "<h4>Contactor State: ";
+      if (datalayer_extended.stellantisECMP.CONTACTORS_STATE == 0) {
+        content += "Open";
+      } else if (datalayer_extended.stellantisECMP.CONTACTORS_STATE == 1) {
+        content += "Precharge";
+      } else if (datalayer_extended.stellantisECMP.CONTACTORS_STATE == 2) {
+        content += "Closed";
+      }
+      content += "</h4>";
       content += "<h4>Crash Memorized: ";
       if (datalayer_extended.stellantisECMP.CrashMemorized) {
         content += "Yes</h4>";

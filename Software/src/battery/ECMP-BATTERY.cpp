@@ -193,6 +193,7 @@ void EcmpBattery::update_values() {
   datalayer_extended.stellantisECMP.pid_SOH_cell_1 = pid_SOH_cell_1;
   // Update extended datalayer for MysteryVan
   datalayer_extended.stellantisECMP.MysteryVan = MysteryVan;
+  datalayer_extended.stellantisECMP.CONTACTORS_STATE = CONTACTORS_STATE;
   datalayer_extended.stellantisECMP.CrashMemorized = HV_BATT_CRASH_MEMORIZED;
   datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON = CONTACTOR_OPENING_REASON;
   datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE = TBMU_FAULT_TYPE;
@@ -268,7 +269,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //TBMU_EVSE_DC_MES_CURRENT = (rx_frame.data.u8[3] << 4) | ((rx_frame.data.u8[4] & 0xF0) >> 4);  //A -2000 - 2000 //Fastcharger info, not needed for BE
       //TBMU_EVSE_CHRG_REQ = (rx_frame.data.u8[4] & 0x0C) >> 2;  //00 No request, 01 Stop request //Fastcharger info, not needed for BE
       //HV_STORAGE_MAX_I = ((rx_frame.data.u8[4] & 0x03) << 12) | (rx_frame.data.u8[5] << 2) | //Fastcharger info, not needed for BE
-      ((rx_frame.data.u8[6] & 0xC0) >> 6);  //A -2000 - 2000
+      //((rx_frame.data.u8[6] & 0xC0) >> 6);  //A -2000 - 2000
       //TBMU_EVSE_DC_MAX_POWER = ((rx_frame.data.u8[6] & 0x3F) << 8) | rx_frame.data.u8[7];  //W -1000000 - 0 //Fastcharger info, not needed for BE
       break;
     case 0x3F4:  //MysteryVan 50/75kWh platform (Temperature sensors)
