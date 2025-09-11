@@ -191,6 +191,15 @@ void EcmpBattery::update_values() {
   datalayer_extended.stellantisECMP.pid_contactor_closing_counter = pid_contactor_closing_counter;
   datalayer_extended.stellantisECMP.pid_date_of_manufacture = pid_date_of_manufacture;
   datalayer_extended.stellantisECMP.pid_SOH_cell_1 = pid_SOH_cell_1;
+  // Update extended datalayer for MysteryVan
+  datalayer_extended.stellantisECMP.MysteryVan = MysteryVan;
+  datalayer_extended.stellantisECMP.CrashMemorized = HV_BATT_CRASH_MEMORIZED;
+  datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON = CONTACTOR_OPENING_REASON;
+  datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE = TBMU_FAULT_TYPE;
+  datalayer_extended.stellantisECMP.HV_BATT_FC_INSU_MINUS_RES = HV_BATT_FC_INSU_MINUS_RES;
+  datalayer_extended.stellantisECMP.HV_BATT_FC_INSU_PLUS_RES = HV_BATT_FC_INSU_PLUS_RES;
+  datalayer_extended.stellantisECMP.HV_BATT_FC_VHL_INSU_PLUS_RES = HV_BATT_FC_VHL_INSU_PLUS_RES;
+  datalayer_extended.stellantisECMP.HV_BATT_ONLY_INSU_MINUS_RES = HV_BATT_ONLY_INSU_MINUS_RES;
 
   if (battery_InterlockOpen) {
     set_event(EVENT_HVIL_FAILURE, 0);
