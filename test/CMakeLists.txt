@@ -63,13 +63,19 @@ include_directories("${source_dir}/googletest/include"
 include_directories(emul)
 
 # For eModBus
-add_compile_definitions(ESP32 HW_LILYGO NISSAN_LEAF_BATTERY)
+add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
 
 # add the executable
 add_executable(tests 
     tests.cpp 
     safety_tests.cpp 
     battery/NissanLeafTest.cpp 
+    battery/still_alive_tests.cpp
+    can_log_based/canlog_safety_tests.cpp
+    utils/utils.cpp
+    ../Software/src/communication/can/obd.cpp
+    ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
+    ../Software/src/communication/rs485/comm_rs485.cpp
     ../Software/src/devboard/safety/safety.cpp
     ../Software/src/devboard/hal/hal.cpp
     ../Software/src/devboard/utils/events.cpp
@@ -122,6 +128,7 @@ add_executable(tests
     ../Software/src/battery/RENAULT-TWIZY.cpp
     ../Software/src/battery/RENAULT-ZOE-GEN1-BATTERY.cpp
     ../Software/src/battery/RENAULT-ZOE-GEN2-BATTERY.cpp
+    ../Software/src/battery/RIVIAN-BATTERY.cpp
     ../Software/src/battery/RJXZS-BMS.cpp
     ../Software/src/battery/SAMSUNG-SDI-LV-BATTERY.cpp
     ../Software/src/battery/SANTA-FE-PHEV-BATTERY.cpp

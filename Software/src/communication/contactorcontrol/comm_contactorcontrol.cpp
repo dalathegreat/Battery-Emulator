@@ -74,6 +74,7 @@ bool init_contactors() {
     auto precPin = esp32hal->PRECHARGE_PIN();
 
     if (!esp32hal->alloc_pins(contactors, posPin, negPin, precPin)) {
+      DEBUG_PRINTF("GPIO controlled contactor setup failed\n");
       return false;
     }
 
@@ -97,6 +98,7 @@ bool init_contactors() {
   if (contactor_control_enabled_double_battery) {
     auto second_contactors = esp32hal->SECOND_BATTERY_CONTACTORS_PIN();
     if (!esp32hal->alloc_pins(contactors, second_contactors)) {
+      DEBUG_PRINTF("Secondary battery contactor control setup failed\n");
       return false;
     }
 
@@ -108,6 +110,7 @@ bool init_contactors() {
   if (periodic_bms_reset || remote_bms_reset || esp32hal->always_enable_bms_power()) {
     auto pin = esp32hal->BMS_POWER();
     if (!esp32hal->alloc_pins("BMS power", pin)) {
+      DEBUG_PRINTF("BMS power setup failed\n");
       return false;
     }
     pinMode(pin, OUTPUT);

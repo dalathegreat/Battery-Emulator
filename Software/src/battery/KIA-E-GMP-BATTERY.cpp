@@ -143,12 +143,12 @@ void KiaEGmpBattery::update_values() {
     datalayer.battery.status.max_charge_power_W =
         RAMPDOWNPOWERALLOWED * (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
   } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
   }
 
   //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
   //The allowed discharge power is not available. We hardcode this value for now
-  datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
+  datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
 
   datalayer.battery.status.temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
 

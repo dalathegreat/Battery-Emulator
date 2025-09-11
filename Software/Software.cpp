@@ -34,7 +34,7 @@
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "9.0.RC7experimental";
+const char* version_number = "9.0.RC10experimental";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -493,7 +493,7 @@ void setup() {
   init_serial();
 
   // We print this after setting up serial, so that is also printed if configured to do so
-  logging.printf("Battery emulator %s build " __DATE__ " " __TIME__ "\n", version_number);
+  DEBUG_PRINTF("Battery emulator %s build " __DATE__ " " __TIME__ "\n", version_number);
 
   init_events();
 
@@ -504,43 +504,28 @@ void setup() {
                             &connectivity_loop_task, esp32hal->WIFICORE());
   }
 
-  if (!led_init()) {
-    return;
-  }
+  led_init();
 
   if (datalayer.system.info.CAN_SD_logging_active || datalayer.system.info.SD_logging_active) {
     xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
                             &logging_loop_task, esp32hal->WIFICORE());
   }
 
-  if (!init_contactors()) {
-    return;
-  }
+  init_contactors();
 
-  if (!init_precharge_control()) {
-    return;
-  }
+  init_precharge_control();
 
   setup_charger();
-
-  if (!setup_inverter()) {
-    return;
-  }
+  setup_inverter();
   setup_battery();
   setup_can_shunt();
 
   // Init CAN only after any CAN receivers have had a chance to register.
-  if (!init_CAN()) {
-    return;
-  }
+  init_CAN();
 
-  if (!init_rs485()) {
-    return;
-  }
+  init_rs485();
 
-  if (!init_equipment_stop_button()) {
-    return;
-  }
+  init_equipment_stop_button();
 
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
@@ -569,9 +554,7 @@ void setup() {
   // Start tasks
 
   if (mqtt_enabled) {
-    if (!init_mqtt()) {
-      return;
-    }
+    init_mqtt();
 
     xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
                             esp32hal->WIFICORE());
@@ -580,7 +563,7 @@ void setup() {
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
                           esp32hal->CORE_FUNCTION_CORE());
 
-  DEBUG_PRINTF("setup() complete\n");
+  DEBUG_PRINTF("Setup complete!\n");
 }
 
 // Loop empty, all functionality runs in tasks

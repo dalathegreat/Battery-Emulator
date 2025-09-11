@@ -44,6 +44,7 @@ void setup_can_shunt();
 #include "RENAULT-TWIZY.h"
 #include "RENAULT-ZOE-GEN1-BATTERY.h"
 #include "RENAULT-ZOE-GEN2-BATTERY.h"
+#include "RIVIAN-BATTERY.h"
 #include "RJXZS-BMS.h"
 #include "SAMSUNG-SDI-LV-BATTERY.h"
 #include "SANTA-FE-PHEV-BATTERY.h"
@@ -55,6 +56,7 @@ void setup_can_shunt();
 #include "VOLVO-SPA-HYBRID-BATTERY.h"
 
 void setup_battery(void);
+Battery* create_battery(BatteryType type);
 
 extern uint16_t user_selected_max_pack_voltage_dV;
 extern uint16_t user_selected_min_pack_voltage_dV;

@@ -116,6 +116,8 @@ const char* name_for_battery_type(BatteryType type) {
       return RenaultZoeGen1Battery::Name;
     case BatteryType::RenaultZoe2:
       return RenaultZoeGen2Battery::Name;
+    case BatteryType::RivianBattery:
+      return RivianBattery::Name;
     case BatteryType::SamsungSdiLv:
       return SamsungSdiLVBattery::Name;
     case BatteryType::SantaFePhev:
@@ -137,11 +139,7 @@ const char* name_for_battery_type(BatteryType type) {
   }
 }
 
-#ifdef LFP_CHEMISTRY
-const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum::LFP;
-#else
 const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum::NMC;
-#endif
 
 battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_default;
 
@@ -216,6 +214,8 @@ Battery* create_battery(BatteryType type) {
       return new RenaultZoeGen1Battery();
     case BatteryType::RenaultZoe2:
       return new RenaultZoeGen2Battery();
+    case BatteryType::RivianBattery:
+      return new RivianBattery();
     case BatteryType::SamsungSdiLv:
       return new SamsungSdiLVBattery();
     case BatteryType::SantaFePhev:
@@ -268,8 +268,14 @@ void setup_battery() {
       case BatteryType::RenaultZoe1:
         battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
+      case BatteryType::RenaultZoe2:
+        battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, nullptr, can_config.battery_double);
+        break;
       case BatteryType::TestFake:
         battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
+        break;
+      default:
+        DEBUG_PRINTF("User tried enabling double battery on non-supported integration!\n");
         break;
     }
 

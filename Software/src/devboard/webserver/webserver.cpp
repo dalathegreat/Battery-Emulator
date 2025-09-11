@@ -509,6 +509,8 @@ void init_webserver() {
       } else if (p->name() == "SUBNET4") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("SUBNET4", type);
+      } else if (p->name() == "APPASSWORD") {
+        settings.saveString("APPASSWORD", p->value().c_str());
       } else if (p->name() == "HOSTNAME") {
         settings.saveString("HOSTNAME", p->value().c_str());
       } else if (p->name() == "MQTTSERVER") {
@@ -554,6 +556,9 @@ void init_webserver() {
       } else if (p->name() == "CANFREQ") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("CANFREQ", type);
+      } else if (p->name() == "CANFDFREQ") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("CANFDFREQ", type);
       } else if (p->name() == "PRECHGMS") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("PRECHGMS", type);

@@ -34,7 +34,6 @@ void Mg5Battery::
 }
 
 void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x171:  //Following messages were detected on a MG5 battery BMS
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN

@@ -291,6 +291,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
   }
 
+  if (var == "APPASSWORD") {
+    return settings.getString("APPASSWORD", "123456789");
+  }
+
   if (var == "STATICIP") {
     return settings.getBool("STATICIP") ? "checked" : "";
   }
@@ -637,6 +641,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return String(settings.getUInt("CANFREQ", 8));
   }
 
+  if (var == "CANFDFREQ") {
+    return String(settings.getUInt("CANFDFREQ", 40));
+  }
+
   if (var == "PRECHGMS") {
     return String(settings.getUInt("PRECHGMS", 100));
   }
@@ -882,6 +890,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="4"] .if-estimated, 
     form[data-battery="6"] .if-estimated, 
     form[data-battery="14"] .if-estimated, 
+    form[data-battery="16"] .if-estimated, 
     form[data-battery="24"] .if-estimated,
     form[data-battery="32"] .if-estimated, 
     form[data-battery="33"] .if-estimated {
@@ -1078,8 +1087,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
-        <label>Can-addon frequency Mhz: </label>
+        <label>CAN addon crystal (Mhz): </label>
         <input name='CANFREQ' type='text' value="%CANFREQ%" pattern="^[0-9]+$" />
+
+        <label>CAN-FD-addon crystal (Mhz): </label>
+        <input name='CANFDFREQ' type='text' value="%CANFDFREQ%" pattern="^[0-9]+$" />
         
         <label>Equipment stop button: </label><select name='EQSTOP'>
         %EQSTOP%  
@@ -1139,6 +1151,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Broadcast Wifi access point: </label>
         <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
+
+        <label>Access point password: </label>
+        <input type='text' name='APPASSWORD' value="%APPASSWORD%" />
 
         <label>Wifi channel 0-14: </label>
         <input name='WIFICHANNEL' type='text' value="%WIFICHANNEL%" pattern="^[0-9]+$" />
