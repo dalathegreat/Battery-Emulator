@@ -200,6 +200,18 @@ void EcmpBattery::update_values() {
   datalayer_extended.stellantisECMP.HV_BATT_FC_INSU_PLUS_RES = HV_BATT_FC_INSU_PLUS_RES;
   datalayer_extended.stellantisECMP.HV_BATT_FC_VHL_INSU_PLUS_RES = HV_BATT_FC_VHL_INSU_PLUS_RES;
   datalayer_extended.stellantisECMP.HV_BATT_ONLY_INSU_MINUS_RES = HV_BATT_ONLY_INSU_MINUS_RES;
+  datalayer_extended.stellantisECMP.HV_BATT_ONLY_INSU_MINUS_RES = HV_BATT_ONLY_INSU_MINUS_RES;
+  datalayer_extended.stellantisECMP.ALERT_CELL_POOR_CONSIST = ALERT_CELL_POOR_CONSIST;
+  datalayer_extended.stellantisECMP.ALERT_OVERCHARGE = ALERT_OVERCHARGE;
+  datalayer_extended.stellantisECMP.ALERT_BATT = ALERT_BATT;
+  datalayer_extended.stellantisECMP.ALERT_LOW_SOC = ALERT_LOW_SOC;
+  datalayer_extended.stellantisECMP.ALERT_HIGH_SOC = ALERT_HIGH_SOC;
+  datalayer_extended.stellantisECMP.ALERT_SOC_JUMP = ALERT_SOC_JUMP;
+  datalayer_extended.stellantisECMP.ALERT_TEMP_DIFF = ALERT_TEMP_DIFF;
+  datalayer_extended.stellantisECMP.ALERT_HIGH_TEMP = ALERT_HIGH_TEMP;
+  datalayer_extended.stellantisECMP.ALERT_OVERVOLTAGE = ALERT_OVERVOLTAGE;
+  datalayer_extended.stellantisECMP.ALERT_CELL_OVERVOLTAGE = ALERT_CELL_OVERVOLTAGE;
+  datalayer_extended.stellantisECMP.ALERT_CELL_UNDERVOLTAGE = ALERT_CELL_UNDERVOLTAGE;
 
   if (battery_InterlockOpen) {
     set_event(EVENT_HVIL_FAILURE, 0);

@@ -384,9 +384,9 @@ class EcmpHtmlRenderer : public BatteryHtmlRenderer {
                "</h4>";
 
     if (datalayer_extended.stellantisECMP.MysteryVan) {
-      content += "<h4>MysteryVan platform detected: </h4>";
+      content += "<h4>MysteryVan platform detected!</h4>";
       content += "<h4>Crash Memorized: ";
-      if (datalayer_extended.stellantisECMP.CrashMemorized == 255) {
+      if (datalayer_extended.stellantisECMP.CrashMemorized) {
         content += "Yes</h4>";
       } else {
         content += "No</h4>";
@@ -434,7 +434,72 @@ class EcmpHtmlRenderer : public BatteryHtmlRenderer {
       content += "<h4>FC vehicle insulation plus resistance " +
                  String(datalayer_extended.stellantisECMP.HV_BATT_ONLY_INSU_MINUS_RES) + " kOhm</h4>";
     }
-
+    content += "<h4>Alert Battery: ";
+    if (datalayer_extended.stellantisECMP.ALERT_BATT) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Low SOC: ";
+    if (datalayer_extended.stellantisECMP.ALERT_LOW_SOC) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert High SOC: ";
+    if (datalayer_extended.stellantisECMP.ALERT_HIGH_SOC) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert SOC Jump: ";
+    if (datalayer_extended.stellantisECMP.ALERT_SOC_JUMP) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Overcharge: ";
+    if (datalayer_extended.stellantisECMP.ALERT_OVERCHARGE) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Temp Diff: ";
+    if (datalayer_extended.stellantisECMP.ALERT_TEMP_DIFF) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Temp High: ";
+    if (datalayer_extended.stellantisECMP.ALERT_HIGH_TEMP) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Overvoltage: ";
+    if (datalayer_extended.stellantisECMP.ALERT_OVERVOLTAGE) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Cell Overvoltage: ";
+    if (datalayer_extended.stellantisECMP.ALERT_CELL_OVERVOLTAGE) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Cell Undervoltage: ";
+    if (datalayer_extended.stellantisECMP.ALERT_CELL_UNDERVOLTAGE) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Cell Poor Consistency: ";
+    if (datalayer_extended.stellantisECMP.ALERT_CELL_POOR_CONSIST) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
     return content;
   }
 };
