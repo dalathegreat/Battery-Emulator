@@ -40,26 +40,11 @@ class BydCanInverter : public CanInverterProtocol {
                        .DLC = 8,
                        .ID = 0x2D0,
                        .data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}};  //BYD
-  CAN_frame BYD_3D0_0 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x3D0,
-                         .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //Battery
-  CAN_frame BYD_3D0_1 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x3D0,
-                         .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x50, 0x72}};  //-Box Pr
-  CAN_frame BYD_3D0_2 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x3D0,
-                         .data = {0x02, 0x65, 0x6D, 0x69, 0x75, 0x6D, 0x20, 0x48}};  //emium H
-  CAN_frame BYD_3D0_3 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x3D0,
-                         .data = {0x03, 0x56, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00}};  //VS
+  CAN_frame BYD_3D0 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x3D0,
+                       .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //Battery
   //Actual content messages
   CAN_frame BYD_110 = {.FD = false,
                        .ext_ID = false,
