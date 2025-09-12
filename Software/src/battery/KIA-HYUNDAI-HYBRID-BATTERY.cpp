@@ -201,15 +201,21 @@ void KiaHyundaiHybridBattery::transmit_can(unsigned long currentMillis) {
     }
     poll_data_pid++;
     if (poll_data_pid == 1) {
-      transmit_can_frame(&KIA_7E4_id1);
+      KIA_7E4.data.u8[2] = 0x01;
+      KIA_7E4.data.u8[3] = 0x00;
+      transmit_can_frame(&KIA_7E4);
     } else if (poll_data_pid == 2) {
-      transmit_can_frame(&KIA_7E4_id2);
+      KIA_7E4.data.u8[2] = 0x02;
+      transmit_can_frame(&KIA_7E4);
     } else if (poll_data_pid == 3) {
-      transmit_can_frame(&KIA_7E4_id3);
+      KIA_7E4.data.u8[2] = 0x03;
+      transmit_can_frame(&KIA_7E4);
     } else if (poll_data_pid == 4) {
-
+      //Group 4 not polled
     } else if (poll_data_pid == 5) {
-      transmit_can_frame(&KIA_7E4_id5);
+      KIA_7E4.data.u8[2] = 0x05;
+      KIA_7E4.data.u8[3] = 0x04;
+      transmit_can_frame(&KIA_7E4);
     }
   }
 }
