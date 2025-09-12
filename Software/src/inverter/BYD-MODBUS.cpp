@@ -78,10 +78,8 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   mbPV[300] = datalayer.battery.status.bms_status;
   mbPV[302] = 128 + bms_char_dis_status;
   mbPV[303] = datalayer.battery.status.reported_soc;
-  mbPV[304] =
-      std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(57900u));  //Cap to 3xHVM max value
-  mbPV[305] = std::min(datalayer.battery.status.reported_remaining_capacity_Wh,
-                       static_cast<uint32_t>(57900u));                   //Cap to 3xHVM max value
+  mbPV[304] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(50000u));
+  mbPV[305] = std::min(datalayer.battery.status.reported_remaining_capacity_Wh, static_cast<uint32_t>(50000u));
   mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));  //Cap to 30000 if exceeding
   mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));     //Cap to 30000 if exceeding
   mbPV[310] = datalayer.battery.status.voltage_dV;
