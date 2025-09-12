@@ -67,7 +67,18 @@ void register_transmitter(Transmitter* transmitter) {
 void init_serial() {
   // Init Serial monitor
   Serial.begin(115200);
+#if HW_LILYGO2CAN
+  // Wait up to 100ms for Serial to be available. On the ESP32S3 Serial is
+  // provided by the USB controller, so will only work if the board is connected
+  // to a computer.
+  for (int i = 0; i < 10; i++) {
+    if (Serial)
+      break;
+    delay(10);
+  }
+#else
   while (!Serial) {}
+#endif
 }
 
 void connectivity_loop(void*) {
