@@ -4,6 +4,17 @@ InverterProtocol* inverter = nullptr;
 
 InverterProtocolType user_selected_inverter_protocol = InverterProtocolType::BydModbus;
 
+// Some user-configurable settings that can be used by inverters. These
+// inverters should use sensible defaults if the corresponding user_selected
+// value is zero.
+uint16_t user_selected_inverter_cells = 0;
+uint16_t user_selected_inverter_modules = 0;
+uint16_t user_selected_inverter_cells_per_module = 0;
+uint16_t user_selected_inverter_voltage_level = 0;
+uint16_t user_selected_inverter_ah_capacity = 0;
+uint16_t user_selected_inverter_battery_type = 0;
+bool user_selected_inverter_ignore_contactors = false;
+
 std::vector<InverterProtocolType> supported_inverter_protocols() {
   std::vector<InverterProtocolType> types;
 
@@ -84,11 +95,6 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
   }
   return nullptr;
 }
-
-#ifdef COMMON_IMAGE
-#ifdef SELECTED_INVERTER_CLASS
-#error "Compile time SELECTED_INVERTER_CLASS should not be defined with COMMON_IMAGE"
-#endif
 
 bool setup_inverter() {
   if (inverter) {
@@ -194,24 +200,3 @@ bool setup_inverter() {
 
   return false;
 }
-
-#else
-bool setup_inverter() {
-  if (inverter) {
-    // The inverter is setup only once.
-    return true;
-  }
-
-#ifdef SELECTED_INVERTER_CLASS
-  inverter = new SELECTED_INVERTER_CLASS();
-
-  if (inverter) {
-    return inverter->setup();
-  }
-
-  return false;
-#else
-  return true;
-#endif
-}
-#endif

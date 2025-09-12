@@ -41,25 +41,31 @@ jobs:
           ~/.platformio/.cache
         key: ${{ runner.os }}-pio
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: '3.11'
     - name: Install PlatformIO Core
       run: pip install --upgrade platformio
 
-      # Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
-    - name: Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
-      run: cp ./Software/USER_SECRETS.TEMPLATE.h ./Software/USER_SECRETS.h
-
-    - name: 🛠 Build ota image for Lilygo
+    - name: 🛠 Build ota image for Lilygo T-CAN
       run: |
         pio run -e lilygo_330
         cp .pio/build/lilygo_330/firmware.bin output/BE_${{ steps.vars.outputs.tag }}_LilygoT-CAN485.ota.bin
 
-    - name: 🛠 Build factory image for Lilygo
+    - name: 🛠 Build factory image for Lilygo T-CAN
       run: |
         esptool --chip esp32 merge-bin -o .pio/build/lilygo_330/factory.bin --flash-mode dio --flash-freq 40m --flash-size 4MB 0x1000 .pio/build/lilygo_330/bootloader.bin 0x8000 .pio/build/lilygo_330/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/lilygo_330/firmware.bin
         mv .pio/build/lilygo_330/factory.bin output/BE_${{ steps.vars.outputs.tag }}_LilygoT-CAN485.factory.bin
+
+    - name: 🛠 Build ota image for Lilygo 2-CAN
+      run: |
+        pio run -e lilygo_2CAN_330
+        cp .pio/build/lilygo_2CAN_330/firmware.bin output/BE_${{ steps.vars.outputs.tag }}_LilygoT-2CAN.ota.bin
+
+    - name: 🛠 Build factory image for Lilygo 2-CAN
+      run: |
+        esptool --chip esp32s3 merge-bin -o .pio/build/lilygo_2CAN_330/factory.bin --flash-mode qio --flash-freq 80m --flash-size 4MB 0x0000 .pio/build/lilygo_2CAN_330/bootloader.bin 0x8000 .pio/build/lilygo_2CAN_330/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/lilygo_2CAN_330/firmware.bin
+        mv .pio/build/lilygo_2CAN_330/factory.bin output/BE_${{ steps.vars.outputs.tag }}_LilygoT-2CAN.factory.bin
 
     - name: 🛠 Build ota image for Stark
       run: |

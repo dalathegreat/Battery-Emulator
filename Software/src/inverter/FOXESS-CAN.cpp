@@ -523,40 +523,23 @@ void FoxessCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   if (rx_frame.ID == 0x1871) {
     datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
     if (rx_frame.data.u8[0] == 0x03) {  //0x1871 [0x03, 0x06, 0x17, 0x05, 0x09, 0x09, 0x28, 0x22]
-//This message is sent by the inverter every '6' seconds (0.5s after the pack serial numbers)
-//and contains a timestamp in bytes 2-7 i.e. <YY>,<MM>,<DD>,<HH>,<mm>,<ss>
-#ifdef DEBUG_LOG
-      logging.println("Inverter sends current time and date");
-#endif
+      //This message is sent by the inverter every '6' seconds (0.5s after the pack serial numbers)
+      //and contains a timestamp in bytes 2-7 i.e. <YY>,<MM>,<DD>,<HH>,<mm>,<ss>
     } else if (rx_frame.data.u8[0] == 0x01) {
       if (rx_frame.data.u8[4] == 0x00) {
-// Inverter wants to know bms info (every 1s)
-#ifdef DEBUG_LOG
-        logging.println("Inverter requests 1s BMS info, we reply");
-#endif
+        // Inverter wants to know bms info (every 1s)
         send_bms_info = true;
       } else if (rx_frame.data.u8[4] == 0x01) {  // b4 0x01 , 0x1871 [0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00]
         //Inverter wants to know all individual cellvoltages (occurs 6 seconds after valid BMS reply)
-#ifdef DEBUG_LOG
-        logging.println("Inverter requests individual battery pack status, we reply");
-#endif
         send_individual_pack_status = true;
       } else if (rx_frame.data.u8[4] == 0x04) {  // b4 0x01 , 0x1871 [0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00]
         //Inverter wants to know all individual cellvoltages (occurs 6 seconds after valid BMS reply)
-#ifdef DEBUG_LOG
-        logging.println("Inverter requests cellvoltages and temps, we reply");
-#endif
         send_cellvoltages = true;
       }
     } else if (rx_frame.data.u8[0] == 0x02) {  //0x1871 [0x02, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00]
-// Ack message
-#ifdef DEBUG_LOG
-      logging.println("Inverter acks, no reply needed");
-#endif
+                                               // Ack message
     } else if (rx_frame.data.u8[0] == 0x05) {  //0x1871 [0x05, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00]
-#ifdef DEBUG_LOG
-      logging.println("Inverter wants to know serial numbers, we reply");
-#endif
+                                               // Inverter wants to know serial numbers, we reply
       send_serial_numbers = true;
     }
   }

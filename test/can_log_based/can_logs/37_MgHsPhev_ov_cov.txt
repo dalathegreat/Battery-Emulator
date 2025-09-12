@@ -1,0 +1,5 @@
+# 450V pack (overvoltage)
+(13148.893) RX0 3ac [8] 01 d4 01 6f 07 08 4d d0
+
+# 5V max cell (cell overvoltage)
+(38245.429) RX0 173 [8] 00 00 c8 c3 13 88 0e 18

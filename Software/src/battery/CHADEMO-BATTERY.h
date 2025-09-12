@@ -7,13 +7,6 @@
 #include "CHADEMO-BATTERY-HTML.h"
 #include "CanBattery.h"
 
-#ifdef CHADEMO_BATTERY
-#define SELECTED_BATTERY_CLASS ChademoBattery
-
-//Contactor control is required for CHADEMO support
-#define CONTACTOR_CONTROL
-#endif
-
 class ChademoBattery : public CanBattery {
  public:
   ChademoBattery() {

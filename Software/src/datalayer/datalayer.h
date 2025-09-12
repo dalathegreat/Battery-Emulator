@@ -1,15 +1,16 @@
 #ifndef _DATALAYER_H_
 #define _DATALAYER_H_
 
-#include "../../USER_SETTINGS.h"
 #include "../devboard/utils/types.h"
 #include "../system_settings.h"
 
 struct DATALAYER_BATTERY_INFO_TYPE {
   /** uint32_t */
-  /** Total energy capacity in Watt-hours */
-  uint32_t total_capacity_Wh = BATTERY_WH_MAX;
-  uint32_t reported_total_capacity_Wh = BATTERY_WH_MAX;
+  /** Total energy capacity in Watt-hours 
+   * Automatically updates depending on battery integration OR from settings page
+  */
+  uint32_t total_capacity_Wh = 30000;
+  uint32_t reported_total_capacity_Wh = 30000;
 
   /** uint16_t */
   /** The maximum intended packvoltage, in deciVolt. 4900 = 490.0 V */
@@ -28,7 +29,7 @@ struct DATALAYER_BATTERY_INFO_TYPE {
   uint8_t number_of_cells;
 
   /** Other */
-  /** Chemistry of the pack. NCA, NMC or LFP (so far) */
+  /** Chemistry of the pack. Autodetect, or force specific chemistry */
   battery_chemistry_enum chemistry = battery_chemistry_enum::NCA;
 };
 
@@ -67,6 +68,13 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   int16_t temperature_min_dC;
   /** Instantaneous battery current in deciAmpere. 95 = 9.5 A */
   int16_t current_dA;
+
+  /* Some early integrations do not support reading allowed charge power from battery
+  On these integrations we need to have the user specify what limits the battery can take */
+  /** Overriden allowed battery discharge power in Watts. Set by user */
+  uint32_t override_discharge_power_W = 0;
+  /** Overriden allowed battery charge power in Watts. Set by user */
+  uint32_t override_charge_power_W = 0;
 
   /** uint16_t */
   /** State of health in integer-percent x 100. 9900 = 99.00% */
@@ -110,33 +118,38 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
 
   /** LED mode, customizable by user */
-  led_mode_enum led_mode = LED_MODE;
+  led_mode_enum led_mode = CLASSIC;
 };
 
 struct DATALAYER_BATTERY_SETTINGS_TYPE {
-  /** SOC scaling setting. Set to true to use SOC scaling */
-  bool soc_scaling_active = BATTERY_USE_SCALED_SOC;
+  /** SOC scaling setting. Increases battery life. 
+   * If true will rescale SOC between the configured min/max-percentage */
+  bool soc_scaling_active = true;
   /** Minimum percentage setting. Set this value to the lowest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
-   * will "see" 0% */
-  int16_t min_percentage = BATTERY_MINPERCENTAGE;
+   * will "see" 0% , Example 2000 = 20.0%*/
+  int16_t min_percentage = 2000;
   /** Maximum percentage setting. Set this value to the highest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
-   * will "see" 100% */
-  uint16_t max_percentage = BATTERY_MAXPERCENTAGE;
+   * will "see" 100% Example 8000 = 80.0%*/
+  uint16_t max_percentage = 8000;
 
-  /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A */
-  uint16_t max_user_set_charge_dA = BATTERY_MAX_CHARGE_AMP;
-  /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A */
-  uint16_t max_user_set_discharge_dA = BATTERY_MAX_DISCHARGE_AMP;
+  /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A 
+   * Updates later on via Settings
+  */
+  uint16_t max_user_set_charge_dA = 300;
+  /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A 
+   * Updates later on via Settings
+  */
+  uint16_t max_user_set_discharge_dA = 300;
 
   /** User specified discharge/charge voltages in use. Set to true to use user specified values */
   /** Some inverters like to see a specific target voltage for charge/discharge. Use these values to override automatic voltage limits*/
-  bool user_set_voltage_limits_active = BATTERY_USE_VOLTAGE_LIMITS;
+  bool user_set_voltage_limits_active = false;
   /** The user specified maximum allowed charge voltage, in deciVolt. 4000 = 400.0 V */
-  uint16_t max_user_set_charge_voltage_dV = BATTERY_MAX_CHARGE_VOLTAGE;
+  uint16_t max_user_set_charge_voltage_dV = 4500;
   /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
-  uint16_t max_user_set_discharge_voltage_dV = BATTERY_MAX_DISCHARGE_VOLTAGE;
+  uint16_t max_user_set_discharge_voltage_dV = 3000;
 
   /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset */
   uint16_t user_set_bms_reset_duration_ms = 30000;
@@ -152,6 +165,7 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   bool user_requests_balancing = false;
   bool user_requests_tesla_isolation_clear = false;
   bool user_requests_tesla_bms_reset = false;
+  bool user_requests_tesla_soc_reset = false;
   /* Forced balancing max time & start timestamp */
   uint32_t balancing_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
   uint32_t balancing_start_time_ms = 0;  //For keeping track when balancing started
@@ -240,6 +254,16 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   size_t logged_can_messages_offset = 0;
   /** bool, determines if CAN messages should be logged for webserver */
   bool can_logging_active = false;
+  /** bool, determines if USB serial logging should occur */
+  bool CAN_usb_logging_active = false;
+  /** bool, determines if USB serial logging should occur */
+  bool CAN_SD_logging_active = false;
+  /** bool, determines if USB serial logging should occur */
+  bool usb_logging_active = false;
+  /** bool, determines if general logging should be active for webserver */
+  bool web_logging_active = false;
+  /** bool, determines if general logging to SD card should be active */
+  bool SD_logging_active = false;
   /** uint8_t, enumeration which CAN interface should be used for log playback */
   uint8_t can_replay_interface = CAN_NATIVE;
   /** bool, determines if CAN replay should loop or not */
@@ -248,12 +272,13 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   bool can_native_send_fail = false;
   /** bool, MCP2515 CAN failed to send flag */
   bool can_2515_send_fail = false;
-  /** uint16_t, MCP2518 CANFD failed to send flag */
+  /** bool, MCP2518 CANFD failed to send flag */
   bool can_2518_send_fail = false;
+  /** bool, determines if detailed performance measurement should be shown on webserver */
+  bool performance_measurement_active = false;
 };
 
 struct DATALAYER_SYSTEM_STATUS_TYPE {
-#ifdef FUNCTION_TIME_MEASUREMENT
   /** Core task measurement variable */
   int64_t core_task_max_us = 0;
   /** Core task measurement variable, reset each 10 seconds */
@@ -294,7 +319,6 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
    * This will show the performance of CAN TX when the total time reached a new worst case
    */
   int64_t time_snap_cantx_us = 0;
-#endif
   /** uint8_t */
   /** A counter set each time a new message comes from inverter.
    * This value then gets decremented every second. Incase we reach 0

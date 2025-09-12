@@ -1,4 +1,5 @@
 #include "IMIEV-CZERO-ION-BATTERY.h"
+#include <cstring>  //for unit tests
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -19,9 +20,11 @@ void ImievCZeroIonBattery::
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //We do not know the max charge/discharge power is sent by the battery. We hardcode value for now.
-  datalayer.battery.status.max_charge_power_W = 10000;  // 10kW   //TODO: Fix when CAN is decoded
+  datalayer.battery.status.max_charge_power_W =
+      datalayer.battery.status.override_charge_power_W;  //TODO: Fix when CAN is decoded
 
-  datalayer.battery.status.max_discharge_power_W = 10000;  // 10kW   //TODO: Fix when CAN is decoded
+  datalayer.battery.status.max_discharge_power_W =
+      datalayer.battery.status.override_discharge_power_W;  //TODO: Fix when CAN is decoded
 
   static int n = sizeof(cell_voltages) / sizeof(cell_voltages[0]);
   max_volt_cel = cell_voltages[0];  // Initialize max with the first element of the array
@@ -75,30 +78,9 @@ void ImievCZeroIonBattery::
   }
 
   if (!BMU_Detected) {
-#ifdef DEBUG_LOG
     logging.println("BMU not detected, check wiring!");
-#endif
+    //TODO: Raise event
   }
-
-#ifdef DEBUG_LOG
-  logging.println("Battery Values");
-  logging.print("BMU SOC: ");
-  logging.print(BMU_SOC);
-  logging.print(" BMU Current: ");
-  logging.print(BMU_Current);
-  logging.print(" BMU Battery Voltage: ");
-  logging.print(BMU_PackVoltage);
-  logging.print(" BMU_Power: ");
-  logging.print(BMU_Power);
-  logging.print(" Cell max voltage: ");
-  logging.print(max_volt_cel);
-  logging.print(" Cell min voltage: ");
-  logging.print(min_volt_cel);
-  logging.print(" Cell max temp: ");
-  logging.print(max_temp_cel);
-  logging.print(" Cell min temp: ");
-  logging.println(min_temp_cel);
-#endif
 }
 
 void ImievCZeroIonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {

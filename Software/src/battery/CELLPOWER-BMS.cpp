@@ -20,9 +20,11 @@ void CellPowerBms::update_values() {
 
   datalayer.battery.status.current_dA = battery_pack_current_dA;
 
-  datalayer.battery.status.max_charge_power_W = 5000;  //TODO, is this available via CAN?
+  datalayer.battery.status.max_charge_power_W =
+      datalayer.battery.status.override_charge_power_W;  //TODO, is this available via CAN?
 
-  datalayer.battery.status.max_discharge_power_W = 5000;  //TODO, is this available via CAN?
+  datalayer.battery.status.max_discharge_power_W =
+      datalayer.battery.status.override_discharge_power_W;  //TODO, is this available via CAN?
 
   datalayer.battery.status.temperature_min_dC = (int16_t)(pack_temperature_low_C * 10);
 

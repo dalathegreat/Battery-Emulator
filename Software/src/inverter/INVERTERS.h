@@ -4,14 +4,7 @@
 #include "InverterProtocol.h"
 extern InverterProtocol* inverter;
 
-#include "../../USER_SETTINGS.h"
-
 #include "AFORE-CAN.h"
-
-#ifdef BYD_CAN_DEYE
-#define BYD_CAN
-#endif
-
 #include "BYD-CAN.h"
 #include "BYD-MODBUS.h"
 #include "FERROAMP-CAN.h"
@@ -35,5 +28,13 @@ extern InverterProtocol* inverter;
 
 // Call to initialize the build-time selected inverter. Safe to call even though inverter was not selected.
 bool setup_inverter();
+
+extern uint16_t user_selected_inverter_cells;
+extern uint16_t user_selected_inverter_modules;
+extern uint16_t user_selected_inverter_cells_per_module;
+extern uint16_t user_selected_inverter_voltage_level;
+extern uint16_t user_selected_inverter_ah_capacity;
+extern uint16_t user_selected_inverter_battery_type;
+extern bool user_selected_inverter_ignore_contactors;
 
 #endif

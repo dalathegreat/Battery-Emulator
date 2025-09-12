@@ -4,11 +4,27 @@
 #include "../../devboard/utils/types.h"
 
 extern bool use_canfd_as_can;
+extern uint8_t user_selected_can_addon_crystal_frequency_mhz;
+extern uint8_t user_selected_canfd_addon_crystal_frequency_mhz;
 
 void dump_can_frame(CAN_frame& frame, frameDirection msgDir);
 void transmit_can_frame_to_interface(const CAN_frame* tx_frame, int interface);
 
+//These defines are not used if user updates values via Settings page
+#define CRYSTAL_FREQUENCY_MHZ 8
+#define CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ ACAN2517FDSettings::OSC_40MHz
+
 class CanReceiver;
+
+typedef struct {
+  CAN_Interface battery;
+  CAN_Interface inverter;
+  CAN_Interface battery_double;
+  CAN_Interface charger;
+  CAN_Interface shunt;
+} CAN_Configuration;
+
+extern volatile CAN_Configuration can_config;
 
 enum class CAN_Speed {
   CAN_SPEED_100KBPS = 100,
@@ -86,7 +102,7 @@ void stop_can();
 // Restart CAN communication for all interfaces
 void restart_can();
 
-// Change the speed of the CAN interface and return the old speed.
-CAN_Speed change_can_speed(CAN_Interface interface, CAN_Speed speed);
+// Change the speed of the CAN interface. Returns true if successful.
+bool change_can_speed(CAN_Interface interface, CAN_Speed speed);
 
 #endif

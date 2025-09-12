@@ -3,10 +3,6 @@
 
 #include "RS485Battery.h"
 
-#ifdef DALY_BMS
-#define SELECTED_BATTERY_CLASS DalyBms
-#endif
-
 class DalyBms : public RS485Battery {
  public:
   void setup();

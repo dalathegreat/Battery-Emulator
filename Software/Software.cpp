@@ -1,8 +1,5 @@
-/* Do not change any code below this line unless you are sure what you are doing */
-/* Only change battery specific settings in "USER_SETTINGS.h" */
+#include <Arduino.h>
 #include "HardwareSerial.h"
-#include "USER_SECRETS.h"
-#include "USER_SETTINGS.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "esp_timer.h"
@@ -26,31 +23,28 @@
 #include "src/devboard/utils/logging.h"
 #include "src/devboard/utils/time_meas.h"
 #include "src/devboard/utils/timer.h"
+#include "src/devboard/utils/types.h"
 #include "src/devboard/utils/value_mapping.h"
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
 
-#if !defined(HW_LILYGO) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_DEVKIT)
-#error You must select a target hardware in the USER_SETTINGS.h file!
+#if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_DEVKIT)
+#error You must select a target hardware!
 #endif
-
-#ifdef PERIODIC_BMS_RESET_AT
-#include "src/devboard/utils/ntp_time.h"
-#endif
-volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
-const char* version_number = "9.0.RC2experimental";
+const char* version_number = "9.0.RC10experimental";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
-#ifdef FUNCTION_TIME_MEASUREMENT
 // Task time measurement for debugging
 MyTimer core_task_timer_10s(INTERVAL_10_S);
-#endif
+uint64_t start_time_10ms = 0;
+uint64_t start_time_values = 0;
+uint64_t start_time_cantx = 0;
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
 TaskHandle_t logging_loop_task;
@@ -58,131 +52,34 @@ TaskHandle_t mqtt_loop_task;
 
 Logging logging;
 
-// Initialization
-void setup() {
-  init_hal();
+std::string mqtt_user;      //TODO, move?
+std::string mqtt_password;  //TODO, move?
+std::string http_username;  //TODO, move?
+std::string http_password;  //TODO, move?
 
-  init_serial();
+static std::list<Transmitter*> transmitters;
+void register_transmitter(Transmitter* transmitter) {
+  transmitters.push_back(transmitter);
+  DEBUG_PRINTF("transmitter registered, total: %d\n", transmitters.size());
+}
 
-  // We print this after setting up serial, such that is also printed to serial with DEBUG_VIA_USB set.
-  logging.printf("Battery emulator %s build " __DATE__ " " __TIME__ "\n", version_number);
-
-  init_events();
-
-  init_stored_settings();
-
-  if (wifi_enabled) {
-    xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
-                            &connectivity_loop_task, esp32hal->WIFICORE());
+// Initialization functions
+void init_serial() {
+  // Init Serial monitor
+  Serial.begin(115200);
+#if HW_LILYGO2CAN
+  // Wait up to 100ms for Serial to be available. On the ESP32S3 Serial is
+  // provided by the USB controller, so will only work if the board is connected
+  // to a computer.
+  for (int i = 0; i < 10; i++) {
+    if (Serial)
+      break;
+    delay(10);
   }
-
-  if (!led_init()) {
-    return;
-  }
-
-#if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
-  xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
-                          &logging_loop_task, esp32hal->WIFICORE());
-#endif
-
-  if (!init_contactors()) {
-    return;
-  }
-
-  if (!init_precharge_control()) {
-    return;
-  }
-
-  setup_charger();
-
-  if (!setup_inverter()) {
-    return;
-  }
-  setup_battery();
-  setup_can_shunt();
-
-  // Init CAN only after any CAN receivers have had a chance to register.
-  if (!init_CAN()) {
-    return;
-  }
-
-  if (!init_rs485()) {
-    return;
-  }
-
-  if (!init_equipment_stop_button()) {
-    return;
-  }
-
-  // BOOT button at runtime is used as an input for various things
-  pinMode(0, INPUT_PULLUP);
-
-  check_reset_reason();
-
-  // Initialize Task Watchdog for subscribed tasks
-  esp_task_wdt_config_t wdt_config = {// 5s should be enough for the connectivity tasks (which are all contending
-                                      // for the same core) to yield to each other and reset their watchdogs.
-                                      .timeout_ms = INTERVAL_5_S,
-                                      // We don't benefit from idle task watchdogs, our critical loops have their
-                                      // own. The idle watchdogs can cause nuisance reboots under heavy load.
-                                      .idle_core_mask = 0,
-                                      // Panic (and reboot) on timeout
-                                      .trigger_panic = true};
-#ifdef CONFIG_ESP_TASK_WDT
-  // ESP-IDF will have already initialized it, so reconfigure.
-  // Arduino and PlatformIO have different watchdog defaults, so we reconfigure
-  // for consistency.
-  esp_task_wdt_reconfigure(&wdt_config);
 #else
-  // Otherwise initialize it for the first time.
-  esp_task_wdt_init(&wdt_config);
+  while (!Serial) {}
 #endif
-
-  // Start tasks
-
-  if (mqtt_enabled) {
-    if (!init_mqtt()) {
-      return;
-    }
-
-    xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
-                            esp32hal->WIFICORE());
-  }
-
-  xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
-                          esp32hal->CORE_FUNCTION_CORE());
-
-#ifdef PERIODIC_BMS_RESET_AT
-  bmsResetTimeOffset = getTimeOffsetfromNowUntil(PERIODIC_BMS_RESET_AT);
-  if (bmsResetTimeOffset == 0) {
-    set_event(EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED, 0);
-  } else {
-    set_event(EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS, 0);
-  }
-#endif
-
-  DEBUG_PRINTF("setup() complete\n");
 }
-
-// Loop empty, all functionality runs in tasks
-void loop() {}
-
-#if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
-void logging_loop(void*) {
-
-  init_logging_buffers();
-  init_sdcard();
-
-  while (true) {
-#ifdef LOG_TO_SD
-    write_log_to_sdcard();
-#endif
-#ifdef LOG_CAN_TO_SD
-    write_can_frame_to_sdcard();
-#endif
-  }
-}
-#endif
 
 void connectivity_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
@@ -212,149 +109,20 @@ void connectivity_loop(void*) {
   }
 }
 
-void mqtt_loop(void*) {
-  esp_task_wdt_add(NULL);  // Register this task with WDT
+void logging_loop(void*) {
+
+  init_logging_buffers();
+  init_sdcard();
 
   while (true) {
-    START_TIME_MEASUREMENT(mqtt);
-    mqtt_loop();
-    END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
-    esp_task_wdt_reset();  // Reset watchdog
-    delay(1);
+    if (datalayer.system.info.SD_logging_active) {
+      write_log_to_sdcard();
+    }
+
+    if (datalayer.system.info.CAN_SD_logging_active) {
+      write_can_frame_to_sdcard();
+    }
   }
-}
-
-static std::list<Transmitter*> transmitters;
-
-void register_transmitter(Transmitter* transmitter) {
-  transmitters.push_back(transmitter);
-  DEBUG_PRINTF("transmitter registered, total: %d\n", transmitters.size());
-}
-
-void core_loop(void*) {
-  esp_task_wdt_add(NULL);  // Register this task with WDT
-  TickType_t xLastWakeTime = xTaskGetTickCount();
-  const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
-
-  while (true) {
-
-    START_TIME_MEASUREMENT(all);
-    START_TIME_MEASUREMENT(comm);
-
-    monitor_equipment_stop_button();
-
-    // Input, Runs as fast as possible
-    receive_can();    // Receive CAN messages
-    receive_rs485();  // Process serial2 RS485 interface
-
-    END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
-
-    if (webserver_enabled) {
-      START_TIME_MEASUREMENT(ota);
-      ElegantOTA.loop();
-      END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
-    }
-
-    // Process
-    currentMillis = millis();
-    if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
-      if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) &&
-          (milliseconds(currentMillis) > esp32hal->BOOTUP_TIME())) {
-        set_event(EVENT_TASK_OVERRUN, (currentMillis - previousMillis10ms));
-      }
-      previousMillis10ms = currentMillis;
-#ifdef FUNCTION_TIME_MEASUREMENT
-      START_TIME_MEASUREMENT(time_10ms);
-#endif
-      led_exe();
-      handle_contactors();  // Take care of startup precharge/contactor closing
-#ifdef PRECHARGE_CONTROL
-      handle_precharge_control(currentMillis);
-#endif  // PRECHARGE_CONTROL
-#ifdef FUNCTION_TIME_MEASUREMENT
-      END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
-#endif
-    }
-
-    if (currentMillis - previousMillisUpdateVal >= INTERVAL_1_S) {
-      previousMillisUpdateVal = currentMillis;  // Order matters on the update_loop!
-#ifdef FUNCTION_TIME_MEASUREMENT
-      START_TIME_MEASUREMENT(time_values);
-#endif
-      update_pause_state();  // Check if we are OK to send CAN or need to pause
-
-      // Fetch battery values
-      if (battery) {
-        battery->update_values();
-      }
-
-      if (battery2) {
-        battery2->update_values();
-        check_interconnect_available();
-      }
-      update_calculated_values();
-      update_machineryprotection();  // Check safeties
-
-      // Update values heading towards inverter
-      if (inverter) {
-        inverter->update_values();
-      }
-
-#ifdef FUNCTION_TIME_MEASUREMENT
-      END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
-#endif
-    }
-#ifdef FUNCTION_TIME_MEASUREMENT
-    START_TIME_MEASUREMENT(cantx);
-#endif
-
-    // Let all transmitter objects send their messages
-    for (auto& transmitter : transmitters) {
-      transmitter->transmit(currentMillis);
-    }
-
-#ifdef FUNCTION_TIME_MEASUREMENT
-    END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
-    END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
-#endif
-#ifdef FUNCTION_TIME_MEASUREMENT
-    if (datalayer.system.status.core_task_10s_max_us > datalayer.system.status.core_task_max_us) {
-      // Update worst case total time
-      datalayer.system.status.core_task_max_us = datalayer.system.status.core_task_10s_max_us;
-      // Record snapshots of task times
-      datalayer.system.status.time_snap_comm_us = datalayer.system.status.time_comm_us;
-      datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
-      datalayer.system.status.time_snap_values_us = datalayer.system.status.time_values_us;
-      datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
-      datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
-    }
-
-    datalayer.system.status.core_task_max_us =
-        MAX(datalayer.system.status.core_task_10s_max_us, datalayer.system.status.core_task_max_us);
-    if (core_task_timer_10s.elapsed()) {
-      datalayer.system.status.time_ota_us = 0;
-      datalayer.system.status.time_comm_us = 0;
-      datalayer.system.status.time_10ms_us = 0;
-      datalayer.system.status.time_values_us = 0;
-      datalayer.system.status.time_cantx_us = 0;
-      datalayer.system.status.core_task_10s_max_us = 0;
-      datalayer.system.status.wifi_task_10s_max_us = 0;
-      datalayer.system.status.mqtt_task_10s_max_us = 0;
-    }
-#endif                     // FUNCTION_TIME_MEASUREMENT
-    esp_task_wdt_reset();  // Reset watchdog to prevent reset
-    vTaskDelayUntil(&xLastWakeTime, xFrequency);
-  }
-}
-
-// Initialization functions
-void init_serial() {
-  // Init Serial monitor
-  Serial.begin(115200);
-  while (!Serial) {}
-#ifdef DEBUG_VIA_USB
-  Serial.println("__ OK __");
-#endif  // DEBUG_VIA_USB
 }
 
 void check_interconnect_available() {
@@ -601,3 +369,213 @@ void check_reset_reason() {
       break;
   }
 }
+
+void core_loop(void*) {
+  esp_task_wdt_add(NULL);  // Register this task with WDT
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
+
+  while (true) {
+
+    START_TIME_MEASUREMENT(all);
+    START_TIME_MEASUREMENT(comm);
+
+    monitor_equipment_stop_button();
+
+    // Input, Runs as fast as possible
+    receive_can();    // Receive CAN messages
+    receive_rs485();  // Process serial2 RS485 interface
+
+    END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
+
+    if (webserver_enabled) {
+      START_TIME_MEASUREMENT(ota);
+      ElegantOTA.loop();
+      END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
+    }
+
+    // Process
+    currentMillis = millis();
+    if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
+      if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) &&
+          (milliseconds(currentMillis) > esp32hal->BOOTUP_TIME())) {
+        set_event(EVENT_TASK_OVERRUN, (currentMillis - previousMillis10ms));
+      }
+      previousMillis10ms = currentMillis;
+      if (datalayer.system.info.performance_measurement_active) {
+        START_TIME_MEASUREMENT(10ms);
+      }
+      led_exe();
+      handle_contactors();  // Take care of startup precharge/contactor closing
+      if (precharge_control_enabled) {
+        handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
+      }
+
+      if (datalayer.system.info.performance_measurement_active) {
+        END_TIME_MEASUREMENT_MAX(10ms, datalayer.system.status.time_10ms_us);
+      }
+    }
+
+    if (currentMillis - previousMillisUpdateVal >= INTERVAL_1_S) {
+      previousMillisUpdateVal = currentMillis;  // Order matters on the update_loop!
+      if (datalayer.system.info.performance_measurement_active) {
+        START_TIME_MEASUREMENT(values);
+      }
+      update_pause_state();  // Check if we are OK to send CAN or need to pause
+
+      // Fetch battery values
+      if (battery) {
+        battery->update_values();
+      }
+
+      if (battery2) {
+        battery2->update_values();
+        check_interconnect_available();
+      }
+      update_calculated_values();
+      update_machineryprotection();  // Check safeties
+
+      // Update values heading towards inverter
+      if (inverter) {
+        inverter->update_values();
+      }
+
+      if (datalayer.system.info.performance_measurement_active) {
+        END_TIME_MEASUREMENT_MAX(values, datalayer.system.status.time_values_us);
+      }
+    }
+    if (datalayer.system.info.performance_measurement_active) {
+      START_TIME_MEASUREMENT(cantx);
+    }
+
+    // Let all transmitter objects send their messages
+    for (auto& transmitter : transmitters) {
+      transmitter->transmit(currentMillis);
+    }
+
+    if (datalayer.system.info.performance_measurement_active) {
+      END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
+      END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
+      if (datalayer.system.status.core_task_10s_max_us > datalayer.system.status.core_task_max_us) {
+        // Update worst case total time
+        datalayer.system.status.core_task_max_us = datalayer.system.status.core_task_10s_max_us;
+        // Record snapshots of task times
+        datalayer.system.status.time_snap_comm_us = datalayer.system.status.time_comm_us;
+        datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
+        datalayer.system.status.time_snap_values_us = datalayer.system.status.time_values_us;
+        datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
+        datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
+      }
+
+      datalayer.system.status.core_task_max_us =
+          MAX(datalayer.system.status.core_task_10s_max_us, datalayer.system.status.core_task_max_us);
+      if (core_task_timer_10s.elapsed()) {
+        datalayer.system.status.time_ota_us = 0;
+        datalayer.system.status.time_comm_us = 0;
+        datalayer.system.status.time_10ms_us = 0;
+        datalayer.system.status.time_values_us = 0;
+        datalayer.system.status.time_cantx_us = 0;
+        datalayer.system.status.core_task_10s_max_us = 0;
+        datalayer.system.status.wifi_task_10s_max_us = 0;
+        datalayer.system.status.mqtt_task_10s_max_us = 0;
+      }
+    }
+    esp_task_wdt_reset();  // Reset watchdog to prevent reset
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+  }
+}
+
+void mqtt_loop(void*) {
+  esp_task_wdt_add(NULL);  // Register this task with WDT
+
+  while (true) {
+    START_TIME_MEASUREMENT(mqtt);
+    mqtt_client_loop();
+    END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
+    esp_task_wdt_reset();  // Reset watchdog
+    delay(1);
+  }
+}
+
+// Initialization
+void setup() {
+  init_hal();
+
+  init_serial();
+
+  // We print this after setting up serial, so that is also printed if configured to do so
+  DEBUG_PRINTF("Battery emulator %s build " __DATE__ " " __TIME__ "\n", version_number);
+
+  init_events();
+
+  init_stored_settings();
+
+  if (wifi_enabled) {
+    xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
+                            &connectivity_loop_task, esp32hal->WIFICORE());
+  }
+
+  led_init();
+
+  if (datalayer.system.info.CAN_SD_logging_active || datalayer.system.info.SD_logging_active) {
+    xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
+                            &logging_loop_task, esp32hal->WIFICORE());
+  }
+
+  init_contactors();
+
+  init_precharge_control();
+
+  setup_charger();
+  setup_inverter();
+  setup_battery();
+  setup_can_shunt();
+
+  // Init CAN only after any CAN receivers have had a chance to register.
+  init_CAN();
+
+  init_rs485();
+
+  init_equipment_stop_button();
+
+  // BOOT button at runtime is used as an input for various things
+  pinMode(0, INPUT_PULLUP);
+
+  check_reset_reason();
+
+  // Initialize Task Watchdog for subscribed tasks
+  esp_task_wdt_config_t wdt_config = {// 5s should be enough for the connectivity tasks (which are all contending
+                                      // for the same core) to yield to each other and reset their watchdogs.
+                                      .timeout_ms = INTERVAL_5_S,
+                                      // We don't benefit from idle task watchdogs, our critical loops have their
+                                      // own. The idle watchdogs can cause nuisance reboots under heavy load.
+                                      .idle_core_mask = 0,
+                                      // Panic (and reboot) on timeout
+                                      .trigger_panic = true};
+#ifdef CONFIG_ESP_TASK_WDT
+  // ESP-IDF will have already initialized it, so reconfigure.
+  // Arduino and PlatformIO have different watchdog defaults, so we reconfigure
+  // for consistency.
+  esp_task_wdt_reconfigure(&wdt_config);
+#else
+  // Otherwise initialize it for the first time.
+  esp_task_wdt_init(&wdt_config);
+#endif
+
+  // Start tasks
+
+  if (mqtt_enabled) {
+    init_mqtt();
+
+    xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
+                            esp32hal->WIFICORE());
+  }
+
+  xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
+                          esp32hal->CORE_FUNCTION_CORE());
+
+  DEBUG_PRINTF("Setup complete!\n");
+}
+
+// Loop empty, all functionality runs in tasks
+void loop() {}

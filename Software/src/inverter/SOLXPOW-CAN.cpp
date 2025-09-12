@@ -1,11 +1,12 @@
 #include "SOLXPOW-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
+#include "../inverter/INVERTERS.h"
 
 #define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
 //#define SEND_1 //If defined, the messages will have ID ending with 1 (useful for some inverters)
 #define INVERT_LOW_HIGH_BYTES  //If defined, certain frames will have inverted low/high bytes \
-                                    //useful for some inverters like Sofar that report the voltages incorrect otherwise
+                               //useful for some inverters like Sofar that report the voltages incorrect otherwise
 //#define SET_30K_OFFSET  //If defined, current values are sent with a 30k offest (useful for ferroamp)
 
 void SolxpowInverter::
@@ -352,4 +353,39 @@ void SolxpowInverter::send_system_data() {  //System equipment information
   transmit_can_frame(&SOLXPOW_4281);
   transmit_can_frame(&SOLXPOW_4291);
 #endif
+}
+
+bool SolxpowInverter::setup() {
+  if (user_selected_inverter_cells > 0) {
+    SOLXPOW_7320.data.u8[0] = user_selected_inverter_cells & 0xff;
+    SOLXPOW_7320.data.u8[1] = (uint8_t)(user_selected_inverter_cells >> 8);
+    SOLXPOW_7321.data.u8[0] = user_selected_inverter_cells & 0xff;
+    SOLXPOW_7321.data.u8[1] = (uint8_t)(user_selected_inverter_cells >> 8);
+  }
+
+  if (user_selected_inverter_modules > 0) {
+    SOLXPOW_7320.data.u8[2] = user_selected_inverter_modules;
+    SOLXPOW_7321.data.u8[2] = user_selected_inverter_modules;
+  }
+
+  if (user_selected_inverter_cells_per_module > 0) {
+    SOLXPOW_7320.data.u8[3] = user_selected_inverter_cells_per_module;
+    SOLXPOW_7321.data.u8[3] = user_selected_inverter_cells_per_module;
+  }
+
+  if (user_selected_inverter_voltage_level > 0) {
+    SOLXPOW_7320.data.u8[4] = user_selected_inverter_voltage_level & 0xff;
+    SOLXPOW_7320.data.u8[5] = (uint8_t)(user_selected_inverter_voltage_level >> 8);
+    SOLXPOW_7321.data.u8[4] = user_selected_inverter_voltage_level & 0xff;
+    SOLXPOW_7321.data.u8[5] = (uint8_t)(user_selected_inverter_voltage_level >> 8);
+  }
+
+  if (user_selected_inverter_ah_capacity > 0) {
+    SOLXPOW_7320.data.u8[6] = user_selected_inverter_ah_capacity & 0xff;
+    SOLXPOW_7320.data.u8[7] = (uint8_t)(user_selected_inverter_ah_capacity >> 8);
+    SOLXPOW_7321.data.u8[6] = user_selected_inverter_ah_capacity & 0xff;
+    SOLXPOW_7321.data.u8[7] = (uint8_t)(user_selected_inverter_ah_capacity >> 8);
+  }
+
+  return true;
 }

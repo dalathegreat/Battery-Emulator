@@ -4,10 +4,6 @@
 #include "../datalayer/datalayer.h"
 #include "CanBattery.h"
 
-#ifdef PYLON_BATTERY
-#define SELECTED_BATTERY_CLASS PylonBattery
-#endif
-
 class PylonBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.

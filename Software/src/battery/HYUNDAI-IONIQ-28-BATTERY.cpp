@@ -88,7 +88,11 @@ void HyundaiIoniq28Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           break;
         case 0x21:                         //First frame in PID group
           if (incoming_poll_group == 1) {  //21 14 13 24 13 24 04 00
-            batteryRelay = rx_frame.data.u8[7];
+            //SOC = rx_frame.data.u8[1];
+            //available_charge_power = 2 & 3
+            //available_discharge_power = 4 & 5
+            //status_bits? = 6
+            //battery_current_highbyte = rx_frame.data.u8[7];
           } else if (incoming_poll_group == 2) {  //21 AD AD AD AD AD AD AC
             cellvoltages_mv[0] = (rx_frame.data.u8[1] * 20);
             cellvoltages_mv[1] = (rx_frame.data.u8[2] * 20);
@@ -113,11 +117,19 @@ void HyundaiIoniq28Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cellvoltages_mv[68] = (rx_frame.data.u8[5] * 20);
             cellvoltages_mv[69] = (rx_frame.data.u8[6] * 20);
             cellvoltages_mv[70] = (rx_frame.data.u8[7] * 20);
+          } else if (incoming_poll_group == 5) {  //21	0	0	0	0	0	0f0f
+            //battery_module_6_temperature = rx_frame.data.u8[6];
+            //battery_module_7_temperature = rx_frame.data.u8[7];
           }
           break;
         case 0x22:                         //Second datarow in PID group
           if (incoming_poll_group == 1) {  //22 00 0C FF 17 16 17 17
-
+            //battery_current_lowbyte = rx_frame.data.u8[1];
+            //battery_DC_voltage = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
+            //battery_max_temperature = rx_frame.data.u8[4];
+            //battery_min_temperature = rx_frame.data.u8[5];
+            //battery_module_1_temperature = rx_frame.data.u8[6];
+            //battery_module_2_temperature = rx_frame.data.u8[7];
           } else if (incoming_poll_group == 2) {  //22 AD AC AC AD AD AD AD
             cellvoltages_mv[7] = (rx_frame.data.u8[1] * 20);
             cellvoltages_mv[8] = (rx_frame.data.u8[2] * 20);
@@ -142,14 +154,26 @@ void HyundaiIoniq28Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cellvoltages_mv[75] = (rx_frame.data.u8[5] * 20);
             cellvoltages_mv[76] = (rx_frame.data.u8[6] * 20);
             cellvoltages_mv[77] = (rx_frame.data.u8[7] * 20);
+          } else if (incoming_poll_group == 5) {  //22 10 0d 0c 0e 0d 26 48
+            //battery_module_8_temperature = rx_frame.data.u8[1];
+            //battery_module_9_temperature = rx_frame.data.u8[2];
+            //battery_module_10_temperature = rx_frame.data.u8[3];
+            //battery_module_11_temperature = rx_frame.data.u8[4];
+            //battery_module_12_temperature = rx_frame.data.u8[5];
+            //available_charge_power = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
           } else if (incoming_poll_group == 6) {
             batteryManagementMode = rx_frame.data.u8[5];
           }
           break;
-        case 0x23:                                        //Third datarow in PID group
-          if (incoming_poll_group == 1) {                 //23 17 17 17 00 17 AD 25
+        case 0x23:                         //Third datarow in PID group
+          if (incoming_poll_group == 1) {  //23 17 17 17 00 17 AD 25
+            //battery_module_3_temperature = rx_frame.data.u8[1];
+            //battery_module_4_temperature = rx_frame.data.u8[2];
+            //battery_module_5_temperature = rx_frame.data.u8[3];
+            //battery_inlet_temperature = rx_frame.data.u8[5];
             CellVoltMax_mV = (rx_frame.data.u8[6] * 20);  //(volts *50) *20 =mV
-          } else if (incoming_poll_group == 2) {          //23 AD AD AD AD AB AD AD
+            //cellmaxvoltage_number = rx_frame.data.u8[7];
+          } else if (incoming_poll_group == 2) {  //23 AD AD AD AD AB AD AD
             cellvoltages_mv[14] = (rx_frame.data.u8[1] * 20);
             cellvoltages_mv[15] = (rx_frame.data.u8[2] * 20);
             cellvoltages_mv[16] = (rx_frame.data.u8[3] * 20);
@@ -174,13 +198,22 @@ void HyundaiIoniq28Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cellvoltages_mv[83] = (rx_frame.data.u8[6] * 20);
             cellvoltages_mv[84] = (rx_frame.data.u8[7] * 20);
           } else if (incoming_poll_group == 5) {
-            heatertemp = rx_frame.data.u8[7];
+            //available_discharge_power = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
+            //battery_cell_mV_deviation = rx_frame.data.u8[3];
+            //airbag_h/wire_duty = rx_frame.data.u8[5];
+            heatertemperature_1 = rx_frame.data.u8[6];
+            heatertemperature_2 = rx_frame.data.u8[7];
           }
           break;
         case 0x24:                                        //Fourth datarow in PID group
           if (incoming_poll_group == 1) {                 //24 AA 4F 00 00 77 00 14
             CellVoltMin_mV = (rx_frame.data.u8[1] * 20);  //(volts *50) *20 =mV
-          } else if (incoming_poll_group == 2) {          //24 AD AD AD AD AD AD AB
+            //mincellvoltage_number = rx_frame.data.u8[2];
+            //fan_status = rx_frame.data.u8[3];
+            //fan_feedback_signal = rx_frame.data.u8[4];
+            //aux_battery_voltage = rx_frame.data.u8[5];
+            //cumulative_charge_current_highbyte = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+          } else if (incoming_poll_group == 2) {  //24 AD AD AD AD AD AD AB
             cellvoltages_mv[21] = (rx_frame.data.u8[1] * 20);
             cellvoltages_mv[22] = (rx_frame.data.u8[2] * 20);
             cellvoltages_mv[23] = (rx_frame.data.u8[3] * 20);
@@ -204,13 +237,19 @@ void HyundaiIoniq28Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cellvoltages_mv[89] = (rx_frame.data.u8[5] * 20);
             cellvoltages_mv[90] = (rx_frame.data.u8[6] * 20);
             cellvoltages_mv[91] = (rx_frame.data.u8[7] * 20);
-          } else if (incoming_poll_group == 5) {
-            batterySOH = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
+          } else if (incoming_poll_group == 5) {  //24	3	e8 5	3	e8 m34 6e
+            batterySOH = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
+            //max_deterioration_cell_number = rx_frame.data.u8[3]
+            //min_deterioration = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+            //min_deterioration_cell_number = rx_frame.data.u8[6]
+            //SOC_display = rx_frame.data.u8[7]
           }
           break;
         case 0x25:                         //Fifth datarow in PID group
           if (incoming_poll_group == 1) {  //25 5C A9 00 14 5F D3 00
-
+            //cumulative_charge_current_lowbyte = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
+            //cumulative_discharge_current = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[4] << 16) | (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+            //cumulative_charge_energy_highbyte = rx_frame.data.u8[7];
           } else if (incoming_poll_group == 2) {  //25 AD AD AD AD 00 00 00
             cellvoltages_mv[28] = (rx_frame.data.u8[1] * 20);
             cellvoltages_mv[29] = (rx_frame.data.u8[2] * 20);
@@ -231,19 +270,22 @@ void HyundaiIoniq28Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           break;
         case 0x26:                         //Sixth datarow in PID group
           if (incoming_poll_group == 1) {  //26 07 84 F9 00 07 42 8F
+            //cumulative_charge_energy_lowbyte = (rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
+            //cumulative_discharge_energy = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
 
           } else if (incoming_poll_group == 5) {
           }
           break;
         case 0x27:                         //Seventh datarow in PID group
           if (incoming_poll_group == 1) {  //27 03 3F A1 EB 00 19 99
-            BMS_ign = rx_frame.data.u8[6];
-            inverterVoltageFrameHigh = rx_frame.data.u8[7];
+            //cumulative_operating_time = ((rx_frame.data.u8[1] << 24) | (rx_frame.data.u8[2] << 16) | (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]);
+            //bitfield (41 off, 45 car on) = rx_frame.data.u8[5];
+            inverterVoltage = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
           }
           break;
         case 0x28:                         //Eighth datarow in PID group
           if (incoming_poll_group == 1) {  //28 7F FF 7F FF 03 E8 00
-            inverterVoltage = (inverterVoltageFrameHigh << 8) + rx_frame.data.u8[1];
+            isolation_resistance = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
           }
           break;
       }
@@ -378,10 +420,6 @@ uint8_t HyundaiIoniq28Battery::get_battery_management_mode() const {
   return batteryManagementMode;
 }
 
-uint8_t HyundaiIoniq28Battery::get_battery_ignition_mode() const {
-  return BMS_ign;
-}
-
-uint8_t HyundaiIoniq28Battery::get_battery_relay_mode() const {
-  return batteryRelay;
+uint16_t HyundaiIoniq28Battery::get_isolation_resistance() const {
+  return isolation_resistance;
 }

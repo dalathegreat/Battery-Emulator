@@ -1,6 +1,7 @@
 #include "FERROAMP-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
+#include "../inverter/INVERTERS.h"
 
 //#define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
 #define SEND_1                 //If defined, the messages will have ID ending with 1 (useful for some inverters)
@@ -363,4 +364,39 @@ void FerroampCanInverter::send_system_data() {  //System equipment information
   transmit_can_frame(&PYLON_4281);
   transmit_can_frame(&PYLON_4291);
 #endif
+}
+
+bool FerroampCanInverter::setup() {
+  if (user_selected_inverter_cells > 0) {
+    PYLON_7320.data.u8[0] = user_selected_inverter_cells & 0xff;
+    PYLON_7320.data.u8[1] = (uint8_t)(user_selected_inverter_cells >> 8);
+    PYLON_7321.data.u8[0] = user_selected_inverter_cells & 0xff;
+    PYLON_7321.data.u8[1] = (uint8_t)(user_selected_inverter_cells >> 8);
+  }
+
+  if (user_selected_inverter_modules > 0) {
+    PYLON_7320.data.u8[2] = user_selected_inverter_modules;
+    PYLON_7321.data.u8[2] = user_selected_inverter_modules;
+  }
+
+  if (user_selected_inverter_cells_per_module > 0) {
+    PYLON_7320.data.u8[3] = user_selected_inverter_cells_per_module;
+    PYLON_7321.data.u8[3] = user_selected_inverter_cells_per_module;
+  }
+
+  if (user_selected_inverter_voltage_level > 0) {
+    PYLON_7320.data.u8[4] = user_selected_inverter_voltage_level & 0xff;
+    PYLON_7320.data.u8[5] = (uint8_t)(user_selected_inverter_voltage_level >> 8);
+    PYLON_7321.data.u8[4] = user_selected_inverter_voltage_level & 0xff;
+    PYLON_7321.data.u8[5] = (uint8_t)(user_selected_inverter_voltage_level >> 8);
+  }
+
+  if (user_selected_inverter_ah_capacity > 0) {
+    PYLON_7320.data.u8[6] = user_selected_inverter_ah_capacity & 0xff;
+    PYLON_7320.data.u8[7] = (uint8_t)(user_selected_inverter_ah_capacity >> 8);
+    PYLON_7321.data.u8[6] = user_selected_inverter_ah_capacity & 0xff;
+    PYLON_7321.data.u8[7] = (uint8_t)(user_selected_inverter_ah_capacity >> 8);
+  }
+
+  return true;
 }

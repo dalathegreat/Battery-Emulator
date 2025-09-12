@@ -2,6 +2,7 @@
 #define _COMM_NVM_H_
 
 #include <Preferences.h>
+#include <WString.h>
 #include <limits>
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/events.h"

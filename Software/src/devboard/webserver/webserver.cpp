@@ -2,12 +2,12 @@
 #include <Preferences.h>
 #include <ctime>
 #include <vector>
-#include "../../../USER_SECRETS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../charger/CHARGERS.h"
 #include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
+#include "../../communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
@@ -23,21 +23,10 @@
 extern std::string http_username;
 extern std::string http_password;
 
-#ifdef WEBSERVER
-const bool webserver_enabled_default = true;
-#else
-const bool webserver_enabled_default = false;
-#endif
+bool webserver_enabled =
+    true;  // Global flag to enable or disable the webserver //Old method to disable was with  #ifdef WEBSERVER
 
-bool webserver_enabled = webserver_enabled_default;  // Global flag to enable or disable the webserver
-
-#ifndef COMMON_IMAGE
-const bool webserver_auth_default = WEBSERVER_AUTH_REQUIRED;
-#else
-const bool webserver_auth_default = false;
-#endif
-
-bool webserver_auth = webserver_auth_default;
+bool webserver_auth = false;
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -267,13 +256,13 @@ void init_webserver() {
     }
   });
 
-#if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
-  // Route for going to debug logging web page
-  server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", debug_logger_processor());
-    request->send(response);
-  });
-#endif  // DEBUG_VIA_WEB
+  if (datalayer.system.info.web_logging_active || datalayer.system.info.SD_logging_active) {
+    // Route for going to debug logging web page
+    server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      AsyncWebServerResponse* response = request->beginResponse(200, "text/html", debug_logger_processor());
+      request->send(response);
+    });
+  }
 
   // Define the handler to stop can logging
   server.on("/stop_can_logging", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -289,93 +278,89 @@ void init_webserver() {
       },
       handleFileUpload);
 
-#ifndef LOG_CAN_TO_SD
-  // Define the handler to export can log
-  server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    String logs = String(datalayer.system.info.logged_can_messages);
-    if (logs.length() == 0) {
-      logs = "No logs available.";
-    }
+  if (datalayer.system.info.CAN_SD_logging_active) {
+    // Define the handler to export can log
+    server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      pause_can_writing();
+      request->send(SD_MMC, CAN_LOG_FILE, String(), true);
+      resume_can_writing();
+    });
 
-    // Get the current time
-    time_t now = time(nullptr);
-    struct tm timeinfo;
-    localtime_r(&now, &timeinfo);
+    // Define the handler to delete can log
+    server.on("/delete_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      delete_can_log();
+      request->send(200, "text/plain", "Log file deleted");
+    });
+  } else {
+    // Define the handler to export can log
+    server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      String logs = String(datalayer.system.info.logged_can_messages);
+      if (logs.length() == 0) {
+        logs = "No logs available.";
+      }
 
-    // Ensure time retrieval was successful
-    char filename[32];
-    if (strftime(filename, sizeof(filename), "canlog_%H-%M-%S.txt", &timeinfo)) {
-      // Valid filename created
-    } else {
-      // Fallback filename if automatic timestamping failed
-      strcpy(filename, "battery_emulator_can_log.txt");
-    }
+      // Get the current time
+      time_t now = time(nullptr);
+      struct tm timeinfo;
+      localtime_r(&now, &timeinfo);
 
-    // Use request->send with dynamic headers
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
-    response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
-    request->send(response);
-  });
-#endif
+      // Ensure time retrieval was successful
+      char filename[32];
+      if (strftime(filename, sizeof(filename), "canlog_%H-%M-%S.txt", &timeinfo)) {
+        // Valid filename created
+      } else {
+        // Fallback filename if automatic timestamping failed
+        strcpy(filename, "battery_emulator_can_log.txt");
+      }
 
-#ifdef LOG_CAN_TO_SD
-  // Define the handler to export can log
-  server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    pause_can_writing();
-    request->send(SD_MMC, CAN_LOG_FILE, String(), true);
-    resume_can_writing();
-  });
+      // Use request->send with dynamic headers
+      AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
+      response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
+      request->send(response);
+    });
+  }
 
-  // Define the handler to delete can log
-  server.on("/delete_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    delete_can_log();
-    request->send(200, "text/plain", "Log file deleted");
-  });
-#endif
+  if (datalayer.system.info.SD_logging_active) {
+    // Define the handler to delete log file
+    server.on("/delete_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      delete_log();
+      request->send(200, "text/plain", "Log file deleted");
+    });
 
-#ifdef LOG_TO_SD
-  // Define the handler to delete log file
-  server.on("/delete_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    delete_log();
-    request->send(200, "text/plain", "Log file deleted");
-  });
+    // Define the handler to export debug log
+    server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      pause_log_writing();
+      request->send(SD_MMC, LOG_FILE, String(), true);
+      resume_log_writing();
+    });
+  } else {
+    // Define the handler to export debug log
+    server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      String logs = String(datalayer.system.info.logged_can_messages);
+      if (logs.length() == 0) {
+        logs = "No logs available.";
+      }
 
-  // Define the handler to export debug log
-  server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    pause_log_writing();
-    request->send(SD_MMC, LOG_FILE, String(), true);
-    resume_log_writing();
-  });
-#endif
+      // Get the current time
+      time_t now = time(nullptr);
+      struct tm timeinfo;
+      localtime_r(&now, &timeinfo);
 
-#ifndef LOG_TO_SD
-  // Define the handler to export debug log
-  server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    String logs = String(datalayer.system.info.logged_can_messages);
-    if (logs.length() == 0) {
-      logs = "No logs available.";
-    }
+      // Ensure time retrieval was successful
+      char filename[32];
+      if (strftime(filename, sizeof(filename), "log_%H-%M-%S.txt", &timeinfo)) {
+        // Valid filename created
+      } else {
+        // Fallback filename if automatic timestamping failed
+        strcpy(filename, "battery_emulator_log.txt");
+      }
 
-    // Get the current time
-    time_t now = time(nullptr);
-    struct tm timeinfo;
-    localtime_r(&now, &timeinfo);
-
-    // Ensure time retrieval was successful
-    char filename[32];
-    if (strftime(filename, sizeof(filename), "log_%H-%M-%S.txt", &timeinfo)) {
-      // Valid filename created
-    } else {
-      // Fallback filename if automatic timestamping failed
-      strcpy(filename, "battery_emulator_log.txt");
-    }
-
-    // Use request->send with dynamic headers
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
-    response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
-    request->send(response);
-  });
-#endif
+      // Use request->send with dynamic headers
+      AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
+      response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
+      request->send(response);
+    });
+  }
 
   // Route for going to cellmonitor web page
   def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -405,7 +390,6 @@ void init_webserver() {
     request->send(200, "text/html", "OK");
   });
 
-#ifdef COMMON_IMAGE
   struct BoolSetting {
     const char* name;
     bool existingValue;
@@ -413,8 +397,10 @@ void init_webserver() {
   };
 
   const char* boolSettingNames[] = {
-      "DBLBTR",     "CNTCTRL",       "CNTCTRLDBL",  "PWMCNTCTRL", "PERBMSRESET", "REMBMSRESET",
-      "CANFDASCAN", "WIFIAPENABLED", "MQTTENABLED", "HADISC",     "MQTTTOPICS",
+      "DBLBTR",        "CNTCTRL",      "CNTCTRLDBL",  "PWMCNTCTRL",   "PERBMSRESET", "SDLOGENABLED", "STATICIP",
+      "REMBMSRESET",   "EXTPRECHARGE", "USBENABLED",  "CANLOGUSB",    "WEBENABLED",  "CANFDASCAN",   "CANLOGSD",
+      "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",   "HADISC",       "MQTTTOPICS",  "MQTTCELLV",    "INVICNT",
+      "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE", "INTERLOCKREQ",
   };
 
   // Handles the form POST from UI to save settings of the common image
@@ -475,6 +461,56 @@ void init_webserver() {
       } else if (p->name() == "SHUNTCOMM") {
         auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
         settings.saveUInt("SHUNTCOMM", (int)type);
+      } else if (p->name() == "MAXPRETIME") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("MAXPRETIME", type);
+      } else if (p->name() == "WIFICHANNEL") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("WIFICHANNEL", type);
+      } else if (p->name() == "DCHGPOWER") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("DCHGPOWER", type);
+      } else if (p->name() == "CHGPOWER") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("CHGPOWER", type);
+      } else if (p->name() == "LOCALIP1") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LOCALIP1", type);
+      } else if (p->name() == "LOCALIP2") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LOCALIP2", type);
+      } else if (p->name() == "LOCALIP3") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LOCALIP3", type);
+      } else if (p->name() == "LOCALIP4") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LOCALIP4", type);
+      } else if (p->name() == "GATEWAY1") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GATEWAY1", type);
+      } else if (p->name() == "GATEWAY2") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GATEWAY2", type);
+      } else if (p->name() == "GATEWAY3") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GATEWAY3", type);
+      } else if (p->name() == "GATEWAY4") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GATEWAY4", type);
+      } else if (p->name() == "SUBNET1") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SUBNET1", type);
+      } else if (p->name() == "SUBNET2") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SUBNET2", type);
+      } else if (p->name() == "SUBNET3") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SUBNET3", type);
+      } else if (p->name() == "SUBNET4") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SUBNET4", type);
+      } else if (p->name() == "APPASSWORD") {
+        settings.saveString("APPASSWORD", p->value().c_str());
       } else if (p->name() == "HOSTNAME") {
         settings.saveString("HOSTNAME", p->value().c_str());
       } else if (p->name() == "MQTTSERVER") {
@@ -488,12 +524,65 @@ void init_webserver() {
         settings.saveString("MQTTPASSWORD", p->value().c_str());
       } else if (p->name() == "MQTTTOPIC") {
         settings.saveString("MQTTTOPIC", p->value().c_str());
+      } else if (p->name() == "MQTTTIMEOUT") {
+        settings.saveString("MQTTTIMEOUT", p->value().c_str());
       } else if (p->name() == "MQTTOBJIDPREFIX") {
         settings.saveString("MQTTOBJIDPREFIX", p->value().c_str());
       } else if (p->name() == "MQTTDEVICENAME") {
         settings.saveString("MQTTDEVICENAME", p->value().c_str());
       } else if (p->name() == "HADEVICEID") {
         settings.saveString("HADEVICEID", p->value().c_str());
+      } else if (p->name() == "SOFAR_ID") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SOFAR_ID", type);
+      } else if (p->name() == "INVCELLS") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVCELLS", type);
+      } else if (p->name() == "INVMODULES") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVMODULES", type);
+      } else if (p->name() == "INVCELLSPER") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVCELLSPER", type);
+      } else if (p->name() == "INVVLEVEL") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVVLEVEL", type);
+      } else if (p->name() == "INVCAPACITY") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVCAPACITY", type);
+      } else if (p->name() == "INVBTYPE") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("INVBTYPE", (int)type);
+      } else if (p->name() == "CANFREQ") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("CANFREQ", type);
+      } else if (p->name() == "CANFDFREQ") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("CANFDFREQ", type);
+      } else if (p->name() == "PRECHGMS") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("PRECHGMS", type);
+      } else if (p->name() == "PWMFREQ") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("PWMFREQ", type);
+      } else if (p->name() == "PWMHOLD") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("PWMHOLD", type);
+      } else if (p->name() == "GTWCOUNTRY") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GTWCOUNTRY", type);
+      } else if (p->name() == "GTWMAPREG") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GTWMAPREG", type);
+      } else if (p->name() == "GTWCHASSIS") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GTWCHASSIS", type);
+      } else if (p->name() == "GTWPACK") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GTWPACK", type);
+      } else if (p->name() == "LEDMODE") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LEDMODE", type);
       }
 
       for (auto& boolSetting : boolSettings) {
@@ -512,7 +601,6 @@ void init_webserver() {
     settingsUpdated = settings.were_settings_updated();
     request->redirect("/settings");
   });
-#endif
 
   // Route for editing SSID
   def_route_with_auth("/updateSSID", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -578,10 +666,6 @@ void init_webserver() {
   auto update_int_setting = [=](const char* route, std::function<void(int)> setter) {
     update_string_setting(route, [setter](String value) { setter(value.toInt()); });
   };
-
-  // Route for editing Sofar ID
-  update_int_setting("/updateSofarID",
-                     [](int value) { datalayer.battery.settings.sofar_user_specified_battery_id = value; });
 
   // Route for editing Wh
   update_int_setting("/updateBatterySize", [](int value) { datalayer.battery.info.total_capacity_Wh = value; });
@@ -867,35 +951,36 @@ String processor(const String& var) {
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
     content += "<h4>Software: " + String(version_number);
 
-#ifdef COMMON_IMAGE
-    content += " (Common image) ";
-#endif
 // Show hardware used:
 #ifdef HW_LILYGO
     content += " Hardware: LilyGo T-CAN485";
 #endif  // HW_LILYGO
+#ifdef HW_LILYGO2CAN
+    content += " Hardware: LilyGo T_2CAN";
+#endif  // HW_LILYGO2CAN
 #ifdef HW_STARK
     content += " Hardware: Stark CMR Module";
 #endif  // HW_STARK
     content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
     content += "<h4>Uptime: " + get_uptime() + "</h4>";
-#ifdef FUNCTION_TIME_MEASUREMENT
-    // Load information
-    content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
-    content += "<h4>Core task max load last 10 s: " + String(datalayer.system.status.core_task_10s_max_us) + " us</h4>";
-    content +=
-        "<h4>MQTT function (MQTT task) max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) +
-        " us</h4>";
-    content +=
-        "<h4>WIFI function (MQTT task) max load last 10 s: " + String(datalayer.system.status.wifi_task_10s_max_us) +
-        " us</h4>";
-    content += "<h4>Max load @ worst case execution of core task:</h4>";
-    content += "<h4>10ms function timing: " + String(datalayer.system.status.time_snap_10ms_us) + " us</h4>";
-    content += "<h4>Values function timing: " + String(datalayer.system.status.time_snap_values_us) + " us</h4>";
-    content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
-    content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
-    content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
-#endif  // FUNCTION_TIME_MEASUREMENT
+    if (datalayer.system.info.performance_measurement_active) {
+      // Load information
+      content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
+      content +=
+          "<h4>Core task max load last 10 s: " + String(datalayer.system.status.core_task_10s_max_us) + " us</h4>";
+      content +=
+          "<h4>MQTT function (MQTT task) max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) +
+          " us</h4>";
+      content +=
+          "<h4>WIFI function (MQTT task) max load last 10 s: " + String(datalayer.system.status.wifi_task_10s_max_us) +
+          " us</h4>";
+      content += "<h4>Max load @ worst case execution of core task:</h4>";
+      content += "<h4>10ms function timing: " + String(datalayer.system.status.time_snap_10ms_us) + " us</h4>";
+      content += "<h4>Values function timing: " + String(datalayer.system.status.time_snap_values_us) + " us</h4>";
+      content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
+      content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
+      content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
+    }
 
     wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
@@ -1371,9 +1456,9 @@ String processor(const String& var) {
     content += "<button onclick='Advanced()'>More Battery Info</button> ";
     content += "<button onclick='CANlog()'>CAN logger</button> ";
     content += "<button onclick='CANreplay()'>CAN replay</button> ";
-#if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
-    content += "<button onclick='Log()'>Log</button> ";
-#endif  // DEBUG_VIA_WEB
+    if (datalayer.system.info.web_logging_active || datalayer.system.info.SD_logging_active) {
+      content += "<button onclick='Log()'>Log</button> ";
+    }
     content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
     content += "<button onclick='Events()'>Events</button> ";
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
@@ -1453,9 +1538,7 @@ void onOTAProgress(size_t current, size_t final) {
   // Log every 1 second
   if (millis() - ota_progress_millis > 1000) {
     ota_progress_millis = millis();
-#ifdef DEBUG_LOG
     logging.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
-#endif  // DEBUG_LOG
     // Reset the "watchdog"
     ota_timeout_timer.reset();
   }
@@ -1472,13 +1555,9 @@ void onOTAEnd(bool success) {
     // Max Charge/Discharge = 0; CAN = stop; contactors = open
     setBatteryPause(true, true, true, false);
     // a reboot will be done by the OTA library. no need to do anything here
-#ifdef DEBUG_LOG
     logging.println("OTA update finished successfully!");
-#endif  // DEBUG_LOG
   } else {
-#ifdef DEBUG_LOG
     logging.println("There was an error during OTA update!");
-#endif  // DEBUG_LOG
     //try to Resume the battery pause and CAN communication
     setBatteryPause(false, false);
   }

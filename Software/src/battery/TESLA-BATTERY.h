@@ -4,19 +4,14 @@
 #include "CanBattery.h"
 #include "TESLA-HTML.h"
 
-#ifdef TESLA_MODEL_3Y_BATTERY
-#define SELECTED_BATTERY_CLASS TeslaModel3YBattery
-#endif
-#ifdef TESLA_MODEL_SX_BATTERY
-#define SELECTED_BATTERY_CLASS TeslaModelSXBattery
-#endif
-
-/*NOTE! IMPORTANT INFORMATION!
-Be sure to scroll down in this file and configure all "GTW_" parameters to suit your battery. 
-Failure to configure these will result in VCFRONT and GTW MIA errors
-*/
-
-//#define EXP_TESLA_BMS_DIGITAL_HVIL    // Experimental parameter. Forces the transmission of additional CAN frames for experimental purposes, to test potential HVIL issues in 3/Y packs with newer firmware.
+// 0x7FF gateway config, "Gen3" vehicles only, not applicable to Gen2 "classic" Model S and Model X
+// These are user configurable from the Webserver UI
+extern bool user_selected_tesla_digital_HVIL;
+extern uint16_t user_selected_tesla_GTW_country;
+extern bool user_selected_tesla_GTW_rightHandDrive;
+extern uint16_t user_selected_tesla_GTW_mapRegion;
+extern uint16_t user_selected_tesla_GTW_chassisType;
+extern uint16_t user_selected_tesla_GTW_packEnergy;
 
 class TeslaBattery : public CanBattery {
  public:
@@ -33,6 +28,9 @@ class TeslaBattery : public CanBattery {
   bool supports_reset_BMS() { return true; }
   void reset_BMS() { datalayer.battery.settings.user_requests_tesla_bms_reset = true; }
 
+  bool supports_reset_SOC() { return true; }
+  void reset_SOC() { datalayer.battery.settings.user_requests_tesla_soc_reset = true; }
+
   bool supports_charged_energy() { return true; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
@@ -41,30 +39,6 @@ class TeslaBattery : public CanBattery {
   TeslaHtmlRenderer renderer;
 
  protected:
-  /* Modify these if needed */
-  static const int MAXCHARGEPOWERALLOWED =
-      15000;  // 15000W we use a define since the value supplied by Tesla is always 0
-  static const int MAXDISCHARGEPOWERALLOWED =
-      60000;  // 60000W we use a define since the value supplied by Tesla is always 0
-
-  // Set this to true to try to close contactors/full startup even with no inverter defined/connected
-  bool batteryTestOverride = false;
-
-  // 0x7FF gateway config, "Gen3" vehicles only, not applicable to Gen2 "classic" Model S and Model X
-  //
-  // ** MANUALLY SET FOR NOW **, TODO: change based on USER_SETTINGS.h or preset
-  //
-  static const uint16_t GTW_country =
-      18242;  // "US" (USA): 21843, "CA" (Canada): 17217, "GB" (UK & N Ireland): 18242, "DK" (Denmark): 17483, "DE" (Germany): 17477, "AU" (Australia): 16725  [HVP shows errors if EU/US region mismatch for example]
-  // GTW_country is ISO 3166-1 Alpha-2 code, each letter converted to binary (8-bit chunks), those 8-bit chunks concatenated and then converted to decimal
-  static const uint8_t GTW_rightHandDrive =
-      1;  // Left: 0, Right: 1 (not sure this matters but there for consistency in emulating the car - make sure correct for GTW_country, e.g. 0 for USA)
-  static const uint8_t GTW_mapRegion =
-      1;  // "ME": 8, "NONE": 2, "CN": 3, "TW": 6, "JP": 5, "US": 0, "KR": 7, "AU": 4, "EU": 1 (not sure this matters but there for consistency)
-  static const uint8_t GTW_chassisType =
-      2;  // "MODEL_3_CHASSIS": 2, "MODEL_Y_CHASSIS": 3  ("MODEL_S_CHASSIS": 0, "MODEL_X_CHASSIS": 1)
-  static const uint8_t GTW_packEnergy = 1;  // "PACK_50_KWH": 0, "PACK_74_KWH": 1, "PACK_62_KWH": 2, "PACK_100_KWH": 3
-
   /* Do not change anything below this line! */
   static const int RAMPDOWN_SOC = 900;  // 90.0 SOC% to start ramping down from max charge power towards 0 at 100.00%
   static const int RAMPDOWNPOWERALLOWED = 10000;      // What power we ramp down from towards top balancing
@@ -486,6 +460,7 @@ class TeslaBattery : public CanBattery {
 
   uint8_t stateMachineClearIsolationFault = 0xFF;
   uint8_t stateMachineBMSReset = 0xFF;
+  uint8_t stateMachineSOCReset = 0xFF;
   uint8_t stateMachineBMSQuery = 0xFF;
   uint16_t sendContactorClosingMessagesStill = 300;
   uint16_t battery_cell_max_v = 3300;
@@ -922,19 +897,14 @@ class TeslaBattery : public CanBattery {
 
 class TeslaModel3YBattery : public TeslaBattery {
  public:
-  TeslaModel3YBattery(battery_chemistry_enum chemistry) {
-    datalayer.battery.info.chemistry = chemistry;
-#ifdef EXP_TESLA_BMS_DIGITAL_HVIL
-    operate_contactors = true;
-#endif
-  }
+  TeslaModel3YBattery(battery_chemistry_enum chemistry) { datalayer.battery.info.chemistry = chemistry; }
   static constexpr const char* Name = "Tesla Model 3/Y";
   virtual void setup(void);
 };
 
 class TeslaModelSXBattery : public TeslaBattery {
  public:
-  TeslaModelSXBattery() { operate_contactors = true; }
+  TeslaModelSXBattery() {}
   static constexpr const char* Name = "Tesla Model S/X";
   virtual void setup(void);
 };

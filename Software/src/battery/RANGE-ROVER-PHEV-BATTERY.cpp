@@ -1,4 +1,5 @@
 #include "RANGE-ROVER-PHEV-BATTERY.h"
+#include <cstring>  //For unit test
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -76,7 +77,6 @@ void RangeRoverPhevBattery::update_values() {
 }
 
 void RangeRoverPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x080:  // 15ms
       StatusCAT5BPOChg = (rx_frame.data.u8[0] & 0x01);
@@ -104,6 +104,7 @@ void RangeRoverPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       DischargeContPwrLmt = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
       break;
     case 0x102:  // 20ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       PwrGpCS = rx_frame.data.u8[0];
       PwrGpCounter = (rx_frame.data.u8[1] & 0x3C) >> 2;
       VoltageExt = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[2]);

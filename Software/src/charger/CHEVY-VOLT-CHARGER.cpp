@@ -3,6 +3,7 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/logging.h"
+#include "CHARGERS.h"
 
 /* This implements Chevy Volt / Ampera charger support (2011-2015 model years).
  *
@@ -71,9 +72,6 @@ void ChevyVoltCharger::map_can_frame_to_variable(CAN_frame rx_frame) {
       datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       break;
     default:
-#ifdef DEBUG_LOG
-      logging.printf("CAN Rcv unknown frame MsgID=%x\n", rx_frame.ID);
-#endif
       break;
   }
 }
@@ -146,7 +144,6 @@ void ChevyVoltCharger::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&charger_set_targets);
   }
 
-#ifdef DEBUG_LOG
   /* Serial echo every 5s of charger stats */
   if (currentMillis - previousMillis5000ms >= INTERVAL_5_S) {
     previousMillis5000ms = currentMillis;
@@ -156,5 +153,4 @@ void ChevyVoltCharger::transmit_can(unsigned long currentMillis) {
     logging.printf("Charger mode=%s\n", (charger_mode > MODE_DISABLED) ? "Enabled" : "Disabled");
     logging.printf("Charger HVset=%uV,%uA finishCurrent=%uA\n", setpoint_HV_VDC, setpoint_HV_IDC, setpoint_HV_IDC_END);
   }
-#endif
 }

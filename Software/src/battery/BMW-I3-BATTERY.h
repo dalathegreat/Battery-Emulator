@@ -6,10 +6,6 @@
 #include "BMW-I3-HTML.h"
 #include "CanBattery.h"
 
-#ifdef BMW_I3_BATTERY
-#define SELECTED_BATTERY_CLASS BmwI3Battery
-#endif
-
 class BmwI3Battery : public CanBattery {
  public:
   // Use this constructor for the second battery.

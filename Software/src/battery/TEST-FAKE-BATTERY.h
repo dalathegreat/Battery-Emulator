@@ -3,10 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "CanBattery.h"
 
-#ifdef TEST_FAKE_BATTERY
-#define SELECTED_BATTERY_CLASS TestFakeBattery
-#endif
-
 class TestFakeBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.

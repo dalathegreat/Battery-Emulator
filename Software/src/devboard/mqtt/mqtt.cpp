@@ -4,8 +4,6 @@
 #include <freertos/FreeRTOS.h>
 #include <src/communication/nvm/comm_nvm.h>
 #include <list>
-#include "../../../USER_SECRETS.h"
-#include "../../../USER_SETTINGS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
@@ -15,40 +13,32 @@
 #include "mqtt.h"
 #include "mqtt_client.h"
 
-#ifdef MQTT
-const bool mqtt_enabled_default = true;
-#else
-const bool mqtt_enabled_default = false;
-#endif
+bool mqtt_enabled = false;
+bool ha_autodiscovery_enabled = false;
+bool mqtt_transmit_all_cellvoltages = false;
+uint16_t mqtt_timeout_ms = 2000;
 
-bool mqtt_enabled = mqtt_enabled_default;
-
-#ifdef HA_AUTODISCOVERY
-const bool ha_autodiscovery_enabled_default = true;
-#else
-const bool ha_autodiscovery_enabled_default = false;
-#endif
-
-bool ha_autodiscovery_enabled = ha_autodiscovery_enabled_default;
-
-#ifdef COMMON_IMAGE
 const int mqtt_port_default = 0;
 const char* mqtt_server_default = "";
-#else
-const int mqtt_port_default = MQTT_PORT;
-const char* mqtt_server_default = MQTT_SERVER;
-#endif
 
 int mqtt_port = mqtt_port_default;
 std::string mqtt_server = mqtt_server_default;
 
-#ifdef MQTT_MANUAL_TOPIC_OBJECT_NAME
-const bool mqtt_manual_topic_object_name_default = true;
-#else
-const bool mqtt_manual_topic_object_name_default = false;
-#endif
+bool mqtt_manual_topic_object_name =
+    true;  //TODO: should this be configurable from webserver? Or legacy option removed?
+// If this is not true, the previous default naming format 'battery-emulator_esp32-XXXXXX' (based on hardware ID) will be used.
+// This naming convention was in place until version 7.5.0. Users should check the version from which they are updating, as this change
+// may break compatibility with previous versions of MQTT naming
+const char* mqtt_topic_name =
+    "BE";  // Custom MQTT topic name. Previously, the name was automatically set to "battery-emulator_esp32-XXXXXX"
+const char* mqtt_object_id_prefix =
+    "be_";  // Custom prefix for MQTT object ID. Previously, the prefix was automatically set to "esp32-XXXXXX_"
+const char* mqtt_device_name =
+    "Battery Emulator";  // Custom device name in Home Assistant. Previously, the name was automatically set to "BatteryEmulator_esp32-XXXXXX"
+const char* ha_device_id =
+    "battery-emulator";  // Custom device ID in Home Assistant. Previously, the ID was always "battery-emulator"
 
-bool mqtt_manual_topic_object_name = mqtt_manual_topic_object_name_default;
+#define MQTT_QOS 0  // MQTT Quality of Service (0, 1, or 2) //TODO: Should this be configurable?
 
 esp_mqtt_client_config_t mqtt_cfg;
 esp_mqtt_client_handle_t client;
@@ -83,17 +73,17 @@ static void publish_values(void) {
     return;
   }
 
-#ifdef MQTT_PUBLISH_CELL_VOLTAGES
-  if (publish_cell_voltages() == false) {
-    return;
+  if (mqtt_transmit_all_cellvoltages) {
+    if (publish_cell_voltages() == false) {
+      return;
+    }
   }
-#endif
 
-#ifdef MQTT_PUBLISH_CELL_VOLTAGES
-  if (publish_cell_balancing() == false) {
-    return;
+  if (mqtt_transmit_all_cellvoltages) {
+    if (publish_cell_balancing() == false) {
+      return;
+    }
   }
-#endif
 }
 
 static bool ha_common_info_published = false;
@@ -319,9 +309,7 @@ static bool publish_common_info(void) {
 
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
-#ifdef DEBUG_LOG
       logging.println("Common info MQTT msg could not be sent");
-#endif  // DEBUG_LOG
       return false;
     }
     doc.clear();
@@ -392,9 +380,7 @@ static bool publish_cell_voltages(void) {
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
 
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_LOG
       logging.println("Cell voltage MQTT msg could not be sent");
-#endif  // DEBUG_LOG
       return false;
     }
     doc.clear();
@@ -413,9 +399,7 @@ static bool publish_cell_voltages(void) {
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
 
       if (!mqtt_publish(state_topic_2.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_LOG
         logging.println("Cell voltage MQTT msg could not be sent");
-#endif  // DEBUG_LOG
         return false;
       }
       doc.clear();
@@ -440,9 +424,7 @@ static bool publish_cell_balancing(void) {
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
 
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_LOG
       logging.println("Cell balancing MQTT msg could not be sent");
-#endif  // DEBUG_LOG
       return false;
     }
     doc.clear();
@@ -460,9 +442,7 @@ static bool publish_cell_balancing(void) {
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
 
       if (!mqtt_publish(state_topic_2.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_LOG
         logging.println("Cell balancing MQTT msg could not be sent");
-#endif  // DEBUG_LOG
         return false;
       }
       doc.clear();
@@ -523,9 +503,7 @@ bool publish_events() {
 
       serializeJson(doc, mqtt_msg);
       if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_LOG
         logging.println("Common info MQTT msg could not be sent");
-#endif  // DEBUG_LOG
         return false;
       } else {
         set_event_MQTTpublished(event_handle);
@@ -541,9 +519,7 @@ bool publish_events() {
 static bool publish_buttons_discovery(void) {
   if (ha_autodiscovery_enabled) {
     if (ha_buttons_published == false) {
-#ifdef DEBUG_LOG
       logging.println("Publishing buttons discovery");
-#endif  // DEBUG_LOG
 
       static JsonDocument doc;
       for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
@@ -573,16 +549,12 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   char* topic = strndup(topic_raw, topic_len);
 
-#ifdef DEBUG_LOG
   logging.printf("MQTT message arrived: [%.*s]\n", topic_len, topic);
-#endif  // DEBUG_LOG
 
 #ifdef REMOTE_BMS_RESET
   const char* bmsreset_topic = generateButtonTopic("BMSRESET").c_str();
   if (strcmp(topic, bmsreset_topic) == 0) {
-#ifdef DEBUG_LOG
     logging.println("Triggering BMS reset");
-#endif  // DEBUG_LOG
     start_bms_reset();
   }
 #endif  // REMOTE_BMS_RESET
@@ -616,21 +588,16 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
 
       publish_buttons_discovery();
       subscribe();
-#ifdef DEBUG_LOG
       logging.println("MQTT connected");
-#endif  // DEBUG_LOG
       break;
     case MQTT_EVENT_DISCONNECTED:
       set_event(EVENT_MQTT_DISCONNECT, 0);
-#ifdef DEBUG_LOG
       logging.println("MQTT disconnected!");
-#endif  // DEBUG_LOG
       break;
     case MQTT_EVENT_DATA:
       mqtt_message_received(event->topic, event->topic_len, event->data, event->data_len);
       break;
     case MQTT_EVENT_ERROR:
-#ifdef DEBUG_LOG
       logging.println("MQTT_ERROR");
       logging.print("reported from esp-tls");
       logging.println(event->error_handle->esp_tls_last_esp_err);
@@ -638,7 +605,6 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       logging.println(event->error_handle->esp_tls_stack_err);
       logging.print("captured as transport's socket errno");
       logging.println(strerror(event->error_handle->esp_transport_sock_errno));
-#endif  // DEBUG_LOG
       break;
   }
 }
@@ -650,7 +616,7 @@ bool init_mqtt(void) {
   }
 
   if (mqtt_manual_topic_object_name) {
-#ifdef COMMON_IMAGE
+
     BatteryEmulatorSettingsStore settings;
     topic_name = settings.getString("MQTTTOPIC", mqtt_topic_name);
     object_id_prefix = settings.getString("MQTTOBJIDPREFIX", mqtt_object_id_prefix);
@@ -673,13 +639,6 @@ bool init_mqtt(void) {
       device_id = ha_device_id;
     }
 
-#else
-    // Use custom topic name, object ID prefix, and device name from user settings
-    topic_name = mqtt_topic_name;
-    object_id_prefix = mqtt_object_id_prefix;
-    device_name = mqtt_device_name;
-    device_id = ha_device_id;
-#endif
   } else {
     // Use default naming based on WiFi hostname for topic, object ID prefix, and device name
     topic_name = "battery-emulator_" + String(WiFi.getHostname());
@@ -702,7 +661,7 @@ bool init_mqtt(void) {
   mqtt_cfg.session.last_will.retain = true;
   mqtt_cfg.session.last_will.msg = "offline";
   mqtt_cfg.session.last_will.msg_len = strlen(mqtt_cfg.session.last_will.msg);
-  mqtt_cfg.network.timeout_ms = MQTT_TIMEOUT;
+  mqtt_cfg.network.timeout_ms = mqtt_timeout_ms;
   client = esp_mqtt_client_init(&mqtt_cfg);
 
   if (client == nullptr) {
@@ -716,16 +675,14 @@ bool init_mqtt(void) {
   return true;
 }
 
-void mqtt_loop(void) {
+void mqtt_client_loop(void) {
   // Only attempt to publish/reconnect MQTT if Wi-Fi is connectedand checkTimmer is elapsed
   if (check_global_timer.elapsed() && WiFi.status() == WL_CONNECTED) {
 
     if (client_started == false) {
       esp_mqtt_client_start(client);
       client_started = true;
-#ifdef DEBUG_LOG
       logging.println("MQTT initialized");
-#endif  // DEBUG_LOG
       return;
     }
 

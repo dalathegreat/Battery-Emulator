@@ -8,6 +8,8 @@
 #include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
+#include "../equipmentstopbutton/comm_equipmentstopbutton.h"
+#include "../precharge_control/precharge_control.h"
 
 // Parameters
 Preferences settings;  // Store user settings
@@ -26,12 +28,9 @@ void init_stored_settings() {
     set_event(EVENT_EQUIPMENT_STOP, 1);
   }
 
-#ifndef LOAD_SAVED_SETTINGS_ON_BOOT
-  settings.clear();  // If this clear function is executed, no settings will be read from storage
+  //settings.clear();  // If this clear function is executed, no settings will be read from storage. For dev
 
-  //always save the equipment stop status
-  settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
-#endif  // LOAD_SAVED_SETTINGS_ON_BOOT
+  esp32hal->set_default_configuration_values();
 
   char tempSSIDstring[63];  // Allocate buffer with sufficient size
   size_t lengthSSID = settings.getString("SSID", tempSSIDstring, sizeof(tempSSIDstring));
@@ -85,7 +84,6 @@ void init_stored_settings() {
     datalayer.battery.settings.user_set_bms_reset_duration_ms = temp;
   }
 
-#ifdef COMMON_IMAGE
   user_selected_battery_type = (BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None);
   user_selected_battery_chemistry =
       (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA);
@@ -96,6 +94,22 @@ void init_stored_settings() {
   user_selected_min_pack_voltage_dV = settings.getUInt("BATTPVMIN", 0);
   user_selected_max_cell_voltage_mV = settings.getUInt("BATTCVMAX", 0);
   user_selected_min_cell_voltage_mV = settings.getUInt("BATTCVMIN", 0);
+  user_selected_inverter_cells = settings.getUInt("INVCELLS", 0);
+  user_selected_inverter_modules = settings.getUInt("INVMODULES", 0);
+  user_selected_inverter_cells_per_module = settings.getUInt("INVCELLSPER", 0);
+  user_selected_inverter_voltage_level = settings.getUInt("INVVLEVEL", 0);
+  user_selected_inverter_ah_capacity = settings.getUInt("INVAHCAPACITY", 0);
+  user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
+  user_selected_inverter_ignore_contactors = settings.getBool("INVICNT", false);
+  user_selected_can_addon_crystal_frequency_mhz = settings.getUInt("CANFREQ", 8);
+  user_selected_canfd_addon_crystal_frequency_mhz = settings.getUInt("CANFDFREQ", 40);
+  user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
+  user_selected_tesla_digital_HVIL = settings.getBool("DIGITALHVIL", false);
+  user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", 0);
+  user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", false);
+  user_selected_tesla_GTW_mapRegion = settings.getUInt("GTWMAPREG", 0);
+  user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", 0);
+  user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", 0);
 
   auto readIf = [](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
@@ -122,26 +136,59 @@ void init_stored_settings() {
   equipment_stop_behavior = (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
   user_selected_second_battery = settings.getBool("DBLBTR", false);
   contactor_control_enabled = settings.getBool("CNTCTRL", false);
+  precharge_time_ms = settings.getUInt("PRECHGMS", 100);
   contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);
   pwm_contactor_control = settings.getBool("PWMCNTCTRL", false);
+  pwm_frequency = settings.getUInt("PWMFREQ", 20000);
+  pwm_hold_duty = settings.getUInt("PWMHOLD", 250);
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
 
+  precharge_control_enabled = settings.getBool("EXTPRECHARGE", false);
+  precharge_inverter_normally_open_contactor = settings.getBool("NOINVDISC", false);
+  precharge_max_precharge_time_before_fault = settings.getUInt("MAXPRETIME", 15000);
+
+  datalayer.system.info.performance_measurement_active = settings.getBool("PERFPROFILE", false);
+  datalayer.system.info.CAN_usb_logging_active = settings.getBool("CANLOGUSB", false);
+  datalayer.system.info.usb_logging_active = settings.getBool("USBENABLED", false);
+  datalayer.system.info.web_logging_active = settings.getBool("WEBENABLED", false);
+  datalayer.system.info.CAN_SD_logging_active = settings.getBool("CANLOGSD", false);
+  datalayer.system.info.SD_logging_active = settings.getBool("SDLOGENABLED", false);
+  datalayer.battery.status.led_mode = (led_mode_enum)settings.getUInt("LEDMODE", false);
+
+  //Some early integrations need manually set allowed charge/discharge power
+  datalayer.battery.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
+  datalayer.battery.status.override_discharge_power_W = settings.getUInt("DCHGPOWER", 1000);
+
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
+  wifi_channel = settings.getUInt("WIFICHANNEL", 0);
   passwordAP = settings.getString("APPASSWORD", "123456789").c_str();
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
+  mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
-
+  mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();
+
+  static_IP_enabled = settings.getBool("STATICIP", false);
+  static_local_IP1 = settings.getUInt("LOCALIP1", 192);
+  static_local_IP2 = settings.getUInt("LOCALIP2", 168);
+  static_local_IP3 = settings.getUInt("LOCALIP3", 10);
+  static_local_IP4 = settings.getUInt("LOCALIP4", 150);
+  static_gateway1 = settings.getUInt("GATEWAY1", 192);
+  static_gateway2 = settings.getUInt("GATEWAY2", 168);
+  static_gateway3 = settings.getUInt("GATEWAY3", 10);
+  static_gateway4 = settings.getUInt("GATEWAY4", 1);
+  static_subnet1 = settings.getUInt("SUBNET1", 255);
+  static_subnet2 = settings.getUInt("SUBNET2", 255);
+  static_subnet3 = settings.getUInt("SUBNET3", 255);
+  static_subnet4 = settings.getUInt("SUBNET4", 0);
 
   mqtt_server = settings.getString("MQTTSERVER").c_str();
   mqtt_port = settings.getUInt("MQTTPORT", 0);
   mqtt_user = settings.getString("MQTTUSER").c_str();
   mqtt_password = settings.getString("MQTTPASSWORD").c_str();
-
-#endif
 
   settings.end();
 }
@@ -193,10 +240,7 @@ void store_settings() {
   if (!settings.putUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 11);
   }
-  if (!settings.putUInt("SOFAR_ID", datalayer.battery.settings.sofar_user_specified_battery_id)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 12);
-  }
-  if (!settings.putUInt("BMSRESETDUR", datalayer.battery.settings.sofar_user_specified_battery_id)) {
+  if (!settings.putUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 13);
   }
 

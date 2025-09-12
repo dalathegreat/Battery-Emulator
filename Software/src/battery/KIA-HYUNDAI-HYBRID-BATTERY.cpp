@@ -1,4 +1,5 @@
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
+#include <cstring>  //For unit test
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -43,7 +44,6 @@ void KiaHyundaiHybridBattery::
 }
 
 void KiaHyundaiHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x5F1:
       break;
@@ -52,6 +52,8 @@ void KiaHyundaiHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x588:
       break;
     case 0x5AE:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+
       interlock_missing = (bool)(rx_frame.data.u8[1] & 0x02) >> 1;
       break;
     case 0x5AF:

@@ -33,20 +33,20 @@ void RjxzsBms::update_values() {
     datalayer.battery.status.current_dA = total_current;
   }
 
-  // Charge power is set in .h file
+  // Charge power is manually set
   if (datalayer.battery.status.real_soc > 9900) {
     datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
   } else if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
     // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
     datalayer.battery.status.max_charge_power_W =
-        MAX_CHARGE_POWER_ALLOWED_W *
+        datalayer.battery.status.override_charge_power_W *
         (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
   } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_ALLOWED_W;
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
   }
 
-  // Discharge power is also set in .h file
-  datalayer.battery.status.max_discharge_power_W = MAX_DISCHARGE_POWER_ALLOWED_W;
+  // Discharge power is manually set
+  datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
 
   uint16_t temperatures[] = {
       module_1_temperature,  module_2_temperature,  module_3_temperature,  module_4_temperature,
@@ -140,262 +140,18 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
           charging_active = false;
           discharging_active = true;
         }
-      } else if (mux == 0x07) {  // Cellvoltages 1-3
-        cellvoltages[0] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[1] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[2] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x08) {  // Cellvoltages 4-6
-        cellvoltages[3] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[4] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[5] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x09) {  // Cellvoltages 7-9
-        cellvoltages[6] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[7] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[8] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x0A) {  // Cellvoltages 10-12
-        cellvoltages[9] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[10] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[11] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x0B) {  // Cellvoltages 13-15
-        cellvoltages[12] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[13] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[14] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x0C) {  // Cellvoltages 16-18
-        cellvoltages[15] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[16] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[17] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x0D) {  // Cellvoltages 19-21
-        cellvoltages[18] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[19] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[20] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x0E) {  // Cellvoltages 22-24
-        cellvoltages[21] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[22] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[23] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x0F) {  // Cellvoltages 25-27
-        cellvoltages[24] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[25] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[26] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x10) {  // Cellvoltages 28-30
-        cellvoltages[27] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[28] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[29] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x11) {  // Cellvoltages 31-33
-        cellvoltages[30] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[31] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[32] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x12) {  // Cellvoltages 34-36
-        cellvoltages[33] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[34] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[35] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x13) {  // Cellvoltages 37-39
-        cellvoltages[36] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[37] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[38] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x14) {  // Cellvoltages 40-42
-        cellvoltages[39] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[40] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[41] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x15) {  // Cellvoltages 43-45
-        cellvoltages[42] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[43] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[44] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x16) {  // Cellvoltages 46-48
-        cellvoltages[45] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[46] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[47] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x17) {  // Cellvoltages 49-51
-        cellvoltages[48] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[49] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[50] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x18) {  // Cellvoltages 52-54
-        cellvoltages[51] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[52] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[53] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x19) {  // Cellvoltages 55-57
-        cellvoltages[54] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[55] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[56] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x1A) {  // Cellvoltages 58-60
-        cellvoltages[57] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[58] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[59] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x1B) {  // Cellvoltages 61-63
-        cellvoltages[60] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[61] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[62] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x1C) {  // Cellvoltages 64-66
-        cellvoltages[63] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[64] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[65] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x1D) {  // Cellvoltages 67-69
-        cellvoltages[66] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[67] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[68] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x1E) {  // Cellvoltages 70-72
-        cellvoltages[69] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[70] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[71] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x1F) {  // Cellvoltages 73-75
-        cellvoltages[72] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[73] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[74] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x20) {  // Cellvoltages 76-78
-        cellvoltages[75] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[76] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[77] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x21) {  // Cellvoltages 79-81
-        cellvoltages[78] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[79] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[80] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x22) {  // Cellvoltages 82-84
-        cellvoltages[81] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[82] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[83] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x23) {  // Cellvoltages 85-87
-        cellvoltages[84] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[85] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[86] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x24) {  // Cellvoltages 88-90
-        cellvoltages[87] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[88] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[89] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x25) {  // Cellvoltages 91-93
-        cellvoltages[90] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[91] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[92] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x26) {  // Cellvoltages 94-96
-        cellvoltages[93] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[94] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[95] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x27) {  // Cellvoltages 97-99
-        cellvoltages[96] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[97] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[98] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x28) {  // Cellvoltages 100-102
-        cellvoltages[99] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[100] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[101] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x29) {  // Cellvoltages 103-105
-        cellvoltages[102] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[103] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[104] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x2A) {  // Cellvoltages 106-108
-        cellvoltages[105] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[106] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[107] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x2B) {  // Cellvoltages 109-111
-        cellvoltages[108] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[109] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[110] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x2C) {  // Cellvoltages 112-114
-        cellvoltages[111] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[112] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[113] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x2D) {  // Cellvoltages 115-117
-        cellvoltages[114] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[115] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[116] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x2E) {  // Cellvoltages 118-120
-        cellvoltages[117] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[118] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[119] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x2F) {  // Cellvoltages 121-123
-        cellvoltages[120] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[121] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[122] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x30) {  // Cellvoltages 124-126
-        cellvoltages[123] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[124] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[125] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x31) {  // Cellvoltages 127-129
-        cellvoltages[126] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[127] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[128] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x32) {  // Cellvoltages 130-132
-        cellvoltages[129] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[130] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[131] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x33) {  // Cellvoltages 133-135
-        cellvoltages[132] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[133] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[134] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x34) {  // Cellvoltages 136-138
-        cellvoltages[135] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[136] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[137] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x35) {  // Cellvoltages 139-141
-        cellvoltages[138] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[139] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[140] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x36) {  // Cellvoltages 142-144
-        cellvoltages[141] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[142] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[143] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x37) {  // Cellvoltages 145-147
-        cellvoltages[144] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[145] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[146] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x38) {  // Cellvoltages 148-150
-        cellvoltages[147] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[148] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[149] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x39) {  // Cellvoltages 151-153
-        cellvoltages[150] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[151] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[152] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x3A) {  // Cellvoltages 154-156
-        cellvoltages[153] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[154] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[155] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x3B) {  // Cellvoltages 157-159
-        cellvoltages[156] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[157] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[158] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x3C) {  // Cellvoltages 160-162
-        cellvoltages[159] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[160] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[161] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x3D) {  // Cellvoltages 163-165
-        cellvoltages[162] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[163] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[164] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x3E) {  // Cellvoltages 166-167
-        cellvoltages[165] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[166] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[167] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x3F) {  // Cellvoltages 169-171
-        cellvoltages[168] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[169] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[170] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x40) {  // Cellvoltages 172-174
-        cellvoltages[171] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[172] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[173] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x41) {  // Cellvoltages 175-177
-        cellvoltages[174] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[175] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[176] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x42) {  // Cellvoltages 178-180
-        cellvoltages[177] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[178] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[179] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x43) {  // Cellvoltages 181-183
-        cellvoltages[180] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[181] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[182] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x44) {  // Cellvoltages 184-186
-        cellvoltages[183] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[184] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[185] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x45) {  // Cellvoltages 187-189
-        cellvoltages[186] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[187] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[188] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      } else if (mux == 0x46) {  // Cellvoltages 190-192
-        cellvoltages[189] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cellvoltages[190] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cellvoltages[191] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux >= 0x07 && mux <= 0x46) {
+        // Cell voltages 1-192 (3 per message, 0x07=1-3, 0x08=4-6, ..., 0x46=190-192)
+        int cell_index = (mux - 0x07) * 3;
+        for (int i = 0; i < 3; i++) {
+          if (cell_index + i >= MAX_AMOUNT_CELLS) {
+            break;
+          }
+          cellvoltages[cell_index + i] = (rx_frame.data.u8[1 + i * 2] << 8) | rx_frame.data.u8[2 + i * 2];
+        }
+        if (cell_index + 2 >= populated_cellvoltages) {
+          populated_cellvoltages = cell_index + 2 + 1;
+        }
       } else if (mux == 0x47) {
         temperature_below_zero_mod1_4 = rx_frame.data.u8[2];
         module_1_temperature = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];

@@ -1,7 +1,6 @@
 #ifndef _SHUNT_H
 #define _SHUNT_H
 
-#include "../../USER_SETTINGS.h"
 #include "../../src/communication/Transmitter.h"
 #include "../../src/communication/can/CanReceiver.h"
 #include "../../src/communication/can/comm_can.h"

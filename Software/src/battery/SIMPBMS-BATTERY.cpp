@@ -1,8 +1,8 @@
 #include "SIMPBMS-BATTERY.h"
+#include <cstring>  //For unit test
 #include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-
 void SimpBmsBattery::update_values() {
 
   datalayer.battery.status.real_soc = (SOC * 100);  //increase SOC range from 0-100 -> 100.00
@@ -40,9 +40,10 @@ void SimpBmsBattery::update_values() {
 }
 
 void SimpBmsBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x355:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+
       SOC = (rx_frame.data.u8[1] << 8) + rx_frame.data.u8[0];
       SOH = (rx_frame.data.u8[3] << 8) + rx_frame.data.u8[2];
 

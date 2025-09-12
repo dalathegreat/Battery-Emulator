@@ -29,9 +29,6 @@ static const int AUTO_SWITCH_MEASURED_THRESHOLD = 25;   // Switch back to measur
 static const int AUTO_SWITCH_MIN_SOC_DELTA = 50;        // Only switch if estimated SOC is above this
 
 /* Do not modify the rows below */
-#ifdef BYD_ATTO_3_BATTERY
-#define SELECTED_BATTERY_CLASS BydAttoBattery
-#endif
 
 class BydAttoBattery : public CanBattery {
  public:
@@ -107,6 +104,7 @@ class BydAttoBattery : public CanBattery {
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
   bool SOC_method = false;
   bool SOC_method_manual_override = false;
+  bool BMS_voltage_available = false;
   uint8_t counter_50ms = 0;
   uint8_t counter_100ms = 0;
   uint8_t frame6_counter = 0xB;

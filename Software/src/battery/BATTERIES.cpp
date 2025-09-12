@@ -3,10 +3,6 @@
 #include "CanBattery.h"
 #include "RS485Battery.h"
 
-#if !defined(COMMON_IMAGE) && !defined(SELECTED_BATTERY_CLASS)
-#error No battery selected! Choose one from the USER_SETTINGS.h file or build COMMON_IMAGE.
-#endif
-
 Battery* battery = nullptr;
 Battery* battery2 = nullptr;
 
@@ -90,6 +86,8 @@ const char* name_for_battery_type(BatteryType type) {
       return KiaEGmpBattery::Name;
     case BatteryType::KiaHyundai64:
       return KiaHyundai64Battery::Name;
+    case BatteryType::Kia64FD:
+      return Kia64FDBattery::Name;
     case BatteryType::KiaHyundaiHybrid:
       return KiaHyundaiHybridBattery::Name;
     case BatteryType::Meb:
@@ -108,6 +106,8 @@ const char* name_for_battery_type(BatteryType type) {
       return RjxzsBms::Name;
     case BatteryType::RangeRoverPhev:
       return RangeRoverPhevBattery::Name;
+    case BatteryType::RelionBattery:
+      return RelionBattery::Name;
     case BatteryType::RenaultKangoo:
       return RenaultKangooBattery::Name;
     case BatteryType::RenaultTwizy:
@@ -116,6 +116,8 @@ const char* name_for_battery_type(BatteryType type) {
       return RenaultZoeGen1Battery::Name;
     case BatteryType::RenaultZoe2:
       return RenaultZoeGen2Battery::Name;
+    case BatteryType::RivianBattery:
+      return RivianBattery::Name;
     case BatteryType::SamsungSdiLv:
       return SamsungSdiLVBattery::Name;
     case BatteryType::SantaFePhev:
@@ -137,18 +139,9 @@ const char* name_for_battery_type(BatteryType type) {
   }
 }
 
-#ifdef LFP_CHEMISTRY
-const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum::LFP;
-#else
 const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum::NMC;
-#endif
 
 battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_default;
-
-#ifdef COMMON_IMAGE
-#ifdef SELECTED_BATTERY_CLASS
-#error "Compile time SELECTED_BATTERY_CLASS should not be defined with COMMON_IMAGE"
-#endif
 
 BatteryType user_selected_battery_type = BatteryType::NissanLeaf;
 bool user_selected_second_battery = false;
@@ -187,6 +180,8 @@ Battery* create_battery(BatteryType type) {
       return new ImievCZeroIonBattery();
     case BatteryType::JaguarIpace:
       return new JaguarIpaceBattery();
+    case BatteryType::Kia64FD:
+      return new Kia64FDBattery();
     case BatteryType::KiaEGmp:
       return new KiaEGmpBattery();
     case BatteryType::KiaHyundai64:
@@ -209,6 +204,8 @@ Battery* create_battery(BatteryType type) {
       return new RjxzsBms();
     case BatteryType::RangeRoverPhev:
       return new RangeRoverPhevBattery();
+    case BatteryType::RelionBattery:
+      return new RelionBattery();
     case BatteryType::RenaultKangoo:
       return new RenaultKangooBattery();
     case BatteryType::RenaultTwizy:
@@ -217,6 +214,8 @@ Battery* create_battery(BatteryType type) {
       return new RenaultZoeGen1Battery();
     case BatteryType::RenaultZoe2:
       return new RenaultZoeGen2Battery();
+    case BatteryType::RivianBattery:
+      return new RivianBattery();
     case BatteryType::SamsungSdiLv:
       return new SamsungSdiLVBattery();
     case BatteryType::SantaFePhev:
@@ -269,8 +268,14 @@ void setup_battery() {
       case BatteryType::RenaultZoe1:
         battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
+      case BatteryType::RenaultZoe2:
+        battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, nullptr, can_config.battery_double);
+        break;
       case BatteryType::TestFake:
         battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
+        break;
+      default:
+        DEBUG_PRINTF("User tried enabling double battery on non-supported integration!\n");
         break;
     }
 
@@ -279,56 +284,19 @@ void setup_battery() {
     }
   }
 }
-#else  // Battery selection has been made at build-time
 
-void setup_battery() {
-  // Instantiate the battery only once just in case this function gets called multiple times.
-  if (battery == nullptr) {
-#ifdef TESLA_MODEL_3Y_BATTERY
-    battery = new SELECTED_BATTERY_CLASS(user_selected_battery_chemistry);
-#else
-    battery = new SELECTED_BATTERY_CLASS();
-#endif
-  }
-  battery->setup();
+/* User-selected Nissan LEAF settings */
+bool user_selected_LEAF_interlock_mandatory = false;
+/* User-selected Tesla settings */
+bool user_selected_tesla_digital_HVIL = false;
+uint16_t user_selected_tesla_GTW_country = 17477;
+bool user_selected_tesla_GTW_rightHandDrive = true;
+uint16_t user_selected_tesla_GTW_mapRegion = 2;
+uint16_t user_selected_tesla_GTW_chassisType = 2;
+uint16_t user_selected_tesla_GTW_packEnergy = 1;
 
-#ifdef DOUBLE_BATTERY
-  if (battery2 == nullptr) {
-#if defined(BMW_I3_BATTERY)
-    battery2 =
-        new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
-                                   can_config.battery_double, esp32hal->WUP_PIN2());
-#elif defined(KIA_HYUNDAI_64_BATTERY)
-    battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
-                                          &datalayer.system.status.battery2_allowed_contactor_closing,
-                                          can_config.battery_double);
-#elif defined(SANTA_FE_PHEV_BATTERY) || defined(TEST_FAKE_BATTERY)
-    battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, can_config.battery_double);
-#else
-    battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, nullptr, can_config.battery_double);
-#endif
-  }
-  battery2->setup();
-#endif
-}
-#endif
-
-/* User-selected voltages used for custom-BMS batteries (RJXZS etc.) */
-#if defined(MAX_CUSTOM_PACK_VOLTAGE_DV) && defined(MIN_CUSTOM_PACK_VOLTAGE_DV) && \
-    defined(MAX_CUSTOM_CELL_VOLTAGE_MV) && defined(MIN_CUSTOM_CELL_VOLTAGE_MV)
-// Use USER_SETTINGS.h values for cell/pack voltage defaults
-uint16_t user_selected_max_pack_voltage_default_dV = MAX_CUSTOM_PACK_VOLTAGE_DV;
-uint16_t user_selected_min_pack_voltage_default_dV = MIN_CUSTOM_PACK_VOLTAGE_DV;
-uint16_t user_selected_max_cell_voltage_default_mV = MAX_CUSTOM_CELL_VOLTAGE_MV;
-uint16_t user_selected_min_cell_voltage_default_mV = MIN_CUSTOM_CELL_VOLTAGE_MV;
-#else
-// Use 0V for user selected cell/pack voltage defaults (COMMON_IMAGE will replace with saved values from NVM)
-uint16_t user_selected_max_pack_voltage_default_dV = 0;
-uint16_t user_selected_min_pack_voltage_default_dV = 0;
-uint16_t user_selected_max_cell_voltage_default_mV = 0;
-uint16_t user_selected_min_cell_voltage_default_mV = 0;
-#endif
-uint16_t user_selected_max_pack_voltage_dV = user_selected_max_pack_voltage_default_dV;
-uint16_t user_selected_min_pack_voltage_dV = user_selected_min_pack_voltage_default_dV;
-uint16_t user_selected_max_cell_voltage_mV = user_selected_max_cell_voltage_default_mV;
-uint16_t user_selected_min_cell_voltage_mV = user_selected_min_cell_voltage_default_mV;
+// Use 0V for user selected cell/pack voltage defaults (On boot will be replaced with saved values from NVM)
+uint16_t user_selected_max_pack_voltage_dV = 0;
+uint16_t user_selected_min_pack_voltage_dV = 0;
+uint16_t user_selected_max_cell_voltage_mV = 0;
+uint16_t user_selected_min_cell_voltage_mV = 0;

@@ -1,4 +1,5 @@
 #include "JAGUAR-IPACE-BATTERY.h"
+#include <cstring>  //for unit tests
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -57,9 +58,9 @@ CAN_frame ipace_keep_alive = {.FD = false,
                               .data = {0x9E, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};*/
 
 static void print_units(const char* header, int value, const char* units) {
-  logging.print(header);
-  logging.print(value);
-  logging.print(units);
+  logging.printf(header);
+  logging.printf("%d", value);
+  logging.printf(units);
 }
 
 void JaguarIpaceBattery::update_values() {
@@ -102,21 +103,6 @@ void JaguarIpaceBattery::update_values() {
   } else {
     clear_event(EVENT_BATTERY_ISOLATION);
   }
-
-/*Finally print out values to serial if configured to do so*/
-#ifdef DEBUG_LOG
-  logging.println("Values going to inverter");
-  print_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
-  print_units(", SOC%: ", (datalayer.battery.status.reported_soc * 0.01), "% ");
-  print_units(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
-  print_units(", Max discharge power: ", datalayer.battery.status.max_discharge_power_W, "W ");
-  print_units(", Max charge power: ", datalayer.battery.status.max_charge_power_W, "W ");
-  print_units(", Max temp: ", (datalayer.battery.status.temperature_max_dC * 0.1), "°C ");
-  print_units(", Min temp: ", (datalayer.battery.status.temperature_min_dC * 0.1), "°C ");
-  print_units(", Max cell voltage: ", datalayer.battery.status.cell_max_voltage_mV, "mV ");
-  print_units(", Min cell voltage: ", datalayer.battery.status.cell_min_voltage_mV, "mV ");
-  logging.println("");
-#endif
 }
 
 void JaguarIpaceBattery::handle_incoming_can_frame(CAN_frame rx_frame) {

@@ -1,5 +1,6 @@
 #include "RENAULT-TWIZY.h"
 #include <cstdint>
+#include <cstring>  //For unit test
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 
@@ -51,9 +52,10 @@ void RenaultTwizyBattery::update_values() {
 }
 
 void RenaultTwizyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x155:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+
       // max charge power is in steps of 300W from 0 to 7
       max_charge_power = (uint16_t)rx_frame.data.u8[0] * 300;
 

@@ -4,10 +4,6 @@
 #include "../devboard/hal/hal.h"
 #include "SmaInverterBase.h"
 
-#ifdef SMA_TRIPOWER_CAN
-#define SELECTED_INVERTER_CLASS SmaTripowerInverter
-#endif
-
 class SmaTripowerInverter : public SmaInverterBase {
  public:
   const char* name() override { return Name; }
@@ -24,7 +20,6 @@ class SmaTripowerInverter : public SmaInverterBase {
   const int THIRTY_MINUTES = 1200;
 
   void transmit_can_init();
-  void pushFrame(CAN_frame* frame, std::function<void(void)> callback = []() {});
   void completePairing();
 
   unsigned long previousMillis250ms = 0;  // will store last time a 250ms CAN Message was send
@@ -32,14 +27,6 @@ class SmaTripowerInverter : public SmaInverterBase {
   unsigned long previousMillis2s = 0;     // will store last time a 2s CAN Message was send
   unsigned long previousMillis10s = 0;    // will store last time a 10s CAN Message was send
   unsigned long previousMillis60s = 0;    // will store last time a 60s CAN Message was send
-
-  typedef struct {
-    CAN_frame* frame;
-    std::function<void(void)> callback;
-  } Frame;
-
-  unsigned short listLength = 0;
-  Frame framesToSend[20];
 
   uint32_t inverter_time = 0;
   uint16_t inverter_voltage = 0;

@@ -1,4 +1,5 @@
 #include "BYD-ATTO-3-BATTERY.h"
+#include <cstring>  //For unit test
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
@@ -134,6 +135,16 @@ uint16_t estimateSOCstandard(uint16_t packVoltage) {  // Linear interpolation fu
     }
   }
   return 0;  // Default return for safety, should never reach here
+}
+
+uint8_t compute441Checksum(const uint8_t* u8)  // Computes the 441 checksum byte
+{
+  int sum = 0;
+  for (int i = 0; i < 7; ++i) {
+    sum += u8[i];
+  }
+  uint8_t lsb = static_cast<uint8_t>(sum & 0xFF);
+  return static_cast<uint8_t>(~lsb & 0xFF);
 }
 
 void BydAttoBattery::
@@ -394,6 +405,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_voltage = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[0];
       //battery_temperature_something = rx_frame.data.u8[7] - 40; resides in frame 7
+      BMS_voltage_available = true;
       break;
     case 0x445:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -543,10 +555,17 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     }
 
     if (counter_100ms > 3) {
-      ATTO_3_441.data.u8[4] = 0x9D;
-      ATTO_3_441.data.u8[5] = 0x01;
-      ATTO_3_441.data.u8[6] = 0xFF;
-      ATTO_3_441.data.u8[7] = 0xF5;
+      if (BMS_voltage_available) {  // Transmit battery voltage back to BMS when confirmed it's available, this closes the contactors
+        ATTO_3_441.data.u8[4] = (uint8_t)(battery_voltage - 1);
+        ATTO_3_441.data.u8[5] = ((battery_voltage - 1) >> 8);
+        ATTO_3_441.data.u8[6] = 0xFF;
+        ATTO_3_441.data.u8[7] = compute441Checksum(ATTO_3_441.data.u8);
+      } else {
+        ATTO_3_441.data.u8[4] = 0x0C;
+        ATTO_3_441.data.u8[5] = 0x00;
+        ATTO_3_441.data.u8[6] = 0xFF;
+        ATTO_3_441.data.u8[7] = 0x87;
+      }
     }
 
     transmit_can_frame(&ATTO_3_441);

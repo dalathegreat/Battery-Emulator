@@ -6,6 +6,15 @@ CanCharger* charger = nullptr;
 
 ChargerType user_selected_charger_type = ChargerType::None;
 
+/* Charger settings (Optional, when using generator charging) */
+//TODO: These should be user configurable via webserver
+volatile float CHARGER_SET_HV = 384;      // Reasonably appropriate 4.0v per cell charging of a 96s pack
+volatile float CHARGER_MAX_HV = 420;      // Max permissible output (VDC) of charger
+volatile float CHARGER_MIN_HV = 200;      // Min permissible output (VDC) of charger
+volatile float CHARGER_MAX_POWER = 3300;  // Max power capable of charger, as a ceiling for validating config
+volatile float CHARGER_MAX_A = 11.5;      // Max current output (amps) of charger
+volatile float CHARGER_END_A = 1.0;       // Current at which charging is considered complete
+
 std::vector<ChargerType> supported_charger_types() {
   std::vector<ChargerType> types;
 
@@ -30,16 +39,11 @@ extern const char* name_for_charger_type(ChargerType type) {
 }
 
 void setup_charger() {
-#ifdef COMMON_IMAGE
+
   switch (user_selected_charger_type) {
     case ChargerType::ChevyVolt:
       charger = new ChevyVoltCharger();
     case ChargerType::NissanLeaf:
       charger = new NissanLeafCharger();
   }
-#else
-#ifdef SELECTED_CHARGER_CLASS
-  charger = new SELECTED_CHARGER_CLASS();
-#endif
-#endif
 }

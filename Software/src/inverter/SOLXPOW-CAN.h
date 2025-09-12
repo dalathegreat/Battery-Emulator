@@ -3,13 +3,10 @@
 
 #include "CanInverterProtocol.h"
 
-#ifdef SOLXPOW_CAN
-#define SELECTED_INVERTER_CLASS SolxpowInverter
-#endif
-
 class SolxpowInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }
+  bool setup() override;
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);

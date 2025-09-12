@@ -1,4 +1,5 @@
 #include "CMFA-EV-BATTERY.h"
+#include <cstring>  //unit tests memcpy
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"

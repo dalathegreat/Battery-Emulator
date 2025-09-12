@@ -1,4 +1,5 @@
 #include "BOLT-AMPERA-BATTERY.h"
+#include <cstring>  //For unit test
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
@@ -95,14 +96,14 @@ void BoltAmperaBattery::update_values() {  //This function maps all the values f
   } else if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
     // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
     datalayer.battery.status.max_charge_power_W =
-        MAX_CHARGE_POWER_ALLOWED_W *
+        datalayer.battery.status.override_charge_power_W *
         (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
   } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_ALLOWED_W;
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
   }
 
   // Discharge power is also set in .h file (TODO: Remove this estimation when real value has been found)
-  datalayer.battery.status.max_discharge_power_W = MAX_DISCHARGE_POWER_ALLOWED_W;
+  datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
 
   datalayer.battery.status.temperature_min_dC = temperature_lowest_C * 10;
 

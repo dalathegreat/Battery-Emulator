@@ -3,45 +3,16 @@
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
 
-#ifdef CONTACTOR_CONTROL
-const bool contactor_control_enabled_default = true;
-#else
-const bool contactor_control_enabled_default = false;
-#endif
-bool contactor_control_enabled = contactor_control_enabled_default;
-
-#ifdef PWM_CONTACTOR_CONTROL
-const bool pwn_contactor_control_default = true;
-#else
-const bool pwn_contactor_control_default = false;
-#endif
-bool pwm_contactor_control = pwn_contactor_control_default;
-
-#ifdef PERIODIC_BMS_RESET
-const bool periodic_bms_reset_default = true;
-#else
-const bool periodic_bms_reset_default = false;
-#endif
-bool periodic_bms_reset = periodic_bms_reset_default;
-
-#ifdef REMOTE_BMS_RESET
-const bool remote_bms_reset_default = true;
-#else
-const bool remote_bms_reset_default = false;
-#endif
-bool remote_bms_reset = remote_bms_reset_default;
-
-#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
-const bool contactor_control_enabled_double_battery_default = true;
-#else
-const bool contactor_control_enabled_double_battery_default = false;
-#endif
-bool contactor_control_enabled_double_battery = contactor_control_enabled_double_battery_default;
-
 // TODO: Ensure valid values at run-time
+// User can update all these values via Settings page
+bool contactor_control_enabled = false;  //Should GPIO contactor control be performed?
+uint16_t precharge_time_ms = 100;        //Precharge time in ms. Adjust depending on capacitance in inverter
+bool pwm_contactor_control = false;      //Should the contactors be economized via PWM after they are engaged?
+bool contactor_control_enabled_double_battery = false;  //Should a contactor for the secondary battery be operated?
+bool remote_bms_reset = false;                          //Is it possible to actuate BMS reset via MQTT?
+bool periodic_bms_reset = false;                        //Should periodic BMS reset be performed each 24h?
 
 // Parameters
-
 enum State { DISCONNECTED, START_PRECHARGE, PRECHARGE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
 State contactorStatus = DISCONNECTED;
 
@@ -60,11 +31,11 @@ const int OFF = 0;
   500  // Time after negative contactor is turned on, to start precharge (not actual precharge time!)
 #define PRECHARGE_COMPLETED_TIME_MS \
   1000  // After successful precharge, resistor is turned off after this delay (and contactors are economized if PWM enabled)
-#define PWM_Freq 20000  // 20 kHz frequency, beyond audible range
-#define PWM_Res 10      // 10 Bit resolution 0 to 1023, maps 'nicely' to 0% 100%
-#define PWM_HOLD_DUTY 250
-#define PWM_OFF_DUTY 0
+uint16_t pwm_frequency = 20000;
+uint16_t pwm_hold_duty = 250;
 #define PWM_ON_DUTY 1023
+#define PWM_RESOLUTION 10
+#define PWM_OFF_DUTY 0  //No need to have this userconfigurable
 #define PWM_Positive_Channel 0
 #define PWM_Negative_Channel 1
 static unsigned long prechargeStartTime = 0;
@@ -103,13 +74,14 @@ bool init_contactors() {
     auto precPin = esp32hal->PRECHARGE_PIN();
 
     if (!esp32hal->alloc_pins(contactors, posPin, negPin, precPin)) {
+      DEBUG_PRINTF("GPIO controlled contactor setup failed\n");
       return false;
     }
 
     if (pwm_contactor_control) {
       // Setup PWM Channel Frequency and Resolution
-      ledcAttachChannel(posPin, PWM_Freq, PWM_Res, PWM_Positive_Channel);
-      ledcAttachChannel(negPin, PWM_Freq, PWM_Res, PWM_Negative_Channel);
+      ledcAttachChannel(posPin, pwm_frequency, PWM_RESOLUTION, PWM_Positive_Channel);
+      ledcAttachChannel(negPin, pwm_frequency, PWM_RESOLUTION, PWM_Negative_Channel);
       // Set all pins OFF (0% PWM)
       ledcWrite(posPin, PWM_OFF_DUTY);
       ledcWrite(negPin, PWM_OFF_DUTY);
@@ -126,6 +98,7 @@ bool init_contactors() {
   if (contactor_control_enabled_double_battery) {
     auto second_contactors = esp32hal->SECOND_BATTERY_CONTACTORS_PIN();
     if (!esp32hal->alloc_pins(contactors, second_contactors)) {
+      DEBUG_PRINTF("Secondary battery contactor control setup failed\n");
       return false;
     }
 
@@ -137,6 +110,7 @@ bool init_contactors() {
   if (periodic_bms_reset || remote_bms_reset || esp32hal->always_enable_bms_power()) {
     auto pin = esp32hal->BMS_POWER();
     if (!esp32hal->alloc_pins("BMS power", pin)) {
+      DEBUG_PRINTF("BMS power setup failed\n");
       return false;
     }
     pinMode(pin, OUTPUT);
@@ -147,12 +121,10 @@ bool init_contactors() {
 }
 
 static void dbg_contactors(const char* state) {
-#ifdef DEBUG_LOG
   logging.print("[");
   logging.print(millis());
   logging.print(" ms] contactors control: ");
   logging.println(state);
-#endif
 }
 
 // Main functions of the handle_contactors include checking if inverter allows for closing, checking battery 2, checking BMS power output, and actual contactor closing/precharge via GPIO
@@ -247,7 +219,7 @@ void handle_contactors() {
         break;
 
       case POSITIVE:
-        if (currentTime - negativeStartTime >= PRECHARGE_TIME_MS) {
+        if (currentTime - negativeStartTime >= precharge_time_ms) {
           set(posPin, ON, PWM_ON_DUTY);
           dbg_contactors("POSITIVE");
           prechargeCompletedTime = currentTime;
@@ -258,8 +230,8 @@ void handle_contactors() {
       case PRECHARGE_OFF:
         if (currentTime - prechargeCompletedTime >= PRECHARGE_COMPLETED_TIME_MS) {
           set(prechargePin, OFF);
-          set(negPin, ON, PWM_HOLD_DUTY);
-          set(posPin, ON, PWM_HOLD_DUTY);
+          set(negPin, ON, pwm_hold_duty);
+          set(posPin, ON, pwm_hold_duty);
           dbg_contactors("PRECHARGE_OFF");
           contactorStatus = COMPLETED;
           datalayer.system.status.contactors_engaged = 1;
@@ -288,7 +260,7 @@ REMOTE_BMS_RESET - Allows the user to remotely powercycle the BMS by sending a c
 
 This makes the BMS recalculate all SOC% and avoid memory leaks
 During that time we also set the emulator state to paused in order to not try and send CAN messages towards the battery
-Feature is only used if user has enabled PERIODIC_BMS_RESET in the USER_SETTINGS */
+Feature is only used if user has enabled PERIODIC_BMS_RESET */
 
 void handle_BMSpower() {
   if (periodic_bms_reset || remote_bms_reset) {
@@ -299,7 +271,7 @@ void handle_BMSpower() {
 
     if (periodic_bms_reset) {
       // Check if 24 hours have passed since the last power removal
-      if ((currentTime + bmsResetTimeOffset) - lastPowerRemovalTime >= powerRemovalInterval) {
+      if (currentTime - lastPowerRemovalTime >= powerRemovalInterval) {
         start_bms_reset();
       }
     }
@@ -331,7 +303,6 @@ void start_bms_reset() {
     if (!datalayer.system.status.BMS_reset_in_progress) {
       lastPowerRemovalTime = currentTime;  // Record the time when BMS reset was started
                                            // we are now resetting at the correct time. We don't need to offset anymore
-      bmsResetTimeOffset = 0;
       // Set a flag to let the rest of the system know we are cutting power to the BMS.
       // The battery CAN sending routine will then know not to try guto send anything towards battery while active
       datalayer.system.status.BMS_reset_in_progress = true;

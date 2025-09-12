@@ -45,6 +45,9 @@ enum class BatteryType {
   MgHsPhev = 37,
   SamsungSdiLv = 38,
   HyundaiIoniq28 = 39,
+  Kia64FD = 40,
+  RelionBattery = 41,
+  RivianBattery = 42,
   Highest
 };
 
@@ -73,6 +76,7 @@ class Battery {
 
   virtual bool supports_clear_isolation() { return false; }
   virtual bool supports_reset_BMS() { return false; }
+  virtual bool supports_reset_SOC() { return false; }
   virtual bool supports_reset_crash() { return false; }
   virtual bool supports_reset_NVROL() { return false; }
   virtual bool supports_reset_DTC() { return false; }
@@ -91,6 +95,7 @@ class Battery {
 
   virtual void clear_isolation() {}
   virtual void reset_BMS() {}
+  virtual void reset_SOC() {}
   virtual void reset_crash() {}
   virtual void reset_contactor() {}
   virtual void reset_NVROL() {}

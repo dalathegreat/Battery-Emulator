@@ -3,10 +3,6 @@
 
 #include "CanInverterProtocol.h"
 
-#ifdef GROWATT_WIT_CAN
-#define SELECTED_INVERTER_CLASS GrowattWitInverter
-#endif
-
 class GrowattWitInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }

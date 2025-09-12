@@ -8,79 +8,40 @@
 // Available generic battery commands that are taken into use based on what the selected battery supports.
 std::vector<BatteryCommand> battery_commands = {
     {"clearIsolation", "Clear isolation fault", "clear any active isolation fault?",
-     [](Battery* b) { return b && b->supports_clear_isolation(); },
-     [](Battery* b) {
-       b->clear_isolation();
-     }},
+     [](Battery* b) { return b && b->supports_clear_isolation(); }, [](Battery* b) { b->clear_isolation(); }},
     {"chademoRestart", "Restart", "restart the V2X session?",
-     [](Battery* b) { return b && b->supports_chademo_restart(); },
-     [](Battery* b) {
-       b->chademo_restart();
-     }},
+     [](Battery* b) { return b && b->supports_chademo_restart(); }, [](Battery* b) { b->chademo_restart(); }},
     {"chademoStop", "Stop", "stop V2X?", [](Battery* b) { return b && b->supports_chademo_restart(); },
-     [](Battery* b) {
-       b->chademo_restart();
-     }},
+     [](Battery* b) { b->chademo_restart(); }},
     {"resetBMS", "BMS reset", "reset the BMS?", [](Battery* b) { return b && b->supports_reset_BMS(); },
-     [](Battery* b) {
-       b->reset_BMS();
-     }},
+     [](Battery* b) { b->reset_BMS(); }},
+    {"resetSOC", "SOC reset", "reset SOC?", [](Battery* b) { return b && b->supports_reset_SOC(); },
+     [](Battery* b) { b->reset_SOC(); }},
     {"resetCrash", "Unlock crashed BMS",
      "reset crash data? Note this will unlock your BMS and enable contactor closing and SOC calculation.",
-     [](Battery* b) { return b && b->supports_reset_crash(); },
-     [](Battery* b) {
-       b->reset_crash();
-     }},
+     [](Battery* b) { return b && b->supports_reset_crash(); }, [](Battery* b) { b->reset_crash(); }},
     {"resetNVROL", "Perform NVROL reset",
      "trigger an NVROL reset? Battery will be unavailable for 30 seconds while this is active!",
-     [](Battery* b) { return b && b->supports_reset_NVROL(); },
-     [](Battery* b) {
-       b->reset_NVROL();
-     }},
+     [](Battery* b) { return b && b->supports_reset_NVROL(); }, [](Battery* b) { b->reset_NVROL(); }},
     {"resetContactor", "Perform contactor reset", "reset contactors?",
-     [](Battery* b) { return b && b->supports_contactor_reset(); },
-     [](Battery* b) {
-       b->reset_contactor();
-     }},
+     [](Battery* b) { return b && b->supports_contactor_reset(); }, [](Battery* b) { b->reset_contactor(); }},
     {"resetDTC", "Erase DTC", "erase DTCs?", [](Battery* b) { return b && b->supports_reset_DTC(); },
-     [](Battery* b) {
-       b->reset_DTC();
-     }},
+     [](Battery* b) { b->reset_DTC(); }},
     {"readDTC", "Read DTC (result must be checked in CANlog)", nullptr,
-     [](Battery* b) { return b && b->supports_read_DTC(); },
-     [](Battery* b) {
-       b->read_DTC();
-     }},
+     [](Battery* b) { return b && b->supports_read_DTC(); }, [](Battery* b) { b->read_DTC(); }},
     {"resetBECM", "Restart BECM module", "restart BECM??", [](Battery* b) { return b && b->supports_reset_DTC(); },
-     [](Battery* b) {
-       b->reset_DTC();
-     }},
+     [](Battery* b) { b->reset_DTC(); }},
     {"contactorClose", "Close Contactors", "a contactor close request?",
-     [](Battery* b) { return b && b->supports_contactor_close(); },
-     [](Battery* b) {
-       b->request_close_contactors();
-     }},
+     [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_close_contactors(); }},
     {"contactorOpen", "Open Contactors", "a contactor open request?",
-     [](Battery* b) { return b && b->supports_contactor_close(); },
-     [](Battery* b) {
-       b->request_open_contactors();
-     }},
+     [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_open_contactors(); }},
     {"resetSOH", "Reset degradation data", "reset degradation data?",
-     [](Battery* b) { return b && b->supports_reset_SOH(); },
-     [](Battery* b) {
-       b->reset_SOH();
-     }},
+     [](Battery* b) { return b && b->supports_reset_SOH(); }, [](Battery* b) { b->reset_SOH(); }},
     {"setFactoryMode", "Set Factory Mode", "set factory mode and disable isolation measurement?",
-     [](Battery* b) { return b && b->supports_factory_mode_method(); },
-     [](Battery* b) {
-       b->set_factory_mode();
-     }},
+     [](Battery* b) { return b && b->supports_factory_mode_method(); }, [](Battery* b) { b->set_factory_mode(); }},
     {"toggleSOC", "Toggle SOC method",
      "toggle SOC method? This will toggle between ESTIMATED and MEASURED SOC methods.",
-     [](Battery* b) { return b && b->supports_toggle_SOC_method(); },
-     [](Battery* b) {
-       b->toggle_SOC_method();
-     }},
+     [](Battery* b) { return b && b->supports_toggle_SOC_method(); }, [](Battery* b) { b->toggle_SOC_method(); }},
 };
 
 String advanced_battery_processor(const String& var) {

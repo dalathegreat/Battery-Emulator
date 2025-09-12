@@ -1,12 +1,12 @@
 #include "NISSAN-LEAF-BATTERY.h"
+#include <cstring>  //For unit test
+#include "../charger/CHARGERS.h"
+#include "../charger/CanCharger.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
-
-#include "../charger/CHARGERS.h"
-#include "../charger/CanCharger.h"
 
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
 //Cryptographic functions
@@ -150,13 +150,14 @@ void NissanLeafBattery::
     clear_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ);
   }
 
-#ifdef INTERLOCK_REQUIRED
-  if (!battery_Interlock) {
-    set_event(EVENT_HVIL_FAILURE, 0);
-  } else {
-    clear_event(EVENT_HVIL_FAILURE);
+  if (user_selected_LEAF_interlock_mandatory) {
+    //If user requires both large 80kW and small 6kW interlock to be seated for operation
+    if (!battery_Interlock) {
+      set_event(EVENT_HVIL_FAILURE, 0);
+    } else {
+      clear_event(EVENT_HVIL_FAILURE);
+    }
   }
-#endif
 
   if (battery_HeatExist) {
     if (battery_Heating_Stop) {

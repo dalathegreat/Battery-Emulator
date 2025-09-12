@@ -1,16 +1,25 @@
 #ifndef GEELY_GEOMETRY_C_BATTERY_H
 #define GEELY_GEOMETRY_C_BATTERY_H
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
 #include "GEELY-GEOMETRY-C-HTML.h"
 
-#ifdef GEELY_GEOMETRY_C_BATTERY
-#define SELECTED_BATTERY_CLASS GeelyGeometryCBattery
-#endif
-
 class GeelyGeometryCBattery : public CanBattery {
  public:
+  // Use this constructor for the second battery.
+  GeelyGeometryCBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_GEELY_GEOMETRY_C* extended,
+                        CAN_Interface targetCan)
+      : CanBattery(targetCan) {
+    datalayer_battery = datalayer_ptr;
+
+    battery_voltage = 0;
+  }
+  // Use the default constructor to create the first or single battery.
+  GeelyGeometryCBattery() {
+    datalayer_battery = &datalayer.battery;
+    datalayer_geometryc = &datalayer_extended.geometryC;
+  }
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -20,6 +29,11 @@ class GeelyGeometryCBattery : public CanBattery {
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
+  GeelyGeometryCHtmlRenderer renderer;
+
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+  DATALAYER_INFO_GEELY_GEOMETRY_C* datalayer_geometryc;
+
   static const int POLL_SOC = 0x4B35;
   static const int POLL_CC2_VOLTAGE = 0x4BCF;
   static const int POLL_CELL_MAX_VOLTAGE_NUMBER = 0x4B1E;
@@ -41,8 +55,6 @@ class GeelyGeometryCBattery : public CanBattery {
   static const int POLL_MULTI_HARDWARE_VERSION = 0x4B6B;
   static const int POLL_MULTI_SOFTWARE_VERSION = 0x4B6C;
 
-  GeelyGeometryCHtmlRenderer renderer;
-
   static const int MAX_PACK_VOLTAGE_70_DV = 4420;  //70kWh
   static const int MIN_PACK_VOLTAGE_70_DV = 2860;
   static const int MAX_PACK_VOLTAGE_53_DV = 4160;  //53kWh
@@ -50,9 +62,6 @@ class GeelyGeometryCBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
-
-  DATALAYER_BATTERY_TYPE* datalayer_battery;
-  DATALAYER_INFO_GEELY_GEOMETRY_C* datalayer_geometryc;
 
   CAN_frame GEELY_191 = {.FD = false,  //PAS_APA_Status , 10ms
                          .ext_ID = false,

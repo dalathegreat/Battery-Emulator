@@ -4,6 +4,15 @@
 # Ignore any files in any build folder
 *build/
 
+# Ignore any generated test files from running locally
+test/CMakeCache.txt
+test/CMakeFiles/
+test/CTestTestfile.cmake
+test/Makefile
+test/cmake_install.cmake
+test/gtest/
+test/tests[1]_include.cmake
+
 # Ignore .exe (unit tests)
 *.exe
 **/.DS_Store
