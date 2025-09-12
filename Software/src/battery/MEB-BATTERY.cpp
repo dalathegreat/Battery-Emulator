@@ -1271,7 +1271,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x18DAF105:
-      handle_obd_frame(rx_frame);
+      handle_obd_frame(rx_frame, can_interface);
       break;
     default:
       break;
