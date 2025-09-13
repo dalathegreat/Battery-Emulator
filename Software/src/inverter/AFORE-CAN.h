@@ -16,11 +16,6 @@ class AforeCanInverter : public CanInverterProtocol {
   uint8_t inverter_status =
       0;  //0 = init, 1 = standby, 2 = starting, 3 = grid connected, 4 off-grid, 5 diesel generator, 6 grid connected, but disconnected, 7off grid and disconnected, 8 = power failure processing, 9 = power off, 10 = Failure
   bool time_to_send_info = false;
-  uint8_t char0 = 0;
-  uint8_t char1 = 0;
-  uint8_t char2 = 0;
-  uint8_t char3 = 0;
-  uint8_t char4 = 0;
   //Actual content messages
   CAN_frame AFORE_350 = {.FD = false,  // Operation information
                          .ext_ID = false,
