@@ -157,7 +157,7 @@ void canReplayTask(void* param) {
                           (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518);
         currentFrame.ext_ID = (currentFrame.ID > 0x7F0);
 
-        transmit_can_frame_to_interface(&currentFrame, datalayer.system.info.can_replay_interface);
+        transmit_can_frame_to_interface(&currentFrame, (CAN_Interface)datalayer.system.info.can_replay_interface);
       }
     } while (datalayer.system.info.loop_playback);
 
