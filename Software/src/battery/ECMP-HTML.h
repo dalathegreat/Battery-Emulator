@@ -383,6 +383,132 @@ class EcmpHtmlRenderer : public BatteryHtmlRenderer {
                     : String(datalayer_extended.stellantisECMP.pid_SOH_cell_1)) +
                "</h4>";
 
+    if (datalayer_extended.stellantisECMP.MysteryVan) {
+      content += "<h3>MysteryVan platform detected!</h3>";
+      content += "<h4>Contactor State: ";
+      if (datalayer_extended.stellantisECMP.CONTACTORS_STATE == 0) {
+        content += "Open";
+      } else if (datalayer_extended.stellantisECMP.CONTACTORS_STATE == 1) {
+        content += "Precharge";
+      } else if (datalayer_extended.stellantisECMP.CONTACTORS_STATE == 2) {
+        content += "Closed";
+      }
+      content += "</h4>";
+      content += "<h4>Crash Memorized: ";
+      if (datalayer_extended.stellantisECMP.CrashMemorized) {
+        content += "Yes</h4>";
+      } else {
+        content += "No</h4>";
+      }
+      content += "<h4>Contactor Opening Reason: ";
+      if (datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON == 0) {
+        content += "No error";
+      } else if (datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON == 1) {
+        content += "Crash!";
+      } else if (datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON == 2) {
+        content += "12V supply source undervoltage";
+      } else if (datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON == 3) {
+        content += "12V supply source overvoltage";
+      } else if (datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON == 4) {
+        content += "Battery temperature";
+      } else if (datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON == 5) {
+        content += "Interlock line open";
+      } else if (datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON == 6) {
+        content += "e-Service plug disconnected";
+      }
+      content += "</h4>";
+      content += "<h4>Battery fault type: ";
+      if (datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE == 0) {
+        content += "No fault";
+      } else if (datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE == 1) {
+        content += "FirstLevelFault: Warning Lamp";
+      } else if (datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE == 2) {
+        content += "SecondLevelFault: Stop Lamp";
+      } else if (datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE == 3) {
+        content += "ThirdLevelFault: Stop Lamp + contactor opening (EPS shutdown)";
+      } else if (datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE == 4) {
+        content += "FourthLevelFault: Stop Lamp + Active Discharge";
+      } else if (datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE == 5) {
+        content += "Inhibition of powertrain activation";
+      } else if (datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE == 6) {
+        content += "Reserved";
+      }
+      content += "</h4>";
+      content += "<h4>FC insulation minus resistance " +
+                 String(datalayer_extended.stellantisECMP.HV_BATT_FC_INSU_MINUS_RES) + " kOhm</h4>";
+      content += "<h4>FC insulation plus resistance " +
+                 String(datalayer_extended.stellantisECMP.HV_BATT_FC_INSU_PLUS_RES) + " kOhm</h4>";
+      content += "<h4>FC vehicle insulation plus resistance " +
+                 String(datalayer_extended.stellantisECMP.HV_BATT_FC_VHL_INSU_PLUS_RES) + " kOhm</h4>";
+      content += "<h4>FC vehicle insulation plus resistance " +
+                 String(datalayer_extended.stellantisECMP.HV_BATT_ONLY_INSU_MINUS_RES) + " kOhm</h4>";
+    }
+    content += "<h4>Alert Battery: ";
+    if (datalayer_extended.stellantisECMP.ALERT_BATT) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Low SOC: ";
+    if (datalayer_extended.stellantisECMP.ALERT_LOW_SOC) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert High SOC: ";
+    if (datalayer_extended.stellantisECMP.ALERT_HIGH_SOC) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert SOC Jump: ";
+    if (datalayer_extended.stellantisECMP.ALERT_SOC_JUMP) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Overcharge: ";
+    if (datalayer_extended.stellantisECMP.ALERT_OVERCHARGE) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Temp Diff: ";
+    if (datalayer_extended.stellantisECMP.ALERT_TEMP_DIFF) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Temp High: ";
+    if (datalayer_extended.stellantisECMP.ALERT_HIGH_TEMP) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Overvoltage: ";
+    if (datalayer_extended.stellantisECMP.ALERT_OVERVOLTAGE) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Cell Overvoltage: ";
+    if (datalayer_extended.stellantisECMP.ALERT_CELL_OVERVOLTAGE) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Cell Undervoltage: ";
+    if (datalayer_extended.stellantisECMP.ALERT_CELL_UNDERVOLTAGE) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
+    content += "<h4>Alert Cell Poor Consistency: ";
+    if (datalayer_extended.stellantisECMP.ALERT_CELL_POOR_CONSIST) {
+      content += "Yes</h4>";
+    } else {
+      content += "No</h4>";
+    }
     return content;
   }
 };
