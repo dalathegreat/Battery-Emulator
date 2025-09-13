@@ -46,27 +46,27 @@ class BydCanInverter : public CanInverterProtocol {
                        .ID = 0x3D0,
                        .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //Battery
   //Actual content messages
-  CAN_frame BYD_110 = {.FD = false,
+  CAN_frame BYD_110 = {.FD = false,  //Limits
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x110,
                        .data = {0x01, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame BYD_150 = {.FD = false,
+  CAN_frame BYD_150 = {.FD = false,  //States
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x150,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00}};
-  CAN_frame BYD_190 = {.FD = false,
+  CAN_frame BYD_190 = {.FD = false,  //Alarm
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x190,
                        .data = {0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame BYD_1D0 = {.FD = false,
+  CAN_frame BYD_1D0 = {.FD = false,  //Battery Info
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x1D0,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x08}};
-  CAN_frame BYD_210 = {.FD = false,
+  CAN_frame BYD_210 = {.FD = false,  //Cell info
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x210,

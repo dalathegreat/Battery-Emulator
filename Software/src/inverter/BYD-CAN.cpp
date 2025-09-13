@@ -69,6 +69,10 @@ void BydCanInverter::
   BYD_150.data.u8[6] = (fully_charged_capacity_ah >> 8);
   BYD_150.data.u8[7] = (fully_charged_capacity_ah & 0x00FF);
 
+  //Alarms
+  //TODO: BYD Alarms are not implemented yet. Investigation needed on the bits in this message
+  //BYD_190.data.u8[0] =
+
   //Voltage (ex 370.0)
   BYD_1D0.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
   BYD_1D0.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
@@ -144,21 +148,21 @@ void BydCanInverter::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
     previousMillis2s = currentMillis;
 
-    transmit_can_frame(&BYD_110);
+    transmit_can_frame(&BYD_110);  //Send Limits
   }
   // Send 10s CAN Message
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
 
-    transmit_can_frame(&BYD_150);
-    transmit_can_frame(&BYD_1D0);
-    transmit_can_frame(&BYD_210);
+    transmit_can_frame(&BYD_150);  //Send States
+    transmit_can_frame(&BYD_1D0);  //Send Battery Info
+    transmit_can_frame(&BYD_210);  //Send Cell Info
   }
   //Send 60s message
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
 
-    transmit_can_frame(&BYD_190);
+    transmit_can_frame(&BYD_190);  //Send Alarm
   }
 }
 
