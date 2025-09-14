@@ -18,6 +18,8 @@ std::vector<BatteryType> supported_battery_types() {
 
 const char* name_for_chemistry(battery_chemistry_enum chem) {
   switch (chem) {
+    case battery_chemistry_enum::Autodetect:
+      return "Autodetect";
     case battery_chemistry_enum::LFP:
       return "LFP";
     case battery_chemistry_enum::NCA:
