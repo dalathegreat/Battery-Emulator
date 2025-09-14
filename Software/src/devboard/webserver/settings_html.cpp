@@ -977,6 +977,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
         <form action='saveSettings' method='post'>
 
+        <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
+          <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
+        </div>
+
         <div class="settings-card">
         <h3>Battery config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
@@ -1107,7 +1111,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="settings-card">
-        <h3>Optional components config (optional)</h3>
+        <h3>Optional components config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Charger: </label><select name='charger'>
@@ -1151,7 +1155,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
 
         <div class="if-dblbtr">
-            <label>Contactor control via GPIO double battery: </label>
+            <label>Double-Battery Contactor control via GPIO: </label>
             <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
         </div>
 
@@ -1175,11 +1179,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         </div>
 
-        <label>Periodic BMS reset: </label>
+        <label>Periodic BMS reset every 24h: </label>
         <input type='checkbox' name='PERBMSRESET' value='on' %PERBMSRESET% /> 
-
-        <label>Remote BMS reset: </label>
-        <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
 
         <label>External precharge via HIA4V1: </label>
         <input type='checkbox' name='EXTPRECHARGE' value='on' %EXTPRECHARGE% />
@@ -1188,7 +1189,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <label>Precharge, maximum ms before fault: </label>
             <input name='MAXPRETIME' type='text' value="%MAXPRETIME%" pattern="^[0-9]+$" />
 
-          <label>Normally Open inverter disconnect contactor: </label>
+          <label>Normally Open (NO) inverter disconnect contactor: </label>
           <input type='checkbox' name='NOINVDISC' value='on' %NOINVDISC% />
         </div>
 
@@ -1255,6 +1256,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" />
         <label>MQTT timeout ms: </label><input name='MQTTTIMEOUT' type='text' value="%MQTTTIMEOUT%" pattern="^[0-9]+$" />
         <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
+        <label>Remote BMS reset via MQTT allowed: </label>
+        <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
         <label>Customized MQTT topics: </label>
         <input type='checkbox' name='MQTTTOPICS' value='on' %MQTTTOPICS% />
 
