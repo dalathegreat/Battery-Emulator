@@ -207,10 +207,12 @@ void store_settings() {
   }
 
   if (!settings.putString("SSID", String(ssid.c_str()))) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 1);
+    if (ssid != "")
+      set_event(EVENT_PERSISTENT_SAVE_INFO, 1);
   }
   if (!settings.putString("PASSWORD", String(password.c_str()))) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 2);
+    if (password != "")
+      set_event(EVENT_PERSISTENT_SAVE_INFO, 2);
   }
 
   if (!settings.putUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh)) {
