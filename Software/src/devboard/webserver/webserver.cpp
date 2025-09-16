@@ -621,7 +621,7 @@ void init_webserver() {
   def_route_with_auth("/updatePassword", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      if (value.length() > 8) {  // Check if password is within the allowable length
+      if (value.length() >= 8) {  // Password must be 8 characters or longer
         password = value.c_str();
         store_settings();
         request->send(200, "text/plain", "Updated successfully");
