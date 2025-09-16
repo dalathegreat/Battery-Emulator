@@ -864,6 +864,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       grid-column: span 2;
     }
 
+    .settings-card {
+    background-color: #3a4b54; /* Slightly lighter than main background */
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    border-radius: 20px; /* Less rounded than 50px for a more card-like feel */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  }
+  .settings-card h3 {
+    color: #fff;
+    margin-top: 0;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #4d5f69;
+  }
+
     form .if-battery, form .if-inverter, form .if-charger, form .if-shunt { display: contents; }
     form[data-battery="0"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
@@ -960,8 +975,16 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 </div>
 
 <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
-        <form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
-            
+        <form action='saveSettings' method='post'>
+
+        <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
+          <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
+        </div>
+
+        <div class="settings-card">
+        <h3>Battery config</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+
         <label for='battery'>Battery: </label>
         <select name='battery' id='battery'>
             %BATTTYPE%
@@ -1000,7 +1023,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-battery">
-        <label for='BATTCOMM'>Battery comm I/F: </label><select name='BATTCOMM' id='BATTCOMM'>
+        <label for='BATTCOMM'>Battery interface: </label><select name='BATTCOMM' id='BATTCOMM'>
         %BATTCOMM%
         </select>
 
@@ -1023,12 +1046,29 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input name='BATTCVMIN' pattern="^[0-9]+$" type='text' value='%BATTCVMIN%' />
         </div>
 
+        <label>Double battery: </label>
+        <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% />
+
+        <div class="if-dblbtr">
+            <label>Battery 2 interface: </label>
+            <select name='BATT2COMM'>
+                %BATT2COMM%
+            </select>
+        </div>
+
+        </div>
+        </div>
+
+        <div class="settings-card">
+      <h3>Inverter config</h3>
+      <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+
         <label>Inverter protocol: </label><select name='inverter'>
         %INVTYPE%
         </select>
 
         <div class="if-inverter">        
-        <label>Inverter comm I/F: </label><select name='INVCOMM'>
+        <label>Inverter interface: </label><select name='INVCOMM'>
         %INVCOMM%     
         </select>
         </div>
@@ -1067,12 +1107,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='INVICNT' value='on' %INVICNT% />
         </div>
 
+        </div>
+        </div>
+
+        <div class="settings-card">
+        <h3>Optional components config</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+
         <label>Charger: </label><select name='charger'>
         %CHGTYPE%
         </select>
 
         <div class="if-charger">
-        <label>Charger comm I/F: </label><select name='CHGCOMM'>
+        <label>Charger interface: </label><select name='CHGCOMM'>
         %CHGCOMM%
         </select>
         </div>
@@ -1082,10 +1129,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
 
         <div class="if-shunt">
-        <label>Shunt comm I/F: </label><select name='SHUNTCOMM'>
+        <label>Shunt interface: </label><select name='SHUNTCOMM'>
         %SHUNTCOMM%
         </select>
         </div>
+
+        </div>
+        </div>
+
+        <div class="settings-card">
+        <h3>Hardware config</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+
+        <label>Use CanFD as classic CAN: </label>
+        <input type='checkbox' name='CANFDASCAN' value='on' %CANFDASCAN% /> 
 
         <label>CAN addon crystal (Mhz): </label>
         <input name='CANFREQ' type='text' value="%CANFREQ%" pattern="^[0-9]+$" />
@@ -1097,18 +1154,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         %EQSTOP%  
         </select>
 
-        <label>Use CanFD as classic CAN: </label>
-        <input type='checkbox' name='CANFDASCAN' value='on' %CANFDASCAN% /> 
-
-        <label>Double battery: </label>
-        <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% />
-
         <div class="if-dblbtr">
-            <label>Battery 2 comm I/F: </label>
-            <select name='BATT2COMM'>
-                %BATT2COMM%
-            </select>
-            <label>Contactor control via GPIO double battery: </label>
+            <label>Double-Battery Contactor control via GPIO: </label>
             <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
         </div>
 
@@ -1132,11 +1179,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         </div>
 
-        <label>Periodic BMS reset: </label>
+        <label>Periodic BMS reset every 24h: </label>
         <input type='checkbox' name='PERBMSRESET' value='on' %PERBMSRESET% /> 
-
-        <label>Remote BMS reset: </label>
-        <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
 
         <label>External precharge via HIA4V1: </label>
         <input type='checkbox' name='EXTPRECHARGE' value='on' %EXTPRECHARGE% />
@@ -1145,9 +1189,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <label>Precharge, maximum ms before fault: </label>
             <input name='MAXPRETIME' type='text' value="%MAXPRETIME%" pattern="^[0-9]+$" />
 
-          <label>Normally Open inverter disconnect contactor: </label>
+          <label>Normally Open (NO) inverter disconnect contactor: </label>
           <input type='checkbox' name='NOINVDISC' value='on' %NOINVDISC% />
         </div>
+
+        <label for='LEDMODE'>Status LED pattern: </label><select name='LEDMODE' id='LEDMODE'>
+        %LEDMODE%
+        </select>
+
+        </div>
+        </div>
+
+        <div class="settings-card">
+        <h3>Connectivity settings</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Broadcast Wifi access point: </label>
         <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
@@ -1191,28 +1246,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div></div>
         </div>
 
-        <label>Enable performance profiling: </label>
-        <input type='checkbox' name='PERFPROFILE' value='on' %PERFPROFILE% />
-
-        <label>Enable CAN logging via USB serial: </label>
-        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB% />
-
-        <label>Enable logging via USB serial: </label>
-        <input type='checkbox' name='USBENABLED' value='on' %USBENABLED% />
-
-        <label>Enable logging via Webserver: </label>
-        <input type='checkbox' name='WEBENABLED' value='on' %WEBENABLED% />
-
-        <label>Enable CAN logging via SD card: </label>
-        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% />
-
-        <label>Enable logging via SD card: </label>
-        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% />
-
-        <label for='LEDMODE'>Status LED pattern: </label><select name='LEDMODE' id='LEDMODE'>
-        %LEDMODE%
-        </select>
-
         <label>Enable MQTT: </label>
         <input type='checkbox' name='MQTTENABLED' value='on' %MQTTENABLED% />
 
@@ -1223,6 +1256,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" />
         <label>MQTT timeout ms: </label><input name='MQTTTIMEOUT' type='text' value="%MQTTTIMEOUT%" pattern="^[0-9]+$" />
         <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
+        <label>Remote BMS reset via MQTT allowed: </label>
+        <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
         <label>Customized MQTT topics: </label>
         <input type='checkbox' name='MQTTTOPICS' value='on' %MQTTTOPICS% />
 
@@ -1239,6 +1274,34 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='HADISC' value='on' %HADISC% />
 
         </div>
+
+        </div>
+        </div>
+
+        <div class="settings-card">
+        <h3>Debug options</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+
+        <label>Enable performance profiling on main page: </label>
+        <input type='checkbox' name='PERFPROFILE' value='on' %PERFPROFILE% />
+
+        <label>Enable CAN message logging via USB serial: </label>
+        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB% />
+
+        <label>Enable general logging via USB serial: </label>
+        <input type='checkbox' name='USBENABLED' value='on' %USBENABLED% />
+
+        <label>Enable general logging via Webserver: </label>
+        <input type='checkbox' name='WEBENABLED' value='on' %WEBENABLED% />
+
+        <label>Enable CAN message logging via SD card: </label>
+        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% />
+
+        <label>Enable general logging via SD card: </label>
+        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% />
+
+        </div>
+         </div>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button type='submit'>Save</button></div>
 
