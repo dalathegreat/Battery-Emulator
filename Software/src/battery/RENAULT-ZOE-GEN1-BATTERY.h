@@ -34,10 +34,10 @@ class RenaultZoeGen1Battery : public CanBattery {
  private:
   RenaultZoeGen1HtmlRenderer renderer;
 
-  static const int MAX_PACK_VOLTAGE_DV = 4200;  //5000 = 500.0V
+  static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 3000;
   static const int MAX_CELL_DEVIATION_MV = 150;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
+  static const int MAX_CELL_VOLTAGE_MV = 4220;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
