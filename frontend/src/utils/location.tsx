@@ -18,7 +18,7 @@ export function useLocation() {
 }
 
 export function Link(props: { href: string; children: preact.ComponentChildren; class?: string }) {
-    const href = import.meta.env.BASE_URL.replace(/\/$/g, '') + props.href;
+    const href = import.meta.env.BASE_URL.replace(/\/$/g, '').replace(/^\./g, '') + props.href;
     const path = window.location.pathname;
     function onClick(e: MouseEvent) {
         e.preventDefault();
