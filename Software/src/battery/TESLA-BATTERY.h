@@ -78,7 +78,11 @@ class TeslaBattery : public CanBattery {
   uint8_t muxNumber_TESLA_221 = 0;
   uint8_t frameCounter_TESLA_221 = 15;  // Start at 15 for Mux 0
   uint8_t vehicleState = 1;             // "OFF": 0, "DRIVE": 1, "ACCESSORY": 2, "GOING_DOWN": 3
-  uint16_t powerDownTimer = 180;  // Car power down (i.e. contactor open) tracking timer, 3 seconds per sendingState
+  static const uint8_t CAR_OFF = 0;
+  static const uint8_t CAR_DRIVE = 1;
+  static const uint8_t ACCESSORY = 2;
+  static const uint8_t GOING_DOWN = 3;
+  uint8_t powerDownSeconds = 9;  // Car power down (i.e. contactor open) tracking timer, 3 seconds per sendingState
   //0x2E1 VCFRONT_status, 6 mux tracker
   uint8_t muxNumber_TESLA_2E1 = 0;
   //0x334 UI
