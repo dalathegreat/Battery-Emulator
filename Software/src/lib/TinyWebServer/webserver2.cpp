@@ -1,6 +1,8 @@
 #include "TinyWebServer.h"
 
 #include <src/battery/BATTERIES.h>
+#include <src/charger/CanCharger.h>
+#include <src/communication/equipmentstopbutton/comm_equipmentstopbutton.h>
 #include <src/datalayer/datalayer.h>
 #include <src/devboard/hal/hal.h>
 #include <src/devboard/safety/safety.h>
@@ -152,71 +154,86 @@ Md5DigestAuth authHandler(&indexHandler, [](const char *username, char *output) 
 // forward declaration
 extern TinyWebServer tinyWebServer;
 
-const char* UINT_SETTINGS[] = {
-    "INVTYPE",
-    "INVCOMM",
-    "BATTTYPE",
-    "BATTCHEM",
-    "BATTCOMM",
-    "BATTPVMAX",
-    "BATTPVMIN",
-    "BATTCVMAX",
-    "BATTCVMIN",
-    "CHGTYPE",
-    "CHGCOMM",
-    "EQSTOP",
-    "BATT2COMM",
-    "SHUNTTYPE",
-    "SHUNTCOMM",
-    "MAXPRETIME",
-    "WIFICHANNEL",
-    "DCHGPOWER",
-    "CHGPOWER",
-    "LOCALIP1",
-    "LOCALIP2",
-    "LOCALIP3",
-    "LOCALIP4",
-    "GATEWAY1",
-    "GATEWAY2",
-    "GATEWAY3",
-    "GATEWAY4",
-    "SUBNET1",
-    "SUBNET2",
-    "SUBNET3",
-    "SUBNET4",
-    "MQTTPORT",
-    "SOFAR_ID",
-    "INVCELLS",
-    "INVMODULES",
-    "INVCELLSPER",
-    "INVVLEVEL",
-    "INVCAPACITY",
-    "INVBTYPE",
-    "CANFREQ",
-    "CANFDFREQ",
-    "PRECHGMS",
-    "PWMFREQ",
-    "PWMHOLD",
-    "GTWCOUNTRY",
-    "GTWMAPREG",
-    "GTWCHASSIS",
-    "GTWPACK",
-    "LEDMODE",
-    nullptr
+struct UintSetting {
+    const char* name;
+    uint32_t min;
+    uint32_t max;
 };
 
-const char* STRING_SETTINGS[] = {
-    "APPASSWORD",
-    "HOSTNAME",
-    "MQTTSERVER",
-    "MQTTUSER",
-    "MQTTPASSWORD",
-    "MQTTTOPIC",
-    "MQTTTIMEOUT",
-    "MQTTOBJIDPREFIX",
-    "MQTTDEVICENAME",
-    "HADEVICEID",
-    nullptr
+const UintSetting UINT_SETTINGS[] = {
+    // Name, min value, max value
+    {"INVTYPE", 0, (uint32_t)InverterProtocolType::Highest-1},
+    {"INVCOMM", 0, (uint32_t)comm_interface::Highest-1},
+    {"BATTTYPE", 0, (uint32_t)BatteryType::Highest-1},
+    {"BATTCHEM", 0, (uint32_t)battery_chemistry_enum::Highest-1},
+    {"BATTCOMM", 0, (uint32_t)comm_interface::Highest-1},
+    // {"BATTPVMAX", 0, 1000}, // needs multiplying
+    // {"BATTPVMIN", 0, 100},
+    {"BATTCVMAX", 0, 5000},
+    {"BATTCVMIN", 0, 100},
+    {"CHGTYPE", 0, (uint32_t)ChargerType::Highest-1},
+    {"CHGCOMM", 0, (uint32_t)comm_interface::Highest-1},
+    {"EQSTOP", 0, (uint32_t)STOP_BUTTON_BEHAVIOR::Highest-1},
+    {"BATT2COMM", 0, (uint32_t)comm_interface::Highest-1},
+    {"SHUNTTYPE", 0, (uint32_t)ShuntType::Highest-1},
+    {"SHUNTCOMM", 0, (uint32_t)comm_interface::Highest-1},
+    {"MAXPRETIME", 0, 120000},
+    {"WIFICHANNEL", 0, 14},
+    {"DCHGPOWER", 0, 100000},
+    {"CHGPOWER", 0, 100000},
+    {"LOCALIP1", 0, 255},
+    {"LOCALIP2", 0, 255},
+    {"LOCALIP3", 0, 255},
+    {"LOCALIP4", 0, 255},
+    {"GATEWAY1", 0, 255},
+    {"GATEWAY2", 0, 255},
+    {"GATEWAY3", 0, 255},
+    {"GATEWAY4", 0, 255},
+    {"SUBNET1", 0, 255},
+    {"SUBNET2", 0, 255},
+    {"SUBNET3", 0, 255},
+    {"SUBNET4", 0, 255},
+    {"MQTTPORT", 0, 65535},
+    {"SOFAR_ID", 0, 255},
+    {"INVCELLS", 0, 65535},
+    {"INVMODULES", 0, 65535},
+    {"INVCELLSPER", 0, 65535},
+    {"INVVLEVEL", 0, 65535},
+    {"INVCAPACITY", 0, 65535},
+    {"INVBTYPE", 0, 255},
+    {"CANFREQ", 0, 40},
+    {"CANFDFREQ", 0, 40},
+    {"PRECHGMS", 0, 120000},
+    {"PWMFREQ", 0, 65535},
+    {"PWMHOLD", 0, 65535},
+    {"GTWCOUNTRY", 0, 65535},
+    {"GTWMAPREG", 0, 255},
+    {"GTWCHASSIS", 0, 255},
+    {"GTWPACK", 0, 255},
+    {"LEDMODE", 0, 10},
+    {nullptr, 0, 0}
+};
+
+struct StringSetting {
+    const char* name;
+    uint8_t max_length;
+};
+
+const StringSetting STRING_SETTINGS[] = {
+    // Name, max length
+    {"SSID", 32},
+    {"PASSWORD", 64},
+    {"APPASSWORD", 64},
+    {"HOSTNAME", 64},
+    {"MQTTSERVER", 64},
+    {"MQTTUSER", 64},
+    {"MQTTPASSWORD", 64},
+    {"MQTTTOPIC", 64},
+    {"MQTTTIMEOUT", 64},
+    {"MQTTOBJIDPREFIX", 64},
+    {"MQTTDEVICENAME", 64},
+    {"HADEVICEID", 64},
+    {nullptr, 0},
 };
 
 const char* BOOL_SETTINGS[] = {
@@ -248,7 +265,7 @@ const char* BOOL_SETTINGS[] = {
     nullptr
 };
 
-extern Preferences settings;
+extern bool settingsUpdated;
 
 class TwsJsonGetFunc : public TwsRequestHandler {
 public:
@@ -269,6 +286,106 @@ public:
 
     void (*respond)(TwsRequest& request, JsonDocument& doc);
 };
+
+TwsHandler settingsHandler("/api/settings", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+    BatteryEmulatorSettingsStore settings;
+
+    JsonArray bats = doc["batteries"].to<JsonArray>();
+    for(int i=0;i<(int)BatteryType::Highest;i++) {
+        bats[i] = name_for_battery_type((BatteryType)i);
+    }
+
+    JsonArray invs = doc["inverters"].to<JsonArray>();
+    for(int i=0;i<(int)InverterProtocolType::Highest;i++) {
+        invs[i] = name_for_inverter_type((InverterProtocolType)i);
+    }
+
+    JsonObject sets = doc["settings"].to<JsonObject>();
+    for(int i=0;UINT_SETTINGS[i].name!=nullptr;i++) {
+        // TODO - handle default values more sensibly?
+        sets[UINT_SETTINGS[i].name] = settings.getUInt(UINT_SETTINGS[i].name, 0);
+    }
+    for(int i=0;STRING_SETTINGS[i].name!=nullptr;i++) {
+        sets[STRING_SETTINGS[i].name] = settings.getString(STRING_SETTINGS[i].name).c_str();
+    }
+    for(int i=0;BOOL_SETTINGS[i]!=nullptr;i++) {
+        sets[BOOL_SETTINGS[i]] = settings.getBool(BOOL_SETTINGS[i], false);
+    }
+
+    doc["reboot_required"] = settingsUpdated;
+}));
+TwsPostBufferingRequestHandler settingsPostHandler(&settingsHandler, [](TwsRequest &request, uint8_t *data, size_t len) {
+    // DEBUG_PRINTF("Received settings data: len: %zu\n", len);
+    // DEBUG_PRINTF("Data: %.*s\n", (int)len, data);
+
+    // request.write_fully("HTTP/1.1 200 OK\r\n"
+    //                     "Connection: close\r\n"
+    //                     "Content-Type: text/plain\r\n"
+    //                     "\r\n");
+    // request.write_fully((char*)data);
+    // request.finish();
+    JsonDocument errors;
+
+    BatteryEmulatorSettingsStore settings;
+
+    JsonDocument doc;
+    deserializeJson(doc, data, len);
+    for(int attempt=0;attempt<2;attempt++) {
+        for(int i=0;UINT_SETTINGS[i].name!=nullptr;i++) {
+            if(doc[UINT_SETTINGS[i].name].is<const char*>()) {
+                char *end = nullptr;
+                unsigned long val = strtoul(doc[UINT_SETTINGS[i].name].as<const char*>(), &end, 10);
+                if(end && *end==0) {
+                    if(val < UINT_SETTINGS[i].min || val > UINT_SETTINGS[i].max) {
+                        errors[UINT_SETTINGS[i].name] = "Value out of range.";
+                    } else if(attempt==1) {
+                        DEBUG_PRINTF("Setting %s to %lu\n", UINT_SETTINGS[i].name, val);
+                        settings.saveUInt(UINT_SETTINGS[i].name, val);
+                    }
+                } else {
+                    errors[UINT_SETTINGS[i].name] = "Invalid value.";
+                }
+            }
+        }
+        for(int i=0;STRING_SETTINGS[i].name!=nullptr;i++) {
+            if(doc[STRING_SETTINGS[i].name].is<const char*>()) {
+                const char *val = doc[STRING_SETTINGS[i].name].as<const char*>();
+                if(strlen(val) > STRING_SETTINGS[i].max_length) {
+                    errors[STRING_SETTINGS[i].name] = "Value too long.";
+                } else if(attempt==1) {
+                    DEBUG_PRINTF("Setting %s to %s\n", STRING_SETTINGS[i].name, val);
+                    settings.saveString(STRING_SETTINGS[i].name, val);
+                }
+            }
+        }
+        for(int i=0;BOOL_SETTINGS[i]!=nullptr;i++) {
+            if(doc[BOOL_SETTINGS[i]].is<const char*>()) {
+                const char *val = doc[BOOL_SETTINGS[i]].as<const char*>();
+                bool bval = (strcmp(val, "true")==0 || strcmp(val, "1")==0);
+                if(attempt==1) {
+                    DEBUG_PRINTF("Setting %s to %d\n", BOOL_SETTINGS[i], bval);
+                    settings.saveBool(BOOL_SETTINGS[i], bval);
+                }
+            }
+        }
+        if(errors.size()) {
+            auto response = std::make_shared<String>();
+            serializeJson(errors, *response);
+            request.write_fully("HTTP/1.1 400 Bad\r\n"
+                            "Connection: close\r\n"
+                            "Content-Type: application/json\r\n"
+                            "Access-Control-Allow-Origin: *\r\n"
+                            "\r\n");
+            request.set_writer_callback(StringWriter(response));
+            return;
+        }
+    }
+
+    settingsUpdated |= settings.were_settings_updated();
+    DEBUG_PRINTF("Setting updated? %d\n", settings.were_settings_updated());
+});
+
+
 
 //TwsRequestHandlerEntry default_handlers[] = {
 TwsHandler *default_handlers[] = {
@@ -368,32 +485,7 @@ TwsHandler *default_handlers[] = {
             }
         }
     })),
-    new TwsHandler("/api/settings", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
-        settings.begin("batterySettings", false);
-
-        JsonArray bats = doc["batteries"].to<JsonArray>();
-        for(int i=0;i<(int)BatteryType::Highest;i++) {
-            bats[i] = name_for_battery_type((BatteryType)i);
-        }
-
-        JsonArray invs = doc["inverters"].to<JsonArray>();
-        for(int i=0;i<(int)InverterProtocolType::Highest;i++) {
-            invs[i] = name_for_inverter_type((InverterProtocolType)i);
-        }
-
-        JsonObject sets = doc["settings"].to<JsonObject>();
-        for(int i=0;UINT_SETTINGS[i]!=nullptr;i++) {
-            sets[UINT_SETTINGS[i]] = settings.getUInt(UINT_SETTINGS[i]);
-        }
-        for(int i=0;STRING_SETTINGS[i]!=nullptr;i++) {
-            sets[STRING_SETTINGS[i]] = settings.getString(STRING_SETTINGS[i]).c_str();
-        }
-        for(int i=0;BOOL_SETTINGS[i]!=nullptr;i++) {
-            sets[BOOL_SETTINGS[i]] = settings.getBool(BOOL_SETTINGS[i], false);
-        }
-
-        settings.end();
-    })),
+    &settingsHandler,
     new TwsHandler("/api/tesla", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
         auto &d = datalayer_extended.tesla;
         JsonArray vals = doc["data"].to<JsonArray>();
