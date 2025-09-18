@@ -1,0 +1,41 @@
+.topbar {
+    display: flex;
+    background: #2a2a2a;
+    padding: 1rem 32px;
+}
+
+#tray {
+    margin-left: auto;
+    display: flex;
+    gap: 1rem;
+}
+
+.topbar .battery-level {
+    font-weight: 600;
+    --perc: 83%;
+    background: linear-gradient(0deg, #1db706 var(--perc), #444444 var(--perc));
+    padding: 0.5rem;
+    color: #ffffff;
+    text-shadow: 0 0 4px #000000aa;
+    text-align: center;
+    min-width: 65px;
+}
+
+.topbar .battery-level span {
+    position: relative;
+    top: -1px;
+}
+
+.topbar .status {
+    border-left: 6px solid #056105;
+    font-weight: 600;
+    background: #444444;
+    padding: 0.5rem 0.8rem 0.5rem 0.6rem;
+    border-radius: 0 8px 8px 0;
+    margin-left: 1rem;
+}
+
+.topbar h1 {
+    font-size: 1.7rem;
+    font-weight: 600;
+}
