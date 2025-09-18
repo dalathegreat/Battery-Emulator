@@ -5,9 +5,29 @@ import { useRef, useEffect, useState } from "preact/hooks";
 
 import { useGetApi } from "./utils/api.tsx";
 
+// Shows or hides its children based on the "when" prop.
 function Show({ when, children }: { when: boolean | string, children: preact.ComponentChildren }) {
+    const ref = useRef<HTMLDivElement>(null);
+    const prev = useRef<boolean | null>(null);
     const b = when === true || when === "1";
-    return <div style={ b ? {} : { display: 'none' } }>
+    useEffect(() => {
+        if(!ref.current) return;
+        if(b) {
+            if(prev.current!==null) {
+                // fade in
+                ref.current.style.opacity = "0";
+                ref.current.style.transition = "opacity 0.4s ease";
+                setTimeout(() => {
+                    if(ref.current) ref.current.style.opacity = "1";
+                }, 50);
+            }
+            ref.current.style.display = "";
+        } else {
+            ref.current.style.display = "none";
+        }
+        prev.current = b;
+    }, [ref, b]);
+    return <div ref={ref}>
         { children }
     </div>;
 }
@@ -63,7 +83,6 @@ function Form({ children, initial, changed, validate, submit }: {
 
         if(validate) {
             const errors = validate(data);
-            console.log('errors', errors);
             for(const [k, v] of Object.entries(errors)) {
                 if(target[k]) {
                     target[k].setCustomValidity(v);
@@ -146,7 +165,7 @@ const INTERFACES = {
 
 export function Settings() {
     const settings = useGetApi('/api/settings');
-
+    const [savedSettings, setSavedSettings] = useState<any>(null);
     const [current, setCurrent] = useState<{[index: string]:string}>({});
 
     const validate = (data: any) => {
@@ -174,15 +193,27 @@ export function Settings() {
         splitIp(data, 'GATEWAY');
         splitIp(data, 'SUBNET');
 
-        console.log('data is ', ...data);
-
         fetch(import.meta.env.VITE_API_BASE + '/api/settings', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(Object.fromEntries(data)),
+        }).then(r => r.json()).then(r => {
+            // Successful save
+            setCurrent({});
+            setSavedSettings(r);
+            window.scrollTo(0,0);
         });
+    };
+
+    const reboot = () => {
+        fetch(import.meta.env.VITE_API_BASE + '/api/reboot', {
+            method: 'POST',
+        });
+        setTimeout(() => {
+            window.location.href = "/";
+        }, 6000);
     };
 
     const batteries: {[index: string]:string} = {};
@@ -194,12 +225,18 @@ export function Settings() {
         if(settings.inverters[i]) inverters[i] = settings.inverters[i];
     }
 
-    const merged = { ...settings?.settings, ...current };
+    const reboot_required = settings?.reboot_required || savedSettings?.reboot_required;
+    const merged = { ...settings?.settings, ...savedSettings?.settings, ...current };
 
     return <div>
         <h2>Settings</h2>
 
         { !!settings && <div>
+
+        { reboot_required && <div class="alert">
+            Settings saved, reboot to apply.
+            <button onClick={reboot}>Reboot now</button>
+        </div> }
 
         <Form initial={settings.settings}
               changed={(k, v) => {
@@ -262,7 +299,7 @@ export function Settings() {
         </div>
 
 
-        <button type="submit" style="margin-top: 1rem;">Save settings</button>
+        <button type="submit" style="margin-top: 1rem;" disabled={!!Object.keys(current)}>Save settings</button>
 
 
         </Form>

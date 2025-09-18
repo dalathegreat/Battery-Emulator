@@ -11,7 +11,6 @@ import { Ota } from './ota.tsx'
 import { Settings } from './settings.tsx'
 
 import { Link, useLocation } from './utils/location.tsx';
-import './app.css'
 
 export function App() {
   let location = useLocation();
