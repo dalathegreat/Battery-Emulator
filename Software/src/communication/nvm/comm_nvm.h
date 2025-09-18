@@ -75,8 +75,10 @@ class BatteryEmulatorSettingsStore {
 
   void saveUInt(const char* name, uint32_t value) {
     auto oldValue = getUInt(name, std::numeric_limits<uint32_t>::max());
-    settings.putUInt(name, value);
-    settingsUpdated = settingsUpdated || value != oldValue;
+    if (value != oldValue) {
+      settings.putUInt(name, value);
+      settingsUpdated = true;
+    }
   }
 
   bool settingExists(const char* name) { return settings.isKey(name); }
@@ -94,8 +96,10 @@ class BatteryEmulatorSettingsStore {
 
   void saveBool(const char* name, bool value) {
     auto oldValue = getBool(name, false);
-    settings.putBool(name, value);
-    settingsUpdated = settingsUpdated || value != oldValue;
+    if (value != oldValue) {
+      settings.putBool(name, value);
+      settingsUpdated = true;
+    }
   }
 
   String getString(const char* name) { return getString(name, ""); }
@@ -106,8 +110,10 @@ class BatteryEmulatorSettingsStore {
 
   void saveString(const char* name, const char* value) {
     auto oldValue = getString(name, "");
-    settings.putString(name, value);
-    settingsUpdated = settingsUpdated || String(value) != oldValue;
+    if (oldValue != value) {
+      settings.putString(name, value);
+      settingsUpdated = true;
+    }
   }
 
   bool were_settings_updated() const { return settingsUpdated; }
