@@ -54,7 +54,6 @@ export function Ota() {
     const [progress, setProgress] = useState(-1);
     
     useEffect(() => {
-        console.log('progress', progress);
         if(progress===1) {
             fetch(import.meta.env.VITE_API_BASE + "/api/reboot", { method: 'POST' });
             setTimeout(() => {
@@ -65,7 +64,7 @@ export function Ota() {
 
     return <div>
         <h2>OTA Update</h2>
-        <div style="text-align: center; margin: 5rem 0;">
+        <div style="margin: 3rem 0;">
         <input type="file" style="font-size: 1.25rem; border: 2px solid #333; border-radius: 0.5rem;" onChange={ (ev) => {
             const input = ev.target as HTMLInputElement;
             if (input?.files?.length) {

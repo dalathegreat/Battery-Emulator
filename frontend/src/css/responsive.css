@@ -1,0 +1,20 @@
+@media (max-width: 768px) {
+    html, body, * {
+        font-size: 14px;
+    }
+    .columns {
+        flex-direction: column;
+    }
+    .menu > div {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        column-gap: 1rem;
+        min-height: auto;
+    }
+    .content {
+        padding: 1rem 1rem 2rem;
+    }
+    .panel {
+        padding: 1rem;
+    }
+}
