@@ -24,6 +24,8 @@ function calculateMD5(file: File): Promise<string> {
 
 async function flash(file: File, cb: (ratio: number) => void) {
     try {
+        cb(0);
+        
         const md5Hash = await calculateMD5(file);
 
         await fetch(import.meta.env.VITE_API_BASE + '/ota/start?mode=fr&hash=' + md5Hash);
@@ -49,7 +51,7 @@ async function flash(file: File, cb: (ratio: number) => void) {
 }
 
 export function Ota() {
-    const [progress, setProgress] = useState(0);
+    const [progress, setProgress] = useState(-1);
     
     useEffect(() => {
         console.log('progress', progress);
@@ -75,7 +77,7 @@ export function Ota() {
         <div style="margin: 0 0 5rem; font-size: 1.25rem">
         { progress===1 ? <div>
             Update complete. Rebooting...
-        </div> : progress>0 ? <div>
+        </div> : progress>=0 ? <div>
             Progress: { (progress*100).toFixed(0) } %
         </div> : null }
         </div>

@@ -1,15 +1,37 @@
-import { useRef, useEffect } from "preact/hooks";
+import { useRef, useEffect, useState } from "preact/hooks";
+// import { signal } from '@preact/signals';
+// console.log(signal);
+
 
 import { useGetApi } from "./utils/api.tsx";
 
+function Show({ when, children }: { when: boolean | string, children: preact.ComponentChildren }) {
+    const b = when === true || when === "1";
+    return <div style={ b ? {} : { display: 'none' } }>
+        { children }
+    </div>;
+}
 
-function Form({ children, initial, validate, submit }: { 
+// A semi-controlled form wrapper component. Populates initial values into the
+// form fields on mount, but not thereafter.
+//
+// Accepts a "changed" callback that is called whenever a field changes, which
+// can be used to show/hide fields via CSS (they should remain in the DOM or
+// they'll lose their initial values).
+//
+// On submit, calls a "validate" callback if provided, which should return an
+// object mapping field names to errors. If empty, validation passes.
+//
+// If validation passes, calls "submit" callback if provided, passing the
+// FormData object.
+
+function Form({ children, initial, changed, validate, submit }: { 
     children: preact.ComponentChildren, 
     initial?: any,
+    changed?: (key: string, value: string) => void,
     validate?: (data: FormData) => any,
     submit?: (data: FormData) => any
-}) {    	
-    //const input = useRef(null);
+}) {
 	const form = useRef(null);
 
     useEffect(() => {
@@ -17,7 +39,11 @@ function Form({ children, initial, validate, submit }: {
             for(const [k, v] of Object.entries(initial ?? {})) {
                 const el = (form.current[k] as any);
                 if(el) {
-                    el.value = "" + v;
+                    if(el.type==='checkbox') {
+                        el.checked = (""+v)==='1' || (""+v)==='true';
+                    } else {
+                        el.value = "" + v;
+                    }
                 }
             }
             (form.current as HTMLFormElement).setAttribute('data-initialized', '1');
@@ -65,10 +91,7 @@ function Form({ children, initial, validate, submit }: {
 
         if(form.current) {
             const inp = (ev.target as HTMLInputElement);
-            (form.current as HTMLFormElement).setAttribute(
-                'data-' + inp.name,
-                inp.type === 'checkbox' ? (inp.checked ? '1' : '0') : inp.value
-            );
+            if(changed) changed(inp.name, inp.type === 'checkbox' ? (inp.checked ? '1' : '0') : inp.value);
         }
     }
 
@@ -88,11 +111,20 @@ function sortNoneFirst(a: [string, string], b: [string, string]) {
 function selectField(label: string, name: string, options: {[index: string]:string}) {
     return <div class="form-row">
         <label>{ label }</label>
-        <select name={ name }>
+        <select name={ name } data-uint>
             { Object.entries(options).sort(sortNoneFirst).map(([k, v]) => (
                 <option value={k}>{v}</option>
             )) }
         </select>
+    </div>;
+}
+
+function checkboxField(label: string, name: string) {
+    return <div class="form-row">
+        <label>
+            <input type="checkbox" name={ name } />
+            { label }
+        </label>
     </div>;
 }
 
@@ -115,10 +147,7 @@ const INTERFACES = {
 export function Settings() {
     const settings = useGetApi('/api/settings');
 
-    // var initial = useGetApi('api/settings.json');
-    // if(!initial) {
-    //     return <div></div>;
-    // }
+    const [current, setCurrent] = useState<{[index: string]:string}>({});
 
     const validate = (data: any) => {
         const errors: any = {};
@@ -165,81 +194,70 @@ export function Settings() {
         if(settings.inverters[i]) inverters[i] = settings.inverters[i];
     }
 
+    const merged = { ...settings?.settings, ...current };
+
     return <div>
         <h2>Settings</h2>
 
         { !!settings && <div>
 
         <Form initial={settings.settings}
+              changed={(k, v) => {
+                setCurrent({
+                    ...current,
+                    [k]: v
+                });
+              }}
               validate={validate}
               submit={submit}
               >
         
         <div class="panel">
             <h3>Battery</h3>
-            <div class="form-row">
-                <label>Battery</label>
-                <select name="BATTTYPE">
-                    { Object.entries(batteries).sort(sortNoneFirst).map(([k, v]) => (
-                        <option value={k}>{v}</option>
-                    )) }
-                </select>
-            </div>
-            { selectField("Battery interface", "BATTCOMM", INTERFACES) }
-            { selectField("Battery chemistry", "BATTCHEM", {
-                "3": "LFP",
-                "1": "NCA",
-                "2": "NMC",
-            }) }
-            <div class="form-row">
-                <label>
-                    <input type="checkbox" name="DBLBTR" />
-                    Double battery
-                </label>
-            </div>
-            { selectField("Second battery interface", "BATT2COMM", INTERFACES) }
-{/* 
-            <div class="form-row">
-                <label>Testo</label>
-                <input name="testo" pattern="[0-9]*" />
-            </div> */}
+            { selectField("Battery", "BATTTYPE", batteries) }
+            <Show when={""+merged.BATTTYPE!=="0"}>
+                { selectField("Battery interface", "BATTCOMM", INTERFACES) }
+                { selectField("Battery chemistry", "BATTCHEM", {
+                    "3": "LFP",
+                    "1": "NCA",
+                    "2": "NMC",
+                }) }
+                { checkboxField("Double battery", "DBLBTR") }
+                <Show when={merged.DBLBTR}>{ selectField("Second battery interface", "BATT2COMM", INTERFACES) }</Show>
+            </Show>
         </div>
 
         <div class="panel">
             <h3>Inverter</h3>
             { selectField("Inverter protocol", "INVTYPE", inverters) }
-            { selectField("Inverter interface", "INVCOMM", INTERFACES) }
+            <Show when={""+merged.INVTYPE!=="0"}>
+                { selectField("Inverter interface", "INVCOMM", INTERFACES) }
+            </Show>
         </div>
 
         <div class="panel">
             <h3>Connectivity</h3>
-            <div class="form-row">
-                <label>
-                    <input type="checkbox" name="WIFIAPENABLED" />
-                    Enable WiFi access point
-                </label>
-            </div>
-            <div class="form-row">
-                <label>WiFi access point password </label>
-                <input type="text" name="APPASSWORD" pattern="|.{8,}" title="at least 8 characters" />
-            </div>
-            <div class="form-row">
-                <label>WiFi channel (0 for automatic)</label>
-                <input type="text" name="WIFICHANNEL" pattern="[0-9]|1[0-4]" title="number" />
-            </div>
+            { checkboxField("Enable WiFi access point", "WIFIAPENABLED") }
+            <Show when={merged.WIFIAPENABLED}>
+                <div class="form-row">
+                    <label>WiFi access point password </label>
+                    <input type="text" name="APPASSWORD" data-uint pattern="|.{8,}" title="at least 8 characters" />
+                </div>
+                <div class="form-row">
+                    <label>WiFi channel (0 for automatic)</label>
+                    <input type="text" name="WIFICHANNEL" data-uint pattern="[0-9]|1[0-4]" title="number" />
+                </div>
+            </Show>
             <div class="form-row">
                 <label>Custom WiFi hostname (blank for default)</label>
                 <input type="text" name="HOSTNAME" pattern="[a-zA-Z0-9\-]*" title="letters, numbers, hyphen" />
             </div>
-            <div class="form-row">
-                <label>
-                    <input type="checkbox" name="STATICIP" />
-                    Use static IP address
-                </label>
-            </div>
-            { ipField("IP address", "LOCALIP") }
-            { ipField("Gateway", "GATEWAY") }
-            { ipField("Subnet", "SUBNET") }
+            { checkboxField("Use static IP address", "STATICIP") }
+            <Show when={merged.STATICIP}>
+                { ipField("IP address", "LOCALIP") }
+                { ipField("Gateway", "GATEWAY") }
+                { ipField("Subnet", "SUBNET") }
+            </Show>
 
         </div>
 

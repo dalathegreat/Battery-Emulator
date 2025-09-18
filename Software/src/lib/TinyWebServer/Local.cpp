@@ -398,9 +398,23 @@ TwsHandler stringHandler("/strings", new TwsRequestHandlerFunc([](TwsRequest &re
     request.set_writer_callback(StringListWriter(strings));
 }));
 
+TwsHandler settingsHandler("/settings", new TwsRequestHandlerFunc([](TwsRequest &request) {
+    request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nSettings go here\n");
+    request.finish();
+}));
+TwsPostBufferingRequestHandler settingsBufferingHandler(&settingsHandler, [](TwsRequest &request, uint8_t *data, size_t len) {
+    // Handle posted settings data here
+    DEBUG_PRINTF("Received settings data: len: %zu\n", len);
+    DEBUG_PRINTF("Data: %.*s\n", (int)len, data);
+    // Just echo it back for now
+    // request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\n");
+    // request.write_direct(data, len);
+    // request.finish();
+});
 
 //EOtaStart eOtaHandler("/ota/start");
 TwsHandler *handlers[] = {
+    &settingsHandler,
     &indexHandler,
     &uploadHandler,
     &stringHandler,
