@@ -68,16 +68,12 @@ export function CanLog() {
                 el.innerText += text;
                 el.scrollTop = el.scrollHeight; // Scroll to bottom
             }
-
-            console.log('running.current is', running.current);
             return !running.current;
         });
     }, [log]);
 
     useEffect(() => {
-        console.log('log is now', log.current);
         return () => {
-            console.log('cleanup');
             running.current = false;
         }
     }, [log]);
