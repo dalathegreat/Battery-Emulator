@@ -27,6 +27,7 @@ unsigned long millis(void);
 #include <functional>
 #include <cstring>
 #include <map>
+#include <memory>
 #include <stdint.h>
 #include <stdio.h>
 #include <strings.h>
@@ -213,6 +214,7 @@ public:
 class TwsAllocableHandler {
 public:
     virtual int handleAlloc(int max, int start) = 0;
+    virtual void handleFree(TwsRequest &request) {}
 };
 
 // TwsHandler represents a route handler for a specific path. These are created
@@ -289,6 +291,93 @@ public:
     std::function<void(TwsRequest &request)> onRequest;
 };
 
+class PostBody {
+public:
+    PostBody(size_t size) : size(size) {
+        if(size>0) {
+            DEBUG_PRINTF("Allocating PostBody of size %zu\n", size);
+            data = (uint8_t*)malloc(size+1);
+            data[size] = 0; // nul terminate for convenience
+        }
+    }
+    ~PostBody() {
+        if(data) {
+            DEBUG_PRINTF("Freeing PostBody of size %zu\n", size);
+            free(data);
+        }
+    }
+    void set(uint8_t *buf, size_t offset, size_t len) {
+        if(data && (offset + len) <= size) {
+            memcpy(data + offset, buf, len);
+        }
+    }
+    
+    uint8_t *data = nullptr;
+    size_t size = 0;
+};
+
+struct PostBufferingRequestHandlerState {
+    size_t content_length = 0;
+    std::shared_ptr<PostBody> post_body = nullptr;
+};
+
+
+class TwsPostBufferingRequestHandler : public TwsHeaderHandler, public TwsPostBodyHandler, public TwsStatefulHandler<PostBufferingRequestHandlerState> {
+public:
+    TwsPostBufferingRequestHandler(TwsHandler *handler, void (*handleFullPostBody)(TwsRequest &request, uint8_t *data, size_t len) = nullptr) : TwsStatefulHandler<PostBufferingRequestHandlerState>(handler), handleFullPostBody(handleFullPostBody) {
+        nextPostBody = handler->onPostBody;
+        nextHeader = handler->onHeader;
+        handler->onPostBody = this;
+        handler->onHeader = this;
+    }
+
+    bool handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override {
+        auto &state = get_state(request);
+        if(!state.post_body) {
+            state.post_body = std::make_shared<PostBody>(state.content_length);
+        }
+        DEBUG_PRINTF("Buffering post body: [ %*s ] at index %zu, len %zu\n", (int)len, (char*)data, index, len);
+        state.post_body->set(data, index, len);
+        if(nextPostBody) {
+            return nextPostBody->handlePostBody(request, index, data, len);
+        }
+        if(index+len >= state.content_length) {
+            // Finished uploading
+            if(handleFullPostBody) {
+                handleFullPostBody(request, state.post_body->data, state.content_length);
+            }
+            return true; // Indicate that the upload is complete
+        }
+        return false;
+    }
+    void handleHeader(TwsRequest &request, const char *line, int len) override {
+        auto &state = get_state(request);
+
+        if(strncasecmp(line, "Content-Length:", 15) == 0) {
+            char *endptr;
+            int content_length = strtol(line + 15, &endptr, 10);
+            if (endptr != line + 15 && content_length > 0) {
+                state.content_length = content_length;
+            }
+        }
+    }
+    void handleFree(TwsRequest &request) {
+        auto &state = get_state(request);
+
+        if(state.post_body && state.post_body->data) {
+            DEBUG_PRINTF("Post body was %*s\n", (int)state.content_length, (char*)state.post_body->data);
+        }
+
+        state.post_body = nullptr;
+        if(nextAlloc) {
+            nextAlloc->handleFree(request);
+        }
+    }
+
+    TwsPostBodyHandler *nextPostBody = nullptr;
+    TwsHeaderHandler *nextHeader = nullptr;
+    void (*handleFullPostBody)(TwsRequest &request, uint8_t *data, size_t len) = nullptr;
+};
 
 
 
@@ -399,114 +488,7 @@ public:
     }
 };
 
-// typedef struct { 
-//     int content_length;
-//     //char filename[256]; // Filename for multipart upload
-//     char boundary[78]; // Boundary for multipart upload
-//     uint8_t boundary_length; // Length of the boundary
-//     uint8_t boundary_index;
-    
-//     FILE *file; // File pointer for multipart upload
-// } TwsMultipartUploadState;
 
-
-// class TwsMultipartUploadHandler : public TwsRequestHandlerEntry, public TwsStatefulRequestHandler<TwsMultipartUploadState> {
-// public:
-
-//     TwsMultipartUploadHandler(
-//         const char *path, 
-//         TwsRequestHandlerFunction onRequest,
-//         TwsPostBodyHandlerFunction onPostBody
-//         //TwsQueryParamHandlerFunction onQueryParam = nullptr,
-//         //TwsHeaderHandlerFunction onHeader = nullptr
-//     ) : TwsRequestHandlerEntry(path, TWS_HTTP_POST, onRequest, onPostBody) {
-//         printf("TwsMultipartUploadHandler created for path: %s\n", path);
-//         set_post_body_handler([this](TwsRequest &request, size_t index, uint8_t *data, size_t len) -> bool {
-//             auto &state = get_state(request);
-
-//             if(state.file == nullptr) {
-//                 // Open file for writing
-//                 state.file = fopen("/tmp/upload.bin", "wb");
-//             }
-
-//             // for(size_t i = 0; i < len; i++) {
-//             //     if(data[i] == state.boundary[state.boundary_index]) {
-//             //         state.boundary_index++;
-//             //         if(state.boundary_index >= state.boundary_length) {
-//             //             // We found the boundary, reset index
-//             //             state.boundary_index = 0;
-//             //             printf("Boundary found at index %zu\n", index + i);
-//             //             // Handle boundary found logic here if needed
-//             //         }
-//             //     } else {
-//             //         // TODO - if outputting, now send the data up to the boundary?
-//             //         state.boundary_index = 0; // Reset if mismatch
-//             //     }
-//             // }
-
-//             //state.content_length += 1;
-//             fwrite(data, 1, len, state.file);
-//             fflush(state.file);
-//             //printf("woooh %zu %zu %d\n", index, index+len, state.content_length);
-
-//             if(index+len >= state.content_length) {
-//                 // Finished uploading
-//                 fclose(state.file);
-//                 state.file = nullptr;
-//                 printf("Upload finished, content length: %d\n", state.content_length);
-//                 return true; // Indicate that the upload is complete
-//             }
-
-//             return false;
-//         });
-//         set_header_handler([this](TwsRequest &request, const char *line, int len, bool final) {
-//             if(!final) {
-//                 // We only care about complete headers
-//                 return;
-//             }
-
-//             // Handle headers if needed
-//             printf("Header: %s\n", line);
-
-//             auto &state = get_state(request);
-//             printf("State is %p to %p (%zu)\n", &state, (&state + sizeof(state)), sizeof(state));
-
-//             if(strncasecmp(line, "Content-Length:", 15) == 0) {
-//                 char *endptr;
-//                 int content_length = strtol(line + 15, &endptr, 10);
-//                 if (endptr != line + 15 && content_length > 0) {
-//                     state.content_length = content_length;
-//                     printf("Content-Length: %d\n", content_length);
-//                 }
-//             }
-//             //  else if(strncasecmp(line, "xontent-Type:", 13) == 0) {
-//             //     // Check for multipart boundary
-//             //     char *boundary = strstr((char*)line, "boundary=");
-//             //     if (boundary) {
-//             //         boundary += 9; // Skip "boundary="
-//             //         //int end = len;
-//             //         const char *end = line + len - 1;
-//             //         if(*end == ';') end--;
-//             //         auto &state = get_state(request);
-//             //         state.boundary[0] = '-';
-//             //         state.boundary[1] = '-';
-//             //         printf("len be %d\n", (int)(end - boundary));
-//             //         strncpy(state.boundary + 2, boundary, end - boundary);
-//             //         state.boundary[2 + (end - boundary)] = '-';
-//             //         state.boundary[3 + (end - boundary)] = '-';
-//             //         state.boundary[4 + (end - boundary)] = '\r';
-//             //         state.boundary[5 + (end - boundary)] = '\n';
-//             //         state.boundary[6 + (end - boundary)] = '\0';
-//             //         state.boundary_length = end - boundary + 7;
-//             //         printf("Multipart boundary set: [%s]\n", state.boundary);
-//             //     }
-//             // }
-//         });
-//     }
-//     ~TwsMultipartUploadHandler() {
-//         printf("TwsMultipartUploadHandler destroyed\n");
-//     }
-// };
 
 void tiny_web_server_loop(void * pData);
 void idle_loop(void * pData);

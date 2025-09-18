@@ -383,7 +383,11 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                     }
 
                     if(post_done && !request.done) {
-                        if(request.handler->onRequest) {
+                        if(request.writer_callback ) {
+                            // The post handler set a writer callback, so skip the normal request handler
+                            if(request.free()>0) request.writer_callback(request, request.total_written - request.writer_callback_written_offset);
+                            request.parse_state = TWS_WRITING_OUT;
+                        } else if(request.handler->onRequest) {
                             request.handler->onRequest->handleRequest(request);
                             if(request.writer_callback && request.free()>0) request.writer_callback(request, request.total_written - request.writer_callback_written_offset);
                             request.parse_state = TWS_WRITING_OUT;
@@ -595,6 +599,9 @@ void TwsRequest::reset() {
     pending_direct_write = false;
     writer_callback = nullptr;
     writer_callback_written_offset = 0;
+    if(handler && handler->onAlloc) {
+        handler->onAlloc->handleFree(*this);
+    }
     handler = nullptr;
     connection_id = 0;
 }
