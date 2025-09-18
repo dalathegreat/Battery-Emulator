@@ -11,7 +11,6 @@ export function CellMonitor() {
         <h2>Cell monitor</h2>
 
         { (data?.battery ?? []).map((battery: any, idx: number) => {
-            console.log('battery is', battery);
             const max = Math.max(...battery.voltages);
             const min = Math.min(...battery.voltages);
             const deviation = max - min;
