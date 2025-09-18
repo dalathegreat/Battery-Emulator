@@ -1,0 +1,39 @@
+.panel {
+    background: #252525;
+    /* border: 1px solid #303030; */
+    border-radius: 5px;
+    padding: 1.25rem 1.5rem 1.4rem;
+    margin: 0 0 1.2rem 0;
+}
+
+.panel h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.panel h3:last-child {
+    margin-bottom: 0;
+}
+
+.panel h3 span {
+    font-weight: 400;
+    font-size: 1rem;
+    color: #999;
+}
+
+.panel h3[data-status]:before {
+    content: "";
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    background: #1db706;
+    box-shadow: 0 0 4px #1db706aa;
+    border-radius: 999px;
+    margin-right: 0.6rem;
+}
+
+.panel h3[data-status="warn"]:before {
+    background: #e5a700;
+    box-shadow: 0 0 4px #e5a700aa;
+}

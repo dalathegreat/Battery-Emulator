@@ -1,0 +1,28 @@
+html, body, * {
+    margin: 0;
+    padding: 0;
+    font-family: "Open Sans", sans-serif;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+html, body {
+    background-color: #101010;
+    color: #eeeeee;
+}
+
+.columns {
+    display: flex;
+}
+
+.content {
+    flex: 1 1 auto;
+    padding: 1.5rem 3rem;
+}
+
+.content h2 {
+    color: #3cddb2;
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+}

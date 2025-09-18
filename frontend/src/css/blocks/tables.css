@@ -1,0 +1,20 @@
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table th {
+    text-align: left;
+    font-weight: 600;
+    padding: 0.8rem 0.5rem 0.8rem 0;
+    border-bottom: 1px solid #333333;
+    color: #3cddb2;
+}
+
+table td {
+    padding: 0.7rem 0.5rem 0.7rem 0;
+    border-bottom: 1px solid #333333;
+    vertical-align: top;
+    font-size: 1rem;
+    color: #ddd;
+}
