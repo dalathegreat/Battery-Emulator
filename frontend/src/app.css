@@ -143,6 +143,7 @@ form[data-initialized="0"] {
   display: block;
   position: static;
   pointer-events: all;
+  user-select: none;
   font-size: 1.1rem;
   color: #ededed;
   padding: 0.6rem 0.9rem;
@@ -158,19 +159,6 @@ form[data-initialized="0"] {
   margin: 0.1rem 0.8rem 0 0;
 }
 
-
-.form-row:has(select[name="BATT2COMM"]),
-.form-row:has(input[name="LOCALIP"]),
-.form-row:has(input[name="GATEWAY"]),
-.form-row:has(input[name="SUBNET"]) {
-  display: none;
-}
-form[data-DBLBTR="1"] .form-row:has(select[name="BATT2COMM"]),
-form[data-STATICIP="1"] .form-row:has(input[name="LOCALIP"]),
-form[data-STATICIP="1"] .form-row:has(input[name="GATEWAY"]),
-form[data-STATICIP="1"] .form-row:has(input[name="SUBNET"]) {
-  display: block;
-}
 
 /* button, a.button {
   border-radius: 8px;
