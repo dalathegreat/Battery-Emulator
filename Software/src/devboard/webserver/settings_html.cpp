@@ -251,6 +251,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("DBLBTR") ? "checked" : "";
   }
 
+  if (var == "SOCESTIMATED") {
+    return settings.getBool("SOCESTIMATED") ? "checked" : "";
+  }
+
   if (var == "CNTCTRL") {
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
@@ -912,6 +916,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
+    form[data-battery="16"] .if-socestimated {
+      display: contents;
+    }
+
     form .if-dblbtr { display: none; }
     form[data-dblbtr="true"] .if-dblbtr {
       display: contents;
@@ -1020,6 +1029,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Manual discharge power, watt: </label>
         <input name='DCHGPOWER' pattern="^[0-9]+$" type='text' value='%DCHGPOWER%' />
+        </div>
+
+        <div class="if-socestimated">
+        <label>Use estimated SOC: </label>
+        <input type='checkbox' name='SOCESTIMATED' value='on' %SOCESTIMATED% />
         </div>
 
         <div class="if-battery">

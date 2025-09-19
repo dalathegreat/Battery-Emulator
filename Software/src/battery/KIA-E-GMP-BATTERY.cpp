@@ -114,16 +114,17 @@ uint8_t KiaEGmpBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t
 
 void KiaEGmpBattery::update_values() {
 
-#ifdef ESTIMATE_SOC_FROM_CELLVOLTAGE
-  // Use the simplified pack-based SOC estimation with proper compensation
-  datalayer.battery.status.real_soc = estimateSOC(batteryVoltage, datalayer.battery.info.number_of_cells, batteryAmps);
+  if (user_selected_use_estimated_SOC) {
+    // Use the simplified pack-based SOC estimation with proper compensation
+    datalayer.battery.status.real_soc =
+        estimateSOC(batteryVoltage, datalayer.battery.info.number_of_cells, batteryAmps);
 
-  // For comparison or fallback, we can still calculate from min/max cell voltages
-  SOC_estimated_lowest = estimateSOCFromCell(CellVoltMin_mV);
-  SOC_estimated_highest = estimateSOCFromCell(CellVoltMax_mV);
-#else
-  datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
-#endif
+    // For comparison or fallback, we can still calculate from min/max cell voltages
+    SOC_estimated_lowest = estimateSOCFromCell(CellVoltMin_mV);
+    SOC_estimated_highest = estimateSOCFromCell(CellVoltMax_mV);
+  } else {
+    datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
+  }
 
   datalayer.battery.status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
 
