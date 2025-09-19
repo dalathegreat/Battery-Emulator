@@ -2,12 +2,13 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
 }
 
 .cell-grid__cell {
+  flex: 1 1 auto;
   border: 1px solid #555;
-  padding: 0.5rem 1rem;
+  padding: 0.3rem 0.6rem;
 }
 
 .cell-grid__cell[data-sel] {
@@ -21,13 +22,13 @@
 
 .cell-grid__cell[data-max],
 .cell-bars__bar[data-max] {
-  box-shadow: 0 0 8px inset rgb(117, 41, 3);
+  box-shadow: 0 0 8px inset #bc6100;
 }
 
 .cell-bars {
   display: flex;
   align-items: flex-end;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .cell-bars__bar {

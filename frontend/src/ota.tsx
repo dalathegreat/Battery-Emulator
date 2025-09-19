@@ -64,7 +64,8 @@ export function Ota() {
 
     return <div>
         <h2>OTA Update</h2>
-        <div style="margin: 3rem 0;">
+        <p>Upload a new <b>.ota.bin</b> firmware file to update the system. The device will reboot automatically, and your settings will be preserved.</p>
+        <div style="margin: 1.5rem 0;">
         <input type="file" style="font-size: 1.25rem; border: 2px solid #333; border-radius: 0.5rem;" onChange={ (ev) => {
             const input = ev.target as HTMLInputElement;
             if (input?.files?.length) {
@@ -73,12 +74,12 @@ export function Ota() {
             }
         } } />
         </div>
-        <div style="margin: 0 0 5rem; font-size: 1.25rem">
+        <div style="margin: 0 0 5rem; font-size: 1.25rem"><b>
         { progress===1 ? <div>
             Update complete. Rebooting...
         </div> : progress>=0 ? <div>
             Progress: { (progress*100).toFixed(0) } %
         </div> : null }
-        </div>
+        </b></div>
     </div>;
 }
