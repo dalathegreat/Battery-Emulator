@@ -11,8 +11,8 @@ export function CellMonitor() {
         <h2>Cell monitor</h2>
 
         { (data?.battery ?? []).map((battery: any, idx: number) => {
-            const max = Math.max(...battery.voltages);
-            const min = Math.min(...battery.voltages);
+            const max = Math.max(...battery.voltages, 0);
+            const min = Math.min(...battery.voltages, 0);
             const deviation = max - min;
         
             return (
@@ -43,6 +43,21 @@ export function CellMonitor() {
                         </div>
                     </div>
 
+                    <div class="cell-bars">
+                        { battery.voltages.map((v: number, k: number) => (
+                            v > 0 &&
+                            <div class="cell-bars__bar" 
+                                key={k} 
+                                data-sel={ selectedCell===(idx*1000 + k) || undefined }
+                                data-min={ v===min || undefined }
+                                data-max={ v===max || undefined }
+                                onMouseEnter={ (_ev)=>{ setSelectedCell(idx*1000 + k) } }
+                                onMouseLeave={ (_ev)=>{ setSelectedCell(null) } }
+                                style={ {height: (v-(min-20))*(200/(deviation+40))} }
+                                ></div>
+                        ))}
+                    </div>
+
                     <div class="cell-grid">
                         { battery.voltages.map((v: number, k: number) => (
                             <div class="cell-grid__cell" 
@@ -56,20 +71,6 @@ export function CellMonitor() {
                                 Cell {k+1}<br />
                                 { v || '-' } mV
                             </div>
-                        ))}
-                    </div>
-                    <div class="cell-bars">
-                        { battery.voltages.map((v: number, k: number) => (
-                            v > 0 &&
-                            <div class="cell-bars__bar" 
-                                key={k} 
-                                data-sel={ selectedCell===(idx*1000 + k) || undefined }
-                                data-min={ v===min || undefined }
-                                data-max={ v===max || undefined }
-                                onMouseEnter={ (_ev)=>{ setSelectedCell(idx*1000 + k) } }
-                                onMouseLeave={ (_ev)=>{ setSelectedCell(null) } }
-                                style={ {height: (v-(min-20))*(200/(deviation+40))} }
-                                ></div>
                         ))}
                     </div>
                 </>

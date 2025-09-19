@@ -1,8 +1,12 @@
-form .panel {
+form {
     max-width: 40rem;
 }
 form[data-initialized="0"] {
   visibility: hidden;
+}
+
+form .actions {
+    text-align: right;
 }
 
 .form-row {
