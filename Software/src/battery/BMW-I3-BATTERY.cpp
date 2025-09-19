@@ -98,11 +98,11 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   } else {
     clear_event(EVENT_HVIL_FAILURE);
   }
-  if (battery_status_error_disconnecting_switch > 0) {  // Check if contactors are sticking / welded
-    set_event(EVENT_CONTACTOR_WELDED, 0);
-  } else {
-    clear_event(EVENT_CONTACTOR_WELDED);
-  }
+  //if (battery_status_error_disconnecting_switch > 0) {  // Check if contactors are sticking / welded
+  //  set_event(EVENT_CONTACTOR_WELDED, 0);
+  //} else {
+  //  clear_event(EVENT_CONTACTOR_WELDED);
+  //}
 }
 
 void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
