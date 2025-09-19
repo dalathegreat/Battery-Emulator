@@ -17,7 +17,7 @@
 .menu a {
     display: inline-block;
     padding: 0.6rem 17px;
-    border-radius: 0 8px 8px 0;
+    border-radius: 0 6px 6px 0;
     color: #eeeeee;
     text-decoration: none;
     border-left: 3px solid transparent;

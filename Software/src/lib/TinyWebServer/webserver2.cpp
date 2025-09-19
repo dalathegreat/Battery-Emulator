@@ -167,10 +167,8 @@ const UintSetting UINT_SETTINGS[] = {
     {"BATTTYPE", 0, (uint32_t)BatteryType::Highest-1},
     {"BATTCHEM", 0, (uint32_t)battery_chemistry_enum::Highest-1},
     {"BATTCOMM", 0, (uint32_t)comm_interface::Highest-1},
-    // {"BATTPVMAX", 0, 1000}, // needs multiplying
-    // {"BATTPVMIN", 0, 100},
     {"BATTCVMAX", 0, 5000},
-    {"BATTCVMIN", 0, 100},
+    {"BATTCVMIN", 0, 5000},
     {"CHGTYPE", 0, (uint32_t)ChargerType::Highest-1},
     {"CHGCOMM", 0, (uint32_t)comm_interface::Highest-1},
     {"EQSTOP", 0, (uint32_t)STOP_BUTTON_BEHAVIOR::Highest-1},
@@ -205,13 +203,34 @@ const UintSetting UINT_SETTINGS[] = {
     {"CANFDFREQ", 0, 40},
     {"PRECHGMS", 0, 120000},
     {"PWMFREQ", 0, 65535},
-    {"PWMHOLD", 0, 65535},
+    {"PWMHOLD", 0, 1023},
     {"GTWCOUNTRY", 0, 65535},
     {"GTWMAPREG", 0, 255},
     {"GTWCHASSIS", 0, 255},
     {"GTWPACK", 0, 255},
     {"LEDMODE", 0, 10},
+    {"BATTERY_WH_MAX", 1, 400000},
     {nullptr, 0, 0}
+};
+
+struct FloatToUintSetting {
+    const char* name;
+    float min;
+    float max;
+    float scale; // multiply the float by this to get the stored uint value
+};
+
+const FloatToUintSetting FLOAT_TO_UINT_SETTINGS[] = {
+    // Name, min value, max value, scale
+    {"BATTPVMAX", 0.0f, 1000.0f, 10.0f}, // stored as decivolts
+    {"BATTPVMIN", 0.0f, 1000.0f, 10.0f},
+    {"MAXPERCENTAGE", 0.0f, 100.0f, 10.0f}, // stored as tenths of percent
+    {"MINPERCENTAGE", 0.0f, 100.0f, 10.0f},
+    {"MAXCHARGEAMP", 0.0f, 100.0f, 10.0f}, // stored as deciamps
+    {"MAXDISCHARGEAMP", 0.0f, 100.0f, 10.0f},
+    {"TARGETCHVOLT", 0.0f, 1000.0f, 10.0f}, // stored as decivolts
+    {"TARGETDISCHVOLT", 0.0f, 1000.0f, 10.0f},
+    {nullptr, 0.0f, 0.0f, 0.0f}
 };
 
 struct StringSetting {
@@ -262,6 +281,8 @@ const char* BOOL_SETTINGS[] = {
     "INTERLOCKREQ",
     "DIGITALHVIL",
     "GTWRHD",
+    "USE_SCALED_SOC",
+    "USEVOLTLIMITS",
     nullptr
 };
 
@@ -305,6 +326,9 @@ TwsHandler settingsHandler("/api/settings", new TwsJsonGetFunc([](TwsRequest& re
         // TODO - handle default values more sensibly?
         sets[UINT_SETTINGS[i].name] = settings.getUInt(UINT_SETTINGS[i].name, 0);
     }
+    for(int i=0;FLOAT_TO_UINT_SETTINGS[i].name!=nullptr;i++) {
+        sets[FLOAT_TO_UINT_SETTINGS[i].name] = settings.getUInt(FLOAT_TO_UINT_SETTINGS[i].name, 0) / FLOAT_TO_UINT_SETTINGS[i].scale;
+    }
     for(int i=0;STRING_SETTINGS[i].name!=nullptr;i++) {
         sets[STRING_SETTINGS[i].name] = settings.getString(STRING_SETTINGS[i].name).c_str();
     }
@@ -315,15 +339,6 @@ TwsHandler settingsHandler("/api/settings", new TwsJsonGetFunc([](TwsRequest& re
     doc["reboot_required"] = settingsUpdated;
 }));
 TwsPostBufferingRequestHandler settingsPostHandler(&settingsHandler, [](TwsRequest &request, uint8_t *data, size_t len) {
-    // DEBUG_PRINTF("Received settings data: len: %zu\n", len);
-    // DEBUG_PRINTF("Data: %.*s\n", (int)len, data);
-
-    // request.write_fully("HTTP/1.1 200 OK\r\n"
-    //                     "Connection: close\r\n"
-    //                     "Content-Type: text/plain\r\n"
-    //                     "\r\n");
-    // request.write_fully((char*)data);
-    // request.finish();
     JsonDocument errors;
 
     BatteryEmulatorSettingsStore settings;
@@ -344,6 +359,23 @@ TwsPostBufferingRequestHandler settingsPostHandler(&settingsHandler, [](TwsReque
                     }
                 } else {
                     errors[UINT_SETTINGS[i].name] = "Invalid value.";
+                }
+            }
+        }
+        for(int i=0;FLOAT_TO_UINT_SETTINGS[i].name!=nullptr;i++) {
+            if(doc[FLOAT_TO_UINT_SETTINGS[i].name].is<const char*>()) {
+                char *end = nullptr;
+                float fval = strtof(doc[FLOAT_TO_UINT_SETTINGS[i].name].as<const char*>(), &end);
+                if(end && *end==0) {
+                    if(fval < FLOAT_TO_UINT_SETTINGS[i].min || fval > FLOAT_TO_UINT_SETTINGS[i].max) {
+                        errors[FLOAT_TO_UINT_SETTINGS[i].name] = "Value out of range.";
+                    } else if(attempt==1) {
+                        uint32_t val = (uint32_t)(fval * FLOAT_TO_UINT_SETTINGS[i].scale);
+                        DEBUG_PRINTF("Setting %s to %lu\n", FLOAT_TO_UINT_SETTINGS[i].name, val);
+                        settings.saveUInt(FLOAT_TO_UINT_SETTINGS[i].name, val);
+                    }
+                } else {
+                    errors[FLOAT_TO_UINT_SETTINGS[i].name] = "Invalid value.";
                 }
             }
         }

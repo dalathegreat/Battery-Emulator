@@ -14,10 +14,10 @@ export function Events() {
                 <thead>
                     <tr>
                         <th>Type</th>
-                        <th>Level</th>
+                        <th style="width: 7rem">Level</th>
                         <th>Time</th>
-                        <th>Count</th>
-                        <th>Data</th>
+                        <th style="width: 4rem">Count</th>
+                        <th style="width: 4rem">Data</th>
                         <th>Message</th>
                     </tr>
                 </thead>
