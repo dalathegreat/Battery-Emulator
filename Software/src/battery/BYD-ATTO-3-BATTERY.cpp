@@ -533,7 +533,9 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     ATTO_3_12D.data.u8[6] = (0x0F | (frame6_counter << 4));
     ATTO_3_12D.data.u8[7] = (0x09 | (frame7_counter << 4));
 
-    transmit_can_frame(&ATTO_3_12D);
+    if (datalayer_battery->status.bms_status != FAULT) {
+      transmit_can_frame(&ATTO_3_12D);
+    }
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -556,8 +558,9 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         ATTO_3_441.data.u8[7] = 0x87;
       }
     }
-
-    transmit_can_frame(&ATTO_3_441);
+    if (datalayer_battery->status.bms_status != FAULT) {
+      transmit_can_frame(&ATTO_3_441);
+    }
     switch (stateMachineClearCrash) {
       case STARTED:
         ATTO_3_7E7_CLEAR_CRASH.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
