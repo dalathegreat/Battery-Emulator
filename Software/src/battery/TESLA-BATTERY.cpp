@@ -976,22 +976,22 @@ void TeslaBattery::
   if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
       (datalayer.battery.status.bms_status != FAULT) && (!datalayer.system.settings.equipment_stop_active)) {
     // Carry on: 0x221 DRIVE state & reset power down timer
-    vehicleState = 1;
-    powerDownTimer = 180;  //0x221 50ms cyclic, 20 calls/second
+    vehicleState = CAR_DRIVE;
+    powerDownSeconds = 9;
   } else {
     // Faulted state, or inverter blocks contactor closing
     // Shut down: 0x221 ACCESSORY state for 3 seconds, followed by GOING_DOWN, then OFF
-    if (powerDownTimer <= 180 && powerDownTimer > 120) {
-      vehicleState = 2;  //ACCESSORY
-      powerDownTimer--;
+    if (powerDownSeconds <= 9 && powerDownSeconds > 6) {
+      vehicleState = ACCESSORY;
+      powerDownSeconds--;
     }
-    if (powerDownTimer <= 120 && powerDownTimer > 60) {
-      vehicleState = 3;  //GOING_DOWN
-      powerDownTimer--;
+    if (powerDownSeconds <= 6 && powerDownSeconds > 3) {
+      vehicleState = GOING_DOWN;
+      powerDownSeconds--;
     }
-    if (powerDownTimer <= 60 && powerDownTimer > 0) {
-      vehicleState = 0;  //OFF
-      powerDownTimer--;
+    if (powerDownSeconds <= 3 && powerDownSeconds > 0) {
+      vehicleState = CAR_OFF;
+      powerDownSeconds--;
     }
   }
 
@@ -2059,7 +2059,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     previousMillis50 = currentMillis;
 
     //0x221 VCFRONT_LVPowerState
-    if (vehicleState == 1) {  // Drive
+    if (vehicleState == CAR_DRIVE) {
       switch (muxNumber_TESLA_221) {
         case 0:
           generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
@@ -2077,7 +2077,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
       //Generate next new frame
       frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
     }
-    if (vehicleState == 2) {  // Accessory
+    if (vehicleState == ACCESSORY) {
       switch (muxNumber_TESLA_221) {
         case 0:
           generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
@@ -2095,7 +2095,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
       //Generate next new frame
       frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
     }
-    if (vehicleState == 3) {  // Going down
+    if (vehicleState == GOING_DOWN) {
       switch (muxNumber_TESLA_221) {
         case 0:
           generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
@@ -2113,7 +2113,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
       //Generate next new frame
       frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
     }
-    if (vehicleState == 0) {  // Off
+    if (vehicleState == CAR_OFF) {
       switch (muxNumber_TESLA_221) {
         case 0:
           generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
