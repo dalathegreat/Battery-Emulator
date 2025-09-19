@@ -130,7 +130,7 @@ function sortNoneFirst(a: [string, string], b: [string, string]) {
 function selectField(label: string, name: string, options: {[index: string]:string}) {
     return <div class="form-row">
         <label>{ label }</label>
-        <select name={ name } data-uint>
+        <select name={ name }>
             { Object.entries(options).sort(sortNoneFirst).map(([k, v]) => (
                 <option value={k}>{v}</option>
             )) }
@@ -151,6 +151,13 @@ function ipField(label: string, name: string) {
     return <div class="form-row">
         <label>{ label }</label>
         <input type="text" name={ name } pattern="|((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)" title="IPv4 address or blank" />
+    </div>;
+}
+
+function textPatternField(label: string, name: string, pattern: string) {
+    return <div class="form-row">
+        <label>{ label }</label>
+        <input type="text" name={ name } pattern={ pattern } />
     </div>;
 }
 
@@ -188,23 +195,27 @@ export function Settings() {
         data.delete(field);
     }
 
-    const submit = (data: any) => {
+    const submit = async (data: any) => {
         splitIp(data, 'LOCALIP');
         splitIp(data, 'GATEWAY');
         splitIp(data, 'SUBNET');
 
-        fetch(import.meta.env.VITE_API_BASE + '/api/settings', {
+        const r = await fetch(import.meta.env.VITE_API_BASE + '/api/settings', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(Object.fromEntries(data)),
-        }).then(r => r.json()).then(r => {
-            // Successful save
-            setCurrent({});
-            setSavedSettings(r);
-            window.scrollTo(0,0);
         });
+        if(r.status>=400) {
+            alert('Failed to save settings: ' + JSON.stringify(await r.json()));
+            return;
+        }
+        const rr = await r.json();
+        // Successful save
+        setCurrent({});
+        setSavedSettings(rr);
+        window.scrollTo(0,0);
     };
 
     const reboot = () => {
@@ -227,6 +238,11 @@ export function Settings() {
 
     const reboot_required = settings?.reboot_required || savedSettings?.reboot_required;
     const merged = { ...settings?.settings, ...savedSettings?.settings, ...current };
+
+    const custom_bms = ["6", "11", "22", "23", "24", "31"].includes(""+merged.BATTTYPE);
+    const pylonish = ["4", "10", "19"].includes(""+merged.INVTYPE);
+    const sofar = ""+merged.INVTYPE==="17";
+    const solax = ""+merged.INVTYPE==="18";
 
     return <div>
         <h2>Settings</h2>
@@ -259,8 +275,28 @@ export function Settings() {
                     "1": "NCA",
                     "2": "NMC",
                 }) }
+                <Show when={custom_bms}>
+                    { textPatternField("Battery max design voltage (V)", "BATTPVMAX", "[0-9]+(\\.[0-9]+)?") }
+                    { textPatternField("Battery min design voltage (V)", "BATTPVMIN", "[0-9]+(\\.[0-9]+)?") }
+                    { textPatternField("Cell max design voltage (mV)", "BATTCVMAX", "[0-9]+") }
+                    { textPatternField("Cell min design voltage (mV)", "BATTCVMIN", "[0-9]+") }
+                </Show>
                 { checkboxField("Double battery", "DBLBTR") }
                 <Show when={merged.DBLBTR}>{ selectField("Second battery interface", "BATT2COMM", INTERFACES) }</Show>
+                { textPatternField("Battery capacity (Wh)", "BATTERY_WH_MAX", "|[1-9][0-9]*") }
+                { checkboxField("Rescale SoC", "USE_SCALED_SOC") }
+                <Show when={merged.USE_SCALED_SOC}>
+                    { textPatternField("SoC max percentage", "MAXPERCENTAGE", "[0-9]{1,3}(\\.[0-9])?") }
+                    { textPatternField("SoC min percentage", "MINPERCENTAGE", "[0-9]{1,3}(\\.[0-9])?") }
+                </Show>
+                { textPatternField("Max charge current (A)", "MAXCHARGEAMP", "[0-9]+(\\.[0-9]+)?") }
+                { textPatternField("Max discharge current (A)", "MAXDISCHARGEAMP", "[0-9]+(\\.[0-9]+)?") }
+                { checkboxField("Manual voltage limits", "USEVOLTLIMITS") }
+                <Show when={merged.USEVOLTLIMITS}>
+                    { textPatternField("Max charge voltage (V)", "TARGETCHVOLT", "[0-9]+(\\.[0-9]+)?") }
+                    { textPatternField("Min discharge voltage (V)", "TARGETDISCHVOLT", "[0-9]+(\\.[0-9]+)?") }
+                </Show>
+
             </Show>
         </div>
 
@@ -269,7 +305,80 @@ export function Settings() {
             { selectField("Inverter protocol", "INVTYPE", inverters) }
             <Show when={""+merged.INVTYPE!=="0"}>
                 { selectField("Inverter interface", "INVCOMM", INTERFACES) }
+                <Show when={sofar}>
+                    { textPatternField("Sofar Battery ID (0-15)", "SOFAR_ID", "[0-9]{1,2}") }
+                </Show>
+                <Show when={pylonish}>
+                    { textPatternField("Reported cell count (0 for default)", "INVCELLS", "[0-9]+") }
+                </Show>
+                <Show when={pylonish||solax}>
+                    { textPatternField("Reported module count (0 for default)", "INVMODULES", "[0-9]+") }
+                </Show>
+                <Show when={pylonish}>
+                    { textPatternField("Reported cells per module (0 for default)", "INVCELLSPER", "[0-9]+") }
+                    { textPatternField("Reported voltage level (0 for default)", "INVVLEVEL", "[0-9]+") }
+                    { textPatternField("Reported Ah capacity (0 for default)", "INVCAPACITY", "[0-9]+") }
+                </Show>
+                <Show when={solax}>
+                    { textPatternField("Reported battery type (in decimal)", "INVBTYPE", "[0-9]+") }
+                    { checkboxField("Inverter should ignore contactors", "INVICNT") }
+                </Show>
             </Show>
+        </div>
+
+        <div class="panel">
+            <h3>Charger/shunt</h3>
+            { selectField("Charger", "CHGTYPE", {
+                "0": "None",
+                "2": "Chevy Volt Gen1 Charger",
+                "1": "Nissan LEAF 2013-2024 PDM charger",
+            }) }
+            <Show when={""+merged.CHGTYPE!=="0"}>
+                { selectField("Charger interface", "CHGCOMM", INTERFACES) }
+            </Show>
+            { selectField("Shunt", "SHUNTTYPE", {
+                "0": "None",
+                "1": "BMW SBOX",
+            }) }
+            <Show when={""+merged.SHUNTTYPE!=="0"}>
+                { selectField("Shunt interface", "SHUNTCOMM", INTERFACES) }
+            </Show>
+        </div>
+
+        <div class="panel">
+            <h3>Hardware</h3>
+            { checkboxField("Use CAN FD as classic CAN", "CANFDASCAN") }
+            { textPatternField("CAN addon crystal (Mhz)", "CANFREQ", "[0-9]{1,2}") }
+            { textPatternField("CAN-FD-addon crystal (Mhz)", "CANFDFREQ", "[0-9]{1,2}") }
+            { selectField("Equipment stop button", "EQSTOP", {
+                "0": "Not connected",
+                "1": "Latching switch",
+                "2": "Momentary switch",
+            }) }
+            { checkboxField("Contactor control via GPIO", "CNTCTRL") }
+
+            <Show when={merged.CNTCTRL}>
+                { textPatternField("Precharge time (ms)", "PRECHGMS", "[0-9]+") }
+                { checkboxField("PWM contactor control", "PWMCNTCTRL") }
+                { textPatternField("PWM Frequency (Hz)", "PWMFREQ", "[0-9]+") }
+                { textPatternField("PWM Hold (0-1023)", "PWMHOLD", "[0-9]+") }
+            </Show>
+
+            { checkboxField("Double-Battery Contactor control via GPIO", "CNTCTRLDBL") }
+
+            { checkboxField("Periodic BMS reset every 24h", "PERBMSRESET") }
+            { textPatternField("Periodic BMS reset off time (s)", "BMSRESETDUR", "[0-9]+") }
+            { checkboxField("External precharge via HIA4V1", "EXTPRECHARGE") }
+            <Show when={merged.EXTPRECHARGE}>
+                { textPatternField("Precharge, maximum ms before fault", "MAXPRETIME", "[0-9]+") }
+                { checkboxField("Normally Open (NO) inverter disconnect contactor", "NOINVDISC") }
+            </Show>
+                
+            { selectField("Status LED pattern", "LEDMODE", {
+                "0": "Classic",
+                "1": "Energy Flow",
+                "2": "Heartbeat",
+            }) }
         </div>
 
         <div class="panel">
@@ -278,11 +387,11 @@ export function Settings() {
             <Show when={merged.WIFIAPENABLED}>
                 <div class="form-row">
                     <label>WiFi access point password </label>
-                    <input type="text" name="APPASSWORD" data-uint pattern="|.{8,}" title="at least 8 characters" />
+                    <input type="text" name="APPASSWORD" pattern="|.{8,}" title="at least 8 characters" />
                 </div>
                 <div class="form-row">
                     <label>WiFi channel (0 for automatic)</label>
-                    <input type="text" name="WIFICHANNEL" data-uint pattern="[0-9]|1[0-4]" title="number" />
+                    <input type="text" name="WIFICHANNEL" pattern="[0-9]|1[0-4]" title="number" />
                 </div>
             </Show>
             <div class="form-row">
@@ -296,10 +405,39 @@ export function Settings() {
                 { ipField("Subnet", "SUBNET") }
             </Show>
 
+            { checkboxField("Enable MQTT", "MQTTENABLED") }
+            <Show when={merged.MQTTENABLED}>
+                { textPatternField("MQTT server", "MQTTSERVER", "") }
+                { textPatternField("MQTT port", "MQTTPORT", "[0-9]+") }
+                { textPatternField("MQTT user", "MQTTUSER", "") }
+                { textPatternField("MQTT password", "MQTTPASSWORD", "") }
+                { textPatternField("MQTT timeout (ms)", "MQTTTIMEOUT", "[0-9]+") }
+                { checkboxField("Send all cell voltages via MQTT", "MQTTCELLV") }
+                { checkboxField("Remote BMS reset via MQTT allowed", "REMBMSRESET") }
+                { checkboxField("Customized MQTT topics", "MQTTTOPICS") }
+                <Show when={merged.MQTTTOPICS}>
+                    { textPatternField("Topic name", "MQTTTOPIC", "") }
+                    { textPatternField("Prefix for object ID", "MQTTOBJIDPREFIX", "") }
+                    { textPatternField("Home Assistant device name", "MQTTDEVICENAME", "") }
+                    { textPatternField("Home Assistant device ID", "HADEVICEID", "") }
+                </Show>
+                { checkboxField("Enable Home Assistant auto discovery", "HADISC") }
+            </Show>
         </div>
 
+        <div class="panel">
+            <h3>Debug</h3>
+            { checkboxField("Enable performance profiling on main page", "PERFPROFILE") }
+            { checkboxField("Enable CAN message logging via USB serial", "CANLOGUSB") }
+            { checkboxField("Enable general logging via USB serial", "USBENABLED") }
+            { checkboxField("Enable general logging via Webserver", "WEBENABLED") }
+            { checkboxField("Enable CAN message logging via SD card", "CANLOGSD") }
+            { checkboxField("Enable general logging via SD card", "SDLOGENABLED") }
+        </div>
 
-        <button type="submit" style="margin-top: 1rem;" disabled={!!Object.keys(current)}>Save settings</button>
+        <div class="actions">
+            <button type="submit" disabled={!Object.keys(current).length}>Save settings</button>
+        </div>
 
 
         </Form>
