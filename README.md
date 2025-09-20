@@ -39,7 +39,7 @@ Start by watching this [quickstart guide](https://www.youtube.com/watch?v=hcl2Gd
 
 [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/hcl2GdHc0Y0/0.jpg)](https://www.youtube.com/watch?v=hcl2GdHc0Y0)
 
-1. Open the [webinstaller page](https://github.com/dalathegreat/BE-Web-Installer)
+1. Open the [webinstaller page](https://dalathegreat.github.io/BE-Web-Installer/)
 2. Follow the instructions on that page to install the software
 3. After successful installation, connect to the wireless network (Battery-Emulator , password: 123456789)
 4. Go to setup page and configure component selection
@@ -54,7 +54,7 @@ This code uses the following excellent libraries:
 - [eModbus/eModbus](https://github.com/eModbus/eModbus) MIT-License
 - [ESP32Async/AsyncTCP](https://github.com/ESP32Async/AsyncTCP) LGPL-3.0 license
 - [ESP32Async/ESPAsyncWebServer](https://github.com/ESP32Async/ESPAsyncWebServer) LGPL-3.0 license
-- [miwagner/ESP32-Arduino-CAN](https://github.com/miwagner/ESP32-Arduino-CAN/) MIT-License
+- [pierremolinaro/acan-esp32](https://github.com/pierremolinaro/acan-esp32) MIT-License
 - [pierremolinaro/acan2515](https://github.com/pierremolinaro/acan2515) MIT-License
 - [pierremolinaro/acan2517FD](https://github.com/pierremolinaro/acan2517FD) MIT-License
 
