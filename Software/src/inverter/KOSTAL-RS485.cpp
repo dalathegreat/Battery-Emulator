@@ -136,8 +136,8 @@ void KostalInverterProtocol::update_values() {
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 18);  // Last current
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 22);  // Should be Avg current(1s)
 
-  // Close contactors after 20 battery info frames requested
-  if (f2_startup_count > 20) {
+  // Close contactors after 7 battery info frames requested
+  if (f2_startup_count > 7) {
     datalayer.system.status.inverter_allows_contactor_closing = true;
     dbg_message("inverter_allows_contactor_closing -> true (info frame)");
   }
