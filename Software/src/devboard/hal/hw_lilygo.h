@@ -44,9 +44,9 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_18; }
 
   // Contactor handling
-  virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_33; }
-  virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_2; }
-  virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_15; }
+  virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_32; }
+  virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_33; }
+  virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_25; }
   virtual gpio_num_t BMS_POWER() { return GPIO_NUM_18; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_15; }
 
