@@ -3,7 +3,7 @@
 #include "CanBattery.h"
 #include "KIA-E-GMP-HTML.h"
 
-#define ESTIMATE_SOC_FROM_CELLVOLTAGE
+extern bool user_selected_use_estimated_SOC;
 
 class KiaEGmpBattery : public CanBattery {
  public:
