@@ -35,9 +35,9 @@ For examples showing wiring, see each battery type's own Wiki page. For instance
 
 ## How to install the software 💻
 
-Start by watching this [quickstart guide](https://www.youtube.com/watch?v=hcl2GdHc0Y0)
+Start by watching this [quickstart guide](https://www.youtube.com/watch?v=sR3t7j0R9Z0)
 
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/hcl2GdHc0Y0/0.jpg)](https://www.youtube.com/watch?v=hcl2GdHc0Y0)
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/sR3t7j0R9Z0/0.jpg)](https://www.youtube.com/watch?v=sR3t7j0R9Z0)
 
 1. Open the [webinstaller page](https://dalathegreat.github.io/BE-Web-Installer/)
 2. Follow the instructions on that page to install the software
