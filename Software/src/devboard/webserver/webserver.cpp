@@ -23,9 +23,6 @@
 extern std::string http_username;
 extern std::string http_password;
 
-bool webserver_enabled =
-    true;  // Global flag to enable or disable the webserver //Old method to disable was with  #ifdef WEBSERVER
-
 bool webserver_auth = false;
 
 // Create AsyncWebServer object on port 80

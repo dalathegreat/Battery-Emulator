@@ -69,6 +69,10 @@ void BydCanInverter::
   BYD_150.data.u8[6] = (fully_charged_capacity_ah >> 8);
   BYD_150.data.u8[7] = (fully_charged_capacity_ah & 0x00FF);
 
+  //Alarms
+  //TODO: BYD Alarms are not implemented yet. Investigation needed on the bits in this message
+  //BYD_190.data.u8[0] =
+
   //Voltage (ex 370.0)
   BYD_1D0.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
   BYD_1D0.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
@@ -144,21 +148,21 @@ void BydCanInverter::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
     previousMillis2s = currentMillis;
 
-    transmit_can_frame(&BYD_110);
+    transmit_can_frame(&BYD_110);  //Send Limits
   }
   // Send 10s CAN Message
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
 
-    transmit_can_frame(&BYD_150);
-    transmit_can_frame(&BYD_1D0);
-    transmit_can_frame(&BYD_210);
+    transmit_can_frame(&BYD_150);  //Send States
+    transmit_can_frame(&BYD_1D0);  //Send Battery Info
+    transmit_can_frame(&BYD_210);  //Send Cell Info
   }
   //Send 60s message
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
 
-    transmit_can_frame(&BYD_190);
+    transmit_can_frame(&BYD_190);  //Send Alarm
   }
 }
 
@@ -166,8 +170,12 @@ void BydCanInverter::send_initial_data() {
   transmit_can_frame(&BYD_250);
   transmit_can_frame(&BYD_290);
   transmit_can_frame(&BYD_2D0);
-  transmit_can_frame(&BYD_3D0_0);
-  transmit_can_frame(&BYD_3D0_1);
-  transmit_can_frame(&BYD_3D0_2);
-  transmit_can_frame(&BYD_3D0_3);
+  BYD_3D0.data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79};  //Battery
+  transmit_can_frame(&BYD_3D0);
+  BYD_3D0.data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x50, 0x72};  //-Box Pr
+  transmit_can_frame(&BYD_3D0);
+  BYD_3D0.data = {0x02, 0x65, 0x6D, 0x69, 0x75, 0x6D, 0x20, 0x48};  //emium H
+  transmit_can_frame(&BYD_3D0);
+  BYD_3D0.data = {0x03, 0x56, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00};  //VS
+  transmit_can_frame(&BYD_3D0);
 }
