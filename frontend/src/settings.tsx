@@ -240,6 +240,7 @@ export function Settings() {
     const merged = { ...settings?.settings, ...savedSettings?.settings, ...current };
 
     const custom_bms = ["6", "11", "22", "23", "24", "31"].includes(""+merged.BATTTYPE);
+    const tesla = ["32", "33"].includes(""+merged.BATTTYPE);
     const pylonish = ["4", "10", "19"].includes(""+merged.INVTYPE);
     const sofar = ""+merged.INVTYPE==="17";
     const solax = ""+merged.INVTYPE==="18";
@@ -269,12 +270,6 @@ export function Settings() {
             <h3>Battery</h3>
             { selectField("Battery", "BATTTYPE", batteries) }
             <Show when={""+merged.BATTTYPE!=="0"}>
-                { selectField("Battery interface", "BATTCOMM", INTERFACES) }
-                { selectField("Battery chemistry", "BATTCHEM", {
-                    "3": "LFP",
-                    "1": "NCA",
-                    "2": "NMC",
-                }) }
                 <Show when={custom_bms}>
                     { textPatternField("Battery max design voltage (V)", "BATTPVMAX", "[0-9]+(\\.[0-9]+)?") }
                     { textPatternField("Battery min design voltage (V)", "BATTPVMIN", "[0-9]+(\\.[0-9]+)?") }
@@ -296,8 +291,25 @@ export function Settings() {
                     { textPatternField("Max charge voltage (V)", "TARGETCHVOLT", "[0-9]+(\\.[0-9]+)?") }
                     { textPatternField("Min discharge voltage (V)", "TARGETDISCHVOLT", "[0-9]+(\\.[0-9]+)?") }
                 </Show>
-
+                <Show when={""+merged.BATTTYPE=="21"}>
+                    { checkboxField("Require interlock", "INTERLOCKREQ") }
+                </Show>
+                <Show when={tesla}>
+                    { checkboxField("Digital HVIL (2024+)", "DIGITALHVIL") }
+                    { checkboxField("Right hand drive", "GTWRHD") }
+                    { textPatternField("Country code", "GTWCOUNTRY", "[0-9]{5}") }
+                    { textPatternField("Map region", "GTWMAPREG", "[0-9]") }
+                    { textPatternField("Chassis type", "GTWCHASSIS", "[0-9]") }
+                    { textPatternField("Pack type", "GTWPACK", "[0-9]") }
+                </Show>
+                { selectField("Battery interface", "BATTCOMM", INTERFACES) }
+                { selectField("Battery chemistry", "BATTCHEM", {
+                    "3": "LFP",
+                    "1": "NCA",
+                    "2": "NMC",
+                }) }
             </Show>
+
         </div>
 
         <div class="panel">
@@ -360,8 +372,10 @@ export function Settings() {
             <Show when={merged.CNTCTRL}>
                 { textPatternField("Precharge time (ms)", "PRECHGMS", "[0-9]+") }
                 { checkboxField("PWM contactor control", "PWMCNTCTRL") }
-                { textPatternField("PWM Frequency (Hz)", "PWMFREQ", "[0-9]+") }
-                { textPatternField("PWM Hold (0-1023)", "PWMHOLD", "[0-9]+") }
+                <Show when={merged.PWMCNTCTRL}>
+                    { textPatternField("PWM Frequency (Hz)", "PWMFREQ", "[0-9]+") }
+                    { textPatternField("PWM Hold (0-1023)", "PWMHOLD", "[0-9]+") }
+                </Show>
             </Show>
 
             { checkboxField("Double-Battery Contactor control via GPIO", "CNTCTRLDBL") }

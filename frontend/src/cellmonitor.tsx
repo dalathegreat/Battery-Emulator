@@ -12,7 +12,7 @@ export function CellMonitor() {
 
         { (data?.battery ?? []).map((battery: any, idx: number) => {
             const max = Math.max(...battery.voltages, 0);
-            const min = Math.min(...battery.voltages, 0);
+            const min = Math.min(...battery.voltages, 9999);
             const deviation = max - min;
         
             return (
