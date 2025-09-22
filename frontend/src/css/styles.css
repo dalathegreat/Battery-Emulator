@@ -1,6 +1,7 @@
 @import url('./base.css');
 
 @import url('./blocks/alert.css');
+@import url('./blocks/badge.css');
 @import url('./blocks/button.css');
 @import url('./blocks/cell-grid.css');
 @import url('./blocks/forms.css');
