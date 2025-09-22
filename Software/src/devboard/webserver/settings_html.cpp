@@ -299,6 +299,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getString("APPASSWORD", "123456789");
   }
 
+  if (var == "APNAME") {
+    return settings.getString("APNAME", "BatteryEmulator");
+  }
+
   if (var == "STATICIP") {
     return settings.getBool("STATICIP") ? "checked" : "";
   }
@@ -1220,6 +1224,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Broadcast Wifi access point: </label>
         <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
+
+        <label>Access point name: </label>
+        <input type='text' name='APNAME' value="%APNAME%" />
 
         <label>Access point password: </label>
         <input type='text' name='APPASSWORD' value="%APPASSWORD%" />
