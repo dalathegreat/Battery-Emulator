@@ -205,9 +205,9 @@ const UintSetting UINT_SETTINGS[] = {
     {"PWMFREQ", 0, 65535},
     {"PWMHOLD", 0, 1023},
     {"GTWCOUNTRY", 0, 65535},
-    {"GTWMAPREG", 0, 255},
-    {"GTWCHASSIS", 0, 255},
-    {"GTWPACK", 0, 255},
+    {"GTWMAPREG", 0, 9},
+    {"GTWCHASSIS", 0, 9},
+    {"GTWPACK", 0, 9},
     {"LEDMODE", 0, 10},
     {"BATTERY_WH_MAX", 1, 400000},
     {nullptr, 0, 0}
@@ -287,6 +287,9 @@ const char* BOOL_SETTINGS[] = {
 };
 
 extern bool settingsUpdated;
+
+extern bool contactor_control_enabled;
+extern int contactorStatus; // actually an enum?
 
 class TwsJsonGetFunc : public TwsRequestHandler {
 public:
@@ -417,6 +420,16 @@ TwsPostBufferingRequestHandler settingsPostHandler(&settingsHandler, [](TwsReque
     DEBUG_PRINTF("Setting updated? %d\n", settings.were_settings_updated());
 });
 
+TwsHandler canSenderHandler("/api/cansend", 
+    new TwsRequestHandlerFunc([](TwsRequest& request) {
+        request.write_fully("HTTP/1.1 200 OK\r\n"
+                            "Connection: close\r\n"
+                            "Access-Control-Allow-Origin: *\r\n"
+                            "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"
+                            "\r\n");
+    })
+);
+CanSender canSender(&canSenderHandler);
 
 
 //TwsRequestHandlerEntry default_handlers[] = {
@@ -496,6 +509,11 @@ TwsHandler *default_handlers[] = {
         if(inverter) {
             JsonObject inv = doc["inverter"].to<JsonObject>();
             inv["name"] = inverter->name();
+        }
+
+        if(contactor_control_enabled) {
+            JsonObject con = doc["contactor"].to<JsonObject>();
+            con["state"] = (int)contactorStatus;
         }
     })),
     new TwsHandler("/api/cells", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
@@ -766,14 +784,14 @@ TwsHandler *default_handlers[] = {
             ev["message"] = get_event_message_string(event_handle);
         }
     })),
-    new TwsHandler("/api/log", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
-        datalayer.system.info.logged_can_messages[sizeof(datalayer.system.info.logged_can_messages)-1] = 0; // Ensure null termination
-        // Output first half up to the null terminator
-        doc["a"] = datalayer.system.info.logged_can_messages;
-        if(datalayer.system.info.logged_can_messages_offset < (sizeof(datalayer.system.info.logged_can_messages)-1)) {
-            // Output second half, which may contain older data
-            doc["b"] = (datalayer.system.info.logged_can_messages+datalayer.system.info.logged_can_messages_offset+1);
-        }
+    new TwsHandler("/api/log", new TwsRequestHandlerFunc([](TwsRequest& request) {
+        request.write_fully("HTTP/1.1 200 OK\r\n"
+                      "Connection: close\r\n"
+                      "Content-Type: text/plain\r\n"
+                      "Access-Control-Allow-Origin: *\r\n"
+                      "\r\n");
+        // We don't actually need to send the offset, the frontend can search for the first nul instead
+        request.set_writer_callback(CharBufWriter((const char*)datalayer.system.info.logged_can_messages, sizeof(datalayer.system.info.logged_can_messages)));
     })),
     new TwsHandler("/api/reboot", new TwsRequestHandlerFunc([](TwsRequest& request) {
         if(!request.is_post()) {
@@ -858,6 +876,7 @@ TwsHandler *default_handlers[] = {
     })),
     &eOtaStartHandler,
     &eOtaUploadHandler,
+    &canSenderHandler,
     &frontendHandler,
     nullptr,
 };
