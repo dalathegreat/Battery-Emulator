@@ -11,6 +11,10 @@ html, body {
     color: #eeeeee;
 }
 
+p {
+    margin: 0 0 1.5rem;
+}
+
 .columns {
     display: flex;
 }
