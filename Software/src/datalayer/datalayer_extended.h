@@ -235,6 +235,17 @@ struct DATALAYER_INFO_CMFAEV {
 };
 
 struct DATALAYER_INFO_ECMP {
+  //mysteryvan parameters
+  bool MysteryVan = false;
+  bool CrashMemorized = false;
+  uint8_t CONTACTOR_OPENING_REASON = 0;
+  uint8_t TBMU_FAULT_TYPE = 0;
+  uint8_t CONTACTORS_STATE = 0;
+  uint16_t HV_BATT_FC_INSU_MINUS_RES, HV_BATT_FC_INSU_PLUS_RES, HV_BATT_FC_VHL_INSU_PLUS_RES,
+      HV_BATT_ONLY_INSU_MINUS_RES = 0;
+  bool ALERT_CELL_POOR_CONSIST, ALERT_OVERCHARGE, ALERT_BATT, ALERT_LOW_SOC, ALERT_HIGH_SOC, ALERT_SOC_JUMP,
+      ALERT_TEMP_DIFF, ALERT_HIGH_TEMP, ALERT_OVERVOLTAGE, ALERT_CELL_OVERVOLTAGE, ALERT_CELL_UNDERVOLTAGE = false;
+  //ecmp below
   uint8_t MainConnectorState = 0;
   uint16_t InsulationResistance = 0;
   uint8_t InsulationDiag = 0;
