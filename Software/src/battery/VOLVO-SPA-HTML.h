@@ -12,7 +12,7 @@ class VolvoSpaHtmlRenderer : public BatteryHtmlRenderer {
     content += "</h4><h4>BECM reported number of DTCs: " + String(datalayer_extended.VolvoPolestar.DTCcount) + "</h4>";
     content += "<h4>BECM reported SOC: " + String(datalayer_extended.VolvoPolestar.soc_bms / 10.0) + " %</h4>";
     content += "<h4>Calculated SOC: " + String(datalayer_extended.VolvoPolestar.soc_calc / 10.0) + " %</h4>";
-    content += "<h4>Rescaled SOC: " + String(datalayer_extended.VolvoPolestar.soc_rescaled / 10.0) + " %</h4>";
+    content += "<h4>Rescaled SOC: " + String(datalayer_extended.VolvoPolestar.soc_rescaled / 100.0) + " %</h4>";
     content += "<h4>BECM reported SOH: " + String(datalayer_extended.VolvoPolestar.soh_bms / 100.0) + " %</h4>";
     content += "<h4>BECM supply voltage: " + String(datalayer_extended.VolvoPolestar.BECMsupplyVoltage) + " mV</h4>";
 

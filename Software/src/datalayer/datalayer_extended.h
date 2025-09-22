@@ -766,7 +766,7 @@ struct DATALAYER_INFO_VOLVO_POLESTAR {
   uint16_t soc_calc = 0;
   uint16_t soc_rescaled = 0;
   uint16_t soh_bms = 0;
-  uint16_t BECMsupplyVoltage = 0;
+  uint16_t BECMsupplyVoltage = 12000;
 
   uint16_t BECMBatteryVoltage = 0;
   int16_t BECMBatteryCurrent = 0;
