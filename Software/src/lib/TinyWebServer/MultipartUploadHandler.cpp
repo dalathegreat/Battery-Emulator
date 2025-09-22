@@ -10,7 +10,7 @@ MultipartUploadHandler::MultipartUploadHandler(TwsHandler *handler,
     handler->onHeader = this;
 }
 
-bool MultipartUploadHandler::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
+int MultipartUploadHandler::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
     auto &state = get_state(request);
     //printf("\n\n\n\n\nHandling post body: index: %zu, len: %zu [%.*s]\n", index, len, (int)len, data);
 
@@ -148,9 +148,9 @@ bool MultipartUploadHandler::handlePostBody(TwsRequest &request, size_t index, u
         // state.file = nullptr;
         // state.file2 = nullptr;
         //printf("Upload finished, content length was: %d %d\n", content_length, index+len);
-        return true; // Indicate that the upload is complete
+        return -1; // Indicate that the upload is complete
     }        
-    return false; 
+    return len; // we consumed it all
 }
 void MultipartUploadHandler::handleHeader(TwsRequest &request, const char *line, int len) {
     auto &state = get_state(request);

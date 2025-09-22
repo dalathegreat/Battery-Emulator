@@ -245,6 +245,9 @@ void TinyWebServer::handle_request(TwsRequest &request) {
             } else if(request.match("GET ")) {
                 request.method = TWS_HTTP_GET;
                 request.parse_state = TWS_AWAITING_PATH;
+            } else if(request.match("OPTIONS ")) {
+                request.method = TWS_HTTP_OPTIONS;
+                request.parse_state = TWS_AWAITING_PATH;
             } else {
                 char *pp = request.get_read_ptr(buf, len);
                 DEBUG_PRINTF("TWS client invalid method! [%s]\n", pp);
@@ -355,26 +358,37 @@ void TinyWebServer::handle_request(TwsRequest &request) {
             {
                 if(request.handler && request.handler->onPostBody) {
                     bool post_done = false;
+                    bool allow_noncontiguous = false;
 
                     // If our read buffer is significantly smaller than the
                     // underlying socket buffer, then we can attempt several
                     // back-to-back recvs and speed up uploads.
                     for(int chunk=0; chunk<((2559/TwsRequest::RECV_BUFFER_SIZE)+1); chunk++) {
-                        if(len < request.available()) {
-                            DEBUG_PRINTF("doing partial post read: %d of %d\n", len, request.available());
-                        }
-
                         // We should be able to get a read pointer into the receive
                         // buffer, avoiding a copy, since len is the available
                         // contiguous length.
-                        char *read_ptr = request.get_read_ptr(nullptr, len);
-                        if(read_ptr==nullptr) {
-                            DEBUG_PRINTF("TWS post body buffer is null, resetting\n");
-                            request.finish();
-                            return;
+                        char *read_ptr = request.get_peek_ptr(buf, len);
+
+                        int consumed = request.handler->onPostBody->handlePostBody(request, request.body_read, (uint8_t*)read_ptr, len);
+                        post_done = (consumed == -1);
+
+                        if(consumed==0 && len<request.available() && !allow_noncontiguous) {
+                            // The handler didn't consume anything, so it never will.
+                            // Try again with the whole buffer.
+                            allow_noncontiguous = true;
+                            len = request.available(); // read the full buffer this time
+                            chunk = -1; // ensure another loop
+                            continue;
                         }
-                        post_done = request.handler->onPostBody->handlePostBody(request, request.body_read, (uint8_t*)read_ptr, len);
-                        request.body_read += len;
+
+                        request.body_read += post_done ? len : consumed;
+                        request.read_flush(post_done ? len : consumed);
+
+                        if(consumed>0) {
+                            // We are consuming data (potentially slowly), so
+                            // update last_activity so we don't timeout.
+                            request.last_activity = millis();
+                        }
 
                         // Are we done, or is there nothing more to be read?
                         if(post_done || request.recv()==0) break;
@@ -675,12 +689,12 @@ void TwsRequest::tick() {
     }
 
     if(send_buffer_len==0 && !done && writer_callback) {
-        // If the send buffer is empty and a callback is set, call it
+        // If the send buffer is empty and a callback is set, call it.
         writer_callback(*this, this->total_written - this->writer_callback_written_offset);
     }
 
     unsigned long elapsed = millis() - last_activity;
-    if(elapsed > 10000 && elapsed < 0x80000000) {
+    if(elapsed > TinyWebServer::IDLE_TIMEOUT_MS && elapsed < 0x80000000) {
         // No activity for 10 seconds, close the connection
         // (hacky workaround for stale values in millis)
         DEBUG_PRINTF("TWS client timeout, closing connection %d\n", connection_id);
