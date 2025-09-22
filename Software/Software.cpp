@@ -33,6 +33,10 @@
 #error You must select a target hardware!
 #endif
 
+#include "src/lib/TinyWebServer/TinyWebServer.h"
+
+extern TinyWebServer tinyWebServer;
+
 // The current software version, shown on webserver
 const char* version_number = "9.0.dev";
 
@@ -85,6 +89,9 @@ void connectivity_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
   // Init wifi
   init_WiFi();
+
+  xTaskCreateUniversal(tiny_web_server_loop, "TinyWebServer_loop", 6000, &tinyWebServer, TASK_CONNECTIVITY_PRIO, NULL,
+                       CONFIG_ASYNC_TCP_RUNNING_CORE);
 
   if (webserver_enabled) {
     init_webserver();

@@ -314,7 +314,7 @@ class MebBattery : public CanBattery {
   uint16_t predicted_power_dyn_standard_watt = 0;
   uint8_t predicted_time_dyn_standard_minutes = 0;
   uint8_t mux = 0;
-  uint16_t cellvoltages[160] = {0};
+  //uint16_t cellvoltages[160] = {0};
   uint16_t duration_discharge_power_watt = 0;
   uint16_t duration_charge_power_watt = 0;
   uint16_t maximum_voltage = 0;
