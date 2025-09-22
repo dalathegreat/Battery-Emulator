@@ -382,16 +382,16 @@ bool DigestAuth<HASH_CONTEXT, HASH_TYPE>::denyIfUnauthed(TwsRequest &request) {
 }
 
 template <typename HASH_CONTEXT, int HASH_TYPE>
-bool DigestAuth<HASH_CONTEXT, HASH_TYPE>::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
+int DigestAuth<HASH_CONTEXT, HASH_TYPE>::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
     // Handle post body if needed
     if(denyIfUnauthed(request)) {
-        return true;
+        return -1; // finished
     }
 
     if(nextPostBody) {
         return nextPostBody->handlePostBody(request, index, data, len);
     }
-    return true;
+    return -1; // finished
 }
 
 template <typename HASH_CONTEXT, int HASH_TYPE>
