@@ -50,6 +50,7 @@ const int TWS_WRITING_OUT = 8;
 typedef enum {
   TWS_HTTP_GET = 0x1,
   TWS_HTTP_POST = 0x2,
+  TWS_HTTP_OPTIONS = 0x4,
 } TwsMethod;
 
 class TwsRequest;
@@ -183,7 +184,8 @@ protected:
 
 class TwsPostBodyHandler {
 public:
-    virtual bool handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) = 0;
+    // Returns number of bytes consumed, or -1 if the POST body is complete
+    virtual int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) = 0;
 };
 
 class TwsHeaderHandler {
@@ -331,7 +333,7 @@ public:
         handler->onHeader = this;
     }
 
-    bool handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override {
+    int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override {
         auto &state = get_state(request);
         if(!state.post_body) {
             state.post_body = std::make_shared<PostBody>(state.content_length);
@@ -346,9 +348,9 @@ public:
             if(handleFullPostBody) {
                 handleFullPostBody(request, state.post_body->data, state.content_length);
             }
-            return true; // Indicate that the upload is complete
+            return -1; // Indicate that the upload is complete
         }
-        return false;
+        return len;
     }
     void handleHeader(TwsRequest &request, const char *line, int len) override {
         auto &state = get_state(request);
@@ -417,6 +419,8 @@ public:
     static const int ACTIVE_POLL_TIME_MS = 10;
     // How long to block polling when there are no requests active.
     static const int IDLE_POLL_TIME_MS = 1000;
+    // How long before an idle connection is closed.
+    static const int IDLE_TIMEOUT_MS = 10000;
 
 protected:
     uint16_t _port;
@@ -507,7 +511,7 @@ typedef struct {
 class MultipartUploadHandler : public TwsPostBodyHandler, public TwsHeaderHandler, public TwsStatefulHandler<MultipartUploadHandlerState> {
 public:
     MultipartUploadHandler(TwsHandler *handler, TwsFileUploadHandler *onUpload);
-    bool handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
+    int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
     void handleHeader(TwsRequest &request, const char *line, int len) override;
 
     TwsFileUploadHandler *onUpload = nullptr;
@@ -529,7 +533,7 @@ public:
 
     bool denyIfUnauthed(TwsRequest &request);
 
-    bool handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
+    int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
 
     void handleRequest(TwsRequest &request) override;
 
@@ -576,18 +580,22 @@ public:
 };
 
 typedef struct {
+    int content_length;
     bool error = false;
 } EOtaUploadState;
 
-class EOtaUpload : public TwsRequestHandler, public TwsFileUploadHandler, public TwsStatefulHandler<EOtaUploadState> {
+class EOtaUpload : public TwsRequestHandler, public TwsPostBodyHandler, public TwsHeaderHandler, public TwsStatefulHandler<EOtaUploadState> {
 public:
     EOtaUpload(TwsHandler *handler);
 
     void handleRequest(TwsRequest &request) override;
-    void handleUpload(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final) override;
+//    void handleUpload(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final) override;
+    void handleHeader(TwsRequest &request, const char *line, int len) override;
+    int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
 
-    MultipartUploadHandler multipart_handler;
+//    MultipartUploadHandler multipart_handler;
     TwsRequestHandler *nextRequest = nullptr;
+    TwsHeaderHandler *nextHeader = nullptr;
 };
 
 
@@ -696,7 +704,7 @@ public:
     void handleHeader(TwsRequest &request, const char *line, int len) override;
     int handlePartialHeader(TwsRequest &request, const char *line, int len, bool final) override;
     bool denyIfUnauthed(TwsRequest &request);
-    bool handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
+    int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
     void handleRequest(TwsRequest &request) override;
 
     TwsPostBodyHandler *nextPostBody = nullptr;
@@ -712,5 +720,34 @@ public:
 //static constexpr char *MD5 = "MD5";
 using Md5DigestAuth = DigestAuth<Md5Hash, 0>;
 using Sha256DigestAuth = DigestAuth<Sha256Hash, 1>;
+
+
+
+
+
+typedef struct {
+    uint32_t content_length;
+    uint32_t can_interface;
+    uint32_t start_millis;
+    //bool error = false;
+    // Buffer incomplete lines
+    //char buf[128];
+} CanSenderState;
+
+class CanSender : public TwsQueryParamHandler, public TwsHeaderHandler, public TwsPostBodyHandler, public TwsStatefulHandler<CanSenderState> {
+public:
+    CanSender(TwsHandler *handler);
+
+    //void handleRequest(TwsRequest &request) override;
+    //void handleUpload(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final) override;
+    void handleHeader(TwsRequest &request, const char *line, int len) override;
+    void handleQueryParam(TwsRequest &request, const char *param, int len, bool final) override;
+    int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
+};
+
+
+
+
+
 
 #endif // TINY_WEB_SERVER_H

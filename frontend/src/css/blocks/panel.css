@@ -33,7 +33,5 @@
     margin-right: 0.6rem;
 }
 
-.panel h3[data-status="warn"]:before {
-    background: #e5a700;
-    box-shadow: 0 0 4px #e5a700aa;
-}
+.panel h3[data-status="warn"]:before { background: #bf7c13; box-shadow: 0 0 4px #bf7c13aa; }
+.panel h3[data-status="error"]:before { background: #b50909; box-shadow: 0 0 4px #b50909aa; }

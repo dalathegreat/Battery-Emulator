@@ -36,16 +36,16 @@ bool BasicAuth::denyIfUnauthed(TwsRequest &request) {
     return false;
 }
 
-bool BasicAuth::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
+int BasicAuth::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
     // Handle post body if needed
     if(denyIfUnauthed(request)) {
-        return true;
+        return -1; // finished
     }
 
     if(nextPostBody) {
         return nextPostBody->handlePostBody(request, index, data, len);
     }
-    return true;
+    return -1; // finished
 }
 
 void BasicAuth::handleRequest(TwsRequest &request) {

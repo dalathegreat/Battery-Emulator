@@ -2,6 +2,7 @@
 
 
 import { CanLog } from './can_log.tsx'
+import { CanSender } from './can_sender.tsx'
 import { CellMonitor } from './cellmonitor.tsx'
 import { Dashboard } from './dashboard.tsx'
 import { Events } from './events.tsx'
@@ -31,6 +32,7 @@ export function App() {
             <Link href="/extended">Extended info</Link>
             <Link href="/settings">Settings</Link>
             <Link href="/canlog">CAN log</Link>
+            <Link href="/cansender">CAN sender</Link>
             <Link href="/log">System Log</Link>
             <Link href="/ota">OTA upgrade</Link>
             <a href="#" class="button" style="margin: auto 0 0.75rem; background-color: #bf7c13; color: #ffffff;">Pause</a>
@@ -39,6 +41,7 @@ export function App() {
         </div>
         <div class="content">
           { location==="/canlog" && <CanLog /> }
+          { location==="/cansender" && <CanSender /> }
           { location==="/cellmonitor" && <CellMonitor /> }
           { location==="/events" && <Events /> }
           { location==="/extended" && <Extended /> }
