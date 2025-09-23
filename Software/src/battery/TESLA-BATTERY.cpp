@@ -2601,7 +2601,7 @@ void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
   //0x7FF GTW CAN frame values
   //Mux1
   write_signal_value(&TESLA_7FF_Mux1, 16, 16, user_selected_tesla_GTW_country, false);
-  write_signal_value(&TESLA_7FF_Mux1, 11, 1, user_selected_tesla_GTW_country, false);
+  write_signal_value(&TESLA_7FF_Mux1, 11, 1, user_selected_tesla_GTW_rightHandDrive, false);
   //Mux3
   write_signal_value(&TESLA_7FF_Mux3, 8, 4, user_selected_tesla_GTW_mapRegion, false);
   write_signal_value(&TESLA_7FF_Mux3, 18, 3, user_selected_tesla_GTW_chassisType, false);
