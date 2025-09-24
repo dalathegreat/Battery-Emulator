@@ -22,6 +22,10 @@ class FordMachEBattery : public CanBattery {
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
 
+  int16_t cell_temperature[6] = {0};
+  int16_t maximum_temperature = 0;
+  int16_t minimum_temperature = 0;
+
   CAN_frame TEST = {.FD = false,
                     .ext_ID = false,
                     .DLC = 8,

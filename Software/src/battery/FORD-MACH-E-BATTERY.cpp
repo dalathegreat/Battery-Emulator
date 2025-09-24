@@ -17,127 +17,131 @@ void FordMachEBattery::update_values() {
 
   datalayer.battery.status.remaining_capacity_Wh;
 
+  datalayer.battery.status.max_discharge_power_W;
+
+  datalayer.battery.status.max_charge_power_W;
+
   datalayer.battery.status.cell_max_voltage_mV;
 
   datalayer.battery.status.cell_min_voltage_mV;
 
-  datalayer.battery.status.temperature_min_dC;
+  // Initialize highest and lowest to the first element
+  maximum_temperature = cell_temperature[0];
+  minimum_temperature = cell_temperature[0];
 
-  datalayer.battery.status.temperature_max_dC;
+  // Iterate through the array to find the highest and lowest values
+  for (uint8_t i = 1; i < 6; ++i) {
+    if (cell_temperature[i] > maximum_temperature) {
+      maximum_temperature = cell_temperature[i];
+    }
+    if (cell_temperature[i] < minimum_temperature) {
+      minimum_temperature = cell_temperature[i];
+    }
+  }
+  datalayer.battery.status.temperature_min_dC = minimum_temperature * 10;
 
-  datalayer.battery.status.max_discharge_power_W;
-
-  datalayer.battery.status.max_charge_power_W;
+  datalayer.battery.status.temperature_max_dC = maximum_temperature * 10;
 }
 
 void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //These frames are transmitted by the battery
-    case 0x07a:
+    case 0x07a:           //10ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x07b:
+    case 0x07b:  //10ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x073:
+    case 0x073:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x24b:
+    case 0x24b:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x24c:
+    case 0x24c:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x24d:
+    case 0x24d:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x24e:
+    case 0x24e:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x24f:
+    case 0x24f:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x2e4:
+    case 0x2e4:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x444:
+    case 0x444:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x458:
+    case 0x458:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x47d:
+    case 0x47d:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x490:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
+    case 0x490:  //1s Cellvoltages
     case 0x491:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x492:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x493:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x494:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x495:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x496:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x497:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x498:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x499:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x49a:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x49b:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x49c:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x49d:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x49e:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x49f:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x4a0:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x4a1:
+    case 0x4a2: {
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+
+      // Calculate starting cell index: (CAN_ID - 0x490) * 5 (Ends at 0x4A2)
+      const uint8_t start_index = (rx_frame.ID - 0x490) * 5;
+
+      // Each CAN message contains 5 cellvoltages
+      for (uint8_t i = 0; i < 5; i++) {
+        const uint8_t byte_offset = i * 3;
+
+        if (i % 2 == 0) {
+          // Even indices: bytes 0,1 | 3,4 | 6,7
+          datalayer.battery.status.cell_voltages_mV[start_index + i] =
+              (rx_frame.data.u8[byte_offset] << 4) | (rx_frame.data.u8[byte_offset + 1] >> 4);
+        } else {
+          // Odd indices: bytes 1,2 | 4,5
+          datalayer.battery.status.cell_voltages_mV[start_index + i] =
+              ((rx_frame.data.u8[byte_offset] & 0x0F) << 8) | rx_frame.data.u8[byte_offset + 1];
+        }
+      }
+      break;
+    }
+    case 0x4a3:  //1s
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer.battery.status.cell_voltages_mV[95] = (rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4);
+      //Celltemperatures
+      cell_temperature[0] = ((rx_frame.data.u8[2] - 40) / 2);
+      cell_temperature[1] = ((rx_frame.data.u8[2] - 40) / 2);
+      cell_temperature[2] = ((rx_frame.data.u8[2] - 40) / 2);
+      cell_temperature[3] = ((rx_frame.data.u8[2] - 40) / 2);
+      cell_temperature[4] = ((rx_frame.data.u8[2] - 40) / 2);
+      cell_temperature[5] = ((rx_frame.data.u8[2] - 40) / 2);
+      break;
+    case 0x4a4:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x4a2:
+    case 0x4a5:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x4a3:
+    case 0x4a7:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x4a4:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x4a5:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x4a7:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x46f:
+    case 0x46f:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     default:
@@ -156,7 +160,7 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
 void FordMachEBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.number_of_cells = 108;  //TODO, how many cells do the battery have?
+  datalayer.battery.info.number_of_cells = 96;  //TODO, Are all mach-e batteries 96S?
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
