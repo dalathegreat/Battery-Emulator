@@ -996,18 +996,18 @@ void TeslaBattery::
   }
 
   printFaultCodesIfActive();
-  logging.printf("BMS Contactors State: ");
+  logging.printf("Contactor State: ");
   logging.printf(getBMSContactorState(battery_contactor));  // Display what state the BMS thinks the contactors are in
-  logging.printf(", HVIL: ");
+  logging.printf(" HVIL: ");
   logging.printf(getHvilStatusState(battery_hvil_status));
-  logging.printf(", NegativeState: ");
+  logging.printf(" NegState: ");
   logging.printf(getContactorState(battery_packContNegativeState));
-  logging.printf(", PositiveState: ");
+  logging.printf(" PosState: ");
   logging.println(getContactorState(battery_packContPositiveState));
-  logging.printf("HVP Contactors setState: ");
+  logging.printf("Cont. setState: ");
   logging.printf(
       getContactorText(battery_packContactorSetState));  // Display what state the HVP has set the contactors to be in
-  logging.printf(", Closing blocked: ");
+  logging.printf(" Closing blocked: ");
   logging.printf(getNoYes(battery_packCtrsClosingBlocked));
   if (battery_packContactorSetState == 5) {
     logging.printf(" (already CLOSED)");
@@ -1015,43 +1015,8 @@ void TeslaBattery::
   logging.printf(", Pyrotest: ");
   logging.println(getNoYes(battery_pyroTestInProgress));
 
-  logging.printf("Battery values: ");
-  logging.printf("Real SOC: ");
-  logging.print(battery_soc_ui / 10.0, 1);
-  logging.printf(", Battery voltage: ");
-  logging.print(battery_volts / 10.0, 1);
-  logging.printf("V");
-  logging.printf(", Battery HV current: ");
-  logging.print(battery_amps / 10.0, 1);
-  logging.printf("A");
-  logging.printf(", Fully charged?: ");
-  if (battery_full_charge_complete)
-    logging.printf("YES, ");
-  else
-    logging.printf("NO, ");
-  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
-    logging.printf("LFP chemistry detected!");
-  }
-  logging.println("");
-  logging.printf("Cellstats, Max: ");
-  logging.print(battery_cell_max_v);
-  logging.printf("mV (cell ");
-  logging.print(battery_BrickVoltageMaxNum);
-  logging.printf("), Min: ");
-  logging.print(battery_cell_min_v);
-  logging.printf("mV (cell ");
-  logging.print(battery_BrickVoltageMinNum);
-  logging.printf("), Imbalance: ");
-  logging.print(battery_cell_deviation_mV);
-  logging.println("mV.");
-
-  logging.printf("High Voltage Output Pins: %.2f V, Low Voltage: %.2f V, DC/DC 12V current: %.2f A.\n",
-                 (battery_dcdcHvBusVolt * 0.146484), (battery_dcdcLvBusVolt * 0.0390625),
-                 (battery_dcdcLvOutputCurrent * 0.1));
-
-  logging.printf("PCS_ambientTemp: %.2f°C, DCDC_Temp: %.2f°C, ChgPhA: %.2f°C, ChgPhB: %.2f°C, ChgPhC: %.2f°C.\n",
-                 PCS_ambientTemp * 0.1 + 40, PCS_dcdcTemp * 0.1 + 40, PCS_chgPhATemp * 0.1 + 40,
-                 PCS_chgPhBTemp * 0.1 + 40, PCS_chgPhCTemp * 0.1 + 40);
+  logging.printf("HV: %.2f V, 12V: %.2f V, 12V current: %.2f A.\n", (battery_dcdcHvBusVolt * 0.146484),
+                 (battery_dcdcLvBusVolt * 0.0390625), (battery_dcdcLvOutputCurrent * 0.1));
 }
 
 void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
