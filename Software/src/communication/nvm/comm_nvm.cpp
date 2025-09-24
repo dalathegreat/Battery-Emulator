@@ -172,6 +172,7 @@ void init_stored_settings() {
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
   mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();
+  webserver_auth = settings.getBool("AUTHREQUIRED", false);
 
   static_IP_enabled = settings.getBool("STATICIP", false);
   static_local_IP1 = settings.getUInt("LOCALIP1", 192);

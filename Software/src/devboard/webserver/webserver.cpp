@@ -23,8 +23,6 @@
 extern std::string http_username;
 extern std::string http_password;
 
-bool webserver_auth = false;
-
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
@@ -397,7 +395,7 @@ void init_webserver() {
       "DBLBTR",        "CNTCTRL",      "CNTCTRLDBL",  "PWMCNTCTRL",   "PERBMSRESET",  "SDLOGENABLED", "STATICIP",
       "REMBMSRESET",   "EXTPRECHARGE", "USBENABLED",  "CANLOGUSB",    "WEBENABLED",   "CANFDASCAN",   "CANLOGSD",
       "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",   "HADISC",       "MQTTTOPICS",   "MQTTCELLV",    "INVICNT",
-      "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED",
+      "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED", "AUTHREQUIRED",
   };
 
   // Handles the form POST from UI to save settings of the common image
@@ -506,6 +504,10 @@ void init_webserver() {
       } else if (p->name() == "SUBNET4") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("SUBNET4", type);
+      } else if (p->name() == "AUTHNAME") {
+        settings.saveString("AUTHNAME", p->value().c_str());
+      } else if (p->name() == "AUTHPASSWORD") {
+        settings.saveString("AUTHPASSWORD", p->value().c_str());
       } else if (p->name() == "APNAME") {
         settings.saveString("APNAME", p->value().c_str());
       } else if (p->name() == "APPASSWORD") {

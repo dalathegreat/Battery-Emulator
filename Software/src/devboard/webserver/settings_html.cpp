@@ -291,6 +291,18 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("CANFDASCAN") ? "checked" : "";
   }
 
+  if (var == "AUTHREQUIRED") {
+    return settings.getBool("AUTHREQUIRED", webserver_auth) ? "checked" : "";
+  }
+
+  if (var == "AUTHNAME") {
+    return settings.getString("AUTHNAME", "Admin");
+  }
+
+  if (var == "AUTHPASSWORD") {
+    return settings.getString("AUTHPASSWORD", "Password");
+  }
+
   if (var == "WIFIAPENABLED") {
     return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
   }
@@ -965,6 +977,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-authrequired { display: none; }
+    form[data-authrequired="true"] .if-authrequired {
+      display: contents;
+    }
+
     form .if-mqtt { display: none; }
     form[data-mqttenabled="true"] .if-mqtt {
       display: contents;
@@ -1222,6 +1239,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <h3>Connectivity settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
+        <label>Require auth to change settings: </label>
+        <input type='checkbox' name='AUTHREQUIRED' value='on' %AUTHREQUIRED% />
+
+        <div class='if-authrequired'>
+        <label>Auth username: </label>
+        <input type='text' name='AUTHNAME' value="%AUTHNAME%" />
+
+        <label>Auth password: </label>
+        <input type='text' name='AUTHPASSWORD' value="%AUTHPASSWORD%" />
+        </div>
+
         <label>Broadcast Wifi access point: </label>
         <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
 
@@ -1264,6 +1292,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           <input type="number" name="SUBNET3" min="0" max="255" size="3" value="%SUBNET3%">.
           <input type="number" name="SUBNET4" min="0" max="255" size="3" value="%SUBNET4%">
         </div>
+
         <div></div>
         </div>
 

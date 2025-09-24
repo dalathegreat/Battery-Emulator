@@ -10,6 +10,7 @@ extern uint16_t wifi_channel;
 extern std::string ssidAP;
 extern std::string passwordAP;
 extern std::string custom_hostname;
+extern bool webserver_auth;
 
 void init_WiFi();
 void wifi_monitor();

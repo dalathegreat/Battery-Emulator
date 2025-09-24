@@ -6,6 +6,7 @@
 bool wifi_enabled = true;
 bool wifiap_enabled = true;
 bool mdns_enabled = true;  //If true, allows battery monitor te be found by .local address
+bool webserver_auth = false;
 uint16_t wifi_channel = 0;
 
 std::string custom_hostname;  //If not set, the default naming format 'esp32-XXXXXX' will be used

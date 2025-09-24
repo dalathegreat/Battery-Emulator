@@ -6,6 +6,7 @@
 
 extern std::string ssid;
 extern std::string password;
+extern bool webserver_auth;
 
 #include "../../communication/nvm/comm_nvm.h"
 
