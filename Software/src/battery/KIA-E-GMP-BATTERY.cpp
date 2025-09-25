@@ -72,7 +72,7 @@ uint16_t KiaEGmpBattery::selectSOC(uint16_t SOC_low, uint16_t SOC_high) {
 
 void KiaEGmpBattery::set_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell) {
   for (size_t i = 0; i < length; i++) {
-    if ((rx_frame.data.u8[start + i] * 20) > 1800) {
+    if ((rx_frame.data.u8[start + i] * 20) > 2500) {
       datalayer.battery.status.cell_voltages_mV[startCell + i] = (rx_frame.data.u8[start + i] * 20);
     }
   }
