@@ -1029,10 +1029,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-estimated">
         <label>Manual charging power, watt: </label>
-        <input name='CHGPOWER' pattern="^[0-9]+$" type='text' value='%CHGPOWER%' />
+        <input type='number' name='CHGPOWER' value="%CHGPOWER%" 
+        min="0" max="65000" step="1"
+        title="Continous max charge power. Used since CAN data not valid for this integration. Do not set too high!" />
 
         <label>Manual discharge power, watt: </label>
-        <input name='DCHGPOWER' pattern="^[0-9]+$" type='text' value='%DCHGPOWER%' />
+        <input type='number' name='DCHGPOWER' value="%DCHGPOWER%" 
+        min="0" max="65000" step="1"
+        title="Continous max discharge power. Used since CAN data not valid for this integration. Do not set too high!" />
         </div>
 
         <div class="if-socestimated">
@@ -1163,10 +1167,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='CANFDASCAN' value='on' %CANFDASCAN% /> 
 
         <label>CAN addon crystal (Mhz): </label>
-        <input name='CANFREQ' type='text' value="%CANFREQ%" pattern="^[0-9]+$" />
+        <input type='number' name='CANFREQ' value="%CANFREQ%" 
+        min="0" max="1000" step="1"
+        title="Configure this if you are using a custom add-on CAN board. Integers only" />
 
         <label>CAN-FD-addon crystal (Mhz): </label>
-        <input name='CANFDFREQ' type='text' value="%CANFDFREQ%" pattern="^[0-9]+$" />
+        <input type='number' name='CANFDFREQ' value="%CANFDFREQ%" 
+        min="0" max="1000" step="1"
+        title="Configure this if you are using a custom add-on CAN board. Integers only" />
         
         <label>Equipment stop button: </label><select name='EQSTOP'>
         %EQSTOP%  
@@ -1182,17 +1190,23 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-cntctrl">
             <label>Precharge time ms: </label>
-            <input name='PRECHGMS' type='text' value="%PRECHGMS%" pattern="^[0-9]+$" />
+            <input type='number' name='PRECHGMS' value="%PRECHGMS%" 
+            min="1" max="65000" step="1"
+            title="Time in milliseconds the precharge should be active" />
 
             <label>PWM contactor control: </label>
             <input type='checkbox' name='PWMCNTCTRL' value='on' %PWMCNTCTRL% />
 
              <div class="if-pwmcntctrl">
             <label>PWM Frequency Hz: </label>
-            <input name='PWMFREQ' type='text' value="%PWMFREQ%" pattern="^[0-9]+$" />
+            <input name='PWMFREQ' type='text' value="%PWMFREQ%"             
+            min="1" max="65000" step="1"
+            title="Frequency in Hz used for PWM" />
 
-            <label>PWM Hold 0-1023: </label>
-            <input name='PWMHOLD' type='text' value="%PWMHOLD%" pattern="^[0-9]+$" />
+            <label>PWM Hold 1-1023: </label>
+            <input type='number' name='PWMHOLD' value="%PWMHOLD%" 
+            min="1" max="1023" step="1"
+            title="1-1023 , lower value = lower power consumption" />
               </div>
 
         </div>
@@ -1226,16 +1240,26 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
 
         <label>Access point name: </label>
-        <input type='text' name='APNAME' value="%APNAME%" />
+        <input type='text' name='APNAME' value="%APNAME%" 
+        pattern="[A-Za-z0-9!*]{8,63}" 
+        title="Name must be 8-63 characters long and contain only letters, numbers, ! and *"
+        required />
 
         <label>Access point password: </label>
-        <input type='text' name='APPASSWORD' value="%APPASSWORD%" />
+        <input type='text' name='APPASSWORD' value="%APPASSWORD%" 
+        pattern="[A-Za-z0-9!*]{8,63}" 
+        title="Password must be 8-63 characters long and contain only letters, numbers, ! and *"
+        required />
 
         <label>Wifi channel 0-14: </label>
-        <input name='WIFICHANNEL' type='text' value="%WIFICHANNEL%" pattern="^[0-9]+$" />
+        <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
+        min="0" max="14" step="1"
+        title="Force specific channel. Set to 0 for autodetect" required />
 
         <label>Custom Wifi hostname: </label>
-        <input type='text' name='HOSTNAME' value="%HOSTNAME%" />
+        <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
+        pattern="[A-Za-z0-9!*]" 
+        title="Optional: Hostname may only contain only letters, numbers, ! and *" />
 
         <label>Use static IP address: </label>
         <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
@@ -1271,11 +1295,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='MQTTENABLED' value='on' %MQTTENABLED% />
 
         <div class='if-mqtt'>
-        <label>MQTT server: </label><input type='text' name='MQTTSERVER' value="%MQTTSERVER%" />
-        <label>MQTT port: </label><input type='text' name='MQTTPORT' value="%MQTTPORT%" />
+        <label>MQTT server: </label>
+        <input type='text' name='MQTTSERVER' value="%MQTTSERVER%" 
+        pattern="^([A-Za-z0-9.-]+|)$"
+        title="Hostname (letters, numbers, dots, hyphens)" />
+        <label>MQTT port: </label>
+        <input type='number' name='MQTTPORT' value="%MQTTPORT%" 
+        min="1" max="65535" step="1"
+        title="Port number (1-65535)" />
         <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%" />
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" />
-        <label>MQTT timeout ms: </label><input name='MQTTTIMEOUT' type='text' value="%MQTTTIMEOUT%" pattern="^[0-9]+$" />
+        <label>MQTT timeout ms: </label>
+        <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
+        min="1" max="60000" step="1"
+        title="Timeout in milliseconds (1-60000)" />
         <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
         <label>Remote BMS reset via MQTT allowed: </label>
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
