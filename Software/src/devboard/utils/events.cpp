@@ -67,6 +67,9 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_UNDERVOLTAGE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_VALUE_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_ISOLATION].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_SOC_RECALIBRATION].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BATTERY_SOC_RESET_SUCCESS].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BATTERY_SOC_RESET_FAIL].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_VOLTAGE_DIFFERENCE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_SOH_DIFFERENCE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOH_LOW].level = EVENT_LEVEL_ERROR;
@@ -124,6 +127,8 @@ void init_events(void) {
   events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SD_INIT_FAILED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_PERIODIC_BMS_RESET].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BMS_RESET_REQ_SUCCESS].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BMS_RESET_REQ_FAIL].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_GPIO_CONFLICT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_GPIO_NOT_DEFINED].level = EVENT_LEVEL_ERROR;
@@ -244,6 +249,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Battery measurement unavailable. Check 12V power supply and battery wiring!";
     case EVENT_BATTERY_ISOLATION:
       return "Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
+    case EVENT_BATTERY_SOC_RECALIBRATION:
+      return "The BMS updated the HV battery State of Charge (SOC) by more than 3% based on SocByOcv.";
     case EVENT_VOLTAGE_DIFFERENCE:
       return "Too large voltage diff between the batteries. Second battery cannot join the DC-link";
     case EVENT_SOH_DIFFERENCE:
@@ -361,7 +368,11 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_SD_INIT_FAILED:
       return "SD card initialization failed, check hardware. Power must be removed to reset the SD card.";
     case EVENT_PERIODIC_BMS_RESET:
-      return "BMS Reset Event Completed.";
+      return "BMS reset event completed.";
+    case EVENT_BMS_RESET_REQ_SUCCESS:
+      return "BMS reset request completed successfully.";
+    case EVENT_BMS_RESET_REQ_FAIL:
+      return "BMS reset request failed - check contactors are open.";
     case EVENT_GPIO_CONFLICT:
       return "GPIO Pin Conflict: The pin used by '" + esp32hal->failed_allocator() + "' is already allocated by '" +
              esp32hal->conflicting_allocator() + "'. Please check your configuration and assign different pins.";
