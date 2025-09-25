@@ -1309,11 +1309,30 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Enable CAN message logging via USB serial: </label>
         <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB% />
 
+        <script> //Make sure user only uses one general logging method, improves performance
+        function handleCheckboxSelection(clickedCheckbox) { 
+            const usbCheckbox = document.querySelector('input[name="USBENABLED"]');
+            const webCheckbox = document.querySelector('input[name="WEBENABLED"]');
+            
+            if (clickedCheckbox.checked) {
+                // If the clicked checkbox is being checked, uncheck the other one
+                if (clickedCheckbox.name === 'USBENABLED') {
+                    webCheckbox.checked = false;
+                } else {
+                    usbCheckbox.checked = false;
+                }
+            }
+            // If unchecking, do nothing (allow both to be unchecked)
+        }
+        </script>
+
         <label>Enable general logging via USB serial: </label>
-        <input type='checkbox' name='USBENABLED' value='on' %USBENABLED% />
+        <input type='checkbox' name='USBENABLED' value='on' %USBENABLED% 
+              onclick="handleCheckboxSelection(this)" />
 
         <label>Enable general logging via Webserver: </label>
-        <input type='checkbox' name='WEBENABLED' value='on' %WEBENABLED% />
+        <input type='checkbox' name='WEBENABLED' value='on' %WEBENABLED% 
+              onclick="handleCheckboxSelection(this)" />
 
         <label>Enable CAN message logging via SD card: </label>
         <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% />

@@ -461,15 +461,14 @@ class TeslaBattery : public CanBattery {
       .DLC = 8,
       .ID = 0x610,
       .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  // Define initial UDS request
-
+  uint8_t index_1CF = 0;
+  uint8_t index_118 = 0;
   uint8_t stateMachineClearIsolationFault = 0xFF;
   uint8_t stateMachineBMSReset = 0xFF;
   uint8_t stateMachineSOCReset = 0xFF;
   uint8_t stateMachineBMSQuery = 0xFF;
-  uint16_t sendContactorClosingMessagesStill = 300;
   uint16_t battery_cell_max_v = 3300;
   uint16_t battery_cell_min_v = 3300;
-  uint16_t battery_cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
   bool cellvoltagesRead = false;
   //0x3d2: 978 BMS_kwhCounter
   uint32_t battery_total_discharge = 0;
