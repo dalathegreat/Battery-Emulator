@@ -484,10 +484,12 @@ void TeslaBattery::
     clear_event(EVENT_BATTERY_FUSE);
   }
   // Raise any informational Tesla BMS events in BE
-  if (BMS_a145_SW_SOC_Change == true) {  // BMS has recalibrated pack SOC
+  if (BMS_a145_SW_SOC_Change == true && !BMS_SW_SOC_Change_Latch) {  // BMS has newly recalibrated pack SOC
+    BMS_SW_SOC_Change_Latch = true;  // Only set event once, BMS_a145 can be active for a while
     set_event(EVENT_BATTERY_SOC_RECALIBRATION, 0);
-  } else {
     clear_event(EVENT_BATTERY_SOC_RECALIBRATION);
+  } else if (BMS_a145_SW_SOC_Change == false) {
+    BMS_SW_SOC_Change_Latch = false;
   }
 
   if (user_selected_tesla_GTW_chassisType > 1) {  //{{0, "Model S"}, {1, "Model X"}, {2, "Model 3"}, {3, "Model Y"}};
