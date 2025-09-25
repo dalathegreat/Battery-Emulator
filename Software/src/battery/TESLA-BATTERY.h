@@ -461,7 +461,8 @@ class TeslaBattery : public CanBattery {
       .DLC = 8,
       .ID = 0x610,
       .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  // Define initial UDS request
-
+  uint8_t index_1CF = 0;
+  uint8_t index_118 = 0;
   uint8_t stateMachineClearIsolationFault = 0xFF;
   uint8_t stateMachineBMSReset = 0xFF;
   uint8_t stateMachineSOCReset = 0xFF;

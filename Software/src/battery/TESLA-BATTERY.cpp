@@ -1870,7 +1870,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           stateMachineBMSQuery = 1;
           break;
         }
-        if (memcmp(&rx_frame.data.u8[0], "\x10", 1) == 0) {
+        if (rx_frame.data.u8[0] == 0x10) {
           //Received first data frame
           battery_partNumber[0] = rx_frame.data.u8[5];
           battery_partNumber[1] = rx_frame.data.u8[6];
@@ -1879,7 +1879,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           stateMachineBMSQuery = 2;
           break;
         }
-        if (memcmp(&rx_frame.data.u8[0], "\x21", 1) == 0) {
+        if (rx_frame.data.u8[0] == 0x21) {
           //Second part of part number after flow control
           battery_partNumber[3] = rx_frame.data.u8[1];
           battery_partNumber[4] = rx_frame.data.u8[2];
@@ -1891,7 +1891,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           logging.println("CAN UDS: Received BMS query second data frame");
           break;
         }
-        if (memcmp(&rx_frame.data.u8[0], "\x22", 1) == 0) {
+        if (rx_frame.data.u8[0] == 0x22) {
           //Final part of part number
           battery_partNumber[10] = rx_frame.data.u8[1];
           battery_partNumber[11] = rx_frame.data.u8[2];
@@ -1950,41 +1950,26 @@ CAN_frame can_msg_118[] = {
     {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x6F, 0x8E, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
     {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x70, 0x8F, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}}};
 
-unsigned long lastSend1CF = 0;
-unsigned long lastSend118 = 0;
-
-int index_1CF = 0;
-int index_118 = 0;
-
 void TeslaBattery::transmit_can(unsigned long currentMillis) {
-
-  if (user_selected_tesla_digital_HVIL) {  //Special S/X? mode for 2024+ batteries
-    if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
-      if (currentMillis - lastSend1CF >= 10) {
-        transmit_can_frame(&can_msg_1CF[index_1CF]);
-
-        index_1CF = (index_1CF + 1) % 8;
-        lastSend1CF = currentMillis;
-      }
-
-      if (currentMillis - lastSend118 >= 10) {
-        transmit_can_frame(&can_msg_118[index_118]);
-
-        index_118 = (index_118 + 1) % 16;
-        lastSend118 = currentMillis;
-      }
-    } else {
-      index_1CF = 0;
-      index_118 = 0;
-    }
-  }
 
   //Send 10ms messages
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
-    //0x118 DI_systemStatus
-    transmit_can_frame(&TESLA_118);
+    if (user_selected_tesla_digital_HVIL) {  //Special Digital HVIL mode for S/X 2024+ batteries
+      if ((datalayer.system.status.inverter_allows_contactor_closing) &&
+          (datalayer.battery.status.bms_status != FAULT)) {
+        transmit_can_frame(&can_msg_1CF[index_1CF]);
+        index_1CF = (index_1CF + 1) % 8;
+        transmit_can_frame(&can_msg_118[index_118]);
+        index_118 = (index_118 + 1) % 16;
+      }
+    } else {  //Normal handling of 118 message (Non digital HVIL version)
+      //0x118 DI_systemStatus
+      transmit_can_frame(&TESLA_118);
+      index_1CF = 0;  //Stop broadcasting Digital HVIL 1CF and 118 to keep contactors open
+      index_118 = 0;
+    }
 
     //0x2E1 VCFRONT_status
     switch (muxNumber_TESLA_2E1) {
