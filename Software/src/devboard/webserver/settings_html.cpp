@@ -981,6 +981,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define SETTINGS_HTML_BODY \
   R"rawliteral(
   <button onclick='goToMainPage()'>Back to main page</button>
+  <button onclick="askFactoryReset()">Factory reset</button>
 
 <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
     <h4 style='color: white;'>SSID: <span id='SSID'>%SSID%</span><button onclick='editSSID()'>Edit</button></h4>
@@ -1248,14 +1249,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Access point name: </label>
         <input type='text' name='APNAME' value="%APNAME%" 
-        pattern="[A-Za-z0-9!#$&'()*+-/:;<=>?@[]^_{|}~]{8,63}" 
-        title="Name must be 8-63 characters long and may only contain letters, numbers and some special characters: !#$&'()*+-/:;<=>?@[]^_{|}~"
+        pattern="[A-Za-z0-9!#*]{8,63}" 
+        title="Name must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*"
         required />
 
         <label>Access point password: </label>
         <input type='text' name='APPASSWORD' value="%APPASSWORD%" 
-        pattern="[A-Za-z0-9!#$&'()*+-/:;<=>?@[]^_{|}~]{8,63}" 
-        title="Password must be 8-63 characters long and may only contain letters, numbers and some special characters: !#$&'()*+-/:;<=>?@[]^_{|}~"
+        pattern="[A-Za-z0-9!#*]{8,63}" 
+        title="Password must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*"
         required />
 
         <label>Wifi channel 0-14: </label>
@@ -1311,11 +1312,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         min="1" max="65535" step="1"
         title="Port number (1-65535)" />
         <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
-        pattern="[A-Za-z0-9!#$&'()*+-/:;<=>?@[]^_{|}~]" 
-        title="MQTT username can only contain letters, numbers and some special characters: !#$&'()*+-/:;<=>?@[]^_{|}~" />
+        pattern="[A-Za-z0-9!#*]" 
+        title="MQTT username can only contain letters, numbers and some special characters: !#*" />
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" 
-        pattern="[A-Za-z0-9!#$&'()*+-/:;<=>?@[]^_{|}~]" 
-        title="MQTT password can only contain letters, numbers and some special characters: !#$&'()*+-/:;<=>?@[]^_{|}~" />
+        pattern="[A-Za-z0-9!#*]" 
+        title="MQTT password can only contain letters, numbers and some special characters: !#*" />
         <label>MQTT timeout ms: </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
         min="1" max="60000" step="1"
@@ -1479,8 +1480,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       <h4 style='color: white;'><span>Charger Current Setpoint: %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
 
       </div>
-
-      <button onclick="askFactoryReset()">Factory reset</button>
     
   </div>
 
