@@ -750,7 +750,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     function editError(){alert('Invalid input');}
 
-        function editSSID(){var value=prompt('Enter new SSID:');if(value!==null){var xhr=new 
+        function editSSID(){var value=prompt('Which SSID to connect to. Enter new SSID:');if(value!==null){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSSID?value='+encodeURIComponent(value),true);xhr.send();}}
         
         function editPassword(){var value=prompt('Enter new password:');if(value!==null){var xhr=new 
@@ -1041,7 +1041,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-socestimated">
         <label>Use estimated SOC: </label>
-        <input type='checkbox' name='SOCESTIMATED' value='on' %SOCESTIMATED% />
+        <input type='checkbox' name='SOCESTIMATED' value='on' %SOCESTIMATED% 
+        title="Switch to estimated State of Charge when accurate SOC data is not available from the battery" />
         </div>
 
         <div class="if-battery">
@@ -1056,20 +1057,25 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-cbms">
         <label>Battery max design voltage (V): </label>
-        <input name='BATTPVMAX' pattern="^[0-9]+(\.[0-9]+)?$" type='text' value='%BATTPVMAX%' />
+        <input name='BATTPVMAX' pattern="^[0-9]+(\.[0-9]+)?$" type='text' value='%BATTPVMAX%'   
+        title="Maximum safe voltage for the entire battery pack in volts. Used as charge target and protection limits." />
 
         <label>Battery min design voltage (V): </label>
-        <input name='BATTPVMIN' pattern="^[0-9]+(\.[0-9]+)?$" type='text' value='%BATTPVMIN%' />
+        <input name='BATTPVMIN' pattern="^[0-9]+(\.[0-9]+)?$" type='text' value='%BATTPVMIN%' 
+        title="Minimum safe voltage for the entire battery pack in volts. Further discharge not possible below this limit." />
 
         <label>Cell max design voltage (mV): </label>
-        <input name='BATTCVMAX' pattern="^[0-9]+$" type='text' value='%BATTCVMAX%' />
+        <input name='BATTCVMAX' pattern="^[0-9]+$" type='text' value='%BATTCVMAX%' 
+        title="Maximum voltage per individual cell in millivolts. Charging stops if one cell reaches this voltage." />
 
         <label>Cell min design voltage (mV): </label>
-        <input name='BATTCVMIN' pattern="^[0-9]+$" type='text' value='%BATTCVMIN%' />
+        <input name='BATTCVMIN' pattern="^[0-9]+$" type='text' value='%BATTCVMIN%' 
+        title="Minimum voltage per individual cell in millivolts. Discharge stops if one cell drops to this voltage." />
         </div>
 
         <label>Double battery: </label>
-        <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% />
+        <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% 
+        title="Enable this option if you intend to run two batteries in parallel" />
 
         <div class="if-dblbtr">
             <label>Battery 2 interface: </label>
@@ -1164,7 +1170,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Use CanFD as classic CAN: </label>
-        <input type='checkbox' name='CANFDASCAN' value='on' %CANFDASCAN% /> 
+        <input type='checkbox' name='CANFDASCAN' value='on' %CANFDASCAN% 
+        title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
 
         <label>CAN addon crystal (Mhz): </label>
         <input type='number' name='CANFREQ' value="%CANFREQ%" 
