@@ -1248,14 +1248,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Access point name: </label>
         <input type='text' name='APNAME' value="%APNAME%" 
-        pattern="[A-Za-z0-9!*]{8,63}" 
-        title="Name must be 8-63 characters long and contain only letters, numbers, ! and *"
+        pattern="[A-Za-z0-9!#$&'()*+-/:;<=>?@[]^_{|}~]{8,63}" 
+        title="Name must be 8-63 characters long and may only contain letters, numbers and some special characters: !#$&'()*+-/:;<=>?@[]^_{|}~"
         required />
 
         <label>Access point password: </label>
         <input type='text' name='APPASSWORD' value="%APPASSWORD%" 
-        pattern="[A-Za-z0-9!*]{8,63}" 
-        title="Password must be 8-63 characters long and contain only letters, numbers, ! and *"
+        pattern="[A-Za-z0-9!#$&'()*+-/:;<=>?@[]^_{|}~]{8,63}" 
+        title="Password must be 8-63 characters long and may only contain letters, numbers and some special characters: !#$&'()*+-/:;<=>?@[]^_{|}~"
         required />
 
         <label>Wifi channel 0-14: </label>
@@ -1304,14 +1304,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class='if-mqtt'>
         <label>MQTT server: </label>
         <input type='text' name='MQTTSERVER' value="%MQTTSERVER%" 
-        pattern="^([A-Za-z0-9.-]+|)$"
+        pattern="^([A-Za-z0-9.-]+|)/$"
         title="Hostname (letters, numbers, dots, hyphens)" />
         <label>MQTT port: </label>
         <input type='number' name='MQTTPORT' value="%MQTTPORT%" 
         min="1" max="65535" step="1"
         title="Port number (1-65535)" />
-        <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%" />
-        <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" />
+        <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
+        pattern="[A-Za-z0-9!#$&'()*+-/:;<=>?@[]^_{|}~]" 
+        title="MQTT username can only contain letters, numbers and some special characters: !#$&'()*+-/:;<=>?@[]^_{|}~" />
+        <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" 
+        pattern="[A-Za-z0-9!#$&'()*+-/:;<=>?@[]^_{|}~]" 
+        title="MQTT password can only contain letters, numbers and some special characters: !#$&'()*+-/:;<=>?@[]^_{|}~" />
         <label>MQTT timeout ms: </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
         min="1" max="60000" step="1"
@@ -1344,11 +1348,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Enable performance profiling on main page: </label>
-        <input type='checkbox' name='PERFPROFILE' value='on' %PERFPROFILE% />
+        <input type='checkbox' name='PERFPROFILE' value='on' %PERFPROFILE%          
+              title="For developers. Enable this to get detailed performance metrics on the front page" />
 
         <label>Enable CAN message logging via USB serial: </label>
-        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB% />
-
+        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%  
+              title="WARNING: Causes performance issues. Enable this to get incoming/outgoing CAN messages logged via USB cable. Avoid if possible" />
         <script> //Make sure user only uses one general logging method, improves performance
         function handleCheckboxSelection(clickedCheckbox) { 
             const usbCheckbox = document.querySelector('input[name="USBENABLED"]');
@@ -1368,17 +1373,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Enable general logging via USB serial: </label>
         <input type='checkbox' name='USBENABLED' value='on' %USBENABLED% 
-              onclick="handleCheckboxSelection(this)" />
+              onclick="handleCheckboxSelection(this)" 
+              title="WARNING: Causes performance issues. Enable this to get general logging via USB cable. Avoid if possible" />
 
         <label>Enable general logging via Webserver: </label>
         <input type='checkbox' name='WEBENABLED' value='on' %WEBENABLED% 
-              onclick="handleCheckboxSelection(this)" />
+              onclick="handleCheckboxSelection(this)"         
+              title="Enable this if you want general logging available in the Webserver" />
 
         <label>Enable CAN message logging via SD card: </label>
-        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% />
+        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% 
+        title="Enable this if you want incoming/outgoing CAN messages to be stored to an SD card. Only works on select hardware with SD-card slot" />
 
         <label>Enable general logging via SD card: </label>
-        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% />
+        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% 
+        title="Enable this if you want general logging to be stored to an SD card. Only works on select hardware with SD-card slot" />
 
         </div>
          </div>
