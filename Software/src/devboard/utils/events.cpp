@@ -251,6 +251,10 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
     case EVENT_BATTERY_SOC_RECALIBRATION:
       return "The BMS updated the HV battery State of Charge (SOC) by more than 3% based on SocByOcv.";
+    case EVENT_BATTERY_SOC_RESET_SUCCESS:
+      return "SOC reset routine was successful.";
+    case EVENT_BATTERY_SOC_RESET_FAIL:
+      return "SOC reset routine failed - check SOC is < 15 or > 90, and contactors are open.";
     case EVENT_VOLTAGE_DIFFERENCE:
       return "Too large voltage diff between the batteries. Second battery cannot join the DC-link";
     case EVENT_SOH_DIFFERENCE:
