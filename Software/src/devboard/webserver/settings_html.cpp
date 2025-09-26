@@ -750,7 +750,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     function editError(){alert('Invalid input');}
 
-        function editSSID(){var value=prompt('Enter new SSID:');if(value!==null){var xhr=new 
+        function editSSID(){var value=prompt('Which SSID to connect to. Enter new SSID:');if(value!==null){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSSID?value='+encodeURIComponent(value),true);xhr.send();}}
         
         function editPassword(){var value=prompt('Enter new password:');if(value!==null){var xhr=new 
@@ -981,6 +981,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define SETTINGS_HTML_BODY \
   R"rawliteral(
   <button onclick='goToMainPage()'>Back to main page</button>
+  <button onclick="askFactoryReset()">Factory reset</button>
 
 <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
     <h4 style='color: white;'>SSID: <span id='SSID'>%SSID%</span><button onclick='editSSID()'>Edit</button></h4>
@@ -1029,15 +1030,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-estimated">
         <label>Manual charging power, watt: </label>
-        <input name='CHGPOWER' pattern="^[0-9]+$" type='text' value='%CHGPOWER%' />
+        <input type='number' name='CHGPOWER' value="%CHGPOWER%" 
+        min="0" max="65000" step="1"
+        title="Continous max charge power. Used since CAN data not valid for this integration. Do not set too high!" />
 
         <label>Manual discharge power, watt: </label>
-        <input name='DCHGPOWER' pattern="^[0-9]+$" type='text' value='%DCHGPOWER%' />
+        <input type='number' name='DCHGPOWER' value="%DCHGPOWER%" 
+        min="0" max="65000" step="1"
+        title="Continous max discharge power. Used since CAN data not valid for this integration. Do not set too high!" />
         </div>
 
         <div class="if-socestimated">
         <label>Use estimated SOC: </label>
-        <input type='checkbox' name='SOCESTIMATED' value='on' %SOCESTIMATED% />
+        <input type='checkbox' name='SOCESTIMATED' value='on' %SOCESTIMATED% 
+        title="Switch to estimated State of Charge when accurate SOC data is not available from the battery" />
         </div>
 
         <div class="if-battery">
@@ -1052,20 +1058,25 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-cbms">
         <label>Battery max design voltage (V): </label>
-        <input name='BATTPVMAX' pattern="^[0-9]+(\.[0-9]+)?$" type='text' value='%BATTPVMAX%' />
+        <input name='BATTPVMAX' pattern="^[0-9]+(\.[0-9]+)?$" type='text' value='%BATTPVMAX%'   
+        title="Maximum safe voltage for the entire battery pack in volts. Used as charge target and protection limits." />
 
         <label>Battery min design voltage (V): </label>
-        <input name='BATTPVMIN' pattern="^[0-9]+(\.[0-9]+)?$" type='text' value='%BATTPVMIN%' />
+        <input name='BATTPVMIN' pattern="^[0-9]+(\.[0-9]+)?$" type='text' value='%BATTPVMIN%' 
+        title="Minimum safe voltage for the entire battery pack in volts. Further discharge not possible below this limit." />
 
         <label>Cell max design voltage (mV): </label>
-        <input name='BATTCVMAX' pattern="^[0-9]+$" type='text' value='%BATTCVMAX%' />
+        <input name='BATTCVMAX' pattern="^[0-9]+$" type='text' value='%BATTCVMAX%' 
+        title="Maximum voltage per individual cell in millivolts. Charging stops if one cell reaches this voltage." />
 
         <label>Cell min design voltage (mV): </label>
-        <input name='BATTCVMIN' pattern="^[0-9]+$" type='text' value='%BATTCVMIN%' />
+        <input name='BATTCVMIN' pattern="^[0-9]+$" type='text' value='%BATTCVMIN%' 
+        title="Minimum voltage per individual cell in millivolts. Discharge stops if one cell drops to this voltage." />
         </div>
 
         <label>Double battery: </label>
-        <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% />
+        <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% 
+        title="Enable this option if you intend to run two batteries in parallel" />
 
         <div class="if-dblbtr">
             <label>Battery 2 interface: </label>
@@ -1160,13 +1171,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Use CanFD as classic CAN: </label>
-        <input type='checkbox' name='CANFDASCAN' value='on' %CANFDASCAN% /> 
+        <input type='checkbox' name='CANFDASCAN' value='on' %CANFDASCAN% 
+        title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
 
         <label>CAN addon crystal (Mhz): </label>
-        <input name='CANFREQ' type='text' value="%CANFREQ%" pattern="^[0-9]+$" />
+        <input type='number' name='CANFREQ' value="%CANFREQ%" 
+        min="0" max="1000" step="1"
+        title="Configure this if you are using a custom add-on CAN board. Integers only" />
 
         <label>CAN-FD-addon crystal (Mhz): </label>
-        <input name='CANFDFREQ' type='text' value="%CANFDFREQ%" pattern="^[0-9]+$" />
+        <input type='number' name='CANFDFREQ' value="%CANFDFREQ%" 
+        min="0" max="1000" step="1"
+        title="Configure this if you are using a custom add-on CAN board. Integers only" />
         
         <label>Equipment stop button: </label><select name='EQSTOP'>
         %EQSTOP%  
@@ -1182,17 +1198,23 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-cntctrl">
             <label>Precharge time ms: </label>
-            <input name='PRECHGMS' type='text' value="%PRECHGMS%" pattern="^[0-9]+$" />
+            <input type='number' name='PRECHGMS' value="%PRECHGMS%" 
+            min="1" max="65000" step="1"
+            title="Time in milliseconds the precharge should be active" />
 
             <label>PWM contactor control: </label>
             <input type='checkbox' name='PWMCNTCTRL' value='on' %PWMCNTCTRL% />
 
              <div class="if-pwmcntctrl">
             <label>PWM Frequency Hz: </label>
-            <input name='PWMFREQ' type='text' value="%PWMFREQ%" pattern="^[0-9]+$" />
+            <input name='PWMFREQ' type='text' value="%PWMFREQ%"             
+            min="1" max="65000" step="1"
+            title="Frequency in Hz used for PWM" />
 
-            <label>PWM Hold 0-1023: </label>
-            <input name='PWMHOLD' type='text' value="%PWMHOLD%" pattern="^[0-9]+$" />
+            <label>PWM Hold 1-1023: </label>
+            <input type='number' name='PWMHOLD' value="%PWMHOLD%" 
+            min="1" max="1023" step="1"
+            title="1-1023 , lower value = lower power consumption" />
               </div>
 
         </div>
@@ -1226,16 +1248,26 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
 
         <label>Access point name: </label>
-        <input type='text' name='APNAME' value="%APNAME%" />
+        <input type='text' name='APNAME' value="%APNAME%" 
+        pattern="[A-Za-z0-9!#*]{8,63}" 
+        title="Name must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*"
+        required />
 
         <label>Access point password: </label>
-        <input type='text' name='APPASSWORD' value="%APPASSWORD%" />
+        <input type='text' name='APPASSWORD' value="%APPASSWORD%" 
+        pattern="[A-Za-z0-9!#*]{8,63}" 
+        title="Password must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*"
+        required />
 
         <label>Wifi channel 0-14: </label>
-        <input name='WIFICHANNEL' type='text' value="%WIFICHANNEL%" pattern="^[0-9]+$" />
+        <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
+        min="0" max="14" step="1"
+        title="Force specific channel. Set to 0 for autodetect" required />
 
         <label>Custom Wifi hostname: </label>
-        <input type='text' name='HOSTNAME' value="%HOSTNAME%" />
+        <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
+        pattern="[A-Za-z0-9!*]" 
+        title="Optional: Hostname may only contain only letters, numbers, ! and *" />
 
         <label>Use static IP address: </label>
         <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
@@ -1271,11 +1303,24 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='MQTTENABLED' value='on' %MQTTENABLED% />
 
         <div class='if-mqtt'>
-        <label>MQTT server: </label><input type='text' name='MQTTSERVER' value="%MQTTSERVER%" />
-        <label>MQTT port: </label><input type='text' name='MQTTPORT' value="%MQTTPORT%" />
-        <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%" />
-        <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" />
-        <label>MQTT timeout ms: </label><input name='MQTTTIMEOUT' type='text' value="%MQTTTIMEOUT%" pattern="^[0-9]+$" />
+        <label>MQTT server: </label>
+        <input type='text' name='MQTTSERVER' value="%MQTTSERVER%" 
+        pattern="^([A-Za-z0-9.-]+|)/$"
+        title="Hostname (letters, numbers, dots, hyphens)" />
+        <label>MQTT port: </label>
+        <input type='number' name='MQTTPORT' value="%MQTTPORT%" 
+        min="1" max="65535" step="1"
+        title="Port number (1-65535)" />
+        <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
+        pattern="[A-Za-z0-9!#*]" 
+        title="MQTT username can only contain letters, numbers and some special characters: !#*" />
+        <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" 
+        pattern="[A-Za-z0-9!#*]" 
+        title="MQTT password can only contain letters, numbers and some special characters: !#*" />
+        <label>MQTT timeout ms: </label>
+        <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
+        min="1" max="60000" step="1"
+        title="Timeout in milliseconds (1-60000)" />
         <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
         <label>Remote BMS reset via MQTT allowed: </label>
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
@@ -1304,11 +1349,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Enable performance profiling on main page: </label>
-        <input type='checkbox' name='PERFPROFILE' value='on' %PERFPROFILE% />
+        <input type='checkbox' name='PERFPROFILE' value='on' %PERFPROFILE%          
+              title="For developers. Enable this to get detailed performance metrics on the front page" />
 
         <label>Enable CAN message logging via USB serial: </label>
-        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB% />
-
+        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%  
+              title="WARNING: Causes performance issues. Enable this to get incoming/outgoing CAN messages logged via USB cable. Avoid if possible" />
         <script> //Make sure user only uses one general logging method, improves performance
         function handleCheckboxSelection(clickedCheckbox) { 
             const usbCheckbox = document.querySelector('input[name="USBENABLED"]');
@@ -1328,17 +1374,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Enable general logging via USB serial: </label>
         <input type='checkbox' name='USBENABLED' value='on' %USBENABLED% 
-              onclick="handleCheckboxSelection(this)" />
+              onclick="handleCheckboxSelection(this)" 
+              title="WARNING: Causes performance issues. Enable this to get general logging via USB cable. Avoid if possible" />
 
         <label>Enable general logging via Webserver: </label>
         <input type='checkbox' name='WEBENABLED' value='on' %WEBENABLED% 
-              onclick="handleCheckboxSelection(this)" />
+              onclick="handleCheckboxSelection(this)"         
+              title="Enable this if you want general logging available in the Webserver" />
 
         <label>Enable CAN message logging via SD card: </label>
-        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% />
+        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% 
+        title="Enable this if you want incoming/outgoing CAN messages to be stored to an SD card. Only works on select hardware with SD-card slot" />
 
         <label>Enable general logging via SD card: </label>
-        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% />
+        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% 
+        title="Enable this if you want general logging to be stored to an SD card. Only works on select hardware with SD-card slot" />
 
         </div>
          </div>
@@ -1430,8 +1480,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       <h4 style='color: white;'><span>Charger Current Setpoint: %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
 
       </div>
-
-      <button onclick="askFactoryReset()">Factory reset</button>
     
   </div>
 

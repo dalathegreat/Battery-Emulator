@@ -524,7 +524,8 @@ void init_webserver() {
       } else if (p->name() == "MQTTTOPIC") {
         settings.saveString("MQTTTOPIC", p->value().c_str());
       } else if (p->name() == "MQTTTIMEOUT") {
-        settings.saveString("MQTTTIMEOUT", p->value().c_str());
+        auto port = atoi(p->value().c_str());
+        settings.saveUInt("MQTTTIMEOUT", port);
       } else if (p->name() == "MQTTOBJIDPREFIX") {
         settings.saveString("MQTTOBJIDPREFIX", p->value().c_str());
       } else if (p->name() == "MQTTDEVICENAME") {
