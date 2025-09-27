@@ -1254,7 +1254,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         required />
 
         <label>Access point password: </label>
-        <input type='text' name='APPASSWORD' value="%APPASSWORD%" 
+        <label>MQTT password: </label><input type='password' name='APPASSWORD' value="%APPASSWORD%" 
         pattern="[A-Za-z0-9!#*]{8,63}" 
         title="Password must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*"
         required />
@@ -1312,10 +1312,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         min="1" max="65535" step="1"
         title="Port number (1-65535)" />
         <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
-        pattern="[A-Za-z0-9!#*]" 
+        pattern="[A-Za-z0-9!#*]{0,63}" 
         title="MQTT username can only contain letters, numbers and some special characters: !#*" />
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" 
-        pattern="[A-Za-z0-9!#*]" 
+        pattern="[A-Za-z0-9!#*]{0,63}" 
         title="MQTT password can only contain letters, numbers and some special characters: !#*" />
         <label>MQTT timeout ms: </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
