@@ -1253,8 +1253,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Name must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*"
         required />
 
-        <label>Access point password: </label>
-        <label>MQTT password: </label><input type='password' name='APPASSWORD' value="%APPASSWORD%" 
+        <label>Access point password: </label><input type='password' name='APPASSWORD' value="%APPASSWORD%" 
         pattern="[A-Za-z0-9!#*]{8,63}" 
         title="Password must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*"
         required />
