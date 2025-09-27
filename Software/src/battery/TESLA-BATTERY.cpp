@@ -483,11 +483,24 @@ void TeslaBattery::
   } else {
     clear_event(EVENT_BATTERY_FUSE);
   }
+  // Raise any Tesla BMS events in BE
+  // Events: Informational
+  if (BMS_a145_SW_SOC_Change) {                             // BMS has newly recalibrated pack SOC
+    set_event_latched(EVENT_BATTERY_SOC_RECALIBRATION, 0);  // Latcched as BMS_a145 can be active for a while
+  } else if (!BMS_a145_SW_SOC_Change) {
+    clear_event(EVENT_BATTERY_SOC_RECALIBRATION);
+  }
+  // Events: Warning
+  if (BMS_contactorState == 5) {  // BMS has detected welded contactor(s)
+    set_event_latched(EVENT_CONTACTOR_WELDED, 0);
+  } else if (BMS_contactorState != 5) {
+    clear_event(EVENT_CONTACTOR_WELDED);
+  }
 
   if (user_selected_tesla_GTW_chassisType > 1) {  //{{0, "Model S"}, {1, "Model X"}, {2, "Model 3"}, {3, "Model Y"}};
-    // Autodetect algoritm for chemistry on 3/Y packs.
+    // Autodetect algorithm for chemistry on 3/Y packs.
     // NCM/A batteries have 96s, LFP has 102-108s
-    // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
+    // Drawback with this check is that it takes 3-5 minutes before all cells have been counted!
     if (datalayer.battery.info.number_of_cells > 101) {
       datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
     }
@@ -528,23 +541,28 @@ void TeslaBattery::
       //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
       stateMachineBMSReset = 0;
       datalayer.battery.settings.user_requests_tesla_bms_reset = false;
-      logging.println("BMS reset requested");
+      logging.println("INFO: BMS reset requested");
     } else {
       logging.println("ERROR: BMS reset failed due to contactors not being open, or BMS ECU not allowing it");
       stateMachineBMSReset = 0xFF;
       datalayer.battery.settings.user_requests_tesla_bms_reset = false;
+      set_event(EVENT_BMS_RESET_REQ_FAIL, 0);
+      clear_event(EVENT_BMS_RESET_REQ_FAIL);
     }
   }
   if (datalayer.battery.settings.user_requests_tesla_soc_reset) {
-    if (datalayer.battery.status.real_soc < 1500 || datalayer.battery.status.real_soc > 9000) {
-      //Start the SOC reset statemachine, only if SOC < 15% or > 90%
+    if ((datalayer.battery.status.real_soc < 1500 || datalayer.battery.status.real_soc > 9000) &&
+        battery_contactor == 1) {
+      //Start the SOC reset statemachine, only if SOC less than 15% or greater than 90%, and contactors open
       stateMachineSOCReset = 0;
       datalayer.battery.settings.user_requests_tesla_soc_reset = false;
-      logging.println("SOC reset requested");
+      logging.println("INFO: SOC reset requested");
     } else {
-      logging.println("ERROR: SOC reset failed due to SOC not being less than 15 or greater than 90");
+      logging.println("ERROR: SOC reset failed, SOC not < 15 or > 90, or contactors not open");
       stateMachineSOCReset = 0xFF;
       datalayer.battery.settings.user_requests_tesla_soc_reset = false;
+      set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);
+      clear_event(EVENT_BATTERY_SOC_RESET_FAIL);
     }
   }
 
@@ -779,7 +797,7 @@ void TeslaBattery::
   datalayer_extended.tesla.HVP_shuntBarTempStatus = HVP_shuntBarTempStatus;
   datalayer_extended.tesla.HVP_shuntAsicTempStatus = HVP_shuntAsicTempStatus;
 
-  //Safety checks for CAN message sesnding
+  //Safety checks for CAN message sending
   if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
       (datalayer.battery.status.bms_status != FAULT) && (!datalayer.system.settings.equipment_stop_active)) {
     // Carry on: 0x221 DRIVE state & reset power down timer
@@ -1667,10 +1685,10 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       */
       break;
-    case 0x612:  // CAN UDSs for BMS
+    case 0x612:  // CAN UDS responses for BMS
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //BMS Query
-      if (stateMachineBMSQuery != 0xFF && stateMachineBMSReset == 0xFF) {
+      if (stateMachineBMSQuery != 0xFF && stateMachineBMSReset == 0xFF && stateMachineSOCReset == 0xFF) {
         if (memcmp(rx_frame.data.u8, "\x02\x50\x03\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
           //Received initial response, proceed to actual query
           logging.println("CAN UDS: Received BMS query initial handshake reply");
@@ -1713,15 +1731,28 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           break;
         }
       }
-      //BMS Reset
-      if (stateMachineBMSQuery == 0xFF) {  // Make sure this is reset request not query
-        if (memcmp(rx_frame.data.u8, "\x02\x67\x06\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
-          logging.println("CAN UDS: ECU unlocked");
-        } else if (memcmp(rx_frame.data.u8, "\x03\x7F\x11\x78\xAA\xAA\xAA\xAA", 8) == 0) {
-          logging.println("CAN UDS: ECU reset request successful but ECU busy, response pending");
-        } else if (memcmp(rx_frame.data.u8, "\x02\x51\x01\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
-          logging.println("CAN UDS: ECU reset positive response, 1 second downtime");
-        }
+      //BMS ECU responses
+      if (memcmp(rx_frame.data.u8, "\x02\x67\x06\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS: BMS ECU unlocked");
+      }
+      if (memcmp(rx_frame.data.u8, "\x03\x7F\x11\x78\xAA\xAA\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS: BMS ECU reset request successful but ECU busy, response pending");
+      }
+      if (memcmp(rx_frame.data.u8, "\x02\x51\x01\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS: BMS ECU reset positive response, 1 second downtime");
+        set_event(EVENT_BMS_RESET_REQ_SUCCESS, 0);
+        clear_event(EVENT_BMS_RESET_REQ_SUCCESS);
+      }
+      if (memcmp(rx_frame.data.u8, "\x05\x71\x01\x04\x07\x01\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS: BMS SOC reset accepted, resetting BMS ECU");
+        set_event(EVENT_BATTERY_SOC_RESET_SUCCESS, 0);
+        clear_event(EVENT_BATTERY_SOC_RESET_SUCCESS);
+        stateMachineBMSReset = 6;  // BMS ECU already unlocked etc. so we jump straight to reset
+      }
+      if (memcmp(rx_frame.data.u8, "\x05\x71\x01\x04\x07\x00\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS: BMS SOC reset failed");
+        set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);
+        clear_event(EVENT_BATTERY_SOC_RESET_FAIL);
       }
       break;
     default:
@@ -2308,7 +2339,7 @@ void TeslaBattery::printFaultCodesIfActive() {
   printDebugIfActive(BMS_a139_SW_DC_Link_V_Irrational, "ERROR: BMS_a139_SW_DC_Link_V_Irrational");
   printDebugIfActive(BMS_a141_SW_BMB_Status_Warning, "ERROR: BMS_a141_SW_BMB_Status_Warning");
   printDebugIfActive(BMS_a144_Hvp_Config_Mismatch, "ERROR: BMS_a144_Hvp_Config_Mismatch");
-  printDebugIfActive(BMS_a145_SW_SOC_Change, "ERROR: BMS_a145_SW_SOC_Change");
+  printDebugIfActive(BMS_a145_SW_SOC_Change, "INFO: BMS_a145_SW_SOC_Change");
   printDebugIfActive(BMS_a146_SW_Brick_Overdischarged, "ERROR: BMS_a146_SW_Brick_Overdischarged");
   printDebugIfActive(BMS_a149_SW_Missing_Config_Block, "ERROR: BMS_a149_SW_Missing_Config_Block");
   printDebugIfActive(BMS_a151_SW_external_isolation, "ERROR: BMS_a151_SW_external_isolation");
