@@ -483,13 +483,18 @@ void TeslaBattery::
   } else {
     clear_event(EVENT_BATTERY_FUSE);
   }
-  // Raise any informational Tesla BMS events in BE
-  if (BMS_a145_SW_SOC_Change == true && !BMS_SW_SOC_Change_Latch) {  // BMS has newly recalibrated pack SOC
-    BMS_SW_SOC_Change_Latch = true;  // Only set event once, BMS_a145 can be active for a while
-    set_event(EVENT_BATTERY_SOC_RECALIBRATION, 0);
+  // Raise any Tesla BMS events in BE
+  // Events: Informational
+  if (BMS_a145_SW_SOC_Change) {                             // BMS has newly recalibrated pack SOC
+    set_event_latched(EVENT_BATTERY_SOC_RECALIBRATION, 0);  // Latcched as BMS_a145 can be active for a while
+  } else if (!BMS_a145_SW_SOC_Change) {
     clear_event(EVENT_BATTERY_SOC_RECALIBRATION);
-  } else if (BMS_a145_SW_SOC_Change == false) {
-    BMS_SW_SOC_Change_Latch = false;
+  }
+  // Events: Warning
+  if (BMS_contactorState == 5) {  // BMS has detected welded contactor(s)
+    set_event_latched(EVENT_CONTACTOR_WELDED, 0);
+  } else if (BMS_contactorState != 5) {
+    clear_event(EVENT_CONTACTOR_WELDED);
   }
 
   if (user_selected_tesla_GTW_chassisType > 1) {  //{{0, "Model S"}, {1, "Model X"}, {2, "Model 3"}, {3, "Model Y"}};
@@ -553,7 +558,7 @@ void TeslaBattery::
       datalayer.battery.settings.user_requests_tesla_soc_reset = false;
       logging.println("INFO: SOC reset requested");
     } else {
-      logging.println("ERROR: SOC reset failed, SOC not < 15 or > 90");
+      logging.println("ERROR: SOC reset failed, SOC not < 15 or > 90, or contactors not open");
       stateMachineSOCReset = 0xFF;
       datalayer.battery.settings.user_requests_tesla_soc_reset = false;
       set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);

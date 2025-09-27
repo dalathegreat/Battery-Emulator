@@ -877,7 +877,6 @@ class TeslaBattery : public CanBattery {
   bool BMS_a141_SW_BMB_Status_Warning = false;
   bool BMS_a144_Hvp_Config_Mismatch = false;
   bool BMS_a145_SW_SOC_Change = false;
-  bool BMS_SW_SOC_Change_Latch = false;
   bool BMS_a146_SW_Brick_Overdischarged = false;
   bool BMS_a149_SW_Missing_Config_Block = false;
   bool BMS_a151_SW_external_isolation = false;
