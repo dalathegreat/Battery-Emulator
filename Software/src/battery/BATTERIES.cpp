@@ -166,6 +166,8 @@ Battery* create_battery(BatteryType type) {
       return new ChademoBattery();
     case BatteryType::CmfaEv:
       return new CmfaEvBattery();
+    case BatteryType::FordMachE:
+      return new FordMachEBattery();
     case BatteryType::Foxess:
       return new FoxessBattery();
     case BatteryType::GeelyGeometryC:
