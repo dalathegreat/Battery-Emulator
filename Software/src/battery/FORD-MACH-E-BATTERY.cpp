@@ -5,9 +5,9 @@
 
 void FordMachEBattery::update_values() {
 
-  datalayer.battery.status.real_soc;
+  datalayer.battery.status.real_soc = battery_soc;
 
-  datalayer.battery.status.soh_pptt;
+  datalayer.battery.status.soh_pptt = battery_soh * 100;
 
   datalayer.battery.status.voltage_dV;
 
@@ -24,6 +24,21 @@ void FordMachEBattery::update_values() {
   datalayer.battery.status.cell_max_voltage_mV;
 
   datalayer.battery.status.cell_min_voltage_mV;
+
+  maximum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
+  minimum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
+
+  // Loop through the array to find min and max cellvoltages, ignoring 0 values
+  for (uint8_t i = 0; i < MAX_AMOUNT_CELLS; i++) {
+    if (datalayer.battery.status.cell_voltages_mV[i] != 0) {  // Ignore unavailable values
+      if (datalayer.battery.status.cell_voltages_mV[i] < minimum_cellvoltage_mV) {
+        minimum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[i];
+      }
+      if (datalayer.battery.status.cell_voltages_mV[i] > maximum_cellvoltage_mV) {
+        maximum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[i];
+      }
+    }
+  }
 
   // Initialize highest and lowest to the first element
   maximum_temperature = cell_temperature[0];
@@ -59,6 +74,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x24c:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_soc = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
       break;
     case 0x24d:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -80,6 +96,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x47d:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_soh = rx_frame.data.u8[1];
       break;
     case 0x490:  //1s Cellvoltages
     case 0x491:
@@ -112,11 +129,11 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if (i % 2 == 0) {
           // Even indices: bytes 0,1 | 3,4 | 6,7
           datalayer.battery.status.cell_voltages_mV[start_index + i] =
-              (rx_frame.data.u8[byte_offset] << 4) | (rx_frame.data.u8[byte_offset + 1] >> 4);
+              (((rx_frame.data.u8[byte_offset] << 4) | (rx_frame.data.u8[byte_offset + 1] >> 4)) + 1000);
         } else {
           // Odd indices: bytes 1,2 | 4,5
           datalayer.battery.status.cell_voltages_mV[start_index + i] =
-              ((rx_frame.data.u8[byte_offset] & 0x0F) << 8) | rx_frame.data.u8[byte_offset + 1];
+              ((((rx_frame.data.u8[byte_offset] & 0x0F) << 8) | rx_frame.data.u8[byte_offset + 1]) + 1000);
         }
       }
       break;

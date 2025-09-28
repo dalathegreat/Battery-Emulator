@@ -25,6 +25,10 @@ class FordMachEBattery : public CanBattery {
   int16_t cell_temperature[6] = {0};
   int16_t maximum_temperature = 0;
   int16_t minimum_temperature = 0;
+  uint16_t battery_soc = 5000;
+  uint16_t battery_soh = 99;
+  uint16_t maximum_cellvoltage_mV = 3700;
+  uint16_t minimum_cellvoltage_mV = 3700;
 
   CAN_frame TEST = {.FD = false,
                     .ext_ID = false,
