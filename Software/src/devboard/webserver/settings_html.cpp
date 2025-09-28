@@ -1266,7 +1266,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Custom Wifi hostname: </label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
-        pattern="[A-Za-z0-9!*]" 
+        pattern="[A-Za-z0-9!*]+"
         title="Optional: Hostname may only contain only letters, numbers, ! and *" />
 
         <label>Use static IP address: </label>
@@ -1305,17 +1305,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class='if-mqtt'>
         <label>MQTT server: </label>
         <input type='text' name='MQTTSERVER' value="%MQTTSERVER%" 
-        pattern="([A-Za-z0-9.-]+|)/"
+        pattern="[A-Za-z0-9.-]+"
         title="Hostname (letters, numbers, dots, hyphens)" />
         <label>MQTT port: </label>
         <input type='number' name='MQTTPORT' value="%MQTTPORT%" 
         min="1" max="65535" step="1"
         title="Port number (1-65535)" />
         <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
-        pattern="[A-Za-z0-9!#*]" 
+        pattern="[A-Za-z0-9!#*]+"
         title="MQTT username can only contain letters, numbers and some special characters: !#*" />
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" 
-        pattern="[A-Za-z0-9!#*]" 
+        pattern="[A-Za-z0-9!#*]+"
         title="MQTT password can only contain letters, numbers and some special characters: !#*" />
         <label>MQTT timeout ms: </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
