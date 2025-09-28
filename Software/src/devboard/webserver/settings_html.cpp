@@ -1058,19 +1058,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-cbms">
         <label>Battery max design voltage (V): </label>
-        <input name='BATTPVMAX' pattern="^[0-9]+(\.[0-9]+)?$" type='text' value='%BATTPVMAX%'   
+        <input name='BATTPVMAX' pattern="[0-9]+(\.[0-9]+)?" type='text' value='%BATTPVMAX%'   
         title="Maximum safe voltage for the entire battery pack in volts. Used as charge target and protection limits." />
 
         <label>Battery min design voltage (V): </label>
-        <input name='BATTPVMIN' pattern="^[0-9]+(\.[0-9]+)?$" type='text' value='%BATTPVMIN%' 
+        <input name='BATTPVMIN' pattern="[0-9]+(\.[0-9]+)?" type='text' value='%BATTPVMIN%' 
         title="Minimum safe voltage for the entire battery pack in volts. Further discharge not possible below this limit." />
 
         <label>Cell max design voltage (mV): </label>
-        <input name='BATTCVMAX' pattern="^[0-9]+$" type='text' value='%BATTCVMAX%' 
+        <input name='BATTCVMAX' pattern="[0-9]+" type='text' value='%BATTCVMAX%' 
         title="Maximum voltage per individual cell in millivolts. Charging stops if one cell reaches this voltage." />
 
         <label>Cell min design voltage (mV): </label>
-        <input name='BATTCVMIN' pattern="^[0-9]+$" type='text' value='%BATTCVMIN%' 
+        <input name='BATTCVMIN' pattern="[0-9]+$" type='text' value='%BATTCVMIN%' 
         title="Minimum voltage per individual cell in millivolts. Discharge stops if one cell drops to this voltage." />
         </div>
 
@@ -1104,33 +1104,33 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-sofar">
         <label>Sofar Battery ID (0-15): </label>
-        <input name='SOFAR_ID' type='text' value="%SOFAR_ID%" pattern="^[0-9]{1,2}$" />
+        <input name='SOFAR_ID' type='text' value="%SOFAR_ID%" pattern="[0-9]{1,2}" />
         </div>
 
         <div class="if-pylonish">
         <label>Reported cell count (0 for default): </label>
-        <input name='INVCELLS' type='text' value="%INVCELLS%" pattern="^[0-9]+$" />
+        <input name='INVCELLS' type='text' value="%INVCELLS%" pattern="[0-9]+" />
         </div>
 
         <div class="if-pylonish if-solax">
         <label>Reported module count (0 for default): </label>
-        <input name='INVMODULES' type='text' value="%INVMODULES%" pattern="^[0-9]+$" />
+        <input name='INVMODULES' type='text' value="%INVMODULES%" pattern="[0-9]+" />
         </div>
 
         <div class="if-pylonish">
         <label>Reported cells per module (0 for default): </label>
-        <input name='INVCELLSPER' type='text' value="%INVCELLSPER%" pattern="^[0-9]+$" />
+        <input name='INVCELLSPER' type='text' value="%INVCELLSPER%" pattern="[0-9]+" />
 
         <label>Reported voltage level (0 for default): </label>
-        <input name='INVVLEVEL' type='text' value="%INVVLEVEL%" pattern="^[0-9]+$" />
+        <input name='INVVLEVEL' type='text' value="%INVVLEVEL%" pattern="[0-9]+" />
 
         <label>Reported Ah capacity (0 for default): </label>
-        <input name='INVCAPACITY' type='text' value="%INVCAPACITY%" pattern="^[0-9]+$" />
+        <input name='INVCAPACITY' type='text' value="%INVCAPACITY%" pattern="[0-9]+" />
         </div>
 
         <div class="if-solax">
         <label>Reported battery type (in decimal): </label>
-        <input name='INVBTYPE' type='text' value="%INVBTYPE%" pattern="^[0-9]+$" />
+        <input name='INVBTYPE' type='text' value="%INVBTYPE%" pattern="[0-9]+" />
 
         <label>Inverter should ignore contactors: </label>
         <input type='checkbox' name='INVICNT' value='on' %INVICNT% />
@@ -1227,7 +1227,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-extprecharge">
             <label>Precharge, maximum ms before fault: </label>
-            <input name='MAXPRETIME' type='text' value="%MAXPRETIME%" pattern="^[0-9]+$" />
+            <input name='MAXPRETIME' type='text' value="%MAXPRETIME%" pattern="[0-9]+" />
 
           <label>Normally Open (NO) inverter disconnect contactor: </label>
           <input type='checkbox' name='NOINVDISC' value='on' %NOINVDISC% />
@@ -1266,7 +1266,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Custom Wifi hostname: </label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
-        pattern="[A-Za-z0-9!*]" 
+        pattern="[A-Za-z0-9!*]+"
         title="Optional: Hostname may only contain only letters, numbers, ! and *" />
 
         <label>Use static IP address: </label>
@@ -1305,17 +1305,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class='if-mqtt'>
         <label>MQTT server: </label>
         <input type='text' name='MQTTSERVER' value="%MQTTSERVER%" 
-        pattern="^([A-Za-z0-9.-]+|)/$"
+        pattern="[A-Za-z0-9.-]+"
         title="Hostname (letters, numbers, dots, hyphens)" />
         <label>MQTT port: </label>
         <input type='number' name='MQTTPORT' value="%MQTTPORT%" 
         min="1" max="65535" step="1"
         title="Port number (1-65535)" />
         <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
-        pattern="[A-Za-z0-9!#*]" 
+        pattern="[A-Za-z0-9!#*]+"
         title="MQTT username can only contain letters, numbers and some special characters: !#*" />
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" 
-        pattern="[A-Za-z0-9!#*]" 
+        pattern="[A-Za-z0-9!#*]+"
         title="MQTT password can only contain letters, numbers and some special characters: !#*" />
         <label>MQTT timeout ms: </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
