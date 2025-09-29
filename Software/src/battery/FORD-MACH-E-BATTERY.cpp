@@ -167,10 +167,56 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void FordMachEBattery::transmit_can(unsigned long currentMillis) {
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    previousMillis10 = currentMillis;
+
+    counter_10ms = (counter_10ms + 1) % 16;  // cycles 0-15
+
+    // Byte 2: upper nibble = 0xF, lower nibble = (0xF - counter_10ms) % 16
+    FORD_7D.data.u8[2] = 0xF0 | ((0xF - counter_10ms) & 0x0F);
+    // Byte 3: upper nibble = counter_10ms, lower nibble = 0x0
+    FORD_7D.data.u8[3] = (counter_10ms << 4) & 0xF0;
+
+    // Byte 0: starts at 0xC0 and increments by 4 each step, wraps every 16 steps
+    FORD_204.data.u8[0] = 0xC0 + (counter_10ms * 4);
+    // Byte 5: starts at 0xFC and decrements by 1 each step, wraps every 16 steps
+    FORD_204.data.u8[5] = 0xFC - counter_10ms;
+
+    // Byte 4: upper nibble = counter_10ms, lower nibble = 0x0
+    FORD_4B0.data.u8[4] = (counter_10ms << 4) & 0xF0;
+    // Byte 7: upper nibble = 0xF, lower nibble = (0xF - counter_10ms) % 16
+    FORD_4B0.data.u8[7] = 0xF0 | ((0xF - counter_10ms) & 0x0F);
+
+    transmit_can_frame(&FORD_77);
+    transmit_can_frame(&FORD_7D);
+    transmit_can_frame(&FORD_167);
+    transmit_can_frame(&FORD_48F);  //Only sent in AC charging logs!
+    transmit_can_frame(&FORD_204);
+    transmit_can_frame(&FORD_4B0);
+  }
+  // Send 50ms CAN Message
+  if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
+    previousMillis50 = currentMillis;
+    transmit_can_frame(&FORD_42C);
+    transmit_can_frame(&FORD_42F);
+  }
+
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
-    //transmit_can_frame(&TEST);
+
+    transmit_can_frame(
+        &FORD_12F);  //This message actually has checksum/counter, but it seems to close contactors without those
+    transmit_can_frame(&FORD_332);
+    transmit_can_frame(&FORD_333);
+    transmit_can_frame(&FORD_42B);
+  }
+  // Send 1s CAN Message
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+    previousMillis1000 = currentMillis;
+    transmit_can_frame(&FORD_3C3);
+    transmit_can_frame(&FORD_581);
   }
 }
 

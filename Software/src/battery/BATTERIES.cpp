@@ -68,6 +68,8 @@ const char* name_for_battery_type(BatteryType type) {
       return ChademoBattery::Name;
     case BatteryType::CmfaEv:
       return CmfaEvBattery::Name;
+    case BatteryType::FordMachE:
+      return FordMachEBattery::Name;
     case BatteryType::Foxess:
       return FoxessBattery::Name;
     case BatteryType::GeelyGeometryC:
