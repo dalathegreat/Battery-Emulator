@@ -19,6 +19,7 @@ class FordMachEBattery : public CanBattery {
   static const int MIN_CELL_VOLTAGE_MV = 2900;
 
   unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was send
+  unsigned long previousMillis30 = 0;    // will store last time a 10ms CAN Message was send
   unsigned long previousMillis50 = 0;    // will store last time a 100ms CAN Message was send
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was send
@@ -32,8 +33,13 @@ class FordMachEBattery : public CanBattery {
   uint16_t maximum_cellvoltage_mV = 3700;
   uint16_t minimum_cellvoltage_mV = 3700;
 
-  uint8_t counter_10ms = 0;
+  uint8_t counter_30ms = 0;
 
+  CAN_frame FORD_47 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x047,
+                       .data = {0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame FORD_77 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
@@ -59,6 +65,21 @@ class FordMachEBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x204,
                         .data = {0xD4, 0x00, 0x7D, 0x00, 0x00, 0xF7, 0x00, 0x00}};
+  CAN_frame FORD_217 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x217,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_230 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x230,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03}};
+  CAN_frame FORD_25B = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x25B,
+                        .data = {0x01, 0xF4, 0x09, 0xF4, 0xE0, 0x00, 0x80, 0x00}};
   CAN_frame FORD_332 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -74,6 +95,11 @@ class FordMachEBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x3C3,
                         .data = {0x5C, 0xC8, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00}};
+  CAN_frame FORD_415 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x415,
+                        .data = {0x00, 0x00, 0xC0, 0xFC, 0x0F, 0xFE, 0xEF, 0xFE}};
   CAN_frame FORD_42B = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -89,6 +115,11 @@ class FordMachEBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x42F,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_442 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x442,
+                        .data = {0x4E, 0x20, 0x78, 0x7E, 0x7C, 0x00, 0x00, 0x40}};
   CAN_frame FORD_48F = {.FD = false,  //Only sent in active charging logs (OBC?)
                         .ext_ID = false,
                         .DLC = 8,
