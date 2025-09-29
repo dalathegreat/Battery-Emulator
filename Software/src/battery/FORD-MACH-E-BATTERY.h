@@ -40,6 +40,21 @@ class FordMachEBattery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x047,
                        .data = {0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_48 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x048,
+                       .data = {0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_4C = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x04C,
+                       .data = {0x70, 0xAA, 0xBF, 0xDE, 0xCC, 0xEC, 0x00, 0x00}};
+  CAN_frame FORD_5A = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x05A,
+                       .data = {0x00, 0x00, 0x00, 0x0B, 0xF2, 0x90, 0x10, 0x00}};
   CAN_frame FORD_77 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
@@ -50,11 +65,36 @@ class FordMachEBattery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x07D,
                        .data = {0x00, 0x00, 0xF0, 0xF0, 0x00, 0x3F, 0xEF, 0xFE}};
+  CAN_frame FORD_7E = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x07E,
+                       .data = {0x00, 0x00, 0x3E, 0x80, 0x00, 0x04, 0x00, 0x00}};
+  CAN_frame FORD_156 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x156,
+                        .data = {0x4B, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_165 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x165,
+                        .data = {0x10, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_166 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x166,
+                        .data = {0x00, 0x00, 0x00, 0x01, 0x5C, 0x89, 0x00, 0x00}};
   CAN_frame FORD_167 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x167,
                         .data = {0x00, 0x80, 0x00, 0x11, 0xFF, 0xE0, 0x00, 0x00}};
+  CAN_frame FORD_175 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x175,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame FORD_12F = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -80,6 +120,11 @@ class FordMachEBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x25B,
                         .data = {0x01, 0xF4, 0x09, 0xF4, 0xE0, 0x00, 0x80, 0x00}};
+  CAN_frame FORD_2EC = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x2EC,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00}};
   CAN_frame FORD_332 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -115,6 +160,11 @@ class FordMachEBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x42F,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_43D = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x43D,
+                        .data = {0x00, 0x00, 0xDC, 0x00, 0x00, 0x77, 0x00, 0x00}};
   CAN_frame FORD_442 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
