@@ -206,6 +206,14 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
 
     //TODO: handle FORD_4C properly very odd looping
 
+    counter_8_30ms = (counter_8_30ms + 1) % 8;  // cycles 0-7 (8 values before wrap)
+
+    // Byte 6: counts up by 2 each step (0, 2, 4, 6, 8, 10, 12, 14)
+    FORD_200.data.u8[6] = counter_8_30ms * 2;
+
+    // Byte 7: counts down by 2 each step, maintaining byte6 + byte7 = 0x7F
+    FORD_200.data.u8[7] = 0x7F - (counter_8_30ms * 2);
+
     transmit_can_frame(&FORD_77);
     transmit_can_frame(&FORD_7D);
     transmit_can_frame(&FORD_167);
@@ -219,6 +227,8 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&FORD_7E);
     transmit_can_frame(&FORD_48);
     transmit_can_frame(&FORD_165);
+    transmit_can_frame(&FORD_7F);
+    transmit_can_frame(&FORD_200);
   }
   // Send 50ms CAN Message
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
@@ -243,6 +253,11 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
         &FORD_5A);  //This message actually has checksum/counter, but it seems to close contactors without those
     transmit_can_frame(&FORD_166);
     transmit_can_frame(&FORD_175);
+    transmit_can_frame(&FORD_178);
+    transmit_can_frame(&FORD_203);
+    transmit_can_frame(
+        &FORD_176);  //This message actually has checksum/counter, but it seems to close contactors without those
+    transmit_can_frame(&FORD_185);
   }
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
