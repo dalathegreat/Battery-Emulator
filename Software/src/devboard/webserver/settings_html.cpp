@@ -1249,14 +1249,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Access point name: </label>
         <input type='text' name='APNAME' value="%APNAME%" 
-        pattern="[A-Za-z0-9!#*]{8,63}" 
-        title="Name must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*"
+        pattern="[A-Za-z0-9!#*-]{8,63}" 
+        title="Name must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*-"
         required />
 
         <label>Access point password: </label>
         <input type='text' name='APPASSWORD' value="%APPASSWORD%" 
-        pattern="[A-Za-z0-9!#*]{8,63}" 
-        title="Password must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*"
+        pattern="[A-Za-z0-9!#*-]{8,63}" 
+        title="Password must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*-"
         required />
 
         <label>Wifi channel 0-14: </label>
@@ -1266,8 +1266,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Custom Wifi hostname: </label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
-        pattern="[A-Za-z0-9!*]+"
-        title="Optional: Hostname may only contain only letters, numbers, ! and *" />
+        pattern="[A-Za-z0-9!#*-]+"
+        title="Optional: Hostname may only contain letters, numbers and some special characters: !#*-" />
 
         <label>Use static IP address: </label>
         <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
@@ -1312,11 +1312,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         min="1" max="65535" step="1"
         title="Port number (1-65535)" />
         <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
-        pattern="[A-Za-z0-9!#*]+"
-        title="MQTT username can only contain letters, numbers and some special characters: !#*" />
+        pattern="[A-Za-z0-9!#*-]+"
+        title="MQTT username can only contain letters, numbers and some special characters: !#*-" />
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" 
-        pattern="[A-Za-z0-9!#*]+"
-        title="MQTT password can only contain letters, numbers and some special characters: !#*" />
+        pattern="[A-Za-z0-9!#*-]+"
+        title="MQTT password can only contain letters, numbers and some special characters: !#*-" />
         <label>MQTT timeout ms: </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
         min="1" max="60000" step="1"
