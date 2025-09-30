@@ -224,17 +224,17 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     //transmit_can_frame(&FORD_230); Not needed for contactor closing
     //transmit_can_frame(&FORD_415); Not needed for contactor closing
     //transmit_can_frame(&FORD_4C);  Not needed for contactor closing
-    transmit_can_frame(&FORD_7E);
-    transmit_can_frame(&FORD_48);
-    transmit_can_frame(&FORD_165);
-    transmit_can_frame(&FORD_7F);
+    //transmit_can_frame(&FORD_7E); Not needed for contactor closing
+    //transmit_can_frame(&FORD_48); Not needed for contactor closing
+    //transmit_can_frame(&FORD_165); Not needed for contactor closing
+    //transmit_can_frame(&FORD_7F); Not needed for contactor closing
     transmit_can_frame(&FORD_200);
   }
   // Send 50ms CAN Message
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     previousMillis50 = currentMillis;
-    transmit_can_frame(&FORD_42C);
-    transmit_can_frame(&FORD_42F);
+    //transmit_can_frame(&FORD_42C); Not needed for contactor closing
+    //transmit_can_frame(&FORD_42F); Not needed for contactor closing
     transmit_can_frame(&FORD_43D);
   }
 
@@ -254,7 +254,7 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&FORD_166);
     transmit_can_frame(&FORD_175);
     transmit_can_frame(&FORD_178);
-    transmit_can_frame(&FORD_203);
+    transmit_can_frame(&FORD_203);  //MANDATORY FOR CONTACTOR OPERATION
     transmit_can_frame(
         &FORD_176);  //This message actually has checksum/counter, but it seems to close contactors without those
     transmit_can_frame(&FORD_185);
