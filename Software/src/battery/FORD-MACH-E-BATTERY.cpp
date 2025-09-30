@@ -143,7 +143,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     }
     case 0x4a3:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      datalayer.battery.status.cell_voltages_mV[95] = (rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4);
+      datalayer.battery.status.cell_voltages_mV[95] = ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4)) + 1000;
       //Celltemperatures
       cell_temperature[0] = ((rx_frame.data.u8[2] - 40) / 2);
       cell_temperature[1] = ((rx_frame.data.u8[2] - 40) / 2);
@@ -174,8 +174,8 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
-    transmit_can_frame(&FORD_217);
-    transmit_can_frame(&FORD_442);
+    //transmit_can_frame(&FORD_217); Not needed for contactor closing
+    //transmit_can_frame(&FORD_442); Not needed for contactor closing
   }
 
   // Send 30ms CAN Message
@@ -214,16 +214,16 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     // Byte 7: counts down by 2 each step, maintaining byte6 + byte7 = 0x7F
     FORD_200.data.u8[7] = 0x7F - (counter_8_30ms * 2);
 
-    transmit_can_frame(&FORD_77);
-    transmit_can_frame(&FORD_7D);
-    transmit_can_frame(&FORD_167);
-    transmit_can_frame(&FORD_48F);  //Only sent in AC charging logs!
-    transmit_can_frame(&FORD_204);
-    transmit_can_frame(&FORD_4B0);
-    transmit_can_frame(&FORD_47);
-    transmit_can_frame(&FORD_230);
-    transmit_can_frame(&FORD_415);
-    transmit_can_frame(&FORD_4C);
+    //transmit_can_frame(&FORD_77); Not needed for contactor closing
+    //transmit_can_frame(&FORD_7D); Not needed for contactor closing
+    //transmit_can_frame(&FORD_167); Not needed for contactor closing
+    //transmit_can_frame(&FORD_48F);  //Only sent in AC charging logs! Not needed for contactor closing
+    //transmit_can_frame(&FORD_204); Not needed for contactor closing
+    //transmit_can_frame(&FORD_4B0); Not needed for contactor closing
+    //transmit_can_frame(&FORD_47); Not needed for contactor closing
+    //transmit_can_frame(&FORD_230); Not needed for contactor closing
+    //transmit_can_frame(&FORD_415); Not needed for contactor closing
+    //transmit_can_frame(&FORD_4C);  Not needed for contactor closing
     transmit_can_frame(&FORD_7E);
     transmit_can_frame(&FORD_48);
     transmit_can_frame(&FORD_165);
