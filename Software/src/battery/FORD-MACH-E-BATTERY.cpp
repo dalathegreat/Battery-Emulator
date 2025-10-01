@@ -9,7 +9,7 @@ void FordMachEBattery::update_values() {
 
   datalayer.battery.status.soh_pptt = battery_soh * 100;
 
-  datalayer.battery.status.voltage_dV;
+  datalayer.battery.status.voltage_dV = battery_voltage * 10;
 
   datalayer.battery.status.current_dA;
 
@@ -62,6 +62,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //These frames are transmitted by the battery
     case 0x07a:           //10ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_voltage = (((rx_frame.data.u8[2] & 0x03) << 8) | rx_frame.data.u8[3]) / 2;
       break;
     case 0x07b:  //10ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
