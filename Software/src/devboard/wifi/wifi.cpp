@@ -240,7 +240,6 @@ void init_mDNS() {
 }
 
 void init_WiFi_AP() {
-  ssidAP = std::string("BatteryEmulator") + WiFi.macAddress().c_str();
 
   DEBUG_PRINTF("Creating Access Point: %s\n", ssidAP.c_str());
   DEBUG_PRINTF("With password: %s\n", passwordAP.c_str());
