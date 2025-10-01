@@ -36,6 +36,19 @@ class FordMachEBattery : public CanBattery {
   uint8_t counter_30ms = 0;
   uint8_t counter_8_30ms = 0;
 
+  //Message needed for contactor closing
+  CAN_frame FORD_25B = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x25B,
+                        .data = {0x01, 0xF4, 0x09, 0xF4, 0xE0, 0x00, 0x80, 0x00}};
+  CAN_frame FORD_185 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x185,
+                        .data = {0x03, 0x4E, 0x75, 0x32, 0x00, 0x00, 0x00, 0x00}};
+  //Messages to emulate full vehicle
+  /*
   CAN_frame FORD_47 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
@@ -116,11 +129,7 @@ class FordMachEBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x12F,
                         .data = {0x0A, 0xF8, 0x3F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-  CAN_frame FORD_185 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x185,
-                        .data = {0x03, 0x4E, 0x75, 0x32, 0x00, 0x00, 0x00, 0x00}};
+
   CAN_frame FORD_200 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -146,11 +155,7 @@ class FordMachEBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x230,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03}};
-  CAN_frame FORD_25B = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x25B,
-                        .data = {0x01, 0xF4, 0x09, 0xF4, 0xE0, 0x00, 0x80, 0x00}};
+
   CAN_frame FORD_2EC = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -216,6 +221,7 @@ class FordMachEBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x4B0,
                         .data = {0x81, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+                        */
 };
 
 #endif

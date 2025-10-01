@@ -170,17 +170,25 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void FordMachEBattery::transmit_can(unsigned long currentMillis) {
-  // Send 10ms CAN Message
-  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
-    previousMillis10 = currentMillis;
+  // Send 20ms CAN Message
+  if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
+    previousMillis20 = currentMillis;
 
+    transmit_can_frame(&FORD_25B);
+
+    //Full vehicle emulation, not required
+    /*
     //transmit_can_frame(&FORD_217); Not needed for contactor closing
     //transmit_can_frame(&FORD_442); Not needed for contactor closing
+    */
   }
 
   // Send 30ms CAN Message
   if (currentMillis - previousMillis30 >= INTERVAL_30_MS) {
     previousMillis30 = currentMillis;
+
+    //Full vehicle emulation, not required
+    /*
 
     counter_30ms = (counter_30ms + 1) % 16;  // cycles 0-15
 
@@ -229,19 +237,24 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     //transmit_can_frame(&FORD_165); Not needed for contactor closing
     //transmit_can_frame(&FORD_7F); Not needed for contactor closing
     transmit_can_frame(&FORD_200);
+    */
   }
   // Send 50ms CAN Message
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     previousMillis50 = currentMillis;
     //transmit_can_frame(&FORD_42C); Not needed for contactor closing
     //transmit_can_frame(&FORD_42F); Not needed for contactor closing
-    transmit_can_frame(&FORD_43D);
+    //transmit_can_frame(&FORD_43D);
   }
 
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
+    transmit_can_frame(&FORD_185);  // Required to close contactors
+
+    //Full vehicle emulation, not required
+    /*
     transmit_can_frame(
         &FORD_12F);  //This message actually has checksum/counter, but it seems to close contactors without those
     transmit_can_frame(&FORD_332);
@@ -257,13 +270,16 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&FORD_203);  //MANDATORY FOR CONTACTOR OPERATION
     transmit_can_frame(
         &FORD_176);  //This message actually has checksum/counter, but it seems to close contactors without those
-    transmit_can_frame(&FORD_185);
+*/
   }
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
+    //Full vehicle emulation, not required
+    /*
     transmit_can_frame(&FORD_3C3);
     transmit_can_frame(&FORD_581);
+    */
   }
 }
 
