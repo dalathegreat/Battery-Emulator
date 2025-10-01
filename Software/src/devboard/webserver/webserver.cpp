@@ -509,8 +509,10 @@ void init_webserver() {
         settings.saveUInt("SUBNET4", type);
       } else if (p->name() == "SSID") {
         settings.saveString("SSID", p->value().c_str());
+        ssid = settings.getString("SSID", "REPLACEME").c_str();
       } else if (p->name() == "PASSWORD") {
         settings.saveString("PASSWORD", p->value().c_str());
+        password = settings.getString("PASSWORD", "REPLACEME").c_str();
       } else if (p->name() == "APNAME") {
         settings.saveString("APNAME", p->value().c_str());
       } else if (p->name() == "APPASSWORD") {
