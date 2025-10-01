@@ -507,6 +507,10 @@ void init_webserver() {
       } else if (p->name() == "SUBNET4") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("SUBNET4", type);
+      } else if (p->name() == "SSID") {
+        settings.saveString("SSID", p->value().c_str());
+      } else if (p->name() == "PASSWORD") {
+        settings.saveString("PASSWORD", p->value().c_str());
       } else if (p->name() == "APNAME") {
         settings.saveString("APNAME", p->value().c_str());
       } else if (p->name() == "APPASSWORD") {
@@ -604,37 +608,6 @@ void init_webserver() {
 
     settingsUpdated = settings.were_settings_updated();
     request->redirect("/settings");
-  });
-
-  // Route for editing SSID
-  def_route_with_auth("/updateSSID", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      if (value.length() <= 63) {  // Check if SSID is within the allowable length
-        ssid = value.c_str();
-        store_settings();
-        request->send(200, "text/plain", "Updated successfully");
-      } else {
-        request->send(400, "text/plain", "SSID must be 63 characters or less");
-      }
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
-  });
-  // Route for editing Password
-  def_route_with_auth("/updatePassword", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      if (value.length() >= 8) {  // Password must be 8 characters or longer
-        password = value.c_str();
-        store_settings();
-        request->send(200, "text/plain", "Updated successfully");
-      } else {
-        request->send(400, "text/plain", "Password must be atleast 8 characters");
-      }
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
   });
 
   auto update_string = [](const char* route, std::function<void(String)> setter,
