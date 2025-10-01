@@ -18,7 +18,7 @@ class FordMachEBattery : public CanBattery {
   static const int MAX_CELL_VOLTAGE_MV = 4250;
   static const int MIN_CELL_VOLTAGE_MV = 2900;
 
-  unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was send
+  unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was send
   unsigned long previousMillis30 = 0;    // will store last time a 10ms CAN Message was send
   unsigned long previousMillis50 = 0;    // will store last time a 100ms CAN Message was send
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
@@ -46,7 +46,7 @@ class FordMachEBattery : public CanBattery {
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x185,
-                        .data = {0x03, 0x4E, 0x75, 0x32, 0x00, 0x00, 0x00, 0x00}};
+                        .data = {0x03, 0x4E, 0x75, 0x32, 0x00, 0x80, 0x00, 0x00}};
   //Messages to emulate full vehicle
   /*
   CAN_frame FORD_47 = {.FD = false,
