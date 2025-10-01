@@ -13,6 +13,13 @@ class LilyGo2CANHal : public Esp32Hal {
       settings.saveUInt("CANFREQ", 16);
     }
   }
+  // RS485 on GPIO 43/44
+  virtual gpio_num_t PIN_5V_EN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t RS485_EN_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t RS485_TX_PIN() { return GPIO_NUM_43; }
+  virtual gpio_num_t RS485_RX_PIN() { return GPIO_NUM_44; }
+  virtual gpio_num_t RS485_SE_PIN() { return GPIO_NUM_NC; }
+
 
   virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_7; }
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_6; }
@@ -55,11 +62,11 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_5; }
 
   // Battery wake up pins
-  virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_40; }
-  virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_38; }
+  virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_1; }
+  virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_2; }
 
   std::vector<comm_interface> available_interfaces() {
-    return {comm_interface::CanNative, comm_interface::CanAddonMcp2515};
+    return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515};
   }
 };
 
