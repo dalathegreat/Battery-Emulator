@@ -20,7 +20,6 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t RS485_RX_PIN() { return GPIO_NUM_44; }
   virtual gpio_num_t RS485_SE_PIN() { return GPIO_NUM_NC; }
 
-
   virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_7; }
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_6; }
 
