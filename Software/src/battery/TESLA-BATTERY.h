@@ -75,7 +75,7 @@ class TeslaBattery : public CanBattery {
   //UDS session tracker
   //static bool uds_SessionInProgress = false; // Future use
   //0x221 VCFRONT_LVPowerState
-  uint8_t muxNumber_TESLA_221 = 0;
+  uint8_t alternateMux = 0;
   uint8_t frameCounter_TESLA_221 = 15;  // Start at 15 for Mux 0
   uint8_t vehicleState = 1;             // "OFF": 0, "DRIVE": 1, "ACCESSORY": 2, "GOING_DOWN": 3
   static const uint8_t CAR_OFF = 0;
@@ -89,8 +89,6 @@ class TeslaBattery : public CanBattery {
   bool TESLA_334_INITIAL_SENT = false;
   //0x3A1 VCFRONT_vehicleStatus, 15 frame counter (temporary)
   uint8_t frameCounter_TESLA_3A1 = 0;
-  //0x3C2 VCLEFT_switchStatus
-  uint8_t muxNumber_TESLA_3C2 = 0;
   //0x504 TWC_status
   bool TESLA_504_INITIAL_SENT = false;
   //0x7FF GTW_carConfig, 5 mux tracker

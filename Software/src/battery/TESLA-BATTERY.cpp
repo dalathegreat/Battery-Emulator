@@ -1813,31 +1813,26 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     switch (muxNumber_TESLA_2E1) {
       case 0:
         transmit_can_frame(&TESLA_2E1_VEHICLE_AND_RAILS);
-        muxNumber_TESLA_2E1++;
         break;
       case 1:
         transmit_can_frame(&TESLA_2E1_HOMELINK);
-        muxNumber_TESLA_2E1++;
         break;
       case 2:
         transmit_can_frame(&TESLA_2E1_REFRIGERANT_SYSTEM);
-        muxNumber_TESLA_2E1++;
         break;
       case 3:
         transmit_can_frame(&TESLA_2E1_LV_BATTERY_DEBUG);
-        muxNumber_TESLA_2E1++;
         break;
       case 4:
         transmit_can_frame(&TESLA_2E1_MUX_5);
-        muxNumber_TESLA_2E1++;
         break;
       case 5:
         transmit_can_frame(&TESLA_2E1_BODY_CONTROLS);
-        muxNumber_TESLA_2E1 = 0;
         break;
       default:
         break;
     }
+    muxNumber_TESLA_2E1 = (muxNumber_TESLA_2E1 + 1) % 6;  //Cycle betweeen 0-1-2-3-4-5-0...
     //Generate next frames
     generateFrameCounterChecksum(TESLA_118, 8, 4, 0, 8);
   }
@@ -1848,75 +1843,45 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
 
     //0x221 VCFRONT_LVPowerState
     if (vehicleState == CAR_DRIVE) {
-      switch (muxNumber_TESLA_221) {
-        case 0:
-          generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_DRIVE_Mux0);
-          muxNumber_TESLA_221++;
-          break;
-        case 1:
-          generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_DRIVE_Mux1);
-          muxNumber_TESLA_221 = 0;
-          break;
-        default:
-          break;
+      if (alternateMux) {
+        generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_DRIVE_Mux0);
+      } else {
+        generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_DRIVE_Mux1);
+      }
+    } else if (vehicleState == ACCESSORY) {
+      if (alternateMux) {
+        generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_ACCESSORY_Mux0);
+      } else {
+        generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_ACCESSORY_Mux1);
+      }
+    } else if (vehicleState == GOING_DOWN) {
+      if (alternateMux) {
+        generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_GOING_DOWN_Mux0);
+      } else {
+        generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_GOING_DOWN_Mux1);
+      }
+    } else if (vehicleState == CAR_OFF) {
+      if (alternateMux) {
+        generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_OFF_Mux0);
+      } else {
+        generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_OFF_Mux1);
       }
     }
-    if (vehicleState == ACCESSORY) {
-      switch (muxNumber_TESLA_221) {
-        case 0:
-          generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_ACCESSORY_Mux0);
-          muxNumber_TESLA_221++;
-          break;
-        case 1:
-          generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_ACCESSORY_Mux1);
-          muxNumber_TESLA_221 = 0;
-          break;
-        default:
-          break;
-      }
-    }
-    if (vehicleState == GOING_DOWN) {
-      switch (muxNumber_TESLA_221) {
-        case 0:
-          generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_GOING_DOWN_Mux0);
-          muxNumber_TESLA_221++;
-          break;
-        case 1:
-          generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_GOING_DOWN_Mux1);
-          muxNumber_TESLA_221 = 0;
-          break;
-        default:
-          break;
-      }
-    }
-    if (vehicleState == CAR_OFF) {
-      switch (muxNumber_TESLA_221) {
-        case 0:
-          generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_OFF_Mux0);
-          muxNumber_TESLA_221++;
-          break;
-        case 1:
-          generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_OFF_Mux1);
-          muxNumber_TESLA_221 = 0;
-          break;
-        default:
-          break;
-      }
-    }
+
+    alternateMux ^= 1;  // Flips between 0 and 1. Used to Flip between sending Mux0 and Mux1 on each pass
     //Generate next new frame
     frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
 
     //0x3C2 VCLEFT_switchStatus
-    transmit_can_frame(muxNumber_TESLA_3C2 == 0 ? &TESLA_3C2_Mux0 : &TESLA_3C2_Mux1);
-    muxNumber_TESLA_3C2 = !muxNumber_TESLA_3C2;  // Flip between sending Mux0 and Mux1 on each pass
+    transmit_can_frame(alternateMux == 0 ? &TESLA_3C2_Mux0 : &TESLA_3C2_Mux1);
 
     //0x39D IBST_status
     transmit_can_frame(&TESLA_39D);
@@ -1956,28 +1921,23 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     switch (muxNumber_TESLA_7FF) {
       case 0:
         transmit_can_frame(&TESLA_7FF_Mux1);
-        muxNumber_TESLA_7FF++;
         break;
       case 1:
         transmit_can_frame(&TESLA_7FF_Mux2);
-        muxNumber_TESLA_7FF++;
         break;
       case 2:
         transmit_can_frame(&TESLA_7FF_Mux3);
-        muxNumber_TESLA_7FF++;
         break;
       case 3:
         transmit_can_frame(&TESLA_7FF_Mux4);
-        muxNumber_TESLA_7FF++;
         break;
       case 4:
         transmit_can_frame(&TESLA_7FF_Mux5);
-        muxNumber_TESLA_7FF = 0;
         break;
       default:
         break;
     }
-
+    muxNumber_TESLA_7FF = (muxNumber_TESLA_7FF + 1) % 5;  //Cycle betweeen 0-1-2-3-4-0...
     //Generate next frames
     generateTESLA_229(TESLA_229);
     generateFrameCounterChecksum(TESLA_2A8, 52, 4, 56, 8);
