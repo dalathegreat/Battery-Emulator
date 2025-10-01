@@ -21,6 +21,9 @@ class StarkHal : public Esp32Hal {
  public:
   const char* name() { return "Stark CMR Module"; }
 
+  //Always enable BMS power on Stark CMR, it does not collide with any pin definitions
+  virtual bool always_enable_bms_power() { return true; }
+
   // Not needed, GPIO 16 has hardware pullup for PSRAM compatibility
   virtual gpio_num_t PIN_5V_EN() { return GPIO_NUM_NC; }
 
