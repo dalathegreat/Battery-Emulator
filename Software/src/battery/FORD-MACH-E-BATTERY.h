@@ -12,7 +12,7 @@ class FordMachEBattery : public CanBattery {
   static constexpr const char* Name = "Ford Mustang Mach-E battery";
 
  private:
-  static const int MAX_PACK_VOLTAGE_DV = 5000;  //TODO SET
+  static const int MAX_PACK_VOLTAGE_DV = 4140;
   static const int MIN_PACK_VOLTAGE_DV = 2000;  //TODO SET
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
@@ -22,6 +22,7 @@ class FordMachEBattery : public CanBattery {
   unsigned long previousMillis30 = 0;    // will store last time a 10ms CAN Message was send
   unsigned long previousMillis50 = 0;    // will store last time a 100ms CAN Message was send
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
+  unsigned long previousMillis250 = 0;   // will store last time a 100ms CAN Message was send
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was send
   unsigned long previousMillis10s = 0;   // will store last time a 10s CAN Message was send
 
@@ -36,6 +37,20 @@ class FordMachEBattery : public CanBattery {
 
   uint8_t counter_30ms = 0;
   uint8_t counter_8_30ms = 0;
+  uint16_t pid_reply = 0;
+
+  uint16_t polled_12V = 12000;
+
+  CAN_frame FORD_PID_REQUEST_7DF = {.FD = false,
+                                    .ext_ID = false,
+                                    .DLC = 8,
+                                    .ID = 0x7DF,
+                                    .data = {0x02, 0x01, 0x42, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_PID_ACK = {.FD = false,
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = 0x7DF,
+                            .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
   //Message needed for contactor closing
   CAN_frame FORD_25B = {.FD = false,

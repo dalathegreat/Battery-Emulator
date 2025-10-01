@@ -1,6 +1,7 @@
 #include "FORD-MACH-E-BATTERY.h"
 #include <Arduino.h>
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
 void FordMachEBattery::update_values() {
@@ -17,9 +18,9 @@ void FordMachEBattery::update_values() {
 
   datalayer.battery.status.remaining_capacity_Wh;
 
-  datalayer.battery.status.max_discharge_power_W;
+  datalayer.battery.status.max_discharge_power_W = 5000;  //TODO, fix
 
-  datalayer.battery.status.max_charge_power_W;
+  datalayer.battery.status.max_charge_power_W = 5000;  //TODO, fix
 
   maximum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
   minimum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
@@ -56,6 +57,11 @@ void FordMachEBattery::update_values() {
   datalayer.battery.status.temperature_min_dC = minimum_temperature * 10;
 
   datalayer.battery.status.temperature_max_dC = maximum_temperature * 10;
+
+  // Check vehicle specific safeties
+  if (polled_12V < 11800) {
+    set_event(EVENT_12V_LOW, 0);
+  }
 }
 
 void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -164,6 +170,26 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x46f:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x7EC:  //OBD2 diag reply from BMS (Replies to both 7DF and 7E4)
+
+      if (rx_frame.data.u8[0] < 0x10) {  //One line response
+        pid_reply = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2];
+      }
+
+      if (rx_frame.data.u8[0] == 0x10) {  //Multiframe response, send ACK
+        //transmit_can_frame(&FORD_PID_ACK); //Not seen yet
+        //pid_reply = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+      }
+
+      switch (pid_reply) {
+        case 0x142:  //12V battery
+          polled_12V = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+          break;
+        default:
+          break;
+      }
+
       break;
     default:
       break;
@@ -279,6 +305,14 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
         &FORD_176);  //This message actually has checksum/counter, but it seems to close contactors without those
 */
   }
+
+  // Send 250ms CAN Message
+  if (currentMillis - previousMillis250 >= INTERVAL_250_MS) {
+    previousMillis250 = currentMillis;
+
+    transmit_can_frame(&FORD_PID_REQUEST_7DF);
+  }
+
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
@@ -293,7 +327,8 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
 void FordMachEBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.number_of_cells = 96;  //TODO, Are all mach-e batteries 96S?
+  datalayer.battery.info.number_of_cells = 96;       //TODO, Are all mach-e batteries 96S?
+  datalayer.battery.info.total_capacity_Wh = 88000;  //Start in 88kWh mode, update later
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
