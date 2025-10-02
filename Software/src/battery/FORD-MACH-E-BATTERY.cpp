@@ -18,9 +18,9 @@ void FordMachEBattery::update_values() {
 
   datalayer.battery.status.remaining_capacity_Wh;
 
-  datalayer.battery.status.max_discharge_power_W = 5000;  //TODO, fix
+  datalayer.battery.status.max_discharge_power_W = 12000;  //TODO, fix
 
-  datalayer.battery.status.max_charge_power_W = 5000;  //TODO, fix
+  datalayer.battery.status.max_charge_power_W = 12000;  //TODO, fix
 
   maximum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
   minimum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
