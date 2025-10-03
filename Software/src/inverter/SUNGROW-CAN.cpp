@@ -102,6 +102,69 @@ void SungrowInverter::update_values() {
   SUNGROW_706.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
   SUNGROW_706.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
+  // Battery Configuration
+  SUNGROW_707.data.u8[0] = 0x26;                     // Magic number
+  SUNGROW_707.data.u8[1] = 0x00;                     // Magic number
+  SUNGROW_707.data.u8[2] = 0x00;                     // Magic number
+  SUNGROW_707.data.u8[3] = 0x01;                     // Magic number. Num of stacks?
+  SUNGROW_707.data.u8[4] = (nameplate_wh & 0x00FF);  // Nameplate capacity
+  SUNGROW_707.data.u8[5] = (nameplate_wh >> 8);      // Nameplate capacity
+  SUNGROW_707.data.u8[6] = 0x01;                     // Magic number. Num of modules?
+  SUNGROW_707.data.u8[7] = 0x00;                     // Padding?
+
+  // ---- Serial number (ASCII) → 0x008 mux 0/1 ----
+  {
+    const char* sn = serial_number;  // up to 12 chars
+    SUNGROW_708_00.data.u8[0] = 0x00;
+    for (int i = 0; i < 7; ++i) {
+      SUNGROW_708_00.data.u8[1 + i] = sn[i] ? static_cast<uint8_t>(sn[i]) : 0x00;
+    }
+    SUNGROW_708_01.data.u8[0] = 0x01;
+    for (int i = 0; i < 7; ++i) {
+      SUNGROW_708_01.data.u8[1 + i] = sn[7 + i] ? static_cast<uint8_t>(sn[7 + i]) : 0x00;
+    }
+    SUNGROW_708_01.data.u8[7] = 0x53;
+    // Example for "S2310131889":
+    // 0x008 mux0 -> 00 53 32 33 31 30 31 33
+    // 0x008 mux1 -> 01 31 38 38 39 00 00 53
+  }
+
+  // ---- 0x70F: two muxes (b0 = 0x00..0x07, b1 = 0x00) ----
+  SUNGROW_70F_00.data.u8[2] = 0x88;  // Magic number
+  SUNGROW_70F_00.data.u8[3] = 0x13;  // Magic number
+  SUNGROW_70F_00.data.u8[4] = 0x80;  // Magic number
+  SUNGROW_70F_00.data.u8[5] = 0x16;  // Magic number
+  SUNGROW_70F_00.data.u8[6] = 0x80;  // Magic number
+  SUNGROW_70F_00.data.u8[7] = 0x16;  // Magic number
+
+  // Charge counter??
+  SUNGROW_70F_02.data.u8[2] = 0x70;  // Magic number
+  SUNGROW_70F_02.data.u8[3] = 0x20;  // Magic number
+  // Unknown
+  SUNGROW_70F_02.data.u8[6] = 0x92;  // Magic number
+  SUNGROW_70F_02.data.u8[7] = 0x09;  // Magic number
+
+  // Discharge counter??
+  SUNGROW_70F_03.data.u8[2] = 0xFD;
+  SUNGROW_70F_03.data.u8[3] = 0x1D;
+  // Unknown
+  SUNGROW_70F_03.data.u8[6] = 0xCE;
+  SUNGROW_70F_03.data.u8[7] = 0x26;
+
+  // Unknown
+  SUNGROW_70F_04.data.u8[2] = 0x0C;
+  SUNGROW_70F_04.data.u8[3] = 0x06;
+
+  // Module 1 SoC
+  SUNGROW_70F_05.data.u8[2] = (datalayer.battery.status.real_soc & 0xFF);
+  SUNGROW_70F_05.data.u8[3] = (datalayer.battery.status.real_soc >> 8);
+  // Module 2 SoC
+  SUNGROW_70F_05.data.u8[4] = (datalayer.battery.status.real_soc & 0xFF);
+  SUNGROW_70F_05.data.u8[5] = (datalayer.battery.status.real_soc >> 8);
+  // Module 3 SoC
+  SUNGROW_70F_05.data.u8[6] = (datalayer.battery.status.real_soc & 0xFF);
+  SUNGROW_70F_05.data.u8[7] = (datalayer.battery.status.real_soc >> 8);
+
   //Status bytes?
   SUNGROW_713.data.u8[0] = 0x02;  // Magic number
   SUNGROW_713.data.u8[1] = 0x01;  // Magic number
@@ -178,6 +241,8 @@ void SungrowInverter::update_values() {
     SUNGROW_004.data.u8[i] = SUNGROW_704.data.u8[i];
     SUNGROW_005.data.u8[i] = SUNGROW_705.data.u8[i];
     SUNGROW_006.data.u8[i] = SUNGROW_706.data.u8[i];
+    SUNGROW_008_00.data.u8[i] = SUNGROW_708_00.data.u8[i];
+    SUNGROW_008_01.data.u8[i] = SUNGROW_708_01.data.u8[i];
     SUNGROW_013.data.u8[i] = SUNGROW_713.data.u8[i];
     SUNGROW_014.data.u8[i] = SUNGROW_714.data.u8[i];
     SUNGROW_015.data.u8[i] = SUNGROW_715.data.u8[i];
@@ -347,8 +412,13 @@ void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
         manufacturer_char[13] = rx_frame.data.u8[7];
       }
       break;
+    case 0x108:  // Discovery secret handshake accepted
+      discovery_mode = false;
+      break;
     case 0x191:  //Only sent by SH15T (Inverter trying to use BYD CAN)
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      discovery_mode = true;  // We only see 0x191 when the inverter is searching for a battery.
+                              // AU inverter sends this but does not want a BYD battery.
       break;
     case 0x00004200:  //Only sent by SH15T (Inverter trying to use Pylon CAN)
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -362,59 +432,80 @@ void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 }
 
 void SungrowInverter::transmit_can(unsigned long currentMillis) {
-  // Send 1s CAN Message
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
     previousMillis1s = currentMillis;
+
+    transmit_can_frame(&SUNGROW_500);
+    transmit_can_frame(&SUNGROW_400);
+    transmit_can_frame(&SUNGROW_401);
+
     //Flip flop between two sets, end result is 1s periodic rate
     if (alternate) {
       alternate = false;
     } else {
       alternate = true;
     }
-    // This is the for-real messages as observed
-    transmit_can_frame(&SUNGROW_500);
-    transmit_can_frame(&SUNGROW_400);
-    transmit_can_frame(&SUNGROW_401);
-    transmit_can_frame(&SUNGROW_000);
-    transmit_can_frame(&SUNGROW_001);
-    transmit_can_frame(&SUNGROW_002);
-    transmit_can_frame(&SUNGROW_003);
-    transmit_can_frame(&SUNGROW_004);
-    transmit_can_frame(&SUNGROW_005);
-    transmit_can_frame(&SUNGROW_006);
-    transmit_can_frame(&SUNGROW_013);
-    transmit_can_frame(&SUNGROW_014);
-    transmit_can_frame(&SUNGROW_015);
-    transmit_can_frame(&SUNGROW_016);
-    transmit_can_frame(&SUNGROW_017);
-    transmit_can_frame(&SUNGROW_018);
-    transmit_can_frame(&SUNGROW_019);
-    transmit_can_frame(&SUNGROW_01A);
-    transmit_can_frame(&SUNGROW_01B);
-    transmit_can_frame(&SUNGROW_01C);
-    transmit_can_frame(&SUNGROW_01D);
-    transmit_can_frame(&SUNGROW_01E);
-    transmit_can_frame(&SUNGROW_700);
-    transmit_can_frame(&SUNGROW_701);
-    transmit_can_frame(&SUNGROW_702);
-    transmit_can_frame(&SUNGROW_703);
-    transmit_can_frame(&SUNGROW_704);
-    transmit_can_frame(&SUNGROW_705);
-    transmit_can_frame(&SUNGROW_706);
-    transmit_can_frame(&SUNGROW_713);
-    transmit_can_frame(&SUNGROW_714);
-    transmit_can_frame(&SUNGROW_715);
-    transmit_can_frame(&SUNGROW_716);
-    transmit_can_frame(&SUNGROW_717);
-    transmit_can_frame(&SUNGROW_718);
-    transmit_can_frame(&SUNGROW_719);
-    //transmit_can_frame(&SUNGROW_70F);
-    // Every other time... Alternate??? Check timing.
-    transmit_can_frame(&SUNGROW_71A);
-    transmit_can_frame(&SUNGROW_71B);
-    transmit_can_frame(&SUNGROW_71C);
-    //transmit_can_frame(&SUNGROW_71D); // Not seen
-    //transmit_can_frame(&SUNGROW_71E); // Not seen
+
+    if (discovery_mode) {
+      transmit_can_frame(&SUNGROW_007);
+      transmit_can_frame(&SUNGROW_008_00);
+      transmit_can_frame(&SUNGROW_008_01);
+      transmit_can_frame(&SUNGROW_009);
+      transmit_can_frame(&SUNGROW_00A_00);
+      transmit_can_frame(&SUNGROW_00A_01);
+      transmit_can_frame(&SUNGROW_00B);
+      transmit_can_frame(&SUNGROW_00D);
+      transmit_can_frame(&SUNGROW_00E);
+    } else {
+      // This is the for-real messages as observed
+      transmit_can_frame(&SUNGROW_000);
+      transmit_can_frame(&SUNGROW_001);
+      transmit_can_frame(&SUNGROW_002);
+      transmit_can_frame(&SUNGROW_003);
+      transmit_can_frame(&SUNGROW_004);
+      transmit_can_frame(&SUNGROW_005);
+      transmit_can_frame(&SUNGROW_006);
+      transmit_can_frame(&SUNGROW_013);
+      transmit_can_frame(&SUNGROW_014);
+      transmit_can_frame(&SUNGROW_015);
+      transmit_can_frame(&SUNGROW_016);
+      transmit_can_frame(&SUNGROW_017);
+      transmit_can_frame(&SUNGROW_018);
+      transmit_can_frame(&SUNGROW_019);
+      transmit_can_frame(&SUNGROW_01A);
+      transmit_can_frame(&SUNGROW_01B);
+      transmit_can_frame(&SUNGROW_01C);
+      transmit_can_frame(&SUNGROW_01D);
+      transmit_can_frame(&SUNGROW_01E);
+      transmit_can_frame(&SUNGROW_700);
+      transmit_can_frame(&SUNGROW_701);
+      transmit_can_frame(&SUNGROW_702);
+      transmit_can_frame(&SUNGROW_703);
+      transmit_can_frame(&SUNGROW_704);
+      transmit_can_frame(&SUNGROW_705);
+      transmit_can_frame(&SUNGROW_706);
+      transmit_can_frame(&SUNGROW_713);
+      transmit_can_frame(&SUNGROW_714);
+      transmit_can_frame(&SUNGROW_715);
+      transmit_can_frame(&SUNGROW_716);
+      transmit_can_frame(&SUNGROW_717);
+      transmit_can_frame(&SUNGROW_718);
+      transmit_can_frame(&SUNGROW_719);
+      transmit_can_frame(&SUNGROW_70F_00);
+      transmit_can_frame(&SUNGROW_70F_01);
+      transmit_can_frame(&SUNGROW_70F_02);
+      transmit_can_frame(&SUNGROW_70F_03);
+      transmit_can_frame(&SUNGROW_70F_04);
+      transmit_can_frame(&SUNGROW_70F_05);
+      transmit_can_frame(&SUNGROW_70F_06);
+      transmit_can_frame(&SUNGROW_70F_07);
+      // Every other time... Alternate??? Check timing.
+      transmit_can_frame(&SUNGROW_71A);
+      transmit_can_frame(&SUNGROW_71B);
+      transmit_can_frame(&SUNGROW_71C);
+      //transmit_can_frame(&SUNGROW_71D); // Not seen
+      //transmit_can_frame(&SUNGROW_71E); // Not seen
+    }
     transmit_can_frame(&SUNGROW_512);
     transmit_can_frame(&SUNGROW_501);
     transmit_can_frame(&SUNGROW_502);
@@ -425,16 +516,33 @@ void SungrowInverter::transmit_can(unsigned long currentMillis) {
   }
 
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
-    //transmit_can_frame(&SUNGROW_707); // 10s
-    //transmit_can_frame(&SUNGROW_708); // 10s
-    //transmit_can_frame(&SUNGROW_709); // 10s
-    //transmit_can_frame(&SUNGROW_70A); // 10s
-    //transmit_can_frame(&SUNGROW_70B); // 10s
-    //transmit_can_frame(&SUNGROW_70D); // 10s
-    //transmit_can_frame(&SUNGROW_70E); // 10s
+    previousMillis10s = currentMillis;
+    transmit_can_frame(&SUNGROW_707);
+    transmit_can_frame(&SUNGROW_708_00);
+    transmit_can_frame(&SUNGROW_708_01);
+    transmit_can_frame(&SUNGROW_709);
+    transmit_can_frame(&SUNGROW_70A_00);
+    transmit_can_frame(&SUNGROW_70A_01);
+    transmit_can_frame(&SUNGROW_70B);
+    transmit_can_frame(&SUNGROW_70D);
+    transmit_can_frame(&SUNGROW_70E);
   }
 
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
-    //transmit_can_frame(&SUNGROW_71F); // 60s messages
+    previousMillis60s = currentMillis;
+    // 0x71F: module serial numbers (3 modules × 3 chunks of 6 ASCII bytes)
+    for (int mod = 0; mod < 3; ++mod) {
+      const char* sn = module_serial[mod];  // up to 18 chars
+      for (int chunk = 0; chunk < 3; ++chunk) {
+        SUNGROW_71F.data.u8[0] = static_cast<uint8_t>(mod + 1);    // module index 1..3
+        SUNGROW_71F.data.u8[1] = static_cast<uint8_t>(chunk + 1);  // chunk index 1..3
+        const int base = chunk * 6;
+        for (int i = 0; i < 6; ++i) {
+          char ch = sn[base + i];
+          SUNGROW_71F.data.u8[2 + i] = ch ? static_cast<uint8_t>(ch) : 0x00;
+        }
+        transmit_can_frame(&SUNGROW_71F);
+      }
+    }
   }
 }
