@@ -1887,12 +1887,21 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&TESLA_39D);
 
     if (battery_contactor == 4) {  // Contactors closed
+      // Increment counter, but cap at 10
+      if (contactor_counter < 10) {
+        contactor_counter++;
+      }
 
-      // Frames to be sent only when contactors closed
-
-      //0x3A1 VCFRONT_vehicleStatus, critical otherwise VCFRONT_MIA triggered
-      transmit_can_frame(&TESLA_3A1[frameCounter_TESLA_3A1]);
-      frameCounter_TESLA_3A1 = (frameCounter_TESLA_3A1 + 1) % 16;
+      if (contactor_counter > 1) {
+        // Frames to be sent only when contactors closed
+        transmit_can_frame(&TESLA_3A1[frameCounter_TESLA_3A1]);
+        frameCounter_TESLA_3A1 = (frameCounter_TESLA_3A1 + 1) % 16;
+      }
+    } else {
+      // Contactors open - decrement counter, but don't go below 0
+      if (contactor_counter > 0) {
+        contactor_counter--;
+      }
     }
 
     //Generate next frame
