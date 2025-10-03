@@ -209,6 +209,7 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case PID_POLL_CUMULATIVE_ENERGY_IN_REGEN:
           cumulative_energy_in_regen = (uint64_t)((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
                                                   (rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7]));
+          break;
         case PID_POLL_CELL_1:
           cellvoltages_mv[0] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           break;
