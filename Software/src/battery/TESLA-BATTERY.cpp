@@ -936,7 +936,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_fcCtrsRequestStatus = (rx_frame.data.u8[3] & (0x03U));              //24|2@1+ (1,0) [0|2] ""  Receiver
       battery_fcCtrsResetRequestRequired = ((rx_frame.data.u8[3] >> 2) & (0x01U));  //26|1@1+ (1,0) [0|1] ""  Receiver
       battery_fcLinkAllowedToEnergize = ((rx_frame.data.u8[5] >> 4) & (0x03U));     //44|2@1+ (1,0) [0|2] ""  Receiver
-    case 0x212:                                                                     //530 BMS_status: 8
+      break;
+    case 0x212:  //530 BMS_status: 8
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMS_hvacPowerRequest = (rx_frame.data.u8[0] & (0x01U));
       BMS_notEnoughPowerForDrive = ((rx_frame.data.u8[0] >> 1) & (0x01U));
@@ -1887,21 +1888,12 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&TESLA_39D);
 
     if (battery_contactor == 4) {  // Contactors closed
-      // Increment counter, but cap at 10
-      if (contactor_counter < 10) {
-        contactor_counter++;
-      }
 
-      if (contactor_counter > 1) {
-        // Frames to be sent only when contactors closed
-        transmit_can_frame(&TESLA_3A1[frameCounter_TESLA_3A1]);
-        frameCounter_TESLA_3A1 = (frameCounter_TESLA_3A1 + 1) % 16;
-      }
-    } else {
-      // Contactors open - decrement counter, but don't go below 0
-      if (contactor_counter > 0) {
-        contactor_counter--;
-      }
+      // Frames to be sent only when contactors closed
+
+      //0x3A1 VCFRONT_vehicleStatus, critical otherwise VCFRONT_MIA triggered
+      transmit_can_frame(&TESLA_3A1[frameCounter_TESLA_3A1]);
+      frameCounter_TESLA_3A1 = (frameCounter_TESLA_3A1 + 1) % 16;
     }
 
     //Generate next frame
