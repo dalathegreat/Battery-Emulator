@@ -30,6 +30,13 @@ jobs:
     steps:
     - uses: actions/checkout@v5
       name: Checkout code
+      with:
+        # Fetch a bunch of commits to pick up the most recent tag
+        fetch-depth: 200
+        # Include tags too
+        fetch-tags: true
+        # Specify the ref explicitly to avoid weird tag-related error
+        ref: ${{ github.ref }}
 
     - uses: actions/cache@v4
       with:
@@ -43,6 +50,13 @@ jobs:
         python-version: '3.11'
     - name: Install PlatformIO Core
       run: pip install --upgrade platformio
+    
+    - name: Set version number from git tag
+      run: |
+           ver=$(git describe --tags --always)
+           stripped=${ver#"v"}
+           sed -i 's/const char\* version_number = "[^"]*";/const char\* version_number = "'"$stripped"'";/' Software/Software.cpp
+           echo "Set version to $stripped"
 
     - name: Build image for Lilygo
       run: pio run -e lilygo_330

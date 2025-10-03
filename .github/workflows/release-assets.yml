@@ -47,6 +47,13 @@ jobs:
     - name: Install PlatformIO Core
       run: pip install --upgrade platformio
 
+    - name: Set version number from git tag
+      run: |
+           ver=$(git describe --tags --always)
+           stripped=${ver#"v"}
+           sed -i 's/const char\* version_number = "[^"]*";/const char\* version_number = "'"$stripped"'";/' Software/Software.cpp      
+           echo "Set version to $stripped"
+
     - name: 🛠 Build ota image for Lilygo T-CAN
       run: |
         pio run -e lilygo_330
