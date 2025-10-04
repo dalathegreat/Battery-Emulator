@@ -1,10 +1,27 @@
 #include "SUNGROW-CAN.h"
+#include <string.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 
 /* TODO: 
 This protocol is still under development. It can not be used yet for Sungrow inverters, 
 see the Wiki for more info on how to use your Sungrow inverter */
+
+template <size_t N>
+
+static inline void copy_ascii(uint8_t (&dst)[N], const char* src, size_t visible_max = N > 0 ? N - 1 : 0) {
+  memset(dst, 0, N);
+  if (!src || N == 0)
+    return;
+
+  const size_t max_visible = (visible_max < N) ? visible_max : N;
+  const size_t n = strnlen(src, max_visible);
+
+  for (size_t i = 0; i < n; ++i) {
+    unsigned char c = static_cast<unsigned char>(src[i]);
+    dst[i] = (c >= 0x20 && c <= 0x7E) ? c : static_cast<uint8_t>('0');
+  }
+}
 
 void SungrowInverter::update_values() {
   // Actual SoC
@@ -112,23 +129,6 @@ void SungrowInverter::update_values() {
   SUNGROW_707.data.u8[6] = 0x01;                     // Magic number. Num of modules?
   SUNGROW_707.data.u8[7] = 0x00;                     // Padding?
 
-  // ---- Serial number (ASCII) → 0x008 mux 0/1 ----
-  {
-    const char* sn = serial_number;  // up to 12 chars
-    SUNGROW_708_00.data.u8[0] = 0x00;
-    for (int i = 0; i < 7; ++i) {
-      SUNGROW_708_00.data.u8[1 + i] = sn[i] ? static_cast<uint8_t>(sn[i]) : 0x00;
-    }
-    SUNGROW_708_01.data.u8[0] = 0x01;
-    for (int i = 0; i < 7; ++i) {
-      SUNGROW_708_01.data.u8[1 + i] = sn[7 + i] ? static_cast<uint8_t>(sn[7 + i]) : 0x00;
-    }
-    SUNGROW_708_01.data.u8[7] = 0x53;
-    // Example for "S2310131889":
-    // 0x008 mux0 -> 00 53 32 33 31 30 31 33
-    // 0x008 mux1 -> 01 31 38 38 39 00 00 53
-  }
-
   // ---- 0x70F: two muxes (b0 = 0x00..0x07, b1 = 0x00) ----
   SUNGROW_70F_00.data.u8[2] = 0x88;  // Magic number
   SUNGROW_70F_00.data.u8[3] = 0x13;  // Magic number
@@ -179,33 +179,33 @@ void SungrowInverter::update_values() {
   SUNGROW_714.data.u8[0] = 0x05;  // Enum??
   SUNGROW_714.data.u8[1] = 0x01;  // Magic number
   // Cell Voltage
-  SUNGROW_714.data.u8[2] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
-  SUNGROW_714.data.u8[3] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  SUNGROW_714.data.u8[2] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
+  SUNGROW_714.data.u8[3] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
   SUNGROW_714.data.u8[4] = 0x11;  // Enum???
   SUNGROW_714.data.u8[5] = 0x02;  // Magic number
   // Cell Voltage
-  SUNGROW_714.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
-  SUNGROW_714.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  SUNGROW_714.data.u8[6] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
+  SUNGROW_714.data.u8[7] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
 
   // Module 1 Min Cell voltage
-  SUNGROW_715.data.u8[0] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
-  SUNGROW_715.data.u8[1] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  SUNGROW_715.data.u8[0] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
+  SUNGROW_715.data.u8[1] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
   // Module 1 Max Cell voltage
-  SUNGROW_715.data.u8[2] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
-  SUNGROW_715.data.u8[3] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  SUNGROW_715.data.u8[2] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
+  SUNGROW_715.data.u8[3] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
   // Module 2 Min Cell voltage
-  SUNGROW_715.data.u8[4] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
-  SUNGROW_715.data.u8[5] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  SUNGROW_715.data.u8[4] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
+  SUNGROW_715.data.u8[5] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
   // Module 2 Max Cell voltage
-  SUNGROW_715.data.u8[6] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
-  SUNGROW_715.data.u8[7] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  SUNGROW_715.data.u8[6] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
+  SUNGROW_715.data.u8[7] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
 
   // Module 3 Min Cell voltage
-  SUNGROW_716.data.u8[0] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
-  SUNGROW_716.data.u8[1] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  SUNGROW_716.data.u8[0] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
+  SUNGROW_716.data.u8[1] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
   // Module 3 Max Cell voltage
-  SUNGROW_716.data.u8[2] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
-  SUNGROW_716.data.u8[3] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  SUNGROW_716.data.u8[2] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
+  SUNGROW_716.data.u8[3] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
 
   SUNGROW_717.data.u8[0] = 0x00;
 
@@ -280,40 +280,24 @@ void SungrowInverter::update_values() {
 }
 
 void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
-  switch (rx_frame.ID) {  //In here we need to respond to the inverter
-    case 0x000:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      inverter_sends_000 = true;
-      //transmit_can_frame(&SUNGROW_001);
-      //transmit_can_frame(&SUNGROW_002);
-      //transmit_can_frame(&SUNGROW_003);
-      //transmit_can_frame(&SUNGROW_004);
-      //transmit_can_frame(&SUNGROW_005);
-      //transmit_can_frame(&SUNGROW_006);
-      //transmit_can_frame(&SUNGROW_013);
-      //transmit_can_frame(&SUNGROW_014);
-      //transmit_can_frame(&SUNGROW_015);
-      //transmit_can_frame(&SUNGROW_016);
-      //transmit_can_frame(&SUNGROW_017);
-      //transmit_can_frame(&SUNGROW_018);
-      //transmit_can_frame(&SUNGROW_019);
-      //transmit_can_frame(&SUNGROW_01A);
-      //transmit_can_frame(&SUNGROW_01B);
-      //transmit_can_frame(&SUNGROW_01C);
-      //transmit_can_frame(&SUNGROW_01D);
-      //transmit_can_frame(&SUNGROW_01E);
-      break;
-    case 0x100:  // SH10RS RUN
+  switch (rx_frame.ID) {
+    case 0x100:
+      // SH10RS RUN
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x101:  // Both SH10RS / SH15T
-      // System time
+    case 0x101:
+      // SH10RS init @ 13,000ms (SH15T as well?)
+      // System time as epoch in b0->b3
+      // b4->b7 all 0x00
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      discovery_mode = true;
+      break;
+    case 0x102:
+      // SH10RS init @ 13,000ms
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x102:  // 250ms - SH10RS init
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x103:  // 250ms - SH10RS init
+    case 0x103:
+      // SH10RS init @ 13,000ms
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       mux = rx_frame.data.u8[0];
       if (mux == 0) {
@@ -337,7 +321,8 @@ void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
         version_char[13] = rx_frame.data.u8[7];
       }
       break;
-    case 0x104:  // 250ms - SH10RS init
+    case 0x104:
+      // SH10RS init @ 13,000ms
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       mux = rx_frame.data.u8[0];
       if (mux == 0) {
@@ -361,7 +346,8 @@ void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
         manufacturer_char[13] = rx_frame.data.u8[7];
       }
       break;
-    case 0x105:  // 250ms - SH10RS init
+    case 0x105:
+      // SH10RS init @ 13,000ms
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       mux = rx_frame.data.u8[0];
       if (mux == 0) {
@@ -385,8 +371,18 @@ void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
         model_char[13] = rx_frame.data.u8[7];
       }
       break;
-    case 0x106:  // 250ms - SH10RS RUN
+    case 0x106:
+      // SH10RS init @ 13,000ms, or
+      // SH10RS run @ 250ms
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x108:
+      // SH10RS run @ 250ms
+      discovery_mode = false;
+      break;
+    case 0x109:
+      // SH10RS run @ 250ms
+      discovery_mode = false;
       break;
     case 0x151:  //Only sent by SH15T (Inverter trying to use BYD CAN)
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -412,9 +408,6 @@ void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
         manufacturer_char[13] = rx_frame.data.u8[7];
       }
       break;
-    case 0x108:  // Discovery secret handshake accepted
-      discovery_mode = false;
-      break;
     case 0x191:  //Only sent by SH15T (Inverter trying to use BYD CAN)
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       discovery_mode = true;  // We only see 0x191 when the inverter is searching for a battery.
@@ -439,13 +432,6 @@ void SungrowInverter::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&SUNGROW_400);
     transmit_can_frame(&SUNGROW_401);
 
-    //Flip flop between two sets, end result is 1s periodic rate
-    if (alternate) {
-      alternate = false;
-    } else {
-      alternate = true;
-    }
-
     if (discovery_mode) {
       transmit_can_frame(&SUNGROW_007);
       transmit_can_frame(&SUNGROW_008_00);
@@ -457,7 +443,6 @@ void SungrowInverter::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&SUNGROW_00D);
       transmit_can_frame(&SUNGROW_00E);
     } else {
-      // This is the for-real messages as observed
       transmit_can_frame(&SUNGROW_000);
       transmit_can_frame(&SUNGROW_001);
       transmit_can_frame(&SUNGROW_002);
@@ -499,12 +484,9 @@ void SungrowInverter::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&SUNGROW_70F_05);
       transmit_can_frame(&SUNGROW_70F_06);
       transmit_can_frame(&SUNGROW_70F_07);
-      // Every other time... Alternate??? Check timing.
       transmit_can_frame(&SUNGROW_71A);
       transmit_can_frame(&SUNGROW_71B);
       transmit_can_frame(&SUNGROW_71C);
-      //transmit_can_frame(&SUNGROW_71D); // Not seen
-      //transmit_can_frame(&SUNGROW_71E); // Not seen
     }
     transmit_can_frame(&SUNGROW_512);
     transmit_can_frame(&SUNGROW_501);
@@ -515,34 +497,97 @@ void SungrowInverter::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&SUNGROW_506);
   }
 
+  if (currentMillis - previousMillis1_5s >= INTERVAL_1_5_S) {
+    previousMillis1_5s = currentMillis;
+
+    if (!discovery_mode) {
+      transmit_can_frame(&SUNGROW_1E0_00);
+      transmit_can_frame(&SUNGROW_1E0_01);
+      transmit_can_frame(&SUNGROW_1E0_02);
+    }
+  }
+
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
-    transmit_can_frame(&SUNGROW_707);
-    transmit_can_frame(&SUNGROW_708_00);
-    transmit_can_frame(&SUNGROW_708_01);
-    transmit_can_frame(&SUNGROW_709);
-    transmit_can_frame(&SUNGROW_70A_00);
-    transmit_can_frame(&SUNGROW_70A_01);
-    transmit_can_frame(&SUNGROW_70B);
-    transmit_can_frame(&SUNGROW_70D);
-    transmit_can_frame(&SUNGROW_70E);
+
+    if (!discovery_mode) {
+      transmit_can_frame(&SUNGROW_707);
+      transmit_can_frame(&SUNGROW_708_00);
+      transmit_can_frame(&SUNGROW_708_01);
+      transmit_can_frame(&SUNGROW_709);
+      transmit_can_frame(&SUNGROW_70A_00);
+      transmit_can_frame(&SUNGROW_70A_01);
+      transmit_can_frame(&SUNGROW_70B);
+      transmit_can_frame(&SUNGROW_70D);
+      transmit_can_frame(&SUNGROW_70E);
+    }
   }
 
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
-    // 0x71F: module serial numbers (3 modules × 3 chunks of 6 ASCII bytes)
-    for (int mod = 0; mod < 3; ++mod) {
-      const char* sn = module_serial[mod];  // up to 18 chars
-      for (int chunk = 0; chunk < 3; ++chunk) {
-        SUNGROW_71F.data.u8[0] = static_cast<uint8_t>(mod + 1);    // module index 1..3
-        SUNGROW_71F.data.u8[1] = static_cast<uint8_t>(chunk + 1);  // chunk index 1..3
-        const int base = chunk * 6;
-        for (int i = 0; i < 6; ++i) {
-          char ch = sn[base + i];
-          SUNGROW_71F.data.u8[2 + i] = ch ? static_cast<uint8_t>(ch) : 0x00;
+
+    if (!discovery_mode) {
+      for (int mod = 0; mod < 3; ++mod)
+        for (int chunk = 0; chunk < 3; ++chunk) {
+          transmit_can_frame(&SUNGROW_71F_MC[mod][chunk]);
         }
-        transmit_can_frame(&SUNGROW_71F);
+    }
+  }
+}
+
+void SungrowInverter::rebuild_serial_frames() {
+  // Build 0x708 mux 0
+  SUNGROW_708_00.DLC = 8;
+  SUNGROW_708_00.ID = 0x708;
+  SUNGROW_708_00.ext_ID = false;
+  SUNGROW_708_00.FD = false;
+  SUNGROW_708_00.data.u8[0] = 0x00;
+  for (int i = 0; i < 7; ++i) {
+    SUNGROW_708_00.data.u8[1 + i] = serial_number_char[i];
+  }
+  // Build 0x708 mux 1
+  SUNGROW_708_01.DLC = 8;
+  SUNGROW_708_01.ID = 0x708;
+  SUNGROW_708_01.ext_ID = false;
+  SUNGROW_708_01.FD = false;
+  SUNGROW_708_01.data.u8[0] = 0x01;
+
+  // bytes 7..12 (six bytes), last byte (index 7) is sentinel
+  for (int i = 0; i < 6; ++i) {
+    SUNGROW_708_01.data.u8[1 + i] = serial_number_char[7 + i];
+  }
+
+  SUNGROW_708_01.data.u8[7] = 0x53;  // observed trailing sentinel
+}
+
+void SungrowInverter::rebuild_module_serial_frames() {
+  // Build 0x71F frames for 3 modules × 3 chunks (6 bytes/chunk)
+  for (int mod = 0; mod < 3; ++mod) {
+    for (int chunk = 0; chunk < 3; ++chunk) {
+      CAN_frame& f = SUNGROW_71F_MC[mod][chunk];
+      f.DLC = 8;
+      f.ID = 0x71F;
+      f.ext_ID = false;
+      f.FD = false;
+      memset(f.data.u8, 0, 8);
+      f.data.u8[0] = static_cast<uint8_t>(mod + 1);    // module index 1..3
+      f.data.u8[1] = static_cast<uint8_t>(chunk + 1);  // chunk 1..3
+      const int base = chunk * 6;                      // 0, 6, 12
+      for (int i = 0; i < 6; ++i) {
+        f.data.u8[2 + i] = module_serial_char[mod][base + i];  // 6 bytes slice
       }
     }
   }
+}
+
+bool SungrowInverter::setup() {
+  copy_ascii(serial_number_char, "S2310123456");
+  rebuild_serial_frames();
+
+  copy_ascii(module_serial_char[0], "BATTERYEMULATOR1DF");
+  copy_ascii(module_serial_char[1], "BATTERYEMULATOR2DF");
+  copy_ascii(module_serial_char[2], "BATTERYEMULATOR3DF");
+  rebuild_module_serial_frames();
+
+  return true;
 }
