@@ -96,6 +96,18 @@ class LilyGo2CANHal : public Esp32Hal {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,
             comm_interface::CanFdAddonMcp2518};
   }
+
+  virtual const char* name_for_comm_interface(comm_interface comm) {
+    switch (comm) {
+      case comm_interface::CanNative:
+        return "CAN B (Native)";
+      case comm_interface::CanFdNative:
+        return "";
+      case comm_interface::CanAddonMcp2515:
+        return "CAN A (MCP2515)";
+    }
+    return Esp32Hal::name_for_comm_interface(comm);
+  }
 };
 
 #define HalClass LilyGo2CANHal

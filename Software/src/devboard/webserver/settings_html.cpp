@@ -71,6 +71,8 @@ String options_for_enum(TEnum selected, Func name_for_type) {
   String options;
   auto values = enum_values_and_names<TEnum>(name_for_type, nullptr);
   for (const auto& [name, type] : values) {
+    if (name[0] == '\0')
+      continue;  // Don't show blank options
     options +=
         ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">");
     options += name;
