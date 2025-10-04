@@ -27,6 +27,33 @@ struct CanReceiverRegistration {
 
 static std::multimap<CAN_Interface, CanReceiverRegistration> can_receivers;
 
+// Resolve the CAN speed for an interface based on all registered receivers.
+// Policy: choose the lowest requested speed (most compatible).
+static CAN_Speed resolve_speed_for(CAN_Interface iface) {
+  auto range = can_receivers.equal_range(iface);
+
+  if (range.first == range.second) {
+    return CAN_Speed::CAN_SPEED_500KBPS;  // fallback default
+  }
+
+  CAN_Speed chosen = range.first->second.speed;
+
+  for (auto it = range.first; it != range.second; ++it) {
+    if ((uint32_t)it->second.speed < (uint32_t)chosen) {
+      chosen = it->second.speed;
+    }
+  }
+
+  for (auto it = range.first; it != range.second; ++it) {
+    if (it->second.speed != chosen) {
+      logging.println("WARNING: Conflicting CAN bitrate requests on same interface; using lowest.");
+      break;
+    }
+  }
+
+  return chosen;
+}
+
 volatile bool send_ok_native = 0;
 volatile bool send_ok_2515 = 0;
 volatile bool send_ok_2518 = 0;
@@ -36,6 +63,10 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface);
 void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_Speed speed) {
   can_receivers.insert({interface, {receiver, speed}});
   DEBUG_PRINTF("CAN receiver registered, total: %d\n", can_receivers.size());
+  logging.print("Receiver requested ");
+  logging.print((uint32_t)speed);
+  logging.print(" kbps on ");
+  logging.println(getCANInterfaceName(interface));
 }
 
 uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin);
