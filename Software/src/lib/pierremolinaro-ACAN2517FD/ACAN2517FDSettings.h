@@ -160,7 +160,7 @@ class ACAN2517FDSettings {
 //······················································································································
 
 //--- Driver transmit buffer size
-  public: uint16_t mDriverTransmitFIFOSize = 22 ; // >= 0
+  public: uint16_t mDriverTransmitFIFOSize = 32 ; // >= 0
 
 //--- Controller transmit FIFO size
   public: uint8_t mControllerTransmitFIFOSize = 1 ; // 1 ... 32
