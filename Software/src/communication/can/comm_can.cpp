@@ -508,6 +508,7 @@ uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin) 
   settingsespcan->mRequestedCANMode = ACAN_ESP32_Settings::NormalMode;
   settingsespcan->mTxPin = tx_pin;
   settingsespcan->mRxPin = rx_pin;
+  settingsespcan->mDriverTransmitBufferSize = 64;
 
   // (Re)start the CAN interface
   return ACAN_ESP32::can.begin(*settingsespcan);
