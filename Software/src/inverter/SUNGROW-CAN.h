@@ -6,29 +6,31 @@
 class SungrowInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }
+  // Constructor: request 250 kbps on the inverter CAN interface
+  SungrowInverter() : CanInverterProtocol(CAN_Speed::CAN_SPEED_250KBPS) {}
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
-  static constexpr const char* Name = "Sungrow SBRXXX battery over CAN bus";
+  bool setup() override;
+  static constexpr const char* Name = "Sungrow SBRXXX emulation over CAN bus";
+  void rebuild_module_serial_frames();
+  void rebuild_serial_frames();
 
  private:
   unsigned long previousMillis1s = 0;
+  unsigned long previousMillis1_5s = 0;
   unsigned long previousMillis10s = 0;
   unsigned long previousMillis60s = 0;
-  bool alternate = false;
+  bool discovery_mode = true;
   uint8_t mux = 0;
   uint8_t version_char[14] = {0};
   uint8_t manufacturer_char[14] = {0};
   uint8_t model_char[14] = {0};
+  uint8_t serial_number_char[13] = {0};
+  uint8_t module_serial_char[3][19] = {{0}};
   uint32_t remaining_wh = 0;
   uint32_t capacity_wh = 0;
-  bool inverter_sends_000 = false;
   uint16_t nameplate_wh = 9600;
-  char serial_number[13] = "S2310131889";  // 12 chars max
-  // Three module serials (ASCII), up to 18 chars each (+NUL)
-  //char module_serial[3][19] = {"WIREDSQUARE00001DF", "WIREDSQUARE00002DF", "WIREDSQUARE00003DF"};
-  char module_serial[3][19] = {"EM032D7248300395DF", "EM032D7248300394DF", "EM032D7248300393DF"};
-  bool discovery_mode = true;
 
   //Actual content messages
   CAN_frame SUNGROW_000 = {.FD = false,  // Sent by inv or BMS?
@@ -171,6 +173,17 @@ class SungrowInverter : public CanInverterProtocol {
                            .DLC = 8,
                            .ID = 0x01E,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_1E0_00 = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x1E0,
+                              .data = {0x01, 0x04, 0x4D, 0xE2, 0x00, 0x02, 0xC6, 0x91}};
+  CAN_frame SUNGROW_1E0_01 = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x1E0,
+                              .data = {0x01, 0x04, 0x04, 0x01, 0xF4, 0x00, 0x00, 0xBB}};
+  CAN_frame SUNGROW_1E0_02 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x1E0, .data = {0x8A}};
   CAN_frame SUNGROW_400 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
@@ -406,6 +419,7 @@ class SungrowInverter : public CanInverterProtocol {
                            .DLC = 8,
                            .ID = 0x71F,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_MC[3][3];
 };
 
 #endif
