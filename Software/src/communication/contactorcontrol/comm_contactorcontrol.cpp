@@ -5,9 +5,10 @@
 
 // TODO: Ensure valid values at run-time
 // User can update all these values via Settings page
-bool contactor_control_enabled = false;  //Should GPIO contactor control be performed?
-uint16_t precharge_time_ms = 100;        //Precharge time in ms. Adjust depending on capacitance in inverter
-bool pwm_contactor_control = false;      //Should the contactors be economized via PWM after they are engaged?
+bool contactor_control_enabled = false;         //Should GPIO contactor control be performed?
+bool contactor_control_inverted_logic = false;  //Should we control NC contactors? Extremely rare option
+uint16_t precharge_time_ms = 100;               //Precharge time in ms. Adjust depending on capacitance in inverter
+bool pwm_contactor_control = false;             //Should the contactors be economized via PWM after they are engaged?
 bool contactor_control_enabled_double_battery = false;  //Should a contactor for the secondary battery be operated?
 bool remote_bms_reset = false;                          //Is it possible to actuate BMS reset via MQTT?
 bool periodic_bms_reset = false;                        //Should periodic BMS reset be performed each 24h?
@@ -16,15 +17,8 @@ bool periodic_bms_reset = false;                        //Should periodic BMS re
 enum State { DISCONNECTED, START_PRECHARGE, PRECHARGE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
 State contactorStatus = DISCONNECTED;
 
-const int ON = 1;
-const int OFF = 0;
-
-#ifdef NC_CONTACTORS  //Normally closed contactors use inverted logic
-#undef ON
-#define ON 0
-#undef OFF
-#define OFF 1
-#endif  //NC_CONTACTORS
+const uint8_t ON = 1;
+const uint8_t OFF = 0;
 
 #define MAX_ALLOWED_FAULT_TICKS 1000  //1000 = 10 seconds
 #define NEGATIVE_CONTACTOR_TIME_MS \
@@ -49,6 +43,11 @@ const unsigned long powerRemovalInterval = 24 * 60 * 60 * 1000;  // 24 hours in 
 const unsigned long bmsWarmupDuration = 3000;
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
+
+  if (contactor_control_inverted_logic) {
+    direction = !direction;  //Invert direction for NC contactors
+  }
+
   if (pwm_contactor_control) {
     if (pwm_freq != 0xFFFF) {
       ledcWrite(pin, pwm_freq);

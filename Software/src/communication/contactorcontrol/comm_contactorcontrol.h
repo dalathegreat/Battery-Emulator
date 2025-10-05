@@ -6,6 +6,7 @@
 
 // Settings that can be changed at run-time
 extern bool contactor_control_enabled;
+extern bool contactor_control_inverted_logic;
 extern bool contactor_control_enabled_double_battery;
 extern bool pwm_contactor_control;
 extern bool periodic_bms_reset;

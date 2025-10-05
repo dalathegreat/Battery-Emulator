@@ -259,6 +259,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
 
+  if (var == "NCCONTACTOR") {
+    return settings.getBool("NCCONTACTOR") ? "checked" : "";
+  }
+
   if (var == "CNTCTRLDBL") {
     return settings.getBool("CNTCTRLDBL") ? "checked" : "";
   }
@@ -1201,6 +1205,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <input type='number' name='PRECHGMS' value="%PRECHGMS%" 
             min="1" max="65000" step="1"
             title="Time in milliseconds the precharge should be active" />
+
+            <label>Use Normally Closed logic: </label>
+            <input type='checkbox' name='NCCONTACTOR' value='on' %NCCONTACTOR% 
+            title="Extremely rare option. If configured, GPIO control logic will be inverted for operation with normally closed contactors" />
 
             <label>PWM contactor control: </label>
             <input type='checkbox' name='PWMCNTCTRL' value='on' %PWMCNTCTRL% />
