@@ -23,6 +23,11 @@ static const int RAMPDOWN_SOC = 100;  // SOC to start ramping down from. Value s
 static const int RAMPDOWN_POWER_ALLOWED =
     10000;  // Power to start ramp down from, set a lower value to limit the power even further as SOC decreases
 
+// Auto SOC method switching thresholds (values scaled by 10)
+static const int AUTO_SWITCH_ESTIMATED_THRESHOLD = 20;  // Switch to estimated when measured SOC is below this
+static const int AUTO_SWITCH_MEASURED_THRESHOLD = 25;   // Switch back to measured when measured SOC is above this
+static const int AUTO_SWITCH_MIN_SOC_DELTA = 50;        // Only switch if estimated SOC is above this
+
 /* Do not modify the rows below */
 
 class BydAttoBattery : public CanBattery {
@@ -59,7 +64,10 @@ class BydAttoBattery : public CanBattery {
   bool supports_toggle_SOC_method() { return true; }
 #endif
 
-  void toggle_SOC_method() { SOC_method = !SOC_method; }
+  void toggle_SOC_method() {
+    SOC_method = !SOC_method;
+    SOC_method_manual_override = (SOC_method == 0);  // Set manual override when switching to estimated SOC
+  }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
@@ -95,6 +103,7 @@ class BydAttoBattery : public CanBattery {
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
   bool SOC_method = false;
+  bool SOC_method_manual_override = false;
   bool BMS_voltage_available = false;
   uint8_t counter_50ms = 0;
   uint8_t counter_100ms = 0;
