@@ -40,8 +40,7 @@ void SungrowInverter::
   //SUNGROW_703.data.u8[6] =
   //SUNGROW_703.data.u8[7] =
 
-  if (datalayer.battery.status.voltage_dV == 0)
-    then {
+  if (datalayer.battery.status.voltage_dV == 0) {
       datalayer.battery.status.voltage_dV = 1000;
     }  //preset batt V too 100v, to avoid sungrow error 703
 
