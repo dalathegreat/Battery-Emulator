@@ -54,7 +54,7 @@ void init_stored_settings() {
     datalayer.battery.settings.max_percentage = temp * 10;  // Multiply by 10 for backwards compatibility
   }
   temp = settings.getUInt("MINPERCENTAGE", false);
-  if (temp != 0) {
+  if (temp < 499) {
     datalayer.battery.settings.min_percentage = temp * 10;  // Multiply by 10 for backwards compatibility
   }
   temp = settings.getUInt("MAXCHARGEAMP", false);
