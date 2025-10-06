@@ -60,11 +60,10 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
 
   datalayer.battery.status.soh_pptt = min_soh_state;
 
-  datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
+  datalayer.battery.status.max_discharge_power_W =
+      datalayer.battery.status.override_discharge_power_W;  //TODO: Estimated from UI
 
-  //datalayer.battery.status.max_charge_power_W = 3200; //10000; //Aux HV Port has 100A Fuse  Moved to Ramping
-
-  // Charge power is set in .h file
+  // Estimated charge power is set in Settings page. Ramp power on top
   if (datalayer.battery.status.real_soc > 9900) {
     datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
   } else if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
@@ -98,10 +97,6 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
   if (terminal30_12v_voltage < 1100) {  //11.000V
     set_event(EVENT_12V_LOW, terminal30_12v_voltage);
   }
-
-  datalayer.battery.info.max_design_voltage_dV = max_design_voltage;
-
-  datalayer.battery.info.min_design_voltage_dV = min_design_voltage;
 
   datalayer.battery.info.number_of_cells = detected_number_of_cells;
 

@@ -542,8 +542,8 @@ CAN_frame BMWiX_49C = {.FD = true,
   uint16_t min_soh_state = 9900;  // Uses E5 45, also available in 78 73
   uint16_t avg_soh_state = 9900;  // Uses E5 45, also available in 78 73
   uint16_t max_soh_state = 9900;  // Uses E5 45, also available in 78 73
-  uint16_t max_design_voltage = 0;
-  uint16_t min_design_voltage = 0;
+  uint16_t max_design_voltage = MAX_PACK_VOLTAGE_DV;
+  uint16_t min_design_voltage = MIN_PACK_VOLTAGE_DV;
   uint32_t remaining_capacity = 0;
   uint32_t max_capacity = 0;
   int16_t min_battery_temperature = 0;
