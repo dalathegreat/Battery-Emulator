@@ -32,8 +32,8 @@ void init_stored_settings() {
 
   esp32hal->set_default_configuration_values();
 
-  ssid = settings.getString("SSID", "REPLACEME").c_str();
-  password = settings.getString("PASSWORD", "REPLACEME").c_str();
+  ssid = settings.getString("SSID").c_str();
+  password = settings.getString("PASSWORD").c_str();
 
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {

@@ -230,11 +230,11 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "SSID") {
-    return settings.getString("SSID", "REPLACEME");
+    return settings.getString("SSID");
   }
 
   if (var == "PASSWORD") {
-    return settings.getString("PASSWORD", "REPLACEME");
+    return settings.getString("PASSWORD");
   }
 
   if (var == "SAVEDCLASS") {
@@ -1023,12 +1023,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>SSID: </label>
         <input type='text' name='SSID' value="%SSID%" 
-        pattern="[A-Za-z0-9!#*-]{8,63}" 
-        title="Name must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*-"/>
+        pattern="[ -~]{1,63}" 
+        title="Max 63 characters, printable ASCII only"/>
 
         <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" 
-        pattern="[A-Za-z0-9!#*-]{8,63}" 
-        title="Password must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*-" />
+        pattern="[ -~]{8,63}" 
+        title="Password must be 8-63 characters long, printable ASCII only" />
         </div>
         </div>
 
