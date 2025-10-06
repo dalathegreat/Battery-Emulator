@@ -43,7 +43,9 @@ void setup_charger() {
   switch (user_selected_charger_type) {
     case ChargerType::ChevyVolt:
       charger = new ChevyVoltCharger();
+      break;
     case ChargerType::NissanLeaf:
       charger = new NissanLeafCharger();
+      break;
   }
 }

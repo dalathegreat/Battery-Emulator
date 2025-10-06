@@ -32,22 +32,7 @@ const char* name_for_chemistry(battery_chemistry_enum chem) {
 }
 
 const char* name_for_comm_interface(comm_interface comm) {
-  switch (comm) {
-    case comm_interface::Modbus:
-      return "Modbus";
-    case comm_interface::RS485:
-      return "RS485";
-    case comm_interface::CanNative:
-      return "Native CAN";
-    case comm_interface::CanFdNative:
-      return "Native CAN FD";
-    case comm_interface::CanAddonMcp2515:
-      return "CAN MCP 2515 add-on";
-    case comm_interface::CanFdAddonMcp2518:
-      return "CAN FD MCP 2518 add-on";
-    default:
-      return nullptr;
-  }
+  return esp32hal->name_for_comm_interface(comm);
 }
 
 const char* name_for_battery_type(BatteryType type) {
@@ -268,6 +253,7 @@ void setup_battery() {
         battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
                                            &datalayer.system.status.battery2_allowed_contactor_closing,
                                            can_config.battery_double);
+        break;
       case BatteryType::SantaFePhev:
         battery2 = new SantaFePhevBattery(&datalayer.battery2, can_config.battery_double);
         break;
