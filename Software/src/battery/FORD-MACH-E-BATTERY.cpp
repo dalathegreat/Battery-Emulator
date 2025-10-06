@@ -26,7 +26,7 @@ void FordMachEBattery::update_values() {
   minimum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
 
   // Loop through the array to find min and max cellvoltages, ignoring 0 values
-  for (uint8_t i = 0; i < MAX_AMOUNT_CELLS; i++) {
+  for (uint8_t i = 0; i < datalayer.battery.info.number_of_cells; i++) {
     if (datalayer.battery.status.cell_voltages_mV[i] > 1000) {  // Ignore unavailable values
       if (datalayer.battery.status.cell_voltages_mV[i] < minimum_cellvoltage_mV) {
         minimum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[i];
@@ -150,7 +150,14 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     }
     case 0x4a3:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      datalayer.battery.status.cell_voltages_mV[95] = ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4)) + 1000;
+      if ((rx_frame.data.u8[0] == 0xFF) && (rx_frame.data.u8[1] == 0xE0)) {
+        datalayer.battery.info.number_of_cells = 94;
+      } else {  //96S battery
+        datalayer.battery.status.cell_voltages_mV[95] =
+            ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4)) + 1000;
+        datalayer.battery.info.number_of_cells = 96;
+      }
+
       //Celltemperatures
       cell_temperature[0] = ((rx_frame.data.u8[2] - 40) / 2);
       cell_temperature[1] = ((rx_frame.data.u8[2] - 40) / 2);
@@ -327,7 +334,6 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
 void FordMachEBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.number_of_cells = 96;       //TODO, Are all mach-e batteries 96S?
   datalayer.battery.info.total_capacity_Wh = 88000;  //Start in 88kWh mode, update later
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
