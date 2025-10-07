@@ -8,15 +8,14 @@ void FordMachEBattery::update_values() {
 
   datalayer.battery.status.real_soc = battery_soc;
 
-  datalayer.battery.status.soh_pptt = battery_soh * 100;
+  datalayer.battery.status.soh_pptt;
 
   datalayer.battery.status.voltage_dV = battery_voltage * 10;
 
   datalayer.battery.status.current_dA;
 
-  datalayer.battery.info.total_capacity_Wh;
-
-  datalayer.battery.status.remaining_capacity_Wh;
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   datalayer.battery.status.max_discharge_power_W = 12000;  //TODO, fix
 
@@ -57,6 +56,14 @@ void FordMachEBattery::update_values() {
   datalayer.battery.status.temperature_min_dC = minimum_temperature * 10;
 
   datalayer.battery.status.temperature_max_dC = maximum_temperature * 10;
+
+  if (datalayer.battery.info.number_of_cells == 94) {
+    datalayer.battery.info.total_capacity_Wh = 98000;
+  }
+
+  if (datalayer.battery.info.number_of_cells == 96) {
+    datalayer.battery.info.total_capacity_Wh = 88000;
+  }
 
   // Check vehicle specific safeties
   if (polled_12V < 11800) {
@@ -103,7 +110,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x47d:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_soh = rx_frame.data.u8[1];
+      battery_soh = rx_frame.data.u8[1];  //Not correct!
       break;
     case 0x490:  //1s Cellvoltages
     case 0x491:
@@ -338,7 +345,8 @@ void FordMachEBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_design_voltage_dV =
+      MAX_PACK_VOLTAGE_96S_DV;  //Startup in extreme end of max voltage diff allowed
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94S_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }

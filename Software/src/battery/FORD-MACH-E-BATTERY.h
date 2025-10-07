@@ -12,8 +12,10 @@ class FordMachEBattery : public CanBattery {
   static constexpr const char* Name = "Ford Mustang Mach-E battery";
 
  private:
-  static const int MAX_PACK_VOLTAGE_DV = 4140;
-  static const int MIN_PACK_VOLTAGE_DV = 2000;  //TODO SET
+  static const int MAX_PACK_VOLTAGE_96S_DV = 4140;
+  static const int MIN_PACK_VOLTAGE_96S_DV = 2680;
+  static const int MAX_PACK_VOLTAGE_94S_DV = 4072;
+  static const int MIN_PACK_VOLTAGE_94S_DV = 2612;
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
   static const int MIN_CELL_VOLTAGE_MV = 2900;
