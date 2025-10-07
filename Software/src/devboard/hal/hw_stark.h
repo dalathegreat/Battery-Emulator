@@ -21,6 +21,9 @@ class StarkHal : public Esp32Hal {
  public:
   const char* name() { return "Stark CMR Module"; }
 
+  //Always enable BMS power on Stark CMR, it does not collide with any pin definitions
+  virtual bool always_enable_bms_power() { return true; }
+
   // Not needed, GPIO 16 has hardware pullup for PSRAM compatibility
   virtual gpio_num_t PIN_5V_EN() { return GPIO_NUM_NC; }
 
@@ -80,6 +83,20 @@ class StarkHal : public Esp32Hal {
 
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanFdNative};
+  }
+
+  virtual const char* name_for_comm_interface(comm_interface comm) {
+    switch (comm) {
+      case comm_interface::CanNative:
+        return "CAN 1 (Native)";
+      case comm_interface::CanFdNative:
+        return "CAN FD 2 (Native)";
+      case comm_interface::CanAddonMcp2515:
+        return "";
+      case comm_interface::CanFdAddonMcp2518:
+        return "";
+    }
+    return Esp32Hal::name_for_comm_interface(comm);
   }
 };
 

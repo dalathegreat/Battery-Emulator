@@ -106,16 +106,8 @@ void handle_precharge_control(unsigned long currentMillis) {
         ledcWriteTone(hia4v1_pin, freq);
       }
 
-      if ((datalayer.battery.status.real_bms_status != BMS_STANDBY &&
-           datalayer.battery.status.real_bms_status != BMS_ACTIVE) ||
-          datalayer.battery.status.bms_status != ACTIVE || datalayer.system.settings.equipment_stop_active) {
-        pinMode(hia4v1_pin, OUTPUT);
-        digitalWrite(hia4v1_pin, LOW);
-        digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_ON);
-        datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
-        logging.printf("Precharge: Disabling Precharge bms not standby/active or equipment stop\n");
-      } else if (currentMillis - prechargeStartTime >= precharge_max_precharge_time_before_fault ||
-                 datalayer.battery.status.real_bms_status == BMS_FAULT) {
+      if (currentMillis - prechargeStartTime >= precharge_max_precharge_time_before_fault ||
+          datalayer.battery.status.real_bms_status == BMS_FAULT) {
         pinMode(hia4v1_pin, OUTPUT);
         digitalWrite(hia4v1_pin, LOW);
         digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_ON);
@@ -124,7 +116,14 @@ void handle_precharge_control(unsigned long currentMillis) {
         set_event(EVENT_AUTOMATIC_PRECHARGE_FAILURE, 0);
         // Force stop any further precharge attempts
         datalayer.system.settings.start_precharging = false;
-        // Add event
+      } else if ((datalayer.battery.status.real_bms_status != BMS_STANDBY &&
+                  datalayer.battery.status.real_bms_status != BMS_ACTIVE) ||
+                 datalayer.battery.status.bms_status != ACTIVE || datalayer.system.settings.equipment_stop_active) {
+        pinMode(hia4v1_pin, OUTPUT);
+        digitalWrite(hia4v1_pin, LOW);
+        digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_ON);
+        datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
+        logging.printf("Precharge: Disabling Precharge bms not standby/active or equipment stop\n");
       } else if (datalayer.system.status.battery_allows_contactor_closing) {
         pinMode(hia4v1_pin, OUTPUT);
         digitalWrite(hia4v1_pin, LOW);

@@ -134,14 +134,23 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
    * will "see" 100% Example 8000 = 80.0%*/
   uint16_t max_percentage = 8000;
 
-  /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A 
+  /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A, persisted to memory 
    * Updates later on via Settings
   */
   uint16_t max_user_set_charge_dA = 300;
-  /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A 
+  /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A, persisted to memory 
    * Updates later on via Settings
   */
   uint16_t max_user_set_discharge_dA = 300;
+
+  /** Last time a remote set command was received to enable timeout of settings */
+  unsigned long remote_set_timestamp = 0;
+  /** Timeout time for remote limits */
+  unsigned long remote_set_timeout = 0;
+  /** The remote specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A, NOT persisted to memory */
+  uint16_t max_remote_set_charge_dA = max_user_set_charge_dA;
+  /** The remote specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A, NOT persisted to memory */
+  uint16_t max_remote_set_discharge_dA = max_user_set_discharge_dA;
 
   /** User specified discharge/charge voltages in use. Set to true to use user specified values */
   /** Some inverters like to see a specific target voltage for charge/discharge. Use these values to override automatic voltage limits*/
@@ -157,6 +166,8 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** Parameters for keeping track of the limiting factor in the system */
   bool user_settings_limit_discharge = false;
   bool user_settings_limit_charge = false;
+  bool remote_settings_limit_discharge = false;
+  bool remote_settings_limit_charge = false;
   bool inverter_limits_discharge = false;
   bool inverter_limits_charge = false;
 
