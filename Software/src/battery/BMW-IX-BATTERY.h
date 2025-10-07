@@ -43,8 +43,12 @@ class BmwIXBattery : public CanBattery {
   bool userRequestContactorOpen = false;
 
   BmwIXHtmlRenderer renderer;
-  static const int MAX_PACK_VOLTAGE_DV = 4650;  //4650 = 465.0V
-  static const int MIN_PACK_VOLTAGE_DV = 3000;
+  static const int MAX_PACK_VOLTAGE_78S_DV = 3354;  //SE12 battery, BMW iX1, 66.45kWh 286.3vNom
+  static const int MIN_PACK_VOLTAGE_78S_DV = 2200;
+  static const int MAX_PACK_VOLTAGE_96S_DV = 4128;
+  static const int MIN_PACK_VOLTAGE_96S_DV = 2688;
+  static const int MAX_PACK_VOLTAGE_108S_DV = 4650;
+  static const int MIN_PACK_VOLTAGE_108S_DV = 3000;
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4300;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2800;  //Battery is put into emergency stop if one cell goes below this value
@@ -542,8 +546,8 @@ CAN_frame BMWiX_49C = {.FD = true,
   uint16_t min_soh_state = 9900;  // Uses E5 45, also available in 78 73
   uint16_t avg_soh_state = 9900;  // Uses E5 45, also available in 78 73
   uint16_t max_soh_state = 9900;  // Uses E5 45, also available in 78 73
-  uint16_t max_design_voltage = MAX_PACK_VOLTAGE_DV;
-  uint16_t min_design_voltage = MIN_PACK_VOLTAGE_DV;
+  uint16_t max_design_voltage = 0;
+  uint16_t min_design_voltage = 0;
   uint32_t remaining_capacity = 0;
   uint32_t max_capacity = 0;
   int16_t min_battery_temperature = 0;
@@ -575,7 +579,7 @@ CAN_frame BMWiX_49C = {.FD = true,
   uint8_t pyro_status_pss4 = 0;            //Using AC 93
   uint8_t pyro_status_pss6 = 0;            //Using AC 93
   uint8_t uds_req_id_counter = 0;
-  uint8_t detected_number_of_cells = 108;
+  uint8_t detected_number_of_cells = 0;
   const unsigned long STALE_PERIOD =
       STALE_PERIOD_CONFIG;  // Time in milliseconds to check for staleness (e.g., 5000 ms = 5 seconds)
   //End iX Intermediate vars
