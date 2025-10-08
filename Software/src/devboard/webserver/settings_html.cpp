@@ -688,6 +688,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("INVICNT") ? "checked" : "";
   }
 
+  if (var == "DEYEBYD") {
+    return settings.getBool("DEYEBYD") ? "checked" : "";
+  }
+
   if (var == "CANFREQ") {
     return String(settings.getUInt("CANFREQ", 8));
   }
@@ -973,6 +977,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-byd { display: none; }
+    form[data-inverter="2"] .if-byd {
+      display: contents;
+    }
+
     form .if-pylon { display: none; }
     form[data-inverter="10"] .if-pylon {
       display: contents;
@@ -1138,6 +1147,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-pylon">
         <label>Send group (0-1): </label>
         <input name='PYLONSEND' type='text' value="%PYLONSEND%" pattern="[0-9]+" />
+        </div>
+
+        <div class="if-byd">
+        <label>Deye offgrid specific fixes: </label>
+        <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
         </div>
 
         <div class="if-pylonish">
