@@ -535,6 +535,9 @@ void init_webserver() {
       } else if (p->name() == "SOFAR_ID") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("SOFAR_ID", type);
+      } else if (p->name() == "PYLONSEND") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("PYLONSEND", type);
       } else if (p->name() == "INVCELLS") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("INVCELLS", type);

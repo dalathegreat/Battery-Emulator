@@ -3,8 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../inverter/INVERTERS.h"
 
-#define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
-//#define SEND_1 //If defined, the messages will have ID ending with 1 (useful for some inverters)
 #define INVERT_LOW_HIGH_BYTES  //If defined, certain frames will have inverted low/high bytes \
                                //useful for some inverters like Sofar that report the voltages incorrect otherwise
 //#define SET_30K_OFFSET  //If defined, current values are sent with a 30k offest (useful for ferroamp)
@@ -318,42 +316,50 @@ void PylonInverter::transmit_can(unsigned long currentMillis) {
 }
 
 void PylonInverter::send_setup_info() {  //Ensemble information
-#ifdef SEND_0
-  transmit_can_frame(&PYLON_7310);
-  transmit_can_frame(&PYLON_7320);
-#endif
-#ifdef SEND_1
-  transmit_can_frame(&PYLON_7311);
-  transmit_can_frame(&PYLON_7321);
-#endif
+  if (pylon_send_0) {
+    transmit_can_frame(&PYLON_7310);
+    transmit_can_frame(&PYLON_7320);
+  }
+  if (pylon_send_1) {
+    transmit_can_frame(&PYLON_7311);
+    transmit_can_frame(&PYLON_7321);
+  }
 }
 
 void PylonInverter::send_system_data() {  //System equipment information
-#ifdef SEND_0
-  transmit_can_frame(&PYLON_4210);
-  transmit_can_frame(&PYLON_4220);
-  transmit_can_frame(&PYLON_4230);
-  transmit_can_frame(&PYLON_4240);
-  transmit_can_frame(&PYLON_4250);
-  transmit_can_frame(&PYLON_4260);
-  transmit_can_frame(&PYLON_4270);
-  transmit_can_frame(&PYLON_4280);
-  transmit_can_frame(&PYLON_4290);
-#endif
-#ifdef SEND_1
-  transmit_can_frame(&PYLON_4211);
-  transmit_can_frame(&PYLON_4221);
-  transmit_can_frame(&PYLON_4231);
-  transmit_can_frame(&PYLON_4241);
-  transmit_can_frame(&PYLON_4251);
-  transmit_can_frame(&PYLON_4261);
-  transmit_can_frame(&PYLON_4271);
-  transmit_can_frame(&PYLON_4281);
-  transmit_can_frame(&PYLON_4291);
-#endif
+  if (pylon_send_0) {
+    transmit_can_frame(&PYLON_4210);
+    transmit_can_frame(&PYLON_4220);
+    transmit_can_frame(&PYLON_4230);
+    transmit_can_frame(&PYLON_4240);
+    transmit_can_frame(&PYLON_4250);
+    transmit_can_frame(&PYLON_4260);
+    transmit_can_frame(&PYLON_4270);
+    transmit_can_frame(&PYLON_4280);
+    transmit_can_frame(&PYLON_4290);
+  }
+  if (pylon_send_1) {
+    transmit_can_frame(&PYLON_4211);
+    transmit_can_frame(&PYLON_4221);
+    transmit_can_frame(&PYLON_4231);
+    transmit_can_frame(&PYLON_4241);
+    transmit_can_frame(&PYLON_4251);
+    transmit_can_frame(&PYLON_4261);
+    transmit_can_frame(&PYLON_4271);
+    transmit_can_frame(&PYLON_4281);
+    transmit_can_frame(&PYLON_4291);
+  }
 }
 
 bool PylonInverter::setup() {
+  if (user_selected_pylon_send == 0) {
+    pylon_send_0 = true;
+    pylon_send_1 = false;
+  }
+  if (user_selected_pylon_send == 1) {
+    pylon_send_0 = false;
+    pylon_send_1 = true;
+  }
   if (user_selected_inverter_cells > 0) {
     PYLON_7320.data.u8[0] = user_selected_inverter_cells & 0xff;
     PYLON_7320.data.u8[1] = (uint8_t)(user_selected_inverter_cells >> 8);

@@ -619,6 +619,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return String(settings.getUInt("SOFAR_ID", 0));
   }
 
+  if (var == "PYLONSEND") {
+    return String(settings.getUInt("PYLONSEND", 0));
+  }
+
   if (var == "INVCELLS") {
     return String(settings.getUInt("INVCELLS", 0));
   }
@@ -952,6 +956,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-pylon { display: none; }
+    form[data-inverter="10"] .if-pylon {
+      display: contents;
+    }
+
     form .if-pylonish { display: none; }
     form[data-inverter="4"] .if-pylonish, form[data-inverter="10"] .if-pylonish, form[data-inverter="19"] .if-pylonish {
       display: contents;
@@ -1107,6 +1116,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-sofar">
         <label>Sofar Battery ID (0-15): </label>
         <input name='SOFAR_ID' type='text' value="%SOFAR_ID%" pattern="[0-9]{1,2}" />
+        </div>
+
+        <div class="if-pylon">
+        <label>Send group (0-1): </label>
+        <input name='PYLONSEND' type='text' value="%PYLONSEND%" pattern="[0-9]+" />
         </div>
 
         <div class="if-pylonish">
