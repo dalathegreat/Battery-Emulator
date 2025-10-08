@@ -7,6 +7,7 @@ InverterProtocolType user_selected_inverter_protocol = InverterProtocolType::Byd
 // Some user-configurable settings that can be used by inverters. These
 // inverters should use sensible defaults if the corresponding user_selected
 // value is zero.
+uint16_t user_selected_pylon_send = 0;
 uint16_t user_selected_inverter_cells = 0;
 uint16_t user_selected_inverter_modules = 0;
 uint16_t user_selected_inverter_cells_per_module = 0;
