@@ -43,6 +43,8 @@ const char* name_for_battery_type(BatteryType type) {
       return BmwI3Battery::Name;
     case BatteryType::BmwIx:
       return BmwIXBattery::Name;
+    case BatteryType::BmwPhev:
+      return BmwPhevBattery::Name;
     case BatteryType::BoltAmpera:
       return BoltAmperaBattery::Name;
     case BatteryType::BydAtto3:
@@ -140,7 +142,9 @@ Battery* create_battery(BatteryType type) {
     case BatteryType::BmwI3:
       return new BmwI3Battery();
     case BatteryType::BmwIx:
-      return new BmwIXBattery();
+      return new BmwI3Battery();
+    case BatteryType::BmwPhev:
+      return new BmwPhevBattery();
     case BatteryType::BoltAmpera:
       return new BoltAmperaBattery();
     case BatteryType::BydAtto3:
