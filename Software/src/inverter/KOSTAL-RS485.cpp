@@ -3,6 +3,7 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
+#include "INVERTERS.h"
 
 void KostalInverterProtocol::float2frame(uint8_t* arr, float value, uint8_t framepointer) {
   f32b g;
@@ -36,6 +37,19 @@ static void dbg_frame(uint8_t* frame, int len, const char* prefix) {
 static void dbg_message(const char* msg) {
   dbg_timestamp();
   logging.println(msg);
+}
+
+void setInverterAllowsContactorClosing(bool state) {
+  if (state) {
+    datalayer.system.status.inverter_allows_contactor_closing = true;
+  } else {  //false, we want to open contactors
+    //Only open contactors if we are configured to allow this
+    if (user_selected_inverter_ignore_contactors) {
+      datalayer.system.status.inverter_allows_contactor_closing = true;
+    } else {
+      datalayer.system.status.inverter_allows_contactor_closing = false;
+    }
+  }
 }
 
 /* https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples */
@@ -138,7 +152,7 @@ void KostalInverterProtocol::update_values() {
 
   // Close contactors after 7 battery info frames requested
   if (f2_startup_count > 7) {
-    datalayer.system.status.inverter_allows_contactor_closing = true;
+    setInverterAllowsContactorClosing(true);
     dbg_message("inverter_allows_contactor_closing -> true (info frame)");
   }
 
@@ -192,7 +206,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
 
   // Auto-reset contactor_test_active after 5 seconds
   if (contactortestTimerActive && (millis() - contactortestTimerStart >= 5000)) {
-    datalayer.system.status.inverter_allows_contactor_closing = true;
+    setInverterAllowsContactorClosing(true);
     dbg_message("inverter_allows_contactor_closing -> true (Contactor test ended)");
     contactortestTimerActive = false;
   }
@@ -223,12 +237,12 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 // Set State function
                 if (RS485_RXFRAME[7] == 0x00) {
                   // Allow contactor closing
-                  datalayer.system.status.inverter_allows_contactor_closing = true;
+                  setInverterAllowsContactorClosing(true);
                   dbg_message("inverter_allows_contactor_closing -> true (5E 02)");
                   send_kostal(ACK_FRAME, 8);  // ACK
                 } else if (RS485_RXFRAME[7] == 0x04) {
                   // contactor test STATE, ACK sent
-                  datalayer.system.status.inverter_allows_contactor_closing = false;
+                  setInverterAllowsContactorClosing(false);
                   dbg_message("inverter_allows_contactor_closing -> false (Contactor test start)");
                   send_kostal(ACK_FRAME, 8);  // ACK
                   contactortestTimerStart = currentMillis;
@@ -269,7 +283,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                   tmpframe[38] = calculate_kostal_crc(tmpframe, 38);
                   null_stuffer(tmpframe, 40);
                   send_kostal(tmpframe, 40);
-                  datalayer.system.status.inverter_allows_contactor_closing = false;
+                  setInverterAllowsContactorClosing(false);
                   dbg_message("inverter_allows_contactor_closing -> false (battery info sent)");
                   info_sent = true;
                   if (!startupMillis) {
@@ -299,7 +313,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
 }
 
 bool KostalInverterProtocol::setup(void) {  // Performs one time setup at startup
-  datalayer.system.status.inverter_allows_contactor_closing = false;
+  setInverterAllowsContactorClosing(false);
   dbg_message("inverter_allows_contactor_closing -> false");
 
   auto rx_pin = esp32hal->RS485_RX_PIN();
