@@ -104,8 +104,8 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         uint8_t base_index = mux * 4;
 
         cell_voltages_mV[base_index + 0] = ((rx_frame.data.u8[1] << 4) | (rx_frame.data.u8[2] >> 4)) * 4;
-        cell_voltages_mV[base_index + 1] = ((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
-        cell_voltages_mV[base_index + 2] = ((rx_frame.data.u8[4] << 4) | (rx_frame.data.u8[5] >> 4)) * 4;
+        cell_voltages_mV[base_index + 1] = ((rx_frame.data.u8[3] & 0xFF) << 4) | (rx_frame.data.u8[4] >> 4);
+        cell_voltages_mV[base_index + 2] = (((rx_frame.data.u8[4] & 0x0F) << 8) | (rx_frame.data.u8[5])) * 4;
         cell_voltages_mV[base_index + 3] = ((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[7];
       }
       break;
