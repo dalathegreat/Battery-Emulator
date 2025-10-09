@@ -48,15 +48,35 @@ void CmpSmartCarBattery::update_values() {
 
   datalayer.battery.status.temperature_max_dC = temp_max * 10;
 
-  datalayer.battery.status.cell_min_voltage_mV;
+  // Initialize min and max, lets find which cells are min and max!
+  uint16_t min_cell_mv_value = std::numeric_limits<uint16_t>::max();
+  uint16_t max_cell_mv_value = 0;
+  // Loop to find the min and max while ignoring zero values
+  for (uint8_t i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
+    uint16_t voltage_mV = datalayer.battery.status.cell_voltages_mV[i];
+    if (voltage_mV != 0) {  // Skip unread values (0)
+      min_cell_mv_value = std::min(min_cell_mv_value, voltage_mV);
+      max_cell_mv_value = std::max(max_cell_mv_value, voltage_mV);
+    }
+  }
+  // If all array values are 0, reset min/max to 3700
+  if (min_cell_mv_value == std::numeric_limits<uint16_t>::max()) {
+    min_cell_mv_value = 3700;
+    max_cell_mv_value = 3700;
+  }
 
-  datalayer.battery.status.cell_max_voltage_mV;
+  datalayer.battery.status.cell_min_voltage_mV = min_cell_mv_value;
+  datalayer.battery.status.cell_max_voltage_mV = max_cell_mv_value;
+
+  //Map all cell voltages to the global array
+  memcpy(datalayer.battery.status.cell_voltages_mV, cell_voltages_mV, 100 * sizeof(uint16_t));
 }
 
 void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
-    case 0x205:
+    case 0x205:  //00 00 F0 03 35 80 94 45
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //frame7 is a counter, highbyte F-0, lowbyte 0-F
       break;
     case 0x235:  //0 in all logs
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -65,17 +85,29 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //frame7 is a counter, highbyte F-0, lowbyte 0-F
       break;
-    case 0x285:
+    case 0x285:  //0 in all logs
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //frame7 is a counter, highbyte F-0, lowbyte 0-F
       break;
     case 0x2A5:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x325:
+    case 0x325:  //70 00 F8 42 80 EA 60 0B
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //frame7 is a counter, highbyte F-0, lowbyte 0-F
       break;
-    case 0x334:
+    case 0x334:  // Cellvoltages
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      mux = (rx_frame.data.u8[0] >> 3);  // Mux goes from 0-25
+
+      if (mux < 25) {  // Only process valid cell data frames (0-24)
+        uint8_t base_index = mux * 4;
+
+        cell_voltages_mV[base_index + 0] = ((rx_frame.data.u8[1] << 4) | (rx_frame.data.u8[2] >> 4)) * 4;
+        cell_voltages_mV[base_index + 1] = ((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
+        cell_voltages_mV[base_index + 2] = ((rx_frame.data.u8[4] << 4) | (rx_frame.data.u8[5] >> 4)) * 4;
+        cell_voltages_mV[base_index + 3] = ((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[7];
+      }
       break;
     case 0x335:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -177,10 +209,11 @@ void CmpSmartCarBattery::setup(void) {  // Performs one time setup at startup
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 100;
   datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
+  datalayer.battery.info.total_capacity_Wh = 41400;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_100S_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_100S_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }

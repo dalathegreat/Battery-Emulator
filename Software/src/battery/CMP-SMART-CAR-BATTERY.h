@@ -15,16 +15,17 @@ class CmpSmartCarBattery : public CanBattery {
 
  private:
   CmpSmartCarHtmlRenderer renderer;
-  static const int MAX_PACK_VOLTAGE_DV = 5000;
-  static const int MIN_PACK_VOLTAGE_DV = 2500;
+  static const int MAX_PACK_VOLTAGE_100S_DV = 3700;
+  static const int MIN_PACK_VOLTAGE_100S_DV = 2900;
   static const int MAX_CELL_DEVIATION_MV = 100;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;
-  static const int MIN_CELL_VOLTAGE_MV = 2700;
+  static const int MAX_CELL_VOLTAGE_MV = 3650;
+  static const int MIN_CELL_VOLTAGE_MV = 2800;
 
   unsigned long previousMillis10 = 0;  // will store last time a 10ms CAN Message was sent
   uint8_t mux = 0;
   int16_t temperature_sensors[16];
   int16_t temp_min = 0;
   int16_t temp_max = 0;
+  uint16_t cell_voltages_mV[100];
 };
 #endif
