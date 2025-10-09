@@ -89,7 +89,7 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //frame7 is a counter, highbyte F-0, lowbyte 0-F
       break;
-    case 0x2A5:
+    case 0x2A5:  //0 in all logs
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x325:  //70 00 F8 42 80 EA 60 0B
@@ -109,8 +109,9 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages_mV[base_index + 3] = ((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[7];
       }
       break;
-    case 0x335:
+    case 0x335:  //00 03 9A D5 F0 00 00 85
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //frame7 is a counter, highbyte F-0, lowbyte 0-F
       break;
     case 0x385:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -119,24 +120,24 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = rx_frame.data.u8[0];
       if (mux == 0) {
-        temperature_sensors[0] = (rx_frame.data.u8[1] - 40) / 2;
-        temperature_sensors[1] = (rx_frame.data.u8[2] - 40) / 2;
-        temperature_sensors[2] = (rx_frame.data.u8[3] - 40) / 2;
-        temperature_sensors[3] = (rx_frame.data.u8[4] - 40) / 2;
-        temperature_sensors[4] = (rx_frame.data.u8[5] - 40) / 2;
-        temperature_sensors[5] = (rx_frame.data.u8[6] - 40) / 2;
-        temperature_sensors[6] = (rx_frame.data.u8[7] - 40) / 2;
+        temperature_sensors[0] = (rx_frame.data.u8[1] - 40);
+        temperature_sensors[1] = (rx_frame.data.u8[2] - 40);
+        temperature_sensors[2] = (rx_frame.data.u8[3] - 40);
+        temperature_sensors[3] = (rx_frame.data.u8[4] - 40);
+        temperature_sensors[4] = (rx_frame.data.u8[5] - 40);
+        temperature_sensors[5] = (rx_frame.data.u8[6] - 40);
+        temperature_sensors[6] = (rx_frame.data.u8[7] - 40);
       } else if (mux == 0x20) {
-        temperature_sensors[7] = (rx_frame.data.u8[1] - 40) / 2;
-        temperature_sensors[8] = (rx_frame.data.u8[2] - 40) / 2;
-        temperature_sensors[9] = (rx_frame.data.u8[3] - 40) / 2;
-        temperature_sensors[10] = (rx_frame.data.u8[4] - 40) / 2;
-        temperature_sensors[11] = (rx_frame.data.u8[5] - 40) / 2;
-        temperature_sensors[12] = (rx_frame.data.u8[6] - 40) / 2;
-        temperature_sensors[13] = (rx_frame.data.u8[7] - 40) / 2;
+        temperature_sensors[7] = (rx_frame.data.u8[1] - 40);
+        temperature_sensors[8] = (rx_frame.data.u8[2] - 40);
+        temperature_sensors[9] = (rx_frame.data.u8[3] - 40);
+        temperature_sensors[10] = (rx_frame.data.u8[4] - 40);
+        temperature_sensors[11] = (rx_frame.data.u8[5] - 40);
+        temperature_sensors[12] = (rx_frame.data.u8[6] - 40);
+        temperature_sensors[13] = (rx_frame.data.u8[7] - 40);
       } else if (mux == 0x40) {
-        temperature_sensors[14] = (rx_frame.data.u8[1] - 40) / 2;
-        temperature_sensors[15] = (rx_frame.data.u8[2] - 40) / 2;
+        temperature_sensors[14] = (rx_frame.data.u8[1] - 40);
+        temperature_sensors[15] = (rx_frame.data.u8[2] - 40);
       }
       break;
     case 0x434:
@@ -145,7 +146,7 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x435:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x455:
+    case 0x455:  //64 00 00 1C 20 64 E4 00 static
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x485:
