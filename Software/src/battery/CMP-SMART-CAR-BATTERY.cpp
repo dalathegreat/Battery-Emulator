@@ -8,16 +8,32 @@
 Everything
 */
 
+uint16_t sumOfAllCellvoltages() {
+  if (datalayer.battery.status.cell_voltages_mV[99] > 2000) {  //We have read all cellvoltages
+    uint32_t sum_mV = 0;
+
+    // Sum all 100 cell voltages
+    for (int i = 0; i < 100; i++) {
+      sum_mV += datalayer.battery.status.cell_voltages_mV[i];
+    }
+
+    // Convert from mV to dV (divide by 100) and return as uint16_t
+    return (uint16_t)(sum_mV / 100);
+  } else {
+    return 3300;  //330.0V
+  }
+}
+
 /* Do not change code below unless you are sure what you are doing */
 void CmpSmartCarBattery::update_values() {
 
-  datalayer.battery.status.real_soc;
+  datalayer.battery.status.real_soc = battery_soc;  //TODO: Find
 
-  datalayer.battery.status.soh_pptt;
+  datalayer.battery.status.soh_pptt;  //TODO: Find
 
-  datalayer.battery.status.voltage_dV;
+  datalayer.battery.status.voltage_dV = sumOfAllCellvoltages();
 
-  datalayer.battery.status.current_dA;
+  datalayer.battery.status.current_dA;  //TODO: Find
 
   datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
@@ -25,9 +41,9 @@ void CmpSmartCarBattery::update_values() {
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_charge_power_W;
+  datalayer.battery.status.max_charge_power_W = 5000;  //TODO: Find
 
-  datalayer.battery.status.max_discharge_power_W;
+  datalayer.battery.status.max_discharge_power_W = 5000;  //TODO: Find
 
   temp_min = temperature_sensors[0];
   temp_max = temperature_sensors[0];
@@ -61,8 +77,8 @@ void CmpSmartCarBattery::update_values() {
   }
   // If all array values are 0, reset min/max to 3700
   if (min_cell_mv_value == std::numeric_limits<uint16_t>::max()) {
-    min_cell_mv_value = 3700;
-    max_cell_mv_value = 3700;
+    min_cell_mv_value = 3300;
+    max_cell_mv_value = 3300;
   }
 
   datalayer.battery.status.cell_min_voltage_mV = min_cell_mv_value;
