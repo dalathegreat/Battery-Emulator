@@ -22,5 +22,9 @@ class CmpSmartCarBattery : public CanBattery {
   static const int MIN_CELL_VOLTAGE_MV = 2700;
 
   unsigned long previousMillis10 = 0;  // will store last time a 10ms CAN Message was sent
+  uint8_t mux = 0;
+  int16_t temperature_sensors[16];
+  int16_t temp_min = 0;
+  int16_t temp_max = 0;
 };
 #endif
