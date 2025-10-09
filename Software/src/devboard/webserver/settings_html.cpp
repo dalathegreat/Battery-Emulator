@@ -988,6 +988,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-kostal { display: none; }
+    form[data-inverter="9"] .if-kostal {
+      display: contents;
+    }
+
     form .if-staticip { display: none; }
     form[data-staticip="true"] .if-staticip {
       display: contents;
@@ -1164,8 +1169,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-solax">
         <label>Reported battery type (in decimal): </label>
         <input name='INVBTYPE' type='text' value="%INVBTYPE%" pattern="[0-9]+" />
+        </div>
 
-        <label>Inverter should ignore contactors: </label>
+        <div class="if-kostal if-solax">
+        <label>Prevent inverter opening contactors: </label>
         <input type='checkbox' name='INVICNT' value='on' %INVICNT% />
         </div>
 
