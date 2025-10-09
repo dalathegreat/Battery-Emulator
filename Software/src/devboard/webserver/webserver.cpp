@@ -18,6 +18,7 @@
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
 #include "esp_task_wdt.h"
+#include "html_escape.h"
 
 #include <string>
 extern std::string http_username;
@@ -535,6 +536,9 @@ void init_webserver() {
       } else if (p->name() == "SOFAR_ID") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("SOFAR_ID", type);
+      } else if (p->name() == "PYLONSEND") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("PYLONSEND", type);
       } else if (p->name() == "INVCELLS") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("INVCELLS", type);
@@ -984,14 +988,14 @@ String processor(const String& var) {
 
     wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
-    content += "<h4>SSID: " + String(ssid.c_str());
+    content += "<h4>SSID: " + html_escape(ssid.c_str());
     if (status == WL_CONNECTED) {
       // Get and display the signal strength (RSSI) and channel
       content += " RSSI:" + String(WiFi.RSSI()) + " dBm Ch: " + String(WiFi.channel());
     }
     content += "</h4>";
     if (status == WL_CONNECTED) {
-      content += "<h4>Hostname: " + String(WiFi.getHostname()) + "</h4>";
+      content += "<h4>Hostname: " + html_escape(WiFi.getHostname()) + "</h4>";
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
     } else {
       content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
