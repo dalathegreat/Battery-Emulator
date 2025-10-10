@@ -3,6 +3,7 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
+#include "INVERTERS.h"
 
 void KostalInverterProtocol::float2frame(uint8_t* arr, float value, uint8_t framepointer) {
   f32b g;
@@ -36,6 +37,19 @@ static void dbg_frame(uint8_t* frame, int len, const char* prefix) {
 static void dbg_message(const char* msg) {
   dbg_timestamp();
   logging.println(msg);
+}
+
+void setInverterAllowsContactorClosing(bool state) {
+  if (state) {
+    datalayer.system.status.inverter_allows_contactor_closing = true;
+  } else {  //false, we want to open contactors
+    //Only open contactors if we are configured to allow this
+    if (user_selected_inverter_ignore_contactors) {
+      datalayer.system.status.inverter_allows_contactor_closing = true;
+    } else {
+      datalayer.system.status.inverter_allows_contactor_closing = false;
+    }
+  }
 }
 
 /* https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples */
@@ -110,47 +124,46 @@ void KostalInverterProtocol::update_values() {
 
   float2frame(CYCLIC_DATA, (float)average_temperature_dC / 10, 14);
 
-#ifdef BMW_SBOX
-  float2frame(CYCLIC_DATA, (float)(datalayer.shunt.measured_amperage_mA / 100) / 10, 18);
-  float2frame(CYCLIC_DATA, (float)(datalayer.shunt.measured_avg1S_amperage_mA / 100) / 10, 22);
+  //Only perform this operation when Shunt is in used and set to BMW SBOX
+  if (shunt || (user_selected_shunt_type == ShuntType::BmwSbox)) {
+    float2frame(CYCLIC_DATA, (float)(datalayer.shunt.measured_amperage_mA / 100) / 10, 18);
+    float2frame(CYCLIC_DATA, (float)(datalayer.shunt.measured_avg1S_amperage_mA / 100) / 10, 22);
 
-  if (datalayer.shunt.contactors_engaged) {
-    CYCLIC_DATA[59] = 0;
+    if (datalayer.shunt.contactors_engaged) {
+      CYCLIC_DATA[59] = 0;
+    } else {
+      CYCLIC_DATA[59] = 2;
+    }
+
+    if (datalayer.shunt.precharging || datalayer.shunt.contactors_engaged) {
+      CYCLIC_DATA[56] = 1;
+      float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_discharge_current_dA / 10,
+                  26);  // Maximum discharge current
+      float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_charge_current_dA / 10,
+                  34);  // Maximum charge current
+    } else {
+      CYCLIC_DATA[56] = 0;
+      float2frame(CYCLIC_DATA, 0.0, 26);
+      float2frame(CYCLIC_DATA, 0.0, 34);
+    }
   } else {
-    CYCLIC_DATA[59] = 2;
+    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 18);  // Last current
+    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 22);  // Should be Avg current(1s)
+
+    // Close contactors after 7 battery info frames requested
+    if (f2_startup_count > 7) {
+      setInverterAllowsContactorClosing(true);
+      dbg_message("inverter_allows_contactor_closing -> true (info frame)");
+    }
+
+    if (datalayer.system.status.inverter_allows_contactor_closing) {
+      CYCLIC_DATA[56] = 0x01;
+      CYCLIC_DATA[59] = 0x00;
+    } else {
+      CYCLIC_DATA[56] = 0x00;
+      CYCLIC_DATA[59] = 0x02;
+    }
   }
-
-  if (datalayer.shunt.precharging || datalayer.shunt.contactors_engaged) {
-    CYCLIC_DATA[56] = 1;
-    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_discharge_current_dA / 10,
-                26);  // Maximum discharge current
-    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_charge_current_dA / 10, 34);  // Maximum charge current
-  } else {
-    CYCLIC_DATA[56] = 0;
-    float2frame(CYCLIC_DATA, 0.0, 26);
-    float2frame(CYCLIC_DATA, 0.0, 34);
-  }
-
-#else
-
-  float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 18);  // Last current
-  float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 22);  // Should be Avg current(1s)
-
-  // Close contactors after 7 battery info frames requested
-  if (f2_startup_count > 7) {
-    datalayer.system.status.inverter_allows_contactor_closing = true;
-    dbg_message("inverter_allows_contactor_closing -> true (info frame)");
-  }
-
-  if (datalayer.system.status.inverter_allows_contactor_closing) {
-    CYCLIC_DATA[56] = 0x01;
-    CYCLIC_DATA[59] = 0x00;
-  } else {
-    CYCLIC_DATA[56] = 0x00;
-    CYCLIC_DATA[59] = 0x02;
-  }
-
-#endif
 
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_discharge_current_dA / 10, 26);
 
@@ -192,7 +205,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
 
   // Auto-reset contactor_test_active after 5 seconds
   if (contactortestTimerActive && (millis() - contactortestTimerStart >= 5000)) {
-    datalayer.system.status.inverter_allows_contactor_closing = true;
+    setInverterAllowsContactorClosing(true);
     dbg_message("inverter_allows_contactor_closing -> true (Contactor test ended)");
     contactortestTimerActive = false;
   }
@@ -223,12 +236,12 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 // Set State function
                 if (RS485_RXFRAME[7] == 0x00) {
                   // Allow contactor closing
-                  datalayer.system.status.inverter_allows_contactor_closing = true;
+                  setInverterAllowsContactorClosing(true);
                   dbg_message("inverter_allows_contactor_closing -> true (5E 02)");
                   send_kostal(ACK_FRAME, 8);  // ACK
                 } else if (RS485_RXFRAME[7] == 0x04) {
                   // contactor test STATE, ACK sent
-                  datalayer.system.status.inverter_allows_contactor_closing = false;
+                  setInverterAllowsContactorClosing(false);
                   dbg_message("inverter_allows_contactor_closing -> false (Contactor test start)");
                   send_kostal(ACK_FRAME, 8);  // ACK
                   contactortestTimerStart = currentMillis;
@@ -269,7 +282,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                   tmpframe[38] = calculate_kostal_crc(tmpframe, 38);
                   null_stuffer(tmpframe, 40);
                   send_kostal(tmpframe, 40);
-                  datalayer.system.status.inverter_allows_contactor_closing = false;
+                  setInverterAllowsContactorClosing(false);
                   dbg_message("inverter_allows_contactor_closing -> false (battery info sent)");
                   info_sent = true;
                   if (!startupMillis) {
@@ -299,7 +312,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
 }
 
 bool KostalInverterProtocol::setup(void) {  // Performs one time setup at startup
-  datalayer.system.status.inverter_allows_contactor_closing = false;
+  setInverterAllowsContactorClosing(false);
   dbg_message("inverter_allows_contactor_closing -> false");
 
   auto rx_pin = esp32hal->RS485_RX_PIN();

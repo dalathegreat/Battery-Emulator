@@ -696,6 +696,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("INVICNT") ? "checked" : "";
   }
 
+  if (var == "DEYEBYD") {
+    return settings.getBool("DEYEBYD") ? "checked" : "";
+  }
+
   if (var == "CANFREQ") {
     return String(settings.getUInt("CANFREQ", 8));
   }
@@ -981,6 +985,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-byd { display: none; }
+    form[data-inverter="2"] .if-byd {
+      display: contents;
+    }
+
     form .if-pylon { display: none; }
     form[data-inverter="10"] .if-pylon {
       display: contents;
@@ -993,6 +1002,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-solax { display: none; }
     form[data-inverter="18"] .if-solax {
+      display: contents;
+    }
+
+    form .if-kostal { display: none; }
+    form[data-inverter="9"] .if-kostal {
       display: contents;
     }
 
@@ -1157,6 +1171,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="When enabled, byteorder will be inverted on some signals, useful for some inverters that see wrong data otherwise" />
         </div>
 
+        <div class="if-byd">
+        <label>Deye offgrid specific fixes: </label>
+        <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
+        </div>
+
         <div class="if-pylonish">
         <label>Reported cell count (0 for default): </label>
         <input name='INVCELLS' type='text' value="%INVCELLS%" pattern="[0-9]+" />
@@ -1181,8 +1200,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-solax">
         <label>Reported battery type (in decimal): </label>
         <input name='INVBTYPE' type='text' value="%INVBTYPE%" pattern="[0-9]+" />
+        </div>
 
-        <label>Inverter should ignore contactors: </label>
+        <div class="if-kostal if-solax">
+        <label>Prevent inverter opening contactors: </label>
         <input type='checkbox' name='INVICNT' value='on' %INVICNT% />
         </div>
 
