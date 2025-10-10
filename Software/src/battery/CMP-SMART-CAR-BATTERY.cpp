@@ -74,15 +74,17 @@ void CmpSmartCarBattery::update_values() {
 
 void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
-    case 0x205:  //00 00 F0 03 35 80 94 45
+    case 0x205:
+      //00 00 F0 03 35 80 94 45 328v
+      //00 00 50 03 2A C0 40 7D 323disch
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_voltage = ((((rx_frame.data.u8[3] & 0x0F) << 8) | (rx_frame.data.u8[4])) * 4);
       //frame7 is a counter, highbyte F-0, lowbyte 0-F
       break;
-    case 0x235:  //0 in all logs
+    case 0x235:  //0 in standby. 1E A2 F3 00 00 00 00 00 while discharging
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x275:
+    case 0x275:  //0 in standby. 22 63 4F 29 E9 B3 00 01 while discharging
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //frame7 is a counter, highbyte F-0, lowbyte 0-F
       break;
@@ -90,7 +92,7 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //frame7 is a counter, highbyte F-0, lowbyte 0-F
       break;
-    case 0x2A5:  //0 in all logs
+    case 0x2A5:  //0 in standby. 08 DA 2D E0 00 00 00 00 while discharging
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x325:  //70 00 F8 42 80 EA 60 0B
