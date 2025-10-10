@@ -8,22 +8,6 @@
 Everything
 */
 
-uint16_t sumOfAllCellvoltages() {
-  if (datalayer.battery.status.cell_voltages_mV[99] > 2000) {  //We have read all cellvoltages
-    uint32_t sum_mV = 0;
-
-    // Sum all 100 cell voltages
-    for (int i = 0; i < 100; i++) {
-      sum_mV += datalayer.battery.status.cell_voltages_mV[i];
-    }
-
-    // Convert from mV to dV (divide by 100) and return as uint16_t
-    return (uint16_t)(sum_mV / 100);
-  } else {
-    return 3300;  //330.0V
-  }
-}
-
 /* Do not change code below unless you are sure what you are doing */
 void CmpSmartCarBattery::update_values() {
 
@@ -31,7 +15,7 @@ void CmpSmartCarBattery::update_values() {
 
   datalayer.battery.status.soh_pptt;  //TODO: Find
 
-  datalayer.battery.status.voltage_dV = sumOfAllCellvoltages();
+  datalayer.battery.status.voltage_dV = battery_voltage;
 
   datalayer.battery.status.current_dA;  //TODO: Find
 
@@ -92,6 +76,7 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x205:  //00 00 F0 03 35 80 94 45
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_voltage = ((((rx_frame.data.u8[3] & 0x0F) << 8) | (rx_frame.data.u8[4])) * 4);
       //frame7 is a counter, highbyte F-0, lowbyte 0-F
       break;
     case 0x235:  //0 in all logs

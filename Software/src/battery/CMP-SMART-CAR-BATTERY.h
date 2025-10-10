@@ -28,5 +28,6 @@ class CmpSmartCarBattery : public CanBattery {
   int16_t temp_max = 0;
   uint16_t cell_voltages_mV[100];
   uint16_t battery_soc = 5000;
+  uint16_t battery_voltage = 3300;
 };
 #endif
