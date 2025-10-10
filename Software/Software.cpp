@@ -141,7 +141,7 @@ void check_interconnect_available() {
   }
 }
 
-void update_calculated_values(volatile unsigned long currentMillis) {
+void update_calculated_values(unsigned long currentMillis) {
   /* Update CPU temperature*/
   union {
     float temp;

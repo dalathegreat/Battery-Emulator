@@ -15,6 +15,8 @@ uint16_t user_selected_inverter_voltage_level = 0;
 uint16_t user_selected_inverter_ah_capacity = 0;
 uint16_t user_selected_inverter_battery_type = 0;
 bool user_selected_inverter_ignore_contactors = false;
+bool user_selected_pylon_30koffset = false;
+bool user_selected_pylon_invert_byteorder = false;
 bool user_selected_inverter_deye_workaround = false;
 
 std::vector<InverterProtocolType> supported_inverter_protocols() {

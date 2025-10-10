@@ -660,6 +660,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("PYLONSEND", 0));
   }
 
+  if (var == "PYLONOFFSET") {
+    return settings.getBool("PYLONOFFSET") ? "checked" : "";
+  }
+
+  if (var == "PYLONORDER") {
+    return settings.getBool("PYLONORDER") ? "checked" : "";
+  }
+
   if (var == "INVCELLS") {
     return String(settings.getUInt("INVCELLS", 0));
   }
@@ -1150,8 +1158,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-pylon">
-        <label>Send group (0-1): </label>
-        <input name='PYLONSEND' type='text' value="%PYLONSEND%" pattern="[0-9]+" />
+        <label>Pylon, send group (0-1): </label>
+        <input name='PYLONSEND' type='text' value="%PYLONSEND%" pattern="[0-9]+" 
+        title="Select if we should send ###0 or ###1 CAN messages, useful for multi-battery setups or ID problems" />
+
+        <label>Pylon, 30k offset: </label>
+        <input type='checkbox' name='PYLONOFFSET' value='on' %PYLONOFFSET% 
+        title="When enabled, 30k offset will be applied on some signals, useful for some inverters that see wrong data otherwise" />
+
+        <label>Pylon, invert byteorder: </label>
+        <input type='checkbox' name='PYLONORDER' value='on' %PYLONORDER% 
+        title="When enabled, byteorder will be inverted on some signals, useful for some inverters that see wrong data otherwise" />
         </div>
 
         <div class="if-byd">
