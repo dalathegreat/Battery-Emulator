@@ -29,5 +29,6 @@ class CmpSmartCarBattery : public CanBattery {
   uint16_t cell_voltages_mV[100];
   uint16_t battery_soc = 5000;
   uint16_t battery_voltage = 3300;
+  uint8_t battery_interlock = 0x50;  //0x5 closed, 0xF if either interlock broken
 };
 #endif

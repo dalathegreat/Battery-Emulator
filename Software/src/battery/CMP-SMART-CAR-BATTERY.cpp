@@ -70,6 +70,13 @@ void CmpSmartCarBattery::update_values() {
 
   //Map all cell voltages to the global array
   memcpy(datalayer.battery.status.cell_voltages_mV, cell_voltages_mV, 100 * sizeof(uint16_t));
+
+  //Check safeties
+  if (battery_interlock == 0xF) {  //0x5 OK, 0xF if either interlock is open
+    set_event(EVENT_HVIL_FAILURE, 0);
+  } else {
+    clear_event(EVENT_HVIL_FAILURE);
+  }
 }
 
 void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -79,6 +86,7 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //00 00 50 03 2A C0 40 7D 323disch
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_voltage = ((((rx_frame.data.u8[3] & 0x0F) << 8) | (rx_frame.data.u8[4])) * 4);
+      battery_interlock = rx_frame.data.u8[2] >> 4;
       //frame7 is a counter, highbyte F-0, lowbyte 0-F
       break;
     case 0x235:  //0 in standby. 1E A2 F3 00 00 00 00 00 while discharging
