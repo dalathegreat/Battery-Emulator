@@ -74,6 +74,38 @@ TODO:
 
 */
 
+const char* BmwPhevBattery::getUDSRequestName(CAN_frame* frame) {
+  if (frame == &BMWPHEV_6F1_REQUEST_ISO_READING1)
+    return "ISO_READING1";
+  if (frame == &BMWPHEV_6F1_REQUEST_ISO_READING2)
+    return "ISO_READING2";
+  if (frame == &BMWPHEV_6F1_REQUEST_CURRENT_LIMITS)
+    return "CURRENT_LIMITS";
+  if (frame == &BMWPHEV_6F1_REQUEST_SOH)
+    return "SOH";
+  if (frame == &BMWPHEV_6F1_REQUEST_CELLS_INDIVIDUAL_VOLTS)
+    return "CELLS_INDIVIDUAL_VOLTS";
+  if (frame == &BMWPHEV_6F1_REQUEST_CELL_TEMP)
+    return "CELL_TEMP";
+  if (frame == &BMWPHEV_6F1_REQUEST_BALANCING_STATUS)
+    return "BALANCING_STATUS";
+  if (frame == &BMWPHEV_6F1_REQUEST_PAIRED_VIN)
+    return "PAIRED_VIN";
+  if (frame == &BMWPHEV_6F1_REQUEST_CELLSUMMARY)
+    return "CELLSUMMARY";
+  if (frame == &BMWPHEV_6F1_REQUEST_SOC)
+    return "SOC";
+  if (frame == &BMWPHEV_6F1_REQUEST_CURRENT)
+    return "CURRENT";
+  if (frame == &BMWPHEV_6F1_REQUEST_VOLTAGE_LIMITS)
+    return "VOLTAGE_LIMITS";
+  if (frame == &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_PRECONTACTOR)
+    return "MAINVOLTAGE_PRE";
+  if (frame == &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR)
+    return "MAINVOLTAGE_POST";
+  return "UNKNOWN";
+}
+
 // Function to check if a value has gone stale over a specified time period
 bool BmwPhevBattery::isStale(int16_t currentValue, uint16_t& lastValue, unsigned long& lastChangeTime) {
   unsigned long currentTime = millis();
@@ -176,18 +208,17 @@ void BmwPhevBattery::wake_battery_via_canbus() {
   // Dominant for at least ~7 µs (min) and at most ~38 µs (max)
   // Followed by a Recessive interval of at least ~3 µs (min) and at most ~10 µs (max)
   // Then a second dominant pulse of similar timing.
-
+  logging.println("Setting Canbus to 100kbps...");
   change_can_speed(CAN_Speed::CAN_SPEED_100KBPS);
-
   transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST);
+  delay(10);
   transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST);
-
-  // FIXME: This might not wait for the above frames to send before it changes
-  // the speed back. A state-machine controlled delay is likely necessary.
-
-  reset_can_speed();
-
   logging.println("Sent magic wakeup packet to SME at 100kbps...");
+  delay(50);
+  logging.println("Resetting Canbus speed...");
+  change_can_speed(CAN_Speed::CAN_SPEED_500KBPS);
+  delay(50);
+  logging.println("CAN speed restored, ready for normal operation");
 }
 
 void BmwPhevBattery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
@@ -297,7 +328,7 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
 }
 void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
-  battery_awake = true;
+  //battery_awake = true; //look for specific messages
   switch (rx_frame.ID) {
     case 0x112:
       battery_awake = true;
@@ -335,6 +366,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_energy_content_maximum_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
       break;
     case 0x432:  //BMS [200ms] SOC% info
+      battery_awake = true;
       battery_request_operating_mode = (rx_frame.data.u8[0] & 0x03);
       battery_target_voltage_in_CV_mode = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
       battery_request_charging_condition_minimum = (rx_frame.data.u8[2] / 2);
@@ -394,12 +426,12 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           // total length = (pciLower << 8) + data[2]
           uint16_t totalLength = ((uint16_t)pciLower << 8) | rx_frame.data.u8[2];
           uint8_t moduleID = rx_frame.data.u8[5];
-#if defined(DEBUG_LOG) && defined(UDS_LOG)
+#if defined(UDS_LOG)
           logging.print("FF arrived! moduleID=0x");
           logging.print(moduleID, HEX);
           logging.print(", totalLength=");
           logging.println(totalLength);
-#endif  // DEBUG_LOG && UDS_LOG
+#endif  //  UDS_LOG
 
           // Start the multi-frame
           startUDSMultiFrameReception(totalLength, moduleID);
@@ -409,13 +441,13 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           uint8_t ffPayloadSize = 5;
           storeUDSPayload(ffPayload, ffPayloadSize);
 
-#if defined(DEBUG_LOG) && defined(UDS_LOG)
+#if defined(UDS_LOG)
           logging.print("After FF, UDS_bytesReceived=");
           logging.println(gUDSContext.UDS_bytesReceived);
-#endif  // DEBUG_LOG && UDS_LOG
-#if defined(DEBUG_LOG) && defined(UDS_LOG)
+#endif  //  UDS_LOG
+#if defined(UDS_LOG)
           logging.println("Requesting continue frame...");
-#endif  // DEBUG_LOG && UDS_LOG
+#endif  //  UDS_LOG
           transmit_can_frame(&BMW_6F1_REQUEST_CONTINUE_MULTIFRAME);
           break;
         }
@@ -425,16 +457,16 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           // Make sure we *are* in progress
           if (!gUDSContext.UDS_inProgress) {
 // Unexpected CF. Possibly ignore or reset.
-#if defined(DEBUG_LOG) && defined(UDS_LOG)
+#if defined(UDS_LOG)
             uint8_t seq = pciByte & 0x0F;
             logging.print("Unexpected CF --- seq=0x");
             logging.print(seq, HEX);
             logging.print(" for moduleID=0x");
             logging.println(gUDSContext.UDS_moduleID, HEX);
-#endif  // DEBUG_LOG && UDS_LOG
+#endif  // UDS_LOG
             return;
           }
-#if defined(DEBUG_LOG) && defined(UDS_LOG)
+#if defined(UDS_LOG)
           uint8_t seq = pciByte & 0x0F;
           logging.print("CF seq=0x");
           logging.print(seq, HEX);
@@ -442,26 +474,26 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           logging.print(pciByte, HEX);
           logging.print(" for moduleID=0x");
           logging.println(gUDSContext.UDS_moduleID, HEX);
-#endif  // DEBUG_LOG && UDS_LOG
+#endif  // UDS_LOG
 
           storeUDSPayload(&rx_frame.data.u8[2], 6);
           // Increment batch counter
           gUDSContext.receivedInBatch++;
-#if defined(DEBUG_LOG) && defined(UDS_LOG)
+#if defined(UDS_LOG)
           logging.print("After CF seq=0x");
           logging.print(seq, HEX);
           logging.print(", moduleID=0x");
           logging.print(gUDSContext.UDS_moduleID, HEX);
           logging.print(", UDS_bytesReceived=");
           logging.println(gUDSContext.UDS_bytesReceived);
-#endif  // DEBUG_LOG && UDS_LOG
+#endif  // UDS_LOG
 
           // Check if the batch is complete
           if (gUDSContext.receivedInBatch >= 3) {  //BMW PHEV Using batch size of 3 in continue message
                                                    // Send the next Flow Control
-#if defined(DEBUG_LOG) && defined(UDS_LOG)
+#if defined(UDS_LOG)
             logging.println("Batch Complete - Requesting continue frame...");
-#endif  // DEBUG_LOG && UDS_LOG
+#endif  // UDS_LOG
             transmit_can_frame(&BMW_6F1_REQUEST_CONTINUE_MULTIFRAME);
             gUDSContext.receivedInBatch = 0;  // Reset batch count
             logging.println("Sent FC for next batch of 3 frames.");
@@ -480,7 +512,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // Optionally, check if message is complete
       if (isUDSMessageComplete()) {
         // We have a complete UDS/ISO-TP response in gUDSContext.UDS_buffer
-#if defined(DEBUG_LOG) && defined(UDS_LOG)
+#if defined(UDS_LOG)
         logging.print("UDS message complete for module ID 0x");
         logging.println(gUDSContext.UDS_moduleID, HEX);
 
@@ -501,6 +533,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
         //Cell Voltages
         if (gUDSContext.UDS_moduleID == 0xA5) {  //We have a complete set of cell voltages - pass to data layer
+          logging.printf("Received cell voltage data");
           processCellVoltages();
         }
         //Current measurement
@@ -613,72 +646,79 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
 void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
 
-  //if (battery_awake) { //We can always send CAN as the PHEV BMS will wake up on vehicle comms
+  if (battery_awake) {
 
-  if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
-    previousMillis20 = currentMillis;
+    if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
+      previousMillis20 = currentMillis;
 
-    if (startup_counter_contactor < 160) {
-      startup_counter_contactor++;
-    } else {                      //After 160 messages, turn on the request
-      BMW_10B.data.u8[1] = 0x10;  // Close contactors
+      if (startup_counter_contactor < 160) {
+        startup_counter_contactor++;
+      } else {                      //After 160 messages, turn on the request
+        BMW_10B.data.u8[1] = 0x10;  // Close contactors
+      }
+
+      BMW_10B.data.u8[1] = ((BMW_10B.data.u8[1] & 0xF0) + alive_counter_20ms);
+      BMW_10B.data.u8[0] = calculateCRC(BMW_10B, 3, 0x3F);
+
+      alive_counter_20ms = increment_alive_counter(alive_counter_20ms);
+
+      BMW_13E_counter++;
+      BMW_13E.data.u8[4] = BMW_13E_counter;
+
+      //if (datalayer.battery.status.bms_status == FAULT) {  //ALLOW ANY TIME - TEST ONLY
+      //}  //If battery is not in Fault mode, allow contactor to close by sending 10B
+      //else {
+
+      transmit_can_frame(&BMW_10B);
+      //}
     }
 
-    BMW_10B.data.u8[1] = ((BMW_10B.data.u8[1] & 0xF0) + alive_counter_20ms);
-    BMW_10B.data.u8[0] = calculateCRC(BMW_10B, 3, 0x3F);
+    // Send 100ms CAN Message
+    if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+      previousMillis100 = currentMillis;
+    }
+    // Send 200ms CAN Message
+    if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+      previousMillis200 = currentMillis;
+      uds_fast_req_id_counter = increment_uds_req_id_counter(
+          uds_fast_req_id_counter, numFastUDSreqs);  //Loop through and send a different UDS request each cycle
+      transmit_can_frame(UDS_REQUESTS_FAST[uds_fast_req_id_counter]);
+    }
+    // Send 1000ms CAN Message
+    if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+      previousMillis1000 = currentMillis;
 
-    alive_counter_20ms = increment_alive_counter(alive_counter_20ms);
+      uds_slow_req_id_counter = increment_uds_req_id_counter(
+          uds_slow_req_id_counter, numSlowUDSreqs);  //Loop through and send a different UDS request each cycle
+      logging.print("Sending UDS_SLOW: ");
+      logging.println(getUDSRequestName(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]));
+      transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]);
+    }
+    // Send 5000ms CAN Message
+    if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
+      previousMillis5000 = currentMillis;
 
-    BMW_13E_counter++;
-    BMW_13E.data.u8[4] = BMW_13E_counter;
-
-    //if (datalayer.battery.status.bms_status == FAULT) {  //ALLOW ANY TIME - TEST ONLY
-    //}  //If battery is not in Fault mode, allow contactor to close by sending 10B
-    //else {
-    transmit_can_frame(&BMW_10B);
-    //}
-  }
-
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    previousMillis100 = currentMillis;
-  }
-  // Send 200ms CAN Message
-  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
-    previousMillis200 = currentMillis;
-    uds_fast_req_id_counter = increment_uds_req_id_counter(
-        uds_fast_req_id_counter, numFastUDSreqs);  //Loop through and send a different UDS request each cycle
-    transmit_can_frame(UDS_REQUESTS_FAST[uds_fast_req_id_counter]);
-  }
-  // Send 1000ms CAN Message
-  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
-    previousMillis1000 = currentMillis;
-
-    uds_slow_req_id_counter = increment_uds_req_id_counter(
-        uds_slow_req_id_counter, numSlowUDSreqs);  //Loop through and send a different UDS request each cycle
-    transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]);
-  }
-  // Send 5000ms CAN Message
-  if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
-    previousMillis5000 = currentMillis;
-
-    // transmit_can_frame(&BMWPHEV_6F1_REQUEST_CONTACTORS_CLOSE,
-    //                    can_config.battery);  // Attempt contactor close - experimental
-  }
-  // Send 10000ms CAN Message
-  if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
-    previousMillis10000 = currentMillis;
-    transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_START);  // Enable Balancing
+      // transmit_can_frame(&BMWPHEV_6F1_REQUEST_CONTACTORS_CLOSE,
+      //                    can_config.battery);  // Attempt contactor close - experimental
+    }
+    // Send 10000ms CAN Message
+    if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
+      previousMillis10000 = currentMillis;
+      transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_START);  // Enable Balancing
+    }
+  } else {
+    // Battery is asleep - try and wake it every 10 seconds
+    if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+      previousMillis1000 = currentMillis;
+      logging.println("Battery asleep - sending wakeup packet...");
+      wake_battery_via_canbus();
+    }
   }
 }
 
 void BmwPhevBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  //Wakeup the SME
-  wake_battery_via_canbus();
-
-  transmit_can_frame(&BMWPHEV_6F1_REQUEST_ISOLATION_TEST);  // Run Internal Isolation Test at startup
 
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

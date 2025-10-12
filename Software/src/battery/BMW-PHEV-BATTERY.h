@@ -37,6 +37,7 @@ class BmwPhevBattery : public CanBattery {
   void processCellVoltages();
   void wake_battery_via_canbus();
   uint8_t increment_alive_counter(uint8_t counter);
+  const char* getUDSRequestName(CAN_frame* frame);
 
   unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
