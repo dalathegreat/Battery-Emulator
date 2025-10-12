@@ -11,6 +11,8 @@ class CmpSmartCarBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Stellantis CMP Smart Car Battery";
 
+  bool supports_charged_energy() { return true; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
@@ -24,8 +26,6 @@ class CmpSmartCarBattery : public CanBattery {
   unsigned long previousMillis10 = 0;  // will store last time a 10ms CAN Message was sent
   uint8_t mux = 0;
   int16_t temperature_sensors[16];
-  int16_t temp_min = 0;
-  int16_t temp_max = 0;
   uint16_t cell_voltages_mV[100];
   uint16_t battery_soc = 5000;
   uint16_t battery_voltage = 3300;
@@ -76,7 +76,7 @@ class CmpSmartCarBattery : public CanBattery {
   uint16_t hours_spent_undertemperature = 0;
   uint32_t total_coloumb_counting_Ah = 0;
   uint32_t total_coulomb_counting_kWh = 0;
-  int16_t max_module_temperature = 0;
+  int16_t battery_temperature_maximum = 0;
   uint16_t min_cell_voltage = 3300;
   uint16_t max_cell_voltage = 3300;
   uint8_t min_cell_voltage_number = 0;
@@ -85,5 +85,18 @@ class CmpSmartCarBattery : public CanBattery {
   uint16_t charge_continue_power_limit = 0;
   uint16_t charge_energy_amount_requested = 0;
   uint8_t bulk_SOC_DC_limit = 0;
+  uint32_t lifetime_kWh_charged = 0;
+  uint32_t lifetime_kWh_discharged = 0;
+  uint16_t hours_spent_exceeding_charge_power = 0;
+  uint16_t hours_spent_exceeding_discharge_power = 0;
+  uint16_t SOC_actual = 0;
+  bool alert_low_battery_energy = 0;
+  int16_t battery_temperature_average = 0;
+  bool battery_minimum_voltage_reached_warning = 0;
+  uint32_t remaining_energy_Wh = 0;
+  uint32_t total_energy_when_full_Wh = 41400;
+  uint8_t SOH_internal_resistance = 0;
+  uint8_t SOH_estimated = 0;
+  int16_t battery_temperature_minimum = 0;
 };
 #endif

@@ -9,7 +9,7 @@ void CmpSmartCarBattery::update_values() {
 
   datalayer.battery.status.real_soc = battery_soc * 10;
 
-  datalayer.battery.status.soh_pptt;  //TODO: Find
+  datalayer.battery.status.soh_pptt = SOH_estimated * 100;
 
   datalayer.battery.status.voltage_dV = battery_voltage;
 
@@ -18,6 +18,8 @@ void CmpSmartCarBattery::update_values() {
   datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
+  datalayer.battery.info.total_capacity_Wh = total_energy_when_full_Wh;
+
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
@@ -25,24 +27,9 @@ void CmpSmartCarBattery::update_values() {
 
   datalayer.battery.status.max_discharge_power_W = discharge_cont_available_power * 100;
 
-  temp_min = temperature_sensors[0];
-  temp_max = temperature_sensors[0];
+  datalayer.battery.status.temperature_min_dC = battery_temperature_minimum * 10;
 
-  // Loop through the array to find min and max, ignoring 0 values
-  for (int i = 0; i < 16; i++) {
-    if (temperature_sensors[i] != 0) {  // Ignore zero values
-      if (temperature_sensors[i] < temp_min) {
-        temp_min = temperature_sensors[i];
-      }
-      if (temperature_sensors[i] > temp_max) {
-        temp_max = temperature_sensors[i];
-      }
-    }
-  }
-
-  datalayer.battery.status.temperature_min_dC = temp_min * 10;
-
-  datalayer.battery.status.temperature_max_dC = temp_max * 10;
+  datalayer.battery.status.temperature_max_dC = battery_temperature_maximum * 10;
 
   datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;
 
@@ -50,6 +37,10 @@ void CmpSmartCarBattery::update_values() {
 
   //Map all cell voltages to the global array
   memcpy(datalayer.battery.status.cell_voltages_mV, cell_voltages_mV, 100 * sizeof(uint16_t));
+
+  datalayer.battery.status.total_discharged_battery_Wh = lifetime_kWh_discharged;
+
+  datalayer.battery.status.total_charged_battery_Wh = lifetime_kWh_charged;
 }
 
 void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -194,7 +185,7 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x435:  //500ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      max_module_temperature = rx_frame.data.u8[0] - 40;
+      battery_temperature_maximum = rx_frame.data.u8[0] - 40;
       min_cell_voltage = ((rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[3] >> 2));
       min_cell_voltage_number = rx_frame.data.u8[4];
       max_cell_voltage = ((rx_frame.data.u8[5] << 6) | (rx_frame.data.u8[6] >> 2));
@@ -214,15 +205,29 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x494:  //1000ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //total_coloumb_counting_Ah
+      lifetime_kWh_charged = (((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) * 35;
+      lifetime_kWh_discharged = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[4] >> 4)) * 35;
+      hours_spent_exceeding_charge_power = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]);
+      hours_spent_exceeding_discharge_power = (((rx_frame.data.u8[4] & 0x7F) << 5) | (rx_frame.data.u8[7] >> 3));
       break;
-    case 0x535:
+    case 0x535:  //1000ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      SOC_actual = ((rx_frame.data.u8[0] << 2) | (rx_frame.data.u8[1] >> 6));
+      alert_low_battery_energy = rx_frame.data.u8[1] & 0x01;
+      battery_temperature_average = rx_frame.data.u8[4] - 40;
+      battery_minimum_voltage_reached_warning = rx_frame.data.u8[7] & 0x01;
       break;
-    case 0x543:
+    case 0x543:  //1000ms 543 [6] 55 40 A4 D9 00 C8
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      remaining_energy_Wh = ((rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] >> 5)) * 32;
+      total_energy_when_full_Wh = ((rx_frame.data.u8[2] << 3) | (rx_frame.data.u8[3] >> 5)) * 32;
+      SOH_internal_resistance = (((rx_frame.data.u8[3] & 0x1F) << 2) | (rx_frame.data.u8[4] >> 6));
+      SOH_estimated = (rx_frame.data.u8[5] >> 1);
       break;
     case 0x583:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_temperature_minimum = rx_frame.data.u8[2] - 40;
       break;
     case 0x595:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
