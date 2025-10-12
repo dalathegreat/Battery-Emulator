@@ -389,33 +389,32 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           uint8_t sfLength = pciLower;
           uint8_t moduleID = rx_frame.data.u8[5];
 
-          if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xDD && rx_frame.data.u8[4] == 0xC4) {  // SOC%
+          if (rx_frame.DLC == 8 && rx_frame.data.u8[3] == 0xDD && rx_frame.data.u8[4] == 0xC4) {  // SOC%
             avg_soc_state = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]);
           }
-          if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xDD && rx_frame.data.u8[4] == 0x7B) {  // SOH%
+          if (rx_frame.DLC == 6 && rx_frame.data.u8[3] == 0xDD && rx_frame.data.u8[4] == 0x7B) {  // SOH%
             min_soh_state = (rx_frame.data.u8[5]) * 100;
           }
 
-          if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xD6 && rx_frame.data.u8[4] == 0xD9) {  // Isolation Reading 2
+          if (rx_frame.DLC == 8 && rx_frame.data.u8[3] == 0xD6 && rx_frame.data.u8[4] == 0xD9) {  // Isolation Reading 2
             iso_safety_kohm = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]);  //STAT_R_ISO_ROH_01_WERT
             iso_safety_kohm_quality =
                 (rx_frame.data.u8[7]);  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
           }
 
-          if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xDD &&
-                             rx_frame.data.u8[4] == 0xB4) {  //Main Battery Voltage (Pre Contactor)
+          if (rx_frame.DLC == 8 && rx_frame.data.u8[3] == 0xDD &&
+              rx_frame.data.u8[4] == 0xB4) {  //Main Battery Voltage (Pre Contactor)
             battery_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
           }
 
-          if (rx_frame.DLC = 7 && rx_frame.data.u8[3] == 0xDD &&
-                             rx_frame.data.u8[4] == 0x66) {  //Main Battery Voltage (Post Contactor)
+          if (rx_frame.DLC == 7 && rx_frame.data.u8[3] == 0xDD &&
+              rx_frame.data.u8[4] == 0x66) {  //Main Battery Voltage (Post Contactor)
             battery_voltage_after_contactor = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
           }
 
-          if (rx_frame.DLC = 7 && rx_frame.data.u8[1] == 0x05 && rx_frame.data.u8[2] == 0x71 &&
-                             rx_frame.data.u8[3] == 0x03 &&
-                             rx_frame.data.u8[4] ==
-                                 0xAD) {  //Balancing Status  01 Active 03 Not Active    7DLC F1 05 71 03 AD 6B 01
+          if (rx_frame.DLC == 7 && rx_frame.data.u8[1] == 0x05 && rx_frame.data.u8[2] == 0x71 &&
+              rx_frame.data.u8[3] == 0x03 &&
+              rx_frame.data.u8[4] == 0xAD) {  //Balancing Status  01 Active 03 Not Active    7DLC F1 05 71 03 AD 6B 01
             balancing_status = (rx_frame.data.u8[6]);
             //logging.println("Balancing Status received");
           }
@@ -541,8 +540,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           battery_current = ((int32_t)((gUDSContext.UDS_buffer[3] << 24) | (gUDSContext.UDS_buffer[4] << 16) |
                                        (gUDSContext.UDS_buffer[5] << 8) | gUDSContext.UDS_buffer[6])) *
                             0.1;
-          logging.printf("Received current/amps measurement data: ");
-          logging.print(battery_current);
+          logging.printf("Received current/amps measurement data: %d\n", battery_current);
           logging.printf(" - ");
           for (uint16_t i = 0; i < gUDSContext.UDS_bytesReceived; i++) {
             // Optional leading zero for single-digit hex
