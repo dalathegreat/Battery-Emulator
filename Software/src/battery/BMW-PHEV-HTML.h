@@ -11,7 +11,8 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     String content;
 
     // Power & Voltage Section
-    content += "<h3 style='color: #1e88e5; border-bottom: 2px solid #1e88e5; padding-bottom: 5px;'>⚡ Power & Voltage</h3>";
+    content +=
+        "<h3 style='color: #1e88e5; border-bottom: 2px solid #1e88e5; padding-bottom: 5px;'>⚡ Power & Voltage</h3>";
     content += "<div style='margin-left: 15px;'>";
     content += "<h4>DC Link Voltage: " + String(datalayer_extended.bmwphev.battery_DC_link_voltage) + " V</h4>";
     content +=
@@ -28,7 +29,8 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content += "</div>";
 
     // Contactor Status Section
-    content += "<h3 style='color: #43a047; border-bottom: 2px solid #43a047; padding-bottom: 5px;'>🔌 Contactor Status</h3>";
+    content +=
+        "<h3 style='color: #43a047; border-bottom: 2px solid #43a047; padding-bottom: 5px;'>🔌 Contactor Status</h3>";
     content += "<div style='margin-left: 15px;'>";
     content += "<h4>Contactor Status: ";
     switch (datalayer_extended.bmwphev.ST_DCSW) {
@@ -135,7 +137,8 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content += "</div>";
 
     // Safety Systems Section
-    content += "<h3 style='color: #e53935; border-bottom: 2px solid #e53935; padding-bottom: 5px;'>🛡️ Safety Systems</h3>";
+    content +=
+        "<h3 style='color: #e53935; border-bottom: 2px solid #e53935; padding-bottom: 5px;'>🛡️ Safety Systems</h3>";
     content += "<div style='margin-left: 15px;'>";
     content += "<h4>Interlock: ";
     switch (datalayer_extended.bmwphev.ST_interlock) {
@@ -174,7 +177,9 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content += "</div>";
 
     // Isolation Monitoring Section
-    content += "<h3 style='color: #fb8c00; border-bottom: 2px solid #fb8c00; padding-bottom: 5px;'>🔋 Isolation Monitoring</h3>";
+    content +=
+        "<h3 style='color: #fb8c00; border-bottom: 2px solid #fb8c00; padding-bottom: 5px;'>🔋 Isolation "
+        "Monitoring</h3>";
     content += "<div style='margin-left: 15px;'>";
     content += "<h4>Overall Isolation Status: ";
     switch (datalayer_extended.bmwphev.ST_isolation) {
@@ -238,7 +243,8 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content += "</div>";
 
     // Thermal Management Section
-    content += "<h3 style='color: #00acc1; border-bottom: 2px solid #00acc1; padding-bottom: 5px;'>❄️ Thermal Management</h3>";
+    content +=
+        "<h3 style='color: #00acc1; border-bottom: 2px solid #00acc1; padding-bottom: 5px;'>❄️ Thermal Management</h3>";
     content += "<div style='margin-left: 15px;'>";
     content += "<h4>Cooling Valve Status: ";
     switch (datalayer_extended.bmwphev.ST_valve_cooling) {
@@ -284,7 +290,8 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content += "</div>";
 
     // Cell Information Section
-    content += "<h3 style='color: #8e24aa; border-bottom: 2px solid #8e24aa; padding-bottom: 5px;'>📊 Cell Information</h3>";
+    content +=
+        "<h3 style='color: #8e24aa; border-bottom: 2px solid #8e24aa; padding-bottom: 5px;'>📊 Cell Information</h3>";
     content += "<div style='margin-left: 15px;'>";
     content += "<h4>Detected Cell Count: " + String(datalayer.battery.info.number_of_cells) + "</h4>";
     content += "<h4>Max Cell Design Voltage: " + String(datalayer.battery.info.max_cell_voltage_mV) + " mV</h4>";
@@ -296,7 +303,8 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content += "</div>";
 
     // Balancing Status Section
-    content += "<h3 style='color: #5e35b1; border-bottom: 2px solid #5e35b1; padding-bottom: 5px;'>⚖️ Balancing Status</h3>";
+    content +=
+        "<h3 style='color: #5e35b1; border-bottom: 2px solid #5e35b1; padding-bottom: 5px;'>⚖️ Balancing Status</h3>";
     content += "<div style='margin-left: 15px;'>";
     content += "<h4>Balancing: ";
     switch (datalayer_extended.bmwphev.balancing_status) {
@@ -323,7 +331,8 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     // Diagnostics Section
     content += "<h3 style='color: #757575; border-bottom: 2px solid #757575; padding-bottom: 5px;'>🔧 Diagnostics</h3>";
     content += "<div style='margin-left: 15px;'>";
-    content += "<h4>Charging Condition Delta: " + String(datalayer_extended.bmwphev.battery_charging_condition_delta) + "</h4>";
+    content += "<h4>Charging Condition Delta: " + String(datalayer_extended.bmwphev.battery_charging_condition_delta) +
+               "</h4>";
     content += "</div><br>";
 
     return content;
