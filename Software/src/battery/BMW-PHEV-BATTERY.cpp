@@ -389,14 +389,17 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           uint8_t sfLength = pciLower;
           uint8_t moduleID = rx_frame.data.u8[5];
 
-          if (rx_frame.DLC == 8 && rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xDD && rx_frame.data.u8[4] == 0xC4) {  // SOC%
+          if (rx_frame.DLC == 8 && rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xDD &&
+              rx_frame.data.u8[4] == 0xC4) {  // SOC%
             avg_soc_state = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]);
           }
-          if (rx_frame.DLC == 6 && rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xDD && rx_frame.data.u8[4] == 0x7B) {  // SOH%
+          if (rx_frame.DLC == 6 && rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xDD &&
+              rx_frame.data.u8[4] == 0x7B) {  // SOH%
             min_soh_state = (rx_frame.data.u8[5]) * 100;
           }
 
-          if (rx_frame.DLC == 8 && rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xD6 && rx_frame.data.u8[4] == 0xD9) {  // Isolation Reading 2
+          if (rx_frame.DLC == 8 && rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xD6 &&
+              rx_frame.data.u8[4] == 0xD9) {                                     // Isolation Reading 2
             iso_safety_kohm = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]);  //STAT_R_ISO_ROH_01_WERT
             iso_safety_kohm_quality =
                 (rx_frame.data.u8[7]);  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
