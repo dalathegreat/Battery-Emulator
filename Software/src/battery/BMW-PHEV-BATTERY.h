@@ -86,13 +86,13 @@ class BmwPhevBattery : public CanBattery {
                        .data = {0xFF, 0x31, 0xFA, 0xFA, 0xFA, 0xFA, 0x0C, 0x00}};
 
   uint8_t alive_counter_100ms = 0;
-  
-  CAN_frame BMW_12F = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x12F,
-                       .data = {0x00, 0x20, 0x86, 0x1B, 0xF1, 0x35, 0x30, 0x02}};  // CRC, counter starts at 0x20, static data
 
+  CAN_frame BMW_12F = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x12F,
+      .data = {0x00, 0x20, 0x86, 0x1B, 0xF1, 0x35, 0x30, 0x02}};  // CRC, counter starts at 0x20, static data
 
   //Vehicle CAN END
 

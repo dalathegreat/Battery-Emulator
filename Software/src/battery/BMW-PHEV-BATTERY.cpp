@@ -335,10 +335,11 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   //battery_awake = true; //look for specific messages
   switch (rx_frame.ID) {
-    case 0x112: //BMS [20ms] Status Of High-Voltage Battery 2
+    case 0x112:  //BMS [20ms] Status Of High-Voltage Battery 2
       battery_awake = true;
       battery_current = ((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192) * 10;  //deciAmps to milliAmps
-      battery_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;  //00 Keine Aussage möglich   01 nicht aktiv    10 aktiv   11 Signal ungültig
+      battery_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >>
+                                        6;  //00 Keine Aussage möglich   01 nicht aktiv    10 aktiv   11 Signal ungültig
       battery_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
       battery_request_open_contactors_fast = (rx_frame.data.u8[6] & 0x0C) >> 2;
       battery_charging_condition_delta = (rx_frame.data.u8[6] & 0xF0) >> 4;
@@ -553,11 +554,11 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if (gUDSContext.UDS_moduleID == 0x69) {  //Current (32bit mA?  negative = discharge)
 
           //Battery current now reading from 0x112 message
-              // battery_current = ((int32_t)((gUDSContext.UDS_buffer[3] << 24) | (gUDSContext.UDS_buffer[4] << 16) |
-              //                              (gUDSContext.UDS_buffer[5] << 8) | gUDSContext.UDS_buffer[6])) *
-              //                   0.1;
-              // logging.printf("Received current/amps measurement data: %d\n", battery_current);
-              // logging.printf(" - ");
+          // battery_current = ((int32_t)((gUDSContext.UDS_buffer[3] << 24) | (gUDSContext.UDS_buffer[4] << 16) |
+          //                              (gUDSContext.UDS_buffer[5] << 8) | gUDSContext.UDS_buffer[6])) *
+          //                   0.1;
+          // logging.printf("Received current/amps measurement data: %d\n", battery_current);
+          // logging.printf(" - ");
 
           for (uint16_t i = 0; i < gUDSContext.UDS_bytesReceived; i++) {
             // Optional leading zero for single-digit hex
@@ -696,14 +697,13 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       // Send 0x12F Terminal Status - counter cycles 0x20->0x2E (15 values)
       BMW_12F.data.u8[1] = 0x20 + alive_counter_100ms;
       BMW_12F.data.u8[0] = calculateCRC(BMW_12F, BMW_12F.DLC, 0x3F);
-      
+
       transmit_can_frame(&BMW_12F);
-      
+
       alive_counter_100ms++;
       if (alive_counter_100ms > 14) {  // Reset after 14 (0x2E is 0x20 + 14)
         alive_counter_100ms = 0;
       }
-
     }
     // Send 200ms CAN Message
     if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
