@@ -73,11 +73,38 @@ void CmpSmartCarBattery::update_values() {
   }
 }
 
+bool checksum_OK(CAN_frame& rx_frame, uint8_t magic_byte) {
+  // Sum all data nibbles from bytes 0-6 (excluding last byte)
+  uint8_t sum = 0;
+
+  for (int i = 0; i < 7; i++) {
+    sum += (rx_frame.data.u8[i] >> 4);
+    sum += (rx_frame.data.u8[i] & 0x0F);
+  }
+
+  // Get counter from last byte low nibble
+  uint8_t counter = (rx_frame.data.u8[7] & 0x0F);
+
+  // Get checksum from last byte high nibble
+  uint8_t checksum = (rx_frame.data.u8[7] >> 4);
+
+  // Calculate expected checksum: (magic_byte - sum - counter) mod 16
+  int16_t expected = (magic_byte - (sum & 0x0F) - counter) % 16;
+  if (expected < 0) {
+    expected += 16;  // Ensure positive modulo result
+  }
+
+  return (checksum == expected);
+}
+
 void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x205:  //10ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //checksum_205 //Init value 0x7
+      if (!checksum_OK(rx_frame, 0x18)) {
+        datalayer.battery.status.CAN_error_counter++;
+        break;  //Message checksum incorrect, abort reading data from it
+      }
       battery_current = ((rx_frame.data.u8[0] << 7) | (rx_frame.data.u8[1] >> 1)) - 1500;  //0 in all discharge logs?
       battery_soc = ((rx_frame.data.u8[2] & 0x1F) << 5) | (rx_frame.data.u8[3] >> 3);
       battery_voltage =
@@ -102,7 +129,10 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x275:  //20ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //checksum_275 //Init value 0xE
+      if (!checksum_OK(rx_frame, 0x01)) {
+        datalayer.battery.status.CAN_error_counter++;
+        break;  //Message checksum incorrect, abort reading data from it
+      }
       discharge_cont_available_power = ((rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] >> 5));      //*0.1kW
       discharge_cont_available_current = (((rx_frame.data.u8[1] & 0x1F) << 8) | rx_frame.data.u8[2]);  //*0.1A
       discharge_available_30s_current = ((rx_frame.data.u8[3] << 5) | (rx_frame.data.u8[4] >> 3));     //*0.1A
@@ -111,7 +141,10 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x285:  //20ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //checksum_285 //Init value 0xF
+      if (!checksum_OK(rx_frame, 0x00)) {
+        datalayer.battery.status.CAN_error_counter++;
+        break;  //Message checksum incorrect, abort reading data from it
+      }
       regen_charge_cont_power = ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4));      //*0.1kW
       regen_charge_30s_power = (((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]);     //*0.1kW
       regen_charge_30s_current = ((rx_frame.data.u8[3] << 5) | (rx_frame.data.u8[4] >> 3));     //*0.1A
@@ -120,7 +153,6 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x2A5:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //checksum_2A5 //Init value 0x1
       battery_quickcharge_connect_status = rx_frame.data.u8[0] >> 6;
       regen_charge_10s_current = (((rx_frame.data.u8[0] & 0x3F) << 1) | (rx_frame.data.u8[1] >> 1));  //*0.1a
       regen_charge_10s_power = ((rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[3] >> 4));             //*0.1kW
@@ -135,7 +167,10 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x325:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //checksum_325 //Init value 0xA
+      if (!checksum_OK(rx_frame, 0x05)) {
+        datalayer.battery.status.CAN_error_counter++;
+        break;  //Message checksum incorrect, abort reading data from it
+      }
       battery_balancing_active = rx_frame.data.u8[0] & 0x01;
       eplug_status = (rx_frame.data.u8[0] & 0x06) >> 1;  //0 connected, 1 disconnected, 2 open status, 3 invalid
       ev_warning = (rx_frame.data.u8[0] & 0x18) >> 3;
@@ -257,7 +292,6 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x583:  //1000ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //checksum_583 //Init value 0x0
       max_temperature_probe_number = rx_frame.data.u8[0];
       min_temperature_probe_number = rx_frame.data.u8[1];
       battery_temperature_minimum = rx_frame.data.u8[2] - 40;
@@ -279,7 +313,6 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (rx_frame.data.u8[6] < 200) {
         number_of_cells = rx_frame.data.u8[6];
       }
-      //counter_583 = (rx_frame.data.u8[7] & 0x0F);
       break;
     case 0x595:  //1000ms - Time to charge to 20/40/680/100 , not needed for integration
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -326,10 +359,52 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
 void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
 
-  // Send 1s periodic CAN Message simulating the car still being attached
+  // Send periodic CAN Messages simulating the car still being attached
+  // Send 10ms messages
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
-    //transmit_can_frame(&ECMP_55F);
+    //transmit_can_frame(&CMP_208);
+    //transmit_can_frame(&CMP_217);
+    //transmit_can_frame(&CMP_241);
+    //transmit_can_frame(&CMP_262);
+  }
+
+  // Send 50ms messages
+  if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
+    previousMillis50 = currentMillis;
+    //transmit_can_frame(&CMP_432);
+    //transmit_can_frame(&CMP_421);
+  }
+
+  // Send 60ms messages
+  if (currentMillis - previousMillis60 >= INTERVAL_60_MS) {
+    previousMillis60 = currentMillis;
+    //transmit_can_frame(&CMP_351);
+  }
+
+  // Send 100ms messages
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
+    //transmit_can_frame(&CMP_211);
+    //transmit_can_frame(&CMP_231);
+    //transmit_can_frame(&CMP_422);
+    //transmit_can_frame(&CMP_4A2); //Only sent during plug in of OBC?
+  }
+
+  // Send 1s messages
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+    previousMillis1000 = currentMillis;
+
+    vehicle_time_counter++;  //TODO: Real CAN log needed to see how this should be formatted
+
+    CMP_552.data.u8[0] = ((vehicle_time_counter / 10) & 0xFF000000) >> 24;
+    CMP_552.data.u8[1] = ((vehicle_time_counter / 10) & 0x00FF0000) >> 16;
+    CMP_552.data.u8[2] = ((vehicle_time_counter / 10) & 0x0000FF00) >> 8;
+    CMP_552.data.u8[3] = ((vehicle_time_counter / 10) & 0x000000FF);
+
+    //TODO, rest of bits in this message needs to be initialized to sane values
+
+    transmit_can_frame(&CMP_552);
   }
 }
 
