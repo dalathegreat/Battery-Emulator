@@ -49,6 +49,7 @@ BROADCAST MAP
 0x430 1000ms Charging status of high-voltage battery - 2
 0x431 200ms Data High-Voltage Battery Unit
 0x432 200ms SOC% info
+0x12F 100ms Terminal Data (possibly needed for contactor close)
 
 UDS MAP
 22 D6 CF - CSC Temps
@@ -314,6 +315,10 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
   datalayer_extended.bmwphev.iso_safety_int_plausible = iso_safety_int_plausible;
   datalayer_extended.bmwphev.iso_safety_kohm = iso_safety_kohm;
   datalayer_extended.bmwphev.iso_safety_kohm_quality = iso_safety_kohm_quality;
+  datalayer_extended.bmwphev.battery_request_open_contactors = battery_request_open_contactors;
+  datalayer_extended.bmwphev.battery_request_open_contactors_instantly = battery_request_open_contactors_instantly;
+  datalayer_extended.bmwphev.battery_request_open_contactors_fast = battery_request_open_contactors_fast;
+  datalayer_extended.bmwphev.battery_charging_condition_delta = battery_charging_condition_delta;
 
   if (pack_limit_info_available) {
     // If we have pack limit data from battery - override the defaults to suit
@@ -330,8 +335,14 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   //battery_awake = true; //look for specific messages
   switch (rx_frame.ID) {
-    case 0x112:
+    case 0x112: //BMS [20ms] Status Of High-Voltage Battery 2
       battery_awake = true;
+      battery_current = ((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192) * 10;  //deciAmps to milliAmps
+      battery_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;  //00 Keine Aussage möglich   01 nicht aktiv    10 aktiv   11 Signal ungültig
+      battery_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
+      battery_request_open_contactors_fast = (rx_frame.data.u8[6] & 0x0C) >> 2;
+      battery_charging_condition_delta = (rx_frame.data.u8[6] & 0xF0) >> 4;
+      battery_DC_link_voltage = rx_frame.data.u8[7];
       datalayer.battery.status.CAN_battery_still_alive =
           CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
       break;
@@ -540,11 +551,14 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
         //Current measurement
         if (gUDSContext.UDS_moduleID == 0x69) {  //Current (32bit mA?  negative = discharge)
-          battery_current = ((int32_t)((gUDSContext.UDS_buffer[3] << 24) | (gUDSContext.UDS_buffer[4] << 16) |
-                                       (gUDSContext.UDS_buffer[5] << 8) | gUDSContext.UDS_buffer[6])) *
-                            0.1;
-          logging.printf("Received current/amps measurement data: %d\n", battery_current);
-          logging.printf(" - ");
+
+          //Battery current now reading from 0x112 message
+              // battery_current = ((int32_t)((gUDSContext.UDS_buffer[3] << 24) | (gUDSContext.UDS_buffer[4] << 16) |
+              //                              (gUDSContext.UDS_buffer[5] << 8) | gUDSContext.UDS_buffer[6])) *
+              //                   0.1;
+              // logging.printf("Received current/amps measurement data: %d\n", battery_current);
+              // logging.printf(" - ");
+
           for (uint16_t i = 0; i < gUDSContext.UDS_bytesReceived; i++) {
             // Optional leading zero for single-digit hex
             if (gUDSContext.UDS_buffer[i] < 0x10) {
@@ -656,6 +670,7 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
         startup_counter_contactor++;
       } else {                      //After 160 messages, turn on the request
         BMW_10B.data.u8[1] = 0x10;  // Close contactors
+        //BMW_10B.data.u8[1] = 0xD0;  // Close contactors v2
       }
 
       BMW_10B.data.u8[1] = ((BMW_10B.data.u8[1] & 0xF0) + alive_counter_20ms);
@@ -677,6 +692,18 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
     // Send 100ms CAN Message
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
       previousMillis100 = currentMillis;
+
+      // Send 0x12F Terminal Status - counter cycles 0x20->0x2E (15 values)
+      BMW_12F.data.u8[1] = 0x20 + alive_counter_100ms;
+      BMW_12F.data.u8[0] = calculateCRC(BMW_12F, BMW_12F.DLC, 0x3F);
+      
+      transmit_can_frame(&BMW_12F);
+      
+      alive_counter_100ms++;
+      if (alive_counter_100ms > 14) {  // Reset after 14 (0x2E is 0x20 + 14)
+        alive_counter_100ms = 0;
+      }
+
     }
     // Send 200ms CAN Message
     if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {

@@ -85,6 +85,15 @@ class BmwPhevBattery : public CanBattery {
                        .ID = 0x13E,
                        .data = {0xFF, 0x31, 0xFA, 0xFA, 0xFA, 0xFA, 0x0C, 0x00}};
 
+  uint8_t alive_counter_100ms = 0;
+  
+  CAN_frame BMW_12F = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x12F,
+                       .data = {0x00, 0x20, 0x86, 0x1B, 0xF1, 0x35, 0x30, 0x02}};  // CRC, counter starts at 0x20, static data
+
+
   //Vehicle CAN END
 
   //Request Data CAN START
@@ -343,6 +352,11 @@ class BmwPhevBattery : public CanBattery {
   uint8_t battery_status_error_disconnecting_switch = 0;
   uint8_t battery_status_warning_isolation = 0;
   uint8_t battery_status_cold_shutoff_valve = 0;
+  uint8_t battery_request_open_contactors = 0;
+  uint8_t battery_request_open_contactors_instantly = 0;
+  uint8_t battery_request_open_contactors_fast = 0;
+  uint8_t battery_charging_condition_delta = 0;
+  uint16_t battery_DC_link_voltage = 0;
   int16_t battery_temperature_HV = 0;
   int16_t battery_temperature_heat_exchanger = 0;
   int16_t battery_temperature_max = 0;
