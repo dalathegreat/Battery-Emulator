@@ -17,7 +17,7 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content +=
         "<h4>Battery Voltage (After Contactor): " + String(datalayer_extended.bmwphev.battery_voltage_after_contactor) +
         " dV</h4>";
-    content += "<h4>T30 Terminal Voltage: " + String(datalayer_extended.bmwphev.T30_Voltage) + " mV</h4>";
+    content += "<h4>T30 Terminal Voltage (Todo): " + String(datalayer_extended.bmwphev.T30_Voltage) + " mV</h4>";
     content += "<h4>Max Design Voltage: " + String(datalayer.battery.info.max_design_voltage_dV) + " dV</h4>";
     content += "<h4>Min Design Voltage: " + String(datalayer.battery.info.min_design_voltage_dV) + " dV</h4>";
     content += "<h4>Allowed Charge Power: " + String(datalayer.battery.status.max_charge_power_W) + " W</h4>";
@@ -25,7 +25,7 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>BMS Allowed Charge Amps: " + String(datalayer_extended.bmwphev.allowable_charge_amps) + " A</h4>";
     content +=
         "<h4>BMS Allowed Discharge Amps: " + String(datalayer_extended.bmwphev.allowable_discharge_amps) + " A</h4>";
-    content += "</div><br>";
+    content += "</div>";
 
     // Contactor Status Section
     content += "<h3 style='color: #43a047; border-bottom: 2px solid #43a047; padding-bottom: 5px;'>🔌 Contactor Status</h3>";
@@ -132,7 +132,7 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Unknown</h4>");
     }
-    content += "</div><br>";
+    content += "</div>";
 
     // Safety Systems Section
     content += "<h3 style='color: #e53935; border-bottom: 2px solid #e53935; padding-bottom: 5px;'>🛡️ Safety Systems</h3>";
@@ -171,7 +171,7 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Unknown</h4>");
     }
-    content += "</div><br>";
+    content += "</div>";
 
     // Isolation Monitoring Section
     content += "<h3 style='color: #fb8c00; border-bottom: 2px solid #fb8c00; padding-bottom: 5px;'>🔋 Isolation Monitoring</h3>";
@@ -235,7 +235,7 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
                (datalayer_extended.bmwphev.iso_safety_ext_plausible ? "(Plausible)" : "(Not Plausible)") + "</h4>";
     content += "<h4>Trigger Resistance: " + String(datalayer_extended.bmwphev.iso_safety_trg_kohm) + " kΩ " +
                (datalayer_extended.bmwphev.iso_safety_trg_plausible ? "(Plausible)" : "(Not Plausible)") + "</h4>";
-    content += "</div><br>";
+    content += "</div>";
 
     // Thermal Management Section
     content += "<h3 style='color: #00acc1; border-bottom: 2px solid #00acc1; padding-bottom: 5px;'>❄️ Thermal Management</h3>";
@@ -281,7 +281,7 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Invalid Signal</h4>");
     }
-    content += "</div><br>";
+    content += "</div>";
 
     // Cell Information Section
     content += "<h3 style='color: #8e24aa; border-bottom: 2px solid #8e24aa; padding-bottom: 5px;'>📊 Cell Information</h3>";
@@ -293,7 +293,7 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
         "<h4>Min Cell Voltage Data Age: " + String(datalayer_extended.bmwphev.min_cell_voltage_data_age) + " ms</h4>";
     content +=
         "<h4>Max Cell Voltage Data Age: " + String(datalayer_extended.bmwphev.max_cell_voltage_data_age) + " ms</h4>";
-    content += "</div><br>";
+    content += "</div>";
 
     // Balancing Status Section
     content += "<h3 style='color: #5e35b1; border-bottom: 2px solid #5e35b1; padding-bottom: 5px;'>⚖️ Balancing Status</h3>";
@@ -318,7 +318,7 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Unknown</h4>");
     }
-    content += "</div><br>";
+    content += "</div>";
 
     // Diagnostics Section
     content += "<h3 style='color: #757575; border-bottom: 2px solid #757575; padding-bottom: 5px;'>🔧 Diagnostics</h3>";
