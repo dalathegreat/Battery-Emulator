@@ -23,7 +23,12 @@ class CmpSmartCarBattery : public CanBattery {
   static const int MAX_CELL_VOLTAGE_MV = 3650;
   static const int MIN_CELL_VOLTAGE_MV = 2800;
 
-  unsigned long previousMillis10 = 0;  // will store last time a 10ms CAN Message was sent
+  unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
+  unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was sent
+  unsigned long previousMillis60 = 0;    // will store last time a 60ms CAN Message was sent
+  unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
+  unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
+
   uint8_t mux = 0;
   int16_t temperature_sensors[16];
   uint16_t cell_voltages_mV[100];
@@ -98,5 +103,32 @@ class CmpSmartCarBattery : public CanBattery {
   uint8_t SOH_internal_resistance = 0;
   uint8_t SOH_estimated = 0;
   int16_t battery_temperature_minimum = 0;
+  uint8_t max_temperature_probe_number = 0;
+  uint8_t min_temperature_probe_number = 0;
+  bool alert_cell_undervoltage = false;
+  bool alert_battery = false;
+  bool alert_cell_overvoltage = false;
+  bool alert_high_SOC = false;
+  bool alert_high_temperature = false;
+  bool alert_low_SOC = false;
+  bool alert_overvoltage = false;
+  bool alert_temperature_delta = false;
+  bool alert_cell_poor_consistency = false;
+  bool alert_overcharge = false;
+  bool alert_SOC_jump = false;
+  bool alert_contactor_opening = false;
+  uint8_t number_of_temperature_sensors = 0;
+  uint8_t number_of_cells = 0;
+  bool coolant_alarm = false;
+  uint8_t coolant_temperature_warning = 0;
+  bool cooling_enabled = false;
+  uint8_t heater_relay_status = false;
+  uint8_t preheating_status = 0;
+  int16_t coolant_temperature = 0;
+  uint8_t thermal_control = 0;
+  uint8_t thermal_runaway = 0;
+  uint8_t thermal_runaway_module_ID = 0;
+  uint32_t main_contactor_cycle_count = 0;
+  uint32_t QC_contactor_cycle_count = 0;
 };
 #endif
