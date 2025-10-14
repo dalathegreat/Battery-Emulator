@@ -34,6 +34,7 @@ class FordMachEBattery : public CanBattery {
   uint16_t battery_soc = 5000;
   uint16_t battery_soh = 99;
   uint16_t battery_voltage = 370;
+  int16_t battery_current = 0;
   uint16_t maximum_cellvoltage_mV = 3700;
   uint16_t minimum_cellvoltage_mV = 3700;
 

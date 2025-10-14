@@ -12,7 +12,7 @@ void FordMachEBattery::update_values() {
 
   datalayer.battery.status.voltage_dV = battery_voltage * 10;
 
-  datalayer.battery.status.current_dA;
+  datalayer.battery.status.current_dA = battery_current * 2;
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
@@ -79,6 +79,10 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x07b:  //10ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_current = (((rx_frame.data.u8[0] & 0x7F) << 8) | rx_frame.data.u8[1]);
+      if ((rx_frame.data.u8[0] & 0x80) >> 7) {
+        battery_current = battery_current * -1;
+      }
       break;
     case 0x073:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
