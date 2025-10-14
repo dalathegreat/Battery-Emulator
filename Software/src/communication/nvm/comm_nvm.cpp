@@ -32,18 +32,8 @@ void init_stored_settings() {
 
   esp32hal->set_default_configuration_values();
 
-  char tempSSIDstring[63];  // Allocate buffer with sufficient size
-  size_t lengthSSID = settings.getString("SSID", tempSSIDstring, sizeof(tempSSIDstring));
-  if (lengthSSID > 0) {  // Successfully read the string from memory. Set it to SSID!
-    ssid = tempSSIDstring;
-  } else {  // Reading from settings failed. Do nothing with SSID. Raise event?
-  }
-  char tempPasswordString[63];  // Allocate buffer with sufficient size
-  size_t lengthPassword = settings.getString("PASSWORD", tempPasswordString, sizeof(tempPasswordString));
-  if (lengthPassword > 7) {  // Successfully read the string from memory. Set it to password!
-    password = tempPasswordString;
-  } else {  // Reading from settings failed. Do nothing with SSID. Raise event?
-  }
+  ssid = settings.getString("SSID").c_str();
+  password = settings.getString("PASSWORD").c_str();
 
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
@@ -210,15 +200,6 @@ void store_settings() {
   if (!settings.begin("batterySettings", false)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 0);
     return;
-  }
-
-  if (!settings.putString("SSID", String(ssid.c_str()))) {
-    if (ssid != "")
-      set_event(EVENT_PERSISTENT_SAVE_INFO, 1);
-  }
-  if (!settings.putString("PASSWORD", String(password.c_str()))) {
-    if (password != "")
-      set_event(EVENT_PERSISTENT_SAVE_INFO, 2);
   }
 
   if (!settings.putUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh)) {

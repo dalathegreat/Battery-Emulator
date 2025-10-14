@@ -228,8 +228,13 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
       return battery->interface_name();
     }
   }
+
   if (var == "SSID") {
-    return String(ssid.c_str());
+    return settings.getString("SSID");
+  }
+
+  if (var == "PASSWORD") {
+    return settings.getString("PASSWORD");
   }
 
   if (var == "SAVEDCLASS") {
@@ -785,12 +790,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     function editError(){alert('Invalid input');}
 
-        function editSSID(){var value=prompt('Which SSID to connect to. Enter new SSID:');if(value!==null){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSSID?value='+encodeURIComponent(value),true);xhr.send();}}
-        
-        function editPassword(){var value=prompt('Enter new password:');if(value!==null){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updatePassword?value='+encodeURIComponent(value),true);xhr.send();}}
-
         function editWh(){var value=prompt('How much energy the battery can store. Enter new Wh value (1-400000):');
           if(value!==null){if(value>=1&&value<=400000){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBatterySize?value='+value,true);xhr.send();}else{
@@ -1033,16 +1032,26 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   <button onclick='goToMainPage()'>Back to main page</button>
   <button onclick="askFactoryReset()">Factory reset</button>
 
-<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
-    <h4 style='color: white;'>SSID: <span id='SSID'>%SSID%</span><button onclick='editSSID()'>Edit</button></h4>
-    <h4 style='color: white;'>Password: ######## <span id='Password'></span> <button onclick='editPassword()'>Edit</button></h4>
-</div>
-
 <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
         <form action='saveSettings' method='post'>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
           <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
+        </div>
+
+        <div class="settings-card">
+        <h3>Network config</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+
+        <label>SSID: </label>
+        <input type='text' name='SSID' value="%SSID%" 
+        pattern="[ -~]{1,63}" 
+        title="Max 63 characters, printable ASCII only"/>
+
+        <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" 
+        pattern="[ -~]{8,63}" 
+        title="Password must be 8-63 characters long, printable ASCII only" />
+        </div>
         </div>
 
         <div class="settings-card">
