@@ -363,17 +363,23 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
   // Send 10ms messages
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
+
+    CMP_262.data.u8[0] = 0x40;  //0b0000 powertrain inactive, 0b0100 powertrain activation, 0b1000 powertrain active
     //transmit_can_frame(&CMP_208);
     //transmit_can_frame(&CMP_217);
     //transmit_can_frame(&CMP_241);
-    //transmit_can_frame(&CMP_262);
+    transmit_can_frame(&CMP_262);
   }
 
   // Send 50ms messages
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     previousMillis50 = currentMillis;
-    //transmit_can_frame(&CMP_432);
-    //transmit_can_frame(&CMP_421);
+
+    CMP_432.data.u8[0] = 0x00;  //TODO, this message is important. What should content be?
+    CMP_421.data.u8[3] = 0x00;  //TODO, this contains wakeup request from VCU. What should content be?
+
+    transmit_can_frame(&CMP_432);  //Main wakeup
+    transmit_can_frame(&CMP_421);  //More wakeup
   }
 
   // Send 60ms messages
@@ -385,10 +391,14 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
   // Send 100ms messages
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
+    counter_100ms = (counter_100ms + 1) % 16;  // counter_100ms repeats after 16 messages. 0-1..15-0
+
+    //CMP_211.data.u8[4] = ??? //Contactor closing section
+
     //transmit_can_frame(&CMP_211);
     //transmit_can_frame(&CMP_231);
     //transmit_can_frame(&CMP_422);
-    //transmit_can_frame(&CMP_4A2); //Only sent during plug in of OBC?
+    transmit_can_frame(&CMP_4A2);  //Should we send plugged in, or unplugged?
   }
 
   // Send 1s messages

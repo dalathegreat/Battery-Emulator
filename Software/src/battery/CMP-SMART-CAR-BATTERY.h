@@ -28,14 +28,39 @@ class CmpSmartCarBattery : public CanBattery {
   unsigned long previousMillis60 = 0;    // will store last time a 60ms CAN Message was sent
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
-
-  CAN_frame CMP_552 = {.FD = false,
+  CAN_frame CMP_211 = {.FD = false,      //VCU contactor 100ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x211,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame CMP_262 = {.FD = false,  //VCU 10ms
+                       .ext_ID = false,
+                       .DLC = 1,
+                       .ID = 0x262,
+                       .data = {0x00}};
+  CAN_frame CMP_421 = {.FD = false,  //VCU 50ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x421,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame CMP_432 = {.FD = false,  //VCU 50ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x432,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame CMP_4A2 = {.FD = false,  //OBC plug 100ms
+                       .ext_ID = false,
+                       .DLC = 2,
+                       .ID = 0x4A2,
+                       .data = {0x00, 0x64}};  //second byte, 00 plugged, 64 unplugged
+  CAN_frame CMP_552 = {.FD = false,            //VCU mileage annd time 1000ms
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x552,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   uint32_t vehicle_time_counter = 0;  //TODO, what should init value be? Vehicle CAN log needed
   uint8_t mux = 0;
+  uint8_t counter_100ms = 0;
   int16_t temperature_sensors[16];
   uint16_t cell_voltages_mV[100];
   uint16_t battery_soc = 5000;
