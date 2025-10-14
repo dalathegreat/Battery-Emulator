@@ -60,11 +60,10 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
 
   datalayer.battery.status.soh_pptt = min_soh_state;
 
-  datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
+  datalayer.battery.status.max_discharge_power_W =
+      datalayer.battery.status.override_discharge_power_W;  //TODO: Estimated from UI
 
-  //datalayer.battery.status.max_charge_power_W = 3200; //10000; //Aux HV Port has 100A Fuse  Moved to Ramping
-
-  // Charge power is set in .h file
+  // Estimated charge power is set in Settings page. Ramp power on top
   if (datalayer.battery.status.real_soc > 9900) {
     datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
   } else if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
@@ -99,18 +98,25 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
     set_event(EVENT_12V_LOW, terminal30_12v_voltage);
   }
 
-  datalayer.battery.info.max_design_voltage_dV = max_design_voltage;
-
-  datalayer.battery.info.min_design_voltage_dV = min_design_voltage;
+  if ((datalayer.battery.status.cell_voltages_mV[77] > 1000) &&
+      (datalayer.battery.status.cell_voltages_mV[78] < 1000)) {
+    //If we detect cellvoltage on cell78, but nothing on 79, we can confirm we are on SE12
+    detected_number_of_cells = 78;  //We are on 78S SE12 battery from BMW IX1
+  }  //Sidenote, detection of 96S and 108S batteries happen inside the cellvoltage reading blocks
 
   datalayer.battery.info.number_of_cells = detected_number_of_cells;
 
-  if (battery_info_available) {
-    // If we have data from battery - override the defaults to suit
-    datalayer.battery.info.max_design_voltage_dV = max_design_voltage;
-    datalayer.battery.info.min_design_voltage_dV = min_design_voltage;
-    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  if (detected_number_of_cells == 78) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_78S_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_78S_DV;
+  }
+  if (detected_number_of_cells == 96) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;
+  }
+  if (detected_number_of_cells == 108) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_108S_DV;
   }
 }
 
@@ -338,8 +344,8 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) < 4700 &&
             (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) > 2600) {  //Make sure values are plausible
           battery_info_available = true;
-          max_design_voltage = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
-          min_design_voltage = (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]);
+          max_design_voltage = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);  //Not valid on all iX
+          min_design_voltage = (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]);  //Not valid on all iX
         }
       }
 
@@ -448,9 +454,9 @@ void BmwIXBattery::setup(void) {  // Performs one time setup at startup
   //Reset Battery at bootup
   //transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET);
 
-  //Before we have started up and detected which battery is in use, use 108S values
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  //Before we have started up and detected which battery is in use, use largest deviation possible to avoid errors
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_78S_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;

@@ -6,6 +6,7 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
 #include "src/inverter/INVERTERS.h"
@@ -123,7 +124,100 @@ const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   }
 }
 
+// Special unicode characters
+const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
+const char* FALSE_CHAR_CODE = "\u2715";  //&#10005";
+
+String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& settings);
+
 String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
+  // HTML-ready values (such as select options) are returned here. These don't
+  // get any additional escaping.
+
+  if (var == "SHUNTCOMM") {
+    return options_for_enum((comm_interface)settings.getUInt("SHUNTCOMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+
+  if (var == "BATTTYPE") {
+    return options_for_enum_with_none((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None),
+                                      name_for_battery_type, BatteryType::None);
+  }
+  if (var == "BATTCOMM") {
+    return options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+  if (var == "BATTCHEM") {
+    return options_for_enum(
+        (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::Autodetect),
+        name_for_chemistry);
+  }
+  if (var == "INVTYPE") {
+    return options_for_enum_with_none(
+        (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None), name_for_inverter_type,
+        InverterProtocolType::None);
+  }
+  if (var == "INVCOMM") {
+    return options_for_enum((comm_interface)settings.getUInt("INVCOMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+  if (var == "CHGTYPE") {
+    return options_for_enum_with_none((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None),
+                                      name_for_charger_type, ChargerType::None);
+  }
+  if (var == "CHGCOMM") {
+    return options_for_enum((comm_interface)settings.getUInt("CHGCOMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+
+  if (var == "SHUNTTYPE") {
+    return options_for_enum_with_none((ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None),
+                                      name_for_shunt_type, ShuntType::None);
+  }
+
+  if (var == "SHUNTCOMM") {
+    return options_for_enum((comm_interface)settings.getUInt("SHUNTCOMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+
+  if (var == "EQSTOP") {
+    return options_for_enum_with_none(
+        (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
+        name_for_button_type, STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
+  }
+
+  if (var == "BATT2COMM") {
+    return options_for_enum((comm_interface)settings.getUInt("BATT2COMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+
+  if (var == "GTWCOUNTRY") {
+    return options_from_map(settings.getUInt("GTWCOUNTRY", 0), tesla_countries);
+  }
+
+  if (var == "GTWMAPREG") {
+    return options_from_map(settings.getUInt("GTWMAPREG", 0), tesla_mapregion);
+  }
+
+  if (var == "GTWCHASSIS") {
+    return options_from_map(settings.getUInt("GTWCHASSIS", 0), tesla_chassis);
+  }
+
+  if (var == "GTWPACK") {
+    return options_from_map(settings.getUInt("GTWPACK", 0), tesla_pack);
+  }
+
+  if (var == "LEDMODE") {
+    return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
+  }
+
+  // All other values are wrapped by html_escape to avoid HTML injection.
+
+  return html_escape(raw_settings_processor(var, settings));
+}
+
+String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
+  // All of these returned values are raw un-escaped UTF-8 strings.
 
   if (var == "HOSTNAME") {
     return settings.getString("HOSTNAME");
@@ -190,63 +284,6 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     if (!charger) {
       return "hidden";
     }
-  }
-
-  if (var == "SHUNTCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("SHUNTCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-
-  if (var == "BATTTYPE") {
-    return options_for_enum_with_none((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None),
-                                      name_for_battery_type, BatteryType::None);
-  }
-  if (var == "BATTCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-  if (var == "BATTCHEM") {
-    return options_for_enum(
-        (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::Autodetect),
-        name_for_chemistry);
-  }
-  if (var == "INVTYPE") {
-    return options_for_enum_with_none(
-        (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None), name_for_inverter_type,
-        InverterProtocolType::None);
-  }
-  if (var == "INVCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("INVCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-  if (var == "CHGTYPE") {
-    return options_for_enum_with_none((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None),
-                                      name_for_charger_type, ChargerType::None);
-  }
-  if (var == "CHGCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("CHGCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-
-  if (var == "SHUNTTYPE") {
-    return options_for_enum_with_none((ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None),
-                                      name_for_shunt_type, ShuntType::None);
-  }
-
-  if (var == "SHUNTCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("SHUNTCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-
-  if (var == "EQSTOP") {
-    return options_for_enum_with_none(
-        (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
-        name_for_button_type, STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
-  }
-
-  if (var == "BATT2COMM") {
-    return options_for_enum((comm_interface)settings.getUInt("BATT2COMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
   }
 
   if (var == "DBLBTR") {
@@ -510,7 +547,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "SOC_SCALING") {
-    return datalayer.battery.settings.soc_scaling_active ? "&#10003;" : "&#10005;";
+    return datalayer.battery.settings.soc_scaling_active ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
   }
 
   if (var == "FAKE_VOLTAGE_CLASS") {
@@ -523,9 +560,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "MANUAL_BALANCING") {
     if (datalayer.battery.settings.user_requests_balancing) {
-      return "&#10003;";
+      return TRUE_CHAR_CODE;
     } else {
-      return "&#10005;";
+      return FALSE_CHAR_CODE;
     }
   }
 
@@ -537,9 +574,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "VOLTAGE_LIMITS") {
     if (datalayer.battery.settings.user_set_voltage_limits_active) {
-      return "&#10003;";
+      return TRUE_CHAR_CODE;
     } else {
-      return "&#10005;";
+      return FALSE_CHAR_CODE;
     }
   }
 
@@ -585,9 +622,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "CHG_HV") {
     if (datalayer.charger.charger_HV_enabled) {
-      return "&#10003;";
+      return TRUE_CHAR_CODE;
     } else {
-      return "&#10005;";
+      return FALSE_CHAR_CODE;
     }
   }
 
@@ -601,9 +638,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "CHG_AUX12V") {
     if (datalayer.charger.charger_aux12V_enabled) {
-      return "&#10003;";
+      return TRUE_CHAR_CODE;
     } else {
-      return "&#10005;";
+      return FALSE_CHAR_CODE;
     }
   }
 
@@ -617,6 +654,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "SOFAR_ID") {
     return String(settings.getUInt("SOFAR_ID", 0));
+  }
+
+  if (var == "PYLONSEND") {
+    return String(settings.getUInt("PYLONSEND", 0));
   }
 
   if (var == "INVCELLS") {
@@ -675,28 +716,8 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
 
-  if (var == "GTWCOUNTRY") {
-    return options_from_map(settings.getUInt("GTWCOUNTRY", 0), tesla_countries);
-  }
-
   if (var == "GTWRHD") {
     return settings.getBool("GTWRHD") ? "checked" : "";
-  }
-
-  if (var == "GTWMAPREG") {
-    return options_from_map(settings.getUInt("GTWMAPREG", 0), tesla_mapregion);
-  }
-
-  if (var == "GTWCHASSIS") {
-    return options_from_map(settings.getUInt("GTWCHASSIS", 0), tesla_chassis);
-  }
-
-  if (var == "GTWPACK") {
-    return options_from_map(settings.getUInt("GTWPACK", 0), tesla_pack);
-  }
-
-  if (var == "LEDMODE") {
-    return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
   }
 
   return String();
@@ -952,6 +973,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-pylon { display: none; }
+    form[data-inverter="10"] .if-pylon {
+      display: contents;
+    }
+
     form .if-pylonish { display: none; }
     form[data-inverter="4"] .if-pylonish, form[data-inverter="10"] .if-pylonish, form[data-inverter="19"] .if-pylonish {
       display: contents;
@@ -1109,6 +1135,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input name='SOFAR_ID' type='text' value="%SOFAR_ID%" pattern="[0-9]{1,2}" />
         </div>
 
+        <div class="if-pylon">
+        <label>Send group (0-1): </label>
+        <input name='PYLONSEND' type='text' value="%PYLONSEND%" pattern="[0-9]+" />
+        </div>
+
         <div class="if-pylonish">
         <label>Reported cell count (0 for default): </label>
         <input name='INVCELLS' type='text' value="%INVCELLS%" pattern="[0-9]+" />
@@ -1251,14 +1282,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Access point name: </label>
         <input type='text' name='APNAME' value="%APNAME%" 
-        pattern="[A-Za-z0-9!#*-]{8,63}" 
-        title="Name must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*-"
+        pattern="[ -~]{1,63}" 
+        title="Max 63 characters, printable ASCII only"
         required />
 
         <label>Access point password: </label>
         <input type='text' name='APPASSWORD' value="%APPASSWORD%" 
-        pattern="[A-Za-z0-9!#*-]{8,63}" 
-        title="Password must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*-"
+        pattern="[ -~]{8,63}" 
+        title="Password must be 8-63 characters long, printable ASCII only"
         required />
 
         <label>Wifi channel 0-14: </label>
@@ -1268,8 +1299,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Custom Wifi hostname: </label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
-        pattern="[A-Za-z0-9!#*-]+"
-        title="Optional: Hostname may only contain letters, numbers and some special characters: !#*-" />
+        pattern="[A-Za-z0-9\-]+"
+        title="Optional: Hostname may only contain letters, numbers and '-'" />
 
         <label>Use static IP address: </label>
         <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
@@ -1307,18 +1338,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class='if-mqtt'>
         <label>MQTT server: </label>
         <input type='text' name='MQTTSERVER' value="%MQTTSERVER%" 
-        pattern="[A-Za-z0-9.-]+"
-        title="Hostname (letters, numbers, dots, hyphens)" />
+        pattern="[A-Za-z0-9.\-]+"
+        title="Hostname (letters, numbers, '.', '-')" />
         <label>MQTT port: </label>
         <input type='number' name='MQTTPORT' value="%MQTTPORT%" 
         min="1" max="65535" step="1"
         title="Port number (1-65535)" />
         <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
-        pattern="[A-Za-z0-9!#*-]+"
-        title="MQTT username can only contain letters, numbers and some special characters: !#*-" />
+        pattern="[ -~]+"
+        title="MQTT username can only contain printable ASCII" />
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" 
-        pattern="[A-Za-z0-9!#*-]+"
-        title="MQTT password can only contain letters, numbers and some special characters: !#*-" />
+        pattern="[ -~]+"
+        title="MQTT password can only contain printable ASCII" />
         <label>MQTT timeout ms: </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
         min="1" max="60000" step="1"

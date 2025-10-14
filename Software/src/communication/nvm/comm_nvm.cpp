@@ -94,6 +94,7 @@ void init_stored_settings() {
   user_selected_min_pack_voltage_dV = settings.getUInt("BATTPVMIN", 0);
   user_selected_max_cell_voltage_mV = settings.getUInt("BATTCVMAX", 0);
   user_selected_min_cell_voltage_mV = settings.getUInt("BATTCVMIN", 0);
+  user_selected_pylon_send = settings.getUInt("PYLONSEND", 0);
   user_selected_inverter_cells = settings.getUInt("INVCELLS", 0);
   user_selected_inverter_modules = settings.getUInt("INVMODULES", 0);
   user_selected_inverter_cells_per_module = settings.getUInt("INVCELLSPER", 0);

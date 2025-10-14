@@ -16,6 +16,9 @@ class PylonInverter : public CanInverterProtocol {
   void send_system_data();
   void send_setup_info();
 
+  bool pylon_send_0 = true;
+  bool pylon_send_1 = false;
+
   /* Some inverters need to see a specific amount of cells/modules to emulate a specific Pylon battery.
      Change the following only if your inverter is generating fault codes about voltage range */
   static const int TOTAL_CELL_AMOUNT = 120;
