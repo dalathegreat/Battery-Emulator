@@ -245,8 +245,10 @@ void RjxzsBms::transmit_can(unsigned long currentMillis) {
     }
 
     if (!setup_completed) {
-      transmit_can_frame(&RJXZS_10);  // Communication connected flag
-      transmit_can_frame(&RJXZS_1C);  // CAN OK
+      RJXZS_F4.data.u8[0] = 0x10;  // Communication connected flag
+      transmit_can_frame(&RJXZS_F4);
+      RJXZS_F4.data.u8[0] = 0x1C;  //CAN OK
+      transmit_can_frame(&RJXZS_F4);
     }
   }
 }
