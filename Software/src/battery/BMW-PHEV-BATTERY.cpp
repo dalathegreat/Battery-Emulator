@@ -211,7 +211,7 @@ void BmwPhevBattery::parseDTCResponse() {
     logging.println("DTC count exceeds buffer, truncating");
   }
 
-  int validDtcCount = 0;  // ✅ Track actual valid DTCs
+  int validDtcCount = 0;  // Track actual valid DTCs
 
   logging.print("Parsing DTCs (max ");
   logging.print(maxDtcCount);
@@ -232,8 +232,7 @@ void BmwPhevBattery::parseDTCResponse() {
                        (uint32_t)gUDSContext.UDS_buffer[offset + 2];
 
     uint8_t dtcStatus = gUDSContext.UDS_buffer[offset + 3];
-
-    // ✅ Skip invalid DTCs (0x000000 or status 0x00)
+    // Skip invalid DTCs (0x000000 or status 0x00)
     if (dtcCode == 0x000000 || dtcStatus == 0x00) {
       logging.print("  Skipping invalid DTC at offset ");
       logging.println(offset);
@@ -264,10 +263,10 @@ void BmwPhevBattery::parseDTCResponse() {
       logging.print("0");
     logging.print(dtcStatus, HEX);
     logging.println();
-    validDtcCount++;  // ✅ Increment only for valid DTCs
+    validDtcCount++;  //  Increment only for valid DTCs
   }
 
-  datalayer_extended.bmwphev.dtc_count = validDtcCount;  // ✅ Store actual count
+  datalayer_extended.bmwphev.dtc_count = validDtcCount;  //  Store actual count
 
   logging.print("Total valid DTCs: ");
   logging.println(validDtcCount);
@@ -711,7 +710,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
 
         // DTC Response ($19 returns $02)
-        if (gUDSContext.UDS_moduleID == 0x02) {  // ✅ Changed from 0x02 to 0x59
+        if (gUDSContext.UDS_moduleID == 0x02) {  //  Changed from 0x02 to 0x59
           logging.println("=== DTC Response Received ===");
           logging.print("Total bytes: ");
           logging.println(gUDSContext.UDS_bytesReceived);
