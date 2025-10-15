@@ -262,8 +262,8 @@ void BmwPhevBattery::parseDTCResponse() {
     logging.print(" Status: 0x");
     if (dtcStatus < 0x10)
       logging.print("0");
-    logging.println(dtcStatus, HEX);
-
+    logging.print(dtcStatus, HEX);
+    logging.println();
     validDtcCount++;  // ✅ Increment only for valid DTCs
   }
 
