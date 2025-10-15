@@ -46,7 +46,6 @@ enum PrechargeState {
 #define INTERVAL_500_MS 500
 #define INTERVAL_640_MS 640
 #define INTERVAL_1_S 1000
-#define INTERVAL_1_5_S 1500
 #define INTERVAL_2_S 2000
 #define INTERVAL_5_S 5000
 #define INTERVAL_10_S 10000
