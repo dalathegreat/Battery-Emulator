@@ -188,7 +188,8 @@ void BmwPhevBattery::parseDTCResponse() {
   // Check for negative response
   if (gUDSContext.UDS_buffer[0] == 0x7F) {
     logging.print("DTC request rejected by battery. Reason code: 0x");
-    logging.println(gUDSContext.UDS_buffer[2], HEX);
+    logging.print(gUDSContext.UDS_buffer[2], HEX);
+    logging.println();
     datalayer_extended.bmwphev.dtc_read_failed = true;
     datalayer_extended.bmwphev.dtc_read_in_progress = false;
     return;
@@ -793,6 +794,12 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&BMWPHEV_6F1_REQUEST_CLEAR_DTC);  // Send DTC erase command
       datalayer_extended.bmwphev.UserRequestDTCreset = false;
     }
+    if (datalayer_extended.bmwphev.UserRequestBMSReset) {
+      logging.println("User requested SME reset");
+      transmit_can_frame(&BMW_6F1_REQUEST_HARD_RESET);  // Send SME reset command
+      datalayer_extended.bmwphev.UserRequestBMSReset = false;
+    }
+
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
 
@@ -876,7 +883,6 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
 void BmwPhevBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;

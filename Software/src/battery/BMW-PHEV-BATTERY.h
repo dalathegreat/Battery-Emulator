@@ -15,6 +15,9 @@ class BmwPhevBattery : public CanBattery {
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { datalayer_extended.bmwphev.UserRequestDTCreset = true; }
 
+  bool supports_reset_BMS() { return true; }
+  void reset_BMS() { datalayer_extended.bmwphev.UserRequestBMSReset = true; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:

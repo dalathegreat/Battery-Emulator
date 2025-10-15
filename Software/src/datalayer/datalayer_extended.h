@@ -106,6 +106,8 @@ struct DATALAYER_INFO_BMWPHEV {
   bool dtc_read_failed;                // Indicates last read attempt failed
   /** User requesting DTC reset via WebUI*/
   bool UserRequestDTCreset = false;
+  /** User requesting BMS reset via WebUI*/
+  bool UserRequestBMSReset = false;
 };
 
 struct DATALAYER_INFO_BYDATTO3 {
