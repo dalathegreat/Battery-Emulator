@@ -1,6 +1,4 @@
 #include "SUNGROW-CAN.h"
-#include <Arduino.h>
-#include <cstring>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 
@@ -8,47 +6,17 @@
 This protocol is still under development. It can not be used yet for Sungrow inverters, 
 see the Wiki for more info on how to use your Sungrow inverter */
 
-namespace {
-template <typename T, size_t N>
-constexpr size_t array_len(const T (&)[N]) {
-  return N;
-}
+/*
+Device Model: SBR096
+Current Version: SBRBCU-S_22011.01.26
+Battery Protocol: AA10
+Battery Protocol Version: V1.0.6
 
-// Some embedded libstdc++ variants don't provide std::strnlen.
-// Provide a tiny local, constexpr-friendly replacement.
-static inline size_t strnlen_compat(const char* s, size_t maxlen) {
-  if (!s) {
-    return 0;
-  }
-  size_t i = 0;
-  while (i < maxlen && s && s[i]) {
-    ++i;
-  }
-  return i;
-}
-
-template <size_t N>
-static inline void copy_ascii(uint8_t (&dst)[N], const char* src, size_t visible_max = N > 0 ? N - 1 : 0) {
-  std::memset(dst, 0, N);
-  if (!src || N == 0) {
-    return;
-  }
-
-  const size_t max_visible = (visible_max < N) ? visible_max : N;
-  const size_t n = strnlen_compat(src, max_visible);
-
-  for (size_t i = 0; i < n; ++i) {
-    unsigned char c = static_cast<unsigned char>(src[i]);
-    dst[i] = (c >= 0x20 && c <= 0x7E) ? c : static_cast<uint8_t>('0');
-  }
-}
-
-template <size_t N>
-static inline void append_seq(CAN_frame** out, uint16_t& len, CAN_frame* const (&in)[N]) {
-  std::memcpy(out + len, in, N * sizeof(CAN_frame*));
-  len += static_cast<uint16_t>(N);
-}
-}  // namespace
+Device S/N: S2310123456
+S/N of Module 1: EM032D2310123461DF
+S/N of Module 2: EM032D2310123462DF
+S/N of Module 3: EM032D2310123463DF
+*/
 
 void SungrowInverter::update_values() {
   // Actual SoC
@@ -153,7 +121,7 @@ void SungrowInverter::update_values() {
   SUNGROW_707.data.u8[3] = 0x01;                     // Magic number. Num of stacks?
   SUNGROW_707.data.u8[4] = (NAMEPLATE_WH & 0x00FF);  // Nameplate capacity
   SUNGROW_707.data.u8[5] = (NAMEPLATE_WH >> 8);      // Nameplate capacity
-  SUNGROW_707.data.u8[6] = 0x01;                     // Magic number. Num of modules?
+  SUNGROW_707.data.u8[6] = 0x03;                     // Magic number. Num of modules?
   SUNGROW_707.data.u8[7] = 0x00;                     // Padding?
 
   // ---- 0x70F: two muxes (b0 = 0x00..0x07, b1 = 0x00) ----
@@ -262,14 +230,22 @@ void SungrowInverter::update_values() {
 
   //Copy 7## content to 0## messages
   for (int i = 0; i < 8; i++) {
+    // SUNGROW_000 all bytes 0x00
     SUNGROW_001.data.u8[i] = SUNGROW_701.data.u8[i];
     SUNGROW_002.data.u8[i] = SUNGROW_702.data.u8[i];
     SUNGROW_003.data.u8[i] = SUNGROW_703.data.u8[i];
     SUNGROW_004.data.u8[i] = SUNGROW_704.data.u8[i];
     SUNGROW_005.data.u8[i] = SUNGROW_705.data.u8[i];
     SUNGROW_006.data.u8[i] = SUNGROW_706.data.u8[i];
+    SUNGROW_007.data.u8[i] = SUNGROW_707.data.u8[i];
     SUNGROW_008_00.data.u8[i] = SUNGROW_708_00.data.u8[i];
     SUNGROW_008_01.data.u8[i] = SUNGROW_708_01.data.u8[i];
+    // SUNGROW_009 all bytes 0x00
+    SUNGROW_00A_00.data.u8[i] = SUNGROW_70A_00.data.u8[i];
+    SUNGROW_00A_01.data.u8[i] = SUNGROW_70A_01.data.u8[i];
+    SUNGROW_00B.data.u8[i] = SUNGROW_70B.data.u8[i];
+    SUNGROW_00D.data.u8[i] = SUNGROW_70D.data.u8[i];
+    SUNGROW_00E.data.u8[i] = SUNGROW_70E.data.u8[i];
     SUNGROW_013.data.u8[i] = SUNGROW_713.data.u8[i];
     SUNGROW_014.data.u8[i] = SUNGROW_714.data.u8[i];
     SUNGROW_015.data.u8[i] = SUNGROW_715.data.u8[i];
@@ -309,7 +285,7 @@ void SungrowInverter::update_values() {
 void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x100:
-      // SH10RS RUN
+      // SH10RS RUN @ ~1,250ms (group with one message every 250ms)
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x101:
@@ -317,7 +293,7 @@ void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       // System time as epoch in b0->b3
       // b4->b7 all 0x00
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      discovery_mode = true;
+      transmit_can_init = true;
       break;
     case 0x102:
       // SH10RS init @ 13,000ms
@@ -400,16 +376,18 @@ void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       break;
     case 0x106:
       // SH10RS init @ 13,000ms, or
-      // SH10RS run @ 250ms
+      // SH10RS run @ ~1,250ms (group with one message every 250ms)
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x108:
-      // SH10RS run @ 250ms
-      discovery_mode = false;
+      // SH10RS run @ ~1,250ms (group with one message every 250ms)
+      transmit_can_init = false;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x109:
-      // SH10RS run @ 250ms
-      discovery_mode = false;
+      // SH10RS run @ ~1,250ms (group with one message every 250ms)
+      transmit_can_init = false;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x151:  //Only sent by SH15T (Inverter trying to use BYD CAN)
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -436,14 +414,38 @@ void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       }
       break;
     case 0x191:  //Only sent by SH15T (Inverter trying to use BYD CAN)
+      // AU SH10RS inverter sends this but does not support a BYD battery.
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      discovery_mode = true;  // We only see 0x191 when the inverter is searching for a battery.
-                              // AU inverter sends this but does not want a BYD battery.
+      transmit_can_init = true;  // We only see 0x191 when the inverter is searching for a battery.
+      break;
+    case 0x1E0:
+      // Modbus RTU over CAN??
+
+      // Inverter
+      // [8] 01 04 4D E2 00 02 C6 91
+      // Slave Addr: 0x01
+      // Function: 0x04
+      // Start Register: 0x4DE2
+      // Quantity: 0x0002 (2 registers)
+      // CRC16: 0x91C6
+
+      // Battery Response
+      // [8] 01 04 04 01 F4 00 00 BB | [1] 8A
+      // Slave Addr: 0x01
+      // Function: 0x04
+      // Byte Count = 0x04 (2 registers x 2 bytes)
+      // Data: 0x01F4, 0x0000 => Decimal 500, 0
+      // CRC16: 0x8ABB
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      //transmit_can_frame(&SUNGROW_1E0_00);
+      //transmit_can_frame(&SUNGROW_1E0_01);
       break;
     case 0x00004200:  //Only sent by SH15T (Inverter trying to use Pylon CAN)
+      // Seen on AU SH10RS @ 500k. Incorrect bitrate?
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x02007F00:  //Only sent by SH15T (Inverter trying to use Pylon CAN)
+      // Seen on AU SH10RS @ 500k. Incorrect bitrate?
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     default:
@@ -452,233 +454,162 @@ void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 }
 
 void SungrowInverter::transmit_can(unsigned long currentMillis) {
-  // ---- constants (local to function to keep header clean) ----
-  static constexpr uint8_t SLICE_BUDGET = 16;  // ≤ 50% of 32-deep TX FIFO
 
-  // init on first call
-  if (epochStartMs == 0) {
-    lastDiscoveryMode = discovery_mode;
-    epochStartMs = currentMillis;
-    lastSliceMs = currentMillis;
-    // align overlay timers
-    previousMillis1_5s = currentMillis;
-    previousMillis10s = currentMillis;
-    previousMillis60s = currentMillis;
-  }
+  if (transmit_can_init) {
 
-  if ((currentMillis - epochStartMs) >= INTERVAL_1_S) {
-    epochStartMs += INTERVAL_1_S;  // keep phase steady
-    cursor = 0;
-  }
+    // ---- INIT ----
+    if ((int32_t)(currentMillis - previousMillis1s) >= INTERVAL_1_S) {
+      previousMillis1s = currentMillis;
 
-  // if discovery mode toggled mid-epoch, restart that list cleanly
-  if (lastDiscoveryMode != discovery_mode) {
-    lastDiscoveryMode = discovery_mode;
-    cursor = 0;
-  }
+      // Head messages
+      transmit_can_frame(&SUNGROW_500);
+      transmit_can_frame(&SUNGROW_400);
+      transmit_can_frame(&SUNGROW_401);
 
-  // only act once per time slice
-  if ((currentMillis - lastSliceMs) < INTERVAL_50_MS) {
+      // Init specific messages
+      transmit_can_frame(&SUNGROW_007);
+      transmit_can_frame(&SUNGROW_008_00);
+      transmit_can_frame(&SUNGROW_008_01);
+      transmit_can_frame(&SUNGROW_009);
+      transmit_can_frame(&SUNGROW_00A_00);
+      transmit_can_frame(&SUNGROW_00A_01);
+      transmit_can_frame(&SUNGROW_00B);
+      transmit_can_frame(&SUNGROW_00D);
+      transmit_can_frame(&SUNGROW_00E);
+
+      // Tail messages
+      transmit_can_frame(&SUNGROW_512);
+      transmit_can_frame(&SUNGROW_501);
+      transmit_can_frame(&SUNGROW_502);
+      transmit_can_frame(&SUNGROW_503);
+      transmit_can_frame(&SUNGROW_504);
+      transmit_can_frame(&SUNGROW_505);
+      transmit_can_frame(&SUNGROW_506);
+    }
     return;
   }
 
-  lastSliceMs = currentMillis;
-
-  // CAN sequence chunks
-  static CAN_frame* const SEQ_HEAD[] = {&SUNGROW_500, &SUNGROW_400, &SUNGROW_401};
-
-  static CAN_frame* const SEQ_TAIL[] = {&SUNGROW_512, &SUNGROW_501, &SUNGROW_502, &SUNGROW_503,
-                                        &SUNGROW_504, &SUNGROW_505, &SUNGROW_506};
-
-  static CAN_frame* const SEQ_RUN[] = {
-      &SUNGROW_000,    &SUNGROW_001,    &SUNGROW_002,    &SUNGROW_003,    &SUNGROW_004,    &SUNGROW_005,
-      &SUNGROW_006,    &SUNGROW_013,    &SUNGROW_014,    &SUNGROW_015,    &SUNGROW_016,    &SUNGROW_017,
-      &SUNGROW_018,    &SUNGROW_019,    &SUNGROW_01A,    &SUNGROW_01B,    &SUNGROW_01C,    &SUNGROW_01D,
-      &SUNGROW_01E,    &SUNGROW_700,    &SUNGROW_701,    &SUNGROW_702,    &SUNGROW_703,    &SUNGROW_704,
-      &SUNGROW_705,    &SUNGROW_706,    &SUNGROW_713,    &SUNGROW_714,    &SUNGROW_715,    &SUNGROW_716,
-      &SUNGROW_717,    &SUNGROW_718,    &SUNGROW_719,    &SUNGROW_70F_00, &SUNGROW_70F_01, &SUNGROW_70F_02,
-      &SUNGROW_70F_03, &SUNGROW_70F_04, &SUNGROW_70F_05, &SUNGROW_70F_06, &SUNGROW_70F_07, &SUNGROW_71A,
-      &SUNGROW_71B,    &SUNGROW_71C};
-
-  static CAN_frame* const SEQ_DISCOVERY[] = {
-      &SUNGROW_007,    &SUNGROW_008_00, &SUNGROW_008_01, &SUNGROW_009, &SUNGROW_00A_00,
-      &SUNGROW_00A_01, &SUNGROW_00B,    &SUNGROW_00D,    &SUNGROW_00E,
-  };
-
-  static CAN_frame* const SEQ_10S_RUN[] = {&SUNGROW_707, &SUNGROW_708_00, &SUNGROW_708_01,
-                                           &SUNGROW_709, &SUNGROW_70A_00, &SUNGROW_70A_01,
-                                           &SUNGROW_70B, &SUNGROW_70D,    &SUNGROW_70E};
-
-  static const uint8_t LEN_10S_RUN = (uint8_t)array_len(SEQ_10S_RUN);
-
-  static CAN_frame* seq[SEQ_CAP];
-  static bool seq_built = false;
-  static bool seq_is_discovery = false;
-  static uint16_t seq_len = 0;
-
-  const bool want_discovery = discovery_mode;
-
-  if (!seq_built || seq_is_discovery != want_discovery) {
-    uint16_t LEN = 0;
-    append_seq(seq, LEN, SEQ_HEAD);
-    if (want_discovery) {
-      append_seq(seq, LEN, SEQ_DISCOVERY);
-    } else {
-      append_seq(seq, LEN, SEQ_RUN);
-    }
-    append_seq(seq, LEN, SEQ_TAIL);
-
-    static_assert(array_len(SEQ_HEAD) + array_len(SEQ_RUN) + array_len(SEQ_TAIL) <= SEQ_CAP,
-                  "SEQ_CAP too small for RUN");
-    static_assert(array_len(SEQ_HEAD) + array_len(SEQ_DISCOVERY) + array_len(SEQ_TAIL) <= SEQ_CAP,
-                  "SEQ_CAP too small for DISCOVERY");
-
-    seq_len = LEN;
-    seq_is_discovery = want_discovery;
-    seq_built = true;
-
-    // Reset cursor when the mode flips
-    if (lastDiscoveryMode != want_discovery)
-      cursor = 0;
-  }
-
-  // 1,000ms messages
-  uint8_t sent = 0;
-  while (cursor < seq_len && sent < SLICE_BUDGET) {
-    transmit_can_frame(seq[cursor++]);
-    ++sent;
-  }
-
-  // overlays — only when not in discovery
-  if (!discovery_mode) {
-    // ---- 1,500ms messages ----
-    if ((int32_t)(currentMillis - previousMillis1_5s) >= 0 && (SLICE_BUDGET - sent) >= 3) {
-      transmit_can_frame(&SUNGROW_1E0_00);
-      transmit_can_frame(&SUNGROW_1E0_01);
-      transmit_can_frame(&SUNGROW_1E0_02);
-      sent += 3;
-      do {
-        previousMillis1_5s += INTERVAL_1_5_S;
-      } while ((int32_t)(currentMillis - previousMillis1_5s) >= 0);
+  // ---- RUN ----
+  // ---- 1s group ----
+  if ((int32_t)(currentMillis - previousMillis1s) >= INTERVAL_1_S) {
+    if ((currentMillis - previousMillisBatch) < delay_between_batches_ms) {
+      return;
     }
 
-    // ---- 10,000ms messages ----
-    if ((int32_t)(currentMillis - previousMillis10s) >= 0) {
-      g10_pending = true;
-      g10_idx = 0;
-      do {
-        previousMillis10s += INTERVAL_10_S;
-      } while ((int32_t)(currentMillis - previousMillis10s) >= 0);
+    previousMillisBatch = currentMillis;
+
+    switch (batch_send_index) {
+      case 0:
+        // Head messages
+        transmit_can_frame(&SUNGROW_500);
+        transmit_can_frame(&SUNGROW_400);
+        transmit_can_frame(&SUNGROW_401);
+        break;
+
+      case 1:
+        // Run batch A
+        transmit_can_frame(&SUNGROW_000);
+        transmit_can_frame(&SUNGROW_001);
+        transmit_can_frame(&SUNGROW_002);
+        transmit_can_frame(&SUNGROW_003);
+        transmit_can_frame(&SUNGROW_004);
+        transmit_can_frame(&SUNGROW_005);
+        transmit_can_frame(&SUNGROW_006);
+        transmit_can_frame(&SUNGROW_013);
+        transmit_can_frame(&SUNGROW_014);
+        transmit_can_frame(&SUNGROW_015);
+        transmit_can_frame(&SUNGROW_016);
+        transmit_can_frame(&SUNGROW_017);
+        transmit_can_frame(&SUNGROW_018);
+        transmit_can_frame(&SUNGROW_019);
+        transmit_can_frame(&SUNGROW_01A);
+        transmit_can_frame(&SUNGROW_01B);
+        transmit_can_frame(&SUNGROW_01C);
+        transmit_can_frame(&SUNGROW_01D);
+        transmit_can_frame(&SUNGROW_01E);
+        break;
+
+      case 2:
+        // Run batch B
+        transmit_can_frame(&SUNGROW_700);
+        transmit_can_frame(&SUNGROW_701);
+        transmit_can_frame(&SUNGROW_702);
+        transmit_can_frame(&SUNGROW_703);
+        transmit_can_frame(&SUNGROW_704);
+        transmit_can_frame(&SUNGROW_705);
+        transmit_can_frame(&SUNGROW_706);
+        transmit_can_frame(&SUNGROW_713);
+        transmit_can_frame(&SUNGROW_714);
+        transmit_can_frame(&SUNGROW_715);
+        transmit_can_frame(&SUNGROW_716);
+        transmit_can_frame(&SUNGROW_717);
+        transmit_can_frame(&SUNGROW_718);
+        transmit_can_frame(&SUNGROW_719);
+        break;
+
+      case 3:
+        // Run batch C
+        transmit_can_frame(&SUNGROW_70F_00);
+        transmit_can_frame(&SUNGROW_70F_01);
+        transmit_can_frame(&SUNGROW_70F_02);
+        transmit_can_frame(&SUNGROW_70F_03);
+        transmit_can_frame(&SUNGROW_70F_04);
+        transmit_can_frame(&SUNGROW_70F_05);
+        transmit_can_frame(&SUNGROW_70F_06);
+        transmit_can_frame(&SUNGROW_70F_07);
+        transmit_can_frame(&SUNGROW_71A);
+        transmit_can_frame(&SUNGROW_71B);
+        transmit_can_frame(&SUNGROW_71C);
+        break;
+
+      case 4:
+        previousMillis1s = currentMillis;
+
+        // Tail messages
+        transmit_can_frame(&SUNGROW_512);
+        transmit_can_frame(&SUNGROW_501);
+        transmit_can_frame(&SUNGROW_502);
+        transmit_can_frame(&SUNGROW_503);
+        transmit_can_frame(&SUNGROW_504);
+        transmit_can_frame(&SUNGROW_505);
+        transmit_can_frame(&SUNGROW_506);
+        break;
+
+      default:
+        break;
     }
 
-    // ---- drain 10s group within slice budget ----
-    if (g10_pending && (SLICE_BUDGET - sent) > 0) {
-      while (g10_idx < LEN_10S_RUN && sent < SLICE_BUDGET) {
-        transmit_can_frame(SEQ_10S_RUN[g10_idx++]);
-        ++sent;
-      }
-      if (g10_idx >= LEN_10S_RUN) {
-        g10_pending = false;
-      }
-    }
-
-    // ---- 60,000ms messages ----
-    if ((int32_t)(currentMillis - previousMillis60s) >= 0) {
-      g60_pending = true;
-      g60_idx = 0;
-      do {
-        previousMillis60s += INTERVAL_60_S;
-      } while ((int32_t)(currentMillis - previousMillis60s) >= 0);
-    }
-
-    // ---- drain 60s group within slice budget ----
-    if (g60_pending && (SLICE_BUDGET - sent) > 0) {
-      while (g60_pending && sent < SLICE_BUDGET) {
-        const uint8_t mod = (uint8_t)(g60_idx / 3);  // 0..2
-        const uint8_t ch = (uint8_t)(g60_idx % 3);   // 0..2
-        transmit_can_frame(&SUNGROW_71F_MC[mod][ch]);
-        ++g60_idx;
-        ++sent;
-        if (g60_idx >= 9)
-          g60_pending = false;
-      }
+    batch_send_index++;
+    if (batch_send_index > 4) {
+      batch_send_index = 0;
     }
   }
-}
 
-void SungrowInverter::rebuild_serial_frames() {
-  // Build 0x708 mux 0
-  SUNGROW_708_00.DLC = 8;
-  SUNGROW_708_00.ID = 0x708;
-  SUNGROW_708_00.ext_ID = false;
-  SUNGROW_708_00.FD = false;
-  SUNGROW_708_00.data.u8[0] = 0x00;
-  for (int i = 0; i < 7; ++i) {
-    SUNGROW_708_00.data.u8[1 + i] = serial_number_char[i];
-  }
-  // Build 0x708 mux 1
-  SUNGROW_708_01.DLC = 8;
-  SUNGROW_708_01.ID = 0x708;
-  SUNGROW_708_01.ext_ID = false;
-  SUNGROW_708_01.FD = false;
-  SUNGROW_708_01.data.u8[0] = 0x01;
-
-  // bytes 7..12 (six bytes), last byte (index 7) is sentinel
-  for (int i = 0; i < 6; ++i) {
-    SUNGROW_708_01.data.u8[1 + i] = serial_number_char[7 + i];
+  // ---- 10s group ----
+  if ((int32_t)(currentMillis - previousMillis10s) >= INTERVAL_10_S) {
+    previousMillis10s = currentMillis;
+    transmit_can_frame(&SUNGROW_707);
+    transmit_can_frame(&SUNGROW_708_00);
+    transmit_can_frame(&SUNGROW_708_01);
+    transmit_can_frame(&SUNGROW_709);
+    transmit_can_frame(&SUNGROW_70A_00);
+    transmit_can_frame(&SUNGROW_70A_01);
+    transmit_can_frame(&SUNGROW_70B);
+    transmit_can_frame(&SUNGROW_70D);
+    transmit_can_frame(&SUNGROW_70E);
   }
 
-  SUNGROW_708_01.data.u8[7] = 0x53;  // observed trailing sentinel
-}
-
-void SungrowInverter::rebuild_module_serial_frames() {
-  // Build 0x71F frames for 3 modules × 3 chunks (6 bytes/chunk)
-  for (int mod = 0; mod < 3; ++mod) {
-    for (int chunk = 0; chunk < 3; ++chunk) {
-      CAN_frame& f = SUNGROW_71F_MC[mod][chunk];
-      f.DLC = 8;
-      f.ID = 0x71F;
-      f.ext_ID = false;
-      f.FD = false;
-      std::memset(f.data.u8, 0, 8);
-      f.data.u8[0] = static_cast<uint8_t>(mod + 1);    // module index 1..3
-      f.data.u8[1] = static_cast<uint8_t>(chunk + 1);  // chunk 1..3
-      const int base = chunk * 6;                      // 0, 6, 12
-      for (int i = 0; i < 6; ++i) {
-        f.data.u8[2 + i] = module_serial_char[mod][base + i];  // 6 bytes slice
-      }
-    }
+  // ---- 60s group ----
+  if ((int32_t)(currentMillis - previousMillis60s) >= INTERVAL_60_S) {
+    previousMillis60s = currentMillis;
+    transmit_can_frame(&SUNGROW_71F_01_01);
+    transmit_can_frame(&SUNGROW_71F_01_02);
+    transmit_can_frame(&SUNGROW_71F_01_03);
+    transmit_can_frame(&SUNGROW_71F_02_01);
+    transmit_can_frame(&SUNGROW_71F_02_02);
+    transmit_can_frame(&SUNGROW_71F_02_03);
+    transmit_can_frame(&SUNGROW_71F_03_01);
+    transmit_can_frame(&SUNGROW_71F_03_02);
+    transmit_can_frame(&SUNGROW_71F_03_03);
   }
-}
-
-bool SungrowInverter::setup() {
-  // 10-digit unique from eFuse MAC
-  uint64_t mac = ESP.getEfuseMac();
-  uint32_t folded = (uint32_t)((mac >> 32) ^ (mac & 0xFFFFFFFFULL));
-  uint64_t unique10 = (uint64_t)folded % 10000000000ULL;  // 0..9,999,999,999
-
-  char uid10[11];
-  snprintf(uid10, sizeof(uid10), "%010llu", (unsigned long long)unique10);
-
-  // --- Serial number: "S" + 10-digit (e.g., S1234567890) ---
-  char serial_buf[16];
-  snprintf(serial_buf, sizeof(serial_buf), "S%s", uid10);
-  copy_ascii(serial_number_char, serial_buf);
-  rebuild_serial_frames();
-
-  // --- Module serials: "EM032D" + 10-digit (last digit + i) + "DF" ---
-  for (int i = 0; i < 3; ++i) {
-    char mod_digits[11];
-    memcpy(mod_digits, uid10, 10);
-    mod_digits[10] = '\0';
-    // bump last digit by i (wrap 0-9)
-    mod_digits[9] = char(((mod_digits[9] - '0' + i) % 10) + '0');
-
-    char module_buf[32];
-    snprintf(module_buf, sizeof(module_buf), "EM032D%sDF", mod_digits);
-    copy_ascii(module_serial_char[i], module_buf);
-  }
-  rebuild_module_serial_frames();
-
-  return true;
 }

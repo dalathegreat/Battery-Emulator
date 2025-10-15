@@ -11,42 +11,28 @@ class SungrowInverter : public CanInverterProtocol {
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
-  bool setup() override;
   static constexpr const char* Name = "Sungrow SBRXXX emulation over CAN bus";
-  void rebuild_module_serial_frames();
-  void rebuild_serial_frames();
 
  private:
-  // --- burst scheduler state ---
-  unsigned long epochStartMs = 0;
-  unsigned long lastSliceMs = 0;
-  uint16_t cursor = 0;
-  bool lastDiscoveryMode = false;
-
-  // overlays
-  uint8_t g10_idx = 0;
-  bool g10_pending = false;
-  uint8_t g60_idx = 0;
-  bool g60_pending = false;
-
+  unsigned long previousMillisBatch = 0;
+  unsigned long previousMillis1s = 0;
   unsigned long previousMillis1_5s = 0;
   unsigned long previousMillis10s = 0;
   unsigned long previousMillis60s = 0;
-  bool discovery_mode = true;
+  bool transmit_can_init = true;
+  const uint8_t delay_between_batches_ms = INTERVAL_20_MS;
 
   uint8_t mux = 0;
   uint8_t version_char[14] = {0};
   uint8_t manufacturer_char[14] = {0};
   uint8_t model_char[14] = {0};
-  uint8_t serial_number_char[13] = {0};
-  uint8_t module_serial_char[3][19] = {{0}};
   uint32_t remaining_wh = 0;
   uint32_t capacity_wh = 0;
+  uint8_t batch_send_index = 0;
   static constexpr uint16_t NAMEPLATE_WH = 9600;
-  static constexpr uint16_t SEQ_CAP = 64;
 
   //Actual content messages
-  CAN_frame SUNGROW_000 = {.FD = false,  // Sent by inv or BMS?
+  CAN_frame SUNGROW_000 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x000,
@@ -85,7 +71,7 @@ class SungrowInverter : public CanInverterProtocol {
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x007,
-                           .data = {0x26, 0x00, 0x00, 0x01, 0x80, 0x25, 0x03, 0x00}};
+                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_008_00 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
@@ -105,27 +91,27 @@ class SungrowInverter : public CanInverterProtocol {
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x00A,
-                              .data = {0x00, 0x53, 0x55, 0x4E, 0x47, 0x52, 0x4F, 0x57}};
+                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_00A_01 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x00A,
-                              .data = {0x01, 0x00, 0x42, 0x52, 0x58, 0x58, 0x58, 0x00}};
+                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_00B = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x00B,
-                           .data = {0x00, 0x53, 0x42, 0x52, 0x58, 0x58, 0x58, 0x00}};
+                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_00D = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x00D,
-                           .data = {0x0F, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00}};
+                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_00E = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x00E,
-                           .data = {0x07, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_013 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
@@ -190,13 +176,8 @@ class SungrowInverter : public CanInverterProtocol {
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x1E0,
-                              .data = {0x01, 0x04, 0x4D, 0xE2, 0x00, 0x02, 0xC6, 0x91}};
-  CAN_frame SUNGROW_1E0_01 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x1E0,
                               .data = {0x01, 0x04, 0x04, 0x01, 0xF4, 0x00, 0x00, 0xBB}};
-  CAN_frame SUNGROW_1E0_02 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x1E0, .data = {0x8A}};
+  CAN_frame SUNGROW_1E0_01 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x1E0, .data = {0x8A}};
   CAN_frame SUNGROW_400 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
@@ -291,12 +272,12 @@ class SungrowInverter : public CanInverterProtocol {
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x708,
-                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                              .data = {0x00, 0x53, 0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "S231012"
   CAN_frame SUNGROW_708_01 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x708,
-                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                              .data = {0x01, 0x33, 0x34, 0x35, 0x36, 0x00, 0x00, 0x53}};  // "3456" S suffix
   CAN_frame SUNGROW_709 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
@@ -427,7 +408,51 @@ class SungrowInverter : public CanInverterProtocol {
                            .DLC = 8,
                            .ID = 0x71E,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_MC[3][3];
+  CAN_frame SUNGROW_71F_01_01 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x01, 0x01, 0x45, 0x4D, 0x30, 0x33, 0x32, 0x44}};  // "EM032D"
+  CAN_frame SUNGROW_71F_01_02 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x01, 0x02, 0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "231012"
+  CAN_frame SUNGROW_71F_01_03 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x01, 0x03, 0x33, 0x34, 0x36, 0x31, 0x44, 0x46}};  // "3461DF"
+  CAN_frame SUNGROW_71F_02_01 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x02, 0x01, 0x45, 0x4D, 0x30, 0x33, 0x32, 0x44}};  // "EM032D"
+  CAN_frame SUNGROW_71F_02_02 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x02, 0x02, 0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "231012"
+  CAN_frame SUNGROW_71F_02_03 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x02, 0x03, 0x33, 0x34, 0x36, 0x32, 0x44, 0x46}};  // "3462DF"
+  CAN_frame SUNGROW_71F_03_01 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x03, 0x01, 0x45, 0x4D, 0x30, 0x33, 0x32, 0x44}};  // "EM032D"
+  CAN_frame SUNGROW_71F_03_02 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x03, 0x02, 0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "231012"
+  CAN_frame SUNGROW_71F_03_03 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x03, 0x03, 0x33, 0x34, 0x36, 0x33, 0x44, 0x46}};  // "3463DF"
 };
 
 #endif
