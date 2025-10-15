@@ -297,6 +297,10 @@ void BmwPhevBattery::processCellVoltages() {
 }
 
 void BmwPhevBattery::wake_battery_via_canbus() {
+  //TJA1055 transceiver remote wake requires pulses on the bus of
+  // Dominant for at least ~7 µs (min) and at most ~38 µs (max)
+  // Followed by a Recessive interval of at least ~3 µs (min) and at most ~10 µs (max)
+  // Then a second dominant pulse of similar timing.
   static unsigned long wakeup_start_time = 0;
   static bool waiting_for_completion = false;
 
