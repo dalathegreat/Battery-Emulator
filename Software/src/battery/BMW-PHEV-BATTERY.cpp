@@ -687,8 +687,24 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           // Check combined 16-bit values instead of individual bytes
           if (min_voltage_raw != 0xFFFF && min_voltage_raw != 0x0000 && max_voltage_raw != 0xFFFF &&
               max_voltage_raw != 0x0000) {
-            min_cell_voltage = min_voltage_raw / 10;
-            max_cell_voltage = max_voltage_raw / 10;
+            uint16_t new_min_voltage = min_voltage_raw / 10;
+            uint16_t new_max_voltage = max_voltage_raw / 10;
+
+            // Update timestamps when values change
+            if (new_min_voltage != min_cell_voltage) {
+              min_cell_voltage_lastchanged = millis();
+            }
+            if (new_max_voltage != max_cell_voltage) {
+              max_cell_voltage_lastchanged = millis();
+            }
+
+            min_cell_voltage = new_min_voltage;
+            max_cell_voltage = new_max_voltage;
+
+            // Always update "last received" timestamps
+            min_cell_voltage_lastreceived = millis();
+            max_cell_voltage_lastreceived = millis();
+
           } else {
             logging.println("Cell Min Max Invalid 65535 or 0...");
           }
