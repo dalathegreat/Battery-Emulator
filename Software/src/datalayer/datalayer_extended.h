@@ -97,6 +97,15 @@ struct DATALAYER_INFO_BMWPHEV {
   uint8_t battery_request_open_contactors_fast = 0;
   uint8_t battery_charging_condition_delta = 0;
   uint8_t battery_DC_link_voltage = 0;
+  // DTC Information
+  uint8_t dtc_count;                   // Number of DTCs present
+  uint32_t dtc_codes[32];              // Array of DTC codes (3 bytes each, stored as uint32)
+  uint8_t dtc_status[32];              // Status byte for each DTC
+  unsigned long dtc_last_read_millis;  // Timestamp of last successful read
+  bool dtc_read_in_progress;           // Flag to prevent concurrent reads
+  bool dtc_read_failed;                // Indicates last read attempt failed
+  /** User requesting DTC reset via WebUI*/
+  bool UserRequestDTCreset = false;
 };
 
 struct DATALAYER_INFO_BYDATTO3 {

@@ -12,6 +12,9 @@ class BmwPhevBattery : public CanBattery {
 
   static constexpr const char* Name = "BMW PHEV Battery";
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { datalayer_extended.bmwphev.UserRequestDTCreset = true; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
@@ -25,6 +28,7 @@ class BmwPhevBattery : public CanBattery {
   static const int MAX_DISCHARGE_POWER_ALLOWED_W = 10000;
   static const int MAX_CHARGE_POWER_ALLOWED_W = 10000;
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
+  static const int MAX_DTC_COUNT = 20;  // Maximum number of DTCs to store/display
   static const int RAMPDOWN_SOC =
       9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
   static const int STALE_PERIOD_CONFIG =
@@ -34,6 +38,7 @@ class BmwPhevBattery : public CanBattery {
   void startUDSMultiFrameReception(uint16_t totalLength, uint8_t moduleID);
   bool storeUDSPayload(const uint8_t* payload, uint8_t length);
   bool isUDSMessageComplete();
+  void parseDTCResponse();
   void processCellVoltages();
   void wake_battery_via_canbus();
   uint8_t increment_alive_counter(uint8_t counter);
@@ -131,6 +136,20 @@ class BmwPhevBattery : public CanBattery {
       .DLC = 5,
       .ID = 0x6F1,
       .data = {0x07, 0x03, 0x22, 0xDD, 0x7E}};  //  Pack Voltage Limits  Multi Frame
+
+  // UDS $19 ReadDTC Request (Report DTC by status mask - all DTCs)
+  CAN_frame BMWPHEV_6F1_REQUEST_READ_DTC = {.FD = false,
+                                            .ext_ID = false,
+                                            .DLC = 8,
+                                            .ID = 0x6F1,
+                                            .data = {0x07, 0x03, 0x19, 0x02, 0x0C, 0x00, 0x00, 0x00}};
+
+  // UDS $14 ClearDTC Request (Clear all DTCs)
+  CAN_frame BMWPHEV_6F1_REQUEST_CLEAR_DTC = {.FD = false,
+                                             .ext_ID = false,
+                                             .DLC = 8,
+                                             .ID = 0x6F1,
+                                             .data = {0x07, 0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00}};
 
   CAN_frame BMWPHEV_6F1_REQUEST_PAIRED_VIN = {.FD = false,
                                               .ext_ID = false,
@@ -295,10 +314,15 @@ class BmwPhevBattery : public CanBattery {
       sizeof(UDS_REQUESTS_FAST) / sizeof(UDS_REQUESTS_FAST[0]);  //Store Number of elements in the array
 
   //Setup Slow UDS values to poll for
-  CAN_frame* UDS_REQUESTS_SLOW[8] = {&BMWPHEV_6F1_REQUEST_ISO_READING1,           &BMWPHEV_6F1_REQUEST_ISO_READING2,
-                                     &BMWPHEV_6F1_REQUEST_CURRENT_LIMITS,         &BMWPHEV_6F1_REQUEST_SOH,
-                                     &BMWPHEV_6F1_REQUEST_CELLS_INDIVIDUAL_VOLTS, &BMWPHEV_6F1_REQUEST_CELL_TEMP,
-                                     &BMWPHEV_6F1_REQUEST_BALANCING_STATUS,       &BMWPHEV_6F1_REQUEST_PAIRED_VIN};
+  CAN_frame* UDS_REQUESTS_SLOW[9] = {&BMWPHEV_6F1_REQUEST_ISO_READING1,
+                                     &BMWPHEV_6F1_REQUEST_ISO_READING2,
+                                     &BMWPHEV_6F1_REQUEST_CURRENT_LIMITS,
+                                     &BMWPHEV_6F1_REQUEST_SOH,
+                                     &BMWPHEV_6F1_REQUEST_CELLS_INDIVIDUAL_VOLTS,
+                                     &BMWPHEV_6F1_REQUEST_CELL_TEMP,
+                                     &BMWPHEV_6F1_REQUEST_BALANCING_STATUS,
+                                     &BMWPHEV_6F1_REQUEST_PAIRED_VIN,
+                                     &BMWPHEV_6F1_REQUEST_READ_DTC};
   int numSlowUDSreqs =
       sizeof(UDS_REQUESTS_SLOW) / sizeof(UDS_REQUESTS_SLOW[0]);  // Store Number of elements in the array
 

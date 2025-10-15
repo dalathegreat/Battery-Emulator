@@ -29,7 +29,7 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) { b->reset_DTC(); }},
     {"readDTC", "Read DTC (result must be checked in CANlog)", nullptr,
      [](Battery* b) { return b && b->supports_read_DTC(); }, [](Battery* b) { b->read_DTC(); }},
-    {"resetBECM", "Restart BECM module", "restart BECM??", [](Battery* b) { return b && b->supports_reset_DTC(); },
+    {"resetBECM", "Restart BECM module", "restart BECM??", [](Battery* b) { return b && b->supports_reset_BECM(); },
      [](Battery* b) { b->reset_DTC(); }},
     {"contactorClose", "Close Contactors", "a contactor close request?",
      [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_close_contactors(); }},

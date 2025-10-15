@@ -104,6 +104,8 @@ const char* BmwPhevBattery::getUDSRequestName(CAN_frame* frame) {
     return "MAINVOLTAGE_PRE";
   if (frame == &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR)
     return "MAINVOLTAGE_POST";
+  if (frame == &BMWPHEV_6F1_REQUEST_READ_DTC)
+    return "READ_DTC";
   return "UNKNOWN";
 }
 
@@ -182,7 +184,97 @@ uint8_t BmwPhevBattery::increment_alive_counter(uint8_t counter) {
   }
   return counter;
 }
+void BmwPhevBattery::parseDTCResponse() {
+  // Check for negative response
+  if (gUDSContext.UDS_buffer[0] == 0x7F) {
+    logging.print("DTC request rejected by battery. Reason code: 0x");
+    logging.println(gUDSContext.UDS_buffer[2], HEX);
+    datalayer_extended.bmwphev.dtc_read_failed = true;
+    datalayer_extended.bmwphev.dtc_read_in_progress = false;
+    return;
+  }
 
+  if (gUDSContext.UDS_buffer[0] != 0x59 || gUDSContext.UDS_buffer[1] != 0x02) {
+    logging.println("Invalid DTC response header");
+    datalayer_extended.bmwphev.dtc_read_failed = true;
+    datalayer_extended.bmwphev.dtc_read_in_progress = false;
+    return;
+  }
+
+  int dtcStartIndex = 3;  // Skip 59 02 FF
+  int availableBytes = gUDSContext.UDS_bytesReceived - dtcStartIndex;
+  int maxDtcCount = availableBytes / 4;
+
+  if (maxDtcCount > MAX_DTC_COUNT) {
+    maxDtcCount = MAX_DTC_COUNT;
+    logging.println("DTC count exceeds buffer, truncating");
+  }
+
+  int validDtcCount = 0;  // ✅ Track actual valid DTCs
+
+  logging.print("Parsing DTCs (max ");
+  logging.print(maxDtcCount);
+  logging.println("):");
+
+  for (int i = 0; i < maxDtcCount; i++) {
+    int offset = dtcStartIndex + (i * 4);
+
+    // Bounds check
+    if (offset + 3 > gUDSContext.UDS_bytesReceived) {
+      logging.println("DTC parsing: offset exceeds buffer, stopping");
+      break;
+    }
+
+    // Combine 3 bytes into single uint32
+    uint32_t dtcCode = ((uint32_t)gUDSContext.UDS_buffer[offset] << 16) |
+                       ((uint32_t)gUDSContext.UDS_buffer[offset + 1] << 8) |
+                       (uint32_t)gUDSContext.UDS_buffer[offset + 2];
+
+    uint8_t dtcStatus = gUDSContext.UDS_buffer[offset + 3];
+
+    // ✅ Skip invalid DTCs (0x000000 or status 0x00)
+    if (dtcCode == 0x000000 || dtcStatus == 0x00) {
+      logging.print("  Skipping invalid DTC at offset ");
+      logging.println(offset);
+      continue;  // Don't store this one
+    }
+
+    // Store valid DTC
+    datalayer_extended.bmwphev.dtc_codes[validDtcCount] = dtcCode;
+    datalayer_extended.bmwphev.dtc_status[validDtcCount] = dtcStatus;
+
+    // Log each DTC for debugging
+    logging.print("  DTC #");
+    logging.print(validDtcCount + 1);
+    logging.print(": 0x");
+    if (dtcCode < 0x100000)
+      logging.print("0");
+    if (dtcCode < 0x10000)
+      logging.print("0");
+    if (dtcCode < 0x1000)
+      logging.print("0");
+    if (dtcCode < 0x100)
+      logging.print("0");
+    if (dtcCode < 0x10)
+      logging.print("0");
+    logging.print(dtcCode, HEX);
+    logging.print(" Status: 0x");
+    if (dtcStatus < 0x10)
+      logging.print("0");
+    logging.println(dtcStatus, HEX);
+
+    validDtcCount++;  // ✅ Increment only for valid DTCs
+  }
+
+  datalayer_extended.bmwphev.dtc_count = validDtcCount;  // ✅ Store actual count
+
+  logging.print("Total valid DTCs: ");
+  logging.println(validDtcCount);
+
+  datalayer_extended.bmwphev.dtc_last_read_millis = millis();
+  datalayer_extended.bmwphev.dtc_read_failed = false;
+  datalayer_extended.bmwphev.dtc_read_in_progress = false;
+}
 void BmwPhevBattery::processCellVoltages() {
   const int startByte = 3;     // Start reading at byte 3
   const int numVoltages = 96;  // Number of cell voltage values to process
@@ -439,7 +531,19 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case 0x1: {
           // total length = (pciLower << 8) + data[2]
           uint16_t totalLength = ((uint16_t)pciLower << 8) | rx_frame.data.u8[2];
-          uint8_t moduleID = rx_frame.data.u8[5];
+
+          uint8_t serviceResponse = rx_frame.data.u8[3];  // Service response byte (0x59, 0x62, etc.)
+          uint8_t moduleID;
+          // Determine which byte to use for module ID based on service response
+          if (serviceResponse == 0x59) {
+            // Standard UDS DTC response (0x19 -> 0x59)
+            // Use sub-function byte as module ID
+            moduleID = rx_frame.data.u8[4];  // 0x02 for reportDTCByStatusMask
+          } else {
+            // BMW proprietary responses (0x22 -> 0x62)
+            // Use parameter byte as module ID
+            moduleID = rx_frame.data.u8[5];  // 0xA5, 0x69, 0xA0, etc.
+          }
 #if defined(UDS_LOG)
           logging.print("FF arrived! moduleID=0x");
           logging.print(moduleID, HEX);
@@ -510,7 +614,9 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 #endif  // UDS_LOG
             transmit_can_frame(&BMW_6F1_REQUEST_CONTINUE_MULTIFRAME);
             gUDSContext.receivedInBatch = 0;  // Reset batch count
+#if defined(UDS_LOG)
             logging.println("Sent FC for next batch of 3 frames.");
+#endif  // UDS_LOG
           }
 
           break;
@@ -547,7 +653,10 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
         //Cell Voltages
         if (gUDSContext.UDS_moduleID == 0xA5) {  //We have a complete set of cell voltages - pass to data layer
+#if defined(UDS_LOG)
           logging.printf("Received cell voltage data");
+#endif  // DEBUG_LOG
+
           processCellVoltages();
         }
         //Current measurement
@@ -563,12 +672,12 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           for (uint16_t i = 0; i < gUDSContext.UDS_bytesReceived; i++) {
             // Optional leading zero for single-digit hex
             if (gUDSContext.UDS_buffer[i] < 0x10) {
-              logging.printf("0");
+              //logging.printf("0");
             }
-            logging.print(gUDSContext.UDS_buffer[i], HEX);
-            logging.printf(" ");
+            //logging.print(gUDSContext.UDS_buffer[i], HEX);
+            //logging.printf(" ");
           }
-          logging.println("");  // new line at the end
+          //logging.println("");  // new line at the end
         }
 
         //Cell Min/Max
@@ -597,6 +706,14 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
         }
 
+        // DTC Response ($19 returns $02)
+        if (gUDSContext.UDS_moduleID == 0x02) {  // ✅ Changed from 0x02 to 0x59
+          logging.println("=== DTC Response Received ===");
+          logging.print("Total bytes: ");
+          logging.println(gUDSContext.UDS_bytesReceived);
+
+          parseDTCResponse();
+        }
         if (gUDSContext.UDS_moduleID == 0x7E) {  // Voltage Limits
           max_design_voltage = (gUDSContext.UDS_buffer[3] << 8 | gUDSContext.UDS_buffer[4]) / 10;
           min_design_voltage = (gUDSContext.UDS_buffer[5] << 8 | gUDSContext.UDS_buffer[6]) / 10;
@@ -661,9 +778,21 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
-
+  // Timeout check for stuck UDS transfers
+  if (gUDSContext.UDS_inProgress) {
+    if (currentMillis - gUDSContext.UDS_lastFrameMillis > 2000) {  // 2 second timeout
+      logging.println("UDS transfer timeout - aborting");
+      gUDSContext.UDS_inProgress = false;
+      gUDSContext.UDS_bytesReceived = 0;
+    }
+  }
   if (battery_awake) {
-
+    // Update requests from webserver datalayer
+    if (datalayer_extended.bmwphev.UserRequestDTCreset) {
+      logging.println("User requested DTC reset");
+      transmit_can_frame(&BMWPHEV_6F1_REQUEST_CLEAR_DTC);  // Send DTC erase command
+      datalayer_extended.bmwphev.UserRequestDTCreset = false;
+    }
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
 
