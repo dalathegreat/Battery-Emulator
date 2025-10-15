@@ -298,37 +298,36 @@ void BmwPhevBattery::processCellVoltages() {
 }
 
 void BmwPhevBattery::wake_battery_via_canbus() {
-  //TJA1055 transceiver remote wake requires pulses on the bus of
-  // Dominant for at least ~7 µs (min) and at most ~38 µs (max)
-  // Followed by a Recessive interval of at least ~3 µs (min) and at most ~10 µs (max)
-  // Then a second dominant pulse of similar timing.
-  logging.println("Setting Canbus to 100kbps...");
-  change_can_speed(CAN_Speed::CAN_SPEED_100KBPS);
-  transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST);
-  delay(10);
-  transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST);
-  logging.println("Sent magic wakeup packet to SME at 100kbps...");
-  delay(50);
-  logging.println("Resetting Canbus speed...");
-  change_can_speed(CAN_Speed::CAN_SPEED_500KBPS);
-  delay(50);
-  logging.println("CAN speed restored, ready for normal operation");
+  static unsigned long wakeup_start_time = 0;
+  static bool waiting_for_completion = false;
+
+  if (!waiting_for_completion) {
+    logging.println("Setting Canbus to 100kbps...");
+    change_can_speed(CAN_Speed::CAN_SPEED_100KBPS);
+    transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST);
+    transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST);
+    logging.println("Sent magic wakeup packet to SME at 100kbps...");
+    wakeup_start_time = millis();
+    waiting_for_completion = true;
+    return;
+  }
+
+  if (millis() - wakeup_start_time >= 50) {
+    logging.println("Resetting Canbus speed...");
+    change_can_speed(CAN_Speed::CAN_SPEED_500KBPS);
+    logging.println("CAN speed restored, ready for normal operation");
+    waiting_for_completion = false;
+  }
 }
 
 void BmwPhevBattery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
 
   datalayer.battery.status.real_soc = avg_soc_state;
-
   datalayer.battery.status.voltage_dV = battery_voltage;
-
   datalayer.battery.status.current_dA = battery_current;
-
   datalayer.battery.info.total_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
-
   datalayer.battery.status.remaining_capacity_Wh = battery_predicted_energy_charge_condition;
-
   datalayer.battery.status.soh_pptt = min_soh_state;
-
   datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
 
   //datalayer.battery.status.max_charge_power_W = 3200; //10000; //Aux HV Port has 100A Fuse  Moved to Ramping
@@ -346,7 +345,6 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
   }
 
   datalayer.battery.status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
-
   datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
 
   //Check stale values. As values dont change much during idle only consider stale if both parts of this message freeze.
@@ -682,28 +680,17 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
 
         //Cell Min/Max
-        if (gUDSContext.UDS_moduleID ==
-            0xA0) {  //We have a complete frame for cell min max - pass to data layer UNCONFIRMED IF THESE ARE CORRECT BYTES
+        if (gUDSContext.UDS_moduleID == 0xA0) {
+          uint16_t min_voltage_raw = (gUDSContext.UDS_buffer[9] << 8 | gUDSContext.UDS_buffer[10]);
+          uint16_t max_voltage_raw = (gUDSContext.UDS_buffer[11] << 8 | gUDSContext.UDS_buffer[12]);
 
-          //Check values are valid
-          if (gUDSContext.UDS_buffer[9] != 0xFF && gUDSContext.UDS_buffer[10] != 0xFF &&
-              gUDSContext.UDS_buffer[11] != 0xFF && gUDSContext.UDS_buffer[12] != 0xFF &&
-              gUDSContext.UDS_buffer[9] != 0x00 && gUDSContext.UDS_buffer[10] != 0x00 &&
-              gUDSContext.UDS_buffer[11] != 0x00 && gUDSContext.UDS_buffer[12] != 0x00) {
-            min_cell_voltage = (gUDSContext.UDS_buffer[9] << 8 | gUDSContext.UDS_buffer[10]) / 10;
-            max_cell_voltage = (gUDSContext.UDS_buffer[11] << 8 | gUDSContext.UDS_buffer[12]) / 10;
+          // Check combined 16-bit values instead of individual bytes
+          if (min_voltage_raw != 0xFFFF && min_voltage_raw != 0x0000 && max_voltage_raw != 0xFFFF &&
+              max_voltage_raw != 0x0000) {
+            min_cell_voltage = min_voltage_raw / 10;
+            max_cell_voltage = max_voltage_raw / 10;
           } else {
             logging.println("Cell Min Max Invalid 65535 or 0...");
-            logging.printf("Received data: ");
-            for (uint16_t i = 0; i < gUDSContext.UDS_bytesReceived; i++) {
-              // Optional leading zero for single-digit hex
-              if (gUDSContext.UDS_buffer[i] < 0x10) {
-                logging.printf("0");
-              }
-              logging.print(gUDSContext.UDS_buffer[i], HEX);
-              logging.printf(" ");
-            }
-            logging.println();  // new line at the end
           }
         }
 

@@ -307,11 +307,8 @@ class BmwPhevBattery : public CanBattery {
   bool battery_awake = false;
 
   //Setup Fast UDS values to poll for
-  CAN_frame* UDS_REQUESTS_FAST[6] = {&BMWPHEV_6F1_REQUEST_CELLSUMMARY,
-                                     &BMWPHEV_6F1_REQUEST_SOC,
-                                     &BMWPHEV_6F1_REQUEST_CURRENT,
-                                     &BMWPHEV_6F1_REQUEST_VOLTAGE_LIMITS,
-                                     &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_PRECONTACTOR,
+  CAN_frame* UDS_REQUESTS_FAST[5] = {&BMWPHEV_6F1_REQUEST_CELLSUMMARY, &BMWPHEV_6F1_REQUEST_SOC,
+                                     &BMWPHEV_6F1_REQUEST_VOLTAGE_LIMITS, &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_PRECONTACTOR,
                                      &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR};
   int numFastUDSreqs =
       sizeof(UDS_REQUESTS_FAST) / sizeof(UDS_REQUESTS_FAST[0]);  //Store Number of elements in the array
