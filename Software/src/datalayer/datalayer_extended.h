@@ -92,6 +92,22 @@ struct DATALAYER_INFO_BMWPHEV {
   int32_t iso_safety_trg_plausible = 0;
   int32_t iso_safety_kohm = 0;          //STAT_R_ISO_ROH_01_WERT
   int32_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
+  uint8_t battery_request_open_contactors = 0;
+  uint8_t battery_request_open_contactors_instantly = 0;
+  uint8_t battery_request_open_contactors_fast = 0;
+  uint8_t battery_charging_condition_delta = 0;
+  uint8_t battery_DC_link_voltage = 0;
+  // DTC Information
+  uint8_t dtc_count;                   // Number of DTCs present
+  uint32_t dtc_codes[32];              // Array of DTC codes (3 bytes each, stored as uint32)
+  uint8_t dtc_status[32];              // Status byte for each DTC
+  unsigned long dtc_last_read_millis;  // Timestamp of last successful read
+  bool dtc_read_in_progress;           // Flag to prevent concurrent reads
+  bool dtc_read_failed;                // Indicates last read attempt failed
+  /** User requesting DTC reset via WebUI*/
+  bool UserRequestDTCreset = false;
+  /** User requesting BMS reset via WebUI*/
+  bool UserRequestBMSReset = false;
 };
 
 struct DATALAYER_INFO_BYDATTO3 {
