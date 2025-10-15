@@ -108,7 +108,7 @@ sudo make
 ```
 
 ## Downloading a pull request build to test locally 🛜
-If you want to test a pull request, you can download the precompiled binaries from the build system. To do this,start by clicking on the "**Checks**" tab
+If you want to help test a new feature that is only available in an open pull request, you can download the precompiled binaries from the build system. To do this,start by clicking on the "**Checks**" tab
 
 <img width="779" height="312" alt="image" src="https://github.com/user-attachments/assets/fc7783c1-ba61-440e-ab09-b53d2b49f1bb" />
 
