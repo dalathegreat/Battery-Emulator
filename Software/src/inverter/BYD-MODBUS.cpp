@@ -1,8 +1,8 @@
 #include "BYD-MODBUS.h"
+#include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
-#include "../battery/BATTERIES.h"
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
 
@@ -47,7 +47,8 @@ void BydModbusInverter::handle_static_data() {
 
 void BydModbusInverter::handle_update_data_modbusp201_byd() {
   if (battery2) {
-    mbPV[202] = std::min(datalayer.battery.info.total_capacity_Wh + datalayer.battery2.info.total_capacity_Wh, static_cast<uint32_t>(60000u));  //Cap to 60kWh
+    mbPV[202] = std::min(datalayer.battery.info.total_capacity_Wh + datalayer.battery2.info.total_capacity_Wh,
+                         static_cast<uint32_t>(60000u));  //Cap to 60kWh
   } else {
     mbPV[202] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000u));  //Cap to 60kWh
   }
@@ -84,15 +85,18 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   mbPV[302] = 128 + bms_char_dis_status;
   mbPV[303] = datalayer.battery.status.reported_soc;
   if (battery2) {
-    mbPV[304] = std::min(datalayer.battery.info.total_capacity_Wh + datalayer.battery2.info.total_capacity_Wh, static_cast<uint32_t>(60000u));  //Cap to 60kWh
+    mbPV[304] = std::min(datalayer.battery.info.total_capacity_Wh + datalayer.battery2.info.total_capacity_Wh,
+                         static_cast<uint32_t>(60000u));  //Cap to 60kWh
   } else {
     mbPV[304] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000u));  //Cap to 60kWh
   }
   if (battery2) {
-    mbPV[305] =
-      std::min(datalayer.battery.status.reported_remaining_capacity_Wh + datalayer.battery2.status.reported_remaining_capacity_Wh, static_cast<uint32_t>(60000u));  //Cap to 60kWh
+    mbPV[305] = std::min(datalayer.battery.status.reported_remaining_capacity_Wh +
+                             datalayer.battery2.status.reported_remaining_capacity_Wh,
+                         static_cast<uint32_t>(60000u));  //Cap to 60kWh
   } else {
-    mbPV[305] = std::min(datalayer.battery.status.reported_remaining_capacity_Wh, static_cast<uint32_t>(60000u));  //Cap to 60kWh
+    mbPV[305] = std::min(datalayer.battery.status.reported_remaining_capacity_Wh,
+                         static_cast<uint32_t>(60000u));  //Cap to 60kWh
   }
   mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));  //Cap to 30000 if exceeding
   mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));     //Cap to 30000 if exceeding
