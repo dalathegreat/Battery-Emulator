@@ -169,10 +169,10 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (rx_frame.DLC > 6 && rx_frame.data.u8[0] == 0xF4 && rx_frame.data.u8[1] == 0x10 &&
           rx_frame.data.u8[2] == 0xE3 && rx_frame.data.u8[3] == 0x62 && rx_frame.data.u8[4] == 0xE5) {
         //First of multi frame data - Parse the first frame
-        if (rx_frame.DLC = 64 && rx_frame.data.u8[5] == 0x54) {  //Individual Cell Voltages - First Frame
-          int start_index = 6;                                   //Data starts here
-          int voltage_index = 0;                                 //Start cell ID
-          int num_voltages = 29;                                 //  number of voltage readings to get
+        if ((rx_frame.DLC == 64) && (rx_frame.data.u8[5] == 0x54)) {  //Individual Cell Voltages - First Frame
+          int start_index = 6;                                        //Data starts here
+          int voltage_index = 0;                                      //Start cell ID
+          int num_voltages = 29;                                      //  number of voltage readings to get
           for (int i = start_index; i < (start_index + num_voltages * 2); i += 2) {
             uint16_t voltage = (rx_frame.data.u8[i] << 8) | rx_frame.data.u8[i + 1];
             if (voltage < 10000) {  //Check reading is plausible - otherwise ignore
@@ -186,11 +186,11 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         transmit_can_frame(&BMWiX_6F4_CONTINUE_DATA);
       }
 
-      if (rx_frame.DLC = 64 && rx_frame.data.u8[0] == 0xF4 &&
-                         rx_frame.data.u8[1] == 0x21) {  //Individual Cell Voltages - 1st Continue frame
-        int start_index = 2;                             //Data starts here
-        int voltage_index = 29;                          //Start cell ID
-        int num_voltages = 31;                           //  number of voltage readings to get
+      if ((rx_frame.DLC == 64) && (rx_frame.data.u8[0] == 0xF4) &&
+          (rx_frame.data.u8[1] == 0x21)) {  //Individual Cell Voltages - 1st Continue frame
+        int start_index = 2;                //Data starts here
+        int voltage_index = 29;             //Start cell ID
+        int num_voltages = 31;              //  number of voltage readings to get
         for (int i = start_index; i < (start_index + num_voltages * 2); i += 2) {
           uint16_t voltage = (rx_frame.data.u8[i] << 8) | rx_frame.data.u8[i + 1];
           if (voltage < 10000) {  //Check reading is plausible - otherwise ignore
@@ -200,11 +200,11 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
 
-      if (rx_frame.DLC = 64 && rx_frame.data.u8[0] == 0xF4 &&
-                         rx_frame.data.u8[1] == 0x22) {  //Individual Cell Voltages - 2nd Continue frame
-        int start_index = 2;                             //Data starts here
-        int voltage_index = 60;                          //Start cell ID
-        int num_voltages = 31;                           //  number of voltage readings to get
+      if ((rx_frame.DLC == 64) && (rx_frame.data.u8[0] == 0xF4) &&
+          (rx_frame.data.u8[1] == 0x22)) {  //Individual Cell Voltages - 2nd Continue frame
+        int start_index = 2;                //Data starts here
+        int voltage_index = 60;             //Start cell ID
+        int num_voltages = 31;              //  number of voltage readings to get
         for (int i = start_index; i < (start_index + num_voltages * 2); i += 2) {
           uint16_t voltage = (rx_frame.data.u8[i] << 8) | rx_frame.data.u8[i + 1];
           if (voltage < 10000) {  //Check reading is plausible - otherwise ignore
@@ -214,10 +214,10 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
 
-      if (rx_frame.DLC = 64 && rx_frame.data.u8[0] == 0xF4 &&
-                         rx_frame.data.u8[1] == 0x23) {  //Individual Cell Voltages - 3rd Continue frame
-        int start_index = 2;                             //Data starts here
-        int voltage_index = 91;                          //Start cell ID
+      if ((rx_frame.DLC == 64) && (rx_frame.data.u8[0] == 0xF4) &&
+          (rx_frame.data.u8[1] == 0x23)) {  //Individual Cell Voltages - 3rd Continue frame
+        int start_index = 2;                //Data starts here
+        int voltage_index = 91;             //Start cell ID
         int num_voltages;
         if (rx_frame.data.u8[12] == 0xFF && rx_frame.data.u8[13] == 0xFF) {  //97th cell is blank - assume 96S Battery
           num_voltages = 5;  //  number of voltage readings to get - 6 more to get on 96S
@@ -235,56 +235,56 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           voltage_index++;
         }
       }
-      if (rx_frame.DLC = 7 && rx_frame.data.u8[4] == 0x4D) {  //Main Battery Voltage (Pre Contactor)
+      if ((rx_frame.DLC == 7) && (rx_frame.data.u8[4] == 0x4D)) {  //Main Battery Voltage (Pre Contactor)
         battery_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
       }
 
-      if (rx_frame.DLC = 7 && rx_frame.data.u8[4] == 0x4A) {  //Main Battery Voltage (After Contactor)
+      if ((rx_frame.DLC == 7) && (rx_frame.data.u8[4] == 0x4A)) {  //Main Battery Voltage (After Contactor)
         battery_voltage_after_contactor = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
       }
 
-      if (rx_frame.DLC = 12 && rx_frame.data.u8[4] == 0xE5 &&
-                         rx_frame.data.u8[5] == 0x61) {  //Current amps 32bit signed MSB. dA . negative is discharge
+      if ((rx_frame.DLC == 12) && (rx_frame.data.u8[4] == 0xE5) &&
+          (rx_frame.data.u8[5] == 0x61)) {  //Current amps 32bit signed MSB. dA . negative is discharge
         battery_current = ((int32_t)((rx_frame.data.u8[6] << 24) | (rx_frame.data.u8[7] << 16) |
                                      (rx_frame.data.u8[8] << 8) | rx_frame.data.u8[9])) *
                           0.1;
       }
 
-      if (rx_frame.DLC = 64 && rx_frame.data.u8[4] == 0xE4 && rx_frame.data.u8[5] == 0xCA) {  //Balancing Data
+      if ((rx_frame.DLC == 64) && (rx_frame.data.u8[4] == 0xE4) && (rx_frame.data.u8[5] == 0xCA)) {  //Balancing Data
         balancing_status = (rx_frame.data.u8[6]);  //4 = No symmetry mode active, invalid qualifier
       }
-      if (rx_frame.DLC = 7 && rx_frame.data.u8[4] == 0xE5 && rx_frame.data.u8[5] == 0xCE) {  //Min/Avg/Max SOC%
+      if ((rx_frame.DLC == 7) && (rx_frame.data.u8[4] == 0xE5) && (rx_frame.data.u8[5] == 0xCE)) {  //Min/Avg/Max SOC%
         min_soc_state = (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]);
         avg_soc_state = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
         max_soc_state = (rx_frame.data.u8[10] << 8 | rx_frame.data.u8[11]);
       }
 
-      if (rx_frame.DLC =
-              12 && rx_frame.data.u8[4] == 0xE5 &&
-              rx_frame.data.u8[5] == 0xC7) {  //Current and max capacity kWh. Stored in kWh as 0.01 scale with -50  bias
+      if ((rx_frame.DLC == 12) && (rx_frame.data.u8[4] == 0xE5) &&
+          (rx_frame.data.u8[5] == 0xC7)) {  //Current and max capacity kWh. Stored in kWh as 0.01 scale with -50  bias
         remaining_capacity = ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) * 10) - 50000;
         max_capacity = ((rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) * 10) - 50000;
       }
 
-      if (rx_frame.DLC = 20 && rx_frame.data.u8[4] == 0xE5 && rx_frame.data.u8[5] == 0x45) {  //SOH Max Min Mean Request
+      if ((rx_frame.DLC == 20) && (rx_frame.data.u8[4] == 0xE5) &&
+          (rx_frame.data.u8[5] == 0x45)) {  //SOH Max Min Mean Request
         min_soh_state = ((rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]));
         avg_soh_state = ((rx_frame.data.u8[10] << 8 | rx_frame.data.u8[11]));
         max_soh_state = ((rx_frame.data.u8[12] << 8 | rx_frame.data.u8[13]));
       }
 
-      if (rx_frame.DLC = 10 && rx_frame.data.u8[4] == 0xE5 &&
-                         rx_frame.data.u8[5] == 0x62) {  //Max allowed charge and discharge current - Signed 16bit
+      if ((rx_frame.DLC == 10) && (rx_frame.data.u8[4] == 0xE5) &&
+          (rx_frame.data.u8[5] == 0x62)) {  //Max allowed charge and discharge current - Signed 16bit
         allowable_charge_amps = (int16_t)((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7])) / 10;
         allowable_discharge_amps = (int16_t)((rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9])) / 10;
       }
 
-      if (rx_frame.DLC = 9 && rx_frame.data.u8[4] == 0xE5 &&
-                         rx_frame.data.u8[5] == 0x4B) {    //Max allowed charge and discharge current - Signed 16bit
+      if ((rx_frame.DLC == 9) && (rx_frame.data.u8[4] == 0xE5) &&
+          (rx_frame.data.u8[5] == 0x4B)) {                 //Max allowed charge and discharge current - Signed 16bit
         voltage_qualifier_status = (rx_frame.data.u8[8]);  // Request HV Voltage Qualifier
       }
 
-      if (rx_frame.DLC =
-              48 && rx_frame.data.u8[4] == 0xA8 && rx_frame.data.u8[5] == 0x60) {  // Safety Isolation Measurements
+      if ((rx_frame.DLC == 48) && (rx_frame.data.u8[4] == 0xA8) &&
+          (rx_frame.data.u8[5] == 0x60)) {  // Safety Isolation Measurements
         iso_safety_positive = (rx_frame.data.u8[34] << 24) | (rx_frame.data.u8[35] << 16) |
                               (rx_frame.data.u8[36] << 8) | rx_frame.data.u8[37];  //Assuming 32bit
         iso_safety_negative = (rx_frame.data.u8[38] << 24) | (rx_frame.data.u8[39] << 16) |
@@ -293,20 +293,20 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                               (rx_frame.data.u8[44] << 8) | rx_frame.data.u8[45];  //Assuming 32bit
       }
 
-      if (rx_frame.DLC =
-              48 && rx_frame.data.u8[4] == 0xE4 && rx_frame.data.u8[5] == 0xC0) {  // Uptime and Vehicle Time Status
+      if ((rx_frame.DLC == 48) && (rx_frame.data.u8[4] == 0xE4) &&
+          (rx_frame.data.u8[5] == 0xC0)) {  // Uptime and Vehicle Time Status
         sme_uptime = (rx_frame.data.u8[10] << 24) | (rx_frame.data.u8[11] << 16) | (rx_frame.data.u8[12] << 8) |
                      rx_frame.data.u8[13];  //Assuming 32bit
       }
 
-      if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xAC && rx_frame.data.u8[4] == 0x93) {  // Pyro Status
+      if ((rx_frame.DLC == 8) && (rx_frame.data.u8[3] == 0xAC) && (rx_frame.data.u8[4] == 0x93)) {  // Pyro Status
         pyro_status_pss1 = (rx_frame.data.u8[5]);
         pyro_status_pss4 = (rx_frame.data.u8[6]);
         pyro_status_pss6 = (rx_frame.data.u8[7]);
       }
 
-      if (rx_frame.DLC = 12 && rx_frame.data.u8[4] == 0xE5 &&
-                         rx_frame.data.u8[5] == 0x53) {  //Min and max cell voltage   10V = Qualifier Invalid
+      if ((rx_frame.DLC == 12) && (rx_frame.data.u8[4] == 0xE5) &&
+          (rx_frame.data.u8[5] == 0x53)) {  //Min and max cell voltage   10V = Qualifier Invalid
 
         datalayer.battery.status.CAN_battery_still_alive =
             CAN_STILL_ALIVE;  //This is the most important safety values, if we receive this we reset CAN alive counter.
@@ -322,25 +322,27 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
 
-      if (rx_frame.DLC = 16 && rx_frame.data.u8[4] == 0xDD && rx_frame.data.u8[5] == 0xC0) {  //Battery Temperature
+      if ((rx_frame.DLC == 16) && (rx_frame.data.u8[4] == 0xDD) &&
+          (rx_frame.data.u8[5] == 0xC0)) {  //Battery Temperature
         min_battery_temperature = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) / 10;
         avg_battery_temperature = (rx_frame.data.u8[10] << 8 | rx_frame.data.u8[11]) / 10;
         max_battery_temperature = (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) / 10;
       }
-      if (rx_frame.DLC = 7 && rx_frame.data.u8[4] == 0xA3) {  //Main Contactor Temperature CHECK FINGERPRINT 2 LEVEL
+      if ((rx_frame.DLC == 7) &&
+          (rx_frame.data.u8[4] == 0xA3)) {  //Main Contactor Temperature CHECK FINGERPRINT 2 LEVEL
         main_contactor_temperature = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]);
       }
-      if (rx_frame.DLC = 7 && rx_frame.data.u8[4] == 0xA7) {  //Terminal 30 Voltage (12V SME supply)
+      if ((rx_frame.DLC == 7) && (rx_frame.data.u8[4] == 0xA7)) {  //Terminal 30 Voltage (12V SME supply)
         terminal30_12v_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]);
       }
-      if (rx_frame.DLC = 6 && rx_frame.data.u8[0] == 0xF4 && rx_frame.data.u8[1] == 0x04 &&
-                         rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xE5 &&
-                         rx_frame.data.u8[4] == 0x69) {  //HVIL Status
+      if ((rx_frame.DLC == 6) && (rx_frame.data.u8[0] == 0xF4) && (rx_frame.data.u8[1] == 0x04) &&
+          (rx_frame.data.u8[2] == 0x62) && (rx_frame.data.u8[3] == 0xE5) &&
+          (rx_frame.data.u8[4] == 0x69)) {  //HVIL Status
         hvil_status = (rx_frame.data.u8[5]);
       }
 
-      if (rx_frame.DLC = 12 && rx_frame.data.u8[2] == 0x07 && rx_frame.data.u8[3] == 0x62 &&
-                         rx_frame.data.u8[4] == 0xE5 && rx_frame.data.u8[5] == 0x4C) {  //Pack Voltage Limits
+      if ((rx_frame.DLC == 12) && (rx_frame.data.u8[2] == 0x07) && (rx_frame.data.u8[3] == 0x62) &&
+          (rx_frame.data.u8[4] == 0xE5) && (rx_frame.data.u8[5] == 0x4C)) {  //Pack Voltage Limits
         if ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) < 4700 &&
             (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) > 2600) {  //Make sure values are plausible
           battery_info_available = true;
@@ -349,7 +351,8 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
 
-      if (rx_frame.DLC = 16 && rx_frame.data.u8[3] == 0xF1 && rx_frame.data.u8[4] == 0x8C) {  //Battery Serial Number
+      if ((rx_frame.DLC == 16) && (rx_frame.data.u8[3] == 0xF1) &&
+          (rx_frame.data.u8[4] == 0x8C)) {  //Battery Serial Number
         //Convert hex bytes to ASCII characters and combine them into a string
         char numberString[11];  // 10 characters + null terminator
         for (int i = 0; i < 10; i++) {

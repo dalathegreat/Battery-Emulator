@@ -195,9 +195,10 @@ void DalyBms::receive() {
 
     recv_len++;
 
-    if (recv_len > 0 && recv_buff[0] != 0xA5 || recv_len > 1 && recv_buff[1] != 0x01 ||
-        recv_len > 2 && (recv_buff[2] < 0x90 || recv_buff[2] > 0x98) || recv_len > 3 && recv_buff[3] != 8 ||
-        recv_len > 12 && recv_buff[12] != calculate_checksum(recv_buff)) {
+    if (((recv_len > 0) && (recv_buff[0] != 0xA5)) || ((recv_len > 1) && (recv_buff[1] != 0x01)) ||
+        ((recv_len > 2) && ((recv_buff[2] < 0x90) || (recv_buff[2] > 0x98))) ||
+        ((recv_len > 3) && (recv_buff[3] != 8)) ||
+        ((recv_len > 12) && (recv_buff[12] != calculate_checksum(recv_buff)))) {
       dump_buff("dropping partial rx: ", recv_buff, recv_len);
       recv_len = 0;
     }

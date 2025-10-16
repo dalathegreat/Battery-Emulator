@@ -67,7 +67,7 @@ void NissanLeafCharger::map_can_frame_to_variable(CAN_frame rx_frame) {
     case 0x390:
       datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       OBC_Charge_Status = ((rx_frame.data.u8[5] & 0x7E) >> 1);
-      if (OBC_Charge_Status == PLUGGED_IN_WAITING_ON_TIMER || CHARGING_OR_INTERRUPTED) {
+      if ((OBC_Charge_Status == PLUGGED_IN_WAITING_ON_TIMER) || (OBC_Charge_Status == CHARGING_OR_INTERRUPTED)) {
         PPStatus = true;  //plug inserted
       } else {
         PPStatus = false;  //plug not inserted

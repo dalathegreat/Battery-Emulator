@@ -8,7 +8,6 @@
 
 void VolvoSpaHybridBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
-  uint8_t cnt = 0;
 
   // Update webserver datalayer
   datalayer_extended.VolvoHybrid.soc_bms = SOC_BMS;

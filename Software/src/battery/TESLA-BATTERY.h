@@ -632,7 +632,7 @@ class TeslaBattery : public CanBattery {
   bool BMS_pcsNoFlowRequest = false;
   bool BMS_noFlowRequest = false;
   //0x3C4: PCS_info
-  uint8_t PCS_partNumber[12] = {0};  //stores raw HEX values for ASCII chars
+  uint8_t PCS_partNumber[13] = {0};  //stores raw HEX values for ASCII chars
   bool parsed_PCS_partNumber = false;
   uint16_t PCS_info_buildConfigId = 0;
   uint16_t PCS_info_hardwareId = 0;
