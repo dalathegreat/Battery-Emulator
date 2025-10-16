@@ -17,9 +17,23 @@ void FordMachEBattery::update_values() {
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W = 12000;  //TODO, fix
+  datalayer.battery.status.max_discharge_power_W =
+      datalayer.battery.status.override_discharge_power_W;  //TODO, fix when v alue is found
 
-  datalayer.battery.status.max_charge_power_W = 12000;  //TODO, fix
+  //We have not found allowed charge power yet. Estimate it for now absed on UI setting. TODO. remove this once found
+  if (battery_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
+  } else if ((battery_soc / 10) >
+             RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+    datalayer.battery.status.max_charge_power_W =
+        RAMPDOWNPOWERALLOWED * (1 - ((battery_soc / 10) - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
+    //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
+    if (maximum_cellvoltage_mV > (MAX_CELL_VOLTAGE_MV - FLOAT_START_MV)) {
+      datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
+    }
+  } else {  // No limits, max charging power allowed
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
+  }
 
   maximum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
   minimum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
@@ -36,9 +50,13 @@ void FordMachEBattery::update_values() {
     }
   }
 
-  datalayer.battery.status.cell_max_voltage_mV = maximum_cellvoltage_mV;
+  if (maximum_cellvoltage_mV > 0) {
+    datalayer.battery.status.cell_max_voltage_mV = maximum_cellvoltage_mV;
+  }
 
-  datalayer.battery.status.cell_min_voltage_mV = minimum_cellvoltage_mV;
+  if (minimum_cellvoltage_mV > 0) {
+    datalayer.battery.status.cell_min_voltage_mV = minimum_cellvoltage_mV;
+  }
 
   // Initialize highest and lowest to the first element
   maximum_temperature = cell_temperature[0];
