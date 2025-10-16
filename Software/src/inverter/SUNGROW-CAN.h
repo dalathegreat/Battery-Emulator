@@ -16,7 +16,6 @@ class SungrowInverter : public CanInverterProtocol {
  private:
   unsigned long previousMillisBatch = 0;
   unsigned long previousMillis1s = 0;
-  unsigned long previousMillis1_5s = 0;
   unsigned long previousMillis10s = 0;
   unsigned long previousMillis60s = 0;
   bool transmit_can_init = true;
@@ -30,6 +29,22 @@ class SungrowInverter : public CanInverterProtocol {
   uint32_t capacity_wh = 0;
   uint8_t batch_send_index = 0;
   static constexpr uint16_t NAMEPLATE_WH = 9600;
+
+  // Cached signed current in deci-amps (range: int16_t)
+  int16_t current_dA = 0;
+
+  // Clamp an int32 -> int16 safely
+  static constexpr int16_t clamp_i32_to_i16(int32_t value) {
+    if (value > 32767) {
+      return 32767;
+    }
+
+    if (value < -32768) {
+      return -32768;
+    }
+
+    return static_cast<int16_t>(value);
+  }
 
   //Actual content messages
   CAN_frame SUNGROW_000 = {.FD = false,

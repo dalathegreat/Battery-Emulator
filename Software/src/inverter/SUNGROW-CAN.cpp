@@ -19,6 +19,8 @@ S/N of Module 3: EM032D2310123463DF
 */
 
 void SungrowInverter::update_values() {
+  current_dA = datalayer.battery.status.current_dA;
+
   // Actual SoC
   SUNGROW_400.data.u8[1] = (datalayer.battery.status.real_soc & 0x00FF);
   SUNGROW_400.data.u8[2] = (datalayer.battery.status.real_soc >> 8);
@@ -80,8 +82,8 @@ void SungrowInverter::update_values() {
   SUNGROW_704.data.u8[0] = (datalayer.battery.status.voltage_dV & 0x00FF);
   SUNGROW_704.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
   // Current
-  SUNGROW_704.data.u8[2] = (datalayer.battery.status.current_dA & 0x00FF);
-  SUNGROW_704.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
+  SUNGROW_704.data.u8[2] = static_cast<uint8_t>(current_dA & 0xFF);
+  SUNGROW_704.data.u8[3] = static_cast<uint8_t>((current_dA >> 8) & 0xFF);
   // Another voltage. Different but similar
   SUNGROW_704.data.u8[4] = (datalayer.battery.status.voltage_dV & 0x00FF);
   SUNGROW_704.data.u8[5] = (datalayer.battery.status.voltage_dV >> 8);
@@ -269,11 +271,12 @@ void SungrowInverter::update_values() {
     SUNGROW_505.data.u8[i] = SUNGROW_705.data.u8[i];
     SUNGROW_506.data.u8[i] = SUNGROW_706.data.u8[i];
   }
-  // 0x504 cannot be a straight copy: current must be signed (two's complement)
-  {
-    SUNGROW_504.data.u8[2] = (datalayer.battery.status.current_dA & 0xFF);
-    SUNGROW_504.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
-  }
+  // 0x504 cannot be a straight copy: current must be the opposite sign
+  int32_t flipped = -(static_cast<int32_t>(current_dA));
+  int16_t current_dA_flipped = clamp_i32_to_i16(flipped);
+
+  SUNGROW_504.data.u8[2] = static_cast<uint8_t>(current_dA_flipped & 0xFF);
+  SUNGROW_504.data.u8[3] = static_cast<uint8_t>((current_dA_flipped >> 8) & 0xFF);
 
 #ifdef DEBUG_VIA_USB
   if (inverter_sends_000) {
