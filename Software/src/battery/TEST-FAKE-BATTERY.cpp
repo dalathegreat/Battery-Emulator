@@ -10,7 +10,7 @@ void TestFakeBattery::
 
   datalayer_battery->status.soh_pptt = 9900;  // 99.00%
 
-  //datalayer_battery->status.voltage_dV = 3700;  // 370.0V , value set in startup in .ino file, editable via webUI
+  //datalayer_battery->status.voltage_dV = 3700;  // 370.0V , value editable via webserver
 
   datalayer_battery->status.current_dA = 0;  // 0 A
 
@@ -43,12 +43,7 @@ void TestFakeBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void TestFakeBattery::transmit_can(unsigned long currentMillis) {
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    previousMillis100 = currentMillis;
-    // Put fake messages here incase you want to test sending CAN
-    //transmit_can_frame(&TEST);
-  }
+  // Fake battery has no CAN sending
 }
 
 void TestFakeBattery::setup(void) {  // Performs one time setup at startup

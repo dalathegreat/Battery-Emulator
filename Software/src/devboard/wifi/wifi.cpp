@@ -16,18 +16,18 @@ std::string passwordAP;
 
 // Set your Static IP address. Only used incase Static address option is set
 bool static_IP_enabled = false;
-uint16_t static_local_IP1 = 0;
-uint16_t static_local_IP2 = 0;
-uint16_t static_local_IP3 = 0;
-uint16_t static_local_IP4 = 0;
-uint16_t static_gateway1 = 0;
-uint16_t static_gateway2 = 0;
-uint16_t static_gateway3 = 0;
-uint16_t static_gateway4 = 0;
-uint16_t static_subnet1 = 0;
-uint16_t static_subnet2 = 0;
-uint16_t static_subnet3 = 0;
-uint16_t static_subnet4 = 0;
+uint8_t static_local_IP1 = 0;
+uint8_t static_local_IP2 = 0;
+uint8_t static_local_IP3 = 0;
+uint8_t static_local_IP4 = 0;
+uint8_t static_gateway1 = 0;
+uint8_t static_gateway2 = 0;
+uint8_t static_gateway3 = 0;
+uint8_t static_gateway4 = 0;
+uint8_t static_subnet1 = 0;
+uint8_t static_subnet2 = 0;
+uint8_t static_subnet3 = 0;
+uint8_t static_subnet4 = 0;
 
 // Configuration Parameters
 static const uint16_t WIFI_CHECK_INTERVAL = 2000;       // 1 seconds normal check interval when last connected

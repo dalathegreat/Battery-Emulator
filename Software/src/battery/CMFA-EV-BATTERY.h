@@ -208,7 +208,6 @@ class CmfaEvBattery : public CanBattery {
   uint64_t cumulative_energy_when_charging = 0;
   uint64_t cumulative_energy_in_regen = 0;
   uint16_t soh_average = 10000;
-  uint16_t cellvoltages_mv[72];
   uint32_t poll_pid = PID_POLL_SOH_AVERAGE;
   uint16_t pid_reply = 0;
 

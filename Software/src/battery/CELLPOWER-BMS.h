@@ -21,7 +21,7 @@ class CellPowerBms : public CanBattery {
 
   unsigned long previousMillis1s = 0;  // will store last time a 1s CAN Message was sent
 
-  //Actual content messages
+  /*Actual content messages
   // Optional add-on charger module. Might not be needed to send these towards the BMS to keep it happy.
   CAN_frame CELLPOWER_18FF50E9 = {.FD = false,
                                   .ext_ID = true,
@@ -43,7 +43,7 @@ class CellPowerBms : public CanBattery {
                                   .DLC = 5,
                                   .ID = 0x18FF50E5,
                                   .data = {0x00, 0x00, 0x00, 0x00, 0x00}};
-
+  */
   bool system_state_discharge = false;
   bool system_state_charge = false;
   bool system_state_cellbalancing = false;
