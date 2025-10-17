@@ -117,7 +117,7 @@ void Logging::printf(const char* fmt, ...) {
     message_buffer = buffer;
   }
 
-  va_list(args);
+  va_list args;
   va_start(args, fmt);
   int size = min(MAX_LINE_LENGTH_PRINTF - 1, vsnprintf(message_buffer, MAX_LINE_LENGTH_PRINTF, fmt, args));
   va_end(args);
