@@ -413,7 +413,7 @@ char* dayOfYearToDate(int year, int dayOfYear) {
 
   static char dateString[11];  // For "YYYY-MM-DD\0"
   // Format the date string in "YYYY-MM-DD" format
-  snprintf(dateString, sizeof(dateString), "%d-%02d-%02d", year, month + 1, dayOfYear);
+  snprintf(dateString, sizeof(dateString), "%04d-%02d-%02d", year % 10000, month + 1, dayOfYear);
   return dateString;
 }
 
