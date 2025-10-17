@@ -112,7 +112,7 @@ class EcmpBattery : public CanBattery {
   uint32_t pid_hw_version_num = NOT_SAMPLED_YET;
   uint32_t pid_sw_version_num = NOT_SAMPLED_YET;
   uint32_t pid_factory_mode_control = NOT_SAMPLED_YET;
-  uint8_t pid_battery_serial[13] = {0};
+  uint8_t pid_battery_serial[14] = {0};
   uint32_t pid_aux_fuse_state = NOT_SAMPLED_YET;
   uint32_t pid_battery_state = NOT_SAMPLED_YET;
   uint32_t pid_precharge_short_circuit = NOT_SAMPLED_YET;

@@ -47,12 +47,15 @@ void ChademoBattery::update_values() {
    * CAN frames.
    */
 
+  /*
+
   if (vehicle_can_received) {
     uint8_t chargingrate = 0;
     if (x100_chg_lim.ConstantOfChargingRateIndication > 0) {
       chargingrate = x102_chg_session.StateOfCharge / x100_chg_lim.ConstantOfChargingRateIndication * 100;
     }
   }
+*/
 
   //Update extended datalayer for easier visualization of what's going on
   datalayer_extended.chademo.CHADEMO_Status = CHADEMO_Status;
@@ -86,7 +89,7 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
   uint16_t newTargetBatteryVoltage = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[1]);
   uint16_t priorTargetBatteryVoltage = x102_chg_session.TargetBatteryVoltage;
   uint8_t newChargingCurrentRequest = rx_frame.data.u8[3];
-  uint8_t priorChargingCurrentRequest = x102_chg_session.ChargingCurrentRequest;
+  //uint8_t priorChargingCurrentRequest = x102_chg_session.ChargingCurrentRequest;
 
   vehicle_can_initialized = true;
 

@@ -50,8 +50,8 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     float soc_ui = static_cast<float>(datalayer_extended.tesla.battery_soc_ui) * 0.1;
     float BrickVoltageMax = static_cast<float>(datalayer_extended.tesla.battery_BrickVoltageMax) * 0.002;
     float BrickVoltageMin = static_cast<float>(datalayer_extended.tesla.battery_BrickVoltageMin) * 0.002;
-    float BrickModelTMax = static_cast<float>(datalayer_extended.tesla.battery_BrickModelTMax) * 0.5 - 40;
-    float BrickModelTMin = static_cast<float>(datalayer_extended.tesla.battery_BrickModelTMin) * 0.5 - 40;
+    //float BrickModelTMax = static_cast<float>(datalayer_extended.tesla.battery_BrickModelTMax) * 0.5 - 40;
+    //float BrickModelTMin = static_cast<float>(datalayer_extended.tesla.battery_BrickModelTMin) * 0.5 - 40;
     float isolationResistance = static_cast<float>(datalayer_extended.tesla.BMS_isolationResistance) * 10;
     float PCS_dcdcMaxOutputCurrentAllowed =
         static_cast<float>(datalayer_extended.tesla.PCS_dcdcMaxOutputCurrentAllowed) * 0.1;
@@ -62,8 +62,8 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     float PCS_chgPhCTemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhCTemp) * 0.1 + 40;
     float BMS_maxRegenPower = static_cast<float>(datalayer_extended.tesla.BMS_maxRegenPower) * 0.01;
     float BMS_maxDischargePower = static_cast<float>(datalayer_extended.tesla.BMS_maxDischargePower) * 0.013;
-    float BMS_maxStationaryHeatPower = static_cast<float>(datalayer_extended.tesla.BMS_maxStationaryHeatPower) * 0.01;
-    float BMS_hvacPowerBudget = static_cast<float>(datalayer_extended.tesla.BMS_hvacPowerBudget) * 0.02;
+    //float BMS_maxStationaryHeatPower = static_cast<float>(datalayer_extended.tesla.BMS_maxStationaryHeatPower) * 0.01;
+    //float BMS_hvacPowerBudget = static_cast<float>(datalayer_extended.tesla.BMS_hvacPowerBudget) * 0.02;
     float BMS_powerDissipation = static_cast<float>(datalayer_extended.tesla.BMS_powerDissipation) * 0.02;
     float BMS_flowRequest = static_cast<float>(datalayer_extended.tesla.BMS_flowRequest) * 0.3;
     float BMS_inletActiveCoolTargetT =
@@ -106,25 +106,25 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     float HVP_shuntCurrentDebug = static_cast<float>(datalayer_extended.tesla.HVP_shuntCurrentDebug) * 0.1;
     float HVP_dcLinkVoltage = static_cast<float>(datalayer_extended.tesla.HVP_dcLinkVoltage) * 0.1;
     float HVP_packVoltage = static_cast<float>(datalayer_extended.tesla.HVP_packVoltage) * 0.1;
-    float HVP_fcLinkVoltage = static_cast<float>(datalayer_extended.tesla.HVP_fcLinkVoltage) * 0.1;
+    //float HVP_fcLinkVoltage = static_cast<float>(datalayer_extended.tesla.HVP_fcLinkVoltage) * 0.1;
     float HVP_packContVoltage = static_cast<float>(datalayer_extended.tesla.HVP_packContVoltage) * 0.1;
-    float HVP_packNegativeV = static_cast<float>(datalayer_extended.tesla.HVP_packNegativeV) * 0.1;
-    float HVP_packPositiveV = static_cast<float>(datalayer_extended.tesla.HVP_packPositiveV) * 0.1;
+    //float HVP_packNegativeV = static_cast<float>(datalayer_extended.tesla.HVP_packNegativeV) * 0.1;
+    //float HVP_packPositiveV = static_cast<float>(datalayer_extended.tesla.HVP_packPositiveV) * 0.1;
     float HVP_pyroAnalog = static_cast<float>(datalayer_extended.tesla.HVP_pyroAnalog) * 0.1;
-    float HVP_dcLinkNegativeV = static_cast<float>(datalayer_extended.tesla.HVP_dcLinkNegativeV) * 0.1;
-    float HVP_dcLinkPositiveV = static_cast<float>(datalayer_extended.tesla.HVP_dcLinkPositiveV) * 0.1;
-    float HVP_fcLinkNegativeV = static_cast<float>(datalayer_extended.tesla.HVP_fcLinkNegativeV) * 0.1;
-    float HVP_fcContCoilCurrent = static_cast<float>(datalayer_extended.tesla.HVP_fcContCoilCurrent) * 0.1;
-    float HVP_fcContVoltage = static_cast<float>(datalayer_extended.tesla.HVP_fcContVoltage) * 0.1;
+    //float HVP_dcLinkNegativeV = static_cast<float>(datalayer_extended.tesla.HVP_dcLinkNegativeV) * 0.1;
+    //float HVP_dcLinkPositiveV = static_cast<float>(datalayer_extended.tesla.HVP_dcLinkPositiveV) * 0.1;
+    //float HVP_fcLinkNegativeV = static_cast<float>(datalayer_extended.tesla.HVP_fcLinkNegativeV) * 0.1;
+    //float HVP_fcContCoilCurrent = static_cast<float>(datalayer_extended.tesla.HVP_fcContCoilCurrent) * 0.1;
+    //float HVP_fcContVoltage = static_cast<float>(datalayer_extended.tesla.HVP_fcContVoltage) * 0.1;
     float HVP_hvilInVoltage = static_cast<float>(datalayer_extended.tesla.HVP_hvilInVoltage) * 0.1;
     float HVP_hvilOutVoltage = static_cast<float>(datalayer_extended.tesla.HVP_hvilOutVoltage) * 0.1;
-    float HVP_fcLinkPositiveV = static_cast<float>(datalayer_extended.tesla.HVP_fcLinkPositiveV) * 0.1;
+    //float HVP_fcLinkPositiveV = static_cast<float>(datalayer_extended.tesla.HVP_fcLinkPositiveV) * 0.1;
     float HVP_packContCoilCurrent = static_cast<float>(datalayer_extended.tesla.HVP_packContCoilCurrent) * 0.1;
     float HVP_battery12V = static_cast<float>(datalayer_extended.tesla.HVP_battery12V) * 0.1;
-    float HVP_shuntRefVoltageDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntRefVoltageDbg) * 0.001;
-    float HVP_shuntAuxCurrentDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntAuxCurrentDbg) * 0.1;
-    float HVP_shuntBarTempDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntBarTempDbg) * 0.01;
-    float HVP_shuntAsicTempDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntAsicTempDbg) * 0.01;
+    //float HVP_shuntRefVoltageDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntRefVoltageDbg) * 0.001;
+    //float HVP_shuntAuxCurrentDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntAuxCurrentDbg) * 0.1;
+    //float HVP_shuntBarTempDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntBarTempDbg) * 0.01;
+    //float HVP_shuntAsicTempDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntAsicTempDbg) * 0.01;
 
     static const char* contactorText[] = {"UNKNOWN(0)",  "OPEN",        "CLOSING",    "BLOCKED", "OPENING",
                                           "CLOSED",      "UNKNOWN(6)",  "WELDED",     "POS_CL",  "NEG_CL",
@@ -178,7 +178,7 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
                                              "FAULTED",
                                              "NUM"};
     static const char* BMS_powerLimitState[] = {"NOT_CALCULATED_FOR_DRIVE", "CALCULATED_FOR_DRIVE"};
-    static const char* HVP_status[] = {"INVALID", "NOT_AVAILABLE", "STALE", "VALID"};
+    //static const char* HVP_status[] = {"INVALID", "NOT_AVAILABLE", "STALE", "VALID"};
     static const char* HVP_contactor[] = {"NOT_ACTIVE", "ACTIVE", "COMPLETED"};
     static const char* falseTrue[] = {"False", "True"};
     static const char* noYes[] = {"No", "Yes"};
@@ -199,7 +199,7 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     char readablePCSPartNumber[13];  // One extra space for null terminator
     memcpy(readablePCSPartNumber, datalayer_extended.tesla.PCS_partNumber,
            sizeof(datalayer_extended.tesla.PCS_partNumber));
-    readablePCSPartNumber[13] = '\0';  // Null terminate the string
+    readablePCSPartNumber[12] = '\0';  // Null terminate the string
     content += "<h4>PCS Part Number: " + String(readablePCSPartNumber) + "</h4>";
     content += "<h4>Battery Manufacture Date: " + String(datalayer_extended.tesla.battery_manufactureDate) + "</h4>";
     content += "<h4>Battery Pack Mass: " + String(packMass) + " KG</h4>";

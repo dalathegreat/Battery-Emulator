@@ -283,6 +283,8 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
               battery_soc_hvmin = (message_data[4] << 8 | message_data[5]);
             }
             break;
+          default:
+            break;
         }
       }
       break;

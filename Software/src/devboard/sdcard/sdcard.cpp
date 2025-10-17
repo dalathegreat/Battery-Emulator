@@ -58,9 +58,9 @@ void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir) {
 
   unsigned long currentTime = millis();
   static char messagestr_buffer[32];
-  size_t size =
-      snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size, "(%lu.%03lu) %s %X [%u] ",
-               currentTime / 1000, currentTime % 1000, (msgDir == MSG_RX ? "RX0" : "TX1"), frame.ID, frame.DLC);
+  size_t size = 0;
+  size = snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size, "(%lu.%03lu) %s %lX [%u] ",
+                  currentTime / 1000, currentTime % 1000, (msgDir == MSG_RX ? "RX0" : "TX1"), frame.ID, frame.DLC);
 
   if (xRingbufferSend(can_bufferHandle, &messagestr_buffer, size, pdMS_TO_TICKS(2)) != pdTRUE) {
     logging.println("Failed to send message to can ring buffer!");

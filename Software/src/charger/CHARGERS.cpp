@@ -32,6 +32,7 @@ extern const char* name_for_charger_type(ChargerType type) {
     case ChargerType::NissanLeaf:
       return NissanLeafCharger::Name;
     case ChargerType::None:
+    case ChargerType::Highest:
       return "None";
   }
 
@@ -46,6 +47,9 @@ void setup_charger() {
       break;
     case ChargerType::NissanLeaf:
       charger = new NissanLeafCharger();
+      break;
+    case ChargerType::None:
+    case ChargerType::Highest:
       break;
   }
 }

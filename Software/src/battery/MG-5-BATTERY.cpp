@@ -14,23 +14,23 @@
 void Mg5Battery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc;
+  //datalayer.battery.status.real_soc;
 
-  datalayer.battery.status.voltage_dV;
+  //datalayer.battery.status.voltage_dV;
 
-  datalayer.battery.status.current_dA;
+  //datalayer.battery.status.current_dA;
 
-  datalayer.battery.info.total_capacity_Wh;
+  //datalayer.battery.info.total_capacity_Wh;
 
-  datalayer.battery.status.remaining_capacity_Wh;
+  //datalayer.battery.status.remaining_capacity_Wh;
 
-  datalayer.battery.status.max_discharge_power_W;
+  //datalayer.battery.status.max_discharge_power_W;
 
-  datalayer.battery.status.max_charge_power_W;
+  //datalayer.battery.status.max_charge_power_W;
 
-  datalayer.battery.status.temperature_min_dC;
+  //datalayer.battery.status.temperature_min_dC;
 
-  datalayer.battery.status.temperature_max_dC;
+  //datalayer.battery.status.temperature_max_dC;
 }
 
 void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {

@@ -639,6 +639,20 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       logging.print("captured as transport's socket errno");
       logging.println(strerror(event->error_handle->esp_transport_sock_errno));
       break;
+    case MQTT_EVENT_SUBSCRIBED:
+      break;
+    case MQTT_EVENT_UNSUBSCRIBED:
+      break;
+    case MQTT_EVENT_PUBLISHED:
+      break;
+    case MQTT_EVENT_BEFORE_CONNECT:
+      break;
+    case MQTT_EVENT_DELETED:
+      break;
+    case MQTT_USER_EVENT:
+      break;
+    case MQTT_EVENT_ANY:
+      break;
   }
 }
 

@@ -6,7 +6,7 @@
 /** Start time measurement in microseconds
  * Input parameter must be a unique "tag", e.g: START_TIME_MEASUREMENT(wifi);
  */
-#define START_TIME_MEASUREMENT(x) int64_t start_time_##x = esp_timer_get_time()
+#define START_TIME_MEASUREMENT(x) int64_t start_time_##x __attribute__((unused)) = esp_timer_get_time()
 /** End time measurement in microseconds
  * Input parameters are the unique tag and the name of the ALREADY EXISTING
  * destination variable (int64_t), e.g: END_TIME_MEASUREMENT(wifi, my_wifi_time_int64_t);

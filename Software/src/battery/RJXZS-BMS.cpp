@@ -21,7 +21,7 @@ void RjxzsBms::update_values() {
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.soh_pptt;  // This BMS does not have a SOH% formula
+  //datalayer.battery.status.soh_pptt;  // This BMS does not have a SOH% formula
 
   datalayer.battery.status.voltage_dV = total_voltage;
 
@@ -78,9 +78,9 @@ void RjxzsBms::update_values() {
 
   datalayer.battery.info.number_of_cells = populated_cellvoltages;  // 1-192S
 
-  datalayer.battery.info.max_design_voltage_dV;  // Set according to cells?
+  //datalayer.battery.info.max_design_voltage_dV;  // TODO: Set according to cells?
 
-  datalayer.battery.info.min_design_voltage_dV;  // Set according to cells?
+  //datalayer.battery.info.min_design_voltage_dV;  // TODO: Set according to cells?
 
   datalayer.battery.status.cell_max_voltage_mV = maximum_cell_voltage;
 

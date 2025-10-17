@@ -34,7 +34,7 @@ void EcmpBattery::update_values() {
   if (!MysteryVan) {  //Normal eCMP platform
     datalayer.battery.status.real_soc = battery_soc * 10;
 
-    datalayer.battery.status.soh_pptt;
+    //datalayer.battery.status.soh_pptt; //TODO: Find SOH%
 
     datalayer.battery.status.voltage_dV = battery_voltage * 10;
 
@@ -84,7 +84,7 @@ void EcmpBattery::update_values() {
                                                      10000);
     }
 
-    datalayer.battery.status.soh_pptt;
+    //datalayer.battery.status.soh_pptt; //TODO: Find SOH%
 
     if (pid_pack_voltage != NOT_SAMPLED_YET) {
       datalayer.battery.status.voltage_dV = pid_pack_voltage + 800;
@@ -171,7 +171,7 @@ void EcmpBattery::update_values() {
   datalayer_extended.stellantisECMP.pid_sw_version_num = pid_sw_version_num;
   datalayer_extended.stellantisECMP.pid_factory_mode_control = pid_factory_mode_control;
   memcpy(datalayer_extended.stellantisECMP.pid_battery_serial, pid_battery_serial, sizeof(pid_battery_serial));
-  uint8_t pid_battery_serial[13] = {0};
+  //uint8_t pid_battery_serial[13] = {0};
   datalayer_extended.stellantisECMP.pid_aux_fuse_state = pid_aux_fuse_state;
   datalayer_extended.stellantisECMP.pid_battery_state = pid_battery_state;
   datalayer_extended.stellantisECMP.pid_precharge_short_circuit = pid_precharge_short_circuit;

@@ -212,7 +212,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
   if (datalayer.system.status.battery_allows_contactor_closing & !contactorMillis) {
     contactorMillis = currentMillis;
   }
-  if (currentMillis - contactorMillis >= INTERVAL_2_S & !RX_allow) {
+  if ((currentMillis - contactorMillis >= INTERVAL_2_S) && !RX_allow) {
     dbg_message("RX_allow -> true");
     RX_allow = true;
   }

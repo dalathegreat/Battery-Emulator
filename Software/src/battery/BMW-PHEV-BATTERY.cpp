@@ -483,7 +483,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     {
       // UDS Multi Frame vars - Top nibble indicates Frame Type: SF (0), FF (1), CF (2), FC (3)
       // Extended addressing => data[0] is ext address, data[1] is PCI
-      uint8_t extAddr = rx_frame.data.u8[0];  // e.g., 0xF1
+      //uint8_t extAddr = rx_frame.data.u8[0];  // e.g., 0xF1
       uint8_t pciByte = rx_frame.data.u8[1];  // e.g., 0x10, 0x21, etc.
       uint8_t pciType = pciByte >> 4;         // top nibble => 0=SF,1=FF,2=CF,3=FC
       uint8_t pciLower = pciByte & 0x0F;      // bottom nibble => length nibble or sequence
@@ -492,8 +492,8 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case 0x0: {
           // Single Frame reponse
           // SF payload length is in pciLower
-          uint8_t sfLength = pciLower;
-          uint8_t moduleID = rx_frame.data.u8[5];
+          //uint8_t sfLength = pciLower;
+          //uint8_t moduleID = rx_frame.data.u8[5];
 
           if (rx_frame.DLC == 8 && rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xDD &&
               rx_frame.data.u8[4] == 0xC4) {  // SOC%

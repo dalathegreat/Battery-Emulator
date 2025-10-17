@@ -506,7 +506,7 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
         uint8_t status = datalayer_extended.bmwphev.dtc_status[i];
 
         char dtcStr[12];
-        sprintf(dtcStr, "%06X", code);
+        sprintf(dtcStr, "%06lX", code);
 
         String statusStr = "Stored";
         String statusColor = "#757575";

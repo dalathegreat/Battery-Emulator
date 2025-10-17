@@ -254,7 +254,8 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           datalayer_extended.VolvoPolestar.DTCcount = 0;
         }
       } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
 
