@@ -4,6 +4,36 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 
+// https://www.topbms.com/static/upload/file/20230804/1691122017124559.pdf
+// https://github.com/puffnfresh/Battery-Emulator/commit/7b0f817ef138b22902c27c5cff3fbe2df4ba341b
+
+const uint16_t voltage[101] = {4200, 4173, 4148, 4124, 4102, 4080, 4060, 4041, 4023, 4007, 3993, 3980, 3969, 3959, 3953,
+                               3950, 3941, 3932, 3924, 3915, 3907, 3898, 3890, 3881, 3872, 3864, 3855, 3847, 3838, 3830,
+                               3821, 3812, 3804, 3795, 3787, 3778, 3770, 3761, 3752, 3744, 3735, 3727, 3718, 3710, 3701,
+                               3692, 3684, 3675, 3667, 3658, 3650, 3641, 3632, 3624, 3615, 3607, 3598, 3590, 3581, 3572,
+                               3564, 3555, 3547, 3538, 3530, 3521, 3512, 3504, 3495, 3487, 3478, 3470, 3461, 3452, 3444,
+                               3435, 3427, 3418, 3410, 3401, 3392, 3384, 3375, 3367, 3358, 3350, 3338, 3325, 3313, 3299,
+                               3285, 3271, 3255, 3239, 3221, 3202, 3180, 3156, 3127, 3090, 3000};
+
+static uint16_t cell_voltage_to_soc(uint16_t v) {
+  // Returns SOC in hundredths of a percent (0-10000)
+
+  if (v >= voltage[0]) {
+    return 10000;
+  }
+  if (v <= voltage[100]) {
+    return 0;
+  }
+
+  for (int i = 1; i < 101; ++i) {
+    if (v >= voltage[i]) {
+      uint16_t t = (100 * (v - voltage[i])) / (voltage[i - 1] - voltage[i]);
+      return 10000 - (i * 100) + t;
+    }
+  }
+  return 0;
+}
+
 void RjxzsBms::update_values() {
 
   datalayer.battery.status.real_soc = battery_capacity_percentage * 100;
@@ -81,6 +111,12 @@ void RjxzsBms::update_values() {
   datalayer.battery.info.max_design_voltage_dV;  // Set according to cells?
 
   datalayer.battery.info.min_design_voltage_dV;  // Set according to cells?
+
+  // battery_pack_capacity = 150;
+  // battery_capacity_percentage = 100 - ((battery_usage_capacity * 100) / battery_pack_capacity);
+  // minimum_cell_voltage = 3900;
+  // maximum_cell_voltage = 3900;
+  // setup_completed = true;
 
   datalayer.battery.status.cell_max_voltage_mV = maximum_cell_voltage;
 
@@ -263,6 +299,50 @@ void RjxzsBms::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&RJXZS_1C);  // CAN OK
     }
   }
+
+  // Send 100ms CAN message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
+
+    if (setup_completed) {
+      // Contactor state
+      if (datalayer.battery.status.bms_status == FAULT || !datalayer.system.status.inverter_allows_contactor_closing) {
+        RJXZS_07.data.u8[2] = 0x02;  // Contactor 'off'
+      } else {
+        RJXZS_07.data.u8[2] = 0x01;  // Contactor 'on'
+      }
+      transmit_can_frame(&RJXZS_07);
+    }
+  }
+
+  if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
+    previousMillis60s = currentMillis;
+
+    if (setup_completed) {
+      uint16_t derived_soc = cell_voltage_to_soc(
+          (datalayer.battery.status.cell_min_voltage_mV + datalayer.battery.status.cell_max_voltage_mV) / 2);
+      int16_t soc_error = datalayer.battery.status.real_soc - derived_soc;
+      int16_t ah_error = (soc_error * battery_pack_capacity) / 10000;
+
+      if (ah_error > 1 || ah_error < -1) {
+        // Usage has drifted by more than 1Ah
+        int16_t new_usage_capacity = battery_usage_capacity + ah_error;
+        if (new_usage_capacity < 0) {
+          new_usage_capacity = 0;
+        }
+
+        logging.printf("[RJXZS] SoC drift detected: R:%dd%% D:%dd%% (%dAh), setting usage to %dAh.\n",
+                       datalayer.battery.status.real_soc, derived_soc, ah_error, new_usage_capacity);
+
+        RJXZS_20.data.u8[1] = (new_usage_capacity >> 8) & 0xFF;
+        RJXZS_20.data.u8[2] = new_usage_capacity & 0xFF;
+        transmit_can_frame(&RJXZS_20);
+
+        // HACK
+        //battery_usage_capacity = new_usage_capacity;
+      }
+    }
+  }
 }
 
 void RjxzsBms::setup(void) {  // Performs one time setup at startup
@@ -273,4 +353,5 @@ void RjxzsBms::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
   datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
   datalayer.system.status.battery_allows_contactor_closing = true;
+  //battery_usage_capacity = 123;
 }

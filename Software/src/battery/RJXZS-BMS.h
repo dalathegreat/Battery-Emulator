@@ -19,11 +19,18 @@ class RjxzsBms : public CanBattery {
   static const int RAMPDOWN_SOC =
       9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
 
+  unsigned long previousMillis100 = 0;  // will store last time a 500ms CAN Message was sent
   unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was sent
+  unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was sent
 
-  //Actual content messages
+  // 1C: CAN OK (0x0002=connected, 0x0001=not connected)
   CAN_frame RJXZS_1C = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x1C, 0x00, 0x02}};
+  // 10: Communication connected (0x0002=connected, 0x0001=not connected)
   CAN_frame RJXZS_10 = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x10, 0x00, 0x02}};
+  // 07: Control channel opening/closing (0x0001=on, 0x0002=off)
+  CAN_frame RJXZS_07 = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x07, 0x00, 0x00}};
+  // 20: Actual usage capacity (in Ah, big endian)
+  CAN_frame RJXZS_20 = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x20, 0x00, 0x00}};
 
   static const int FIVE_MINUTES = 60;
 
