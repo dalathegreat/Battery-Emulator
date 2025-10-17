@@ -78,7 +78,7 @@ void AforeCanInverter::
   15 InterlockOpen
   AFORE_353.data.u8[0] = Fault H table & 0x00FF
   AFORE_353.data.u8[1] = Fault H table >> 8);
-  /* Fault L, bit, definitions
+  Fault L, bit, definitions
   8 VoltageInterlockShortCircuit
   9 SystemFailure
   10 ErrorChargeReferenceOvervoltage
