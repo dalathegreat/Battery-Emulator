@@ -123,7 +123,7 @@ void init_stored_settings() {
         return CAN_Interface::NO_CAN_INTERFACE;
     }
 
-    return CAN_Interface::CAN_NATIVE; //Failed to determine, return CAN native
+    return CAN_Interface::CAN_NATIVE;  //Failed to determine, return CAN native
   };
 
   can_config.battery = readIf("BATTCOMM");
