@@ -23,6 +23,7 @@ void setup_can_shunt();
 #include "CMFA-EV-BATTERY.h"
 #include "DALY-BMS.h"
 #include "ECMP-BATTERY.h"
+#include "FORD-MACH-E-BATTERY.h"
 #include "FOXESS-BATTERY.h"
 #include "GEELY-GEOMETRY-C-BATTERY.h"
 #include "HYUNDAI-IONIQ-28-BATTERY.h"
