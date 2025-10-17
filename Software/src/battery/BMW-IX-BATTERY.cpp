@@ -36,7 +36,7 @@ uint8_t BmwIXBattery::increment_alive_counter(uint8_t counter) {
   }
   return counter;
 }
-
+/*
 static uint8_t increment_C0_counter(uint8_t counter) {
   counter++;
   // Reset to 0xF0 if it exceeds 0xFE
@@ -45,7 +45,7 @@ static uint8_t increment_C0_counter(uint8_t counter) {
   }
   return counter;
 }
-
+*/
 void BmwIXBattery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
 
   datalayer.battery.status.real_soc = avg_soc_state;
