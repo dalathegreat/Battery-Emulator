@@ -6,7 +6,7 @@ import { useRef, useEffect, useState } from "preact/hooks";
 import { useGetApi } from "./utils/api.tsx";
 
 // Shows or hides its children based on the "when" prop.
-function Show({ when, children }: { when: boolean | string, children: preact.ComponentChildren }) {
+function Show({ when, indent, children }: { when: boolean | string, children: preact.ComponentChildren }) {
     const ref = useRef<HTMLDivElement>(null);
     const prev = useRef<boolean | null>(null);
     const b = when === true || when === "1";
@@ -27,7 +27,7 @@ function Show({ when, children }: { when: boolean | string, children: preact.Com
         }
         prev.current = b;
     }, [ref, b]);
-    return <div ref={ref}>
+    return <div data-ind={indent} ref={ref}>
         { children }
     </div>;
 }
@@ -277,17 +277,17 @@ export function Settings() {
                     { textPatternField("Cell min design voltage (mV)", "BATTCVMIN", "[0-9]+") }
                 </Show>
                 { checkboxField("Double battery", "DBLBTR") }
-                <Show when={merged.DBLBTR}>{ selectField("Second battery interface", "BATT2COMM", INTERFACES) }</Show>
+                <Show indent={true} when={merged.DBLBTR}>{ selectField("Second battery interface", "BATT2COMM", INTERFACES) }</Show>
                 { textPatternField("Battery capacity (Wh)", "BATTERY_WH_MAX", "|[1-9][0-9]*") }
                 { checkboxField("Rescale SoC", "USE_SCALED_SOC") }
-                <Show when={merged.USE_SCALED_SOC}>
+                <Show indent={true} when={merged.USE_SCALED_SOC}>
                     { textPatternField("SoC max percentage", "MAXPERCENTAGE", "[0-9]{1,3}(\\.[0-9])?") }
                     { textPatternField("SoC min percentage", "MINPERCENTAGE", "[0-9]{1,3}(\\.[0-9])?") }
                 </Show>
                 { textPatternField("Max charge current (A)", "MAXCHARGEAMP", "[0-9]+(\\.[0-9]+)?") }
                 { textPatternField("Max discharge current (A)", "MAXDISCHARGEAMP", "[0-9]+(\\.[0-9]+)?") }
                 { checkboxField("Manual voltage limits", "USEVOLTLIMITS") }
-                <Show when={merged.USEVOLTLIMITS}>
+                <Show indent={true} when={merged.USEVOLTLIMITS}>
                     { textPatternField("Max charge voltage (V)", "TARGETCHVOLT", "[0-9]+(\\.[0-9]+)?") }
                     { textPatternField("Min discharge voltage (V)", "TARGETDISCHVOLT", "[0-9]+(\\.[0-9]+)?") }
                 </Show>
@@ -367,12 +367,12 @@ export function Settings() {
                 "1": "Latching switch",
                 "2": "Momentary switch",
             }) }
-            { checkboxField("Contactor control via GPIO", "CNTCTRL") }
 
-            <Show when={merged.CNTCTRL}>
+            { checkboxField("Contactor control via GPIO", "CNTCTRL") }
+            <Show indent={true} when={merged.CNTCTRL}>
                 { textPatternField("Precharge time (ms)", "PRECHGMS", "[0-9]+") }
                 { checkboxField("PWM contactor control", "PWMCNTCTRL") }
-                <Show when={merged.PWMCNTCTRL}>
+                <Show indent={true} when={merged.PWMCNTCTRL}>
                     { textPatternField("PWM Frequency (Hz)", "PWMFREQ", "[0-9]+") }
                     { textPatternField("PWM Hold (0-1023)", "PWMHOLD", "[0-9]+") }
                 </Show>
@@ -383,7 +383,7 @@ export function Settings() {
             { checkboxField("Periodic BMS reset every 24h", "PERBMSRESET") }
             { textPatternField("Periodic BMS reset off time (s)", "BMSRESETDUR", "[0-9]+") }
             { checkboxField("External precharge via HIA4V1", "EXTPRECHARGE") }
-            <Show when={merged.EXTPRECHARGE}>
+            <Show indent={true} when={merged.EXTPRECHARGE}>
                 { textPatternField("Precharge, maximum ms before fault", "MAXPRETIME", "[0-9]+") }
                 { checkboxField("Normally Open (NO) inverter disconnect contactor", "NOINVDISC") }
             </Show>
@@ -398,7 +398,7 @@ export function Settings() {
         <div class="panel">
             <h3>Connectivity</h3>
             { checkboxField("Enable WiFi access point", "WIFIAPENABLED") }
-            <Show when={merged.WIFIAPENABLED}>
+            <Show indent={true} when={merged.WIFIAPENABLED}>
                 <div class="form-row">
                     <label>WiFi access point password </label>
                     <input type="text" name="APPASSWORD" pattern="|.{8,}" title="at least 8 characters" />
@@ -413,14 +413,14 @@ export function Settings() {
                 <input type="text" name="HOSTNAME" pattern="[a-zA-Z0-9\-]*" title="letters, numbers, hyphen" />
             </div>
             { checkboxField("Use static IP address", "STATICIP") }
-            <Show when={merged.STATICIP}>
+            <Show indent={true} when={merged.STATICIP}>
                 { ipField("IP address", "LOCALIP") }
                 { ipField("Gateway", "GATEWAY") }
                 { ipField("Subnet", "SUBNET") }
             </Show>
 
             { checkboxField("Enable MQTT", "MQTTENABLED") }
-            <Show when={merged.MQTTENABLED}>
+            <Show indent={true} when={merged.MQTTENABLED}>
                 { textPatternField("MQTT server", "MQTTSERVER", "") }
                 { textPatternField("MQTT port", "MQTTPORT", "[0-9]+") }
                 { textPatternField("MQTT user", "MQTTUSER", "") }
@@ -429,7 +429,7 @@ export function Settings() {
                 { checkboxField("Send all cell voltages via MQTT", "MQTTCELLV") }
                 { checkboxField("Remote BMS reset via MQTT allowed", "REMBMSRESET") }
                 { checkboxField("Customized MQTT topics", "MQTTTOPICS") }
-                <Show when={merged.MQTTTOPICS}>
+                <Show indent={true} when={merged.MQTTTOPICS}>
                     { textPatternField("Topic name", "MQTTTOPIC", "") }
                     { textPatternField("Prefix for object ID", "MQTTOBJIDPREFIX", "") }
                     { textPatternField("Home Assistant device name", "MQTTDEVICENAME", "") }
