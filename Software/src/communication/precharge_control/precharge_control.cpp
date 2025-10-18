@@ -72,7 +72,13 @@ void handle_precharge_control(unsigned long currentMillis) {
       break;
     case AUTO_PRECHARGE_START:
       freq = Precharge_default_PWM_Freq;
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+      // ESP32-S3 uses older LEDC API
+      ledcSetup(PWM_Precharge_Channel, freq, Precharge_PWM_Res);
+      ledcAttachPin(hia4v1_pin, PWM_Precharge_Channel);
+#else
       ledcAttachChannel(hia4v1_pin, freq, Precharge_PWM_Res, PWM_Precharge_Channel);
+#endif
       ledcWriteTone(hia4v1_pin, freq);  // Set frequency and set dutycycle to 50%
       prechargeStartTime = currentMillis;
       datalayer.system.status.precharge_status = AUTO_PRECHARGE_PRECHARGING;

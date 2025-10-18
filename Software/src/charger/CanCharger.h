@@ -1,6 +1,7 @@
 #ifndef CAN_CHARGER_H
 #define CAN_CHARGER_H
 
+#include <vector>
 #include "../communication/Transmitter.h"
 #include "../communication/can/CanReceiver.h"
 #include "../communication/can/comm_can.h"

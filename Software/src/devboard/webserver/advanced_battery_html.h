@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <string>
+#include <vector>
 
 /**
  * @brief Replaces placeholder with content section in web page

@@ -80,8 +80,16 @@ bool init_contactors() {
 
     if (pwm_contactor_control) {
       // Setup PWM Channel Frequency and Resolution
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+      // ESP32-S3 uses older LEDC API
+      ledcSetup(PWM_Positive_Channel, pwm_frequency, PWM_RESOLUTION);
+      ledcAttachPin(posPin, PWM_Positive_Channel);
+      ledcSetup(PWM_Negative_Channel, pwm_frequency, PWM_RESOLUTION);
+      ledcAttachPin(negPin, PWM_Negative_Channel);
+#else
       ledcAttachChannel(posPin, pwm_frequency, PWM_RESOLUTION, PWM_Positive_Channel);
       ledcAttachChannel(negPin, pwm_frequency, PWM_RESOLUTION, PWM_Negative_Channel);
+#endif
       // Set all pins OFF (0% PWM)
       ledcWrite(posPin, PWM_OFF_DUTY);
       ledcWrite(negPin, PWM_OFF_DUTY);

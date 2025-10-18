@@ -9,7 +9,11 @@
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/logging.h"
 
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+#include <driver/periph_ctrl.h>
+#else
 #include <esp_private/periph_ctrl.h>
+#endif
 
 #include <algorithm>
 #include <map>

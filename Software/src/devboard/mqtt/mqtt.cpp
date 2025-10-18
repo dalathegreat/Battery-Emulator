@@ -682,6 +682,23 @@ bool init_mqtt(void) {
 
   String clientId = String("BatteryEmulatorClient-") + WiFi.getHostname();
 
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+  // ESP32-S3 uses flat MQTT config structure
+  mqtt_cfg.transport = MQTT_TRANSPORT_OVER_TCP;
+  mqtt_cfg.host = mqtt_server.c_str();
+  mqtt_cfg.port = mqtt_port;
+  mqtt_cfg.client_id = clientId.c_str();
+  mqtt_cfg.username = mqtt_user.c_str();
+  mqtt_cfg.password = mqtt_password.c_str();
+  lwt_topic = topic_name + "/status";
+  mqtt_cfg.lwt_topic = lwt_topic.c_str();
+  mqtt_cfg.lwt_qos = 1;
+  mqtt_cfg.lwt_retain = true;
+  mqtt_cfg.lwt_msg = "offline";
+  mqtt_cfg.lwt_msg_len = strlen(mqtt_cfg.lwt_msg);
+  mqtt_cfg.network_timeout_ms = mqtt_timeout_ms;
+#else
+  // ESP32 classic uses nested MQTT config structure
   mqtt_cfg.broker.address.transport = MQTT_TRANSPORT_OVER_TCP;
   mqtt_cfg.broker.address.hostname = mqtt_server.c_str();
   mqtt_cfg.broker.address.port = mqtt_port;
@@ -695,6 +712,7 @@ bool init_mqtt(void) {
   mqtt_cfg.session.last_will.msg = "offline";
   mqtt_cfg.session.last_will.msg_len = strlen(mqtt_cfg.session.last_will.msg);
   mqtt_cfg.network.timeout_ms = mqtt_timeout_ms;
+#endif
   client = esp_mqtt_client_init(&mqtt_cfg);
 
   if (client == nullptr) {

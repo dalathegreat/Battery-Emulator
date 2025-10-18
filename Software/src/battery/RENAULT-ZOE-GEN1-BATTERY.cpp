@@ -1,4 +1,5 @@
 #include "RENAULT-ZOE-GEN1-BATTERY.h"
+#include <algorithm>
 #include <cstring>  //For unit test
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"

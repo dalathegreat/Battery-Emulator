@@ -372,21 +372,31 @@ void check_reset_reason() {
     case ESP_RST_SDIO:  //Reset over SDIO
       set_event(EVENT_RESET_SDIO, reason);
       break;
+#ifdef ESP_RST_USB
     case ESP_RST_USB:  //Reset by USB peripheral
       set_event(EVENT_RESET_USB, reason);
       break;
+#endif
+#ifdef ESP_RST_JTAG
     case ESP_RST_JTAG:  //Reset by JTAG
       set_event(EVENT_RESET_JTAG, reason);
       break;
+#endif
+#ifdef ESP_RST_EFUSE
     case ESP_RST_EFUSE:  //Reset due to efuse error
       set_event(EVENT_RESET_EFUSE, reason);
       break;
+#endif
+#ifdef ESP_RST_PWR_GLITCH
     case ESP_RST_PWR_GLITCH:  //Reset due to power glitch detected
       set_event(EVENT_RESET_PWR_GLITCH, reason);
       break;
+#endif
+#ifdef ESP_RST_CPU_LOCKUP
     case ESP_RST_CPU_LOCKUP:  //Reset due to CPU lock up
       set_event(EVENT_RESET_CPU_LOCKUP, reason);
       break;
+#endif
     default:
       break;
   }
@@ -564,6 +574,16 @@ void setup() {
   check_reset_reason();
 
   // Initialize Task Watchdog for subscribed tasks
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+  // ESP32-S3 uses older watchdog API
+  #ifdef CONFIG_ESP_TASK_WDT
+    // ESP-IDF will have already initialized it, so deinit and reinit with our settings.
+    esp_task_wdt_deinit();
+  #endif
+  // 5s timeout, panic on timeout
+  esp_task_wdt_init(INTERVAL_5_S / 1000, true);
+#else
+  // ESP32 uses newer watchdog API with config struct
   esp_task_wdt_config_t wdt_config = {// 5s should be enough for the connectivity tasks (which are all contending
                                       // for the same core) to yield to each other and reset their watchdogs.
                                       .timeout_ms = INTERVAL_5_S,
@@ -572,14 +592,15 @@ void setup() {
                                       .idle_core_mask = 0,
                                       // Panic (and reboot) on timeout
                                       .trigger_panic = true};
-#ifdef CONFIG_ESP_TASK_WDT
-  // ESP-IDF will have already initialized it, so reconfigure.
-  // Arduino and PlatformIO have different watchdog defaults, so we reconfigure
-  // for consistency.
-  esp_task_wdt_reconfigure(&wdt_config);
-#else
-  // Otherwise initialize it for the first time.
-  esp_task_wdt_init(&wdt_config);
+  #ifdef CONFIG_ESP_TASK_WDT
+    // ESP-IDF will have already initialized it, so reconfigure.
+    // Arduino and PlatformIO have different watchdog defaults, so we reconfigure
+    // for consistency.
+    esp_task_wdt_reconfigure(&wdt_config);
+  #else
+    // Otherwise initialize it for the first time.
+    esp_task_wdt_init(&wdt_config);
+  #endif
 #endif
 
   // Start tasks

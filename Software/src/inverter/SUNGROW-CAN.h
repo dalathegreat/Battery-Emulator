@@ -35,15 +35,7 @@ class SungrowInverter : public CanInverterProtocol {
 
   // Clamp an int32 -> int16 safely
   static constexpr int16_t clamp_i32_to_i16(int32_t value) {
-    if (value > 32767) {
-      return 32767;
-    }
-
-    if (value < -32768) {
-      return -32768;
-    }
-
-    return static_cast<int16_t>(value);
+    return (value > 32767) ? 32767 : ((value < -32768) ? -32768 : static_cast<int16_t>(value));
   }
 
   //Actual content messages

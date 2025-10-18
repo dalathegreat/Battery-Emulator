@@ -1,12 +1,93 @@
 #include <Arduino.h>
+
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+// ESP32-S3 uses ESP-IDF 4.4.x with older RMT API
+#include "driver/rmt.h"
+#else
+// ESP32 classic uses ESP-IDF v5.x RMT driver API
 #include "driver/rmt_tx.h"
-// This code is adapted for the ESP-IDF v5.x RMT driver API
+#endif
 // WS2812 timing parameters (in nanoseconds)
-#define WS2812_T0H_NS (400) 
-#define WS2812_T0L_NS (850) 
-#define WS2812_T1H_NS (800) 
+#define WS2812_T0H_NS (400)
+#define WS2812_T0L_NS (850)
+#define WS2812_T1H_NS (800)
 #define WS2812_T1L_NS (450)
 #define WS2812_RESET_US 280
+
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+// ========== ESP-IDF 4.4.x Implementation (ESP32-S3) ==========
+// RMT tick calculations (80MHz / 8 = 10MHz = 100ns per tick)
+#define RMT_CLK_DIV 8
+#define WS2812_T0H_TICKS ((WS2812_T0H_NS + 50) / 100)
+#define WS2812_T0L_TICKS ((WS2812_T0L_NS + 50) / 100)
+#define WS2812_T1H_TICKS ((WS2812_T1H_NS + 50) / 100)
+#define WS2812_T1L_TICKS ((WS2812_T1L_NS + 50) / 100)
+
+static uint8_t rmt_channel = 0;
+static bool rmt_initialized = false;
+
+// Convert a single byte to RMT items (8 bits)
+static void IRAM_ATTR ws2812_rmt_adapter(const void *src, rmt_item32_t *dest, size_t src_size,
+                                          size_t wanted_num, size_t *translated_size, size_t *item_num) {
+    if (src == NULL || dest == NULL) {
+        *translated_size = 0;
+        *item_num = 0;
+        return;
+    }
+
+    const uint8_t *psrc = (const uint8_t *)src;
+    rmt_item32_t bit0 = {{{ WS2812_T0H_TICKS, 1, WS2812_T0L_TICKS, 0 }}};
+    rmt_item32_t bit1 = {{{ WS2812_T1H_TICKS, 1, WS2812_T1L_TICKS, 0 }}};
+
+    size_t size = 0;
+    size_t num = 0;
+    while (size < src_size && num < wanted_num) {
+        for (int i = 0; i < 8; i++) {
+            // MSB first
+            if (*psrc & (1 << (7 - i))) {
+                dest[num++] = bit1;
+            } else {
+                dest[num++] = bit0;
+            }
+        }
+        size++;
+        psrc++;
+    }
+    *translated_size = size;
+    *item_num = num;
+}
+
+void espShow(uint8_t pin, uint8_t* pixels, uint32_t numBytes) {
+    if (!rmt_initialized) {
+        rmt_config_t config = {
+            .rmt_mode = RMT_MODE_TX,
+            .channel = (rmt_channel_t)rmt_channel,
+            .gpio_num = (gpio_num_t)pin,
+            .clk_div = RMT_CLK_DIV,
+            .mem_block_num = 1,
+            .tx_config = {
+                .carrier_freq_hz = 38000,
+                .carrier_level = RMT_CARRIER_LEVEL_HIGH,
+                .idle_level = RMT_IDLE_LEVEL_LOW,
+                .carrier_duty_percent = 33,
+                .carrier_en = false,
+                .loop_en = false,
+                .idle_output_en = true,
+            }
+        };
+
+        rmt_config(&config);
+        rmt_driver_install(config.channel, 0, 0);
+        rmt_translator_init(config.channel, ws2812_rmt_adapter);
+        rmt_initialized = true;
+    }
+
+    rmt_write_sample((rmt_channel_t)rmt_channel, pixels, numBytes, true);
+    rmt_wait_tx_done((rmt_channel_t)rmt_channel, portMAX_DELAY);
+}
+
+#else
+// ========== ESP-IDF 5.x Implementation (ESP32 Classic) ==========
 #define WS2812_T0H_TICKS (WS2812_T0H_NS / 25)
 #define WS2812_T0L_TICKS (WS2812_T0L_NS / 25)
 #define WS2812_T1H_TICKS (WS2812_T1H_NS / 25)
@@ -167,3 +248,5 @@ void espShow(uint8_t pin, uint8_t* pixels, uint32_t numBytes) {
     // optional: only wait if strict timing required
     // ESP_ERROR_CHECK(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
 }
+
+#endif  // CONFIG_IDF_TARGET_ESP32S3
