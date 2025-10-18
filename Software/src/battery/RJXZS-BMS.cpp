@@ -7,31 +7,45 @@
 // https://www.topbms.com/static/upload/file/20230804/1691122017124559.pdf
 // https://github.com/puffnfresh/Battery-Emulator/commit/7b0f817ef138b22902c27c5cff3fbe2df4ba341b
 
-const uint16_t voltage[101] = {4200, 4173, 4148, 4124, 4102, 4080, 4060, 4041, 4023, 4007, 3993, 3980, 3969, 3959, 3953,
-                               3950, 3941, 3932, 3924, 3915, 3907, 3898, 3890, 3881, 3872, 3864, 3855, 3847, 3838, 3830,
-                               3821, 3812, 3804, 3795, 3787, 3778, 3770, 3761, 3752, 3744, 3735, 3727, 3718, 3710, 3701,
-                               3692, 3684, 3675, 3667, 3658, 3650, 3641, 3632, 3624, 3615, 3607, 3598, 3590, 3581, 3572,
-                               3564, 3555, 3547, 3538, 3530, 3521, 3512, 3504, 3495, 3487, 3478, 3470, 3461, 3452, 3444,
-                               3435, 3427, 3418, 3410, 3401, 3392, 3384, 3375, 3367, 3358, 3350, 3338, 3325, 3313, 3299,
-                               3285, 3271, 3255, 3239, 3221, 3202, 3180, 3156, 3127, 3090, 3000};
+const uint16_t voltage_NMC[101] = {
+    4200, 4173, 4148, 4124, 4102, 4080, 4060, 4041, 4023, 4007, 3993, 3980, 3969, 3959, 3953, 3950, 3941,
+    3932, 3924, 3915, 3907, 3898, 3890, 3881, 3872, 3864, 3855, 3847, 3838, 3830, 3821, 3812, 3804, 3795,
+    3787, 3778, 3770, 3761, 3752, 3744, 3735, 3727, 3718, 3710, 3701, 3692, 3684, 3675, 3667, 3658, 3650,
+    3641, 3632, 3624, 3615, 3607, 3598, 3590, 3581, 3572, 3564, 3555, 3547, 3538, 3530, 3521, 3512, 3504,
+    3495, 3487, 3478, 3470, 3461, 3452, 3444, 3435, 3427, 3418, 3410, 3401, 3392, 3384, 3375, 3367, 3358,
+    3350, 3338, 3325, 3313, 3299, 3285, 3271, 3255, 3239, 3221, 3202, 3180, 3156, 3127, 3090, 3000};
 
 static uint16_t cell_voltage_to_soc(uint16_t v) {
   // Returns SOC in hundredths of a percent (0-10000)
 
-  if (v >= voltage[0]) {
+  if (v >= voltage_NMC[0]) {
     return 10000;
   }
-  if (v <= voltage[100]) {
+  if (v <= voltage_NMC[100]) {
     return 0;
   }
 
   for (int i = 1; i < 101; ++i) {
-    if (v >= voltage[i]) {
-      uint16_t t = (100 * (v - voltage[i])) / (voltage[i - 1] - voltage[i]);
+    if (v >= voltage_NMC[i]) {
+      uint16_t t = (100 * (v - voltage_NMC[i])) / (voltage_NMC[i - 1] - voltage_NMC[i]);
       return 10000 - (i * 100) + t;
     }
   }
   return 0;
+}
+
+uint16_t RjxzsBms::cell_voltage_to_soc_scaled(uint16_t v) {
+  // Scales the SOC according to user set min and max cell voltage limits.
+  // Note that this is not the same as SoC scaling, which will happen after this.
+  int32_t soc = cell_voltage_to_soc(v);
+  if (soc <= min_cell_equivalent_soc)
+    return 0;
+  soc = (10000 * (soc - min_cell_equivalent_soc)) / (max_cell_equivalent_soc - min_cell_equivalent_soc);
+  if (soc < 0)
+    return 0;
+  if (soc > 10000)
+    return 10000;
+  return soc;
 }
 
 void RjxzsBms::update_values() {
@@ -319,14 +333,18 @@ void RjxzsBms::transmit_can(unsigned long currentMillis) {
     previousMillis60s = currentMillis;
 
     if (setup_completed) {
-      uint16_t derived_soc = cell_voltage_to_soc(
+      uint16_t derived_soc = cell_voltage_to_soc_scaled(
           (datalayer.battery.status.cell_min_voltage_mV + datalayer.battery.status.cell_max_voltage_mV) / 2);
       int16_t soc_error = datalayer.battery.status.real_soc - derived_soc;
       int16_t ah_error = (soc_error * battery_pack_capacity) / 10000;
 
       if (ah_error > 1 || ah_error < -1) {
         // Usage has drifted by more than 1Ah
-        int16_t new_usage_capacity = battery_usage_capacity + ah_error;
+
+        // Limit to 1Ah correction either way
+        int16_t correction = ah_error > 0 ? 1 : -1;
+
+        int16_t new_usage_capacity = battery_usage_capacity + correction;
         if (new_usage_capacity < 0) {
           new_usage_capacity = 0;
         }
@@ -338,7 +356,7 @@ void RjxzsBms::transmit_can(unsigned long currentMillis) {
         RJXZS_20.data.u8[2] = new_usage_capacity & 0xFF;
         transmit_can_frame(&RJXZS_20);
 
-        // HACK
+        // HACK for testing
         //battery_usage_capacity = new_usage_capacity;
       }
     }
@@ -353,5 +371,8 @@ void RjxzsBms::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
   datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
   datalayer.system.status.battery_allows_contactor_closing = true;
+
+  max_cell_equivalent_soc = cell_voltage_to_soc(user_selected_max_cell_voltage_mV);
+  min_cell_equivalent_soc = cell_voltage_to_soc(user_selected_min_cell_voltage_mV);
   //battery_usage_capacity = 123;
 }

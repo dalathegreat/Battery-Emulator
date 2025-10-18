@@ -14,6 +14,8 @@ class RjxzsBms : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "RJXZS BMS, DIY battery";
 
+  uint16_t cell_voltage_to_soc_scaled(uint16_t v);
+
  private:
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
   static const int RAMPDOWN_SOC =
@@ -97,6 +99,9 @@ class RjxzsBms : public CanBattery {
   uint8_t timespent_without_soc = 0;
   bool charging_active = false;
   bool discharging_active = false;
+  // The SoC levels which correspond to the min/max cell voltages
+  uint16_t max_cell_equivalent_soc = 0;
+  uint16_t min_cell_equivalent_soc = 0;
 };
 
 #endif
