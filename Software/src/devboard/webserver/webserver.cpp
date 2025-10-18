@@ -658,6 +658,9 @@ void init_webserver() {
     datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
   });
 
+  // Route for editing CAN ID cutoff filter
+  update_int_setting("/set_can_id_cutoff", [](int value) { user_selected_CAN_ID_cutoff_filter = value; });
+
   // Route for pause/resume Battery emulator
   update_string("/pause", [](String value) { setBatteryPause(value == "true" || value == "1", false); });
 

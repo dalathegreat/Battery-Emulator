@@ -57,9 +57,9 @@ uint8_t user_selected_canfd_addon_crystal_frequency_mhz = 0;
 ACAN2517FD* canfd;
 ACAN2517FDSettings* settings2517;
 bool use_canfd_as_can = false;
-// Initialization functions
-
 bool native_can_initialized = false;
+//CAN logging filter settings
+uint16_t user_selected_CAN_ID_cutoff_filter = 0;  //Messages below this ID will not be logged in webserver
 
 bool init_CAN() {
 
@@ -395,7 +395,9 @@ void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection ms
   }
 
   if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording
-    dump_can_frame(frame, interface, msgDir);
+    if (frame.ID > user_selected_CAN_ID_cutoff_filter) {  //Only log the message if CAN ID is higher than user set value
+      dump_can_frame(frame, interface, msgDir);
+    }
   }
 }
 
