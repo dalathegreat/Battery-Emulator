@@ -200,14 +200,14 @@ void init_webserver() {
   });
 
   // Route for going to advanced battery info web page
-  def_route_with_auth("/advanced", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/html", index_html, advanced_battery_processor);
-  });
+  // def_route_with_auth("/advanced", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+  //   request->send(200, "text/html", index_html, advanced_battery_processor);
+  // });
 
   // Route for going to CAN logging web page
-  def_route_with_auth("/canlog", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(request->beginResponse(200, "text/html", can_logger_processor()));
-  });
+  // def_route_with_auth("/canlog", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+  //   request->send(request->beginResponse(200, "text/html", can_logger_processor()));
+  // });
 
   // Route for going to CAN replay web page
   def_route_with_auth("/canreplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {

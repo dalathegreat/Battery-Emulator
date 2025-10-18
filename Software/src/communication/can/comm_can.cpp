@@ -366,6 +366,8 @@ void receive_frame_canfd_addon() {  // This section checks if we have a complete
   }
 }
 
+extern void dump_can_frame2(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);
+
 // Support functions
 void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir) {
 
@@ -396,6 +398,9 @@ void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection ms
 
   if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording
     dump_can_frame(frame, interface, msgDir);
+  }
+  if (datalayer.system.info.can_logging_active2) {  // If user clicked on CAN Dumping page in webserver, start recording
+    dump_can_frame2(frame, interface, msgDir);
   }
 }
 
