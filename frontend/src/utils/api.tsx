@@ -5,7 +5,7 @@ export function useGetApi(url: string, period: number=0) {
 
     const ctx = {t:0};
     function call() {
-        fetch(import.meta.env.VITE_API_BASE + url).then(
+        fetch(new URL(url, import.meta.env.VITE_API_BASE)).then(
             r => (r.headers.get('Content-Type')?.includes('application/json')) ? r.json() : r.text()
         ).then(setResponse);
         if(period>0) {

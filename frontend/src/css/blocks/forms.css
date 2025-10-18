@@ -14,6 +14,10 @@ form .actions {
   margin: 0 0 0.5rem;
 }
 
+[data-ind] {
+  padding-left: 1.25rem;
+}
+
 .form-row label {
   position: absolute;
   font-size: 0.83rem;
