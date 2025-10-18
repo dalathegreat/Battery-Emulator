@@ -1,7 +1,7 @@
 #ifndef _HAL_H_
 #define _HAL_H_
 
-#include <soc/gpio_num.h>
+#include <driver/gpio.h>
 #include <chrono>
 #include <unordered_map>
 #include "../../../src/communication/nvm/comm_nvm.h"
