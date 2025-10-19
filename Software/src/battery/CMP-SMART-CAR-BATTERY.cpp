@@ -97,6 +97,27 @@ bool checksum_OK(CAN_frame& rx_frame, uint8_t magic_byte) {
   return (checksum == expected);
 }
 
+uint8_t calculate_checksum(CAN_frame& rx_frame, uint8_t magic_byte) {
+  // Sum all data nibbles from bytes 0-6 (excluding last byte)
+  uint8_t sum = 0;
+
+  for (int i = 0; i < 7; i++) {
+    sum += (rx_frame.data.u8[i] >> 4);
+    sum += (rx_frame.data.u8[i] & 0x0F);
+  }
+
+  // Get counter from last byte low nibble
+  uint8_t counter = (rx_frame.data.u8[7] & 0x0F);
+
+  // Calculate expected checksum: (magic_byte - sum - counter) mod 16
+  int16_t calculated_checksum = (magic_byte - (sum & 0x0F) - counter) % 16;
+  if (calculated_checksum < 0) {
+    calculated_checksum += 16;  // Ensure positive modulo result
+  }
+
+  return calculated_checksum;
+}
+
 void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x205:  //10ms
@@ -364,8 +385,16 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
-    CMP_262.data.u8[0] = 0x40;  //0b0000 powertrain inactive, 0b0100 powertrain activation, 0b1000 powertrain active
-    //transmit_can_frame(&CMP_208);
+    counter_10ms = (counter_10ms + 1) % 16;  // counter_100ms repeats after 16 messages. 0-1..15-0
+
+    CMP_262.data.u8[0] =
+        0x40;  //0b0000 powertrain inactive, 0b0100 powertrain activation, 0b1000 powertrain active (Goes from E0, 00, 40 to 80 in logs)
+
+    CMP_208.data.u8[1] = 0x20;  //Goes from 00->20->3E in logs while starting to drive
+    CMP_208.data.u8[7] = counter_10ms;
+    CMP_208.data.u8[7] = (calculate_checksum(CMP_208, 0x05) << 4) | counter_10ms;
+
+    transmit_can_frame(&CMP_208);
     //transmit_can_frame(&CMP_217);
     //transmit_can_frame(&CMP_241);
     transmit_can_frame(&CMP_262);

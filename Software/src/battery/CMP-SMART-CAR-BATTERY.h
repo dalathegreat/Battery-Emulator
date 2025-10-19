@@ -28,7 +28,12 @@ class CmpSmartCarBattery : public CanBattery {
   unsigned long previousMillis60 = 0;    // will store last time a 60ms CAN Message was sent
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
-  CAN_frame CMP_211 = {.FD = false,      //VCU contactor 100ms
+  CAN_frame CMP_208 = {.FD = false,      //VCU 10ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x208,
+                       .data = {0x00, 0x20, 0x00, 0x84, 0x40, 0x21, 0x00, 0x00}};
+  CAN_frame CMP_211 = {.FD = false,  //VCU contactor 100ms
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x211,
@@ -60,6 +65,7 @@ class CmpSmartCarBattery : public CanBattery {
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   uint32_t vehicle_time_counter = 0;  //TODO, what should init value be? Vehicle CAN log needed
   uint8_t mux = 0;
+  uint8_t counter_10ms = 0;
   uint8_t counter_100ms = 0;
   int16_t temperature_sensors[16];
   uint16_t cell_voltages_mV[100];
