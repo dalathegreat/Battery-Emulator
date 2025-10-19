@@ -390,21 +390,42 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     CMP_262.data.u8[0] =
         0x40;  //0b0000 powertrain inactive, 0b0100 powertrain activation, 0b1000 powertrain active (Goes from E0, 00, 40 to 80 in logs)
 
-    CMP_208.data.u8[1] = 0x20;  //Goes from 00->20->3E in logs while starting to drive
+    CMP_208.data.u8[1] = 0x20;  //Goes from 00->20->3E in logs while starting to drive. TODO: Emulate?
     CMP_208.data.u8[7] = counter_10ms;
     CMP_208.data.u8[7] = (calculate_checksum(CMP_208, 0x05) << 4) | counter_10ms;
 
+    CMP_217.data.u8[4] = checksum217[counter_10ms];
+
+    CMP_241.data.u8[2] = 0x39;  //Goes from 20-22-25-27-2A-2C-2F-31-34-36-39 on startup. TODO: Emulate?
+    //Highest bit in CMP_241[2] contains emergency shutdown request. 0b0 no emg stop, 0b1 emg stop requested.
+    CMP_241.data.u8[7] = counter_10ms;
+    CMP_241.data.u8[7] = (calculate_checksum(CMP_241, 0x08) << 4) | counter_10ms;
+
     transmit_can_frame(&CMP_208);
-    //transmit_can_frame(&CMP_217);
-    //transmit_can_frame(&CMP_241);
+    transmit_can_frame(&CMP_217);
+    transmit_can_frame(&CMP_241);
     transmit_can_frame(&CMP_262);
   }
 
   // Send 50ms messages
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     previousMillis50 = currentMillis;
+    counter_50ms = (counter_50ms + 1) % 16;  // counter_100ms repeats after 16 messages. 0-1..15-0
 
-    CMP_432.data.u8[0] = 0x00;  //TODO, this message is important. What should content be?
+    if (startup_counter_432 < 20) {
+      startup_counter_432++;
+    }
+    if (startup_counter_432 == 15) {
+      CMP_432.data.u8[0] = 0x70;  //60-70-80 TODO: Emulate this?
+    }
+    if (startup_counter_432 > 15) {
+      CMP_432.data.u8[0] = 0x80;  //60-70-80 TODO: Emulate this?
+    }
+
+    CMP_432.data.u8[2] = counter_50ms;
+    CMP_432.data.u8[1] = (calculate_checksum( TODO. byte in middle :()
+
+
     CMP_421.data.u8[3] = 0x00;  //TODO, this contains wakeup request from VCU. What should content be?
 
     transmit_can_frame(&CMP_432);  //Main wakeup
@@ -414,7 +435,11 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
   // Send 60ms messages
   if (currentMillis - previousMillis60 >= INTERVAL_60_MS) {
     previousMillis60 = currentMillis;
-    //transmit_can_frame(&CMP_351);
+    counter_60ms = (counter_60ms + 1) % 16;  // counter_100ms repeats after 16 messages. 0-1..15-0
+
+    CMP_351.data.u8[7] = checksum351[counter_60ms];
+
+    transmit_can_frame(&CMP_351);  //Airbag OK
   }
 
   // Send 100ms messages
@@ -434,16 +459,15 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
 
-    vehicle_time_counter++;  //TODO: Real CAN log needed to see how this should be formatted
+    vehicle_time_counter = (vehicle_time_counter + 10);
 
-    CMP_552.data.u8[0] = ((vehicle_time_counter / 10) & 0xFF000000) >> 24;
-    CMP_552.data.u8[1] = ((vehicle_time_counter / 10) & 0x00FF0000) >> 16;
-    CMP_552.data.u8[2] = ((vehicle_time_counter / 10) & 0x0000FF00) >> 8;
-    CMP_552.data.u8[3] = ((vehicle_time_counter / 10) & 0x000000FF);
-
-    //TODO, rest of bits in this message needs to be initialized to sane values
+    CMP_552.data.u8[0] = ((vehicle_time_counter) & 0xFF000000) >> 24;
+    CMP_552.data.u8[1] = ((vehicle_time_counter) & 0x00FF0000) >> 16;
+    CMP_552.data.u8[2] = ((vehicle_time_counter) & 0x0000FF00) >> 8;
+    CMP_552.data.u8[3] = ((vehicle_time_counter) & 0x000000FF);
 
     transmit_can_frame(&CMP_552);
+    //This message is odd. Non periodic, but increments 10 per cycle. Might be enough to send it once every second
   }
 }
 

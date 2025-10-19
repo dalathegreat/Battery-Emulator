@@ -38,11 +38,26 @@ class CmpSmartCarBattery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x211,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame CMP_217 = {.FD = false,  //VCU 10ms (Inverter motor speed)
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x217,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0xA6, 0x00, 0x00}};
+  CAN_frame CMP_241 = {.FD = false,  //VCU vehicle speed and emg stop 10ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x241,
+                       .data = {0x00, 0x00, 0x39, 0x00, 0xC8, 0x00, 0x00, 0x00}};
   CAN_frame CMP_262 = {.FD = false,  //VCU 10ms
                        .ext_ID = false,
                        .DLC = 1,
                        .ID = 0x262,
                        .data = {0x00}};
+  CAN_frame CMP_351 = {.FD = false,  //VCU 60ms Airbag
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x351,
+                       .data = {0x46, 0x14, 0x17, 0x00, 0x00, 0x00, 0x00, 0x0F}};
   CAN_frame CMP_421 = {.FD = false,  //VCU 50ms
                        .ext_ID = false,
                        .DLC = 8,
@@ -62,11 +77,18 @@ class CmpSmartCarBattery : public CanBattery {
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x552,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  uint32_t vehicle_time_counter = 0;  //TODO, what should init value be? Vehicle CAN log needed
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE}};
+  uint32_t vehicle_time_counter = 0x088B390B;  //Taken from log on 19thOctober2025
   uint8_t mux = 0;
+  uint8_t startup_counter_432 = 0;
   uint8_t counter_10ms = 0;
+  uint8_t counter_50ms = 0;
+  uint8_t counter_60ms = 0;
   uint8_t counter_100ms = 0;
+  uint8_t checksum217[16] = {0x50, 0x41, 0xB2, 0xA3, 0x14, 0x05, 0xF6, 0xE7,
+                             0x58, 0xC9, 0xBA, 0xAB, 0x1C, 0x8D, 0x7E, 0x6F};
+  uint8_t checksum351[16] = {0x0F, 0xF0, 0xE1, 0xD2, 0xC3, 0xB4, 0xA5, 0x96,
+                             0x87, 0x78, 0x69, 0x5A, 0x4B, 0x3C, 0x2D, 0x1E};
   int16_t temperature_sensors[16];
   uint16_t cell_voltages_mV[100];
   uint16_t battery_soc = 5000;
