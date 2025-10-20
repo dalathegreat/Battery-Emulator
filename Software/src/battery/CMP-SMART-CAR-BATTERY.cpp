@@ -71,6 +71,29 @@ void CmpSmartCarBattery::update_values() {
   if (alert_overcharge) {
     set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0);
   }
+  datalayer_extended.stellantisCMPsmart.battery_negative_contactor_state = battery_negative_contactor_state;
+  datalayer_extended.stellantisCMPsmart.battery_precharge_contactor_state = battery_precharge_contactor_state;
+  datalayer_extended.stellantisCMPsmart.battery_positive_contactor_state = battery_positive_contactor_state;
+  datalayer_extended.stellantisCMPsmart.battery_balancing_active = battery_balancing_active;
+  datalayer_extended.stellantisCMPsmart.eplug_status = eplug_status;
+  datalayer_extended.stellantisCMPsmart.HVIL_status = HVIL_status;
+  datalayer_extended.stellantisCMPsmart.ev_warning = ev_warning;
+  datalayer_extended.stellantisCMPsmart.power_auth = power_auth;
+  datalayer_extended.stellantisCMPsmart.insulation_fault = insulation_fault;
+  datalayer_extended.stellantisCMPsmart.insulation_circuit_status = insulation_circuit_status;
+
+  datalayer_extended.stellantisCMPsmart.alert_cell_undervoltage = alert_cell_undervoltage;
+  datalayer_extended.stellantisCMPsmart.alert_cell_overvoltage = alert_cell_overvoltage;
+  datalayer_extended.stellantisCMPsmart.alert_high_SOC = alert_high_SOC;
+  datalayer_extended.stellantisCMPsmart.alert_low_SOC = alert_low_SOC;
+  datalayer_extended.stellantisCMPsmart.alert_overvoltage = alert_overvoltage,
+  datalayer_extended.stellantisCMPsmart.alert_high_temperature = alert_high_temperature;
+  datalayer_extended.stellantisCMPsmart.alert_temperature_delta = alert_temperature_delta;
+  datalayer_extended.stellantisCMPsmart.alert_battery = alert_battery;
+  datalayer_extended.stellantisCMPsmart.alert_SOC_jump = alert_SOC_jump;
+  datalayer_extended.stellantisCMPsmart.alert_cell_poor_consistency = alert_cell_poor_consistency;
+  datalayer_extended.stellantisCMPsmart.alert_overcharge = alert_overcharge;
+  datalayer_extended.stellantisCMPsmart.alert_contactor_opening = alert_contactor_opening;
 }
 
 bool checksum_OK(CAN_frame& rx_frame, uint8_t magic_byte) {
@@ -108,6 +131,32 @@ uint8_t calculate_checksum(CAN_frame& rx_frame, uint8_t magic_byte) {
 
   // Get counter from last byte low nibble
   uint8_t counter = (rx_frame.data.u8[7] & 0x0F);
+
+  // Calculate expected checksum: (magic_byte - sum - counter) mod 16
+  int16_t calculated_checksum = (magic_byte - (sum & 0x0F) - counter) % 16;
+  if (calculated_checksum < 0) {
+    calculated_checksum += 16;  // Ensure positive modulo result
+  }
+
+  return calculated_checksum;
+}
+
+uint8_t calculate_checksum432(CAN_frame& rx_frame) {
+  // Sum all data nibbles from bytes 0-6 (excluding last byte)
+  uint8_t sum = 0;
+  uint8_t magic_byte = 6;
+
+  sum += (rx_frame.data.u8[0] >> 4);
+  sum += (rx_frame.data.u8[0] & 0x0F);
+  sum += (rx_frame.data.u8[1] >> 4);
+
+  for (int i = 3; i < 8; i++) {
+    sum += (rx_frame.data.u8[i] >> 4);
+    sum += (rx_frame.data.u8[i] & 0x0F);
+  }
+
+  // Get counter from last byte low nibble
+  uint8_t counter = (rx_frame.data.u8[2] & 0x0F);
 
   // Calculate expected checksum: (magic_byte - sum - counter) mod 16
   int16_t calculated_checksum = (magic_byte - (sum & 0x0F) - counter) % 16;
@@ -364,8 +413,69 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x575:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x694:
+    case 0x694:  // Poll reply
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+
+      if (datalayer_extended.stellantisCMPsmart.UserRequestContactorReset) {
+        if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {
+          //06,50,03,00,C8,00,14,00,
+          ContactorResetStatemachine = 2;  //Send ECMP_CONTACTOR_RESET_START next loop
+        }
+        if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x71) && (rx_frame.data.u8[2] == 0x01)) {
+          //05,71,01,DD,35,01,00,00,
+          ContactorResetStatemachine = 4;  //Send ECMP_CONTACTOR_RESET_PROGRESS next loop
+        }
+        if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x71) && (rx_frame.data.u8[2] == 0x03)) {
+          //05,71,03,DD,35,02,00,00,
+          ContactorResetStatemachine = COMPLETED_STATE;
+          datalayer_extended.stellantisCMPsmart.UserRequestContactorReset = false;
+          timeSpentContactorReset = COMPLETED_STATE;
+        }
+
+      } else if (datalayer_extended.stellantisCMPsmart.UserRequestCollisionReset) {
+        if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {
+          //06,50,03,00,C8,00,14,00,
+          CollisionResetStatemachine = 2;  //Send ECMP_COLLISION_RESET_START next loop
+        }
+        if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x71) && (rx_frame.data.u8[2] == 0x01)) {
+          //05,71,01,DF,60,01,00,00,
+          CollisionResetStatemachine = 4;  //Send ECMP_COLLISION_RESET_PROGRESS next loop
+        }
+        if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x71) && (rx_frame.data.u8[2] == 0x03)) {
+          if (rx_frame.data.u8[5] == 0x01) {
+            //05,71,03,DF,60,01,00,00,
+            CollisionResetStatemachine = 4;  //Send ECMP_COLLISION_RESET_PROGRESS next loop
+          }
+          if (rx_frame.data.u8[5] == 0x02) {
+            //05,71,03,DF,60,02,00,00,
+            CollisionResetStatemachine = COMPLETED_STATE;
+            datalayer_extended.stellantisCMPsmart.UserRequestCollisionReset = false;
+            timeSpentCollisionReset = COMPLETED_STATE;
+          }
+        }
+
+      } else if (datalayer_extended.stellantisCMPsmart.UserRequestIsolationReset) {
+        if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {
+          //06,50,03,00,C8,00,14,00,
+          IsolationResetStatemachine = 2;  //Send ECMP_ISOLATION_RESET_START next loop
+        }
+        if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x71) && (rx_frame.data.u8[2] == 0x01)) {
+          //05,71,01,DF,46,01,00,00,
+          IsolationResetStatemachine = 4;  //Send ECMP_ISOLATION_RESET_PROGRESS next loop
+        }
+        if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x71) && (rx_frame.data.u8[2] == 0x03)) {
+          if (rx_frame.data.u8[5] == 0x01) {
+            //05,71,03,DF,46,01,00,00,
+            IsolationResetStatemachine = 4;  //Send ECMP_ISOLATION_RESET_PROGRESS next loop
+          }
+          if (rx_frame.data.u8[5] == 0x02) {
+            //05,71,03,DF,46,02,00,00,
+            IsolationResetStatemachine = COMPLETED_STATE;
+            datalayer_extended.stellantisCMPsmart.UserRequestIsolationReset = false;
+            timeSpentIsolationReset = COMPLETED_STATE;
+          }
+        }
+      }
       break;
     case 0x795:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -388,7 +498,7 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     counter_10ms = (counter_10ms + 1) % 16;  // counter_100ms repeats after 16 messages. 0-1..15-0
 
     CMP_262.data.u8[0] =
-        0x40;  //0b0000 powertrain inactive, 0b0100 powertrain activation, 0b1000 powertrain active (Goes from E0, 00, 40 to 80 in logs)
+        0xE0;  //0b0000 powertrain inactive, 0b0100 powertrain activation, 0b1000 powertrain active (Goes from E0, 00, 40 to 80 in logs). E0 all the time when CCS charging
 
     CMP_208.data.u8[1] = 0x20;  //Goes from 00->20->3E in logs while starting to drive. TODO: Emulate?
     CMP_208.data.u8[7] = counter_10ms;
@@ -412,21 +522,31 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     previousMillis50 = currentMillis;
     counter_50ms = (counter_50ms + 1) % 16;  // counter_100ms repeats after 16 messages. 0-1..15-0
 
-    if (startup_counter_432 < 20) {
+    if (startup_counter_432 < 255) {
       startup_counter_432++;
     }
-    if (startup_counter_432 == 15) {
-      CMP_432.data.u8[0] = 0x70;  //60-70-80 TODO: Emulate this?
+    if (startup_counter_432 < 15) {
+      //CMP_432.data.u8[0] = 0x70;  //60-70-80 TODO: Emulate this?
+      CMP_421.data.u8[3] = 0x20;  //Plug in wakeup
+      CMP_432.data.u8[4] = 0x04;
     }
     if (startup_counter_432 > 15) {
-      CMP_432.data.u8[0] = 0x80;  //60-70-80 TODO: Emulate this?
+      //CMP_432.data.u8[0] = 0x80;  //60-70-80 TODO: Emulate this?
+      CMP_421.data.u8[3] = 0x10;  //CCS charge in progress
+    }
+    if (startup_counter_432 > 200) {
+      CMP_432.data.u8[4] = 0x00;
     }
 
     CMP_432.data.u8[2] = counter_50ms;
-    CMP_432.data.u8[1] = (calculate_checksum( TODO. byte in middle :()
+    CMP_432.data.u8[1] = (0x01 << 4);
+    CMP_432.data.u8[1] = (0x01 << 4) | calculate_checksum432(CMP_432);
 
-
-    CMP_421.data.u8[3] = 0x00;  //TODO, this contains wakeup request from VCU. What should content be?
+    //CMP_421.data.u8[3] = 0x20;  //TODO, this contains wakeup request from VCU. What should content be?
+    //Bit 4, Recharge wakeup
+    //Bit 5, Partial Wakeup, connector seated
+    //Bit 7, Post ignition off Wakeup
+    //When CCS charging, this goes from 0x20 -> 0x10, and 0x80 when completing charge
 
     transmit_can_frame(&CMP_432);  //Main wakeup
     transmit_can_frame(&CMP_421);  //More wakeup
@@ -447,11 +567,13 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     previousMillis100 = currentMillis;
     counter_100ms = (counter_100ms + 1) % 16;  // counter_100ms repeats after 16 messages. 0-1..15-0
 
-    //CMP_211.data.u8[4] = ??? //Contactor closing section
+    CMP_211.data.u8[4] = 0x15;  //Contactor closing message
+    CMP_211.data.u8[7] = counter_100ms;
+    CMP_211.data.u8[7] = (calculate_checksum(CMP_211, 0x0B) << 4) | counter_100ms;
 
-    //transmit_can_frame(&CMP_211);
-    //transmit_can_frame(&CMP_231);
-    //transmit_can_frame(&CMP_422);
+    transmit_can_frame(&CMP_211);
+    transmit_can_frame(&CMP_231);  // Battery Preconditioning
+    transmit_can_frame(&CMP_422);
     transmit_can_frame(&CMP_4A2);  //Should we send plugged in, or unplugged?
   }
 
@@ -468,6 +590,83 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_can_frame(&CMP_552);
     //This message is odd. Non periodic, but increments 10 per cycle. Might be enough to send it once every second
+  }
+
+  // Send 250ms diagnostic CAN Messages
+  if (currentMillis - previousMillis250 >= INTERVAL_250_MS) {
+    previousMillis250 = currentMillis;
+
+    if (datalayer_extended.stellantisCMPsmart.UserRequestContactorReset) {
+      if (ContactorResetStatemachine == 0) {
+        transmit_can_frame(&ECMP_DIAG_START);
+        ContactorResetStatemachine = 1;
+      }
+      if (ContactorResetStatemachine == 2) {
+        transmit_can_frame(&ECMP_CONTACTOR_RESET_START);
+        ContactorResetStatemachine = 3;
+      }
+      if (ContactorResetStatemachine == 4) {
+        transmit_can_frame(&ECMP_CONTACTOR_RESET_PROGRESS);
+        ContactorResetStatemachine = 5;
+      }
+
+      timeSpentContactorReset++;
+      if (timeSpentContactorReset > 40) {  //Timeout, if command takes more than 10s to complete
+        datalayer_extended.stellantisCMPsmart.UserRequestContactorReset = false;
+        ContactorResetStatemachine = COMPLETED_STATE;
+        timeSpentContactorReset = COMPLETED_STATE;
+      }
+
+    } else if (datalayer_extended.stellantisCMPsmart.UserRequestCollisionReset) {
+
+      if (CollisionResetStatemachine == 0) {
+        transmit_can_frame(&ECMP_DIAG_START);
+        CollisionResetStatemachine = 1;
+      }
+      if (CollisionResetStatemachine == 2) {
+        transmit_can_frame(&ECMP_COLLISION_RESET_START);
+        CollisionResetStatemachine = 3;
+      }
+      if (CollisionResetStatemachine == 4) {
+        transmit_can_frame(&ECMP_COLLISION_RESET_PROGRESS);
+        CollisionResetStatemachine = 5;
+      }
+
+      timeSpentCollisionReset++;
+      if (timeSpentCollisionReset > 40) {  //Timeout, if command takes more than 10s to complete
+        datalayer_extended.stellantisCMPsmart.UserRequestCollisionReset = false;
+        CollisionResetStatemachine = COMPLETED_STATE;
+        timeSpentCollisionReset = COMPLETED_STATE;
+      }
+
+    } else if (datalayer_extended.stellantisCMPsmart.UserRequestIsolationReset) {
+
+      if (IsolationResetStatemachine == 0) {
+        transmit_can_frame(&ECMP_DIAG_START);
+        IsolationResetStatemachine = 1;
+      }
+      if (IsolationResetStatemachine == 2) {
+        transmit_can_frame(&ECMP_ISOLATION_RESET_START);
+        IsolationResetStatemachine = 3;
+      }
+      if (IsolationResetStatemachine == 4) {
+        transmit_can_frame(&ECMP_ISOLATION_RESET_PROGRESS);
+        IsolationResetStatemachine = 5;
+      }
+
+      timeSpentIsolationReset++;
+      if (timeSpentIsolationReset > 40) {  //Timeout, if command takes more than 10s to complete
+        if (countIsolationReset < 4) {
+          countIsolationReset++;
+          IsolationResetStatemachine = 0;  //Reset state machine to start over
+        } else {
+          datalayer_extended.stellantisCMPsmart.UserRequestIsolationReset = false;
+          IsolationResetStatemachine = COMPLETED_STATE;
+          timeSpentIsolationReset = COMPLETED_STATE;
+          countIsolationReset = 0;
+        }
+      }
+    }
   }
 }
 

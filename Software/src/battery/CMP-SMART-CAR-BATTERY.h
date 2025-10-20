@@ -11,6 +11,15 @@ class CmpSmartCarBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Stellantis CMP Smart Car Battery";
 
+  bool supports_clear_isolation() { return true; }
+  void clear_isolation() { datalayer_extended.stellantisCMPsmart.UserRequestIsolationReset = true; }
+
+  bool supports_reset_crash() { return true; }
+  void reset_crash() { datalayer_extended.stellantisCMPsmart.UserRequestCollisionReset = true; }
+
+  bool supports_contactor_reset() { return true; }
+  void reset_contactor() { datalayer_extended.stellantisCMPsmart.UserRequestContactorReset = true; }
+
   bool supports_charged_energy() { return true; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
@@ -27,6 +36,7 @@ class CmpSmartCarBattery : public CanBattery {
   unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was sent
   unsigned long previousMillis60 = 0;    // will store last time a 60ms CAN Message was sent
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
+  unsigned long previousMillis250 = 0;   // will store last time a 250ms CAN Message was sent
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
   CAN_frame CMP_208 = {.FD = false,      //VCU 10ms
                        .ext_ID = false,
@@ -37,13 +47,19 @@ class CmpSmartCarBattery : public CanBattery {
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x211,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                       .data = {0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame CMP_217 = {.FD = false,  //VCU 10ms (Inverter motor speed)
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x217,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0xA6, 0x00, 0x00}};
-  CAN_frame CMP_241 = {.FD = false,  //VCU vehicle speed and emg stop 10ms
+  CAN_frame CMP_231 = {
+      .FD = false,  //VCU preconditioning
+      .ext_ID = false,
+      .DLC = 8,     //
+      .ID = 0x231,  //0b00 : Not active0b01 : Heating function active0b10 : Cooling function active0b11 : Reserve
+      .data = {0x98, 0x59, 0x60, 0x00, 0xA3, 0x20, 0x00, 0x00}};  //Last byte, bit pos 1, has precond req
+  CAN_frame CMP_241 = {.FD = false,                               //VCU vehicle speed and emg stop 10ms
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x241,
@@ -63,6 +79,11 @@ class CmpSmartCarBattery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x421,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame CMP_422 = {.FD = false,  //100ms VCU, Configuration
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x422,  //Fitting, Plant,check,storage,client,APV,showroom etc.
+                       .data = {0x00, 0x00, 0x10, 0x00, 0x00, 0x10, 0x00, 0x00}};
   CAN_frame CMP_432 = {.FD = false,  //VCU 50ms
                        .ext_ID = false,
                        .DLC = 8,
@@ -72,12 +93,82 @@ class CmpSmartCarBattery : public CanBattery {
                        .ext_ID = false,
                        .DLC = 2,
                        .ID = 0x4A2,
-                       .data = {0x00, 0x64}};  //second byte, 00 plugged, 64 unplugged
+                       .data = {0x00, 0x41}};  //second byte, 00 plugged, 64 unplugged, 41vehiclerunning
   CAN_frame CMP_552 = {.FD = false,            //VCU mileage annd time 1000ms
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x552,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE}};
+
+  static constexpr CAN_frame ECMP_ACK = {.FD = false,  //Ack frame
+                                         .ext_ID = false,
+                                         .DLC = 3,
+                                         .ID = 0x6B4,
+                                         .data = {0x30, 0x00, 0x00}};
+  static constexpr CAN_frame ECMP_DIAG_START = {.FD = false,
+                                                .ext_ID = false,
+                                                .DLC = 3,
+                                                .ID = 0x6B4,
+                                                .data = {0x02, 0x10, 0x03}};
+  //Start diagnostic session (extended diagnostic session, mode 0x10 with sub-mode 0x03)
+  static constexpr CAN_frame ECMP_CONTACTOR_RESET_START = {.FD = false,
+                                                           .ext_ID = false,
+                                                           .DLC = 5,
+                                                           .ID = 0x6B4,
+                                                           .data = {0x04, 0x31, 0x01, 0xDD, 0x35}};
+  static constexpr CAN_frame ECMP_CONTACTOR_RESET_PROGRESS = {.FD = false,
+                                                              .ext_ID = false,
+                                                              .DLC = 5,
+                                                              .ID = 0x6B4,
+                                                              .data = {0x04, 0x31, 0x03, 0xDD, 0x35}};
+  static constexpr CAN_frame ECMP_COLLISION_RESET_START = {.FD = false,
+                                                           .ext_ID = false,
+                                                           .DLC = 5,
+                                                           .ID = 0x6B4,
+                                                           .data = {0x04, 0x31, 0x01, 0xDF, 0x60}};
+  static constexpr CAN_frame ECMP_COLLISION_RESET_PROGRESS = {.FD = false,
+                                                              .ext_ID = false,
+                                                              .DLC = 5,
+                                                              .ID = 0x6B4,
+                                                              .data = {0x04, 0x31, 0x03, 0xDF, 0x60}};
+  static constexpr CAN_frame ECMP_ISOLATION_RESET_START = {.FD = false,
+                                                           .ext_ID = false,
+                                                           .DLC = 5,
+                                                           .ID = 0x6B4,
+                                                           .data = {0x04, 0x31, 0x01, 0xDF, 0x46}};
+  static constexpr CAN_frame ECMP_ISOLATION_RESET_PROGRESS = {.FD = false,
+                                                              .ext_ID = false,
+                                                              .DLC = 8,
+                                                              .ID = 0x6B4,
+                                                              .data = {0x04, 0x31, 0x03, 0xDF, 0x46}};
+  static constexpr CAN_frame ECMP_RESET_DONE = {.FD = false,
+                                                .ext_ID = false,
+                                                .DLC = 3,
+                                                .ID = 0x6B4,
+                                                .data = {0x02, 0x3E, 0x00}};
+  static constexpr CAN_frame ECMP_FACTORY_MODE_ACTIVATION = {.FD = false,
+                                                             .ext_ID = false,
+                                                             .DLC = 5,
+                                                             .ID = 0x6B4,
+                                                             .data = {0x04, 0x2E, 0xD9, 0x00, 0x01}};
+  static constexpr CAN_frame ECMP_DISABLE_ISOLATION_REQ = {.FD = false,
+                                                           .ext_ID = false,
+                                                           .DLC = 5,
+                                                           .ID = 0x6B4,
+                                                           .data = {0x04, 0x31, 0x02, 0xDF, 0xE1}};
+  static constexpr CAN_frame ECMP_ACK_MESSAGE = {.FD = false,
+                                                 .ext_ID = false,
+                                                 .DLC = 3,
+                                                 .ID = 0x6B4,
+                                                 .data = {0x02, 0x3E, 0x00}};
+  uint8_t ContactorResetStatemachine = 0;
+  uint8_t CollisionResetStatemachine = 0;
+  uint8_t IsolationResetStatemachine = 0;
+  uint8_t timeSpentContactorReset = 0;
+  uint8_t timeSpentCollisionReset = 0;
+  uint8_t timeSpentIsolationReset = 0;
+  static const int COMPLETED_STATE = 0;
+  uint8_t countIsolationReset = 0;
   uint32_t vehicle_time_counter = 0x088B390B;  //Taken from log on 19thOctober2025
   uint8_t mux = 0;
   uint8_t startup_counter_432 = 0;
@@ -89,6 +180,8 @@ class CmpSmartCarBattery : public CanBattery {
                              0x58, 0xC9, 0xBA, 0xAB, 0x1C, 0x8D, 0x7E, 0x6F};
   uint8_t checksum351[16] = {0x0F, 0xF0, 0xE1, 0xD2, 0xC3, 0xB4, 0xA5, 0x96,
                              0x87, 0x78, 0x69, 0x5A, 0x4B, 0x3C, 0x2D, 0x1E};
+  uint8_t precalculated432[16] = {0x12, 0x11, 0x10, 0x1F, 0x1E, 0x1D, 0x1C, 0x1B,
+                                  0x1A, 0x19, 0x18, 0x17, 0x16, 0x15, 0x14, 0x13};
   int16_t temperature_sensors[16];
   uint16_t cell_voltages_mV[100];
   uint16_t battery_soc = 5000;
