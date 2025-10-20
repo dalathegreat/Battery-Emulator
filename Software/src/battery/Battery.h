@@ -8,7 +8,7 @@
 enum class BatteryType {
   None = 0,
   BmwI3 = 2,
-  BmwIx = 3,
+  BmwIX = 3,
   BoltAmpera = 4,
   BydAtto3 = 5,
   CellPowerBms = 6,

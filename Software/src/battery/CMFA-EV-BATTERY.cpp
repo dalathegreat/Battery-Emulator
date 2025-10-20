@@ -4,6 +4,7 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
+#include "BATTERIES.h"
 
 /* The raw SOC value sits at 90% when the battery is full, so we should report back 100% once this value is reached
 Same goes for low point, when 10% is reached we report 0% */
@@ -60,24 +61,26 @@ void CmfaEvBattery::
     set_event(EVENT_12V_LOW, lead_acid_voltage);
   }
 
-  // Update webserver datalayer
-  datalayer_cmfa->soc_u = soc_u;
-  datalayer_cmfa->soc_z = soc_z;
-  datalayer_cmfa->lead_acid_voltage = lead_acid_voltage;
-  datalayer_cmfa->highest_cell_voltage_number = highest_cell_voltage_number;
-  datalayer_cmfa->lowest_cell_voltage_number = lowest_cell_voltage_number;
-  datalayer_cmfa->max_regen_power = max_regen_power;
-  datalayer_cmfa->max_discharge_power = max_discharge_power;
-  datalayer_cmfa->average_temperature = average_temperature;
-  datalayer_cmfa->minimum_temperature = minimum_temperature;
-  datalayer_cmfa->maximum_temperature = maximum_temperature;
-  datalayer_cmfa->maximum_charge_power = maximum_charge_power;
-  datalayer_cmfa->SOH_available_power = SOH_available_power;
-  datalayer_cmfa->SOH_generated_power = SOH_generated_power;
-  datalayer_cmfa->cumulative_energy_when_discharging = cumulative_energy_when_discharging;
-  datalayer_cmfa->cumulative_energy_when_charging = cumulative_energy_when_charging;
-  datalayer_cmfa->cumulative_energy_in_regen = cumulative_energy_in_regen;
-  datalayer_cmfa->soh_average = soh_average;
+  if (!battery2) {  //Avoid pointer crash on double bat, not sure why this wont work
+    // Update webserver datalayer
+    datalayer_cmfa->soc_u = soc_u;
+    datalayer_cmfa->soc_z = soc_z;
+    datalayer_cmfa->lead_acid_voltage = lead_acid_voltage;
+    datalayer_cmfa->highest_cell_voltage_number = highest_cell_voltage_number;
+    datalayer_cmfa->lowest_cell_voltage_number = lowest_cell_voltage_number;
+    datalayer_cmfa->max_regen_power = max_regen_power;
+    datalayer_cmfa->max_discharge_power = max_discharge_power;
+    datalayer_cmfa->average_temperature = average_temperature;
+    datalayer_cmfa->minimum_temperature = minimum_temperature;
+    datalayer_cmfa->maximum_temperature = maximum_temperature;
+    datalayer_cmfa->maximum_charge_power = maximum_charge_power;
+    datalayer_cmfa->SOH_available_power = SOH_available_power;
+    datalayer_cmfa->SOH_generated_power = SOH_generated_power;
+    datalayer_cmfa->cumulative_energy_when_discharging = cumulative_energy_when_discharging;
+    datalayer_cmfa->cumulative_energy_when_charging = cumulative_energy_when_charging;
+    datalayer_cmfa->cumulative_energy_in_regen = cumulative_energy_in_regen;
+    datalayer_cmfa->soh_average = soh_average;
+  }
 }
 
 void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {

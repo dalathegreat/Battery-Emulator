@@ -395,10 +395,11 @@ void init_webserver() {
   };
 
   const char* boolSettingNames[] = {
-      "DBLBTR",        "CNTCTRL",      "CNTCTRLDBL",  "PWMCNTCTRL",   "PERBMSRESET",  "SDLOGENABLED", "STATICIP",
-      "REMBMSRESET",   "EXTPRECHARGE", "USBENABLED",  "CANLOGUSB",    "WEBENABLED",   "CANFDASCAN",   "CANLOGSD",
-      "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",   "HADISC",       "MQTTTOPICS",   "MQTTCELLV",    "INVICNT",
-      "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED",
+      "DBLBTR",       "CNTCTRL",      "CNTCTRLDBL",    "PWMCNTCTRL",  "PERBMSRESET", "SDLOGENABLED",
+      "STATICIP",     "REMBMSRESET",  "EXTPRECHARGE",  "USBENABLED",  "CANLOGUSB",   "WEBENABLED",
+      "CANFDASCAN",   "CANLOGSD",     "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC",   "HADISC",
+      "MQTTTOPICS",   "MQTTCELLV",    "INVICNT",       "GTWRHD",      "DIGITALHVIL", "PERFPROFILE",
+      "INTERLOCKREQ", "SOCESTIMATED", "PYLONOFFSET",   "PYLONORDER",  "DEYEBYD",
   };
 
   // Handles the form POST from UI to save settings of the common image
@@ -507,6 +508,12 @@ void init_webserver() {
       } else if (p->name() == "SUBNET4") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("SUBNET4", type);
+      } else if (p->name() == "SSID") {
+        settings.saveString("SSID", p->value().c_str());
+        ssid = settings.getString("SSID", "").c_str();
+      } else if (p->name() == "PASSWORD") {
+        settings.saveString("PASSWORD", p->value().c_str());
+        password = settings.getString("PASSWORD", "").c_str();
       } else if (p->name() == "APNAME") {
         settings.saveString("APNAME", p->value().c_str());
       } else if (p->name() == "APPASSWORD") {
@@ -606,37 +613,6 @@ void init_webserver() {
     request->redirect("/settings");
   });
 
-  // Route for editing SSID
-  def_route_with_auth("/updateSSID", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      if (value.length() <= 63) {  // Check if SSID is within the allowable length
-        ssid = value.c_str();
-        store_settings();
-        request->send(200, "text/plain", "Updated successfully");
-      } else {
-        request->send(400, "text/plain", "SSID must be 63 characters or less");
-      }
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
-  });
-  // Route for editing Password
-  def_route_with_auth("/updatePassword", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      if (value.length() >= 8) {  // Password must be 8 characters or longer
-        password = value.c_str();
-        store_settings();
-        request->send(200, "text/plain", "Updated successfully");
-      } else {
-        request->send(400, "text/plain", "Password must be atleast 8 characters");
-      }
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
-  });
-
   auto update_string = [](const char* route, std::function<void(String)> setter,
                           std::function<bool(String)> validator = nullptr) {
     def_route_with_auth(route, server, HTTP_GET, [=](AsyncWebServerRequest* request) {
@@ -681,6 +657,9 @@ void init_webserver() {
   update_string_setting("/updateSocMax", [](String value) {
     datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
   });
+
+  // Route for editing CAN ID cutoff filter
+  update_int_setting("/set_can_id_cutoff", [](int value) { user_selected_CAN_ID_cutoff_filter = value; });
 
   // Route for pause/resume Battery emulator
   update_string("/pause", [](String value) { setBatteryPause(value == "true" || value == "1", false); });

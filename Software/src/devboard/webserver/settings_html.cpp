@@ -228,8 +228,13 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
       return battery->interface_name();
     }
   }
+
   if (var == "SSID") {
-    return String(ssid.c_str());
+    return settings.getString("SSID");
+  }
+
+  if (var == "PASSWORD") {
+    return settings.getString("PASSWORD");
   }
 
   if (var == "SAVEDCLASS") {
@@ -660,6 +665,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("PYLONSEND", 0));
   }
 
+  if (var == "PYLONOFFSET") {
+    return settings.getBool("PYLONOFFSET") ? "checked" : "";
+  }
+
+  if (var == "PYLONORDER") {
+    return settings.getBool("PYLONORDER") ? "checked" : "";
+  }
+
   if (var == "INVCELLS") {
     return String(settings.getUInt("INVCELLS", 0));
   }
@@ -686,6 +699,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "INVICNT") {
     return settings.getBool("INVICNT") ? "checked" : "";
+  }
+
+  if (var == "DEYEBYD") {
+    return settings.getBool("DEYEBYD") ? "checked" : "";
   }
 
   if (var == "CANFREQ") {
@@ -772,12 +789,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     function editComplete(){if(this.status==200){window.location.reload();}}
 
     function editError(){alert('Invalid input');}
-
-        function editSSID(){var value=prompt('Which SSID to connect to. Enter new SSID:');if(value!==null){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSSID?value='+encodeURIComponent(value),true);xhr.send();}}
-        
-        function editPassword(){var value=prompt('Enter new password:');if(value!==null){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updatePassword?value='+encodeURIComponent(value),true);xhr.send();}}
 
         function editWh(){var value=prompt('How much energy the battery can store. Enter new Wh value (1-400000):');
           if(value!==null){if(value>=1&&value<=400000){var xhr=new 
@@ -973,6 +984,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-byd { display: none; }
+    form[data-inverter="2"] .if-byd {
+      display: contents;
+    }
+
     form .if-pylon { display: none; }
     form[data-inverter="10"] .if-pylon {
       display: contents;
@@ -1016,16 +1032,26 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   <button onclick='goToMainPage()'>Back to main page</button>
   <button onclick="askFactoryReset()">Factory reset</button>
 
-<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
-    <h4 style='color: white;'>SSID: <span id='SSID'>%SSID%</span><button onclick='editSSID()'>Edit</button></h4>
-    <h4 style='color: white;'>Password: ######## <span id='Password'></span> <button onclick='editPassword()'>Edit</button></h4>
-</div>
-
 <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
         <form action='saveSettings' method='post'>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
           <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
+        </div>
+
+        <div class="settings-card">
+        <h3>Network config</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+
+        <label>SSID: </label>
+        <input type='text' name='SSID' value="%SSID%" 
+        pattern="[ -~]{1,63}" 
+        title="Max 63 characters, printable ASCII only"/>
+
+        <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" 
+        pattern="[ -~]{8,63}" 
+        title="Password must be 8-63 characters long, printable ASCII only" />
+        </div>
         </div>
 
         <div class="settings-card">
@@ -1141,8 +1167,22 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-pylon">
-        <label>Send group (0-1): </label>
-        <input name='PYLONSEND' type='text' value="%PYLONSEND%" pattern="[0-9]+" />
+        <label>Pylon, send group (0-1): </label>
+        <input name='PYLONSEND' type='text' value="%PYLONSEND%" pattern="[0-9]+" 
+        title="Select if we should send ###0 or ###1 CAN messages, useful for multi-battery setups or ID problems" />
+
+        <label>Pylon, 30k offset: </label>
+        <input type='checkbox' name='PYLONOFFSET' value='on' %PYLONOFFSET% 
+        title="When enabled, 30k offset will be applied on some signals, useful for some inverters that see wrong data otherwise" />
+
+        <label>Pylon, invert byteorder: </label>
+        <input type='checkbox' name='PYLONORDER' value='on' %PYLONORDER% 
+        title="When enabled, byteorder will be inverted on some signals, useful for some inverters that see wrong data otherwise" />
+        </div>
+
+        <div class="if-byd">
+        <label>Deye offgrid specific fixes: </label>
+        <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
         </div>
 
         <div class="if-pylonish">

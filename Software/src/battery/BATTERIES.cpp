@@ -41,7 +41,7 @@ const char* name_for_battery_type(BatteryType type) {
       return "None";
     case BatteryType::BmwI3:
       return BmwI3Battery::Name;
-    case BatteryType::BmwIx:
+    case BatteryType::BmwIX:
       return BmwIXBattery::Name;
     case BatteryType::BmwPhev:
       return BmwPhevBattery::Name;
@@ -143,8 +143,8 @@ Battery* create_battery(BatteryType type) {
       return nullptr;
     case BatteryType::BmwI3:
       return new BmwI3Battery();
-    case BatteryType::BmwIx:
-      return new BmwI3Battery();
+    case BatteryType::BmwIX:
+      return new BmwIXBattery();
     case BatteryType::BmwPhev:
       return new BmwPhevBattery();
     case BatteryType::BoltAmpera:
@@ -252,6 +252,9 @@ void setup_battery() {
       case BatteryType::BmwI3:
         battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
                                     can_config.battery_double, esp32hal->WUP_PIN2());
+        break;
+      case BatteryType::CmfaEv:
+        battery2 = new CmfaEvBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
       case BatteryType::KiaHyundai64:
         battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,

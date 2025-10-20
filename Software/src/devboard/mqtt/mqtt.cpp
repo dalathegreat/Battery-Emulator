@@ -160,11 +160,11 @@ void create_global_sensor_configs() {
   }
 }
 
-SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS"},
-                                {"PAUSE", "Pause charge/discharge"},
-                                {"RESUME", "Resume charge/discharge"},
-                                {"RESTART", "Restart Battery Emulator"},
-                                {"STOP", "Open Contactors"}};
+SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, nullptr, nullptr},
+                                {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr, nullptr},
+                                {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr, nullptr},
+                                {"RESTART", "Restart Battery Emulator", nullptr, nullptr, nullptr, nullptr},
+                                {"STOP", "Open Contactors", nullptr, nullptr, nullptr, nullptr}};
 
 static String generateCommonInfoAutoConfigTopic(const char* object_id) {
   return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
