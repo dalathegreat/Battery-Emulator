@@ -11,17 +11,6 @@ class CmpSmartCarBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Stellantis CMP Smart Car Battery";
 
-  bool supports_clear_isolation() { return true; }
-  void clear_isolation() { datalayer_extended.stellantisCMPsmart.UserRequestIsolationReset = true; }
-
-  bool supports_reset_crash() { return true; }
-  void reset_crash() { datalayer_extended.stellantisCMPsmart.UserRequestCollisionReset = true; }
-
-  bool supports_contactor_reset() { return true; }
-  void reset_contactor() { datalayer_extended.stellantisCMPsmart.UserRequestContactorReset = true; }
-
-  bool supports_charged_energy() { return true; }
-
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:

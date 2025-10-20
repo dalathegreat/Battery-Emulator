@@ -4,22 +4,6 @@
 #include "../datalayer/datalayer_extended.h"  //For More Battery Info page
 #include "../devboard/utils/events.h"
 
-/*TODO:
-The following messages should be sent towards the battery to emulate the vehicle still being attached
--0x208 VCU 10ms
--0x211 VCU 100ms (CONTACTOR CONTROL MESSAGE)
--0x217 INV 10ms
--0x231 VCU-HVAC 100ms
--0x241 VCU 10ms
--0x262 VCU 10ms
--0x351 Airbag 60ms
--0x421 VCU 50ms
--0x422 VCU 100ms
--0x432 BCM 50ms
--0x4A2 OBC plug 100ms
--0x552 VCU mileage 1000ms
-*/
-
 /* Do not change code below unless you are sure what you are doing */
 void CmpSmartCarBattery::update_values() {
 
