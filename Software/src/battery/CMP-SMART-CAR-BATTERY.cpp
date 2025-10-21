@@ -41,9 +41,6 @@ void CmpSmartCarBattery::update_values() {
     datalayer.battery.info.number_of_cells = number_of_cells;
   }
 
-  //Map all cell voltages to the global array
-  memcpy(datalayer.battery.status.cell_voltages_mV, cell_voltages_mV, number_of_cells * sizeof(uint16_t));
-
   datalayer.battery.status.total_discharged_battery_Wh = lifetime_kWh_discharged;
 
   datalayer.battery.status.total_charged_battery_Wh = lifetime_kWh_charged;
@@ -251,10 +248,14 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (mux < 25) {  // Only process valid cell data frames (0-24) (100S, but protocol does support 108S)
         uint8_t base_index = mux * 4;
 
-        cell_voltages_mV[base_index + 0] = ((rx_frame.data.u8[1] << 4) | (rx_frame.data.u8[2] >> 4)) * 4;
-        cell_voltages_mV[base_index + 1] = ((rx_frame.data.u8[3] & 0xFF) << 4) | (rx_frame.data.u8[4] >> 4);
-        cell_voltages_mV[base_index + 2] = (((rx_frame.data.u8[4] & 0x0F) << 8) | (rx_frame.data.u8[5])) * 4;
-        cell_voltages_mV[base_index + 3] = ((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[7];
+        datalayer.battery.status.cell_voltages_mV[base_index + 0] =
+            ((rx_frame.data.u8[1] << 4) | (rx_frame.data.u8[2] >> 4)) * 4;
+        datalayer.battery.status.cell_voltages_mV[base_index + 1] =
+            ((rx_frame.data.u8[3] & 0xFF) << 4) | (rx_frame.data.u8[4] >> 4);
+        datalayer.battery.status.cell_voltages_mV[base_index + 2] =
+            (((rx_frame.data.u8[4] & 0x0F) << 8) | (rx_frame.data.u8[5])) * 4;
+        datalayer.battery.status.cell_voltages_mV[base_index + 3] =
+            ((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[7];
       }
       break;
     case 0x335:  //100ms

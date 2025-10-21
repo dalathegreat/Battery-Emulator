@@ -102,7 +102,6 @@ class CmpSmartCarBattery : public CanBattery {
   uint8_t precalculated432[16] = {0x12, 0x11, 0x10, 0x1F, 0x1E, 0x1D, 0x1C, 0x1B,
                                   0x1A, 0x19, 0x18, 0x17, 0x16, 0x15, 0x14, 0x13};
   int16_t temperature_sensors[16];
-  uint16_t cell_voltages_mV[100];
   uint16_t battery_soc = 5000;
   uint16_t battery_voltage = 3300;
   uint8_t battery_state = 0;
