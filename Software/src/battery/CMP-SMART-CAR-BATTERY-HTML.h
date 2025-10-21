@@ -144,6 +144,63 @@ class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
     }
     content += "</h4>";
 
+    content += "<h4>Hardware fault status: ";
+    if (datalayer_extended.stellantisCMPsmart.hardware_fault_status == 0) {
+      content += "No Fault";
+    }
+    if (datalayer_extended.stellantisCMPsmart.hardware_fault_status & 0b001) {
+      content += "FAULT! Temperature sensor!";
+    }
+    if ((datalayer_extended.stellantisCMPsmart.hardware_fault_status & 0b010) >> 1) {
+      content += "FAULT! Voltage sensing circuit!";
+    }
+    if ((datalayer_extended.stellantisCMPsmart.hardware_fault_status & 0b100) >> 2) {
+      content += "FAULT! Current sensor!";
+    }
+    content += "</h4>";
+
+    content += "<h4>L3 Fault: ";
+    if (datalayer_extended.stellantisCMPsmart.l3_fault == 0) {
+      content += "No Fault";
+    }
+    if (datalayer_extended.stellantisCMPsmart.l3_fault & 0b001) {
+      content += "Cell undervoltage";
+    }
+    if ((datalayer_extended.stellantisCMPsmart.l3_fault & 0b010) >> 1) {
+      content += "Cell overvoltage";
+    }
+    if ((datalayer_extended.stellantisCMPsmart.l3_fault & 0b100) >> 2) {
+      content += "Over temperature";
+    }
+    if ((datalayer_extended.stellantisCMPsmart.l3_fault & 0b1000) >> 3) {
+      content += "Under temperature";
+    }
+    if ((datalayer_extended.stellantisCMPsmart.l3_fault & 0b10000) >> 4) {
+      content += "Over discharge current";
+    }
+    if ((datalayer_extended.stellantisCMPsmart.l3_fault & 0b100000) >> 5) {
+      content += "Pack undedr voltage";
+    }
+    content += "</h4>";
+
+    content += "<h4>Plausibility error: ";
+    if (datalayer_extended.stellantisCMPsmart.plausibility_error == 0) {
+      content += "No error";
+    }
+    if (datalayer_extended.stellantisCMPsmart.plausibility_error & 0b001) {
+      content += "Module temperature plausibility error";
+    }
+    if ((datalayer_extended.stellantisCMPsmart.plausibility_error & 0b010) >> 1) {
+      content += "Cell voltage plausibility error";
+    }
+    if ((datalayer_extended.stellantisCMPsmart.plausibility_error & 0b100) >> 2) {
+      content += "Battery voltlage plausibility error";
+    }
+    if ((datalayer_extended.stellantisCMPsmart.plausibility_error & 0b1000) >> 3) {
+      content += "HVBAT Current plausibility error";
+    }
+    content += "</h4>";
+
     content += "<h4>Alert, cell undervoltage: ";
     if (datalayer_extended.stellantisCMPsmart.alert_cell_undervoltage) {
       content += "Yes </h4>";

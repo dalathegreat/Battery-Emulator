@@ -260,6 +260,9 @@ struct DATALAYER_INFO_CMPSMART {
   uint8_t ev_warning = 0;
   uint8_t insulation_fault = 0;
   uint8_t insulation_circuit_status = 0;
+  uint8_t hardware_fault_status = 0;
+  uint8_t l3_fault = 0;
+  uint8_t plausibility_error;
   bool power_auth = false;
   bool battery_balancing_active = false;
   bool alert_cell_undervoltage = false;

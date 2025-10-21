@@ -78,6 +78,9 @@ void CmpSmartCarBattery::update_values() {
   datalayer_extended.stellantisCMPsmart.alert_cell_poor_consistency = alert_cell_poor_consistency;
   datalayer_extended.stellantisCMPsmart.alert_overcharge = alert_overcharge;
   datalayer_extended.stellantisCMPsmart.alert_contactor_opening = alert_contactor_opening;
+  datalayer_extended.stellantisCMPsmart.hardware_fault_status = hardware_fault_status;
+  datalayer_extended.stellantisCMPsmart.l3_fault = l3_fault;
+  datalayer_extended.stellantisCMPsmart.plausibility_error = plausibility_error;
 }
 
 bool checksum_OK(CAN_frame& rx_frame, uint8_t magic_byte) {
