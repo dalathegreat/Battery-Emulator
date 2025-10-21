@@ -117,9 +117,13 @@ void init_stored_settings() {
         return CAN_Interface::CAN_ADDON_MCP2515;
       case comm_interface::CanFdAddonMcp2518:
         return CAN_Interface::CANFD_ADDON_MCP2518;
+      case comm_interface::RS485:
+      case comm_interface::Modbus:
+      case comm_interface::Highest:
+        return CAN_Interface::NO_CAN_INTERFACE;
     }
 
-    return CAN_Interface::CAN_NATIVE;
+    return CAN_Interface::CAN_NATIVE;  //Failed to determine, return CAN native
   };
 
   can_config.battery = readIf("BATTCOMM");

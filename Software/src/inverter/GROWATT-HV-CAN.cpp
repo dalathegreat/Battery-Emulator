@@ -4,9 +4,9 @@
 
 /* TODO:
 This protocol has not been tested with any inverter. Proceed with extreme caution.
-Search the file for "TODO" to see all the places that might require work /*
+Search the file for "TODO" to see all the places that might require work
 
-/* Growatt BMS CAN-Bus-protocol High Voltage V1.10 2023-11-06
+Growatt BMS CAN-Bus-protocol High Voltage V1.10 2023-11-06
 29-bit identifier
 500kBit/sec
 Big-endian
@@ -18,7 +18,7 @@ Module - A battery module composed of 16 strings of cells
 Pack - A battery pack composed of the BMS and battery modules connected in parallel and series, which can work independently
 FCC - Full charge capacity
 RM - Remaining capacity
-BMS - Battery Information Collector*/
+BMS - Battery Information Collector */
 
 void GrowattHvInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages

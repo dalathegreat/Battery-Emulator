@@ -1,6 +1,8 @@
 #ifndef CMFA_EV_BATTERY_H
 #define CMFA_EV_BATTERY_H
 
+#include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "CMFA-EV-HTML.h"
 #include "CanBattery.h"
 

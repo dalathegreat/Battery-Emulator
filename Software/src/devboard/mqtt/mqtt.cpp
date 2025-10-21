@@ -160,11 +160,11 @@ void create_global_sensor_configs() {
   }
 }
 
-SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS"},
-                                {"PAUSE", "Pause charge/discharge"},
-                                {"RESUME", "Resume charge/discharge"},
-                                {"RESTART", "Restart Battery Emulator"},
-                                {"STOP", "Open Contactors"}};
+SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, nullptr, nullptr},
+                                {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr, nullptr},
+                                {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr, nullptr},
+                                {"RESTART", "Restart Battery Emulator", nullptr, nullptr, nullptr, nullptr},
+                                {"STOP", "Open Contactors", nullptr, nullptr, nullptr, nullptr}};
 
 static String generateCommonInfoAutoConfigTopic(const char* object_id) {
   return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
@@ -638,6 +638,20 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       logging.println(event->error_handle->esp_tls_stack_err);
       logging.print("captured as transport's socket errno");
       logging.println(strerror(event->error_handle->esp_transport_sock_errno));
+      break;
+    case MQTT_EVENT_SUBSCRIBED:
+      break;
+    case MQTT_EVENT_UNSUBSCRIBED:
+      break;
+    case MQTT_EVENT_PUBLISHED:
+      break;
+    case MQTT_EVENT_BEFORE_CONNECT:
+      break;
+    case MQTT_EVENT_DELETED:
+      break;
+    case MQTT_USER_EVENT:
+      break;
+    case MQTT_EVENT_ANY:
       break;
   }
 }

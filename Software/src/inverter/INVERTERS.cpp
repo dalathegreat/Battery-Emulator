@@ -96,6 +96,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
 
     case InverterProtocolType::Sungrow:
       return SungrowInverter::Name;
+
+    case InverterProtocolType::Highest:
+      return "None";
   }
   return nullptr;
 }

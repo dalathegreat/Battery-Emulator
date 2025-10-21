@@ -122,11 +122,9 @@ void MgHsPHEVBattery::update_soc(uint16_t soc_times_ten) {
 }
 
 void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  uint16_t soc1, soc2, cell_id, v;
   switch (rx_frame.ID) {
     case 0x173:
       // Contains cell min/max voltages
-
       v = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       if (v > 0 && v < 0x2000) {
         datalayer.battery.status.cell_max_voltage_mV = v;
@@ -220,9 +218,9 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       }
 
-      if (((rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5]) != 0) {
+      if ((((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) != 0) {
         // 3AC message contains a nonzero voltage (so must have come from CAN1)
-        v = (rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5];
+        v = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]);
         if (v > 0 && v < 4000) {
           datalayer.battery.status.voltage_dV = v * 2.5;
         }
@@ -238,7 +236,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // Per-cell voltages and temps
       cell_id = rx_frame.data.u8[5];
       if (cell_id < 90) {
-        v = 1000 + (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+        v = 1000 + ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
         datalayer.battery.status.cell_voltages_mV[cell_id] = v < 10000 ? v : 0;
         // cell temperature is rx_frame.data.u8[1]-40 but BE doesn't use it
       }

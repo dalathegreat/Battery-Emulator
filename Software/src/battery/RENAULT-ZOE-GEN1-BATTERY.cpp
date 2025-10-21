@@ -9,9 +9,8 @@ https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/veh
 The Zoe BMS apparently does not send total pack voltage, so we use the polled 96x cellvoltages summed up as total voltage
 Still TODO:
 - Automatically detect what vehicle and battery size we are on (Zoe 22/41 , Kangoo 33, Fluence ZE 22/36)
-/*
 
-/* Do not change code below unless you are sure what you are doing */
+ Do not change code below unless you are sure what you are doing */
 
 CAN_frame ZOE_423 = {.FD = false,
                      .ext_ID = false,

@@ -84,24 +84,16 @@ void GrowattWitInverter::update_values() {
   //SOH (%) (Bit 0~ Bit6 SOH Counters) Bit7 low SOH flag (Indicates that battery is in unsafe use)
   GROWATT_1AC6XXXX.data.u8[1] = (datalayer.battery.status.soh_pptt / 100);
   //Rated battery capacity when new (0-50000) dAH
-  GROWATT_1AC6XXXX.data.u8[2];  //TODO
-  GROWATT_1AC6XXXX.data.u8[3];  //TODO
+  //GROWATT_1AC6XXXX.data.u8[2];  //TODO
+  //GROWATT_1AC6XXXX.data.u8[3];  //TODO
 
   //Battery voltage, 0-15000 dV
   GROWATT_1AC7XXXX.data.u8[2] = (datalayer.battery.status.voltage_dV >> 8);
   GROWATT_1AC7XXXX.data.u8[3] = (datalayer.battery.status.voltage_dV & 0x00FF);
   //Battery current, 0-20000dA (offset -1000A)
   // Apply the -1000 offset (add 1000 to the dA value)
-  uint32_t current_value = (int32_t)datalayer.battery.status.current_dA + 1000;
-
-  // Clamp to uint16_t range (0 to 65535)
-  if (current_value < 0) {
-    current_value = 0;
-  } else if (current_value > 65535) {
-    current_value = 65535;
-  }
-  GROWATT_1AC7XXXX.data.u8[4] = (current_value >> 8);
-  GROWATT_1AC7XXXX.data.u8[5] = (current_value & 0x00FF);
+  GROWATT_1AC7XXXX.data.u8[4] = ((datalayer.battery.status.current_dA + 1000) >> 8);
+  GROWATT_1AC7XXXX.data.u8[5] = ((datalayer.battery.status.current_dA + 1000) & 0x00FF);
 }
 
 void GrowattWitInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
