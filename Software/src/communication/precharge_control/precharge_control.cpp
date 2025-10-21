@@ -66,7 +66,7 @@ void handle_precharge_control(unsigned long currentMillis) {
 
   switch (datalayer.system.status.precharge_status) {
     case AUTO_PRECHARGE_IDLE:
-      if (datalayer.system.settings.start_precharging) {
+      if (datalayer.system.info.start_precharging) {
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_START;
       }
       break;
@@ -115,10 +115,10 @@ void handle_precharge_control(unsigned long currentMillis) {
         logging.printf("Precharge: CRITICAL FAILURE (timeout/BMS fault) -> REQUIRES REBOOT\n");
         set_event(EVENT_AUTOMATIC_PRECHARGE_FAILURE, 0);
         // Force stop any further precharge attempts
-        datalayer.system.settings.start_precharging = false;
+        datalayer.system.info.start_precharging = false;
       } else if ((datalayer.battery.status.real_bms_status != BMS_STANDBY &&
                   datalayer.battery.status.real_bms_status != BMS_ACTIVE) ||
-                 datalayer.battery.status.bms_status != ACTIVE || datalayer.system.settings.equipment_stop_active) {
+                 datalayer.battery.status.bms_status != ACTIVE || datalayer.system.info.equipment_stop_active) {
         pinMode(hia4v1_pin, OUTPUT);
         digitalWrite(hia4v1_pin, LOW);
         digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_ON);
@@ -134,7 +134,7 @@ void handle_precharge_control(unsigned long currentMillis) {
       break;
 
     case AUTO_PRECHARGE_COMPLETED:
-      if (datalayer.system.settings.equipment_stop_active || datalayer.battery.status.bms_status != ACTIVE) {
+      if (datalayer.system.info.equipment_stop_active || datalayer.battery.status.bms_status != ACTIVE) {
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
         logging.printf("Precharge: equipment stop activated -> IDLE\n");
       }
@@ -142,8 +142,8 @@ void handle_precharge_control(unsigned long currentMillis) {
 
     case AUTO_PRECHARGE_OFF:
       if (!datalayer.system.status.battery_allows_contactor_closing ||
-          !datalayer.system.status.inverter_allows_contactor_closing ||
-          datalayer.system.settings.equipment_stop_active || datalayer.battery.status.bms_status != FAULT) {
+          !datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.info.equipment_stop_active ||
+          datalayer.battery.status.bms_status != FAULT) {
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
         pinMode(hia4v1_pin, OUTPUT);
         digitalWrite(hia4v1_pin, LOW);

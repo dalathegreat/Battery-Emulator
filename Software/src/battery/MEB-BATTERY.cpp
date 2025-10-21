@@ -1355,7 +1355,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
     //HV request and DC/DC control lies in 0x503
 
-    if ((!datalayer.system.settings.equipment_stop_active) && datalayer.battery.status.real_bms_status != BMS_FAULT &&
+    if ((!datalayer.system.info.equipment_stop_active) && datalayer.battery.status.real_bms_status != BMS_FAULT &&
         (datalayer.battery.status.real_bms_status == BMS_ACTIVE ||
          (datalayer.battery.status.real_bms_status == BMS_STANDBY &&
           (hv_requested ||
@@ -1363,7 +1363,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
             labs(((int32_t)datalayer.battery.status.voltage_dV) -
                  ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
       hv_requested = true;
-      datalayer.system.settings.start_precharging = false;
+      datalayer.system.info.start_precharging = false;
       if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
         logging.printf("MEB: Requesting HV\n");
       }
@@ -1381,11 +1381,11 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
       MEB_503.data.u8[5] = 0x82;  // Bordnetz Active
       MEB_503.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
     } else if ((first_can_msg > 0 && currentMillis > first_can_msg + 1000 && BMS_mode != 7) ||
-               datalayer.system.settings.equipment_stop_active) {  //FAULT STATE, open contactors
+               datalayer.system.info.equipment_stop_active) {  //FAULT STATE, open contactors
 
       if (datalayer.battery.status.bms_status != FAULT && datalayer.battery.status.real_bms_status == BMS_STANDBY &&
-          !datalayer.system.settings.equipment_stop_active) {
-        datalayer.system.settings.start_precharging = true;
+          !datalayer.system.info.equipment_stop_active) {
+        datalayer.system.info.start_precharging = true;
       }
 
       if (MEB_503.data.u8[3] != BMS_TARGET_HV_OFF) {

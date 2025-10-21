@@ -288,6 +288,8 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   bool can_2518_send_fail = false;
   /** bool, determines if detailed performance measurement should be shown on webserver */
   bool performance_measurement_active = false;
+  bool equipment_stop_active = false;  //Has user enabled equipment stop?
+  bool start_precharging = false;      //Is precharge ongoing?
 };
 
 struct DATALAYER_SYSTEM_STATUS_TYPE {
@@ -354,15 +356,9 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   bool BMS_startup_in_progress = false;
 };
 
-struct DATALAYER_SYSTEM_SETTINGS_TYPE {
-  bool equipment_stop_active = false;
-  bool start_precharging = false;
-};
-
 struct DATALAYER_SYSTEM_TYPE {
   DATALAYER_SYSTEM_INFO_TYPE info;
   DATALAYER_SYSTEM_STATUS_TYPE status;
-  DATALAYER_SYSTEM_SETTINGS_TYPE settings;
 };
 
 class DataLayer {
