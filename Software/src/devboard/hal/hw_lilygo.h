@@ -90,6 +90,12 @@ class LilyGoHal : public Esp32Hal {
         return "CAN (MCP2515 add-on)";
       case comm_interface::CanFdAddonMcp2518:
         return "CAN FD (MCP2518 add-on)";
+      case comm_interface::Modbus:
+        return "Modbus";
+      case comm_interface::RS485:
+        return "RS485";
+      case comm_interface::Highest:
+        return "";
     }
     return Esp32Hal::name_for_comm_interface(comm);
   }
