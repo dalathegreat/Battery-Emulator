@@ -292,6 +292,7 @@ void handle_BMSpower() {
 
       datalayer.system.status.BMS_startup_in_progress = false;  // Reset the BMS warmup removal flag
       set_event(EVENT_PERIODIC_BMS_RESET, 0);
+      clear_event(EVENT_PERIODIC_BMS_RESET);
     }
   }
 }
