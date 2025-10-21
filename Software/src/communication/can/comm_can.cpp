@@ -444,7 +444,7 @@ void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection ms
                      (int)(interface * 2) + (msgDir == MSG_RX ? 0 : 1));
 
   // Add ID and DLC
-  offset += snprintf(message_string + offset, message_string_size - offset, "%X [%u] ", frame.ID, frame.DLC);
+  offset += snprintf(message_string + offset, message_string_size - offset, "%lX [%u] ", frame.ID, frame.DLC);
 
   // Add data bytes
   for (uint8_t i = 0; i < frame.DLC; i++) {

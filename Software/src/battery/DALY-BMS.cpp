@@ -16,7 +16,7 @@ static uint16_t voltage_dV = 0;
 static uint32_t remaining_capacity_mAh = 0;
 static uint16_t cellvoltages_mV[48] = {0};
 static uint16_t cellvoltage_min_mV = 3700;
-static uint16_t cellvoltage_max_mV = 0;
+static uint16_t cellvoltage_max_mV = 3700;
 static uint16_t cell_count = 0;
 static uint16_t SOC = 0;
 static bool has_fault = false;
@@ -195,9 +195,10 @@ void DalyBms::receive() {
 
     recv_len++;
 
-    if (recv_len > 0 && recv_buff[0] != 0xA5 || recv_len > 1 && recv_buff[1] != 0x01 ||
-        recv_len > 2 && (recv_buff[2] < 0x90 || recv_buff[2] > 0x98) || recv_len > 3 && recv_buff[3] != 8 ||
-        recv_len > 12 && recv_buff[12] != calculate_checksum(recv_buff)) {
+    if (((recv_len > 0) && (recv_buff[0] != 0xA5)) || ((recv_len > 1) && (recv_buff[1] != 0x01)) ||
+        ((recv_len > 2) && ((recv_buff[2] < 0x90) || (recv_buff[2] > 0x98))) ||
+        ((recv_len > 3) && (recv_buff[3] != 8)) ||
+        ((recv_len > 12) && (recv_buff[12] != calculate_checksum(recv_buff)))) {
       dump_buff("dropping partial rx: ", recv_buff, recv_len);
       recv_len = 0;
     }
