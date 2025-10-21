@@ -70,7 +70,7 @@ static uint16_t estimateSOC(uint16_t cellVoltage) {  // Linear interpolation fun
 
   for (int i = 1; i < numEntries; ++i) {
     if (cellVoltage >= voltage_lookup[i]) {
-      double t = (cellVoltage - voltage_lookup[i]) / (voltage_lookup[i - 1] - voltage_lookup[i]);
+      float t = (cellVoltage - voltage_lookup[i]) / (voltage_lookup[i - 1] - voltage_lookup[i]);
       return SOC[i] + t * (SOC[i - 1] - SOC[i]);
     }
   }
