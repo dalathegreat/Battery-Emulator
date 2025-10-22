@@ -1018,7 +1018,7 @@ TwsRoute *default_handlers[] = {
     nullptr,
 };
 
-TinyWebServer tinyWebServer(12345, default_handlers);
+TinyWebServer tinyWebServer(80, default_handlers);
 
 const char *hex = "0123456789abcdef";
 

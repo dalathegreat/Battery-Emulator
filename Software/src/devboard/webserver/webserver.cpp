@@ -1,3 +1,4 @@
+#if false
 #include "webserver.h"
 #include <Preferences.h>
 #include <ctime>
@@ -1773,3 +1774,10 @@ String formatPowerValue(T value, String unit, int precision) {
   result += unit;
   return result;
 }
+#else
+#include "../utils/types.h"
+bool settingsUpdated = false;
+const char* getCANInterfaceName(CAN_Interface interface) {
+  return "";
+}
+#endif
