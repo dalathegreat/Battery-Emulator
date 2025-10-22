@@ -575,11 +575,11 @@ void setup() {
 
   // Initialize Task Watchdog for subscribed tasks
 #ifdef CONFIG_IDF_TARGET_ESP32S3
-  // ESP32-S3 uses older watchdog API
-  #ifdef CONFIG_ESP_TASK_WDT
-    // ESP-IDF will have already initialized it, so deinit and reinit with our settings.
-    esp_task_wdt_deinit();
-  #endif
+// ESP32-S3 uses older watchdog API
+#ifdef CONFIG_ESP_TASK_WDT
+  // ESP-IDF will have already initialized it, so deinit and reinit with our settings.
+  esp_task_wdt_deinit();
+#endif
   // 5s timeout, panic on timeout
   esp_task_wdt_init(INTERVAL_5_S / 1000, true);
 #else
@@ -592,15 +592,15 @@ void setup() {
                                       .idle_core_mask = 0,
                                       // Panic (and reboot) on timeout
                                       .trigger_panic = true};
-  #ifdef CONFIG_ESP_TASK_WDT
-    // ESP-IDF will have already initialized it, so reconfigure.
-    // Arduino and PlatformIO have different watchdog defaults, so we reconfigure
-    // for consistency.
-    esp_task_wdt_reconfigure(&wdt_config);
-  #else
-    // Otherwise initialize it for the first time.
-    esp_task_wdt_init(&wdt_config);
-  #endif
+#ifdef CONFIG_ESP_TASK_WDT
+  // ESP-IDF will have already initialized it, so reconfigure.
+  // Arduino and PlatformIO have different watchdog defaults, so we reconfigure
+  // for consistency.
+  esp_task_wdt_reconfigure(&wdt_config);
+#else
+  // Otherwise initialize it for the first time.
+  esp_task_wdt_init(&wdt_config);
+#endif
 #endif
 
   // Start tasks

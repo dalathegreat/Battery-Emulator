@@ -3,8 +3,8 @@
 
 #include <driver/gpio.h>
 #include <chrono>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 #include "../../../src/communication/nvm/comm_nvm.h"
 #include "../../../src/devboard/utils/events.h"
 #include "../../../src/devboard/utils/logging.h"

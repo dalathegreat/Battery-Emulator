@@ -56,11 +56,15 @@ class DevKitHal : public Esp32Hal {
 
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return (gpio_num_t)ESP32S3_HIA4V1_PIN; }
-  virtual gpio_num_t INVERTER_DISCONNECT_CONTACTOR_PIN() { return (gpio_num_t)ESP32S3_INVERTER_DISCONNECT_CONTACTOR_PIN; }
+  virtual gpio_num_t INVERTER_DISCONNECT_CONTACTOR_PIN() {
+    return (gpio_num_t)ESP32S3_INVERTER_DISCONNECT_CONTACTOR_PIN;
+  }
 
   // SMA CAN contactor pins
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() { return (gpio_num_t)ESP32S3_INVERTER_CONTACTOR_ENABLE_PIN; }
-  virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return (gpio_num_t)ESP32S3_INVERTER_CONTACTOR_ENABLE_LED_PIN; }
+  virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() {
+    return (gpio_num_t)ESP32S3_INVERTER_CONTACTOR_ENABLE_LED_PIN;
+  }
 
   // LED
   virtual gpio_num_t LED_PIN() { return (gpio_num_t)ESP32S3_LED_PIN; }
