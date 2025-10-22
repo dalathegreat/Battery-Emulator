@@ -242,6 +242,7 @@ const StringSetting STRING_SETTINGS[] = {
     // Name, max length
     {"SSID", 32},
     {"PASSWORD", 64},
+    {"APNAME", 64},
     {"APPASSWORD", 64},
     {"HOSTNAME", 64},
     {"MQTTSERVER", 64},
@@ -278,6 +279,7 @@ const char* BOOL_SETTINGS[] = {
     "MQTTCELLV",
     "HADISC",
     "INVICNT",
+    "DEYEBYD",
     "INTERLOCKREQ",
     "DIGITALHVIL",
     "GTWRHD",
@@ -475,20 +477,20 @@ TwsHandler *default_handlers[] = {
             bat["protocol"] = datalayer.system.info.battery_protocol;
             bat["chemistry"] = battery.info.chemistry;
             bat["soc_scaling"] = battery.settings.soc_scaling_active;
-            bat["real_soc"] = static_cast<float>(battery.status.real_soc) / 100.0;
-            bat["reported_soc"] = static_cast<float>(battery.status.reported_soc) / 100.0;
-            bat["soh"] = static_cast<float>(battery.status.soh_pptt) / 100.0;
-            bat["v"] = static_cast<float>(battery.status.voltage_dV) / 10.0;
-            bat["i"] = static_cast<float>(battery.status.current_dA) / 10.0;
+            bat["real_soc"] = static_cast<float>(battery.status.real_soc) / 100.0f;
+            bat["reported_soc"] = static_cast<float>(battery.status.reported_soc) / 100.0f;
+            bat["soh"] = static_cast<float>(battery.status.soh_pptt) / 100.0f;
+            bat["v"] = static_cast<float>(battery.status.voltage_dV) / 10.0f;
+            bat["i"] = static_cast<float>(battery.status.current_dA) / 10.0f;
             bat["p"] = battery.status.active_power_W;
             bat["total_capacity"] = battery.info.total_capacity_Wh;
             bat["reported_total_capacity"] = battery.info.reported_total_capacity_Wh;
             bat["remaining_capacity"] = battery.status.remaining_capacity_Wh;
             bat["reported_remaining_capacity"] = battery.status.reported_remaining_capacity_Wh;
-            bat["temp_max"] = static_cast<float>(battery.status.temperature_max_dC) / 10.0;
-            bat["temp_min"] = static_cast<float>(battery.status.temperature_min_dC) / 10.0;
-            bat["charge_i_max"] = static_cast<float>(battery.status.max_charge_current_dA) / 10.0;
-            bat["discharge_i_max"] = static_cast<float>(battery.status.max_discharge_current_dA) / 10.0;
+            bat["temp_max"] = static_cast<float>(battery.status.temperature_max_dC) / 10.0f;
+            bat["temp_min"] = static_cast<float>(battery.status.temperature_min_dC) / 10.0f;
+            bat["charge_i_max"] = static_cast<float>(battery.status.max_charge_current_dA) / 10.0f;
+            bat["discharge_i_max"] = static_cast<float>(battery.status.max_discharge_current_dA) / 10.0f;
             bat["charge_p_max"] = battery.status.max_charge_power_W;
             bat["discharge_p_max"] = battery.status.max_discharge_power_W;
             bat["cell_mv_max"] = battery.status.cell_max_voltage_mV;
@@ -519,16 +521,16 @@ TwsHandler *default_handlers[] = {
     new TwsHandler("/api/cells", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
         JsonArray battery = doc["battery"].to<JsonArray>();
         JsonObject bat = battery.add<JsonObject>();
-        bat["temp_min"] = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0;
-        bat["temp_max"] = static_cast<float>(datalayer.battery.status.temperature_max_dC) / 10.0;
+        bat["temp_min"] = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0f;
+        bat["temp_max"] = static_cast<float>(datalayer.battery.status.temperature_max_dC) / 10.0f;
         JsonArray data = bat["voltages"].to<JsonArray>();
         for(size_t i=0;i<datalayer.battery.info.number_of_cells && i<MAX_AMOUNT_CELLS;i++) {
             data.add(datalayer.battery.status.cell_voltages_mV[i]);
         }
         if(battery2) {
             JsonObject bat2 = battery.add<JsonObject>();
-            bat2["temp_min"] = static_cast<float>(datalayer.battery2.status.temperature_min_dC) / 10.0;
-            bat2["temp_max"] = static_cast<float>(datalayer.battery2.status.temperature_max_dC) / 10.0;
+            bat2["temp_min"] = static_cast<float>(datalayer.battery2.status.temperature_min_dC) / 10.0f;
+            bat2["temp_max"] = static_cast<float>(datalayer.battery2.status.temperature_max_dC) / 10.0f;
             JsonArray data2 = bat2["voltages"].to<JsonArray>();
             for(size_t i=0;i<datalayer.battery2.info.number_of_cells && i<MAX_AMOUNT_CELLS;i++) {
                 data2.add(datalayer.battery2.status.cell_voltages_mV[i]);
@@ -536,6 +538,33 @@ TwsHandler *default_handlers[] = {
         }
     })),
     &settingsHandler,
+    new TwsHandler("/api/live", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+        JsonArray batteries = doc["battery"].to<JsonArray>();
+        auto add_battery = [&](auto battery) {
+            JsonObject bat = batteries.add<JsonObject>();
+            // use reported or real?
+            bat["soc"] = static_cast<float>(battery.status.reported_soc) / 100.0f;
+            bat["i"] = static_cast<float>(battery.status.current_dA) / 10.0f;
+        };
+
+        if(battery) {
+            add_battery(datalayer.battery);
+            if(battery2) add_battery(datalayer.battery2);
+        }
+
+        JsonArray events = doc["events"].to<JsonArray>();
+
+        uint64_t current_timestamp = millis64();
+        for (int i = 0; i < EVENT_NOF_EVENTS; i++) {
+            auto event_pointer = get_event_pointer((EVENTS_ENUM_TYPE)i);
+            if (event_pointer->occurences > 0) {
+                JsonObject ev = events.add<JsonObject>();
+                ev["age"] = current_timestamp - event_pointer->timestamp;
+                ev["level"] = get_event_level_string((EVENTS_ENUM_TYPE)i);
+            }
+        }        
+    })),
+
     new TwsHandler("/api/tesla", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
         auto &d = datalayer_extended.tesla;
         JsonArray vals = doc["data"].to<JsonArray>();
