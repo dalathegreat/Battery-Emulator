@@ -12,119 +12,119 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     String content;
 
     float beginning_of_life = static_cast<float>(datalayer_extended.tesla.battery_beginning_of_life);
-    float battTempPct = static_cast<float>(datalayer_extended.tesla.battery_battTempPct) * 0.4;
-    float dcdcLvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625;
-    float dcdcHvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcHvBusVolt) * 0.146484;
-    float dcdcLvOutputCurrent = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1;
+    float battTempPct = static_cast<float>(datalayer_extended.tesla.battery_battTempPct) * 0.4f;
+    float dcdcLvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625f;
+    float dcdcHvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcHvBusVolt) * 0.146484f;
+    float dcdcLvOutputCurrent = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
     float nominal_full_pack_energy =
-        static_cast<float>(datalayer_extended.tesla.battery_nominal_full_pack_energy) * 0.1;
+        static_cast<float>(datalayer_extended.tesla.battery_nominal_full_pack_energy) * 0.1f;
     float nominal_full_pack_energy_m0 =
-        static_cast<float>(datalayer_extended.tesla.battery_nominal_full_pack_energy_m0) * 0.02;
+        static_cast<float>(datalayer_extended.tesla.battery_nominal_full_pack_energy_m0) * 0.02f;
     float nominal_energy_remaining =
-        static_cast<float>(datalayer_extended.tesla.battery_nominal_energy_remaining) * 0.1;
+        static_cast<float>(datalayer_extended.tesla.battery_nominal_energy_remaining) * 0.1f;
     float nominal_energy_remaining_m0 =
-        static_cast<float>(datalayer_extended.tesla.battery_nominal_energy_remaining_m0) * 0.02;
-    float ideal_energy_remaining = static_cast<float>(datalayer_extended.tesla.battery_ideal_energy_remaining) * 0.1;
+        static_cast<float>(datalayer_extended.tesla.battery_nominal_energy_remaining_m0) * 0.02f;
+    float ideal_energy_remaining = static_cast<float>(datalayer_extended.tesla.battery_ideal_energy_remaining) * 0.1f;
     float ideal_energy_remaining_m0 =
-        static_cast<float>(datalayer_extended.tesla.battery_ideal_energy_remaining_m0) * 0.02;
+        static_cast<float>(datalayer_extended.tesla.battery_ideal_energy_remaining_m0) * 0.02f;
     float energy_to_charge_complete =
-        static_cast<float>(datalayer_extended.tesla.battery_energy_to_charge_complete) * 0.1;
+        static_cast<float>(datalayer_extended.tesla.battery_energy_to_charge_complete) * 0.1f;
     float energy_to_charge_complete_m1 =
-        static_cast<float>(datalayer_extended.tesla.battery_energy_to_charge_complete_m1) * 0.02;
-    float energy_buffer = static_cast<float>(datalayer_extended.tesla.battery_energy_buffer) * 0.1;
-    float energy_buffer_m1 = static_cast<float>(datalayer_extended.tesla.battery_energy_buffer_m1) * 0.01;
+        static_cast<float>(datalayer_extended.tesla.battery_energy_to_charge_complete_m1) * 0.02f;
+    float energy_buffer = static_cast<float>(datalayer_extended.tesla.battery_energy_buffer) * 0.1f;
+    float energy_buffer_m1 = static_cast<float>(datalayer_extended.tesla.battery_energy_buffer_m1) * 0.01f;
     float expected_energy_remaining_m1 =
-        static_cast<float>(datalayer_extended.tesla.battery_expected_energy_remaining_m1) * 0.02;
-    float total_discharge = static_cast<float>(datalayer.battery.status.total_discharged_battery_Wh) * 0.001;
-    float total_charge = static_cast<float>(datalayer.battery.status.total_charged_battery_Wh) * 0.001;
+        static_cast<float>(datalayer_extended.tesla.battery_expected_energy_remaining_m1) * 0.02f;
+    float total_discharge = static_cast<float>(datalayer.battery.status.total_discharged_battery_Wh) * 0.001f;
+    float total_charge = static_cast<float>(datalayer.battery.status.total_charged_battery_Wh) * 0.001f;
     float packMass = static_cast<float>(datalayer_extended.tesla.battery_packMass);
     float platformMaxBusVoltage =
-        static_cast<float>(datalayer_extended.tesla.battery_platformMaxBusVoltage) * 0.1 + 375;
-    float bms_min_voltage = static_cast<float>(datalayer_extended.tesla.BMS_min_voltage) * 0.01 * 2;
-    float bms_max_voltage = static_cast<float>(datalayer_extended.tesla.BMS_max_voltage) * 0.01 * 2;
+        static_cast<float>(datalayer_extended.tesla.battery_platformMaxBusVoltage) * 0.1f + 375;
+    float bms_min_voltage = static_cast<float>(datalayer_extended.tesla.BMS_min_voltage) * 0.01f * 2;
+    float bms_max_voltage = static_cast<float>(datalayer_extended.tesla.BMS_max_voltage) * 0.01f * 2;
     float max_charge_current = static_cast<float>(datalayer_extended.tesla.battery_max_charge_current);
     float max_discharge_current = static_cast<float>(datalayer_extended.tesla.battery_max_discharge_current);
-    float soc_ave = static_cast<float>(datalayer_extended.tesla.battery_soc_ave) * 0.1;
-    float soc_max = static_cast<float>(datalayer_extended.tesla.battery_soc_max) * 0.1;
-    float soc_min = static_cast<float>(datalayer_extended.tesla.battery_soc_min) * 0.1;
-    float soc_ui = static_cast<float>(datalayer_extended.tesla.battery_soc_ui) * 0.1;
-    float BrickVoltageMax = static_cast<float>(datalayer_extended.tesla.battery_BrickVoltageMax) * 0.002;
-    float BrickVoltageMin = static_cast<float>(datalayer_extended.tesla.battery_BrickVoltageMin) * 0.002;
+    float soc_ave = static_cast<float>(datalayer_extended.tesla.battery_soc_ave) * 0.1f;
+    float soc_max = static_cast<float>(datalayer_extended.tesla.battery_soc_max) * 0.1f;
+    float soc_min = static_cast<float>(datalayer_extended.tesla.battery_soc_min) * 0.1f;
+    float soc_ui = static_cast<float>(datalayer_extended.tesla.battery_soc_ui) * 0.1f;
+    float BrickVoltageMax = static_cast<float>(datalayer_extended.tesla.battery_BrickVoltageMax) * 0.002f;
+    float BrickVoltageMin = static_cast<float>(datalayer_extended.tesla.battery_BrickVoltageMin) * 0.002f;
     //float BrickModelTMax = static_cast<float>(datalayer_extended.tesla.battery_BrickModelTMax) * 0.5 - 40;
     //float BrickModelTMin = static_cast<float>(datalayer_extended.tesla.battery_BrickModelTMin) * 0.5 - 40;
     float isolationResistance = static_cast<float>(datalayer_extended.tesla.BMS_isolationResistance) * 10;
     float PCS_dcdcMaxOutputCurrentAllowed =
-        static_cast<float>(datalayer_extended.tesla.PCS_dcdcMaxOutputCurrentAllowed) * 0.1;
-    float PCS_dcdcTemp = static_cast<float>(datalayer_extended.tesla.PCS_dcdcTemp) * 0.1 + 40;
-    float PCS_ambientTemp = static_cast<float>(datalayer_extended.tesla.PCS_ambientTemp) * 0.1 + 40;
-    float PCS_chgPhATemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhATemp) * 0.1 + 40;
-    float PCS_chgPhBTemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhBTemp) * 0.1 + 40;
-    float PCS_chgPhCTemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhCTemp) * 0.1 + 40;
-    float BMS_maxRegenPower = static_cast<float>(datalayer_extended.tesla.BMS_maxRegenPower) * 0.01;
-    float BMS_maxDischargePower = static_cast<float>(datalayer_extended.tesla.BMS_maxDischargePower) * 0.013;
-    //float BMS_maxStationaryHeatPower = static_cast<float>(datalayer_extended.tesla.BMS_maxStationaryHeatPower) * 0.01;
+        static_cast<float>(datalayer_extended.tesla.PCS_dcdcMaxOutputCurrentAllowed) * 0.1f;
+    float PCS_dcdcTemp = static_cast<float>(datalayer_extended.tesla.PCS_dcdcTemp) * 0.1f + 40;
+    float PCS_ambientTemp = static_cast<float>(datalayer_extended.tesla.PCS_ambientTemp) * 0.1f + 40;
+    float PCS_chgPhATemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhATemp) * 0.1f + 40;
+    float PCS_chgPhBTemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhBTemp) * 0.1f + 40;
+    float PCS_chgPhCTemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhCTemp) * 0.1f + 40;
+    float BMS_maxRegenPower = static_cast<float>(datalayer_extended.tesla.BMS_maxRegenPower) * 0.01f;
+    float BMS_maxDischargePower = static_cast<float>(datalayer_extended.tesla.BMS_maxDischargePower) * 0.013f;
+    //float BMS_maxStationaryHeatPower = static_cast<float>(datalayer_extended.tesla.BMS_maxStationaryHeatPower) * 0.01f;
     //float BMS_hvacPowerBudget = static_cast<float>(datalayer_extended.tesla.BMS_hvacPowerBudget) * 0.02;
-    float BMS_powerDissipation = static_cast<float>(datalayer_extended.tesla.BMS_powerDissipation) * 0.02;
-    float BMS_flowRequest = static_cast<float>(datalayer_extended.tesla.BMS_flowRequest) * 0.3;
+    float BMS_powerDissipation = static_cast<float>(datalayer_extended.tesla.BMS_powerDissipation) * 0.02f;
+    float BMS_flowRequest = static_cast<float>(datalayer_extended.tesla.BMS_flowRequest) * 0.3f;
     float BMS_inletActiveCoolTargetT =
-        static_cast<float>(datalayer_extended.tesla.BMS_inletActiveCoolTargetT) * 0.25 - 25;
-    float BMS_inletPassiveTargetT = static_cast<float>(datalayer_extended.tesla.BMS_inletPassiveTargetT) * 0.25 - 25;
+        static_cast<float>(datalayer_extended.tesla.BMS_inletActiveCoolTargetT) * 0.25f - 25;
+    float BMS_inletPassiveTargetT = static_cast<float>(datalayer_extended.tesla.BMS_inletPassiveTargetT) * 0.25f - 25;
     float BMS_inletActiveHeatTargetT =
-        static_cast<float>(datalayer_extended.tesla.BMS_inletActiveHeatTargetT) * 0.25 - 25;
-    float BMS_packTMin = static_cast<float>(datalayer_extended.tesla.BMS_packTMin) * 0.25 - 25;
-    float BMS_packTMax = static_cast<float>(datalayer_extended.tesla.BMS_packTMax) * 0.25 - 25;
-    float PCS_dcdcMaxLvOutputCurrent = static_cast<float>(datalayer_extended.tesla.PCS_dcdcMaxLvOutputCurrent) * 0.1;
-    float PCS_dcdcCurrentLimit = static_cast<float>(datalayer_extended.tesla.PCS_dcdcCurrentLimit) * 0.1;
+        static_cast<float>(datalayer_extended.tesla.BMS_inletActiveHeatTargetT) * 0.25f - 25;
+    float BMS_packTMin = static_cast<float>(datalayer_extended.tesla.BMS_packTMin) * 0.25f - 25;
+    float BMS_packTMax = static_cast<float>(datalayer_extended.tesla.BMS_packTMax) * 0.25f - 25;
+    float PCS_dcdcMaxLvOutputCurrent = static_cast<float>(datalayer_extended.tesla.PCS_dcdcMaxLvOutputCurrent) * 0.1f;
+    float PCS_dcdcCurrentLimit = static_cast<float>(datalayer_extended.tesla.PCS_dcdcCurrentLimit) * 0.1f;
     float PCS_dcdcLvOutputCurrentTempLimit =
-        static_cast<float>(datalayer_extended.tesla.PCS_dcdcLvOutputCurrentTempLimit) * 0.1;
-    float PCS_dcdcUnifiedCommand = static_cast<float>(datalayer_extended.tesla.PCS_dcdcUnifiedCommand) * 0.001;
+        static_cast<float>(datalayer_extended.tesla.PCS_dcdcLvOutputCurrentTempLimit) * 0.1f;
+    float PCS_dcdcUnifiedCommand = static_cast<float>(datalayer_extended.tesla.PCS_dcdcUnifiedCommand) * 0.001f;
     float PCS_dcdcCLAControllerOutput =
-        static_cast<float>(datalayer_extended.tesla.PCS_dcdcCLAControllerOutput * 0.001);
+        static_cast<float>(datalayer_extended.tesla.PCS_dcdcCLAControllerOutput * 0.001f);
     float PCS_dcdcTankVoltage = static_cast<float>(datalayer_extended.tesla.PCS_dcdcTankVoltage);
     float PCS_dcdcTankVoltageTarget = static_cast<float>(datalayer_extended.tesla.PCS_dcdcTankVoltageTarget);
-    float PCS_dcdcClaCurrentFreq = static_cast<float>(datalayer_extended.tesla.PCS_dcdcClaCurrentFreq) * 0.0976563;
-    float PCS_dcdcTCommMeasured = static_cast<float>(datalayer_extended.tesla.PCS_dcdcTCommMeasured) * 0.00195313;
-    float PCS_dcdcShortTimeUs = static_cast<float>(datalayer_extended.tesla.PCS_dcdcShortTimeUs) * 0.000488281;
-    float PCS_dcdcHalfPeriodUs = static_cast<float>(datalayer_extended.tesla.PCS_dcdcHalfPeriodUs) * 0.000488281;
+    float PCS_dcdcClaCurrentFreq = static_cast<float>(datalayer_extended.tesla.PCS_dcdcClaCurrentFreq) * 0.0976563f;
+    float PCS_dcdcTCommMeasured = static_cast<float>(datalayer_extended.tesla.PCS_dcdcTCommMeasured) * 0.00195313f;
+    float PCS_dcdcShortTimeUs = static_cast<float>(datalayer_extended.tesla.PCS_dcdcShortTimeUs) * 0.000488281f;
+    float PCS_dcdcHalfPeriodUs = static_cast<float>(datalayer_extended.tesla.PCS_dcdcHalfPeriodUs) * 0.000488281f;
     float PCS_dcdcIntervalMaxFrequency = static_cast<float>(datalayer_extended.tesla.PCS_dcdcIntervalMaxFrequency);
     float PCS_dcdcIntervalMaxHvBusVolt =
-        static_cast<float>(datalayer_extended.tesla.PCS_dcdcIntervalMaxHvBusVolt) * 0.1;
+        static_cast<float>(datalayer_extended.tesla.PCS_dcdcIntervalMaxHvBusVolt) * 0.1f;
     float PCS_dcdcIntervalMaxLvBusVolt =
-        static_cast<float>(datalayer_extended.tesla.PCS_dcdcIntervalMaxLvBusVolt) * 0.1;
+        static_cast<float>(datalayer_extended.tesla.PCS_dcdcIntervalMaxLvBusVolt) * 0.1f;
     float PCS_dcdcIntervalMaxLvOutputCurr =
         static_cast<float>(datalayer_extended.tesla.PCS_dcdcIntervalMaxLvOutputCurr);
     float PCS_dcdcIntervalMinFrequency = static_cast<float>(datalayer_extended.tesla.PCS_dcdcIntervalMinFrequency);
     float PCS_dcdcIntervalMinHvBusVolt =
-        static_cast<float>(datalayer_extended.tesla.PCS_dcdcIntervalMinHvBusVolt) * 0.1;
+        static_cast<float>(datalayer_extended.tesla.PCS_dcdcIntervalMinHvBusVolt) * 0.1f;
     float PCS_dcdcIntervalMinLvBusVolt =
-        static_cast<float>(datalayer_extended.tesla.PCS_dcdcIntervalMinLvBusVolt) * 0.1;
+        static_cast<float>(datalayer_extended.tesla.PCS_dcdcIntervalMinLvBusVolt) * 0.1f;
     float PCS_dcdcIntervalMinLvOutputCurr =
         static_cast<float>(datalayer_extended.tesla.PCS_dcdcIntervalMinLvOutputCurr);
     float PCS_dcdc12vSupportLifetimekWh =
-        static_cast<float>(datalayer_extended.tesla.PCS_dcdc12vSupportLifetimekWh) * 0.01;
-    float HVP_hvp1v5Ref = static_cast<float>(datalayer_extended.tesla.HVP_hvp1v5Ref) * 0.1;
-    float HVP_shuntCurrentDebug = static_cast<float>(datalayer_extended.tesla.HVP_shuntCurrentDebug) * 0.1;
-    float HVP_dcLinkVoltage = static_cast<float>(datalayer_extended.tesla.HVP_dcLinkVoltage) * 0.1;
-    float HVP_packVoltage = static_cast<float>(datalayer_extended.tesla.HVP_packVoltage) * 0.1;
-    //float HVP_fcLinkVoltage = static_cast<float>(datalayer_extended.tesla.HVP_fcLinkVoltage) * 0.1;
-    float HVP_packContVoltage = static_cast<float>(datalayer_extended.tesla.HVP_packContVoltage) * 0.1;
-    //float HVP_packNegativeV = static_cast<float>(datalayer_extended.tesla.HVP_packNegativeV) * 0.1;
-    //float HVP_packPositiveV = static_cast<float>(datalayer_extended.tesla.HVP_packPositiveV) * 0.1;
-    float HVP_pyroAnalog = static_cast<float>(datalayer_extended.tesla.HVP_pyroAnalog) * 0.1;
-    //float HVP_dcLinkNegativeV = static_cast<float>(datalayer_extended.tesla.HVP_dcLinkNegativeV) * 0.1;
-    //float HVP_dcLinkPositiveV = static_cast<float>(datalayer_extended.tesla.HVP_dcLinkPositiveV) * 0.1;
-    //float HVP_fcLinkNegativeV = static_cast<float>(datalayer_extended.tesla.HVP_fcLinkNegativeV) * 0.1;
-    //float HVP_fcContCoilCurrent = static_cast<float>(datalayer_extended.tesla.HVP_fcContCoilCurrent) * 0.1;
-    //float HVP_fcContVoltage = static_cast<float>(datalayer_extended.tesla.HVP_fcContVoltage) * 0.1;
-    float HVP_hvilInVoltage = static_cast<float>(datalayer_extended.tesla.HVP_hvilInVoltage) * 0.1;
-    float HVP_hvilOutVoltage = static_cast<float>(datalayer_extended.tesla.HVP_hvilOutVoltage) * 0.1;
-    //float HVP_fcLinkPositiveV = static_cast<float>(datalayer_extended.tesla.HVP_fcLinkPositiveV) * 0.1;
-    float HVP_packContCoilCurrent = static_cast<float>(datalayer_extended.tesla.HVP_packContCoilCurrent) * 0.1;
-    float HVP_battery12V = static_cast<float>(datalayer_extended.tesla.HVP_battery12V) * 0.1;
-    //float HVP_shuntRefVoltageDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntRefVoltageDbg) * 0.001;
-    //float HVP_shuntAuxCurrentDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntAuxCurrentDbg) * 0.1;
-    //float HVP_shuntBarTempDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntBarTempDbg) * 0.01;
-    //float HVP_shuntAsicTempDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntAsicTempDbg) * 0.01;
+        static_cast<float>(datalayer_extended.tesla.PCS_dcdc12vSupportLifetimekWh) * 0.01f;
+    float HVP_hvp1v5Ref = static_cast<float>(datalayer_extended.tesla.HVP_hvp1v5Ref) * 0.1f;
+    float HVP_shuntCurrentDebug = static_cast<float>(datalayer_extended.tesla.HVP_shuntCurrentDebug) * 0.1f;
+    float HVP_dcLinkVoltage = static_cast<float>(datalayer_extended.tesla.HVP_dcLinkVoltage) * 0.1f;
+    float HVP_packVoltage = static_cast<float>(datalayer_extended.tesla.HVP_packVoltage) * 0.1f;
+    //float HVP_fcLinkVoltage = static_cast<float>(datalayer_extended.tesla.HVP_fcLinkVoltage) * 0.1f;
+    float HVP_packContVoltage = static_cast<float>(datalayer_extended.tesla.HVP_packContVoltage) * 0.1f;
+    //float HVP_packNegativeV = static_cast<float>(datalayer_extended.tesla.HVP_packNegativeV) * 0.1f;
+    //float HVP_packPositiveV = static_cast<float>(datalayer_extended.tesla.HVP_packPositiveV) * 0.1f;
+    float HVP_pyroAnalog = static_cast<float>(datalayer_extended.tesla.HVP_pyroAnalog) * 0.1f;
+    //float HVP_dcLinkNegativeV = static_cast<float>(datalayer_extended.tesla.HVP_dcLinkNegativeV) * 0.1f;
+    //float HVP_dcLinkPositiveV = static_cast<float>(datalayer_extended.tesla.HVP_dcLinkPositiveV) * 0.1f;
+    //float HVP_fcLinkNegativeV = static_cast<float>(datalayer_extended.tesla.HVP_fcLinkNegativeV) * 0.1f;
+    //float HVP_fcContCoilCurrent = static_cast<float>(datalayer_extended.tesla.HVP_fcContCoilCurrent) * 0.1f;
+    //float HVP_fcContVoltage = static_cast<float>(datalayer_extended.tesla.HVP_fcContVoltage) * 0.1f;
+    float HVP_hvilInVoltage = static_cast<float>(datalayer_extended.tesla.HVP_hvilInVoltage) * 0.1f;
+    float HVP_hvilOutVoltage = static_cast<float>(datalayer_extended.tesla.HVP_hvilOutVoltage) * 0.1f;
+    //float HVP_fcLinkPositiveV = static_cast<float>(datalayer_extended.tesla.HVP_fcLinkPositiveV) * 0.1f;
+    float HVP_packContCoilCurrent = static_cast<float>(datalayer_extended.tesla.HVP_packContCoilCurrent) * 0.1f;
+    float HVP_battery12V = static_cast<float>(datalayer_extended.tesla.HVP_battery12V) * 0.1f;
+    //float HVP_shuntRefVoltageDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntRefVoltageDbg) * 0.001f;
+    //float HVP_shuntAuxCurrentDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntAuxCurrentDbg) * 0.1f;
+    //float HVP_shuntBarTempDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntBarTempDbg) * 0.01f;
+    //float HVP_shuntAsicTempDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntAsicTempDbg) * 0.01f;
 
     static const char* contactorText[] = {"UNKNOWN(0)",  "OPEN",        "CLOSING",    "BLOCKED", "OPENING",
                                           "CLOSED",      "UNKNOWN(6)",  "WELDED",     "POS_CL",  "NEG_CL",

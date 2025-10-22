@@ -70,7 +70,7 @@ class KiaHyundai64Battery : public CanBattery {
   uint16_t inverterVoltageFrameHigh = 0;
   uint16_t inverterVoltage = 0;
   uint16_t cellvoltages_mv[98];
-  int16_t leadAcidBatteryVoltage = 120;
+  uint16_t leadAcidBatteryVoltage = 120;
   int16_t batteryAmps = 0;
   int16_t temperatureMax = 0;
   int16_t temperatureMin = 0;

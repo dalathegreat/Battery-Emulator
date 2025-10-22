@@ -30,20 +30,20 @@ class ImievCZeroIonBattery : public CanBattery {
   int temp_index = 0;
   uint8_t BMU_SOC = 0;
   int temp_value = 0;
-  double temp1 = 0;
-  double temp2 = 0;
-  double temp3 = 0;
-  double voltage1 = 0;
-  double voltage2 = 0;
-  double BMU_Current = 0;
-  double BMU_PackVoltage = 0;
-  double BMU_Power = 0;
-  double cell_voltages[88];      //array with all the cellvoltages
-  double cell_temperatures[88];  //array with all the celltemperatures
-  double max_volt_cel = 3.70;
-  double min_volt_cel = 3.70;
-  double max_temp_cel = 20.00;
-  double min_temp_cel = 19.00;
+  float temp1 = 0;
+  float temp2 = 0;
+  float temp3 = 0;
+  float voltage1 = 0;
+  float voltage2 = 0;
+  float BMU_Current = 0;
+  float BMU_PackVoltage = 0;
+  float BMU_Power = 0;
+  float cell_voltages[88];      //array with all the cellvoltages
+  float cell_temperatures[88];  //array with all the celltemperatures
+  float max_volt_cel = 3.70f;
+  float min_volt_cel = 3.70f;
+  float max_temp_cel = 20.00f;
+  float min_temp_cel = 19.00f;
 };
 
 #endif

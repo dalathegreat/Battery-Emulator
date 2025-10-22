@@ -211,18 +211,18 @@ static String generateButtonTopic(const char* subtype) {
 
 void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& battery, const String& suffix,
                             bool supports_charged) {
-  doc["SOC" + suffix] = ((float)battery.status.reported_soc) / 100.0;
-  doc["SOC_real" + suffix] = ((float)battery.status.real_soc) / 100.0;
-  doc["state_of_health" + suffix] = ((float)battery.status.soh_pptt) / 100.0;
-  doc["temperature_min" + suffix] = ((float)((int16_t)battery.status.temperature_min_dC)) / 10.0;
-  doc["temperature_max" + suffix] = ((float)((int16_t)battery.status.temperature_max_dC)) / 10.0;
+  doc["SOC" + suffix] = ((float)battery.status.reported_soc) / 100.0f;
+  doc["SOC_real" + suffix] = ((float)battery.status.real_soc) / 100.0f;
+  doc["state_of_health" + suffix] = ((float)battery.status.soh_pptt) / 100.0f;
+  doc["temperature_min" + suffix] = ((float)((int16_t)battery.status.temperature_min_dC)) / 10.0f;
+  doc["temperature_max" + suffix] = ((float)((int16_t)battery.status.temperature_max_dC)) / 10.0f;
   doc["cpu_temp" + suffix] = datalayer.system.info.CPU_temperature;
   doc["stat_batt_power" + suffix] = ((float)((int32_t)battery.status.active_power_W));
-  doc["battery_current" + suffix] = ((float)((int16_t)battery.status.current_dA)) / 10.0;
-  doc["battery_voltage" + suffix] = ((float)battery.status.voltage_dV) / 10.0;
+  doc["battery_current" + suffix] = ((float)((int16_t)battery.status.current_dA)) / 10.0f;
+  doc["battery_voltage" + suffix] = ((float)battery.status.voltage_dV) / 10.0f;
   if (battery.info.number_of_cells != 0u && battery.status.cell_voltages_mV[battery.info.number_of_cells - 1] != 0u) {
-    doc["cell_max_voltage" + suffix] = ((float)battery.status.cell_max_voltage_mV) / 1000.0;
-    doc["cell_min_voltage" + suffix] = ((float)battery.status.cell_min_voltage_mV) / 1000.0;
+    doc["cell_max_voltage" + suffix] = ((float)battery.status.cell_max_voltage_mV) / 1000.0f;
+    doc["cell_min_voltage" + suffix] = ((float)battery.status.cell_min_voltage_mV) / 1000.0f;
     doc["cell_voltage_delta" + suffix] =
         ((float)battery.status.cell_max_voltage_mV) - ((float)battery.status.cell_min_voltage_mV);
   }
@@ -374,7 +374,7 @@ static bool publish_cell_voltages(void) {
 
     JsonArray cell_voltages = doc["cell_voltages"].to<JsonArray>();
     for (size_t i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
-      cell_voltages.add(((float)datalayer.battery.status.cell_voltages_mV[i]) / 1000.0);
+      cell_voltages.add(((float)datalayer.battery.status.cell_voltages_mV[i]) / 1000.0f);
     }
 
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
@@ -393,7 +393,7 @@ static bool publish_cell_voltages(void) {
 
       JsonArray cell_voltages = doc["cell_voltages"].to<JsonArray>();
       for (size_t i = 0; i < datalayer.battery2.info.number_of_cells; ++i) {
-        cell_voltages.add(((float)datalayer.battery2.status.cell_voltages_mV[i]) / 1000.0);
+        cell_voltages.add(((float)datalayer.battery2.status.cell_voltages_mV[i]) / 1000.0f);
       }
 
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));

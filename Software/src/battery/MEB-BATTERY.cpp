@@ -203,26 +203,26 @@ void MebBattery::
 
   datalayer_battery->status.real_soc = battery_SOC * 5;  //*0.05*100
 
-  datalayer_battery->status.voltage_dV = BMS_voltage * 2.5;  // *0.25*10
+  datalayer_battery->status.voltage_dV = BMS_voltage * 2.5f;  // *0.25*10
 
   datalayer_battery->status.current_dA = (BMS_current - 16300);  // 0.1 * 10
 
   if (nof_cells_determined) {
     datalayer_battery->info.total_capacity_Wh =
-        ((float)datalayer_battery->info.number_of_cells) * 3.67 * ((float)BMS_capacity_ah) * 0.2 * 1.02564;
+        ((float)datalayer_battery->info.number_of_cells) * 3.67f * ((float)BMS_capacity_ah) * 0.2f * 1.02564f;
     // The factor 1.02564 = 1/0.975 is to correct for bottom 2.5% which is reported by the remaining_capacity_Wh,
     // but which is not actually usable, but if we do not include it, the remaining_capacity_Wh can be larger than
     // the total_capacity_Wh.
     // 0.935 and 0.9025 are the different conversions for different battery sizes to go from design capacity to
     // total_capacity_Wh calculated above.
 
-    int Wh_max = 61832 * 0.935;  // 108 cells
+    int Wh_max = 61832 * 0.935f;  // 108 cells
     if (datalayer_battery->info.number_of_cells <= 84)
-      Wh_max = 48091 * 0.9025;
+      Wh_max = 48091 * 0.9025f;
     else if (datalayer_battery->info.number_of_cells <= 96)
-      Wh_max = 82442 * 0.9025;
+      Wh_max = 82442 * 0.9025f;
     if (BMS_capacity_ah > 0)
-      datalayer_battery->status.soh_pptt = 10000 * datalayer_battery->info.total_capacity_Wh / (Wh_max * 1.02564);
+      datalayer_battery->status.soh_pptt = 10000 * datalayer_battery->info.total_capacity_Wh / (Wh_max * 1.02564f);
   }
 
   datalayer_battery->status.remaining_capacity_Wh = usable_energy_amount_Wh * 5;
@@ -944,7 +944,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
     //HV request and DC/DC control lies in 0x503
 
-    if ((!datalayer.system.settings.equipment_stop_active) && datalayer.battery.status.real_bms_status != BMS_FAULT &&
+    if ((!datalayer.system.info.equipment_stop_active) && datalayer.battery.status.real_bms_status != BMS_FAULT &&
         (datalayer.battery.status.real_bms_status == BMS_ACTIVE ||
          (datalayer.battery.status.real_bms_status == BMS_STANDBY &&
           (hv_requested ||
@@ -952,7 +952,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
             labs(((int32_t)datalayer.battery.status.voltage_dV) -
                  ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
       hv_requested = true;
-      datalayer.system.settings.start_precharging = false;
+      datalayer.system.info.start_precharging = false;
       if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
         logging.printf("MEB: Requesting HV\n");
       }
@@ -970,11 +970,11 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
       MEB_503.data.u8[5] = 0x82;  // Bordnetz Active
       MEB_503.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
     } else if ((first_can_msg > 0 && currentMillis > first_can_msg + 1000 && BMS_mode != 7) ||
-               datalayer.system.settings.equipment_stop_active) {  //FAULT STATE, open contactors
+               datalayer.system.info.equipment_stop_active) {  //FAULT STATE, open contactors
 
       if (datalayer.battery.status.bms_status != FAULT && datalayer.battery.status.real_bms_status == BMS_STANDBY &&
-          !datalayer.system.settings.equipment_stop_active) {
-        datalayer.system.settings.start_precharging = true;
+          !datalayer.system.info.equipment_stop_active) {
+        datalayer.system.info.start_precharging = true;
       }
 
       if (MEB_503.data.u8[3] != BMS_TARGET_HV_OFF) {
