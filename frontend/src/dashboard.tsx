@@ -1,4 +1,4 @@
-import { createPortal } from 'preact/compat';
+//import { createPortal } from 'preact/compat';
 
 import { useGetApi } from './utils/api.tsx'
 
@@ -46,17 +46,17 @@ export function Dashboard() {
     return <div></div>;
   }
           
-  const tray = document.getElementById('tray');
+  //const tray = document.getElementById('tray');
 
   return <div>
-    { tray && createPortal(
+    { /*tray && createPortal(
         ((data.battery || []).map((battery: any, idx: number) => (
           <div class="battery-level" style={ {"--perc": battery.reported_soc + '%'} } key={idx}>{ sf(battery.reported_soc, 0) }%{
             battery.i > 0.05 ? <span>▲</span> : battery.i < -0.05 ? <span>▼</span> : ''
           }</div>
         ))),
         tray
-    ) }
+    ) */}
     <h2>Dashboard</h2>
       <div class="panel">
         <h3 data-status="warn">System</h3>
