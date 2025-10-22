@@ -89,29 +89,15 @@ class CmpSmartCarBattery : public CanBattery {
                        .ID = 0x552,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE}};
   uint32_t vehicle_time_counter = 0x088B390B;  //Taken from log on 19thOctober2025
-  uint8_t mux = 0;
-  uint8_t startup_counter_432 = 0;
-  uint8_t counter_10ms = 0;
-  uint8_t counter_50ms = 0;
-  uint8_t counter_60ms = 0;
-  uint8_t counter_100ms = 0;
-  uint8_t checksum217[16] = {0x50, 0x41, 0xB2, 0xA3, 0x14, 0x05, 0xF6, 0xE7,
-                             0x58, 0xC9, 0xBA, 0xAB, 0x1C, 0x8D, 0x7E, 0x6F};
-  uint8_t checksum351[16] = {0x0F, 0xF0, 0xE1, 0xD2, 0xC3, 0xB4, 0xA5, 0x96,
-                             0x87, 0x78, 0x69, 0x5A, 0x4B, 0x3C, 0x2D, 0x1E};
-  uint8_t precalculated432[16] = {0x12, 0x11, 0x10, 0x1F, 0x1E, 0x1D, 0x1C, 0x1B,
-                                  0x1A, 0x19, 0x18, 0x17, 0x16, 0x15, 0x14, 0x13};
-  int16_t temperature_sensors[16];
-  uint16_t battery_soc = 5000;
-  uint16_t battery_voltage = 3300;
-  uint8_t battery_state = 0;
-  uint8_t battery_fault = 0;
-  int16_t battery_current = 0;
-  uint8_t battery_negative_contactor_state = 0;
-  uint8_t battery_precharge_contactor_state = 0;
-  uint8_t battery_positive_contactor_state = 0;
-  uint8_t battery_connect_status = 0;
-  uint8_t battery_charging_status = 0;
+  uint32_t main_contactor_cycle_count = 0;
+  uint32_t QC_contactor_cycle_count = 0;
+  uint32_t lifetime_kWh_charged = 0;
+  uint32_t lifetime_kWh_discharged = 0;
+  uint32_t remaining_energy_Wh = 0;
+  uint32_t total_energy_when_full_Wh = 41400;
+  uint32_t total_coloumb_counting_Ah = 0;
+  uint32_t total_coulomb_counting_kWh = 0;
+
   uint16_t discharge_available_10s_power = 0;
   uint16_t discharge_available_10s_current = 0;
   uint16_t discharge_cont_available_power = 0;
@@ -122,16 +108,67 @@ class CmpSmartCarBattery : public CanBattery {
   uint16_t regen_charge_30s_power = 0;
   uint16_t regen_charge_30s_current = 0;
   uint16_t regen_charge_cont_current = 0;
-  uint8_t battery_quickcharge_connect_status = 0;
   uint16_t regen_charge_10s_current = 0;
   uint16_t regen_charge_10s_power = 0;
   uint16_t quick_charge_port_voltage = 0;
+  uint16_t insulation_resistance_kOhm = 0;
+  uint16_t DC_bus_voltage = 0;
+  uint16_t charge_max_voltage = 0;
+  uint16_t charge_cont_curr_max = 0;
+  uint16_t charge_cont_curr_req = 0;
+  uint16_t hours_spent_overvoltage = 0;
+  uint16_t hours_spent_overtemperature = 0;
+  uint16_t hours_spent_undertemperature = 0;
+  uint16_t battery_soc = 5000;
+  uint16_t battery_voltage = 3300;
+  uint16_t min_cell_voltage = 3300;
+  uint16_t max_cell_voltage = 3300;
+  uint16_t nominal_voltage = 0;
+  uint16_t charge_continue_power_limit = 0;
+  uint16_t charge_energy_amount_requested = 0;
+  uint16_t hours_spent_exceeding_charge_power = 0;
+  uint16_t hours_spent_exceeding_discharge_power = 0;
+  uint16_t SOC_actual = 0;
+
+  int16_t battery_temperature_average = 0;
+  int16_t battery_temperature_maximum = 0;
+  int16_t coolant_temperature = 0;
+  int16_t battery_temperature_minimum = 0;
+  int16_t battery_current = 0;
+
+  uint8_t battery_quickcharge_connect_status = 0;
   uint8_t qc_negative_contactor_status = 0;
   uint8_t qc_positive_contactor_status = 0;
-  bool battery_balancing_active = false;
   uint8_t eplug_status = 0;
   uint8_t ev_warning = 0;
-  bool power_auth = false;
+  uint8_t battery_state = 0;
+  uint8_t battery_fault = 0;
+  uint8_t battery_negative_contactor_state = 0;
+  uint8_t battery_precharge_contactor_state = 0;
+  uint8_t battery_positive_contactor_state = 0;
+  uint8_t battery_connect_status = 0;
+  uint8_t battery_charging_status = 0;
+  uint8_t min_cell_voltage_number = 0;
+  uint8_t max_cell_voltage_number = 0;
+  uint8_t bulk_SOC_DC_limit = 0;
+  uint8_t mux = 0;
+  uint8_t startup_counter_432 = 0;
+  uint8_t counter_10ms = 0;
+  uint8_t counter_50ms = 0;
+  uint8_t counter_60ms = 0;
+  uint8_t counter_100ms = 0;
+  uint8_t SOH_internal_resistance = 0;
+  uint8_t SOH_estimated = 0;
+  uint8_t max_temperature_probe_number = 0;
+  uint8_t min_temperature_probe_number = 0;
+  uint8_t number_of_temperature_sensors = 0;
+  uint8_t number_of_cells = 0;
+  uint8_t coolant_temperature_warning = 0;
+  uint8_t heater_relay_status = 0;
+  uint8_t preheating_status = 0;
+  uint8_t thermal_control = 0;
+  uint8_t thermal_runaway = 0;
+  uint8_t thermal_runaway_module_ID = 0;
   uint8_t HVIL_status = 0;
   uint8_t hardware_fault_status = 0;
   uint8_t insulation_fault = 0;
@@ -141,40 +178,10 @@ class CmpSmartCarBattery : public CanBattery {
   uint8_t service_due = 0;
   uint8_t l3_fault = 0;
   uint8_t master_warning = 0;
-  uint16_t insulation_resistance_kOhm = 0;
-  uint16_t DC_bus_voltage = 0;
-  uint16_t charge_max_voltage = 0;
-  uint16_t charge_cont_curr_max = 0;
-  uint16_t charge_cont_curr_req = 0;
-  uint16_t hours_spent_overvoltage = 0;
-  uint16_t hours_spent_overtemperature = 0;
-  uint16_t hours_spent_undertemperature = 0;
-  uint32_t total_coloumb_counting_Ah = 0;
-  uint32_t total_coulomb_counting_kWh = 0;
-  int16_t battery_temperature_maximum = 0;
-  uint16_t min_cell_voltage = 3300;
-  uint16_t max_cell_voltage = 3300;
-  uint8_t min_cell_voltage_number = 0;
-  uint8_t max_cell_voltage_number = 0;
-  uint16_t nominal_voltage = 0;
-  uint16_t charge_continue_power_limit = 0;
-  uint16_t charge_energy_amount_requested = 0;
-  uint8_t bulk_SOC_DC_limit = 0;
-  uint32_t lifetime_kWh_charged = 0;
-  uint32_t lifetime_kWh_discharged = 0;
-  uint16_t hours_spent_exceeding_charge_power = 0;
-  uint16_t hours_spent_exceeding_discharge_power = 0;
-  uint16_t SOC_actual = 0;
-  bool alert_low_battery_energy = 0;
-  int16_t battery_temperature_average = 0;
-  bool battery_minimum_voltage_reached_warning = 0;
-  uint32_t remaining_energy_Wh = 0;
-  uint32_t total_energy_when_full_Wh = 41400;
-  uint8_t SOH_internal_resistance = 0;
-  uint8_t SOH_estimated = 0;
-  int16_t battery_temperature_minimum = 0;
-  uint8_t max_temperature_probe_number = 0;
-  uint8_t min_temperature_probe_number = 0;
+  uint8_t hvbat_wakeup_state = 0;
+
+  bool power_auth = false;
+  bool battery_balancing_active = false;
   bool alert_cell_undervoltage = false;
   bool alert_battery = false;
   bool alert_cell_overvoltage = false;
@@ -187,18 +194,17 @@ class CmpSmartCarBattery : public CanBattery {
   bool alert_overcharge = false;
   bool alert_SOC_jump = false;
   bool alert_contactor_opening = false;
-  uint8_t number_of_temperature_sensors = 0;
-  uint8_t number_of_cells = 0;
   bool coolant_alarm = false;
-  uint8_t coolant_temperature_warning = 0;
   bool cooling_enabled = false;
-  uint8_t heater_relay_status = false;
-  uint8_t preheating_status = 0;
-  int16_t coolant_temperature = 0;
-  uint8_t thermal_control = 0;
-  uint8_t thermal_runaway = 0;
-  uint8_t thermal_runaway_module_ID = 0;
-  uint32_t main_contactor_cycle_count = 0;
-  uint32_t QC_contactor_cycle_count = 0;
+  bool battery_minimum_voltage_reached_warning = false;
+  bool alert_low_battery_energy = false;
+
+  uint8_t checksum217[16] = {0x50, 0x41, 0xB2, 0xA3, 0x14, 0x05, 0xF6, 0xE7,
+                             0x58, 0xC9, 0xBA, 0xAB, 0x1C, 0x8D, 0x7E, 0x6F};
+  uint8_t checksum351[16] = {0x0F, 0xF0, 0xE1, 0xD2, 0xC3, 0xB4, 0xA5, 0x96,
+                             0x87, 0x78, 0x69, 0x5A, 0x4B, 0x3C, 0x2D, 0x1E};
+  uint8_t precalculated432[16] = {0x12, 0x11, 0x10, 0x1F, 0x1E, 0x1D, 0x1C, 0x1B,
+                                  0x1A, 0x19, 0x18, 0x17, 0x16, 0x15, 0x14, 0x13};
+  int16_t temperature_sensors[16] = {0};
 };
 #endif
