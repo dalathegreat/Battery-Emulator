@@ -22,8 +22,8 @@ void init_stored_settings() {
   settings.begin("batterySettings", false);
 
   // Always get the equipment stop status
-  datalayer.system.settings.equipment_stop_active = settings.getBool("EQUIPMENT_STOP", false);
-  if (datalayer.system.settings.equipment_stop_active) {
+  datalayer.system.info.equipment_stop_active = settings.getBool("EQUIPMENT_STOP", false);
+  if (datalayer.system.info.equipment_stop_active) {
     DEBUG_PRINTF("Equipment stop status set in boot.");
     set_event(EVENT_EQUIPMENT_STOP, 1);
   }
@@ -195,7 +195,7 @@ void init_stored_settings() {
 
 void store_settings_equipment_stop() {
   settings.begin("batterySettings", false);
-  settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
+  settings.putBool("EQUIPMENT_STOP", datalayer.system.info.equipment_stop_active);
   settings.end();
 }
 

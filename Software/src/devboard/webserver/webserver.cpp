@@ -1097,7 +1097,7 @@ String processor(const String& var) {
       else
         content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
 
-      if (datalayer.system.settings.equipment_stop_active) {
+      if (datalayer.system.info.equipment_stop_active) {
         content +=
             formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1, "red");
         content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1, "red");
@@ -1265,7 +1265,7 @@ String processor(const String& var) {
         else
           content += formatPowerValue("Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
 
-        if (datalayer.system.settings.equipment_stop_active) {
+        if (datalayer.system.info.equipment_stop_active) {
           content +=
               formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1, "red");
           content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1, "red");
@@ -1451,7 +1451,7 @@ String processor(const String& var) {
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
     if (webserver_auth)
       content += "<button onclick='logout()'>Logout</button>";
-    if (!datalayer.system.settings.equipment_stop_active)
+    if (!datalayer.system.info.equipment_stop_active)
       content +=
           "<br/><button style=\"background:red;color:white;cursor:pointer;\""
           " onclick=\""

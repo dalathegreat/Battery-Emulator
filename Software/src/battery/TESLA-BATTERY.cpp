@@ -832,7 +832,7 @@ void TeslaBattery::
 
   //Safety checks for CAN message sending
   if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
-      (datalayer.battery.status.bms_status != FAULT) && (!datalayer.system.settings.equipment_stop_active)) {
+      (datalayer.battery.status.bms_status != FAULT) && (!datalayer.system.info.equipment_stop_active)) {
     // Carry on: 0x221 DRIVE state & reset power down timer
     vehicleState = CAR_DRIVE;
     powerDownSeconds = 9;
