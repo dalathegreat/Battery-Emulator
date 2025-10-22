@@ -496,11 +496,11 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "BATTPVMAX") {
-    return String(static_cast<float>(settings.getUInt("BATTPVMAX", 0)) / 10.0, 1);
+    return String(static_cast<float>(settings.getUInt("BATTPVMAX", 0)) / 10.0f, 1);
   }
 
   if (var == "BATTPVMIN") {
-    return String(static_cast<float>(settings.getUInt("BATTPVMIN", 0)) / 10.0, 1);
+    return String(static_cast<float>(settings.getUInt("BATTPVMIN", 0)) / 10.0f, 1);
   }
 
   if (var == "BATTCVMAX") {
@@ -516,27 +516,27 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "MAX_CHARGE_SPEED") {
-    return String(datalayer.battery.settings.max_user_set_charge_dA / 10.0, 1);
+    return String(datalayer.battery.settings.max_user_set_charge_dA / 10.0f, 1);
   }
 
   if (var == "MAX_DISCHARGE_SPEED") {
-    return String(datalayer.battery.settings.max_user_set_discharge_dA / 10.0, 1);
+    return String(datalayer.battery.settings.max_user_set_discharge_dA / 10.0f, 1);
   }
 
   if (var == "SOC_MAX_PERCENTAGE") {
-    return String(datalayer.battery.settings.max_percentage / 100.0, 1);
+    return String(datalayer.battery.settings.max_percentage / 100.0f, 1);
   }
 
   if (var == "SOC_MIN_PERCENTAGE") {
-    return String(datalayer.battery.settings.min_percentage / 100.0, 1);
+    return String(datalayer.battery.settings.min_percentage / 100.0f, 1);
   }
 
   if (var == "CHARGE_VOLTAGE") {
-    return String(datalayer.battery.settings.max_user_set_charge_voltage_dV / 10.0, 1);
+    return String(datalayer.battery.settings.max_user_set_charge_voltage_dV / 10.0f, 1);
   }
 
   if (var == "DISCHARGE_VOLTAGE") {
-    return String(datalayer.battery.settings.max_user_set_discharge_voltage_dV / 10.0, 1);
+    return String(datalayer.battery.settings.max_user_set_discharge_voltage_dV / 10.0f, 1);
   }
 
   if (var == "SOC_SCALING_ACTIVE_CLASS") {
@@ -590,25 +590,25 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "BALANCING_MAX_TIME") {
-    return String(datalayer.battery.settings.balancing_time_ms / 60000.0, 1);
+    return String(datalayer.battery.settings.balancing_time_ms / 60000.0f, 1);
   }
 
   if (var == "BAL_POWER") {
-    return String(datalayer.battery.settings.balancing_float_power_W / 1.0, 0);
+    return String(datalayer.battery.settings.balancing_float_power_W / 1.0f, 0);
   }
 
   if (var == "BAL_MAX_PACK_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0, 0);
+    return String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0f, 0);
   }
   if (var == "BAL_MAX_CELL_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0, 0);
+    return String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0f, 0);
   }
   if (var == "BAL_MAX_DEV_CELL_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0, 0);
+    return String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0f, 0);
   }
 
   if (var == "BMS_RESET_DURATION") {
-    return String(datalayer.battery.settings.user_set_bms_reset_duration_ms / 1000.0, 0);
+    return String(datalayer.battery.settings.user_set_bms_reset_duration_ms / 1000.0f, 0);
   }
 
   if (var == "CHARGER_CLASS") {

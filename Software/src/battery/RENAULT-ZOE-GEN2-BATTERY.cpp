@@ -47,7 +47,7 @@ void RenaultZoeGen2Battery::update_values() {
 
   datalayer_battery->status.voltage_dV = battery_pack_voltage_periodic_dV;
 
-  datalayer_battery->status.current_dA = ((battery_current - 32640) * 0.3125);
+  datalayer_battery->status.current_dA = ((battery_current - 32640) * 0.3125f);
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
@@ -59,8 +59,8 @@ void RenaultZoeGen2Battery::update_values() {
 
   //Temperatures and voltages update at slow rate. Only publish new values once both have been sampled to avoid events
   if ((battery_min_temp != 920) && (battery_max_temp != 920)) {
-    datalayer_battery->status.temperature_min_dC = ((battery_min_temp - 640) * 0.625);
-    datalayer_battery->status.temperature_max_dC = ((battery_max_temp - 640) * 0.625);
+    datalayer_battery->status.temperature_min_dC = ((battery_min_temp - 640) * 0.625f);
+    datalayer_battery->status.temperature_max_dC = ((battery_max_temp - 640) * 0.625f);
   }
 
   datalayer_battery->status.cell_min_voltage_mV = battery_minimum_cell_voltage_mV;
@@ -819,14 +819,14 @@ void RenaultZoeGen2Battery::setup(void) {  // Performs one time setup at startup
 
 void RenaultZoeGen2Battery::transmit_can_frame_376(void) {
   unsigned int secondsSinceProduction = ZOE_376_time_now_s - kProductionTimestamp_s;
-  float minutesSinceProduction = (float)secondsSinceProduction / 60.0;
-  float yearUnfloored = minutesSinceProduction / 255.0 / 255.0;
+  float minutesSinceProduction = (float)secondsSinceProduction / 60.0f;
+  float yearUnfloored = minutesSinceProduction / 255.0f / 255.0f;
   int yearSeg = floor(yearUnfloored);
   float remainderYears = yearUnfloored - yearSeg;
-  float remainderHoursUnfloored = (remainderYears * 255.0);
+  float remainderHoursUnfloored = (remainderYears * 255.0f);
   int hourSeg = floor(remainderHoursUnfloored);
   float remainderHours = remainderHoursUnfloored - hourSeg;
-  int minuteSeg = floor(remainderHours * 255.0);
+  int minuteSeg = floor(remainderHours * 255.0f);
 
   ZOE_376.data.u8[0] = yearSeg;
   ZOE_376.data.u8[1] = hourSeg;

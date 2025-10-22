@@ -203,26 +203,26 @@ void MebBattery::
 
   datalayer_battery->status.real_soc = battery_SOC * 5;  //*0.05*100
 
-  datalayer_battery->status.voltage_dV = BMS_voltage * 2.5;  // *0.25*10
+  datalayer_battery->status.voltage_dV = BMS_voltage * 2.5f;  // *0.25*10
 
   datalayer_battery->status.current_dA = (BMS_current - 16300);  // 0.1 * 10
 
   if (nof_cells_determined) {
     datalayer_battery->info.total_capacity_Wh =
-        ((float)datalayer_battery->info.number_of_cells) * 3.67 * ((float)BMS_capacity_ah) * 0.2 * 1.02564;
+        ((float)datalayer_battery->info.number_of_cells) * 3.67f * ((float)BMS_capacity_ah) * 0.2f * 1.02564f;
     // The factor 1.02564 = 1/0.975 is to correct for bottom 2.5% which is reported by the remaining_capacity_Wh,
     // but which is not actually usable, but if we do not include it, the remaining_capacity_Wh can be larger than
     // the total_capacity_Wh.
     // 0.935 and 0.9025 are the different conversions for different battery sizes to go from design capacity to
     // total_capacity_Wh calculated above.
 
-    int Wh_max = 61832 * 0.935;  // 108 cells
+    int Wh_max = 61832 * 0.935f;  // 108 cells
     if (datalayer_battery->info.number_of_cells <= 84)
-      Wh_max = 48091 * 0.9025;
+      Wh_max = 48091 * 0.9025f;
     else if (datalayer_battery->info.number_of_cells <= 96)
-      Wh_max = 82442 * 0.9025;
+      Wh_max = 82442 * 0.9025f;
     if (BMS_capacity_ah > 0)
-      datalayer_battery->status.soh_pptt = 10000 * datalayer_battery->info.total_capacity_Wh / (Wh_max * 1.02564);
+      datalayer_battery->status.soh_pptt = 10000 * datalayer_battery->info.total_capacity_Wh / (Wh_max * 1.02564f);
   }
 
   datalayer_battery->status.remaining_capacity_Wh = usable_energy_amount_Wh * 5;

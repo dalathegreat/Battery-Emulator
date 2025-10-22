@@ -11,10 +11,10 @@
 
 #define BPM_TO_MS(x) ((uint16_t)((60.0f / ((float)x)) * 1000))
 
-static const float heartbeat_base = 0.15;
-static const float heartbeat_peak1 = 0.80;
-static const float heartbeat_peak2 = 0.55;
-static const float heartbeat_deviation = 0.05;
+static const float heartbeat_base = 0.15f;
+static const float heartbeat_peak1 = 0.80f;
+static const float heartbeat_peak2 = 0.55f;
+static const float heartbeat_deviation = 0.05f;
 
 static LED* led;
 
@@ -70,19 +70,19 @@ void LED::exe(void) {
 
 void LED::classic_run(void) {
   // Determine how bright the LED should be
-  brightness = up_down(0.5);
+  brightness = up_down(0.5f);
 }
 
 void LED::flow_run(void) {
   // Determine how bright the LED should be
   if (datalayer.battery.status.active_power_W < -50) {
     // Discharging
-    brightness = max_brightness - up_down(0.95);
+    brightness = max_brightness - up_down(0.95f);
   } else if (datalayer.battery.status.active_power_W > 50) {
     // Charging
-    brightness = up_down(0.95);
+    brightness = up_down(0.95f);
   } else {
-    brightness = up_down(0.5);
+    brightness = up_down(0.5f);
   }
 }
 
@@ -108,18 +108,18 @@ void LED::heartbeat_run(void) {
   float period_pct = ((float)ms) / period;
   float brightness_f;
 
-  if (period_pct < 0.10) {
+  if (period_pct < 0.10f) {
     brightness_f = map_float(period_pct, 0.00f, 0.10f, heartbeat_base, heartbeat_base - heartbeat_deviation);
-  } else if (period_pct < 0.20) {
+  } else if (period_pct < 0.20f) {
     brightness_f = map_float(period_pct, 0.10f, 0.20f, heartbeat_base - heartbeat_deviation,
                              heartbeat_base - heartbeat_deviation * 2);
-  } else if (period_pct < 0.25) {
+  } else if (period_pct < 0.25f) {
     brightness_f = map_float(period_pct, 0.20f, 0.25f, heartbeat_base - heartbeat_deviation * 2, heartbeat_peak1);
-  } else if (period_pct < 0.30) {
+  } else if (period_pct < 0.30f) {
     brightness_f = map_float(period_pct, 0.25f, 0.30f, heartbeat_peak1, heartbeat_base - heartbeat_deviation);
-  } else if (period_pct < 0.40) {
+  } else if (period_pct < 0.40f) {
     brightness_f = map_float(period_pct, 0.30f, 0.40f, heartbeat_base - heartbeat_deviation, heartbeat_peak2);
-  } else if (period_pct < 0.55) {
+  } else if (period_pct < 0.55f) {
     brightness_f = map_float(period_pct, 0.40f, 0.55f, heartbeat_peak2, heartbeat_base + heartbeat_deviation * 2);
   } else {
     brightness_f = map_float(period_pct, 0.55f, 1.00f, heartbeat_base + heartbeat_deviation * 2, heartbeat_base);

@@ -113,7 +113,7 @@ uint16_t estimateSOCextended(uint16_t packVoltage) {  // Linear interpolation fu
 
   for (int i = 1; i < numPoints; ++i) {
     if (packVoltage >= voltage_extended[i]) {
-      double t = (packVoltage - voltage_extended[i]) / (voltage_extended[i - 1] - voltage_extended[i]);
+      float t = (packVoltage - voltage_extended[i]) / (voltage_extended[i - 1] - voltage_extended[i]);
       return SOC[i] + t * (SOC[i - 1] - SOC[i]);
     }
   }
@@ -130,7 +130,7 @@ uint16_t estimateSOCstandard(uint16_t packVoltage) {  // Linear interpolation fu
 
   for (int i = 1; i < numPoints; ++i) {
     if (packVoltage >= voltage_standard[i]) {
-      double t = (packVoltage - voltage_standard[i]) / (voltage_standard[i - 1] - voltage_standard[i]);
+      float t = (packVoltage - voltage_standard[i]) / (voltage_standard[i - 1] - voltage_standard[i]);
       return SOC[i] + t * (SOC[i - 1] - SOC[i]);
     }
   }
@@ -176,9 +176,9 @@ void BydAttoBattery::
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  if (SOC_method == ESTIMATED && battery_estimated_SOC * 0.1 < RAMPDOWN_SOC && RAMPDOWN_SOC > 0) {
+  if (SOC_method == ESTIMATED && battery_estimated_SOC * 0.1f < RAMPDOWN_SOC && RAMPDOWN_SOC > 0) {
     // If using estimated SOC, ramp down max discharge power as SOC decreases.
-    rampdown_power = RAMPDOWN_POWER_ALLOWED * ((battery_estimated_SOC * 0.1) / RAMPDOWN_SOC);
+    rampdown_power = RAMPDOWN_POWER_ALLOWED * ((battery_estimated_SOC * 0.1f) / RAMPDOWN_SOC);
 
     if (rampdown_power < BMS_allowed_discharge_power * 100) {  // Never allow more than BMS_allowed_discharge_power
       datalayer_battery->status.max_discharge_power_W = rampdown_power;
