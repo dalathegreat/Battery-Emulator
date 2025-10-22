@@ -126,6 +126,7 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
             .id = frame->id,
             .ext = frame->id > 0x7FF,
             .len = frame->len,
+            .data64 = 0
         };
         memcpy(send_frame.data, frame->data, frame->len);
 
