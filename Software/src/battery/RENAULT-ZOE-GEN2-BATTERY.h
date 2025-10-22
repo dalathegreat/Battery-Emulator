@@ -243,7 +243,6 @@ class RenaultZoeGen2Battery : public CanBattery {
   uint32_t ZOE_376_time_now_s = 1745452800;  // Initialized to make the battery think it is April 24, 2025
   unsigned long kProductionTimestamp_s =
       1614454107;  // Production timestamp in seconds since January 1, 1970. Production timestamp used: February 25, 2021 at 8:08:27 AM GMT
-  bool battery_balancing_shunts[96];
 
   const uint8_t crctable[256] = {
       0x00, 0x1D, 0x3A, 0x27, 0x74, 0x69, 0x4E, 0x53, 0xE8, 0xF5, 0xD2, 0xCF, 0x9C, 0x81, 0xA6, 0xBB, 0xCD, 0xD0, 0xF7,
