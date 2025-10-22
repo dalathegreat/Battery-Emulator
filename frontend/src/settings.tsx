@@ -6,7 +6,7 @@ import { useRef, useEffect, useState } from "preact/hooks";
 import { useGetApi } from "./utils/api.tsx";
 
 // Shows or hides its children based on the "when" prop.
-function Show({ when, indent, children }: { when: boolean | string, children: preact.ComponentChildren }) {
+function Show({ when, indent, children }: { when: boolean | string, indent?: boolean | null, children: preact.ComponentChildren }) {
     const ref = useRef<HTMLDivElement>(null);
     const prev = useRef<boolean | null>(null);
     const b = when === true || when === "1";
@@ -240,8 +240,13 @@ export function Settings() {
     const merged = { ...settings?.settings, ...savedSettings?.settings, ...current };
 
     const custom_bms = ["6", "11", "22", "23", "24", "31"].includes(""+merged.BATTTYPE);
+    const estimated = ["3", "4", "6", "14", "16", "24", "32", "33"].includes(""+merged.BATTTYPE);
     const tesla = ["32", "33"].includes(""+merged.BATTTYPE);
+    const socestimated = ""+merged.BATTTYPE==="16";
     const pylonish = ["4", "10", "19"].includes(""+merged.INVTYPE);
+    const byd = ""+merged.INVTYPE==="2";
+    const kostal = ""+merged.INVTYPE==="9";
+    const pylon = ""+merged.INVTYPE==="10";
     const sofar = ""+merged.INVTYPE==="17";
     const solax = ""+merged.INVTYPE==="18";
 
@@ -302,6 +307,13 @@ export function Settings() {
                     { textPatternField("Chassis type", "GTWCHASSIS", "[0-9]") }
                     { textPatternField("Pack type", "GTWPACK", "[0-9]") }
                 </Show>
+                <Show when={estimated}>
+                    { textPatternField("Manual charging power (W)", "CHGPOWER", "[0-9]+") }
+                    { textPatternField("Manual discharging power (W)", "DCHGPOWER", "[0-9]+") }
+                </Show>
+                <Show when={socestimated}>
+                    { checkboxField("Use estimated SoC", "SOCESTIMATED") }
+                </Show>
                 { selectField("Battery interface", "BATTCOMM", INTERFACES) }
                 { selectField("Battery chemistry", "BATTCHEM", {
                     "3": "LFP",
@@ -320,6 +332,14 @@ export function Settings() {
                 <Show when={sofar}>
                     { textPatternField("Sofar Battery ID (0-15)", "SOFAR_ID", "[0-9]{1,2}") }
                 </Show>
+                <Show when={pylon}>
+                    { textPatternField("Pylon, send group (0-1)", "PYLONSEND", "[0-1]") }
+                    { checkboxField("Pylon, 30k offset", "PYLONOFFSET") }
+                    { checkboxField("Pylon, invert byteorder", "PYLONORDER") }
+                </Show>
+                <Show when={byd}>
+                    { checkboxField("Deye offgrid specific fixes", "DEYEBYD") }
+                </Show>
                 <Show when={pylonish}>
                     { textPatternField("Reported cell count (0 for default)", "INVCELLS", "[0-9]+") }
                 </Show>
@@ -333,7 +353,9 @@ export function Settings() {
                 </Show>
                 <Show when={solax}>
                     { textPatternField("Reported battery type (in decimal)", "INVBTYPE", "[0-9]+") }
-                    { checkboxField("Inverter should ignore contactors", "INVICNT") }
+                </Show>
+                <Show when={solax||kostal}>
+                    { checkboxField("Prevent inverter opening contactors", "INVICNT") }
                 </Show>
             </Show>
         </div>
@@ -397,11 +419,23 @@ export function Settings() {
 
         <div class="panel">
             <h3>Connectivity</h3>
+            <div class="form-row">
+                <label>WiFi SSID</label>
+                <input type="text" name="SSID" pattern="[ -~]{1,63}" />
+            </div>
+            <div class="form-row">
+                <label>WiFi password</label>
+                <input type="text" name="PASSWORD" pattern="[ -~]{8,63}" title="at least 8 printable ASCII characters" />
+            </div>
             { checkboxField("Enable WiFi access point", "WIFIAPENABLED") }
             <Show indent={true} when={merged.WIFIAPENABLED}>
                 <div class="form-row">
-                    <label>WiFi access point password </label>
-                    <input type="text" name="APPASSWORD" pattern="|.{8,}" title="at least 8 characters" />
+                    <label>WiFi access point name</label>
+                    <input type="text" name="APNAME" pattern="[ -~]{1,63}" />
+                </div>
+                <div class="form-row">
+                    <label>WiFi access point password</label>
+                    <input type="text" name="APPASSWORD" pattern="[ -~]{8,63}" title="at least 8 printable ASCII characters" />
                 </div>
                 <div class="form-row">
                     <label>WiFi channel (0 for automatic)</label>
@@ -410,7 +444,7 @@ export function Settings() {
             </Show>
             <div class="form-row">
                 <label>Custom WiFi hostname (blank for default)</label>
-                <input type="text" name="HOSTNAME" pattern="[a-zA-Z0-9\-]*" title="letters, numbers, hyphen" />
+                <input type="text" name="HOSTNAME" pattern="[A-Za-z0-9\-]+" title="letters, numbers, hyphen" />
             </div>
             { checkboxField("Use static IP address", "STATICIP") }
             <Show indent={true} when={merged.STATICIP}>

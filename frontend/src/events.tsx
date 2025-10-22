@@ -1,11 +1,16 @@
 import { useGetApi } from './utils/api.tsx'
 
-function get_time(s: number) {
-    return (new Date(Date.now() - s)).toLocaleString();
+function get_time(now:any, s: number) {
+    return (new Date(now - s)).toLocaleString();
 }
 
 export function Events() {
     const data = useGetApi('/api/events', 5000);
+
+    if(data?.events) {
+        // Update global latest event time
+        window.latest_event_time = Math.max(...data?.events.map((ev: any) => (data._now - ev.age)), 0);
+    }
     
     return ( <>
         <h2>Events</h2>
@@ -26,7 +31,7 @@ export function Events() {
                         <tr key={idx} data-level={ev.level.toLowerCase()}>
                             <td>{ ev.type }</td>
                             <td>{ ev.level }</td>
-                            <td>{ get_time(ev.age) }</td>
+                            <td>{ get_time(data._now, ev.age) }</td>
                             <td>{ ev.count }</td>
                             <td>{ ev.data }</td>
                             <td>{ ev.message }</td>
