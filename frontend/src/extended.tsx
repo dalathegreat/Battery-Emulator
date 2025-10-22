@@ -1,233 +1,72 @@
-import { useGetApi } from "./utils/api.tsx";
+import { useMemo } from "preact/hooks";
 
-const TESLA_KEYS = [
-'hvil_status',
-'packContNegativeState',
-'packContPositiveState',
-'packContactorSetState',
-'packCtrsClosingBlocked',
-'pyroTestInProgress',
-'battery_packCtrsOpenNowRequested',
-'battery_packCtrsOpenRequested',
-'battery_packCtrsRequestStatus',
-'battery_packCtrsResetRequestRequired',
-'battery_dcLinkAllowedToEnergize',
-'BMS_partNumber',
-'BMS_info_buildConfigId',
-'BMS_info_hardwareId',
-'BMS_info_componentId',
-'BMS_info_pcbaId',
-'BMS_info_assemblyId',
-'BMS_info_usageId',
-'BMS_info_subUsageId',
-'BMS_info_platformType',
-'BMS_info_appCrc',
-'BMS_info_bootGitHash',
-'BMS_info_bootUdsProtoVersion',
-'BMS_info_bootCrc',
-'battery_serialNumber',
-'battery_partNumber',
-'battery_manufactureDate',
-'battery_beginning_of_life',
-'battery_battTempPct',
-'battery_dcdcLvBusVolt',
-'battery_dcdcHvBusVolt',
-'battery_dcdcLvOutputCurrent',
-'BMS352_mux',
-'battery_nominal_full_pack_energy',
-'battery_nominal_full_pack_energy_m0',
-'battery_nominal_energy_remaining',
-'battery_nominal_energy_remaining_m0',
-'battery_ideal_energy_remaining',
-'battery_ideal_energy_remaining_m0',
-'battery_energy_to_charge_complete',
-'battery_energy_to_charge_complete_m1',
-'battery_energy_buffer',
-'battery_energy_buffer_m1',
-'battery_expected_energy_remaining',
-'battery_expected_energy_remaining_m1',
-'battery_full_charge_complete',
-'battery_fully_charged',
-'battery_BrickVoltageMax',
-'battery_BrickVoltageMin',
-'battery_BrickVoltageMaxNum',
-'battery_BrickVoltageMinNum',
-'battery_BrickTempMaxNum',
-'battery_BrickTempMinNum',
-'battery_BrickModelTMax',
-'battery_BrickModelTMin',
-'battery_packConfigMultiplexer',
-'battery_moduleType',
-'battery_reservedConfig',
-'battery_packMass',
-'battery_platformMaxBusVoltage',
-'BMS_min_voltage',
-'BMS_max_voltage',
-'battery_max_charge_current',
-'battery_max_discharge_current',
-'battery_soc_min',
-'battery_soc_max',
-'battery_soc_ave',
-'battery_soc_ui',
-'BMS_hvilFault',
-'BMS_contactorState',
-'BMS_state',
-'BMS_hvState',
-'BMS_isolationResistance',
-'BMS_uiChargeStatus',
-'BMS_diLimpRequest',
-'BMS_chgPowerAvailable',
-'BMS_pcsPwmEnabled',
-'BMS_maxRegenPower',
-'BMS_maxDischargePower',
-'BMS_maxStationaryHeatPower',
-'BMS_hvacPowerBudget',
-'BMS_notEnoughPowerForHeatPump',
-'BMS_powerLimitState',
-'BMS_inverterTQF',
-'BMS_powerDissipation',
-'BMS_flowRequest',
-'BMS_inletActiveCoolTargetT',
-'BMS_inletPassiveTargetT',
-'BMS_inletActiveHeatTargetT',
-'BMS_packTMin',
-'BMS_packTMax',
-'BMS_pcsNoFlowRequest',
-'BMS_noFlowRequest',
-'PCS_dcdcPrechargeStatus',
-'PCS_dcdc12VSupportStatus',
-'PCS_dcdcHvBusDischargeStatus',
-'PCS_dcdcMainState',
-'PCS_dcdcSubState',
-'PCS_dcdcFaulted',
-'PCS_dcdcOutputIsLimited',
-'PCS_dcdcMaxOutputCurrentAllowed',
-'PCS_dcdcPrechargeRtyCnt',
-'PCS_dcdc12VSupportRtyCnt',
-'PCS_dcdcDischargeRtyCnt',
-'PCS_dcdcPwmEnableLine',
-'PCS_dcdcSupportingFixedLvTarget',
-'PCS_dcdcPrechargeRestartCnt',
-'PCS_dcdcInitialPrechargeSubState',
-'PCS_partNumber',
-'PCS_info_buildConfigId',
-'PCS_info_hardwareId',
-'PCS_info_componentId',
-'PCS_info_pcbaId',
-'PCS_info_assemblyId',
-'PCS_info_usageId',
-'PCS_info_subUsageId',
-'PCS_info_platformType',
-'PCS_info_appCrc',
-'PCS_info_cpu2AppCrc',
-'PCS_info_bootGitHash',
-'PCS_info_bootUdsProtoVersion',
-'PCS_info_bootCrc',
-'PCS_dcdcTemp',
-'PCS_ambientTemp',
-'PCS_chgPhATemp',
-'PCS_chgPhBTemp',
-'PCS_chgPhCTemp',
-'PCS_dcdcMaxLvOutputCurrent',
-'PCS_dcdcCurrentLimit',
-'PCS_dcdcLvOutputCurrentTempLimit',
-'PCS_dcdcUnifiedCommand',
-'PCS_dcdcCLAControllerOutput',
-'PCS_dcdcTankVoltage',
-'PCS_dcdcTankVoltageTarget',
-'PCS_dcdcClaCurrentFreq',
-'PCS_dcdcTCommMeasured',
-'PCS_dcdcShortTimeUs',
-'PCS_dcdcHalfPeriodUs',
-'PCS_dcdcIntervalMaxFrequency',
-'PCS_dcdcIntervalMaxHvBusVolt',
-'PCS_dcdcIntervalMaxLvBusVolt',
-'PCS_dcdcIntervalMaxLvOutputCurr',
-'PCS_dcdcIntervalMinFrequency',
-'PCS_dcdcIntervalMinHvBusVolt',
-'PCS_dcdcIntervalMinLvBusVolt',
-'PCS_dcdcIntervalMinLvOutputCurr',
-'PCS_dcdc12vSupportLifetimekWh',
-'HVP_gpioPassivePyroDepl',
-'HVP_gpioPyroIsoEn',
-'HVP_gpioCpFaultIn',
-'HVP_gpioPackContPowerEn',
-'HVP_gpioHvCablesOk',
-'HVP_gpioHvpSelfEnable',
-'HVP_gpioLed',
-'HVP_gpioCrashSignal',
-'HVP_gpioShuntDataReady',
-'HVP_gpioFcContPosAux',
-'HVP_gpioFcContNegAux',
-'HVP_gpioBmsEout',
-'HVP_gpioCpFaultOut',
-'HVP_gpioPyroPor',
-'HVP_gpioShuntEn',
-'HVP_gpioHvpVerEn',
-'HVP_gpioPackCoontPosFlywheel',
-'HVP_gpioCpLatchEnable',
-'HVP_gpioPcsEnable',
-'HVP_gpioPcsDcdcPwmEnable',
-'HVP_gpioPcsChargePwmEnable',
-'HVP_gpioFcContPowerEnable',
-'HVP_gpioHvilEnable',
-'HVP_gpioSecDrdy',
-'HVP_hvp1v5Ref',
-'HVP_shuntCurrentDebug',
-'HVP_packCurrentMia',
-'HVP_auxCurrentMia',
-'HVP_currentSenseMia',
-'HVP_shuntRefVoltageMismatch',
-'HVP_shuntThermistorMia',
-'HVP_partNumber',
-'HVP_info_buildConfigId',
-'HVP_info_hardwareId',
-'HVP_info_componentId',
-'HVP_info_pcbaId',
-'HVP_info_assemblyId',
-'HVP_info_usageId',
-'HVP_info_subUsageId',
-'HVP_info_platformType',
-'HVP_info_appCrc',
-'HVP_info_bootGitHash',
-'HVP_info_bootUdsProtoVersion',
-'HVP_info_bootCrc',
-'HVP_shuntHwMia',
-'HVP_dcLinkVoltage',
-'HVP_packVoltage',
-'HVP_fcLinkVoltage',
-'HVP_packContVoltage',
-'HVP_packNegativeV',
-'HVP_packPositiveV',
-'HVP_pyroAnalog',
-'HVP_dcLinkNegativeV',
-'HVP_dcLinkPositiveV',
-'HVP_fcLinkNegativeV',
-'HVP_fcContCoilCurrent',
-'HVP_fcContVoltage',
-'HVP_hvilInVoltage',
-'HVP_hvilOutVoltage',
-'HVP_fcLinkPositiveV',
-'HVP_packContCoilCurrent',
-'HVP_battery12V',
-'HVP_shuntRefVoltageDbg',
-'HVP_shuntAuxCurrentDbg',
-'HVP_shuntBarTempDbg',
-'HVP_shuntAsicTempDbg',
-'HVP_shuntAuxCurrentStatus',
-'HVP_shuntBarTempStatus',
-'HVP_shuntAsicTempStatus'];
+import { useGetApi } from "./utils/api.tsx";
+import { DATALAYER_INFO_TESLA } from "./ext/datalayer.ts";
 
 export function Extended() {
-    const data = useGetApi('/api/tesla', 5000);
+    const data = useGetApi('/api/batext', 5000);
+
+    const funcs: { [key: string]: string } = {
+        'u8': 'getUint8',
+        'u16': 'getUint16',
+        'u32': 'getUint32',
+        'u64': 'getBigUint64',
+        'i8': 'getInt8',
+        'i16': 'getInt16',
+        'i32': 'getInt32',
+        'f': 'getFloat32',
+        'b': 'getUint8',
+    };
+    const lengths: { [key: string]: number } = {
+        'u8': 1,
+        'u16': 2,
+        'u32': 4,
+        'u64': 8,
+        'i8': 1,
+        'i16': 2,
+        'i32': 4,
+        'b': 1,
+        ' ': 1,
+    };
+
+    const rows = useMemo(() => {
+        if(!data) return [];
+        const buf = new Uint8Array(data.length);
+        for(let i=0; i<data.length; i++) {
+            buf[i] = data.charCodeAt(i);
+        }
+        const view = new DataView(buf.buffer);
+        var offset = 0;
+        var rows: [string, number | any[]][] = [];
+        DATALAYER_INFO_TESLA.forEach(([name, type, arr]: any[]) => {
+            const length = lengths[type as keyof typeof lengths];
+            if(type == ' ') {
+                offset += arr ? arr : length;
+            } else if(arr) {
+                const varr = [];
+                for(let i=0; i<arr; i++) {
+                    const v = view[funcs[type] as keyof DataView](offset, true);
+                    offset += length;
+                    varr.push(v);
+                }
+                rows.push([name, varr]);
+            } else {
+                const v = view[funcs[type] as keyof DataView](offset, true);
+                offset += lengths[type as keyof typeof lengths];
+                rows.push([name, v]);
+            }
+        });
+        return rows;
+    }, [data]);
 
     return (
         <>
             <h2>Extended Features</h2>
             
-            { data?.data.map((value: any, index: number) => 
-                <><strong>{ TESLA_KEYS[index] }:</strong> { value }<br /></>
+            { rows.map(([name, value]) => 
+                <><strong>{ name }:</strong> { value }<br /></>
             ) }
+            
         </>
     );
 };

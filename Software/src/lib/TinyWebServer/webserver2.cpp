@@ -537,6 +537,14 @@ TwsHandler *default_handlers[] = {
             }
         }
     })),
+    new TwsHandler("/api/batext", new TwsRequestHandlerFunc([](TwsRequest& request) {
+        request.write_fully("HTTP/1.1 200 OK\r\n"
+                            "Connection: close\r\n"
+                            "Content-Type: application/octet-stream\r\n"
+                            "Access-Control-Allow-Origin: *\r\n"
+                            "\r\n");
+        request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.tesla, sizeof(datalayer_extended.tesla)));
+    })),
     &settingsHandler,
     new TwsHandler("/api/live", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
         JsonArray batteries = doc["battery"].to<JsonArray>();
@@ -565,6 +573,7 @@ TwsHandler *default_handlers[] = {
         }        
     })),
 
+    /*
     new TwsHandler("/api/tesla", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
         auto &d = datalayer_extended.tesla;
         JsonArray vals = doc["data"].to<JsonArray>();
@@ -786,6 +795,7 @@ TwsHandler *default_handlers[] = {
         vals.add(d.HVP_shuntBarTempStatus);
         vals.add(d.HVP_shuntAsicTempStatus);
     })),
+    */
     new TwsHandler("/api/events", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
         JsonArray events = doc["events"].to<JsonArray>();
 

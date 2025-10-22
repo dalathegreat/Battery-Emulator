@@ -79,9 +79,20 @@ function htmlToCArray(options = {}) {
 
         // 3. Convert the gzipped buffer into a C array literal string
         // Each byte is formatted as a two-digit hexadecimal number (e.g., 0x0A)
-        const cArrayLiteral = Array.from(gzippedContent)
-          .map(byte => `0x${byte.toString(16).padStart(2, '0')}`)
-          .join(', ');
+        const bytesPerLine = 12;
+        const hexBytes = Array.from(gzippedContent)
+          .map(byte => `0x${byte.toString(16).padStart(2, '0')}`);
+
+        const lines = [];
+        // Loop in chunks of bytesPerLine
+        for (let i = 0; i < hexBytes.length; i += bytesPerLine) {
+          // Get a chunk of 12 bytes and join them
+          const chunk = hexBytes.slice(i, i + bytesPerLine);
+          lines.push(`  ${chunk.join(', ')}`); // Add indentation to the line
+        }
+
+        // Join all lines with a comma and a newline
+        const cArrayLiteral = lines.join(',\n');
 
         // Create the full content for the C header file
         const headerFileContent = `
@@ -92,7 +103,7 @@ function htmlToCArray(options = {}) {
 // Gzipped size: ${gzippedContent.length} bytes
 
 const unsigned char ${arrayName}[] = {
-  ${cArrayLiteral}
+${cArrayLiteral}
 };
 
 const unsigned int ${arrayName}_len = ${gzippedContent.length};
