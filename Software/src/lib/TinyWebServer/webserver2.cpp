@@ -543,7 +543,42 @@ TwsHandler *default_handlers[] = {
                             "Content-Type: application/octet-stream\r\n"
                             "Access-Control-Allow-Origin: *\r\n"
                             "\r\n");
-        request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.tesla, sizeof(datalayer_extended.tesla)));
+        uint32_t btype = (uint32_t)user_selected_battery_type;
+        request.write((const char*)&btype, 4);
+
+        if(user_selected_battery_type==BatteryType::BoltAmpera) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.boltampera, sizeof(datalayer_extended.boltampera)));
+        } else if(user_selected_battery_type==BatteryType::BmwPhev) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.bmwphev, sizeof(datalayer_extended.bmwphev)));
+        } else if(user_selected_battery_type==BatteryType::BydAtto3) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.bydAtto3, sizeof(datalayer_extended.bydAtto3)));
+        } else if(user_selected_battery_type==BatteryType::CellPowerBms) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.cellpower, sizeof(datalayer_extended.cellpower)));
+        } else if(user_selected_battery_type==BatteryType::Chademo) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.chademo, sizeof(datalayer_extended.chademo)));
+        } else if(user_selected_battery_type==BatteryType::CmfaEv) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.CMFAEV, sizeof(datalayer_extended.CMFAEV)));
+        } else if(user_selected_battery_type==BatteryType::StellantisEcmp) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.stellantisECMP, sizeof(datalayer_extended.stellantisECMP)));
+        } else if(user_selected_battery_type==BatteryType::GeelyGeometryC) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.geometryC, sizeof(datalayer_extended.geometryC)));
+        } else if(user_selected_battery_type==BatteryType::KiaHyundai64) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.KiaHyundai64, sizeof(datalayer_extended.KiaHyundai64)));
+        } else if(user_selected_battery_type==BatteryType::TeslaModel3Y || user_selected_battery_type==BatteryType::TeslaModelSX) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.tesla, sizeof(datalayer_extended.tesla)));
+        } else if(user_selected_battery_type==BatteryType::NissanLeaf) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.nissanleaf, sizeof(datalayer_extended.nissanleaf)));
+        } else if(user_selected_battery_type==BatteryType::Meb) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.meb, sizeof(datalayer_extended.meb)));
+        } else if(user_selected_battery_type==BatteryType::VolvoSpa) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.VolvoPolestar, sizeof(datalayer_extended.VolvoPolestar)));
+        } else if(user_selected_battery_type==BatteryType::VolvoSpaHybrid) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.VolvoHybrid, sizeof(datalayer_extended.VolvoHybrid)));
+        } else if(user_selected_battery_type==BatteryType::RenaultZoe1) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.zoe, sizeof(datalayer_extended.zoe)));
+        } else if(user_selected_battery_type==BatteryType::RenaultZoe2) {
+            request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.zoePH2, sizeof(datalayer_extended.zoePH2)));
+        }
     })),
     &settingsHandler,
     new TwsHandler("/api/live", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
