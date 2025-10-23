@@ -8,7 +8,7 @@ void FordMachEBattery::update_values() {
 
   datalayer.battery.status.real_soc = battery_soc;
 
-  datalayer.battery.status.soh_pptt;
+  //datalayer.battery.status.soh_pptt; //TODO: Locate
 
   datalayer.battery.status.voltage_dV = battery_voltage * 10;
 
