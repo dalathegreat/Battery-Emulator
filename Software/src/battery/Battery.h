@@ -49,6 +49,7 @@ enum class BatteryType {
   RelionBattery = 41,
   RivianBattery = 42,
   BmwPhev = 43,
+  FordMachE = 44,
   Highest
 };
 
