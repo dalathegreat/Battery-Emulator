@@ -288,9 +288,6 @@ struct DATALAYER_INFO_CMPSMART {
   bool alert_overcharge = false;
   bool alert_SOC_jump = false;
   bool alert_contactor_opening = false;
-  bool UserRequestContactorReset = false;
-  bool UserRequestCollisionReset = false;
-  bool UserRequestIsolationReset = false;
 };
 
 struct DATALAYER_INFO_ECMP {

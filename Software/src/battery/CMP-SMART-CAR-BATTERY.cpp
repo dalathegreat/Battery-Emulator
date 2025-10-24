@@ -217,10 +217,6 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       quick_charge_port_voltage = ((rx_frame.data.u8[4] << 4) | (rx_frame.data.u8[5] >> 4));          //*0.1kW
       qc_negative_contactor_status = rx_frame.data.u8[6] & 0x03;
       qc_positive_contactor_status = (rx_frame.data.u8[6] & 0x0C) >> 2;
-      /*0b00 : Open
-      0b01 : Close(after positive and negative contactor close)
-      0b10 : Fault(weld or open)2
-      0b11 : Reserved*/
       //counter_2A5 = (rx_frame.data.u8[7] & 0x0F);
       break;
     case 0x325:  //100ms
@@ -458,6 +454,8 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     previousMillis50 = currentMillis;
     counter_50ms = (counter_50ms + 1) % 16;  // counter_100ms repeats after 16 messages. 0-1..15-0
 
+    /*
+    Is this reallly needed? Or can we jump straight to wakeup?
     if (startup_counter_432 < 255) {
       startup_counter_432++;
     }
@@ -472,11 +470,12 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
       CMP_432.data.u8[0] = 0x80;  //Main wakeup
       CMP_432.data.u8[4] = 0x00;
     }
-
+  */
+    CMP_432.data.u8[0] = 0x80;  //Main wakeup
     CMP_432.data.u8[2] = counter_50ms;
     //CMP_432.data.u8[3] = 0x wakeup charging remote, preconditioning wakeup, VCU stop/start charge, long park partial wake
-    CMP_432.data.u8[1] = (0x02 << 4);  //1 no wish to start, 2 wish to start
-    CMP_432.data.u8[1] = (0x02 << 4) | calculate_checksum432(CMP_432);
+    CMP_432.data.u8[1] = 0x20;  //1 no wish to start, 2 wish to start
+    CMP_432.data.u8[1] = 0x20 | calculate_checksum432(CMP_432);
 
     //CMP_421.data.u8[3] = 0x20;  //Post wakeup , goes from 0x00 when car on, to 0x80 to when turning off car
 
