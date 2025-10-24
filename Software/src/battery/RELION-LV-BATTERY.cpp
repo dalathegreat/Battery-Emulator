@@ -8,9 +8,37 @@ BPS:250kbps
 Data Length: 8
 Data Encoded Format:Motorola*/
 
+uint16_t RelionBattery::estimateSOC(uint16_t pack_total_vol) {
+  if (pack_total_vol >= voltage[0]) {
+    return SOC[0];
+  }
+  if (pack_total_vol <= voltage[numPoints - 1]) {
+    return SOC[numPoints - 1];
+  }
+
+  for (int i = 1; i < numPoints; ++i) {
+    if (pack_total_vol >= voltage[i]) {
+      // Cast to float for proper division
+      float t = (float)(pack_total_vol - voltage[i]) / (float)(voltage[i - 1] - voltage[i]);
+
+      // Calculate interpolated SOC value
+      uint16_t socDiff = SOC[i - 1] - SOC[i];
+      uint16_t interpolatedValue = SOC[i] + (uint16_t)(t * socDiff);
+
+      return interpolatedValue;
+    }
+  }
+  return 0;  // Default return for safety, should never reach here
+}
+
 void RelionBattery::update_values() {
 
-  datalayer.battery.status.real_soc = battery_soc * 100;
+  if (user_selected_use_estimated_SOC) {
+    // Use the simplified pack-based SOC estimation with proper compensation
+    datalayer.battery.status.real_soc = estimateSOC(battery_total_voltage * 10);
+  } else {
+    datalayer.battery.status.real_soc = battery_soc * 100;
+  }
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
@@ -29,7 +57,10 @@ void RelionBattery::update_values() {
       ((battery_total_voltage / 10) * discharge_current_A);  //150A max continous discharge current
   */
   datalayer.battery.status.max_discharge_power_W =
-      datalayer.battery.status.override_discharge_power_W;  //TODO, fix when v alue is found
+      datalayer.battery.status.override_discharge_power_W;  //TODO, fix when value is found
+  if (datalayer.battery.status.cell_min_voltage_mV < MIN_CELL_VOLTAGE_MV) {
+    datalayer.battery.status.max_discharge_power_W = 0;
+  }
 
   //We have not found allowed charge power yet. Estimate it for now absed on UI setting. TODO. remove this once found
   if (datalayer.battery.status.real_soc > 9900) {
