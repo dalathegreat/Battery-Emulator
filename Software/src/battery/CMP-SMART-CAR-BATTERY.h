@@ -10,7 +10,7 @@ class CmpSmartCarBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Stellantis CMP Smart Car Battery";
-
+  bool supports_charged_energy() { return true; }
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
@@ -136,6 +136,7 @@ class CmpSmartCarBattery : public CanBattery {
   int16_t battery_temperature_minimum = 0;
   int16_t battery_current = 0;
 
+  uint8_t active_DTC_code = 0;
   uint8_t battery_quickcharge_connect_status = 0;
   uint8_t qc_negative_contactor_status = 0;
   uint8_t qc_positive_contactor_status = 0;
@@ -158,7 +159,7 @@ class CmpSmartCarBattery : public CanBattery {
   uint8_t counter_60ms = 0;
   uint8_t counter_100ms = 0;
   uint8_t SOH_internal_resistance = 0;
-  uint8_t SOH_estimated = 0;
+  uint8_t SOH_estimated = 100;
   uint8_t max_temperature_probe_number = 0;
   uint8_t min_temperature_probe_number = 0;
   uint8_t number_of_temperature_sensors = 0;
@@ -180,6 +181,7 @@ class CmpSmartCarBattery : public CanBattery {
   uint8_t master_warning = 0;
   uint8_t hvbat_wakeup_state = 0;
 
+  bool rcd_line_active = false;
   bool power_auth = false;
   bool battery_balancing_active = false;
   bool alert_cell_undervoltage = false;

@@ -55,6 +55,8 @@ void CmpSmartCarBattery::update_values() {
   datalayer_extended.stellantisCMPsmart.battery_negative_contactor_state = battery_negative_contactor_state;
   datalayer_extended.stellantisCMPsmart.battery_precharge_contactor_state = battery_precharge_contactor_state;
   datalayer_extended.stellantisCMPsmart.battery_positive_contactor_state = battery_positive_contactor_state;
+  datalayer_extended.stellantisCMPsmart.qc_negative_contactor_status = qc_negative_contactor_status;
+  datalayer_extended.stellantisCMPsmart.qc_positive_contactor_status = qc_positive_contactor_status;
   datalayer_extended.stellantisCMPsmart.battery_balancing_active = battery_balancing_active;
   datalayer_extended.stellantisCMPsmart.eplug_status = eplug_status;
   datalayer_extended.stellantisCMPsmart.HVIL_status = HVIL_status;
@@ -78,6 +80,11 @@ void CmpSmartCarBattery::update_values() {
   datalayer_extended.stellantisCMPsmart.hardware_fault_status = hardware_fault_status;
   datalayer_extended.stellantisCMPsmart.l3_fault = l3_fault;
   datalayer_extended.stellantisCMPsmart.plausibility_error = plausibility_error;
+  datalayer_extended.stellantisCMPsmart.battery_charging_status = battery_charging_status;
+  datalayer_extended.stellantisCMPsmart.battery_fault = battery_fault;
+  datalayer_extended.stellantisCMPsmart.hvbat_wakeup_state = hvbat_wakeup_state;
+  datalayer_extended.stellantisCMPsmart.active_DTC_code = active_DTC_code;
+  datalayer_extended.stellantisCMPsmart.rcd_line_active = rcd_line_active;
 }
 
 bool checksum_OK(CAN_frame& rx_frame, uint8_t magic_byte) {
@@ -164,10 +171,7 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_voltage =
           ((((rx_frame.data.u8[3] & 0x07) << 10) | (rx_frame.data.u8[4] << 2) | (rx_frame.data.u8[5] >> 6)));
       battery_state = ((rx_frame.data.u8[1] & 0x01) | (rx_frame.data.u8[2] >> 5));
-      battery_fault = ((rx_frame.data.u8[5] & 0x01) | (rx_frame.data.u8[6] >> 5));  // 0 no failt, 1-5 level
-      /*In case of Level 5 Fault, Battery will go to safe state. 
-        In case of Level 4 Fault, continue the ignition cycle and disable the next cycle unless the issues is addressed
-        In case of Level 1 Fault, Battery will derate its Power output*/
+      battery_fault = ((rx_frame.data.u8[5] & 0x01) | (rx_frame.data.u8[6] >> 5));
       battery_negative_contactor_state = ((rx_frame.data.u8[5] & 0x06) >> 1);
       battery_precharge_contactor_state = ((rx_frame.data.u8[5] & 0x18) >> 3);
       battery_positive_contactor_state = ((rx_frame.data.u8[5] & 0x20) >> 5);
@@ -349,6 +353,9 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       SOH_internal_resistance = (((rx_frame.data.u8[3] & 0x1F) << 2) | (rx_frame.data.u8[4] >> 6));
       SOH_estimated = (rx_frame.data.u8[5] >> 1);
       break;
+    case 0x575:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
     case 0x583:  //1000ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       max_temperature_probe_number = rx_frame.data.u8[0];
@@ -399,17 +406,16 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       main_contactor_cycle_count = ((rx_frame.data.u8[0] << 2) | (rx_frame.data.u8[1] >> 6)) * 200;
       QC_contactor_cycle_count = (((rx_frame.data.u8[1] & 0x3F) << 4) | (rx_frame.data.u8[2] >> 4)) * 200;
       break;
-    case 0x575:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
     case 0x694:  // Poll reply
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x795:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      rcd_line_active = (rx_frame.data.u8[0] & 0x40) >> 6;
       break;
     case 0x7B5:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      active_DTC_code = rx_frame.data.u8[2];
       break;
     default:
       break;
@@ -426,7 +432,7 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     counter_10ms = (counter_10ms + 1) % 16;  // counter_100ms repeats after 16 messages. 0-1..15-0
 
     CMP_262.data.u8[0] =
-        0xE0;  //0b0000 powertrain inactive, 0b0100 powertrain activation, 0b1000 powertrain active (Goes from E0, 00, 40 to 80 in logs). E0 all the time when CCS charging
+        0x00;  //0b0000 powertrain inactive, 0b0100 powertrain activation, 0b1000 powertrain active (Goes from E0, 00, 40 to 80 in logs). E0 all the time when CCS charging
 
     CMP_208.data.u8[1] =
         0x00;  //Goes from 00->20->3E in logs while starting to drive. TODO: Emulate? 00 while quickcharging
@@ -456,31 +462,26 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
       startup_counter_432++;
     }
     if (startup_counter_432 < 15) {
-      CMP_432.data.u8[0] = 0x60;  //60-70-80 TODO: Emulate this?
-      CMP_421.data.u8[3] = 0x20;  //Plug in wakeup
+      CMP_432.data.u8[0] = 0x60;  //Remote unlock, partial wakeup + No main wakeup
       CMP_432.data.u8[4] = 0x04;
     }
     if (startup_counter_432 > 15) {
-      CMP_432.data.u8[0] = 0x70;  //60-70-80 TODO: Emulate this?
-      CMP_421.data.u8[3] = 0x10;  //CCS charge in progress
+      CMP_432.data.u8[0] = 0x70;  //Remote unlock, partial wakeup + No main wakeup + Anti theft wake
     }
     if (startup_counter_432 > 200) {
-      CMP_432.data.u8[0] = 0x80;
+      CMP_432.data.u8[0] = 0x80;  //Main wakeup
       CMP_432.data.u8[4] = 0x00;
     }
 
     CMP_432.data.u8[2] = counter_50ms;
-    CMP_432.data.u8[1] = (0x01 << 4);
-    CMP_432.data.u8[1] = (0x01 << 4) | calculate_checksum432(CMP_432);
+    //CMP_432.data.u8[3] = 0x wakeup charging remote, preconditioning wakeup, VCU stop/start charge, long park partial wake
+    CMP_432.data.u8[1] = (0x02 << 4);  //1 no wish to start, 2 wish to start
+    CMP_432.data.u8[1] = (0x02 << 4) | calculate_checksum432(CMP_432);
 
-    //CMP_421.data.u8[3] = 0x20;  //TODO, this contains wakeup request from VCU. What should content be?
-    //Bit 4, Recharge wakeup
-    //Bit 5, Partial Wakeup, connector seated
-    //Bit 7, Post ignition off Wakeup
-    //When CCS charging, this goes from 0x20 -> 0x10, and 0x80 when completing charge
+    //CMP_421.data.u8[3] = 0x20;  //Post wakeup , goes from 0x00 when car on, to 0x80 to when turning off car
 
     transmit_can_frame(&CMP_432);  //Main wakeup
-    transmit_can_frame(&CMP_421);  //More wakeup
+    transmit_can_frame(&CMP_421);  //Post wakeup
   }
 
   // Send 60ms messages
@@ -499,10 +500,13 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     counter_100ms = (counter_100ms + 1) % 16;  // counter_100ms repeats after 16 messages. 0-1..15-0
 
     CMP_211.data.u8[2] = 0x00;  //00 QC contactor OFF, 81, QC contactor ON
-    CMP_211.data.u8[4] = 0x15;  //Contactor closing message (15 ready)(4A charge)(04 discharage)(00 no command)
+    CMP_211.data.u8[4] = 0x17;  //Contactor closing message (15 ready)(4A charge)(04 discharage)(00 no command)
+    //Bit 1 is isolation
 
     CMP_211.data.u8[7] = counter_100ms;
     CMP_211.data.u8[7] = (calculate_checksum(CMP_211, 0x0B) << 4) | counter_100ms;
+
+    CMP_4A2.data.u8[1] = 0x40;  //00 plugged, 64 unplugged, 41vehiclerunning
 
     transmit_can_frame(&CMP_211);
     transmit_can_frame(&CMP_231);  // Battery Preconditioning

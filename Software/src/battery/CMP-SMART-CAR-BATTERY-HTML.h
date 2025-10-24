@@ -49,6 +49,25 @@ class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
       content += "STUCK Closed!";
     }
     content += "</h4>";
+    content += "<h4>QC positive contactor: ";
+    if (datalayer_extended.stellantisCMPsmart.qc_positive_contactor_status == 0) {
+      content += "Open";
+    } else if (datalayer_extended.stellantisCMPsmart.qc_positive_contactor_status == 1) {
+      content += "Closed";
+    } else if (datalayer_extended.stellantisCMPsmart.qc_positive_contactor_status == 2) {
+      content += "Fault!";
+    }
+    content += "</h4>";
+    content += "<h4>QC negative contactor: ";
+    if (datalayer_extended.stellantisCMPsmart.qc_negative_contactor_status == 0) {
+      content += "Open";
+    } else if (datalayer_extended.stellantisCMPsmart.qc_negative_contactor_status == 1) {
+      content += "Closed";
+    } else if (datalayer_extended.stellantisCMPsmart.qc_negative_contactor_status == 2) {
+      content += "Fault!";
+    }
+    content += "</h4>";
+    content += "<h4>Wakeup reason: " + String(datalayer_extended.stellantisCMPsmart.hvbat_wakeup_state) + "</h4>";
     content += "<h4>Battery state: ";
     if (datalayer_extended.stellantisCMPsmart.battery_state == 0) {
       content += "Sleep";
@@ -76,6 +95,8 @@ class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
       content += "HV battery precondition";
     }
     content += "</h4>";
+
+    content += "<h4>Battery fault level: " + String(datalayer_extended.stellantisCMPsmart.battery_fault) + "</h4>";
 
     content += "<h4>Eplug status: ";
     if (datalayer_extended.stellantisCMPsmart.eplug_status == 0) {
@@ -119,6 +140,24 @@ class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
     } else {
       content += "Authorised for HVBAT usage OK</h4>";
     }
+
+    content += "<h4>Charging status: ";
+    if (datalayer_extended.stellantisCMPsmart.battery_charging_status == 0) {
+      content += "Not initiated";
+    } else if (datalayer_extended.stellantisCMPsmart.battery_charging_status == 1) {
+      content += "In progress";
+    } else if (datalayer_extended.stellantisCMPsmart.battery_charging_status == 2) {
+      content += "Completed";
+    } else if (datalayer_extended.stellantisCMPsmart.battery_charging_status == 3) {
+      content += "Failure";
+    } else if (datalayer_extended.stellantisCMPsmart.battery_charging_status == 3) {
+      content += "Stopped";
+    } else if (datalayer_extended.stellantisCMPsmart.battery_charging_status == 3) {
+      content += "Forbidden";
+    } else if (datalayer_extended.stellantisCMPsmart.battery_charging_status == 3) {
+      content += "Prohibited, suggest preheat or precondition";
+    }
+    content += "</h4>";
 
     content += "<h4>Insulation status: ";
     if (datalayer_extended.stellantisCMPsmart.insulation_fault == 0) {
@@ -274,6 +313,14 @@ class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
       content += "No </h4>";
     }
 
+    content += "<h4>RCD line active: ";
+    if (datalayer_extended.stellantisCMPsmart.rcd_line_active) {
+      content += "Yes </h4>";
+    } else {
+      content += "No </h4>";
+    }
+
+    content += "<h4>Active DTC Code: " + String(datalayer_extended.stellantisCMPsmart.active_DTC_code) + "</h4>";
     return content;
   }
 };
