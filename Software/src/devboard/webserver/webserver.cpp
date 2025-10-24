@@ -982,7 +982,7 @@ String processor(const String& var) {
     // Close the block
     content += "</div>";
 
-    if (inverter || battery || shunt || charger) {
+    if (inverter || battery || charger || user_selected_shunt_type != ShuntType::None) {
       // Start a new block with a specific background color
       content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
 
@@ -1007,7 +1007,7 @@ String processor(const String& var) {
         content += "</h4>";
       }
 
-      if (shunt) {
+      if (user_selected_shunt_type != ShuntType::None) {
         content += "<h4 style='color: white;'>Shunt protocol: ";
         content += datalayer.system.info.shunt_protocol;
         content += "</h4>";

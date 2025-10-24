@@ -53,6 +53,9 @@ class InverterProtocol {
   virtual bool allows_contactor_closing() { return false; }
 
   virtual bool supports_battery_id() { return false; }
+
+  virtual bool provides_shunt() { return false; }
+  virtual void enable_shunt() {}
 };
 
 extern InverterProtocol* inverter;
