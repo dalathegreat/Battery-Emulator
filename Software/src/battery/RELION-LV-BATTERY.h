@@ -18,8 +18,13 @@ class RelionBattery : public CanBattery {
   static const int MAX_PACK_VOLTAGE_DV = 584;  //58.4V recommended charge voltage. BMS protection steps in at 60.8V
   static const int MIN_PACK_VOLTAGE_DV = 440;  //44.0V Recommended LV disconnect. BMS protection steps in at 40.0V
   static const int MAX_CELL_DEVIATION_MV = 300;
-  static const int MAX_CELL_VOLTAGE_MV = 3800;  //Battery is put into emergency stop if one cell goes over this value
+  static const int MAX_CELL_VOLTAGE_MV = 3750;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+
+  static const int RAMPDOWN_SOC = 900;  // 90.0 SOC% to start ramping down from max charge power towards 0 at 100.00%
+  static const int RAMPDOWNPOWERALLOWED = 1000;  // What power we ramp down from towards top balancing
+  static const int FLOAT_MAX_POWER_W = 150;      // W, what power to allow for top balancing battery
+  static const int FLOAT_START_MV = 20;          // mV, how many mV under overvoltage to start float charging
 
   uint16_t battery_total_voltage = 500;
   int16_t battery_total_current = 0;

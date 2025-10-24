@@ -21,11 +21,30 @@ void RelionBattery::update_values() {
 
   datalayer.battery.status.current_dA = battery_total_current;  //Charging negative, discharge positive
 
+  /* Shows 0A all the time?
   datalayer.battery.status.max_charge_power_W =
       ((battery_total_voltage / 10) * charge_current_A);  //90A recommended charge current
 
   datalayer.battery.status.max_discharge_power_W =
       ((battery_total_voltage / 10) * discharge_current_A);  //150A max continous discharge current
+  */
+  datalayer.battery.status.max_discharge_power_W =
+      datalayer.battery.status.override_discharge_power_W;  //TODO, fix when v alue is found
+
+  //We have not found allowed charge power yet. Estimate it for now absed on UI setting. TODO. remove this once found
+  if (datalayer.battery.status.real_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
+  } else if ((datalayer.battery.status.real_soc / 10) >
+             RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+    datalayer.battery.status.max_charge_power_W =
+        RAMPDOWNPOWERALLOWED * (1 - ((battery_soc / 10) - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
+    //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
+    if (datalayer.battery.status.cell_max_voltage_mV > (MAX_CELL_VOLTAGE_MV - FLOAT_START_MV)) {
+      datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
+    }
+  } else {  // No limits, max charging power allowed
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
+  }
 
   datalayer.battery.status.temperature_min_dC = max_cell_temperature * 10;
 
