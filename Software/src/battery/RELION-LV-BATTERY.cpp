@@ -19,7 +19,7 @@ void RelionBattery::update_values() {
 
   datalayer.battery.status.voltage_dV = battery_total_voltage;
 
-  datalayer.battery.status.current_dA = battery_total_current;  //Charging negative, discharge positive
+  datalayer.battery.status.current_dA = -battery_total_current;  //Charging negative, discharge positive
 
   /* Shows 0A all the time?
   datalayer.battery.status.max_charge_power_W =
