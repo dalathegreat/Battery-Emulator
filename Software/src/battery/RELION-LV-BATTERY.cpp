@@ -98,6 +98,7 @@ void RelionBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.cell_voltages_mV[12] = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
       datalayer.battery.status.cell_voltages_mV[13] = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
       datalayer.battery.status.cell_voltages_mV[14] = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      datalayer.battery.status.cell_voltages_mV[15] = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x02058100:  ///? 2058100 [8] 00 0C 00 00 00 00 00 00
