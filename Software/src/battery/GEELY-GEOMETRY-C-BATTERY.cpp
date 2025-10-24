@@ -55,13 +55,13 @@ smart booster, ESC, airbag control module, automatic parking module
 /* Do not change code below unless you are sure what you are doing */
 
 void GeelyGeometryCBattery::update_values() {
-  datalayer_battery->status.soh_pptt;
+  //datalayer_battery->status.soh_pptt; //TODO: Fix
 
   datalayer_battery->status.real_soc = poll_soc * 10;
 
   datalayer_battery->status.voltage_dV = battery_voltage;
 
-  datalayer_battery->status.current_dA;
+  //datalayer_battery->status.current_dA; //TODO: Fix
 
   if (poll_amount_cells == 102) {  // We have determined that we are on 70kWh pack
     datalayer_battery->info.total_capacity_Wh = 70000;
@@ -75,7 +75,7 @@ void GeelyGeometryCBattery::update_values() {
 
   datalayer_battery->status.max_discharge_power_W = discharge_power_allowed * 100;
 
-  datalayer_battery->status.max_charge_power_W;
+  //datalayer_battery->status.max_charge_power_W; //TODO: Fix
 
   datalayer_battery->status.cell_min_voltage_mV = maximum_cell_voltage - 10;  //TODO: Fix once we have min value
 

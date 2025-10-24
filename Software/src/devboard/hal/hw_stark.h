@@ -84,6 +84,27 @@ class StarkHal : public Esp32Hal {
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanFdNative};
   }
+
+  virtual const char* name_for_comm_interface(comm_interface comm) {
+    switch (comm) {
+      case comm_interface::CanNative:
+        return "CAN 1 (Native)";
+      case comm_interface::CanFdNative:
+        return "CAN FD 2 (Native)";
+      case comm_interface::CanAddonMcp2515:
+        return "";
+      case comm_interface::CanFdAddonMcp2518:
+        return "";
+      case comm_interface::Modbus:
+        return "Modbus";
+      case comm_interface::RS485:
+        return "RS485";
+      case comm_interface::Highest:
+        return "";
+        break;
+    }
+    return Esp32Hal::name_for_comm_interface(comm);
+  }
 };
 
 #endif  // __HW_STARK_H__

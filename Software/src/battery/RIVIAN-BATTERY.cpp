@@ -17,7 +17,7 @@ void RivianBattery::update_values() {
 
   datalayer.battery.status.real_soc = battery_SOC;
 
-  datalayer.battery.status.soh_pptt;
+  //datalayer.battery.status.soh_pptt; //TODO: Find usable SOH
 
   datalayer.battery.status.voltage_dV = battery_voltage;
   datalayer.battery.status.current_dA = ((int16_t)battery_current / 10.0 - 3200) * 10;

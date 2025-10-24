@@ -5,6 +5,7 @@
 #include "../communication/can/CanReceiver.h"
 #include "../communication/can/comm_can.h"
 #include "../devboard/safety/safety.h"
+#include "../devboard/utils/logging.h"
 #include "../devboard/utils/types.h"
 #include "InverterProtocol.h"
 
@@ -27,10 +28,15 @@ class CanInverterProtocol : public InverterProtocol, Transmitter, CanReceiver {
  protected:
   CAN_Interface can_interface;
 
-  CanInverterProtocol() {
+  explicit CanInverterProtocol(CAN_Speed speed = CAN_Speed::CAN_SPEED_500KBPS) {
     can_interface = can_config.inverter;
     register_transmitter(this);
-    register_can_receiver(this, can_interface);
+    register_can_receiver(this, can_interface, speed);
+    logging.print("Requesting ");
+    logging.print((uint32_t)speed);
+    logging.print(" kbps for inverter CAN interface (");
+    logging.print(getCANInterfaceName(can_interface));
+    logging.println(")");
   }
 
   void transmit_can_frame(CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }

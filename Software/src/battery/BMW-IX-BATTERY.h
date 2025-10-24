@@ -43,8 +43,12 @@ class BmwIXBattery : public CanBattery {
   bool userRequestContactorOpen = false;
 
   BmwIXHtmlRenderer renderer;
-  static const int MAX_PACK_VOLTAGE_DV = 4650;  //4650 = 465.0V
-  static const int MIN_PACK_VOLTAGE_DV = 3000;
+  static const int MAX_PACK_VOLTAGE_78S_DV = 3354;  //SE12 battery, BMW iX1, 66.45kWh 286.3vNom
+  static const int MIN_PACK_VOLTAGE_78S_DV = 2200;
+  static const int MAX_PACK_VOLTAGE_96S_DV = 4128;
+  static const int MIN_PACK_VOLTAGE_96S_DV = 2688;
+  static const int MAX_PACK_VOLTAGE_108S_DV = 4650;
+  static const int MIN_PACK_VOLTAGE_108S_DV = 3000;
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4300;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2800;  //Battery is put into emergency stop if one cell goes below this value
@@ -142,16 +146,16 @@ SME asks for:
 TODO:
 - Request batt serial number on F1 8C (already parsing RX)
 */
-
+  /*
   //Vehicle CAN START
   static constexpr CAN_frame BMWiX_125 = {
       .FD = true,
       .ext_ID = false,
       .DLC = 20,
       .ID = 0x125,
-      //.data = {TODO:, TODO:, TODO:, TODO:, 0xFE, 0x7F, 0xFE, 0x7F, TODO:, TODO:, TODO:, TODO:, TODO:, 0xFF, 0xFF, 0xFF, 0xFF, 0xF0, 0xFF, 0xFF}
+      .data = {TODO:, TODO:, TODO:, TODO:, 0xFE, 0x7F, 0xFE, 0x7F, TODO:, TODO:, TODO:, TODO:, TODO:, 0xFF, 0xFF, 0xFF, 0xFF, 0xF0, 0xFF, 0xFF}
   };  // CCU output
-
+*/
   /* SME output
 CAN_frame BMWiX_12B8D087 = {.FD = true,
                             .ext_ID = true,
@@ -179,6 +183,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x188,
       .data = {0x00, 0x00, 0x00, 0x00, 0x3C, 0xFF, 0xFF, 0xFF}};  // CCU output - values while driving
 
+  /*
   static constexpr CAN_frame BMWiX_1EA = {
       .FD = true,
       .ext_ID = false,
@@ -186,7 +191,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x1EA,
       //.data = {TODO:km_least_significant, TODO:, TODO:, TODO:, TODO:km_most_significant, 0xFF, TODO:, TODO:}
   };  // KOMBI output - kilometerstand
-
+*/
   static constexpr CAN_frame BMWiX_1FC = {
       .FD = true,
       .ext_ID = false,
@@ -194,7 +199,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x1FC,
       .data = {0xFF, 0xFF, 0xFF, 0xFC, 0x00, 0x00, 0xC0,
                0x00}};  // FIXME:(add transmitter node) output - heat management engine control - values
-
+                        /*
   static constexpr CAN_frame BMWiX_21D = {
       .FD = true,
       .ext_ID = false,
@@ -202,7 +207,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x21D,
       //    .data = {TODO:, TODO:, TODO:, 0xFF, 0xFF, 0xFF, 0xFF, TODO:}
   };  // FIXME:(add transmitter node) output - request heating and air conditioning system 1
-
+*/
   static constexpr CAN_frame BMWiX_276 = {
       .FD = true,
       .ext_ID = false,
@@ -226,7 +231,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .DLC = 8,
       .ID = 0x2F1,
       .data = {0xFF, 0xFF, 0xD0, 0x39, 0x94, 0x00, 0xF3, 0xFF}};  // 1000ms BDC output - values - varies at startup
-
+  /*
   static constexpr CAN_frame BMWiX_340 = {
       .FD = true,
       .ext_ID = false,
@@ -234,7 +239,8 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x340,
       //      .data = {TODO:, TODO:, TODO:, 0xFF, TODO:, TODO:, 0x00, 0x00, TODO:, TODO:, TODO:, 0xFF, 0xFF, }
   };  // CCU output
-
+*/
+  /*
   static constexpr CAN_frame BMWiX_380 = {
       .FD = true,
       .ext_ID = false,
@@ -242,7 +248,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x380,
       //      .data = {FIXME:(VIN_char1), FIXME:(VIN_char2), FIXME:(VIN_char3), FIXME:(VIN_char4), FIXME:(VIN_char5), FIXME:(VIN_char6), FIXME:(VIN_char7)}
   };  // FIXME:(add transmitter node) output -  VIN: ASCII2HEX
-
+*/
   /* Not requested by SME
 CAN_frame BMWiX_439 = {.FD = true,
                        .ext_ID = false,
@@ -250,7 +256,7 @@ CAN_frame BMWiX_439 = {.FD = true,
                        .ID = 0x439,
                        .data = {0xFF, 0x3F, 0xFF, 0xF3}};  // 1000ms BDC output
 */
-
+  /*
   static constexpr CAN_frame BMWiX_442 = {
       .FD = true,
       .ext_ID = false,
@@ -258,7 +264,7 @@ CAN_frame BMWiX_439 = {.FD = true,
       .ID = 0x442,
       //                        .data = {TODO: relative time byte 0, TODO: relative time byte1, 0xA9, 0x00, 0xE0, 0x23}
   };  // FIXME:(add transmitter node) output - relative time BN2020
-
+*/
   /* SME output
 CAN_frame
     BMWiX_486 =
@@ -283,7 +289,7 @@ CAN_frame BMWiX_49C = {.FD = true,
                        .data = {0xD2, 0xF2, 0xC0, 0xFF, 0xFF, 0xFF, 0xFF,
                                 0xFF}};  // 1000ms SME output - Suspected keep alive CONFIRM NEEDED
 */
-
+  /*
   static constexpr CAN_frame BMWiX_4EB = {
       .FD = true,
       .ext_ID = false,
@@ -299,7 +305,7 @@ CAN_frame BMWiX_49C = {.FD = true,
       .ID = 0x4F8,
       //  .data = {0xFF, 0xFD, 0xFF, 0xFF, 0xFF, TODO:, TODO:, 0xC8, 0x00, 0x00, 0xF0, 0x40, 0xFE, 0xFF, 0xFD, 0xFF, TODO:, TODO:, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
   };  // CCU output
-
+*/
   CAN_frame BMWiX_510 = {
       .FD = true,
       .ext_ID = false,
@@ -575,7 +581,7 @@ CAN_frame BMWiX_49C = {.FD = true,
   uint8_t pyro_status_pss4 = 0;            //Using AC 93
   uint8_t pyro_status_pss6 = 0;            //Using AC 93
   uint8_t uds_req_id_counter = 0;
-  uint8_t detected_number_of_cells = 108;
+  uint8_t detected_number_of_cells = 0;
   const unsigned long STALE_PERIOD =
       STALE_PERIOD_CONFIG;  // Time in milliseconds to check for staleness (e.g., 5000 ms = 5 seconds)
   //End iX Intermediate vars

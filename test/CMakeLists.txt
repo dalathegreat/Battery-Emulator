@@ -105,6 +105,7 @@ add_executable(tests
     ../Software/src/battery/CMFA-EV-BATTERY.cpp
     ../Software/src/battery/DALY-BMS.cpp
     ../Software/src/battery/ECMP-BATTERY.cpp
+    ../Software/src/battery/FORD-MACH-E-BATTERY.cpp
     ../Software/src/battery/FOXESS-BATTERY.cpp
     ../Software/src/battery/GEELY-GEOMETRY-C-BATTERY.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY-HTML.cpp

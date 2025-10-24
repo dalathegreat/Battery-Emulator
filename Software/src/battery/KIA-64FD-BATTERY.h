@@ -46,7 +46,7 @@ class Kia64FDBattery : public CanBattery {
   uint16_t batterySOH = 1000;
   uint16_t CellVoltMax_mV = 3700;
   uint16_t CellVoltMin_mV = 3700;
-  uint16_t batteryVoltage = 0;
+  uint16_t batteryVoltage = 3700;
   int16_t leadAcidBatteryVoltage = 120;
   int16_t batteryAmps = 0;
   int16_t temperatureMax = 0;

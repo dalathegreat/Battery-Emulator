@@ -68,7 +68,10 @@ enum CAN_Interface {
   CAN_ADDON_MCP2515 = 2,
 
   // Add-on CAN-FD MCP2518 connected to GPIO pins
-  CANFD_ADDON_MCP2518 = 3
+  CANFD_ADDON_MCP2518 = 3,
+
+  // No CAN interface
+  NO_CAN_INTERFACE = 4
 };
 
 extern const char* getCANInterfaceName(CAN_Interface interface);

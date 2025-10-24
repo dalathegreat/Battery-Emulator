@@ -8,8 +8,8 @@ The 2CAN has four GPIOs on the top (43/44 and 1/2 on each of the SH-1mm
 connectors) and 21 on the bottom (on the 2x13 header). GPIO35-37 aren't usable
 if opi PSRAM is enabled.
 
-43:RS485_RX
-44:RS485_TX
+43:RS485_TX
+44:RS485_RX
 
 1:WUP1/BMS_POWER/ESTOP
 2:WUP2/LED
@@ -44,13 +44,12 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_7; }
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_6; }
 
-  // Note: these are used by the bootloader UART, although the other way round -
-  // so there'll be a brief clash of TX outputs on startup. This shouldn't cause
-  // any problems (neither the ESP32 nor common RS485 transcievers should suffer
-  // damage from shorted outputs) and ensures that we don't send any bootloader
-  // chatter to any attached batteries/inverters.
-  virtual gpio_num_t RS485_TX_PIN() { return GPIO_NUM_44; }
-  virtual gpio_num_t RS485_RX_PIN() { return GPIO_NUM_43; }
+  // Note: these are used by the bootloader UART, so there'll be some bootloader
+  // chatter sent down the RS485 bus when the chip starts up. Hopefully this
+  // won't matter (it'll be 115200 baud, so much higher than the normal Modbus
+  // 9600 baud) - if it's a problem we can burn fuses to disable it.
+  virtual gpio_num_t RS485_TX_PIN() { return GPIO_NUM_43; }
+  virtual gpio_num_t RS485_RX_PIN() { return GPIO_NUM_44; }
 
   // Built In MCP2515 CAN_ADDON
   virtual gpio_num_t MCP2515_SCK() { return GPIO_NUM_12; }
@@ -95,6 +94,26 @@ class LilyGo2CANHal : public Esp32Hal {
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,
             comm_interface::CanFdAddonMcp2518};
+  }
+
+  virtual const char* name_for_comm_interface(comm_interface comm) {
+    switch (comm) {
+      case comm_interface::CanNative:
+        return "CAN B (Native)";
+      case comm_interface::CanFdNative:
+        return "";
+      case comm_interface::CanAddonMcp2515:
+        return "CAN A (MCP2515)";
+      case comm_interface::CanFdAddonMcp2518:
+        return "CAN FD (MCP2518 add-on)";
+      case comm_interface::Modbus:
+        return "Modbus (Add-on)";
+      case comm_interface::RS485:
+        return "RS485 (Add-on)";
+      case comm_interface::Highest:
+        return "";
+    }
+    return Esp32Hal::name_for_comm_interface(comm);
   }
 };
 

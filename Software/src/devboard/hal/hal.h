@@ -165,6 +165,25 @@ class Esp32Hal {
   // Returns the available comm interfaces on this HW
   virtual std::vector<comm_interface> available_interfaces() = 0;
 
+  virtual const char* name_for_comm_interface(comm_interface comm) {
+    switch (comm) {
+      case comm_interface::Modbus:
+        return "Modbus";
+      case comm_interface::RS485:
+        return "RS485";
+      case comm_interface::CanNative:
+        return "CAN (Native)";
+      case comm_interface::CanFdNative:
+        return "";
+      case comm_interface::CanAddonMcp2515:
+        return "CAN (MCP2515 add-on)";
+      case comm_interface::CanFdAddonMcp2518:
+        return "CAN FD (MCP2518 add-on)";
+      default:
+        return nullptr;
+    }
+  }
+
   String failed_allocator() { return allocator_name; }
   String conflicting_allocator() { return allocated_name; }
 

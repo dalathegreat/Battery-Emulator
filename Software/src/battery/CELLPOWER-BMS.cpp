@@ -216,18 +216,18 @@ void CellPowerBms::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void CellPowerBms::transmit_can(unsigned long currentMillis) {
-
-  // Send 1s CAN Message
+  /*
+  // Send 1s CAN Message. NOTE; Not required to keep BMS happy
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
     previousMillis1s = currentMillis;
-
-    /*
+    
     transmit_can_frame(&CELLPOWER_18FF50E9);
     transmit_can_frame(&CELLPOWER_18FF50E8);
     transmit_can_frame(&CELLPOWER_18FF50E7);
     transmit_can_frame(&CELLPOWER_18FF50E5);
-    */
+
   }
+  */
 }
 
 void CellPowerBms::setup(void) {  // Performs one time setup at startup

@@ -127,9 +127,11 @@ void check_interconnect_available() {
   }
 
   uint16_t voltage_diff = abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV);
+  uint8_t secondsOutOfVoltageSync = 0;
 
   if (voltage_diff <= 30) {  // If we are within 3.0V between the batteries
     clear_event(EVENT_VOLTAGE_DIFFERENCE);
+    secondsOutOfVoltageSync = 0;
     if (datalayer.battery.status.bms_status == FAULT) {
       // If main battery is in fault state, disengage the second battery
       datalayer.system.status.battery2_allowed_contactor_closing = false;
@@ -138,10 +140,17 @@ void check_interconnect_available() {
     }
   } else {  //Voltage between the two packs is too large
     set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff / 10));
+
+    //If we start to drift out of sync between the two packs for more than 10 seconds, open contactors
+    if (secondsOutOfVoltageSync < 10) {
+      secondsOutOfVoltageSync++;
+    } else {
+      datalayer.system.status.battery2_allowed_contactor_closing = false;
+    }
   }
 }
 
-void update_calculated_values() {
+void update_calculated_values(unsigned long currentMillis) {
   /* Update CPU temperature*/
   union {
     float temp;
@@ -152,6 +161,14 @@ void update_calculated_values() {
     datalayer.system.info.CPU_temperature = temp.temp;
   }
 
+  /* Check is remote set limits have timed out */
+  if (currentMillis > datalayer.battery.settings.remote_set_timestamp + datalayer.battery.settings.remote_set_timeout) {
+    datalayer.battery.settings.remote_settings_limit_charge = false;
+    datalayer.battery.settings.remote_settings_limit_discharge = false;
+    datalayer.battery.settings.max_remote_set_charge_dA = 0;
+    datalayer.battery.settings.max_remote_set_discharge_dA = 0;
+  }
+
   /* Calculate allowed charge/discharge currents*/
   if (datalayer.battery.status.voltage_dV > 10) {
     // Only update value when we have voltage available to avoid div0. TODO: This should be based on nominal voltage
@@ -160,19 +177,37 @@ void update_calculated_values() {
     datalayer.battery.status.max_discharge_current_dA =
         ((datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV);
   }
-  /* Restrict values from user settings if needed*/
-  if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_user_set_charge_dA) {
-    datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
-    datalayer.battery.settings.user_settings_limit_charge = true;
+
+  /* Apply remote restrictions if set*/
+  if (datalayer.battery.settings.remote_settings_limit_charge) {
+    if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_remote_set_charge_dA) {
+      datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_remote_set_charge_dA;
+    }
   } else {
-    datalayer.battery.settings.user_settings_limit_charge = false;
+    /* Restrict values from user settings if needed*/
+    if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_user_set_charge_dA) {
+      datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
+      datalayer.battery.settings.user_settings_limit_charge = true;
+    } else {
+      datalayer.battery.settings.user_settings_limit_charge = false;
+    }
   }
-  if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_user_set_discharge_dA) {
-    datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_user_set_discharge_dA;
-    datalayer.battery.settings.user_settings_limit_discharge = true;
+
+  /* Apply remote restrictions if set*/
+  if (datalayer.battery.settings.remote_settings_limit_discharge) {
+    if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_remote_set_charge_dA) {
+      datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_remote_set_discharge_dA;
+    }
   } else {
-    datalayer.battery.settings.user_settings_limit_discharge = false;
+    /* Restrict values from user settings if needed*/
+    if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_user_set_discharge_dA) {
+      datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_user_set_discharge_dA;
+      datalayer.battery.settings.user_settings_limit_discharge = true;
+    } else {
+      datalayer.battery.settings.user_settings_limit_discharge = false;
+    }
   }
+
   /* Calculate active power based on voltage and current*/
   datalayer.battery.status.active_power_W =
       (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
@@ -426,7 +461,7 @@ void core_loop(void*) {
         battery2->update_values();
         check_interconnect_available();
       }
-      update_calculated_values();
+      update_calculated_values(currentMillis);
       update_machineryprotection();  // Check safeties
 
       // Update values heading towards inverter

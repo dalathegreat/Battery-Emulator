@@ -16,18 +16,18 @@ std::string passwordAP;
 
 // Set your Static IP address. Only used incase Static address option is set
 bool static_IP_enabled = false;
-uint16_t static_local_IP1 = 0;
-uint16_t static_local_IP2 = 0;
-uint16_t static_local_IP3 = 0;
-uint16_t static_local_IP4 = 0;
-uint16_t static_gateway1 = 0;
-uint16_t static_gateway2 = 0;
-uint16_t static_gateway3 = 0;
-uint16_t static_gateway4 = 0;
-uint16_t static_subnet1 = 0;
-uint16_t static_subnet2 = 0;
-uint16_t static_subnet3 = 0;
-uint16_t static_subnet4 = 0;
+uint8_t static_local_IP1 = 0;
+uint8_t static_local_IP2 = 0;
+uint8_t static_local_IP3 = 0;
+uint8_t static_local_IP4 = 0;
+uint8_t static_gateway1 = 0;
+uint8_t static_gateway2 = 0;
+uint8_t static_gateway3 = 0;
+uint8_t static_gateway4 = 0;
+uint8_t static_subnet1 = 0;
+uint8_t static_subnet2 = 0;
+uint8_t static_subnet3 = 0;
+uint8_t static_subnet4 = 0;
 
 // Configuration Parameters
 static const uint16_t WIFI_CHECK_INTERVAL = 2000;       // 1 seconds normal check interval when last connected
@@ -108,8 +108,9 @@ void wifi_monitor() {
   if ((hasConnectedBefore && (currentMillis - lastWiFiCheck > current_check_interval)) ||
       (!hasConnectedBefore && (currentMillis - lastWiFiCheck > INIT_WIFI_FULL_RECONNECT_INTERVAL))) {
 
-    DEBUG_PRINTF("Wi-Fi status: %d, %d, %d, %d, %d\n", hasConnectedBefore, currentMillis, lastWiFiCheck,
-                 current_check_interval, INIT_WIFI_FULL_RECONNECT_INTERVAL);
+    // Uncomment for testing, but otherwise this quickly fills up the log
+    //DEBUG_PRINTF("Wi-Fi status: %d, %d, %d, %d, %d\n", hasConnectedBefore, currentMillis, lastWiFiCheck,
+    //             current_check_interval, INIT_WIFI_FULL_RECONNECT_INTERVAL);
 
     lastWiFiCheck = currentMillis;
 

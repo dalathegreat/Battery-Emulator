@@ -174,8 +174,7 @@ void handle_contactors() {
       set(posPin, OFF, PWM_OFF_DUTY);
       datalayer.system.status.contactors_engaged = 0;
 
-      if (datalayer.system.status.inverter_allows_contactor_closing &&
-          !datalayer.system.settings.equipment_stop_active) {
+      if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) {
         contactorStatus = START_PRECHARGE;
       }
     }
@@ -183,8 +182,7 @@ void handle_contactors() {
     // In case the inverter requests contactors to open, set the state accordingly
     if (contactorStatus == COMPLETED) {
       //Incase inverter (or estop) requests contactors to open, make state machine jump to Disconnected state (recoverable)
-      if (!datalayer.system.status.inverter_allows_contactor_closing ||
-          datalayer.system.settings.equipment_stop_active) {
+      if (!datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.info.equipment_stop_active) {
         contactorStatus = DISCONNECTED;
       }
       // Skip running the state machine below if it has already completed
@@ -291,6 +289,7 @@ void handle_BMSpower() {
 
       datalayer.system.status.BMS_startup_in_progress = false;  // Reset the BMS warmup removal flag
       set_event(EVENT_PERIODIC_BMS_RESET, 0);
+      clear_event(EVENT_PERIODIC_BMS_RESET);
     }
   }
 }

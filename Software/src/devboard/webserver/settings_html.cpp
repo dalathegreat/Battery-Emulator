@@ -6,6 +6,7 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
 #include "src/inverter/INVERTERS.h"
@@ -71,6 +72,8 @@ String options_for_enum(TEnum selected, Func name_for_type) {
   String options;
   auto values = enum_values_and_names<TEnum>(name_for_type, nullptr);
   for (const auto& [name, type] : values) {
+    if (name[0] == '\0')
+      continue;  // Don't show blank options
     options +=
         ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">");
     options += name;
@@ -121,74 +124,15 @@ const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   }
 }
 
+// Special unicode characters
+const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
+const char* FALSE_CHAR_CODE = "\u2715";  //&#10005";
+
+String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& settings);
+
 String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
-
-  if (var == "HOSTNAME") {
-    return settings.getString("HOSTNAME");
-  }
-
-  if (var == "BATTERYINTF") {
-    if (battery) {
-      return battery->interface_name();
-    }
-  }
-  if (var == "SSID") {
-    return String(ssid.c_str());
-  }
-
-  if (var == "SAVEDCLASS") {
-    if (!settingsUpdated) {
-      return "hidden";
-    }
-  }
-
-  if (var == "BATTERY2CLASS") {
-    if (!battery2) {
-      return "hidden";
-    }
-  }
-
-  if (var == "BATTERY2INTF") {
-    if (battery2) {
-      return battery2->interface_name();
-    }
-  }
-
-  if (var == "INVCLASS") {
-    if (!inverter) {
-      return "hidden";
-    }
-  }
-
-  if (var == "INVBIDCLASS") {
-    if (!inverter || !inverter->supports_battery_id()) {
-      return "hidden";
-    }
-  }
-
-  if (var == "INVBID") {
-    if (inverter && inverter->supports_battery_id()) {
-      return String(datalayer.battery.settings.sofar_user_specified_battery_id);
-    }
-  }
-
-  if (var == "INVINTF") {
-    if (inverter) {
-      return inverter->interface_name();
-    }
-  }
-
-  if (var == "SHUNTCLASS") {
-    if (!shunt) {
-      return "hidden";
-    }
-  }
-
-  if (var == "CHARGERCLASS") {
-    if (!charger) {
-      return "hidden";
-    }
-  }
+  // HTML-ready values (such as select options) are returned here. These don't
+  // get any additional escaping.
 
   if (var == "SHUNTCOMM") {
     return options_for_enum((comm_interface)settings.getUInt("SHUNTCOMM", (int)comm_interface::CanNative),
@@ -245,6 +189,106 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "BATT2COMM") {
     return options_for_enum((comm_interface)settings.getUInt("BATT2COMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
+  }
+
+  if (var == "GTWCOUNTRY") {
+    return options_from_map(settings.getUInt("GTWCOUNTRY", 0), tesla_countries);
+  }
+
+  if (var == "GTWMAPREG") {
+    return options_from_map(settings.getUInt("GTWMAPREG", 0), tesla_mapregion);
+  }
+
+  if (var == "GTWCHASSIS") {
+    return options_from_map(settings.getUInt("GTWCHASSIS", 0), tesla_chassis);
+  }
+
+  if (var == "GTWPACK") {
+    return options_from_map(settings.getUInt("GTWPACK", 0), tesla_pack);
+  }
+
+  if (var == "LEDMODE") {
+    return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
+  }
+
+  // All other values are wrapped by html_escape to avoid HTML injection.
+
+  return html_escape(raw_settings_processor(var, settings));
+}
+
+String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
+  // All of these returned values are raw un-escaped UTF-8 strings.
+
+  if (var == "HOSTNAME") {
+    return settings.getString("HOSTNAME");
+  }
+
+  if (var == "BATTERYINTF") {
+    if (battery) {
+      return battery->interface_name();
+    }
+  }
+
+  if (var == "SSID") {
+    return settings.getString("SSID");
+  }
+
+  if (var == "PASSWORD") {
+    return settings.getString("PASSWORD");
+  }
+
+  if (var == "SAVEDCLASS") {
+    if (!settingsUpdated) {
+      return "hidden";
+    }
+  }
+
+  if (var == "BATTERY2CLASS") {
+    if (!battery2) {
+      return "hidden";
+    }
+  }
+
+  if (var == "BATTERY2INTF") {
+    if (battery2) {
+      return battery2->interface_name();
+    }
+  }
+
+  if (var == "INVCLASS") {
+    if (!inverter) {
+      return "hidden";
+    }
+  }
+
+  if (var == "INVBIDCLASS") {
+    if (!inverter || !inverter->supports_battery_id()) {
+      return "hidden";
+    }
+  }
+
+  if (var == "INVBID") {
+    if (inverter && inverter->supports_battery_id()) {
+      return String(datalayer.battery.settings.sofar_user_specified_battery_id);
+    }
+  }
+
+  if (var == "INVINTF") {
+    if (inverter) {
+      return inverter->interface_name();
+    }
+  }
+
+  if (var == "SHUNTCLASS") {
+    if (!shunt) {
+      return "hidden";
+    }
+  }
+
+  if (var == "CHARGERCLASS") {
+    if (!charger) {
+      return "hidden";
+    }
   }
 
   if (var == "DBLBTR") {
@@ -456,11 +500,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "BATTPVMAX") {
-    return String(static_cast<float>(settings.getUInt("BATTPVMAX", 0)) / 10.0, 1);
+    return String(static_cast<float>(settings.getUInt("BATTPVMAX", 0)) / 10.0f, 1);
   }
 
   if (var == "BATTPVMIN") {
-    return String(static_cast<float>(settings.getUInt("BATTPVMIN", 0)) / 10.0, 1);
+    return String(static_cast<float>(settings.getUInt("BATTPVMIN", 0)) / 10.0f, 1);
   }
 
   if (var == "BATTCVMAX") {
@@ -476,27 +520,27 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "MAX_CHARGE_SPEED") {
-    return String(datalayer.battery.settings.max_user_set_charge_dA / 10.0, 1);
+    return String(datalayer.battery.settings.max_user_set_charge_dA / 10.0f, 1);
   }
 
   if (var == "MAX_DISCHARGE_SPEED") {
-    return String(datalayer.battery.settings.max_user_set_discharge_dA / 10.0, 1);
+    return String(datalayer.battery.settings.max_user_set_discharge_dA / 10.0f, 1);
   }
 
   if (var == "SOC_MAX_PERCENTAGE") {
-    return String(datalayer.battery.settings.max_percentage / 100.0, 1);
+    return String(datalayer.battery.settings.max_percentage / 100.0f, 1);
   }
 
   if (var == "SOC_MIN_PERCENTAGE") {
-    return String(datalayer.battery.settings.min_percentage / 100.0, 1);
+    return String(datalayer.battery.settings.min_percentage / 100.0f, 1);
   }
 
   if (var == "CHARGE_VOLTAGE") {
-    return String(datalayer.battery.settings.max_user_set_charge_voltage_dV / 10.0, 1);
+    return String(datalayer.battery.settings.max_user_set_charge_voltage_dV / 10.0f, 1);
   }
 
   if (var == "DISCHARGE_VOLTAGE") {
-    return String(datalayer.battery.settings.max_user_set_discharge_voltage_dV / 10.0, 1);
+    return String(datalayer.battery.settings.max_user_set_discharge_voltage_dV / 10.0f, 1);
   }
 
   if (var == "SOC_SCALING_ACTIVE_CLASS") {
@@ -512,7 +556,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "SOC_SCALING") {
-    return datalayer.battery.settings.soc_scaling_active ? "&#10003;" : "&#10005;";
+    return datalayer.battery.settings.soc_scaling_active ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
   }
 
   if (var == "FAKE_VOLTAGE_CLASS") {
@@ -525,9 +569,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "MANUAL_BALANCING") {
     if (datalayer.battery.settings.user_requests_balancing) {
-      return "&#10003;";
+      return TRUE_CHAR_CODE;
     } else {
-      return "&#10005;";
+      return FALSE_CHAR_CODE;
     }
   }
 
@@ -539,9 +583,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "VOLTAGE_LIMITS") {
     if (datalayer.battery.settings.user_set_voltage_limits_active) {
-      return "&#10003;";
+      return TRUE_CHAR_CODE;
     } else {
-      return "&#10005;";
+      return FALSE_CHAR_CODE;
     }
   }
 
@@ -550,25 +594,25 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "BALANCING_MAX_TIME") {
-    return String(datalayer.battery.settings.balancing_time_ms / 60000.0, 1);
+    return String(datalayer.battery.settings.balancing_time_ms / 60000.0f, 1);
   }
 
   if (var == "BAL_POWER") {
-    return String(datalayer.battery.settings.balancing_float_power_W / 1.0, 0);
+    return String(datalayer.battery.settings.balancing_float_power_W / 1.0f, 0);
   }
 
   if (var == "BAL_MAX_PACK_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0, 0);
+    return String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0f, 0);
   }
   if (var == "BAL_MAX_CELL_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0, 0);
+    return String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0f, 0);
   }
   if (var == "BAL_MAX_DEV_CELL_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0, 0);
+    return String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0f, 0);
   }
 
   if (var == "BMS_RESET_DURATION") {
-    return String(datalayer.battery.settings.user_set_bms_reset_duration_ms / 1000.0, 0);
+    return String(datalayer.battery.settings.user_set_bms_reset_duration_ms / 1000.0f, 0);
   }
 
   if (var == "CHARGER_CLASS") {
@@ -587,9 +631,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "CHG_HV") {
     if (datalayer.charger.charger_HV_enabled) {
-      return "&#10003;";
+      return TRUE_CHAR_CODE;
     } else {
-      return "&#10005;";
+      return FALSE_CHAR_CODE;
     }
   }
 
@@ -603,9 +647,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "CHG_AUX12V") {
     if (datalayer.charger.charger_aux12V_enabled) {
-      return "&#10003;";
+      return TRUE_CHAR_CODE;
     } else {
-      return "&#10005;";
+      return FALSE_CHAR_CODE;
     }
   }
 
@@ -619,6 +663,18 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "SOFAR_ID") {
     return String(settings.getUInt("SOFAR_ID", 0));
+  }
+
+  if (var == "PYLONSEND") {
+    return String(settings.getUInt("PYLONSEND", 0));
+  }
+
+  if (var == "PYLONOFFSET") {
+    return settings.getBool("PYLONOFFSET") ? "checked" : "";
+  }
+
+  if (var == "PYLONORDER") {
+    return settings.getBool("PYLONORDER") ? "checked" : "";
   }
 
   if (var == "INVCELLS") {
@@ -649,6 +705,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("INVICNT") ? "checked" : "";
   }
 
+  if (var == "DEYEBYD") {
+    return settings.getBool("DEYEBYD") ? "checked" : "";
+  }
+
   if (var == "CANFREQ") {
     return String(settings.getUInt("CANFREQ", 8));
   }
@@ -677,28 +737,8 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
 
-  if (var == "GTWCOUNTRY") {
-    return options_from_map(settings.getUInt("GTWCOUNTRY", 0), tesla_countries);
-  }
-
   if (var == "GTWRHD") {
     return settings.getBool("GTWRHD") ? "checked" : "";
-  }
-
-  if (var == "GTWMAPREG") {
-    return options_from_map(settings.getUInt("GTWMAPREG", 0), tesla_mapregion);
-  }
-
-  if (var == "GTWCHASSIS") {
-    return options_from_map(settings.getUInt("GTWCHASSIS", 0), tesla_chassis);
-  }
-
-  if (var == "GTWPACK") {
-    return options_from_map(settings.getUInt("GTWPACK", 0), tesla_pack);
-  }
-
-  if (var == "LEDMODE") {
-    return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
   }
 
   return String();
@@ -753,12 +793,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     function editComplete(){if(this.status==200){window.location.reload();}}
 
     function editError(){alert('Invalid input');}
-
-        function editSSID(){var value=prompt('Which SSID to connect to. Enter new SSID:');if(value!==null){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSSID?value='+encodeURIComponent(value),true);xhr.send();}}
-        
-        function editPassword(){var value=prompt('Enter new password:');if(value!==null){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updatePassword?value='+encodeURIComponent(value),true);xhr.send();}}
 
         function editWh(){var value=prompt('How much energy the battery can store. Enter new Wh value (1-400000):');
           if(value!==null){if(value>=1&&value<=400000){var xhr=new 
@@ -920,7 +954,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="16"] .if-estimated, 
     form[data-battery="24"] .if-estimated,
     form[data-battery="32"] .if-estimated, 
-    form[data-battery="33"] .if-estimated {
+    form[data-battery="33"] .if-estimated,
+    form[data-battery="44"] .if-estimated {
       display: contents;
     }
 
@@ -954,6 +989,16 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-byd { display: none; }
+    form[data-inverter="2"] .if-byd {
+      display: contents;
+    }
+
+    form .if-pylon { display: none; }
+    form[data-inverter="10"] .if-pylon {
+      display: contents;
+    }
+
     form .if-pylonish { display: none; }
     form[data-inverter="4"] .if-pylonish, form[data-inverter="10"] .if-pylonish, form[data-inverter="19"] .if-pylonish {
       display: contents;
@@ -961,6 +1006,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-solax { display: none; }
     form[data-inverter="18"] .if-solax {
+      display: contents;
+    }
+
+    form .if-kostal { display: none; }
+    form[data-inverter="9"] .if-kostal {
       display: contents;
     }
 
@@ -987,16 +1037,26 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   <button onclick='goToMainPage()'>Back to main page</button>
   <button onclick="askFactoryReset()">Factory reset</button>
 
-<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
-    <h4 style='color: white;'>SSID: <span id='SSID'>%SSID%</span><button onclick='editSSID()'>Edit</button></h4>
-    <h4 style='color: white;'>Password: ######## <span id='Password'></span> <button onclick='editPassword()'>Edit</button></h4>
-</div>
-
 <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
         <form action='saveSettings' method='post'>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
           <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
+        </div>
+
+        <div class="settings-card">
+        <h3>Network config</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+
+        <label>SSID: </label>
+        <input type='text' name='SSID' value="%SSID%" 
+        pattern="[ -~]{1,63}" 
+        title="Max 63 characters, printable ASCII only"/>
+
+        <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" 
+        pattern="[ -~]{8,63}" 
+        title="Password must be 8-63 characters long, printable ASCII only" />
+        </div>
         </div>
 
         <div class="settings-card">
@@ -1111,6 +1171,25 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input name='SOFAR_ID' type='text' value="%SOFAR_ID%" pattern="[0-9]{1,2}" />
         </div>
 
+        <div class="if-pylon">
+        <label>Pylon, send group (0-1): </label>
+        <input name='PYLONSEND' type='text' value="%PYLONSEND%" pattern="[0-9]+" 
+        title="Select if we should send ###0 or ###1 CAN messages, useful for multi-battery setups or ID problems" />
+
+        <label>Pylon, 30k offset: </label>
+        <input type='checkbox' name='PYLONOFFSET' value='on' %PYLONOFFSET% 
+        title="When enabled, 30k offset will be applied on some signals, useful for some inverters that see wrong data otherwise" />
+
+        <label>Pylon, invert byteorder: </label>
+        <input type='checkbox' name='PYLONORDER' value='on' %PYLONORDER% 
+        title="When enabled, byteorder will be inverted on some signals, useful for some inverters that see wrong data otherwise" />
+        </div>
+
+        <div class="if-byd">
+        <label>Deye offgrid specific fixes: </label>
+        <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
+        </div>
+
         <div class="if-pylonish">
         <label>Reported cell count (0 for default): </label>
         <input name='INVCELLS' type='text' value="%INVCELLS%" pattern="[0-9]+" />
@@ -1135,8 +1214,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-solax">
         <label>Reported battery type (in decimal): </label>
         <input name='INVBTYPE' type='text' value="%INVBTYPE%" pattern="[0-9]+" />
+        </div>
 
-        <label>Inverter should ignore contactors: </label>
+        <div class="if-kostal if-solax">
+        <label>Prevent inverter opening contactors: </label>
         <input type='checkbox' name='INVICNT' value='on' %INVICNT% />
         </div>
 
@@ -1257,14 +1338,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Access point name: </label>
         <input type='text' name='APNAME' value="%APNAME%" 
-        pattern="[A-Za-z0-9!#*-]{8,63}" 
-        title="Name must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*-"
+        pattern="[ -~]{1,63}" 
+        title="Max 63 characters, printable ASCII only"
         required />
 
         <label>Access point password: </label>
         <input type='text' name='APPASSWORD' value="%APPASSWORD%" 
-        pattern="[A-Za-z0-9!#*-]{8,63}" 
-        title="Password must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*-"
+        pattern="[ -~]{8,63}" 
+        title="Password must be 8-63 characters long, printable ASCII only"
         required />
 
         <label>Wifi channel 0-14: </label>
@@ -1274,8 +1355,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Custom Wifi hostname: </label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
-        pattern="[A-Za-z0-9!#*-]+"
-        title="Optional: Hostname may only contain letters, numbers and some special characters: !#*-" />
+        pattern="[A-Za-z0-9\-]+"
+        title="Optional: Hostname may only contain letters, numbers and '-'" />
 
         <label>Use static IP address: </label>
         <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
@@ -1313,18 +1394,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class='if-mqtt'>
         <label>MQTT server: </label>
         <input type='text' name='MQTTSERVER' value="%MQTTSERVER%" 
-        pattern="[A-Za-z0-9.-]+"
-        title="Hostname (letters, numbers, dots, hyphens)" />
+        pattern="[A-Za-z0-9.\-]+"
+        title="Hostname (letters, numbers, '.', '-')" />
         <label>MQTT port: </label>
         <input type='number' name='MQTTPORT' value="%MQTTPORT%" 
         min="1" max="65535" step="1"
         title="Port number (1-65535)" />
         <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
-        pattern="[A-Za-z0-9!#*-]+"
-        title="MQTT username can only contain letters, numbers and some special characters: !#*-" />
+        pattern="[ -~]+"
+        title="MQTT username can only contain printable ASCII" />
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" 
-        pattern="[A-Za-z0-9!#*-]+"
-        title="MQTT password can only contain letters, numbers and some special characters: !#*-" />
+        pattern="[ -~]+"
+        title="MQTT password can only contain printable ASCII" />
         <label>MQTT timeout ms: </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
         min="1" max="60000" step="1"

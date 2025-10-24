@@ -8,7 +8,7 @@
 enum class BatteryType {
   None = 0,
   BmwI3 = 2,
-  BmwIx = 3,
+  BmwIX = 3,
   BoltAmpera = 4,
   BydAtto3 = 5,
   CellPowerBms = 6,
@@ -48,6 +48,8 @@ enum class BatteryType {
   Kia64FD = 40,
   RelionBattery = 41,
   RivianBattery = 42,
+  BmwPhev = 43,
+  FordMachE = 44,
   Highest
 };
 
