@@ -1,10 +1,10 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
-# Set the C++ standard to C++20
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# IDF's build system
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
+# Optional: project version
+set(PROJECT_VER "0.1.0")
+
+# Define the app (IDF will look for a "main" component)
 project(BatteryEmulator)
-
-# add_subdirectory(Software/src/devboard/utils)
-add_subdirectory(test)
