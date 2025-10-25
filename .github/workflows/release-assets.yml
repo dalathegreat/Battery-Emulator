@@ -45,7 +45,7 @@ jobs:
       with:
         python-version: '3.11'
     - name: Install PlatformIO Core
-      run: pip install --upgrade platformio
+      run: pip install --upgrade platformio esptool
 
     - name: 🛠 Build ota image for Lilygo T-CAN
       run: |
@@ -87,7 +87,7 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         mkdir -p images/${{ steps.vars.outputs.tag }}
-        cp ../output/*.factory.bin images/${{ steps.vars.outputs.tag }}/
+        cp ../output/*.factory.bin ../output/*.ota.bin images/${{ steps.vars.outputs.tag }}/
         git add images
         git commit -m "Deploy from GitHub Actions"
         git push origin main
