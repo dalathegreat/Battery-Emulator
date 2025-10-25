@@ -558,7 +558,7 @@ void setup() {
   setup_charger();
   setup_inverter();
   setup_battery();
-  setup_can_shunt();
+  setup_shunt();
 
   // Init CAN only after any CAN receivers have had a chance to register.
   init_CAN();
