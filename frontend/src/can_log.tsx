@@ -60,12 +60,35 @@ export function CanLog() {
         }
         (event.target as HTMLAnchorElement).innerText = "Stop logging";
         running.current = true;
+
+        // const tick = () => {
+        //     if(!running.current) {
+        //         return;
+        //     }
+        //     const el = log.current as HTMLDivElement;
+        //     const nel = document.createElement("div");
+        //     nel.style.whiteSpace = "pre";
+        //     nel.style.font = "14px monospace";
+        //     let msg = "";
+        //     for(let i = 0; i < 50; i++) {
+        //         msg += "here is lots of text being added yeah here is lots of text being added yeah\n";
+        //     }
+        //     nel.innerText = msg;
+        //     el.appendChild(nel);
+        //     el.scrollTop = el.scrollHeight; // Scroll to bottom
+        //     setTimeout(tick, 20);
+        // };
+        //tick();
         
         fetchInChunks(import.meta.env.VITE_API_BASE + "/dump_can", (chunk: Uint8Array) => {
             if(log.current) {
                 const el = log.current as HTMLDivElement;
                 const text = new TextDecoder().decode(chunk);
-                el.innerText += text;
+                const nel = document.createElement("div");
+                nel.style.whiteSpace = "pre";
+                nel.style.font = "14px monospace";
+                nel.innerText = text;
+                el.appendChild(nel);
                 el.scrollTop = el.scrollHeight; // Scroll to bottom
             }
             return !running.current;
@@ -81,10 +104,10 @@ export function CanLog() {
     return (
         <div>
             <h2>CAN Log</h2>
-            <a href="#" class="button" onClick={ handleClick }>Start logging</a> <a href="#" class="button" onClick={ () => { if(log.current) (log.current as HTMLDivElement).innerText = ""; } }>Clear log</a>
+            <a href="#" class="button" onClick={ handleClick }>Start logging</a> <a href="#" class="button" onClick={ () => { if(log.current) (log.current as HTMLDivElement).innerText = ""; } }>Clear log</a> <a href="/dump_can" class="button" download="can_log.txt">Log to file</a> <a href="/dump_can" class="button" target="_blank">Log in new tab</a>
             <br /><br />
             <div class="panel">
-                <div ref={log} style="max-height: 20rem; overflow: auto; width: 100%; white-space: pre; font: 14px monospace;"></div>
+                <div ref={log} style="max-height: 20rem; overflow: auto; width: 100%;"></div>
             </div>
         </div>
     );
