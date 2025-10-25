@@ -103,6 +103,7 @@ add_executable(tests
     ../Software/src/battery/CHADEMO-BATTERY.cpp
     ../Software/src/battery/CHADEMO-SHUNTS.cpp
     ../Software/src/battery/CMFA-EV-BATTERY.cpp
+    ../Software/src/battery/CMP-SMART-CAR-BATTERY.cpp
     ../Software/src/battery/DALY-BMS.cpp
     ../Software/src/battery/ECMP-BATTERY.cpp
     ../Software/src/battery/FORD-MACH-E-BATTERY.cpp
