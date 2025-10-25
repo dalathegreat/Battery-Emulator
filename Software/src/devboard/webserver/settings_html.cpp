@@ -951,12 +951,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="24"] .if-estimated,
     form[data-battery="32"] .if-estimated, 
     form[data-battery="33"] .if-estimated,
+    form[data-battery="41"] .if-estimated,
     form[data-battery="44"] .if-estimated {
       display: contents;
     }
 
     form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
-    form[data-battery="16"] .if-socestimated {
+    form[data-battery="16"],
+    form[data-battery="41"] .if-socestimated {
       display: contents;
     }
 
