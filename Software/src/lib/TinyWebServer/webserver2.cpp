@@ -543,9 +543,13 @@ TwsHandler *default_handlers[] = {
                             "Content-Type: application/octet-stream\r\n"
                             "Access-Control-Allow-Origin: *\r\n"
                             "\r\n");
+        // The first four bytes (ESP32 is little endian) are the battery type.
         uint32_t btype = (uint32_t)user_selected_battery_type;
         request.write((const char*)&btype, 4);
 
+        // Then we just send the raw extended datalayer structure for the
+        // selected battery type. The frontend can decode this and display it
+        // sensibly more easily than we can.
         if(user_selected_battery_type==BatteryType::BoltAmpera) {
             request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.boltampera, sizeof(datalayer_extended.boltampera)));
         } else if(user_selected_battery_type==BatteryType::BmwPhev) {
@@ -578,6 +582,13 @@ TwsHandler *default_handlers[] = {
             request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.zoe, sizeof(datalayer_extended.zoe)));
         } else if(user_selected_battery_type==BatteryType::RenaultZoe2) {
             request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.zoePH2, sizeof(datalayer_extended.zoePH2)));
+        }
+    })),
+    new TwsHandler("/api/batact", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+        JsonArray actions = doc["actions"].to<JsonArray>();
+        if(battery) {
+            if(battery->supports_reset_SOH()) actions.add("reset_soh");
+            if(battery->supports_reset_crash()) actions.add("reset_crash");
         }
     })),
     &settingsHandler,
