@@ -186,11 +186,18 @@ void BmwIXBattery::handleISOTPFrame(CAN_frame& rx_frame) {
       // Determine which byte to use for module ID based on service response
       if (serviceResponse == 0x59) {
         // Standard UDS DTC response (0x19 -> 0x59)
+        // Use sub-function byte as module ID
         moduleID = rx_frame.data.u8[4];  // 0x02 for reportDTCByStatusMask
       } else {
         // BMW proprietary responses (0x22 -> 0x62)
+        // Use parameter byte as module ID
         moduleID = rx_frame.data.u8[5];  // 0x54, 0x53, etc.
       }
+
+      // logging.print("FF arrived! moduleID=0x");
+      // logging.print(moduleID, HEX);
+      // logging.print(", totalLength=");
+      // logging.println(totalLength);
 
       // Start the multi-frame reception
       startUDSMultiFrameReception(totalLength, moduleID);
@@ -209,8 +216,16 @@ void BmwIXBattery::handleISOTPFrame(CAN_frame& rx_frame) {
     case 0x2: {
       // Consecutive Frame (CF)
       if (!gUDSContext.UDS_inProgress) {
+        logging.println("Unexpected CF - not in progress");
         return;  // Unexpected CF, ignore
       }
+
+      uint8_t seq = pciByte & 0x0F;
+
+      // logging.print("CF seq=0x");
+      // logging.print(seq, HEX);
+      // logging.print(" for moduleID=0x");
+      // logging.println(gUDSContext.UDS_moduleID, HEX);
 
       // Store CF payload (starts at byte 2)
       storeUDSPayload(&rx_frame.data.u8[2], rx_frame.DLC - 2);
@@ -218,8 +233,12 @@ void BmwIXBattery::handleISOTPFrame(CAN_frame& rx_frame) {
       // Increment batch counter
       gUDSContext.receivedInBatch++;
 
+      // logging.print("After CF, UDS_bytesReceived=");
+      // logging.println(gUDSContext.UDS_bytesReceived);
+
       // Check if batch is complete (iX uses 2 frames per batch based on 0x30 0x00 0x02)
       if (gUDSContext.receivedInBatch >= 2) {
+        //logging.println("Batch complete - requesting continue frame...");
         transmit_can_frame(&BMWiX_6F4_CONTINUE_DATA);
         gUDSContext.receivedInBatch = 0;
       }
@@ -232,18 +251,18 @@ void BmwIXBattery::processCompletedUDSResponse() {
   uint8_t* buf = gUDSContext.UDS_buffer;
   uint16_t len = gUDSContext.UDS_bytesReceived;
 
-  // Route based on response type
-  if (buf[0] == 0x59 && buf[1] == 0x02) {
+  // Route based on moduleID (set during First Frame reception)
+  if (gUDSContext.UDS_moduleID == 0x02) {
     // DTC Response (0x19 0x02 -> 0x59 0x02)
     logging.println("=== DTC Response Received ===");
     logging.print("Total bytes: ");
     logging.println(len);
     parseDTCResponse();
 
-  } else if (buf[0] == 0x62 && buf[1] == 0xE5 && buf[2] == 0x54) {
+  } else if (gUDSContext.UDS_moduleID == 0x54) {
     // Cell Voltages (0x22 0xE5 0x54 -> 0x62 0xE5 0x54)
-    logging.print("Parsing cell voltages - Total bytes: ");
-    logging.println(len);
+    // logging.print("Parsing cell voltages - Total bytes: ");
+    // logging.println(len);
     int voltage_index = 0;
     for (int i = 3; i < len - 1; i += 2) {
       if (voltage_index >= 108)
@@ -254,9 +273,9 @@ void BmwIXBattery::processCompletedUDSResponse() {
       }
       voltage_index++;
     }
-    logging.print("Parsed ");
-    logging.print(voltage_index);
-    logging.println(" cell voltages");
+    // logging.print("Parsed ");
+    // logging.print(voltage_index);
+    // logging.println(" cell voltages");
 
     // Check for 96S vs 108S detection
     if (voltage_index >= 97) {
@@ -264,15 +283,15 @@ void BmwIXBattery::processCompletedUDSResponse() {
       if (byte_offset + 1 < len) {
         if (buf[byte_offset] == 0xFF && buf[byte_offset + 1] == 0xFF) {
           detected_number_of_cells = 96;
-          logging.println("Detected 96S battery");
+          //logging.println("Detected 96S battery");
         } else {
           detected_number_of_cells = 108;
-          logging.println("Detected 108S battery");
+          // logging.println("Detected 108S battery");
         }
       }
     }
 
-  } else if (buf[0] == 0x62 && buf[1] == 0xE5 && buf[2] == 0xCE) {
+  } else if (gUDSContext.UDS_moduleID == 0xCE) {
     // SOC Response (0x22 0xE5 0xCE -> 0x62 0xE5 0xCE)
     if (len >= 9) {
       avg_soc_state = (buf[3] << 8 | buf[4]);
@@ -281,30 +300,31 @@ void BmwIXBattery::processCompletedUDSResponse() {
       logging.println("SOC data updated");
     }
 
-  } else if (buf[0] == 0x62 && buf[1] == 0xE4 && buf[2] == 0xCA) {
+  } else if (gUDSContext.UDS_moduleID == 0xCA) {
     // Balancing Data (0x22 0xE4 0xCA -> 0x62 0xE4 0xCA)
     if (len >= 4) {
       balancing_status = buf[3];
       logging.println("Balancing status updated");
     }
 
-  } else if (buf[0] == 0x62 && buf[1] == 0xA8 && buf[2] == 0x60) {
-    // Safety Isolation (0x22 0xA8 0x60 -> 0x62 0xA8 0x60)
-    if (len >= 43) {
-      iso_safety_positive = (buf[31] << 24) | (buf[32] << 16) | (buf[33] << 8) | buf[34];
-      iso_safety_negative = (buf[35] << 24) | (buf[36] << 16) | (buf[37] << 8) | buf[38];
-      iso_safety_parallel = (buf[39] << 24) | (buf[40] << 16) | (buf[41] << 8) | buf[42];
-      logging.println("ISO safety data updated");
-    }
+    // REMOVE THIS BLOCK - Isolation data comes as single CAN FD frame, not ISO-TP
+    // } else if (gUDSContext.UDS_moduleID == 0x60) {
+    //   // Safety Isolation (0x22 0xA8 0x60 -> 0x62 0xA8 0x60)
+    //   if (len >= 43) {
+    //     iso_safety_positive = (buf[31] << 24) | (buf[32] << 16) | (buf[33] << 8) | buf[34];
+    //     iso_safety_negative = (buf[35] << 24) | (buf[36] << 16) | (buf[37] << 8) | buf[38];
+    //     iso_safety_parallel = (buf[39] << 24) | (buf[40] << 16) | (buf[41] << 8) | buf[42];
+    //     logging.println("ISO safety data updated");
+    //   }
 
-  } else if (buf[0] == 0x62 && buf[1] == 0xE4 && buf[2] == 0xC0) {
+  } else if (gUDSContext.UDS_moduleID == 0xC0) {
     // Uptime (0x22 0xE4 0xC0 -> 0x62 0xE4 0xC0)
     if (len >= 11) {
       sme_uptime = (buf[7] << 24) | (buf[8] << 16) | (buf[9] << 8) | buf[10];
       logging.println("SME uptime updated");
     }
 
-  } else if (buf[0] == 0x62 && buf[1] == 0xE5 && buf[2] == 0x45) {
+  } else if (gUDSContext.UDS_moduleID == 0x45) {
     // SOH Data (0x22 0xE5 0x45 -> 0x62 0xE5 0x45)
     if (len >= 11) {
       min_soh_state = (buf[5] << 8 | buf[6]);
@@ -507,7 +527,7 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         voltage_qualifier_status = (rx_frame.data.u8[8]);  // Request HV Voltage Qualifier
       }
 
-      if ((rx_frame.DLC == 48) && (rx_frame.data.u8[4] == 0xA8) &&
+      if ((rx_frame.DLC == 64) && (rx_frame.data.u8[4] == 0xA8) &&
           (rx_frame.data.u8[5] == 0x60)) {  // Safety Isolation Measurements
         iso_safety_positive = (rx_frame.data.u8[34] << 24) | (rx_frame.data.u8[35] << 16) |
                               (rx_frame.data.u8[36] << 8) | rx_frame.data.u8[37];  //Assuming 32bit
