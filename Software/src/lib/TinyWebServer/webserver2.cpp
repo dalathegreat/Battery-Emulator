@@ -313,6 +313,8 @@ public:
     void (*respond)(TwsRequest& request, JsonDocument& doc);
 };
 
+
+
 TwsHandler settingsHandler("/api/settings", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
     BatteryEmulatorSettingsStore settings;
 
@@ -585,10 +587,10 @@ TwsHandler *default_handlers[] = {
         }
     })),
     new TwsHandler("/api/batact", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
-        JsonArray actions = doc["actions"].to<JsonArray>();
+        JsonObject actions = doc["actions"].to<JsonObject>();
         if(battery) {
-            if(battery->supports_reset_SOH()) actions.add("reset_soh");
-            if(battery->supports_reset_crash()) actions.add("reset_crash");
+            if(battery->supports_reset_SOH()) actions["reset_soh"] = true;
+            if(battery->supports_reset_crash()) actions["reset_crash"] = true;
         }
     })),
     &settingsHandler,
