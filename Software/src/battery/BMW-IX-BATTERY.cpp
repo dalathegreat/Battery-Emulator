@@ -164,6 +164,160 @@ void BmwIXBattery::parseDTCResponse() {
   datalayer_extended.bmwix.dtc_read_in_progress = false;
 }
 
+void BmwIXBattery::handleISOTPFrame(CAN_frame& rx_frame) {
+  uint8_t pciByte = rx_frame.data.u8[1];  // e.g., 0x10, 0x21, etc.
+  uint8_t pciType = pciByte >> 4;         // top nibble => 0=SF,1=FF,2=CF,3=FC
+
+  // Only process multi-frame ISO-TP messages (FF and CF)
+  // Single-frame messages are handled directly in case 0x607
+  if (pciType != 0x1 && pciType != 0x2) {
+    return;  // Not a multi-frame message we care about
+  }
+
+  switch (pciType) {
+    case 0x1: {
+      // First Frame (FF)
+      uint8_t pciLower = pciByte & 0x0F;
+      uint16_t totalLength = ((uint16_t)pciLower << 8) | rx_frame.data.u8[2];
+
+      uint8_t serviceResponse = rx_frame.data.u8[3];  // Service response byte (0x59, 0x62, etc.)
+      uint8_t moduleID;
+
+      // Determine which byte to use for module ID based on service response
+      if (serviceResponse == 0x59) {
+        // Standard UDS DTC response (0x19 -> 0x59)
+        moduleID = rx_frame.data.u8[4];  // 0x02 for reportDTCByStatusMask
+      } else {
+        // BMW proprietary responses (0x22 -> 0x62)
+        moduleID = rx_frame.data.u8[5];  // 0x54, 0x53, etc.
+      }
+
+      // Start the multi-frame reception
+      startUDSMultiFrameReception(totalLength, moduleID);
+      gUDSContext.receivedInBatch = 0;  // Reset batch count
+
+      // Store the FF payload (starts at data[3] for extended addressing)
+      const uint8_t* ffPayload = &rx_frame.data.u8[3];
+      uint8_t ffPayloadSize = rx_frame.DLC - 3;
+      storeUDSPayload(ffPayload, ffPayloadSize);
+
+      // Request continuation
+      transmit_can_frame(&BMWiX_6F4_CONTINUE_DATA);
+      break;
+    }
+
+    case 0x2: {
+      // Consecutive Frame (CF)
+      if (!gUDSContext.UDS_inProgress) {
+        return;  // Unexpected CF, ignore
+      }
+
+      // Store CF payload (starts at byte 2)
+      storeUDSPayload(&rx_frame.data.u8[2], rx_frame.DLC - 2);
+
+      // Increment batch counter
+      gUDSContext.receivedInBatch++;
+
+      // Check if batch is complete (iX uses 2 frames per batch based on 0x30 0x00 0x02)
+      if (gUDSContext.receivedInBatch >= 2) {
+        transmit_can_frame(&BMWiX_6F4_CONTINUE_DATA);
+        gUDSContext.receivedInBatch = 0;
+      }
+      break;
+    }
+  }
+}
+
+void BmwIXBattery::processCompletedUDSResponse() {
+  uint8_t* buf = gUDSContext.UDS_buffer;
+  uint16_t len = gUDSContext.UDS_bytesReceived;
+
+  // Route based on response type
+  if (buf[0] == 0x59 && buf[1] == 0x02) {
+    // DTC Response (0x19 0x02 -> 0x59 0x02)
+    logging.println("=== DTC Response Received ===");
+    logging.print("Total bytes: ");
+    logging.println(len);
+    parseDTCResponse();
+
+  } else if (buf[0] == 0x62 && buf[1] == 0xE5 && buf[2] == 0x54) {
+    // Cell Voltages (0x22 0xE5 0x54 -> 0x62 0xE5 0x54)
+    logging.print("Parsing cell voltages - Total bytes: ");
+    logging.println(len);
+    int voltage_index = 0;
+    for (int i = 3; i < len - 1; i += 2) {
+      if (voltage_index >= 108)
+        break;
+      uint16_t voltage = (buf[i] << 8) | buf[i + 1];
+      if (voltage < 10000) {
+        datalayer.battery.status.cell_voltages_mV[voltage_index] = voltage;
+      }
+      voltage_index++;
+    }
+    logging.print("Parsed ");
+    logging.print(voltage_index);
+    logging.println(" cell voltages");
+
+    // Check for 96S vs 108S detection
+    if (voltage_index >= 97) {
+      int byte_offset = 3 + (96 * 2);
+      if (byte_offset + 1 < len) {
+        if (buf[byte_offset] == 0xFF && buf[byte_offset + 1] == 0xFF) {
+          detected_number_of_cells = 96;
+          logging.println("Detected 96S battery");
+        } else {
+          detected_number_of_cells = 108;
+          logging.println("Detected 108S battery");
+        }
+      }
+    }
+
+  } else if (buf[0] == 0x62 && buf[1] == 0xE5 && buf[2] == 0xCE) {
+    // SOC Response (0x22 0xE5 0xCE -> 0x62 0xE5 0xCE)
+    if (len >= 9) {
+      avg_soc_state = (buf[3] << 8 | buf[4]);
+      min_soc_state = (buf[5] << 8 | buf[6]);
+      max_soc_state = (buf[7] << 8 | buf[8]);
+      logging.println("SOC data updated");
+    }
+
+  } else if (buf[0] == 0x62 && buf[1] == 0xE4 && buf[2] == 0xCA) {
+    // Balancing Data (0x22 0xE4 0xCA -> 0x62 0xE4 0xCA)
+    if (len >= 4) {
+      balancing_status = buf[3];
+      logging.println("Balancing status updated");
+    }
+
+  } else if (buf[0] == 0x62 && buf[1] == 0xA8 && buf[2] == 0x60) {
+    // Safety Isolation (0x22 0xA8 0x60 -> 0x62 0xA8 0x60)
+    if (len >= 43) {
+      iso_safety_positive = (buf[31] << 24) | (buf[32] << 16) | (buf[33] << 8) | buf[34];
+      iso_safety_negative = (buf[35] << 24) | (buf[36] << 16) | (buf[37] << 8) | buf[38];
+      iso_safety_parallel = (buf[39] << 24) | (buf[40] << 16) | (buf[41] << 8) | buf[42];
+      logging.println("ISO safety data updated");
+    }
+
+  } else if (buf[0] == 0x62 && buf[1] == 0xE4 && buf[2] == 0xC0) {
+    // Uptime (0x22 0xE4 0xC0 -> 0x62 0xE4 0xC0)
+    if (len >= 11) {
+      sme_uptime = (buf[7] << 24) | (buf[8] << 16) | (buf[9] << 8) | buf[10];
+      logging.println("SME uptime updated");
+    }
+
+  } else if (buf[0] == 0x62 && buf[1] == 0xE5 && buf[2] == 0x45) {
+    // SOH Data (0x22 0xE5 0x45 -> 0x62 0xE5 0x45)
+    if (len >= 11) {
+      min_soh_state = (buf[5] << 8 | buf[6]);
+      avg_soh_state = (buf[7] << 8 | buf[8]);
+      max_soh_state = (buf[9] << 8 | buf[10]);
+      logging.println("SOH data updated");
+    }
+  }
+
+  // Reset buffer after processing
+  gUDSContext.UDS_bytesReceived = 0;
+}
+
 /*
 static uint8_t increment_C0_counter(uint8_t counter) {
   counter++;
@@ -342,7 +496,7 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         max_soh_state = ((rx_frame.data.u8[12] << 8 | rx_frame.data.u8[13]));
       }
 
-      if ((rx_frame.DLC == 10) && (rx_frame.data.u8[4] == 0xE5) &&
+      if ((rx_frame.DLC == 12) && (rx_frame.data.u8[4] == 0xE5) &&
           (rx_frame.data.u8[5] == 0x62)) {  //Max allowed charge and discharge current - Signed 16bit
         allowable_charge_amps = (int16_t)((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7])) / 10;
         allowable_discharge_amps = (int16_t)((rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9])) / 10;
@@ -433,183 +587,12 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_serial_number = strtoul(numberString, NULL, 10);
       }
 
-      // Handle UDS Multi-Frame responses using PHEV-style handling
-      // UDS Multi Frame vars - Top nibble indicates Frame Type: SF (0), FF (1), CF (2), FC (3)
-      // Extended addressing => data[0] is ext address, data[1] is PCI
-      {
+      // Handle ISO-TP multi-frame messages
+      handleISOTPFrame(rx_frame);
 
-        uint8_t pciByte = rx_frame.data.u8[1];  // e.g., 0x10, 0x21, etc.
-        uint8_t pciType = pciByte >> 4;         // top nibble => 0=SF,1=FF,2=CF,3=FC
-        // Only process multi-frame ISO-TP messages (FF and CF)
-        // Single-frame CAN FD messages are already handled above
-        if (pciType == 0x1 || pciType == 0x2) {
-          uint8_t pciLower = pciByte & 0x0F;      // bottom nibble => length nibble or sequence
-          uint8_t extAddr = rx_frame.data.u8[0];  // e.g., 0xF4
-          switch (pciType) {
-            case 0x0: {
-              // Single Frame response
-              // SF payload length is in pciLower
-              // Single frames are handled above in the existing code (no changes needed)
-              break;
-            }
-            case 0x1: {
-              // First Frame (FF)
-              // total length = (pciLower << 8) + data[2]
-              uint16_t totalLength = ((uint16_t)pciLower << 8) | rx_frame.data.u8[2];
-
-              uint8_t serviceResponse = rx_frame.data.u8[3];  // Service response byte (0x59, 0x62, etc.)
-              uint8_t moduleID;
-              // Determine which byte to use for module ID based on service response
-              if (serviceResponse == 0x59) {
-                // Standard UDS DTC response (0x19 -> 0x59)
-                // Use sub-function byte as module ID
-                moduleID = rx_frame.data.u8[4];  // 0x02 for reportDTCByStatusMask
-              } else {
-                // BMW proprietary responses (0x22 -> 0x62)
-                // Use parameter byte as module ID
-                moduleID = rx_frame.data.u8[5];  // 0x54, 0x53, etc.
-              }
-
-              // Start the multi-frame
-              startUDSMultiFrameReception(totalLength, moduleID);
-              gUDSContext.receivedInBatch = 0;  // Reset batch count
-
-              // The FF payload is at data[3..end] for an extended addressing CAN frame
-              const uint8_t* ffPayload = &rx_frame.data.u8[3];
-              uint8_t ffPayloadSize = rx_frame.DLC - 3;
-              storeUDSPayload(ffPayload, ffPayloadSize);
-
-              // Request continuation
-              transmit_can_frame(&BMWiX_6F4_CONTINUE_DATA);
-              break;
-            }
-
-            case 0x2: {
-              // Consecutive Frame (CF)
-              uint8_t seq = pciByte & 0x0F;
-
-              // Make sure we *are* in progress
-              if (!gUDSContext.UDS_inProgress) {
-                // Unexpected CF. Ignore.
-                return;
-              }
-
-              // Store CF payload (starts at byte 2)
-              storeUDSPayload(&rx_frame.data.u8[2], rx_frame.DLC - 2);
-
-              // Increment batch counter
-              gUDSContext.receivedInBatch++;
-
-              // Check if the batch is complete (IX uses 2 frames per batch based on 0x30 0x00 0x02)
-              if (gUDSContext.receivedInBatch >= 2) {
-                // Send the next Flow Control
-                transmit_can_frame(&BMWiX_6F4_CONTINUE_DATA);
-                gUDSContext.receivedInBatch = 0;  // Reset batch count
-              }
-
-              break;
-            }
-
-            case 0x3: {
-              // Flow Control Frame from ECU -> Tester (rare in a typical request/response flow)
-              // Typically we only *send* FC. If the ECU sends one, parse or ignore here.
-              break;
-            }
-          }
-        }
-        // Check if message is complete
-        if (isUDSMessageComplete()) {
-          // We have a complete UDS/ISO-TP response in gUDSContext.UDS_buffer
-
-          // Parse different response types based on module ID
-          if (gUDSContext.UDS_buffer[0] == 0x59 && gUDSContext.UDS_buffer[1] == 0x02) {
-            // DTC Response
-            logging.println("=== DTC Response Received ===");
-            logging.print("Total bytes: ");
-            logging.println(gUDSContext.UDS_bytesReceived);
-            parseDTCResponse();
-          } else if (gUDSContext.UDS_buffer[0] == 0x62 && gUDSContext.UDS_buffer[1] == 0xE5 &&
-                     gUDSContext.UDS_buffer[2] == 0x54) {
-            // Cell Voltages (0x22 0xE5 0x54 -> 0x62 0xE5 0x54)
-            logging.print("Parsing cell voltages from UDS buffer - Total bytes: ");
-            logging.println(gUDSContext.UDS_bytesReceived);
-            int voltage_index = 0;
-            // Parse all cell voltages from the buffer (starts at byte 3)
-            for (int i = 3; i < gUDSContext.UDS_bytesReceived - 1; i += 2) {
-              if (voltage_index >= 108)
-                break;  // Max 108 cells
-              uint16_t voltage = (gUDSContext.UDS_buffer[i] << 8) | gUDSContext.UDS_buffer[i + 1];
-              if (voltage < 10000) {  // Check reading is plausible
-                datalayer.battery.status.cell_voltages_mV[voltage_index] = voltage;
-              }
-              voltage_index++;
-            }
-            logging.print("Parsed ");
-            logging.print(voltage_index);
-            logging.println(" cell voltages");
-
-            // Check for 96S vs 108S detection
-            if (voltage_index >= 97) {
-              int byte_offset = 3 + (96 * 2);  // Position of 97th cell in buffer
-              if (byte_offset + 1 < gUDSContext.UDS_bytesReceived) {
-                if (gUDSContext.UDS_buffer[byte_offset] == 0xFF && gUDSContext.UDS_buffer[byte_offset + 1] == 0xFF) {
-                  detected_number_of_cells = 96;
-                  logging.println("Detected 96S battery");
-                } else {
-                  detected_number_of_cells = 108;
-                  logging.println("Detected 108S battery");
-                }
-              }
-            }
-          } else if (gUDSContext.UDS_buffer[0] == 0x62 && gUDSContext.UDS_buffer[1] == 0xE5 &&
-                     gUDSContext.UDS_buffer[2] == 0xCE) {
-            // SOC Response (0x22 0xE5 0xCE -> 0x62 0xE5 0xCE)
-            if (gUDSContext.UDS_bytesReceived >= 9) {
-              avg_soc_state = (gUDSContext.UDS_buffer[3] << 8 | gUDSContext.UDS_buffer[4]);
-              min_soc_state = (gUDSContext.UDS_buffer[5] << 8 | gUDSContext.UDS_buffer[6]);
-              max_soc_state = (gUDSContext.UDS_buffer[7] << 8 | gUDSContext.UDS_buffer[8]);
-              logging.println("SOC data updated from UDS response");
-            }
-          } else if (gUDSContext.UDS_buffer[0] == 0x62 && gUDSContext.UDS_buffer[1] == 0xE4 &&
-                     gUDSContext.UDS_buffer[2] == 0xCA) {
-            // Balancing Data (0x22 0xE4 0xCA -> 0x62 0xE4 0xCA)
-            if (gUDSContext.UDS_bytesReceived >= 4) {
-              balancing_status = gUDSContext.UDS_buffer[3];
-              logging.println("Balancing status updated from UDS response");
-            }
-          } else if (gUDSContext.UDS_buffer[0] == 0x62 && gUDSContext.UDS_buffer[1] == 0xA8 &&
-                     gUDSContext.UDS_buffer[2] == 0x60) {
-            // Safety Isolation (0x22 0xA8 0x60 -> 0x62 0xA8 0x60)
-            if (gUDSContext.UDS_bytesReceived >= 43) {
-              iso_safety_positive = (gUDSContext.UDS_buffer[31] << 24) | (gUDSContext.UDS_buffer[32] << 16) |
-                                    (gUDSContext.UDS_buffer[33] << 8) | gUDSContext.UDS_buffer[34];
-              iso_safety_negative = (gUDSContext.UDS_buffer[35] << 24) | (gUDSContext.UDS_buffer[36] << 16) |
-                                    (gUDSContext.UDS_buffer[37] << 8) | gUDSContext.UDS_buffer[38];
-              iso_safety_parallel = (gUDSContext.UDS_buffer[39] << 24) | (gUDSContext.UDS_buffer[40] << 16) |
-                                    (gUDSContext.UDS_buffer[41] << 8) | gUDSContext.UDS_buffer[42];
-              logging.println("ISO safety data updated from UDS response");
-            }
-          } else if (gUDSContext.UDS_buffer[0] == 0x62 && gUDSContext.UDS_buffer[1] == 0xE4 &&
-                     gUDSContext.UDS_buffer[2] == 0xC0) {
-            // Uptime (0x22 0xE4 0xC0 -> 0x62 0xE4 0xC0)
-            if (gUDSContext.UDS_bytesReceived >= 11) {
-              sme_uptime = (gUDSContext.UDS_buffer[7] << 24) | (gUDSContext.UDS_buffer[8] << 16) |
-                           (gUDSContext.UDS_buffer[9] << 8) | gUDSContext.UDS_buffer[10];
-              logging.println("SME uptime updated from UDS response");
-            }
-          } else if (gUDSContext.UDS_buffer[0] == 0x62 && gUDSContext.UDS_buffer[1] == 0xE5 &&
-                     gUDSContext.UDS_buffer[2] == 0x45) {
-            // SOH Data (0x22 0xE5 0x45 -> 0x62 0xE5 0x45)
-            if (gUDSContext.UDS_bytesReceived >= 11) {
-              min_soh_state = (gUDSContext.UDS_buffer[5] << 8 | gUDSContext.UDS_buffer[6]);
-              avg_soh_state = (gUDSContext.UDS_buffer[7] << 8 | gUDSContext.UDS_buffer[8]);
-              max_soh_state = (gUDSContext.UDS_buffer[9] << 8 | gUDSContext.UDS_buffer[10]);
-              logging.println("SOH data updated from UDS response");
-            }
-          }
-          // Reset buffer after processing
-          gUDSContext.UDS_bytesReceived = 0;
-        }
+      // Check if complete UDS response is ready to process
+      if (isUDSMessageComplete()) {
+        processCompletedUDSResponse();
       }
       break;
     default:

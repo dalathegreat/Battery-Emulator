@@ -646,6 +646,8 @@ CAN_frame BMWiX_49C = {.FD = true,
   bool storeUDSPayload(const uint8_t* payload, uint8_t length);
   bool isUDSMessageComplete();
   void parseDTCResponse();
+  void handleISOTPFrame(CAN_frame& rx_frame);
+  void processCompletedUDSResponse();
 
   /**
  * @brief Handle incoming user request to close or open contactors
