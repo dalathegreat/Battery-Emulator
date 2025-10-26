@@ -45,6 +45,9 @@ const FIELD_LISTS = {
 
 export function Extended() {
     const data = useGetApi('/api/batext', 5000);
+    const actions = useGetApi('/api/batact', 0);
+
+    console.log(actions);
 
     const view = useMemo(() => {
         if(!data) return null;
@@ -66,6 +69,8 @@ export function Extended() {
                 (view && <TeslaExtended view={ view } />) :
                 <Basic view={ view } fields={ fields } />
             }
+
+            { actions?.actions?.reset_crash && <button>Unlock crashed BMS</button> }
         </>
     );
 };
