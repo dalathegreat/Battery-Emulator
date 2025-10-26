@@ -242,6 +242,12 @@ public:
     TwsAllocableHandler *onAlloc = nullptr;
 };
 
+// Handlers that need to maintain state between different phases of the request
+// (or between repeat calls to the same callbacks) should subclass this.
+//
+// A struct T should be defined to hold the state data. This struct will be
+// allocated in the request's state data area, and can be accessed using
+// get_state(request).
 template<class T> 
 class TwsStatefulHandler : public TwsAllocableHandler {
 public:
@@ -436,61 +442,25 @@ protected:
     int last_connection_id = 0;
 };
 
-
-// class TwsRequestHandlerEntry {
+// template<class T> class TwsStatefulRequestHandler {
 // public:
-//     const char *path;
-//     int method;
-//     TwsRequestHandlerFunction onRequest;
-//     TwsPostBodyHandlerFunction onPostBody = nullptr;
-//     TwsQueryParamHandlerFunction onQueryParam = nullptr;
-//     TwsHeaderHandlerFunction onHeader = nullptr;
+//     typedef struct {
+//         int connection_id;
+//         T state_data;
+//     } _request_slot;
+//     _request_slot state[TinyWebServer::MAX_REQUESTS];
 
-//     void set_post_body_handler(TwsPostBodyHandlerFunction handler) {
-//         onPostBody = handler;
-//     }
-
-//     void set_header_handler(TwsHeaderHandlerFunction handler) {
-//         onHeader = handler;
-//     }
-
-//     TwsRequestHandlerEntry(
-//         const char *path, 
-//         int method, 
-//         TwsRequestHandlerFunction onRequest,
-//         TwsPostBodyHandlerFunction onPostBody = nullptr,
-//         TwsQueryParamHandlerFunction onQueryParam = nullptr,
-//         TwsHeaderHandlerFunction onHeader = nullptr
-//     ) : path(path), method(method), onRequest(onRequest), 
-//         onPostBody(onPostBody), onQueryParam(onQueryParam), onHeader(onHeader) {
-
-//         printf("TwsRequestHandlerEntry created for path: %s\n", path);
-
-//     }
-//     ~TwsRequestHandlerEntry() {
-//         printf("TwsRequestHandlerEntry for %s destroyed\n", path);
+//     T& get_state(TwsRequest &request) {
+//         auto slot_id = request.get_slot_id();
+//         auto connection_id = request.get_connection_id();
+//         if(state[slot_id].connection_id != connection_id) {
+//             // Reset state for this slot
+//             state[slot_id].connection_id = connection_id;
+//             state[slot_id].state_data = T();
+//         }
+//         return state[slot_id].state_data;
 //     }
 // };
-
-template<class T> class TwsStatefulRequestHandler {
-public:
-    typedef struct {
-        int connection_id;
-        T state_data;
-    } _request_slot;
-    _request_slot state[TinyWebServer::MAX_REQUESTS];
-
-    T& get_state(TwsRequest &request) {
-        auto slot_id = request.get_slot_id();
-        auto connection_id = request.get_connection_id();
-        if(state[slot_id].connection_id != connection_id) {
-            // Reset state for this slot
-            state[slot_id].connection_id = connection_id;
-            state[slot_id].state_data = T();
-        }
-        return state[slot_id].state_data;
-    }
-};
 
 
 
