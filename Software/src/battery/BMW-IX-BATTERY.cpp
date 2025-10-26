@@ -149,7 +149,7 @@ CAN_frame BmwIXBattery::generate_442_time_counter_message() {
   uint32_t timeCounter = millis() / 1000;
 
   // Bytes 1-4: Time counter in little-endian format (seconds since boot)
-  frame_442.data.u8[0] = timeCounter & 0xFF;           // LSB
+  frame_442.data.u8[0] = timeCounter & 0xFF;  // LSB
   frame_442.data.u8[1] = (timeCounter >> 8) & 0xFF;
   frame_442.data.u8[2] = (timeCounter >> 16) & 0xFF;
   frame_442.data.u8[3] = (timeCounter >> 24) & 0xFF;  // MSB
