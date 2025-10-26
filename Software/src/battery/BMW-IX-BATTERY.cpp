@@ -220,7 +220,7 @@ void BmwIXBattery::handleISOTPFrame(CAN_frame& rx_frame) {
         return;  // Unexpected CF, ignore
       }
 
-      uint8_t seq = pciByte & 0x0F;
+      //uint8_t seq = pciByte & 0x0F;
 
       // logging.print("CF seq=0x");
       // logging.print(seq, HEX);
@@ -607,6 +607,26 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_serial_number = strtoul(numberString, NULL, 10);
       }
 
+      // Handle single-frame DTC response (service 0x59)
+      if (rx_frame.data.u8[3] == 0x59 && rx_frame.data.u8[4] == 0x02) {
+        // Single-frame DTC response: F4 00 XX 59 02 FF [DTCs...]
+        // Copy to UDS buffer and parse
+        uint8_t sfLength = rx_frame.data.u8[2];  // Length byte
+        if (sfLength > 0 && sfLength <= (rx_frame.DLC - 3)) {
+          // Copy response data starting from byte 3 (service ID)
+          memcpy(gUDSContext.UDS_buffer, &rx_frame.data.u8[3], sfLength);
+          gUDSContext.UDS_bytesReceived = sfLength;
+          gUDSContext.UDS_moduleID = 0x02;  // DTC response
+          gUDSContext.UDS_inProgress = false;
+
+          logging.println("=== Single-Frame DTC Response Received ===");
+          logging.print("Total bytes: ");
+          logging.println(gUDSContext.UDS_bytesReceived);
+
+          parseDTCResponse();
+        }
+      }
+
       // Handle ISO-TP multi-frame messages
       handleISOTPFrame(rx_frame);
 
@@ -703,10 +723,23 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
     if (uds_req_id_counter_slow >= numUDSreqsSlow) {
       uds_req_id_counter_slow = 0;
     }
-    transmit_can_frame(UDS_REQUESTS_SLOW[uds_req_id_counter_slow]);
+    // Add logging to see which request is being sent
+    //logging.print("Sending slow UDS request #");
+    //logging.println(uds_req_id_counter_slow);
+    //transmit_can_frame(UDS_REQUESTS_SLOW[uds_req_id_counter_slow]); no messages needed on slow loop right now
 
     //transmit_can_frame(&BMWiX_6F4_REQUEST_BALANCING_START2);
     //transmit_can_frame(&BMWiX_6F4_REQUEST_BALANCING_START);
+  }
+  // Handle user DTC read request
+  if (UserRequestDTCRead) {
+    logging.println("User requested DTC read");
+    transmit_can_frame(&BMWiX_6F4_REQUEST_READ_DTC);
+    UserRequestDTCRead = false;
+
+    // Set flags in datalayer for HTML renderer
+    datalayer_extended.bmwix.dtc_read_in_progress = true;
+    datalayer_extended.bmwix.dtc_read_failed = false;
   }
 
   // Handle user DTC reset request
@@ -714,6 +747,13 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
     logging.println("User requested DTC reset");
     transmit_can_frame(&BMWiX_6F4_REQUEST_CLEAR_DTC);
     UserRequestDTCreset = false;
+  }
+
+  // Handle user BMS reset request
+  if (UserRequestBMSReset) {
+    logging.println("User requested BMS reset");
+    transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET);
+    UserRequestBMSReset = false;
   }
 }
 

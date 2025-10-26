@@ -3,8 +3,22 @@
 
 String BmwIXHtmlRenderer::getDTCDescription(uint32_t code) {
   switch (code) {
-    // Add BMW iX specific DTC descriptions here
-    // For now, return empty string for unknown codes
+    case 0x21F4B5:
+      return "High-voltage battery unit, voltage and current sensor: Power-down requested";
+    case 0x21F37E:
+      return "Impact detection: Crash detected due to ACSM signal";
+    case 0x21F44F:
+      return "High-voltage battery unit, SME: Pyrofuse ignited or faulty actuation";
+    case 0x21F436:
+      return "High-voltage battery unit, high-voltage safety battery terminal: High-voltage-minus not disconnected due "
+             "to unsuccessful actuation";
+    case 0x3B001A:
+      return "High-voltage battery unit: Multiple faults, high-voltage system cannot be activated";
+    case 0x21F306:
+      return "High-voltage battery unit, control unit, idle time estimation: Estimation failed";
+    case 0x21F001:
+      return "igh-voltage battery unit, coolant shutoff valve: Line disconnection";
+
     default:
       return "";
   }
@@ -161,7 +175,16 @@ String BmwIXHtmlRenderer::get_status_html() {
   // Diagnostics Section
   content += "<h3 style='color: #757575; border-bottom: 2px solid #757575; padding-bottom: 5px;'>🔧 Diagnostics</h3>";
   content += "<div style='margin-left: 15px;'>";
-  content += "<h4>BMS Uptime: " + String(batt.get_bms_uptime()) + " seconds</h4>";
+
+  // Convert uptime to days:hours:minutes:seconds format
+  unsigned long uptime_seconds = batt.get_bms_uptime();
+  unsigned long days = uptime_seconds / 86400;
+  unsigned long hours = (uptime_seconds % 86400) / 3600;
+  unsigned long minutes = (uptime_seconds % 3600) / 60;
+  unsigned long seconds = uptime_seconds % 60;
+
+  content += "<h4>BMS Uptime: " + String(days) + "d " + String(hours) + "h " + String(minutes) + "m " +
+             String(seconds) + "s</h4>";
   content += "</div>";
 
   // Diagnostic Trouble Codes Section
@@ -170,14 +193,32 @@ String BmwIXHtmlRenderer::get_status_html() {
       "Codes</h3>";
   content += "<div style='margin-left: 15px; margin-right: 15px;'>";
 
-  if (datalayer_extended.bmwix.dtc_read_failed) {
+  if (datalayer_extended.bmwix.dtc_last_read_millis == 0) {
+    // No DTC read has been performed yet
+    content +=
+        "<p style='color: #ff9800;'>ℹ DTCs have not been read yet. Click 'Read DTC' to scan for fault codes.</p>";
+  } else if (datalayer_extended.bmwix.dtc_read_failed) {
     content += "<p style='color: #d32f2f;'>⚠ Last DTC read failed or not supported</p>";
   } else if (datalayer_extended.bmwix.dtc_count == 0) {
     content += "<p style='color: #4CAF50;'>✓ No DTCs present</p>";
   } else {
     content += "<p><strong>DTC Count:</strong> " + String(datalayer_extended.bmwix.dtc_count) + "</p>";
-    content += "<p><strong>Last Read:</strong> " +
-               String((millis() - datalayer_extended.bmwix.dtc_last_read_millis) / 1000) + "s ago</p>";
+
+    // Convert last read time to days:hours:minutes:seconds format
+    unsigned long last_read_seconds = (millis() - datalayer_extended.bmwix.dtc_last_read_millis) / 1000;
+    unsigned long read_days = last_read_seconds / 86400;
+    unsigned long read_hours = (last_read_seconds % 86400) / 3600;
+    unsigned long read_minutes = (last_read_seconds % 3600) / 60;
+    unsigned long read_seconds = last_read_seconds % 60;
+
+    content += "<p><strong>Last Read:</strong> ";
+    if (read_days > 0) {
+      content += String(read_days) + "d ";
+    }
+    if (read_hours > 0 || read_days > 0) {
+      content += String(read_hours) + "h ";
+    }
+    content += String(read_minutes) + "m " + String(read_seconds) + "s ago</p>";
 
     content += "<div style='overflow-x: auto; margin-top: 10px; margin-bottom: 15px;'>";
     content +=

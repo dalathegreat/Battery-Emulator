@@ -26,8 +26,12 @@ class BmwIXBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
+  bool supports_read_DTC() { return true; }
+  void read_DTC() { UserRequestDTCRead = true; }
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
+  bool supports_reset_BMS() { return true; }
+  void reset_BMS() { UserRequestBMSReset = true; }
   bool supports_contactor_close() { return true; }
   void request_open_contactors() { userRequestContactorOpen = true; }
   void request_close_contactors() { userRequestContactorClose = true; }
@@ -54,6 +58,9 @@ class BmwIXBattery : public CanBattery {
  private:
   bool userRequestContactorClose = false;
   bool userRequestContactorOpen = false;
+  bool UserRequestDTCreset = false;
+  bool UserRequestBMSReset = false;
+  bool UserRequestDTCRead = false;
 
   BmwIXHtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_78S_DV = 3354;  //SE12 battery, BMW iX1, 66.45kWh 286.3vNom
@@ -81,7 +88,7 @@ class BmwIXBattery : public CanBattery {
   unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 
   static const int ALIVE_MAX_VALUE = 14;  // BMW CAN messages contain alive counter, goes from 0...14
-  static const int MAX_DTC_COUNT = 20;    // Maximum number of DTCs to store/display
+  static const int MAX_DTC_COUNT = 30;    // Maximum number of DTCs to store/display
 
   enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST };
 
@@ -445,16 +452,18 @@ CAN_frame BMWiX_49C = {.FD = true,
       .data = {
           0x07, 0x03, 0x22, 0xE5,
           0x45}};  //MultiFrame Summary Request, includes SOC/SOH/MinMax/MaxCapac/RemainCapac/max v and t at last charge. slow refreshrate
-  static constexpr CAN_frame BMWiX_6F4_REQUEST_READ_DTC = {.FD = false,
+  static constexpr CAN_frame BMWiX_6F4_START_DEFAULT_DIAG_SESSION =
+      {.FD = true, .ext_ID = false, .DLC = 8, .ID = 0x6F4, .data = {0x07, 0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_READ_DTC = {.FD = true,
                                                            .ext_ID = false,
                                                            .DLC = 8,
                                                            .ID = 0x6F4,
-                                                           .data = {0x03, 0x19, 0x02, 0x0C, 0x00, 0x00, 0x00, 0x00}};
-  static constexpr CAN_frame BMWiX_6F4_REQUEST_CLEAR_DTC = {.FD = false,
+                                                           .data = {0x07, 0x03, 0x19, 0x02, 0x0C, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_CLEAR_DTC = {.FD = true,
                                                             .ext_ID = false,
                                                             .DLC = 8,
                                                             .ID = 0x6F4,
-                                                            .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
+                                                            .data = {0x07, 0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00}};
   static constexpr CAN_frame BMWiX_6F4_REQUEST_PYRO = {.FD = true,
                                                        .ext_ID = false,
                                                        .DLC = 5,
@@ -626,9 +635,6 @@ CAN_frame BMWiX_49C = {.FD = true,
       0,      // receivedInBatch
       0       // UDS_lastFrameMillis
   };
-
-  // DTC Management
-  bool UserRequestDTCreset = false;
 
   //End iX Intermediate vars
 
