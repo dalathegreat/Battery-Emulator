@@ -43,9 +43,9 @@ void init_stored_settings() {
   if (temp != 0) {
     datalayer.battery.settings.max_percentage = temp * 10;  // Multiply by 10 for backwards compatibility
   }
-  temp = settings.getUInt("MINPERCENTAGE", false);
-  if (temp < 499) {
-    datalayer.battery.settings.min_percentage = temp * 10;  // Multiply by 10 for backwards compatibility
+  int32_t temp2 = settings.getInt("MINPERCENTAGE", false);
+  if (temp2 <= 500 && temp2 >= -100) {
+    datalayer.battery.settings.min_percentage = temp2 * 10;  // Multiply by 10 for backwards compatibility
   }
   temp = settings.getUInt("MAXCHARGEAMP", false);
   if (temp != 0) {
@@ -215,7 +215,7 @@ void store_settings() {
   if (!settings.putUInt("MAXPERCENTAGE", datalayer.battery.settings.max_percentage / 10)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 5);
   }
-  if (!settings.putUInt("MINPERCENTAGE", datalayer.battery.settings.min_percentage / 10)) {
+  if (!settings.putInt("MINPERCENTAGE", datalayer.battery.settings.min_percentage / 10)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 6);
   }
   if (!settings.putUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA)) {
