@@ -69,7 +69,97 @@ bool BmwIXBattery::storeUDSPayload(const uint8_t* payload, uint8_t length) {
 bool BmwIXBattery::isUDSMessageComplete() {
   return (!gUDSContext.UDS_inProgress && gUDSContext.UDS_bytesReceived > 0);
 }
+CAN_frame BmwIXBattery::generate_433_datetime_message() {
+  CAN_frame frame_433;
+  frame_433.ID = 0x433;
+  frame_433.DLC = 8;
+  frame_433.ext_ID = false;
+  frame_433.FD = true;
+  // Hardcoded reference start time: 2025-02-21 17:00:00
+  const uint16_t startYear = 2025;
+  const uint8_t startMonth = 2;
+  const uint8_t startDay = 21;
+  const uint8_t startHour = 17;
+  const uint8_t startMinute = 0;
+  const uint8_t startSecond = 0;
 
+  // Calculate elapsed time since boot in seconds
+  unsigned long elapsedSeconds = millis() / 1000;
+
+  // Add elapsed seconds to reference time
+  uint32_t totalSeconds = startSecond + elapsedSeconds;
+  uint8_t second = totalSeconds % 60;
+  uint32_t totalMinutes = startMinute + (totalSeconds / 60);
+  uint8_t minute = totalMinutes % 60;
+  uint32_t totalHours = startHour + (totalMinutes / 60);
+  uint8_t hour = totalHours % 24;
+  uint32_t totalDays = startDay + (totalHours / 24);
+
+  // Simple month/year calculation (not accounting for varying month lengths)
+  // For production, you'd want a proper datetime library
+  uint8_t month = startMonth;
+  uint16_t year = startYear;
+
+  // Rough day overflow handling (assumes 30 days per month for simplicity)
+  while (totalDays > 30) {
+    totalDays -= 30;
+    month++;
+    if (month > 12) {
+      month = 1;
+      year++;
+    }
+  }
+  uint8_t day = totalDays;
+
+  // Byte 1: Hour (0-23)
+  frame_433.data.u8[0] = hour;
+
+  // Byte 2: Minute (0-59)
+  frame_433.data.u8[1] = minute;
+
+  // Byte 3: Second (0-59)
+  frame_433.data.u8[2] = second;
+
+  // Byte 4: Day of month (1-31)
+  frame_433.data.u8[3] = day;
+
+  // Byte 5: Month (upper nibble) + Year low digit (lower nibble)
+  // Month in upper 4 bits, year last digit in lower 4 bits
+  uint8_t yearLowDigit = year % 10;
+  frame_433.data.u8[4] = (month << 4) | yearLowDigit;
+
+  // Byte 6 + 7: Full year as 16-bit little-endian
+  frame_433.data.u8[5] = year & 0xFF;         // Low byte
+  frame_433.data.u8[6] = (year >> 8) & 0xFF;  // High byte
+
+  // Byte 8: Terminator/checksum (constant 0xF5 based on samples)
+  frame_433.data.u8[7] = 0xF5;
+
+  return frame_433;
+}
+CAN_frame BmwIXBattery::generate_442_time_counter_message() {
+  CAN_frame frame_442;
+  frame_442.ID = 0x442;
+  frame_442.DLC = 6;
+  frame_442.ext_ID = false;
+  frame_442.FD = true;
+
+  // Calculate elapsed time in seconds (counter increments at 1 Hz)
+  // millis() returns milliseconds, so divide by 1000 to get seconds
+  uint32_t timeCounter = millis() / 1000;
+
+  // Bytes 1-4: Time counter in little-endian format (seconds since boot)
+  frame_442.data.u8[0] = timeCounter & 0xFF;           // LSB
+  frame_442.data.u8[1] = (timeCounter >> 8) & 0xFF;
+  frame_442.data.u8[2] = (timeCounter >> 16) & 0xFF;
+  frame_442.data.u8[3] = (timeCounter >> 24) & 0xFF;  // MSB
+
+  // Bytes 5-6: Constant signature
+  frame_442.data.u8[4] = 0xE0;
+  frame_442.data.u8[5] = 0x23;
+
+  return frame_442;
+}
 void BmwIXBattery::parseDTCResponse() {
   // Check for negative response
   if (gUDSContext.UDS_buffer[0] == 0x7F) {
@@ -711,7 +801,10 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
-
+    CAN_frame BMWiX_433 = generate_433_datetime_message();
+    transmit_can_frame(&BMWiX_433);
+    CAN_frame BMWiX_442 = generate_442_time_counter_message();
+    transmit_can_frame(&BMWiX_442);
     HandleIncomingUserRequest();
   }
   // Send 10000ms CAN Message

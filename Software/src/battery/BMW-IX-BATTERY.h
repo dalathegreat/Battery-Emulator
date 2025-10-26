@@ -654,7 +654,8 @@ CAN_frame BMWiX_49C = {.FD = true,
   void parseDTCResponse();
   void handleISOTPFrame(CAN_frame& rx_frame);
   void processCompletedUDSResponse();
-
+  CAN_frame generate_433_datetime_message();
+  CAN_frame generate_442_time_counter_message();
   /**
  * @brief Handle incoming user request to close or open contactors
  *
