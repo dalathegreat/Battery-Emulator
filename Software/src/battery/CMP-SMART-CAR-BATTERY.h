@@ -130,7 +130,7 @@ class CmpSmartCarBattery : public CanBattery {
   uint16_t hours_spent_overvoltage = 0;
   uint16_t hours_spent_overtemperature = 0;
   uint16_t hours_spent_undertemperature = 0;
-  uint16_t battery_soc = 5000;
+  uint16_t battery_soc = 500;
   uint16_t battery_voltage = 3300;
   uint16_t min_cell_voltage = 3300;
   uint16_t max_cell_voltage = 3300;

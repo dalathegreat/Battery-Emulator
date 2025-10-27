@@ -320,7 +320,11 @@ class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
       content += "No </h4>";
     }
 
-    content += "<h4>Active DTC Code: " + String(datalayer_extended.stellantisCMPsmart.active_DTC_code) + "</h4>";
+    content += "<h4>Active DTC Code: " + String(datalayer_extended.stellantisCMPsmart.active_DTC_code);
+    if (datalayer_extended.stellantisCMPsmart.active_DTC_code == 9) {
+      content += " Temperature sensor missing between pin 21-22";
+    }
+    content += "</h4>";
     return content;
   }
 };
