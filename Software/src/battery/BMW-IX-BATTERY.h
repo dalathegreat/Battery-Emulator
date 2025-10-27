@@ -4,6 +4,18 @@
 #include "BMW-IX-HTML.h"
 #include "CanBattery.h"
 
+// UDS Multi-Frame Reception Context
+struct UDS_CONTEXT {
+  uint8_t UDS_buffer[512];            // Buffer to store multi-frame UDS data
+  uint16_t UDS_bytesReceived;         // Track number of bytes received
+  uint16_t UDS_expectedLength;        // Total expected length from first frame
+  uint8_t UDS_sequenceNumber;         // Expected sequence number for consecutive frames (for IX non-batch mode)
+  bool UDS_inProgress;                // Flag indicating if we're in the middle of receiving
+  uint8_t UDS_moduleID;               // Module ID responding (0xF4 for battery)
+  uint8_t receivedInBatch;            // Number of CFs received in current batch (for PHEV batch mode)
+  unsigned long UDS_lastFrameMillis;  // Timestamp of last frame for timeout detection
+};
+
 class BmwIXBattery : public CanBattery {
  public:
   BmwIXBattery() : renderer(*this) {}
@@ -14,8 +26,13 @@ class BmwIXBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
+  bool supports_read_DTC() { return true; }
+  void read_DTC() { UserRequestDTCRead = true; }
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+  bool supports_reset_BMS() { return true; }
+  void reset_BMS() { UserRequestBMSReset = true; }
   bool supports_contactor_close() { return true; }
-
   void request_open_contactors() { userRequestContactorOpen = true; }
   void request_close_contactors() { userRequestContactorClose = true; }
 
@@ -41,6 +58,9 @@ class BmwIXBattery : public CanBattery {
  private:
   bool userRequestContactorClose = false;
   bool userRequestContactorOpen = false;
+  bool UserRequestDTCreset = false;
+  bool UserRequestBMSReset = false;
+  bool UserRequestDTCRead = false;
 
   BmwIXHtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_78S_DV = 3354;  //SE12 battery, BMW iX1, 66.45kWh 286.3vNom
@@ -68,6 +88,7 @@ class BmwIXBattery : public CanBattery {
   unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 
   static const int ALIVE_MAX_VALUE = 14;  // BMW CAN messages contain alive counter, goes from 0...14
+  static const int MAX_DTC_COUNT = 30;    // Maximum number of DTCs to store/display
 
   enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST };
 
@@ -431,6 +452,18 @@ CAN_frame BMWiX_49C = {.FD = true,
       .data = {
           0x07, 0x03, 0x22, 0xE5,
           0x45}};  //MultiFrame Summary Request, includes SOC/SOH/MinMax/MaxCapac/RemainCapac/max v and t at last charge. slow refreshrate
+  static constexpr CAN_frame BMWiX_6F4_START_DEFAULT_DIAG_SESSION =
+      {.FD = true, .ext_ID = false, .DLC = 8, .ID = 0x6F4, .data = {0x07, 0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_READ_DTC = {.FD = true,
+                                                           .ext_ID = false,
+                                                           .DLC = 8,
+                                                           .ID = 0x6F4,
+                                                           .data = {0x07, 0x03, 0x19, 0x02, 0x0C, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_CLEAR_DTC = {.FD = true,
+                                                            .ext_ID = false,
+                                                            .DLC = 8,
+                                                            .ID = 0x6F4,
+                                                            .data = {0x07, 0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00}};
   static constexpr CAN_frame BMWiX_6F4_REQUEST_PYRO = {.FD = true,
                                                        .ext_ID = false,
                                                        .DLC = 5,
@@ -533,8 +566,13 @@ CAN_frame BMWiX_49C = {.FD = true,
                                                              &BMWiX_6F4_REQUEST_MAX_CHARGE_DISCHARGE_AMPS,
                                                              &BMWiX_6F4_REQUEST_BALANCINGSTATUS,
                                                              &BMWiX_6F4_REQUEST_PACK_VOLTAGE_LIMITS};
-  int numUDSreqs = sizeof(UDS_REQUESTS100MS) / sizeof(UDS_REQUESTS100MS[0]);  // Number of elements in the array
-
+  static const int numUDSreqs =
+      sizeof(UDS_REQUESTS100MS) / sizeof(UDS_REQUESTS100MS[0]);  // Number of elements in the fast array
+  static constexpr const CAN_frame* UDS_REQUESTS_SLOW[1] = {
+      &BMWiX_6F4_REQUEST_READ_DTC  // Poll DTCs less frequently
+  };
+  static const int numUDSreqsSlow =
+      sizeof(UDS_REQUESTS_SLOW) / sizeof(UDS_REQUESTS_SLOW[0]);  // Number of elements in the slow array
   //iX Intermediate vars
   bool battery_info_available = false;
   uint32_t battery_serial_number = 0;
@@ -581,9 +619,23 @@ CAN_frame BMWiX_49C = {.FD = true,
   uint8_t pyro_status_pss4 = 0;            //Using AC 93
   uint8_t pyro_status_pss6 = 0;            //Using AC 93
   uint8_t uds_req_id_counter = 0;
+  uint8_t uds_req_id_counter_slow = 0;
   uint8_t detected_number_of_cells = 0;
   const unsigned long STALE_PERIOD =
       STALE_PERIOD_CONFIG;  // Time in milliseconds to check for staleness (e.g., 5000 ms = 5 seconds)
+
+  // UDS Multi-Frame Reception Context
+  UDS_CONTEXT gUDSContext = {
+      {},     // UDS_buffer - zero-initialized array
+      0,      // UDS_bytesReceived
+      0,      // UDS_expectedLength
+      0,      // UDS_sequenceNumber
+      false,  // UDS_inProgress
+      0,      // UDS_moduleID
+      0,      // receivedInBatch
+      0       // UDS_lastFrameMillis
+  };
+
   //End iX Intermediate vars
 
   uint8_t current_cell_polled = 0;
@@ -594,6 +646,14 @@ CAN_frame BMWiX_49C = {.FD = true,
   bool isStale(int16_t currentValue, uint16_t& lastValue, unsigned long& lastChangeTime);
   uint8_t increment_uds_req_id_counter(uint8_t index);
   uint8_t increment_alive_counter(uint8_t counter);
+
+  // UDS Multi-Frame Helpers
+  void startUDSMultiFrameReception(uint16_t totalLength, uint8_t moduleID);
+  bool storeUDSPayload(const uint8_t* payload, uint8_t length);
+  bool isUDSMessageComplete();
+  void parseDTCResponse();
+  void handleISOTPFrame(CAN_frame& rx_frame);
+  void processCompletedUDSResponse();
 
   /**
  * @brief Handle incoming user request to close or open contactors

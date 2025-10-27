@@ -9,7 +9,7 @@ class Battery;
 extern Battery* battery;
 extern Battery* battery2;
 
-void setup_can_shunt();
+void setup_shunt();
 
 #include "BMW-I3-BATTERY.h"
 #include "BMW-IX-BATTERY.h"

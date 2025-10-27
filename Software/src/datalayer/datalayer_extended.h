@@ -114,6 +114,17 @@ struct DATALAYER_INFO_BMWPHEV {
   bool UserRequestBMSReset = false; /** User requesting BMS reset via WebUI*/
 };
 
+struct DATALAYER_INFO_BMWIX {
+  uint32_t dtc_codes[32];              // Array of DTC codes (3 bytes each, stored as uint32)
+  uint8_t dtc_status[32];              // Status byte for each DTC
+  unsigned long dtc_last_read_millis;  // Timestamp of last successful read
+  uint8_t dtc_count;                   // Number of DTCs present
+  bool dtc_read_in_progress;           // Flag to prevent concurrent reads
+  bool dtc_read_failed;                // Indicates last read attempt failed
+  bool UserRequestDTCreset = false;    /** User requesting DTC reset via WebUI*/
+  bool UserRequestBMSReset = false;    /** User requesting BMS reset via WebUI*/
+};
+
 struct DATALAYER_INFO_BYDATTO3 {
   uint32_t unknown0 = 0;  //Unknown polled value
   uint32_t unknown1 = 0;  //Unknown polled value
@@ -924,6 +935,7 @@ class DataLayerExtended {
  public:
   DATALAYER_INFO_BOLTAMPERA boltampera;
   DATALAYER_INFO_BMWPHEV bmwphev;
+  DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
   DATALAYER_INFO_CELLPOWER cellpower;
   DATALAYER_INFO_CHADEMO chademo;
