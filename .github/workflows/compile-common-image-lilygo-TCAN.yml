@@ -48,7 +48,7 @@ jobs:
       run: pio run -e lilygo_330
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: battery-emulator-lilygo.bin
         path: .pio/build/lilygo_330/firmware.bin
