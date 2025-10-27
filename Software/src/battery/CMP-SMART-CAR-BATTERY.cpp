@@ -276,26 +276,7 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x3F4:  //Event triggered
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] >> 5);
-      if (mux == 0) {  //On some packs, there are more muxes (0-2-3-4-5-6-7)
-        temperature_sensors[0] = (rx_frame.data.u8[1] - 40);
-        temperature_sensors[1] = (rx_frame.data.u8[2] - 40);
-        temperature_sensors[2] = (rx_frame.data.u8[3] - 40);
-        temperature_sensors[3] = (rx_frame.data.u8[4] - 40);
-        temperature_sensors[4] = (rx_frame.data.u8[5] - 40);
-        temperature_sensors[5] = (rx_frame.data.u8[6] - 40);
-        temperature_sensors[6] = (rx_frame.data.u8[7] - 40);
-      } else if (mux == 0x2) {
-        temperature_sensors[7] = (rx_frame.data.u8[1] - 40);
-        temperature_sensors[8] = (rx_frame.data.u8[2] - 40);
-        temperature_sensors[9] = (rx_frame.data.u8[3] - 40);
-        temperature_sensors[10] = (rx_frame.data.u8[4] - 40);
-        temperature_sensors[11] = (rx_frame.data.u8[5] - 40);
-        temperature_sensors[12] = (rx_frame.data.u8[6] - 40);
-        temperature_sensors[13] = (rx_frame.data.u8[7] - 40);
-      } else if (mux == 0x4) {
-        temperature_sensors[14] = (rx_frame.data.u8[1] - 40);
-        temperature_sensors[15] = (rx_frame.data.u8[2] - 40);
-      }
+      //This message contains all individual temperature sensors. Not needed fofr us
       break;
     case 0x434:  //1000ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

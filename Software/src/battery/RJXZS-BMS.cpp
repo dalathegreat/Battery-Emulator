@@ -73,9 +73,6 @@ void RjxzsBms::update_values() {
 
   datalayer.battery.status.temperature_max_dC = max_temp;
 
-  //Map all cell voltages to the global array
-  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages, MAX_AMOUNT_CELLS * sizeof(uint16_t));
-
   datalayer.battery.info.number_of_cells = populated_cellvoltages;  // 1-192S
 
   //datalayer.battery.info.max_design_voltage_dV;  // TODO: Set according to cells?
@@ -133,7 +130,8 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
           if (cell_index + i >= MAX_AMOUNT_CELLS) {
             break;
           }
-          cellvoltages[cell_index + i] = (rx_frame.data.u8[1 + i * 2] << 8) | rx_frame.data.u8[2 + i * 2];
+          datalayer.battery.status.cell_voltages_mV[cell_index + i] =
+              (rx_frame.data.u8[1 + i * 2] << 8) | rx_frame.data.u8[2 + i * 2];
         }
         if (cell_index + 2 >= populated_cellvoltages) {
           populated_cellvoltages = cell_index + 2 + 1;

@@ -73,7 +73,6 @@ class RenaultZoeGen1Battery : public CanBattery {
   uint8_t current_poll = 0;
   uint8_t requested_poll = 0;
   uint8_t group = 0;
-  uint16_t cellvoltages[96];
   uint32_t calculated_total_pack_voltage_mV = 370000;
   uint8_t highbyte_cell_next_frame = 0;
   uint16_t SOC_polled = 5000;

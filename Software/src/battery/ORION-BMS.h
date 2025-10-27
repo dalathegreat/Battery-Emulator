@@ -13,7 +13,6 @@ class OrionBms : public CanBattery {
   static constexpr const char* Name = "DIY battery with Orion BMS (Victron setting)";
 
  private:
-  uint16_t cellvoltages[MAX_AMOUNT_CELLS];  //array with all the cellvoltages
   uint16_t Maximum_Cell_Voltage = 3700;
   uint16_t Minimum_Cell_Voltage = 3700;
   uint16_t Pack_Health = 99;

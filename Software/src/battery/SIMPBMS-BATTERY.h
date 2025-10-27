@@ -34,9 +34,6 @@ class SimpBmsBattery : public CanBattery {
   uint8_t ah_total = 0;
   uint8_t SOC = 0;
   uint8_t SOH = 99;
-  uint8_t charge_forbidden = 0;
-  uint8_t discharge_forbidden = 0;
-  uint16_t cellvoltages_mV[SIMPBMS_MAX_CELLS] = {0};
 };
 
 #endif

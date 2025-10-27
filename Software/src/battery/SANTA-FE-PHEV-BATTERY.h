@@ -56,7 +56,6 @@ class SantaFePhevBattery : public CanBattery {
   int8_t temperatureMin = 0;
   int16_t batteryAmps = 0;
   uint8_t StatusBattery = 0;
-  uint16_t cellvoltages_mv[96];
 
   CAN_frame SANTAFE_200 = {.FD = false,
                            .ext_ID = false,
