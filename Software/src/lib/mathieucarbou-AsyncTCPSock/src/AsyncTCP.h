@@ -32,10 +32,6 @@
 #include <functional>
 #include <deque>
 #include <list>
-#if ASYNC_TCP_SSL_ENABLED
-#include <ssl_client.h>
-#include "AsyncTCP_TLS_Context.h"
-#endif
 
 extern "C" {
     #include "lwip/err.h"
@@ -119,18 +115,8 @@ class AsyncClient : public AsyncSocketBase
   public:
     AsyncClient(int sockfd = -1);
     ~AsyncClient();
-
-#if ASYNC_TCP_SSL_ENABLED
-    bool connect(IPAddress ip, uint16_t port, bool secure = false);
-    bool connect(const char* host, uint16_t port,  bool secure = false);
-    void setRootCa(const char* rootca, const size_t len);
-    void setClientCert(const char* cli_cert, const size_t len);
-    void setClientKey(const char* cli_key, const size_t len);
-    void setPsk(const char* psk_ident, const char* psk);
-#else
     bool connect(IPAddress ip, uint16_t port);
     bool connect(const char* host, uint16_t port);
-#endif // ASYNC_TCP_SSL_ENABLED
     void close(bool now = false);
 
     int8_t abort();
@@ -217,22 +203,6 @@ class AsyncClient : public AsyncSocketBase
     uint16_t _connect_port = 0;
     //const char * _connect_dnsname = NULL;
 
-#if ASYNC_TCP_SSL_ENABLED
-    size_t _root_ca_len;
-    char* _root_ca;
-    size_t _cli_cert_len;
-    char* _cli_cert;
-    size_t _cli_key_len;
-    char* _cli_key;
-    bool _secure;
-    bool _handshake_done;
-    const char* _psk_ident;
-    const char* _psk;
-
-    String _hostname;
-    AsyncTCP_TLS_Context * _sslctx;
-#endif // ASYNC_TCP_SSL_ENABLED
-
     // The following private struct represents a buffer enqueued with the add()
     // method. Each of these buffers are flushed whenever the socket becomes
     // writable
@@ -272,16 +242,10 @@ class AsyncClient : public AsyncSocketBase
     void _collectNotifyWrittenBuffers(std::deque<notify_writebuf> &, int &);
     void _notifyWrittenBuffers(std::deque<notify_writebuf> &, int);
 
-#if ASYNC_TCP_SSL_ENABLED
-    int _runSSLHandshakeLoop(void);
-#endif
 
     friend void _tcpsock_dns_found(const char * name, struct ip_addr * ipaddr, void * arg);
 };
 
-#if ASYNC_TCP_SSL_ENABLED
-typedef std::function<int(void* arg, const char *filename, uint8_t **buf)> AcSSlFileHandler;
-#endif
 
 class AsyncServer : public AsyncSocketBase
 {
@@ -290,11 +254,6 @@ class AsyncServer : public AsyncSocketBase
     AsyncServer(uint16_t port);
     ~AsyncServer();
     void onClient(AcConnectHandler cb, void* arg);
-#if ASYNC_TCP_SSL_ENABLED
-    // Dummy, so it compiles with ESP Async WebServer library enabled.
-    void onSslFileRequest(AcSSlFileHandler cb, void* arg) {};
-    void beginSecure(const char *cert, const char *private_key_file, const char *password) {};
-#endif
     void begin();
     void end();
 
