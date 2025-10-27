@@ -10,7 +10,12 @@ class CmpSmartCarBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Stellantis CMP Smart Car Battery";
+
   bool supports_charged_energy() { return true; }
+
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { datalayer_extended.stellantisCMPsmart.UserRequestDTCreset = true; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
@@ -88,6 +93,12 @@ class CmpSmartCarBattery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x552,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE}};
+  CAN_frame CMP_POLL = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x6B4, .data = {0x03, 0x22, 0xD8, 0x13}};
+  CAN_frame CMP_CLEAR_ALL_DTC = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 5,
+                                 .ID = 0x6B4,
+                                 .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF}};
   uint32_t vehicle_time_counter = 0x088B390B;  //Taken from log on 19thOctober2025
   uint32_t main_contactor_cycle_count = 0;
   uint32_t QC_contactor_cycle_count = 0;

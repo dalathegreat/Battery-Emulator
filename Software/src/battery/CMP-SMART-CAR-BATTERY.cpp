@@ -402,6 +402,9 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       main_contactor_cycle_count = ((rx_frame.data.u8[0] << 2) | (rx_frame.data.u8[1] >> 6)) * 200;
       QC_contactor_cycle_count = (((rx_frame.data.u8[1] & 0x3F) << 4) | (rx_frame.data.u8[2] >> 4)) * 200;
       break;
+    case 0x675:
+      //battery_remaining_capacity_Ah = //0.001 signal, 20 bit long, byte 5 bit 7 start pos
+      break;
     case 0x694:  // Poll reply
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
@@ -500,7 +503,7 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
 
     CMP_211.data.u8[2] = 0x00;  //00 QC contactor OFF, 81, QC contactor ON
     CMP_211.data.u8[4] = 0x17;  //Contactor closing message (15 ready)(4A charge)(04 discharage)(00 no command)
-    //Bit 1 is isolation
+    //Bit 1 is isolation disabled
 
     CMP_211.data.u8[7] = counter_100ms;
     CMP_211.data.u8[7] = (calculate_checksum(CMP_211, 0x0B) << 4) | counter_100ms;
@@ -526,6 +529,11 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_can_frame(&CMP_552);
     //This message is odd. Non periodic, but increments 10 per cycle. Might be enough to send it once every second
+
+    if (datalayer_extended.stellantisCMPsmart.UserRequestDTCreset) {
+      transmit_can_frame(&CMP_CLEAR_ALL_DTC);
+      datalayer_extended.stellantisCMPsmart.UserRequestDTCreset = false;
+    }
   }
 }
 
