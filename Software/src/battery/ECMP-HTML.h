@@ -509,6 +509,7 @@ class EcmpHtmlRenderer : public BatteryHtmlRenderer {
     } else {
       content += "No</h4>";
     }
+    content += "<h4>Remember to press Open Contactors from main menu before running the dianostic commands below:</h4>";
     return content;
   }
 };
