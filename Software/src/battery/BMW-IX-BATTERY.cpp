@@ -587,6 +587,10 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if ((rx_frame.DLC == 64) && (rx_frame.data.u8[4] == 0xE4) && (rx_frame.data.u8[5] == 0xCA)) {  //Balancing Data
         balancing_status = (rx_frame.data.u8[6]);  //4 = No symmetry mode active, invalid qualifier
       }
+      if ((rx_frame.DLC >= 7) && (rx_frame.data.u8[4] == 0xE4) && (rx_frame.data.u8[5] == 0xCB)) {
+        energy_saving_mode_status = rx_frame.data.u8[6];  // Store the energy saving mode status byte
+        logging.println("Energy saving mode status updated");
+      }
       if ((rx_frame.DLC == 12) && (rx_frame.data.u8[4] == 0xE5) && (rx_frame.data.u8[5] == 0xCE)) {  //Min/Avg/Max SOC%
         min_soc_state = (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]);
         avg_soc_state = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
@@ -848,6 +852,12 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET);
     UserRequestBMSReset = false;
   }
+  // Handle user Energy Saving Mode reset request
+  if (UserRequestEnergySavingModeReset) {
+    logging.println("User requested Energy Saving Mode reset to normal");
+    transmit_can_frame(&BMWiX_6F4_SET_ENERGY_SAVING_MODE_NORMAL);
+    UserRequestEnergySavingModeReset = false;
+  }
 }
 
 void BmwIXBattery::setup(void) {  // Performs one time setup at startup
@@ -1057,6 +1067,9 @@ int BmwIXBattery::get_T30_Voltage() const {
 }
 int BmwIXBattery::get_balancing_status() const {
   return balancing_status;
+}
+int BmwIXBattery::get_energy_saving_mode_status() const {
+  return energy_saving_mode_status;
 }
 int BmwIXBattery::get_hvil_status() const {
   return hvil_status;

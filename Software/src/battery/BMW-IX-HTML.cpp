@@ -53,9 +53,8 @@ String BmwIXHtmlRenderer::get_status_html() {
   content += "<h4>Max Cell Voltage Data Age: " + String(batt.get_max_cell_voltage_data_age()) + " ms</h4>";
   content += "</div>";
 
-  // Balancing Status Section
-  content +=
-      "<h3 style='color: #5e35b1; border-bottom: 2px solid #5e35b1; padding-bottom: 5px;'>⚖️ Balancing Status</h3>";
+  // Battery Status Section
+  content += "<h3 style='color: #35b1ab; border-bottom: 2px solid #35b1ab; padding-bottom: 5px;'>⚖️ Battery Status</h3>";
   content += "<div style='margin-left: 15px;'>";
   content += "<h4>Balancing: ";
   switch (batt.get_balancing_status()) {
@@ -80,6 +79,16 @@ String BmwIXHtmlRenderer::get_status_html() {
       break;
     default:
       content += "Unknown</h4>";
+  }
+  // Energy Saving Mode Status
+  content += "<h4>Energy Saving Mode: ";
+  int energy_mode = batt.get_energy_saving_mode_status();
+  if (energy_mode == 0) {
+    content += "No Operating Mode Set</h4>";
+  } else if (energy_mode >= 1 && energy_mode <= 16) {
+    content += "<span style='color: #fb8c00;'>Extended Operating Mode " + String(energy_mode) + "</span></h4>";
+  } else {
+    content += "Unknown (" + String(energy_mode) + ")</h4>";
   }
   content += "</div>";
 
