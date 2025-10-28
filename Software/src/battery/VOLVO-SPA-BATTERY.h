@@ -34,7 +34,7 @@ class VolvoSpaBattery : public CanBattery {
   static const int MIN_PACK_VOLTAGE_96S_DV = 2620;
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4260;  // Charging is halted if one cell goes above this
-  static const int MIN_CELL_VOLTAGE_MV = 2700;  // Charging is halted if one cell goes below this
+  static const int MIN_CELL_VOLTAGE_MV = 3050;  // Charging is halted if one cell goes below this
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis1s = 0;   // will store last time a 1s CAN Message was send
