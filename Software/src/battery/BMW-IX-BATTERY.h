@@ -369,20 +369,19 @@ CAN_frame BMWiX_49C = {.FD = true,
       .DLC = 5,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5, 0xC7}};  // Generic UDS Request data from SME. byte 4 selects requested value
-  static constexpr CAN_frame BMWiX_6F4_REQUEST_ENERGY_SAVING_MODE_STATUS = {
-      // UDS Request SME Energy saving mode status
-      .FD = true,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x6F4,
-      .data = {0xF4, 0x03, 0x22, 0x10, 0x0A, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_ENERGY_SAVING_MODE_STATUS = {// UDS Request SME Energy saving mode status
+                                                                            .FD = true,
+                                                                            .ext_ID = false,
+                                                                            .DLC = 5,
+                                                                            .ID = 0x6F4,
+                                                                            .data = {0x07, 0x03, 0x22, 0x10, 0x0A}};
   static constexpr CAN_frame BMWiX_6F4_SET_ENERGY_SAVING_MODE_NORMAL = {
       // UDS Request  Set energy saving mode to normal
       .FD = true,
       .ext_ID = false,
       .DLC = 8,
       .ID = 0x6F4,
-      .data = {0xF4, 0x05, 0x31, 0x01, 0x0F, 0x0C, 0x00, 0x00}};
+      .data = {0x07, 0x05, 0x31, 0x01, 0x0F, 0x0C, 0x00, 0x00}};
   static constexpr CAN_frame BMWiX_6F4_REQUEST_SLEEPMODE = {
       .FD = true,
       .ext_ID = false,

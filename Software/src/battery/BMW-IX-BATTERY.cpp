@@ -587,9 +587,9 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if ((rx_frame.DLC == 64) && (rx_frame.data.u8[4] == 0xE4) && (rx_frame.data.u8[5] == 0xCA)) {  //Balancing Data
         balancing_status = (rx_frame.data.u8[6]);  //4 = No symmetry mode active, invalid qualifier
       }
-      if ((rx_frame.DLC >= 7) && (rx_frame.data.u8[4] == 0xE4) && (rx_frame.data.u8[5] == 0xCB)) {
-        energy_saving_mode_status = rx_frame.data.u8[6];  // Store the energy saving mode status byte
-        logging.println("Energy saving mode status updated");
+      if ((rx_frame.DLC >= 6) && (rx_frame.data.u8[2] == 0x62) && (rx_frame.data.u8[3] == 0x10) &&
+          (rx_frame.data.u8[4] == 0x0A)) {
+        energy_saving_mode_status = rx_frame.data.u8[5];  // Store the energy saving mode status byte
       }
       if ((rx_frame.DLC == 12) && (rx_frame.data.u8[4] == 0xE5) && (rx_frame.data.u8[5] == 0xCE)) {  //Min/Avg/Max SOC%
         min_soc_state = (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]);

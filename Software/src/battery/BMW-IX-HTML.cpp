@@ -83,12 +83,26 @@ String BmwIXHtmlRenderer::get_status_html() {
   // Energy Saving Mode Status
   content += "<h4>Energy Saving Mode: ";
   int energy_mode = batt.get_energy_saving_mode_status();
-  if (energy_mode == 0) {
-    content += "No Operating Mode Set</h4>";
-  } else if (energy_mode >= 1 && energy_mode <= 16) {
-    content += "<span style='color: #fb8c00;'>Extended Operating Mode " + String(energy_mode) + "</span></h4>";
-  } else {
-    content += "Unknown (" + String(energy_mode) + ")</h4>";
+  switch (energy_mode) {
+    case 0:
+      content += "No Operating Mode Set (Normal)</h4>";
+      break;
+    case 1:
+      content += "<span style='color: #fb8c00;'>Production Mode Active</span></h4>";
+      break;
+    case 2:
+      content += "<span style='color: #fb8c00;'>Transport Mode Active</span></h4>";
+      break;
+    case 3:
+      content += "<span style='color: #fb8c00;'>Flash Mode Active</span></h4>";
+      break;
+    default:
+      if (energy_mode >= 4 && energy_mode <= 16) {
+        content += "<span style='color: #fb8c00;'>Extended Operating Mode " + String(energy_mode) + "</span></h4>";
+      } else {
+        content += "Unknown (" + String(energy_mode) + ")</h4>";
+      }
+      break;
   }
   content += "</div>";
 
