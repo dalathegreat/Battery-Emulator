@@ -1658,18 +1658,27 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     counter_10ms = (counter_10ms + 1) % 16;
 
-    if (datalayer_battery->status.bms_status == FAULT) {
-      //Make vehicle appear as in idle HV state. Useful for clearing DTCs
-      ECMP_0F2.data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x60, 0x0D};
-      ECMP_17B.data = {0x00, 0x00, 0x00, 0x7E, 0x78, 0x00, 0x00, 0x0F};
-      ECMP_110.data.u8[6] = 0x87;
-      ECMP_110.data.u8[7] = 0x05;
-    } else {
+    if ((contactor_closing_allowed == nullptr || *contactor_closing_allowed) &&
+        datalayer.system.status.inverter_allows_contactor_closing) {
       //Normal operation for contactor closing
       ECMP_0F2.data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x90, 0x0D};
       ECMP_110.data.u8[6] = 0x4E;
       ECMP_110.data.u8[7] = 0x20;
       ECMP_17B.data = {0x00, 0x00, 0x00, 0x7F, 0x98, 0x00, 0x00, 0x0F};
+    } else {  //Contactor closing not allowed
+      //Make vehicle appear as in idle HV state. Useful for clearing DTCs
+      ECMP_0F2.data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x60, 0x0D};
+      ECMP_17B.data = {0x00, 0x00, 0x00, 0x7E, 0x78, 0x00, 0x00, 0x0F};
+      ECMP_110.data.u8[6] = 0x87;
+      ECMP_110.data.u8[7] = 0x05;
+    }
+
+    if (datalayer_battery->status.bms_status == FAULT) {  //Extra safety check
+      //Make vehicle appear as in idle HV state. Useful for clearing DTCs
+      ECMP_0F2.data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x60, 0x0D};
+      ECMP_17B.data = {0x00, 0x00, 0x00, 0x7E, 0x78, 0x00, 0x00, 0x0F};
+      ECMP_110.data.u8[6] = 0x87;
+      ECMP_110.data.u8[7] = 0x05;
     }
 
     ECMP_0F2.data.u8[7] = counter_10ms << 4 | checksum_calc(counter_10ms, ECMP_0F2);
@@ -1691,11 +1700,18 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
 
-    if (datalayer_battery->status.bms_status == FAULT) {
+    if ((contactor_closing_allowed == nullptr || *contactor_closing_allowed) &&
+        datalayer.system.status.inverter_allows_contactor_closing) {
+      // Battery allowed to close contactors
+      ECMP_0F0.data.u8[1] = 0x20;
+    } else {  //Contactor closing not allowed
       //Open contactors!
       ECMP_0F0.data.u8[1] = 0x00;
-    } else {  // Not in faulted mode, Close contactors!
-      ECMP_0F0.data.u8[1] = 0x20;
+    }
+
+    if (datalayer_battery->status.bms_status == FAULT) {  //Extra safety check
+      //Open contactors!
+      ECMP_0F0.data.u8[1] = 0x00;
     }
 
     counter_20ms = (counter_20ms + 1) % 16;
@@ -1708,13 +1724,20 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     previousMillis50 = currentMillis;
 
+    if ((contactor_closing_allowed == nullptr || *contactor_closing_allowed) &&
+        datalayer.system.status.inverter_allows_contactor_closing) {
+      //Normal operation for contactor closing
+      ECMP_27A.data = {0x4F, 0x58, 0x00, 0x02, 0x24, 0x00, 0x00, 0x00};
+    } else {  //Contactor closing not allowed
+      //Make vehicle appear as in idle HV state. Useful for clearing DTCs
+      ECMP_27A.data = {0x4F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    }
+
     if (datalayer_battery->status.bms_status == FAULT) {
       //Make vehicle appear as in idle HV state. Useful for clearing DTCs
       ECMP_27A.data = {0x4F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    } else {
-      //Normal operation for contactor closing
-      ECMP_27A.data = {0x4F, 0x58, 0x00, 0x02, 0x24, 0x00, 0x00, 0x00};
     }
+
     transmit_can_frame(&ECMP_230);  //OBC3_230
     transmit_can_frame(&ECMP_27A);  //VCU_BSI_Wakeup_27A
   }

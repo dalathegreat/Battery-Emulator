@@ -15,6 +15,7 @@ class EcmpBattery : public CanBattery {
     contactor_closing_allowed = contactor_closing_allowed_ptr;
     allows_contactor_closing = nullptr;
     datalayer_battery_extended = extended_ptr;
+    battery_voltage = 0;
   }
 
   // Use the default constructor to create the first or single battery.
