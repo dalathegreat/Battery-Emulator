@@ -42,6 +42,9 @@ std::vector<BatteryCommand> battery_commands = {
     {"toggleSOC", "Toggle SOC method",
      "toggle SOC method? This will toggle between ESTIMATED and MEASURED SOC methods.",
      [](Battery* b) { return b && b->supports_toggle_SOC_method(); }, [](Battery* b) { b->toggle_SOC_method(); }},
+    {"resetEnergySavingMode", "Reset Energy Saving Mode", "reset energy saving mode to normal?",
+     [](Battery* b) { return b && b->supports_energy_saving_mode_reset(); },
+     [](Battery* b) { b->reset_energy_saving_mode(); }},
 };
 
 String advanced_battery_processor(const String& var) {
@@ -51,7 +54,7 @@ String advanced_battery_processor(const String& var) {
     content += "<style>";
     content += "body { background-color: black; color: white; }";
     content +=
-        "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
+        "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin: 5px; "
         "cursor: pointer; border-radius: 10px; }";
     content += "button:hover { background-color: #3A4A52; }";
     content += "h4 { margin: 0.6em 0; line-height: 1.2; }";
