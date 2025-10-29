@@ -1,10 +1,30 @@
 #ifndef STELLANTIS_ECMP_BATTERY_H
 #define STELLANTIS_ECMP_BATTERY_H
+#include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
 #include "ECMP-HTML.h"
 
 class EcmpBattery : public CanBattery {
  public:
+  // Use this constructor for the second battery.
+  EcmpBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_ECMP* extended_ptr,
+              bool* contactor_closing_allowed_ptr, CAN_Interface targetCan)
+      : CanBattery(targetCan), renderer(extended_ptr) {
+    datalayer_battery = datalayer_ptr;
+    contactor_closing_allowed = contactor_closing_allowed_ptr;
+    allows_contactor_closing = nullptr;
+    datalayer_battery_extended = extended_ptr;
+  }
+
+  // Use the default constructor to create the first or single battery.
+  EcmpBattery() : renderer(&datalayer_extended.stellantisECMP) {
+    datalayer_battery = &datalayer.battery;
+    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+    contactor_closing_allowed = nullptr;
+    datalayer_battery_extended = &datalayer_extended.stellantisECMP;
+  }
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -27,6 +47,17 @@ class EcmpBattery : public CanBattery {
 
  private:
   EcmpHtmlRenderer renderer;
+
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+
+  DATALAYER_INFO_ECMP* datalayer_battery_extended;
+
+  // If not null, this battery decides when the contactor can be closed and writes the value here.
+  bool* allows_contactor_closing;
+
+  // If not null, this battery listens to this boolean to determine whether contactor closing is allowed
+  bool* contactor_closing_allowed;
+
   static const int MAX_PACK_VOLTAGE_DV = 4546;
   static const int MIN_PACK_VOLTAGE_DV = 3210;
   static const int MAX_CELL_DEVIATION_MV = 100;
