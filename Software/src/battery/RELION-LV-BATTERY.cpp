@@ -8,9 +8,37 @@ BPS:250kbps
 Data Length: 8
 Data Encoded Format:Motorola*/
 
+uint16_t RelionBattery::estimateSOC(uint16_t pack_total_vol) {
+  if (pack_total_vol >= voltage[0]) {
+    return SOC[0];
+  }
+  if (pack_total_vol <= voltage[numPoints - 1]) {
+    return SOC[numPoints - 1];
+  }
+
+  for (int i = 1; i < numPoints; ++i) {
+    if (pack_total_vol >= voltage[i]) {
+      // Cast to float for proper division
+      float t = (float)(pack_total_vol - voltage[i]) / (float)(voltage[i - 1] - voltage[i]);
+
+      // Calculate interpolated SOC value
+      uint16_t socDiff = SOC[i - 1] - SOC[i];
+      uint16_t interpolatedValue = SOC[i] + (uint16_t)(t * socDiff);
+
+      return interpolatedValue;
+    }
+  }
+  return 0;  // Default return for safety, should never reach here
+}
+
 void RelionBattery::update_values() {
 
-  datalayer.battery.status.real_soc = battery_soc * 100;
+  if (user_selected_use_estimated_SOC) {
+    // Use the simplified pack-based SOC estimation with proper compensation
+    datalayer.battery.status.real_soc = estimateSOC(battery_total_voltage * 10);
+  } else {
+    datalayer.battery.status.real_soc = battery_soc * 100;
+  }
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
@@ -19,13 +47,35 @@ void RelionBattery::update_values() {
 
   datalayer.battery.status.voltage_dV = battery_total_voltage;
 
-  datalayer.battery.status.current_dA = battery_total_current;  //Charging negative, discharge positive
+  datalayer.battery.status.current_dA = -battery_total_current;  //Charging negative, discharge positive
 
+  /* Shows 0A all the time?
   datalayer.battery.status.max_charge_power_W =
       ((battery_total_voltage / 10) * charge_current_A);  //90A recommended charge current
 
   datalayer.battery.status.max_discharge_power_W =
       ((battery_total_voltage / 10) * discharge_current_A);  //150A max continous discharge current
+  */
+  datalayer.battery.status.max_discharge_power_W =
+      datalayer.battery.status.override_discharge_power_W;  //TODO, fix when value is found
+  if (datalayer.battery.status.cell_min_voltage_mV < MIN_CELL_VOLTAGE_MV) {
+    datalayer.battery.status.max_discharge_power_W = 0;
+  }
+
+  //We have not found allowed charge power yet. Estimate it for now absed on UI setting. TODO. remove this once found
+  if (datalayer.battery.status.real_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
+  } else if ((datalayer.battery.status.real_soc / 10) >
+             RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+    datalayer.battery.status.max_charge_power_W =
+        RAMPDOWNPOWERALLOWED * (1 - ((battery_soc / 10) - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
+    //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
+    if (datalayer.battery.status.cell_max_voltage_mV > (MAX_CELL_VOLTAGE_MV - FLOAT_START_MV)) {
+      datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
+    }
+  } else {  // No limits, max charging power allowed
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
+  }
 
   datalayer.battery.status.temperature_min_dC = max_cell_temperature * 10;
 
@@ -98,6 +148,7 @@ void RelionBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.cell_voltages_mV[12] = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
       datalayer.battery.status.cell_voltages_mV[13] = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
       datalayer.battery.status.cell_voltages_mV[14] = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      datalayer.battery.status.cell_voltages_mV[15] = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x02058100:  ///? 2058100 [8] 00 0C 00 00 00 00 00 00
