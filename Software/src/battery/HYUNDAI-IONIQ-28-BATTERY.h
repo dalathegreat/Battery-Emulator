@@ -51,7 +51,6 @@ class HyundaiIoniq28Battery : public CanBattery {
   uint16_t batteryVoltage = 3700;
   uint16_t inverterVoltage = 0;
   uint16_t isolation_resistance = 1000;
-  uint16_t cellvoltages_mv[96];
   uint16_t leadAcidBatteryVoltage = 120;
   int16_t batteryAmps = 0;
   int16_t temperatureMax = 0;

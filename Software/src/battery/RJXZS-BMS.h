@@ -72,7 +72,6 @@ class RjxzsBms : public CanBattery {
   uint16_t balanced_reference_voltage = 0;
   uint16_t minimum_cell_voltage = 3300;
   uint16_t maximum_cell_voltage = 3300;
-  uint16_t cellvoltages[MAX_AMOUNT_CELLS] = {0};
   uint8_t populated_cellvoltages = 0;
   uint16_t accumulated_total_capacity_high = 0;
   uint16_t accumulated_total_capacity_low = 0;

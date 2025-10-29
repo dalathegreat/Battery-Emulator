@@ -30,7 +30,6 @@ class KiaHyundaiHybridBattery : public CanBattery {
   int8_t battery_module_max_temperature = 0;
   int8_t battery_module_min_temperature = 0;
   uint8_t poll_data_pid = 0;
-  uint16_t cellvoltages_mv[98];
   uint16_t min_cell_voltage_mv = 3700;
   uint16_t max_cell_voltage_mv = 3700;
 

@@ -364,24 +364,23 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       {
         if (rx_frame.data.u8[0] == 0x10) {  //first frame is anomalous
           battery_request_idx = 0;
-          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+          datalayer_battery->status.cell_voltages_mV[battery_request_idx++] =
+              (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[battery_request_idx++] =
+              (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
           break;
         }
         if (rx_frame.data.u8[6] == 0xFF && rx_frame.data.u8[0] == 0x2C) {  //Last frame
           //Last frame does not contain any cell data, calculate the result
 
-          //Map all cell voltages to the global array
-          memcpy(datalayer_battery->status.cell_voltages_mV, battery_cell_voltages, 96 * sizeof(uint16_t));
-
           //calculate min/max voltages
           battery_min_max_voltage[0] = 9999;
           battery_min_max_voltage[1] = 0;
           for (battery_cellcounter = 0; battery_cellcounter < 96; battery_cellcounter++) {
-            if (battery_min_max_voltage[0] > battery_cell_voltages[battery_cellcounter])
-              battery_min_max_voltage[0] = battery_cell_voltages[battery_cellcounter];
-            if (battery_min_max_voltage[1] < battery_cell_voltages[battery_cellcounter])
-              battery_min_max_voltage[1] = battery_cell_voltages[battery_cellcounter];
+            if (battery_min_max_voltage[0] > datalayer_battery->status.cell_voltages_mV[battery_cellcounter])
+              battery_min_max_voltage[0] = datalayer_battery->status.cell_voltages_mV[battery_cellcounter];
+            if (battery_min_max_voltage[1] < datalayer_battery->status.cell_voltages_mV[battery_cellcounter])
+              battery_min_max_voltage[1] = datalayer_battery->status.cell_voltages_mV[battery_cellcounter];
           }
 
           datalayer_battery->status.cell_max_voltage_mV = battery_min_max_voltage[1];
@@ -391,15 +390,21 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
 
         if ((rx_frame.data.u8[0] % 2) == 0) {  //even frames
-          battery_cell_voltages[battery_request_idx++] |= rx_frame.data.u8[1];
-          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+          datalayer_battery->status.cell_voltages_mV[battery_request_idx++] |= rx_frame.data.u8[1];
+          datalayer_battery->status.cell_voltages_mV[battery_request_idx++] =
+              (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+          datalayer_battery->status.cell_voltages_mV[battery_request_idx++] =
+              (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          datalayer_battery->status.cell_voltages_mV[battery_request_idx++] =
+              (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         } else {  //odd frames
-          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-          battery_cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
+          datalayer_battery->status.cell_voltages_mV[battery_request_idx++] =
+              (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+          datalayer_battery->status.cell_voltages_mV[battery_request_idx++] =
+              (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+          datalayer_battery->status.cell_voltages_mV[battery_request_idx++] =
+              (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+          datalayer_battery->status.cell_voltages_mV[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         }
       }
 

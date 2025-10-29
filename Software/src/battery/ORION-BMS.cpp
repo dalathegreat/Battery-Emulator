@@ -48,11 +48,9 @@ void OrionBms::update_values() {
 
   datalayer.battery.status.temperature_max_dC = High_Temperature;
 
-  //Map all cell voltages to the global array
-  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages, MAX_AMOUNT_CELLS * sizeof(uint16_t));
-
   //Find min and max cellvoltage from the array
-  findMinMaxCellvoltages(cellvoltages, MAX_AMOUNT_CELLS, Minimum_Cell_Voltage, Maximum_Cell_Voltage);
+  findMinMaxCellvoltages(datalayer.battery.status.cell_voltages_mV, MAX_AMOUNT_CELLS, Minimum_Cell_Voltage,
+                         Maximum_Cell_Voltage);
 
   datalayer.battery.status.cell_max_voltage_mV = Maximum_Cell_Voltage;
 
@@ -99,7 +97,7 @@ void OrionBms::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (CellID >= MAX_AMOUNT_CELLS) {
         CellID = MAX_AMOUNT_CELLS;
       }
-      cellvoltages[CellID] = (CellVoltage / 10);
+      datalayer.battery.status.cell_voltages_mV[CellID] = (CellVoltage / 10);
       if (CellID > amount_of_detected_cells) {
         amount_of_detected_cells = CellID;
       }
