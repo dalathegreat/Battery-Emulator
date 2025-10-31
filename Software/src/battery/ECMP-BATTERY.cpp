@@ -32,34 +32,34 @@ This integration is still ongoing. The same integration can be used on multiple 
 void EcmpBattery::update_values() {
 
   if (!MysteryVan) {  //Normal eCMP platform
-    datalayer.battery.status.real_soc = battery_soc * 10;
+    datalayer_battery->status.real_soc = battery_soc * 10;
 
-    //datalayer.battery.status.soh_pptt; //TODO: Find SOH%
+    //datalayer_battery->status.soh_pptt; //TODO: Find SOH%
 
-    datalayer.battery.status.voltage_dV = battery_voltage * 10;
+    datalayer_battery->status.voltage_dV = battery_voltage * 10;
 
-    datalayer.battery.status.current_dA = -(battery_current * 10);
+    datalayer_battery->status.current_dA = -(battery_current * 10);
 
-    datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
-        ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
+    datalayer_battery->status.active_power_W =  //Power in watts, Negative = charging batt
+        ((datalayer_battery->status.voltage_dV * datalayer_battery->status.current_dA) / 100);
 
-    datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-        (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+    datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
+        (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-    datalayer.battery.status.max_charge_power_W = battery_AllowedMaxChargeCurrent * battery_voltage;
+    datalayer_battery->status.max_charge_power_W = battery_AllowedMaxChargeCurrent * battery_voltage;
 
-    datalayer.battery.status.max_discharge_power_W = battery_AllowedMaxDischargeCurrent * battery_voltage;
+    datalayer_battery->status.max_discharge_power_W = battery_AllowedMaxDischargeCurrent * battery_voltage;
 
-    datalayer.battery.status.temperature_min_dC = battery_lowestTemperature * 10;
+    datalayer_battery->status.temperature_min_dC = battery_lowestTemperature * 10;
 
-    datalayer.battery.status.temperature_max_dC = battery_highestTemperature * 10;
+    datalayer_battery->status.temperature_max_dC = battery_highestTemperature * 10;
 
     // Initialize min and max, lets find which cells are min and max!
     uint16_t min_cell_mv_value = std::numeric_limits<uint16_t>::max();
     uint16_t max_cell_mv_value = 0;
     // Loop to find the min and max while ignoring zero values
-    for (uint8_t i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
-      uint16_t voltage_mV = datalayer.battery.status.cell_voltages_mV[i];
+    for (uint8_t i = 0; i < datalayer_battery->info.number_of_cells; ++i) {
+      uint16_t voltage_mV = datalayer_battery->status.cell_voltages_mV[i];
       if (voltage_mV != 0) {  // Skip unread values (0)
         min_cell_mv_value = std::min(min_cell_mv_value, voltage_mV);
         max_cell_mv_value = std::max(max_cell_mv_value, voltage_mV);
@@ -71,148 +71,148 @@ void EcmpBattery::update_values() {
       max_cell_mv_value = 3700;
     }
 
-    datalayer.battery.status.cell_min_voltage_mV = min_cell_mv_value;
-    datalayer.battery.status.cell_max_voltage_mV = max_cell_mv_value;
+    datalayer_battery->status.cell_min_voltage_mV = min_cell_mv_value;
+    datalayer_battery->status.cell_max_voltage_mV = max_cell_mv_value;
   } else {  //Some variant of the 50/75kWh battery that is not using the eCMP CAN mappings.
     // For these batteries we need to use the OBD2 PID polled values
 
     if (pid_energy_capacity != NOT_SAMPLED_YET) {
-      datalayer.battery.status.remaining_capacity_Wh = pid_energy_capacity;
-      // calculate SOC based on datalayer.battery.info.total_capacity_Wh and remaining_capacity_Wh
-      datalayer.battery.status.real_soc = (uint16_t)(((float)datalayer.battery.status.remaining_capacity_Wh /
-                                                      datalayer.battery.info.total_capacity_Wh) *
-                                                     10000);
+      datalayer_battery->status.remaining_capacity_Wh = pid_energy_capacity;
+      // calculate SOC based on datalayer_battery->info.total_capacity_Wh and remaining_capacity_Wh
+      datalayer_battery->status.real_soc = (uint16_t)(((float)datalayer_battery->status.remaining_capacity_Wh /
+                                                       datalayer_battery->info.total_capacity_Wh) *
+                                                      10000);
     }
 
-    //datalayer.battery.status.soh_pptt; //TODO: Find SOH%
+    //datalayer_battery->status.soh_pptt; //TODO: Find SOH%
 
     if (pid_pack_voltage != NOT_SAMPLED_YET) {
-      datalayer.battery.status.voltage_dV = pid_pack_voltage + 800;
+      datalayer_battery->status.voltage_dV = pid_pack_voltage + 800;
     }
 
     if (pid_current != NOT_SAMPLED_YET) {
-      datalayer.battery.status.current_dA = (int16_t)(pid_current / 100);
+      datalayer_battery->status.current_dA = (int16_t)(pid_current / 100);
 
-      datalayer.battery.status.active_power_W =
-          (uint16_t)((pid_current / 1000.0f) * (datalayer.battery.status.voltage_dV / 10.0f));
+      datalayer_battery->status.active_power_W =
+          (uint16_t)((pid_current / 1000.0f) * (datalayer_battery->status.voltage_dV / 10.0f));
     }
 
     if (pid_max_charge_10s != NOT_SAMPLED_YET) {
-      datalayer.battery.status.max_charge_power_W = pid_max_charge_10s;
+      datalayer_battery->status.max_charge_power_W = pid_max_charge_10s;
     }
 
     if (pid_max_discharge_10s != NOT_SAMPLED_YET) {
-      datalayer.battery.status.max_discharge_power_W = pid_max_discharge_10s;
+      datalayer_battery->status.max_discharge_power_W = pid_max_discharge_10s;
     }
 
     if ((pid_highest_temperature != NOT_SAMPLED_YET) && (pid_lowest_temperature != NOT_SAMPLED_YET)) {
-      datalayer.battery.status.temperature_max_dC = pid_highest_temperature * 10;
-      datalayer.battery.status.temperature_min_dC = pid_lowest_temperature * 10;
+      datalayer_battery->status.temperature_max_dC = pid_highest_temperature * 10;
+      datalayer_battery->status.temperature_min_dC = pid_lowest_temperature * 10;
     }
 
     if ((pid_high_cell_voltage != NOT_SAMPLED_YET) && (pid_low_cell_voltage != NOT_SAMPLED_YET)) {
-      datalayer.battery.status.cell_max_voltage_mV = pid_high_cell_voltage;
-      datalayer.battery.status.cell_min_voltage_mV = pid_low_cell_voltage;
+      datalayer_battery->status.cell_max_voltage_mV = pid_high_cell_voltage;
+      datalayer_battery->status.cell_min_voltage_mV = pid_low_cell_voltage;
     }
 
-    datalayer.battery.info.number_of_cells = NUMBER_OF_CELL_MEASUREMENTS_IN_BATTERY;  //50/75kWh sends valid cellcount
+    datalayer_battery->info.number_of_cells = NUMBER_OF_CELL_MEASUREMENTS_IN_BATTERY;  //50/75kWh sends valid cellcount
   }
 
   // Update extended datalayer (More Battery Info page)
-  datalayer_extended.stellantisECMP.MainConnectorState = battery_MainConnectorState;
-  datalayer_extended.stellantisECMP.InsulationResistance = battery_insulationResistanceKOhm;
-  datalayer_extended.stellantisECMP.InsulationDiag = battery_insulation_failure_diag;
-  datalayer_extended.stellantisECMP.InterlockOpen = battery_InterlockOpen;
-  datalayer_extended.stellantisECMP.pid_welding_detection = pid_welding_detection;
-  datalayer_extended.stellantisECMP.pid_reason_open = pid_reason_open;
-  datalayer_extended.stellantisECMP.pid_contactor_status = pid_contactor_status;
-  datalayer_extended.stellantisECMP.pid_negative_contactor_control = pid_negative_contactor_control;
-  datalayer_extended.stellantisECMP.pid_negative_contactor_status = pid_negative_contactor_status;
-  datalayer_extended.stellantisECMP.pid_positive_contactor_control = pid_positive_contactor_control;
-  datalayer_extended.stellantisECMP.pid_positive_contactor_status = pid_positive_contactor_status;
-  datalayer_extended.stellantisECMP.pid_contactor_negative = pid_contactor_negative;
-  datalayer_extended.stellantisECMP.pid_contactor_positive = pid_contactor_positive;
-  datalayer_extended.stellantisECMP.pid_precharge_relay_control = pid_precharge_relay_control;
-  datalayer_extended.stellantisECMP.pid_precharge_relay_status = pid_precharge_relay_status;
-  datalayer_extended.stellantisECMP.pid_recharge_status = pid_recharge_status;
-  datalayer_extended.stellantisECMP.pid_delta_temperature = pid_delta_temperature;
-  datalayer_extended.stellantisECMP.pid_coldest_module = pid_coldest_module;
-  datalayer_extended.stellantisECMP.pid_lowest_temperature = pid_lowest_temperature;
-  datalayer_extended.stellantisECMP.pid_average_temperature = pid_average_temperature;
-  datalayer_extended.stellantisECMP.pid_highest_temperature = pid_highest_temperature;
-  datalayer_extended.stellantisECMP.pid_hottest_module = pid_hottest_module;
-  datalayer_extended.stellantisECMP.pid_avg_cell_voltage = pid_avg_cell_voltage;
-  datalayer_extended.stellantisECMP.pid_current = pid_current;
-  datalayer_extended.stellantisECMP.pid_insulation_res_neg = pid_insulation_res_neg;
-  datalayer_extended.stellantisECMP.pid_insulation_res_pos = pid_insulation_res_pos;
-  datalayer_extended.stellantisECMP.pid_max_current_10s = pid_max_current_10s;
-  datalayer_extended.stellantisECMP.pid_max_discharge_10s = pid_max_discharge_10s;
-  datalayer_extended.stellantisECMP.pid_max_discharge_30s = pid_max_discharge_30s;
-  datalayer_extended.stellantisECMP.pid_max_charge_10s = pid_max_charge_10s;
-  datalayer_extended.stellantisECMP.pid_max_charge_30s = pid_max_charge_30s;
-  datalayer_extended.stellantisECMP.pid_energy_capacity = pid_energy_capacity;
-  datalayer_extended.stellantisECMP.pid_highest_cell_voltage_num = pid_highest_cell_voltage_num;
-  datalayer_extended.stellantisECMP.pid_lowest_cell_voltage_num = pid_lowest_cell_voltage_num;
-  datalayer_extended.stellantisECMP.pid_sum_of_cells = pid_sum_of_cells;
-  datalayer_extended.stellantisECMP.pid_cell_min_capacity = pid_cell_min_capacity;
-  datalayer_extended.stellantisECMP.pid_cell_voltage_measurement_status = pid_cell_voltage_measurement_status;
-  datalayer_extended.stellantisECMP.pid_insulation_res = pid_insulation_res;
-  datalayer_extended.stellantisECMP.pid_pack_voltage = pid_pack_voltage;
-  datalayer_extended.stellantisECMP.pid_high_cell_voltage = pid_high_cell_voltage;
-  datalayer_extended.stellantisECMP.pid_low_cell_voltage = pid_low_cell_voltage;
-  datalayer_extended.stellantisECMP.pid_battery_energy = pid_battery_energy;
-  datalayer_extended.stellantisECMP.pid_crash_counter = pid_crash_counter;
-  datalayer_extended.stellantisECMP.pid_wire_crash = pid_wire_crash;
-  datalayer_extended.stellantisECMP.pid_CAN_crash = pid_CAN_crash;
-  datalayer_extended.stellantisECMP.pid_history_data = pid_history_data;
-  datalayer_extended.stellantisECMP.pid_lowsoc_counter = pid_lowsoc_counter;
-  datalayer_extended.stellantisECMP.pid_last_can_failure_detail = pid_last_can_failure_detail;
-  datalayer_extended.stellantisECMP.pid_hw_version_num = pid_hw_version_num;
-  datalayer_extended.stellantisECMP.pid_sw_version_num = pid_sw_version_num;
-  datalayer_extended.stellantisECMP.pid_factory_mode_control = pid_factory_mode_control;
-  memcpy(datalayer_extended.stellantisECMP.pid_battery_serial, pid_battery_serial, sizeof(pid_battery_serial));
+  datalayer_battery_extended->MainConnectorState = battery_MainConnectorState;
+  datalayer_battery_extended->InsulationResistance = battery_insulationResistanceKOhm;
+  datalayer_battery_extended->InsulationDiag = battery_insulation_failure_diag;
+  datalayer_battery_extended->InterlockOpen = battery_InterlockOpen;
+  datalayer_battery_extended->pid_welding_detection = pid_welding_detection;
+  datalayer_battery_extended->pid_reason_open = pid_reason_open;
+  datalayer_battery_extended->pid_contactor_status = pid_contactor_status;
+  datalayer_battery_extended->pid_negative_contactor_control = pid_negative_contactor_control;
+  datalayer_battery_extended->pid_negative_contactor_status = pid_negative_contactor_status;
+  datalayer_battery_extended->pid_positive_contactor_control = pid_positive_contactor_control;
+  datalayer_battery_extended->pid_positive_contactor_status = pid_positive_contactor_status;
+  datalayer_battery_extended->pid_contactor_negative = pid_contactor_negative;
+  datalayer_battery_extended->pid_contactor_positive = pid_contactor_positive;
+  datalayer_battery_extended->pid_precharge_relay_control = pid_precharge_relay_control;
+  datalayer_battery_extended->pid_precharge_relay_status = pid_precharge_relay_status;
+  datalayer_battery_extended->pid_recharge_status = pid_recharge_status;
+  datalayer_battery_extended->pid_delta_temperature = pid_delta_temperature;
+  datalayer_battery_extended->pid_coldest_module = pid_coldest_module;
+  datalayer_battery_extended->pid_lowest_temperature = pid_lowest_temperature;
+  datalayer_battery_extended->pid_average_temperature = pid_average_temperature;
+  datalayer_battery_extended->pid_highest_temperature = pid_highest_temperature;
+  datalayer_battery_extended->pid_hottest_module = pid_hottest_module;
+  datalayer_battery_extended->pid_avg_cell_voltage = pid_avg_cell_voltage;
+  datalayer_battery_extended->pid_current = pid_current;
+  datalayer_battery_extended->pid_insulation_res_neg = pid_insulation_res_neg;
+  datalayer_battery_extended->pid_insulation_res_pos = pid_insulation_res_pos;
+  datalayer_battery_extended->pid_max_current_10s = pid_max_current_10s;
+  datalayer_battery_extended->pid_max_discharge_10s = pid_max_discharge_10s;
+  datalayer_battery_extended->pid_max_discharge_30s = pid_max_discharge_30s;
+  datalayer_battery_extended->pid_max_charge_10s = pid_max_charge_10s;
+  datalayer_battery_extended->pid_max_charge_30s = pid_max_charge_30s;
+  datalayer_battery_extended->pid_energy_capacity = pid_energy_capacity;
+  datalayer_battery_extended->pid_highest_cell_voltage_num = pid_highest_cell_voltage_num;
+  datalayer_battery_extended->pid_lowest_cell_voltage_num = pid_lowest_cell_voltage_num;
+  datalayer_battery_extended->pid_sum_of_cells = pid_sum_of_cells;
+  datalayer_battery_extended->pid_cell_min_capacity = pid_cell_min_capacity;
+  datalayer_battery_extended->pid_cell_voltage_measurement_status = pid_cell_voltage_measurement_status;
+  datalayer_battery_extended->pid_insulation_res = pid_insulation_res;
+  datalayer_battery_extended->pid_pack_voltage = pid_pack_voltage;
+  datalayer_battery_extended->pid_high_cell_voltage = pid_high_cell_voltage;
+  datalayer_battery_extended->pid_low_cell_voltage = pid_low_cell_voltage;
+  datalayer_battery_extended->pid_battery_energy = pid_battery_energy;
+  datalayer_battery_extended->pid_crash_counter = pid_crash_counter;
+  datalayer_battery_extended->pid_wire_crash = pid_wire_crash;
+  datalayer_battery_extended->pid_CAN_crash = pid_CAN_crash;
+  datalayer_battery_extended->pid_history_data = pid_history_data;
+  datalayer_battery_extended->pid_lowsoc_counter = pid_lowsoc_counter;
+  datalayer_battery_extended->pid_last_can_failure_detail = pid_last_can_failure_detail;
+  datalayer_battery_extended->pid_hw_version_num = pid_hw_version_num;
+  datalayer_battery_extended->pid_sw_version_num = pid_sw_version_num;
+  datalayer_battery_extended->pid_factory_mode_control = pid_factory_mode_control;
+  memcpy(datalayer_battery_extended->pid_battery_serial, pid_battery_serial, sizeof(pid_battery_serial));
   //uint8_t pid_battery_serial[13] = {0};
-  datalayer_extended.stellantisECMP.pid_aux_fuse_state = pid_aux_fuse_state;
-  datalayer_extended.stellantisECMP.pid_battery_state = pid_battery_state;
-  datalayer_extended.stellantisECMP.pid_precharge_short_circuit = pid_precharge_short_circuit;
-  datalayer_extended.stellantisECMP.pid_eservice_plug_state = pid_eservice_plug_state;
-  datalayer_extended.stellantisECMP.pid_mainfuse_state = pid_mainfuse_state;
-  datalayer_extended.stellantisECMP.pid_most_critical_fault = pid_most_critical_fault;
-  datalayer_extended.stellantisECMP.pid_current_time = pid_current_time;
-  datalayer_extended.stellantisECMP.pid_time_sent_by_car = pid_time_sent_by_car;
-  datalayer_extended.stellantisECMP.pid_12v = pid_12v;
-  datalayer_extended.stellantisECMP.pid_12v_abnormal = pid_12v_abnormal;
-  datalayer_extended.stellantisECMP.pid_hvil_in_voltage = pid_hvil_in_voltage;
-  datalayer_extended.stellantisECMP.pid_hvil_out_voltage = pid_hvil_out_voltage;
-  datalayer_extended.stellantisECMP.pid_hvil_state = pid_hvil_state;
-  datalayer_extended.stellantisECMP.pid_bms_state = pid_bms_state;
-  datalayer_extended.stellantisECMP.pid_vehicle_speed = pid_vehicle_speed;
-  datalayer_extended.stellantisECMP.pid_time_spent_over_55c = pid_time_spent_over_55c;
-  datalayer_extended.stellantisECMP.pid_contactor_closing_counter = pid_contactor_closing_counter;
-  datalayer_extended.stellantisECMP.pid_date_of_manufacture = pid_date_of_manufacture;
-  datalayer_extended.stellantisECMP.pid_SOH_cell_1 = pid_SOH_cell_1;
+  datalayer_battery_extended->pid_aux_fuse_state = pid_aux_fuse_state;
+  datalayer_battery_extended->pid_battery_state = pid_battery_state;
+  datalayer_battery_extended->pid_precharge_short_circuit = pid_precharge_short_circuit;
+  datalayer_battery_extended->pid_eservice_plug_state = pid_eservice_plug_state;
+  datalayer_battery_extended->pid_mainfuse_state = pid_mainfuse_state;
+  datalayer_battery_extended->pid_most_critical_fault = pid_most_critical_fault;
+  datalayer_battery_extended->pid_current_time = pid_current_time;
+  datalayer_battery_extended->pid_time_sent_by_car = pid_time_sent_by_car;
+  datalayer_battery_extended->pid_12v = pid_12v;
+  datalayer_battery_extended->pid_12v_abnormal = pid_12v_abnormal;
+  datalayer_battery_extended->pid_hvil_in_voltage = pid_hvil_in_voltage;
+  datalayer_battery_extended->pid_hvil_out_voltage = pid_hvil_out_voltage;
+  datalayer_battery_extended->pid_hvil_state = pid_hvil_state;
+  datalayer_battery_extended->pid_bms_state = pid_bms_state;
+  datalayer_battery_extended->pid_vehicle_speed = pid_vehicle_speed;
+  datalayer_battery_extended->pid_time_spent_over_55c = pid_time_spent_over_55c;
+  datalayer_battery_extended->pid_contactor_closing_counter = pid_contactor_closing_counter;
+  datalayer_battery_extended->pid_date_of_manufacture = pid_date_of_manufacture;
+  datalayer_battery_extended->pid_SOH_cell_1 = pid_SOH_cell_1;
   // Update extended datalayer for MysteryVan
-  datalayer_extended.stellantisECMP.MysteryVan = MysteryVan;
-  datalayer_extended.stellantisECMP.CONTACTORS_STATE = CONTACTORS_STATE;
-  datalayer_extended.stellantisECMP.CrashMemorized = HV_BATT_CRASH_MEMORIZED;
-  datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON = CONTACTOR_OPENING_REASON;
-  datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE = TBMU_FAULT_TYPE;
-  datalayer_extended.stellantisECMP.HV_BATT_FC_INSU_MINUS_RES = HV_BATT_FC_INSU_MINUS_RES;
-  datalayer_extended.stellantisECMP.HV_BATT_FC_INSU_PLUS_RES = HV_BATT_FC_INSU_PLUS_RES;
-  datalayer_extended.stellantisECMP.HV_BATT_FC_VHL_INSU_PLUS_RES = HV_BATT_FC_VHL_INSU_PLUS_RES;
-  datalayer_extended.stellantisECMP.HV_BATT_ONLY_INSU_MINUS_RES = HV_BATT_ONLY_INSU_MINUS_RES;
-  datalayer_extended.stellantisECMP.HV_BATT_ONLY_INSU_MINUS_RES = HV_BATT_ONLY_INSU_MINUS_RES;
-  datalayer_extended.stellantisECMP.ALERT_CELL_POOR_CONSIST = ALERT_CELL_POOR_CONSIST;
-  datalayer_extended.stellantisECMP.ALERT_OVERCHARGE = ALERT_OVERCHARGE;
-  datalayer_extended.stellantisECMP.ALERT_BATT = ALERT_BATT;
-  datalayer_extended.stellantisECMP.ALERT_LOW_SOC = ALERT_LOW_SOC;
-  datalayer_extended.stellantisECMP.ALERT_HIGH_SOC = ALERT_HIGH_SOC;
-  datalayer_extended.stellantisECMP.ALERT_SOC_JUMP = ALERT_SOC_JUMP;
-  datalayer_extended.stellantisECMP.ALERT_TEMP_DIFF = ALERT_TEMP_DIFF;
-  datalayer_extended.stellantisECMP.ALERT_HIGH_TEMP = ALERT_HIGH_TEMP;
-  datalayer_extended.stellantisECMP.ALERT_OVERVOLTAGE = ALERT_OVERVOLTAGE;
-  datalayer_extended.stellantisECMP.ALERT_CELL_OVERVOLTAGE = ALERT_CELL_OVERVOLTAGE;
-  datalayer_extended.stellantisECMP.ALERT_CELL_UNDERVOLTAGE = ALERT_CELL_UNDERVOLTAGE;
+  datalayer_battery_extended->MysteryVan = MysteryVan;
+  datalayer_battery_extended->CONTACTORS_STATE = CONTACTORS_STATE;
+  datalayer_battery_extended->CrashMemorized = HV_BATT_CRASH_MEMORIZED;
+  datalayer_battery_extended->CONTACTOR_OPENING_REASON = CONTACTOR_OPENING_REASON;
+  datalayer_battery_extended->TBMU_FAULT_TYPE = TBMU_FAULT_TYPE;
+  datalayer_battery_extended->HV_BATT_FC_INSU_MINUS_RES = HV_BATT_FC_INSU_MINUS_RES;
+  datalayer_battery_extended->HV_BATT_FC_INSU_PLUS_RES = HV_BATT_FC_INSU_PLUS_RES;
+  datalayer_battery_extended->HV_BATT_FC_VHL_INSU_PLUS_RES = HV_BATT_FC_VHL_INSU_PLUS_RES;
+  datalayer_battery_extended->HV_BATT_ONLY_INSU_MINUS_RES = HV_BATT_ONLY_INSU_MINUS_RES;
+  datalayer_battery_extended->HV_BATT_ONLY_INSU_MINUS_RES = HV_BATT_ONLY_INSU_MINUS_RES;
+  datalayer_battery_extended->ALERT_CELL_POOR_CONSIST = ALERT_CELL_POOR_CONSIST;
+  datalayer_battery_extended->ALERT_OVERCHARGE = ALERT_OVERCHARGE;
+  datalayer_battery_extended->ALERT_BATT = ALERT_BATT;
+  datalayer_battery_extended->ALERT_LOW_SOC = ALERT_LOW_SOC;
+  datalayer_battery_extended->ALERT_HIGH_SOC = ALERT_HIGH_SOC;
+  datalayer_battery_extended->ALERT_SOC_JUMP = ALERT_SOC_JUMP;
+  datalayer_battery_extended->ALERT_TEMP_DIFF = ALERT_TEMP_DIFF;
+  datalayer_battery_extended->ALERT_HIGH_TEMP = ALERT_HIGH_TEMP;
+  datalayer_battery_extended->ALERT_OVERVOLTAGE = ALERT_OVERVOLTAGE;
+  datalayer_battery_extended->ALERT_CELL_OVERVOLTAGE = ALERT_CELL_OVERVOLTAGE;
+  datalayer_battery_extended->ALERT_CELL_UNDERVOLTAGE = ALERT_CELL_UNDERVOLTAGE;
 
   if (battery_InterlockOpen) {
     set_event(EVENT_HVIL_FAILURE, 0);
@@ -236,7 +236,7 @@ void EcmpBattery::update_values() {
 void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x2D4:  //MysteryVan 50/75kWh platform (TBMU 100ms periodic)
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       MysteryVan = true;
       SOE_MAX_CURRENT_TEMP = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];                       // (Wh, 0-200000)
       FRONT_MACHINE_POWER_LIMIT = (rx_frame.data.u8[4] << 6) | ((rx_frame.data.u8[5] & 0xFC) >> 2);  // (W 0-1000000)
@@ -244,7 +244,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                  ((rx_frame.data.u8[7] & 0xF0) >> 4);  // (W 0-1000000)
       break;
     case 0x3B4:  //MysteryVan 50/75kWh platform (TBMU 100ms periodic)
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       EVSE_INSTANT_DC_HV_CURRENT =
           ((rx_frame.data.u8[2] & 0x03) << 12) | (rx_frame.data.u8[3] << 2) | ((rx_frame.data.u8[4] & 0xC0) >> 6);
       EVSE_STATE = ((rx_frame.data.u8[4] & 0x38) >> 3); /*Enumeration below
@@ -263,7 +263,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       COUNTER_3B4 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x2F4:  //MysteryVan 50/75kWh platform (Event triggered when charging)
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //TBMU_EVSE_DC_MES_VOLTAGE = (rx_frame.data.u8[0] << 6) | (rx_frame.data.u8[1] >> 2);           //V 0-1000 //Fastcharger info, not needed for BE
       //TBMU_EVSE_DC_MIN_VOLTAGE = ((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[2];         //V 0-1000 //Fastcharger info, not needed for BE
       //TBMU_EVSE_DC_MES_CURRENT = (rx_frame.data.u8[3] << 4) | ((rx_frame.data.u8[4] & 0xF0) >> 4);  //A -2000 - 2000 //Fastcharger info, not needed for BE
@@ -273,7 +273,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //TBMU_EVSE_DC_MAX_POWER = ((rx_frame.data.u8[6] & 0x3F) << 8) | rx_frame.data.u8[7];  //W -1000000 - 0 //Fastcharger info, not needed for BE
       break;
     case 0x3F4:  //MysteryVan 50/75kWh platform (Temperature sensors)
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       switch (((rx_frame.data.u8[0] & 0xE0) >> 5))  //Mux resides in top 3 bits of frame0
       {
         case 0:
@@ -290,7 +290,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x554:  //MysteryVan 50/75kWh platform (Discharge/Charge limits)
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       HV_BATT_PEAK_DISCH_POWER_HD = (rx_frame.data.u8[1] << 6) | (rx_frame.data.u8[2] >> 2);  //0-1000000 W
       HV_BATT_PEAK_CH_POWER_HD = ((rx_frame.data.u8[2] & 0x03) << 12) | (rx_frame.data.u8[3] << 4) |
                                  ((rx_frame.data.u8[4] & 0xF0) >> 4);  // -1000000 - 0 W
@@ -301,7 +301,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       COUNTER_554 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x373:  //MysteryVan 50/75kWh platform
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       REQ_CLEAR_DTC_TBMU = ((rx_frame.data.u8[3] & 0x40) >> 7);
       TBCU_48V_WAKEUP = (rx_frame.data.u8[3] >> 7);
       HV_BATT_MAX_REAL_CURR = (rx_frame.data.u8[5] << 7) | (rx_frame.data.u8[6] >> 1);  //A	-2000 -	2000	0.1 scaling
@@ -320,7 +320,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       COUNTER_373 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x4F4:  //MysteryVan 50/75kWh platform
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       HV_BATT_CRASH_MEMORIZED = ((rx_frame.data.u8[2] & 0x08) >> 3);
       HV_BATT_COLD_CRANK_ACK = ((rx_frame.data.u8[2] & 0x04) >> 2);
       HV_BATT_CHARGE_NEEDED_STATE = ((rx_frame.data.u8[2] & 0x02) >> 1);
@@ -338,7 +338,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       COUNTER_4F4 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x414:  //MysteryVan 50/75kWh platform
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       HV_BATT_REAL_POWER_HD = (rx_frame.data.u8[1] << 7) | (rx_frame.data.u8[2] >> 1);
       MAX_ALLOW_CHRG_POWER =
           ((rx_frame.data.u8[2] & 0x01) << 13) | (rx_frame.data.u8[3] << 5) | ((rx_frame.data.u8[4] & 0xF8) >> 3);
@@ -348,7 +348,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       COUNTER_414 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x353:  //MysteryVan 50/75kWh platform
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       HV_BATT_COP_VOLTAGE =
           (rx_frame.data.u8[1] << 5) | (rx_frame.data.u8[2] >> 3);  //Real voltage HV battery (dV, 0-5000)
       HV_BATT_COP_CURRENT =
@@ -357,7 +357,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       COUNTER_353 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x474:  //MysteryVan 50/75kWh platform
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMS_DC_RELAY_MES_EVSE_VOLTAGE = (rx_frame.data.u8[1] << 6) | (rx_frame.data.u8[2] >> 2);  //V 0-1000
       FAST_CHARGE_CONTACTOR_STATE = (rx_frame.data.u8[2] & 0x03);
       /*00: Contactors Opened 
@@ -373,7 +373,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       COUNTER_474 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x574:  //MysteryVan 50/75kWh platform
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       HV_BATT_FC_INSU_MINUS_RES = (rx_frame.data.u8[0] << 5) | (rx_frame.data.u8[1] >> 3);  //kOhm (0-60000)
       HV_BATT_FC_VHL_INSU_PLUS_RES =
           ((rx_frame.data.u8[1] & 0x07) << 10) | (rx_frame.data.u8[2] << 2) | ((rx_frame.data.u8[3] & 0xC0) >> 6);
@@ -381,7 +381,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       HV_BATT_ONLY_INSU_MINUS_RES = ((rx_frame.data.u8[3] & 0x3F) << 7) | (rx_frame.data.u8[4] >> 1);
       break;
     case 0x583:  //MysteryVan 50/75kWh platform (CAN-FD also?)
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       ALERT_OVERCHARGE = (rx_frame.data.u8[4] & 0x20) >> 5;
       NUMBER_PROBE_TEMP_MAX = rx_frame.data.u8[0];
       NUMBER_PROBE_TEMP_MIN = rx_frame.data.u8[1];
@@ -412,7 +412,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       break;
     case 0x314:  //MysteryVan 50/75kWh platform
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       MIN_ALLOW_DISCHRG_VOLTAGE = (rx_frame.data.u8[1] << 3) | (rx_frame.data.u8[2] >> 5);  //V (0-1000)
       //EVSE_DC_MAX_CURRENT = ((rx_frame.data.u8[2] & 0x1F) << 5) | (rx_frame.data.u8[3] >> 3); //Fastcharger info, not needed for BE
       //TBMU_EVSE_DC_MAX_VOLTAGE //Fastcharger info, not needed for BE
@@ -425,20 +425,20 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       COUNTER_314 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x254:  //MysteryVan 50/75kWh platform
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //HV_BATT_SOE_MAX_HR = frame6 & frame7 //Only on FD-CAN variant of the message. FD has length 7, non-fd 5
       HV_BATT_NOMINAL_DISCH_CURR_HD = (rx_frame.data.u8[0] << 7) | (rx_frame.data.u8[1] >> 1);  //dA (0-20000)
       HV_BATT_PEAK_DISCH_CURR_HD = (rx_frame.data.u8[2] << 7) | (rx_frame.data.u8[3] >> 1);     //dA (0-20000)
       HV_BATT_STABLE_DISCH_CURR_HD = (rx_frame.data.u8[4] << 7) | (rx_frame.data.u8[5] >> 1);   //dA (0-20000)
       break;
     case 0x2B4:  //MysteryVan 50/75kWh platform
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       HV_BATT_NOMINAL_CHARGE_CURR_HD = (rx_frame.data.u8[0] << 7) | (rx_frame.data.u8[1] >> 1);
       HV_BATT_PEAK_CHARGE_CURR_HD = (rx_frame.data.u8[2] << 7) | (rx_frame.data.u8[3] >> 1);
       HV_BATT_STABLE_CHARGE_CURR_HD = (rx_frame.data.u8[4] << 7) | (rx_frame.data.u8[5] >> 1);
       break;
     case 0x4D4:  //MysteryVan 50/75kWh platform
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       HV_BATT_STABLE_CHARGE_POWER_HD = (rx_frame.data.u8[0] << 6) | (rx_frame.data.u8[1] >> 2);
       HV_BATT_STABLE_DISCH_POWER_HD =
           ((rx_frame.data.u8[2] & 0x03) << 12) | (rx_frame.data.u8[3] << 4) | ((rx_frame.data.u8[4] & 0xF0) >> 4);
@@ -450,7 +450,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       COUNTER_4D4 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x125:  //Common eCMP
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_soc = (rx_frame.data.u8[0] << 2) |
                     (rx_frame.data.u8[1] >> 6);  // Byte1, bit 7 length 10 (0x3FE when abnormal) (0-1000 ppt)
       battery_MainConnectorState = ((rx_frame.data.u8[2] & 0x18) >>
@@ -460,7 +460,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_current = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) - 600;  // TODO: Test
       break;
     case 0x127:  //DFM specific
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_AllowedMaxChargeCurrent =
           (rx_frame.data.u8[0] << 2) |
           ((rx_frame.data.u8[1] & 0xC0) >> 6);  //Byte 1, bit 7, length 10 (0-600A) [0x3FF if invalid]
@@ -469,15 +469,15 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           (rx_frame.data.u8[3] >> 4);  //Byte 2, bit 5, length 10 (0-600A) [0x3FF if invalid]
       break;
     case 0x129:  //PSA specific
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x31B:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_InterlockOpen = ((rx_frame.data.u8[1] & 0x10) >> 4);  //Best guess, seems to work?
       //TODO: frame7 contains checksum, we can use this to check for CAN message corruption
       break;
     case 0x358:  //Common
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_highestTemperature = rx_frame.data.u8[6] - 40;
       battery_lowestTemperature = rx_frame.data.u8[7] - 40;
       break;
@@ -492,13 +492,13 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x494:
       break;
     case 0x594:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_insulation_failure_diag = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //Unsure if this is right position
       //byte pos 6, bit pos 7, signal lenth 3
       //0 = no failure, 1 = symmetric failure, 4 = invalid value , forbidden value 5-7
       break;
     case 0x6D0:  //Common
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_insulationResistanceKOhm =
           (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];  //Byte 2, bit 7, length 16 (0-60000 kOhm)
       break;
@@ -507,7 +507,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x6D2:
       break;
     case 0x6D3:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       cellvoltages[0] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltages[1] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[2] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -681,13 +681,13 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cellvoltages[105] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[106] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       cellvoltages[107] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages, 108 * sizeof(uint16_t));
+      memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages, 108 * sizeof(uint16_t));
       break;
     case 0x694:  // Poll reply
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
       // Handle user requested functionality first if ongoing
-      if (datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring) {
+      if (datalayer_battery_extended->UserRequestDisableIsoMonitoring) {
         if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {
           //06,50,03,00,C8,00,14,00,
           DisableIsoMonitoringStatemachine = 2;  //Send ECMP_ACK_MESSAGE (02 3e 00)
@@ -709,18 +709,18 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if ((rx_frame.data.u8[0] == 0x04) && (rx_frame.data.u8[1] == 0x31) && (rx_frame.data.u8[2] == 0x02)) {
           //Disable isolation successful 04 31 02 df e1
           DisableIsoMonitoringStatemachine = COMPLETED_STATE;
-          datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring = false;
+          datalayer_battery_extended->UserRequestDisableIsoMonitoring = false;
           timeSpentDisableIsoMonitoring = COMPLETED_STATE;
         }
         if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x31)) {
           //Disable Isolation fails to enter with 7F
           set_event(EVENT_PID_FAILED, rx_frame.data.u8[2]);
           DisableIsoMonitoringStatemachine = COMPLETED_STATE;
-          datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring = false;
+          datalayer_battery_extended->UserRequestDisableIsoMonitoring = false;
           timeSpentDisableIsoMonitoring = COMPLETED_STATE;
         }
 
-      } else if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
+      } else if (datalayer_battery_extended->UserRequestContactorReset) {
         if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {
           //06,50,03,00,C8,00,14,00,
           ContactorResetStatemachine = 2;  //Send ECMP_CONTACTOR_RESET_START next loop
@@ -732,11 +732,11 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x71) && (rx_frame.data.u8[2] == 0x03)) {
           //05,71,03,DD,35,02,00,00,
           ContactorResetStatemachine = COMPLETED_STATE;
-          datalayer_extended.stellantisECMP.UserRequestContactorReset = false;
+          datalayer_battery_extended->UserRequestContactorReset = false;
           timeSpentContactorReset = COMPLETED_STATE;
         }
 
-      } else if (datalayer_extended.stellantisECMP.UserRequestCollisionReset) {
+      } else if (datalayer_battery_extended->UserRequestCollisionReset) {
         if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {
           //06,50,03,00,C8,00,14,00,
           CollisionResetStatemachine = 2;  //Send ECMP_COLLISION_RESET_START next loop
@@ -753,12 +753,12 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           if (rx_frame.data.u8[5] == 0x02) {
             //05,71,03,DF,60,02,00,00,
             CollisionResetStatemachine = COMPLETED_STATE;
-            datalayer_extended.stellantisECMP.UserRequestCollisionReset = false;
+            datalayer_battery_extended->UserRequestCollisionReset = false;
             timeSpentCollisionReset = COMPLETED_STATE;
           }
         }
 
-      } else if (datalayer_extended.stellantisECMP.UserRequestIsolationReset) {
+      } else if (datalayer_battery_extended->UserRequestIsolationReset) {
         if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {
           //06,50,03,00,C8,00,14,00,
           IsolationResetStatemachine = 2;  //Send ECMP_ISOLATION_RESET_START next loop
@@ -775,7 +775,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           if (rx_frame.data.u8[5] == 0x02) {
             //05,71,03,DF,46,02,00,00,
             IsolationResetStatemachine = COMPLETED_STATE;
-            datalayer_extended.stellantisECMP.UserRequestIsolationReset = false;
+            datalayer_battery_extended->UserRequestIsolationReset = false;
             timeSpentIsolationReset = COMPLETED_STATE;
           }
         }
@@ -1193,7 +1193,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     //To be able to use the battery, isolation monitoring needs to be disabled
     //Failure to do this results in the contactors opening after 30 seconds with load
-    if (datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring) {
+    if (datalayer_battery_extended->UserRequestDisableIsoMonitoring) {
       if (DisableIsoMonitoringStatemachine == 0) {
         transmit_can_frame(&ECMP_DIAG_START);
         DisableIsoMonitoringStatemachine = 1;
@@ -1212,11 +1212,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       }
       timeSpentDisableIsoMonitoring++;
       if (timeSpentDisableIsoMonitoring > 40) {  //Timeout, if command takes more than 10s to complete
-        datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring = false;
+        datalayer_battery_extended->UserRequestDisableIsoMonitoring = false;
         DisableIsoMonitoringStatemachine = COMPLETED_STATE;
         timeSpentDisableIsoMonitoring = COMPLETED_STATE;
       }
-    } else if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
+    } else if (datalayer_battery_extended->UserRequestContactorReset) {
       if (ContactorResetStatemachine == 0) {
         transmit_can_frame(&ECMP_DIAG_START);
         ContactorResetStatemachine = 1;
@@ -1232,12 +1232,12 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
       timeSpentContactorReset++;
       if (timeSpentContactorReset > 40) {  //Timeout, if command takes more than 10s to complete
-        datalayer_extended.stellantisECMP.UserRequestContactorReset = false;
+        datalayer_battery_extended->UserRequestContactorReset = false;
         ContactorResetStatemachine = COMPLETED_STATE;
         timeSpentContactorReset = COMPLETED_STATE;
       }
 
-    } else if (datalayer_extended.stellantisECMP.UserRequestCollisionReset) {
+    } else if (datalayer_battery_extended->UserRequestCollisionReset) {
 
       if (CollisionResetStatemachine == 0) {
         transmit_can_frame(&ECMP_DIAG_START);
@@ -1254,12 +1254,12 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
       timeSpentCollisionReset++;
       if (timeSpentCollisionReset > 40) {  //Timeout, if command takes more than 10s to complete
-        datalayer_extended.stellantisECMP.UserRequestCollisionReset = false;
+        datalayer_battery_extended->UserRequestCollisionReset = false;
         CollisionResetStatemachine = COMPLETED_STATE;
         timeSpentCollisionReset = COMPLETED_STATE;
       }
 
-    } else if (datalayer_extended.stellantisECMP.UserRequestIsolationReset) {
+    } else if (datalayer_battery_extended->UserRequestIsolationReset) {
 
       if (IsolationResetStatemachine == 0) {
         transmit_can_frame(&ECMP_DIAG_START);
@@ -1280,7 +1280,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
           countIsolationReset++;
           IsolationResetStatemachine = 0;  //Reset state machine to start over
         } else {
-          datalayer_extended.stellantisECMP.UserRequestIsolationReset = false;
+          datalayer_battery_extended->UserRequestIsolationReset = false;
           IsolationResetStatemachine = COMPLETED_STATE;
           timeSpentIsolationReset = COMPLETED_STATE;
           countIsolationReset = 0;
@@ -1289,7 +1289,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     } else {  //Normal PID polling goes here
 
-      if (datalayer.battery.status.bms_status != FAULT) {  //Stop PID polling if battery is in FAULT mode
+      if (datalayer_battery->status.bms_status != FAULT) {  //Stop PID polling if battery is in FAULT mode
 
         switch (poll_state) {
           case PID_WELD_CHECK:
@@ -1658,18 +1658,27 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     counter_10ms = (counter_10ms + 1) % 16;
 
-    if (datalayer.battery.status.bms_status == FAULT) {
-      //Make vehicle appear as in idle HV state. Useful for clearing DTCs
-      ECMP_0F2.data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x60, 0x0D};
-      ECMP_17B.data = {0x00, 0x00, 0x00, 0x7E, 0x78, 0x00, 0x00, 0x0F};
-      ECMP_110.data.u8[6] = 0x87;
-      ECMP_110.data.u8[7] = 0x05;
-    } else {
+    if ((contactor_closing_allowed == nullptr || *contactor_closing_allowed) &&
+        datalayer.system.status.inverter_allows_contactor_closing) {
       //Normal operation for contactor closing
       ECMP_0F2.data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x90, 0x0D};
       ECMP_110.data.u8[6] = 0x4E;
       ECMP_110.data.u8[7] = 0x20;
       ECMP_17B.data = {0x00, 0x00, 0x00, 0x7F, 0x98, 0x00, 0x00, 0x0F};
+    } else {  //Contactor closing not allowed
+      //Make vehicle appear as in idle HV state. Useful for clearing DTCs
+      ECMP_0F2.data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x60, 0x0D};
+      ECMP_17B.data = {0x00, 0x00, 0x00, 0x7E, 0x78, 0x00, 0x00, 0x0F};
+      ECMP_110.data.u8[6] = 0x87;
+      ECMP_110.data.u8[7] = 0x05;
+    }
+
+    if (datalayer_battery->status.bms_status == FAULT) {  //Extra safety check
+      //Make vehicle appear as in idle HV state. Useful for clearing DTCs
+      ECMP_0F2.data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x60, 0x0D};
+      ECMP_17B.data = {0x00, 0x00, 0x00, 0x7E, 0x78, 0x00, 0x00, 0x0F};
+      ECMP_110.data.u8[6] = 0x87;
+      ECMP_110.data.u8[7] = 0x05;
     }
 
     ECMP_0F2.data.u8[7] = counter_10ms << 4 | checksum_calc(counter_10ms, ECMP_0F2);
@@ -1691,11 +1700,18 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
 
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if ((contactor_closing_allowed == nullptr || *contactor_closing_allowed) &&
+        datalayer.system.status.inverter_allows_contactor_closing) {
+      // Battery allowed to close contactors
+      ECMP_0F0.data.u8[1] = 0x20;
+    } else {  //Contactor closing not allowed
       //Open contactors!
       ECMP_0F0.data.u8[1] = 0x00;
-    } else {  // Not in faulted mode, Close contactors!
-      ECMP_0F0.data.u8[1] = 0x20;
+    }
+
+    if (datalayer_battery->status.bms_status == FAULT) {  //Extra safety check
+      //Open contactors!
+      ECMP_0F0.data.u8[1] = 0x00;
     }
 
     counter_20ms = (counter_20ms + 1) % 16;
@@ -1708,13 +1724,20 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     previousMillis50 = currentMillis;
 
-    if (datalayer.battery.status.bms_status == FAULT) {
-      //Make vehicle appear as in idle HV state. Useful for clearing DTCs
-      ECMP_27A.data = {0x4F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    } else {
+    if ((contactor_closing_allowed == nullptr || *contactor_closing_allowed) &&
+        datalayer.system.status.inverter_allows_contactor_closing) {
       //Normal operation for contactor closing
       ECMP_27A.data = {0x4F, 0x58, 0x00, 0x02, 0x24, 0x00, 0x00, 0x00};
+    } else {  //Contactor closing not allowed
+      //Make vehicle appear as in idle HV state. Useful for clearing DTCs
+      ECMP_27A.data = {0x4F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     }
+
+    if (datalayer_battery->status.bms_status == FAULT) {
+      //Make vehicle appear as in idle HV state. Useful for clearing DTCs
+      ECMP_27A.data = {0x4F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    }
+
     transmit_can_frame(&ECMP_230);  //OBC3_230
     transmit_can_frame(&ECMP_27A);  //VCU_BSI_Wakeup_27A
   }
@@ -1725,7 +1748,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     counter_100ms = (counter_100ms + 1) % 16;
     counter_010 = (counter_010 + 1) % 8;
 
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer_battery->status.bms_status == FAULT) {
       //Make vehicle appear as in idle HV state. Useful for clearing DTCs
       ECMP_31E.data.u8[0] = 0x48;
       ECMP_345.data = {0x45, 0x57, 0x00, 0x04, 0x00, 0x00, 0x06, 0x31};
@@ -1846,7 +1869,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
 
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer_battery->status.bms_status == FAULT) {
       //Make vehicle appear as in idle HV state. Useful for clearing DTCs
       ECMP_486.data.u8[0] = 0x80;
       ECMP_794.data.u8[0] = 0xB8;  //Not sure if needed, could be static?
@@ -1885,11 +1908,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 void EcmpBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.number_of_cells = 108;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer_battery->info.number_of_cells = 108;
+  datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
