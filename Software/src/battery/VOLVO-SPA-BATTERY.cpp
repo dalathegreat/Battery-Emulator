@@ -76,16 +76,16 @@ void VolvoSpaBattery::
     // We can determine whether we have 96S or 108S battery
     if (datalayer.battery.status.cell_voltages_mV[107] > 0) {
       datalayer.battery.info.number_of_cells = 108;
-      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
-      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_108S_DV;
       datalayer.battery.info.total_capacity_Wh = 78200;
     } else {
       datalayer.battery.info.number_of_cells = 96;
-      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;
-      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;
       datalayer.battery.info.total_capacity_Wh = 69511;
     }
   }
+
+  //Use dynamic voltage limits from BMS as max/min pack voltage limits
+  datalayer.battery.info.max_design_voltage_dV = (MAX_U * 10);  //These range between 400-470V depending on battery type
+  datalayer.battery.info.min_design_voltage_dV = (MIN_U * 10);  //Can be seen under More Battery Info page
 
   //Check safeties
   if (datalayer_extended.VolvoPolestar.BECMsupplyVoltage < 10700) {  //10.7V,
@@ -108,21 +108,21 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
 
       if ((rx_frame.data.u8[2] & 0x08) == 0x08)
-        MAX_U = (((rx_frame.data.u8[2] & 0x07) * 256.0 + rx_frame.data.u8[3]) * 0.25);
+        MAX_U = ((((rx_frame.data.u8[2] & 0x07) << 8) | rx_frame.data.u8[3]) / 4);
       else {
         //MAX_U = 0;
         //logging.println("MAX_U not valid");	// Value toggles between true/false from BMS
       }
 
       if ((rx_frame.data.u8[4] & 0x08) == 0x08)
-        MIN_U = (((rx_frame.data.u8[4] & 0x07) * 256.0 + rx_frame.data.u8[5]) * 0.25);
+        MIN_U = ((((rx_frame.data.u8[4] & 0x07) << 8) | rx_frame.data.u8[5]) / 4);
       else {
         //MIN_U = 0;
         //logging.println("MIN_U not valid");	// Value toggles between true/false from BMS
       }
 
       if ((rx_frame.data.u8[0] & 0x08) == 0x08) {
-        BATT_U = (((rx_frame.data.u8[0] & 0x07) * 256.0 + rx_frame.data.u8[1]) * 0.25);
+        BATT_U = ((((rx_frame.data.u8[0] & 0x07) << 8) | rx_frame.data.u8[1]) / 4);
       }
 
       if ((rx_frame.data.u8[0] & 0x40) == 0x40)
