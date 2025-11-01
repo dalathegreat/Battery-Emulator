@@ -18,6 +18,7 @@
 const char* HTTP_RESPONSE = "HTTP/1.1 200 OK\r\n"
                         "Connection: close\r\n"
                         "Content-Type: text/html\r\n"
+                        "Access-Control-Allow-Origin: *\r\n"
                         "\r\n";
 const char* HTTP_204 = "HTTP/1.1 204 n\r\n"
                        "Connection: close\r\n"
