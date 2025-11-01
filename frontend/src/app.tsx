@@ -19,6 +19,7 @@ function Tray({data}: {data: any}) {
           battery.i > 0.05 ? <span>▲</span> : battery.i < -0.05 ? <span>▼</span> : ''
         }</div>
       )) }
+      { data?.pause && <div class="badge" data-status="warn">PAUSED</div> }
     </div>
   );
 }
@@ -39,6 +40,42 @@ function EventCount({data}: {data: any}) {
 export function App() {
   const data = useGetApi("/api/live", 3000);
   const location = useLocation();
+
+  function handlePause(ev: Event) {
+    ev.preventDefault();
+    fetch(import.meta.env.VITE_API_BASE + '/api/pause', {
+        method: 'POST',
+        body: data?.pause ? "0" : "1",
+    }).then(() => {
+      // Trigger a data reload
+      data?._reload();
+    });
+  }
+
+  function handleEStop(ev: Event) {
+    ev.preventDefault();
+    if(!confirm(
+      data?.estop 
+      ? "This action will attempt to close contactors and enable power transfer. Are you sure?" : "This action will attempt to open contactors on the battery. Are you sure?"
+    )) {
+      return;
+    }
+    fetch(import.meta.env.VITE_API_BASE + '/api/estop', {
+        method: 'POST',
+        body: data?.estop ? "0" : "1",
+    });
+  }
+
+  function handleReboot(ev: Event) {
+    ev.preventDefault();
+    if(!confirm("Are you sure you want to reboot the emulator?")) {
+      return;
+    }
+    fetch(import.meta.env.VITE_API_BASE + '/api/reboot', {
+        method: 'POST',
+    });
+  }
+
   return (
     <>
       <div class="topbar">
@@ -59,8 +96,9 @@ export function App() {
             <Link href="/cansender">CAN sender</Link>
             <Link href="/log">System Log</Link>
             <Link href="/ota">OTA upgrade</Link>
-            <a href="#" class="button" style="margin: auto 0 0.75rem; background-color: #bf7c13; color: #ffffff;">Pause</a>
-            <a href="#" class="button" style="background-color: #b50909; color: #ffffff;">Open contactors</a>
+            <a href="#" onClick={handlePause} class="button" style="margin: auto 0 0.75rem; background-color: #bf7c13; color: #ffffff;">{ data?.pause ? "Resume" : "Pause" }</a>
+            <a href="#" onClick={handleEStop} class="button" style="margin: 0 0 0.75rem; background-color: #b50909; color: #ffffff;">Open contactors</a>
+            <a href="#" onClick={handleReboot} class="button" style="background-color: #434343; color: #ffffff;">Reboot emulator</a>
           </div>
         </div>
         <div class="content">

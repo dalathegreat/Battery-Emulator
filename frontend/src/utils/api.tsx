@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'preact/hooks'
 
-function patch(resp: any) {
-    if (resp && typeof resp === 'object') {
-        // Crudely mark the time we received this response
-        resp._now = Date.now();
-    }
-    return resp;
-}
-
 export function useGetApi(url: string, period: number=0) {
     const [response, setResponse] = useState<any>(null);
+
+    function patch(resp: any) {
+        if (resp !== null) {
+            // Crudely mark the time we received this response
+            resp._now = Date.now();
+        }
+        // TODO - should we clear the timeout if this gets called?
+        resp._reload = call;
+        return resp;
+    }
 
     const ctx = {t:0};
     function call() {
@@ -19,6 +21,7 @@ export function useGetApi(url: string, period: number=0) {
         if(period>0) {
             ctx.t = setTimeout(call, period) as unknown as number;
             return () => {
+                // Destructor
                 clearTimeout(ctx.t);
             }
         }
