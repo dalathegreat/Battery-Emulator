@@ -8,8 +8,11 @@ import { Log } from './log.tsx'
 import { Ota } from './ota.tsx'
 import { Settings } from './settings.tsx'
 
+import { Button } from './components/button.tsx'
+
 import { useGetApi } from './utils/api.tsx'
 import { Link, useLocation } from './utils/location.tsx';
+import { reboot } from './utils/reboot.tsx';
 
 function Tray({data}: {data: any}) {
   return (
@@ -71,9 +74,8 @@ export function App() {
     if(!confirm("Are you sure you want to reboot the emulator?")) {
       return;
     }
-    fetch(import.meta.env.VITE_API_BASE + '/api/reboot', {
-        method: 'POST',
-    });
+    reboot();
+    return new Promise<void>((_res, _rej) => {});
   }
 
   return (
@@ -98,7 +100,7 @@ export function App() {
             <Link href="/ota">OTA upgrade</Link>
             <a href="#" onClick={handlePause} class="button" style="margin: auto 0 0.75rem; background-color: #bf7c13; color: #ffffff;">{ data?.pause ? "Resume" : "Pause" }</a>
             <a href="#" onClick={handleEStop} class="button" style="margin: 0 0 0.75rem; background-color: #b50909; color: #ffffff;">Open contactors</a>
-            <a href="#" onClick={handleReboot} class="button" style="background-color: #434343; color: #ffffff;">Reboot emulator</a>
+            <Button onClick={handleReboot} style={{"background-color": "#434343", "color": "#ffffff", "border-radius": "0 8px 8px 0"}}>Reboot emulator</Button>
           </div>
         </div>
         <div class="content">

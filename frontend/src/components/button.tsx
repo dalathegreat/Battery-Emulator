@@ -1,6 +1,6 @@
 import { useState } from "preact/hooks";
 
-export default function Button({children, confirm, disabled, onClick}: {children: preact.ComponentChildren, confirm?: string, disabled?: boolean, onClick?: (ev: preact.JSX.TargetedMouseEvent<HTMLButtonElement>) => void}) {
+export function Button({children, confirm, disabled, onClick, style}: {children: preact.ComponentChildren, confirm?: string, disabled?: boolean, onClick?: (ev: preact.JSX.TargetedMouseEvent<HTMLButtonElement>) => void, style?: preact.JSX.CSSProperties}) {
     const [spinning, setSpinning] = useState(false);
     const handleClick = (ev: preact.JSX.TargetedMouseEvent<HTMLButtonElement>) => {
         if(onClick && !disabled) {
@@ -17,7 +17,7 @@ export default function Button({children, confirm, disabled, onClick}: {children
             }
         }
     };
-    return <button class="button" onClick={handleClick} data-spin={spinning||undefined} disabled={disabled||undefined}>
+    return <button class="button" onClick={handleClick} data-spin={spinning||undefined} disabled={disabled||undefined} style={style}>
         {children}
     </button>;
 };
