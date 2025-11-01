@@ -1,0 +1,72 @@
+form {
+    max-width: 40rem;
+}
+form[data-initialized="0"] {
+  visibility: hidden;
+}
+
+form .actions {
+    text-align: right;
+}
+
+.form-row {
+  text-align: left;
+  margin: 0 0 0.5rem;
+}
+
+[data-ind] {
+  padding-left: 1.25rem;
+}
+
+.form-row label {
+  position: absolute;
+  font-size: 0.83rem;
+  margin: 0 0 0.5rem;
+  color: #aaaaaa;
+  padding: 0.3rem 0 0 11px;
+  pointer-events: none;
+}
+.form-row select {
+  background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ebebeb' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M2 5l6 6 6-6'/%3e%3c/svg%3e") right 10px center no-repeat;
+  background-size: 12px;
+}
+.form-row input, .form-row select {
+  display: block;
+  width: 100%;
+  padding: 1.4rem 10px 0.5rem;
+  font-size: 1.1rem;
+  border-radius: 5px;
+  border: 1px solid #666666;
+  background-color: #212121;
+  color: #ededed;
+  appearance: none;
+}
+.form-row input:invalid, .form-row select:invalid {
+  border-color: #ff3333;
+}
+.form-row input:focus:invalid, .form-row select:focus:invalid {
+  box-shadow: 0 0 0 1px #ff9999;
+  border-color: #ff9999;
+  outline-style: none;  
+}
+
+.form-row label:has(> input) {
+  display: block;
+  position: static;
+  pointer-events: all;
+  cursor: pointer;
+  user-select: none;
+  font-size: 1.1rem;
+  color: #ededed;
+  padding: 0.2rem 0;
+  /* border: 1px solid #666666;
+  background-color: #212121; */
+}
+.form-row input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  appearance: auto;
+  display: inline-block;
+  vertical-align: top;
+  margin: 0.1rem 0.8rem 0 0;
+}
