@@ -15,6 +15,9 @@ export function useGetApi(url: string, period: number=0) {
 
     const ctx = {t:0};
     function call() {
+        // Don't make calls while rebooting
+        if((window as unknown as any)._rebooting) return;
+
         fetch(
             url?.startsWith('https://') ? url : (import.meta.env.VITE_API_BASE + url)
         ).then(
