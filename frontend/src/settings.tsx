@@ -2,9 +2,10 @@ import { useRef, useEffect, useState } from "preact/hooks";
 // import { signal } from '@preact/signals';
 // console.log(signal);
 
-import Button from "./components/button.tsx";
+import { Button } from "./components/button.tsx";
 
 import { useGetApi } from "./utils/api.tsx";
+import { reboot } from "./utils/reboot.tsx";
 
 // Shows or hides its children based on the "when" prop.
 function Show({ when, indent, children }: { when: boolean | string, indent?: boolean | null, children: preact.ComponentChildren }) {
@@ -217,16 +218,6 @@ export function Settings() {
         setCurrent({});
         setSavedSettings(rr);
         window.scrollTo(0,0);
-    };
-
-    const reboot = () => {
-        fetch(import.meta.env.VITE_API_BASE + '/api/reboot', {
-            method: 'POST',
-        });
-        return new Promise((resolve) => setTimeout(() => {
-            window.location.href = "/";
-            resolve(true);
-        }, 6000));
     };
 
     const batteries: {[index: string]:string} = {};
