@@ -48,7 +48,7 @@ void DigestAuthSessionManager::clear_old_sessions() {
 //     std::map<char const*, int> counts;
 
 template <typename HASH_CONTEXT, int HASH_TYPE>
-DigestAuth<HASH_CONTEXT, HASH_TYPE>::DigestAuth(TwsHandler *handler, GetPasswordHashFunc getPasswordHash, DigestAuthSessionManager *sessionManager) : TwsStatefulHandler<DigestAuthState<HASH_CONTEXT>>(handler), getPasswordHash(getPasswordHash), sessionManager(sessionManager) {
+DigestAuth<HASH_CONTEXT, HASH_TYPE>::DigestAuth(TwsRoute *handler, GetPasswordHashFunc getPasswordHash, DigestAuthSessionManager *sessionManager) : TwsStatefulHandler<DigestAuthState<HASH_CONTEXT>>(handler), getPasswordHash(getPasswordHash), sessionManager(sessionManager) {
     nextPostBody = handler->onPostBody;
     nextHeader = handler->onHeader;
     nextPartialHeader = handler->onPartialHeader;

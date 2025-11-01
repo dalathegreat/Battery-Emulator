@@ -1,6 +1,6 @@
 #include "TinyWebServer.h"
 
-BasicAuth::BasicAuth(TwsHandler *handler) : TwsStatefulHandler<BasicAuthState>(handler) {
+BasicAuth::BasicAuth(TwsRoute *handler) : TwsStatefulHandler<BasicAuthState>(handler) {
     nextPostBody = handler->onPostBody;
     nextHeader = handler->onHeader;
     nextRequest = handler->onRequest;

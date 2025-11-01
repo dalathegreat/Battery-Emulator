@@ -1,6 +1,6 @@
 #include "TinyWebServer.h"
 
-MultipartUploadHandler::MultipartUploadHandler(TwsHandler *handler, 
+MultipartUploadHandler::MultipartUploadHandler(TwsRoute *handler, 
     TwsFileUploadHandler *onUpload = nullptr) : TwsStatefulHandler<MultipartUploadHandlerState>(handler), onUpload(onUpload) {
     
     nextPostBody = handler->onPostBody;
