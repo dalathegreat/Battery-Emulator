@@ -47,6 +47,8 @@ export function Extended() {
     const data = useGetApi('/api/batext', 5000);
     const actions = useGetApi('/api/batact', 0);
 
+    const old = useGetApi('/api/batold', 5000);
+
     console.log(actions);
 
     const view = useMemo(() => {
@@ -63,7 +65,10 @@ export function Extended() {
 
     return (
         <>
-            <h2>Extended Features</h2>
+            <h2>Extended battery info</h2>
+
+            <div dangerouslySetInnerHTML={{__html: old }}></div>
+            <hr />
 
             { btype == 32 || btype == 33 ?
                 (view && <TeslaExtended view={ view } />) :

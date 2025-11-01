@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from "preact/hooks";
 // import { signal } from '@preact/signals';
 // console.log(signal);
 
+import Button from "./components/button.tsx";
 
 import { useGetApi } from "./utils/api.tsx";
 
@@ -222,9 +223,10 @@ export function Settings() {
         fetch(import.meta.env.VITE_API_BASE + '/api/reboot', {
             method: 'POST',
         });
-        setTimeout(() => {
+        return new Promise((resolve) => setTimeout(() => {
             window.location.href = "/";
-        }, 6000);
+            resolve(true);
+        }, 6000));
     };
 
     const batteries: {[index: string]:string} = {};
@@ -257,7 +259,7 @@ export function Settings() {
 
         { reboot_required && <div class="alert">
             Settings saved, reboot to apply.
-            <button onClick={reboot}>Reboot now</button>
+            <Button onClick={reboot}>Reboot now</Button>
         </div> }
 
         <Form initial={settings.settings}

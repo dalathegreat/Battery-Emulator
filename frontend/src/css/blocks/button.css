@@ -1,7 +1,8 @@
 button,
 a.button {
+    position: relative;
     cursor: pointer;
-    background: #3cddb2;
+    background-color: #3cddb2;
     text-decoration: none;
     border: none;
     border-radius: 8px;
@@ -10,6 +11,7 @@ a.button {
     padding: 0.6rem 17px;
     font-weight: 600; 
     text-align: center;
+    transition: background-color 0.3s ease;
 }
 
 button:hover,
@@ -17,6 +19,38 @@ a.button:hover {
     opacity: 0.9;
 }
 
+a.button[disabled],
 button[disabled] {
     opacity: 0.5;
+}
+
+a.button[data-spin],
+button[data-spin] {
+    background-color: #555;
+}
+
+a.button[data-spin]:before,
+button[data-spin]:before {
+    content: "";
+    width: 20px;
+    height: 20px;
+    border: 3px solid #FFF;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    position: absolute;
+    display: inline-block;
+    box-sizing: border-box;
+    vertical-align: middle;
+    top: calc(50% - 10px);
+    left: calc(50% - 10px);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 }
