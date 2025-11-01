@@ -25,9 +25,9 @@ extern "C" {
 }
 
 // crude placeholder
-TwsHandler nullHandler("/nope", nullptr);
+TwsRoute nullHandler("/nope");
 
-TinyWebServer::TinyWebServer(uint16_t port, TwsHandler *handlers[]) {
+TinyWebServer::TinyWebServer(uint16_t port, TwsRoute *handlers[]) {
     _port = port;
     _handlers = handlers;
     
@@ -328,16 +328,14 @@ void TinyWebServer::handle_request(TwsRequest &request) {
             if(request.match("\r\n") || request.match("\n")) {
                 // End of headers, process the request
 
-                if(request.handler && request.handler->onRequest) {
-                    if(request.method==TWS_HTTP_POST && request.handler->onPostBody) {
-                        // check Content-Length to decide whether to do this?
-                        request.parse_state = TWS_AWAITING_BODY;
-                    } else {
-                        // Call the handler function
-                        request.handler->onRequest->handleRequest(request);
-                        if(request.writer_callback && request.free()>0) request.writer_callback(request, request.total_written - request.writer_callback_written_offset);
-                        request.parse_state = TWS_WRITING_OUT;
-                    }
+                if(request.handler && request.method==TWS_HTTP_POST && request.handler->onPostBody) {
+                    // Prepare to receive the POST body
+                    request.parse_state = TWS_AWAITING_BODY;
+                } else if(request.handler && request.handler->onRequest) {
+                    // Call the GET handler function
+                    request.handler->onRequest->handleRequest(request);
+                    if(request.writer_callback && request.free()>0) request.writer_callback(request, request.total_written - request.writer_callback_written_offset);
+                    request.parse_state = TWS_WRITING_OUT;
                 } else {
                     request.write_fully(HTTP_404);
                     request.finish();

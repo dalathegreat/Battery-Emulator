@@ -307,7 +307,7 @@ const char* HTTP_RESPONSE_GZIP = "HTTP/1.1 200 OK\r\n"
                         "Content-Encoding: gzip\r\n"
                         "\r\n";
 
-TwsHandler indexHandler("*", new TwsRequestHandlerFunc([](TwsRequest &request) {
+TwsRoute indexHandler("*", new TwsRequestHandlerFunc([](TwsRequest &request) {
     request.write_fully(HTTP_RESPONSE_GZIP, strlen(HTTP_RESPONSE_GZIP));
     request.set_writer_callback(CharBufWriter((const char*)html_data, sizeof(html_data)));
 
@@ -343,7 +343,7 @@ Md5DigestAuth authHandler(&indexHandler, [](const char *username, char *output) 
     return 0;
 }, &sessions);
 
-TwsHandler uploadHandler("/upload", new TwsRequestHandlerFunc([](TwsRequest& request) {
+TwsRoute uploadHandler("/upload", new TwsRequestHandlerFunc([](TwsRequest& request) {
     request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\n\r\n<input type=\"file\" onchange=\""
         "const c = new FormData;"
         "let l = this.files[0];"
@@ -359,7 +359,7 @@ TwsHandler uploadHandler("/upload", new TwsRequestHandlerFunc([](TwsRequest& req
 //BasicAuth authHandler2(uploadHandler);
 
 
-TwsHandler uploadHandler2("/ota/upload", 
+TwsRoute uploadHandler2("/ota/upload", 
     new TwsRequestHandlerFunc([](TwsRequest& request) {
         //tws_log_printf("Finished request on /ota/upload\n");
         request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nFile uploaded successfully.\n");
@@ -374,7 +374,7 @@ MultipartUploadHandler uploadWotsit(&uploadHandler2, new TwsFileUploadHandlerFun
 }));
 //    BasicAuth authHandler3(&uploadHandler2);
 
-// TwsHandler eOtaUploadHandler("/ota/upload", 
+// TwsRoute eOtaUploadHandler("/ota/upload", 
 //     new TwsRequestHandlerFunc([](TwsRequest& request) {
 //         //tws_log_printf("Finished request on /ota/upload\n");
 //         request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nOK");
@@ -385,7 +385,7 @@ MultipartUploadHandler uploadWotsit(&uploadHandler2, new TwsFileUploadHandlerFun
 
 String mystr("I'm a string!");
 
-TwsHandler stringHandler("/strings", new TwsRequestHandlerFunc([](TwsRequest &request) {
+TwsRoute stringHandler("/strings", new TwsRequestHandlerFunc([](TwsRequest &request) {
     auto strings = std::make_shared<std::vector<StringLike>>();
     strings->reserve(5);
     strings->push_back(StringLike("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\n"));
@@ -398,7 +398,7 @@ TwsHandler stringHandler("/strings", new TwsRequestHandlerFunc([](TwsRequest &re
     request.set_writer_callback(StringListWriter(strings));
 }));
 
-TwsHandler settingsHandler("/settings", new TwsRequestHandlerFunc([](TwsRequest &request) {
+TwsRoute settingsHandler("/settings", new TwsRequestHandlerFunc([](TwsRequest &request) {
     request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nSettings go here\n");
     request.finish();
 }));
@@ -413,7 +413,7 @@ TwsPostBufferingRequestHandler settingsBufferingHandler(&settingsHandler, [](Tws
 });
 
 //EOtaStart eOtaHandler("/ota/start");
-TwsHandler *handlers[] = {
+TwsRoute *handlers[] = {
     &settingsHandler,
     &indexHandler,
     &uploadHandler,
