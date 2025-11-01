@@ -5,7 +5,7 @@
 #include "../../lib/pierremolinaro-acan-esp32/ACAN_ESP32.h"
 #include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
 
-CanSender::CanSender(TwsHandler *handler) : TwsStatefulHandler<CanSenderState>(handler) {
+CanSender::CanSender(TwsRoute *handler) : TwsStatefulHandler<CanSenderState>(handler) {
     handler->onHeader = this;
     handler->onQueryParam = this;
     handler->onPostBody = this;

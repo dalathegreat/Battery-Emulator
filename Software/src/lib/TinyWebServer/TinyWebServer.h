@@ -54,7 +54,7 @@ typedef enum {
 } TwsMethod;
 
 class TwsRequest;
-class TwsHandler;
+class TwsRoute;
 
 typedef std::function<void(TwsRequest &request, int alreadyWritten)> TwsRequestWriterCallbackFunction;
 
@@ -147,7 +147,7 @@ protected:
     uint8_t method = 0;
     bool pending_direct_write = false;
     bool done = false;
-    TwsHandler *handler = nullptr;
+    TwsRoute *handler = nullptr;
 
     TwsRequestWriterCallbackFunction writer_callback = nullptr;
     int writer_callback_written_offset = 0;
@@ -219,7 +219,7 @@ public:
     virtual void handleFree(TwsRequest &request) {}
 };
 
-// TwsHandler represents a route handler for a specific path. These are created
+// TwsRoute represents a route handler for a specific path. These are created
 // before startup and passed to the TinyWebServer constructor in an array.
 //
 // The path can be an exact match (e.g. "/status") or a wildcard ("*") to match
@@ -227,11 +227,16 @@ public:
 // array.
 //
 // Each handler includes a set of optional callbacks for different stages of the
-// request, as pointers to Tws*Handler subclasses.
-class TwsHandler {
+// request, as pointers to Tws*Handler subclasses. Various constructors are
+// provided to ease setting these.
+class TwsRoute {
 public:
-    TwsHandler(const char *path, TwsRequestHandler *onRequest = nullptr) :
+    TwsRoute(const char *path) : path(path) {}
+    TwsRoute(const char *path, TwsRequestHandler *onRequest) :
         path(path), onRequest(onRequest) {
+    }
+    TwsRoute(const char *path, TwsPostBodyHandler *onPostBody) :
+        path(path), onPostBody(onPostBody) {
     }
     const char *path;
     TwsRequestHandler *onRequest = nullptr;    
@@ -251,7 +256,7 @@ public:
 template<class T> 
 class TwsStatefulHandler : public TwsAllocableHandler {
 public:
-    TwsStatefulHandler(TwsHandler *handler) {
+    TwsStatefulHandler(TwsRoute *handler) {
         nextAlloc = handler->onAlloc;
         handler->onAlloc = this;
     }
@@ -332,7 +337,7 @@ struct PostBufferingRequestHandlerState {
 
 class TwsPostBufferingRequestHandler : public TwsHeaderHandler, public TwsPostBodyHandler, public TwsStatefulHandler<PostBufferingRequestHandlerState> {
 public:
-    TwsPostBufferingRequestHandler(TwsHandler *handler, void (*handleFullPostBody)(TwsRequest &request, uint8_t *data, size_t len) = nullptr) : TwsStatefulHandler<PostBufferingRequestHandlerState>(handler), handleFullPostBody(handleFullPostBody) {
+    TwsPostBufferingRequestHandler(TwsRoute *handler, void (*handleFullPostBody)(TwsRequest &request, uint8_t *data, size_t len) = nullptr) : TwsStatefulHandler<PostBufferingRequestHandlerState>(handler), handleFullPostBody(handleFullPostBody) {
         nextPostBody = handler->onPostBody;
         nextHeader = handler->onHeader;
         handler->onPostBody = this;
@@ -401,7 +406,7 @@ public:
 
 class TinyWebServer {
 public:
-    TinyWebServer(uint16_t port, TwsHandler *handlers[] = nullptr);
+    TinyWebServer(uint16_t port, TwsRoute *handlers[] = nullptr);
     ~TinyWebServer();
 
     // void on(
@@ -431,7 +436,7 @@ public:
 protected:
     uint16_t _port;
     int _listen_socket = -1;
-    TwsHandler **_handlers = nullptr;
+    TwsRoute **_handlers = nullptr;
     unsigned int max_handler_state_size = 0;
 
     void accept_new_connections();
@@ -480,7 +485,7 @@ typedef struct {
 
 class MultipartUploadHandler : public TwsPostBodyHandler, public TwsHeaderHandler, public TwsStatefulHandler<MultipartUploadHandlerState> {
 public:
-    MultipartUploadHandler(TwsHandler *handler, TwsFileUploadHandler *onUpload);
+    MultipartUploadHandler(TwsRoute *handler, TwsFileUploadHandler *onUpload);
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
     void handleHeader(TwsRequest &request, const char *line, int len) override;
 
@@ -497,7 +502,7 @@ typedef struct {
 
 class BasicAuth : public TwsHeaderHandler, public TwsPostBodyHandler, public TwsRequestHandler, public TwsStatefulHandler<BasicAuthState> {
 public:
-    BasicAuth(TwsHandler *handler);
+    BasicAuth(TwsRoute *handler);
 
     void handleHeader(TwsRequest &request, const char *line, int len) override;
 
@@ -515,20 +520,20 @@ public:
 
 
 template<class T>
-class TwsWrappedHandler : public TwsHandler {
+class TwsWrappedHandler : public TwsRoute {
 public:
     TwsWrappedHandler(const char *path, TwsRequestHandler *onRequest = nullptr) :
-        TwsHandler(path, onRequest), wrapper(*this) {
+        TwsRoute(path, onRequest), wrapper(*this) {
     }
 
     T wrapper;
 };
 
 template<class T, class T2>
-class TwsWrappedHandler2 : public TwsHandler {
+class TwsWrappedHandler2 : public TwsRoute {
 public:
     TwsWrappedHandler2(const char *path, TwsRequestHandler *onRequest = nullptr) :
-        TwsHandler(path, onRequest), wrapper(*this), wrapper2(*this) {
+        TwsRoute(path, onRequest), wrapper(*this), wrapper2(*this) {
     }
 
     T wrapper;
@@ -537,11 +542,11 @@ public:
 
 typedef struct {
   int mode;
-} EOtaStartState;
+} OtaStartState;
 
-class EOtaStart : public TwsRequestHandler, public TwsQueryParamHandler, public TwsStatefulHandler<EOtaStartState> {
+class OtaStart : public TwsRequestHandler, public TwsQueryParamHandler, public TwsStatefulHandler<OtaStartState> {
 public:
-    EOtaStart(TwsHandler *handler);
+    OtaStart(TwsRoute *handler);
 
     void handleRequest(TwsRequest &request) override;
     void handleQueryParam(TwsRequest &request, const char *param, int len, bool final) override;
@@ -552,11 +557,11 @@ public:
 typedef struct {
     int content_length;
     bool error = false;
-} EOtaUploadState;
+} OtaUploadState;
 
-class EOtaUpload : public TwsRequestHandler, public TwsPostBodyHandler, public TwsHeaderHandler, public TwsStatefulHandler<EOtaUploadState> {
+class OtaUpload : public TwsRequestHandler, public TwsPostBodyHandler, public TwsHeaderHandler, public TwsStatefulHandler<OtaUploadState> {
 public:
-    EOtaUpload(TwsHandler *handler);
+    OtaUpload(TwsRoute *handler);
 
     void handleRequest(TwsRequest &request) override;
 //    void handleUpload(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final) override;
@@ -670,7 +675,7 @@ typedef int (*GetPasswordHashFunc)(const char* username, char* output);
 template<typename HASH_CONTEXT, int HASH_TYPE>
 class DigestAuth : public TwsHeaderHandler, public TwsPartialHeaderHandler, public TwsPostBodyHandler, public TwsRequestHandler, public TwsStatefulHandler<DigestAuthState<HASH_CONTEXT>> {
 public:
-    DigestAuth(TwsHandler *handler, GetPasswordHashFunc getPasswordHash, DigestAuthSessionManager *sessionManager = nullptr);
+    DigestAuth(TwsRoute *handler, GetPasswordHashFunc getPasswordHash, DigestAuthSessionManager *sessionManager = nullptr);
     void handleHeader(TwsRequest &request, const char *line, int len) override;
     int handlePartialHeader(TwsRequest &request, const char *line, int len, bool final) override;
     bool denyIfUnauthed(TwsRequest &request);
@@ -706,7 +711,7 @@ typedef struct {
 
 class CanSender : public TwsQueryParamHandler, public TwsHeaderHandler, public TwsPostBodyHandler, public TwsStatefulHandler<CanSenderState> {
 public:
-    CanSender(TwsHandler *handler);
+    CanSender(TwsRoute *handler);
 
     //void handleRequest(TwsRequest &request) override;
     //void handleUpload(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final) override;
