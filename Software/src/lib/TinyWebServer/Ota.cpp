@@ -2,14 +2,14 @@
 
 #include "Update.h"
 
-EOtaStart::EOtaStart(TwsHandler *handler) : TwsStatefulHandler<EOtaStartState>(handler) {
+OtaStart::OtaStart(TwsRoute *handler) : TwsStatefulHandler<OtaStartState>(handler) {
     nextQueryParam = handler->onQueryParam;
 
     handler->onRequest = this;
     handler->onQueryParam = this;
 }
 
-void EOtaStart::handleRequest(TwsRequest &request) {
+void OtaStart::handleRequest(TwsRequest &request) {
     auto &state = get_state(request);
     
     #ifndef LOCAL
@@ -38,7 +38,7 @@ void EOtaStart::handleRequest(TwsRequest &request) {
     request.finish();
 }
 
-void EOtaStart::handleQueryParam(TwsRequest &request, const char *param, int len, bool final) {
+void OtaStart::handleQueryParam(TwsRequest &request, const char *param, int len, bool final) {
     auto &state = get_state(request);
     //printf("got query param %s\n", param);
     if(strcmp(param, "mode=fs") == 0) {
@@ -62,7 +62,7 @@ void EOtaStart::handleQueryParam(TwsRequest &request, const char *param, int len
 }
 
 
-EOtaUpload::EOtaUpload(TwsHandler *handler) : TwsStatefulHandler<EOtaUploadState>(handler) {
+OtaUpload::OtaUpload(TwsRoute *handler) : TwsStatefulHandler<OtaUploadState>(handler) {
     nextRequest = handler->onRequest;
     nextHeader = handler->onHeader;
 
@@ -71,13 +71,13 @@ EOtaUpload::EOtaUpload(TwsHandler *handler) : TwsStatefulHandler<EOtaUploadState
     handler->onPostBody = this;
 }
 
-void EOtaUpload::handleRequest(TwsRequest &request) {
+void OtaUpload::handleRequest(TwsRequest &request) {
     if(nextRequest) {
         nextRequest->handleRequest(request);
     }
 }
 
-int EOtaUpload::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
+int OtaUpload::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
     auto &state = get_state(request);
 
    if(Update.write(data, len) != len) {
@@ -107,7 +107,7 @@ int EOtaUpload::handlePostBody(TwsRequest &request, size_t index, uint8_t *data,
     return len;
 }
 
-void EOtaUpload::handleHeader(TwsRequest &request, const char *line, int len) {
+void OtaUpload::handleHeader(TwsRequest &request, const char *line, int len) {
     auto &state = get_state(request);
 
     if(strncasecmp(line, "Content-Length:", 15) == 0) {
@@ -124,7 +124,7 @@ void EOtaUpload::handleHeader(TwsRequest &request, const char *line, int len) {
 }
 
 /*
-void EOtaUpload::handleUpload(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final) {
+void OtaUpload::handleUpload(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final) {
     auto &state = get_state(request);
 
     #ifdef LOCAL

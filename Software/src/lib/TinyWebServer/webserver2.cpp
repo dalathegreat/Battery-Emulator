@@ -19,6 +19,9 @@ const char* HTTP_RESPONSE = "HTTP/1.1 200 OK\r\n"
                         "Connection: close\r\n"
                         "Content-Type: text/html\r\n"
                         "\r\n";
+const char* HTTP_204 = "HTTP/1.1 204 n\r\n"
+                       "Connection: close\r\n"
+                       "\r\n";
 const char *HTTP_405 = "HTTP/1.1 405 x\r\n"
                        "Connection: close\r\n"
                        "\r\n";
@@ -105,18 +108,18 @@ TwsRequestWriterCallbackFunction CharBufWriter(const char* buf, int len) {
 }
 
 
-TwsHandler eOtaStartHandler("/ota/start");
-EOtaStart eOtaStart(&eOtaStartHandler);
+TwsRoute eOtaStartHandler("/ota/start");
+OtaStart eOtaStart(&eOtaStartHandler);
 
 
-TwsHandler eOtaUploadHandler("/ota/upload", 
+TwsRoute eOtaUploadHandler("/ota/upload", 
     new TwsRequestHandlerFunc([](TwsRequest& request) {
         DEBUG_PRINTF("Finished request on /ota/upload\n");
         request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nOK");
         request.finish();
     })
 );
-EOtaUpload eOtaUpload(&eOtaUploadHandler);
+OtaUpload eOtaUpload(&eOtaUploadHandler);
 
 extern const char* version_number;
 const char common_javascript[] = COMMON_JAVASCRIPT;
@@ -128,7 +131,7 @@ const char* HTTP_RESPONSE_GZIP = "HTTP/1.1 200 OK\r\n"
                         "Content-Encoding: gzip\r\n"
                         "\r\n";
 
-TwsHandler frontendHandler = TwsHandler("*", new TwsRequestHandlerFunc([](TwsRequest& request) {
+TwsRoute frontendHandler = TwsRoute("*", new TwsRequestHandlerFunc([](TwsRequest& request) {
     request.write_fully(HTTP_RESPONSE_GZIP, strlen(HTTP_RESPONSE_GZIP));
     request.set_writer_callback(CharBufWriter((const char*)html_data, sizeof(html_data)));
 }));
@@ -313,9 +316,21 @@ public:
     void (*respond)(TwsRequest& request, JsonDocument& doc);
 };
 
+// A wrapper to handle raw POST data via the passed-in callback.
+// The callback should return the number of bytes processed.
+class TwsRawPostFunc : public TwsPostBodyHandler {
+public:
+    TwsRawPostFunc(int (*handle)(TwsRequest& request, size_t index, uint8_t *data, size_t len)) : handle(handle) {}
+    
+    int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override {
+        return handle(request, index, data, len);
+    }
+
+    int (*handle)(TwsRequest& request, size_t index, uint8_t *data, size_t len);
+};
 
 
-TwsHandler settingsHandler("/api/settings", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+TwsRoute settingsHandler("/api/settings", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
     BatteryEmulatorSettingsStore settings;
 
     JsonArray bats = doc["batteries"].to<JsonArray>();
@@ -424,7 +439,7 @@ TwsPostBufferingRequestHandler settingsPostHandler(&settingsHandler, [](TwsReque
     DEBUG_PRINTF("Setting updated? %d\n", settings.were_settings_updated());
 });
 
-TwsHandler canSenderHandler("/api/cansend", 
+TwsRoute canSenderHandler("/api/cansend", 
     new TwsRequestHandlerFunc([](TwsRequest& request) {
         request.write_fully("HTTP/1.1 200 OK\r\n"
                             "Connection: close\r\n"
@@ -437,8 +452,8 @@ CanSender canSender(&canSenderHandler);
 
 
 //TwsRequestHandlerEntry default_handlers[] = {
-TwsHandler *default_handlers[] = {
-    new TwsHandler("/api/status", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+TwsRoute *default_handlers[] = {
+    new TwsRoute("/api/status", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
         doc["hardware"] = esp32hal->name();
         doc["firmware"] = version_number;
         doc["temp"] = datalayer.system.info.CPU_temperature;
@@ -520,7 +535,7 @@ TwsHandler *default_handlers[] = {
             con["state"] = (int)contactorStatus;
         }
     })),
-    new TwsHandler("/api/cells", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+    new TwsRoute("/api/cells", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
         JsonArray battery = doc["battery"].to<JsonArray>();
         JsonObject bat = battery.add<JsonObject>();
         bat["temp_min"] = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0f;
@@ -539,7 +554,18 @@ TwsHandler *default_handlers[] = {
             }
         }
     })),
-    new TwsHandler("/api/batext", new TwsRequestHandlerFunc([](TwsRequest& request) {
+    new TwsRoute("/api/batold", new TwsRequestHandlerFunc([](TwsRequest& request) {
+        request.write_fully(HTTP_RESPONSE);
+        if(battery) {
+            auto &renderer = battery->get_status_renderer();
+            auto response = std::make_shared<String>(renderer.get_status_html());
+            // response->reserve(5000);
+            // response = ;
+            request.set_writer_callback(StringWriter(response));
+        }
+    })),
+
+    new TwsRoute("/api/batext", new TwsRequestHandlerFunc([](TwsRequest& request) {
         request.write_fully("HTTP/1.1 200 OK\r\n"
                             "Connection: close\r\n"
                             "Content-Type: application/octet-stream\r\n"
@@ -586,7 +612,7 @@ TwsHandler *default_handlers[] = {
             request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.zoePH2, sizeof(datalayer_extended.zoePH2)));
         }
     })),
-    new TwsHandler("/api/batact", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+    new TwsRoute("/api/batact", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
         JsonObject actions = doc["actions"].to<JsonObject>();
         if(battery) {
             if(battery->supports_reset_SOH()) actions["reset_soh"] = true;
@@ -594,7 +620,10 @@ TwsHandler *default_handlers[] = {
         }
     })),
     &settingsHandler,
-    new TwsHandler("/api/live", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+    new TwsRoute("/api/live", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+        doc["pause"] = emulator_pause_request_ON;
+        doc["estop"] = datalayer.system.info.equipment_stop_active;
+        
         JsonArray batteries = doc["battery"].to<JsonArray>();
         auto add_battery = [&](auto battery) {
             JsonObject bat = batteries.add<JsonObject>();
@@ -618,11 +647,11 @@ TwsHandler *default_handlers[] = {
                 ev["age"] = current_timestamp - event_pointer->timestamp;
                 ev["level"] = get_event_level_string((EVENTS_ENUM_TYPE)i);
             }
-        }        
+        }
     })),
 
     /*
-    new TwsHandler("/api/tesla", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+    new TwsRoute("/api/tesla", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
         auto &d = datalayer_extended.tesla;
         JsonArray vals = doc["data"].to<JsonArray>();
 
@@ -844,7 +873,7 @@ TwsHandler *default_handlers[] = {
         vals.add(d.HVP_shuntAsicTempStatus);
     })),
     */
-    new TwsHandler("/api/events", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+    new TwsRoute("/api/events", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
         JsonArray events = doc["events"].to<JsonArray>();
 
         std::vector<EventData> order_events;
@@ -871,7 +900,7 @@ TwsHandler *default_handlers[] = {
             ev["message"] = get_event_message_string(event_handle);
         }
     })),
-    new TwsHandler("/api/log", new TwsRequestHandlerFunc([](TwsRequest& request) {
+    new TwsRoute("/api/log", new TwsRequestHandlerFunc([](TwsRequest& request) {
         request.write_fully("HTTP/1.1 200 OK\r\n"
                       "Connection: close\r\n"
                       "Content-Type: text/plain\r\n"
@@ -880,7 +909,7 @@ TwsHandler *default_handlers[] = {
         // We don't actually need to send the offset, the frontend can search for the first nul instead
         request.set_writer_callback(CharBufWriter((const char*)datalayer.system.info.logged_can_messages, sizeof(datalayer.system.info.logged_can_messages)));
     })),
-    new TwsHandler("/api/reboot", new TwsRequestHandlerFunc([](TwsRequest& request) {
+    new TwsRoute("/api/reboot", new TwsRequestHandlerFunc([](TwsRequest& request) {
         if(!request.is_post()) {
             request.write_fully(HTTP_405);
             return;
@@ -896,7 +925,27 @@ TwsHandler *default_handlers[] = {
         delay(1000);
         ESP.restart();
     })),
-    // new TwsHandler("/log", new TwsRequestHandlerFunc([](TwsRequest& request) {
+    new TwsRoute("/api/pause", new TwsRawPostFunc([](TwsRequest& request, size_t index, uint8_t *data, size_t len) -> int {
+        if(len==1 && data[0]=='1') {
+            setBatteryPause(true, false);
+        } else if(len==1 && data[0]=='0') {
+            setBatteryPause(false, false);
+        }
+        request.write_fully(HTTP_204);
+        request.finish();
+        return len;
+    })),
+    new TwsRoute("/api/estop", new TwsRawPostFunc([](TwsRequest& request, size_t index, uint8_t *data, size_t len) -> int {
+        if(len==1 && data[0]=='1') {
+            setBatteryPause(true, false, true);  //Pause battery, do not pause CAN, equipment stop on (store to flash)
+        } else if(len==1 && data[0]=='0') {
+            setBatteryPause(false, false, false);
+        }
+        request.write_fully(HTTP_204);
+        request.finish();
+        return len;
+    })),
+    // new TwsRoute("/log", new TwsRequestHandlerFunc([](TwsRequest& request) {
     //     auto response = std::make_shared<String>();
     //     //auto response = std::make_unique<String>();
     //     response->reserve(17000);
@@ -914,7 +963,7 @@ TwsHandler *default_handlers[] = {
     //         request.set_writer_callback(StringWriter(response));
     //     }
     // })),
-    new TwsHandler("/dump_can", new TwsRequestHandlerFunc([](TwsRequest& request) {
+    new TwsRoute("/dump_can", new TwsRequestHandlerFunc([](TwsRequest& request) {
         request.write_fully("HTTP/1.1 200 OK\r\n"
                       "Connection: close\r\n"
                       "Content-Type: text/plain\r\n"
@@ -925,7 +974,7 @@ TwsHandler *default_handlers[] = {
         can_dumper_connection_id = request.get_connection_id();
         datalayer.system.info.can_logging_active2 = true;
     })),
-    // new TwsHandler("/update", new TwsRequestHandlerFunc([](TwsRequest& request) {
+    // new TwsRoute("/update", new TwsRequestHandlerFunc([](TwsRequest& request) {
     //     const char* HEADER = "HTTP/1.1 200 OK\r\n"
     //                   "Connection: close\r\n"
     //                   "Content-Type: text/html\r\n"
@@ -934,7 +983,7 @@ TwsHandler *default_handlers[] = {
     //     request.write_fully(HEADER, strlen(HEADER));
     //     request.set_writer_callback(CharBufWriter((const char*)ELEGANT_HTML, sizeof(ELEGANT_HTML)));
     // })),
-    // new TwsHandler("/GetFirmwareInfo", new TwsRequestHandlerFunc([](TwsRequest& request) {
+    // new TwsRoute("/GetFirmwareInfo", new TwsRequestHandlerFunc([](TwsRequest& request) {
     //     const char* HEADER = "HTTP/1.1 200 OK\r\n"
     //                   "Connection: close\r\n"
     //                   "Content-Type: application/json\r\n"
@@ -944,7 +993,7 @@ TwsHandler *default_handlers[] = {
     //     // auto response = std::make_shared<String>(get_firmware_info_processor("X"));
     //     // request.set_writer_callback(StringWriter(response));
     // })),
-    new TwsHandler("/stats", new TwsRequestHandlerFunc([](TwsRequest& request) {
+    new TwsRoute("/stats", new TwsRequestHandlerFunc([](TwsRequest& request) {
         request.write_fully("HTTP/1.1 200 OK\r\n"
                             "Connection: close\r\n"
                             "Content-Type: text/plain\r\n"
