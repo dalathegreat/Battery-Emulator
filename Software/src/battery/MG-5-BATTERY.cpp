@@ -28,6 +28,46 @@ inline const char* getBMStatus(int index) {
   }
 }
 
+void Mg5Battery::update_soc(uint16_t soc_times_ten) {
+
+
+  // Set the state of charge in the datalayer
+  datalayer.battery.status.real_soc = soc_times_ten * 10;
+
+  RealSoC = datalayer.battery.status.real_soc / 100;
+
+  // Calculate the remaining capacity.
+  tempfloat = datalayer.battery.info.total_capacity_Wh * (RealSoC - MinSoC) / 100;
+  if (tempfloat > 0) {
+    datalayer.battery.status.remaining_capacity_Wh = tempfloat;
+  } else {
+    datalayer.battery.status.remaining_capacity_Wh = 0;
+  }
+
+  // Calculate the maximum charge power. Taper the charge power between 90% and 100% SoC, as 100% SoC is approached
+  if (RealSoC < StartChargeTaper) {
+    datalayer.battery.status.max_charge_power_W = MaxChargePower;
+  } else if (RealSoC >= 100) {
+    datalayer.battery.status.max_charge_power_W = TricklePower;
+  } else {
+    //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
+    datalayer.battery.status.max_charge_power_W =
+        (MaxChargePower * pow(((100 - RealSoC) / (100 - StartChargeTaper)), ChargeTaperExponent)) + TricklePower;
+  }
+
+  // Calculate the maximum discharge power. Taper the discharge power between 35% and Min% SoC, as Min% SoC is approached
+  if (RealSoC > StartDischargeTaper) {
+    datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
+  } else if (RealSoC < MinSoC) {
+    datalayer.battery.status.max_discharge_power_W = TricklePower;
+  } else {
+    //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
+    datalayer.battery.status.max_discharge_power_W =
+        (MaxDischargePower * pow(((RealSoC - MinSoC) / (StartDischargeTaper - MinSoC)), DischargeTaperExponent)) +
+        TricklePower;
+  }
+}
+
 void Mg5Battery::print_formatted_dtc(uint32_t dtc24, uint8_t status)
 {
   // DTC bytes: A B C (24 bits). SAE letter from top 2 bits of A.
@@ -121,22 +161,24 @@ bool Mg5Battery::isUDSMessageComplete() {
 }
 
 void Mg5Battery::update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+    // TODO: push any MG5-specific computed values into datalayer here.
 
-  datalayer.battery.status.real_soc = battery_soc;
-  datalayer.battery.status.voltage_dV = battery_voltage;
-  datalayer.battery.status.current_dA = battery_current;
 
-  datalayer.battery.info.total_capacity_Wh;
+    //  datalayer.battery.status.real_soc = battery_soc;
+    //  datalayer.battery.status.voltage_dV = battery_voltage;
+    //  datalayer.battery.status.current_dA = battery_current;
 
-  datalayer.battery.status.remaining_capacity_Wh;
+    //  datalayer.battery.info.total_capacity_Wh;
 
-  datalayer.battery.status.max_discharge_power_W;
+    //  datalayer.battery.status.remaining_capacity_Wh;
 
-  datalayer.battery.status.max_charge_power_W;
+    //  datalayer.battery.status.max_discharge_power_W;
 
-  datalayer.battery.status.temperature_min_dC;
+    //  datalayer.battery.status.max_charge_power_W;
 
-  datalayer.battery.status.temperature_max_dC;
+    //  datalayer.battery.status.temperature_min_dC;
+
+    //  datalayer.battery.status.temperature_max_dC;
 }
 
 
@@ -147,12 +189,43 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x297:{ //BMS state
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
-      battery_BMS_state = rx_frame.data.u8[1]; // BMS state B1
+      
+      // Contains battery status in rx_frame.data.u8[1]
+      // Presumed mapping:
+      // 1 = disconnected
+      // 2 = precharge
+      // 3 = connected
+      // 15 = isolation fault
+      // 0/8 = checking
+
+      if (rx_frame.data.u8[1] != previousState) {
+        logging.printf("MG_HS_PHEV: Battery status changed to %d (%d)\n", rx_frame.data.u8[1], rx_frame.data.u8[0]);
+      }
+
+      if (rx_frame.data.u8[1] == 0xf && previousState != 0xf) {
+        // Isolation fault, set event
+        set_event(EVENT_BATTERY_ISOLATION, rx_frame.data.u8[0]);
+      } else if (rx_frame.data.u8[1] != 0xf && previousState == 0xf) {
+        // Isolation fault has cleared, clear event
+        clear_event(EVENT_BATTERY_ISOLATION);
+      }
+
+      previousState = rx_frame.data.u8[1];
       break;
     }
     case 0x172:
       break;
     case 0x173:
+          // Contains cell min/max voltages
+      v = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      if (v > 0 && v < 0x2000) {
+        datalayer.battery.status.cell_max_voltage_mV = v;
+      }
+      v = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+      if (v > 0 && v < 0x2000) {
+        datalayer.battery.status.cell_min_voltage_mV = v;
+        cellVoltageValidTime = CELL_VOLTAGE_TIMEOUT;
+      }
       break;
     case 0x293:
       break;
@@ -165,6 +238,15 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x2A0:
       break;
     case 0x2A2:
+
+      if (rx_frame.data.u8[0] < 0xfe) {
+        // Max cell temp
+        datalayer.battery.status.temperature_max_dC = ((rx_frame.data.u8[0] << 8) / 50) - 400;
+      }
+      if (rx_frame.data.u8[5] < 0xfe) {
+        // Min cell temp
+        datalayer.battery.status.temperature_min_dC = ((rx_frame.data.u8[5] << 8) / 50) - 400;
+      }
       break;
     case 0x322:
       break;
@@ -181,18 +263,31 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x3AC:{// battery summary: SoC, HV voltage, HV current
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
   
-      // SoC: B3-B4 (0.1 %)
-      uint16_t soc_raw = (uint16_t(rx_frame.data.u8[2]) << 8) | rx_frame.data.u8[3];
-      battery_soc = soc_raw * 0.1f;                  
 
-      // HV Voltage: HIGH nibble of B5 + full B6 (12-bit), 0.25 V/bit
-      uint16_t v_raw = ((rx_frame.data.u8[4] & 0xF0) >> 4) << 8 | rx_frame.data.u8[5];
-      battery_voltage = v_raw * 0.25f;                
+      // Contains SoCs, voltage, current. Is emitted by both PTCAN and HybridCAN, but
+      // the HybridCAN version only has SoC
+      // There does not seem to be 2 SOC"s present like in MG HS battery, so we just read the meassages from the PTCAN bus
 
-      // HV Current: B7-B8, 0.05 A/bit, offset -1000 A
-      uint16_t i_raw = (uint16_t(rx_frame.data.u8[6]) << 8) | rx_frame.data.u8[7];
-      battery_current = (i_raw * 0.05f) - 1000.0f;
 
+      if ((((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) != 0) {
+        // 3AC message contains a nonzero voltage (so must have come from PTCAN)
+
+        // battery voltage
+        v = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]);
+        if (v > 0 && v < 4000) {
+          datalayer.battery.status.voltage_dV = v * 2.5;
+        }
+        // Current
+        v = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
+        if (v > 0 && v < 0xf000) {
+          datalayer.battery.status.current_dA = -(v - 20000) * 0.5;
+        }
+
+        // SOC
+        soc2 = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+        if (soc2 < 1022) {
+          update_soc(soc2);
+        }
       break;
     }
     case 0x3B8:
@@ -202,6 +297,14 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x3BC:
       break;
     case 0x3BE:
+
+      // Per-cell voltages and temps
+      cell_id = rx_frame.data.u8[5];
+      if (cell_id < 96) {
+        v = 1000 + ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
+        datalayer.battery.status.cell_voltages_mV[cell_id] = v < 10000 ? v : 0;
+        // cell temperature is rx_frame.data.u8[1]-40 but BE doesn't use it
+      }
       break;
     case 0x3C0:
       break;
@@ -487,6 +590,7 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   
   }
 }
+}
 
 void Mg5Battery::transmit_can(unsigned long currentMillis) {
   //Send 10ms message
@@ -494,15 +598,31 @@ void Mg5Battery::transmit_can(unsigned long currentMillis) {
     previousMillis10 = currentMillis;
 
   }
+
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    //transmit_can_frame(&MG_5_100, can_config.battery);
+
+    if (datalayer.battery.status.bms_status == FAULT) {
+      // Fault, so open contactors!
+      MG_HS_8A.data.u8[5] = 0x00;
+    } else if (!datalayer.system.status.inverter_allows_contactor_closing) {
+      // Inverter requests contactor opening
+      MG_HS_8A.data.u8[5] = 0x02;
+    } else {
+      // Everything ready, close contactors
+      MG_HS_8A.data.u8[5] = 0x02;
+    }
+
+    transmit_can_frame(&MG_HS_8A, can_config.battery);
+    transmit_can_frame(&MG_HS_1F1, can_config.battery);
   }
 
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     previousMillis200 = currentMillis;
+
+    
 
 
     //uds_fast_req_id_counter = increment_uds_req_id_counter(
@@ -516,8 +636,9 @@ void Mg5Battery::transmit_can(unsigned long currentMillis) {
     previousMillis1000 = currentMillis;
   }
 
-  if (currentMillis - previousMillis2000 >= INTERVAL_2000_MS) {
-    previousMillis2000 = currentMillis;
+  if (currentMillis - previousMillis6000 >= INTERVAL_6000_MS) {
+    previousMillis6000 = currentMillis;
+    //transmit_can_frame(&MG_HS_8A, can_config.battery);
 
   }
 
@@ -566,7 +687,7 @@ void Mg5Battery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-
+  datalayer.battery.info.number_of_cells = 96;
   uds_tx_in_flight  == true; // Make sure UDS doesn't start right away
   uds_req_started_ms = millis(); // prevent immediate timeout
   uds_timeout_ms = UDS_TIMEOUT_AFTER_BOOT; // initial delay to restart UDS after boot-up

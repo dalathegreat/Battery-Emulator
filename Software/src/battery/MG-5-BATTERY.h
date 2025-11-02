@@ -18,6 +18,7 @@ class Mg5Battery : public CanBattery {
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
+  virtual void update_soc(uint16_t soc_times_ten);
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "MG 5 battery";
   void startUDSMultiFrameReception(uint16_t totalLength, uint8_t moduleID);
@@ -36,15 +37,41 @@ class Mg5Battery : public CanBattery {
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200  = 0;
   unsigned long previousMillis1000 = 0;
-  unsigned long previousMillis2000 = 0;
+  unsigned long previousMillis6000 = 0;
   unsigned long previousMillisDTC = 0;
   unsigned long previousMillisPID = 0;
 
   #define INTERVAL_1000_MS 1000UL
-  #define INTERVAL_2000_MS 2000UL
+  #define INTERVAL_6000_MS 6000UL
+
+  uint8_t previousState = 0;
+
+    // For calculating charge and discharge power
+  float RealVoltage;
+  float RealSoC;
+  float tempfloat;
 
   int BMS_SOC = 0;
 
+  static const uint16_t CELL_VOLTAGE_TIMEOUT = 10;  // in seconds
+  uint16_t cellVoltageValidTime = 0;
+  uint16_t soc1 = 0;
+  uint16_t soc2 = 0;
+  uint16_t cell_id = 0;
+  uint16_t v = 0;
+  uint8_t transmitIndex = 0;  //For polling switchcase
+
+  const int MaxChargePower = 3000;  // Maximum allowable charge power, excluding the taper
+  const int StartChargeTaper = 90;  // Battery percentage above which the charge power will taper to zero
+  const float ChargeTaperExponent =
+      1;  // Shape of charge power taper to zero. 1 is linear. >1 reduces quickly and is small at nearly full.
+  const int TricklePower = 20;  // Minimimum trickle charge or discharge power (W)
+
+  const int MaxDischargePower = 4000;  // Maximum allowable discharge power, excluding the taper
+  const int MinSoC = 20;               // Minimum SoC allowed
+  const int StartDischargeTaper = 30;  // Battery percentage below which the discharge power will taper to zero
+  const float DischargeTaperExponent =
+      1;  // Shape of discharge power taper to zero. 1 is linear. >1 red
     // A structure to keep track of the ongoing multi-frame UDS response
   typedef struct {
     bool UDS_inProgress;                // Are we currently receiving a multi-frame message?
@@ -189,6 +216,20 @@ class Mg5Battery : public CanBattery {
                                     .ID = 0x781,
                                     .data = {0x03, 0x22, 0xB0, 0x6D, 0x00, 0x00, 0x00, 0x00}};  //  Battery Management System Time
 
+
+  CAN_frame MG_HS_8A = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x08A,
+                        .data = {0x80, 0x00, 0x00, 0x04, 0x00, 0x02, 0x36, 0xB0}};
+
+  CAN_frame MG_HS_1F1 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x1F1,
+                         .data = {0x0E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+
                                     //Setup Fast UDS values to poll for
   //CAN_frame* UDS_REQUESTS_FAST[0] = {};
   //int numFastUDSreqs =
@@ -235,7 +276,7 @@ class Mg5Battery : public CanBattery {
   const unsigned long UDS_TIMEOUT_AFTER_FF_MS  = 3000;  // multi-frame in progress
   const unsigned long UDS_TIMEOUT_AFTER_BOOT = 2000;   // DELAY TO START UDS AFTER BOOT-UP
   const unsigned long TESTER_PRESENT_PERIOD_MS = 1000;  // ~1 s
-  const uint32_t UDS_DTC_REFRESH_MS = 61000; // or 60000
+  const uint32_t UDS_DTC_REFRESH_MS = 10000; // or 60000
 
   // tiny helper for cycling request indices
   static int increment_uds_req_id_counter(int cur, int n) {
