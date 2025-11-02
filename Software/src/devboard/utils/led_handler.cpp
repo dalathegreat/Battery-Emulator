@@ -1,6 +1,6 @@
 #include "led_handler.h"
 #include "../../datalayer/datalayer.h"
-#include "../../include.h"
+#include "../../devboard/hal/hal.h"
 #include "events.h"
 #include "value_mapping.h"
 
@@ -16,16 +16,20 @@ static const float heartbeat_peak1 = 0.80;
 static const float heartbeat_peak2 = 0.55;
 static const float heartbeat_deviation = 0.05;
 
-static LED led(datalayer.battery.status.led_mode);
+static LED* led;
 
-void led_init(void) {
-  led.init();
+bool led_init(void) {
+  if (!esp32hal->alloc_pins("LED", esp32hal->LED_PIN())) {
+    return false;
+  }
+
+  led = new LED(datalayer.battery.status.led_mode, esp32hal->LED_PIN(), esp32hal->LED_MAX_BRIGHTNESS());
+
+  return true;
 }
+
 void led_exe(void) {
-  led.exe();
-}
-led_color led_get_color() {
-  return led.color;
+  led->exe();
 }
 
 void LED::exe(void) {
@@ -45,27 +49,21 @@ void LED::exe(void) {
   }
 
   // Set color
-  switch (get_event_level()) {
-    case EVENT_LEVEL_INFO:
-      color = led_color::GREEN;
-      pixels.setPixelColor(0, COLOR_GREEN(brightness));  // Green pulsing LED
+  switch (get_emulator_status()) {
+    case EMULATOR_STATUS::STATUS_OK:
+      pixels.setPixelColor(COLOR_GREEN(brightness));  // Green pulsing LED
       break;
-    case EVENT_LEVEL_WARNING:
-      color = led_color::YELLOW;
-      pixels.setPixelColor(0, COLOR_YELLOW(brightness));  // Yellow pulsing LED
+    case EMULATOR_STATUS::STATUS_WARNING:
+      pixels.setPixelColor(COLOR_YELLOW(brightness));  // Yellow pulsing LED
       break;
-    case EVENT_LEVEL_DEBUG:
-    case EVENT_LEVEL_UPDATE:
-      color = led_color::BLUE;
-      pixels.setPixelColor(0, COLOR_BLUE(brightness));  // Blue pulsing LED
+    case EMULATOR_STATUS::STATUS_ERROR:
+      pixels.setPixelColor(COLOR_RED(esp32hal->LED_MAX_BRIGHTNESS()));  // Red LED full brightness
       break;
-    case EVENT_LEVEL_ERROR:
-      color = led_color::RED;
-      pixels.setPixelColor(0, COLOR_RED(LED_MAX_BRIGHTNESS));  // Red LED full brightness
-      break;
-    default:
+    case EMULATOR_STATUS::STATUS_UPDATING:
+      pixels.setPixelColor(COLOR_BLUE(brightness));  // Blue pulsing LED
       break;
   }
+
   pixels.show();  // This sends the updated pixel color to the hardware.
 }
 
@@ -126,7 +124,7 @@ void LED::heartbeat_run(void) {
     brightness_f = map_float(period_pct, 0.55f, 1.00f, heartbeat_base + heartbeat_deviation * 2, heartbeat_base);
   }
 
-  brightness = (uint8_t)(brightness_f * LED_MAX_BRIGHTNESS);
+  brightness = (uint8_t)(brightness_f * esp32hal->LED_MAX_BRIGHTNESS());
 }
 
 uint8_t LED::up_down(float middle_point_f) {
@@ -138,7 +136,7 @@ uint8_t LED::up_down(float middle_point_f) {
   if (ms < middle_point) {
     brightness = map_uint16(ms, 0, middle_point, 0, max_brightness);
   } else {
-    brightness = LED_MAX_BRIGHTNESS - map_uint16(ms, middle_point, LED_PERIOD_MS, 0, max_brightness);
+    brightness = esp32hal->LED_MAX_BRIGHTNESS() - map_uint16(ms, middle_point, LED_PERIOD_MS, 0, max_brightness);
   }
   return CONSTRAIN(brightness, 0, max_brightness);
 }

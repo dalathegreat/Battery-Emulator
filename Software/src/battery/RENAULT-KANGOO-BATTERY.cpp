@@ -1,8 +1,9 @@
 #include "RENAULT-KANGOO-BATTERY.h"
+#include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
+#include "../devboard/utils/logging.h"
 
 /* TODO:
 There seems to be some values on the Kangoo that differ between the 22/33 kWh version
@@ -50,39 +51,6 @@ void RenaultKangooBattery::
   datalayer.battery.status.cell_min_voltage_mV = LB_Cell_Min_Voltage;
 
   datalayer.battery.status.cell_max_voltage_mV = LB_Cell_Max_Voltage;
-
-#ifdef DEBUG_LOG
-  logging.println("Values going to inverter:");
-  logging.print("SOH%: ");
-  logging.print(datalayer.battery.status.soh_pptt);
-  logging.print(", SOC% scaled: ");
-  logging.print(datalayer.battery.status.reported_soc);
-  logging.print(", Voltage: ");
-  logging.print(datalayer.battery.status.voltage_dV);
-  logging.print(", Max discharge power: ");
-  logging.print(datalayer.battery.status.max_discharge_power_W);
-  logging.print(", Max charge power: ");
-  logging.print(datalayer.battery.status.max_charge_power_W);
-  logging.print(", Max temp: ");
-  logging.print(datalayer.battery.status.temperature_max_dC);
-  logging.print(", Min temp: ");
-  logging.print(datalayer.battery.status.temperature_min_dC);
-  logging.print(", BMS Status (3=OK): ");
-  logging.print(datalayer.battery.status.bms_status);
-
-  logging.println("Battery values: ");
-  logging.print("Real SOC: ");
-  logging.print(LB_SOC);
-  logging.print(", Current: ");
-  logging.print(LB_Current);
-  logging.print(", kWh remain: ");
-  logging.print(LB_kWh_Remaining);
-  logging.print(", max mV: ");
-  logging.print(LB_Cell_Max_Voltage);
-  logging.print(", min mV: ");
-  logging.print(LB_Cell_Min_Voltage);
-
-#endif
 }
 
 void RenaultKangooBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -162,7 +130,7 @@ void RenaultKangooBattery::transmit_can(unsigned long currentMillis) {
   // Send 100ms CAN Message (for 2.4s, then pause 10s)
   if ((currentMillis - previousMillis100) >= (INTERVAL_100_MS + GVL_pause)) {
     previousMillis100 = currentMillis;
-    transmit_can_frame(&KANGOO_423, can_config.battery);
+    transmit_can_frame(&KANGOO_423);
     GVI_Pollcounter++;
     GVL_pause = 0;
     if (GVI_Pollcounter >= 24) {
@@ -174,9 +142,9 @@ void RenaultKangooBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
     if (GVB_79B_Continue)
-      transmit_can_frame(&KANGOO_79B_Continue, can_config.battery);
+      transmit_can_frame(&KANGOO_79B_Continue);
   } else {
-    transmit_can_frame(&KANGOO_79B, can_config.battery);
+    transmit_can_frame(&KANGOO_79B);
   }
 }
 

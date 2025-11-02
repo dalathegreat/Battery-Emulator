@@ -1,8 +1,5 @@
 #ifndef BOLT_AMPERA_BATTERY_H
 #define BOLT_AMPERA_BATTERY_H
-#include <Arduino.h>
-#include "../include.h"
-
 #include "BOLT-AMPERA-HTML.h"
 #include "CanBattery.h"
 

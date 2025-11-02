@@ -1,7 +1,5 @@
 #ifndef VOLVO_SPA_BATTERY_H
 #define VOLVO_SPA_BATTERY_H
-#include <Arduino.h>
-#include "../include.h"
 
 #include "CanBattery.h"
 #include "VOLVO-SPA-HTML.h"
@@ -57,8 +55,8 @@ class VolvoSpaBattery : public CanBattery {
   float BATT_T_AVG = 0;             //0x413
   uint16_t SOC_BMS = 0;             //0X37D
   uint16_t SOC_CALC = 0;
-  uint16_t CELL_U_MAX = 3700;            //0x37D
-  uint16_t CELL_U_MIN = 3700;            //0x37D
+  uint16_t CELL_U_MAX = 370;             //0x37D
+  uint16_t CELL_U_MIN = 370;             //0x37D
   uint8_t CELL_ID_U_MAX = 0;             //0x37D
   uint16_t HvBattPwrLimDchaSoft = 0;     //0x369
   uint16_t HvBattPwrLimDcha1 = 0;        //0x175
@@ -66,7 +64,7 @@ class VolvoSpaBattery : public CanBattery {
   uint16_t HvBattPwrLimChrgSlowAgi = 0;  //0x177
   uint8_t batteryModuleNumber = 0x10;    // First battery module
   uint8_t battery_request_idx = 0;
-  uint8_t rxConsecutiveFrames = 0;
+  bool rxConsecutiveFrames = false;
   uint16_t min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
   uint8_t cellcounter = 0;
   uint16_t cell_voltages[108];  //array with all the cellvoltages
@@ -77,21 +75,17 @@ class VolvoSpaBattery : public CanBattery {
                          .ext_ID = false,
                          .DLC = 8,
                          .ID = 0x536,
-                         //.data = {0x00, 0x40, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame
                          .data = {0x00, 0x40, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame
-
   CAN_frame VOLVO_140_CLOSE = {.FD = false,
                                .ext_ID = false,
                                .DLC = 8,
                                .ID = 0x140,
                                .data = {0x00, 0x02, 0x00, 0xB7, 0xFF, 0x03, 0xFF, 0x82}};  //Close contactors message
-
   CAN_frame VOLVO_140_OPEN = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x140,
                               .data = {0x00, 0x02, 0x00, 0x9E, 0xFF, 0x03, 0xFF, 0x82}};  //Open contactor message
-
   CAN_frame VOLVO_372 = {
       .FD = false,
       .ext_ID = false,
@@ -119,6 +113,12 @@ class VolvoSpaBattery : public CanBattery {
       .DLC = 8,
       .ID = 0x735,
       .data = {0x03, 0x22, 0xF4, 0x42, 0x00, 0x00, 0x00, 0x00}};  //BECM supply voltage request frame
+  CAN_frame VOLVO_BECM_HVIL_Status_Req = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x735,
+      .data = {0x03, 0x22, 0x49, 0x1A, 0x00, 0x00, 0x00, 0x00}};  //BECM HVIL status request frame
   CAN_frame VOLVO_DTC_Erase = {.FD = false,
                                .ext_ID = false,
                                .DLC = 8,

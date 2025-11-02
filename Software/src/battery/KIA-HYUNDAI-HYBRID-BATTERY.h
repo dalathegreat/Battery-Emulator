@@ -1,8 +1,5 @@
 #ifndef KIA_HYUNDAI_HYBRID_BATTERY_H
 #define KIA_HYUNDAI_HYBRID_BATTERY_H
-#include <Arduino.h>
-#include "../include.h"
-
 #include "CanBattery.h"
 
 #ifdef KIA_HYUNDAI_HYBRID_BATTERY

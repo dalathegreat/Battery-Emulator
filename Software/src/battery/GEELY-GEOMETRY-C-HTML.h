@@ -1,15 +1,13 @@
 #ifndef _GEELY_GEOMETRY_C_HTML_H
 #define _GEELY_GEOMETRY_C_HTML_H
 
-#include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
-#include "src/devboard/webserver/BatteryHtmlRenderer.h"
+#include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class GeelyGeometryCHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
-
     char readableSerialNumber[29];  // One extra space for null terminator
     memcpy(readableSerialNumber, datalayer_extended.geometryC.BatterySerialNumber,
            sizeof(datalayer_extended.geometryC.BatterySerialNumber));
@@ -51,7 +49,6 @@ class GeelyGeometryCHtmlRenderer : public BatteryHtmlRenderer {
         "<h4>Module 5 temperature: " + String(datalayer_extended.geometryC.ModuleTemperatures[4]) + " &deg;C</h4>";
     content +=
         "<h4>Module 6 temperature: " + String(datalayer_extended.geometryC.ModuleTemperatures[5]) + " &deg;C</h4>";
-
     return content;
   }
 };

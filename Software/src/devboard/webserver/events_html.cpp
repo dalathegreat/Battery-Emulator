@@ -1,6 +1,8 @@
 #include "events_html.h"
 #include <limits>
 #include "../../datalayer/datalayer.h"
+#include "../../devboard/utils/logging.h"
+#include "../../devboard/utils/millis64.h"
 
 const char EVENTS_HTML_START[] = R"=====(
 <style>body{background-color:#000;color:#fff}.event-log{display:flex;flex-direction:column}.event{display:flex;flex-wrap:wrap;border:1px solid #fff;padding:10px}.event>div{flex:1;min-width:100px;max-width:90%;word-break:break-word}</style><div style="background-color:#303e47;padding:10px;margin-bottom:10px;border-radius:25px"><div class="event-log"><div class="event" style="background-color:#1e2c33;font-weight:700"><div>Event Type</div><div>Severity</div><div>Last Event</div><div>Count</div><div>Data</div><div>Message</div></div>
@@ -15,8 +17,6 @@ button:hover { background-color: #3A4A52; }</style>
 <script>function showEvent(){document.querySelectorAll(".event").forEach(function(e){var n=e.querySelector(".sec-ago");n&&(n.innerText=new Date(Number(BigInt(Date.now()) - BigInt(n.innerText))).toLocaleString())})}function askClear(){window.confirm("Are you sure you want to clear all events?")&&(window.location.href="/clearevents")}function home(){window.location.href="/"}window.onload=function(){showEvent()}
 </script>
 )=====";
-
-uint64_t get_timestamp(unsigned long currentMillis);
 
 static std::vector<EventData> order_events;
 
@@ -39,19 +39,13 @@ String events_processor(const String& var) {
     }
     // Sort events by timestamp
     std::sort(order_events.begin(), order_events.end(), compareEventsByTimestampDesc);
-    uint64_t current_timestamp = get_timestamp(millis());
+    uint64_t current_timestamp = millis64();
 
     // Generate HTML and debug output
     for (const auto& event : order_events) {
       EVENTS_ENUM_TYPE event_handle = event.event_handle;
       event_pointer = event.event_pointer;
 
-#ifdef DEBUG_LOG
-      logging.println("Showing Event: " + String(get_event_enum_string(event_handle)) +
-                      " count: " + String(event_pointer->occurences) + " seconds: " + String(event_pointer->timestamp) +
-                      " data: " + String(event_pointer->data) +
-                      " level: " + String(get_event_level_string(event_handle)));
-#endif
       content.concat("<div class='event'>");
       content.concat("<div>" + String(get_event_enum_string(event_handle)) + "</div>");
       content.concat("<div>" + String(get_event_level_string(event_handle)) + "</div>");
@@ -59,7 +53,7 @@ String events_processor(const String& var) {
       content.concat("<div class='sec-ago'>" + String(current_timestamp - event_pointer->timestamp) + "</div>");
       content.concat("<div>" + String(event_pointer->occurences) + "</div>");
       content.concat("<div>" + String(event_pointer->data) + "</div>");
-      content.concat("<div>" + String(get_event_message_string(event_handle)) + "</div>");
+      content.concat("<div>" + get_event_message_string(event_handle) + "</div>");
       content.concat("</div>");  // End of event row
     }
 

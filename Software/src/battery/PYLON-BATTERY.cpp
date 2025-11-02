@@ -1,8 +1,8 @@
 #include "PYLON-BATTERY.h"
+#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 void PylonBattery::update_values() {
 
@@ -117,10 +117,10 @@ void PylonBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
 
-    transmit_can_frame(&PYLON_3010, can_config.battery);  // Heartbeat
-    transmit_can_frame(&PYLON_4200, can_config.battery);  // Ensemble OR System equipment info, depends on frame0
-    transmit_can_frame(&PYLON_8200, can_config.battery);  // Control device quit sleep status
-    transmit_can_frame(&PYLON_8210, can_config.battery);  // Charge command
+    transmit_can_frame(&PYLON_3010);  // Heartbeat
+    transmit_can_frame(&PYLON_4200);  // Ensemble OR System equipment info, depends on frame0
+    transmit_can_frame(&PYLON_8200);  // Control device quit sleep status
+    transmit_can_frame(&PYLON_8210);  // Charge command
 
     if (ensemble_info_ack) {
       PYLON_4200.data.u8[0] = 0x00;  //Request system equipment info
@@ -132,10 +132,10 @@ void PylonBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Pylon compatible battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.number_of_cells = 2;
-  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer_battery->info.max_design_voltage_dV = user_selected_max_pack_voltage_dV;
+  datalayer_battery->info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
+  datalayer_battery->info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
+  datalayer_battery->info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
 
   datalayer.battery2.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 

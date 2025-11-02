@@ -1,14 +1,11 @@
 #include "NISSAN-LEAF-BATTERY.h"
-#include "../include.h"
-#ifdef MQTT
-#include "../devboard/mqtt/mqtt.h"
-#endif
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
+#include "../charger/CHARGERS.h"
 #include "../charger/CanCharger.h"
 
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
@@ -190,6 +187,11 @@ void NissanLeafBattery::
     datalayer_nissan->HeatingStop = battery_Heating_Stop;
     datalayer_nissan->HeatingStart = battery_Heating_Start;
     datalayer_nissan->HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
+    datalayer_nissan->battery_HX = battery_HX;
+    datalayer_nissan->temperature1 = ((Temp_fromRAW_to_F(battery_temp_raw_1) - 320) * 5) / 9;  //Convert from F to C
+    datalayer_nissan->temperature2 = ((Temp_fromRAW_to_F(battery_temp_raw_2) - 320) * 5) / 9;  //Convert from F to C
+    datalayer_nissan->temperature3 = ((Temp_fromRAW_to_F(battery_temp_raw_3) - 320) * 5) / 9;  //Convert from F to C
+    datalayer_nissan->temperature4 = ((Temp_fromRAW_to_F(battery_temp_raw_4) - 320) * 5) / 9;  //Convert from F to C
     datalayer_nissan->CryptoChallenge = incomingChallenge;
     datalayer_nissan->SolvedChallengeMSB =
         ((solvedChallenge[7] << 24) | (solvedChallenge[6] << 16) | (solvedChallenge[5] << 8) | solvedChallenge[4]);
@@ -299,6 +301,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         LEAF_battery_Type = AZE0_BATTERY;
       }
       break;
+    case 0x380:
+    case 0x5EB:
+    case 0x5BF:
     case 0x1ED:
     case 0x1C2:
       //ZE1 2018-2023 battery detected!
@@ -334,7 +339,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         group_7bb = rx_frame.data.u8[3];
       }
 
-      transmit_can_frame(&LEAF_NEXT_LINE_REQUEST, can_interface);  //Request the next frame for the group
+      transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);  //Request the next frame for the group
 
       if (group_7bb == 0x01)  //High precision SOC, Current, voltages etc.
       {
@@ -584,7 +589,7 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           LEAF_1D4.data.u8[7] = 0xDE;
           break;
       }
-      transmit_can_frame(&LEAF_1D4, can_interface);
+      transmit_can_frame(&LEAF_1D4);
 
       switch (mprun10r) {
         case (0):
@@ -677,12 +682,20 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
       //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
       if (!charger || charger->type() != ChargerType::NissanLeaf) {
-        transmit_can_frame(&LEAF_1F2, can_interface);
+        transmit_can_frame(&LEAF_1F2);
       }
 
       mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
 
       mprun10 = (mprun10 + 1) % 4;  // mprun10 cycles between 0-1-2-3-0-1...
+    }
+
+    //Send 40ms message
+    if (currentMillis - previousMillis40 >= INTERVAL_40_MS) {
+      previousMillis40 = currentMillis;
+      if (LEAF_battery_Type == ZE1_BATTERY) {
+        transmit_can_frame(&LEAF_355);
+      }
     }
 
     // Send 100ms CAN Message
@@ -700,8 +713,24 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         LEAF_50B.data.u8[6] = 0x00;  //Batt_Heater_Mail_Send_NG
       }
 
+      //If we are on ZE1 battery, handle some extra 100ms messages
+      if (LEAF_battery_Type == ZE1_BATTERY) {
+        counter_3B8 = (counter_3B8 + 1) % 15;
+        LEAF_3B8.data.u8[2] = counter_3B8;  // 0 - 14 (0x00 - 0x0E)
+        transmit_can_frame(&LEAF_3B8);      // Sending 3B8 removes U1000 and P318E DTC
+        transmit_can_frame(&LEAF_5C5);      // Sending 5C5 removes U214E DTC
+        transmit_can_frame(&LEAF_626);      // Sending 625 removes U215B DTC
+        if (flip_3B8) {
+          flip_3B8 = 0;
+          LEAF_3B8.data.u8[1] = 0xC8;
+        } else {
+          flip_3B8 = 1;
+          LEAF_3B8.data.u8[1] = 0xE8;
+        }
+      }
+
       // VCM message, containing info if battery should sleep or stay awake
-      transmit_can_frame(&LEAF_50B, can_interface);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+      transmit_can_frame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
       LEAF_50C.data.u8[3] = mprun100;
       switch (mprun100) {
@@ -722,9 +751,17 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           LEAF_50C.data.u8[5] = 0x9A;
           break;
       }
-      transmit_can_frame(&LEAF_50C, can_interface);
+      transmit_can_frame(&LEAF_50C);
 
       mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
+    }
+
+    // Send 500ms CAN Message
+    if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
+      previousMillis500 = currentMillis;
+      if (LEAF_battery_Type == ZE1_BATTERY) {
+        transmit_can_frame(&LEAF_5EC);
+      }
     }
 
     //Send 10s CAN messages
@@ -738,7 +775,7 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         PIDindex = (PIDindex + 1) % 7;  // 7 = amount of elements in the PIDgroups[]
         LEAF_GROUP_REQUEST.data.u8[2] = PIDgroups[PIDindex];
 
-        transmit_can_frame(&LEAF_GROUP_REQUEST, can_interface);
+        transmit_can_frame(&LEAF_GROUP_REQUEST);
       }
 
       if (hold_off_with_polling_10seconds > 0) {
@@ -750,17 +787,24 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
   }
 }
 
-bool NissanLeafBattery::is_message_corrupt(CAN_frame rx_frame) {
+uint8_t NissanLeafBattery::calculate_crc(CAN_frame& rx_frame) {
   uint8_t crc = 0;
   for (uint8_t j = 0; j < 7; j++) {
     crc = crctable[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
   }
+  return crc;
+}
+
+bool NissanLeafBattery::is_message_corrupt(CAN_frame rx_frame) {
+  uint8_t crc = calculate_crc(rx_frame);
   return crc != rx_frame.data.u8[7];
 }
 
 uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrible, but apparently works well
   if (temperature == 1021) {
     return 10;
+  } else if (temperature == 65535) {  //Value unavailable, sensor does not exist
+    return 718;                       //0*C final calculation
   } else if (temperature >= 589) {
     return static_cast<uint16_t>(1620 - temperature * 1.81);
   } else if (temperature >= 569) {
@@ -800,19 +844,19 @@ void NissanLeafBattery::clearSOH(void) {
       break;
     case 1:  // Set CAN_PROCESS_FLAG to 0xC0
       LEAF_CLEAR_SOH.data = {0x02, 0x10, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00};
-      transmit_can_frame(&LEAF_CLEAR_SOH, can_interface);
+      transmit_can_frame(&LEAF_CLEAR_SOH);
       // BMS should reply 02 50 C0 FF FF FF FF FF
       stateMachineClearSOH = 2;
       break;
     case 2:  // Set something ?
       LEAF_CLEAR_SOH.data = {0x02, 0x3E, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
-      transmit_can_frame(&LEAF_CLEAR_SOH, can_interface);
+      transmit_can_frame(&LEAF_CLEAR_SOH);
       // BMS should reply 7E FF FF FF FF FF FF
       stateMachineClearSOH = 3;
       break;
     case 3:  // Request challenge to solve
       LEAF_CLEAR_SOH.data = {0x02, 0x27, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00};
-      transmit_can_frame(&LEAF_CLEAR_SOH, can_interface);
+      transmit_can_frame(&LEAF_CLEAR_SOH);
       // BMS should reply with (challenge) 06 67 65 (02 DD 86 43) FF
       stateMachineClearSOH = 4;
       break;
@@ -820,34 +864,34 @@ void NissanLeafBattery::clearSOH(void) {
       decodeChallengeData(incomingChallenge, solvedChallenge);
       LEAF_CLEAR_SOH.data = {
           0x10, 0x0A, 0x27, 0x66, solvedChallenge[0], solvedChallenge[1], solvedChallenge[2], solvedChallenge[3]};
-      transmit_can_frame(&LEAF_CLEAR_SOH, can_interface);
+      transmit_can_frame(&LEAF_CLEAR_SOH);
       // BMS should reply 7BB 8 30 01 00 FF FF FF FF FF // Proceed with more data (PID ACK)
       stateMachineClearSOH = 5;
       break;
     case 5:  // Reply with even more decoded challenge data
       LEAF_CLEAR_SOH.data = {
           0x21, solvedChallenge[4], solvedChallenge[5], solvedChallenge[6], solvedChallenge[7], 0x00, 0x00, 0x00};
-      transmit_can_frame(&LEAF_CLEAR_SOH, can_interface);
+      transmit_can_frame(&LEAF_CLEAR_SOH);
       // BMS should reply 02 67 66 FF FF FF FF FF // Thank you for the data
       stateMachineClearSOH = 6;
       break;
     case 6:  // Check if solved data was OK
       LEAF_CLEAR_SOH.data = {0x03, 0x31, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
-      transmit_can_frame(&LEAF_CLEAR_SOH, can_interface);
+      transmit_can_frame(&LEAF_CLEAR_SOH);
       //7BB 8 03 71 03 01 FF FF FF FF // If all is well, BMS replies with 03 71 03 01.
       //Incase you sent wrong challenge, you get 03 7f 31 12
       stateMachineClearSOH = 7;
       break;
     case 7:  // Reset SOH% request
       LEAF_CLEAR_SOH.data = {0x03, 0x31, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00};
-      transmit_can_frame(&LEAF_CLEAR_SOH, can_interface);
+      transmit_can_frame(&LEAF_CLEAR_SOH);
       //7BB 8 03 71 03 02 FF FF FF FF // 03 71 03 02 means that BMS accepted command.
       //7BB 03 7f 31 12 means your challenge was wrong, so command ignored
       stateMachineClearSOH = 8;
       break;
     case 8:  // Please proceed with resetting SOH
       LEAF_CLEAR_SOH.data = {0x02, 0x10, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00};
-      transmit_can_frame(&LEAF_CLEAR_SOH, can_interface);
+      transmit_can_frame(&LEAF_CLEAR_SOH);
       // 7BB 8 02 50 81 FF FF FF FF FF // SOH reset OK
       stateMachineClearSOH = 255;
       break;

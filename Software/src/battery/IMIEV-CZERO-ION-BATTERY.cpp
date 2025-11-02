@@ -2,7 +2,7 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
+#include "../devboard/utils/logging.h"
 
 //Code still work in progress, TODO:
 //Figure out if CAN messages need to be sent to keep the system happy?
@@ -75,12 +75,9 @@ void ImievCZeroIonBattery::
   }
 
   if (!BMU_Detected) {
-#ifdef DEBUG_LOG
     logging.println("BMU not detected, check wiring!");
-#endif
   }
 
-#ifdef DEBUG_LOG
   logging.println("Battery Values");
   logging.print("BMU SOC: ");
   logging.print(BMU_SOC);
@@ -90,15 +87,6 @@ void ImievCZeroIonBattery::
   logging.print(BMU_PackVoltage);
   logging.print(" BMU_Power: ");
   logging.print(BMU_Power);
-  logging.print(" Cell max voltage: ");
-  logging.print(max_volt_cel);
-  logging.print(" Cell min voltage: ");
-  logging.print(min_volt_cel);
-  logging.print(" Cell max temp: ");
-  logging.print(max_temp_cel);
-  logging.print(" Cell min temp: ");
-  logging.println(min_temp_cel);
-#endif
 }
 
 void ImievCZeroIonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {

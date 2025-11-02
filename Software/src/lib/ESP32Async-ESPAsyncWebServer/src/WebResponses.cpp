@@ -6,17 +6,6 @@
 
 using namespace asyncsrv;
 
-// Since ESP8266 does not link memchr by default, here's its implementation.
-void *memchr(void *ptr, int ch, size_t count) {
-  unsigned char *p = static_cast<unsigned char *>(ptr);
-  while (count--) {
-    if (*p++ == static_cast<unsigned char>(ch)) {
-      return --p;
-    }
-  }
-  return nullptr;
-}
-
 /*
  * Abstract Response
  *
@@ -132,6 +121,30 @@ bool AsyncWebServerResponse::headerMustBePresentOnce(const String &name) {
     }
   }
   return false;
+}
+
+bool AsyncWebServerResponse::addHeader(AsyncWebHeader &&header, bool replaceExisting) {
+  if (!header) {
+    return false;  // invalid header
+  }
+  for (auto i = _headers.begin(); i != _headers.end(); ++i) {
+    if (i->name().equalsIgnoreCase(header.name())) {
+      // header already set
+      if (replaceExisting) {
+        // remove, break and add the new one
+        _headers.erase(i);
+        break;
+      } else if (headerMustBePresentOnce(i->name())) {  // we can have only one header with that name
+        // do not update
+        return false;
+      } else {
+        break;  // accept multiple headers with the same name
+      }
+    }
+  }
+  // header was not found found, or existing one was removed
+  _headers.emplace_back(std::move(header));
+  return true;
 }
 
 bool AsyncWebServerResponse::addHeader(const char *name, const char *value, bool replaceExisting) {
@@ -595,6 +608,16 @@ size_t AsyncAbstractResponse::_fillBufferAndProcessTemplates(uint8_t *data, size
  * File Response
  * */
 
+/**
+ * @brief Sets the content type based on the file path extension
+ *
+ * This method determines the appropriate MIME content type for a file based on its
+ * file extension. It supports both external content type functions (if available)
+ * and an internal mapping of common file extensions to their corresponding MIME types.
+ *
+ * @param path The file path string from which to extract the extension
+ * @note The method modifies the internal _contentType member variable
+ */
 void AsyncFileResponse::_setContentTypeFromPath(const String &path) {
 #if HAVE_EXTERN_GET_Content_Type_FUNCTION
 #ifndef ESP8266
@@ -604,90 +627,138 @@ void AsyncFileResponse::_setContentTypeFromPath(const String &path) {
 #endif
   _contentType = getContentType(path);
 #else
-  if (path.endsWith(T__html)) {
+  const char *cpath = path.c_str();
+  const char *dot = strrchr(cpath, '.');
+
+  if (!dot) {
+    _contentType = T_application_octet_stream;
+    return;
+  }
+
+  if (strcmp(dot, T__html) == 0 || strcmp(dot, T__htm) == 0) {
     _contentType = T_text_html;
-  } else if (path.endsWith(T__htm)) {
-    _contentType = T_text_html;
-  } else if (path.endsWith(T__css)) {
+  } else if (strcmp(dot, T__css) == 0) {
     _contentType = T_text_css;
-  } else if (path.endsWith(T__json)) {
-    _contentType = T_application_json;
-  } else if (path.endsWith(T__js)) {
+  } else if (strcmp(dot, T__js) == 0) {
     _contentType = T_application_javascript;
-  } else if (path.endsWith(T__png)) {
+  } else if (strcmp(dot, T__json) == 0) {
+    _contentType = T_application_json;
+  } else if (strcmp(dot, T__png) == 0) {
     _contentType = T_image_png;
-  } else if (path.endsWith(T__gif)) {
-    _contentType = T_image_gif;
-  } else if (path.endsWith(T__jpg)) {
-    _contentType = T_image_jpeg;
-  } else if (path.endsWith(T__ico)) {
+  } else if (strcmp(dot, T__ico) == 0) {
     _contentType = T_image_x_icon;
-  } else if (path.endsWith(T__svg)) {
+  } else if (strcmp(dot, T__svg) == 0) {
     _contentType = T_image_svg_xml;
-  } else if (path.endsWith(T__eot)) {
-    _contentType = T_font_eot;
-  } else if (path.endsWith(T__woff)) {
-    _contentType = T_font_woff;
-  } else if (path.endsWith(T__woff2)) {
+  } else if (strcmp(dot, T__jpg) == 0) {
+    _contentType = T_image_jpeg;
+  } else if (strcmp(dot, T__webp) == 0) {
+    _contentType = T_image_webp;
+  } else if (strcmp(dot, T__avif) == 0) {
+    _contentType = T_image_avif;
+  } else if (strcmp(dot, T__gif) == 0) {
+    _contentType = T_image_gif;
+  } else if (strcmp(dot, T__woff2) == 0) {
     _contentType = T_font_woff2;
-  } else if (path.endsWith(T__ttf)) {
+  } else if (strcmp(dot, T__woff) == 0) {
+    _contentType = T_font_woff;
+  } else if (strcmp(dot, T__ttf) == 0) {
     _contentType = T_font_ttf;
-  } else if (path.endsWith(T__xml)) {
+  } else if (strcmp(dot, T__xml) == 0) {
     _contentType = T_text_xml;
-  } else if (path.endsWith(T__pdf)) {
+  } else if (strcmp(dot, T__pdf) == 0) {
     _contentType = T_application_pdf;
-  } else if (path.endsWith(T__zip)) {
-    _contentType = T_application_zip;
-  } else if (path.endsWith(T__gz)) {
-    _contentType = T_application_x_gzip;
-  } else {
+  } else if (strcmp(dot, T__mp4) == 0) {
+    _contentType = T_video_mp4;
+  } else if (strcmp(dot, T__opus) == 0) {
+    _contentType = T_audio_opus;
+  } else if (strcmp(dot, T__webm) == 0) {
+    _contentType = T_video_webm;
+  } else if (strcmp(dot, T__txt) == 0) {
     _contentType = T_text_plain;
+  } else {
+    _contentType = T_application_octet_stream;
   }
 #endif
 }
 
+/**
+ * @brief Constructor for AsyncFileResponse that handles file serving with compression support
+ *
+ * This constructor creates an AsyncFileResponse object that can serve files from a filesystem,
+ * with automatic fallback to gzip-compressed versions if the original file is not found.
+ * It also handles ETag generation for caching and supports both inline and download modes.
+ *
+ * @param fs Reference to the filesystem object used to open files
+ * @param path Path to the file to be served (without compression extension)
+ * @param contentType MIME type of the file content (empty string for auto-detection)
+ * @param download If true, file will be served as download attachment; if false, as inline content
+ * @param callback Template processor callback for dynamic content processing
+ */
 AsyncFileResponse::AsyncFileResponse(FS &fs, const String &path, const char *contentType, bool download, AwsTemplateProcessor callback)
   : AsyncAbstractResponse(callback) {
-  _code = 200;
-  _path = path;
 
-  if (!download && !fs.exists(_path) && fs.exists(_path + T__gz)) {
-    _path = _path + T__gz;
-    addHeader(T_Content_Encoding, T_gzip, false);
-    _callback = nullptr;  // Unable to process zipped templates
-    _sendContentLength = true;
-    _chunked = false;
+  // Try to open the uncompressed version first
+  _content = fs.open(path, fs::FileOpenMode::read);
+  if (_content.available()) {
+    _contentLength = _content.size();
+  } else {
+    // Try to open the compressed version (.gz)
+    String gzPath;
+    uint16_t pathLen = path.length();
+    gzPath.reserve(pathLen + 3);
+    gzPath.concat(path);
+    gzPath.concat(asyncsrv::T__gz);
+    _content = fs.open(gzPath, fs::FileOpenMode::read);
+    _contentLength = _content.size();
+
+    if (_content.seek(_contentLength - 8)) {
+      addHeader(T_Content_Encoding, T_gzip, false);
+      _callback = nullptr;  // Unable to process zipped templates
+      _sendContentLength = true;
+      _chunked = false;
+
+      // Add ETag and cache headers
+      uint8_t crcInTrailer[4];
+      _content.read(crcInTrailer, sizeof(crcInTrailer));
+      char serverETag[9];
+      AsyncWebServerRequest::_getEtag(crcInTrailer, serverETag);
+      addHeader(T_ETag, serverETag, true);
+      addHeader(T_Cache_Control, T_no_cache, true);
+
+      _content.seek(0);
+    } else {
+      // File is corrupted or invalid
+      _code = 404;
+      return;
+    }
   }
 
-  _content = fs.open(_path, fs::FileOpenMode::read);
-  _contentLength = _content.size();
-
-  if (strlen(contentType) == 0) {
+  if (*contentType == '\0') {
     _setContentTypeFromPath(path);
   } else {
     _contentType = contentType;
   }
 
-  int filenameStart = path.lastIndexOf('/') + 1;
-  char buf[26 + path.length() - filenameStart];
-  char *filename = (char *)path.c_str() + filenameStart;
-
   if (download) {
-    // set filename and force download
-    snprintf_P(buf, sizeof(buf), PSTR("attachment; filename=\"%s\""), filename);
+    // Extract filename from path and set as download attachment
+    int filenameStart = path.lastIndexOf('/') + 1;
+    char buf[26 + path.length() - filenameStart];
+    char *filename = (char *)path.c_str() + filenameStart;
+    snprintf(buf, sizeof(buf), T_attachment, filename);
+    addHeader(T_Content_Disposition, buf, false);
   } else {
-    // set filename and force rendering
-    snprintf_P(buf, sizeof(buf), PSTR("inline"));
+    // Serve file inline (display in browser)
+    addHeader(T_Content_Disposition, T_inline, false);
   }
-  addHeader(T_Content_Disposition, buf, false);
+
+  _code = 200;
 }
 
 AsyncFileResponse::AsyncFileResponse(File content, const String &path, const char *contentType, bool download, AwsTemplateProcessor callback)
   : AsyncAbstractResponse(callback) {
   _code = 200;
-  _path = path;
 
-  if (!download && String(content.name()).endsWith(T__gz) && !path.endsWith(T__gz)) {
+  if (String(content.name()).endsWith(T__gz) && !path.endsWith(T__gz)) {
     addHeader(T_Content_Encoding, T_gzip, false);
     _callback = nullptr;  // Unable to process gzipped templates
     _sendContentLength = true;
@@ -820,7 +891,9 @@ AsyncResponseStream::AsyncResponseStream(const char *contentType, size_t bufferS
   _code = 200;
   _contentLength = 0;
   _contentType = contentType;
-  if (!_content.reserve(bufferSize)) {
+  // internal buffer will be null on allocation failure
+  _content = std::unique_ptr<cbuf>(new cbuf(bufferSize));
+  if (bufferSize && _content->size() < bufferSize) {
 #ifdef ESP32
     log_e("Failed to allocate");
 #endif
@@ -828,14 +901,26 @@ AsyncResponseStream::AsyncResponseStream(const char *contentType, size_t bufferS
 }
 
 size_t AsyncResponseStream::_fillBuffer(uint8_t *buf, size_t maxLen) {
-  return _content.readBytes((char *)buf, maxLen);
+  return _content->read((char *)buf, maxLen);
 }
 
 size_t AsyncResponseStream::write(const uint8_t *data, size_t len) {
   if (_started()) {
     return 0;
   }
-  size_t written = _content.write(data, len);
+  if (len > _content->room()) {
+    size_t needed = len - _content->room();
+    _content->resizeAdd(needed);
+    // log a warning if allocation failed, but do not return: keep writing the bytes we can
+    // with _content->write: if len is more than the available size in the buffer, only
+    // the available size will be written
+    if (len > _content->room()) {
+#ifdef ESP32
+      log_e("Failed to allocate");
+#endif
+    }
+  }
+  size_t written = _content->write((const char *)data, len);
   _contentLength += written;
   return written;
 }

@@ -1,9 +1,10 @@
 #include "BMW-PHEV-BATTERY.h"
+#include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
+#include "../devboard/utils/logging.h"
 
 const unsigned char crc8_table[256] =
     {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
@@ -121,9 +122,7 @@ bool BmwPhevBattery::storeUDSPayload(const uint8_t* payload, uint8_t length) {
   if (gUDSContext.UDS_bytesReceived + length > sizeof(gUDSContext.UDS_buffer)) {
     // Overflow => abort
     gUDSContext.UDS_inProgress = false;
-#ifdef DEBUG_LOG
     logging.println("UDS Payload Overflow");
-#endif  // DEBUG_LOG
     return false;
   }
   memcpy(&gUDSContext.UDS_buffer[gUDSContext.UDS_bytesReceived], payload, length);
@@ -133,9 +132,7 @@ bool BmwPhevBattery::storeUDSPayload(const uint8_t* payload, uint8_t length) {
   // If we’ve reached or exceeded the expected length, mark complete
   if (gUDSContext.UDS_bytesReceived >= gUDSContext.UDS_expectedLength) {
     gUDSContext.UDS_inProgress = false;
-    // #ifdef DEBUG_LOG
     //     logging.println("Recived all expected UDS bytes");
-    // #endif  // DEBUG_LOG
   }
   return true;
 }
@@ -188,16 +185,14 @@ void BmwPhevBattery::wake_battery_via_canbus() {
   // Followed by a Recessive interval of at least ~3 µs (min) and at most ~10 µs (max)
   // Then a second dominant pulse of similar timing.
 
-  CAN_cfg.speed = CAN_SPEED_100KBPS;  //Slow down canbus to achieve wakeup timings
-  ESP32Can.CANInit();                 // ReInit native CAN module at new speed
-  transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST, can_config.battery);
-  transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST, can_config.battery);
-  CAN_cfg.speed = CAN_SPEED_500KBPS;  //Resume fullspeed
-  ESP32Can.CANInit();                 // ReInit native CAN module at new speed
+  auto original_speed = change_can_speed(CAN_Speed::CAN_SPEED_100KBPS);
 
-#ifdef DEBUG_LOG
+  transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST);
+  transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST);
+
+  change_can_speed(original_speed);
+
   logging.println("Sent magic wakeup packet to SME at 100kbps...");
-#endif
 }
 
 void BmwPhevBattery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
@@ -245,9 +240,7 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
     datalayer.battery.status.cell_min_voltage_mV = 9999;  //Stale values force stop
     datalayer.battery.status.cell_max_voltage_mV = 9999;  //Stale values force stop
     set_event(EVENT_STALE_VALUE, 0);
-#ifdef DEBUG_LOG
     logging.println("Stale Min/Max voltage values detected during charge/discharge sending - 9999mV...");
-#endif  // DEBUG_LOG
   } else {
 
     datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;  //Value is alive
@@ -397,11 +390,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                              rx_frame.data.u8[4] ==
                                  0xAD) {  //Balancing Status  01 Active 03 Not Active    7DLC F1 05 71 03 AD 6B 01
             balancing_status = (rx_frame.data.u8[6]);
-            // #ifdef DEBUG_LOG
-
-            //             logging.println("Balancing Status received");
-
-            // #endif  // DEBUG_LOG
+            //logging.println("Balancing Status received");
           }
 
           break;
@@ -432,7 +421,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 #if defined(DEBUG_LOG) && defined(UDS_LOG)
           logging.println("Requesting continue frame...");
 #endif  // DEBUG_LOG && UDS_LOG
-          transmit_can_frame(&BMW_6F1_REQUEST_CONTINUE_MULTIFRAME, can_config.battery);
+          transmit_can_frame(&BMW_6F1_REQUEST_CONTINUE_MULTIFRAME);
           break;
         }
 
@@ -478,7 +467,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 #if defined(DEBUG_LOG) && defined(UDS_LOG)
             logging.println("Batch Complete - Requesting continue frame...");
 #endif  // DEBUG_LOG && UDS_LOG
-            transmit_can_frame(&BMW_6F1_REQUEST_CONTINUE_MULTIFRAME, can_config.battery);
+            transmit_can_frame(&BMW_6F1_REQUEST_CONTINUE_MULTIFRAME);
             gUDSContext.receivedInBatch = 0;  // Reset batch count
             Serial.println("Sent FC for next batch of 3 frames.");
           }
@@ -524,7 +513,6 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           battery_current = ((int32_t)((gUDSContext.UDS_buffer[3] << 24) | (gUDSContext.UDS_buffer[4] << 16) |
                                        (gUDSContext.UDS_buffer[5] << 8) | gUDSContext.UDS_buffer[6])) *
                             0.1;
-#ifdef DEBUG_LOG
           logging.print("Received current/amps measurement data: ");
           logging.print(battery_current);
           logging.print(" - ");
@@ -537,7 +525,6 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             logging.print(" ");
           }
           logging.println();  // new line at the end
-#endif                        // DEBUG_LOG
         }
 
         //Cell Min/Max
@@ -552,7 +539,6 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             min_cell_voltage = (gUDSContext.UDS_buffer[9] << 8 | gUDSContext.UDS_buffer[10]) / 10;
             max_cell_voltage = (gUDSContext.UDS_buffer[11] << 8 | gUDSContext.UDS_buffer[12]) / 10;
           } else {
-#ifdef DEBUG_LOG
             logging.println("Cell Min Max Invalid 65535 or 0...");
             logging.print("Received data: ");
             for (uint16_t i = 0; i < gUDSContext.UDS_bytesReceived; i++) {
@@ -564,7 +550,6 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               logging.print(" ");
             }
             logging.println();  // new line at the end
-#endif                          // DEBUG_LOG
           }
         }
 
@@ -617,16 +602,12 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (rx_frame.data.u8[6] > 0 && rx_frame.data.u8[6] < 255) {
         battery_temperature_min = (rx_frame.data.u8[6] - 50);
       } else {
-#ifdef DEBUG_LOG
         logging.println("Pre parsed Cell Temp Min is Invalid ");
-#endif
       }
       if (rx_frame.data.u8[7] > 0 && rx_frame.data.u8[7] < 255) {
         battery_temperature_max = (rx_frame.data.u8[7] - 50);
       } else {
-#ifdef DEBUG_LOG
         logging.println("Pre parsed Cell Temp Max is Invalid ");
-#endif
       }
 
       break;
@@ -659,7 +640,7 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
     //if (datalayer.battery.status.bms_status == FAULT) {  //ALLOW ANY TIME - TEST ONLY
     //}  //If battery is not in Fault mode, allow contactor to close by sending 10B
     //else {
-    transmit_can_frame(&BMW_10B, can_config.battery);
+    transmit_can_frame(&BMW_10B);
     //}
   }
 
@@ -672,7 +653,7 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
     previousMillis200 = currentMillis;
     uds_fast_req_id_counter = increment_uds_req_id_counter(
         uds_fast_req_id_counter, numFastUDSreqs);  //Loop through and send a different UDS request each cycle
-    transmit_can_frame(UDS_REQUESTS_FAST[uds_fast_req_id_counter], can_config.battery);
+    transmit_can_frame(UDS_REQUESTS_FAST[uds_fast_req_id_counter]);
   }
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
@@ -680,7 +661,7 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
 
     uds_slow_req_id_counter = increment_uds_req_id_counter(
         uds_slow_req_id_counter, numSlowUDSreqs);  //Loop through and send a different UDS request each cycle
-    transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter], can_config.battery);
+    transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]);
   }
   // Send 5000ms CAN Message
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
@@ -692,8 +673,7 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
   // Send 10000ms CAN Message
   if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
     previousMillis10000 = currentMillis;
-    transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_START,
-                       can_config.battery);  // Enable Balancing
+    transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_START);  // Enable Balancing
   }
 }
 
@@ -703,8 +683,7 @@ void BmwPhevBattery::setup(void) {  // Performs one time setup at startup
   //Wakeup the SME
   wake_battery_via_canbus();
 
-  transmit_can_frame(&BMWPHEV_6F1_REQUEST_ISOLATION_TEST,
-                     can_config.battery);  // Run Internal Isolation Test at startup
+  transmit_can_frame(&BMWPHEV_6F1_REQUEST_ISOLATION_TEST);  // Run Internal Isolation Test at startup
 
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

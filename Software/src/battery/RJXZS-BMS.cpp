@@ -1,8 +1,8 @@
 #include "RJXZS-BMS.h"
+#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 void RjxzsBms::update_values() {
 
@@ -73,14 +73,8 @@ void RjxzsBms::update_values() {
 
   datalayer.battery.status.temperature_max_dC = max_temp;
 
-  // The cellvoltages[] array can contain 0s inside it
-  populated_cellvoltages = 0;
-  for (int i = 0; i < MAX_AMOUNT_CELLS; ++i) {
-    if (cellvoltages[i] > 0) {  // We have a measurement available
-      datalayer.battery.status.cell_voltages_mV[populated_cellvoltages] = cellvoltages[i];
-      populated_cellvoltages++;
-    }
-  }
+  //Map all cell voltages to the global array
+  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages, MAX_AMOUNT_CELLS * sizeof(uint16_t));
 
   datalayer.battery.info.number_of_cells = populated_cellvoltages;  // 1-192S
 
@@ -509,8 +503,8 @@ void RjxzsBms::transmit_can(unsigned long currentMillis) {
     }
 
     if (!setup_completed) {
-      transmit_can_frame(&RJXZS_10, can_config.battery);  // Communication connected flag
-      transmit_can_frame(&RJXZS_1C, can_config.battery);  // CAN OK
+      transmit_can_frame(&RJXZS_10);  // Communication connected flag
+      transmit_can_frame(&RJXZS_1C);  // CAN OK
     }
   }
 }
@@ -518,9 +512,9 @@ void RjxzsBms::transmit_can(unsigned long currentMillis) {
 void RjxzsBms::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_design_voltage_dV = user_selected_max_pack_voltage_dV;
+  datalayer.battery.info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
+  datalayer.battery.info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
+  datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }

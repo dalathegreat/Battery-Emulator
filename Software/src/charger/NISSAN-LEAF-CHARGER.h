@@ -1,8 +1,5 @@
 #ifndef NISSANLEAF_CHARGER_H
 #define NISSANLEAF_CHARGER_H
-#include <Arduino.h>
-#include "../include.h"
-
 #include "CanCharger.h"
 
 #ifdef NISSANLEAF_CHARGER

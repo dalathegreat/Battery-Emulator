@@ -1,7 +1,6 @@
 #include "PYLON-LV-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 // when e.g. the min temperature is 0, max is 100 and the warning percent is 80%
 // a warning should be generated at 20 (i.e. at 20% of the value range)
@@ -108,44 +107,16 @@ void PylonLvInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   }
 }
 
-#ifdef DEBUG_VIA_USB
-void dump_frame(CAN_frame* frame) {
-  Serial.print("[PYLON-LV] sending CAN frame ");
-  Serial.print(frame->ID, HEX);
-  Serial.print(": ");
-  for (int i = 0; i < 8; i++) {
-    Serial.print(frame->data.u8[i] >> 4, HEX);
-    Serial.print(frame->data.u8[i] & 0xf, HEX);
-    Serial.print(" ");
-  }
-  Serial.println();
-}
-#endif
-
 void PylonLvInverter::transmit_can(unsigned long currentMillis) {
 
   if (currentMillis - previousMillis1000ms >= 1000) {
     previousMillis1000ms = currentMillis;
 
-#ifdef DEBUG_VIA_USB
-    dump_frame(&PYLON_351);
-    dump_frame(&PYLON_355);
-    dump_frame(&PYLON_356);
-    dump_frame(&PYLON_359);
-    dump_frame(&PYLON_35C);
-    dump_frame(&PYLON_35E);
-#endif
-
-    transmit_can_frame(&PYLON_351, can_config.inverter);
-    transmit_can_frame(&PYLON_355, can_config.inverter);
-    transmit_can_frame(&PYLON_356, can_config.inverter);
-    transmit_can_frame(&PYLON_359, can_config.inverter);
-    transmit_can_frame(&PYLON_35C, can_config.inverter);
-    transmit_can_frame(&PYLON_35E, can_config.inverter);
+    transmit_can_frame(&PYLON_351);
+    transmit_can_frame(&PYLON_355);
+    transmit_can_frame(&PYLON_356);
+    transmit_can_frame(&PYLON_359);
+    transmit_can_frame(&PYLON_35C);
+    transmit_can_frame(&PYLON_35E);
   }
-}
-
-void PylonLvInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
 }

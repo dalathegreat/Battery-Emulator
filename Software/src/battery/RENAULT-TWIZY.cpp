@@ -2,7 +2,6 @@
 #include <cstdint>
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 int16_t max_value(int16_t* entries, size_t len) {
   int result = INT16_MIN;

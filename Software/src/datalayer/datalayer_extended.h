@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "../../USER_SETTINGS.h"
 
-typedef struct {
+struct DATALAYER_INFO_BOLTAMPERA {
   /** uint16_t */
   /** PID polling parameters */
   uint16_t battery_5V_ref = 0;
@@ -38,9 +38,9 @@ typedef struct {
   uint16_t battery_HVIL = 0;
   uint16_t battery_HVIL_status = 0;
   int16_t battery_current_7E4 = 0;
-} DATALAYER_INFO_BOLTAMPERA;
+};
 
-typedef struct {
+struct DATALAYER_INFO_BMWPHEV {
   /** uint8_t */
   /** Status isolation external, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal*/
   uint8_t ST_iso_ext = 0;
@@ -83,8 +83,8 @@ typedef struct {
   int32_t allowable_discharge_amps = 0;
   int16_t balancing_status = 0;
   int16_t battery_voltage_after_contactor = 0;
-  unsigned long min_cell_voltage_data_age = 0;
-  unsigned long max_cell_voltage_data_age = 0;
+  uint64_t min_cell_voltage_data_age = 0;
+  uint64_t max_cell_voltage_data_age = 0;
   int32_t iso_safety_int_kohm = 0;  //STAT_ISOWIDERSTAND_INT_WERT
   int32_t iso_safety_ext_kohm = 0;  //STAT_ISOWIDERSTAND_EXT_STD_WERT
   int32_t iso_safety_trg_kohm = 0;
@@ -93,10 +93,9 @@ typedef struct {
   int32_t iso_safety_trg_plausible = 0;
   int32_t iso_safety_kohm = 0;          //STAT_R_ISO_ROH_01_WERT
   int32_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
+};
 
-} DATALAYER_INFO_BMWPHEV;
-
-typedef struct {
+struct DATALAYER_INFO_BYDATTO3 {
   /** bool */
   /** User requesting crash reset via WebUI*/
   bool UserRequestCrashReset = false;
@@ -136,9 +135,9 @@ typedef struct {
   uint8_t unknown11 = 0;
   uint8_t unknown12 = 0;
   uint8_t unknown13 = 0;
-} DATALAYER_INFO_BYDATTO3;
+};
 
-typedef struct {
+struct DATALAYER_INFO_CELLPOWER {
   /** bool */
   /** All values either True or false */
   bool system_state_discharge = false;
@@ -202,9 +201,9 @@ typedef struct {
   bool warning_Low_SOC = false;
   bool warning_Balancing_required_OCV_model = false;
   bool warning_Charger_not_responding = false;
-} DATALAYER_INFO_CELLPOWER;
+};
 
-typedef struct {
+struct DATALAYER_INFO_CHADEMO {
   bool UserRequestRestart = false;
   bool UserRequestStop = false;
   bool FaultBatteryVoltageDeviation = false;
@@ -214,10 +213,9 @@ typedef struct {
   bool FaultBatteryOverVoltage = false;
   uint8_t CHADEMO_Status = 0;
   uint8_t ControlProtocolNumberEV = 0;
+};
 
-} DATALAYER_INFO_CHADEMO;
-
-typedef struct {
+struct DATALAYER_INFO_CMFAEV {
   uint16_t soc_z = 0;
   uint16_t soc_u = 0;
   uint16_t soh_average = 0;
@@ -235,9 +233,9 @@ typedef struct {
   uint64_t cumulative_energy_when_discharging = 0;
   uint64_t cumulative_energy_when_charging = 0;
   uint64_t cumulative_energy_in_regen = 0;
-} DATALAYER_INFO_CMFAEV;
+};
 
-typedef struct {
+struct DATALAYER_INFO_ECMP {
   uint8_t MainConnectorState = 0;
   uint16_t InsulationResistance = 0;
   uint8_t InsulationDiag = 0;
@@ -312,9 +310,10 @@ typedef struct {
   uint32_t pid_time_spent_over_55c = 0;
   uint32_t pid_contactor_closing_counter = 0;
   uint32_t pid_date_of_manufacture = 0;
-} DATALAYER_INFO_ECMP;
+  uint16_t pid_SOH_cell_1 = 0;
+};
 
-typedef struct {
+struct DATALAYER_INFO_GEELY_GEOMETRY_C {
   /** uint8_t */
   /** Battery software/hardware/serial versions, stores raw HEX values for ASCII chars */
   uint8_t BatterySoftwareVersion[16] = {0};
@@ -339,9 +338,9 @@ typedef struct {
   uint16_t capModMin = 0;
   uint16_t unknown7 = 0;
   uint16_t unknown8 = 0;
-} DATALAYER_INFO_GEELY_GEOMETRY_C;
+};
 
-typedef struct {
+struct DATALAYER_INFO_KIAHYUNDAI64 {
   uint8_t total_cell_count = 0;
   int16_t battery_12V = 0;
   uint8_t waterleakageSensor = 0;
@@ -350,14 +349,27 @@ typedef struct {
   uint8_t batteryManagementMode = 0;
   uint8_t BMS_ign = 0;
   uint8_t batteryRelay = 0;
-} DATALAYER_INFO_KIAHYUNDAI64;
+  uint16_t inverterVoltage = 0;
+  uint8_t ecu_serial_number[16] = {0};
+  uint8_t ecu_version_number[16] = {0};
+  uint32_t cumulative_charge_current_ah = 0;
+  uint32_t cumulative_discharge_current_ah = 0;
+  uint32_t cumulative_energy_charged_kWh = 0;
+  uint32_t cumulative_energy_discharged_kWh = 0;
+  uint32_t powered_on_total_time = 0;
+  uint16_t isolation_resistance_kOhm = 0;
+  uint16_t number_of_standard_charging_sessions = 0;
+  uint16_t number_of_fastcharging_sessions = 0;
+  uint16_t accumulated_normal_charging_energy_kWh = 0;
+  uint16_t accumulated_fastcharging_energy_kWh = 0;
+};
 
-typedef struct {
+struct DATALAYER_INFO_TESLA {
   /** uint8_t */
   /** Contactor status */
-  uint8_t status_contactor = 0;
+  //uint8_t status_contactor = 0;
   /** uint8_t */
-  /** Contactor status */
+  /** HVIL status */
   uint8_t hvil_status = 0;
   /** uint8_t */
   /** Negative contactor state */
@@ -366,12 +378,12 @@ typedef struct {
   /** Positive contactor state */
   uint8_t packContPositiveState = 0;
   /** uint8_t */
-  /** Set state of contactors */
+  /** HVP set state of contactors */
   uint8_t packContactorSetState = 0;
-  /** uint8_t */
-  /** Battery pack allows closing of contacors */
-  uint8_t packCtrsClosingAllowed = 0;
-  /** uint8_t */
+  /** bool */
+  /** Battery pack allows closing of contactors */
+  bool packCtrsClosingBlocked = false;
+  /** bool */
   /** Pyro test in progress */
   bool pyroTestInProgress = false;
   bool battery_packCtrsOpenNowRequested = false;
@@ -379,7 +391,22 @@ typedef struct {
   uint8_t battery_packCtrsRequestStatus = 0;
   bool battery_packCtrsResetRequestRequired = false;
   bool battery_dcLinkAllowedToEnergize = false;
-  uint8_t BMS_SerialNumber[15] = {0};  //stores raw HEX values for ASCII chars
+  uint8_t BMS_partNumber[12] = {0};  //stores raw HEX values for ASCII chars
+  uint16_t BMS_info_buildConfigId = 0;
+  uint16_t BMS_info_hardwareId = 0;
+  uint16_t BMS_info_componentId = 0;
+  uint8_t BMS_info_pcbaId = 0;
+  uint8_t BMS_info_assemblyId = 0;
+  uint16_t BMS_info_usageId = 0;
+  uint16_t BMS_info_subUsageId = 0;
+  uint8_t BMS_info_platformType = 0;
+  uint32_t BMS_info_appCrc = 0;
+  uint64_t BMS_info_bootGitHash = 0;
+  uint8_t BMS_info_bootUdsProtoVersion = 0;
+  uint32_t BMS_info_bootCrc = 0;
+  uint8_t battery_serialNumber[15] = {0};  //stores raw HEX values for ASCII chars
+  uint8_t battery_partNumber[12] = {0};    //stores raw HEX values for ASCII chars
+  char* battery_manufactureDate;
   uint8_t battery_beginning_of_life = 0;
   uint8_t battery_battTempPct = 0;
   uint16_t battery_dcdcLvBusVolt = 0;
@@ -413,37 +440,23 @@ typedef struct {
   uint16_t battery_reservedConfig = 0;
   uint32_t battery_packMass = 0;
   uint32_t battery_platformMaxBusVoltage = 0;
-  uint32_t battery_bms_min_voltage = 0;
-  uint32_t battery_bms_max_voltage = 0;
+  uint32_t BMS_min_voltage = 0;
+  uint32_t BMS_max_voltage = 0;
   uint32_t battery_max_charge_current = 0;
   uint32_t battery_max_discharge_current = 0;
   uint32_t battery_soc_min = 0;
   uint32_t battery_soc_max = 0;
   uint32_t battery_soc_ave = 0;
   uint32_t battery_soc_ui = 0;
-  uint8_t battery_BMS_contactorState = 0;
-  uint8_t battery_BMS_state = 0;
-  uint8_t battery_BMS_hvState = 0;
-  uint16_t battery_BMS_isolationResistance = 0;
-  uint8_t battery_BMS_uiChargeStatus = 0;
-  bool battery_BMS_diLimpRequest = false;
-  uint16_t battery_BMS_chgPowerAvailable = 0;
-  bool battery_BMS_pcsPwmEnabled = false;
-  uint8_t battery_PCS_dcdcPrechargeStatus = 0;
-  uint8_t battery_PCS_dcdc12VSupportStatus = 0;
-  uint8_t battery_PCS_dcdcHvBusDischargeStatus = 0;
-  uint8_t battery_PCS_dcdcMainState = 0;
-  uint8_t battery_PCS_dcdcSubState = 0;
-  bool battery_PCS_dcdcFaulted = false;
-  bool battery_PCS_dcdcOutputIsLimited = false;
-  uint16_t battery_PCS_dcdcMaxOutputCurrentAllowed = 0;
-  uint8_t battery_PCS_dcdcPrechargeRtyCnt = 0;
-  uint8_t battery_PCS_dcdc12VSupportRtyCnt = 0;
-  uint8_t battery_PCS_dcdcDischargeRtyCnt = 0;
-  uint8_t battery_PCS_dcdcPwmEnableLine = 0;
-  uint8_t battery_PCS_dcdcSupportingFixedLvTarget = 0;
-  uint8_t battery_PCS_dcdcPrechargeRestartCnt = 0;
-  uint8_t battery_PCS_dcdcInitialPrechargeSubState = 0;
+  bool BMS_hvilFault = false;
+  uint8_t BMS_contactorState = 0;
+  uint8_t BMS_state = 0;
+  uint8_t BMS_hvState = 0;
+  uint16_t BMS_isolationResistance = 0;
+  uint8_t BMS_uiChargeStatus = 0;
+  bool BMS_diLimpRequest = false;
+  uint16_t BMS_chgPowerAvailable = 0;
+  bool BMS_pcsPwmEnabled = false;
   uint16_t BMS_maxRegenPower = 0;
   uint16_t BMS_maxDischargePower = 0;
   uint16_t BMS_maxStationaryHeatPower = 0;
@@ -460,6 +473,35 @@ typedef struct {
   uint16_t BMS_packTMax = 0;
   bool BMS_pcsNoFlowRequest = false;
   bool BMS_noFlowRequest = false;
+  uint8_t PCS_dcdcPrechargeStatus = 0;
+  uint8_t PCS_dcdc12VSupportStatus = 0;
+  uint8_t PCS_dcdcHvBusDischargeStatus = 0;
+  uint8_t PCS_dcdcMainState = 0;
+  uint8_t PCS_dcdcSubState = 0;
+  bool PCS_dcdcFaulted = false;
+  bool PCS_dcdcOutputIsLimited = false;
+  uint16_t PCS_dcdcMaxOutputCurrentAllowed = 0;
+  uint8_t PCS_dcdcPrechargeRtyCnt = 0;
+  uint8_t PCS_dcdc12VSupportRtyCnt = 0;
+  uint8_t PCS_dcdcDischargeRtyCnt = 0;
+  uint8_t PCS_dcdcPwmEnableLine = 0;
+  uint8_t PCS_dcdcSupportingFixedLvTarget = 0;
+  uint8_t PCS_dcdcPrechargeRestartCnt = 0;
+  uint8_t PCS_dcdcInitialPrechargeSubState = 0;
+  uint8_t PCS_partNumber[13] = {0};  //stores raw HEX values for ASCII chars
+  uint16_t PCS_info_buildConfigId = 0;
+  uint16_t PCS_info_hardwareId = 0;
+  uint16_t PCS_info_componentId = 0;
+  uint8_t PCS_info_pcbaId = 0;
+  uint8_t PCS_info_assemblyId = 0;
+  uint16_t PCS_info_usageId = 0;
+  uint16_t PCS_info_subUsageId = 0;
+  uint8_t PCS_info_platformType = 0;
+  uint32_t PCS_info_appCrc = 0;
+  uint32_t PCS_info_cpu2AppCrc = 0;
+  uint64_t PCS_info_bootGitHash = 0;
+  uint8_t PCS_info_bootUdsProtoVersion = 0;
+  uint32_t PCS_info_bootCrc = 0;
   uint16_t PCS_dcdcTemp = 0;
   uint16_t PCS_ambientTemp = 0;
   uint16_t PCS_chgPhATemp = 0;
@@ -516,6 +558,19 @@ typedef struct {
   bool HVP_currentSenseMia = false;
   bool HVP_shuntRefVoltageMismatch = false;
   bool HVP_shuntThermistorMia = false;
+  uint8_t HVP_partNumber[13] = {0};  //stores raw HEX values for ASCII chars
+  uint16_t HVP_info_buildConfigId = 0;
+  uint16_t HVP_info_hardwareId = 0;
+  uint16_t HVP_info_componentId = 0;
+  uint8_t HVP_info_pcbaId = 0;
+  uint8_t HVP_info_assemblyId = 0;
+  uint16_t HVP_info_usageId = 0;
+  uint16_t HVP_info_subUsageId = 0;
+  uint8_t HVP_info_platformType = 0;
+  uint32_t HVP_info_appCrc = 0;
+  uint64_t HVP_info_bootGitHash = 0;
+  uint8_t HVP_info_bootUdsProtoVersion = 0;
+  uint32_t HVP_info_bootCrc = 0;
   uint8_t HVP_shuntHwMia = 0;
   uint16_t HVP_dcLinkVoltage = 0;
   uint16_t HVP_packVoltage = 0;
@@ -541,9 +596,9 @@ typedef struct {
   uint8_t HVP_shuntAuxCurrentStatus = 0;
   uint8_t HVP_shuntBarTempStatus = 0;
   uint8_t HVP_shuntAsicTempStatus = 0;
-} DATALAYER_INFO_TESLA;
+};
 
-typedef struct {
+struct DATALAYER_INFO_NISSAN_LEAF {
   /** uint8_t */
   /** Battery info, stores raw HEX values for ASCII chars */
   uint8_t BatterySerialNumber[15] = {0};
@@ -558,6 +613,9 @@ typedef struct {
   /** uint16_t */
   /** Max regen power in kW */
   uint16_t ChargePowerLimit = 0;
+  /** uint16_t */
+  /** Internal resistance in percentage */
+  uint16_t battery_HX = 0;
   /** int16_t */
   /** Max charge power in kW */
   int16_t MaxPowerForCharger = 0;
@@ -567,6 +625,12 @@ typedef struct {
   /** int16_t */
   /** Insulation resistance, most likely kOhm */
   uint16_t Insulation = 0;
+  /** int16_t */
+  /** Temperature sensoros 1-4 */
+  int16_t temperature1 = 0;
+  int16_t temperature2 = 0;
+  int16_t temperature3 = 0;  // This sensor not available on 2013+ packs
+  int16_t temperature4 = 0;
   /** uint8_t */
   /** battery_FAIL status */
   uint8_t RelayCutRequest = 0;
@@ -609,10 +673,9 @@ typedef struct {
   /** uint32_t */
   /** Solution for crypto challenge, LSBs */
   uint32_t SolvedChallengeLSB = 0;
+};
 
-} DATALAYER_INFO_NISSAN_LEAF;
-
-typedef struct {
+struct DATALAYER_INFO_MEB {
   /** uint8_t */
   /** Service disconnect switch status */
   bool SDSW = 0;
@@ -697,9 +760,9 @@ typedef struct {
   uint16_t celltemperature_dC[56] = {0};
   uint16_t battery_temperature_dC = 0;
   uint8_t BMS_welded_contactors_status = 0;
-} DATALAYER_INFO_MEB;
+};
 
-typedef struct {
+struct DATALAYER_INFO_VOLVO_POLESTAR {
   uint16_t soc_bms = 0;
   uint16_t soc_calc = 0;
   uint16_t soc_rescaled = 0;
@@ -707,7 +770,7 @@ typedef struct {
   uint16_t BECMsupplyVoltage = 0;
 
   uint16_t BECMBatteryVoltage = 0;
-  uint16_t BECMBatteryCurrent = 0;
+  int16_t BECMBatteryCurrent = 0;
   uint16_t BECMUDynMaxLim = 0;
   uint16_t BECMUDynMinLim = 0;
 
@@ -720,16 +783,17 @@ typedef struct {
   uint8_t HVSysDCRlySts1 = 0;
   uint8_t HVSysDCRlySts2 = 0;
   uint8_t HVSysIsoRMonrSts = 0;
+  uint8_t DTCcount = 0;
+  uint8_t HVILstatusBits = 0;
   /** User requesting DTC reset via WebUI*/
   bool UserRequestDTCreset = false;
   /** User requesting DTC readout via WebUI*/
   bool UserRequestDTCreadout = false;
   /** User requesting BECM reset via WebUI*/
   bool UserRequestBECMecuReset = false;
+};
 
-} DATALAYER_INFO_VOLVO_POLESTAR;
-
-typedef struct {
+struct DATALAYER_INFO_VOLVO_HYBRID {
   uint16_t soc_bms = 0;
   uint16_t soc_calc = 0;
   uint16_t soc_rescaled = 0;
@@ -756,10 +820,9 @@ typedef struct {
   bool UserRequestDTCreadout = false;
   /** User requesting BECM reset via WebUI*/
   bool UserRequestBECMecuReset = false;
+};
 
-} DATALAYER_INFO_VOLVO_HYBRID;
-
-typedef struct {
+struct DATALAYER_INFO_ZOE {
   /** uint8_t */
   uint8_t CUV = 0;
   uint8_t HVBIR = 0;
@@ -771,9 +834,9 @@ typedef struct {
   uint8_t COV = 0;
   uint16_t mileage_km = 0;
   uint16_t alltime_kWh = 0;
-} DATALAYER_INFO_ZOE;
+};
 
-typedef struct {
+struct DATALAYER_INFO_ZOE_PH2 {
   /** User requesting NVROL reset via WebUI*/
   bool UserRequestNVROLReset = false;
   /** uint16_t */
@@ -818,7 +881,7 @@ typedef struct {
   uint16_t battery_pack_time = 0;
   uint16_t battery_soc_min = 0;
   uint16_t battery_soc_max = 0;
-} DATALAYER_INFO_ZOE_PH2;
+};
 
 class DataLayerExtended {
  public:

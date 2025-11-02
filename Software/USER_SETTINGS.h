@@ -19,11 +19,13 @@
 //#define CELLPOWER_BMS
 //#define CHADEMO_BATTERY	//NOTE: inherently enables CONTACTOR_CONTROL below
 //#define GEELY_GEOMETRY_C_BATTERY
+//#define HYUNDAI_IONIQ_28_BATTERY
 //#define CMFA_EV_BATTERY
 //#define IMIEV_CZERO_ION_BATTERY
 //#define JAGUAR_IPACE_BATTERY
 //#define KIA_E_GMP_BATTERY
 //#define KIA_HYUNDAI_64_BATTERY
+//#define KIA_HYUNDAI_64_FD_BATTERY
 //#define KIA_HYUNDAI_HYBRID_BATTERY
 //#define MEB_BATTERY
 //#define MG_5_BATTERY
@@ -34,11 +36,13 @@
 //#define DALY_BMS
 //#define RJXZS_BMS
 //#define RANGE_ROVER_PHEV_BATTERY
+//#define RELION_BATTERY
 //#define RENAULT_KANGOO_BATTERY
 //#define RENAULT_TWIZY_BATTERY
 //#define RENAULT_ZOE_GEN1_BATTERY
 //#define RENAULT_ZOE_GEN2_BATTERY
 //#define SONO_BATTERY
+//#define SAMSUNG_SDI_LV_BATTERY
 //#define SANTA_FE_PHEV_BATTERY
 //#define SIMPBMS_BATTERY
 //#define STELLANTIS_ECMP_BATTERY
@@ -69,6 +73,7 @@
 //#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
 //#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
 //#define SOLXPOW_CAN      //Enable this line to emulate a "Solxpow compatible battery" over CAN bus
+//#define SOL_ARK_LV_CAN   //Enable this line to emulate a "Sol-Ark compatible LV battery" over CAN bus
 //#define SUNGROW_CAN      //Enable this line to emulate a "Sungrow SBR064" over CAN bus
 
 /* Select hardware used for Battery-Emulator */
@@ -79,7 +84,7 @@
 
 /* Contactor settings. If you have a battery that does not activate contactors via CAN, configure this section */
 #define PRECHARGE_TIME_MS 500  //Precharge time in milliseconds. Modify to suit your inverter (See wiki for more info)
-//#define CONTACTOR_CONTROL     //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
+//#define CONTACTOR_CONTROL    //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
 //#define CONTACTOR_CONTROL_DOUBLE_BATTERY //Enable this line to have the emulator hardware control secondary set of contactors for double battery setups (See wiki for pins)
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM for CONTACTOR_CONTROL, which lowers power consumption and heat generation. CONTACTOR_CONTROL must be enabled.
 //#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
@@ -103,14 +108,8 @@
 //#define EQUIPMENT_STOP_BUTTON    // Enable this to allow an equipment stop button connected to the Battery-Emulator to disengage the battery
 //#define LFP_CHEMISTRY          //Tesla specific setting, enable this line to startup in LFP mode
 //#define INTERLOCK_REQUIRED     //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
-//#define LOG_TO_SD              //Enable this line to log diagnostic data to SD card (WARNING, raises CPU load, do not use for production)
-//#define LOG_CAN_TO_SD          //Enable this line to log incoming/outgoing CAN & CAN-FD messages to SD card (WARNING, raises CPU load, do not use for production)
-//#define DEBUG_VIA_USB          //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
-//#define DEBUG_VIA_WEB          //Enable this line to log diagnostic data while program runs, which can be viewed via webpage (WARNING, slightly raises CPU load, do not use for production)
-//#define DEBUG_CAN_DATA  //Enable this line to print incoming/outgoing CAN & CAN-FD messages to USB serial (WARNING, raises CPU load, do not use for production)
-
 /* CAN options */
-//#define CAN_ADDON              //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 chip (Needed for some inverters / double battery)
+//#define CAN_ADDON  //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 chip (Needed for some inverters / double battery)
 #define CRYSTAL_FREQUENCY_MHZ 8  //CAN_ADDON option, what is your MCP2515 add-on boards crystal frequency?
 //#define CANFD_ADDON           //Enable this line to activate an isolated secondary CAN-FD bus using add-on MCP2518FD chip / Native CANFD on Stark board
 #define CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ \
@@ -168,13 +167,11 @@
 // 3000 = 300.0V, Target discharge voltage (Value can be tuned on the fly via webserver). Not used unless BATTERY_USE_VOLTAGE_LIMITS = true
 #define BATTERY_MAX_DISCHARGE_VOLTAGE 3000
 
-/* LED settings. Optional customization for how the blinking pattern on the LED should behave.
-* CLASSIC   - Slow up/down ramp. If CLASSIC, then a ramp up and ramp down will finish in LED_PERIOD_MS milliseconds
-* FLOW      - Ramp up/down depending on flow of energy
-* HEARTBEAT - Heartbeat-like LED pattern that reacts to the system state with color and BPM
-*/
-#define LED_MODE CLASSIC
-#define LED_PERIOD_MS 3000
+/* Pack/cell voltage limits for custom-BMS batteries (RJXZS, Daly, etc.) */
+//#define MAX_CUSTOM_PACK_VOLTAGE_DV 5000  // 5000 = 500.0V , Maximum pack voltage in decivolts
+//#define MIN_CUSTOM_PACK_VOLTAGE_DV 2500  // 2500 = 250.0V , Minimum pack voltage in decivolts
+//#define MAX_CUSTOM_CELL_VOLTAGE_MV 4250  // 4250 = 4.250V , Maximum cell voltage in millivolts (4250 = 4.250V)
+//#define MIN_CUSTOM_CELL_VOLTAGE_MV 2650  // 2650 = 2.650V , Minimum cell voltage in millivolts (2650 = 2.650V)
 
 /* Do not change any code below this line */
 /* Only change battery specific settings above and in "USER_SETTINGS.cpp" */
@@ -197,19 +194,22 @@ extern volatile float CHARGER_END_A;
 
 extern volatile unsigned long long bmsResetTimeOffset;
 
+#include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
+
+// Equipment stop button behavior. Use NC button for safety reasons.
+//LATCHING_SWITCH  - Normally closed (NC), latching switch. When pressed it activates e-stop
+//MOMENTARY_SWITCH - Short press to activate e-stop, long 15s press to deactivate. E-stop is persistent between reboots
+
 #ifdef EQUIPMENT_STOP_BUTTON
-typedef enum { LATCHING_SWITCH = 0, MOMENTARY_SWITCH = 1 } STOP_BUTTON_BEHAVIOR;
-extern volatile STOP_BUTTON_BEHAVIOR equipment_stop_behavior;
+const STOP_BUTTON_BEHAVIOR stop_button_default_behavior = STOP_BUTTON_BEHAVIOR::MOMENTARY_SWITCH;
+#else
+const STOP_BUTTON_BEHAVIOR stop_button_default_behavior = STOP_BUTTON_BEHAVIOR::NOT_CONNECTED;
 #endif
 
 #ifdef WIFICONFIG
 extern IPAddress local_IP;
 extern IPAddress gateway;
 extern IPAddress subnet;
-#endif
-
-#if defined(DEBUG_VIA_USB) || defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
-#define DEBUG_LOG
 #endif
 
 #if defined(MEB_BATTERY)

@@ -5,7 +5,7 @@
 #include "../devboard/utils/types.h"
 #include "../system_settings.h"
 
-typedef struct {
+struct DATALAYER_BATTERY_INFO_TYPE {
   /** uint32_t */
   /** Total energy capacity in Watt-hours */
   uint32_t total_capacity_Wh = BATTERY_WH_MAX;
@@ -30,9 +30,9 @@ typedef struct {
   /** Other */
   /** Chemistry of the pack. NCA, NMC or LFP (so far) */
   battery_chemistry_enum chemistry = battery_chemistry_enum::NCA;
-} DATALAYER_BATTERY_INFO_TYPE;
+};
 
-typedef struct {
+struct DATALAYER_BATTERY_STATUS_TYPE {
   /** int32_t */
   /** Instantaneous battery power in Watts. Calculated based on voltage_dV and current_dA */
   /* Positive value = Battery Charging */
@@ -110,11 +110,10 @@ typedef struct {
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
 
   /** LED mode, customizable by user */
-  led_mode_enum led_mode = LED_MODE;
+  led_mode_enum led_mode = CLASSIC;
+};
 
-} DATALAYER_BATTERY_STATUS_TYPE;
-
-typedef struct {
+struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** SOC scaling setting. Set to true to use SOC scaling */
   bool soc_scaling_active = BATTERY_USE_SCALED_SOC;
   /** Minimum percentage setting. Set this value to the lowest real SOC
@@ -139,6 +138,9 @@ typedef struct {
   /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
   uint16_t max_user_set_discharge_voltage_dV = BATTERY_MAX_DISCHARGE_VOLTAGE;
 
+  /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset */
+  uint16_t user_set_bms_reset_duration_ms = 30000;
+
   /** Parameters for keeping track of the limiting factor in the system */
   bool user_settings_limit_discharge = false;
   bool user_settings_limit_charge = false;
@@ -150,6 +152,7 @@ typedef struct {
   bool user_requests_balancing = false;
   bool user_requests_tesla_isolation_clear = false;
   bool user_requests_tesla_bms_reset = false;
+  bool user_requests_tesla_soc_reset = false;
   /* Forced balancing max time & start timestamp */
   uint32_t balancing_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
   uint32_t balancing_start_time_ms = 0;  //For keeping track when balancing started
@@ -164,8 +167,7 @@ typedef struct {
 
   /** Sofar CAN Battery ID (0-15) used to parallel multiple packs */
   uint8_t sofar_user_specified_battery_id = 0;
-
-} DATALAYER_BATTERY_SETTINGS_TYPE;
+};
 
 typedef struct {
   DATALAYER_BATTERY_INFO_TYPE info;
@@ -173,7 +175,7 @@ typedef struct {
   DATALAYER_BATTERY_SETTINGS_TYPE settings;
 } DATALAYER_BATTERY_TYPE;
 
-typedef struct {
+struct DATALAYER_CHARGER_TYPE {
   /** Charger setpoint voltage */
   float charger_setpoint_HV_VDC = 0;
   /** Charger setpoint current */
@@ -202,9 +204,9 @@ typedef struct {
    * we report the battery as missing entirely on the CAN bus.
    */
   uint8_t CAN_charger_still_alive = CAN_STILL_ALIVE;
-} DATALAYER_CHARGER_TYPE;
+};
 
-typedef struct {
+struct DATALAYER_SHUNT_TYPE {
   /** measured voltage in deciVolts. 4200 = 420.0 V */
   uint16_t measured_voltage_dV = 0;
   /** measured amperage in deciAmperes. 300 = 30.0 A */
@@ -223,15 +225,13 @@ typedef struct {
   bool contactors_engaged = false;
   /** True if shunt communication ok **/
   bool available = false;
-} DATALAYER_SHUNT_TYPE;
+};
 
-typedef struct {
+struct DATALAYER_SYSTEM_INFO_TYPE {
   /** ESP32 main CPU temperature, for displaying on webserver and for safeties */
   float CPU_temperature = 0;
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
-  /** array with type of inverter protocol used, for displaying on webserver */
-  char inverter_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
   char shunt_protocol[64] = {0};
   /** array with type of inverter brand used, for displaying on webserver */
@@ -241,6 +241,16 @@ typedef struct {
   size_t logged_can_messages_offset = 0;
   /** bool, determines if CAN messages should be logged for webserver */
   bool can_logging_active = false;
+  /** bool, determines if USB serial logging should occur */
+  bool CAN_usb_logging_active = false;
+  /** bool, determines if USB serial logging should occur */
+  bool CAN_SD_logging_active = false;
+  /** bool, determines if USB serial logging should occur */
+  bool usb_logging_active = false;
+  /** bool, determines if general logging should be active for webserver */
+  bool web_logging_active = false;
+  /** bool, determines if general logging to SD card should be active */
+  bool SD_logging_active = false;
   /** uint8_t, enumeration which CAN interface should be used for log playback */
   uint8_t can_replay_interface = CAN_NATIVE;
   /** bool, determines if CAN replay should loop or not */
@@ -251,12 +261,9 @@ typedef struct {
   bool can_2515_send_fail = false;
   /** uint16_t, MCP2518 CANFD failed to send flag */
   bool can_2518_send_fail = false;
+};
 
-} DATALAYER_SYSTEM_INFO_TYPE;
-
-typedef struct {
-  /** Millis rollover count. Increments every 49.7 days. Used for keeping track on events */
-  uint8_t millisrolloverCount = 0;
+struct DATALAYER_SYSTEM_STATUS_TYPE {
 #ifdef FUNCTION_TIME_MEASUREMENT
   /** Core task measurement variable */
   int64_t core_task_max_us = 0;
@@ -314,8 +321,8 @@ typedef struct {
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
 
-  /** True if the contactor controlled by battery-emulator is closed */
-  bool contactors_engaged = false;
+  /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
+  uint8_t contactors_engaged = 0;
   /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
   bool contactors_battery2_engaged = false;
 
@@ -326,18 +333,18 @@ typedef struct {
 
   /** State of automatic precharge sequence */
   PrechargeState precharge_status = AUTO_PRECHARGE_IDLE;
-} DATALAYER_SYSTEM_STATUS_TYPE;
+};
 
-typedef struct {
+struct DATALAYER_SYSTEM_SETTINGS_TYPE {
   bool equipment_stop_active = false;
   bool start_precharging = false;
-} DATALAYER_SYSTEM_SETTINGS_TYPE;
+};
 
-typedef struct {
+struct DATALAYER_SYSTEM_TYPE {
   DATALAYER_SYSTEM_INFO_TYPE info;
   DATALAYER_SYSTEM_STATUS_TYPE status;
   DATALAYER_SYSTEM_SETTINGS_TYPE settings;
-} DATALAYER_SYSTEM_TYPE;
+};
 
 class DataLayer {
  public:

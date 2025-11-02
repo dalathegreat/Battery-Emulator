@@ -1,7 +1,5 @@
 #ifndef SOFAR_CAN_H
 #define SOFAR_CAN_H
-#include "../include.h"
-
 #include "CanInverterProtocol.h"
 
 #ifdef SOFAR_CAN
@@ -10,16 +8,22 @@
 
 class SofarInverter : public CanInverterProtocol {
  public:
-  void setup();
+  bool setup() override;
+  const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
   static constexpr const char* Name = "Sofar BMS (Extended) via CAN, Battery ID";
+  bool supports_battery_id() { return true; }
 
  private:
-  unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-  uint16_t calculated_capacity_AH = 0;  // Pack Capacity in AH (Updates based on battery stats)
-  const char* BatteryType = "BATxEMU";  // Manufacturer name in ASCII
+  // State
+  unsigned long previousMillis1s = 0;
+  unsigned long previousMillis100 = 0;
+  unsigned long last_command_millis = 0;
+  unsigned long last_35A_sent_millis = 0;
+  uint16_t calculated_capacity_AH = 0;
+  const char* BatteryType = "BATxEMU";
 
   //Actual content messages
   //Note that these are technically extended frames. If more batteries are put in parallel,the first battery sends 0x351 the next battery sends 0x1351 etc. 16 batteries in parallel supported
@@ -63,7 +67,6 @@ class SofarInverter : public CanInverterProtocol {
                          .DLC = 8,
                          .ID = 0x35A,
                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
   CAN_frame SOFAR_670 = {.FD = false,
                          .ext_ID = true,
                          .DLC = 8,

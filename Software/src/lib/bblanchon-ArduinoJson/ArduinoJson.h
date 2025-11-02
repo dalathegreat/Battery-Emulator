@@ -213,6 +213,12 @@
 #    pragma GCC system_header
 #  endif
 #endif
+#ifdef true
+#  undef true
+#endif
+#ifdef false
+#  undef false
+#endif
 #define ARDUINOJSON_CONCAT_(A, B) A##B
 #define ARDUINOJSON_CONCAT2(A, B) ARDUINOJSON_CONCAT_(A, B)
 #define ARDUINOJSON_CONCAT3(A, B, C) \
@@ -239,11 +245,11 @@
 #define ARDUINOJSON_BIN2ALPHA_1111() P
 #define ARDUINOJSON_BIN2ALPHA_(A, B, C, D) ARDUINOJSON_BIN2ALPHA_##A##B##C##D()
 #define ARDUINOJSON_BIN2ALPHA(A, B, C, D) ARDUINOJSON_BIN2ALPHA_(A, B, C, D)
-#define ARDUINOJSON_VERSION "7.4.1"
+#define ARDUINOJSON_VERSION "7.4.2"
 #define ARDUINOJSON_VERSION_MAJOR 7
 #define ARDUINOJSON_VERSION_MINOR 4
-#define ARDUINOJSON_VERSION_REVISION 1
-#define ARDUINOJSON_VERSION_MACRO V741
+#define ARDUINOJSON_VERSION_REVISION 2
+#define ARDUINOJSON_VERSION_MACRO V742
 #ifndef ARDUINOJSON_VERSION_NAMESPACE
 #  define ARDUINOJSON_VERSION_NAMESPACE                               \
     ARDUINOJSON_CONCAT5(                                              \

@@ -1,7 +1,7 @@
 #include "SOLXPOW-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
+#include "../inverter/INVERTERS.h"
 
 #define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
 //#define SEND_1 //If defined, the messages will have ID ending with 1 (useful for some inverters)
@@ -319,43 +319,73 @@ void SolxpowInverter::transmit_can(unsigned long currentMillis) {
 
 void SolxpowInverter::send_setup_info() {  //Ensemble information
 #ifdef SEND_0
-  transmit_can_frame(&SOLXPOW_7310, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_7320, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_7330, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_7340, can_config.inverter);
+  transmit_can_frame(&SOLXPOW_7310);
+  transmit_can_frame(&SOLXPOW_7320);
+  transmit_can_frame(&SOLXPOW_7330);
+  transmit_can_frame(&SOLXPOW_7340);
 #endif
 #ifdef SEND_1
-  transmit_can_frame(&SOLXPOW_7311, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_7321, can_config.inverter);
+  transmit_can_frame(&SOLXPOW_7311);
+  transmit_can_frame(&SOLXPOW_7321);
 #endif
 }
 
 void SolxpowInverter::send_system_data() {  //System equipment information
 #ifdef SEND_0
-  transmit_can_frame(&SOLXPOW_4210, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4220, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4230, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4240, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4250, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4260, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4270, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4280, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4290, can_config.inverter);
+  transmit_can_frame(&SOLXPOW_4210);
+  transmit_can_frame(&SOLXPOW_4220);
+  transmit_can_frame(&SOLXPOW_4230);
+  transmit_can_frame(&SOLXPOW_4240);
+  transmit_can_frame(&SOLXPOW_4250);
+  transmit_can_frame(&SOLXPOW_4260);
+  transmit_can_frame(&SOLXPOW_4270);
+  transmit_can_frame(&SOLXPOW_4280);
+  transmit_can_frame(&SOLXPOW_4290);
 #endif
 #ifdef SEND_1
-  transmit_can_frame(&SOLXPOW_4211, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4221, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4231, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4241, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4251, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4261, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4271, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4281, can_config.inverter);
-  transmit_can_frame(&SOLXPOW_4291, can_config.inverter);
+  transmit_can_frame(&SOLXPOW_4211);
+  transmit_can_frame(&SOLXPOW_4221);
+  transmit_can_frame(&SOLXPOW_4231);
+  transmit_can_frame(&SOLXPOW_4241);
+  transmit_can_frame(&SOLXPOW_4251);
+  transmit_can_frame(&SOLXPOW_4261);
+  transmit_can_frame(&SOLXPOW_4271);
+  transmit_can_frame(&SOLXPOW_4281);
+  transmit_can_frame(&SOLXPOW_4291);
 #endif
 }
 
-void SolxpowInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
+bool SolxpowInverter::setup() {
+  if (user_selected_inverter_cells > 0) {
+    SOLXPOW_7320.data.u8[0] = user_selected_inverter_cells & 0xff;
+    SOLXPOW_7320.data.u8[1] = (uint8_t)(user_selected_inverter_cells >> 8);
+    SOLXPOW_7321.data.u8[0] = user_selected_inverter_cells & 0xff;
+    SOLXPOW_7321.data.u8[1] = (uint8_t)(user_selected_inverter_cells >> 8);
+  }
+
+  if (user_selected_inverter_modules > 0) {
+    SOLXPOW_7320.data.u8[2] = user_selected_inverter_modules;
+    SOLXPOW_7321.data.u8[2] = user_selected_inverter_modules;
+  }
+
+  if (user_selected_inverter_cells_per_module > 0) {
+    SOLXPOW_7320.data.u8[3] = user_selected_inverter_cells_per_module;
+    SOLXPOW_7321.data.u8[3] = user_selected_inverter_cells_per_module;
+  }
+
+  if (user_selected_inverter_voltage_level > 0) {
+    SOLXPOW_7320.data.u8[4] = user_selected_inverter_voltage_level & 0xff;
+    SOLXPOW_7320.data.u8[5] = (uint8_t)(user_selected_inverter_voltage_level >> 8);
+    SOLXPOW_7321.data.u8[4] = user_selected_inverter_voltage_level & 0xff;
+    SOLXPOW_7321.data.u8[5] = (uint8_t)(user_selected_inverter_voltage_level >> 8);
+  }
+
+  if (user_selected_inverter_ah_capacity > 0) {
+    SOLXPOW_7320.data.u8[6] = user_selected_inverter_ah_capacity & 0xff;
+    SOLXPOW_7320.data.u8[7] = (uint8_t)(user_selected_inverter_ah_capacity >> 8);
+    SOLXPOW_7321.data.u8[6] = user_selected_inverter_ah_capacity & 0xff;
+    SOLXPOW_7321.data.u8[7] = (uint8_t)(user_selected_inverter_ah_capacity >> 8);
+  }
+
+  return true;
 }

@@ -3,9 +3,11 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For Advanced Battery Insights webpage
 #include "../devboard/utils/events.h"
-#include "../include.h"
+#include "../devboard/utils/logging.h"
 
-/* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
+/* Credits: */
+/* Some of the original CAN frame parsing code below comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
+/* Most of the additional CAN frame parsing/information/display comes from Josiah Higgs (https://github.com/josiahhiggs/) */
 
 inline const char* getContactorText(int index) {
   switch (index) {
@@ -326,6 +328,285 @@ inline const char* getFault(bool value) {
   return value ? "ACTIVE" : "NOT_ACTIVE";
 }
 
+// Clamp DLC to 0–8 bytes for classic CAN
+inline int getDataLen(uint8_t dlc) {
+  return std::min<int>(dlc, 8);
+}
+
+// Fast bit‐field writer: writes 'bitLen' bits of 'value' starting at 'startBit'
+inline void setBitField(uint8_t* data, int bytes, int startBit, int bitLen, uint64_t value) {
+  int bit = startBit;
+  for (int i = 0; i < bitLen && bit < bytes * 8; ++i, ++bit) {
+    uint8_t* p = data + (bit >> 3);
+    uint8_t m = uint8_t(1u << (bit & 7));
+    *p = (*p & ~m) | (uint8_t((value >> i) & 1) << (bit & 7));
+  }
+}
+
+/// Increment a counter field and recompute an 8‑bit checksum as part of a mux
+void generateMuxFrameCounterChecksum(CAN_frame& f,
+                                     uint8_t frameCounter,  // counter value
+                                     int ctrStartBit,       // bit index of counter LSB
+                                     int ctrBitLength,      // width of counter in bits
+                                     int csumStartBit,      // bit index of checksum LSB
+                                     int csumBitLength      // width of checksum in bits
+) {
+  int bytes = getDataLen(f.DLC);
+  auto data = f.data.u8;
+
+  // Pack payload into a 64‑bit word
+  uint64_t w = 0;
+  for (uint8_t i = 0; i < bytes; ++i) {
+    w |= uint64_t(data[i]) << (8 * i);
+  }
+
+  // Increment the counter
+  {
+    uint64_t mask = (uint64_t(1) << ctrBitLength) - 1;
+    uint64_t ctr = frameCounter & mask;  // External counter 0-15
+    w = (w & ~(mask << ctrStartBit)) | (ctr << ctrStartBit);
+  }
+
+  // Unpack back into the frame bytes
+  for (uint8_t i = 0; i < bytes; ++i) {
+    data[i] = uint8_t((w >> (8 * i)) & 0xFF);
+  }
+
+  // Build a small buffer and zero out the checksum bits
+  uint8_t buf[8];
+  for (uint8_t i = 0; i < bytes; ++i) {
+    buf[i] = data[i];
+  }
+  for (int bit = csumStartBit; bit < csumStartBit + csumBitLength; ++bit) {
+    int b = bit >> 3;
+    if (b >= bytes)
+      break;
+    buf[b] &= uint8_t(~(1u << (bit & 7)));
+  }
+
+  // Compute checksum offset from most significant hex digit of CAN ID
+  uint8_t checksum_offset = uint8_t((f.ID >> 8) & 0xF);  // high nibble of top byte
+
+  // Sum the low byte of ID + buf[]
+  uint8_t sum = uint8_t(f.ID & 0xFF);
+  for (int i = 0; i < bytes; ++i) {
+    sum = uint8_t(sum + buf[i]);
+  }
+  uint8_t checksum = uint8_t(sum + checksum_offset);
+
+  // Write the checksum back into the frame
+  setBitField(data, bytes, csumStartBit, csumBitLength, checksum);
+}
+
+// Increment a counter field and recompute an 8‑bit checksum
+void generateFrameCounterChecksum(CAN_frame& f,
+                                  int ctrStartBit,   // bit index of counter LSB
+                                  int ctrBitLength,  // width of counter in bits
+                                  int csumStartBit,  // bit index of checksum LSB
+                                  int csumBitLength  // width of checksum in bits
+) {
+  int bytes = getDataLen(f.DLC);
+  auto data = f.data.u8;
+
+  // Pack payload into a 64‑bit word
+  uint64_t w = 0;
+  for (int i = 0; i < bytes; ++i) {
+    w |= uint64_t(data[i]) << (8 * i);
+  }
+
+  // Increment the counter by +1 modulo its width
+  {
+    uint64_t mask = (uint64_t(1) << ctrBitLength) - 1;
+    uint64_t ctr = ((w >> ctrStartBit) & mask) + 1;
+    ctr &= mask;
+    w = (w & ~(mask << ctrStartBit)) | (ctr << ctrStartBit);
+  }
+
+  // Unpack back into the frame bytes
+  for (int i = 0; i < bytes; ++i) {
+    data[i] = uint8_t((w >> (8 * i)) & 0xFF);
+  }
+
+  // Build a small buffer and zero out the checksum bits
+  uint8_t buf[8];
+  for (int i = 0; i < bytes; ++i) {
+    buf[i] = data[i];
+  }
+  for (int bit = csumStartBit; bit < csumStartBit + csumBitLength; ++bit) {
+    int b = bit >> 3;
+    if (b >= bytes)
+      break;
+    buf[b] &= uint8_t(~(1u << (bit & 7)));
+  }
+
+  // Compute checksum offset from most significant hex digit of CAN ID
+  uint8_t checksum_offset = uint8_t((f.ID >> 8) & 0xF);  // high nibble of top byte
+
+  // Sum the low byte of ID + buf[]
+  uint8_t sum = uint8_t(f.ID & 0xFF);
+  for (int i = 0; i < bytes; ++i) {
+    sum = uint8_t(sum + buf[i]);
+  }
+  uint8_t checksum = uint8_t(sum + checksum_offset);
+
+  // Write the checksum back into the frame
+  setBitField(data, bytes, csumStartBit, csumBitLength, checksum);
+}
+
+// Function to extract raw bits/values from a given CAN frame signal
+inline uint64_t extract_signal_value(const uint8_t* data, uint32_t start_bit, uint32_t bit_length) {
+  //
+  // Usage: uint8_t bms_state = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 31, 4));
+  //
+  // Calculate the starting byte and bit offset
+  uint32_t byte_index = start_bit / 8;
+  uint32_t bit_offset = start_bit % 8;
+
+  // Read up to 8 bytes starting from byte_index (need enough to cover bit_length + bit_offset)
+  uint64_t raw = 0;
+  for (int i = 0; i < 8 && (byte_index + i) < 64; ++i) {
+    raw |= (uint64_t)data[byte_index + i] << (8 * i);
+  }
+
+  // Shift and mask
+  raw >>= bit_offset;
+  if (bit_length == 64)
+    return raw;
+  return raw & ((1ULL << bit_length) - 1);
+}
+
+// Function to write a value to a given CAN frame signal
+void write_signal_value(CAN_frame* frame, uint16_t start_bit, uint8_t bit_length, int64_t value, bool is_signed) {
+  if (bit_length == 0 || bit_length > 64 || frame == nullptr)
+    return;
+
+  uint64_t uvalue;
+
+  if (is_signed) {
+    int64_t min_val = -(1LL << (bit_length - 1));
+    int64_t max_val = (1LL << (bit_length - 1)) - 1;
+
+    // Clamp to valid range
+    if (value < min_val)
+      value = min_val;
+    if (value > max_val)
+      value = max_val;
+
+    // Two's complement encoding
+    uvalue = static_cast<uint64_t>(value) & ((1ULL << bit_length) - 1);
+  } else {
+    uvalue = static_cast<uint64_t>(value) & ((1ULL << bit_length) - 1);
+  }
+
+  // Write value into frame->data.u8 using little-endian bit layout
+  for (uint8_t i = 0; i < bit_length; ++i) {
+    uint8_t bit_val = (uvalue >> i) & 1;
+    uint16_t bit_pos = start_bit + i;
+
+    uint8_t byte_index = bit_pos / 8;
+    uint8_t bit_index = bit_pos % 8;
+
+    if (byte_index >= frame->DLC)
+      continue;  // Prevent overrun
+
+    if (bit_val)
+      frame->data.u8[byte_index] |= (1 << bit_index);
+    else
+      frame->data.u8[byte_index] &= ~(1 << bit_index);
+  }
+}
+
+void generateTESLA_229(CAN_frame& f) {
+  static const uint8_t checksumLookup[16] = {0x46, 0x44, 0x52, 0x6D, 0x43, 0x41, 0xDD, 0xF9,
+                                             0x4C, 0xA5, 0xF6, 0x8C, 0x49, 0x2F, 0x31, 0x3B};
+
+  // Safety, only run if this is the right ID
+  if (f.ID != 0x229)
+    return;
+
+  const int ctrStartBit = 8;
+  const int ctrBitLength = 4;
+  const int csumStartBit = 0;
+  const int csumBitLength = 8;
+
+  int bytes = getDataLen(f.DLC);
+  auto data = f.data.u8;
+
+  // Pack the first few bytes into a word
+  uint64_t w = 0;
+  for (int i = 0; i < bytes; ++i) {
+    w |= uint64_t(data[i]) << (8 * i);
+  }
+
+  // Extract current counter
+  uint64_t mask = (uint64_t(1) << ctrBitLength) - 1;
+  uint8_t ctr = (w >> ctrStartBit) & mask;
+
+  // Increment counter mod 16
+  ctr = (ctr + 1) & 0xF;
+
+  // Write updated counter back
+  w = (w & ~(mask << ctrStartBit)) | (uint64_t(ctr) << ctrStartBit);
+  for (int i = 0; i < bytes; ++i) {
+    data[i] = uint8_t((w >> (8 * i)) & 0xFF);
+  }
+
+  // Look up and insert checksum
+  uint8_t checksum = checksumLookup[ctr];
+  setBitField(data, bytes, csumStartBit, csumBitLength, checksum);
+}
+
+void generateTESLA_213(CAN_frame& f) {
+  static uint8_t counter = 0;
+
+  // Increment counter (wrap at 16)
+  counter = (counter + 1) & 0xF;
+
+  // Safety, only modify if ID is 0x213 and DLC is at least 2
+  if (f.ID != 0x213 || f.DLC < 2)
+    return;
+
+  // Byte 0: counter in high nibble
+  uint8_t value = counter << 4;
+
+  // Byte 1: checksum = value + 0x15
+  uint8_t checksum = (value + 0x15) & 0xFF;
+
+  f.data.u8[0] = value;
+  f.data.u8[1] = checksum;
+}
+
+// Function to check if a year is a leap year
+bool isLeapYear(int year) {
+  if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) {
+    return true;
+  }
+  return false;
+}
+
+// Function to convert year and day of year (i.e. Julian date) into human readable date
+char* dayOfYearToDate(int year, int dayOfYear) {
+
+  // Arrays to hold the number of days in each month for standard/leap years
+  int daysInMonthStandard[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  int daysInMonthLeap[] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+  // Select the appropriate array for the given year
+  int* daysInMonth = isLeapYear(year) ? daysInMonthLeap : daysInMonthStandard;
+  int month = 0;
+
+  // Find the month and the day within the month
+  while (dayOfYear > daysInMonth[month]) {
+    dayOfYear -= daysInMonth[month];
+    month++;
+  }
+
+  static char dateString[11];  // For "YYYY-MM-DD\0"
+  // Format the date string in "YYYY-MM-DD" format
+  snprintf(dateString, sizeof(dateString), "%d-%02d-%02d", year, month + 1, dayOfYear);
+  return dateString;
+}
+
 void TeslaBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
@@ -395,39 +676,39 @@ void TeslaBattery::
     clear_event(EVENT_BATTERY_FUSE);
   }
 
-#ifdef TESLA_MODEL_3Y_BATTERY
-  // Autodetect algoritm for chemistry on 3/Y packs.
-  // NCM/A batteries have 96s, LFP has 102-108s
-  // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
-  if (datalayer.battery.info.number_of_cells > 101) {
-    datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
-  }
+  if (user_selected_tesla_GTW_chassisType > 1) {  //{{0, "Model S"}, {1, "Model X"}, {2, "Model 3"}, {3, "Model Y"}};
+    // Autodetect algoritm for chemistry on 3/Y packs.
+    // NCM/A batteries have 96s, LFP has 102-108s
+    // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
+    if (datalayer.battery.info.number_of_cells > 101) {
+      datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
+    }
 
-  //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
-  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
-    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
-    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
-    datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
-  } else {  // NCM/A chemistry
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
-    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
-    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
-    datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
-  }
+    //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
+    if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
+      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
+      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
+      datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
+    } else {  // NCM/A chemistry
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
+      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+      datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
+    }
 
-  // During forced balancing request via webserver, we allow the battery to exceed normal safety parameters
-  if (datalayer.battery.settings.user_requests_balancing) {
-    datalayer.battery.status.real_soc = 9900;  //Force battery to show up as 99% when balancing
-    datalayer.battery.info.max_design_voltage_dV = datalayer.battery.settings.balancing_max_pack_voltage_dV;
-    datalayer.battery.info.max_cell_voltage_mV = datalayer.battery.settings.balancing_max_cell_voltage_mV;
-    datalayer.battery.info.max_cell_voltage_deviation_mV =
-        datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV;
-    datalayer.battery.status.max_charge_power_W = datalayer.battery.settings.balancing_float_power_W;
+    // During forced balancing request via webserver, we allow the battery to exceed normal safety parameters
+    if (datalayer.battery.settings.user_requests_balancing) {
+      datalayer.battery.status.real_soc = 9900;  //Force battery to show up as 99% when balancing
+      datalayer.battery.info.max_design_voltage_dV = datalayer.battery.settings.balancing_max_pack_voltage_dV;
+      datalayer.battery.info.max_cell_voltage_mV = datalayer.battery.settings.balancing_max_cell_voltage_mV;
+      datalayer.battery.info.max_cell_voltage_deviation_mV =
+          datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV;
+      datalayer.battery.status.max_charge_power_W = datalayer.battery.settings.balancing_float_power_W;
+    }
   }
-#endif  // TESLA_MODEL_3Y_BATTERY
 
   // Check if user requests some action
   if (datalayer.battery.settings.user_requests_tesla_isolation_clear) {
@@ -435,23 +716,42 @@ void TeslaBattery::
     datalayer.battery.settings.user_requests_tesla_isolation_clear = false;
   }
   if (datalayer.battery.settings.user_requests_tesla_bms_reset) {
-    if (battery_contactor == 1 && battery_BMS_a180_SW_ECU_reset_blocked == false) {
+    if (battery_contactor == 1 && BMS_a180_SW_ECU_reset_blocked == false) {
       //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
       stateMachineBMSReset = 0;
       datalayer.battery.settings.user_requests_tesla_bms_reset = false;
+      logging.println("BMS reset requested");
     } else {
       logging.println("ERROR: BMS reset failed due to contactors not being open, or BMS ECU not allowing it");
+      stateMachineBMSReset = 0xFF;
+      datalayer.battery.settings.user_requests_tesla_bms_reset = false;
+    }
+  }
+  if (datalayer.battery.settings.user_requests_tesla_soc_reset) {
+    if (datalayer.battery.status.real_soc < 1500 || datalayer.battery.status.real_soc > 9000) {
+      //Start the SOC reset statemachine, only if SOC < 15% or > 90%
+      stateMachineSOCReset = 0;
+      datalayer.battery.settings.user_requests_tesla_soc_reset = false;
+      logging.println("SOC reset requested");
+    } else {
+      logging.println("ERROR: SOC reset failed due to SOC not being less than 15 or greater than 90");
+      stateMachineSOCReset = 0xFF;
+      datalayer.battery.settings.user_requests_tesla_soc_reset = false;
     }
   }
 
+  //Update 0x333 UI_chargeTerminationPct (bit 16, width 10) value to SOC max value - expose via UI?
+  //One firmware version this was seen at bit 17 width 11
+  write_signal_value(&TESLA_333, 16, 10, static_cast<int64_t>(datalayer.battery.settings.max_percentage / 10), false);
+
   // Update webserver datalayer
-  //0x20A
-  datalayer_extended.tesla.status_contactor = battery_contactor;
+  //datalayer_extended.tesla.BMS_hvilFault = BMS_a036_SW_HvpHvilFault;
   datalayer_extended.tesla.hvil_status = battery_hvil_status;
+  //0x20A
   datalayer_extended.tesla.packContNegativeState = battery_packContNegativeState;
   datalayer_extended.tesla.packContPositiveState = battery_packContPositiveState;
   datalayer_extended.tesla.packContactorSetState = battery_packContactorSetState;
-  datalayer_extended.tesla.packCtrsClosingAllowed = battery_packCtrsClosingAllowed;
+  datalayer_extended.tesla.packCtrsClosingBlocked = battery_packCtrsClosingBlocked;
   datalayer_extended.tesla.pyroTestInProgress = battery_pyroTestInProgress;
   datalayer_extended.tesla.battery_packCtrsOpenNowRequested = battery_packCtrsOpenNowRequested;
   datalayer_extended.tesla.battery_packCtrsOpenRequested = battery_packCtrsOpenRequested;
@@ -459,7 +759,22 @@ void TeslaBattery::
   datalayer_extended.tesla.battery_packCtrsResetRequestRequired = battery_packCtrsResetRequestRequired;
   datalayer_extended.tesla.battery_dcLinkAllowedToEnergize = battery_dcLinkAllowedToEnergize;
   //0x72A
-  memcpy(datalayer_extended.tesla.BMS_SerialNumber, BMS_SerialNumber, sizeof(BMS_SerialNumber));
+  if (parsed_battery_serialNumber && battery_serialNumber[13] != 0) {
+    memcpy(datalayer_extended.tesla.battery_serialNumber, battery_serialNumber, sizeof(battery_serialNumber));
+    datalayer_extended.tesla.battery_manufactureDate = battery_manufactureDate;
+    //We have valid data and comms with the battery, attempt to query part number
+    if (!parsed_battery_partNumber && stateMachineBMSQuery == 0xFF) {
+      stateMachineBMSQuery = 0;
+    }
+  }
+  //Via UDS
+  if (parsed_battery_partNumber && battery_partNumber[11] != 0) {
+    memcpy(datalayer_extended.tesla.battery_partNumber, battery_partNumber, sizeof(battery_partNumber));
+  }
+  //0x3C4
+  if (parsed_PCS_partNumber && PCS_partNumber[11] != 0) {
+    memcpy(datalayer_extended.tesla.PCS_partNumber, PCS_partNumber, sizeof(PCS_partNumber));
+  }
   //0x2B4
   datalayer_extended.tesla.battery_dcdcLvBusVolt = battery_dcdcLvBusVolt;
   datalayer_extended.tesla.battery_dcdcHvBusVolt = battery_dcdcHvBusVolt;
@@ -487,8 +802,8 @@ void TeslaBattery::
   datalayer_extended.tesla.battery_packMass = battery_packMass;
   datalayer_extended.tesla.battery_platformMaxBusVoltage = battery_platformMaxBusVoltage;
   //0x2D2
-  datalayer_extended.tesla.battery_bms_min_voltage = battery_bms_min_voltage;
-  datalayer_extended.tesla.battery_bms_max_voltage = battery_bms_max_voltage;
+  datalayer_extended.tesla.BMS_min_voltage = BMS_min_voltage;
+  datalayer_extended.tesla.BMS_max_voltage = BMS_max_voltage;
   datalayer_extended.tesla.battery_max_charge_current = battery_max_charge_current;
   datalayer_extended.tesla.battery_max_discharge_current = battery_max_discharge_current;
   //0x292
@@ -506,30 +821,30 @@ void TeslaBattery::
   datalayer_extended.tesla.battery_BrickModelTMax = battery_BrickModelTMax;
   datalayer_extended.tesla.battery_BrickModelTMin = battery_BrickModelTMin;
   //0x212
-  datalayer_extended.tesla.battery_BMS_isolationResistance = battery_BMS_isolationResistance;
-  datalayer_extended.tesla.battery_BMS_contactorState = battery_BMS_contactorState;
-  datalayer_extended.tesla.battery_BMS_state = battery_BMS_state;
-  datalayer_extended.tesla.battery_BMS_hvState = battery_BMS_hvState;
-  datalayer_extended.tesla.battery_BMS_uiChargeStatus = battery_BMS_uiChargeStatus;
-  datalayer_extended.tesla.battery_BMS_diLimpRequest = battery_BMS_diLimpRequest;
-  datalayer_extended.tesla.battery_BMS_chgPowerAvailable = battery_BMS_chgPowerAvailable;
-  datalayer_extended.tesla.battery_BMS_pcsPwmEnabled = battery_BMS_pcsPwmEnabled;
+  datalayer_extended.tesla.BMS_isolationResistance = BMS_isolationResistance;
+  datalayer_extended.tesla.BMS_contactorState = BMS_contactorState;
+  datalayer_extended.tesla.BMS_state = BMS_state;
+  datalayer_extended.tesla.BMS_hvState = BMS_hvState;
+  datalayer_extended.tesla.BMS_uiChargeStatus = BMS_uiChargeStatus;
+  datalayer_extended.tesla.BMS_diLimpRequest = BMS_diLimpRequest;
+  datalayer_extended.tesla.BMS_chgPowerAvailable = BMS_chgPowerAvailable;
+  datalayer_extended.tesla.BMS_pcsPwmEnabled = BMS_pcsPwmEnabled;
   //0x224
-  datalayer_extended.tesla.battery_PCS_dcdcPrechargeStatus = battery_PCS_dcdcPrechargeStatus;
-  datalayer_extended.tesla.battery_PCS_dcdc12VSupportStatus = battery_PCS_dcdc12VSupportStatus;
-  datalayer_extended.tesla.battery_PCS_dcdcHvBusDischargeStatus = battery_PCS_dcdcHvBusDischargeStatus;
-  datalayer_extended.tesla.battery_PCS_dcdcMainState = battery_PCS_dcdcMainState;
-  datalayer_extended.tesla.battery_PCS_dcdcSubState = battery_PCS_dcdcSubState;
-  datalayer_extended.tesla.battery_PCS_dcdcFaulted = battery_PCS_dcdcFaulted;
-  datalayer_extended.tesla.battery_PCS_dcdcOutputIsLimited = battery_PCS_dcdcOutputIsLimited;
-  datalayer_extended.tesla.battery_PCS_dcdcMaxOutputCurrentAllowed = battery_PCS_dcdcMaxOutputCurrentAllowed;
-  datalayer_extended.tesla.battery_PCS_dcdcPrechargeRtyCnt = battery_PCS_dcdcPrechargeRtyCnt;
-  datalayer_extended.tesla.battery_PCS_dcdc12VSupportRtyCnt = battery_PCS_dcdc12VSupportRtyCnt;
-  datalayer_extended.tesla.battery_PCS_dcdcDischargeRtyCnt = battery_PCS_dcdcDischargeRtyCnt;
-  datalayer_extended.tesla.battery_PCS_dcdcPwmEnableLine = battery_PCS_dcdcPwmEnableLine;
-  datalayer_extended.tesla.battery_PCS_dcdcSupportingFixedLvTarget = battery_PCS_dcdcSupportingFixedLvTarget;
-  datalayer_extended.tesla.battery_PCS_dcdcPrechargeRestartCnt = battery_PCS_dcdcPrechargeRestartCnt;
-  datalayer_extended.tesla.battery_PCS_dcdcInitialPrechargeSubState = battery_PCS_dcdcInitialPrechargeSubState;
+  datalayer_extended.tesla.PCS_dcdcPrechargeStatus = PCS_dcdcPrechargeStatus;
+  datalayer_extended.tesla.PCS_dcdc12VSupportStatus = PCS_dcdc12VSupportStatus;
+  datalayer_extended.tesla.PCS_dcdcHvBusDischargeStatus = PCS_dcdcHvBusDischargeStatus;
+  datalayer_extended.tesla.PCS_dcdcMainState = PCS_dcdcMainState;
+  datalayer_extended.tesla.PCS_dcdcSubState = PCS_dcdcSubState;
+  datalayer_extended.tesla.PCS_dcdcFaulted = PCS_dcdcFaulted;
+  datalayer_extended.tesla.PCS_dcdcOutputIsLimited = PCS_dcdcOutputIsLimited;
+  datalayer_extended.tesla.PCS_dcdcMaxOutputCurrentAllowed = PCS_dcdcMaxOutputCurrentAllowed;
+  datalayer_extended.tesla.PCS_dcdcPrechargeRtyCnt = PCS_dcdcPrechargeRtyCnt;
+  datalayer_extended.tesla.PCS_dcdc12VSupportRtyCnt = PCS_dcdc12VSupportRtyCnt;
+  datalayer_extended.tesla.PCS_dcdcDischargeRtyCnt = PCS_dcdcDischargeRtyCnt;
+  datalayer_extended.tesla.PCS_dcdcPwmEnableLine = PCS_dcdcPwmEnableLine;
+  datalayer_extended.tesla.PCS_dcdcSupportingFixedLvTarget = PCS_dcdcSupportingFixedLvTarget;
+  datalayer_extended.tesla.PCS_dcdcPrechargeRestartCnt = PCS_dcdcPrechargeRestartCnt;
+  datalayer_extended.tesla.PCS_dcdcInitialPrechargeSubState = PCS_dcdcInitialPrechargeSubState;
   //0x252
   datalayer_extended.tesla.BMS_maxRegenPower = BMS_maxRegenPower;
   datalayer_extended.tesla.BMS_maxDischargePower = BMS_maxDischargePower;
@@ -538,6 +853,21 @@ void TeslaBattery::
   datalayer_extended.tesla.BMS_notEnoughPowerForHeatPump = BMS_notEnoughPowerForHeatPump;
   datalayer_extended.tesla.BMS_powerLimitState = BMS_powerLimitState;
   datalayer_extended.tesla.BMS_inverterTQF = BMS_inverterTQF;
+  //Via UDS
+  //datalayer_extended.tesla.BMS_info_buildConfigId = BMS_info_buildConfigId;
+  //0x300
+  datalayer_extended.tesla.BMS_info_buildConfigId = BMS_info_buildConfigId;
+  datalayer_extended.tesla.BMS_info_hardwareId = BMS_info_hardwareId;
+  datalayer_extended.tesla.BMS_info_componentId = BMS_info_componentId;
+  datalayer_extended.tesla.BMS_info_pcbaId = BMS_info_pcbaId;
+  datalayer_extended.tesla.BMS_info_assemblyId = BMS_info_assemblyId;
+  datalayer_extended.tesla.BMS_info_usageId = BMS_info_usageId;
+  datalayer_extended.tesla.BMS_info_subUsageId = BMS_info_subUsageId;
+  datalayer_extended.tesla.BMS_info_platformType = BMS_info_platformType;
+  datalayer_extended.tesla.BMS_info_appCrc = BMS_info_appCrc;
+  datalayer_extended.tesla.BMS_info_bootGitHash = BMS_info_bootGitHash;
+  datalayer_extended.tesla.BMS_info_bootUdsProtoVersion = BMS_info_bootUdsProtoVersion;
+  datalayer_extended.tesla.BMS_info_bootCrc = BMS_info_bootCrc;
   //0x312
   datalayer_extended.tesla.BMS_powerDissipation = BMS_powerDissipation;
   datalayer_extended.tesla.BMS_flowRequest = BMS_flowRequest;
@@ -548,6 +878,10 @@ void TeslaBattery::
   datalayer_extended.tesla.BMS_packTMax = BMS_packTMax;
   datalayer_extended.tesla.BMS_pcsNoFlowRequest = BMS_pcsNoFlowRequest;
   datalayer_extended.tesla.BMS_noFlowRequest = BMS_noFlowRequest;
+  //0x3C4
+  datalayer_extended.tesla.PCS_info_buildConfigId = PCS_info_buildConfigId;
+  datalayer_extended.tesla.PCS_info_hardwareId = PCS_info_hardwareId;
+  datalayer_extended.tesla.PCS_info_componentId = PCS_info_componentId;
   //0x2A4
   datalayer_extended.tesla.PCS_dcdcTemp = PCS_dcdcTemp;
   datalayer_extended.tesla.PCS_ambientTemp = PCS_ambientTemp;
@@ -575,6 +909,10 @@ void TeslaBattery::
   datalayer_extended.tesla.PCS_dcdcIntervalMinLvBusVolt = PCS_dcdcIntervalMinLvBusVolt;
   datalayer_extended.tesla.PCS_dcdcIntervalMinLvOutputCurr = PCS_dcdcIntervalMinLvOutputCurr;
   datalayer_extended.tesla.PCS_dcdc12vSupportLifetimekWh = PCS_dcdc12vSupportLifetimekWh;
+  //0x310
+  datalayer_extended.tesla.HVP_info_buildConfigId = HVP_info_buildConfigId;
+  datalayer_extended.tesla.HVP_info_hardwareId = HVP_info_hardwareId;
+  datalayer_extended.tesla.HVP_info_componentId = HVP_info_componentId;
   //0x7AA
   datalayer_extended.tesla.HVP_gpioPassivePyroDepl = HVP_gpioPassivePyroDepl;
   datalayer_extended.tesla.HVP_gpioPyroIsoEn = HVP_gpioPyroIsoEn;
@@ -633,21 +971,46 @@ void TeslaBattery::
   datalayer_extended.tesla.HVP_shuntBarTempStatus = HVP_shuntBarTempStatus;
   datalayer_extended.tesla.HVP_shuntAsicTempStatus = HVP_shuntAsicTempStatus;
 
-#ifdef DEBUG_LOG
+  //Safety checks for CAN message sesnding
+  if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
+      (datalayer.battery.status.bms_status != FAULT) && (!datalayer.system.settings.equipment_stop_active)) {
+    // Carry on: 0x221 DRIVE state & reset power down timer
+    vehicleState = 1;
+    powerDownTimer = 180;  //0x221 50ms cyclic, 20 calls/second
+  } else {
+    // Faulted state, or inverter blocks contactor closing
+    // Shut down: 0x221 ACCESSORY state for 3 seconds, followed by GOING_DOWN, then OFF
+    if (powerDownTimer <= 180 && powerDownTimer > 120) {
+      vehicleState = 2;  //ACCESSORY
+      powerDownTimer--;
+    }
+    if (powerDownTimer <= 120 && powerDownTimer > 60) {
+      vehicleState = 3;  //GOING_DOWN
+      powerDownTimer--;
+    }
+    if (powerDownTimer <= 60 && powerDownTimer > 0) {
+      vehicleState = 0;  //OFF
+      powerDownTimer--;
+    }
+  }
 
   printFaultCodesIfActive();
-
-  logging.print(getContactorText(battery_contactor));  // Display what state the contactor is in
+  logging.print("BMS Contactors State: ");
+  logging.print(getBMSContactorState(battery_contactor));  // Display what state the BMS thinks the contactors are in
   logging.print(", HVIL: ");
   logging.print(getHvilStatusState(battery_hvil_status));
   logging.print(", NegativeState: ");
   logging.print(getContactorState(battery_packContNegativeState));
   logging.print(", PositiveState: ");
-  logging.print(getContactorState(battery_packContPositiveState));
-  logging.print(", setState: ");
-  logging.print(getContactorState(battery_packContactorSetState));
-  logging.print(", close allowed: ");
-  logging.print(getNoYes(battery_packCtrsClosingAllowed));
+  logging.println(getContactorState(battery_packContPositiveState));
+  logging.print("HVP Contactors setState: ");
+  logging.print(
+      getContactorText(battery_packContactorSetState));  // Display what state the HVP has set the contactors to be in
+  logging.print(", Closing blocked: ");
+  logging.print(getNoYes(battery_packCtrsClosingBlocked));
+  if (battery_packContactorSetState == 5) {
+    logging.print(" (already CLOSED)");
+  }
   logging.print(", Pyrotest: ");
   logging.println(getNoYes(battery_pyroTestInProgress));
 
@@ -688,7 +1051,6 @@ void TeslaBattery::
   logging.printf("PCS_ambientTemp: %.2f°C, DCDC_Temp: %.2f°C, ChgPhA: %.2f°C, ChgPhB: %.2f°C, ChgPhC: %.2f°C.\n",
                  PCS_ambientTemp * 0.1 + 40, PCS_dcdcTemp * 0.1 + 40, PCS_chgPhATemp * 0.1 + 40,
                  PCS_chgPhBTemp * 0.1 + 40, PCS_chgPhCTemp * 0.1 + 40);
-#endif  //DEBUG_LOG
 }
 
 void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -698,7 +1060,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   static bool mux1_read = false;
 
   switch (rx_frame.ID) {
-    case 0x352:                              // 850 BMS_energyStatus newer BMS
+    case 0x352:  // 850 BMS_energyStatus newer BMS
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = ((rx_frame.data.u8[0]) & 0x03);  //BMS_energyStatusIndex M : 0|2@1+ (1,0) [0|0] ""  X
       if (mux == 0) {
         battery_nominal_full_pack_energy_m0 =
@@ -713,7 +1076,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         mux0_read = true;           //Set flag to true
       }
       if (mux == 1) {
-        battery_fully_charged = (rx_frame.data.u8[1] & 0x01);  //15|1@1+ (1,0) [0|1]//noYes
+        battery_fully_charged = (rx_frame.data.u8[1] & 0x01);  //BMS_fullChargeComplete : 15|1@1+ (1,0) [0|1]//noYes
         battery_energy_buffer_m1 =
             ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);  //16|16@1+ (0.01,0) [0|0] "kWh"//to datalayer_extended
         battery_expected_energy_remaining_m1 =
@@ -728,33 +1091,39 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         mux0_read = false;
         mux1_read = false;
         BMS352_mux = true;  //Set flag to true
+        break;
       }
-      // older BMS <2021 without mux
-      battery_nominal_full_pack_energy =  //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU));
+      if (mux0_read || mux1_read || BMS352_mux) {
+        //Skip older BMS frame parsing
+        break;
+      }
+      // Older BMS <2021 without mux
+      battery_nominal_full_pack_energy =  //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "kWh" //((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU));
           (((rx_frame.data.u8[1] & 0x07) << 8) | (rx_frame.data.u8[0]));  //Example 752 (75.2kWh)
-      battery_nominal_energy_remaining =  //BMS_nominalEnergyRemaining : 11|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[2] & (0x3FU)) << 5) | ((_d[1] >> 3) & (0x1FU));
+      battery_nominal_energy_remaining =  //BMS_nominalEnergyRemaining : 11|11@1+ (0.1,0) [0|204.6] "kWh" //((_d[2] & (0x3FU)) << 5) | ((_d[1] >> 3) & (0x1FU));
           (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] & 0x1F) >> 3));  //Example 1247 * 0.1 = 124.7kWh
-      battery_expected_energy_remaining =  //BMS_expectedEnergyRemaining : 22|11@1+ (0.1,0) [0|204.6] "KWh"// ((_d[4] & (0x01U)) << 10) | ((_d[3] & (0xFFU)) << 2) | ((_d[2] >> 6) & (0x03U));
+      battery_expected_energy_remaining =  //BMS_expectedEnergyRemaining : 22|11@1+ (0.1,0) [0|204.6] "kWh"// ((_d[4] & (0x01U)) << 10) | ((_d[3] & (0xFFU)) << 2) | ((_d[2] >> 6) & (0x03U));
           (((rx_frame.data.u8[4] & 0x01) << 10) | (rx_frame.data.u8[3] << 2) |
            ((rx_frame.data.u8[2] & 0x03) >> 6));  //Example 622 (62.2kWh)
-      battery_ideal_energy_remaining =  //BMS_idealEnergyRemaining : 33|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[5] & (0x0FU)) << 7) | ((_d[4] >> 1) & (0x7FU));
+      battery_ideal_energy_remaining =  //BMS_idealEnergyRemaining : 33|11@1+ (0.1,0) [0|204.6] "kWh" //((_d[5] & (0x0FU)) << 7) | ((_d[4] >> 1) & (0x7FU));
           (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0x7F) >> 1));  //Example 311 * 0.1 = 31.1kWh
-      battery_energy_to_charge_complete =  // BMS_energyToChargeComplete : 44|11@1+ (0.1,0) [0|204.6] "KWh"// ((_d[6] & (0x7FU)) << 4) | ((_d[5] >> 4) & (0x0FU));
+      battery_energy_to_charge_complete =  // BMS_energyToChargeComplete : 44|11@1+ (0.1,0) [0|204.6] "kWh"// ((_d[6] & (0x7FU)) << 4) | ((_d[5] >> 4) & (0x0FU));
           (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0x0F) << 4));  //Example 147 * 0.1 = 14.7kWh
-      battery_energy_buffer =  //BMS_energyBuffer : 55|8@1+ (0.1,0) [0|25.4] "KWh"// ((_d[7] & (0x7FU)) << 1) | ((_d[6] >> 7) & (0x01U));
+      battery_energy_buffer =  //BMS_energyBuffer : 55|8@1+ (0.1,0) [0|25.4] "kWh"// ((_d[7] & (0x7FU)) << 1) | ((_d[6] >> 7) & (0x01U));
           (((rx_frame.data.u8[7] & 0xFE) >> 1) | ((rx_frame.data.u8[6] & 0x80) >> 7));  //Example 1 * 0.1 = 0
-      battery_full_charge_complete =  //BMS_fullChargeComplete : 63|1@1+ (1,0) [0|1] ""//((_d[7] >> 7) & (0x01U));
+      battery_fully_charged =  //BMS_fullChargeComplete : 63|1@1+ (1,0) [0|1] ""//((_d[7] >> 7) & (0x01U));
           ((rx_frame.data.u8[7] >> 7) & 0x01);  //noYes
       break;
     case 0x20A:  //522 HVP_contactorState:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_packContNegativeState =
           (rx_frame.data.u8[0] & 0x07);  //(_d[0] & (0x07U)); 0|3@1+ (1,0) [0|7] //contactorState
       battery_packContPositiveState =
-          (rx_frame.data.u8[0] & 0x38) >> 3;             //((_d[0] >> 3) & (0x07U)); 3|3@1+ (1,0) [0|7] //contactorState
-      battery_contactor = (rx_frame.data.u8[1] & 0x0F);  // 8|4@1+ (1,0) [0|9] //contactorText
+          (rx_frame.data.u8[0] & 0x38) >> 3;  //((_d[0] >> 3) & (0x07U)); 3|3@1+ (1,0) [0|7] //contactorState
+      //battery_contactor = (rx_frame.data.u8[1] & 0x0F);  // 8|4@1+ (1,0) [0|9] //contactorText
       battery_packContactorSetState =
           (rx_frame.data.u8[1] & 0x0F);  //(_d[1] & (0x0FU)); 8|4@1+ (1,0) [0|9] //contactorState
-      battery_packCtrsClosingAllowed =
+      battery_packCtrsClosingBlocked =
           (rx_frame.data.u8[4] & 0x08) >> 3;  //((_d[4] >> 3) & (0x01U)); 35|1@1+ (1,0) [0|1] //noYes
       battery_pyroTestInProgress =
           (rx_frame.data.u8[4] & 0x20) >> 5;  //((_d[4] >> 5) & (0x01U));//37|1@1+ (1,0) [0|1] //noYes
@@ -776,70 +1145,76 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_fcCtrsRequestStatus = (rx_frame.data.u8[3] & (0x03U));              //24|2@1+ (1,0) [0|2] ""  Receiver
       battery_fcCtrsResetRequestRequired = ((rx_frame.data.u8[3] >> 2) & (0x01U));  //26|1@1+ (1,0) [0|1] ""  Receiver
       battery_fcLinkAllowedToEnergize = ((rx_frame.data.u8[5] >> 4) & (0x03U));     //44|2@1+ (1,0) [0|2] ""  Receiver
-      break;
-    case 0x212:  //530 BMS_status: 8
-      battery_BMS_hvacPowerRequest = (rx_frame.data.u8[0] & (0x01U));
-      battery_BMS_notEnoughPowerForDrive = ((rx_frame.data.u8[0] >> 1) & (0x01U));
-      battery_BMS_notEnoughPowerForSupport = ((rx_frame.data.u8[0] >> 2) & (0x01U));
-      battery_BMS_preconditionAllowed = ((rx_frame.data.u8[0] >> 3) & (0x01U));
-      battery_BMS_updateAllowed = ((rx_frame.data.u8[0] >> 4) & (0x01U));
-      battery_BMS_activeHeatingWorthwhile = ((rx_frame.data.u8[0] >> 5) & (0x01U));
-      battery_BMS_cpMiaOnHvs = ((rx_frame.data.u8[0] >> 6) & (0x01U));
-      battery_BMS_contactorState =
-          (rx_frame.data.u8[1] &
-           (0x07U));  //0 "SNA" 1 "OPEN" 2 "OPENING" 3 "CLOSING" 4 "CLOSED" 5 "WELDED" 6 "BLOCKED" ;
-      battery_BMS_state =
-          ((rx_frame.data.u8[1] >> 3) &
-           (0x0FU));  //0 "STANDBY" 1 "DRIVE" 2 "SUPPORT" 3 "CHARGE" 4 "FEIM" 5 "CLEAR_FAULT" 6 "FAULT" 7 "WELD" 8 "TEST" 9 "SNA" ;
-      battery_BMS_hvState =
-          (rx_frame.data.u8[2] &
-           (0x07U));  //0 "DOWN" 1 "COMING_UP" 2 "GOING_DOWN" 3 "UP_FOR_DRIVE" 4 "UP_FOR_CHARGE" 5 "UP_FOR_DC_CHARGE" 6 "UP" ;
-      battery_BMS_isolationResistance =
+    case 0x212:                                                                     //530 BMS_status: 8
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      BMS_hvacPowerRequest = (rx_frame.data.u8[0] & (0x01U));
+      BMS_notEnoughPowerForDrive = ((rx_frame.data.u8[0] >> 1) & (0x01U));
+      BMS_notEnoughPowerForSupport = ((rx_frame.data.u8[0] >> 2) & (0x01U));
+      BMS_preconditionAllowed = ((rx_frame.data.u8[0] >> 3) & (0x01U));
+      BMS_updateAllowed = ((rx_frame.data.u8[0] >> 4) & (0x01U));
+      BMS_activeHeatingWorthwhile = ((rx_frame.data.u8[0] >> 5) & (0x01U));
+      BMS_cpMiaOnHvs = ((rx_frame.data.u8[0] >> 6) & (0x01U));
+      BMS_contactorState = (rx_frame.data.u8[1] &
+                            (0x07U));  //0 "SNA" 1 "OPEN" 2 "OPENING" 3 "CLOSING" 4 "CLOSED" 5 "WELDED" 6 "BLOCKED" ;
+      battery_contactor = BMS_contactorState;
+      //BMS_state = // Original code from older DBCs
+      //((rx_frame.data.u8[1] >> 3) &
+      //(0x0FU));  //0 "STANDBY" 1 "DRIVE" 2 "SUPPORT" 3 "CHARGE" 4 "FEIM" 5 "CLEAR_FAULT" 6 "FAULT" 7 "WELD" 8 "TEST" 9 "SNA" ;
+      BMS_state = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 31, 4));
+      //0 "STANDBY" 1 "DRIVE" 2 "SUPPORT" 3 "CHARGE" 4 "FEIM" 5 "CLEAR_FAULT" 6 "FAULT" 7 "WELD" 8 "TEST" 9 "SNA" 10 "BMS_DIAG";
+      BMS_hvState = (rx_frame.data.u8[2] & (0x07U));
+      //0 "DOWN" 1 "COMING_UP" 2 "GOING_DOWN" 3 "UP_FOR_DRIVE" 4 "UP_FOR_CHARGE" 5 "UP_FOR_DC_CHARGE" 6 "UP" ;
+      BMS_isolationResistance =
           ((rx_frame.data.u8[3] & (0x1FU)) << 5) |
           ((rx_frame.data.u8[2] >> 3) & (0x1FU));  //19|10@1+ (10,0) [0|0] "kOhm"/to datalayer_extended
-      battery_BMS_chargeRequest = ((rx_frame.data.u8[3] >> 5) & (0x01U));
-      battery_BMS_keepWarmRequest = ((rx_frame.data.u8[3] >> 6) & (0x01U));
-      battery_BMS_uiChargeStatus =
-          (rx_frame.data.u8[4] &
-           (0x07U));  // 0 "DISCONNECTED" 1 "NO_POWER" 2 "ABOUT_TO_CHARGE" 3 "CHARGING" 4 "CHARGE_COMPLETE" 5 "CHARGE_STOPPED" ;
-      battery_BMS_diLimpRequest = ((rx_frame.data.u8[4] >> 3) & (0x01U));
-      battery_BMS_okToShipByAir = ((rx_frame.data.u8[4] >> 4) & (0x01U));
-      battery_BMS_okToShipByLand = ((rx_frame.data.u8[4] >> 5) & (0x01U));
-      battery_BMS_chgPowerAvailable = ((rx_frame.data.u8[6] & (0x01U)) << 10) | ((rx_frame.data.u8[5] & (0xFFU)) << 2) |
-                                      ((rx_frame.data.u8[4] >> 6) & (0x03U));  //38|11@1+ (0.125,0) [0|0] "kW"
-      battery_BMS_chargeRetryCount = ((rx_frame.data.u8[6] >> 1) & (0x0FU));
-      battery_BMS_pcsPwmEnabled = ((rx_frame.data.u8[6] >> 5) & (0x01U));
-      battery_BMS_ecuLogUploadRequest = ((rx_frame.data.u8[6] >> 6) & (0x03U));
-      battery_BMS_minPackTemperature = (rx_frame.data.u8[7] & (0xFFU));  //56|8@1+ (0.5,-40) [0|0] "DegC
+      //BMS_chargeRequest = ((rx_frame.data.u8[3] >> 5) & (0x01U));
+      BMS_chargeRequest = static_cast<bool>(extract_signal_value(rx_frame.data.u8, 29, 1));
+      BMS_keepWarmRequest = ((rx_frame.data.u8[3] >> 6) & (0x01U));
+      BMS_uiChargeStatus = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 32, 3));
+      //BMS_uiChargeStatus =
+      //(rx_frame.data.u8[4] &
+      //(0x07U));
+      // 0 "DISCONNECTED" 1 "NO_POWER" 2 "ABOUT_TO_CHARGE" 3 "CHARGING" 4 "CHARGE_COMPLETE" 5 "CHARGE_STOPPED" ;
+      BMS_diLimpRequest = ((rx_frame.data.u8[4] >> 3) & (0x01U));
+      BMS_okToShipByAir = ((rx_frame.data.u8[4] >> 4) & (0x01U));
+      BMS_okToShipByLand = ((rx_frame.data.u8[4] >> 5) & (0x01U));
+      BMS_chgPowerAvailable = ((rx_frame.data.u8[6] & (0x01U)) << 10) | ((rx_frame.data.u8[5] & (0xFFU)) << 2) |
+                              ((rx_frame.data.u8[4] >> 6) & (0x03U));  //38|11@1+ (0.125,0) [0|0] "kW"
+      BMS_chargeRetryCount = ((rx_frame.data.u8[6] >> 1) & (0x0FU));
+      BMS_pcsPwmEnabled = ((rx_frame.data.u8[6] >> 5) & (0x01U));
+      BMS_ecuLogUploadRequest = ((rx_frame.data.u8[6] >> 6) & (0x03U));
+      BMS_minPackTemperature = (rx_frame.data.u8[7] & (0xFFU));  //56|8@1+ (0.5,-40) [0|0] "DegC
       break;
-    case 0x224:                                                                   //548 PCS_dcdcStatus:
-      battery_PCS_dcdcPrechargeStatus = (rx_frame.data.u8[0] & (0x03U));          //0 "IDLE" 1 "ACTIVE" 2 "FAULTED" ;
-      battery_PCS_dcdc12VSupportStatus = ((rx_frame.data.u8[0] >> 2) & (0x03U));  //0 "IDLE" 1 "ACTIVE" 2 "FAULTED"
-      battery_PCS_dcdcHvBusDischargeStatus = ((rx_frame.data.u8[0] >> 4) & (0x03U));  //0 "IDLE" 1 "ACTIVE" 2 "FAULTED"
-      battery_PCS_dcdcMainState =
+    case 0x224:  //548 PCS_dcdcStatus:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      PCS_dcdcPrechargeStatus = (rx_frame.data.u8[0] & (0x03U));              //0 "IDLE" 1 "ACTIVE" 2 "FAULTED" ;
+      PCS_dcdc12VSupportStatus = ((rx_frame.data.u8[0] >> 2) & (0x03U));      //0 "IDLE" 1 "ACTIVE" 2 "FAULTED"
+      PCS_dcdcHvBusDischargeStatus = ((rx_frame.data.u8[0] >> 4) & (0x03U));  //0 "IDLE" 1 "ACTIVE" 2 "FAULTED"
+      PCS_dcdcMainState =
           ((rx_frame.data.u8[1] & (0x03U)) << 2) |
           ((rx_frame.data.u8[0] >> 6) &
            (0x03U));  //0 "STANDBY" 1 "12V_SUPPORT_ACTIVE" 2 "PRECHARGE_STARTUP" 3 "PRECHARGE_ACTIVE" 4 "DIS_HVBUS_ACTIVE" 5 "SHUTDOWN" 6 "FAULTED" ;
-      battery_PCS_dcdcSubState =
+      PCS_dcdcSubState =
           ((rx_frame.data.u8[1] >> 2) &
            (0x1FU));  //0 "PWR_UP_INIT" 1 "STANDBY" 2 "12V_SUPPORT_ACTIVE" 3 "DIS_HVBUS" 4 "PCHG_FAST_DIS_HVBUS" 5 "PCHG_SLOW_DIS_HVBUS" 6 "PCHG_DWELL_CHARGE" 7 "PCHG_DWELL_WAIT" 8 "PCHG_DI_RECOVERY_WAIT" 9 "PCHG_ACTIVE" 10 "PCHG_FLT_FAST_DIS_HVBUS" 11 "SHUTDOWN" 12 "12V_SUPPORT_FAULTED" 13 "DIS_HVBUS_FAULTED" 14 "PCHG_FAULTED" 15 "CLEAR_FAULTS" 16 "FAULTED" 17 "NUM" ;
-      battery_PCS_dcdcFaulted = ((rx_frame.data.u8[1] >> 7) & (0x01U));
-      battery_PCS_dcdcOutputIsLimited = ((rx_frame.data.u8[3] >> 4) & (0x01U));
-      battery_PCS_dcdcMaxOutputCurrentAllowed = ((rx_frame.data.u8[5] & (0x01U)) << 11) |
-                                                ((rx_frame.data.u8[4] & (0xFFU)) << 3) |
-                                                ((rx_frame.data.u8[3] >> 5) & (0x07U));  //29|12@1+ (0.1,0) [0|0] "A"
-      battery_PCS_dcdcPrechargeRtyCnt = ((rx_frame.data.u8[5] >> 1) & (0x07U));          //Retry Count
-      battery_PCS_dcdc12VSupportRtyCnt = ((rx_frame.data.u8[5] >> 4) & (0x0FU));         //Retry Count
-      battery_PCS_dcdcDischargeRtyCnt = (rx_frame.data.u8[6] & (0x0FU));                 //Retry Count
-      battery_PCS_dcdcPwmEnableLine = ((rx_frame.data.u8[6] >> 4) & (0x01U));
-      battery_PCS_dcdcSupportingFixedLvTarget = ((rx_frame.data.u8[6] >> 5) & (0x01U));
-      battery_PCS_ecuLogUploadRequest = ((rx_frame.data.u8[6] >> 6) & (0x03U));
-      battery_PCS_dcdcPrechargeRestartCnt = (rx_frame.data.u8[7] & (0x07U));
-      battery_PCS_dcdcInitialPrechargeSubState =
+      PCS_dcdcFaulted = ((rx_frame.data.u8[1] >> 7) & (0x01U));
+      PCS_dcdcOutputIsLimited = ((rx_frame.data.u8[3] >> 4) & (0x01U));
+      PCS_dcdcMaxOutputCurrentAllowed = ((rx_frame.data.u8[5] & (0x01U)) << 11) |
+                                        ((rx_frame.data.u8[4] & (0xFFU)) << 3) |
+                                        ((rx_frame.data.u8[3] >> 5) & (0x07U));  //29|12@1+ (0.1,0) [0|0] "A"
+      PCS_dcdcPrechargeRtyCnt = ((rx_frame.data.u8[5] >> 1) & (0x07U));          //Retry Count
+      PCS_dcdc12VSupportRtyCnt = ((rx_frame.data.u8[5] >> 4) & (0x0FU));         //Retry Count
+      PCS_dcdcDischargeRtyCnt = (rx_frame.data.u8[6] & (0x0FU));                 //Retry Count
+      PCS_dcdcPwmEnableLine = ((rx_frame.data.u8[6] >> 4) & (0x01U));
+      PCS_dcdcSupportingFixedLvTarget = ((rx_frame.data.u8[6] >> 5) & (0x01U));
+      PCS_ecuLogUploadRequest = ((rx_frame.data.u8[6] >> 6) & (0x03U));
+      PCS_dcdcPrechargeRestartCnt = (rx_frame.data.u8[7] & (0x07U));
+      PCS_dcdcInitialPrechargeSubState =
           ((rx_frame.data.u8[7] >> 3) &
            (0x1FU));  //0 "PWR_UP_INIT" 1 "STANDBY" 2 "12V_SUPPORT_ACTIVE" 3 "DIS_HVBUS" 4 "PCHG_FAST_DIS_HVBUS" 5 "PCHG_SLOW_DIS_HVBUS" 6 "PCHG_DWELL_CHARGE" 7 "PCHG_DWELL_WAIT" 8 "PCHG_DI_RECOVERY_WAIT" 9 "PCHG_ACTIVE" 10 "PCHG_FLT_FAST_DIS_HVBUS" 11 "SHUTDOWN" 12 "12V_SUPPORT_FAULTED" 13 "DIS_HVBUS_FAULTED" 14 "PCHG_FAULTED" 15 "CLEAR_FAULTS" 16 "FAULTED" 17 "NUM" ;
       break;
     case 0x252:  //Limit //594 BMS_powerAvailable:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMS_maxRegenPower = ((rx_frame.data.u8[1] << 8) |
                            rx_frame.data.u8[0]);  //0|16@1+ (0.01,0) [0|655.35] "kW"  //Example 4715 * 0.01 = 47.15kW
       BMS_maxDischargePower =
@@ -859,6 +1234,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       BMS_inverterTQF = ((rx_frame.data.u8[7] >> 4) & (0x03U));
       break;
     case 0x132:  //battery amps/volts //HVBattAmpVolt
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) *
                       0.1;  //0|16@1+ (0.01,0) [0|655.35] "V"  //Example 37030mv * 0.01 = 3703dV
       battery_amps =
@@ -876,6 +1252,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x3D2:  //TotalChargeDischarge:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_total_discharge = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) |
                                  (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       //0|32@1+ (0.001,0) [0|4294970] "kWh"
@@ -883,7 +1260,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                               rx_frame.data.u8[4]);
       //32|32@1+ (0.001,0) [0|4294970] "kWh"
       break;
-    case 0x332:                            //min/max hist values //BattBrickMinMax:
+    case 0x332:  //min/max hist values //BattBrickMinMax:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & 0x03);  //BattBrickMultiplexer M : 0|2@1+ (1,0) [0|0] ""
 
       if (mux == 1)  //Cell voltages
@@ -925,6 +1303,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x312:  // 786 BMS_thermalStatus
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMS_powerDissipation =
           ((rx_frame.data.u8[1] & (0x03U)) << 8) | (rx_frame.data.u8[0] & (0xFFU));  //0|10@1+ (0.02,0) [0|0] "kW"
       BMS_flowRequest = ((rx_frame.data.u8[2] & (0x01U)) << 6) |
@@ -942,7 +1321,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       BMS_pcsNoFlowRequest = ((rx_frame.data.u8[7] >> 6) & (0x01U));  // 62|1@1+ (1,0) [0|0] ""
       BMS_noFlowRequest = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""
       break;
-    case 0x2A4:                                                                             //676 PCS_thermalStatus
+    case 0x2A4:  //676 PCS_thermalStatus
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       PCS_chgPhATemp = (rx_frame.data.u8[0] & 0xFF) | ((rx_frame.data.u8[1] & 0x07) << 8);  //0|11@1- (0.1,40) [0|0] "C"
       PCS_chgPhBTemp =
           ((rx_frame.data.u8[1] & 0xF8) >> 3) | ((rx_frame.data.u8[2] & 0x3F) << 5);  //11|11@1- (0.1,40) [0|0] "C"
@@ -953,6 +1333,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       PCS_ambientTemp = ((rx_frame.data.u8[5] & 0xF0) >> 4) | (rx_frame.data.u8[6] << 4);  //44|11@1- (0.1,40) [0|0] "C"
       break;
     case 0x2C4:  // 708 PCS_logging: not all frames are listed, just ones relating to dcdc
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & (0x1FU));
       //PCS_logMessageSelect = (rx_frame.data.u8[0] & (0x1FU));  //0|5@1+ (1,0) [0|0] ""
       if (mux == 6) {
@@ -1009,7 +1390,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                         (rx_frame.data.u8[1] & (0xFFU));  // m22 : 8|24@1+ (0.01,0) [0|0] "kWh"  X
       }
       break;
-    case 0x401:                     // Cell stats  //BrickVoltages
+    case 0x401:  // Cell stats  //BrickVoltages
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0]);  //MultiplexSelector M : 0|8@1+ (1,0) [0|0] ""
                                     //StatusFlags : 8|8@1+ (1,0) [0|0] ""
                                     //Brick0 m0 : 16|16@1+ (0.0001,0) [0|0] "V"
@@ -1044,18 +1426,18 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x2d2:  //BMSVAlimits:
-      battery_bms_min_voltage =
-          ((rx_frame.data.u8[1] << 8) |
-           rx_frame.data.u8[0]);  //0|16@1+ (0.01,0) [0|430] "V"  //Example 24148mv * 0.01 = 241.48 V
-      battery_bms_max_voltage =
-          ((rx_frame.data.u8[3] << 8) |
-           rx_frame.data.u8[2]);  //16|16@1+ (0.01,0) [0|430] "V"  //Example 40282mv * 0.01 = 402.82 V
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      BMS_min_voltage = ((rx_frame.data.u8[1] << 8) |
+                         rx_frame.data.u8[0]);  //0|16@1+ (0.01,0) [0|430] "V"  //Example 24148mv * 0.01 = 241.48 V
+      BMS_max_voltage = ((rx_frame.data.u8[3] << 8) |
+                         rx_frame.data.u8[2]);  //16|16@1+ (0.01,0) [0|430] "V"  //Example 40282mv * 0.01 = 402.82 V
       battery_max_charge_current = (((rx_frame.data.u8[5] & 0x3F) << 8) | rx_frame.data.u8[4]) *
                                    0.1;  //32|14@1+ (0.1,0) [0|1638.2] "A"  //Example 1301? * 0.1 = 130.1?
       battery_max_discharge_current = (((rx_frame.data.u8[7] & 0x3F) << 8) | rx_frame.data.u8[6]) *
                                       0.128;  //48|14@1+ (0.128,0) [0|2096.9] "A"  //Example 430? * 0.128 = 55.4?
       break;
     case 0x2b4:  //PCS_dcdcRailStatus:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_dcdcLvBusVolt =
           (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);  //0|10@1+ (0.0390625,0) [0|39.9609] "V"
       battery_dcdcHvBusVolt = (((rx_frame.data.u8[2] & 0x3F) << 6) |
@@ -1063,8 +1445,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_dcdcLvOutputCurrent =
           (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]);  //24|12@1+ (0.1,0) [0|400] "A"
       break;
-    case 0x292:                                                            //BMS_socStatus
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  //We are getting CAN messages from the BMS
+    case 0x292:  //BMS_socStatus
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_beginning_of_life =
           (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5]) * 0.1;          //40|10@1+ (0.1,0) [0|102.3] "kWh"
       battery_soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);  //0|10@1+ (0.1,0) [0|102.3] "%"
@@ -1078,6 +1460,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           (((rx_frame.data.u8[7] & 0x03) << 6) | (rx_frame.data.u8[6] & 0x3F) >> 2);  //50|8@1+ (0.4,0) [0|100] "%"
       break;
     case 0x392:  //BMS_packConfig
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & (0xFF));
       if (mux == 1) {
         battery_packConfigMultiplexer = (rx_frame.data.u8[0] & (0xff));  //0|8@1+ (1,0) [0|1] ""
@@ -1095,6 +1478,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x7AA:  //1962 HVP_debugMessage:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & (0x0FU));
       //HVP_debugMessageMultiplexer = (rx_frame.data.u8[0] & (0x0FU));  //0|4@1+ (1,0) [0|6] ""
       if (mux == 0) {
@@ -1191,6 +1575,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         HVP_shuntAsicTempStatus = ((rx_frame.data.u8[7] >> 4) & (0x03U));  //: 60|2@1+ (1,0) [0|3] ""  Receiver
       }
       break;
+    /* We ignore 0x3AA for now, as on later software/firmware this is a muxed frame so values aren't correct
     case 0x3aa:  //HVP_alertMatrix1
       battery_WatchdogReset = (rx_frame.data.u8[0] & 0x01);
       battery_PowerLossReset = ((rx_frame.data.u8[0] & 0x02) >> 1);
@@ -1243,137 +1628,327 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_packCtrCloseFailed = (rx_frame.data.u8[6] & 0x01);
       battery_fcCtrCloseFailed = ((rx_frame.data.u8[6] & 0x02) >> 1);
       battery_shuntThermistorMia = ((rx_frame.data.u8[6] & 0x04) >> 2);
-      break;
+      break;*/
     case 0x320:  //800 BMS_alertMatrix                                                //BMS_alertMatrix 800 BMS_alertMatrix: 8 VEH
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & (0x0F));
-      if (mux == 0) {                                                                     //mux0
-        battery_BMS_matrixIndex = (rx_frame.data.u8[0] & (0x0F));                         // 0|4@1+ (1,0) [0|0] ""  X
-        battery_BMS_a017_SW_Brick_OV = ((rx_frame.data.u8[2] >> 4) & (0x01));             //20|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a018_SW_Brick_UV = ((rx_frame.data.u8[2] >> 5) & (0x01));             //21|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a019_SW_Module_OT = ((rx_frame.data.u8[2] >> 6) & (0x01));            //22|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a021_SW_Dr_Limits_Regulation = (rx_frame.data.u8[3] & (0x01U));       //24|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a022_SW_Over_Current = ((rx_frame.data.u8[3] >> 1) & (0x01U));        //25|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a023_SW_Stack_OV = ((rx_frame.data.u8[3] >> 2) & (0x01U));            //26|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a024_SW_Islanded_Brick = ((rx_frame.data.u8[3] >> 3) & (0x01U));      //27|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a025_SW_PwrBalance_Anomaly = ((rx_frame.data.u8[3] >> 4) & (0x01U));  //28|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a026_SW_HFCurrent_Anomaly = ((rx_frame.data.u8[3] >> 5) & (0x01U));   //29|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a034_SW_Passive_Isolation = ((rx_frame.data.u8[4] >> 5) & (0x01U));   //37|1@1+ (1,0) [0|0] ""  X ?
-        battery_BMS_a035_SW_Isolation = ((rx_frame.data.u8[4] >> 6) & (0x01U));           //38|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a036_SW_HvpHvilFault = ((rx_frame.data.u8[4] >> 6) & (0x01U));        //39|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a037_SW_Flood_Port_Open = (rx_frame.data.u8[5] & (0x01U));            //40|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a039_SW_DC_Link_Over_Voltage = ((rx_frame.data.u8[5] >> 2) & (0x01U));  //42|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a041_SW_Power_On_Reset = ((rx_frame.data.u8[5] >> 4) & (0x01U));        //44|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a042_SW_MPU_Error = ((rx_frame.data.u8[5] >> 5) & (0x01U));             //45|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a043_SW_Watch_Dog_Reset = ((rx_frame.data.u8[5] >> 6) & (0x01U));       //46|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a044_SW_Assertion = ((rx_frame.data.u8[5] >> 7) & (0x01U));             //47|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a045_SW_Exception = (rx_frame.data.u8[6] & (0x01U));                    //48|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a046_SW_Task_Stack_Usage = ((rx_frame.data.u8[6] >> 1) & (0x01U));      //49|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a047_SW_Task_Stack_Overflow = ((rx_frame.data.u8[6] >> 2) & (0x01U));   //50|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a048_SW_Log_Upload_Request = ((rx_frame.data.u8[6] >> 3) & (0x01U));    //51|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a050_SW_Brick_Voltage_MIA = ((rx_frame.data.u8[6] >> 5) & (0x01U));     //53|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a051_SW_HVC_Vref_Bad = ((rx_frame.data.u8[6] >> 6) & (0x01U));          //54|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a052_SW_PCS_MIA = ((rx_frame.data.u8[6] >> 7) & (0x01U));               //55|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a053_SW_ThermalModel_Sanity = (rx_frame.data.u8[7] & (0x01U));          //56|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a054_SW_Ver_Supply_Fault = ((rx_frame.data.u8[7] >> 1) & (0x01U));      //57|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a059_SW_Pack_Voltage_Sensing = ((rx_frame.data.u8[7] >> 6) & (0x01U));  //62|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a060_SW_Leakage_Test_Failure = ((rx_frame.data.u8[7] >> 7) & (0x01U));  //63|1@1+ (1,0) [0|0] ""  X
+      if (mux == 0) {                                                               //mux0
+        BMS_matrixIndex = (rx_frame.data.u8[0] & (0x0F));                           // 0|4@1+ (1,0) [0|0] ""  X
+        BMS_a017_SW_Brick_OV = ((rx_frame.data.u8[2] >> 4) & (0x01));               //20|1@1+ (1,0) [0|0] ""  X
+        BMS_a018_SW_Brick_UV = ((rx_frame.data.u8[2] >> 5) & (0x01));               //21|1@1+ (1,0) [0|0] ""  X
+        BMS_a019_SW_Module_OT = ((rx_frame.data.u8[2] >> 6) & (0x01));              //22|1@1+ (1,0) [0|0] ""  X
+        BMS_a021_SW_Dr_Limits_Regulation = (rx_frame.data.u8[3] & (0x01U));         //24|1@1+ (1,0) [0|0] ""  X
+        BMS_a022_SW_Over_Current = ((rx_frame.data.u8[3] >> 1) & (0x01U));          //25|1@1+ (1,0) [0|0] ""  X
+        BMS_a023_SW_Stack_OV = ((rx_frame.data.u8[3] >> 2) & (0x01U));              //26|1@1+ (1,0) [0|0] ""  X
+        BMS_a024_SW_Islanded_Brick = ((rx_frame.data.u8[3] >> 3) & (0x01U));        //27|1@1+ (1,0) [0|0] ""  X
+        BMS_a025_SW_PwrBalance_Anomaly = ((rx_frame.data.u8[3] >> 4) & (0x01U));    //28|1@1+ (1,0) [0|0] ""  X
+        BMS_a026_SW_HFCurrent_Anomaly = ((rx_frame.data.u8[3] >> 5) & (0x01U));     //29|1@1+ (1,0) [0|0] ""  X
+        BMS_a034_SW_Passive_Isolation = ((rx_frame.data.u8[4] >> 5) & (0x01U));     //37|1@1+ (1,0) [0|0] ""  X ?
+        BMS_a035_SW_Isolation = ((rx_frame.data.u8[4] >> 6) & (0x01U));             //38|1@1+ (1,0) [0|0] ""  X
+        BMS_a036_SW_HvpHvilFault = ((rx_frame.data.u8[4] >> 6) & (0x01U));          //39|1@1+ (1,0) [0|0] ""  X
+        BMS_a037_SW_Flood_Port_Open = (rx_frame.data.u8[5] & (0x01U));              //40|1@1+ (1,0) [0|0] ""  X
+        BMS_a039_SW_DC_Link_Over_Voltage = ((rx_frame.data.u8[5] >> 2) & (0x01U));  //42|1@1+ (1,0) [0|0] ""  X
+        BMS_a041_SW_Power_On_Reset = ((rx_frame.data.u8[5] >> 4) & (0x01U));        //44|1@1+ (1,0) [0|0] ""  X
+        BMS_a042_SW_MPU_Error = ((rx_frame.data.u8[5] >> 5) & (0x01U));             //45|1@1+ (1,0) [0|0] ""  X
+        BMS_a043_SW_Watch_Dog_Reset = ((rx_frame.data.u8[5] >> 6) & (0x01U));       //46|1@1+ (1,0) [0|0] ""  X
+        BMS_a044_SW_Assertion = ((rx_frame.data.u8[5] >> 7) & (0x01U));             //47|1@1+ (1,0) [0|0] ""  X
+        BMS_a045_SW_Exception = (rx_frame.data.u8[6] & (0x01U));                    //48|1@1+ (1,0) [0|0] ""  X
+        BMS_a046_SW_Task_Stack_Usage = ((rx_frame.data.u8[6] >> 1) & (0x01U));      //49|1@1+ (1,0) [0|0] ""  X
+        BMS_a047_SW_Task_Stack_Overflow = ((rx_frame.data.u8[6] >> 2) & (0x01U));   //50|1@1+ (1,0) [0|0] ""  X
+        BMS_a048_SW_Log_Upload_Request = ((rx_frame.data.u8[6] >> 3) & (0x01U));    //51|1@1+ (1,0) [0|0] ""  X
+        BMS_a050_SW_Brick_Voltage_MIA = ((rx_frame.data.u8[6] >> 5) & (0x01U));     //53|1@1+ (1,0) [0|0] ""  X
+        BMS_a051_SW_HVC_Vref_Bad = ((rx_frame.data.u8[6] >> 6) & (0x01U));          //54|1@1+ (1,0) [0|0] ""  X
+        BMS_a052_SW_PCS_MIA = ((rx_frame.data.u8[6] >> 7) & (0x01U));               //55|1@1+ (1,0) [0|0] ""  X
+        BMS_a053_SW_ThermalModel_Sanity = (rx_frame.data.u8[7] & (0x01U));          //56|1@1+ (1,0) [0|0] ""  X
+        BMS_a054_SW_Ver_Supply_Fault = ((rx_frame.data.u8[7] >> 1) & (0x01U));      //57|1@1+ (1,0) [0|0] ""  X
+        BMS_a059_SW_Pack_Voltage_Sensing = ((rx_frame.data.u8[7] >> 6) & (0x01U));  //62|1@1+ (1,0) [0|0] ""  X
+        BMS_a060_SW_Leakage_Test_Failure = ((rx_frame.data.u8[7] >> 7) & (0x01U));  //63|1@1+ (1,0) [0|0] ""  X
       }
-      if (mux == 1) {                                                                       //mux1
-        battery_BMS_a061_robinBrickOverVoltage = ((rx_frame.data.u8[0] >> 4) & (0x01U));    //4|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a062_SW_BrickV_Imbalance = ((rx_frame.data.u8[0] >> 5) & (0x01U));      //5|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a063_SW_ChargePort_Fault = ((rx_frame.data.u8[0] >> 6) & (0x01U));      //6|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a064_SW_SOC_Imbalance = ((rx_frame.data.u8[0] >> 7) & (0x01U));         //7|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a069_SW_Low_Power = ((rx_frame.data.u8[1] >> 4) & (0x01U));             //12|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a071_SW_SM_TransCon_Not_Met = ((rx_frame.data.u8[1] >> 6) & (0x01U));   //14|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a075_SW_Chg_Disable_Failure = ((rx_frame.data.u8[2] >> 2) & (0x01U));   //18|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a076_SW_Dch_While_Charging = ((rx_frame.data.u8[2] >> 3) & (0x01U));    //19|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a077_SW_Charger_Regulation = ((rx_frame.data.u8[2] >> 4) & (0x01U));    //20|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a081_SW_Ctr_Close_Blocked = (rx_frame.data.u8[3] & (0x01U));            //24|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a082_SW_Ctr_Force_Open = ((rx_frame.data.u8[3] >> 1) & (0x01U));        //25|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a083_SW_Ctr_Close_Failure = ((rx_frame.data.u8[3] >> 2) & (0x01U));     //26|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a084_SW_Sleep_Wake_Aborted = ((rx_frame.data.u8[3] >> 3) & (0x01U));    //27|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a087_SW_Feim_Test_Blocked = ((rx_frame.data.u8[3] >> 6) & (0x01U));     //30|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a088_SW_VcFront_MIA_InDrive = ((rx_frame.data.u8[3] >> 7) & (0x01U));   //31|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a089_SW_VcFront_MIA = (rx_frame.data.u8[4] & (0x01U));                  //32|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a090_SW_Gateway_MIA = ((rx_frame.data.u8[4] >> 1) & (0x01U));           //33|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a091_SW_ChargePort_MIA = ((rx_frame.data.u8[4] >> 2) & (0x01U));        //34|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a092_SW_ChargePort_Mia_On_Hv = ((rx_frame.data.u8[4] >> 3) & (0x01U));  //35|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a094_SW_Drive_Inverter_MIA = ((rx_frame.data.u8[4] >> 5) & (0x01U));    //37|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a099_SW_BMB_Communication = ((rx_frame.data.u8[5] >> 2) & (0x01U));     //42|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a105_SW_One_Module_Tsense = (rx_frame.data.u8[6] & (0x01U));            //48|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a106_SW_All_Module_Tsense = ((rx_frame.data.u8[6] >> 1) & (0x01U));     //49|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a107_SW_Stack_Voltage_MIA = ((rx_frame.data.u8[6] >> 2) & (0x01U));     //50|1@1+ (1,0) [0|0] ""  X
+      if (mux == 1) {                                                               //mux1
+        BMS_a061_robinBrickOverVoltage = ((rx_frame.data.u8[0] >> 4) & (0x01U));    //4|1@1+ (1,0) [0|0] ""  X
+        BMS_a062_SW_BrickV_Imbalance = ((rx_frame.data.u8[0] >> 5) & (0x01U));      //5|1@1+ (1,0) [0|0] ""  X
+        BMS_a063_SW_ChargePort_Fault = ((rx_frame.data.u8[0] >> 6) & (0x01U));      //6|1@1+ (1,0) [0|0] ""  X
+        BMS_a064_SW_SOC_Imbalance = ((rx_frame.data.u8[0] >> 7) & (0x01U));         //7|1@1+ (1,0) [0|0] ""  X
+        BMS_a069_SW_Low_Power = ((rx_frame.data.u8[1] >> 4) & (0x01U));             //12|1@1+ (1,0) [0|0] ""  X
+        BMS_a071_SW_SM_TransCon_Not_Met = ((rx_frame.data.u8[1] >> 6) & (0x01U));   //14|1@1+ (1,0) [0|0] ""  X
+        BMS_a075_SW_Chg_Disable_Failure = ((rx_frame.data.u8[2] >> 2) & (0x01U));   //18|1@1+ (1,0) [0|0] ""  X
+        BMS_a076_SW_Dch_While_Charging = ((rx_frame.data.u8[2] >> 3) & (0x01U));    //19|1@1+ (1,0) [0|0] ""  X
+        BMS_a077_SW_Charger_Regulation = ((rx_frame.data.u8[2] >> 4) & (0x01U));    //20|1@1+ (1,0) [0|0] ""  X
+        BMS_a081_SW_Ctr_Close_Blocked = (rx_frame.data.u8[3] & (0x01U));            //24|1@1+ (1,0) [0|0] ""  X
+        BMS_a082_SW_Ctr_Force_Open = ((rx_frame.data.u8[3] >> 1) & (0x01U));        //25|1@1+ (1,0) [0|0] ""  X
+        BMS_a083_SW_Ctr_Close_Failure = ((rx_frame.data.u8[3] >> 2) & (0x01U));     //26|1@1+ (1,0) [0|0] ""  X
+        BMS_a084_SW_Sleep_Wake_Aborted = ((rx_frame.data.u8[3] >> 3) & (0x01U));    //27|1@1+ (1,0) [0|0] ""  X
+        BMS_a087_SW_Feim_Test_Blocked = ((rx_frame.data.u8[3] >> 6) & (0x01U));     //30|1@1+ (1,0) [0|0] ""  X
+        BMS_a088_SW_VcFront_MIA_InDrive = ((rx_frame.data.u8[3] >> 7) & (0x01U));   //31|1@1+ (1,0) [0|0] ""  X
+        BMS_a089_SW_VcFront_MIA = (rx_frame.data.u8[4] & (0x01U));                  //32|1@1+ (1,0) [0|0] ""  X
+        BMS_a090_SW_Gateway_MIA = ((rx_frame.data.u8[4] >> 1) & (0x01U));           //33|1@1+ (1,0) [0|0] ""  X
+        BMS_a091_SW_ChargePort_MIA = ((rx_frame.data.u8[4] >> 2) & (0x01U));        //34|1@1+ (1,0) [0|0] ""  X
+        BMS_a092_SW_ChargePort_Mia_On_Hv = ((rx_frame.data.u8[4] >> 3) & (0x01U));  //35|1@1+ (1,0) [0|0] ""  X
+        BMS_a094_SW_Drive_Inverter_MIA = ((rx_frame.data.u8[4] >> 5) & (0x01U));    //37|1@1+ (1,0) [0|0] ""  X
+        BMS_a099_SW_BMB_Communication = ((rx_frame.data.u8[5] >> 2) & (0x01U));     //42|1@1+ (1,0) [0|0] ""  X
+        BMS_a105_SW_One_Module_Tsense = (rx_frame.data.u8[6] & (0x01U));            //48|1@1+ (1,0) [0|0] ""  X
+        BMS_a106_SW_All_Module_Tsense = ((rx_frame.data.u8[6] >> 1) & (0x01U));     //49|1@1+ (1,0) [0|0] ""  X
+        BMS_a107_SW_Stack_Voltage_MIA = ((rx_frame.data.u8[6] >> 2) & (0x01U));     //50|1@1+ (1,0) [0|0] ""  X
       }
-      if (mux == 2) {                                                                       //mux2
-        battery_BMS_a121_SW_NVRAM_Config_Error = ((rx_frame.data.u8[0] >> 4) & (0x01U));    // 4|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a122_SW_BMS_Therm_Irrational = ((rx_frame.data.u8[0] >> 5) & (0x01U));  //5|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a123_SW_Internal_Isolation = ((rx_frame.data.u8[0] >> 6) & (0x01U));    //6|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a127_SW_shunt_SNA = ((rx_frame.data.u8[1] >> 2) & (0x01U));             //10|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a128_SW_shunt_MIA = ((rx_frame.data.u8[1] >> 3) & (0x01U));             //11|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a129_SW_VSH_Failure = ((rx_frame.data.u8[1] >> 4) & (0x01U));           //12|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a130_IO_CAN_Error = ((rx_frame.data.u8[1] >> 5) & (0x01U));             //13|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a131_Bleed_FET_Failure = ((rx_frame.data.u8[1] >> 6) & (0x01U));        //14|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a132_HW_BMB_OTP_Uncorrctbl = ((rx_frame.data.u8[1] >> 7) & (0x01U));    //15|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a134_SW_Delayed_Ctr_Off = ((rx_frame.data.u8[2] >> 1) & (0x01U));       //17|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a136_SW_Module_OT_Warning = ((rx_frame.data.u8[2] >> 3) & (0x01U));     //19|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a137_SW_Brick_UV_Warning = ((rx_frame.data.u8[2] >> 4) & (0x01U));      //20|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a138_SW_Brick_OV_Warning = ((rx_frame.data.u8[2] >> 5) & (0x01U));      //21|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a139_SW_DC_Link_V_Irrational = ((rx_frame.data.u8[2] >> 6) & (0x01U));  //22|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a141_SW_BMB_Status_Warning = (rx_frame.data.u8[3] & (0x01U));           //24|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a144_Hvp_Config_Mismatch = ((rx_frame.data.u8[3] >> 3) & (0x01U));      //27|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a145_SW_SOC_Change = ((rx_frame.data.u8[3] >> 4) & (0x01U));            //28|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a146_SW_Brick_Overdischarged = ((rx_frame.data.u8[3] >> 5) & (0x01U));  //29|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a149_SW_Missing_Config_Block = (rx_frame.data.u8[4] & (0x01U));         //32|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a151_SW_external_isolation = ((rx_frame.data.u8[4] >> 2) & (0x01U));    //34|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a156_SW_BMB_Vref_bad = ((rx_frame.data.u8[4] >> 7) & (0x01U));          //39|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a157_SW_HVP_HVS_Comms = (rx_frame.data.u8[5] & (0x01U));                //40|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a158_SW_HVP_HVI_Comms = ((rx_frame.data.u8[5] >> 1) & (0x01U));         //41|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a159_SW_HVP_ECU_Error = ((rx_frame.data.u8[5] >> 2) & (0x01U));         //42|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a161_SW_DI_Open_Request = ((rx_frame.data.u8[5] >> 4) & (0x01U));       //44|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a162_SW_No_Power_For_Support = ((rx_frame.data.u8[5] >> 5) & (0x01U));  //45|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a163_SW_Contactor_Mismatch = ((rx_frame.data.u8[5] >> 6) & (0x01U));    //46|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a164_SW_Uncontrolled_Regen = ((rx_frame.data.u8[5] >> 7) & (0x01U));    //47|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a165_SW_Pack_Partial_Weld = (rx_frame.data.u8[6] & (0x01U));            //48|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a166_SW_Pack_Full_Weld = ((rx_frame.data.u8[6] >> 1) & (0x01U));        //49|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a167_SW_FC_Partial_Weld = ((rx_frame.data.u8[6] >> 2) & (0x01U));       //50|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a168_SW_FC_Full_Weld = ((rx_frame.data.u8[6] >> 3) & (0x01U));          //51|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a169_SW_FC_Pack_Weld = ((rx_frame.data.u8[6] >> 4) & (0x01U));          //52|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a170_SW_Limp_Mode = ((rx_frame.data.u8[6] >> 5) & (0x01U));             //53|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a171_SW_Stack_Voltage_Sense = ((rx_frame.data.u8[6] >> 6) & (0x01U));   //54|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a174_SW_Charge_Failure = ((rx_frame.data.u8[7] >> 1) & (0x01U));        //57|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a176_SW_GracefulPowerOff = ((rx_frame.data.u8[7] >> 3) & (0x01U));      //59|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a179_SW_Hvp_12V_Fault = ((rx_frame.data.u8[7] >> 6) & (0x01U));         //62|1@1+ (1,0) [0|0] ""  X
-        battery_BMS_a180_SW_ECU_reset_blocked = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""  X
-      }
-      break;
-    case 0x72A:  //1834 ID72ABMS_serialNumber
-      //Work in progress to display BMS Serial Number in ASCII: 00 54 47 33 32 31 32 30 (mux 0) .TG32120 + 01 32 30 30 33 41 48 58 (mux 1) .2003AHX = TG321202003AHX
-      if (rx_frame.data.u8[0] == 0x00) {
-        BMS_SerialNumber[0] = rx_frame.data.u8[1];
-        BMS_SerialNumber[1] = rx_frame.data.u8[2];
-        BMS_SerialNumber[2] = rx_frame.data.u8[3];
-        BMS_SerialNumber[3] = rx_frame.data.u8[4];
-        BMS_SerialNumber[4] = rx_frame.data.u8[5];
-        BMS_SerialNumber[5] = rx_frame.data.u8[6];
-        BMS_SerialNumber[6] = rx_frame.data.u8[7];
-      }
-      if (rx_frame.data.u8[0] == 0x01) {
-        BMS_SerialNumber[7] = rx_frame.data.u8[1];
-        BMS_SerialNumber[8] = rx_frame.data.u8[2];
-        BMS_SerialNumber[9] = rx_frame.data.u8[3];
-        BMS_SerialNumber[10] = rx_frame.data.u8[4];
-        BMS_SerialNumber[11] = rx_frame.data.u8[5];
-        BMS_SerialNumber[12] = rx_frame.data.u8[6];
-        BMS_SerialNumber[13] = rx_frame.data.u8[7];
+      if (mux == 2) {                                                               //mux2
+        BMS_a121_SW_NVRAM_Config_Error = ((rx_frame.data.u8[0] >> 4) & (0x01U));    // 4|1@1+ (1,0) [0|0] ""  X
+        BMS_a122_SW_BMS_Therm_Irrational = ((rx_frame.data.u8[0] >> 5) & (0x01U));  //5|1@1+ (1,0) [0|0] ""  X
+        BMS_a123_SW_Internal_Isolation = ((rx_frame.data.u8[0] >> 6) & (0x01U));    //6|1@1+ (1,0) [0|0] ""  X
+        BMS_a127_SW_shunt_SNA = ((rx_frame.data.u8[1] >> 2) & (0x01U));             //10|1@1+ (1,0) [0|0] ""  X
+        BMS_a128_SW_shunt_MIA = ((rx_frame.data.u8[1] >> 3) & (0x01U));             //11|1@1+ (1,0) [0|0] ""  X
+        BMS_a129_SW_VSH_Failure = ((rx_frame.data.u8[1] >> 4) & (0x01U));           //12|1@1+ (1,0) [0|0] ""  X
+        BMS_a130_IO_CAN_Error = ((rx_frame.data.u8[1] >> 5) & (0x01U));             //13|1@1+ (1,0) [0|0] ""  X
+        BMS_a131_Bleed_FET_Failure = ((rx_frame.data.u8[1] >> 6) & (0x01U));        //14|1@1+ (1,0) [0|0] ""  X
+        BMS_a132_HW_BMB_OTP_Uncorrctbl = ((rx_frame.data.u8[1] >> 7) & (0x01U));    //15|1@1+ (1,0) [0|0] ""  X
+        BMS_a134_SW_Delayed_Ctr_Off = ((rx_frame.data.u8[2] >> 1) & (0x01U));       //17|1@1+ (1,0) [0|0] ""  X
+        BMS_a136_SW_Module_OT_Warning = ((rx_frame.data.u8[2] >> 3) & (0x01U));     //19|1@1+ (1,0) [0|0] ""  X
+        BMS_a137_SW_Brick_UV_Warning = ((rx_frame.data.u8[2] >> 4) & (0x01U));      //20|1@1+ (1,0) [0|0] ""  X
+        BMS_a138_SW_Brick_OV_Warning = ((rx_frame.data.u8[2] >> 5) & (0x01U));      //21|1@1+ (1,0) [0|0] ""  X
+        BMS_a139_SW_DC_Link_V_Irrational = ((rx_frame.data.u8[2] >> 6) & (0x01U));  //22|1@1+ (1,0) [0|0] ""  X
+        BMS_a141_SW_BMB_Status_Warning = (rx_frame.data.u8[3] & (0x01U));           //24|1@1+ (1,0) [0|0] ""  X
+        BMS_a144_Hvp_Config_Mismatch = ((rx_frame.data.u8[3] >> 3) & (0x01U));      //27|1@1+ (1,0) [0|0] ""  X
+        BMS_a145_SW_SOC_Change = ((rx_frame.data.u8[3] >> 4) & (0x01U));            //28|1@1+ (1,0) [0|0] ""  X
+        BMS_a146_SW_Brick_Overdischarged = ((rx_frame.data.u8[3] >> 5) & (0x01U));  //29|1@1+ (1,0) [0|0] ""  X
+        BMS_a149_SW_Missing_Config_Block = (rx_frame.data.u8[4] & (0x01U));         //32|1@1+ (1,0) [0|0] ""  X
+        BMS_a151_SW_external_isolation = ((rx_frame.data.u8[4] >> 2) & (0x01U));    //34|1@1+ (1,0) [0|0] ""  X
+        BMS_a156_SW_BMB_Vref_bad = ((rx_frame.data.u8[4] >> 7) & (0x01U));          //39|1@1+ (1,0) [0|0] ""  X
+        BMS_a157_SW_HVP_HVS_Comms = (rx_frame.data.u8[5] & (0x01U));                //40|1@1+ (1,0) [0|0] ""  X
+        BMS_a158_SW_HVP_HVI_Comms = ((rx_frame.data.u8[5] >> 1) & (0x01U));         //41|1@1+ (1,0) [0|0] ""  X
+        BMS_a159_SW_HVP_ECU_Error = ((rx_frame.data.u8[5] >> 2) & (0x01U));         //42|1@1+ (1,0) [0|0] ""  X
+        BMS_a161_SW_DI_Open_Request = ((rx_frame.data.u8[5] >> 4) & (0x01U));       //44|1@1+ (1,0) [0|0] ""  X
+        BMS_a162_SW_No_Power_For_Support = ((rx_frame.data.u8[5] >> 5) & (0x01U));  //45|1@1+ (1,0) [0|0] ""  X
+        BMS_a163_SW_Contactor_Mismatch = ((rx_frame.data.u8[5] >> 6) & (0x01U));    //46|1@1+ (1,0) [0|0] ""  X
+        BMS_a164_SW_Uncontrolled_Regen = ((rx_frame.data.u8[5] >> 7) & (0x01U));    //47|1@1+ (1,0) [0|0] ""  X
+        BMS_a165_SW_Pack_Partial_Weld = (rx_frame.data.u8[6] & (0x01U));            //48|1@1+ (1,0) [0|0] ""  X
+        BMS_a166_SW_Pack_Full_Weld = ((rx_frame.data.u8[6] >> 1) & (0x01U));        //49|1@1+ (1,0) [0|0] ""  X
+        BMS_a167_SW_FC_Partial_Weld = ((rx_frame.data.u8[6] >> 2) & (0x01U));       //50|1@1+ (1,0) [0|0] ""  X
+        BMS_a168_SW_FC_Full_Weld = ((rx_frame.data.u8[6] >> 3) & (0x01U));          //51|1@1+ (1,0) [0|0] ""  X
+        BMS_a169_SW_FC_Pack_Weld = ((rx_frame.data.u8[6] >> 4) & (0x01U));          //52|1@1+ (1,0) [0|0] ""  X
+        BMS_a170_SW_Limp_Mode = ((rx_frame.data.u8[6] >> 5) & (0x01U));             //53|1@1+ (1,0) [0|0] ""  X
+        BMS_a171_SW_Stack_Voltage_Sense = ((rx_frame.data.u8[6] >> 6) & (0x01U));   //54|1@1+ (1,0) [0|0] ""  X
+        BMS_a174_SW_Charge_Failure = ((rx_frame.data.u8[7] >> 1) & (0x01U));        //57|1@1+ (1,0) [0|0] ""  X
+        BMS_a176_SW_GracefulPowerOff = ((rx_frame.data.u8[7] >> 3) & (0x01U));      //59|1@1+ (1,0) [0|0] ""  X
+        BMS_a179_SW_Hvp_12V_Fault = ((rx_frame.data.u8[7] >> 6) & (0x01U));         //62|1@1+ (1,0) [0|0] ""  X
+        BMS_a180_SW_ECU_reset_blocked = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""  X
       }
       break;
-    case 0x612:  // CAN UDS responses for BMS ECU reset
-      if (memcmp(rx_frame.data.u8, "\x02\x67\x06\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
-        logging.println("CAN UDS response: ECU unlocked");
-      } else if (memcmp(rx_frame.data.u8, "\x03\x7F\x11\x78\xAA\xAA\xAA\xAA", 8) == 0) {
-        logging.println("CAN UDS response: ECU reset request successful but ECU busy, response pending");
-      } else if (memcmp(rx_frame.data.u8, "\x02\x51\x01\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
-        logging.println("CAN UDS response: ECU reset positive response, 1 second downtime");
+    case 0x72A:  //BMS_serialNumber
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Pack serial number in ASCII: 00 54 47 33 32 31 32 30 (mux 0) .TG32120 + 01 32 30 30 33 41 48 58 (mux 1) .2003AHX = TG321202003AHX
+      if (rx_frame.data.u8[0] == 0x00 && !parsed_battery_serialNumber) {  // Serial number 1-7
+        battery_serialNumber[0] = rx_frame.data.u8[1];
+        battery_serialNumber[1] = rx_frame.data.u8[2];
+        battery_serialNumber[2] = rx_frame.data.u8[3];
+        battery_serialNumber[3] = rx_frame.data.u8[4];
+        battery_serialNumber[4] = rx_frame.data.u8[5];
+        battery_serialNumber[5] = rx_frame.data.u8[6];
+        battery_serialNumber[6] = rx_frame.data.u8[7];
+      }
+      if (rx_frame.data.u8[0] == 0x01 && !parsed_battery_serialNumber) {  // Serial number 8-14
+        battery_serialNumber[7] = rx_frame.data.u8[1];
+        battery_serialNumber[8] = rx_frame.data.u8[2];
+        battery_serialNumber[9] = rx_frame.data.u8[3];
+        battery_serialNumber[10] = rx_frame.data.u8[4];
+        battery_serialNumber[11] = rx_frame.data.u8[5];
+        battery_serialNumber[12] = rx_frame.data.u8[6];
+        battery_serialNumber[13] = rx_frame.data.u8[7];
+      }
+      if (battery_serialNumber[6] != 0 && battery_serialNumber[12] != 0 &&
+          !parsed_battery_serialNumber) {  // Serial number complete
+        //Manufacture year
+        char yearStr[5];  // Full year string (including the "20" prefix)
+        snprintf(yearStr, sizeof(yearStr), "20%c%c", battery_serialNumber[3], battery_serialNumber[4]);
+        int year = atoi(yearStr);
+        //Manufacture day (Julian calendar)
+        char dayStr[4];
+        snprintf(dayStr, sizeof(dayStr), "%c%c%c", battery_serialNumber[5], battery_serialNumber[6],
+                 battery_serialNumber[7]);
+        int day = atoi(dayStr);
+        battery_manufactureDate = dayOfYearToDate(year, day);
+        parsed_battery_serialNumber = true;
+      }
+      break;
+    case 0x300:  //BMS_info
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Display internal BMS info and other build/version data
+      if (rx_frame.data.u8[0] == 0x0A) {  // Mux 10: BUILD_HWID_COMPONENTID
+        if (BMS_info_buildConfigId == 0) {
+          BMS_info_buildConfigId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 16, 16));
+        }
+        if (BMS_info_hardwareId == 0) {
+          BMS_info_hardwareId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 32, 16));
+        }
+        if (BMS_info_componentId == 0) {
+          BMS_info_componentId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 48, 16));
+        }
+      }
+      /*
+      if (rx_frame.data.u8[0] == 0x0B) { // Mux 11: PCBAID_ASSYID_USAGEID
+        if (BMS_info_pcbaId == 0) {BMS_info_pcbaId = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 16, 8));}
+        if (BMS_info_assemblyId == 0) {BMS_info_assemblyId = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 24, 8));}
+        if (BMS_info_usageId == 0) {BMS_info_usageId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 32, 16));}
+        if (BMS_info_subUsageId == 0) {BMS_info_subUsageId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 48, 16));}
+      }
+      if (rx_frame.data.u8[0] == 0x0D) { // Mux 13: APP_CRC
+        if (BMS_info_platformType == 0) {BMS_info_platformType = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 8, 8));}
+        if (BMS_info_appCrc == 0) {BMS_info_appCrc = static_cast<uint32_t>(extract_signal_value(rx_frame.data.u8, 32, 32));}
+      }
+      if (rx_frame.data.u8[0] == 0x12) { // Mux 18: BOOTLOADER_GITHASH
+        if (BMS_info_bootGitHash == 0) {BMS_info_bootGitHash = static_cast<uint64_t>(extract_signal_value(rx_frame.data.u8, 10, 54));}
+      }
+      if (rx_frame.data.u8[0] == 0x14) { // Mux 20: UDS_PROTOCOL_BOOTCRC
+        if (BMS_info_bootUdsProtoVersion == 0) {BMS_info_bootUdsProtoVersion = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 8, 8));}
+        if (BMS_info_bootCrc == 0) {BMS_info_bootCrc = static_cast<uint32_t>(extract_signal_value(rx_frame.data.u8, 32, 32));}
+      }
+      */
+      break;
+    case 0x3C4:  //PCS_info
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Display internal PCS info and other build/version data
+      if (rx_frame.data.u8[0] == 0x0A) {  // Mux 10: BUILD_HWID_COMPONENTID
+        if (PCS_info_buildConfigId == 0) {
+          PCS_info_buildConfigId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 16, 16));
+        }
+        if (PCS_info_hardwareId == 0) {
+          PCS_info_hardwareId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 32, 16));
+        }
+        if (PCS_info_componentId == 0) {
+          PCS_info_componentId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 48, 16));
+        }
+      }
+      /*
+      if (rx_frame.data.u8[0] == 0x0B) { // Mux 11: PCBAID_ASSYID_USAGEID
+        if (PCS_info_pcbaId == 0) {PCS_info_pcbaId = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 16, 8));}
+        if (PCS_info_assemblyId == 0) {PCS_info_assemblyId = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 24, 8));}
+        if (PCS_info_usageId == 0) {PCS_info_usageId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 32, 16));}
+        if (PCS_info_subUsageId == 0) {PCS_info_subUsageId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 48, 16));}
+      }
+      if (rx_frame.data.u8[0] == 0x0D) { // Mux 13: APP_CRC
+        PCS_info_platformType = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 8, 8));
+        PCS_info_appCrc = static_cast<uint32_t>(extract_signal_value(rx_frame.data.u8, 32, 32));
+      }
+      if (rx_frame.data.u8[0] == 0x10) { // Mux 16: SUBCOMPONENT
+        PCS_info_cpu2AppCrc = static_cast<uint32_t>(extract_signal_value(rx_frame.data.u8, 32, 32));
+      }
+      if (rx_frame.data.u8[0] == 0x12) { // Mux 18: BOOTLOADER_GITHASH
+        PCS_info_bootGitHash = static_cast<uint64_t>(extract_signal_value(rx_frame.data.u8, 10, 54));
+      }
+      if (rx_frame.data.u8[0] == 0x14) { // Mux 20: UDS_PROTOCOL_BOOTCRC
+        PCS_info_bootUdsProtoVersion = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 8, 8));
+        PCS_info_bootCrc = static_cast<uint32_t>(extract_signal_value(rx_frame.data.u8, 32, 32));
+      }
+      */
+      //PCS Part Number in ASCII
+      if (rx_frame.data.u8[0] == 0x19 && !parsed_PCS_partNumber) {  // Part number 1-7
+        PCS_partNumber[0] = rx_frame.data.u8[1];
+        PCS_partNumber[1] = rx_frame.data.u8[2];
+        PCS_partNumber[2] = rx_frame.data.u8[3];
+        PCS_partNumber[3] = rx_frame.data.u8[4];
+        PCS_partNumber[4] = rx_frame.data.u8[5];
+        PCS_partNumber[5] = rx_frame.data.u8[6];
+        PCS_partNumber[6] = rx_frame.data.u8[7];
+      }
+      if (rx_frame.data.u8[0] == 0x1A && !parsed_PCS_partNumber) {  // Part number 8-14
+        PCS_partNumber[7] = rx_frame.data.u8[1];
+        PCS_partNumber[8] = rx_frame.data.u8[2];
+        PCS_partNumber[9] = rx_frame.data.u8[3];
+        PCS_partNumber[10] = rx_frame.data.u8[4];
+        PCS_partNumber[11] = rx_frame.data.u8[5];
+        PCS_partNumber[12] = rx_frame.data.u8[6];
+      }
+      if (PCS_partNumber[6] != 0 && PCS_partNumber[11] != 0) {
+        parsed_PCS_partNumber = true;
+      }
+      break;
+    case 0x310:  //HVP_info
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Display internal HVP info and other build/version data
+      if (rx_frame.data.u8[0] == 0x0A) {  // Mux 10: BUILD_HWID_COMPONENTID
+        if (HVP_info_buildConfigId == 0) {
+          HVP_info_buildConfigId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 16, 16));
+        }
+        if (HVP_info_hardwareId == 0) {
+          HVP_info_hardwareId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 32, 16));
+        }
+        if (HVP_info_componentId == 0) {
+          HVP_info_componentId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 48, 16));
+        }
+      }
+      /*
+      if (rx_frame.data.u8[0] == 0x0B) { // Mux 11: PCBAID_ASSYID_USAGEID
+        if (HVP_info_pcbaId == 0) {HVP_info_pcbaId = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 16, 8));}
+        if (HVP_info_assemblyId == 0) {HVP_info_assemblyId = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 24, 8));}
+        if (HVP_info_usageId == 0) {HVP_info_usageId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 32, 16));}
+        if (HVP_info_subUsageId == 0) {HVP_info_subUsageId = static_cast<uint16_t>(extract_signal_value(rx_frame.data.u8, 48, 16));}
+      }
+      if (rx_frame.data.u8[0] == 0x0D) { // Mux 13: APP_CRC
+        HVP_info_platformType = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 8, 8));
+        HVP_info_appCrc = static_cast<uint32_t>(extract_signal_value(rx_frame.data.u8, 32, 32));
+      }
+      if (rx_frame.data.u8[0] == 0x12) { // Mux 18: BOOTLOADER_GITHASH
+        HVP_info_bootGitHash = static_cast<uint64_t>(extract_signal_value(rx_frame.data.u8, 10, 54));
+      }
+      if (rx_frame.data.u8[0] == 0x14) { // Mux 20: UDS_PROTOCOL_BOOTCRC
+        HVP_info_bootUdsProtoVersion = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 8, 8));
+        HVP_info_bootCrc = static_cast<uint32_t>(extract_signal_value(rx_frame.data.u8, 32, 32));
+      }
+      */
+      break;
+    case 0x612:  // CAN UDSs for BMS
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //BMS Query
+      if (stateMachineBMSQuery != 0xFF && stateMachineBMSReset == 0xFF) {
+        if (memcmp(rx_frame.data.u8, "\x02\x50\x03\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
+          //Received initial response, proceed to actual query
+          logging.println("CAN UDS: Received BMS query initial handshake reply");
+          stateMachineBMSQuery = 1;
+          break;
+        }
+        if (memcmp(&rx_frame.data.u8[0], "\x10", 1) == 0) {
+          //Received first data frame
+          battery_partNumber[0] = rx_frame.data.u8[5];
+          battery_partNumber[1] = rx_frame.data.u8[6];
+          battery_partNumber[2] = rx_frame.data.u8[7];
+          logging.println("CAN UDS: Received BMS query data frame");
+          stateMachineBMSQuery = 2;
+          break;
+        }
+        if (memcmp(&rx_frame.data.u8[0], "\x21", 1) == 0) {
+          //Second part of part number after flow control
+          battery_partNumber[3] = rx_frame.data.u8[1];
+          battery_partNumber[4] = rx_frame.data.u8[2];
+          battery_partNumber[5] = rx_frame.data.u8[3];
+          battery_partNumber[6] = rx_frame.data.u8[4];
+          battery_partNumber[7] = rx_frame.data.u8[5];
+          battery_partNumber[8] = rx_frame.data.u8[6];
+          battery_partNumber[9] = rx_frame.data.u8[7];
+          logging.println("CAN UDS: Received BMS query second data frame");
+          break;
+        }
+        if (memcmp(&rx_frame.data.u8[0], "\x22", 1) == 0) {
+          //Final part of part number
+          battery_partNumber[10] = rx_frame.data.u8[1];
+          battery_partNumber[11] = rx_frame.data.u8[2];
+          logging.println("CAN UDS: Received BMS query final data frame");
+          break;
+        }
+        if (memcmp(rx_frame.data.u8, "\x23\x00\x00\x00\xAA\xAA\xAA\xAA", 8) == 0) {
+          //Received final frame
+          logging.println("CAN UDS: Received BMS query termination frame");
+          parsed_battery_partNumber = true;
+          stateMachineBMSQuery = 0xFF;
+          break;
+        }
+      }
+      //BMS Reset
+      if (stateMachineBMSQuery == 0xFF) {  // Make sure this is reset request not query
+        if (memcmp(rx_frame.data.u8, "\x02\x67\x06\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
+          logging.println("CAN UDS: ECU unlocked");
+        } else if (memcmp(rx_frame.data.u8, "\x03\x7F\x11\x78\xAA\xAA\xAA\xAA", 8) == 0) {
+          logging.println("CAN UDS: ECU reset request successful but ECU busy, response pending");
+        } else if (memcmp(rx_frame.data.u8, "\x02\x51\x01\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
+          logging.println("CAN UDS: ECU reset positive response, 1 second downtime");
+        }
       }
       break;
     default:
@@ -1416,26 +1991,18 @@ int index_1CF = 0;
 int index_118 = 0;
 
 void TeslaBattery::transmit_can(unsigned long currentMillis) {
-  /*From bielec: My fist 221 message, to close the contactors is 0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96 and then, 
-to cause "hv_up_for_drive" I send an additional 221 message 0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA  so 
-two 221 messages are being continuously transmitted.   When I want to shut down, I stop the second message and only send 
-the first, for a few cycles, then stop all  messages which causes the contactor to open. */
 
-  if (!cellvoltagesRead) {
-    return;  //All cellvoltages not read yet, do not proceed with contactor closing
-  }
-
-  if (operate_contactors) {
+  if (user_selected_tesla_digital_HVIL) {  //Special S/X? mode for 2024+ batteries
     if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
       if (currentMillis - lastSend1CF >= 10) {
-        transmit_can_frame(&can_msg_1CF[index_1CF], can_config.battery);
+        transmit_can_frame(&can_msg_1CF[index_1CF]);
 
         index_1CF = (index_1CF + 1) % 8;
         lastSend1CF = currentMillis;
       }
 
       if (currentMillis - lastSend118 >= 10) {
-        transmit_can_frame(&can_msg_118[index_118], can_config.battery);
+        transmit_can_frame(&can_msg_118[index_118]);
 
         index_118 = (index_118 + 1) % 16;
         lastSend118 = currentMillis;
@@ -1446,80 +2013,238 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     }
   }
 
-  //Send 10ms message
+  //Send 10ms messages
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
-    transmit_can_frame(&TESLA_129, can_config.battery);
+    //0x118 DI_systemStatus
+    transmit_can_frame(&TESLA_118);
+
+    //0x2E1 VCFRONT_status
+    switch (muxNumber_TESLA_2E1) {
+      case 0:
+        transmit_can_frame(&TESLA_2E1_VEHICLE_AND_RAILS);
+        muxNumber_TESLA_2E1++;
+        break;
+      case 1:
+        transmit_can_frame(&TESLA_2E1_HOMELINK);
+        muxNumber_TESLA_2E1++;
+        break;
+      case 2:
+        transmit_can_frame(&TESLA_2E1_REFRIGERANT_SYSTEM);
+        muxNumber_TESLA_2E1++;
+        break;
+      case 3:
+        transmit_can_frame(&TESLA_2E1_LV_BATTERY_DEBUG);
+        muxNumber_TESLA_2E1++;
+        break;
+      case 4:
+        transmit_can_frame(&TESLA_2E1_MUX_5);
+        muxNumber_TESLA_2E1++;
+        break;
+      case 5:
+        transmit_can_frame(&TESLA_2E1_BODY_CONTROLS);
+        muxNumber_TESLA_2E1 = 0;
+        break;
+      default:
+        break;
+    }
+    //Generate next frames
+    generateFrameCounterChecksum(TESLA_118, 8, 4, 0, 8);
   }
 
-  //Send 50ms message
+  //Send 50ms messages
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     previousMillis50 = currentMillis;
 
-    if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
-        (datalayer.battery.status.bms_status != FAULT)) {
-      sendContactorClosingMessagesStill = 300;
-      transmit_can_frame(&TESLA_221_1, can_config.battery);
-      transmit_can_frame(&TESLA_221_2, can_config.battery);
-    } else {  // Faulted state, or inverter blocks contactor closing
-      if (sendContactorClosingMessagesStill > 0) {
-        transmit_can_frame(&TESLA_221_1, can_config.battery);
-        sendContactorClosingMessagesStill--;
+    //0x221 VCFRONT_LVPowerState
+    if (vehicleState == 1) {  // Drive
+      switch (muxNumber_TESLA_221) {
+        case 0:
+          generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_DRIVE_Mux0);
+          muxNumber_TESLA_221++;
+          break;
+        case 1:
+          generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_DRIVE_Mux1);
+          muxNumber_TESLA_221 = 0;
+          break;
+        default:
+          break;
       }
+      //Generate next new frame
+      frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
     }
+    if (vehicleState == 2) {  // Accessory
+      switch (muxNumber_TESLA_221) {
+        case 0:
+          generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_ACCESSORY_Mux0);
+          muxNumber_TESLA_221++;
+          break;
+        case 1:
+          generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_ACCESSORY_Mux1);
+          muxNumber_TESLA_221 = 0;
+          break;
+        default:
+          break;
+      }
+      //Generate next new frame
+      frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
+    }
+    if (vehicleState == 3) {  // Going down
+      switch (muxNumber_TESLA_221) {
+        case 0:
+          generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_GOING_DOWN_Mux0);
+          muxNumber_TESLA_221++;
+          break;
+        case 1:
+          generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_GOING_DOWN_Mux1);
+          muxNumber_TESLA_221 = 0;
+          break;
+        default:
+          break;
+      }
+      //Generate next new frame
+      frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
+    }
+    if (vehicleState == 0) {  // Off
+      switch (muxNumber_TESLA_221) {
+        case 0:
+          generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_OFF_Mux0);
+          muxNumber_TESLA_221++;
+          break;
+        case 1:
+          generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+          transmit_can_frame(&TESLA_221_OFF_Mux1);
+          muxNumber_TESLA_221 = 0;
+          break;
+        default:
+          break;
+      }
+      //Generate next new frame
+      frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
+    }
+
+    //0x3C2 VCLEFT_switchStatus
+    switch (muxNumber_TESLA_3C2) {
+      case 0:
+        transmit_can_frame(&TESLA_3C2_Mux0);
+        muxNumber_TESLA_3C2++;
+        break;
+      case 1:
+        transmit_can_frame(&TESLA_3C2_Mux1);
+        muxNumber_TESLA_3C2 = 0;
+        break;
+      default:
+        break;
+    }
+
+    //0x39D IBST_status
+    transmit_can_frame(&TESLA_39D);
+
+    if (battery_contactor == 4) {  // Contactors closed
+
+      // Frames to be sent only when contactors closed
+
+      //0x3A1 VCFRONT_vehicleStatus, critical otherwise VCFRONT_MIA triggered
+      transmit_can_frame(&TESLA_3A1[frameCounter_TESLA_3A1]);
+      frameCounter_TESLA_3A1 = (frameCounter_TESLA_3A1 + 1) % 16;
+    }
+
+    //Generate next frame
+    generateFrameCounterChecksum(TESLA_39D, 8, 4, 0, 8);
   }
 
-  //Send 100ms message
+  //Send 100ms messages
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    transmit_can_frame(&TESLA_129, can_config.battery);
-    transmit_can_frame(&TESLA_241, can_config.battery);
-    transmit_can_frame(&TESLA_242, can_config.battery);
-    if (alternate243) {
-      transmit_can_frame(&TESLA_243_1, can_config.battery);
-      alternate243 = false;
-    } else {
-      transmit_can_frame(&TESLA_243_2, can_config.battery);
-      alternate243 = true;
+    //0x102 VCLEFT_doorStatus, static
+    transmit_can_frame(&TESLA_102);
+    //0x103 VCRIGHT_doorStatus, static
+    transmit_can_frame(&TESLA_103);
+    //0x229 SCCM_rightStalk
+    transmit_can_frame(&TESLA_229);
+    //0x241 VCFRONT_coolant, static
+    transmit_can_frame(&TESLA_241);
+    //0x2D1 VCFRONT_okToUseHighPower, static
+    transmit_can_frame(&TESLA_2D1);
+    //0x2A8 CMPD_state
+    transmit_can_frame(&TESLA_2A8);
+    //0x2E8 EPBR_status
+    transmit_can_frame(&TESLA_2E8);
+    //0x7FF GTW_carConfig
+    switch (muxNumber_TESLA_7FF) {
+      case 0:
+        transmit_can_frame(&TESLA_7FF_Mux1);
+        muxNumber_TESLA_7FF++;
+        break;
+      case 1:
+        transmit_can_frame(&TESLA_7FF_Mux2);
+        muxNumber_TESLA_7FF++;
+        break;
+      case 2:
+        transmit_can_frame(&TESLA_7FF_Mux3);
+        muxNumber_TESLA_7FF++;
+        break;
+      case 3:
+        transmit_can_frame(&TESLA_7FF_Mux4);
+        muxNumber_TESLA_7FF++;
+        break;
+      case 4:
+        transmit_can_frame(&TESLA_7FF_Mux5);
+        muxNumber_TESLA_7FF = 0;
+        break;
+      default:
+        break;
     }
 
+    //Generate next frames
+    generateTESLA_229(TESLA_229);
+    generateFrameCounterChecksum(TESLA_2A8, 52, 4, 56, 8);
+    generateFrameCounterChecksum(TESLA_2E8, 52, 4, 56, 8);
+
     if (stateMachineClearIsolationFault != 0xFF) {
-      //This implementation should be rewritten to actually replying to the UDS replied sent by the BMS
+      //This implementation should be rewritten to actually reply to the UDS responses sent by the BMS
       //While this may work, it is not the correct way to implement this clearing logic
       switch (stateMachineClearIsolationFault) {
         case 0:
           TESLA_602.data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           stateMachineClearIsolationFault = 1;
           break;
         case 1:
           TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           // BMS should reply 02 50 C0 FF FF FF FF FF
           stateMachineClearIsolationFault = 2;
           break;
         case 2:
           TESLA_602.data = {0x10, 0x12, 0x27, 0x06, 0x35, 0x34, 0x37, 0x36};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           // BMS should reply 7E FF FF FF FF FF FF
           stateMachineClearIsolationFault = 3;
           break;
         case 3:
           TESLA_602.data = {0x21, 0x31, 0x30, 0x33, 0x32, 0x3D, 0x3C, 0x3F};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           stateMachineClearIsolationFault = 4;
           break;
         case 4:
           TESLA_602.data = {0x22, 0x3E, 0x39, 0x38, 0x3B, 0x3A, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           //Should generate a CAN UDS log message indicating ECU unlocked
           stateMachineClearIsolationFault = 5;
           break;
         case 5:
           TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x0A, 0x00, 0x00, 0x00};
-          transmit_can_frame(&TESLA_602, can_config.battery);
+          transmit_can_frame(&TESLA_602);
           stateMachineClearIsolationFault = 0xFF;
           break;
         default:
@@ -1527,59 +2252,168 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
           stateMachineClearIsolationFault = 0xFF;
           break;
       }
-      if (stateMachineBMSReset != 0xFF) {
-        //This implementation should be rewritten to actually replying to the UDS replied sent by the BMS
-        //While this may work, it is not the correct way to implement this clearing logic
-        switch (stateMachineBMSReset) {
-          case 0:
-            TESLA_602.data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            stateMachineBMSReset = 1;
-            break;
-          case 1:
-            TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            stateMachineBMSReset = 2;
-            break;
-          case 2:
-            TESLA_602.data = {0x10, 0x12, 0x27, 0x06, 0x35, 0x34, 0x37, 0x36};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            stateMachineBMSReset = 3;
-            break;
-          case 3:
-            TESLA_602.data = {0x21, 0x31, 0x30, 0x33, 0x32, 0x3D, 0x3C, 0x3F};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            stateMachineBMSReset = 4;
-            break;
-          case 4:
-            TESLA_602.data = {0x22, 0x3E, 0x39, 0x38, 0x3B, 0x3A, 0x00, 0x00};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            //Should generate a CAN UDS log message indicating ECU unlocked
-            stateMachineBMSReset = 5;
-            break;
-          case 5:
-            TESLA_602.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            stateMachineBMSReset = 6;
-            break;
-          case 6:
-            TESLA_602.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            stateMachineBMSReset = 7;
-            break;
-          case 7:
-            TESLA_602.data = {0x02, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
-            transmit_can_frame(&TESLA_602, can_config.battery);
-            //Should generate a CAN UDS log message(s) indicating ECU has reset
-            stateMachineBMSReset = 0xFF;
-            break;
-          default:
-            //Something went wrong. Reset all and cancel
-            stateMachineBMSReset = 0xFF;
-            break;
-        }
+    }
+    if (stateMachineBMSReset != 0xFF) {
+      //This implementation should be rewritten to actually reply to the UDS responses sent by the BMS
+      //While this may work, it is not the correct way to implement this reset logic
+      switch (stateMachineBMSReset) {
+        case 0:
+          TESLA_602.data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          stateMachineBMSReset = 1;
+          break;
+        case 1:
+          TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          stateMachineBMSReset = 2;
+          break;
+        case 2:
+          TESLA_602.data = {0x10, 0x12, 0x27, 0x06, 0x35, 0x34, 0x37, 0x36};
+          transmit_can_frame(&TESLA_602);
+          stateMachineBMSReset = 3;
+          break;
+        case 3:
+          TESLA_602.data = {0x21, 0x31, 0x30, 0x33, 0x32, 0x3D, 0x3C, 0x3F};
+          transmit_can_frame(&TESLA_602);
+          stateMachineBMSReset = 4;
+          break;
+        case 4:
+          TESLA_602.data = {0x22, 0x3E, 0x39, 0x38, 0x3B, 0x3A, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          //Should generate a CAN UDS log message indicating ECU unlocked
+          stateMachineBMSReset = 5;
+          break;
+        case 5:
+          TESLA_602.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          stateMachineBMSReset = 6;
+          break;
+        case 6:
+          TESLA_602.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          stateMachineBMSReset = 7;
+          break;
+        case 7:
+          TESLA_602.data = {0x02, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          //Should generate a CAN UDS log message(s) indicating ECU has reset
+          stateMachineBMSReset = 0xFF;
+          break;
+        default:
+          //Something went wrong. Reset all and cancel
+          stateMachineBMSReset = 0xFF;
+          break;
       }
     }
+    if (stateMachineSOCReset != 0xFF) {
+      //This implementation should be rewritten to actually reply to the UDS responses sent by the BMS
+      //While this may work, it is not the correct way to implement this
+      switch (stateMachineSOCReset) {
+        case 0:
+          TESLA_602.data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          stateMachineSOCReset = 1;
+          break;
+        case 1:
+          TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          stateMachineSOCReset = 2;
+          break;
+        case 2:
+          TESLA_602.data = {0x10, 0x12, 0x27, 0x06, 0x35, 0x34, 0x37, 0x36};
+          transmit_can_frame(&TESLA_602);
+          stateMachineSOCReset = 3;
+          break;
+        case 3:
+          TESLA_602.data = {0x21, 0x31, 0x30, 0x33, 0x32, 0x3D, 0x3C, 0x3F};
+          transmit_can_frame(&TESLA_602);
+          stateMachineSOCReset = 4;
+          break;
+        case 4:
+          TESLA_602.data = {0x22, 0x3E, 0x39, 0x38, 0x3B, 0x3A, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          //Should generate a CAN UDS log message indicating ECU unlocked
+          stateMachineSOCReset = 5;
+          break;
+        case 5:
+          TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x07, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          stateMachineSOCReset = 0xFF;
+          break;
+        default:
+          //Something went wrong. Reset all and cancel
+          stateMachineSOCReset = 0xFF;
+          break;
+      }
+    }
+    if (stateMachineBMSQuery != 0xFF) {
+      //This implementation should be rewritten to actually reply to the UDS responses sent by the BMS
+      //While this may work, it is not the correct way to implement this query logic
+      switch (stateMachineBMSQuery) {
+        case 0:
+          //Initial request
+          logging.println("CAN UDS: Sending BMS query initial handshake");
+          TESLA_602.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          break;
+        case 1:
+          //Send query
+          logging.println("CAN UDS: Sending BMS query for pack part number");
+          TESLA_602.data = {0x03, 0x22, 0xF0, 0x14, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          break;
+        case 2:
+          //Flow control
+          logging.println("CAN UDS: Sending BMS query flow control");
+          TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602);
+          break;
+        case 3:
+          break;
+        case 4:
+          break;
+        default:
+          //Something went wrong. Reset all and cancel
+          stateMachineBMSQuery = 0xFF;
+          break;
+      }
+    }
+  }
+
+  //Send 500ms messages
+  if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
+    previousMillis500 = currentMillis;
+
+    transmit_can_frame(&TESLA_213);
+    transmit_can_frame(&TESLA_284);
+    transmit_can_frame(&TESLA_293);
+    transmit_can_frame(&TESLA_313);
+    transmit_can_frame(&TESLA_333);
+    if (TESLA_334_INITIAL_SENT == false) {
+      transmit_can_frame(&TESLA_334_INITIAL);
+      TESLA_334_INITIAL_SENT = true;
+    } else {
+      transmit_can_frame(&TESLA_334);
+    }
+    transmit_can_frame(&TESLA_3B3);
+    transmit_can_frame(&TESLA_55A);
+
+    //Generate next frames
+    generateTESLA_213(TESLA_213);
+    generateFrameCounterChecksum(TESLA_293, 52, 4, 56, 8);
+    generateFrameCounterChecksum(TESLA_313, 52, 4, 56, 8);
+    generateFrameCounterChecksum(TESLA_334, 52, 4, 56, 8);
+  }
+
+  //Send 1000ms messages
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+    previousMillis1000 = currentMillis;
+
+    transmit_can_frame(&TESLA_082);
+    transmit_can_frame(&TESLA_321);
+
+    //Generate next frames
+    generateFrameCounterChecksum(TESLA_321, 52, 4, 56, 8);
   }
 }
 
@@ -1590,18 +2424,18 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
 }
 
 void TeslaBattery::printFaultCodesIfActive() {
-  if (battery_packCtrsClosingAllowed == 0) {
-    logging.println(
-        "ERROR: Check high voltage connectors and interlock circuit! Closing contactor not allowed! Values: ");
+  if (battery_packCtrsClosingBlocked &&
+      battery_packContactorSetState != 5) {  // Contactors blocked closing and not already closed
+    logging.println("ERROR: Check high voltage connectors and interlock circuit, closing contactors not allowed!");
   }
-  if (battery_pyroTestInProgress == 1) {
-    logging.println("ERROR: Please wait for Pyro Connection check to finish, HV cables successfully seated!");
+  if (battery_pyroTestInProgress) {
+    logging.println("ERROR: Please wait for pyro test to finish, HV cables successfully seated!");
   }
   if (datalayer.system.status.inverter_allows_contactor_closing == false) {
     logging.println(
         "ERROR: Solar inverter does not allow for contactor closing. Check communication connection to the inverter "
-        "OR "
-        "disable the inverter protocol to proceed with contactor closing");
+        "or "
+        "disable the inverter protocol to proceed in Tesla battery testing mode.");
   }
   // Check each symbol and print debug information if its value is 1
   // 0X3AA: 938 HVP_alertMatrix1
@@ -1619,20 +2453,20 @@ void TeslaBattery::printFaultCodesIfActive() {
   printDebugIfActive(battery_OverVoltageFault, "ERROR: A brick voltage is above maximum voltage limit");
   printDebugIfActive(battery_UnderVoltageFault, "ERROR: A brick voltage is below minimum voltage limit");
   printDebugIfActive(battery_PrimaryBmbMiaFault,
-                     "ERROR: voltage and temperature readings from primary BMB chain are mia");
+                     "ERROR: Voltage and temperature readings from primary BMB chain are mia");
   printDebugIfActive(battery_SecondaryBmbMiaFault,
-                     "ERROR: voltage and temperature readings from secondary BMB chain are mia");
+                     "ERROR: Voltage and temperature readings from secondary BMB chain are mia");
   printDebugIfActive(battery_BmbMismatchFault,
-                     "ERROR: primary and secondary BMB chain readings don't match with each other");
+                     "ERROR: Primary and secondary BMB chain readings don't match with each other");
   printDebugIfActive(battery_BmsHviMiaFault, "ERROR: BMS node is mia on HVS or HVI CAN");
   //printDebugIfActive(battery_CpMiaFault, "ERROR: CP node is mia on HVS CAN"); //Uncommented due to not affecting usage
   printDebugIfActive(battery_PcsMiaFault, "ERROR: PCS node is mia on HVS CAN");
   //printDebugIfActive(battery_BmsFault, "ERROR: BmsFault is active"); //Uncommented due to not affecting usage
   printDebugIfActive(battery_PcsFault, "ERROR: PcsFault is active");
   //printDebugIfActive(battery_CpFault, "ERROR: CpFault is active"); //Uncommented due to not affecting usage
-  printDebugIfActive(battery_ShuntHwMiaFault, "ERROR: shunt current reading is not available");
-  printDebugIfActive(battery_PyroMiaFault, "ERROR: pyro squib is not connected");
-  printDebugIfActive(battery_hvsMiaFault, "ERROR: pack contactor hw fault");
+  printDebugIfActive(battery_ShuntHwMiaFault, "ERROR: Shunt current reading is not available");
+  printDebugIfActive(battery_PyroMiaFault, "ERROR: Pyro squib is not connected");
+  printDebugIfActive(battery_hvsMiaFault, "ERROR: Pack contactor hw fault");
   printDebugIfActive(battery_hviMiaFault, "ERROR: FC contactor hw fault");
   printDebugIfActive(battery_Supply12vFault, "ERROR: Low voltage (12V) battery is below minimum voltage threshold");
   printDebugIfActive(battery_VerSupplyFault, "ERROR: Energy reserve voltage supply is below minimum voltage threshold");
@@ -1664,97 +2498,97 @@ void TeslaBattery::printFaultCodesIfActive() {
   printDebugIfActive(battery_fcCtrCloseFailed, "ERROR: fcCtrCloseFailed is active");
   printDebugIfActive(battery_shuntThermistorMia, "ERROR: shuntThermistorMia is active");
   // 0x320 800 BMS_alertMatrix
-  printDebugIfActive(battery_BMS_a017_SW_Brick_OV, "ERROR: BMS_a017_SW_Brick_OV");
-  printDebugIfActive(battery_BMS_a018_SW_Brick_UV, "ERROR: BMS_a018_SW_Brick_UV");
-  printDebugIfActive(battery_BMS_a019_SW_Module_OT, "ERROR: BMS_a019_SW_Module_OT");
-  printDebugIfActive(battery_BMS_a021_SW_Dr_Limits_Regulation, "ERROR: BMS_a021_SW_Dr_Limits_Regulation");
-  //printDebugIfActive(battery_BMS_a022_SW_Over_Current, "ERROR: BMS_a022_SW_Over_Current");
-  printDebugIfActive(battery_BMS_a023_SW_Stack_OV, "ERROR: BMS_a023_SW_Stack_OV");
-  printDebugIfActive(battery_BMS_a024_SW_Islanded_Brick, "ERROR: BMS_a024_SW_Islanded_Brick");
-  printDebugIfActive(battery_BMS_a025_SW_PwrBalance_Anomaly, "ERROR: BMS_a025_SW_PwrBalance_Anomaly");
-  printDebugIfActive(battery_BMS_a026_SW_HFCurrent_Anomaly, "ERROR: BMS_a026_SW_HFCurrent_Anomaly");
-  printDebugIfActive(battery_BMS_a034_SW_Passive_Isolation, "ERROR: BMS_a034_SW_Passive_Isolation");
-  printDebugIfActive(battery_BMS_a035_SW_Isolation, "ERROR: BMS_a035_SW_Isolation");
-  printDebugIfActive(battery_BMS_a036_SW_HvpHvilFault, "ERROR: BMS_a036_SW_HvpHvilFault");
-  printDebugIfActive(battery_BMS_a037_SW_Flood_Port_Open, "ERROR: BMS_a037_SW_Flood_Port_Open");
-  printDebugIfActive(battery_BMS_a039_SW_DC_Link_Over_Voltage, "ERROR: BMS_a039_SW_DC_Link_Over_Voltage");
-  printDebugIfActive(battery_BMS_a041_SW_Power_On_Reset, "ERROR: BMS_a041_SW_Power_On_Reset");
-  printDebugIfActive(battery_BMS_a042_SW_MPU_Error, "ERROR: BMS_a042_SW_MPU_Error");
-  printDebugIfActive(battery_BMS_a043_SW_Watch_Dog_Reset, "ERROR: BMS_a043_SW_Watch_Dog_Reset");
-  printDebugIfActive(battery_BMS_a044_SW_Assertion, "ERROR: BMS_a044_SW_Assertion");
-  printDebugIfActive(battery_BMS_a045_SW_Exception, "ERROR: BMS_a045_SW_Exception");
-  printDebugIfActive(battery_BMS_a046_SW_Task_Stack_Usage, "ERROR: BMS_a046_SW_Task_Stack_Usage");
-  printDebugIfActive(battery_BMS_a047_SW_Task_Stack_Overflow, "ERROR: BMS_a047_SW_Task_Stack_Overflow");
-  printDebugIfActive(battery_BMS_a048_SW_Log_Upload_Request, "ERROR: BMS_a048_SW_Log_Upload_Request");
-  //printDebugIfActive(battery_BMS_a050_SW_Brick_Voltage_MIA, "ERROR: BMS_a050_SW_Brick_Voltage_MIA");
-  printDebugIfActive(battery_BMS_a051_SW_HVC_Vref_Bad, "ERROR: BMS_a051_SW_HVC_Vref_Bad");
-  printDebugIfActive(battery_BMS_a052_SW_PCS_MIA, "ERROR: BMS_a052_SW_PCS_MIA");
-  printDebugIfActive(battery_BMS_a053_SW_ThermalModel_Sanity, "ERROR: BMS_a053_SW_ThermalModel_Sanity");
-  printDebugIfActive(battery_BMS_a054_SW_Ver_Supply_Fault, "ERROR: BMS_a054_SW_Ver_Supply_Fault");
-  printDebugIfActive(battery_BMS_a059_SW_Pack_Voltage_Sensing, "ERROR: BMS_a059_SW_Pack_Voltage_Sensing");
-  printDebugIfActive(battery_BMS_a060_SW_Leakage_Test_Failure, "ERROR: BMS_a060_SW_Leakage_Test_Failure");
-  printDebugIfActive(battery_BMS_a061_robinBrickOverVoltage, "ERROR: BMS_a061_robinBrickOverVoltage");
-  printDebugIfActive(battery_BMS_a062_SW_BrickV_Imbalance, "ERROR: BMS_a062_SW_BrickV_Imbalance");
-  printDebugIfActive(battery_BMS_a063_SW_ChargePort_Fault, "ERROR: BMS_a063_SW_ChargePort_Fault");
-  printDebugIfActive(battery_BMS_a064_SW_SOC_Imbalance, "ERROR: BMS_a064_SW_SOC_Imbalance");
-  printDebugIfActive(battery_BMS_a069_SW_Low_Power, "ERROR: BMS_a069_SW_Low_Power");
-  printDebugIfActive(battery_BMS_a071_SW_SM_TransCon_Not_Met, "ERROR: BMS_a071_SW_SM_TransCon_Not_Met");
-  printDebugIfActive(battery_BMS_a075_SW_Chg_Disable_Failure, "ERROR: BMS_a075_SW_Chg_Disable_Failure");
-  printDebugIfActive(battery_BMS_a076_SW_Dch_While_Charging, "ERROR: BMS_a076_SW_Dch_While_Charging");
-  printDebugIfActive(battery_BMS_a077_SW_Charger_Regulation, "ERROR: BMS_a077_SW_Charger_Regulation");
-  printDebugIfActive(battery_BMS_a081_SW_Ctr_Close_Blocked, "ERROR: BMS_a081_SW_Ctr_Close_Blocked");
-  printDebugIfActive(battery_BMS_a082_SW_Ctr_Force_Open, "ERROR: BMS_a082_SW_Ctr_Force_Open");
-  printDebugIfActive(battery_BMS_a083_SW_Ctr_Close_Failure, "ERROR: BMS_a083_SW_Ctr_Close_Failure");
-  printDebugIfActive(battery_BMS_a084_SW_Sleep_Wake_Aborted, "ERROR: BMS_a084_SW_Sleep_Wake_Aborted");
-  printDebugIfActive(battery_BMS_a087_SW_Feim_Test_Blocked, "ERROR: BMS_a087_SW_Feim_Test_Blocked");
-  printDebugIfActive(battery_BMS_a088_SW_VcFront_MIA_InDrive, "ERROR: BMS_a088_SW_VcFront_MIA_InDrive");
-  printDebugIfActive(battery_BMS_a089_SW_VcFront_MIA, "ERROR: BMS_a089_SW_VcFront_MIA");
-  //printDebugIfActive(battery_BMS_a090_SW_Gateway_MIA, "ERROR: BMS_a090_SW_Gateway_MIA");
-  //printDebugIfActive(battery_BMS_a091_SW_ChargePort_MIA, "ERROR: BMS_a091_SW_ChargePort_MIA");
-  //printDebugIfActive(battery_BMS_a092_SW_ChargePort_Mia_On_Hv, "ERROR: BMS_a092_SW_ChargePort_Mia_On_Hv");
-  //printDebugIfActive(battery_BMS_a094_SW_Drive_Inverter_MIA, "ERROR: BMS_a094_SW_Drive_Inverter_MIA");
-  printDebugIfActive(battery_BMS_a099_SW_BMB_Communication, "ERROR: BMS_a099_SW_BMB_Communication");
-  printDebugIfActive(battery_BMS_a105_SW_One_Module_Tsense, "ERROR: BMS_a105_SW_One_Module_Tsense");
-  printDebugIfActive(battery_BMS_a106_SW_All_Module_Tsense, "ERROR: BMS_a106_SW_All_Module_Tsense");
-  printDebugIfActive(battery_BMS_a107_SW_Stack_Voltage_MIA, "ERROR: BMS_a107_SW_Stack_Voltage_MIA");
-  printDebugIfActive(battery_BMS_a121_SW_NVRAM_Config_Error, "ERROR: BMS_a121_SW_NVRAM_Config_Error");
-  printDebugIfActive(battery_BMS_a122_SW_BMS_Therm_Irrational, "ERROR: BMS_a122_SW_BMS_Therm_Irrational");
-  printDebugIfActive(battery_BMS_a123_SW_Internal_Isolation, "ERROR: BMS_a123_SW_Internal_Isolation");
-  printDebugIfActive(battery_BMS_a127_SW_shunt_SNA, "ERROR: BMS_a127_SW_shunt_SNA");
-  printDebugIfActive(battery_BMS_a128_SW_shunt_MIA, "ERROR: BMS_a128_SW_shunt_MIA");
-  printDebugIfActive(battery_BMS_a129_SW_VSH_Failure, "ERROR: BMS_a129_SW_VSH_Failure");
-  printDebugIfActive(battery_BMS_a130_IO_CAN_Error, "ERROR: BMS_a130_IO_CAN_Error");
-  printDebugIfActive(battery_BMS_a131_Bleed_FET_Failure, "ERROR: BMS_a131_Bleed_FET_Failure");
-  printDebugIfActive(battery_BMS_a132_HW_BMB_OTP_Uncorrctbl, "ERROR: BMS_a132_HW_BMB_OTP_Uncorrctbl");
-  printDebugIfActive(battery_BMS_a134_SW_Delayed_Ctr_Off, "ERROR: BMS_a134_SW_Delayed_Ctr_Off");
-  printDebugIfActive(battery_BMS_a136_SW_Module_OT_Warning, "ERROR: BMS_a136_SW_Module_OT_Warning");
-  printDebugIfActive(battery_BMS_a137_SW_Brick_UV_Warning, "ERROR: BMS_a137_SW_Brick_UV_Warning");
-  printDebugIfActive(battery_BMS_a139_SW_DC_Link_V_Irrational, "ERROR: BMS_a139_SW_DC_Link_V_Irrational");
-  printDebugIfActive(battery_BMS_a141_SW_BMB_Status_Warning, "ERROR: BMS_a141_SW_BMB_Status_Warning");
-  printDebugIfActive(battery_BMS_a144_Hvp_Config_Mismatch, "ERROR: BMS_a144_Hvp_Config_Mismatch");
-  printDebugIfActive(battery_BMS_a145_SW_SOC_Change, "ERROR: BMS_a145_SW_SOC_Change");
-  printDebugIfActive(battery_BMS_a146_SW_Brick_Overdischarged, "ERROR: BMS_a146_SW_Brick_Overdischarged");
-  printDebugIfActive(battery_BMS_a149_SW_Missing_Config_Block, "ERROR: BMS_a149_SW_Missing_Config_Block");
-  printDebugIfActive(battery_BMS_a151_SW_external_isolation, "ERROR: BMS_a151_SW_external_isolation");
-  printDebugIfActive(battery_BMS_a156_SW_BMB_Vref_bad, "ERROR: BMS_a156_SW_BMB_Vref_bad");
-  printDebugIfActive(battery_BMS_a157_SW_HVP_HVS_Comms, "ERROR: BMS_a157_SW_HVP_HVS_Comms");
-  printDebugIfActive(battery_BMS_a158_SW_HVP_HVI_Comms, "ERROR: BMS_a158_SW_HVP_HVI_Comms");
-  printDebugIfActive(battery_BMS_a159_SW_HVP_ECU_Error, "ERROR: BMS_a159_SW_HVP_ECU_Error");
-  printDebugIfActive(battery_BMS_a161_SW_DI_Open_Request, "ERROR: BMS_a161_SW_DI_Open_Request");
-  printDebugIfActive(battery_BMS_a162_SW_No_Power_For_Support, "ERROR: BMS_a162_SW_No_Power_For_Support");
-  printDebugIfActive(battery_BMS_a163_SW_Contactor_Mismatch, "ERROR: BMS_a163_SW_Contactor_Mismatch");
-  printDebugIfActive(battery_BMS_a164_SW_Uncontrolled_Regen, "ERROR: BMS_a164_SW_Uncontrolled_Regen");
-  printDebugIfActive(battery_BMS_a165_SW_Pack_Partial_Weld, "ERROR: BMS_a165_SW_Pack_Partial_Weld");
-  printDebugIfActive(battery_BMS_a166_SW_Pack_Full_Weld, "ERROR: BMS_a166_SW_Pack_Full_Weld");
-  printDebugIfActive(battery_BMS_a167_SW_FC_Partial_Weld, "ERROR: BMS_a167_SW_FC_Partial_Weld");
-  printDebugIfActive(battery_BMS_a168_SW_FC_Full_Weld, "ERROR: BMS_a168_SW_FC_Full_Weld");
-  printDebugIfActive(battery_BMS_a169_SW_FC_Pack_Weld, "ERROR: BMS_a169_SW_FC_Pack_Weld");
-  //printDebugIfActive(battery_BMS_a170_SW_Limp_Mode, "ERROR: BMS_a170_SW_Limp_Mode");
-  printDebugIfActive(battery_BMS_a171_SW_Stack_Voltage_Sense, "ERROR: BMS_a171_SW_Stack_Voltage_Sense");
-  printDebugIfActive(battery_BMS_a174_SW_Charge_Failure, "ERROR: BMS_a174_SW_Charge_Failure");
-  printDebugIfActive(battery_BMS_a176_SW_GracefulPowerOff, "ERROR: BMS_a176_SW_GracefulPowerOff");
-  printDebugIfActive(battery_BMS_a179_SW_Hvp_12V_Fault, "ERROR: BMS_a179_SW_Hvp_12V_Fault");
-  printDebugIfActive(battery_BMS_a180_SW_ECU_reset_blocked, "ERROR: BMS_a180_SW_ECU_reset_blocked");
+  printDebugIfActive(BMS_a017_SW_Brick_OV, "ERROR: BMS_a017_SW_Brick_OV");
+  printDebugIfActive(BMS_a018_SW_Brick_UV, "ERROR: BMS_a018_SW_Brick_UV");
+  printDebugIfActive(BMS_a019_SW_Module_OT, "ERROR: BMS_a019_SW_Module_OT");
+  printDebugIfActive(BMS_a021_SW_Dr_Limits_Regulation, "ERROR: BMS_a021_SW_Dr_Limits_Regulation");
+  //printDebugIfActive(BMS_a022_SW_Over_Current, "ERROR: BMS_a022_SW_Over_Current");
+  printDebugIfActive(BMS_a023_SW_Stack_OV, "ERROR: BMS_a023_SW_Stack_OV");
+  printDebugIfActive(BMS_a024_SW_Islanded_Brick, "ERROR: BMS_a024_SW_Islanded_Brick");
+  printDebugIfActive(BMS_a025_SW_PwrBalance_Anomaly, "ERROR: BMS_a025_SW_PwrBalance_Anomaly");
+  printDebugIfActive(BMS_a026_SW_HFCurrent_Anomaly, "ERROR: BMS_a026_SW_HFCurrent_Anomaly");
+  printDebugIfActive(BMS_a034_SW_Passive_Isolation, "ERROR: BMS_a034_SW_Passive_Isolation");
+  printDebugIfActive(BMS_a035_SW_Isolation, "ERROR: BMS_a035_SW_Isolation");
+  printDebugIfActive(BMS_a036_SW_HvpHvilFault, "ERROR: BMS_a036_SW_HvpHvilFault");
+  printDebugIfActive(BMS_a037_SW_Flood_Port_Open, "ERROR: BMS_a037_SW_Flood_Port_Open");
+  printDebugIfActive(BMS_a039_SW_DC_Link_Over_Voltage, "ERROR: BMS_a039_SW_DC_Link_Over_Voltage");
+  printDebugIfActive(BMS_a041_SW_Power_On_Reset, "ERROR: BMS_a041_SW_Power_On_Reset");
+  printDebugIfActive(BMS_a042_SW_MPU_Error, "ERROR: BMS_a042_SW_MPU_Error");
+  printDebugIfActive(BMS_a043_SW_Watch_Dog_Reset, "ERROR: BMS_a043_SW_Watch_Dog_Reset");
+  printDebugIfActive(BMS_a044_SW_Assertion, "ERROR: BMS_a044_SW_Assertion");
+  printDebugIfActive(BMS_a045_SW_Exception, "ERROR: BMS_a045_SW_Exception");
+  printDebugIfActive(BMS_a046_SW_Task_Stack_Usage, "ERROR: BMS_a046_SW_Task_Stack_Usage");
+  printDebugIfActive(BMS_a047_SW_Task_Stack_Overflow, "ERROR: BMS_a047_SW_Task_Stack_Overflow");
+  printDebugIfActive(BMS_a048_SW_Log_Upload_Request, "ERROR: BMS_a048_SW_Log_Upload_Request");
+  //printDebugIfActive(BMS_a050_SW_Brick_Voltage_MIA, "ERROR: BMS_a050_SW_Brick_Voltage_MIA");
+  printDebugIfActive(BMS_a051_SW_HVC_Vref_Bad, "ERROR: BMS_a051_SW_HVC_Vref_Bad");
+  printDebugIfActive(BMS_a052_SW_PCS_MIA, "ERROR: BMS_a052_SW_PCS_MIA");
+  printDebugIfActive(BMS_a053_SW_ThermalModel_Sanity, "ERROR: BMS_a053_SW_ThermalModel_Sanity");
+  printDebugIfActive(BMS_a054_SW_Ver_Supply_Fault, "ERROR: BMS_a054_SW_Ver_Supply_Fault");
+  printDebugIfActive(BMS_a059_SW_Pack_Voltage_Sensing, "ERROR: BMS_a059_SW_Pack_Voltage_Sensing");
+  printDebugIfActive(BMS_a060_SW_Leakage_Test_Failure, "ERROR: BMS_a060_SW_Leakage_Test_Failure");
+  printDebugIfActive(BMS_a061_robinBrickOverVoltage, "ERROR: BMS_a061_robinBrickOverVoltage");
+  printDebugIfActive(BMS_a062_SW_BrickV_Imbalance, "ERROR: BMS_a062_SW_BrickV_Imbalance");
+  //printDebugIfActive(BMS_a063_SW_ChargePort_Fault, "ERROR: BMS_a063_SW_ChargePort_Fault");
+  printDebugIfActive(BMS_a064_SW_SOC_Imbalance, "ERROR: BMS_a064_SW_SOC_Imbalance");
+  printDebugIfActive(BMS_a069_SW_Low_Power, "ERROR: BMS_a069_SW_Low_Power");
+  printDebugIfActive(BMS_a071_SW_SM_TransCon_Not_Met, "ERROR: BMS_a071_SW_SM_TransCon_Not_Met");
+  printDebugIfActive(BMS_a075_SW_Chg_Disable_Failure, "ERROR: BMS_a075_SW_Chg_Disable_Failure");
+  printDebugIfActive(BMS_a076_SW_Dch_While_Charging, "ERROR: BMS_a076_SW_Dch_While_Charging");
+  printDebugIfActive(BMS_a077_SW_Charger_Regulation, "ERROR: BMS_a077_SW_Charger_Regulation");
+  printDebugIfActive(BMS_a081_SW_Ctr_Close_Blocked, "ERROR: BMS_a081_SW_Ctr_Close_Blocked");
+  printDebugIfActive(BMS_a082_SW_Ctr_Force_Open, "ERROR: BMS_a082_SW_Ctr_Force_Open");
+  printDebugIfActive(BMS_a083_SW_Ctr_Close_Failure, "ERROR: BMS_a083_SW_Ctr_Close_Failure");
+  printDebugIfActive(BMS_a084_SW_Sleep_Wake_Aborted, "ERROR: BMS_a084_SW_Sleep_Wake_Aborted");
+  printDebugIfActive(BMS_a087_SW_Feim_Test_Blocked, "ERROR: BMS_a087_SW_Feim_Test_Blocked");
+  printDebugIfActive(BMS_a088_SW_VcFront_MIA_InDrive, "ERROR: BMS_a088_SW_VcFront_MIA_InDrive");
+  printDebugIfActive(BMS_a089_SW_VcFront_MIA, "ERROR: BMS_a089_SW_VcFront_MIA");
+  printDebugIfActive(BMS_a090_SW_Gateway_MIA, "ERROR: BMS_a090_SW_Gateway_MIA");
+  //printDebugIfActive(BMS_a091_SW_ChargePort_MIA, "ERROR: BMS_a091_SW_ChargePort_MIA");
+  //printDebugIfActive(BMS_a092_SW_ChargePort_Mia_On_Hv, "ERROR: BMS_a092_SW_ChargePort_Mia_On_Hv");
+  //printDebugIfActive(BMS_a094_SW_Drive_Inverter_MIA, "ERROR: BMS_a094_SW_Drive_Inverter_MIA");
+  printDebugIfActive(BMS_a099_SW_BMB_Communication, "ERROR: BMS_a099_SW_BMB_Communication");
+  printDebugIfActive(BMS_a105_SW_One_Module_Tsense, "ERROR: BMS_a105_SW_One_Module_Tsense");
+  printDebugIfActive(BMS_a106_SW_All_Module_Tsense, "ERROR: BMS_a106_SW_All_Module_Tsense");
+  printDebugIfActive(BMS_a107_SW_Stack_Voltage_MIA, "ERROR: BMS_a107_SW_Stack_Voltage_MIA");
+  printDebugIfActive(BMS_a121_SW_NVRAM_Config_Error, "ERROR: BMS_a121_SW_NVRAM_Config_Error");
+  printDebugIfActive(BMS_a122_SW_BMS_Therm_Irrational, "ERROR: BMS_a122_SW_BMS_Therm_Irrational");
+  printDebugIfActive(BMS_a123_SW_Internal_Isolation, "ERROR: BMS_a123_SW_Internal_Isolation");
+  printDebugIfActive(BMS_a127_SW_shunt_SNA, "ERROR: BMS_a127_SW_shunt_SNA");
+  printDebugIfActive(BMS_a128_SW_shunt_MIA, "ERROR: BMS_a128_SW_shunt_MIA");
+  printDebugIfActive(BMS_a129_SW_VSH_Failure, "ERROR: BMS_a129_SW_VSH_Failure");
+  printDebugIfActive(BMS_a130_IO_CAN_Error, "ERROR: BMS_a130_IO_CAN_Error");
+  printDebugIfActive(BMS_a131_Bleed_FET_Failure, "ERROR: BMS_a131_Bleed_FET_Failure");
+  printDebugIfActive(BMS_a132_HW_BMB_OTP_Uncorrctbl, "ERROR: BMS_a132_HW_BMB_OTP_Uncorrctbl");
+  printDebugIfActive(BMS_a134_SW_Delayed_Ctr_Off, "ERROR: BMS_a134_SW_Delayed_Ctr_Off");
+  printDebugIfActive(BMS_a136_SW_Module_OT_Warning, "ERROR: BMS_a136_SW_Module_OT_Warning");
+  printDebugIfActive(BMS_a137_SW_Brick_UV_Warning, "ERROR: BMS_a137_SW_Brick_UV_Warning");
+  printDebugIfActive(BMS_a139_SW_DC_Link_V_Irrational, "ERROR: BMS_a139_SW_DC_Link_V_Irrational");
+  printDebugIfActive(BMS_a141_SW_BMB_Status_Warning, "ERROR: BMS_a141_SW_BMB_Status_Warning");
+  printDebugIfActive(BMS_a144_Hvp_Config_Mismatch, "ERROR: BMS_a144_Hvp_Config_Mismatch");
+  printDebugIfActive(BMS_a145_SW_SOC_Change, "ERROR: BMS_a145_SW_SOC_Change");
+  printDebugIfActive(BMS_a146_SW_Brick_Overdischarged, "ERROR: BMS_a146_SW_Brick_Overdischarged");
+  printDebugIfActive(BMS_a149_SW_Missing_Config_Block, "ERROR: BMS_a149_SW_Missing_Config_Block");
+  printDebugIfActive(BMS_a151_SW_external_isolation, "ERROR: BMS_a151_SW_external_isolation");
+  printDebugIfActive(BMS_a156_SW_BMB_Vref_bad, "ERROR: BMS_a156_SW_BMB_Vref_bad");
+  printDebugIfActive(BMS_a157_SW_HVP_HVS_Comms, "ERROR: BMS_a157_SW_HVP_HVS_Comms");
+  printDebugIfActive(BMS_a158_SW_HVP_HVI_Comms, "ERROR: BMS_a158_SW_HVP_HVI_Comms");
+  printDebugIfActive(BMS_a159_SW_HVP_ECU_Error, "ERROR: BMS_a159_SW_HVP_ECU_Error");
+  printDebugIfActive(BMS_a161_SW_DI_Open_Request, "ERROR: BMS_a161_SW_DI_Open_Request");
+  printDebugIfActive(BMS_a162_SW_No_Power_For_Support, "ERROR: BMS_a162_SW_No_Power_For_Support");
+  printDebugIfActive(BMS_a163_SW_Contactor_Mismatch, "ERROR: BMS_a163_SW_Contactor_Mismatch");
+  printDebugIfActive(BMS_a164_SW_Uncontrolled_Regen, "ERROR: BMS_a164_SW_Uncontrolled_Regen");
+  printDebugIfActive(BMS_a165_SW_Pack_Partial_Weld, "ERROR: BMS_a165_SW_Pack_Partial_Weld");
+  printDebugIfActive(BMS_a166_SW_Pack_Full_Weld, "ERROR: BMS_a166_SW_Pack_Full_Weld");
+  printDebugIfActive(BMS_a167_SW_FC_Partial_Weld, "ERROR: BMS_a167_SW_FC_Partial_Weld");
+  printDebugIfActive(BMS_a168_SW_FC_Full_Weld, "ERROR: BMS_a168_SW_FC_Full_Weld");
+  printDebugIfActive(BMS_a169_SW_FC_Pack_Weld, "ERROR: BMS_a169_SW_FC_Pack_Weld");
+  //printDebugIfActive(BMS_a170_SW_Limp_Mode, "ERROR: BMS_a170_SW_Limp_Mode");
+  printDebugIfActive(BMS_a171_SW_Stack_Voltage_Sense, "ERROR: BMS_a171_SW_Stack_Voltage_Sense");
+  printDebugIfActive(BMS_a174_SW_Charge_Failure, "ERROR: BMS_a174_SW_Charge_Failure");
+  printDebugIfActive(BMS_a176_SW_GracefulPowerOff, "ERROR: BMS_a176_SW_GracefulPowerOff");
+  printDebugIfActive(BMS_a179_SW_Hvp_12V_Fault, "ERROR: BMS_a179_SW_Hvp_12V_Fault");
+  printDebugIfActive(BMS_a180_SW_ECU_reset_blocked, "ERROR: BMS_a180_SW_ECU_reset_blocked");
 }
 
 void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
@@ -1763,22 +2597,31 @@ void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
     *allows_contactor_closing = true;
   }
 
+  //0x7FF GTW CAN frame values
+  //Mux1
+  write_signal_value(&TESLA_7FF_Mux1, 16, 16, user_selected_tesla_GTW_country, false);
+  write_signal_value(&TESLA_7FF_Mux1, 11, 1, user_selected_tesla_GTW_country, false);
+  //Mux3
+  write_signal_value(&TESLA_7FF_Mux3, 8, 4, user_selected_tesla_GTW_mapRegion, false);
+  write_signal_value(&TESLA_7FF_Mux3, 18, 3, user_selected_tesla_GTW_chassisType, false);
+  write_signal_value(&TESLA_7FF_Mux3, 32, 5, user_selected_tesla_GTW_packEnergy, false);
+
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-#ifdef LFP_CHEMISTRY
-  datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
-#else   // Startup in NCM/A mode
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
-#endif  // !LFP_CHEMISTRY
+
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
+    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
+    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
+    datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
+  } else {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
+    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+    datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
+  }
 }
 
 void TeslaModelSXBattery::setup(void) {

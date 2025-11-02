@@ -1,8 +1,10 @@
 #ifndef __EVENTS_H__
 #define __EVENTS_H__
-#ifndef UNIT_TEST
-#include "../../include.h"
-#endif
+
+#include <WString.h>
+#include <stdint.h>
+#include "millis64.h"
+#include "types.h"
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -20,6 +22,7 @@
   XX(EVENT_CAN_NATIVE_TX_FAILURE)              \
   XX(EVENT_CHARGE_LIMIT_EXCEEDED)              \
   XX(EVENT_CONTACTOR_WELDED)                   \
+  XX(EVENT_CONTACTOR_OPEN)                     \
   XX(EVENT_CPU_OVERHEATING)                    \
   XX(EVENT_CPU_OVERHEATED)                     \
   XX(EVENT_DISCHARGE_LIMIT_EXCEEDED)           \
@@ -107,6 +110,8 @@
   XX(EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS) \
   XX(EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED)  \
   XX(EVENT_BATTERY_TEMP_DEVIATION_HIGH)        \
+  XX(EVENT_GPIO_NOT_DEFINED)                   \
+  XX(EVENT_GPIO_CONFLICT)                      \
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
@@ -120,6 +125,14 @@ typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
   XX(EVENT_LEVEL_UPDATE)
 
 typedef enum { EVENTS_LEVEL_TYPE(GENERATE_ENUM) } EVENTS_LEVEL_TYPE;
+
+#define EMULATOR_STATUS(XX) \
+  XX(STATUS_OK)             \
+  XX(STATUS_WARNING)        \
+  XX(STATUS_ERROR)          \
+  XX(STATUS_UPDATING)
+
+typedef enum { EMULATOR_STATUS(GENERATE_ENUM) } EMULATOR_STATUS;
 
 typedef enum {
   EVENT_STATE_PENDING = 0,
@@ -144,10 +157,13 @@ struct EventData {
 };
 
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
-const char* get_event_message_string(EVENTS_ENUM_TYPE event);
+String get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
+const char* get_event_level_string(EVENTS_LEVEL_TYPE event_level);
 
 EVENTS_LEVEL_TYPE get_event_level(void);
+EMULATOR_STATUS get_emulator_status();
+const char* get_emulator_status_string(EMULATOR_STATUS status);
 
 void init_events(void);
 void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data);

@@ -113,53 +113,77 @@ bool AsyncCallbackJsonWebHandler::canHandle(AsyncWebServerRequest *request) cons
 
 void AsyncCallbackJsonWebHandler::handleRequest(AsyncWebServerRequest *request) {
   if (_onRequest) {
+    // GET request:
     if (request->method() == HTTP_GET) {
       JsonVariant json;
       _onRequest(request, json);
       return;
-    } else if (request->_tempObject != NULL) {
+    }
+
+    // POST / PUT / ... requests:
+    // check if JSON body is too large, if it is, don't deserialize
+    if (request->contentLength() > _maxContentLength) {
+#ifdef ESP32
+      log_e("Content length exceeds maximum allowed");
+#endif
+      request->send(413);
+      return;
+    }
+
+    if (request->_tempObject == NULL) {
+      // there is no body
+      request->send(400);
+      return;
+    }
 
 #if ARDUINOJSON_VERSION_MAJOR == 5
-      DynamicJsonBuffer jsonBuffer;
-      JsonVariant json = jsonBuffer.parse((uint8_t *)(request->_tempObject));
-      if (json.success()) {
+    DynamicJsonBuffer jsonBuffer;
+    JsonVariant json = jsonBuffer.parse((const char *)request->_tempObject);
+    if (json.success()) {
 #elif ARDUINOJSON_VERSION_MAJOR == 6
-      DynamicJsonDocument jsonBuffer(this->maxJsonBufferSize);
-      DeserializationError error = deserializeJson(jsonBuffer, (uint8_t *)(request->_tempObject));
-      if (!error) {
-        JsonVariant json = jsonBuffer.as<JsonVariant>();
+    DynamicJsonDocument jsonBuffer(this->maxJsonBufferSize);
+    DeserializationError error = deserializeJson(jsonBuffer, (const char *)request->_tempObject);
+    if (!error) {
+      JsonVariant json = jsonBuffer.as<JsonVariant>();
 #else
-      JsonDocument jsonBuffer;
-      DeserializationError error = deserializeJson(jsonBuffer, (uint8_t *)(request->_tempObject));
-      if (!error) {
-        JsonVariant json = jsonBuffer.as<JsonVariant>();
+    JsonDocument jsonBuffer;
+    DeserializationError error = deserializeJson(jsonBuffer, (const char *)request->_tempObject);
+    if (!error) {
+      JsonVariant json = jsonBuffer.as<JsonVariant>();
 #endif
 
-        _onRequest(request, json);
-        return;
-      }
+      _onRequest(request, json);
+    } else {
+      // error parsing the body
+      request->send(400);
     }
-    request->send(_contentLength > _maxContentLength ? 413 : 400);
-  } else {
-    request->send(500);
   }
 }
 
 void AsyncCallbackJsonWebHandler::handleBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
   if (_onRequest) {
-    _contentLength = total;
-    if (total > 0 && request->_tempObject == NULL && total < _maxContentLength) {
-      request->_tempObject = malloc(total);
+    // ignore callback if size is larger than maxContentLength
+    if (total > _maxContentLength) {
+      return;
+    }
+
+    if (index == 0) {
+      // this check allows request->_tempObject to be initialized from a middleware
       if (request->_tempObject == NULL) {
+        request->_tempObject = calloc(total + 1, sizeof(uint8_t));  // null-terminated string
+        if (request->_tempObject == NULL) {
 #ifdef ESP32
-        log_e("Failed to allocate");
+          log_e("Failed to allocate");
 #endif
-        request->abort();
-        return;
+          request->abort();
+          return;
+        }
       }
     }
+
     if (request->_tempObject != NULL) {
-      memcpy((uint8_t *)(request->_tempObject) + index, data, len);
+      uint8_t *buffer = (uint8_t *)request->_tempObject;
+      memcpy(buffer + index, data, len);
     }
   }
 }

@@ -1,9 +1,10 @@
 #ifndef _ECMP_BATTERY_HTML_H
 #define _ECMP_BATTERT_HTML_H
 
+#include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
-#include "src/devboard/webserver/BatteryHtmlRenderer.h"
+#include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class EcmpHtmlRenderer : public BatteryHtmlRenderer {
  public:
@@ -376,6 +377,11 @@ class EcmpHtmlRenderer : public BatteryHtmlRenderer {
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_contactor_closing_counter)) +
                " cycles</h4>";
+    content += "<h4>State of Health Cell-1: " +
+               (datalayer_extended.stellantisECMP.pid_SOH_cell_1 == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_SOH_cell_1)) +
+               "</h4>";
 
     return content;
   }

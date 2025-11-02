@@ -1,9 +1,8 @@
 #include "GEELY-GEOMETRY-C-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
+#include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 /* TODO
 - Contactor closing: CAN log needed from complete H-CAN of Geely Geometry C vehicle. We are not sure what needs to be sent towards the battery yet to get contactor closing working. DTC readout complains that a "Power CAN BUS Data Missing" message is still missing
@@ -309,7 +308,7 @@ void GeelyGeometryCBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x7EA:
       if (rx_frame.data.u8[0] == 0x10) {  //Multiframe response, send ACK
-        transmit_can_frame(&GEELY_ACK, can_config.battery);
+        transmit_can_frame(&GEELY_ACK);
         //Multiframe has the poll reply slightly different location
         incoming_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
       }
@@ -488,15 +487,15 @@ void GeelyGeometryCBattery::transmit_can(unsigned long currentMillis) {
 
     counter_10ms = (counter_10ms + 1) % 17;  // 0-1-...F-0-1 etc.
 
-    transmit_can_frame(&GEELY_191, can_config.battery);
-    transmit_can_frame(&GEELY_0A6, can_config.battery);
-    transmit_can_frame(&GEELY_160, can_config.battery);
-    transmit_can_frame(&GEELY_165, can_config.battery);
-    transmit_can_frame(&GEELY_1A4, can_config.battery);
-    transmit_can_frame(&GEELY_162, can_config.battery);  //CONFIRMED MANDATORY! VCU message
-    transmit_can_frame(&GEELY_1A5, can_config.battery);
-    transmit_can_frame(&GEELY_220, can_config.battery);  //CONFIRMED MANDATORY! OBC message
-    transmit_can_frame(&GEELY_0E0, can_config.battery);
+    transmit_can_frame(&GEELY_191);
+    transmit_can_frame(&GEELY_0A6);
+    transmit_can_frame(&GEELY_160);
+    transmit_can_frame(&GEELY_165);
+    transmit_can_frame(&GEELY_1A4);
+    transmit_can_frame(&GEELY_162);  //CONFIRMED MANDATORY! VCU message
+    transmit_can_frame(&GEELY_1A5);
+    transmit_can_frame(&GEELY_220);  //CONFIRMED MANDATORY! OBC message
+    transmit_can_frame(&GEELY_0E0);
   }
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
@@ -508,11 +507,11 @@ void GeelyGeometryCBattery::transmit_can(unsigned long currentMillis) {
 
     counter_20ms = (counter_20ms + 1) % 17;  // 0-1-...F-0-1 etc.
 
-    transmit_can_frame(&GEELY_145, can_config.battery);  //CONFIRMED MANDATORY! shifter
-    transmit_can_frame(&GEELY_0F9, can_config.battery);  //CONFIRMED MANDATORY! shifter
-    transmit_can_frame(&GEELY_0FA, can_config.battery);  //Might be unnecessary, not in workshop manual
-    transmit_can_frame(&GEELY_197, can_config.battery);  //Might be unnecessary, not in workshop manual
-    transmit_can_frame(&GEELY_150, can_config.battery);
+    transmit_can_frame(&GEELY_145);  //CONFIRMED MANDATORY! shifter
+    transmit_can_frame(&GEELY_0F9);  //CONFIRMED MANDATORY! shifter
+    transmit_can_frame(&GEELY_0FA);  //Might be unnecessary, not in workshop manual
+    transmit_can_frame(&GEELY_197);  //Might be unnecessary, not in workshop manual
+    transmit_can_frame(&GEELY_150);
   }
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     previousMillis50 = currentMillis;
@@ -524,13 +523,13 @@ void GeelyGeometryCBattery::transmit_can(unsigned long currentMillis) {
 
     counter_50ms = (counter_50ms + 1) % 17;  // 0-1-...F-0-1 etc.
 
-    transmit_can_frame(&GEELY_1B2, can_config.battery);
-    transmit_can_frame(&GEELY_221, can_config.battery);  //CONFIRMED MANDATORY! OBC message
-    //transmit_can_frame(&GEELY_1A3, can_config.battery);  //Might be unnecessary, radar info
-    transmit_can_frame(&GEELY_1A7, can_config.battery);  //Might be unnecessary
-    transmit_can_frame(&GEELY_0A8, can_config.battery);  //CONFIRMED MANDATORY! IPU message
-    transmit_can_frame(&GEELY_1F2, can_config.battery);  //Might be unnecessary, not in manual
-    transmit_can_frame(&GEELY_1A6, can_config.battery);  //Might be unnecessary, not in manual
+    transmit_can_frame(&GEELY_1B2);
+    transmit_can_frame(&GEELY_221);  //CONFIRMED MANDATORY! OBC message
+    //transmit_can_frame(&GEELY_1A3);  //Might be unnecessary, radar info
+    transmit_can_frame(&GEELY_1A7);  //Might be unnecessary
+    transmit_can_frame(&GEELY_0A8);  //CONFIRMED MANDATORY! IPU message
+    transmit_can_frame(&GEELY_1F2);  //Might be unnecessary, not in manual
+    transmit_can_frame(&GEELY_1A6);  //Might be unnecessary, not in manual
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -541,9 +540,9 @@ void GeelyGeometryCBattery::transmit_can(unsigned long currentMillis) {
 
     counter_100ms = (counter_100ms + 1) % 17;  // 0-1-...F-0-1 etc.
 
-    transmit_can_frame(&GEELY_222, can_config.battery);  //CONFIRMED MANDATORY! OBC message
-    //transmit_can_frame(&GEELY_2D2, can_config.battery);  //Might be unnecessary, seat info
-    transmit_can_frame(&GEELY_292, can_config.battery);  //CONFIRMED MANDATORY! T-BOX
+    transmit_can_frame(&GEELY_222);  //CONFIRMED MANDATORY! OBC message
+    //transmit_can_frame(&GEELY_2D2);  //Might be unnecessary, seat info
+    transmit_can_frame(&GEELY_292);  //CONFIRMED MANDATORY! T-BOX
   }
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -655,7 +654,7 @@ void GeelyGeometryCBattery::transmit_can(unsigned long currentMillis) {
         break;
     }
 
-    transmit_can_frame(&GEELY_POLL, can_config.battery);
+    transmit_can_frame(&GEELY_POLL);
   }
 }
 

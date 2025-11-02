@@ -3,7 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For More Battery Info page
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 /* TODO:
 This integration is still ongoing. Here is what still needs to be done in order to use this battery type
@@ -124,6 +123,7 @@ void EcmpBattery::update_values() {
   datalayer_extended.stellantisECMP.pid_time_spent_over_55c = pid_time_spent_over_55c;
   datalayer_extended.stellantisECMP.pid_contactor_closing_counter = pid_contactor_closing_counter;
   datalayer_extended.stellantisECMP.pid_date_of_manufacture = pid_date_of_manufacture;
+  datalayer_extended.stellantisECMP.pid_SOH_cell_1 = pid_SOH_cell_1;
 
   if (battery_InterlockOpen) {
     set_event(EVENT_HVIL_FAILURE, 0);
@@ -135,6 +135,12 @@ void EcmpBattery::update_values() {
     set_event(EVENT_12V_LOW, 11);
   } else {
     clear_event(EVENT_12V_LOW);
+  }
+
+  if (pid_reason_open == 7) {  //Invalid status
+    set_event(EVENT_CONTACTOR_OPEN, 0);
+  } else {
+    clear_event(EVENT_CONTACTOR_OPEN);
   }
 }
 
@@ -466,7 +472,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       } else {  //Normal PID polling ongoing
 
         if (rx_frame.data.u8[0] == 0x10) {  //Multiframe response, send ACK
-          transmit_can_frame(&ECMP_ACK, can_config.battery);
+          transmit_can_frame(&ECMP_ACK);
           //Multiframe has the poll reply slightly different location
           incoming_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         }
@@ -579,8 +585,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                     (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
               break;
             case PID_ENERGY_CAPACITY:
-              pid_energy_capacity = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
-                                     (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+              pid_energy_capacity = (rx_frame.data.u8[4] << 16) | (rx_frame.data.u8[5] << 8) | (rx_frame.data.u8[6]);
               break;
             case PID_HIGH_CELL_NUM:
               pid_highest_cell_voltage_num = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -721,6 +726,33 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
         switch (incoming_poll)  //Multiframe responses
         {
+          case PID_ALL_CELL_SOH:
+            switch (rx_frame.data.u8[0]) {
+              case 0x10:
+                pid_SOH_cell_1 = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+                break;
+              case 0x21:
+                break;
+              case 0x22:
+                break;
+              case 0x23:
+                break;
+              case 0x24:
+                break;
+              case 0x25:
+                break;
+              case 0x26:
+                break;
+              case 0x27:
+                break;
+              case 0x28:
+                break;
+              case 0x29:
+                break;
+              default:
+                break;
+            }
+            break;
           case PID_ALL_CELL_VOLTAGES:
             switch (rx_frame.data.u8[0]) {
               case 0x10:
@@ -852,19 +884,19 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     //Failure to do this results in the contactors opening after 30 seconds with load
     if (datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring) {
       if (DisableIsoMonitoringStatemachine == 0) {
-        transmit_can_frame(&ECMP_DIAG_START, can_config.battery);
+        transmit_can_frame(&ECMP_DIAG_START);
         DisableIsoMonitoringStatemachine = 1;
       }
       if (DisableIsoMonitoringStatemachine == 2) {
-        transmit_can_frame(&ECMP_ACK_MESSAGE, can_config.battery);
+        transmit_can_frame(&ECMP_ACK_MESSAGE);
         DisableIsoMonitoringStatemachine = 3;
       }
       if (DisableIsoMonitoringStatemachine == 4) {
-        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION, can_config.battery);
+        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION);
         DisableIsoMonitoringStatemachine = 5;
       }
       if (DisableIsoMonitoringStatemachine == 6) {
-        transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
+        transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ);
         DisableIsoMonitoringStatemachine = 7;
       }
       timeSpentDisableIsoMonitoring++;
@@ -875,15 +907,15 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       }
     } else if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
       if (ContactorResetStatemachine == 0) {
-        transmit_can_frame(&ECMP_DIAG_START, can_config.battery);
+        transmit_can_frame(&ECMP_DIAG_START);
         ContactorResetStatemachine = 1;
       }
       if (ContactorResetStatemachine == 2) {
-        transmit_can_frame(&ECMP_CONTACTOR_RESET_START, can_config.battery);
+        transmit_can_frame(&ECMP_CONTACTOR_RESET_START);
         ContactorResetStatemachine = 3;
       }
       if (ContactorResetStatemachine == 4) {
-        transmit_can_frame(&ECMP_CONTACTOR_RESET_PROGRESS, can_config.battery);
+        transmit_can_frame(&ECMP_CONTACTOR_RESET_PROGRESS);
         ContactorResetStatemachine = 5;
       }
 
@@ -897,15 +929,15 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     } else if (datalayer_extended.stellantisECMP.UserRequestCollisionReset) {
 
       if (CollisionResetStatemachine == 0) {
-        transmit_can_frame(&ECMP_DIAG_START, can_config.battery);
+        transmit_can_frame(&ECMP_DIAG_START);
         CollisionResetStatemachine = 1;
       }
       if (CollisionResetStatemachine == 2) {
-        transmit_can_frame(&ECMP_COLLISION_RESET_START, can_config.battery);
+        transmit_can_frame(&ECMP_COLLISION_RESET_START);
         CollisionResetStatemachine = 3;
       }
       if (CollisionResetStatemachine == 4) {
-        transmit_can_frame(&ECMP_COLLISION_RESET_PROGRESS, can_config.battery);
+        transmit_can_frame(&ECMP_COLLISION_RESET_PROGRESS);
         CollisionResetStatemachine = 5;
       }
 
@@ -919,15 +951,15 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     } else if (datalayer_extended.stellantisECMP.UserRequestIsolationReset) {
 
       if (IsolationResetStatemachine == 0) {
-        transmit_can_frame(&ECMP_DIAG_START, can_config.battery);
+        transmit_can_frame(&ECMP_DIAG_START);
         IsolationResetStatemachine = 1;
       }
       if (IsolationResetStatemachine == 2) {
-        transmit_can_frame(&ECMP_ISOLATION_RESET_START, can_config.battery);
+        transmit_can_frame(&ECMP_ISOLATION_RESET_START);
         IsolationResetStatemachine = 3;
       }
       if (IsolationResetStatemachine == 4) {
-        transmit_can_frame(&ECMP_ISOLATION_RESET_PROGRESS, can_config.battery);
+        transmit_can_frame(&ECMP_ISOLATION_RESET_PROGRESS);
         IsolationResetStatemachine = 5;
       }
 
@@ -1292,6 +1324,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
           case PID_DATE_OF_MANUFACTURE:
             ECMP_POLL.data.u8[2] = (uint8_t)((PID_DATE_OF_MANUFACTURE & 0xFF00) >> 8);
             ECMP_POLL.data.u8[3] = (uint8_t)(PID_DATE_OF_MANUFACTURE & 0x00FF);
+            poll_state = PID_ALL_CELL_SOH;
+            break;
+          case PID_ALL_CELL_SOH:
+            ECMP_POLL.data.u8[2] = (uint8_t)((PID_ALL_CELL_SOH & 0xFF00) >> 8);
+            ECMP_POLL.data.u8[3] = (uint8_t)(PID_ALL_CELL_SOH & 0x00FF);
             poll_state = PID_WELD_CHECK;  // Loop back to beginning
             break;
           default:
@@ -1299,7 +1336,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
             poll_state = PID_WELD_CHECK;
             break;
         }
-        transmit_can_frame(&ECMP_POLL, can_config.battery);
+        transmit_can_frame(&ECMP_POLL);
       }
     }
   }
@@ -1328,14 +1365,14 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     ECMP_17B.data.u8[7] = counter_10ms << 4 | checksum_calc(counter_10ms, ECMP_17B);
     ECMP_112.data.u8[7] = counter_10ms << 4 | checksum_calc(counter_10ms, ECMP_112);
 
-    transmit_can_frame(&ECMP_112, can_config.battery);  //MCU1_112
-    transmit_can_frame(&ECMP_0C5, can_config.battery);  //DC2_0C5
-    transmit_can_frame(&ECMP_17B, can_config.battery);  //VCU_PCANInfo_17B
-    transmit_can_frame(&ECMP_0F2, can_config.battery);  //CtrlMCU1_0F2
+    transmit_can_frame(&ECMP_112);  //MCU1_112
+    transmit_can_frame(&ECMP_0C5);  //DC2_0C5
+    transmit_can_frame(&ECMP_17B);  //VCU_PCANInfo_17B
+    transmit_can_frame(&ECMP_0F2);  //CtrlMCU1_0F2
     if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_111, can_config.battery);
-      transmit_can_frame(&ECMP_110, can_config.battery);
-      transmit_can_frame(&ECMP_114, can_config.battery);
+      transmit_can_frame(&ECMP_111);
+      transmit_can_frame(&ECMP_110);
+      transmit_can_frame(&ECMP_114);
     }
   }
 
@@ -1354,7 +1391,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     ECMP_0F0.data.u8[7] = counter_20ms << 4 | checksum_calc(counter_20ms, ECMP_0F0);
 
-    transmit_can_frame(&ECMP_0F0, can_config.battery);  //VCU2_0F0
+    transmit_can_frame(&ECMP_0F0);  //VCU2_0F0
   }
   // Send 50ms periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
@@ -1367,8 +1404,8 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       //Normal operation for contactor closing
       ECMP_27A.data = {0x4F, 0x58, 0x00, 0x02, 0x24, 0x00, 0x00, 0x00};
     }
-    transmit_can_frame(&ECMP_230, can_config.battery);  //OBC3_230
-    transmit_can_frame(&ECMP_27A, can_config.battery);  //VCU_BSI_Wakeup_27A
+    transmit_can_frame(&ECMP_230);  //OBC3_230
+    transmit_can_frame(&ECMP_27A);  //VCU_BSI_Wakeup_27A
   }
   // Send 100ms periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -1418,7 +1455,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       data_3A2_CRC[13] = 0xDF;
       data_3A2_CRC[14] = 0xEE;
       data_3A2_CRC[15] = 0xFD;
-      transmit_can_frame(&ECMP_3D0, can_config.battery);  //Not in logs, but makes speed go to 0km/h
+      transmit_can_frame(&ECMP_3D0);  //Not in logs, but makes speed go to 0km/h
     } else {
       //Normal operation for contactor closing
       ECMP_31E.data.u8[0] = 0x50;
@@ -1472,26 +1509,26 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     ECMP_31D.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31D);
     ECMP_3D0.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_3D0);
 
-    transmit_can_frame(&ECMP_382, can_config.battery);  //PSA Specific VCU (BSIInfo_382)
-    transmit_can_frame(&ECMP_345, can_config.battery);  //DC1_345
-    transmit_can_frame(&ECMP_3A2, can_config.battery);  //OBC2_3A2
-    transmit_can_frame(&ECMP_3A3, can_config.battery);  //OBC1_3A3
-    transmit_can_frame(&ECMP_010, can_config.battery);  //VCU_BCM_Crash
+    transmit_can_frame(&ECMP_382);  //PSA Specific VCU (BSIInfo_382)
+    transmit_can_frame(&ECMP_345);  //DC1_345
+    transmit_can_frame(&ECMP_3A2);  //OBC2_3A2
+    transmit_can_frame(&ECMP_3A3);  //OBC1_3A3
+    transmit_can_frame(&ECMP_010);  //VCU_BCM_Crash
     if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_31E, can_config.battery);
-      transmit_can_frame(&ECMP_383, can_config.battery);
-      transmit_can_frame(&ECMP_0A6, can_config.battery);  //Not in all logs
-      transmit_can_frame(&ECMP_37F, can_config.battery);  //Seems to be temperatures of some sort
-      transmit_can_frame(&ECMP_372, can_config.battery);
-      transmit_can_frame(&ECMP_351, can_config.battery);
-      transmit_can_frame(&ECMP_31D, can_config.battery);
+      transmit_can_frame(&ECMP_31E);
+      transmit_can_frame(&ECMP_383);
+      transmit_can_frame(&ECMP_0A6);  //Not in all logs
+      transmit_can_frame(&ECMP_37F);  //Seems to be temperatures of some sort
+      transmit_can_frame(&ECMP_372);
+      transmit_can_frame(&ECMP_351);
+      transmit_can_frame(&ECMP_31D);
     }
   }
   // Send 500ms periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
     previousMillis500 = currentMillis;
     if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_0AE, can_config.battery);
+      transmit_can_frame(&ECMP_0AE);
     }
   }
   // Send 1s CAN Message
@@ -1515,21 +1552,21 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     ECMP_552.data.u8[2] = ((ticks_552 & 0x0000FF00) >> 8);
     ECMP_552.data.u8[3] = (ticks_552 & 0x000000FF);
 
-    transmit_can_frame(&ECMP_439, can_config.battery);  //OBC4
-    transmit_can_frame(&ECMP_552, can_config.battery);  //VCU_552 timetracking
+    transmit_can_frame(&ECMP_439);  //OBC4
+    transmit_can_frame(&ECMP_552);  //VCU_552 timetracking
     if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_486, can_config.battery);  //Not in all logs
-      transmit_can_frame(&ECMP_041, can_config.battery);  //Not in all logs
-      transmit_can_frame(&ECMP_786, can_config.battery);  //Not in all logs
-      transmit_can_frame(&ECMP_591, can_config.battery);  //Not in all logs
-      transmit_can_frame(&ECMP_794, can_config.battery);  //Not in all logs
+      transmit_can_frame(&ECMP_486);  //Not in all logs
+      transmit_can_frame(&ECMP_041);  //Not in all logs
+      transmit_can_frame(&ECMP_786);  //Not in all logs
+      transmit_can_frame(&ECMP_591);  //Not in all logs
+      transmit_can_frame(&ECMP_794);  //Not in all logs
     }
   }
   // Send 5s periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
     previousMillis5000 = currentMillis;
     if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_55F, can_config.battery);
+      transmit_can_frame(&ECMP_55F);
     }
   }
 }

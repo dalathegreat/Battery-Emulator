@@ -1,11 +1,12 @@
 #include "MEB-BATTERY.h"
+#include <Arduino.h>
 #include <algorithm>  // For std::min and std::max
 #include "../communication/can/comm_can.h"
 #include "../communication/can/obd.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
-#include "../include.h"
+#include "../devboard/utils/logging.h"
 
 /*
 TODO list
@@ -170,9 +171,7 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint32_t address) {
       magicByte = MB16A954A6[counter];
       break;
     default:  // this won't lead to correct CRC checksums
-#ifdef DEBUG_LOG
       logging.println("Checksum request unknown");
-#endif
       magicByte = 0x00;
       break;
   }
@@ -201,15 +200,15 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint32_t address) {
 void MebBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc = battery_SOC * 5;  //*0.05*100
+  datalayer_battery->status.real_soc = battery_SOC * 5;  //*0.05*100
 
-  datalayer.battery.status.voltage_dV = BMS_voltage * 2.5;  // *0.25*10
+  datalayer_battery->status.voltage_dV = BMS_voltage * 2.5;  // *0.25*10
 
-  datalayer.battery.status.current_dA = (BMS_current - 16300);  // 0.1 * 10
+  datalayer_battery->status.current_dA = (BMS_current - 16300);  // 0.1 * 10
 
   if (nof_cells_determined) {
-    datalayer.battery.info.total_capacity_Wh =
-        ((float)datalayer.battery.info.number_of_cells) * 3.67 * ((float)BMS_capacity_ah) * 0.2 * 1.02564;
+    datalayer_battery->info.total_capacity_Wh =
+        ((float)datalayer_battery->info.number_of_cells) * 3.67 * ((float)BMS_capacity_ah) * 0.2 * 1.02564;
     // The factor 1.02564 = 1/0.975 is to correct for bottom 2.5% which is reported by the remaining_capacity_Wh,
     // but which is not actually usable, but if we do not include it, the remaining_capacity_Wh can be larger than
     // the total_capacity_Wh.
@@ -217,32 +216,32 @@ void MebBattery::
     // total_capacity_Wh calculated above.
 
     int Wh_max = 61832 * 0.935;  // 108 cells
-    if (datalayer.battery.info.number_of_cells <= 84)
+    if (datalayer_battery->info.number_of_cells <= 84)
       Wh_max = 48091 * 0.9025;
-    else if (datalayer.battery.info.number_of_cells <= 96)
+    else if (datalayer_battery->info.number_of_cells <= 96)
       Wh_max = 82442 * 0.9025;
     if (BMS_capacity_ah > 0)
-      datalayer.battery.status.soh_pptt = 10000 * datalayer.battery.info.total_capacity_Wh / (Wh_max * 1.02564);
+      datalayer_battery->status.soh_pptt = 10000 * datalayer_battery->info.total_capacity_Wh / (Wh_max * 1.02564);
   }
 
-  datalayer.battery.status.remaining_capacity_Wh = usable_energy_amount_Wh * 5;
+  datalayer_battery->status.remaining_capacity_Wh = usable_energy_amount_Wh * 5;
 
-  datalayer.battery.status.max_charge_power_W = (max_charge_power_watt * 100);
+  datalayer_battery->status.max_charge_power_W = (max_charge_power_watt * 100);
 
-  datalayer.battery.status.max_discharge_power_W = (max_discharge_power_watt * 100);
+  datalayer_battery->status.max_discharge_power_W = (max_discharge_power_watt * 100);
 
   //Power in watts, Negative = charging batt
-  datalayer.battery.status.active_power_W =
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
+  datalayer_battery->status.active_power_W =
+      ((datalayer_battery->status.voltage_dV * datalayer_battery->status.current_dA) / 100);
 
   // datalayer.battery.status.temperature_min_dC = actual_temperature_lowest_C*5 -400;  // We use the value below, because it has better accuracy
-  datalayer.battery.status.temperature_min_dC = (battery_min_temp * 10) / 64;
+  datalayer_battery->status.temperature_min_dC = (battery_min_temp * 10) / 64;
 
   // datalayer.battery.status.temperature_max_dC = actual_temperature_highest_C*5 -400;  // We use the value below, because it has better accuracy
-  datalayer.battery.status.temperature_max_dC = (battery_max_temp * 10) / 64;
+  datalayer_battery->status.temperature_max_dC = (battery_max_temp * 10) / 64;
 
   //Map all cell voltages to the global array
-  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_polled, 108 * sizeof(uint16_t));
+  memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages_polled, 108 * sizeof(uint16_t));
 
   if (service_disconnect_switch_missing) {
     set_event(EVENT_HVIL_FAILURE, 1);
@@ -309,9 +308,7 @@ void MebBattery::
 void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   last_can_msg_timestamp = millis();
   if (first_can_msg == 0) {
-#ifdef DEBUG_LOG
     logging.printf("MEB: First CAN msg received\n");
-#endif
     first_can_msg = last_can_msg_timestamp;
   }
 
@@ -325,9 +322,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (rx_frame.data.u8[0] !=
           vw_crc_calc(rx_frame.data.u8, rx_frame.DLC, rx_frame.ID)) {  //If CRC does not match calc
         datalayer.battery.status.CAN_error_counter++;
-#ifdef DEBUG_LOG
         logging.printf("MEB: Msg 0x%04X CRC error\n", rx_frame.ID);
-#endif
         return;
       }
     default:
@@ -699,29 +694,23 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case 3:  // EXTERN CHARGING
         case 4:  // AC_CHARGING
         case 6:  // DC_CHARGING
-#ifdef DEBUG_LOG
           if (!datalayer.system.status.battery_allows_contactor_closing)
             logging.printf("MEB: Contactors closed\n");
-#endif
           if (datalayer.battery.status.real_bms_status != BMS_FAULT)
             datalayer.battery.status.real_bms_status = BMS_ACTIVE;
           datalayer.system.status.battery_allows_contactor_closing = true;
           hv_requested = false;
           break;
         case 5:  // Error
-#ifdef DEBUG_LOG
           if (datalayer.system.status.battery_allows_contactor_closing)
             logging.printf("MEB: Contactors opened\n");
-#endif
           datalayer.battery.status.real_bms_status = BMS_FAULT;
           datalayer.system.status.battery_allows_contactor_closing = false;
           hv_requested = false;
           break;
         case 7:  // Init
-#ifdef DEBUG_LOG
           if (datalayer.system.status.battery_allows_contactor_closing)
             logging.printf("MEB: Contactors opened\n");
-#endif
           if (datalayer.battery.status.real_bms_status != BMS_FAULT)
             datalayer.battery.status.real_bms_status = BMS_STANDBY;
           datalayer.system.status.battery_allows_contactor_closing = false;
@@ -729,10 +718,8 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           break;
         case 2:  // BALANCING
         default:
-#ifdef DEBUG_LOG
           if (datalayer.system.status.battery_allows_contactor_closing)
             logging.printf("MEB: Contactors opened\n");
-#endif
           if (datalayer.battery.status.real_bms_status != BMS_FAULT)
             datalayer.battery.status.real_bms_status = BMS_STANDBY;
           datalayer.system.status.battery_allows_contactor_closing = false;
@@ -750,7 +737,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x1C42007B:                      // Reply from battery
       if (rx_frame.data.u8[0] == 0x10) {  //PID header
-        transmit_can_frame(&MEB_ACK_FRAME, can_config.battery);
+        transmit_can_frame(&MEB_ACK_FRAME);
       }
       if (rx_frame.DLC == 8) {
         pid_reply = (rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3];
@@ -1275,10 +1262,8 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       handle_obd_frame(rx_frame);
       break;
     default:
-#ifdef DEBUG_LOG
       logging.printf("Unknown CAN frame received:\n");
       dump_can_frame(rx_frame, MSG_RX);
-#endif
       break;
   }
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -1291,10 +1276,8 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 void MebBattery::transmit_can(unsigned long currentMillis) {
 
   if (currentMillis - last_can_msg_timestamp > 500) {
-#ifdef DEBUG_LOG
     if (first_can_msg)
       logging.printf("MEB: No CAN msg received for 500ms\n");
-#endif
     can_msg_received = RX_DEFAULT;
     first_can_msg = 0;
     if (datalayer.battery.status.real_bms_status != BMS_FAULT) {
@@ -1311,7 +1294,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
     counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
-    transmit_can_frame(&MEB_0FC, can_config.battery);  // Required for contactor closing
+    transmit_can_frame(&MEB_0FC);  // Required for contactor closing
   }
   // Send 20ms CAN Message
   if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
@@ -1322,7 +1305,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
     counter_20ms = (counter_20ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
-    transmit_can_frame(&MEB_0FD, can_config.battery);  // Required for contactor closing
+    transmit_can_frame(&MEB_0FD);  // Required for contactor closing
   }
   // Send 40ms CAN Message
   if (currentMillis - previousMillis40ms >= INTERVAL_40_MS) {
@@ -1339,7 +1322,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     }
     toggle = !toggle;  // Flip the toggle each time the code block is executed
 
-    transmit_can_frame(&MEB_040, can_config.battery);  // Airbag message - Needed for contactor closing
+    transmit_can_frame(&MEB_040);  // Airbag message - Needed for contactor closing
   }
   // Send 50ms CAN Message
   if (currentMillis - previousMillis50ms >= INTERVAL_50_MS) {
@@ -1355,7 +1338,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     MEB_0C0.data.u8[0] = vw_crc_calc(MEB_0C0.data.u8, MEB_0C0.DLC, MEB_0C0.ID);
     counter_50ms = (counter_50ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
-    transmit_can_frame(&MEB_0C0, can_config.battery);  //  Needed for contactor closing
+    transmit_can_frame(&MEB_0C0);  //  Needed for contactor closing
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
@@ -1372,7 +1355,6 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
                  ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
       hv_requested = true;
       datalayer.system.settings.start_precharging = false;
-#ifdef DEBUG_LOG
       if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
         logging.printf("MEB: Requesting HV\n");
       }
@@ -1384,7 +1366,6 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
           logging.printf("MEB: Precharge bit set to inactive\n");
         }
       }
-#endif
       MEB_503.data.u8[1] =
           0x30 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
       MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;
@@ -1398,7 +1379,6 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
         datalayer.system.settings.start_precharging = true;
       }
 
-#ifdef DEBUG_LOG
       if (MEB_503.data.u8[3] != BMS_TARGET_HV_OFF) {
         logging.printf("MEB: Requesting HV_OFF\n");
       }
@@ -1410,7 +1390,6 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
           logging.printf("MEB: Precharge bit set to inactive\n");
         }
       }
-#endif
       MEB_503.data.u8[1] =
           0x10 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
       MEB_503.data.u8[3] = BMS_TARGET_HV_OFF;
@@ -1443,11 +1422,11 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     MEB_14C.data.u8[0] = vw_crc_calc(MEB_14C.data.u8, MEB_14C.DLC, MEB_14C.ID);
 
     counter_100ms = (counter_100ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-    transmit_can_frame(&MEB_503, can_config.battery);
-    transmit_can_frame(&MEB_272, can_config.battery);
-    transmit_can_frame(&MEB_3C0, can_config.battery);
-    transmit_can_frame(&MEB_3BE, can_config.battery);
-    transmit_can_frame(&MEB_14C, can_config.battery);
+    transmit_can_frame(&MEB_503);
+    transmit_can_frame(&MEB_272);
+    transmit_can_frame(&MEB_3C0);
+    transmit_can_frame(&MEB_3BE);
+    transmit_can_frame(&MEB_14C);
   }
   //Send 200ms message
   if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
@@ -1457,11 +1436,11 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
     //TODO: MEB_1B0000B9 & MEB_1B000010 & MEB_1B000046 has CAN sleep commands. May be removed?
 
-    transmit_can_frame(&MEB_5E1, can_config.battery);
-    transmit_can_frame(&MEB_153, can_config.battery);
-    transmit_can_frame(&MEB_1B0000B9, can_config.battery);
-    transmit_can_frame(&MEB_1B000010, can_config.battery);
-    transmit_can_frame(&MEB_1B000046, can_config.battery);
+    transmit_can_frame(&MEB_5E1);
+    transmit_can_frame(&MEB_153);
+    transmit_can_frame(&MEB_1B0000B9);
+    transmit_can_frame(&MEB_1B000010);
+    transmit_can_frame(&MEB_1B000046);
 
     switch (poll_pid) {
       case PID_SOC:
@@ -1990,7 +1969,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
         break;
     }
     if (first_can_msg > 0 && currentMillis > first_can_msg + 1000) {
-      transmit_can_frame(&MEB_POLLING_FRAME, can_config.battery);
+      transmit_can_frame(&MEB_POLLING_FRAME);
     }
   }
 
@@ -1998,11 +1977,11 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
     previousMillis500ms = currentMillis;
 
-    transmit_can_frame(&MEB_16A954B4, can_config.battery);  //eTM, Cooling valves and pumps for BMS
-    transmit_can_frame(&MEB_569, can_config.battery);       // Battery heating requests
-    transmit_can_frame(&MEB_1A55552B, can_config.battery);  //Climate, heatpump and priorities
-    transmit_can_frame(&MEB_1A555548, can_config.battery);  //ORU, OTA update message for reserving battery
-    transmit_can_frame(&MEB_16A954FB, can_config.battery);  //Climate, request to BMS for starting preconditioning
+    transmit_can_frame(&MEB_16A954B4);  //eTM, Cooling valves and pumps for BMS
+    transmit_can_frame(&MEB_569);       // Battery heating requests
+    transmit_can_frame(&MEB_1A55552B);  //Climate, heatpump and priorities
+    transmit_can_frame(&MEB_1A555548);  //ORU, OTA update message for reserving battery
+    transmit_can_frame(&MEB_16A954FB);  //Climate, request to BMS for starting preconditioning
   }
 
   //Send 1s CANFD message
@@ -2023,12 +2002,12 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     MEB_6B2.data.u8[7] = (uint8_t)((seconds & 0x3E) >> 1);
     seconds = (seconds + 1) % 60;
 
-    counter_1000ms = (counter_1000ms + 1) % 16;             //Goes from 0-1-2-3...15-0-1-2-3..
-    transmit_can_frame(&MEB_6B2, can_config.battery);       // Diagnostics - Needed for contactor closing
-    transmit_can_frame(&MEB_641, can_config.battery);       // Motor - OBD
-    transmit_can_frame(&MEB_5F5, can_config.battery);       // Loading profile
-    transmit_can_frame(&MEB_585, can_config.battery);       // Systeminfo
-    transmit_can_frame(&MEB_1A5555A6, can_config.battery);  // Temperature QBit
+    counter_1000ms = (counter_1000ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
+    transmit_can_frame(&MEB_6B2);                // Diagnostics - Needed for contactor closing
+    transmit_can_frame(&MEB_641);                // Motor - OBD
+    transmit_can_frame(&MEB_5F5);                // Loading profile
+    transmit_can_frame(&MEB_585);                // Systeminfo
+    transmit_can_frame(&MEB_1A5555A6);           // Temperature QBit
 
     transmit_obd_can_frame(0x18DA05F1, can_config.battery, true);
   }

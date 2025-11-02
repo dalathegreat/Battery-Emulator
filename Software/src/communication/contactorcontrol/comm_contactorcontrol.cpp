@@ -1,5 +1,7 @@
 #include "comm_contactorcontrol.h"
-#include "../../include.h"
+#include "../../devboard/hal/hal.h"
+#include "../../devboard/safety/safety.h"
+#include "../../inverter/INVERTERS.h"
 
 #ifdef CONTACTOR_CONTROL
 const bool contactor_control_enabled_default = true;
@@ -25,7 +27,7 @@ bool periodic_bms_reset = periodic_bms_reset_default;
 #ifdef REMOTE_BMS_RESET
 const bool remote_bms_reset_default = true;
 #else
-const bool remote_bms_reset_default = true;
+const bool remote_bms_reset_default = false;
 #endif
 bool remote_bms_reset = remote_bms_reset_default;
 
@@ -53,7 +55,7 @@ const int OFF = 0;
 #define OFF 1
 #endif  //NC_CONTACTORS
 
-#define MAX_ALLOWED_FAULT_TICKS 1000
+#define MAX_ALLOWED_FAULT_TICKS 1000  //1000 = 10 seconds
 #define NEGATIVE_CONTACTOR_TIME_MS \
   500  // Time after negative contactor is turned on, to start precharge (not actual precharge time!)
 #define PRECHARGE_COMPLETED_TIME_MS \
@@ -73,7 +75,6 @@ unsigned long currentTime = 0;
 unsigned long lastPowerRemovalTime = 0;
 unsigned long bmsPowerOnTime = 0;
 const unsigned long powerRemovalInterval = 24 * 60 * 60 * 1000;  // 24 hours in milliseconds
-const unsigned long powerRemovalDuration = 30000;                // 30 seconds in milliseconds
 const unsigned long bmsWarmupDuration = 3000;
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
@@ -92,50 +93,64 @@ void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
 
 // Initialization functions
 
-void init_contactors() {
+const char* contactors = "Contactors";
+
+bool init_contactors() {
   // Init contactor pins
   if (contactor_control_enabled) {
+    auto posPin = esp32hal->POSITIVE_CONTACTOR_PIN();
+    auto negPin = esp32hal->NEGATIVE_CONTACTOR_PIN();
+    auto precPin = esp32hal->PRECHARGE_PIN();
+
+    if (!esp32hal->alloc_pins(contactors, posPin, negPin, precPin)) {
+      return false;
+    }
+
     if (pwm_contactor_control) {
       // Setup PWM Channel Frequency and Resolution
-      ledcAttachChannel(POSITIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res, PWM_Positive_Channel);
-      ledcAttachChannel(NEGATIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res, PWM_Negative_Channel);
+      ledcAttachChannel(posPin, PWM_Freq, PWM_Res, PWM_Positive_Channel);
+      ledcAttachChannel(negPin, PWM_Freq, PWM_Res, PWM_Negative_Channel);
       // Set all pins OFF (0% PWM)
-      ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_OFF_DUTY);
-      ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_OFF_DUTY);
+      ledcWrite(posPin, PWM_OFF_DUTY);
+      ledcWrite(negPin, PWM_OFF_DUTY);
     } else {  //Normal CONTACTOR_CONTROL
-      pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
-      set(POSITIVE_CONTACTOR_PIN, OFF);
-      pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
-      set(NEGATIVE_CONTACTOR_PIN, OFF);
+      pinMode(posPin, OUTPUT);
+      set(posPin, OFF);
+      pinMode(negPin, OUTPUT);
+      set(negPin, OFF);
     }  // Precharge never has PWM regardless of setting
-    pinMode(PRECHARGE_PIN, OUTPUT);
-    set(PRECHARGE_PIN, OFF);
+    pinMode(precPin, OUTPUT);
+    set(precPin, OFF);
   }
-  if (contactor_control_enabled_double_battery) {
-    pinMode(SECOND_BATTERY_CONTACTORS_PIN, OUTPUT);
-    set(SECOND_BATTERY_CONTACTORS_PIN, OFF);
-  }
-// Init BMS contactor
-#if defined HW_STARK || defined HW_3LB  // This hardware has dedicated pin, always enable on start
-  pinMode(BMS_POWER, OUTPUT);           //LilyGo is omitted from this, only enabled if user selects PERIODIC_BMS_RESET
-  digitalWrite(BMS_POWER, HIGH);
-#endif  // HW with dedicated BMS pins
 
-#ifdef BMS_POWER
-  if (periodic_bms_reset || remote_bms_reset) {
-    pinMode(BMS_POWER, OUTPUT);
-    digitalWrite(BMS_POWER, HIGH);
+  if (contactor_control_enabled_double_battery) {
+    auto second_contactors = esp32hal->SECOND_BATTERY_CONTACTORS_PIN();
+    if (!esp32hal->alloc_pins(contactors, second_contactors)) {
+      return false;
+    }
+
+    pinMode(second_contactors, OUTPUT);
+    set(second_contactors, OFF);
   }
-#endif
+
+  // Init BMS contactor
+  if (periodic_bms_reset || remote_bms_reset || esp32hal->always_enable_bms_power()) {
+    auto pin = esp32hal->BMS_POWER();
+    if (!esp32hal->alloc_pins("BMS power", pin)) {
+      return false;
+    }
+    pinMode(pin, OUTPUT);
+    digitalWrite(pin, HIGH);
+  }
+
+  return true;
 }
 
 static void dbg_contactors(const char* state) {
-#ifdef DEBUG_LOG
   logging.print("[");
   logging.print(millis());
   logging.print(" ms] contactors control: ");
   logging.println(state);
-#endif
 }
 
 // Main functions of the handle_contactors include checking if inverter allows for closing, checking battery 2, checking BMS power output, and actual contactor closing/precharge via GPIO
@@ -144,13 +159,18 @@ void handle_contactors() {
     datalayer.system.status.inverter_allows_contactor_closing = inverter->allows_contactor_closing();
   }
 
-#ifdef BMS_POWER
-  handle_BMSpower();  // Some batteries need to be periodically power cycled
-#endif
+  auto posPin = esp32hal->POSITIVE_CONTACTOR_PIN();
+  auto negPin = esp32hal->NEGATIVE_CONTACTOR_PIN();
+  auto prechargePin = esp32hal->PRECHARGE_PIN();
+  auto bms_power_pin = esp32hal->BMS_POWER();
 
-#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
-  handle_contactors_battery2();
-#endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
+  if (bms_power_pin != GPIO_NUM_NC) {
+    handle_BMSpower();  // Some batteries need to be periodically power cycled
+  }
+
+  if (contactor_control_enabled_double_battery) {
+    handle_contactors_battery2();
+  }
 
   if (contactor_control_enabled) {
     // First check if we have any active errors, incase we do, turn off the battery
@@ -166,23 +186,22 @@ void handle_contactors() {
     }
 
     if (contactorStatus == SHUTDOWN_REQUESTED) {
-      set(PRECHARGE_PIN, OFF);
-      set(NEGATIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
-      set(POSITIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
+      set(prechargePin, OFF);
+      set(negPin, OFF, PWM_OFF_DUTY);
+      set(posPin, OFF, PWM_OFF_DUTY);
       set_event(EVENT_ERROR_OPEN_CONTACTOR, 0);
-      datalayer.system.status.contactors_engaged = false;
+      datalayer.system.status.contactors_engaged = 2;
       return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
     }
 
     // After that, check if we are OK to start turning on the battery
     if (contactorStatus == DISCONNECTED) {
-      set(PRECHARGE_PIN, OFF);
-      set(NEGATIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
-      set(POSITIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
-      datalayer.system.status.contactors_engaged = false;
+      set(prechargePin, OFF);
+      set(negPin, OFF, PWM_OFF_DUTY);
+      set(posPin, OFF, PWM_OFF_DUTY);
+      datalayer.system.status.contactors_engaged = 0;
 
-      if (datalayer.system.status.battery_allows_contactor_closing &&
-          datalayer.system.status.inverter_allows_contactor_closing &&
+      if (datalayer.system.status.inverter_allows_contactor_closing &&
           !datalayer.system.settings.equipment_stop_active) {
         contactorStatus = START_PRECHARGE;
       }
@@ -210,7 +229,7 @@ void handle_contactors() {
     // Handle actual state machine. This first turns on Negative, then Precharge, then Positive, and finally turns OFF precharge
     switch (contactorStatus) {
       case START_PRECHARGE:
-        set(NEGATIVE_CONTACTOR_PIN, ON, PWM_ON_DUTY);
+        set(negPin, ON, PWM_ON_DUTY);
         dbg_contactors("NEGATIVE");
         prechargeStartTime = currentTime;
         contactorStatus = PRECHARGE;
@@ -218,7 +237,7 @@ void handle_contactors() {
 
       case PRECHARGE:
         if (currentTime - prechargeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
-          set(PRECHARGE_PIN, ON);
+          set(prechargePin, ON);
           dbg_contactors("PRECHARGE");
           negativeStartTime = currentTime;
           contactorStatus = POSITIVE;
@@ -227,7 +246,7 @@ void handle_contactors() {
 
       case POSITIVE:
         if (currentTime - negativeStartTime >= PRECHARGE_TIME_MS) {
-          set(POSITIVE_CONTACTOR_PIN, ON, PWM_ON_DUTY);
+          set(posPin, ON, PWM_ON_DUTY);
           dbg_contactors("POSITIVE");
           prechargeCompletedTime = currentTime;
           contactorStatus = PRECHARGE_OFF;
@@ -236,12 +255,12 @@ void handle_contactors() {
 
       case PRECHARGE_OFF:
         if (currentTime - prechargeCompletedTime >= PRECHARGE_COMPLETED_TIME_MS) {
-          set(PRECHARGE_PIN, OFF);
-          set(NEGATIVE_CONTACTOR_PIN, ON, PWM_HOLD_DUTY);
-          set(POSITIVE_CONTACTOR_PIN, ON, PWM_HOLD_DUTY);
+          set(prechargePin, OFF);
+          set(negPin, ON, PWM_HOLD_DUTY);
+          set(posPin, ON, PWM_HOLD_DUTY);
           dbg_contactors("PRECHARGE_OFF");
           contactorStatus = COMPLETED;
-          datalayer.system.status.contactors_engaged = true;
+          datalayer.system.status.contactors_engaged = 1;
         }
         break;
       default:
@@ -250,17 +269,17 @@ void handle_contactors() {
   }
 }
 
-#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
 void handle_contactors_battery2() {
+  auto second_contactors = esp32hal->SECOND_BATTERY_CONTACTORS_PIN();
+
   if ((contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing) {
-    set(SECOND_BATTERY_CONTACTORS_PIN, ON);
+    set(second_contactors, ON);
     datalayer.system.status.contactors_battery2_engaged = true;
   } else {  // Closing contactors on secondary battery not allowed
-    set(SECOND_BATTERY_CONTACTORS_PIN, OFF);
+    set(second_contactors, OFF);
     datalayer.system.status.contactors_battery2_engaged = false;
   }
 }
-#endif
 
 /* PERIODIC_BMS_RESET - Once every 24 hours we remove power from the BMS_power pin for 30 seconds.
 REMOTE_BMS_RESET - Allows the user to remotely powercycle the BMS by sending a command to the emulator via MQTT.
@@ -269,9 +288,10 @@ This makes the BMS recalculate all SOC% and avoid memory leaks
 During that time we also set the emulator state to paused in order to not try and send CAN messages towards the battery
 Feature is only used if user has enabled PERIODIC_BMS_RESET in the USER_SETTINGS */
 
-#ifdef BMS_POWER
 void handle_BMSpower() {
   if (periodic_bms_reset || remote_bms_reset) {
+    auto bms_power_pin = esp32hal->BMS_POWER();
+
     // Get current time
     currentTime = millis();
 
@@ -282,13 +302,11 @@ void handle_BMSpower() {
       }
     }
 
-    // If power has been removed for 30 seconds, restore the power
-    if (datalayer.system.status.BMS_reset_in_progress && currentTime - lastPowerRemovalTime >= powerRemovalDuration) {
+    // If power has been removed for user configured interval (1-59 seconds), restore the power
+    if (datalayer.system.status.BMS_reset_in_progress &&
+        currentTime - lastPowerRemovalTime >= datalayer.battery.settings.user_set_bms_reset_duration_ms) {
       // Reapply power to the BMS
-      digitalWrite(BMS_POWER, HIGH);
-#ifdef BMS_2_POWER
-      digitalWrite(BMS_2_POWER, HIGH);  // Same for battery 2
-#endif
+      digitalWrite(bms_power_pin, HIGH);
       bmsPowerOnTime = currentTime;
       datalayer.system.status.BMS_reset_in_progress = false;   // Reset the power removal flag
       datalayer.system.status.BMS_startup_in_progress = true;  // Set the BMS warmup flag
@@ -303,10 +321,11 @@ void handle_BMSpower() {
     }
   }
 }
-#endif
 
 void start_bms_reset() {
   if (periodic_bms_reset || remote_bms_reset) {
+    auto bms_power_pin = esp32hal->BMS_POWER();
+
     if (!datalayer.system.status.BMS_reset_in_progress) {
       lastPowerRemovalTime = currentTime;  // Record the time when BMS reset was started
                                            // we are now resetting at the correct time. We don't need to offset anymore
@@ -319,12 +338,7 @@ void start_bms_reset() {
       // We try to keep contactors engaged during this pause, and just ramp power down to 0.
       setBatteryPause(true, false, false, false);
 
-#ifdef BMS_POWER
-      digitalWrite(BMS_POWER, LOW);  // Remove power by setting the BMS power pin to LOW
-#endif
-#ifdef BMS_2_POWER
-      digitalWrite(BMS_2_POWER, LOW);  // Same for battery 2
-#endif
+      digitalWrite(bms_power_pin, LOW);  // Remove power by setting the BMS power pin to LOW
     }
   }
 }

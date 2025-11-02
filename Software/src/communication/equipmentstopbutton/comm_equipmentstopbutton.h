@@ -1,12 +1,6 @@
 #ifndef _COMM_EQUIPMENTSTOPBUTTON_H_
 #define _COMM_EQUIPMENTSTOPBUTTON_H_
 
-#include "../../include.h"
-
-#ifdef EQUIPMENT_STOP_BUTTON
-#include "../../devboard/utils/debounce_button.h"
-#endif
-
 /**
  * @brief Initialization of equipment stop button
  *
@@ -14,7 +8,7 @@
  *
  * @return void
  */
-void init_equipment_stop_button();
+bool init_equipment_stop_button();
 
 /**
  * @brief Monitor equipment stop button
@@ -24,5 +18,9 @@ void init_equipment_stop_button();
  * @return void
  */
 void monitor_equipment_stop_button();
+
+enum class STOP_BUTTON_BEHAVIOR { NOT_CONNECTED = 0, LATCHING_SWITCH = 1, MOMENTARY_SWITCH = 2, Highest };
+
+extern STOP_BUTTON_BEHAVIOR equipment_stop_behavior;
 
 #endif

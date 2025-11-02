@@ -1,7 +1,5 @@
 #ifndef RENAULT_KANGOO_BATTERY_H
 #define RENAULT_KANGOO_BATTERY_H
-#include <Arduino.h>
-#include "../include.h"
 
 #include "CanBattery.h"
 

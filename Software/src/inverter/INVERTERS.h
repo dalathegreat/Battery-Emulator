@@ -18,6 +18,7 @@ extern InverterProtocol* inverter;
 #include "FOXESS-CAN.h"
 #include "GROWATT-HV-CAN.h"
 #include "GROWATT-LV-CAN.h"
+#include "GROWATT-WIT-CAN.h"
 #include "KOSTAL-RS485.h"
 #include "PYLON-CAN.h"
 #include "PYLON-LV-CAN.h"
@@ -27,11 +28,20 @@ extern InverterProtocol* inverter;
 #include "SMA-LV-CAN.h"
 #include "SMA-TRIPOWER-CAN.h"
 #include "SOFAR-CAN.h"
+#include "SOL-ARK-LV-CAN.h"
 #include "SOLAX-CAN.h"
 #include "SOLXPOW-CAN.h"
 #include "SUNGROW-CAN.h"
 
 // Call to initialize the build-time selected inverter. Safe to call even though inverter was not selected.
-void setup_inverter();
+bool setup_inverter();
+
+extern uint16_t user_selected_inverter_cells;
+extern uint16_t user_selected_inverter_modules;
+extern uint16_t user_selected_inverter_cells_per_module;
+extern uint16_t user_selected_inverter_voltage_level;
+extern uint16_t user_selected_inverter_ah_capacity;
+extern uint16_t user_selected_inverter_battery_type;
+extern bool user_selected_inverter_ignore_contactors;
 
 #endif

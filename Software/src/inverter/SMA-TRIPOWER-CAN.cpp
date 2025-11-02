@@ -2,7 +2,6 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 /* TODO:
 - Figure out the manufacturer info needed in transmit_can_init() CAN messages
@@ -65,6 +64,32 @@ void SmaTripowerInverter::
     SMA_4D8.data.u8[6] = READY_STATE;
   }
 
+  //Highest battery temperature
+  SMA_518.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
+  SMA_518.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  //Lowest battery temperature
+  SMA_518.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
+  SMA_518.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  //Sum of all cellvoltages
+  SMA_518.data.u8[4] = (datalayer.battery.status.voltage_dV >> 8);
+  SMA_518.data.u8[5] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  //Cell min/max voltage (mV / 25)
+  SMA_518.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV / 25);
+  SMA_518.data.u8[7] = (datalayer.battery.status.cell_max_voltage_mV / 25);
+
+  //Lifetime charged energy amount
+  SMA_458.data.u8[0] = (datalayer.battery.status.total_charged_battery_Wh & 0xFF000000) >> 24;
+  SMA_458.data.u8[1] = (datalayer.battery.status.total_charged_battery_Wh & 0x00FF0000) >> 16;
+  SMA_458.data.u8[2] = (datalayer.battery.status.total_charged_battery_Wh & 0x0000FF00) >> 8;
+  SMA_458.data.u8[3] = (datalayer.battery.status.total_charged_battery_Wh & 0x000000FF);
+  //Lifetime discharged energy amount
+  SMA_458.data.u8[4] = (datalayer.battery.status.total_discharged_battery_Wh & 0xFF000000) >> 24;
+  SMA_458.data.u8[5] = (datalayer.battery.status.total_discharged_battery_Wh & 0x00FF0000) >> 16;
+  SMA_458.data.u8[6] = (datalayer.battery.status.total_discharged_battery_Wh & 0x0000FF00) >> 8;
+  SMA_458.data.u8[7] = (datalayer.battery.status.total_discharged_battery_Wh & 0x000000FF);
+
+  control_contactor_led();
+
   // Check if Enable line is working. If we go too long without any input, raise an event
   if (!datalayer.system.status.inverter_allows_contactor_closing) {
     timeWithoutInverterAllowsContactorClosing++;
@@ -99,10 +124,9 @@ void SmaTripowerInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       //Inverter brand (frame1-3 = 0x53 0x4D 0x41) = SMA
       break;
+    case 0x5E7:  //Message originating from SMA inverter - Pairing request
     case 0x660:  //Message originating from SMA inverter - Pairing request
-#ifdef DEBUG_LOG
-      logging.println("Received 0x660: SMA pairing request");
-#endif  // DEBUG_LOG
+      logging.println("Received SMA pairing request");
       pairing_events++;
       set_event(EVENT_SMA_PAIRING, pairing_events);
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -135,7 +159,7 @@ void SmaTripowerInverter::transmit_can(unsigned long currentMillis) {
     previousMillis250ms = currentMillis;
     // Send next frame.
     Frame frame = framesToSend[0];
-    transmit_can_frame(frame.frame, can_config.inverter);
+    transmit_can_frame(frame.frame);
     frame.callback();
     for (int i = 0; i < listLength - 1; i++) {
       framesToSend[i] = framesToSend[i + 1];
@@ -159,6 +183,11 @@ void SmaTripowerInverter::transmit_can(unsigned long currentMillis) {
     pushFrame(&SMA_4D8);
     pushFrame(&SMA_3D8);
   }
+  // Send CAN Message every 60s (potentially SMA_458 is not required for stable operation)
+  if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
+    previousMillis60s = currentMillis;
+    pushFrame(&SMA_458);
+  }
 }
 
 void SmaTripowerInverter::completePairing() {
@@ -180,15 +209,4 @@ void SmaTripowerInverter::transmit_can_init() {
   pushFrame(&SMA_458);
   pushFrame(&SMA_4D8);
   pushFrame(&SMA_518, [this]() { this->completePairing(); });
-}
-
-void SmaTripowerInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
-  pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);
-#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
-  pinMode(INVERTER_CONTACTOR_ENABLE_LED_PIN, OUTPUT);
-  digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN, LOW);  // Turn LED off, until inverter allows contactor closing
-#endif                                                   // INVERTER_CONTACTOR_ENABLE_LED_PIN
 }

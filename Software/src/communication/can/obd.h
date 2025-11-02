@@ -1,8 +1,7 @@
 #ifndef _OBD_H_
 #define _OBD_H_
 
-#include "../../include.h"
-#include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "comm_can.h"
 
 void handle_obd_frame(CAN_frame& rx_frame);
 

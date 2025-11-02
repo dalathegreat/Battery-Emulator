@@ -1,9 +1,10 @@
 #include "KOSTAL-RS485.h"
+#include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
+#include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
-void KostalInverterProtocol::float2frame(byte* arr, float value, byte framepointer) {
+void KostalInverterProtocol::float2frame(uint8_t* arr, float value, uint8_t framepointer) {
   f32b g;
   g.f = value;
   arr[framepointer] = g.b[0];
@@ -13,16 +14,13 @@ void KostalInverterProtocol::float2frame(byte* arr, float value, byte framepoint
 }
 
 static void dbg_timestamp(void) {
-#ifdef DEBUG_KOSTAL_RS485_DATA
   logging.print("[");
   logging.print(millis());
   logging.print(" ms] ");
-#endif
 }
 
-static void dbg_frame(byte* frame, int len, const char* prefix) {
+static void dbg_frame(uint8_t* frame, int len, const char* prefix) {
   dbg_timestamp();
-#ifdef DEBUG_KOSTAL_RS485_DATA
   logging.print(prefix);
   logging.print(": ");
   for (uint8_t i = 0; i < len; i++) {
@@ -33,46 +31,31 @@ static void dbg_frame(byte* frame, int len, const char* prefix) {
     logging.print(" ");
   }
   logging.println("");
-#endif
-#ifdef DEBUG_KOSTAL_RS485_DATA_USB
-  Serial.print(prefix);
-  Serial.print(": ");
-  for (uint8_t i = 0; i < len; i++) {
-    if (frame[i] < 0x10) {
-      Serial.print("0");
-    }
-    Serial.print(frame[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println("");
-#endif
 }
 
 static void dbg_message(const char* msg) {
   dbg_timestamp();
-#ifdef DEBUG_KOSTAL_RS485_DATA
   logging.println(msg);
-#endif
 }
 
 /* https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples */
 
-static void null_stuffer(byte* lfc, int len) {
+static void null_stuffer(uint8_t* lfc, int len) {
   int last_null_byte = 0;
   for (int i = 0; i < len; i++) {
     if (lfc[i] == '\0') {
-      lfc[last_null_byte] = (byte)(i - last_null_byte);
+      lfc[last_null_byte] = (uint8_t)(i - last_null_byte);
       last_null_byte = i;
     }
   }
 }
 
-static void send_kostal(byte* frame, int len) {
+static void send_kostal(uint8_t* frame, int len) {
   dbg_frame(frame, len, "TX");
   Serial2.write(frame, len);
 }
 
-static byte calculate_kostal_crc(byte* lfc, int len) {
+static uint8_t calculate_kostal_crc(byte* lfc, int len) {
   unsigned int sum = 0;
   if (lfc[0] != 0) {
     logging.printf("WARNING: first byte should be 0, but is 0x%02x\n", lfc[0]);
@@ -80,7 +63,7 @@ static byte calculate_kostal_crc(byte* lfc, int len) {
   for (int i = 1; i < len; i++) {
     sum += lfc[i];
   }
-  return (byte)(-sum & 0xff);
+  return (uint8_t)(-sum & 0xff);
 }
 
 bool KostalInverterProtocol::check_kostal_frame_crc(int len) {
@@ -153,18 +136,18 @@ void KostalInverterProtocol::update_values() {
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 18);  // Last current
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 22);  // Should be Avg current(1s)
 
-  // On startup, byte 56 seems to be always 0x00 couple of frames,.
-  if (f2_startup_count < 9) {
-    CYCLIC_DATA[56] = 0x00;
-  } else {
-    CYCLIC_DATA[56] = 0x01;
+  // Close contactors after 20 battery info frames requested
+  if (f2_startup_count > 20) {
+    datalayer.system.status.inverter_allows_contactor_closing = true;
+    dbg_message("inverter_allows_contactor_closing -> true (info frame)");
   }
 
-  // On startup, byte 59 seems to be always 0x02 couple of frames,.
-  if (f2_startup_count < 14) {
-    CYCLIC_DATA[59] = 0x02;
-  } else {
+  if (datalayer.system.status.inverter_allows_contactor_closing) {
+    CYCLIC_DATA[56] = 0x01;
     CYCLIC_DATA[59] = 0x00;
+  } else {
+    CYCLIC_DATA[56] = 0x00;
+    CYCLIC_DATA[59] = 0x02;
   }
 
 #endif
@@ -188,7 +171,7 @@ void KostalInverterProtocol::update_values() {
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.cell_max_voltage_mV / 1000, 46);
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.cell_min_voltage_mV / 1000, 50);
 
-  CYCLIC_DATA[58] = (byte)(datalayer.battery.status.reported_soc / 100);
+  CYCLIC_DATA[58] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
 
   register_content_ok = true;
 
@@ -207,6 +190,12 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
 {
   currentMillis = millis();
 
+  // Auto-reset contactor_test_active after 5 seconds
+  if (contactortestTimerActive && (millis() - contactortestTimerStart >= 5000)) {
+    datalayer.system.status.inverter_allows_contactor_closing = true;
+    dbg_message("inverter_allows_contactor_closing -> true (Contactor test ended)");
+    contactortestTimerActive = false;
+  }
   if (datalayer.system.status.battery_allows_contactor_closing & !contactorMillis) {
     contactorMillis = currentMillis;
   }
@@ -225,7 +214,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
           if (check_kostal_frame_crc(rx_index)) {
             incoming_message_counter = RS485_HEALTHY;
 
-            if (RS485_RXFRAME[1] == 'c') {
+            if (RS485_RXFRAME[1] == 'c' && info_sent) {
               if (RS485_RXFRAME[6] == 0x47) {
                 // Set time function - Do nothing.
                 send_kostal(ACK_FRAME, 8);  // ACK
@@ -235,10 +224,17 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 if (RS485_RXFRAME[7] == 0x00) {
                   // Allow contactor closing
                   datalayer.system.status.inverter_allows_contactor_closing = true;
-                  dbg_message("inverter_allows_contactor_closing -> true");
+                  dbg_message("inverter_allows_contactor_closing -> true (5E 02)");
                   send_kostal(ACK_FRAME, 8);  // ACK
                 } else if (RS485_RXFRAME[7] == 0x04) {
-                  // INVALID STATE, no ACK sent
+                  // contactor test STATE, ACK sent
+                  datalayer.system.status.inverter_allows_contactor_closing = false;
+                  dbg_message("inverter_allows_contactor_closing -> false (Contactor test start)");
+                  send_kostal(ACK_FRAME, 8);  // ACK
+                  contactortestTimerStart = currentMillis;
+                  contactortestTimerActive = true;
+                } else if (RS485_RXFRAME[7] == 0xFF) {
+                  // no ACK sent
                 } else {
                   // Battery deep sleep?
                   send_kostal(ACK_FRAME, 8);  // ACK
@@ -249,7 +245,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 //Reverse polarity, do nothing
               } else {
                 int code = RS485_RXFRAME[6] + RS485_RXFRAME[7] * 0x100;
-                if (code == 0x44a) {
+                if (code == 0x44a && info_sent) {
                   //Send cyclic data
                   // TODO: Probably not a good idea to use the battery object here like this.
                   if (battery) {
@@ -259,7 +255,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                   if (f2_startup_count < 15) {
                     f2_startup_count++;
                   }
-                  byte tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  uint8_t tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, CYCLIC_DATA, 64);
                   tmpframe[62] = calculate_kostal_crc(tmpframe, 62);
                   null_stuffer(tmpframe, 64);
@@ -268,20 +264,21 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 }
                 if (code == 0x84a) {
                   //Send  battery info
-                  byte tmpframe[40];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  uint8_t tmpframe[40];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, BATTERY_INFO, 40);
                   tmpframe[38] = calculate_kostal_crc(tmpframe, 38);
                   null_stuffer(tmpframe, 40);
                   send_kostal(tmpframe, 40);
-                  datalayer.system.status.inverter_allows_contactor_closing = true;
-                  dbg_message("inverter_allows_contactor_closing (battery_info) -> true");
+                  datalayer.system.status.inverter_allows_contactor_closing = false;
+                  dbg_message("inverter_allows_contactor_closing -> false (battery info sent)");
+                  info_sent = true;
                   if (!startupMillis) {
                     startupMillis = currentMillis;
                   }
                 }
-                if (code == 0x353) {
+                if (code == 0x353 && info_sent) {
                   //Send  battery error/status
-                  byte tmpframe[9];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  uint8_t tmpframe[9];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, STATUS_FRAME, 9);
                   tmpframe[7] = calculate_kostal_crc(tmpframe, 7);
                   null_stuffer(tmpframe, 9);
@@ -301,11 +298,18 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
   }
 }
 
-void KostalInverterProtocol::setup(void) {  // Performs one time setup at startup
+bool KostalInverterProtocol::setup(void) {  // Performs one time setup at startup
   datalayer.system.status.inverter_allows_contactor_closing = false;
   dbg_message("inverter_allows_contactor_closing -> false");
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
 
-  Serial2.begin(baud_rate(), SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+  auto rx_pin = esp32hal->RS485_RX_PIN();
+  auto tx_pin = esp32hal->RS485_TX_PIN();
+
+  if (!esp32hal->alloc_pins(Name, rx_pin, tx_pin)) {
+    return false;
+  }
+
+  Serial2.begin(baud_rate(), SERIAL_8N1, rx_pin, tx_pin);
+
+  return true;
 }

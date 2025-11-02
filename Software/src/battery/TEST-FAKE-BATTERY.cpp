@@ -1,8 +1,9 @@
 #include "TEST-FAKE-BATTERY.h"
+#include <Arduino.h>
 #include "../datalayer/datalayer.h"
-#include "../include.h"
+#include "../devboard/utils/logging.h"
 
-static void print_units(char* header, int value, char* units) {
+static void print_units(const char* header, int value, const char* units) {
   logging.print(header);
   logging.print(value);
   logging.print(units);
@@ -41,21 +42,6 @@ void TestFakeBattery::
 
   //Fake that we get CAN messages
   datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-
-/*Finally print out values to serial if configured to do so*/
-#ifdef DEBUG_LOG
-  logging.println("FAKE Values going to inverter");
-  print_units("SOH%: ", (datalayer_battery->status.soh_pptt * 0.01), "% ");
-  print_units(", SOC%: ", (datalayer_battery->status.reported_soc * 0.01), "% ");
-  print_units(", Voltage: ", (datalayer_battery->status.voltage_dV * 0.1), "V ");
-  print_units(", Max discharge power: ", datalayer_battery->status.max_discharge_power_W, "W ");
-  print_units(", Max charge power: ", datalayer_battery->status.max_charge_power_W, "W ");
-  print_units(", Max temp: ", (datalayer_battery->status.temperature_max_dC * 0.1), "°C ");
-  print_units(", Min temp: ", (datalayer_battery->status.temperature_min_dC * 0.1), "°C ");
-  print_units(", Max cell voltage: ", datalayer_battery->status.cell_max_voltage_mV, "mV ");
-  print_units(", Min cell voltage: ", datalayer_battery->status.cell_min_voltage_mV, "mV ");
-  logging.println("");
-#endif
 }
 
 void TestFakeBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -67,7 +53,7 @@ void TestFakeBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
     // Put fake messages here incase you want to test sending CAN
-    //transmit_can_frame(&TEST, can_interface);
+    //transmit_can_frame(&TEST);
   }
 }
 

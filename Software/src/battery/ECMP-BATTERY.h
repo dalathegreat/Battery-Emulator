@@ -1,8 +1,5 @@
 #ifndef STELLANTIS_ECMP_BATTERY_H
 #define STELLANTIS_ECMP_BATTERY_H
-#include <Arduino.h>
-#include "../include.h"
-
 #include "CanBattery.h"
 #include "ECMP-HTML.h"
 
@@ -137,6 +134,7 @@ class EcmpBattery : public CanBattery {
   uint32_t pid_time_spent_over_55c = NOT_SAMPLED_YET;
   uint32_t pid_contactor_closing_counter = NOT_SAMPLED_YET;
   uint32_t pid_date_of_manufacture = NOT_SAMPLED_YET;
+  uint16_t pid_SOH_cell_1 = NOT_SAMPLED_YET;
 
   unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent
@@ -198,7 +196,7 @@ class EcmpBattery : public CanBattery {
   static const uint16_t PID_SW_VERSION_NUM = 0xF195;           //Not supported on all batteris
   static const uint16_t PID_FACTORY_MODE_CONTROL = 0xD900;
   static const uint16_t PID_BATTERY_SERIAL = 0xD901;
-  static const uint16_t PID_ALL_CELL_SOH = 0xD4B5;  //Very long message reply, too much data for this integration
+  static const uint16_t PID_ALL_CELL_SOH = 0xD4B5;
   static const uint16_t PID_AUX_FUSE_STATE = 0xD86C;
   static const uint16_t PID_BATTERY_STATE = 0xD811;
   static const uint16_t PID_PRECHARGE_SHORT_CIRCUIT = 0xD4D8;
@@ -222,12 +220,13 @@ class EcmpBattery : public CanBattery {
   uint16_t incoming_poll = 0;
 
   CAN_frame ECMP_010 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x010, .data = {0xB4}};  //VCU_BCM_Crash 100ms
-  CAN_frame ECMP_041 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x041, .data = {0x00}};
-  CAN_frame ECMP_0A6 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 2,
-                        .ID = 0x0A6,
-                        .data = {0x02, 0x00}};  //Content changes after 12minutes of runtime (not emulated)
+  static constexpr CAN_frame ECMP_041 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x041, .data = {0x00}};
+  static constexpr CAN_frame ECMP_0A6 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 2,
+      .ID = 0x0A6,
+      .data = {0x02, 0x00}};          //Content changes after 12minutes of runtime (not emulated)
   CAN_frame ECMP_0F0 = {.FD = false,  //VCU2_0F0 (Common) 20ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,
                         .DLC = 8,
@@ -238,42 +237,46 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x0F2,
                         .data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x60, 0x0D}};
-  CAN_frame ECMP_0AE = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x0AE, .data = {0x04, 0x77, 0x7A, 0x5E, 0xDF}};
+  static constexpr CAN_frame ECMP_0AE = {.FD = false,
+                                         .ext_ID = false,
+                                         .DLC = 5,
+                                         .ID = 0x0AE,
+                                         .data = {0x04, 0x77, 0x7A, 0x5E, 0xDF}};
   CAN_frame ECMP_110 = {.FD = false,      //??? 10ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  // NOTE. Changes on BMS state
                         .DLC = 8,
                         .ID = 0x110,
                         .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x87, 0x05}};
-  CAN_frame ECMP_111 = {.FD = false,      //??? 10ms periodic (Perfectly emulated in Battery-Emulator)
-                        .ext_ID = false,  //Same content always, fully static
-                        .DLC = 8,
-                        .ID = 0x111,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame ECMP_111 = {.FD = false,      //??? 10ms periodic (Perfectly emulated in Battery-Emulator)
+                                         .ext_ID = false,  //Same content always, fully static
+                                         .DLC = 8,
+                                         .ID = 0x111,
+                                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame ECMP_112 = {.FD = false,      //MCU1_112 10ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  //Same content always, only CRC changes at end
                         .DLC = 8,
                         .ID = 0x112,
                         .data = {0x4E, 0x20, 0x00, 0x0F, 0xA0, 0x7D, 0x00, 0x0A}};
-  CAN_frame ECMP_114 = {.FD = false,      //??? 10ms periodic (Perfectly emulated in Battery-Emulator)
-                        .ext_ID = false,  //Same content always, fully static
-                        .DLC = 8,
-                        .ID = 0x114,
-                        .data = {0x00, 0x00, 0x00, 0x7D, 0x07, 0xD0, 0x7D, 0x00}};
-  CAN_frame ECMP_0C5 = {.FD = false,      //DC2_0C5 10ms periodic (Perfectly emulated in Battery-Emulator)
-                        .ext_ID = false,  //Same content always, fully static
-                        .DLC = 8,
-                        .ID = 0x0C5,
-                        .data = {0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame ECMP_114 = {.FD = false,      //??? 10ms periodic (Perfectly emulated in Battery-Emulator)
+                                         .ext_ID = false,  //Same content always, fully static
+                                         .DLC = 8,
+                                         .ID = 0x114,
+                                         .data = {0x00, 0x00, 0x00, 0x7D, 0x07, 0xD0, 0x7D, 0x00}};
+  static constexpr CAN_frame ECMP_0C5 = {.FD = false,  //DC2_0C5 10ms periodic (Perfectly emulated in Battery-Emulator)
+                                         .ext_ID = false,  //Same content always, fully static
+                                         .DLC = 8,
+                                         .ID = 0x0C5,
+                                         .data = {0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame ECMP_17B = {.FD = false,      //VCU_PCANInfo_17B 10ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  // NOTE. Changes on BMS state
                         .DLC = 8,
                         .ID = 0x17B,
                         .data = {0x00, 0x00, 0x00, 0x7E, 0x78, 0x00, 0x00, 0x0F}};  // NOTE. Changes on BMS state
-  CAN_frame ECMP_230 = {.FD = false,      //OBC3_230 50ms periodic (Perfectly emulated in Battery-Emulator)
-                        .ext_ID = false,  //Same content always, fully static
-                        .DLC = 8,
-                        .ID = 0x230,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame ECMP_230 = {.FD = false,  //OBC3_230 50ms periodic (Perfectly emulated in Battery-Emulator)
+                                         .ext_ID = false,  //Same content always, fully static
+                                         .DLC = 8,
+                                         .ID = 0x230,
+                                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame ECMP_27A = {
       .FD = false,      //VCU_BSI_Wakeup_27A message 50ms periodic (Perfectly emulated in Battery-Emulator)
       .ext_ID = false,  // NOTE. Changes on BMS state
@@ -310,12 +313,13 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x372,
                         .data = {0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  // NOTE. Changes on BMS state
-  CAN_frame ECMP_37F = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
-                        .ext_ID = false,  // Seems to be a bunch of temperature measurements? Static for now
-                        .DLC = 8,
-                        .ID = 0x37F,
-                        .data = {0x45, 0x49, 0x51, 0x45, 0x45, 0x00, 0x45, 0x45}};
-  CAN_frame ECMP_382 = {
+  static constexpr CAN_frame ECMP_37F = {
+      .FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
+      .ext_ID = false,  // Seems to be a bunch of temperature measurements? Static for now
+      .DLC = 8,
+      .ID = 0x37F,
+      .data = {0x45, 0x49, 0x51, 0x45, 0x45, 0x00, 0x45, 0x45}};
+  static constexpr CAN_frame ECMP_382 = {
       //BSIInfo_382 (VCU) PSA specific 100ms periodic (Perfectly emulated in Battery-Emulator)
       .FD = false,  //Same content always, fully static
       .ext_ID = false,
@@ -337,11 +341,11 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x3A3,
                         .data = {0x4A, 0x4A, 0x40, 0x00, 0x00, 0x08, 0x00, 0x0F}};
-  CAN_frame ECMP_439 = {.FD = false,      //OBC4 1s periodic (Perfectly emulated in Battery-Emulator)
-                        .ext_ID = false,  //Same content always, fully static
-                        .DLC = 8,
-                        .ID = 0x439,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame ECMP_439 = {.FD = false,      //OBC4 1s periodic (Perfectly emulated in Battery-Emulator)
+                                         .ext_ID = false,  //Same content always, fully static
+                                         .DLC = 8,
+                                         .ID = 0x439,
+                                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame ECMP_486 = {.FD = false,      //??? 1s periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  // NOTE. Changes on BMS state
                         .DLC = 8,
@@ -352,76 +356,88 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,     //552 seems to be tracking time in byte 0-3
                         .ID = 0x552,  // distance in km in byte 4-6, temporal reset counter in byte 7
                         .data = {0x00, 0x02, 0x95, 0x6D, 0x00, 0xD7, 0xB5, 0xFE}};
-  CAN_frame ECMP_55F = {.FD = false,      //5s periodic (Perfectly emulated in Battery-Emulator)
-                        .ext_ID = false,  //Same content always, fully static
-                        .DLC = 1,
-                        .ID = 0x55F,
-                        .data = {0x82}};
-  CAN_frame ECMP_591 = {.FD = false,      //1s periodic
-                        .ext_ID = false,  //Always static in HV mode
-                        .DLC = 8,
-                        .ID = 0x591,
-                        .data = {0x38, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-  CAN_frame ECMP_786 = {.FD = false,      //1s periodic
-                        .ext_ID = false,  //Always static in HV mode
-                        .DLC = 8,
-                        .ID = 0x786,
-                        .data = {0x38, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+  static constexpr CAN_frame ECMP_55F = {.FD = false,      //5s periodic (Perfectly emulated in Battery-Emulator)
+                                         .ext_ID = false,  //Same content always, fully static
+                                         .DLC = 1,
+                                         .ID = 0x55F,
+                                         .data = {0x82}};
+  static constexpr CAN_frame ECMP_591 = {.FD = false,      //1s periodic
+                                         .ext_ID = false,  //Always static in HV mode
+                                         .DLC = 8,
+                                         .ID = 0x591,
+                                         .data = {0x38, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+  static constexpr CAN_frame ECMP_786 = {.FD = false,      //1s periodic
+                                         .ext_ID = false,  //Always static in HV mode
+                                         .DLC = 8,
+                                         .ID = 0x786,
+                                         .data = {0x38, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
   CAN_frame ECMP_794 = {.FD = false,  //Unsure who sends this. Could it be BMU?
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x794,
                         .data = {0xB8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  // NOTE. Changes on BMS state
   CAN_frame ECMP_POLL = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x6B4, .data = {0x03, 0x22, 0xD8, 0x66}};
-  CAN_frame ECMP_ACK = {.FD = false,  //Ack frame
-                        .ext_ID = false,
-                        .DLC = 3,
-                        .ID = 0x6B4,
-                        .data = {0x30, 0x00, 0x00}};
-  CAN_frame ECMP_DIAG_START = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x6B4, .data = {0x02, 0x10, 0x03}};
+  static constexpr CAN_frame ECMP_ACK = {.FD = false,  //Ack frame
+                                         .ext_ID = false,
+                                         .DLC = 3,
+                                         .ID = 0x6B4,
+                                         .data = {0x30, 0x00, 0x00}};
+  static constexpr CAN_frame ECMP_DIAG_START = {.FD = false,
+                                                .ext_ID = false,
+                                                .DLC = 3,
+                                                .ID = 0x6B4,
+                                                .data = {0x02, 0x10, 0x03}};
   //Start diagnostic session (extended diagnostic session, mode 0x10 with sub-mode 0x03)
-  CAN_frame ECMP_CONTACTOR_RESET_START = {.FD = false,
-                                          .ext_ID = false,
-                                          .DLC = 5,
-                                          .ID = 0x6B4,
-                                          .data = {0x04, 0x31, 0x01, 0xDD, 0x35}};
-  CAN_frame ECMP_CONTACTOR_RESET_PROGRESS = {.FD = false,
-                                             .ext_ID = false,
-                                             .DLC = 5,
-                                             .ID = 0x6B4,
-                                             .data = {0x04, 0x31, 0x03, 0xDD, 0x35}};
-  CAN_frame ECMP_COLLISION_RESET_START = {.FD = false,
-                                          .ext_ID = false,
-                                          .DLC = 5,
-                                          .ID = 0x6B4,
-                                          .data = {0x04, 0x31, 0x01, 0xDF, 0x60}};
-  CAN_frame ECMP_COLLISION_RESET_PROGRESS = {.FD = false,
-                                             .ext_ID = false,
-                                             .DLC = 5,
-                                             .ID = 0x6B4,
-                                             .data = {0x04, 0x31, 0x03, 0xDF, 0x60}};
-  CAN_frame ECMP_ISOLATION_RESET_START = {.FD = false,
-                                          .ext_ID = false,
-                                          .DLC = 5,
-                                          .ID = 0x6B4,
-                                          .data = {0x04, 0x31, 0x01, 0xDF, 0x46}};
-  CAN_frame ECMP_ISOLATION_RESET_PROGRESS = {.FD = false,
-                                             .ext_ID = false,
-                                             .DLC = 8,
-                                             .ID = 0x6B4,
-                                             .data = {0x04, 0x31, 0x03, 0xDF, 0x46}};
-  CAN_frame ECMP_RESET_DONE = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x6B4, .data = {0x02, 0x3E, 0x00}};
-  CAN_frame ECMP_FACTORY_MODE_ACTIVATION = {.FD = false,
-                                            .ext_ID = false,
-                                            .DLC = 5,
-                                            .ID = 0x6B4,
-                                            .data = {0x04, 0x2E, 0xD9, 0x00, 0x01}};
-  CAN_frame ECMP_DISABLE_ISOLATION_REQ = {.FD = false,
-                                          .ext_ID = false,
-                                          .DLC = 5,
-                                          .ID = 0x6B4,
-                                          .data = {0x04, 0x31, 0x02, 0xDF, 0xE1}};
-  CAN_frame ECMP_ACK_MESSAGE = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x6B4, .data = {0x02, 0x3E, 0x00}};
+  static constexpr CAN_frame ECMP_CONTACTOR_RESET_START = {.FD = false,
+                                                           .ext_ID = false,
+                                                           .DLC = 5,
+                                                           .ID = 0x6B4,
+                                                           .data = {0x04, 0x31, 0x01, 0xDD, 0x35}};
+  static constexpr CAN_frame ECMP_CONTACTOR_RESET_PROGRESS = {.FD = false,
+                                                              .ext_ID = false,
+                                                              .DLC = 5,
+                                                              .ID = 0x6B4,
+                                                              .data = {0x04, 0x31, 0x03, 0xDD, 0x35}};
+  static constexpr CAN_frame ECMP_COLLISION_RESET_START = {.FD = false,
+                                                           .ext_ID = false,
+                                                           .DLC = 5,
+                                                           .ID = 0x6B4,
+                                                           .data = {0x04, 0x31, 0x01, 0xDF, 0x60}};
+  static constexpr CAN_frame ECMP_COLLISION_RESET_PROGRESS = {.FD = false,
+                                                              .ext_ID = false,
+                                                              .DLC = 5,
+                                                              .ID = 0x6B4,
+                                                              .data = {0x04, 0x31, 0x03, 0xDF, 0x60}};
+  static constexpr CAN_frame ECMP_ISOLATION_RESET_START = {.FD = false,
+                                                           .ext_ID = false,
+                                                           .DLC = 5,
+                                                           .ID = 0x6B4,
+                                                           .data = {0x04, 0x31, 0x01, 0xDF, 0x46}};
+  static constexpr CAN_frame ECMP_ISOLATION_RESET_PROGRESS = {.FD = false,
+                                                              .ext_ID = false,
+                                                              .DLC = 8,
+                                                              .ID = 0x6B4,
+                                                              .data = {0x04, 0x31, 0x03, 0xDF, 0x46}};
+  static constexpr CAN_frame ECMP_RESET_DONE = {.FD = false,
+                                                .ext_ID = false,
+                                                .DLC = 3,
+                                                .ID = 0x6B4,
+                                                .data = {0x02, 0x3E, 0x00}};
+  static constexpr CAN_frame ECMP_FACTORY_MODE_ACTIVATION = {.FD = false,
+                                                             .ext_ID = false,
+                                                             .DLC = 5,
+                                                             .ID = 0x6B4,
+                                                             .data = {0x04, 0x2E, 0xD9, 0x00, 0x01}};
+  static constexpr CAN_frame ECMP_DISABLE_ISOLATION_REQ = {.FD = false,
+                                                           .ext_ID = false,
+                                                           .DLC = 5,
+                                                           .ID = 0x6B4,
+                                                           .data = {0x04, 0x31, 0x02, 0xDF, 0xE1}};
+  static constexpr CAN_frame ECMP_ACK_MESSAGE = {.FD = false,
+                                                 .ext_ID = false,
+                                                 .DLC = 3,
+                                                 .ID = 0x6B4,
+                                                 .data = {0x02, 0x3E, 0x00}};
   uint8_t data_010_CRC[8] = {0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E, 0xF0, 0xD2};
   uint8_t data_3A2_CRC[16] = {0x0C, 0x1B, 0x2A, 0x39, 0x48, 0x57,
                               0x66, 0x75, 0x84, 0x93, 0xA2, 0xB1};                 // NOTE. Changes on BMS state

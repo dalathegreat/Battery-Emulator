@@ -1,30 +1,28 @@
 #ifndef SMA_BYD_HVS_CAN_H
 #define SMA_BYD_HVS_CAN_H
-#include "../include.h"
 
-#include "CanInverterProtocol.h"
-#include "src/devboard/hal/hal.h"
+#include "../devboard/hal/hal.h"
+#include "SmaInverterBase.h"
 
 #ifdef SMA_BYD_HVS_CAN
 #define SELECTED_INVERTER_CLASS SmaBydHvsInverter
 #endif
 
-class SmaBydHvsInverter : public CanInverterProtocol {
+class SmaBydHvsInverter : public SmaInverterBase {
  public:
-  void setup();
+  const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
   static constexpr const char* Name = "BYD Battery-Box HVS over SMA CAN";
 
   virtual bool controls_contactor() { return true; }
-  virtual bool allows_contactor_closing() { return digitalRead(INVERTER_CONTACTOR_ENABLE_PIN) == 1; }
 
  private:
   static const int READY_STATE = 0x03;
   static const int STOP_STATE = 0x02;
   static const int THIRTY_MINUTES = 1200;
-
+  unsigned long previousMillis60s = 0;
   unsigned long previousMillis100ms = 0;
   unsigned long previousMillisBatch = 0;
   uint8_t batch_send_index = 0;
@@ -68,7 +66,7 @@ class SmaBydHvsInverter : public CanInverterProtocol {
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x518,
-                       .data = {0x01, 0x4A, 0x01, 0x25, 0xFF, 0xFF, 0xFF, 0xFF}};
+                       .data = {0x01, 0x4A, 0x01, 0x25, 0x10, 0x10, 0xFF, 0xFF}};
 
   // Pairing/Battery setup information
 
@@ -81,7 +79,7 @@ class SmaBydHvsInverter : public CanInverterProtocol {
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x598,
-                       .data = {0x00, 0x01, 0x0F, 0x2C, 0x5C, 0x98, 0xB6, 0xEE}};
+                       .data = {0x00, 0x01, 0x0F, 0x2C, 0x5C, 0x98, 0xB6, 0xEE}};  //B0-4 Serial, rest unknown
   CAN_frame SMA_5D8 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,

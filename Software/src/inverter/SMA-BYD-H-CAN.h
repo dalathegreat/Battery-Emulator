@@ -1,24 +1,22 @@
 #ifndef SMA_BYD_H_CAN_H
 #define SMA_BYD_H_CAN_H
-#include "../include.h"
 
-#include "CanInverterProtocol.h"
-#include "src/devboard/hal/hal.h"
+#include "../devboard/hal/hal.h"
+#include "SmaInverterBase.h"
 
 #ifdef SMA_BYD_H_CAN
 #define SELECTED_INVERTER_CLASS SmaBydHInverter
 #endif
 
-class SmaBydHInverter : public CanInverterProtocol {
+class SmaBydHInverter : public SmaInverterBase {
  public:
-  void setup();
+  const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
   static constexpr const char* Name = "BYD over SMA CAN";
 
   virtual bool controls_contactor() { return true; }
-  virtual bool allows_contactor_closing() { return digitalRead(INVERTER_CONTACTOR_ENABLE_PIN) == 1; }
 
  private:
   static const int READY_STATE = 0x03;
@@ -27,7 +25,7 @@ class SmaBydHInverter : public CanInverterProtocol {
   void transmit_can_init();
 
   unsigned long previousMillis100ms = 0;
-
+  unsigned long previousMillis60s = 0;
   uint8_t pairing_events = 0;
   uint32_t inverter_time = 0;
   uint16_t inverter_voltage = 0;

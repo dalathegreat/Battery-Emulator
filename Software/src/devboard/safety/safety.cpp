@@ -1,4 +1,8 @@
+#include "safety.h"
+#include "../../battery/BATTERIES.h"
+#include "../../charger/CHARGERS.h"
 #include "../../datalayer/datalayer.h"
+#include "../../inverter/INVERTERS.h"
 #include "../utils/events.h"
 
 static uint16_t cell_deviation_mV = 0;
@@ -22,7 +26,7 @@ void update_machineryprotection() {
   /* Check if the ESP32 CPU running the Battery-Emulator is too hot. 
   We start with a warning, you can start to see Wifi issues if it becomes too hot 
   If the chip starts to approach the design limit, we perform a graceful shutdown */
-  if (datalayer.system.info.CPU_temperature > 80.0f) {
+  if (datalayer.system.info.CPU_temperature > 87.0f) {
     set_event(EVENT_CPU_OVERHEATING, 0);
   } else {
     clear_event(EVENT_CPU_OVERHEATING);
@@ -126,7 +130,8 @@ void update_machineryprotection() {
 
     // Battery is fully charged. Dont allow any more power into it
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
-    if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
+    if (datalayer.battery.status.reported_soc == 10000 ||
+        datalayer.battery.status.real_soc == 10000)  //Either Scaled OR Real SOC% value is 100.00%
     {
       if (!battery_full_event_fired) {
         set_event(EVENT_BATTERY_FULL, 0);
@@ -141,7 +146,8 @@ void update_machineryprotection() {
     // Battery is empty. Do not allow further discharge.
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
     if (datalayer.battery.status.bms_status == ACTIVE) {
-      if (datalayer.battery.status.reported_soc == 0) {  //Scaled SOC% value is 0.00%
+      if (datalayer.battery.status.reported_soc == 0 ||
+          datalayer.battery.status.real_soc == 0) {  //Either Scaled OR Real SOC% value is 0.00%, time to stop
         if (!battery_empty_event_fired) {
           set_event(EVENT_BATTERY_EMPTY, 0);
           battery_empty_event_fired = true;
@@ -231,7 +237,7 @@ void update_machineryprotection() {
     // Assuming chargers are all CAN here.
     // Check if the charger is still sending CAN messages. If we go 60s without messages we raise a warning
     if (!datalayer.charger.CAN_charger_still_alive) {
-      set_event(EVENT_CAN_CHARGER_MISSING, can_config.charger);
+      set_event(EVENT_CAN_CHARGER_MISSING, charger->interface());
     } else {
       datalayer.charger.CAN_charger_still_alive--;
       clear_event(EVENT_CAN_CHARGER_MISSING);
@@ -328,6 +334,7 @@ void update_machineryprotection() {
 
 //battery pause status begin
 void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bool store_settings) {
+  DEBUG_PRINTF("Battery pause begin %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
 
   // First handle equipment stop / resume
   if (equipment_stop && !datalayer.system.settings.equipment_stop_active) {
@@ -394,17 +401,13 @@ void update_pause_state() {
   allowed_to_send_CAN = (!emulator_pause_CAN_send_ON || emulator_pause_status == NORMAL);
 
   if (previous_allowed_to_send_CAN && !allowed_to_send_CAN) {
-#ifdef DEBUG_LOG
-    logging.printf("Safety: Pausing CAN sending\n");
-#endif
+    DEBUG_PRINTF("Safety: Pausing CAN sending\n");
     //completely force stop the CAN communication
-    ESP32Can.CANStop();  //Note: This only stops the NATIVE_CAN port, it will no longer ACK messages
+    stop_can();
   } else if (!previous_allowed_to_send_CAN && allowed_to_send_CAN) {
     //resume CAN communication
-#ifdef DEBUG_LOG
-    logging.printf("Safety: Resuming CAN sending\n");
-#endif
-    ESP32Can.CANInit();  //Note: This only resumes the NATIVE_CAN port
+    DEBUG_PRINTF("Safety: Resuming CAN sending\n");
+    restart_can();
   }
 }
 

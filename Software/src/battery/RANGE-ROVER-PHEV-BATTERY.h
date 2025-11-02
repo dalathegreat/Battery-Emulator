@@ -1,7 +1,5 @@
 #ifndef RANGE_ROVER_PHEV_BATTERY_H
 #define RANGE_ROVER_PHEV_BATTERY_H
-#include <Arduino.h>
-#include "../include.h"
 
 #include "CanBattery.h"
 
@@ -19,12 +17,12 @@ class RangeRoverPhevBattery : public CanBattery {
 
  private:
   /* Change the following to suit your battery */
-  static const int MAX_PACK_VOLTAGE_DV = 5000;  //TODO: Configure
-  static const int MIN_PACK_VOLTAGE_DV = 0;     //TODO: Configure
+  static const int MAX_PACK_VOLTAGE_DV = 4710;
+  static const int MIN_PACK_VOLTAGE_DV = 3000;
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
   static const int MAX_CELL_DEVIATION_MV = 150;
-  ;
+
   unsigned long previousMillis50ms = 0;  // will store last time a 50ms CAN Message was sent
 
   //CAN content from battery

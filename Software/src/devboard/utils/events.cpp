@@ -1,7 +1,9 @@
 #include "events.h"
-#include "../../datalayer/datalayer.h"
-
+#include <Arduino.h>
 #include "../../../USER_SETTINGS.h"
+#include "../../datalayer/datalayer.h"
+#include "../../devboard/hal/hal.h"
+#include "../../devboard/utils/logging.h"
 
 typedef struct {
   EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
@@ -12,6 +14,7 @@ typedef struct {
 static EVENT_TYPE events;
 static const char* EVENTS_ENUM_TYPE_STRING[] = {EVENTS_ENUM_TYPE(GENERATE_STRING)};
 static const char* EVENTS_LEVEL_TYPE_STRING[] = {EVENTS_LEVEL_TYPE(GENERATE_STRING)};
+static const char* EMULATOR_STATUS_STRING[] = {EMULATOR_STATUS(GENERATE_STRING)};
 
 /* Local function prototypes */
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
@@ -39,6 +42,7 @@ void init_events(void) {
   events.entries[EVENT_CAN_CHARGER_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CONTACTOR_OPEN].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CPU_OVERHEATING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CPU_OVERHEATED].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
@@ -124,6 +128,9 @@ void init_events(void) {
   events.entries[EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_GPIO_CONFLICT].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_GPIO_NOT_DEFINED].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -152,16 +159,13 @@ void reset_all_events() {
   }
   events.level = EVENT_LEVEL_INFO;
   update_bms_status();
-#ifdef DEBUG_LOG
-  logging.println("All events have been cleared.");
-#endif
 }
 
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
   events.entries[event].MQTTpublished = true;
 }
 
-const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
+String get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CANMCP2517FD_INIT_FAILURE:
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
@@ -187,6 +191,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Inverter not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CONTACTOR_WELDED:
       return "Contactors sticking/welded. Inspect battery with caution!";
+    case EVENT_CONTACTOR_OPEN:
+      return "Battery decided to open contactors. Inspect battery!";
     case EVENT_CPU_OVERHEATING:
       return "Battery-Emulator CPU overheating! Increase airflow/cooling to increase hardware lifespan!";
     case EVENT_CPU_OVERHEATED:
@@ -254,7 +260,7 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_PRECHARGE_FAILURE:
       return "Battery failed to precharge. Check that capacitor is seated on high voltage output.";
     case EVENT_AUTOMATIC_PRECHARGE_FAILURE:
-      return "Automatic precharge failed to reach target voltae.";
+      return "Automatic precharge FAILURE. Failed to reach target voltage or BMS timeout. Reboot emulator to retry!";
     case EVENT_INTERNAL_OPEN_FAULT:
       return "High voltage cable removed while battery running. Opening contactors!";
     case EVENT_INVERTER_OPEN_CONTACTOR:
@@ -262,8 +268,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_INTERFACE_MISSING:
       return "Configuration trying to use CAN interface not baked into the software. Recompile software!";
     case EVENT_ERROR_OPEN_CONTACTOR:
-      return "Too much time spent in error state. Opening contactors, not safe to continue charging. "
-             "Check other error code for reason!";
+      return "Too much time spent in error state. Opening contactors, not safe to continue. "
+             "Check other active ERROR code for reason. Reboot emulator after problem is solved!";
     case EVENT_MODBUS_INVERTER_MISSING:
       return "Modbus inverter has not sent any data. Inspect communication wiring!";
     case EVENT_NO_ENABLE_DETECTED:
@@ -364,6 +370,12 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED:
       return "Failed to syncronise with the NTP Server. BMS will reset every 24 hours from when the emulator was "
              "powered on";
+    case EVENT_GPIO_CONFLICT:
+      return "GPIO Pin Conflict: The pin used by '" + esp32hal->failed_allocator() + "' is already allocated by '" +
+             esp32hal->conflicting_allocator() + "'. Please check your configuration and assign different pins.";
+    case EVENT_GPIO_NOT_DEFINED:
+      return "Missing GPIO Assignment: The component '" + esp32hal->failed_allocator() +
+             "' requires a GPIO pin that isn't configured. Please define a valid pin number in your settings.";
     default:
       return "";
   }
@@ -379,6 +391,11 @@ const char* get_event_level_string(EVENTS_ENUM_TYPE event) {
   return EVENTS_LEVEL_TYPE_STRING[events.entries[event].level] + 12;
 }
 
+const char* get_event_level_string(EVENTS_LEVEL_TYPE event_level) {
+  // Return the event level but skip "EVENT_LEVEL_TYPE_" that should always be first
+  return EVENTS_LEVEL_TYPE_STRING[event_level] + 17;
+}
+
 const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event) {
   return &events.entries[event];
 }
@@ -387,7 +404,26 @@ EVENTS_LEVEL_TYPE get_event_level(void) {
   return events.level;
 }
 
-uint64_t get_timestamp(unsigned long currentMillis);
+EMULATOR_STATUS get_emulator_status() {
+  switch (events.level) {
+    case EVENT_LEVEL_DEBUG:
+    case EVENT_LEVEL_INFO:
+      return EMULATOR_STATUS::STATUS_OK;
+    case EVENT_LEVEL_WARNING:
+      return EMULATOR_STATUS::STATUS_WARNING;
+    case EVENT_LEVEL_UPDATE:
+      return EMULATOR_STATUS::STATUS_UPDATING;
+    case EVENT_LEVEL_ERROR:
+      return EMULATOR_STATUS::STATUS_ERROR;
+    default:
+      return EMULATOR_STATUS::STATUS_OK;
+  }
+}
+
+const char* get_emulator_status_string(EMULATOR_STATUS status) {
+  // Return the status string but skip "STATUS_" that should always be first
+  return EMULATOR_STATUS_STRING[status] + 7;
+}
 
 /* Local functions */
 
@@ -402,20 +438,18 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
     events.entries[event].occurences++;
     events.entries[event].MQTTpublished = false;
-#ifdef DEBUG_LOG
-    logging.print("Event: ");
-    logging.println(get_event_message_string(event));
-#endif
+
+    DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
   }
 
   // We should set the event, update event info
-  events.entries[event].timestamp = get_timestamp(millis());
+  events.entries[event].timestamp = millis64();
   events.entries[event].data = data;
   // Check if the event is latching
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;
 
   // Update event level, only upwards. Downward changes are done in Software.ino:loop()
-  events.level = max(events.level, events.entries[event].level);
+  events.level = (EVENTS_LEVEL_TYPE)max(events.level, events.entries[event].level);
 
   update_bms_status();
 }
@@ -452,7 +486,7 @@ static void update_event_level(void) {
   EVENTS_LEVEL_TYPE temporary_level = EVENT_LEVEL_INFO;
   for (uint8_t i = 0u; i < EVENT_NOF_EVENTS; i++) {
     if ((events.entries[i].state == EVENT_STATE_ACTIVE) || (events.entries[i].state == EVENT_STATE_ACTIVE_LATCHED)) {
-      temporary_level = max(events.entries[i].level, temporary_level);
+      temporary_level = (EVENTS_LEVEL_TYPE)max(events.entries[i].level, temporary_level);
     }
   }
   events.level = temporary_level;

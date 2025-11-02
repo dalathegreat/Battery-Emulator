@@ -1,9 +1,7 @@
 #ifndef PYLON_BATTERY_H
 #define PYLON_BATTERY_H
-#include <Arduino.h>
 
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 #include "CanBattery.h"
 
 #ifdef PYLON_BATTERY
@@ -34,11 +32,6 @@ class PylonBattery : public CanBattery {
   static constexpr const char* Name = "Pylon compatible battery";
 
  private:
-  /* Change the following to suit your battery */
-  static const int MAX_PACK_VOLTAGE_DV = 5000;  //5000 = 500.0V
-  static const int MIN_PACK_VOLTAGE_DV = 1500;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
   static const int MAX_CELL_DEVIATION_MV = 150;
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;

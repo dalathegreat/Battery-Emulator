@@ -3,30 +3,32 @@
 
 #include "ESPAsyncWebServer.h"
 
-AsyncWebHeader::AsyncWebHeader(const String &data) {
+const AsyncWebHeader AsyncWebHeader::parse(const char *data) {
+  // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers
+  // In HTTP/1.X, a header is a case-insensitive name followed by a colon, then optional whitespace which will be ignored, and finally by its value
   if (!data) {
-    return;
+    return AsyncWebHeader();  // nullptr
   }
-  int index = data.indexOf(':');
-  if (index < 0) {
-    return;
+  if (data[0] == '\0') {
+    return AsyncWebHeader();  // empty string
   }
-  _name = data.substring(0, index);
-  _value = data.substring(index + 2);
-}
-
-String AsyncWebHeader::toString() const {
-  String str;
-  if (str.reserve(_name.length() + _value.length() + 2)) {
-    str.concat(_name);
-    str.concat((char)0x3a);
-    str.concat((char)0x20);
-    str.concat(_value);
-    str.concat(asyncsrv::T_rn);
-  } else {
-#ifdef ESP32
-    log_e("Failed to allocate");
-#endif
+  if (strchr(data, '\n') || strchr(data, '\r')) {
+    return AsyncWebHeader();  // Invalid header format
   }
-  return str;
+  const char *colon = strchr(data, ':');
+  if (!colon) {
+    return AsyncWebHeader();  // separator not found
+  }
+  if (colon == data) {
+    return AsyncWebHeader();  // Header name cannot be empty
+  }
+  const char *startOfValue = colon + 1;  // Skip the colon
+  // skip one optional whitespace after the colon
+  if (*startOfValue == ' ') {
+    startOfValue++;
+  }
+  String name;
+  name.reserve(colon - data);
+  name.concat(data, colon - data);
+  return AsyncWebHeader(name, String(startOfValue));
 }

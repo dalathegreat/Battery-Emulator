@@ -2,7 +2,6 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 /* TODO: Map error bits in 0x158 */
 
@@ -61,6 +60,30 @@ void SmaBydHvsInverter::
     SMA_4D8.data.u8[6] = STOP_STATE;
   }
 
+  //Highest battery temperature
+  SMA_518.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
+  SMA_518.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  //Lowest battery temperature
+  SMA_518.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
+  SMA_518.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  //Sum of all cellvoltages
+  SMA_518.data.u8[4] = (datalayer.battery.status.voltage_dV >> 8);
+  SMA_518.data.u8[5] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  //Cell min/max voltage (mV / 25)
+  SMA_518.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV / 25);
+  SMA_518.data.u8[7] = (datalayer.battery.status.cell_max_voltage_mV / 25);
+
+  //Lifetime charged energy amount
+  SMA_458.data.u8[0] = (datalayer.battery.status.total_charged_battery_Wh & 0xFF000000) >> 24;
+  SMA_458.data.u8[1] = (datalayer.battery.status.total_charged_battery_Wh & 0x00FF0000) >> 16;
+  SMA_458.data.u8[2] = (datalayer.battery.status.total_charged_battery_Wh & 0x0000FF00) >> 8;
+  SMA_458.data.u8[3] = (datalayer.battery.status.total_charged_battery_Wh & 0x000000FF);
+  //Lifetime discharged energy amount
+  SMA_458.data.u8[4] = (datalayer.battery.status.total_discharged_battery_Wh & 0xFF000000) >> 24;
+  SMA_458.data.u8[5] = (datalayer.battery.status.total_discharged_battery_Wh & 0x00FF0000) >> 16;
+  SMA_458.data.u8[6] = (datalayer.battery.status.total_discharged_battery_Wh & 0x0000FF00) >> 8;
+  SMA_458.data.u8[7] = (datalayer.battery.status.total_discharged_battery_Wh & 0x000000FF);
+
   //Error bits
   if (datalayer.system.status.battery_allows_contactor_closing) {
     SMA_158.data.u8[2] = 0xAA;
@@ -68,16 +91,7 @@ void SmaBydHvsInverter::
     SMA_158.data.u8[2] = 0x6A;
   }
 
-#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
-  // Inverter allows contactor closing
-  if (datalayer.system.status.inverter_allows_contactor_closing) {
-    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
-                 HIGH);  // Turn on LED to indicate that SMA inverter allows contactor closing
-  } else {
-    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
-                 LOW);  // Turn off LED to indicate that SMA inverter does not allow contactor closing
-  }
-#endif  // INVERTER_CONTACTOR_ENABLE_LED_PIN
+  control_contactor_led();
 
   // Check if Enable line is working. If we go too long without any input, raise an event
   if (!datalayer.system.status.inverter_allows_contactor_closing) {
@@ -202,10 +216,9 @@ void SmaBydHvsInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
     case 0x5E6:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x5E7:  //Pairing request
-#ifdef DEBUG_LOG
-      logging.println("Received 0x5E7: SMA pairing request");
-#endif  // DEBUG_LOG
+    case 0x5E7:  //Message originating from SMA inverter - Pairing request
+    case 0x660:  //Message originating from SMA inverter - Pairing request
+      logging.println("Received SMA pairing request");
       pairing_events++;
       set_event(EVENT_SMA_PAIRING, pairing_events);
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -230,24 +243,24 @@ void SmaBydHvsInverter::transmit_can(unsigned long currentMillis) {
       // Send a subset of messages per iteration to avoid overloading the CAN bus / transmit buffer
       switch (batch_send_index) {
         case 0:
-          transmit_can_frame(&SMA_558, can_config.inverter);
-          transmit_can_frame(&SMA_598, can_config.inverter);
-          transmit_can_frame(&SMA_5D8, can_config.inverter);
+          transmit_can_frame(&SMA_558);
+          transmit_can_frame(&SMA_598);
+          transmit_can_frame(&SMA_5D8);
           break;
         case 1:
-          transmit_can_frame(&SMA_618_1, can_config.inverter);
-          transmit_can_frame(&SMA_618_2, can_config.inverter);
-          transmit_can_frame(&SMA_618_3, can_config.inverter);
+          transmit_can_frame(&SMA_618_1);
+          transmit_can_frame(&SMA_618_2);
+          transmit_can_frame(&SMA_618_3);
           break;
         case 2:
-          transmit_can_frame(&SMA_158, can_config.inverter);
-          transmit_can_frame(&SMA_358, can_config.inverter);
-          transmit_can_frame(&SMA_3D8, can_config.inverter);
+          transmit_can_frame(&SMA_158);
+          transmit_can_frame(&SMA_358);
+          transmit_can_frame(&SMA_3D8);
           break;
         case 3:
-          transmit_can_frame(&SMA_458, can_config.inverter);
-          transmit_can_frame(&SMA_518, can_config.inverter);
-          transmit_can_frame(&SMA_4D8, can_config.inverter);
+          transmit_can_frame(&SMA_458);
+          transmit_can_frame(&SMA_518);
+          transmit_can_frame(&SMA_4D8);
           transmit_can_init = false;
           break;
         default:
@@ -257,7 +270,7 @@ void SmaBydHvsInverter::transmit_can(unsigned long currentMillis) {
       // Increment message index and wrap around if needed
       batch_send_index++;
 
-      if (transmit_can_init == false) {
+      if (transmit_can_init == false) {  //We completed sending the batches
         batch_send_index = 0;
       }
     }
@@ -265,25 +278,19 @@ void SmaBydHvsInverter::transmit_can(unsigned long currentMillis) {
 
   // Send CAN Message every 100ms if inverter allows contactor closing
   if (datalayer.system.status.inverter_allows_contactor_closing) {
-    if (currentMillis - previousMillis100ms >= 100) {
+    if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
       previousMillis100ms = currentMillis;
-      transmit_can_frame(&SMA_158, can_config.inverter);
-      transmit_can_frame(&SMA_358, can_config.inverter);
-      transmit_can_frame(&SMA_3D8, can_config.inverter);
-      transmit_can_frame(&SMA_458, can_config.inverter);
-      transmit_can_frame(&SMA_518, can_config.inverter);
-      transmit_can_frame(&SMA_4D8, can_config.inverter);
+      transmit_can_frame(&SMA_158);
+      transmit_can_frame(&SMA_358);
+      transmit_can_frame(&SMA_3D8);
+      transmit_can_frame(&SMA_458);
+      transmit_can_frame(&SMA_518);
+      transmit_can_frame(&SMA_4D8);
+    }
+    // Send CAN Message every 60s (potentially SMA_458 is not required for stable operation)
+    if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
+      previousMillis60s = currentMillis;
+      transmit_can_frame(&SMA_458);
     }
   }
-}
-
-void SmaBydHvsInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
-  pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);
-#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
-  pinMode(INVERTER_CONTACTOR_ENABLE_LED_PIN, OUTPUT);
-  digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN, LOW);  // Turn LED off, until inverter allows contactor closing
-#endif                                                   // INVERTER_CONTACTOR_ENABLE_LED_PIN
 }

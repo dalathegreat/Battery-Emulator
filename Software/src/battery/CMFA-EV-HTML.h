@@ -3,7 +3,7 @@
 
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
-#include "src/devboard/webserver/BatteryHtmlRenderer.h"
+#include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class CmfaEvHtmlRenderer : public BatteryHtmlRenderer {
  public:

@@ -2,7 +2,7 @@
 ![GitHub release (with filter)](https://img.shields.io/github/v/release/dalathegreat/BYD-Battery-Emulator-For-Gen24?color=%23008000)
 ![GitHub Repo stars](https://img.shields.io/github/stars/dalathegreat/Battery-Emulator?style=flat&color=%23128512)
 ![GitHub forks](https://img.shields.io/github/forks/dalathegreat/Battery-Emulator?style=flat&color=%23128512)
-![GitHub actions](https://img.shields.io/github/actions/workflow/status/dalathegreat/BYD-Battery-Emulator-For-Gen24/compile-all-batteries.yml?color=0E810E)
+![GitHub actions](https://img.shields.io/github/actions/workflow/status/dalathegreat/BYD-Battery-Emulator-For-Gen24/compile-common-image-lilygo-TCAN.yml?color=0E810E)
 ![Static Badge](https://img.shields.io/badge/made-with_love-blue?color=%23008000)
 
 ## What is Battery Emulator?
@@ -91,7 +91,6 @@ This code uses the following excellent libraries:
 - [miwagner/ESP32-Arduino-CAN](https://github.com/miwagner/ESP32-Arduino-CAN/) MIT-License
 - [pierremolinaro/acan2515](https://github.com/pierremolinaro/acan2515) MIT-License
 - [pierremolinaro/acan2517FD](https://github.com/pierremolinaro/acan2517FD) MIT-License
-- [YiannisBourkelis/Uptime-Library](https://github.com/YiannisBourkelis/Uptime-Library) GPL-3.0 license 
 
 It is also based on the information found in the following excellent repositories/websites:
 - https://gitlab.com/pelle8/inverter_resources //new url

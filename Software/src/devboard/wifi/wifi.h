@@ -3,17 +3,13 @@
 
 #include <WiFi.h>
 #include <string>
-#include "../../include.h"
-
-#ifdef MDNSRESPONDER
-#include <ESPmDNS.h>
-#endif  // MDNSRESONDER
 
 extern std::string ssid;
 extern std::string password;
 extern const uint8_t wifi_channel;
-extern const char* ssidAP;
-extern const char* passwordAP;
+extern std::string ssidAP;
+extern std::string passwordAP;
+extern std::string custom_hostname;
 
 void init_WiFi();
 void wifi_monitor();
@@ -23,13 +19,13 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info);
 void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info);
 void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info);
 
-#ifdef WIFIAP
 void init_WiFi_AP();
-#endif  // WIFIAP
 
-#ifdef MDNSRESPONDER
 // Initialise mDNS
 void init_mDNS();
-#endif  // MDNSRESPONDER
+
+extern bool wifi_enabled;
+extern bool wifiap_enabled;
+extern bool mdns_enabled;
 
 #endif

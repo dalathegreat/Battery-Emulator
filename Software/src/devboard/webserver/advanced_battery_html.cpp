@@ -1,9 +1,9 @@
 #include "advanced_battery_html.h"
 #include <Arduino.h>
 #include <vector>
+#include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
-#include "../../include.h"
 
 // Available generic battery commands that are taken into use based on what the selected battery supports.
 std::vector<BatteryCommand> battery_commands = {
@@ -24,6 +24,10 @@ std::vector<BatteryCommand> battery_commands = {
     {"resetBMS", "BMS reset", "reset the BMS?", [](Battery* b) { return b && b->supports_reset_BMS(); },
      [](Battery* b) {
        b->reset_BMS();
+     }},
+    {"resetSOC", "SOC reset", "reset SOC?", [](Battery* b) { return b && b->supports_reset_SOC(); },
+     [](Battery* b) {
+       b->reset_SOC();
      }},
     {"resetCrash", "Unlock crashed BMS",
      "reset crash data? Note this will unlock your BMS and enable contactor closing and SOC calculation.",

@@ -300,7 +300,7 @@ class AsyncServer : public AsyncSocketBase
 
     void setNoDelay(bool nodelay) { _noDelay = nodelay; }
     bool getNoDelay() { return _noDelay; }
-    uint8_t status();
+    uint8_t status() const;
 
   protected:
     uint16_t _port;
