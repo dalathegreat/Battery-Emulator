@@ -5,13 +5,48 @@
 #define ASYNCWEBSOCKET_H_
 
 #include <Arduino.h>
-#include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
-#include <mutex>
-#define WS_MAX_QUEUED_MESSAGES 32
-#include "ESPAsyncWebServer.h"
-#include <memory>
-#define DEFAULT_MAX_WS_CLIENTS 8
 
+#if defined(ESP32) || defined(LIBRETINY)
+#include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
+#ifdef LIBRETINY
+#ifdef round
+#undef round
+#endif
+#endif
+#include <mutex>
+#ifndef WS_MAX_QUEUED_MESSAGES
+#define WS_MAX_QUEUED_MESSAGES 32
+#endif
+#elif defined(ESP8266)
+#include <ESPAsyncTCP.h>
+#ifndef WS_MAX_QUEUED_MESSAGES
+#define WS_MAX_QUEUED_MESSAGES 8
+#endif
+#elif defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350)
+#include <RPAsyncTCP.h>
+#ifndef WS_MAX_QUEUED_MESSAGES
+#define WS_MAX_QUEUED_MESSAGES 32
+#endif
+#endif
+
+#include "ESPAsyncWebServer.h"
+
+#include <memory>
+
+#ifdef ESP8266
+#include <Hash.h>
+#ifdef CRYPTO_HASH_h  // include Hash.h from espressif framework if the first include was from the crypto library
+#include <../src/Hash.h>
+#endif
+#endif
+
+#ifndef DEFAULT_MAX_WS_CLIENTS
+#ifdef ESP32
+#define DEFAULT_MAX_WS_CLIENTS 8
+#else
+#define DEFAULT_MAX_WS_CLIENTS 4
+#endif
+#endif
 
 using AsyncWebSocketSharedBuffer = std::shared_ptr<std::vector<uint8_t>>;
 
@@ -221,6 +256,24 @@ public:
     return _pinfo;
   }
 
+  //  - If "true" (default), the connection will be closed if the message queue is full.
+  // This is the default behavior in yubox-node-org, which is not silently discarding messages but instead closes the connection.
+  // The big issue with this behavior is  that is can cause the UI to automatically re-create a new WS connection, which can be filled again,
+  // and so on, causing a resource exhaustion.
+  //
+  // - If "false", the incoming message will be discarded if the queue is full.
+  // This is the default behavior in the original ESPAsyncWebServer library from me-no-dev.
+  // This behavior allows the best performance at the expense of unreliable message delivery in case the queue is full (some messages may be lost).
+  //
+  // - In any case, when the queue is full, a message is logged.
+  // - IT is recommended to use the methods queueIsFull(), availableForWriteAll(), availableForWrite(clientId) to check if the queue is full before sending a message.
+  //
+  // Usage:
+  //  - can be set in the onEvent listener when connecting (event type is: WS_EVT_CONNECT)
+  //
+  // Use cases:,
+  // - if using websocket to send logging messages, maybe some loss is acceptable.
+  // - But if using websocket to send UI update messages, maybe the connection should be closed and the UI redrawn.
   void setCloseClientOnQueueFull(bool close) {
     closeWhenFull = close;
   }
@@ -280,6 +333,11 @@ public:
   void _onDisconnect();
   void _onData(void *pbuf, size_t plen);
 
+#ifdef ESP8266
+  size_t printf_P(PGM_P formatP, ...) __attribute__((format(printf, 2, 3)));
+  bool text(const __FlashStringHelper *message);
+  bool binary(const __FlashStringHelper *message, size_t len);
+#endif
 };
 
 using AwsHandshakeHandler = std::function<bool(AsyncWebServerRequest *request)>;
@@ -363,6 +421,15 @@ public:
 
   size_t printf(uint32_t id, const char *format, ...) __attribute__((format(printf, 3, 4)));
   size_t printfAll(const char *format, ...) __attribute__((format(printf, 2, 3)));
+
+#ifdef ESP8266
+  bool text(uint32_t id, const __FlashStringHelper *message);
+  SendStatus textAll(const __FlashStringHelper *message);
+  bool binary(uint32_t id, const __FlashStringHelper *message, size_t len);
+  SendStatus binaryAll(const __FlashStringHelper *message, size_t len);
+  size_t printf_P(uint32_t id, PGM_P formatP, ...) __attribute__((format(printf, 3, 4)));
+  size_t printfAll_P(PGM_P formatP, ...) __attribute__((format(printf, 2, 3)));
+#endif
 
   void onEvent(AwsEventHandler handler) {
     _eventHandler = handler;

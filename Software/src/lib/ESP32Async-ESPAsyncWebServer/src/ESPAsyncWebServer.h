@@ -15,17 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
-#if defined(ESP32) || defined(LIBRETINY)
 #include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
-#elif defined(ESP8266)
-#include <ESPAsyncTCP.h>
-#elif defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350)
-#include <RPAsyncTCP.h>
-#include <HTTP_Method.h>
-#include <http_parser.h>
-#else
-#error Platform not supported
-#endif
 
 #include "literals.h"
 
@@ -269,7 +259,7 @@ private:
   void _send();
   void _runMiddlewareChain();
 
-  static void _getEtag(uint8_t trailer[4], char *serverETag);
+  static bool _getEtag(File gzFile, char *eTag);
 
 public:
   File _tempFile;

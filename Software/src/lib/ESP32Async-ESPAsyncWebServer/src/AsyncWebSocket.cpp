@@ -2,7 +2,6 @@
 // Copyright 2016-2025 Hristo Gochkov, Mathieu Carbou, Emil Muratov
 
 #include "AsyncWebSocket.h"
-#include "Arduino.h"
 
 #include <cstring>
 
@@ -430,8 +429,10 @@ bool AsyncWebSocketClient::_queueMessage(AsyncWebSocketSharedBuffer buffer, uint
         _client->close(true);
       }
 
-    } else {
+      //async_ws_log_e("Too many messages queued: closing connection");
 
+    } else {
+      //async_ws_log_e("Too many messages queued: discarding new message");
     }
 
     return false;
@@ -473,9 +474,7 @@ void AsyncWebSocketClient::close(uint16_t code, const char *message) {
       free(buf);
       return;
     } else {
-#ifdef ESP32
       _client->abort();
-#endif
     }
   }
   _queueControl(WS_DISCONNECT);
@@ -516,6 +515,10 @@ void AsyncWebSocketClient::_onData(void *pbuf, size_t plen) {
       _pinfo.opcode = fdata[0] & 0x0F;
       _pinfo.masked = (fdata[1] & 0x80) != 0;
       _pinfo.len = fdata[1] & 0x7F;
+
+      // async_ws_log_d("WS[%" PRIu32 "]: _onData: %" PRIu32, _clientId, plen);
+      // async_ws_log_d("WS[%" PRIu32 "]: _status = %" PRIu32, _clientId, _status);
+      // async_ws_log_d("WS[%" PRIu32 "]: _pinfo: index: %" PRIu64 ", final: %" PRIu8 ", opcode: %" PRIu8 ", masked: %" PRIu8 ", len: %" PRIu64, _clientId, _pinfo.index, _pinfo.final, _pinfo.opcode, _pinfo.masked, _pinfo.len);
 
       data += 2;
       plen -= 2;

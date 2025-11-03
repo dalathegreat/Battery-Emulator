@@ -2,8 +2,13 @@
 // Copyright 2016-2025 Hristo Gochkov, Mathieu Carbou, Emil Muratov
 
 #include "WebAuthentication.h"
+
 #include <libb64/cencode.h>
+#if defined(ESP32) || defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350)
 #include <MD5Builder.h>
+#else
+#include "md5.h"
+#endif
 #include "literals.h"
 
 using namespace asyncsrv;
@@ -75,7 +80,11 @@ static bool getMD5(uint8_t *data, uint16_t len, char *output) {  // 33 bytes or 
 }
 
 String genRandomMD5() {
+#ifdef ESP8266
+  uint32_t r = RANDOM_REG32;
+#else
   uint32_t r = rand();
+#endif
   char *out = (char *)malloc(33);
   if (out == NULL || !getMD5((uint8_t *)(&r), 4, out)) {
     return emptyString;

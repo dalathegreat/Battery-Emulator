@@ -12,7 +12,7 @@ static constexpr const char *T_100_CONTINUE = "100-continue";
 static constexpr const char *T_13 = "13";
 static constexpr const char *T_ACCEPT = "Accept";
 static constexpr const char *T_Accept_Ranges = "Accept-Ranges";
-static constexpr const char *T_attachment = "attachment; filename=\"%s\"";
+static constexpr const char *T_attachment = "attachment; filename=\"";
 static constexpr const char *T_AUTH = "Authorization";
 static constexpr const char *T_auth_nonce = "\", qop=\"auth\", nonce=\"";
 static constexpr const char *T_BASIC = "Basic";
@@ -115,6 +115,7 @@ static constexpr const char *T__jpg = ".jpg";      // JPEG/JPG: Photos. Legacy s
 static constexpr const char *T__js = ".js";        // JavaScript: Interactive functionality
 static constexpr const char *T__json = ".json";    // JSON: Data exchange format
 static constexpr const char *T__mp4 = ".mp4";      // MP4: Proprietary format. Worse compression than WEBM.
+static constexpr const char *T__mjs = ".mjs";      // MJS: JavaScript module format
 static constexpr const char *T__opus = ".opus";    // OPUS: High compression audio format
 static constexpr const char *T__pdf = ".pdf";      // PDF: Universal document format
 static constexpr const char *T__png = ".png";      // PNG: Icons, logos, transparency. Legacy support
