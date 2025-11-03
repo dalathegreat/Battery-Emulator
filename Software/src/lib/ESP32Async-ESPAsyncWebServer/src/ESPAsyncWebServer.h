@@ -1211,7 +1211,6 @@ public:
 };
 
 #include "AsyncEventSource.h"
-#include "AsyncWebSocket.h"
 #include "WebHandlerImpl.h"
 #include "WebResponseImpl.h"
 
