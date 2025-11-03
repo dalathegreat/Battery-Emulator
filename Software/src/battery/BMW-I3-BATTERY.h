@@ -9,15 +9,14 @@
 class BmwI3Battery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  BmwI3Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr, CAN_Interface targetCan,
-               gpio_num_t wakeup)
+  BmwI3Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr, CAN_Interface targetCan)
       : CanBattery(targetCan), renderer(*this) {
     datalayer_battery = datalayer_ptr;
     contactor_closing_allowed = contactor_closing_allowed_ptr;
     allows_contactor_closing = nullptr;
-    wakeup_pin = wakeup;
+    wakeup_pin = esp32hal->WUP_PIN2();
 
-    //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
+    //Init voltage to 0 to allow interconnect contactor check to operate without default values colliding
     battery_volts = 0;
   }
 
@@ -91,7 +90,7 @@ class BmwI3Battery : public CanBattery {
   // If not null, this battery listens to this boolean to determine whether contactor closing is allowed
   bool* contactor_closing_allowed;
 
-  gpio_num_t wakeup_pin;
+  gpio_num_t wakeup_pin;  //Set in constructor when initializing
 
   unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
