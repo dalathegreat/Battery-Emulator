@@ -122,8 +122,8 @@ void logging_loop(void*) {
 }
 
 void check_interconnect_available() {
-  if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery2.status.voltage_dV == 0) {
-    return;  // Both voltage values need to be available to start check
+  if (datalayer.battery.status.voltage_dV == 3700 || datalayer.battery2.status.voltage_dV == 0) {
+    return;  // Both voltage values need to be available to start check. Bat1 defaults to 370.0V, and Bat2 defaults to 0V
   }
 
   uint16_t voltage_diff = abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV);

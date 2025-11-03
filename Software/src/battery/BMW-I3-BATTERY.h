@@ -292,27 +292,10 @@ class BmwI3Battery : public CanBattery {
 
   //The above CAN messages need to be sent towards the battery to keep it alive
 
-  uint8_t startup_counter_contactor = 0;
-  uint8_t alive_counter_20ms = 0;
-  uint8_t alive_counter_100ms = 0;
-  uint8_t alive_counter_200ms = 0;
-  uint8_t alive_counter_500ms = 0;
-  uint8_t alive_counter_1000ms = 0;
-  uint8_t alive_counter_5000ms = 0;
-  uint8_t BMW_1D0_counter = 0;
-  uint8_t BMW_13E_counter = 0;
-  uint8_t BMW_380_counter = 0;
   uint32_t BMW_328_seconds = 243785948;  // Initialized to make the battery think vehicle was made 7.7years ago
   uint16_t BMW_328_days =
       9244;  //Time since 1.1.2000. Hacky implementation to make it think current date is 23rd April 2025
   uint32_t BMS_328_seconds_to_day = 0;  //Counter to keep track of days uptime
-
-  bool battery_awake = false;
-  bool battery_info_available = false;
-  bool skipCRCCheck = false;
-  bool CRCCheckPassedPreviously = false;
-
-  uint16_t cellvoltage_temp_mV = 0;
   uint32_t battery_serial_number = 0;
   uint32_t battery_available_power_shortterm_charge = 0;
   uint32_t battery_available_power_shortterm_discharge = 0;
@@ -322,6 +305,7 @@ class BmwI3Battery : public CanBattery {
   uint32_t battery_BEV_available_power_shortterm_discharge = 0;
   uint32_t battery_BEV_available_power_longterm_charge = 0;
   uint32_t battery_BEV_available_power_longterm_discharge = 0;
+  uint16_t tempval = 0;
   uint16_t battery_energy_content_maximum_Wh = 0;
   uint16_t battery_display_SOC = 0;
   uint16_t battery_volts = 0;
@@ -342,6 +326,7 @@ class BmwI3Battery : public CanBattery {
   uint16_t battery_soc_hvmax = 0;
   uint16_t battery_soc_hvmin = 0;
   uint16_t battery_capacity_cah = 0;
+  uint16_t cellvoltage_temp_mV = 0;
   int16_t battery_temperature_HV = 0;
   int16_t battery_temperature_heat_exchanger = 0;
   int16_t battery_temperature_max = 0;
@@ -379,10 +364,23 @@ class BmwI3Battery : public CanBattery {
   uint8_t battery_status_diagnosis_powertrain_immediate_multiplexer = 0;
   uint8_t battery_ID2 = 0;
   uint8_t battery_soh = 99;
-
-  uint8_t message_data[50];
   uint8_t next_data = 0;
   uint8_t current_cell_polled = 0;
+  uint8_t startup_counter_contactor = 0;
+  uint8_t alive_counter_20ms = 0;
+  uint8_t alive_counter_100ms = 0;
+  uint8_t alive_counter_200ms = 0;
+  uint8_t alive_counter_500ms = 0;
+  uint8_t alive_counter_1000ms = 0;
+  uint8_t alive_counter_5000ms = 0;
+  uint8_t BMW_1D0_counter = 0;
+  uint8_t BMW_13E_counter = 0;
+  uint8_t BMW_380_counter = 0;
+  uint8_t message_data[50];
+  bool battery_awake = false;
+  bool battery_info_available = false;
+  bool skipCRCCheck = false;
+  bool CRCCheckPassedPreviously = false;
 };
 
 #endif
