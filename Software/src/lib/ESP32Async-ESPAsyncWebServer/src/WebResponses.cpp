@@ -358,11 +358,6 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest *request, size_t len, u
     ++_in_flight_credit;
   }
 
-  // for chunked responses ignore acks if there are no _in_flight_credits left
-  if (_chunked && !_in_flight_credit) {
-    return 0;
-  }
-
   _in_flight -= (_in_flight > len) ? len : _in_flight;
   // get the size of available sock space
 #endif
@@ -394,6 +389,7 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest *request, size_t len, u
     // Let's ignore polled acks and acks in case when we have more in-flight data then the available socket buff space.
     // That way we could balance on having half the buffer in-flight while another half is filling up, while minimizing events in asynctcp q
     if (_in_flight > space) {
+      // async_ws_log_d("defer user call %u/%u", _in_flight, space);
       //  take the credit back since we are ignoring this ack and rely on other inflight data
       if (len) {
         --_in_flight_credit;
@@ -612,14 +608,6 @@ size_t AsyncAbstractResponse::_fillBufferAndProcessTemplates(uint8_t *data, size
  * @note The method modifies the internal _contentType member variable
  */
 void AsyncFileResponse::_setContentTypeFromPath(const String &path) {
-#if HAVE_EXTERN_GET_Content_Type_FUNCTION
-#ifndef ESP8266
-  extern const char *getContentType(const String &path);
-#else
-  extern const __FlashStringHelper *getContentType(const String &path);
-#endif
-  _contentType = getContentType(path);
-#else
   const char *cpath = path.c_str();
   const char *dot = strrchr(cpath, '.');
 
@@ -632,8 +620,8 @@ void AsyncFileResponse::_setContentTypeFromPath(const String &path) {
     _contentType = T_text_html;
   } else if (strcmp(dot, T__css) == 0) {
     _contentType = T_text_css;
-  } else if (strcmp(dot, T__js) == 0) {
-    _contentType = T_application_javascript;
+  } else if (strcmp(dot, T__js) == 0 || strcmp(dot, T__mjs) == 0) {
+    _contentType = T_text_javascript;
   } else if (strcmp(dot, T__json) == 0) {
     _contentType = T_application_json;
   } else if (strcmp(dot, T__png) == 0) {
@@ -671,7 +659,6 @@ void AsyncFileResponse::_setContentTypeFromPath(const String &path) {
   } else {
     _contentType = T_application_octet_stream;
   }
-#endif
 }
 
 /**
@@ -692,29 +679,23 @@ AsyncFileResponse::AsyncFileResponse(FS &fs, const String &path, const char *con
 
   // Try to open the uncompressed version first
   _content = fs.open(path, fs::FileOpenMode::read);
-  if (_content.available()) {
-    _contentLength = _content.size();
-  } else {
-    // Try to open the compressed version (.gz)
+  if (!_content.available()) {
+    // If not available try to open the compressed version (.gz)
     String gzPath;
     uint16_t pathLen = path.length();
     gzPath.reserve(pathLen + 3);
     gzPath.concat(path);
     gzPath.concat(asyncsrv::T__gz);
     _content = fs.open(gzPath, fs::FileOpenMode::read);
-    _contentLength = _content.size();
 
-    if (_content.seek(_contentLength - 8)) {
+    char serverETag[9];
+    if (AsyncWebServerRequest::_getEtag(_content, serverETag)) {
       addHeader(T_Content_Encoding, T_gzip, false);
       _callback = nullptr;  // Unable to process zipped templates
       _sendContentLength = true;
       _chunked = false;
 
       // Add ETag and cache headers
-      uint8_t crcInTrailer[4];
-      _content.read(crcInTrailer, sizeof(crcInTrailer));
-      char serverETag[9];
-      AsyncWebServerRequest::_getEtag(crcInTrailer, serverETag);
       addHeader(T_ETag, serverETag, true);
       addHeader(T_Cache_Control, T_no_cache, true);
 
@@ -726,6 +707,8 @@ AsyncFileResponse::AsyncFileResponse(FS &fs, const String &path, const char *con
     }
   }
 
+  _contentLength = _content.size();
+
   if (*contentType == '\0') {
     _setContentTypeFromPath(path);
   } else {
@@ -735,9 +718,12 @@ AsyncFileResponse::AsyncFileResponse(FS &fs, const String &path, const char *con
   if (download) {
     // Extract filename from path and set as download attachment
     int filenameStart = path.lastIndexOf('/') + 1;
-    char buf[26 + path.length() - filenameStart];
-    char *filename = (char *)path.c_str() + filenameStart;
-    snprintf(buf, sizeof(buf), T_attachment, filename);
+    const char *filename = path.c_str() + filenameStart;
+    String buf;
+    buf.reserve(strlen(T_attachment) + strlen(filename) + 2);
+    buf = T_attachment;
+    buf += filename;
+    buf += "\"";
     addHeader(T_Content_Disposition, buf, false);
   } else {
     // Serve file inline (display in browser)
@@ -761,22 +747,26 @@ AsyncFileResponse::AsyncFileResponse(File content, const String &path, const cha
   _content = content;
   _contentLength = _content.size();
 
-  if (strlen(contentType) == 0) {
+  if (*contentType == '\0') {
     _setContentTypeFromPath(path);
   } else {
     _contentType = contentType;
   }
 
-  int filenameStart = path.lastIndexOf('/') + 1;
-  char buf[26 + path.length() - filenameStart];
-  char *filename = (char *)path.c_str() + filenameStart;
-
   if (download) {
-    snprintf_P(buf, sizeof(buf), PSTR("attachment; filename=\"%s\""), filename);
+    // Extract filename from path and set as download attachment
+    int filenameStart = path.lastIndexOf('/') + 1;
+    const char *filename = path.c_str() + filenameStart;
+    String buf;
+    buf.reserve(strlen(T_attachment) + strlen(filename) + 2);
+    buf = T_attachment;
+    buf += filename;
+    buf += "\"";
+    addHeader(T_Content_Disposition, buf, false);
   } else {
-    snprintf_P(buf, sizeof(buf), PSTR("inline"));
+    // Serve file inline (display in browser)
+    addHeader(T_Content_Disposition, T_inline, false);
   }
-  addHeader(T_Content_Disposition, buf, false);
 }
 
 size_t AsyncFileResponse::_fillBuffer(uint8_t *data, size_t len) {
@@ -886,8 +876,6 @@ AsyncResponseStream::AsyncResponseStream(const char *contentType, size_t bufferS
   _contentType = contentType;
   // internal buffer will be null on allocation failure
   _content = std::unique_ptr<cbuf>(new cbuf(bufferSize));
-  if (bufferSize && _content->size() < bufferSize) {
-  }
 }
 
 size_t AsyncResponseStream::_fillBuffer(uint8_t *buf, size_t maxLen) {
@@ -901,11 +889,6 @@ size_t AsyncResponseStream::write(const uint8_t *data, size_t len) {
   if (len > _content->room()) {
     size_t needed = len - _content->room();
     _content->resizeAdd(needed);
-    // log a warning if allocation failed, but do not return: keep writing the bytes we can
-    // with _content->write: if len is more than the available size in the buffer, only
-    // the available size will be written
-    if (len > _content->room()) {
-    }
   }
   size_t written = _content->write((const char *)data, len);
   _contentLength += written;

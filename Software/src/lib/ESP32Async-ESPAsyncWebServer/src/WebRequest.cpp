@@ -7,7 +7,9 @@
 #include "literals.h"
 #include <cstring>
 
-#define __is_param_char(c) ((c) && ((c) != '{') && ((c) != '[') && ((c) != '&') && ((c) != '='))
+static inline bool isParamChar(char c) {
+  return ((c) && ((c) != '{') && ((c) != '[') && ((c) != '&') && ((c) != '='));
+}
 
 static void doNotDelete(AsyncWebServerRequest *) {}
 
@@ -29,7 +31,7 @@ AsyncWebServerRequest::AsyncWebServerRequest(AsyncWebServer *s, AsyncClient *c)
   c->onError(
     [](void *r, AsyncClient *c, int8_t error) {
       (void)c;
-      // log_e("AsyncWebServerRequest::_onError");
+      // async_ws_log_e("AsyncWebServerRequest::_onError");
       AsyncWebServerRequest *req = (AsyncWebServerRequest *)r;
       req->_onError(error);
     },
@@ -38,7 +40,7 @@ AsyncWebServerRequest::AsyncWebServerRequest(AsyncWebServer *s, AsyncClient *c)
   c->onAck(
     [](void *r, AsyncClient *c, size_t len, uint32_t time) {
       (void)c;
-      // log_e("AsyncWebServerRequest::_onAck");
+      // async_ws_log_e("AsyncWebServerRequest::_onAck");
       AsyncWebServerRequest *req = (AsyncWebServerRequest *)r;
       req->_onAck(len, time);
     },
@@ -46,7 +48,7 @@ AsyncWebServerRequest::AsyncWebServerRequest(AsyncWebServer *s, AsyncClient *c)
   );
   c->onDisconnect(
     [](void *r, AsyncClient *c) {
-      // log_e("AsyncWebServerRequest::_onDisconnect");
+      // async_ws_log_e("AsyncWebServerRequest::_onDisconnect");
       AsyncWebServerRequest *req = (AsyncWebServerRequest *)r;
       req->_onDisconnect();
       delete c;
@@ -56,7 +58,7 @@ AsyncWebServerRequest::AsyncWebServerRequest(AsyncWebServer *s, AsyncClient *c)
   c->onTimeout(
     [](void *r, AsyncClient *c, uint32_t time) {
       (void)c;
-      // log_e("AsyncWebServerRequest::_onTimeout");
+      // async_ws_log_e("AsyncWebServerRequest::_onTimeout");
       AsyncWebServerRequest *req = (AsyncWebServerRequest *)r;
       req->_onTimeout(time);
     },
@@ -65,7 +67,7 @@ AsyncWebServerRequest::AsyncWebServerRequest(AsyncWebServer *s, AsyncClient *c)
   c->onData(
     [](void *r, AsyncClient *c, void *buf, size_t len) {
       (void)c;
-      // log_e("AsyncWebServerRequest::_onData");
+      // async_ws_log_e("AsyncWebServerRequest::_onData");
       AsyncWebServerRequest *req = (AsyncWebServerRequest *)r;
       req->_onData(buf, len);
     },
@@ -74,7 +76,7 @@ AsyncWebServerRequest::AsyncWebServerRequest(AsyncWebServer *s, AsyncClient *c)
   c->onPoll(
     [](void *r, AsyncClient *c) {
       (void)c;
-      // log_e("AsyncWebServerRequest::_onPoll");
+      // async_ws_log_e("AsyncWebServerRequest::_onPoll");
       AsyncWebServerRequest *req = (AsyncWebServerRequest *)r;
       req->_onPoll();
     },
@@ -83,7 +85,7 @@ AsyncWebServerRequest::AsyncWebServerRequest(AsyncWebServer *s, AsyncClient *c)
 }
 
 AsyncWebServerRequest::~AsyncWebServerRequest() {
-  // log_e("AsyncWebServerRequest::~AsyncWebServerRequest");
+  // async_ws_log_e("AsyncWebServerRequest::~AsyncWebServerRequest");
 
   _this.reset();
 
@@ -177,9 +179,12 @@ void AsyncWebServerRequest::_onData(void *buf, size_t len) {
         if (_parsedLength == 0) {
           if (_contentType.startsWith(T_app_xform_urlencoded)) {
             _isPlainPost = true;
-          } else if (_contentType == T_text_plain && __is_param_char(((char *)buf)[0])) {
+          } else if (_contentType == T_text_plain && isParamChar(((char *)buf)[0])) {
             size_t i = 0;
-            while (i < len && __is_param_char(((char *)buf)[i++]));
+            char ch;
+            do {
+              ch = ((char *)buf)[i];
+            } while (i++ < len && isParamChar(ch));
             if (i < len && ((char *)buf)[i - 1] == '=') {
               _isPlainPost = true;
             }
@@ -698,7 +703,7 @@ void AsyncWebServerRequest::_runMiddlewareChain() {
 
 void AsyncWebServerRequest::_send() {
   if (!_sent && !_paused) {
-    // log_d("AsyncWebServerRequest::_send()");
+    // async_ws_log_d("AsyncWebServerRequest::_send()");
 
     // user did not create a response ?
     if (!_response) {
@@ -734,7 +739,7 @@ void AsyncWebServerRequest::abort() {
     _sent = true;
     _paused = false;
     _this.reset();
-    // log_e("AsyncWebServerRequest::abort");
+    // async_ws_log_e("AsyncWebServerRequest::abort");
     _client->abort();
   }
 }
@@ -752,12 +757,34 @@ bool AsyncWebServerRequest::hasHeader(const char *name) const {
   return false;
 }
 
+#ifdef ESP8266
+bool AsyncWebServerRequest::hasHeader(const __FlashStringHelper *data) const {
+  return hasHeader(String(data));
+}
+#endif
+
 const AsyncWebHeader *AsyncWebServerRequest::getHeader(const char *name) const {
   auto iter = std::find_if(std::begin(_headers), std::end(_headers), [&name](const AsyncWebHeader &header) {
     return header.name().equalsIgnoreCase(name);
   });
   return (iter == std::end(_headers)) ? nullptr : &(*iter);
 }
+
+#ifdef ESP8266
+const AsyncWebHeader *AsyncWebServerRequest::getHeader(const __FlashStringHelper *data) const {
+  PGM_P p = reinterpret_cast<PGM_P>(data);
+  size_t n = strlen_P(p);
+  char *name = (char *)malloc(n + 1);
+  if (name) {
+    strcpy_P(name, p);
+    const AsyncWebHeader *result = getHeader(String(name));
+    free(name);
+    return result;
+  } else {
+    return nullptr;
+  }
+}
+#endif
 
 const AsyncWebHeader *AsyncWebServerRequest::getHeader(size_t num) const {
   if (num >= _headers.size()) {
@@ -803,6 +830,12 @@ const AsyncWebParameter *AsyncWebServerRequest::getParam(const char *name, bool 
   }
   return nullptr;
 }
+
+#ifdef ESP8266
+const AsyncWebParameter *AsyncWebServerRequest::getParam(const __FlashStringHelper *data, bool post, bool file) const {
+  return getParam(String(data), post, file);
+}
+#endif
 
 const AsyncWebParameter *AsyncWebServerRequest::getParam(size_t num) const {
   if (num >= _params.size()) {
@@ -966,6 +999,7 @@ void AsyncWebServerRequest::requestAuthentication(AsyncAuthType method, const ch
         header.concat('"');
         r->addHeader(T_WWW_AUTH, header.c_str());
       } else {
+        //async_ws_log_e("Failed to allocate");
         abort();
       }
 
@@ -1009,6 +1043,12 @@ bool AsyncWebServerRequest::hasArg(const char *name) const {
   return false;
 }
 
+#ifdef ESP8266
+bool AsyncWebServerRequest::hasArg(const __FlashStringHelper *data) const {
+  return hasArg(String(data).c_str());
+}
+#endif
+
 const String &AsyncWebServerRequest::arg(const char *name) const {
   for (const auto &arg : _params) {
     if (arg.name() == name) {
@@ -1017,6 +1057,12 @@ const String &AsyncWebServerRequest::arg(const char *name) const {
   }
   return emptyString;
 }
+
+#ifdef ESP8266
+const String &AsyncWebServerRequest::arg(const __FlashStringHelper *data) const {
+  return arg(String(data).c_str());
+}
+#endif
 
 const String &AsyncWebServerRequest::arg(size_t i) const {
   return getParam(i)->value();
@@ -1039,6 +1085,12 @@ const String &AsyncWebServerRequest::header(const char *name) const {
   const AsyncWebHeader *h = getHeader(name);
   return h ? h->value() : emptyString;
 }
+
+#ifdef ESP8266
+const String &AsyncWebServerRequest::header(const __FlashStringHelper *data) const {
+  return header(String(data).c_str());
+};
+#endif
 
 const String &AsyncWebServerRequest::header(size_t i) const {
   const AsyncWebHeader *h = getHeader(i);
