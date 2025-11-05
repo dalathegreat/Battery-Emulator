@@ -15,11 +15,9 @@ bool ON_AP_FILTER(AsyncWebServerRequest *request) {
   return WiFi.localIP() != request->client()->localIP();
 }
 
-#ifndef HAVE_FS_FILE_OPEN_MODE
 const char *fs::FileOpenMode::read = "r";
 const char *fs::FileOpenMode::write = "w";
 const char *fs::FileOpenMode::append = "a";
-#endif
 
 AsyncWebServer::AsyncWebServer(uint16_t port) : _server(port) {
   _catchAllHandler = new AsyncCallbackWebHandler();
@@ -121,6 +119,7 @@ void AsyncWebServer::_attachHandler(AsyncWebServerRequest *request) {
       return;
     }
   }
+  // ESP_LOGD("AsyncWebServer", "No handler found for %s, using _catchAllHandler pointer: %p", request->url().c_str(), _catchAllHandler);
   request->setHandler(_catchAllHandler);
 }
 

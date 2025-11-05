@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright 2016-2025 Hristo Gochkov, Mathieu Carbou, Emil Muratov
 
-#include "Arduino.h"
-#include <rom/ets_sys.h>
 #include "AsyncEventSource.h"
 
 #define ASYNC_SSE_NEW_LINE_CHAR (char)0xa

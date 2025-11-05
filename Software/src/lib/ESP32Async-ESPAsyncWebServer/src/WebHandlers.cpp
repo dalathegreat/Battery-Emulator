@@ -73,7 +73,14 @@ AsyncStaticWebHandler &AsyncStaticWebHandler::setLastModified(const char *last_m
 
 AsyncStaticWebHandler &AsyncStaticWebHandler::setLastModified(struct tm *last_modified) {
   char result[30];
+#ifdef ESP8266
+  auto formatP = PSTR("%a, %d %b %Y %H:%M:%S GMT");
+  char format[strlen_P(formatP) + 1];
+  strcpy_P(format, formatP);
+#else
   static constexpr const char *format = "%a, %d %b %Y %H:%M:%S GMT";
+#endif
+
   strftime(result, sizeof(result), format, last_modified);
   _last_modified = result;
   return *this;
@@ -123,7 +130,11 @@ bool AsyncStaticWebHandler::_getFile(AsyncWebServerRequest *request) const {
   return const_cast<AsyncStaticWebHandler *>(this)->_searchFile(request, path);
 }
 
+#ifdef ESP32
 #define FILE_IS_REAL(f) (f == true && !f.isDirectory())
+#else
+#define FILE_IS_REAL(f) (f == true)
+#endif
 
 bool AsyncStaticWebHandler::_searchFile(AsyncWebServerRequest *request, const String &path) {
   bool fileFound = false;
@@ -259,6 +270,20 @@ bool AsyncCallbackWebHandler::canHandle(AsyncWebServerRequest *request) const {
     return false;
   }
 
+#ifdef ASYNCWEBSERVER_REGEX
+  if (_isRegex) {
+    std::regex pattern(_uri.c_str());
+    std::smatch matches;
+    std::string s(request->url().c_str());
+    if (std::regex_search(s, matches, pattern)) {
+      for (size_t i = 1; i < matches.size(); ++i) {  // start from 1
+        request->_addPathParam(matches[i].str().c_str());
+      }
+    } else {
+      return false;
+    }
+  } else
+#endif
     if (_uri.length() && _uri.startsWith("/*.")) {
     String uriTemplate = String(_uri);
     uriTemplate = uriTemplate.substring(uriTemplate.lastIndexOf("."));
