@@ -13,9 +13,7 @@ void CmpSmartCarBattery::update_values() {
 
   datalayer.battery.status.voltage_dV = battery_voltage;
 
-  if (battery_current > -1500) {
-    datalayer.battery.status.current_dA = battery_current;
-  }
+  datalayer.battery.status.current_dA = battery_current_dA;
 
   datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
@@ -166,7 +164,12 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         datalayer.battery.status.CAN_error_counter++;
         break;  //Message checksum incorrect, abort reading data from it
       }
-      battery_current = ((rx_frame.data.u8[0] << 7) | (rx_frame.data.u8[1] >> 1)) - 1500;  //0 in all discharge logs?
+      if ((rx_frame.data.u8[0] & 0x80) >> 7) {  //Charging
+        battery_current_dA = 32768 - ((rx_frame.data.u8[0] << 7) | (rx_frame.data.u8[1] >> 1));
+      } else {  //Discharging
+        battery_current_dA = ((rx_frame.data.u8[0] << 7) | (rx_frame.data.u8[1] >> 1));
+      }
+
       battery_soc = ((rx_frame.data.u8[2] & 0x1F) << 5) | (rx_frame.data.u8[3] >> 3);
       battery_voltage =
           ((((rx_frame.data.u8[3] & 0x07) << 10) | (rx_frame.data.u8[4] << 2) | (rx_frame.data.u8[5] >> 6)));

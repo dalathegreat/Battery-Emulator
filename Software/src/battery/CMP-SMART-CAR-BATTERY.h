@@ -157,7 +157,7 @@ class CmpSmartCarBattery : public CanBattery {
   int16_t battery_temperature_maximum = 0;
   int16_t coolant_temperature = 0;
   int16_t battery_temperature_minimum = 0;
-  int16_t battery_current = 0;
+  int16_t battery_current_dA = 0;
 
   uint8_t startup_increment = 0;
   uint8_t active_DTC_code = 0;
