@@ -176,9 +176,11 @@ void update_calculated_values(unsigned long currentMillis) {
       // Scale charge power by user-selected factor for double battery setup
       // Factor is stored as 10-20 (representing 1.0x to 2.0x)
       datalayer.battery.status.max_charge_current_dA =
-          ((datalayer.battery.status.max_charge_power_W * (double_battery_charge_rate_factor * 10)) / datalayer.battery.status.voltage_dV);
+          ((datalayer.battery.status.max_charge_power_W * (double_battery_charge_rate_factor * 10)) /
+           datalayer.battery.status.voltage_dV);
       datalayer.battery.status.max_discharge_current_dA =
-          ((datalayer.battery.status.max_discharge_power_W * (double_battery_charge_rate_factor * 10)) / datalayer.battery.status.voltage_dV);
+          ((datalayer.battery.status.max_discharge_power_W * (double_battery_charge_rate_factor * 10)) /
+           datalayer.battery.status.voltage_dV);
     } else {
       datalayer.battery.status.max_charge_current_dA =
           ((datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV);
@@ -254,10 +256,10 @@ void update_calculated_values(unsigned long currentMillis) {
     /* Calculate active power based on voltage and current for battery 2*/
     datalayer.battery2.status.active_power_W =
         (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
-    
+
     if (user_selected_second_battery) {
       /* Sum current from both batteries when dual battery is enabled */
-      datalayer.system.status.combined_battery_current_dA = 
+      datalayer.system.status.combined_battery_current_dA =
           datalayer.battery.status.current_dA + datalayer.battery2.status.current_dA;
     }
   }

@@ -354,7 +354,7 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   bool BMS_reset_in_progress = false;
   /** True if the BMS is starting up */
   bool BMS_startup_in_progress = false;
-  
+
   /** int16_t */
   /** Combined battery current for dual battery setups in deciAmpere. 95 = 9.5 A */
   /* Used by inverter protocols when DOUBLE_BATTERY is defined */
