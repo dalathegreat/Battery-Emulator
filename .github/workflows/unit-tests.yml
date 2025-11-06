@@ -1,0 +1,25 @@
+name: ⚙️ Run Unit Tests
+
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Configure and build with CMake
+      run: |
+        cd test
+        mkdir build
+        cd build
+        cmake ..
+        cmake --build .
+
+    - name: Run unit tests
+      run: |
+        cd test/build
+        ctest

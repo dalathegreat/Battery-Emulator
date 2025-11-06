@@ -1,0 +1,54 @@
+name: 🔋 Compile Common Image for Stark CMR
+
+on:
+  # The workflow is run when a commit is pushed or for a
+  # Pull Request.
+  - push
+  - pull_request
+
+# This is the list of jobs that will be run concurrently.
+jobs:
+  # This pre-job is run to skip workflows in case a workflow is already run, i.e. because the workflow is triggered by both push and pull_request
+  skip-duplicate-actions:
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          # All of these options are optional, so you can remove them if you are happy with the defaults
+          concurrent_skipping: 'never'
+          skip_after_successful_duplicate: 'true'
+          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
+
+  build-common-image:
+    # This is the platform GitHub will use to run our workflow.
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+      name: Checkout code
+
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio/.cache
+        key: ${{ runner.os }}-pio
+
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+    - name: Install PlatformIO Core
+      run: pip install --upgrade platformio
+
+    - name: Build image for Stark CMR
+      run: pio run -e stark_330
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: battery-emulator-stark.bin
+        path: .pio/build/stark_330/firmware.bin

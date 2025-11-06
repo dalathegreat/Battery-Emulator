@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Discord
+    url: https://www.patreon.com/dala
+    about: Get direct support and hang out with us! Join via Patreon
+  - name: Wiki
+    url: https://github.com/dalathegreat/Battery-Emulator/wiki
+    about: Highly recommended to read before asking questions!
