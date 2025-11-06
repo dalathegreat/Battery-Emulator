@@ -60,6 +60,7 @@ extern const char* name_for_comm_interface(comm_interface comm);
 
 extern BatteryType user_selected_battery_type;
 extern bool user_selected_second_battery;
+extern uint8_t double_battery_charge_rate_factor;  // Factor 10-20 (1.0x to 2.0x scaling)
 
 extern battery_chemistry_enum user_selected_battery_chemistry;
 

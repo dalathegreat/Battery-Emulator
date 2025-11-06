@@ -136,6 +136,7 @@ battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_defau
 
 BatteryType user_selected_battery_type = BatteryType::NissanLeaf;
 bool user_selected_second_battery = false;
+uint8_t double_battery_charge_rate_factor = 16;  // Default 1.6x (stored as 16 for 1.6)
 
 Battery* create_battery(BatteryType type) {
   switch (type) {

@@ -134,6 +134,7 @@ void init_stored_settings() {
 
   equipment_stop_behavior = (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
   user_selected_second_battery = settings.getBool("DBLBTR", false);
+  double_battery_charge_rate_factor = settings.getUInt("DBLCHGFACTOR", 16);  // Default 1.6x
   contactor_control_enabled = settings.getBool("CNTCTRL", false);
   precharge_time_ms = settings.getUInt("PRECHGMS", 100);
   contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);

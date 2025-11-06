@@ -98,11 +98,11 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   } else {
     clear_event(EVENT_HVIL_FAILURE);
   }
-  if (battery_status_error_disconnecting_switch > 0) {  // Check if contactors are sticking / welded
-    set_event(EVENT_CONTACTOR_WELDED, 0);
-  } else {
-    clear_event(EVENT_CONTACTOR_WELDED);
-  }
+  //if (battery_status_error_disconnecting_switch > 0) {  // Check if contactors are sticking / welded
+  //  set_event(EVENT_CONTACTOR_WELDED, 0);
+  //} else {
+  //  clear_event(EVENT_CONTACTOR_WELDED);
+  //}
 }
 
 void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -300,10 +300,15 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
 
-      if (startup_counter_contactor < 160) {
-        startup_counter_contactor++;
-      } else {                      //After 160 messages, turn on the request
-        BMW_10B.data.u8[1] = 0x10;  // Close contactors
+      //if (startup_counter_contactor < 160) {
+      //  startup_counter_contactor++;
+      //} else {                      //After 160 messages, turn on the request
+      //  BMW_10B.data.u8[1] = 0x10;  // Close contactors
+      //}
+      if (datalayer.system.status.inverter_allows_contactor_closing) {
+        BMW_10B.data.u8[1] = 0x10;  // Close contactors when inverter allows
+      } else {
+        BMW_10B.data.u8[1] = 0x00;  // Keep contactors open when inverter doesn't allow
       }
 
       BMW_10B.data.u8[1] = ((BMW_10B.data.u8[1] & 0xF0) + alive_counter_20ms);

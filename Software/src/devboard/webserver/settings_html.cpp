@@ -295,6 +295,13 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("DBLBTR") ? "checked" : "";
   }
 
+  // Double battery charge rate factor selection
+  if (var.startsWith("DBLCHGFACTOR")) {
+    uint8_t factor = settings.getUInt("DBLCHGFACTOR", 16);
+    String factorStr = var.substring(12);  // Get number after "DBLCHGFACTOR"
+    return (String(factor) == factorStr) ? "selected" : "";
+  }
+
   if (var == "SOCESTIMATED") {
     return settings.getBool("SOCESTIMATED") ? "checked" : "";
   }
@@ -1142,6 +1149,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <label>Battery 2 interface: </label>
             <select name='BATT2COMM'>
                 %BATT2COMM%
+            </select>
+
+            <label>Charge rate scaling factor: </label>
+            <select name='DBLCHGFACTOR' title="Scale charge/discharge rate for dual battery (1.0x = single battery rate, 2.0x = double)">
+                <option value='10' %DBLCHGFACTOR10%>1.0x</option>
+                <option value='11' %DBLCHGFACTOR11%>1.1x</option>
+                <option value='12' %DBLCHGFACTOR12%>1.2x</option>
+                <option value='13' %DBLCHGFACTOR13%>1.3x</option>
+                <option value='14' %DBLCHGFACTOR14%>1.4x</option>
+                <option value='15' %DBLCHGFACTOR15%>1.5x</option>
+                <option value='16' %DBLCHGFACTOR16%>1.6x</option>
+                <option value='17' %DBLCHGFACTOR17%>1.7x</option>
+                <option value='18' %DBLCHGFACTOR18%>1.8x</option>
+                <option value='19' %DBLCHGFACTOR19%>1.9x</option>
+                <option value='20' %DBLCHGFACTOR20%>2.0x</option>
             </select>
         </div>
 
