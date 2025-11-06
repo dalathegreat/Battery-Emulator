@@ -173,8 +173,8 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_state = ((rx_frame.data.u8[1] & 0x01) | (rx_frame.data.u8[2] >> 5));
       battery_fault = ((rx_frame.data.u8[5] & 0x01) | (rx_frame.data.u8[6] >> 5));
       battery_negative_contactor_state = ((rx_frame.data.u8[5] & 0x06) >> 1);
-      battery_precharge_contactor_state = ((rx_frame.data.u8[5] & 0x18) >> 3);
-      battery_positive_contactor_state = ((rx_frame.data.u8[5] & 0x20) >> 5);
+      battery_positive_contactor_state = ((rx_frame.data.u8[5] & 0x18) >> 3);
+      battery_precharge_contactor_state = ((rx_frame.data.u8[5] & 0x20) >> 5);
       battery_connect_status = (rx_frame.data.u8[6] & 0x03);
       battery_charging_status = ((rx_frame.data.u8[6] & 0x1C) >> 5);
       //counter_205 = (rx_frame.data.u8[7] & 0x0F);
@@ -409,6 +409,11 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
+    if (startup_increment < 250) {
+      startup_increment++;
+    }
+
+    /*
     counter_10ms = (counter_10ms + 1) % 16;  // counter_10ms repeats after 16 messages. 0-1..15-0
 
     CMP_262.data.u8[0] =
@@ -427,10 +432,11 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     CMP_241.data.u8[7] = counter_10ms;
     CMP_241.data.u8[7] = (calculate_checksum(CMP_241, 0x08) << 4) | counter_10ms;
 
-    transmit_can_frame(&CMP_208);
-    transmit_can_frame(&CMP_217);
-    transmit_can_frame(&CMP_241);
-    transmit_can_frame(&CMP_262);
+    //transmit_can_frame(&CMP_208);
+    //transmit_can_frame(&CMP_217);
+    //transmit_can_frame(&CMP_241);
+    //transmit_can_frame(&CMP_262);
+    */
   }
 
   // Send 50ms messages
@@ -464,7 +470,7 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     //CMP_421.data.u8[3] = 0x20;  //Post wakeup , goes from 0x00 when car on, to 0x80 to when turning off car
 
     transmit_can_frame(&CMP_432);  //Main wakeup
-    transmit_can_frame(&CMP_421);  //Post wakeup
+    //transmit_can_frame(&CMP_421);  //Post wakeup (Apparently not needed for contactor closing?)
   }
 
   // Send 60ms messages
@@ -472,9 +478,27 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     previousMillis60 = currentMillis;
     counter_60ms = (counter_60ms + 1) % 16;  // counter_60ms repeats after 16 messages. 0-1..15-0
 
-    CMP_351.data.u8[7] = checksum351[counter_60ms];
+    if (startup_increment < 200) {  //During startup we request open contactors
+      CMP_351.data.u8[0] = 0xA6;
+      CMP_351.data.u8[1] = 0x10;
+      CMP_351.data.u8[2] = 0x10;
+    } else {  //Normal handling of 351 message according to we need to open/close contactors
+      if (datalayer.battery.status.bms_status == FAULT) {
+        //Open contactors
+        CMP_351.data.u8[0] = 0xA6;
+        CMP_351.data.u8[1] = 0x10;
+        CMP_351.data.u8[2] = 0x10;
+      } else {  //Close contactors
+        CMP_351.data.u8[0] = 0x46;
+        CMP_351.data.u8[1] = 0x14;
+        CMP_351.data.u8[2] = 0x17;
+      }
+    }
 
-    transmit_can_frame(&CMP_351);  //Airbag OK
+    CMP_351.data.u8[7] = counter_60ms;
+    CMP_351.data.u8[7] = (calculate_checksum(CMP_351, 0x06) << 4) | counter_60ms;
+
+    transmit_can_frame(&CMP_351);  //Airbag
   }
 
   // Send 100ms messages
@@ -483,24 +507,35 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     counter_100ms = (counter_100ms + 1) % 16;  // counter_100ms repeats after 16 messages. 0-1..15-0
 
     CMP_211.data.u8[2] = 0x00;  //00 QC contactor OFF, 81, QC contactor ON
-    CMP_211.data.u8[4] = 0x17;  //Contactor closing message (15 ready)(4A charge)(04 discharage)(00 no command)
-    //Bit 1 is isolation disabled
+
+    if (startup_increment < 200) {  //During startup we request open contactors
+      CMP_211.data.u8[4] = 0x15;    //Ready mode (unsure why this opens contactors)
+    } else {                        //Normal handling of close/open
+
+      if (datalayer.battery.status.bms_status == FAULT) {
+        //Open contactors
+        CMP_211.data.u8[4] = 0x15;  //Ready mode (unsure why this opens contactors)
+      } else {                      //Close contactors
+        CMP_211.data.u8[4] = 0x04;  //04 discharge, 4A charge
+      }
+    }
 
     CMP_211.data.u8[7] = counter_100ms;
     CMP_211.data.u8[7] = (calculate_checksum(CMP_211, 0x0B) << 4) | counter_100ms;
 
-    CMP_4A2.data.u8[1] = 0x40;  //00 plugged, 64 unplugged, 41vehiclerunning
+    //CMP_4A2.data.u8[1] = 0x40;  //00 plugged, 64 unplugged, 41vehiclerunning
 
     transmit_can_frame(&CMP_211);
-    transmit_can_frame(&CMP_231);  // Battery Preconditioning
-    transmit_can_frame(&CMP_422);
-    transmit_can_frame(&CMP_4A2);  //Should we send plugged in, or unplugged?
+    //transmit_can_frame(&CMP_231);  // Battery Preconditioning (Apparently not needed for contactor closing?)
+    //transmit_can_frame(&CMP_422);  // (Apparently not needed for contactor closing?)
+    //transmit_can_frame(&CMP_4A2);  //Should we send plugged in, or unplugged? (Apparently not needed for contactor closing?)
   }
 
   // Send 1s messages
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
 
+    /*
     vehicle_time_counter = (vehicle_time_counter + 10);
 
     CMP_552.data.u8[0] = ((vehicle_time_counter) & 0xFF000000) >> 24;
@@ -510,7 +545,7 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_can_frame(&CMP_552);
     //This message is odd. Non periodic, but increments 10 per cycle. Might be enough to send it once every second
-
+    */
     if (datalayer_extended.stellantisCMPsmart.UserRequestDTCreset) {
       transmit_can_frame(&CMP_CLEAR_ALL_DTC);
       datalayer_extended.stellantisCMPsmart.UserRequestDTCreset = false;

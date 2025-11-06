@@ -32,22 +32,35 @@ class CmpSmartCarBattery : public CanBattery {
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
 
-  uint8_t checksum217[16] = {0x50, 0x41, 0xB2, 0xA3, 0x14, 0x05, 0xF6, 0xE7,
-                             0x58, 0xC9, 0xBA, 0xAB, 0x1C, 0x8D, 0x7E, 0x6F};
-  uint8_t checksum351[16] = {0x0F, 0xF0, 0xE1, 0xD2, 0xC3, 0xB4, 0xA5, 0x96,
-                             0x87, 0x78, 0x69, 0x5A, 0x4B, 0x3C, 0x2D, 0x1E};
   uint8_t precalculated432[16] = {0x12, 0x11, 0x10, 0x1F, 0x1E, 0x1D, 0x1C, 0x1B,
                                   0x1A, 0x19, 0x18, 0x17, 0x16, 0x15, 0x14, 0x13};
-  CAN_frame CMP_208 = {.FD = false,  //VCU 10ms
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x208,
-                       .data = {0x00, 0x20, 0x00, 0x84, 0x40, 0x21, 0x00, 0x00}};
+
   CAN_frame CMP_211 = {.FD = false,  //VCU contactor 100ms
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x211,
                        .data = {0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame CMP_351 = {.FD = false,  //VCU 60ms Airbag
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x351,
+                       .data = {0x46, 0x14, 0x17, 0x00, 0x00, 0x00, 0x00, 0x0F}};
+  CAN_frame CMP_432 = {.FD = false,  //VCU 50ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x432,
+                       .data = {0x80, 0x10, 0x00, 0x00, 0x00, 0x00, 0x7D, 0x52}};
+
+  //Optional CAN messages to simulate more of the vehicle towards the battery (Not required?)
+  /*
+    uint8_t checksum217[16] = {0x50, 0x41, 0xB2, 0xA3, 0x14, 0x05, 0xF6, 0xE7,
+                             0x58, 0xC9, 0xBA, 0xAB, 0x1C, 0x8D, 0x7E, 0x6F};
+  CAN_frame CMP_208 = {.FD = false,  //VCU 10ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x208,
+                       .data = {0x00, 0x20, 0x00, 0x84, 0x40, 0x21, 0x00, 0x00}};
+
   CAN_frame CMP_217 = {.FD = false,  //VCU 10ms (Inverter motor speed)
                        .ext_ID = false,
                        .DLC = 8,
@@ -69,11 +82,7 @@ class CmpSmartCarBattery : public CanBattery {
                        .DLC = 1,
                        .ID = 0x262,
                        .data = {0x00}};
-  CAN_frame CMP_351 = {.FD = false,  //VCU 60ms Airbag
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x351,
-                       .data = {0x46, 0x14, 0x17, 0x00, 0x00, 0x00, 0x00, 0x0F}};
+
   CAN_frame CMP_421 = {.FD = false,  //VCU 50ms
                        .ext_ID = false,
                        .DLC = 8,
@@ -84,21 +93,18 @@ class CmpSmartCarBattery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x422,  //Fitting, Plant,check,storage,client,APV,showroom etc.
                        .data = {0x00, 0x00, 0x10, 0x00, 0x00, 0x10, 0x00, 0x00}};
-  CAN_frame CMP_432 = {.FD = false,  //VCU 50ms
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x432,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
   CAN_frame CMP_4A2 = {.FD = false,  //OBC plug 100ms
                        .ext_ID = false,
                        .DLC = 2,
                        .ID = 0x4A2,
                        .data = {0x00, 0x41}};  //second byte, 00 plugged, 64 unplugged, 41vehiclerunning
-  CAN_frame CMP_552 = {.FD = false,            //VCU mileage annd time 1000ms
+  CAN_frame CMP_552 = {.FD = false,            //VCU mileage and time 1000ms
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x552,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE}};
+  */
   CAN_frame CMP_POLL = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x6B4, .data = {0x03, 0x22, 0xD8, 0x13}};
   CAN_frame CMP_CLEAR_ALL_DTC = {.FD = false,
                                  .ext_ID = false,
@@ -153,6 +159,7 @@ class CmpSmartCarBattery : public CanBattery {
   int16_t battery_temperature_minimum = 0;
   int16_t battery_current = 0;
 
+  uint8_t startup_increment = 0;
   uint8_t active_DTC_code = 0;
   uint8_t battery_quickcharge_connect_status = 0;
   uint8_t qc_negative_contactor_status = 0;
