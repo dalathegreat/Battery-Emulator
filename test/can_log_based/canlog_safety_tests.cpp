@@ -148,6 +148,22 @@ class CellUnderVoltageTest : public CanLogTestFixture {
   }
 };
 
+// Check that the parsed logs set a particular cell voltage value (3123mV)
+class CellVoltageTest : public CanLogTestFixture {
+ public:
+  explicit CellVoltageTest(fs::path path, int cellnum) : CanLogTestFixture(path), cellnum_(cellnum) {}
+  void TestBody() override {
+    ProcessLog();
+
+    // Target is 3123mV, but some integrations round strangely so need a margin
+    EXPECT_GT(datalayer.battery.status.cell_voltages_mV[cellnum_], 3121);
+    EXPECT_LT(datalayer.battery.status.cell_voltages_mV[cellnum_], 3125);
+  }
+
+ private:
+  int cellnum_;
+};
+
 void RegisterCanLogTests() {
   // The logs should be named as follows:
   //
@@ -160,6 +176,7 @@ void RegisterCanLogTests() {
   //     ov:   test that an overvoltage event is triggered
   //     cov:  test that normal and critical cell overvoltage events are triggered
   //     cuv:  test that normal and critical cell undervoltage events are triggered
+  //     cv88: test that cell 88 (or another) voltage is correctly set (to 3123mV)
 
   std::string directoryPath = "../can_log_based/can_logs";
 
@@ -170,7 +187,18 @@ void RegisterCanLogTests() {
 
     auto bits = split(entry.path().stem(), '_');
     auto has_flag = [&bits](const std::string& flag) -> bool {
-      return std::find(bits.begin() + 2, bits.end(), flag) != bits.end();
+      // return true if any of the bits start with the supplied flag string
+      return std::any_of(bits.begin() + 2, bits.end(),
+                         [&flag](const std::string& bit) { return bit.rfind(flag, 0) == 0; });
+    };
+    auto get_int_flag = [&bits](const std::string& prefix) -> int {
+      // parse anything after a matching flag prefix as an integer, or -1 if not found
+      for (const auto& bit : bits) {
+        if (bit.rfind(prefix, 0) == 0) {
+          return std::stoi(bit.substr(prefix.size()));
+        }
+      }
+      return -1;
     };
 
     if (has_flag("base")) {
@@ -196,6 +224,14 @@ void RegisterCanLogTests() {
                             ("TestCellUnderVoltage" + snake_case_to_camel_case(entry.path().stem().string())).c_str(),
                             nullptr, nullptr, __FILE__, __LINE__,
                             [=]() -> CanLogTestFixture* { return new CellUnderVoltageTest(entry.path()); });
+    }
+
+    if (has_flag("cv")) {
+      int cellnum = get_int_flag("cv");
+      testing::RegisterTest("CanLogSafetyTests",
+                            ("TestCellVoltage" + snake_case_to_camel_case(entry.path().stem().string())).c_str(),
+                            nullptr, nullptr, __FILE__, __LINE__,
+                            [=]() -> CanLogTestFixture* { return new CellVoltageTest(entry.path(), cellnum); });
     }
   }
 }
