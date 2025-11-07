@@ -33,6 +33,7 @@ CAN_frame ZOE_ACK_79B = {.FD = false,
 #define GROUP3_METRICS 0x61
 #define GROUP4_SOC 0x03
 #define GROUP5_TEMPERATURE_POLL 0x04
+#define GROUP6_BALANCING 0x07
 
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
 static unsigned long previousMillis250 = 0;  // will store last time a 250ms CAN Message was sent
@@ -497,11 +498,14 @@ void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
       case 4:
         current_poll = GROUP5_TEMPERATURE_POLL;
         break;
+      case 5:
+        current_poll = GROUP6_BALANCING;
+        break;
       default:
         break;
     }
 
-    group = (group + 1) % 5;  // Cycle 0-1-2-3-4-0-1...
+    group = (group + 1) % 6;  // Cycle 0-1-2-3-4-5-0-1...
 
     ZOE_POLL_79B.data.u8[2] = current_poll;
 
