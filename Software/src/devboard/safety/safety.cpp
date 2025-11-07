@@ -337,15 +337,15 @@ void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bo
   DEBUG_PRINTF("Battery pause begin %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
 
   // First handle equipment stop / resume
-  if (equipment_stop && !datalayer.system.settings.equipment_stop_active) {
-    datalayer.system.settings.equipment_stop_active = true;
+  if (equipment_stop && !datalayer.system.info.equipment_stop_active) {
+    datalayer.system.info.equipment_stop_active = true;
     if (store_settings) {
       store_settings_equipment_stop();
     }
 
     set_event(EVENT_EQUIPMENT_STOP, 1);
-  } else if (!equipment_stop && datalayer.system.settings.equipment_stop_active) {
-    datalayer.system.settings.equipment_stop_active = false;
+  } else if (!equipment_stop && datalayer.system.info.equipment_stop_active) {
+    datalayer.system.info.equipment_stop_active = false;
     if (store_settings) {
       store_settings_equipment_stop();
     }

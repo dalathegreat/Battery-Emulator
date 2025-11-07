@@ -113,33 +113,6 @@ inline const char* getHvilStatusState(int index) {
   }
 }
 
-inline const char* getBMSState(int index) {
-  switch (index) {
-    case 0:
-      return "STANDBY";
-    case 1:
-      return "DRIVE";
-    case 2:
-      return "SUPPORT";
-    case 3:
-      return "CHARGE";
-    case 4:
-      return "FEIM";
-    case 5:
-      return "CLEAR_FAULT";
-    case 6:
-      return "FAULT";
-    case 7:
-      return "WELD";
-    case 8:
-      return "TEST";
-    case 9:
-      return "SNA";
-    default:
-      return "UNKNOWN";
-  }
-}
-
 inline const char* getBMSContactorState(int index) {
   switch (index) {
     case 0:
@@ -161,172 +134,8 @@ inline const char* getBMSContactorState(int index) {
   }
 }
 
-inline const char* getBMSHvState(int index) {
-  switch (index) {
-    case 0:
-      return "DOWN";
-    case 1:
-      return "COMING_UP";
-    case 2:
-      return "GOING_DOWN";
-    case 3:
-      return "UP_FOR_DRIVE";
-    case 4:
-      return "UP_FOR_CHARGE";
-    case 5:
-      return "UP_FOR_DC_CHARGE";
-    case 6:
-      return "UP";
-    default:
-      return "UNKNOWN";
-  }
-}
-
-inline const char* getBMSUiChargeStatus(int index) {
-  switch (index) {
-    case 0:
-      return "DISCONNECTED";
-    case 1:
-      return "NO_POWER";
-    case 2:
-      return "ABOUT_TO_CHARGE";
-    case 3:
-      return "CHARGING";
-    case 4:
-      return "CHARGE_COMPLETE";
-    case 5:
-      return "CHARGE_STOPPED";
-    default:
-      return "UNKNOWN";
-  }
-}
-
-inline const char* getPCS_DcdcStatus(int index) {
-  switch (index) {
-    case 0:
-      return "IDLE";
-    case 1:
-      return "ACTIVE";
-    case 2:
-      return "FAULTED";
-    default:
-      return "UNKNOWN";
-  }
-}
-
-inline const char* getPCS_DcdcMainState(int index) {
-  switch (index) {
-    case 0:
-      return "STANDBY";
-    case 1:
-      return "12V_SUPPORT_ACTIVE";
-    case 2:
-      return "PRECHARGE_STARTUP";
-    case 3:
-      return "PRECHARGE_ACTIVE";
-    case 4:
-      return "DIS_HVBUS_ACTIVE";
-    case 5:
-      return "SHUTDOWN";
-    case 6:
-      return "FAULTED";
-    default:
-      return "UNKNOWN";
-  }
-}
-
-inline const char* getPCS_DcdcSubState(int index) {
-  switch (index) {
-    case 0:
-      return "PWR_UP_INIT";
-    case 1:
-      return "STANDBY";
-    case 2:
-      return "12V_SUPPORT_ACTIVE";
-    case 3:
-      return "DIS_HVBUS";
-    case 4:
-      return "PCHG_FAST_DIS_HVBUS";
-    case 5:
-      return "PCHG_SLOW_DIS_HVBUS";
-    case 6:
-      return "PCHG_DWELL_CHARGE";
-    case 7:
-      return "PCHG_DWELL_WAIT";
-    case 8:
-      return "PCHG_DI_RECOVERY_WAIT";
-    case 9:
-      return "PCHG_ACTIVE";
-    case 10:
-      return "PCHG_FLT_FAST_DIS_HVBUS";
-    case 11:
-      return "SHUTDOWN";
-    case 12:
-      return "12V_SUPPORT_FAULTED";
-    case 13:
-      return "DIS_HVBUS_FAULTED";
-    case 14:
-      return "PCHG_FAULTED";
-    case 15:
-      return "CLEAR_FAULTS";
-    case 16:
-      return "FAULTED";
-    case 17:
-      return "NUM";
-    default:
-      return "UNKNOWN";
-  }
-}
-
-inline const char* getBMSPowerLimitState(int index) {
-  switch (index) {
-    case 0:
-      return "NOT_CALCULATED_FOR_DRIVE";
-    case 1:
-      return "CALCULATED_FOR_DRIVE";
-    default:
-      return "UNKNOWN";
-  }
-}
-
-inline const char* getHVPStatus(int index) {
-  switch (index) {
-    case 0:
-      return "INVALID";
-    case 1:
-      return "NOT_AVAILABLE";
-    case 2:
-      return "STALE";
-    case 3:
-      return "VALID";
-    default:
-      return "UNKNOWN";
-  }
-}
-
-inline const char* getHVPContactor(int index) {
-  switch (index) {
-    case 0:
-      return "NOT_ACTIVE";
-    case 1:
-      return "ACTIVE";
-    case 2:
-      return "COMPLETED";
-    default:
-      return "UNKNOWN";
-  }
-}
-
-inline const char* getFalseTrue(bool value) {
-  return value ? "True" : "False";
-}
-
 inline const char* getNoYes(bool value) {
   return value ? "Yes" : "No";
-}
-
-inline const char* getFault(bool value) {
-  return value ? "ACTIVE" : "NOT_ACTIVE";
 }
 
 // Clamp DLC to 0–8 bytes for classic CAN
@@ -597,14 +406,47 @@ char* dayOfYearToDate(int year, int dayOfYear) {
   int month = 0;
 
   // Find the month and the day within the month
-  while (dayOfYear > daysInMonth[month]) {
+  while (month < 12 && dayOfYear > daysInMonth[month]) {
     dayOfYear -= daysInMonth[month];
     month++;
   }
 
+  // Ensure month is in valid range [0, 11]
+  if (month >= 12) {
+    month = 11;
+    dayOfYear = daysInMonth[11];  // Set to last day of December
+  }
+
+  // Ensure day is in valid range [1, daysInMonth[month]]
+  if (dayOfYear < 1) {
+    dayOfYear = 1;
+  } else if (dayOfYear > daysInMonth[month]) {
+    dayOfYear = daysInMonth[month];
+  }
+
   static char dateString[11];  // For "YYYY-MM-DD\0"
+
+  // Clamp values to ensure they fit in the expected number of digits
+  int safeYear = year % 10000;
+  if (safeYear < 0)
+    safeYear = 0;
+  if (safeYear > 9999)
+    safeYear = 9999;
+
+  int safeMonth = month + 1;
+  if (safeMonth < 1)
+    safeMonth = 1;
+  if (safeMonth > 12)
+    safeMonth = 12;
+
+  int safeDay = dayOfYear;
+  if (safeDay < 1)
+    safeDay = 1;
+  if (safeDay > 31)
+    safeDay = 31;
+
   // Format the date string in "YYYY-MM-DD" format
-  snprintf(dateString, sizeof(dateString), "%d-%02d-%02d", year, month + 1, dayOfYear);
+  snprintf(dateString, sizeof(dateString), "%04d-%02d-%02d", safeYear, safeMonth, safeDay);
   return dateString;
 }
 
@@ -660,8 +502,6 @@ void TeslaBattery::
 
   datalayer.battery.status.cell_min_voltage_mV = battery_cell_min_v;
 
-  battery_cell_deviation_mV = (battery_cell_max_v - battery_cell_min_v);
-
   /* Value mapping is completed. Start to check all safeties */
 
   //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
@@ -676,11 +516,24 @@ void TeslaBattery::
   } else {
     clear_event(EVENT_BATTERY_FUSE);
   }
+  // Raise any Tesla BMS events in BE
+  // Events: Informational
+  if (BMS_a145_SW_SOC_Change) {                             // BMS has newly recalibrated pack SOC
+    set_event_latched(EVENT_BATTERY_SOC_RECALIBRATION, 0);  // Latcched as BMS_a145 can be active for a while
+  } else if (!BMS_a145_SW_SOC_Change) {
+    clear_event(EVENT_BATTERY_SOC_RECALIBRATION);
+  }
+  // Events: Warning
+  if (BMS_contactorState == 5) {  // BMS has detected welded contactor(s)
+    set_event_latched(EVENT_CONTACTOR_WELDED, 0);
+  } else if (BMS_contactorState != 5) {
+    clear_event(EVENT_CONTACTOR_WELDED);
+  }
 
   if (user_selected_tesla_GTW_chassisType > 1) {  //{{0, "Model S"}, {1, "Model X"}, {2, "Model 3"}, {3, "Model Y"}};
-    // Autodetect algoritm for chemistry on 3/Y packs.
+    // Autodetect algorithm for chemistry on 3/Y packs.
     // NCM/A batteries have 96s, LFP has 102-108s
-    // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
+    // Drawback with this check is that it takes 3-5 minutes before all cells have been counted!
     if (datalayer.battery.info.number_of_cells > 101) {
       datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
     }
@@ -721,23 +574,28 @@ void TeslaBattery::
       //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
       stateMachineBMSReset = 0;
       datalayer.battery.settings.user_requests_tesla_bms_reset = false;
-      logging.println("BMS reset requested");
+      logging.println("INFO: BMS reset requested");
     } else {
       logging.println("ERROR: BMS reset failed due to contactors not being open, or BMS ECU not allowing it");
       stateMachineBMSReset = 0xFF;
       datalayer.battery.settings.user_requests_tesla_bms_reset = false;
+      set_event(EVENT_BMS_RESET_REQ_FAIL, 0);
+      clear_event(EVENT_BMS_RESET_REQ_FAIL);
     }
   }
   if (datalayer.battery.settings.user_requests_tesla_soc_reset) {
-    if (datalayer.battery.status.real_soc < 1500 || datalayer.battery.status.real_soc > 9000) {
-      //Start the SOC reset statemachine, only if SOC < 15% or > 90%
+    if ((datalayer.battery.status.real_soc < 1500 || datalayer.battery.status.real_soc > 9000) &&
+        battery_contactor == 1) {
+      //Start the SOC reset statemachine, only if SOC less than 15% or greater than 90%, and contactors open
       stateMachineSOCReset = 0;
       datalayer.battery.settings.user_requests_tesla_soc_reset = false;
-      logging.println("SOC reset requested");
+      logging.println("INFO: SOC reset requested");
     } else {
-      logging.println("ERROR: SOC reset failed due to SOC not being less than 15 or greater than 90");
+      logging.println("ERROR: SOC reset failed, SOC not < 15 or > 90, or contactors not open");
       stateMachineSOCReset = 0xFF;
       datalayer.battery.settings.user_requests_tesla_soc_reset = false;
+      set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);
+      clear_event(EVENT_BATTERY_SOC_RESET_FAIL);
     }
   }
 
@@ -972,42 +830,42 @@ void TeslaBattery::
   datalayer_extended.tesla.HVP_shuntBarTempStatus = HVP_shuntBarTempStatus;
   datalayer_extended.tesla.HVP_shuntAsicTempStatus = HVP_shuntAsicTempStatus;
 
-  //Safety checks for CAN message sesnding
+  //Safety checks for CAN message sending
   if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
-      (datalayer.battery.status.bms_status != FAULT) && (!datalayer.system.settings.equipment_stop_active)) {
+      (datalayer.battery.status.bms_status != FAULT) && (!datalayer.system.info.equipment_stop_active)) {
     // Carry on: 0x221 DRIVE state & reset power down timer
-    vehicleState = 1;
-    powerDownTimer = 180;  //0x221 50ms cyclic, 20 calls/second
+    vehicleState = CAR_DRIVE;
+    powerDownSeconds = 9;
   } else {
     // Faulted state, or inverter blocks contactor closing
     // Shut down: 0x221 ACCESSORY state for 3 seconds, followed by GOING_DOWN, then OFF
-    if (powerDownTimer <= 180 && powerDownTimer > 120) {
-      vehicleState = 2;  //ACCESSORY
-      powerDownTimer--;
+    if (powerDownSeconds <= 9 && powerDownSeconds > 6) {
+      vehicleState = ACCESSORY;
+      powerDownSeconds--;
     }
-    if (powerDownTimer <= 120 && powerDownTimer > 60) {
-      vehicleState = 3;  //GOING_DOWN
-      powerDownTimer--;
+    if (powerDownSeconds <= 6 && powerDownSeconds > 3) {
+      vehicleState = GOING_DOWN;
+      powerDownSeconds--;
     }
-    if (powerDownTimer <= 60 && powerDownTimer > 0) {
-      vehicleState = 0;  //OFF
-      powerDownTimer--;
+    if (powerDownSeconds <= 3 && powerDownSeconds > 0) {
+      vehicleState = CAR_OFF;
+      powerDownSeconds--;
     }
   }
 
   printFaultCodesIfActive();
-  logging.printf("BMS Contactors State: ");
+  logging.printf("Contactor State: ");
   logging.printf(getBMSContactorState(battery_contactor));  // Display what state the BMS thinks the contactors are in
-  logging.printf(", HVIL: ");
+  logging.printf(" HVIL: ");
   logging.printf(getHvilStatusState(battery_hvil_status));
-  logging.printf(", NegativeState: ");
+  logging.printf(" NegState: ");
   logging.printf(getContactorState(battery_packContNegativeState));
-  logging.printf(", PositiveState: ");
+  logging.printf(" PosState: ");
   logging.println(getContactorState(battery_packContPositiveState));
-  logging.printf("HVP Contactors setState: ");
+  logging.printf("Cont. setState: ");
   logging.printf(
       getContactorText(battery_packContactorSetState));  // Display what state the HVP has set the contactors to be in
-  logging.printf(", Closing blocked: ");
+  logging.printf(" Closing blocked: ");
   logging.printf(getNoYes(battery_packCtrsClosingBlocked));
   if (battery_packContactorSetState == 5) {
     logging.printf(" (already CLOSED)");
@@ -1015,43 +873,8 @@ void TeslaBattery::
   logging.printf(", Pyrotest: ");
   logging.println(getNoYes(battery_pyroTestInProgress));
 
-  logging.printf("Battery values: ");
-  logging.printf("Real SOC: ");
-  logging.print(battery_soc_ui / 10.0, 1);
-  logging.printf(", Battery voltage: ");
-  logging.print(battery_volts / 10.0, 1);
-  logging.printf("V");
-  logging.printf(", Battery HV current: ");
-  logging.print(battery_amps / 10.0, 1);
-  logging.printf("A");
-  logging.printf(", Fully charged?: ");
-  if (battery_full_charge_complete)
-    logging.printf("YES, ");
-  else
-    logging.printf("NO, ");
-  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
-    logging.printf("LFP chemistry detected!");
-  }
-  logging.println("");
-  logging.printf("Cellstats, Max: ");
-  logging.print(battery_cell_max_v);
-  logging.printf("mV (cell ");
-  logging.print(battery_BrickVoltageMaxNum);
-  logging.printf("), Min: ");
-  logging.print(battery_cell_min_v);
-  logging.printf("mV (cell ");
-  logging.print(battery_BrickVoltageMinNum);
-  logging.printf("), Imbalance: ");
-  logging.print(battery_cell_deviation_mV);
-  logging.println("mV.");
-
-  logging.printf("High Voltage Output Pins: %.2f V, Low Voltage: %.2f V, DC/DC 12V current: %.2f A.\n",
-                 (battery_dcdcHvBusVolt * 0.146484), (battery_dcdcLvBusVolt * 0.0390625),
-                 (battery_dcdcLvOutputCurrent * 0.1));
-
-  logging.printf("PCS_ambientTemp: %.2f°C, DCDC_Temp: %.2f°C, ChgPhA: %.2f°C, ChgPhB: %.2f°C, ChgPhC: %.2f°C.\n",
-                 PCS_ambientTemp * 0.1 + 40, PCS_dcdcTemp * 0.1 + 40, PCS_chgPhATemp * 0.1 + 40,
-                 PCS_chgPhBTemp * 0.1 + 40, PCS_chgPhCTemp * 0.1 + 40);
+  logging.printf("HV: %.2f V, 12V: %.2f V, 12V current: %.2f A.\n", (battery_dcdcHvBusVolt * 0.146484),
+                 (battery_dcdcLvBusVolt * 0.0390625), (battery_dcdcLvOutputCurrent * 0.1));
 }
 
 void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -1146,7 +969,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_fcCtrsRequestStatus = (rx_frame.data.u8[3] & (0x03U));              //24|2@1+ (1,0) [0|2] ""  Receiver
       battery_fcCtrsResetRequestRequired = ((rx_frame.data.u8[3] >> 2) & (0x01U));  //26|1@1+ (1,0) [0|1] ""  Receiver
       battery_fcLinkAllowedToEnergize = ((rx_frame.data.u8[5] >> 4) & (0x03U));     //44|2@1+ (1,0) [0|2] ""  Receiver
-    case 0x212:                                                                     //530 BMS_status: 8
+      break;
+    case 0x212:  //530 BMS_status: 8
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMS_hvacPowerRequest = (rx_frame.data.u8[0] & (0x01U));
       BMS_notEnoughPowerForDrive = ((rx_frame.data.u8[0] >> 1) & (0x01U));
@@ -1895,17 +1719,17 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       */
       break;
-    case 0x612:  // CAN UDSs for BMS
+    case 0x612:  // CAN UDS responses for BMS
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //BMS Query
-      if (stateMachineBMSQuery != 0xFF && stateMachineBMSReset == 0xFF) {
+      if (stateMachineBMSQuery != 0xFF && stateMachineBMSReset == 0xFF && stateMachineSOCReset == 0xFF) {
         if (memcmp(rx_frame.data.u8, "\x02\x50\x03\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
           //Received initial response, proceed to actual query
           logging.println("CAN UDS: Received BMS query initial handshake reply");
           stateMachineBMSQuery = 1;
           break;
         }
-        if (memcmp(&rx_frame.data.u8[0], "\x10", 1) == 0) {
+        if (rx_frame.data.u8[0] == 0x10) {
           //Received first data frame
           battery_partNumber[0] = rx_frame.data.u8[5];
           battery_partNumber[1] = rx_frame.data.u8[6];
@@ -1914,7 +1738,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           stateMachineBMSQuery = 2;
           break;
         }
-        if (memcmp(&rx_frame.data.u8[0], "\x21", 1) == 0) {
+        if (rx_frame.data.u8[0] == 0x21) {
           //Second part of part number after flow control
           battery_partNumber[3] = rx_frame.data.u8[1];
           battery_partNumber[4] = rx_frame.data.u8[2];
@@ -1926,7 +1750,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           logging.println("CAN UDS: Received BMS query second data frame");
           break;
         }
-        if (memcmp(&rx_frame.data.u8[0], "\x22", 1) == 0) {
+        if (rx_frame.data.u8[0] == 0x22) {
           //Final part of part number
           battery_partNumber[10] = rx_frame.data.u8[1];
           battery_partNumber[11] = rx_frame.data.u8[2];
@@ -1941,15 +1765,28 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           break;
         }
       }
-      //BMS Reset
-      if (stateMachineBMSQuery == 0xFF) {  // Make sure this is reset request not query
-        if (memcmp(rx_frame.data.u8, "\x02\x67\x06\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
-          logging.println("CAN UDS: ECU unlocked");
-        } else if (memcmp(rx_frame.data.u8, "\x03\x7F\x11\x78\xAA\xAA\xAA\xAA", 8) == 0) {
-          logging.println("CAN UDS: ECU reset request successful but ECU busy, response pending");
-        } else if (memcmp(rx_frame.data.u8, "\x02\x51\x01\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
-          logging.println("CAN UDS: ECU reset positive response, 1 second downtime");
-        }
+      //BMS ECU responses
+      if (memcmp(rx_frame.data.u8, "\x02\x67\x06\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS: BMS ECU unlocked");
+      }
+      if (memcmp(rx_frame.data.u8, "\x03\x7F\x11\x78\xAA\xAA\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS: BMS ECU reset request successful but ECU busy, response pending");
+      }
+      if (memcmp(rx_frame.data.u8, "\x02\x51\x01\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS: BMS ECU reset positive response, 1 second downtime");
+        set_event(EVENT_BMS_RESET_REQ_SUCCESS, 0);
+        clear_event(EVENT_BMS_RESET_REQ_SUCCESS);
+      }
+      if (memcmp(rx_frame.data.u8, "\x05\x71\x01\x04\x07\x01\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS: BMS SOC reset accepted, resetting BMS ECU");
+        set_event(EVENT_BATTERY_SOC_RESET_SUCCESS, 0);
+        clear_event(EVENT_BATTERY_SOC_RESET_SUCCESS);
+        stateMachineBMSReset = 6;  // BMS ECU already unlocked etc. so we jump straight to reset
+      }
+      if (memcmp(rx_frame.data.u8, "\x05\x71\x01\x04\x07\x00\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS: BMS SOC reset failed");
+        set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);
+        clear_event(EVENT_BATTERY_SOC_RESET_FAIL);
       }
       break;
     default:
@@ -1985,71 +1822,51 @@ CAN_frame can_msg_118[] = {
     {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x6F, 0x8E, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
     {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x70, 0x8F, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}}};
 
-unsigned long lastSend1CF = 0;
-unsigned long lastSend118 = 0;
-
-int index_1CF = 0;
-int index_118 = 0;
-
 void TeslaBattery::transmit_can(unsigned long currentMillis) {
-
-  if (user_selected_tesla_digital_HVIL) {  //Special S/X? mode for 2024+ batteries
-    if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
-      if (currentMillis - lastSend1CF >= 10) {
-        transmit_can_frame(&can_msg_1CF[index_1CF]);
-
-        index_1CF = (index_1CF + 1) % 8;
-        lastSend1CF = currentMillis;
-      }
-
-      if (currentMillis - lastSend118 >= 10) {
-        transmit_can_frame(&can_msg_118[index_118]);
-
-        index_118 = (index_118 + 1) % 16;
-        lastSend118 = currentMillis;
-      }
-    } else {
-      index_1CF = 0;
-      index_118 = 0;
-    }
-  }
 
   //Send 10ms messages
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
-    //0x118 DI_systemStatus
-    transmit_can_frame(&TESLA_118);
+    if (user_selected_tesla_digital_HVIL) {  //Special Digital HVIL mode for S/X 2024+ batteries
+      if ((datalayer.system.status.inverter_allows_contactor_closing) &&
+          (datalayer.battery.status.bms_status != FAULT)) {
+        transmit_can_frame(&can_msg_1CF[index_1CF]);
+        index_1CF = (index_1CF + 1) % 8;
+        transmit_can_frame(&can_msg_118[index_118]);
+        index_118 = (index_118 + 1) % 16;
+      }
+    } else {  //Normal handling of 118 message (Non digital HVIL version)
+      //0x118 DI_systemStatus
+      transmit_can_frame(&TESLA_118);
+      index_1CF = 0;  //Stop broadcasting Digital HVIL 1CF and 118 to keep contactors open
+      index_118 = 0;
+    }
 
     //0x2E1 VCFRONT_status
     switch (muxNumber_TESLA_2E1) {
       case 0:
         transmit_can_frame(&TESLA_2E1_VEHICLE_AND_RAILS);
-        muxNumber_TESLA_2E1++;
         break;
       case 1:
         transmit_can_frame(&TESLA_2E1_HOMELINK);
-        muxNumber_TESLA_2E1++;
         break;
       case 2:
         transmit_can_frame(&TESLA_2E1_REFRIGERANT_SYSTEM);
-        muxNumber_TESLA_2E1++;
         break;
       case 3:
         transmit_can_frame(&TESLA_2E1_LV_BATTERY_DEBUG);
-        muxNumber_TESLA_2E1++;
         break;
       case 4:
         transmit_can_frame(&TESLA_2E1_MUX_5);
-        muxNumber_TESLA_2E1++;
         break;
       case 5:
         transmit_can_frame(&TESLA_2E1_BODY_CONTROLS);
-        muxNumber_TESLA_2E1 = 0;
         break;
       default:
         break;
     }
+    muxNumber_TESLA_2E1 = (muxNumber_TESLA_2E1 + 1) % 6;  //Cycle betweeen 0-1-2-3-4-5-0...
     //Generate next frames
     generateFrameCounterChecksum(TESLA_118, 8, 4, 0, 8);
   }
@@ -2059,92 +1876,46 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     previousMillis50 = currentMillis;
 
     //0x221 VCFRONT_LVPowerState
-    if (vehicleState == 1) {  // Drive
-      switch (muxNumber_TESLA_221) {
-        case 0:
-          generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_DRIVE_Mux0);
-          muxNumber_TESLA_221++;
-          break;
-        case 1:
-          generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_DRIVE_Mux1);
-          muxNumber_TESLA_221 = 0;
-          break;
-        default:
-          break;
+    if (vehicleState == CAR_DRIVE) {
+      if (alternateMux) {
+        generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_DRIVE_Mux0);
+      } else {
+        generateMuxFrameCounterChecksum(TESLA_221_DRIVE_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_DRIVE_Mux1);
       }
-      //Generate next new frame
-      frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
-    }
-    if (vehicleState == 2) {  // Accessory
-      switch (muxNumber_TESLA_221) {
-        case 0:
-          generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_ACCESSORY_Mux0);
-          muxNumber_TESLA_221++;
-          break;
-        case 1:
-          generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_ACCESSORY_Mux1);
-          muxNumber_TESLA_221 = 0;
-          break;
-        default:
-          break;
+    } else if (vehicleState == ACCESSORY) {
+      if (alternateMux) {
+        generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_ACCESSORY_Mux0);
+      } else {
+        generateMuxFrameCounterChecksum(TESLA_221_ACCESSORY_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_ACCESSORY_Mux1);
       }
-      //Generate next new frame
-      frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
-    }
-    if (vehicleState == 3) {  // Going down
-      switch (muxNumber_TESLA_221) {
-        case 0:
-          generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_GOING_DOWN_Mux0);
-          muxNumber_TESLA_221++;
-          break;
-        case 1:
-          generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_GOING_DOWN_Mux1);
-          muxNumber_TESLA_221 = 0;
-          break;
-        default:
-          break;
+    } else if (vehicleState == GOING_DOWN) {
+      if (alternateMux) {
+        generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_GOING_DOWN_Mux0);
+      } else {
+        generateMuxFrameCounterChecksum(TESLA_221_GOING_DOWN_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_GOING_DOWN_Mux1);
       }
-      //Generate next new frame
-      frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
-    }
-    if (vehicleState == 0) {  // Off
-      switch (muxNumber_TESLA_221) {
-        case 0:
-          generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_OFF_Mux0);
-          muxNumber_TESLA_221++;
-          break;
-        case 1:
-          generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
-          transmit_can_frame(&TESLA_221_OFF_Mux1);
-          muxNumber_TESLA_221 = 0;
-          break;
-        default:
-          break;
+    } else if (vehicleState == CAR_OFF) {
+      if (alternateMux) {
+        generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux0, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_OFF_Mux0);
+      } else {
+        generateMuxFrameCounterChecksum(TESLA_221_OFF_Mux1, frameCounter_TESLA_221, 52, 4, 56, 8);
+        transmit_can_frame(&TESLA_221_OFF_Mux1);
       }
-      //Generate next new frame
-      frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
     }
 
+    alternateMux ^= 1;  // Flips between 0 and 1. Used to Flip between sending Mux0 and Mux1 on each pass
+    //Generate next new frame
+    frameCounter_TESLA_221 = (frameCounter_TESLA_221 + 1) % 16;
+
     //0x3C2 VCLEFT_switchStatus
-    switch (muxNumber_TESLA_3C2) {
-      case 0:
-        transmit_can_frame(&TESLA_3C2_Mux0);
-        muxNumber_TESLA_3C2++;
-        break;
-      case 1:
-        transmit_can_frame(&TESLA_3C2_Mux1);
-        muxNumber_TESLA_3C2 = 0;
-        break;
-      default:
-        break;
-    }
+    transmit_can_frame(alternateMux == 0 ? &TESLA_3C2_Mux0 : &TESLA_3C2_Mux1);
 
     //0x39D IBST_status
     transmit_can_frame(&TESLA_39D);
@@ -2184,28 +1955,23 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     switch (muxNumber_TESLA_7FF) {
       case 0:
         transmit_can_frame(&TESLA_7FF_Mux1);
-        muxNumber_TESLA_7FF++;
         break;
       case 1:
         transmit_can_frame(&TESLA_7FF_Mux2);
-        muxNumber_TESLA_7FF++;
         break;
       case 2:
         transmit_can_frame(&TESLA_7FF_Mux3);
-        muxNumber_TESLA_7FF++;
         break;
       case 3:
         transmit_can_frame(&TESLA_7FF_Mux4);
-        muxNumber_TESLA_7FF++;
         break;
       case 4:
         transmit_can_frame(&TESLA_7FF_Mux5);
-        muxNumber_TESLA_7FF = 0;
         break;
       default:
         break;
     }
-
+    muxNumber_TESLA_7FF = (muxNumber_TESLA_7FF + 1) % 5;  //Cycle betweeen 0-1-2-3-4-0...
     //Generate next frames
     generateTESLA_229(TESLA_229);
     generateFrameCounterChecksum(TESLA_2A8, 52, 4, 56, 8);
@@ -2567,7 +2333,7 @@ void TeslaBattery::printFaultCodesIfActive() {
   printDebugIfActive(BMS_a139_SW_DC_Link_V_Irrational, "ERROR: BMS_a139_SW_DC_Link_V_Irrational");
   printDebugIfActive(BMS_a141_SW_BMB_Status_Warning, "ERROR: BMS_a141_SW_BMB_Status_Warning");
   printDebugIfActive(BMS_a144_Hvp_Config_Mismatch, "ERROR: BMS_a144_Hvp_Config_Mismatch");
-  printDebugIfActive(BMS_a145_SW_SOC_Change, "ERROR: BMS_a145_SW_SOC_Change");
+  printDebugIfActive(BMS_a145_SW_SOC_Change, "INFO: BMS_a145_SW_SOC_Change");
   printDebugIfActive(BMS_a146_SW_Brick_Overdischarged, "ERROR: BMS_a146_SW_Brick_Overdischarged");
   printDebugIfActive(BMS_a149_SW_Missing_Config_Block, "ERROR: BMS_a149_SW_Missing_Config_Block");
   printDebugIfActive(BMS_a151_SW_external_isolation, "ERROR: BMS_a151_SW_external_isolation");
@@ -2601,7 +2367,7 @@ void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
   //0x7FF GTW CAN frame values
   //Mux1
   write_signal_value(&TESLA_7FF_Mux1, 16, 16, user_selected_tesla_GTW_country, false);
-  write_signal_value(&TESLA_7FF_Mux1, 11, 1, user_selected_tesla_GTW_country, false);
+  write_signal_value(&TESLA_7FF_Mux1, 11, 1, user_selected_tesla_GTW_rightHandDrive, false);
   //Mux3
   write_signal_value(&TESLA_7FF_Mux3, 8, 4, user_selected_tesla_GTW_mapRegion, false);
   write_signal_value(&TESLA_7FF_Mux3, 18, 3, user_selected_tesla_GTW_chassisType, false);

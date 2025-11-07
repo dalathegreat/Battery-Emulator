@@ -7,6 +7,7 @@ InverterProtocolType user_selected_inverter_protocol = InverterProtocolType::Byd
 // Some user-configurable settings that can be used by inverters. These
 // inverters should use sensible defaults if the corresponding user_selected
 // value is zero.
+uint16_t user_selected_pylon_send = 0;
 uint16_t user_selected_inverter_cells = 0;
 uint16_t user_selected_inverter_modules = 0;
 uint16_t user_selected_inverter_cells_per_module = 0;
@@ -14,6 +15,9 @@ uint16_t user_selected_inverter_voltage_level = 0;
 uint16_t user_selected_inverter_ah_capacity = 0;
 uint16_t user_selected_inverter_battery_type = 0;
 bool user_selected_inverter_ignore_contactors = false;
+bool user_selected_pylon_30koffset = false;
+bool user_selected_pylon_invert_byteorder = false;
+bool user_selected_inverter_deye_workaround = false;
 
 std::vector<InverterProtocolType> supported_inverter_protocols() {
   std::vector<InverterProtocolType> types;
@@ -92,6 +96,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
 
     case InverterProtocolType::Sungrow:
       return SungrowInverter::Name;
+
+    case InverterProtocolType::Highest:
+      return "None";
   }
   return nullptr;
 }

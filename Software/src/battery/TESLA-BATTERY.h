@@ -33,6 +33,8 @@ class TeslaBattery : public CanBattery {
 
   bool supports_charged_energy() { return true; }
 
+  bool supports_manual_balancing() { return true; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
@@ -75,18 +77,20 @@ class TeslaBattery : public CanBattery {
   //UDS session tracker
   //static bool uds_SessionInProgress = false; // Future use
   //0x221 VCFRONT_LVPowerState
-  uint8_t muxNumber_TESLA_221 = 0;
+  uint8_t alternateMux = 0;
   uint8_t frameCounter_TESLA_221 = 15;  // Start at 15 for Mux 0
   uint8_t vehicleState = 1;             // "OFF": 0, "DRIVE": 1, "ACCESSORY": 2, "GOING_DOWN": 3
-  uint16_t powerDownTimer = 180;  // Car power down (i.e. contactor open) tracking timer, 3 seconds per sendingState
+  static const uint8_t CAR_OFF = 0;
+  static const uint8_t CAR_DRIVE = 1;
+  static const uint8_t ACCESSORY = 2;
+  static const uint8_t GOING_DOWN = 3;
+  uint8_t powerDownSeconds = 9;  // Car power down (i.e. contactor open) tracking timer, 3 seconds per sendingState
   //0x2E1 VCFRONT_status, 6 mux tracker
   uint8_t muxNumber_TESLA_2E1 = 0;
   //0x334 UI
   bool TESLA_334_INITIAL_SENT = false;
   //0x3A1 VCFRONT_vehicleStatus, 15 frame counter (temporary)
   uint8_t frameCounter_TESLA_3A1 = 0;
-  //0x3C2 VCLEFT_switchStatus
-  uint8_t muxNumber_TESLA_3C2 = 0;
   //0x504 TWC_status
   bool TESLA_504_INITIAL_SENT = false;
   //0x7FF GTW_carConfig, 5 mux tracker
@@ -457,15 +461,15 @@ class TeslaBattery : public CanBattery {
       .DLC = 8,
       .ID = 0x610,
       .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  // Define initial UDS request
-
+  uint8_t index_1CF = 0;
+  uint8_t index_118 = 0;
+  uint8_t contactor_counter = 0;
   uint8_t stateMachineClearIsolationFault = 0xFF;
   uint8_t stateMachineBMSReset = 0xFF;
   uint8_t stateMachineSOCReset = 0xFF;
   uint8_t stateMachineBMSQuery = 0xFF;
-  uint16_t sendContactorClosingMessagesStill = 300;
   uint16_t battery_cell_max_v = 3300;
   uint16_t battery_cell_min_v = 3300;
-  uint16_t battery_cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
   bool cellvoltagesRead = false;
   //0x3d2: 978 BMS_kwhCounter
   uint32_t battery_total_discharge = 0;
@@ -630,7 +634,7 @@ class TeslaBattery : public CanBattery {
   bool BMS_pcsNoFlowRequest = false;
   bool BMS_noFlowRequest = false;
   //0x3C4: PCS_info
-  uint8_t PCS_partNumber[12] = {0};  //stores raw HEX values for ASCII chars
+  uint8_t PCS_partNumber[13] = {0};  //stores raw HEX values for ASCII chars
   bool parsed_PCS_partNumber = false;
   uint16_t PCS_info_buildConfigId = 0;
   uint16_t PCS_info_hardwareId = 0;

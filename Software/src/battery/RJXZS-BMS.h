@@ -22,8 +22,7 @@ class RjxzsBms : public CanBattery {
   unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was sent
 
   //Actual content messages
-  CAN_frame RJXZS_1C = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x1C, 0x00, 0x02}};
-  CAN_frame RJXZS_10 = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x10, 0x00, 0x02}};
+  CAN_frame RJXZS_F4 = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x1C, 0x00, 0x02}};
 
   static const int FIVE_MINUTES = 60;
 

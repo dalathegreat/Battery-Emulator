@@ -23,7 +23,7 @@ class KiaHyundai64HtmlRenderer : public BatteryHtmlRenderer {
       content += "<h4>BMS serial number: " + String(readableSerialNumber) + "</h4>";
       content += "<h4>BMS software version: " + String(readableVersionNumber) + "</h4>";
       content += "<h4>Cells: " + String(data.total_cell_count) + " S</h4>";
-      content += "<h4>12V voltage: " + String(data.battery_12V / 10.0, 1) + " V</h4>";
+      content += "<h4>12V voltage: " + String(data.battery_12V / 10.0f, 1) + " V</h4>";
       content += "<h4>Waterleakage: ";
       if (data.waterleakageSensor == 0) {
         content += " LEAK DETECTED</h4>";

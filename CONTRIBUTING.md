@@ -106,3 +106,20 @@ Navigate to Battery-Emulator/test folder
 sudo cmake CMakeLists.txt
 sudo make
 ```
+
+## Downloading a pull request build to test locally 🛜
+If you want to help test a new feature that is only available in an open pull request, you can download the precompiled binaries from the build system. To do this,start by clicking on the "**Checks**" tab
+
+<img width="779" height="312" alt="image" src="https://github.com/user-attachments/assets/fc7783c1-ba61-440e-ab09-b53d2b49f1bb" />
+
+Then select which hardware you need the binaries for. Currently we build for these hardwares:
+- LilyGo T-CAN485
+- Stark CMR
+- LilyGo T-2CAN
+
+<img width="647" height="476" alt="image" src="https://github.com/user-attachments/assets/fbb97719-0155-4792-9d91-c51e6052fa57" />
+
+After selecting the hardware you need, click the "**Upload Artifact**", and there will be a download link. Download the file, and [OTA Update](https://github.com/dalathegreat/Battery-Emulator/wiki/OTA-Update) your device with this file!
+
+<img width="1714" height="697" alt="image" src="https://github.com/user-attachments/assets/2e17f90f-cc7d-4265-b7bc-7aa5cc6b6ec8" />
+

@@ -21,7 +21,7 @@ void RjxzsBms::update_values() {
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.soh_pptt;  // This BMS does not have a SOH% formula
+  //datalayer.battery.status.soh_pptt;  // This BMS does not have a SOH% formula
 
   datalayer.battery.status.voltage_dV = total_voltage;
 
@@ -78,9 +78,9 @@ void RjxzsBms::update_values() {
 
   datalayer.battery.info.number_of_cells = populated_cellvoltages;  // 1-192S
 
-  datalayer.battery.info.max_design_voltage_dV;  // Set according to cells?
+  //datalayer.battery.info.max_design_voltage_dV;  // TODO: Set according to cells?
 
-  datalayer.battery.info.min_design_voltage_dV;  // Set according to cells?
+  //datalayer.battery.info.min_design_voltage_dV;  // TODO: Set according to cells?
 
   datalayer.battery.status.cell_max_voltage_mV = maximum_cell_voltage;
 
@@ -89,20 +89,6 @@ void RjxzsBms::update_values() {
 
 void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
 
-  /*
-  // All CAN messages recieved will be logged via serial
-  logging.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
-  logging.print("  ");
-  logging.print(rx_frame.ID, HEX);
-  logging.print("  ");
-  logging.print(rx_frame.DLC);
-  logging.print("  ");
-  for (int i = 0; i < rx_frame.DLC; ++i) {
-    logging.print(rx_frame.data.u8[i], HEX);
-    logging.print(" ");
-  }
-  logging.println("");
-  */
   switch (rx_frame.ID) {
     case 0xF5:                 // This is the only message is sent from BMS
       setup_completed = true;  // Let the function know we no longer need to send startup messages
@@ -259,8 +245,10 @@ void RjxzsBms::transmit_can(unsigned long currentMillis) {
     }
 
     if (!setup_completed) {
-      transmit_can_frame(&RJXZS_10);  // Communication connected flag
-      transmit_can_frame(&RJXZS_1C);  // CAN OK
+      RJXZS_F4.data.u8[0] = 0x10;  // Communication connected flag
+      transmit_can_frame(&RJXZS_F4);
+      RJXZS_F4.data.u8[0] = 0x1C;  //CAN OK
+      transmit_can_frame(&RJXZS_F4);
     }
   }
 }

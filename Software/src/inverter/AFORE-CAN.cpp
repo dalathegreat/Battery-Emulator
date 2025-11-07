@@ -78,7 +78,7 @@ void AforeCanInverter::
   15 InterlockOpen
   AFORE_353.data.u8[0] = Fault H table & 0x00FF
   AFORE_353.data.u8[1] = Fault H table >> 8);
-  /* Fault L, bit, definitions
+  Fault L, bit, definitions
   8 VoltageInterlockShortCircuit
   9 SystemFailure
   10 ErrorChargeReferenceOvervoltage
@@ -139,11 +139,10 @@ void AforeCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x305:  // Every 1s from inverter
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      char0 = rx_frame.data.u8[0];  // A
-      char1 = rx_frame.data.u8[0];  // F
-      char2 = rx_frame.data.u8[0];  // O
-      char3 = rx_frame.data.u8[0];  // R
-      char4 = rx_frame.data.u8[0];  // E
+      for (uint8_t i = 0; i < 5; i++) {
+        datalayer.system.info.inverter_brand[i] = rx_frame.data.u8[i];
+      }
+      datalayer.system.info.inverter_brand[7] = '\0';
       inverter_status = rx_frame.data.u8[7];
       time_to_send_info = true;
       break;

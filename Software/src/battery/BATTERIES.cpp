@@ -18,6 +18,8 @@ std::vector<BatteryType> supported_battery_types() {
 
 const char* name_for_chemistry(battery_chemistry_enum chem) {
   switch (chem) {
+    case battery_chemistry_enum::Autodetect:
+      return "Autodetect";
     case battery_chemistry_enum::LFP:
       return "LFP";
     case battery_chemistry_enum::NCA:
@@ -30,22 +32,7 @@ const char* name_for_chemistry(battery_chemistry_enum chem) {
 }
 
 const char* name_for_comm_interface(comm_interface comm) {
-  switch (comm) {
-    case comm_interface::Modbus:
-      return "Modbus";
-    case comm_interface::RS485:
-      return "RS485";
-    case comm_interface::CanNative:
-      return "Native CAN";
-    case comm_interface::CanFdNative:
-      return "Native CAN FD";
-    case comm_interface::CanAddonMcp2515:
-      return "CAN MCP 2515 add-on";
-    case comm_interface::CanFdAddonMcp2518:
-      return "CAN FD MCP 2518 add-on";
-    default:
-      return nullptr;
-  }
+  return esp32hal->name_for_comm_interface(comm);
 }
 
 const char* name_for_battery_type(BatteryType type) {
@@ -54,8 +41,10 @@ const char* name_for_battery_type(BatteryType type) {
       return "None";
     case BatteryType::BmwI3:
       return BmwI3Battery::Name;
-    case BatteryType::BmwIx:
+    case BatteryType::BmwIX:
       return BmwIXBattery::Name;
+    case BatteryType::BmwPhev:
+      return BmwPhevBattery::Name;
     case BatteryType::BoltAmpera:
       return BoltAmperaBattery::Name;
     case BatteryType::BydAtto3:
@@ -66,6 +55,10 @@ const char* name_for_battery_type(BatteryType type) {
       return ChademoBattery::Name;
     case BatteryType::CmfaEv:
       return CmfaEvBattery::Name;
+    case BatteryType::CmpSmartCar:
+      return CmpSmartCarBattery::Name;
+    case BatteryType::FordMachE:
+      return FordMachEBattery::Name;
     case BatteryType::Foxess:
       return FoxessBattery::Name;
     case BatteryType::GeelyGeometryC:
@@ -152,8 +145,10 @@ Battery* create_battery(BatteryType type) {
       return nullptr;
     case BatteryType::BmwI3:
       return new BmwI3Battery();
-    case BatteryType::BmwIx:
+    case BatteryType::BmwIX:
       return new BmwIXBattery();
+    case BatteryType::BmwPhev:
+      return new BmwPhevBattery();
     case BatteryType::BoltAmpera:
       return new BoltAmperaBattery();
     case BatteryType::BydAtto3:
@@ -164,6 +159,10 @@ Battery* create_battery(BatteryType type) {
       return new ChademoBattery();
     case BatteryType::CmfaEv:
       return new CmfaEvBattery();
+    case BatteryType::CmpSmartCar:
+      return new CmpSmartCarBattery();
+    case BatteryType::FordMachE:
+      return new FordMachEBattery();
     case BatteryType::Foxess:
       return new FoxessBattery();
     case BatteryType::GeelyGeometryC:
@@ -258,10 +257,14 @@ void setup_battery() {
         battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
                                     can_config.battery_double, esp32hal->WUP_PIN2());
         break;
+      case BatteryType::CmfaEv:
+        battery2 = new CmfaEvBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+        break;
       case BatteryType::KiaHyundai64:
         battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
                                            &datalayer.system.status.battery2_allowed_contactor_closing,
                                            can_config.battery_double);
+        break;
       case BatteryType::SantaFePhev:
         battery2 = new SantaFePhevBattery(&datalayer.battery2, can_config.battery_double);
         break;
@@ -294,6 +297,8 @@ bool user_selected_tesla_GTW_rightHandDrive = true;
 uint16_t user_selected_tesla_GTW_mapRegion = 2;
 uint16_t user_selected_tesla_GTW_chassisType = 2;
 uint16_t user_selected_tesla_GTW_packEnergy = 1;
+/* User-selected EGMP+others settings */
+bool user_selected_use_estimated_SOC = false;
 
 // Use 0V for user selected cell/pack voltage defaults (On boot will be replaced with saved values from NVM)
 uint16_t user_selected_max_pack_voltage_dV = 0;

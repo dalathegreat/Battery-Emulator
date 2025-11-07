@@ -86,6 +86,13 @@ void VolvoSpaBattery::
       datalayer.battery.info.total_capacity_Wh = 69511;
     }
   }
+
+  //Check safeties
+  if (datalayer_extended.VolvoPolestar.BECMsupplyVoltage < 10700) {  //10.7V,
+    //If 12V voltage goes under this, latch battery OFF to prevent contactors from swinging between on/off
+    set_event(EVENT_12V_LOW, (datalayer_extended.VolvoPolestar.BECMsupplyVoltage / 100));
+    set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0);
+  }
 }
 
 void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -247,7 +254,8 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           datalayer_extended.VolvoPolestar.DTCcount = 0;
         }
       } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
 

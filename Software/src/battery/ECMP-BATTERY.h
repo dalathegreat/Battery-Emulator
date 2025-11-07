@@ -112,7 +112,7 @@ class EcmpBattery : public CanBattery {
   uint32_t pid_hw_version_num = NOT_SAMPLED_YET;
   uint32_t pid_sw_version_num = NOT_SAMPLED_YET;
   uint32_t pid_factory_mode_control = NOT_SAMPLED_YET;
-  uint8_t pid_battery_serial[13] = {0};
+  uint8_t pid_battery_serial[14] = {0};
   uint32_t pid_aux_fuse_state = NOT_SAMPLED_YET;
   uint32_t pid_battery_state = NOT_SAMPLED_YET;
   uint32_t pid_precharge_short_circuit = NOT_SAMPLED_YET;
@@ -133,7 +133,68 @@ class EcmpBattery : public CanBattery {
   uint32_t pid_date_of_manufacture = NOT_SAMPLED_YET;
   uint16_t pid_SOH_cell_1 = NOT_SAMPLED_YET;
 
-  unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
+  //MysteryVan platform (allcaps to make code easer to co-exist)
+  uint16_t SOE_MAX_CURRENT_TEMP = 0;
+  uint16_t FRONT_MACHINE_POWER_LIMIT = 0;
+  uint16_t REAR_MACHINE_POWER_LIMIT = 0;
+  uint16_t EVSE_INSTANT_DC_HV_CURRENT = 0;
+  uint8_t EVSE_STATE = 0;
+  uint16_t HV_BATT_SOE_HD = 0;
+  uint16_t HV_BATT_SOE_MAX = 0;
+  uint8_t CHECKSUM_FRAME_314, CHECKSUM_FRAME_3B4, CHECKSUM_FRAME_554, CHECKSUM_FRAME_373, CHECKSUM_FRAME_4F4,
+      CHECKSUM_FRAME_414, CHECKSUM_FRAME_353, CHECKSUM_FRAME_474, CHECKSUM_FRAME_4D4 = 0;
+  uint16_t HV_STORAGE_MAX_I = 0;
+  int8_t BMS_PROBETEMP[7] = {0};
+  uint8_t COUNTER_314, COUNTER_554, COUNTER_373, COUNTER_3B4, COUNTER_4F4, COUNTER_414, COUNTER_353, COUNTER_474,
+      COUNTER_4D4 = 0;
+  uint16_t HV_BATT_PEAK_DISCH_POWER_HD = 0;
+  uint16_t HV_BATT_PEAK_CH_POWER_HD = 0;
+  uint16_t HV_BATT_NOM_CH_POWER_HD = 0;
+  uint16_t MAX_ALLOW_CHRG_CURRENT = 0;
+  int16_t HV_BATT_REAL_CURR_HD = 0;
+  uint16_t HV_BATT_REAL_VOLT_HD = 0;
+  uint8_t TBMU_FAULT_TYPE = 0;
+  int16_t HV_BATT_MAX_REAL_CURR = 0;
+  bool TBCU_48V_WAKEUP = false;
+  bool REQ_CLEAR_DTC_TBMU = false;
+  bool HV_BATT_DISCONT_WARNING_OPEN = false;
+  uint8_t CONTACTORS_STATE = 0;
+  uint16_t HV_BATT_SOC = 0;
+  bool CMD_RESET_MIL = 0;
+  bool REQ_BLINK_STOP_AND_SERVICE_LAMP = false;
+  bool REQ_MIL_LAMP_CONTINOUS = false;
+  uint16_t HV_BATT_GENERATED_HEAT_RATE = 0;
+  bool HV_BATT_CRASH_MEMORIZED = false;
+  bool HV_BATT_COLD_CRANK_ACK = false;
+  bool HV_BATT_CHARGE_NEEDED_STATE = false;
+  uint8_t HV_BATT_NOM_CH_CURRENT = 0;
+  uint16_t HV_BATT_NOM_CH_VOLTAGE = 0;
+  uint16_t HV_BATT_REAL_POWER_HD = 0;
+  uint16_t MAX_ALLOW_CHRG_POWER = 0;
+  uint16_t MAX_ALLOW_DISCHRG_POWER = 0;
+  bool ALERT_CELL_POOR_CONSIST, ALERT_OVERCHARGE, ALERT_BATT, ALERT_LOW_SOC, ALERT_HIGH_SOC, ALERT_SOC_JUMP,
+      ALERT_TEMP_DIFF, ALERT_HIGH_TEMP, ALERT_OVERVOLTAGE, ALERT_CELL_OVERVOLTAGE, ALERT_CELL_UNDERVOLTAGE = false;
+  uint8_t NUMBER_PROBE_TEMP_MAX, NUMBER_PROBE_TEMP_MIN = 0;
+  int8_t TEMPERATURE_MINIMUM_C = 0;
+  uint8_t CONTACTOR_OPENING_REASON = 0;
+  uint8_t NUMBER_OF_TEMPERATURE_SENSORS_IN_BATTERY, NUMBER_OF_CELL_MEASUREMENTS_IN_BATTERY = 0;
+  uint16_t HV_BATT_COP_VOLTAGE = 0;
+  int16_t HV_BATT_COP_CURRENT = 0;
+  uint16_t BMS_DC_RELAY_MES_EVSE_VOLTAGE = 0;
+  uint8_t FAST_CHARGE_CONTACTOR_STATE = 0;
+  uint8_t BMS_FASTCHARGE_STATUS = 0;
+  uint16_t HV_BATT_FC_INSU_MINUS_RES, HV_BATT_FC_INSU_PLUS_RES, HV_BATT_FC_VHL_INSU_PLUS_RES,
+      HV_BATT_ONLY_INSU_MINUS_RES = 0;
+  uint16_t MIN_ALLOW_DISCHRG_VOLTAGE = 0;
+  uint16_t HV_BATT_NOMINAL_DISCH_CURR_HD, HV_BATT_PEAK_DISCH_CURR_HD, HV_BATT_STABLE_DISCH_CURR_HD = 0;
+  uint16_t HV_BATT_NOMINAL_CHARGE_CURR_HD, HV_BATT_PEAK_CHARGE_CURR_HD, HV_BATT_STABLE_CHARGE_CURR_HD = 0;
+  bool RC01_PERM_SYNTH_TBMU = false;
+  uint16_t HV_BATT_STABLE_CHARGE_POWER_HD = 0;
+  uint16_t HV_BATT_STABLE_DISCH_POWER_HD = 0;
+  uint16_t HV_BATT_NOMINAL_DISCH_POWER_HD = 0;
+  uint16_t MAX_ALLOW_DISCHRG_CURRENT = 0;
+
+  unsigned long previousMillis10 = 0;    //- will store last time a 10ms CAN Message was sent
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent
   unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was sent
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent

@@ -47,7 +47,7 @@ void RenaultZoeGen2Battery::update_values() {
 
   datalayer_battery->status.voltage_dV = battery_pack_voltage_periodic_dV;
 
-  datalayer_battery->status.current_dA = ((battery_current - 32640) * 0.3125);
+  datalayer_battery->status.current_dA = ((battery_current - 32640) * 0.3125f);
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
@@ -59,8 +59,8 @@ void RenaultZoeGen2Battery::update_values() {
 
   //Temperatures and voltages update at slow rate. Only publish new values once both have been sampled to avoid events
   if ((battery_min_temp != 920) && (battery_max_temp != 920)) {
-    datalayer_battery->status.temperature_min_dC = ((battery_min_temp - 640) * 0.625);
-    datalayer_battery->status.temperature_max_dC = ((battery_max_temp - 640) * 0.625);
+    datalayer_battery->status.temperature_min_dC = ((battery_min_temp - 640) * 0.625f);
+    datalayer_battery->status.temperature_max_dC = ((battery_max_temp - 640) * 0.625f);
   }
 
   datalayer_battery->status.cell_min_voltage_mV = battery_minimum_cell_voltage_mV;
@@ -74,6 +74,12 @@ void RenaultZoeGen2Battery::update_values() {
     set_event(EVENT_HVIL_FAILURE, 0);
   } else {
     clear_event(EVENT_HVIL_FAILURE);
+  }
+
+  for (int i = 0; i < 96; i++) {
+    if (datalayer_battery->status.cell_balancing_status[i]) {
+      set_event_latched(EVENT_BALANCING_START, datalayer_battery->status.cell_balancing_status[i]);
+    }
   }
 
   // Update webserver datalayer
@@ -293,117 +299,115 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           break;
         case POLL_BALANCE_SWITCHES:
           if (rx_frame.data.u8[0] == 0x23) {
-            battery_balancing_shunts[0] = (rx_frame.data.u8[4] & 0x80) >> 7;
-            battery_balancing_shunts[1] = (rx_frame.data.u8[4] & 0x40) >> 6;
-            battery_balancing_shunts[2] = (rx_frame.data.u8[4] & 0x20) >> 5;
-            battery_balancing_shunts[3] = (rx_frame.data.u8[4] & 0x10) >> 4;
-            battery_balancing_shunts[4] = (rx_frame.data.u8[4] & 0x08) >> 3;
-            battery_balancing_shunts[5] = (rx_frame.data.u8[4] & 0x04) >> 2;
-            battery_balancing_shunts[6] = (rx_frame.data.u8[4] & 0x02) >> 1;
-            battery_balancing_shunts[7] = (rx_frame.data.u8[4] & 0x01);
+            datalayer_battery->status.cell_balancing_status[0] = (rx_frame.data.u8[4] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[1] = (rx_frame.data.u8[4] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[2] = (rx_frame.data.u8[4] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[3] = (rx_frame.data.u8[4] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[4] = (rx_frame.data.u8[4] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[5] = (rx_frame.data.u8[4] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[6] = (rx_frame.data.u8[4] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[7] = (rx_frame.data.u8[4] & 0x01);
 
-            battery_balancing_shunts[8] = (rx_frame.data.u8[5] & 0x80) >> 7;
-            battery_balancing_shunts[9] = (rx_frame.data.u8[5] & 0x40) >> 6;
-            battery_balancing_shunts[10] = (rx_frame.data.u8[5] & 0x20) >> 5;
-            battery_balancing_shunts[11] = (rx_frame.data.u8[5] & 0x10) >> 4;
-            battery_balancing_shunts[12] = (rx_frame.data.u8[5] & 0x08) >> 3;
-            battery_balancing_shunts[13] = (rx_frame.data.u8[5] & 0x04) >> 2;
-            battery_balancing_shunts[14] = (rx_frame.data.u8[5] & 0x02) >> 1;
-            battery_balancing_shunts[15] = (rx_frame.data.u8[5] & 0x01);
+            datalayer_battery->status.cell_balancing_status[8] = (rx_frame.data.u8[5] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[9] = (rx_frame.data.u8[5] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[10] = (rx_frame.data.u8[5] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[11] = (rx_frame.data.u8[5] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[12] = (rx_frame.data.u8[5] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[13] = (rx_frame.data.u8[5] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[14] = (rx_frame.data.u8[5] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[15] = (rx_frame.data.u8[5] & 0x01);
 
-            battery_balancing_shunts[16] = (rx_frame.data.u8[6] & 0x80) >> 7;
-            battery_balancing_shunts[17] = (rx_frame.data.u8[6] & 0x40) >> 6;
-            battery_balancing_shunts[18] = (rx_frame.data.u8[6] & 0x20) >> 5;
-            battery_balancing_shunts[19] = (rx_frame.data.u8[6] & 0x10) >> 4;
-            battery_balancing_shunts[20] = (rx_frame.data.u8[6] & 0x08) >> 3;
-            battery_balancing_shunts[21] = (rx_frame.data.u8[6] & 0x04) >> 2;
-            battery_balancing_shunts[22] = (rx_frame.data.u8[6] & 0x02) >> 1;
-            battery_balancing_shunts[23] = (rx_frame.data.u8[6] & 0x01);
+            datalayer_battery->status.cell_balancing_status[16] = (rx_frame.data.u8[6] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[17] = (rx_frame.data.u8[6] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[18] = (rx_frame.data.u8[6] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[19] = (rx_frame.data.u8[6] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[20] = (rx_frame.data.u8[6] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[21] = (rx_frame.data.u8[6] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[22] = (rx_frame.data.u8[6] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[23] = (rx_frame.data.u8[6] & 0x01);
 
-            battery_balancing_shunts[24] = (rx_frame.data.u8[7] & 0x80) >> 7;
-            battery_balancing_shunts[25] = (rx_frame.data.u8[7] & 0x40) >> 6;
-            battery_balancing_shunts[26] = (rx_frame.data.u8[7] & 0x20) >> 5;
-            battery_balancing_shunts[27] = (rx_frame.data.u8[7] & 0x10) >> 4;
-            battery_balancing_shunts[28] = (rx_frame.data.u8[7] & 0x08) >> 3;
-            battery_balancing_shunts[29] = (rx_frame.data.u8[7] & 0x04) >> 2;
-            battery_balancing_shunts[30] = (rx_frame.data.u8[7] & 0x02) >> 1;
-            battery_balancing_shunts[31] = (rx_frame.data.u8[7] & 0x01);
+            datalayer_battery->status.cell_balancing_status[24] = (rx_frame.data.u8[7] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[25] = (rx_frame.data.u8[7] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[26] = (rx_frame.data.u8[7] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[27] = (rx_frame.data.u8[7] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[28] = (rx_frame.data.u8[7] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[29] = (rx_frame.data.u8[7] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[30] = (rx_frame.data.u8[7] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[31] = (rx_frame.data.u8[7] & 0x01);
           }
           if (rx_frame.data.u8[0] == 0x24) {
-            battery_balancing_shunts[32] = (rx_frame.data.u8[1] & 0x80) >> 7;
-            battery_balancing_shunts[33] = (rx_frame.data.u8[1] & 0x40) >> 6;
-            battery_balancing_shunts[34] = (rx_frame.data.u8[1] & 0x20) >> 5;
-            battery_balancing_shunts[35] = (rx_frame.data.u8[1] & 0x10) >> 4;
-            battery_balancing_shunts[36] = (rx_frame.data.u8[1] & 0x08) >> 3;
-            battery_balancing_shunts[37] = (rx_frame.data.u8[1] & 0x04) >> 2;
-            battery_balancing_shunts[38] = (rx_frame.data.u8[1] & 0x02) >> 1;
-            battery_balancing_shunts[39] = (rx_frame.data.u8[1] & 0x01);
+            datalayer_battery->status.cell_balancing_status[32] = (rx_frame.data.u8[1] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[33] = (rx_frame.data.u8[1] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[34] = (rx_frame.data.u8[1] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[35] = (rx_frame.data.u8[1] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[36] = (rx_frame.data.u8[1] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[37] = (rx_frame.data.u8[1] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[38] = (rx_frame.data.u8[1] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[39] = (rx_frame.data.u8[1] & 0x01);
 
-            battery_balancing_shunts[40] = (rx_frame.data.u8[2] & 0x80) >> 7;
-            battery_balancing_shunts[41] = (rx_frame.data.u8[2] & 0x40) >> 6;
-            battery_balancing_shunts[42] = (rx_frame.data.u8[2] & 0x20) >> 5;
-            battery_balancing_shunts[43] = (rx_frame.data.u8[2] & 0x10) >> 4;
-            battery_balancing_shunts[44] = (rx_frame.data.u8[2] & 0x08) >> 3;
-            battery_balancing_shunts[45] = (rx_frame.data.u8[2] & 0x04) >> 2;
-            battery_balancing_shunts[46] = (rx_frame.data.u8[2] & 0x02) >> 1;
-            battery_balancing_shunts[47] = (rx_frame.data.u8[2] & 0x01);
+            datalayer_battery->status.cell_balancing_status[40] = (rx_frame.data.u8[2] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[41] = (rx_frame.data.u8[2] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[42] = (rx_frame.data.u8[2] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[43] = (rx_frame.data.u8[2] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[44] = (rx_frame.data.u8[2] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[45] = (rx_frame.data.u8[2] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[46] = (rx_frame.data.u8[2] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[47] = (rx_frame.data.u8[2] & 0x01);
 
-            battery_balancing_shunts[48] = (rx_frame.data.u8[3] & 0x80) >> 7;
-            battery_balancing_shunts[49] = (rx_frame.data.u8[3] & 0x40) >> 6;
-            battery_balancing_shunts[50] = (rx_frame.data.u8[3] & 0x20) >> 5;
-            battery_balancing_shunts[51] = (rx_frame.data.u8[3] & 0x10) >> 4;
-            battery_balancing_shunts[52] = (rx_frame.data.u8[3] & 0x08) >> 3;
-            battery_balancing_shunts[53] = (rx_frame.data.u8[3] & 0x04) >> 2;
-            battery_balancing_shunts[54] = (rx_frame.data.u8[3] & 0x02) >> 1;
-            battery_balancing_shunts[55] = (rx_frame.data.u8[3] & 0x01);
+            datalayer_battery->status.cell_balancing_status[48] = (rx_frame.data.u8[3] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[49] = (rx_frame.data.u8[3] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[50] = (rx_frame.data.u8[3] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[51] = (rx_frame.data.u8[3] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[52] = (rx_frame.data.u8[3] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[53] = (rx_frame.data.u8[3] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[54] = (rx_frame.data.u8[3] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[55] = (rx_frame.data.u8[3] & 0x01);
 
-            battery_balancing_shunts[56] = (rx_frame.data.u8[4] & 0x80) >> 7;
-            battery_balancing_shunts[57] = (rx_frame.data.u8[4] & 0x40) >> 6;
-            battery_balancing_shunts[58] = (rx_frame.data.u8[4] & 0x20) >> 5;
-            battery_balancing_shunts[59] = (rx_frame.data.u8[4] & 0x10) >> 4;
-            battery_balancing_shunts[60] = (rx_frame.data.u8[4] & 0x08) >> 3;
-            battery_balancing_shunts[61] = (rx_frame.data.u8[4] & 0x04) >> 2;
-            battery_balancing_shunts[62] = (rx_frame.data.u8[4] & 0x02) >> 1;
-            battery_balancing_shunts[63] = (rx_frame.data.u8[4] & 0x01);
+            datalayer_battery->status.cell_balancing_status[56] = (rx_frame.data.u8[4] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[57] = (rx_frame.data.u8[4] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[58] = (rx_frame.data.u8[4] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[59] = (rx_frame.data.u8[4] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[60] = (rx_frame.data.u8[4] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[61] = (rx_frame.data.u8[4] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[62] = (rx_frame.data.u8[4] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[63] = (rx_frame.data.u8[4] & 0x01);
 
-            battery_balancing_shunts[64] = (rx_frame.data.u8[5] & 0x80) >> 7;
-            battery_balancing_shunts[65] = (rx_frame.data.u8[5] & 0x40) >> 6;
-            battery_balancing_shunts[66] = (rx_frame.data.u8[5] & 0x20) >> 5;
-            battery_balancing_shunts[67] = (rx_frame.data.u8[5] & 0x10) >> 4;
-            battery_balancing_shunts[68] = (rx_frame.data.u8[5] & 0x08) >> 3;
-            battery_balancing_shunts[69] = (rx_frame.data.u8[5] & 0x04) >> 2;
-            battery_balancing_shunts[70] = (rx_frame.data.u8[5] & 0x02) >> 1;
-            battery_balancing_shunts[71] = (rx_frame.data.u8[5] & 0x01);
+            datalayer_battery->status.cell_balancing_status[64] = (rx_frame.data.u8[5] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[65] = (rx_frame.data.u8[5] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[66] = (rx_frame.data.u8[5] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[67] = (rx_frame.data.u8[5] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[68] = (rx_frame.data.u8[5] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[69] = (rx_frame.data.u8[5] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[70] = (rx_frame.data.u8[5] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[71] = (rx_frame.data.u8[5] & 0x01);
 
-            battery_balancing_shunts[72] = (rx_frame.data.u8[6] & 0x80) >> 7;
-            battery_balancing_shunts[73] = (rx_frame.data.u8[6] & 0x40) >> 6;
-            battery_balancing_shunts[74] = (rx_frame.data.u8[6] & 0x20) >> 5;
-            battery_balancing_shunts[75] = (rx_frame.data.u8[6] & 0x10) >> 4;
-            battery_balancing_shunts[76] = (rx_frame.data.u8[6] & 0x08) >> 3;
-            battery_balancing_shunts[77] = (rx_frame.data.u8[6] & 0x04) >> 2;
-            battery_balancing_shunts[78] = (rx_frame.data.u8[6] & 0x02) >> 1;
-            battery_balancing_shunts[79] = (rx_frame.data.u8[6] & 0x01);
+            datalayer_battery->status.cell_balancing_status[72] = (rx_frame.data.u8[6] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[73] = (rx_frame.data.u8[6] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[74] = (rx_frame.data.u8[6] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[75] = (rx_frame.data.u8[6] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[76] = (rx_frame.data.u8[6] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[77] = (rx_frame.data.u8[6] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[78] = (rx_frame.data.u8[6] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[79] = (rx_frame.data.u8[6] & 0x01);
 
-            battery_balancing_shunts[80] = (rx_frame.data.u8[7] & 0x80) >> 7;
-            battery_balancing_shunts[81] = (rx_frame.data.u8[7] & 0x40) >> 6;
-            battery_balancing_shunts[82] = (rx_frame.data.u8[7] & 0x20) >> 5;
-            battery_balancing_shunts[83] = (rx_frame.data.u8[7] & 0x10) >> 4;
-            battery_balancing_shunts[84] = (rx_frame.data.u8[7] & 0x08) >> 3;
-            battery_balancing_shunts[85] = (rx_frame.data.u8[7] & 0x04) >> 2;
-            battery_balancing_shunts[86] = (rx_frame.data.u8[7] & 0x02) >> 1;
-            battery_balancing_shunts[87] = (rx_frame.data.u8[7] & 0x01);
+            datalayer_battery->status.cell_balancing_status[80] = (rx_frame.data.u8[7] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[81] = (rx_frame.data.u8[7] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[82] = (rx_frame.data.u8[7] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[83] = (rx_frame.data.u8[7] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[84] = (rx_frame.data.u8[7] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[85] = (rx_frame.data.u8[7] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[86] = (rx_frame.data.u8[7] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[87] = (rx_frame.data.u8[7] & 0x01);
           }
           if (rx_frame.data.u8[0] == 0x25) {
-            battery_balancing_shunts[88] = (rx_frame.data.u8[1] & 0x80) >> 7;
-            battery_balancing_shunts[89] = (rx_frame.data.u8[1] & 0x40) >> 6;
-            battery_balancing_shunts[90] = (rx_frame.data.u8[1] & 0x20) >> 5;
-            battery_balancing_shunts[91] = (rx_frame.data.u8[1] & 0x10) >> 4;
-            battery_balancing_shunts[92] = (rx_frame.data.u8[1] & 0x08) >> 3;
-            battery_balancing_shunts[93] = (rx_frame.data.u8[1] & 0x04) >> 2;
-            battery_balancing_shunts[94] = (rx_frame.data.u8[1] & 0x02) >> 1;
-            battery_balancing_shunts[95] = (rx_frame.data.u8[1] & 0x01);
-
-            memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
+            datalayer_battery->status.cell_balancing_status[88] = (rx_frame.data.u8[1] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[89] = (rx_frame.data.u8[1] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[90] = (rx_frame.data.u8[1] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[91] = (rx_frame.data.u8[1] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[92] = (rx_frame.data.u8[1] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[93] = (rx_frame.data.u8[1] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[94] = (rx_frame.data.u8[1] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[95] = (rx_frame.data.u8[1] & 0x01);
           }
           break;
         case POLL_ENERGY_COMPLETE:
@@ -819,14 +823,14 @@ void RenaultZoeGen2Battery::setup(void) {  // Performs one time setup at startup
 
 void RenaultZoeGen2Battery::transmit_can_frame_376(void) {
   unsigned int secondsSinceProduction = ZOE_376_time_now_s - kProductionTimestamp_s;
-  float minutesSinceProduction = (float)secondsSinceProduction / 60.0;
-  float yearUnfloored = minutesSinceProduction / 255.0 / 255.0;
+  float minutesSinceProduction = (float)secondsSinceProduction / 60.0f;
+  float yearUnfloored = minutesSinceProduction / 255.0f / 255.0f;
   int yearSeg = floor(yearUnfloored);
   float remainderYears = yearUnfloored - yearSeg;
-  float remainderHoursUnfloored = (remainderYears * 255.0);
+  float remainderHoursUnfloored = (remainderYears * 255.0f);
   int hourSeg = floor(remainderHoursUnfloored);
   float remainderHours = remainderHoursUnfloored - hourSeg;
-  int minuteSeg = floor(remainderHours * 255.0);
+  int minuteSeg = floor(remainderHours * 255.0f);
 
   ZOE_376.data.u8[0] = yearSeg;
   ZOE_376.data.u8[1] = hourSeg;

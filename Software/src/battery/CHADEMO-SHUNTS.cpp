@@ -28,27 +28,27 @@ static int framecount = 0;
 
 /* original variables/names/types from SimpleISA. These warrant refinement */
 float Amperes;  // Floating point with current in Amperes
-double AH;      //Floating point with accumulated ampere-hours
-double KW;
-double KWH;
+float AH;       //Floating point with accumulated ampere-hours
+float KW;
+float KWH;
 
-double Voltage;
-double Voltage1;
-double Voltage2;
-double Voltage3;
-double VoltageHI;
-double Voltage1HI;
-double Voltage2HI;
-double Voltage3HI;
-double VoltageLO;
-double Voltage1LO;
-double Voltage2LO;
-double Voltage3LO;
+float Voltage;
+float Voltage1;
+float Voltage2;
+float Voltage3;
+float VoltageHI;
+float Voltage1HI;
+float Voltage2HI;
+float Voltage3HI;
+float VoltageLO;
+float Voltage1LO;
+float Voltage2LO;
+float Voltage3LO;
 
-double Temperature;
+float Temperature;
 
 bool firstframe;
-double milliamps;
+float milliamps;
 long watt;
 long As;
 long lastAs;

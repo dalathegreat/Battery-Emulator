@@ -12,10 +12,10 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
   String get_status_html() {
     String content;
 
-    float soc_estimated = static_cast<float>(byd_datalayer->SOC_estimated) * 0.01;
-    float soc_measured = static_cast<float>(byd_datalayer->SOC_highprec) * 0.1;
-    float BMS_maxChargePower = static_cast<float>(byd_datalayer->chargePower) * 0.1;
-    float BMS_maxDischargePower = static_cast<float>(byd_datalayer->dischargePower) * 0.1;
+    float soc_estimated = static_cast<float>(byd_datalayer->SOC_estimated) * 0.01f;
+    float soc_measured = static_cast<float>(byd_datalayer->SOC_highprec) * 0.1f;
+    float BMS_maxChargePower = static_cast<float>(byd_datalayer->chargePower) * 0.1f;
+    float BMS_maxDischargePower = static_cast<float>(byd_datalayer->dischargePower) * 0.1f;
     static const char* SOCmethod[2] = {"Estimated from voltage", "Measured by BMS"};
     static const char* SOCcontrol[2] = {"Auto", "Manual"};
 

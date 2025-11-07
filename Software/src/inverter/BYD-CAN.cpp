@@ -1,6 +1,7 @@
 #include "BYD-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
+#include "INVERTERS.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
@@ -46,19 +47,19 @@ void BydCanInverter::
   //SOC (100.00%)
   BYD_150.data.u8[0] = (datalayer.battery.status.reported_soc >> 8);
   BYD_150.data.u8[1] = (datalayer.battery.status.reported_soc & 0x00FF);
-#ifdef BYD_CAN_DEYE
-  // Fix for avoiding offgrid Deye inverters to underdischarge batteries
-  if (datalayer.battery.status.max_charge_current_dA == 0) {
-    //Force to 100.00% incase battery no longer wants to charge
-    BYD_150.data.u8[0] = (10000 >> 8);
-    BYD_150.data.u8[1] = (10000 & 0x00FF);
+  if (user_selected_inverter_deye_workaround) {
+    // Fix for avoiding offgrid Deye inverters to underdischarge batteries
+    if (datalayer.battery.status.max_charge_current_dA == 0) {
+      //Force to 100.00% incase battery no longer wants to charge
+      BYD_150.data.u8[0] = (10000 >> 8);
+      BYD_150.data.u8[1] = (10000 & 0x00FF);
+    }
+    if (datalayer.battery.status.max_discharge_current_dA == 0) {
+      //Force to 0% incase battery no longer wants to discharge
+      BYD_150.data.u8[0] = 0;
+      BYD_150.data.u8[1] = 0;
+    }
   }
-  if (datalayer.battery.status.max_discharge_current_dA == 0) {
-    //Force to 0% incase battery no longer wants to discharge
-    BYD_150.data.u8[0] = 0;
-    BYD_150.data.u8[1] = 0;
-  }
-#endif  //BYD_CAN_DEYE
   //StateOfHealth (100.00%)
   BYD_150.data.u8[2] = (datalayer.battery.status.soh_pptt >> 8);
   BYD_150.data.u8[3] = (datalayer.battery.status.soh_pptt & 0x00FF);
@@ -68,6 +69,10 @@ void BydCanInverter::
   //Fully charged capacity (Ah+1)
   BYD_150.data.u8[6] = (fully_charged_capacity_ah >> 8);
   BYD_150.data.u8[7] = (fully_charged_capacity_ah & 0x00FF);
+
+  //Alarms
+  //TODO: BYD Alarms are not implemented yet. Investigation needed on the bits in this message
+  //BYD_190.data.u8[0] =
 
   //Voltage (ex 370.0)
   BYD_1D0.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
@@ -110,6 +115,16 @@ void BydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       inverter_voltage = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) * 0.1;
       inverter_current = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) * 0.1;
       inverter_temperature = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.1;
+      if (useAsShunt) {
+        datalayer.shunt.available = true;
+        datalayer.shunt.precharging = false;
+        datalayer.shunt.contactors_engaged = true;
+        datalayer.shunt.measured_voltage_dV = inverter_voltage;
+        datalayer.shunt.measured_voltage_mV = inverter_voltage * 100;
+        datalayer.shunt.measured_outvoltage_mV = inverter_voltage * 100;
+        datalayer.shunt.measured_amperage_dA = inverter_current;
+        datalayer.shunt.measured_amperage_mA = inverter_current * 100;
+      }
       break;
     case 0x0D1:
       inverterStartedUp = true;
@@ -144,21 +159,21 @@ void BydCanInverter::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
     previousMillis2s = currentMillis;
 
-    transmit_can_frame(&BYD_110);
+    transmit_can_frame(&BYD_110);  //Send Limits
   }
   // Send 10s CAN Message
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
 
-    transmit_can_frame(&BYD_150);
-    transmit_can_frame(&BYD_1D0);
-    transmit_can_frame(&BYD_210);
+    transmit_can_frame(&BYD_150);  //Send States
+    transmit_can_frame(&BYD_1D0);  //Send Battery Info
+    transmit_can_frame(&BYD_210);  //Send Cell Info
   }
   //Send 60s message
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
 
-    transmit_can_frame(&BYD_190);
+    transmit_can_frame(&BYD_190);  //Send Alarm
   }
 }
 
@@ -166,8 +181,17 @@ void BydCanInverter::send_initial_data() {
   transmit_can_frame(&BYD_250);
   transmit_can_frame(&BYD_290);
   transmit_can_frame(&BYD_2D0);
-  transmit_can_frame(&BYD_3D0_0);
-  transmit_can_frame(&BYD_3D0_1);
-  transmit_can_frame(&BYD_3D0_2);
-  transmit_can_frame(&BYD_3D0_3);
+  BYD_3D0.data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79};  //Battery
+  transmit_can_frame(&BYD_3D0);
+  BYD_3D0.data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x50, 0x72};  //-Box Pr
+  transmit_can_frame(&BYD_3D0);
+  BYD_3D0.data = {0x02, 0x65, 0x6D, 0x69, 0x75, 0x6D, 0x20, 0x48};  //emium H
+  transmit_can_frame(&BYD_3D0);
+  BYD_3D0.data = {0x03, 0x56, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00};  //VS
+  transmit_can_frame(&BYD_3D0);
+}
+
+void BydCanInverter::enable_shunt() {
+  strncpy(datalayer.system.info.shunt_protocol, Name, 63);
+  useAsShunt = true;
 }

@@ -57,9 +57,9 @@ uint8_t user_selected_canfd_addon_crystal_frequency_mhz = 0;
 ACAN2517FD* canfd;
 ACAN2517FDSettings* settings2517;
 bool use_canfd_as_can = false;
-// Initialization functions
-
 bool native_can_initialized = false;
+//CAN logging filter settings
+uint16_t user_selected_CAN_ID_cutoff_filter = 0;  //Messages below this ID will not be logged in webserver
 
 bool init_CAN() {
 
@@ -228,11 +228,11 @@ bool init_CAN() {
   return true;
 }
 
-void transmit_can_frame_to_interface(const CAN_frame* tx_frame, int interface) {
+void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface) {
   if (!allowed_to_send_CAN) {
     return;
   }
-  print_can_frame(*tx_frame, frameDirection(MSG_TX));
+  print_can_frame(*tx_frame, interface, frameDirection(MSG_TX));
 
   if (datalayer.system.info.CAN_SD_logging_active) {
     add_can_frame_to_buffer(*tx_frame, frameDirection(MSG_TX));
@@ -367,13 +367,20 @@ void receive_frame_canfd_addon() {  // This section checks if we have a complete
 }
 
 // Support functions
-void print_can_frame(CAN_frame frame, frameDirection msgDir) {
+void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir) {
 
   if (datalayer.system.info.CAN_usb_logging_active) {
     uint8_t i = 0;
     Serial.print("(");
     Serial.print(millis() / 1000.0);
-    (msgDir == MSG_RX) ? Serial.print(") RX0 ") : Serial.print(") TX1 ");
+    if (msgDir == MSG_RX) {
+      Serial.print(") RX");
+      Serial.print((int)(interface * 2));
+    } else {
+      Serial.print(") TX");
+      Serial.print((int)(interface * 2) + 1);
+    }
+    Serial.print(" ");
     Serial.print(frame.ID, HEX);
     Serial.print(" [");
     Serial.print(frame.DLC);
@@ -388,7 +395,9 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
   }
 
   if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording
-    dump_can_frame(frame, msgDir);
+    if (frame.ID > user_selected_CAN_ID_cutoff_filter) {  //Only log the message if CAN ID is higher than user set value
+      dump_can_frame(frame, interface, msgDir);
+    }
   }
 }
 
@@ -396,7 +405,7 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
   if (interface !=
       CANFD_NATIVE) {  //Avoid printing twice due to receive_frame_canfd_addon sending to both FD interfaces
     //TODO: This check can be removed later when refactored to use inline functions for logging
-    print_can_frame(*rx_frame, frameDirection(MSG_RX));
+    print_can_frame(*rx_frame, interface, frameDirection(MSG_RX));
   }
 
   if (datalayer.system.info.CAN_SD_logging_active) {
@@ -416,7 +425,7 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
   }
 }
 
-void dump_can_frame(CAN_frame& frame, frameDirection msgDir) {
+void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
   char* message_string = datalayer.system.info.logged_can_messages;
   int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
@@ -430,11 +439,12 @@ void dump_can_frame(CAN_frame& frame, frameDirection msgDir) {
   offset += snprintf(message_string + offset, message_string_size - offset, "(%lu.%03lu) ", currentTime / 1000,
                      currentTime % 1000);
 
-  // Add direction. The 0 and 1 after RX and TX ensures that SavvyCAN puts TX and RX in a different bus.
-  offset += snprintf(message_string + offset, message_string_size - offset, "%s ", (msgDir == MSG_RX) ? "RX0" : "TX1");
+  // Add direction. Multiplying the interface by two ensures that SavvyCAN puts TX and RX in a different bus.
+  offset += snprintf(message_string + offset, message_string_size - offset, "%s%d ", (msgDir == MSG_RX) ? "RX" : "TX",
+                     (int)(interface * 2) + (msgDir == MSG_RX ? 0 : 1));
 
   // Add ID and DLC
-  offset += snprintf(message_string + offset, message_string_size - offset, "%X [%u] ", frame.ID, frame.DLC);
+  offset += snprintf(message_string + offset, message_string_size - offset, "%lX [%u] ", frame.ID, frame.DLC);
 
   // Add data bytes
   for (uint8_t i = 0; i < frame.DLC; i++) {

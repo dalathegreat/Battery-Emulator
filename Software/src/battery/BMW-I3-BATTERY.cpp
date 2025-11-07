@@ -42,7 +42,7 @@ uint8_t BmwI3Battery::increment_alive_counter(uint8_t counter) {
 }
 
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
-  if (datalayer.system.settings.equipment_stop_active == true) {
+  if (datalayer.system.info.equipment_stop_active == true) {
     digitalWrite(wakeup_pin, LOW);  // Turn off wakeup pin
   } else if (millis() > INTERVAL_1_S) {
     digitalWrite(wakeup_pin, HIGH);  // Wake up the battery
@@ -282,6 +282,8 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
               battery_soc_hvmax = (message_data[2] << 8 | message_data[3]);
               battery_soc_hvmin = (message_data[4] << 8 | message_data[5]);
             }
+            break;
+          default:
             break;
         }
       }

@@ -39,6 +39,7 @@ enum PrechargeState {
 #define INTERVAL_30_MS 30
 #define INTERVAL_40_MS 40
 #define INTERVAL_50_MS 50
+#define INTERVAL_60_MS 60
 #define INTERVAL_70_MS 70
 #define INTERVAL_100_MS 100
 #define INTERVAL_200_MS 200
@@ -68,7 +69,10 @@ enum CAN_Interface {
   CAN_ADDON_MCP2515 = 2,
 
   // Add-on CAN-FD MCP2518 connected to GPIO pins
-  CANFD_ADDON_MCP2518 = 3
+  CANFD_ADDON_MCP2518 = 3,
+
+  // No CAN interface
+  NO_CAN_INTERFACE = 4
 };
 
 extern const char* getCANInterfaceName(CAN_Interface interface);

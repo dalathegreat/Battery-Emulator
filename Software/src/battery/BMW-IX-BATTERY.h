@@ -4,6 +4,18 @@
 #include "BMW-IX-HTML.h"
 #include "CanBattery.h"
 
+// UDS Multi-Frame Reception Context
+struct UDS_CONTEXT {
+  uint8_t UDS_buffer[512];            // Buffer to store multi-frame UDS data
+  uint16_t UDS_bytesReceived;         // Track number of bytes received
+  uint16_t UDS_expectedLength;        // Total expected length from first frame
+  uint8_t UDS_sequenceNumber;         // Expected sequence number for consecutive frames (for IX non-batch mode)
+  bool UDS_inProgress;                // Flag indicating if we're in the middle of receiving
+  uint8_t UDS_moduleID;               // Module ID responding (0xF4 for battery)
+  uint8_t receivedInBatch;            // Number of CFs received in current batch (for PHEV batch mode)
+  unsigned long UDS_lastFrameMillis;  // Timestamp of last frame for timeout detection
+};
+
 class BmwIXBattery : public CanBattery {
  public:
   BmwIXBattery() : renderer(*this) {}
@@ -14,8 +26,15 @@ class BmwIXBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
+  bool supports_read_DTC() { return true; }
+  void read_DTC() { UserRequestDTCRead = true; }
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+  bool supports_reset_BMS() { return true; }
+  void reset_BMS() { UserRequestBMSReset = true; }
+  bool supports_energy_saving_mode_reset() { return true; }
+  void reset_energy_saving_mode() { UserRequestEnergySavingModeReset = true; }
   bool supports_contactor_close() { return true; }
-
   void request_open_contactors() { userRequestContactorOpen = true; }
   void request_close_contactors() { userRequestContactorClose = true; }
 
@@ -27,6 +46,7 @@ class BmwIXBattery : public CanBattery {
   unsigned long get_max_cell_voltage_data_age() const;
   int get_T30_Voltage() const;
   int get_balancing_status() const;
+  int get_energy_saving_mode_status() const;
   int get_hvil_status() const;
   unsigned long get_bms_uptime() const;
   int get_allowable_charge_amps() const;
@@ -41,10 +61,17 @@ class BmwIXBattery : public CanBattery {
  private:
   bool userRequestContactorClose = false;
   bool userRequestContactorOpen = false;
-
+  bool UserRequestDTCreset = false;
+  bool UserRequestBMSReset = false;
+  bool UserRequestDTCRead = false;
+  bool UserRequestEnergySavingModeReset = false;
   BmwIXHtmlRenderer renderer;
-  static const int MAX_PACK_VOLTAGE_DV = 4650;  //4650 = 465.0V
-  static const int MIN_PACK_VOLTAGE_DV = 3000;
+  static const int MAX_PACK_VOLTAGE_78S_DV = 3354;  //SE12 battery, BMW iX1, 66.45kWh 286.3vNom
+  static const int MIN_PACK_VOLTAGE_78S_DV = 2200;
+  static const int MAX_PACK_VOLTAGE_96S_DV = 4128;
+  static const int MIN_PACK_VOLTAGE_96S_DV = 2688;
+  static const int MAX_PACK_VOLTAGE_108S_DV = 4650;
+  static const int MIN_PACK_VOLTAGE_108S_DV = 3000;
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4300;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2800;  //Battery is put into emergency stop if one cell goes below this value
@@ -64,6 +91,7 @@ class BmwIXBattery : public CanBattery {
   unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 
   static const int ALIVE_MAX_VALUE = 14;  // BMW CAN messages contain alive counter, goes from 0...14
+  static const int MAX_DTC_COUNT = 30;    // Maximum number of DTCs to store/display
 
   enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST };
 
@@ -142,16 +170,16 @@ SME asks for:
 TODO:
 - Request batt serial number on F1 8C (already parsing RX)
 */
-
+  /*
   //Vehicle CAN START
   static constexpr CAN_frame BMWiX_125 = {
       .FD = true,
       .ext_ID = false,
       .DLC = 20,
       .ID = 0x125,
-      //.data = {TODO:, TODO:, TODO:, TODO:, 0xFE, 0x7F, 0xFE, 0x7F, TODO:, TODO:, TODO:, TODO:, TODO:, 0xFF, 0xFF, 0xFF, 0xFF, 0xF0, 0xFF, 0xFF}
+      .data = {TODO:, TODO:, TODO:, TODO:, 0xFE, 0x7F, 0xFE, 0x7F, TODO:, TODO:, TODO:, TODO:, TODO:, 0xFF, 0xFF, 0xFF, 0xFF, 0xF0, 0xFF, 0xFF}
   };  // CCU output
-
+*/
   /* SME output
 CAN_frame BMWiX_12B8D087 = {.FD = true,
                             .ext_ID = true,
@@ -179,6 +207,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x188,
       .data = {0x00, 0x00, 0x00, 0x00, 0x3C, 0xFF, 0xFF, 0xFF}};  // CCU output - values while driving
 
+  /*
   static constexpr CAN_frame BMWiX_1EA = {
       .FD = true,
       .ext_ID = false,
@@ -186,7 +215,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x1EA,
       //.data = {TODO:km_least_significant, TODO:, TODO:, TODO:, TODO:km_most_significant, 0xFF, TODO:, TODO:}
   };  // KOMBI output - kilometerstand
-
+*/
   static constexpr CAN_frame BMWiX_1FC = {
       .FD = true,
       .ext_ID = false,
@@ -194,7 +223,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x1FC,
       .data = {0xFF, 0xFF, 0xFF, 0xFC, 0x00, 0x00, 0xC0,
                0x00}};  // FIXME:(add transmitter node) output - heat management engine control - values
-
+                        /*
   static constexpr CAN_frame BMWiX_21D = {
       .FD = true,
       .ext_ID = false,
@@ -202,7 +231,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x21D,
       //    .data = {TODO:, TODO:, TODO:, 0xFF, 0xFF, 0xFF, 0xFF, TODO:}
   };  // FIXME:(add transmitter node) output - request heating and air conditioning system 1
-
+*/
   static constexpr CAN_frame BMWiX_276 = {
       .FD = true,
       .ext_ID = false,
@@ -226,7 +255,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .DLC = 8,
       .ID = 0x2F1,
       .data = {0xFF, 0xFF, 0xD0, 0x39, 0x94, 0x00, 0xF3, 0xFF}};  // 1000ms BDC output - values - varies at startup
-
+  /*
   static constexpr CAN_frame BMWiX_340 = {
       .FD = true,
       .ext_ID = false,
@@ -234,7 +263,8 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x340,
       //      .data = {TODO:, TODO:, TODO:, 0xFF, TODO:, TODO:, 0x00, 0x00, TODO:, TODO:, TODO:, 0xFF, 0xFF, }
   };  // CCU output
-
+*/
+  /*
   static constexpr CAN_frame BMWiX_380 = {
       .FD = true,
       .ext_ID = false,
@@ -242,7 +272,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x380,
       //      .data = {FIXME:(VIN_char1), FIXME:(VIN_char2), FIXME:(VIN_char3), FIXME:(VIN_char4), FIXME:(VIN_char5), FIXME:(VIN_char6), FIXME:(VIN_char7)}
   };  // FIXME:(add transmitter node) output -  VIN: ASCII2HEX
-
+*/
   /* Not requested by SME
 CAN_frame BMWiX_439 = {.FD = true,
                        .ext_ID = false,
@@ -250,7 +280,7 @@ CAN_frame BMWiX_439 = {.FD = true,
                        .ID = 0x439,
                        .data = {0xFF, 0x3F, 0xFF, 0xF3}};  // 1000ms BDC output
 */
-
+  /*
   static constexpr CAN_frame BMWiX_442 = {
       .FD = true,
       .ext_ID = false,
@@ -258,7 +288,7 @@ CAN_frame BMWiX_439 = {.FD = true,
       .ID = 0x442,
       //                        .data = {TODO: relative time byte 0, TODO: relative time byte1, 0xA9, 0x00, 0xE0, 0x23}
   };  // FIXME:(add transmitter node) output - relative time BN2020
-
+*/
   /* SME output
 CAN_frame
     BMWiX_486 =
@@ -283,7 +313,7 @@ CAN_frame BMWiX_49C = {.FD = true,
                        .data = {0xD2, 0xF2, 0xC0, 0xFF, 0xFF, 0xFF, 0xFF,
                                 0xFF}};  // 1000ms SME output - Suspected keep alive CONFIRM NEEDED
 */
-
+  /*
   static constexpr CAN_frame BMWiX_4EB = {
       .FD = true,
       .ext_ID = false,
@@ -299,7 +329,7 @@ CAN_frame BMWiX_49C = {.FD = true,
       .ID = 0x4F8,
       //  .data = {0xFF, 0xFD, 0xFF, 0xFF, 0xFF, TODO:, TODO:, 0xC8, 0x00, 0x00, 0xF0, 0x40, 0xFE, 0xFF, 0xFD, 0xFF, TODO:, TODO:, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
   };  // CCU output
-
+*/
   CAN_frame BMWiX_510 = {
       .FD = true,
       .ext_ID = false,
@@ -339,6 +369,19 @@ CAN_frame BMWiX_49C = {.FD = true,
       .DLC = 5,
       .ID = 0x6F4,
       .data = {0x07, 0x03, 0x22, 0xE5, 0xC7}};  // Generic UDS Request data from SME. byte 4 selects requested value
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_ENERGY_SAVING_MODE_STATUS = {// UDS Request SME Energy saving mode status
+                                                                            .FD = true,
+                                                                            .ext_ID = false,
+                                                                            .DLC = 5,
+                                                                            .ID = 0x6F4,
+                                                                            .data = {0x07, 0x03, 0x22, 0x10, 0x0A}};
+  static constexpr CAN_frame BMWiX_6F4_SET_ENERGY_SAVING_MODE_NORMAL = {
+      // UDS Request  Set energy saving mode to normal
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x6F4,
+      .data = {0x07, 0x05, 0x31, 0x01, 0x0F, 0x0C, 0x00, 0x00}};
   static constexpr CAN_frame BMWiX_6F4_REQUEST_SLEEPMODE = {
       .FD = true,
       .ext_ID = false,
@@ -425,6 +468,18 @@ CAN_frame BMWiX_49C = {.FD = true,
       .data = {
           0x07, 0x03, 0x22, 0xE5,
           0x45}};  //MultiFrame Summary Request, includes SOC/SOH/MinMax/MaxCapac/RemainCapac/max v and t at last charge. slow refreshrate
+  static constexpr CAN_frame BMWiX_6F4_START_DEFAULT_DIAG_SESSION =
+      {.FD = true, .ext_ID = false, .DLC = 8, .ID = 0x6F4, .data = {0x07, 0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_READ_DTC = {.FD = true,
+                                                           .ext_ID = false,
+                                                           .DLC = 8,
+                                                           .ID = 0x6F4,
+                                                           .data = {0x07, 0x03, 0x19, 0x02, 0x0C, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame BMWiX_6F4_REQUEST_CLEAR_DTC = {.FD = true,
+                                                            .ext_ID = false,
+                                                            .DLC = 8,
+                                                            .ID = 0x6F4,
+                                                            .data = {0x07, 0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00}};
   static constexpr CAN_frame BMWiX_6F4_REQUEST_PYRO = {.FD = true,
                                                        .ext_ID = false,
                                                        .DLC = 5,
@@ -510,7 +565,7 @@ CAN_frame BMWiX_49C = {.FD = true,
   //Request Data CAN End
 
   //Setup UDS values to poll for
-  static constexpr const CAN_frame* UDS_REQUESTS100MS[17] = {&BMWiX_6F4_REQUEST_CELL_TEMP,
+  static constexpr const CAN_frame* UDS_REQUESTS100MS[18] = {&BMWiX_6F4_REQUEST_CELL_TEMP,
                                                              &BMWiX_6F4_REQUEST_SOC,
                                                              &BMWiX_6F4_REQUEST_CAPACITY,
                                                              &BMWiX_6F4_REQUEST_MINMAXCELLV,
@@ -526,9 +581,15 @@ CAN_frame BMWiX_49C = {.FD = true,
                                                              &BMWiX_6F4_REQUEST_HVIL,
                                                              &BMWiX_6F4_REQUEST_MAX_CHARGE_DISCHARGE_AMPS,
                                                              &BMWiX_6F4_REQUEST_BALANCINGSTATUS,
-                                                             &BMWiX_6F4_REQUEST_PACK_VOLTAGE_LIMITS};
-  int numUDSreqs = sizeof(UDS_REQUESTS100MS) / sizeof(UDS_REQUESTS100MS[0]);  // Number of elements in the array
-
+                                                             &BMWiX_6F4_REQUEST_PACK_VOLTAGE_LIMITS,
+                                                             &BMWiX_6F4_REQUEST_ENERGY_SAVING_MODE_STATUS};
+  static const int numUDSreqs =
+      sizeof(UDS_REQUESTS100MS) / sizeof(UDS_REQUESTS100MS[0]);  // Number of elements in the fast array
+  static constexpr const CAN_frame* UDS_REQUESTS_SLOW[1] = {
+      &BMWiX_6F4_REQUEST_READ_DTC  // Poll DTCs less frequently
+  };
+  static const int numUDSreqsSlow =
+      sizeof(UDS_REQUESTS_SLOW) / sizeof(UDS_REQUESTS_SLOW[0]);  // Number of elements in the slow array
   //iX Intermediate vars
   bool battery_info_available = false;
   uint32_t battery_serial_number = 0;
@@ -565,8 +626,9 @@ CAN_frame BMWiX_49C = {.FD = true,
   int16_t count_full_charges = 0;        //TODO  42
   int16_t count_charges = 0;             //TODO  42
   int16_t hvil_status = 0;
-  int16_t voltage_qualifier_status = 0;    //0 = Valid, 1 = Invalid
-  int16_t balancing_status = 0;            //4 = not active
+  int16_t voltage_qualifier_status = 0;  //0 = Valid, 1 = Invalid
+  int16_t balancing_status = 0;          //4 = not active
+  int16_t energy_saving_mode_status = 0;
   uint8_t contactors_closed = 0;           //TODO  E5 BF  or E5 51
   uint8_t contactor_status_precharge = 0;  //TODO E5 BF
   uint8_t contactor_status_negative = 0;   //TODO E5 BF
@@ -575,9 +637,23 @@ CAN_frame BMWiX_49C = {.FD = true,
   uint8_t pyro_status_pss4 = 0;            //Using AC 93
   uint8_t pyro_status_pss6 = 0;            //Using AC 93
   uint8_t uds_req_id_counter = 0;
-  uint8_t detected_number_of_cells = 108;
+  uint8_t uds_req_id_counter_slow = 0;
+  uint8_t detected_number_of_cells = 0;
   const unsigned long STALE_PERIOD =
       STALE_PERIOD_CONFIG;  // Time in milliseconds to check for staleness (e.g., 5000 ms = 5 seconds)
+
+  // UDS Multi-Frame Reception Context
+  UDS_CONTEXT gUDSContext = {
+      {},     // UDS_buffer - zero-initialized array
+      0,      // UDS_bytesReceived
+      0,      // UDS_expectedLength
+      0,      // UDS_sequenceNumber
+      false,  // UDS_inProgress
+      0,      // UDS_moduleID
+      0,      // receivedInBatch
+      0       // UDS_lastFrameMillis
+  };
+
   //End iX Intermediate vars
 
   uint8_t current_cell_polled = 0;
@@ -589,6 +665,15 @@ CAN_frame BMWiX_49C = {.FD = true,
   uint8_t increment_uds_req_id_counter(uint8_t index);
   uint8_t increment_alive_counter(uint8_t counter);
 
+  // UDS Multi-Frame Helpers
+  void startUDSMultiFrameReception(uint16_t totalLength, uint8_t moduleID);
+  bool storeUDSPayload(const uint8_t* payload, uint8_t length);
+  bool isUDSMessageComplete();
+  void parseDTCResponse();
+  void handleISOTPFrame(CAN_frame& rx_frame);
+  void processCompletedUDSResponse();
+  CAN_frame generate_433_datetime_message();
+  CAN_frame generate_442_time_counter_message();
   /**
  * @brief Handle incoming user request to close or open contactors
  *
