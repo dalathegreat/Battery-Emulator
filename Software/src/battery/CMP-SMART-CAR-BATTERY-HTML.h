@@ -6,68 +6,38 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
+inline const char* getContactorState(int index) {
+  switch (index) {
+    case 0:
+      return "Open";
+    case 1:
+      return "Closed";
+    case 2:
+      return "STUCK Open!";
+    case 3:
+      return "STUCK Closed!";
+    default:
+      return "";
+  }
+}
+
 class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
     content += "<h4>Balancing active: ";
     if (datalayer_extended.stellantisCMPsmart.battery_balancing_active) {
-      content += "Yes </h4>";
+      content += "Yes</h4>";
     } else {
-      content += "No </h4>";
+      content += "No</h4>";
     }
     content += "<h4>Positive contactor: ";
-    if (datalayer_extended.stellantisCMPsmart.battery_positive_contactor_state == 0) {
-      content += "Open";
-    } else if (datalayer_extended.stellantisCMPsmart.battery_positive_contactor_state == 1) {
-      content += "Closed";
-    } else if (datalayer_extended.stellantisCMPsmart.battery_positive_contactor_state == 2) {
-      content += "STUCK Open!";
-    } else if (datalayer_extended.stellantisCMPsmart.battery_positive_contactor_state == 3) {
-      content += "STUCK Closed!";
-    }
-    content += "</h4>";
-    content += "<h4>Negative contactor: ";
-    if (datalayer_extended.stellantisCMPsmart.battery_negative_contactor_state == 0) {
-      content += "Open";
-    } else if (datalayer_extended.stellantisCMPsmart.battery_negative_contactor_state == 1) {
-      content += "Closed";
-    } else if (datalayer_extended.stellantisCMPsmart.battery_negative_contactor_state == 2) {
-      content += "STUCK Open!";
-    } else if (datalayer_extended.stellantisCMPsmart.battery_negative_contactor_state == 3) {
-      content += "STUCK Closed!";
-    }
-    content += "</h4>";
-    content += "<h4>Precharge contactor: ";
-    if (datalayer_extended.stellantisCMPsmart.battery_precharge_contactor_state == 0) {
-      content += "Open";
-    } else if (datalayer_extended.stellantisCMPsmart.battery_precharge_contactor_state == 1) {
-      content += "Closed";
-    } else if (datalayer_extended.stellantisCMPsmart.battery_precharge_contactor_state == 2) {
-      content += "STUCK Open!";
-    } else if (datalayer_extended.stellantisCMPsmart.battery_precharge_contactor_state == 3) {
-      content += "STUCK Closed!";
-    }
-    content += "</h4>";
-    content += "<h4>QC positive contactor: ";
-    if (datalayer_extended.stellantisCMPsmart.qc_positive_contactor_status == 0) {
-      content += "Open";
-    } else if (datalayer_extended.stellantisCMPsmart.qc_positive_contactor_status == 1) {
-      content += "Closed";
-    } else if (datalayer_extended.stellantisCMPsmart.qc_positive_contactor_status == 2) {
-      content += "Fault!";
-    }
-    content += "</h4>";
-    content += "<h4>QC negative contactor: ";
-    if (datalayer_extended.stellantisCMPsmart.qc_negative_contactor_status == 0) {
-      content += "Open";
-    } else if (datalayer_extended.stellantisCMPsmart.qc_negative_contactor_status == 1) {
-      content += "Closed";
-    } else if (datalayer_extended.stellantisCMPsmart.qc_negative_contactor_status == 2) {
-      content += "Fault!";
-    }
-    content += "</h4>";
-    content += "<h4>Wakeup reason: " + String(datalayer_extended.stellantisCMPsmart.hvbat_wakeup_state) + "</h4>";
+    content += getContactorState(datalayer_extended.stellantisCMPsmart.battery_positive_contactor_state);
+    content += "</h4><h4>Negative contactor: ";
+    content += getContactorState(datalayer_extended.stellantisCMPsmart.battery_negative_contactor_state);
+    content += "</h4><h4>Precharge contactor: ";
+    content += getContactorState(datalayer_extended.stellantisCMPsmart.battery_precharge_contactor_state);
+    content += "</h4><h4>Wakeup reason: " + String(datalayer_extended.stellantisCMPsmart.hvbat_wakeup_state) + "</h4>";
     content += "<h4>Battery state: ";
     if (datalayer_extended.stellantisCMPsmart.battery_state == 0) {
       content += "Sleep";
@@ -136,9 +106,9 @@ class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
 
     content += "<h4>Authorised for usage: ";
     if (datalayer_extended.stellantisCMPsmart.power_auth) {
-      content += "NOT authorised for HVBAT usage</h4>";
+      content += "NOT authorised</h4>";
     } else {
-      content += "Authorised for HVBAT usage OK</h4>";
+      content += "Authorised OK</h4>";
     }
 
     content += "<h4>Charging status: ";
@@ -240,41 +210,49 @@ class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
     }
     content += "</h4>";
 
+    if ((datalayer_extended.stellantisCMPsmart.alert_frame3 > 0) ||
+        (datalayer_extended.stellantisCMPsmart.alert_frame4 > 0)) {
+      content += "<h4>ALERT!!! ";
+    }
     if (datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b001) {
-      content += "<h4>ALERT! Cell Undervoltage</h4>";
+      content += "Cell Undervoltage ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b010) >> 1) {
-      content += "<h4>ALERT! Cell Overvoltage</h4>";
+      content += "Cell Overvoltage ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b100) >> 1) {
-      content += "<h4>ALERT! High SOC</h4>";
+      content += "High SOC ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b1000) >> 1) {
-      content += "<h4>ALERT! Low SOC</h4>";
+      content += "Low SOC ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b10000) >> 1) {
-      content += "<h4>ALERT! Overvoltage</h4>";
+      content += "Overvoltage ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b100000) >> 1) {
-      content += "<h4>ALERT! High temperature</h4>";
+      content += "High temperature ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b01000000) >> 1) {
-      content += "<h4>ALERT! Temperature Delta</h4>";
+      content += "Temperature Delta ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b10000000) >> 1) {
-      content += "<h4>ALERT! Battery</h4>";
+      content += "Battery ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame4 & 0b10000) >> 1) {
-      content += "<h4>ALERT! Contactor Opening</h4>";
+      content += "Contactor Opening ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame4 & 0b100000) >> 1) {
-      content += "<h4>ALERT! Overcharge</h4>";
+      content += "Overcharge ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame4 & 0b01000000) >> 1) {
-      content += "<h4>ALERT! Cell poor consistency</h4>";
+      content += "Cell poor consistency ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame4 & 0b10000000) >> 1) {
-      content += "<h4>ALERT! SOC jump</h4>";
+      content += "SOC jump";
+    }
+    if ((datalayer_extended.stellantisCMPsmart.alert_frame3 > 0) ||
+        (datalayer_extended.stellantisCMPsmart.alert_frame4 > 0)) {
+      content += "</h4>";
     }
 
     content += "<h4>RCD line active: ";

@@ -269,8 +269,6 @@ struct DATALAYER_INFO_CMPSMART {
   uint8_t battery_negative_contactor_state = 0;
   uint8_t battery_precharge_contactor_state = 0;
   uint8_t battery_positive_contactor_state = 0;
-  uint8_t qc_negative_contactor_status = 0;
-  uint8_t qc_positive_contactor_status = 0;
   uint8_t battery_state = 0;
   uint8_t eplug_status = 0;
   uint8_t HVIL_status = 0;

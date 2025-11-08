@@ -50,8 +50,6 @@ void CmpSmartCarBattery::update_values() {
   datalayer_extended.stellantisCMPsmart.battery_negative_contactor_state = battery_negative_contactor_state;
   datalayer_extended.stellantisCMPsmart.battery_precharge_contactor_state = battery_precharge_contactor_state;
   datalayer_extended.stellantisCMPsmart.battery_positive_contactor_state = battery_positive_contactor_state;
-  datalayer_extended.stellantisCMPsmart.qc_negative_contactor_status = qc_negative_contactor_status;
-  datalayer_extended.stellantisCMPsmart.qc_positive_contactor_status = qc_positive_contactor_status;
   datalayer_extended.stellantisCMPsmart.battery_balancing_active = battery_balancing_active;
   datalayer_extended.stellantisCMPsmart.eplug_status = eplug_status;
   datalayer_extended.stellantisCMPsmart.HVIL_status = HVIL_status;
@@ -205,8 +203,8 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       regen_charge_10s_current = (((rx_frame.data.u8[0] & 0x3F) << 1) | (rx_frame.data.u8[1] >> 1));  //*0.1a
       regen_charge_10s_power = ((rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[3] >> 4));             //*0.1kW
       quick_charge_port_voltage = ((rx_frame.data.u8[4] << 4) | (rx_frame.data.u8[5] >> 4));          //*0.1kW
-      qc_negative_contactor_status = rx_frame.data.u8[6] & 0x03;
-      qc_positive_contactor_status = (rx_frame.data.u8[6] & 0x0C) >> 2;
+      //qc_negative_contactor_status = rx_frame.data.u8[6] & 0x03;
+      //qc_positive_contactor_status = (rx_frame.data.u8[6] & 0x0C) >> 2;
       //counter_2A5 = (rx_frame.data.u8[7] & 0x0F);
       break;
     case 0x325:  //100ms

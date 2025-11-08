@@ -162,8 +162,8 @@ class CmpSmartCarBattery : public CanBattery {
   uint8_t startup_increment = 0;
   uint8_t active_DTC_code = 0;
   uint8_t battery_quickcharge_connect_status = 0;
-  uint8_t qc_negative_contactor_status = 0;
-  uint8_t qc_positive_contactor_status = 0;
+  //uint8_t qc_negative_contactor_status = 0;
+  //uint8_t qc_positive_contactor_status = 0;
   uint8_t eplug_status = 0;
   uint8_t ev_warning = 0;
   uint8_t battery_state = 0;
