@@ -255,7 +255,7 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             //21,11,3A,09,14,3A,09,0D,
           }
           if (requested_poll == GROUP6_BALANCING) {
-          //(62934.118) RX0 7BB [8] 21 00 00 00 00 00 00 00
+            //(62934.118) RX0 7BB [8] 21 00 00 00 00 00 00 00
             datalayer_battery->status.cell_balancing_status[32] = (rx_frame.data.u8[1] & 0x80) >> 7;
             datalayer_battery->status.cell_balancing_status[33] = (rx_frame.data.u8[1] & 0x40) >> 6;
             datalayer_battery->status.cell_balancing_status[34] = (rx_frame.data.u8[1] & 0x20) >> 5;
@@ -317,9 +317,9 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             datalayer_battery->status.cell_balancing_status[84] = (rx_frame.data.u8[7] & 0x08) >> 3;
             datalayer_battery->status.cell_balancing_status[85] = (rx_frame.data.u8[7] & 0x04) >> 2;
             datalayer_battery->status.cell_balancing_status[86] = (rx_frame.data.u8[7] & 0x02) >> 1;
-            datalayer_battery->status.cell_balancing_status[87] = (rx_frame.data.u8[7] & 0x01);            
+            datalayer_battery->status.cell_balancing_status[87] = (rx_frame.data.u8[7] & 0x01);
           }
-  
+
           break;
         case 0x22:  //Second datarow in PID group
           if ((requested_poll == GROUP1_CELLVOLTAGES_1_POLL) && (looping_over_20 == false)) {
@@ -353,7 +353,7 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             //22,3A,08,F6,3B,08,EE,3B,
           }
           if (requested_poll == GROUP6_BALANCING) {
-          //(62934.128) RX0 7BB [8] 22 00 00 00 00 00 00 00
+            //(62934.128) RX0 7BB [8] 22 00 00 00 00 00 00 00
             datalayer_battery->status.cell_balancing_status[88] = (rx_frame.data.u8[1] & 0x80) >> 7;
             datalayer_battery->status.cell_balancing_status[89] = (rx_frame.data.u8[1] & 0x40) >> 6;
             datalayer_battery->status.cell_balancing_status[90] = (rx_frame.data.u8[1] & 0x20) >> 5;
@@ -361,7 +361,7 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             datalayer_battery->status.cell_balancing_status[92] = (rx_frame.data.u8[1] & 0x08) >> 3;
             datalayer_battery->status.cell_balancing_status[93] = (rx_frame.data.u8[1] & 0x04) >> 2;
             datalayer_battery->status.cell_balancing_status[94] = (rx_frame.data.u8[1] & 0x02) >> 1;
-            datalayer_battery->status.cell_balancing_status[95] = (rx_frame.data.u8[1] & 0x01);           
+            datalayer_battery->status.cell_balancing_status[95] = (rx_frame.data.u8[1] & 0x01);
           }
           break;
         case 0x23:  //Third datarow in PID group
