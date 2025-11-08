@@ -122,6 +122,10 @@ class Esp32Hal {
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_NC; }
 
+  // A second MCP2517 if present (SCK/SDI/SDO shared with first)
+  virtual gpio_num_t MCP2517_2_CS() { return GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_2_INT() { return GPIO_NUM_NC; }
+
   // CHAdeMO support pin dependencies
   virtual gpio_num_t CHADEMO_PIN_2() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_PIN_10() { return GPIO_NUM_NC; }

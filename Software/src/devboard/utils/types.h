@@ -18,6 +18,7 @@ enum class comm_interface {
   CanFdNative = 4,
   CanAddonMcp2515 = 5,
   CanFdAddonMcp2518 = 6,
+  CanFdAddonMcp2518_2 = 7,
   Highest
 };
 
@@ -63,13 +64,16 @@ enum CAN_Interface {
   CAN_NATIVE = 0,
 
   // Native CANFD port on the Stark CMR hardware
-  CANFD_NATIVE = 1,
+  //CANFD_NATIVE = 1,
 
   // Add-on CAN MCP2515 connected to GPIO pins
   CAN_ADDON_MCP2515 = 2,
 
   // Add-on CAN-FD MCP2518 connected to GPIO pins
   CANFD_ADDON_MCP2518 = 3,
+
+  // Second add-on CAN-FD MCP2518 sharing SPI with first
+  CANFD_ADDON_MCP2518_2 = 5,
 
   // No CAN interface
   NO_CAN_INTERFACE = 4

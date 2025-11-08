@@ -744,19 +744,25 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   switch (interface) {
     case CAN_NATIVE:
       return "CAN";
-    case CANFD_NATIVE:
-      if (use_canfd_as_can) {
-        return "CAN-FD Native (Classic CAN)";
-      } else {
-        return "CAN-FD Native";
-      }
+    // case CANFD_NATIVE:
+    //   if (use_canfd_as_can) {
+    //     return "CAN-FD Native (Classic CAN)";
+    //   } else {
+    //     return "CAN-FD Native";
+    //   }
     case CAN_ADDON_MCP2515:
       return "Add-on CAN via GPIO MCP2515";
     case CANFD_ADDON_MCP2518:
       if (use_canfd_as_can) {
-        return "Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
+        return "FIXME Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
       } else {
-        return "Add-on CAN-FD via GPIO MCP2518";
+        return "FIXME Add-on CAN-FD via GPIO MCP2518";
+      }
+    case CANFD_ADDON_MCP2518_2:
+      if (use_canfd_as_can) {
+        return "FIXME Add-on CAN-FD 2 via GPIO MCP2518 (Classic CAN)";
+      } else {
+        return "FIXME Add-on CAN-FD 2 via GPIO MCP2518";
       }
     default:
       return "UNKNOWN";
