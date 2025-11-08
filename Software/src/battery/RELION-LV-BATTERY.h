@@ -15,7 +15,8 @@ class RelionBattery : public CanBattery {
   static constexpr const char* Name = "Relion LV protocol via 250kbps CAN";
 
  private:
-  uint16_t estimateSOC(uint16_t pack_total_vol);
+  uint16_t estimateSOC();
+  uint16_t estimateSOCfromCellvoltage(uint16_t cellVoltage);
 
   static const int MAX_PACK_VOLTAGE_DV = 584;  //58.4V recommended charge voltage. BMS protection steps in at 60.8V
   static const int MIN_PACK_VOLTAGE_DV = 440;  //44.0V Recommended LV disconnect. BMS protection steps in at 40.0V
@@ -37,14 +38,24 @@ class RelionBattery : public CanBattery {
                              1000,  900,  800,  700,  600,  500,  400,  300,  200,  100,  0};
   // Define the data points for %SOC depending on cell voltage
   const uint8_t numPoints = 100;
-  const uint16_t voltage[101] = {
-      5760, 5750, 5740, 5730, 5720, 5710, 5700, 5690, 5680, 5670, 5660, 5650, 5640, 5630, 5620, 5610, 5600,
-      5590, 5580, 5570, 5560, 5550, 5540, 5530, 5520, 5510, 5500, 5490, 5480, 5470, 5460, 5450, 5440, 5430,
-      5420, 5410, 5400, 5390, 5380, 5370, 5360, 5350, 5340, 5330, 5320, 5310, 5300, 5290, 5280, 5270, 5260,
-      5250, 5240, 5230, 5220, 5210, 5200, 5190, 5180, 5170, 5160, 5150, 5140, 5130, 5120, 5110, 5100, 5090,
-      5080, 5070, 5060, 5050, 5040, 5030, 5020, 5010, 5000, 4990, 4980, 4970, 4960, 4950, 4940, 4930, 4920,
-      4910, 4900, 4890, 4880, 4870, 4860, 4850, 4840, 4830, 4820, 4810, 4800, 4790, 4780, 4770, 4500};
-
+  // LFP cell voltage lookup table (2900mV - 3600mV) with flat middle section at 3.1V-3.3V
+  const uint16_t cellVoltageLookup[101] = {
+      3600, 3570, 3540, 3510, 3490, 3470, 3450, 3430, 3410, 3390,  // 100%-91% - Steep drop from full
+      3370, 3350, 3330, 3320, 3315, 3310, 3305, 3300, 3295, 3290,  // 90%-81% - Transition to flat zone
+      // Flat region - typical LFP working range (80%-20%) - 3.3V to 3.1V
+      3285, 3280, 3275, 3270, 3265, 3260, 3255, 3250, 3245, 3240,  // 80%-71%
+      3235, 3230, 3225, 3220, 3215, 3210, 3205, 3200, 3195, 3190,  // 70%-61%
+      3185, 3180, 3175, 3170, 3165, 3160, 3155, 3150, 3145, 3140,  // 60%-51%
+      3135, 3130, 3125, 3120, 3115, 3110, 3105, 3100, 3095, 3090,  // 50%-41%
+      3085, 3080, 3075, 3070, 3065, 3060, 3055, 3050, 3045, 3040,  // 40%-31%
+      3035, 3030, 3025, 3020, 3015, 3010, 3005, 3000, 2995, 2990,  // 30%-21%
+      // End of flat region, steep drop to empty
+      2980, 2960, 2940, 2920, 2910, 2905, 2902, 2901, 2900, 2890,  // 20%-11%
+      2880, 2870, 2860, 2850, 2840, 2830, 2820, 2810, 2805, 2803,  // 10%-1%
+      2800                                                         // 0%
+  };
+  uint16_t SOC_from_max_cell_voltage = 0;
+  uint16_t SOC_from_min_cell_voltage = 0;
   uint16_t battery_total_voltage = 500;
   int16_t battery_total_current = 0;
   uint8_t system_state = 0;

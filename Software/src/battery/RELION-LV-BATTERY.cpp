@@ -8,18 +8,11 @@ BPS:250kbps
 Data Length: 8
 Data Encoded Format:Motorola*/
 
-uint16_t RelionBattery::estimateSOC(uint16_t pack_total_vol) {
-  if (pack_total_vol >= voltage[0]) {
-    return SOC[0];
-  }
-  if (pack_total_vol <= voltage[numPoints - 1]) {
-    return SOC[numPoints - 1];
-  }
-
+uint16_t RelionBattery::estimateSOCfromCellvoltage(uint16_t cellVoltage) {
   for (int i = 1; i < numPoints; ++i) {
-    if (pack_total_vol >= voltage[i]) {
+    if (cellVoltage >= cellVoltageLookup[i]) {
       // Cast to float for proper division
-      float t = (float)(pack_total_vol - voltage[i]) / (float)(voltage[i - 1] - voltage[i]);
+      float t = (float)(cellVoltage - cellVoltageLookup[i]) / (float)(cellVoltageLookup[i - 1] - cellVoltageLookup[i]);
 
       // Calculate interpolated SOC value
       uint16_t socDiff = SOC[i - 1] - SOC[i];
@@ -31,11 +24,45 @@ uint16_t RelionBattery::estimateSOC(uint16_t pack_total_vol) {
   return 0;  // Default return for safety, should never reach here
 }
 
+uint16_t RelionBattery::estimateSOC() {
+
+  if (max_cell_voltage >= cellVoltageLookup[0]) {
+    return 10000;  //One cell is in overvoltage, report 100.00% SOC
+  }
+
+  if (user_selected_max_cell_voltage_mV > 0) {  //If value configured by user
+    if (max_cell_voltage >= user_selected_max_cell_voltage_mV) {
+      return 10000;  //One cell is in overvoltage from user specified limit, report 100.00% SOC
+    }
+  }
+
+  if (min_cell_voltage <= cellVoltageLookup[numPoints - 1]) {
+    return 0;  //Cell overvoltage, report 0% SOC
+  }
+
+  if (user_selected_min_cell_voltage_mV > 0) {  //If value configured  by user
+    if (min_cell_voltage <= user_selected_min_cell_voltage_mV) {
+      return 0;  //Cell overvoltage from user specified limit, report 0% SOC
+    }
+  }
+
+  SOC_from_max_cell_voltage = estimateSOCfromCellvoltage(max_cell_voltage);
+  SOC_from_min_cell_voltage = estimateSOCfromCellvoltage(min_cell_voltage);
+
+  if (max_cell_voltage > 3380) {  // We are in the higher end of SOC, use SOC% based on highest cell reading
+    return SOC_from_max_cell_voltage;
+  } else {  //We are in the lower end of SOC, use SOC% based on lowest cell reading
+    return SOC_from_min_cell_voltage;
+  }
+
+  return 0;  // Default return for safety, should never reach here
+}
+
 void RelionBattery::update_values() {
 
   if (user_selected_use_estimated_SOC) {
     // Use the simplified pack-based SOC estimation with proper compensation
-    datalayer.battery.status.real_soc = estimateSOC(battery_total_voltage * 10);
+    datalayer.battery.status.real_soc = estimateSOC();
   } else {
     datalayer.battery.status.real_soc = battery_soc * 100;
   }
@@ -198,9 +225,28 @@ void RelionBattery::setup(void) {  // Performs one time setup at startup
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.chemistry = LFP;
   datalayer.battery.info.number_of_cells = 16;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  if (user_selected_max_pack_voltage_dV > 0) {
+    datalayer.battery.info.max_design_voltage_dV = user_selected_max_pack_voltage_dV;
+  } else {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  }
+
+  if (user_selected_min_pack_voltage_dV > 0) {
+    datalayer.battery.info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
+  } else {
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  }
+
+  if (user_selected_max_cell_voltage_mV > 0) {
+    datalayer.battery.info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
+  } else {
+    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  }
+
+  if (user_selected_min_cell_voltage_mV > 0) {
+    datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
+  } else {
+    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  }
   datalayer.system.status.battery_allows_contactor_closing = true;
 }

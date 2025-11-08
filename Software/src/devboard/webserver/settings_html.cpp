@@ -928,7 +928,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-shunt="0"] .if-shunt { display: none; }
 
     form .if-cbms { display: none; }
-    form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms {
+    form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms, form[data-battery="41"] .if-cbms {
       display: contents;
     }
 
@@ -998,7 +998,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     }
 
     form .if-pylonish { display: none; }
-    form[data-inverter="4"] .if-pylonish, form[data-inverter="10"] .if-pylonish, form[data-inverter="19"] .if-pylonish {
+    form[data-inverter="4"] .if-pylonish, 
+    form[data-inverter="10"] .if-pylonish, 
+    form[data-inverter="19"] .if-pylonish {
       display: contents;
     }
 
