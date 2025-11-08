@@ -284,21 +284,11 @@ struct DATALAYER_INFO_CMPSMART {
   uint8_t battery_fault = 0;
   uint8_t hvbat_wakeup_state = 0;
   uint8_t active_DTC_code = 0;
+  uint8_t alert_frame3 = 0;
+  uint8_t alert_frame4 = 0;
   bool rcd_line_active = false;
   bool power_auth = false;
   bool battery_balancing_active = false;
-  bool alert_cell_undervoltage = false;
-  bool alert_battery = false;
-  bool alert_cell_overvoltage = false;
-  bool alert_high_SOC = false;
-  bool alert_high_temperature = false;
-  bool alert_low_SOC = false;
-  bool alert_overvoltage = false;
-  bool alert_temperature_delta = false;
-  bool alert_cell_poor_consistency = false;
-  bool alert_overcharge = false;
-  bool alert_SOC_jump = false;
-  bool alert_contactor_opening = false;
   bool UserRequestDTCreset = false; /** User requesting DTC reset via WebUI*/
 };
 

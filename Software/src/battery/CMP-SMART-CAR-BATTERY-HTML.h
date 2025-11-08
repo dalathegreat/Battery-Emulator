@@ -240,77 +240,41 @@ class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
     }
     content += "</h4>";
 
-    content += "<h4>Alert, cell undervoltage: ";
-    if (datalayer_extended.stellantisCMPsmart.alert_cell_undervoltage) {
-      content += "Yes </h4>";
-    } else {
-      content += "No </h4>";
+    if (datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b001) {
+      content += "<h4>ALERT! Cell Undervoltage</h4>";
     }
-    content += "<h4>Alert, cell overvoltage: ";
-    if (datalayer_extended.stellantisCMPsmart.alert_cell_overvoltage) {
-      content += "Yes </h4>";
-    } else {
-      content += "No </h4>";
+    if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b010) >> 1) {
+      content += "<h4>ALERT! Cell Overvoltage</h4>";
     }
-    content += "<h4>Alert, high SOC: ";
-    if (datalayer_extended.stellantisCMPsmart.alert_high_SOC) {
-      content += "Yes </h4>";
-    } else {
-      content += "No </h4>";
+    if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b100) >> 1) {
+      content += "<h4>ALERT! High SOC</h4>";
     }
-    content += "<h4>Alert, low SOC: ";
-    if (datalayer_extended.stellantisCMPsmart.alert_low_SOC) {
-      content += "Yes </h4>";
-    } else {
-      content += "No </h4>";
+    if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b1000) >> 1) {
+      content += "<h4>ALERT! Low SOC</h4>";
     }
-    content += "<h4>Alert, overvoltage: ";
-    if (datalayer_extended.stellantisCMPsmart.alert_overvoltage) {
-      content += "Yes </h4>";
-    } else {
-      content += "No </h4>";
+    if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b10000) >> 1) {
+      content += "<h4>ALERT! Overvoltage</h4>";
     }
-    content += "<h4>Alert, overtemperature: ";
-    if (datalayer_extended.stellantisCMPsmart.alert_high_temperature) {
-      content += "Yes </h4>";
-    } else {
-      content += "No </h4>";
+    if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b100000) >> 1) {
+      content += "<h4>ALERT! High temperature</h4>";
     }
-    content += "<h4>Alert, temperature delta: ";
-    if (datalayer_extended.stellantisCMPsmart.alert_temperature_delta) {
-      content += "Yes </h4>";
-    } else {
-      content += "No </h4>";
+    if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b01000000) >> 1) {
+      content += "<h4>ALERT! Temperature Delta</h4>";
     }
-    content += "<h4>Alert, battery: ";
-    if (datalayer_extended.stellantisCMPsmart.alert_battery) {
-      content += "Yes </h4>";
-    } else {
-      content += "No </h4>";
+    if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b10000000) >> 1) {
+      content += "<h4>ALERT! Battery</h4>";
     }
-    content += "<h4>Alert, SOC jump: ";
-    if (datalayer_extended.stellantisCMPsmart.alert_SOC_jump) {
-      content += "Yes </h4>";
-    } else {
-      content += "No </h4>";
+    if ((datalayer_extended.stellantisCMPsmart.alert_frame4 & 0b10000) >> 1) {
+      content += "<h4>ALERT! Contactor Opening</h4>";
     }
-    content += "<h4>Alert, poor cell consistency: ";
-    if (datalayer_extended.stellantisCMPsmart.alert_cell_poor_consistency) {
-      content += "Yes </h4>";
-    } else {
-      content += "No </h4>";
+    if ((datalayer_extended.stellantisCMPsmart.alert_frame4 & 0b100000) >> 1) {
+      content += "<h4>ALERT! Overcharge</h4>";
     }
-    content += "<h4>Alert, overcharge: ";
-    if (datalayer_extended.stellantisCMPsmart.alert_overcharge) {
-      content += "Yes </h4>";
-    } else {
-      content += "No </h4>";
+    if ((datalayer_extended.stellantisCMPsmart.alert_frame4 & 0b01000000) >> 1) {
+      content += "<h4>ALERT! Cell poor consistency</h4>";
     }
-    content += "<h4>Alert, contactor opening: ";
-    if (datalayer_extended.stellantisCMPsmart.alert_contactor_opening) {
-      content += "Yes </h4>";
-    } else {
-      content += "No </h4>";
+    if ((datalayer_extended.stellantisCMPsmart.alert_frame4 & 0b10000000) >> 1) {
+      content += "<h4>ALERT! SOC jump</h4>";
     }
 
     content += "<h4>RCD line active: ";
