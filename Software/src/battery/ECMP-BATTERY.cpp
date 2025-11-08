@@ -259,7 +259,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                        ((rx_frame.data.u8[6] & 0xF0) >> 4);                         // (Wh, 0-200000)
       HV_BATT_SOE_MAX = ((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[7];  // (Wh, 0-200000)
       CHECKSUM_FRAME_3B4 = (rx_frame.data.u8[0] & 0xF0) >> 4;
-      COUNTER_3B4 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_3B4 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x2F4:  //MysteryVan 50/75kWh platform (Event triggered when charging)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -297,7 +297,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                 ((rx_frame.data.u8[6] & 0xC0) >> 6);  // -1000000 - 0 W
       MAX_ALLOW_CHRG_CURRENT = ((rx_frame.data.u8[6] & 0x3F) << 8) | rx_frame.data.u8[7];
       CHECKSUM_FRAME_554 = (rx_frame.data.u8[0] & 0xF0) >> 4;  //Frame checksum 0xE
-      COUNTER_554 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_554 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x373:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -316,7 +316,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       HV_BATT_REAL_VOLT_HD = ((rx_frame.data.u8[3] & 0x3F) << 8) | (rx_frame.data.u8[4]);  //V 0-1000 * 0.1  scaling
       HV_BATT_REAL_CURR_HD = (rx_frame.data.u8[1] << 8) | (rx_frame.data.u8[2]);           //A	-2000 -	2000	0.1 scaling
       CHECKSUM_FRAME_373 = (rx_frame.data.u8[0] & 0xF0) >> 4;                              //Frame checksum 0xD
-      COUNTER_373 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_373 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x4F4:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -334,7 +334,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           (rx_frame.data.u8[2] & 0x30) >> 4;  //00 : contactor open 01 : pre-load contactor 10 : contactor close
       HV_BATT_DISCONT_WARNING_OPEN = (rx_frame.data.u8[7] & 0x08) >> 3;
       CHECKSUM_FRAME_4F4 = (rx_frame.data.u8[0] & 0xF0) >> 4;
-      COUNTER_4F4 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_4F4 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x414:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -344,7 +344,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       MAX_ALLOW_DISCHRG_POWER =
           ((rx_frame.data.u8[5] & 0x07) << 11) | (rx_frame.data.u8[6] << 3) | ((rx_frame.data.u8[7] & 0xE0) >> 5);
       CHECKSUM_FRAME_414 = (rx_frame.data.u8[0] & 0xF0) >> 4;  //Frame checksum 0x9
-      COUNTER_414 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_414 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x353:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -353,7 +353,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       HV_BATT_COP_CURRENT =
           (rx_frame.data.u8[3] << 5) | (rx_frame.data.u8[4] >> 3);  //High resolution battery current (dA, -4000 - 4000)
       CHECKSUM_FRAME_353 = (rx_frame.data.u8[0] & 0xF0) >> 4;       //Frame checksum 0xB
-      COUNTER_353 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_353 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x474:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -369,7 +369,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         10 : charging fault
         11 : charging finished*/
       CHECKSUM_FRAME_474 = (rx_frame.data.u8[0] & 0xF0) >> 4;  //Frame checksum 0xF
-      COUNTER_474 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_474 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x574:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -421,7 +421,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //TBMU_CHRG_CONN_CONF //Fastcharger info, not needed for BE
       //EVSE_GRID_FAULT //Fastcharger info, not needed for BE
       CHECKSUM_FRAME_314 = (rx_frame.data.u8[0] & 0xF0) >> 4;  //Frame checksum 0x8
-      COUNTER_314 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_314 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x254:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -446,7 +446,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       MAX_ALLOW_DISCHRG_CURRENT = ((rx_frame.data.u8[6] & 0x3F) << 5) | (rx_frame.data.u8[7] >> 3);
       RC01_PERM_SYNTH_TBMU = (rx_frame.data.u8[7] & 0x04) >> 2;  //TBMU Readiness Code synthesis
       CHECKSUM_FRAME_4D4 = (rx_frame.data.u8[0] & 0xF0) >> 4;    //Frame checksum 0x5
-      COUNTER_4D4 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_4D4 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x125:  //Common eCMP
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
