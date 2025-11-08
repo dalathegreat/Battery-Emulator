@@ -3,6 +3,9 @@
 #include "CanBattery.h"
 #include "ECMP-HTML.h"
 
+//#define SIMULATE_ENTIRE_VEHICLE_ECMP
+//Enable this to simulate the whole car (useful for when using external diagnostic tools)
+
 class EcmpBattery : public CanBattery {
  public:
   virtual void setup(void);
@@ -42,13 +45,6 @@ class EcmpBattery : public CanBattery {
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
   unsigned long previousMillis5000 = 0;  // will store last time a 1000ms CAN Message was sent
   CAN_frame ECMP_010 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x010, .data = {0xB4}};  //VCU_BCM_Crash 100ms
-  static constexpr CAN_frame ECMP_041 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x041, .data = {0x00}};
-  static constexpr CAN_frame ECMP_0A6 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 2,
-      .ID = 0x0A6,
-      .data = {0x02, 0x00}};          //Content changes after 12minutes of runtime (not emulated)
   CAN_frame ECMP_0F0 = {.FD = false,  //VCU2_0F0 (Common) 20ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,
                         .DLC = 8,
@@ -59,11 +55,7 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x0F2,
                         .data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x60, 0x0D}};
-  static constexpr CAN_frame ECMP_0AE = {.FD = false,
-                                         .ext_ID = false,
-                                         .DLC = 5,
-                                         .ID = 0x0AE,
-                                         .data = {0x04, 0x77, 0x7A, 0x5E, 0xDF}};
+
   CAN_frame ECMP_110 = {.FD = false,      //??? 10ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  // NOTE. Changes on BMS state
                         .DLC = 8,
@@ -105,16 +97,6 @@ class EcmpBattery : public CanBattery {
       .DLC = 8,         //Contains SEV main state, position of the BSI shunt park, ACC status
       .ID = 0x27A,      // electric network state, powetrain status, Wakeups, diagmux, APC activation
       .data = {0x4F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_31E = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
-                        .ext_ID = false,  // NOTE. Changes on BMS state
-                        .DLC = 8,
-                        .ID = 0x31E,
-                        .data = {0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08}};
-  CAN_frame ECMP_31D = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
-                        .ext_ID = false,  //Same content always, fully static
-                        .DLC = 8,
-                        .ID = 0x31D,
-                        .data = {0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x42}};
   CAN_frame ECMP_3D0 = {.FD = false,      //Not in logs, but makes speed go to 0km/h in diag tool when we send this
                         .ext_ID = false,  //Only sent in idle state
                         .DLC = 8,
@@ -125,22 +107,6 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x345,
                         .data = {0x45, 0x57, 0x00, 0x04, 0x00, 0x00, 0x06, 0x31}};
-  CAN_frame ECMP_351 = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
-                        .ext_ID = false,  // NOTE. Changes on BMS state
-                        .DLC = 8,
-                        .ID = 0x351,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x0E}};
-  CAN_frame ECMP_372 = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
-                        .ext_ID = false,  // NOTE. Changes on BMS state
-                        .DLC = 8,
-                        .ID = 0x372,
-                        .data = {0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  // NOTE. Changes on BMS state
-  static constexpr CAN_frame ECMP_37F = {
-      .FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
-      .ext_ID = false,  // Seems to be a bunch of temperature measurements? Static for now
-      .DLC = 8,
-      .ID = 0x37F,
-      .data = {0x45, 0x49, 0x51, 0x45, 0x45, 0x00, 0x45, 0x45}};
   static constexpr CAN_frame ECMP_382 = {
       //BSIInfo_382 (VCU) PSA specific 100ms periodic (Perfectly emulated in Battery-Emulator)
       .FD = false,  //Same content always, fully static
@@ -148,11 +114,6 @@ class EcmpBattery : public CanBattery {
       .DLC = 8,
       .ID = 0x382,  //Frame1 has rollerbenchmode request, frame2 has generic powertrain cycle sync status
       .data = {0x02, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_383 = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
-                        .ext_ID = false,  // NOTE. Changes on BMS state
-                        .DLC = 8,
-                        .ID = 0x383,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame ECMP_3A2 = {.FD = false,      //OBC2_3A2 100ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  // NOTE. Changes on BMS state
                         .DLC = 8,
@@ -168,36 +129,13 @@ class EcmpBattery : public CanBattery {
                                          .DLC = 8,
                                          .ID = 0x439,
                                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_486 = {.FD = false,      //??? 1s periodic (Perfectly emulated in Battery-Emulator)
-                        .ext_ID = false,  // NOTE. Changes on BMS state
-                        .DLC = 8,
-                        .ID = 0x486,
-                        .data = {0x80, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+
   CAN_frame ECMP_552 = {.FD = false,  //VCU_552 1s periodic (Perfectly handled in Battery-Emulator)
                         .ext_ID = false,
                         .DLC = 8,     //552 seems to be tracking time in byte 0-3
                         .ID = 0x552,  // distance in km in byte 4-6, temporal reset counter in byte 7
                         .data = {0x00, 0x02, 0x95, 0x6D, 0x00, 0xD7, 0xB5, 0xFE}};
-  static constexpr CAN_frame ECMP_55F = {.FD = false,      //5s periodic (Perfectly emulated in Battery-Emulator)
-                                         .ext_ID = false,  //Same content always, fully static
-                                         .DLC = 1,
-                                         .ID = 0x55F,
-                                         .data = {0x82}};
-  static constexpr CAN_frame ECMP_591 = {.FD = false,      //1s periodic
-                                         .ext_ID = false,  //Always static in HV mode
-                                         .DLC = 8,
-                                         .ID = 0x591,
-                                         .data = {0x38, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-  static constexpr CAN_frame ECMP_786 = {.FD = false,      //1s periodic
-                                         .ext_ID = false,  //Always static in HV mode
-                                         .DLC = 8,
-                                         .ID = 0x786,
-                                         .data = {0x38, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-  CAN_frame ECMP_794 = {.FD = false,  //Unsure who sends this. Could it be BMU?
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x794,
-                        .data = {0xB8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  // NOTE. Changes on BMS state
+
   CAN_frame ECMP_POLL = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x6B4, .data = {0x03, 0x22, 0xD8, 0x66}};
   static constexpr CAN_frame ECMP_ACK = {.FD = false,  //Ack frame
                                          .ext_ID = false,
@@ -260,6 +198,77 @@ class EcmpBattery : public CanBattery {
                                                  .DLC = 3,
                                                  .ID = 0x6B4,
                                                  .data = {0x02, 0x3E, 0x00}};
+
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
+  static constexpr CAN_frame ECMP_0AE = {.FD = false,
+                                         .ext_ID = false,
+                                         .DLC = 5,
+                                         .ID = 0x0AE,
+                                         .data = {0x04, 0x77, 0x7A, 0x5E, 0xDF}};
+  static constexpr CAN_frame ECMP_041 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x041, .data = {0x00}};
+  CAN_frame ECMP_486 = {.FD = false,      //??? 1s periodic (Perfectly emulated in Battery-Emulator)
+                        .ext_ID = false,  // NOTE. Changes on BMS state
+                        .DLC = 8,
+                        .ID = 0x486,
+                        .data = {0x80, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+  static constexpr CAN_frame ECMP_786 = {.FD = false,      //1s periodic
+                                         .ext_ID = false,  //Always static in HV mode
+                                         .DLC = 8,
+                                         .ID = 0x786,
+                                         .data = {0x38, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+  static constexpr CAN_frame ECMP_591 = {.FD = false,      //1s periodic
+                                         .ext_ID = false,  //Always static in HV mode
+                                         .DLC = 8,
+                                         .ID = 0x591,
+                                         .data = {0x38, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+  CAN_frame ECMP_794 = {.FD = false,  //Unsure who sends this. Could it be BMU?
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x794,
+                        .data = {0xB8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  // NOTE. Changes on BMS state
+  static constexpr CAN_frame ECMP_55F = {.FD = false,      //5s periodic (Perfectly emulated in Battery-Emulator)
+                                         .ext_ID = false,  //Same content always, fully static
+                                         .DLC = 1,
+                                         .ID = 0x55F,
+                                         .data = {0x82}};
+  CAN_frame ECMP_31D = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
+                        .ext_ID = false,  //Same content always, fully static
+                        .DLC = 8,
+                        .ID = 0x31D,
+                        .data = {0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x42}};
+  CAN_frame ECMP_351 = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
+                        .ext_ID = false,  // NOTE. Changes on BMS state
+                        .DLC = 8,
+                        .ID = 0x351,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x0E}};
+  CAN_frame ECMP_372 = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
+                        .ext_ID = false,  // NOTE. Changes on BMS state
+                        .DLC = 8,
+                        .ID = 0x372,
+                        .data = {0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  // NOTE. Changes on BMS state
+  static constexpr CAN_frame ECMP_37F = {
+      .FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
+      .ext_ID = false,  // Seems to be a bunch of temperature measurements? Static for now
+      .DLC = 8,
+      .ID = 0x37F,
+      .data = {0x45, 0x49, 0x51, 0x45, 0x45, 0x00, 0x45, 0x45}};
+  static constexpr CAN_frame ECMP_0A6 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 2,
+      .ID = 0x0A6,
+      .data = {0x02, 0x00}};              //Content changes after 12minutes of runtime (not emulated)
+  CAN_frame ECMP_383 = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
+                        .ext_ID = false,  // NOTE. Changes on BMS state
+                        .DLC = 8,
+                        .ID = 0x383,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_31E = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
+                        .ext_ID = false,  // NOTE. Changes on BMS state
+                        .DLC = 8,
+                        .ID = 0x31E,
+                        .data = {0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08}};
+#endif
 
   uint32_t ticks_552 = 0x0BC8CFC6;
   uint32_t pid_insulation_res_neg = NOT_SAMPLED_YET;
@@ -486,8 +495,6 @@ class EcmpBattery : public CanBattery {
   bool HV_BATT_COLD_CRANK_ACK = false;
   bool HV_BATT_CHARGE_NEEDED_STATE = false;
   bool RC01_PERM_SYNTH_TBMU = false;
-  bool simulateEntireCar =
-      false;  //Set this to true to simulate the whole car (useful for when using external diagnostic tools)
   bool battery_RelayOpenRequest = false;
   bool battery_InterlockOpen = false;
   bool MysteryVan = false;

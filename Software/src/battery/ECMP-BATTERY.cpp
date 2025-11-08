@@ -1679,11 +1679,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_0C5);  //DC2_0C5
     transmit_can_frame(&ECMP_17B);  //VCU_PCANInfo_17B
     transmit_can_frame(&ECMP_0F2);  //CtrlMCU1_0F2
-    if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_111);
-      transmit_can_frame(&ECMP_110);
-      transmit_can_frame(&ECMP_114);
-    }
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
+    transmit_can_frame(&ECMP_111);
+    transmit_can_frame(&ECMP_110);
+    transmit_can_frame(&ECMP_114);
+#endif
   }
 
   // Send 20ms periodic CAN Message simulating the car still being attached
@@ -1726,11 +1726,13 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     if (datalayer.battery.status.bms_status == FAULT) {
       //Make vehicle appear as in idle HV state. Useful for clearing DTCs
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
       ECMP_31E.data.u8[0] = 0x48;
-      ECMP_345.data = {0x45, 0x57, 0x00, 0x04, 0x00, 0x00, 0x06, 0x31};
       ECMP_351.data = {0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x0E};
       ECMP_372.data = {0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
       ECMP_383.data.u8[0] = 0x00;
+#endif
+      ECMP_345.data = {0x45, 0x57, 0x00, 0x04, 0x00, 0x00, 0x06, 0x31};
       ECMP_3A2.data = {0x03, 0xE8, 0x00, 0x00, 0x81, 0x00, 0x08, 0x02};
       ECMP_3A3.data = {0x4A, 0x4A, 0x40, 0x00, 0x00, 0x08, 0x00, 0x0F};
       data_345_content[0] = 0x04;  // Allows for DTCs to clear
@@ -1768,11 +1770,13 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&ECMP_3D0);  //Not in logs, but makes speed go to 0km/h
     } else {
       //Normal operation for contactor closing
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
       ECMP_31E.data.u8[0] = 0x50;
-      ECMP_345.data = {0x45, 0x52, 0x00, 0x04, 0xDD, 0x00, 0x02, 0x30};
       ECMP_351.data = {0x00, 0x00, 0x00, 0x00, 0x0E, 0xA0, 0x00, 0xE0};
       ECMP_372.data = {0x9A, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
       ECMP_383.data.u8[0] = 0x40;
+#endif
+      ECMP_345.data = {0x45, 0x52, 0x00, 0x04, 0xDD, 0x00, 0x02, 0x30};
       ECMP_3A2.data = {0x01, 0x68, 0x00, 0x00, 0x81, 0x00, 0x08, 0x02};
       ECMP_3A3.data = {0x49, 0x49, 0x40, 0x00, 0xDD, 0x08, 0x00, 0x0F};
       data_345_content[0] = 0x00;  // Allows for contactor closing
@@ -1809,14 +1813,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       data_3A2_CRC[15] = 0xF7;
     }
 
-    ECMP_31E.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31E);
     ECMP_3A2.data.u8[6] = data_3A2_CRC[counter_100ms];
     ECMP_3A3.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_3A3);
     ECMP_010.data.u8[0] = data_010_CRC[counter_010];
     ECMP_345.data.u8[3] = (uint8_t)((data_345_content[counter_100ms] & 0XF0) | 0x4);
     ECMP_345.data.u8[7] = (uint8_t)(0x3 << 4 | (data_345_content[counter_100ms] & 0X0F));
-    ECMP_351.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_351);
-    ECMP_31D.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31D);
     ECMP_3D0.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_3D0);
 
     transmit_can_frame(&ECMP_382);  //PSA Specific VCU (BSIInfo_382)
@@ -1824,36 +1825,29 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_3A2);  //OBC2_3A2
     transmit_can_frame(&ECMP_3A3);  //OBC1_3A3
     transmit_can_frame(&ECMP_010);  //VCU_BCM_Crash
-    if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_31E);
-      transmit_can_frame(&ECMP_383);
-      transmit_can_frame(&ECMP_0A6);  //Not in all logs
-      transmit_can_frame(&ECMP_37F);  //Seems to be temperatures of some sort
-      transmit_can_frame(&ECMP_372);
-      transmit_can_frame(&ECMP_351);
-      transmit_can_frame(&ECMP_31D);
-    }
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
+    ECMP_31E.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31E);
+    ECMP_351.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_351);
+    ECMP_31D.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31D);
+    transmit_can_frame(&ECMP_31E);
+    transmit_can_frame(&ECMP_383);
+    transmit_can_frame(&ECMP_0A6);  //Not in all logs
+    transmit_can_frame(&ECMP_37F);  //Seems to be temperatures of some sort
+    transmit_can_frame(&ECMP_372);
+    transmit_can_frame(&ECMP_351);
+    transmit_can_frame(&ECMP_31D);
+#endif
   }
   // Send 500ms periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
     previousMillis500 = currentMillis;
-    if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_0AE);
-    }
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
+    transmit_can_frame(&ECMP_0AE);
+#endif
   }
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
-
-    if (datalayer.battery.status.bms_status == FAULT) {
-      //Make vehicle appear as in idle HV state. Useful for clearing DTCs
-      ECMP_486.data.u8[0] = 0x80;
-      ECMP_794.data.u8[0] = 0xB8;  //Not sure if needed, could be static?
-    } else {
-      //Normal operation for contactor closing
-      ECMP_486.data.u8[0] = 0x00;
-      ECMP_794.data.u8[0] = 0x38;  //Not sure if needed, could be static?
-    }
 
     //552 seems to be tracking time in byte 0-3 , distance in km in byte 4-6, temporal reset counter in byte 7
     ticks_552 = (ticks_552 + 10);
@@ -1864,20 +1858,29 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_can_frame(&ECMP_439);  //OBC4
     transmit_can_frame(&ECMP_552);  //VCU_552 timetracking
-    if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_486);  //Not in all logs
-      transmit_can_frame(&ECMP_041);  //Not in all logs
-      transmit_can_frame(&ECMP_786);  //Not in all logs
-      transmit_can_frame(&ECMP_591);  //Not in all logs
-      transmit_can_frame(&ECMP_794);  //Not in all logs
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
+    if (datalayer.battery.status.bms_status == FAULT) {
+      //Make vehicle appear as in idle HV state. Useful for clearing DTCs
+      ECMP_486.data.u8[0] = 0x80;
+      ECMP_794.data.u8[0] = 0xB8;  //Not sure if needed, could be static?
+    } else {
+      //Normal operation for contactor closing
+      ECMP_486.data.u8[0] = 0x00;
+      ECMP_794.data.u8[0] = 0x38;  //Not sure if needed, could be static?
     }
+    transmit_can_frame(&ECMP_486);  //Not in all logs
+    transmit_can_frame(&ECMP_041);  //Not in all logs
+    transmit_can_frame(&ECMP_786);  //Not in all logs
+    transmit_can_frame(&ECMP_591);  //Not in all logs
+    transmit_can_frame(&ECMP_794);  //Not in all logs
+#endif
   }
   // Send 5s periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
     previousMillis5000 = currentMillis;
-    if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_55F);
-    }
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
+    transmit_can_frame(&ECMP_55F);
+#endif
   }
 }
 
