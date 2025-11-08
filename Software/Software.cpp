@@ -8,6 +8,7 @@
 
 #include "src/battery/BATTERIES.h"
 #include "src/charger/CHARGERS.h"
+#include "src/communication/IOexpander/comm_IOexpander.h"
 #include "src/communication/Transmitter.h"
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
@@ -566,6 +567,10 @@ void setup() {
   init_rs485();
 
   init_equipment_stop_button();
+
+#ifdef ENABLE_IOEXPANDER
+  init_IO_expander();
+#endif
 
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
