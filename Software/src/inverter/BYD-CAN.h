@@ -10,6 +10,8 @@ class BydCanInverter : public CanInverterProtocol {
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
   void update_values();
+  bool provides_shunt() { return true; }
+  void enable_shunt();
   static constexpr const char* Name = "BYD Battery-Box Premium HVS over CAN Bus";
 
  private:
@@ -17,6 +19,7 @@ class BydCanInverter : public CanInverterProtocol {
   unsigned long previousMillis2s = 0;   // will store last time a 2s CAN Message was send
   unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was send
   unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
+  bool useAsShunt = false;
 
   static const int FW_MAJOR_VERSION = 0x03;
   static const int FW_MINOR_VERSION = 0x29;

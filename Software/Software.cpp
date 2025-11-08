@@ -34,7 +34,7 @@
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "9.2.dev";
+const char* version_number = "9.2.2";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -558,7 +558,7 @@ void setup() {
   setup_charger();
   setup_inverter();
   setup_battery();
-  setup_can_shunt();
+  setup_shunt();
 
   // Init CAN only after any CAN receivers have had a chance to register.
   init_CAN();

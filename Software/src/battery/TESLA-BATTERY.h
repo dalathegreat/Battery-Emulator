@@ -33,6 +33,8 @@ class TeslaBattery : public CanBattery {
 
   bool supports_charged_energy() { return true; }
 
+  bool supports_manual_balancing() { return true; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:

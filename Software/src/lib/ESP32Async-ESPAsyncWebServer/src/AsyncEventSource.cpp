@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright 2016-2025 Hristo Gochkov, Mathieu Carbou, Emil Muratov
 
-#include "Arduino.h"
-#if defined(ESP32)
-#include <rom/ets_sys.h>
-#endif
 #include "AsyncEventSource.h"
 
 #define ASYNC_SSE_NEW_LINE_CHAR (char)0xa
@@ -25,9 +21,6 @@ static String generateEventMessage(const char *message, const char *event, uint3
   len += 42;  // give it some overhead
 
   if (!str.reserve(len)) {
-#ifdef ESP32
-    log_e("Failed to allocate");
-#endif
     return emptyString;
   }
 
@@ -201,11 +194,6 @@ AsyncEventSourceClient::~AsyncEventSourceClient() {
 
 bool AsyncEventSourceClient::_queueMessage(const char *message, size_t len) {
   if (_messageQueue.size() >= SSE_MAX_QUEUED_MESSAGES) {
-#ifdef ESP8266
-    ets_printf(String(F("ERROR: Too many messages queued\n")).c_str());
-#elif defined(ESP32)
-    log_e("Event message queue overflow: discard message");
-#endif
     return false;
   }
 
@@ -231,11 +219,6 @@ bool AsyncEventSourceClient::_queueMessage(const char *message, size_t len) {
 
 bool AsyncEventSourceClient::_queueMessage(AsyncEvent_SharedData_t &&msg) {
   if (_messageQueue.size() >= SSE_MAX_QUEUED_MESSAGES) {
-#ifdef ESP8266
-    ets_printf(String(F("ERROR: Too many messages queued\n")).c_str());
-#elif defined(ESP32)
-    log_e("Event message queue overflow: discard message");
-#endif
     return false;
   }
 

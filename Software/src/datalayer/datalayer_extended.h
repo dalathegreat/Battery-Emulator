@@ -114,6 +114,17 @@ struct DATALAYER_INFO_BMWPHEV {
   bool UserRequestBMSReset = false; /** User requesting BMS reset via WebUI*/
 };
 
+struct DATALAYER_INFO_BMWIX {
+  uint32_t dtc_codes[32];              // Array of DTC codes (3 bytes each, stored as uint32)
+  uint8_t dtc_status[32];              // Status byte for each DTC
+  unsigned long dtc_last_read_millis;  // Timestamp of last successful read
+  uint8_t dtc_count;                   // Number of DTCs present
+  bool dtc_read_in_progress;           // Flag to prevent concurrent reads
+  bool dtc_read_failed;                // Indicates last read attempt failed
+  bool UserRequestDTCreset = false;    /** User requesting DTC reset via WebUI*/
+  bool UserRequestBMSReset = false;    /** User requesting BMS reset via WebUI*/
+};
+
 struct DATALAYER_INFO_BYDATTO3 {
   uint32_t unknown0 = 0;  //Unknown polled value
   uint32_t unknown1 = 0;  //Unknown polled value
@@ -252,6 +263,43 @@ struct DATALAYER_INFO_CMFAEV {
 
   uint8_t highest_cell_voltage_number = 0;
   uint8_t lowest_cell_voltage_number = 0;
+};
+
+struct DATALAYER_INFO_CMPSMART {
+  uint8_t battery_negative_contactor_state = 0;
+  uint8_t battery_precharge_contactor_state = 0;
+  uint8_t battery_positive_contactor_state = 0;
+  uint8_t qc_negative_contactor_status = 0;
+  uint8_t qc_positive_contactor_status = 0;
+  uint8_t battery_state = 0;
+  uint8_t eplug_status = 0;
+  uint8_t HVIL_status = 0;
+  uint8_t ev_warning = 0;
+  uint8_t insulation_fault = 0;
+  uint8_t insulation_circuit_status = 0;
+  uint8_t hardware_fault_status = 0;
+  uint8_t l3_fault = 0;
+  uint8_t plausibility_error = 0;
+  uint8_t battery_charging_status = 0;
+  uint8_t battery_fault = 0;
+  uint8_t hvbat_wakeup_state = 0;
+  uint8_t active_DTC_code = 0;
+  bool rcd_line_active = false;
+  bool power_auth = false;
+  bool battery_balancing_active = false;
+  bool alert_cell_undervoltage = false;
+  bool alert_battery = false;
+  bool alert_cell_overvoltage = false;
+  bool alert_high_SOC = false;
+  bool alert_high_temperature = false;
+  bool alert_low_SOC = false;
+  bool alert_overvoltage = false;
+  bool alert_temperature_delta = false;
+  bool alert_cell_poor_consistency = false;
+  bool alert_overcharge = false;
+  bool alert_SOC_jump = false;
+  bool alert_contactor_opening = false;
+  bool UserRequestDTCreset = false; /** User requesting DTC reset via WebUI*/
 };
 
 struct DATALAYER_INFO_ECMP {
@@ -887,10 +935,12 @@ class DataLayerExtended {
  public:
   DATALAYER_INFO_BOLTAMPERA boltampera;
   DATALAYER_INFO_BMWPHEV bmwphev;
+  DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
   DATALAYER_INFO_CELLPOWER cellpower;
   DATALAYER_INFO_CHADEMO chademo;
   DATALAYER_INFO_CMFAEV CMFAEV;
+  DATALAYER_INFO_CMPSMART stellantisCMPsmart;
   DATALAYER_INFO_ECMP stellantisECMP;
   DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;

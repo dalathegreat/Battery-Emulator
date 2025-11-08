@@ -50,6 +50,7 @@ enum class BatteryType {
   RivianBattery = 42,
   BmwPhev = 43,
   FordMachE = 44,
+  CmpSmartCar = 45,
   Highest
 };
 
@@ -91,6 +92,7 @@ class Battery {
   virtual bool supports_manual_balancing() { return false; }
   virtual bool supports_real_BMS_status() { return false; }
   virtual bool supports_toggle_SOC_method() { return false; }
+  virtual bool supports_energy_saving_mode_reset() { return false; }
   virtual bool supports_factory_mode_method() { return false; }
   virtual bool supports_chademo_restart() { return false; }
   virtual bool supports_chademo_stop() { return false; }
@@ -108,6 +110,7 @@ class Battery {
   virtual void request_open_contactors() {}
   virtual void request_close_contactors() {}
   virtual void toggle_SOC_method() {}
+  virtual void reset_energy_saving_mode() {}
   virtual void set_factory_mode() {}
   virtual void chademo_restart() {}
   virtual void chademo_stop() {}

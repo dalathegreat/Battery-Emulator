@@ -551,13 +551,12 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   logging.printf("MQTT message arrived: [%.*s]\n", topic_len, topic);
 
-#ifdef REMOTE_BMS_RESET
-  const char* bmsreset_topic = generateButtonTopic("BMSRESET").c_str();
-  if (strcmp(topic, bmsreset_topic) == 0) {
-    logging.println("Triggering BMS reset");
-    start_bms_reset();
+  if (remote_bms_reset) {
+    if (strcmp(topic, generateButtonTopic("BMSRESET").c_str()) == 0) {
+      logging.println("Triggering BMS reset");
+      start_bms_reset();
+    }
   }
-#endif  // REMOTE_BMS_RESET
 
   if (strcmp(topic, generateButtonTopic("PAUSE").c_str()) == 0) {
     setBatteryPause(true, false);

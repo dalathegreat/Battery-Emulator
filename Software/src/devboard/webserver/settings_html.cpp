@@ -280,7 +280,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "SHUNTCLASS") {
-    if (!shunt) {
+    if (user_selected_shunt_type == ShuntType::None) {
       return "hidden";
     }
   }

@@ -115,6 +115,16 @@ void BydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       inverter_voltage = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) * 0.1;
       inverter_current = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) * 0.1;
       inverter_temperature = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.1;
+      if (useAsShunt) {
+        datalayer.shunt.available = true;
+        datalayer.shunt.precharging = false;
+        datalayer.shunt.contactors_engaged = true;
+        datalayer.shunt.measured_voltage_dV = inverter_voltage;
+        datalayer.shunt.measured_voltage_mV = inverter_voltage * 100;
+        datalayer.shunt.measured_outvoltage_mV = inverter_voltage * 100;
+        datalayer.shunt.measured_amperage_dA = inverter_current;
+        datalayer.shunt.measured_amperage_mA = inverter_current * 100;
+      }
       break;
     case 0x0D1:
       inverterStartedUp = true;
@@ -179,4 +189,9 @@ void BydCanInverter::send_initial_data() {
   transmit_can_frame(&BYD_3D0);
   BYD_3D0.data = {0x03, 0x56, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00};  //VS
   transmit_can_frame(&BYD_3D0);
+}
+
+void BydCanInverter::enable_shunt() {
+  strncpy(datalayer.system.info.shunt_protocol, Name, 63);
+  useAsShunt = true;
 }
