@@ -171,7 +171,6 @@ void EcmpBattery::update_values() {
   datalayer_extended.stellantisECMP.pid_sw_version_num = pid_sw_version_num;
   datalayer_extended.stellantisECMP.pid_factory_mode_control = pid_factory_mode_control;
   memcpy(datalayer_extended.stellantisECMP.pid_battery_serial, pid_battery_serial, sizeof(pid_battery_serial));
-  //uint8_t pid_battery_serial[13] = {0};
   datalayer_extended.stellantisECMP.pid_aux_fuse_state = pid_aux_fuse_state;
   datalayer_extended.stellantisECMP.pid_battery_state = pid_battery_state;
   datalayer_extended.stellantisECMP.pid_precharge_short_circuit = pid_precharge_short_circuit;
@@ -1122,7 +1121,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             switch (rx_frame.data.u8[0]) {
               case 0x10:
                 pid_current_time = (pid_current_time | rx_frame.data.u8[7]);
-                break;
+                break;  //Something is wrong here. TODO
               case 0x21:
                 pid_current_time = (rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) |
                                    (rx_frame.data.u8[1] << 8) | pid_current_time;
