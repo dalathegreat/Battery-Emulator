@@ -184,6 +184,44 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             //10,4D,61,04,09,12,3A,09,
             cell_1_temperature_polled = (rx_frame.data.u8[6] - 40);
           }
+          if (requested_poll == GROUP6_BALANCING) {
+            //RX0 7BB [8] 10 0E 61 07 00 00 00 00
+            datalayer_battery->status.cell_balancing_status[0] = (rx_frame.data.u8[4] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[1] = (rx_frame.data.u8[4] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[2] = (rx_frame.data.u8[4] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[3] = (rx_frame.data.u8[4] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[4] = (rx_frame.data.u8[4] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[5] = (rx_frame.data.u8[4] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[6] = (rx_frame.data.u8[4] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[7] = (rx_frame.data.u8[4] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[8] = (rx_frame.data.u8[5] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[9] = (rx_frame.data.u8[5] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[10] = (rx_frame.data.u8[5] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[11] = (rx_frame.data.u8[5] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[12] = (rx_frame.data.u8[5] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[13] = (rx_frame.data.u8[5] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[14] = (rx_frame.data.u8[5] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[15] = (rx_frame.data.u8[5] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[16] = (rx_frame.data.u8[6] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[17] = (rx_frame.data.u8[6] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[18] = (rx_frame.data.u8[6] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[19] = (rx_frame.data.u8[6] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[20] = (rx_frame.data.u8[6] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[21] = (rx_frame.data.u8[6] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[22] = (rx_frame.data.u8[6] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[23] = (rx_frame.data.u8[6] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[24] = (rx_frame.data.u8[7] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[25] = (rx_frame.data.u8[7] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[26] = (rx_frame.data.u8[7] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[27] = (rx_frame.data.u8[7] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[28] = (rx_frame.data.u8[7] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[29] = (rx_frame.data.u8[7] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[30] = (rx_frame.data.u8[7] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[31] = (rx_frame.data.u8[7] & 0x01);
+          }
           break;
         case 0x21:  //First datarow in PID group
           if ((requested_poll == GROUP1_CELLVOLTAGES_1_POLL) && (looping_over_20 == false)) {
@@ -216,6 +254,72 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cell_3_temperature_polled = (rx_frame.data.u8[5] - 40);
             //21,11,3A,09,14,3A,09,0D,
           }
+          if (requested_poll == GROUP6_BALANCING) {
+          //(62934.118) RX0 7BB [8] 21 00 00 00 00 00 00 00
+            datalayer_battery->status.cell_balancing_status[32] = (rx_frame.data.u8[1] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[33] = (rx_frame.data.u8[1] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[34] = (rx_frame.data.u8[1] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[35] = (rx_frame.data.u8[1] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[36] = (rx_frame.data.u8[1] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[37] = (rx_frame.data.u8[1] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[38] = (rx_frame.data.u8[1] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[39] = (rx_frame.data.u8[1] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[40] = (rx_frame.data.u8[2] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[41] = (rx_frame.data.u8[2] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[42] = (rx_frame.data.u8[2] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[43] = (rx_frame.data.u8[2] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[44] = (rx_frame.data.u8[2] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[45] = (rx_frame.data.u8[2] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[46] = (rx_frame.data.u8[2] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[47] = (rx_frame.data.u8[2] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[48] = (rx_frame.data.u8[3] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[49] = (rx_frame.data.u8[3] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[50] = (rx_frame.data.u8[3] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[51] = (rx_frame.data.u8[3] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[52] = (rx_frame.data.u8[3] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[53] = (rx_frame.data.u8[3] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[54] = (rx_frame.data.u8[3] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[55] = (rx_frame.data.u8[3] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[56] = (rx_frame.data.u8[4] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[57] = (rx_frame.data.u8[4] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[58] = (rx_frame.data.u8[4] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[59] = (rx_frame.data.u8[4] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[60] = (rx_frame.data.u8[4] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[61] = (rx_frame.data.u8[4] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[62] = (rx_frame.data.u8[4] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[63] = (rx_frame.data.u8[4] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[64] = (rx_frame.data.u8[5] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[65] = (rx_frame.data.u8[5] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[66] = (rx_frame.data.u8[5] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[67] = (rx_frame.data.u8[5] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[68] = (rx_frame.data.u8[5] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[69] = (rx_frame.data.u8[5] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[70] = (rx_frame.data.u8[5] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[71] = (rx_frame.data.u8[5] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[72] = (rx_frame.data.u8[6] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[73] = (rx_frame.data.u8[6] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[74] = (rx_frame.data.u8[6] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[75] = (rx_frame.data.u8[6] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[76] = (rx_frame.data.u8[6] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[77] = (rx_frame.data.u8[6] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[78] = (rx_frame.data.u8[6] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[79] = (rx_frame.data.u8[6] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[80] = (rx_frame.data.u8[7] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[81] = (rx_frame.data.u8[7] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[82] = (rx_frame.data.u8[7] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[83] = (rx_frame.data.u8[7] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[84] = (rx_frame.data.u8[7] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[85] = (rx_frame.data.u8[7] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[86] = (rx_frame.data.u8[7] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[87] = (rx_frame.data.u8[7] & 0x01);            
+          }
+  
           break;
         case 0x22:  //Second datarow in PID group
           if ((requested_poll == GROUP1_CELLVOLTAGES_1_POLL) && (looping_over_20 == false)) {
@@ -247,6 +351,17 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cell_5_temperature_polled = (rx_frame.data.u8[4] - 40);
             cell_6_temperature_polled = (rx_frame.data.u8[7] - 40);
             //22,3A,08,F6,3B,08,EE,3B,
+          }
+          if (requested_poll == GROUP6_BALANCING) {
+          //(62934.128) RX0 7BB [8] 22 00 00 00 00 00 00 00
+            datalayer_battery->status.cell_balancing_status[88] = (rx_frame.data.u8[1] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[89] = (rx_frame.data.u8[1] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[90] = (rx_frame.data.u8[1] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[91] = (rx_frame.data.u8[1] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[92] = (rx_frame.data.u8[1] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[93] = (rx_frame.data.u8[1] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[94] = (rx_frame.data.u8[1] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[95] = (rx_frame.data.u8[1] & 0x01);           
           }
           break;
         case 0x23:  //Third datarow in PID group
