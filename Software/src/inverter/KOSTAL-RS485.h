@@ -27,6 +27,7 @@ class KostalInverterProtocol : public Rs485InverterProtocol {
   int16_t average_temperature_dC = 0;
   uint8_t incoming_message_counter = RS485_HEALTHY;
   int8_t f2_startup_count = 0;
+  int8_t f1_info_count = 0;  // Counter for battery info requests (0x84a)
 
   bool info_sent = false;
   bool pendingContactorCloseRequest = false;  // Flag to remember contactor close request during startup
