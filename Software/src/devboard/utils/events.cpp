@@ -376,6 +376,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "SD card initialization failed, check hardware. Power must be removed to reset the SD card.";
     case EVENT_PERIODIC_BMS_RESET:
       return "BMS reset event completed.";
+    case EVENT_PERIODIC_BMS_RESET_FAILURE:
+      return "BMS reset aborted - contactors were still under load.";
     case EVENT_BMS_RESET_REQ_SUCCESS:
       return "BMS reset request completed successfully.";
     case EVENT_BMS_RESET_REQ_FAIL:
