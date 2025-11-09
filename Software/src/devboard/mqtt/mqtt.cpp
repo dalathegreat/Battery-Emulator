@@ -52,11 +52,15 @@ static String topic_name = "";
 static String object_id_prefix = "";
 static String device_name = "";
 static String device_id = "";
+static String manual_balancing_state_topic = "";
 
 static bool publish_common_info(void);
 static bool publish_cell_voltages(void);
 static bool publish_cell_balancing(void);
 static bool publish_events(void);
+static bool publish_manual_balancing_state(void);
+static bool publish_balancing_switch_discovery(void);
+static bool parse_bool_payload(const char* payload, bool& value);
 
 /** Publish global values and call callbacks for specific modules */
 static void publish_values(void) {
@@ -84,12 +88,17 @@ static void publish_values(void) {
       return;
     }
   }
+
+  if (publish_manual_balancing_state() == false) {
+    return;
+  }
 }
 
 static bool ha_common_info_published = false;
 static bool ha_cell_voltages_published = false;
 static bool ha_events_published = false;
 static bool ha_buttons_published = false;
+static bool ha_balancing_switch_published = false;
 struct SensorConfig {
   const char* object_id;
   const char* name;
@@ -133,7 +142,8 @@ SensorConfig batterySensorConfigTemplate[] = {
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
                                              {"pause_status", "Pause Status", "", "", "", always},
                                              {"event_level", "Event Level", "", "", "", always},
-                                             {"emulator_status", "Emulator Status", "", "", "", always}};
+                                             {"emulator_status", "Emulator Status", "", "", "", always},
+                                             {"manual_balancing_active", "Manual LFP Balancing Active", "", "", "", always}};
 
 static std::list<SensorConfig> sensorConfigs;
 
@@ -180,6 +190,45 @@ static String generateEventsAutoConfigTopic(const char* object_id) {
 
 static String generateButtonAutoConfigTopic(const char* subtype) {
   return "homeassistant/button/" + topic_name + "/" + String(subtype) + "/config";
+}
+
+static String generateSwitchAutoConfigTopic(const char* subtype) {
+  return "homeassistant/switch/" + topic_name + "/" + String(subtype) + "/config";
+}
+
+static bool publish_balancing_switch_discovery(void) {
+  if (!ha_autodiscovery_enabled) {
+    return true;
+  }
+
+  if (ha_balancing_switch_published) {
+    return true;
+  }
+
+  logging.println("Publishing Tesla balancing switch discovery");
+
+  static JsonDocument doc;
+  doc["name"] = "Tesla LFP Balancing";
+  doc["object_id"] = object_id_prefix + "tesla_balancing";
+  doc["unique_id"] = topic_name + "_tesla_balancing";
+  doc["command_topic"] = generateButtonTopic("TESLA_BALANCING");
+  if (manual_balancing_state_topic.length() == 0) {
+    manual_balancing_state_topic = topic_name + "/tesla_balancing/state";
+  }
+  doc["state_topic"] = manual_balancing_state_topic;
+  doc["payload_on"] = "ON";
+  doc["payload_off"] = "OFF";
+  doc["icon"] = "mdi:battery-heart-variant";
+  set_common_discovery_attributes(doc);
+  serializeJson(doc, mqtt_msg);
+  if (mqtt_publish(generateSwitchAutoConfigTopic("TESLA_BALANCING").c_str(), mqtt_msg, true)) {
+    ha_balancing_switch_published = true;
+  } else {
+    return false;
+  }
+  doc.clear();
+
+  return true;
 }
 
 void set_common_discovery_attributes(JsonDocument& doc) {
@@ -252,6 +301,42 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   doc["balancing_active_cells" + suffix] = active_cells;
 }
 
+static bool parse_bool_payload(const char* payload, bool& value) {
+  if (payload == nullptr) {
+    return false;
+  }
+
+  String normalized = String(payload);
+  normalized.trim();
+  normalized.toUpperCase();
+
+  if (normalized == "1" || normalized == "ON" || normalized == "TRUE") {
+    value = true;
+    return true;
+  }
+
+  if (normalized == "0" || normalized == "OFF" || normalized == "FALSE") {
+    value = false;
+    return true;
+  }
+
+  return false;
+}
+
+static bool publish_manual_balancing_state(void) {
+  if (manual_balancing_state_topic.length() == 0) {
+    manual_balancing_state_topic = topic_name + "/tesla_balancing/state";
+  }
+
+  const char* payload = datalayer.battery.settings.user_requests_balancing ? "ON" : "OFF";
+  if (mqtt_publish(manual_balancing_state_topic.c_str(), payload, true) == false) {
+    logging.println("Tesla balancing state MQTT msg could not be sent");
+    return false;
+  }
+
+  return true;
+}
+
 static std::vector<EventData> order_events;
 
 static bool publish_common_info(void) {
@@ -306,6 +391,7 @@ static bool publish_common_info(void) {
 
     doc["event_level"] = get_event_level_string(get_event_level());
     doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
+    doc["manual_balancing_active"] = datalayer.battery.settings.user_requests_balancing ? 1 : 0;
 
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
@@ -551,12 +637,13 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   logging.printf("MQTT message arrived: [%.*s]\n", topic_len, topic);
 
-  if (remote_bms_reset) {
-    if (strcmp(topic, generateButtonTopic("BMSRESET").c_str()) == 0) {
-      logging.println("Triggering BMS reset");
-      start_bms_reset();
-    }
+#ifdef REMOTE_BMS_RESET
+  const char* bmsreset_topic = generateButtonTopic("BMSRESET").c_str();
+  if (strcmp(topic, bmsreset_topic) == 0) {
+    logging.println("Triggering BMS reset");
+    start_bms_reset();
   }
+#endif  // REMOTE_BMS_RESET
 
   if (strcmp(topic, generateButtonTopic("PAUSE").c_str()) == 0) {
     setBatteryPause(true, false);
@@ -574,6 +661,50 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   if (strcmp(topic, generateButtonTopic("STOP").c_str()) == 0) {
     setBatteryPause(true, false, true);
+  }
+
+  if (strcmp(topic, generateButtonTopic("TESLA_BALANCING").c_str()) == 0) {
+    char* data_str = strndup(data, data_len);
+
+    bool requested_state = false;
+    bool parsed = parse_bool_payload(data_str, requested_state);
+
+    if (!parsed) {
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, data_str);
+      if (!error) {
+        if (doc["state"].is<bool>()) {
+          requested_state = doc["state"].as<bool>();
+          parsed = true;
+        } else if (doc["state"].is<int>()) {
+          requested_state = doc["state"].as<int>() != 0;
+          parsed = true;
+        } else if (doc["state"].is<const char*>()) {
+          parsed = parse_bool_payload(doc["state"].as<const char*>(), requested_state);
+        } else if (doc["value"].is<bool>()) {
+          requested_state = doc["value"].as<bool>();
+          parsed = true;
+        } else if (doc["value"].is<int>()) {
+          requested_state = doc["value"].as<int>() != 0;
+          parsed = true;
+        } else if (doc["value"].is<const char*>()) {
+          parsed = parse_bool_payload(doc["value"].as<const char*>(), requested_state);
+        }
+      }
+    }
+
+    if (parsed) {
+      datalayer.battery.settings.user_requests_balancing = requested_state;
+      if (!requested_state) {
+        datalayer.battery.settings.balancing_start_time_ms = 0;
+        set_event(EVENT_BALANCING_END, 0);
+      }
+      publish_manual_balancing_state();
+    } else {
+      logging.println("Invalid payload for Tesla balancing command");
+    }
+
+    free(data_str);
   }
 
   if (strcmp(topic, generateButtonTopic("SET_LIMITS").c_str()) == 0) {
@@ -619,6 +750,7 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       set_event(EVENT_MQTT_CONNECT, 0);
 
       publish_buttons_discovery();
+      publish_balancing_switch_discovery();
       subscribe();
       logging.println("MQTT connected");
       break;
@@ -692,6 +824,8 @@ bool init_mqtt(void) {
     device_name = "BatteryEmulator_" + String(WiFi.getHostname());
     device_id = "battery-emulator";
   }
+
+  manual_balancing_state_topic = topic_name + "/tesla_balancing/state";
 
   String clientId = String("BatteryEmulatorClient-") + WiFi.getHostname();
 
