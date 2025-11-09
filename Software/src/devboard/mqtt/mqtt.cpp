@@ -139,11 +139,12 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged},
     {"balancing_active_cells", "Balancing Active Cells", "", "", "", always}};
 
-SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
-                                             {"pause_status", "Pause Status", "", "", "", always},
-                                             {"event_level", "Event Level", "", "", "", always},
-                                             {"emulator_status", "Emulator Status", "", "", "", always},
-                                             {"manual_balancing_active", "Manual LFP Balancing Active", "", "", "", always}};
+SensorConfig globalSensorConfigTemplate[] = {
+    {"bms_status", "BMS Status", "", "", "", always},
+    {"pause_status", "Pause Status", "", "", "", always},
+    {"event_level", "Event Level", "", "", "", always},
+    {"emulator_status", "Emulator Status", "", "", "", always},
+    {"manual_balancing_active", "Manual LFP Balancing Active", "", "", "", always}};
 
 static std::list<SensorConfig> sensorConfigs;
 
