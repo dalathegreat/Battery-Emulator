@@ -14,22 +14,22 @@ import { useGetApi } from './utils/api.tsx'
 import { Link, useLocation } from './utils/location.tsx';
 import { reboot } from './utils/reboot.tsx';
 
-function Tray({data}: {data: any}) {
+function Tray({status}: {status: any}) {
   return (
     <div id="tray">
-      { (data?.battery || []).map((battery: any, idx: number) => (
-        <div class="battery-level" style={ {"--perc": battery.soc + '%'} } key={idx}>{ battery.soc.toFixed(0) }%{
+      { (status?.battery || []).map((battery: any, idx: number) => (
+        <div class="battery-level" style={ {"--perc": battery.reported_soc + '%'} } key={idx}>{ battery.reported_soc.toFixed(0) }%{
           battery.i > 0.05 ? <span>▲</span> : battery.i < -0.05 ? <span>▼</span> : ''
         }</div>
       )) }
-      { data?.pause && <div class="badge" data-status="warn">PAUSED</div> }
+      { status?.pause && <div class="badge" data-status="warn">PAUSED</div> }
     </div>
   );
 }
 
-function EventCount({data}: {data: any}) {
+function EventCount({status}: {status: any}) {
   const latest = window.latest_event_time || 0;
-  const events = (data?.events || []).filter((ev: any) => ((data._now - ev.age) > (latest + 10)));
+  const events = (status?.events || []).filter((ev: any) => ((status._now - ev.age) > (latest + 10)));
   const levels: {[key: string]: number} = {'ERROR': 2, 'WARNING': 1};
   const level = Math.max(...events.map((ev: any) => (levels[ev.level] || 0)), 0);
   const worst = level === 2 ? 'error' : level === 1 ? 'warn' : 'info';
@@ -41,31 +41,33 @@ function EventCount({data}: {data: any}) {
 }
 
 export function App() {
-  const data = useGetApi("/api/live", 3000);
+  const status = useGetApi("/api/status", 3000);
   const location = useLocation();
 
   function handlePause(ev: Event) {
     ev.preventDefault();
+
     fetch(import.meta.env.VITE_API_BASE + '/api/pause', {
         method: 'POST',
-        body: data?.pause ? "0" : "1",
+        body: ev.target.checked ? "1" : "0",
+        mode: 'no-cors', // don't care about the response
     }).then(() => {
       // Trigger a data reload
-      data?._reload();
+      status?._reload();
     });
   }
 
   function handleEStop(ev: Event) {
     ev.preventDefault();
     if(!confirm(
-      data?.estop 
+      status?.estop 
       ? "This action will attempt to close contactors and enable power transfer. Are you sure?" : "This action will attempt to open contactors on the battery. Are you sure?"
     )) {
       return;
     }
     fetch(import.meta.env.VITE_API_BASE + '/api/estop', {
         method: 'POST',
-        body: data?.estop ? "0" : "1",
+        body: status?.estop ? "0" : "1",
     });
   }
 
@@ -82,15 +84,15 @@ export function App() {
     <>
       <div class="topbar">
         <h1>🔋 Battery Emulator</h1>
-        <Tray data={data} />
-        <div class="status">SYSTEM OK</div>
+        <Tray status={status} />
+        { status?.status && <Link href="/events"><div class="status" data-status={ status?.status }>{ status?.status }</div></Link> }
       </div>
 
       <div class="columns">
         <div class="menu">
           <div>
             <Link href="/" data-cur>Dashboard</Link>
-            <Link href="/events">Events <EventCount data={data} /></Link>
+            <Link href="/events">Events <EventCount status={status} /></Link>
             <Link href="/cellmonitor">Cell monitor</Link>
             <Link href="/extended">Extended info</Link>
             <Link href="/settings">Settings</Link>
@@ -98,7 +100,11 @@ export function App() {
             <Link href="/cansender">CAN sender</Link>
             <Link href="/log">System Log</Link>
             <Link href="/ota">OTA upgrade</Link>
-            <a href="#" onClick={handlePause} class="button" style="margin: auto 0 0.75rem; background-color: #bf7c13; color: #ffffff;">{ data?.pause ? "Resume" : "Pause" }</a>
+            <a href="#" onClick={handlePause} class="button" style="margin: auto 0 0.75rem; background-color: #bf7c13; color: #ffffff;">{ status?.pause ? "Resume" : "Pause" }</a>
+            <label class="toggle">
+              <input type="checkbox" onChange={ handlePause } />
+              Pause
+            </label>
             <a href="#" onClick={handleEStop} class="button" style="margin: 0 0 0.75rem; background-color: #b50909; color: #ffffff;">Open contactors</a>
             <Button onClick={handleReboot} style={{"background-color": "#434343", "color": "#ffffff", "border-radius": "0 8px 8px 0"}}>Reboot emulator</Button>
           </div>
@@ -112,7 +118,7 @@ export function App() {
           { location==="/log" && <Log /> }
           { location==="/ota" && <Ota /> }
           { location==="/settings" && <Settings  /> }
-          { location==="/" && <Dashboard /> }
+          { location==="/" && <Dashboard status={status} /> }
         </div>
       </div>
 

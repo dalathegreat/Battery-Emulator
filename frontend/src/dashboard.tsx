@@ -1,8 +1,5 @@
 //import { createPortal } from 'preact/compat';
 
-import { useGetApi } from './utils/api.tsx'
-
-
 function sf(v: number, digits: number, unit?: string) {
   if(unit && v>=1000) {
     return sf(v/1000, digits, "k"+unit);
@@ -39,10 +36,8 @@ const CONTACTOR_STATE_NAME = ["DISCONNECTED", "NEGATIVE CONNECTED", "PRECHARGING
 const CONTACTOR_STATE_STATUS = ["error", "warn", "warn", "ok", "ok", "ok", "error"];
 
 
-export function Dashboard() {
-  const data = useGetApi("/api/status", 3000);
-
-  if(!data) {
+export function Dashboard({status}: {status: any}) {
+  if(!status) {
     return <div></div>;
   }
           
@@ -63,62 +58,62 @@ export function Dashboard() {
         <div class="stats">
           <div class="stat stat__small">
             <span>SOFTWARE</span>
-            { data.firmware }
+            { status.firmware }
           </div>
           <div class="stat stat__small">
             <span>HARDWARE</span>
-            { data.hardware }
+            { status.hardware }
           </div>
           <div class="stat stat__small">
             <span>CPU</span>
-            { sf(data.temp, 3) }<em>°C</em>
+            { sf(status.temp, 3) }<em>°C</em>
           </div>
           <div class="stat stat__small">
             <span>UPTIME</span>
-            { uptime(data.uptime) }
+            { uptime(status.uptime) }
           </div>
         </div>
       </div>
       <div class="panel">
           <h3 data-status="ok">Network</h3>
           <div class="stats">
-              { data.ssid && <>
+              { status.ssid && <>
                 <div class="stat stat__small">
                     <span>SSID</span>
-                    { data.ssid }
+                    { status.ssid }
                 </div>
                 <div class="stat stat__small">
                     <span>RSSI</span>
-                    { data.rssi }<em>dBm</em>
+                    { status.rssi }<em>dBm</em>
                 </div>
                 <div class="stat stat__small">
                     <span>HOSTNAME</span>
-                    { data.hostname }
+                    { status.hostname }
                 </div>
                 <div class="stat stat__small">
                     <span>IP</span>
-                    { data.ip }
+                    { status.ip }
                 </div>
               </> }
-              { !!data.ap_ssid && <div class="stat stat__small">
+              { !!status.ap_ssid && <div class="stat stat__small">
                   <span>AP SSID</span>
-                  { data.ap_ssid }
+                  { status.ap_ssid }
               </div> }
           </div>
       </div>
 
-      { data.inverter && 
+      { status.inverter && 
         <div class="panel">
-            <h3 data-status="ok">Inverter &nbsp;<span>-&nbsp; { data.inverter.name }</span></h3>
+            <h3 data-status="ok">Inverter &nbsp;<span>-&nbsp; { status.inverter.name }</span></h3>
         </div> }
 
-      { data.contactor && 
+      { status.contactor && 
         <div class="panel">
-          <div class="badge" style="float: right" data-status={ CONTACTOR_STATE_STATUS[data.contactor.state] }>{ CONTACTOR_STATE_NAME[data.contactor.state] }</div>
-          <h3 data-status={ CONTACTOR_STATE_STATUS[data.contactor.state] }>Contactors &nbsp;<span>-&nbsp; GPIO</span></h3>
+          <div class="badge" style="float: right" data-status={ CONTACTOR_STATE_STATUS[status.contactor.state] }>{ CONTACTOR_STATE_NAME[status.contactor.state] }</div>
+          <h3 data-status={ CONTACTOR_STATE_STATUS[status.contactor.state] }>Contactors &nbsp;<span>-&nbsp; GPIO</span></h3>
         </div> }
 
-      { (data.battery || []).map((battery: any, idx: number) =>
+      { (status.battery || []).map((battery: any, idx: number) =>
         <div class="panel" key={idx}>
             { battery.i > 0.05 ?
               <div class="badge" style="float: right; background: #1DB706; margin-left: 0.8rem">CHARGING</div>
@@ -128,7 +123,7 @@ export function Dashboard() {
                 <div class="badge" style="float: right; background: #3a516f; margin-left: 0.8rem">IDLE</div>
             }
             <div style="float: right; background: #3a516f; color: #ffffff; padding: 0.3rem 0.6rem 0.2rem; border-radius: 6px; font-size: 0.9rem; font-weight: 600">SCALED</div>
-            <h3 data-status="ok">Battery { (data.battery?.length>1)?(idx+1):'' }&nbsp;<span>-&nbsp; { battery.protocol }</span></h3>
+            <h3 data-status="ok">Battery { (status.battery?.length>1)?(idx+1):'' }&nbsp;<span>-&nbsp; { battery.protocol }</span></h3>
 
             <div class="stats">
                 <div class="stat">
