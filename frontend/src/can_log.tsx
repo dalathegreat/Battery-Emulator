@@ -1,6 +1,7 @@
 
-import { useCallback, useEffect, useRef } from "preact/hooks";
+//import { useCallback, useEffect, useRef } from "preact/hooks";
 
+/*
 function fetchInChunks(url: string, callback: (chunk: Uint8Array) => boolean) {
     fetch(url)
     .then(response => response.body)
@@ -44,9 +45,10 @@ function fetchInChunks(url: string, callback: (chunk: Uint8Array) => boolean) {
     //.then(blob => { console.log("Do something with full blob") }
     .catch(console.error);
 }
-
+*/
 
 export function CanLog() {
+    /*
     const log = useRef(null);
     const running = useRef(false);
 
@@ -100,15 +102,21 @@ export function CanLog() {
             running.current = false;
         }
     }, [log]);
+    */
 
     return (
         <div>
             <h2>CAN Log</h2>
+            <a href="/dump_can" class="button" target="_blank">Start logging in new tab</a>
+        </div>
+    );
+}
+
+/*
             <a href="#" class="button" onClick={ handleClick }>Start logging</a> <a href="#" class="button" onClick={ () => { if(log.current) (log.current as HTMLDivElement).innerText = ""; } }>Clear log</a> <a href="/dump_can" class="button" download="can_log.txt">Log to file</a> <a href="/dump_can" class="button" target="_blank">Log in new tab</a>
             <br /><br />
             <div class="panel">
                 <div ref={log} style="max-height: 20rem; overflow: auto; width: 100%;"></div>
             </div>
-        </div>
-    );
-}
+
+*/

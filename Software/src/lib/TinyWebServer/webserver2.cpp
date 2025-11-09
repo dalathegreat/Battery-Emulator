@@ -483,10 +483,19 @@ TwsRoute *default_handlers[] = {
         }
 
         // what should t these be called?
+
+        // OK/WARNING/ERROR/UPDATING (general BE status, derived from events)
         doc["status"] = get_emulator_status_string(get_emulator_status());
+        // ACTIVE/UPDATING/FAULT (almost the same as above, but WARNING comes out as ACTIVE)
         doc["bms_status"] = getBMSStatus(datalayer.battery.status.bms_status);
+        // RUNNING/PAUSING/PAUSED/RESUMING/UNKNOWN (progress through the pause state machine)
         doc["pause_status"] = get_emulator_pause_status();
+        // Status from the EV BMS itself (only on some battery types)
         doc["real_bms_status"] = datalayer.battery.status.real_bms_status;
+        // Whether pause has been requested
+        doc["pause"] = emulator_pause_request_ON;
+        // Whether the equipment stop has been activated
+        doc["estop"] = datalayer.system.info.equipment_stop_active;
 
         JsonArray batteries = doc["battery"].to<JsonArray>();
 
@@ -534,6 +543,18 @@ TwsRoute *default_handlers[] = {
         if(contactor_control_enabled) {
             JsonObject con = doc["contactor"].to<JsonObject>();
             con["state"] = (int)contactorStatus;
+        }
+
+        // A summary of active events
+        JsonArray events = doc["events"].to<JsonArray>();
+        uint64_t current_timestamp = millis64();
+        for (int i = 0; i < EVENT_NOF_EVENTS; i++) {
+            auto event_pointer = get_event_pointer((EVENTS_ENUM_TYPE)i);
+            if (event_pointer->occurences > 0) {
+                JsonObject ev = events.add<JsonObject>();
+                ev["age"] = current_timestamp - event_pointer->timestamp;
+                ev["level"] = get_event_level_string((EVENTS_ENUM_TYPE)i);
+            }
         }
     })),
     new TwsRoute("/api/cells", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
@@ -621,35 +642,35 @@ TwsRoute *default_handlers[] = {
         }
     })),
     &settingsHandler,
-    new TwsRoute("/api/live", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
-        doc["pause"] = emulator_pause_request_ON;
-        doc["estop"] = datalayer.system.info.equipment_stop_active;
+    // new TwsRoute("/api/live", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+    //     doc["pause"] = emulator_pause_request_ON;
+    //     doc["estop"] = datalayer.system.info.equipment_stop_active;
         
-        JsonArray batteries = doc["battery"].to<JsonArray>();
-        auto add_battery = [&](auto battery) {
-            JsonObject bat = batteries.add<JsonObject>();
-            // use reported or real?
-            bat["soc"] = static_cast<float>(battery.status.reported_soc) / 100.0f;
-            bat["i"] = static_cast<float>(battery.status.current_dA) / 10.0f;
-        };
+    //     JsonArray batteries = doc["battery"].to<JsonArray>();
+    //     auto add_battery = [&](auto battery) {
+    //         JsonObject bat = batteries.add<JsonObject>();
+    //         // use reported or real?
+    //         bat["soc"] = static_cast<float>(battery.status.reported_soc) / 100.0f;
+    //         bat["i"] = static_cast<float>(battery.status.current_dA) / 10.0f;
+    //     };
 
-        if(battery) {
-            add_battery(datalayer.battery);
-            if(battery2) add_battery(datalayer.battery2);
-        }
+    //     if(battery) {
+    //         add_battery(datalayer.battery);
+    //         if(battery2) add_battery(datalayer.battery2);
+    //     }
 
-        JsonArray events = doc["events"].to<JsonArray>();
+    //     JsonArray events = doc["events"].to<JsonArray>();
 
-        uint64_t current_timestamp = millis64();
-        for (int i = 0; i < EVENT_NOF_EVENTS; i++) {
-            auto event_pointer = get_event_pointer((EVENTS_ENUM_TYPE)i);
-            if (event_pointer->occurences > 0) {
-                JsonObject ev = events.add<JsonObject>();
-                ev["age"] = current_timestamp - event_pointer->timestamp;
-                ev["level"] = get_event_level_string((EVENTS_ENUM_TYPE)i);
-            }
-        }
-    })),
+    //     uint64_t current_timestamp = millis64();
+    //     for (int i = 0; i < EVENT_NOF_EVENTS; i++) {
+    //         auto event_pointer = get_event_pointer((EVENTS_ENUM_TYPE)i);
+    //         if (event_pointer->occurences > 0) {
+    //             JsonObject ev = events.add<JsonObject>();
+    //             ev["age"] = current_timestamp - event_pointer->timestamp;
+    //             ev["level"] = get_event_level_string((EVENTS_ENUM_TYPE)i);
+    //         }
+    //     }
+    // })),
 
     /*
     new TwsRoute("/api/tesla", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {

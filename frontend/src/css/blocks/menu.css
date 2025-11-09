@@ -36,3 +36,20 @@
     background: #404040;
     border-color: #3cddb2;
 }
+
+.menu .toggle {
+    cursor: pointer;
+    background: #434343;
+    padding: 0.6rem 17px;
+    border-radius: 0 6px 6px 0;
+    color: #eeeeee;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.menu .toggle input {
+    width: 1.5rem;
+    height: 1.5rem;
+    vertical-align: bottom;
+    margin-right: 0.8rem;
+}

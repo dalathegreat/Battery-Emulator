@@ -11,6 +11,11 @@ html, body {
     color: #eeeeee;
 }
 
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
 p {
     margin: 0 0 1.5rem;
 }
