@@ -124,7 +124,7 @@ const unsigned int ${arrayName}_len = ${gzippedContent.length};
   };
 }
 
-import.meta.env.VITE_API_BASE = import.meta.env.NODE_ENV == "development" ? 'http://192.168.4.1:12345' : '';
+import.meta.env.VITE_API_BASE = import.meta.env.NODE_ENV == "development" ? 'http://192.168.4.1' : '';
 //import.meta.env.VITE_API_BASE = import.meta.env.NODE_ENV == "development" ? 'http://192.168.0.107:12345' : '';
 
 // https://vite.dev/config/

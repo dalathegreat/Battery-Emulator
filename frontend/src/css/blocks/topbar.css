@@ -1,7 +1,7 @@
 .topbar {
     display: flex;
     background: #2a2a2a;
-    padding: 1rem 32px;
+    padding: 1rem 48px 1rem 24px;
 }
 
 #tray {
@@ -27,13 +27,16 @@
 }
 
 .topbar .status {
-    border-left: 6px solid #056105;
     font-weight: 600;
     background: #444444;
     padding: 0.5rem 0.8rem 0.5rem 0.6rem;
-    border-radius: 0 6px 6px 0;
     margin-left: 1rem;
+    /* color: #ffffff; */
 }
+
+.topbar .status[data-status="OK"] { background: #0eb70e; }
+.topbar .status[data-status="WARNING"] { background: #e6b70e; color: #000000; }
+.topbar .status[data-status="ERROR"] { background: #b70e0e; }
 
 .topbar h1 {
     font-size: 1.7rem;
