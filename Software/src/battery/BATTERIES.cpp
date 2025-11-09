@@ -250,8 +250,7 @@ void setup_battery() {
         battery2 = new NissanLeafBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
       case BatteryType::BmwI3:
-        battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
-                                    can_config.battery_double);
+        battery2 = new BmwI3Battery(&datalayer.battery2, can_config.battery_double);
         break;
       case BatteryType::CmfaEv:
         battery2 = new CmfaEvBattery(&datalayer.battery2, nullptr, can_config.battery_double);

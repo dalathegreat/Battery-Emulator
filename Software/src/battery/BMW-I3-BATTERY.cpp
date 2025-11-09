@@ -303,10 +303,20 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
 
-      if (startup_counter_contactor < 160) {
-        startup_counter_contactor++;
-      } else {                      //After 160 messages, turn on the request
-        BMW_10B.data.u8[1] = 0x10;  // Close contactors
+      if (primary_battery) {
+        if (startup_counter_contactor < 160) {
+          startup_counter_contactor++;
+        } else {                      //After 160 messages, turn on the request
+          BMW_10B.data.u8[1] = 0x10;  // Close contactors
+        }
+      } else {  //Secondary battery
+        if (datalayer.system.status.battery2_allowed_contactor_closing) {
+          if (startup_counter_contactor < 160) {  //Only start closing procedure when allowed
+            startup_counter_contactor++;
+          } else {                      //After 160 messages, turn on the request
+            BMW_10B.data.u8[1] = 0x10;  // Close contactors
+          }
+        }
       }
 
       BMW_10B.data.u8[1] = ((BMW_10B.data.u8[1] & 0xF0) + alive_counter_20ms);
@@ -318,11 +328,12 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       BMW_13E.data.u8[4] = BMW_13E_counter;
 
       if (datalayer_battery->status.bms_status == FAULT) {
-      } else if (allows_contactor_closing) {
-        //If battery is not in Fault mode, and we are allowed to control contactors, we allow contactor to close by sending 10B
-        *allows_contactor_closing = true;
+        //Send no 10B message. This opens contactors (on both batteries)
+      } else if (primary_battery) {
+        //Single i3 battery in use. Close contactors!
         transmit_can_frame(&BMW_10B);
-      } else if (contactor_closing_allowed && *contactor_closing_allowed) {
+      } else if (datalayer.system.status.battery2_allowed_contactor_closing) {
+        //Secondary i3 battery waits for interconnect check to allow closing
         transmit_can_frame(&BMW_10B);
       }
     }
@@ -510,10 +521,6 @@ void BmwI3Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
   datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-
-  if (allows_contactor_closing) {
-    *allows_contactor_closing = true;
-  }
   datalayer_battery->info.number_of_cells = NUMBER_OF_CELLS;
 
   pinMode(wakeup_pin, OUTPUT);
