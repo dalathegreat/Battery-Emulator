@@ -9,10 +9,14 @@ export function Basic({view, fields}: {view: DataView | null, fields: any[]}) {
         var offset = 4;
         var rows: [string, number | any[]][] = [];
         fields.forEach(([name, type, arr]: any[]) => {
+            // Look up the length of this field
             const length = LENGTHS[type as keyof typeof LENGTHS];
+            if(offset + (length * (arr ? arr : 1)) > view.byteLength) return;
             if(type == ' ') {
+                // Is padding, skip over it
                 offset += arr ? arr : length;
             } else if(arr) {
+                // Is an array
                 const varr = [];
                 for(let i=0; i<arr; i++) {
                     const v = (view[FUNCS[type] as keyof DataView] as any)(offset, true);
