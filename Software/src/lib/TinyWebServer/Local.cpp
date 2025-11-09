@@ -11,6 +11,7 @@
 #include <time.h>
 // #include <mcheck.h>
 
+#ifdef DEBUG_MALLOC
 extern "C" {
     extern void *__libc_malloc(size_t size);
     extern void *__libc_free(void *ptr);
@@ -41,6 +42,7 @@ extern "C" {
         __libc_free(ptr);
     }
 }
+#endif
 
 unsigned long millis(void) {
     struct timespec ts;
@@ -327,6 +329,7 @@ TwsRoute indexHandler("*", new TwsRequestHandlerFunc([](TwsRequest &request) {
     //request.finish();
 }));
 DigestAuthSessionManager sessions;
+/*
 Md5DigestAuth authHandler(&indexHandler, [](const char *username, char *output) -> int {
     if(strcmp(username, "auth")==0) {
         memcpy(output, "0169de8171b73f43b80a560059a38aa9", 32); // auth::auth
@@ -341,7 +344,7 @@ Md5DigestAuth authHandler(&indexHandler, [](const char *username, char *output) 
         return 32;
     }
     return 0;
-}, &sessions);
+}, &sessions);*/
 
 TwsRoute uploadHandler("/upload", new TwsRequestHandlerFunc([](TwsRequest& request) {
     request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\n\r\n<input type=\"file\" onchange=\""
@@ -440,7 +443,7 @@ int main() {
 
     
 
-    TinyWebServer tws(12345, handlers);
+    TinyWebServer tws(80, handlers);
     tws.open_listen_port();
 
     while (true) {

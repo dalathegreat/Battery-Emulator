@@ -121,8 +121,6 @@ const char *HTTP_404 = "HTTP/1.1 404 x\r\n"
 //static_assert(strlen(HTTP_404) < TwsRequest::SEND_BUFFER_SIZE, "HTTP_404 response is too large for send buffer");
 
 void TinyWebServer::handle_request(TwsRequest &request) {
-    
-
     // a local buffer which is definitely big enough for the largest read and an extra nul
     char buf[sizeof(request.recv_buffer)+1];
 
