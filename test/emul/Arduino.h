@@ -116,6 +116,7 @@ unsigned long micros();
 // Can be previously declared as a macro in stupid eModbus
 #undef millis
 unsigned long millis();
+void set_millis64(uint64_t time);
 
 void delay(unsigned long ms);
 void delayMicroseconds(unsigned long us);
