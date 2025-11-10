@@ -1202,6 +1202,45 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_obd_can_frame(0x18DA05F1, can_config.battery, true);
   }
+
+  static auto last_real_bms_status = datalayer.battery.status.real_bms_status;
+  static auto last_start_precharging = datalayer.system.info.start_precharging;
+  static auto last_hv_requested = hv_requested;
+  static auto last_voltage_dV = datalayer.battery.status.voltage_dV;
+  static auto last_BMS_voltage_intermediate_dV = datalayer_extended.meb.BMS_voltage_intermediate_dV;
+  static auto BMS_mode = datalayer_extended.meb.BMS_mode;
+
+  if (last_real_bms_status != datalayer.battery.status.real_bms_status) {
+    logging.printf("MEB: BMS status %d -> %d\n", last_real_bms_status, datalayer.battery.status.real_bms_status);
+    last_real_bms_status = datalayer.battery.status.real_bms_status;
+  }
+
+  if (last_start_precharging != datalayer.system.info.start_precharging) {
+    logging.printf("MEB: Start precharging %d -> %d\n", last_start_precharging,
+                   datalayer.system.info.start_precharging);
+    last_start_precharging = datalayer.system.info.start_precharging;
+  }
+
+  if (last_hv_requested != hv_requested) {
+    logging.printf("MEB: HV requested %d -> %d\n", last_hv_requested, hv_requested);
+    last_hv_requested = hv_requested;
+  }
+
+  if (last_voltage_dV != datalayer.battery.status.voltage_dV) {
+    logging.printf("MEB: Voltage dV %d -> %d\n", last_voltage_dV, datalayer.battery.status.voltage_dV);
+    last_voltage_dV = datalayer.battery.status.voltage_dV;
+  }
+
+  if (last_BMS_voltage_intermediate_dV != datalayer_extended.meb.BMS_voltage_intermediate_dV) {
+    logging.printf("MEB: BMS Voltage intermediate dV %d -> %d\n", last_BMS_voltage_intermediate_dV,
+                   datalayer_extended.meb.BMS_voltage_intermediate_dV);
+    last_BMS_voltage_intermediate_dV = datalayer_extended.meb.BMS_voltage_intermediate_dV;
+  }
+
+  if (BMS_mode != datalayer_extended.meb.BMS_mode) {
+    logging.printf("MEB: BMS mode %d -> %d\n", BMS_mode, datalayer_extended.meb.BMS_mode);
+    BMS_mode = datalayer_extended.meb.BMS_mode;
+  }
 }
 
 void MebBattery::setup(void) {  // Performs one time setup at startup
