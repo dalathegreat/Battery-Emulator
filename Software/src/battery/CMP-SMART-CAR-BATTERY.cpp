@@ -6,6 +6,11 @@
 
 /* Do not change code below unless you are sure what you are doing */
 void CmpSmartCarBattery::update_values() {
+  if (datalayer.system.info.equipment_stop_active == true) {
+    digitalWrite(esp32hal->WUP_PIN1(), LOW);  // Turn off wakeup pin
+  } else if (millis() > INTERVAL_1_S) {
+    digitalWrite(esp32hal->WUP_PIN1(), HIGH);  // Wake up the battery
+  }
 
   datalayer.battery.status.real_soc = battery_soc * 10;
 
@@ -557,6 +562,10 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void CmpSmartCarBattery::setup(void) {  // Performs one time setup at startup
+  if (!esp32hal->alloc_pins(Name, esp32hal->WUP_PIN1())) {
+    return;  //TODO, this needs refactoring for double-battery later
+  }
+
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 100;
@@ -568,4 +577,7 @@ void CmpSmartCarBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_100S_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_100S_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
+
+  pinMode(esp32hal->WUP_PIN1(), OUTPUT);
+  digitalWrite(esp32hal->WUP_PIN1(), LOW);  // Set pin to low, prepare to wakeup later on!
 }
