@@ -487,11 +487,11 @@ void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection ms
 }
 
 void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
-  // if (interface !=
-  //     CANFD_NATIVE) {  //Avoid printing twice due to receive_frame_canfd_addon sending to both FD interfaces
-  //   //TODO: This check can be removed later when refactored to use inline functions for logging
-  //   print_can_frame(*rx_frame, interface, frameDirection(MSG_RX));
-  // }
+  //if (interface !=
+  //    CANFD_NATIVE) {  //Avoid printing twice due to receive_frame_canfd_addon sending to both FD interfaces
+  //TODO: This check can be removed later when refactored to use inline functions for logging
+  print_can_frame(*rx_frame, interface, frameDirection(MSG_RX));
+  //}
 
   // if (datalayer.system.info.CAN_SD_logging_active) {
   //   if (interface !=
