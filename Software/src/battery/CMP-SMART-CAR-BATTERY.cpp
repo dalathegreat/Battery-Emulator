@@ -517,14 +517,14 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     CMP_211.data.u8[2] = 0x00;  //00 QC contactor OFF, 81, QC contactor ON
 
     if (startup_increment < 200) {  //During startup we request open contactors
-      CMP_211.data.u8[4] = 0x15;    //Ready mode (unsure why this opens contactors)
+      CMP_211.data.u8[4] = 0x17;    //Ready mode (unsure why this opens contactors)
     } else {                        //Normal handling of close/open
 
       if (datalayer.battery.status.bms_status == FAULT) {
         //Open contactors
-        CMP_211.data.u8[4] = 0x15;  //Ready mode (unsure why this opens contactors)
+        CMP_211.data.u8[4] = 0x17;  //Ready mode (unsure why this opens contactors) (Bit 1 is insulation turn-off)
       } else {                      //Close contactors
-        CMP_211.data.u8[4] = 0x04;  //04 discharge, 4A charge
+        CMP_211.data.u8[4] = 0x06;  //04 discharge (+bit1 insulation turn off), 4A charge
       }
     }
 
