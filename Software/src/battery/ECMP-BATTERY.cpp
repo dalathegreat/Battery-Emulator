@@ -105,7 +105,7 @@ void EcmpBattery::update_values() {
       datalayer.battery.status.max_discharge_power_W = pid_max_discharge_10s;
     }
 
-    if ((pid_highest_temperature != NOT_SAMPLED_YET) && (pid_lowest_temperature != NOT_SAMPLED_YET)) {
+    if ((pid_highest_temperature != 127) && (pid_lowest_temperature != 127)) {
       datalayer.battery.status.temperature_max_dC = pid_highest_temperature * 10;
       datalayer.battery.status.temperature_min_dC = pid_lowest_temperature * 10;
     }
