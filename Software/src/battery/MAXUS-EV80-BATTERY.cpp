@@ -1,4 +1,5 @@
 #include "MAXUS-EV80-BATTERY.h"
+#include <cstring>  //For unit test
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
