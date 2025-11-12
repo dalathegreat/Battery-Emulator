@@ -1,4 +1,5 @@
 #include "CMP-SMART-CAR-BATTERY.h"
+#include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For More Battery Info page
