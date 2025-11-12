@@ -105,7 +105,7 @@ void EcmpBattery::update_values() {
       datalayer.battery.status.max_discharge_power_W = pid_max_discharge_10s;
     }
 
-    if ((pid_highest_temperature != NOT_SAMPLED_YET) && (pid_lowest_temperature != NOT_SAMPLED_YET)) {
+    if ((pid_highest_temperature != 127) && (pid_lowest_temperature != 127)) {
       datalayer.battery.status.temperature_max_dC = pid_highest_temperature * 10;
       datalayer.battery.status.temperature_min_dC = pid_lowest_temperature * 10;
     }
@@ -171,7 +171,6 @@ void EcmpBattery::update_values() {
   datalayer_extended.stellantisECMP.pid_sw_version_num = pid_sw_version_num;
   datalayer_extended.stellantisECMP.pid_factory_mode_control = pid_factory_mode_control;
   memcpy(datalayer_extended.stellantisECMP.pid_battery_serial, pid_battery_serial, sizeof(pid_battery_serial));
-  //uint8_t pid_battery_serial[13] = {0};
   datalayer_extended.stellantisECMP.pid_aux_fuse_state = pid_aux_fuse_state;
   datalayer_extended.stellantisECMP.pid_battery_state = pid_battery_state;
   datalayer_extended.stellantisECMP.pid_precharge_short_circuit = pid_precharge_short_circuit;
@@ -260,7 +259,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                        ((rx_frame.data.u8[6] & 0xF0) >> 4);                         // (Wh, 0-200000)
       HV_BATT_SOE_MAX = ((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[7];  // (Wh, 0-200000)
       CHECKSUM_FRAME_3B4 = (rx_frame.data.u8[0] & 0xF0) >> 4;
-      COUNTER_3B4 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_3B4 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x2F4:  //MysteryVan 50/75kWh platform (Event triggered when charging)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -298,7 +297,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                 ((rx_frame.data.u8[6] & 0xC0) >> 6);  // -1000000 - 0 W
       MAX_ALLOW_CHRG_CURRENT = ((rx_frame.data.u8[6] & 0x3F) << 8) | rx_frame.data.u8[7];
       CHECKSUM_FRAME_554 = (rx_frame.data.u8[0] & 0xF0) >> 4;  //Frame checksum 0xE
-      COUNTER_554 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_554 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x373:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -317,7 +316,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       HV_BATT_REAL_VOLT_HD = ((rx_frame.data.u8[3] & 0x3F) << 8) | (rx_frame.data.u8[4]);  //V 0-1000 * 0.1  scaling
       HV_BATT_REAL_CURR_HD = (rx_frame.data.u8[1] << 8) | (rx_frame.data.u8[2]);           //A	-2000 -	2000	0.1 scaling
       CHECKSUM_FRAME_373 = (rx_frame.data.u8[0] & 0xF0) >> 4;                              //Frame checksum 0xD
-      COUNTER_373 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_373 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x4F4:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -335,7 +334,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           (rx_frame.data.u8[2] & 0x30) >> 4;  //00 : contactor open 01 : pre-load contactor 10 : contactor close
       HV_BATT_DISCONT_WARNING_OPEN = (rx_frame.data.u8[7] & 0x08) >> 3;
       CHECKSUM_FRAME_4F4 = (rx_frame.data.u8[0] & 0xF0) >> 4;
-      COUNTER_4F4 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_4F4 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x414:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -345,7 +344,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       MAX_ALLOW_DISCHRG_POWER =
           ((rx_frame.data.u8[5] & 0x07) << 11) | (rx_frame.data.u8[6] << 3) | ((rx_frame.data.u8[7] & 0xE0) >> 5);
       CHECKSUM_FRAME_414 = (rx_frame.data.u8[0] & 0xF0) >> 4;  //Frame checksum 0x9
-      COUNTER_414 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_414 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x353:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -354,7 +353,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       HV_BATT_COP_CURRENT =
           (rx_frame.data.u8[3] << 5) | (rx_frame.data.u8[4] >> 3);  //High resolution battery current (dA, -4000 - 4000)
       CHECKSUM_FRAME_353 = (rx_frame.data.u8[0] & 0xF0) >> 4;       //Frame checksum 0xB
-      COUNTER_353 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_353 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x474:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -370,7 +369,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         10 : charging fault
         11 : charging finished*/
       CHECKSUM_FRAME_474 = (rx_frame.data.u8[0] & 0xF0) >> 4;  //Frame checksum 0xF
-      COUNTER_474 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_474 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x574:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -422,7 +421,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //TBMU_CHRG_CONN_CONF //Fastcharger info, not needed for BE
       //EVSE_GRID_FAULT //Fastcharger info, not needed for BE
       CHECKSUM_FRAME_314 = (rx_frame.data.u8[0] & 0xF0) >> 4;  //Frame checksum 0x8
-      COUNTER_314 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_314 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x254:  //MysteryVan 50/75kWh platform
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -447,7 +446,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       MAX_ALLOW_DISCHRG_CURRENT = ((rx_frame.data.u8[6] & 0x3F) << 5) | (rx_frame.data.u8[7] >> 3);
       RC01_PERM_SYNTH_TBMU = (rx_frame.data.u8[7] & 0x04) >> 2;  //TBMU Readiness Code synthesis
       CHECKSUM_FRAME_4D4 = (rx_frame.data.u8[0] & 0xF0) >> 4;    //Frame checksum 0x5
-      COUNTER_4D4 = (rx_frame.data.u8[0] & 0x0F);
+      //COUNTER_4D4 = (rx_frame.data.u8[0] & 0x0F);
       break;
     case 0x125:  //Common eCMP
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -1122,7 +1121,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             switch (rx_frame.data.u8[0]) {
               case 0x10:
                 pid_current_time = (pid_current_time | rx_frame.data.u8[7]);
-                break;
+                break;  //Something is wrong here. TODO
               case 0x21:
                 pid_current_time = (rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) |
                                    (rx_frame.data.u8[1] << 8) | pid_current_time;
@@ -1680,11 +1679,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_0C5);  //DC2_0C5
     transmit_can_frame(&ECMP_17B);  //VCU_PCANInfo_17B
     transmit_can_frame(&ECMP_0F2);  //CtrlMCU1_0F2
-    if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_111);
-      transmit_can_frame(&ECMP_110);
-      transmit_can_frame(&ECMP_114);
-    }
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
+    transmit_can_frame(&ECMP_111);
+    transmit_can_frame(&ECMP_110);
+    transmit_can_frame(&ECMP_114);
+#endif
   }
 
   // Send 20ms periodic CAN Message simulating the car still being attached
@@ -1727,11 +1726,13 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     if (datalayer.battery.status.bms_status == FAULT) {
       //Make vehicle appear as in idle HV state. Useful for clearing DTCs
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
       ECMP_31E.data.u8[0] = 0x48;
-      ECMP_345.data = {0x45, 0x57, 0x00, 0x04, 0x00, 0x00, 0x06, 0x31};
       ECMP_351.data = {0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x0E};
       ECMP_372.data = {0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
       ECMP_383.data.u8[0] = 0x00;
+#endif
+      ECMP_345.data = {0x45, 0x57, 0x00, 0x04, 0x00, 0x00, 0x06, 0x31};
       ECMP_3A2.data = {0x03, 0xE8, 0x00, 0x00, 0x81, 0x00, 0x08, 0x02};
       ECMP_3A3.data = {0x4A, 0x4A, 0x40, 0x00, 0x00, 0x08, 0x00, 0x0F};
       data_345_content[0] = 0x04;  // Allows for DTCs to clear
@@ -1769,11 +1770,13 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&ECMP_3D0);  //Not in logs, but makes speed go to 0km/h
     } else {
       //Normal operation for contactor closing
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
       ECMP_31E.data.u8[0] = 0x50;
-      ECMP_345.data = {0x45, 0x52, 0x00, 0x04, 0xDD, 0x00, 0x02, 0x30};
       ECMP_351.data = {0x00, 0x00, 0x00, 0x00, 0x0E, 0xA0, 0x00, 0xE0};
       ECMP_372.data = {0x9A, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
       ECMP_383.data.u8[0] = 0x40;
+#endif
+      ECMP_345.data = {0x45, 0x52, 0x00, 0x04, 0xDD, 0x00, 0x02, 0x30};
       ECMP_3A2.data = {0x01, 0x68, 0x00, 0x00, 0x81, 0x00, 0x08, 0x02};
       ECMP_3A3.data = {0x49, 0x49, 0x40, 0x00, 0xDD, 0x08, 0x00, 0x0F};
       data_345_content[0] = 0x00;  // Allows for contactor closing
@@ -1810,14 +1813,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       data_3A2_CRC[15] = 0xF7;
     }
 
-    ECMP_31E.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31E);
     ECMP_3A2.data.u8[6] = data_3A2_CRC[counter_100ms];
     ECMP_3A3.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_3A3);
     ECMP_010.data.u8[0] = data_010_CRC[counter_010];
     ECMP_345.data.u8[3] = (uint8_t)((data_345_content[counter_100ms] & 0XF0) | 0x4);
     ECMP_345.data.u8[7] = (uint8_t)(0x3 << 4 | (data_345_content[counter_100ms] & 0X0F));
-    ECMP_351.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_351);
-    ECMP_31D.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31D);
     ECMP_3D0.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_3D0);
 
     transmit_can_frame(&ECMP_382);  //PSA Specific VCU (BSIInfo_382)
@@ -1825,36 +1825,29 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_3A2);  //OBC2_3A2
     transmit_can_frame(&ECMP_3A3);  //OBC1_3A3
     transmit_can_frame(&ECMP_010);  //VCU_BCM_Crash
-    if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_31E);
-      transmit_can_frame(&ECMP_383);
-      transmit_can_frame(&ECMP_0A6);  //Not in all logs
-      transmit_can_frame(&ECMP_37F);  //Seems to be temperatures of some sort
-      transmit_can_frame(&ECMP_372);
-      transmit_can_frame(&ECMP_351);
-      transmit_can_frame(&ECMP_31D);
-    }
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
+    ECMP_31E.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31E);
+    ECMP_351.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_351);
+    ECMP_31D.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31D);
+    transmit_can_frame(&ECMP_31E);
+    transmit_can_frame(&ECMP_383);
+    transmit_can_frame(&ECMP_0A6);  //Not in all logs
+    transmit_can_frame(&ECMP_37F);  //Seems to be temperatures of some sort
+    transmit_can_frame(&ECMP_372);
+    transmit_can_frame(&ECMP_351);
+    transmit_can_frame(&ECMP_31D);
+#endif
   }
   // Send 500ms periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
     previousMillis500 = currentMillis;
-    if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_0AE);
-    }
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
+    transmit_can_frame(&ECMP_0AE);
+#endif
   }
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
-
-    if (datalayer.battery.status.bms_status == FAULT) {
-      //Make vehicle appear as in idle HV state. Useful for clearing DTCs
-      ECMP_486.data.u8[0] = 0x80;
-      ECMP_794.data.u8[0] = 0xB8;  //Not sure if needed, could be static?
-    } else {
-      //Normal operation for contactor closing
-      ECMP_486.data.u8[0] = 0x00;
-      ECMP_794.data.u8[0] = 0x38;  //Not sure if needed, could be static?
-    }
 
     //552 seems to be tracking time in byte 0-3 , distance in km in byte 4-6, temporal reset counter in byte 7
     ticks_552 = (ticks_552 + 10);
@@ -1865,20 +1858,29 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_can_frame(&ECMP_439);  //OBC4
     transmit_can_frame(&ECMP_552);  //VCU_552 timetracking
-    if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_486);  //Not in all logs
-      transmit_can_frame(&ECMP_041);  //Not in all logs
-      transmit_can_frame(&ECMP_786);  //Not in all logs
-      transmit_can_frame(&ECMP_591);  //Not in all logs
-      transmit_can_frame(&ECMP_794);  //Not in all logs
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
+    if (datalayer.battery.status.bms_status == FAULT) {
+      //Make vehicle appear as in idle HV state. Useful for clearing DTCs
+      ECMP_486.data.u8[0] = 0x80;
+      ECMP_794.data.u8[0] = 0xB8;  //Not sure if needed, could be static?
+    } else {
+      //Normal operation for contactor closing
+      ECMP_486.data.u8[0] = 0x00;
+      ECMP_794.data.u8[0] = 0x38;  //Not sure if needed, could be static?
     }
+    transmit_can_frame(&ECMP_486);  //Not in all logs
+    transmit_can_frame(&ECMP_041);  //Not in all logs
+    transmit_can_frame(&ECMP_786);  //Not in all logs
+    transmit_can_frame(&ECMP_591);  //Not in all logs
+    transmit_can_frame(&ECMP_794);  //Not in all logs
+#endif
   }
   // Send 5s periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
     previousMillis5000 = currentMillis;
-    if (simulateEntireCar) {
-      transmit_can_frame(&ECMP_55F);
-    }
+#ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
+    transmit_can_frame(&ECMP_55F);
+#endif
   }
 }
 

@@ -269,8 +269,6 @@ struct DATALAYER_INFO_CMPSMART {
   uint8_t battery_negative_contactor_state = 0;
   uint8_t battery_precharge_contactor_state = 0;
   uint8_t battery_positive_contactor_state = 0;
-  uint8_t qc_negative_contactor_status = 0;
-  uint8_t qc_positive_contactor_status = 0;
   uint8_t battery_state = 0;
   uint8_t eplug_status = 0;
   uint8_t HVIL_status = 0;
@@ -284,21 +282,11 @@ struct DATALAYER_INFO_CMPSMART {
   uint8_t battery_fault = 0;
   uint8_t hvbat_wakeup_state = 0;
   uint8_t active_DTC_code = 0;
+  uint8_t alert_frame3 = 0;
+  uint8_t alert_frame4 = 0;
   bool rcd_line_active = false;
   bool power_auth = false;
   bool battery_balancing_active = false;
-  bool alert_cell_undervoltage = false;
-  bool alert_battery = false;
-  bool alert_cell_overvoltage = false;
-  bool alert_high_SOC = false;
-  bool alert_high_temperature = false;
-  bool alert_low_SOC = false;
-  bool alert_overvoltage = false;
-  bool alert_temperature_delta = false;
-  bool alert_cell_poor_consistency = false;
-  bool alert_overcharge = false;
-  bool alert_SOC_jump = false;
-  bool alert_contactor_opening = false;
   bool UserRequestDTCreset = false; /** User requesting DTC reset via WebUI*/
 };
 
@@ -315,25 +303,11 @@ struct DATALAYER_INFO_ECMP {
   uint32_t pid_insulation_res = 0;
   uint32_t pid_crash_counter = 0;
   uint32_t pid_history_data = 0;
-  uint32_t pid_lowsoc_counter = 0;
   uint32_t pid_last_can_failure_detail = 0;
   uint32_t pid_hw_version_num = 0;
   uint32_t pid_sw_version_num = 0;
-  uint32_t pid_factory_mode_control = 0;
-  uint32_t pid_aux_fuse_state = 0;
-  uint32_t pid_battery_state = 0;
-  uint32_t pid_precharge_short_circuit = 0;
-  uint32_t pid_eservice_plug_state = 0;
-  uint32_t pid_mainfuse_state = 0;
-  uint32_t pid_most_critical_fault = 0;
   uint32_t pid_current_time = 0;
   uint32_t pid_time_sent_by_car = 0;
-  uint32_t pid_12v = 0;
-  uint32_t pid_12v_abnormal = 0;
-  uint32_t pid_hvil_in_voltage = 0;
-  uint32_t pid_hvil_out_voltage = 0;
-  uint32_t pid_hvil_state = 0;
-  uint32_t pid_bms_state = 0;
   uint32_t pid_vehicle_speed = 0;
   uint32_t pid_time_spent_over_55c = 0;
   uint32_t pid_contactor_closing_counter = 0;
@@ -341,24 +315,38 @@ struct DATALAYER_INFO_ECMP {
 
   int32_t pid_current = 0;
 
+  uint16_t pid_most_critical_fault = 0;
   uint16_t HV_BATT_FC_INSU_MINUS_RES = 0;     //mysteryvan parameters
   uint16_t HV_BATT_FC_INSU_PLUS_RES = 0;      //mysteryvan parameters
   uint16_t HV_BATT_FC_VHL_INSU_PLUS_RES = 0;  //mysteryvan parameters
   uint16_t HV_BATT_ONLY_INSU_MINUS_RES = 0;   //mysteryvan parameters
   uint16_t InsulationResistance = 0;
   uint16_t pid_avg_cell_voltage = 0;
+  uint16_t pid_lowsoc_counter = 0;
   uint16_t pid_sum_of_cells = 0;
   uint16_t pid_cell_min_capacity = 0;
   uint16_t pid_pack_voltage = 0;
   uint16_t pid_high_cell_voltage = 0;
   uint16_t pid_low_cell_voltage = 0;
   uint16_t pid_SOH_cell_1 = 0;
+  uint16_t pid_12v = 0;
+  uint16_t pid_hvil_in_voltage = 0;
+  uint16_t pid_hvil_out_voltage = 0;
 
+  uint8_t pid_bms_state = 0;
+  uint8_t pid_hvil_state = 0;
+  uint8_t pid_mainfuse_state = 0;
+  uint8_t pid_precharge_short_circuit = 0;
+  uint8_t pid_eservice_plug_state = 0;
+  uint8_t pid_battery_state = 0;
+  uint8_t pid_aux_fuse_state = 0;
+  uint8_t pid_12v_abnormal = 0;
   uint8_t InsulationDiag = 0;
   uint8_t MainConnectorState = 0;
   uint8_t CONTACTOR_OPENING_REASON = 0;  //mysteryvan parameters
   uint8_t TBMU_FAULT_TYPE = 0;           //mysteryvan parameters
   uint8_t CONTACTORS_STATE = 0;          //mysteryvan parameters
+  uint8_t pid_factory_mode_control = 0;
   uint8_t pid_welding_detection = 0;
   uint8_t pid_reason_open = 0;
   uint8_t pid_contactor_status = 0;
@@ -371,12 +359,19 @@ struct DATALAYER_INFO_ECMP {
   uint8_t pid_precharge_relay_control = 0;
   uint8_t pid_precharge_relay_status = 0;
   uint8_t pid_recharge_status = 0;
-  uint8_t pid_delta_temperature = 0;
   uint8_t pid_coldest_module = 0;
-  uint8_t pid_lowest_temperature = 0;
-  uint8_t pid_average_temperature = 0;
-  uint8_t pid_highest_temperature = 0;
   uint8_t pid_hottest_module = 0;
+  uint8_t pid_battery_energy = 0;
+  uint8_t pid_wire_crash = 0;
+  uint8_t pid_CAN_crash = 0;
+  uint8_t pid_highest_cell_voltage_num = 0;
+  uint8_t pid_lowest_cell_voltage_num = 0;
+  uint8_t pid_cell_voltage_measurement_status = 0;
+
+  int8_t pid_delta_temperature = 0;
+  int8_t pid_lowest_temperature = 0;
+  int8_t pid_average_temperature = 0;
+  int8_t pid_highest_temperature = 0;
 
   bool MysteryVan = false;      //mysteryvan parameters
   bool CrashMemorized = false;  //mysteryvan parameters
@@ -397,12 +392,6 @@ struct DATALAYER_INFO_ECMP {
   bool ALERT_CELL_OVERVOLTAGE = false;   //mysteryvan parameters
   bool ALERT_CELL_UNDERVOLTAGE = false;  //mysteryvan parameters
 
-  uint8_t pid_battery_energy = 0;
-  uint8_t pid_wire_crash = 0;
-  uint8_t pid_CAN_crash = 0;
-  uint8_t pid_highest_cell_voltage_num = 0;
-  uint8_t pid_lowest_cell_voltage_num = 0;
-  uint8_t pid_cell_voltage_measurement_status = 0;
   uint8_t pid_battery_serial[13] = {0};
 };
 

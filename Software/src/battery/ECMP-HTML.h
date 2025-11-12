@@ -103,22 +103,22 @@ class EcmpHtmlRenderer : public BatteryHtmlRenderer {
                     : String(datalayer_extended.stellantisECMP.pid_recharge_status)) +
                "</h4>";
     content += "<h4>Delta temperature: " +
-               (datalayer_extended.stellantisECMP.pid_delta_temperature == 255
+               (datalayer_extended.stellantisECMP.pid_delta_temperature == 127
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_delta_temperature)) +
                "&deg;C</h4>";
     content += "<h4>Lowest temperature: " +
-               (datalayer_extended.stellantisECMP.pid_lowest_temperature == 255
+               (datalayer_extended.stellantisECMP.pid_lowest_temperature == 127
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_lowest_temperature)) +
                "&deg;C</h4>";
     content += "<h4>Average temperature: " +
-               (datalayer_extended.stellantisECMP.pid_average_temperature == 255
+               (datalayer_extended.stellantisECMP.pid_average_temperature == 127
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_average_temperature)) +
                "&deg;C</h4>";
     content += "<h4>Highest temperature: " +
-               (datalayer_extended.stellantisECMP.pid_highest_temperature == 255
+               (datalayer_extended.stellantisECMP.pid_highest_temperature == 127
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_highest_temperature)) +
                "&deg;C</h4>";

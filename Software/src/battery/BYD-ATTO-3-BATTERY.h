@@ -69,56 +69,33 @@ class BydAttoBattery : public CanBattery {
   DATALAYER_INFO_BYDATTO3* datalayer_bydatto;
   bool* allows_contactor_closing;
 
-  static const int CELLCOUNT_EXTENDED = 126;
-  static const int CELLCOUNT_STANDARD = 104;
-  static const int MAX_PACK_VOLTAGE_EXTENDED_DV = 4410;  //Extended range
-  static const int MIN_PACK_VOLTAGE_EXTENDED_DV = 3800;  //Extended range
-  static const int MAX_PACK_VOLTAGE_STANDARD_DV = 3640;  //Standard range
-  static const int MIN_PACK_VOLTAGE_STANDARD_DV = 3136;  //Standard range
-  static const int MAX_CELL_DEVIATION_MV = 230;
-  static const int MAX_CELL_VOLTAGE_MV = 3650;  //Charging stops if one cell exceeds this value
-  static const int MIN_CELL_VOLTAGE_MV = 2800;  //Discharging stops if one cell goes below this value
-
-  static const int POLL_FOR_BATTERY_SOC = 0x0005;
-  static const uint8_t NOT_DETERMINED_YET = 0;
-  static const uint8_t STANDARD_RANGE = 1;
-  static const uint8_t EXTENDED_RANGE = 2;
-
-  static const uint8_t NOT_RUNNING = 0xFF;
-  static const uint8_t STARTED = 0;
-  static const uint8_t RUNNING_STEP_1 = 1;
-  static const uint8_t RUNNING_STEP_2 = 2;
-
-  uint8_t battery_type = NOT_DETERMINED_YET;
-  uint8_t stateMachineClearCrash = NOT_RUNNING;
   unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
-  bool SOC_method = false;
-  bool BMS_voltage_available = false;
-  uint8_t counter_50ms = 0;
-  uint8_t counter_100ms = 0;
-  uint8_t frame6_counter = 0xB;
-  uint8_t frame7_counter = 0x5;
+
+  uint32_t BMS_unknown0 = 0;
+  uint32_t BMS_unknown1 = 0;
+
+  static const uint16_t CELLCOUNT_EXTENDED = 126;
+  static const uint16_t CELLCOUNT_STANDARD = 104;
+  static const uint16_t MAX_PACK_VOLTAGE_EXTENDED_DV = 4410;  //Extended range
+  static const uint16_t MIN_PACK_VOLTAGE_EXTENDED_DV = 3800;  //Extended range
+  static const uint16_t MAX_PACK_VOLTAGE_STANDARD_DV = 3640;  //Standard range
+  static const uint16_t MIN_PACK_VOLTAGE_STANDARD_DV = 3136;  //Standard range
+  static const uint16_t MAX_CELL_DEVIATION_MV = 230;
+  static const uint16_t MAX_CELL_VOLTAGE_MV = 3650;  //Charging stops if one cell exceeds this value
+  static const uint16_t MIN_CELL_VOLTAGE_MV = 2800;  //Discharging stops if one cell goes below this value
+  static const uint16_t POLL_FOR_BATTERY_SOC = 0x0005;
+  uint16_t rampdown_power = 0;
+  uint16_t poll_state = POLL_FOR_BATTERY_SOC;
+  uint16_t pid_reply = 0;
   uint16_t battery_voltage = 0;
-  int16_t battery_temperature_ambient = 0;
-  int16_t battery_daughterboard_temperatures[10];
-  int16_t battery_lowest_temperature = 0;
-  int16_t battery_highest_temperature = 0;
-  int16_t battery_calc_min_temperature = 0;
-  int16_t battery_calc_max_temperature = 0;
   uint16_t battery_highprecision_SOC = 0;
   uint16_t battery_estimated_SOC = 0;
   uint16_t BMS_SOC = 0;
   uint16_t BMS_voltage = 0;
-  int16_t BMS_current = 0;
-  int16_t BMS_lowest_cell_temperature = 0;
-  int16_t BMS_highest_cell_temperature = 0;
-  int16_t BMS_average_cell_temperature = 0;
   uint16_t BMS_lowest_cell_voltage_mV = 3300;
   uint16_t BMS_highest_cell_voltage_mV = 3300;
-  uint32_t BMS_unknown0 = 0;
-  uint32_t BMS_unknown1 = 0;
   uint16_t BMS_allowed_charge_power = 0;
   uint16_t BMS_charge_times = 0;
   uint16_t BMS_allowed_discharge_power = 0;
@@ -127,16 +104,41 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMS_total_charged_kwh = 0;
   uint16_t BMS_total_discharged_kwh = 0;
   uint16_t BMS_times_full_power = 0;
+
+  int16_t battery_temperature_ambient = 0;
+  int16_t battery_lowest_temperature = 0;
+  int16_t battery_highest_temperature = 0;
+  int16_t battery_calc_min_temperature = 0;
+  int16_t battery_calc_max_temperature = 0;
+  int16_t BMS_current = 0;
+  int16_t BMS_lowest_cell_temperature = 0;
+  int16_t BMS_highest_cell_temperature = 0;
+  int16_t BMS_average_cell_temperature = 0;
+
+  static const uint8_t NOT_DETERMINED_YET = 0;
+  static const uint8_t STANDARD_RANGE = 1;
+  static const uint8_t EXTENDED_RANGE = 2;
+  static const uint8_t NOT_RUNNING = 0xFF;
+  static const uint8_t STARTED = 0;
+  static const uint8_t RUNNING_STEP_1 = 1;
+  static const uint8_t RUNNING_STEP_2 = 2;
+  uint8_t battery_type = NOT_DETERMINED_YET;
+  uint8_t stateMachineClearCrash = NOT_RUNNING;
+  uint8_t counter_50ms = 0;
+  uint8_t counter_100ms = 0;
+  uint8_t frame6_counter = 0xB;
+  uint8_t frame7_counter = 0x5;
   uint8_t BMS_unknown10 = 0;
   uint8_t BMS_unknown11 = 0;
   uint8_t BMS_unknown12 = 0;
   uint8_t BMS_unknown13 = 0;
   uint8_t battery_frame_index = 0;
-  uint16_t battery_cellvoltages[CELLCOUNT_EXTENDED] = {0};
-  uint16_t rampdown_power = 0;
 
-  uint16_t poll_state = POLL_FOR_BATTERY_SOC;
-  uint16_t pid_reply = 0;
+  bool SOC_method = false;
+  bool BMS_voltage_available = false;
+
+  int16_t battery_daughterboard_temperatures[10];
+  uint16_t battery_cellvoltages[CELLCOUNT_EXTENDED] = {0};
 
   CAN_frame ATTO_3_12D = {.FD = false,
                           .ext_ID = false,
