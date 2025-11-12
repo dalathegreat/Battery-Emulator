@@ -1,4 +1,5 @@
 #include "CMP-SMART-CAR-BATTERY.h"
+#include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For More Battery Info page
@@ -6,6 +7,11 @@
 
 /* Do not change code below unless you are sure what you are doing */
 void CmpSmartCarBattery::update_values() {
+  if (datalayer.system.info.equipment_stop_active == true) {
+    digitalWrite(esp32hal->WUP_PIN1(), LOW);  // Turn off wakeup pin
+  } else if (millis() > INTERVAL_1_S) {
+    digitalWrite(esp32hal->WUP_PIN1(), HIGH);  // Wake up the battery
+  }
 
   datalayer.battery.status.real_soc = battery_soc * 10;
 
@@ -487,14 +493,14 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     CMP_211.data.u8[2] = 0x00;  //00 QC contactor OFF, 81, QC contactor ON
 
     if (startup_increment < 200) {  //During startup we request open contactors
-      CMP_211.data.u8[4] = 0x15;    //Ready mode (unsure why this opens contactors)
+      CMP_211.data.u8[4] = 0x17;    //Ready mode (unsure why this opens contactors)
     } else {                        //Normal handling of close/open
 
       if (datalayer.battery.status.bms_status == FAULT) {
         //Open contactors
-        CMP_211.data.u8[4] = 0x15;  //Ready mode (unsure why this opens contactors)
+        CMP_211.data.u8[4] = 0x17;  //Ready mode (unsure why this opens contactors) (Bit 1 is insulation turn-off)
       } else {                      //Close contactors
-        CMP_211.data.u8[4] = 0x04;  //04 discharge, 4A charge
+        CMP_211.data.u8[4] = 0x06;  //04 discharge (+bit1 insulation turn off), 4A charge
       }
     }
 
@@ -532,6 +538,10 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void CmpSmartCarBattery::setup(void) {  // Performs one time setup at startup
+  if (!esp32hal->alloc_pins(Name, esp32hal->WUP_PIN1())) {
+    return;  //TODO, this needs refactoring for double-battery later
+  }
+
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 100;
@@ -543,4 +553,7 @@ void CmpSmartCarBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_100S_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_100S_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
+
+  pinMode(esp32hal->WUP_PIN1(), OUTPUT);
+  digitalWrite(esp32hal->WUP_PIN1(), LOW);  // Set pin to low, prepare to wakeup later on!
 }

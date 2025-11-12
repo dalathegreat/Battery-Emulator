@@ -1,5 +1,6 @@
 #ifndef CMP_SMART_CAR_BATTERY_H
 #define CMP_SMART_CAR_BATTERY_H
+#include "../devboard/hal/hal.h"
 #include "CMP-SMART-CAR-BATTERY-HTML.h"
 #include "CanBattery.h"
 
