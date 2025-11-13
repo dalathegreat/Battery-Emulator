@@ -33,9 +33,11 @@ void CmpSmartCarBattery::update_values() {
 
   datalayer.battery.status.max_discharge_power_W = discharge_cont_available_power * 100;
 
-  datalayer.battery.status.temperature_min_dC = battery_temperature_minimum * 10;
-
-  datalayer.battery.status.temperature_max_dC = battery_temperature_maximum * 10;
+  if ((battery_temperature_minimum != 0) && (battery_temperature_maximum != 0)) {
+    //Only update once both values are available
+    datalayer.battery.status.temperature_min_dC = battery_temperature_minimum * 10;
+    datalayer.battery.status.temperature_max_dC = battery_temperature_maximum * 10;
+  }
 
   datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;
 
@@ -299,10 +301,19 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x435:  //500ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_temperature_maximum = rx_frame.data.u8[0] - 40;
-      min_cell_voltage = ((rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[3] >> 2));
+      tempval = rx_frame.data.u8[0] - 40;
+      if (tempval < 210) {
+        battery_temperature_maximum = rx_frame.data.u8[0] - 40;
+      }
+      temp = ((rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[3] >> 2));
+      if (temp < 15000) {
+        min_cell_voltage = temp;
+      }
       min_cell_voltage_number = rx_frame.data.u8[4];
-      max_cell_voltage = ((rx_frame.data.u8[5] << 6) | (rx_frame.data.u8[6] >> 2));
+      temp = ((rx_frame.data.u8[5] << 6) | (rx_frame.data.u8[6] >> 2));
+      if (temp < 15000) {
+        max_cell_voltage = temp;
+      }
       max_cell_voltage_number = rx_frame.data.u8[7];
       break;
     case 0x455:  //100ms
@@ -346,7 +357,10 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       max_temperature_probe_number = rx_frame.data.u8[0];
       min_temperature_probe_number = rx_frame.data.u8[1];
-      battery_temperature_minimum = rx_frame.data.u8[2] - 40;
+      tempval = rx_frame.data.u8[2] - 40;
+      if (tempval < 210) {
+        battery_temperature_minimum = rx_frame.data.u8[2] - 40;
+      }
       alert_cell_undervoltage = rx_frame.data.u8[3] & 0x01;
       alert_cell_overvoltage = (rx_frame.data.u8[3] & 0x02) >> 1;
       alert_high_SOC = (rx_frame.data.u8[3] & 0x04) >> 2;
