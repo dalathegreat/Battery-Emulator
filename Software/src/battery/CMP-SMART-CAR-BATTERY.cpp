@@ -306,12 +306,12 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_temperature_maximum = rx_frame.data.u8[0] - 40;
       }
       temp = ((rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[3] >> 2));
-      if (temp < 15000) {
+      if ((temp > 2000) && (temp < 4500)) {
         min_cell_voltage = temp;
       }
       min_cell_voltage_number = rx_frame.data.u8[4];
       temp = ((rx_frame.data.u8[5] << 6) | (rx_frame.data.u8[6] >> 2));
-      if (temp < 15000) {
+      if ((temp > 2000) && (temp < 4500)) {
         max_cell_voltage = temp;
       }
       max_cell_voltage_number = rx_frame.data.u8[7];
