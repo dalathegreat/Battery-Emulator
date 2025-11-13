@@ -41,8 +41,7 @@ void VolvoSpaBattery::
 
   datalayer.battery.status.remaining_capacity_Wh = (datalayer.battery.info.total_capacity_Wh - CHARGE_ENERGY);
 
-  datalayer.battery.status.real_soc =
-      SOC_BMS;  // Use BMS reported SOC, havent figured out how to get the BMS to calibrate empty/full yet
+  datalayer.battery.status.real_soc = SOC_BMS * 10;  //Add one decimal to make it pptt
 
   // Use calculated SOC based on remaining_capacity
   /*
