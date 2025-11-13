@@ -50,14 +50,6 @@ void VolvoSpaBattery::
   datalayer.battery.status.real_soc = SOC_CALC * 10;  //Add one decimal to make it pptt
   */
 
-  if (BATT_U > MAX_U)  // Protect if overcharged
-  {
-    datalayer.battery.status.real_soc = 10000;
-  } else if (BATT_U < MIN_U)  //Protect if undercharged
-  {
-    datalayer.battery.status.real_soc = 0;
-  }
-
   datalayer.battery.status.voltage_dV = BATT_U * 10;
   datalayer.battery.status.current_dA = BATT_I * 10;
 
