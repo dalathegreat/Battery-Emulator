@@ -81,13 +81,11 @@ add_executable(tests
     ../Software/src/devboard/utils/events.cpp
     ../Software/src/datalayer/datalayer.cpp
     ../Software/src/datalayer/datalayer_extended.cpp
-    ../Software/src/lib/eModbus-eModbus/Logging.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusMessage.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusServer.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusServerRTU.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusTypeDefs.cpp
     ../Software/src/lib/eModbus-eModbus/RTUutils.cpp
-#    ../Software/src/lib/eModbus-eModbus/scripts/mbServerFCs.cpp
     ../Software/src/battery/BATTERIES.cpp
     ../Software/src/battery/Battery.cpp
     ../Software/src/battery/BMW-I3-BATTERY.cpp
