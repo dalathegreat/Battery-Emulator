@@ -17,8 +17,12 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     float BMS_maxChargePower = static_cast<float>(byd_datalayer->chargePower) * 0.1f;
     float BMS_maxDischargePower = static_cast<float>(byd_datalayer->dischargePower) * 0.1f;
     static const char* SOCmethod[2] = {"Estimated from voltage", "Measured by BMS"};
+    static const char* SOCcontrol[2] = {"Auto", "Manual"};
 
     content += "<h4>SOC method used: " + String(SOCmethod[byd_datalayer->SOC_method]) + "</h4>";
+    if (byd_datalayer->SOC_method == 0) {
+      content += "<h4>SOC control mode: " + String(SOCcontrol[byd_datalayer->SOC_method_manual_override]) + "</h4>";
+    }
     content += "<h4>SOC estimated: " + String(soc_estimated) + "&percnt;</h4>";
     content += "<h4>SOC measured: " + String(soc_measured) + "&percnt;</h4>";
     content += "<h4>SOC OBD2: " + String(byd_datalayer->SOC_polled) + "&percnt;</h4>";

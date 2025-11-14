@@ -161,6 +161,16 @@ void BydAttoBattery::
     battery_estimated_SOC = estimateSOCstandard(datalayer_battery->status.voltage_dV);
   }
 
+  // Auto SOC method switching
+  if (!SOC_method_manual_override) {  // Do not switch in either direction if already set to ESTIMATED manually
+    if (SOC_method == MEASURED && battery_highprecision_SOC * 10 < AUTO_SWITCH_ESTIMATED_THRESHOLD &&
+        battery_estimated_SOC > AUTO_SWITCH_MIN_SOC_DELTA) {
+      SOC_method = ESTIMATED;
+    } else if (SOC_method == ESTIMATED && battery_highprecision_SOC * 10 >= AUTO_SWITCH_MEASURED_THRESHOLD) {
+      SOC_method = MEASURED;
+    }
+  }
+
   if (SOC_method == MEASURED) {
     // Pack is not crashed, we can use periodically transmitted SOC
     datalayer_battery->status.real_soc = battery_highprecision_SOC * 10;
@@ -303,6 +313,7 @@ void BydAttoBattery::
     datalayer_bydatto->unknown11 = BMS_unknown11;
     datalayer_bydatto->unknown12 = BMS_unknown12;
     datalayer_bydatto->unknown13 = BMS_unknown13;
+    datalayer_bydatto->SOC_method_manual_override = SOC_method_manual_override;
 
     // Update requests from webserver datalayer
     if (datalayer_bydatto->UserRequestCrashReset && stateMachineClearCrash == NOT_RUNNING) {

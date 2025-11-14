@@ -126,9 +126,12 @@ struct DATALAYER_INFO_BMWIX {
 };
 
 struct DATALAYER_INFO_BYDATTO3 {
+  /** bool */
+  /** Used if SOC method was manually overridden via WebUI */
+  bool SOC_method_manual_override = false;
+  /** uint16_t */
   uint32_t unknown0 = 0;  //Unknown polled value
   uint32_t unknown1 = 0;  //Unknown polled value
-
   /** SOC% estimate. Estimated from total pack voltage */
   uint16_t SOC_estimated = 0;
   /** SOC% raw battery value. Highprecision. Can be locked if pack is crashed */
