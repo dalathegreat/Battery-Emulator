@@ -29,7 +29,8 @@
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
 
-#if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_DEVKIT)
+#if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
+    !defined(HW_DEVKIT)
 #error You must select a target hardware!
 #endif
 
@@ -67,7 +68,7 @@ void register_transmitter(Transmitter* transmitter) {
 void init_serial() {
   // Init Serial monitor
   Serial.begin(115200);
-#if HW_LILYGO2CAN
+#if (HW_LILYGO2CAN || HW_BECOM)
   // Wait up to 100ms for Serial to be available. On the ESP32S3 Serial is
   // provided by the USB controller, so will only work if the board is connected
   // to a computer.

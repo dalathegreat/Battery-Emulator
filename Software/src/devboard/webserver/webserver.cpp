@@ -941,6 +941,9 @@ String processor(const String& var) {
 #ifdef HW_LILYGO2CAN
     content += " Hardware: LilyGo T_2CAN";
 #endif  // HW_LILYGO2CAN
+#ifdef HW_BECOM
+    content += " Hardware: BECom";
+#endif  // HW_BECOM
 #ifdef HW_STARK
     content += " Hardware: Stark CMR Module";
 #endif  // HW_STARK
