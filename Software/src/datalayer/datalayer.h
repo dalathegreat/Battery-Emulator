@@ -350,10 +350,8 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   bool inverter_allows_contactor_closing = true;
   /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
   bool contactors_battery2_engaged = false;
-  /** True if the BMS is being reset, by cutting power towards it */
-  bool BMS_reset_in_progress = false;
-  /** True if the BMS is starting up */
-  bool BMS_startup_in_progress = false;
+  /** State of BMS reset sequence */
+  BMSResetState bms_reset_status = BMS_RESET_IDLE;
 };
 
 struct DATALAYER_SYSTEM_TYPE {
