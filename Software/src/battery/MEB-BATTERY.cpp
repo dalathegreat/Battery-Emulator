@@ -881,6 +881,9 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     if (datalayer.battery.status.real_bms_status != BMS_FAULT) {
       datalayer.battery.status.real_bms_status = BMS_DISCONNECTED;
       datalayer.system.status.battery_allows_contactor_closing = false;
+      // Set the link voltage back to 0, so that when the BMS comes back, it
+      // doesn't skip the precharge.
+      datalayer_extended.meb.BMS_voltage_intermediate_dV = 0;
     }
   }
   // Send 10ms CAN Message
