@@ -881,6 +881,14 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     if (datalayer.battery.status.real_bms_status != BMS_FAULT) {
       datalayer.battery.status.real_bms_status = BMS_DISCONNECTED;
       datalayer.system.status.battery_allows_contactor_closing = false;
+
+      // Set the link voltage back to 0, so that when the BMS comes back, it
+      // doesn't immediately skip the precharge.
+      BMS_voltage_intermediate = 0;
+      datalayer_extended.meb.BMS_voltage_intermediate_dV = 0;
+
+      // Reset the HV requested state so that we don't skip the precharge.
+      hv_requested = false;
     }
   }
   // Send 10ms CAN Message
@@ -951,8 +959,21 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
            (datalayer.battery.status.voltage_dV > 200 && datalayer_extended.meb.BMS_voltage_intermediate_dV > 0 &&
             labs(((int32_t)datalayer.battery.status.voltage_dV) -
                  ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
-      hv_requested = true;
+      // We are either:
+      //  - in BMS_ACTIVE state (contactors closed, normal operation)
+      //  - or in BMS_STANDBY state, ready to request HV from the battery (our precharge is within 20V)
+      //  - or in BMS_STANDBY state, having already requested HV (hv_requested = true)
+
+      if (datalayer.battery.status.real_bms_status != BMS_ACTIVE) {
+        // We're still awaiting contactor closure, so record that we've
+        // requested HV, so that we keep doing so even if the precharge voltage
+        // wavers.
+        hv_requested = true;
+      }
+
+      // We can stop precharging now.
       datalayer.system.info.start_precharging = false;
+
       if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
         logging.printf("MEB: Requesting HV\n");
       }
@@ -1201,6 +1222,45 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&MEB_1A5555A6);           // Temperature QBit
 
     transmit_obd_can_frame(0x18DA05F1, can_config.battery, true);
+  }
+
+  static auto last_real_bms_status = datalayer.battery.status.real_bms_status;
+  static auto last_start_precharging = datalayer.system.info.start_precharging;
+  static auto last_hv_requested = hv_requested;
+  static auto last_voltage_dV = datalayer.battery.status.voltage_dV;
+  static auto last_BMS_voltage_intermediate_dV = datalayer_extended.meb.BMS_voltage_intermediate_dV;
+  static auto BMS_mode = datalayer_extended.meb.BMS_mode;
+
+  if (last_real_bms_status != datalayer.battery.status.real_bms_status) {
+    logging.printf("MEB: BMS status %d -> %d\n", last_real_bms_status, datalayer.battery.status.real_bms_status);
+    last_real_bms_status = datalayer.battery.status.real_bms_status;
+  }
+
+  if (last_start_precharging != datalayer.system.info.start_precharging) {
+    logging.printf("MEB: Start precharging %d -> %d\n", last_start_precharging,
+                   datalayer.system.info.start_precharging);
+    last_start_precharging = datalayer.system.info.start_precharging;
+  }
+
+  if (last_hv_requested != hv_requested) {
+    logging.printf("MEB: HV requested %d -> %d\n", last_hv_requested, hv_requested);
+    last_hv_requested = hv_requested;
+  }
+
+  if (last_voltage_dV != datalayer.battery.status.voltage_dV) {
+    logging.printf("MEB: Voltage dV %d -> %d\n", last_voltage_dV, datalayer.battery.status.voltage_dV);
+    last_voltage_dV = datalayer.battery.status.voltage_dV;
+  }
+
+  if (last_BMS_voltage_intermediate_dV != datalayer_extended.meb.BMS_voltage_intermediate_dV) {
+    logging.printf("MEB: BMS Voltage intermediate dV %d -> %d\n", last_BMS_voltage_intermediate_dV,
+                   datalayer_extended.meb.BMS_voltage_intermediate_dV);
+    last_BMS_voltage_intermediate_dV = datalayer_extended.meb.BMS_voltage_intermediate_dV;
+  }
+
+  if (BMS_mode != datalayer_extended.meb.BMS_mode) {
+    logging.printf("MEB: BMS mode %d -> %d\n", BMS_mode, datalayer_extended.meb.BMS_mode);
+    BMS_mode = datalayer_extended.meb.BMS_mode;
   }
 }
 
