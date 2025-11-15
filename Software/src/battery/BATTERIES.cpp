@@ -257,6 +257,11 @@ void setup_battery() {
         battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
                                     can_config.battery_double, esp32hal->WUP_PIN2());
         break;
+      case BatteryType::StellantisEcmp:
+        battery2 =
+            new EcmpBattery(&datalayer.battery2, &datalayer_extended.stellantisECMP,
+                            &datalayer.system.status.battery2_allowed_contactor_closing, can_config.battery_double);
+        break;
       case BatteryType::CmfaEv:
         battery2 = new CmfaEvBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
