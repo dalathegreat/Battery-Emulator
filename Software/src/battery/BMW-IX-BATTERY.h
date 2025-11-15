@@ -65,6 +65,8 @@ class BmwIXBattery : public CanBattery {
   bool UserRequestBMSReset = false;
   bool UserRequestDTCRead = false;
   bool UserRequestEnergySavingModeReset = false;
+  bool startup_reset_complete = false;  // Track if startup BMS reset is done
+  unsigned long startup_time = 0;        // Track startup time for delayed reset
   BmwIXHtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_78S_DV = 3354;  //SE12 battery, BMW iX1, 66.45kWh 286.3vNom
   static const int MIN_PACK_VOLTAGE_78S_DV = 2200;

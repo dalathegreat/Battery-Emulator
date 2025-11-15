@@ -757,6 +757,15 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void BmwIXBattery::transmit_can(unsigned long currentMillis) {
+  // Perform startup BMS reset after 3 seconds, before allowing contactor close
+  if (!startup_reset_complete && (currentMillis - startup_time > 3000)) {
+    logging.println("Performing startup BMS reset");
+    transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET);
+    startup_reset_complete = true;
+    // Allow contactors to close after reset
+    datalayer.system.status.battery_allows_contactor_closing = true;
+  }
+
   // Timeout check for stuck UDS transfers
   if (gUDSContext.UDS_inProgress) {
     if (currentMillis - gUDSContext.UDS_lastFrameMillis > 2000) {  // 2 second timeout
@@ -886,8 +895,8 @@ void BmwIXBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
-  //Reset Battery at bootup
-  //transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET);
+  startup_time = millis();
+  startup_reset_complete = false;
 
   //Before we have started up and detected which battery is in use, use largest deviation possible to avoid errors
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
@@ -895,7 +904,7 @@ void BmwIXBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  datalayer.system.status.battery_allows_contactor_closing = true;
+  datalayer.system.status.battery_allows_contactor_closing = false;  // Don't allow contactors until reset is done
 }
 
 void BmwIXBattery::HandleIncomingUserRequest(void) {
