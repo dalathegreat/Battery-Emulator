@@ -882,7 +882,8 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
       datalayer.battery.status.real_bms_status = BMS_DISCONNECTED;
       datalayer.system.status.battery_allows_contactor_closing = false;
       // Set the link voltage back to 0, so that when the BMS comes back, it
-      // doesn't skip the precharge.
+      // doesn't immediately skip the precharge.
+      BMS_voltage_intermediate = 0;
       datalayer_extended.meb.BMS_voltage_intermediate_dV = 0;
     }
   }
