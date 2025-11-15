@@ -9,6 +9,12 @@ using duration = std::chrono::duration<unsigned long, std::ratio<1, 1000>>;
 
 enum bms_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
 enum real_bms_status_enum { BMS_DISCONNECTED = 0, BMS_STANDBY = 1, BMS_ACTIVE = 2, BMS_FAULT = 3 };
+enum balancing_status_enum {
+  BALANCING_STATUS_UNKNOWN = 0,
+  BALANCING_STATUS_ERROR = 1,
+  BALANCING_STATUS_READY = 2,
+  BALANCING_STATUS_ACTIVE = 3
+};
 enum battery_chemistry_enum { Autodetect = 0, NCA = 1, NMC = 2, LFP = 3, Highest };
 
 enum class comm_interface {
