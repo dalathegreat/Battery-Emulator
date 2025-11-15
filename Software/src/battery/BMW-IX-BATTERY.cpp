@@ -965,6 +965,10 @@ void BmwIXBattery::BmwIxOpenContactors(void) {
 }
 
 void BmwIXBattery::HandleBmwIxCloseContactorsRequest(uint16_t counter_10ms) {
+  // Block contactor close until startup reset is complete
+  if (!startup_reset_complete) {
+    return;
+  }
   if (contactorCloseReq == true) {  // Only when contactor close request is set to true
     if (ContactorState.closed == false &&
         ContactorState.open ==
