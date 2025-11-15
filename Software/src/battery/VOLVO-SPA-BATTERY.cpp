@@ -160,14 +160,21 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         logging.println("BATT_ERR_INDICATION not valid");
       }
       if ((rx_frame.data.u8[0] & 0x20) == 0x20) {
-        BATT_T_MAX = ((rx_frame.data.u8[2] & 0x1F) * 256.0 + rx_frame.data.u8[3]);
-        BATT_T_MIN = ((rx_frame.data.u8[4] & 0x1F) * 256.0 + rx_frame.data.u8[5]);
-        BATT_T_AVG = ((rx_frame.data.u8[0] & 0x1F) * 256.0 + rx_frame.data.u8[1]);
-      } else {
-        BATT_T_MAX = 0;
-        BATT_T_MIN = 0;
-        BATT_T_AVG = 0;
-        logging.println("BATT_T not valid");
+        if ((rx_frame.data.u8[2] & 0x10) >> 4) {  //Sign bit
+          //Negative value
+          BATT_T_MAX = -(((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3]);
+        } else {
+          //Positive value
+          BATT_T_MAX = (((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3]);
+        }
+        if ((rx_frame.data.u8[4] & 0x10) >> 4) {  //Sign bit
+          //Negative value
+          BATT_T_MIN = -(((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]);
+        } else {
+          //Positive value
+          BATT_T_MIN = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]);
+        }
+        //BATT_T_AVG = ((rx_frame.data.u8[0] & 0x1F) * 256.0 + rx_frame.data.u8[1]);
       }
       break;
     case 0x369:
