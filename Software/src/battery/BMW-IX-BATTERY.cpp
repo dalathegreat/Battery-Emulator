@@ -510,6 +510,28 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_108S_DV;
   }
+
+  // Map BMW IX balancing status to standard balancing status enum
+  // 0 = No balancing mode active (Ready)
+  // 1/2/3 = Various balancing modes active (Active)
+  // 4 = No balancing mode active, qualifier invalid (Error)
+  // default = Unknown
+  switch (balancing_status) {
+    case 0:
+      datalayer.battery.status.balancing_status = BALANCING_STATUS_READY;
+      break;
+    case 1:
+    case 2:
+    case 3:
+      datalayer.battery.status.balancing_status = BALANCING_STATUS_ACTIVE;
+      break;
+    case 4:
+      datalayer.battery.status.balancing_status = BALANCING_STATUS_ERROR;
+      break;
+    default:
+      datalayer.battery.status.balancing_status = BALANCING_STATUS_UNKNOWN;
+      break;
+  }
 }
 
 void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
