@@ -342,7 +342,7 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       max_temperature_probe_number = rx_frame.data.u8[0];
       min_temperature_probe_number = rx_frame.data.u8[1];
-      
+
       alert_frame3 = rx_frame.data.u8[3];
       alert_frame4 = rx_frame.data.u8[4];
 
