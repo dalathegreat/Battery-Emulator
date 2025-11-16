@@ -119,12 +119,10 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
         host_temperature = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         status_accounting = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         equalization_starting_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-        if ((status_accounting & 0x020) >> 5) {
-          //Balancing active - set all cells to 1
-          memset(datalayer.battery.status.cell_balancing_status, 1, populated_cellvoltages);
+        if ((status_accounting & 0x020) >> 5) {  //balancing active
+          datalayer.battery.status.balancing_status = BALANCING_STATUS_ACTIVE;
         } else {  //balancing off
-                  // balancing off - set all cells to 0
-          memset(datalayer.battery.status.cell_balancing_status, 0, populated_cellvoltages);
+          datalayer.battery.status.balancing_status = BALANCING_STATUS_READY;
         }
         if ((rx_frame.data.u8[4] & 0x40) >> 6) {
           charging_active = true;
