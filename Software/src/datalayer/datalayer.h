@@ -106,6 +106,8 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
   /** LED mode, customizable by user */
   led_mode_enum led_mode = CLASSIC;
+  /** Balancing status */
+  balancing_status_enum balancing_status = BALANCING_STATUS_UNKNOWN;
 
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.

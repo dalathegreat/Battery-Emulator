@@ -145,6 +145,7 @@ class CmpSmartCarBattery : public CanBattery {
   uint16_t hours_spent_undertemperature = 0;
   uint16_t battery_soc = 500;
   uint16_t battery_voltage = 3300;
+  uint16_t temp = 0;
   uint16_t min_cell_voltage = 3300;
   uint16_t max_cell_voltage = 3300;
   uint16_t nominal_voltage = 0;
@@ -160,6 +161,7 @@ class CmpSmartCarBattery : public CanBattery {
   int16_t battery_temperature_minimum = 0;
   int16_t battery_current_dA = 0;
 
+  uint8_t tempval = 0;
   uint8_t startup_increment = 0;
   uint8_t active_DTC_code = 0;
   uint8_t battery_quickcharge_connect_status = 0;

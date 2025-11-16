@@ -55,10 +55,15 @@ String cellmonitor_processor(const String& var) {
         "<span style='color: white; background-color: blue; font-weight: bold; padding: 2px 8px; border-radius: 4px; "
         "margin-right: 15px;'>Idle</span>";
     bool battery_balancing = false;
+    // Check per-cell balancing status
     for (uint8_t i = 0u; i < datalayer.battery.info.number_of_cells; i++) {
       battery_balancing = datalayer.battery.status.cell_balancing_status[i];
       if (battery_balancing)
         break;
+    }
+    // Also check overall balancing status enum (for batteries without per-cell data)
+    if (datalayer.battery.status.balancing_status == BALANCING_STATUS_ACTIVE) {
+      battery_balancing = true;
     }
     if (battery_balancing) {
       content +=

@@ -129,7 +129,7 @@ void check_interconnect_available() {
   uint16_t voltage_diff = abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV);
   uint8_t secondsOutOfVoltageSync = 0;
 
-  if (voltage_diff <= 30) {  // If we are within 3.0V between the batteries
+  if (voltage_diff <= 15) {  // If we are within 1.5V between the batteries
     clear_event(EVENT_VOLTAGE_DIFFERENCE);
     secondsOutOfVoltageSync = 0;
     if (datalayer.battery.status.bms_status == FAULT) {
