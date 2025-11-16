@@ -1,7 +1,9 @@
 #include "wifi.h"
-#include <ESPmDNS.h>
 #include "../utils/events.h"
 #include "../utils/logging.h"
+#ifndef SMALL_FLASH_DEVICE
+#include <ESPmDNS.h>
+#endif
 
 bool wifi_enabled = true;
 bool wifiap_enabled = true;
@@ -220,8 +222,9 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   //normal reconnect retry start at first 2 seconds
 }
 
-// Initialise mDNS
+// Initialise mDNS (Only available on devices with )
 void init_mDNS() {
+#ifndef SMALL_FLASH_DEVICE
   // Calulate the host name using the last two chars from the MAC address so each one is likely unique on a network.
   // e.g batteryemulator8C.local where the mac address is 08:F9:E0:D1:06:8C
   String mac = WiFi.macAddress();
@@ -238,6 +241,7 @@ void init_mDNS() {
     // Advertise via bonjour the service so we can auto discover these battery emulators on the local network.
     MDNS.addService(mdnsHost, "tcp", 80);
   }
+#endif
 }
 
 void init_WiFi_AP() {

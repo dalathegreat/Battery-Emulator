@@ -1,4 +1,5 @@
 #include "CMP-SMART-CAR-BATTERY.h"
+#include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For More Battery Info page
@@ -6,6 +7,11 @@
 
 /* Do not change code below unless you are sure what you are doing */
 void CmpSmartCarBattery::update_values() {
+  if (datalayer.system.info.equipment_stop_active == true) {
+    digitalWrite(esp32hal->WUP_PIN1(), LOW);  // Turn off wakeup pin
+  } else if (millis() > INTERVAL_1_S) {
+    digitalWrite(esp32hal->WUP_PIN1(), HIGH);  // Wake up the battery
+  }
 
   datalayer.battery.status.real_soc = battery_soc * 10;
 
@@ -27,9 +33,11 @@ void CmpSmartCarBattery::update_values() {
 
   datalayer.battery.status.max_discharge_power_W = discharge_cont_available_power * 100;
 
-  datalayer.battery.status.temperature_min_dC = battery_temperature_minimum * 10;
-
-  datalayer.battery.status.temperature_max_dC = battery_temperature_maximum * 10;
+  if ((battery_temperature_minimum != 0) && (battery_temperature_maximum != 0)) {
+    //Only update once both values are available
+    datalayer.battery.status.temperature_min_dC = battery_temperature_minimum * 10;
+    datalayer.battery.status.temperature_max_dC = battery_temperature_maximum * 10;
+  }
 
   datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;
 
@@ -47,14 +55,9 @@ void CmpSmartCarBattery::update_values() {
     set_event(EVENT_THERMAL_RUNAWAY, 0);
   }
 
-  if (alert_overcharge) {
-    set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0);
-  }
   datalayer_extended.stellantisCMPsmart.battery_negative_contactor_state = battery_negative_contactor_state;
   datalayer_extended.stellantisCMPsmart.battery_precharge_contactor_state = battery_precharge_contactor_state;
   datalayer_extended.stellantisCMPsmart.battery_positive_contactor_state = battery_positive_contactor_state;
-  datalayer_extended.stellantisCMPsmart.qc_negative_contactor_status = qc_negative_contactor_status;
-  datalayer_extended.stellantisCMPsmart.qc_positive_contactor_status = qc_positive_contactor_status;
   datalayer_extended.stellantisCMPsmart.battery_balancing_active = battery_balancing_active;
   datalayer_extended.stellantisCMPsmart.eplug_status = eplug_status;
   datalayer_extended.stellantisCMPsmart.HVIL_status = HVIL_status;
@@ -63,18 +66,8 @@ void CmpSmartCarBattery::update_values() {
   datalayer_extended.stellantisCMPsmart.insulation_fault = insulation_fault;
   datalayer_extended.stellantisCMPsmart.insulation_circuit_status = insulation_circuit_status;
   datalayer_extended.stellantisCMPsmart.battery_state = battery_state;
-  datalayer_extended.stellantisCMPsmart.alert_cell_undervoltage = alert_cell_undervoltage;
-  datalayer_extended.stellantisCMPsmart.alert_cell_overvoltage = alert_cell_overvoltage;
-  datalayer_extended.stellantisCMPsmart.alert_high_SOC = alert_high_SOC;
-  datalayer_extended.stellantisCMPsmart.alert_low_SOC = alert_low_SOC;
-  datalayer_extended.stellantisCMPsmart.alert_overvoltage = alert_overvoltage,
-  datalayer_extended.stellantisCMPsmart.alert_high_temperature = alert_high_temperature;
-  datalayer_extended.stellantisCMPsmart.alert_temperature_delta = alert_temperature_delta;
-  datalayer_extended.stellantisCMPsmart.alert_battery = alert_battery;
-  datalayer_extended.stellantisCMPsmart.alert_SOC_jump = alert_SOC_jump;
-  datalayer_extended.stellantisCMPsmart.alert_cell_poor_consistency = alert_cell_poor_consistency;
-  datalayer_extended.stellantisCMPsmart.alert_overcharge = alert_overcharge;
-  datalayer_extended.stellantisCMPsmart.alert_contactor_opening = alert_contactor_opening;
+  datalayer_extended.stellantisCMPsmart.alert_frame3 = alert_frame3;
+  datalayer_extended.stellantisCMPsmart.alert_frame4 = alert_frame4;
   datalayer_extended.stellantisCMPsmart.hardware_fault_status = hardware_fault_status;
   datalayer_extended.stellantisCMPsmart.l3_fault = l3_fault;
   datalayer_extended.stellantisCMPsmart.plausibility_error = plausibility_error;
@@ -218,8 +211,8 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       regen_charge_10s_current = (((rx_frame.data.u8[0] & 0x3F) << 1) | (rx_frame.data.u8[1] >> 1));  //*0.1a
       regen_charge_10s_power = ((rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[3] >> 4));             //*0.1kW
       quick_charge_port_voltage = ((rx_frame.data.u8[4] << 4) | (rx_frame.data.u8[5] >> 4));          //*0.1kW
-      qc_negative_contactor_status = rx_frame.data.u8[6] & 0x03;
-      qc_positive_contactor_status = (rx_frame.data.u8[6] & 0x0C) >> 2;
+      //qc_negative_contactor_status = rx_frame.data.u8[6] & 0x03;
+      //qc_positive_contactor_status = (rx_frame.data.u8[6] & 0x0C) >> 2;
       //counter_2A5 = (rx_frame.data.u8[7] & 0x0F);
       break;
     case 0x325:  //100ms
@@ -293,10 +286,19 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x435:  //500ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_temperature_maximum = rx_frame.data.u8[0] - 40;
-      min_cell_voltage = ((rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[3] >> 2));
+      tempval = rx_frame.data.u8[0] - 40;
+      if (tempval < 210) {
+        battery_temperature_maximum = rx_frame.data.u8[0] - 40;
+      }
+      temp = ((rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[3] >> 2));
+      if ((temp > 2000) && (temp < 4500)) {
+        min_cell_voltage = temp;
+      }
       min_cell_voltage_number = rx_frame.data.u8[4];
-      max_cell_voltage = ((rx_frame.data.u8[5] << 6) | (rx_frame.data.u8[6] >> 2));
+      temp = ((rx_frame.data.u8[5] << 6) | (rx_frame.data.u8[6] >> 2));
+      if ((temp > 2000) && (temp < 4500)) {
+        max_cell_voltage = temp;
+      }
       max_cell_voltage_number = rx_frame.data.u8[7];
       break;
     case 0x455:  //100ms
@@ -340,19 +342,14 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       max_temperature_probe_number = rx_frame.data.u8[0];
       min_temperature_probe_number = rx_frame.data.u8[1];
-      battery_temperature_minimum = rx_frame.data.u8[2] - 40;
-      alert_cell_undervoltage = rx_frame.data.u8[3] & 0x01;
-      alert_cell_overvoltage = (rx_frame.data.u8[3] & 0x02) >> 1;
-      alert_high_SOC = (rx_frame.data.u8[3] & 0x04) >> 2;
-      alert_low_SOC = (rx_frame.data.u8[3] & 0x08) >> 3;
-      alert_overvoltage = (rx_frame.data.u8[3] & 0x10) >> 4;
-      alert_high_temperature = (rx_frame.data.u8[3] & 0x20) >> 5;
-      alert_temperature_delta = (rx_frame.data.u8[3] & 0x40) >> 6;
-      alert_battery = (rx_frame.data.u8[3] & 0x80) >> 7;
-      alert_SOC_jump = (rx_frame.data.u8[4] & 0x80) >> 7;
-      alert_cell_poor_consistency = (rx_frame.data.u8[4] & 0x40) >> 6;
-      alert_overcharge = (rx_frame.data.u8[4] & 0x20) >> 5;
-      alert_contactor_opening = (rx_frame.data.u8[4] & 0x10) >> 4;
+
+      alert_frame3 = rx_frame.data.u8[3];
+      alert_frame4 = rx_frame.data.u8[4];
+
+      tempval = rx_frame.data.u8[2] - 40;
+      if (tempval < 210) {
+        battery_temperature_minimum = rx_frame.data.u8[2] - 40;
+      }
       if (rx_frame.data.u8[5] < 200) {
         number_of_temperature_sensors = rx_frame.data.u8[5];
       }
@@ -512,14 +509,14 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     CMP_211.data.u8[2] = 0x00;  //00 QC contactor OFF, 81, QC contactor ON
 
     if (startup_increment < 200) {  //During startup we request open contactors
-      CMP_211.data.u8[4] = 0x15;    //Ready mode (unsure why this opens contactors)
+      CMP_211.data.u8[4] = 0x17;    //Ready mode (unsure why this opens contactors)
     } else {                        //Normal handling of close/open
 
       if (datalayer.battery.status.bms_status == FAULT) {
         //Open contactors
-        CMP_211.data.u8[4] = 0x15;  //Ready mode (unsure why this opens contactors)
+        CMP_211.data.u8[4] = 0x17;  //Ready mode (unsure why this opens contactors) (Bit 1 is insulation turn-off)
       } else {                      //Close contactors
-        CMP_211.data.u8[4] = 0x04;  //04 discharge, 4A charge
+        CMP_211.data.u8[4] = 0x06;  //04 discharge (+bit1 insulation turn off), 4A charge
       }
     }
 
@@ -557,6 +554,10 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void CmpSmartCarBattery::setup(void) {  // Performs one time setup at startup
+  if (!esp32hal->alloc_pins(Name, esp32hal->WUP_PIN1())) {
+    return;  //TODO, this needs refactoring for double-battery later
+  }
+
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 100;
@@ -568,4 +569,7 @@ void CmpSmartCarBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_100S_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_100S_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
+
+  pinMode(esp32hal->WUP_PIN1(), OUTPUT);
+  digitalWrite(esp32hal->WUP_PIN1(), LOW);  // Set pin to low, prepare to wakeup later on!
 }

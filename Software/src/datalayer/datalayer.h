@@ -106,6 +106,8 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
   /** LED mode, customizable by user */
   led_mode_enum led_mode = CLASSIC;
+  /** Balancing status */
+  balancing_status_enum balancing_status = BALANCING_STATUS_UNKNOWN;
 
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.
@@ -350,10 +352,8 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   bool inverter_allows_contactor_closing = true;
   /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
   bool contactors_battery2_engaged = false;
-  /** True if the BMS is being reset, by cutting power towards it */
-  bool BMS_reset_in_progress = false;
-  /** True if the BMS is starting up */
-  bool BMS_startup_in_progress = false;
+  /** State of BMS reset sequence */
+  BMSResetState bms_reset_status = BMS_RESET_IDLE;
 };
 
 struct DATALAYER_SYSTEM_TYPE {
