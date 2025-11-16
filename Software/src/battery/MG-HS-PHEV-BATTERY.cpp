@@ -163,14 +163,14 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       } else if ((rx_frame.data.u8[0] == 0x02 || rx_frame.data.u8[0] == 0x06) && rx_frame.data.u8[1] == 0x01) {
         // A weird 'stuck' state where the battery won't reconnect
         datalayer.system.status.battery_allows_contactor_closing = false;
-        if (!datalayer.system.status.BMS_startup_in_progress) {
+        if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
           logging.printf("MG_HS_PHEV: Stuck, resetting.\n");
           start_bms_reset();
         }
       } else if (rx_frame.data.u8[1] == 0xf) {
         // A fault state (likely isolation failure)
         datalayer.system.status.battery_allows_contactor_closing = false;
-        if (!datalayer.system.status.BMS_startup_in_progress) {
+        if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
           logging.printf("MG_HS_PHEV: Fault, resetting.\n");
           start_bms_reset();
         }
@@ -310,7 +310,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
-  if (datalayer.system.status.BMS_reset_in_progress || datalayer.system.status.BMS_startup_in_progress) {
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     // Transmitting towards battery is halted while BMS is being reset
     previousMillis100 = currentMillis;
     previousMillis200 = currentMillis;
