@@ -55,14 +55,9 @@ void CmpSmartCarBattery::update_values() {
     set_event(EVENT_THERMAL_RUNAWAY, 0);
   }
 
-  if (alert_overcharge) {
-    set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0);
-  }
   datalayer_extended.stellantisCMPsmart.battery_negative_contactor_state = battery_negative_contactor_state;
   datalayer_extended.stellantisCMPsmart.battery_precharge_contactor_state = battery_precharge_contactor_state;
   datalayer_extended.stellantisCMPsmart.battery_positive_contactor_state = battery_positive_contactor_state;
-  datalayer_extended.stellantisCMPsmart.qc_negative_contactor_status = qc_negative_contactor_status;
-  datalayer_extended.stellantisCMPsmart.qc_positive_contactor_status = qc_positive_contactor_status;
   datalayer_extended.stellantisCMPsmart.battery_balancing_active = battery_balancing_active;
   datalayer_extended.stellantisCMPsmart.eplug_status = eplug_status;
   datalayer_extended.stellantisCMPsmart.HVIL_status = HVIL_status;
@@ -71,18 +66,8 @@ void CmpSmartCarBattery::update_values() {
   datalayer_extended.stellantisCMPsmart.insulation_fault = insulation_fault;
   datalayer_extended.stellantisCMPsmart.insulation_circuit_status = insulation_circuit_status;
   datalayer_extended.stellantisCMPsmart.battery_state = battery_state;
-  datalayer_extended.stellantisCMPsmart.alert_cell_undervoltage = alert_cell_undervoltage;
-  datalayer_extended.stellantisCMPsmart.alert_cell_overvoltage = alert_cell_overvoltage;
-  datalayer_extended.stellantisCMPsmart.alert_high_SOC = alert_high_SOC;
-  datalayer_extended.stellantisCMPsmart.alert_low_SOC = alert_low_SOC;
-  datalayer_extended.stellantisCMPsmart.alert_overvoltage = alert_overvoltage,
-  datalayer_extended.stellantisCMPsmart.alert_high_temperature = alert_high_temperature;
-  datalayer_extended.stellantisCMPsmart.alert_temperature_delta = alert_temperature_delta;
-  datalayer_extended.stellantisCMPsmart.alert_battery = alert_battery;
-  datalayer_extended.stellantisCMPsmart.alert_SOC_jump = alert_SOC_jump;
-  datalayer_extended.stellantisCMPsmart.alert_cell_poor_consistency = alert_cell_poor_consistency;
-  datalayer_extended.stellantisCMPsmart.alert_overcharge = alert_overcharge;
-  datalayer_extended.stellantisCMPsmart.alert_contactor_opening = alert_contactor_opening;
+  datalayer_extended.stellantisCMPsmart.alert_frame3 = alert_frame3;
+  datalayer_extended.stellantisCMPsmart.alert_frame4 = alert_frame4;
   datalayer_extended.stellantisCMPsmart.hardware_fault_status = hardware_fault_status;
   datalayer_extended.stellantisCMPsmart.l3_fault = l3_fault;
   datalayer_extended.stellantisCMPsmart.plausibility_error = plausibility_error;
@@ -226,8 +211,8 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       regen_charge_10s_current = (((rx_frame.data.u8[0] & 0x3F) << 1) | (rx_frame.data.u8[1] >> 1));  //*0.1a
       regen_charge_10s_power = ((rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[3] >> 4));             //*0.1kW
       quick_charge_port_voltage = ((rx_frame.data.u8[4] << 4) | (rx_frame.data.u8[5] >> 4));          //*0.1kW
-      qc_negative_contactor_status = rx_frame.data.u8[6] & 0x03;
-      qc_positive_contactor_status = (rx_frame.data.u8[6] & 0x0C) >> 2;
+      //qc_negative_contactor_status = rx_frame.data.u8[6] & 0x03;
+      //qc_positive_contactor_status = (rx_frame.data.u8[6] & 0x0C) >> 2;
       //counter_2A5 = (rx_frame.data.u8[7] & 0x0F);
       break;
     case 0x325:  //100ms
@@ -357,22 +342,14 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       max_temperature_probe_number = rx_frame.data.u8[0];
       min_temperature_probe_number = rx_frame.data.u8[1];
+
+      alert_frame3 = rx_frame.data.u8[3];
+      alert_frame4 = rx_frame.data.u8[4];
+
       tempval = rx_frame.data.u8[2] - 40;
       if (tempval < 210) {
         battery_temperature_minimum = rx_frame.data.u8[2] - 40;
       }
-      alert_cell_undervoltage = rx_frame.data.u8[3] & 0x01;
-      alert_cell_overvoltage = (rx_frame.data.u8[3] & 0x02) >> 1;
-      alert_high_SOC = (rx_frame.data.u8[3] & 0x04) >> 2;
-      alert_low_SOC = (rx_frame.data.u8[3] & 0x08) >> 3;
-      alert_overvoltage = (rx_frame.data.u8[3] & 0x10) >> 4;
-      alert_high_temperature = (rx_frame.data.u8[3] & 0x20) >> 5;
-      alert_temperature_delta = (rx_frame.data.u8[3] & 0x40) >> 6;
-      alert_battery = (rx_frame.data.u8[3] & 0x80) >> 7;
-      alert_SOC_jump = (rx_frame.data.u8[4] & 0x80) >> 7;
-      alert_cell_poor_consistency = (rx_frame.data.u8[4] & 0x40) >> 6;
-      alert_overcharge = (rx_frame.data.u8[4] & 0x20) >> 5;
-      alert_contactor_opening = (rx_frame.data.u8[4] & 0x10) >> 4;
       if (rx_frame.data.u8[5] < 200) {
         number_of_temperature_sensors = rx_frame.data.u8[5];
       }
