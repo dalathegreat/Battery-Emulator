@@ -95,6 +95,17 @@ void VolvoSpaBattery::
   }
 }
 
+int16_t sign_extend_to_int16(uint16_t input, unsigned input_bit_width) {
+  // Sign-extend the value from the original bit width up to 16 bits. This
+  // ensures that twos-complement negative values are correctly interpreted.
+
+  // For example, -26 represented in 13 bits is 0x1FE6.
+  // After sign extension to 16 bits, it becomes 0xFFE6, which is -26 in 16-bit signed integer.
+
+  uint16_t mask = 1 << (input_bit_width - 1);
+  return (input ^ mask) - mask;
+}
+
 void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x3A:
@@ -160,14 +171,9 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         logging.println("BATT_ERR_INDICATION not valid");
       }
       if ((rx_frame.data.u8[0] & 0x20) == 0x20) {
-        BATT_T_MAX = ((rx_frame.data.u8[2] & 0x1F) * 256.0 + rx_frame.data.u8[3]);
-        BATT_T_MIN = ((rx_frame.data.u8[4] & 0x1F) * 256.0 + rx_frame.data.u8[5]);
-        BATT_T_AVG = ((rx_frame.data.u8[0] & 0x1F) * 256.0 + rx_frame.data.u8[1]);
-      } else {
-        BATT_T_MAX = 0;
-        BATT_T_MIN = 0;
-        BATT_T_AVG = 0;
-        logging.println("BATT_T not valid");
+        BATT_T_MAX = sign_extend_to_int16((((rx_frame.data.u8[2] & 0x1F) << 8) | rx_frame.data.u8[3]), 13);
+        BATT_T_MIN = sign_extend_to_int16((((rx_frame.data.u8[4] & 0x1F) << 8) | rx_frame.data.u8[5]), 13);
+        BATT_T_AVG = sign_extend_to_int16((((rx_frame.data.u8[0] & 0x1F) << 8) | rx_frame.data.u8[1]), 13);
       }
       break;
     case 0x369:
