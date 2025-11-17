@@ -61,6 +61,7 @@ extern const char* name_for_comm_interface(comm_interface comm);
 
 extern BatteryType user_selected_battery_type;
 extern bool user_selected_second_battery;
+extern bool user_selected_triple_battery;
 
 extern battery_chemistry_enum user_selected_battery_chemistry;
 

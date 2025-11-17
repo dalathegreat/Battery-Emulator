@@ -395,11 +395,11 @@ void init_webserver() {
   };
 
   const char* boolSettingNames[] = {
-      "DBLBTR",       "CNTCTRL",      "CNTCTRLDBL",    "PWMCNTCTRL",  "PERBMSRESET", "SDLOGENABLED",
-      "STATICIP",     "REMBMSRESET",  "EXTPRECHARGE",  "USBENABLED",  "CANLOGUSB",   "WEBENABLED",
-      "CANFDASCAN",   "CANLOGSD",     "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC",   "HADISC",
-      "MQTTTOPICS",   "MQTTCELLV",    "INVICNT",       "GTWRHD",      "DIGITALHVIL", "PERFPROFILE",
-      "INTERLOCKREQ", "SOCESTIMATED", "PYLONOFFSET",   "PYLONORDER",  "DEYEBYD",     "NCCONTACTOR",
+      "DBLBTR",        "CNTCTRL",      "CNTCTRLDBL",  "PWMCNTCTRL",   "PERBMSRESET",  "SDLOGENABLED", "STATICIP",
+      "REMBMSRESET",   "EXTPRECHARGE", "USBENABLED",  "CANLOGUSB",    "WEBENABLED",   "CANFDASCAN",   "CANLOGSD",
+      "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",   "HADISC",       "MQTTTOPICS",   "MQTTCELLV",    "INVICNT",
+      "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED", "PYLONOFFSET",  "PYLONORDER",
+      "DEYEBYD",       "NCCONTACTOR",  "TRIBTR",
   };
 
   // Handles the form POST from UI to save settings of the common image
@@ -454,6 +454,9 @@ void init_webserver() {
       } else if (p->name() == "BATT2COMM") {
         auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
         settings.saveUInt("BATT2COMM", (int)type);
+      } else if (p->name() == "BATT3COMM") {
+        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+        settings.saveUInt("BATT3COMM", (int)type);
       } else if (p->name() == "shunt") {
         auto type = static_cast<ShuntType>(atoi(p->value().c_str()));
         settings.saveUInt("SHUNTTYPE", (int)type);
@@ -706,6 +709,9 @@ void init_webserver() {
           Battery* batt = battery;
           if (battIndex == "1") {
             batt = battery2;
+          }
+          if (battIndex == "2") {
+            batt = battery3;
           }
           if (batt) {
             cmd.action(batt);
@@ -998,7 +1004,9 @@ String processor(const String& var) {
       if (battery) {
         content += "<h4 style='color: white;'>Battery protocol: ";
         content += datalayer.system.info.battery_protocol;
-        if (battery2) {
+        if (battery3) {
+          content += " (Triple battery)";
+        } else if (battery2) {
           content += " (Double battery)";
         }
         if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {

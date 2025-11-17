@@ -4,10 +4,11 @@
 
 class Battery;
 
-// Currently initialized objects for primary and secondary battery.
+// Currently initialized objects for primary/secondary/tertiary battery.
 // Null value indicates that battery is not configured/initialized
 extern Battery* battery;
 extern Battery* battery2;
+extern Battery* battery3;
 
 void setup_shunt();
 
