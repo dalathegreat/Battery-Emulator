@@ -17,6 +17,7 @@
 volatile CAN_Configuration can_config = {.battery = CAN_NATIVE,
                                          .inverter = CAN_NATIVE,
                                          .battery_double = CAN_ADDON_MCP2515,
+                                         .battery_triple = CAN_ADDON_MCP2515,
                                          .charger = CAN_NATIVE,
                                          .shunt = CAN_NATIVE};
 

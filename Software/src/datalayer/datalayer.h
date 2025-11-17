@@ -348,6 +348,8 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   bool battery_allows_contactor_closing = false;
   /** True if the second battery is allowed to close the contactors */
   bool battery2_allowed_contactor_closing = false;
+  /** True if the third battery is allowed to close the contactors */
+  bool battery3_allowed_contactor_closing = false;
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
   /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
