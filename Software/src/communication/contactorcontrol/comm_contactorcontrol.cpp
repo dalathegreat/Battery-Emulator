@@ -10,6 +10,7 @@ bool contactor_control_inverted_logic = false;  //Should we control NC contactor
 uint16_t precharge_time_ms = 100;               //Precharge time in ms. Adjust depending on capacitance in inverter
 bool pwm_contactor_control = false;             //Should the contactors be economized via PWM after they are engaged?
 bool contactor_control_enabled_double_battery = false;  //Should a contactor for the secondary battery be operated?
+bool contactor_control_enabled_triple_battery = false;  //Should a contactor for the third battery be operated?
 bool remote_bms_reset = false;                          //Is it possible to actuate BMS reset via MQTT?
 bool periodic_bms_reset = false;                        //Should periodic BMS reset be performed each 24h?
 
@@ -105,6 +106,17 @@ bool init_contactors() {
     set(second_contactors, OFF);
   }
 
+  if (contactor_control_enabled_triple_battery) {
+    auto triple_contactors = esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN();
+    if (!esp32hal->alloc_pins(contactors, triple_contactors)) {
+      DEBUG_PRINTF("Triple battery contactor control setup failed\n");
+      return false;
+    }
+
+    pinMode(triple_contactors, OUTPUT);
+    set(triple_contactors, OFF);
+  }
+
   // Init BMS contactor
   if (periodic_bms_reset || remote_bms_reset || esp32hal->always_enable_bms_power()) {
     auto pin = esp32hal->BMS_POWER();
@@ -143,6 +155,10 @@ void handle_contactors() {
 
   if (contactor_control_enabled_double_battery) {
     handle_contactors_battery2();
+  }
+
+  if (contactor_control_enabled_triple_battery) {
+    handle_contactors_battery3();
   }
 
   if (contactor_control_enabled) {
@@ -249,6 +265,18 @@ void handle_contactors_battery2() {
   } else {  // Closing contactors on secondary battery not allowed
     set(second_contactors, OFF);
     datalayer.system.status.contactors_battery2_engaged = false;
+  }
+}
+
+void handle_contactors_battery3() {
+  auto third_contactors = esp32hal->SECOND_BATTERY_CONTACTORS_PIN();
+
+  if ((contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing) {
+    set(third_contactors, ON);
+    datalayer.system.status.contactors_battery3_engaged = true;
+  } else {  // Closing contactors on secondary battery not allowed
+    set(third_contactors, OFF);
+    datalayer.system.status.contactors_battery3_engaged = false;
   }
 }
 

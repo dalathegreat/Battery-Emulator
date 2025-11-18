@@ -140,6 +140,7 @@ void init_stored_settings() {
   contactor_control_inverted_logic = settings.getBool("NCCONTACTOR", false);
   precharge_time_ms = settings.getUInt("PRECHGMS", 100);
   contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);
+  contactor_control_enabled_triple_battery = settings.getBool("CNTCTRLTRI", false);
   pwm_contactor_control = settings.getBool("PWMCNTCTRL", false);
   pwm_frequency = settings.getUInt("PWMFREQ", 20000);
   pwm_hold_duty = settings.getUInt("PWMHOLD", 250);

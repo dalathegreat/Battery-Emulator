@@ -320,6 +320,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CNTCTRLDBL") ? "checked" : "";
   }
 
+  if (var == "CNTCTRLTRI") {
+    return settings.getBool("CNTCTRLTRI") ? "checked" : "";
+  }
+
   if (var == "PWMCNTCTRL") {
     return settings.getBool("PWMCNTCTRL") ? "checked" : "";
   }
@@ -1307,6 +1311,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-dblbtr">
             <label>Double-Battery Contactor control via GPIO: </label>
             <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
+            <label>Triple-Battery Contactor control via GPIO: </label>
+            <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
         </div>
 
         <label>Contactor control via GPIO: </label>
