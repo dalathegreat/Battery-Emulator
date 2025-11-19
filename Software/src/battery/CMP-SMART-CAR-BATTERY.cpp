@@ -157,7 +157,7 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         datalayer.battery.status.CAN_error_counter++;
         break;  //Message checksum incorrect, abort reading data from it
       }
-      battery_current_dA = sign_extend_to_int16(((rx_frame.data.u8[0] << 7) | (rx_frame.data.u8[1] >> 1)), 15);
+      battery_current_dA = -sign_extend_to_int16(((rx_frame.data.u8[0] << 7) | (rx_frame.data.u8[1] >> 1)), 15);
       battery_soc = ((rx_frame.data.u8[2] & 0x1F) << 5) | (rx_frame.data.u8[3] >> 3);
       battery_voltage =
           ((((rx_frame.data.u8[3] & 0x07) << 10) | (rx_frame.data.u8[4] << 2) | (rx_frame.data.u8[5] >> 6)));
