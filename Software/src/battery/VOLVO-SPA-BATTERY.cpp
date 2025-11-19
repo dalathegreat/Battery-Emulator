@@ -3,6 +3,7 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
+#include "../devboard/utils/common_functions.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
@@ -93,17 +94,6 @@ void VolvoSpaBattery::
     set_event(EVENT_12V_LOW, (datalayer_extended.VolvoPolestar.BECMsupplyVoltage / 100));
     set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0);
   }
-}
-
-int16_t sign_extend_to_int16(uint16_t input, unsigned input_bit_width) {
-  // Sign-extend the value from the original bit width up to 16 bits. This
-  // ensures that twos-complement negative values are correctly interpreted.
-
-  // For example, -26 represented in 13 bits is 0x1FE6.
-  // After sign extension to 16 bits, it becomes 0xFFE6, which is -26 in 16-bit signed integer.
-
-  uint16_t mask = 1 << (input_bit_width - 1);
-  return (input ^ mask) - mask;
 }
 
 void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
