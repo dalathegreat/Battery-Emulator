@@ -35,6 +35,9 @@ class BmwI3Battery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "BMW i3";
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+
   // SOC% raw battery value. Might not always reach 100%
   uint16_t SOC_raw() { return (battery_HVBatt_SOC * 10); }
   // SOC% instrumentation cluster value. Will always reach 100%
@@ -68,6 +71,8 @@ class BmwI3Battery : public CanBattery {
   BmwI3HtmlRenderer renderer;
 
  private:
+  bool UserRequestDTCreset = false;
+
   const int MAX_CELL_VOLTAGE_60AH = 4110;   // Battery is put into emergency stop if one cell goes over this value
   const int MIN_CELL_VOLTAGE_60AH = 2700;   // Battery is put into emergency stop if one cell goes below this value
   const int MAX_CELL_VOLTAGE_94AH = 4140;   // Battery is put into emergency stop if one cell goes over this value
@@ -109,7 +114,7 @@ class BmwI3Battery : public CanBattery {
   enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
   BatterySize detectedBattery = BATTERY_60AH;
 
-  enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST };
+  enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST, CLEAR_DTC };
 
   CmdState cmdState = SOC;
 
@@ -279,6 +284,11 @@ class BmwI3Battery : public CanBattery {
                                                  .DLC = 4,
                                                  .ID = 0x6F1,
                                                  .data = {0x07, 0x30, 0x00, 0x02}};
+  static constexpr CAN_frame BMW_6F1_CLEAR_DTC = {.FD = false,
+                                                  .ext_ID = false,
+                                                  .DLC = 6,
+                                                  .ID = 0x6F1,
+                                                  .data = {0xDF, 0x04, 0x14, 0xFF, 0xFF, 0xFF}};
   CAN_frame BMW_6F4_CELL_VOLTAGE_CELLNO = {.FD = false,
                                            .ext_ID = false,
                                            .DLC = 7,
