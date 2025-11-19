@@ -509,9 +509,13 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
 
       if (datalayer.battery.status.bms_status == FAULT) {
         //Open contactors
-        CMP_211.data.u8[4] = 0x17;  //Ready mode (unsure why this opens contactors) (Bit 1 is insulation turn-off)
-      } else {                      //Close contactors
-        CMP_211.data.u8[4] = 0x06;  //04 discharge (+bit1 insulation turn off), 4A charge
+        CMP_211.data.u8[4] = 0x17;     //Ready mode (unsure why this opens contactors) (Bit 1 is insulation turn-off)
+      } else {                         //Close contactors
+        if (battery_current_dA < 0) {  //Discharge in progress
+          CMP_211.data.u8[4] = 0x06;   //04 discharge (+bit1 insulation turn off), 4A charge
+        } else {                       //Charge in progress (Balancing is achieved when charging)
+          CMP_211.data.u8[4] = 0x4A;
+        }
       }
     }
 
