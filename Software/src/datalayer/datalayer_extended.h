@@ -284,6 +284,14 @@ struct DATALAYER_INFO_CMPSMART {
   uint8_t active_DTC_code = 0;
   uint8_t alert_frame3 = 0;
   uint8_t alert_frame4 = 0;
+  uint16_t regen_charge_cont_power = 0;
+  uint16_t regen_charge_30s_power = 0;
+  uint16_t regen_charge_30s_current = 0;
+  uint16_t regen_charge_cont_current = 0;
+  uint16_t regen_charge_10s_current = 0;
+  uint16_t regen_charge_10s_power = 0;
+  uint16_t charge_cont_curr_max = 0;
+  uint16_t charge_cont_curr_req = 0;
   bool rcd_line_active = false;
   bool power_auth = false;
   bool battery_balancing_active = false;

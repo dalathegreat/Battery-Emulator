@@ -25,6 +25,33 @@ class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
+    content += "<h4>regen_charge_cont_power: " + String(datalayer_extended.stellantisCMPsmart.regen_charge_cont_power);
+    content += "</h4>";
+
+    content += "<h4>regen_charge_30s_power: " + String(datalayer_extended.stellantisCMPsmart.regen_charge_30s_power);
+    content += "</h4>";
+
+    content +=
+        "<h4>regen_charge_30s_current: " + String(datalayer_extended.stellantisCMPsmart.regen_charge_30s_current);
+    content += "</h4>";
+
+    content +=
+        "<h4>regen_charge_cont_current: " + String(datalayer_extended.stellantisCMPsmart.regen_charge_cont_current);
+    content += "</h4>";
+
+    content +=
+        "<h4>regen_charge_10s_current: " + String(datalayer_extended.stellantisCMPsmart.regen_charge_10s_current);
+    content += "</h4>";
+
+    content += "<h4>regen_charge_10s_power: " + String(datalayer_extended.stellantisCMPsmart.regen_charge_10s_power);
+    content += "</h4>";
+
+    content += "<h4>charge_cont_curr_max: " + String(datalayer_extended.stellantisCMPsmart.charge_cont_curr_max);
+    content += "</h4>";
+
+    content += "<h4>charge_cont_curr_req: " + String(datalayer_extended.stellantisCMPsmart.charge_cont_curr_req);
+    content += "</h4>";
+
     content += "<h4>Balancing active: ";
     if (datalayer_extended.stellantisCMPsmart.battery_balancing_active) {
       content += "Yes</h4>";

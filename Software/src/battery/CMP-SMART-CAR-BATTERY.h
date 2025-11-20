@@ -39,7 +39,7 @@ class CmpSmartCarBattery : public CanBattery {
   CAN_frame CMP_211 = {.FD = false,  //VCU contactor 100ms
                        .ext_ID = false,
                        .DLC = 8,
-                       .ID = 0x211,
+                       .ID = 0x211,  //Frame4 bit0 contactor, bit1 insulation, bit 4-2 state
                        .data = {0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame CMP_351 = {.FD = false,  //VCU 60ms Airbag
                        .ext_ID = false,
