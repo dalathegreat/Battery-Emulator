@@ -76,6 +76,7 @@ void CmpSmartCarBattery::update_values() {
   datalayer_extended.stellantisCMPsmart.hvbat_wakeup_state = hvbat_wakeup_state;
   datalayer_extended.stellantisCMPsmart.active_DTC_code = active_DTC_code;
   datalayer_extended.stellantisCMPsmart.rcd_line_active = rcd_line_active;
+
   datalayer_extended.stellantisCMPsmart.regen_charge_cont_power = regen_charge_cont_power;
   datalayer_extended.stellantisCMPsmart.regen_charge_30s_power = regen_charge_30s_power;
   datalayer_extended.stellantisCMPsmart.regen_charge_30s_current = regen_charge_30s_current;
@@ -84,6 +85,13 @@ void CmpSmartCarBattery::update_values() {
   datalayer_extended.stellantisCMPsmart.regen_charge_10s_power = regen_charge_10s_power;
   datalayer_extended.stellantisCMPsmart.charge_cont_curr_max = charge_cont_curr_max;
   datalayer_extended.stellantisCMPsmart.charge_cont_curr_req = charge_cont_curr_req;
+
+  datalayer_extended.stellantisCMPsmart.discharge_available_10s_power = discharge_available_10s_power;
+  datalayer_extended.stellantisCMPsmart.discharge_available_10s_current = discharge_available_10s_current;
+  datalayer_extended.stellantisCMPsmart.discharge_cont_available_power = discharge_cont_available_power;
+  datalayer_extended.stellantisCMPsmart.discharge_cont_available_current = discharge_cont_available_current;
+  datalayer_extended.stellantisCMPsmart.discharge_available_30s_current = discharge_available_30s_current;
+  datalayer_extended.stellantisCMPsmart.discharge_available_30s_power = discharge_available_30s_power;
 }
 
 bool checksum_OK(CAN_frame& rx_frame, uint8_t magic_byte) {

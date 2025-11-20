@@ -292,6 +292,12 @@ struct DATALAYER_INFO_CMPSMART {
   uint16_t regen_charge_10s_power = 0;
   uint16_t charge_cont_curr_max = 0;
   uint16_t charge_cont_curr_req = 0;
+  uint16_t discharge_available_10s_power = 0;
+  uint16_t discharge_available_10s_current = 0;
+  uint16_t discharge_cont_available_power = 0;
+  uint16_t discharge_cont_available_current = 0;
+  uint16_t discharge_available_30s_current = 0;
+  uint16_t discharge_available_30s_power = 0;
   bool rcd_line_active = false;
   bool power_auth = false;
   bool battery_balancing_active = false;

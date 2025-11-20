@@ -25,32 +25,59 @@ class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
+    content += "<h4>Charge limits in system</h4>";
     content += "<h4>regen_charge_cont_power: " + String(datalayer_extended.stellantisCMPsmart.regen_charge_cont_power);
-    content += "</h4>";
+    content += " *0.1 kW</h4>";
 
     content += "<h4>regen_charge_30s_power: " + String(datalayer_extended.stellantisCMPsmart.regen_charge_30s_power);
-    content += "</h4>";
+    content += " *0.1kW</h4>";
 
     content +=
         "<h4>regen_charge_30s_current: " + String(datalayer_extended.stellantisCMPsmart.regen_charge_30s_current);
-    content += "</h4>";
+    content += " dA</h4>";
 
     content +=
         "<h4>regen_charge_cont_current: " + String(datalayer_extended.stellantisCMPsmart.regen_charge_cont_current);
-    content += "</h4>";
+    content += " dA</h4>";
 
     content +=
         "<h4>regen_charge_10s_current: " + String(datalayer_extended.stellantisCMPsmart.regen_charge_10s_current);
-    content += "</h4>";
+    content += " dA</h4>";
 
     content += "<h4>regen_charge_10s_power: " + String(datalayer_extended.stellantisCMPsmart.regen_charge_10s_power);
-    content += "</h4>";
+    content += " *0.1kW</h4>";
 
     content += "<h4>charge_cont_curr_max: " + String(datalayer_extended.stellantisCMPsmart.charge_cont_curr_max);
-    content += "</h4>";
+    content += " dA</h4>";
 
     content += "<h4>charge_cont_curr_req: " + String(datalayer_extended.stellantisCMPsmart.charge_cont_curr_req);
-    content += "</h4>";
+    content += " dA</h4>";
+
+    content += "<h4>Discharge limits in system</h4>";
+
+    content += "<h4>discharge_available_10s_power: " +
+               String(datalayer_extended.stellantisCMPsmart.discharge_available_10s_power);
+    content += " *0.1kW</h4>";
+
+    content += "<h4>discharge_available_10s_current: " +
+               String(datalayer_extended.stellantisCMPsmart.discharge_available_10s_current);
+    content += " dA</h4>";
+
+    content += "<h4>discharge_cont_available_power: " +
+               String(datalayer_extended.stellantisCMPsmart.discharge_cont_available_power);
+    content += " *0.1kW</h4>";
+
+    content += "<h4>discharge_cont_available_current: " +
+               String(datalayer_extended.stellantisCMPsmart.discharge_cont_available_current);
+    content += " dA</h4>";
+
+    content += "<h4>discharge_available_30s_current: " +
+               String(datalayer_extended.stellantisCMPsmart.discharge_available_30s_current);
+    content += " dA</h4>";
+
+    content += "<h4>discharge_available_30s_power: " +
+               String(datalayer_extended.stellantisCMPsmart.discharge_available_30s_power);
+    content += " *0.1kW</h4>";
 
     content += "<h4>Balancing active: ";
     if (datalayer_extended.stellantisCMPsmart.battery_balancing_active) {
