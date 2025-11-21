@@ -9,24 +9,19 @@
 class BmwI3Battery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  BmwI3Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr, CAN_Interface targetCan,
-               gpio_num_t wakeup)
+  BmwI3Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan)
       : CanBattery(targetCan), renderer(*this) {
     datalayer_battery = datalayer_ptr;
-    contactor_closing_allowed = contactor_closing_allowed_ptr;
-    allows_contactor_closing = nullptr;
-    wakeup_pin = wakeup;
-
-    //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
+    wakeup_pin = esp32hal->WUP_PIN2();
+    //Init voltage to 0 to allow interconnect contactor check to operate without default values colliding
     battery_volts = 0;
   }
 
   // Use the default constructor to create the first or single battery.
   BmwI3Battery() : renderer(*this) {
     datalayer_battery = &datalayer.battery;
-    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    contactor_closing_allowed = nullptr;
     wakeup_pin = esp32hal->WUP_PIN1();
+    primary_battery = true;
   }
 
   virtual void setup(void);
@@ -90,13 +85,9 @@ class BmwI3Battery : public CanBattery {
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
 
-  // If not null, this battery decides when the contactor can be closed and writes the value here.
-  bool* allows_contactor_closing;
+  bool primary_battery = false;
 
-  // If not null, this battery listens to this boolean to determine whether contactor closing is allowed
-  bool* contactor_closing_allowed;
-
-  gpio_num_t wakeup_pin;
+  gpio_num_t wakeup_pin;  //Set in constructor when initializing
 
   unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
@@ -302,27 +293,10 @@ class BmwI3Battery : public CanBattery {
 
   //The above CAN messages need to be sent towards the battery to keep it alive
 
-  uint8_t startup_counter_contactor = 0;
-  uint8_t alive_counter_20ms = 0;
-  uint8_t alive_counter_100ms = 0;
-  uint8_t alive_counter_200ms = 0;
-  uint8_t alive_counter_500ms = 0;
-  uint8_t alive_counter_1000ms = 0;
-  uint8_t alive_counter_5000ms = 0;
-  uint8_t BMW_1D0_counter = 0;
-  uint8_t BMW_13E_counter = 0;
-  uint8_t BMW_380_counter = 0;
   uint32_t BMW_328_seconds = 243785948;  // Initialized to make the battery think vehicle was made 7.7years ago
   uint16_t BMW_328_days =
       9244;  //Time since 1.1.2000. Hacky implementation to make it think current date is 23rd April 2025
   uint32_t BMS_328_seconds_to_day = 0;  //Counter to keep track of days uptime
-
-  bool battery_awake = false;
-  bool battery_info_available = false;
-  bool skipCRCCheck = false;
-  bool CRCCheckPassedPreviously = false;
-
-  uint16_t cellvoltage_temp_mV = 0;
   uint32_t battery_serial_number = 0;
   uint32_t battery_available_power_shortterm_charge = 0;
   uint32_t battery_available_power_shortterm_discharge = 0;
@@ -332,6 +306,7 @@ class BmwI3Battery : public CanBattery {
   uint32_t battery_BEV_available_power_shortterm_discharge = 0;
   uint32_t battery_BEV_available_power_longterm_charge = 0;
   uint32_t battery_BEV_available_power_longterm_discharge = 0;
+  uint16_t tempval = 0;
   uint16_t battery_energy_content_maximum_Wh = 0;
   uint16_t battery_display_SOC = 0;
   uint16_t battery_volts = 0;
@@ -352,6 +327,7 @@ class BmwI3Battery : public CanBattery {
   uint16_t battery_soc_hvmax = 0;
   uint16_t battery_soc_hvmin = 0;
   uint16_t battery_capacity_cah = 0;
+  uint16_t cellvoltage_temp_mV = 0;
   int16_t battery_temperature_HV = 0;
   int16_t battery_temperature_heat_exchanger = 0;
   int16_t battery_temperature_max = 0;
@@ -389,10 +365,23 @@ class BmwI3Battery : public CanBattery {
   uint8_t battery_status_diagnosis_powertrain_immediate_multiplexer = 0;
   uint8_t battery_ID2 = 0;
   uint8_t battery_soh = 99;
-
-  uint8_t message_data[50];
   uint8_t next_data = 0;
   uint8_t current_cell_polled = 0;
+  uint8_t startup_counter_contactor = 0;
+  uint8_t alive_counter_20ms = 0;
+  uint8_t alive_counter_100ms = 0;
+  uint8_t alive_counter_200ms = 0;
+  uint8_t alive_counter_500ms = 0;
+  uint8_t alive_counter_1000ms = 0;
+  uint8_t alive_counter_5000ms = 0;
+  uint8_t BMW_1D0_counter = 0;
+  uint8_t BMW_13E_counter = 0;
+  uint8_t BMW_380_counter = 0;
+  uint8_t message_data[50];
+  bool battery_awake = false;
+  bool battery_info_available = false;
+  bool skipCRCCheck = false;
+  bool CRCCheckPassedPreviously = false;
 };
 
 #endif
