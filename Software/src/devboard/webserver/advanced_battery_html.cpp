@@ -103,6 +103,12 @@ String advanced_battery_processor(const String& var) {
       render_command_buttons(battery2, 1);
     }
 
+    if (battery3) {
+      content += "<h4>Values from battery 3</h4>";
+      content += battery3->get_status_renderer().get_status_html();
+      render_command_buttons(battery3, 1);
+    }
+
     content += "</div>";
 
     content += "<script>";
