@@ -558,7 +558,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
 void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
-  if (datalayer.system.status.BMS_reset_in_progress || datalayer.system.status.BMS_startup_in_progress) {
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     // Transmitting towards battery is halted while BMS is being reset
     previousMillis10 = currentMillis;
     previousMillis100 = currentMillis;

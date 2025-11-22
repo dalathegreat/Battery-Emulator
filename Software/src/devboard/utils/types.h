@@ -9,6 +9,12 @@ using duration = std::chrono::duration<unsigned long, std::ratio<1, 1000>>;
 
 enum bms_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
 enum real_bms_status_enum { BMS_DISCONNECTED = 0, BMS_STANDBY = 1, BMS_ACTIVE = 2, BMS_FAULT = 3 };
+enum balancing_status_enum {
+  BALANCING_STATUS_UNKNOWN = 0,
+  BALANCING_STATUS_ERROR = 1,
+  BALANCING_STATUS_READY = 2,  //No balancing active, system supports balancing
+  BALANCING_STATUS_ACTIVE = 3  //Balancing active!
+};
 enum battery_chemistry_enum { Autodetect = 0, NCA = 1, NMC = 2, LFP = 3, Highest };
 
 enum class comm_interface {
@@ -29,6 +35,12 @@ enum PrechargeState {
   AUTO_PRECHARGE_OFF,
   AUTO_PRECHARGE_COMPLETED,
   AUTO_PRECHARGE_FAILURE
+};
+enum BMSResetState {
+  BMS_RESET_IDLE = 0,
+  BMS_RESET_WAITING_FOR_PAUSE,
+  BMS_RESET_POWERED_OFF,
+  BMS_RESET_POWERING_ON,
 };
 
 #define DISCHARGING 1

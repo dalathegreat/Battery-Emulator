@@ -303,6 +303,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
 
+  if (var == "NCCONTACTOR") {
+    return settings.getBool("NCCONTACTOR") ? "checked" : "";
+  }
+
   if (var == "CNTCTRLDBL") {
     return settings.getBool("CNTCTRLDBL") ? "checked" : "";
   }
@@ -928,7 +932,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-shunt="0"] .if-shunt { display: none; }
 
     form .if-cbms { display: none; }
-    form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms {
+    form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms, form[data-battery="41"] .if-cbms {
       display: contents;
     }
 
@@ -952,12 +956,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="32"] .if-estimated, 
     form[data-battery="33"] .if-estimated,
     form[data-battery="40"] .if-estimated,
+    form[data-battery="41"] .if-estimated,
     form[data-battery="44"] .if-estimated {
       display: contents;
     }
 
     form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
-    form[data-battery="16"] .if-socestimated {
+    form[data-battery="16"],
+    form[data-battery="41"] .if-socestimated {
       display: contents;
     }
 
@@ -997,7 +1003,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     }
 
     form .if-pylonish { display: none; }
-    form[data-inverter="4"] .if-pylonish, form[data-inverter="10"] .if-pylonish, form[data-inverter="19"] .if-pylonish {
+    form[data-inverter="4"] .if-pylonish, 
+    form[data-inverter="10"] .if-pylonish, 
+    form[data-inverter="19"] .if-pylonish {
       display: contents;
     }
 
@@ -1283,6 +1291,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <input type='number' name='PRECHGMS' value="%PRECHGMS%" 
             min="1" max="65000" step="1"
             title="Time in milliseconds the precharge should be active" />
+
+            <label>Use Normally Closed logic: </label>
+            <input type='checkbox' name='NCCONTACTOR' value='on' %NCCONTACTOR% 
+            title="Extremely rare option. If configured, GPIO control logic will be inverted for operation with normally closed contactors" />
 
             <label>PWM contactor control: </label>
             <input type='checkbox' name='PWMCNTCTRL' value='on' %PWMCNTCTRL% />
