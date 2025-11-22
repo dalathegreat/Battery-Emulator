@@ -934,16 +934,19 @@ String processor(const String& var) {
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
     content += "<h4>Software: " + String(version_number);
 
-// Show hardware used:
-#ifdef HW_LILYGO
-    content += " Hardware: LilyGo T-CAN485";
-#endif  // HW_LILYGO
-#ifdef HW_LILYGO2CAN
-    content += " Hardware: LilyGo T_2CAN";
-#endif  // HW_LILYGO2CAN
-#ifdef HW_STARK
-    content += " Hardware: Stark CMR Module";
-#endif  // HW_STARK
+    // Show hardware used:
+    content += " Hardware: ";
+    content += esp32hal->name();
+    // #ifdef HW_LILYGO
+    //     content += " Hardware: LilyGo T-CAN485";
+    // #endif  // HW_LILYGO
+    // #ifdef HW_LILYGO2CAN
+    //     content += " Hardware: LilyGo T_2CAN";
+    // #endif  // HW_LILYGO2CAN
+    // #ifdef HW_STARK
+    //     content += " Hardware: Stark CMR Module";
+    // #endif  // HW_STARK
+
     content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
     content += "<h4>Uptime: " + get_uptime() + "</h4>";
     if (datalayer.system.info.performance_measurement_active) {
