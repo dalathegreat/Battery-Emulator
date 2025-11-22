@@ -474,17 +474,17 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
     }
   }
 
-  // Factor 2: Temperature-based limiting (ramp to zero from 5°C to 0°C)
+  // Factor 2: Temperature-based limiting (ramp from 0W at -10°C to RAMPDOWN_TEMP_POWER_W at 5°C)
   int max_charge_power_temp = datalayer.battery.status.override_charge_power_W;
 
   if (datalayer.battery.status.temperature_min_dC <= RAMPDOWN_TEMP_MIN_dC) {
-    // Below 0°C: no charging allowed
+    // Below -10°C: no charging allowed
     max_charge_power_temp = 0;
   } else if (datalayer.battery.status.temperature_min_dC < RAMPDOWN_TEMP_MAX_dC) {
-    // Between 0°C and 5°C: linear ramp from 0 to full power
-    // At 0°C = 0%, at 5°C = 100%
-    max_charge_power_temp = datalayer.battery.status.override_charge_power_W *
-                            (datalayer.battery.status.temperature_min_dC / (float)RAMPDOWN_TEMP_MAX_dC);
+    // Between -10°C and 5°C: linear ramp from 0W to RAMPDOWN_TEMP_POWER_W
+    float ramp_percentage = (float)(datalayer.battery.status.temperature_min_dC - RAMPDOWN_TEMP_MIN_dC) /
+                            (float)(RAMPDOWN_TEMP_MAX_dC - RAMPDOWN_TEMP_MIN_dC);
+    max_charge_power_temp = RAMPDOWN_TEMP_POWER_W * ramp_percentage;
   }
   // Above 5°C: no temperature limitation
 
