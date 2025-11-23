@@ -42,19 +42,13 @@ void VolvoSpaBattery::
 
   datalayer.battery.status.remaining_capacity_Wh = (datalayer.battery.info.total_capacity_Wh - CHARGE_ENERGY);
 
-  //datalayer.battery.status.real_soc = SOC_BMS;			// Use BMS reported SOC, havent figured out how to get the BMS to calibrate empty/full yet
+  datalayer.battery.status.real_soc = SOC_BMS * 10;  //Add one decimal to make it pptt
+
   // Use calculated SOC based on remaining_capacity
+  /*
   SOC_CALC = (datalayer.battery.status.remaining_capacity_Wh / (datalayer.battery.info.total_capacity_Wh / 1000));
-
   datalayer.battery.status.real_soc = SOC_CALC * 10;  //Add one decimal to make it pptt
-
-  if (BATT_U > MAX_U)  // Protect if overcharged
-  {
-    datalayer.battery.status.real_soc = 10000;
-  } else if (BATT_U < MIN_U)  //Protect if undercharged
-  {
-    datalayer.battery.status.real_soc = 0;
-  }
+  */
 
   datalayer.battery.status.voltage_dV = BATT_U * 10;
   datalayer.battery.status.current_dA = BATT_I * 10;
@@ -196,9 +190,6 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x37D:
       if ((rx_frame.data.u8[0] & 0x40) == 0x40) {
         SOC_BMS = ((rx_frame.data.u8[6] & 0x03) * 256 + rx_frame.data.u8[7]);
-      } else {
-        SOC_BMS = 0;
-        logging.println("SOC_BMS not valid");
       }
 
       if ((rx_frame.data.u8[0] & 0x04) == 0x04) {
