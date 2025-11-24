@@ -15,7 +15,7 @@ enum balancing_status_enum {
   BALANCING_STATUS_READY = 2,  //No balancing active, system supports balancing
   BALANCING_STATUS_ACTIVE = 3  //Balancing active!
 };
-enum battery_chemistry_enum { Autodetect = 0, NCA = 1, NMC = 2, LFP = 3, Highest };
+enum battery_chemistry_enum { Autodetect = 0, NCA = 1, NMC = 2, LFP = 3, ZEBRA = 4, Highest };
 
 enum class comm_interface {
   Modbus = 1,

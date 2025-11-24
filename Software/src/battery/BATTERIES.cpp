@@ -26,6 +26,8 @@ const char* name_for_chemistry(battery_chemistry_enum chem) {
       return "NCA";
     case battery_chemistry_enum::NMC:
       return "NMC";
+    case battery_chemistry_enum::ZEBRA:
+      return "Molten Salt";
     default:
       return nullptr;
   }
@@ -125,6 +127,8 @@ const char* name_for_battery_type(BatteryType type) {
       return TeslaModelSXBattery::Name;
     case BatteryType::TestFake:
       return TestFakeBattery::Name;
+    case BatteryType::ThinkCity:
+      return ThinkBattery::Name;
     case BatteryType::VolvoSpa:
       return VolvoSpaBattery::Name;
     case BatteryType::VolvoSpaHybrid:
@@ -231,6 +235,8 @@ Battery* create_battery(BatteryType type) {
       return new TeslaModelSXBattery();
     case BatteryType::TestFake:
       return new TestFakeBattery();
+    case BatteryType::ThinkCity:
+      return new ThinkBattery();
     case BatteryType::VolvoSpa:
       return new VolvoSpaBattery();
     case BatteryType::VolvoSpaHybrid:
