@@ -19,6 +19,11 @@ class ThinkBattery : public CanBattery {
   static const int MAX_CELL_VOLTAGE_MV = 4200;
   static const int MIN_CELL_VOLTAGE_MV = 3300;
 
+  unsigned long previousMillis200 = 0;  // will store last time a 100ms CAN Message was sent
+
+  CAN_frame PCU_310 = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x310, .data = {0x00, 0x00, 0x06}};
+  CAN_frame PCU_311 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x311, .data = {0x00, 0x00}};
+
   uint16_t sys_voltage = 0;
   uint16_t sys_dod = 0;
   uint16_t sys_voltageMinDischarge = 0;

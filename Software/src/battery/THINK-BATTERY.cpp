@@ -118,7 +118,12 @@ void ThinkBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void ThinkBattery::transmit_can(unsigned long currentMillis) {
-  // No transmission needed for this integration?
+  //Send 500ms messages
+  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+    previousMillis200 = currentMillis;
+    transmit_can_frame(&PCU_310);
+    transmit_can_frame(&PCU_311);
+  }
 }
 
 void ThinkBattery::setup(void) {  // Performs one time setup at startup
