@@ -41,10 +41,10 @@ uint8_t BmwI3Battery::increment_alive_counter(uint8_t counter) {
   return counter;
 }
 
-void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
+void BmwI3Battery::update_values() {
   if (datalayer.system.info.equipment_stop_active == true) {
     digitalWrite(wakeup_pin, LOW);  // Turn off wakeup pin
-  } else if (millis() > INTERVAL_1_S) {
+  } else {
     digitalWrite(wakeup_pin, HIGH);  // Wake up the battery
   }
 
@@ -112,8 +112,11 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive =
           CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
       battery_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
-      battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
-      datalayer_battery->status.voltage_dV = battery_volts;  // Update the datalayer as soon as possible with this info
+      tempval = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);                 //500.0 V (Unavailable 0xFFFF)
+      if (tempval < 0xFFFE) {
+        battery_volts = tempval;
+        datalayer_battery->status.voltage_dV = tempval;  // Update the datalayer as soon as possible
+      }
       battery_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
       battery_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
       battery_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
@@ -300,10 +303,20 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
 
-      if (startup_counter_contactor < 160) {
-        startup_counter_contactor++;
-      } else {                      //After 160 messages, turn on the request
-        BMW_10B.data.u8[1] = 0x10;  // Close contactors
+      if (primary_battery) {
+        if (startup_counter_contactor < 160) {
+          startup_counter_contactor++;
+        } else {                      //After 160 messages, turn on the request
+          BMW_10B.data.u8[1] = 0x10;  // Close contactors
+        }
+      } else {  //Secondary battery
+        if (datalayer.system.status.battery2_allowed_contactor_closing) {
+          if (startup_counter_contactor < 160) {  //Only start closing procedure when allowed
+            startup_counter_contactor++;
+          } else {                      //After 160 messages, turn on the request
+            BMW_10B.data.u8[1] = 0x10;  // Close contactors
+          }
+        }
       }
 
       BMW_10B.data.u8[1] = ((BMW_10B.data.u8[1] & 0xF0) + alive_counter_20ms);
@@ -315,11 +328,12 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       BMW_13E.data.u8[4] = BMW_13E_counter;
 
       if (datalayer_battery->status.bms_status == FAULT) {
-      } else if (allows_contactor_closing) {
-        //If battery is not in Fault mode, and we are allowed to control contactors, we allow contactor to close by sending 10B
-        *allows_contactor_closing = true;
+        //Send no 10B message. This opens contactors (on both batteries)
+      } else if (primary_battery) {
+        //Single i3 battery in use. Close contactors!
         transmit_can_frame(&BMW_10B);
-      } else if (contactor_closing_allowed && *contactor_closing_allowed) {
+      } else if (datalayer.system.status.battery2_allowed_contactor_closing) {
+        //Secondary i3 battery waits for interconnect check to allow closing
         transmit_can_frame(&BMW_10B);
       }
     }
@@ -509,6 +523,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
 void BmwI3Battery::setup(void) {  // Performs one time setup at startup
   if (!esp32hal->alloc_pins(Name, wakeup_pin)) {
+    //Check if the wakeup pins can be allocated. If they collide with other functions, abort setup
     return;
   }
 
@@ -519,12 +534,8 @@ void BmwI3Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
   datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-
-  if (allows_contactor_closing) {
-    *allows_contactor_closing = true;
-  }
   datalayer_battery->info.number_of_cells = NUMBER_OF_CELLS;
 
   pinMode(wakeup_pin, OUTPUT);
-  digitalWrite(wakeup_pin, LOW);  // Set pin to low, prepare to wakeup later on!
+  digitalWrite(wakeup_pin, LOW);  // Startup pin in low state, prepare to wakeup later on!
 }
