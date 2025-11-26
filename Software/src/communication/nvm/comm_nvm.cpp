@@ -144,6 +144,7 @@ void init_stored_settings() {
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
+  user_selected_gpioopt1 = (GPIOOPT1)settings.getUInt("GPIOOPT1", 0);
 
   precharge_control_enabled = settings.getBool("EXTPRECHARGE", false);
   precharge_inverter_normally_open_contactor = settings.getBool("NOINVDISC", false);
