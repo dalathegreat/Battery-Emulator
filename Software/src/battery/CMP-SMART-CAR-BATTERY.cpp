@@ -76,6 +76,22 @@ void CmpSmartCarBattery::update_values() {
   datalayer_extended.stellantisCMPsmart.hvbat_wakeup_state = hvbat_wakeup_state;
   datalayer_extended.stellantisCMPsmart.active_DTC_code = active_DTC_code;
   datalayer_extended.stellantisCMPsmart.rcd_line_active = rcd_line_active;
+
+  datalayer_extended.stellantisCMPsmart.regen_charge_cont_power = regen_charge_cont_power;
+  datalayer_extended.stellantisCMPsmart.regen_charge_30s_power = regen_charge_30s_power;
+  datalayer_extended.stellantisCMPsmart.regen_charge_30s_current = regen_charge_30s_current;
+  datalayer_extended.stellantisCMPsmart.regen_charge_cont_current = regen_charge_cont_current;
+  datalayer_extended.stellantisCMPsmart.regen_charge_10s_current = regen_charge_10s_current;
+  datalayer_extended.stellantisCMPsmart.regen_charge_10s_power = regen_charge_10s_power;
+  datalayer_extended.stellantisCMPsmart.charge_cont_curr_max = charge_cont_curr_max;
+  datalayer_extended.stellantisCMPsmart.charge_cont_curr_req = charge_cont_curr_req;
+
+  datalayer_extended.stellantisCMPsmart.discharge_available_10s_power = discharge_available_10s_power;
+  datalayer_extended.stellantisCMPsmart.discharge_available_10s_current = discharge_available_10s_current;
+  datalayer_extended.stellantisCMPsmart.discharge_cont_available_power = discharge_cont_available_power;
+  datalayer_extended.stellantisCMPsmart.discharge_cont_available_current = discharge_cont_available_current;
+  datalayer_extended.stellantisCMPsmart.discharge_available_30s_current = discharge_available_30s_current;
+  datalayer_extended.stellantisCMPsmart.discharge_available_30s_power = discharge_available_30s_power;
 }
 
 bool checksum_OK(CAN_frame& rx_frame, uint8_t magic_byte) {
@@ -501,17 +517,19 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     previousMillis100 = currentMillis;
     counter_100ms = (counter_100ms + 1) % 16;  // counter_100ms repeats after 16 messages. 0-1..15-0
 
-    CMP_211.data.u8[2] = 0x00;  //00 QC contactor OFF, 81, QC contactor ON
-
-    if (startup_increment < 200) {  //During startup we request open contactors
+    if (startup_increment < 200) {  //During startup we request open contactors for a few 100ms
       CMP_211.data.u8[4] = 0x17;    //Ready mode (unsure why this opens contactors)
     } else {                        //Normal handling of close/open
 
       if (datalayer.battery.status.bms_status == FAULT) {
         //Open contactors
-        CMP_211.data.u8[4] = 0x17;  //Ready mode (unsure why this opens contactors) (Bit 1 is insulation turn-off)
-      } else {                      //Close contactors
-        CMP_211.data.u8[4] = 0x06;  //04 discharge (+bit1 insulation turn off), 4A charge
+        CMP_211.data.u8[4] = 0x17;     //Ready mode (unsure why this opens contactors) (Bit 1 is insulation turn-off)
+      } else {                         //Close contactors
+        if (battery_current_dA < 0) {  //Discharge in progress
+          CMP_211.data.u8[4] = 0x06;   //04 discharge (+bit1 insulation turn off)
+        } else {                       //Charge in progress (Balancing is achieved when charging)
+          CMP_211.data.u8[4] = 0x0A;   //0A charge (+bit1 insulation turn off)
+        }
       }
     }
 
