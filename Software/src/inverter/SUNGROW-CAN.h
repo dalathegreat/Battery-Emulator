@@ -12,6 +12,9 @@ class SungrowInverter : public CanInverterProtocol {
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
   static constexpr const char* Name = "Sungrow SBRXXX emulation over CAN bus";
+  static constexpr uint8_t MODBUS_SLAVE_ADDR = 0x01;
+  static constexpr uint16_t MODBUS_REGISTER_BASE_ADDR = 0x4DE2;
+  static constexpr uint16_t MODBUS_REGISTER_QTY = 0x0006;
 
  private:
   unsigned long previousMillisBatch = 0;
@@ -187,12 +190,6 @@ class SungrowInverter : public CanInverterProtocol {
                            .DLC = 8,
                            .ID = 0x01E,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_1E0_00 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x1E0,
-                              .data = {0x01, 0x04, 0x04, 0x01, 0xF4, 0x00, 0x00, 0xBB}};
-  CAN_frame SUNGROW_1E0_01 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x1E0, .data = {0x8A}};
   CAN_frame SUNGROW_400 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
