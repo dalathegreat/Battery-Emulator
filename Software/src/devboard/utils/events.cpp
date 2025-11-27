@@ -39,6 +39,7 @@ void init_events(void) {
   events.entries[EVENT_CAN_NATIVE_TX_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_BATTERY_MISSING].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_BATTERY2_MISSING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_BATTERY3_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_CHARGER_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
@@ -190,6 +191,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Battery not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CAN_BATTERY2_MISSING:
       return "Secondary battery not sending messages via CAN for the last 60 seconds. Check wiring!";
+    case EVENT_CAN_BATTERY3_MISSING:
+      return "Third battery not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CAN_CHARGER_MISSING:
       return "Charger not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CAN_INVERTER_MISSING:

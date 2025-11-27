@@ -21,6 +21,7 @@ typedef struct {
   CAN_Interface battery;
   CAN_Interface inverter;
   CAN_Interface battery_double;
+  CAN_Interface battery_triple;
   CAN_Interface charger;
   CAN_Interface shunt;
 } CAN_Configuration;

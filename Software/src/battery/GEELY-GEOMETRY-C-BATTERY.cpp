@@ -155,7 +155,7 @@ void GeelyGeometryCBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x0B0:  //10ms
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (is_message_corrupt(&rx_frame)) {
-        datalayer.battery2.status.CAN_error_counter++;
+        datalayer_battery->status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
       //Contains:
@@ -172,7 +172,7 @@ void GeelyGeometryCBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x178:  //10ms (64 13 88 00 0E 30 0A 85)
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (is_message_corrupt(&rx_frame)) {
-        datalayer.battery2.status.CAN_error_counter++;
+        datalayer_battery->status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
       battery_voltage = ((rx_frame.data.u8[4] & 0x1F) << 8) | rx_frame.data.u8[5];
@@ -182,7 +182,7 @@ void GeelyGeometryCBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x179:  //20ms (3E 52 BA 5D A4 3F 0C D9)
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (is_message_corrupt(&rx_frame)) {
-        datalayer.battery2.status.CAN_error_counter++;
+        datalayer_battery->status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
       //2BA = 69.8 //Potentially charge power allowed
@@ -193,7 +193,7 @@ void GeelyGeometryCBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                  //(Car log 0A 3D EE F1 BD C6 67 F7)
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (is_message_corrupt(&rx_frame)) {
-        datalayer.battery2.status.CAN_error_counter++;
+        datalayer_battery->status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
       //frame7, CRC
@@ -201,7 +201,7 @@ void GeelyGeometryCBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x17B:  //20ms (00 00 10 00 0F FE 03 C9) (car is the same, static)
       if (is_message_corrupt(&rx_frame)) {
-        datalayer.battery2.status.CAN_error_counter++;
+        datalayer_battery->status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
       //frame7, CRC
@@ -211,7 +211,7 @@ void GeelyGeometryCBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x210:  //100ms (38 04 3A 01 38 22 22 39)
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (is_message_corrupt(&rx_frame)) {
-        datalayer.battery2.status.CAN_error_counter++;
+        datalayer_battery->status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
       discharge_power_allowed = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2];  //TODO, not confirmed
@@ -222,7 +222,7 @@ void GeelyGeometryCBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x211:  //100ms (00 D8 C6 00 00 00 0F 3A)
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (is_message_corrupt(&rx_frame)) {
-        datalayer.battery2.status.CAN_error_counter++;
+        datalayer_battery->status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
       //frame7, CRC

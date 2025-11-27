@@ -20,7 +20,7 @@ if opi PSRAM is enabled.
   38:SCK                42:SDI
  x37:SDO                41:nCS
  x36:ESTOP              40
-  16                     4
+  16                     4:BAT3_CTRS
   15                     5:BAT2_CTRS
   45                    48:POS_CTR
   47:                   21:PRECHARGE
@@ -72,6 +72,7 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_21; }
   virtual gpio_num_t BMS_POWER() { return GPIO_NUM_3; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_5; }
+  virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_4; }
 
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_18; }
