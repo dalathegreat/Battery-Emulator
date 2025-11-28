@@ -881,12 +881,12 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
       if (datalayer.battery.status.real_bms_status != BMS_FAULT) {
         datalayer.battery.status.real_bms_status = BMS_DISCONNECTED;
         datalayer.system.status.battery_allows_contactor_closing = false;
-  
+
         // Set the link voltage back to 0, so that when the BMS comes back, it
         // doesn't immediately skip the precharge.
         BMS_voltage_intermediate = 0;
         datalayer_extended.meb.BMS_voltage_intermediate_dV = 0;
-  
+
         // Reset the HV requested state so that we don't skip the precharge.
         hv_requested = false;
       }
@@ -894,29 +894,29 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     // Send 10ms CAN Message
     if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
       previousMillis10ms = currentMillis;
-  
+
       MEB_0FC.data.u8[1] = ((MEB_0FC.data.u8[1] & 0xF0) | counter_10ms);
       MEB_0FC.data.u8[0] = vw_crc_calc(MEB_0FC.data.u8, MEB_0FC.DLC, MEB_0FC.ID);
-  
+
       counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-  
+
       transmit_can_frame(&MEB_0FC);  // Required for contactor closing
     }
     // Send 20ms CAN Message
     if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
       previousMillis20ms = currentMillis;
-  
+
       MEB_0FD.data.u8[1] = ((MEB_0FD.data.u8[1] & 0xF0) | counter_20ms);
       MEB_0FD.data.u8[0] = vw_crc_calc(MEB_0FD.data.u8, MEB_0FD.DLC, MEB_0FD.ID);
-  
+
       counter_20ms = (counter_20ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-  
+
       transmit_can_frame(&MEB_0FD);  // Required for contactor closing
     }
     // Send 40ms CAN Message
     if (currentMillis - previousMillis40ms >= INTERVAL_40_MS) {
       previousMillis40ms = currentMillis;
-  
+
       /* Handle content for 0x040 message */
       /* Airbag message, needed for BMS to function */
       MEB_040.data.u8[7] = counter_040;
@@ -927,13 +927,13 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
         counter_040 = (counter_040 + 1) % 256;  // Increment only on every other pass
       }
       toggle = !toggle;  // Flip the toggle each time the code block is executed
-  
+
       transmit_can_frame(&MEB_040);  // Airbag message - Needed for contactor closing
     }
     // Send 50ms CAN Message
     if (currentMillis - previousMillis50ms >= INTERVAL_50_MS) {
       previousMillis50ms = currentMillis;
-  
+
       /* Handle content for 0x0C0 message */
       /* BMS needs to see this EM1 message. Content located in frame5&6 especially (can be static?)*/
       /* Also the voltage seen externally to battery is in frame 7&8. At least for the 62kWh ID3 version does not seem to matter, but we send it anyway. */
@@ -943,15 +943,15 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
           ((MEB_0C0.data.u8[8] & 0xF0) | ((((datalayer.battery.status.voltage_dV / 10) * 4) >> 8) & 0x0F));
       MEB_0C0.data.u8[0] = vw_crc_calc(MEB_0C0.data.u8, MEB_0C0.DLC, MEB_0C0.ID);
       counter_50ms = (counter_50ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-  
+
       transmit_can_frame(&MEB_0C0);  //  Needed for contactor closing
     }
     // Send 100ms CAN Message
     if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
       previousMillis100ms = currentMillis;
-  
+
       //HV request and DC/DC control lies in 0x503
-  
+
       if ((!datalayer.system.info.equipment_stop_active) && datalayer.battery.status.real_bms_status != BMS_FAULT &&
           (datalayer.battery.status.real_bms_status == BMS_ACTIVE ||
            (datalayer.battery.status.real_bms_status == BMS_STANDBY &&
@@ -963,17 +963,17 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
         //  - in BMS_ACTIVE state (contactors closed, normal operation)
         //  - or in BMS_STANDBY state, ready to request HV from the battery (our precharge is within 20V)
         //  - or in BMS_STANDBY state, having already requested HV (hv_requested = true)
-  
+
         if (datalayer.battery.status.real_bms_status != BMS_ACTIVE) {
           // We're still awaiting contactor closure, so record that we've
           // requested HV, so that we keep doing so even if the precharge voltage
           // wavers.
           hv_requested = true;
         }
-  
+
         // We can stop precharging now.
         datalayer.system.info.start_precharging = false;
-  
+
         if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
           logging.printf("MEB: Requesting HV\n");
         }
@@ -992,12 +992,12 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
         MEB_503.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
       } else if ((first_can_msg > 0 && currentMillis > first_can_msg + 1000 && BMS_mode != 7) ||
                  datalayer.system.info.equipment_stop_active) {  //FAULT STATE, open contactors
-  
+
         if (datalayer.battery.status.bms_status != FAULT && datalayer.battery.status.real_bms_status == BMS_STANDBY &&
             !datalayer.system.info.equipment_stop_active) {
           datalayer.system.info.start_precharging = true;
         }
-  
+
         if (MEB_503.data.u8[3] != BMS_TARGET_HV_OFF) {
           logging.printf("MEB: Requesting HV_OFF\n");
         }
@@ -1021,25 +1021,25 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
       }
       MEB_503.data.u8[1] = ((MEB_503.data.u8[1] & 0xF0) | counter_100ms);
       MEB_503.data.u8[0] = vw_crc_calc(MEB_503.data.u8, MEB_503.DLC, MEB_503.ID);
-  
+
       //Bidirectional charging message
       MEB_272.data.u8[1] =
           0x00;  //0x80;  // Bidirectional charging active (Set to 0x00 incase no bidirectional charging wanted)
       MEB_272.data.u8[2] = 0x00;
       //0x01;  // High load bidirectional charging active (Set to 0x00 incase no bidirectional charging wanted)
       MEB_272.data.u8[5] = DC_FASTCHARGE_NO_START_REQUEST;  //DC_FASTCHARGE_VEHICLE;  //DC charging
-  
+
       //Klemmen status
       MEB_3C0.data.u8[2] = 0x02;  //bit to signal that KL_15 is ON // Always 0 in start4.log
       MEB_3C0.data.u8[1] = ((MEB_3C0.data.u8[1] & 0xF0) | counter_100ms);
       MEB_3C0.data.u8[0] = vw_crc_calc(MEB_3C0.data.u8, MEB_3C0.DLC, MEB_3C0.ID);
-  
+
       MEB_3BE.data.u8[1] = ((MEB_3BE.data.u8[1] & 0xF0) | counter_100ms);
       MEB_3BE.data.u8[0] = vw_crc_calc(MEB_3BE.data.u8, MEB_3BE.DLC, MEB_3BE.ID);
-  
+
       MEB_14C.data.u8[1] = ((MEB_14C.data.u8[1] & 0xF0) | counter_100ms);
       MEB_14C.data.u8[0] = vw_crc_calc(MEB_14C.data.u8, MEB_14C.DLC, MEB_14C.ID);
-  
+
       counter_100ms = (counter_100ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
       transmit_can_frame(&MEB_503);
       transmit_can_frame(&MEB_272);
@@ -1050,17 +1050,17 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     //Send 200ms message
     if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
       previousMillis200ms = currentMillis;
-  
+
       // MEB_153 does not need CRC even though it has it. Empty in some logs as well.
-  
+
       //TODO: MEB_1B0000B9 & MEB_1B000010 & MEB_1B000046 has CAN sleep commands. May be removed?
-  
+
       transmit_can_frame(&MEB_5E1);
       transmit_can_frame(&MEB_153);
       transmit_can_frame(&MEB_1B0000B9);
       transmit_can_frame(&MEB_1B000010);
       transmit_can_frame(&MEB_1B000046);
-  
+
       switch (poll_pid) {
         case PID_SOC:
           MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_SOC >> 8);  // High byte
@@ -1184,27 +1184,27 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
         transmit_can_frame(&MEB_POLLING_FRAME);
       }
     }
-  
+
     // Send 500ms CAN Message
     if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
       previousMillis500ms = currentMillis;
-  
+
       transmit_can_frame(&MEB_16A954B4);  //eTM, Cooling valves and pumps for BMS
       transmit_can_frame(&MEB_569);       // Battery heating requests
       transmit_can_frame(&MEB_1A55552B);  //Climate, heatpump and priorities
       transmit_can_frame(&MEB_1A555548);  //ORU, OTA update message for reserving battery
       transmit_can_frame(&MEB_16A954FB);  //Climate, request to BMS for starting preconditioning
     }
-  
+
     //Send 1s CANFD message
     if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
       previousMillis1s = currentMillis;
-  
+
       MEB_641.data.u8[1] = ((MEB_641.data.u8[1] & 0xF0) | counter_1000ms);
       MEB_641.data.u8[0] = vw_crc_calc(MEB_641.data.u8, MEB_641.DLC, MEB_641.ID);
-  
+
       MEB_1A5555A6.data.u8[2] = 0x7F;  //Outside temperature, factor 0.5, offset -50
-  
+
       MEB_6B2.data.u8[0] =  //driving cycle counter, 0-254 wrap around. 255 = invalid value
           //MEB_6B2.data.u8[1-2-3b0-4] // Odometer, km (20 bits long)
           MEB_6B2.data.u8[3] = (uint8_t)((TIME_YEAR - 2000) << 4) | MEB_6B2.data.u8[3];
@@ -1213,57 +1213,57 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
       MEB_6B2.data.u8[6] = (uint8_t)((seconds & 0x01) << 7 | TIME_MINUTE << 1 | TIME_HOUR >> 4);
       MEB_6B2.data.u8[7] = (uint8_t)((seconds & 0x3E) >> 1);
       seconds = (seconds + 1) % 60;
-  
+
       counter_1000ms = (counter_1000ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
       transmit_can_frame(&MEB_6B2);                // Diagnostics - Needed for contactor closing
       transmit_can_frame(&MEB_641);                // Motor - OBD
       transmit_can_frame(&MEB_5F5);                // Loading profile
       transmit_can_frame(&MEB_585);                // Systeminfo
       transmit_can_frame(&MEB_1A5555A6);           // Temperature QBit
-  
+
       transmit_obd_can_frame(0x18DA05F1, can_config.battery, true);
     }
-  
+
     static auto last_real_bms_status = datalayer.battery.status.real_bms_status;
     static auto last_start_precharging = datalayer.system.info.start_precharging;
     static auto last_hv_requested = hv_requested;
     static auto last_voltage_dV = datalayer.battery.status.voltage_dV;
     static auto last_BMS_voltage_intermediate_dV = datalayer_extended.meb.BMS_voltage_intermediate_dV;
     static auto BMS_mode = datalayer_extended.meb.BMS_mode;
-  
+
     if (last_real_bms_status != datalayer.battery.status.real_bms_status) {
       logging.printf("MEB: BMS status %d -> %d\n", last_real_bms_status, datalayer.battery.status.real_bms_status);
       last_real_bms_status = datalayer.battery.status.real_bms_status;
     }
-  
+
     if (last_start_precharging != datalayer.system.info.start_precharging) {
       logging.printf("MEB: Start precharging %d -> %d\n", last_start_precharging,
                      datalayer.system.info.start_precharging);
       last_start_precharging = datalayer.system.info.start_precharging;
     }
-  
+
     if (last_hv_requested != hv_requested) {
       logging.printf("MEB: HV requested %d -> %d\n", last_hv_requested, hv_requested);
       last_hv_requested = hv_requested;
     }
-  
+
     if (last_voltage_dV != datalayer.battery.status.voltage_dV) {
       logging.printf("MEB: Voltage dV %d -> %d\n", last_voltage_dV, datalayer.battery.status.voltage_dV);
       last_voltage_dV = datalayer.battery.status.voltage_dV;
     }
-  
+
     if (last_BMS_voltage_intermediate_dV != datalayer_extended.meb.BMS_voltage_intermediate_dV) {
       logging.printf("MEB: BMS Voltage intermediate dV %d -> %d\n", last_BMS_voltage_intermediate_dV,
                      datalayer_extended.meb.BMS_voltage_intermediate_dV);
       last_BMS_voltage_intermediate_dV = datalayer_extended.meb.BMS_voltage_intermediate_dV;
     }
-  
+
     if (BMS_mode != datalayer_extended.meb.BMS_mode) {
       logging.printf("MEB: BMS mode %d -> %d\n", BMS_mode, datalayer_extended.meb.BMS_mode);
       BMS_mode = datalayer_extended.meb.BMS_mode;
     }
-   }
- }
+  }
+}
 void MebBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
