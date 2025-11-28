@@ -873,6 +873,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
 void MebBattery::transmit_can(unsigned long currentMillis) {
 
+ if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {
   if (currentMillis - last_can_msg_timestamp > 500) {
     if (first_can_msg)
       logging.printf("MEB: No CAN msg received for 500ms\n");
@@ -1263,7 +1264,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     BMS_mode = datalayer_extended.meb.BMS_mode;
   }
 }
-
+}
 void MebBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
