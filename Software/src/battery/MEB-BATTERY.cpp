@@ -873,7 +873,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
 void MebBattery::transmit_can(unsigned long currentMillis) {
 
-  if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_POWERED_OFF) {
     if (currentMillis - last_can_msg_timestamp > 500) {
       if (first_can_msg)
         logging.printf("MEB: No CAN msg received for 500ms\n");
