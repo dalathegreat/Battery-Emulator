@@ -22,6 +22,11 @@ class Mg5Battery : public CanBattery {
   bool storeUDSPayload(const uint8_t* payload, uint8_t length);
   bool isUDSMessageComplete();
   virtual void print_formatted_dtc(uint32_t dtc24, uint8_t status);
+  bool supports_contactor_close() { return true; }
+  virtual bool supports_read_DTC() { return true; }
+  void request_open_contactors() { userRequestContactorClose = false; }
+  void request_close_contactors() { userRequestContactorClose = true; }
+  virtual void read_DTC() {userRequestReadDTC = true;}
 
  private:
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
@@ -34,42 +39,50 @@ class Mg5Battery : public CanBattery {
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200  = 0;
   unsigned long previousMillis1000 = 0;
-  unsigned long previousMillis6000 = 0;
+  unsigned long previousMillis2000 = 0;
   unsigned long previousMillisDTC = 0;
   unsigned long previousMillisPID = 0;
 
-  #define INTERVAL_1000_MS 1000UL
-  #define INTERVAL_6000_MS 6000UL
-
-  uint8_t previousState = 0;
 
     // For calculating charge and discharge power
   float RealVoltage;
   float RealSoC;
   float tempfloat;
 
-  int BMS_SOC = 0;
-
-  static const uint16_t CELL_VOLTAGE_TIMEOUT = 10;  // in seconds
-  uint16_t cellVoltageValidTime = 0;
-  uint16_t soc1 = 0;
-  uint16_t soc2 = 0;
+  uint16_t soc = 0;
   uint16_t cell_id = 0;
   uint16_t v = 0;
   uint8_t transmitIndex = 0;  //For polling switchcase
 
-  const int MaxChargePower = 3000;  // Maximum allowable charge power, excluding the taper
+  const int MaxChargePower = 10000;  // Maximum allowable charge power, excluding the taper
   const int StartChargeTaper = 90;  // Battery percentage above which the charge power will taper to zero
   const float ChargeTaperExponent =
       1;  // Shape of charge power taper to zero. 1 is linear. >1 reduces quickly and is small at nearly full.
   const int TricklePower = 20;  // Minimimum trickle charge or discharge power (W)
 
-  const int MaxDischargePower = 4000;  // Maximum allowable discharge power, excluding the taper
+  const int MaxDischargePower = 10000;  // Maximum allowable discharge power, excluding the taper
   const int MinSoC = 20;               // Minimum SoC allowed
   const int StartDischargeTaper = 30;  // Battery percentage below which the discharge power will taper to zero
-  const float DischargeTaperExponent =
-      1;  // Shape of discharge power taper to zero. 1 is linear. >1 red
-    // A structure to keep track of the ongoing multi-frame UDS response
+  const float DischargeTaperExponent =1;  // Shape of discharge power taper to zero. 1 is linear. >1 red
+
+   
+
+  // poll counters
+  int uds_slow_req_id_counter = -1;
+
+  bool uds_tx_in_flight = false;
+  bool userRequestReadDTC = false;
+  bool userRequestContactorClose = false;
+  unsigned long uds_req_started_ms = 0;
+  unsigned long uds_timeout_ms  = 0;
+  const unsigned long UDS_PID_REFRESH_MS = 800;     // inter-request gap
+  const unsigned long UDS_TIMEOUT_BEFORE_FF_MS = 1000;   // no reply yet
+  const unsigned long UDS_TIMEOUT_AFTER_FF_MS  = 3000;  // multi-frame in progress
+  const unsigned long UDS_TIMEOUT_AFTER_BOOT = 2000;   // DELAY TO START UDS AFTER BOOT-UP
+  const unsigned long TESTER_PRESENT_PERIOD_MS = 1000;  // ~1 s
+
+
+ // A structure to keep track of the ongoing multi-frame UDS response
   typedef struct {
     bool UDS_inProgress;                // Are we currently receiving a multi-frame message?
     uint16_t UDS_expectedLength;        // Expected total payload length
@@ -254,26 +267,6 @@ class Mg5Battery : public CanBattery {
   int numSlowUDSreqs =
       sizeof(UDS_REQUESTS_SLOW) / sizeof(UDS_REQUESTS_SLOW[0]);  // Store Number of elements in the array
 
-
-  //0x3ac: Battery summary
-  uint16_t battery_soc = 0;
-  uint16_t battery_current = 0;
-  uint16_t battery_voltage = 0;  
-  uint16_t battery_BMS_state = 0;
-
-  // poll counters
-  int uds_fast_req_id_counter = -1;
-  int uds_slow_req_id_counter = -1;
-
-  bool uds_tx_in_flight = false;
-  unsigned long uds_req_started_ms = 0;
-  unsigned long uds_timeout_ms  = 0;
-  const unsigned long UDS_PID_REFRESH_MS = 800;     // inter-request gap
-  const unsigned long UDS_TIMEOUT_BEFORE_FF_MS = 1000;   // no reply yet
-  const unsigned long UDS_TIMEOUT_AFTER_FF_MS  = 3000;  // multi-frame in progress
-  const unsigned long UDS_TIMEOUT_AFTER_BOOT = 2000;   // DELAY TO START UDS AFTER BOOT-UP
-  const unsigned long TESTER_PRESENT_PERIOD_MS = 1000;  // ~1 s
-  const uint32_t UDS_DTC_REFRESH_MS = 10000; // or 60000
 
   // tiny helper for cycling request indices
   static int increment_uds_req_id_counter(int cur, int n) {
