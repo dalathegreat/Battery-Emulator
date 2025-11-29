@@ -17,6 +17,9 @@ void init_hal() {
 #elif defined(HW_3LB)
 #include "hw_3LB.h"
   esp32hal = new ThreeLBHal();
+#elif defined(HW_BECOM)
+#include "hw_becom.h"
+  esp32hal = new BEComHal();
 #elif defined(HW_DEVKIT)
 #include "hw_devkit.h"
   esp32hal = new DevKitHal();
