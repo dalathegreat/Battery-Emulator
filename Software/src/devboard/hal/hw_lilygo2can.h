@@ -3,6 +3,8 @@
 
 #include "hal.h"
 
+#include "../utils/types.h"
+
 /*
 The 2CAN has four GPIOs on the top (43/44 and 1/2 on each of the SH-1mm
 connectors) and 21 on the bottom (on the 2x13 header). GPIO35-37 aren't usable
@@ -70,7 +72,12 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_48; }
   virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_17; }
   virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_21; }
-  virtual gpio_num_t BMS_POWER() { return GPIO_NUM_3; }
+  virtual gpio_num_t BMS_POWER() {
+    if (user_selected_gpioopt1 == GPIOOPT1::ESTOP_BMS_POWER) {
+      return GPIO_NUM_2;
+    }
+    return GPIO_NUM_3;
+  }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_5; }
 
   // Automatic precharging
@@ -85,15 +92,42 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
 
   // i2c display
-  virtual gpio_num_t DISPLAY_SDA_PIN() { return GPIO_NUM_1; }
-  virtual gpio_num_t DISPLAY_SCL_PIN() { return GPIO_NUM_2; }
+  virtual gpio_num_t DISPLAY_SDA_PIN() {
+    if (user_selected_gpioopt1 == GPIOOPT1::I2C_DISPLAY_SSD1306) {
+      return GPIO_NUM_1;
+    }
+    return GPIO_NUM_NC;
+  }
+  virtual gpio_num_t DISPLAY_SCL_PIN() {
+    if (user_selected_gpioopt1 == GPIOOPT1::I2C_DISPLAY_SSD1306) {
+      return GPIO_NUM_2;
+    }
+    return GPIO_NUM_NC;
+  }
 
   // Equipment stop pin
-  virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_36; }
+  virtual gpio_num_t EQUIPMENT_STOP_PIN() {
+    if (user_selected_gpioopt1 == GPIOOPT1::ESTOP_BMS_POWER) {
+      return GPIO_NUM_1;
+    }
+    return GPIO_NUM_36;
+  }
 
   // Battery wake up pins
-  virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_1; }
-  virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_2; }
+  virtual gpio_num_t WUP_PIN1() {
+    if (user_selected_gpioopt1 == GPIOOPT1::DEFAULT_OPT) {
+      // WUP1 on top port
+      return GPIO_NUM_1;
+    }
+    return GPIO_NUM_18;
+  }
+  virtual gpio_num_t WUP_PIN2() {
+    if (user_selected_gpioopt1 == GPIOOPT1::DEFAULT_OPT) {
+      // WUP2 on top port
+      return GPIO_NUM_2;
+    }
+    return GPIO_NUM_14;
+  }
 
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,
