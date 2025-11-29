@@ -163,14 +163,14 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       } else if ((rx_frame.data.u8[0] == 0x02 || rx_frame.data.u8[0] == 0x06) && rx_frame.data.u8[1] == 0x01) {
         // A weird 'stuck' state where the battery won't reconnect
         datalayer.system.status.battery_allows_contactor_closing = false;
-        if (!datalayer.system.status.BMS_startup_in_progress) {
+        if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
           logging.printf("MG_HS_PHEV: Stuck, resetting.\n");
           start_bms_reset();
         }
       } else if (rx_frame.data.u8[1] == 0xf) {
         // A fault state (likely isolation failure)
         datalayer.system.status.battery_allows_contactor_closing = false;
-        if (!datalayer.system.status.BMS_startup_in_progress) {
+        if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
           logging.printf("MG_HS_PHEV: Fault, resetting.\n");
           start_bms_reset();
         }
@@ -310,7 +310,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
-  if (datalayer.system.status.BMS_reset_in_progress || datalayer.system.status.BMS_startup_in_progress) {
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     // Transmitting towards battery is halted while BMS is being reset
     previousMillis100 = currentMillis;
     previousMillis200 = currentMillis;
@@ -346,16 +346,19 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
 
     switch (transmitIndex) {
       case 1:
-        transmit_can_frame(&MG_HS_7E5_B0_42);  //Battery voltage
+        MG_HS_7E5_POLL.data.u8[2] = (uint8_t)((POLL_BATTERY_VOLTAGE & 0xFF00) >> 8);
+        MG_HS_7E5_POLL.data.u8[3] = (uint8_t)(POLL_BATTERY_VOLTAGE & 0x00FF);
+        transmit_can_frame(&MG_HS_7E5_POLL);
         break;
       case 2:
-        transmit_can_frame(&MG_HS_7E5_B0_61);  //Battery SoH
-        transmitIndex = 0;                     //Return to the first message index. This goes in the last message entry
+        MG_HS_7E5_POLL.data.u8[2] = (uint8_t)((POLL_BATTERY_SOH & 0xFF00) >> 8);
+        MG_HS_7E5_POLL.data.u8[3] = (uint8_t)(POLL_BATTERY_SOH & 0x00FF);
+        transmit_can_frame(&MG_HS_7E5_POLL);
+        transmitIndex = 0;
         break;
       default:
         break;
-
-    }  //switch
+    }
 
     transmitIndex++;  //Increment the message index
 

@@ -419,6 +419,11 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       BMW_433.data.u8[1] = 0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
       BMW_3E8.data.u8[0] = 0xF1;  // First 3E8 message byte0 we send is unique, once we sent initial value send this
 
+      if (UserRequestDTCreset) {
+        cmdState = CLEAR_DTC;
+        UserRequestDTCreset = false;
+      }
+
       next_data = 0;
       switch (cmdState) {
         case SOC:
@@ -448,6 +453,14 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
           break;
         case CELL_VOLTAGE_CELLNO_LAST:
           transmit_can_frame(&BMW_6F1_SOC);
+          cmdState = SOC;
+          break;
+        case CLEAR_DTC:
+          transmit_can_frame(&BMW_6F1_CLEAR_DTC);
+          cmdState = SOC;  //jump back to normal polling
+          break;
+        default:
+          //Should never end up here
           cmdState = SOC;
           break;
       }

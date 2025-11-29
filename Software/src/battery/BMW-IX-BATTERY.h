@@ -65,6 +65,8 @@ class BmwIXBattery : public CanBattery {
   bool UserRequestBMSReset = false;
   bool UserRequestDTCRead = false;
   bool UserRequestEnergySavingModeReset = false;
+  bool startup_reset_complete = false;  // Track if startup BMS reset is done
+  unsigned long startup_time = 0;       // Track startup time for delayed reset
   BmwIXHtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_78S_DV = 3354;  //SE12 battery, BMW iX1, 66.45kWh 286.3vNom
   static const int MIN_PACK_VOLTAGE_78S_DV = 2200;
@@ -78,6 +80,10 @@ class BmwIXBattery : public CanBattery {
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
   static const int RAMPDOWN_SOC =
       9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
+  static const int RAMPDOWN_TEMP_MIN_dC = -100;  // (-10.0°C) Temperature below which charging is not allowed
+  static const int RAMPDOWN_TEMP_MAX_dC = 50;    // (5.0°C) Temperature above which no temperature limitation applies
+  static const int RAMPDOWN_TEMP_POWER_W =
+      10000;  // (10000W) Maximum charge power at RAMPDOWN_TEMP_MAX_dC, ramping down to 0W at RAMPDOWN_TEMP_MIN_dC
   static const int STALE_PERIOD_CONFIG =
       900000;  //Number of milliseconds before critical values are classed as stale/stuck 900000 = 900 seconds
 

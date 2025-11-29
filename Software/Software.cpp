@@ -16,6 +16,7 @@
 #include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/datalayer/datalayer.h"
+#include "src/devboard/display/display.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -34,7 +35,7 @@
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "9.2.2";
+const char* version_number = "9.3.dev";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -92,9 +93,13 @@ void connectivity_loop(void*) {
     init_mDNS();
   }
 
+  init_display();
+
   while (true) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
+
+    update_display();
 
     ota_monitor();
 
@@ -129,7 +134,7 @@ void check_interconnect_available() {
   uint16_t voltage_diff = abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV);
   uint8_t secondsOutOfVoltageSync = 0;
 
-  if (voltage_diff <= 30) {  // If we are within 3.0V between the batteries
+  if (voltage_diff <= 15) {  // If we are within 1.5V between the batteries
     clear_event(EVENT_VOLTAGE_DIFFERENCE);
     secondsOutOfVoltageSync = 0;
     if (datalayer.battery.status.bms_status == FAULT) {

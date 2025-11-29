@@ -5,9 +5,10 @@
 
 // TODO: Ensure valid values at run-time
 // User can update all these values via Settings page
-bool contactor_control_enabled = false;  //Should GPIO contactor control be performed?
-uint16_t precharge_time_ms = 100;        //Precharge time in ms. Adjust depending on capacitance in inverter
-bool pwm_contactor_control = false;      //Should the contactors be economized via PWM after they are engaged?
+bool contactor_control_enabled = false;         //Should GPIO contactor control be performed?
+bool contactor_control_inverted_logic = false;  //Should we control NC contactors? Extremely rare option
+uint16_t precharge_time_ms = 100;               //Precharge time in ms. Adjust depending on capacitance in inverter
+bool pwm_contactor_control = false;             //Should the contactors be economized via PWM after they are engaged?
 bool contactor_control_enabled_double_battery = false;  //Should a contactor for the secondary battery be operated?
 bool remote_bms_reset = false;                          //Is it possible to actuate BMS reset via MQTT?
 bool periodic_bms_reset = false;                        //Should periodic BMS reset be performed each 24h?
@@ -16,15 +17,8 @@ bool periodic_bms_reset = false;                        //Should periodic BMS re
 enum State { DISCONNECTED, START_PRECHARGE, PRECHARGE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
 State contactorStatus = DISCONNECTED;
 
-const int ON = 1;
-const int OFF = 0;
-
-#ifdef NC_CONTACTORS  //Normally closed contactors use inverted logic
-#undef ON
-#define ON 0
-#undef OFF
-#define OFF 1
-#endif  //NC_CONTACTORS
+const uint8_t ON = 1;
+const uint8_t OFF = 0;
 
 #define MAX_ALLOWED_FAULT_TICKS 1000  //1000 = 10 seconds
 #define NEGATIVE_CONTACTOR_TIME_MS \
@@ -49,6 +43,11 @@ const unsigned long powerRemovalInterval = 24 * 60 * 60 * 1000;  // 24 hours in 
 const unsigned long bmsWarmupDuration = 3000;
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
+
+  if (contactor_control_inverted_logic) {
+    direction = !direction;  //Invert direction for NC contactors
+  }
+
   if (pwm_contactor_control) {
     if (pwm_freq != 0xFFFF) {
       ledcWrite(pin, pwm_freq);
@@ -205,6 +204,7 @@ void handle_contactors() {
         dbg_contactors("NEGATIVE");
         prechargeStartTime = currentTime;
         contactorStatus = PRECHARGE;
+        datalayer.system.status.contactors_engaged = 3;
         break;
 
       case PRECHARGE:
@@ -213,6 +213,7 @@ void handle_contactors() {
           dbg_contactors("PRECHARGE");
           negativeStartTime = currentTime;
           contactorStatus = POSITIVE;
+          datalayer.system.status.contactors_engaged = 3;
         }
         break;
 
@@ -222,6 +223,7 @@ void handle_contactors() {
           dbg_contactors("POSITIVE");
           prechargeCompletedTime = currentTime;
           contactorStatus = PRECHARGE_OFF;
+          datalayer.system.status.contactors_engaged = 3;
         }
         break;
 
@@ -260,57 +262,98 @@ This makes the BMS recalculate all SOC% and avoid memory leaks
 During that time we also set the emulator state to paused in order to not try and send CAN messages towards the battery
 Feature is only used if user has enabled PERIODIC_BMS_RESET */
 
+void bms_power_off() {
+  digitalWrite(esp32hal->BMS_POWER(), LOW);
+}
+
+void bms_power_on() {
+  digitalWrite(esp32hal->BMS_POWER(), HIGH);
+}
+
 void handle_BMSpower() {
   if (periodic_bms_reset || remote_bms_reset) {
-    auto bms_power_pin = esp32hal->BMS_POWER();
-
-    // Get current time
     currentTime = millis();
 
-    if (periodic_bms_reset) {
-      // Check if 24 hours have passed since the last power removal
-      if (currentTime - lastPowerRemovalTime >= powerRemovalInterval) {
+    if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
+      // Idle state, no reset ongoing
+
+      // Check if it's time to perform a periodic BMS reset
+      if (periodic_bms_reset && currentTime - lastPowerRemovalTime >= powerRemovalInterval) {
         start_bms_reset();
       }
-    }
+    } else if (datalayer.system.status.bms_reset_status == BMS_RESET_WAITING_FOR_PAUSE) {
+      // We've already issued a pause, now we're waiting for that to take effect.
 
-    // If power has been removed for user configured interval (1-59 seconds), restore the power
-    if (datalayer.system.status.BMS_reset_in_progress &&
-        currentTime - lastPowerRemovalTime >= datalayer.battery.settings.user_set_bms_reset_duration_ms) {
-      // Reapply power to the BMS
-      digitalWrite(bms_power_pin, HIGH);
-      bmsPowerOnTime = currentTime;
-      datalayer.system.status.BMS_reset_in_progress = false;   // Reset the power removal flag
-      datalayer.system.status.BMS_startup_in_progress = true;  // Set the BMS warmup flag
-    }
-    //if power has been restored we need to wait a couple of seconds to unpause the battery
-    if (datalayer.system.status.BMS_startup_in_progress && currentTime - bmsPowerOnTime >= bmsWarmupDuration) {
+      int16_t battery_current_dA = datalayer.battery.status.current_dA;
+      int16_t battery2_current_dA = datalayer.battery2.status.current_dA;  // Should be 0 if no battery2
 
-      setBatteryPause(false, false, false, false);
+      if (
+          // No current, safe to cut power
+          (battery_current_dA == 0 && battery2_current_dA == 0)
+          // or reasonably low current and 5 seconds has passed
+          || (abs(battery_current_dA) < 10 && abs(battery2_current_dA) < 10 &&
+              currentTime - lastPowerRemovalTime >= 5000)) {
 
-      datalayer.system.status.BMS_startup_in_progress = false;  // Reset the BMS warmup removal flag
-      set_event(EVENT_PERIODIC_BMS_RESET, 0);
-      clear_event(EVENT_PERIODIC_BMS_RESET);
+        bms_power_off();
+        lastPowerRemovalTime = currentTime;
+        datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+      } else if (currentTime - lastPowerRemovalTime >= 10000) {
+        // There's still current, and we don't want to weld the contactors, so give up.
+
+        logging.printf("BMS reset: Aborting, contactors are still under load.\n");
+
+        datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+        set_event(EVENT_PERIODIC_BMS_RESET_FAILURE, 0);
+        clear_event(EVENT_PERIODIC_BMS_RESET_FAILURE);
+      }
+    } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {
+      // Check if the user configured duration has passed
+      if (currentTime - lastPowerRemovalTime >= datalayer.battery.settings.user_set_bms_reset_duration_ms) {
+        bms_power_on();
+        bmsPowerOnTime = currentTime;
+        datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+      }
+    } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERING_ON) {
+      // Wait for BMS to start up before unpausing
+      if (currentTime - bmsPowerOnTime >= bmsWarmupDuration) {
+        // Unpause the battery
+        setBatteryPause(false, false, false, false);
+
+        // Reset is complete
+
+        datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+        set_event(EVENT_PERIODIC_BMS_RESET, 0);
+        clear_event(EVENT_PERIODIC_BMS_RESET);
+      }
     }
   }
 }
 
 void start_bms_reset() {
   if (periodic_bms_reset || remote_bms_reset) {
-    auto bms_power_pin = esp32hal->BMS_POWER();
+    if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
+      // Record when we started the BMS reset process
+      lastPowerRemovalTime = millis();
 
-    if (!datalayer.system.status.BMS_reset_in_progress) {
-      lastPowerRemovalTime = currentTime;  // Record the time when BMS reset was started
-                                           // we are now resetting at the correct time. We don't need to offset anymore
-      // Set a flag to let the rest of the system know we are cutting power to the BMS.
-      // The battery CAN sending routine will then know not to try guto send anything towards battery while active
-      datalayer.system.status.BMS_reset_in_progress = true;
-
-      // Set emulator state to paused (Max Charge/Discharge = 0 & CAN = stop)
-      // We try to keep contactors engaged during this pause, and just ramp power down to 0.
+      // Issue a pause, which should stop charge/discharge whilst the reset is ongoing
       setBatteryPause(true, false, false, false);
 
-      digitalWrite(bms_power_pin, LOW);  // Remove power by setting the BMS power pin to LOW
+      if (contactor_control_enabled) {
+        // We power the contactors directly, so we can avoid closing/opening them
+        // during reset.
+
+        // Thus we can cut the BMS power now
+        bms_power_off();
+
+        // and jump straight to powered off state, no need to wait.
+        datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+      } else {
+        // The BMS powers the contactors, so we need to wait for the pause to
+        // take effect before cutting power to it, or the contactors might drop
+        // out under load and be damaged.
+
+        datalayer.system.status.bms_reset_status = BMS_RESET_WAITING_FOR_PAUSE;
+      }
     }
   }
 }

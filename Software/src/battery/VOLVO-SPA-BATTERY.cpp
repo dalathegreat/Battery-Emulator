@@ -3,6 +3,7 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
+#include "../devboard/utils/common_functions.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
@@ -41,19 +42,13 @@ void VolvoSpaBattery::
 
   datalayer.battery.status.remaining_capacity_Wh = (datalayer.battery.info.total_capacity_Wh - CHARGE_ENERGY);
 
-  //datalayer.battery.status.real_soc = SOC_BMS;			// Use BMS reported SOC, havent figured out how to get the BMS to calibrate empty/full yet
+  datalayer.battery.status.real_soc = SOC_BMS * 10;  //Add one decimal to make it pptt
+
   // Use calculated SOC based on remaining_capacity
+  /*
   SOC_CALC = (datalayer.battery.status.remaining_capacity_Wh / (datalayer.battery.info.total_capacity_Wh / 1000));
-
   datalayer.battery.status.real_soc = SOC_CALC * 10;  //Add one decimal to make it pptt
-
-  if (BATT_U > MAX_U)  // Protect if overcharged
-  {
-    datalayer.battery.status.real_soc = 10000;
-  } else if (BATT_U < MIN_U)  //Protect if undercharged
-  {
-    datalayer.battery.status.real_soc = 0;
-  }
+  */
 
   datalayer.battery.status.voltage_dV = BATT_U * 10;
   datalayer.battery.status.current_dA = BATT_I * 10;
@@ -160,14 +155,9 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         logging.println("BATT_ERR_INDICATION not valid");
       }
       if ((rx_frame.data.u8[0] & 0x20) == 0x20) {
-        BATT_T_MAX = ((rx_frame.data.u8[2] & 0x1F) * 256.0 + rx_frame.data.u8[3]);
-        BATT_T_MIN = ((rx_frame.data.u8[4] & 0x1F) * 256.0 + rx_frame.data.u8[5]);
-        BATT_T_AVG = ((rx_frame.data.u8[0] & 0x1F) * 256.0 + rx_frame.data.u8[1]);
-      } else {
-        BATT_T_MAX = 0;
-        BATT_T_MIN = 0;
-        BATT_T_AVG = 0;
-        logging.println("BATT_T not valid");
+        BATT_T_MAX = sign_extend_to_int16((((rx_frame.data.u8[2] & 0x1F) << 8) | rx_frame.data.u8[3]), 13);
+        BATT_T_MIN = sign_extend_to_int16((((rx_frame.data.u8[4] & 0x1F) << 8) | rx_frame.data.u8[5]), 13);
+        BATT_T_AVG = sign_extend_to_int16((((rx_frame.data.u8[0] & 0x1F) << 8) | rx_frame.data.u8[1]), 13);
       }
       break;
     case 0x369:
@@ -200,9 +190,6 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x37D:
       if ((rx_frame.data.u8[0] & 0x40) == 0x40) {
         SOC_BMS = ((rx_frame.data.u8[6] & 0x03) * 256 + rx_frame.data.u8[7]);
-      } else {
-        SOC_BMS = 0;
-        logging.println("SOC_BMS not valid");
       }
 
       if ((rx_frame.data.u8[0] & 0x04) == 0x04) {

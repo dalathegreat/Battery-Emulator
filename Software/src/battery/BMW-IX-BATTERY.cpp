@@ -1,5 +1,6 @@
 #include "BMW-IX-BATTERY.h"
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
@@ -455,21 +456,40 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
   datalayer.battery.status.max_discharge_power_W =
       datalayer.battery.status.override_discharge_power_W;  //TODO: Estimated from UI
 
-  // Estimated charge power is set in Settings page. Ramp power on top
-  if (datalayer.battery.status.real_soc > 9900) {
-    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
-  } else if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
-    // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
-    datalayer.battery.status.max_charge_power_W =
-        datalayer.battery.status.override_charge_power_W *
-        (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
-  }
-
   datalayer.battery.status.temperature_min_dC = min_battery_temperature;
 
   datalayer.battery.status.temperature_max_dC = max_battery_temperature;
+
+  // Calculate charge power limit based on multiple factors, taking the lowest value
+
+  // Factor 1: SOC-based limiting (linear ramp from RAMPDOWN_SOC to 100%)
+  int max_charge_power_soc = datalayer.battery.status.override_charge_power_W;
+  if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
+    // When real SOC is above RAMPDOWN_SOC, ramp the value linearly down to 0W at 100%
+    max_charge_power_soc = datalayer.battery.status.override_charge_power_W *
+                           (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
+    // Ensure we never go negative (in case SOC exceeds 100%)
+    if (max_charge_power_soc < 0) {
+      max_charge_power_soc = 0;
+    }
+  }
+
+  // Factor 2: Temperature-based limiting (ramp from 0W at -10°C to RAMPDOWN_TEMP_POWER_W at 5°C)
+  int max_charge_power_temp = datalayer.battery.status.override_charge_power_W;
+
+  if (datalayer.battery.status.temperature_min_dC <= RAMPDOWN_TEMP_MIN_dC) {
+    // Below -10°C: no charging allowed
+    max_charge_power_temp = 0;
+  } else if (datalayer.battery.status.temperature_min_dC < RAMPDOWN_TEMP_MAX_dC) {
+    // Between -10°C and 5°C: linear ramp from 0W to RAMPDOWN_TEMP_POWER_W
+    float ramp_percentage = (float)(datalayer.battery.status.temperature_min_dC - RAMPDOWN_TEMP_MIN_dC) /
+                            (float)(RAMPDOWN_TEMP_MAX_dC - RAMPDOWN_TEMP_MIN_dC);
+    max_charge_power_temp = RAMPDOWN_TEMP_POWER_W * ramp_percentage;
+  }
+  // Above 5°C: no temperature limitation
+
+  // Take the lowest of all limiting factors
+  datalayer.battery.status.max_charge_power_W = min(max_charge_power_soc, max_charge_power_temp);
 
   //Check stale values. As values dont change much during idle only consider stale if both parts of this message freeze.
   bool isMinCellVoltageStale =
@@ -509,6 +529,28 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
   if (detected_number_of_cells == 108) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_108S_DV;
+  }
+
+  // Map BMW IX balancing status to standard balancing status enum
+  // 0 = No balancing mode active (Ready)
+  // 1/2/3 = Various balancing modes active (Active)
+  // 4 = No balancing mode active, qualifier invalid (Error)
+  // default = Unknown
+  switch (balancing_status) {
+    case 0:
+      datalayer.battery.status.balancing_status = BALANCING_STATUS_READY;
+      break;
+    case 1:
+    case 2:
+    case 3:
+      datalayer.battery.status.balancing_status = BALANCING_STATUS_ACTIVE;
+      break;
+    case 4:
+      datalayer.battery.status.balancing_status = BALANCING_STATUS_ERROR;
+      break;
+    default:
+      datalayer.battery.status.balancing_status = BALANCING_STATUS_UNKNOWN;
+      break;
   }
 }
 
@@ -735,6 +777,15 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void BmwIXBattery::transmit_can(unsigned long currentMillis) {
+  // Perform startup BMS reset after 2 seconds, before allowing contactor close
+  if (!startup_reset_complete && (currentMillis - startup_time > 2000)) {
+    logging.println("Performing startup BMS reset");
+    transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET);
+    startup_reset_complete = true;
+    // Allow contactors to close after reset
+    datalayer.system.status.battery_allows_contactor_closing = true;
+  }
+
   // Timeout check for stuck UDS transfers
   if (gUDSContext.UDS_inProgress) {
     if (currentMillis - gUDSContext.UDS_lastFrameMillis > 2000) {  // 2 second timeout
@@ -759,8 +810,11 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
       counter_10ms = 0;  // reset counter
     }
     ContactorCloseRequest.previous = ContactorCloseRequest.present;
-    HandleBmwIxCloseContactorsRequest(counter_10ms);
-    HandleBmwIxOpenContactorsRequest(counter_10ms);
+    // Only send CAN contactor commands if GPIO contactor control is disabled
+    if (!contactor_control_enabled) {
+      HandleBmwIxCloseContactorsRequest(counter_10ms);
+      HandleBmwIxOpenContactorsRequest(counter_10ms);
+    }
     counter_10ms++;
 
     // prevent counter overflow: 2^16-1 = 65535
@@ -773,19 +827,32 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
     previousMillis100 = currentMillis;
     HandleIncomingInverterRequest();
 
-    //Loop through and send a different UDS request once the contactors are closed
-    if (contactorCloseReq == true &&
-        ContactorState.closed ==
-            true) {  // Do not send unless the contactors are requested to be closed and are closed, as sending these does not allow the contactors to close
-      uds_req_id_counter = increment_uds_req_id_counter(uds_req_id_counter);
-      transmit_can_frame(
-          UDS_REQUESTS100MS[uds_req_id_counter]);  // FIXME: sending these does not allow the contactors to close
-    } else {  // FIXME: hotfix: If contactors are not requested to be closed, ensure the battery is reported as alive, even if no CAN messages are received
+    // Send UDS requests after startup reset completes
+    if (startup_reset_complete) {
+      if (contactor_control_enabled) {
+        // GPIO mode: always safe to send UDS (contactors controlled independently)
+        uds_req_id_counter = increment_uds_req_id_counter(uds_req_id_counter);
+        transmit_can_frame(UDS_REQUESTS100MS[uds_req_id_counter]);
+      } else {
+        // CAN mode: pause UDS during contactor closing to avoid interference
+        if (contactorCloseReq == true && ContactorState.closed == false) {
+          // Contactors are being closed - pause UDS
+          datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+        } else {
+          // Normal operation - send UDS requests
+          uds_req_id_counter = increment_uds_req_id_counter(uds_req_id_counter);
+          transmit_can_frame(UDS_REQUESTS100MS[uds_req_id_counter]);
+        }
+      }
+    } else {
+      // During startup (first 3 seconds), keep battery marked as alive
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
     }
 
-    // Keep contactors closed if needed
-    BmwIxKeepContactorsClosed(counter_100ms);
+    // Keep contactors closed if needed (only when GPIO control is disabled)
+    if (!contactor_control_enabled) {
+      BmwIxKeepContactorsClosed(counter_100ms);
+    }
     counter_100ms++;
     if (counter_100ms == 140) {
       counter_100ms = 0;  // reset counter every 14 seconds
@@ -864,8 +931,8 @@ void BmwIXBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
-  //Reset Battery at bootup
-  //transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET);
+  startup_time = millis();
+  startup_reset_complete = false;
 
   //Before we have started up and detected which battery is in use, use largest deviation possible to avoid errors
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
@@ -873,7 +940,7 @@ void BmwIXBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  datalayer.system.status.battery_allows_contactor_closing = true;
+  datalayer.system.status.battery_allows_contactor_closing = false;  // Don't allow contactors until reset is done
 }
 
 void BmwIXBattery::HandleIncomingUserRequest(void) {
@@ -934,6 +1001,10 @@ void BmwIXBattery::BmwIxOpenContactors(void) {
 }
 
 void BmwIXBattery::HandleBmwIxCloseContactorsRequest(uint16_t counter_10ms) {
+  // Block contactor close until startup reset is complete
+  if (!startup_reset_complete) {
+    return;
+  }
   if (contactorCloseReq == true) {  // Only when contactor close request is set to true
     if (ContactorState.closed == false &&
         ContactorState.open ==
@@ -953,6 +1024,7 @@ void BmwIXBattery::HandleBmwIxCloseContactorsRequest(uint16_t counter_10ms) {
 
       if (counter_10ms == 0) {
         // @0 ms
+        logging.println("Starting CAN-based contactor close sequence");
         transmit_can_frame(&BMWiX_510);
         logging.println("Transmitted 0x510 - 1/6");
       } else if (counter_10ms == 5) {
