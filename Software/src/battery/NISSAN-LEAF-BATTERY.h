@@ -6,9 +6,7 @@
 #include "CanBattery.h"
 #include "NISSAN-LEAF-HTML.h"
 
-#ifdef NISSAN_LEAF_BATTERY
-#define SELECTED_BATTERY_CLASS NissanLeafBattery
-#endif
+extern bool user_selected_LEAF_interlock_mandatory;
 
 class NissanLeafBattery : public CanBattery {
  public:

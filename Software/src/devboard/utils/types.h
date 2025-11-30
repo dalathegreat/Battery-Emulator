@@ -9,7 +9,13 @@ using duration = std::chrono::duration<unsigned long, std::ratio<1, 1000>>;
 
 enum bms_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
 enum real_bms_status_enum { BMS_DISCONNECTED = 0, BMS_STANDBY = 1, BMS_ACTIVE = 2, BMS_FAULT = 3 };
-enum battery_chemistry_enum { NCA = 1, NMC = 2, LFP = 3, Highest };
+enum balancing_status_enum {
+  BALANCING_STATUS_UNKNOWN = 0,
+  BALANCING_STATUS_ERROR = 1,
+  BALANCING_STATUS_READY = 2,  //No balancing active, system supports balancing
+  BALANCING_STATUS_ACTIVE = 3  //Balancing active!
+};
+enum battery_chemistry_enum { Autodetect = 0, NCA = 1, NMC = 2, LFP = 3, Highest };
 
 enum class comm_interface {
   Modbus = 1,
@@ -30,6 +36,12 @@ enum PrechargeState {
   AUTO_PRECHARGE_COMPLETED,
   AUTO_PRECHARGE_FAILURE
 };
+enum BMSResetState {
+  BMS_RESET_IDLE = 0,
+  BMS_RESET_WAITING_FOR_PAUSE,
+  BMS_RESET_POWERED_OFF,
+  BMS_RESET_POWERING_ON,
+};
 
 #define DISCHARGING 1
 #define CHARGING 2
@@ -39,6 +51,7 @@ enum PrechargeState {
 #define INTERVAL_30_MS 30
 #define INTERVAL_40_MS 40
 #define INTERVAL_50_MS 50
+#define INTERVAL_60_MS 60
 #define INTERVAL_70_MS 70
 #define INTERVAL_100_MS 100
 #define INTERVAL_200_MS 200
@@ -68,7 +81,10 @@ enum CAN_Interface {
   CAN_ADDON_MCP2515 = 2,
 
   // Add-on CAN-FD MCP2518 connected to GPIO pins
-  CANFD_ADDON_MCP2518 = 3
+  CANFD_ADDON_MCP2518 = 3,
+
+  // No CAN interface
+  NO_CAN_INTERFACE = 4
 };
 
 extern const char* getCANInterfaceName(CAN_Interface interface);

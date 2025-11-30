@@ -3,10 +3,6 @@
 
 #include "CanInverterProtocol.h"
 
-#ifdef SOL_ARK_LV_CAN
-#define SELECTED_INVERTER_CLASS SolArkLvInverter
-#endif
-
 class SolArkLvInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }

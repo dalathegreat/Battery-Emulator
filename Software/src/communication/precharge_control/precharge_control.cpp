@@ -4,29 +4,21 @@
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/hal/hal.h"
 
-#ifdef PRECHARGE_CONTROL
-const bool precharge_control_enabled_default = true;
-#else
-const bool precharge_control_enabled_default = false;
-#endif
+// Parameters adjustable by user in Settings page
+bool precharge_control_enabled = false;
+bool precharge_inverter_normally_open_contactor = false;
+uint16_t precharge_max_precharge_time_before_fault = 15000;
 
-bool precharge_control_enabled = precharge_control_enabled_default;
-
-// Parameters
-#define MAX_PRECHARGE_TIME_MS 15000  // Maximum time precharge may be enabled
+// Hardcoded parameters
 #define Precharge_default_PWM_Freq 11000
 #define Precharge_min_PWM_Freq 5000
 #define Precharge_max_PWM_Freq 34000
 #define Precharge_PWM_Res 8
 #define PWM_Freq 20000  // 20 kHz frequency, beyond audible range
 #define PWM_Precharge_Channel 0
-#ifndef INVERTER_DISCONNECT_CONTACTOR_IS_NORMALLY_OPEN
-#define ON 0   //Normally closed contactors use inverted logic
-#define OFF 1  //Normally closed contactors use inverted logic
-#else
-#define ON 1
-#define OFF 0
-#endif
+#define CONTACTOR_ON (precharge_inverter_normally_open_contactor ? 1 : 0)
+#define CONTACTOR_OFF (precharge_inverter_normally_open_contactor ? 0 : 1)
+
 static unsigned long prechargeStartTime = 0;
 static uint32_t freq = Precharge_default_PWM_Freq;
 static uint16_t delta_freq = 1;
@@ -39,13 +31,11 @@ bool init_precharge_control() {
     return true;
   }
 
-  // Setup PWM Channel Frequency and Resolution
-  logging.printf("Precharge control initialised\n");
-
   auto hia4v1_pin = esp32hal->HIA4V1_PIN();
   auto inverter_disconnect_contactor_pin = esp32hal->INVERTER_DISCONNECT_CONTACTOR_PIN();
 
   if (!esp32hal->alloc_pins("Precharge control", hia4v1_pin, inverter_disconnect_contactor_pin)) {
+    DEBUG_PRINTF("Precharge control setup failed\n");
     return false;
   }
 
@@ -54,6 +44,7 @@ bool init_precharge_control() {
   pinMode(inverter_disconnect_contactor_pin, OUTPUT);
   digitalWrite(inverter_disconnect_contactor_pin, LOW);
 
+  DEBUG_PRINTF("Precharge control setup successful\n");
   return true;
 }
 
@@ -66,7 +57,7 @@ void handle_precharge_control(unsigned long currentMillis) {
   if (datalayer.system.status.precharge_status == AUTO_PRECHARGE_FAILURE) {
     pinMode(hia4v1_pin, OUTPUT);
     digitalWrite(hia4v1_pin, LOW);
-    digitalWrite(inverter_disconnect_contactor_pin, ON);
+    digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_ON);
     return;  // Exit immediately - no further processing allowed. Reboot required to recover
   }
 
@@ -75,7 +66,7 @@ void handle_precharge_control(unsigned long currentMillis) {
 
   switch (datalayer.system.status.precharge_status) {
     case AUTO_PRECHARGE_IDLE:
-      if (datalayer.system.settings.start_precharging) {
+      if (datalayer.system.info.start_precharging) {
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_START;
       }
       break;
@@ -86,7 +77,7 @@ void handle_precharge_control(unsigned long currentMillis) {
       prechargeStartTime = currentMillis;
       datalayer.system.status.precharge_status = AUTO_PRECHARGE_PRECHARGING;
       logging.printf("Precharge: Starting sequence\n");
-      digitalWrite(inverter_disconnect_contactor_pin, OFF);
+      digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_OFF);
       break;
 
     case AUTO_PRECHARGE_PRECHARGING:
@@ -115,45 +106,49 @@ void handle_precharge_control(unsigned long currentMillis) {
         ledcWriteTone(hia4v1_pin, freq);
       }
 
-      if ((datalayer.battery.status.real_bms_status != BMS_STANDBY &&
-           datalayer.battery.status.real_bms_status != BMS_ACTIVE) ||
-          datalayer.battery.status.bms_status != ACTIVE || datalayer.system.settings.equipment_stop_active) {
+      if (currentMillis - prechargeStartTime >= precharge_max_precharge_time_before_fault ||
+          datalayer.battery.status.real_bms_status == BMS_FAULT) {
         pinMode(hia4v1_pin, OUTPUT);
         digitalWrite(hia4v1_pin, LOW);
-        digitalWrite(inverter_disconnect_contactor_pin, ON);
-        datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
-        logging.printf("Precharge: Disabling Precharge bms not standby/active or equipment stop\n");
-      } else if (currentMillis - prechargeStartTime >= MAX_PRECHARGE_TIME_MS ||
-                 datalayer.battery.status.real_bms_status == BMS_FAULT) {
-        pinMode(hia4v1_pin, OUTPUT);
-        digitalWrite(hia4v1_pin, LOW);
-        digitalWrite(inverter_disconnect_contactor_pin, ON);
+        digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_ON);
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_FAILURE;
         logging.printf("Precharge: CRITICAL FAILURE (timeout/BMS fault) -> REQUIRES REBOOT\n");
         set_event(EVENT_AUTOMATIC_PRECHARGE_FAILURE, 0);
         // Force stop any further precharge attempts
-        datalayer.system.settings.start_precharging = false;
-        // Add event
+        datalayer.system.info.start_precharging = false;
+      } else if ((datalayer.battery.status.real_bms_status != BMS_STANDBY &&
+                  datalayer.battery.status.real_bms_status != BMS_ACTIVE) ||
+                 datalayer.battery.status.bms_status != ACTIVE || datalayer.system.info.equipment_stop_active) {
+        pinMode(hia4v1_pin, OUTPUT);
+        digitalWrite(hia4v1_pin, LOW);
+        digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_ON);
+        datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
+        logging.printf("Precharge: Disabling Precharge bms not standby/active or equipment stop\n");
       } else if (datalayer.system.status.battery_allows_contactor_closing) {
         pinMode(hia4v1_pin, OUTPUT);
         digitalWrite(hia4v1_pin, LOW);
-        digitalWrite(inverter_disconnect_contactor_pin, ON);
+        digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_ON);
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_COMPLETED;
         logging.printf("Precharge: Disabled (contacts closed) -> COMPLETED\n");
       }
       break;
 
     case AUTO_PRECHARGE_COMPLETED:
-      if (datalayer.system.settings.equipment_stop_active || datalayer.battery.status.bms_status != ACTIVE) {
+      // If equipment stop is activated, or BE is in a non-active state, or the
+      // BMS has gone back to standby (eg, after a BMS reset), then we'll allow
+      // the precharge to be restarted.
+      if (datalayer.system.info.equipment_stop_active || datalayer.battery.status.bms_status != ACTIVE ||
+          datalayer.battery.status.real_bms_status == BMS_STANDBY) {
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
         logging.printf("Precharge: equipment stop activated -> IDLE\n");
       }
       break;
 
     case AUTO_PRECHARGE_OFF:
+      // This is not used anymore?
       if (!datalayer.system.status.battery_allows_contactor_closing ||
-          !datalayer.system.status.inverter_allows_contactor_closing ||
-          datalayer.system.settings.equipment_stop_active || datalayer.battery.status.bms_status != FAULT) {
+          !datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.info.equipment_stop_active ||
+          datalayer.battery.status.bms_status != FAULT) {
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
         pinMode(hia4v1_pin, OUTPUT);
         digitalWrite(hia4v1_pin, LOW);

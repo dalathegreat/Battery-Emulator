@@ -47,12 +47,15 @@ void ChademoBattery::update_values() {
    * CAN frames.
    */
 
+  /*
+
   if (vehicle_can_received) {
     uint8_t chargingrate = 0;
     if (x100_chg_lim.ConstantOfChargingRateIndication > 0) {
       chargingrate = x102_chg_session.StateOfCharge / x100_chg_lim.ConstantOfChargingRateIndication * 100;
     }
   }
+*/
 
   //Update extended datalayer for easier visualization of what's going on
   datalayer_extended.chademo.CHADEMO_Status = CHADEMO_Status;
@@ -86,7 +89,7 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
   uint16_t newTargetBatteryVoltage = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[1]);
   uint16_t priorTargetBatteryVoltage = x102_chg_session.TargetBatteryVoltage;
   uint8_t newChargingCurrentRequest = rx_frame.data.u8[3];
-  uint8_t priorChargingCurrentRequest = x102_chg_session.ChargingCurrentRequest;
+  //uint8_t priorChargingCurrentRequest = x102_chg_session.ChargingCurrentRequest;
 
   vehicle_can_initialized = true;
 
@@ -120,7 +123,7 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
   uint8_t chargingrate = 0;
   if (x100_chg_lim.ConstantOfChargingRateIndication > 0) {
     chargingrate = x102_chg_session.StateOfCharge / x100_chg_lim.ConstantOfChargingRateIndication * 100;
-    logging.print("Charge Rate (kW): ");
+    logging.printf("Charge Rate (kW): ");
     logging.println(chargingrate);
   }
 
@@ -220,9 +223,9 @@ void ChademoBattery::process_vehicle_charging_limits(CAN_frame rx_frame) {
 
   if (get_measured_voltage() <= x200_discharge_limits.MinimumDischargeVoltage && CHADEMO_Status > CHADEMO_NEGOTIATE) {
     logging.println("x200 minimum discharge voltage met or exceeded, stopping.");
-    logging.print("Measured: ");
+    logging.printf("Measured: ");
     logging.print(get_measured_voltage());
-    logging.print("Minimum voltage: ");
+    logging.printf("Minimum voltage: ");
     logging.print(x200_discharge_limits.MinimumDischargeVoltage);
     CHADEMO_Status = CHADEMO_STOP;
   }
@@ -240,9 +243,9 @@ void ChademoBattery::process_vehicle_discharge_estimate(CAN_frame rx_frame) {
 
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
     previousMillis5000 = currentMillis;
-    logging.print("x201 availabile vehicle energy, completion time: ");
+    logging.printf("x201 availabile vehicle energy, completion time: ");
     logging.println(x201_discharge_estimate.AvailableVehicleEnergy);
-    logging.print("x201 approx vehicle completion time: ");
+    logging.printf("x201 approx vehicle completion time: ");
     logging.println(x201_discharge_estimate.ApproxDischargeCompletionTime);
   }
 }
@@ -766,7 +769,7 @@ void ChademoBattery::handle_chademo_sequence() {
       /* check whether contactors ready, because externally dependent upon inverter allow during discharge */
       if (contactors_ready) {
         logging.println("Contactors ready");
-        logging.print("Voltage: ");
+        logging.printf("Voltage: ");
         logging.println(get_measured_voltage());
         /* transition to POWERFLOW state if discharge compatible on both sides */
         if (x109_evse_state.discharge_compatible && x102_chg_session.s.status.StatusVehicleDischargeCompatible &&

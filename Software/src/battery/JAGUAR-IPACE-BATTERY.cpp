@@ -1,4 +1,5 @@
 #include "JAGUAR-IPACE-BATTERY.h"
+#include <cstring>  //for unit tests
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -55,12 +56,6 @@ CAN_frame ipace_keep_alive = {.FD = false,
                               .DLC = 8,
                               .ID = 0x59e,
                               .data = {0x9E, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};*/
-
-static void print_units(const char* header, int value, const char* units) {
-  logging.print(header);
-  logging.print(value);
-  logging.print(units);
-}
 
 void JaguarIpaceBattery::update_values() {
 

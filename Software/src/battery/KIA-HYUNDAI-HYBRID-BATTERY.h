@@ -2,10 +2,6 @@
 #define KIA_HYUNDAI_HYBRID_BATTERY_H
 #include "CanBattery.h"
 
-#ifdef KIA_HYUNDAI_HYBRID_BATTERY
-#define SELECTED_BATTERY_CLASS KiaHyundaiHybridBattery
-#endif
-
 class KiaHyundaiHybridBattery : public CanBattery {
  public:
   virtual void setup(void);
@@ -38,26 +34,11 @@ class KiaHyundaiHybridBattery : public CanBattery {
   uint16_t min_cell_voltage_mv = 3700;
   uint16_t max_cell_voltage_mv = 3700;
 
-  CAN_frame KIA_7E4_id1 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x7E4,
-                           .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame KIA_7E4_id2 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x7E4,
-                           .data = {0x02, 0x21, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame KIA_7E4_id3 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x7E4,
-                           .data = {0x02, 0x21, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame KIA_7E4_id5 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x7E4,
-                           .data = {0x02, 0x21, 0x05, 0x04, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame KIA_7E4 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x7E4,
+                       .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame KIA_7E4_ack = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,

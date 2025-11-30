@@ -3,10 +3,6 @@
 
 #include "CanInverterProtocol.h"
 
-#ifdef SOLAX_CAN
-#define SELECTED_INVERTER_CLASS SolaxInverter
-#endif
-
 class SolaxInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }

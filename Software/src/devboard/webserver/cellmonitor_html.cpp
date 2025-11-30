@@ -6,7 +6,7 @@
 String cellmonitor_processor(const String& var) {
   if (var == "X") {
     String content = "";
-    // Page format
+    // Page formatH
     content += "<style>";
     content += "body { background-color: black; color: white; }";
     content +=
@@ -55,6 +55,7 @@ String cellmonitor_processor(const String& var) {
         "<span style='color: white; background-color: blue; font-weight: bold; padding: 2px 8px; border-radius: 4px; "
         "margin-right: 15px;'>Idle</span>";
     bool battery_balancing = false;
+    // Check per-cell balancing status
     for (uint8_t i = 0u; i < datalayer.battery.info.number_of_cells; i++) {
       battery_balancing = datalayer.battery.status.cell_balancing_status[i];
       if (battery_balancing)
@@ -64,6 +65,12 @@ String cellmonitor_processor(const String& var) {
       content +=
           "<span style='color: black; background-color: #00FFFF; font-weight: bold; padding: 2px 8px; border-radius: "
           "4px; margin-right: 15px;'>Balancing</span>";
+    }
+    // Also check overall balancing status enum (for batteries without per-cell data)
+    else if (datalayer.battery.status.balancing_status == BALANCING_STATUS_ACTIVE) {
+      content +=
+          "<span style='color: black; background-color: #ff9900ff; font-weight: bold; padding: 2px 8px; border-radius: "
+          "4px; margin-right: 15px;'>Balancing is active now!</span>";
     }
     content +=
         "<span style='color: white; background-color: red; font-weight: bold; padding: 2px 8px; border-radius: "
@@ -225,9 +232,12 @@ String cellmonitor_processor(const String& var) {
         "const max_mv = Math.max(...data);"
         "const cell_dev = max_mv - min_mv;"
         "const voltVal = document.getElementById('voltageValues');"
-        "voltVal.innerHTML = `Max Voltage : ${max_mv} mV<br>Min Voltage: ${min_mv} mV<br>Voltage Deviation: "
-        "${cell_dev} mV`"
-        "}";
+        "voltVal.innerHTML = `Max Voltage : ${max_mv} mV<br>Min Voltage: ${min_mv} mV<br>Voltage Deviation: ";
+    if (datalayer.battery.status.balancing_status == BALANCING_STATUS_ACTIVE) {
+      content += "${cell_dev} mV (Battery is balancing now!)`}";
+    } else {
+      content += "${cell_dev} mV`}";
+    }
 
     // If we have values, do the thing. Otherwise, display friendly message and wait
     content += "if (data.length != 0) {";

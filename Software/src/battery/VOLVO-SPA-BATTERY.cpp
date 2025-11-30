@@ -1,4 +1,5 @@
 #include "VOLVO-SPA-BATTERY.h"
+#include <cstring>  //For unit test
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
@@ -85,12 +86,31 @@ void VolvoSpaBattery::
       datalayer.battery.info.total_capacity_Wh = 69511;
     }
   }
+
+  //Check safeties
+  if (datalayer_extended.VolvoPolestar.BECMsupplyVoltage < 10700) {  //10.7V,
+    //If 12V voltage goes under this, latch battery OFF to prevent contactors from swinging between on/off
+    set_event(EVENT_12V_LOW, (datalayer_extended.VolvoPolestar.BECMsupplyVoltage / 100));
+    set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0);
+  }
+}
+
+int16_t sign_extend_to_int16(uint16_t input, unsigned input_bit_width) {
+  // Sign-extend the value from the original bit width up to 16 bits. This
+  // ensures that twos-complement negative values are correctly interpreted.
+
+  // For example, -26 represented in 13 bits is 0x1FE6.
+  // After sign extension to 16 bits, it becomes 0xFFE6, which is -26 in 16-bit signed integer.
+
+  uint16_t mask = 1 << (input_bit_width - 1);
+  return (input ^ mask) - mask;
 }
 
 void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x3A:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+
       if ((rx_frame.data.u8[6] & 0x80) == 0x80)
         BATT_I = (0 - ((((rx_frame.data.u8[6] & 0x7F) * 256.0 + rx_frame.data.u8[7]) * 0.1) - 1638));
       else {
@@ -151,14 +171,9 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         logging.println("BATT_ERR_INDICATION not valid");
       }
       if ((rx_frame.data.u8[0] & 0x20) == 0x20) {
-        BATT_T_MAX = ((rx_frame.data.u8[2] & 0x1F) * 256.0 + rx_frame.data.u8[3]);
-        BATT_T_MIN = ((rx_frame.data.u8[4] & 0x1F) * 256.0 + rx_frame.data.u8[5]);
-        BATT_T_AVG = ((rx_frame.data.u8[0] & 0x1F) * 256.0 + rx_frame.data.u8[1]);
-      } else {
-        BATT_T_MAX = 0;
-        BATT_T_MIN = 0;
-        BATT_T_AVG = 0;
-        logging.println("BATT_T not valid");
+        BATT_T_MAX = sign_extend_to_int16((((rx_frame.data.u8[2] & 0x1F) << 8) | rx_frame.data.u8[3]), 13);
+        BATT_T_MIN = sign_extend_to_int16((((rx_frame.data.u8[4] & 0x1F) << 8) | rx_frame.data.u8[5]), 13);
+        BATT_T_AVG = sign_extend_to_int16((((rx_frame.data.u8[0] & 0x1F) << 8) | rx_frame.data.u8[1]), 13);
       }
       break;
     case 0x369:
@@ -245,7 +260,8 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           datalayer_extended.VolvoPolestar.DTCcount = 0;
         }
       } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
 

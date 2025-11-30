@@ -3,10 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "CanBattery.h"
 
-#ifdef SANTA_FE_PHEV_BATTERY
-#define SELECTED_BATTERY_CLASS SantaFePhevBattery
-#endif
-
 class SantaFePhevBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.

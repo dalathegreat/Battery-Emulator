@@ -1,0 +1,5 @@
+# 65278V pack (overvoltage)
+(123.893) RX0 f5 [8] 03 fe fe 00 00 00 00 00
+
+# 5V max cell (cell overvoltage)
+(124.893) RX0 f5 [8] 51 01 01 01 01 13 88 00

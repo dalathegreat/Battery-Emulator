@@ -2,6 +2,7 @@
 // Copyright 2016-2025 Hristo Gochkov, Mathieu Carbou, Emil Muratov
 
 #include "WebAuthentication.h"
+
 #include <libb64/cencode.h>
 #if defined(ESP32) || defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350)
 #include <MD5Builder.h>
@@ -86,9 +87,6 @@ String genRandomMD5() {
 #endif
   char *out = (char *)malloc(33);
   if (out == NULL || !getMD5((uint8_t *)(&r), 4, out)) {
-#ifdef ESP32
-    log_e("Failed to allocate");
-#endif
     return emptyString;
   }
   String res = String(out);
@@ -99,9 +97,6 @@ String genRandomMD5() {
 static String stringMD5(const String &in) {
   char *out = (char *)malloc(33);
   if (out == NULL || !getMD5((uint8_t *)(in.c_str()), in.length(), out)) {
-#ifdef ESP32
-    log_e("Failed to allocate");
-#endif
     return emptyString;
   }
   String res = String(out);
@@ -115,17 +110,11 @@ String generateDigestHash(const char *username, const char *password, const char
   }
   char *out = (char *)malloc(33);
   if (out == NULL) {
-#ifdef ESP32
-    log_e("Failed to allocate");
-#endif
     return emptyString;
   }
 
   String in;
   if (!in.reserve(strlen(username) + strlen(realm) + strlen(password) + 2)) {
-#ifdef ESP32
-    log_e("Failed to allocate");
-#endif
     free(out);
     return emptyString;
   }
@@ -137,9 +126,6 @@ String generateDigestHash(const char *username, const char *password, const char
   in.concat(password);
 
   if (!getMD5((uint8_t *)(in.c_str()), in.length(), out)) {
-#ifdef ESP32
-    log_e("Failed to allocate");
-#endif
     free(out);
     return emptyString;
   }

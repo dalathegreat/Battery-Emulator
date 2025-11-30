@@ -1,43 +1,35 @@
 #include "wifi.h"
-#include <ESPmDNS.h>
 #include "../utils/events.h"
 #include "../utils/logging.h"
-#include "USER_SETTINGS.h"
-
-#if defined(WIFI) || defined(WEBSERVER)
-const bool wifi_enabled_default = true;
-#else
-const bool wifi_enabled_default = false;
+#ifndef SMALL_FLASH_DEVICE
+#include <ESPmDNS.h>
 #endif
 
-bool wifi_enabled = wifi_enabled_default;
+bool wifi_enabled = true;
+bool wifiap_enabled = true;
+bool mdns_enabled = true;  //If true, allows battery monitor te be found by .local address
+uint16_t wifi_channel = 0;
 
-#ifdef COMMON_IMAGE
-const bool wifiap_enabled_default = true;
-#else
-#ifdef WIFIAP
-const bool wifiap_enabled_default = true;
-#else
-const bool wifiap_enabled_default = false;
-#endif
-#endif
-
-bool wifiap_enabled = wifiap_enabled_default;
-
-#ifdef MDNSRESPONDER
-const bool mdns_enabled_default = true;
-#else
-const bool mdns_enabled_default = false;
-#endif
-bool mdns_enabled = mdns_enabled_default;
-
-#ifdef CUSTOM_HOSTNAME
-std::string custom_hostname = CUSTOM_HOSTNAME;
-#else
-std::string custom_hostname;
-#endif
-
+std::string custom_hostname;  //If not set, the default naming format 'esp32-XXXXXX' will be used
+std::string ssid;
+std::string password;
 std::string ssidAP;
+std::string passwordAP;
+
+// Set your Static IP address. Only used incase Static address option is set
+bool static_IP_enabled = false;
+uint8_t static_local_IP1 = 0;
+uint8_t static_local_IP2 = 0;
+uint8_t static_local_IP3 = 0;
+uint8_t static_local_IP4 = 0;
+uint8_t static_gateway1 = 0;
+uint8_t static_gateway2 = 0;
+uint8_t static_gateway3 = 0;
+uint8_t static_gateway4 = 0;
+uint8_t static_subnet1 = 0;
+uint8_t static_subnet2 = 0;
+uint8_t static_subnet3 = 0;
+uint8_t static_subnet4 = 0;
 
 // Configuration Parameters
 static const uint16_t WIFI_CHECK_INTERVAL = 2000;       // 1 seconds normal check interval when last connected
@@ -64,7 +56,7 @@ static uint16_t current_check_interval = WIFI_CHECK_INTERVAL;
 static bool connected_once = false;
 
 void init_WiFi() {
-  DEBUG_PRINTF("init_Wifi enabled=%d, apå=%d, ssid=%s, password=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str(),
+  DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s, password=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str(),
                password.c_str());
 
   if (!custom_hostname.empty()) {
@@ -81,11 +73,16 @@ void init_WiFi() {
   // Set WiFi to auto reconnect
   WiFi.setAutoReconnect(true);
 
-#ifdef WIFICONFIG
-  // Set static IP
-  WiFi.config(local_IP, gateway, subnet);
-#endif
-
+  if (static_IP_enabled) {
+    // Set static IP
+    IPAddress local_IP((uint8_t)static_local_IP1, (uint8_t)static_local_IP2, (uint8_t)static_local_IP3,
+                       (uint8_t)static_local_IP4);
+    IPAddress gateway((uint8_t)static_gateway1, (uint8_t)static_gateway2, (uint8_t)static_gateway3,
+                      (uint8_t)static_gateway4);
+    IPAddress subnet((uint8_t)static_subnet1, (uint8_t)static_subnet2, (uint8_t)static_subnet3,
+                     (uint8_t)static_subnet4);
+    WiFi.config(local_IP, gateway, subnet);
+  }
   DEBUG_PRINTF("init_Wifi set event handlers\n");
 
   // Initialize Wi-Fi event handlers
@@ -113,8 +110,9 @@ void wifi_monitor() {
   if ((hasConnectedBefore && (currentMillis - lastWiFiCheck > current_check_interval)) ||
       (!hasConnectedBefore && (currentMillis - lastWiFiCheck > INIT_WIFI_FULL_RECONNECT_INTERVAL))) {
 
-    DEBUG_PRINTF("Time to monitor Wi-Fi status: %d, %d, %d, %d, %d\n", hasConnectedBefore, currentMillis, lastWiFiCheck,
-                 current_check_interval, INIT_WIFI_FULL_RECONNECT_INTERVAL);
+    // Uncomment for testing, but otherwise this quickly fills up the log
+    //DEBUG_PRINTF("Wi-Fi status: %d, %d, %d, %d, %d\n", hasConnectedBefore, currentMillis, lastWiFiCheck,
+    //             current_check_interval, INIT_WIFI_FULL_RECONNECT_INTERVAL);
 
     lastWiFiCheck = currentMillis;
 
@@ -178,7 +176,9 @@ void connectToWiFi() {
   if (WiFi.status() != WL_CONNECTED) {
     lastReconnectAttempt = millis();  // Reset the reconnect attempt timer
     logging.println("Connecting to Wi-Fi...");
-
+    if (wifi_channel > 14) {
+      wifi_channel = 0;
+    }  //prevent users going out of bounds
     DEBUG_PRINTF("Connecting to Wi-Fi SSID: %s, password: %s, Channel: %d\n", ssid.c_str(), password.c_str(),
                  wifi_channel);
     WiFi.begin(ssid.c_str(), password.c_str(), wifi_channel);
@@ -222,8 +222,9 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   //normal reconnect retry start at first 2 seconds
 }
 
-// Initialise mDNS
+// Initialise mDNS (Only available on devices with )
 void init_mDNS() {
+#ifndef SMALL_FLASH_DEVICE
   // Calulate the host name using the last two chars from the MAC address so each one is likely unique on a network.
   // e.g batteryemulator8C.local where the mac address is 08:F9:E0:D1:06:8C
   String mac = WiFi.macAddress();
@@ -240,10 +241,10 @@ void init_mDNS() {
     // Advertise via bonjour the service so we can auto discover these battery emulators on the local network.
     MDNS.addService(mdnsHost, "tcp", 80);
   }
+#endif
 }
 
 void init_WiFi_AP() {
-  ssidAP = std::string("BatteryEmulator") + WiFi.macAddress().c_str();
 
   DEBUG_PRINTF("Creating Access Point: %s\n", ssidAP.c_str());
   DEBUG_PRINTF("With password: %s\n", passwordAP.c_str());

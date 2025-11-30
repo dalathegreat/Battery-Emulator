@@ -116,7 +116,7 @@ class ACAN2515Settings {
 //    Transmit buffer sizes
 //··································································································
 
-  public: uint16_t mTransmitBuffer0Size = 16 ;
+  public: uint16_t mTransmitBuffer0Size = 32 ;
   public: uint16_t mTransmitBuffer1Size = 0 ;
   public: uint16_t mTransmitBuffer2Size = 0 ;
 

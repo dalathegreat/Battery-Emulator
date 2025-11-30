@@ -4,17 +4,13 @@
 #include "../devboard/hal/hal.h"
 #include "SmaInverterBase.h"
 
-#ifdef SMA_BYD_H_CAN
-#define SELECTED_INVERTER_CLASS SmaBydHInverter
-#endif
-
 class SmaBydHInverter : public SmaInverterBase {
  public:
   const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
-  static constexpr const char* Name = "BYD over SMA CAN";
+  static constexpr const char* Name = "SMA compatible BYD H";
 
   virtual bool controls_contactor() { return true; }
 

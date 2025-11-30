@@ -292,9 +292,5 @@ bool SofarInverter::setup() {  // Performs one time setup at startup over CAN bu
   init_frame(SOFAR_783, 0x783);
   init_frame(SOFAR_784, 0x784);
 
-  String tempStr(datalayer.battery.settings.sofar_user_specified_battery_id);
-  strncpy(datalayer.system.info.inverter_brand, tempStr.c_str(), 7);
-  datalayer.system.info.inverter_brand[7] = '\0';
-
   return true;
 }

@@ -3,10 +3,6 @@
 
 #include "CanInverterProtocol.h"
 
-#ifdef FOXESS_CAN
-#define SELECTED_INVERTER_CLASS FoxessCanInverter
-#endif
-
 class FoxessCanInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }

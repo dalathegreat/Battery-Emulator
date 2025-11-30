@@ -1,4 +1,6 @@
 #include "MG-HS-PHEV-BATTERY.h"
+#include <cmath>    //For unit test
+#include <cstring>  //For unit test
 #include "../communication/can/comm_can.h"
 #include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
@@ -13,8 +15,6 @@ changing.
 
 
 OPTIONAL SETTINGS
-
-Put these in your USER_SETTINGS.h:
 
 // This will scale the SoC so the batteries top out at 4.2V/cell instead of
 4.1V/cell. The car only seems to use up to 4.1V/cell in service. 
@@ -122,11 +122,9 @@ void MgHsPHEVBattery::update_soc(uint16_t soc_times_ten) {
 }
 
 void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  uint16_t soc1, soc2, cell_id, v;
   switch (rx_frame.ID) {
     case 0x173:
       // Contains cell min/max voltages
-
       v = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       if (v > 0 && v < 0x2000) {
         datalayer.battery.status.cell_max_voltage_mV = v;
@@ -165,14 +163,14 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       } else if ((rx_frame.data.u8[0] == 0x02 || rx_frame.data.u8[0] == 0x06) && rx_frame.data.u8[1] == 0x01) {
         // A weird 'stuck' state where the battery won't reconnect
         datalayer.system.status.battery_allows_contactor_closing = false;
-        if (!datalayer.system.status.BMS_startup_in_progress) {
+        if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
           logging.printf("MG_HS_PHEV: Stuck, resetting.\n");
           start_bms_reset();
         }
       } else if (rx_frame.data.u8[1] == 0xf) {
         // A fault state (likely isolation failure)
         datalayer.system.status.battery_allows_contactor_closing = false;
-        if (!datalayer.system.status.BMS_startup_in_progress) {
+        if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
           logging.printf("MG_HS_PHEV: Fault, resetting.\n");
           start_bms_reset();
         }
@@ -220,9 +218,9 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       }
 
-      if (((rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5]) != 0) {
+      if ((((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) != 0) {
         // 3AC message contains a nonzero voltage (so must have come from CAN1)
-        v = (rx_frame.data.u8[4] << 8) & 0xf00 | rx_frame.data.u8[5];
+        v = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]);
         if (v > 0 && v < 4000) {
           datalayer.battery.status.voltage_dV = v * 2.5;
         }
@@ -238,7 +236,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // Per-cell voltages and temps
       cell_id = rx_frame.data.u8[5];
       if (cell_id < 90) {
-        v = 1000 + (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+        v = 1000 + ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
         datalayer.battery.status.cell_voltages_mV[cell_id] = v < 10000 ? v : 0;
         // cell temperature is rx_frame.data.u8[1]-40 but BE doesn't use it
       }
@@ -312,7 +310,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
-  if (datalayer.system.status.BMS_reset_in_progress || datalayer.system.status.BMS_startup_in_progress) {
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     // Transmitting towards battery is halted while BMS is being reset
     previousMillis100 = currentMillis;
     previousMillis200 = currentMillis;
@@ -348,16 +346,19 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
 
     switch (transmitIndex) {
       case 1:
-        transmit_can_frame(&MG_HS_7E5_B0_42);  //Battery voltage
+        MG_HS_7E5_POLL.data.u8[2] = (uint8_t)((POLL_BATTERY_VOLTAGE & 0xFF00) >> 8);
+        MG_HS_7E5_POLL.data.u8[3] = (uint8_t)(POLL_BATTERY_VOLTAGE & 0x00FF);
+        transmit_can_frame(&MG_HS_7E5_POLL);
         break;
       case 2:
-        transmit_can_frame(&MG_HS_7E5_B0_61);  //Battery SoH
-        transmitIndex = 0;                     //Return to the first message index. This goes in the last message entry
+        MG_HS_7E5_POLL.data.u8[2] = (uint8_t)((POLL_BATTERY_SOH & 0xFF00) >> 8);
+        MG_HS_7E5_POLL.data.u8[3] = (uint8_t)(POLL_BATTERY_SOH & 0x00FF);
+        transmit_can_frame(&MG_HS_7E5_POLL);
+        transmitIndex = 0;
         break;
       default:
         break;
-
-    }  //switch
+    }
 
     transmitIndex++;  //Increment the message index
 
@@ -372,6 +373,5 @@ void MgHsPHEVBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
   datalayer.battery.info.number_of_cells = 90;
 }

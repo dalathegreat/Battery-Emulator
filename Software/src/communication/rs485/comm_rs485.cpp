@@ -11,7 +11,8 @@ bool init_rs485() {
   auto pin_5v_en = esp32hal->PIN_5V_EN();
 
   if (!esp32hal->alloc_pins_ignore_unused("RS485", en_pin, se_pin, pin_5v_en)) {
-    return false;
+    DEBUG_PRINTF("Modbus failed to allocate pins\n");
+    return true;  //Early return, we do not set the pins
   }
 
   if (en_pin != GPIO_NUM_NC) {

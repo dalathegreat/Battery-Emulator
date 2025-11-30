@@ -4,10 +4,6 @@
 #include "CanBattery.h"
 #include "GEELY-GEOMETRY-C-HTML.h"
 
-#ifdef GEELY_GEOMETRY_C_BATTERY
-#define SELECTED_BATTERY_CLASS GeelyGeometryCBattery
-#endif
-
 class GeelyGeometryCBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.

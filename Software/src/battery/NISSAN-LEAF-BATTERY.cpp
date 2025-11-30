@@ -1,12 +1,12 @@
 #include "NISSAN-LEAF-BATTERY.h"
+#include <cstring>  //For unit test
+#include "../charger/CHARGERS.h"
+#include "../charger/CanCharger.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
-
-#include "../charger/CHARGERS.h"
-#include "../charger/CanCharger.h"
 
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
 //Cryptographic functions
@@ -150,13 +150,14 @@ void NissanLeafBattery::
     clear_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ);
   }
 
-#ifdef INTERLOCK_REQUIRED
-  if (!battery_Interlock) {
-    set_event(EVENT_HVIL_FAILURE, 0);
-  } else {
-    clear_event(EVENT_HVIL_FAILURE);
+  if (user_selected_LEAF_interlock_mandatory) {
+    //If user requires both large 80kW and small 6kW interlock to be seated for operation
+    if (!battery_Interlock) {
+      set_event(EVENT_HVIL_FAILURE, 0);
+    } else {
+      clear_event(EVENT_HVIL_FAILURE);
+    }
   }
-#endif
 
   if (battery_HeatExist) {
     if (battery_Heating_Stop) {
@@ -557,7 +558,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
 void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
-  if (datalayer.system.status.BMS_reset_in_progress || datalayer.system.status.BMS_startup_in_progress) {
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     // Transmitting towards battery is halted while BMS is being reset
     previousMillis10 = currentMillis;
     previousMillis100 = currentMillis;
@@ -964,13 +965,13 @@ unsigned int CyclicXorHash16Bit(unsigned int param_1, unsigned int param_2) {
   return uVar10;
 }
 unsigned int ComputeMaskedXorProduct(unsigned int param_1, unsigned int param_2, unsigned int param_3) {
-  return (param_3 ^ 0x7F88 | param_2 ^ 0x8FE7) * ((param_1 & 0xffff) >> 8 ^ param_1 & 0xff) & 0xffff;
+  return ((param_3 ^ 0x7F88) | (param_2 ^ 0x8FE7)) * ((((param_1 & 0xffff) >> 8) ^ (param_1 & 0xff))) & 0xffff;
 }
 
 short ShortMaskedSumAndProduct(short param_1, short param_2) {
   unsigned short uVar1;
 
-  uVar1 = param_2 + param_1 * 0x0006 & 0xff;
+  uVar1 = (param_2 + (param_1 * 0x0006)) & 0xff;
   return (uVar1 + param_1) * (uVar1 + param_2);
 }
 
@@ -980,8 +981,8 @@ unsigned int MaskedBitwiseRotateMultiply(unsigned int param_1, unsigned int para
   param_1 = param_1 & 0xffff;
   param_2 = param_2 & 0xffff;
   uVar1 = param_2 & (param_1 | 0x0006) & 0xf;
-  return ((unsigned int)param_1 >> uVar1 | param_1 << (0x10 - uVar1 & 0x1f)) *
-             (param_2 << uVar1 | (unsigned int)param_2 >> (0x10 - uVar1 & 0x1f)) &
+  return ((unsigned int)param_1 >> uVar1 | param_1 << (0x10 - (uVar1 & 0x1f))) *
+             (param_2 << uVar1 | (unsigned int)param_2 >> (0x10 - (uVar1 & 0x1f))) &
          0xffff;
 }
 

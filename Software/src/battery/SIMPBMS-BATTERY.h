@@ -3,10 +3,6 @@
 
 #include "CanBattery.h"
 
-#ifdef SIMPBMS_BATTERY
-#define SELECTED_BATTERY_CLASS SimpBmsBattery
-#endif
-
 class SimpBmsBattery : public CanBattery {
  public:
   virtual void setup(void);

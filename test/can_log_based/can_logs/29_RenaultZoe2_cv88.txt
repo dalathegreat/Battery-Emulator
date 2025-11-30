@@ -1,0 +1,4 @@
+# Update cell voltage 88 via a faked poll response
+# (this is synthetic, please update with a real log!)
+
+(84215.921) RX0 18DAF1DB [8] 00 00 90 7B 0C 33 AA AA

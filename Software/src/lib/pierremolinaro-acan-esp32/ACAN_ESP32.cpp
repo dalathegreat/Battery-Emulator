@@ -198,6 +198,10 @@ uint32_t ACAN_ESP32::begin (const ACAN_ESP32_Settings & inSettings,
                             const ACAN_ESP32_Filter & inFilterSettings) {
 //   Serial.println (twaiBaseAddress, HEX) ;
   uint32_t errorCode = 0 ; // Ok by default
+
+//--------------------------------- CRITICAL FIX: Reset driver state when beginning
+  mDriverIsSending = false;
+  
 //--------------------------------- Enable CAN module clock (only for ESP32C6)
   #ifdef CONFIG_IDF_TARGET_ESP32C6
     #define ACAN_CLOCK_ENABLE_REG (*((volatile uint32_t *) twaiClockEnableAddress))

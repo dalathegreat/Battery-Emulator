@@ -1,6 +1,5 @@
 #ifndef BATTERIES_H
 #define BATTERIES_H
-#include "../../USER_SETTINGS.h"
 #include "Shunt.h"
 
 class Battery;
@@ -10,7 +9,7 @@ class Battery;
 extern Battery* battery;
 extern Battery* battery2;
 
-void setup_can_shunt();
+void setup_shunt();
 
 #include "BMW-I3-BATTERY.h"
 #include "BMW-IX-BATTERY.h"
@@ -22,8 +21,10 @@ void setup_can_shunt();
 #include "CHADEMO-BATTERY.h"
 #include "CHADEMO-SHUNTS.h"
 #include "CMFA-EV-BATTERY.h"
+#include "CMP-SMART-CAR-BATTERY.h"
 #include "DALY-BMS.h"
 #include "ECMP-BATTERY.h"
+#include "FORD-MACH-E-BATTERY.h"
 #include "FOXESS-BATTERY.h"
 #include "GEELY-GEOMETRY-C-BATTERY.h"
 #include "HYUNDAI-IONIQ-28-BATTERY.h"
@@ -45,6 +46,7 @@ void setup_can_shunt();
 #include "RENAULT-TWIZY.h"
 #include "RENAULT-ZOE-GEN1-BATTERY.h"
 #include "RENAULT-ZOE-GEN2-BATTERY.h"
+#include "RIVIAN-BATTERY.h"
 #include "RJXZS-BMS.h"
 #include "SAMSUNG-SDI-LV-BATTERY.h"
 #include "SANTA-FE-PHEV-BATTERY.h"
@@ -56,12 +58,14 @@ void setup_can_shunt();
 #include "VOLVO-SPA-HYBRID-BATTERY.h"
 
 void setup_battery(void);
+Battery* create_battery(BatteryType type);
 
 extern uint16_t user_selected_max_pack_voltage_dV;
 extern uint16_t user_selected_min_pack_voltage_dV;
 extern uint16_t user_selected_max_cell_voltage_mV;
 extern uint16_t user_selected_min_cell_voltage_mV;
-
+extern bool user_selected_use_estimated_SOC;
+extern bool user_selected_LEAF_interlock_mandatory;
 extern bool user_selected_tesla_digital_HVIL;
 extern uint16_t user_selected_tesla_GTW_country;
 extern bool user_selected_tesla_GTW_rightHandDrive;

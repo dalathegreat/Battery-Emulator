@@ -1,4 +1,5 @@
 #include "VOLVO-SPA-HYBRID-BATTERY.h"
+#include <cstring>  //For unit test
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
@@ -7,7 +8,6 @@
 
 void VolvoSpaHybridBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
-  uint8_t cnt = 0;
 
   // Update webserver datalayer
   datalayer_extended.VolvoHybrid.soc_bms = SOC_BMS;
@@ -73,9 +73,9 @@ void VolvoSpaHybridBattery::
 }
 
 void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x3A:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if ((rx_frame.data.u8[6] & 0x80) == 0x80)
         BATT_I = (0 - ((((rx_frame.data.u8[6] & 0x7F) * 256.0 + rx_frame.data.u8[7]) * 0.1) - 1638));
       else {
@@ -238,7 +238,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       {
         transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames == 1)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
@@ -250,7 +251,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         //transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x23) && (rxConsecutiveFrames == 1)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
@@ -262,7 +264,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         //transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x25) && (rxConsecutiveFrames == 1)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
@@ -274,7 +277,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         //transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x27) && (rxConsecutiveFrames == 1)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
@@ -286,7 +290,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         //transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x29) && (rxConsecutiveFrames == 1)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
@@ -298,7 +303,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         //transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x2B) && (rxConsecutiveFrames == 1)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
@@ -310,7 +316,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         //transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x2D) && (rxConsecutiveFrames == 1)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
@@ -322,7 +329,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         //transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x2F) && (rxConsecutiveFrames == 1)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
@@ -335,7 +343,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         //transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames == 2)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
@@ -347,7 +356,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         //transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x23) && (rxConsecutiveFrames == 2)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
@@ -359,7 +369,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         //transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x25) && (rxConsecutiveFrames == 2)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
@@ -371,7 +382,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         //transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x27) && (rxConsecutiveFrames == 2)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
@@ -383,7 +395,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         //transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x29) && (rxConsecutiveFrames == 2)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
@@ -395,7 +408,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         //transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x2B) && (rxConsecutiveFrames == 2)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
@@ -407,7 +421,8 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         //transmit_can_frame(&VOLVO_FlowControl);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x2D) && (rxConsecutiveFrames == 2)) {
-        cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+        battery_request_idx++;
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         //cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];

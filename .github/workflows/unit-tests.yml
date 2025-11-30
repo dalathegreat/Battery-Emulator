@@ -13,7 +13,6 @@ jobs:
 
     - name: Configure and build with CMake
       run: |
-        cp Software/USER_SECRETS.TEMPLATE.h Software/USER_SECRETS.h
         cd test
         mkdir build
         cd build

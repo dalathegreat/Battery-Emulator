@@ -23,7 +23,7 @@ void show_dtc(uint8_t byte0, uint8_t byte1) {
   logging.printf("%c%d\n", letter, ((byte0 & 0x3F) << 8) | byte1);
 }
 
-void handle_obd_frame(CAN_frame& rx_frame) {
+void handle_obd_frame(CAN_frame& rx_frame, CAN_Interface interface) {
   if (rx_frame.data.u8[1] == 0x7F) {
     const char* error_str = "?";
     switch (rx_frame.data.u8[3]) {  // See https://automotive.wiki/index.php/ISO_14229
@@ -105,10 +105,10 @@ void handle_obd_frame(CAN_frame& rx_frame) {
         logging.printf("ODBx reply frame received:\n");
     }
   }
-  dump_can_frame(rx_frame, MSG_RX);
+  dump_can_frame(rx_frame, interface, MSG_RX);
 }
 
-void transmit_obd_can_frame(unsigned int address, int interface, bool canFD) {
+void transmit_obd_can_frame(unsigned int address, CAN_Interface interface, bool canFD) {
   static CAN_frame OBD_frame;
   OBD_frame.FD = canFD;
   OBD_frame.ID = address;

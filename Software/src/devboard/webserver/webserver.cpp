@@ -2,12 +2,12 @@
 #include <Preferences.h>
 #include <ctime>
 #include <vector>
-#include "../../../USER_SECRETS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../charger/CHARGERS.h"
 #include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
+#include "../../communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
@@ -18,26 +18,13 @@
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
 #include "esp_task_wdt.h"
+#include "html_escape.h"
 
 #include <string>
 extern std::string http_username;
 extern std::string http_password;
 
-#ifdef WEBSERVER
-const bool webserver_enabled_default = true;
-#else
-const bool webserver_enabled_default = false;
-#endif
-
-bool webserver_enabled = webserver_enabled_default;  // Global flag to enable or disable the webserver
-
-#ifndef COMMON_IMAGE
-const bool webserver_auth_default = WEBSERVER_AUTH_REQUIRED;
-#else
-const bool webserver_auth_default = false;
-#endif
-
-bool webserver_auth = webserver_auth_default;
+bool webserver_auth = false;
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -101,8 +88,8 @@ void canReplayTask(void* param) {
     }
 
     do {
-      float firstTimestamp = -1.0;
-      float lastTimestamp = 0.0;
+      float firstTimestamp = -1.0f;
+      float lastTimestamp = 0.0f;
       bool firstMessageSent = false;  // Track first message
 
       for (size_t i = 0; i < messages.size(); i++) {
@@ -168,7 +155,7 @@ void canReplayTask(void* param) {
                           (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518);
         currentFrame.ext_ID = (currentFrame.ID > 0x7F0);
 
-        transmit_can_frame_to_interface(&currentFrame, datalayer.system.info.can_replay_interface);
+        transmit_can_frame_to_interface(&currentFrame, (CAN_Interface)datalayer.system.info.can_replay_interface);
       }
     } while (datalayer.system.info.loop_playback);
 
@@ -401,7 +388,6 @@ void init_webserver() {
     request->send(200, "text/html", "OK");
   });
 
-#ifdef COMMON_IMAGE
   struct BoolSetting {
     const char* name;
     bool existingValue;
@@ -409,9 +395,11 @@ void init_webserver() {
   };
 
   const char* boolSettingNames[] = {
-      "DBLBTR",     "CNTCTRL",    "CNTCTRLDBL", "PWMCNTCTRL", "PERBMSRESET", "SDLOGENABLED",  "REMBMSRESET",
-      "USBENABLED", "CANLOGUSB",  "WEBENABLED", "CANFDASCAN", "CANLOGSD",    "WIFIAPENABLED", "MQTTENABLED",
-      "HADISC",     "MQTTTOPICS", "INVICNT",    "GTWRHD",     "DIGITALHVIL",
+      "DBLBTR",       "CNTCTRL",      "CNTCTRLDBL",    "PWMCNTCTRL",  "PERBMSRESET", "SDLOGENABLED",
+      "STATICIP",     "REMBMSRESET",  "EXTPRECHARGE",  "USBENABLED",  "CANLOGUSB",   "WEBENABLED",
+      "CANFDASCAN",   "CANLOGSD",     "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC",   "HADISC",
+      "MQTTTOPICS",   "MQTTCELLV",    "INVICNT",       "GTWRHD",      "DIGITALHVIL", "PERFPROFILE",
+      "INTERLOCKREQ", "SOCESTIMATED", "PYLONOFFSET",   "PYLONORDER",  "DEYEBYD",
   };
 
   // Handles the form POST from UI to save settings of the common image
@@ -443,10 +431,10 @@ void init_webserver() {
         auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
         settings.saveUInt("BATTCOMM", (int)type);
       } else if (p->name() == "BATTPVMAX") {
-        auto type = p->value().toFloat() * 10.0;
+        auto type = p->value().toFloat() * 10.0f;
         settings.saveUInt("BATTPVMAX", (int)type);
       } else if (p->name() == "BATTPVMIN") {
-        auto type = p->value().toFloat() * 10.0;
+        auto type = p->value().toFloat() * 10.0f;
         settings.saveUInt("BATTPVMIN", (int)type);
       } else if (p->name() == "BATTCVMAX") {
         auto type = atoi(p->value().c_str());
@@ -472,6 +460,64 @@ void init_webserver() {
       } else if (p->name() == "SHUNTCOMM") {
         auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
         settings.saveUInt("SHUNTCOMM", (int)type);
+      } else if (p->name() == "MAXPRETIME") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("MAXPRETIME", type);
+      } else if (p->name() == "WIFICHANNEL") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("WIFICHANNEL", type);
+      } else if (p->name() == "DCHGPOWER") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("DCHGPOWER", type);
+      } else if (p->name() == "CHGPOWER") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("CHGPOWER", type);
+      } else if (p->name() == "LOCALIP1") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LOCALIP1", type);
+      } else if (p->name() == "LOCALIP2") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LOCALIP2", type);
+      } else if (p->name() == "LOCALIP3") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LOCALIP3", type);
+      } else if (p->name() == "LOCALIP4") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("LOCALIP4", type);
+      } else if (p->name() == "GATEWAY1") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GATEWAY1", type);
+      } else if (p->name() == "GATEWAY2") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GATEWAY2", type);
+      } else if (p->name() == "GATEWAY3") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GATEWAY3", type);
+      } else if (p->name() == "GATEWAY4") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GATEWAY4", type);
+      } else if (p->name() == "SUBNET1") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SUBNET1", type);
+      } else if (p->name() == "SUBNET2") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SUBNET2", type);
+      } else if (p->name() == "SUBNET3") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SUBNET3", type);
+      } else if (p->name() == "SUBNET4") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("SUBNET4", type);
+      } else if (p->name() == "SSID") {
+        settings.saveString("SSID", p->value().c_str());
+        ssid = settings.getString("SSID", "").c_str();
+      } else if (p->name() == "PASSWORD") {
+        settings.saveString("PASSWORD", p->value().c_str());
+        password = settings.getString("PASSWORD", "").c_str();
+      } else if (p->name() == "APNAME") {
+        settings.saveString("APNAME", p->value().c_str());
+      } else if (p->name() == "APPASSWORD") {
+        settings.saveString("APPASSWORD", p->value().c_str());
       } else if (p->name() == "HOSTNAME") {
         settings.saveString("HOSTNAME", p->value().c_str());
       } else if (p->name() == "MQTTSERVER") {
@@ -485,6 +531,9 @@ void init_webserver() {
         settings.saveString("MQTTPASSWORD", p->value().c_str());
       } else if (p->name() == "MQTTTOPIC") {
         settings.saveString("MQTTTOPIC", p->value().c_str());
+      } else if (p->name() == "MQTTTIMEOUT") {
+        auto port = atoi(p->value().c_str());
+        settings.saveUInt("MQTTTIMEOUT", port);
       } else if (p->name() == "MQTTOBJIDPREFIX") {
         settings.saveString("MQTTOBJIDPREFIX", p->value().c_str());
       } else if (p->name() == "MQTTDEVICENAME") {
@@ -494,6 +543,9 @@ void init_webserver() {
       } else if (p->name() == "SOFAR_ID") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("SOFAR_ID", type);
+      } else if (p->name() == "PYLONSEND") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("PYLONSEND", type);
       } else if (p->name() == "INVCELLS") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("INVCELLS", type);
@@ -515,6 +567,18 @@ void init_webserver() {
       } else if (p->name() == "CANFREQ") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("CANFREQ", type);
+      } else if (p->name() == "CANFDFREQ") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("CANFDFREQ", type);
+      } else if (p->name() == "PRECHGMS") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("PRECHGMS", type);
+      } else if (p->name() == "PWMFREQ") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("PWMFREQ", type);
+      } else if (p->name() == "PWMHOLD") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("PWMHOLD", type);
       } else if (p->name() == "GTWCOUNTRY") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("GTWCOUNTRY", type);
@@ -547,38 +611,6 @@ void init_webserver() {
 
     settingsUpdated = settings.were_settings_updated();
     request->redirect("/settings");
-  });
-#endif
-
-  // Route for editing SSID
-  def_route_with_auth("/updateSSID", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      if (value.length() <= 63) {  // Check if SSID is within the allowable length
-        ssid = value.c_str();
-        store_settings();
-        request->send(200, "text/plain", "Updated successfully");
-      } else {
-        request->send(400, "text/plain", "SSID must be 63 characters or less");
-      }
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
-  });
-  // Route for editing Password
-  def_route_with_auth("/updatePassword", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      if (value.length() > 8) {  // Check if password is within the allowable length
-        password = value.c_str();
-        store_settings();
-        request->send(200, "text/plain", "Updated successfully");
-      } else {
-        request->send(400, "text/plain", "Password must be atleast 8 characters");
-      }
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
   });
 
   auto update_string = [](const char* route, std::function<void(String)> setter,
@@ -625,6 +657,9 @@ void init_webserver() {
   update_string_setting("/updateSocMax", [](String value) {
     datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
   });
+
+  // Route for editing CAN ID cutoff filter
+  update_int_setting("/set_can_id_cutoff", [](int value) { user_selected_CAN_ID_cutoff_filter = value; });
 
   // Route for pause/resume Battery emulator
   update_string("/pause", [](String value) { setBatteryPause(value == "true" || value == "1", false); });
@@ -899,9 +934,6 @@ String processor(const String& var) {
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
     content += "<h4>Software: " + String(version_number);
 
-#ifdef COMMON_IMAGE
-    content += " (Common image) ";
-#endif
 // Show hardware used:
 #ifdef HW_LILYGO
     content += " Hardware: LilyGo T-CAN485";
@@ -914,34 +946,35 @@ String processor(const String& var) {
 #endif  // HW_STARK
     content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
     content += "<h4>Uptime: " + get_uptime() + "</h4>";
-#ifdef FUNCTION_TIME_MEASUREMENT
-    // Load information
-    content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
-    content += "<h4>Core task max load last 10 s: " + String(datalayer.system.status.core_task_10s_max_us) + " us</h4>";
-    content +=
-        "<h4>MQTT function (MQTT task) max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) +
-        " us</h4>";
-    content +=
-        "<h4>WIFI function (MQTT task) max load last 10 s: " + String(datalayer.system.status.wifi_task_10s_max_us) +
-        " us</h4>";
-    content += "<h4>Max load @ worst case execution of core task:</h4>";
-    content += "<h4>10ms function timing: " + String(datalayer.system.status.time_snap_10ms_us) + " us</h4>";
-    content += "<h4>Values function timing: " + String(datalayer.system.status.time_snap_values_us) + " us</h4>";
-    content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
-    content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
-    content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
-#endif  // FUNCTION_TIME_MEASUREMENT
+    if (datalayer.system.info.performance_measurement_active) {
+      // Load information
+      content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
+      content +=
+          "<h4>Core task max load last 10 s: " + String(datalayer.system.status.core_task_10s_max_us) + " us</h4>";
+      content +=
+          "<h4>MQTT function (MQTT task) max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) +
+          " us</h4>";
+      content +=
+          "<h4>WIFI function (MQTT task) max load last 10 s: " + String(datalayer.system.status.wifi_task_10s_max_us) +
+          " us</h4>";
+      content += "<h4>Max load @ worst case execution of core task:</h4>";
+      content += "<h4>10ms function timing: " + String(datalayer.system.status.time_snap_10ms_us) + " us</h4>";
+      content += "<h4>Values function timing: " + String(datalayer.system.status.time_snap_values_us) + " us</h4>";
+      content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
+      content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
+      content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
+    }
 
     wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
-    content += "<h4>SSID: " + String(ssid.c_str());
+    content += "<h4>SSID: " + html_escape(ssid.c_str());
     if (status == WL_CONNECTED) {
       // Get and display the signal strength (RSSI) and channel
       content += " RSSI:" + String(WiFi.RSSI()) + " dBm Ch: " + String(WiFi.channel());
     }
     content += "</h4>";
     if (status == WL_CONNECTED) {
-      content += "<h4>Hostname: " + String(WiFi.getHostname()) + "</h4>";
+      content += "<h4>Hostname: " + html_escape(WiFi.getHostname()) + "</h4>";
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
     } else {
       content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
@@ -949,7 +982,7 @@ String processor(const String& var) {
     // Close the block
     content += "</div>";
 
-    if (inverter || battery || shunt || charger) {
+    if (inverter || battery || charger || user_selected_shunt_type != ShuntType::None) {
       // Start a new block with a specific background color
       content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
 
@@ -974,7 +1007,7 @@ String processor(const String& var) {
         content += "</h4>";
       }
 
-      if (shunt) {
+      if (user_selected_shunt_type != ShuntType::None) {
         content += "<h4 style='color: white;'>Shunt protocol: ";
         content += datalayer.system.info.shunt_protocol;
         content += "</h4>";
@@ -1020,22 +1053,22 @@ String processor(const String& var) {
 
       // Display battery statistics within this block
       float socRealFloat =
-          static_cast<float>(datalayer.battery.status.real_soc) / 100.0;  // Convert to float and divide by 100
+          static_cast<float>(datalayer.battery.status.real_soc) / 100.0f;  // Convert to float and divide by 100
       float socScaledFloat =
-          static_cast<float>(datalayer.battery.status.reported_soc) / 100.0;  // Convert to float and divide by 100
+          static_cast<float>(datalayer.battery.status.reported_soc) / 100.0f;  // Convert to float and divide by 100
       float sohFloat =
-          static_cast<float>(datalayer.battery.status.soh_pptt) / 100.0;  // Convert to float and divide by 100
+          static_cast<float>(datalayer.battery.status.soh_pptt) / 100.0f;  // Convert to float and divide by 100
       float voltageFloat =
-          static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0;  // Convert to float and divide by 10
+          static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0f;  // Convert to float and divide by 10
       float currentFloat =
-          static_cast<float>(datalayer.battery.status.current_dA) / 10.0;  // Convert to float and divide by 10
-      float powerFloat = static_cast<float>(datalayer.battery.status.active_power_W);               // Convert to float
-      float tempMaxFloat = static_cast<float>(datalayer.battery.status.temperature_max_dC) / 10.0;  // Convert to float
-      float tempMinFloat = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0;  // Convert to float
+          static_cast<float>(datalayer.battery.status.current_dA) / 10.0f;  // Convert to float and divide by 10
+      float powerFloat = static_cast<float>(datalayer.battery.status.active_power_W);                // Convert to float
+      float tempMaxFloat = static_cast<float>(datalayer.battery.status.temperature_max_dC) / 10.0f;  // Convert to float
+      float tempMinFloat = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0f;  // Convert to float
       float maxCurrentChargeFloat =
-          static_cast<float>(datalayer.battery.status.max_charge_current_dA) / 10.0;  // Convert to float
+          static_cast<float>(datalayer.battery.status.max_charge_current_dA) / 10.0f;  // Convert to float
       float maxCurrentDischargeFloat =
-          static_cast<float>(datalayer.battery.status.max_discharge_current_dA) / 10.0;  // Convert to float
+          static_cast<float>(datalayer.battery.status.max_discharge_current_dA) / 10.0f;  // Convert to float
       uint16_t cell_delta_mv =
           datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
 
@@ -1064,7 +1097,7 @@ String processor(const String& var) {
       else
         content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
 
-      if (datalayer.system.settings.equipment_stop_active) {
+      if (datalayer.system.info.equipment_stop_active) {
         content +=
             formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1, "red");
         content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1, "red");
@@ -1074,13 +1107,17 @@ String processor(const String& var) {
         content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
         content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
         content += "<h4 style='color: white;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A";
-        if (datalayer.battery.settings.user_settings_limit_discharge) {
+        if (datalayer.battery.settings.remote_settings_limit_discharge) {
+          content += " (Remote)</h4>";
+        } else if (datalayer.battery.settings.user_settings_limit_discharge) {
           content += " (Manual)</h4>";
         } else {
           content += " (BMS)</h4>";
         }
         content += "<h4 style='color: white;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A";
-        if (datalayer.battery.settings.user_settings_limit_charge) {
+        if (datalayer.battery.settings.remote_settings_limit_charge) {
+          content += " (Remote)</h4>";
+        } else if (datalayer.battery.settings.user_settings_limit_charge) {
           content += " (Manual)</h4>";
         } else {
           content += " (BMS)</h4>";
@@ -1190,17 +1227,17 @@ String processor(const String& var) {
 
         // Display battery statistics within this block
         socRealFloat =
-            static_cast<float>(datalayer.battery2.status.real_soc) / 100.0;  // Convert to float and divide by 100
+            static_cast<float>(datalayer.battery2.status.real_soc) / 100.0f;  // Convert to float and divide by 100
         //socScaledFloat; // Same value used for bat2
         sohFloat =
-            static_cast<float>(datalayer.battery2.status.soh_pptt) / 100.0;  // Convert to float and divide by 100
+            static_cast<float>(datalayer.battery2.status.soh_pptt) / 100.0f;  // Convert to float and divide by 100
         voltageFloat =
-            static_cast<float>(datalayer.battery2.status.voltage_dV) / 10.0;  // Convert to float and divide by 10
+            static_cast<float>(datalayer.battery2.status.voltage_dV) / 10.0f;  // Convert to float and divide by 10
         currentFloat =
-            static_cast<float>(datalayer.battery2.status.current_dA) / 10.0;        // Convert to float and divide by 10
+            static_cast<float>(datalayer.battery2.status.current_dA) / 10.0f;       // Convert to float and divide by 10
         powerFloat = static_cast<float>(datalayer.battery2.status.active_power_W);  // Convert to float
-        tempMaxFloat = static_cast<float>(datalayer.battery2.status.temperature_max_dC) / 10.0;  // Convert to float
-        tempMinFloat = static_cast<float>(datalayer.battery2.status.temperature_min_dC) / 10.0;  // Convert to float
+        tempMaxFloat = static_cast<float>(datalayer.battery2.status.temperature_max_dC) / 10.0f;  // Convert to float
+        tempMinFloat = static_cast<float>(datalayer.battery2.status.temperature_min_dC) / 10.0f;  // Convert to float
         cell_delta_mv = datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV;
 
         if (datalayer.battery.settings.soc_scaling_active)
@@ -1228,7 +1265,7 @@ String processor(const String& var) {
         else
           content += formatPowerValue("Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
 
-        if (datalayer.system.settings.equipment_stop_active) {
+        if (datalayer.system.info.equipment_stop_active) {
           content +=
               formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1, "red");
           content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1, "red");
@@ -1414,7 +1451,7 @@ String processor(const String& var) {
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
     if (webserver_auth)
       content += "<button onclick='logout()'>Logout</button>";
-    if (!datalayer.system.settings.equipment_stop_active)
+    if (!datalayer.system.info.equipment_stop_active)
       content +=
           "<br/><button style=\"background:red;color:white;cursor:pointer;\""
           " onclick=\""
@@ -1527,8 +1564,8 @@ String formatPowerValue(T value, String unit, int precision) {
   if (std::is_same<T, float>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value) {
     float convertedValue = static_cast<float>(value);
 
-    if (convertedValue >= 1000.0 || convertedValue <= -1000.0) {
-      result += String(convertedValue / 1000.0, precision) + " kW";
+    if (convertedValue >= 1000.0f || convertedValue <= -1000.0f) {
+      result += String(convertedValue / 1000.0f, precision) + " kW";
     } else {
       result += String(convertedValue, 0) + " W";
     }

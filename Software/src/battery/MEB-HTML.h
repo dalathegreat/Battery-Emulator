@@ -178,7 +178,7 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += "?";
     }
-    content += "</h4><h4>Interm. Voltage (" + String(datalayer_extended.meb.BMS_voltage_intermediate_dV / 10.0, 1) +
+    content += "</h4><h4>Interm. Voltage (" + String(datalayer_extended.meb.BMS_voltage_intermediate_dV / 10.0f, 1) +
                "V) status: ";
     switch (datalayer_extended.meb.BMS_status_voltage_free) {
       case 0:
@@ -225,7 +225,7 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += "?";
     }
-    content += "</h4><h4>BMS voltage: " + String(datalayer_extended.meb.BMS_voltage_dV / 10.0, 1) + "</h4>";
+    content += "</h4><h4>BMS voltage: " + String(datalayer_extended.meb.BMS_voltage_dV / 10.0f, 1) + "</h4>";
     content += datalayer_extended.meb.BMS_OBD_MIL ? "<h4>OBD MIL: ON!</h4>" : "<h4>OBD MIL: Off</h4>";
     content +=
         datalayer_extended.meb.BMS_error_lamp_req ? "<h4>Red error lamp: ON!</h4>" : "<h4>Red error lamp: Off</h4>";

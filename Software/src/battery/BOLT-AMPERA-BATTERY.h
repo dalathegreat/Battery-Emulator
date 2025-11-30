@@ -3,10 +3,6 @@
 #include "BOLT-AMPERA-HTML.h"
 #include "CanBattery.h"
 
-#ifdef BOLT_AMPERA_BATTERY
-#define SELECTED_BATTERY_CLASS BoltAmperaBattery
-#endif
-
 class BoltAmperaBattery : public CanBattery {
  public:
   virtual void setup(void);
@@ -20,8 +16,6 @@ class BoltAmperaBattery : public CanBattery {
 
  private:
   BoltAmperaHtmlRenderer renderer;
-  static const int MAX_DISCHARGE_POWER_ALLOWED_W = 10000;
-  static const int MAX_CHARGE_POWER_ALLOWED_W = 10000;
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
   static const int RAMPDOWN_SOC =
       9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
@@ -259,7 +253,6 @@ class BoltAmperaBattery : public CanBattery {
   int16_t temperature_6 = 0;
   int16_t temperature_highest_C = 0;
   int16_t temperature_lowest_C = 0;
-  uint8_t cellbank_mux = 0;
   uint8_t poll_index_7E4 = 0;
   uint16_t currentpoll_7E4 = POLL_7E4_CAPACITY_EST_GEN1;
   uint16_t reply_poll_7E4 = 0;

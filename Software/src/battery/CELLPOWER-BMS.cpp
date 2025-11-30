@@ -20,9 +20,11 @@ void CellPowerBms::update_values() {
 
   datalayer.battery.status.current_dA = battery_pack_current_dA;
 
-  datalayer.battery.status.max_charge_power_W = 5000;  //TODO, is this available via CAN?
+  datalayer.battery.status.max_charge_power_W =
+      datalayer.battery.status.override_charge_power_W;  //TODO, is this available via CAN?
 
-  datalayer.battery.status.max_discharge_power_W = 5000;  //TODO, is this available via CAN?
+  datalayer.battery.status.max_discharge_power_W =
+      datalayer.battery.status.override_discharge_power_W;  //TODO, is this available via CAN?
 
   datalayer.battery.status.temperature_min_dC = (int16_t)(pack_temperature_low_C * 10);
 
@@ -214,18 +216,18 @@ void CellPowerBms::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void CellPowerBms::transmit_can(unsigned long currentMillis) {
-
-  // Send 1s CAN Message
+  /*
+  // Send 1s CAN Message. NOTE; Not required to keep BMS happy
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
     previousMillis1s = currentMillis;
-
-    /*
+    
     transmit_can_frame(&CELLPOWER_18FF50E9);
     transmit_can_frame(&CELLPOWER_18FF50E8);
     transmit_can_frame(&CELLPOWER_18FF50E7);
     transmit_can_frame(&CELLPOWER_18FF50E5);
-    */
+
   }
+  */
 }
 
 void CellPowerBms::setup(void) {  // Performs one time setup at startup

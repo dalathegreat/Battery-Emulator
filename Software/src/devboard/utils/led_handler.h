@@ -24,8 +24,8 @@ class LED {
   void flow_run(void);
   void heartbeat_run(void);
 
-  uint8_t up_down(float middle_point_f);
-  int LED_PERIOD_MS = 3000;
+  uint8_t up_down(uint16_t middle_point_f);
+  uint16_t LED_PERIOD_MS = 3000;
 };
 
 bool led_init(void);

@@ -4,9 +4,7 @@
 #include "../devboard/hal/hal.h"
 #include "SmaInverterBase.h"
 
-#ifdef SMA_TRIPOWER_CAN
-#define SELECTED_INVERTER_CLASS SmaTripowerInverter
-#endif
+#include <functional>
 
 class SmaTripowerInverter : public SmaInverterBase {
  public:

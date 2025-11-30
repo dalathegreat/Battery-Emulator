@@ -1,15 +1,11 @@
+#include "../inverter/INVERTERS.h"
 #include "BMW-SBOX.h"
 #include "Shunt.h"
 
 CanShunt* shunt = nullptr;
 ShuntType user_selected_shunt_type = ShuntType::None;
 
-#ifdef COMMON_IMAGE
-#ifdef SELECTED_SHUNT_CLASS
-#error "Compile time SELECTED_SHUNT_CLASS should not be defined with COMMON_IMAGE"
-#endif
-
-void setup_can_shunt() {
+void setup_shunt() {
   if (shunt) {
     return;
   }
@@ -20,37 +16,23 @@ void setup_can_shunt() {
       return;
     case ShuntType::BmwSbox:
       shunt = new BmwSbox();
+      shunt->setup();
       break;
+    case ShuntType::Inverter:
+      if (inverter && inverter->provides_shunt())
+        inverter->enable_shunt();
     default:
       return;
   }
-
-  if (shunt) {
-    shunt->setup();
-  }
 }
-
-#else
-void setup_can_shunt() {
-  if (shunt) {
-    return;
-  }
-
-#if defined(SELECTED_SHUNT_CLASS)
-  shunt = new SELECTED_SHUNT_CLASS();
-  if (shunt) {
-    shunt->setup();
-  }
-#endif
-}
-#endif
 
 extern std::vector<ShuntType> supported_shunt_types() {
   std::vector<ShuntType> types;
+  types.push_back(ShuntType::None);
+  types.push_back(ShuntType::BmwSbox);
 
-  for (int i = 0; i < (int)ShuntType::Highest; i++) {
-    types.push_back((ShuntType)i);
-  }
+  if (inverter && inverter->provides_shunt())
+    types.push_back(ShuntType::Inverter);
 
   return types;
 }
@@ -61,6 +43,8 @@ extern const char* name_for_shunt_type(ShuntType type) {
       return "None";
     case ShuntType::BmwSbox:
       return BmwSbox::Name;
+    case ShuntType::Inverter:
+      return "Using inverter values";
     default:
       return nullptr;
   }

@@ -3,10 +3,6 @@
 
 #include "CanInverterProtocol.h"
 
-#ifdef SMA_LV_CAN
-#define SELECTED_INVERTER_CLASS SmaLvInverter
-#endif
-
 class SmaLvInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }

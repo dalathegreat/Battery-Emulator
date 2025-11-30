@@ -101,7 +101,7 @@ class ACAN_ESP32_Settings {
   //    Transmit buffer sizes
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    public: uint16_t mDriverTransmitBufferSize = 16 ;
+    public: uint16_t mDriverTransmitBufferSize = 32 ;
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   //    Compute actual bit rate

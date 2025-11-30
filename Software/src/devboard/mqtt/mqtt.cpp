@@ -4,8 +4,6 @@
 #include <freertos/FreeRTOS.h>
 #include <src/communication/nvm/comm_nvm.h>
 #include <list>
-#include "../../../USER_SECRETS.h"
-#include "../../../USER_SETTINGS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
@@ -15,40 +13,32 @@
 #include "mqtt.h"
 #include "mqtt_client.h"
 
-#ifdef MQTT
-const bool mqtt_enabled_default = true;
-#else
-const bool mqtt_enabled_default = false;
-#endif
+bool mqtt_enabled = false;
+bool ha_autodiscovery_enabled = false;
+bool mqtt_transmit_all_cellvoltages = false;
+uint16_t mqtt_timeout_ms = 2000;
 
-bool mqtt_enabled = mqtt_enabled_default;
-
-#ifdef HA_AUTODISCOVERY
-const bool ha_autodiscovery_enabled_default = true;
-#else
-const bool ha_autodiscovery_enabled_default = false;
-#endif
-
-bool ha_autodiscovery_enabled = ha_autodiscovery_enabled_default;
-
-#ifdef COMMON_IMAGE
 const int mqtt_port_default = 0;
 const char* mqtt_server_default = "";
-#else
-const int mqtt_port_default = MQTT_PORT;
-const char* mqtt_server_default = MQTT_SERVER;
-#endif
 
 int mqtt_port = mqtt_port_default;
 std::string mqtt_server = mqtt_server_default;
 
-#ifdef MQTT_MANUAL_TOPIC_OBJECT_NAME
-const bool mqtt_manual_topic_object_name_default = true;
-#else
-const bool mqtt_manual_topic_object_name_default = false;
-#endif
+bool mqtt_manual_topic_object_name =
+    true;  //TODO: should this be configurable from webserver? Or legacy option removed?
+// If this is not true, the previous default naming format 'battery-emulator_esp32-XXXXXX' (based on hardware ID) will be used.
+// This naming convention was in place until version 7.5.0. Users should check the version from which they are updating, as this change
+// may break compatibility with previous versions of MQTT naming
+const char* mqtt_topic_name =
+    "BE";  // Custom MQTT topic name. Previously, the name was automatically set to "battery-emulator_esp32-XXXXXX"
+const char* mqtt_object_id_prefix =
+    "be_";  // Custom prefix for MQTT object ID. Previously, the prefix was automatically set to "esp32-XXXXXX_"
+const char* mqtt_device_name =
+    "Battery Emulator";  // Custom device name in Home Assistant. Previously, the name was automatically set to "BatteryEmulator_esp32-XXXXXX"
+const char* ha_device_id =
+    "battery-emulator";  // Custom device ID in Home Assistant. Previously, the ID was always "battery-emulator"
 
-bool mqtt_manual_topic_object_name = mqtt_manual_topic_object_name_default;
+#define MQTT_QOS 0  // MQTT Quality of Service (0, 1, or 2) //TODO: Should this be configurable?
 
 esp_mqtt_client_config_t mqtt_cfg;
 esp_mqtt_client_handle_t client;
@@ -83,17 +73,17 @@ static void publish_values(void) {
     return;
   }
 
-#ifdef MQTT_PUBLISH_CELL_VOLTAGES
-  if (publish_cell_voltages() == false) {
-    return;
+  if (mqtt_transmit_all_cellvoltages) {
+    if (publish_cell_voltages() == false) {
+      return;
+    }
   }
-#endif
 
-#ifdef MQTT_PUBLISH_CELL_VOLTAGES
-  if (publish_cell_balancing() == false) {
-    return;
+  if (mqtt_transmit_all_cellvoltages) {
+    if (publish_cell_balancing() == false) {
+      return;
+    }
   }
-#endif
 }
 
 static bool ha_common_info_published = false;
@@ -138,7 +128,8 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"max_charge_power", "Battery Max Charge Power", "", "W", "power", always},
     {"charged_energy", "Battery Charged Energy", "", "Wh", "energy", supports_charged},
     {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged},
-    {"balancing_active_cells", "Balancing Active Cells", "", "", "", always}};
+    {"balancing_active_cells", "Balancing Active Cells", "", "", "", always},
+    {"balancing_status", "Balancing Status", "", "", "", always}};
 
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
                                              {"pause_status", "Pause Status", "", "", "", always},
@@ -170,11 +161,11 @@ void create_global_sensor_configs() {
   }
 }
 
-SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS"},
-                                {"PAUSE", "Pause charge/discharge"},
-                                {"RESUME", "Resume charge/discharge"},
-                                {"RESTART", "Restart Battery Emulator"},
-                                {"STOP", "Open Contactors"}};
+SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, nullptr, nullptr},
+                                {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr, nullptr},
+                                {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr, nullptr},
+                                {"RESTART", "Restart Battery Emulator", nullptr, nullptr, nullptr, nullptr},
+                                {"STOP", "Open Contactors", nullptr, nullptr, nullptr, nullptr}};
 
 static String generateCommonInfoAutoConfigTopic(const char* object_id) {
   return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
@@ -219,20 +210,35 @@ static String generateButtonTopic(const char* subtype) {
   return topic_name + "/command/" + String(subtype);
 }
 
+static const char* get_balancing_status_text(balancing_status_enum status) {
+  switch (status) {
+    case BALANCING_STATUS_UNKNOWN:
+      return "Unknown";
+    case BALANCING_STATUS_ERROR:
+      return "Error";
+    case BALANCING_STATUS_READY:
+      return "Ready";
+    case BALANCING_STATUS_ACTIVE:
+      return "Active";
+    default:
+      return "Unknown";
+  }
+}
+
 void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& battery, const String& suffix,
                             bool supports_charged) {
-  doc["SOC" + suffix] = ((float)battery.status.reported_soc) / 100.0;
-  doc["SOC_real" + suffix] = ((float)battery.status.real_soc) / 100.0;
-  doc["state_of_health" + suffix] = ((float)battery.status.soh_pptt) / 100.0;
-  doc["temperature_min" + suffix] = ((float)((int16_t)battery.status.temperature_min_dC)) / 10.0;
-  doc["temperature_max" + suffix] = ((float)((int16_t)battery.status.temperature_max_dC)) / 10.0;
+  doc["SOC" + suffix] = ((float)battery.status.reported_soc) / 100.0f;
+  doc["SOC_real" + suffix] = ((float)battery.status.real_soc) / 100.0f;
+  doc["state_of_health" + suffix] = ((float)battery.status.soh_pptt) / 100.0f;
+  doc["temperature_min" + suffix] = ((float)((int16_t)battery.status.temperature_min_dC)) / 10.0f;
+  doc["temperature_max" + suffix] = ((float)((int16_t)battery.status.temperature_max_dC)) / 10.0f;
   doc["cpu_temp" + suffix] = datalayer.system.info.CPU_temperature;
   doc["stat_batt_power" + suffix] = ((float)((int32_t)battery.status.active_power_W));
-  doc["battery_current" + suffix] = ((float)((int16_t)battery.status.current_dA)) / 10.0;
-  doc["battery_voltage" + suffix] = ((float)battery.status.voltage_dV) / 10.0;
+  doc["battery_current" + suffix] = ((float)((int16_t)battery.status.current_dA)) / 10.0f;
+  doc["battery_voltage" + suffix] = ((float)battery.status.voltage_dV) / 10.0f;
   if (battery.info.number_of_cells != 0u && battery.status.cell_voltages_mV[battery.info.number_of_cells - 1] != 0u) {
-    doc["cell_max_voltage" + suffix] = ((float)battery.status.cell_max_voltage_mV) / 1000.0;
-    doc["cell_min_voltage" + suffix] = ((float)battery.status.cell_min_voltage_mV) / 1000.0;
+    doc["cell_max_voltage" + suffix] = ((float)battery.status.cell_max_voltage_mV) / 1000.0f;
+    doc["cell_min_voltage" + suffix] = ((float)battery.status.cell_min_voltage_mV) / 1000.0f;
     doc["cell_voltage_delta" + suffix] =
         ((float)battery.status.cell_max_voltage_mV) - ((float)battery.status.cell_min_voltage_mV);
   }
@@ -260,6 +266,7 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     }
   }
   doc["balancing_active_cells" + suffix] = active_cells;
+  doc["balancing_status" + suffix] = get_balancing_status_text(battery.status.balancing_status);
 }
 
 static std::vector<EventData> order_events;
@@ -384,7 +391,7 @@ static bool publish_cell_voltages(void) {
 
     JsonArray cell_voltages = doc["cell_voltages"].to<JsonArray>();
     for (size_t i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
-      cell_voltages.add(((float)datalayer.battery.status.cell_voltages_mV[i]) / 1000.0);
+      cell_voltages.add(((float)datalayer.battery.status.cell_voltages_mV[i]) / 1000.0f);
     }
 
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
@@ -403,7 +410,7 @@ static bool publish_cell_voltages(void) {
 
       JsonArray cell_voltages = doc["cell_voltages"].to<JsonArray>();
       for (size_t i = 0; i < datalayer.battery2.info.number_of_cells; ++i) {
-        cell_voltages.add(((float)datalayer.battery2.status.cell_voltages_mV[i]) / 1000.0);
+        cell_voltages.add(((float)datalayer.battery2.status.cell_voltages_mV[i]) / 1000.0f);
       }
 
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
@@ -561,13 +568,12 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   logging.printf("MQTT message arrived: [%.*s]\n", topic_len, topic);
 
-#ifdef REMOTE_BMS_RESET
-  const char* bmsreset_topic = generateButtonTopic("BMSRESET").c_str();
-  if (strcmp(topic, bmsreset_topic) == 0) {
-    logging.println("Triggering BMS reset");
-    start_bms_reset();
+  if (remote_bms_reset) {
+    if (strcmp(topic, generateButtonTopic("BMSRESET").c_str()) == 0) {
+      logging.println("Triggering BMS reset");
+      start_bms_reset();
+    }
   }
-#endif  // REMOTE_BMS_RESET
 
   if (strcmp(topic, generateButtonTopic("PAUSE").c_str()) == 0) {
     setBatteryPause(true, false);
@@ -586,6 +592,39 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
   if (strcmp(topic, generateButtonTopic("STOP").c_str()) == 0) {
     setBatteryPause(true, false, true);
   }
+
+  if (strcmp(topic, generateButtonTopic("SET_LIMITS").c_str()) == 0) {
+    JsonDocument doc;
+    char* data_str = strndup(data, data_len);
+    deserializeJson(doc, data_str);
+
+    if (doc["max_charge"].is<int>()) {
+      datalayer.battery.settings.max_remote_set_charge_dA = doc["max_charge"];
+      datalayer.battery.settings.remote_settings_limit_charge = true;
+    } else {
+      datalayer.battery.settings.max_remote_set_charge_dA = 0;
+      datalayer.battery.settings.remote_settings_limit_charge = false;
+    }
+
+    if (doc["max_discharge"].is<int>()) {
+      datalayer.battery.settings.max_remote_set_discharge_dA = doc["max_discharge"];
+      datalayer.battery.settings.remote_settings_limit_discharge = true;
+    } else {
+      datalayer.battery.settings.max_remote_set_discharge_dA = 0;
+      datalayer.battery.settings.remote_settings_limit_discharge = false;
+    }
+
+    if (doc["timeout"].is<int>()) {
+      datalayer.battery.settings.remote_set_timeout = doc["timeout"].as<int>() * 1000;
+    } else {
+      datalayer.battery.settings.remote_set_timeout = 30000;
+    }
+
+    datalayer.battery.settings.remote_set_timestamp = millis();
+
+    free(data_str);
+  }
+
   free(topic);
 }
 
@@ -616,6 +655,20 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       logging.print("captured as transport's socket errno");
       logging.println(strerror(event->error_handle->esp_transport_sock_errno));
       break;
+    case MQTT_EVENT_SUBSCRIBED:
+      break;
+    case MQTT_EVENT_UNSUBSCRIBED:
+      break;
+    case MQTT_EVENT_PUBLISHED:
+      break;
+    case MQTT_EVENT_BEFORE_CONNECT:
+      break;
+    case MQTT_EVENT_DELETED:
+      break;
+    case MQTT_USER_EVENT:
+      break;
+    case MQTT_EVENT_ANY:
+      break;
   }
 }
 
@@ -626,7 +679,7 @@ bool init_mqtt(void) {
   }
 
   if (mqtt_manual_topic_object_name) {
-#ifdef COMMON_IMAGE
+
     BatteryEmulatorSettingsStore settings;
     topic_name = settings.getString("MQTTTOPIC", mqtt_topic_name);
     object_id_prefix = settings.getString("MQTTOBJIDPREFIX", mqtt_object_id_prefix);
@@ -649,13 +702,6 @@ bool init_mqtt(void) {
       device_id = ha_device_id;
     }
 
-#else
-    // Use custom topic name, object ID prefix, and device name from user settings
-    topic_name = mqtt_topic_name;
-    object_id_prefix = mqtt_object_id_prefix;
-    device_name = mqtt_device_name;
-    device_id = ha_device_id;
-#endif
   } else {
     // Use default naming based on WiFi hostname for topic, object ID prefix, and device name
     topic_name = "battery-emulator_" + String(WiFi.getHostname());
@@ -678,7 +724,7 @@ bool init_mqtt(void) {
   mqtt_cfg.session.last_will.retain = true;
   mqtt_cfg.session.last_will.msg = "offline";
   mqtt_cfg.session.last_will.msg_len = strlen(mqtt_cfg.session.last_will.msg);
-  mqtt_cfg.network.timeout_ms = MQTT_TIMEOUT;
+  mqtt_cfg.network.timeout_ms = mqtt_timeout_ms;
   client = esp_mqtt_client_init(&mqtt_cfg);
 
   if (client == nullptr) {
@@ -692,7 +738,7 @@ bool init_mqtt(void) {
   return true;
 }
 
-void mqtt_loop(void) {
+void mqtt_client_loop(void) {
   // Only attempt to publish/reconnect MQTT if Wi-Fi is connectedand checkTimmer is elapsed
   if (check_global_timer.elapsed() && WiFi.status() == WL_CONNECTED) {
 

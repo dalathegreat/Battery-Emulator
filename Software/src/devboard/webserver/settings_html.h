@@ -7,7 +7,6 @@
 extern std::string ssid;
 extern std::string password;
 
-#include "../../../USER_SETTINGS.h"  // Needed for WiFi ssid and password
 #include "../../communication/nvm/comm_nvm.h"
 
 /**

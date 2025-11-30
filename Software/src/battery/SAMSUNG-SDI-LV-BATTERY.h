@@ -4,10 +4,6 @@
 #include "../datalayer/datalayer.h"
 #include "CanBattery.h"
 
-#ifdef SAMSUNG_SDI_LV_BATTERY
-#define SELECTED_BATTERY_CLASS SamsungSdiLVBattery
-#endif
-
 class SamsungSdiLVBattery : public CanBattery {
  public:
   virtual void setup(void);

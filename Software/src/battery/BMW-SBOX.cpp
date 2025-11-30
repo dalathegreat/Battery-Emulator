@@ -103,8 +103,7 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
       SBOX_100.data.u8[0] = 0x55;  // All open
 
       if (datalayer.system.status.battery_allows_contactor_closing &&
-          datalayer.system.status.inverter_allows_contactor_closing &&
-          !datalayer.system.settings.equipment_stop_active &&
+          datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active &&
           (datalayer.shunt.measured_voltage_mV > MINIMUM_INPUT_VOLTAGE * 1000)) {
         contactorStatus = PRECHARGE;
       }
@@ -112,8 +111,7 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
     // In case the inverter requests contactors to open, set the state accordingly
     if (contactorStatus == COMPLETED) {
       //Incase inverter (or estop) requests contactors to open, make state machine jump to Disconnected state (recoverable)
-      if (!datalayer.system.status.inverter_allows_contactor_closing ||
-          datalayer.system.settings.equipment_stop_active) {
+      if (!datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.info.equipment_stop_active) {
         contactorStatus = DISCONNECTED;
       }
     }
