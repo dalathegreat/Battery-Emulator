@@ -91,6 +91,13 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_35; }
   virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
 
+  // CHAdeMO support pin dependencies
+  virtual gpio_num_t CHADEMO_PIN_2() { return GPIO_NUM_16; }
+  virtual gpio_num_t CHADEMO_PIN_10() { return GPIO_NUM_15; }
+  virtual gpio_num_t CHADEMO_PIN_7() { return GPIO_NUM_47; }
+  virtual gpio_num_t CHADEMO_PIN_4() { return GPIO_NUM_4; }
+  virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_40; }
+
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() {
     if (user_selected_gpioopt1 == GPIOOPT1::I2C_DISPLAY_SSD1306) {
