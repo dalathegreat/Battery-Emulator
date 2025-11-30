@@ -61,8 +61,8 @@ class Mg5Battery : public CanBattery {
   const int TricklePower = 20;  // Minimimum trickle charge or discharge power (W)
 
   const int MaxDischargePower = 10000;  // Maximum allowable discharge power, excluding the taper
-  const int MinSoC = 20;               // Minimum SoC allowed
-  const int StartDischargeTaper = 30;  // Battery percentage below which the discharge power will taper to zero
+  const int MinSoC = 10;               // Minimum SoC allowed
+  const int StartDischargeTaper = 20;  // Battery percentage below which the discharge power will taper to zero
   const float DischargeTaperExponent =1;  // Shape of discharge power taper to zero. 1 is linear. >1 red
 
    
@@ -75,9 +75,9 @@ class Mg5Battery : public CanBattery {
   bool userRequestContactorClose = false;
   unsigned long uds_req_started_ms = 0;
   unsigned long uds_timeout_ms  = 0;
-  const unsigned long UDS_PID_REFRESH_MS = 800;     // inter-request gap
-  const unsigned long UDS_TIMEOUT_BEFORE_FF_MS = 1000;   // no reply yet
-  const unsigned long UDS_TIMEOUT_AFTER_FF_MS  = 3000;  // multi-frame in progress
+  const unsigned long UDS_PID_REFRESH_MS = 500;     // inter-request gap
+  const unsigned long UDS_TIMEOUT_BEFORE_FF_MS = 1100;   // no reply yet
+  const unsigned long UDS_TIMEOUT_AFTER_FF_MS  = 1100;  // multi-frame in progress
   const unsigned long UDS_TIMEOUT_AFTER_BOOT = 2000;   // DELAY TO START UDS AFTER BOOT-UP
   const unsigned long TESTER_PRESENT_PERIOD_MS = 1000;  // ~1 s
 
