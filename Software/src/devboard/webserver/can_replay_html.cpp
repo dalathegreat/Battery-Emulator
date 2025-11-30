@@ -35,8 +35,8 @@ String can_replay_processor(void) {
   content += "<select id='canInterface' name='canInterface'>";
   content += "<option value='" + String(CAN_NATIVE) + "' " +
              (datalayer.system.info.can_replay_interface == CAN_NATIVE ? "selected" : "") + ">CAN Native</option>";
-  content += "<option value='" + String(CANFD_NATIVE) + "' " +
-             (datalayer.system.info.can_replay_interface == CANFD_NATIVE ? "selected" : "") + ">CANFD Native</option>";
+  // content += "<option value='" + String(CANFD_NATIVE) + "' " +
+  //            (datalayer.system.info.can_replay_interface == CANFD_NATIVE ? "selected" : "") + ">CANFD Native</option>";
   content += "<option value='" + String(CAN_ADDON_MCP2515) + "' " +
              (datalayer.system.info.can_replay_interface == CAN_ADDON_MCP2515 ? "selected" : "") +
              ">CAN Addon MCP2515</option>";
