@@ -594,6 +594,9 @@ void init_webserver() {
       } else if (p->name() == "LEDMODE") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("LEDMODE", type);
+      } else if (p->name() == "GPIOOPT1") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GPIOOPT1", type);
       }
 
       for (auto& boolSetting : boolSettings) {

@@ -19,3 +19,5 @@ std::string getBMSStatus(bms_status_enum status) {
       return "UNKNOWN";
   }
 }
+
+GPIOOPT1 user_selected_gpioopt1 = GPIOOPT1::DEFAULT_OPT;

@@ -124,6 +124,19 @@ const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   }
 }
 
+const char* name_for_gpioopt1(GPIOOPT1 option) {
+  switch (option) {
+    case GPIOOPT1::DEFAULT_OPT:
+      return "WUP1 / WUP2";
+    case GPIOOPT1::I2C_DISPLAY_SSD1306:
+      return "I2C Display (SSD1306)";
+    case GPIOOPT1::ESTOP_BMS_POWER:
+      return "E-Stop / BMS Power";
+    default:
+      return nullptr;
+  }
+}
+
 // Special unicode characters
 const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
 const char* FALSE_CHAR_CODE = "\u2715";  //&#10005";
@@ -209,6 +222,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "LEDMODE") {
     return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
+  }
+
+  if (var == "GPIOOPT1") {
+    return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
+                                      name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
   }
 
   // All other values are wrapped by html_escape to avoid HTML injection.
@@ -766,6 +784,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       return "UNKNOWN";
   }
 }
+
+#ifdef HW_LILYGO2CAN
+#define GPIOOPT1_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT1">Configurable port:</label>
+    <select id="GPIOOPT1" name="GPIOOPT1">
+      %GPIOOPT1%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT1_SETTING ""
+#endif
 
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
@@ -1330,6 +1360,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label for='LEDMODE'>Status LED pattern: </label><select name='LEDMODE' id='LEDMODE'>
         %LEDMODE%
         </select>
+
+        )rawliteral" GPIOOPT1_SETTING R"rawliteral(
 
         </div>
         </div>
