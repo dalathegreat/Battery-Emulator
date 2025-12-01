@@ -38,7 +38,7 @@ void EcmpBattery::update_values() {
 
     datalayer.battery.status.voltage_dV = battery_voltage * 10;
 
-// If High Precision Curent is avilable, use it
+    // If High Precision Curent is avilable, use it
     if (pid_current != NOT_SAMPLED_YET) {
       datalayer.battery.status.current_dA = (int16_t)(pid_current / 100);
     } else {
@@ -1292,7 +1292,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       }
 
     } else {  //Normal PID polling goes here
-      
+
       // Sample High Precison Current every time
       ECMP_POLL.data.u8[2] = (uint8_t)((PID_CURRENT & 0xFF00) >> 8);
       ECMP_POLL.data.u8[3] = (uint8_t)(PID_CURRENT & 0x00FF);
