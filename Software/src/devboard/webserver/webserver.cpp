@@ -594,6 +594,9 @@ void init_webserver() {
       } else if (p->name() == "LEDMODE") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("LEDMODE", type);
+      } else if (p->name() == "GPIOOPT1") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GPIOOPT1", type);
       }
 
       for (auto& boolSetting : boolSettings) {
@@ -1351,15 +1354,17 @@ String processor(const String& var) {
     } else {  //contactor_control_enabled TRUE
       content += "<div class=\"tooltip\"><h4>Contactors controlled by emulator, state: ";
       if (datalayer.system.status.contactors_engaged == 0) {
-        content += "<span style='color: green;'>PRECHARGE</span>";
+        content += "<span style='color: red;'>OFF (DISCONNECTED)</span>";
       } else if (datalayer.system.status.contactors_engaged == 1) {
         content += "<span style='color: green;'>ON</span>";
       } else if (datalayer.system.status.contactors_engaged == 2) {
-        content += "<span style='color: red;'>OFF</span>";
+        content += "<span style='color: red;'>OFF (FAULT)</span>";
         content += "<span class=\"tooltip-icon\"> [!]</span>";
         content +=
             "<span class=\"tooltiptext\">Emulator spent too much time in critical FAULT event. Investigate event "
             "causing this via Events page. Reboot required to resume operation!</span>";
+      } else if (datalayer.system.status.contactors_engaged == 3) {
+        content += "<span style='color: orange;'>PRECHARGE</span>";
       }
       content += "</h4></div>";
       if (contactor_control_enabled_double_battery && battery2) {

@@ -204,6 +204,7 @@ void handle_contactors() {
         dbg_contactors("NEGATIVE");
         prechargeStartTime = currentTime;
         contactorStatus = PRECHARGE;
+        datalayer.system.status.contactors_engaged = 3;
         break;
 
       case PRECHARGE:
@@ -212,6 +213,7 @@ void handle_contactors() {
           dbg_contactors("PRECHARGE");
           negativeStartTime = currentTime;
           contactorStatus = POSITIVE;
+          datalayer.system.status.contactors_engaged = 3;
         }
         break;
 
@@ -221,6 +223,7 @@ void handle_contactors() {
           dbg_contactors("POSITIVE");
           prechargeCompletedTime = currentTime;
           contactorStatus = PRECHARGE_OFF;
+          datalayer.system.status.contactors_engaged = 3;
         }
         break;
 

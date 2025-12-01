@@ -38,6 +38,66 @@ void MaxusEV80Battery::
 
 void MaxusEV80Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
+    case 0x1805F301:  //3C,0A,34,35,00,00,00,00,
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x18DDF301:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x1805F302:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x18DEF301:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x18DDF302:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x18DEF302:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x1809F301:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x1809F302:  //0
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x1806F301:  //D9,6C,DA,6C,DA,6C,DA,6C,
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x1807F301:  //DA,6C,DA,6C,DA,6C,DA,6C,
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x1804F301:  //D7,0C,DA,0C,2B,9A,80,D0,
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x1804F302:  //D8,0C,DC,0C,18,71,80,D0,
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x1806F302:  //,DA,6C,DA,6C,DA,6C,DA,6C,
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x1807F302:  //DA,6C,DA,6C,DA,6C,DA,6C,
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x180AF301:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x180CF301:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x180AF302:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x180CF302:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x1808F301:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x1808F302:  //,01,35,35,35,35,35,FF,FF, (temps?)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
     case 0x7C8:  //Poll reply from BMS
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 

@@ -11,34 +11,6 @@ Still TODO:
 - Automatically detect what vehicle and battery size we are on (Zoe 22/41 , Kangoo 33, Fluence ZE 22/36)
 
  Do not change code below unless you are sure what you are doing */
-
-CAN_frame ZOE_423 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x423,
-                     .data = {0x07, 0x1d, 0x00, 0x02, 0x5d, 0x80, 0x5d, 0xc8}};
-CAN_frame ZOE_POLL_79B = {.FD = false,
-                          .ext_ID = false,
-                          .DLC = 8,
-                          .ID = 0x79B,
-                          .data = {0x02, 0x21, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame ZOE_ACK_79B = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x79B,
-                         .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-#define GROUP1_CELLVOLTAGES_1_POLL 0x41
-#define GROUP2_CELLVOLTAGES_2_POLL 0x42
-#define GROUP3_METRICS 0x61
-#define GROUP4_SOC 0x03
-#define GROUP5_TEMPERATURE_POLL 0x04
-#define GROUP6_BALANCING 0x07
-
-static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
-static unsigned long previousMillis250 = 0;  // will store last time a 250ms CAN Message was sent
-static uint8_t counter_423 = 0;
-
 void RenaultZoeGen1Battery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer_battery->status.soh_pptt = (LB_SOH * 100);  // Increase range from 99% -> 99.00%
