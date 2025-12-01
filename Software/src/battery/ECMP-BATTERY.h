@@ -423,6 +423,7 @@ class EcmpBattery : public CanBattery {
   int16_t battery_lowestTemperature = 0;
   int16_t HV_BATT_COP_CURRENT = 0;
 
+  uint8_t HighPrecisionCurrentSampling = 1;
   uint8_t ContactorResetStatemachine = 0;
   uint8_t CollisionResetStatemachine = 0;
   uint8_t IsolationResetStatemachine = 0;
