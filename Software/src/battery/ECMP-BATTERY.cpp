@@ -38,7 +38,12 @@ void EcmpBattery::update_values() {
 
     datalayer.battery.status.voltage_dV = battery_voltage * 10;
 
-    datalayer.battery.status.current_dA = -(battery_current * 10);
+// If High Precision Curent is avilable, use it
+    if (pid_current != NOT_SAMPLED_YET) {
+      datalayer.battery.status.current_dA = (int16_t)(pid_current / 100);
+    } else {
+      datalayer.battery.status.current_dA = -(battery_current * 10);
+    }
 
     datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
         ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
@@ -1287,6 +1292,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       }
 
     } else {  //Normal PID polling goes here
+      
+      // Sample High Precison Current every time
+      ECMP_POLL.data.u8[2] = (uint8_t)((PID_CURRENT & 0xFF00) >> 8);
+      ECMP_POLL.data.u8[3] = (uint8_t)(PID_CURRENT & 0x00FF);
+      transmit_can_frame(&ECMP_POLL);
 
       if (datalayer.battery.status.bms_status != FAULT) {  //Stop PID polling if battery is in FAULT mode
 
@@ -1384,11 +1394,6 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
           case PID_AVG_CELL_VOLTAGE:
             ECMP_POLL.data.u8[2] = (uint8_t)((PID_AVG_CELL_VOLTAGE & 0xFF00) >> 8);
             ECMP_POLL.data.u8[3] = (uint8_t)(PID_AVG_CELL_VOLTAGE & 0x00FF);
-            poll_state = PID_CURRENT;
-            break;
-          case PID_CURRENT:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_CURRENT & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_CURRENT & 0x00FF);
             poll_state = PID_INSULATION_NEG;
             break;
           case PID_INSULATION_NEG:
