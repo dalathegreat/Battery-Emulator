@@ -34,7 +34,7 @@ void CmfaEvBattery::
 
   datalayer_battery->status.current_dA = current * 10;
 
-  datalayer_battery->status.voltage_dV = pack_voltage / 2;
+  datalayer_battery->status.voltage_dV = pack_voltage * 5;
 
   datalayer_battery->info.total_capacity_Wh = 27000;
 
