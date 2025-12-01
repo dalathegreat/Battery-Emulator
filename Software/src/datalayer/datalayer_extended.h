@@ -247,6 +247,8 @@ struct DATALAYER_INFO_CMFAEV {
   uint64_t cumulative_energy_when_charging = 0;
   uint64_t cumulative_energy_in_regen = 0;
 
+  uint32_t average_voltage_of_cells = 0;
+
   uint16_t soc_z = 0;
   uint16_t soc_u = 0;
   uint16_t soh_average = 0;

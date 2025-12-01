@@ -77,6 +77,7 @@ void CmfaEvBattery::
     datalayer_cmfa->cumulative_energy_when_charging = cumulative_energy_when_charging;
     datalayer_cmfa->cumulative_energy_in_regen = cumulative_energy_in_regen;
     datalayer_cmfa->soh_average = soh_average;
+    datalayer_cmfa->average_voltage_of_cells = average_voltage_of_cells;
   }
 }
 

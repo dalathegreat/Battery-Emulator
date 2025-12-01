@@ -228,7 +228,7 @@ class CmfaEvBattery : public CanBattery {
   uint32_t SOC_raw = 0;
   uint16_t SOH = 99;
   int16_t current = 0;
-  uint16_t pack_voltage = 2700;
+  uint16_t pack_voltage = 500;
   int16_t highest_cell_temperature = 0;
   int16_t lowest_cell_temperature = 0;
   uint32_t discharge_power_w = 0;
