@@ -372,7 +372,8 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
               cell_index -= 1;  // Account for missing 0x9080
             }
 
-            datalayer_battery->status.cell_voltages_mV[cell_index] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            datalayer_battery->status.cell_voltages_mV[cell_index] =
+                (uint16_t)(((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.976563);
           }
           break;
       }
