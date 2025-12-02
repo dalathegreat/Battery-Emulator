@@ -454,6 +454,9 @@ void init_webserver() {
       } else if (p->name() == "BATT2COMM") {
         auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
         settings.saveUInt("BATT2COMM", (int)type);
+      } else if (p->name() == "DBLCHGFACTOR") {
+        auto factor = atoi(p->value().c_str());
+        settings.saveUInt("DBLCHGFACTOR", factor);
       } else if (p->name() == "shunt") {
         auto type = static_cast<ShuntType>(atoi(p->value().c_str()));
         settings.saveUInt("SHUNTTYPE", (int)type);
