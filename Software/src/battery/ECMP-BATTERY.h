@@ -423,7 +423,6 @@ class EcmpBattery : public CanBattery {
   int16_t battery_lowestTemperature = 0;
   int16_t HV_BATT_COP_CURRENT = 0;
 
-  uint8_t HighPrecisionCurrentSampling = 1;
   uint8_t ContactorResetStatemachine = 0;
   uint8_t CollisionResetStatemachine = 0;
   uint8_t IsolationResetStatemachine = 0;
@@ -489,6 +488,7 @@ class EcmpBattery : public CanBattery {
   int8_t BMS_PROBETEMP[7] = {0};
   int8_t TEMPERATURE_MINIMUM_C = 0;
 
+  bool HighPrecisionCurrentSampling = 1;
   bool CMD_RESET_MIL = false;
   bool REQ_BLINK_STOP_AND_SERVICE_LAMP = false;
   bool REQ_MIL_LAMP_CONTINOUS = false;
