@@ -7,7 +7,6 @@
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
-#include "../../inverter/KOSTAL-RS485.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
 #include "../utils/timer.h"
@@ -89,8 +88,8 @@ static void publish_values(void) {
 
 static bool ha_common_info_published = false;
 static bool ha_cell_voltages_published = false;
-static bool ha_buttons_published = false;
 static bool ha_events_published = false;
+static bool ha_buttons_published = false;
 struct SensorConfig {
   const char* object_id;
   const char* name;
@@ -132,12 +131,10 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"balancing_active_cells", "Balancing Active Cells", "", "", "", always},
     {"balancing_status", "Balancing Status", "", "", "", always}};
 
-SensorConfig globalSensorConfigTemplate[] = {
-    {"bms_status", "BMS Status", "", "", "", always},
-    {"pause_status", "Pause Status", "", "", "", always},
-    {"event_level", "Event Level", "", "", "", always},
-    {"emulator_status", "Emulator Status", "", "", "", always},
-    {"secondary_contactor_state", "Secondary Contactor State", "", "", "", always}};
+SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
+                                             {"pause_status", "Pause Status", "", "", "", always},
+                                             {"event_level", "Event Level", "", "", "", always},
+                                             {"emulator_status", "Emulator Status", "", "", "", always}};
 
 static std::list<SensorConfig> sensorConfigs;
 
@@ -168,9 +165,7 @@ SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, null
                                 {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr, nullptr},
                                 {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr, nullptr},
                                 {"RESTART", "Restart Battery Emulator", nullptr, nullptr, nullptr, nullptr},
-                                {"STOP", "Open Contactors", nullptr, nullptr, nullptr, nullptr},
-                                {"CONTACTOR_HIGH", "Open Secondary Contactor", nullptr, nullptr, nullptr, nullptr},
-                                {"CONTACTOR_LOW", "Close Secondary Contactor", nullptr, nullptr, nullptr, nullptr}};
+                                {"STOP", "Open Contactors", nullptr, nullptr, nullptr, nullptr}};
 
 static String generateCommonInfoAutoConfigTopic(const char* object_id) {
   return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
@@ -328,7 +323,6 @@ static bool publish_common_info(void) {
 
     doc["event_level"] = get_event_level_string(get_event_level());
     doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
-    doc["secondary_contactor_state"] = digitalRead(SECONDARY_CONTACTOR_PIN);
 
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
@@ -597,16 +591,6 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   if (strcmp(topic, generateButtonTopic("STOP").c_str()) == 0) {
     setBatteryPause(true, false, true);
-  }
-
-  if (strcmp(topic, generateButtonTopic("CONTACTOR_HIGH").c_str()) == 0) {
-    digitalWrite(SECONDARY_CONTACTOR_PIN, HIGH);
-    logging.println("MQTT: Secondary Contactor set to HIGH (Open)");
-  }
-
-  if (strcmp(topic, generateButtonTopic("CONTACTOR_LOW").c_str()) == 0) {
-    digitalWrite(SECONDARY_CONTACTOR_PIN, LOW);
-    logging.println("MQTT: Secondary Contactor set to LOW (Close)");
   }
 
   if (strcmp(topic, generateButtonTopic("SET_LIMITS").c_str()) == 0) {
