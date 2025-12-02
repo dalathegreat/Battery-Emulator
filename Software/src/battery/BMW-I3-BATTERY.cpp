@@ -52,7 +52,8 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     return;
   }
 
-  datalayer_battery->status.real_soc = (battery_display_SOC * 50);
+  // datalayer_battery->status.real_soc = (battery_display_SOC * 50); //Always reaches 100%
+  datalayer_battery->status.real_soc = (battery_HVBatt_SOC * 10);  //Does not always reach 100% (Experiment)
 
   datalayer_battery->status.voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
@@ -64,9 +65,18 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
 
   datalayer_battery->status.soh_pptt = battery_soh * 100;
 
-  datalayer_battery->status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
+  //Use the largest of the short/long-term charge limits
+  if (battery_BEV_available_power_longterm_discharge > battery_BEV_available_power_shortterm_discharge) {
+    datalayer_battery->status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
+  } else {
+    datalayer_battery->status.max_discharge_power_W = battery_BEV_available_power_shortterm_discharge;
+  }
 
-  datalayer_battery->status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
+  if (battery_BEV_available_power_longterm_charge > battery_BEV_available_power_shortterm_charge) {
+    datalayer_battery->status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
+  } else {
+    datalayer_battery->status.max_charge_power_W = battery_BEV_available_power_shortterm_charge;
+  }
 
   datalayer_battery->status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
 
