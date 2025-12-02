@@ -219,8 +219,9 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             if (cellnumber < MAX_AMOUNT_CELLS) {  //Prevent out of bounds array write
               uint16_t cellvoltage_reading = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
               if (cellvoltage_reading == 0) {
-                //Blown fuse/celltap. Force value to 10mV so user sees this in cellmonitor page
+                //Blown fuse/celltap. Force value to 10mV so user sees this in cellmonitor page. Also fire event
                 cellvoltage_reading = 10;
+                set_event(EVENT_BATTERY_FUSE, cellnumber);
               }
               datalayer_battery->status.cell_voltages_mV[cellnumber] = cellvoltage_reading;
             }
