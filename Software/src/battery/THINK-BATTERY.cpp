@@ -118,11 +118,14 @@ void ThinkBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void ThinkBattery::transmit_can(unsigned long currentMillis) {
-  //Send 500ms messages
+  //Send 200ms messages
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     previousMillis200 = currentMillis;
-    transmit_can_frame(&PCU_310);
-    transmit_can_frame(&PCU_311);
+
+    if (datalayer.system.status.inverter_allows_contactor_closing && (datalayer.battery.status.bms_status != FAULT)) {
+      transmit_can_frame(&PCU_310);
+      transmit_can_frame(&PCU_311);
+    }
   }
 }
 

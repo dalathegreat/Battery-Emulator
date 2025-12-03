@@ -21,7 +21,11 @@ class ThinkBattery : public CanBattery {
 
   unsigned long previousMillis200 = 0;  // will store last time a 100ms CAN Message was sent
 
-  CAN_frame PCU_310 = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x310, .data = {0x00, 0x00, 0x06}};
+  CAN_frame PCU_310 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 3,
+                       .ID = 0x310,
+                       .data = {0x00, 0x00, 0x06}};  //Charger Status & TIM Status = TRUE
   CAN_frame PCU_311 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x311, .data = {0x00, 0x00}};
 
   uint16_t sys_voltage = 0;
