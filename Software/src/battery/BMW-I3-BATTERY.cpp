@@ -52,8 +52,13 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     return;
   }
 
-  // datalayer_battery->status.real_soc = (battery_display_SOC * 50); //Always reaches 100%
-  datalayer_battery->status.real_soc = (battery_HVBatt_SOC * 10);  //Does not always reach 100% (Experiment)
+  datalayer_battery->status.real_soc = (battery_display_SOC * 50);  //Always reaches 100%
+  if (datalayer_battery->status.real_soc == 10000) {                //If fully charged
+    if (datalayer_battery->status.max_charge_power_W > 0) {         //But still allowing power into battery
+      //Set SOC to 99.9% to avoid safety.cpp blocking balance-charge
+      datalayer_battery->status.real_soc = 9990;
+    }
+  }
 
   datalayer_battery->status.voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
