@@ -747,4 +747,8 @@ void CmfaEvBattery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+
+  for (size_t i = 0; i < 73; i++) {
+    datalayer_battery->status.cell_voltages_mV[i] = 10;
+  }
 }
