@@ -95,13 +95,6 @@ void EcmpBattery::update_values() {
       datalayer.battery.status.voltage_dV = pid_pack_voltage + 800;
     }
 
-    if (pid_current != NOT_SAMPLED_YET) {
-      datalayer.battery.status.current_dA = (int16_t)(pid_current / 100);
-
-      datalayer.battery.status.active_power_W =
-          (uint16_t)((pid_current / 1000.0f) * (datalayer.battery.status.voltage_dV / 10.0f));
-    }
-
     if (pid_max_charge_10s != NOT_SAMPLED_YET) {
       datalayer.battery.status.max_charge_power_W = pid_max_charge_10s;
     }
@@ -869,7 +862,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               pid_current = -(((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
                                rx_frame.data.u8[7]) -
                               76800) *
-                            20;
+                            16;
               break;
             case PID_INSULATION_NEG:
               pid_insulation_res_neg = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
