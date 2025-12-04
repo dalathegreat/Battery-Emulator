@@ -76,8 +76,11 @@ class BydAttoBattery : public CanBattery {
   uint32_t BMS_unknown0 = 0;
   uint32_t BMS_unknown1 = 0;
 
+  static const uint16_t CELLCOUNT_PLUS = 160;
   static const uint16_t CELLCOUNT_EXTENDED = 126;
   static const uint16_t CELLCOUNT_STANDARD = 104;
+  static const uint16_t MAX_PACK_VOLTAGE_PLUS_DV = 5600;      //BYD Song Plus
+  static const uint16_t MIN_PACK_VOLTAGE_PLUS_DV = 4825;      //BYD Song Plus
   static const uint16_t MAX_PACK_VOLTAGE_EXTENDED_DV = 4410;  //Extended range
   static const uint16_t MIN_PACK_VOLTAGE_EXTENDED_DV = 3800;  //Extended range
   static const uint16_t MAX_PACK_VOLTAGE_STANDARD_DV = 3640;  //Standard range
@@ -118,6 +121,7 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t NOT_DETERMINED_YET = 0;
   static const uint8_t STANDARD_RANGE = 1;
   static const uint8_t EXTENDED_RANGE = 2;
+  static const uint8_t PLUS_RANGE = 3;
   static const uint8_t NOT_RUNNING = 0xFF;
   static const uint8_t STARTED = 0;
   static const uint8_t RUNNING_STEP_1 = 1;
@@ -138,7 +142,7 @@ class BydAttoBattery : public CanBattery {
   bool BMS_voltage_available = false;
 
   int16_t battery_daughterboard_temperatures[10];
-  uint16_t battery_cellvoltages[CELLCOUNT_EXTENDED] = {0};
+  uint16_t battery_cellvoltages[CELLCOUNT_PLUS] = {0};
 
   CAN_frame ATTO_3_12D = {.FD = false,
                           .ext_ID = false,

@@ -203,11 +203,14 @@ void BydAttoBattery::
 
   // Check if we are on Standard range or Extended range battery.
   // We use a variety of checks to ensure we catch a potential Standard range battery
+  if ((battery_cellvoltages[155] > 0)) {
+    battery_type = PLUS_RANGE;  //BYD Song Plus
+  }
   if ((battery_cellvoltages[125] > 0) && (battery_type == NOT_DETERMINED_YET)) {
-    battery_type = EXTENDED_RANGE;
+    battery_type = EXTENDED_RANGE;  //Extended range Atto 3
   }
   if ((battery_cellvoltages[104] == 4095) && (battery_type == NOT_DETERMINED_YET)) {
-    battery_type = STANDARD_RANGE;  //This cell reading is always 4095 on Standard range
+    battery_type = STANDARD_RANGE;  //This cell reading is always 4095 on Standard range Atto 3
   }
   if ((battery_daughterboard_temperatures[9] == 215) && (battery_type == NOT_DETERMINED_YET)) {
     battery_type = STANDARD_RANGE;  //Sensor 10 is missing on Standard range
@@ -228,6 +231,12 @@ void BydAttoBattery::
       datalayer_battery->info.number_of_cells = CELLCOUNT_EXTENDED;
       datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_EXTENDED_DV;
       datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_EXTENDED_DV;
+      break;
+    case PLUS_RANGE:
+      datalayer_battery->info.total_capacity_Wh = 87000;
+      datalayer_battery->info.number_of_cells = CELLCOUNT_PLUS;
+      datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_PLUS_DV;
+      datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_PLUS_DV;
       break;
     case NOT_DETERMINED_YET:
     default:
@@ -382,7 +391,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_frame_index = rx_frame.data.u8[0];
 
-      if (battery_frame_index < (CELLCOUNT_EXTENDED / 3)) {
+      if (battery_frame_index < (CELLCOUNT_PLUS / 3)) {
         uint8_t base_index = battery_frame_index * 3;
         for (uint8_t i = 0; i < 3; i++) {
           battery_cellvoltages[base_index + i] =
@@ -711,7 +720,7 @@ void BydAttoBattery::setup(void) {  // Performs one time setup at startup
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.number_of_cells = CELLCOUNT_STANDARD;
   datalayer_battery->info.chemistry = battery_chemistry_enum::LFP;
-  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_EXTENDED_DV;  //Startup in extremes
+  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_PLUS_DV;      //Startup in extremes
   datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_STANDARD_DV;  //We later determine range
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
