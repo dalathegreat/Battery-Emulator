@@ -742,7 +742,12 @@ void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
         break;
     }
 
-    transmit_can_frame(&CMFA_POLLING_FRAME);
+    if (UserRequestDTCclear) {
+      transmit_can_frame(&CMFA_CLEAR_DTC);
+      UserRequestDTCclear = false;
+    } else {  //Normal PID polling
+      transmit_can_frame(&CMFA_POLLING_FRAME);
+    }
   }
 }
 
