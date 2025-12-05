@@ -83,7 +83,11 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   }
   mbPV[300] = datalayer.battery.status.bms_status;
   mbPV[302] = 128 + bms_char_dis_status;
-  mbPV[303] = datalayer.battery.status.reported_soc;
+  if (datalayer.battery.status.reported_soc < 100) {
+    mbPV[303] = 100;  //Force SOC to never go below 1% to avoid overdischarge
+  } else {
+    mbPV[303] = datalayer.battery.status.reported_soc;
+  }
   if (battery2) {
     mbPV[304] = std::min(datalayer.battery.info.total_capacity_Wh + datalayer.battery2.info.total_capacity_Wh,
                          static_cast<uint32_t>(60000u));  //Cap to 60kWh
