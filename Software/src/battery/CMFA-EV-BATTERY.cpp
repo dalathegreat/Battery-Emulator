@@ -232,7 +232,7 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               cellvoltage_reading = 10;
               set_event(EVENT_BATTERY_FUSE, cellnumber);
             }
-            datalayer_battery->status.cell_voltages_mV[cellnumber] = cellvoltage_reading;
+            datalayer_battery->status.cell_voltages_mV[cellnumber] = cellvoltage_reading * 0.976563;
           }
 
           break;
