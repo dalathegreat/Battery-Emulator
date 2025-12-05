@@ -140,6 +140,7 @@ add_executable(tests
     ../Software/src/battery/SONO-BATTERY.cpp
     ../Software/src/battery/TESLA-BATTERY.cpp
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
+    ../Software/src/battery/THINK-BATTERY.cpp
     ../Software/src/battery/VOLVO-SPA-BATTERY.cpp
     ../Software/src/battery/VOLVO-SPA-HYBRID-BATTERY.cpp
     ../Software/src/inverter/AFORE-CAN.cpp
