@@ -333,7 +333,7 @@ class BmwI3Battery : public CanBattery {
   uint32_t battery_BEV_available_power_longterm_charge = 0;
   uint32_t battery_BEV_available_power_longterm_discharge = 0;
   uint16_t battery_energy_content_maximum_Wh = 0;
-  uint16_t battery_display_SOC = 0;
+  uint16_t battery_display_SOC = 100;
   uint16_t battery_volts = 0;
   uint16_t battery_HVBatt_SOC = 0;
   uint16_t battery_DC_link_voltage = 0;
