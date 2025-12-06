@@ -5,6 +5,7 @@
 
 Battery* battery = nullptr;
 Battery* battery2 = nullptr;
+Battery* battery3 = nullptr;
 
 std::vector<BatteryType> supported_battery_types() {
   std::vector<BatteryType> types;
@@ -140,6 +141,7 @@ battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_defau
 
 BatteryType user_selected_battery_type = BatteryType::NissanLeaf;
 bool user_selected_second_battery = false;
+bool user_selected_triple_battery = false;
 
 Battery* create_battery(BatteryType type) {
   switch (type) {
@@ -288,6 +290,21 @@ void setup_battery() {
 
     if (battery2) {
       battery2->setup();
+    }
+  }
+
+  if (user_selected_triple_battery && !battery3) {
+    switch (user_selected_battery_type) {
+      case BatteryType::NissanLeaf:
+        battery3 = new NissanLeafBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
+        break;
+      default:
+        DEBUG_PRINTF("User tried enabling triple battery on non-supported integration!\n");
+        break;
+    }
+
+    if (battery3) {
+      battery3->setup();
     }
   }
 }

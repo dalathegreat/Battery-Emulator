@@ -204,6 +204,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_comm_interface);
   }
 
+  if (var == "BATT3COMM") {
+    return options_for_enum((comm_interface)settings.getUInt("BATT3COMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+
   if (var == "GTWCOUNTRY") {
     return options_from_map(settings.getUInt("GTWCOUNTRY", 0), tesla_countries);
   }
@@ -313,6 +318,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("DBLBTR") ? "checked" : "";
   }
 
+  if (var == "TRIBTR") {
+    return settings.getBool("TRIBTR") ? "checked" : "";
+  }
+
   if (var == "SOCESTIMATED") {
     return settings.getBool("SOCESTIMATED") ? "checked" : "";
   }
@@ -327,6 +336,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "CNTCTRLDBL") {
     return settings.getBool("CNTCTRLDBL") ? "checked" : "";
+  }
+
+  if (var == "CNTCTRLTRI") {
+    return settings.getBool("CNTCTRLTRI") ? "checked" : "";
   }
 
   if (var == "PWMCNTCTRL") {
@@ -1002,6 +1015,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-tribtr { display: none; }
+    form[data-tribtr="true"] .if-tribtr {
+      display: contents;
+    }
+
     form .if-pwmcntctrl { display: none; }
     form[data-pwmcntctrl="true"] .if-pwmcntctrl {
       display: contents;
@@ -1182,6 +1200,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <select name='BATT2COMM'>
                 %BATT2COMM%
             </select>
+
+        <label>Triple battery: </label>
+        <input type='checkbox' name='TRIBTR' value='on' %TRIBTR% 
+        title="Enable this option if you intend to run three batteries in parallel" />
+
+        <div class="if-tribtr">
+        <label>Battery 3 interface: </label>
+        <select name='BATT3COMM'>
+            %BATT3COMM%
+        </select>
+        </div>
+
         </div>
 
         </div>
@@ -1311,6 +1341,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-dblbtr">
             <label>Double-Battery Contactor control via GPIO: </label>
             <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
+            <label>Triple-Battery Contactor control via GPIO: </label>
+            <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
         </div>
 
         <label>Contactor control via GPIO: </label>

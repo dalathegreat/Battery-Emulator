@@ -128,16 +128,19 @@ void init_stored_settings() {
 
   can_config.battery = readIf("BATTCOMM");
   can_config.battery_double = readIf("BATT2COMM");
+  can_config.battery_triple = readIf("BATT3COMM");
   can_config.inverter = readIf("INVCOMM");
   can_config.charger = readIf("CHGCOMM");
   can_config.shunt = readIf("SHUNTCOMM");
 
   equipment_stop_behavior = (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
   user_selected_second_battery = settings.getBool("DBLBTR", false);
+  user_selected_triple_battery = settings.getBool("TRIBTR", false);
   contactor_control_enabled = settings.getBool("CNTCTRL", false);
   contactor_control_inverted_logic = settings.getBool("NCCONTACTOR", false);
   precharge_time_ms = settings.getUInt("PRECHGMS", 100);
   contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);
+  contactor_control_enabled_triple_battery = settings.getBool("CNTCTRLTRI", false);
   pwm_contactor_control = settings.getBool("PWMCNTCTRL", false);
   pwm_frequency = settings.getUInt("PWMFREQ", 20000);
   pwm_hold_duty = settings.getUInt("PWMHOLD", 250);
