@@ -14,6 +14,16 @@
 #include <algorithm>
 #include <map>
 
+// The spare ESP32 SPI buses are called HSPI and VSPI, whereas on a ESP32S3
+// they are called FSPI and HSPI.
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+#define SPI2515_BUS HSPI
+#define SPI2517_BUS FSPI
+#else
+#define SPI2515_BUS VSPI
+#define SPI2517_BUS HSPI
+#endif
+
 volatile CAN_Configuration can_config = {.battery = CAN_NATIVE,
                                          .inverter = CAN_NATIVE,
                                          .battery_double = CAN_ADDON_MCP2515,
@@ -43,7 +53,7 @@ uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin);
 ACAN_ESP32_Settings* settingsespcan = nullptr;
 
 static uint32_t QUARTZ_FREQUENCY;
-SPIClass SPI2515;
+SPIClass SPI2515(SPI2515_BUS);
 uint8_t user_selected_can_addon_crystal_frequency_mhz = 0;
 
 ACAN2515* can2515;
@@ -52,7 +62,7 @@ ACAN2515Settings* settings2515;
 static ACAN2515_Buffer16 gBuffer;
 
 static ACAN2517FDSettings::Oscillator quartz_fd_frequency;
-SPIClass SPI2517;
+SPIClass SPI2517(SPI2517_BUS);
 uint8_t user_selected_canfd_addon_crystal_frequency_mhz = 0;
 ACAN2517FD* canfd;
 ACAN2517FDSettings* settings2517;

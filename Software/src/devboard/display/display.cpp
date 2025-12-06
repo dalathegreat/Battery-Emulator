@@ -287,7 +287,6 @@ static void print_battery_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status,
   memset(buf, ' ', sizeof(buf));
 
   print3(buf, status.reported_soc / 100);
-  printf(buf, 10000);
   buf[3] = '%';
   buf[4] = '\0';
   write_tall_text(0, row, buf, false);
