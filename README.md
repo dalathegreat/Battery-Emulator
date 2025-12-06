@@ -46,6 +46,14 @@ Start by watching this [quickstart guide](https://www.youtube.com/watch?v=sR3t7j
 5. (OPTIONAL, connect the board to your home Wifi)
 6. Connect your battery and inverter to the board and you are done! 🔋⚡
 
+## MQTT controls 🛰️
+Home Assistant auto-discovery already exposes sensors for most telemetry.  
+New in this branch: Tesla LFP balancing can be controlled via MQTT.
+
+- Publish `ON`/`OFF` (or `1`/`0`) to `<topic>/command/TESLA_BALANCING` to toggle the manual balancing request flag that was previously web UI only.
+- The current state is retained on `<topic>/tesla_balancing/state` and also appears as `manual_balancing_active` in the `<topic>/info` payload.
+- When MQTT Home Assistant auto-discovery is enabled, a `switch` entity named “Tesla LFP Balancing” is automatically created so automations can enable balancing based on time-of-day or SOC.
+
 ## Dependencies 📖
 This code uses the following excellent libraries: 
 - [adafruit/Adafruit_NeoPixel](https://github.com/adafruit/Adafruit_NeoPixel) LGPL-3.0 license
