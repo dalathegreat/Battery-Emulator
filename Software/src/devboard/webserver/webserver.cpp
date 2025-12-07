@@ -923,8 +923,6 @@ String processor(const String& var) {
     content += "  padding: 8px;";
     content += "  position: absolute;";
     content += "  z-index: 1;";
-    content += "  bottom: 125%;";
-    content += "  left: 50%;";
     content += "  margin-left: -100px;";
     content += "  opacity: 0;";
     content += "  transition: opacity 0.3s;";
