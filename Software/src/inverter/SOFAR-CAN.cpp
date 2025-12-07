@@ -32,8 +32,8 @@ void SofarInverter::
   // Voltage (e.g. 370.0V -> 3700 dV), Current in dA, Temperature in dC
   SOFAR_356.data.u8[0] = (datalayer.battery.status.voltage_dV & 0x00FF);
   SOFAR_356.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
-  SOFAR_356.data.u8[2] = (datalayer.battery.status.current_dA & 0x00FF);
-  SOFAR_356.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
+  SOFAR_356.data.u8[2] = (datalayer.battery.status.reported_current_dA & 0x00FF);
+  SOFAR_356.data.u8[3] = (datalayer.battery.status.reported_current_dA >> 8);
   SOFAR_356.data.u8[4] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
   SOFAR_356.data.u8[5] = (datalayer.battery.status.temperature_max_dC >> 8);
 

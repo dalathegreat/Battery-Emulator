@@ -213,6 +213,14 @@ void update_calculated_values(unsigned long currentMillis) {
     }
   }
 
+  /* Calculate sum of all currents from all batteries*/
+  if (battery2) {
+    datalayer.battery.status.reported_current_dA =
+        (datalayer.battery.status.current_dA + datalayer.battery2.status.current_dA);
+  } else {
+    datalayer.battery.status.reported_current_dA = datalayer.battery.status.current_dA;
+  }
+
   /* Calculate active power based on voltage and current*/
   datalayer.battery.status.active_power_W =
       (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
