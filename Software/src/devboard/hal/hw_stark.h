@@ -62,6 +62,7 @@ class StarkHal : public Esp32Hal {
   virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_25; }
   virtual gpio_num_t BMS_POWER() { return GPIO_NUM_23; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_19; }
+  virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
 
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_19; }

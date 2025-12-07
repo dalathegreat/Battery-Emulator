@@ -8,6 +8,7 @@
 extern bool contactor_control_enabled;
 extern bool contactor_control_inverted_logic;
 extern bool contactor_control_enabled_double_battery;
+extern bool contactor_control_enabled_triple_battery;
 extern bool pwm_contactor_control;
 extern bool periodic_bms_reset;
 extern bool remote_bms_reset;
@@ -59,5 +60,14 @@ void handle_contactors();
  * @return void
  */
 void handle_contactors_battery2();
+
+/**
+ * @brief Handle contactors of battery 3
+ *
+ * @param[in] void
+ *
+ * @return void
+ */
+void handle_contactors_battery3();
 
 #endif
