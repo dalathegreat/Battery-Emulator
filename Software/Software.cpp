@@ -246,10 +246,14 @@ void update_calculated_values(unsigned long currentMillis) {
   }
 
   /* Calculate sum of all currents from all batteries*/
-  if (battery2) {
+  if (battery3) {
+    datalayer.battery.status.reported_current_dA =
+        (datalayer.battery.status.current_dA + datalayer.battery2.status.current_dA +
+         datalayer.battery3.status.current_dA);
+  } else if (battery2) {
     datalayer.battery.status.reported_current_dA =
         (datalayer.battery.status.current_dA + datalayer.battery2.status.current_dA);
-  } else {
+  } else {  // Only one battery in use
     datalayer.battery.status.reported_current_dA = datalayer.battery.status.current_dA;
   }
 
