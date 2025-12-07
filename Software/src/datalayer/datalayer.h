@@ -348,10 +348,13 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   bool battery_allows_contactor_closing = false;
   /** True if the second battery is allowed to close the contactors */
   bool battery2_allowed_contactor_closing = false;
+  /** True if the third battery is allowed to close the contactors */
+  bool battery3_allowed_contactor_closing = false;
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
   /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
   bool contactors_battery2_engaged = false;
+  bool contactors_battery3_engaged = false;
   /** State of BMS reset sequence */
   BMSResetState bms_reset_status = BMS_RESET_IDLE;
 };
@@ -365,6 +368,7 @@ class DataLayer {
  public:
   DATALAYER_BATTERY_TYPE battery;
   DATALAYER_BATTERY_TYPE battery2;
+  DATALAYER_BATTERY_TYPE battery3;
   DATALAYER_SHUNT_TYPE shunt;
   DATALAYER_CHARGER_TYPE charger;
   DATALAYER_SYSTEM_TYPE system;

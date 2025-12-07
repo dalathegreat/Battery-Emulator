@@ -588,6 +588,10 @@ size_t AsyncAbstractResponse::_fillBufferAndProcessTemplates(uint8_t *data, size
         const size_t roomTaken = pTemplateStart + numBytesCopied - pTemplateEnd - 1;
         len = std::min(len + roomTaken, originalLen);
       }
+      // Battery Emulator Fix: update pTemplateStart to point after inserted
+      // parameter value, so that % characters in the inserted value aren't
+      // parsed again
+      pTemplateStart += numBytesCopied;
     }
   }  // while(pTemplateStart)
   return len;
