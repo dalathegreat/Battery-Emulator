@@ -50,7 +50,7 @@ void RenaultZoeGen2Battery::update_values() {
   datalayer_battery->status.current_dA = ((battery_current - 32640) * 0.3125f);
 
   //Calculate the total Wh amount from SOH%
-  datalayer_battery->info.total_capacity_Wh = 52000 * (datalayer_battery->status.soh_pptt / 10000);
+  datalayer_battery->info.total_capacity_Wh = 52000 * (datalayer_battery->status.soh_pptt / 10000.0);
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
