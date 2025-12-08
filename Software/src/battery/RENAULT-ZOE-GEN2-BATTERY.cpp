@@ -49,6 +49,9 @@ void RenaultZoeGen2Battery::update_values() {
 
   datalayer_battery->status.current_dA = ((battery_current - 32640) * 0.3125f);
 
+  //Calculate the total Wh amount from SOH%
+  datalayer_battery->info.total_capacity_Wh = 52000 * (datalayer_battery->status.soh_pptt / 10000.0);
+
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
@@ -451,6 +454,7 @@ void RenaultZoeGen2Battery::setup(void) {  // Performs one time setup at startup
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer_battery->info.number_of_cells = 96;
+  datalayer_battery->info.total_capacity_Wh = 52000;
   datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
