@@ -29,7 +29,7 @@ const char* getCANInterfaceName(CAN_Interface interface);
 // Function declarations for dynamic HTML building
 String buildSettingsHtml();
 String getSettingsHtmlScripts();
-String getSettingsStyle(); 
+String getSettingsStyle();
 String getSettingsHtmlBody();
 String getGpioOpt1Setting();
 String processConditionalContent(const String& content);

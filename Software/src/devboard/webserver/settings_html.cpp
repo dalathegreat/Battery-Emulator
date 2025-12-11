@@ -1,17 +1,17 @@
 #include "settings_html.h"
 #include <Arduino.h>
+#include <string>
 #include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../../src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../../charger/CHARGERS.h"
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "LittleFS.h"
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
 #include "src/inverter/INVERTERS.h"
-#include "LittleFS.h"
-#include <string>
 
 extern bool settingsUpdated;
 
@@ -21,7 +21,7 @@ String readFileFromLittleFS(const char* filename) {
   if (!file) {
     return String("<!-- Error: Could not open file: ") + filename + " -->";
   }
-  
+
   String content = file.readString();
   file.close();
   return content;
@@ -826,17 +826,15 @@ String getGpioOpt1Setting() {
 #endif
 }
 
-
-
 // Function to process conditional content in HTML files
 // Use markers like /*#ifdef HW_LILYGO2CAN*/ and /*#endif*/ in your HTML files
 // String processConditionalContent(const String& content) {
 //   String result = content;
-  
+
 // #ifdef HW_LILYGO2CAN
 //   // Keep HW_LILYGO2CAN sections, remove others
 //   result.replace("/*#ifdef HW_LILYGO2CAN*/", "");
-  
+
 //   // Remove content between /*#ifndef HW_LILYGO2CAN*/ and /*#endif*/
 //   int start = 0;
 //   while ((start = result.indexOf("/*#ifndef HW_LILYGO2CAN*/", start)) != -1) {
@@ -847,12 +845,12 @@ String getGpioOpt1Setting() {
 //       break;
 //     }
 //   }
-  
+
 //   result.replace("/*#endif*/", "");
 // #else
-//   // Keep default sections, remove HW_LILYGO2CAN sections  
+//   // Keep default sections, remove HW_LILYGO2CAN sections
 //   result.replace("/*#ifndef HW_LILYGO2CAN*/", "");
-  
+
 //   // Remove content between /*#ifdef HW_LILYGO2CAN*/ and /*#endif*/
 //   int start = 0;
 //   while ((start = result.indexOf("/*#ifdef HW_LILYGO2CAN*/", start)) != -1) {
@@ -863,10 +861,10 @@ String getGpioOpt1Setting() {
 //       break;
 //     }
 //   }
-  
+
 //   result.replace("/*#endif*/", "");
 // #endif
-  
+
 //   return result;
 // }
 
@@ -884,13 +882,13 @@ String getSettingsStyle() {
 
 String getSettingsHtmlBody() {
   String content = readFileFromLittleFS("/settings_body.html");
-  
+
   // Process conditional content
   //content = processConditionalContent(content);
-  
+
   // Replace the %GPIOOPT1_SETTING% placeholder with runtime-generated content
   content.replace("%GPIOOPT1_SETTING%", getGpioOpt1Setting());
-  
+
   return content;
 }
 
@@ -902,7 +900,7 @@ String buildSettingsHtml() {
   html += getSettingsHtmlBody();
   html += getSettingsHtmlScripts();
   html += INDEX_HTML_FOOTER;
-  
+
   return html;
 }
 

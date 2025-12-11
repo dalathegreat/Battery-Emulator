@@ -17,10 +17,10 @@
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
+#include "LittleFS.h"
 #include "esp_task_wdt.h"
 #include "html_escape.h"
 #include "settings_html.h"
-#include "LittleFS.h"
 
 #include <string>
 extern std::string http_username;
@@ -180,7 +180,7 @@ void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethod
 
 void init_webserver() {
 
-    // Initialize LittleFS for HTML file storage
+  // Initialize LittleFS for HTML file storage
   if (!LittleFS.begin()) {
     logging.println("Failed to mount LittleFS");
     // Continue without filesystem - will show error messages in HTML
