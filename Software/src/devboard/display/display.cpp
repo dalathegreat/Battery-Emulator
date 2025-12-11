@@ -31,6 +31,7 @@ i2c_master_dev_handle_t dev_handle;
 bool display_initialized = false;
 unsigned long lastUpdateMillis = 0;
 static std::vector<EventData> order_events;
+int num_batteries; 
 
 static esp_err_t i2c_write(const uint8_t* data, size_t len) {
   return i2c_master_transmit(dev_handle, data, len, 1000 / portTICK_PERIOD_MS);
@@ -291,9 +292,15 @@ static void print_battery_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status,
   buf[4] = '\0';
   write_tall_text(0, row, buf, false);
 
+  if (num_batteries > 1) {
+    buf[7] = 'B';
+    buf[8] = 'a';
+    buf[9] = 't';
+    buf[10] = '0' + num; 
+  }
   printn(buf + 13, status.active_power_W, 6);
   buf[19] = 'W';
-  buf[20] = '\0';
+  buf[21] = '\0';
   write_text(7 * 6, row++, buf + 7, false);
 
   memset(buf, ' ', sizeof(buf));
@@ -416,20 +423,33 @@ void update_display() {
     return;
   }
 
+  // Count configured batteries
+  num_batteries = 1;  // battery is always present
+  if (datalayer.battery2.status.reported_soc > 0) num_batteries++;
+  if (datalayer.battery3.status.reported_soc > 0) num_batteries++;
+
   // We cycle through several pages of battery data
   const int NUM_PAGES = 3;
   const int PAGE_TIME = 3;
   static int phase = 0;
 
-  // Print the battery status(es) first
+  // Calculate total phases: NUM_PAGES per battery, PAGE_TIME seconds each
+  int total_phases = NUM_PAGES * num_batteries * PAGE_TIME * 2;  // *2 for 500ms updates
+  
+  int current_phase = phase / (PAGE_TIME * 2);
+  int battery_index = current_phase % num_batteries;
+  int page = (current_phase / num_batteries) % NUM_PAGES;
+
+  // Print the battery status for current battery
   int y = 0;
-  print_battery_status(y, datalayer.battery.status, 1, phase >> PAGE_TIME);
-  y += 2;
-  if (battery2) {
-    print_battery_status(y, datalayer.battery2.status, 2, phase >> PAGE_TIME);
-    y++;
+  if (battery_index == 0) {
+    print_battery_status(y, datalayer.battery.status, 1, page);
+  } else if (battery_index == 1) {
+    print_battery_status(y, datalayer.battery2.status, 2, page);
+  } else {
+    print_battery_status(y, datalayer.battery3.status, 3, page);
   }
-  y++;
+  y += 3;
 
   // Print the events below
   print_events(y, 7 - y);
@@ -438,7 +458,7 @@ void update_display() {
   print_wifi_status(7);
 
   phase++;
-  if (phase >= (NUM_PAGES << PAGE_TIME)) {
+  if (phase >= total_phases) {
     phase = 0;
   }
   lastUpdateMillis = currentMillis;
