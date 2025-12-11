@@ -1,0 +1,184 @@
+    <style>
+    body { background-color: black; color: white; }
+        button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px;
+        cursor: pointer; border-radius: 10px; }
+    button:hover { background-color: #3A4A52; }
+    h4 { margin: 0.6em 0; line-height: 1.2; }
+    select, input { max-width: 250px; box-sizing: border-box; }
+    .hidden {
+      display: none;
+    }
+    .active {
+      color: white;
+    }
+    .inactive {
+      color: darkgrey;
+    }
+
+    .inactiveSoc {
+      color: red;
+    }
+
+    .mqtt-settings, .mqtt-topics {
+      display: none;
+      grid-column: span 2;
+    }
+
+    .settings-card {
+    background-color: #3a4b54; /* Slightly lighter than main background */
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    border-radius: 20px; /* Less rounded than 50px for a more card-like feel */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  }
+  .settings-card h3 {
+    color: #fff;
+    margin-top: 0;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #4d5f69;
+  }
+
+    form .if-battery, form .if-inverter, form .if-charger, form .if-shunt { display: contents; }
+    form[data-battery="0"] .if-battery { display: none; }
+    form[data-inverter="0"] .if-inverter { display: none; }    
+    form[data-charger="0"] .if-charger { display: none; }
+    form[data-shunt="0"] .if-shunt { display: none; }
+
+    form .if-cbms { display: none; }
+    form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms, form[data-battery="41"] .if-cbms {
+      display: contents;
+    }
+
+    form .if-nissan { display: none; }
+    form[data-battery="21"] .if-nissan {
+      display: contents;
+    }
+
+    form .if-tesla { display: none; }
+    form[data-battery="32"] .if-tesla, form[data-battery="33"] .if-tesla {
+      display: contents;
+    }
+
+    form .if-estimated { display: none; } /* Integrations with manually set charge/discharge power */
+    form[data-battery="3"] .if-estimated, 
+    form[data-battery="4"] .if-estimated, 
+    form[data-battery="6"] .if-estimated, 
+    form[data-battery="14"] .if-estimated, 
+    form[data-battery="16"] .if-estimated, 
+    form[data-battery="24"] .if-estimated,
+    form[data-battery="32"] .if-estimated, 
+    form[data-battery="33"] .if-estimated,
+    form[data-battery="40"] .if-estimated,
+    form[data-battery="41"] .if-estimated,
+    form[data-battery="44"] .if-estimated {
+      display: contents;
+    }
+
+    form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
+    form[data-battery="16"],
+    form[data-battery="41"] .if-socestimated {
+      display: contents;
+    }
+
+    form .if-dblbtr { display: none; }
+    form[data-dblbtr="true"] .if-dblbtr,
+    form[data-dblbtr="1"] .if-dblbtr,
+    form[data-dblbtr="on"] .if-dblbtr {
+      display: contents;
+    }
+
+    form .if-pwmcntctrl { display: none; }
+    form[data-pwmcntctrl="true"] .if-pwmcntctrl,
+    form[data-pwmcntctrl="1"] .if-pwmcntctrl,
+    form[data-pwmcntctrl="on"] .if-pwmcntctrl {
+      display: contents;
+    }
+
+    form .if-cntctrl { display: none; }
+    form[data-cntctrl="true"] .if-cntctrl,
+    form[data-cntctrl="1"] .if-cntctrl,
+    form[data-cntctrl="on"] .if-cntctrl {
+      display: contents;
+    }
+
+    form .if-extprecharge { display: none; }
+    form[data-extprecharge="true"] .if-extprecharge,
+    form[data-extprecharge="1"] .if-extprecharge,
+    form[data-extprecharge="on"] .if-extprecharge {
+      display: contents;
+    }
+
+    form .if-sofar { display: none; }
+    form[data-inverter="17"] .if-sofar {
+      display: contents;
+    }
+
+    form .if-byd { display: none; }
+    form[data-inverter="2"] .if-byd {
+      display: contents;
+    }
+
+    form .if-pylon { display: none; }
+    form[data-inverter="10"] .if-pylon {
+      display: contents;
+    }
+
+    form .if-pylonish { display: none; }
+    form[data-inverter="4"] .if-pylonish, 
+    form[data-inverter="10"] .if-pylonish, 
+    form[data-inverter="19"] .if-pylonish {
+      display: contents;
+    }
+
+    form .if-solax { display: none; }
+    form[data-inverter="18"] .if-solax {
+      display: contents;
+    }
+
+    form .if-kostal { display: none; }
+    form[data-inverter="9"] .if-kostal {
+      display: contents;
+    }
+
+    form .if-staticip { display: none; }
+    form[data-staticip="true"] .if-staticip,
+    form[data-staticip="1"] .if-staticip,
+    form[data-staticip="on"] .if-staticip,
+    form[data-staticip="checked"] .if-staticip {
+      display: contents;
+    }
+
+    form .if-mqtt { display: none; }
+    form[data-mqttenabled="true"] .if-mqtt,
+    form[data-mqttenabled="1"] .if-mqtt,
+    form[data-mqttenabled="on"] .if-mqtt {
+      display: contents;
+    }
+
+    form .if-topics { display: none; }
+    form[data-mqtttopics="true"] .if-topics,
+    form[data-mqtttopics="1"] .if-topics,
+    form[data-mqtttopics="on"] .if-topics {
+      display: contents;
+    }
+
+    .ip-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .octet {
+      width: 44px;
+      text-align: right;
+      margin: 0;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 8px;
+      text-align: center;
+    }
+
+    </style>

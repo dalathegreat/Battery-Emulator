@@ -26,6 +26,16 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
  */
 const char* getCANInterfaceName(CAN_Interface interface);
 
-extern const char settings_html[];
+// Function declarations for dynamic HTML building
+String buildSettingsHtml();
+String getSettingsHtmlScripts();
+String getSettingsStyle(); 
+String getSettingsHtmlBody();
+String getGpioOpt1Setting();
+String processConditionalContent(const String& content);
+
+// Dynamic settings HTML - call buildSettingsHtml() to generate
+extern String settings_html_string;
+extern const char* settings_html;
 
 #endif

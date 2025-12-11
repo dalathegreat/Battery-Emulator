@@ -19,6 +19,8 @@
 #include "../utils/timer.h"
 #include "esp_task_wdt.h"
 #include "html_escape.h"
+#include "settings_html.h"
+#include "LittleFS.h"
 
 #include <string>
 extern std::string http_username;
@@ -39,7 +41,6 @@ unsigned long ota_progress_millis = 0;
 #include "debug_logging_html.h"
 #include "events_html.h"
 #include "index_html.h"
-#include "settings_html.h"
 
 MyTimer ota_timeout_timer = MyTimer(15000);
 bool ota_active = false;
@@ -178,6 +179,18 @@ void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethod
 }
 
 void init_webserver() {
+
+    // Initialize LittleFS for HTML file storage
+  if (!LittleFS.begin()) {
+    logging.println("Failed to mount LittleFS");
+    // Continue without filesystem - will show error messages in HTML
+  } else {
+    logging.println("LittleFS mounted successfully");
+  }
+
+  // Build the settings HTML from LittleFS files
+  settings_html_string = buildSettingsHtml();
+  settings_html = settings_html_string.c_str();
 
   server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(401); });
 
