@@ -65,7 +65,7 @@ uint16_t modbus_crc(const uint8_t* data, uint8_t length) {
 }  // namespace
 
 void SungrowInverter::update_values() {
-  current_dA = datalayer.battery.status.current_dA;
+  current_dA = datalayer.battery.status.reported_current_dA;
 
   // Actual SoC
   SUNGROW_400.data.u8[1] = (datalayer.battery.status.real_soc & 0x00FF);

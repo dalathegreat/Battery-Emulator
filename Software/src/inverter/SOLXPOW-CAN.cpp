@@ -44,8 +44,8 @@ void SolxpowInverter::
   SOLXPOW_4210.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
 
   //Current (15.0)
-  SOLXPOW_4210.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
-  SOLXPOW_4210.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  SOLXPOW_4210.data.u8[2] = (datalayer.battery.status.reported_current_dA >> 8);
+  SOLXPOW_4210.data.u8[3] = (datalayer.battery.status.reported_current_dA & 0x00FF);
 
   // BMS Temperature (We dont have BMS temp, send max cell voltage instead)
 #ifdef INVERT_LOW_HIGH_BYTES  //Useful for Sofar inverters
@@ -64,11 +64,11 @@ void SolxpowInverter::
   // Status=Bit 0,1,2= 0:Sleep, 1:Charge, 2:Discharge 3:Idle. Bit3 ForceChargeReq. Bit4 Balance charge Request
   if (datalayer.battery.status.bms_status == FAULT) {
     SOLXPOW_4250.data.u8[0] = (0x00);  // Sleep
-  } else if (datalayer.battery.status.current_dA < 0) {
+  } else if (datalayer.battery.status.reported_current_dA < 0) {
     SOLXPOW_4250.data.u8[0] = (0x01);  // Charge
-  } else if (datalayer.battery.status.current_dA > 0) {
+  } else if (datalayer.battery.status.reported_current_dA > 0) {
     SOLXPOW_4250.data.u8[0] = (0x02);  // Discharge
-  } else if (datalayer.battery.status.current_dA == 0) {
+  } else if (datalayer.battery.status.reported_current_dA == 0) {
     SOLXPOW_4250.data.u8[0] = (0x03);  // Idle
   }
 
@@ -82,8 +82,8 @@ void SolxpowInverter::
   SOLXPOW_4210.data.u8[2] = ((datalayer.battery.status.current_dA + 30000) & 0x00FF);
   SOLXPOW_4210.data.u8[3] = ((datalayer.battery.status.current_dA + 30000) >> 8);
 #else   // Not SET_30K_OFFSET
-  SOLXPOW_4210.data.u8[2] = (datalayer.battery.status.current_dA & 0x00FF);
-  SOLXPOW_4210.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
+  SOLXPOW_4210.data.u8[2] = (datalayer.battery.status.reported_current_dA & 0x00FF);
+  SOLXPOW_4210.data.u8[3] = (datalayer.battery.status.reported_current_dA >> 8);
 #endif  //SET_30K_OFFSET
 
   // BMS Temperature (We dont have BMS temp, send max cell voltage instead)

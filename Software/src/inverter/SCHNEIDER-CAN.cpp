@@ -78,10 +78,10 @@ void SchneiderInverter::
   SE_323.data.u8[2] = (((datalayer.battery.status.voltage_dV * 10) & 0x0000FF00) >> 8);
   SE_323.data.u8[3] = ((datalayer.battery.status.voltage_dV * 10) & 0x000000FF);
   //Current (ex 81.00A = 8100) TODO: Note s32 bit, which direction?
-  SE_323.data.u8[4] = ((datalayer.battery.status.current_dA * 10) >> 24);
-  SE_323.data.u8[5] = (((datalayer.battery.status.current_dA * 10) & 0x00FF0000) >> 16);
-  SE_323.data.u8[6] = (((datalayer.battery.status.current_dA * 10) & 0x0000FF00) >> 8);
-  SE_323.data.u8[7] = ((datalayer.battery.status.current_dA * 10) & 0x000000FF);
+  SE_323.data.u8[4] = ((datalayer.battery.status.reported_current_dA * 10) >> 24);
+  SE_323.data.u8[5] = (((datalayer.battery.status.reported_current_dA * 10) & 0x00FF0000) >> 16);
+  SE_323.data.u8[6] = (((datalayer.battery.status.reported_current_dA * 10) & 0x0000FF00) >> 8);
+  SE_323.data.u8[7] = ((datalayer.battery.status.reported_current_dA * 10) & 0x000000FF);
 
   //Temperature average
   SE_324.data.u8[0] = (temperature_average >> 8);

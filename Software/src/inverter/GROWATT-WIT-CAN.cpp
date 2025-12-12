@@ -67,12 +67,12 @@ void GrowattWitInverter::update_values() {
   }
 
   //System BMS working status
-  if (datalayer.battery.status.current_dA == 0) {
-    GROWATT_1AC5XXXX.data.u8[0] = 1;                     //Standby
-  } else if (datalayer.battery.status.current_dA < 0) {  //Negative value = Discharging
-    GROWATT_1AC5XXXX.data.u8[0] = 3;                     //Discharging
-  } else {                                               //Positive value = Charging
-    GROWATT_1AC5XXXX.data.u8[0] = 2;                     //Charging
+  if (datalayer.battery.status.reported_current_dA == 0) {
+    GROWATT_1AC5XXXX.data.u8[0] = 1;                              //Standby
+  } else if (datalayer.battery.status.reported_current_dA < 0) {  //Negative value = Discharging
+    GROWATT_1AC5XXXX.data.u8[0] = 3;                              //Discharging
+  } else {                                                        //Positive value = Charging
+    GROWATT_1AC5XXXX.data.u8[0] = 2;                              //Charging
   }
 
   if (datalayer.battery.status.bms_status == FAULT) {

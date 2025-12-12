@@ -49,8 +49,9 @@ void SolaxInverter::
   //BMS_PackData
   SOLAX_1873.data.u8[0] = (uint8_t)datalayer.battery.status.voltage_dV;  // OK
   SOLAX_1873.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
-  SOLAX_1873.data.u8[2] = (int8_t)datalayer.battery.status.current_dA;  // OK, Signed (Active current in Amps x 10)
-  SOLAX_1873.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
+  SOLAX_1873.data.u8[2] =
+      (int8_t)datalayer.battery.status.reported_current_dA;  // OK, Signed (Active current in Amps x 10)
+  SOLAX_1873.data.u8[3] = (datalayer.battery.status.reported_current_dA >> 8);
   SOLAX_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (100.00%)
   //SOLAX_1873.data.u8[5] = //Seems like this is not required? Or shall we put SOC decimals here?
   SOLAX_1873.data.u8[6] = (uint8_t)(capped_remaining_capacity_Wh / 10);

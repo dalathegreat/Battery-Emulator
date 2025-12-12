@@ -78,8 +78,8 @@ void BydCanInverter::
   BYD_1D0.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
   BYD_1D0.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
   //Current (ex 81.0A)
-  BYD_1D0.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
-  BYD_1D0.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  BYD_1D0.data.u8[2] = (datalayer.battery.status.reported_current_dA >> 8);
+  BYD_1D0.data.u8[3] = (datalayer.battery.status.reported_current_dA & 0x00FF);
   //Temperature average
   BYD_1D0.data.u8[4] = (temperature_average >> 8);
   BYD_1D0.data.u8[5] = (temperature_average & 0x00FF);

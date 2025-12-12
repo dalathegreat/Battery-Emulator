@@ -57,9 +57,9 @@ void BydModbusInverter::handle_update_data_modbusp201_byd() {
 }
 
 void BydModbusInverter::handle_update_data_modbusp301_byd() {
-  if (datalayer.battery.status.current_dA == 0) {
+  if (datalayer.battery.status.reported_current_dA == 0) {
     bms_char_dis_status = STANDBY;
-  } else if (datalayer.battery.status.current_dA < 0) {  //Negative value = Discharging
+  } else if (datalayer.battery.status.reported_current_dA < 0) {  //Negative value = Discharging
     bms_char_dis_status = DISCHARGING;
   } else {  //Positive value = Charging
     bms_char_dis_status = CHARGING;
