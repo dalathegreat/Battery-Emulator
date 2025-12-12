@@ -31,7 +31,7 @@ i2c_master_dev_handle_t dev_handle;
 bool display_initialized = false;
 unsigned long lastUpdateMillis = 0;
 static std::vector<EventData> order_events;
-int num_batteries; 
+int num_batteries = 1; 
 
 static esp_err_t i2c_write(const uint8_t* data, size_t len) {
   return i2c_master_transmit(dev_handle, data, len, 1000 / portTICK_PERIOD_MS);
@@ -225,6 +225,10 @@ void init_display() {
 
   clear();
   display_initialized = true;
+  
+  // Count configured batteries
+  if (battery2) num_batteries++;
+  if (battery3) num_batteries++;
 }
 
 static void printn(char* buf, int value, int digits) {
@@ -350,7 +354,7 @@ static void print_events(int row, int count) {
   order_events.clear();
   for (int i = 0; i < EVENT_NOF_EVENTS; i++) {
     auto event_pointer = get_event_pointer((EVENTS_ENUM_TYPE)i);
-    if (event_pointer->occurences > 0) {
+    if (event_pointer->occurences > 0 && event_pointer->level > EVENT_LEVEL_INFO) {
       order_events.push_back({static_cast<EVENTS_ENUM_TYPE>(i), event_pointer});
     }
   }
@@ -423,11 +427,6 @@ void update_display() {
     return;
   }
 
-  // Count configured batteries
-  num_batteries = 1;  // battery is always present
-  if (datalayer.battery2.status.reported_soc > 0) num_batteries++;
-  if (datalayer.battery3.status.reported_soc > 0) num_batteries++;
-
   // We cycle through several pages of battery data
   const int NUM_PAGES = 3;
   const int PAGE_TIME = 3;
@@ -441,18 +440,20 @@ void update_display() {
   int page = (current_phase / num_batteries) % NUM_PAGES;
 
   // Print the battery status for current battery
-  int y = 0;
   if (battery_index == 0) {
-    print_battery_status(y, datalayer.battery.status, 1, page);
+    print_battery_status(0, datalayer.battery.status, 1, page);
   } else if (battery_index == 1) {
-    print_battery_status(y, datalayer.battery2.status, 2, page);
+    print_battery_status(0, datalayer.battery2.status, 2, page);
   } else {
-    print_battery_status(y, datalayer.battery3.status, 3, page);
+    print_battery_status(0, datalayer.battery3.status, 3, page);
   }
-  y += 3;
+  
+  write_text(0, 2, "---------------------", false);
 
   // Print the events below
-  print_events(y, 7 - y);
+  print_events(3, 3);
+
+  write_text(0, 6, "---------------------", false);
 
   // Then IP/RSSI at the bottom
   print_wifi_status(7);
