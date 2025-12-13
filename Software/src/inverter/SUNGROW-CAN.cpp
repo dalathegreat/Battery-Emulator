@@ -133,9 +133,9 @@ void SungrowInverter::update_values() {
   // Another voltage. Different but similar
   SUNGROW_704.data.u8[4] = (datalayer.battery.status.voltage_dV & 0x00FF);
   SUNGROW_704.data.u8[5] = (datalayer.battery.status.voltage_dV >> 8);
-  //Temperature //TODO: Signed correctly? Also should be put AVG here?
-  SUNGROW_704.data.u8[6] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
-  SUNGROW_704.data.u8[7] = (datalayer.battery.status.temperature_max_dC >> 8);
+  // Temperature (signed int16_t in 0.1°C units)
+  SUNGROW_704.data.u8[6] = static_cast<uint8_t>(datalayer.battery.status.temperature_max_dC & 0xFF);
+  SUNGROW_704.data.u8[7] = static_cast<uint8_t>((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
 
   //Status bytes?
   SUNGROW_705.data.u8[0] = 0x02;  // Magic number
@@ -149,16 +149,16 @@ void SungrowInverter::update_values() {
   // Padding?
   SUNGROW_705.data.u8[7] = 0x00;  // Magic number
 
-  //Temperature Max //TODO: Signed correctly?
-  SUNGROW_706.data.u8[0] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
-  SUNGROW_706.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
-  //Temperature Min //TODO: Signed correctly?
-  SUNGROW_706.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
-  SUNGROW_706.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
-  //Cell voltage max
+  // Temperature Max (signed int16_t in 0.1°C units)
+  SUNGROW_706.data.u8[0] = static_cast<uint8_t>(datalayer.battery.status.temperature_max_dC & 0xFF);
+  SUNGROW_706.data.u8[1] = static_cast<uint8_t>((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
+  // Temperature Min (signed int16_t in 0.1°C units)
+  SUNGROW_706.data.u8[2] = static_cast<uint8_t>(datalayer.battery.status.temperature_min_dC & 0xFF);
+  SUNGROW_706.data.u8[3] = static_cast<uint8_t>((datalayer.battery.status.temperature_min_dC >> 8) & 0xFF);
+  // Cell voltage max
   SUNGROW_706.data.u8[4] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
   SUNGROW_706.data.u8[5] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
-  //Cell voltage min
+  // Cell voltage min
   SUNGROW_706.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
   SUNGROW_706.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
@@ -212,15 +212,15 @@ void SungrowInverter::update_values() {
   // Cell position with minimum temperature (cell/module addressing)
   SUNGROW_713.data.u8[0] = 0x02;
   SUNGROW_713.data.u8[1] = 0x01;
-  // Minimum cell temperature (0.1°C units)
-  SUNGROW_713.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0xFF);
-  SUNGROW_713.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
+  // Minimum cell temperature (signed int16_t in 0.1°C units)
+  SUNGROW_713.data.u8[2] = static_cast<uint8_t>(datalayer.battery.status.temperature_min_dC & 0xFF);
+  SUNGROW_713.data.u8[3] = static_cast<uint8_t>((datalayer.battery.status.temperature_min_dC >> 8) & 0xFF);
   // Cell position with maximum temperature (cell/module addressing)
   SUNGROW_713.data.u8[4] = 0x01;
   SUNGROW_713.data.u8[5] = 0x02;
-  // Maximum cell temperature (0.1°C units)
-  SUNGROW_713.data.u8[6] = (datalayer.battery.status.temperature_max_dC & 0xFF);
-  SUNGROW_713.data.u8[7] = (datalayer.battery.status.temperature_max_dC >> 8);
+  // Maximum cell temperature (signed int16_t in 0.1°C units)
+  SUNGROW_713.data.u8[6] = static_cast<uint8_t>(datalayer.battery.status.temperature_max_dC & 0xFF);
+  SUNGROW_713.data.u8[7] = static_cast<uint8_t>((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
 
   // 0x714 - Battery Cell Voltage Overview
   // Cell position with maximum voltage (cell/module addressing)
