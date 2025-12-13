@@ -208,28 +208,35 @@ void SungrowInverter::update_values() {
   SUNGROW_70F_05.data.u8[6] = (datalayer.battery.status.real_soc & 0xFF);
   SUNGROW_70F_05.data.u8[7] = (datalayer.battery.status.real_soc >> 8);
 
-  //Status bytes?
-  SUNGROW_713.data.u8[0] = 0x02;  // Magic number
-  SUNGROW_713.data.u8[1] = 0x01;  // Magic number
-  SUNGROW_713.data.u8[2] = 0x77;  // Magic number
-  SUNGROW_713.data.u8[3] = 0x00;  // Magic number
-  SUNGROW_713.data.u8[4] = 0x01;  // Magic number
-  SUNGROW_713.data.u8[5] = 0x02;  // Magic number
-  SUNGROW_713.data.u8[6] = 0x89;  // Magic number
-  SUNGROW_713.data.u8[7] = 0x00;  // Magic number
+  // 0x713 - Battery Cell Temperature Overview
+  // Cell position with minimum temperature (cell/module addressing)
+  SUNGROW_713.data.u8[0] = 0x02;
+  SUNGROW_713.data.u8[1] = 0x01;
+  // Minimum cell temperature (0.1°C units)
+  SUNGROW_713.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0xFF);
+  SUNGROW_713.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
+  // Cell position with maximum temperature (cell/module addressing)
+  SUNGROW_713.data.u8[4] = 0x01;
+  SUNGROW_713.data.u8[5] = 0x02;
+  // Maximum cell temperature (0.1°C units)
+  SUNGROW_713.data.u8[6] = (datalayer.battery.status.temperature_max_dC & 0xFF);
+  SUNGROW_713.data.u8[7] = (datalayer.battery.status.temperature_max_dC >> 8);
 
-  // Overview - Stack overview?
-  SUNGROW_714.data.u8[0] = 0x05;  // Enum??
-  SUNGROW_714.data.u8[1] = 0x01;  // Magic number
-  // Cell Voltage
+  // 0x714 - Battery Cell Voltage Overview
+  // Cell position with maximum voltage (cell/module addressing)
+  SUNGROW_714.data.u8[0] = 0x05;
+  SUNGROW_714.data.u8[1] = 0x01;
+  // Maximum cell voltage (0.1 mV units = cell_max_voltage_mV * 10)
   SUNGROW_714.data.u8[2] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
   SUNGROW_714.data.u8[3] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
-  SUNGROW_714.data.u8[4] = 0x11;  // Enum???
-  SUNGROW_714.data.u8[5] = 0x02;  // Magic number
-  // Cell Voltage
+  // Cell position with minimum voltage (cell/module addressing)
+  SUNGROW_714.data.u8[4] = 0x11;
+  SUNGROW_714.data.u8[5] = 0x02;
+  // Minimum cell voltage (0.1 mV units = cell_min_voltage_mV * 10)
   SUNGROW_714.data.u8[6] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
   SUNGROW_714.data.u8[7] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
 
+  // 0x715 - Battery Module 1+2 Voltage Overview
   // Module 1 Min Cell voltage
   SUNGROW_715.data.u8[0] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
   SUNGROW_715.data.u8[1] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
@@ -243,6 +250,7 @@ void SungrowInverter::update_values() {
   SUNGROW_715.data.u8[6] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
   SUNGROW_715.data.u8[7] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
 
+  // 0x716 - Battery Module 3+4 Voltage Overview
   // Module 3 Min Cell voltage
   SUNGROW_716.data.u8[0] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
   SUNGROW_716.data.u8[1] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
@@ -250,31 +258,9 @@ void SungrowInverter::update_values() {
   SUNGROW_716.data.u8[2] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
   SUNGROW_716.data.u8[3] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
 
-  SUNGROW_717.data.u8[0] = 0x00;
-
-  // Status flags?
+  // 0x719 - Status and Module Fault???
+  // Possibly relates to Modbus register 3_10789 and 3_10790
   SUNGROW_719.data.u8[0] = 0x02;
-
-  // Battery flags?
-  SUNGROW_71A.data.u8[0] = 0x44;  // Magic number
-  SUNGROW_71A.data.u8[1] = 0x44;  // Magic number
-  SUNGROW_71A.data.u8[2] = 0x44;  // Magic number
-
-  // Module 1 + 2 data?
-  SUNGROW_71B.data.u8[0] = 0x3F;  // Magic number
-  SUNGROW_71B.data.u8[1] = 0x7A;  // Magic number
-  SUNGROW_71B.data.u8[2] = 0x6F;  // Magic number
-  SUNGROW_71B.data.u8[3] = 0x01;  // Magic number
-  SUNGROW_71B.data.u8[4] = 0x3F;  // Magic number
-  SUNGROW_71B.data.u8[5] = 0x7A;  // Magic number
-  SUNGROW_71B.data.u8[6] = 0x6F;  // Magic number
-  SUNGROW_71B.data.u8[7] = 0x01;  // Magic number
-
-  // Module 3 + 4 data?
-  SUNGROW_71C.data.u8[0] = 0x3F;  // Magic number
-  SUNGROW_71C.data.u8[1] = 0x7A;  // Magic number
-  SUNGROW_71C.data.u8[2] = 0x6F;  // Magic number
-  SUNGROW_71C.data.u8[3] = 0x01;  // Magic number
 
   //Copy 7## content to 0## messages
   for (int i = 0; i < 8; i++) {
