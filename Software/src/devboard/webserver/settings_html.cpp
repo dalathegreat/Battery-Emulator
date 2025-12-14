@@ -9,6 +9,7 @@
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
+#include "src/battery/Shunt.h"
 #include "src/inverter/INVERTERS.h"
 
 extern bool settingsUpdated;
@@ -146,11 +147,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
   // HTML-ready values (such as select options) are returned here. These don't
   // get any additional escaping.
-
-  if (var == "SHUNTCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("SHUNTCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
 
   if (var == "BATTTYPE") {
     return options_for_enum_with_none((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None),
@@ -302,8 +298,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     }
   }
 
+  if (var == "SHUNTINTF") {
+    if (shunt) {
+      return shunt->interface_name();
+    }
+  }
+
   if (var == "SHUNTCLASS") {
-    if (user_selected_shunt_type == ShuntType::None) {
+    if (!shunt) {
       return "hidden";
     }
   }
@@ -1303,7 +1305,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
-        <label>Shunt: </label><select name='SHUNT'>
+        <label>Shunt: </label><select name='SHUNTTYPE'>
         %SHUNTTYPE%
         </select>
 
@@ -1567,7 +1569,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       <h4 style='color: white;' class="%INVCLASS%">Inverter interface: <span id='Inverter'>%INVINTF%</span></h4>
       
-      <h4 style='color: white;' class="%SHUNTCLASS%">Shunt interface: <span id='Inverter'>%SHUNTINTF%</span></h4>
+      <h4 style='color: white;' class="%SHUNTCLASS%">Shunt interface: <span id='Shunt'>%SHUNTINTF%</span></h4>
 
     </div>
 
