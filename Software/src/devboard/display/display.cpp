@@ -228,9 +228,9 @@ void init_display() {
 
   // Count configured batteries
   if (battery2)
-     num_batteries++;
+    num_batteries++;
   if (battery3)
-     num_batteries++;
+    num_batteries++;
 }
 
 static void printn(char* buf, int value, int digits) {
