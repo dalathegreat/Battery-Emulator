@@ -31,7 +31,7 @@ i2c_master_dev_handle_t dev_handle;
 bool display_initialized = false;
 unsigned long lastUpdateMillis = 0;
 static std::vector<EventData> order_events;
-int num_batteries = 1; 
+int num_batteries = 1;
 
 static esp_err_t i2c_write(const uint8_t* data, size_t len) {
   return i2c_master_transmit(dev_handle, data, len, 1000 / portTICK_PERIOD_MS);
@@ -225,12 +225,12 @@ void init_display() {
 
   clear();
   display_initialized = true;
-  
+
   // Count configured batteries
   if (battery2)
-    num_batteries++;
+     num_batteries++;
   if (battery3)
-    num_batteries++;
+     num_batteries++;
 }
 
 static void printn(char* buf, int value, int digits) {
@@ -299,10 +299,10 @@ static void print_battery_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status,
   write_tall_text(0, row, buf, false);
 
   if (num_batteries > 1) {
-    buf[6] = 'B';
-    buf[7] = 'a';
-    buf[8] = 't';
-    buf[9] = '0' + num; 
+    buf[7] = 'B';
+    buf[8] = 'a';
+    buf[9] = 't';
+    buf[10] = '0' + num; 
   }
   printn(buf + 14, status.active_power_W, 6);
   buf[20] = 'W';
@@ -448,7 +448,7 @@ void update_display() {
 
   // Calculate total phases: NUM_PAGES per battery, PAGE_TIME seconds each
   int total_phases = NUM_PAGES * num_batteries * PAGE_TIME * 2;  // *2 for 500ms updates
-  
+
   int current_phase = phase / (PAGE_TIME * 2);
   int battery_index = current_phase % num_batteries;
   int page = (current_phase / num_batteries) % NUM_PAGES;
@@ -461,7 +461,7 @@ void update_display() {
   } else {
     print_battery_status(0, datalayer.battery3.status, 3, page);
   }
-  
+
   write_text(0, 2, "---------------------", false);
 
   // Print the events below
