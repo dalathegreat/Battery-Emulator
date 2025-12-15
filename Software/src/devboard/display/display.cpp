@@ -228,9 +228,9 @@ void init_display() {
 
   // Count configured batteries
   if (battery2)
-     num_batteries++;
+    num_batteries++;
   if (battery3)
-     num_batteries++;
+    num_batteries++;
 }
 
 static void printn(char* buf, int value, int digits) {
@@ -302,7 +302,7 @@ static void print_battery_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status,
     buf[7] = 'B';
     buf[8] = 'a';
     buf[9] = 't';
-    buf[10] = '0' + num; 
+    buf[10] = '0' + num;
   }
   printn(buf + 14, status.active_power_W, 6);
   buf[20] = 'W';
