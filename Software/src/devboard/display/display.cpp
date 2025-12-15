@@ -302,41 +302,53 @@ static void print_battery_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status,
     buf[9] = 't';
     buf[10] = '0' + num; 
   }
-  printn(buf + 13, status.active_power_W, 6);
-  buf[19] = 'W';
+  printn(buf + 14, status.active_power_W, 6);
+  buf[20] = 'W';
   buf[21] = '\0';
   write_text(7 * 6, row++, buf + 7, false);
 
   memset(buf, ' ', sizeof(buf));
 
   if (page == 0) {
-    // First page, voltage + current
+    // First page, voltage + remaining capacity
 
     print3d1(buf + 7, status.voltage_dV);
     buf[12] = 'V';
 
-    print3d1(buf + 14, status.current_dA);
-    buf[19] = 'A';
+    print3d1(buf + 13, status.remaining_capacity_Wh / 100);
+    buf[18] = 'k';
+    buf[19] = 'W';
+    buf[20] = 'h';
     buf[21] = '\0';
   } else if (page == 1) {
-    // Second page, cell voltage range
+    // Second page, cell delta + current
+
+    print4(buf + 7, status.cell_max_voltage_mV - status.cell_min_voltage_mV);
+    buf[11] = 'm';
+    buf[12] = 'V';
+    buf[13] = ' ';
+    print3d1(buf + 15, status.current_dA);
+    buf[20] = 'A';
+    buf[21] = '\0';
+  } else if (page == 2) {
+    // Third page, cell voltage range
 
     print4(buf + 7, status.cell_min_voltage_mV);
     buf[11] = 'm';
     buf[12] = 'V';
-    buf[13] = '/';
-    print4(buf + 14, status.cell_max_voltage_mV);
-    buf[18] = 'm';
-    buf[19] = 'V';
+    buf[13] = ' ';
+    print4(buf + 15, status.cell_max_voltage_mV);
+    buf[19] = 'm';
+    buf[20] = 'V';
     buf[21] = '\0';
-  } else if (page == 2) {
-    // Third page, temperature range
+  } else if (page == 3) {
+    // Foutrh page, temperature range
 
     print3d1(buf + 7, status.temperature_min_dC);
     buf[12] = 'c';
-    buf[13] = '/';
-    print3d1(buf + 14, status.temperature_max_dC);
-    buf[19] = 'c';
+    buf[13] = ' ';
+    print3d1(buf + 15, status.temperature_max_dC);
+    buf[20] = 'c';
     buf[21] = '\0';
   }
 
@@ -428,7 +440,7 @@ void update_display() {
   }
 
   // We cycle through several pages of battery data
-  const int NUM_PAGES = 3;
+  const int NUM_PAGES = 4;
   const int PAGE_TIME = 3;
   static int phase = 0;
 
