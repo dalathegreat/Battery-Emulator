@@ -227,8 +227,10 @@ void init_display() {
   display_initialized = true;
   
   // Count configured batteries
-  if (battery2) num_batteries++;
-  if (battery3) num_batteries++;
+  if (battery2)
+    num_batteries++;
+  if (battery3)
+    num_batteries++;
 }
 
 static void printn(char* buf, int value, int digits) {
@@ -297,23 +299,23 @@ static void print_battery_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status,
   write_tall_text(0, row, buf, false);
 
   if (num_batteries > 1) {
-    buf[7] = 'B';
-    buf[8] = 'a';
-    buf[9] = 't';
-    buf[10] = '0' + num; 
+    buf[6] = 'B';
+    buf[7] = 'a';
+    buf[8] = 't';
+    buf[9] = '0' + num; 
   }
   printn(buf + 14, status.active_power_W, 6);
   buf[20] = 'W';
   buf[21] = '\0';
-  write_text(7 * 6, row++, buf + 7, false);
+  write_text(6 * 6, row++, buf + 6, false);
 
   memset(buf, ' ', sizeof(buf));
 
   if (page == 0) {
     // First page, voltage + remaining capacity
 
-    print3d1(buf + 7, status.voltage_dV);
-    buf[12] = 'V';
+    print3d1(buf + 6, status.voltage_dV);
+    buf[11] = 'V';
 
     print3d1(buf + 13, status.remaining_capacity_Wh / 100);
     buf[18] = 'k';
@@ -323,20 +325,20 @@ static void print_battery_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status,
   } else if (page == 1) {
     // Second page, cell delta + current
 
-    print4(buf + 7, status.cell_max_voltage_mV - status.cell_min_voltage_mV);
-    buf[11] = 'm';
-    buf[12] = 'V';
-    buf[13] = ' ';
+    print4(buf + 6, status.cell_max_voltage_mV - status.cell_min_voltage_mV);
+    buf[10] = 'm';
+    buf[11] = 'V';
+    buf[12] = ' ';
     print3d1(buf + 15, status.current_dA);
     buf[20] = 'A';
     buf[21] = '\0';
   } else if (page == 2) {
     // Third page, cell voltage range
 
-    print4(buf + 7, status.cell_min_voltage_mV);
-    buf[11] = 'm';
-    buf[12] = 'V';
-    buf[13] = ' ';
+    print4(buf + 6, status.cell_min_voltage_mV);
+    buf[10] = 'm';
+    buf[11] = 'V';
+    buf[13] = '/';
     print4(buf + 15, status.cell_max_voltage_mV);
     buf[19] = 'm';
     buf[20] = 'V';
@@ -344,15 +346,15 @@ static void print_battery_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status,
   } else if (page == 3) {
     // Foutrh page, temperature range
 
-    print3d1(buf + 7, status.temperature_min_dC);
-    buf[12] = 'c';
-    buf[13] = ' ';
+    print3d1(buf + 6, status.temperature_min_dC);
+    buf[11] = 'c';
+    buf[13] = '/';
     print3d1(buf + 15, status.temperature_max_dC);
     buf[20] = 'c';
     buf[21] = '\0';
   }
 
-  write_text(7 * 6, row, buf + 7, false);
+  write_text(6 * 6, row, buf + 6, false);
 }
 
 static const int PRE_SCROLL = 4;   // How long to wait before scrolling
