@@ -299,10 +299,10 @@ static void print_battery_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status,
   write_tall_text(0, row, buf, false);
 
   if (num_batteries > 1) {
-    buf[7] = 'B';
-    buf[8] = 'a';
-    buf[9] = 't';
-    buf[10] = '0' + num;
+    buf[6] = 'B';
+    buf[7] = 'a';
+    buf[8] = 't';
+    buf[9] = '0' + num;
   }
   printn(buf + 14, status.active_power_W, 6);
   buf[20] = 'W';
