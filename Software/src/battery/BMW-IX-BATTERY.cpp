@@ -704,9 +704,9 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       if ((rx_frame.DLC == 16) && (rx_frame.data.u8[4] == 0xDD) &&
           (rx_frame.data.u8[5] == 0xC0)) {  //Battery Temperature
-        min_battery_temperature = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) / 10;
-        avg_battery_temperature = (rx_frame.data.u8[10] << 8 | rx_frame.data.u8[11]) / 10;
-        max_battery_temperature = (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) / 10;
+        min_battery_temperature = (int16_t)(rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) / 10;
+        avg_battery_temperature = (int16_t)(rx_frame.data.u8[10] << 8 | rx_frame.data.u8[11]) / 10;
+        max_battery_temperature = (int16_t)(rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) / 10;
       }
       if ((rx_frame.DLC == 7) &&
           (rx_frame.data.u8[4] == 0xA3)) {  //Main Contactor Temperature CHECK FINGERPRINT 2 LEVEL
