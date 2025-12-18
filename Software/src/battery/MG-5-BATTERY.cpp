@@ -238,6 +238,13 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         clear_event(EVENT_BATTERY_ISOLATION);
       }
 
+      if (rx_frame.data.u8[1] == 0x03 && previousState != 0x03) {
+        datalayer.system.status.battery_allows_contactor_closing = true; //signal to the UI that contactors are closed
+      }
+      else{
+        datalayer.system.status.battery_allows_contactor_closing = false;
+      }
+
       previousState = rx_frame.data.u8[1];
       break;
     }
@@ -647,6 +654,8 @@ void Mg5Battery::transmit_can(unsigned long currentMillis) {
         // Just changed to closed
         contactorClosed = true;
         userRequestClearDTC = true;  //clear DTCs to clear DTC 293, otherwise contactors won't close
+        datalayer.battery.status.max_charge_power_W = MaxChargePower; //set the power limits, as they are set to zero when contactors are open
+        datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
       }
     } else {
       contactorClosed = false;
@@ -720,6 +729,8 @@ void Mg5Battery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.total_capacity_Wh = TOTAL_BATTERY_CAPACITY_WH;
+  datalayer.battery.status.max_charge_power_W = MaxChargePower;
+  datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
   datalayer.battery.info.number_of_cells = 96;
   uds_tx_in_flight = true;                  // Make sure UDS doesn't start right away
   uds_req_started_ms = millis();            // prevent immediate timeout
