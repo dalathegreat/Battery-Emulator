@@ -58,9 +58,8 @@ class Mg5Battery : public CanBattery {
   uint8_t transmitIndex = 0;  //For polling switchcase
   uint8_t previousState = 0;
 
-  const int MaxChargePower =
-      11000;  // Maximum allowable charge power for the battery cells, excluding the taper, 
-  const int StartChargeTaper = 90;  // Battery percentage above which the charge power will taper to zero
+  const int MaxChargePower = 11000;  // Maximum allowable charge power for the battery cells, excluding the taper,
+  const int StartChargeTaper = 90;   // Battery percentage above which the charge power will taper to zero
   const float ChargeTaperExponent =
       1;  // Shape of charge power taper to zero. 1 is linear. >1 reduces quickly and is small at nearly full.
   const int TricklePower = 20;  // Minimimum trickle charge or discharge power (W)
