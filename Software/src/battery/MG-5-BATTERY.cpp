@@ -387,7 +387,8 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
               logging.print(' ');
               logging.print(b3, HEX);
               logging.print(' ');
-              logging.println(b4, HEX);
+              logging.print(b4, HEX);
+              logging.println();
             }
 
             uds_tx_in_flight = false;
@@ -402,7 +403,8 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             logging.print("UDS negative response to 0x");
             logging.print(origSid, HEX);
             logging.print(": NRC=0x");
-            logging.println(nrc, HEX);
+            logging.print(nrc, HEX);
+            logging.println();
 
             if (nrc != 0x78) {  // 0x78 = Response Pending; otherwise we’re done with this tx
               uds_tx_in_flight = false;
