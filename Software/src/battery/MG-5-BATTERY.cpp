@@ -18,13 +18,17 @@ inline const char* getBMStatus(int index) {
     case 0:
       return "INVALID";
     case 1:
-      return "STANDBY";
+      return "DISCONNECTED";
+    case 2:
+      return "PRECHARGE";
     case 3:
-      return "RUNNING/DRIVING";
-    case 6:
-      return "AC CHARGING";
-    case 7:
-      return "DC CHARGING";
+      return "CONNECTED";
+    //case 6:
+    //  return "AC CHARGING";
+    //case 7:
+    // return "DC CHARGING";
+    case 15:
+      return "ISOLATION FAULT";
     default:
       return "UNKNOWN";
   }
@@ -33,6 +37,34 @@ inline const char* getBMStatus(int index) {
 
 void Mg5Battery::update_soc(uint16_t soc_times_ten) {
 
+  #if MG5_USE_FULL_CAPACITY
+    // The SoC hits 100% at 4.1V/cell. To get the full 4.2V/cell we need to use
+    // voltage instead for the last bit.
+
+    if (cellVoltageValidTime == 0) {
+      // We don't have a recent cell max voltage reading, so can't do
+      // voltage-based SoC.
+    } else if (soc_times_ten > 900 && datalayer.battery.status.cell_max_voltage_mV < 4000) {
+      // Something is wrong with our max cell voltage reading (it is too low), so
+      // don't trust it - we'll just let the SoC hit 100%.
+    } else if (soc_times_ten == 1000 && datalayer.battery.status.cell_max_voltage_mV >= 4100) {
+      // We've hit 100%, so use voltage-based-SoC calculation for the last bit.
+
+      // We usually hit 92% at ~369V, and the pack max is 378V.
+
+      // Scale so that 100% becomes 92%
+      soc_times_ten = (uint16_t)(((uint32_t)soc_times_ten * 9200) / 10000);
+
+      // Add on the last 100mV as the last 8% of SoC.
+      soc_times_ten += (uint16_t)((((uint32_t)datalayer.battery.status.cell_max_voltage_mV - 4100) * 800) / 1000);
+      if (soc_times_ten > 1000) {
+        soc_times_ten = 1000;  // Don't let it go above 100%
+      }
+    } else {
+      // Scale so that 100% becomes 92%
+      soc_times_ten = (uint16_t)(((uint32_t)soc_times_ten * 9200) / 10000);
+    }
+  #endif
 
   // Set the state of charge in the datalayer
   datalayer.battery.status.real_soc = soc_times_ten * 10;
@@ -40,7 +72,7 @@ void Mg5Battery::update_soc(uint16_t soc_times_ten) {
   RealSoC = datalayer.battery.status.real_soc / 100;
 
   // Calculate the remaining capacity.
-  tempfloat = datalayer.battery.info.total_capacity_Wh * (RealSoC - MinSoC) / 100;
+  tempfloat = datalayer.battery.info.total_capacity_Wh * (RealSoC) / 100;
   if (tempfloat > 0) {
     datalayer.battery.status.remaining_capacity_Wh = tempfloat;
   } else {
@@ -145,16 +177,10 @@ bool Mg5Battery::storeUDSPayload(const uint8_t* payload, uint8_t length) {
   gUDSContext.UDS_lastFrameMillis = millis();
 
 
-  #ifdef DEBUG_LOG
-    //logging.println("received UDS payload chunk, total bytes received: " + String(gUDSContext.UDS_bytesReceived));
-    //logging.println("Total bytes expected: " + String(gUDSContext.UDS_expectedLength));
-  #endif  // DEBUG_LOG
   // If we’ve reached or exceeded the expected length, mark complete
   if (gUDSContext.UDS_bytesReceived >= gUDSContext.UDS_expectedLength) {
     gUDSContext.UDS_inProgress = false;
-     #ifdef DEBUG_LOG
-         logging.println("Recived all expected UDS bytes");
-     #endif  // DEBUG_LOG
+    logging.println("Recived all expected UDS bytes");
   }
   return true;
 }
@@ -163,49 +189,16 @@ bool Mg5Battery::isUDSMessageComplete() {
   return (!gUDSContext.UDS_inProgress && gUDSContext.UDS_bytesReceived > 0);
 }
 
-void Mg5Battery::buildMG5_8AFrame()
-{
-    // --- Bytes 0 / 1: safety-coded status (value + complement)
-    if (mg5_8a_flip) {
-        MG5_8A.data.u8[0] = 0x80;
-        MG5_8A.data.u8[1] = 0x00;
-    } else {
-        MG5_8A.data.u8[0] = 0x7F;
-        MG5_8A.data.u8[1] = 0xFF;
-    }
-    mg5_8a_flip = !mg5_8a_flip;
 
-
-    // --- Byte 6: rolling counter 0x10..0x1F..0x10..
-    MG5_8A.data.u8[6] = mg5_8a_counter;
-    mg5_8a_counter++;
-    if (mg5_8a_counter > 0x1F || mg5_8a_counter < 0x10) {
-        mg5_8a_counter = 0x10;
-    }
-
-    // --- Byte 7: simple additive checksum of first 7 bytes
-    MG5_8A.data.u8[7] = computeMG5_8AChecksum(MG5_8A.data.u8);
-}
 
 void Mg5Battery::update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-    // TODO: push any MG5-specific computed values into datalayer here.
+   
+//all data are already update when it is received via CAN
 
-
-    //  datalayer.battery.status.real_soc = battery_soc;
-    //  datalayer.battery.status.voltage_dV = battery_voltage;
-    //  datalayer.battery.status.current_dA = battery_current;
-
-    //  datalayer.battery.info.total_capacity_Wh;
-
-    //  datalayer.battery.status.remaining_capacity_Wh;
-
-    //  datalayer.battery.status.max_discharge_power_W;
-
-    //  datalayer.battery.status.max_charge_power_W;
-
-    //  datalayer.battery.status.temperature_min_dC;
-
-    //  datalayer.battery.status.temperature_max_dC;
+  //reduce timout valeue for cell voltage timeout, reduce by 1 every second
+  if (cellVoltageValidTime > 0) {
+    cellVoltageValidTime--;
+  }
 }
 
 
@@ -248,6 +241,7 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       v = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       if (v > 0 && v < 0x2000) {
         datalayer.battery.status.cell_max_voltage_mV = v;
+        cellVoltageValidTime = CELL_VOLTAGE_TIMEOUT;
       }
       v = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       if (v > 0 && v < 0x2000) {
@@ -292,7 +286,6 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   
 
       // Contains SoCs, voltage, current. Is emitted by both PTCAN and HybridCAN, but
-      // the HybridCAN version only has SoC
       // There does not seem to be 2 SOC"s present like in MG HS battery, so we just read the meassages from the PTCAN bus
 
 
@@ -331,6 +324,7 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         v = 1000 + ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
         datalayer.battery.status.cell_voltages_mV[cell_id] = v < 10000 ? v : 0;
         // cell temperature is rx_frame.data.u8[1]-40 but BE doesn't use it
+    
       }
       break;
     case 0x3C0:
@@ -376,9 +370,31 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
           // Positive response to clear DTC request
           if (sid == 0x54) {
-            logging.println("UDS Clear Diagnostic Trouble Codes - positive response received");
+            //  [0] PCI
+            //  [1] SID (0x54)
+            //  [2] DTC high byte  (0x02)
+            //  [3] DTC mid byte   (0x93)
+            //  [4] DTC low byte   (0x00)
+            uint8_t b2 = rx_frame.data.u8[2];
+            uint8_t b3 = rx_frame.data.u8[3];
+            uint8_t b4 = rx_frame.data.u8[4];
+
+            bool allDtcCleared =
+            ((b2 == 0xFF && b3 == 0xFF && b4 == 0xFF) ||   
+            (b2 == 0xAA && b3 == 0xAA && b4 == 0xAA));    
+
+            if (allDtcCleared) {
+              logging.println("UDS: positive response, ALL DTCs cleared");
+              userRequestClearDTC = false; // reset the request
+            } 
+            else{
+              logging.print("UDS: positive ClearDTC response, group/DTC = ");
+              logging.print(b2, HEX); logging.print(' ');
+              logging.print(b3, HEX); logging.print(' ');
+              logging.println(b4, HEX);
+            }
+
             uds_tx_in_flight = false;
-            userRequestClearDTC = false; // reset the request
             break;
           }
 
@@ -407,78 +423,79 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
             switch (did) {
               case 0xB041: { float v = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]); (void)v;
-                  logging.print("single frame UDS ReadDataByIdentifier bus voltage: ");
-                  logging.println(v);
+                  //logging.print("single frame UDS ReadDataByIdentifier bus voltage: ");
+                  //logging.println(v); //scaling to be checked
+                  
                 break;
               }
               case 0xB042: { float v = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.25f; (void)v;
-                  logging.print("single frame UDS ReadDataByIdentifier battery voltage: ");
-                  logging.println(v);
+                  //logging.print("single frame UDS ReadDataByIdentifier battery voltage: ");
+                  //logging.println(v);
                 break;
               }
               case 0xB043: { float i = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5])) * 1; (void)i;
-                  logging.print("single frame UDS ReadDataByIdentifier battery current: ");
-                  logging.println(i);
+                  //logging.print("single frame UDS ReadDataByIdentifier battery current: ");
+                  //logging.println(i); //scaling to be checked
                 break;
               }
               case 0xB045: { float r = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 1; (void)r;
-                  logging.print("single frame UDS ReadDataByIdentifier battery resistance: ");
-                  logging.println(r);
+                  //logging.print("single frame UDS ReadDataByIdentifier battery resistance: ");
+                  //logging.println(r); //scaling to be checked
                 break;
               }
               case 0xB046: { float soc = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.1f; (void)soc;
-                  logging.print("single frame UDS ReadDataByIdentifier battery state of charge: ");
-                  logging.println(soc);
+                  //logging.print("single frame UDS ReadDataByIdentifier battery state of charge: ");
+                  //logging.println(soc);
                 break;
               }
               case 0xB047: { uint8_t e = rx_frame.data.u8[4]; (void)e;
-                  logging.print("single frame UDS ReadDataByIdentifier error: ");
-                  logging.println(e);
+                  //logging.print("single frame UDS ReadDataByIdentifier error: ");
+                  //logging.println(e);
                 break;
               }
               case 0xB048: { uint8_t s = rx_frame.data.u8[4]; (void)s;
-                  logging.print("single frame UDS ReadDataByIdentifier status: ");
-                  logging.println (getBMStatus(s));
+                  //logging.print("single frame UDS ReadDataByIdentifier status: ");
+                  //logging.println (getBMStatus(s));
                 break;
               }
               case 0xB049: { uint8_t rB= rx_frame.data.u8[4]; (void)rB;
-                  logging.print("single frame UDS ReadDataByIdentifier relay B: ");
-                  logging.println (rB);
+                  //logging.print("single frame UDS ReadDataByIdentifier relay B: ");
+                  //logging.println (rB); //normally 1, seems to go to 0 during change of contactor state
                 break;
               }
               case 0xB04A: { uint8_t rG= rx_frame.data.u8[4]; (void)rG;
-                  logging.print("single frame UDS ReadDataByIdentifier relay G: ");
-                  logging.println (rG);
+                  //logging.print("single frame UDS ReadDataByIdentifier relay G: ");
+                  //logging.println (rG); //normally 1, seems to go to 0 during change of contactor state
                 break;
               }
               case 0xB052: { uint8_t rP= rx_frame.data.u8[4]; (void)rP;
-                  logging.print("single frame UDS ReadDataByIdentifier relay P: ");
-                  logging.println (rP);
+                  //logging.print("single frame UDS ReadDataByIdentifier relay P: ");
+                  //logging.println (rP); //normally 1, seems to go to 0 during change of contactor state
                 break;
               }
               case 0xB056: { float t = rx_frame.data.u8[4] - 100; (void)t;
-                  logging.print("single frame UDS ReadDataByIdentifier BATTERY TEMP: ");
-                  logging.println (t);
+                  //logging.print("single frame UDS ReadDataByIdentifier BATTERY TEMP: ");
+                  //logging.println (t);
                 break;
               }
               case 0xB058: { float mv = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.001f; (void)mv;
-                  logging.print("single frame UDS ReadDataByIdentifier max cell voltage: ");
-                  logging.println (mv);
+                  //logging.print("single frame UDS ReadDataByIdentifier max cell voltage: ");
+                  //logging.println (mv);
                 break;
              }
               case 0xB059: { float nv = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.001f; (void)nv;
-                  logging.print("single frame UDS ReadDataByIdentifier min cell voltage: ");
-                  logging.println (nv);
+                  //logging.print("single frame UDS ReadDataByIdentifier min cell voltage: ");
+                  //logging.println (nv);
               break;
              }
               case 0xB05C: { float c = rx_frame.data.u8[4]  - 100; (void)c;
-                  logging.print("single frame UDS ReadDataByIdentifier coolant temperature: ");
-                  logging.println (c);
+                  //logging.print("single frame UDS ReadDataByIdentifier coolant temperature: ");
+                  //logging.println (c);
                 break;
              }
               case 0xB061: { float soh = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]); (void)soh;
-                  logging.print("single frame UDS ReadDataByIdentifier state of health: ");
-                  logging.println (soh*0.01f);
+                  //logging.print("single frame UDS ReadDataByIdentifier state of health: ");
+                  //logging.println (soh*0.01f);
                   datalayer.battery.status.soh_pptt  = soh;
               break;
              }
@@ -488,8 +505,8 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
                             (uint32_t(rx_frame.data.u8[6]) <<  8) |
                               uint32_t(rx_frame.data.u8[7]);
                 (void)t;
-                  logging.print("single frame UDS ReadDataByIdentifier BMS time: ");
-                  logging.println (t);
+                  //logging.print("single frame UDS ReadDataByIdentifier BMS time: ");
+                  //logging.println (t); //scaling to be checked
 
                 break;
               }
@@ -606,20 +623,29 @@ void Mg5Battery::transmit_can(unsigned long currentMillis) {
     
     if(datalayer.battery.status.bms_status != FAULT // Fault, so open contactors!
       && userRequestContactorClose == true // User requested contactor closing
-      //&& datalayer.system.status.inverter_allows_contactor_closing
-    ){ // Inverter requests contactor closing
+      && datalayer.system.status.inverter_allows_contactor_closing // Inverter requests contactor closing
+    ){ 
       MG5_8A.data.u8[5] = 0x02; // Command to close contactors
-      
-      //logging.println("conctactor close command sent");
+      //logging.println("contactor close command sent");
+      if(contactorClosed == false){
+        // Just changed to closed
+        contactorClosed = true;
+        userRequestClearDTC = true; //clear DTCs to clear DTC 293, otherwise contactors won't close
+      }
     }
     else{
+      contactorClosed = false;
       MG5_8A.data.u8[5] = 0x00; // Command to open contactors
+      //userRequestClearDTC = true; //clear DTCs to be able to close the contactors afterwards
       //logging.println("conctactor open command sent");
     }
 
-    buildMG5_8AFrame(); //build the MG5 8A frame with updated values
-    transmit_can_frame(&MG5_8A);
+
+    
     transmit_can_frame(&MG5_1F1);
+    transmit_can_frame(&MG5_8A);
+
+
   }
 
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -664,7 +690,8 @@ void Mg5Battery::transmit_can(unsigned long currentMillis) {
           uds_req_started_ms = currentMillis;
           uds_timeout_ms     = UDS_TIMEOUT_BEFORE_FF_MS;
           }
-      }
+        }
+    
     }
   }
   else{ // UDS transaction in progress

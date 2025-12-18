@@ -27,10 +27,11 @@ class Mg5Battery : public CanBattery {
   bool supports_contactor_close() { return true; }
   virtual bool supports_read_DTC() { return true; }
   virtual bool supports_reset_DTC() { return true; }
-  void request_open_contactors() { userRequestContactorClose = false; }
+  void request_open_contactors() { userRequestContactorClose = false;}
   void request_close_contactors() { userRequestContactorClose = true; }
   virtual void read_DTC() {userRequestReadDTC = true;}
   virtual void reset_DTC() {userRequestClearDTC = true;}
+
 
  private:
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
@@ -57,6 +58,8 @@ class Mg5Battery : public CanBattery {
   uint16_t soc = 0;
   uint16_t cell_id = 0;
   uint16_t v = 0;
+  uint16_t cellVoltageValidTime = 0;
+  static const uint8_t CELL_VOLTAGE_TIMEOUT = 10;  // in seconds
 
   uint8_t transmitIndex = 0;  //For polling switchcase
   uint8_t previousState = 0;
@@ -87,6 +90,7 @@ class Mg5Battery : public CanBattery {
   bool userRequestReadDTC = false;
   bool userRequestClearDTC = false;
   bool userRequestContactorClose = true;
+  bool contactorClosed = false;
   unsigned long uds_req_started_ms = 0;
   unsigned long uds_timeout_ms  = 0;
   const unsigned long UDS_PID_REFRESH_MS = 500;     // inter-request gap
@@ -150,6 +154,7 @@ class Mg5Battery : public CanBattery {
                          .DLC = 8,
                          .ID = 0x781,
                          .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
+
                                       
   CAN_frame MG5_781_RQ_BUS_VOLTAGE = {.FD = false,
                                        .ext_ID = false,
@@ -252,7 +257,8 @@ class Mg5Battery : public CanBattery {
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x08A,
-                        .data = {0x80, 0x00, 0x00, 0x04, 0x00, 0x02, 0x36, 0xB0}};
+                        .data = {0x80, 0x00, 0x00, 0x04, 0x00, 0x02, 0xBB, 0x3F}};
+
 
   CAN_frame MG5_1F1 = {.FD = false,
                          .ext_ID = false,
@@ -296,8 +302,8 @@ class Mg5Battery : public CanBattery {
     if (cur >= n) cur = 0;
     return cur;
   }
-};
-  //compute checksum for MG5 0x8A message
+
+    //compute checksum for MG5 0x8A message
   uint8_t computeMG5_8AChecksum(const uint8_t *bytes7) const {
       uint8_t crc = 0;
       for (int i = 0; i < 7; ++i) {
@@ -305,6 +311,7 @@ class Mg5Battery : public CanBattery {
       }
       return crc;
   }
+};
 
 
 #endif
