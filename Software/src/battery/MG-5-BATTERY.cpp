@@ -1,8 +1,10 @@
 #include "MG-5-BATTERY.h"
 #include <cstring>  //For unit test
+#include <cmath>    //For unit test
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 
 /* TODO: 
 - Get contactor closing working
@@ -85,38 +87,38 @@ void Mg5Battery::print_formatted_dtc(uint32_t dtc24, uint8_t status)
   uint8_t d3 = (B & 0xF0) >> 4;
   uint8_t d4 = (B & 0x0F);
 
-  #ifdef DEBUG_LOG
-    logging.print("DTC ");
-    logging.print(sys);
-    logging.print(d1);
-    logging.print(d2, HEX);
-    logging.print(d3, HEX);
-    logging.print(d4, HEX);
 
-    // print hex byte first
-    logging.print("  status=0x");
-    logging.print(status, HEX);
-    logging.print(" [");
+  logging.print("DTC ");
+  logging.print(sys);
+  logging.print(d1);
+  logging.print(d2, HEX);
+  logging.print(d3, HEX);
+  logging.print(d4, HEX);
 
-    bool first = true;
-    auto add = [&](const char* s){
-      if (!first) logging.print(", ");
-      logging.print(s);
-      first = false;
-    };
+  // print hex byte first
+  logging.print("  status=0x");
+  logging.print(status, HEX);
+  logging.print(" [");
 
-    if (status & 0x08) add("Confirmed");
-    if (status & 0x04) add("Pending");
-    if (status & 0x20) add("FailSinceClear");
-    if (status & 0x01) add("Fail");
-    if (status & 0x10) add("NotCompSinceClear");
-    if (status & 0x40) add("NotCompThisCycle");
-    if (status & 0x80) add("MIL");
-    if (status & 0x02) add("FailThisCycle");
+  bool first = true;
+  auto add = [&](const char* s){
+    if (!first) logging.print(", ");
+    logging.print(s);
+    first = false;
+  };
 
-    if (first) logging.print("NoFlags");
-    logging.println("]");
-  #endif
+  if (status & 0x08) add("Confirmed");
+  if (status & 0x04) add("Pending");
+  if (status & 0x20) add("FailSinceClear");
+  if (status & 0x01) add("Fail");
+  if (status & 0x10) add("NotCompSinceClear");
+  if (status & 0x40) add("NotCompThisCycle");
+  if (status & 0x80) add("MIL");
+  if (status & 0x02) add("FailThisCycle");
+
+  if (first) logging.print("NoFlags");
+  logging.println("]");
+
 }
 
 void Mg5Battery::startUDSMultiFrameReception(uint16_t totalLength, uint8_t moduleID) {
@@ -161,6 +163,30 @@ bool Mg5Battery::isUDSMessageComplete() {
   return (!gUDSContext.UDS_inProgress && gUDSContext.UDS_bytesReceived > 0);
 }
 
+void Mg5Battery::buildMG5_8AFrame()
+{
+    // --- Bytes 0 / 1: safety-coded status (value + complement)
+    if (mg5_8a_flip) {
+        MG5_8A.data.u8[0] = 0x80;
+        MG5_8A.data.u8[1] = 0x00;
+    } else {
+        MG5_8A.data.u8[0] = 0x7F;
+        MG5_8A.data.u8[1] = 0xFF;
+    }
+    mg5_8a_flip = !mg5_8a_flip;
+
+
+    // --- Byte 6: rolling counter 0x10..0x1F..0x10..
+    MG5_8A.data.u8[6] = mg5_8a_counter;
+    mg5_8a_counter++;
+    if (mg5_8a_counter > 0x1F || mg5_8a_counter < 0x10) {
+        mg5_8a_counter = 0x10;
+    }
+
+    // --- Byte 7: simple additive checksum of first 7 bytes
+    MG5_8A.data.u8[7] = computeMG5_8AChecksum(MG5_8A.data.u8);
+}
+
 void Mg5Battery::update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
     // TODO: push any MG5-specific computed values into datalayer here.
 
@@ -200,7 +226,8 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // 0/8 = checking
 
       if (rx_frame.data.u8[1] != previousState) {
-        logging.printf("MG5: Battery status changed to %d (%d)\n", rx_frame.data.u8[1], rx_frame.data.u8[0]);
+        logging.print("MG5: Battery status changed to: ");
+        logging.println(getBMStatus(rx_frame.data.u8[1]));
       }
 
       if (rx_frame.data.u8[1] == 0xf && previousState != 0xf) {
@@ -260,8 +287,8 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x3AB:
       break;
-    case 0x3AC:{// battery summary: SoC, HV voltage, HV current
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
+    case 0x3AC:// battery summary: SoC, HV voltage, HV current
+     
   
 
       // Contains SoCs, voltage, current. Is emitted by both PTCAN and HybridCAN, but
@@ -288,8 +315,8 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if (soc < 1022) {
           update_soc(soc);
         }
+      }
       break;
-    }
     case 0x3B8:
       break;
     case 0x3BA:
@@ -347,6 +374,14 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             break;
           }
 
+          // Positive response to clear DTC request
+          if (sid == 0x54) {
+            logging.println("UDS Clear Diagnostic Trouble Codes - positive response received");
+            uds_tx_in_flight = false;
+            userRequestClearDTC = false; // reset the request
+            break;
+          }
+
           // Negative response
           if (sid == 0x7F) {
             uint8_t origSid = rx_frame.data.u8[2];
@@ -371,7 +406,7 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             uds_tx_in_flight = false;
 
             switch (did) {
-              case 0xB041: { float v = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.25f; (void)v;
+              case 0xB041: { float v = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]); (void)v;
                   logging.print("single frame UDS ReadDataByIdentifier bus voltage: ");
                   logging.println(v);
                 break;
@@ -381,12 +416,12 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
                   logging.println(v);
                 break;
               }
-              case 0xB043: { float i = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) - 1000.0f) * 0.025f; (void)i;
+              case 0xB043: { float i = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5])) * 1; (void)i;
                   logging.print("single frame UDS ReadDataByIdentifier battery current: ");
                   logging.println(i);
                 break;
               }
-              case 0xB045: { float r = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.5f; (void)r;
+              case 0xB045: { float r = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 1; (void)r;
                   logging.print("single frame UDS ReadDataByIdentifier battery resistance: ");
                   logging.println(r);
                 break;
@@ -421,7 +456,7 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
                   logging.println (rP);
                 break;
               }
-              case 0xB056: { float t = rx_frame.data.u8[4]*0.5f - 2.0f; (void)t;
+              case 0xB056: { float t = rx_frame.data.u8[4] - 100; (void)t;
                   logging.print("single frame UDS ReadDataByIdentifier BATTERY TEMP: ");
                   logging.println (t);
                 break;
@@ -436,15 +471,15 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
                   logging.println (nv);
               break;
              }
-              case 0xB05C: { float c = rx_frame.data.u8[4]*0.5f - 2.0f; (void)c;
+              case 0xB05C: { float c = rx_frame.data.u8[4]  - 100; (void)c;
                   logging.print("single frame UDS ReadDataByIdentifier coolant temperature: ");
                   logging.println (c);
                 break;
              }
               case 0xB061: { float soh = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]); (void)soh;
                   logging.print("single frame UDS ReadDataByIdentifier state of health: ");
-                  logging.println (soh);
-                  datalayer.battery.status.soh_pptt  = soh*10;
+                  logging.println (soh*0.01f);
+                  datalayer.battery.status.soh_pptt  = soh;
               break;
              }
               case 0xB06D: {
@@ -476,7 +511,7 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             uint8_t toStore = uint8_t(remain < avail ? remain : avail);
             if (toStore) storeUDSPayload(&rx_frame.data.u8[2], toStore);
 
-            transmit_can_frame(&MG5_781_RQ_CONTINUE_MULTIFRAME, can_config.battery);
+            transmit_can_frame(&MG5_781_RQ_CONTINUE_MULTIFRAME);
             uds_timeout_ms = UDS_TIMEOUT_AFTER_FF_MS; // extend while MF running
 
           }
@@ -492,7 +527,7 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
           gUDSContext.receivedInBatch++;
           if (gUDSContext.receivedInBatch  == 3) {
-            transmit_can_frame(&MG5_781_RQ_CONTINUE_MULTIFRAME, can_config.battery);
+            transmit_can_frame(&MG5_781_RQ_CONTINUE_MULTIFRAME);
             gUDSContext.receivedInBatch = 0;
           }
 
@@ -525,7 +560,7 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
             // signal that UDS transaction is complete
             uds_tx_in_flight = false;
-            userRequestReadDTC == false
+            userRequestReadDTC = false;
           
 
             // ready for the next transaction
@@ -546,12 +581,14 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
 
     }
-  }
+
   default:
     break;
-  
   }
+
+  
 }
+
 
 
 void Mg5Battery::transmit_can(unsigned long currentMillis) {
@@ -571,14 +608,18 @@ void Mg5Battery::transmit_can(unsigned long currentMillis) {
       && userRequestContactorClose == true // User requested contactor closing
       //&& datalayer.system.status.inverter_allows_contactor_closing
     ){ // Inverter requests contactor closing
-      MG_HS_8A.data.u8[5] = 0x02; // Command to close contactors
+      MG5_8A.data.u8[5] = 0x02; // Command to close contactors
+      
+      //logging.println("conctactor close command sent");
     }
     else{
-      MG_HS_8A.data.u8[5] = 0x00; // Command to open contactors
+      MG5_8A.data.u8[5] = 0x00; // Command to open contactors
+      //logging.println("conctactor open command sent");
     }
 
-    transmit_can_frame(&MG_HS_8A, can_config.battery);
-    transmit_can_frame(&MG_HS_1F1, can_config.battery);
+    buildMG5_8AFrame(); //build the MG5 8A frame with updated values
+    transmit_can_frame(&MG5_8A);
+    transmit_can_frame(&MG5_1F1);
   }
 
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -595,33 +636,42 @@ void Mg5Battery::transmit_can(unsigned long currentMillis) {
 
   if(uds_tx_in_flight  == false){ // No UDS transaction is in progress
     if(userRequestReadDTC == true){ // DTC requested by user
-      transmit_can_frame(&MG5_781_RQ_DTCs, can_config.battery);
+      transmit_can_frame(&MG5_781_RQ_DTCs);
       uds_tx_in_flight   = true; //singal that a UDS transaction is in progress
       uds_req_started_ms = currentMillis; //timestamp when request was sent for timeout tracking
       uds_timeout_ms     = UDS_TIMEOUT_BEFORE_FF_MS; //increase timeout for multi-frame response
-      #ifdef DEBUG_LOG
-        //logging.println("UDS DTC RQ sent");
-      #endif  // DEBUG_LOG
+      logging.println("UDS DTC RQ sent");
+
     
     }
-    else{  // Time to send next PID request, DTC has priority since it is slower
-      if(currentMillis - previousMillisPID >= UDS_PID_REFRESH_MS){
-        previousMillisPID = currentMillis;
-        // normal single-frame poll round-robin
-        uds_slow_req_id_counter = increment_uds_req_id_counter(
-        uds_slow_req_id_counter, numSlowUDSreqs);
-        transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter], can_config.battery);
-        uds_tx_in_flight   = true;
-        uds_req_started_ms = currentMillis;
-        uds_timeout_ms     = UDS_TIMEOUT_BEFORE_FF_MS;
-        }
+    else{ 
+      if(userRequestClearDTC == true){ // Clear DTC requested by user
+        transmit_can_frame(&MG5_781_CLEAR_DTCs);
+        uds_tx_in_flight   = true; //singal that a UDS transaction is in progress
+        uds_req_started_ms = currentMillis; //timestamp when request was sent for timeout tracking
+        uds_timeout_ms     = UDS_TIMEOUT_BEFORE_FF_MS; //increase timeout for multi-frame response
+        logging.println("UDS Clear DTC RQ sent");
+      }
+      else{
+        // Time to send next PID request, DTC has priority since it is slower
+        if(currentMillis - previousMillisPID >= UDS_PID_REFRESH_MS){
+          previousMillisPID = currentMillis;
+          // normal single-frame poll round-robin
+          uds_slow_req_id_counter = increment_uds_req_id_counter(
+          uds_slow_req_id_counter, numSlowUDSreqs);
+          transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]);
+          uds_tx_in_flight   = true;
+          uds_req_started_ms = currentMillis;
+          uds_timeout_ms     = UDS_TIMEOUT_BEFORE_FF_MS;
+          }
+      }
     }
   }
   else{ // UDS transaction in progress
     // Timeout / retry Session Control ------------------------------------
     if ((currentMillis - uds_req_started_ms) > uds_timeout_ms) {
       // re-enter Extended Session
-      transmit_can_frame(&MG5_781_ses_ctrl, can_config.battery);
+      transmit_can_frame(&MG5_781_ses_ctrl);
       uds_tx_in_flight   = true;
       uds_req_started_ms = currentMillis;
       uds_timeout_ms     = UDS_TIMEOUT_BEFORE_FF_MS;
@@ -637,8 +687,9 @@ void Mg5Battery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.total_capacity_Wh = TOTAL_BATTERY_CAPACITY_WH;
   datalayer.battery.info.number_of_cells = 96;
-  uds_tx_in_flight  == true; // Make sure UDS doesn't start right away
+  uds_tx_in_flight  = true; // Make sure UDS doesn't start right away
   uds_req_started_ms = millis(); // prevent immediate timeout
   uds_timeout_ms = UDS_TIMEOUT_AFTER_BOOT; // initial delay to restart UDS after boot-up
   

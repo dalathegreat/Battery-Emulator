@@ -1,6 +1,7 @@
 #ifndef MG_5_BATTERY_H
 #define MG_5_BATTERY_H
 #include "CanBattery.h"
+#include <Arduino.h>
 
 #ifdef MG_5_BATTERY
 #define SELECTED_BATTERY_CLASS Mg5Battery
@@ -20,13 +21,16 @@ class Mg5Battery : public CanBattery {
   static constexpr const char* Name = "MG 5 battery";
   void startUDSMultiFrameReception(uint16_t totalLength, uint8_t moduleID);
   bool storeUDSPayload(const uint8_t* payload, uint8_t length);
+  void buildMG5_8AFrame();
   bool isUDSMessageComplete();
   virtual void print_formatted_dtc(uint32_t dtc24, uint8_t status);
   bool supports_contactor_close() { return true; }
   virtual bool supports_read_DTC() { return true; }
+  virtual bool supports_reset_DTC() { return true; }
   void request_open_contactors() { userRequestContactorClose = false; }
   void request_close_contactors() { userRequestContactorClose = true; }
   virtual void read_DTC() {userRequestReadDTC = true;}
+  virtual void reset_DTC() {userRequestClearDTC = true;}
 
  private:
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
@@ -34,6 +38,7 @@ class Mg5Battery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+  static const int TOTAL_BATTERY_CAPACITY_WH = 52500; // 52.5 kWh
 
   unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
@@ -52,7 +57,9 @@ class Mg5Battery : public CanBattery {
   uint16_t soc = 0;
   uint16_t cell_id = 0;
   uint16_t v = 0;
+
   uint8_t transmitIndex = 0;  //For polling switchcase
+  uint8_t previousState = 0;
 
   const int MaxChargePower = 10000;  // Maximum allowable charge power, excluding the taper
   const int StartChargeTaper = 90;  // Battery percentage above which the charge power will taper to zero
@@ -70,9 +77,16 @@ class Mg5Battery : public CanBattery {
   // poll counters
   int uds_slow_req_id_counter = -1;
 
+  // rolling counter for 0x8A (0x10..0x1F pattern)
+  uint8_t mg5_8a_counter = 0x10;
+
+  // simple toggle to alternate 0x80/0x00 and 0x7F/0xFF (alive / redundancy style)
+  bool mg5_8a_flip = false;
+
   bool uds_tx_in_flight = false;
   bool userRequestReadDTC = false;
-  bool userRequestContactorClose = false;
+  bool userRequestClearDTC = false;
+  bool userRequestContactorClose = true;
   unsigned long uds_req_started_ms = 0;
   unsigned long uds_timeout_ms  = 0;
   const unsigned long UDS_PID_REFRESH_MS = 500;     // inter-request gap
@@ -129,6 +143,13 @@ class Mg5Battery : public CanBattery {
                          .DLC = 8,
                          .ID = 0x781,
                          .data = {0x03, 0x19, 0x02, 0xFF, 0x00, 0x00, 0x00, 0x00}};
+
+  //0x781 UDS diagnostic requests - clear all DTC's                   
+  CAN_frame MG5_781_CLEAR_DTCs = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x781,
+                         .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
                                       
   CAN_frame MG5_781_RQ_BUS_VOLTAGE = {.FD = false,
                                        .ext_ID = false,
@@ -227,13 +248,13 @@ class Mg5Battery : public CanBattery {
                                     .data = {0x03, 0x22, 0xB0, 0x6D, 0x00, 0x00, 0x00, 0x00}};  //  Battery Management System Time
 
 
-  CAN_frame MG_HS_8A = {.FD = false,
+  CAN_frame MG5_8A = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x08A,
                         .data = {0x80, 0x00, 0x00, 0x04, 0x00, 0x02, 0x36, 0xB0}};
 
-  CAN_frame MG_HS_1F1 = {.FD = false,
+  CAN_frame MG5_1F1 = {.FD = false,
                          .ext_ID = false,
                          .DLC = 8,
                          .ID = 0x1F1,
@@ -276,6 +297,14 @@ class Mg5Battery : public CanBattery {
     return cur;
   }
 };
+  //compute checksum for MG5 0x8A message
+  uint8_t computeMG5_8AChecksum(const uint8_t *bytes7) const {
+      uint8_t crc = 0;
+      for (int i = 0; i < 7; ++i) {
+          crc += bytes7[i];
+      }
+      return crc;
+  }
 
 
 #endif
