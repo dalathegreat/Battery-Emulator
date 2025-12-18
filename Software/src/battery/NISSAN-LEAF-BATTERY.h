@@ -10,6 +10,12 @@ extern bool user_selected_LEAF_interlock_mandatory;
 
 class NissanLeafBattery : public CanBattery {
  public:
+  // Use the default constructor to create the first or single battery.battery_Total_Voltage2
+  NissanLeafBattery() {
+    datalayer_battery = &datalayer.battery;
+    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+    datalayer_nissan = &datalayer_extended.nissanleaf;
+  }
   // Use this constructor for the second battery.
   NissanLeafBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_NISSAN_LEAF* extended,
                     CAN_Interface targetCan)
@@ -18,14 +24,7 @@ class NissanLeafBattery : public CanBattery {
     allows_contactor_closing = nullptr;
     datalayer_nissan = extended;
 
-    battery_Total_Voltage2 = 0;
-  }
-
-  // Use the default constructor to create the first or single battery.
-  NissanLeafBattery() {
-    datalayer_battery = &datalayer.battery;
-    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    datalayer_nissan = &datalayer_extended.nissanleaf;
+    battery_Total_Voltage2 = 0;  //Zero out pack voltage to avoid contactor closing before we know value via CAN
   }
 
   virtual void setup(void);

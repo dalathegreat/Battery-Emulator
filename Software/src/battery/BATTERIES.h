@@ -4,10 +4,11 @@
 
 class Battery;
 
-// Currently initialized objects for primary and secondary battery.
+// Currently initialized objects for primary/secondary/tertiary battery.
 // Null value indicates that battery is not configured/initialized
 extern Battery* battery;
 extern Battery* battery2;
+extern Battery* battery3;
 
 void setup_shunt();
 
@@ -34,6 +35,7 @@ void setup_shunt();
 #include "KIA-E-GMP-BATTERY.h"
 #include "KIA-HYUNDAI-64-BATTERY.h"
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
+#include "MAXUS-EV80-BATTERY.h"
 #include "MEB-BATTERY.h"
 #include "MG-5-BATTERY.h"
 #include "MG-HS-PHEV-BATTERY.h"
@@ -54,6 +56,7 @@ void setup_shunt();
 #include "SONO-BATTERY.h"
 #include "TESLA-BATTERY.h"
 #include "TEST-FAKE-BATTERY.h"
+#include "THINK-BATTERY.h"
 #include "VOLVO-SPA-BATTERY.h"
 #include "VOLVO-SPA-HYBRID-BATTERY.h"
 

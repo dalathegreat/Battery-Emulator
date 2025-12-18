@@ -3,9 +3,9 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For More Battery Info page
+#include "../devboard/utils/common_functions.h"
 #include "../devboard/utils/events.h"
 
-/* Do not change code below unless you are sure what you are doing */
 void CmpSmartCarBattery::update_values() {
   if (datalayer.system.info.equipment_stop_active == true) {
     digitalWrite(esp32hal->WUP_PIN1(), LOW);  // Turn off wakeup pin
@@ -157,12 +157,7 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         datalayer.battery.status.CAN_error_counter++;
         break;  //Message checksum incorrect, abort reading data from it
       }
-      if ((rx_frame.data.u8[0] & 0x80) >> 7) {  //Charging
-        battery_current_dA = 32768 - ((rx_frame.data.u8[0] << 7) | (rx_frame.data.u8[1] >> 1));
-      } else {  //Discharging
-        battery_current_dA = ((rx_frame.data.u8[0] << 7) | (rx_frame.data.u8[1] >> 1));
-      }
-
+      battery_current_dA = -sign_extend_to_int16(((rx_frame.data.u8[0] << 7) | (rx_frame.data.u8[1] >> 1)), 15);
       battery_soc = ((rx_frame.data.u8[2] & 0x1F) << 5) | (rx_frame.data.u8[3] >> 3);
       battery_voltage =
           ((((rx_frame.data.u8[3] & 0x07) << 10) | (rx_frame.data.u8[4] << 2) | (rx_frame.data.u8[5] >> 6)));

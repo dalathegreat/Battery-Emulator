@@ -3,7 +3,8 @@
 #include "../datalayer/datalayer.h"
 
 /* TODO: 
-This protocol is still under development. It can not be used yet for Sungrow inverters, 
+This protocol is still under development and should be considered beta quality.
+It can be used with caution.
 see the Wiki for more info on how to use your Sungrow inverter */
 
 /*
@@ -17,6 +18,51 @@ S/N of Module 1: EM032D2310123461DF
 S/N of Module 2: EM032D2310123462DF
 S/N of Module 3: EM032D2310123463DF
 */
+
+// ---- Internal Modbus helper namespace for SBRXXX threshold block ----
+namespace {
+
+// Modbus RTU constants for the SBRXXX battery on CAN ID 0x1E0.
+
+// SOC thresholds in percent * 100 (pptt).
+constexpr uint16_t MODBUS_SOC_CUTOFF_PPTT = 500;        // 5.00 %
+constexpr uint16_t MODBUS_SOC_EMERGENCY_PPTT = 300;     // 3.00 %
+constexpr uint16_t MODBUS_SOC_IDLE_TRIGGER_PPTT = 200;  // 2.00 %
+
+// Modbus function codes we care about.
+constexpr uint8_t MODBUS_FUNC_READ_HOLDING_REGS = 0x03;
+constexpr uint8_t MODBUS_FUNC_READ_INPUT_REGS = 0x04;
+
+// Backing store for 6 registers starting at 0x4DE2:
+//   Reg0: cutoff SOC of discharge (pptt)
+//   Reg1: reserved
+//   Reg2: emergency charging SOC (pptt)
+//   Reg3: reserved
+//   Reg4: trigger SOC of idle mode (pptt)
+//   Reg5: reserved
+constexpr uint16_t MODBUS_REGISTER_VALUES[SungrowInverter::MODBUS_REGISTER_QTY] = {
+    MODBUS_SOC_CUTOFF_PPTT, 0, MODBUS_SOC_EMERGENCY_PPTT, 0, MODBUS_SOC_IDLE_TRIGGER_PPTT, 0};
+
+// Maximum number of Modbus data bytes based on the virtual register window.
+constexpr uint8_t MODBUS_MAX_DATA_BYTES = static_cast<uint8_t>(SungrowInverter::MODBUS_REGISTER_QTY * 2);
+
+// Minimal Modbus RTU CRC16 (poly 0xA001, little-endian output).
+uint16_t modbus_crc(const uint8_t* data, uint8_t length) {
+  uint16_t crc = 0xFFFF;
+  for (uint8_t i = 0; i < length; ++i) {
+    crc ^= data[i];
+    for (uint8_t bit = 0; bit < 8; ++bit) {
+      if (crc & 0x0001) {
+        crc = (crc >> 1) ^ 0xA001;
+      } else {
+        crc >>= 1;
+      }
+    }
+  }
+  return crc;
+}
+
+}  // namespace
 
 void SungrowInverter::update_values() {
   current_dA = datalayer.battery.status.current_dA;
@@ -87,9 +133,9 @@ void SungrowInverter::update_values() {
   // Another voltage. Different but similar
   SUNGROW_704.data.u8[4] = (datalayer.battery.status.voltage_dV & 0x00FF);
   SUNGROW_704.data.u8[5] = (datalayer.battery.status.voltage_dV >> 8);
-  //Temperature //TODO: Signed correctly? Also should be put AVG here?
-  SUNGROW_704.data.u8[6] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
-  SUNGROW_704.data.u8[7] = (datalayer.battery.status.temperature_max_dC >> 8);
+  // Temperature (signed int16_t in 0.1°C units)
+  SUNGROW_704.data.u8[6] = static_cast<uint8_t>(datalayer.battery.status.temperature_max_dC & 0xFF);
+  SUNGROW_704.data.u8[7] = static_cast<uint8_t>((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
 
   //Status bytes?
   SUNGROW_705.data.u8[0] = 0x02;  // Magic number
@@ -103,16 +149,16 @@ void SungrowInverter::update_values() {
   // Padding?
   SUNGROW_705.data.u8[7] = 0x00;  // Magic number
 
-  //Temperature Max //TODO: Signed correctly?
-  SUNGROW_706.data.u8[0] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
-  SUNGROW_706.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
-  //Temperature Min //TODO: Signed correctly?
-  SUNGROW_706.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
-  SUNGROW_706.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
-  //Cell voltage max
+  // Temperature Max (signed int16_t in 0.1°C units)
+  SUNGROW_706.data.u8[0] = static_cast<uint8_t>(datalayer.battery.status.temperature_max_dC & 0xFF);
+  SUNGROW_706.data.u8[1] = static_cast<uint8_t>((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
+  // Temperature Min (signed int16_t in 0.1°C units)
+  SUNGROW_706.data.u8[2] = static_cast<uint8_t>(datalayer.battery.status.temperature_min_dC & 0xFF);
+  SUNGROW_706.data.u8[3] = static_cast<uint8_t>((datalayer.battery.status.temperature_min_dC >> 8) & 0xFF);
+  // Cell voltage max
   SUNGROW_706.data.u8[4] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
   SUNGROW_706.data.u8[5] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
-  //Cell voltage min
+  // Cell voltage min
   SUNGROW_706.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
   SUNGROW_706.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
@@ -162,28 +208,35 @@ void SungrowInverter::update_values() {
   SUNGROW_70F_05.data.u8[6] = (datalayer.battery.status.real_soc & 0xFF);
   SUNGROW_70F_05.data.u8[7] = (datalayer.battery.status.real_soc >> 8);
 
-  //Status bytes?
-  SUNGROW_713.data.u8[0] = 0x02;  // Magic number
-  SUNGROW_713.data.u8[1] = 0x01;  // Magic number
-  SUNGROW_713.data.u8[2] = 0x77;  // Magic number
-  SUNGROW_713.data.u8[3] = 0x00;  // Magic number
-  SUNGROW_713.data.u8[4] = 0x01;  // Magic number
-  SUNGROW_713.data.u8[5] = 0x02;  // Magic number
-  SUNGROW_713.data.u8[6] = 0x89;  // Magic number
-  SUNGROW_713.data.u8[7] = 0x00;  // Magic number
+  // 0x713 - Battery Cell Temperature Overview
+  // Cell position with minimum temperature (cell/module addressing)
+  SUNGROW_713.data.u8[0] = 0x02;
+  SUNGROW_713.data.u8[1] = 0x01;
+  // Minimum cell temperature (signed int16_t in 0.1°C units)
+  SUNGROW_713.data.u8[2] = static_cast<uint8_t>(datalayer.battery.status.temperature_min_dC & 0xFF);
+  SUNGROW_713.data.u8[3] = static_cast<uint8_t>((datalayer.battery.status.temperature_min_dC >> 8) & 0xFF);
+  // Cell position with maximum temperature (cell/module addressing)
+  SUNGROW_713.data.u8[4] = 0x01;
+  SUNGROW_713.data.u8[5] = 0x02;
+  // Maximum cell temperature (signed int16_t in 0.1°C units)
+  SUNGROW_713.data.u8[6] = static_cast<uint8_t>(datalayer.battery.status.temperature_max_dC & 0xFF);
+  SUNGROW_713.data.u8[7] = static_cast<uint8_t>((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
 
-  // Overview - Stack overview?
-  SUNGROW_714.data.u8[0] = 0x05;  // Enum??
-  SUNGROW_714.data.u8[1] = 0x01;  // Magic number
-  // Cell Voltage
+  // 0x714 - Battery Cell Voltage Overview
+  // Cell position with maximum voltage (cell/module addressing)
+  SUNGROW_714.data.u8[0] = 0x05;
+  SUNGROW_714.data.u8[1] = 0x01;
+  // Maximum cell voltage (0.1 mV units = cell_max_voltage_mV * 10)
   SUNGROW_714.data.u8[2] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
   SUNGROW_714.data.u8[3] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
-  SUNGROW_714.data.u8[4] = 0x11;  // Enum???
-  SUNGROW_714.data.u8[5] = 0x02;  // Magic number
-  // Cell Voltage
+  // Cell position with minimum voltage (cell/module addressing)
+  SUNGROW_714.data.u8[4] = 0x11;
+  SUNGROW_714.data.u8[5] = 0x02;
+  // Minimum cell voltage (0.1 mV units = cell_min_voltage_mV * 10)
   SUNGROW_714.data.u8[6] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
   SUNGROW_714.data.u8[7] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
 
+  // 0x715 - Battery Module 1+2 Voltage Overview
   // Module 1 Min Cell voltage
   SUNGROW_715.data.u8[0] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
   SUNGROW_715.data.u8[1] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
@@ -197,6 +250,7 @@ void SungrowInverter::update_values() {
   SUNGROW_715.data.u8[6] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
   SUNGROW_715.data.u8[7] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
 
+  // 0x716 - Battery Module 3+4 Voltage Overview
   // Module 3 Min Cell voltage
   SUNGROW_716.data.u8[0] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
   SUNGROW_716.data.u8[1] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
@@ -204,31 +258,9 @@ void SungrowInverter::update_values() {
   SUNGROW_716.data.u8[2] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
   SUNGROW_716.data.u8[3] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
 
-  SUNGROW_717.data.u8[0] = 0x00;
-
-  // Status flags?
+  // 0x719 - Status and Module Fault???
+  // Possibly relates to Modbus register 3_10789 and 3_10790
   SUNGROW_719.data.u8[0] = 0x02;
-
-  // Battery flags?
-  SUNGROW_71A.data.u8[0] = 0x44;  // Magic number
-  SUNGROW_71A.data.u8[1] = 0x44;  // Magic number
-  SUNGROW_71A.data.u8[2] = 0x44;  // Magic number
-
-  // Module 1 + 2 data?
-  SUNGROW_71B.data.u8[0] = 0x3F;  // Magic number
-  SUNGROW_71B.data.u8[1] = 0x7A;  // Magic number
-  SUNGROW_71B.data.u8[2] = 0x6F;  // Magic number
-  SUNGROW_71B.data.u8[3] = 0x01;  // Magic number
-  SUNGROW_71B.data.u8[4] = 0x3F;  // Magic number
-  SUNGROW_71B.data.u8[5] = 0x7A;  // Magic number
-  SUNGROW_71B.data.u8[6] = 0x6F;  // Magic number
-  SUNGROW_71B.data.u8[7] = 0x01;  // Magic number
-
-  // Module 3 + 4 data?
-  SUNGROW_71C.data.u8[0] = 0x3F;  // Magic number
-  SUNGROW_71C.data.u8[1] = 0x7A;  // Magic number
-  SUNGROW_71C.data.u8[2] = 0x6F;  // Magic number
-  SUNGROW_71C.data.u8[3] = 0x01;  // Magic number
 
   //Copy 7## content to 0## messages
   for (int i = 0; i < 8; i++) {
@@ -421,10 +453,10 @@ void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       transmit_can_init = true;  // We only see 0x191 when the inverter is searching for a battery.
       break;
-    case 0x1E0:
-      // Modbus RTU over CAN??
+    case 0x1E0: {
+      // Modbus RTU over CAN from inverter to battery.
 
-      // Inverter
+      // Inverter Request
       // [8] 01 04 4D E2 00 02 C6 91
       // Slave Addr: 0x01
       // Function: 0x04
@@ -440,17 +472,98 @@ void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       // Data: 0x01F4, 0x0000 => Decimal 500, 0
       // CRC16: 0x8ABB
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      //transmit_can_frame(&SUNGROW_1E0_00);
-      //transmit_can_frame(&SUNGROW_1E0_01);
-      break;
-    case 0x00004200:  //Only sent by SH15T (Inverter trying to use Pylon CAN)
-      // Seen on AU SH10RS @ 500k. Incorrect bitrate?
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x02007F00:  //Only sent by SH15T (Inverter trying to use Pylon CAN)
-      // Seen on AU SH10RS @ 500k. Incorrect bitrate?
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      break;
+
+      // We only handle 8-byte Modbus request frames here.
+      if (rx_frame.DLC != 8) {
+        break;
+      }
+
+      const uint8_t* p = rx_frame.data.u8;
+
+      // Validate Modbus RTU CRC16 (little-endian in bytes 6..7) over the first 6 bytes.
+      const uint16_t req_crc = static_cast<uint16_t>(p[6]) | (static_cast<uint16_t>(p[7]) << 8);
+      const uint16_t calc_crc = modbus_crc(p, 6);
+      if (req_crc != calc_crc) {
+        break;
+      }
+
+      const uint8_t addr = p[0];
+      const uint8_t func = p[1];
+      const uint16_t start_addr = (static_cast<uint16_t>(p[2]) << 8) | p[3];
+      const uint16_t quantity = (static_cast<uint16_t>(p[4]) << 8) | p[5];
+
+      if (addr != SungrowInverter::MODBUS_SLAVE_ADDR || start_addr != SungrowInverter::MODBUS_REGISTER_BASE_ADDR) {
+        break;
+      }
+
+      // Helper to construct a Modbus RTU response (addr/func/byteCount/data),
+      // append CRC, split into CAN frames of up to 8 bytes, and send them.
+      auto send_modbus_response = [this, &rx_frame](const uint8_t* payload, uint8_t payload_len) {
+        constexpr uint8_t MAX_PAYLOAD = 3 + MODBUS_MAX_DATA_BYTES;  // addr + func + byteCount + data bytes
+        constexpr uint8_t MAX_TOTAL = MAX_PAYLOAD + 2;              // + CRC16
+
+        if (payload_len > MAX_PAYLOAD) {
+          return;  // Defensive: ignore impossible lengths.
+        }
+
+        uint8_t frame_bytes[MAX_TOTAL];
+
+        // Copy payload (addr, func, byteCount, data...)
+        for (uint8_t i = 0; i < payload_len; ++i) {
+          frame_bytes[i] = payload[i];
+        }
+
+        // Append CRC16 (little-endian)
+        const uint16_t crc = modbus_crc(payload, payload_len);
+        const uint8_t crc_lo = static_cast<uint8_t>(crc & 0xFF);
+        const uint8_t crc_hi = static_cast<uint8_t>((crc >> 8) & 0xFF);
+
+        frame_bytes[payload_len] = crc_lo;
+        frame_bytes[payload_len + 1] = crc_hi;
+
+        uint8_t total_len = payload_len + 2;  // payload + CRC
+        uint8_t offset = 0;
+
+        while (total_len > 0) {
+          CAN_frame f = rx_frame;
+          const uint8_t chunk = (total_len > 8) ? 8 : total_len;
+          f.DLC = chunk;
+          for (uint8_t i = 0; i < chunk; ++i) {
+            f.data.u8[i] = frame_bytes[offset + i];
+          }
+          transmit_can_frame(&f);
+          offset += chunk;
+          total_len -= chunk;
+        }
+      };
+
+      auto send_modbus_registers = [send_modbus_response, addr, func](uint16_t quantity) {
+        if (quantity == 0 || quantity > SungrowInverter::MODBUS_REGISTER_QTY) {
+          return;
+        }
+
+        const uint8_t byte_count = static_cast<uint8_t>(quantity * 2);
+        uint8_t payload[3 + MODBUS_MAX_DATA_BYTES];  // addr, func, byteCount, data bytes
+
+        payload[0] = addr;
+        payload[1] = func;
+        payload[2] = byte_count;
+
+        uint8_t idx = 3;
+        for (uint16_t reg = 0; reg < quantity; ++reg) {
+          const uint16_t value = MODBUS_REGISTER_VALUES[reg];
+          payload[idx++] = static_cast<uint8_t>((value >> 8) & 0xFF);
+          payload[idx++] = static_cast<uint8_t>(value & 0xFF);
+        }
+
+        send_modbus_response(payload, idx);
+      };
+
+      // For now we only support 0x03/0x04 reads against this register window.
+      if (func == MODBUS_FUNC_READ_INPUT_REGS || func == MODBUS_FUNC_READ_HOLDING_REGS) {
+        send_modbus_registers(quantity);
+      }
+    } break;
     default:
       break;
   }

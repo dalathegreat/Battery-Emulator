@@ -9,6 +9,7 @@
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
+#include "src/battery/Shunt.h"
 #include "src/inverter/INVERTERS.h"
 
 extern bool settingsUpdated;
@@ -124,6 +125,19 @@ const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   }
 }
 
+const char* name_for_gpioopt1(GPIOOPT1 option) {
+  switch (option) {
+    case GPIOOPT1::DEFAULT_OPT:
+      return "WUP1 / WUP2";
+    case GPIOOPT1::I2C_DISPLAY_SSD1306:
+      return "I2C Display (SSD1306)";
+    case GPIOOPT1::ESTOP_BMS_POWER:
+      return "E-Stop / BMS Power";
+    default:
+      return nullptr;
+  }
+}
+
 // Special unicode characters
 const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
 const char* FALSE_CHAR_CODE = "\u2715";  //&#10005";
@@ -133,11 +147,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
   // HTML-ready values (such as select options) are returned here. These don't
   // get any additional escaping.
-
-  if (var == "SHUNTCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("SHUNTCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
 
   if (var == "BATTTYPE") {
     return options_for_enum_with_none((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None),
@@ -191,6 +200,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_comm_interface);
   }
 
+  if (var == "BATT3COMM") {
+    return options_for_enum((comm_interface)settings.getUInt("BATT3COMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+
   if (var == "GTWCOUNTRY") {
     return options_from_map(settings.getUInt("GTWCOUNTRY", 0), tesla_countries);
   }
@@ -209,6 +223,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "LEDMODE") {
     return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
+  }
+
+  if (var == "GPIOOPT1") {
+    return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
+                                      name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
   }
 
   // All other values are wrapped by html_escape to avoid HTML injection.
@@ -279,8 +298,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     }
   }
 
+  if (var == "SHUNTINTF") {
+    if (shunt) {
+      return shunt->interface_name();
+    }
+  }
+
   if (var == "SHUNTCLASS") {
-    if (user_selected_shunt_type == ShuntType::None) {
+    if (!shunt) {
       return "hidden";
     }
   }
@@ -295,6 +320,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("DBLBTR") ? "checked" : "";
   }
 
+  if (var == "TRIBTR") {
+    return settings.getBool("TRIBTR") ? "checked" : "";
+  }
+
   if (var == "SOCESTIMATED") {
     return settings.getBool("SOCESTIMATED") ? "checked" : "";
   }
@@ -303,8 +332,16 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
 
+  if (var == "NCCONTACTOR") {
+    return settings.getBool("NCCONTACTOR") ? "checked" : "";
+  }
+
   if (var == "CNTCTRLDBL") {
     return settings.getBool("CNTCTRLDBL") ? "checked" : "";
+  }
+
+  if (var == "CNTCTRLTRI") {
+    return settings.getBool("CNTCTRLTRI") ? "checked" : "";
   }
 
   if (var == "PWMCNTCTRL") {
@@ -763,6 +800,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   }
 }
 
+#ifdef HW_LILYGO2CAN
+#define GPIOOPT1_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT1">Configurable port:</label>
+    <select id="GPIOOPT1" name="GPIOOPT1">
+      %GPIOOPT1%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT1_SETTING ""
+#endif
+
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
     <script>
@@ -968,6 +1017,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-tribtr { display: none; }
+    form[data-tribtr="true"] .if-tribtr {
+      display: contents;
+    }
+
     form .if-pwmcntctrl { display: none; }
     form[data-pwmcntctrl="true"] .if-pwmcntctrl {
       display: contents;
@@ -1148,6 +1202,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <select name='BATT2COMM'>
                 %BATT2COMM%
             </select>
+
+        <label>Triple battery: </label>
+        <input type='checkbox' name='TRIBTR' value='on' %TRIBTR% 
+        title="Enable this option if you intend to run three batteries in parallel" />
+
+        <div class="if-tribtr">
+        <label>Battery 3 interface: </label>
+        <select name='BATT3COMM'>
+            %BATT3COMM%
+        </select>
+        </div>
+
         </div>
 
         </div>
@@ -1239,7 +1305,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
-        <label>Shunt: </label><select name='SHUNT'>
+        <label>Shunt: </label><select name='SHUNTTYPE'>
         %SHUNTTYPE%
         </select>
 
@@ -1277,6 +1343,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-dblbtr">
             <label>Double-Battery Contactor control via GPIO: </label>
             <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
+            <label>Triple-Battery Contactor control via GPIO: </label>
+            <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
         </div>
 
         <label>Contactor control via GPIO: </label>
@@ -1287,6 +1355,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <input type='number' name='PRECHGMS' value="%PRECHGMS%" 
             min="1" max="65000" step="1"
             title="Time in milliseconds the precharge should be active" />
+
+            <label>Use Normally Closed logic: </label>
+            <input type='checkbox' name='NCCONTACTOR' value='on' %NCCONTACTOR% 
+            title="Extremely rare option. If configured, GPIO control logic will be inverted for operation with normally closed contactors" />
 
             <label>PWM contactor control: </label>
             <input type='checkbox' name='PWMCNTCTRL' value='on' %PWMCNTCTRL% />
@@ -1322,6 +1394,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label for='LEDMODE'>Status LED pattern: </label><select name='LEDMODE' id='LEDMODE'>
         %LEDMODE%
         </select>
+
+        )rawliteral" GPIOOPT1_SETTING R"rawliteral(
 
         </div>
         </div>
@@ -1495,7 +1569,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       <h4 style='color: white;' class="%INVCLASS%">Inverter interface: <span id='Inverter'>%INVINTF%</span></h4>
       
-      <h4 style='color: white;' class="%SHUNTCLASS%">Shunt interface: <span id='Inverter'>%SHUNTINTF%</span></h4>
+      <h4 style='color: white;' class="%SHUNTCLASS%">Shunt interface: <span id='Shunt'>%SHUNTINTF%</span></h4>
 
     </div>
 

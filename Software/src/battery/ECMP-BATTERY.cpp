@@ -38,7 +38,12 @@ void EcmpBattery::update_values() {
 
     datalayer.battery.status.voltage_dV = battery_voltage * 10;
 
-    datalayer.battery.status.current_dA = -(battery_current * 10);
+    // If High Precision Curent is avilable, use it
+    if (pid_current != NOT_SAMPLED_YET && datalayer.battery.status.bms_status != FAULT) {
+      datalayer.battery.status.current_dA = (int16_t)(pid_current / 100);
+    } else {
+      datalayer.battery.status.current_dA = -(battery_current * 10);
+    }
 
     datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
         ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
@@ -88,13 +93,6 @@ void EcmpBattery::update_values() {
 
     if (pid_pack_voltage != NOT_SAMPLED_YET) {
       datalayer.battery.status.voltage_dV = pid_pack_voltage + 800;
-    }
-
-    if (pid_current != NOT_SAMPLED_YET) {
-      datalayer.battery.status.current_dA = (int16_t)(pid_current / 100);
-
-      datalayer.battery.status.active_power_W =
-          (uint16_t)((pid_current / 1000.0f) * (datalayer.battery.status.voltage_dV / 10.0f));
     }
 
     if (pid_max_charge_10s != NOT_SAMPLED_YET) {
@@ -861,10 +859,11 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               pid_avg_cell_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
               break;
             case PID_CURRENT:
-              pid_current = -(((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
-                               rx_frame.data.u8[7]) -
-                              76800) *
-                            20;
+              pid_current = -((((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                                rx_frame.data.u8[7]) -
+                               76800) *
+                              155) /
+                            10;
               break;
             case PID_INSULATION_NEG:
               pid_insulation_res_neg = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
@@ -1290,363 +1289,368 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
       if (datalayer.battery.status.bms_status != FAULT) {  //Stop PID polling if battery is in FAULT mode
 
-        switch (poll_state) {
-          case PID_WELD_CHECK:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_WELD_CHECK & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_WELD_CHECK & 0x00FF);
-            poll_state = PID_CONT_REASON_OPEN;
-            break;
-          case PID_CONT_REASON_OPEN:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_CONT_REASON_OPEN & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_CONT_REASON_OPEN & 0x00FF);
-            poll_state = PID_CONTACTOR_STATUS;
-            break;
-          case PID_CONTACTOR_STATUS:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_CONTACTOR_STATUS & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_CONTACTOR_STATUS & 0x00FF);
-            poll_state = PID_NEG_CONT_CONTROL;
-            break;
-          case PID_NEG_CONT_CONTROL:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_NEG_CONT_CONTROL & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_NEG_CONT_CONTROL & 0x00FF);
-            poll_state = PID_NEG_CONT_STATUS;
-            break;
-          case PID_NEG_CONT_STATUS:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_NEG_CONT_STATUS & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_NEG_CONT_STATUS & 0x00FF);
-            poll_state = PID_POS_CONT_CONTROL;
-            break;
-          case PID_POS_CONT_CONTROL:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_POS_CONT_CONTROL & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_POS_CONT_CONTROL & 0x00FF);
-            poll_state = PID_POS_CONT_STATUS;
-            break;
-          case PID_POS_CONT_STATUS:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_POS_CONT_STATUS & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_POS_CONT_STATUS & 0x00FF);
-            poll_state = PID_CONTACTOR_NEGATIVE;
-            break;
-          case PID_CONTACTOR_NEGATIVE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_CONTACTOR_NEGATIVE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_CONTACTOR_NEGATIVE & 0x00FF);
-            poll_state = PID_CONTACTOR_POSITIVE;
-            break;
-          case PID_CONTACTOR_POSITIVE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_CONTACTOR_POSITIVE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_CONTACTOR_POSITIVE & 0x00FF);
-            poll_state = PID_PRECHARGE_RELAY_CONTROL;
-            break;
-          case PID_PRECHARGE_RELAY_CONTROL:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_PRECHARGE_RELAY_CONTROL & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_PRECHARGE_RELAY_CONTROL & 0x00FF);
-            poll_state = PID_PRECHARGE_RELAY_STATUS;
-            break;
-          case PID_PRECHARGE_RELAY_STATUS:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_PRECHARGE_RELAY_STATUS & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_PRECHARGE_RELAY_STATUS & 0x00FF);
-            poll_state = PID_RECHARGE_STATUS;
-            break;
-          case PID_RECHARGE_STATUS:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_RECHARGE_STATUS & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_RECHARGE_STATUS & 0x00FF);
-            poll_state = PID_DELTA_TEMPERATURE;
-            break;
-          case PID_DELTA_TEMPERATURE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_DELTA_TEMPERATURE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_DELTA_TEMPERATURE & 0x00FF);
-            poll_state = PID_COLDEST_MODULE;
-            break;
-          case PID_COLDEST_MODULE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_COLDEST_MODULE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_COLDEST_MODULE & 0x00FF);
-            poll_state = PID_LOWEST_TEMPERATURE;
-            break;
-          case PID_LOWEST_TEMPERATURE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_LOWEST_TEMPERATURE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_LOWEST_TEMPERATURE & 0x00FF);
-            poll_state = PID_AVERAGE_TEMPERATURE;
-            break;
-          case PID_AVERAGE_TEMPERATURE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_AVERAGE_TEMPERATURE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_AVERAGE_TEMPERATURE & 0x00FF);
-            poll_state = PID_HIGHEST_TEMPERATURE;
-            break;
-          case PID_HIGHEST_TEMPERATURE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_HIGHEST_TEMPERATURE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_HIGHEST_TEMPERATURE & 0x00FF);
-            poll_state = PID_HOTTEST_MODULE;
-            break;
-          case PID_HOTTEST_MODULE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_HOTTEST_MODULE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_HOTTEST_MODULE & 0x00FF);
-            poll_state = PID_AVG_CELL_VOLTAGE;
-            break;
-          case PID_AVG_CELL_VOLTAGE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_AVG_CELL_VOLTAGE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_AVG_CELL_VOLTAGE & 0x00FF);
-            poll_state = PID_CURRENT;
-            break;
-          case PID_CURRENT:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_CURRENT & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_CURRENT & 0x00FF);
-            poll_state = PID_INSULATION_NEG;
-            break;
-          case PID_INSULATION_NEG:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_INSULATION_NEG & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_INSULATION_NEG & 0x00FF);
-            poll_state = PID_INSULATION_POS;
-            break;
-          case PID_INSULATION_POS:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_INSULATION_POS & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_INSULATION_POS & 0x00FF);
-            poll_state = PID_MAX_CURRENT_10S;
-            break;
-          case PID_MAX_CURRENT_10S:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_MAX_CURRENT_10S & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_MAX_CURRENT_10S & 0x00FF);
-            poll_state = PID_MAX_DISCHARGE_10S;
-            break;
-          case PID_MAX_DISCHARGE_10S:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_MAX_DISCHARGE_10S & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_MAX_DISCHARGE_10S & 0x00FF);
-            poll_state = PID_MAX_DISCHARGE_30S;
-            break;
-          case PID_MAX_DISCHARGE_30S:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_MAX_DISCHARGE_30S & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_MAX_DISCHARGE_30S & 0x00FF);
-            poll_state = PID_MAX_CHARGE_10S;
-            break;
-          case PID_MAX_CHARGE_10S:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_MAX_CHARGE_10S & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_MAX_CHARGE_10S & 0x00FF);
-            poll_state = PID_MAX_CHARGE_30S;
-            break;
-          case PID_MAX_CHARGE_30S:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_MAX_CHARGE_30S & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_MAX_CHARGE_30S & 0x00FF);
-            poll_state = PID_ENERGY_CAPACITY;
-            break;
-          case PID_ENERGY_CAPACITY:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_ENERGY_CAPACITY & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_ENERGY_CAPACITY & 0x00FF);
-            poll_state = PID_HIGH_CELL_NUM;
-            break;
-          case PID_HIGH_CELL_NUM:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_HIGH_CELL_NUM & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_HIGH_CELL_NUM & 0x00FF);
-            poll_state = PID_LOW_CELL_NUM;
-            break;
-          case PID_LOW_CELL_NUM:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_LOW_CELL_NUM & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_LOW_CELL_NUM & 0x00FF);
-            poll_state = PID_SUM_OF_CELLS;
-            break;
-          case PID_SUM_OF_CELLS:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_SUM_OF_CELLS & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_SUM_OF_CELLS & 0x00FF);
-            poll_state = PID_CELL_MIN_CAPACITY;
-            break;
-          case PID_CELL_MIN_CAPACITY:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_CELL_MIN_CAPACITY & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_CELL_MIN_CAPACITY & 0x00FF);
-            poll_state = PID_CELL_VOLTAGE_MEAS_STATUS;
-            break;
-          case PID_CELL_VOLTAGE_MEAS_STATUS:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_CELL_VOLTAGE_MEAS_STATUS & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_CELL_VOLTAGE_MEAS_STATUS & 0x00FF);
-            poll_state = PID_INSULATION_RES;
-            break;
-          case PID_INSULATION_RES:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_INSULATION_RES & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_INSULATION_RES & 0x00FF);
-            poll_state = PID_PACK_VOLTAGE;
-            break;
-          case PID_PACK_VOLTAGE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_PACK_VOLTAGE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_PACK_VOLTAGE & 0x00FF);
-            poll_state = PID_HIGH_CELL_VOLTAGE;
-            break;
-          case PID_HIGH_CELL_VOLTAGE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_HIGH_CELL_VOLTAGE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_HIGH_CELL_VOLTAGE & 0x00FF);
-            poll_state = PID_ALL_CELL_VOLTAGES;
-            break;
-          case PID_ALL_CELL_VOLTAGES:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_ALL_CELL_VOLTAGES & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_ALL_CELL_VOLTAGES & 0x00FF);
-            poll_state = PID_LOW_CELL_VOLTAGE;
-            break;
-          case PID_LOW_CELL_VOLTAGE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_LOW_CELL_VOLTAGE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_LOW_CELL_VOLTAGE & 0x00FF);
-            poll_state = PID_BATTERY_ENERGY;
-            break;
-          case PID_BATTERY_ENERGY:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_BATTERY_ENERGY & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_BATTERY_ENERGY & 0x00FF);
-            poll_state = PID_CELLBALANCE_STATUS;
-            break;
-          case PID_CELLBALANCE_STATUS:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_CELLBALANCE_STATUS & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_CELLBALANCE_STATUS & 0x00FF);
-            poll_state = PID_CELLBALANCE_HWERR_MASK;
-            break;
-          case PID_CELLBALANCE_HWERR_MASK:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_CELLBALANCE_HWERR_MASK & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_CELLBALANCE_HWERR_MASK & 0x00FF);
-            poll_state = PID_CRASH_COUNTER;
-            break;
-          case PID_CRASH_COUNTER:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_CRASH_COUNTER & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_CRASH_COUNTER & 0x00FF);
-            poll_state = PID_WIRE_CRASH;
-            break;
-          case PID_WIRE_CRASH:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_WIRE_CRASH & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_WIRE_CRASH & 0x00FF);
-            poll_state = PID_CAN_CRASH;
-            break;
-          case PID_CAN_CRASH:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_CAN_CRASH & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_CAN_CRASH & 0x00FF);
-            poll_state = PID_HISTORY_DATA;
-            break;
-          case PID_HISTORY_DATA:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_HISTORY_DATA & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_HISTORY_DATA & 0x00FF);
-            poll_state = PID_LOWSOC_COUNTER;
-            break;
-          case PID_LOWSOC_COUNTER:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_LOWSOC_COUNTER & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_LOWSOC_COUNTER & 0x00FF);
-            poll_state = PID_LAST_CAN_FAILURE_DETAIL;
-            break;
-          case PID_LAST_CAN_FAILURE_DETAIL:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_LAST_CAN_FAILURE_DETAIL & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_LAST_CAN_FAILURE_DETAIL & 0x00FF);
-            poll_state = PID_HW_VERSION_NUM;
-            break;
-          case PID_HW_VERSION_NUM:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_HW_VERSION_NUM & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_HW_VERSION_NUM & 0x00FF);
-            poll_state = PID_SW_VERSION_NUM;
-            break;
-          case PID_SW_VERSION_NUM:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_SW_VERSION_NUM & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_SW_VERSION_NUM & 0x00FF);
-            poll_state = PID_FACTORY_MODE_CONTROL;
-            break;
-          case PID_FACTORY_MODE_CONTROL:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_FACTORY_MODE_CONTROL & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_FACTORY_MODE_CONTROL & 0x00FF);
-            poll_state = PID_BATTERY_SERIAL;
-            break;
-          case PID_BATTERY_SERIAL:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_BATTERY_SERIAL & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_BATTERY_SERIAL & 0x00FF);
-            poll_state = PID_AUX_FUSE_STATE;
-            break;
-          case PID_AUX_FUSE_STATE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_AUX_FUSE_STATE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_AUX_FUSE_STATE & 0x00FF);
-            poll_state = PID_BATTERY_STATE;
-            break;
-          case PID_BATTERY_STATE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_BATTERY_STATE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_BATTERY_STATE & 0x00FF);
-            poll_state = PID_PRECHARGE_SHORT_CIRCUIT;
-            break;
-          case PID_PRECHARGE_SHORT_CIRCUIT:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_PRECHARGE_SHORT_CIRCUIT & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_PRECHARGE_SHORT_CIRCUIT & 0x00FF);
-            poll_state = PID_ESERVICE_PLUG_STATE;
-            break;
-          case PID_ESERVICE_PLUG_STATE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_ESERVICE_PLUG_STATE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_ESERVICE_PLUG_STATE & 0x00FF);
-            poll_state = PID_MAINFUSE_STATE;
-            break;
-          case PID_MAINFUSE_STATE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_MAINFUSE_STATE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_MAINFUSE_STATE & 0x00FF);
-            poll_state = PID_MOST_CRITICAL_FAULT;
-            break;
-          case PID_MOST_CRITICAL_FAULT:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_MOST_CRITICAL_FAULT & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_MOST_CRITICAL_FAULT & 0x00FF);
-            poll_state = PID_CURRENT_TIME;
-            break;
-          case PID_CURRENT_TIME:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_CURRENT_TIME & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_CURRENT_TIME & 0x00FF);
-            poll_state = PID_TIME_SENT_BY_CAR;
-            break;
-          case PID_TIME_SENT_BY_CAR:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_TIME_SENT_BY_CAR & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_TIME_SENT_BY_CAR & 0x00FF);
-            poll_state = PID_12V;
-            break;
-          case PID_12V:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_12V & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_12V & 0x00FF);
-            poll_state = PID_12V_ABNORMAL;
-            break;
-          case PID_12V_ABNORMAL:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_12V_ABNORMAL & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_12V_ABNORMAL & 0x00FF);
-            poll_state = PID_HVIL_IN_VOLTAGE;
-            break;
-          case PID_HVIL_IN_VOLTAGE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_HVIL_IN_VOLTAGE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_HVIL_IN_VOLTAGE & 0x00FF);
-            poll_state = PID_HVIL_OUT_VOLTAGE;
-            break;
-          case PID_HVIL_OUT_VOLTAGE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_HVIL_OUT_VOLTAGE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_HVIL_OUT_VOLTAGE & 0x00FF);
-            poll_state = PID_HVIL_STATE;
-            break;
-          case PID_HVIL_STATE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_HVIL_STATE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_HVIL_STATE & 0x00FF);
-            poll_state = PID_BMS_STATE;
-            break;
-          case PID_BMS_STATE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_BMS_STATE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_BMS_STATE & 0x00FF);
-            poll_state = PID_VEHICLE_SPEED;
-            break;
-          case PID_VEHICLE_SPEED:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_VEHICLE_SPEED & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_VEHICLE_SPEED & 0x00FF);
-            poll_state = PID_TIME_SPENT_OVER_55C;
-            break;
-          case PID_TIME_SPENT_OVER_55C:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_TIME_SPENT_OVER_55C & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_TIME_SPENT_OVER_55C & 0x00FF);
-            poll_state = PID_CONTACTOR_CLOSING_COUNTER;
-            break;
-          case PID_CONTACTOR_CLOSING_COUNTER:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_CONTACTOR_CLOSING_COUNTER & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_CONTACTOR_CLOSING_COUNTER & 0x00FF);
-            poll_state = PID_DATE_OF_MANUFACTURE;
-            break;
-          case PID_DATE_OF_MANUFACTURE:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_DATE_OF_MANUFACTURE & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_DATE_OF_MANUFACTURE & 0x00FF);
-            poll_state = PID_ALL_CELL_SOH;
-            break;
-          case PID_ALL_CELL_SOH:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_ALL_CELL_SOH & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_ALL_CELL_SOH & 0x00FF);
-            poll_state = PID_WELD_CHECK;  // Loop back to beginning
-            break;
-          default:
-            //We should not end up here. Reset poll_state to first poll
-            poll_state = PID_WELD_CHECK;
-            break;
+        // Sample High Precison Current every other time
+        if (HighPrecisionCurrentSampling) {
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_CURRENT & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_CURRENT & 0x00FF);
+          transmit_can_frame(&ECMP_POLL);
+          HighPrecisionCurrentSampling = 0;
+        } else {
+          HighPrecisionCurrentSampling = 1;
+
+          switch (poll_state) {
+            case PID_WELD_CHECK:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_WELD_CHECK & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_WELD_CHECK & 0x00FF);
+              poll_state = PID_CONT_REASON_OPEN;
+              break;
+            case PID_CONT_REASON_OPEN:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_CONT_REASON_OPEN & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_CONT_REASON_OPEN & 0x00FF);
+              poll_state = PID_CONTACTOR_STATUS;
+              break;
+            case PID_CONTACTOR_STATUS:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_CONTACTOR_STATUS & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_CONTACTOR_STATUS & 0x00FF);
+              poll_state = PID_NEG_CONT_CONTROL;
+              break;
+            case PID_NEG_CONT_CONTROL:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_NEG_CONT_CONTROL & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_NEG_CONT_CONTROL & 0x00FF);
+              poll_state = PID_NEG_CONT_STATUS;
+              break;
+            case PID_NEG_CONT_STATUS:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_NEG_CONT_STATUS & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_NEG_CONT_STATUS & 0x00FF);
+              poll_state = PID_POS_CONT_CONTROL;
+              break;
+            case PID_POS_CONT_CONTROL:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_POS_CONT_CONTROL & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_POS_CONT_CONTROL & 0x00FF);
+              poll_state = PID_POS_CONT_STATUS;
+              break;
+            case PID_POS_CONT_STATUS:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_POS_CONT_STATUS & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_POS_CONT_STATUS & 0x00FF);
+              poll_state = PID_CONTACTOR_NEGATIVE;
+              break;
+            case PID_CONTACTOR_NEGATIVE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_CONTACTOR_NEGATIVE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_CONTACTOR_NEGATIVE & 0x00FF);
+              poll_state = PID_CONTACTOR_POSITIVE;
+              break;
+            case PID_CONTACTOR_POSITIVE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_CONTACTOR_POSITIVE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_CONTACTOR_POSITIVE & 0x00FF);
+              poll_state = PID_PRECHARGE_RELAY_CONTROL;
+              break;
+            case PID_PRECHARGE_RELAY_CONTROL:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_PRECHARGE_RELAY_CONTROL & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_PRECHARGE_RELAY_CONTROL & 0x00FF);
+              poll_state = PID_PRECHARGE_RELAY_STATUS;
+              break;
+            case PID_PRECHARGE_RELAY_STATUS:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_PRECHARGE_RELAY_STATUS & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_PRECHARGE_RELAY_STATUS & 0x00FF);
+              poll_state = PID_RECHARGE_STATUS;
+              break;
+            case PID_RECHARGE_STATUS:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_RECHARGE_STATUS & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_RECHARGE_STATUS & 0x00FF);
+              poll_state = PID_DELTA_TEMPERATURE;
+              break;
+            case PID_DELTA_TEMPERATURE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_DELTA_TEMPERATURE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_DELTA_TEMPERATURE & 0x00FF);
+              poll_state = PID_COLDEST_MODULE;
+              break;
+            case PID_COLDEST_MODULE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_COLDEST_MODULE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_COLDEST_MODULE & 0x00FF);
+              poll_state = PID_LOWEST_TEMPERATURE;
+              break;
+            case PID_LOWEST_TEMPERATURE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_LOWEST_TEMPERATURE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_LOWEST_TEMPERATURE & 0x00FF);
+              poll_state = PID_AVERAGE_TEMPERATURE;
+              break;
+            case PID_AVERAGE_TEMPERATURE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_AVERAGE_TEMPERATURE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_AVERAGE_TEMPERATURE & 0x00FF);
+              poll_state = PID_HIGHEST_TEMPERATURE;
+              break;
+            case PID_HIGHEST_TEMPERATURE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_HIGHEST_TEMPERATURE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_HIGHEST_TEMPERATURE & 0x00FF);
+              poll_state = PID_HOTTEST_MODULE;
+              break;
+            case PID_HOTTEST_MODULE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_HOTTEST_MODULE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_HOTTEST_MODULE & 0x00FF);
+              poll_state = PID_AVG_CELL_VOLTAGE;
+              break;
+            case PID_AVG_CELL_VOLTAGE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_AVG_CELL_VOLTAGE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_AVG_CELL_VOLTAGE & 0x00FF);
+              poll_state = PID_INSULATION_NEG;
+              break;
+            case PID_INSULATION_NEG:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_INSULATION_NEG & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_INSULATION_NEG & 0x00FF);
+              poll_state = PID_INSULATION_POS;
+              break;
+            case PID_INSULATION_POS:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_INSULATION_POS & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_INSULATION_POS & 0x00FF);
+              poll_state = PID_MAX_CURRENT_10S;
+              break;
+            case PID_MAX_CURRENT_10S:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_MAX_CURRENT_10S & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_MAX_CURRENT_10S & 0x00FF);
+              poll_state = PID_MAX_DISCHARGE_10S;
+              break;
+            case PID_MAX_DISCHARGE_10S:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_MAX_DISCHARGE_10S & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_MAX_DISCHARGE_10S & 0x00FF);
+              poll_state = PID_MAX_DISCHARGE_30S;
+              break;
+            case PID_MAX_DISCHARGE_30S:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_MAX_DISCHARGE_30S & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_MAX_DISCHARGE_30S & 0x00FF);
+              poll_state = PID_MAX_CHARGE_10S;
+              break;
+            case PID_MAX_CHARGE_10S:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_MAX_CHARGE_10S & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_MAX_CHARGE_10S & 0x00FF);
+              poll_state = PID_MAX_CHARGE_30S;
+              break;
+            case PID_MAX_CHARGE_30S:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_MAX_CHARGE_30S & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_MAX_CHARGE_30S & 0x00FF);
+              poll_state = PID_ENERGY_CAPACITY;
+              break;
+            case PID_ENERGY_CAPACITY:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_ENERGY_CAPACITY & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_ENERGY_CAPACITY & 0x00FF);
+              poll_state = PID_HIGH_CELL_NUM;
+              break;
+            case PID_HIGH_CELL_NUM:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_HIGH_CELL_NUM & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_HIGH_CELL_NUM & 0x00FF);
+              poll_state = PID_LOW_CELL_NUM;
+              break;
+            case PID_LOW_CELL_NUM:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_LOW_CELL_NUM & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_LOW_CELL_NUM & 0x00FF);
+              poll_state = PID_SUM_OF_CELLS;
+              break;
+            case PID_SUM_OF_CELLS:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_SUM_OF_CELLS & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_SUM_OF_CELLS & 0x00FF);
+              poll_state = PID_CELL_MIN_CAPACITY;
+              break;
+            case PID_CELL_MIN_CAPACITY:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_CELL_MIN_CAPACITY & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_CELL_MIN_CAPACITY & 0x00FF);
+              poll_state = PID_CELL_VOLTAGE_MEAS_STATUS;
+              break;
+            case PID_CELL_VOLTAGE_MEAS_STATUS:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_CELL_VOLTAGE_MEAS_STATUS & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_CELL_VOLTAGE_MEAS_STATUS & 0x00FF);
+              poll_state = PID_INSULATION_RES;
+              break;
+            case PID_INSULATION_RES:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_INSULATION_RES & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_INSULATION_RES & 0x00FF);
+              poll_state = PID_PACK_VOLTAGE;
+              break;
+            case PID_PACK_VOLTAGE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_PACK_VOLTAGE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_PACK_VOLTAGE & 0x00FF);
+              poll_state = PID_HIGH_CELL_VOLTAGE;
+              break;
+            case PID_HIGH_CELL_VOLTAGE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_HIGH_CELL_VOLTAGE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_HIGH_CELL_VOLTAGE & 0x00FF);
+              poll_state = PID_ALL_CELL_VOLTAGES;
+              break;
+            case PID_ALL_CELL_VOLTAGES:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_ALL_CELL_VOLTAGES & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_ALL_CELL_VOLTAGES & 0x00FF);
+              poll_state = PID_LOW_CELL_VOLTAGE;
+              break;
+            case PID_LOW_CELL_VOLTAGE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_LOW_CELL_VOLTAGE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_LOW_CELL_VOLTAGE & 0x00FF);
+              poll_state = PID_BATTERY_ENERGY;
+              break;
+            case PID_BATTERY_ENERGY:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_BATTERY_ENERGY & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_BATTERY_ENERGY & 0x00FF);
+              poll_state = PID_CELLBALANCE_STATUS;
+              break;
+            case PID_CELLBALANCE_STATUS:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_CELLBALANCE_STATUS & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_CELLBALANCE_STATUS & 0x00FF);
+              poll_state = PID_CELLBALANCE_HWERR_MASK;
+              break;
+            case PID_CELLBALANCE_HWERR_MASK:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_CELLBALANCE_HWERR_MASK & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_CELLBALANCE_HWERR_MASK & 0x00FF);
+              poll_state = PID_CRASH_COUNTER;
+              break;
+            case PID_CRASH_COUNTER:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_CRASH_COUNTER & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_CRASH_COUNTER & 0x00FF);
+              poll_state = PID_WIRE_CRASH;
+              break;
+            case PID_WIRE_CRASH:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_WIRE_CRASH & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_WIRE_CRASH & 0x00FF);
+              poll_state = PID_CAN_CRASH;
+              break;
+            case PID_CAN_CRASH:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_CAN_CRASH & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_CAN_CRASH & 0x00FF);
+              poll_state = PID_HISTORY_DATA;
+              break;
+            case PID_HISTORY_DATA:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_HISTORY_DATA & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_HISTORY_DATA & 0x00FF);
+              poll_state = PID_LOWSOC_COUNTER;
+              break;
+            case PID_LOWSOC_COUNTER:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_LOWSOC_COUNTER & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_LOWSOC_COUNTER & 0x00FF);
+              poll_state = PID_LAST_CAN_FAILURE_DETAIL;
+              break;
+            case PID_LAST_CAN_FAILURE_DETAIL:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_LAST_CAN_FAILURE_DETAIL & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_LAST_CAN_FAILURE_DETAIL & 0x00FF);
+              poll_state = PID_HW_VERSION_NUM;
+              break;
+            case PID_HW_VERSION_NUM:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_HW_VERSION_NUM & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_HW_VERSION_NUM & 0x00FF);
+              poll_state = PID_SW_VERSION_NUM;
+              break;
+            case PID_SW_VERSION_NUM:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_SW_VERSION_NUM & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_SW_VERSION_NUM & 0x00FF);
+              poll_state = PID_FACTORY_MODE_CONTROL;
+              break;
+            case PID_FACTORY_MODE_CONTROL:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_FACTORY_MODE_CONTROL & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_FACTORY_MODE_CONTROL & 0x00FF);
+              poll_state = PID_BATTERY_SERIAL;
+              break;
+            case PID_BATTERY_SERIAL:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_BATTERY_SERIAL & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_BATTERY_SERIAL & 0x00FF);
+              poll_state = PID_AUX_FUSE_STATE;
+              break;
+            case PID_AUX_FUSE_STATE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_AUX_FUSE_STATE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_AUX_FUSE_STATE & 0x00FF);
+              poll_state = PID_BATTERY_STATE;
+              break;
+            case PID_BATTERY_STATE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_BATTERY_STATE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_BATTERY_STATE & 0x00FF);
+              poll_state = PID_PRECHARGE_SHORT_CIRCUIT;
+              break;
+            case PID_PRECHARGE_SHORT_CIRCUIT:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_PRECHARGE_SHORT_CIRCUIT & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_PRECHARGE_SHORT_CIRCUIT & 0x00FF);
+              poll_state = PID_ESERVICE_PLUG_STATE;
+              break;
+            case PID_ESERVICE_PLUG_STATE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_ESERVICE_PLUG_STATE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_ESERVICE_PLUG_STATE & 0x00FF);
+              poll_state = PID_MAINFUSE_STATE;
+              break;
+            case PID_MAINFUSE_STATE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_MAINFUSE_STATE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_MAINFUSE_STATE & 0x00FF);
+              poll_state = PID_MOST_CRITICAL_FAULT;
+              break;
+            case PID_MOST_CRITICAL_FAULT:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_MOST_CRITICAL_FAULT & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_MOST_CRITICAL_FAULT & 0x00FF);
+              poll_state = PID_CURRENT_TIME;
+              break;
+            case PID_CURRENT_TIME:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_CURRENT_TIME & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_CURRENT_TIME & 0x00FF);
+              poll_state = PID_TIME_SENT_BY_CAR;
+              break;
+            case PID_TIME_SENT_BY_CAR:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_TIME_SENT_BY_CAR & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_TIME_SENT_BY_CAR & 0x00FF);
+              poll_state = PID_12V;
+              break;
+            case PID_12V:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_12V & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_12V & 0x00FF);
+              poll_state = PID_12V_ABNORMAL;
+              break;
+            case PID_12V_ABNORMAL:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_12V_ABNORMAL & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_12V_ABNORMAL & 0x00FF);
+              poll_state = PID_HVIL_IN_VOLTAGE;
+              break;
+            case PID_HVIL_IN_VOLTAGE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_HVIL_IN_VOLTAGE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_HVIL_IN_VOLTAGE & 0x00FF);
+              poll_state = PID_HVIL_OUT_VOLTAGE;
+              break;
+            case PID_HVIL_OUT_VOLTAGE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_HVIL_OUT_VOLTAGE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_HVIL_OUT_VOLTAGE & 0x00FF);
+              poll_state = PID_HVIL_STATE;
+              break;
+            case PID_HVIL_STATE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_HVIL_STATE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_HVIL_STATE & 0x00FF);
+              poll_state = PID_BMS_STATE;
+              break;
+            case PID_BMS_STATE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_BMS_STATE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_BMS_STATE & 0x00FF);
+              poll_state = PID_VEHICLE_SPEED;
+              break;
+            case PID_VEHICLE_SPEED:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_VEHICLE_SPEED & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_VEHICLE_SPEED & 0x00FF);
+              poll_state = PID_TIME_SPENT_OVER_55C;
+              break;
+            case PID_TIME_SPENT_OVER_55C:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_TIME_SPENT_OVER_55C & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_TIME_SPENT_OVER_55C & 0x00FF);
+              poll_state = PID_CONTACTOR_CLOSING_COUNTER;
+              break;
+            case PID_CONTACTOR_CLOSING_COUNTER:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_CONTACTOR_CLOSING_COUNTER & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_CONTACTOR_CLOSING_COUNTER & 0x00FF);
+              poll_state = PID_DATE_OF_MANUFACTURE;
+              break;
+            case PID_DATE_OF_MANUFACTURE:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_DATE_OF_MANUFACTURE & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_DATE_OF_MANUFACTURE & 0x00FF);
+              poll_state = PID_ALL_CELL_SOH;
+              break;
+            case PID_ALL_CELL_SOH:
+              ECMP_POLL.data.u8[2] = (uint8_t)((PID_ALL_CELL_SOH & 0xFF00) >> 8);
+              ECMP_POLL.data.u8[3] = (uint8_t)(PID_ALL_CELL_SOH & 0x00FF);
+              poll_state = PID_WELD_CHECK;  // Loop back to beginning
+              break;
+            default:
+              //We should not end up here. Reset poll_state to first poll
+              poll_state = PID_WELD_CHECK;
+              break;
+          }
+          transmit_can_frame(&ECMP_POLL);
         }
-        transmit_can_frame(&ECMP_POLL);
       }
     }
   }

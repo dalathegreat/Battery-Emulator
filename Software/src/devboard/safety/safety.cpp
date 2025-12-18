@@ -278,7 +278,8 @@ void update_machineryprotection() {
     }
 
     // Check diff between highest and lowest cell
-    cell_deviation_mV = (datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
+    cell_deviation_mV =
+        std::abs(datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
     if (cell_deviation_mV > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
       set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
     } else {
@@ -293,6 +294,66 @@ void update_machineryprotection() {
         soh_diff_pptt = datalayer.battery.status.soh_pptt - datalayer.battery2.status.soh_pptt;
       } else {
         soh_diff_pptt = datalayer.battery2.status.soh_pptt - datalayer.battery.status.soh_pptt;
+      }
+
+      if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
+        set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
+      } else {
+        clear_event(EVENT_SOH_DIFFERENCE);
+      }
+    }
+  }
+
+  // Additional Triple-Battery safeties are checked here
+  if (battery3) {
+    // Check if the Battery 3 BMS is still sending CAN messages. If we go 60s without messages we raise a warning
+
+    // Pause function is on
+    if (emulator_pause_request_ON) {
+      datalayer.battery3.status.max_discharge_power_W = 0;
+      datalayer.battery3.status.max_charge_power_W = 0;
+    }
+
+    if (!datalayer.battery3.status.CAN_battery_still_alive) {
+      set_event(EVENT_CAN_BATTERY3_MISSING, can_config.battery_triple);
+    } else {
+      datalayer.battery3.status.CAN_battery_still_alive--;
+      clear_event(EVENT_CAN_BATTERY3_MISSING);
+    }
+
+    // Too many malformed CAN messages recieved!
+    if (datalayer.battery3.status.CAN_error_counter > MAX_CAN_FAILURES) {
+      set_event(EVENT_CAN_CORRUPTED_WARNING, can_config.battery_triple);
+    } else {
+      clear_event(EVENT_CAN_CORRUPTED_WARNING);
+    }
+
+    // Cell overvoltage, critical latching error without automatic reset. Requires user action.
+    if (datalayer.battery3.status.cell_max_voltage_mV >= datalayer.battery3.info.max_cell_voltage_mV) {
+      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+    }
+    // Cell undervoltage, critical latching error without automatic reset. Requires user action.
+    if (datalayer.battery3.status.cell_min_voltage_mV <= datalayer.battery3.info.min_cell_voltage_mV) {
+      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+    }
+
+    // Check diff between highest and lowest cell
+    cell_deviation_mV =
+        std::abs(datalayer.battery3.status.cell_max_voltage_mV - datalayer.battery3.status.cell_min_voltage_mV);
+    if (cell_deviation_mV > datalayer.battery3.info.max_cell_voltage_deviation_mV) {
+      set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
+    } else {
+      clear_event(EVENT_CELL_DEVIATION_HIGH);
+    }
+
+    // Check if SOH% between the packs is too large
+    if ((datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery3.status.soh_pptt != 9900)) {
+      // Both values available, check diff
+      uint16_t soh_diff_pptt;
+      if (datalayer.battery.status.soh_pptt > datalayer.battery3.status.soh_pptt) {
+        soh_diff_pptt = datalayer.battery.status.soh_pptt - datalayer.battery3.status.soh_pptt;
+      } else {
+        soh_diff_pptt = datalayer.battery3.status.soh_pptt - datalayer.battery.status.soh_pptt;
       }
 
       if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
@@ -364,6 +425,10 @@ void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bo
     if (battery2) {
       datalayer.battery2.status.max_discharge_power_W = 0;
       datalayer.battery2.status.max_charge_power_W = 0;
+    }
+    if (battery3) {
+      datalayer.battery3.status.max_discharge_power_W = 0;
+      datalayer.battery3.status.max_charge_power_W = 0;
     }
 
   } else {

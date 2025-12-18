@@ -5,10 +5,12 @@
 
 // TODO: Ensure valid values at run-time
 // User can update all these values via Settings page
-bool contactor_control_enabled = false;  //Should GPIO contactor control be performed?
-uint16_t precharge_time_ms = 100;        //Precharge time in ms. Adjust depending on capacitance in inverter
-bool pwm_contactor_control = false;      //Should the contactors be economized via PWM after they are engaged?
+bool contactor_control_enabled = false;         //Should GPIO contactor control be performed?
+bool contactor_control_inverted_logic = false;  //Should we control NC contactors? Extremely rare option
+uint16_t precharge_time_ms = 100;               //Precharge time in ms. Adjust depending on capacitance in inverter
+bool pwm_contactor_control = false;             //Should the contactors be economized via PWM after they are engaged?
 bool contactor_control_enabled_double_battery = false;  //Should a contactor for the secondary battery be operated?
+bool contactor_control_enabled_triple_battery = false;  //Should a contactor for the third battery be operated?
 bool remote_bms_reset = false;                          //Is it possible to actuate BMS reset via MQTT?
 bool periodic_bms_reset = false;                        //Should periodic BMS reset be performed each 24h?
 
@@ -16,15 +18,8 @@ bool periodic_bms_reset = false;                        //Should periodic BMS re
 enum State { DISCONNECTED, START_PRECHARGE, PRECHARGE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
 State contactorStatus = DISCONNECTED;
 
-const int ON = 1;
-const int OFF = 0;
-
-#ifdef NC_CONTACTORS  //Normally closed contactors use inverted logic
-#undef ON
-#define ON 0
-#undef OFF
-#define OFF 1
-#endif  //NC_CONTACTORS
+const uint8_t ON = 1;
+const uint8_t OFF = 0;
 
 #define MAX_ALLOWED_FAULT_TICKS 1000  //1000 = 10 seconds
 #define NEGATIVE_CONTACTOR_TIME_MS \
@@ -49,6 +44,11 @@ const unsigned long powerRemovalInterval = 24 * 60 * 60 * 1000;  // 24 hours in 
 const unsigned long bmsWarmupDuration = 3000;
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
+
+  if (contactor_control_inverted_logic) {
+    direction = !direction;  //Invert direction for NC contactors
+  }
+
   if (pwm_contactor_control) {
     if (pwm_freq != 0xFFFF) {
       ledcWrite(pin, pwm_freq);
@@ -106,6 +106,17 @@ bool init_contactors() {
     set(second_contactors, OFF);
   }
 
+  if (contactor_control_enabled_triple_battery) {
+    auto triple_contactors = esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN();
+    if (!esp32hal->alloc_pins(contactors, triple_contactors)) {
+      DEBUG_PRINTF("Triple battery contactor control setup failed\n");
+      return false;
+    }
+
+    pinMode(triple_contactors, OUTPUT);
+    set(triple_contactors, OFF);
+  }
+
   // Init BMS contactor
   if (periodic_bms_reset || remote_bms_reset || esp32hal->always_enable_bms_power()) {
     auto pin = esp32hal->BMS_POWER();
@@ -144,6 +155,10 @@ void handle_contactors() {
 
   if (contactor_control_enabled_double_battery) {
     handle_contactors_battery2();
+  }
+
+  if (contactor_control_enabled_triple_battery) {
+    handle_contactors_battery3();
   }
 
   if (contactor_control_enabled) {
@@ -205,6 +220,7 @@ void handle_contactors() {
         dbg_contactors("NEGATIVE");
         prechargeStartTime = currentTime;
         contactorStatus = PRECHARGE;
+        datalayer.system.status.contactors_engaged = 3;
         break;
 
       case PRECHARGE:
@@ -213,6 +229,7 @@ void handle_contactors() {
           dbg_contactors("PRECHARGE");
           negativeStartTime = currentTime;
           contactorStatus = POSITIVE;
+          datalayer.system.status.contactors_engaged = 3;
         }
         break;
 
@@ -222,6 +239,7 @@ void handle_contactors() {
           dbg_contactors("POSITIVE");
           prechargeCompletedTime = currentTime;
           contactorStatus = PRECHARGE_OFF;
+          datalayer.system.status.contactors_engaged = 3;
         }
         break;
 
@@ -250,6 +268,18 @@ void handle_contactors_battery2() {
   } else {  // Closing contactors on secondary battery not allowed
     set(second_contactors, OFF);
     datalayer.system.status.contactors_battery2_engaged = false;
+  }
+}
+
+void handle_contactors_battery3() {
+  auto third_contactors = esp32hal->SECOND_BATTERY_CONTACTORS_PIN();
+
+  if ((contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing) {
+    set(third_contactors, ON);
+    datalayer.system.status.contactors_battery3_engaged = true;
+  } else {  // Closing contactors on secondary battery not allowed
+    set(third_contactors, OFF);
+    datalayer.system.status.contactors_battery3_engaged = false;
   }
 }
 

@@ -15,7 +15,7 @@ enum balancing_status_enum {
   BALANCING_STATUS_READY = 2,  //No balancing active, system supports balancing
   BALANCING_STATUS_ACTIVE = 3  //Balancing active!
 };
-enum battery_chemistry_enum { Autodetect = 0, NCA = 1, NMC = 2, LFP = 3, Highest };
+enum battery_chemistry_enum { Autodetect = 0, NCA = 1, NMC = 2, LFP = 3, ZEBRA = 4, Highest };
 
 enum class comm_interface {
   Modbus = 1,
@@ -110,5 +110,18 @@ typedef struct {
 } CAN_log_frame;
 
 std::string getBMSStatus(bms_status_enum status);
+
+/* Configurable GPIO options (device specific) */
+enum class GPIOOPT1 {
+  // T-2CAN: WUP1/WUP2 on GPIO1/GPIO2
+  DEFAULT_OPT = 0,
+  // T-2CAN: SDA/SCL on GPIO1/GPIO2
+  I2C_DISPLAY_SSD1306 = 1,
+  // T-2CAN: ESTOP on GPIO1, BMS_POWER on GPIO2
+  ESTOP_BMS_POWER = 2,
+  Highest
+};
+
+extern GPIOOPT1 user_selected_gpioopt1;
 
 #endif

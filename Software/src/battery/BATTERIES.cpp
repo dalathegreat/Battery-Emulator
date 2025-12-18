@@ -5,6 +5,7 @@
 
 Battery* battery = nullptr;
 Battery* battery2 = nullptr;
+Battery* battery3 = nullptr;
 
 std::vector<BatteryType> supported_battery_types() {
   std::vector<BatteryType> types;
@@ -26,6 +27,8 @@ const char* name_for_chemistry(battery_chemistry_enum chem) {
       return "NCA";
     case battery_chemistry_enum::NMC:
       return "NMC";
+    case battery_chemistry_enum::ZEBRA:
+      return "Molten Salt";
     default:
       return nullptr;
   }
@@ -83,6 +86,8 @@ const char* name_for_battery_type(BatteryType type) {
       return Kia64FDBattery::Name;
     case BatteryType::KiaHyundaiHybrid:
       return KiaHyundaiHybridBattery::Name;
+    case BatteryType::MaxusEV80:
+      return MaxusEV80Battery::Name;
     case BatteryType::Meb:
       return MebBattery::Name;
     case BatteryType::Mg5:
@@ -123,6 +128,8 @@ const char* name_for_battery_type(BatteryType type) {
       return TeslaModelSXBattery::Name;
     case BatteryType::TestFake:
       return TestFakeBattery::Name;
+    case BatteryType::ThinkCity:
+      return ThinkBattery::Name;
     case BatteryType::VolvoSpa:
       return VolvoSpaBattery::Name;
     case BatteryType::VolvoSpaHybrid:
@@ -138,6 +145,7 @@ battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_defau
 
 BatteryType user_selected_battery_type = BatteryType::NissanLeaf;
 bool user_selected_second_battery = false;
+bool user_selected_triple_battery = false;
 
 Battery* create_battery(BatteryType type) {
   switch (type) {
@@ -187,6 +195,8 @@ Battery* create_battery(BatteryType type) {
       return new KiaHyundai64Battery();
     case BatteryType::KiaHyundaiHybrid:
       return new KiaHyundaiHybridBattery();
+    case BatteryType::MaxusEV80:
+      return new MaxusEV80Battery();
     case BatteryType::Meb:
       return new MebBattery();
     case BatteryType::Mg5:
@@ -227,6 +237,8 @@ Battery* create_battery(BatteryType type) {
       return new TeslaModelSXBattery();
     case BatteryType::TestFake:
       return new TestFakeBattery();
+    case BatteryType::ThinkCity:
+      return new ThinkBattery();
     case BatteryType::VolvoSpa:
       return new VolvoSpaBattery();
     case BatteryType::VolvoSpaHybrid:
@@ -284,6 +296,21 @@ void setup_battery() {
 
     if (battery2) {
       battery2->setup();
+    }
+  }
+
+  if (user_selected_triple_battery && !battery3) {
+    switch (user_selected_battery_type) {
+      case BatteryType::NissanLeaf:
+        battery3 = new NissanLeafBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
+        break;
+      default:
+        DEBUG_PRINTF("User tried enabling triple battery on non-supported integration!\n");
+        break;
+    }
+
+    if (battery3) {
+      battery3->setup();
     }
   }
 }

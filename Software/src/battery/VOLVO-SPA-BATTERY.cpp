@@ -3,6 +3,7 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
+#include "../devboard/utils/common_functions.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
@@ -41,19 +42,13 @@ void VolvoSpaBattery::
 
   datalayer.battery.status.remaining_capacity_Wh = (datalayer.battery.info.total_capacity_Wh - CHARGE_ENERGY);
 
-  //datalayer.battery.status.real_soc = SOC_BMS;			// Use BMS reported SOC, havent figured out how to get the BMS to calibrate empty/full yet
+  datalayer.battery.status.real_soc = SOC_BMS * 10;  //Add one decimal to make it pptt
+
   // Use calculated SOC based on remaining_capacity
+  /*
   SOC_CALC = (datalayer.battery.status.remaining_capacity_Wh / (datalayer.battery.info.total_capacity_Wh / 1000));
-
   datalayer.battery.status.real_soc = SOC_CALC * 10;  //Add one decimal to make it pptt
-
-  if (BATT_U > MAX_U)  // Protect if overcharged
-  {
-    datalayer.battery.status.real_soc = 10000;
-  } else if (BATT_U < MIN_U)  //Protect if undercharged
-  {
-    datalayer.battery.status.real_soc = 0;
-  }
+  */
 
   datalayer.battery.status.voltage_dV = BATT_U * 10;
   datalayer.battery.status.current_dA = BATT_I * 10;
@@ -93,17 +88,6 @@ void VolvoSpaBattery::
     set_event(EVENT_12V_LOW, (datalayer_extended.VolvoPolestar.BECMsupplyVoltage / 100));
     set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0);
   }
-}
-
-int16_t sign_extend_to_int16(uint16_t input, unsigned input_bit_width) {
-  // Sign-extend the value from the original bit width up to 16 bits. This
-  // ensures that twos-complement negative values are correctly interpreted.
-
-  // For example, -26 represented in 13 bits is 0x1FE6.
-  // After sign extension to 16 bits, it becomes 0xFFE6, which is -26 in 16-bit signed integer.
-
-  uint16_t mask = 1 << (input_bit_width - 1);
-  return (input ^ mask) - mask;
 }
 
 void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -206,9 +190,6 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x37D:
       if ((rx_frame.data.u8[0] & 0x40) == 0x40) {
         SOC_BMS = ((rx_frame.data.u8[6] & 0x03) * 256 + rx_frame.data.u8[7]);
-      } else {
-        SOC_BMS = 0;
-        logging.println("SOC_BMS not valid");
       }
 
       if ((rx_frame.data.u8[0] & 0x04) == 0x04) {
