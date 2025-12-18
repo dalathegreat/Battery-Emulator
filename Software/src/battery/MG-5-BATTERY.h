@@ -65,7 +65,7 @@ class Mg5Battery : public CanBattery {
       1;  // Shape of charge power taper to zero. 1 is linear. >1 reduces quickly and is small at nearly full.
   const int TricklePower = 20;  // Minimimum trickle charge or discharge power (W)
 
-  const int MaxDischargePower = 10000;     // Maximum allowable discharge power, excluding the taper
+  const int MaxDischargePower = 50000;     // Maximum allowable discharge power, excluding the taper
   const int MinSoC = 10;                   // Minimum SoC allowed
   const int StartDischargeTaper = 20;      // Battery percentage below which the discharge power will taper to zero
   const float DischargeTaperExponent = 1;  // Shape of discharge power taper to zero. 1 is linear. >1 red

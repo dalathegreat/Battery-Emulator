@@ -78,28 +78,34 @@ void Mg5Battery::update_soc(uint16_t soc_times_ten) {
     datalayer.battery.status.remaining_capacity_Wh = 0;
   }
 
-  // Calculate the maximum charge power. Taper the charge power between 90% and 100% SoC, as 100% SoC is approached
-  if (RealSoC < StartChargeTaper) {
-    datalayer.battery.status.max_charge_power_W = MaxChargePower;
-  } else if (RealSoC >= 100) {
-    datalayer.battery.status.max_charge_power_W = TricklePower;
-  } else {
-    //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
-    datalayer.battery.status.max_charge_power_W =
-        (MaxChargePower * pow(((100 - RealSoC) / (100 - StartChargeTaper)), ChargeTaperExponent)) + TricklePower;
-  }
 
-  // Calculate the maximum discharge power. Taper the discharge power between 35% and Min% SoC, as Min% SoC is approached
-  if (RealSoC > StartDischargeTaper) {
-    datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
-  } else if (RealSoC < MinSoC) {
-    datalayer.battery.status.max_discharge_power_W = TricklePower;
-  } else {
-    //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
-    datalayer.battery.status.max_discharge_power_W =
-        (MaxDischargePower * pow(((RealSoC - MinSoC) / (StartDischargeTaper - MinSoC)), DischargeTaperExponent)) +
-        TricklePower;
-  }
+#if MG5_USE_FULL_CAPACITY
+
+  // Calculate the maximum charge power. Taper the charge power between 90% and 100% SoC, as 100% SoC is approached
+    if (RealSoC < StartChargeTaper ) {
+      datalayer.battery.status.max_charge_power_W = MaxChargePower;
+    } else if (RealSoC >= 100) {
+      datalayer.battery.status.max_charge_power_W = TricklePower;
+    } else {
+      //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
+      datalayer.battery.status.max_charge_power_W =
+          (MaxChargePower * pow(((100 - RealSoC) / (100 - StartChargeTaper)), ChargeTaperExponent)) + TricklePower;
+    }
+
+    // Calculate the maximum discharge power. Taper the discharge power between 35% and Min% SoC, as Min% SoC is approached
+    if (RealSoC > StartDischargeTaper) {
+      datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
+    } else if (RealSoC < MinSoC) {
+      datalayer.battery.status.max_discharge_power_W = TricklePower;
+    } else {
+      //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
+      datalayer.battery.status.max_discharge_power_W =
+          (MaxDischargePower * pow(((RealSoC - MinSoC) / (StartDischargeTaper - MinSoC)), DischargeTaperExponent)) +
+          TricklePower;
+    }
+
+#endif
+
 }
 
 void Mg5Battery::print_formatted_dtc(uint32_t dtc24, uint8_t status) {
