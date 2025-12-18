@@ -79,7 +79,7 @@ void Mg5Battery::update_soc(uint16_t soc_times_ten) {
   }
 
 
-#if MG5_USE_FULL_CAPACITY
+//#if MG5_USE_FULL_CAPACITY
 
   // Calculate the maximum charge power. Taper the charge power between 90% and 100% SoC, as 100% SoC is approached
     if (RealSoC < StartChargeTaper ) {
@@ -92,7 +92,7 @@ void Mg5Battery::update_soc(uint16_t soc_times_ten) {
           (MaxChargePower * pow(((100 - RealSoC) / (100 - StartChargeTaper)), ChargeTaperExponent)) + TricklePower;
     }
 
-    // Calculate the maximum discharge power. Taper the discharge power between 35% and Min% SoC, as Min% SoC is approached
+    // Calculate the maximum discharge power. Taper the discharge power between 10% and Min% SoC, as Min% SoC is approached
     if (RealSoC > StartDischargeTaper) {
       datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
     } else if (RealSoC < MinSoC) {
@@ -104,7 +104,7 @@ void Mg5Battery::update_soc(uint16_t soc_times_ten) {
           TricklePower;
     }
 
-#endif
+//#endif
 
 }
 
@@ -654,8 +654,8 @@ void Mg5Battery::transmit_can(unsigned long currentMillis) {
         // Just changed to closed
         contactorClosed = true;
         userRequestClearDTC = true;  //clear DTCs to clear DTC 293, otherwise contactors won't close
-        datalayer.battery.status.max_charge_power_W = MaxChargePower; //set the power limits, as they are set to zero when contactors are open
-        datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
+        //datalayer.battery.status.max_charge_power_W = MaxChargePower; //set the power limits, as they are set to zero when contactors are open
+        //datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
       }
     } else {
       contactorClosed = false;
@@ -729,8 +729,6 @@ void Mg5Battery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.total_capacity_Wh = TOTAL_BATTERY_CAPACITY_WH;
-  datalayer.battery.status.max_charge_power_W = MaxChargePower;
-  datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
   datalayer.battery.info.number_of_cells = 96;
   uds_tx_in_flight = true;                  // Make sure UDS doesn't start right away
   uds_req_started_ms = millis();            // prevent immediate timeout
