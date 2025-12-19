@@ -92,6 +92,8 @@ const char* name_for_battery_type(BatteryType type) {
       return KiaHyundaiHybridBattery::Name;
     case BatteryType::Meb:
       return MebBattery::Name;
+    case BatteryType::Mg4:
+      return Mg4Battery::Name;
     case BatteryType::Mg5:
       return Mg5Battery::Name;
     case BatteryType::MgHsPhev:
@@ -205,6 +207,8 @@ Battery* create_battery(BatteryType type) {
       return new KiaHyundaiHybridBattery();
     case BatteryType::Meb:
       return new MebBattery();
+    case BatteryType::Mg4:
+      return new Mg4Battery();
     case BatteryType::Mg5:
       return new Mg5Battery();
     case BatteryType::MgHsPhev:
