@@ -40,6 +40,7 @@ class CanShunt : public Transmitter, CanReceiver {
   void transmit_can_frame(CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
 };
 
+extern CanShunt* shunt;
 extern std::vector<ShuntType> supported_shunt_types();
 extern const char* name_for_shunt_type(ShuntType type);
 extern ShuntType user_selected_shunt_type;

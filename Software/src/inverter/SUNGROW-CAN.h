@@ -240,86 +240,121 @@ class SungrowInverter : public CanInverterProtocol {
                            .DLC = 8,
                            .ID = 0x512,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  // 0x700 - All Zero
   CAN_frame SUNGROW_700 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x700,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  // 0x701 - Battery Operational Parameters
   CAN_frame SUNGROW_701 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x701,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00, 0x00,    // Battery MAX voltage
+                                    0x00, 0x00,    // Battery MIN voltage
+                                    0x00, 0x00,    // Battery MAX charge current
+                                    0x00, 0x00}};  // Battery MIN charge current
+  // 0x702 - Battery Charge Level Status
   CAN_frame SUNGROW_702 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x702,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00, 0x00,    // Battery SoC %
+                                    0x00, 0x00,    // Battery SoH %
+                                    0x00, 0x00,    // Battery remaining Wh
+                                    0x00, 0x00}};  // Battery total Wh
+  // 0x703 - Battery Energy Status
   CAN_frame SUNGROW_703 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x703,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00, 0x00, 0x00, 0x00,    // Energy charged
+                                    0x00, 0x00, 0x00, 0x00}};  // Energy discharged
+  // 0x704 - Battery Status
   CAN_frame SUNGROW_704 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x704,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00, 0x00,    // Battery voltage
+                                    0x00, 0x00,    // Battery current
+                                    0x00, 0x00,    // Another related battery voltage
+                                    0x00, 0x00}};  // Battery temperature
+  // 0x705 - TODO
   CAN_frame SUNGROW_705 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x705,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00, 0x00,        // Status??
+                                    0x00, 0x00, 0x00,  // ????
+                                    0x00, 0x00,        // Yet another battery voltage
+                                    0x00}};            // Padding??
+  // 0x706 - Battery Cell Status
   CAN_frame SUNGROW_706 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x706,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00, 0x00,    // Cell MAX temperature
+                                    0x00, 0x00,    // Cell MIN temperature
+                                    0x00, 0x00,    // Cell MIN voltage
+                                    0x00, 0x00}};  // Cell MAX voltage
+  // 0x707 - TODO
   CAN_frame SUNGROW_707 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x707,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  // 0x708 - Battery Serial Number (MUX)
   CAN_frame SUNGROW_708_00 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x708,
-                              .data = {0x00, 0x53, 0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "S231012"
+                              .data = {0x00,                                        // Fragment #
+                                       0x53, 0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "S231012"
   CAN_frame SUNGROW_708_01 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x708,
-                              .data = {0x01, 0x33, 0x34, 0x35, 0x36, 0x00, 0x00, 0x53}};  // "3456" S suffix
+                              .data = {0x01,                                        // Fragment #
+                                       0x33, 0x34, 0x35, 0x36, 0x00, 0x00, 0x53}};  // "3456" S suffix
+  // 0x709 - All Zero
   CAN_frame SUNGROW_709 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x709,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  // 0x70A - Battery Type (MUX)
   CAN_frame SUNGROW_70A_00 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x70A,
-                              .data = {0x00, 0x53, 0x55, 0x4E, 0x47, 0x52, 0x4F, 0x57}};
+                              .data = {0x00,                                        // Mux
+                                       0x53, 0x55, 0x4E, 0x47, 0x52, 0x4F, 0x57}};  // "SUNGROW"
   CAN_frame SUNGROW_70A_01 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x70A,
-                              .data = {0x01, 0x00, 0x42, 0x52, 0x58, 0x58, 0x58, 0x00}};
+                              .data = {0x01,                                        // Mux
+                                       0x00, 0x42, 0x52, 0x58, 0x58, 0x58, 0x00}};  // "\0BRXXX\0"
+  // 0x70B - Battery Family
   CAN_frame SUNGROW_70B = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x70B,
-                           .data = {0x00, 0x53, 0x42, 0x52, 0x58, 0x58, 0x58, 0x00}};
+                           .data = {0x00, 0x53, 0x42, 0x52, 0x58, 0x58, 0x58, 0x00}};  // "\0SBRXXX\0"
+  // 0x70D - TODO Modbus 3_10701
   CAN_frame SUNGROW_70D = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x70D,
                            .data = {0x0F, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00}};
+  // 0x70E - TODO Modbus 3_10705
   CAN_frame SUNGROW_70E = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x70E,
                            .data = {0x07, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  // 0x70F (MUX)
   CAN_frame SUNGROW_70F_00 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
@@ -360,111 +395,178 @@ class SungrowInverter : public CanInverterProtocol {
                               .DLC = 8,
                               .ID = 0x70F,
                               .data = {0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  // 0x713 - Battery Cell Temperature Overview
   CAN_frame SUNGROW_713 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x713,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00,          // Cell location with minimum temperature
+                                    0x00,          // Module location with minimum temperature
+                                    0x00, 0x00,    // Cell MIN temperature
+                                    0x00,          // Cell location with maximum temperature
+                                    0x00,          // Module location with maximum temperature
+                                    0x00, 0x00}};  // Cell MAX temperature
+  // 0x714 - Battery Cell Voltage Overview
   CAN_frame SUNGROW_714 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x714,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00,          // Cell location with minimum voltage
+                                    0x00,          // Module location with minimum voltage
+                                    0x00, 0x00,    // Cell MIN voltage
+                                    0x00,          // Cell location with maximum voltage
+                                    0x00,          // Module location with maximum voltage
+                                    0x00, 0x00}};  // Cell MAX voltage
+  // 0x715 - Module 1+2 Cell Voltage Overview
   CAN_frame SUNGROW_715 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x715,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00, 0x00,    // Module 1 Cell MIN voltage
+                                    0x00, 0x00,    // Module 1 Cell MAX voltage
+                                    0x00, 0x00,    // Module 2 Cell MIN voltage
+                                    0x00, 0x00}};  // Module 2 Cell MAX voltage
+  // 0x716 - Module 2+3 Cell Voltage Overview
   CAN_frame SUNGROW_716 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x716,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00, 0x00,    // Module 3 Cell MIN voltage
+                                    0x00, 0x00,    // Module 3 Cell MAX voltage
+                                    0x00, 0x00,    // Module 4 Cell MIN voltage
+                                    0x00, 0x00}};  // Module 4 Cell MAX voltage
+  // 0x717 - Module 5+6 Cell Voltage Overview
   CAN_frame SUNGROW_717 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x717,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00, 0x00,    // Module 5 Cell MIN voltage
+                                    0x00, 0x00,    // Module 5 Cell MAX voltage
+                                    0x00, 0x00,    // Module 6 Cell MIN voltage
+                                    0x00, 0x00}};  // Module 6 Cell MAX voltage
+  // 0x718 - Module 7+8 Cell Voltage Overview
   CAN_frame SUNGROW_718 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x718,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00, 0x00,    // Module 7 Cell MIN voltage
+                                    0x00, 0x00,    // Module 7 Cell MAX voltage
+                                    0x00, 0x00,    // Module 8 Cell MIN voltage
+                                    0x00, 0x00}};  // Module 8 Cell MAX voltage
+  // 0x719 - POSSIBLY Status (3_10789) and Module fault (3_10790)
   CAN_frame SUNGROW_719 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x719,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  // 0x71A - Module Cell Type
+  // byte 5 of module serial number
+  // 42 = IEC
+  // 44 = Mon-IEC
   CAN_frame SUNGROW_71A = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x71A,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x44,    // Module 1 Cell type
+                                    0x44,    // Module 2 Cell type
+                                    0x44,    // Module 3 Cell type
+                                    0x00,    // Module 4 Cell type
+                                    0x00,    // Module 5 Cell type
+                                    0x00,    // Module 6 Cell type
+                                    0x00,    // Module 7 Cell type
+                                    0x00}};  // Module 8 Cell type
+  // 0x71B - Module 1+2 Production Date
   CAN_frame SUNGROW_71B = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x71B,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x3F, 0x7A, 0x6F, 0x01,    // Module 1 production date
+                                    0x3F, 0x7A, 0x6F, 0x01}};  // Module 2 production date
+  // 0x71B - Module 3+4 Production Date
   CAN_frame SUNGROW_71C = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x71C,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x3F, 0x7A, 0x6F, 0x01,    // Module 3 production date
+                                    0x00, 0x00, 0x00, 0x00}};  // Module 4 production date
+  // 0x71B - Module 5+6 Production Date
   CAN_frame SUNGROW_71D = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x71D,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00, 0x00, 0x00, 0x00,    // Module 5 production date
+                                    0x00, 0x00, 0x00, 0x00}};  // Module 6 production date
+  // 0x71B - Module 7+8 Production Date
   CAN_frame SUNGROW_71E = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x71E,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x00, 0x00, 0x00, 0x00,    // Module 7 production date
+                                    0x00, 0x00, 0x00, 0x00}};  // Module 8 production date
+  // 0x71F - Module Serial Number (MUX)
   CAN_frame SUNGROW_71F_01_01 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x01, 0x01, 0x45, 0x4D, 0x30, 0x33, 0x32, 0x44}};  // "EM032D"
+                                 .data = {0x01,                                  // Moddule #
+                                          0x01,                                  // Fragment #
+                                          0x45, 0x4D, 0x30, 0x33, 0x32, 0x44}};  // "EM032D"
   CAN_frame SUNGROW_71F_01_02 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x01, 0x02, 0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "231012"
+                                 .data = {0x01,                                  // Moddule #
+                                          0x02,                                  // Fragment #
+                                          0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "231012"
   CAN_frame SUNGROW_71F_01_03 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x01, 0x03, 0x33, 0x34, 0x36, 0x31, 0x44, 0x46}};  // "3461DF"
+                                 .data = {0x01,                                  // Moddule #
+                                          0x03,                                  // Fragment #
+                                          0x33, 0x34, 0x36, 0x31, 0x44, 0x46}};  // "3461DF"
   CAN_frame SUNGROW_71F_02_01 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x02, 0x01, 0x45, 0x4D, 0x30, 0x33, 0x32, 0x44}};  // "EM032D"
+                                 .data = {0x02,                                  // Moddule #
+                                          0x01,                                  // Fragment #
+                                          0x45, 0x4D, 0x30, 0x33, 0x32, 0x44}};  // "EM032D"
   CAN_frame SUNGROW_71F_02_02 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x02, 0x02, 0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "231012"
+                                 .data = {0x02,                                  // Moddule #
+                                          0x02,                                  // Fragment #
+                                          0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "231012"
   CAN_frame SUNGROW_71F_02_03 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x02, 0x03, 0x33, 0x34, 0x36, 0x32, 0x44, 0x46}};  // "3462DF"
+                                 .data = {0x02,                                  // Moddule #
+                                          0x03,                                  // Fragment #
+                                          0x33, 0x34, 0x36, 0x32, 0x44, 0x46}};  // "3462DF"
   CAN_frame SUNGROW_71F_03_01 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x03, 0x01, 0x45, 0x4D, 0x30, 0x33, 0x32, 0x44}};  // "EM032D"
+                                 .data = {0x03,                                  // Moddule #
+                                          0x01,                                  // Fragment #
+                                          0x45, 0x4D, 0x30, 0x33, 0x32, 0x44}};  // "EM032D"
   CAN_frame SUNGROW_71F_03_02 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x03, 0x02, 0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "231012"
+                                 .data = {0x03,                                  // Moddule #
+                                          0x02,                                  // Fragment #
+                                          0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "231012"
   CAN_frame SUNGROW_71F_03_03 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x03, 0x03, 0x33, 0x34, 0x36, 0x33, 0x44, 0x46}};  // "3463DF"
+                                 .data = {0x03,                                  // Moddule #
+                                          0x03,                                  // Fragment #
+                                          0x33, 0x34, 0x36, 0x33, 0x44, 0x46}};  // "3463DF"
 };
 
 #endif

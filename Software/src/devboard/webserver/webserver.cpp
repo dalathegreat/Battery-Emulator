@@ -457,7 +457,7 @@ void init_webserver() {
       } else if (p->name() == "BATT3COMM") {
         auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
         settings.saveUInt("BATT3COMM", (int)type);
-      } else if (p->name() == "shunt") {
+      } else if (p->name() == "SHUNTTYPE") {
         auto type = static_cast<ShuntType>(atoi(p->value().c_str()));
         settings.saveUInt("SHUNTTYPE", (int)type);
       } else if (p->name() == "SHUNTCOMM") {
@@ -923,8 +923,6 @@ String processor(const String& var) {
     content += "  padding: 8px;";
     content += "  position: absolute;";
     content += "  z-index: 1;";
-    content += "  bottom: 125%;";
-    content += "  left: 50%;";
     content += "  margin-left: -100px;";
     content += "  opacity: 0;";
     content += "  transition: opacity 0.3s;";

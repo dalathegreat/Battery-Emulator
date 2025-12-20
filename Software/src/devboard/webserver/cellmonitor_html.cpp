@@ -14,7 +14,7 @@ String cellmonitor_processor(const String& var) {
         "cursor: pointer; border-radius: 10px; }";
     content += "button:hover { background-color: #3A4A52; }";
     content += ".container { display: flex; flex-wrap: wrap; justify-content: space-around; }";
-    content += ".cell { width: 48%; margin: 1%; padding: 10px; border: 1px solid white; text-align: center; }";
+    content += ".cell { padding: 10px; border: 1px solid white; text-align: center; }";
     content += ".low-voltage { color: red; }";              // Style for low voltage text
     content += ".voltage-values { margin-bottom: 10px; }";  // Style for voltage values section
 
