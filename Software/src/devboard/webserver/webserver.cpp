@@ -1032,6 +1032,87 @@ String processor(const String& var) {
       content += "</div>";
     }
 
+    //Scaled SOC / capacity block
+
+    // Start a new block with a specific background color. Color changes depending on system status
+    content += "<div style='background-color: ";
+    switch (get_emulator_status()) {
+      case EMULATOR_STATUS::STATUS_OK:
+        content += "#2D3F2F;";
+        break;
+      case EMULATOR_STATUS::STATUS_WARNING:
+        content += "#F5CC00;";
+        break;
+      case EMULATOR_STATUS::STATUS_ERROR:
+        content += "#A70107;";
+        break;
+      case EMULATOR_STATUS::STATUS_UPDATING:
+        content += "#2B35AF;";  // Blue in test mode
+        break;
+    }
+    // Add the common style properties
+    content += "padding: 10px; margin-bottom: 10px; border-radius: 50px;'>";
+    //Content
+    float socRealFloat = static_cast<float>(datalayer.battery.status.real_soc) / 100.0f;
+    float socScaledFloat = static_cast<float>(datalayer.battery.status.reported_soc) / 100.0f;
+    if (datalayer.battery.settings.soc_scaling_active)
+      content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) +
+                 "&percnt; (real: " + String(socRealFloat, 2) + "&percnt;)</h4>";
+    else
+      content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
+
+    if (datalayer.battery.status.current_dA == 0) {
+      content += "<h4>Battery idle</h4>";
+    } else if (datalayer.battery.status.current_dA < 0) {
+      content += "<h4>Battery discharging!";
+      if (datalayer.battery.settings.inverter_limits_discharge) {
+        content += " (Inverter limiting)</h4>";
+      } else {
+        if (datalayer.battery.settings.user_settings_limit_discharge) {
+          content += " (Settings limiting)</h4>";
+        } else {
+          content += " (Battery limiting)</h4>";
+        }
+      }
+      content += "</h4>";
+    } else {  // > 0 , positive current
+      content += "<h4>Battery charging!";
+      if (datalayer.battery.settings.inverter_limits_charge) {
+        content += " (Inverter limiting)</h4>";
+      } else {
+        if (datalayer.battery.settings.user_settings_limit_charge) {
+          content += " (Settings limiting)</h4>";
+        } else {
+          content += " (Battery limiting)</h4>";
+        }
+      }
+    }
+
+    content += "<h4>System status: ";
+    switch (datalayer.battery.status.bms_status) {
+      case ACTIVE:
+        content += String("OK");
+        break;
+      case UPDATING:
+        content += String("UPDATING");
+        break;
+      case FAULT:
+        content += String("FAULT");
+        break;
+      case INACTIVE:
+        content += String("INACTIVE");
+        break;
+      case STANDBY:
+        content += String("STANDBY");
+        break;
+      default:
+        content += String("??");
+        break;
+    }
+    content += "</h4>";
+    // Close the block
+    content += "</div>";
+
     if (battery) {
       if (battery2) {
         // Start a new block with a specific background color. Color changes depending on BMS status
@@ -1063,8 +1144,6 @@ String processor(const String& var) {
       // Display battery statistics within this block
       float socRealFloat =
           static_cast<float>(datalayer.battery.status.real_soc) / 100.0f;  // Convert to float and divide by 100
-      float socScaledFloat =
-          static_cast<float>(datalayer.battery.status.reported_soc) / 100.0f;  // Convert to float and divide by 100
       float sohFloat =
           static_cast<float>(datalayer.battery.status.soh_pptt) / 100.0f;  // Convert to float and divide by 100
       float voltageFloat =
@@ -1081,12 +1160,7 @@ String processor(const String& var) {
       uint16_t cell_delta_mv =
           datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
 
-      if (datalayer.battery.settings.soc_scaling_active)
-        content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) +
-                   "&percnt; (real: " + String(socRealFloat, 2) + "&percnt;)</h4>";
-      else
-        content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
-
+      content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
       content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
       content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) +
                  " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
@@ -1143,29 +1217,6 @@ String processor(const String& var) {
       content += "<h4>Temperature min/max: " + String(tempMinFloat, 1) + " &deg;C / " + String(tempMaxFloat, 1) +
                  " &deg;C</h4>";
 
-      content += "<h4>System status: ";
-      switch (datalayer.battery.status.bms_status) {
-        case ACTIVE:
-          content += String("OK");
-          break;
-        case UPDATING:
-          content += String("UPDATING");
-          break;
-        case FAULT:
-          content += String("FAULT");
-          break;
-        case INACTIVE:
-          content += String("INACTIVE");
-          break;
-        case STANDBY:
-          content += String("STANDBY");
-          break;
-        default:
-          content += String("??");
-          break;
-      }
-      content += "</h4>";
-
       if (battery && battery->supports_real_BMS_status()) {
         content += "<h4>Battery BMS status: ";
         switch (datalayer.battery.status.real_bms_status) {
@@ -1186,33 +1237,6 @@ String processor(const String& var) {
             break;
         }
         content += "</h4>";
-      }
-
-      if (datalayer.battery.status.current_dA == 0) {
-        content += "<h4>Battery idle</h4>";
-      } else if (datalayer.battery.status.current_dA < 0) {
-        content += "<h4>Battery discharging!";
-        if (datalayer.battery.settings.inverter_limits_discharge) {
-          content += " (Inverter limiting)</h4>";
-        } else {
-          if (datalayer.battery.settings.user_settings_limit_discharge) {
-            content += " (Settings limiting)</h4>";
-          } else {
-            content += " (Battery limiting)</h4>";
-          }
-        }
-        content += "</h4>";
-      } else {  // > 0 , positive current
-        content += "<h4>Battery charging!";
-        if (datalayer.battery.settings.inverter_limits_charge) {
-          content += " (Inverter limiting)</h4>";
-        } else {
-          if (datalayer.battery.settings.user_settings_limit_charge) {
-            content += " (Settings limiting)</h4>";
-          } else {
-            content += " (Battery limiting)</h4>";
-          }
-        }
       }
 
       // Close the block
@@ -1249,30 +1273,13 @@ String processor(const String& var) {
         tempMinFloat = static_cast<float>(datalayer.battery2.status.temperature_min_dC) / 10.0f;  // Convert to float
         cell_delta_mv = datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV;
 
-        if (datalayer.battery.settings.soc_scaling_active)
-          content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) +
-                     "&percnt; (real: " + String(socRealFloat, 2) + "&percnt;)</h4>";
-        else
-          content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
-
+        content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
         content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
         content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) +
                    " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
         content += formatPowerValue("Power", powerFloat, "", 1);
-
-        if (datalayer.battery.settings.soc_scaling_active)
-          content += "<h4 style='color: white;'>Scaled total capacity: " +
-                     formatPowerValue(datalayer.battery2.info.reported_total_capacity_Wh, "h", 1) +
-                     " (real: " + formatPowerValue(datalayer.battery2.info.total_capacity_Wh, "h", 1) + ")</h4>";
-        else
-          content += formatPowerValue("Total capacity", datalayer.battery2.info.total_capacity_Wh, "h", 1);
-
-        if (datalayer.battery.settings.soc_scaling_active)
-          content += "<h4 style='color: white;'>Scaled remaining capacity: " +
-                     formatPowerValue(datalayer.battery2.status.reported_remaining_capacity_Wh, "h", 1) +
-                     " (real: " + formatPowerValue(datalayer.battery2.status.remaining_capacity_Wh, "h", 1) + ")</h4>";
-        else
-          content += formatPowerValue("Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
+        content += formatPowerValue("Total capacity", datalayer.battery2.info.total_capacity_Wh, "h", 1);
+        content += formatPowerValue("Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
 
         if (datalayer.system.info.equipment_stop_active) {
           content +=
@@ -1298,20 +1305,6 @@ String processor(const String& var) {
         }
         content += "<h4>Temperature min/max: " + String(tempMinFloat, 1) + " &deg;C / " + String(tempMaxFloat, 1) +
                    " &deg;C</h4>";
-        if (datalayer.battery.status.bms_status == ACTIVE) {
-          content += "<h4>System status: OK </h4>";
-        } else if (datalayer.battery.status.bms_status == UPDATING) {
-          content += "<h4>System status: UPDATING </h4>";
-        } else {
-          content += "<h4>System status: FAULT </h4>";
-        }
-        if (datalayer.battery2.status.current_dA == 0) {
-          content += "<h4>Battery idle</h4>";
-        } else if (datalayer.battery2.status.current_dA < 0) {
-          content += "<h4>Battery discharging!</h4>";
-        } else {  // > 0
-          content += "<h4>Battery charging!</h4>";
-        }
         content += "</div>";
         if (battery3) {
           content += "<div style='flex: 1; background-color: ";
@@ -1332,7 +1325,6 @@ String processor(const String& var) {
           // Display battery statistics within this block
           socRealFloat =
               static_cast<float>(datalayer.battery3.status.real_soc) / 100.0f;  // Convert to float and divide by 100
-          //socScaledFloat; // Same value used for bat2
           sohFloat =
               static_cast<float>(datalayer.battery3.status.soh_pptt) / 100.0f;  // Convert to float and divide by 100
           voltageFloat =
@@ -1344,31 +1336,13 @@ String processor(const String& var) {
           tempMinFloat = static_cast<float>(datalayer.battery3.status.temperature_min_dC) / 10.0f;  // Convert to float
           cell_delta_mv = datalayer.battery3.status.cell_max_voltage_mV - datalayer.battery3.status.cell_min_voltage_mV;
 
-          if (datalayer.battery.settings.soc_scaling_active)
-            content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) +
-                       "&percnt; (real: " + String(socRealFloat, 2) + "&percnt;)</h4>";
-          else
-            content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
-
+          content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
           content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
           content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) +
                      " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
           content += formatPowerValue("Power", powerFloat, "", 1);
-
-          if (datalayer.battery.settings.soc_scaling_active)
-            content += "<h4 style='color: white;'>Scaled total capacity: " +
-                       formatPowerValue(datalayer.battery3.info.reported_total_capacity_Wh, "h", 1) +
-                       " (real: " + formatPowerValue(datalayer.battery3.info.total_capacity_Wh, "h", 1) + ")</h4>";
-          else
-            content += formatPowerValue("Total capacity", datalayer.battery3.info.total_capacity_Wh, "h", 1);
-
-          if (datalayer.battery.settings.soc_scaling_active)
-            content += "<h4 style='color: white;'>Scaled remaining capacity: " +
-                       formatPowerValue(datalayer.battery3.status.reported_remaining_capacity_Wh, "h", 1) +
-                       " (real: " + formatPowerValue(datalayer.battery3.status.remaining_capacity_Wh, "h", 1) +
-                       ")</h4>";
-          else
-            content += formatPowerValue("Remaining capacity", datalayer.battery3.status.remaining_capacity_Wh, "h", 1);
+          content += formatPowerValue("Total capacity", datalayer.battery3.info.total_capacity_Wh, "h", 1);
+          content += formatPowerValue("Remaining capacity", datalayer.battery3.status.remaining_capacity_Wh, "h", 1);
 
           if (datalayer.system.info.equipment_stop_active) {
             content +=
@@ -1394,20 +1368,6 @@ String processor(const String& var) {
           }
           content += "<h4>Temperature min/max: " + String(tempMinFloat, 1) + " &deg;C / " + String(tempMaxFloat, 1) +
                      " &deg;C</h4>";
-          if (datalayer.battery.status.bms_status == ACTIVE) {
-            content += "<h4>System status: OK </h4>";
-          } else if (datalayer.battery.status.bms_status == UPDATING) {
-            content += "<h4>System status: UPDATING </h4>";
-          } else {
-            content += "<h4>System status: FAULT </h4>";
-          }
-          if (datalayer.battery3.status.current_dA == 0) {
-            content += "<h4>Battery idle</h4>";
-          } else if (datalayer.battery3.status.current_dA < 0) {
-            content += "<h4>Battery discharging!</h4>";
-          } else {  // > 0
-            content += "<h4>Battery charging!</h4>";
-          }
           content += "</div>";
           content += "</div>";
         }
