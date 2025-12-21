@@ -54,8 +54,8 @@ void PylonInverter::
   PYLON_421X.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
   PYLON_421X.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
   //Current (15.0)
-  PYLON_421X.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
-  PYLON_421X.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  PYLON_421X.data.u8[2] = (datalayer.battery.status.reported_current_dA >> 8);
+  PYLON_421X.data.u8[3] = (datalayer.battery.status.reported_current_dA & 0x00FF);
   // BMS Temperature (We dont have BMS temp, send max cell voltage instead)
   PYLON_421X.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
   PYLON_421X.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
@@ -123,11 +123,11 @@ void PylonInverter::
   // Status=Bit 0,1,2= 0:Sleep, 1:Charge, 2:Discharge 3:Idle. Bit3 ForceChargeReq. Bit4 Balance charge Request
   if (datalayer.battery.status.bms_status == FAULT) {
     PYLON_425X.data.u8[0] = (0x00);  // Sleep
-  } else if (datalayer.battery.status.current_dA < 0) {
+  } else if (datalayer.battery.status.reported_current_dA < 0) {
     PYLON_425X.data.u8[0] = (0x01);  // Charge
-  } else if (datalayer.battery.status.current_dA > 0) {
+  } else if (datalayer.battery.status.reported_current_dA > 0) {
     PYLON_425X.data.u8[0] = (0x02);  // Discharge
-  } else if (datalayer.battery.status.current_dA == 0) {
+  } else if (datalayer.battery.status.reported_current_dA == 0) {
     PYLON_425X.data.u8[0] = (0x03);  // Idle
   }
 }

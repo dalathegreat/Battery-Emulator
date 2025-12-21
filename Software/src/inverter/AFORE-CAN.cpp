@@ -16,8 +16,8 @@ void AforeCanInverter::
   AFORE_350.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
   //Total battery current unit: 0.1A offset 5000; positive is charging,
   //Negative means discharge; for example: 1A = (5010-5000)/10
-  AFORE_350.data.u8[2] = ((datalayer.battery.status.current_dA + 5000) & 0x00FF);
-  AFORE_350.data.u8[3] = ((datalayer.battery.status.current_dA + 5000) >> 8);
+  AFORE_350.data.u8[2] = ((datalayer.battery.status.reported_current_dA + 5000) & 0x00FF);
+  AFORE_350.data.u8[3] = ((datalayer.battery.status.reported_current_dA + 5000) >> 8);
   //Battery temperature unit: 0.1C offset 1000; for example: 20C
   //= (1200 -1000)/10; when all temperatures are greater than or equal to 0
   AFORE_350.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);

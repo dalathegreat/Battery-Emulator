@@ -57,11 +57,11 @@ void FerroampCanInverter::
   // Status=Bit 0,1,2= 0:Sleep, 1:Charge, 2:Discharge 3:Idle. Bit3 ForceChargeReq. Bit4 Balance charge Request
   if (datalayer.battery.status.bms_status == FAULT) {
     FERROAMP_4251.data.u8[0] = (0x00);  // Sleep
-  } else if (datalayer.battery.status.current_dA < 0) {
+  } else if (datalayer.battery.status.reported_current_dA < 0) {
     FERROAMP_4251.data.u8[0] = (0x01);  // Charge
-  } else if (datalayer.battery.status.current_dA > 0) {
+  } else if (datalayer.battery.status.reported_current_dA > 0) {
     FERROAMP_4251.data.u8[0] = (0x02);  // Discharge
-  } else if (datalayer.battery.status.current_dA == 0) {
+  } else if (datalayer.battery.status.reported_current_dA == 0) {
     FERROAMP_4251.data.u8[0] = (0x03);  // Idle
   }
 
@@ -70,8 +70,8 @@ void FerroampCanInverter::
   FERROAMP_4211.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
 
   //Current (15.0)
-  FERROAMP_4211.data.u8[2] = ((datalayer.battery.status.current_dA + 30000) & 0x00FF);
-  FERROAMP_4211.data.u8[3] = ((datalayer.battery.status.current_dA + 30000) >> 8);
+  FERROAMP_4211.data.u8[2] = ((datalayer.battery.status.reported_current_dA + 30000) & 0x00FF);
+  FERROAMP_4211.data.u8[3] = ((datalayer.battery.status.reported_current_dA + 30000) >> 8);
 
   // BMS Temperature (We dont have BMS temp, send max cell voltage instead)
   FERROAMP_4211.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
