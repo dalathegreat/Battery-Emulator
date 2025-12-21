@@ -88,8 +88,8 @@ void GrowattHvInverter::
   GROWATT_3130.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
   GROWATT_3130.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
   //Total current (0.1A -300 to 300A)
-  GROWATT_3130.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
-  GROWATT_3130.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  GROWATT_3130.data.u8[2] = (datalayer.battery.status.reported_current_dA >> 8);
+  GROWATT_3130.data.u8[3] = (datalayer.battery.status.reported_current_dA & 0x00FF);
   //Cell max temperature (0.1C) [-40 to 120*C]
   GROWATT_3130.data.u8[4] = (datalayer.battery.status.temperature_max_dC >> 8);
   GROWATT_3130.data.u8[5] = (datalayer.battery.status.temperature_max_dC & 0x00FF);

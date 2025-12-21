@@ -52,8 +52,8 @@ void SmaTripowerInverter::
   SMA_4D8.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
   SMA_4D8.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
   //Current (TODO: signed OK?)
-  SMA_4D8.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
-  SMA_4D8.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  SMA_4D8.data.u8[2] = (datalayer.battery.status.reported_current_dA >> 8);
+  SMA_4D8.data.u8[3] = (datalayer.battery.status.reported_current_dA & 0x00FF);
   //Temperature average
   SMA_4D8.data.u8[4] = (temperature_average >> 8);
   SMA_4D8.data.u8[5] = (temperature_average & 0x00FF);

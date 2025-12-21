@@ -38,8 +38,8 @@ void SolArkLvInverter::update_values() {
       (datalayer.battery.status.temperature_min_dC + datalayer.battery.status.temperature_max_dC) / 2;
   SOLARK_356.data.u8[0] = datalayer.battery.status.voltage_dV & 0xff;
   SOLARK_356.data.u8[1] = datalayer.battery.status.voltage_dV >> 8;
-  SOLARK_356.data.u8[2] = datalayer.battery.status.current_dA & 0xff;
-  SOLARK_356.data.u8[3] = datalayer.battery.status.current_dA >> 8;
+  SOLARK_356.data.u8[2] = datalayer.battery.status.reported_current_dA & 0xff;
+  SOLARK_356.data.u8[3] = datalayer.battery.status.reported_current_dA >> 8;
   SOLARK_356.data.u8[4] = average_temperature & 0xff;
   SOLARK_356.data.u8[5] = average_temperature >> 8;
 
@@ -54,7 +54,7 @@ void SolArkLvInverter::update_values() {
   SOLARK_359.data.u8[7] = 0x00;  //Unused, should be 00
 
   // Protection Byte 1 Bitfield: (If a bit is set, one of these caused batt self-protection mode)
-  if (datalayer.battery.status.current_dA >= (datalayer.battery.status.max_discharge_current_dA + 50))
+  if (datalayer.battery.status.reported_current_dA >= (datalayer.battery.status.max_discharge_current_dA + 50))
     SOLARK_359.data.u8[0] |= 0x80;
   if (datalayer.battery.status.temperature_min_dC <= BATTERY_MINTEMPERATURE)
     SOLARK_359.data.u8[0] |= 0x10;
@@ -64,7 +64,7 @@ void SolArkLvInverter::update_values() {
     SOLARK_359.data.u8[0] |= 0x04;
   if (datalayer.battery.status.bms_status == FAULT)
     SOLARK_359.data.u8[1] |= 0x80;
-  if (datalayer.battery.status.current_dA <= -1 * datalayer.battery.status.max_charge_current_dA)
+  if (datalayer.battery.status.reported_current_dA <= -1 * datalayer.battery.status.max_charge_current_dA)
     SOLARK_359.data.u8[1] |= 0x01;
 
   // WARNINGS (using same rules as errors but reporting earlier)

@@ -44,8 +44,9 @@ void FoxessCanInverter::
   //BMS_PackData
   FOXESS_1873.data.u8[0] = (uint8_t)datalayer.battery.status.voltage_dV;  // OK
   FOXESS_1873.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
-  FOXESS_1873.data.u8[2] = (int8_t)datalayer.battery.status.current_dA;  // OK, Signed (Active current in Amps x 10)
-  FOXESS_1873.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
+  FOXESS_1873.data.u8[2] =
+      (int8_t)datalayer.battery.status.reported_current_dA;  // OK, Signed (Active current in Amps x 10)
+  FOXESS_1873.data.u8[3] = (datalayer.battery.status.reported_current_dA >> 8);
   FOXESS_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (0-100%)
   FOXESS_1873.data.u8[5] = 0x00;
   FOXESS_1873.data.u8[6] = (uint8_t)(datalayer.battery.status.reported_remaining_capacity_Wh / 10);
@@ -124,7 +125,7 @@ void FoxessCanInverter::
 
   //Errorcodes and flags
   FOXESS_1879.data.u8[0] = (uint8_t)0;  // Error codes go here, still unsure of bitmasking
-  if (datalayer.battery.status.current_dA > 0) {
+  if (datalayer.battery.status.reported_current_dA > 0) {
     FOXESS_1879.data.u8[1] = 0x35;  //Charging
   }  // Mappings taken from https://github.com/FozzieUK/FoxESS-Canbus-Protocol
   else {
@@ -139,7 +140,7 @@ void FoxessCanInverter::
   if (NUMBER_OF_PACKS > 0) {  //div0 safeguard
     //We calculate how much each emulated pack should show
     voltage_per_pack = (datalayer.battery.status.voltage_dV / NUMBER_OF_PACKS);
-    current_per_pack = (datalayer.battery.status.current_dA / NUMBER_OF_PACKS);
+    current_per_pack = (datalayer.battery.status.reported_current_dA / NUMBER_OF_PACKS);
     if (datalayer.battery.status.temperature_max_dC >= 0) {
       temperature_max_per_pack = (uint8_t)((datalayer.battery.status.temperature_max_dC / 10) + 40);
     } else {  // negative values, cap to 0*C for now. Most LFPs are not allowed to go below 0*C.
