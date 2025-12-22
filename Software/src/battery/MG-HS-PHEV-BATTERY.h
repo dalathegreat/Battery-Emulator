@@ -15,6 +15,7 @@ class MgHsPHEVBattery : public CanBattery {
  private:
   void update_soc(uint16_t soc_times_ten);
 
+  static const uint16_t TOTAL_CAPACITY_WH = 16600;
   static const uint16_t MAX_PACK_VOLTAGE_DV = 3780;  //5000 = 500.0V
   static const uint16_t MIN_PACK_VOLTAGE_DV = 2790;
   static const uint16_t MAX_CELL_DEVIATION_MV = 150;
