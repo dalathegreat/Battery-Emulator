@@ -374,27 +374,15 @@ void update_calculated_values(unsigned long currentMillis) {
     }
   }
 
-  if (battery2) {
-    // Perform extra SOC sanity checks on double battery setups
-    if (datalayer.battery.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
-      datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
-    }
-    if (datalayer.battery2.status.real_soc <
-        100) {  //If this battery is under 1.00%, use this as SOC instead of average
+  //Check each extra battery, and if they are at the extremes, report the SOC from these batteries instead
+  if (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) {  //Battery2 is in the mix
+    if ((datalayer.battery2.status.real_soc < 100) || (datalayer.battery2.status.real_soc > 9900)) {
       datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
-      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
     }
-
-    if (datalayer.battery.status.real_soc >
-        9900) {  //If this battery is over 99.00%, use this as SOC instead of average
-      datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
-    }
-    if (datalayer.battery2.status.real_soc >
-        9900) {  //If this battery is over 99.00%, use this as SOC instead of average
-      datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
-      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+  }
+  if (battery3 && datalayer.system.status.battery3_allowed_contactor_closing) {  //Battery3 is in the mix
+    if ((datalayer.battery3.status.real_soc < 100) || (datalayer.battery3.status.real_soc > 9900)) {
+      datalayer.battery.status.reported_soc = datalayer.battery3.status.real_soc;
     }
   }
 }
