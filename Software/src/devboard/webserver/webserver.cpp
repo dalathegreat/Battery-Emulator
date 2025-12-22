@@ -1055,15 +1055,38 @@ String processor(const String& var) {
     //Content
     float socRealFloat = static_cast<float>(datalayer.battery.status.real_soc) / 100.0f;
     float socScaledFloat = static_cast<float>(datalayer.battery.status.reported_soc) / 100.0f;
-    if (datalayer.battery.settings.soc_scaling_active)
+    if (datalayer.battery.settings.soc_scaling_active) {
       content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) +
                  "&percnt; (real: " + String(socRealFloat, 2) + "&percnt;)</h4>";
-    else
+      content += "<h4 style='color: white;'>Scaled total capacity: " +
+                 formatPowerValue(datalayer.battery.info.reported_total_capacity_Wh, "h", 1) +
+                 " (real: " + formatPowerValue(datalayer.battery.info.total_capacity_Wh, "h", 1) + ")</h4>";
+      content += "<h4 style='color: white;'>Scaled remaining capacity: " +
+                 formatPowerValue(datalayer.battery.status.reported_remaining_capacity_Wh, "h", 1) +
+                 " (real: " + formatPowerValue(datalayer.battery.status.remaining_capacity_Wh, "h", 1) + ")</h4>";
+    } else {
       content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
+      uint32_t total_capacity = datalayer.battery.info.total_capacity_Wh;
+      uint32_t remaining_capacity = datalayer.battery.status.remaining_capacity_Wh;
+      if (battery2) {
+        total_capacity = datalayer.battery.info.total_capacity_Wh + datalayer.battery2.info.total_capacity_Wh;
+        remaining_capacity =
+            datalayer.battery.status.remaining_capacity_Wh + datalayer.battery2.status.remaining_capacity_Wh;
+      }
+      if (battery3) {
+        total_capacity = datalayer.battery.info.total_capacity_Wh + datalayer.battery2.info.total_capacity_Wh +
+                         datalayer.battery3.info.total_capacity_Wh;
+        remaining_capacity = datalayer.battery.status.remaining_capacity_Wh +
+                             datalayer.battery2.status.remaining_capacity_Wh +
+                             datalayer.battery3.status.remaining_capacity_Wh;
+      }
+      content += formatPowerValue("Total capacity", (total_capacity), "h", 1);
+      content += formatPowerValue("Remaining capacity", (remaining_capacity), "h", 1);
+    }
 
-    if (datalayer.battery.status.current_dA == 0) {
+    if (datalayer.battery.status.reported_current_dA == 0) {
       content += "<h4>Battery idle</h4>";
-    } else if (datalayer.battery.status.current_dA < 0) {
+    } else if (datalayer.battery.status.reported_current_dA < 0) {
       content += "<h4>Battery discharging!";
       if (datalayer.battery.settings.inverter_limits_discharge) {
         content += " (Inverter limiting)</h4>";
@@ -1160,25 +1183,13 @@ String processor(const String& var) {
       uint16_t cell_delta_mv =
           datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
 
-      content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
-      content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
+      content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt; SOH: " + String(sohFloat, 2) +
+                 "&percnt;</h4>";
       content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) +
                  " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
       content += formatPowerValue("Power", powerFloat, "", 1);
-
-      if (datalayer.battery.settings.soc_scaling_active)
-        content += "<h4 style='color: white;'>Scaled total capacity: " +
-                   formatPowerValue(datalayer.battery.info.reported_total_capacity_Wh, "h", 1) +
-                   " (real: " + formatPowerValue(datalayer.battery.info.total_capacity_Wh, "h", 1) + ")</h4>";
-      else
-        content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 1);
-
-      if (datalayer.battery.settings.soc_scaling_active)
-        content += "<h4 style='color: white;'>Scaled remaining capacity: " +
-                   formatPowerValue(datalayer.battery.status.reported_remaining_capacity_Wh, "h", 1) +
-                   " (real: " + formatPowerValue(datalayer.battery.status.remaining_capacity_Wh, "h", 1) + ")</h4>";
-      else
-        content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
+      content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 1);
+      content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
 
       if (datalayer.system.info.equipment_stop_active) {
         content +=
@@ -1273,8 +1284,8 @@ String processor(const String& var) {
         tempMinFloat = static_cast<float>(datalayer.battery2.status.temperature_min_dC) / 10.0f;  // Convert to float
         cell_delta_mv = datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV;
 
-        content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
-        content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
+        content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) +
+                   "&percnt; SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
         content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) +
                    " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
         content += formatPowerValue("Power", powerFloat, "", 1);
@@ -1336,8 +1347,8 @@ String processor(const String& var) {
           tempMinFloat = static_cast<float>(datalayer.battery3.status.temperature_min_dC) / 10.0f;  // Convert to float
           cell_delta_mv = datalayer.battery3.status.cell_max_voltage_mV - datalayer.battery3.status.cell_min_voltage_mV;
 
-          content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
-          content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
+          content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) +
+                     "&percnt; SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
           content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) +
                      " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
           content += formatPowerValue("Power", powerFloat, "", 1);
