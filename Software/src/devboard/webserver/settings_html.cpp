@@ -1414,7 +1414,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         required />
 
         <label>Access point password: </label>
-        <input type='text' name='APPASSWORD' value="%APPASSWORD%" 
+        <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
         pattern="[ -~]{8,63}" 
         title="Password must be 8-63 characters long, printable ASCII only"
         required />
