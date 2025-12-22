@@ -1,12 +1,21 @@
 #ifndef RELION_BATTERY_H
 #define RELION_BATTERY_H
 
+#include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "../system_settings.h"
 #include "CanBattery.h"
 
 class RelionBattery : public CanBattery {
  public:
-  RelionBattery() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) {}
+  // Use this constructor for the second battery.
+  RelionBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan)
+      : CanBattery(targetCan, CAN_Speed::CAN_SPEED_250KBPS) {
+    datalayer_battery = datalayer_ptr;
+  }
+
+  // Use the default constructor to create the first or single battery.
+  RelionBattery() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) { datalayer_battery = &datalayer.battery; }
 
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
@@ -15,6 +24,7 @@ class RelionBattery : public CanBattery {
   static constexpr const char* Name = "Relion LV protocol via 250kbps CAN";
 
  private:
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
   uint16_t estimateSOC();
   uint16_t estimateSOCfromCellvoltage(uint16_t cellVoltage);
 
