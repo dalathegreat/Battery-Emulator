@@ -31,6 +31,7 @@ i2c_master_dev_handle_t dev_handle;
 bool display_initialized = false;
 unsigned long lastUpdateMillis = 0;
 static std::vector<EventData> order_events;
+int num_batteries = 1;
 
 static esp_err_t i2c_write(const uint8_t* data, size_t len) {
   return i2c_master_transmit(dev_handle, data, len, 1000 / portTICK_PERIOD_MS);
@@ -224,6 +225,12 @@ void init_display() {
 
   clear();
   display_initialized = true;
+
+  // Count configured batteries
+  if (battery2)
+    num_batteries++;
+  if (battery3)
+    num_batteries++;
 }
 
 static void printn(char* buf, int value, int digits) {
@@ -291,45 +298,63 @@ static void print_battery_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status,
   buf[4] = '\0';
   write_tall_text(0, row, buf, false);
 
-  printn(buf + 13, status.active_power_W, 6);
-  buf[19] = 'W';
-  buf[20] = '\0';
-  write_text(7 * 6, row++, buf + 7, false);
+  if (num_batteries > 1) {
+    buf[6] = 'B';
+    buf[7] = 'a';
+    buf[8] = 't';
+    buf[9] = '0' + num;
+  }
+  printn(buf + 14, status.active_power_W, 6);
+  buf[20] = 'W';
+  buf[21] = '\0';
+  write_text(6 * 6, row++, buf + 6, false);
 
   memset(buf, ' ', sizeof(buf));
 
   if (page == 0) {
-    // First page, voltage + current
+    // First page, voltage + remaining capacity
 
-    print3d1(buf + 7, status.voltage_dV);
-    buf[12] = 'V';
+    print3d1(buf + 6, status.voltage_dV);
+    buf[11] = 'V';
 
-    print3d1(buf + 14, status.current_dA);
-    buf[19] = 'A';
+    print3d1(buf + 13, status.remaining_capacity_Wh / 100);
+    buf[18] = 'k';
+    buf[19] = 'W';
+    buf[20] = 'h';
     buf[21] = '\0';
   } else if (page == 1) {
-    // Second page, cell voltage range
+    // Second page, cell delta + current
 
-    print4(buf + 7, status.cell_min_voltage_mV);
-    buf[11] = 'm';
-    buf[12] = 'V';
-    buf[13] = '/';
-    print4(buf + 14, status.cell_max_voltage_mV);
-    buf[18] = 'm';
-    buf[19] = 'V';
+    print4(buf + 6, status.cell_max_voltage_mV - status.cell_min_voltage_mV);
+    buf[10] = 'm';
+    buf[11] = 'V';
+    buf[12] = ' ';
+    print3d1(buf + 15, status.current_dA);
+    buf[20] = 'A';
     buf[21] = '\0';
   } else if (page == 2) {
-    // Third page, temperature range
+    // Third page, cell voltage range
 
-    print3d1(buf + 7, status.temperature_min_dC);
-    buf[12] = 'c';
+    print4(buf + 6, status.cell_min_voltage_mV);
+    buf[10] = 'm';
+    buf[11] = 'V';
     buf[13] = '/';
-    print3d1(buf + 14, status.temperature_max_dC);
-    buf[19] = 'c';
+    print4(buf + 15, status.cell_max_voltage_mV);
+    buf[19] = 'm';
+    buf[20] = 'V';
+    buf[21] = '\0';
+  } else if (page == 3) {
+    // Foutrh page, temperature range
+
+    print3d1(buf + 6, status.temperature_min_dC);
+    buf[11] = 'c';
+    buf[13] = '/';
+    print3d1(buf + 15, status.temperature_max_dC);
+    buf[20] = 'c';
     buf[21] = '\0';
   }
 
-  write_text(7 * 6, row, buf + 7, false);
+  write_text(6 * 6, row, buf + 6, false);
 }
 
 static const int PRE_SCROLL = 4;   // How long to wait before scrolling
@@ -343,7 +368,7 @@ static void print_events(int row, int count) {
   order_events.clear();
   for (int i = 0; i < EVENT_NOF_EVENTS; i++) {
     auto event_pointer = get_event_pointer((EVENTS_ENUM_TYPE)i);
-    if (event_pointer->occurences > 0) {
+    if (event_pointer->occurences > 0 && event_pointer->level > EVENT_LEVEL_INFO) {
       order_events.push_back({static_cast<EVENTS_ENUM_TYPE>(i), event_pointer});
     }
   }
@@ -417,28 +442,38 @@ void update_display() {
   }
 
   // We cycle through several pages of battery data
-  const int NUM_PAGES = 3;
+  const int NUM_PAGES = 4;
   const int PAGE_TIME = 3;
   static int phase = 0;
 
-  // Print the battery status(es) first
-  int y = 0;
-  print_battery_status(y, datalayer.battery.status, 1, phase >> PAGE_TIME);
-  y += 2;
-  if (battery2) {
-    print_battery_status(y, datalayer.battery2.status, 2, phase >> PAGE_TIME);
-    y++;
+  // Calculate total phases: NUM_PAGES per battery, PAGE_TIME seconds each
+  int total_phases = NUM_PAGES * num_batteries * PAGE_TIME * 2;  // *2 for 500ms updates
+
+  int current_phase = phase / (PAGE_TIME * 2);
+  int battery_index = current_phase % num_batteries;
+  int page = (current_phase / num_batteries) % NUM_PAGES;
+
+  // Print the battery status for current battery
+  if (battery_index == 0) {
+    print_battery_status(0, datalayer.battery.status, 1, page);
+  } else if (battery_index == 1) {
+    print_battery_status(0, datalayer.battery2.status, 2, page);
+  } else {
+    print_battery_status(0, datalayer.battery3.status, 3, page);
   }
-  y++;
+
+  write_text(0, 2, "---------------------", false);
 
   // Print the events below
-  print_events(y, 7 - y);
+  print_events(3, 3);
+
+  write_text(0, 6, "---------------------", false);
 
   // Then IP/RSSI at the bottom
   print_wifi_status(7);
 
   phase++;
-  if (phase >= (NUM_PAGES << PAGE_TIME)) {
+  if (phase >= total_phases) {
     phase = 0;
   }
   lastUpdateMillis = currentMillis;
