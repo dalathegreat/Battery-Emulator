@@ -504,6 +504,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("MQTTTIMEOUT", 2000));
   }
 
+  if (var == "MQTTPUBLISHMS") {
+    return String(settings.getUInt("MQTTPUBLISHMS", 5000) / 1000);
+  }
+
   if (var == "MQTTOBJIDPREFIX") {
     return settings.getString("MQTTOBJIDPREFIX");
   }
@@ -974,7 +978,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="0"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
     form[data-charger="0"] .if-charger { display: none; }
-    form[data-shunt="0"] .if-shunt { display: none; }
+    form[data-SHUNTTYPE="0"] .if-shunt { display: none; }
 
     form .if-cbms { display: none; }
     form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms, form[data-battery="41"] .if-cbms {
@@ -1414,7 +1418,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         required />
 
         <label>Access point password: </label>
-        <input type='text' name='APPASSWORD' value="%APPASSWORD%" 
+        <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
         pattern="[ -~]{8,63}" 
         title="Password must be 8-63 characters long, printable ASCII only"
         required />
@@ -1481,6 +1485,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
         min="1" max="60000" step="1"
         title="Timeout in milliseconds (1-60000)" />
+        <label>MQTT publish interval (seconds): </label>
+        <input name='MQTTPUBLISHMS' type='number' value="%MQTTPUBLISHMS%" 
+        min="1" max="300" step="1"
+        title="How often to publish MQTT messages in seconds (1-300, step 1). Default: 5" />
         <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
         <label>Remote BMS reset via MQTT allowed: </label>
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />

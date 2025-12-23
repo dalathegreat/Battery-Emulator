@@ -17,6 +17,7 @@ bool mqtt_enabled = false;
 bool ha_autodiscovery_enabled = false;
 bool mqtt_transmit_all_cellvoltages = false;
 uint16_t mqtt_timeout_ms = 2000;
+uint16_t mqtt_publish_interval_ms = 5000;
 
 const int mqtt_port_default = 0;
 const char* mqtt_server_default = "";
@@ -43,8 +44,8 @@ const char* ha_device_id =
 esp_mqtt_client_config_t mqtt_cfg;
 esp_mqtt_client_handle_t client;
 char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
-MyTimer publish_global_timer(5000);  //publish timer
-MyTimer check_global_timer(800);     // check timmer - low-priority MQTT checks, where responsiveness is not critical.
+MyTimer publish_global_timer(0);  // Will be configured with mqtt_publish_interval_ms on first use
+MyTimer check_global_timer(800);  // check timmer - low-priority MQTT checks, where responsiveness is not critical.
 bool client_started = false;
 static String lwt_topic = "";
 
@@ -743,14 +744,15 @@ void mqtt_client_loop(void) {
   if (check_global_timer.elapsed() && WiFi.status() == WL_CONNECTED) {
 
     if (client_started == false) {
+      // Configure timer with the loaded interval on first use
+      publish_global_timer = MyTimer(mqtt_publish_interval_ms);
       esp_mqtt_client_start(client);
       client_started = true;
       logging.println("MQTT initialized");
       return;
     }
 
-    if (publish_global_timer.elapsed())  // Every 5s
-    {
+    if (publish_global_timer.elapsed()) {
       publish_values();
     }
   }

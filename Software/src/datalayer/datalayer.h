@@ -93,6 +93,8 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   int16_t temperature_min_dC;
   /** Instantaneous battery current in deciAmpere. 95 = 9.5 A */
   int16_t current_dA;
+  /** Instantaneous battery current in deciAmpere. Sum of all batteries in the system 95 = 9.5 A */
+  int16_t reported_current_dA;
 
   /** uint8_t */
   /** A counter set each time a new message comes from battery.

@@ -48,6 +48,8 @@ NOTES
 void MgHsPHEVBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
+  datalayer.battery.info.total_capacity_Wh = TOTAL_CAPACITY_WH;  // update to actual battery capacity.
+
   // Should be called every second
   if (cellVoltageValidTime > 0) {
     cellVoltageValidTime--;

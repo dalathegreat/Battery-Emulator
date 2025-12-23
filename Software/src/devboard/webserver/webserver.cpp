@@ -537,6 +537,9 @@ void init_webserver() {
       } else if (p->name() == "MQTTTIMEOUT") {
         auto port = atoi(p->value().c_str());
         settings.saveUInt("MQTTTIMEOUT", port);
+      } else if (p->name() == "MQTTPUBLISHMS") {
+        auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
+        settings.saveUInt("MQTTPUBLISHMS", interval);
       } else if (p->name() == "MQTTOBJIDPREFIX") {
         settings.saveString("MQTTOBJIDPREFIX", p->value().c_str());
       } else if (p->name() == "MQTTDEVICENAME") {
