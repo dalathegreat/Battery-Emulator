@@ -24,7 +24,7 @@ class Mg4Battery : public CanBattery {
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
 
-  uint32_t discharged_capacity_mC = 0;
+  uint32_t discharged_capacity_mC = 360000000 / 2;
   uint32_t full_capacity_mC = 360000000;
 
   uint8_t transmitIndex = 0;  //For polling switchcase
