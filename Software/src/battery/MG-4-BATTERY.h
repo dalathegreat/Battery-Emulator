@@ -48,11 +48,16 @@ class Mg4Battery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x4F3,
                        .data = {0xF3, 0x10, 0x48, 0x00, 0xFF, 0xFF, 0x00, 0x11}};
-  CAN_frame MG4_047 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x047,
-                       .data = {0xE9, 0x03, 0x45, 0x7D, 0x7F, 0xFF, 0xFF, 0xFE}};
+  CAN_frame MG4_047_E9 = {.FD = false,
+                          .ext_ID = false,
+                          .DLC = 8,
+                          .ID = 0x047,
+                          .data = {0xE9, 0x03, 0x45, 0x7D, 0x7F, 0xFF, 0xFF, 0xFE}};
+  CAN_frame MG4_047_3B = {.FD = false,
+                          .ext_ID = false,
+                          .DLC = 8,
+                          .ID = 0x047,
+                          .data = {0x3B, 0x0B, 0x45, 0x7D, 0x7F, 0xFF, 0xFF, 0xFE}};
 };
 
 #endif
