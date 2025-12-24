@@ -122,7 +122,8 @@ void Mg4Battery::transmit_can(unsigned long currentMillis) {
     previousMillis100 = currentMillis;
 
     transmit_can_frame(&MG4_4F3);
-    transmit_can_frame(&MG4_047);
+    transmit_can_frame(&MG4_047_E9);
+    transmit_can_frame(&MG4_047_3B);
   }
 }
 
