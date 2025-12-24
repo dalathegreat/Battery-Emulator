@@ -10,31 +10,23 @@ class Mg4Battery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
-  static constexpr const char* Name = "MG4 battery";
+  static constexpr const char* Name = "MG4 battery (104s LFP)";
 
  private:
-  static const uint16_t MAX_PACK_VOLTAGE_DV = 4370;  //5000 = 500.0V
+  static const uint16_t MAX_PACK_VOLTAGE_DV = 3432;  // 104s LFP, very cautious max 3.3V
   static const uint16_t MIN_PACK_VOLTAGE_DV = 3120;
   static const uint16_t MAX_CELL_DEVIATION_MV = 150;
   static const uint16_t MAX_CELL_VOLTAGE_MV =
-      4250;  //Battery is put into emergency stop if one cell goes over this value
+      3650;  //Battery is put into emergency stop if one cell goes over this value
   static const uint16_t MIN_CELL_VOLTAGE_MV =
-      2610;  //Battery is put into emergency stop if one cell goes below this value
+      2500;  //Battery is put into emergency stop if one cell goes below this value
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
 
-  // For calculating charge and discharge power
-  float RealVoltage;
-  float RealSoC;
-  float tempfloat;
+  uint32_t discharged_capacity_mC = 0;
+  uint32_t full_capacity_mC = 360000000;
 
-  uint16_t cellVoltageValidTime = 0;
-  uint16_t soc1 = 0;
-  uint16_t soc2 = 0;
-  uint16_t v = 0;
-
-  uint8_t cell_id = 0;
   uint8_t transmitIndex = 0;  //For polling switchcase
   uint8_t previousState = 0;
   static const uint8_t CELL_VOLTAGE_TIMEOUT = 10;  // in seconds
