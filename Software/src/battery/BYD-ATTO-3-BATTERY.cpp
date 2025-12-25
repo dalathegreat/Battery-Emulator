@@ -151,7 +151,9 @@ void BydAttoBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   if (BMS_voltage > 0) {
-    datalayer_battery->status.voltage_dV = BMS_voltage * 10;
+    datalayer_battery->status.voltage_dV = BMS_voltage * 10;  //Polled value
+  } else if (battery_voltage > 0) {
+    datalayer_battery->status.voltage_dV = battery_voltage * 10;  //Value from periodic CAN data
   }
 
   if (battery_type == EXTENDED_RANGE) {
