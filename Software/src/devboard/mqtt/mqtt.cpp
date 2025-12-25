@@ -43,7 +43,6 @@ const char* ha_device_id =
 
 esp_mqtt_client_config_t mqtt_cfg;
 esp_mqtt_client_handle_t client;
-char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 MyTimer publish_global_timer(0);  // Will be configured with mqtt_publish_interval_ms on first use
 MyTimer check_global_timer(800);  // check timmer - low-priority MQTT checks, where responsiveness is not critical.
 bool client_started = false;
@@ -273,8 +272,9 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
 static std::vector<EventData> order_events;
 
 static bool publish_common_info(void) {
-  static JsonDocument doc;
   static String state_topic = topic_name + "/info";
+  char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
+  JsonDocument doc;
 
   //  if(ha_autodiscovery_enabled) {
 
@@ -336,9 +336,10 @@ static bool publish_common_info(void) {
 }
 
 static bool publish_cell_voltages(void) {
-  static JsonDocument doc;
   static String state_topic = topic_name + "/spec_data";
   static String state_topic_2 = topic_name + "/spec_data_2";
+  char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
+  JsonDocument doc;
 
   if (ha_autodiscovery_enabled) {
     bool failed_to_publish = false;
@@ -427,9 +428,10 @@ static bool publish_cell_voltages(void) {
 }
 
 static bool publish_cell_balancing(void) {
-  static JsonDocument doc;
   static String state_topic = topic_name + "/balancing_data";
   static String state_topic_2 = topic_name + "/balancing_data_2";
+  char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
+  JsonDocument doc;
 
   // If cell balancing data is available...
   if (datalayer.battery.info.number_of_cells != 0u) {
@@ -470,8 +472,10 @@ static bool publish_cell_balancing(void) {
 }
 
 bool publish_events() {
-  static JsonDocument doc;
   static String state_topic = topic_name + "/events";
+  char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
+  JsonDocument doc;
+
   if (ha_autodiscovery_enabled && !ha_events_published) {
 
     doc["name"] = "Event";
@@ -535,11 +539,13 @@ bool publish_events() {
 }
 
 static bool publish_buttons_discovery(void) {
+  char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
+  JsonDocument doc;
+
   if (ha_autodiscovery_enabled) {
     if (ha_buttons_published == false) {
       logging.println("Publishing buttons discovery");
 
-      static JsonDocument doc;
       for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
         SensorConfig& config = buttonConfigs[i];
         doc["name"] = config.name;
