@@ -5,65 +5,18 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
-/* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillisKeepAlive = 0;
-
-static uint8_t HVBattAvgSOC = 0;
-static uint8_t HVBattFastChgCounter = 0;
-static uint8_t HVBattTempColdCellID = 0;
-static uint8_t HVBatTempHotCellID = 0;
-static uint8_t HVBattVoltMaxCellID = 0;
-static uint8_t HVBattVoltMinCellID = 0;
-static uint8_t HVBattPwerGPCS = 0;
-static uint8_t HVBattPwrGpCounter = 0;
-static int8_t HVBattCurrentTR = 0;
-static uint16_t HVBattCellVoltageMaxMv = 3700;
-static uint16_t HVBattCellVoltageMinMv = 3700;
-static uint16_t HVBattEnergyAvailable = 0;
-static uint16_t HVBattEnergyUsableMax = 0;
-static uint16_t HVBattTotalCapacityWhenNew = 0;
-static uint16_t HVBattDischargeContiniousPowerLimit = 0;
-static uint16_t HVBattDischargePowerLimitExt = 0;
-static uint16_t HVBattDischargeVoltageLimit = 0;
-static uint16_t HVBattVoltageExt = 0;
-static uint16_t HVBatteryVoltageOC = 0;
-static uint16_t HVBatteryChgCurrentLimit = 0;
-static uint16_t HVBattChargeContiniousPowerLimit = 0;
-static int16_t HVBattAverageTemperature = 0;
-static int16_t HVBattCellTempAverage = 0;
-static int16_t HVBattCellTempColdest = 0;
-static int16_t HVBattCellTempHottest = 0;
-static int16_t HVBattInletCoolantTemp = 0;
-static bool HVBatteryContactorStatus = false;
-static bool HVBatteryContactorStatusT = false;
-static bool HVBattHVILError = false;
-static bool HVILBattIsolationError = false;
-static bool HVIsolationTestStatus = false;
-
-/* KeepAlive: PMZ_CAN_GWM_OSEK_NM_Pdu every 200ms.
- */
-CAN_frame ipace_keep_alive = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x51e,
-                              .data = {0x22, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-/* KeepAlive: PMZ_CAN_NodeGWM_NM every 1s.
- * TODO: This may be needed for >2021 models.
- */
-/*CAN_frame ipace_keep_alive = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x59e,
-                              .data = {0x9E, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};*/
-
 void JaguarIpaceBattery::update_values() {
 
-  datalayer.battery.status.real_soc = HVBattAvgSOC * 100;  //Add two decimals
+  if (user_selected_use_estimated_SOC) {
+    datalayer.battery.status.real_soc =
+        (1000 + (datalayer.battery.status.voltage_dV - 4500)) * 10;  //450.0 FULL, 350.0 EMPTY
+  } else {
+    datalayer.battery.status.real_soc = HVBattAvgSOC * 100;  //Add two decimals
+  }
 
   datalayer.battery.status.soh_pptt = 9900;  //TODO: Map
 
-  datalayer.battery.status.voltage_dV = HVBattVoltageExt * 10;  //TODO: This value OK?
+  datalayer.battery.status.voltage_dV = HVBattVoltageExt * 10;
 
   datalayer.battery.status.current_dA = HVBattCurrentTR * 10;  //TODO: This value OK?
 
