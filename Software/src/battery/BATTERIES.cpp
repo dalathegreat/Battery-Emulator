@@ -1,5 +1,7 @@
 #include "BATTERIES.h"
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/hal/hal.h"
+#include "../devboard/utils/logging.h"
 #include "CanBattery.h"
 #include "RS485Battery.h"
 
@@ -143,7 +145,7 @@ const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum:
 
 battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_default;
 
-BatteryType user_selected_battery_type = BatteryType::NissanLeaf;
+BatteryType user_selected_battery_type = BatteryType::None;
 bool user_selected_second_battery = false;
 bool user_selected_triple_battery = false;
 
