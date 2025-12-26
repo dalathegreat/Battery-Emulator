@@ -298,7 +298,10 @@ static bool publish_common_info(void) {
         doc["state_class"] = "measurement";
       }
       set_common_discovery_attributes(doc);
-      serializeJson(doc, mqtt_msg);
+      if (serializeJson(doc, mqtt_msg, sizeof(mqtt_msg)) > (sizeof(mqtt_msg) - 1)) {
+        logging.println("Common info MQTT msg too large to send");
+        return false;
+      }
       if (mqtt_publish(generateCommonInfoAutoConfigTopic(config.object_id).c_str(), mqtt_msg, true)) {
         ha_common_info_published = true;
       } else {
@@ -326,7 +329,10 @@ static bool publish_common_info(void) {
     doc["event_level"] = get_event_level_string(get_event_level());
     doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
 
-    serializeJson(doc, mqtt_msg);
+    if (serializeJson(doc, mqtt_msg, sizeof(mqtt_msg)) > (sizeof(mqtt_msg) - 1)) {
+      logging.println("Common info MQTT msg too large to send");
+      return false;
+    }
     if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
       logging.println("Common info MQTT msg could not be sent");
       return false;
@@ -354,7 +360,10 @@ static bool publish_cell_voltages(void) {
           set_battery_voltage_attributes(doc, i, cellNumber, state_topic, object_id_prefix, "");
           set_common_discovery_attributes(doc);
 
-          serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+          if (serializeJson(doc, mqtt_msg, sizeof(mqtt_msg)) > (sizeof(mqtt_msg) - 1)) {
+            logging.println("CV1 AD MQTT msg too large to send");
+            return false;
+          }
           if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "").c_str(), mqtt_msg, true) == false) {
             failed_to_publish = true;
             return false;
@@ -373,7 +382,10 @@ static bool publish_cell_voltages(void) {
             set_battery_voltage_attributes(doc, i, cellNumber, state_topic_2, object_id_prefix + "2_", " 2");
             set_common_discovery_attributes(doc);
 
-            serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+            if (serializeJson(doc, mqtt_msg, sizeof(mqtt_msg)) > (sizeof(mqtt_msg) - 1)) {
+              logging.println("CV2 AD MQTT msg too large to send");
+              return false;
+            }
             if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "_2_").c_str(), mqtt_msg, true) == false) {
               failed_to_publish = true;
               return false;
@@ -397,7 +409,10 @@ static bool publish_cell_voltages(void) {
       cell_voltages.add(((float)datalayer.battery.status.cell_voltages_mV[i]) / 1000.0f);
     }
 
-    serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+    if (serializeJson(doc, mqtt_msg, sizeof(mqtt_msg)) > (sizeof(mqtt_msg) - 1)) {
+      logging.println("CV1 MQTT msg too large to send");
+      return false;
+    }
 
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
       logging.println("Cell voltage MQTT msg could not be sent");
@@ -416,7 +431,10 @@ static bool publish_cell_voltages(void) {
         cell_voltages.add(((float)datalayer.battery2.status.cell_voltages_mV[i]) / 1000.0f);
       }
 
-      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+      if (serializeJson(doc, mqtt_msg, sizeof(mqtt_msg)) > (sizeof(mqtt_msg) - 1)) {
+        logging.println("CV2 MQTT msg too large to send");
+        return false;
+      }
 
       if (!mqtt_publish(state_topic_2.c_str(), mqtt_msg, false)) {
         logging.println("Cell voltage MQTT msg could not be sent");
@@ -442,7 +460,10 @@ static bool publish_cell_balancing(void) {
       cell_balancing.add(datalayer.battery.status.cell_balancing_status[i]);
     }
 
-    serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+    if (serializeJson(doc, mqtt_msg, sizeof(mqtt_msg)) > (sizeof(mqtt_msg) - 1)) {
+      logging.println("CB1 MQTT msg too large to send");
+      return false;
+    }
 
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
       logging.println("Cell balancing MQTT msg could not be sent");
@@ -460,7 +481,10 @@ static bool publish_cell_balancing(void) {
         cell_balancing.add(datalayer.battery2.status.cell_balancing_status[i]);
       }
 
-      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+      if (serializeJson(doc, mqtt_msg, sizeof(mqtt_msg)) > (sizeof(mqtt_msg) - 1)) {
+        logging.println("CB2 MQTT msg too large to send");
+        return false;
+      }
 
       if (!mqtt_publish(state_topic_2.c_str(), mqtt_msg, false)) {
         logging.println("Cell balancing MQTT msg could not be sent");
@@ -489,7 +513,10 @@ bool publish_events() {
     doc["json_attributes_topic"] = state_topic;
     doc["json_attributes_template"] = "{{ value_json | tojson }}";
     set_common_discovery_attributes(doc);
-    serializeJson(doc, mqtt_msg);
+    if (serializeJson(doc, mqtt_msg, sizeof(mqtt_msg)) > (sizeof(mqtt_msg) - 1)) {
+      logging.println("Event MQTT msg too large to send");
+      return false;
+    }
     if (mqtt_publish(generateEventsAutoConfigTopic("event").c_str(), mqtt_msg, true)) {
       ha_events_published = true;
     } else {
@@ -524,7 +551,10 @@ bool publish_events() {
       doc["message"] = get_event_message_string(event_handle);
       doc["millis"] = String(event_pointer->timestamp);
 
-      serializeJson(doc, mqtt_msg);
+      if (serializeJson(doc, mqtt_msg, sizeof(mqtt_msg)) > (sizeof(mqtt_msg) - 1)) {
+        logging.println("Common info MQTT msg too large to send");
+        return false;
+      }
       if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
         logging.println("Common info MQTT msg could not be sent");
         return false;
@@ -553,7 +583,10 @@ static bool publish_buttons_discovery(void) {
         doc["unique_id"] = object_id_prefix + config.object_id;
         doc["command_topic"] = generateButtonTopic(config.object_id);
         set_common_discovery_attributes(doc);
-        serializeJson(doc, mqtt_msg);
+        if (serializeJson(doc, mqtt_msg, sizeof(mqtt_msg)) > (sizeof(mqtt_msg) - 1)) {
+          logging.println("Button MQTT msg too large to send");
+          return false;
+        }
         if (mqtt_publish(generateButtonAutoConfigTopic(config.object_id).c_str(), mqtt_msg, true)) {
           ha_buttons_published = true;
         } else {
