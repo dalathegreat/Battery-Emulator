@@ -4,6 +4,7 @@
 #include <vector>
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
+#include "../../battery/Shunt.h"
 #include "../../charger/CHARGERS.h"
 #include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
@@ -11,6 +12,7 @@
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
+#include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../sdcard/sdcard.h"

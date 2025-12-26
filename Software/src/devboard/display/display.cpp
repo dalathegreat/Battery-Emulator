@@ -12,6 +12,7 @@ void update_display() {}
 
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
+#include "../hal/hal.h"
 #include "../utils/events.h"
 #include "../utils/logging.h"
 #include "fonts.h"
