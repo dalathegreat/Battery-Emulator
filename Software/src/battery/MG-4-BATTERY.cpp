@@ -37,6 +37,7 @@ void Mg4Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
     case 0x12C:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       datalayer.battery.status.voltage_dV = ((rx_frame.data.u8[4] << 4) | (rx_frame.data.u8[5] >> 4)) * 2.5f;
       datalayer.battery.status.current_dA = -(((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) - 20000) * 0.5f;
 
