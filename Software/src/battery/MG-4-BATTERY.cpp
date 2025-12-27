@@ -44,7 +44,9 @@ void Mg4Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x401:
       soc_times_ten = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]) & 0x3FF;
-      datalayer.battery.status.real_soc = soc_times_ten * 10;
+      if (soc_times_ten <= 1000) {
+        datalayer.battery.status.real_soc = soc_times_ten * 10;
+      }
 
       break;
     default:
