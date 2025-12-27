@@ -1,9 +1,9 @@
 #ifndef MG_4_BATTERY_H
 #define MG_4_BATTERY_H
 
-#include "CanBattery.h"
+#include "UdsCanBattery.h"
 
-class Mg4Battery : public CanBattery {
+class Mg4Battery : public UdsCanBattery {
  public:
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
