@@ -10,38 +10,13 @@ class Mg4Battery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
-  static constexpr const char* Name = "MG4 battery (104s LFP)";
+  static constexpr const char* Name = "MG4 battery";
 
  private:
-  static const uint16_t MAX_PACK_VOLTAGE_DV = 3432;  // 104s LFP, very cautious max 3.3V
-  static const uint16_t MIN_PACK_VOLTAGE_DV = 3120;
   static const uint16_t MAX_CELL_DEVIATION_MV = 150;
-  static const uint16_t MAX_CELL_VOLTAGE_MV =
-      3650;  //Battery is put into emergency stop if one cell goes over this value
-  static const uint16_t MIN_CELL_VOLTAGE_MV =
-      2500;  //Battery is put into emergency stop if one cell goes below this value
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
-
-  uint32_t discharged_capacity_mC = 360000000 / 2;
-  uint32_t full_capacity_mC = 360000000;
-
-  uint8_t transmitIndex = 0;  //For polling switchcase
-  uint8_t previousState = 0;
-  static const uint8_t CELL_VOLTAGE_TIMEOUT = 10;  // in seconds
-
-  const uint16_t MaxChargePower = 3000;  // Maximum allowable charge power, excluding the taper
-  const uint8_t StartChargeTaper = 90;   // Battery percentage above which the charge power will taper to zero
-  const float ChargeTaperExponent =
-      1;  // Shape of charge power taper to zero. 1 is linear. >1 reduces quickly and is small at nearly full.
-  const uint8_t TricklePower = 20;  // Minimimum trickle charge or discharge power (W)
-
-  const uint16_t MaxDischargePower = 4000;  // Maximum allowable discharge power, excluding the taper
-  const uint8_t MinSoC = 20;                // Minimum SoC allowed
-  const uint8_t StartDischargeTaper = 30;   // Battery percentage below which the discharge power will taper to zero
-  const float DischargeTaperExponent =
-      1;  // Shape of discharge power taper to zero. 1 is linear. >1 reduces quickly and is small at nearly full.
 
   CAN_frame MG4_4F3 = {.FD = false,
                        .ext_ID = false,
