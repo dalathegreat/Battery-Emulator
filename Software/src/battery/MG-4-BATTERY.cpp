@@ -29,6 +29,10 @@ void Mg4Battery::
 }
 
 void Mg4Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  if (handle_incoming_uds_can_frame(rx_frame)) {
+    return;
+  }
+
   uint32_t soc_times_ten;
 
   switch (rx_frame.ID) {
@@ -62,6 +66,8 @@ void Mg4Battery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&MG4_047_E9);
     transmit_can_frame(&MG4_047_3B);
   }
+
+  transmit_uds_can(currentMillis);
 }
 
 void Mg4Battery::setup(void) {  // Performs one time setup at startup
