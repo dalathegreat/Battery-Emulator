@@ -187,8 +187,11 @@ void init_webserver() {
   });
 
   // Route for root / web page
-  def_route_with_auth("/", server, HTTP_GET,
-                      [](AsyncWebServerRequest* request) { request->send(200, "text/html", index_html, processor); });
+  def_route_with_auth("/", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    // Clear OTA active flag as a safeguard in case onOTAEnd() wasn't called
+    ota_active = false;
+    request->send(200, "text/html", index_html, processor);
+  });
 
   // Route for going to settings web page
   def_route_with_auth("/settings", server, HTTP_GET, [](AsyncWebServerRequest* request) {
