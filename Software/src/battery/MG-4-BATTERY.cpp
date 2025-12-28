@@ -56,17 +56,22 @@ void Mg4Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 void Mg4Battery::transmit_can(unsigned long currentMillis) {
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     // Transmitting towards battery is halted while BMS is being reset
+    previousMillis10 = currentMillis;
     previousMillis200 = currentMillis;
     return;
   }
 
   // Every 10ms
-  if (four_seven_counter == 0) {
-    transmit_can_frame(&MG4_047_E9);
-    four_seven_counter++;
-  } else if (four_seven_counter >= 1) {
-    transmit_can_frame(&MG4_047_3B);
-    four_seven_counter = 0;
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    previousMillis10 = currentMillis;
+
+    if (four_seven_counter == 0) {
+      transmit_can_frame(&MG4_047_E9);
+      four_seven_counter++;
+    } else if (four_seven_counter >= 1) {
+      transmit_can_frame(&MG4_047_3B);
+      four_seven_counter = 0;
+    }
   }
 
   // Every 200ms
@@ -76,7 +81,7 @@ void Mg4Battery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&MG4_4F3);
   }
 
-  transmit_uds_can(currentMillis);
+  //transmit_uds_can(currentMillis);
 }
 
 void Mg4Battery::setup(void) {  // Performs one time setup at startup
