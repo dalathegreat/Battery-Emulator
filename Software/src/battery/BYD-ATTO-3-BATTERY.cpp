@@ -104,8 +104,8 @@ const uint16_t voltage_standard[numPoints] = {3570, 3552, 3485, 3464, 3443, 3439
                                               3350, 3332, 3315, 3282, 3250, 3195, 3170, 3140};
 
 const uint16_t voltage_mini[numPoints] = {3295, 3278, 3216, 3197, 3178, 3174, 3170, 3167, 3168, 3165,
-                                              3161, 3149, 3138, 3134, 3131, 3130, 3129, 3121, 3115, 3102,
-                                              3092, 3060, 3315, 3029, 3000, 2949, 2926, 2900};
+                                          3161, 3149, 3138, 3134, 3131, 3130, 3129, 3121, 3115, 3102,
+                                          3092, 3060, 3315, 3029, 3000, 2949, 2926, 2900};
 
 uint16_t estimateSOCextended(uint16_t packVoltage) {  // Linear interpolation function
   if (packVoltage >= voltage_extended[0]) {
@@ -171,12 +171,13 @@ void BydAttoBattery::
 
   if (BMS_voltage > 0) {
     datalayer_battery->status.voltage_dV = BMS_voltage * 10;  //Polled value
-  } else if (battery_voltage > 0) { 
+  } else if (battery_voltage > 0) {
     datalayer_battery->status.voltage_dV = battery_voltage * 10;  //Value from periodic CAN data
-      if (battery_voltage > 0 && BMS_voltage = 0){ // if OBD2 polling not working & periodic from can is, then assume dolphin MINI
+    if (battery_voltage > 0 && BMS_voltage =
+            0) {  // if OBD2 polling not working & periodic from can is, then assume dolphin MINI
       battery_type = MINI_RANGE;
       frame7_counter = 0xF;
-      }
+    }
   }
 
   if (battery_type == EXTENDED_RANGE) {
@@ -263,7 +264,7 @@ void BydAttoBattery::
       datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_MINI_DV;
       datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_MINI_DV;
       break;
-    
+
     case NOT_DETERMINED_YET:
     default:
       //Do nothing
@@ -546,238 +547,243 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
       }
     }
     if (battery_type = EXTENDED_RANGE) || BATTERY_TYPE = STANDARD_RANGE){
-    counter_50ms++;
-      
-    if (counter_50ms > 23) {
-      ATTO_3_12D.data.u8[2] = 0x00;  // Goes from 02->00
-      ATTO_3_12D.data.u8[3] = 0x22;  // Goes from A0->22
-      ATTO_3_12D.data.u8[5] = 0x31;  // Goes from 71->31
-    }
+        counter_50ms++;
 
-    // Update the counters in frame 6 & 7 (they are not in sync)
-    if (frame6_counter == 0x0) {
-      frame6_counter = 0xF;  // Reset to 0xF after reaching 0x0
-    } else {
-      frame6_counter--;  // Decrement the counter
+        if (counter_50ms > 23) {
+          ATTO_3_12D.data.u8[2] = 0x00;  // Goes from 02->00
+          ATTO_3_12D.data.u8[3] = 0x22;  // Goes from A0->22
+          ATTO_3_12D.data.u8[5] = 0x31;  // Goes from 71->31
+        }
+
+        // Update the counters in frame 6 & 7 (they are not in sync)
+        if (frame6_counter == 0x0) {
+          frame6_counter = 0xF;  // Reset to 0xF after reaching 0x0
+        } else {
+          frame6_counter--;  // Decrement the counter
+        }
+        if (frame7_counter == 0x0) {
+          frame7_counter = 0xF;  // Reset to 0xF after reaching 0x0
+        } else {
+          frame7_counter--;  // Decrement the counter
+        }
+
+        ATTO_3_12D.data.u8[6] = (0x0F | (frame6_counter << 4));
+        ATTO_3_12D.data.u8[7] = (0x09 | (frame7_counter << 4));
+      }
+
+    elseif(battery_type = MINI_RANGE) {  //((BMS_voltage_available && battery_voltage > 0 && BMS_voltage = 0){
+
+      ATTO_3_12D.data.u8[0] = 0xA0;  //a0 28 00 22 0C 31 6F 09 //dolphin fron log
+      ATTO_3_12D.data.u8[1] = 0x28;
+      ATTO_3_12D.data.u8[2] = 0x00;
+      ATTO_3_12D.data.u8[3] = 0x22;
+      ATTO_3_12D.data.u8[4] = 0x0C;
+      ATTO_3_12D.data.u8[5] = 0x31;
+      ATTO_3_12D.data.u8[6] = 0xFF && (frame7_counter << 4));
     }
+    ATTO_3_12D.data.u8[7] = 0x09;
     if (frame7_counter == 0x0) {
       frame7_counter = 0xF;  // Reset to 0xF after reaching 0x0
     } else {
-      frame7_counter--;  // Decrement the counter
-    }
-
-    ATTO_3_12D.data.u8[6] = (0x0F | (frame6_counter << 4));
-    ATTO_3_12D.data.u8[7] = (0x09 | (frame7_counter << 4));}
-    
-    elseif (battery_type = MINI_RANGE){ //((BMS_voltage_available && battery_voltage > 0 && BMS_voltage = 0){
-         
-      ATTO_3_12D.data.u8[0] = 0xA0; //a0 28 00 22 0C 31 6F 09 //dolphin fron log
-      ATTO_3_12D.data.u8[1] = 0x28; 
-      ATTO_3_12D.data.u8[2] = 0x00;
-      ATTO_3_12D.data.u8[3] = 0x22; 
-      ATTO_3_12D.data.u8[4] = 0x0C;
-      ATTO_3_12D.data.u8[5] = 0x31;
-      ATTO_3_12D.data.u8[6] = 0xFF && (frame7_counter << 4));}
-      ATTO_3_12D.data.u8[7] = 0x09;
-      if (frame7_counter == 0x0) {
-      frame7_counter = 0xF;  // Reset to 0xF after reaching 0x0
-    } else {
       frame7_counter--;  // Decrement the counter}
-    transmit_can_frame(&ATTO_3_12D);
-  }
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    previousMillis100 = currentMillis;
-
-    if (counter_100ms < 100) {
-      counter_100ms++;
+      transmit_can_frame(&ATTO_3_12D);
     }
+    // Send 100ms CAN Message
+    if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+      previousMillis100 = currentMillis;
 
-    if (counter_100ms > 3) {
-      if (BMS_voltage_available) {  // Transmit battery voltage back to BMS when confirmed it's available, this closes the contactors
-        ATTO_3_441.data.u8[4] = (uint8_t)(battery_voltage - 1); //dynamic case for 60kw & 50kw
-        ATTO_3_441.data.u8[5] = ((battery_voltage - 1) >> 8);
-        ATTO_3_441.data.u8[6] = 0xFF;
-        ATTO_3_441.data.u8[7] = compute441Checksum(ATTO_3_441.data.u8);}
-        elseif (BMS_voltage_available && battery_voltage > 0 && BMS_voltage = 0)){ // no obd2 for byd dolphin mini 
-        ATTO_3_441.data.u8[0] = 0x98; //bytes [0] thru [4] taken from dolphin mini log
-        ATTO_3_441.data.u8[1] = 0x3A;
-        ATTO_3_441.data.u8[2] = 0x88; 
-        ATTO_3_441.data.u8[3] = 0x13;
-        ATTO_3_441.data.u8[4] = (uint8_t)((battery_voltage * 10) >> 8); // bytes [4] & [5] are in decivolts on the dolphin mini
-        ATTO_3_441.data.u8[5] = (uint8_t)(((battery_voltage - 1) * 10) && 0xFF); 
-        ATTO_3_441.data.u8[6] = 0xFF;
-        ATTO_3_441.data.u8[7] = compute441Checksum(ATTO_3_441.data.u8);}
-       else {
-        ATTO_3_441.data.u8[4] = 0x0C; //base data for atto3 60kw
-        ATTO_3_441.data.u8[5] = 0x00;
-        ATTO_3_441.data.u8[6] = 0xFF;
-        ATTO_3_441.data.u8[7] = 0x87;
+      if (counter_100ms < 100) {
+        counter_100ms++;
+      }
+
+      if (counter_100ms > 3) {
+        if (BMS_voltage_available) {  // Transmit battery voltage back to BMS when confirmed it's available, this closes the contactors
+          ATTO_3_441.data.u8[4] = (uint8_t)(battery_voltage - 1);  //dynamic case for 60kw & 50kw
+          ATTO_3_441.data.u8[5] = ((battery_voltage - 1) >> 8);
+          ATTO_3_441.data.u8[6] = 0xFF;
+          ATTO_3_441.data.u8[7] = compute441Checksum(ATTO_3_441.data.u8);
+        }
+        elseif (BMS_voltage_available && battery_voltage > 0 && BMS_voltage = 0)){ // no obd2 for byd dolphin mini
+          ATTO_3_441.data.u8[0] = 0x98;  //bytes [0] thru [4] taken from dolphin mini log
+          ATTO_3_441.data.u8[1] = 0x3A;
+          ATTO_3_441.data.u8[2] = 0x88;
+          ATTO_3_441.data.u8[3] = 0x13;
+          ATTO_3_441.data.u8[4] =
+              (uint8_t)((battery_voltage * 10) >> 8);  // bytes [4] & [5] are in decivolts on the dolphin mini
+          ATTO_3_441.data.u8[5] = (uint8_t)(((battery_voltage - 1) * 10) && 0xFF);
+          ATTO_3_441.data.u8[6] = 0xFF;
+          ATTO_3_441.data.u8[7] = compute441Checksum(ATTO_3_441.data.u8);
+        }
+        else {
+          ATTO_3_441.data.u8[4] = 0x0C;  //base data for atto3 60kw
+          ATTO_3_441.data.u8[5] = 0x00;
+          ATTO_3_441.data.u8[6] = 0xFF;
+          ATTO_3_441.data.u8[7] = 0x87;
+        }
+      }
+
+      transmit_can_frame(&ATTO_3_441);
+      switch (stateMachineClearCrash) {
+        case STARTED:
+          ATTO_3_7E7_CLEAR_CRASH.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
+          stateMachineClearCrash = RUNNING_STEP_1;
+          break;
+        case RUNNING_STEP_1:
+          ATTO_3_7E7_CLEAR_CRASH.data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00};
+          transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
+          stateMachineClearCrash = RUNNING_STEP_2;
+          break;
+        case RUNNING_STEP_2:
+          ATTO_3_7E7_CLEAR_CRASH.data = {0x03, 0x19, 0x02, 0x09, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
+          stateMachineClearCrash = NOT_RUNNING;
+          break;
+        case NOT_RUNNING:
+          break;
+        default:
+          break;
       }
     }
+    // Send 200ms CAN Message
+    if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+      previousMillis200 = currentMillis;
 
-    transmit_can_frame(&ATTO_3_441);
-    switch (stateMachineClearCrash) {
-      case STARTED:
-        ATTO_3_7E7_CLEAR_CRASH.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
-        transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
-        stateMachineClearCrash = RUNNING_STEP_1;
-        break;
-      case RUNNING_STEP_1:
-        ATTO_3_7E7_CLEAR_CRASH.data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00};
-        transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
-        stateMachineClearCrash = RUNNING_STEP_2;
-        break;
-      case RUNNING_STEP_2:
-        ATTO_3_7E7_CLEAR_CRASH.data = {0x03, 0x19, 0x02, 0x09, 0x00, 0x00, 0x00, 0x00};
-        transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
-        stateMachineClearCrash = NOT_RUNNING;
-        break;
-      case NOT_RUNNING:
-        break;
-      default:
-        break;
+      switch (poll_state) {
+        case POLL_FOR_BATTERY_SOC:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_SOC & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_SOC & 0x00FF);
+          poll_state = POLL_FOR_BATTERY_VOLTAGE;
+          break;
+        case POLL_FOR_BATTERY_VOLTAGE:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_VOLTAGE & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_VOLTAGE & 0x00FF);
+          poll_state = POLL_FOR_BATTERY_CURRENT;
+          break;
+        case POLL_FOR_BATTERY_CURRENT:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_CURRENT & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_CURRENT & 0x00FF);
+          poll_state = POLL_FOR_LOWEST_TEMP_CELL;
+          break;
+        case POLL_FOR_LOWEST_TEMP_CELL:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_LOWEST_TEMP_CELL & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_LOWEST_TEMP_CELL & 0x00FF);
+          poll_state = POLL_FOR_HIGHEST_TEMP_CELL;
+          break;
+        case POLL_FOR_HIGHEST_TEMP_CELL:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_HIGHEST_TEMP_CELL & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_HIGHEST_TEMP_CELL & 0x00FF);
+          poll_state = POLL_FOR_BATTERY_PACK_AVG_TEMP;
+          break;
+        case POLL_FOR_BATTERY_PACK_AVG_TEMP:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_PACK_AVG_TEMP & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_PACK_AVG_TEMP & 0x00FF);
+          poll_state = POLL_FOR_BATTERY_CELL_MV_MAX;
+          break;
+        case POLL_FOR_BATTERY_CELL_MV_MAX:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_CELL_MV_MAX & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_CELL_MV_MAX & 0x00FF);
+          poll_state = POLL_FOR_BATTERY_CELL_MV_MIN;
+          break;
+        case POLL_FOR_BATTERY_CELL_MV_MIN:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_CELL_MV_MIN & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_CELL_MV_MIN & 0x00FF);
+          poll_state = UNKNOWN_POLL_0;
+          break;
+        case UNKNOWN_POLL_0:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_0 & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_0 & 0x00FF);
+          poll_state = UNKNOWN_POLL_1;
+          break;
+        case UNKNOWN_POLL_1:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_1 & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_1 & 0x00FF);
+          poll_state = POLL_MAX_CHARGE_POWER;
+          break;
+        case POLL_MAX_CHARGE_POWER:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MAX_CHARGE_POWER & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MAX_CHARGE_POWER & 0x00FF);
+          poll_state = POLL_CHARGE_TIMES;
+          break;
+        case POLL_CHARGE_TIMES:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_CHARGE_TIMES & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_CHARGE_TIMES & 0x00FF);
+          poll_state = POLL_MAX_DISCHARGE_POWER;
+          break;
+        case POLL_MAX_DISCHARGE_POWER:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MAX_DISCHARGE_POWER & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MAX_DISCHARGE_POWER & 0x00FF);
+          poll_state = POLL_TOTAL_CHARGED_AH;
+          break;
+        case POLL_TOTAL_CHARGED_AH:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TOTAL_CHARGED_AH & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TOTAL_CHARGED_AH & 0x00FF);
+          poll_state = POLL_TOTAL_DISCHARGED_AH;
+          break;
+        case POLL_TOTAL_DISCHARGED_AH:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TOTAL_DISCHARGED_AH & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TOTAL_DISCHARGED_AH & 0x00FF);
+          poll_state = POLL_TOTAL_CHARGED_KWH;
+          break;
+        case POLL_TOTAL_CHARGED_KWH:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TOTAL_CHARGED_KWH & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TOTAL_CHARGED_KWH & 0x00FF);
+          poll_state = POLL_TOTAL_DISCHARGED_KWH;
+          break;
+        case POLL_TOTAL_DISCHARGED_KWH:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TOTAL_DISCHARGED_KWH & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TOTAL_DISCHARGED_KWH & 0x00FF);
+          poll_state = POLL_TIMES_FULL_POWER;
+          break;
+        case POLL_TIMES_FULL_POWER:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TIMES_FULL_POWER & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TIMES_FULL_POWER & 0x00FF);
+          poll_state = UNKNOWN_POLL_10;
+          break;
+        case UNKNOWN_POLL_10:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_10 & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_10 & 0x00FF);
+          poll_state = UNKNOWN_POLL_11;
+          break;
+        case UNKNOWN_POLL_11:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_11 & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_11 & 0x00FF);
+          poll_state = UNKNOWN_POLL_12;
+          break;
+        case UNKNOWN_POLL_12:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_12 & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_12 & 0x00FF);
+          poll_state = UNKNOWN_POLL_13;
+          break;
+        case UNKNOWN_POLL_13:
+          ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_13 & 0xFF00) >> 8);
+          ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_13 & 0x00FF);
+          poll_state = POLL_FOR_BATTERY_SOC;
+          break;
+        default:
+          poll_state = POLL_FOR_BATTERY_SOC;
+          break;
+      }
+
+      if (stateMachineClearCrash == NOT_RUNNING) {  //Don't poll battery for data if clear crash running
+        transmit_can_frame(&ATTO_3_7E7_POLL);
+      }
     }
   }
-  // Send 200ms CAN Message
-  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
-    previousMillis200 = currentMillis;
 
-    switch (poll_state) {
-      case POLL_FOR_BATTERY_SOC:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_SOC & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_SOC & 0x00FF);
-        poll_state = POLL_FOR_BATTERY_VOLTAGE;
-        break;
-      case POLL_FOR_BATTERY_VOLTAGE:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_VOLTAGE & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_VOLTAGE & 0x00FF);
-        poll_state = POLL_FOR_BATTERY_CURRENT;
-        break;
-      case POLL_FOR_BATTERY_CURRENT:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_CURRENT & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_CURRENT & 0x00FF);
-        poll_state = POLL_FOR_LOWEST_TEMP_CELL;
-        break;
-      case POLL_FOR_LOWEST_TEMP_CELL:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_LOWEST_TEMP_CELL & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_LOWEST_TEMP_CELL & 0x00FF);
-        poll_state = POLL_FOR_HIGHEST_TEMP_CELL;
-        break;
-      case POLL_FOR_HIGHEST_TEMP_CELL:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_HIGHEST_TEMP_CELL & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_HIGHEST_TEMP_CELL & 0x00FF);
-        poll_state = POLL_FOR_BATTERY_PACK_AVG_TEMP;
-        break;
-      case POLL_FOR_BATTERY_PACK_AVG_TEMP:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_PACK_AVG_TEMP & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_PACK_AVG_TEMP & 0x00FF);
-        poll_state = POLL_FOR_BATTERY_CELL_MV_MAX;
-        break;
-      case POLL_FOR_BATTERY_CELL_MV_MAX:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_CELL_MV_MAX & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_CELL_MV_MAX & 0x00FF);
-        poll_state = POLL_FOR_BATTERY_CELL_MV_MIN;
-        break;
-      case POLL_FOR_BATTERY_CELL_MV_MIN:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_CELL_MV_MIN & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_CELL_MV_MIN & 0x00FF);
-        poll_state = UNKNOWN_POLL_0;
-        break;
-      case UNKNOWN_POLL_0:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_0 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_0 & 0x00FF);
-        poll_state = UNKNOWN_POLL_1;
-        break;
-      case UNKNOWN_POLL_1:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_1 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_1 & 0x00FF);
-        poll_state = POLL_MAX_CHARGE_POWER;
-        break;
-      case POLL_MAX_CHARGE_POWER:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MAX_CHARGE_POWER & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MAX_CHARGE_POWER & 0x00FF);
-        poll_state = POLL_CHARGE_TIMES;
-        break;
-      case POLL_CHARGE_TIMES:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_CHARGE_TIMES & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_CHARGE_TIMES & 0x00FF);
-        poll_state = POLL_MAX_DISCHARGE_POWER;
-        break;
-      case POLL_MAX_DISCHARGE_POWER:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MAX_DISCHARGE_POWER & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MAX_DISCHARGE_POWER & 0x00FF);
-        poll_state = POLL_TOTAL_CHARGED_AH;
-        break;
-      case POLL_TOTAL_CHARGED_AH:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TOTAL_CHARGED_AH & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TOTAL_CHARGED_AH & 0x00FF);
-        poll_state = POLL_TOTAL_DISCHARGED_AH;
-        break;
-      case POLL_TOTAL_DISCHARGED_AH:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TOTAL_DISCHARGED_AH & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TOTAL_DISCHARGED_AH & 0x00FF);
-        poll_state = POLL_TOTAL_CHARGED_KWH;
-        break;
-      case POLL_TOTAL_CHARGED_KWH:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TOTAL_CHARGED_KWH & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TOTAL_CHARGED_KWH & 0x00FF);
-        poll_state = POLL_TOTAL_DISCHARGED_KWH;
-        break;
-      case POLL_TOTAL_DISCHARGED_KWH:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TOTAL_DISCHARGED_KWH & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TOTAL_DISCHARGED_KWH & 0x00FF);
-        poll_state = POLL_TIMES_FULL_POWER;
-        break;
-      case POLL_TIMES_FULL_POWER:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TIMES_FULL_POWER & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TIMES_FULL_POWER & 0x00FF);
-        poll_state = UNKNOWN_POLL_10;
-        break;
-      case UNKNOWN_POLL_10:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_10 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_10 & 0x00FF);
-        poll_state = UNKNOWN_POLL_11;
-        break;
-      case UNKNOWN_POLL_11:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_11 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_11 & 0x00FF);
-        poll_state = UNKNOWN_POLL_12;
-        break;
-      case UNKNOWN_POLL_12:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_12 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_12 & 0x00FF);
-        poll_state = UNKNOWN_POLL_13;
-        break;
-      case UNKNOWN_POLL_13:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_13 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_13 & 0x00FF);
-        poll_state = POLL_FOR_BATTERY_SOC;
-        break;
-      default:
-        poll_state = POLL_FOR_BATTERY_SOC;
-        break;
-    }
-
-    if (stateMachineClearCrash == NOT_RUNNING) {  //Don't poll battery for data if clear crash running
-      transmit_can_frame(&ATTO_3_7E7_POLL);
-    }
-  }
-}
-
-void BydAttoBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, Name, 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer_battery->info.number_of_cells = CELLCOUNT_STANDARD;
-  datalayer_battery->info.chemistry = battery_chemistry_enum::LFP;
-  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_EXTENDED_DV;  //Startup in extremes
-  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_STANDARD_DV;  //We later determine range
-  datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  void BydAttoBattery::setup(void) {  // Performs one time setup at startup
+    strncpy(datalayer.system.info.battery_protocol, Name, 63);
+    datalayer.system.info.battery_protocol[63] = '\0';
+    datalayer_battery->info.number_of_cells = CELLCOUNT_STANDARD;
+    datalayer_battery->info.chemistry = battery_chemistry_enum::LFP;
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_EXTENDED_DV;  //Startup in extremes
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_STANDARD_DV;  //We later determine range
+    datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+    datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+    datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 #ifdef USE_ESTIMATED_SOC  // Initial setup for selected SOC method
-  SOC_method = ESTIMATED;
+    SOC_method = ESTIMATED;
 #else
-  SOC_method = MEASURED;
+    SOC_method = MEASURED;
 #endif
-}
+  }
