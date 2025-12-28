@@ -56,18 +56,24 @@ void Mg4Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 void Mg4Battery::transmit_can(unsigned long currentMillis) {
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     // Transmitting towards battery is halted while BMS is being reset
-    previousMillis100 = currentMillis;
     previousMillis200 = currentMillis;
     return;
   }
 
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    previousMillis100 = currentMillis;
+  // Every 10ms
+  if (four_seven_counter == 0) {
+    transmit_can_frame(&MG4_047_E9);
+    four_seven_counter++;
+  } else if (four_seven_counter >= 1) {
+    transmit_can_frame(&MG4_047_3B);
+    four_seven_counter = 0;
+  }
+
+  // Every 200ms
+  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+    previousMillis200 = currentMillis;
 
     transmit_can_frame(&MG4_4F3);
-    transmit_can_frame(&MG4_047_E9);
-    transmit_can_frame(&MG4_047_3B);
   }
 
   transmit_uds_can(currentMillis);
