@@ -103,6 +103,10 @@ const uint16_t voltage_standard[numPoints] = {3570, 3552, 3485, 3464, 3443, 3439
                                               3425, 3412, 3400, 3396, 3392, 3391, 3390, 3382, 3375, 3362,
                                               3350, 3332, 3315, 3282, 3250, 3195, 3170, 3140};
 
+const uint16_t voltage_mini[numPoints] = {3295, 3278, 3216, 3197, 3178, 3174, 3170, 3167, 3168, 3165,
+                                              3161, 3149, 3138, 3134, 3131, 3130, 3129, 3121, 3115, 3102,
+                                              3092, 3060, 3315, 3029, 3000, 2949, 2926, 2900};
+
 uint16_t estimateSOCextended(uint16_t packVoltage) {  // Linear interpolation function
   if (packVoltage >= voltage_extended[0]) {
     return SOC[0];
@@ -136,7 +140,22 @@ uint16_t estimateSOCstandard(uint16_t packVoltage) {  // Linear interpolation fu
   }
   return 0;  // Default return for safety, should never reach here
 }
+uint16_t estimateSOCmini(uint16_t packVoltage) {  // Linear interpolation function
+  if (packVoltage >= voltage_mini[0]) {
+    return SOC[0];
+  }
+  if (packVoltage <= voltage_mini[numPoints - 1]) {
+    return SOC[numPoints - 1];
+  }
 
+  for (int i = 1; i < numPoints; ++i) {
+    if (packVoltage >= voltage_mini[i]) {
+      float t = (packVoltage - voltage_mini[i]) / (voltage_mini[i - 1] - voltage_mini[i]);
+      return SOC[i] + t * (SOC[i - 1] - SOC[i]);
+    }
+  }
+  return 0;  // Default return for safety, should never reach here
+}
 uint8_t compute441Checksum(const uint8_t* u8)  // Computes the 441 checksum byte
 {
   int sum = 0;
@@ -152,14 +171,21 @@ void BydAttoBattery::
 
   if (BMS_voltage > 0) {
     datalayer_battery->status.voltage_dV = BMS_voltage * 10;  //Polled value
-  } else if (battery_voltage > 0) {
+  } else if (battery_voltage > 0) { 
     datalayer_battery->status.voltage_dV = battery_voltage * 10;  //Value from periodic CAN data
+      if (battery_voltage > 0 && BMS_voltage = 0){ // if OBD2 polling not working & periodic from can is, then assume dolphin MINI
+      battery_type = MINI_RANGE;
+      frame7_counter = 0xF;
+      }
   }
 
   if (battery_type == EXTENDED_RANGE) {
     battery_estimated_SOC = estimateSOCextended(datalayer_battery->status.voltage_dV);
   }
   if (battery_type == STANDARD_RANGE) {
+    battery_estimated_SOC = estimateSOCstandard(datalayer_battery->status.voltage_dV);
+  }
+  if (battery_type == MINI_RANGE) {
     battery_estimated_SOC = estimateSOCstandard(datalayer_battery->status.voltage_dV);
   }
 
@@ -231,6 +257,13 @@ void BydAttoBattery::
       datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_EXTENDED_DV;
       datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_EXTENDED_DV;
       break;
+    case MINI_RANGE:
+      datalayer_battery->info.total_capacity_Wh = 38000;
+      datalayer_battery->info.number_of_cells = CELLCOUNT_MINI;
+      datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_MINI_DV;
+      datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_MINI_DV;
+      break;
+    
     case NOT_DETERMINED_YET:
     default:
       //Do nothing
@@ -512,8 +545,9 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         *allows_contactor_closing = false;
       }
     }
-
+    if (battery_type = EXTENDED_RANGE) || BATTERY_TYPE = STANDARD_RANGE){
     counter_50ms++;
+      
     if (counter_50ms > 23) {
       ATTO_3_12D.data.u8[2] = 0x00;  // Goes from 02->00
       ATTO_3_12D.data.u8[3] = 0x22;  // Goes from A0->22
@@ -533,8 +567,22 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     }
 
     ATTO_3_12D.data.u8[6] = (0x0F | (frame6_counter << 4));
-    ATTO_3_12D.data.u8[7] = (0x09 | (frame7_counter << 4));
-
+    ATTO_3_12D.data.u8[7] = (0x09 | (frame7_counter << 4));}
+    
+    elseif (battery_type = MINI_RANGE){ //((BMS_voltage_available && battery_voltage > 0 && BMS_voltage = 0){
+         
+      ATTO_3_12D.data.u8[0] = 0xA0; //a0 28 00 22 0C 31 6F 09 //dolphin fron log
+      ATTO_3_12D.data.u8[1] = 0x28; 
+      ATTO_3_12D.data.u8[2] = 0x00;
+      ATTO_3_12D.data.u8[3] = 0x22; 
+      ATTO_3_12D.data.u8[4] = 0x0C;
+      ATTO_3_12D.data.u8[5] = 0x31;
+      ATTO_3_12D.data.u8[6] = 0xFF && (frame7_counter << 4));}
+      ATTO_3_12D.data.u8[7] = 0x09;
+      if (frame7_counter == 0x0) {
+      frame7_counter = 0xF;  // Reset to 0xF after reaching 0x0
+    } else {
+      frame7_counter--;  // Decrement the counter}
     transmit_can_frame(&ATTO_3_12D);
   }
   // Send 100ms CAN Message
@@ -547,12 +595,21 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
 
     if (counter_100ms > 3) {
       if (BMS_voltage_available) {  // Transmit battery voltage back to BMS when confirmed it's available, this closes the contactors
-        ATTO_3_441.data.u8[4] = (uint8_t)(battery_voltage - 1);
+        ATTO_3_441.data.u8[4] = (uint8_t)(battery_voltage - 1); //dynamic case for 60kw & 50kw
         ATTO_3_441.data.u8[5] = ((battery_voltage - 1) >> 8);
         ATTO_3_441.data.u8[6] = 0xFF;
-        ATTO_3_441.data.u8[7] = compute441Checksum(ATTO_3_441.data.u8);
-      } else {
-        ATTO_3_441.data.u8[4] = 0x0C;
+        ATTO_3_441.data.u8[7] = compute441Checksum(ATTO_3_441.data.u8);}
+        elseif (BMS_voltage_available && battery_voltage > 0 && BMS_voltage = 0)){ // no obd2 for byd dolphin mini 
+        ATTO_3_441.data.u8[0] = 0x98; //bytes [0] thru [4] taken from dolphin mini log
+        ATTO_3_441.data.u8[1] = 0x3A;
+        ATTO_3_441.data.u8[2] = 0x88; 
+        ATTO_3_441.data.u8[3] = 0x13;
+        ATTO_3_441.data.u8[4] = (uint8_t)((battery_voltage * 10) >> 8); // bytes [4] & [5] are in decivolts on the dolphin mini
+        ATTO_3_441.data.u8[5] = (uint8_t)(((battery_voltage - 1) * 10) && 0xFF); 
+        ATTO_3_441.data.u8[6] = 0xFF;
+        ATTO_3_441.data.u8[7] = compute441Checksum(ATTO_3_441.data.u8);}
+       else {
+        ATTO_3_441.data.u8[4] = 0x0C; //base data for atto3 60kw
         ATTO_3_441.data.u8[5] = 0x00;
         ATTO_3_441.data.u8[6] = 0xFF;
         ATTO_3_441.data.u8[7] = 0x87;
