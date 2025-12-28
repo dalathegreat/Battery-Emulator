@@ -20,6 +20,9 @@ extern float charger_stat_LVvol;
 //LEAF charger
 extern uint16_t OBC_Charge_Power;
 
+// OTA status
+extern bool ota_active;
+
 /**
  * @brief Initialization function for the webserver.
  *
