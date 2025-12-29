@@ -539,24 +539,19 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
   if (detected_number_of_cells == 90) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_90S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;
-  }
-  if (detected_number_of_cells == 94) {
+  } else if (detected_number_of_cells == 94) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94S_DV;
-  }
-  if (detected_number_of_cells == 96) {
+  } else if (detected_number_of_cells == 96) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;
-  }
-  if (detected_number_of_cells == 100) {
+  } else if (detected_number_of_cells == 100) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_100S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_100S_DV;
-  }
-  if (detected_number_of_cells == 102) {
+  } else if (detected_number_of_cells == 102) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_102S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_102S_DV;
-  }
-  if (detected_number_of_cells == 108) {
+  } else if (detected_number_of_cells == 108) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_108S_DV;
   }
