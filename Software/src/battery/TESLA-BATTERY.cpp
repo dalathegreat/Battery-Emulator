@@ -504,6 +504,12 @@ void TeslaBattery::
 
   /* Value mapping is completed. Start to check all safeties */
 
+  //12V battery too low for contactor operation. Inform user via Event
+  if ((battery_dcdcLvBusVolt * 0.0390625) < 11.7) {
+    set_event(EVENT_12V_LOW, 0);
+  } else {
+    clear_event(EVENT_12V_LOW);
+  }
   //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
   if (battery_hvil_status == 3) {
     set_event(EVENT_INTERNAL_OPEN_FAULT, 0);
