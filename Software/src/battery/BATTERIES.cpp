@@ -132,6 +132,8 @@ const char* name_for_battery_type(BatteryType type) {
       return TestFakeBattery::Name;
     case BatteryType::ThinkCity:
       return ThinkBattery::Name;
+    case BatteryType::VolvoSea2:
+      return VolvoSea2Battery::Name;
     case BatteryType::VolvoSpa:
       return VolvoSpaBattery::Name;
     case BatteryType::VolvoSpaHybrid:
@@ -241,6 +243,8 @@ Battery* create_battery(BatteryType type) {
       return new TestFakeBattery();
     case BatteryType::ThinkCity:
       return new ThinkBattery();
+    case BatteryType::VolvoSea2:
+      return new VolvoSea2Battery();
     case BatteryType::VolvoSpa:
       return new VolvoSpaBattery();
     case BatteryType::VolvoSpaHybrid:
