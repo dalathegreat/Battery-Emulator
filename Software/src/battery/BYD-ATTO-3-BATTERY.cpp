@@ -187,7 +187,7 @@ void BydAttoBattery::
     battery_estimated_SOC = estimateSOCstandard(datalayer_battery->status.voltage_dV);
   }
   if (battery_type == MINI_RANGE) {
-    battery_estimated_SOC = estimateSOCstandard(datalayer_battery->status.voltage_dV);
+    battery_estimated_SOC = estimateSOCmini(datalayer_battery->status.voltage_dV);
   }
 
   if (SOC_method == MEASURED) {
