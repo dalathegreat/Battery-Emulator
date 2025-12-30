@@ -501,33 +501,33 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
       (datalayer.battery.status.cell_voltages_mV[78] < 1000)) {
     //If we detect cellvoltage on cell78, but nothing on 79, we can confirm we are on SE12
     detected_number_of_cells = 78;  //We are on 78S SE12 battery from BMW iX1
-    DEBUG_PRINTF("Detected %dS battery\n", (int)detected_number_of_cells);
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
   } else if ((datalayer.battery.status.cell_voltages_mV[89] > 1000) &&
              (datalayer.battery.status.cell_voltages_mV[90] < 1000)) {
     detected_number_of_cells = 90;
-    DEBUG_PRINTF("Detected %dS battery\n", (int)detected_number_of_cells);
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
   } else if ((datalayer.battery.status.cell_voltages_mV[93] > 1000) &&
              (datalayer.battery.status.cell_voltages_mV[94] < 1000)) {
     detected_number_of_cells = 94;
-    DEBUG_PRINTF("Detected %dS battery\n", (int)detected_number_of_cells);
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
   } else if ((datalayer.battery.status.cell_voltages_mV[95] > 1000) &&
              (datalayer.battery.status.cell_voltages_mV[96] < 1000)) {
     detected_number_of_cells = 96;
-    DEBUG_PRINTF("Detected %dS battery\n", (int)detected_number_of_cells);
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
   } else if ((datalayer.battery.status.cell_voltages_mV[99] > 1000) &&
              (datalayer.battery.status.cell_voltages_mV[100] < 1000)) {
     detected_number_of_cells = 100;
-    DEBUG_PRINTF("Detected %dS battery\n", (int)detected_number_of_cells);
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
   } else if ((datalayer.battery.status.cell_voltages_mV[101] > 1000) &&
              (datalayer.battery.status.cell_voltages_mV[102] < 1000)) {
     detected_number_of_cells = 102;
-    DEBUG_PRINTF("Detected %dS battery\n", (int)detected_number_of_cells);
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
   } else if (datalayer.battery.status.cell_voltages_mV[107] > 1000) {
     // voltage index cannot be larger than 107, therefore we only perform a check if we detect cellvoltage on cell107
     detected_number_of_cells = 108;
-    DEBUG_PRINTF("Detected %dS battery\n", (int)detected_number_of_cells);
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
   } else {
-    DEBUG_PRINTLN("Number of cells not recognized");
+    logging.println("Number of cells not recognized");
   }
 
   datalayer.battery.info.number_of_cells = detected_number_of_cells;
@@ -535,8 +535,7 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
   if (detected_number_of_cells == 78) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_78S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_78S_DV;
-  }
-  if (detected_number_of_cells == 90) {
+  } else if (detected_number_of_cells == 90) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_90S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;
   } else if (detected_number_of_cells == 94) {
