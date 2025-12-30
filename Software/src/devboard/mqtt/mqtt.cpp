@@ -169,7 +169,9 @@ SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, null
                                 {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr, nullptr},
                                 {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr, nullptr},
                                 {"RESTART", "Restart Battery Emulator", nullptr, nullptr, nullptr, nullptr},
-                                {"STOP", "Open Contactors", nullptr, nullptr, nullptr, nullptr}};
+                                {"STOP", "Open Contactors", nullptr, nullptr, nullptr, nullptr},
+                                {"START_LFP_BALANCING", "Start LFP balancing", nullptr, nullptr, nullptr, nullptr},
+                                {"STOP_LFP_BALANCING", "Stop LFP balancing", nullptr, nullptr, nullptr, nullptr}};
 
 static String generateCommonInfoAutoConfigTopic(const char* object_id) {
   return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
@@ -595,6 +597,16 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   if (strcmp(topic, generateButtonTopic("STOP").c_str()) == 0) {
     setBatteryPause(true, false, true);
+  }
+
+  if (strcmp(topic, generateButtonTopic("START_LFP_BALANCING").c_str()) == 0) {
+    logging.println("MQTT: Starting LFP balancing");
+    datalayer.battery.settings.user_requests_balancing = true;
+  }
+
+  if (strcmp(topic, generateButtonTopic("STOP_LFP_BALANCING").c_str()) == 0) {
+    logging.println("MQTT: Stopping LFP balancing");
+    datalayer.battery.settings.user_requests_balancing = false;
   }
 
   if (strcmp(topic, generateButtonTopic("SET_LIMITS").c_str()) == 0) {
