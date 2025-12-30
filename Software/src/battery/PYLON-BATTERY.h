@@ -86,7 +86,13 @@ class PylonBattery : public CanBattery {
   uint8_t SOH = 100;
   uint8_t charge_forbidden = 0;
   uint8_t discharge_forbidden = 0;
+  uint8_t manufacturer_name[16] = {0};
   uint8_t mux = 0;
+  uint8_t hardware_version = 0;
+  uint8_t hardware_version_V = 0;
+  uint8_t hardware_version_R = 0;
+  uint8_t software_version_major = 0;
+  uint8_t software_version_minor = 0;
 };
 
 #endif

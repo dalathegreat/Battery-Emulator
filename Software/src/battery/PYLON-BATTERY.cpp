@@ -43,15 +43,39 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x7310:  //System equipment info
     case 0x7311:
-      // This message contains software/hardware version info. No interest to us
+      hardware_version = rx_frame.data.u8[0];
+      hardware_version_V = rx_frame.data.u8[2];
+      hardware_version_R = rx_frame.data.u8[3];
+      software_version_major = rx_frame.data.u8[4];
+      software_version_minor = rx_frame.data.u8[5];
       break;
     case 0x7320:
     case 0x7321:
-      battery_module_quantity = rx_frame.data.u8[0];
+      battery_module_quantity = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       battery_modules_in_series = rx_frame.data.u8[2];
       cell_quantity_in_module = rx_frame.data.u8[3];
-      voltage_level = rx_frame.data.u8[4];
-      ah_number = rx_frame.data.u8[6];
+      voltage_level = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
+      ah_number = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
+      break;
+    case 0x7330:
+      manufacturer_name[0] = rx_frame.data.u8[0];
+      manufacturer_name[1] = rx_frame.data.u8[1];
+      manufacturer_name[2] = rx_frame.data.u8[2];
+      manufacturer_name[3] = rx_frame.data.u8[3];
+      manufacturer_name[4] = rx_frame.data.u8[4];
+      manufacturer_name[5] = rx_frame.data.u8[5];
+      manufacturer_name[6] = rx_frame.data.u8[6];
+      manufacturer_name[7] = rx_frame.data.u8[7];
+      break;
+    case 0x7340:
+      manufacturer_name[8] = rx_frame.data.u8[0];
+      manufacturer_name[9] = rx_frame.data.u8[1];
+      manufacturer_name[10] = rx_frame.data.u8[2];
+      manufacturer_name[11] = rx_frame.data.u8[3];
+      manufacturer_name[12] = rx_frame.data.u8[4];
+      manufacturer_name[13] = rx_frame.data.u8[5];
+      manufacturer_name[14] = rx_frame.data.u8[6];
+      manufacturer_name[15] = rx_frame.data.u8[7];
       break;
     case 0x4210:
     case 0x4211:
