@@ -3,6 +3,7 @@
 
 #include "../datalayer/datalayer.h"
 #include "CanBattery.h"
+#include "PYLON-HTML.h"
 
 class PylonBattery : public CanBattery {
  public:
@@ -27,7 +28,10 @@ class PylonBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Pylon compatible battery";
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  PylonHtmlRenderer renderer;
   static const int MAX_CELL_DEVIATION_MV = 150;
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
@@ -49,7 +53,7 @@ class PylonBattery : public CanBattery {
   CAN_frame PYLON_8200 = {.FD = false,
                           .ext_ID = true,
                           .DLC = 8,
-                          .ID = 0x8200,
+                          .ID = 0x8200,  //AA quit sleep //55 goto sleep
                           .data = {0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame PYLON_8210 = {.FD = false,
                           .ext_ID = true,
@@ -72,7 +76,7 @@ class PylonBattery : public CanBattery {
   uint16_t discharge_cutoff_voltage = 0;
   int16_t max_charge_current = 0;
   int16_t max_discharge_current = 0;
-  uint8_t ensemble_info_ack = 0;
+  int16_t BMS_temperature_dC = 0;
   uint8_t battery_module_quantity = 0;
   uint8_t battery_modules_in_series = 0;
   uint8_t cell_quantity_in_module = 0;
@@ -82,6 +86,7 @@ class PylonBattery : public CanBattery {
   uint8_t SOH = 100;
   uint8_t charge_forbidden = 0;
   uint8_t discharge_forbidden = 0;
+  uint8_t mux = 0;
 };
 
 #endif
