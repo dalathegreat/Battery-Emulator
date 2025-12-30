@@ -8,11 +8,11 @@
 bool precharge_control_enabled = false;
 bool precharge_inverter_normally_open_contactor = false;
 uint16_t precharge_max_precharge_time_before_fault = 15000;
+uint16_t Precharge_max_PWM_Freq = 34000;
 
 // Hardcoded parameters
 #define Precharge_default_PWM_Freq 11000
 #define Precharge_min_PWM_Freq 5000
-#define Precharge_max_PWM_Freq 34000
 #define Precharge_PWM_Res 8
 #define PWM_Freq 20000  // 20 kHz frequency, beyond audible range
 #define PWM_Precharge_Channel 0
