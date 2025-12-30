@@ -51,42 +51,135 @@ void VolvoSea2Battery::
 void VolvoSea2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x53:  //100ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x140:  //20ms
+    case 0x140:  //20ms EX30 only 00 00 00 00 01 7F F9 03
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x141:  //20ms
+    case 0x141:  //20ms EX30+Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //frame0 counter, 0x00 -> 0x0D and repeating
+      //frame1 CRC most likely
       break;
-    case 0x142:  //20ms
+    case 0x142:  //20ms EX30+Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x143:  //20ms
+    case 0x143:  //20ms EX30+Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x145:  //100ms
+    case 0x145:  //100ms EX30+Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x175:  //100ms
+    case 0x175:  //100ms EX30+Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x17B:  //100ms
+    case 0x17B:  //100ms EX30+Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x178:  //70ms
+    case 0x178:  //70ms EX30+Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x183:  //100ms
+    case 0x182:  //100ms Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x18A:  //100ms
+    case 0x183:  //100ms EX30
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x286:  //120ms
+    case 0x18A:  //100ms EX30+Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x288:  //100ms
+    case 0x286:  //120ms EX30+Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x290:  //100ms
+    case 0x288:  //100ms EX30+Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x293:  //?ms
+    case 0x290:  //100ms EX30+Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x302:  //?ms
+    case 0x293:  //EX30+Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x309:  //?ms
+    case 0x295:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x313:  //?ms
+    case 0x296:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x315:  //?ms
+    case 0x298:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x301:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x302:  //EX30
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x309:  //EX30
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x313:  //EX30
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x315:  //EX30+Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x316:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x331:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x341:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x342:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x345:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x346:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x347:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x478:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x479:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x489:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x493:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x494:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x499:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x49C:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x519:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5C0:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5C1:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5D0:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5D1:  //Zeekr
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     default:
       break;
