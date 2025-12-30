@@ -570,24 +570,26 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         ATTO_3_12D.data.u8[6] = (0x0F | (frame6_counter << 4));
         ATTO_3_12D.data.u8[7] = (0x09 | (frame7_counter << 4));
       }
+  }
+    else { // (battery_type = MINI_RANGE)  //((BMS_voltage_available && battery_voltage > 0 && BMS_voltage = 0
 
-    elseif(battery_type = MINI_RANGE) {  //((BMS_voltage_available && battery_voltage > 0 && BMS_voltage = 0){
-
-      ATTO_3_12D.data.u8[0] = 0xA0;  //a0 28 00 22 0C 31 6F 09 //dolphin fron log
+      ATTO_3_12D.data.u8[0] = 0xA0;  //a0 28 00 22 0C 31 6F 09 //dolphin from log
       ATTO_3_12D.data.u8[1] = 0x28;
       ATTO_3_12D.data.u8[2] = 0x00;
       ATTO_3_12D.data.u8[3] = 0x22;
       ATTO_3_12D.data.u8[4] = 0x0C;
       ATTO_3_12D.data.u8[5] = 0x31;
       ATTO_3_12D.data.u8[6] = 0xFF && (frame7_counter << 4));
-    }
-    ATTO_3_12D.data.u8[7] = 0x09;
+      ATTO_3_12D.data.u8[7] = 0x09;
+    
     if (frame7_counter == 0x0) {
       frame7_counter = 0xF;  // Reset to 0xF after reaching 0x0
     } else {
-      frame7_counter--;  // Decrement the counter}
-      transmit_can_frame(&ATTO_3_12D);
+      frame7_counter--;  // Decrement the counter
     }
+  }
+      transmit_can_frame(&ATTO_3_12D);
+    
     // Send 100ms CAN Message
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
       previousMillis100 = currentMillis;
@@ -603,13 +605,12 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
           ATTO_3_441.data.u8[6] = 0xFF;
           ATTO_3_441.data.u8[7] = compute441Checksum(ATTO_3_441.data.u8);
         }
-        elseif (BMS_voltage_available && battery_voltage > 0 && BMS_voltage = 0)){ // no obd2 for byd dolphin mini
+        else if (BMS_voltage_available && battery_voltage > 0 && BMS_voltage = 0)){ // no obd2 for byd dolphin mini
           ATTO_3_441.data.u8[0] = 0x98;  //bytes [0] thru [4] taken from dolphin mini log
           ATTO_3_441.data.u8[1] = 0x3A;
           ATTO_3_441.data.u8[2] = 0x88;
           ATTO_3_441.data.u8[3] = 0x13;
-          ATTO_3_441.data.u8[4] =
-              (uint8_t)((battery_voltage * 10) >> 8);  // bytes [4] & [5] are in decivolts on the dolphin mini
+          ATTO_3_441.data.u8[4] = (uint8_t)((battery_voltage * 10) >> 8);  // bytes [4] & [5] are in decivolts on the dolphin mini
           ATTO_3_441.data.u8[5] = (uint8_t)(((battery_voltage - 1) * 10) && 0xFF);
           ATTO_3_441.data.u8[6] = 0xFF;
           ATTO_3_441.data.u8[7] = compute441Checksum(ATTO_3_441.data.u8);
