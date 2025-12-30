@@ -862,6 +862,13 @@ struct DATALAYER_INFO_VOLVO_HYBRID {
   bool UserRequestBECMecuReset = false;
 };
 
+struct DATALAYER_INFO_GEELY_SEA {
+  uint16_t soc_bms = 0;
+  uint16_t soh_bms = 0;
+  uint16_t BECMsupplyVoltage = 0;
+  uint16_t BECMBatteryVoltage = 0;
+};
+
 struct DATALAYER_INFO_ZOE {
   uint16_t mileage_km = 0;
   uint16_t alltime_kWh = 0;
@@ -941,6 +948,7 @@ class DataLayerExtended {
   DATALAYER_INFO_MEB meb;
   DATALAYER_INFO_VOLVO_POLESTAR VolvoPolestar;
   DATALAYER_INFO_VOLVO_HYBRID VolvoHybrid;
+  DATALAYER_INFO_GEELY_SEA GeelySEA;
   DATALAYER_INFO_ZOE zoe;
   DATALAYER_INFO_ZOE_PH2 zoePH2;
 };

@@ -8,6 +8,7 @@
 #include "../devboard/utils/logging.h"
 
 void VolvoSea2Battery::
+    
     update_values() {  //This function maps all the values fetched via CAN to the correct paramete,rs used for the inverter
 
   /*
@@ -181,9 +182,41 @@ void VolvoSea2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x5D1:  //Zeekr
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
+      case 0x635:  //Diag
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      
+      if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0xEE) &&
+                 (rx_frame.data.u8[3] == 0x02))  // BECM module voltage supply
+      {
+        datalayer_extended.GeelySEA.BECMsupplyVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+        transmit_can_frame(&SEA2_HV_Voltage_Req);
+      }
+      else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x48) &&
+          (rx_frame.data.u8[3] == 0x03))  // High voltage battery voltage response frame
+      {
+        datalayer_extended.GeelySEA.BECMBatteryVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+        transmit_can_frame(&SEA2_SOC_Req);
+      }
+      else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x48) &&
+          (rx_frame.data.u8[3] == 0x01))  // SOC response frame
+      {
+        datalayer_extended.GeelySEA.soc_bms = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+        transmit_can_frame(&SEA2_SOH_Req);
+      } 
+      else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x48) &&
+          (rx_frame.data.u8[3] == 0x9A))  // SOH response frame
+      {
+        datalayer_extended.GeelySEA.soh_bms = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      } 
+      break;
     default:
       break;
   }
+}
+
+void VolvoSea2Battery::readDiagData() {
+  waiting4answer = 1;
+  transmit_can_frame(&SEA2_BECMsupplyVoltage_Req);
 }
 
 void VolvoSea2Battery::transmit_can(unsigned long currentMillis) {
@@ -191,8 +224,13 @@ void VolvoSea2Battery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    transmit_can_frame(&VOLVO_536);  //Send 0x536 Network managing frame to keep BMS alive
-    transmit_can_frame(&VOLVO_372);  //Send 0x372 ECMAmbientTempCalculated
+    transmit_can_frame(&SEA2_536);  //Send 0x536 Network managing frame to keep BMS alive
+    //transmit_can_frame(&SEA2_372);  //Send 0x372 ECMAmbientTempCalculated
+  }
+  if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
+    previousMillis60s = currentMillis;
+    
+    readDiagData();
   }
 }
 
