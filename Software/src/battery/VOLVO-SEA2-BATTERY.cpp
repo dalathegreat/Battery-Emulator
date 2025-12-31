@@ -207,7 +207,20 @@ void VolvoSea2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           (rx_frame.data.u8[3] == 0x9A))  // SOH response frame
       {
         datalayer_extended.GeelySEA.soh_bms = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-      } 
+        transmit_can_frame(&SEA2_HighestCellTemp_Req);
+      }
+      else if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
+          (rx_frame.data.u8[3] == 0x45))  // Highest cell temp response frame
+      {
+        datalayer_extended.GeelySEA.CellTempHighest = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+        transmit_can_frame(&SEA2_LowestCellTemp_Req);
+      }
+      else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
+          (rx_frame.data.u8[3] == 0x1B))  // Lowest cell temp response frame
+      {
+        datalayer_extended.GeelySEA.CellTempLowest = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      }
+      
       break;
     default:
       break;
@@ -215,7 +228,6 @@ void VolvoSea2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void VolvoSea2Battery::readDiagData() {
-  waiting4answer = 1;
   transmit_can_frame(&SEA2_BECMsupplyVoltage_Req);
 }
 
