@@ -15,10 +15,11 @@ class GeelySeaHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Highest cell voltage: " + String(datalayer_extended.GeelySEA.CellVoltHighest / 1000.00) + " V</h4>";
     content += "<h4>Lowest cell voltage: " + String(datalayer_extended.GeelySEA.CellVoltLowest / 1000.00) + " V</h4>";
     content += "<h4>BECM supply voltage: " + String(datalayer_extended.GeelySEA.BECMsupplyVoltage / 1000.0) + " V</h4>";
+    content += "<h4>Cell count: " + String(datalayer.battery.info.number_of_cells) + "</h4>";
     content +=
-        "<h4>Highest cell temp: " + String((datalayer_extended.GeelySEA.CellTempHighest / 100.0) - 50.0) + " ºC</h4>";
+        "<h4>Highest cell temp: " + String((datalayer_extended.GeelySEA.CellTempHighest / 100.0) - 48.0) + " ºC</h4>";
     content +=
-        "<h4>Average cell temp: " + String((datalayer_extended.GeelySEA.CellTempAverage / 100.0) - 50.0) + " ºC</h4>";
+        "<h4>Average cell temp: " + String((datalayer_extended.GeelySEA.CellTempAverage / 100.0) - 48.0) + " ºC</h4>";
     content += "<h4>HVIL Circuit 1 (M1+M2+FC connectors) status : ";
     switch (datalayer_extended.GeelySEA.Interlock & 0x80) {
       case 0x80:

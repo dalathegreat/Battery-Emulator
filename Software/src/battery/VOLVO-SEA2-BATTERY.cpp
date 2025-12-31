@@ -11,9 +11,9 @@ void VolvoSea2Battery::
 
     update_values() {  //This function maps all the values fetched via CAN to the correct paramete,rs used for the inverter
 
-  if (datalayer_extended.GeelySEA.BECMBatteryVoltage > 0) {
-    datalayer.battery.status.voltage_dV = datalayer_extended.GeelySEA.BECMBatteryVoltage / 10;
-  }
+  /*if (datalayer_extended.GeelySEA.BECMBatteryVoltage > 0) {
+    datalayer.battery.status.voltage_dV = datalayer_extended.GeelySEA.BECMBatteryVoltage / 10;  // We use the value from the CAN stream instead now
+  }*/
 
   if (datalayer_extended.GeelySEA.soc_bms > 0) {
     datalayer.battery.status.real_soc = datalayer_extended.GeelySEA.soc_bms / 5;
@@ -21,11 +21,6 @@ void VolvoSea2Battery::
 
   if (datalayer_extended.GeelySEA.soh_bms > 0) {
     datalayer.battery.status.soh_pptt = datalayer_extended.GeelySEA.soh_bms;
-  }
-
-  if ((datalayer_extended.GeelySEA.CellVoltHighest > 0) && (datalayer_extended.GeelySEA.CellVoltLowest > 0)) {
-    datalayer.battery.status.cell_max_voltage_mV = datalayer_extended.GeelySEA.CellVoltHighest;
-    datalayer.battery.status.cell_min_voltage_mV = datalayer_extended.GeelySEA.CellVoltLowest;
   }
 
   /*
@@ -46,13 +41,13 @@ void VolvoSea2Battery::
     datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_LFP_WH;
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP_120S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP_120S_DV;
-    datalayer.battery.info.number_of_cells = 120;
+    //datalayer.battery.info.number_of_cells = 120;
   } else if (datalayer.battery.info.chemistry ==
              NMC) {  //If user configured NCM in use (or we autodetected it), switch to it
     datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_NCM_WH;
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_NCM_107S_DV;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_NCM_107S_DV;
-    datalayer.battery.info.number_of_cells = 107;
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_NCM_110S_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_NCM_110S_DV;
+    //datalayer.battery.info.number_of_cells = 110;
   }
 
   /* Check safeties */
@@ -80,6 +75,26 @@ void VolvoSea2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x142:  //20ms EX30+Zeekr
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.data.u8[0] == 0x00)
+      {
+        datalayer.battery.status.voltage_dV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) >> 3;
+      }
+      else if (rx_frame.data.u8[0] == 0x01)
+      {
+        datalayer.battery.status.cell_max_voltage_mV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) >> 3;
+      }
+      else if (rx_frame.data.u8[0] == 0x02)
+      {
+        datalayer.battery.status.cell_min_voltage_mV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) >> 3;
+      }
+      else if (rx_frame.data.u8[0] > 0x02)
+      {
+        datalayer.battery.status.cell_voltages_mV[rx_frame.data.u8[2]-1] = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) >> 3;
+        if( rx_frame.data.u8[2] > datalayer.battery.info.number_of_cells) // Detect number of cells
+        {
+          datalayer.battery.info.number_of_cells = rx_frame.data.u8[2];
+        }
+      }
       break;
     case 0x143:  //20ms EX30+Zeekr
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

@@ -22,9 +22,9 @@ class VolvoSea2Battery : public CanBattery {
   static const int MAX_PACK_VOLTAGE_LFP_120S_DV = 4380;
   static const int MIN_PACK_VOLTAGE_LFP_120S_DV = 3600;
   static const int MAX_CAPACITY_LFP_WH = 51000;
-  static const int MAX_PACK_VOLTAGE_NCM_107S_DV = 4650;
-  static const int MIN_PACK_VOLTAGE_NCM_107S_DV = 3210;
-  static const int MAX_CAPACITY_NCM_WH = 69000;
+  static const int MAX_PACK_VOLTAGE_NCM_110S_DV = 4650;
+  static const int MIN_PACK_VOLTAGE_NCM_110S_DV = 3210;
+  static const int MAX_CAPACITY_NCM_WH = 100000;
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4260;  // Charging is halted if one cell goes above this
   static const int MIN_CELL_VOLTAGE_MV = 2900;  // Charging is halted if one cell goes below this
