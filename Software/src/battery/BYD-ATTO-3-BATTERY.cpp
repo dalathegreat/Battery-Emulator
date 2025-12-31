@@ -176,7 +176,8 @@ void BydAttoBattery::
     if (battery_voltage > 0 && BMS_voltage =
             0) {  // if OBD2 polling not working & periodic from can is, then assume dolphin MINI
       battery_type = MINI_RANGE;
-      frame7_counter = 0xF;
+      frame6_counter = 0xFF;
+      frame7_counter = 0x99;
     }
   }
 
@@ -578,11 +579,15 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     ATTO_3_12D.data.u8[3] = 0x22;
     ATTO_3_12D.data.u8[4] = 0x0C;
     ATTO_3_12D.data.u8[5] = 0x31;
-      ATTO_3_12D.data.u8[6] = 0xFF && (frame7_counter << 4));
-      ATTO_3_12D.data.u8[7] = 0x09;
-
-      if (frame7_counter == 0x0) {
-        frame7_counter = 0xF;  // Reset to 0xF after reaching 0x0
+      ATTO_3_12D.data.u8[6] = frame6_counter;
+      ATTO_3_12D.data.u8[7] = frame7_counter;
+      if (frame6_counter == 0x0F) {
+        frame6_counter = 0xFF;  // Reset to 0xFF after reaching 0x0F
+      } else {
+        frame6_counter = frame6_counter - 0x10;  // Decrement the counter
+      }
+      if (frame7_counter == 0x09) {
+        frame7_counter = 0xF9;  // Reset to 0xF9 after reaching 0x09
       } else {
         frame7_counter--;  // Decrement the counter
       }
