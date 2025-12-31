@@ -15,11 +15,10 @@ class VolvoSea2Battery : public CanBattery {
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
-  
   GeelySeaHtmlRenderer renderer;
 
   void readDiagData();
-  
+
   static const int MAX_PACK_VOLTAGE_LFP_120S_DV = 4380;
   static const int MIN_PACK_VOLTAGE_LFP_120S_DV = 3600;
   static const int MAX_CAPACITY_LFP_WH = 51000;
@@ -42,7 +41,7 @@ class VolvoSea2Battery : public CanBattery {
       .DLC = 8,
       .ID = 0x536,
       .data = {0x00, 0x41, 0x40, 0x21, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame (38 transmitted ID´s)
-      //.data = {0x00, 0x40, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame (33 transmitted ID´s)
+  //.data = {0x00, 0x40, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame (33 transmitted ID´s)
 
   CAN_frame SEA2_372 = {
       .FD = false,
@@ -85,14 +84,14 @@ class VolvoSea2Battery : public CanBattery {
       .DLC = 8,
       .ID = 0x735,
       .data = {0x03, 0x22, 0x49, 0x45, 0x00, 0x00, 0x00, 0x00}};  //Highest cell temp request frame
-      
+
   CAN_frame SEA2_LowestCellTemp_Req = {
       .FD = false,
       .ext_ID = false,
       .DLC = 8,
       .ID = 0x735,
       .data = {0x03, 0x22, 0x49, 0x1B, 0x00, 0x00, 0x00, 0x00}};  //Average cell temp request frame
-  
+
   CAN_frame SEA2_Interlock_Req = {
       .FD = false,
       .ext_ID = false,
