@@ -23,14 +23,15 @@ void VolvoSea2Battery::
     datalayer.battery.status.soh_pptt = datalayer_extended.GeelySEA.soh_bms;
   }
 
+  if ((datalayer_extended.GeelySEA.CellVoltHighest > 0) && (datalayer_extended.GeelySEA.CellVoltLowest > 0)) {
+    datalayer.battery.status.cell_max_voltage_mV = datalayer_extended.GeelySEA.CellVoltHighest;
+    datalayer.battery.status.cell_min_voltage_mV = datalayer_extended.GeelySEA.CellVoltLowest;
+  }
+
   /*
   datalayer.battery.status.current_dA;
 
   datalayer.battery.status.remaining_capacity_Wh;
-
-  datalayer.battery.status.cell_max_voltage_mV;
-
-  datalayer.battery.status.cell_min_voltage_mV;
 
   datalayer.battery.status.temperature_min_dC;
 
