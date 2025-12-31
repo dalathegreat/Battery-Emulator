@@ -218,7 +218,13 @@ void VolvoSea2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
           (rx_frame.data.u8[3] == 0x1B))  // Lowest cell temp response frame
       {
-        datalayer_extended.GeelySEA.CellTempLowest = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+        datalayer_extended.GeelySEA.CellTempAverage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+        transmit_can_frame(&SEA2_Interlock_Req);
+      }
+      else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
+          (rx_frame.data.u8[3] == 0x1A))  // Interlock response frame
+      {
+        datalayer_extended.GeelySEA.Interlock = (rx_frame.data.u8[4]);
       }
       
       break;

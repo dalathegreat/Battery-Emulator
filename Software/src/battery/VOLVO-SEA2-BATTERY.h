@@ -91,7 +91,14 @@ class VolvoSea2Battery : public CanBattery {
       .ext_ID = false,
       .DLC = 8,
       .ID = 0x735,
-      .data = {0x03, 0x22, 0x49, 0x1B, 0x00, 0x00, 0x00, 0x00}};  //Lowest cell temp request frame
+      .data = {0x03, 0x22, 0x49, 0x1B, 0x00, 0x00, 0x00, 0x00}};  //Average cell temp request frame
+  
+  CAN_frame SEA2_Interlock_Req = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x735,
+      .data = {0x03, 0x22, 0x49, 0x1A, 0x00, 0x00, 0x00, 0x00}};  //Interlock status request frame
 };
 
 #endif

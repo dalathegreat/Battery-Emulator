@@ -868,7 +868,8 @@ struct DATALAYER_INFO_GEELY_SEA {
   uint16_t BECMsupplyVoltage = 0;
   uint16_t BECMBatteryVoltage = 0;
   uint16_t CellTempHighest = 0;
-  uint16_t CellTempLowest = 0;
+  uint16_t CellTempAverage = 0;
+  uint8_t Interlock = 255;
 };
 
 struct DATALAYER_INFO_ZOE {
