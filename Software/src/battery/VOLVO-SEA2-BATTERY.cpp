@@ -11,13 +11,19 @@ void VolvoSea2Battery::
 
     update_values() {  //This function maps all the values fetched via CAN to the correct paramete,rs used for the inverter
 
+  if (datalayer_extended.GeelySEA.BECMBatteryVoltage > 0) {
+    datalayer.battery.status.voltage_dV = datalayer_extended.GeelySEA.BECMBatteryVoltage / 10;
+  }
+
+  if (datalayer_extended.GeelySEA.soc_bms > 0) {
+    datalayer.battery.status.real_soc = datalayer_extended.GeelySEA.soc_bms / 5;
+  }
+
+  if (datalayer_extended.GeelySEA.soh_bms > 0) {
+    datalayer.battery.status.soh_pptt = datalayer_extended.GeelySEA.soh_bms;
+  }
+
   /*
-  datalayer.battery.status.real_soc;
-
-  datalayer.battery.status.soh_pptt;
-
-  datalayer.battery.status.voltage_dV;
-
   datalayer.battery.status.current_dA;
 
   datalayer.battery.status.remaining_capacity_Wh;
@@ -46,6 +52,15 @@ void VolvoSea2Battery::
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_NCM_107S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_NCM_107S_DV;
     datalayer.battery.info.number_of_cells = 107;
+  }
+
+  /* Check safeties */
+  if (datalayer_extended.GeelySEA.BECMsupplyVoltage > 0) {
+    if (datalayer_extended.GeelySEA.BECMsupplyVoltage < 11800) {  // 11.8 V
+      set_event(EVENT_12V_LOW, 0);
+    } else {
+      clear_event(EVENT_12V_LOW);
+    }
   }
 }
 
