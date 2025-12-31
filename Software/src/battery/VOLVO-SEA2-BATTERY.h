@@ -18,7 +18,7 @@ class VolvoSea2Battery : public CanBattery {
   GeelySeaHtmlRenderer renderer;
 
   void readDiagData();
-
+  
   static const int MAX_PACK_VOLTAGE_LFP_120S_DV = 4380;
   static const int MIN_PACK_VOLTAGE_LFP_120S_DV = 3600;
   static const int MAX_CAPACITY_LFP_WH = 51000;
@@ -41,7 +41,7 @@ class VolvoSea2Battery : public CanBattery {
       .DLC = 8,
       .ID = 0x536,
       .data = {0x00, 0x41, 0x40, 0x21, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame (38 transmitted ID´s)
-  //.data = {0x00, 0x40, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame (33 transmitted ID´s)
+      //.data = {0x00, 0x40, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame (33 transmitted ID´s)
 
   CAN_frame SEA2_372 = {
       .FD = false,
@@ -98,6 +98,20 @@ class VolvoSea2Battery : public CanBattery {
       .DLC = 8,
       .ID = 0x735,
       .data = {0x03, 0x22, 0x49, 0x1A, 0x00, 0x00, 0x00, 0x00}};  //Interlock status request frame
+
+  CAN_frame SEA2_HighestCellVolt_Req = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x735,
+      .data = {0x03, 0x22, 0x49, 0x07, 0x00, 0x00, 0x00, 0x00}};  //Highest cell volt request frame
+
+  CAN_frame SEA2_LowestCellVolt_Req = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x735,
+      .data = {0x03, 0x22, 0x49, 0x08, 0x00, 0x00, 0x00, 0x00}};  //Lowest cell volt request frame
 };
 
 #endif

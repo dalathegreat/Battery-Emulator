@@ -234,6 +234,16 @@ void VolvoSea2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
                  (rx_frame.data.u8[3] == 0x1A))  // Interlock response frame
       {
         datalayer_extended.GeelySEA.Interlock = (rx_frame.data.u8[4]);
+        transmit_can_frame(&SEA2_HighestCellVolt_Req);
+      } else if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
+                 (rx_frame.data.u8[3] == 0x07))  // Highest cell volt response frame
+      {
+        datalayer_extended.GeelySEA.CellVoltHighest = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+        transmit_can_frame(&SEA2_LowestCellVolt_Req);
+      } else if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
+                 (rx_frame.data.u8[3] == 0x08))  // Lowest cell volt response frame
+      {
+        datalayer_extended.GeelySEA.CellVoltLowest = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
       }
 
       break;
