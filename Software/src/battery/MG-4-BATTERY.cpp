@@ -61,24 +61,21 @@ void Mg4Battery::transmit_can(unsigned long currentMillis) {
     return;
   }
 
-  // Every 10ms
-  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
-    previousMillis10 = currentMillis;
-
-    if (four_seven_counter == 0) {
+  // this won't roll around correctly!
+  if (currentMillis >= nextMillis) {
+    if (sendPhase == 0) {
+      transmit_can_frame(&MG4_4F3);
+      //   nextMillis = currentMillis + 1;
+      //   sendPhase = 1;
+      // } else if (sendPhase == 1) {
       transmit_can_frame(&MG4_047_E9);
-      four_seven_counter++;
-    } else if (four_seven_counter >= 1) {
+      nextMillis = currentMillis + 10;
+      sendPhase = 2;
+    } else if (sendPhase == 2) {
       transmit_can_frame(&MG4_047_3B);
-      four_seven_counter = 0;
+      nextMillis = currentMillis + 2;
+      sendPhase = 0;
     }
-  }
-
-  // Every 200ms
-  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
-    previousMillis200 = currentMillis;
-
-    transmit_can_frame(&MG4_4F3);
   }
 
   //transmit_uds_can(currentMillis);
