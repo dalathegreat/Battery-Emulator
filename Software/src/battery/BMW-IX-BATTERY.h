@@ -68,12 +68,20 @@ class BmwIXBattery : public CanBattery {
   bool startup_reset_complete = false;  // Track if startup BMS reset is done
   unsigned long startup_time = 0;       // Track startup time for delayed reset
   BmwIXHtmlRenderer renderer;
-  static const int MAX_PACK_VOLTAGE_78S_DV = 3354;  //SE12 battery, BMW iX1, 66.45kWh 286.3vNom
-  static const int MIN_PACK_VOLTAGE_78S_DV = 2200;
-  static const int MAX_PACK_VOLTAGE_96S_DV = 4128;
-  static const int MIN_PACK_VOLTAGE_96S_DV = 2688;
-  static const int MAX_PACK_VOLTAGE_108S_DV = 4650;
-  static const int MIN_PACK_VOLTAGE_108S_DV = 3000;
+  static const int MAX_PACK_VOLTAGE_78S_DV = 3354;   // 4.3V per cell | SE12 battery, BMW iX1, 66.45kWh 286.3Vnom
+  static const int MIN_PACK_VOLTAGE_78S_DV = 2184;   // 2.8V per cell
+  static const int MAX_PACK_VOLTAGE_90S_DV = 3870;   // 4.3V per cell | SE11 | SE 50
+  static const int MIN_PACK_VOLTAGE_90S_DV = 2520;   // 2.8V per cell
+  static const int MAX_PACK_VOLTAGE_94S_DV = 4042;   // 4.3V per cell | SE16
+  static const int MIN_PACK_VOLTAGE_94S_DV = 2632;   // 2.8V per cell
+  static const int MAX_PACK_VOLTAGE_96S_DV = 4128;   // 4.3V per cell | SE26
+  static const int MIN_PACK_VOLTAGE_96S_DV = 2688;   // 2.8V per cell
+  static const int MAX_PACK_VOLTAGE_100S_DV = 4300;  // 4.3V per cell | SE10
+  static const int MIN_PACK_VOLTAGE_100S_DV = 2800;  // 2.8V per cell
+  static const int MAX_PACK_VOLTAGE_102S_DV = 4386;  // 4.3V per cell | SE30
+  static const int MIN_PACK_VOLTAGE_102S_DV = 2856;  // 2.8V per cell
+  static const int MAX_PACK_VOLTAGE_108S_DV = 4644;  // 4.3V per cell | SE27
+  static const int MIN_PACK_VOLTAGE_108S_DV = 3024;  // 2.8V per cell
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4300;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2800;  //Battery is put into emergency stop if one cell goes below this value
