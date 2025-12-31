@@ -173,8 +173,7 @@ void BydAttoBattery::
     datalayer_battery->status.voltage_dV = BMS_voltage * 10;  //Polled value
   } else if (battery_voltage > 0) {
     datalayer_battery->status.voltage_dV = battery_voltage * 10;  //Value from periodic CAN data
-    if (battery_voltage > 0 && BMS_voltage =
-            0) {  // if OBD2 polling not working & periodic from can is, then assume dolphin MINI
+    if (battery_voltage > 0) && (BMS_voltage == 0) {  // if OBD2 polling not working & periodic from can is, then assume dolphin MINI
       battery_type = MINI_RANGE;
       frame6_counter = 0xFF;
       frame7_counter = 0x99;
@@ -547,7 +546,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         *allows_contactor_closing = false;
       }
     }
-    if (battery_type = EXTENDED_RANGE) || BATTERY_TYPE = STANDARD_RANGE){
+    if (battery_type == EXTENDED_RANGE) || (BATTERY_TYPE == STANDARD_RANGE){
         counter_50ms++;
 
         if (counter_50ms > 23) {
@@ -608,14 +607,13 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         ATTO_3_441.data.u8[5] = ((battery_voltage - 1) >> 8);
         ATTO_3_441.data.u8[6] = 0xFF;
         ATTO_3_441.data.u8[7] = compute441Checksum(ATTO_3_441.data.u8);
-      } else if (BMS_voltage_available && battery_voltage > 0 && BMS_voltage = 0)){ // no obd2 for byd dolphin mini
+      } else if (BMS_voltage_available) && (battery_voltage > 0) && (BMS_voltage == 0)){ // no obd2 for byd dolphin mini
           ATTO_3_441.data.u8[0] = 0x98;  //bytes [0] thru [4] taken from dolphin mini log
           ATTO_3_441.data.u8[1] = 0x3A;
           ATTO_3_441.data.u8[2] = 0x88;
           ATTO_3_441.data.u8[3] = 0x13;
-          ATTO_3_441.data.u8[4] =
-              (uint8_t)((battery_voltage * 10) >> 8);  // bytes [4] & [5] are in decivolts on the dolphin mini
-          ATTO_3_441.data.u8[5] = (uint8_t)(((battery_voltage - 1) * 10) && 0xFF);
+          ATTO_3_441.data.u8[4] = (uint8_t)((battery_voltage * 10) >> 8);  // bytes [4] & [5] are in decivolts on the dolphin mini
+          ATTO_3_441.data.u8[5] = (uint8_t)(((battery_voltage * 10) && 0xFF);
           ATTO_3_441.data.u8[6] = 0xFF;
           ATTO_3_441.data.u8[7] = compute441Checksum(ATTO_3_441.data.u8);
         }
