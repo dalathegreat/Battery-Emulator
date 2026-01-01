@@ -589,21 +589,20 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     previousMillis200 = currentMillis;
-    
-  uptime_ticks++;
- 
-    if (uds_reset == true){    // initially enabled
-      if (uptime_ticks > 50){  // bms running for 10s min, ensure contactors closed etc
-        if (BMS_lowest_cell_voltage_mV > 3599){ // if minimum cell voltage >=3.6v
-      uds_reset = false;       // reset to false, wait 12hrs       
-     transmit_can_frame(&ATTO_3_RESET);
+
+    uptime_ticks++;
+
+    if (uds_reset == true) {                      // initially enabled
+      if (uptime_ticks > 50) {                    // bms running for 10s min, ensure contactors closed etc
+        if (BMS_lowest_cell_voltage_mV > 3599) {  // if minimum cell voltage >=3.6v
+          uds_reset = false;                      // reset to false, wait 12hrs
+          transmit_can_frame(&ATTO_3_RESET);
         }
       }
     }
-   
- 
-    if (uptime_ticks > 0x34bc0){  // 12hrs * 60min * 60s * 5 * 200millis = 216000u
-       uptime_ticks = 0;
+
+    if (uptime_ticks > 0x34bc0) {  // 12hrs * 60min * 60s * 5 * 200millis = 216000u
+      uptime_ticks = 0;
       uds_reset = true;  //enable uds_reset after 12hrs
     }
 
