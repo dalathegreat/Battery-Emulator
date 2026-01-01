@@ -173,6 +173,7 @@ SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, null
                                 {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr, nullptr},
                                 {"RESTART", "Restart Battery Emulator", nullptr, nullptr, nullptr, nullptr},
                                 {"STOP", "Open Contactors", nullptr, nullptr, nullptr, nullptr},
+                                {"TESLA_BMS_RESET", "Tesla BMS Reset", nullptr, nullptr, nullptr, nullptr},
                                 {"START_LFP_BALANCING", "Start LFP balancing", nullptr, nullptr, nullptr, nullptr},
                                 {"STOP_LFP_BALANCING", "Stop LFP balancing", nullptr, nullptr, nullptr, nullptr}};
 
@@ -630,6 +631,16 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   if (strcmp(topic, generateButtonTopic("STOP").c_str()) == 0) {
     setBatteryPause(true, false, true);
+  }
+
+  if (strcmp(topic, generateButtonTopic("TESLA_BMS_RESET").c_str()) == 0) {
+    if (user_selected_battery_type == BatteryType::TeslaModel3Y ||
+        user_selected_battery_type == BatteryType::TeslaModelSX) {
+      logging.println("MQTT: Tesla BMS reset requested");
+      datalayer.battery.settings.user_requests_tesla_bms_reset = true;
+    } else {
+      logging.println("MQTT: Tesla BMS reset ignored (non-Tesla battery selected)");
+    }
   }
 
   if (strcmp(topic, generateButtonTopic("START_LFP_BALANCING").c_str()) == 0) {
