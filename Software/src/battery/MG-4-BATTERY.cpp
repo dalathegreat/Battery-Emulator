@@ -53,6 +53,12 @@ void Mg4Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
   }
 }
+
+const uint8_t FOURSEVEN_FIRST_BYTES[] = {
+    0x81, 0xDC, 0xB4, 0xE9, 0xE8, 0xB5, 0xDD, 0x0F, 0x53, 0x81, 0x66, 0xB4, 0x3A, 0x67, 0x0F,
+    0x81, 0x53, 0x3B, 0x66, 0xE8, 0xB5, 0xDD, 0x0F, 0x53, 0x0E, 0x66, 0xB4, 0x3A, 0xE8, 0x0F,
+};
+
 void Mg4Battery::transmit_can(unsigned long currentMillis) {
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     // Transmitting towards battery is halted while BMS is being reset
@@ -61,19 +67,23 @@ void Mg4Battery::transmit_can(unsigned long currentMillis) {
     return;
   }
 
-  // this won't roll around correctly!
-  if (currentMillis >= nextMillis) {
-    if (sendPhase == 0) {
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    previousMillis10 = currentMillis;
+
+    if (sendPhase == 3 || sendPhase == 13 || sendPhase == 23) {
       transmit_can_frame(&MG4_4F3);
-      //   nextMillis = currentMillis + 1;
-      //   sendPhase = 1;
-      // } else if (sendPhase == 1) {
-      transmit_can_frame(&MG4_047_E9);
-      nextMillis = currentMillis + 10;
-      sendPhase = 2;
-    } else if (sendPhase == 2) {
-      transmit_can_frame(&MG4_047_3B);
-      nextMillis = currentMillis + 2;
+    }
+
+    MG4_047.data.u8[0] = FOURSEVEN_FIRST_BYTES[sendPhase];
+    if (sendPhase >= 0xf) {
+      MG4_047.data.u8[1] = sendPhase - 0xf;
+    } else {
+      MG4_047.data.u8[1] = sendPhase;
+    }
+    transmit_can_frame(&MG4_047);
+
+    sendPhase++;
+    if (sendPhase >= 30) {
       sendPhase = 0;
     }
   }
