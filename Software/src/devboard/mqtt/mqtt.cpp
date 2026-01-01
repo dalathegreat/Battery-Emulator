@@ -7,6 +7,7 @@
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
+#include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
@@ -138,7 +139,9 @@ SensorConfig batterySensorConfigTemplate[] = {
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
                                              {"pause_status", "Pause Status", "", "", "", always},
                                              {"event_level", "Event Level", "", "", "", always},
-                                             {"emulator_status", "Emulator Status", "", "", "", always}};
+                                             {"emulator_status", "Emulator Status", "", "", "", always},
+                                             {"negative_contactor", "Negative Contactor", "", "", "", always},
+                                             {"positive_contactor", "Positive Contactor", "", "", "", always}};
 
 static std::list<SensorConfig> sensorConfigs;
 
@@ -226,6 +229,27 @@ static const char* get_balancing_status_text(balancing_status_enum status) {
       return "Ready";
     case BALANCING_STATUS_ACTIVE:
       return "Active";
+    default:
+      return "Unknown";
+  }
+}
+
+static const char* get_tesla_contactor_state(uint8_t index) {
+  switch (index) {
+    case 1:
+      return "OPEN";
+    case 2:
+      return "PRECHARGE";
+    case 3:
+      return "BLOCKED";
+    case 4:
+      return "PULLED_IN";
+    case 5:
+      return "OPENING";
+    case 6:
+      return "ECONOMIZED";
+    case 7:
+      return "WELDED";
     default:
       return "Unknown";
   }
@@ -329,6 +353,15 @@ static bool publish_common_info(void) {
 
     doc["event_level"] = get_event_level_string(get_event_level());
     doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
+    const char* negative_contactor_state = "Unknown";
+    const char* positive_contactor_state = "Unknown";
+    if (user_selected_battery_type == BatteryType::TeslaModel3Y ||
+        user_selected_battery_type == BatteryType::TeslaModelSX) {
+      negative_contactor_state = get_tesla_contactor_state(datalayer_extended.tesla.packContNegativeState);
+      positive_contactor_state = get_tesla_contactor_state(datalayer_extended.tesla.packContPositiveState);
+    }
+    doc["negative_contactor"] = negative_contactor_state;
+    doc["positive_contactor"] = positive_contactor_state;
 
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
