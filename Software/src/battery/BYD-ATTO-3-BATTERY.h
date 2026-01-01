@@ -141,11 +141,11 @@ class BydAttoBattery : public CanBattery {
   int16_t battery_daughterboard_temperatures[10];
   uint16_t battery_cellvoltages[CELLCOUNT_EXTENDED] = {0};
 
- CAN_frame ATTO_3_RESET = {.FD = false,
-                          .ext_ID = false,
-                          .DLC = 8,
-                          .ID = 0x7E7,
-                          .data = {0x02, 0x11, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ATTO_3_RESET = {.FD = false,
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = 0x7E7,
+                            .data = {0x02, 0x11, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame ATTO_3_12D = {.FD = false,
                           .ext_ID = false,
                           .DLC = 8,
