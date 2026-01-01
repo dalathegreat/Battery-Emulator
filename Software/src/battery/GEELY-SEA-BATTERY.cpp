@@ -1,4 +1,4 @@
-#include "VOLVO-SEA2-BATTERY.h"
+#include "GEELY-SEA-BATTERY.h"
 #include <cstring>  //For unit test
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
@@ -7,7 +7,7 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
-void VolvoSea2Battery::
+void GeelySeaBattery::
 
     update_values() {  //This function maps all the values fetched via CAN to the correct paramete,rs used for the inverter
 
@@ -37,17 +37,21 @@ void VolvoSea2Battery::
   datalayer.battery.status.max_charge_power_W;
   */
 
-  if (datalayer.battery.info.chemistry == LFP) {  //If user configured LFP in use (or we autodetected it), switch to it
-    datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_LFP_WH;
+  if (datalayer.battery.info.chemistry == LFP) {  //If configured LFP in use (or we autodetected it), switch to it
+    datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_LFP_WH;  //EX30 51kWh LFP battery
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP_120S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP_120S_DV;
-    //datalayer.battery.info.number_of_cells = 120;
   } else if (datalayer.battery.info.chemistry ==
-             NMC) {  //If user configured NCM in use (or we autodetected it), switch to it
-    datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_NCM_WH;
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_NCM_110S_DV;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_NCM_110S_DV;
-    //datalayer.battery.info.number_of_cells = 110;
+             NMC) {  //If configured NCM in use (or we autodetected it), switch to it
+    if (datalayer.battery.info.number_of_cells == 107) {  //EX30 69kWh battery
+      datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_NCM_107S_WH;
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_NCM_107S_DV;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_NCM_107S_DV;
+    } else if (datalayer.battery.info.number_of_cells == 110) {  //Zeekr 100kWh battery
+      datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_NCM_110S_WH;
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_NCM_110S_DV;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_NCM_110S_DV;
+    }
   }
 
   /* Check safeties */
@@ -60,7 +64,7 @@ void VolvoSea2Battery::
   }
 }
 
-void VolvoSea2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
+void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x53:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -214,42 +218,42 @@ void VolvoSea2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           (rx_frame.data.u8[3] == 0x02))  // BECM module voltage supply
       {
         datalayer_extended.GeelySEA.BECMsupplyVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-        transmit_can_frame(&SEA2_HV_Voltage_Req);
+        transmit_can_frame(&SEA_HV_Voltage_Req);
       } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x48) &&
                  (rx_frame.data.u8[3] == 0x03))  // High voltage battery voltage response frame
       {
         datalayer_extended.GeelySEA.BECMBatteryVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-        transmit_can_frame(&SEA2_SOC_Req);
+        transmit_can_frame(&SEA_SOC_Req);
       } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x48) &&
                  (rx_frame.data.u8[3] == 0x01))  // SOC response frame
       {
         datalayer_extended.GeelySEA.soc_bms = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-        transmit_can_frame(&SEA2_SOH_Req);
+        transmit_can_frame(&SEA_SOH_Req);
       } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x48) &&
                  (rx_frame.data.u8[3] == 0x9A))  // SOH response frame
       {
         datalayer_extended.GeelySEA.soh_bms = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-        transmit_can_frame(&SEA2_HighestCellTemp_Req);
+        transmit_can_frame(&SEA_HighestCellTemp_Req);
       } else if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
                  (rx_frame.data.u8[3] == 0x45))  // Highest cell temp response frame
       {
         datalayer_extended.GeelySEA.CellTempHighest = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
-        transmit_can_frame(&SEA2_LowestCellTemp_Req);
+        transmit_can_frame(&SEA_LowestCellTemp_Req);
       } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
                  (rx_frame.data.u8[3] == 0x1B))  // Lowest cell temp response frame
       {
         datalayer_extended.GeelySEA.CellTempAverage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-        transmit_can_frame(&SEA2_Interlock_Req);
+        transmit_can_frame(&SEA_Interlock_Req);
       } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
                  (rx_frame.data.u8[3] == 0x1A))  // Interlock response frame
       {
         datalayer_extended.GeelySEA.Interlock = (rx_frame.data.u8[4]);
-        transmit_can_frame(&SEA2_HighestCellVolt_Req);
+        transmit_can_frame(&SEA_HighestCellVolt_Req);
       } else if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
                  (rx_frame.data.u8[3] == 0x07))  // Highest cell volt response frame
       {
         datalayer_extended.GeelySEA.CellVoltHighest = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
-        transmit_can_frame(&SEA2_LowestCellVolt_Req);
+        transmit_can_frame(&SEA_LowestCellVolt_Req);
       } else if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
                  (rx_frame.data.u8[3] == 0x08))  // Lowest cell volt response frame
       {
@@ -262,17 +266,17 @@ void VolvoSea2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 
-void VolvoSea2Battery::readDiagData() {
-  transmit_can_frame(&SEA2_BECMsupplyVoltage_Req);
+void GeelySeaBattery::readDiagData() {
+  transmit_can_frame(&SEA_BECMsupplyVoltage_Req);
 }
 
-void VolvoSea2Battery::transmit_can(unsigned long currentMillis) {
+void GeelySeaBattery::transmit_can(unsigned long currentMillis) {
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    transmit_can_frame(&SEA2_536);  //Send 0x536 Network managing frame to keep BMS alive
-    //transmit_can_frame(&SEA2_372);  //Send 0x372 ECMAmbientTempCalculated
+    transmit_can_frame(&SEA_536);  //Send 0x536 Network managing frame to keep BMS alive
+    //transmit_can_frame(&SEA_372);  //Send 0x372 ECMAmbientTempCalculated
   }
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
@@ -281,10 +285,10 @@ void VolvoSea2Battery::transmit_can(unsigned long currentMillis) {
   }
 }
 
-void VolvoSea2Battery::setup(void) {  // Performs one time setup at startup
+void GeelySeaBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_NCM_WH;               //Startout in NCM mode
+  datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_NCM_110S_WH;          //Startout in NCM mode
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_NCM_110S_DV;  //Startout with max allowed range
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_NCM_110S_DV;  //Startout with min allowed range
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;

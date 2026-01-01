@@ -28,6 +28,7 @@ void setup_shunt();
 #include "FORD-MACH-E-BATTERY.h"
 #include "FOXESS-BATTERY.h"
 #include "GEELY-GEOMETRY-C-BATTERY.h"
+#include "GEELY-SEA-BATTERY.h"
 #include "HYUNDAI-IONIQ-28-BATTERY.h"
 #include "IMIEV-CZERO-ION-BATTERY.h"
 #include "JAGUAR-IPACE-BATTERY.h"
@@ -57,7 +58,6 @@ void setup_shunt();
 #include "TESLA-BATTERY.h"
 #include "TEST-FAKE-BATTERY.h"
 #include "THINK-BATTERY.h"
-#include "VOLVO-SEA2-BATTERY.h"
 #include "VOLVO-SPA-BATTERY.h"
 #include "VOLVO-SPA-HYBRID-BATTERY.h"
 

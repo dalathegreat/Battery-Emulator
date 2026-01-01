@@ -1,5 +1,5 @@
-#ifndef _VOLVO_SEA2_BATTERY_H
-#define _VOLVO_SEA2_BATTERY_H
+#ifndef _GEELY_SEA_HTML_H
+#define _GEELY_SEA_HTML_H
 
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
