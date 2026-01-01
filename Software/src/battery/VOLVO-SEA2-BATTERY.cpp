@@ -285,8 +285,8 @@ void VolvoSea2Battery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_NCM_WH;               //Startout in NCM mode
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_NCM_107S_DV;  //Startout with max allowed range
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_NCM_107S_DV;  //Startout with min allowed range
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_NCM_110S_DV;  //Startout with max allowed range
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_NCM_110S_DV;  //Startout with min allowed range
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
