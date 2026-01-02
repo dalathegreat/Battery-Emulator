@@ -97,10 +97,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x07b:  //10ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_current = (((rx_frame.data.u8[0] & 0x7F) << 8) | rx_frame.data.u8[1]);
-      if ((rx_frame.data.u8[0] & 0x80) >> 7) {
-        battery_current = battery_current * -1;
-      }
+      battery_current = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       break;
     case 0x073:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
