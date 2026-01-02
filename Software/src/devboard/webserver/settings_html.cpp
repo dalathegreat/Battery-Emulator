@@ -1427,7 +1427,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
 
         )rawliteral" GPIOOPT1_SETTING R"rawliteral(
-
+        )rawliteral" GPIOOPT2_SETTING R"rawliteral(
+          
         </div>
         </div>
 
