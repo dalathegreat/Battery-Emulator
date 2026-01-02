@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <atomic>
 #include "HardwareSerial.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
@@ -41,6 +42,8 @@ const char* version_number = "9.4.dev";
 volatile unsigned long currentMillis = 0;
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
+// MQTT watchdog timer
+std::atomic<unsigned long> previousMqttLoopMillis = 0;
 // Task time measurement for debugging
 MyTimer core_task_timer_10s(INTERVAL_10_S);
 uint64_t start_time_10ms = 0;
@@ -104,6 +107,12 @@ void connectivity_loop(void*) {
     ota_monitor();
 
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
+
+    // Check whether MQTT task has run within the last 60 seconds
+    if (mqtt_enabled && previousMqttLoopMillis.load() != 0 && (millis() - previousMqttLoopMillis.load()) > 60000) {
+      logging.println("MQTT task watchdog reset triggered!");
+      esp_system_abort("MQTT task watchdog reset triggered!");
+    }
 
     esp_task_wdt_reset();  // Reset watchdog
     delay(1);
@@ -561,14 +570,15 @@ void core_loop(void*) {
 }
 
 void mqtt_loop(void*) {
-  esp_task_wdt_add(NULL);  // Register this task with WDT
-
   while (true) {
+    // Record when we last ran, which will enable (and reset) the watchdog behaviour
+    unsigned long now = millis();
+    previousMqttLoopMillis = now > 0 ? now : 1;  // Avoid setting to 0
+
     START_TIME_MEASUREMENT(mqtt);
     mqtt_client_loop();
     END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
-    esp_task_wdt_reset();  // Reset watchdog
-    delay(1);
+    delay(100);
   }
 }
 
