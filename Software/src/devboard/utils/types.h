@@ -121,7 +121,15 @@ enum class GPIOOPT1 {
   ESTOP_BMS_POWER = 2,
   Highest
 };
+enum class GPIOOPT2 {
+  // T-CAN485: Default, BMS power on PIN18
+  DEFAULT_OPT_BMS_POWER_18 = 0,
+  // T-CAN485: Default, BMS power on PIN25
+  BMS_POWER_25 = 1,
+  Highest
+};
 
 extern GPIOOPT1 user_selected_gpioopt1;
+extern GPIOOPT2 user_selected_gpioopt2;
 
 #endif

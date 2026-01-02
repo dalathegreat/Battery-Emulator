@@ -137,6 +137,16 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
       return nullptr;
   }
 }
+const char* name_for_gpioopt2(GPIOOPT2 option) {
+  switch (option) {
+    case GPIOOPT2::DEFAULT_OPT_BMS_POWER_18:
+      return "Pin 18";
+    case GPIOOPT2::BMS_POWER_25:
+      return "Pin 25";
+    default:
+      return nullptr;
+  }
+}
 
 // Special unicode characters
 const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
@@ -228,6 +238,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "GPIOOPT1") {
     return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
+  }
+
+  if (var == "GPIOOPT2") {
+    return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
+                                      name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
   }
 
   // All other values are wrapped by html_escape to avoid HTML injection.
@@ -816,6 +831,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define GPIOOPT1_SETTING ""
 #endif
 
+#ifdef HW_LILYGO
+#define GPIOOPT2_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT2">BMS Power pin:</label>
+    <select id="GPIOOPT2" name="GPIOOPT2">
+      %GPIOOPT2%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT2_SETTING ""
+#endif
+
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
     <script>
@@ -1400,7 +1427,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
 
         )rawliteral" GPIOOPT1_SETTING R"rawliteral(
-
+        )rawliteral" GPIOOPT2_SETTING R"rawliteral(
+          
         </div>
         </div>
 
