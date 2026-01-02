@@ -54,10 +54,10 @@ void SmaBydHvsInverter::
   SMA_4D8.data.u8[4] = (temperature_average >> 8);
   SMA_4D8.data.u8[5] = (temperature_average & 0x00FF);
   //Battery ready
-  if (datalayer.battery.status.bms_status == ACTIVE) {
-    SMA_4D8.data.u8[6] = READY_STATE;
-  } else {
+  if (datalayer.battery.status.bms_status == FAULT) {
     SMA_4D8.data.u8[6] = STOP_STATE;
+  } else {
+    SMA_4D8.data.u8[6] = READY_STATE;
   }
 
   //Highest battery temperature
