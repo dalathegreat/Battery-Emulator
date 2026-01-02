@@ -178,7 +178,7 @@ void RegisterCanLogTests() {
   //     cuv:  test that normal and critical cell undervoltage events are triggered
   //     cv88: test that cell 88 (or another) voltage is correctly set (to 3123mV)
 
-std::string directoryPath = TEST_CAN_LOG_DIR;
+  std::string directoryPath = TEST_CAN_LOG_DIR;
 
   for (const auto& entry : fs::directory_iterator(directoryPath)) {
     if (!entry.is_regular_file() || entry.path().extension().string() != ".txt") {
