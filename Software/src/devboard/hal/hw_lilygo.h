@@ -3,6 +3,8 @@
 
 #include "hal.h"
 
+#include "../utils/types.h"
+
 class LilyGoHal : public Esp32Hal {
  public:
   const char* name() { return "LilyGo T-CAN485"; }
