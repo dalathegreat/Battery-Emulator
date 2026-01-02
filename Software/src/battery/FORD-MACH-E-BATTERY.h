@@ -1,10 +1,18 @@
 #ifndef FORD_MACH_E_BATTERY_H
 #define FORD_MACH_E_BATTERY_H
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
 
 class FordMachEBattery : public CanBattery {
  public:
+  // Use this constructor for the second battery.
+  FordMachEBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
+    datalayer_battery = datalayer_ptr;
+    battery_voltage = 0;
+  }
+  // Use the default constructor to create the first or single battery.
+  FordMachEBattery() { datalayer_battery = &datalayer.battery; }
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -12,6 +20,7 @@ class FordMachEBattery : public CanBattery {
   static constexpr const char* Name = "Ford Mustang Mach-E battery";
 
  private:
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
   static const int MAX_PACK_VOLTAGE_96S_DV = 4140;
   static const int MIN_PACK_VOLTAGE_96S_DV = 2680;
   static const int MAX_PACK_VOLTAGE_94S_DV = 4072;

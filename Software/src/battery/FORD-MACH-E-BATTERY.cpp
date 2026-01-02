@@ -6,56 +6,56 @@
 
 void FordMachEBattery::update_values() {
 
-  datalayer.battery.status.real_soc = battery_soc;
+  datalayer_battery->status.real_soc = battery_soc;
 
-  //datalayer.battery.status.soh_pptt; //TODO: Locate
+  //datalayer_battery->status.soh_pptt; //TODO: Locate
 
-  datalayer.battery.status.voltage_dV = battery_voltage * 10;
+  datalayer_battery->status.voltage_dV = battery_voltage * 10;
 
-  datalayer.battery.status.current_dA = battery_current * 2;
+  datalayer_battery->status.current_dA = -(battery_current * 2);
 
-  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W =
-      datalayer.battery.status.override_discharge_power_W;  //TODO, fix when v alue is found
+  datalayer_battery->status.max_discharge_power_W =
+      datalayer_battery->status.override_discharge_power_W;  //TODO, fix when v alue is found
 
   //We have not found allowed charge power yet. Estimate it for now absed on UI setting. TODO. remove this once found
   if (battery_soc > 9900) {
-    datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
+    datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
   } else if ((battery_soc / 10) >
              RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
-    datalayer.battery.status.max_charge_power_W =
+    datalayer_battery->status.max_charge_power_W =
         RAMPDOWNPOWERALLOWED * (1 - ((battery_soc / 10) - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
     //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
     if (maximum_cellvoltage_mV > (MAX_CELL_VOLTAGE_MV - FLOAT_START_MV)) {
-      datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
+      datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
     }
   } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
+    datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
   }
 
-  maximum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
-  minimum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
+  maximum_cellvoltage_mV = datalayer_battery->status.cell_voltages_mV[0];
+  minimum_cellvoltage_mV = datalayer_battery->status.cell_voltages_mV[0];
 
   // Loop through the array to find min and max cellvoltages, ignoring 0 values
-  for (uint8_t i = 0; i < datalayer.battery.info.number_of_cells; i++) {
-    if (datalayer.battery.status.cell_voltages_mV[i] > 1000) {  // Ignore unavailable values
-      if (datalayer.battery.status.cell_voltages_mV[i] < minimum_cellvoltage_mV) {
-        minimum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[i];
+  for (uint8_t i = 0; i < datalayer_battery->info.number_of_cells; i++) {
+    if (datalayer_battery->status.cell_voltages_mV[i] > 1000) {  // Ignore unavailable values
+      if (datalayer_battery->status.cell_voltages_mV[i] < minimum_cellvoltage_mV) {
+        minimum_cellvoltage_mV = datalayer_battery->status.cell_voltages_mV[i];
       }
-      if (datalayer.battery.status.cell_voltages_mV[i] > maximum_cellvoltage_mV) {
-        maximum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[i];
+      if (datalayer_battery->status.cell_voltages_mV[i] > maximum_cellvoltage_mV) {
+        maximum_cellvoltage_mV = datalayer_battery->status.cell_voltages_mV[i];
       }
     }
   }
 
   if (maximum_cellvoltage_mV > 0) {
-    datalayer.battery.status.cell_max_voltage_mV = maximum_cellvoltage_mV;
+    datalayer_battery->status.cell_max_voltage_mV = maximum_cellvoltage_mV;
   }
 
   if (minimum_cellvoltage_mV > 0) {
-    datalayer.battery.status.cell_min_voltage_mV = minimum_cellvoltage_mV;
+    datalayer_battery->status.cell_min_voltage_mV = minimum_cellvoltage_mV;
   }
 
   // Initialize highest and lowest to the first element
@@ -71,16 +71,16 @@ void FordMachEBattery::update_values() {
       minimum_temperature = cell_temperature[i];
     }
   }
-  datalayer.battery.status.temperature_min_dC = minimum_temperature * 10;
+  datalayer_battery->status.temperature_min_dC = minimum_temperature * 10;
 
-  datalayer.battery.status.temperature_max_dC = maximum_temperature * 10;
+  datalayer_battery->status.temperature_max_dC = maximum_temperature * 10;
 
-  if (datalayer.battery.info.number_of_cells == 94) {
-    datalayer.battery.info.total_capacity_Wh = 98000;
+  if (datalayer_battery->info.number_of_cells == 94) {
+    datalayer_battery->info.total_capacity_Wh = 98000;
   }
 
-  if (datalayer.battery.info.number_of_cells == 96) {
-    datalayer.battery.info.total_capacity_Wh = 88000;
+  if (datalayer_battery->info.number_of_cells == 96) {
+    datalayer_battery->info.total_capacity_Wh = 88000;
   }
 
   // Check vehicle specific safeties
@@ -92,46 +92,43 @@ void FordMachEBattery::update_values() {
 void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //These frames are transmitted by the battery
     case 0x07a:           //10ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_voltage = (((rx_frame.data.u8[2] & 0x03) << 8) | rx_frame.data.u8[3]) / 2;
       break;
     case 0x07b:  //10ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_current = (((rx_frame.data.u8[0] & 0x7F) << 8) | rx_frame.data.u8[1]);
-      if ((rx_frame.data.u8[0] & 0x80) >> 7) {
-        battery_current = battery_current * -1;
-      }
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_current = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       break;
     case 0x073:  //1s
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x24b:  //100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x24c:  //100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_soc = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
       break;
     case 0x24d:  //100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x24e:  //1s
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x24f:  //1s
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x2e4:  //100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x444:  //1s
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x458:  //1s
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x47d:  //1s
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_soh = rx_frame.data.u8[1];  //Not correct!
       break;
     case 0x490:  //1s Cellvoltages
@@ -153,7 +150,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x4a0:
     case 0x4a1:
     case 0x4a2: {
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
       const uint8_t start_index = (rx_frame.ID - 0x490) * 5;
 
@@ -173,18 +170,18 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           voltage = (rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[7] >> 4);
         }
 
-        datalayer.battery.status.cell_voltages_mV[start_index + i] = voltage + 1000;
+        datalayer_battery->status.cell_voltages_mV[start_index + i] = voltage + 1000;
       }
       break;
     }
     case 0x4a3:  //1s
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if ((rx_frame.data.u8[0] == 0xFF) && (rx_frame.data.u8[1] == 0xE0)) {
-        datalayer.battery.info.number_of_cells = 94;
+        datalayer_battery->info.number_of_cells = 94;
       } else {  //96S battery
-        datalayer.battery.status.cell_voltages_mV[95] =
+        datalayer_battery->status.cell_voltages_mV[95] =
             ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4)) + 1000;
-        datalayer.battery.info.number_of_cells = 96;
+        datalayer_battery->info.number_of_cells = 96;
       }
 
       //Celltemperatures
@@ -196,16 +193,16 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cell_temperature[5] = ((rx_frame.data.u8[2] - 40) / 2);
       break;
     case 0x4a4:  //1s
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x4a5:  //1s
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x4a7:  //1s
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x46f:  //100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EC:  //OBD2 diag reply from BMS (Replies to both 7DF and 7E4)
 
@@ -237,7 +234,7 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
 
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer_battery->status.bms_status == FAULT) {
       FORD_25B.data.u8[2] = 0x01;
     } else {
       FORD_25B.data.u8[2] = 0x09;
@@ -363,12 +360,12 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
 void FordMachEBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.total_capacity_Wh = 88000;  //Start in 88kWh mode, update later
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  datalayer.battery.info.max_design_voltage_dV =
+  datalayer_battery->info.total_capacity_Wh = 88000;  //Start in 88kWh mode, update later
+  datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer_battery->info.max_design_voltage_dV =
       MAX_PACK_VOLTAGE_96S_DV;  //Startup in extreme end of max voltage diff allowed
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94S_DV;
+  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94S_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
