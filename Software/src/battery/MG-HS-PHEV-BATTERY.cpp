@@ -137,6 +137,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
 
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x297:
       // Contains battery status in rx_frame.data.u8[1]
@@ -149,6 +150,12 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       if (rx_frame.data.u8[1] != previousState) {
         logging.printf("MG_HS_PHEV: Battery status changed to %d (%d)\n", rx_frame.data.u8[1], rx_frame.data.u8[0]);
+
+        if (resetProgress == WAITING_RESET_COMPLETE) {
+          // We were waiting for a reset to complete, now has!
+          logging.printf("MG_HS_PHEV: Reset complete.\n");
+          resetProgress = IDLE;
+        }
       }
 
       if (rx_frame.data.u8[1] == 0xf && previousState != 0xf) {
@@ -165,16 +172,16 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       } else if ((rx_frame.data.u8[0] == 0x02 || rx_frame.data.u8[0] == 0x06) && rx_frame.data.u8[1] == 0x01) {
         // A weird 'stuck' state where the battery won't reconnect
         datalayer.system.status.battery_allows_contactor_closing = false;
-        if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
+        if (resetProgress == IDLE) {
           logging.printf("MG_HS_PHEV: Stuck, resetting.\n");
-          start_bms_reset();
+          resetProgress = SENDING_DIAG;
         }
       } else if (rx_frame.data.u8[1] == 0xf) {
         // A fault state (likely isolation failure)
         datalayer.system.status.battery_allows_contactor_closing = false;
-        if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
+        if (resetProgress == IDLE) {
           logging.printf("MG_HS_PHEV: Fault, resetting.\n");
-          start_bms_reset();
+          resetProgress = SENDING_DIAG;
         }
       } else {
         datalayer.system.status.battery_allows_contactor_closing = true;
@@ -217,7 +224,6 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // soc2 is present in both CAN1 and CAN2 messages
       if (soc2 < 1022) {
         update_soc(soc2);
-        datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       }
 
       if ((((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) != 0) {
@@ -255,7 +261,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             // (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) * 2.5;
           } else if (rx_frame.data.u8[3] == 0x42 && rx_frame.data.u8[0] == 0x05) {
             // Battery voltage
-            datalayer.battery.status.voltage_dV = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) * 2.5;
+            // datalayer.battery.status.voltage_dV = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) * 2.5;
           } else if (rx_frame.data.u8[3] == 0x43 && rx_frame.data.u8[0] == 0x05) {
             // Battery current
             // we won't update this as it differs in rounding from the CAN1 version
@@ -265,7 +271,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             // rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);
           } else if (rx_frame.data.u8[3] == 0x46 && rx_frame.data.u8[0] == 0x05) {
             // The battery SoC, the same as soc1 in 3AC.
-            soc1 = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);
+            //soc1 = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);
             // We won't use since we're using soc2
           } else if (rx_frame.data.u8[3] == 0x47) {
             // BMS error code
@@ -341,28 +347,59 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_can_frame(&MG_HS_8A);
     transmit_can_frame(&MG_HS_1F1);
+
+    switch (resetProgress) {
+      case IDLE:
+        // Nothing to do
+        break;
+      case SENDING_DIAG:
+        // Enter diag mode
+        transmit_can_frame(&MG_HS_7E5_DIAG);
+        resetProgress = SENDING_RESET;
+        break;
+      case SENDING_RESET:
+        // Send reset command
+        transmit_can_frame(&MG_HS_7E5_RESET);
+        resetProgress = WAITING_RESET_COMPLETE;
+        resetTimeout = 0;
+        break;
+      case WAITING_RESET_COMPLETE:
+        resetTimeout++;
+        if (resetTimeout >= 50) {
+          // 5 second timeout expired
+          logging.printf("MG_HS_PHEV: Reset timeout expired.\n");
+          resetProgress = IDLE;
+        }
+        break;
+      default:
+        break;
+    }
   }
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     previousMillis200 = currentMillis;
 
     switch (transmitIndex) {
-      case 1:
+      case 0:
+        // We don't actually use this value currently
         MG_HS_7E5_POLL.data.u8[2] = (uint8_t)((POLL_BATTERY_VOLTAGE & 0xFF00) >> 8);
         MG_HS_7E5_POLL.data.u8[3] = (uint8_t)(POLL_BATTERY_VOLTAGE & 0x00FF);
         transmit_can_frame(&MG_HS_7E5_POLL);
         break;
-      case 2:
+      case 1:
         MG_HS_7E5_POLL.data.u8[2] = (uint8_t)((POLL_BATTERY_SOH & 0xFF00) >> 8);
         MG_HS_7E5_POLL.data.u8[3] = (uint8_t)(POLL_BATTERY_SOH & 0x00FF);
         transmit_can_frame(&MG_HS_7E5_POLL);
-        transmitIndex = 0;
         break;
       default:
         break;
     }
 
     transmitIndex++;  //Increment the message index
+    if (transmitIndex > 30) {
+      // Wrap after a while (we don't need to poll every tick)
+      transmitIndex = 0;
+    }
 
   }  //endif
 }
