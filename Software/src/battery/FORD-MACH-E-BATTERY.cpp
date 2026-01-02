@@ -12,7 +12,7 @@ void FordMachEBattery::update_values() {
 
   datalayer.battery.status.voltage_dV = battery_voltage * 10;
 
-  datalayer.battery.status.current_dA = battery_current * 2;
+  datalayer.battery.status.current_dA = -(battery_current * 2);
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
