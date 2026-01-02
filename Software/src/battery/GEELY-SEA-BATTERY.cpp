@@ -9,28 +9,32 @@
 
 void GeelySeaBattery::
 
-    update_values() {  //This function maps all the values fetched via CAN to the correct paramete,rs used for the inverter
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 
   /*if (datalayer_extended.GeelySEA.BECMBatteryVoltage > 0) {
     datalayer.battery.status.voltage_dV = datalayer_extended.GeelySEA.BECMBatteryVoltage / 10;  // We use the value from the CAN stream instead now
   }*/
 
   if (datalayer_extended.GeelySEA.soc_bms > 0) {
-    datalayer.battery.status.real_soc = datalayer_extended.GeelySEA.soc_bms / 5;
+    datalayer.battery.status.real_soc = datalayer_extended.GeelySEA.soc_bms;
   }
 
   if (datalayer_extended.GeelySEA.soh_bms > 0) {
     datalayer.battery.status.soh_pptt = datalayer_extended.GeelySEA.soh_bms;
   }
 
+  if (datalayer_extended.GeelySEA.CellTempHighest > 0) {
+    datalayer.battery.status.temperature_max_dC = ((datalayer_extended.GeelySEA.CellTempHighest / 100.0) - 50.0) * 10;
+  }
+
+  if (datalayer_extended.GeelySEA.CellTempLowest > 0) {
+    datalayer.battery.status.temperature_min_dC = ((datalayer_extended.GeelySEA.CellTempLowest / 100.0) - 50.0) * 10;
+  }
+
   /*
   datalayer.battery.status.current_dA;
 
   datalayer.battery.status.remaining_capacity_Wh;
-
-  datalayer.battery.status.temperature_min_dC;
-
-  datalayer.battery.status.temperature_max_dC;
 
   datalayer.battery.status.max_discharge_power_W;
 
@@ -217,47 +221,52 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0xEE) &&
           (rx_frame.data.u8[3] == 0x02))  // BECM module voltage supply
       {
-        datalayer_extended.GeelySEA.BECMsupplyVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+        datalayer_extended.GeelySEA.BECMsupplyVoltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         transmit_can_frame(&SEA_HV_Voltage_Req);
       } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x48) &&
                  (rx_frame.data.u8[3] == 0x03))  // High voltage battery voltage response frame
       {
-        datalayer_extended.GeelySEA.BECMBatteryVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+        datalayer_extended.GeelySEA.BECMBatteryVoltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         transmit_can_frame(&SEA_SOC_Req);
       } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x48) &&
                  (rx_frame.data.u8[3] == 0x01))  // SOC response frame
       {
-        datalayer_extended.GeelySEA.soc_bms = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+        datalayer_extended.GeelySEA.soc_bms = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 5;
         transmit_can_frame(&SEA_SOH_Req);
       } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x48) &&
                  (rx_frame.data.u8[3] == 0x9A))  // SOH response frame
       {
-        datalayer_extended.GeelySEA.soh_bms = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+        datalayer_extended.GeelySEA.soh_bms = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         transmit_can_frame(&SEA_HighestCellTemp_Req);
       } else if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
                  (rx_frame.data.u8[3] == 0x45))  // Highest cell temp response frame
       {
-        datalayer_extended.GeelySEA.CellTempHighest = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
-        transmit_can_frame(&SEA_LowestCellTemp_Req);
+        datalayer_extended.GeelySEA.CellTempHighest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+        transmit_can_frame(&SEA_AverageCellTemp_Req);
       } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
-                 (rx_frame.data.u8[3] == 0x1B))  // Lowest cell temp response frame
+                 (rx_frame.data.u8[3] == 0x1B))  // Average cell temp response frame
       {
-        datalayer_extended.GeelySEA.CellTempAverage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+        datalayer_extended.GeelySEA.CellTempAverage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+        transmit_can_frame(&SEA_LowestCellTemp_Req);
+      } else if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
+                 (rx_frame.data.u8[3] == 0xA1))  // Lowest cell temp response frame
+      {
+        datalayer_extended.GeelySEA.CellTempLowest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
         transmit_can_frame(&SEA_Interlock_Req);
       } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
                  (rx_frame.data.u8[3] == 0x1A))  // Interlock response frame
       {
-        datalayer_extended.GeelySEA.Interlock = (rx_frame.data.u8[4]);
+        datalayer_extended.GeelySEA.Interlock = rx_frame.data.u8[4];
         transmit_can_frame(&SEA_HighestCellVolt_Req);
       } else if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
                  (rx_frame.data.u8[3] == 0x07))  // Highest cell volt response frame
       {
-        datalayer_extended.GeelySEA.CellVoltHighest = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+        datalayer_extended.GeelySEA.CellVoltHighest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
         transmit_can_frame(&SEA_LowestCellVolt_Req);
       } else if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
                  (rx_frame.data.u8[3] == 0x08))  // Lowest cell volt response frame
       {
-        datalayer_extended.GeelySEA.CellVoltLowest = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+        datalayer_extended.GeelySEA.CellVoltLowest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
       }
 
       break;

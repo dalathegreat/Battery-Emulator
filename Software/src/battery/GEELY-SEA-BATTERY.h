@@ -88,12 +88,19 @@ class GeelySeaBattery : public CanBattery {
       .ID = 0x735,
       .data = {0x03, 0x22, 0x49, 0x45, 0x00, 0x00, 0x00, 0x00}};  //Highest cell temp request frame
 
-  CAN_frame SEA_LowestCellTemp_Req = {
+  CAN_frame SEA_AverageCellTemp_Req = {
       .FD = false,
       .ext_ID = false,
       .DLC = 8,
       .ID = 0x735,
       .data = {0x03, 0x22, 0x49, 0x1B, 0x00, 0x00, 0x00, 0x00}};  //Average cell temp request frame
+
+  CAN_frame SEA_LowestCellTemp_Req = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x735,
+      .data = {0x03, 0x22, 0x49, 0xA1, 0x00, 0x00, 0x00, 0x00}};  //Lowest cell temp request frame
 
   CAN_frame SEA_Interlock_Req = {
       .FD = false,
