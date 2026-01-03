@@ -1,4 +1,4 @@
-#include "SMA-TRIPOWER-CAN.h"
+#include "SMA-BYD-HVS-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -11,7 +11,7 @@
 - Figure out how to send the non-cyclic messages when needed
 */
 
-void SmaTripowerInverter::
+void SmaBydHvsInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the inverter CAN
   // Update values
   temperature_average =
@@ -102,7 +102,7 @@ void SmaTripowerInverter::
   }
 }
 
-void SmaTripowerInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
+void SmaBydHvsInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x360:  //Message originating from SMA inverter - Voltage and current
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -144,7 +144,7 @@ void SmaTripowerInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   }
 }
 
-void SmaTripowerInverter::pushFrame(CAN_frame* frame, std::function<void(void)> callback) {
+void SmaBydHvsInverter::pushFrame(CAN_frame* frame, std::function<void(void)> callback) {
   if (listLength >= 20) {
     return;  //TODO: scream.
   }
@@ -155,7 +155,7 @@ void SmaTripowerInverter::pushFrame(CAN_frame* frame, std::function<void(void)> 
   listLength++;
 }
 
-void SmaTripowerInverter::transmit_can(unsigned long currentMillis) {
+void SmaBydHvsInverter::transmit_can(unsigned long currentMillis) {
 
   // Send CAN Message only if we're enabled by inverter
   if (!datalayer.system.status.inverter_allows_contactor_closing) {
@@ -197,11 +197,11 @@ void SmaTripowerInverter::transmit_can(unsigned long currentMillis) {
   }
 }
 
-void SmaTripowerInverter::completePairing() {
+void SmaBydHvsInverter::completePairing() {
   pairing_completed = true;
 }
 
-void SmaTripowerInverter::transmit_can_init() {
+void SmaBydHvsInverter::transmit_can_init() {
   listLength = 0;  // clear all frames
 
   pushFrame(&SMA_558);    //Pairing start - Vendor

@@ -1,4 +1,4 @@
-#include "SMA-BYD-HVS-CAN.h"
+#include "SMA-BYD-H-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -7,7 +7,7 @@
 
 /* Do not change code below unless you are sure what you are doing */
 
-void SmaBydHvsInverter::
+void SmaBydHInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the inverter CAN
   // Update values
   temperature_average =
@@ -155,7 +155,7 @@ void SmaBydHvsInverter::
 */
 }
 
-void SmaBydHvsInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
+void SmaBydHInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x360:  //Message originating from SMA inverter - Voltage and current
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -253,7 +253,7 @@ void SmaBydHvsInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   }
 }
 
-void SmaBydHvsInverter::transmit_can(unsigned long currentMillis) {
+void SmaBydHInverter::transmit_can(unsigned long currentMillis) {
 
   if (transmit_can_init) {
 

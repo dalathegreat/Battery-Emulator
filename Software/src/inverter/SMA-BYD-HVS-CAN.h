@@ -1,18 +1,18 @@
-#ifndef SMA_CAN_TRIPOWER_H
-#define SMA_CAN_TRIPOWER_H
+#ifndef SMA_BYD_HVS_CAN_H
+#define SMA_BYD_HVS_CAN_H
 
 #include "../devboard/hal/hal.h"
 #include "SmaInverterBase.h"
 
 #include <functional>
 
-class SmaTripowerInverter : public SmaInverterBase {
+class SmaBydHvsInverter : public SmaInverterBase {
  public:
   const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
-  static constexpr const char* Name = "SMA Tripower CAN";
+  static constexpr const char* Name = "SMA compatible BYD Battery-Box HVS";
 
   virtual bool controls_contactor() { return true; }
 

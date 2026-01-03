@@ -1,16 +1,16 @@
-#ifndef SMA_BYD_HVS_CAN_H
-#define SMA_BYD_HVS_CAN_H
+#ifndef SMA_BYD_H_CAN_H
+#define SMA_BYD_H_CAN_H
 
 #include "../devboard/hal/hal.h"
 #include "SmaInverterBase.h"
 
-class SmaBydHvsInverter : public SmaInverterBase {
+class SmaBydHInverter : public SmaInverterBase {
  public:
   const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
-  static constexpr const char* Name = "SMA compatible BYD Battery-Box HVS";
+  static constexpr const char* Name = "SMA compatible BYD Battery-Box H";
 
   virtual bool controls_contactor() { return true; }
 
