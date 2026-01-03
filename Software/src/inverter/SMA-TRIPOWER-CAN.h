@@ -88,27 +88,27 @@ class SmaTripowerInverter : public SmaInverterBase {
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x5D8,
-                       .data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}};  //B Y D
+                       .data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}};  //(0) B Y D (0) (0) (0) (0)
   CAN_frame SMA_618_0 = {.FD = false,
                          .ext_ID = false,
                          .DLC = 8,
                          .ID = 0x618,
-                         .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //BATTERY
+                         .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //(0) B A T T E R Y
   CAN_frame SMA_618_1 = {.FD = false,
                          .ext_ID = false,
                          .DLC = 8,
                          .ID = 0x618,
-                         .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x50, 0x72}};  //-Box Pr
+                         .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x50, 0x72}};  //(1) - B o x P r
   CAN_frame SMA_618_2 = {.FD = false,
                          .ext_ID = false,
                          .DLC = 8,
                          .ID = 0x618,
-                         .data = {0x02, 0x65, 0x6D, 0x69, 0x75, 0x6D, 0x20, 0x48}};  //emium H
+                         .data = {0x02, 0x65, 0x6D, 0x69, 0x75, 0x6D, 0x20, 0x48}};  //(2) e m i u m   H
   CAN_frame SMA_618_3 = {.FD = false,
                          .ext_ID = false,
                          .DLC = 8,
                          .ID = 0x618,
-                         .data = {0x03, 0x56, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00}};  //VS
+                         .data = {0x03, 0x56, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00}};  //(3) V S (0) (0) (0) (0) (0)
 };
 
 #endif
