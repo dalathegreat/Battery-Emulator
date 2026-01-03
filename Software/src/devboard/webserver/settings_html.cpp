@@ -147,6 +147,16 @@ const char* name_for_gpioopt2(GPIOOPT2 option) {
       return nullptr;
   }
 }
+const char* name_for_gpioopt3(GPIOOPT3 option) {
+  switch (option) {
+    case GPIOOPT3::DEFAULT_SMA_ENABLE_05:
+      return "Pin 5";
+    case GPIOOPT3::SMA_ENABLE_33:
+      return "Pin 33";
+    default:
+      return nullptr;
+  }
+}
 
 // Special unicode characters
 const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
@@ -243,6 +253,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "GPIOOPT2") {
     return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
                                       name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
+  }
+
+  if (var == "GPIOOPT3") {
+    return options_for_enum_with_none((GPIOOPT3)settings.getUInt("GPIOOPT3", (int)GPIOOPT3::DEFAULT_SMA_ENABLE_05),
+                                      name_for_gpioopt3, GPIOOPT3::DEFAULT_SMA_ENABLE_05);
   }
 
   // All other values are wrapped by html_escape to avoid HTML injection.
@@ -843,6 +858,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define GPIOOPT2_SETTING ""
 #endif
 
+#ifdef HW_LILYGO
+#define GPIOOPT3_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT3">SMA enable pin:</label>
+    <select id="GPIOOPT3" name="GPIOOPT3">
+      %GPIOOPT3%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT3_SETTING ""
+#endif
+
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
     <script>
@@ -1428,6 +1455,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         )rawliteral" GPIOOPT1_SETTING R"rawliteral(
         )rawliteral" GPIOOPT2_SETTING R"rawliteral(
+        )rawliteral" GPIOOPT3_SETTING R"rawliteral(
           
         </div>
         </div>
