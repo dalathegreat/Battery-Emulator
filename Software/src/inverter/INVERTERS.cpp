@@ -70,9 +70,6 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::Schneider:
       return SchneiderInverter::Name;
 
-    case InverterProtocolType::SmaBydH:
-      return SmaBydHInverter::Name;
-
     case InverterProtocolType::SmaBydHvs:
       return SmaBydHvsInverter::Name;
 
@@ -155,10 +152,6 @@ bool setup_inverter() {
 
     case InverterProtocolType::Schneider:
       inverter = new SchneiderInverter();
-      break;
-
-    case InverterProtocolType::SmaBydH:
-      inverter = new SmaBydHInverter();
       break;
 
     case InverterProtocolType::SmaBydHvs:

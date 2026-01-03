@@ -17,7 +17,6 @@ enum class InverterProtocolType {
   Pylon = 10,
   PylonLv = 11,
   Schneider = 12,
-  SmaBydH = 13,
   SmaBydHvs = 14,
   SmaLv = 15,
   SmaTripower = 16,

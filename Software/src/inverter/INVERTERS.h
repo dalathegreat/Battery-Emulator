@@ -16,7 +16,6 @@ extern InverterProtocol* inverter;
 #include "PYLON-CAN.h"
 #include "PYLON-LV-CAN.h"
 #include "SCHNEIDER-CAN.h"
-#include "SMA-BYD-H-CAN.h"
 #include "SMA-BYD-HVS-CAN.h"
 #include "SMA-LV-CAN.h"
 #include "SMA-TRIPOWER-CAN.h"
