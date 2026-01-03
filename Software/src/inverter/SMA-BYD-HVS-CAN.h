@@ -70,7 +70,15 @@ class SmaBydHvsInverter : public SmaInverterBase {
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x558,
-                       .data = {0x03, 0x13, 0x00, 0x03, 0x00, 0x66, 0x04, 0x07}};  //4x BYD modules, Vendor ID 7 BYD
+                       .data = {0x03, 0x13, 0x00, 0x03, 0x00, 0x66, 0x04, 0x07}};
+  // 0x03 |
+  // 0x13 |
+  // 0x00 |
+  // 0x03 | Module count: a 3-module stack
+  // 0x00 |
+  // 0x66 |
+  // 0x04 |
+  // 0x07 |
   CAN_frame SMA_598 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,

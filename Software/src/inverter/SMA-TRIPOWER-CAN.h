@@ -78,7 +78,15 @@ class SmaTripowerInverter : public SmaInverterBase {
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x558,  // BYD HVS 10.2 kWh (0x66 might be kWh)
-                       .data = {0x03, 0x24, 0x00, 0x04, 0x00, 0x66, 0x04, 0x09}};  //Amount of modules? Vendor ID?
+                       .data = {0x03, 0x24, 0x00, 0x04, 0x00, 0x66, 0x04, 0x09}};
+  // 0x03 |
+  // 0x24 |
+  // 0x00 |
+  // 0x04 | Module count: a 4-module stack
+  // 0x00 |
+  // 0x66 |
+  // 0x04 |
+  // 0x09 |
   CAN_frame SMA_598 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
