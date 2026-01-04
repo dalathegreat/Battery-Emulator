@@ -611,6 +611,9 @@ void init_webserver() {
       } else if (p->name() == "GPIOOPT2") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("GPIOOPT2", type);
+      } else if (p->name() == "GPIOOPT3") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("GPIOOPT3", type);
       }
 
       for (auto& boolSetting : boolSettings) {
