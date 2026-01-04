@@ -1,4 +1,4 @@
-name: 🔋 Compile Common Image for Lilygo T-CAN
+name: 🔋 Compile Common Images
 
 on:
   # The workflow is run when a commit is pushed or for a
@@ -18,14 +18,27 @@ jobs:
       - id: skip_check
         uses: fkirc/skip-duplicate-actions@v5
         with:
-          # All of these options are optional, so you can remove them if you are happy with the defaults
           concurrent_skipping: 'never'
           skip_after_successful_duplicate: 'true'
           do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
 
-  build-common-image:
-    # This is the platform GitHub will use to run our workflow.
+  build:
+    needs: skip-duplicate-actions
+    if: needs.skip-duplicate-actions.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        include:
+          - board_name: "LilygoT-CAN485"
+            pio_env: "lilygo_330"
+            artifact_name: "battery-emulator-lilygo-t-can485"
+          - board_name: "Stark CMR"
+            pio_env: "stark_330"
+            artifact_name: "battery-emulator-stark"
+          - board_name: "LilygoT-2CAN"
+            pio_env: "lilygo_2CAN_330"
+            artifact_name: "battery-emulator-lilygo-t-2can"
 
     steps:
     - uses: actions/checkout@v6
@@ -41,14 +54,15 @@ jobs:
     - uses: actions/setup-python@v6
       with:
         python-version: '3.11'
+
     - name: Install PlatformIO Core
       run: pip install --upgrade platformio
 
-    - name: Build image for Lilygo
-      run: pio run -e lilygo_330
+    - name: Build image for ${{ matrix.board_name }}
+      run: pio run -e ${{ matrix.pio_env }}
 
-    - name: Upload artifact
+    - name: Upload artifact for ${{ matrix.board_name }}
       uses: actions/upload-artifact@v6
       with:
-        name: battery-emulator-lilygo.bin
-        path: .pio/build/lilygo_330/firmware.bin
+        name: ${{ matrix.artifact_name }}.bin
+        path: .pio/build/${{ matrix.pio_env }}/firmware.bin
