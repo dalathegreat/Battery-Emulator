@@ -82,7 +82,7 @@ class BydAttoBattery : public CanBattery {
   static const uint16_t MIN_PACK_VOLTAGE_EXTENDED_DV = 3800;  //Extended range
   static const uint16_t MAX_PACK_VOLTAGE_STANDARD_DV = 3796;  //Standard range
   static const uint16_t MIN_PACK_VOLTAGE_STANDARD_DV = 3136;  //Standard range
-  static const uint16_t MAX_CELL_DEVIATION_MV = 230;
+  static const uint16_t MAX_CELL_DEVIATION_MV = 400;
   static const uint16_t MAX_CELL_VOLTAGE_MV = 3690;  //Charging stops if one cell exceeds this value
   static const uint16_t MIN_CELL_VOLTAGE_MV = 2800;  //Discharging stops if one cell goes below this value
   static const uint16_t POLL_FOR_BATTERY_SOC = 0x0005;
