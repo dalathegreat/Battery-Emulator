@@ -111,6 +111,7 @@ typedef struct {
 
 std::string getBMSStatus(bms_status_enum status);
 
+#ifndef SMALL_FLASH_DEVICE
 /* Configurable GPIO options (device specific) */
 enum class GPIOOPT1 {
   // T-2CAN: WUP1/WUP2 on GPIO1/GPIO2
@@ -121,6 +122,8 @@ enum class GPIOOPT1 {
   ESTOP_BMS_POWER = 2,
   Highest
 };
+extern GPIOOPT1 user_selected_gpioopt1;
+#endif
 enum class GPIOOPT2 {
   // T-CAN485: Default, BMS power on PIN18
   DEFAULT_OPT_BMS_POWER_18 = 0,
@@ -136,7 +139,6 @@ enum class GPIOOPT3 {
   Highest
 };
 
-extern GPIOOPT1 user_selected_gpioopt1;
 extern GPIOOPT2 user_selected_gpioopt2;
 extern GPIOOPT3 user_selected_gpioopt3;
 

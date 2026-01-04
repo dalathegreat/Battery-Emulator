@@ -124,7 +124,7 @@ const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
       return nullptr;
   }
 }
-
+#ifndef SMALL_FLASH_DEVICE
 const char* name_for_gpioopt1(GPIOOPT1 option) {
   switch (option) {
     case GPIOOPT1::DEFAULT_OPT:
@@ -137,6 +137,7 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
       return nullptr;
   }
 }
+#endif
 const char* name_for_gpioopt2(GPIOOPT2 option) {
   switch (option) {
     case GPIOOPT2::DEFAULT_OPT_BMS_POWER_18:
@@ -244,12 +245,12 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "LEDMODE") {
     return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
   }
-
+#ifndef SMALL_FLASH_DEVICE
   if (var == "GPIOOPT1") {
     return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
   }
-
+#endif
   if (var == "GPIOOPT2") {
     return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
                                       name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);

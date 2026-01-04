@@ -19,7 +19,8 @@ std::string getBMSStatus(bms_status_enum status) {
       return "UNKNOWN";
   }
 }
-
+#ifndef SMALL_FLASH_DEVICE
 GPIOOPT1 user_selected_gpioopt1 = GPIOOPT1::DEFAULT_OPT;
+#endif
 GPIOOPT2 user_selected_gpioopt2 = GPIOOPT2::DEFAULT_OPT_BMS_POWER_18;
 GPIOOPT3 user_selected_gpioopt3 = GPIOOPT3::DEFAULT_SMA_ENABLE_05;
