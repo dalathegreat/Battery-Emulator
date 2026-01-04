@@ -4,7 +4,8 @@
 #include "../charger/CanCharger.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
+#include "../datalayer/datalayer_extended.h"     //For "More battery info" webpage
+#include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
@@ -791,7 +792,7 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 uint8_t NissanLeafBattery::calculate_crc(CAN_frame& rx_frame) {
   uint8_t crc = 0;
   for (uint8_t j = 0; j < 7; j++) {
-    crc = crctable[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
+    crc = crctable_nissan_leaf[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
   }
   return crc;
 }
