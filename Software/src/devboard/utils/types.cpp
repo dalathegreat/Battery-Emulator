@@ -19,7 +19,7 @@ std::string getBMSStatus(bms_status_enum status) {
       return "UNKNOWN";
   }
 }
-#ifndef SMALL_FLASH_DEVICE
+#ifdef HW_LILYGO2CAN
 GPIOOPT1 user_selected_gpioopt1 = GPIOOPT1::DEFAULT_OPT;
 #endif
 GPIOOPT2 user_selected_gpioopt2 = GPIOOPT2::DEFAULT_OPT_BMS_POWER_18;

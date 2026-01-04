@@ -111,7 +111,7 @@ typedef struct {
 
 std::string getBMSStatus(bms_status_enum status);
 
-#ifndef SMALL_FLASH_DEVICE
+#ifdef HW_LILYGO2CAN
 /* Configurable GPIO options (device specific) */
 enum class GPIOOPT1 {
   // T-2CAN: WUP1/WUP2 on GPIO1/GPIO2

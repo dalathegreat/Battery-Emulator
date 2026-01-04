@@ -124,7 +124,7 @@ const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
       return nullptr;
   }
 }
-#ifndef SMALL_FLASH_DEVICE
+#ifdef HW_LILYGO2CAN
 const char* name_for_gpioopt1(GPIOOPT1 option) {
   switch (option) {
     case GPIOOPT1::DEFAULT_OPT:
@@ -245,7 +245,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "LEDMODE") {
     return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
   }
-#ifndef SMALL_FLASH_DEVICE
+#ifdef HW_LILYGO2CAN
   if (var == "GPIOOPT1") {
     return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
