@@ -147,7 +147,7 @@ void init_stored_settings() {
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
-#ifndef SMALL_FLASH_DEVICE
+#ifdef HW_LILYGO2CAN
   user_selected_gpioopt1 = (GPIOOPT1)settings.getUInt("GPIOOPT1", 0);
 #endif
   user_selected_gpioopt2 = (GPIOOPT2)settings.getUInt("GPIOOPT2", 0);
