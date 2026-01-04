@@ -111,6 +111,7 @@ typedef struct {
 
 std::string getBMSStatus(bms_status_enum status);
 
+#ifdef HW_LILYGO2CAN
 /* Configurable GPIO options (device specific) */
 enum class GPIOOPT1 {
   // T-2CAN: WUP1/WUP2 on GPIO1/GPIO2
@@ -121,15 +122,24 @@ enum class GPIOOPT1 {
   ESTOP_BMS_POWER = 2,
   Highest
 };
+extern GPIOOPT1 user_selected_gpioopt1;
+#endif
 enum class GPIOOPT2 {
   // T-CAN485: Default, BMS power on PIN18
   DEFAULT_OPT_BMS_POWER_18 = 0,
-  // T-CAN485: Default, BMS power on PIN25
+  // T-CAN485: Move BMS power to PIN25
   BMS_POWER_25 = 1,
   Highest
 };
+enum class GPIOOPT3 {
+  // T-CAN485: Default, SMA inverter pin PIN5
+  DEFAULT_SMA_ENABLE_05 = 0,
+  // T-CAN485: Move SMA inverter pin to PIN33
+  SMA_ENABLE_33 = 1,
+  Highest
+};
 
-extern GPIOOPT1 user_selected_gpioopt1;
 extern GPIOOPT2 user_selected_gpioopt2;
+extern GPIOOPT3 user_selected_gpioopt3;
 
 #endif
