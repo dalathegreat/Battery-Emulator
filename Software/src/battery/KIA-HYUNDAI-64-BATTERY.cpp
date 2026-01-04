@@ -159,7 +159,36 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           KIA64_7E4_poll.data.u8[3] = (uint8_t)(POLL_ECU_VERSION & 0x00FF);
           poll_data_pid = 0;
         }
-        transmit_can_frame(&KIA64_7E4_poll);
+        if (datalayer.battery.status.bms_status == FAULT) {
+          //If we are in fault mode, request contactors to open via UDS
+          open_state++;
+          if (open_state == 1) {  //Enter elevated mode
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[0] = 0x02;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[1] = 0x10;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[2] = 0x03;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[3] = 0x00;
+          } else if (open_state == 2) {  //Request negative contactor OFF
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[0] = 0x04;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[1] = 0x2F;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[2] = 0xF0;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[3] = 0x32;
+          } else if (open_state == 3) {  //Enter elevated mode
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[0] = 0x02;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[1] = 0x10;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[2] = 0x03;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[3] = 0x00;
+          } else if (open_state == 4) {  //Request positive contactor OFF
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[0] = 0x04;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[1] = 0x2F;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[2] = 0xF0;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[3] = 0x31;
+            open_state = 0;
+          }
+          transmit_can_frame(&KIA64_7E4_OPEN_CONTACTOR_SEQUENCE);
+        } else {
+          //Normal operation, keep polling battery via UDS
+          transmit_can_frame(&KIA64_7E4_poll);
+        }
       }
       break;
     case 0x7EC:  //Data From polled PID group, BigEndian
@@ -439,8 +468,8 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
 void KiaHyundai64Battery::transmit_can(unsigned long currentMillis) {
 
-  if (!startedUp) {
-    return;  // Don't send any CAN messages towards battery until it has started up
+  if (!startedUp || (datalayer.battery.status.bms_status == FAULT)) {
+    return;  // Don't send any CAN messages towards battery until it has started up. Also stop sending if we are in critical FAULT mode
   }
 
   //Send 100ms message
