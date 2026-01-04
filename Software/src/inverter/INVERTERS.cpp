@@ -73,14 +73,11 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::SmaBydH:
       return SmaBydHInverter::Name;
 
-    case InverterProtocolType::SmaBydHvs:
-      return SmaBydHvsInverter::Name;
-
     case InverterProtocolType::SmaLv:
       return SmaLvInverter::Name;
 
-    case InverterProtocolType::SmaTripower:
-      return SmaTripowerInverter::Name;
+    case InverterProtocolType::SmaBydHvs:
+      return SmaBydHvsInverter::Name;
 
     case InverterProtocolType::Sofar:
       return SofarInverter::Name;
@@ -161,16 +158,12 @@ bool setup_inverter() {
       inverter = new SmaBydHInverter();
       break;
 
-    case InverterProtocolType::SmaBydHvs:
-      inverter = new SmaBydHvsInverter();
-      break;
-
     case InverterProtocolType::SmaLv:
       inverter = new SmaLvInverter();
       break;
 
-    case InverterProtocolType::SmaTripower:
-      inverter = new SmaTripowerInverter();
+    case InverterProtocolType::SmaBydHvs:
+      inverter = new SmaBydHvsInverter();
       break;
 
     case InverterProtocolType::Sofar:
