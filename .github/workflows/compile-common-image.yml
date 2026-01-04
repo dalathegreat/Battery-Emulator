@@ -39,6 +39,9 @@ jobs:
           - board_name: "LilygoT-2CAN"
             pio_env: "lilygo_2CAN_330"
             artifact_name: "battery-emulator-lilygo-t-2can"
+          - board_name: "ESP32 DevKit V1"
+            pio_env: "esp32devkit_330"
+            artifact_name: "battery-emulator-esp32devkit"
 
     steps:
     - uses: actions/checkout@v6
