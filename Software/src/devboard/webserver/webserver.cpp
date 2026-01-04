@@ -471,6 +471,9 @@ void init_webserver() {
       } else if (p->name() == "MAXPRETIME") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("MAXPRETIME", type);
+      } else if (p->name() == "MAXPREFREQ") {
+        auto type = atoi(p->value().c_str());
+        settings.saveUInt("MAXPREFREQ", type);
       } else if (p->name() == "WIFICHANNEL") {
         auto type = atoi(p->value().c_str());
         settings.saveUInt("WIFICHANNEL", type);
