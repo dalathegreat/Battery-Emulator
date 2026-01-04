@@ -57,10 +57,11 @@ void FoxessCanInverter::
   FOXESS_1874.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
   FOXESS_1874.data.u8[2] = (int8_t)datalayer.battery.status.temperature_min_dC;
   FOXESS_1874.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
-  FOXESS_1874.data.u8[4] = (uint8_t)(3300);  //cut_mv_max (Should we send a limit, or the actual mV?)
-  FOXESS_1874.data.u8[5] = (3300 >> 8);
-  FOXESS_1874.data.u8[6] = (uint8_t)(3300);  //cut_mV_min (Should we send a limit, or the actual mV?)
-  FOXESS_1874.data.u8[7] = (3300 >> 8);
+  FOXESS_1874.data.u8[4] =
+      (uint8_t)(datalayer.battery.status.cell_max_voltage_mV);  //TODO: Should we rescale other chemistries as LFP?
+  FOXESS_1874.data.u8[5] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  FOXESS_1874.data.u8[6] = (uint8_t)(datalayer.battery.status.cell_min_voltage_mV);
+  FOXESS_1874.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
   //BMS_Status
   FOXESS_1875.data.u8[0] = (uint8_t)temperature_average;
