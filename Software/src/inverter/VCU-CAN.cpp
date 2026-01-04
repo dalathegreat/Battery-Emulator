@@ -4,6 +4,11 @@
 #include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../inverter/INVERTERS.h"
 
+/*TODO once testing starts:
+- Map more optional content into all message
+- Add OBD2 responses for 79B /7BB polls
+- Figure out startup/sleep handling*/
+
 static uint8_t calculate_CRC_Nissan(CAN_frame* frame) {
   uint8_t crc = 0;
   for (uint8_t j = 0; j < 7; j++) {
