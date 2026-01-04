@@ -185,6 +185,7 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             open_state = 0;
           }
           transmit_can_frame(&KIA64_7E4_OPEN_CONTACTOR_SEQUENCE);
+          set_event(EVENT_CONTACTOR_OPEN, 0);
         } else {
           //Normal operation, keep polling battery via UDS
           transmit_can_frame(&KIA64_7E4_poll);
