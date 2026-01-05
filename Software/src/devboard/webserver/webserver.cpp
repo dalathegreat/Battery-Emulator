@@ -393,12 +393,6 @@ void init_webserver() {
     request->send(200, "text/html", "OK");
   });
 
-  struct BoolSetting {
-    const char* name;
-    bool existingValue;
-    bool newValue;
-  };
-
   const char* boolSettingNames[] = {
       "DBLBTR",        "CNTCTRL",      "CNTCTRLDBL",  "PWMCNTCTRL",   "PERBMSRESET",  "SDLOGENABLED", "STATICIP",
       "REMBMSRESET",   "EXTPRECHARGE", "USBENABLED",  "CANLOGUSB",    "WEBENABLED",   "CANFDASCAN",   "CANLOGSD",
@@ -423,12 +417,6 @@ void init_webserver() {
   server.on("/saveSettings", HTTP_POST,
             [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
               BatteryEmulatorSettingsStore settings;
-
-              std::vector<BoolSetting> boolSettings;
-
-              for (auto& name : boolSettingNames) {
-                boolSettings.push_back({name, settings.getBool(name, name == std::string("WIFIAPENABLED")), false});
-              }
 
               int numParams = request->params();
               for (int i = 0; i < numParams; i++) {
@@ -500,16 +488,14 @@ void init_webserver() {
                   }
                 }
 
-                for (auto& boolSetting : boolSettings) {
-                  if (p->name() == boolSetting.name) {
-                    boolSetting.newValue = p->value() == "on";
+                for (auto& boolSetting : boolSettingNames) {
+                  if (p->name() == boolSetting) {
+                    const bool default_value = (boolSetting == std::string("WIFIAPENABLED"));
+                    const bool value = (p->value() == "on");
+                    if (settings.getBool(boolSetting, default_value) != value) {
+                      settings.saveBool(boolSetting, value);
+                    }
                   }
-                }
-              }
-
-              for (auto& boolSetting : boolSettings) {
-                if (boolSetting.existingValue != boolSetting.newValue) {
-                  settings.saveBool(boolSetting.name, boolSetting.newValue);
                 }
               }
 
