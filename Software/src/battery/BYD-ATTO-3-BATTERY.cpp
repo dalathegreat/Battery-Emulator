@@ -593,13 +593,14 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
 
     uptime_ticks++;
 
-    if (uds_reset == true) {                        // initially enabled
-      if (uptime_ticks > 50) {                      // bms running for 10s min, ensure contactors closed etc
+    if (uds_reset == true) {    // initially enabled
+      if (uptime_ticks > 50) {  // bms running for 10s min, ensure contactors closed etc
         celldeltaMv = BMS_highest_cell_voltage_mV - BMS_lowest_cell_voltage_mV;
-         if (BMS_highest_cell_voltage_mV > 3600) || (celldeltaMv > 100) { // if max cell voltage >3.6v or pack cell delta > 100mV  
-          uds_reset = false;                        // reset to false, wait 12hrs
-          transmit_can_frame(&ATTO_3_RESET);
-        }
+        if (BMS_highest_cell_voltage_mV > 3600)
+          || (celldeltaMv > 100) {  // if max cell voltage >3.6v or pack cell delta > 100mV
+            uds_reset = false;      // reset to false, wait 12hrs
+            transmit_can_frame(&ATTO_3_RESET);
+          }
       }
     }
 
