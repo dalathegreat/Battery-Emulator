@@ -104,6 +104,7 @@ const uint16_t voltage_standard[numPoints] = {3570, 3552, 3485, 3464, 3443, 3439
                                               3350, 3332, 3315, 3282, 3250, 3195, 3170, 3140};
 bool uds_reset = true;
 unsigned long uptime_ticks = 0;
+uint16_t celldeltaMv = 0;
 uint16_t estimateSOCextended(uint16_t packVoltage) {  // Linear interpolation function
   if (packVoltage >= voltage_extended[0]) {
     return SOC[0];
@@ -594,7 +595,8 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
 
     if (uds_reset == true) {                        // initially enabled
       if (uptime_ticks > 50) {                      // bms running for 10s min, ensure contactors closed etc
-        if (BMS_highest_cell_voltage_mV >= 3660) {  // if max cell voltage >=3.66v, 3.65 isnt enough..
+        celldeltaMv = BMS_highest_cell_voltage_mV - BMS_lowest_cell_voltage_mV;
+         if (BMS_highest_cell_voltage_mV > 3600) || (celldeltaMv > 100) { // if max cell voltage >3.6v or pack cell delta > 100mV  
           uds_reset = false;                        // reset to false, wait 12hrs
           transmit_can_frame(&ATTO_3_RESET);
         }
