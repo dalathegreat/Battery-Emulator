@@ -28,7 +28,7 @@ class VCUInverter : public CanInverterProtocol {
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x1DB,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                        .data = {0xFF, 0xC0, 0xB1, 0xAB, 0x08, 0x00, 0x02, 0xB5}};
   CAN_frame LEAF_55B = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
