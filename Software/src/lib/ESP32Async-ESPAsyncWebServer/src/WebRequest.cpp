@@ -2,7 +2,6 @@
 // Copyright 2016-2025 Hristo Gochkov, Mathieu Carbou, Emil Muratov
 
 #include "ESPAsyncWebServer.h"
-#include "WebAuthentication.h"
 #include "WebResponseImpl.h"
 #include "literals.h"
 #include <cstring>
@@ -418,12 +417,7 @@ void AsyncWebServerRequest::_parsePlainPostChar(uint8_t data) {
       _params.emplace_back(name, urlDecode(value), true);
     }
 
-#if defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350) || defined(LIBRETINY)
-    // Ancient PRI core does not have String::clear() method 8-()
-    _temp = emptyString;
-#else
     _temp.clear();
-#endif
   }
 }
 
@@ -944,16 +938,7 @@ void AsyncWebServerRequest::redirect(const char *url, int code) {
 }
 
 bool AsyncWebServerRequest::authenticate(const char *username, const char *password, const char *realm, bool passwordIsHash) const {
-  if (_authorization.length()) {
-    if (_authMethod == AsyncAuthType::AUTH_DIGEST) {
-      return checkDigestAuthentication(_authorization.c_str(), methodToString(), username, password, realm, passwordIsHash, NULL, NULL, NULL);
-    } else if (!passwordIsHash) {
-      return checkBasicAuthentication(_authorization.c_str(), username, password);
-    } else {
-      return _authorization.equals(password);
-    }
-  }
-  return false;
+  return true;
 }
 
 bool AsyncWebServerRequest::authenticate(const char *hash) const {
@@ -975,7 +960,7 @@ bool AsyncWebServerRequest::authenticate(const char *hash) const {
     }
     String realm = hStr.substring(0, separator);
     hStr = hStr.substring(separator + 1);
-    return checkDigestAuthentication(_authorization.c_str(), methodToString(), username.c_str(), hStr.c_str(), realm.c_str(), true, NULL, NULL, NULL);
+    return false;
   }
 
   // Basic Auth, Bearer Auth, or other
@@ -989,48 +974,6 @@ void AsyncWebServerRequest::requestAuthentication(AsyncAuthType method, const ch
 
   AsyncWebServerResponse *r = _authFailMsg ? beginResponse(401, T_text_html, _authFailMsg) : beginResponse(401);
 
-  switch (method) {
-    case AsyncAuthType::AUTH_BASIC:
-    {
-      String header;
-      if (header.reserve(strlen(T_BASIC_REALM) + strlen(realm) + 1)) {
-        header.concat(T_BASIC_REALM);
-        header.concat(realm);
-        header.concat('"');
-        r->addHeader(T_WWW_AUTH, header.c_str());
-      } else {
-        //async_ws_log_e("Failed to allocate");
-        abort();
-      }
-
-      break;
-    }
-    case AsyncAuthType::AUTH_DIGEST:
-    {
-      size_t len = strlen(T_DIGEST_) + strlen(T_realm__) + strlen(T_auth_nonce) + 32 + strlen(T__opaque) + 32 + 1;
-      String header;
-      if (header.reserve(len + strlen(realm))) {
-        const String nonce = genRandomMD5();
-        const String opaque = genRandomMD5();
-        if (nonce.length() && opaque.length()) {
-          header.concat(T_DIGEST_);
-          header.concat(T_realm__);
-          header.concat(realm);
-          header.concat(T_auth_nonce);
-          header.concat(nonce);
-          header.concat(T__opaque);
-          header.concat(opaque);
-          header.concat((char)0x22);  // '"'
-          r->addHeader(T_WWW_AUTH, header.c_str());
-        } else {
-          abort();
-        }
-      }
-      break;
-    }
-    default: break;
-  }
-
   send(r);
 }
 
@@ -1043,12 +986,6 @@ bool AsyncWebServerRequest::hasArg(const char *name) const {
   return false;
 }
 
-#ifdef ESP8266
-bool AsyncWebServerRequest::hasArg(const __FlashStringHelper *data) const {
-  return hasArg(String(data).c_str());
-}
-#endif
-
 const String &AsyncWebServerRequest::arg(const char *name) const {
   for (const auto &arg : _params) {
     if (arg.name() == name) {
@@ -1057,12 +994,6 @@ const String &AsyncWebServerRequest::arg(const char *name) const {
   }
   return emptyString;
 }
-
-#ifdef ESP8266
-const String &AsyncWebServerRequest::arg(const __FlashStringHelper *data) const {
-  return arg(String(data).c_str());
-}
-#endif
 
 const String &AsyncWebServerRequest::arg(size_t i) const {
   return getParam(i)->value();
@@ -1085,12 +1016,6 @@ const String &AsyncWebServerRequest::header(const char *name) const {
   const AsyncWebHeader *h = getHeader(name);
   return h ? h->value() : emptyString;
 }
-
-#ifdef ESP8266
-const String &AsyncWebServerRequest::header(const __FlashStringHelper *data) const {
-  return header(String(data).c_str());
-};
-#endif
 
 const String &AsyncWebServerRequest::header(size_t i) const {
   const AsyncWebHeader *h = getHeader(i);

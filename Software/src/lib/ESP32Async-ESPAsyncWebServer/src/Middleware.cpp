@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright 2016-2025 Hristo Gochkov, Mathieu Carbou, Emil Muratov
 
-#include "WebAuthentication.h"
 #include "ESPAsyncWebServer.h"
 
 AsyncMiddlewareChain::~AsyncMiddlewareChain() {
@@ -98,23 +97,9 @@ bool AsyncAuthenticationMiddleware::generateHash() {
 
   switch (_authMethod) {
     case AsyncAuthType::AUTH_DIGEST:
-      _credentials = generateDigestHash(_username.c_str(), _credentials.c_str(), _realm.c_str());
-      if (_credentials.length()) {
-        _hash = true;
-        return true;
-      } else {
         return false;
-      }
-
     case AsyncAuthType::AUTH_BASIC:
-      _credentials = generateBasicHash(_username.c_str(), _credentials.c_str());
-      if (_credentials.length()) {
-        _hash = true;
-        return true;
-      } else {
         return false;
-      }
-
     default: return false;
   }
 }
