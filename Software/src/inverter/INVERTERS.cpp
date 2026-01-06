@@ -94,6 +94,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::Sungrow:
       return SungrowInverter::Name;
 
+    case InverterProtocolType::VCU:
+      return VCUInverter::Name;
+
     case InverterProtocolType::Highest:
       return "None";
   }
@@ -184,6 +187,10 @@ bool setup_inverter() {
 
     case InverterProtocolType::Sungrow:
       inverter = new SungrowInverter();
+      break;
+
+    case InverterProtocolType::VCU:
+      inverter = new VCUInverter();
       break;
 
     case InverterProtocolType::None:
