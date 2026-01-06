@@ -12,6 +12,15 @@ class GeelySeaBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Volvo/Zeekr/Geely SEA battery";
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { datalayer_extended.GeelySEA.UserRequestDTCreset = true; }
+
+  bool supports_read_DTC() { return true; }
+  void read_DTC() { datalayer_extended.GeelySEA.UserRequestDTCreadout = true; }
+
+  bool supports_reset_BECM() { return true; }
+  void reset_BECM() { datalayer_extended.GeelySEA.UserRequestBECMecuReset = true; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
@@ -36,7 +45,7 @@ class GeelySeaBattery : public CanBattery {
   unsigned long previousMillis1s = 0;   // will store last time a 1s CAN Message was send
   unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
 
-  bool waiting4answer = false;
+  bool startedUp = false;
 
   CAN_frame SEA_536 = {
       .FD = false,
@@ -122,6 +131,41 @@ class GeelySeaBattery : public CanBattery {
       .DLC = 8,
       .ID = 0x735,
       .data = {0x03, 0x22, 0x49, 0x08, 0x00, 0x00, 0x00, 0x00}};  //Lowest cell volt request frame
+
+  CAN_frame SEA_BatteryCurrent_Req = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x735,
+      .data = {0x03, 0x22, 0x48, 0x02, 0x00, 0x00, 0x00, 0x00}};  //Battery current request frame
+
+  CAN_frame SEA_DTC_Req = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x735,
+      .data = {0x02, 0x19, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  //DTC request frame
+
+  CAN_frame SEA_Flowcontrol = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x735,
+      .data = {0x30, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Flowcontrol
+
+  CAN_frame SEA_DTC_Erase = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x735,
+      .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};  //Global DTC erase
+
+  CAN_frame SEA_BECM_ECUreset = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x735,
+      .data = {0x02, 0x11, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00}};  //BECM ECU reset command (reboot/powercycle BECM)
 };
 
 #endif

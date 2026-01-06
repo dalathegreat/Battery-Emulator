@@ -11,6 +11,20 @@ void GeelySeaBattery::
 
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 
+    // Update requests from webserver datalayer
+  if (datalayer_extended.GeelySEA.UserRequestDTCreset) {
+    transmit_can_frame(&SEA_DTC_Erase);  //Send global DTC erase command
+    datalayer_extended.GeelySEA.UserRequestDTCreset = false;
+  }
+  if (datalayer_extended.GeelySEA.UserRequestBECMecuReset) {
+    transmit_can_frame(&SEA_BECM_ECUreset);  //Send BECM ecu reset command
+    datalayer_extended.GeelySEA.UserRequestBECMecuReset = false;
+  }
+  if (datalayer_extended.GeelySEA.UserRequestDTCreadout) {
+    transmit_can_frame(&SEA_DTC_Req);  //Send DTC readout command
+    datalayer_extended.GeelySEA.UserRequestDTCreadout = false;
+  }
+
   /*if (datalayer_extended.GeelySEA.BECMBatteryVoltage > 0) {
     datalayer.battery.status.voltage_dV = datalayer_extended.GeelySEA.BECMBatteryVoltage / 10;  // We use the value from the CAN stream instead now
   }*/
@@ -267,6 +281,25 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                  (rx_frame.data.u8[3] == 0x08))  // Lowest cell volt response frame
       {
         datalayer_extended.GeelySEA.CellVoltLowest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+        transmit_can_frame(&SEA_BatteryCurrent_Req);
+      } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x48) &&
+                 (rx_frame.data.u8[3] == 0x02))  // Battery current response frame
+      {
+        datalayer_extended.GeelySEA.BatteryCurrent = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+        transmit_can_frame(&SEA_DTC_Req);
+      } else if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[2] == 0x59) &&
+                 (rx_frame.data.u8[3] == 0x03))  // First response frame for DTC with more than one code
+      {
+        datalayer_extended.GeelySEA.DTCcount = ((rx_frame.data.u8[1] - 2) / 4);
+        transmit_can_frame(&SEA_Flowcontrol);  // Send flow control
+      } else if ((rx_frame.data.u8[1] == 0x59) &&
+                 (rx_frame.data.u8[2] == 0x03))  // Response frame for DTC with 0 or 1 code
+      {
+        if (rx_frame.data.u8[0] != 0x02) {
+          datalayer_extended.GeelySEA.DTCcount = 1;
+        } else {
+          datalayer_extended.GeelySEA.DTCcount = 0;
+        }
       }
 
       break;
@@ -285,8 +318,14 @@ void GeelySeaBattery::transmit_can(unsigned long currentMillis) {
     previousMillis100 = currentMillis;
 
     transmit_can_frame(&SEA_536);  //Send 0x536 Network managing frame to keep BMS alive
-    //transmit_can_frame(&SEA_372);  //Send 0x372 ECMAmbientTempCalculated
   }
+if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
+    previousMillis1s = currentMillis;
+    if (!startedUp) {
+        readDiagData();
+        startedUp = true;
+    }
+}
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
 

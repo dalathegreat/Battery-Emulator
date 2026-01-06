@@ -9,9 +9,11 @@ class GeelySeaHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
+    content += "</h4><h4>BECM reported number of DTCs: " + String(datalayer_extended.GeelySEA.DTCcount) + "</h4>";
     content += "<h4>BECM reported SOC: " + String(datalayer_extended.GeelySEA.soc_bms / 100.0) + " %</h4>";
     content += "<h4>BECM reported SOH: " + String(datalayer_extended.GeelySEA.soh_bms / 100.0) + " %</h4>";
     content += "<h4>HV voltage: " + String(datalayer_extended.GeelySEA.BECMBatteryVoltage / 100.0) + " V</h4>";
+    //content += "<h4>Battery current: " + String((datalayer_extended.GeelySEA.BatteryCurrent / 10.0) - 1638) + " A</h4>";
     content += "<h4>Highest cell voltage: " + String(datalayer_extended.GeelySEA.CellVoltHighest / 1000.00) + " V</h4>";
     content += "<h4>Lowest cell voltage: " + String(datalayer_extended.GeelySEA.CellVoltLowest / 1000.00) + " V</h4>";
     content += "<h4>BECM supply voltage: " + String(datalayer_extended.GeelySEA.BECMsupplyVoltage / 1000.0) + " V</h4>";
@@ -46,6 +48,47 @@ class GeelySeaHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Closed");
     }
+    content += "<h4>Unknown contactor status 1: ";
+    switch (datalayer_extended.GeelySEA.Interlock & 0x01) {
+      case 0x01:
+        content += String("Open");
+        break;
+      default:
+        content += String("Closed");
+    }
+    content += "<h4>Unknown contactor status 2: ";
+    switch (datalayer_extended.GeelySEA.Interlock & 0x02) {
+      case 0x02:
+        content += String("Open");
+        break;
+      default:
+        content += String("Closed");
+    }
+    content += "<h4>Unknown contactor status 3: ";
+    switch (datalayer_extended.GeelySEA.Interlock & 0x08) {
+      case 0x08:
+        content += String("Open");
+        break;
+      default:
+        content += String("Closed");
+    }
+    content += "<h4>Unknown contactor status 4: ";
+    switch (datalayer_extended.GeelySEA.Interlock & 0x10) {
+      case 0x10:
+        content += String("Open");
+        break;
+      default:
+        content += String("Closed");
+    }
+    content += "<h4>Unknown contactor status 5: ";
+    switch (datalayer_extended.GeelySEA.Interlock & 0x20) {
+      case 0x20:
+        content += String("Open");
+        break;
+      default:
+        content += String("Closed");
+    }
+    content += "<h4>";
     return content;
   }
 };
