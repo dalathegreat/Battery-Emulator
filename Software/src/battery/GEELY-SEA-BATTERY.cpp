@@ -11,7 +11,7 @@ void GeelySeaBattery::
 
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 
-    // Update requests from webserver datalayer
+  // Update requests from webserver datalayer
   if (datalayer_extended.GeelySEA.UserRequestDTCreset) {
     transmit_can_frame(&SEA_DTC_Erase);  //Send global DTC erase command
     datalayer_extended.GeelySEA.UserRequestDTCreset = false;
@@ -319,13 +319,13 @@ void GeelySeaBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_can_frame(&SEA_536);  //Send 0x536 Network managing frame to keep BMS alive
   }
-if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
+  if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
     previousMillis1s = currentMillis;
     if (!startedUp) {
-        readDiagData();
-        startedUp = true;
+      readDiagData();
+      startedUp = true;
     }
-}
+  }
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
 

@@ -139,26 +139,23 @@ class GeelySeaBattery : public CanBattery {
       .ID = 0x735,
       .data = {0x03, 0x22, 0x48, 0x02, 0x00, 0x00, 0x00, 0x00}};  //Battery current request frame
 
-  CAN_frame SEA_DTC_Req = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x735,
-      .data = {0x02, 0x19, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  //DTC request frame
+  CAN_frame SEA_DTC_Req = {.FD = false,
+                           .ext_ID = false,
+                           .DLC = 8,
+                           .ID = 0x735,
+                           .data = {0x02, 0x19, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  //DTC request frame
 
-  CAN_frame SEA_Flowcontrol = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x735,
-      .data = {0x30, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Flowcontrol
+  CAN_frame SEA_Flowcontrol = {.FD = false,
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = 0x735,
+                               .data = {0x30, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Flowcontrol
 
-  CAN_frame SEA_DTC_Erase = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x735,
-      .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};  //Global DTC erase
+  CAN_frame SEA_DTC_Erase = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x735,
+                             .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};  //Global DTC erase
 
   CAN_frame SEA_BECM_ECUreset = {
       .FD = false,
