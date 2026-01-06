@@ -1,11 +1,9 @@
 #ifndef MG_5_BATTERY_H
 #define MG_5_BATTERY_H
-#include <Arduino.h>
+
 #include "CanBattery.h"
 
-#ifdef MG_5_BATTERY
-#define SELECTED_BATTERY_CLASS Mg5Battery
-#endif
+#ifndef SMALL_FLASH_DEVICE
 
 class Mg5Battery : public CanBattery {
  public:
@@ -296,5 +294,7 @@ class Mg5Battery : public CanBattery {
     return crc;
   }
 };
+
+#endif
 
 #endif

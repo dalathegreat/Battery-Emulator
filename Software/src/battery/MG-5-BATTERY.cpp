@@ -1,10 +1,13 @@
 #include "MG-5-BATTERY.h"
+#include <Arduino.h>
 #include <cmath>    //For unit test
 #include <cstring>  //For unit test
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
+
+#ifndef SMALL_FLASH_DEVICE
 
 /* TODO: 
 - Get contactor closing working
@@ -731,3 +734,5 @@ void Mg5Battery::setup(void) {  // Performs one time setup at startup
   uds_req_started_ms = millis();            // prevent immediate timeout
   uds_timeout_ms = UDS_TIMEOUT_AFTER_BOOT;  // initial delay to restart UDS after boot-up
 }
+
+#endif
