@@ -27,10 +27,11 @@ void VCUInverter::update_values() {  //Called every 1s
   LEAF_55B.data.u8[0] = ((datalayer.battery.status.real_soc / 10) << 2);
   LEAF_55B.data.u8[1] = ((datalayer.battery.status.real_soc / 10) << 6);
 
-  LEAF_1DB.data.u8[0] = ((datalayer.battery.status.current_dA / 10)/2) >> 3; //TODO: This is most likely handled wrong
-  LEAF_1DB.data.u8[1] = ((((datalayer.battery.status.current_dA / 10)/2) & 0x07) << 5);
-  LEAF_1DB.data.u8[2] = ((datalayer.battery.status.voltage_dV / 10)/2) >> 2;
-  LEAF_1DB.data.u8[3] = (((datalayer.battery.status.voltage_dV / 10)/2) << 6) | 0x2B; //Lots of status flags here
+  LEAF_1DB.data.u8[0] =
+      ((datalayer.battery.status.current_dA / 10) / 2) >> 3;  //TODO: This is most likely handled wrong
+  LEAF_1DB.data.u8[1] = ((((datalayer.battery.status.current_dA / 10) / 2) & 0x07) << 5);
+  LEAF_1DB.data.u8[2] = ((datalayer.battery.status.voltage_dV / 10) / 2) >> 2;
+  LEAF_1DB.data.u8[3] = (((datalayer.battery.status.voltage_dV / 10) / 2) << 6) | 0x2B;  //Lots of status flags here
 
   remining_gids = (datalayer.battery.status.real_soc / 10000.0) * 281;  //0-281 for 24kWh
   LEAF_5BC.data.u8[0] = remining_gids << 2;
