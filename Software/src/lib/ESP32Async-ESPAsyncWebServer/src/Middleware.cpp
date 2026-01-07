@@ -67,42 +67,6 @@ void AsyncMiddlewareChain::_runChain(AsyncWebServerRequest *request, ArMiddlewar
   return next();
 }
 
-void AsyncAuthenticationMiddleware::setUsername(const char *username) {
-  _username = username;
-  _hasCreds = _username.length() && _credentials.length();
-}
-
-void AsyncAuthenticationMiddleware::setPassword(const char *password) {
-  _credentials = password;
-  _hash = false;
-  _hasCreds = _username.length() && _credentials.length();
-}
-
-void AsyncAuthenticationMiddleware::setPasswordHash(const char *hash) {
-  _credentials = hash;
-  _hash = _credentials.length();
-  _hasCreds = _username.length() && _credentials.length();
-}
-
-bool AsyncAuthenticationMiddleware::generateHash() {
-  // ensure we have all the necessary data
-  if (!_hasCreds) {
-    return false;
-  }
-
-  // if we already have a hash, do nothing
-  if (_hash) {
-    return false;
-  }
-
-  switch (_authMethod) {
-    case AsyncAuthType::AUTH_DIGEST:
-        return false;
-    case AsyncAuthType::AUTH_BASIC:
-        return false;
-    default: return false;
-  }
-}
 
 bool AsyncAuthenticationMiddleware::allowed(AsyncWebServerRequest *request) const {
   if (_authMethod == AsyncAuthType::AUTH_NONE) {
