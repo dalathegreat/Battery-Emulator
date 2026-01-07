@@ -368,20 +368,6 @@ void BmwIXBattery::processCompletedUDSResponse() {
     // logging.print(voltage_index);
     // logging.println(" cell voltages");
 
-    // Check for 96S vs 108S detection
-    if (voltage_index >= 97) {
-      int byte_offset = 3 + (96 * 2);
-      if (byte_offset + 1 < len) {
-        if (buf[byte_offset] == 0xFF && buf[byte_offset + 1] == 0xFF) {
-          detected_number_of_cells = 96;
-          //logging.println("Detected 96S battery");
-        } else {
-          detected_number_of_cells = 108;
-          // logging.println("Detected 108S battery");
-        }
-      }
-    }
-
   } else if (gUDSContext.UDS_moduleID == 0xCE) {
     // SOC Response (0x22 0xE5 0xCE -> 0x62 0xE5 0xCE)
     if (len >= 9) {
@@ -510,23 +496,61 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
     set_event(EVENT_12V_LOW, terminal30_12v_voltage);
   }
 
+  // detect number of cells
   if ((datalayer.battery.status.cell_voltages_mV[77] > 1000) &&
       (datalayer.battery.status.cell_voltages_mV[78] < 1000)) {
     //If we detect cellvoltage on cell78, but nothing on 79, we can confirm we are on SE12
-    detected_number_of_cells = 78;  //We are on 78S SE12 battery from BMW IX1
-  }  //Sidenote, detection of 96S and 108S batteries happen inside the cellvoltage reading blocks
+    detected_number_of_cells = 78;  //We are on 78S SE12 battery from BMW iX1
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
+  } else if ((datalayer.battery.status.cell_voltages_mV[89] > 1000) &&
+             (datalayer.battery.status.cell_voltages_mV[90] < 1000)) {
+    detected_number_of_cells = 90;
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
+  } else if ((datalayer.battery.status.cell_voltages_mV[93] > 1000) &&
+             (datalayer.battery.status.cell_voltages_mV[94] < 1000)) {
+    detected_number_of_cells = 94;
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
+  } else if ((datalayer.battery.status.cell_voltages_mV[95] > 1000) &&
+             (datalayer.battery.status.cell_voltages_mV[96] < 1000)) {
+    detected_number_of_cells = 96;
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
+  } else if ((datalayer.battery.status.cell_voltages_mV[99] > 1000) &&
+             (datalayer.battery.status.cell_voltages_mV[100] < 1000)) {
+    detected_number_of_cells = 100;
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
+  } else if ((datalayer.battery.status.cell_voltages_mV[101] > 1000) &&
+             (datalayer.battery.status.cell_voltages_mV[102] < 1000)) {
+    detected_number_of_cells = 102;
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
+  } else if (datalayer.battery.status.cell_voltages_mV[107] > 1000) {
+    // voltage index cannot be larger than 107, therefore we only perform a check if we detect cellvoltage on cell107
+    detected_number_of_cells = 108;
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
+  } else {
+    logging.println("Number of cells not recognized");
+  }
 
   datalayer.battery.info.number_of_cells = detected_number_of_cells;
 
   if (detected_number_of_cells == 78) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_78S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_78S_DV;
-  }
-  if (detected_number_of_cells == 96) {
+  } else if (detected_number_of_cells == 90) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_90S_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;
+  } else if (detected_number_of_cells == 94) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94S_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94S_DV;
+  } else if (detected_number_of_cells == 96) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;
-  }
-  if (detected_number_of_cells == 108) {
+  } else if (detected_number_of_cells == 100) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_100S_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_100S_DV;
+  } else if (detected_number_of_cells == 102) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_102S_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_102S_DV;
+  } else if (detected_number_of_cells == 108) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_108S_DV;
   }

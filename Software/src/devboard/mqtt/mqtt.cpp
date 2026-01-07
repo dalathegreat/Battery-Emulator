@@ -7,9 +7,12 @@
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
+#include "../../devboard/hal/hal.h"
+#include "../../devboard/safety/safety.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
 #include "../utils/timer.h"
+#include "../webserver/webserver.h"
 #include "mqtt.h"
 #include "mqtt_client.h"
 
@@ -740,7 +743,7 @@ bool init_mqtt(void) {
 }
 
 void mqtt_client_loop(void) {
-  // Only attempt to publish/reconnect MQTT if Wi-Fi is connectedand checkTimmer is elapsed
+  // Only attempt to publish/reconnect MQTT if Wi-Fi is connected and checkTimmer is elapsed
   if (check_global_timer.elapsed() && WiFi.status() == WL_CONNECTED) {
 
     if (client_started == false) {
@@ -752,7 +755,8 @@ void mqtt_client_loop(void) {
       return;
     }
 
-    if (publish_global_timer.elapsed()) {
+    // Skip publishing if OTA update is in progress to avoid interference
+    if (publish_global_timer.elapsed() && !ota_active) {
       publish_values();
     }
   }

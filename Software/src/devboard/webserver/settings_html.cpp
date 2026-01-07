@@ -124,7 +124,7 @@ const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
       return nullptr;
   }
 }
-
+#ifdef HW_LILYGO2CAN
 const char* name_for_gpioopt1(GPIOOPT1 option) {
   switch (option) {
     case GPIOOPT1::DEFAULT_OPT:
@@ -133,6 +133,27 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
       return "I2C Display (SSD1306)";
     case GPIOOPT1::ESTOP_BMS_POWER:
       return "E-Stop / BMS Power";
+    default:
+      return nullptr;
+  }
+}
+#endif
+const char* name_for_gpioopt2(GPIOOPT2 option) {
+  switch (option) {
+    case GPIOOPT2::DEFAULT_OPT_BMS_POWER_18:
+      return "Pin 18";
+    case GPIOOPT2::BMS_POWER_25:
+      return "Pin 25";
+    default:
+      return nullptr;
+  }
+}
+const char* name_for_gpioopt3(GPIOOPT3 option) {
+  switch (option) {
+    case GPIOOPT3::DEFAULT_SMA_ENABLE_05:
+      return "Pin 5";
+    case GPIOOPT3::SMA_ENABLE_33:
+      return "Pin 33";
     default:
       return nullptr;
   }
@@ -224,10 +245,20 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "LEDMODE") {
     return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
   }
-
+#ifdef HW_LILYGO2CAN
   if (var == "GPIOOPT1") {
     return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
+  }
+#endif
+  if (var == "GPIOOPT2") {
+    return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
+                                      name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
+  }
+
+  if (var == "GPIOOPT3") {
+    return options_for_enum_with_none((GPIOOPT3)settings.getUInt("GPIOOPT3", (int)GPIOOPT3::DEFAULT_SMA_ENABLE_05),
+                                      name_for_gpioopt3, GPIOOPT3::DEFAULT_SMA_ENABLE_05);
   }
 
   // All other values are wrapped by html_escape to avoid HTML injection.
@@ -362,6 +393,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "MAXPRETIME") {
     return String(settings.getUInt("MAXPRETIME", 15000));
+  }
+
+  if (var == "MAXPREFREQ") {
+    return String(settings.getUInt("MAXPREFREQ", 34000));
   }
 
   if (var == "NOINVDISC") {
@@ -814,6 +849,30 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   )rawliteral"
 #else
 #define GPIOOPT1_SETTING ""
+#endif
+
+#ifdef HW_LILYGO
+#define GPIOOPT2_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT2">BMS Power pin:</label>
+    <select id="GPIOOPT2" name="GPIOOPT2">
+      %GPIOOPT2%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT2_SETTING ""
+#endif
+
+#ifdef HW_LILYGO
+#define GPIOOPT3_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT3">SMA enable pin:</label>
+    <select id="GPIOOPT3" name="GPIOOPT3">
+      %GPIOOPT3%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT3_SETTING ""
 #endif
 
 #define SETTINGS_HTML_SCRIPTS \
@@ -1391,6 +1450,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <label>Precharge, maximum ms before fault: </label>
             <input name='MAXPRETIME' type='text' value="%MAXPRETIME%" pattern="[0-9]+" />
 
+            <label>Precharge, maximum PWM frequency: </label>
+            <input name='MAXPREFREQ' type='text' value="%MAXPREFREQ%" pattern="[0-9]+" />
+
           <label>Normally Open (NO) inverter disconnect contactor: </label>
           <input type='checkbox' name='NOINVDISC' value='on' %NOINVDISC% />
         </div>
@@ -1400,7 +1462,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
 
         )rawliteral" GPIOOPT1_SETTING R"rawliteral(
-
+        )rawliteral" GPIOOPT2_SETTING R"rawliteral(
+        )rawliteral" GPIOOPT3_SETTING R"rawliteral(
+          
         </div>
         </div>
 

@@ -1,5 +1,7 @@
 #include "BATTERIES.h"
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/hal/hal.h"
+#include "../devboard/utils/logging.h"
 #include "CanBattery.h"
 #include "RS485Battery.h"
 
@@ -90,8 +92,10 @@ const char* name_for_battery_type(BatteryType type) {
       return MaxusEV80Battery::Name;
     case BatteryType::Meb:
       return MebBattery::Name;
+#ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return Mg5Battery::Name;
+#endif
     case BatteryType::MgHsPhev:
       return MgHsPHEVBattery::Name;
     case BatteryType::NissanLeaf:
@@ -143,7 +147,7 @@ const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum:
 
 battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_default;
 
-BatteryType user_selected_battery_type = BatteryType::NissanLeaf;
+BatteryType user_selected_battery_type = BatteryType::None;
 bool user_selected_second_battery = false;
 bool user_selected_triple_battery = false;
 
@@ -199,8 +203,10 @@ Battery* create_battery(BatteryType type) {
       return new MaxusEV80Battery();
     case BatteryType::Meb:
       return new MebBattery();
+#ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return new Mg5Battery();
+#endif
     case BatteryType::MgHsPhev:
       return new MgHsPHEVBattery();
     case BatteryType::NissanLeaf:

@@ -128,6 +128,7 @@ class BydAttoBattery : public CanBattery {
   uint8_t counter_100ms = 0;
   uint8_t frame6_counter = 0xB;
   uint8_t frame7_counter = 0x5;
+  uint8_t BMS_SOH = 99;
   uint8_t BMS_unknown10 = 0;
   uint8_t BMS_unknown11 = 0;
   uint8_t BMS_unknown12 = 0;
