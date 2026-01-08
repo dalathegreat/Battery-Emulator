@@ -92,8 +92,10 @@ const char* name_for_battery_type(BatteryType type) {
       return MaxusEV80Battery::Name;
     case BatteryType::Meb:
       return MebBattery::Name;
+#ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return Mg5Battery::Name;
+#endif
     case BatteryType::MgHsPhev:
       return MgHsPHEVBattery::Name;
     case BatteryType::NissanLeaf:
@@ -201,8 +203,10 @@ Battery* create_battery(BatteryType type) {
       return new MaxusEV80Battery();
     case BatteryType::Meb:
       return new MebBattery();
+#ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return new Mg5Battery();
+#endif
     case BatteryType::MgHsPhev:
       return new MgHsPHEVBattery();
     case BatteryType::NissanLeaf:

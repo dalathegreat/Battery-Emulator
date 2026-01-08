@@ -66,8 +66,8 @@ class PylonBattery : public CanBattery {
   int16_t celltemperature_min_dC = 0;
   int16_t current_dA = 0;
   uint16_t voltage_dV = 0;
-  uint16_t cellvoltage_max_mV = 3700;
-  uint16_t cellvoltage_min_mV = 3700;
+  uint16_t cellvoltage_max_mV = 3300;
+  uint16_t cellvoltage_min_mV = 3300;
   uint16_t charge_cutoff_voltage = 0;
   uint16_t discharge_cutoff_voltage = 0;
   int16_t max_charge_current = 0;

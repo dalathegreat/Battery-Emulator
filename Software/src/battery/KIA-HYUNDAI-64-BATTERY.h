@@ -75,6 +75,7 @@ class KiaHyundai64Battery : public CanBattery {
   int16_t temperatureMax = 0;
   int16_t temperatureMin = 0;
   uint8_t poll_data_pid = 0;
+  uint8_t open_state = 0;
   uint16_t pid_reply = 0;
   bool holdPidCounter = false;
   uint8_t CellVmaxNo = 0;
@@ -135,6 +136,11 @@ class KiaHyundai64Battery : public CanBattery {
                          .DLC = 8,
                          .ID = 0x2A1,
                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame KIA64_7E4_OPEN_CONTACTOR_SEQUENCE = {.FD = false,
+                                                 .ext_ID = false,
+                                                 .DLC = 8,
+                                                 .ID = 0x7E4,
+                                                 .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame KIA64_7E4_poll = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
