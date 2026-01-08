@@ -402,12 +402,12 @@ void init_webserver() {
   };
 
   const char* uintSettingNames[] = {
-      "BATTCVMAX", "BATTCVMIN",  "MAXPRETIME",  "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER",     "CHGPOWER", "LOCALIP1",
-      "LOCALIP2",  "LOCALIP3",   "LOCALIP4",    "GATEWAY1",   "GATEWAY2",    "GATEWAY3",      "GATEWAY4", "SUBNET1",
-      "SUBNET2",   "SUBNET3",    "SUBNET4",     "MQTTPORT",   "MQTTTIMEOUT", "MQTTPUBLISHMS", "SOFAR_ID", "PYLONSEND",
-      "INVCELLS",  "INVMODULES", "INVCELLSPER", "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",      "CANFREQ",  "CANFDFREQ",
-      "PRECHGMS",  "PWMFREQ",    "PWMHOLD",     "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS",    "GTWPACK",  "LEDMODE",
-      "GPIOOPT1",  "GPIOOPT2",   "GPIOOPT3",
+      "BATTCVMAX", "BATTCVMIN",  "MAXPRETIME", "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER", "CHGPOWER",
+      "LOCALIP1",  "LOCALIP2",   "LOCALIP3",   "LOCALIP4",   "GATEWAY1",    "GATEWAY2",  "GATEWAY3",
+      "GATEWAY4",  "SUBNET1",    "SUBNET2",    "SUBNET3",    "SUBNET4",     "MQTTPORT",  "MQTTTIMEOUT",
+      "SOFAR_ID",  "PYLONSEND",  "INVCELLS",   "INVMODULES", "INVCELLSPER", "INVVLEVEL", "INVCAPACITY",
+      "INVBTYPE",  "CANFREQ",    "CANFDFREQ",  "PRECHGMS",   "PWMFREQ",     "PWMHOLD",   "GTWCOUNTRY",
+      "GTWMAPREG", "GTWCHASSIS", "GTWPACK",    "LEDMODE",    "GPIOOPT1",    "GPIOOPT2",  "GPIOOPT3",
   };
 
   const char* stringSettingNames[] = {"APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
@@ -469,6 +469,9 @@ void init_webserver() {
                 } else if (p->name() == "PASSWORD") {
                   settings.saveString("PASSWORD", p->value().c_str());
                   password = settings.getString("PASSWORD", "").c_str();
+                } else if (p->name() == "MQTTPUBLISHMS") {
+                  auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
+                  settings.saveUInt("MQTTPUBLISHMS", interval);
                 }
 
                 for (auto& uintSetting : uintSettingNames) {
