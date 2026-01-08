@@ -313,6 +313,9 @@ void setup_battery() {
       case BatteryType::NissanLeaf:
         battery3 = new NissanLeafBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
         break;
+      case BatteryType::RelionBattery:
+        battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple);
+        break;
       default:
         DEBUG_PRINTF("User tried enabling triple battery on non-supported integration!\n");
         break;
