@@ -1931,9 +1931,27 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     if (battery_contactor == 4) {  // Contactors closed
 
       // Frames to be sent only when contactors closed
-
+      if(timeToMux3A1){
+        timeToMux3A1 = false;
+          TESLA_3A1.data.u8[0] = 0xC3;
+          TESLA_3A1.data.u8[1] = 0xFF;
+          TESLA_3A1.data.u8[2] = 0xFF;
+          TESLA_3A1.data.u8[3] = 0xFF;
+          TESLA_3A1.data.u8[4] = 0x3D;
+          TESLA_3A1.data.u8[5] = 0x00;
+      }else{ //!timeToMux3A1
+          TESLA_3A1.data.u8[0] = 0x08;
+          TESLA_3A1.data.u8[1] = 0x62;
+          TESLA_3A1.data.u8[2] = 0x0B;
+          TESLA_3A1.data.u8[3] = 0x18;
+          TESLA_3A1.data.u8[4] = 0x00;
+          TESLA_3A1.data.u8[5] = 0x28;
+        timeToMux3A1 = true;
+      }
+      TESLA_3A1.data.u8[6] = frame6_3A1[frameCounter_TESLA_3A1];
+      TESLA_3A1.data.u8[7] = frame7_3A1[frameCounter_TESLA_3A1];
       //0x3A1 VCFRONT_vehicleStatus, critical otherwise VCFRONT_MIA triggered
-      transmit_can_frame(&TESLA_3A1[frameCounter_TESLA_3A1]);
+      transmit_can_frame(&TESLA_3A1);
       frameCounter_TESLA_3A1 = (frameCounter_TESLA_3A1 + 1) % 16;
     }
 
