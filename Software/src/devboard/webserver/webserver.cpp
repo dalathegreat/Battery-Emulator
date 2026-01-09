@@ -490,15 +490,14 @@ void init_webserver() {
                     }
                   }
                 }
+              }
 
-                for (auto& boolSetting : boolSettingNames) {
-                  if (p->name() == boolSetting) {
-                    const bool default_value = (boolSetting == std::string("WIFIAPENABLED"));
-                    const bool value = (p->value() == "on");
-                    if (settings.getBool(boolSetting, default_value) != value) {
-                      settings.saveBool(boolSetting, value);
-                    }
-                  }
+              for (auto& boolSetting : boolSettingNames) {
+                auto p = request->getParam(boolSetting, true);
+                const bool default_value = (std::string(boolSetting) == std::string("WIFIAPENABLED"));
+                const bool value = p != nullptr && p->value() == "on";
+                if (settings.getBool(boolSetting, default_value) != value) {
+                  settings.saveBool(boolSetting, value);
                 }
               }
 
