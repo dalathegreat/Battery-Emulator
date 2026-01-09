@@ -38,7 +38,7 @@
 #include <string>
 #include <vector>
 
-#define MQTT_MSG_BUFFER_SIZE (1024)
+#define MQTT_MSG_BUFFER_SIZE (4096)
 
 extern const char* version_number;  // The current software version, used for mqtt
 
@@ -55,8 +55,6 @@ extern const char* mqtt_topic_name;
 extern const char* mqtt_object_id_prefix;
 extern const char* mqtt_device_name;
 extern const char* ha_device_id;
-
-extern char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 
 bool init_mqtt(void);
 void mqtt_client_loop(void);
