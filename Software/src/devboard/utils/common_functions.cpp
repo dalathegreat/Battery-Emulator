@@ -60,3 +60,28 @@ const uint8_t crctable_geely_geometryC[256] =
         0xFC, 0xD3, 0xA2, 0x8D, 0x40, 0x6F, 0x1E, 0x31, 0x76, 0x59, 0x28, 0x07, 0xCA, 0xE5, 0x94, 0xBB, 0x21, 0x0E,
         0x7F, 0x50, 0x9D, 0xB2, 0xC3, 0xEC, 0xD8, 0xF7, 0x86, 0xA9, 0x64, 0x4B, 0x3A, 0x15, 0x8F, 0xA0, 0xD1, 0xFE,
         0x33, 0x1C, 0x6D, 0x42};
+
+uint32_t taper_charge_power_linear(uint32_t soc, uint32_t max_charge_power, uint32_t trickle_charge_power,
+                                   uint16_t derate_above_soc) {
+  if (soc <= derate_above_soc) {
+    return max_charge_power;
+  } else if (soc >= 10000) {
+    return trickle_charge_power;
+  } else {
+    // Linear derate
+    return max_charge_power -
+           ((max_charge_power - trickle_charge_power) * (soc - derate_above_soc) / (10000 - derate_above_soc));
+  }
+}
+
+uint32_t taper_discharge_power_linear(uint32_t soc, uint32_t max_discharge_power, uint16_t min_soc,
+                                      uint16_t derate_below_soc) {
+  if (soc >= derate_below_soc) {
+    return max_discharge_power;
+  } else if (soc <= min_soc) {
+    return 0;
+  } else {
+    // Linear derate
+    return max_discharge_power - ((max_discharge_power) * (derate_below_soc - soc) / (derate_below_soc - min_soc));
+  }
+}

@@ -4,6 +4,7 @@
 #include "../communication/can/comm_can.h"
 #include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/common_functions.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
@@ -89,41 +90,30 @@ void MgHsPHEVBattery::update_soc(uint16_t soc_times_ten) {
   // Set the state of charge in the datalayer
   datalayer.battery.status.real_soc = soc_times_ten * 10;
 
-  RealSoC = datalayer.battery.status.real_soc / 100;
-
   // Calculate the remaining capacity.
-  tempfloat = datalayer.battery.info.total_capacity_Wh * (RealSoC - MinSoC) / 100;
-  if (tempfloat > 0) {
-    datalayer.battery.status.remaining_capacity_Wh = tempfloat;
+  uint32_t remaining =
+      (datalayer.battery.info.total_capacity_Wh * (datalayer.battery.status.real_soc - DISCHARGE_MIN_SOC)) /
+      (10000 - DISCHARGE_MIN_SOC);
+  if (remaining > 0) {
+    datalayer.battery.status.remaining_capacity_Wh = remaining;
   } else {
     datalayer.battery.status.remaining_capacity_Wh = 0;
   }
 
-  // Calculate the maximum charge power. Taper the charge power between 90% and 100% SoC, as 100% SoC is approached
-  if (RealSoC < StartChargeTaper) {
-    datalayer.battery.status.max_charge_power_W = MaxChargePower;
-  } else if (RealSoC >= 100) {
-    datalayer.battery.status.max_charge_power_W = TricklePower;
-  } else {
-    //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
-    datalayer.battery.status.max_charge_power_W =
-        (MaxChargePower * pow(((100 - RealSoC) / (100 - StartChargeTaper)), ChargeTaperExponent)) + TricklePower;
-  }
+  datalayer.battery.status.max_charge_power_W = taper_charge_power_linear(
+      datalayer.battery.status.real_soc, MAX_CHARGE_POWER_W, CHARGE_TRICKLE_POWER_W, DERATE_CHARGE_ABOVE_SOC);
 
-  // Calculate the maximum discharge power. Taper the discharge power between 35% and Min% SoC, as Min% SoC is approached
-  if (RealSoC > StartDischargeTaper) {
-    datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
-  } else if (RealSoC < MinSoC) {
-    datalayer.battery.status.max_discharge_power_W = TricklePower;
-  } else {
-    //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
-    datalayer.battery.status.max_discharge_power_W =
-        (MaxDischargePower * pow(((RealSoC - MinSoC) / (StartDischargeTaper - MinSoC)), DischargeTaperExponent)) +
-        TricklePower;
-  }
+  datalayer.battery.status.max_discharge_power_W = taper_discharge_power_linear(
+      datalayer.battery.status.real_soc, MAX_DISCHARGE_POWER_W, DISCHARGE_MIN_SOC, DERATE_DISCHARGE_BELOW_SOC);
 }
 
 void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  if (handle_incoming_uds_can_frame(rx_frame)) {
+    return;
+  }
+
+  uint32_t v, cell_id, soc1, soc2;
+
   switch (rx_frame.ID) {
     case 0x173:
       // Contains cell min/max voltages
@@ -250,6 +240,8 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
 
       break;
+    /*
+    These are handled via handle_pid now.
     case 0x7ED:
       // A response from our CAN2 OBD requests
       // We mostly ignore these, apart from SoH, and also the voltage as a
@@ -313,15 +305,28 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }  // data.u8[1] = 0x62)
 
       break;
+    */
     default:
       break;
   }
 }
+
+uint16_t MgHsPHEVBattery::handle_pid(uint16_t pid, uint32_t value) {
+  switch (pid) {
+    case POLL_BATTERY_VOLTAGE:
+      // We don't actually use this value
+      return POLL_BATTERY_SOH;
+    case POLL_BATTERY_SOH:  // Battery SoH
+      datalayer.battery.status.soh_pptt = value;
+      break;  // End of cycle
+  }
+  return 0;  // Continue normal PID cycling
+}
+
 void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     // Transmitting towards battery is halted while BMS is being reset
     previousMillis100 = currentMillis;
-    previousMillis200 = currentMillis;
     return;
   }
 
@@ -348,63 +353,35 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&MG_HS_8A);
     transmit_can_frame(&MG_HS_1F1);
 
-    switch (resetProgress) {
-      case IDLE:
-        // Nothing to do
-        break;
-      case SENDING_DIAG:
-        // Enter diag mode
-        transmit_can_frame(&MG_HS_7E5_DIAG);
-        resetProgress = SENDING_RESET;
-        break;
-      case SENDING_RESET:
-        // Send reset command
-        transmit_can_frame(&MG_HS_7E5_RESET);
-        resetProgress = WAITING_RESET_COMPLETE;
-        resetTimeout = 0;
-        break;
-      case WAITING_RESET_COMPLETE:
-        resetTimeout++;
-        if (resetTimeout >= 50) {
-          // 5 second timeout expired
-          logging.printf("MG_HS_PHEV: Reset timeout expired.\n");
-          resetProgress = IDLE;
-        }
-        break;
-      default:
-        break;
+    if (resetProgress == SENDING_DIAG) {
+      // Enter diag mode
+      transmit_can_frame(&MG_HS_7E5_DIAG);
+      // Pause UDS or it interferes with our reset sequence
+      pause_uds(2);
+      resetProgress = SENDING_RESET;
+    } else if (resetProgress == SENDING_RESET) {
+      // Send reset command
+      transmit_can_frame(&MG_HS_7E5_RESET);
+      // Pause UDS or it interferes with our reset sequence
+      pause_uds(2);
+      resetProgress = WAITING_RESET_COMPLETE;
+      resetTimeout = 0;  // 5 seconds timeout
+    } else if (resetProgress == WAITING_RESET_COMPLETE) {
+      resetTimeout++;
+      if (resetTimeout >= 50) {
+        // Timeout expired
+        logging.printf("MG_HS_PHEV: Reset timeout expired.\n");
+        resetProgress = IDLE;
+      }
     }
   }
-  // Send 200ms CAN Message
-  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
-    previousMillis200 = currentMillis;
 
-    switch (transmitIndex) {
-      case 0:
-        // We don't actually use this value currently
-        MG_HS_7E5_POLL.data.u8[2] = (uint8_t)((POLL_BATTERY_VOLTAGE & 0xFF00) >> 8);
-        MG_HS_7E5_POLL.data.u8[3] = (uint8_t)(POLL_BATTERY_VOLTAGE & 0x00FF);
-        transmit_can_frame(&MG_HS_7E5_POLL);
-        break;
-      case 1:
-        MG_HS_7E5_POLL.data.u8[2] = (uint8_t)((POLL_BATTERY_SOH & 0xFF00) >> 8);
-        MG_HS_7E5_POLL.data.u8[3] = (uint8_t)(POLL_BATTERY_SOH & 0x00FF);
-        transmit_can_frame(&MG_HS_7E5_POLL);
-        break;
-      default:
-        break;
-    }
-
-    transmitIndex++;  //Increment the message index
-    if (transmitIndex > 30) {
-      // Wrap after a while (we don't need to poll every tick)
-      transmitIndex = 0;
-    }
-
-  }  //endif
+  // Send UDS messages too.
+  transmit_uds_can(currentMillis);
 }
 
 void MgHsPHEVBattery::setup(void) {  // Performs one time setup at startup
+  setup_uds(0x7E5, POLL_BATTERY_VOLTAGE);
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
