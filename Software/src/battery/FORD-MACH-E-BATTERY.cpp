@@ -75,12 +75,21 @@ void FordMachEBattery::update_values() {
 
   datalayer.battery.status.temperature_max_dC = maximum_temperature * 10;
 
-  if (datalayer.battery.info.number_of_cells == 94) {
-    datalayer.battery.info.total_capacity_Wh = 98000;
-  }
-
-  if (datalayer.battery.info.number_of_cells == 96) {
-    datalayer.battery.info.total_capacity_Wh = 88000;
+  if (datalayer.battery.info.chemistry == LFP) {                     //If configured LFP in use
+    datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_LFP_WH;  //78 kWh LFP CATL
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP_DV;
+    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP_MV;
+  } else {                                               //We are on NCM, autodetech which based on cells
+    if (datalayer.battery.info.number_of_cells == 96) {  //75.7 kWh NMC LGES
+      datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_96S_WH;
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;
+    } else if (datalayer.battery.info.number_of_cells == 94) {  //98.8 kWh NMC LGES
+      datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_94S_WH;
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94S_DV;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94S_DV;
+    }
   }
 
   // Check vehicle specific safeties

@@ -12,10 +12,23 @@ class FordMachEBattery : public CanBattery {
   static constexpr const char* Name = "Ford Mustang Mach-E battery";
 
  private:
+  //75.7 kWh NMC LGES
   static const int MAX_PACK_VOLTAGE_96S_DV = 4140;
   static const int MIN_PACK_VOLTAGE_96S_DV = 2680;
+  static const int MAX_CAPACITY_96S_WH = 75700;
+
+  //78 kWh LFP CATL (108s?)
+  static const int MAX_PACK_VOLTAGE_LFP_DV = 3950;
+  static const int MIN_PACK_VOLTAGE_LFP_DV = 2700;
+  static const int MAX_CAPACITY_LFP_WH = 78000;
+  static const int MAX_CELL_VOLTAGE_LFP_MV = 3680;
+
+  //94S 98.8 kWh NMC LGES
   static const int MAX_PACK_VOLTAGE_94S_DV = 4072;
   static const int MIN_PACK_VOLTAGE_94S_DV = 2612;
+  static const int MAX_CAPACITY_94S_WH = 98800;
+
+  //Common
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
   static const int MIN_CELL_VOLTAGE_MV = 2900;
