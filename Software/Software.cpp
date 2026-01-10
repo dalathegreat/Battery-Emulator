@@ -26,6 +26,7 @@
 #include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/types.h"
 #include "src/devboard/utils/value_mapping.h"
+#include "src/devboard/utils/watchdog.h"
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
@@ -50,6 +51,7 @@ TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
 TaskHandle_t logging_loop_task;
 TaskHandle_t mqtt_loop_task;
+Watchdog mqtt_loop_watchdog;
 
 Logging logging;
 
@@ -104,6 +106,8 @@ void connectivity_loop(void*) {
     ota_monitor();
 
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
+
+    mqtt_loop_watchdog.panic_if_exceeded_ms(60000, "MQTT task watchdog reset triggered!");
 
     esp_task_wdt_reset();  // Reset watchdog
     delay(1);
@@ -561,14 +565,13 @@ void core_loop(void*) {
 }
 
 void mqtt_loop(void*) {
-  esp_task_wdt_add(NULL);  // Register this task with WDT
-
   while (true) {
+    mqtt_loop_watchdog.update();
+
     START_TIME_MEASUREMENT(mqtt);
     mqtt_client_loop();
     END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
-    esp_task_wdt_reset();  // Reset watchdog
-    delay(1);
+    delay(100);
   }
 }
 
