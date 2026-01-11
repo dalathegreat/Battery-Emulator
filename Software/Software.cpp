@@ -111,11 +111,19 @@ void connectivity_loop(void*) {
 }
 
 void logging_loop(void*) {
+  bool sd_initialized = false;
 
   init_logging_buffers();
-  init_sdcard();
+  sd_initialized = init_sdcard();
 
-  while (true) {
+  // If the SD failed to init (delete the buffers and disable SD logging)
+  if (!sd_initialized) {
+    deinit_logging_buffers();
+    datalayer.system.info.SD_logging_active = false;
+    datalayer.system.info.CAN_SD_logging_active = false;
+  }
+
+  while (sd_initialized) {
     if (datalayer.system.info.SD_logging_active) {
       write_log_to_sdcard();
     }
@@ -124,6 +132,8 @@ void logging_loop(void*) {
       write_can_frame_to_sdcard();
     }
   }
+  // Delete the logging task only if SD failed to initialize to prevent panic.
+  vTaskDelete(NULL);
 }
 
 void check_interconnect_available(uint8_t batteryNumber) {
