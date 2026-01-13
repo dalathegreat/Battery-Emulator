@@ -55,6 +55,7 @@ void setup_shunt();
 #include "SIMPBMS-BATTERY.h"
 #include "SONO-BATTERY.h"
 #include "TESLA-BATTERY.h"
+#include "TESLA-LEGACY-BATTERY.h"
 #include "TEST-FAKE-BATTERY.h"
 #include "THINK-BATTERY.h"
 #include "VOLVO-SPA-BATTERY.h"

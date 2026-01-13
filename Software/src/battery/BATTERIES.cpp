@@ -130,6 +130,8 @@ const char* name_for_battery_type(BatteryType type) {
       return TeslaModel3YBattery::Name;
     case BatteryType::TeslaModelSX:
       return TeslaModelSXBattery::Name;
+    case BatteryType::TeslaLegacy:
+      return TeslaLegacyBattery::Name;
     case BatteryType::TestFake:
       return TestFakeBattery::Name;
     case BatteryType::ThinkCity:
@@ -241,6 +243,8 @@ Battery* create_battery(BatteryType type) {
       return new TeslaModel3YBattery(user_selected_battery_chemistry);
     case BatteryType::TeslaModelSX:
       return new TeslaModelSXBattery();
+    case BatteryType::TeslaLegacy:
+      return new TeslaLegacyBattery();
     case BatteryType::TestFake:
       return new TestFakeBattery();
     case BatteryType::ThinkCity:
