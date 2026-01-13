@@ -132,17 +132,12 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       int16_t raw_amps = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2];
       battery_amps = raw_amps * 0.1;  // 16|16@1- (0.1,0) [-3276.7|3276.7] "A"
     } break;
-
     case 0x7E2:  // read CACmin to determine SOH
     {
-      logging.println(rx_frame.data.u8[0]);
       if (rx_frame.data.u8[0] == 0) {
         BMS_CAC_min = (((rx_frame.data.u8[2] >> 4) & 0x0F) | ((rx_frame.data.u8[3]) << 4)) * 10000;
-        logging.print("CACmin: ");
-        logging.println(BMS_CAC_min);
       }
     } break;
-
     case 0x3D2:  //TotalChargeDischarge:
       battery_total_discharge = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) |
                                  (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
