@@ -39,7 +39,60 @@ inline const char* getBMSState(uint8_t index) {
 }
 
 void TeslaLegacyBattery::update_values() {
-  //After values are mapped, we perform some safety checks, and do some serial printouts
+
+  switch (battery_hwID) {
+    case 0:  //Not read yet
+      break;
+    case 27:  //60kWh
+    case 39:
+    case 42:
+    case 50:
+      datalayer.battery.info.total_capacity_Wh = 60000;
+      break;
+    case 61:  //70kWh
+    case 65:
+    case 67:
+      datalayer.battery.info.total_capacity_Wh = 70000;
+      break;
+    case 74:  //75kWh
+    case 80:
+    case 84:
+      datalayer.battery.info.total_capacity_Wh = 75000;
+      break;
+    case 24:  //85kWh
+    case 31:
+    case 41:
+    case 46:
+    case 49:
+    case 57:
+    case 60:
+    case 64:
+    case 69:
+    case 70:
+    case 86:
+      datalayer.battery.info.total_capacity_Wh = 85000;
+      break;
+    case 68:  //90kWh
+    case 71:
+    case 73:
+    case 75:
+    case 76:
+    case 77:
+    case 81:
+    case 82:
+    case 83:
+    case 85:
+    case 94:
+      datalayer.battery.info.total_capacity_Wh = 90000;
+      break;
+    case 79:  //100kWh
+    case 89:
+      datalayer.battery.info.total_capacity_Wh = 70000;
+      break;
+    default:  //Unknown hwID. Raise event
+      set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, battery_hwID);
+      break;
+  }
 
   datalayer.battery.status.soh_pptt = BMS_CAC_min / 2316;  // uitgelezen minimale CAC / CAC bij nieuw (231,6 Ah)
 
@@ -162,7 +215,11 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //to datalayer_extended
       battery_min_temp = battery_BrickModelTMin * 10;
       break;
-
+    case 0x5D2:
+      if (rx_frame.data.u8[0] == 0x10) {
+        battery_hwID = rx_frame.data.u8[2];
+      }
+      break;
     case 0x6F2:
       static uint16_t volts;
       static uint8_t mux_zero_counter = 0u;

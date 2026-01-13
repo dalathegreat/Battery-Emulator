@@ -82,6 +82,8 @@ class TeslaLegacyBattery : public CanBattery {
   uint8_t battery_BrickModelTMin = 0;
   uint8_t battery_BrickVoltageMaxNum = 0;
   uint8_t battery_BrickVoltageMinNum = 0;
+  //0x5D2
+  uint8_t battery_hwID = 0;
   //0x212: 530 BMS_status
   // Nieuwe variablen voor Classic:
   bool battery_BMS_rapidDCLinkDchgRequest = false;
