@@ -82,14 +82,6 @@ class TeslaLegacyBattery : public CanBattery {
   uint8_t battery_BrickModelTMin = 0;
   uint8_t battery_BrickVoltageMaxNum = 0;
   uint8_t battery_BrickVoltageMinNum = 0;
-  //0x252 594 BMS_powerAvailable
-  uint16_t BMS_maxRegenPower = 0;
-  uint16_t BMS_maxDischargePower = 0;
-  uint16_t BMS_maxStationaryHeatPower = 0;
-  uint16_t BMS_hvacPowerBudget = 0;
-  uint8_t BMS_notEnoughPowerForHeatPump = 0;
-  uint8_t BMS_powerLimitState = 0;
-  uint8_t BMS_inverterTQF = 0;
   //0x212: 530 BMS_status
   // Nieuwe variablen voor Classic:
   bool battery_BMS_rapidDCLinkDchgRequest = false;

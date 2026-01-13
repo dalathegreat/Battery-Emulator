@@ -126,25 +126,6 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_BMS_okToShipByAir = ((rx_frame.data.u8[4] >> 6) & 0x01U);
       battery_BMS_okToShipByLand = ((rx_frame.data.u8[4] >> 7) & 0x01U);
       break;
-    case 0x252:  //Limit //594 BMS_powerAvailable:
-      BMS_maxRegenPower = ((rx_frame.data.u8[1] << 8) |
-                           rx_frame.data.u8[0]);  //0|16@1+ (0.01,0) [0|655.35] "kW"  //Example 4715 * 0.01 = 47.15kW
-      BMS_maxDischargePower =
-          ((rx_frame.data.u8[3] << 8) |
-           rx_frame.data.u8[2]);  //16|16@1+ (0.013,0) [0|655.35] "kW"  //Example 2009 * 0.013 = 26.117???
-      BMS_maxStationaryHeatPower =
-          (((rx_frame.data.u8[5] & 0x03) << 8) |
-           rx_frame.data.u8[4]);  //32|10@1+ (0.01,0) [0|10.23] "kW"  //Example 500 * 0.01 = 5kW
-      BMS_hvacPowerBudget =
-          (((rx_frame.data.u8[7] << 6) |
-            ((rx_frame.data.u8[6] & 0xFC) >> 2)));  //50|10@1+ (0.02,0) [0|20.46] "kW"  //Example 1000 * 0.02 = 20kW?
-      BMS_notEnoughPowerForHeatPump =
-          ((rx_frame.data.u8[5] >> 2) & (0x01U));  //BMS_notEnoughPowerForHeatPump : 42|1@1+ (1,0) [0|1] ""  Receiver
-      BMS_powerLimitState =
-          (rx_frame.data.u8[6] &
-           (0x01U));  //BMS_powerLimitsState : 48|1@1+ (1,0) [0|1] 0 "NOT_CALCULATED_FOR_DRIVE" 1 "CALCULATED_FOR_DRIVE"
-      BMS_inverterTQF = ((rx_frame.data.u8[7] >> 4) & (0x03U));
-      break;
     case 0x102:  // BMS_hvBusStatus
     {
       battery_volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01;  // 0|16@1+ (0.01,0) [0|430] "V"
