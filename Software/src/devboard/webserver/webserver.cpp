@@ -545,6 +545,10 @@ void init_webserver() {
   // Route for editing USE_SCALED_SOC
   update_int_setting("/updateUseScaledSOC", [](int value) { datalayer.battery.settings.soc_scaling_active = value; });
 
+  // Route for enabling recovery mode charging
+  update_int_setting("/enableRecoveryMode",
+                     [](int value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; });
+
   // Route for editing SOCMax
   update_string_setting("/updateSocMax", [](String value) {
     datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);

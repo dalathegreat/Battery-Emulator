@@ -174,7 +174,9 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** Sofar CAN Battery ID (0-15) used to parallel multiple packs */
   uint8_t sofar_user_specified_battery_id = 0;
 
-  /** User is trying to recover charge an undercharged battery. Temporarily allow low power charging */
+  /** User is trying to recover charge a severely undercharged battery. Temporarily allow low power charging for 30 minutes and force ACTIVE mode 
+   * Great caution must be taken while in this mode to avoid a battery fire, since we override any BMS value.
+  */
   bool user_requests_forced_charging_recovery_mode = false;
   /** User specified discharge/charge voltages in use. Set to true to use user specified values */
   /** Some inverters like to see a specific target voltage for charge/discharge. Use these values to override automatic voltage limits*/
