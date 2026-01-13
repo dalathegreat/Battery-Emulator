@@ -371,6 +371,28 @@ void update_machineryprotection() {
   if (datalayer.battery.status.max_charge_power_W == 0) {
     datalayer.battery.status.max_charge_current_dA = 0;
   }
+  //One exception. If user has enabled the emergency recovery charge mode, still allow small amount of charging
+  if (datalayer.battery.settings.user_requests_forced_charging_recovery_mode) {
+    datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
+
+    // If this is the start of the emergency recovery charge period, capture the current time
+    if (datalayer.battery.settings.recovery_charge_start_time_ms == 0) {
+      datalayer.battery.settings.recovery_charge_start_time_ms = millis();
+      set_event(EVENT_RECOVERY_START, 0);
+    } else {
+      clear_event(EVENT_RECOVERY_START);
+    }
+
+    // Check if the elapsed time exceeds the max recovery charge time
+    if (millis() - datalayer.battery.settings.recovery_charge_start_time_ms >=
+        datalayer.battery.settings.recovery_charge_max_time_ms) {
+      datalayer.battery.settings.user_requests_forced_charging_recovery_mode = false;
+      datalayer.battery.settings.recovery_charge_start_time_ms = 0;  // Reset the start time
+      set_event(EVENT_RECOVERY_END, 0);
+    } else {
+      clear_event(EVENT_RECOVERY_END);
+    }
+  }
 
   //Decrement the forced balancing timer incase user requested it
   if (datalayer.battery.settings.user_requests_balancing) {
@@ -383,7 +405,8 @@ void update_machineryprotection() {
     }
 
     // Check if the elapsed time exceeds the balancing time
-    if (millis() - datalayer.battery.settings.balancing_start_time_ms >= datalayer.battery.settings.balancing_time_ms) {
+    if (millis() - datalayer.battery.settings.balancing_start_time_ms >=
+        datalayer.battery.settings.balancing_max_time_ms) {
       datalayer.battery.settings.user_requests_balancing = false;
       datalayer.battery.settings.balancing_start_time_ms = 0;  // Reset the start time
       set_event(EVENT_BALANCING_END, 0);

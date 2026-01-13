@@ -636,7 +636,7 @@ void init_webserver() {
 
   // Route for editing balancing max time
   update_string_setting("/BalTime", [](String value) {
-    datalayer.battery.settings.balancing_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);
+    datalayer.battery.settings.balancing_max_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);
   });
 
   // Route for editing balancing max power
