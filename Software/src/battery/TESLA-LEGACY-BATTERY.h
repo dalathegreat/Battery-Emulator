@@ -8,7 +8,7 @@ class TeslaLegacyBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr const char* Name = "Tesla Model S/X 2012-2019";
+  static constexpr const char* Name = "Tesla Model S/X 2012-2020";
 
  private:
   static const int RAMPDOWN_SOC = 900;  // 90.0 SOC% to start ramping down from max charge power towards 0 at 100.00%
