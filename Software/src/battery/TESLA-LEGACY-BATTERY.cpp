@@ -140,10 +140,10 @@ void TeslaLegacyBattery::update_values() {
   }
   */
 
-  datalayer.battery.status.max_charge_power_W = (datalayer.battery.status.voltage_dV * battery_max_charge_current);
+  datalayer.battery.status.max_charge_power_W = (datalayer.battery.status.voltage_dV * battery_max_charge_current) / 10;
 
   datalayer.battery.status.max_discharge_power_W =
-      (datalayer.battery.status.voltage_dV * battery_max_discharge_current);
+      (datalayer.battery.status.voltage_dV * battery_max_discharge_current) / 10;
 
   datalayer.battery.status.temperature_min_dC = battery_min_temp;
 
