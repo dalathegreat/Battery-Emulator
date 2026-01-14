@@ -216,8 +216,8 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_min_temp = battery_BrickModelTMin * 10;
       break;
     case 0x5D2:
-      if (rx_frame.data.u8[0] == 0x10) {
-        battery_hwID = rx_frame.data.u8[2];
+      if (rx_frame.data.u8[0] == 0x0A) {
+        battery_hwID = rx_frame.data.u8[4] + rx_frame.data.u8[5];
       }
       break;
     case 0x6F2:
