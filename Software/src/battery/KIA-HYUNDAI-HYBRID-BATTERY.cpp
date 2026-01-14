@@ -33,6 +33,22 @@ void KiaHyundaiHybridBattery::
 
   datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage_mv;
 
+  if (battery_voltage > 3000) {
+    // If total pack voltage is above 300V, we can confirm that we are on 96S 8.9kWh PHEV battery
+    datalayer.battery.info.number_of_cells = 96;
+    datalayer.battery.info.total_capacity_Wh = 8900;
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_PHEV_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_PHEV_DV;
+  }
+
+  if (battery_voltage < 2400) {
+    // If total pack voltage is under 240V, we can confirm that we are on 56S 1.56kWh HEV battery
+    datalayer.battery.info.number_of_cells = 56;
+    datalayer.battery.info.total_capacity_Wh = 1560;
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_HEV_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_HEV_DV;
+  }
+
   //Map all cell voltages to the global array
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 98 * sizeof(uint16_t));
 
@@ -224,9 +240,9 @@ void KiaHyundaiHybridBattery::setup(void) {  // Performs one time setup at start
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
-  datalayer.battery.info.number_of_cells = 56;  // HEV , TODO: Make dynamic according to HEV/PHEV
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.number_of_cells = 56;                              // Startup in 56S mode, switch later
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_PHEV_DV;  //Startup with widest range
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_HEV_DV;   //Autodetect later
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
