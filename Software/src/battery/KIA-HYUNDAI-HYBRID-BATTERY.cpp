@@ -50,7 +50,7 @@ void KiaHyundaiHybridBattery::
   }
 
   //Map all cell voltages to the global array
-  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 98 * sizeof(uint16_t));
+  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 96 * sizeof(uint16_t));
 
   if (interlock_missing) {
     set_event(EVENT_HVIL_FAILURE, 0);
@@ -92,19 +92,29 @@ void KiaHyundaiHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             available_discharge_power = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
             battery_current_high_byte = rx_frame.data.u8[7];
           } else if (poll_data_pid == 2) {  //21 02
-            cellvoltages_mv[0] = (rx_frame.data.u8[2] * 20);
-            cellvoltages_mv[1] = (rx_frame.data.u8[3] * 20);
-            cellvoltages_mv[2] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[3] = (rx_frame.data.u8[5] * 20);
-            cellvoltages_mv[4] = (rx_frame.data.u8[6] * 20);
-            cellvoltages_mv[5] = (rx_frame.data.u8[7] * 20);
+            cellvoltages_mv[0] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[1] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[2] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[3] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[4] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[5] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[6] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 3) {  //21 03
-            cellvoltages_mv[31] = (rx_frame.data.u8[2] * 20);
-            cellvoltages_mv[32] = (rx_frame.data.u8[3] * 20);
-            cellvoltages_mv[33] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[34] = (rx_frame.data.u8[5] * 20);
-            cellvoltages_mv[35] = (rx_frame.data.u8[6] * 20);
-            cellvoltages_mv[36] = (rx_frame.data.u8[7] * 20);
+            cellvoltages_mv[32] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[33] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[34] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[35] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[36] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[37] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[38] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 4) {  //21 04
+            cellvoltages_mv[64] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[65] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[66] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[67] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[68] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[69] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[70] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 5) {  //21 05
           }
           break;
@@ -115,21 +125,29 @@ void KiaHyundaiHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             battery_module_max_temperature = rx_frame.data.u8[4];
             battery_module_min_temperature = rx_frame.data.u8[5];
           } else if (poll_data_pid == 2) {
-            cellvoltages_mv[6] = (rx_frame.data.u8[1] * 20);
-            cellvoltages_mv[7] = (rx_frame.data.u8[2] * 20);
-            cellvoltages_mv[8] = (rx_frame.data.u8[3] * 20);
-            cellvoltages_mv[9] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[10] = (rx_frame.data.u8[5] * 20);
-            cellvoltages_mv[11] = (rx_frame.data.u8[6] * 20);
-            cellvoltages_mv[12] = (rx_frame.data.u8[7] * 20);
-
+            cellvoltages_mv[7] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[8] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[9] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[10] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[11] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[12] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[13] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 3) {
-            cellvoltages_mv[37] = (rx_frame.data.u8[2] * 20);
-            cellvoltages_mv[38] = (rx_frame.data.u8[3] * 20);
-            cellvoltages_mv[39] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[40] = (rx_frame.data.u8[5] * 20);
-            cellvoltages_mv[41] = (rx_frame.data.u8[6] * 20);
-            cellvoltages_mv[42] = (rx_frame.data.u8[7] * 20);
+            cellvoltages_mv[39] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[40] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[41] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[42] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[43] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[44] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[45] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 4) {
+            cellvoltages_mv[71] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[72] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[73] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[74] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[75] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[76] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[77] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 5) {
           }
           break;
@@ -137,20 +155,29 @@ void KiaHyundaiHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           if (poll_data_pid == 1) {
             max_cell_voltage_mv = rx_frame.data.u8[6] * 20;
           } else if (poll_data_pid == 2) {
-            cellvoltages_mv[13] = (rx_frame.data.u8[1] * 20);
-            cellvoltages_mv[14] = (rx_frame.data.u8[2] * 20);
-            cellvoltages_mv[15] = (rx_frame.data.u8[3] * 20);
-            cellvoltages_mv[16] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[17] = (rx_frame.data.u8[5] * 20);
-            cellvoltages_mv[18] = (rx_frame.data.u8[6] * 20);
-            cellvoltages_mv[19] = (rx_frame.data.u8[7] * 20);
+            cellvoltages_mv[14] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[15] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[16] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[17] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[18] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[19] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[20] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 3) {
-            cellvoltages_mv[43] = (rx_frame.data.u8[2] * 20);
-            cellvoltages_mv[44] = (rx_frame.data.u8[3] * 20);
-            cellvoltages_mv[45] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[46] = (rx_frame.data.u8[5] * 20);
-            cellvoltages_mv[47] = (rx_frame.data.u8[6] * 20);
-            cellvoltages_mv[48] = (rx_frame.data.u8[7] * 20);
+            cellvoltages_mv[46] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[47] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[48] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[49] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[50] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[51] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[52] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 4) {
+            cellvoltages_mv[78] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[79] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[80] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[81] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[82] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[83] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[84] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 5) {
           }
           break;
@@ -158,45 +185,65 @@ void KiaHyundaiHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           if (poll_data_pid == 1) {
             min_cell_voltage_mv = rx_frame.data.u8[1] * 20;
           } else if (poll_data_pid == 2) {
-            cellvoltages_mv[20] = (rx_frame.data.u8[1] * 20);
-            cellvoltages_mv[21] = (rx_frame.data.u8[2] * 20);
-            cellvoltages_mv[22] = (rx_frame.data.u8[3] * 20);
-            cellvoltages_mv[23] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[24] = (rx_frame.data.u8[5] * 20);
-            cellvoltages_mv[25] = (rx_frame.data.u8[6] * 20);
-            cellvoltages_mv[26] = (rx_frame.data.u8[7] * 20);
+            cellvoltages_mv[21] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[22] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[23] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[24] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[25] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[26] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[27] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 3) {
-            cellvoltages_mv[49] = (rx_frame.data.u8[2] * 20);
-            cellvoltages_mv[50] = (rx_frame.data.u8[3] * 20);
-            cellvoltages_mv[51] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[52] = (rx_frame.data.u8[5] * 20);
-            cellvoltages_mv[53] = (rx_frame.data.u8[6] * 20);
-            cellvoltages_mv[54] = (rx_frame.data.u8[7] * 20);
+            cellvoltages_mv[53] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[54] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[55] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[56] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[57] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[58] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[59] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 4) {
+            cellvoltages_mv[85] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[86] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[87] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[88] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[89] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[90] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[91] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 5) {
             SOC_display = rx_frame.data.u8[7];  //0x26 = 38%
           }
           break;
-        case 0x25:  //Fifth datarow in PID group
-          if (poll_data_pid == 1) {
+        case 0x25:                   //Fifth datarow in PID group
+          if (poll_data_pid == 1) {  //PHEV: 25 	59 	29 	0 	1 	59 	60 	0
 
           } else if (poll_data_pid == 2) {
-            cellvoltages_mv[27] = (rx_frame.data.u8[1] * 20);
-            cellvoltages_mv[28] = (rx_frame.data.u8[2] * 20);
-            cellvoltages_mv[29] = (rx_frame.data.u8[3] * 20);
-            cellvoltages_mv[30] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[28] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[29] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[30] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[31] = (rx_frame.data.u8[4] * 20);
           } else if (poll_data_pid == 3) {
-            cellvoltages_mv[55] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[56] = (rx_frame.data.u8[5] * 20);
-            cellvoltages_mv[57] = (rx_frame.data.u8[6] * 20);
-            cellvoltages_mv[58] = (rx_frame.data.u8[7] * 20);
+            cellvoltages_mv[60] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[61] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[62] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[63] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 4) {
+            cellvoltages_mv[92] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[93] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[94] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[95] = (rx_frame.data.u8[5] * 20);
           } else if (poll_data_pid == 5) {
           }
           break;
-        case 0x26:  //Sixth datarow in PID group
+        case 0x26:                   //Sixth datarow in PID group
+          if (poll_data_pid == 1) {  //PHEV: 26 	0 	77 	C8 	0 	0 	73 	ED
+          }
           break;
-        case 0x27:  //Seventh datarow in PID group
+        case 0x27:                   //Seventh datarow in PID group
+          if (poll_data_pid == 1) {  //PHEV: 27 	0 	78 	A3 	47 	6D 	2 	FF
+          }
           break;
-        case 0x28:  //Eighth datarow in PID group
+        case 0x28:                   //Eighth datarow in PID group
+          if (poll_data_pid == 1) {  //PHEV: 28 	7F 	FF 	7F 	FF 	3 	E8 	0
+          }
           break;
       }
       break;
@@ -227,7 +274,8 @@ void KiaHyundaiHybridBattery::transmit_can(unsigned long currentMillis) {
       KIA_7E4.data.u8[2] = 0x03;
       transmit_can_frame(&KIA_7E4);
     } else if (poll_data_pid == 4) {
-      //Group 4 not polled
+      KIA_7E4.data.u8[2] = 0x04;
+      transmit_can_frame(&KIA_7E4);
     } else if (poll_data_pid == 5) {
       KIA_7E4.data.u8[2] = 0x05;
       KIA_7E4.data.u8[3] = 0x04;
