@@ -133,7 +133,7 @@ void KiaHyundaiHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cellvoltages_mv[12] = (rx_frame.data.u8[6] * 20);
             cellvoltages_mv[13] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 3) {
-            cellvoltages_mv[39] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[39] = (rx_frame.data.u8[1] * 20);
             cellvoltages_mv[40] = (rx_frame.data.u8[2] * 20);
             cellvoltages_mv[41] = (rx_frame.data.u8[3] * 20);
             cellvoltages_mv[42] = (rx_frame.data.u8[4] * 20);
@@ -141,7 +141,7 @@ void KiaHyundaiHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cellvoltages_mv[44] = (rx_frame.data.u8[6] * 20);
             cellvoltages_mv[45] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 4) {
-            cellvoltages_mv[71] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[71] = (rx_frame.data.u8[1] * 20);
             cellvoltages_mv[72] = (rx_frame.data.u8[2] * 20);
             cellvoltages_mv[73] = (rx_frame.data.u8[3] * 20);
             cellvoltages_mv[74] = (rx_frame.data.u8[4] * 20);
@@ -171,7 +171,7 @@ void KiaHyundaiHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cellvoltages_mv[51] = (rx_frame.data.u8[6] * 20);
             cellvoltages_mv[52] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 4) {
-            cellvoltages_mv[78] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[78] = (rx_frame.data.u8[1] * 20);
             cellvoltages_mv[79] = (rx_frame.data.u8[2] * 20);
             cellvoltages_mv[80] = (rx_frame.data.u8[3] * 20);
             cellvoltages_mv[81] = (rx_frame.data.u8[4] * 20);
@@ -193,7 +193,7 @@ void KiaHyundaiHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cellvoltages_mv[26] = (rx_frame.data.u8[6] * 20);
             cellvoltages_mv[27] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 3) {
-            cellvoltages_mv[53] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[53] = (rx_frame.data.u8[1] * 20);
             cellvoltages_mv[54] = (rx_frame.data.u8[2] * 20);
             cellvoltages_mv[55] = (rx_frame.data.u8[3] * 20);
             cellvoltages_mv[56] = (rx_frame.data.u8[4] * 20);
