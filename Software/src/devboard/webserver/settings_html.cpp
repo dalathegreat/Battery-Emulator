@@ -773,12 +773,32 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("INVBTYPE", 0));
   }
 
+  if (var == "INVBTYPE_SBR064") {
+    return settings.getUInt("INVBTYPE", 3) == 2 ? "selected" : "";
+  }
+
   if (var == "INVBTYPE_SBR096") {
     return settings.getUInt("INVBTYPE", 3) == 3 ? "selected" : "";
   }
 
   if (var == "INVBTYPE_SBR128") {
     return settings.getUInt("INVBTYPE", 3) == 4 ? "selected" : "";
+  }
+
+  if (var == "INVBTYPE_SBR160") {
+    return settings.getUInt("INVBTYPE", 3) == 5 ? "selected" : "";
+  }
+
+  if (var == "INVBTYPE_SBR192") {
+    return settings.getUInt("INVBTYPE", 3) == 6 ? "selected" : "";
+  }
+
+  if (var == "INVBTYPE_SBR224") {
+    return settings.getUInt("INVBTYPE", 3) == 7 ? "selected" : "";
+  }
+
+  if (var == "INVBTYPE_SBR256") {
+    return settings.getUInt("INVBTYPE", 3) == 8 ? "selected" : "";
   }
 
   if (var == "INVICNT") {
@@ -1362,8 +1382,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-sungrow">
         <label>Battery model: </label>
         <select name='INVBTYPE'>
+        <option value="2" %INVBTYPE_SBR064%>SBR064 (6.4 kWh, 2 modules)</option>
         <option value="3" %INVBTYPE_SBR096%>SBR096 (9.6 kWh, 3 modules)</option>
         <option value="4" %INVBTYPE_SBR128%>SBR128 (12.8 kWh, 4 modules)</option>
+        <option value="5" %INVBTYPE_SBR160%>SBR160 (16.0 kWh, 5 modules)</option>
+        <option value="6" %INVBTYPE_SBR192%>SBR192 (19.2 kWh, 6 modules)</option>
+        <option value="7" %INVBTYPE_SBR224%>SBR224 (22.4 kWh, 7 modules)</option>
+        <option value="8" %INVBTYPE_SBR256%>SBR256 (25.6 kWh, 8 modules)</option>
         </select>
         </div>
 
