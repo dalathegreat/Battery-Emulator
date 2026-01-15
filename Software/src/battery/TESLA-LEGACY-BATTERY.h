@@ -39,7 +39,7 @@ class TeslaLegacyBattery : public CanBattery {
                          .ext_ID = false,
                          .DLC = 8,
                          .ID = 0x2C8,
-                         .data = {0x6F, 0xFE, 0x12, 0x71, 0x1D, 0x24, 0x80, 0x7B}};
+                         .data = {0x6F, 0xE8, 0x13, 0x71, 0x1D, 0x24, 0x80, 0x7B}};
   CAN_frame TESLA_21C = {.FD = false,  // charger status
                          .ext_ID = false,
                          .DLC = 8,
