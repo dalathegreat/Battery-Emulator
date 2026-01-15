@@ -773,6 +773,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("INVBTYPE", 0));
   }
 
+  if (var == "INVBTYPE_SBR096") {
+    return settings.getUInt("INVBTYPE", 3) == 3 ? "selected" : "";
+  }
+
+  if (var == "INVBTYPE_SBR128") {
+    return settings.getUInt("INVBTYPE", 3) == 4 ? "selected" : "";
+  }
+
   if (var == "INVICNT") {
     return settings.getBool("INVICNT") ? "checked" : "";
   }
@@ -1127,6 +1135,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-sungrow { display: none; }
+    form[data-inverter="21"] .if-sungrow {
+      display: contents;
+    }
+
     form .if-kostal { display: none; }
     form[data-inverter="9"] .if-kostal {
       display: contents;
@@ -1344,6 +1357,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-solax">
         <label>Reported battery type (in decimal): </label>
         <input name='INVBTYPE' type='text' value="%INVBTYPE%" pattern="[0-9]+" />
+        </div>
+
+        <div class="if-sungrow">
+        <label>Battery model: </label>
+        <select name='INVBTYPE'>
+        <option value="3" %INVBTYPE_SBR096%>SBR096 (9.6 kWh, 3 modules)</option>
+        <option value="4" %INVBTYPE_SBR128%>SBR128 (12.8 kWh, 4 modules)</option>
+        </select>
         </div>
 
         <div class="if-kostal if-solax">

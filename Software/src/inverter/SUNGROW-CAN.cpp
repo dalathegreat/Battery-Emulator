@@ -1,6 +1,10 @@
 #include "SUNGROW-CAN.h"
+
+#include <cstring>
+
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
+#include "INVERTERS.h"
 
 /* TODO: 
 This protocol is still under development and should be considered beta quality.
@@ -64,6 +68,69 @@ uint16_t modbus_crc(const uint8_t* data, uint8_t length) {
 
 }  // namespace
 
+bool SungrowInverter::setup() {
+  if (user_selected_inverter_battery_type > 0) {
+    battery_config = get_config_for_modules(user_selected_inverter_battery_type);
+  }
+
+  // Cell type for each active module
+  // 0x42 = IEC
+  // 0x44 = Non-IEC
+  for (uint8_t i = 0; i < battery_config.module_count && i < 8; i++) {
+    SUNGROW_71A.data.u8[i] = 0x44;
+  }
+
+  // Production date for active modules
+  // 0x71B: modules 1+2, 0x71C: modules 3+4, 0x71D: modules 5+6, 0x71E: modules 7+8
+  const uint8_t prod_date[4] = {0x3F, 0x7A, 0x6F, 0x01};
+  CAN_frame* prod_date_frames[4] = {&SUNGROW_71B, &SUNGROW_71C, &SUNGROW_71D, &SUNGROW_71E};
+  for (uint8_t m = 0; m < battery_config.module_count && m < 8; m++) {
+    uint8_t frame_idx = m / 2;     // 0-1->0, 2-3->1, 4-5->2, 6-7->3
+    uint8_t offset = (m % 2) * 4;  // even->0, odd->4
+    memcpy(&prod_date_frames[frame_idx]->data.u8[offset], prod_date, 4);
+  }
+
+  // Serial numbers: base serial with incrementing module number
+  // Format: "EM03XY" + "231012" + "346NDF" where X=cell type, N=module number
+  // Fragment 1 byte 7 = cell type (same as 0x71A value)
+  CAN_frame* serial_frames[8][3] = {{&SUNGROW_71F_01_01, &SUNGROW_71F_01_02, &SUNGROW_71F_01_03},
+                                    {&SUNGROW_71F_02_01, &SUNGROW_71F_02_02, &SUNGROW_71F_02_03},
+                                    {&SUNGROW_71F_03_01, &SUNGROW_71F_03_02, &SUNGROW_71F_03_03},
+                                    {&SUNGROW_71F_04_01, &SUNGROW_71F_04_02, &SUNGROW_71F_04_03},
+                                    {&SUNGROW_71F_05_01, &SUNGROW_71F_05_02, &SUNGROW_71F_05_03},
+                                    {&SUNGROW_71F_06_01, &SUNGROW_71F_06_02, &SUNGROW_71F_06_03},
+                                    {&SUNGROW_71F_07_01, &SUNGROW_71F_07_02, &SUNGROW_71F_07_03},
+                                    {&SUNGROW_71F_08_01, &SUNGROW_71F_08_02, &SUNGROW_71F_08_03}};
+
+  for (uint8_t m = 0; m < battery_config.module_count && m < 8; m++) {
+    // Fragment 1: "EM032" + cell_type (byte 7 special)
+    serial_frames[m][0]->data.u8[2] = 0x45;                    // 'E'
+    serial_frames[m][0]->data.u8[3] = 0x4D;                    // 'M'
+    serial_frames[m][0]->data.u8[4] = 0x30;                    // '0'
+    serial_frames[m][0]->data.u8[5] = 0x33;                    // '3'
+    serial_frames[m][0]->data.u8[6] = 0x32;                    // '2'
+    serial_frames[m][0]->data.u8[7] = SUNGROW_71A.data.u8[m];  // cell type
+
+    // Fragment 2: "231012"
+    serial_frames[m][1]->data.u8[2] = 0x32;  // '2'
+    serial_frames[m][1]->data.u8[3] = 0x33;  // '3'
+    serial_frames[m][1]->data.u8[4] = 0x31;  // '1'
+    serial_frames[m][1]->data.u8[5] = 0x30;  // '0'
+    serial_frames[m][1]->data.u8[6] = 0x31;  // '1'
+    serial_frames[m][1]->data.u8[7] = 0x32;  // '2'
+
+    // Fragment 3: "346NDF" where N = module number ('1'-'8')
+    serial_frames[m][2]->data.u8[2] = 0x33;     // '3'
+    serial_frames[m][2]->data.u8[3] = 0x34;     // '4'
+    serial_frames[m][2]->data.u8[4] = 0x36;     // '6'
+    serial_frames[m][2]->data.u8[5] = '1' + m;  // '1', '2', '3', ... '8'
+    serial_frames[m][2]->data.u8[6] = 0x44;     // 'D'
+    serial_frames[m][2]->data.u8[7] = 0x46;     // 'F'
+  }
+
+  return true;
+}
+
 void SungrowInverter::update_values() {
   current_dA = datalayer.battery.status.reported_current_dA;
 
@@ -76,15 +143,15 @@ void SungrowInverter::update_values() {
   // BMS init message
   SUNGROW_500.data.u8[0] = 0x01;                                           // Magic number
   SUNGROW_500.data.u8[1] = 0x01;                                           // Magic number
-  SUNGROW_500.data.u8[2] = 0x03;                                           // Number of modules?
+  SUNGROW_500.data.u8[2] = 0x03;                                           // Magic number
   SUNGROW_500.data.u8[3] = 0xFF;                                           // Magic number
   SUNGROW_500.data.u8[5] = 0x01;                                           // Magic number
   SUNGROW_500.data.u8[7] = (datalayer.battery.status.reported_soc / 100);  // SoC as a int
 
-  //Maxvoltage (eg 400.0V = 4000 , 16bits long)
+  // Max voltage (eg 400.0V = 4000 , 16bits long)
   SUNGROW_701.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
   SUNGROW_701.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-  //Minvoltage (eg 300.0V = 3000 , 16bits long)
+  // Min voltage (eg 300.0V = 3000 , 16bits long)
   SUNGROW_701.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
   SUNGROW_701.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
   // Max Charging Current
@@ -94,24 +161,24 @@ void SungrowInverter::update_values() {
   SUNGROW_701.data.u8[6] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
   SUNGROW_701.data.u8[7] = (datalayer.battery.status.max_discharge_current_dA >> 8);
 
-  //SOC (100.0%)
+  // SOC (100.0%)
   SUNGROW_702.data.u8[0] = (datalayer.battery.status.reported_soc & 0x00FF);
   SUNGROW_702.data.u8[1] = (datalayer.battery.status.reported_soc >> 8);
-  //SOH (100.00%)
+  // SOH (100.00%)
   SUNGROW_702.data.u8[2] = (datalayer.battery.status.soh_pptt & 0x00FF);
   SUNGROW_702.data.u8[3] = (datalayer.battery.status.soh_pptt >> 8);
   // Energy Remaining (Wh), clamped to 16-bit to avoid overflow on large packs
   remaining_wh = datalayer.battery.status.reported_remaining_capacity_Wh;
   if (remaining_wh > 0xFFFFu)
     remaining_wh = 0xFFFFu;
-  SUNGROW_702.data.u8[4] = static_cast<uint8_t>(remaining_wh & 0x00FF);
-  SUNGROW_702.data.u8[5] = static_cast<uint8_t>((remaining_wh >> 8) & 0x00FF);
+  SUNGROW_702.data.u8[4] = (remaining_wh & 0x00FF);
+  SUNGROW_702.data.u8[5] = (remaining_wh >> 8);
   // Capacity max (Wh), clamped to 16-bit to avoid overflow on large packs
   capacity_wh = datalayer.battery.info.reported_total_capacity_Wh;
   if (capacity_wh > 0xFFFFu)
     capacity_wh = 0xFFFFu;
-  SUNGROW_702.data.u8[6] = static_cast<uint8_t>(capacity_wh & 0x00FF);
-  SUNGROW_702.data.u8[7] = static_cast<uint8_t>((capacity_wh >> 8) & 0x00FF);
+  SUNGROW_702.data.u8[6] = (capacity_wh & 0x00FF);
+  SUNGROW_702.data.u8[7] = (capacity_wh >> 8);
 
   // Energy total charged (Wh)
   SUNGROW_703.data.u8[0] = (datalayer.battery.status.total_charged_battery_Wh & 0x00FF);
@@ -128,21 +195,22 @@ void SungrowInverter::update_values() {
   SUNGROW_704.data.u8[0] = (datalayer.battery.status.voltage_dV & 0x00FF);
   SUNGROW_704.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
   // Current
-  SUNGROW_704.data.u8[2] = static_cast<uint8_t>(current_dA & 0xFF);
-  SUNGROW_704.data.u8[3] = static_cast<uint8_t>((current_dA >> 8) & 0xFF);
+  SUNGROW_704.data.u8[2] = (current_dA & 0xFF);
+  SUNGROW_704.data.u8[3] = ((current_dA >> 8) & 0xFF);
   // Another voltage. Different but similar
   SUNGROW_704.data.u8[4] = (datalayer.battery.status.voltage_dV & 0x00FF);
   SUNGROW_704.data.u8[5] = (datalayer.battery.status.voltage_dV >> 8);
   // Temperature (signed int16_t in 0.1°C units)
-  SUNGROW_704.data.u8[6] = static_cast<uint8_t>(datalayer.battery.status.temperature_max_dC & 0xFF);
-  SUNGROW_704.data.u8[7] = static_cast<uint8_t>((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
+  SUNGROW_704.data.u8[6] = (datalayer.battery.status.temperature_max_dC & 0xFF);
+  SUNGROW_704.data.u8[7] = ((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
 
-  //Status bytes?
-  SUNGROW_705.data.u8[0] = 0x02;  // Magic number
-  SUNGROW_705.data.u8[1] = 0x00;  // Magic number
-  SUNGROW_705.data.u8[2] = 0x01;  // Magic number
-  SUNGROW_705.data.u8[3] = 0xE7;  // Magic number
-  SUNGROW_705.data.u8[4] = 0x20;  // Magic number
+  // Battery status: 0=Unplugged, 1=Standby, 2=Run
+  SUNGROW_705.data.u8[0] = 0x02;                                   // Always "Run"
+  SUNGROW_705.data.u8[1] = 0x00;                                   // Magic number
+  SUNGROW_705.data.u8[2] = 0x01;                                   // Magic number
+  uint16_t battery_model_id = 8420 + battery_config.module_count;  // SBR064=8422, SBR096=8423, etc.
+  SUNGROW_705.data.u8[3] = (battery_model_id & 0xFF);
+  SUNGROW_705.data.u8[4] = (battery_model_id >> 8);
   //Vbat, again (eg 400.0V = 4000 , 16bits long)
   SUNGROW_705.data.u8[5] = (datalayer.battery.status.voltage_dV & 0x00FF);
   SUNGROW_705.data.u8[6] = (datalayer.battery.status.voltage_dV >> 8);
@@ -150,11 +218,11 @@ void SungrowInverter::update_values() {
   SUNGROW_705.data.u8[7] = 0x00;  // Magic number
 
   // Temperature Max (signed int16_t in 0.1°C units)
-  SUNGROW_706.data.u8[0] = static_cast<uint8_t>(datalayer.battery.status.temperature_max_dC & 0xFF);
-  SUNGROW_706.data.u8[1] = static_cast<uint8_t>((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
+  SUNGROW_706.data.u8[0] = (datalayer.battery.status.temperature_max_dC & 0xFF);
+  SUNGROW_706.data.u8[1] = ((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
   // Temperature Min (signed int16_t in 0.1°C units)
-  SUNGROW_706.data.u8[2] = static_cast<uint8_t>(datalayer.battery.status.temperature_min_dC & 0xFF);
-  SUNGROW_706.data.u8[3] = static_cast<uint8_t>((datalayer.battery.status.temperature_min_dC >> 8) & 0xFF);
+  SUNGROW_706.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0xFF);
+  SUNGROW_706.data.u8[3] = ((datalayer.battery.status.temperature_min_dC >> 8) & 0xFF);
   // Cell voltage max
   SUNGROW_706.data.u8[4] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
   SUNGROW_706.data.u8[5] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
@@ -163,14 +231,14 @@ void SungrowInverter::update_values() {
   SUNGROW_706.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
   // Battery Configuration
-  SUNGROW_707.data.u8[0] = 0x26;                     // Magic number
-  SUNGROW_707.data.u8[1] = 0x00;                     // Magic number
-  SUNGROW_707.data.u8[2] = 0x00;                     // Magic number
-  SUNGROW_707.data.u8[3] = 0x01;                     // Magic number. Num of stacks?
-  SUNGROW_707.data.u8[4] = (NAMEPLATE_WH & 0x00FF);  // Nameplate capacity
-  SUNGROW_707.data.u8[5] = (NAMEPLATE_WH >> 8);      // Nameplate capacity
-  SUNGROW_707.data.u8[6] = 0x03;                     // Magic number. Num of modules?
-  SUNGROW_707.data.u8[7] = 0x00;                     // Padding?
+  SUNGROW_707.data.u8[0] = 0x26;                                    // Magic number
+  SUNGROW_707.data.u8[1] = 0x00;                                    // Magic number
+  SUNGROW_707.data.u8[2] = 0x00;                                    // Magic number
+  SUNGROW_707.data.u8[3] = 0x01;                                    // Magic number. Num of stacks?
+  SUNGROW_707.data.u8[4] = (battery_config.nameplate_wh & 0x00FF);  // Nameplate capacity
+  SUNGROW_707.data.u8[5] = (battery_config.nameplate_wh >> 8);      // Nameplate capacity
+  SUNGROW_707.data.u8[6] = battery_config.module_count;             // Num of modules
+  SUNGROW_707.data.u8[7] = 0x00;                                    // Padding?
 
   // ---- 0x70F: two muxes (b0 = 0x00..0x07, b1 = 0x00) ----
   SUNGROW_70F_00.data.u8[2] = 0x88;  // Magic number
@@ -179,21 +247,18 @@ void SungrowInverter::update_values() {
   SUNGROW_70F_00.data.u8[5] = 0x16;  // Magic number
   SUNGROW_70F_00.data.u8[6] = 0x80;  // Magic number
   SUNGROW_70F_00.data.u8[7] = 0x16;  // Magic number
-
   // Charge counter??
   SUNGROW_70F_02.data.u8[2] = 0x70;  // Magic number
   SUNGROW_70F_02.data.u8[3] = 0x20;  // Magic number
   // Unknown
   SUNGROW_70F_02.data.u8[6] = 0x92;  // Magic number
   SUNGROW_70F_02.data.u8[7] = 0x09;  // Magic number
-
   // Discharge counter??
   SUNGROW_70F_03.data.u8[2] = 0xFD;
   SUNGROW_70F_03.data.u8[3] = 0x1D;
   // Unknown
   SUNGROW_70F_03.data.u8[6] = 0xCE;
   SUNGROW_70F_03.data.u8[7] = 0x26;
-
   // Unknown
   SUNGROW_70F_04.data.u8[2] = 0x0C;
   SUNGROW_70F_04.data.u8[3] = 0x06;
@@ -210,106 +275,100 @@ void SungrowInverter::update_values() {
 
   // 0x713 - Battery Cell Temperature Overview
   // Cell position with minimum temperature (cell/module addressing)
-  SUNGROW_713.data.u8[0] = 0x02;
-  SUNGROW_713.data.u8[1] = 0x01;
+  SUNGROW_713.data.u8[0] = 0x02;  // Cell location with minimum temperature
+  SUNGROW_713.data.u8[1] = 0x01;  // Module location with minimum temperature
   // Minimum cell temperature (signed int16_t in 0.1°C units)
-  SUNGROW_713.data.u8[2] = static_cast<uint8_t>(datalayer.battery.status.temperature_min_dC & 0xFF);
-  SUNGROW_713.data.u8[3] = static_cast<uint8_t>((datalayer.battery.status.temperature_min_dC >> 8) & 0xFF);
+  SUNGROW_713.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0xFF);
+  SUNGROW_713.data.u8[3] = ((datalayer.battery.status.temperature_min_dC >> 8) & 0xFF);
   // Cell position with maximum temperature (cell/module addressing)
-  SUNGROW_713.data.u8[4] = 0x01;
-  SUNGROW_713.data.u8[5] = 0x02;
+  SUNGROW_713.data.u8[4] = 0x01;  // Cell location with maximum temperature
+  SUNGROW_713.data.u8[5] = 0x02;  // Module location with maximum temperature
   // Maximum cell temperature (signed int16_t in 0.1°C units)
-  SUNGROW_713.data.u8[6] = static_cast<uint8_t>(datalayer.battery.status.temperature_max_dC & 0xFF);
-  SUNGROW_713.data.u8[7] = static_cast<uint8_t>((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
+  SUNGROW_713.data.u8[6] = (datalayer.battery.status.temperature_max_dC & 0xFF);
+  SUNGROW_713.data.u8[7] = ((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
 
   // 0x714 - Battery Cell Voltage Overview
   // Cell position with maximum voltage (cell/module addressing)
-  SUNGROW_714.data.u8[0] = 0x05;
-  SUNGROW_714.data.u8[1] = 0x01;
+  SUNGROW_714.data.u8[0] = 0x05;  // Cell location with minimum voltage
+  SUNGROW_714.data.u8[1] = 0x01;  // Module location with minimum voltage
   // Maximum cell voltage (0.1 mV units = cell_max_voltage_mV * 10)
   SUNGROW_714.data.u8[2] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
   SUNGROW_714.data.u8[3] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
   // Cell position with minimum voltage (cell/module addressing)
-  SUNGROW_714.data.u8[4] = 0x11;
-  SUNGROW_714.data.u8[5] = 0x02;
+  SUNGROW_714.data.u8[4] = 0x11;  // Cell location with maximum voltage
+  SUNGROW_714.data.u8[5] = 0x02;  // Module location with maximum voltage
   // Minimum cell voltage (0.1 mV units = cell_min_voltage_mV * 10)
   SUNGROW_714.data.u8[6] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
   SUNGROW_714.data.u8[7] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
 
-  // 0x715 - Battery Module 1+2 Voltage Overview
-  // Module 1 Min Cell voltage
-  SUNGROW_715.data.u8[0] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
-  SUNGROW_715.data.u8[1] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
-  // Module 1 Max Cell voltage
-  SUNGROW_715.data.u8[2] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
-  SUNGROW_715.data.u8[3] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
-  // Module 2 Min Cell voltage
-  SUNGROW_715.data.u8[4] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
-  SUNGROW_715.data.u8[5] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
-  // Module 2 Max Cell voltage
-  SUNGROW_715.data.u8[6] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
-  SUNGROW_715.data.u8[7] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
+  // 0x715-0x718 - Module Cell Voltage Overview (min/max per module)
+  // Each frame holds 2 modules: [min1, max1, min2, max2] in 0.1mV units
+  // 0x715: modules 1+2, 0x716: modules 3+4, 0x717: modules 5+6, 0x718: modules 7+8
+  {
+    const uint16_t cell_min_01mV = datalayer.battery.status.cell_min_voltage_mV * 10;
+    const uint16_t cell_max_01mV = datalayer.battery.status.cell_max_voltage_mV * 10;
+    CAN_frame* voltage_frames[4] = {&SUNGROW_715, &SUNGROW_716, &SUNGROW_717, &SUNGROW_718};
 
-  // 0x716 - Battery Module 3+4 Voltage Overview
-  // Module 3 Min Cell voltage
-  SUNGROW_716.data.u8[0] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
-  SUNGROW_716.data.u8[1] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
-  // Module 3 Max Cell voltage
-  SUNGROW_716.data.u8[2] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
-  SUNGROW_716.data.u8[3] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
+    for (uint8_t m = 0; m < battery_config.module_count && m < 8; m++) {
+      uint8_t frame_idx = m / 2;     // 0-1->0, 2-3->1, 4-5->2, 6-7->3
+      uint8_t offset = (m % 2) * 4;  // even->0, odd->4
+      voltage_frames[frame_idx]->data.u8[offset + 0] = (cell_min_01mV & 0xFF);
+      voltage_frames[frame_idx]->data.u8[offset + 1] = (cell_min_01mV >> 8);
+      voltage_frames[frame_idx]->data.u8[offset + 2] = (cell_max_01mV & 0xFF);
+      voltage_frames[frame_idx]->data.u8[offset + 3] = (cell_max_01mV >> 8);
+    }
+  }
 
   // 0x719 - Status and Module Fault???
   // Possibly relates to Modbus register 3_10789 and 3_10790
   SUNGROW_719.data.u8[0] = 0x02;
 
   //Copy 7## content to 0## messages
-  for (int i = 0; i < 8; i++) {
-    // SUNGROW_000 all bytes 0x00
-    SUNGROW_001.data.u8[i] = SUNGROW_701.data.u8[i];
-    SUNGROW_002.data.u8[i] = SUNGROW_702.data.u8[i];
-    SUNGROW_003.data.u8[i] = SUNGROW_703.data.u8[i];
-    SUNGROW_004.data.u8[i] = SUNGROW_704.data.u8[i];
-    SUNGROW_005.data.u8[i] = SUNGROW_705.data.u8[i];
-    SUNGROW_006.data.u8[i] = SUNGROW_706.data.u8[i];
-    SUNGROW_007.data.u8[i] = SUNGROW_707.data.u8[i];
-    SUNGROW_008_00.data.u8[i] = SUNGROW_708_00.data.u8[i];
-    SUNGROW_008_01.data.u8[i] = SUNGROW_708_01.data.u8[i];
-    // SUNGROW_009 all bytes 0x00
-    SUNGROW_00A_00.data.u8[i] = SUNGROW_70A_00.data.u8[i];
-    SUNGROW_00A_01.data.u8[i] = SUNGROW_70A_01.data.u8[i];
-    SUNGROW_00B.data.u8[i] = SUNGROW_70B.data.u8[i];
-    SUNGROW_00D.data.u8[i] = SUNGROW_70D.data.u8[i];
-    SUNGROW_00E.data.u8[i] = SUNGROW_70E.data.u8[i];
-    SUNGROW_013.data.u8[i] = SUNGROW_713.data.u8[i];
-    SUNGROW_014.data.u8[i] = SUNGROW_714.data.u8[i];
-    SUNGROW_015.data.u8[i] = SUNGROW_715.data.u8[i];
-    SUNGROW_016.data.u8[i] = SUNGROW_716.data.u8[i];
-    SUNGROW_017.data.u8[i] = SUNGROW_717.data.u8[i];
-    SUNGROW_018.data.u8[i] = SUNGROW_718.data.u8[i];
-    SUNGROW_019.data.u8[i] = SUNGROW_719.data.u8[i];
-    SUNGROW_01A.data.u8[i] = SUNGROW_71A.data.u8[i];
-    SUNGROW_01B.data.u8[i] = SUNGROW_71B.data.u8[i];
-    SUNGROW_01C.data.u8[i] = SUNGROW_71C.data.u8[i];
-    SUNGROW_01D.data.u8[i] = SUNGROW_71D.data.u8[i];
-    SUNGROW_01E.data.u8[i] = SUNGROW_71E.data.u8[i];
-  }
+  // SUNGROW_000 all bytes 0x00
+  memcpy(SUNGROW_001.data.u8, SUNGROW_701.data.u8, 8);
+  memcpy(SUNGROW_002.data.u8, SUNGROW_702.data.u8, 8);
+  memcpy(SUNGROW_003.data.u8, SUNGROW_703.data.u8, 8);
+  memcpy(SUNGROW_004.data.u8, SUNGROW_704.data.u8, 8);
+  memcpy(SUNGROW_005.data.u8, SUNGROW_705.data.u8, 8);
+  memcpy(SUNGROW_006.data.u8, SUNGROW_706.data.u8, 8);
+  memcpy(SUNGROW_007.data.u8, SUNGROW_707.data.u8, 8);
+  memcpy(SUNGROW_008_00.data.u8, SUNGROW_708_00.data.u8, 8);
+  memcpy(SUNGROW_008_01.data.u8, SUNGROW_708_01.data.u8, 8);
+  // SUNGROW_009 all bytes 0x00
+  memcpy(SUNGROW_00A_00.data.u8, SUNGROW_70A_00.data.u8, 8);
+  memcpy(SUNGROW_00A_01.data.u8, SUNGROW_70A_01.data.u8, 8);
+  memcpy(SUNGROW_00B.data.u8, SUNGROW_70B.data.u8, 8);
+  memcpy(SUNGROW_00D.data.u8, SUNGROW_70D.data.u8, 8);
+  memcpy(SUNGROW_00E.data.u8, SUNGROW_70E.data.u8, 8);
+  memcpy(SUNGROW_013.data.u8, SUNGROW_713.data.u8, 8);
+  memcpy(SUNGROW_014.data.u8, SUNGROW_714.data.u8, 8);
+  memcpy(SUNGROW_015.data.u8, SUNGROW_715.data.u8, 8);
+  memcpy(SUNGROW_016.data.u8, SUNGROW_716.data.u8, 8);
+  memcpy(SUNGROW_017.data.u8, SUNGROW_717.data.u8, 8);
+  memcpy(SUNGROW_018.data.u8, SUNGROW_718.data.u8, 8);
+  memcpy(SUNGROW_019.data.u8, SUNGROW_719.data.u8, 8);
+  memcpy(SUNGROW_01A.data.u8, SUNGROW_71A.data.u8, 8);
+  memcpy(SUNGROW_01B.data.u8, SUNGROW_71B.data.u8, 8);
+  memcpy(SUNGROW_01C.data.u8, SUNGROW_71C.data.u8, 8);
+  memcpy(SUNGROW_01D.data.u8, SUNGROW_71D.data.u8, 8);
+  memcpy(SUNGROW_01E.data.u8, SUNGROW_71E.data.u8, 8);
 
   //Copy 7## content to 5## messages
-  for (int i = 0; i < 8; i++) {
-    SUNGROW_501.data.u8[i] = SUNGROW_701.data.u8[i];
-    SUNGROW_502.data.u8[i] = SUNGROW_702.data.u8[i];
-    SUNGROW_503.data.u8[i] = SUNGROW_703.data.u8[i];
-    SUNGROW_504.data.u8[i] = SUNGROW_704.data.u8[i];
-    SUNGROW_505.data.u8[i] = SUNGROW_705.data.u8[i];
-    SUNGROW_506.data.u8[i] = SUNGROW_706.data.u8[i];
-  }
+  memcpy(SUNGROW_501.data.u8, SUNGROW_701.data.u8, 8);
+  memcpy(SUNGROW_502.data.u8, SUNGROW_702.data.u8, 8);
+  memcpy(SUNGROW_503.data.u8, SUNGROW_703.data.u8, 8);
+  memcpy(SUNGROW_504.data.u8, SUNGROW_704.data.u8, 8);
+  memcpy(SUNGROW_505.data.u8, SUNGROW_705.data.u8, 8);
+  memcpy(SUNGROW_506.data.u8, SUNGROW_706.data.u8, 8);
+
   // 0x504 cannot be a straight copy: current must be the opposite sign
   int32_t flipped = -(static_cast<int32_t>(current_dA));
   int16_t current_dA_flipped = clamp_i32_to_i16(flipped);
 
-  SUNGROW_504.data.u8[2] = static_cast<uint8_t>(current_dA_flipped & 0xFF);
-  SUNGROW_504.data.u8[3] = static_cast<uint8_t>((current_dA_flipped >> 8) & 0xFF);
+  SUNGROW_504.data.u8[2] = (current_dA_flipped & 0xFF);
+  SUNGROW_504.data.u8[3] = ((current_dA_flipped >> 8) & 0xFF);
 
+// TODO: This needs to do something useful
 #ifdef DEBUG_VIA_USB
   if (inverter_sends_000) {
     Serial.println("Inverter sends 0x000");
@@ -727,5 +786,30 @@ void SungrowInverter::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&SUNGROW_71F_03_01);
     transmit_can_frame(&SUNGROW_71F_03_02);
     transmit_can_frame(&SUNGROW_71F_03_03);
+    if (battery_config.module_count >= 4) {
+      transmit_can_frame(&SUNGROW_71F_04_01);
+      transmit_can_frame(&SUNGROW_71F_04_02);
+      transmit_can_frame(&SUNGROW_71F_04_03);
+    }
+    if (battery_config.module_count >= 5) {
+      transmit_can_frame(&SUNGROW_71F_05_01);
+      transmit_can_frame(&SUNGROW_71F_05_02);
+      transmit_can_frame(&SUNGROW_71F_05_03);
+    }
+    if (battery_config.module_count >= 6) {
+      transmit_can_frame(&SUNGROW_71F_06_01);
+      transmit_can_frame(&SUNGROW_71F_06_02);
+      transmit_can_frame(&SUNGROW_71F_06_03);
+    }
+    if (battery_config.module_count >= 7) {
+      transmit_can_frame(&SUNGROW_71F_07_01);
+      transmit_can_frame(&SUNGROW_71F_07_02);
+      transmit_can_frame(&SUNGROW_71F_07_03);
+    }
+    if (battery_config.module_count >= 8) {
+      transmit_can_frame(&SUNGROW_71F_08_01);
+      transmit_can_frame(&SUNGROW_71F_08_02);
+      transmit_can_frame(&SUNGROW_71F_08_03);
+    }
   }
 }
