@@ -39,26 +39,26 @@ class SungrowInverter : public CanInverterProtocol {
   uint32_t capacity_wh = 0;
   uint8_t batch_send_index = 0;
 
-  // Battery configuration (set via user_selected_inverter_battery_type = module count)
+  // Battery configuration (set via user_selected_inverter_battery_type = model 0-6)
   SungrowBatteryConfig battery_config = {9600, 3};  // Default: SBR096
 
-  // Returns config based on module count (2=SBR064 through 8=SBR256)
-  // Each module adds 3200Wh of capacity
-  static constexpr SungrowBatteryConfig get_config_for_modules(uint16_t modules) {
-    switch (modules) {
-      case 2:
+  // Returns config based on battery model (0=SBR064 through 6=SBR256)
+  // Model + 2 = module count, each module adds 3200Wh of capacity
+  static constexpr SungrowBatteryConfig get_config_for_model(uint16_t model) {
+    switch (model) {
+      case 0:
         return {6400, 2};  // SBR064
-      case 4:
+      case 2:
         return {12800, 4};  // SBR128
-      case 5:
-        return {16000, 5};  // SBR160
-      case 6:
-        return {19200, 6};  // SBR192
-      case 7:
-        return {22400, 7};  // SBR224
-      case 8:
-        return {25600, 8};  // SBR256
       case 3:
+        return {16000, 5};  // SBR160
+      case 4:
+        return {19200, 6};  // SBR192
+      case 5:
+        return {22400, 7};  // SBR224
+      case 6:
+        return {25600, 8};  // SBR256
+      case 1:
       default:
         return {9600, 3};  // SBR096
     }
