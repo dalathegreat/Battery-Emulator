@@ -221,15 +221,15 @@ void KiaHyundaiHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cellvoltages_mv[30] = (rx_frame.data.u8[3] * 20);
             cellvoltages_mv[31] = (rx_frame.data.u8[4] * 20);
           } else if (poll_data_pid == 3) {
-            cellvoltages_mv[60] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[61] = (rx_frame.data.u8[5] * 20);
-            cellvoltages_mv[62] = (rx_frame.data.u8[6] * 20);
-            cellvoltages_mv[63] = (rx_frame.data.u8[7] * 20);
+            cellvoltages_mv[60] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[61] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[62] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[63] = (rx_frame.data.u8[4] * 20);
           } else if (poll_data_pid == 4) {
-            cellvoltages_mv[92] = (rx_frame.data.u8[2] * 20);
-            cellvoltages_mv[93] = (rx_frame.data.u8[3] * 20);
-            cellvoltages_mv[94] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[95] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[92] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[93] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[94] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[95] = (rx_frame.data.u8[4] * 20);
           } else if (poll_data_pid == 5) {
           }
           break;
