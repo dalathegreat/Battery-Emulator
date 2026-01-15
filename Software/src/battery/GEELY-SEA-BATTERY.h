@@ -55,12 +55,19 @@ class GeelySeaBattery : public CanBattery {
       .data = {0x00, 0x41, 0x40, 0x21, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame (38 transmitted ID´s)
   //.data = {0x00, 0x40, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame (33 transmitted ID´s)
 
-  CAN_frame SEA_372 = {
+  CAN_frame SEA_060 = {
       .FD = false,
       .ext_ID = false,
       .DLC = 8,
-      .ID = 0x372,
-      .data = {0x00, 0xA6, 0x07, 0x14, 0x04, 0x00, 0x80, 0x00}};  //Ambient Temp -->>VERIFY this data content!!!<<--
+      .ID = 0x060,
+      .data = {0x80, 0x00, 0x01, 0x38, 0xEE, 0x47, 0x00, 0x40}};  //Motor B
+  
+  CAN_frame SEA_156 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x156,
+      .data = {0x7F, 0x4E, 0x10, 0x00, 0x00, 0x00, 0x2E, 0x10}};  //Motor A
 
   CAN_frame SEA_BECMsupplyVoltage_Req = {
       .FD = false,
