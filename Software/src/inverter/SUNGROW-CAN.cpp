@@ -263,15 +263,17 @@ void SungrowInverter::update_values() {
   SUNGROW_70F_04.data.u8[2] = 0x0C;
   SUNGROW_70F_04.data.u8[3] = 0x06;
 
-  // Module 1 SoC
-  SUNGROW_70F_05.data.u8[2] = (datalayer.battery.status.real_soc & 0xFF);
-  SUNGROW_70F_05.data.u8[3] = (datalayer.battery.status.real_soc >> 8);
-  // Module 2 SoC
-  SUNGROW_70F_05.data.u8[4] = (datalayer.battery.status.real_soc & 0xFF);
-  SUNGROW_70F_05.data.u8[5] = (datalayer.battery.status.real_soc >> 8);
-  // Module 3 SoC
-  SUNGROW_70F_05.data.u8[6] = (datalayer.battery.status.real_soc & 0xFF);
-  SUNGROW_70F_05.data.u8[7] = (datalayer.battery.status.real_soc >> 8);
+  // Populate 0x70F_05/06/07 with module SOC based on module_count
+  // 0x70F_05: modules 1-3, 0x70F_06: modules 4-6, 0x70F_07: modules 7-8
+  {
+    CAN_frame* soc_frames[3] = {&SUNGROW_70F_05, &SUNGROW_70F_06, &SUNGROW_70F_07};
+    for (uint8_t m = 0; m < battery_config.module_count && m < 8; m++) {
+      uint8_t frame_idx = m / 3;         // 0-2->0, 3-5->1, 6-7->2
+      uint8_t offset = (m % 3) * 2 + 2;  // 0->2, 1->4, 2->6
+      soc_frames[frame_idx]->data.u8[offset] = (datalayer.battery.status.real_soc & 0xFF);
+      soc_frames[frame_idx]->data.u8[offset + 1] = (datalayer.battery.status.real_soc >> 8);
+    }
+  }
 
   // 0x713 - Battery Cell Temperature Overview
   // Cell position with minimum temperature (cell/module addressing)
@@ -729,12 +731,14 @@ void SungrowInverter::transmit_can(unsigned long currentMillis) {
         transmit_can_frame(&SUNGROW_70F_02);
         transmit_can_frame(&SUNGROW_70F_03);
         transmit_can_frame(&SUNGROW_70F_04);
-        transmit_can_frame(&SUNGROW_70F_05);
-        transmit_can_frame(&SUNGROW_70F_06);
-        transmit_can_frame(&SUNGROW_70F_07);
+        transmit_can_frame(&SUNGROW_70F_05);  // Modules 1-3 SOC (zeros if unpopulated)
+        transmit_can_frame(&SUNGROW_70F_06);  // Modules 4-6 SOC (zeros if unpopulated)
+        transmit_can_frame(&SUNGROW_70F_07);  // Modules 7-8 SOC (zeros if unpopulated)
         transmit_can_frame(&SUNGROW_71A);
-        transmit_can_frame(&SUNGROW_71B);
-        transmit_can_frame(&SUNGROW_71C);
+        transmit_can_frame(&SUNGROW_71B);  // Modules 1+2 production date (zeros if unpopulated)
+        transmit_can_frame(&SUNGROW_71C);  // Modules 3+4 production date (zeros if unpopulated)
+        transmit_can_frame(&SUNGROW_71D);  // Modules 5+6 production date (zeros if unpopulated)
+        transmit_can_frame(&SUNGROW_71E);  // Modules 7+8 production date (zeros if unpopulated)
         break;
 
       case 4:
@@ -783,9 +787,11 @@ void SungrowInverter::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&SUNGROW_71F_02_01);
     transmit_can_frame(&SUNGROW_71F_02_02);
     transmit_can_frame(&SUNGROW_71F_02_03);
-    transmit_can_frame(&SUNGROW_71F_03_01);
-    transmit_can_frame(&SUNGROW_71F_03_02);
-    transmit_can_frame(&SUNGROW_71F_03_03);
+    if (battery_config.module_count >= 3) {
+      transmit_can_frame(&SUNGROW_71F_03_01);
+      transmit_can_frame(&SUNGROW_71F_03_02);
+      transmit_can_frame(&SUNGROW_71F_03_03);
+    }
     if (battery_config.module_count >= 4) {
       transmit_can_frame(&SUNGROW_71F_04_01);
       transmit_can_frame(&SUNGROW_71F_04_02);
