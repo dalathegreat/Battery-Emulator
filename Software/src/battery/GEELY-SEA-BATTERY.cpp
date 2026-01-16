@@ -13,14 +13,17 @@ void GeelySeaBattery::
 
   // Update requests from webserver datalayer
   if (datalayer_extended.GeelySEA.UserRequestDTCreset) {
+    pause_polling_seconds = 10;
     transmit_can_frame(&SEA_DTC_Erase);  //Send global DTC erase command
     datalayer_extended.GeelySEA.UserRequestDTCreset = false;
   }
   if (datalayer_extended.GeelySEA.UserRequestBECMecuReset) {
+    pause_polling_seconds = 10;
     transmit_can_frame(&SEA_BECM_ECUreset);  //Send BECM ecu reset command
     datalayer_extended.GeelySEA.UserRequestBECMecuReset = false;
   }
   if (datalayer_extended.GeelySEA.UserRequestDTCreadout) {
+    pause_polling_seconds = 10;
     transmit_can_frame(&SEA_DTC_Req);  //Send DTC readout command
     datalayer_extended.GeelySEA.UserRequestDTCreadout = false;
   }
@@ -75,7 +78,7 @@ void GeelySeaBattery::
   /* Check safeties */
   if (datalayer_extended.GeelySEA.BECMsupplyVoltage > 0) {
     if (datalayer_extended.GeelySEA.BECMsupplyVoltage < 11800) {  // 11.8 V
-      set_event(EVENT_12V_LOW, 0);
+      set_event(EVENT_12V_LOW, (datalayer_extended.GeelySEA.BECMsupplyVoltage / 10));
     } else {
       clear_event(EVENT_12V_LOW);
     }
@@ -297,6 +300,7 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void GeelySeaBattery::readDiagData() {
+
   // Update current poll from the array
   currentpoll = poll_commands[poll_index];
   poll_index = (poll_index + 1) % 11;  //% ## comes from array size
@@ -304,7 +308,11 @@ void GeelySeaBattery::readDiagData() {
   SEA_Polling_Req.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
   SEA_Polling_Req.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
-  transmit_can_frame(&SEA_Polling_Req);
+  if (pause_polling_seconds > 0) {
+    pause_polling_seconds--;
+  } else {
+    transmit_can_frame(&SEA_Polling_Req);
+  }
 }
 
 void GeelySeaBattery::transmit_can(unsigned long currentMillis) {
@@ -316,8 +324,8 @@ void GeelySeaBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&SEA_060);  //Send 0x060 Motor B info
     transmit_can_frame(&SEA_156);  //Send 0x156 Motor A info
   }
-  if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
-    previousMillis500 = currentMillis;
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+    previousMillis1000 = currentMillis;
     readDiagData();
   }
 }
