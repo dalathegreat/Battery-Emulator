@@ -800,7 +800,7 @@ struct DATALAYER_INFO_MEB {
   bool battery_heating = 0;     /** Battery heating status */
 
   float temp_points[18] = {0};
-  uint16_t celltemperature_dC[56] = {0};
+  int16_t celltemperature_dC[56] = {0};
 };
 
 struct DATALAYER_INFO_VOLVO_POLESTAR {
