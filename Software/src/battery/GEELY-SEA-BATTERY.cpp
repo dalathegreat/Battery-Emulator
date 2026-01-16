@@ -232,69 +232,7 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x635:  //Diag
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
-      if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0xEE) &&
-          (rx_frame.data.u8[3] == 0x02))  // BECM module voltage supply
-      {
-        datalayer_extended.GeelySEA.BECMsupplyVoltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-        transmit_can_frame(&SEA_HV_Voltage_Req);
-      } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x48) &&
-                 (rx_frame.data.u8[3] == 0x03))  // High voltage battery voltage response frame
-      {
-        datalayer_extended.GeelySEA.BECMBatteryVoltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-        transmit_can_frame(&SEA_SOC_Req);
-      } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x48) &&
-                 (rx_frame.data.u8[3] == 0x01))  // SOC response frame
-      {
-        datalayer_extended.GeelySEA.soc_bms = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 5;
-        transmit_can_frame(&SEA_SOH_Req);
-      } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x48) &&
-                 (rx_frame.data.u8[3] == 0x9A))  // SOH response frame
-      {
-        datalayer_extended.GeelySEA.soh_bms = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-        transmit_can_frame(&SEA_HighestCellTemp_Req);
-      } else if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
-                 (rx_frame.data.u8[3] == 0x45))  // Highest cell temp response frame
-      {
-        datalayer_extended.GeelySEA.CellTempHighest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-        transmit_can_frame(&SEA_AverageCellTemp_Req);
-      } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
-                 (rx_frame.data.u8[3] == 0x1B))  // Average cell temp response frame
-      {
-        datalayer_extended.GeelySEA.CellTempAverage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-        transmit_can_frame(&SEA_LowestCellTemp_Req);
-      } else if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
-                 (rx_frame.data.u8[3] == 0xA1))  // Lowest cell temp response frame
-      {
-        datalayer_extended.GeelySEA.CellTempLowest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-        transmit_can_frame(&SEA_Interlock_Req);
-      } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
-                 (rx_frame.data.u8[3] == 0x1A))  // Interlock response frame
-      {
-        datalayer_extended.GeelySEA.Interlock = rx_frame.data.u8[4];
-        transmit_can_frame(&SEA_HighestCellVolt_Req);
-      } else if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
-                 (rx_frame.data.u8[3] == 0x07))  // Highest cell volt response frame
-      {
-        datalayer_extended.GeelySEA.CellVoltHighest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-        transmit_can_frame(&SEA_LowestCellVolt_Req);
-      } else if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
-                 (rx_frame.data.u8[3] == 0x08))  // Lowest cell volt response frame
-      {
-        datalayer_extended.GeelySEA.CellVoltLowest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-        transmit_can_frame(&SEA_BatteryCurrent_Req);
-      } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x48) &&
-                 (rx_frame.data.u8[3] == 0x02))  // Battery current response frame
-      {
-        datalayer_extended.GeelySEA.BatteryCurrent = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-        transmit_can_frame(&SEA_DTC_Req);
-      } else if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[2] == 0x59) &&
-                 (rx_frame.data.u8[3] == 0x03))  // First response frame for DTC with more than one code
-      {
-        datalayer_extended.GeelySEA.DTCcount = ((rx_frame.data.u8[1] - 2) / 4);
-        transmit_can_frame(&SEA_Flowcontrol);  // Send flow control
-      } else if ((rx_frame.data.u8[1] == 0x59) &&
-                 (rx_frame.data.u8[2] == 0x03))  // Response frame for DTC with 0 or 1 code
-      {
+      if ((rx_frame.data.u8[1] == 0x59) && (rx_frame.data.u8[2] == 0x03)) {  // Response frame for DTC with 0 or 1 code
         if (rx_frame.data.u8[0] != 0x02) {
           datalayer_extended.GeelySEA.DTCcount = 1;
         } else {
@@ -302,6 +240,56 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
 
+      if (rx_frame.data.u8[0] == 0x10) {  //First frame of a group OR we are getting DTC reply
+        transmit_can_frame(&SEA_Flowcontrol);
+
+        reply_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];  //Used by DTC (normally multipoll is 3-4)
+      }
+
+      if (rx_frame.data.u8[0] < 0x10) {  //One line responses
+        reply_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+      }
+
+      switch (reply_poll) {
+        case POLL_BECMsupplyVoltage:
+          datalayer_extended.GeelySEA.BECMsupplyVoltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_HV_Voltage:
+          datalayer_extended.GeelySEA.BECMBatteryVoltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_SOC:
+          datalayer_extended.GeelySEA.soc_bms = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 5;
+          break;
+        case POLL_SOH:
+          datalayer_extended.GeelySEA.soh_bms = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_HighestCellTemp:
+          datalayer_extended.GeelySEA.CellTempHighest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+          break;
+        case POLL_AverageCellTemp:
+          datalayer_extended.GeelySEA.CellTempAverage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_LowestCellTemp:
+          datalayer_extended.GeelySEA.CellTempLowest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+          break;
+        case POLL_Interlock:
+          datalayer_extended.GeelySEA.Interlock = rx_frame.data.u8[4];
+          break;
+        case POLL_HighestCellVolt:
+          datalayer_extended.GeelySEA.CellVoltHighest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+          break;
+        case POLL_LowestCellVolt:
+          datalayer_extended.GeelySEA.CellVoltLowest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+          break;
+        case POLL_BatteryCurrent:
+          datalayer_extended.GeelySEA.BatteryCurrent = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_DTC:
+          datalayer_extended.GeelySEA.DTCcount = ((rx_frame.data.u8[1] - 2) / 4);
+          break;
+        default:  //Not a PID reply, or unknown. Do nothing
+          break;
+      }
       break;
     default:
       break;
@@ -309,7 +297,14 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void GeelySeaBattery::readDiagData() {
-  transmit_can_frame(&SEA_BECMsupplyVoltage_Req);
+  // Update current poll from the array
+  currentpoll = poll_commands[poll_index];
+  poll_index = (poll_index + 1) % 11;  //% ## comes from array size
+
+  SEA_Polling_Req.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
+  SEA_Polling_Req.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
+
+  transmit_can_frame(&SEA_Polling_Req);
 }
 
 void GeelySeaBattery::transmit_can(unsigned long currentMillis) {
@@ -321,16 +316,8 @@ void GeelySeaBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&SEA_060);  //Send 0x060 Motor B info
     transmit_can_frame(&SEA_156);  //Send 0x156 Motor A info
   }
-  if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
-    previousMillis1s = currentMillis;
-    if (!startedUp) {
-      readDiagData();
-      startedUp = true;
-    }
-  }
-  if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
-    previousMillis60s = currentMillis;
-
+  if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
+    previousMillis500 = currentMillis;
     readDiagData();
   }
 }

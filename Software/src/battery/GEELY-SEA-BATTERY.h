@@ -42,10 +42,36 @@ class GeelySeaBattery : public CanBattery {
   static const int MIN_CELL_VOLTAGE_MV = 2900;  // Charging is halted if one cell goes below this
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-  unsigned long previousMillis1s = 0;   // will store last time a 1s CAN Message was send
-  unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
+  unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
 
-  bool startedUp = false;
+  static const uint16_t POLL_BECMsupplyVoltage = 0xEE02;
+  static const uint16_t POLL_HV_Voltage = 0x4803;
+  static const uint16_t POLL_SOC = 0x4801;
+  static const uint16_t POLL_SOH = 0x489A;
+  static const uint16_t POLL_HighestCellTemp = 0x4945;
+  static const uint16_t POLL_AverageCellTemp = 0x491B;
+  static const uint16_t POLL_LowestCellTemp = 0x49A1;
+  static const uint16_t POLL_Interlock = 0x491A;
+  static const uint16_t POLL_HighestCellVolt = 0x4907;
+  static const uint16_t POLL_LowestCellVolt = 0x4908;
+  static const uint16_t POLL_BatteryCurrent = 0x4802;
+  static const uint16_t POLL_DTC = 0x5903;
+
+  const uint16_t poll_commands[11] = {POLL_BECMsupplyVoltage,
+                                      POLL_HV_Voltage,
+                                      POLL_SOC,
+                                      POLL_SOH,
+                                      POLL_HighestCellTemp,
+                                      POLL_AverageCellTemp,
+                                      POLL_LowestCellTemp,
+                                      POLL_Interlock,
+                                      POLL_HighestCellVolt,
+                                      POLL_LowestCellVolt,
+                                      POLL_BatteryCurrent};
+
+  uint8_t poll_index = 0;
+  uint16_t currentpoll = POLL_BECMsupplyVoltage;
+  uint16_t reply_poll = 0;
 
   CAN_frame SEA_536 = {
       .FD = false,
@@ -67,77 +93,7 @@ class GeelySeaBattery : public CanBattery {
                        .ID = 0x156,
                        .data = {0x7F, 0x4E, 0x10, 0x00, 0x00, 0x00, 0x2E, 0x10}};  //Motor A
 
-  CAN_frame SEA_BECMsupplyVoltage_Req = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x735,
-      .data = {0x03, 0x22, 0xEE, 0x02, 0x00, 0x00, 0x00, 0x00}};  //BECM supply voltage request frame
-
-  CAN_frame SEA_HV_Voltage_Req = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x735,
-      .data = {0x03, 0x22, 0x48, 0x03, 0x00, 0x00, 0x00, 0x00}};  //High voltage battery voltage request frame
-
-  CAN_frame SEA_SOC_Req = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x735,
-      .data = {0x03, 0x22, 0x48, 0x01, 0x00, 0x00, 0x00, 0x00}};  //High voltage battery SOC request frame
-
-  CAN_frame SEA_SOH_Req = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x735,
-      .data = {0x03, 0x22, 0x48, 0x9A, 0x00, 0x00, 0x00, 0x00}};  //High voltage battery SOH request frame
-
-  CAN_frame SEA_HighestCellTemp_Req = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x735,
-      .data = {0x03, 0x22, 0x49, 0x45, 0x00, 0x00, 0x00, 0x00}};  //Highest cell temp request frame
-
-  CAN_frame SEA_AverageCellTemp_Req = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x735,
-      .data = {0x03, 0x22, 0x49, 0x1B, 0x00, 0x00, 0x00, 0x00}};  //Average cell temp request frame
-
-  CAN_frame SEA_LowestCellTemp_Req = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x735,
-      .data = {0x03, 0x22, 0x49, 0xA1, 0x00, 0x00, 0x00, 0x00}};  //Lowest cell temp request frame
-
-  CAN_frame SEA_Interlock_Req = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x735,
-      .data = {0x03, 0x22, 0x49, 0x1A, 0x00, 0x00, 0x00, 0x00}};  //Interlock status request frame
-
-  CAN_frame SEA_HighestCellVolt_Req = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x735,
-      .data = {0x03, 0x22, 0x49, 0x07, 0x00, 0x00, 0x00, 0x00}};  //Highest cell volt request frame
-
-  CAN_frame SEA_LowestCellVolt_Req = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x735,
-      .data = {0x03, 0x22, 0x49, 0x08, 0x00, 0x00, 0x00, 0x00}};  //Lowest cell volt request frame
-
-  CAN_frame SEA_BatteryCurrent_Req = {
+  CAN_frame SEA_Polling_Req = {
       .FD = false,
       .ext_ID = false,
       .DLC = 8,
@@ -154,7 +110,7 @@ class GeelySeaBattery : public CanBattery {
                                .ext_ID = false,
                                .DLC = 8,
                                .ID = 0x735,
-                               .data = {0x30, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Flowcontrol
+                               .data = {0x30, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Flowcontrol + 5ms delay
 
   CAN_frame SEA_DTC_Erase = {.FD = false,
                              .ext_ID = false,
