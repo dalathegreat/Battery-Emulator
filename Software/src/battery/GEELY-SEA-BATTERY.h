@@ -42,7 +42,7 @@ class GeelySeaBattery : public CanBattery {
   static const int MIN_CELL_VOLTAGE_MV = 2900;  // Charging is halted if one cell goes below this
 
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
-  unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was send
+  unsigned long previousMillis2000 = 0;  // will store last time a 2s CAN Message was send
 
   static const uint16_t POLL_BECMsupplyVoltage = 0xEE02;
   static const uint16_t POLL_HV_Voltage = 0x4803;
@@ -55,9 +55,9 @@ class GeelySeaBattery : public CanBattery {
   static const uint16_t POLL_HighestCellVolt = 0x4907;
   static const uint16_t POLL_LowestCellVolt = 0x4908;
   static const uint16_t POLL_BatteryCurrent = 0x4802;
-  static const uint16_t POLL_DTC = 0x5903;
 
   uint8_t pause_polling_seconds = 0;
+  bool DTC_readout_in_progress = false;
 
   const uint16_t poll_commands[11] = {POLL_BECMsupplyVoltage,
                                       POLL_HV_Voltage,
