@@ -19,7 +19,7 @@ struct DATALAYER_BATTERY_INFO_TYPE {
   uint16_t max_design_voltage_dV = 5000;
   /** The minimum intended packvoltage, in deciVolt. 3300 = 330.0 V */
   uint16_t min_design_voltage_dV = 2500;
-  /** The maximum cellvoltage before shutting down, in milliVolt. 4300 = 4.250 V */
+  /** The maximum cellvoltage before shutting down, in milliVolt. 4300 = 4.300 V */
   uint16_t max_cell_voltage_mV = 4300;
   /** The minimum cellvoltage before shutting down, in milliVolt. 2700 = 2.700 V */
   uint16_t min_cell_voltage_mV = 2700;
@@ -134,15 +134,13 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
 
   /** Maximum percentage setting. Set this value to the highest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
-   * will "see" 100% Example 8000 = 80.0%*/
+   * will "see" 100% Example 8000 = 80.0% */
   uint16_t max_percentage = 8000;
   /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A, persisted to memory 
-   * Updates later on via Settings
-  */
+   * Updates later on via Settings */
   uint16_t max_user_set_charge_dA = 300;
   /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A, persisted to memory 
-   * Updates later on via Settings
-  */
+   * Updates later on via Settings */
   uint16_t max_user_set_discharge_dA = 300;
   /** The remote specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A, NOT persisted to memory */
   uint16_t max_remote_set_charge_dA = max_user_set_charge_dA;
@@ -165,7 +163,7 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
 
   /** Minimum percentage setting. Set this value to the lowest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
-   * will "see" 0% , Example 2000 = 20.0%*/
+   * will "see" 0% , Example 2000 = 20.0% */
   int16_t min_percentage = 2000;
 
   /** Sofar CAN Battery ID (0-15) used to parallel multiple packs */
