@@ -104,6 +104,8 @@ const char* name_for_battery_type(BatteryType type) {
       return PylonBattery::Name;
     case BatteryType::DalyBms:
       return DalyBms::Name;
+    case BatteryType::EmusBms:
+      return EmusBms::Name;
     case BatteryType::RjxzsBms:
       return RjxzsBms::Name;
     case BatteryType::RangeRoverPhev:
@@ -215,6 +217,8 @@ Battery* create_battery(BatteryType type) {
       return new PylonBattery();
     case BatteryType::DalyBms:
       return new DalyBms();
+    case BatteryType::EmusBms:
+      return new EmusBms();
     case BatteryType::RjxzsBms:
       return new RjxzsBms();
     case BatteryType::RangeRoverPhev:
