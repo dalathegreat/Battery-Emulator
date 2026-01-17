@@ -19,8 +19,11 @@ class KiaHyundaiHybridBattery : public CanBattery {
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
 
-  unsigned long previousMillis1000 = 0;  // will store last time a 100ms CAN Message was send
+  unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was send
+  unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
+  unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was send
 
+  uint8_t counter_200 = 0;
   uint16_t SOC = 0;
   uint16_t SOC_display = 0;
   bool interlock_missing = false;
@@ -46,6 +49,29 @@ class KiaHyundaiHybridBattery : public CanBattery {
                            .DLC = 8,
                            .ID = 0x7E4,  //Ack frame, correct PID is returned. Flow control message
                            .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame KIA_200 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x200,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+  CAN_frame KIA_2A1 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x2A1,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+  CAN_frame KIA_2F0 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x2F0,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+  CAN_frame KIA_523 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x523,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 };
 
 #endif
