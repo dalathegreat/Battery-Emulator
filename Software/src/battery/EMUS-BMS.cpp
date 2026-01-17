@@ -152,7 +152,10 @@ void EmusBms::handle_incoming_can_frame(CAN_frame rx_frame) {
             // Cell voltage: 2000mV base + (byte value × 10mV)
             // e.g., 0x7B (123) = 2000 + 123 × 10 = 3230mV
             uint16_t cell_voltage = 2000 + (rx_frame.data.u8[i] * 10);
-            datalayer_battery->status.cell_voltages_mV[cell_index] = cell_voltage;
+            // Only update if valid (non-zero byte value, as 0x00 would give exactly 2000mV)
+            if (rx_frame.data.u8[i] > 0) {
+              datalayer_battery->status.cell_voltages_mV[cell_index] = cell_voltage;
+            }
           }
         }
       }
