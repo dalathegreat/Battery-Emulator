@@ -34,6 +34,9 @@ class BEComHal : public Esp32Hal {
   virtual gpio_num_t MCP2517_CS2() { return GPIO_NUM_21; }
   virtual gpio_num_t MCP2517_INT2() { return GPIO_NUM_9; }
 
+  // Value for first MCP2517 CLKODIV register (divide by 1)
+  virtual int MCP2517_CLKODIV() { return 0b00; }
+
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_47; }
   virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_48; }

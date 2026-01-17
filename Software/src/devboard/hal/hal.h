@@ -131,6 +131,9 @@ class Esp32Hal {
   virtual gpio_num_t MCP2517_CS2() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT2() { return GPIO_NUM_NC; }
 
+  // Value for first MCP2517 CLKODIV register (default, divide by 10)
+  virtual int MCP2517_CLKODIV() { return 0b11; }
+
   // CHAdeMO support pin dependencies
   virtual gpio_num_t CHADEMO_PIN_2() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_PIN_10() { return GPIO_NUM_NC; }

@@ -203,8 +203,10 @@ bool init_CAN() {
 
     logging.println("CAN FD add-on (ESP32+MCP2517) selected");
     auto bitRate = (int)speed * 1000UL;
-    settings2517 = new ACAN2517FDSettings(quartz_fd_frequency, bitRate, DataBitRateFactor::x4);
     // Arbitration bit rate: 250/500 kbit/s, data bit rate: 1/2 Mbit/s
+    settings2517 = new ACAN2517FDSettings(quartz_fd_frequency, bitRate, DataBitRateFactor::x4);
+    // Set up clock output divider (some hardware uses this for the second CAN FD add-on)
+    settings2517->mCLKOPin = static_cast<ACAN2517FDSettings::CLKOpin>(esp32hal->MCP2517_CLKODIV());
 
     // ListenOnly / Normal20B / NormalFDs
     settings2517->mRequestedMode = use_canfd_as_can ? ACAN2517FDSettings::Normal20B : ACAN2517FDSettings::NormalFD;
