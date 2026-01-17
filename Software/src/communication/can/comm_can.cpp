@@ -499,7 +499,7 @@ void restart_can() {
 
   if (canfd) {
     SPI2517.begin();
-    canfd->begin(*settings2517, [] { can2515->isr(); });
+    canfd->begin(*settings2517, [] { canfd->isr(); });
   }
 }
 
