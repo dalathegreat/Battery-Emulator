@@ -490,15 +490,14 @@ void init_webserver() {
                     }
                   }
                 }
+              }
 
-                for (auto& boolSetting : boolSettingNames) {
-                  if (p->name() == boolSetting) {
-                    const bool default_value = (boolSetting == std::string("WIFIAPENABLED"));
-                    const bool value = (p->value() == "on");
-                    if (settings.getBool(boolSetting, default_value) != value) {
-                      settings.saveBool(boolSetting, value);
-                    }
-                  }
+              for (auto& boolSetting : boolSettingNames) {
+                auto p = request->getParam(boolSetting, true);
+                const bool default_value = (std::string(boolSetting) == std::string("WIFIAPENABLED"));
+                const bool value = p != nullptr && p->value() == "on";
+                if (settings.getBool(boolSetting, default_value) != value) {
+                  settings.saveBool(boolSetting, value);
                 }
               }
 
@@ -835,6 +834,9 @@ String processor(const String& var) {
 #ifdef HW_LILYGO2CAN
     content += " Hardware: LilyGo T_2CAN";
 #endif  // HW_LILYGO2CAN
+#ifdef HW_BECOM
+    content += " Hardware: BECom";
+#endif  // HW_BECOM
 #ifdef HW_STARK
     content += " Hardware: Stark CMR Module";
 #endif  // HW_STARK
