@@ -59,6 +59,12 @@ const uint8_t FOURSEVEN_FIRST_BYTES[] = {
     0x81, 0x53, 0x3B, 0x66, 0xE8, 0xB5, 0xDD, 0x0F, 0x53, 0x0E, 0x66, 0xB4, 0x3A, 0xE8, 0x0F,
 };
 
+const uint8_t FOURSEVEN_FD_CYCLE_1[] = {0xF4, 0xA9, 0x4E, 0x13, 0x9D, 0xC0, 0x27, 0x7A,
+                                        0x26, 0x7B, 0x9C, 0xC1, 0x4F, 0x12, 0xF5};
+
+const uint8_t FOURSEVEN_FD_CYCLE_2[] = {0x61, 0x3C, 0xDB, 0x86, 0x08, 0x55, 0xB2, 0xEF,
+                                        0xB3, 0xEE, 0x09, 0x54, 0xDA, 0x87, 0x60};
+
 void Mg4Battery::transmit_can(unsigned long currentMillis) {
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     // Transmitting towards battery is halted while BMS is being reset
@@ -67,31 +73,77 @@ void Mg4Battery::transmit_can(unsigned long currentMillis) {
     return;
   }
 
-  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
-    previousMillis10 = currentMillis;
+  /* PT-EXT wakeup */
+  if (false) {
+    if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+      previousMillis10 = currentMillis;
 
-    if (sendPhase == 3 || sendPhase == 13 || sendPhase == 23) {
-      transmit_can_frame(&MG4_4F3);
-    }
+      if (sendPhase == 3 || sendPhase == 13 || sendPhase == 23) {
+        transmit_can_frame(&MG4_4F3);
+      }
 
-    MG4_047.data.u8[0] = FOURSEVEN_FIRST_BYTES[sendPhase];
-    if (sendPhase >= 0xf) {
-      MG4_047.data.u8[1] = sendPhase - 0xf;
-    } else {
-      MG4_047.data.u8[1] = sendPhase;
-    }
-    transmit_can_frame(&MG4_047);
+      MG4_047.data.u8[0] = FOURSEVEN_FIRST_BYTES[sendPhase];
+      if (sendPhase >= 0xf) {
+        MG4_047.data.u8[1] = sendPhase - 0xf;
+      } else {
+        MG4_047.data.u8[1] = sendPhase;
+      }
+      transmit_can_frame(&MG4_047);
 
-    sendPhase++;
-    if (sendPhase >= 30) {
-      sendPhase = 0;
+      sendPhase++;
+      if (sendPhase >= 30) {
+        sendPhase = 0;
+      }
     }
   }
 
-  //transmit_uds_can(currentMillis);
+  /* PT wakeup */
+  if (true) {
+    if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+      previousMillis10 = currentMillis;
+
+      int offset = sendPhase;
+      if (sendPhase >= 15) {
+        offset = sendPhase - 15;
+      }
+
+      MG4_047_FD.data.u8[4] = FOURSEVEN_FD_CYCLE_1[offset];
+      MG4_047_FD.data.u8[5] = 0xF0 | offset;
+      MG4_047_FD.data.u8[16] = FOURSEVEN_FD_CYCLE_2[offset];
+      MG4_047_FD.data.u8[17] = 0xF0 | offset;
+      transmit_can_frame(&MG4_047_FD);
+
+      if (sendPhase == 2 || sendPhase == 12 || sendPhase == 22) {
+        transmit_can_frame(&MG4_4F3_FD);
+      }
+
+      sendPhase++;
+      if (sendPhase >= 30) {
+        sendPhase = 0;
+      }
+    }
+  }
+
+  transmit_uds_can(currentMillis);
+}
+
+uint16_t Mg4Battery::handle_pid(uint16_t pid, uint32_t value) {
+  switch (pid) {
+    case POLL_BATTERY_VOLTAGE:
+      datalayer.battery.status.voltage_dV = value * 0.1f;
+      return POLL_BATTERY_CURRENT;
+    case POLL_BATTERY_CURRENT:
+      datalayer.battery.status.current_dA = value * 0.1f;
+      return POLL_BATTERY_SOC;
+    case POLL_BATTERY_SOC:
+      datalayer.battery.status.real_soc = value * 0.1f;
+      break;  // End of cycle
+  }
+  return 0;  // Continue normal PID cycling
 }
 
 void Mg4Battery::setup(void) {  // Performs one time setup at startup
+  setup_uds(0x7DF, POLL_BATTERY_VOLTAGE);
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
