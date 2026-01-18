@@ -112,6 +112,11 @@ static const std::map<int, String> tesla_chassis = {{0, "Model S"}, {1, "Model X
 
 static const std::map<int, String> tesla_pack = {{0, "50 kWh"}, {2, "62 kWh"}, {1, "74 kWh"}, {3, "100 kWh"}};
 
+static const std::map<int, String> sungrow_models = {
+    {0, "SBR064 (6.4 kWh, 2 modules)"},  {1, "SBR096 (9.6 kWh, 3 modules)"},  {2, "SBR128 (12.8 kWh, 4 modules)"},
+    {3, "SBR160 (16.0 kWh, 5 modules)"}, {4, "SBR192 (19.2 kWh, 6 modules)"}, {5, "SBR224 (22.4 kWh, 7 modules)"},
+    {6, "SBR256 (25.6 kWh, 8 modules)"}};
+
 const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   switch (behavior) {
     case STOP_BUTTON_BEHAVIOR::LATCHING_SWITCH:
@@ -244,6 +249,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "LEDMODE") {
     return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
+  }
+
+  if (var == "SUNGROW_MODEL") {
+    return options_from_map(settings.getUInt("INVBTYPE", 1), sungrow_models);  // Default: SBR096
   }
 #ifdef HW_LILYGO2CAN
   if (var == "GPIOOPT1") {
@@ -1131,6 +1140,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-sungrow { display: none; }
+    form[data-inverter="21"] .if-sungrow {
+      display: contents;
+    }
+
     form .if-kostal { display: none; }
     form[data-inverter="9"] .if-kostal {
       display: contents;
@@ -1348,6 +1362,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-solax">
         <label>Reported battery type (in decimal): </label>
         <input name='INVBTYPE' type='text' value="%INVBTYPE%" pattern="[0-9]+" />
+        </div>
+
+        <div class="if-sungrow">
+        <label>Battery model: </label>
+        <select name='INVBTYPE'>%SUNGROW_MODEL%</select>
         </div>
 
         <div class="if-kostal if-solax">
