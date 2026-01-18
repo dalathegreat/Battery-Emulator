@@ -214,4 +214,3 @@ void EmusBms::setup(void) {  // Performs one time setup at startup
     *allows_contactor_closing = true;
   }
 }
-
