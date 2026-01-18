@@ -54,7 +54,7 @@ void BydModbusInverter::handle_update_data_modbusp201_byd() {
   }
   mbPV[205] =
       std::min(datalayer.battery.info.max_design_voltage_dV,
-               static_cast<uint16_t>(2549u));  // Max Voltage, if higher Gen24 forces discharge, cap to 254.9V for Primo
+               static_cast<uint16_t>(4549u));  // Max Voltage, if higher Gen24 forces discharge, cap to 454.9V for Primo
   mbPV[206] = (datalayer.battery.info.min_design_voltage_dV);  // Min Voltage, if lower Gen24 disables battery
 }
 
