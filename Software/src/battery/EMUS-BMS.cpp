@@ -25,12 +25,12 @@ void EmusBms::update_values() {
   if (actual_cell_count > 0) {
     datalayer_battery->info.number_of_cells = actual_cell_count;
   }
-  
+
   // Use Pylon protocol min/max for alarms (more stable than individual cell data)
   // Individual cell voltages from 0x19B5 frames are still available in cell_voltages_mV[] for display
   datalayer_battery->status.cell_max_voltage_mV = cellvoltage_max_mV;
   datalayer_battery->status.cell_min_voltage_mV = cellvoltage_min_mV;
-  
+
   // Also populate first two cells for systems that only check those
   if (actual_cell_count == 0) {
     datalayer_battery->status.cell_voltages_mV[0] = cellvoltage_max_mV;
@@ -62,7 +62,7 @@ void EmusBms::handle_incoming_can_frame(CAN_frame rx_frame) {
     }
     return;
   }
-  
+
   switch (rx_frame.ID) {
     case 0x7310:
     case 0x7311:
@@ -139,7 +139,7 @@ void EmusBms::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (rx_frame.ID >= CELL_VOLTAGE_BASE_ID && rx_frame.ID < (CELL_VOLTAGE_BASE_ID + 32)) {
         uint8_t group = rx_frame.ID - CELL_VOLTAGE_BASE_ID;
         uint8_t cell_start = group * 8;  // 8 cells per message
-        
+
         for (uint8_t i = 0; i < 8; i++) {
           uint8_t cell_index = cell_start + i;
           // Only process cells up to the actual cell count (if known)
@@ -164,7 +164,7 @@ void EmusBms::handle_incoming_can_frame(CAN_frame rx_frame) {
       else if (rx_frame.ID >= CELL_BALANCING_BASE_ID && rx_frame.ID < (CELL_BALANCING_BASE_ID + 32)) {
         uint8_t group = rx_frame.ID - CELL_BALANCING_BASE_ID;
         uint8_t cell_start = group * 8;  // 8 cells per message
-        
+
         for (uint8_t i = 0; i < 8; i++) {
           uint8_t cell_index = cell_start + i;
           if (cell_index < MAX_CELLS && (actual_cell_count == 0 || cell_index < actual_cell_count)) {
@@ -191,7 +191,7 @@ void EmusBms::transmit_can(unsigned long currentMillis) {
       PYLON_4200.data.u8[0] = 0x00;  //Request system equipment info
     }
   }
-  
+
   // EMUS BMS auto-broadcasts cell data - no polling needed
 }
 

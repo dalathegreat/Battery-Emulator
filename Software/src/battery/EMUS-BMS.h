@@ -31,9 +31,9 @@ class EmusBms : public CanBattery {
 
  private:
   static const int MAX_CELL_DEVIATION_MV = 150;
-  static const int MAX_CELLS = 192;  // Maximum cells supported
-  static const uint32_t EMUS_BASE_ID = 0x19B50000;  // EMUS extended ID base
-  static const uint32_t CELL_VOLTAGE_BASE_ID = 0x19B50100;  // Base CAN ID for cell voltages
+  static const int MAX_CELLS = 192;                           // Maximum cells supported
+  static const uint32_t EMUS_BASE_ID = 0x19B50000;            // EMUS extended ID base
+  static const uint32_t CELL_VOLTAGE_BASE_ID = 0x19B50100;    // Base CAN ID for cell voltages
   static const uint32_t CELL_BALANCING_BASE_ID = 0x19B50300;  // Base CAN ID for balancing status
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
@@ -70,16 +70,16 @@ class EmusBms : public CanBattery {
                           .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   // EMUS request for individual cell voltages (group 0 = all cells)
   CAN_frame EMUS_CELL_VOLTAGE_REQUEST = {.FD = false,
-                                          .ext_ID = true,
-                                          .DLC = 0,
-                                          .ID = 0x19B50100,
-                                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                                         .ext_ID = true,
+                                         .DLC = 0,
+                                         .ID = 0x19B50100,
+                                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   // EMUS request for individual cell balancing status (group 0 = all cells)
   CAN_frame EMUS_CELL_BALANCING_REQUEST = {.FD = false,
-                                            .ext_ID = true,
-                                            .DLC = 0,
-                                            .ID = 0x19B50300,
-                                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                                           .ext_ID = true,
+                                           .DLC = 0,
+                                           .ID = 0x19B50300,
+                                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
   int16_t celltemperature_max_dC;
   int16_t celltemperature_min_dC;
@@ -101,8 +101,8 @@ class EmusBms : public CanBattery {
   uint8_t SOH = 100;
   uint8_t charge_forbidden = 0;
   uint8_t discharge_forbidden = 0;
-  uint8_t actual_cell_count = 0;  // Actual number of cells detected
-  uint8_t stable_data_cycles = 0;  // Counter for stable voltage data
+  uint8_t actual_cell_count = 0;     // Actual number of cells detected
+  uint8_t stable_data_cycles = 0;    // Counter for stable voltage data
   uint16_t last_min_voltage = 3300;  // Track previous min for stability check
   uint16_t last_max_voltage = 3300;  // Track previous max for stability check
 };
