@@ -666,7 +666,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "BALANCING_MAX_TIME") {
-    return String(datalayer.battery.settings.balancing_time_ms / 60000.0f, 1);
+    return String(datalayer.battery.settings.balancing_max_time_ms / 60000.0f, 1);
   }
 
   if (var == "BAL_POWER") {
@@ -901,6 +901,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     function editComplete(){if(this.status==200){window.location.reload();}}
 
     function editError(){alert('Invalid input');}
+
+        function editRecoveryMode(){var value=prompt('Extremely dangerous option. Emergency charge allows recovery for a severely undercharged battery. Limit charge power to avoid cell rupture and possible fire. Start 30min recovery process? (0 = No, 1 = Yes):');
+          if(value!==null){if(value==0||value==1){var xhr=new 
+        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/enableRecoveryMode?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1.');}}}
 
         function editWh(){var value=prompt('How much energy the battery can store. Enter new Wh value (1-400000):');
           if(value!==null){if(value>=1&&value<=400000){var xhr=new 
@@ -1669,6 +1673,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target discharge voltage: %DISCHARGE_VOLTAGE% V </span> <button onclick='editMaxDischargeVoltage()'>Edit</button></h4>
 
       <h4 style='color: white;'>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
+
+      <h4 style='color: red;'>Undercharged emergency recovery mode: </span><button onclick='editRecoveryMode()'>Start</button></h4>
 
     </div>
 

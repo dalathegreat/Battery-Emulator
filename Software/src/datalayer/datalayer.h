@@ -129,8 +129,11 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** Timeout time for remote limits */
   unsigned long remote_set_timeout = 0;
   /* Forced balancing max time & start timestamp */
-  uint32_t balancing_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
-  uint32_t balancing_start_time_ms = 0;  //For keeping track when balancing started
+  uint32_t balancing_max_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
+  uint32_t balancing_start_time_ms = 0;      //For keeping track when balancing started
+  /* Emergency recovery charge max time & start timestamp */
+  uint32_t recovery_charge_max_time_ms = 1800000;  //30min default, (30min*60sec*1000ms)
+  uint32_t recovery_charge_start_time_ms = 0;      //For keeping track when recovery started
 
   /** Maximum percentage setting. Set this value to the highest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
@@ -171,6 +174,10 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** Sofar CAN Battery ID (0-15) used to parallel multiple packs */
   uint8_t sofar_user_specified_battery_id = 0;
 
+  /** User is trying to recover charge a severely undercharged battery. Temporarily allow low power charging for 30 minutes and force ACTIVE mode 
+   * Great caution must be taken while in this mode to avoid a battery fire, since we override any BMS value.
+  */
+  bool user_requests_forced_charging_recovery_mode = false;
   /** User specified discharge/charge voltages in use. Set to true to use user specified values */
   /** Some inverters like to see a specific target voltage for charge/discharge. Use these values to override automatic voltage limits*/
   bool user_set_voltage_limits_active = false;
