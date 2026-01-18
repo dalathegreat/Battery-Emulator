@@ -24,25 +24,16 @@ void EmusBms::update_values() {
   // Update cell count if we've received individual cell data
   if (actual_cell_count > 0) {
     datalayer_battery->info.number_of_cells = actual_cell_count;
-    
-    // Calculate min/max from individual cells when available
-    uint16_t min_voltage = 5000;
-    uint16_t max_voltage = 0;
-    for (uint16_t i = 0; i < actual_cell_count; i++) {
-      uint16_t voltage = datalayer_battery->status.cell_voltages_mV[i];
-      if (voltage > 0) {  // Valid cell voltage
-        if (voltage < min_voltage) min_voltage = voltage;
-        if (voltage > max_voltage) max_voltage = voltage;
-      }
-    }
-    datalayer_battery->status.cell_max_voltage_mV = max_voltage;
-    datalayer_battery->status.cell_min_voltage_mV = min_voltage;
-  } else {
-    // Fall back to Pylon protocol min/max when individual cell data not available
-    datalayer_battery->status.cell_max_voltage_mV = cellvoltage_max_mV;
+  }
+  
+  // Use Pylon protocol min/max for alarms (more stable than individual cell data)
+  // Individual cell voltages from 0x19B5 frames are still available in cell_voltages_mV[] for display
+  datalayer_battery->status.cell_max_voltage_mV = cellvoltage_max_mV;
+  datalayer_battery->status.cell_min_voltage_mV = cellvoltage_min_mV;
+  
+  // Also populate first two cells for systems that only check those
+  if (actual_cell_count == 0) {
     datalayer_battery->status.cell_voltages_mV[0] = cellvoltage_max_mV;
-    
-    datalayer_battery->status.cell_min_voltage_mV = cellvoltage_min_mV;
     datalayer_battery->status.cell_voltages_mV[1] = cellvoltage_min_mV;
   }
 
@@ -63,8 +54,12 @@ void EmusBms::handle_incoming_can_frame(CAN_frame rx_frame) {
     // Byte 2-3: Unknown (00 03)
     // Byte 4-5: Unknown (00 01)
     // Byte 6-7: Number of cells (00 77 = 0x77 = 119 decimal)
-    actual_cell_count = rx_frame.data.u8[7];  // Just use byte 7 (0x77 = 119)
-    datalayer_battery->info.number_of_cells = actual_cell_count;
+    uint8_t cell_count = rx_frame.data.u8[7];  // Just use byte 7 (0x77 = 119)
+    // Only update if we got a valid non-zero count
+    if (cell_count > 0 && cell_count <= MAX_CELLS) {
+      actual_cell_count = cell_count;
+      datalayer_battery->info.number_of_cells = actual_cell_count;
+    }
     return;
   }
   
@@ -152,9 +147,14 @@ void EmusBms::handle_incoming_can_frame(CAN_frame rx_frame) {
             // Cell voltage: 2000mV base + (byte value × 10mV)
             // e.g., 0x7B (123) = 2000 + 123 × 10 = 3230mV
             uint16_t cell_voltage = 2000 + (rx_frame.data.u8[i] * 10);
-            // Only update if valid (non-zero byte value, as 0x00 would give exactly 2000mV)
-            if (rx_frame.data.u8[i] > 0) {
-              datalayer_battery->status.cell_voltages_mV[cell_index] = cell_voltage;
+            // Only update if voltage is in valid LiFePO4 range (2500-4200mV)
+            if (cell_voltage >= 2500 && cell_voltage <= 4200) {
+              uint16_t current_voltage = datalayer_battery->status.cell_voltages_mV[cell_index];
+              // Reject sudden large changes (>1000mV) as likely data corruption
+              // Using 1000mV threshold since EMUS updates every 5-6 seconds
+              if (current_voltage == 0 || abs((int)cell_voltage - (int)current_voltage) <= 1000) {
+                datalayer_battery->status.cell_voltages_mV[cell_index] = cell_voltage;
+              }
             }
           }
         }
@@ -192,8 +192,7 @@ void EmusBms::transmit_can(unsigned long currentMillis) {
     }
   }
   
-  // Note: EMUS BMS broadcasts cell data automatically on 0x6B0-0x6B7 (voltages) 
-  // and 0x6B8-0x6BF (balancing status). No requests needed - just listen for the broadcasts.
+  // EMUS BMS auto-broadcasts cell data - no polling needed
 }
 
 void EmusBms::setup(void) {  // Performs one time setup at startup
@@ -205,6 +204,11 @@ void EmusBms::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
   datalayer_battery->info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+
+  // Initialize all cell voltages to a safe mid-range value to prevent false low voltage alarms
+  for (uint16_t i = 0; i < MAX_CELLS; i++) {
+    datalayer_battery->status.cell_voltages_mV[i] = 3300;  // Safe default value
+  }
 
   if (allows_contactor_closing) {
     *allows_contactor_closing = true;
