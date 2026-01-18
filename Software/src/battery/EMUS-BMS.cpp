@@ -4,8 +4,6 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 
-EmusBms::~EmusBms() {}
-
 void EmusBms::update_values() {
 
   datalayer_battery->status.real_soc = (SOC * 100);  //increase SOC range from 0-100 -> 100.00
@@ -216,3 +214,4 @@ void EmusBms::setup(void) {  // Performs one time setup at startup
     *allows_contactor_closing = true;
   }
 }
+
