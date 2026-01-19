@@ -125,4 +125,4 @@ void GrowattHvInverter::update_values() {
   } else {
     // Use battery min design voltage as Discharge cutoff voltage (0.1V) [0-1000V]
     GROWATT_3150.data.u8[0] = (datalayer.battery.info.min_design_voltage_dV >> 8);
-    GROUND_ATTENTION_ERROR
+  
