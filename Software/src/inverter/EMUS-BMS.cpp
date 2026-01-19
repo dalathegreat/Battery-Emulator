@@ -33,15 +33,16 @@ void EmusBms::update_values() {
     datalayer_battery->status.remaining_capacity_Wh = remWh;
 
     uint32_t soc_x100 = (uint32_t)((uint64_t)remWh * 10000ULL / (uint64_t)total_Wh);
-    if (soc_x100 > 10000) soc_x100 = 10000;
+    if (soc_x100 > 10000)
+      soc_x100 = 10000;
     datalayer_battery->status.reported_soc = soc_x100;
   } else {
     // Fallback:
     //  - If total capacity is known, derive remaining from EMUS SOC.
     //  - If total capacity is unknown, keep inverter SOC aligned with EMUS SOC and report 0Wh remaining.
     if (total_Wh > 0) {
-      datalayer_battery->status.remaining_capacity_Wh = (uint32_t)(
-          (static_cast<double>(datalayer_battery->status.real_soc) / 10000.0) * (double)total_Wh);
+      datalayer_battery->status.remaining_capacity_Wh =
+          (uint32_t)((static_cast<double>(datalayer_battery->status.real_soc) / 10000.0) * (double)total_Wh);
     } else {
       datalayer_battery->status.remaining_capacity_Wh = 0;
     }
@@ -52,12 +53,12 @@ void EmusBms::update_values() {
   if (actual_cell_count > 0) {
     datalayer_battery->info.number_of_cells = actual_cell_count;
   }
-  
+
   // Use Pylon protocol min/max for alarms (more stable than individual cell data)
   // Individual cell voltages from 0x10B5 frames are still available in cell_voltages_mV[] for display
   datalayer_battery->status.cell_max_voltage_mV = cellvoltage_max_mV;
   datalayer_battery->status.cell_min_voltage_mV = cellvoltage_min_mV;
-  
+
   // Also populate first two cells for systems that only check those
   if (actual_cell_count == 0) {
     datalayer_battery->status.cell_voltages_mV[0] = cellvoltage_max_mV;
@@ -112,7 +113,7 @@ void EmusBms::handle_incoming_can_frame(CAN_frame rx_frame) {
     est_energy_valid = (est_energy_10Wh != 0xFFFF) && (est_energy_10Wh > 0);
     return;
   }
-  
+
   switch (rx_frame.ID) {
     case 0x7310:
     case 0x7311:
@@ -189,7 +190,7 @@ void EmusBms::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (rx_frame.ID >= CELL_VOLTAGE_BASE_ID && rx_frame.ID < (CELL_VOLTAGE_BASE_ID + 32)) {
         uint8_t group = rx_frame.ID - CELL_VOLTAGE_BASE_ID;
         uint8_t cell_start = group * 8;  // 8 cells per message
-        
+
         for (uint8_t i = 0; i < 8; i++) {
           uint8_t cell_index = cell_start + i;
           // Only process cells up to the actual cell count (if known)
@@ -214,7 +215,7 @@ void EmusBms::handle_incoming_can_frame(CAN_frame rx_frame) {
       else if (rx_frame.ID >= CELL_BALANCING_BASE_ID && rx_frame.ID < (CELL_BALANCING_BASE_ID + 32)) {
         uint8_t group = rx_frame.ID - CELL_BALANCING_BASE_ID;
         uint8_t cell_start = group * 8;  // 8 cells per message
-        
+
         for (uint8_t i = 0; i < 8; i++) {
           uint8_t cell_index = cell_start + i;
           if (cell_index < MAX_CELLS && (actual_cell_count == 0 || cell_index < actual_cell_count)) {
@@ -241,7 +242,7 @@ void EmusBms::transmit_can(unsigned long currentMillis) {
       PYLON_4200.data.u8[0] = 0x00;  //Request system equipment info
     }
   }
-  
+
   // EMUS BMS auto-broadcasts cell data - no polling needed
 }
 
