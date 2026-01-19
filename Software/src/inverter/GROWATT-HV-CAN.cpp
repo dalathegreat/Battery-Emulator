@@ -27,8 +27,7 @@ void GrowattHvInverter::update_values() {
     ampere_hours_remaining =
         ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
     // (WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
-    ampere_hours_full =
-        ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
+    ampere_hours_full = ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
     // (WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
   }
 
@@ -52,7 +51,7 @@ void GrowattHvInverter::update_values() {
   GROWATT_3110.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
 
   // Status bits (see documentation for all bits, most important are mapped)
-  GROWATT_3110.data.u8[7] = 0x00;  // Clear all bits
+  GROWATT_3110.data.u8[7] = 0x00;                      // Clear all bits
   if (datalayer.battery.status.active_power_W < -1) {  // Discharging
     GROWATT_3110.data.u8[7] |= 0b00000011;
   } else if (datalayer.battery.status.active_power_W > 1) {  // Charging
@@ -61,8 +60,8 @@ void GrowattHvInverter::update_values() {
     GROWATT_3110.data.u8[7] |= 0b00000001;
   }
 
-  if ((datalayer.battery.status.max_charge_current_dA == 0) ||
-      (datalayer.battery.status.reported_soc == 10000) || (datalayer.battery.status.bms_status == FAULT)) {
+  if ((datalayer.battery.status.max_charge_current_dA == 0) || (datalayer.battery.status.reported_soc == 10000) ||
+      (datalayer.battery.status.bms_status == FAULT)) {
     GROWATT_3110.data.u8[7] |= 0b01000000;  // No Charge
   } else {
     GROWATT_3110.data.u8[7] |= 0b00000000;  // Charge allowed
@@ -362,7 +361,7 @@ void GrowattHvInverter::update_values() {
   GROWATT_3F00.data.u8[5] = 0;  // RESERVED
   GROWATT_3F00.data.u8[6] = 0;  // RESERVED
   GROWATT_3F00.data.u8[7] = 0;  // RESERVED
-} 
+}
 
 void GrowattHvInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
