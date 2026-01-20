@@ -29,6 +29,17 @@ void FoxessCanInverter::
   //Calculate the required values
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
+  //Foxess only supports LFP batteries. We need to fake an LFP cell voltage range if the battery used is not LFP
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+    //Already LFP, pass thru value
+    cell_tweaked_max_voltage_mV = datalayer.battery.status.cell_max_voltage_mV;
+    cell_tweaked_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
+  } else {  //linear interpolation to remap the value from the range [2500-4200] to [2500-3400]
+    cell_tweaked_max_voltage_mV =
+        (2500 + ((datalayer.battery.status.cell_max_voltage_mV - 2500) * (3400 - 2500)) / (4200 - 2500));
+    cell_tweaked_min_voltage_mV =
+        (2500 + ((datalayer.battery.status.cell_min_voltage_mV - 2500) * (3400 - 2500)) / (4200 - 2500));
+  }
 
   //Put the values into the CAN messages
   //BMS_Limits
@@ -57,10 +68,10 @@ void FoxessCanInverter::
   FOXESS_1874.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
   FOXESS_1874.data.u8[2] = (int8_t)datalayer.battery.status.temperature_min_dC;
   FOXESS_1874.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
-  FOXESS_1874.data.u8[4] = (uint8_t)(3300);  //cut_mv_max (Should we send a limit, or the actual mV?)
-  FOXESS_1874.data.u8[5] = (3300 >> 8);
-  FOXESS_1874.data.u8[6] = (uint8_t)(3300);  //cut_mV_min (Should we send a limit, or the actual mV?)
-  FOXESS_1874.data.u8[7] = (3300 >> 8);
+  FOXESS_1874.data.u8[4] = (uint8_t)(cell_tweaked_max_voltage_mV);
+  FOXESS_1874.data.u8[5] = (cell_tweaked_max_voltage_mV >> 8);
+  FOXESS_1874.data.u8[6] = (uint8_t)(cell_tweaked_min_voltage_mV);
+  FOXESS_1874.data.u8[7] = (cell_tweaked_min_voltage_mV >> 8);
 
   //BMS_Status
   FOXESS_1875.data.u8[0] = (uint8_t)temperature_average;

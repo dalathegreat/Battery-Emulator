@@ -30,12 +30,13 @@
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
 
-#if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_DEVKIT)
+#if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
+    !defined(HW_DEVKIT)
 #error You must select a target hardware!
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "9.4.dev";
+const char* version_number = "9.3.5";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -68,7 +69,7 @@ void register_transmitter(Transmitter* transmitter) {
 void init_serial() {
   // Init Serial monitor
   Serial.begin(115200);
-#if HW_LILYGO2CAN
+#if (HW_LILYGO2CAN || HW_BECOM)
   // Wait up to 100ms for Serial to be available. On the ESP32S3 Serial is
   // provided by the USB controller, so will only work if the board is connected
   // to a computer.
@@ -111,11 +112,19 @@ void connectivity_loop(void*) {
 }
 
 void logging_loop(void*) {
+  bool sd_initialized = false;
 
   init_logging_buffers();
-  init_sdcard();
+  sd_initialized = init_sdcard();
 
-  while (true) {
+  // If the SD failed to init (delete the buffers and disable SD logging)
+  if (!sd_initialized) {
+    deinit_logging_buffers();
+    datalayer.system.info.SD_logging_active = false;
+    datalayer.system.info.CAN_SD_logging_active = false;
+  }
+
+  while (sd_initialized) {
     if (datalayer.system.info.SD_logging_active) {
       write_log_to_sdcard();
     }
@@ -124,6 +133,8 @@ void logging_loop(void*) {
       write_can_frame_to_sdcard();
     }
   }
+  // Delete the logging task only if SD failed to initialize to prevent panic.
+  vTaskDelete(NULL);
 }
 
 void check_interconnect_available(uint8_t batteryNumber) {
