@@ -51,7 +51,6 @@ enum class BatteryType {
   BmwPhev = 43,
   FordMachE = 44,
   CmpSmartCar = 45,
-  MaxusEV80 = 46,
   ThinkCity = 47,
   Highest
 };
