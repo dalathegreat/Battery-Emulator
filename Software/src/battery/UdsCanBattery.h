@@ -46,8 +46,10 @@ class UdsCanBattery : public CanBattery {
   //virtual uint32_t handle_long_pid(uint16_t pid, const uint8_t* data, uint16_t length) { return 0; }
   virtual bool supports_read_DTC();
   virtual bool supports_reset_DTC();
+  virtual bool supports_reset_BMS();
   virtual void read_DTC();
   virtual void reset_DTC();
+  virtual void reset_BMS();
 
   void startUDSMultiFrameReception(uint16_t totalLength, uint8_t moduleID);
   bool storeUDSPayload(const uint8_t* payload, uint8_t length);
@@ -68,6 +70,10 @@ class UdsCanBattery : public CanBattery {
 
   bool user_request_read_dtc = false;
   bool user_request_clear_dtc = false;
+  bool user_request_reset = false;
+
+  enum UDS_RESET_STATE { IDLE, SENDING_DIAG, SENDING_RESET, WAITING_RESET_COMPLETE };
+  UDS_RESET_STATE resetProgress = IDLE;
 
   // A structure to keep track of the ongoing multi-frame UDS response
   typedef struct {
@@ -83,31 +89,45 @@ class UdsCanBattery : public CanBattery {
   // A single global UDS context, since only one module can respond at a time
   UDS_RxContext gUDSContext;
 
-  CAN_frame UDS_PID_REQUEST = {.FD = false,
+  CAN_frame UDS_PID_REQUEST = {.FD = true,
                                .ext_ID = false,
                                .DLC = 8,
                                .ID = 0x7E5,
                                .data = {0x03, 0x22, 0xB0, 0x42, 0x00, 0x00, 0x00, 0x00}};
 
   //0x781 UDS diagnostic requests - request all DTC's
-  CAN_frame UDS_RQ_DTCs = {.FD = false,
+  CAN_frame UDS_RQ_DTCs = {.FD = true,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x781,
                            .data = {0x03, 0x19, 0x02, 0xFF, 0x00, 0x00, 0x00, 0x00}};
 
   //0x781 UDS diagnostic requests - clear all DTC's
-  CAN_frame UDS_CLEAR_DTCs = {.FD = false,
+  CAN_frame UDS_CLEAR_DTCs = {.FD = true,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x781,
                               .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
 
-  CAN_frame UDS_RQ_CONTINUE_MULTIFRAME = {.FD = false,
+  CAN_frame UDS_RQ_CONTINUE_MULTIFRAME = {.FD = true,
                                           .ext_ID = false,
                                           .DLC = 8,
                                           .ID = 0x781,
                                           .data = {0x30, 0x03, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+  // Enter UDS extended-diagnostics mode
+  CAN_frame UDS_DIAG = {.FD = true,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x781,
+                        .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+  // BMS hard reset
+  CAN_frame UDS_RESET = {.FD = true,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x781,
+                         .data = {0x02, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
 };
 
 #endif  // UDS_CAN_BATTERY_H

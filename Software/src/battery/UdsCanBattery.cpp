@@ -4,13 +4,40 @@
 #include "../devboard/utils/logging.h"
 
 void UdsCanBattery::transmit_uds_can(unsigned long currentMillis) {
-  if (currentMillis - previousUdsMillis200 >= INTERVAL_200_MS) {
+  if (currentMillis - previousUdsMillis200 >= 199) {
     previousUdsMillis200 = currentMillis;
 
     if (uds_busy_timeout > 0) {
       // Still busy, do not send new requests
       uds_busy_timeout--;
       return;
+    }
+
+    if (user_request_reset) {
+      user_request_reset = false;
+
+      resetProgress = SENDING_DIAG;
+    }
+
+    switch (resetProgress) {
+      case SENDING_DIAG:
+        UDS_DIAG.ID = obd_address_min;
+        transmit_can_frame(&UDS_DIAG);
+        resetProgress = SENDING_RESET;
+        uds_busy_timeout = 5;
+        return;
+      case SENDING_RESET:
+        UDS_RESET.ID = obd_address_min;
+        transmit_can_frame(&UDS_RESET);
+        resetProgress = IDLE;
+        uds_busy_timeout = 5;
+        return;
+      // case WAITING_RESET_COMPLETE:
+      //   // Stop UDS sending until reset is complete
+      //   return;
+      default:
+        // do nothing
+        break;
     }
 
     if (user_request_clear_dtc) {
@@ -330,10 +357,18 @@ bool UdsCanBattery::supports_reset_DTC() {
   return true;
 }
 
+bool UdsCanBattery::supports_reset_BMS() {
+  return true;
+}
+
 void UdsCanBattery::read_DTC() {
   user_request_read_dtc = true;
 }
 
 void UdsCanBattery::reset_DTC() {
   user_request_clear_dtc = true;
+}
+
+void UdsCanBattery::reset_BMS() {
+  user_request_reset = true;
 }
