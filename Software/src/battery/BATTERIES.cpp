@@ -148,6 +148,7 @@ battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_defau
 BatteryType user_selected_battery_type = BatteryType::None;
 bool user_selected_second_battery = false;
 bool user_selected_triple_battery = false;
+bool user_selected_series_connected_batteries = false;
 
 Battery* create_battery(BatteryType type) {
   switch (type) {

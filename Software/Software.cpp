@@ -143,27 +143,64 @@ void check_interconnect_available(uint8_t batteryNumber) {
     if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery2.status.voltage_dV == 0) {
       return;  // Both voltage values need to be available to start check
     }
-    uint16_t voltage_diff_battery2_towards_main =
-        abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV);
-    uint8_t secondsOutOfVoltageSyncBattery2 = 0;
+    if (user_selected_series_connected_batteries) {  // Batteries are in series operation
+      // Calculate voltage delta between the two batteries
+      uint16_t voltage_diff_battery2_towards_main =
+          abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV);
+      static uint8_t seriesSecondsOutOfVoltageSync = 0;  // Static to maintain value between calls
 
-    if (voltage_diff_battery2_towards_main <= 15) {  // If we are within 1.5V between the batteries
-      clear_event(EVENT_VOLTAGE_DIFFERENCE);
-      secondsOutOfVoltageSyncBattery2 = 0;
-      if (datalayer.battery.status.bms_status == FAULT) {
-        // If main battery is in fault state, disengage the second battery
-        datalayer.system.status.battery2_allowed_contactor_closing = false;
-      } else {  // If main battery is OK, allow second battery to join
-        datalayer.system.status.battery2_allowed_contactor_closing = true;
-      }
-    } else {  //Voltage between the two packs is too large
-      set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff_battery2_towards_main / 10));
+      // Check if voltage delta is within 10% of average voltage
+      uint16_t avg_voltage_dV = (datalayer.battery.status.voltage_dV + datalayer.battery2.status.voltage_dV) / 2;
+      uint16_t max_allowed_delta = avg_voltage_dV * 10 / 100;  // 10% of average voltage
 
-      //If we start to drift out of sync between the two packs for more than 10 seconds, open contactors
-      if (secondsOutOfVoltageSyncBattery2 < 10) {
-        secondsOutOfVoltageSyncBattery2++;
+      if (voltage_diff_battery2_towards_main <= max_allowed_delta) {
+        // Voltages are within 10% tolerance
+        clear_event(EVENT_VOLTAGE_DIFFERENCE);
+        seriesSecondsOutOfVoltageSync = 0;  // Reset counter
+
+        // Check if both batteries are operational (not in fault state)
+        if (datalayer.battery.status.bms_status != FAULT && datalayer.battery2.status.bms_status != FAULT) {
+          // Both batteries OK, allow series operation
+          datalayer.system.status.battery2_allowed_contactor_closing = true;
+        } else {
+          // One or both batteries in fault, disengage
+          datalayer.system.status.battery2_allowed_contactor_closing = false;
+        }
       } else {
-        datalayer.system.status.battery2_allowed_contactor_closing = false;
+        // Voltage delta exceeds 10% tolerance
+        set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff_battery2_towards_main / 10));
+
+        // Track how long we've been out of sync (max 10 seconds)
+        if (seriesSecondsOutOfVoltageSync < 10) {
+          seriesSecondsOutOfVoltageSync++;
+        } else {
+          // Been out of sync for more than 10 seconds, open contactors
+          datalayer.system.status.battery2_allowed_contactor_closing = false;
+        }
+      }
+    } else {  // Batteries are in parallel operation
+      uint16_t voltage_diff_battery2_towards_main =
+          abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV);
+      static uint8_t secondsOutOfVoltageSyncBattery2 = 0;
+
+      if (voltage_diff_battery2_towards_main <= 15) {  // If we are within 1.5V between the batteries
+        clear_event(EVENT_VOLTAGE_DIFFERENCE);
+        secondsOutOfVoltageSyncBattery2 = 0;
+        if (datalayer.battery.status.bms_status == FAULT) {
+          // If main battery is in fault state, disengage the second battery
+          datalayer.system.status.battery2_allowed_contactor_closing = false;
+        } else {  // If main battery is OK, allow second battery to join
+          datalayer.system.status.battery2_allowed_contactor_closing = true;
+        }
+      } else {  //Voltage between the two packs is too large
+        set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff_battery2_towards_main / 10));
+
+        //If we start to drift out of sync between the two packs for more than 10 seconds, open contactors
+        if (secondsOutOfVoltageSyncBattery2 < 10) {
+          secondsOutOfVoltageSyncBattery2++;
+        } else {
+          datalayer.system.status.battery2_allowed_contactor_closing = false;
+        }
       }
     }
   }
@@ -174,7 +211,7 @@ void check_interconnect_available(uint8_t batteryNumber) {
     }
     uint16_t voltage_diff_battery3_towards_main =
         abs(datalayer.battery.status.voltage_dV - datalayer.battery3.status.voltage_dV);
-    uint8_t secondsOutOfVoltageSyncBattery3 = 0;
+    static uint8_t secondsOutOfVoltageSyncBattery3 = 0;
 
     if (voltage_diff_battery3_towards_main <= 15) {  // If we are within 1.5V between the batteries
       clear_event(EVENT_VOLTAGE_DIFFERENCE);
