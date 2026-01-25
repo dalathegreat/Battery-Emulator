@@ -163,7 +163,7 @@ void GrowattWitInverter::update_values() {
   // Byte 4-5: Battery Current (0.1A, offset -1000A)
   // Raw = (Actual + 1000) * 10 = Actual_dA + 10000
   int16_t current_dA = datalayer.battery.status.current_dA;
-  uint16_t current_raw = (uint16_t)(current_dA + CURRENT_OFFSET_DA);
+  uint16_t current_raw = (uint16_t)(current_dA + GROWATT_CURRENT_OFFSET_DA);
   GROWATT_1AC7.data.u8[4] = (current_raw & 0xFF);
   GROWATT_1AC7.data.u8[5] = (current_raw >> 8);
 
@@ -591,9 +591,6 @@ void GrowattWitInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 
   // Extract FSN from 29-bit CAN ID
   uint8_t fsn = get_fsn_from_id(rx_frame.ID);
-
-  // Update last message timestamp for timeout detection
-  last_inverter_msg_ms = millis();
 
   switch (fsn) {
     case FSN_HEARTBEAT:  // 1AB5: Heartbeat from PCS (1000ms)
