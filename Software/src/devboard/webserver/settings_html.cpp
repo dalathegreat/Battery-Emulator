@@ -364,6 +364,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("TRIBTR") ? "checked" : "";
   }
 
+  if (var == "SERIES") {
+    return settings.getBool("SERIES") ? "checked" : "";
+  }
+
   if (var == "SOCESTIMATED") {
     return settings.getBool("SOCESTIMATED") ? "checked" : "";
   }
@@ -1283,6 +1287,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <select name='BATT2COMM'>
                 %BATT2COMM%
             </select>
+
+        <label>Series operation, EXPERIMENTAL: </label>
+        <input type='checkbox' name='SERIES' value='on' %SERIES% 
+        title="Enable this option if you intend to run the batteries in series" />
 
         <label>Triple battery: </label>
         <input type='checkbox' name='TRIBTR' value='on' %TRIBTR% 
