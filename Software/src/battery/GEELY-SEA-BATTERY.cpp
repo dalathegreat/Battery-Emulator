@@ -241,6 +241,9 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           case POLL_HV_Voltage:
             datalayer_extended.GeelySEA.BECMBatteryVoltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
             break;
+          case POLL_CrashStatus:
+            datalayer_extended.GeelySEA.CrashStatus = rx_frame.data.u8[4];
+            break;
           case POLL_SOC:
             datalayer_extended.GeelySEA.soc_bms = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 5;
             break;
@@ -282,7 +285,7 @@ void GeelySeaBattery::readDiagData() {
 
   // Update current poll from the array
   currentpoll = poll_commands[poll_index];
-  poll_index = (poll_index + 1) % 11;  //% ## comes from array size
+  poll_index = (poll_index + 1) % 12;  //% ## comes from array size
 
   SEA_Polling_Req.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
   SEA_Polling_Req.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);

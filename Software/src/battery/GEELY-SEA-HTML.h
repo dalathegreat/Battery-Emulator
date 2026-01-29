@@ -10,6 +10,7 @@ class GeelySeaHtmlRenderer : public BatteryHtmlRenderer {
   String get_status_html() {
     String content;
     content += "</h4><h4>BECM reported number of DTCs: " + String(datalayer_extended.GeelySEA.DTCcount) + "</h4>";
+    content += "</h4><h4>Inhibition status (crash): " + String(datalayer_extended.GeelySEA.CrashStatus) + "</h4>";
     content += "<h4>BECM reported SOC: " + String(datalayer_extended.GeelySEA.soc_bms / 100.0) + " %</h4>";
     content += "<h4>BECM reported SOH: " + String(datalayer_extended.GeelySEA.soh_bms / 100.0) + " %</h4>";
     content += "<h4>HV voltage: " + String(datalayer_extended.GeelySEA.BECMBatteryVoltage / 100.0) + " V</h4>";

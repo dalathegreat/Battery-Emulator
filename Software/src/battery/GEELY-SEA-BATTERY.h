@@ -21,6 +21,9 @@ class GeelySeaBattery : public CanBattery {
   bool supports_reset_BECM() { return true; }
   void reset_BECM() { datalayer_extended.GeelySEA.UserRequestBECMecuReset = true; }
 
+  //bool supports_reset_crash() { return true; }
+  //void reset_crash() { datalayer_extended.GeelySEA.UserRequestCrashReset = true; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
@@ -55,11 +58,12 @@ class GeelySeaBattery : public CanBattery {
   static const uint16_t POLL_HighestCellVolt = 0x4907;
   static const uint16_t POLL_LowestCellVolt = 0x4908;
   static const uint16_t POLL_BatteryCurrent = 0x4802;
+  static const uint16_t POLL_CrashStatus = 0xFE42;
 
   uint8_t pause_polling_seconds = 0;
   bool DTC_readout_in_progress = false;
 
-  const uint16_t poll_commands[11] = {POLL_BECMsupplyVoltage,
+  const uint16_t poll_commands[12] = {POLL_BECMsupplyVoltage,
                                       POLL_HV_Voltage,
                                       POLL_SOC,
                                       POLL_SOH,
@@ -69,7 +73,8 @@ class GeelySeaBattery : public CanBattery {
                                       POLL_Interlock,
                                       POLL_HighestCellVolt,
                                       POLL_LowestCellVolt,
-                                      POLL_BatteryCurrent};
+                                      POLL_BatteryCurrent,
+                                      POLL_CrashStatus};
 
   uint8_t poll_index = 0;
   uint16_t currentpoll = POLL_BECMsupplyVoltage;

@@ -875,6 +875,7 @@ struct DATALAYER_INFO_GEELY_SEA {
   uint16_t CellVoltHighest = 0;
   uint16_t CellVoltLowest = 0;
   uint8_t DTCcount = 0;
+  uint8_t CrashStatus = 0;
   /** User requesting DTC reset via WebUI*/
   bool UserRequestDTCreset = false;
   /** User requesting DTC readout via WebUI*/
