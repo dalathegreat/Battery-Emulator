@@ -50,10 +50,11 @@ void GeelySeaBattery::
     datalayer.battery.status.temperature_min_dC = ((datalayer_extended.GeelySEA.CellTempLowest / 100.0) - 50.0) * 10;
   }
 
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+
   /*
   datalayer.battery.status.current_dA;
-
-  datalayer.battery.status.remaining_capacity_Wh;
 
   datalayer.battery.status.max_discharge_power_W;
 
