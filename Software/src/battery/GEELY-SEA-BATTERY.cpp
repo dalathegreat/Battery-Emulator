@@ -55,11 +55,11 @@ void GeelySeaBattery::
 
   /*
   datalayer.battery.status.current_dA;
-
-  datalayer.battery.status.max_discharge_power_W;
-
-  datalayer.battery.status.max_charge_power_W;
   */
+
+  datalayer.battery.status.max_discharge_power_W = 3000;  //TODO: Take from CAN!
+
+  datalayer.battery.status.max_charge_power_W = 3000;  //TODO: Take from CAN!
 
   if (datalayer.battery.info.chemistry == LFP) {  //If configured LFP in use (or we autodetected it), switch to it
     datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_LFP_WH;  //EX30 51kWh LFP battery
