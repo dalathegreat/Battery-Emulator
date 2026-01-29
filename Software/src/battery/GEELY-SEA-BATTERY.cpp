@@ -301,6 +301,9 @@ void GeelySeaBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&SEA_536);  //Send 0x536 Network managing frame to keep BMS alive
     transmit_can_frame(&SEA_060);  //Send 0x060 Motor B info
     transmit_can_frame(&SEA_156);  //Send 0x156 Motor A info
+    transmit_can_frame(&SEA_171);  //Send 0x171
+    transmit_can_frame(&SEA_218);  //Send 0x218
+    transmit_can_frame(&SEA_490);  //Send 0x490
   }
   if (currentMillis - previousMillis2000 >= INTERVAL_2_S) {
     previousMillis2000 = currentMillis;

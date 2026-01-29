@@ -87,13 +87,28 @@ class GeelySeaBattery : public CanBattery {
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x060,
-                       .data = {0x80, 0x00, 0x01, 0x38, 0xEE, 0x47, 0x00, 0x40}};  //Motor B
+                       .data = {0x80, 0x00, 0x01, 0x38, 0xEE, 0x47, 0x00, 0x40}};  //Motor B on Zeekr battery
 
   CAN_frame SEA_156 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x156,
-                       .data = {0x7F, 0x4E, 0x10, 0x00, 0x00, 0x00, 0x2E, 0x10}};  //Motor A
+                       .data = {0x7F, 0x4E, 0x10, 0x00, 0x00, 0x00, 0x2E, 0x10}};  //Motor A on Zeekr battery
+  CAN_frame SEA_171 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x171,
+                       .data = {0x00, 0x00, 0x80, 0x00, 0xA0, 0x00, 0x00, 0x6C}};  // Prevents DTC on EX30 battery
+  CAN_frame SEA_218 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x218,
+                       .data = {0xC0, 0x00, 0x12, 0x3B, 0x1A, 0x30, 0x00, 0x01}};  // Prevents DTC on EX30 battery
+  CAN_frame SEA_490 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x490,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x5D, 0x4B, 0xA3}};  // Prevents DTC on EX30 battery
 
   CAN_frame SEA_Polling_Req = {
       .FD = false,
