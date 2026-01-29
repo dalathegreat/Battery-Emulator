@@ -48,7 +48,7 @@ class GeelySeaHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Closed");
     }
-    content += "<h4>Unknown contactor status 1: ";
+    content += "<h4>Unknow Contactor Status 1 (Negative FC?): ";
     switch (datalayer_extended.GeelySEA.Interlock & 0x01) {
       case 0x01:
         content += String("Open");
@@ -56,7 +56,7 @@ class GeelySeaHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Closed");
     }
-    content += "<h4>Unknown contactor status 2: ";
+    content += "<h4>Unknown Contactor Status 2 (Positive FC?): ";
     switch (datalayer_extended.GeelySEA.Interlock & 0x02) {
       case 0x02:
         content += String("Open");
@@ -64,7 +64,7 @@ class GeelySeaHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Closed");
     }
-    content += "<h4>Unknown contactor status 3: ";
+    content += "<h4>Negative Contactor Status: ";
     switch (datalayer_extended.GeelySEA.Interlock & 0x08) {
       case 0x08:
         content += String("Open");
@@ -72,7 +72,7 @@ class GeelySeaHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Closed");
     }
-    content += "<h4>Unknown contactor status 4: ";
+    content += "<h4>Precharge Contactor Status: ";
     switch (datalayer_extended.GeelySEA.Interlock & 0x10) {
       case 0x10:
         content += String("Open");
@@ -80,7 +80,7 @@ class GeelySeaHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Closed");
     }
-    content += "<h4>Unknown contactor status 5: ";
+    content += "<h4>Positive Contactor Status: ";
     switch (datalayer_extended.GeelySEA.Interlock & 0x20) {
       case 0x20:
         content += String("Open");
