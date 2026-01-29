@@ -28,12 +28,12 @@ class ThinkBattery : public CanBattery {
                        .data = {0x00, 0x00, 0x06}};  //Charger Status & TIM Status = TRUE
   CAN_frame PCU_311 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x311, .data = {0x00, 0x00}};
 
-  uint16_t sys_voltage = 0;
+  uint16_t sys_voltage = 3600;
   uint16_t sys_dod = 0;
-  uint16_t sys_voltageMinDischarge = 0;
+  uint16_t sys_voltageMinDischarge = MIN_PACK_VOLTAGE_DV;
   uint16_t sys_currentMaxDischarge = 0;
   uint16_t sys_currentMaxCharge = 0;
-  uint16_t sys_voltageMaxCharge = 0;
+  uint16_t sys_voltageMaxCharge = MAX_PACK_VOLTAGE_DV;
   uint16_t BatterySOC = 500;
   int16_t sys_tempMean = 0;
   int16_t sys_current = 0;
