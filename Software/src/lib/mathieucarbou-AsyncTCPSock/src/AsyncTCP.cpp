@@ -292,17 +292,6 @@ void AsyncClient::setNoDelay(bool nodelay){
     }
 }
 
-bool AsyncClient::getNoDelay(){
-    if (_socket == -1) return false;
-
-    int flag = 0;
-    socklen_t size = sizeof(int);
-    int res = getsockopt(_socket, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, &size);
-    if(res < 0) {
-    }
-    return flag;
-}
-
 /*
  * Callback Setters
  * */
@@ -446,12 +435,6 @@ bool AsyncClient::connect(IPAddress ip, uint16_t port)
     serveraddr.sin_family = AF_INET;
     memcpy(&(serveraddr.sin_addr.s_addr), &ip_addr, 4);
     serveraddr.sin_port = htons(port);
-
-#ifdef EINPROGRESS
-    #if EINPROGRESS != 119
-    #error EINPROGRESS invalid
-    #endif
-#endif
 
     errno = 0; r = ::connect(sockfd, (struct sockaddr*)&serveraddr, sizeof(serveraddr));
     if (r < 0 && errno != EINPROGRESS) {
@@ -606,7 +589,7 @@ bool AsyncClient::_flushWriteQueue(void)
                     if (it->owned) ::free(it->data);
                     it->data = NULL;
                 }
-            } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            } else if (errno == EAGAIN) {
                 // Socket is full, could not write anything
                 keep_writing = false;
             } else {
@@ -679,7 +662,7 @@ void AsyncClient::_sockIsReadable(void)
         // A successful read of 0 bytes indicates remote side closed connection
         _close();
     } else if (r < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        if (errno == EAGAIN) {
             // Do nothing, will try later
         } else {
             _error(errno);
@@ -912,29 +895,6 @@ int8_t AsyncClient::abort(){
         _close();
     }
     return ERR_ABRT;
-}
-
-const char * AsyncClient::errorToString(int8_t error){
-    switch(error){
-        case ERR_OK: return "OK";
-        case ERR_MEM: return "Out of memory error";
-        case ERR_BUF: return "Buffer error";
-        case ERR_TIMEOUT: return "Timeout";
-        case ERR_RTE: return "Routing problem";
-        case ERR_INPROGRESS: return "Operation in progress";
-        case ERR_VAL: return "Illegal value";
-        case ERR_WOULDBLOCK: return "Operation would block";
-        case ERR_USE: return "Address in use";
-        case ERR_ALREADY: return "Already connected";
-        case ERR_CONN: return "Not connected";
-        case ERR_IF: return "Low-level netif error";
-        case ERR_ABRT: return "Connection aborted";
-        case ERR_RST: return "Connection reset";
-        case ERR_CLSD: return "Connection closed";
-        case ERR_ARG: return "Illegal argument";
-        case -55: return "DNS failed";
-        default: return "UNKNOWN";
-    }
 }
 
 AsyncServer::AsyncServer(IPAddress addr, uint16_t port)

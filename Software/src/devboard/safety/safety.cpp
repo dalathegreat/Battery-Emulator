@@ -13,6 +13,8 @@ static bool battery_empty_event_fired = false;
 
 #define MAX_SOH_DEVIATION_PPTT 2500
 #define CELL_CRITICAL_MV 100  // If cells go this much outside design voltage, shut battery down!
+#define LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV 2000  //If cells are below this, recovery charge not allowed
+#define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
 
 //battery pause status begin
 bool emulator_pause_request_ON = false;
@@ -371,6 +373,40 @@ void update_machineryprotection() {
   if (datalayer.battery.status.max_charge_power_W == 0) {
     datalayer.battery.status.max_charge_current_dA = 0;
   }
+  //One exception. If user has enabled the emergency recovery charge mode, still allow small amount of charging
+  if (datalayer.battery.settings.user_requests_forced_charging_recovery_mode) {
+
+    //We allow the user set value as long as it does not exceed MAX_CHARGEPOWER_RECOVERY_CHARGE_DA
+    if (datalayer.battery.settings.max_user_set_charge_dA > MAX_CHARGEPOWER_RECOVERY_CHARGE_DA) {
+      datalayer.battery.status.max_charge_current_dA = MAX_CHARGEPOWER_RECOVERY_CHARGE_DA;
+    } else {
+      datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
+    }
+
+    // If this is the start of the emergency recovery charge period, capture the current time
+    if (datalayer.battery.settings.recovery_charge_start_time_ms == 0) {
+      datalayer.battery.settings.recovery_charge_start_time_ms = millis();
+      set_event(EVENT_RECOVERY_START, 0);
+    } else {
+      clear_event(EVENT_RECOVERY_START);
+    }
+
+    // Check if the elapsed time exceeds the max recovery charge time
+    if (millis() - datalayer.battery.settings.recovery_charge_start_time_ms >=
+        datalayer.battery.settings.recovery_charge_max_time_ms) {
+      datalayer.battery.settings.user_requests_forced_charging_recovery_mode = false;
+      datalayer.battery.settings.recovery_charge_start_time_ms = 0;  // Reset the start time
+      set_event(EVENT_RECOVERY_END, 0);
+    } else {
+      clear_event(EVENT_RECOVERY_END);
+    }
+
+    //Check if cellvoltage is too low to safely start recovery. If so, abort!
+    if (datalayer.battery.status.cell_min_voltage_mV < LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV) {
+      datalayer.battery.settings.user_requests_forced_charging_recovery_mode = false;
+      set_event(EVENT_RECOVERY_END, 255);
+    }
+  }
 
   //Decrement the forced balancing timer incase user requested it
   if (datalayer.battery.settings.user_requests_balancing) {
@@ -383,7 +419,8 @@ void update_machineryprotection() {
     }
 
     // Check if the elapsed time exceeds the balancing time
-    if (millis() - datalayer.battery.settings.balancing_start_time_ms >= datalayer.battery.settings.balancing_time_ms) {
+    if (millis() - datalayer.battery.settings.balancing_start_time_ms >=
+        datalayer.battery.settings.balancing_max_time_ms) {
       datalayer.battery.settings.user_requests_balancing = false;
       datalayer.battery.settings.balancing_start_time_ms = 0;  // Reset the start time
       set_event(EVENT_BALANCING_END, 0);

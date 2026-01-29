@@ -23,77 +23,13 @@ _____ _                        _    ___ _____  _
 #include "stdlib_noniso.h"
 #include "elop.h"
 
-#ifndef ELEGANTOTA_USE_ASYNC_WEBSERVER
-  #define ELEGANTOTA_USE_ASYNC_WEBSERVER 1
-#endif
-
-#ifndef ELEGANTOTA_DEBUG
-  #define ELEGANTOTA_DEBUG 0
-#endif
-
-#ifndef UPDATE_DEBUG
-  #define UPDATE_DEBUG 0
-#endif
-
-#if ELEGANTOTA_DEBUG
-  #define ELEGANTOTA_DEBUG_MSG(x) Serial.printf("%s %s", "[ElegantOTA] ", x)
-#else
-  #define ELEGANTOTA_DEBUG_MSG(x)
-#endif
-
-#if defined(ESP8266)
-  #include <functional>
-  #include "FS.h"
-  #include "LittleFS.h"
-  #include "Updater.h"
-  #include "StreamString.h"
-  #if ELEGANTOTA_USE_ASYNC_WEBSERVER == 1
-    #include "ESPAsyncTCP.h"
-    #include "ESPAsyncWebServer.h"
-    #define ELEGANTOTA_WEBSERVER AsyncWebServer
-  #else
-    #include "ESP8266WiFi.h"
-    #include "WiFiClient.h"
-    #include "ESP8266WebServer.h"
-    #define ELEGANTOTA_WEBSERVER ESP8266WebServer
-  #endif
-  #define HARDWARE "ESP8266"
-#elif defined(ESP32)
-  #include <functional>
-  #include "FS.h"
-  #include "Update.h"
-  #include "StreamString.h"
-  #if ELEGANTOTA_USE_ASYNC_WEBSERVER == 1
-    #include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
-    #include "../../ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
-    #define ELEGANTOTA_WEBSERVER AsyncWebServer
-  #else
-    #include "WiFi.h"
-    #include "WiFiClient.h"
-    #include "WebServer.h"
-    #define ELEGANTOTA_WEBSERVER WebServer
-  #endif
-  #define HARDWARE "ESP32"
-#elif defined(TARGET_RP2040)
-  #include <functional>
-  #include "Arduino.h"
-  #include "FS.h"
-  #include "LittleFS.h"
-  #include "WiFiClient.h"
-  #include "WiFiServer.h"
-  #include "WebServer.h"
-  #include "WiFiUdp.h"
-  #include "StreamString.h"
-  #include "Updater.h"
-  #define HARDWARE              "RP2040"
-  #define ELEGANTOTA_WEBSERVER  WebServer
-  // Throw an error if async mode is enabled
-  #if ELEGANTOTA_USE_ASYNC_WEBSERVER == 1
-    #error "Async mode is not supported on RP2040. Please set ELEGANTOTA_USE_ASYNC_WEBSERVER to 0."
-  #endif
-  extern uint8_t _FS_start;
-  extern uint8_t _FS_end;
-#endif
+#include <functional>
+#include "FS.h"
+#include "Update.h"
+#include "StreamString.h"
+#include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
+#include "../../ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
+#define ELEGANTOTA_WEBSERVER AsyncWebServer
 
 enum OTA_Mode {
     OTA_MODE_FIRMWARE = 0,

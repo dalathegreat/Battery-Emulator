@@ -119,7 +119,6 @@ add_executable(tests
     ../Software/src/battery/KIA-64FD-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-64-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-HYBRID-BATTERY.cpp
-    ../Software/src/battery/MAXUS-EV80-BATTERY.cpp
     ../Software/src/battery/MEB-BATTERY.cpp
     ../Software/src/battery/MG-5-BATTERY.cpp
     ../Software/src/battery/MG-HS-PHEV-BATTERY.cpp
@@ -140,6 +139,7 @@ add_executable(tests
     ../Software/src/battery/SIMPBMS-BATTERY.cpp
     ../Software/src/battery/SONO-BATTERY.cpp
     ../Software/src/battery/TESLA-BATTERY.cpp
+    ../Software/src/battery/TESLA-LEGACY-BATTERY.cpp
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
     ../Software/src/battery/THINK-BATTERY.cpp
     ../Software/src/battery/GEELY-SEA-BATTERY.cpp

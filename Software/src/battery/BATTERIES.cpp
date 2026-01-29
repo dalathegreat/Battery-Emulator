@@ -88,8 +88,6 @@ const char* name_for_battery_type(BatteryType type) {
       return Kia64FDBattery::Name;
     case BatteryType::KiaHyundaiHybrid:
       return KiaHyundaiHybridBattery::Name;
-    case BatteryType::MaxusEV80:
-      return MaxusEV80Battery::Name;
     case BatteryType::Meb:
       return MebBattery::Name;
 #ifndef SMALL_FLASH_DEVICE
@@ -130,6 +128,8 @@ const char* name_for_battery_type(BatteryType type) {
       return TeslaModel3YBattery::Name;
     case BatteryType::TeslaModelSX:
       return TeslaModelSXBattery::Name;
+    case BatteryType::TeslaLegacy:
+      return TeslaLegacyBattery::Name;
     case BatteryType::TestFake:
       return TestFakeBattery::Name;
     case BatteryType::ThinkCity:
@@ -201,8 +201,6 @@ Battery* create_battery(BatteryType type) {
       return new KiaHyundai64Battery();
     case BatteryType::KiaHyundaiHybrid:
       return new KiaHyundaiHybridBattery();
-    case BatteryType::MaxusEV80:
-      return new MaxusEV80Battery();
     case BatteryType::Meb:
       return new MebBattery();
 #ifndef SMALL_FLASH_DEVICE
@@ -243,6 +241,8 @@ Battery* create_battery(BatteryType type) {
       return new TeslaModel3YBattery(user_selected_battery_chemistry);
     case BatteryType::TeslaModelSX:
       return new TeslaModelSXBattery();
+    case BatteryType::TeslaLegacy:
+      return new TeslaLegacyBattery();
     case BatteryType::TestFake:
       return new TestFakeBattery();
     case BatteryType::ThinkCity:
