@@ -74,7 +74,7 @@ jobs:
 
     - name: 🛠 Build factory image for Stark
       run: |
-        esptool --chip esp32 merge-bin -o .pio/build/stark_330/factory.bin --flash-mode qio --flash-freq 80m --flash-size 8MB 0x1000 .pio/build/stark_330/bootloader.bin 0x8000 .pio/build/stark_330/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/stark_330/firmware.bin
+        esptool --chip esp32 merge-bin -o .pio/build/stark_330/factory.bin --flash-mode qio --flash-freq 80m --flash-size 8MB 0x0000 .pio/build/stark_330/bootloader.bin 0x8000 .pio/build/stark_330/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/stark_330/firmware.bin
         mv .pio/build/stark_330/factory.bin output/BE_${{ steps.vars.outputs.tag }}_StarkCMR.factory.bin
 
     - name: 🌐 Deploy to Web Installer repo
