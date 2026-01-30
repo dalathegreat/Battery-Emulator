@@ -17,7 +17,13 @@ class TeslaBattery : public CanBattery {
  public:
   // Use the default constructor to create the first or single battery.
   virtual void setup(void);
-  TeslaBattery() {}
+  // Use this constructor for the second battery.
+  TeslaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
+    datalayer_battery = datalayer_ptr;
+  }
+
+  // Use the default constructor to create the first or single battery.
+  TeslaBattery() { datalayer_battery = &datalayer.battery; }
 
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -42,6 +48,7 @@ class TeslaBattery : public CanBattery {
 
  private:
   TeslaHtmlRenderer renderer;
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
 
  protected:
   /* Do not change anything below this line! */
