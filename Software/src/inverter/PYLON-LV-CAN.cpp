@@ -85,10 +85,10 @@ void PylonLvInverter::update_values() {
     PYLON_35C.data.u8[0] = 0x00;  // disable all
   else if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV)
     PYLON_35C.data.u8[0] = 0xA0;  // enable charing, set charge immediately
-  else if (datalayer.battery.status.voltage_dV > datalayer.battery.info.max_design_voltage_dV)
+  else if (datalayer.battery.status.voltage_dV >= datalayer.battery.info.max_design_voltage_dV)
     PYLON_35C.data.u8[0] = 0x40;  // only allow discharging
   else if (datalayer.battery.settings.user_set_voltage_limits_active &&
-           datalayer.battery.status.voltage_dV > datalayer.battery.settings.max_user_set_charge_voltage_dV)
+           datalayer.battery.status.voltage_dV >= datalayer.battery.settings.max_user_set_charge_voltage_dV)
     PYLON_35C.data.u8[0] = 0x40;  // only allow discharging
   else if (datalayer.battery.settings.user_set_voltage_limits_active &&
            datalayer.battery.status.voltage_dV < datalayer.battery.settings.max_user_set_discharge_voltage_dV)
