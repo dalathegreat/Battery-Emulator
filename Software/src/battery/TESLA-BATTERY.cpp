@@ -573,35 +573,35 @@ void TeslaBattery::
   }
 
   // Check if user requests some action
-  if (datalayer_battery->settings.user_requests_tesla_isolation_clear) {
+  if (datalayer.battery.settings.user_requests_tesla_isolation_clear) {
     stateMachineClearIsolationFault = 0;  //Start the isolation fault statemachine
-    datalayer_battery->settings.user_requests_tesla_isolation_clear = false;
+    datalayer.battery.settings.user_requests_tesla_isolation_clear = false;
   }
-  if (datalayer_battery->settings.user_requests_tesla_bms_reset) {
+  if (datalayer.battery.settings.user_requests_tesla_bms_reset) {
     if (battery_contactor == 1 && BMS_a180_SW_ECU_reset_blocked == false) {
       //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
       stateMachineBMSReset = 0;
-      datalayer_battery->settings.user_requests_tesla_bms_reset = false;
+      datalayer.battery.settings.user_requests_tesla_bms_reset = false;
       logging.println("INFO: BMS reset requested");
     } else {
       logging.println("ERROR: BMS reset failed due to contactors not being open, or BMS ECU not allowing it");
       stateMachineBMSReset = 0xFF;
-      datalayer_battery->settings.user_requests_tesla_bms_reset = false;
+      datalayer.battery.settings.user_requests_tesla_bms_reset = false;
       set_event(EVENT_BMS_RESET_REQ_FAIL, 0);
       clear_event(EVENT_BMS_RESET_REQ_FAIL);
     }
   }
-  if (datalayer_battery->settings.user_requests_tesla_soc_reset) {
+  if (datalayer.battery.settings.user_requests_tesla_soc_reset) {
     if ((datalayer_battery->status.real_soc < 1500 || datalayer_battery->status.real_soc > 9000) &&
         battery_contactor == 1) {
       //Start the SOC reset statemachine, only if SOC less than 15% or greater than 90%, and contactors open
       stateMachineSOCReset = 0;
-      datalayer_battery->settings.user_requests_tesla_soc_reset = false;
+      datalayer.battery.settings.user_requests_tesla_soc_reset = false;
       logging.println("INFO: SOC reset requested");
     } else {
       logging.println("ERROR: SOC reset failed, SOC not < 15 or > 90, or contactors not open");
       stateMachineSOCReset = 0xFF;
-      datalayer_battery->settings.user_requests_tesla_soc_reset = false;
+      datalayer.battery.settings.user_requests_tesla_soc_reset = false;
       set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);
       clear_event(EVENT_BATTERY_SOC_RESET_FAIL);
     }
@@ -609,7 +609,7 @@ void TeslaBattery::
 
   //Update 0x333 UI_chargeTerminationPct (bit 16, width 10) value to SOC max value - expose via UI?
   //One firmware version this was seen at bit 17 width 11
-  write_signal_value(&TESLA_333, 16, 10, static_cast<int64_t>(datalayer_battery->settings.max_percentage / 10), false);
+  write_signal_value(&TESLA_333, 16, 10, static_cast<int64_t>(datalayer.battery.settings.max_percentage / 10), false);
 
   // Update webserver datalayer
   //datalayer_extended.tesla.BMS_hvilFault = BMS_a036_SW_HvpHvilFault;
@@ -840,7 +840,7 @@ void TeslaBattery::
 
   //Safety checks for CAN message sending
   if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
-      (datalayer_battery->status.bms_status != FAULT) && (!datalayer.system.info.equipment_stop_active)) {
+      (datalayer.battery.status.bms_status != FAULT) && (!datalayer.system.info.equipment_stop_active)) {
     // Carry on: 0x221 DRIVE state & reset power down timer
     vehicleState = CAR_DRIVE;
     powerDownSeconds = 9;
