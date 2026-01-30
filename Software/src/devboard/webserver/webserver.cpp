@@ -398,7 +398,7 @@ void init_webserver() {
       "REMBMSRESET",   "EXTPRECHARGE", "USBENABLED",  "CANLOGUSB",    "WEBENABLED",   "CANFDASCAN",   "CANLOGSD",
       "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",   "HADISC",       "MQTTTOPICS",   "MQTTCELLV",    "INVICNT",
       "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED", "PYLONOFFSET",  "PYLONORDER",
-      "DEYEBYD",       "NCCONTACTOR",  "TRIBTR",      "CNTCTRLTRI",
+      "DEYEBYD",       "NCCONTACTOR",  "TRIBTR",      "CNTCTRLTRI",   "SERIES",
   };
 
   const char* uintSettingNames[] = {
