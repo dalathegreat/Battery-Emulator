@@ -759,7 +759,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("PYLONORDER") ? "checked" : "";
   }
   if (var == "PYLONBAUD") {
-    return String(settings.getUInt("PYLONBAUD", 250));
+    return String(settings.getUInt("PYLONBAUD", 500));
   }
 
   if (var == "INVCELLS") {
