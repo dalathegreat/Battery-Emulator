@@ -749,7 +749,11 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "PYLONSEND") {
     return String(settings.getUInt("PYLONSEND", 0));
   }
-
+  
+  if (var == "PYLONBAUD") {
+    return String(settings.getUInt("PYLONBAUD", 250));
+  }
+ 
   if (var == "PYLONOFFSET") {
     return settings.getBool("PYLONOFFSET") ? "checked" : "";
   }
@@ -1124,6 +1128,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     }
 
     form .if-pylon { display: none; }
+    form[data-battery="22"] .if-pylon,
     form[data-inverter="10"] .if-pylon {
       display: contents;
     }
@@ -1255,7 +1260,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         %BATTCHEM%
         </select>
         </div>
-
+      
+        <div class="if-pylon-battery">
+        <label>Pylon CAN baudrate: </label>
+        <select name='PYLONBAUD' title="Select CAN bus baudrate (250kbps for most batteries, 500kbps for some configurations)">
+          <option value='250' %PYLONBAUD250%>250 kbps</option>
+          <option value='500' %PYLONBAUD500%>500 kbps</option>
+        </select>
+        </div>
+      
         <div class="if-cbms">
         <label>Battery max design voltage (V): </label>
         <input name='BATTPVMAX' pattern="[0-9]+(\.[0-9]+)?" type='text' value='%BATTPVMAX%'   
