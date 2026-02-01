@@ -260,7 +260,7 @@ struct DATALAYER_SHUNT_TYPE {
 
 struct DATALAYER_SYSTEM_INFO_TYPE {
   /** array with incoming CAN messages, for displaying on webserver */
-  char logged_can_messages[1000] = {0};  //(Normally set to 15k entries, but for now reduced to 1k to avoid heap issues)
+  char logged_can_messages[15000] = {0};
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
