@@ -749,11 +749,11 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "PYLONSEND") {
     return String(settings.getUInt("PYLONSEND", 0));
   }
-  
+
   if (var == "PYLONBAUD") {
     return String(settings.getUInt("PYLONBAUD", 250));
   }
- 
+
   if (var == "PYLONOFFSET") {
     return settings.getBool("PYLONOFFSET") ? "checked" : "";
   }
