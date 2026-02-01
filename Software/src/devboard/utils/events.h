@@ -57,6 +57,7 @@
   XX(EVENT_SOH_DIFFERENCE)              \
   XX(EVENT_SOH_LOW)                     \
   XX(EVENT_HVIL_FAILURE)                \
+  XX(EVENT_LOW_HEAP_MEMORY)             \
   XX(EVENT_PRECHARGE_FAILURE)           \
   XX(EVENT_INTERNAL_OPEN_FAULT)         \
   XX(EVENT_INVERTER_OPEN_CONTACTOR)     \

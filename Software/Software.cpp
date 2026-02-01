@@ -37,7 +37,7 @@
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "10.0.RC3";
+const char* version_number = "10.0.RC4";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -212,6 +212,9 @@ void update_calculated_values(unsigned long currentMillis) {
     // Ignoring erroneous temperature value that ESP32 sometimes returns
     datalayer.system.info.CPU_temperature = temp.temp;
   }
+
+  /*Update free heap*/
+  datalayer.system.info.CPU_free_heap = ESP.getFreeHeap();
 
   /* Check is remote set limits have timed out */
   if (currentMillis > datalayer.battery.settings.remote_set_timestamp + datalayer.battery.settings.remote_set_timeout) {
