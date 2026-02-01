@@ -847,6 +847,16 @@ String processor(const String& var) {
     content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
     content += "<h4>Uptime: " + get_uptime() + "</h4>";
     if (datalayer.system.info.performance_measurement_active) {
+      content +=
+          "<h4>Free heap: " + String(ESP.getFreeHeap()) + ", max alloc: " + String(ESP.getMaxAllocHeap()) + "</h4>";
+      FlashMode_t mode = ESP.getFlashChipMode();
+      content += "<h4>Flash mode: " +
+                 String(mode == FM_QIO    ? "QIO"
+                        : mode == FM_QOUT ? "QOUT"
+                        : mode == FM_DIO  ? "DIO"
+                        : mode == FM_DOUT ? "DOUT"
+                                          : /*mode == FM_UNKNOWN*/ "Unknown") +
+                 ", size: " + String(ESP.getFlashChipSize() / (1024 * 1024)) + " MB</h4>";
       // Load information
       content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
       content +=
