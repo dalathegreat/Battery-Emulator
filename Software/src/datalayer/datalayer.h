@@ -271,6 +271,8 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   size_t logged_can_messages_offset = 0;
   /** ESP32 main CPU temperature, for displaying on webserver and for safeties */
   float CPU_temperature = 0;
+  /** ESP32 free heap amount, for displaying on webserver and for safeties */
+  uint32_t CPU_free_heap = 0;
 
   /** uint8_t, enumeration which CAN interface should be used for log playback */
   uint8_t can_replay_interface = CAN_NATIVE;
