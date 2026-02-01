@@ -40,8 +40,8 @@ void update_machineryprotection() {
     clear_event(EVENT_CPU_OVERHEATED);  //Hysteresis on the clearing
   }
 
-  if (ESP.getFreeHeap() < 62000) {
-    set_event(EVENT_LOW_HEAP_MEMORY, (ESP.getFreeHeap() / 1000));
+  if (datalayer.system.info.CPU_free_heap < 62000) {
+    set_event(EVENT_LOW_HEAP_MEMORY, (datalayer.system.info.CPU_free_heap / 1000));
   } else {
     clear_event(EVENT_LOW_HEAP_MEMORY);
   }

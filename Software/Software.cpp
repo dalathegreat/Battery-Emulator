@@ -213,6 +213,9 @@ void update_calculated_values(unsigned long currentMillis) {
     datalayer.system.info.CPU_temperature = temp.temp;
   }
 
+  /*Update free heap*/
+  datalayer.system.info.CPU_free_heap = ESP.getFreeHeap();
+
   /* Check is remote set limits have timed out */
   if (currentMillis > datalayer.battery.settings.remote_set_timestamp + datalayer.battery.settings.remote_set_timeout) {
     datalayer.battery.settings.remote_settings_limit_charge = false;
