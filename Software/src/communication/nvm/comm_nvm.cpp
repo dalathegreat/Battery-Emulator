@@ -87,6 +87,7 @@ void init_stored_settings() {
   user_selected_pylon_send = settings.getUInt("PYLONSEND", 0);
   user_selected_pylon_30koffset = settings.getBool("PYLONOFFSET", false);
   user_selected_pylon_invert_byteorder = settings.getBool("PYLONORDER", false);
+  user_selected_pylon_baudrate = settings.getUInt("PYLONBAUD", 500);
   user_selected_inverter_cells = settings.getUInt("INVCELLS", 0);
   user_selected_inverter_modules = settings.getUInt("INVMODULES", 0);
   user_selected_inverter_cells_per_module = settings.getUInt("INVCELLSPER", 0);
