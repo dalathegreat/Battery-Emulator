@@ -250,11 +250,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "LEDMODE") {
     return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
   }
-  
+
   if (var == "SUNGROW_MODEL") {
     return options_from_map(settings.getUInt("INVBTYPE", 1), sungrow_models);  // Default: SBR096
   }
-  
+
 #ifdef HW_LILYGO2CAN
   if (var == "GPIOOPT1") {
     return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),

@@ -10,14 +10,16 @@ class PylonBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
   PylonBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr, CAN_Interface targetCan)
-      : CanBattery(targetCan, user_selected_pylon_baudrate == 500 ? CAN_Speed::CAN_SPEED_500KBPS : CAN_Speed::CAN_SPEED_250KBPS) {
+      : CanBattery(targetCan,
+                   user_selected_pylon_baudrate == 500 ? CAN_Speed::CAN_SPEED_500KBPS : CAN_Speed::CAN_SPEED_250KBPS) {
     datalayer_battery = datalayer_ptr;
     contactor_closing_allowed = contactor_closing_allowed_ptr;
     allows_contactor_closing = nullptr;
   }
 
   // Use the default constructor to create the first or single battery.
-  PylonBattery() : CanBattery(user_selected_pylon_baudrate == 500 ? CAN_Speed::CAN_SPEED_500KBPS : CAN_Speed::CAN_SPEED_250KBPS) {
+  PylonBattery()
+      : CanBattery(user_selected_pylon_baudrate == 500 ? CAN_Speed::CAN_SPEED_500KBPS : CAN_Speed::CAN_SPEED_250KBPS) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     contactor_closing_allowed = nullptr;
@@ -31,9 +33,9 @@ class PylonBattery : public CanBattery {
 
  private:
   static const int MAX_CELL_DEVIATION_MV = 150;
-  static const int MAX_CELLS = 192;  // Maximum cells supported
-  static const uint32_t EMUS_BASE_ID = 0x19B50000;  // EMUS extended ID base for cell count
-  static const uint32_t CELL_VOLTAGE_BASE_ID = 0x19B50100;  // Base CAN ID for cell voltages
+  static const int MAX_CELLS = 192;                           // Maximum cells supported
+  static const uint32_t EMUS_BASE_ID = 0x19B50000;            // EMUS extended ID base for cell count
+  static const uint32_t CELL_VOLTAGE_BASE_ID = 0x19B50100;    // Base CAN ID for cell voltages
   static const uint32_t CELL_BALANCING_BASE_ID = 0x19B50300;  // Base CAN ID for balancing status
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
@@ -70,16 +72,16 @@ class PylonBattery : public CanBattery {
                           .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   // EMUS request for individual cell voltages
   CAN_frame EMUS_CELL_VOLTAGE_REQUEST = {.FD = false,
-                                          .ext_ID = true,
-                                          .DLC = 1,
-                                          .ID = 0x19B50100,
-                                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                                         .ext_ID = true,
+                                         .DLC = 1,
+                                         .ID = 0x19B50100,
+                                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   // EMUS request for individual cell balancing status
   CAN_frame EMUS_CELL_BALANCING_REQUEST = {.FD = false,
-                                            .ext_ID = true,
-                                            .DLC = 1,
-                                            .ID = 0x19B50300,
-                                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                                           .ext_ID = true,
+                                           .DLC = 1,
+                                           .ID = 0x19B50300,
+                                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
   int16_t celltemperature_max_dC = 0;
   int16_t celltemperature_min_dC = 0;
