@@ -30,9 +30,9 @@ void GeelySeaBattery::
     datalayer_extended.GeelySEA.UserRequestDTCreadout = false;
   }
 
-  /*if (datalayer_extended.GeelySEA.BECMBatteryVoltage > 0) {
-    datalayer.battery.status.voltage_dV = datalayer_extended.GeelySEA.BECMBatteryVoltage / 10;  // We use the value from the CAN stream instead now
-  }*/
+  datalayer.battery.status.voltage_dV = pack_voltage_dV;
+
+  datalayer.battery.status.current_dA = pack_current_dA;
 
   if (datalayer_extended.GeelySEA.soc_bms > 0) {
     datalayer.battery.status.real_soc = datalayer_extended.GeelySEA.soc_bms;
@@ -52,10 +52,6 @@ void GeelySeaBattery::
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
-
-  /*
-  datalayer.battery.status.current_dA;
-  */
 
   datalayer.battery.status.max_discharge_power_W = 3000;  //TODO: Take from CAN!
 
@@ -104,7 +100,7 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x142:  //20ms EX30+Zeekr
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[0] == 0x00) {
-        datalayer.battery.status.voltage_dV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) >> 3;
+        pack_voltage_dV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) >> 3;
       } else if (rx_frame.data.u8[0] == 0x01) {
         datalayer.battery.status.cell_max_voltage_mV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) >> 3;
       } else if (rx_frame.data.u8[0] == 0x02) {
@@ -120,6 +116,7 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x143:  //20ms EX30+Zeekr
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      pack_current_dA = sign_extend_to_int16((((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1]), 12);
       break;
     case 0x145:  //100ms EX30+Zeekr
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
