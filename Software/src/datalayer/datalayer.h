@@ -264,7 +264,7 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
-  char shunt_protocol[64] = {0};
+  char shunt_protocol[32] = {0};
   /** array with type of inverter brand used, for displaying on webserver */
   char inverter_brand[8] = {0};
 
