@@ -117,6 +117,11 @@ class GeelySeaBattery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x490,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x5D, 0x4B, 0xA3}};  // Prevents DTC on EX30 battery
+  CAN_frame SEA_103 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x103,
+                       .data = {0x20, 0x00, 0x00, 0xFA, 0x00, 0x00, 0x00, 0x00}};  // Prevents DTC on Zeekr battery (Engine Control Module)
 
   CAN_frame SEA_Polling_Req = {
       .FD = false,

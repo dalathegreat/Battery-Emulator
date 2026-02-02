@@ -314,6 +314,7 @@ void GeelySeaBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&SEA_171);  //Send 0x171
     transmit_can_frame(&SEA_218);  //Send 0x218
     transmit_can_frame(&SEA_490);  //Send 0x490
+    transmit_can_frame(&SEA_103);  //Send 0x103
   }
   if (currentMillis - previousMillis2000 >= INTERVAL_2_S) {
     previousMillis2000 = currentMillis;
