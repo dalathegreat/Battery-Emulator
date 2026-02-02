@@ -21,8 +21,8 @@ class GeelySeaBattery : public CanBattery {
   bool supports_reset_BECM() { return true; }
   void reset_BECM() { datalayer_extended.GeelySEA.UserRequestBECMecuReset = true; }
 
-  //bool supports_reset_crash() { return true; }
-  //void reset_crash() { datalayer_extended.GeelySEA.UserRequestCrashReset = true; }
+  bool supports_reset_crash() { return true; }
+  void reset_crash() { datalayer_extended.GeelySEA.UserRequestCrashReset = true; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
@@ -139,6 +139,16 @@ class GeelySeaBattery : public CanBattery {
                              .DLC = 8,
                              .ID = 0x735,
                              .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};  //Global DTC erase
+  CAN_frame SEA_StartDiag = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x735,
+                             .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Start diag session
+  CAN_frame SEA_ClearCrash = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x735,
+                             .data = {0x04, 0x31, 0x01, 0x30, 0x03, 0x00, 0x00, 0x00}};  //Clear crash status
 
   CAN_frame SEA_BECM_ECUreset = {
       .FD = false,

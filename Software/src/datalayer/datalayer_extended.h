@@ -882,6 +882,8 @@ struct DATALAYER_INFO_GEELY_SEA {
   bool UserRequestDTCreadout = false;
   /** User requesting BECM reset via WebUI*/
   bool UserRequestBECMecuReset = false;
+  /** User requesting reset of crash status via WebUI*/
+  bool UserRequestCrashReset = false;
 };
 
 struct DATALAYER_INFO_ZOE {

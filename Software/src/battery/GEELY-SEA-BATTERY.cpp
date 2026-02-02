@@ -29,10 +29,11 @@ void GeelySeaBattery::
     datalayer_extended.GeelySEA.DTCcount = 0;
     datalayer_extended.GeelySEA.UserRequestDTCreadout = false;
   }
-
-  /*if (datalayer_extended.GeelySEA.BECMBatteryVoltage > 0) {
-    datalayer.battery.status.voltage_dV = datalayer_extended.GeelySEA.BECMBatteryVoltage / 10;  // We use the value from the CAN stream instead now
-  }*/
+  if (datalayer_extended.GeelySEA.UserRequestCrashReset) {
+    pause_polling_seconds = 10;
+    transmit_can_frame(&SEA_StartDiag);  //Start sequene to reset crash status
+    datalayer_extended.GeelySEA.UserRequestCrashReset = false;
+  }
 
   if (datalayer_extended.GeelySEA.soc_bms > 0) {
     datalayer.battery.status.real_soc = datalayer_extended.GeelySEA.soc_bms;
@@ -52,10 +53,6 @@ void GeelySeaBattery::
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
-
-  /*
-  datalayer.battery.status.current_dA;
-  */
 
   datalayer.battery.status.max_discharge_power_W = 3000;  //TODO: Take from CAN!
 
@@ -231,7 +228,12 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
 
         if (rx_frame.data.u8[0] < 0x10) {                                 //One line responses
-          reply_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];  //This is how all the replies are done
+          if((rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {  // Response to Diag init command
+            transmit_can_frame(&SEA_ClearCrash);
+          }
+          else {
+            reply_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];  //This is how all the replies are done
+          }
         }
 
         switch (reply_poll) {
