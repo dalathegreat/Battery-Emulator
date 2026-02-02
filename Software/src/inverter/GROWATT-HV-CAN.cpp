@@ -44,8 +44,7 @@ void GrowattHvInverter::
     // capacity_10mAh = Wh * 1000 / dV   (because V = dV/10, and 10mAh units = Ah*100)
     const uint16_t v_dV = datalayer.battery.status.voltage_dV;
 
-    uint32_t full_10mAh =
-        (uint32_t)((uint64_t)datalayer.battery.info.total_capacity_Wh * 1000ULL / v_dV);
+    uint32_t full_10mAh = (uint32_t)((uint64_t)datalayer.battery.info.total_capacity_Wh * 1000ULL / v_dV);
 
     uint32_t rem_10mAh = 0;
     if (datalayer.battery.status.remaining_capacity_Wh > 0) {
@@ -56,8 +55,10 @@ void GrowattHvInverter::
       rem_10mAh = (uint32_t)((uint64_t)full_10mAh * soc_pct / 100ULL);
     }
 
-    if (full_10mAh > 0xFFFF) full_10mAh = 0xFFFF;
-    if (rem_10mAh > 0xFFFF) rem_10mAh = 0xFFFF;
+    if (full_10mAh > 0xFFFF)
+      full_10mAh = 0xFFFF;
+    if (rem_10mAh > 0xFFFF)
+      rem_10mAh = 0xFFFF;
 
     capacity_full_10mAh = (uint16_t)full_10mAh;
     capacity_remaining_10mAh = (uint16_t)rem_10mAh;
