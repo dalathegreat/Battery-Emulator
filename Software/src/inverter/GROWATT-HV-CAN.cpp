@@ -3,7 +3,7 @@
 #include "../datalayer/datalayer.h"
 
 /* TODO:
-This protocol has been tested with SPH10000BL3UP Inverter
+This protocol has been tested with SPH10000THBL3-UP Inverter
 Search the file for "TODO" to see all the places that might require work
 
 Growatt BMS CAN-Bus-protocol High Voltage V1.10 2023-11-06
