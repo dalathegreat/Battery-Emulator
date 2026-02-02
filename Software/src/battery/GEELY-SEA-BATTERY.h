@@ -80,6 +80,9 @@ class GeelySeaBattery : public CanBattery {
   uint16_t currentpoll = POLL_BECMsupplyVoltage;
   uint16_t reply_poll = 0;
 
+  int16_t pack_current_dA = 0;
+  uint16_t pack_voltage_dV = 3700;
+
   CAN_frame SEA_536 = {
       .FD = false,
       .ext_ID = false,

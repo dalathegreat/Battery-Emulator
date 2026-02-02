@@ -34,6 +34,10 @@ void GeelySeaBattery::
     transmit_can_frame(&SEA_StartDiag);  //Start sequene to reset crash status
     datalayer_extended.GeelySEA.UserRequestCrashReset = false;
   }
+  
+  datalayer.battery.status.voltage_dV = pack_voltage_dV;
+
+  datalayer.battery.status.current_dA = pack_current_dA;
 
   if (datalayer_extended.GeelySEA.soc_bms > 0) {
     datalayer.battery.status.real_soc = datalayer_extended.GeelySEA.soc_bms;
@@ -101,7 +105,7 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x142:  //20ms EX30+Zeekr
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[0] == 0x00) {
-        datalayer.battery.status.voltage_dV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) >> 3;
+        pack_voltage_dV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) >> 3;
       } else if (rx_frame.data.u8[0] == 0x01) {
         datalayer.battery.status.cell_max_voltage_mV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) >> 3;
       } else if (rx_frame.data.u8[0] == 0x02) {
@@ -117,6 +121,7 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x143:  //20ms EX30+Zeekr
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      pack_current_dA = sign_extend_to_int16((((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1]), 12);
       break;
     case 0x145:  //100ms EX30+Zeekr
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
