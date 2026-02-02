@@ -34,10 +34,10 @@ void GeelySeaBattery::
     transmit_can_frame(&SEA_StartDiag);  //Start sequene to reset crash status
     datalayer_extended.GeelySEA.UserRequestCrashReset = false;
   }
-  
+
   datalayer.battery.status.voltage_dV = pack_voltage_dV;
 
-  datalayer.battery.status.current_dA = pack_current_dA;
+  datalayer.battery.status.current_dA = -pack_current_dA;
 
   if (datalayer_extended.GeelySEA.soc_bms > 0) {
     datalayer.battery.status.real_soc = datalayer_extended.GeelySEA.soc_bms;
@@ -232,11 +232,10 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];  //No Group reads are done by the integration yet
         }
 
-        if (rx_frame.data.u8[0] < 0x10) {                                 //One line responses
-          if((rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {  // Response to Diag init command
+        if (rx_frame.data.u8[0] < 0x10) {                                        //One line responses
+          if ((rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {  // Response to Diag init command
             transmit_can_frame(&SEA_ClearCrash);
-          }
-          else {
+          } else {
             reply_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];  //This is how all the replies are done
           }
         }
