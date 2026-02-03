@@ -14,16 +14,16 @@ void ThinkBattery::update_values() {
 
   datalayer.battery.status.current_dA = sys_current;
 
-  datalayer.battery.status.max_charge_power_W = (sys_voltage * sys_currentMaxDischarge) / 100;
+  datalayer.battery.status.max_charge_power_W = (sys_voltage * sys_currentMaxCharge) / 100;
 
-  datalayer.battery.status.max_discharge_power_W = (sys_voltage * sys_currentMaxCharge) / 100;
+  datalayer.battery.status.max_discharge_power_W = (sys_voltage * sys_currentMaxDischarge) / 100;
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.temperature_min_dC = sys_tempMean - 10;
+  datalayer.battery.status.temperature_min_dC = (int16_t)(min_pack_temperature * 10);
 
-  datalayer.battery.status.temperature_max_dC = sys_tempMean;
+  datalayer.battery.status.temperature_max_dC = (int16_t)(max_pack_temperature * 10);
 
   datalayer.battery.info.min_design_voltage_dV = sys_voltageMinDischarge;
 
@@ -102,6 +102,13 @@ void ThinkBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x30F:  //Battery serial number 2
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x610:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //max_cellvoltage
+      //min_cellvoltage
+      max_pack_temperature = (int8_t)rx_frame.data.u8[4];
+      min_pack_temperature = (int8_t)rx_frame.data.u8[5];
       break;
     case 0x642:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

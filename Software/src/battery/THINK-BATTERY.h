@@ -40,6 +40,8 @@ class ThinkBattery : public CanBattery {
   uint8_t Battery_Type = 0;
   uint8_t sys_ZebraTempError = 0;
   uint8_t sys_numberFailedCells = 0;
+  int8_t min_pack_temperature = 0;
+  int8_t max_pack_temperature = 0;
   bool sys_errGeneral = false;
   bool sys_isolationError = false;
 };
