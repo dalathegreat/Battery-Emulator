@@ -239,46 +239,47 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             reply_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];  //This is how all the replies are done
           }
         }
-
-        switch (reply_poll) {
-          case POLL_BECMsupplyVoltage:
-            datalayer_extended.GeelySEA.BECMsupplyVoltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            break;
-          case POLL_HV_Voltage:
-            datalayer_extended.GeelySEA.BECMBatteryVoltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            break;
-          case POLL_CrashStatus:
-            datalayer_extended.GeelySEA.CrashStatus = rx_frame.data.u8[4];
-            break;
-          case POLL_SOC:
-            datalayer_extended.GeelySEA.soc_bms = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 5;
-            break;
-          case POLL_SOH:
-            datalayer_extended.GeelySEA.soh_bms = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            break;
-          case POLL_HighestCellTemp:
-            datalayer_extended.GeelySEA.CellTempHighest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            break;
-          case POLL_AverageCellTemp:
-            datalayer_extended.GeelySEA.CellTempAverage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            break;
-          case POLL_LowestCellTemp:
-            datalayer_extended.GeelySEA.CellTempLowest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            break;
-          case POLL_Interlock:
-            datalayer_extended.GeelySEA.Interlock = rx_frame.data.u8[4];
-            break;
-          case POLL_HighestCellVolt:
-            datalayer_extended.GeelySEA.CellVoltHighest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            break;
-          case POLL_LowestCellVolt:
-            datalayer_extended.GeelySEA.CellVoltLowest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            break;
-          case POLL_BatteryCurrent:
-            datalayer_extended.GeelySEA.BatteryCurrent = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            break;
-          default:  //Not a PID reply, or unknown. Do nothing
-            break;
+        if(pause_polling_seconds == 0) {  //Do not update values if DTC action is ongoing
+          switch (reply_poll) {
+            case POLL_BECMsupplyVoltage:
+              datalayer_extended.GeelySEA.BECMsupplyVoltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+              break;
+            case POLL_HV_Voltage:
+              datalayer_extended.GeelySEA.BECMBatteryVoltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+              break;
+            case POLL_CrashStatus:
+              datalayer_extended.GeelySEA.CrashStatus = rx_frame.data.u8[4];
+              break;
+            case POLL_SOC:
+              datalayer_extended.GeelySEA.soc_bms = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 5;
+              break;
+            case POLL_SOH:
+              datalayer_extended.GeelySEA.soh_bms = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+              break;
+            case POLL_HighestCellTemp:
+              datalayer_extended.GeelySEA.CellTempHighest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+              break;
+            case POLL_AverageCellTemp:
+              datalayer_extended.GeelySEA.CellTempAverage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+              break;
+            case POLL_LowestCellTemp:
+              datalayer_extended.GeelySEA.CellTempLowest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+              break;
+            case POLL_Interlock:
+              datalayer_extended.GeelySEA.Interlock = rx_frame.data.u8[4];
+              break;
+            case POLL_HighestCellVolt:
+              datalayer_extended.GeelySEA.CellVoltHighest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+              break;
+            case POLL_LowestCellVolt:
+              datalayer_extended.GeelySEA.CellVoltLowest = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+              break;
+            case POLL_BatteryCurrent:
+              datalayer_extended.GeelySEA.BatteryCurrent = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+              break;
+            default:  //Not a PID reply, or unknown. Do nothing
+              break;
+          }
         }
       }
       break;
@@ -322,10 +323,6 @@ void GeelySeaBattery::transmit_can(unsigned long currentMillis) {
     previousMillis1000 = currentMillis;
     transmit_can_frame(&SEA_536);  //Send 0x536 Network managing frame to keep BMS alive
     transmit_can_frame(&SEA_490);  //Send 0x490 // 1sek
-  }
-  // Send 2000ms CAN Message
-  if (currentMillis - previousMillis2000 >= INTERVAL_2_S) {
-    previousMillis2000 = currentMillis;
     readDiagData();
   }
 }

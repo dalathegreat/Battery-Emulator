@@ -44,11 +44,10 @@ class GeelySeaBattery : public CanBattery {
   static const int MAX_CELL_VOLTAGE_MV = 4260;  // Charging is halted if one cell goes above this
   static const int MIN_CELL_VOLTAGE_MV = 2900;  // Charging is halted if one cell goes below this
 
-  unsigned long previousMillis20 = 0;   // will store last time a 20ms CAN Message was send
+  unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was send
-  unsigned long previousMillis2000 = 0;  // will store last time a 2s CAN Message was send
-
+  
   static const uint16_t POLL_BECMsupplyVoltage = 0xEE02;
   static const uint16_t POLL_HV_Voltage = 0x4803;
   static const uint16_t POLL_SOC = 0x4801;
