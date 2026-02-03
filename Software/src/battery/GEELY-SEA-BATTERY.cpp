@@ -304,18 +304,26 @@ void GeelySeaBattery::readDiagData() {
 }
 
 void GeelySeaBattery::transmit_can(unsigned long currentMillis) {
+  // Send 20ms CAN Message
+  if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
+    previousMillis20 = currentMillis;
+    transmit_can_frame(&SEA_060);  //Send 0x060 Motor B info // 20ms
+    transmit_can_frame(&SEA_156);  //Send 0x156 Motor A info //20ms? No good log
+    transmit_can_frame(&SEA_171);  //Send 0x171 //50ms
+    transmit_can_frame(&SEA_103);  //Send 0x103 //20ms
+  }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
-
-    transmit_can_frame(&SEA_536);  //Send 0x536 Network managing frame to keep BMS alive
-    transmit_can_frame(&SEA_060);  //Send 0x060 Motor B info
-    transmit_can_frame(&SEA_156);  //Send 0x156 Motor A info
-    transmit_can_frame(&SEA_171);  //Send 0x171
-    transmit_can_frame(&SEA_218);  //Send 0x218
-    transmit_can_frame(&SEA_490);  //Send 0x490
-    transmit_can_frame(&SEA_103);  //Send 0x103
+    transmit_can_frame(&SEA_218);  //Send 0x218 //100ms
   }
+  // Send 1000ms CAN Message
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+    previousMillis1000 = currentMillis;
+    transmit_can_frame(&SEA_536);  //Send 0x536 Network managing frame to keep BMS alive
+    transmit_can_frame(&SEA_490);  //Send 0x490 // 1sek
+  }
+  // Send 2000ms CAN Message
   if (currentMillis - previousMillis2000 >= INTERVAL_2_S) {
     previousMillis2000 = currentMillis;
     readDiagData();
