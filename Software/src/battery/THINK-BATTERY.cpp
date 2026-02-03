@@ -28,6 +28,10 @@ void ThinkBattery::update_values() {
   datalayer.battery.info.min_design_voltage_dV = sys_voltageMinDischarge;
 
   datalayer.battery.info.max_design_voltage_dV = sys_voltageMaxCharge;
+
+  datalayer.battery.status.cell_max_voltage_mV = max_cellvoltage;
+
+  datalayer.battery.status.cell_min_voltage_mV = min_cellvoltage;
 }
 
 void ThinkBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -105,8 +109,8 @@ void ThinkBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x610:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //max_cellvoltage
-      //min_cellvoltage
+      max_cellvoltage = ((rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1]) * 2.44141);
+      min_cellvoltage = ((rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3]) * 2.44141);
       max_pack_temperature = (int8_t)rx_frame.data.u8[4];
       min_pack_temperature = (int8_t)rx_frame.data.u8[5];
       break;
