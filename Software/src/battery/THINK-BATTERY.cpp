@@ -6,7 +6,7 @@
 
 void ThinkBattery::update_values() {
 
-  datalayer.battery.status.real_soc = BatterySOC * 10;
+  datalayer.battery.status.real_soc = (1000 - sys_dod) * 10;
 
   datalayer.battery.status.soh_pptt = 9900;
 
