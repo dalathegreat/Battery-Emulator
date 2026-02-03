@@ -26,8 +26,9 @@ class GrowattHvInverter : public CanInverterProtocol {
   unsigned long previousMillis1s = 0;  // will store last time a 1s CAN Message was send
   unsigned long previousMillisBatchSend = 0;
   uint32_t unix_time = 0;
-  uint16_t ampere_hours_remaining = 0;
-  uint16_t ampere_hours_full = 0;
+  // 0x3140 expects capacity in 10 mAh units.
+  uint16_t capacity_remaining_10mAh = 0;
+  uint16_t capacity_full_10mAh = 0;
   uint16_t send_times = 0;  // Overflows every 18hours. Cumulative number, plus 1 for each transmission
   uint8_t safety_specification = 0;
   uint8_t charging_command = 0;
