@@ -29,7 +29,7 @@ void GrowattHvInverter::
   // Use that when it is sane. Keep the hard-coded values as a fallback for integrations that do not populate
   // number_of_cells (e.g. some Pylon paths set it to a placeholder value).
   uint16_t total_cells = TOTAL_NUMBER_OF_CELLS;
-  if (datalayer.battery.info.number_of_cells >= 10 {
+  if (datalayer.battery.info.number_of_cells >= 10) {
     total_cells = (uint16_t)datalayer.battery.info.number_of_cells;
   }
   // If we are using a dynamic cell count, a safe default for "modules in series" is 1 unless your integration
