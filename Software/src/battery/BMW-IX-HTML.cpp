@@ -3,21 +3,37 @@
 
 String BmwIXHtmlRenderer::getDTCDescription(uint32_t code) {
   switch (code) {
-    case 0x21F4B5:
-      return "High-voltage battery unit, voltage and current sensor: Power-down requested";
+    case 0x020780:
+      return "SME: Certificates (Type 1) not ready";
+    case 0x21F001:
+      return "High-voltage battery unit, coolant shutoff valve: Line disconnection";
+    case 0x21F00F:
+      return "High-voltage battery unit, coolant shutoff valve: Line disconnection";
+    case 0x21F306:
+      return "High-voltage battery unit, control unit, idle time estimation: Estimation failed";
     case 0x21F37E:
       return "Impact detection: Crash detected due to ACSM signal";
-    case 0x21F44F:
-      return "High-voltage battery unit, SME: Pyrofuse ignited or faulty actuation";
+    case 0x21F38F:
+      return "SME: internal control unit errors (Group fault software)";
     case 0x21F436:
       return "High-voltage battery unit, high-voltage safety battery terminal: High-voltage-minus not disconnected due "
              "to unsuccessful actuation";
+    case 0x21F44F:
+      return "High-voltage battery unit, SME: Pyrofuse ignited or faulty actuation";
+    case 0x21F4B5:
+      return "High-voltage battery unit, voltage and current sensor: Power-down requested";
+    case 0x21F4ED:
+      return "High-voltage battery unit, voltage and current sensor: Line protection, threshold value exceeded";
     case 0x3B001A:
       return "High-voltage battery unit: Multiple faults, high-voltage system cannot be activated";
-    case 0x21F306:
-      return "High-voltage battery unit, control unit, idle time estimation: Estimation failed";
-    case 0x21F001:
-      return "igh-voltage battery unit, coolant shutoff valve: Line disconnection";
+    case 0xCAD450:
+      return "No message (- 0x125), SME receiver, CCU transmitter";
+    case 0xCAD454:
+      return "No message (- 0x16E), SME receiver, CCU transmitter";
+    case 0xCAD4B0:
+      return "No message (vehicle speed, 0x1A1), receiver SME, transmitter DSC";
+    case 0xCAD6D8:
+      return "No message (- 0x91), SME receiver, EME transmitter";
 
     default:
       return "";
