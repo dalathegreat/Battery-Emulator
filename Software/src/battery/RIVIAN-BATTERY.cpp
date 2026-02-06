@@ -35,11 +35,20 @@ void RivianBattery::update_values() {
   datalayer.battery.status.temperature_min_dC = battery_min_temperature * 10;
   datalayer.battery.status.temperature_max_dC = battery_max_temperature * 10;
 
+  if (battery_thermal_runaway) {
+    set_event(EVENT_THERMAL_RUNAWAY, 0);  //Hope nobody will ever get this event!
+  }
+
   //Update extended datalayer for HTML page
+  datalayer_extended.rivian.BMS_state = BMS_state;
+  datalayer_extended.rivian.HVIL = HVIL;
   datalayer_extended.rivian.error_flags_from_BMS = error_flags_from_BMS;
   datalayer_extended.rivian.contactor_state = contactor_state;
   datalayer_extended.rivian.error_relay_open = error_relay_open;
+  datalayer_extended.rivian.puncture_fault = puncture_fault;
+  datalayer_extended.rivian.liquid_fault = liquid_fault;
   datalayer_extended.rivian.IsolationMeasurementOngoing = IsolationMeasurementOngoing;
+  datalayer_extended.rivian.isolation_fault_status = isolation_fault_status;
 }
 
 void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -50,6 +59,18 @@ void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       error_relay_open = (rx_frame.data.u8[6] & 0x01);
       IsolationMeasurementOngoing = (rx_frame.data.u8[6] & 0x02) >> 1;
       contactor_state = (((rx_frame.data.u8[7] & 0x01) << 3) | (rx_frame.data.u8[6] >> 5));
+      break;
+    case 0x1E3:  //HMI [Platform CAN]+
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      HMI_part1 = rx_frame.data.u8[1];
+      HMI_part2 = rx_frame.data.u8[2];
+      break;
+    case 0x154:  //Status flags [Platform CAN]+
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      puncture_fault = ((rx_frame.data.u8[1] & 0x40) >> 6);
+      liquid_fault = ((rx_frame.data.u8[4] & 0x02) >> 1);
+      battery_thermal_runaway = ((rx_frame.data.u8[4] & 0x04) >> 2);
+      isolation_fault_status = ((rx_frame.data.u8[5] << 1) | ((rx_frame.data.u8[4] & 0x80) >> 7));
       break;
     case 0x160:  //Current [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -69,6 +90,10 @@ void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           (((rx_frame.data.u8[3] & 0x03) << 14) | (rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[1] >> 2)) / 200;
       kWh_available_total =
           (((rx_frame.data.u8[5] & 0x03) << 14) | (rx_frame.data.u8[4] << 6) | (rx_frame.data.u8[3] >> 2)) / 200;
+      break;
+    case 0x299:  //Status flags [Platform CAN]+
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      HVIL = (rx_frame.data.u8[2] & 0x07);
       break;
     case 0x405:  //State [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

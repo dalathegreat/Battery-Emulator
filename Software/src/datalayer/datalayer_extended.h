@@ -455,10 +455,17 @@ struct DATALAYER_INFO_KIAHYUNDAI64 {
 };
 
 struct DATALAYER_INFO_RIVIAN {
+  uint8_t BMS_state = 0;
+  uint8_t HVIL = 0;
   uint8_t error_flags_from_BMS = 0;
   uint8_t contactor_state = 0;
+  uint8_t HMI_part1 = 0;
+  uint8_t HMI_part2 = 0;
+  uint8_t isolation_fault_status = 0;
   bool error_relay_open = false;
   bool IsolationMeasurementOngoing = false;
+  bool puncture_fault = false;
+  bool liquid_fault = false;
 };
 
 struct DATALAYER_INFO_TESLA {
