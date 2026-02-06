@@ -3,6 +3,7 @@
 #include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"  //For Advanced Battery Insights webpage
 #include "../devboard/utils/events.h"
 
 /*
@@ -33,10 +34,23 @@ void RivianBattery::update_values() {
 
   datalayer.battery.status.temperature_min_dC = battery_min_temperature * 10;
   datalayer.battery.status.temperature_max_dC = battery_max_temperature * 10;
+
+  //Update extended datalayer for HTML page
+  datalayer_extended.rivian.error_flags_from_BMS = error_flags_from_BMS;
+  datalayer_extended.rivian.contactor_state = contactor_state;
+  datalayer_extended.rivian.error_relay_open = error_relay_open;
+  datalayer_extended.rivian.IsolationMeasurementOngoing = IsolationMeasurementOngoing;
 }
 
 void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
+    case 0x06E:  //Status flags [Platform CAN]+
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      error_flags_from_BMS = rx_frame.data.u8[5];
+      error_relay_open = (rx_frame.data.u8[6] & 0x01);
+      IsolationMeasurementOngoing = (rx_frame.data.u8[6] & 0x02) >> 1;
+      contactor_state = (((rx_frame.data.u8[7] & 0x01) << 3) | (rx_frame.data.u8[6] >> 5));
+      break;
     case 0x160:  //Current [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_current = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);

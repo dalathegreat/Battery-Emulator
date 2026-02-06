@@ -1,6 +1,7 @@
 #ifndef RIVIAN_BATTERY_H
 #define RIVIAN_BATTERY_H
 #include "CanBattery.h"
+#include "RIVIAN-HTML.h"
 
 class RivianBattery : public CanBattery {
  public:
@@ -10,7 +11,11 @@ class RivianBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Rivian R1T large 135kWh battery";
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  RivianHtmlRenderer renderer;
+
   static const int MAX_PACK_VOLTAGE_DV = 4480;
   static const int MIN_PACK_VOLTAGE_DV = 2920;
   static const int MAX_CELL_DEVIATION_MV = 150;
@@ -27,6 +32,10 @@ class RivianBattery : public CanBattery {
   int16_t battery_max_temperature = 0;
   uint16_t battery_discharge_limit_amp = 0;
   uint16_t battery_charge_limit_amp = 0;
+  uint8_t error_flags_from_BMS = 0;
+  uint8_t contactor_state = 0;
+  bool error_relay_open = false;
+  bool IsolationMeasurementOngoing = false;
   static const uint8_t SLEEP = 0;
   static const uint8_t STANDBY = 1;
   static const uint8_t READY = 2;

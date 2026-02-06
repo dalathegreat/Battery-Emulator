@@ -454,6 +454,13 @@ struct DATALAYER_INFO_KIAHYUNDAI64 {
   uint8_t ecu_version_number[16] = {0};
 };
 
+struct DATALAYER_INFO_RIVIAN {
+  uint8_t error_flags_from_BMS = 0;
+  uint8_t contactor_state = 0;
+  bool error_relay_open = false;
+  bool IsolationMeasurementOngoing = false;
+};
+
 struct DATALAYER_INFO_TESLA {
   uint64_t BMS_info_bootGitHash = 0;
   uint64_t PCS_info_bootGitHash = 0;
@@ -936,6 +943,7 @@ class DataLayerExtended {
   DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;
+  DATALAYER_INFO_RIVIAN rivian;
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;
   DATALAYER_INFO_MEB meb;
