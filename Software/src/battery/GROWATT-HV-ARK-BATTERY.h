@@ -32,6 +32,7 @@ class GrowattHvArkBattery : public CanBattery {
     contactor_closing_allowed = nullptr;
   }
 
+  ~GrowattHvArkBattery() override;
   void setup(void) override;
   void handle_incoming_can_frame(CAN_frame rx_frame) override;
   void update_values() override;
