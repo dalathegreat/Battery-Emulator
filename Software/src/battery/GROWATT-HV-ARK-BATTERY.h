@@ -17,8 +17,9 @@
 class GrowattHvArkBattery : public CanBattery {
  public:
   // Use this constructor for the second/third battery.
-  GrowattHvArkBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr,
-                      CAN_Interface targetCan)
+  GrowattHvArkBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr,
+                   bool* contactor_closing_allowed_ptr,
+                   CAN_Interface targetCan)
       : CanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
     contactor_closing_allowed = contactor_closing_allowed_ptr;
@@ -32,7 +33,8 @@ class GrowattHvArkBattery : public CanBattery {
     contactor_closing_allowed = nullptr;
   }
 
-  ~GrowattHvArkBattery();
+  ~GrowattHvArkBattery() {}
+
   void setup(void) override;
   void handle_incoming_can_frame(CAN_frame rx_frame) override;
   void update_values() override;
