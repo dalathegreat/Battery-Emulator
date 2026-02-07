@@ -17,6 +17,7 @@ class Mg4Battery : public UdsCanBattery {
   static const uint16_t MAX_CELL_DEVIATION_MV = 150;
 
   int sendPhase = 0;
+  bool reportsSoC = false;
 
   unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
