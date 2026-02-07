@@ -88,6 +88,8 @@ const char* name_for_battery_type(BatteryType type) {
       return Kia64FDBattery::Name;
     case BatteryType::KiaHyundaiHybrid:
       return KiaHyundaiHybridBattery::Name;
+    case BatteryType::LandRoverVelar:
+      return LandRoverVelarPhevBattery::Name;
     case BatteryType::Meb:
       return MebBattery::Name;
 #ifndef SMALL_FLASH_DEVICE
@@ -199,6 +201,8 @@ Battery* create_battery(BatteryType type) {
       return new KiaHyundai64Battery();
     case BatteryType::KiaHyundaiHybrid:
       return new KiaHyundaiHybridBattery();
+    case BatteryType::LandRoverVelar:
+      return new LandRoverVelarPhevBattery();
     case BatteryType::Meb:
       return new MebBattery();
 #ifndef SMALL_FLASH_DEVICE
