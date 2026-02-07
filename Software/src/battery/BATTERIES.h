@@ -35,6 +35,7 @@ void setup_shunt();
 #include "KIA-E-GMP-BATTERY.h"
 #include "KIA-HYUNDAI-64-BATTERY.h"
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
+#include "LAND-ROVER-VELAR-PHEV-BATTERY.h"
 #include "MEB-BATTERY.h"
 #include "MG-5-BATTERY.h"
 #include "MG-HS-PHEV-BATTERY.h"
