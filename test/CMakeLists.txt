@@ -110,6 +110,7 @@ add_executable(tests
     ../Software/src/battery/FORD-MACH-E-BATTERY.cpp
     ../Software/src/battery/FOXESS-BATTERY.cpp
     ../Software/src/battery/GEELY-GEOMETRY-C-BATTERY.cpp
+    ../Software/src/battery/GROWATT-HV-ARK-BATTERY.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY-HTML.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY.cpp
     ../Software/src/battery/IMIEV-CZERO-ION-BATTERY.cpp
