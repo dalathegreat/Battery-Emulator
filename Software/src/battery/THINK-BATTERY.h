@@ -13,11 +13,11 @@ class ThinkBattery : public CanBattery {
   static constexpr const char* Name = "Think City";
 
  private:
-  static const int MAX_PACK_VOLTAGE_DV = 3920;  //Later read via CAN (sys_voltageMinCharge)
-  static const int MIN_PACK_VOLTAGE_DV = 2400;  //Later read via CAN (sys_voltageMinDischarge)
+  static const int MAX_PACK_VOLTAGE_DV = 3940;
+  static const int MIN_PACK_VOLTAGE_DV = 2880;
   static const int MAX_CELL_DEVIATION_MV = 150;
-  static const int MAX_CELL_VOLTAGE_MV = 4200;
-  static const int MIN_CELL_VOLTAGE_MV = 3300;
+  static const int MAX_CELL_VOLTAGE_MV = 4100;
+  static const int MIN_CELL_VOLTAGE_MV = 3000;
 
   unsigned long previousMillis200 = 0;  // will store last time a 100ms CAN Message was sent
 

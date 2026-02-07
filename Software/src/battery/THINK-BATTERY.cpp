@@ -25,13 +25,13 @@ void ThinkBattery::update_values() {
 
   datalayer.battery.status.temperature_max_dC = (int16_t)(max_pack_temperature * 10);
 
-  datalayer.battery.info.min_design_voltage_dV = sys_voltageMinDischarge;
+  if (max_cellvoltage > 2800) {  //Value is low when unavailable
+    datalayer.battery.status.cell_max_voltage_mV = max_cellvoltage;
+  }
 
-  datalayer.battery.info.max_design_voltage_dV = sys_voltageMaxCharge;
-
-  datalayer.battery.status.cell_max_voltage_mV = max_cellvoltage;
-
-  datalayer.battery.status.cell_min_voltage_mV = min_cellvoltage;
+  if (min_cellvoltage > 2800) {  //Value is low when unavailable
+    datalayer.battery.status.cell_min_voltage_mV = min_cellvoltage;
+  }
 }
 
 void ThinkBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -143,8 +143,8 @@ void ThinkBattery::transmit_can(unsigned long currentMillis) {
 void ThinkBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;  //Later read via CAN (sys_voltageMinCharge)
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;  //Later read via CAN (sys_voltageMinDischarge)
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
