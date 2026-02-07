@@ -84,6 +84,11 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x424:  //100ms - Charge limits, Temperatures, SOH - Confirmed sent by: Fluence ZE40, Zoe 22/41kWh, Kangoo 33kWh
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      LB_Heartbeat = rx_frame.data.u8[6];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
+      if ((LB_Heartbeat != 0x55) && (LB_Heartbeat != 0xAA)) {
+        datalayer.battery.status.CAN_error_counter++;
+        break;
+      }
       LB_CUV = (rx_frame.data.u8[0] & 0x03);
       LB_HVBIR = (rx_frame.data.u8[0] & 0x0C) >> 2;
       LB_HVBUV = (rx_frame.data.u8[0] & 0x30) >> 4;
@@ -96,7 +101,6 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       LB_Discharge_allowed_W = rx_frame.data.u8[3] * 500;
       LB_Cell_minimum_temperature = (rx_frame.data.u8[4] - 40);
       LB_SOH = rx_frame.data.u8[5];
-      LB_Heartbeat = rx_frame.data.u8[6];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
       LB_Cell_maximum_temperature = (rx_frame.data.u8[7] - 40);
       break;
     case 0x425:  //100ms Cellvoltages and kWh remaining - Confirmed sent by: Fluence ZE40
