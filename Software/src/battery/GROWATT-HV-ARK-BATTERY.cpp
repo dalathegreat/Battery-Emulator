@@ -176,7 +176,8 @@ void GrowattHvArkBattery::update_values() {
   // Power limits (W): dA*dV/100 = (A*10)*(V*10)/100
   const int32_t v_dV = (int32_t)pack_voltage_dV;
   datalayer_battery->status.max_charge_power_W = (int32_t)datalayer_battery->status.max_charge_current_dA * v_dV / 100;
-  datalayer_battery->status.max_discharge_power_W = (int32_t)datalayer_battery->status.max_discharge_current_dA * v_dV / 100;
+  datalayer_battery->status.max_discharge_power_W =
+      (int32_t)datalayer_battery->status.max_discharge_current_dA * v_dV / 100;
 
   // Contactor closing policy (conservative): allow only when awake and no fault indicated.
   if (allows_contactor_closing) {
