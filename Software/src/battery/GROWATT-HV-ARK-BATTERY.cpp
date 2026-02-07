@@ -159,17 +159,18 @@ void GrowattHvArkBattery::update_values() {
   datalayer_battery->status.cell_voltages_mV[0] = cell_max_mV;
   datalayer_battery->status.cell_voltages_mV[1] = cell_min_mV;
 
-  // Capacity: protocol reports 0.01Ah. Convert to Wh using present voltage.
-  // Wh ~= Ah * V.
-  if (pack_voltage_dV > 0) {
-    const uint32_t rem_Wh = ((uint32_t)remaining_capacity_10mAh * (uint32_t)pack_voltage_dV) / 1000u;
-    datalayer_battery->status.remaining_capacity_Wh = rem_Wh;
+  // Capacity: Use full capacity (bytes 2-3 in 0x3140, in 0.01Ah units) and scale by SOC.
+  // Remaining capacity = full_capacity * (SOC% / 100)
+  if (pack_voltage_dV > 0 && full_capacity_10mAh > 0) {
+    // Calculate total capacity in Wh: (0.01Ah * 10000 counts) * voltage(dV) / 1000
+    const uint32_t full_Wh = ((uint32_t)full_capacity_10mAh * (uint32_t)pack_voltage_dV) / 1000u;
+    datalayer_battery->info.total_capacity_Wh = full_Wh;
 
-    // If you want to derive total capacity from the battery report, uncomment below.
-    // const uint32_t full_Wh = ((uint32_t)full_capacity_10mAh * (uint32_t)pack_voltage_dV) / 1000u;
-    // if (full_Wh > 0) {
-    //   datalayer_battery->info.total_capacity_Wh = full_Wh;
-    // }
+    // Calculate remaining capacity based on SOC: full_capacity * SOC% / 100
+    // soc_pct is 0-100, so: (full_capacity_10mAh * soc_pct / 100) gives remaining in 0.01Ah
+    const uint32_t rem_capacity_10mAh = ((uint32_t)full_capacity_10mAh * (uint32_t)soc_pct) / 100u;
+    const uint32_t rem_Wh = (rem_capacity_10mAh * (uint32_t)pack_voltage_dV) / 1000u;
+    datalayer_battery->status.remaining_capacity_Wh = rem_Wh;
   }
 
   // Power limits (W): dA*dV/100 = (A*10)*(V*10)/100
