@@ -4,7 +4,6 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 
-GrowattHvArkBattery::~GrowattHvArkBattery() {}
 // Helpers (Growatt HV protocol is big-endian)
 static inline uint16_t read_u16_be(const CAN_frame& f, int idx) {
   return (uint16_t)((f.data.u8[idx] << 8) | f.data.u8[idx + 1]);
