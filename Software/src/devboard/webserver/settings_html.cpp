@@ -409,6 +409,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("MAXPREFREQ", 34000));
   }
 
+  if (var == "MINPREFREQ") {
+    return String(settings.getUInt("MINPREFREQ", 5000));
+  }
+
+  if (var == "DEFPREFREQ") {
+    return String(settings.getUInt("DEFPREFREQ", 11000));
+  }
+
   if (var == "NOINVDISC") {
     return settings.getBool("NOINVDISC") ? "checked" : "";
   }
@@ -1497,6 +1505,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
             <label>Precharge, maximum PWM frequency: </label>
             <input name='MAXPREFREQ' type='text' value="%MAXPREFREQ%" pattern="[0-9]+" />
+
+            <label>Precharge, minimum PWM frequency: </label>
+            <input name='MINPREFREQ' type='text' value="%MINPREFREQ%" pattern="[0-9]+" />
+
+            <label>Precharge, default PWM frequency: </label>
+            <input name='DEFPREFREQ' type='text' value="%DEFPREFREQ%" pattern="[0-9]+" />
 
           <label>Normally Open (NO) inverter disconnect contactor: </label>
           <input type='checkbox' name='NOINVDISC' value='on' %NOINVDISC% />
