@@ -9,7 +9,7 @@ class LandRoverVelarPhevBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr const char* Name = "Range Rover Velar 17kWh PHEV battery (L560)";
+  static constexpr const char* Name = "Land Rover Velar 17kWh PHEV battery (L560)";
 
  private:
   /* Change the following to suit your battery */
