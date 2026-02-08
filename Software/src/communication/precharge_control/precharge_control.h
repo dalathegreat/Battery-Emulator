@@ -11,6 +11,7 @@ extern uint16_t precharge_max_precharge_time_before_fault;
 extern uint16_t Precharge_max_PWM_Freq;
 extern uint16_t Precharge_min_PWM_Freq;
 extern uint16_t Precharge_default_PWM_Freq;
+extern uint8_t Precharge_coarse_narrow_multiplier;
 
 /**
  * @brief Contactor initialization
