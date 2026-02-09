@@ -3,7 +3,8 @@
 #include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"  //For Advanced Battery Insights webpage
+#include "../datalayer/datalayer_extended.h"     //For Advanced Battery Insights webpage
+#include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
 
 /*
@@ -13,6 +14,14 @@ The battery has 3x CAN channels
 - Platform CAN (500kbps) with all the control messages needed to control the battery <- This is the one we want
 - Battery CAN (500kbps) lots of content, not required for operation 
 */
+
+uint8_t RivianBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
+  uint8_t crc = initial_value;
+  for (uint8_t j = 1; j < length; j++) {  //start at 1, since 0 is the CRC
+    crc = crc8_table_SAE_J1850_ZER0[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
+  }
+  return crc;
+}
 
 void RivianBattery::update_values() {
 
@@ -29,8 +38,13 @@ void RivianBattery::update_values() {
   datalayer.battery.status.max_charge_power_W = ((battery_voltage / 10) * battery_charge_limit_amp);
   datalayer.battery.status.max_discharge_power_W = ((battery_voltage / 10) * battery_discharge_limit_amp);
 
-  //datalayer.battery.status.cell_min_voltage_mV = 3700; //TODO: Take from failover CAN?
-  //datalayer.battery.status.cell_max_voltage_mV = 3700; //TODO: Take from failover CAN?
+  if (cell_min_voltage_mV > 0) {
+    datalayer.battery.status.cell_min_voltage_mV = cell_min_voltage_mV;
+  }
+
+  if (cell_max_voltage_mV > 0) {
+    datalayer.battery.status.cell_max_voltage_mV = cell_max_voltage_mV;
+  }
 
   datalayer.battery.status.temperature_min_dC = battery_min_temperature * 10;
   datalayer.battery.status.temperature_max_dC = battery_max_temperature * 10;
@@ -53,6 +67,11 @@ void RivianBattery::update_values() {
 
 void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
+    case 0x0A0:  //Cellvoltage min/max (Not available on all packs)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      cell_min_voltage_mV = (((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4]);
+      cell_max_voltage_mV = ((rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[5] >> 4));
+      break;
     case 0x06E:  //Status flags [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       error_flags_from_BMS = rx_frame.data.u8[5];
@@ -62,11 +81,19 @@ void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x1E3:  //HMI [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.data.u8[0] != calculateCRC(rx_frame, 3, 0xEC)) {
+        datalayer.battery.status.CAN_error_counter++;
+        break;
+      }
       HMI_part1 = rx_frame.data.u8[1];
       HMI_part2 = rx_frame.data.u8[2];
       break;
     case 0x154:  //Status flags [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.data.u8[0] != calculateCRC(rx_frame, 8, 0xFD)) {
+        datalayer.battery.status.CAN_error_counter++;
+        break;
+      }
       puncture_fault = ((rx_frame.data.u8[1] & 0x40) >> 6);
       liquid_fault = ((rx_frame.data.u8[4] & 0x02) >> 1);
       battery_thermal_runaway = ((rx_frame.data.u8[4] & 0x04) >> 2);

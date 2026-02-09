@@ -15,6 +15,7 @@ class RivianBattery : public CanBattery {
 
  private:
   RivianHtmlRenderer renderer;
+  uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value);
 
   static const int MAX_PACK_VOLTAGE_DV = 4480;
   static const int MIN_PACK_VOLTAGE_DV = 2920;
@@ -32,6 +33,8 @@ class RivianBattery : public CanBattery {
   int16_t battery_max_temperature = 0;
   uint16_t battery_discharge_limit_amp = 0;
   uint16_t battery_charge_limit_amp = 0;
+  uint16_t cell_min_voltage_mV = 0;
+  uint16_t cell_max_voltage_mV = 0;
   uint8_t error_flags_from_BMS = 0;
   uint8_t contactor_state = 0;
   uint8_t HVIL = 0;
