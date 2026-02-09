@@ -17,11 +17,7 @@
 class GrowattHvArkBattery : public CanBattery {
  public:
   // Use the default constructor to create the first or single battery.
-  GrowattHvArkBattery() {
-    datalayer_battery = &datalayer.battery;
-    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    contactor_closing_allowed = nullptr;
-  }
+  GrowattHvArkBattery() {}
 
   ~GrowattHvArkBattery() {}
 
@@ -33,14 +29,6 @@ class GrowattHvArkBattery : public CanBattery {
   static constexpr const char* Name = "Growatt HV ARK battery (battery-facing CAN)";
 
  private:
-  DATALAYER_BATTERY_TYPE* datalayer_battery = nullptr;
-
-  // If not null, this battery decides when the contactor can be closed and writes the value here.
-  bool* allows_contactor_closing = nullptr;
-
-  // If not null, this battery listens to this boolean to determine whether contactor closing is allowed.
-  bool* contactor_closing_allowed = nullptr;
-
   // --- Outgoing (PCS -> Battery) ---
   CAN_frame PCS_3010 = {.FD = false,
                         .ext_ID = true,
