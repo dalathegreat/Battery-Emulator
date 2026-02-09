@@ -174,7 +174,8 @@ void GrowattHvArkBattery::update_values() {
   // Power limits (W): dA*dV/100 = (A*10)*(V*10)/100
   const int32_t v_dV = (int32_t)pack_voltage_dV;
   datalayer.battery.status.max_charge_power_W = (int32_t)datalayer.battery.status.max_charge_current_dA * v_dV / 100;
-  datalayer.battery.status.max_discharge_power_W = (int32_t)datalayer.battery.status.max_discharge_current_dA * v_dV / 100;
+  datalayer.battery.status.max_discharge_power_W =
+      (int32_t)datalayer.battery.status.max_discharge_current_dA * v_dV / 100;
 
   // Contactor closing policy (conservative): allow only when awake and no fault indicated.
   datalayer.system.status.battery_allows_contactor_closing = (!battery_sleeping) && (!battery_fault_present);
@@ -195,10 +196,10 @@ void GrowattHvArkBattery::transmit_can(unsigned long currentMillis) {
   // --- 0x3020 Control ---
   PCS_3020.data.u8[0] = 0xAA;  // Charging command
   PCS_3020.data.u8[1] = 0xAA;  // Discharging command
-  PCS_3020.data.u8[2] = 0x00;                           // Shielding external communication failure
-  PCS_3020.data.u8[3] = 0x00;                           // Clearing battery fault
-  PCS_3020.data.u8[4] = 0x00;                           // ISO detection command
-  PCS_3020.data.u8[7] = 0xAA;                           // Wake-up (exit sleeping)
+  PCS_3020.data.u8[2] = 0x00;  // Shielding external communication failure
+  PCS_3020.data.u8[3] = 0x00;  // Clearing battery fault
+  PCS_3020.data.u8[4] = 0x00;  // ISO detection command
+  PCS_3020.data.u8[7] = 0xAA;  // Wake-up (exit sleeping)
 
   // --- 0x3030 Time ---
   // If no real RTC is available, we still provide a monotonically increasing counter.
