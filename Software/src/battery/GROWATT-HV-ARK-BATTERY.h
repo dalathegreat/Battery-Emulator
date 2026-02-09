@@ -16,15 +16,6 @@
 //  500 kbit/s, extended identifier used in this codebase.
 class GrowattHvArkBattery : public CanBattery {
  public:
-  // Use this constructor for the second/third battery.
-  GrowattHvArkBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr,
-                      CAN_Interface targetCan)
-      : CanBattery(targetCan) {
-    datalayer_battery = datalayer_ptr;
-    contactor_closing_allowed = contactor_closing_allowed_ptr;
-    allows_contactor_closing = nullptr;
-  }
-
   // Use the default constructor to create the first or single battery.
   GrowattHvArkBattery() {
     datalayer_battery = &datalayer.battery;
