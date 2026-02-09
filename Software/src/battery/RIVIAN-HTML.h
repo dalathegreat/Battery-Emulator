@@ -38,7 +38,17 @@ class RivianHtmlRenderer : public BatteryHtmlRenderer {
     }
     content += "</h4>";
 
-    content += "<h4>Interlock status: " + String(datalayer_extended.rivian.HVIL) + "</h4>";
+    content += "<h4>Interlock status: ";
+    if (datalayer_extended.rivian.HVIL == 0) {
+      content += "NOT OK";
+    } else if (datalayer_extended.rivian.HVIL == 1) {
+      content += "NOT OK";
+    } else if (datalayer_extended.rivian.HVIL == 2) {
+      content += "NOT OK";
+    } else if (datalayer_extended.rivian.HVIL == 3) {
+      content += "OK";
+    }
+    content += "</h4>";
 
     content += "<h4>BMS State: ";
     if (datalayer_extended.rivian.BMS_state == 0) {
