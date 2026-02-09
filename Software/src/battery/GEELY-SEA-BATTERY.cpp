@@ -58,9 +58,9 @@ void GeelySeaBattery::
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W = 3000;  //TODO: Take from CAN!
+  datalayer.battery.status.max_discharge_power_W = 5000;  //TODO: Take from CAN!
 
-  datalayer.battery.status.max_charge_power_W = 3000;  //TODO: Take from CAN!
+  datalayer.battery.status.max_charge_power_W = 5000;  //TODO: Take from CAN!
 
   if (datalayer.battery.info.chemistry == LFP) {  //If configured LFP in use (or we autodetected it), switch to it
     datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_LFP_WH;  //EX30 51kWh LFP battery
@@ -122,6 +122,7 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x143:  //20ms EX30+Zeekr
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       pack_current_dA = sign_extend_to_int16((((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1]), 12);
+      pack_current_dA = pack_current_dA + 4;
       break;
     case 0x145:  //100ms EX30+Zeekr
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -239,7 +240,7 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             reply_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];  //This is how all the replies are done
           }
         }
-        if(pause_polling_seconds == 0) {  //Do not update values if DTC action is ongoing
+        if (pause_polling_seconds == 0) {  //Do not update values if DTC action is ongoing
           switch (reply_poll) {
             case POLL_BECMsupplyVoltage:
               datalayer_extended.GeelySEA.BECMsupplyVoltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
