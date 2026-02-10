@@ -47,7 +47,8 @@ class GeelySeaBattery : public CanBattery {
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was send
-  
+  unsigned long previousMillisWakeup = 0;
+
   static const uint16_t POLL_BECMsupplyVoltage = 0xEE02;
   static const uint16_t POLL_HV_Voltage = 0x4803;
   static const uint16_t POLL_SOC = 0x4801;
@@ -80,6 +81,7 @@ class GeelySeaBattery : public CanBattery {
   uint8_t poll_index = 0;
   uint16_t currentpoll = POLL_BECMsupplyVoltage;
   uint16_t reply_poll = 0;
+  bool battery_alive = false;
 
   int16_t pack_current_dA = 0;
   uint16_t pack_voltage_dV = 3700;
@@ -122,7 +124,8 @@ class GeelySeaBattery : public CanBattery {
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x103,
-                       .data = {0x20, 0x00, 0x00, 0xFA, 0x00, 0x00, 0x00, 0x00}};  // Prevents DTC on Zeekr battery (Engine Control Module)
+                       .data = {0x20, 0x00, 0x00, 0xFA, 0x00, 0x00, 0x00,
+                                0x00}};  // Prevents DTC on Zeekr battery (Engine Control Module)
 
   CAN_frame SEA_Polling_Req = {
       .FD = false,
@@ -154,10 +157,10 @@ class GeelySeaBattery : public CanBattery {
                              .ID = 0x735,
                              .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Start diag session
   CAN_frame SEA_ClearCrash = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = 0x735,
-                             .data = {0x04, 0x31, 0x01, 0x30, 0x03, 0x00, 0x00, 0x00}};  //Clear crash status
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x735,
+                              .data = {0x04, 0x31, 0x01, 0x30, 0x03, 0x00, 0x00, 0x00}};  //Clear crash status
 
   CAN_frame SEA_BECM_ECUreset = {
       .FD = false,

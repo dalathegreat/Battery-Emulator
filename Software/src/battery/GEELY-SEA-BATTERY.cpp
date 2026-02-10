@@ -98,11 +98,13 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x141:  //20ms EX30+Zeekr
+      battery_alive = true;
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //frame0 counter, 0x00 -> 0x0D and repeating
       //frame1 CRC most likely
       break;
     case 0x142:  //20ms EX30+Zeekr
+      battery_alive = true;
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[0] == 0x00) {
         pack_voltage_dV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) >> 3;
@@ -120,6 +122,7 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x143:  //20ms EX30+Zeekr
+      battery_alive = true;
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       pack_current_dA = sign_extend_to_int16((((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1]), 12);
       pack_current_dA = pack_current_dA + 4;
@@ -306,6 +309,16 @@ void GeelySeaBattery::readDiagData() {
 }
 
 void GeelySeaBattery::transmit_can(unsigned long currentMillis) {
+
+  if (!battery_alive) {
+    // Send 1000ms CAN Message
+    if (currentMillis - previousMillisWakeup >= INTERVAL_1_S) {
+      previousMillisWakeup = currentMillis;
+      transmit_can_frame(&SEA_536);  //Send 0x536 Network managing frame to wake up BMS
+    }
+    return;  //Break, do not send more messages until battery is woken up
+  }
+
   // Send 20ms CAN Message
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
