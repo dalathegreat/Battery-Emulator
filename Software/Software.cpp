@@ -17,6 +17,7 @@
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
+// #include "src/devboard/display/epaper_task.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -30,6 +31,7 @@
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
+#include "src/system_settings.h"
 
 #if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
     !defined(HW_DEVKIT)
@@ -101,9 +103,7 @@ void connectivity_loop(void*) {
   while (true) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
-
     update_display();
-
     ota_monitor();
 
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
@@ -601,6 +601,12 @@ void setup() {
   init_events();
 
   init_stored_settings();
+  #ifdef HW_LILYGO2CAN
+    BatteryEmulatorSettingsStore settings; // ประกาศตัวแปร settings
+    // อ่านค่า (Default=1 คือ OLED_I2C)
+    user_selected_display_type = (DisplayType)settings.getUInt("DISPLAYTYPE", 1); 
+    DEBUG_PRINTF("Display Mode: %d\n", (int)user_selected_display_type);
+  #endif
 
   if (wifi_enabled) {
     xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
@@ -608,7 +614,6 @@ void setup() {
   }
 
   led_init();
-
   if (datalayer.system.info.CAN_SD_logging_active || datalayer.system.info.SD_logging_active) {
     xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
                             &logging_loop_task, esp32hal->WIFICORE());

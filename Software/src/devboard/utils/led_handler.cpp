@@ -47,6 +47,12 @@ void LED::exe(void) {
     case led_mode_enum::HEARTBEAT:
       heartbeat_run();
       break;
+    // --- แทรก Case LED_DISABLED ตรงนี้ครับ ---
+    case led_mode_enum::LED_DISABLED:
+      pixels.setPixelColor(0); // สั่งดับไฟ
+      pixels.show();
+      return; // จบการทำงานทันที
+    // ----------------------------------
     case led_mode_enum::CLASSIC:
     default:
       classic_run();

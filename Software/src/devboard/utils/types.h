@@ -27,7 +27,7 @@ enum class comm_interface {
   Highest
 };
 
-enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT };
+enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT, LED_DISABLED };
 enum PrechargeState {
   AUTO_PRECHARGE_IDLE,
   AUTO_PRECHARGE_START,
@@ -112,17 +112,27 @@ typedef struct {
 std::string getBMSStatus(bms_status_enum status);
 
 #ifdef HW_LILYGO2CAN
-/* Configurable GPIO options (device specific) */
-enum class GPIOOPT1 {
-  // T-2CAN: WUP1/WUP2 on GPIO1/GPIO2
-  DEFAULT_OPT = 0,
-  // T-2CAN: SDA/SCL on GPIO1/GPIO2
-  I2C_DISPLAY_SSD1306 = 1,
-  // T-2CAN: ESTOP on GPIO1, BMS_POWER on GPIO2
-  ESTOP_BMS_POWER = 2,
-  Highest
-};
-extern GPIOOPT1 user_selected_gpioopt1;
+  /* Configurable GPIO options (device specific) */
+  enum class GPIOOPT1 {
+    // T-2CAN: WUP1/WUP2 on GPIO1/GPIO2
+    DEFAULT_OPT = 0,
+    // T-2CAN: SDA/SCL on GPIO1/GPIO2
+    I2C_DISPLAY_SSD1306 = 1,
+    // T-2CAN: ESTOP on GPIO1, BMS_POWER on GPIO2
+    ESTOP_BMS_POWER = 2,
+    Highest
+  };
+
+  enum class DisplayType {
+    NONE = 0,
+    OLED_I2C = 1,      // จอเดิม (ผ่าน QWIIC IO1/IO2)
+    EPAPER_SPI_42 = 2,  // จอใหม่ของเรา (ผ่าน Header IO35/46)
+    Highest
+  };
+
+  extern GPIOOPT1 user_selected_gpioopt1;
+  extern DisplayType user_selected_display_type;
+
 #endif
 enum class GPIOOPT2 {
   // T-CAN485: Default, BMS power on PIN18

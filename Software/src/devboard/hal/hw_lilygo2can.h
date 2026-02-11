@@ -86,10 +86,20 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t INVERTER_DISCONNECT_CONTACTOR_PIN() { return GPIO_NUM_14; }
 
   // SMA CAN contactor pin
-  virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() { return GPIO_NUM_46; }
+  virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() { 
+    if (user_selected_display_type == DisplayType::EPAPER_SPI_42) {
+        return GPIO_NUM_NC; // ตัด SMA ทิ้ง เพื่อให้จอใช้ขา 46 ได้
+    }
+    return GPIO_NUM_46; 
+  }
 
   // LED
-  virtual gpio_num_t LED_PIN() { return GPIO_NUM_35; }
+  virtual gpio_num_t LED_PIN() { 
+    if (user_selected_display_type == DisplayType::EPAPER_SPI_42) {
+        return GPIO_NUM_NC; // ตัดไฟ LED ทิ้ง เพื่อให้จอใช้ขา 35 ได้
+    }
+    return GPIO_NUM_35; 
+  }
   virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
 
   // CHAdeMO support pin dependencies
@@ -101,12 +111,22 @@ class LilyGo2CANHal : public Esp32Hal {
 
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() {
+    #ifdef HW_LILYGO2CAN
+      if (user_selected_display_type == DisplayType::OLED_I2C) {
+          return GPIO_NUM_1;
+      }
+    #endif
     if (user_selected_gpioopt1 == GPIOOPT1::I2C_DISPLAY_SSD1306) {
       return GPIO_NUM_1;
     }
     return GPIO_NUM_NC;
   }
   virtual gpio_num_t DISPLAY_SCL_PIN() {
+    #ifdef HW_LILYGO2CAN
+      if (user_selected_display_type == DisplayType::OLED_I2C) {
+          return GPIO_NUM_2;
+      }
+    #endif
     if (user_selected_gpioopt1 == GPIOOPT1::I2C_DISPLAY_SSD1306) {
       return GPIO_NUM_2;
     }

@@ -107,7 +107,7 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   /** The current battery status, which for now has the name real_bms_status */
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
   /** LED mode, customizable by user */
-  led_mode_enum led_mode = CLASSIC;
+  led_mode_enum led_mode = LED_DISABLED;
   /** Balancing status */
   balancing_status_enum balancing_status = BALANCING_STATUS_UNKNOWN;
 

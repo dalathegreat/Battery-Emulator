@@ -98,7 +98,7 @@ String options_from_map(int selected, const TMap& value_name_map) {
   return options;
 }
 
-static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
+static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}, {3, "Disabled"}};
 
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
@@ -141,6 +141,15 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
     default:
       return nullptr;
   }
+}
+
+const char* name_for_display_type(DisplayType type) {
+  switch (type) {
+        case DisplayType::NONE: return "None";
+        case DisplayType::OLED_I2C: return "I2C OLED (SSD1306)";
+        case DisplayType::EPAPER_SPI_42: return "SPI E-Paper 4.2\" (IO35/46)";
+        default: return nullptr;
+      }
 }
 #endif
 const char* name_for_gpioopt2(GPIOOPT2 option) {
@@ -248,7 +257,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "LEDMODE") {
-    return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
+    return options_from_map(settings.getUInt("LEDMODE", 3), led_modes);
   }
 
   if (var == "SUNGROW_MODEL") {
@@ -259,6 +268,14 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "GPIOOPT1") {
     return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
+  }
+  
+  if (var == "DISPLAYTYPE") {
+    return options_for_enum_with_none(
+      (DisplayType)settings.getUInt("DISPLAYTYPE", (int)DisplayType::OLED_I2C),
+      name_for_display_type, 
+      DisplayType::NONE
+    );
   }
 #endif
   if (var == "GPIOOPT2") {
@@ -860,8 +877,16 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       %GPIOOPT1%
     </select>
   )rawliteral"
+#define DISPLAY_SETTING \
+  R"rawliteral(
+    <label for="DISPLAYTYPE">Display Type:</label>
+<select id="DISPLAYTYPE" name="DISPLAYTYPE">
+  %DISPLAYTYPE%
+</select>
+  )rawliteral"
 #else
 #define GPIOOPT1_SETTING ""
+#define DISPLAY_SETTING ""
 #endif
 
 #ifdef HW_LILYGO
@@ -1509,6 +1534,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         )rawliteral" GPIOOPT1_SETTING R"rawliteral(
         )rawliteral" GPIOOPT2_SETTING R"rawliteral(
         )rawliteral" GPIOOPT3_SETTING R"rawliteral(
+        )rawliteral" DISPLAY_SETTING R"rawliteral(
           
         </div>
         </div>
