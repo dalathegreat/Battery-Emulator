@@ -20,6 +20,7 @@ uint8_t RivianBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t 
   for (uint8_t j = 1; j < length; j++) {  //start at 1, since 0 is the CRC
     crc = crc8_table_SAE_J1850_ZER0[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
   }
+  crc ^= 0xFF;
   return crc;
 }
 
