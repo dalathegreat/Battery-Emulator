@@ -30,14 +30,14 @@ void RivianBattery::update_values() {
 
   //datalayer.battery.status.soh_pptt; //TODO: Find usable SOH
 
-  datalayer.battery.status.voltage_dV = battery_voltage;
+  datalayer.battery.status.voltage_dV = pre_contactor_voltage;
   datalayer.battery.status.current_dA = ((int16_t)battery_current / 10.0 - 3200) * 10;
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_charge_power_W = ((battery_voltage / 10) * battery_charge_limit_amp);
-  datalayer.battery.status.max_discharge_power_W = ((battery_voltage / 10) * battery_discharge_limit_amp);
+  datalayer.battery.status.max_charge_power_W = ((pre_contactor_voltage / 10) * battery_charge_limit_amp);
+  datalayer.battery.status.max_discharge_power_W = ((pre_contactor_voltage / 10) * battery_discharge_limit_amp);
 
   if (cell_min_voltage_mV > 0) {
     datalayer.battery.status.cell_min_voltage_mV = cell_min_voltage_mV;
@@ -64,6 +64,12 @@ void RivianBattery::update_values() {
   datalayer_extended.rivian.liquid_fault = liquid_fault;
   datalayer_extended.rivian.IsolationMeasurementOngoing = IsolationMeasurementOngoing;
   datalayer_extended.rivian.isolation_fault_status = isolation_fault_status;
+  datalayer_extended.rivian.contactor_DCFC_welded = contactor_DCFC_welded;
+  datalayer_extended.rivian.system_safe_state = system_safe_state;
+  datalayer_extended.rivian.pre_contactor_voltage = pre_contactor_voltage;
+  datalayer_extended.rivian.main_contactor_voltage = main_contactor_voltage;
+  datalayer_extended.rivian.voltage_reference = voltage_reference;
+  datalayer_extended.rivian.DCFC_contactor_voltage = DCFC_contactor_voltage;
 }
 
 void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -80,6 +86,12 @@ void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       IsolationMeasurementOngoing = (rx_frame.data.u8[6] & 0x02) >> 1;
       contactor_state = (((rx_frame.data.u8[7] & 0x01) << 3) | (rx_frame.data.u8[6] >> 5));
       break;
+    case 0x100:  //Discharge/Charge speed
+      battery_charge_limit_amp =
+          (((rx_frame.data.u8[3] & 0x0F) << 8) | (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4)) / 20;
+      battery_discharge_limit_amp =
+          (((rx_frame.data.u8[5] & 0x0F) << 8) | (rx_frame.data.u8[4] << 4) | (rx_frame.data.u8[3] >> 4)) / 20;
+      break;
     case 0x1E3:  //HMI [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[0] != calculateCRC(rx_frame, 3, 0xEC)) {
@@ -88,6 +100,25 @@ void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       HMI_part1 = rx_frame.data.u8[1];
       HMI_part2 = rx_frame.data.u8[2];
+      break;
+    case 0x120:  //Voltages [Platform CAN]+
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      DCFC_contactor_voltage = (((rx_frame.data.u8[1] & 0x1F) << 8) | rx_frame.data.u8[0]);
+      voltage_reference = (((rx_frame.data.u8[3] & 0x1F) << 8) | rx_frame.data.u8[2]);
+      main_contactor_voltage = (((rx_frame.data.u8[5] & 0x1F) << 8) | rx_frame.data.u8[4]);
+      pre_contactor_voltage = (((rx_frame.data.u8[7] & 0x1F) << 8) | rx_frame.data.u8[6]);
+      break;
+    case 0x145:  //NACS charger status [Platform CAN]+
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      NACS_charger_detected = true;
+      break;
+    case 0x151:  //Celltemps (requires other CAN channel)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x153:  //Temperatures [Platform CAN]+
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_max_temperature = (rx_frame.data.u8[5] / 2) - 40;
+      battery_min_temperature = (rx_frame.data.u8[6] / 2) - 40;
       break;
     case 0x154:  //Status flags [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -98,18 +129,24 @@ void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       puncture_fault = ((rx_frame.data.u8[1] & 0x40) >> 6);
       liquid_fault = ((rx_frame.data.u8[4] & 0x02) >> 1);
       battery_thermal_runaway = ((rx_frame.data.u8[4] & 0x04) >> 2);
+      system_safe_state = ((rx_frame.data.u8[4] & 0x78) >> 3);
       isolation_fault_status = ((rx_frame.data.u8[5] << 1) | ((rx_frame.data.u8[4] & 0x80) >> 7));
+      break;
+    case 0x156:  //States [Platform CAN]+
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      contactor_DCFC_welded = (rx_frame.data.u8[5] & 0x01);
       break;
     case 0x160:  //Current [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_current = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       break;
-    case 0x151:  //Celltemps (requires other CAN channel)
+    case 0x162:  //Departuretime [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //frame0-1 minutes to departure time
       break;
-    case 0x120:  //Voltages [Platform CAN]+
+    case 0x164:  //End of drive message [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_voltage = (((rx_frame.data.u8[7] & 0x1F) << 8) | rx_frame.data.u8[6]);
+      //bit0-1 , 0 = normal, 1 = derate, 2 = stop , 3 = modereq100
       break;
     case 0x25A:  //SOC and kWh [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -126,17 +163,6 @@ void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x405:  //State [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMS_state = (rx_frame.data.u8[0] & 0x03);
-      break;
-    case 0x100:  //Discharge/Charge speed
-      battery_charge_limit_amp =
-          (((rx_frame.data.u8[3] & 0x0F) << 8) | (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4)) / 20;
-      battery_discharge_limit_amp =
-          (((rx_frame.data.u8[5] & 0x0F) << 8) | (rx_frame.data.u8[4] << 4) | (rx_frame.data.u8[3] >> 4)) / 20;
-      break;
-    case 0x153:  //Temperatures
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_max_temperature = (rx_frame.data.u8[5] / 2) - 40;
-      battery_min_temperature = (rx_frame.data.u8[6] / 2) - 40;
       break;
     case 0x55B:  //Temperatures
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

@@ -24,7 +24,10 @@ class RivianBattery : public CanBattery {
   static const int MIN_CELL_VOLTAGE_MV = 3300;  //Battery is put into emergency stop if one cell goes below this value
 
   uint8_t BMS_state = 0;
-  uint16_t battery_voltage = 3700;
+  uint16_t pre_contactor_voltage = 3700;
+  uint16_t main_contactor_voltage = 0;
+  uint16_t voltage_reference = 0;
+  uint16_t DCFC_contactor_voltage = 0;
   uint16_t battery_SOC = 5000;
   int32_t battery_current = 32000;
   uint16_t kWh_available_total = 135;
@@ -41,11 +44,14 @@ class RivianBattery : public CanBattery {
   uint8_t HMI_part1 = 0;
   uint8_t HMI_part2 = 0;
   uint8_t isolation_fault_status = 0;
+  uint8_t system_safe_state = 0;
   bool error_relay_open = false;
   bool IsolationMeasurementOngoing = false;
   bool battery_thermal_runaway = false;
   bool puncture_fault = false;
   bool liquid_fault = false;
+  bool contactor_DCFC_welded = false;
+  bool NACS_charger_detected = false;
   static const uint8_t SLEEP = 0;
   static const uint8_t STANDBY = 1;
   static const uint8_t READY = 2;

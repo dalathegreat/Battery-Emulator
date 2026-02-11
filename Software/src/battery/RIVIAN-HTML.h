@@ -11,6 +11,15 @@ class RivianHtmlRenderer : public BatteryHtmlRenderer {
   String get_status_html() {
     String content;
 
+    content += "<h4>Voltage, pre contactors: " + String(datalayer_extended.rivian.pre_contactor_voltage) + " dV</h4>";
+    content += "<h4>Voltage, main contactors: " + String(datalayer_extended.rivian.main_contactor_voltage) + " dV</h4>";
+    content += "<h4>Voltage, reference: " + String(datalayer_extended.rivian.voltage_reference) + " dV</h4>";
+    content += "<h4>Voltage, DCFC contactors: " + String(datalayer_extended.rivian.DCFC_contactor_voltage) + " dV</h4>";
+
+    if (datalayer_extended.rivian.NACS_charger_detected) {
+      content += "<h4>NACS charger detected!</h4>";
+    }
+
     content += "<h4>Isolation measurement ongoing: ";
     if (datalayer_extended.rivian.IsolationMeasurementOngoing) {
       content += "Yes</h4>";
@@ -139,11 +148,17 @@ class RivianHtmlRenderer : public BatteryHtmlRenderer {
     }
 
     //Misc
+    if (datalayer_extended.rivian.system_safe_state > 1) {
+      content += "<h4>System safe state A active</h4>";
+    }
     if (datalayer_extended.rivian.puncture_fault) {
       content += "<h4>Puncture fault detected</h4>";
     }
     if (datalayer_extended.rivian.liquid_fault) {
       content += "<h4>Liquid fault detected</h4>";
+    }
+    if (datalayer_extended.rivian.contactor_DCFC_welded) {
+      content += "<h4>DCFC contactor welded</h4>";
     }
 
     return content;
