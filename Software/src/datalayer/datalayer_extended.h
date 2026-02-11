@@ -459,6 +459,8 @@ struct DATALAYER_INFO_RIVIAN {
   uint16_t main_contactor_voltage = 0;
   uint16_t voltage_reference = 0;
   uint16_t DCFC_contactor_voltage = 0;
+  uint16_t battery_SOC_max = 0;
+  uint16_t battery_SOC_min = 0;
   uint8_t BMS_state = 0;
   uint8_t HVIL = 0;
   uint8_t error_flags_from_BMS = 0;
@@ -473,6 +475,9 @@ struct DATALAYER_INFO_RIVIAN {
   bool liquid_fault = false;
   bool contactor_DCFC_welded = false;
   bool NACS_charger_detected = false;
+  bool slewrate_potential_violation = false;
+  bool minimum_power_potential_violation = false;
+  bool operation_limit_violation_warning = false;
 };
 
 struct DATALAYER_INFO_TESLA {

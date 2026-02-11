@@ -28,7 +28,9 @@ class RivianBattery : public CanBattery {
   uint16_t main_contactor_voltage = 0;
   uint16_t voltage_reference = 0;
   uint16_t DCFC_contactor_voltage = 0;
-  uint16_t battery_SOC = 5000;
+  uint16_t battery_SOC_average = 5000;
+  uint16_t battery_SOC_max = 0;
+  uint16_t battery_SOC_min = 0;
   int32_t battery_current = 32000;
   uint16_t kWh_available_total = 135;
   uint16_t kWh_available_max = 135;
@@ -52,6 +54,9 @@ class RivianBattery : public CanBattery {
   bool liquid_fault = false;
   bool contactor_DCFC_welded = false;
   bool NACS_charger_detected = false;
+  bool slewrate_potential_violation = false;
+  bool minimum_power_potential_violation = false;
+  bool operation_limit_violation_warning = false;
   static const uint8_t SLEEP = 0;
   static const uint8_t STANDBY = 1;
   static const uint8_t READY = 2;

@@ -26,7 +26,7 @@ uint8_t RivianBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t 
 
 void RivianBattery::update_values() {
 
-  datalayer.battery.status.real_soc = battery_SOC;
+  datalayer.battery.status.real_soc = battery_SOC_average;
 
   //datalayer.battery.status.soh_pptt; //TODO: Find usable SOH
 
@@ -70,27 +70,36 @@ void RivianBattery::update_values() {
   datalayer_extended.rivian.main_contactor_voltage = main_contactor_voltage;
   datalayer_extended.rivian.voltage_reference = voltage_reference;
   datalayer_extended.rivian.DCFC_contactor_voltage = DCFC_contactor_voltage;
+  datalayer_extended.rivian.slewrate_potential_violation = slewrate_potential_violation;
+  datalayer_extended.rivian.minimum_power_potential_violation = minimum_power_potential_violation;
+  datalayer_extended.rivian.operation_limit_violation_warning = operation_limit_violation_warning;
 }
 
 void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
+    case 0x00A:  //DCDC status [Platform CAN]+ 20ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
     case 0x0A0:  //Cellvoltage min/max (Not available on all packs)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       cell_min_voltage_mV = (((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4]);
       cell_max_voltage_mV = ((rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[5] >> 4));
       break;
-    case 0x06E:  //Status flags [Platform CAN]+
+    case 0x06E:  //Status flags [Platform CAN]+ 10ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       error_flags_from_BMS = rx_frame.data.u8[5];
       error_relay_open = (rx_frame.data.u8[6] & 0x01);
       IsolationMeasurementOngoing = (rx_frame.data.u8[6] & 0x02) >> 1;
       contactor_state = (((rx_frame.data.u8[7] & 0x01) << 3) | (rx_frame.data.u8[6] >> 5));
       break;
-    case 0x100:  //Discharge/Charge speed
+    case 0x100:  //Discharge/Charge speed [Platform CAN]+ 10ms
       battery_charge_limit_amp =
           (((rx_frame.data.u8[3] & 0x0F) << 8) | (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4)) / 20;
       battery_discharge_limit_amp =
           (((rx_frame.data.u8[5] & 0x0F) << 8) | (rx_frame.data.u8[4] << 4) | (rx_frame.data.u8[3] >> 4)) / 20;
+      slewrate_potential_violation = (rx_frame.data.u8[5] & 0x10) >> 4;
+      minimum_power_potential_violation = (rx_frame.data.u8[5] & 0x20) >> 5;
+      operation_limit_violation_warning = (rx_frame.data.u8[5] & 0x40) >> 6;
       break;
     case 0x1E3:  //HMI [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -164,9 +173,9 @@ void RivianBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMS_state = (rx_frame.data.u8[0] & 0x03);
       break;
-    case 0x55B:  //Temperatures
+    case 0x55B:  //SOC [Platform CAN]+
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_SOC = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      battery_SOC_average = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       break;
     default:
       break;

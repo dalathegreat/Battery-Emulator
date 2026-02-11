@@ -16,6 +16,9 @@ class RivianHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Voltage, reference: " + String(datalayer_extended.rivian.voltage_reference) + " dV</h4>";
     content += "<h4>Voltage, DCFC contactors: " + String(datalayer_extended.rivian.DCFC_contactor_voltage) + " dV</h4>";
 
+    content += "<h4>SOC, max: " + String(datalayer_extended.rivian.battery_SOC_max) + " pptt</h4>";
+    content += "<h4>SOC, min: " + String(datalayer_extended.rivian.battery_SOC_min) + " pptt</h4>";
+
     if (datalayer_extended.rivian.NACS_charger_detected) {
       content += "<h4>NACS charger detected!</h4>";
     }
@@ -159,6 +162,16 @@ class RivianHtmlRenderer : public BatteryHtmlRenderer {
     }
     if (datalayer_extended.rivian.contactor_DCFC_welded) {
       content += "<h4>DCFC contactor welded</h4>";
+    }
+
+    if (datalayer_extended.rivian.slewrate_potential_violation) {
+      content += "<h4>Slewrate potential violation</h4>";
+    }
+    if (datalayer_extended.rivian.minimum_power_potential_violation) {
+      content += "<h4>Min power potential violation</h4>";
+    }
+    if (datalayer_extended.rivian.operation_limit_violation_warning) {
+      content += "<h4>Operation limit violation warning</h4>";
     }
 
     return content;
