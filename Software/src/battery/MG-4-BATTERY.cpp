@@ -158,11 +158,9 @@ uint16_t Mg4Battery::handle_pid(uint16_t pid, uint32_t value) {
       }
       return POLL_MIN_CELL_TEMPERATURE;
     case POLL_MIN_CELL_TEMPERATURE:
-      // No clue what the scale factor is here.
       datalayer.battery.status.temperature_min_dC = ((int32_t)value - 20000) / 50;
       return POLL_MAX_CELL_TEMPERATURE;
     case POLL_MAX_CELL_TEMPERATURE:
-      // No clue what the scale factor is here.
       datalayer.battery.status.temperature_max_dC = ((int32_t)value - 20000) / 50;
       break;  // End of cycle
   }
