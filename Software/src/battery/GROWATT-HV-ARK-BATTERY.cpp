@@ -94,7 +94,7 @@ void GrowattHvArkBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       const uint16_t total_cells = read_u16_be(rx_frame, 4);
       // const uint16_t modules_series = read_u16_be(rx_frame, 6);
 
-      if (total_cells > 0 && total_cells <= 65535) {
+      if (total_cells > 0) {
         datalayer.battery.info.number_of_cells = total_cells;
       }
       break;
