@@ -16,8 +16,6 @@ class VolvoSpaHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>BECM reported SOH: " + String(datalayer_extended.VolvoPolestar.soh_bms / 100.0) + " %</h4>";
     content += "<h4>BECM supply voltage: " + String(datalayer_extended.VolvoPolestar.BECMsupplyVoltage) + " mV</h4>";
 
-    content += "<h4>HV voltage: " + String(datalayer_extended.VolvoPolestar.BECMBatteryVoltage) + " V</h4>";
-    content += "<h4>HV current: " + String(datalayer_extended.VolvoPolestar.BECMBatteryCurrent) + " A</h4>";
     content += "<h4>Dynamic max voltage: " + String(datalayer_extended.VolvoPolestar.BECMUDynMaxLim) + " V</h4>";
     content += "<h4>Dynamic min voltage: " + String(datalayer_extended.VolvoPolestar.BECMUDynMinLim) + " V</h4>";
 

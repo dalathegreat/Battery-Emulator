@@ -809,15 +809,12 @@ struct DATALAYER_INFO_VOLVO_POLESTAR {
   uint16_t soc_rescaled = 0;
   uint16_t soh_bms = 0;
   uint16_t BECMsupplyVoltage = 12000;
-  uint16_t BECMBatteryVoltage = 0;
   uint16_t BECMUDynMaxLim = 0;
   uint16_t BECMUDynMinLim = 0;
   uint16_t HvBattPwrLimDcha1 = 0;
   uint16_t HvBattPwrLimDchaSoft = 0;
   uint16_t HvBattPwrLimDchaSlowAgi = 0;
   uint16_t HvBattPwrLimChrgSlowAgi = 0;
-
-  int16_t BECMBatteryCurrent = 0;
 
   uint8_t HVSysRlySts = 0;
   uint8_t HVSysDCRlySts1 = 0;

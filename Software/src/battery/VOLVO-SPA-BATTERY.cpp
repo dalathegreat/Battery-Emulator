@@ -16,8 +16,6 @@ void VolvoSpaBattery::
   datalayer_extended.VolvoPolestar.soc_rescaled = datalayer.battery.status.reported_soc;
   datalayer_extended.VolvoPolestar.soh_bms = datalayer.battery.status.soh_pptt;
 
-  datalayer_extended.VolvoPolestar.BECMBatteryVoltage = BATT_U;
-  datalayer_extended.VolvoPolestar.BECMBatteryCurrent = BATT_I;
   datalayer_extended.VolvoPolestar.BECMUDynMaxLim = MAX_U;
   datalayer_extended.VolvoPolestar.BECMUDynMinLim = MIN_U;
 
