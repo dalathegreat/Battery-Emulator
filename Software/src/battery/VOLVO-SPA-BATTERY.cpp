@@ -50,7 +50,7 @@ void VolvoSpaBattery::
   datalayer.battery.status.real_soc = SOC_CALC * 10;  //Add one decimal to make it pptt
   */
 
-  datalayer.battery.status.voltage_dV = BATT_U * 10;
+  datalayer.battery.status.voltage_dV = BATT_U / 10;  //Remove one decimal
   datalayer.battery.status.current_dA = BATT_I * 10;
 
   datalayer.battery.status.max_discharge_power_W = HvBattPwrLimDchaSlowAgi * 1000;  //kW to W
@@ -95,29 +95,20 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x3A:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
-      if ((rx_frame.data.u8[6] & 0x80) == 0x80)
+      if ((rx_frame.data.u8[6] & 0x80) == 0x80) {
         BATT_I = (0 - ((((rx_frame.data.u8[6] & 0x7F) * 256.0 + rx_frame.data.u8[7]) * 0.1) - 1638));
-      else {
-        BATT_I = 0;
-        logging.println("BATT_I not valid");
       }
 
-      if ((rx_frame.data.u8[2] & 0x08) == 0x08)
-        MAX_U = (((rx_frame.data.u8[2] & 0x07) * 256.0 + rx_frame.data.u8[3]) * 0.25);
-      else {
-        //MAX_U = 0;
-        //logging.println("MAX_U not valid");	// Value toggles between true/false from BMS
+      if ((rx_frame.data.u8[2] & 0x08) == 0x08) {
+        MAX_U = ((((rx_frame.data.u8[2] & 0x07) << 8) | rx_frame.data.u8[3]) / 4);
       }
 
-      if ((rx_frame.data.u8[4] & 0x08) == 0x08)
-        MIN_U = (((rx_frame.data.u8[4] & 0x07) * 256.0 + rx_frame.data.u8[5]) * 0.25);
-      else {
-        //MIN_U = 0;
-        //logging.println("MIN_U not valid");	// Value toggles between true/false from BMS
+      if ((rx_frame.data.u8[4] & 0x08) == 0x08) {
+        MIN_U = ((((rx_frame.data.u8[4] & 0x07) << 8) | rx_frame.data.u8[5]) / 4);
       }
 
       if ((rx_frame.data.u8[0] & 0x08) == 0x08) {
-        BATT_U = (((rx_frame.data.u8[0] & 0x07) * 256.0 + rx_frame.data.u8[1]) * 0.25);
+        BATT_U = ((((rx_frame.data.u8[0] & 0x07) << 8) | rx_frame.data.u8[1]) * 25);
       }
 
       if ((rx_frame.data.u8[0] & 0x40) == 0x40)
