@@ -804,10 +804,6 @@ struct DATALAYER_INFO_MEB {
 };
 
 struct DATALAYER_INFO_VOLVO_POLESTAR {
-  uint16_t soc_bms = 0;
-  uint16_t soc_calc = 0;
-  uint16_t soc_rescaled = 0;
-  uint16_t soh_bms = 0;
   uint16_t BECMsupplyVoltage = 12000;
   uint16_t BECMUDynMaxLim = 0;
   uint16_t BECMUDynMinLim = 0;

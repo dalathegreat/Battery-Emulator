@@ -11,11 +11,6 @@ void VolvoSpaBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 
   // Update webserver datalayer
-  datalayer_extended.VolvoPolestar.soc_bms = SOC_BMS;
-  datalayer_extended.VolvoPolestar.soc_calc = SOC_CALC;
-  datalayer_extended.VolvoPolestar.soc_rescaled = datalayer.battery.status.reported_soc;
-  datalayer_extended.VolvoPolestar.soh_bms = datalayer.battery.status.soh_pptt;
-
   datalayer_extended.VolvoPolestar.BECMUDynMaxLim = MAX_U;
   datalayer_extended.VolvoPolestar.BECMUDynMinLim = MIN_U;
 
@@ -40,14 +35,7 @@ void VolvoSpaBattery::
 
   datalayer.battery.status.remaining_capacity_Wh = (datalayer.battery.info.total_capacity_Wh - CHARGE_ENERGY);
 
-  datalayer.battery.status.real_soc = SOC_BMS * 10;  //Add one decimal to make it pptt
-
-  // Use calculated SOC based on remaining_capacity
-  /*
-  SOC_CALC = (datalayer.battery.status.remaining_capacity_Wh / (datalayer.battery.info.total_capacity_Wh / 1000));
-  datalayer.battery.status.real_soc = SOC_CALC * 10;  //Add one decimal to make it pptt
-  */
-
+  datalayer.battery.status.real_soc = SOC_BMS * 10;   //Add one decimal to make it pptt
   datalayer.battery.status.voltage_dV = BATT_U / 10;  //Remove one decimal
   datalayer.battery.status.current_dA = BATT_I * 10;
 
