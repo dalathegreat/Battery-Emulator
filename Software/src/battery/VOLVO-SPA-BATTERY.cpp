@@ -5,7 +5,6 @@
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/common_functions.h"
 #include "../devboard/utils/events.h"
-#include "../devboard/utils/logging.h"
 
 void VolvoSpaBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
@@ -125,11 +124,8 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x413:
-      if ((rx_frame.data.u8[0] & 0x80) == 0x80)
-        BATT_ERR_INDICATION = ((rx_frame.data.u8[0] & 0x40) >> 6);
-      else {
-        BATT_ERR_INDICATION = 0;
-        logging.println("BATT_ERR_INDICATION not valid");
+      if ((rx_frame.data.u8[0] & 0x80) == 0x80) {
+        BATT_ERR_INDICATION = ((rx_frame.data.u8[0] & 0x40) >> 6);  //TODO, do something with this value?
       }
       if ((rx_frame.data.u8[0] & 0x20) == 0x20) {
         BATT_T_MAX = sign_extend_to_int16((((rx_frame.data.u8[2] & 0x1F) << 8) | rx_frame.data.u8[3]), 13);
@@ -140,9 +136,6 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x369:
       if ((rx_frame.data.u8[0] & 0x80) == 0x80) {
         HvBattPwrLimDchaSoft = (((rx_frame.data.u8[6] & 0x03) * 256 + rx_frame.data.u8[6]) >> 2);
-      } else {
-        HvBattPwrLimDchaSoft = 0;
-        logging.println("HvBattPwrLimDchaSoft not valid");
       }
       break;
     case 0x175:
