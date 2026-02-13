@@ -40,11 +40,11 @@ class VolvoSpaBattery : public CanBattery {
   unsigned long previousMillis1s = 0;   // will store last time a 1s CAN Message was send
   unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
 
+  int32_t CHARGE_ENERGY = 0;             //0x1A1
   uint16_t BATT_U = 0;                   //0x3A
   uint16_t MAX_U = 0;                    //0x3A
   uint16_t MIN_U = 0;                    //0x3A
-  float BATT_I = 0;                      //0x3A
-  int32_t CHARGE_ENERGY = 0;             //0x1A1
+  int16_t BATT_I = 0;                    //0x3A
   uint8_t BATT_ERR_INDICATION = 0;       //0x413
   int16_t BATT_T_MAX = 0;                //0x413
   int16_t BATT_T_MIN = 0;                //0x413

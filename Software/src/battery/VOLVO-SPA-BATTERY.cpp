@@ -37,7 +37,7 @@ void VolvoSpaBattery::
 
   datalayer.battery.status.real_soc = SOC_BMS * 10;   //Add one decimal to make it pptt
   datalayer.battery.status.voltage_dV = BATT_U / 10;  //Remove one decimal
-  datalayer.battery.status.current_dA = BATT_I * 10;
+  datalayer.battery.status.current_dA = BATT_I;
 
   datalayer.battery.status.max_discharge_power_W = HvBattPwrLimDchaSlowAgi * 1000;  //kW to W
   datalayer.battery.status.max_charge_power_W = HvBattPwrLimChrgSlowAgi * 1000;     //kW to W
@@ -82,7 +82,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
       if ((rx_frame.data.u8[6] & 0x80) == 0x80) {
-        BATT_I = (0 - ((((rx_frame.data.u8[6] & 0x7F) * 256.0 + rx_frame.data.u8[7]) * 0.1) - 1638));
+        BATT_I = ((((rx_frame.data.u8[6] & 0x7F) << 8) | rx_frame.data.u8[7]) - 16380);
       }
 
       if ((rx_frame.data.u8[2] & 0x08) == 0x08) {
