@@ -9,10 +9,11 @@ bool precharge_control_enabled = false;
 bool precharge_inverter_normally_open_contactor = false;
 uint16_t precharge_max_precharge_time_before_fault = 15000;
 uint16_t Precharge_max_PWM_Freq = 34000;
+uint16_t Precharge_min_PWM_Freq = 5000;
+uint16_t Precharge_default_PWM_Freq = 11000;
+uint8_t Precharge_coarse_narrow_multiplier = 3;
 
 // Hardcoded parameters
-#define Precharge_default_PWM_Freq 11000
-#define Precharge_min_PWM_Freq 5000
 #define Precharge_PWM_Res 8
 #define PWM_Freq 20000  // 20 kHz frequency, beyond audible range
 #define PWM_Precharge_Channel 0
@@ -88,9 +89,9 @@ void handle_precharge_control(unsigned long currentMillis) {
         if (labs(target_voltage - external_voltage) > 150) {
           delta_freq = 2000;
         } else if (labs(target_voltage - external_voltage) > 80) {
-          delta_freq = labs(target_voltage - external_voltage) * 6;
+          delta_freq = labs(target_voltage - external_voltage) * (Precharge_coarse_narrow_multiplier * 2);
         } else {
-          delta_freq = labs(target_voltage - external_voltage) * 3;
+          delta_freq = labs(target_voltage - external_voltage) * Precharge_coarse_narrow_multiplier;
         }
         if (target_voltage > external_voltage) {
           freq += delta_freq;
