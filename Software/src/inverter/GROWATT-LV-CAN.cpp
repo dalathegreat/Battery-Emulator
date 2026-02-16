@@ -12,7 +12,7 @@ The inverter replies data every second (standard frame/decimal)0x301:*/
 void GrowattLvInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
-  cell_delta_mV = datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
+  cell_delta_mV = abs(datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
 
   if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
     ampere_hours_remaining =

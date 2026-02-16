@@ -192,6 +192,7 @@ void BydCanInverter::send_initial_data() {
 }
 
 void BydCanInverter::enable_shunt() {
-  strncpy(datalayer.system.info.shunt_protocol, Name, 63);
+  strncpy(datalayer.system.info.shunt_protocol, Name, 31);
+  datalayer.system.info.shunt_protocol[31] = '\0';
   useAsShunt = true;
 }

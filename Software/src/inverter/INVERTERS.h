@@ -19,12 +19,12 @@ extern InverterProtocol* inverter;
 #include "SMA-BYD-H-CAN.h"
 #include "SMA-BYD-HVS-CAN.h"
 #include "SMA-LV-CAN.h"
-#include "SMA-TRIPOWER-CAN.h"
 #include "SOFAR-CAN.h"
 #include "SOL-ARK-LV-CAN.h"
 #include "SOLAX-CAN.h"
 #include "SOLXPOW-CAN.h"
 #include "SUNGROW-CAN.h"
+#include "VCU-CAN.h"
 
 // Call to initialize the build-time selected inverter. Safe to call even though inverter was not selected.
 bool setup_inverter();

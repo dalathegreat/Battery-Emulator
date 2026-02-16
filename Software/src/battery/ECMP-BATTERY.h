@@ -31,10 +31,10 @@ class EcmpBattery : public CanBattery {
  private:
   EcmpHtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_DV = 4546;
-  static const int MIN_PACK_VOLTAGE_DV = 3210;
+  static const int MIN_PACK_VOLTAGE_DV = 3580;
   static const int MAX_CELL_DEVIATION_MV = 100;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
-  static const int MIN_CELL_VOLTAGE_MV = 2700;
+  static const int MIN_CELL_VOLTAGE_MV = 3280;
 
   unsigned long previousMillis10 = 0;    //- will store last time a 10ms CAN Message was sent
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent

@@ -2,7 +2,8 @@
 #include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
+#include "../datalayer/datalayer_extended.h"     //For "More battery info" webpage
+#include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
 
 /* TODO
@@ -25,7 +26,7 @@ https://github.com/fesch/CanZE/tree/master/app/src/main/assets/ZOE_Ph2
 uint8_t RenaultZoeGen2Battery::calculate_crc_zoe(CAN_frame& rx_frame, uint8_t crc_xor) {
   uint8_t crc = 0;  //init value 0x00
   for (uint8_t j = 0; j < 7; j++) {
-    crc = crctable[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) & 0xFF];
+    crc = crc8_table_SAE_J1850_ZER0[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) & 0xFF];
   }
   return crc ^ crc_xor;
 }
