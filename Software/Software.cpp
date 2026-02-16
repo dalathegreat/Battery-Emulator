@@ -499,7 +499,7 @@ void core_loop(void*) {
           handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
         }
         END_TIME_MEASUREMENT_MAX(10ms, datalayer.system.status.time_10ms_us);
-      } else { //Run 10ms tasks without timing it
+      } else {  //Run 10ms tasks without timing it
         led_exe();
         handle_contactors();  // Take care of startup precharge/contactor closing
         if (precharge_control_enabled) {
