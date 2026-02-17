@@ -41,33 +41,21 @@ struct DATALAYER_INFO_BOLTAMPERA {
 };
 
 struct DATALAYER_INFO_BMWPHEV {
-  uint32_t dtc_codes[32];              // Array of DTC codes (3 bytes each, stored as uint32)
-  uint8_t dtc_status[32];              // Status byte for each DTC
-  unsigned long dtc_last_read_millis;  // Timestamp of last successful read
-
   uint64_t min_cell_voltage_data_age = 0;
   uint64_t max_cell_voltage_data_age = 0;
 
-  int32_t allowable_charge_amps = 0;
-  int32_t allowable_discharge_amps = 0;
-  int32_t iso_safety_int_kohm = 0;  //STAT_ISOWIDERSTAND_INT_WERT
-  int32_t iso_safety_ext_kohm = 0;  //STAT_ISOWIDERSTAND_EXT_STD_WERT
-  int32_t iso_safety_trg_kohm = 0;
-  int32_t iso_safety_ext_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_PLAUS
-  int32_t iso_safety_int_plausible = 0;
-  int32_t iso_safety_trg_plausible = 0;
-  int32_t iso_safety_kohm = 0;          //STAT_R_ISO_ROH_01_WERT
-  int32_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
-
   /** uint16_t */
-  /** Terminal 30 - 12V SME Supply Voltage */
-  uint16_t T30_Voltage = 0;
   /** Min/Max Cell SOH*/
   uint16_t min_soh_state = 0;
   uint16_t max_soh_state = 0;
+  uint16_t iso_safety_int_kohm = 0;  //STAT_ISOWIDERSTAND_INT_WERT
+  uint16_t iso_safety_ext_kohm = 0;  //STAT_ISOWIDERSTAND_EXT_STD_WERT
+  uint16_t iso_safety_trg_kohm = 0;
+  uint16_t iso_safety_kohm = 0;  //STAT_R_ISO_ROH_01_WERT
 
-  int16_t balancing_status = 0;
   int16_t battery_voltage_after_contactor = 0;
+  int16_t allowable_charge_amps = 0;
+  int16_t allowable_discharge_amps = 0;
 
   /** uint8_t */
   /** Status isolation external, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal*/
@@ -100,23 +88,28 @@ struct DATALAYER_INFO_BMWPHEV {
   /** Status cold shutoff valve, 0 OK, 1 Short circuit to GND, 2 Short circuit to 12V, 3 Line break, 6 Driver error, 12 Stuck, 13 Stuck, 15 Invalid Signal*/
   uint8_t ST_cold_shutoff_valve = 0;
   /** Status HVIL, 1 HVIL OK, 0 HVIL disconnected*/
-  uint8_t hvil_status = 0;
+  //uint8_t hvil_status = 0;
   uint8_t battery_request_open_contactors = 0;
   uint8_t battery_request_open_contactors_instantly = 0;
   uint8_t battery_request_open_contactors_fast = 0;
   uint8_t battery_charging_condition_delta = 0;
   uint8_t battery_DC_link_voltage = 0;
-  uint8_t dtc_count;  // Number of DTCs present
+  uint8_t dtc_count;                     // Number of DTCs present
+  uint8_t iso_safety_ext_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_PLAUS
+  uint8_t iso_safety_int_plausible = 0;
+  uint8_t iso_safety_trg_plausible = 0;
+  uint8_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
+  uint8_t balancing_status = 0;
 
-  bool dtc_read_in_progress;        // Flag to prevent concurrent reads
-  bool dtc_read_failed;             // Indicates last read attempt failed
+  bool dtc_read_failed = false;     // Indicates last read attempt failed
   bool UserRequestDTCreset = false; /** User requesting DTC reset via WebUI*/
   bool UserRequestBMSReset = false; /** User requesting BMS reset via WebUI*/
 };
 
 struct DATALAYER_INFO_BMWIX {
-  uint32_t dtc_codes[32];              // Array of DTC codes (3 bytes each, stored as uint32)
-  uint8_t dtc_status[32];              // Status byte for each DTC
+  uint32_t
+      dtc_codes[32];  // Array of DTC codes (3 bytes each, stored as uint32) (Same array used on other BMW integrations)
+  uint8_t dtc_status[32];              // Status byte for each DTC (Same array used on other BMW integrations)
   unsigned long dtc_last_read_millis;  // Timestamp of last successful read
   uint8_t dtc_count;                   // Number of DTCs present
   bool dtc_read_in_progress;           // Flag to prevent concurrent reads
