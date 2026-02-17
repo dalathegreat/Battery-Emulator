@@ -28,6 +28,7 @@ void setup_shunt();
 #include "FORD-MACH-E-BATTERY.h"
 #include "FOXESS-BATTERY.h"
 #include "GEELY-GEOMETRY-C-BATTERY.h"
+#include "GEELY-SEA-BATTERY.h"
 #include "GROWATT-HV-ARK-BATTERY.h"
 #include "HYUNDAI-IONIQ-28-BATTERY.h"
 #include "IMIEV-CZERO-ION-BATTERY.h"
