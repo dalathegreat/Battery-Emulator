@@ -294,6 +294,11 @@ const char* BOOL_SETTINGS[] = {
     nullptr
 };
 
+const char* DEFAULT_TRUE_BOOL_SETTINGS[] = {
+    "WIFIAPENABLED",
+    nullptr
+};
+
 extern bool settingsUpdated;
 
 extern bool contactor_control_enabled;
@@ -359,6 +364,12 @@ TwsRoute settingsHandler("/api/settings", new TwsJsonGetFunc([](TwsRequest& requ
     }
     for(int i=0;BOOL_SETTINGS[i]!=nullptr;i++) {
         sets[BOOL_SETTINGS[i]] = settings.getBool(BOOL_SETTINGS[i], false);
+
+        for(int j=0;DEFAULT_TRUE_BOOL_SETTINGS[j]!=nullptr;j++) {
+            if(strcmp(BOOL_SETTINGS[i], DEFAULT_TRUE_BOOL_SETTINGS[j])==0) {
+                sets[BOOL_SETTINGS[i]] = settings.getBool(BOOL_SETTINGS[i], true);
+            }
+        }
     }
 
     doc["reboot_required"] = settingsUpdated;
