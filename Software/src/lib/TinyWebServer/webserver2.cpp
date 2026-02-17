@@ -35,6 +35,8 @@ extern void debug_logger_processor(String &content);
 
 int can_dumper_connection_id = 0;
 
+// Dummy var still used elsewhere
+bool ota_active = false;
 
 TwsRequestWriterCallbackFunction StringWriter(std::shared_ptr<String> &response) {
     return [response = std::move(response)](TwsRequest &req, int alreadyWritten) {
