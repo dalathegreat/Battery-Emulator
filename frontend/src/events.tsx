@@ -12,9 +12,16 @@ export function Events() {
         window.latest_event_time = Math.max(...data?.events.map((ev: any) => (data._now - ev.age)), 0);
     }
     
+    const clearEvents = () => {
+        if(confirm('Clear all events?')) {
+            fetch(import.meta.env.VITE_API_BASE + '/api/events/clear', { method: 'POST' });
+        }
+    };
+
     return ( <>
         <h2>Events</h2>
         <div class="panel">
+            <button onClick={clearEvents}>Clear events</button>
             <table>
                 <thead>
                     <tr>
