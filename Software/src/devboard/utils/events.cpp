@@ -76,6 +76,7 @@ void init_events(void) {
   events.entries[EVENT_SOH_DIFFERENCE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOH_LOW].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_HVIL_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_LOW_HEAP_MEMORY].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_PRECHARGE_FAILURE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_AUTOMATIC_PRECHARGE_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_INTERNAL_OPEN_FAULT].level = EVENT_LEVEL_ERROR;
@@ -273,6 +274,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_HVIL_FAILURE:
       return "Battery interlock loop broken. Check that high voltage / low voltage connectors are seated. "
              "Battery will be disabled!";
+    case EVENT_LOW_HEAP_MEMORY:
+      return "Memory almost full. Inform developers.";
     case EVENT_PRECHARGE_FAILURE:
       return "Battery failed to precharge. Check that capacitor is seated on high voltage output.";
     case EVENT_AUTOMATIC_PRECHARGE_FAILURE:

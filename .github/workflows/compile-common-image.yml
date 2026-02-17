@@ -45,6 +45,9 @@ jobs:
           - board_name: "BECom"
             pio_env: "BECom_330"
             artifact_name: "battery-emulator-becom"
+          - board_name: "Compiler warning check"
+            pio_env: "compiler_warning_check"
+            artifact_name: "battery-dummy-check"
 
     steps:
     - uses: actions/checkout@v6

@@ -68,6 +68,8 @@ const char* name_for_battery_type(BatteryType type) {
       return FoxessBattery::Name;
     case BatteryType::GeelyGeometryC:
       return GeelyGeometryCBattery::Name;
+    case BatteryType::GrowattHvArk:
+      return GrowattHvArkBattery::Name;
     case BatteryType::HyundaiIoniq28:
       return HyundaiIoniq28Battery::Name;
     case BatteryType::OrionBms:
@@ -181,6 +183,8 @@ Battery* create_battery(BatteryType type) {
       return new FoxessBattery();
     case BatteryType::GeelyGeometryC:
       return new GeelyGeometryCBattery();
+    case BatteryType::GrowattHvArk:
+      return new GrowattHvArkBattery();
     case BatteryType::HyundaiIoniq28:
       return new HyundaiIoniq28Battery();
     case BatteryType::OrionBms:
@@ -287,6 +291,9 @@ void setup_battery() {
                                            &datalayer.system.status.battery2_allowed_contactor_closing,
                                            can_config.battery_double);
         break;
+      case BatteryType::Pylon:
+        battery2 = new PylonBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+        break;
       case BatteryType::SantaFePhev:
         battery2 = new SantaFePhevBattery(&datalayer.battery2, can_config.battery_double);
         break;
@@ -342,6 +349,7 @@ uint16_t user_selected_tesla_GTW_chassisType = 2;
 uint16_t user_selected_tesla_GTW_packEnergy = 1;
 /* User-selected EGMP+others settings */
 bool user_selected_use_estimated_SOC = false;
+uint16_t user_selected_pylon_baudrate = 500;
 
 // Use 0V for user selected cell/pack voltage defaults (On boot will be replaced with saved values from NVM)
 uint16_t user_selected_max_pack_voltage_dV = 0;

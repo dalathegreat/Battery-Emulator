@@ -254,6 +254,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "SUNGROW_MODEL") {
     return options_from_map(settings.getUInt("INVBTYPE", 1), sungrow_models);  // Default: SBR096
   }
+
 #ifdef HW_LILYGO2CAN
   if (var == "GPIOOPT1") {
     return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
@@ -757,6 +758,9 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "PYLONORDER") {
     return settings.getBool("PYLONORDER") ? "checked" : "";
   }
+  if (var == "PYLONBAUD") {
+    return String(settings.getUInt("PYLONBAUD", 500));
+  }
 
   if (var == "INVCELLS") {
     return String(settings.getUInt("INVCELLS", 0));
@@ -910,7 +914,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     function editComplete(){if(this.status==200){window.location.reload();}}
 
     function editError(){alert('Invalid input');}
-
         function editRecoveryMode(){var value=prompt('Extremely dangerous option. Emergency charge allows recovery for a severely undercharged battery. Limit charge power to avoid cell rupture and possible fire. Start 30min recovery process? (0 = No, 1 = Yes):');
           if(value!==null){if(value==0||value==1){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/enableRecoveryMode?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1.');}}}
@@ -1053,7 +1056,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-SHUNTTYPE="0"] .if-shunt { display: none; }
 
     form .if-cbms { display: none; }
-    form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms, form[data-battery="41"] .if-cbms {
+    form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms, form[data-battery="41"] .if-cbms, form[data-battery="48"] .if-cbms, form[data-battery="49"] .if-cbms {
       display: contents;
     }
 
@@ -1124,7 +1127,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     }
 
     form .if-pylon { display: none; }
+    form[data-battery="22"] .if-pylon,
     form[data-inverter="10"] .if-pylon {
+      display: contents;
+    }
+
+    form .if-pylon-inverter { display: none; }
+    form[data-inverter="10"] .if-pylon-inverter {
+      display: contents;
+    }
+
+    form .if-pylon-battery { display: none; }
+    form[data-battery="22"] .if-pylon-battery {
       display: contents;
     }
 
@@ -1139,12 +1153,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-inverter="18"] .if-solax {
       display: contents;
     }
-
+      
     form .if-sungrow { display: none; }
     form[data-inverter="21"] .if-sungrow {
       display: contents;
     }
-
+      
     form .if-kostal { display: none; }
     form[data-inverter="9"] .if-kostal {
       display: contents;
@@ -1256,6 +1270,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
+        <div class="if-pylon-battery">
+        <label>Pylon CAN baudrate: </label>
+        <select name='PYLONBAUD' title="Select CAN bus baudrate (250kbps for most batteries, 500kbps for some configurations)">
+          <option value='250' %PYLONBAUD250%>250 kbps</option>
+          <option value='500' %PYLONBAUD500%>500 kbps</option>
+        </select>
+        </div>
+
         <div class="if-cbms">
         <label>Battery max design voltage (V): </label>
         <input name='BATTPVMAX' pattern="[0-9]+(\.[0-9]+)?" type='text' value='%BATTPVMAX%'   
@@ -1319,7 +1341,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input name='SOFAR_ID' type='text' value="%SOFAR_ID%" pattern="[0-9]{1,2}" />
         </div>
 
-        <div class="if-pylon">
+        <div class="if-pylon-inverter">
         <label>Pylon, send group (0-1): </label>
         <input name='PYLONSEND' type='text' value="%PYLONSEND%" pattern="[0-9]+" 
         title="Select if we should send ###0 or ###1 CAN messages, useful for multi-battery setups or ID problems" />
@@ -1368,7 +1390,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Battery model: </label>
         <select name='INVBTYPE'>%SUNGROW_MODEL%</select>
         </div>
-
+        
         <div class="if-kostal if-solax">
         <label>Prevent inverter opening contactors: </label>
         <input type='checkbox' name='INVICNT' value='on' %INVICNT% />

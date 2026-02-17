@@ -53,7 +53,8 @@ enum class BatteryType {
   CmpSmartCar = 45,
   ThinkCity = 47,
   TeslaLegacy = 48,
-  GeelySea = 49,
+  GrowattHvArk = 49,
+  GeelySea = 50,
   Highest
 };
 
