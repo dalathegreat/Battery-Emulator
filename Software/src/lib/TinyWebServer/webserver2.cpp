@@ -953,6 +953,14 @@ TwsRoute *default_handlers[] = {
             ev["message"] = get_event_message_string(event_handle);
         }
     })),
+    new TwsRoute("/api/events/clear", new TwsRequestHandlerFunc([](TwsRequest& request) {
+        if(!request.is_post()) {
+            request.write_fully(HTTP_405);
+            return;
+        }
+        reset_all_events();
+        request.write_fully(HTTP_204);
+    })),
     new TwsRoute("/api/log", new TwsRequestHandlerFunc([](TwsRequest& request) {
         request.write_fully("HTTP/1.1 200 OK\r\n"
                       "Connection: close\r\n"
