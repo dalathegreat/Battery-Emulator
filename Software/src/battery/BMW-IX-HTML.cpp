@@ -4,18 +4,34 @@
 String BmwIXHtmlRenderer::getDTCDescription(uint32_t code) {
   switch (code) {
 #ifndef SMALL_FLASH_DEVICE
+    case 0x020700:
+      return "SME: Transport mode active";
+    case 0x020708:
+      return "SME: Control unit is not encoded";
+    case 0x020709:
+      return "SME: Encoded data does not match vehicle";
+    case 0x020740:
+      return "SME, voltage supply: Undervoltage";
     case 0x020780:
       return "SME: Certificates (Type 1) not ready";
+    case 0x020785:
+      return "SME: Control unit not in field mode";
     case 0x21F001:
       return "High-voltage battery unit, coolant shutoff valve: Line disconnection";
     case 0x21F00F:
       return "High-voltage battery unit, coolant shutoff valve: Line disconnection";
+    case 0x21F121:
+      return "High-voltage battery unit, control unit: internal defective alarm function";
     case 0x21F306:
       return "High-voltage battery unit, control unit, idle time estimation: Estimation failed";
     case 0x21F37E:
       return "Impact detection: Crash detected due to ACSM signal";
     case 0x21F38F:
       return "SME: internal control unit errors (Group fault software)";
+    case 0x21F393:
+      return "High-voltage battery unit, multiple fault: Transport restricting fault memory active";
+    case 0x21F3F0:
+      return "High-voltage battery unit: Expansion of the operating range for the state of charge active";
     case 0x21F436:
       return "High-voltage battery unit, high-voltage safety battery terminal: High-voltage-minus not disconnected due "
              "to unsuccessful actuation";
