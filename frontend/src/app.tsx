@@ -46,10 +46,13 @@ export function App() {
 
   function handlePause(ev: Event) {
     ev.preventDefault();
+    
+    const target = ev.target as HTMLInputElement | null;
+    const shouldPause = target?.type === 'checkbox' ? target.checked : !status?.pause;
 
     fetch(import.meta.env.VITE_API_BASE + '/api/pause', {
         method: 'POST',
-        body: ev.target.checked ? "1" : "0",
+        body: shouldPause ? "1" : "0",
         mode: 'no-cors', // don't care about the response
     }).then(() => {
       // Trigger a data reload
