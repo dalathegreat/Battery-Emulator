@@ -127,6 +127,7 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       pack_current_dA = sign_extend_to_int16((((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1]), 12);
       pack_current_dA = pack_current_dA + 4;
       break;
+      /*
     case 0x145:  //100ms EX30+Zeekr
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
@@ -205,6 +206,7 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x5D1:  //Zeekr
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
+      */
     case 0x635:  //Diag
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
