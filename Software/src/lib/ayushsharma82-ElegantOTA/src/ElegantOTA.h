@@ -20,14 +20,10 @@ _____ _                        _    ___ _____  _
 #define ElegantOTA_h
 
 #include "Arduino.h"
-#include "stdlib_noniso.h"
 #include "elop.h"
 
-#include <functional>
-#include "FS.h"
 #include "Update.h"
 #include "StreamString.h"
-#include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
 #include "../../ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #define ELEGANTOTA_WEBSERVER AsyncWebServer
 
@@ -40,11 +36,8 @@ class ElegantOTAClass{
   public:
     ElegantOTAClass();
 
-    void begin(ELEGANTOTA_WEBSERVER *server, const char * username = "", const char * password = "");
+    void begin(ELEGANTOTA_WEBSERVER *server);
 
-    void setAuth(const char * username, const char * password);
-    void clearAuth();
-    void setAutoReboot(bool enable);
     void loop();
 
     void onStart(std::function<void()> callable);
@@ -53,12 +46,6 @@ class ElegantOTAClass{
     
   private:
     ELEGANTOTA_WEBSERVER *_server;
-
-    bool _authenticate;
-    String _username;
-    String _password;
-
-    bool _auto_reboot = true;
     bool _reboot = false;
     unsigned long _reboot_request_millis = 0;
 
