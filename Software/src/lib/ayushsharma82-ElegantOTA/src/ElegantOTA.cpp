@@ -2,24 +2,16 @@
 
 ElegantOTAClass::ElegantOTAClass(){}
 
-void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username, const char * password){
+void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server){
   _server = server;
 
-  setAuth(username, password);
-
     _server->on("/update", HTTP_GET, [&](AsyncWebServerRequest *request){
-      if(_authenticate && !request->authenticate(_username.c_str(), _password.c_str())){
-        return request->requestAuthentication();
-      }
       AsyncWebServerResponse *response = request->beginResponse(200, "text/html", ELEGANT_HTML, sizeof(ELEGANT_HTML));
       response->addHeader("Content-Encoding", "gzip");
       request->send(response);
     });
 
     _server->on("/ota/start", HTTP_GET, [&](AsyncWebServerRequest *request) {
-      if (_authenticate && !request->authenticate(_username.c_str(), _password.c_str())) {
-        return request->requestAuthentication();
-      }
 
       // Get header x-ota-mode value, if present
       OTA_Mode mode = OTA_MODE_FIRMWARE;
@@ -37,7 +29,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
       if (request->hasParam("hash")) {
         String hash = request->getParam("hash")->value();
         if (!Update.setMD5(hash.c_str())) {
-          return request->send(400, "text/plain", "MD5 parameter invalid");
+          return request->send(400, "text/plain", "MD5 param invalid");
         }
       }
 
@@ -57,9 +49,6 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
     });
 
     _server->on("/ota/upload", HTTP_POST, [&](AsyncWebServerRequest *request) {
-        if(_authenticate && !request->authenticate(_username.c_str(), _password.c_str())){
-          return request->requestAuthentication();
-        }
         // Post-OTA update callback
         if (postUpdateCallback != NULL) postUpdateCallback(!Update.hasError());
         AsyncWebServerResponse *response = request->beginResponse((Update.hasError()) ? 400 : 200, "text/plain", (Update.hasError()) ? _update_error_str.c_str() : "OK");
@@ -68,19 +57,11 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
         request->send(response);
         // Set reboot flag
         if (!Update.hasError()) {
-          if (_auto_reboot) {
             _reboot_request_millis = millis();
             _reboot = true;
-          }
         }
     }, [&](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
         //Upload handler chunks in data
-        if(_authenticate){
-            if(!request->authenticate(_username.c_str(), _password.c_str())){
-                return request->requestAuthentication();
-            }
-        }
-
         if (!index) {
           // Reset progress size on first frame
           _current_progress_size = 0;
@@ -89,7 +70,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
         // Write chunked data to the free sketch space
         if(len){
             if (Update.write(data, len) != len) {
-                return request->send(400, "text/plain", "Failed to write chunked data to free space");
+                return request->send(400, "text/plain", "Fail write chunk data");
             }
             _current_progress_size += len;
             // Progress update callback
@@ -109,20 +90,6 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
         }
     });
 
-}
-
-void ElegantOTAClass::setAuth(const char * username, const char * password){
-  _username = username;
-  _password = password;
-  _authenticate = _username.length() && _password.length();
-}
-
-void ElegantOTAClass::clearAuth(){
-  _authenticate = false;
-}
-
-void ElegantOTAClass::setAutoReboot(bool enable){
-  _auto_reboot = enable;
 }
 
 void ElegantOTAClass::loop() {
