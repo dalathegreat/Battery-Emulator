@@ -3,6 +3,7 @@
 
 String BmwIXHtmlRenderer::getDTCDescription(uint32_t code) {
   switch (code) {
+#ifndef SMALL_FLASH_DEVICE
     case 0x020780:
       return "SME: Certificates (Type 1) not ready";
     case 0x21F001:
@@ -37,6 +38,10 @@ String BmwIXHtmlRenderer::getDTCDescription(uint32_t code) {
 
     default:
       return "";
+#else
+    default:
+      return "Current BE hardware does not support details. Please upgrade to large flash BE";  // Detailed DTC descriptions not available on 4MB low flash devices. The above text takes up a massive amount of flash!
+#endif
   }
 }
 
