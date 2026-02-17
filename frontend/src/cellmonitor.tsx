@@ -11,10 +11,13 @@ export function CellMonitor() {
         <h2>Cell monitor</h2>
 
         { (data?.battery ?? []).map((battery: any, idx: number) => {
-            const max = Math.max(...battery.voltages, 0);
-            const min = Math.min(...battery.voltages, 9999);
+            const cells = battery.voltages
+                .map((v: number, i: number) => ({v, i}))
+                .filter((c: any) => c.v > 0);
+            const max = Math.max(...cells.map((c: any) => c.v), 0);
+            const min = Math.min(...cells.map((c: any) => c.v), 9999);
             const deviation = max - min;
-        
+
             return (
                 <>
                     <div class="panel">
@@ -22,7 +25,7 @@ export function CellMonitor() {
                         <div class="stats">
                             <div class="stat">
                                 <span>COUNT</span>
-                                { battery.voltages.length }
+                                { cells.length }
                             </div>
                             <div class="stat">
                                 <span>MINIMUM</span>
@@ -44,32 +47,31 @@ export function CellMonitor() {
                     </div>
 
                     <div class="cell-bars">
-                        { battery.voltages.map((v: number, k: number) => (
-                            v > 0 &&
-                            <div class="cell-bars__bar" 
-                                key={k} 
-                                data-sel={ selectedCell===(idx*1000 + k) || undefined }
-                                data-min={ v===min || undefined }
-                                data-max={ v===max || undefined }
-                                onMouseEnter={ (_ev)=>{ setSelectedCell(idx*1000 + k) } }
-                                onMouseLeave={ (_ev)=>{ setSelectedCell(null) } }
-                                style={ {height: (v-(min-20))*(200/(deviation+40))} }
+                        { cells.map((c: any) => (
+                            <div class="cell-bars__bar"
+                                key={c.i}
+                                data-sel={ selectedCell===(idx*1000 + c.i) || undefined }
+                                data-min={ c.v===min || undefined }
+                                data-max={ c.v===max || undefined }
+                                onMouseEnter={ ()=>{ setSelectedCell(idx*1000 + c.i) } }
+                                onMouseLeave={ ()=>{ setSelectedCell(null) } }
+                                style={ {height: (c.v-(min-20))*(200/(deviation+40))} }
                                 ></div>
                         ))}
                     </div>
 
                     <div class="cell-grid">
-                        { battery.voltages.map((v: number, k: number) => (
-                            <div class="cell-grid__cell" 
-                                key={k} 
-                                data-sel={ selectedCell===(idx*1000 + k) || undefined }
-                                data-min={ v===min || undefined }
-                                data-max={ v===max || undefined }
-                                onMouseEnter={ (_ev)=>{ setSelectedCell(idx*1000 + k) } }
-                                onMouseLeave={ (_ev)=>{ setSelectedCell(null) } }
+                        { cells.map((c: any, k: number) => (
+                            <div class="cell-grid__cell"
+                                key={c.i}
+                                data-sel={ selectedCell===(idx*1000 + c.i) || undefined }
+                                data-min={ c.v===min || undefined }
+                                data-max={ c.v===max || undefined }
+                                onMouseEnter={ ()=>{ setSelectedCell(idx*1000 + c.i) } }
+                                onMouseLeave={ ()=>{ setSelectedCell(null) } }
                                 >
                                 Cell {k+1}<br />
-                                { v || '-' } mV
+                                { c.v } mV
                             </div>
                         ))}
                     </div>
