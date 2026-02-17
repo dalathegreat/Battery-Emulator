@@ -173,6 +173,7 @@ void Mg4Battery::setup(void) {  // Performs one time setup at startup
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
 
+  datalayer.battery.info.chemistry = user_selected_battery_chemistry;
   datalayer.battery.info.number_of_cells = 104;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 
