@@ -155,3 +155,10 @@ export function textPatternField(label: string, name: string, pattern: string) {
         <input type="text" name={ name } pattern={ pattern || undefined } />
     </div>;
 }
+
+export function passwordField(label: string, name: string) {
+    return <div class="form-row">
+        <label>{ label }</label>
+        <input type="password" name={ name } placeholder="unchanged" />
+    </div>;
+}
