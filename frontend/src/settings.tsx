@@ -18,7 +18,7 @@ const INTERFACES = {
 };
 
 export function Settings() {
-    const settings = useGetApi('/api/settings');
+    const settings = useGetApi('/api/internal/settings');
     const [savedSettings, setSavedSettings] = useState<any>(null);
     const [current, setCurrent] = useState<{[index: string]:string}>({});
 
@@ -47,7 +47,7 @@ export function Settings() {
         splitIp(data, 'GATEWAY');
         splitIp(data, 'SUBNET');
 
-        const r = await fetch(import.meta.env.VITE_API_BASE + '/api/settings', {
+        const r = await fetch(import.meta.env.VITE_API_BASE + '/api/internal/settings', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
