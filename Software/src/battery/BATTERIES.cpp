@@ -276,6 +276,9 @@ void setup_battery() {
 
   if (user_selected_second_battery && !battery2) {
     switch (user_selected_battery_type) {
+      case BatteryType::BydAtto3:
+        battery2 = new BydAttoBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+        break;
       case BatteryType::NissanLeaf:
         battery2 = new NissanLeafBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
