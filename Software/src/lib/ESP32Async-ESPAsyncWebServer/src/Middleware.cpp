@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright 2016-2025 Hristo Gochkov, Mathieu Carbou, Emil Muratov
 
-#include "WebAuthentication.h"
 #include "ESPAsyncWebServer.h"
 
 AsyncMiddlewareChain::~AsyncMiddlewareChain() {
@@ -68,56 +67,6 @@ void AsyncMiddlewareChain::_runChain(AsyncWebServerRequest *request, ArMiddlewar
   return next();
 }
 
-void AsyncAuthenticationMiddleware::setUsername(const char *username) {
-  _username = username;
-  _hasCreds = _username.length() && _credentials.length();
-}
-
-void AsyncAuthenticationMiddleware::setPassword(const char *password) {
-  _credentials = password;
-  _hash = false;
-  _hasCreds = _username.length() && _credentials.length();
-}
-
-void AsyncAuthenticationMiddleware::setPasswordHash(const char *hash) {
-  _credentials = hash;
-  _hash = _credentials.length();
-  _hasCreds = _username.length() && _credentials.length();
-}
-
-bool AsyncAuthenticationMiddleware::generateHash() {
-  // ensure we have all the necessary data
-  if (!_hasCreds) {
-    return false;
-  }
-
-  // if we already have a hash, do nothing
-  if (_hash) {
-    return false;
-  }
-
-  switch (_authMethod) {
-    case AsyncAuthType::AUTH_DIGEST:
-      _credentials = generateDigestHash(_username.c_str(), _credentials.c_str(), _realm.c_str());
-      if (_credentials.length()) {
-        _hash = true;
-        return true;
-      } else {
-        return false;
-      }
-
-    case AsyncAuthType::AUTH_BASIC:
-      _credentials = generateBasicHash(_username.c_str(), _credentials.c_str());
-      if (_credentials.length()) {
-        _hash = true;
-        return true;
-      } else {
-        return false;
-      }
-
-    default: return false;
-  }
-}
 
 bool AsyncAuthenticationMiddleware::allowed(AsyncWebServerRequest *request) const {
   if (_authMethod == AsyncAuthType::AUTH_NONE) {

@@ -3,7 +3,7 @@
 #include "../datalayer/datalayer.h"
 
 /* TODO:
-This protocol has not been tested with any inverter. Proceed with extreme caution.
+This protocol has been tested with SPH10000THBL3-UP Inverter
 Search the file for "TODO" to see all the places that might require work
 
 Growatt BMS CAN-Bus-protocol High Voltage V1.10 2023-11-06
@@ -23,12 +23,45 @@ BMS - Battery Information Collector */
 void GrowattHvInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
+  // ---- Cell/module topology (Growatt frames 0x3150 and 0x3180) ----
+  // Previous revisions hard-coded TOTAL_NUMBER_OF_CELLS=300 and NUMBER_OF_MODULES_IN_SERIES=20.
+  // BMS that provides the actual series cell count in datalayer.battery.info.number_of_cells (e.g. 119).
+  // Use that when it is sane. Keep the hard-coded values as a fallback for integrations that do not populate
+  // number_of_cells (e.g. some Pylon paths set it to a placeholder value).
+  uint16_t total_cells = TOTAL_NUMBER_OF_CELLS;
+  if (datalayer.battery.info.number_of_cells >= 10) {
+    total_cells = (uint16_t)datalayer.battery.info.number_of_cells;
+  }
+  // If we are using a dynamic cell count, a safe default for "modules in series" is 1 unless your integration
+  // provides a more accurate module topology.
+  uint16_t modules_in_series = NUMBER_OF_MODULES_IN_SERIES;
+  if (total_cells != TOTAL_NUMBER_OF_CELLS) {
+    modules_in_series = 1;
+  }
+
   if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
-    ampere_hours_remaining =
-        ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
-         100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
-    ampere_hours_full = ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.status.voltage_dV) *
-                         100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
+    // 0x3140 expects capacity in 10mAh units.
+    // capacity_10mAh = Wh * 1000 / dV   (because V = dV/10, and 10mAh units = Ah*100)
+    const uint16_t v_dV = datalayer.battery.status.voltage_dV;
+
+    uint32_t full_10mAh = (uint32_t)((uint64_t)datalayer.battery.info.total_capacity_Wh * 1000ULL / v_dV);
+
+    uint32_t rem_10mAh = 0;
+    if (datalayer.battery.status.remaining_capacity_Wh > 0) {
+      rem_10mAh = (uint32_t)((uint64_t)datalayer.battery.status.remaining_capacity_Wh * 1000ULL / v_dV);
+    } else {
+      // Fallback: derive remaining capacity from SOC if remaining Wh is not available.
+      const uint32_t soc_pct = (uint32_t)(datalayer.battery.status.reported_soc / 100);  // 0..100
+      rem_10mAh = (uint32_t)((uint64_t)full_10mAh * soc_pct / 100ULL);
+    }
+
+    if (full_10mAh > 0xFFFF)
+      full_10mAh = 0xFFFF;
+    if (rem_10mAh > 0xFFFF)
+      rem_10mAh = 0xFFFF;
+
+    capacity_full_10mAh = (uint16_t)full_10mAh;
+    capacity_remaining_10mAh = (uint16_t)rem_10mAh;
   }
 
   //Map values to CAN messages
@@ -100,11 +133,11 @@ void GrowattHvInverter::
 
   //Battery capacity information
   //Remaining capacity (10 mAh) [0.0 ~ 500000.0 mAH]
-  GROWATT_3140.data.u8[0] = ((ampere_hours_remaining * 100) >> 8);
-  GROWATT_3140.data.u8[1] = ((ampere_hours_remaining * 100) & 0x00FF);
+  GROWATT_3140.data.u8[0] = (capacity_remaining_10mAh >> 8);
+  GROWATT_3140.data.u8[1] = (capacity_remaining_10mAh & 0x00FF);
   //Fully charged capacity (10 mAh) [0.0 ~ 500000.0 mAH]
-  GROWATT_3140.data.u8[2] = ((ampere_hours_full * 100) >> 8);
-  GROWATT_3140.data.u8[3] = ((ampere_hours_full * 100) & 0x00FF);
+  GROWATT_3140.data.u8[2] = (capacity_full_10mAh >> 8);
+  GROWATT_3140.data.u8[3] = (capacity_full_10mAh & 0x00FF);
   //Manufacturer code
   GROWATT_3140.data.u8[4] = MANUFACTURER_ASCII_0;
   GROWATT_3140.data.u8[5] = MANUFACTURER_ASCII_1;
@@ -126,11 +159,11 @@ void GrowattHvInverter::
   GROWATT_3150.data.u8[2] = (datalayer.battery.status.temperature_max_dC >> 8);
   GROWATT_3150.data.u8[3] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
   //Total number of cells
-  GROWATT_3150.data.u8[4] = (TOTAL_NUMBER_OF_CELLS >> 8);
-  GROWATT_3150.data.u8[5] = (TOTAL_NUMBER_OF_CELLS & 0x00FF);
+  GROWATT_3150.data.u8[4] = (total_cells >> 8);
+  GROWATT_3150.data.u8[5] = (total_cells & 0x00FF);
   //Number of modules in series
-  GROWATT_3150.data.u8[6] = (NUMBER_OF_MODULES_IN_SERIES >> 8);
-  GROWATT_3150.data.u8[7] = (NUMBER_OF_MODULES_IN_SERIES & 0x00FF);
+  GROWATT_3150.data.u8[6] = (modules_in_series >> 8);
+  GROWATT_3150.data.u8[7] = (modules_in_series & 0x00FF);
 
   //Battery fault and voltage number information
   //Fault flag bit
@@ -175,8 +208,8 @@ void GrowattHvInverter::
   GROWATT_3180.data.u8[2] = (NUMBER_OF_PACKS_IN_PARALLEL >> 8);
   GROWATT_3180.data.u8[3] = (NUMBER_OF_PACKS_IN_PARALLEL & 0x00FF);
   //Total number of cells (1-65536)
-  GROWATT_3180.data.u8[4] = (TOTAL_NUMBER_OF_CELLS >> 8);
-  GROWATT_3180.data.u8[5] = (TOTAL_NUMBER_OF_CELLS & 0x00FF);
+  GROWATT_3180.data.u8[4] = (total_cells >> 8);
+  GROWATT_3180.data.u8[5] = (total_cells & 0x00FF);
   //Pack number + BIC forward/reverse encoding number
   // Bits 0-3: Pack number
   // Bits 4-9: Max. number of BIC in forward BIC encoding in daisy- chain communication
