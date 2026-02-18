@@ -892,14 +892,12 @@ class TeslaBattery : public CanBattery {
 
 class TeslaModel3YBattery : public TeslaBattery {
  public:
-  TeslaModel3YBattery(battery_chemistry_enum chemistry) { datalayer.battery.info.chemistry = chemistry; }
   static constexpr const char* Name = "Tesla Model 3/Y";
   virtual void setup(void);
 };
 
 class TeslaModelSXBattery : public TeslaBattery {
  public:
-  TeslaModelSXBattery() {}
   static constexpr const char* Name = "Tesla Model S/X";
   virtual void setup(void);
 };
