@@ -351,6 +351,10 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
           UserRequestBalancing = EXECUTING;
           set_event(EVENT_BALANCING_START, 0);
         }
+        if (UserRequestBalancing == EXECUTING) {
+          set_event(EVENT_BALANCING_START, 1);
+          battery_awake = false;
+        }
       }
     }
     // Send 500ms CAN Message
