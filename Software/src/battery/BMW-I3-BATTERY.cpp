@@ -24,6 +24,11 @@ uint8_t BmwI3Battery::increment_alive_counter(uint8_t counter) {
   return counter;
 }
 
+void initiate_offline_balancing() {
+  UserRequestBalancing = REQUESTED;
+  UserRequestBalancingMillis = millis();
+}
+
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
   if (datalayer.system.info.equipment_stop_active == true || UserRequestBalancing == STARTING ||
       UserRequestBalancing == EXECUTING) {
