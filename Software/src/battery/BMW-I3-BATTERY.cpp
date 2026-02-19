@@ -24,7 +24,7 @@ uint8_t BmwI3Battery::increment_alive_counter(uint8_t counter) {
   return counter;
 }
 
-void initiate_offline_balancing() {
+void BmwI3Battery::initiate_offline_balancing() {
   UserRequestBalancing = REQUESTED;
   UserRequestBalancingMillis = millis();
 }
