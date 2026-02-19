@@ -25,7 +25,8 @@ uint8_t BmwI3Battery::increment_alive_counter(uint8_t counter) {
 }
 
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
-  if (datalayer.system.info.equipment_stop_active == true || UserRequestBalancing == STARTING ||  UserRequestBalancing == EXECUTING) {
+  if (datalayer.system.info.equipment_stop_active == true || UserRequestBalancing == STARTING ||
+      UserRequestBalancing == EXECUTING) {
     digitalWrite(wakeup_pin, LOW);  // Turn off wakeup pin
   } else if (millis() > INTERVAL_1_S) {
     digitalWrite(wakeup_pin, HIGH);  // Wake up the battery
@@ -55,7 +56,6 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     datalayer_battery->status.max_discharge_power_W = 0;
 
     datalayer_battery->status.max_charge_power_W = 0;
-
   }
   datalayer_battery->status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
 
@@ -338,10 +338,10 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       if (UserRequestBalancing != NONE) {
         transmit_can_frame(&BMW_3E9);
         cmdState = OFF;
-        if (UserRequestBalancing == REQUESTED && currentMillis - UserRequestBalancingMillis >  20000) {
+        if (UserRequestBalancing == REQUESTED && currentMillis - UserRequestBalancingMillis > 20000) {
           UserRequestBalancing = STARTING;
         }
-        if (UserRequestBalancing == STARTING && currentMillis - UserRequestBalancingMillis >  30000) {
+        if (UserRequestBalancing == STARTING && currentMillis - UserRequestBalancingMillis > 30000) {
           battery_awake = false;
           UserRequestBalancing = EXECUTING;
           set_event(EVENT_BALANCING_START, 0);
@@ -462,7 +462,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
           cmdState = SOC;  //jump back to normal polling
           break;
         case OFF:
-          break;          
+          break;
         default:
           //Should never end up here
           cmdState = SOC;
