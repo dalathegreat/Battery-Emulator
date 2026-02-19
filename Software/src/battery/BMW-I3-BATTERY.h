@@ -35,6 +35,12 @@ class BmwI3Battery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "BMW i3";
 
+  bool supports_offline_balancing() { return true; }
+  void initiate_offline_balancing() { 
+    UserRequestBalancing = REQUESTED; 
+    UserRequestBalancingMillis = millis();
+  }
+  
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
 
@@ -72,6 +78,9 @@ class BmwI3Battery : public CanBattery {
 
  private:
   bool UserRequestDTCreset = false;
+  enum BalancingState { NONE, REQUESTED, STARTING, EXECUTING };
+  BalancingState UserRequestBalancing = NONE;
+  unsigned long UserRequestBalancingMillis = 0;
 
   const int MAX_CELL_VOLTAGE_60AH = 4110;   // Battery is put into emergency stop if one cell goes over this value
   const int MIN_CELL_VOLTAGE_60AH = 2700;   // Battery is put into emergency stop if one cell goes below this value
@@ -114,7 +123,7 @@ class BmwI3Battery : public CanBattery {
   enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
   BatterySize detectedBattery = BATTERY_60AH;
 
-  enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST, CLEAR_DTC };
+  enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST, CLEAR_DTC, OFF };
 
   CmdState cmdState = SOC;
 
@@ -207,6 +216,7 @@ class BmwI3Battery : public CanBattery {
                                         .data = {0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF}};
   CAN_frame BMW_3E5 = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x3E5, .data = {0xFC, 0xFF, 0xFF}};
   CAN_frame BMW_3E8 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x3E8, .data = {0xF0, 0xFF}};  //1000ms OBD reset
+  CAN_frame BMW_3E9 = {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3E9, .data = {0xB0, 0x81, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00}};  
   CAN_frame BMW_3EC = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,

@@ -25,7 +25,7 @@ uint8_t BmwI3Battery::increment_alive_counter(uint8_t counter) {
 }
 
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
-  if (datalayer.system.info.equipment_stop_active == true) {
+  if (datalayer.system.info.equipment_stop_active == true || UserRequestBalancing == STARTING ||  UserRequestBalancing == EXECUTING) {
     digitalWrite(wakeup_pin, LOW);  // Turn off wakeup pin
   } else if (millis() > INTERVAL_1_S) {
     digitalWrite(wakeup_pin, HIGH);  // Wake up the battery
@@ -47,10 +47,16 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
 
   datalayer_battery->status.soh_pptt = battery_soh * 100;
 
-  datalayer_battery->status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
+  if (UserRequestBalancing == NONE) {
+    datalayer_battery->status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
 
-  datalayer_battery->status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
+    datalayer_battery->status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
+  } else {
+    datalayer_battery->status.max_discharge_power_W = 0;
 
+    datalayer_battery->status.max_charge_power_W = 0;
+
+  }
   datalayer_battery->status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
 
   datalayer_battery->status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
@@ -328,6 +334,19 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       alive_counter_200ms = increment_alive_counter(alive_counter_200ms);
 
       transmit_can_frame(&BMW_19B);
+
+      if (UserRequestBalancing != NONE) {
+        transmit_can_frame(&BMW_3E9);
+        cmdState = OFF;
+        if (UserRequestBalancing == REQUESTED && currentMillis - UserRequestBalancingMillis >  20000) {
+          UserRequestBalancing = STARTING;
+        }
+        if (UserRequestBalancing == STARTING && currentMillis - UserRequestBalancingMillis >  30000) {
+          battery_awake = false;
+          UserRequestBalancing = EXECUTING;
+          set_event(EVENT_BALANCING_START, 0);
+        }
+      }
     }
     // Send 500ms CAN Message
     if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
@@ -442,6 +461,8 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
           transmit_can_frame(&BMW_6F1_CLEAR_DTC);
           cmdState = SOC;  //jump back to normal polling
           break;
+        case OFF:
+          break;          
         default:
           //Should never end up here
           cmdState = SOC;
