@@ -4,6 +4,7 @@
 #include <vector>
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
+#include "../../battery/Shunt.h"
 #include "../../charger/CHARGERS.h"
 #include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
@@ -11,6 +12,7 @@
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
+#include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../sdcard/sdcard.h"
@@ -187,8 +189,11 @@ void init_webserver() {
   });
 
   // Route for root / web page
-  def_route_with_auth("/", server, HTTP_GET,
-                      [](AsyncWebServerRequest* request) { request->send(200, "text/html", index_html, processor); });
+  def_route_with_auth("/", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    // Clear OTA active flag as a safeguard in case onOTAEnd() wasn't called
+    ota_active = false;
+    request->send(200, "text/html", index_html, processor);
+  });
 
   // Route for going to settings web page
   def_route_with_auth("/settings", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -388,233 +393,117 @@ void init_webserver() {
     request->send(200, "text/html", "OK");
   });
 
-  struct BoolSetting {
-    const char* name;
-    bool existingValue;
-    bool newValue;
+  const char* boolSettingNames[] = {
+      "DBLBTR",        "CNTCTRL",      "CNTCTRLDBL",  "PWMCNTCTRL",   "PERBMSRESET",  "SDLOGENABLED", "STATICIP",
+      "REMBMSRESET",   "EXTPRECHARGE", "USBENABLED",  "CANLOGUSB",    "WEBENABLED",   "CANFDASCAN",   "CANLOGSD",
+      "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",   "HADISC",       "MQTTTOPICS",   "MQTTCELLV",    "INVICNT",
+      "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED", "PYLONOFFSET",  "PYLONORDER",
+      "DEYEBYD",       "NCCONTACTOR",  "TRIBTR",      "CNTCTRLTRI",
   };
 
-  const char* boolSettingNames[] = {
-      "DBLBTR",       "CNTCTRL",      "CNTCTRLDBL",    "PWMCNTCTRL",  "PERBMSRESET", "SDLOGENABLED",
-      "STATICIP",     "REMBMSRESET",  "EXTPRECHARGE",  "USBENABLED",  "CANLOGUSB",   "WEBENABLED",
-      "CANFDASCAN",   "CANLOGSD",     "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC",   "HADISC",
-      "MQTTTOPICS",   "MQTTCELLV",    "INVICNT",       "GTWRHD",      "DIGITALHVIL", "PERFPROFILE",
-      "INTERLOCKREQ", "SOCESTIMATED", "PYLONOFFSET",   "PYLONORDER",  "DEYEBYD",     "NCCONTACTOR",
+  const char* uintSettingNames[] = {
+      "BATTCVMAX", "BATTCVMIN",  "MAXPRETIME", "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER", "CHGPOWER",
+      "LOCALIP1",  "LOCALIP2",   "LOCALIP3",   "LOCALIP4",   "GATEWAY1",    "GATEWAY2",  "GATEWAY3",
+      "GATEWAY4",  "SUBNET1",    "SUBNET2",    "SUBNET3",    "SUBNET4",     "MQTTPORT",  "MQTTTIMEOUT",
+      "SOFAR_ID",  "PYLONSEND",  "INVCELLS",   "INVMODULES", "INVCELLSPER", "INVVLEVEL", "INVCAPACITY",
+      "INVBTYPE",  "CANFREQ",    "CANFDFREQ",  "PRECHGMS",   "PWMFREQ",     "PWMHOLD",   "GTWCOUNTRY",
+      "GTWMAPREG", "GTWCHASSIS", "GTWPACK",    "LEDMODE",    "GPIOOPT1",    "GPIOOPT2",  "GPIOOPT3",
   };
+
+  const char* stringSettingNames[] = {"APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
+                                      "MQTTPASSWORD", "MQTTTOPIC",  "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID"};
 
   // Handles the form POST from UI to save settings of the common image
-  server.on("/saveSettings", HTTP_POST, [boolSettingNames](AsyncWebServerRequest* request) {
-    BatteryEmulatorSettingsStore settings;
+  server.on("/saveSettings", HTTP_POST,
+            [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
+              BatteryEmulatorSettingsStore settings;
 
-    std::vector<BoolSetting> boolSettings;
+              int numParams = request->params();
+              for (int i = 0; i < numParams; i++) {
+                auto p = request->getParam(i);
+                if (p->name() == "inverter") {
+                  auto type = static_cast<InverterProtocolType>(atoi(p->value().c_str()));
+                  settings.saveUInt("INVTYPE", (int)type);
+                } else if (p->name() == "INVCOMM") {
+                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                  settings.saveUInt("INVCOMM", (int)type);
+                } else if (p->name() == "battery") {
+                  auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
+                  settings.saveUInt("BATTTYPE", (int)type);
+                } else if (p->name() == "BATTCHEM") {
+                  auto type = static_cast<battery_chemistry_enum>(atoi(p->value().c_str()));
+                  settings.saveUInt("BATTCHEM", (int)type);
+                } else if (p->name() == "BATTCOMM") {
+                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                  settings.saveUInt("BATTCOMM", (int)type);
+                } else if (p->name() == "BATTPVMAX") {
+                  auto type = p->value().toFloat() * 10.0f;
+                  settings.saveUInt("BATTPVMAX", (int)type);
+                } else if (p->name() == "BATTPVMIN") {
+                  auto type = p->value().toFloat() * 10.0f;
+                  settings.saveUInt("BATTPVMIN", (int)type);
+                } else if (p->name() == "charger") {
+                  auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
+                  settings.saveUInt("CHGTYPE", (int)type);
+                } else if (p->name() == "CHGCOMM") {
+                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                  settings.saveUInt("CHGCOMM", (int)type);
+                } else if (p->name() == "EQSTOP") {
+                  auto type = static_cast<STOP_BUTTON_BEHAVIOR>(atoi(p->value().c_str()));
+                  settings.saveUInt("EQSTOP", (int)type);
+                } else if (p->name() == "BATT2COMM") {
+                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                  settings.saveUInt("BATT2COMM", (int)type);
+                } else if (p->name() == "BATT3COMM") {
+                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                  settings.saveUInt("BATT3COMM", (int)type);
+                } else if (p->name() == "shunt") {
+                  auto type = static_cast<ShuntType>(atoi(p->value().c_str()));
+                  settings.saveUInt("SHUNTTYPE", (int)type);
+                } else if (p->name() == "SHUNTCOMM") {
+                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                  settings.saveUInt("SHUNTCOMM", (int)type);
+                } else if (p->name() == "SSID") {
+                  settings.saveString("SSID", p->value().c_str());
+                  ssid = settings.getString("SSID", "").c_str();
+                } else if (p->name() == "PASSWORD") {
+                  settings.saveString("PASSWORD", p->value().c_str());
+                  password = settings.getString("PASSWORD", "").c_str();
+                } else if (p->name() == "MQTTPUBLISHMS") {
+                  auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
+                  settings.saveUInt("MQTTPUBLISHMS", interval);
+                }
 
-    for (auto& name : boolSettingNames) {
-      boolSettings.push_back({name, settings.getBool(name, name == std::string("WIFIAPENABLED")), false});
-    }
+                for (auto& uintSetting : uintSettingNames) {
+                  if (p->name() == uintSetting) {
+                    auto value = atoi(p->value().c_str());
+                    if (settings.getUInt(uintSetting, 0) != value) {
+                      settings.saveUInt(uintSetting, value);
+                    }
+                  }
+                }
 
-    int numParams = request->params();
-    for (int i = 0; i < numParams; i++) {
-      auto p = request->getParam(i);
-      if (p->name() == "inverter") {
-        auto type = static_cast<InverterProtocolType>(atoi(p->value().c_str()));
-        settings.saveUInt("INVTYPE", (int)type);
-      } else if (p->name() == "INVCOMM") {
-        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-        settings.saveUInt("INVCOMM", (int)type);
-      } else if (p->name() == "battery") {
-        auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
-        settings.saveUInt("BATTTYPE", (int)type);
-      } else if (p->name() == "BATTCHEM") {
-        auto type = static_cast<battery_chemistry_enum>(atoi(p->value().c_str()));
-        settings.saveUInt("BATTCHEM", (int)type);
-      } else if (p->name() == "BATTCOMM") {
-        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-        settings.saveUInt("BATTCOMM", (int)type);
-      } else if (p->name() == "BATTPVMAX") {
-        auto type = p->value().toFloat() * 10.0f;
-        settings.saveUInt("BATTPVMAX", (int)type);
-      } else if (p->name() == "BATTPVMIN") {
-        auto type = p->value().toFloat() * 10.0f;
-        settings.saveUInt("BATTPVMIN", (int)type);
-      } else if (p->name() == "BATTCVMAX") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("BATTCVMAX", type);
-      } else if (p->name() == "BATTCVMIN") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("BATTCVMIN", type);
-      } else if (p->name() == "charger") {
-        auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
-        settings.saveUInt("CHGTYPE", (int)type);
-      } else if (p->name() == "CHGCOMM") {
-        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-        settings.saveUInt("CHGCOMM", (int)type);
-      } else if (p->name() == "EQSTOP") {
-        auto type = static_cast<STOP_BUTTON_BEHAVIOR>(atoi(p->value().c_str()));
-        settings.saveUInt("EQSTOP", (int)type);
-      } else if (p->name() == "BATT2COMM") {
-        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-        settings.saveUInt("BATT2COMM", (int)type);
-      } else if (p->name() == "shunt") {
-        auto type = static_cast<ShuntType>(atoi(p->value().c_str()));
-        settings.saveUInt("SHUNTTYPE", (int)type);
-      } else if (p->name() == "SHUNTCOMM") {
-        auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-        settings.saveUInt("SHUNTCOMM", (int)type);
-      } else if (p->name() == "MAXPRETIME") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("MAXPRETIME", type);
-      } else if (p->name() == "WIFICHANNEL") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("WIFICHANNEL", type);
-      } else if (p->name() == "DCHGPOWER") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("DCHGPOWER", type);
-      } else if (p->name() == "CHGPOWER") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("CHGPOWER", type);
-      } else if (p->name() == "LOCALIP1") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("LOCALIP1", type);
-      } else if (p->name() == "LOCALIP2") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("LOCALIP2", type);
-      } else if (p->name() == "LOCALIP3") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("LOCALIP3", type);
-      } else if (p->name() == "LOCALIP4") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("LOCALIP4", type);
-      } else if (p->name() == "GATEWAY1") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("GATEWAY1", type);
-      } else if (p->name() == "GATEWAY2") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("GATEWAY2", type);
-      } else if (p->name() == "GATEWAY3") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("GATEWAY3", type);
-      } else if (p->name() == "GATEWAY4") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("GATEWAY4", type);
-      } else if (p->name() == "SUBNET1") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("SUBNET1", type);
-      } else if (p->name() == "SUBNET2") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("SUBNET2", type);
-      } else if (p->name() == "SUBNET3") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("SUBNET3", type);
-      } else if (p->name() == "SUBNET4") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("SUBNET4", type);
-      } else if (p->name() == "SSID") {
-        settings.saveString("SSID", p->value().c_str());
-        ssid = settings.getString("SSID", "").c_str();
-      } else if (p->name() == "PASSWORD") {
-        settings.saveString("PASSWORD", p->value().c_str());
-        password = settings.getString("PASSWORD", "").c_str();
-      } else if (p->name() == "APNAME") {
-        settings.saveString("APNAME", p->value().c_str());
-      } else if (p->name() == "APPASSWORD") {
-        settings.saveString("APPASSWORD", p->value().c_str());
-      } else if (p->name() == "HOSTNAME") {
-        settings.saveString("HOSTNAME", p->value().c_str());
-      } else if (p->name() == "MQTTSERVER") {
-        settings.saveString("MQTTSERVER", p->value().c_str());
-      } else if (p->name() == "MQTTPORT") {
-        auto port = atoi(p->value().c_str());
-        settings.saveUInt("MQTTPORT", port);
-      } else if (p->name() == "MQTTUSER") {
-        settings.saveString("MQTTUSER", p->value().c_str());
-      } else if (p->name() == "MQTTPASSWORD") {
-        settings.saveString("MQTTPASSWORD", p->value().c_str());
-      } else if (p->name() == "MQTTTOPIC") {
-        settings.saveString("MQTTTOPIC", p->value().c_str());
-      } else if (p->name() == "MQTTTIMEOUT") {
-        auto port = atoi(p->value().c_str());
-        settings.saveUInt("MQTTTIMEOUT", port);
-      } else if (p->name() == "MQTTOBJIDPREFIX") {
-        settings.saveString("MQTTOBJIDPREFIX", p->value().c_str());
-      } else if (p->name() == "MQTTDEVICENAME") {
-        settings.saveString("MQTTDEVICENAME", p->value().c_str());
-      } else if (p->name() == "HADEVICEID") {
-        settings.saveString("HADEVICEID", p->value().c_str());
-      } else if (p->name() == "SOFAR_ID") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("SOFAR_ID", type);
-      } else if (p->name() == "PYLONSEND") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("PYLONSEND", type);
-      } else if (p->name() == "INVCELLS") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("INVCELLS", type);
-      } else if (p->name() == "INVMODULES") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("INVMODULES", type);
-      } else if (p->name() == "INVCELLSPER") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("INVCELLSPER", type);
-      } else if (p->name() == "INVVLEVEL") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("INVVLEVEL", type);
-      } else if (p->name() == "INVCAPACITY") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("INVCAPACITY", type);
-      } else if (p->name() == "INVBTYPE") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("INVBTYPE", (int)type);
-      } else if (p->name() == "CANFREQ") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("CANFREQ", type);
-      } else if (p->name() == "CANFDFREQ") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("CANFDFREQ", type);
-      } else if (p->name() == "PRECHGMS") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("PRECHGMS", type);
-      } else if (p->name() == "PWMFREQ") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("PWMFREQ", type);
-      } else if (p->name() == "PWMHOLD") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("PWMHOLD", type);
-      } else if (p->name() == "GTWCOUNTRY") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("GTWCOUNTRY", type);
-      } else if (p->name() == "GTWMAPREG") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("GTWMAPREG", type);
-      } else if (p->name() == "GTWCHASSIS") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("GTWCHASSIS", type);
-      } else if (p->name() == "GTWPACK") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("GTWPACK", type);
-      } else if (p->name() == "LEDMODE") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("LEDMODE", type);
-      } else if (p->name() == "GPIOOPT1") {
-        auto type = atoi(p->value().c_str());
-        settings.saveUInt("GPIOOPT1", type);
-      }
+                for (auto& stringSetting : stringSettingNames) {
+                  if (p->name() == stringSetting) {
+                    if (settings.getString(stringSetting) != p->value()) {
+                      settings.saveString(stringSetting, p->value().c_str());
+                    }
+                  }
+                }
+              }
 
-      for (auto& boolSetting : boolSettings) {
-        if (p->name() == boolSetting.name) {
-          boolSetting.newValue = p->value() == "on";
-        }
-      }
-    }
+              for (auto& boolSetting : boolSettingNames) {
+                auto p = request->getParam(boolSetting, true);
+                const bool default_value = (std::string(boolSetting) == std::string("WIFIAPENABLED"));
+                const bool value = p != nullptr && p->value() == "on";
+                if (settings.getBool(boolSetting, default_value) != value) {
+                  settings.saveBool(boolSetting, value);
+                }
+              }
 
-    for (auto& boolSetting : boolSettings) {
-      if (boolSetting.existingValue != boolSetting.newValue) {
-        settings.saveBool(boolSetting.name, boolSetting.newValue);
-      }
-    }
-
-    settingsUpdated = settings.were_settings_updated();
-    request->redirect("/settings");
-  });
+              settingsUpdated = settings.were_settings_updated();
+              request->redirect("/settings");
+            });
 
   auto update_string = [](const char* route, std::function<void(String)> setter,
                           std::function<bool(String)> validator = nullptr) {
@@ -655,6 +544,10 @@ void init_webserver() {
 
   // Route for editing USE_SCALED_SOC
   update_int_setting("/updateUseScaledSOC", [](int value) { datalayer.battery.settings.soc_scaling_active = value; });
+
+  // Route for enabling recovery mode charging
+  update_int_setting("/enableRecoveryMode",
+                     [](int value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; });
 
   // Route for editing SOCMax
   update_string_setting("/updateSocMax", [](String value) {
@@ -710,6 +603,9 @@ void init_webserver() {
           if (battIndex == "1") {
             batt = battery2;
           }
+          if (battIndex == "2") {
+            batt = battery3;
+          }
           if (batt) {
             cmd.action(batt);
           }
@@ -744,7 +640,7 @@ void init_webserver() {
 
   // Route for editing balancing max time
   update_string_setting("/BalTime", [](String value) {
-    datalayer.battery.settings.balancing_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);
+    datalayer.battery.settings.balancing_max_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);
   });
 
   // Route for editing balancing max power
@@ -917,8 +813,6 @@ String processor(const String& var) {
     content += "  padding: 8px;";
     content += "  position: absolute;";
     content += "  z-index: 1;";
-    content += "  bottom: 125%;";
-    content += "  left: 50%;";
     content += "  margin-left: -100px;";
     content += "  opacity: 0;";
     content += "  transition: opacity 0.3s;";
@@ -944,12 +838,25 @@ String processor(const String& var) {
 #ifdef HW_LILYGO2CAN
     content += " Hardware: LilyGo T_2CAN";
 #endif  // HW_LILYGO2CAN
+#ifdef HW_BECOM
+    content += " Hardware: BECom";
+#endif  // HW_BECOM
 #ifdef HW_STARK
     content += " Hardware: Stark CMR Module";
 #endif  // HW_STARK
     content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
     content += "<h4>Uptime: " + get_uptime() + "</h4>";
     if (datalayer.system.info.performance_measurement_active) {
+      content +=
+          "<h4>Free heap: " + String(ESP.getFreeHeap()) + ", max alloc: " + String(ESP.getMaxAllocHeap()) + "</h4>";
+      FlashMode_t mode = ESP.getFlashChipMode();
+      content += "<h4>Flash mode: " +
+                 String(mode == FM_QIO    ? "QIO"
+                        : mode == FM_QOUT ? "QOUT"
+                        : mode == FM_DIO  ? "DIO"
+                        : mode == FM_DOUT ? "DOUT"
+                                          : /*mode == FM_UNKNOWN*/ "Unknown") +
+                 ", size: " + String(ESP.getFlashChipSize() / (1024 * 1024)) + " MB</h4>";
       // Load information
       content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
       content +=
@@ -1001,7 +908,9 @@ String processor(const String& var) {
       if (battery) {
         content += "<h4 style='color: white;'>Battery protocol: ";
         content += datalayer.system.info.battery_protocol;
-        if (battery2) {
+        if (battery3) {
+          content += " (Triple battery)";
+        } else if (battery2) {
           content += " (Double battery)";
         }
         if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
@@ -1307,6 +1216,104 @@ String processor(const String& var) {
           content += "<h4>Battery charging!</h4>";
         }
         content += "</div>";
+        if (battery3) {
+          content += "<div style='flex: 1; background-color: ";
+          switch (datalayer.battery.status.bms_status) {
+            case ACTIVE:
+              content += "#2D3F2F;";
+              break;
+            case FAULT:
+              content += "#A70107;";
+              break;
+            default:
+              content += "#2D3F2F;";
+              break;
+          }
+          // Add the common style properties
+          content += "padding: 10px; margin-bottom: 10px; border-radius: 50px;'>";
+
+          // Display battery statistics within this block
+          socRealFloat =
+              static_cast<float>(datalayer.battery3.status.real_soc) / 100.0f;  // Convert to float and divide by 100
+          //socScaledFloat; // Same value used for bat2
+          sohFloat =
+              static_cast<float>(datalayer.battery3.status.soh_pptt) / 100.0f;  // Convert to float and divide by 100
+          voltageFloat =
+              static_cast<float>(datalayer.battery3.status.voltage_dV) / 10.0f;  // Convert to float and divide by 10
+          currentFloat =
+              static_cast<float>(datalayer.battery3.status.current_dA) / 10.0f;  // Convert to float and divide by 10
+          powerFloat = static_cast<float>(datalayer.battery3.status.active_power_W);                // Convert to float
+          tempMaxFloat = static_cast<float>(datalayer.battery3.status.temperature_max_dC) / 10.0f;  // Convert to float
+          tempMinFloat = static_cast<float>(datalayer.battery3.status.temperature_min_dC) / 10.0f;  // Convert to float
+          cell_delta_mv = datalayer.battery3.status.cell_max_voltage_mV - datalayer.battery3.status.cell_min_voltage_mV;
+
+          if (datalayer.battery.settings.soc_scaling_active)
+            content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) +
+                       "&percnt; (real: " + String(socRealFloat, 2) + "&percnt;)</h4>";
+          else
+            content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
+
+          content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
+          content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) +
+                     " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
+          content += formatPowerValue("Power", powerFloat, "", 1);
+
+          if (datalayer.battery.settings.soc_scaling_active)
+            content += "<h4 style='color: white;'>Scaled total capacity: " +
+                       formatPowerValue(datalayer.battery3.info.reported_total_capacity_Wh, "h", 1) +
+                       " (real: " + formatPowerValue(datalayer.battery3.info.total_capacity_Wh, "h", 1) + ")</h4>";
+          else
+            content += formatPowerValue("Total capacity", datalayer.battery3.info.total_capacity_Wh, "h", 1);
+
+          if (datalayer.battery.settings.soc_scaling_active)
+            content += "<h4 style='color: white;'>Scaled remaining capacity: " +
+                       formatPowerValue(datalayer.battery3.status.reported_remaining_capacity_Wh, "h", 1) +
+                       " (real: " + formatPowerValue(datalayer.battery3.status.remaining_capacity_Wh, "h", 1) +
+                       ")</h4>";
+          else
+            content += formatPowerValue("Remaining capacity", datalayer.battery3.status.remaining_capacity_Wh, "h", 1);
+
+          if (datalayer.system.info.equipment_stop_active) {
+            content +=
+                formatPowerValue("Max discharge power", datalayer.battery3.status.max_discharge_power_W, "", 1, "red");
+            content += formatPowerValue("Max charge power", datalayer.battery3.status.max_charge_power_W, "", 1, "red");
+            content +=
+                "<h4 style='color: red;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+            content += "<h4 style='color: red;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
+          } else {
+            content += formatPowerValue("Max discharge power", datalayer.battery3.status.max_discharge_power_W, "", 1);
+            content += formatPowerValue("Max charge power", datalayer.battery3.status.max_charge_power_W, "", 1);
+            content +=
+                "<h4 style='color: white;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+            content += "<h4 style='color: white;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
+          }
+
+          content += "<h4>Cell min/max: " + String(datalayer.battery3.status.cell_min_voltage_mV) + " mV / " +
+                     String(datalayer.battery3.status.cell_max_voltage_mV) + " mV</h4>";
+          if (cell_delta_mv > datalayer.battery3.info.max_cell_voltage_deviation_mV) {
+            content += "<h4 style='color: red;'>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+          } else {
+            content += "<h4>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+          }
+          content += "<h4>Temperature min/max: " + String(tempMinFloat, 1) + " &deg;C / " + String(tempMaxFloat, 1) +
+                     " &deg;C</h4>";
+          if (datalayer.battery.status.bms_status == ACTIVE) {
+            content += "<h4>System status: OK </h4>";
+          } else if (datalayer.battery.status.bms_status == UPDATING) {
+            content += "<h4>System status: UPDATING </h4>";
+          } else {
+            content += "<h4>System status: FAULT </h4>";
+          }
+          if (datalayer.battery3.status.current_dA == 0) {
+            content += "<h4>Battery idle</h4>";
+          } else if (datalayer.battery3.status.current_dA < 0) {
+            content += "<h4>Battery discharging!</h4>";
+          } else {  // > 0
+            content += "<h4>Battery charging!</h4>";
+          }
+          content += "</div>";
+          content += "</div>";
+        }
         content += "</div>";
       }
     }

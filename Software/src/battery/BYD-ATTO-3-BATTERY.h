@@ -81,9 +81,9 @@ class BydAttoBattery : public CanBattery {
   static const uint16_t CELLCOUNT_STANDARD = 104;
   static const uint16_t MAX_PACK_VOLTAGE_PLUS_DV = 5600;      //BYD Song Plus
   static const uint16_t MIN_PACK_VOLTAGE_PLUS_DV = 4825;      //BYD Song Plus
-  static const uint16_t MAX_PACK_VOLTAGE_EXTENDED_DV = 4410;  //Extended range
+  static const uint16_t MAX_PACK_VOLTAGE_EXTENDED_DV = 4599;  //Extended range
   static const uint16_t MIN_PACK_VOLTAGE_EXTENDED_DV = 3800;  //Extended range
-  static const uint16_t MAX_PACK_VOLTAGE_STANDARD_DV = 3640;  //Standard range
+  static const uint16_t MAX_PACK_VOLTAGE_STANDARD_DV = 3796;  //Standard range
   static const uint16_t MIN_PACK_VOLTAGE_STANDARD_DV = 3136;  //Standard range
   static const uint16_t MAX_CELL_DEVIATION_MV = 230;
   static const uint16_t MAX_CELL_VOLTAGE_MV = 3650;  //Charging stops if one cell exceeds this value
@@ -132,6 +132,7 @@ class BydAttoBattery : public CanBattery {
   uint8_t counter_100ms = 0;
   uint8_t frame6_counter = 0xB;
   uint8_t frame7_counter = 0x5;
+  uint8_t BMS_SOH = 99;
   uint8_t BMS_unknown10 = 0;
   uint8_t BMS_unknown11 = 0;
   uint8_t BMS_unknown12 = 0;

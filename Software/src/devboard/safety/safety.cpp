@@ -13,6 +13,8 @@ static bool battery_empty_event_fired = false;
 
 #define MAX_SOH_DEVIATION_PPTT 2500
 #define CELL_CRITICAL_MV 100  // If cells go this much outside design voltage, shut battery down!
+#define LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV 2000  //If cells are below this, recovery charge not allowed
+#define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
 
 //battery pause status begin
 bool emulator_pause_request_ON = false;
@@ -36,6 +38,12 @@ void update_machineryprotection() {
   }
   if (datalayer.system.info.CPU_temperature < 105.0f) {
     clear_event(EVENT_CPU_OVERHEATED);  //Hysteresis on the clearing
+  }
+
+  if (datalayer.system.info.CPU_free_heap < 62000) {
+    set_event(EVENT_LOW_HEAP_MEMORY, (datalayer.system.info.CPU_free_heap / 1000));
+  } else {
+    clear_event(EVENT_LOW_HEAP_MEMORY);
   }
 
   // Check health status of CAN interfaces
@@ -278,7 +286,8 @@ void update_machineryprotection() {
     }
 
     // Check diff between highest and lowest cell
-    cell_deviation_mV = (datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
+    cell_deviation_mV =
+        std::abs(datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
     if (cell_deviation_mV > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
       set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
     } else {
@@ -303,12 +312,106 @@ void update_machineryprotection() {
     }
   }
 
+  // Additional Triple-Battery safeties are checked here
+  if (battery3) {
+    // Check if the Battery 3 BMS is still sending CAN messages. If we go 60s without messages we raise a warning
+
+    // Pause function is on
+    if (emulator_pause_request_ON) {
+      datalayer.battery3.status.max_discharge_power_W = 0;
+      datalayer.battery3.status.max_charge_power_W = 0;
+    }
+
+    if (!datalayer.battery3.status.CAN_battery_still_alive) {
+      set_event(EVENT_CAN_BATTERY3_MISSING, can_config.battery_triple);
+    } else {
+      datalayer.battery3.status.CAN_battery_still_alive--;
+      clear_event(EVENT_CAN_BATTERY3_MISSING);
+    }
+
+    // Too many malformed CAN messages recieved!
+    if (datalayer.battery3.status.CAN_error_counter > MAX_CAN_FAILURES) {
+      set_event(EVENT_CAN_CORRUPTED_WARNING, can_config.battery_triple);
+    } else {
+      clear_event(EVENT_CAN_CORRUPTED_WARNING);
+    }
+
+    // Cell overvoltage, critical latching error without automatic reset. Requires user action.
+    if (datalayer.battery3.status.cell_max_voltage_mV >= datalayer.battery3.info.max_cell_voltage_mV) {
+      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+    }
+    // Cell undervoltage, critical latching error without automatic reset. Requires user action.
+    if (datalayer.battery3.status.cell_min_voltage_mV <= datalayer.battery3.info.min_cell_voltage_mV) {
+      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+    }
+
+    // Check diff between highest and lowest cell
+    cell_deviation_mV =
+        std::abs(datalayer.battery3.status.cell_max_voltage_mV - datalayer.battery3.status.cell_min_voltage_mV);
+    if (cell_deviation_mV > datalayer.battery3.info.max_cell_voltage_deviation_mV) {
+      set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
+    } else {
+      clear_event(EVENT_CELL_DEVIATION_HIGH);
+    }
+
+    // Check if SOH% between the packs is too large
+    if ((datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery3.status.soh_pptt != 9900)) {
+      // Both values available, check diff
+      uint16_t soh_diff_pptt;
+      if (datalayer.battery.status.soh_pptt > datalayer.battery3.status.soh_pptt) {
+        soh_diff_pptt = datalayer.battery.status.soh_pptt - datalayer.battery3.status.soh_pptt;
+      } else {
+        soh_diff_pptt = datalayer.battery3.status.soh_pptt - datalayer.battery.status.soh_pptt;
+      }
+
+      if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
+        set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
+      } else {
+        clear_event(EVENT_SOH_DIFFERENCE);
+      }
+    }
+  }
+
   //Safeties verified, Zero charge/discharge ampere values incase any safety wrote the W to 0
   if (datalayer.battery.status.max_discharge_power_W == 0) {
     datalayer.battery.status.max_discharge_current_dA = 0;
   }
   if (datalayer.battery.status.max_charge_power_W == 0) {
     datalayer.battery.status.max_charge_current_dA = 0;
+  }
+  //One exception. If user has enabled the emergency recovery charge mode, still allow small amount of charging
+  if (datalayer.battery.settings.user_requests_forced_charging_recovery_mode) {
+
+    //We allow the user set value as long as it does not exceed MAX_CHARGEPOWER_RECOVERY_CHARGE_DA
+    if (datalayer.battery.settings.max_user_set_charge_dA > MAX_CHARGEPOWER_RECOVERY_CHARGE_DA) {
+      datalayer.battery.status.max_charge_current_dA = MAX_CHARGEPOWER_RECOVERY_CHARGE_DA;
+    } else {
+      datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
+    }
+
+    // If this is the start of the emergency recovery charge period, capture the current time
+    if (datalayer.battery.settings.recovery_charge_start_time_ms == 0) {
+      datalayer.battery.settings.recovery_charge_start_time_ms = millis();
+      set_event(EVENT_RECOVERY_START, 0);
+    } else {
+      clear_event(EVENT_RECOVERY_START);
+    }
+
+    // Check if the elapsed time exceeds the max recovery charge time
+    if (millis() - datalayer.battery.settings.recovery_charge_start_time_ms >=
+        datalayer.battery.settings.recovery_charge_max_time_ms) {
+      datalayer.battery.settings.user_requests_forced_charging_recovery_mode = false;
+      datalayer.battery.settings.recovery_charge_start_time_ms = 0;  // Reset the start time
+      set_event(EVENT_RECOVERY_END, 0);
+    } else {
+      clear_event(EVENT_RECOVERY_END);
+    }
+
+    //Check if cellvoltage is too low to safely start recovery. If so, abort!
+    if (datalayer.battery.status.cell_min_voltage_mV < LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV) {
+      datalayer.battery.settings.user_requests_forced_charging_recovery_mode = false;
+      set_event(EVENT_RECOVERY_END, 255);
+    }
   }
 
   //Decrement the forced balancing timer incase user requested it
@@ -322,7 +425,8 @@ void update_machineryprotection() {
     }
 
     // Check if the elapsed time exceeds the balancing time
-    if (millis() - datalayer.battery.settings.balancing_start_time_ms >= datalayer.battery.settings.balancing_time_ms) {
+    if (millis() - datalayer.battery.settings.balancing_start_time_ms >=
+        datalayer.battery.settings.balancing_max_time_ms) {
       datalayer.battery.settings.user_requests_balancing = false;
       datalayer.battery.settings.balancing_start_time_ms = 0;  // Reset the start time
       set_event(EVENT_BALANCING_END, 0);
@@ -364,6 +468,10 @@ void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bo
     if (battery2) {
       datalayer.battery2.status.max_discharge_power_W = 0;
       datalayer.battery2.status.max_charge_power_W = 0;
+    }
+    if (battery3) {
+      datalayer.battery3.status.max_discharge_power_W = 0;
+      datalayer.battery3.status.max_charge_power_W = 0;
     }
 
   } else {

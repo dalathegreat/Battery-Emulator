@@ -1,0 +1,77 @@
+name: 🔋 Compile Common Images
+
+on:
+  # The workflow is run when a commit is pushed or for a
+  # Pull Request.
+  - push
+  - pull_request
+
+# This is the list of jobs that will be run concurrently.
+jobs:
+  # This pre-job is run to skip workflows in case a workflow is already run, i.e. because the workflow is triggered by both push and pull_request
+  skip-duplicate-actions:
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          concurrent_skipping: 'never'
+          skip_after_successful_duplicate: 'true'
+          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
+
+  build:
+    needs: skip-duplicate-actions
+    if: needs.skip-duplicate-actions.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        include:
+          - board_name: "LilygoT-CAN485"
+            pio_env: "lilygo_330"
+            artifact_name: "battery-emulator-lilygo-t-can485"
+          - board_name: "Stark CMR"
+            pio_env: "stark_330"
+            artifact_name: "battery-emulator-stark"
+          - board_name: "LilygoT-2CAN"
+            pio_env: "lilygo_2CAN_330"
+            artifact_name: "battery-emulator-lilygo-t-2can"
+          - board_name: "ESP32 DevKit V1"
+            pio_env: "esp32devkit_330"
+            artifact_name: "battery-emulator-esp32devkit"
+          - board_name: "BECom"
+            pio_env: "BECom_330"
+            artifact_name: "battery-emulator-becom"
+          - board_name: "Compiler warning check"
+            pio_env: "compiler_warning_check"
+            artifact_name: "battery-dummy-check"
+
+    steps:
+    - uses: actions/checkout@v6
+      name: Checkout code
+
+    - uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio/.cache
+        key: ${{ runner.os }}-pio
+
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+
+    - name: Install PlatformIO Core
+      run: pip install --upgrade platformio
+
+    - name: Build image for ${{ matrix.board_name }}
+      run: pio run -e ${{ matrix.pio_env }}
+
+    - name: Upload artifact for ${{ matrix.board_name }}
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ matrix.artifact_name }}.bin
+        path: .pio/build/${{ matrix.pio_env }}/firmware.bin

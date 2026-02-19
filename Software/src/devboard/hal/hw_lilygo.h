@@ -3,6 +3,8 @@
 
 #include "hal.h"
 
+#include "../utils/types.h"
+
 class LilyGoHal : public Esp32Hal {
  public:
   const char* name() { return "LilyGo T-CAN485"; }
@@ -47,15 +49,26 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_32; }
   virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_33; }
   virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_25; }
-  virtual gpio_num_t BMS_POWER() { return GPIO_NUM_18; }
+  virtual gpio_num_t BMS_POWER() {  //BMS power (Modifiable via Webserver)
+    if (user_selected_gpioopt2 == GPIOOPT2::DEFAULT_OPT_BMS_POWER_18) {
+      return GPIO_NUM_18;
+    }  //Else user_selected_gpioopt2 == GPIOOPT2::BMS_POWER_25
+    return GPIO_NUM_25;
+  }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_15; }
 
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_25; }
   virtual gpio_num_t INVERTER_DISCONNECT_CONTACTOR_PIN() { return GPIO_NUM_32; }
+  virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
 
-  // SMA CAN contactor pins
-  virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() { return GPIO_NUM_5; }
+  // SMA CAN contactor pins (Modifiable via Webserver)
+  virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() {
+    if (user_selected_gpioopt3 == GPIOOPT3::DEFAULT_SMA_ENABLE_05) {
+      return GPIO_NUM_5;
+    }  //Else user_selected_gpioopt3 == GPIOOPT3::SMA_ENABLE_33
+    return GPIO_NUM_33;
+  }
 
   //        virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
 

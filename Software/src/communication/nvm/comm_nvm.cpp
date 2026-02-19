@@ -87,6 +87,7 @@ void init_stored_settings() {
   user_selected_pylon_send = settings.getUInt("PYLONSEND", 0);
   user_selected_pylon_30koffset = settings.getBool("PYLONOFFSET", false);
   user_selected_pylon_invert_byteorder = settings.getBool("PYLONORDER", false);
+  user_selected_pylon_baudrate = settings.getUInt("PYLONBAUD", 500);
   user_selected_inverter_cells = settings.getUInt("INVCELLS", 0);
   user_selected_inverter_modules = settings.getUInt("INVMODULES", 0);
   user_selected_inverter_cells_per_module = settings.getUInt("INVCELLSPER", 0);
@@ -128,27 +129,35 @@ void init_stored_settings() {
 
   can_config.battery = readIf("BATTCOMM");
   can_config.battery_double = readIf("BATT2COMM");
+  can_config.battery_triple = readIf("BATT3COMM");
   can_config.inverter = readIf("INVCOMM");
   can_config.charger = readIf("CHGCOMM");
   can_config.shunt = readIf("SHUNTCOMM");
 
   equipment_stop_behavior = (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
   user_selected_second_battery = settings.getBool("DBLBTR", false);
+  user_selected_triple_battery = settings.getBool("TRIBTR", false);
   contactor_control_enabled = settings.getBool("CNTCTRL", false);
   contactor_control_inverted_logic = settings.getBool("NCCONTACTOR", false);
   precharge_time_ms = settings.getUInt("PRECHGMS", 100);
   contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);
+  contactor_control_enabled_triple_battery = settings.getBool("CNTCTRLTRI", false);
   pwm_contactor_control = settings.getBool("PWMCNTCTRL", false);
   pwm_frequency = settings.getUInt("PWMFREQ", 20000);
   pwm_hold_duty = settings.getUInt("PWMHOLD", 250);
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
+#ifdef HW_LILYGO2CAN
   user_selected_gpioopt1 = (GPIOOPT1)settings.getUInt("GPIOOPT1", 0);
+#endif
+  user_selected_gpioopt2 = (GPIOOPT2)settings.getUInt("GPIOOPT2", 0);
+  user_selected_gpioopt3 = (GPIOOPT3)settings.getUInt("GPIOOPT3", 0);
 
   precharge_control_enabled = settings.getBool("EXTPRECHARGE", false);
   precharge_inverter_normally_open_contactor = settings.getBool("NOINVDISC", false);
   precharge_max_precharge_time_before_fault = settings.getUInt("MAXPRETIME", 15000);
+  Precharge_max_PWM_Freq = settings.getUInt("MAXPREFREQ", 34000);
 
   datalayer.system.info.performance_measurement_active = settings.getBool("PERFPROFILE", false);
   datalayer.system.info.CAN_usb_logging_active = settings.getBool("CANLOGUSB", false);
@@ -169,6 +178,7 @@ void init_stored_settings() {
   passwordAP = settings.getString("APPASSWORD", "123456789").c_str();
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
   mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
+  mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
   mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();

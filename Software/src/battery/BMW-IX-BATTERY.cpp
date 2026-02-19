@@ -19,7 +19,7 @@ bool BmwIXBattery::isStale(int16_t currentValue, uint16_t& lastValue, unsigned l
   }
 
   // Check if the value has stayed the same for the specified staleness period
-  return (currentTime - lastChangeTime >= STALE_PERIOD);
+  return (currentTime - lastChangeTime >= STALE_PERIOD_CONFIG);
 }
 
 uint8_t BmwIXBattery::increment_uds_req_id_counter(uint8_t index) {
@@ -368,20 +368,6 @@ void BmwIXBattery::processCompletedUDSResponse() {
     // logging.print(voltage_index);
     // logging.println(" cell voltages");
 
-    // Check for 96S vs 108S detection
-    if (voltage_index >= 97) {
-      int byte_offset = 3 + (96 * 2);
-      if (byte_offset + 1 < len) {
-        if (buf[byte_offset] == 0xFF && buf[byte_offset + 1] == 0xFF) {
-          detected_number_of_cells = 96;
-          //logging.println("Detected 96S battery");
-        } else {
-          detected_number_of_cells = 108;
-          // logging.println("Detected 108S battery");
-        }
-      }
-    }
-
   } else if (gUDSContext.UDS_moduleID == 0xCE) {
     // SOC Response (0x22 0xE5 0xCE -> 0x62 0xE5 0xCE)
     if (len >= 9) {
@@ -510,23 +496,61 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
     set_event(EVENT_12V_LOW, terminal30_12v_voltage);
   }
 
+  // detect number of cells
   if ((datalayer.battery.status.cell_voltages_mV[77] > 1000) &&
       (datalayer.battery.status.cell_voltages_mV[78] < 1000)) {
     //If we detect cellvoltage on cell78, but nothing on 79, we can confirm we are on SE12
-    detected_number_of_cells = 78;  //We are on 78S SE12 battery from BMW IX1
-  }  //Sidenote, detection of 96S and 108S batteries happen inside the cellvoltage reading blocks
+    detected_number_of_cells = 78;  //We are on 78S SE12 battery from BMW iX1
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
+  } else if ((datalayer.battery.status.cell_voltages_mV[89] > 1000) &&
+             (datalayer.battery.status.cell_voltages_mV[90] < 1000)) {
+    detected_number_of_cells = 90;
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
+  } else if ((datalayer.battery.status.cell_voltages_mV[93] > 1000) &&
+             (datalayer.battery.status.cell_voltages_mV[94] < 1000)) {
+    detected_number_of_cells = 94;
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
+  } else if ((datalayer.battery.status.cell_voltages_mV[95] > 1000) &&
+             (datalayer.battery.status.cell_voltages_mV[96] < 1000)) {
+    detected_number_of_cells = 96;
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
+  } else if ((datalayer.battery.status.cell_voltages_mV[99] > 1000) &&
+             (datalayer.battery.status.cell_voltages_mV[100] < 1000)) {
+    detected_number_of_cells = 100;
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
+  } else if ((datalayer.battery.status.cell_voltages_mV[101] > 1000) &&
+             (datalayer.battery.status.cell_voltages_mV[102] < 1000)) {
+    detected_number_of_cells = 102;
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
+  } else if (datalayer.battery.status.cell_voltages_mV[107] > 1000) {
+    // voltage index cannot be larger than 107, therefore we only perform a check if we detect cellvoltage on cell107
+    detected_number_of_cells = 108;
+    logging.printf("Detected %dS battery\n", (int)detected_number_of_cells);
+  } else {
+    logging.println("Number of cells not recognized");
+  }
 
   datalayer.battery.info.number_of_cells = detected_number_of_cells;
 
   if (detected_number_of_cells == 78) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_78S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_78S_DV;
-  }
-  if (detected_number_of_cells == 96) {
+  } else if (detected_number_of_cells == 90) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_90S_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;
+  } else if (detected_number_of_cells == 94) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94S_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94S_DV;
+  } else if (detected_number_of_cells == 96) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;
-  }
-  if (detected_number_of_cells == 108) {
+  } else if (detected_number_of_cells == 100) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_100S_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_100S_DV;
+  } else if (detected_number_of_cells == 102) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_102S_DV;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_102S_DV;
+  } else if (detected_number_of_cells == 108) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_108S_DV;
   }
@@ -704,9 +728,9 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       if ((rx_frame.DLC == 16) && (rx_frame.data.u8[4] == 0xDD) &&
           (rx_frame.data.u8[5] == 0xC0)) {  //Battery Temperature
-        min_battery_temperature = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) / 10;
-        avg_battery_temperature = (rx_frame.data.u8[10] << 8 | rx_frame.data.u8[11]) / 10;
-        max_battery_temperature = (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) / 10;
+        min_battery_temperature = (int16_t)(rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) / 10;
+        avg_battery_temperature = (int16_t)(rx_frame.data.u8[10] << 8 | rx_frame.data.u8[11]) / 10;
+        max_battery_temperature = (int16_t)(rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) / 10;
       }
       if ((rx_frame.DLC == 7) &&
           (rx_frame.data.u8[4] == 0xA3)) {  //Main Contactor Temperature CHECK FINGERPRINT 2 LEVEL
@@ -778,7 +802,7 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
 void BmwIXBattery::transmit_can(unsigned long currentMillis) {
   // Perform startup BMS reset after 2 seconds, before allowing contactor close
-  if (!startup_reset_complete && (currentMillis - startup_time > 2000)) {
+  if (!startup_reset_complete && (currentMillis > 2000)) {
     logging.println("Performing startup BMS reset");
     transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET);
     startup_reset_complete = true;
@@ -802,11 +826,11 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
     // Detect edge
     if (ContactorCloseRequest.previous == false && ContactorCloseRequest.present == true) {
       // Rising edge detected
-      logging.println("Rising edge detected. Resetting 10ms counter.");
+      logging.println("Rising edge. 10ms counter reset");
       counter_10ms = 0;  // reset counter
     } else if (ContactorCloseRequest.previous == true && ContactorCloseRequest.present == false) {
-      // Dropping edge detected
-      logging.println("Dropping edge detected. Resetting 10ms counter.");
+      // Falling edge detected
+      logging.println("Falling edge. 10ms counter reset");
       counter_10ms = 0;  // reset counter
     }
     ContactorCloseRequest.previous = ContactorCloseRequest.present;
@@ -862,13 +886,15 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
     //transmit_can_frame(&BMWiX_510);
   }
   // Send 200ms CAN Message
+  /*
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     previousMillis200 = currentMillis;
 
-    //Send SME Keep alive values 200ms
-    //BMWiX_C0.data.u8[0] = increment_C0_counter(BMWiX_C0.data.u8[0]);  //Keep Alive 1
-    //transmit_can_frame(&BMWiX_C0);
+    Send SME Keep alive values 200ms
+    BMWiX_C0.data.u8[0] = increment_C0_counter(BMWiX_C0.data.u8[0]);  //Keep Alive 1
+    transmit_can_frame(&BMWiX_C0);
   }
+  */
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
@@ -897,7 +923,7 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
   }
   // Handle user DTC read request
   if (UserRequestDTCRead) {
-    logging.println("User requested DTC read");
+    logging.println("User req. DTC read");
     transmit_can_frame(&BMWiX_6F4_REQUEST_READ_DTC);
     UserRequestDTCRead = false;
 
@@ -908,20 +934,20 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
 
   // Handle user DTC reset request
   if (UserRequestDTCreset) {
-    logging.println("User requested DTC reset");
+    logging.println("User req. DTC reset");
     transmit_can_frame(&BMWiX_6F4_REQUEST_CLEAR_DTC);
     UserRequestDTCreset = false;
   }
 
   // Handle user BMS reset request
   if (UserRequestBMSReset) {
-    logging.println("User requested BMS reset");
+    logging.println("User req. BMS reset");
     transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET);
     UserRequestBMSReset = false;
   }
   // Handle user Energy Saving Mode reset request
   if (UserRequestEnergySavingModeReset) {
-    logging.println("User requested Energy Saving Mode reset to normal");
+    logging.println("User req. Energy Saving Mode reset to normal");
     transmit_can_frame(&BMWiX_6F4_SET_ENERGY_SAVING_MODE_NORMAL);
     UserRequestEnergySavingModeReset = false;
   }
@@ -931,7 +957,6 @@ void BmwIXBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
-  startup_time = millis();
   startup_reset_complete = false;
 
   //Before we have started up and detected which battery is in use, use largest deviation possible to avoid errors
@@ -946,10 +971,10 @@ void BmwIXBattery::setup(void) {  // Performs one time setup at startup
 void BmwIXBattery::HandleIncomingUserRequest(void) {
   // Debug user request to open or close the contactors
   if (userRequestContactorClose) {
-    logging.printf("User request: contactor close");
+    logging.printf("User req. contactor close");
   }
   if (userRequestContactorOpen) {
-    logging.printf("User request: contactor open");
+    logging.printf("User req. contactor open");
   }
   if ((userRequestContactorClose == false) && (userRequestContactorOpen == false)) {
     // do nothing
@@ -968,8 +993,7 @@ void BmwIXBattery::HandleIncomingUserRequest(void) {
     userRequestContactorClose = false;
     userRequestContactorOpen = false;
     // print error, as both these flags shall not be true at the same time
-    logging.println(
-        "Error: user requested contactors to close and open at the same time. Contactors have been opened.");
+    logging.println("Error: user req. contactors to close and open at the same time. Contactors have been opened.");
   }
 }
 
@@ -978,11 +1002,11 @@ void BmwIXBattery::HandleIncomingInverterRequest(void) {
   // Detect edge
   if (InverterContactorCloseRequest.previous == false && InverterContactorCloseRequest.present == true) {
     // Rising edge detected
-    logging.println("Inverter requests to close contactors");
+    logging.println("Inverter req. to close contactors");
     BmwIxCloseContactors();
   } else if (InverterContactorCloseRequest.previous == true && InverterContactorCloseRequest.present == false) {
     // Falling edge detected
-    logging.println("Inverter requests to open contactors");
+    logging.println("Inverter req. to open contactors");
     BmwIxOpenContactors();
   }  // else: do nothing
 
@@ -1026,34 +1050,34 @@ void BmwIXBattery::HandleBmwIxCloseContactorsRequest(uint16_t counter_10ms) {
         // @0 ms
         logging.println("Starting CAN-based contactor close sequence");
         transmit_can_frame(&BMWiX_510);
-        logging.println("Transmitted 0x510 - 1/6");
+        logging.println("Sent 0x510 - 1/6");
       } else if (counter_10ms == 5) {
         // @50 ms
         transmit_can_frame(&BMWiX_276);
-        logging.println("Transmitted 0x276 - 2/6");
+        logging.println("Sent 0x276 - 2/6");
       } else if (counter_10ms == 10) {
         // @100 ms
         BMWiX_510.data.u8[2] = 0x04;  // TODO: check if needed
         transmit_can_frame(&BMWiX_510);
-        logging.println("Transmitted 0x510 - 3/6");
+        logging.println("Sent 0x510 - 3/6");
       } else if (counter_10ms == 20) {
         // @200 ms
         BMWiX_510.data.u8[2] = 0x10;  // TODO: check if needed
         BMWiX_510.data.u8[5] = 0x80;  // needed to close contactors
         transmit_can_frame(&BMWiX_510);
-        logging.println("Transmitted 0x510 - 4/6");
+        logging.println("Sent 0x510 - 4/6");
       } else if (counter_10ms == 30) {
         // @300 ms
         BMWiX_16E.data.u8[0] = 0x6A;
         BMWiX_16E.data.u8[1] = 0xAD;
         transmit_can_frame(&BMWiX_16E);
-        logging.println("Transmitted 0x16E - 5/6");
+        logging.println("Sent 0x16E - 5/6");
       } else if (counter_10ms == 50) {
         // @500 ms
         BMWiX_16E.data.u8[0] = 0x03;
         BMWiX_16E.data.u8[1] = 0xA9;
         transmit_can_frame(&BMWiX_16E);
-        logging.println("Transmitted 0x16E - 6/6");
+        logging.println("Sent 0x16E - 6/6");
         ContactorState.closed = true;
         ContactorState.open = false;
       }

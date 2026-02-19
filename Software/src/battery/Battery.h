@@ -51,7 +51,10 @@ enum class BatteryType {
   BmwPhev = 43,
   FordMachE = 44,
   CmpSmartCar = 45,
-  MaxusEV80 = 46,
+  ThinkCity = 47,
+  TeslaLegacy = 48,
+  GrowattHvArk = 49,
+  GeelySea = 50,
   Highest
 };
 
@@ -62,6 +65,7 @@ extern const char* name_for_comm_interface(comm_interface comm);
 
 extern BatteryType user_selected_battery_type;
 extern bool user_selected_second_battery;
+extern bool user_selected_triple_battery;
 
 extern battery_chemistry_enum user_selected_battery_chemistry;
 

@@ -4,26 +4,9 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
-
-const unsigned char crc8_table[256] =
-    {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
-        0x00, 0x1D, 0x3A, 0x27, 0x74, 0x69, 0x4E, 0x53, 0xE8, 0xF5, 0xD2, 0xCF, 0x9C, 0x81, 0xA6, 0xBB, 0xCD, 0xD0,
-        0xF7, 0xEA, 0xB9, 0xA4, 0x83, 0x9E, 0x25, 0x38, 0x1F, 0x02, 0x51, 0x4C, 0x6B, 0x76, 0x87, 0x9A, 0xBD, 0xA0,
-        0xF3, 0xEE, 0xC9, 0xD4, 0x6F, 0x72, 0x55, 0x48, 0x1B, 0x06, 0x21, 0x3C, 0x4A, 0x57, 0x70, 0x6D, 0x3E, 0x23,
-        0x04, 0x19, 0xA2, 0xBF, 0x98, 0x85, 0xD6, 0xCB, 0xEC, 0xF1, 0x13, 0x0E, 0x29, 0x34, 0x67, 0x7A, 0x5D, 0x40,
-        0xFB, 0xE6, 0xC1, 0xDC, 0x8F, 0x92, 0xB5, 0xA8, 0xDE, 0xC3, 0xE4, 0xF9, 0xAA, 0xB7, 0x90, 0x8D, 0x36, 0x2B,
-        0x0C, 0x11, 0x42, 0x5F, 0x78, 0x65, 0x94, 0x89, 0xAE, 0xB3, 0xE0, 0xFD, 0xDA, 0xC7, 0x7C, 0x61, 0x46, 0x5B,
-        0x08, 0x15, 0x32, 0x2F, 0x59, 0x44, 0x63, 0x7E, 0x2D, 0x30, 0x17, 0x0A, 0xB1, 0xAC, 0x8B, 0x96, 0xC5, 0xD8,
-        0xFF, 0xE2, 0x26, 0x3B, 0x1C, 0x01, 0x52, 0x4F, 0x68, 0x75, 0xCE, 0xD3, 0xF4, 0xE9, 0xBA, 0xA7, 0x80, 0x9D,
-        0xEB, 0xF6, 0xD1, 0xCC, 0x9F, 0x82, 0xA5, 0xB8, 0x03, 0x1E, 0x39, 0x24, 0x77, 0x6A, 0x4D, 0x50, 0xA1, 0xBC,
-        0x9B, 0x86, 0xD5, 0xC8, 0xEF, 0xF2, 0x49, 0x54, 0x73, 0x6E, 0x3D, 0x20, 0x07, 0x1A, 0x6C, 0x71, 0x56, 0x4B,
-        0x18, 0x05, 0x22, 0x3F, 0x84, 0x99, 0xBE, 0xA3, 0xF0, 0xED, 0xCA, 0xD7, 0x35, 0x28, 0x0F, 0x12, 0x41, 0x5C,
-        0x7B, 0x66, 0xDD, 0xC0, 0xE7, 0xFA, 0xA9, 0xB4, 0x93, 0x8E, 0xF8, 0xE5, 0xC2, 0xDF, 0x8C, 0x91, 0xB6, 0xAB,
-        0x10, 0x0D, 0x2A, 0x37, 0x64, 0x79, 0x5E, 0x43, 0xB2, 0xAF, 0x88, 0x95, 0xC6, 0xDB, 0xFC, 0xE1, 0x5A, 0x47,
-        0x60, 0x7D, 0x2E, 0x33, 0x14, 0x09, 0x7F, 0x62, 0x45, 0x58, 0x0B, 0x16, 0x31, 0x2C, 0x97, 0x8A, 0xAD, 0xB0,
-        0xE3, 0xFE, 0xD9, 0xC4};
 
 /*
 INFO
@@ -122,13 +105,13 @@ bool BmwPhevBattery::isStale(int16_t currentValue, uint16_t& lastValue, unsigned
   }
 
   // Check if the value has stayed the same for the specified staleness period
-  return (currentTime - lastChangeTime >= STALE_PERIOD);
+  return (currentTime - lastChangeTime >= STALE_PERIOD_CONFIG);
 }
 
 static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
   uint8_t crc = initial_value;
   for (uint8_t j = 1; j < length; j++) {  //start at 1, since 0 is the CRC
-    crc = crc8_table[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
+    crc = crc8_table_SAE_J1850_ZER0[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
   }
   return crc;
 }
@@ -191,14 +174,12 @@ void BmwPhevBattery::parseDTCResponse() {
     logging.print(gUDSContext.UDS_buffer[2], HEX);
     logging.println();
     datalayer_extended.bmwphev.dtc_read_failed = true;
-    datalayer_extended.bmwphev.dtc_read_in_progress = false;
     return;
   }
 
   if (gUDSContext.UDS_buffer[0] != 0x59 || gUDSContext.UDS_buffer[1] != 0x02) {
     logging.println("Invalid DTC response header");
     datalayer_extended.bmwphev.dtc_read_failed = true;
-    datalayer_extended.bmwphev.dtc_read_in_progress = false;
     return;
   }
 
@@ -240,8 +221,8 @@ void BmwPhevBattery::parseDTCResponse() {
     }
 
     // Store valid DTC
-    datalayer_extended.bmwphev.dtc_codes[validDtcCount] = dtcCode;
-    datalayer_extended.bmwphev.dtc_status[validDtcCount] = dtcStatus;
+    datalayer_extended.bmwix.dtc_codes[validDtcCount] = dtcCode;
+    datalayer_extended.bmwix.dtc_status[validDtcCount] = dtcStatus;
 
     // Log each DTC for debugging
     logging.print("  DTC #");
@@ -271,9 +252,8 @@ void BmwPhevBattery::parseDTCResponse() {
   logging.print("Total valid DTCs: ");
   logging.println(validDtcCount);
 
-  datalayer_extended.bmwphev.dtc_last_read_millis = millis();
+  datalayer_extended.bmwix.dtc_last_read_millis = millis();  //Note we re-use ix struct to save memory
   datalayer_extended.bmwphev.dtc_read_failed = false;
-  datalayer_extended.bmwphev.dtc_read_in_progress = false;
 }
 void BmwPhevBattery::processCellVoltages() {
   const int startByte = 3;     // Start reading at byte 3
@@ -305,20 +285,20 @@ void BmwPhevBattery::wake_battery_via_canbus() {
   static bool waiting_for_completion = false;
 
   if (!waiting_for_completion) {
-    logging.println("Setting Canbus to 100kbps...");
+    logging.println("Setting Canbus to 100kbps");
     change_can_speed(CAN_Speed::CAN_SPEED_100KBPS);
     transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST);
     transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST);
-    logging.println("Sent magic wakeup packet to SME at 100kbps...");
+    logging.println("Sent magic wakeup packet to SME at 100kbps");
     wakeup_start_time = millis();
     waiting_for_completion = true;
     return;
   }
 
   if (millis() - wakeup_start_time >= 50) {
-    logging.println("Resetting Canbus speed...");
+    logging.println("Resetting Canbus speed");
     change_can_speed(CAN_Speed::CAN_SPEED_500KBPS);
-    logging.println("CAN speed restored, ready for normal operation");
+    logging.println("CAN speed restored, ready for operation");
     waiting_for_completion = false;
   }
 }
@@ -372,15 +352,11 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
 
   datalayer.battery.info.min_design_voltage_dV = min_design_voltage;
 
-  datalayer.battery.info.number_of_cells = detected_number_of_cells;
-
   datalayer_extended.bmwphev.min_cell_voltage_data_age = (millis() - min_cell_voltage_lastchanged);
 
   datalayer_extended.bmwphev.max_cell_voltage_data_age = (millis() - max_cell_voltage_lastchanged);
 
-  datalayer_extended.bmwphev.T30_Voltage = terminal30_12v_voltage;
-
-  datalayer_extended.bmwphev.hvil_status = hvil_status;
+  //datalayer_extended.bmwphev.hvil_status = hvil_status; //TODO, not implemented
 
   datalayer_extended.bmwphev.allowable_charge_amps = allowable_charge_amps;
 
@@ -419,11 +395,6 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
     datalayer.battery.info.max_design_voltage_dV = max_design_voltage;
     datalayer.battery.info.min_design_voltage_dV = min_design_voltage;
   }
-  if (cell_limit_info_available) {
-    // If we have cell limit data from battery - override the defaults to suit
-    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  }
 }
 void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
@@ -437,7 +408,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
       battery_request_open_contactors_fast = (rx_frame.data.u8[6] & 0x0C) >> 2;
       battery_charging_condition_delta = (rx_frame.data.u8[6] & 0xF0) >> 4;
-      battery_DC_link_voltage = rx_frame.data.u8[7];
+      //battery_DC_link_voltage = rx_frame.data.u8[7];
       datalayer.battery.status.CAN_battery_still_alive =
           CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
       break;
@@ -525,7 +496,6 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               rx_frame.data.u8[3] == 0x03 &&
               rx_frame.data.u8[4] == 0xAD) {  //Balancing Status  01 Active 03 Not Active    7DLC F1 05 71 03 AD 6B 01
             balancing_status = (rx_frame.data.u8[6]);
-            //logging.println("Balancing Status received");
           }
 
           break;
@@ -704,10 +674,6 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             min_cell_voltage = new_min_voltage;
             max_cell_voltage = new_max_voltage;
 
-            // Always update "last received" timestamps
-            min_cell_voltage_lastreceived = millis();
-            max_cell_voltage_lastreceived = millis();
-
           } else {
             logging.println("Cell Min Max Invalid 65535 or 0...");
           }
@@ -765,8 +731,8 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_status_error_disconnecting_switch = (rx_frame.data.u8[2] & 0x30) >> 4;
       battery_status_warning_isolation = (rx_frame.data.u8[2] & 0xC0) >> 6;
       battery_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
-      battery_temperature_HV = (rx_frame.data.u8[4] - 50);
-      battery_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
+      //battery_temperature_HV = (rx_frame.data.u8[4] - 50);
+      //battery_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
       if (rx_frame.data.u8[6] > 0 && rx_frame.data.u8[6] < 255) {
         battery_temperature_min = (rx_frame.data.u8[6] - 50);
       } else {
@@ -821,9 +787,6 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
 
       alive_counter_20ms = increment_alive_counter(alive_counter_20ms);
 
-      BMW_13E_counter++;
-      BMW_13E.data.u8[4] = BMW_13E_counter;
-
       //if (datalayer.battery.status.bms_status == FAULT) {  //ALLOW ANY TIME - TEST ONLY
       //}  //If battery is not in Fault mode, allow contactor to close by sending 10B
       //else {
@@ -877,10 +840,10 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_START);  // Enable Balancing
     }
   } else {
-    // Battery is asleep - try and wake it every 10 seconds
+    // Battery is asleep - try and wake it every 1 seconds
     if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
       previousMillis1000 = currentMillis;
-      logging.println("Battery asleep - sending wakeup packet...");
+      logging.println("Battery asleep, sending wakeup packet");
       wake_battery_via_canbus();
     }
   }
@@ -889,6 +852,7 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
 void BmwPhevBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
+  datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;

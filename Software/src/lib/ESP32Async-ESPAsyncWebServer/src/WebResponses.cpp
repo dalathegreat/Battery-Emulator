@@ -66,11 +66,7 @@ AsyncWebServerResponse::AsyncWebServerResponse()
   }
 }
 
-void AsyncWebServerResponse::setCode(int code) {
-  if (_state == RESPONSE_SETUP) {
-    _code = code;
-  }
-}
+
 
 void AsyncWebServerResponse::setContentLength(size_t len) {
   if (_state == RESPONSE_SETUP && addHeader(T_Content_Length, len, true)) {
@@ -588,6 +584,10 @@ size_t AsyncAbstractResponse::_fillBufferAndProcessTemplates(uint8_t *data, size
         const size_t roomTaken = pTemplateStart + numBytesCopied - pTemplateEnd - 1;
         len = std::min(len + roomTaken, originalLen);
       }
+      // Battery Emulator Fix: update pTemplateStart to point after inserted
+      // parameter value, so that % characters in the inserted value aren't
+      // parsed again
+      pTemplateStart += numBytesCopied;
     }
   }  // while(pTemplateStart)
   return len;
@@ -640,20 +640,10 @@ void AsyncFileResponse::_setContentTypeFromPath(const String &path) {
     _contentType = T_image_gif;
   } else if (strcmp(dot, T__woff2) == 0) {
     _contentType = T_font_woff2;
-  } else if (strcmp(dot, T__woff) == 0) {
-    _contentType = T_font_woff;
   } else if (strcmp(dot, T__ttf) == 0) {
     _contentType = T_font_ttf;
   } else if (strcmp(dot, T__xml) == 0) {
     _contentType = T_text_xml;
-  } else if (strcmp(dot, T__pdf) == 0) {
-    _contentType = T_application_pdf;
-  } else if (strcmp(dot, T__mp4) == 0) {
-    _contentType = T_video_mp4;
-  } else if (strcmp(dot, T__opus) == 0) {
-    _contentType = T_audio_opus;
-  } else if (strcmp(dot, T__webm) == 0) {
-    _contentType = T_video_webm;
   } else if (strcmp(dot, T__txt) == 0) {
     _contentType = T_text_plain;
   } else {

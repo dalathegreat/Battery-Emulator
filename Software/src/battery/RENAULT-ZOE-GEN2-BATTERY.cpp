@@ -2,7 +2,8 @@
 #include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
+#include "../datalayer/datalayer_extended.h"     //For "More battery info" webpage
+#include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
 
 /* TODO
@@ -25,7 +26,7 @@ https://github.com/fesch/CanZE/tree/master/app/src/main/assets/ZOE_Ph2
 uint8_t RenaultZoeGen2Battery::calculate_crc_zoe(CAN_frame& rx_frame, uint8_t crc_xor) {
   uint8_t crc = 0;  //init value 0x00
   for (uint8_t j = 0; j < 7; j++) {
-    crc = crctable[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) & 0xFF];
+    crc = crc8_table_SAE_J1850_ZER0[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) & 0xFF];
   }
   return crc ^ crc_xor;
 }
@@ -48,6 +49,9 @@ void RenaultZoeGen2Battery::update_values() {
   datalayer_battery->status.voltage_dV = battery_pack_voltage_periodic_dV;
 
   datalayer_battery->status.current_dA = ((battery_current - 32640) * 0.3125f);
+
+  //Calculate the total Wh amount from SOH%
+  datalayer_battery->info.total_capacity_Wh = 52000 * (datalayer_battery->status.soh_pptt / 10000.0);
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
@@ -235,7 +239,7 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
           break;
         case POLL_12V:
-          battery_12v = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery_12v = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 350;  //350, calibration from testing
           break;
         case POLL_AVG_TEMP:
           battery_avg_temp = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -451,6 +455,7 @@ void RenaultZoeGen2Battery::setup(void) {  // Performs one time setup at startup
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer_battery->info.number_of_cells = 96;
+  datalayer_battery->info.total_capacity_Wh = 52000;
   datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;

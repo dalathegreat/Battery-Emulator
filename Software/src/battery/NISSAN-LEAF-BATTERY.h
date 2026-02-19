@@ -10,6 +10,12 @@ extern bool user_selected_LEAF_interlock_mandatory;
 
 class NissanLeafBattery : public CanBattery {
  public:
+  // Use the default constructor to create the first or single battery.battery_Total_Voltage2
+  NissanLeafBattery() {
+    datalayer_battery = &datalayer.battery;
+    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+    datalayer_nissan = &datalayer_extended.nissanleaf;
+  }
   // Use this constructor for the second battery.
   NissanLeafBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_NISSAN_LEAF* extended,
                     CAN_Interface targetCan)
@@ -18,14 +24,7 @@ class NissanLeafBattery : public CanBattery {
     allows_contactor_closing = nullptr;
     datalayer_nissan = extended;
 
-    battery_Total_Voltage2 = 0;
-  }
-
-  // Use the default constructor to create the first or single battery.
-  NissanLeafBattery() {
-    datalayer_battery = &datalayer.battery;
-    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    datalayer_nissan = &datalayer_extended.nissanleaf;
+    battery_Total_Voltage2 = 0;  //Zero out pack voltage to avoid contactor closing before we know value via CAN
   }
 
   virtual void setup(void);
@@ -37,9 +36,9 @@ class NissanLeafBattery : public CanBattery {
   void reset_SOH() { datalayer_extended.nissanleaf.UserRequestSOHreset = true; }
 
   bool soc_plausible() {
-    // When pack voltage is close to max, and SOC% is still low, SOC is not plausible
+    // When pack voltage is close to max, and SOC% is still low (<65.0%), SOC is not plausible
     return !((datalayer.battery.status.voltage_dV > (datalayer.battery.info.max_design_voltage_dV - 100)) &&
-             (datalayer.battery.status.real_soc < 6500));
+             (battery_SOC < 650));
   }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
@@ -140,20 +139,6 @@ class NissanLeafBattery : public CanBattery {
   // There are also two more groups: group 61, which replies with lots of CAN messages (up to 48); here we
   // found the SOH value, and group 84 that replies with the HV battery production serial.
 
-  uint8_t crctable[256] = {
-      0,   133, 143, 10,  155, 30,  20,  145, 179, 54,  60,  185, 40,  173, 167, 34,  227, 102, 108, 233, 120, 253,
-      247, 114, 80,  213, 223, 90,  203, 78,  68,  193, 67,  198, 204, 73,  216, 93,  87,  210, 240, 117, 127, 250,
-      107, 238, 228, 97,  160, 37,  47,  170, 59,  190, 180, 49,  19,  150, 156, 25,  136, 13,  7,   130, 134, 3,
-      9,   140, 29,  152, 146, 23,  53,  176, 186, 63,  174, 43,  33,  164, 101, 224, 234, 111, 254, 123, 113, 244,
-      214, 83,  89,  220, 77,  200, 194, 71,  197, 64,  74,  207, 94,  219, 209, 84,  118, 243, 249, 124, 237, 104,
-      98,  231, 38,  163, 169, 44,  189, 56,  50,  183, 149, 16,  26,  159, 14,  139, 129, 4,   137, 12,  6,   131,
-      18,  151, 157, 24,  58,  191, 181, 48,  161, 36,  46,  171, 106, 239, 229, 96,  241, 116, 126, 251, 217, 92,
-      86,  211, 66,  199, 205, 72,  202, 79,  69,  192, 81,  212, 222, 91,  121, 252, 246, 115, 226, 103, 109, 232,
-      41,  172, 166, 35,  178, 55,  61,  184, 154, 31,  21,  144, 1,   132, 142, 11,  15,  138, 128, 5,   148, 17,
-      27,  158, 188, 57,  51,  182, 39,  162, 168, 45,  236, 105, 99,  230, 119, 242, 248, 125, 95,  218, 208, 85,
-      196, 65,  75,  206, 76,  201, 195, 70,  215, 82,  88,  221, 255, 122, 112, 245, 100, 225, 235, 110, 175, 42,
-      32,  165, 52,  177, 187, 62,  28,  153, 147, 22,  135, 2,   8,   141};
-
   //Nissan LEAF battery parameters from constantly sent CAN
   uint8_t LEAF_battery_Type = ZE0_BATTERY;
   bool battery_can_alive = false;
@@ -208,9 +193,12 @@ class NissanLeafBattery : public CanBattery {
   uint8_t BatterySerialNumber[15] = {0};  // Stores raw HEX values for ASCII chars
   uint8_t BatteryPartNumber[7] = {0};     // Stores raw HEX values for ASCII chars
   uint8_t BMSIDcode[8] = {0};
+  uint8_t stateMachineClearSOH = 0xFF;
+
+#ifndef SMALL_FLASH_DEVICE
 
   // Clear SOH values
-  uint8_t stateMachineClearSOH = 0xFF;
+
   uint32_t incomingChallenge = 0xFFFFFFFF;
   uint8_t solvedChallenge[8];
   bool challengeFailed = false;
@@ -220,6 +208,8 @@ class NissanLeafBattery : public CanBattery {
                               .DLC = 8,
                               .ID = 0x79B,
                               .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+
+#endif
 };
 
 #endif

@@ -7,9 +7,12 @@
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
+#include "../../devboard/hal/hal.h"
+#include "../../devboard/safety/safety.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
 #include "../utils/timer.h"
+#include "../webserver/webserver.h"
 #include "mqtt.h"
 #include "mqtt_client.h"
 
@@ -17,6 +20,7 @@ bool mqtt_enabled = false;
 bool ha_autodiscovery_enabled = false;
 bool mqtt_transmit_all_cellvoltages = false;
 uint16_t mqtt_timeout_ms = 2000;
+uint16_t mqtt_publish_interval_ms = 5000;
 
 const int mqtt_port_default = 0;
 const char* mqtt_server_default = "";
@@ -43,8 +47,8 @@ const char* ha_device_id =
 esp_mqtt_client_config_t mqtt_cfg;
 esp_mqtt_client_handle_t client;
 char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
-MyTimer publish_global_timer(5000);  //publish timer
-MyTimer check_global_timer(800);     // check timmer - low-priority MQTT checks, where responsiveness is not critical.
+MyTimer publish_global_timer(0);  // Will be configured with mqtt_publish_interval_ms on first use
+MyTimer check_global_timer(800);  // check timmer - low-priority MQTT checks, where responsiveness is not critical.
 bool client_started = false;
 static String lwt_topic = "";
 
@@ -340,7 +344,7 @@ static bool publish_cell_voltages(void) {
   static String state_topic_2 = topic_name + "/spec_data_2";
 
   if (ha_autodiscovery_enabled) {
-    bool failed_to_publish = false;
+    bool successfully_published = false;
     if (ha_cell_voltages_published == false) {
 
       // If the cell voltage number isn't initialized...
@@ -353,34 +357,35 @@ static bool publish_cell_voltages(void) {
 
           serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
           if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "").c_str(), mqtt_msg, true) == false) {
-            failed_to_publish = true;
             return false;
           }
         }
+        successfully_published = true;
         doc.clear();  // clear after sending autoconfig
       }
 
       if (battery2) {
+        successfully_published = false;
         // TODO: Combine this identical block with the previous one.
         // If the cell voltage number isn't initialized...
         if (datalayer.battery2.info.number_of_cells != 0u) {
 
-          for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
+          for (int i = 0; i < datalayer.battery2.info.number_of_cells; i++) {
             int cellNumber = i + 1;
             set_battery_voltage_attributes(doc, i, cellNumber, state_topic_2, object_id_prefix + "2_", " 2");
             set_common_discovery_attributes(doc);
 
             serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
             if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "_2_").c_str(), mqtt_msg, true) == false) {
-              failed_to_publish = true;
               return false;
             }
           }
+          successfully_published = true;
           doc.clear();  // clear after sending autoconfig
         }
       }
     }
-    if (failed_to_publish == false) {
+    if (successfully_published) {
       ha_cell_voltages_published = true;
     }
   }
@@ -739,18 +744,20 @@ bool init_mqtt(void) {
 }
 
 void mqtt_client_loop(void) {
-  // Only attempt to publish/reconnect MQTT if Wi-Fi is connectedand checkTimmer is elapsed
+  // Only attempt to publish/reconnect MQTT if Wi-Fi is connected and checkTimmer is elapsed
   if (check_global_timer.elapsed() && WiFi.status() == WL_CONNECTED) {
 
     if (client_started == false) {
+      // Configure timer with the loaded interval on first use
+      publish_global_timer = MyTimer(mqtt_publish_interval_ms);
       esp_mqtt_client_start(client);
       client_started = true;
       logging.println("MQTT initialized");
       return;
     }
 
-    if (publish_global_timer.elapsed())  // Every 5s
-    {
+    // Skip publishing if OTA update is in progress to avoid interference
+    if (publish_global_timer.elapsed() && !ota_active) {
       publish_values();
     }
   }
