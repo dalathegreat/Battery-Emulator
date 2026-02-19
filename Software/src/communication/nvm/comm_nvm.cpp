@@ -158,6 +158,9 @@ void init_stored_settings() {
   precharge_inverter_normally_open_contactor = settings.getBool("NOINVDISC", false);
   precharge_max_precharge_time_before_fault = settings.getUInt("MAXPRETIME", 15000);
   Precharge_max_PWM_Freq = settings.getUInt("MAXPREFREQ", 34000);
+  Precharge_min_PWM_Freq = settings.getUInt("MINPREFREQ", 5000);
+  Precharge_default_PWM_Freq = settings.getUInt("DEFPREFREQ", 11000);
+  Precharge_coarse_narrow_multiplier = settings.getUInt("MULPREFREQ", 3);
 
   datalayer.system.info.performance_measurement_active = settings.getBool("PERFPROFILE", false);
   datalayer.system.info.CAN_usb_logging_active = settings.getBool("CANLOGUSB", false);
