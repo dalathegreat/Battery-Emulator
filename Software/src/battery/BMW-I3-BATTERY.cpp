@@ -102,7 +102,7 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
 void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
-      battery_awake = true;
+      battery_awake = UserRequestBalancing != EXECUTING;
       datalayer_battery->status.CAN_battery_still_alive =
           CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
       battery_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
@@ -139,7 +139,7 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_predicted_energy_charging_target = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[3]) * 0.02);  //kWh
       break;
     case 0x2BD:  //BMS [100ms] Status diagnosis high voltage - 1
-      battery_awake = true;
+      battery_awake = UserRequestBalancing != EXECUTING;
       if (!skipCRCCheck) {
         if (calculateCRC(rx_frame, rx_frame.DLC, 0x15) != rx_frame.data.u8[0]) {
           // If calculated CRC does not match transmitted CRC, increase CANerror counter
@@ -166,7 +166,7 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_max_discharge_amperage = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) - 819.2);
       break;
     case 0x2FF:  //BMS [100ms] Status Heating High-Voltage Battery
-      battery_awake = true;
+      battery_awake = UserRequestBalancing != EXECUTING;
       battery_actual_value_power_heating = (rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4);
       break;
     case 0x363:  //BMS [1s] Identification High-Voltage Battery
@@ -341,7 +341,18 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&BMW_19B);
 
       if (UserRequestBalancing != NONE) {
-        transmit_can_frame(&BMW_3E9);
+        switch (detectedBattery) {
+          case BATTERY_60AH:
+            transmit_can_frame(&BMW_3E9_21000);
+            break;
+          case BATTERY_94AH:
+            transmit_can_frame(&BMW_3E9_33200);
+            break;
+          case BATTERY_120AH:
+            transmit_can_frame(&BMW_3E9_42200);
+            break;
+        }
+
         cmdState = OFF;
         if (UserRequestBalancing == REQUESTED && currentMillis - UserRequestBalancingMillis > 20000) {
           UserRequestBalancing = STARTING;
