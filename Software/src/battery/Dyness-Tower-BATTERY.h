@@ -4,7 +4,6 @@
 #include "../datalayer/datalayer.h"
 #include "CanBattery.h"
 
-
 class DynessBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
@@ -16,7 +15,7 @@ class DynessBattery : public CanBattery {
   }
 
   // Use the default constructor to create the first or single battery.
-  DynessBattery(): CanBattery(CAN_Speed::CAN_SPEED_500KBPS) {
+  DynessBattery() : CanBattery(CAN_Speed::CAN_SPEED_500KBPS) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     contactor_closing_allowed = nullptr;
@@ -48,25 +47,25 @@ class DynessBattery : public CanBattery {
 
   //Actual content messages
   CAN_frame DYNESS_3010 = {.FD = false,
-                          .ext_ID = true,
-                          .DLC = 8,
-                          .ID = 0x3010,
-                          .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .ext_ID = true,
+                           .DLC = 8,
+                           .ID = 0x3010,
+                           .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame DYNESS_8200 = {.FD = false,
-                          .ext_ID = true,
-                          .DLC = 8,
-                          .ID = 0x8200,
-                          .data = {0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .ext_ID = true,
+                           .DLC = 8,
+                           .ID = 0x8200,
+                           .data = {0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame DYNESS_8210 = {.FD = false,
-                          .ext_ID = true,
-                          .DLC = 8,
-                          .ID = 0x8210,
-                          .data = {0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .ext_ID = true,
+                           .DLC = 8,
+                           .ID = 0x8210,
+                           .data = {0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame DYNESS_4200 = {.FD = false,
-                          .ext_ID = true,
-                          .DLC = 8,
-                          .ID = 0x4200,
-                          .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .ext_ID = true,
+                           .DLC = 8,
+                           .ID = 0x4200,
+                           .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   // EMUS request for individual cell voltages
   CAN_frame EMUS_CELL_VOLTAGE_REQUEST = {.FD = false,
                                          .ext_ID = true,
