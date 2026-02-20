@@ -179,7 +179,9 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           voltage = (rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[7] >> 4);
         }
 
-        datalayer.battery.status.cell_voltages_mV[start_index + i] = voltage + 1000;
+        if (voltage < 3600) {  //Unavailable cells are >5000mV on some packs. Only sample cells under 4600mV
+          datalayer.battery.status.cell_voltages_mV[start_index + i] = voltage + 1000;
+        }
       }
       break;
     }
