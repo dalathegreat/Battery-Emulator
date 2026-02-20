@@ -62,6 +62,8 @@ const char* name_for_battery_type(BatteryType type) {
       return CmfaEvBattery::Name;
     case BatteryType::CmpSmartCar:
       return CmpSmartCarBattery::Name;
+    case BatteryType::DynessTower:
+      return DynessBattery::Name;
     case BatteryType::FordMachE:
       return FordMachEBattery::Name;
     case BatteryType::Foxess:
@@ -177,6 +179,8 @@ Battery* create_battery(BatteryType type) {
       return new CmfaEvBattery();
     case BatteryType::CmpSmartCar:
       return new CmpSmartCarBattery();
+    case BatteryType::DynessTower:
+      return new DynessBattery();
     case BatteryType::FordMachE:
       return new FordMachEBattery();
     case BatteryType::Foxess:
@@ -298,6 +302,9 @@ void setup_battery() {
         battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
                                            &datalayer.system.status.battery2_allowed_contactor_closing,
                                            can_config.battery_double);
+        break;
+      case BatteryType::DynessTower:
+        battery2 = new DynessBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
       case BatteryType::Pylon:
         battery2 = new PylonBattery(&datalayer.battery2, nullptr, can_config.battery_double);
