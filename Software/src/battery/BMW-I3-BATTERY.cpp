@@ -29,6 +29,12 @@ void BmwI3Battery::initiate_offline_balancing() {
   UserRequestBalancingMillis = millis();
 }
 
+void BmwI3Battery::end_offline_balancing() {
+  UserRequestBalancing = NONE;
+  UserRequestBalancingMillis = 0;
+  cmdState = SOC;
+}
+
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
   if (datalayer.system.info.equipment_stop_active == true || UserRequestBalancing == STARTING ||
       UserRequestBalancing == EXECUTING) {

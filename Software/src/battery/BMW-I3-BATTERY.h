@@ -37,6 +37,7 @@ class BmwI3Battery : public CanBattery {
 
   bool supports_offline_balancing() { return true; }
   virtual void initiate_offline_balancing();
+  virtual void end_offline_balancing();
 
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
