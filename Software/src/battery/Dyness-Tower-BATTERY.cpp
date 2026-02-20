@@ -136,21 +136,21 @@ void DynessBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x4291:
       break;
     case 0x18FF9A6E:
-        if(rx_frame.data.u8[0] == 0x03) {
-          remaining_capacity_Wh = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[3]) * 10;
-          total_capacity_Wh = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[5]) * 10;
-        }
+      if (rx_frame.data.u8[0] == 0x03) {
+        remaining_capacity_Wh = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[3]) * 10;
+        total_capacity_Wh = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[5]) * 10;
+      }
       break;
-    case CELL_VOLTAGE_BASE_ID:{
+    case CELL_VOLTAGE_BASE_ID: {
       // Handle EMUS individual cell voltage messages (0x0x18FF9701)
-      uint8_t cell_start_voltage = rx_frame.data.u8[0] -  1;
+      uint8_t cell_start_voltage = rx_frame.data.u8[0] - 1;
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Keep battery alive on cell data
-      
+
       for (uint8_t i = 0; i < 3; i++) {
         uint8_t cell_index_voltage = cell_start_voltage + i;
         if (cell_index_voltage < MAX_CELLS && (actual_cell_count == 0 || cell_index_voltage < actual_cell_count)) {
           // Cell voltage: 3100mV base + (byte value × 4mV)
-          uint16_t cell_voltage = 3100 + (rx_frame.data.u8[(i*2) + 1] * 4);
+          uint16_t cell_voltage = 3100 + (rx_frame.data.u8[(i * 2) + 1] * 4);
           // Only update if voltage is in valid range (2500-4200mV)
           if (cell_voltage >= 2500 && cell_voltage <= 4200) {
             uint16_t current_voltage = datalayer_battery->status.cell_voltages_mV[cell_index_voltage];
@@ -161,8 +161,7 @@ void DynessBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
         }
       }
-    }
-      break;
+    } break;
     default:
       // Handle EMUS individual cell balancing status messages (0x19B50300-0x19B5031F)
       if (rx_frame.ID >= CELL_BALANCING_BASE_ID && rx_frame.ID < (CELL_BALANCING_BASE_ID + 32)) {
@@ -176,7 +175,7 @@ void DynessBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
         }
       }
-    break;
+      break;
   }
 }
 
