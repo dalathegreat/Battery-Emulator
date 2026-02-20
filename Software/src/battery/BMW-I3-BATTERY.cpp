@@ -43,6 +43,13 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     digitalWrite(wakeup_pin, HIGH);  // Wake up the battery
   }
 
+  // When balancing mode has stopped CAN, keep the alive counter refreshed
+  // so the safety check (EVENT_CAN_BATTERY_MISSING) does not trigger
+  if (UserRequestBalancing == EXECUTING) {
+    datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+    datalayer_battery->status.bms_status = STANDBY;
+  }
+
   if (!battery_awake) {
     return;
   }

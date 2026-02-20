@@ -19,8 +19,7 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) { b->reset_SOC(); }},
     {"startOfflineBalancing", "Start Offline Balancing",
      "continue? Please charge battery fully for this to work. After a couple of minutes, battery will sleep and do "
-     "balancing. It "
-     "often takes many hours. There will be no progress indication and Battery Emulator status will be red.",
+     "balancing. It often takes many hours. There will be no progress indication.",
      [](Battery* b) { return b && b->supports_offline_balancing(); },
      [](Battery* b) { b->initiate_offline_balancing(); }},
     {"endOfflineBalancing", "End Offline Balancing", "end offline balancing?",
