@@ -33,6 +33,7 @@ void BmwI3Battery::end_offline_balancing() {
   UserRequestBalancing = NONE;
   UserRequestBalancingMillis = 0;
   cmdState = SOC;
+  datalayer_battery->status.bms_status = ACTIVE;
 }
 
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
