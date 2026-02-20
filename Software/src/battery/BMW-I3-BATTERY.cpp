@@ -340,7 +340,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
       transmit_can_frame(&BMW_19B);
 
-      if (UserRequestBalancing != NONE) {
+      if (UserRequestBalancing != NONE && battery_info_available) {
         switch (detectedBattery) {
           case BATTERY_60AH:
             transmit_can_frame(&BMW_3E9_21000);
@@ -362,7 +362,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
           UserRequestBalancing = EXECUTING;
           set_event(EVENT_BALANCING_START, 0);
         }
-        if (UserRequestBalancing == EXECUTING) {
+        if (UserRequestBalancing == EXECUTING && battery_awake) {
           set_event(EVENT_BALANCING_START, 1);
           battery_awake = false;
         }
