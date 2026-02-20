@@ -1,8 +1,8 @@
 #ifndef _ESPNOW_H_
 #define _ESPNOW_H_
 
-#include "../utils/types.h"
 #include "../../system_settings.h"
+#include "../utils/types.h"
 
 void init_espnow();
 void update_espnow();
@@ -138,13 +138,13 @@ struct BATTERY_CELL_STATUS_TYPE {
   uint8_t number_of_cells;
 };  // 193 bytes
 
-enum espnow_message_enum { BAT_INFO = 1, BAT_STATUS = 2, BAT_BALANCE = 3, BAT_CELL_STATUS = 4};
+enum espnow_message_enum { BAT_INFO = 1, BAT_STATUS = 2, BAT_BALANCE = 3, BAT_CELL_STATUS = 4 };
 
 struct ESPNOW_BATTERY_MESSAGE {
-    uint16_t emulator_id;
-    uint8_t  battery_id;
-    uint8_t  esp_message_type;
-    uint8_t  esp_message[];
+  uint16_t emulator_id;
+  uint8_t battery_id;
+  uint8_t esp_message_type;
+  uint8_t esp_message[];
 } __packed;
 
 #endif  // _ESPNOW_H_
