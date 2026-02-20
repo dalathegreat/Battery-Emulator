@@ -1133,7 +1133,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     }
 
     form .if-dyness { display: none; }
-    form[data-battery="50"] .if-dyness,
+    form[data-battery="51"] .if-dyness,
     form[data-inverter="10"] .if-pylon {
       display: contents;
     }
@@ -1149,7 +1149,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     }
 
     form .if-dyness-battery { display: none; }
-    form[data-battery="50"] .if-dyness-battery {
+    form[data-battery="51"] .if-dyness-battery {
       display: contents;
     }
 
