@@ -402,12 +402,12 @@ void init_webserver() {
   };
 
   const char* uintSettingNames[] = {
-      "BATTCVMAX", "BATTCVMIN",  "MAXPRETIME",  "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER",     "CHGPOWER", "LOCALIP1",
-      "LOCALIP2",  "LOCALIP3",   "LOCALIP4",    "GATEWAY1",   "GATEWAY2",    "GATEWAY3",      "GATEWAY4", "SUBNET1",
-      "SUBNET2",   "SUBNET3",    "SUBNET4",     "MQTTPORT",   "MQTTTIMEOUT", "MQTTPUBLISHMS", "SOFAR_ID", "PYLONSEND",
-      "INVCELLS",  "INVMODULES", "INVCELLSPER", "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",      "CANFREQ",  "CANFDFREQ",
-      "PRECHGMS",  "PWMFREQ",    "PWMHOLD",     "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS",    "GTWPACK",  "LEDMODE",
-      "GPIOOPT1",  "GPIOOPT2",   "GPIOOPT3",
+      "BATTCVMAX", "BATTCVMIN",  "MAXPRETIME", "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER", "CHGPOWER",
+      "LOCALIP1",  "LOCALIP2",   "LOCALIP3",   "LOCALIP4",   "GATEWAY1",    "GATEWAY2",  "GATEWAY3",
+      "GATEWAY4",  "SUBNET1",    "SUBNET2",    "SUBNET3",    "SUBNET4",     "MQTTPORT",  "MQTTTIMEOUT",
+      "SOFAR_ID",  "PYLONSEND",  "INVCELLS",   "INVMODULES", "INVCELLSPER", "INVVLEVEL", "INVCAPACITY",
+      "INVBTYPE",  "CANFREQ",    "CANFDFREQ",  "PRECHGMS",   "PWMFREQ",     "PWMHOLD",   "GTWCOUNTRY",
+      "GTWMAPREG", "GTWCHASSIS", "GTWPACK",    "LEDMODE",    "GPIOOPT1",    "GPIOOPT2",  "GPIOOPT3",
   };
 
   const char* stringSettingNames[] = {"APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
@@ -469,6 +469,9 @@ void init_webserver() {
                 } else if (p->name() == "PASSWORD") {
                   settings.saveString("PASSWORD", p->value().c_str());
                   password = settings.getString("PASSWORD", "").c_str();
+                } else if (p->name() == "MQTTPUBLISHMS") {
+                  auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
+                  settings.saveUInt("MQTTPUBLISHMS", interval);
                 }
 
                 for (auto& uintSetting : uintSettingNames) {
@@ -487,15 +490,14 @@ void init_webserver() {
                     }
                   }
                 }
+              }
 
-                for (auto& boolSetting : boolSettingNames) {
-                  if (p->name() == boolSetting) {
-                    const bool default_value = (boolSetting == std::string("WIFIAPENABLED"));
-                    const bool value = (p->value() == "on");
-                    if (settings.getBool(boolSetting, default_value) != value) {
-                      settings.saveBool(boolSetting, value);
-                    }
-                  }
+              for (auto& boolSetting : boolSettingNames) {
+                auto p = request->getParam(boolSetting, true);
+                const bool default_value = (std::string(boolSetting) == std::string("WIFIAPENABLED"));
+                const bool value = p != nullptr && p->value() == "on";
+                if (settings.getBool(boolSetting, default_value) != value) {
+                  settings.saveBool(boolSetting, value);
                 }
               }
 
@@ -542,6 +544,10 @@ void init_webserver() {
 
   // Route for editing USE_SCALED_SOC
   update_int_setting("/updateUseScaledSOC", [](int value) { datalayer.battery.settings.soc_scaling_active = value; });
+
+  // Route for enabling recovery mode charging
+  update_int_setting("/enableRecoveryMode",
+                     [](int value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; });
 
   // Route for editing SOCMax
   update_string_setting("/updateSocMax", [](String value) {
@@ -634,7 +640,7 @@ void init_webserver() {
 
   // Route for editing balancing max time
   update_string_setting("/BalTime", [](String value) {
-    datalayer.battery.settings.balancing_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);
+    datalayer.battery.settings.balancing_max_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);
   });
 
   // Route for editing balancing max power
@@ -832,12 +838,25 @@ String processor(const String& var) {
 #ifdef HW_LILYGO2CAN
     content += " Hardware: LilyGo T_2CAN";
 #endif  // HW_LILYGO2CAN
+#ifdef HW_BECOM
+    content += " Hardware: BECom";
+#endif  // HW_BECOM
 #ifdef HW_STARK
     content += " Hardware: Stark CMR Module";
 #endif  // HW_STARK
     content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
     content += "<h4>Uptime: " + get_uptime() + "</h4>";
     if (datalayer.system.info.performance_measurement_active) {
+      content +=
+          "<h4>Free heap: " + String(ESP.getFreeHeap()) + ", max alloc: " + String(ESP.getMaxAllocHeap()) + "</h4>";
+      FlashMode_t mode = ESP.getFlashChipMode();
+      content += "<h4>Flash mode: " +
+                 String(mode == FM_QIO    ? "QIO"
+                        : mode == FM_QOUT ? "QOUT"
+                        : mode == FM_DIO  ? "DIO"
+                        : mode == FM_DOUT ? "DOUT"
+                                          : /*mode == FM_UNKNOWN*/ "Unknown") +
+                 ", size: " + String(ESP.getFlashChipSize() / (1024 * 1024)) + " MB</h4>";
       // Load information
       content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
       content +=

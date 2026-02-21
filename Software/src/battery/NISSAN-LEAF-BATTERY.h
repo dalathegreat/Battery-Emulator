@@ -36,9 +36,9 @@ class NissanLeafBattery : public CanBattery {
   void reset_SOH() { datalayer_extended.nissanleaf.UserRequestSOHreset = true; }
 
   bool soc_plausible() {
-    // When pack voltage is close to max, and SOC% is still low, SOC is not plausible
+    // When pack voltage is close to max, and SOC% is still low (<65.0%), SOC is not plausible
     return !((datalayer.battery.status.voltage_dV > (datalayer.battery.info.max_design_voltage_dV - 100)) &&
-             (datalayer.battery.status.real_soc < 6500));
+             (battery_SOC < 650));
   }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
@@ -193,9 +193,12 @@ class NissanLeafBattery : public CanBattery {
   uint8_t BatterySerialNumber[15] = {0};  // Stores raw HEX values for ASCII chars
   uint8_t BatteryPartNumber[7] = {0};     // Stores raw HEX values for ASCII chars
   uint8_t BMSIDcode[8] = {0};
+  uint8_t stateMachineClearSOH = 0xFF;
+
+#ifndef SMALL_FLASH_DEVICE
 
   // Clear SOH values
-  uint8_t stateMachineClearSOH = 0xFF;
+
   uint32_t incomingChallenge = 0xFFFFFFFF;
   uint8_t solvedChallenge[8];
   bool challengeFailed = false;
@@ -205,6 +208,8 @@ class NissanLeafBattery : public CanBattery {
                               .DLC = 8,
                               .ID = 0x79B,
                               .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+
+#endif
 };
 
 #endif

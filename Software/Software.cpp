@@ -26,16 +26,18 @@
 #include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/types.h"
 #include "src/devboard/utils/value_mapping.h"
+#include "src/devboard/utils/watchdog.h"
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
 
-#if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_DEVKIT)
+#if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
+    !defined(HW_DEVKIT)
 #error You must select a target hardware!
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "9.4.dev";
+const char* version_number = "10.1.dev";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -50,6 +52,7 @@ TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
 TaskHandle_t logging_loop_task;
 TaskHandle_t mqtt_loop_task;
+Watchdog mqtt_loop_watchdog;
 
 Logging logging;
 
@@ -68,7 +71,7 @@ void register_transmitter(Transmitter* transmitter) {
 void init_serial() {
   // Init Serial monitor
   Serial.begin(115200);
-#if HW_LILYGO2CAN
+#if (HW_LILYGO2CAN || HW_BECOM)
   // Wait up to 100ms for Serial to be available. On the ESP32S3 Serial is
   // provided by the USB controller, so will only work if the board is connected
   // to a computer.
@@ -105,17 +108,27 @@ void connectivity_loop(void*) {
 
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
 
+    mqtt_loop_watchdog.panic_if_exceeded_ms(60000, "MQTT task watchdog reset triggered!");
+
     esp_task_wdt_reset();  // Reset watchdog
     delay(1);
   }
 }
 
 void logging_loop(void*) {
+  bool sd_initialized = false;
 
   init_logging_buffers();
-  init_sdcard();
+  sd_initialized = init_sdcard();
 
-  while (true) {
+  // If the SD failed to init (delete the buffers and disable SD logging)
+  if (!sd_initialized) {
+    deinit_logging_buffers();
+    datalayer.system.info.SD_logging_active = false;
+    datalayer.system.info.CAN_SD_logging_active = false;
+  }
+
+  while (sd_initialized) {
     if (datalayer.system.info.SD_logging_active) {
       write_log_to_sdcard();
     }
@@ -124,6 +137,8 @@ void logging_loop(void*) {
       write_can_frame_to_sdcard();
     }
   }
+  // Delete the logging task only if SD failed to initialize to prevent panic.
+  vTaskDelete(NULL);
 }
 
 void check_interconnect_available(uint8_t batteryNumber) {
@@ -197,6 +212,9 @@ void update_calculated_values(unsigned long currentMillis) {
     // Ignoring erroneous temperature value that ESP32 sometimes returns
     datalayer.system.info.CPU_temperature = temp.temp;
   }
+
+  /*Update free heap*/
+  datalayer.system.info.CPU_free_heap = ESP.getFreeHeap();
 
   /* Check is remote set limits have timed out */
   if (currentMillis > datalayer.battery.settings.remote_set_timestamp + datalayer.battery.settings.remote_set_timeout) {
@@ -475,15 +493,18 @@ void core_loop(void*) {
       previousMillis10ms = currentMillis;
       if (datalayer.system.info.performance_measurement_active) {
         START_TIME_MEASUREMENT(10ms);
-      }
-      led_exe();
-      handle_contactors();  // Take care of startup precharge/contactor closing
-      if (precharge_control_enabled) {
-        handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
-      }
-
-      if (datalayer.system.info.performance_measurement_active) {
+        led_exe();
+        handle_contactors();  // Take care of startup precharge/contactor closing
+        if (precharge_control_enabled) {
+          handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
+        }
         END_TIME_MEASUREMENT_MAX(10ms, datalayer.system.status.time_10ms_us);
+      } else {  //Run 10ms tasks without timing it
+        led_exe();
+        handle_contactors();  // Take care of startup precharge/contactor closing
+        if (precharge_control_enabled) {
+          handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
+        }
       }
     }
 
@@ -521,15 +542,19 @@ void core_loop(void*) {
     }
     if (datalayer.system.info.performance_measurement_active) {
       START_TIME_MEASUREMENT(cantx);
-    }
 
-    // Let all transmitter objects send their messages
-    for (auto& transmitter : transmitters) {
-      transmitter->transmit(currentMillis);
+      for (auto& transmitter : transmitters) {
+        transmitter->transmit(currentMillis);
+      }
+
+      END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
+    } else {
+      for (auto& transmitter : transmitters) {
+        transmitter->transmit(currentMillis);
+      }
     }
 
     if (datalayer.system.info.performance_measurement_active) {
-      END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
       END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
       if (datalayer.system.status.core_task_10s_max_us > datalayer.system.status.core_task_max_us) {
         // Update worst case total time
@@ -561,14 +586,13 @@ void core_loop(void*) {
 }
 
 void mqtt_loop(void*) {
-  esp_task_wdt_add(NULL);  // Register this task with WDT
-
   while (true) {
+    mqtt_loop_watchdog.update();
+
     START_TIME_MEASUREMENT(mqtt);
     mqtt_client_loop();
     END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
-    esp_task_wdt_reset();  // Reset watchdog
-    delay(1);
+    delay(100);
   }
 }
 
