@@ -1,4 +1,4 @@
-// A realtime display of battery status and events, using a I2C-connected 128x64
+// This is sending the Battery emulator data over ESPNow to nearby devices
 
 #include "espnow.h"
 #include <WiFi.h>
@@ -28,6 +28,8 @@ bool espnow_initialized = false;
 unsigned long lastUpdateMillis = 0;
 int num_batteries = 1;
 
+uint16_t emulator_id;
+
 // ESPNow callback when data is sent
 void OnDataSent(const uint8_t* mac_addr, esp_now_send_status_t status) {
   // Serial.print("\r\nLast Packet Send Status:\t");
@@ -40,7 +42,7 @@ void OnDataSent(const uint8_t* mac_addr, esp_now_send_status_t status) {
 static void send_battery_status(DATALAYER_BATTERY_STATUS_TYPE& status, uint8_t b_index) {
   // Set values to send
   memcpy(&b_message.esp_message, &status, 80);  //80 bytes without ballancing info
-  b_message.emulator_id = 0x1234;
+  b_message.emulator_id = emulator_id;
   b_message.battery_id = b_index + 1;
   b_message.esp_message_type = BAT_STATUS;
 
@@ -59,7 +61,7 @@ static void send_battery_status(DATALAYER_BATTERY_STATUS_TYPE& status, uint8_t b
 static void send_battery_info(DATALAYER_BATTERY_INFO_TYPE& info, uint8_t b_index) {
   // Set values to send
   memcpy(&b_message.esp_message, &info, 24);  //24 bytes
-  b_message.emulator_id = 0x1234;
+  b_message.emulator_id = emulator_id;
   b_message.battery_id = b_index + 1;
   b_message.esp_message_type = BAT_INFO;
 
@@ -83,7 +85,7 @@ static void send_battery_balancing(DATALAYER_BATTERY_INFO_TYPE& info, DATALAYER_
     b_bal_status.cell_balancing_status[i] = status.cell_balancing_status[i];
   }
   memcpy(&b_message.esp_message, &b_bal_status, sizeof(b_bal_status));  //193 bytes
-  b_message.emulator_id = 0x1234;
+  b_message.emulator_id = emulator_id;
   b_message.battery_id = b_index + 1;
   b_message.esp_message_type = BAT_BALANCE;
 
@@ -107,7 +109,7 @@ static void send_battery_cell_status(DATALAYER_BATTERY_INFO_TYPE& info, DATALAYE
     b_cells.cell_voltages_mV[i] = status.cell_voltages_mV[i] / 20;
   }
   memcpy(&b_message.esp_message, &b_cells, sizeof(b_cells));  //193 bytes
-  b_message.emulator_id = 0x1234;
+  b_message.emulator_id = emulator_id;
   b_message.battery_id = b_index + 1;
   b_message.esp_message_type = BAT_CELL_STATUS;
 
@@ -151,6 +153,9 @@ void init_espnow() {
     Serial.println("Failed to add ESPNow peer");
     return;
   }
+
+  // Get last 2 bytes from Mac as Emulator ID
+  emulator_id = ESP.getEfuseMac() & 0xFFFF;
 
   // Count configured batteries
   if (battery2)
