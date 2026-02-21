@@ -239,25 +239,29 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x1BC:  //1s cellvoltages (only on 108S)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      datalayer.battery.status.cell_voltages_mV[96] = (rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4);
-      datalayer.battery.status.cell_voltages_mV[97] = (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[3] >> 4);
+      datalayer.battery.status.cell_voltages_mV[96] = ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4)) + 1000;
+      datalayer.battery.status.cell_voltages_mV[97] = ((rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[3] >> 4)) + 1000;
       break;
     case 0x1BD:  //1s cellvoltages (only on 108S)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      datalayer.battery.status.cell_voltages_mV[98] = (rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4);
-      datalayer.battery.status.cell_voltages_mV[99] = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2];
-      datalayer.battery.status.cell_voltages_mV[100] = (rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[4] >> 4);
-      datalayer.battery.status.cell_voltages_mV[101] = ((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5];
-      datalayer.battery.status.cell_voltages_mV[102] = (rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[7] >> 4);
+      datalayer.battery.status.cell_voltages_mV[98] = ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4)) + 1000;
+      datalayer.battery.status.cell_voltages_mV[99] =
+          (((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) + 1000;
+      datalayer.battery.status.cell_voltages_mV[100] = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[4] >> 4)) + 1000;
+      datalayer.battery.status.cell_voltages_mV[101] =
+          (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) + 1000;
+      datalayer.battery.status.cell_voltages_mV[102] = ((rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[7] >> 4)) + 1000;
       break;
     case 0x1BE:  //1s cellvoltages (only on 108S)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      datalayer.battery.status.cell_voltages_mV[103] = (rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4);
-      datalayer.battery.status.cell_voltages_mV[104] = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2];
-      datalayer.battery.status.cell_voltages_mV[105] = (rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[4] >> 4);
-      datalayer.battery.status.cell_voltages_mV[106] = ((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5];
-      datalayer.battery.status.cell_voltages_mV[107] = (rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[7] >> 4);
+      datalayer.battery.status.cell_voltages_mV[103] = ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4)) + 1000;
+      datalayer.battery.status.cell_voltages_mV[104] =
+          (((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) + 1000;
+      datalayer.battery.status.cell_voltages_mV[105] = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[4] >> 4)) + 1000;
+      datalayer.battery.status.cell_voltages_mV[106] =
+          (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) + 1000;
+      datalayer.battery.status.cell_voltages_mV[107] = ((rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[7] >> 4)) + 1000;
       break;
     case 0x46f:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
