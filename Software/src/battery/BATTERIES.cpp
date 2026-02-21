@@ -136,6 +136,8 @@ const char* name_for_battery_type(BatteryType type) {
       return TestFakeBattery::Name;
     case BatteryType::ThinkCity:
       return ThinkBattery::Name;
+    case BatteryType::GeelySea:
+      return GeelySeaBattery::Name;
     case BatteryType::VolvoSpa:
       return VolvoSpaBattery::Name;
     case BatteryType::VolvoSpaHybrid:
@@ -240,7 +242,7 @@ Battery* create_battery(BatteryType type) {
     case BatteryType::SimpBms:
       return new SimpBmsBattery();
     case BatteryType::TeslaModel3Y:
-      return new TeslaModel3YBattery(user_selected_battery_chemistry);
+      return new TeslaModel3YBattery();
     case BatteryType::TeslaModelSX:
       return new TeslaModelSXBattery();
     case BatteryType::TeslaLegacy:
@@ -249,6 +251,8 @@ Battery* create_battery(BatteryType type) {
       return new TestFakeBattery();
     case BatteryType::ThinkCity:
       return new ThinkBattery();
+    case BatteryType::GeelySea:
+      return new GeelySeaBattery();
     case BatteryType::VolvoSpa:
       return new VolvoSpaBattery();
     case BatteryType::VolvoSpaHybrid:
@@ -264,6 +268,11 @@ void setup_battery() {
     return;
   }
 
+  // Set the chemistry to the user selected value, the battery can override.
+  datalayer.battery.info.chemistry = user_selected_battery_chemistry;
+  datalayer.battery2.info.chemistry = user_selected_battery_chemistry;
+  datalayer.battery3.info.chemistry = user_selected_battery_chemistry;
+
   battery = create_battery(user_selected_battery_type);
 
   if (battery) {
@@ -272,6 +281,9 @@ void setup_battery() {
 
   if (user_selected_second_battery && !battery2) {
     switch (user_selected_battery_type) {
+      case BatteryType::BydAtto3:
+        battery2 = new BydAttoBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+        break;
       case BatteryType::NissanLeaf:
         battery2 = new NissanLeafBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;

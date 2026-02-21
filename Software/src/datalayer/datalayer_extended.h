@@ -41,33 +41,21 @@ struct DATALAYER_INFO_BOLTAMPERA {
 };
 
 struct DATALAYER_INFO_BMWPHEV {
-  uint32_t dtc_codes[32];              // Array of DTC codes (3 bytes each, stored as uint32)
-  uint8_t dtc_status[32];              // Status byte for each DTC
-  unsigned long dtc_last_read_millis;  // Timestamp of last successful read
-
   uint64_t min_cell_voltage_data_age = 0;
   uint64_t max_cell_voltage_data_age = 0;
 
-  int32_t allowable_charge_amps = 0;
-  int32_t allowable_discharge_amps = 0;
-  int32_t iso_safety_int_kohm = 0;  //STAT_ISOWIDERSTAND_INT_WERT
-  int32_t iso_safety_ext_kohm = 0;  //STAT_ISOWIDERSTAND_EXT_STD_WERT
-  int32_t iso_safety_trg_kohm = 0;
-  int32_t iso_safety_ext_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_PLAUS
-  int32_t iso_safety_int_plausible = 0;
-  int32_t iso_safety_trg_plausible = 0;
-  int32_t iso_safety_kohm = 0;          //STAT_R_ISO_ROH_01_WERT
-  int32_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
-
   /** uint16_t */
-  /** Terminal 30 - 12V SME Supply Voltage */
-  uint16_t T30_Voltage = 0;
   /** Min/Max Cell SOH*/
   uint16_t min_soh_state = 0;
   uint16_t max_soh_state = 0;
+  uint16_t iso_safety_int_kohm = 0;  //STAT_ISOWIDERSTAND_INT_WERT
+  uint16_t iso_safety_ext_kohm = 0;  //STAT_ISOWIDERSTAND_EXT_STD_WERT
+  uint16_t iso_safety_trg_kohm = 0;
+  uint16_t iso_safety_kohm = 0;  //STAT_R_ISO_ROH_01_WERT
 
-  int16_t balancing_status = 0;
   int16_t battery_voltage_after_contactor = 0;
+  int16_t allowable_charge_amps = 0;
+  int16_t allowable_discharge_amps = 0;
 
   /** uint8_t */
   /** Status isolation external, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal*/
@@ -100,23 +88,28 @@ struct DATALAYER_INFO_BMWPHEV {
   /** Status cold shutoff valve, 0 OK, 1 Short circuit to GND, 2 Short circuit to 12V, 3 Line break, 6 Driver error, 12 Stuck, 13 Stuck, 15 Invalid Signal*/
   uint8_t ST_cold_shutoff_valve = 0;
   /** Status HVIL, 1 HVIL OK, 0 HVIL disconnected*/
-  uint8_t hvil_status = 0;
+  //uint8_t hvil_status = 0;
   uint8_t battery_request_open_contactors = 0;
   uint8_t battery_request_open_contactors_instantly = 0;
   uint8_t battery_request_open_contactors_fast = 0;
   uint8_t battery_charging_condition_delta = 0;
   uint8_t battery_DC_link_voltage = 0;
-  uint8_t dtc_count;  // Number of DTCs present
+  uint8_t dtc_count;                     // Number of DTCs present
+  uint8_t iso_safety_ext_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_PLAUS
+  uint8_t iso_safety_int_plausible = 0;
+  uint8_t iso_safety_trg_plausible = 0;
+  uint8_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
+  uint8_t balancing_status = 0;
 
-  bool dtc_read_in_progress;        // Flag to prevent concurrent reads
-  bool dtc_read_failed;             // Indicates last read attempt failed
+  bool dtc_read_failed = false;     // Indicates last read attempt failed
   bool UserRequestDTCreset = false; /** User requesting DTC reset via WebUI*/
   bool UserRequestBMSReset = false; /** User requesting BMS reset via WebUI*/
 };
 
 struct DATALAYER_INFO_BMWIX {
-  uint32_t dtc_codes[32];              // Array of DTC codes (3 bytes each, stored as uint32)
-  uint8_t dtc_status[32];              // Status byte for each DTC
+  uint32_t
+      dtc_codes[32];  // Array of DTC codes (3 bytes each, stored as uint32) (Same array used on other BMW integrations)
+  uint8_t dtc_status[32];              // Status byte for each DTC (Same array used on other BMW integrations)
   unsigned long dtc_last_read_millis;  // Timestamp of last successful read
   uint8_t dtc_count;                   // Number of DTCs present
   bool dtc_read_in_progress;           // Flag to prevent concurrent reads
@@ -452,6 +445,32 @@ struct DATALAYER_INFO_KIAHYUNDAI64 {
 
   uint8_t ecu_serial_number[16] = {0};
   uint8_t ecu_version_number[16] = {0};
+};
+
+struct DATALAYER_INFO_RIVIAN {
+  uint16_t pre_contactor_voltage = 3700;
+  uint16_t main_contactor_voltage = 0;
+  uint16_t voltage_reference = 0;
+  uint16_t DCFC_contactor_voltage = 0;
+  uint16_t battery_SOC_max = 0;
+  uint16_t battery_SOC_min = 0;
+  uint8_t BMS_state = 0;
+  uint8_t HVIL = 0;
+  uint8_t error_flags_from_BMS = 0;
+  uint8_t contactor_state = 0;
+  uint8_t HMI_part1 = 0;
+  uint8_t HMI_part2 = 0;
+  uint8_t isolation_fault_status = 0;
+  uint8_t system_safe_state = 0;
+  bool error_relay_open = false;
+  bool IsolationMeasurementOngoing = false;
+  bool puncture_fault = false;
+  bool liquid_fault = false;
+  bool contactor_DCFC_welded = false;
+  bool NACS_charger_detected = false;
+  bool slewrate_potential_violation = false;
+  bool minimum_power_potential_violation = false;
+  bool operation_limit_violation_warning = false;
 };
 
 struct DATALAYER_INFO_TESLA {
@@ -804,20 +823,13 @@ struct DATALAYER_INFO_MEB {
 };
 
 struct DATALAYER_INFO_VOLVO_POLESTAR {
-  uint16_t soc_bms = 0;
-  uint16_t soc_calc = 0;
-  uint16_t soc_rescaled = 0;
-  uint16_t soh_bms = 0;
   uint16_t BECMsupplyVoltage = 12000;
-  uint16_t BECMBatteryVoltage = 0;
   uint16_t BECMUDynMaxLim = 0;
   uint16_t BECMUDynMinLim = 0;
   uint16_t HvBattPwrLimDcha1 = 0;
   uint16_t HvBattPwrLimDchaSoft = 0;
   uint16_t HvBattPwrLimDchaSlowAgi = 0;
   uint16_t HvBattPwrLimChrgSlowAgi = 0;
-
-  int16_t BECMBatteryCurrent = 0;
 
   uint8_t HVSysRlySts = 0;
   uint8_t HVSysDCRlySts1 = 0;
@@ -860,6 +872,30 @@ struct DATALAYER_INFO_VOLVO_HYBRID {
   bool UserRequestDTCreadout = false;
   /** User requesting BECM reset via WebUI*/
   bool UserRequestBECMecuReset = false;
+};
+
+struct DATALAYER_INFO_GEELY_SEA {
+  uint16_t soc_bms = 0;
+  uint16_t soh_bms = 0;
+  uint16_t BECMsupplyVoltage = 0;
+  uint16_t BECMBatteryVoltage = 0;
+  uint16_t BatteryCurrent = 0;
+  uint16_t CellTempHighest = 0;
+  uint16_t CellTempAverage = 0;
+  uint16_t CellTempLowest = 0;
+  uint8_t Interlock = 255;
+  uint16_t CellVoltHighest = 0;
+  uint16_t CellVoltLowest = 0;
+  uint8_t DTCcount = 0;
+  uint8_t CrashStatus = 0;
+  /** User requesting DTC reset via WebUI*/
+  bool UserRequestDTCreset = false;
+  /** User requesting DTC readout via WebUI*/
+  bool UserRequestDTCreadout = false;
+  /** User requesting BECM reset via WebUI*/
+  bool UserRequestBECMecuReset = false;
+  /** User requesting reset of crash status via WebUI*/
+  bool UserRequestCrashReset = false;
 };
 
 struct DATALAYER_INFO_ZOE {
@@ -936,11 +972,13 @@ class DataLayerExtended {
   DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;
+  DATALAYER_INFO_RIVIAN rivian;
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;
   DATALAYER_INFO_MEB meb;
   DATALAYER_INFO_VOLVO_POLESTAR VolvoPolestar;
   DATALAYER_INFO_VOLVO_HYBRID VolvoHybrid;
+  DATALAYER_INFO_GEELY_SEA GeelySEA;
   DATALAYER_INFO_ZOE zoe;
   DATALAYER_INFO_ZOE_PH2 zoePH2;
 };
