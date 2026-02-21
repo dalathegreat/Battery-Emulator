@@ -1,4 +1,5 @@
-// This is sending the Battery emulator data over ESPNow to nearby devices
+// This is sending the Battery Emulator data over ESPNow to nearby devices
+// Maximum message size for ESPNow V1 is 250bytes
 
 #include "espnow.h"
 #include <WiFi.h>
@@ -32,10 +33,10 @@ uint16_t emulator_id;
 
 // ESPNow callback when data is sent
 void OnDataSent(const uint8_t* mac_addr, esp_now_send_status_t status) {
-  // Serial.print("\r\nLast Packet Send Status:\t");
-  // Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+  // logging.print("Last Packet Send Status:");
+  // logging.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
   if (status != ESP_NOW_SEND_SUCCESS) {
-    Serial.println("\r\nLast ESPNow Packet Send Status:\tDelivery Fail");
+    logging.println("Last ESPNow Packet Send Status: Delivery Fail");
   }
 }
 
@@ -51,10 +52,10 @@ static void send_battery_status(DATALAYER_BATTERY_STATUS_TYPE& status, uint8_t b
       esp_now_send(broadcastAddress, (uint8_t*)&b_message, sizeof(struct BATTERY_STATUS_TYPE) + 4 * sizeof(uint8_t));
 
   if (result == ESP_OK) {
-    // Serial.println("Sent with success");
+    // logging.println("Sent with success");
     ;
   } else {
-    Serial.println("Error sending the ESPNow Battery Status data");
+    logging.println("Error sending the ESPNow Battery Status data");
   }
 }
 
@@ -70,10 +71,10 @@ static void send_battery_info(DATALAYER_BATTERY_INFO_TYPE& info, uint8_t b_index
       esp_now_send(broadcastAddress, (uint8_t*)&b_message, sizeof(struct BATTERY_INFO_TYPE) + 4 * sizeof(uint8_t));
 
   if (result == ESP_OK) {
-    // Serial.println("Sent with success");
+    // logging.println("Sent with success");
     ;
   } else {
-    Serial.println("Error sending the ESPNow Battery Info data");
+    logging.println("Error sending the ESPNow Battery Info data");
   }
 }
 
@@ -94,10 +95,10 @@ static void send_battery_balancing(DATALAYER_BATTERY_INFO_TYPE& info, DATALAYER_
                                   sizeof(struct BATTERY_BALANCING_STATUS_TYPE) + 4 * sizeof(uint8_t));
 
   if (result == ESP_OK) {
-    // Serial.println("Sent with success");
+    // logging.println("Sent with success");
     ;
   } else {
-    Serial.println("Error sending the ESPNow Battery Balancing data");
+    logging.println("Error sending the ESPNow Battery Balancing data");
   }
 }
 
@@ -118,10 +119,10 @@ static void send_battery_cell_status(DATALAYER_BATTERY_INFO_TYPE& info, DATALAYE
                                   sizeof(struct BATTERY_CELL_STATUS_TYPE) + 4 * sizeof(uint8_t));
 
   if (result == ESP_OK) {
-    // Serial.println("Sent with success");
+    // logging.println("Sent with success");
     ;
   } else {
-    Serial.println("Error sending the ESPNow Cell Status data");
+    logging.println("Error sending the ESPNow Cell Status data");
   }
 }
 
@@ -129,13 +130,13 @@ void init_espnow() {
   // Check wifi status
   // Wifi Should be already set before initializing ESPNow
   if ((WiFi.getMode() != WIFI_AP_STA) && (WiFi.getMode() != WIFI_STA)) {
-    Serial.println("Wifi should be initialized before using ESPNow");
+    logging.println("Wifi should be initialized before using ESPNow");
     return;
   }
 
   // Init ESPNow
   if (esp_now_init() != ESP_OK) {
-    Serial.println("Error initializing ESPNow");
+    logging.println("Error initializing ESPNow");
     return;
   }
 
@@ -150,7 +151,7 @@ void init_espnow() {
 
   // Add peer
   if (esp_now_add_peer(&peerInfo) != ESP_OK) {
-    Serial.println("Failed to add ESPNow peer");
+    logging.println("Failed to add ESPNow peer");
     return;
   }
 
