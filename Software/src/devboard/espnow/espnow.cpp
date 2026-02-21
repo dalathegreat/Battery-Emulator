@@ -25,8 +25,8 @@ uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 esp_now_peer_info_t peerInfo;
 
 bool espnow_initialized = false;
-unsigned long lastUpdateMillis = 0;
-int num_batteries = 1;
+unsigned long b_lastUpdateMillis = 0;
+int b_num_batteries = 1;
 
 uint16_t emulator_id;
 
@@ -159,9 +159,9 @@ void init_espnow() {
 
   // Count configured batteries
   if (battery2)
-    num_batteries++;
+    b_num_batteries++;
   if (battery3)
-    num_batteries++;
+    b_num_batteries++;
 
   espnow_initialized = true;
 }
@@ -173,7 +173,7 @@ void update_espnow() {
 
   // We send the ESPNow messages every 1000ms
   auto currentMillis = millis();
-  if (currentMillis - lastUpdateMillis < 1000) {
+  if (currentMillis - b_lastUpdateMillis < 1000) {
     return;
   }
 
@@ -198,5 +198,5 @@ void update_espnow() {
     send_battery_balancing(datalayer.battery3.info, datalayer.battery3.status, battery_index);
   }
 
-  lastUpdateMillis = currentMillis;
+  b_lastUpdateMillis = currentMillis;
 }
