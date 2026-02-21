@@ -33,6 +33,7 @@ void BmwI3Battery::end_offline_balancing() {
   UserRequestBalancing = NONE;
   UserRequestBalancingMillis = 0;
   cmdState = SOC;
+  battery_info_available = false;
   datalayer_battery->status.bms_status = ACTIVE;
 }
 
