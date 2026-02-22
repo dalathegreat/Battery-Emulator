@@ -18,17 +18,17 @@ void PylonBattery::update_values() {
 
   datalayer_battery->status.max_discharge_power_W = (-max_discharge_current * (voltage_dV / 10));
 
-  if(total_capacity_Wh > 0){
+  if (total_capacity_Wh > 0) {
     //real Data from Dyness battery
     datalayer_battery->info.total_capacity_Wh = total_capacity_Wh;
   }
 
-  if(remaining_capacity_Wh > 0){
+  if (remaining_capacity_Wh > 0) {
     //real Data from Dyness battery
     datalayer_battery->status.remaining_capacity_Wh = remaining_capacity_Wh;
   } else {
     datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
+        (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
   }
   // Update cell count if we've received individual cell data
   if (actual_cell_count > 0) {
@@ -57,14 +57,13 @@ void PylonBattery::update_values() {
 void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
-      case EMUS_BASE_ID:{
-        // EMUS configuration frame containing cell count
-        uint8_t cell_count = rx_frame.data.u8[7];
-        if (cell_count > 0 && cell_count <= MAX_CELLS) {
-          actual_cell_count = cell_count;
-        }
+    case EMUS_BASE_ID: {
+      // EMUS configuration frame containing cell count
+      uint8_t cell_count = rx_frame.data.u8[7];
+      if (cell_count > 0 && cell_count <= MAX_CELLS) {
+        actual_cell_count = cell_count;
       }
-      break;
+    } break;
     case 0x7310:
     case 0x7311:
       ensemble_info_ack = true;
@@ -80,7 +79,7 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       ensemble_info_ack = true;
       battery_module_quantity = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       //For Dyness Batteries
-      if(actual_cell_count == 0){  
+      if (actual_cell_count == 0) {
         actual_cell_count = battery_module_quantity;
       }
       battery_modules_in_series = rx_frame.data.u8[2];
@@ -150,66 +149,63 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         total_capacity_Wh = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[5]) * 10;
       }
       break;
-    case DYNESS_CELL_VOLTAGE_BASE_ID:{ 
-        // Handle EMUS individual cell voltage
-        uint8_t cell_start_voltage = rx_frame.data.u8[0] - 1;
-        datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Keep battery alive on cell data
+    case DYNESS_CELL_VOLTAGE_BASE_ID: {
+      // Handle EMUS individual cell voltage
+      uint8_t cell_start_voltage = rx_frame.data.u8[0] - 1;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Keep battery alive on cell data
 
-        for (uint8_t i = 0; i < 3; i++) {
-          uint8_t cell_index_voltage = cell_start_voltage + i;
-          if (cell_index_voltage < MAX_CELLS && (actual_cell_count == 0 || cell_index_voltage < actual_cell_count)) {
-            // Cell voltage: 3100mV base + (byte value × 4mV)
-            // Calaculation looks a little bit off.
-            uint16_t cell_voltage = 3100 + (rx_frame.data.u8[(i * 2) + 1] * 4);
-            // Only update if voltage is in valid range (2500-4200mV)
-            if (cell_voltage >= 2500 && cell_voltage <= 4200) {
-              uint16_t current_voltage = datalayer_battery->status.cell_voltages_mV[cell_index_voltage];
-              // Reject sudden large changes (>1000mV)
-              if (current_voltage == 0 || abs((int)cell_voltage - (int)current_voltage) <= 1000) {
-                datalayer_battery->status.cell_voltages_mV[cell_index_voltage] = cell_voltage;
-              }
+      for (uint8_t i = 0; i < 3; i++) {
+        uint8_t cell_index_voltage = cell_start_voltage + i;
+        if (cell_index_voltage < MAX_CELLS && (actual_cell_count == 0 || cell_index_voltage < actual_cell_count)) {
+          // Cell voltage: 3100mV base + (byte value × 4mV)
+          // Calaculation looks a little bit off.
+          uint16_t cell_voltage = 3100 + (rx_frame.data.u8[(i * 2) + 1] * 4);
+          // Only update if voltage is in valid range (2500-4200mV)
+          if (cell_voltage >= 2500 && cell_voltage <= 4200) {
+            uint16_t current_voltage = datalayer_battery->status.cell_voltages_mV[cell_index_voltage];
+            // Reject sudden large changes (>1000mV)
+            if (current_voltage == 0 || abs((int)cell_voltage - (int)current_voltage) <= 1000) {
+              datalayer_battery->status.cell_voltages_mV[cell_index_voltage] = cell_voltage;
             }
           }
         }
       }
-      break;
-    case PYLON_CELL_VOLTAGE_BASE_ID ... (PYLON_CELL_VOLTAGE_BASE_ID + 31): {
-        // Handle EMUS individual cell voltage messages (0x19B50100-0x19B5011F)
-        datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Keep battery alive on cell data
-        uint8_t group = rx_frame.ID - DYNESS_CELL_VOLTAGE_BASE_ID;
-        uint8_t cell_start = group * 8;
+    } break;
+    case PYLON_CELL_VOLTAGE_BASE_ID ...(PYLON_CELL_VOLTAGE_BASE_ID + 31): {
+      // Handle EMUS individual cell voltage messages (0x19B50100-0x19B5011F)
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Keep battery alive on cell data
+      uint8_t group = rx_frame.ID - DYNESS_CELL_VOLTAGE_BASE_ID;
+      uint8_t cell_start = group * 8;
 
-        for (uint8_t i = 0; i < 8; i++) {
-          uint8_t cell_index = cell_start + i;
-          if (cell_index < MAX_CELLS && (actual_cell_count == 0 || cell_index < actual_cell_count)) {
-            // Cell voltage: 2000mV base + (byte value × 10mV)
-            uint16_t cell_voltage = 2000 + (rx_frame.data.u8[i] * 10);
-            // Only update if voltage is in valid range (2500-4200mV)
-            if (cell_voltage >= 2500 && cell_voltage <= 4200) {
-              uint16_t current_voltage = datalayer_battery->status.cell_voltages_mV[cell_index];
-              // Reject sudden large changes (>1000mV)
-              if (current_voltage == 0 || abs((int)cell_voltage - (int)current_voltage) <= 1000) {
-                datalayer_battery->status.cell_voltages_mV[cell_index] = cell_voltage;
-              }
+      for (uint8_t i = 0; i < 8; i++) {
+        uint8_t cell_index = cell_start + i;
+        if (cell_index < MAX_CELLS && (actual_cell_count == 0 || cell_index < actual_cell_count)) {
+          // Cell voltage: 2000mV base + (byte value × 10mV)
+          uint16_t cell_voltage = 2000 + (rx_frame.data.u8[i] * 10);
+          // Only update if voltage is in valid range (2500-4200mV)
+          if (cell_voltage >= 2500 && cell_voltage <= 4200) {
+            uint16_t current_voltage = datalayer_battery->status.cell_voltages_mV[cell_index];
+            // Reject sudden large changes (>1000mV)
+            if (current_voltage == 0 || abs((int)cell_voltage - (int)current_voltage) <= 1000) {
+              datalayer_battery->status.cell_voltages_mV[cell_index] = cell_voltage;
             }
           }
         }
       }
-      break;
-    case PYLON_CELL_BALANCING_BASE_ID ... (PYLON_CELL_BALANCING_BASE_ID + 31):{
-        // Handle EMUS individual cell balancing status messages (0x19B50300-0x19B5031F)
-        uint8_t group = rx_frame.ID - PYLON_CELL_BALANCING_BASE_ID;
-        uint8_t cell_start = group * 8;
+    } break;
+    case PYLON_CELL_BALANCING_BASE_ID ...(PYLON_CELL_BALANCING_BASE_ID + 31): {
+      // Handle EMUS individual cell balancing status messages (0x19B50300-0x19B5031F)
+      uint8_t group = rx_frame.ID - PYLON_CELL_BALANCING_BASE_ID;
+      uint8_t cell_start = group * 8;
 
-        for (uint8_t i = 0; i < 8; i++) {
-          uint8_t cell_index = cell_start + i;
-          if (cell_index < MAX_CELLS && (actual_cell_count == 0 || cell_index < actual_cell_count)) {
-            datalayer_battery->status.cell_balancing_status[cell_index] = (rx_frame.data.u8[i] > 0);
-          }
+      for (uint8_t i = 0; i < 8; i++) {
+        uint8_t cell_index = cell_start + i;
+        if (cell_index < MAX_CELLS && (actual_cell_count == 0 || cell_index < actual_cell_count)) {
+          datalayer_battery->status.cell_balancing_status[cell_index] = (rx_frame.data.u8[i] > 0);
         }
       }
-      break;
-    //default:
+    } break;
+      //default:
       //nothing to do
   }
 }
