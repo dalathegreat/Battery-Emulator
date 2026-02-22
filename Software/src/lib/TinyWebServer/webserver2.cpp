@@ -179,6 +179,7 @@ const UintSetting UINT_SETTINGS[] = {
     {"CHGCOMM", 0, (uint32_t)comm_interface::Highest-1},
     {"EQSTOP", 0, (uint32_t)STOP_BUTTON_BEHAVIOR::Highest-1},
     {"BATT2COMM", 0, (uint32_t)comm_interface::Highest-1},
+    {"BATT3COMM", 0, (uint32_t)comm_interface::Highest-1},
     {"SHUNTTYPE", 0, (uint32_t)ShuntType::Highest-1},
     {"SHUNTCOMM", 0, (uint32_t)comm_interface::Highest-1},
     {"MAXPRETIME", 0, 120000},
@@ -198,6 +199,7 @@ const UintSetting UINT_SETTINGS[] = {
     {"SUBNET3", 0, 255},
     {"SUBNET4", 0, 255},
     {"MQTTPORT", 0, 65535},
+    {"MQTTTIMEOUT", 0, 30000},
     {"SOFAR_ID", 0, 255},
     {"INVCELLS", 0, 65535},
     {"INVMODULES", 0, 65535},
@@ -216,6 +218,9 @@ const UintSetting UINT_SETTINGS[] = {
     {"GTWPACK", 0, 9},
     {"LEDMODE", 0, 10},
     {"BATTERY_WH_MAX", 1, 400000},
+    {"GPIOOPT1", 0, 255},
+    {"GPIOOPT2", 0, 255},
+    {"GPIOOPT3", 0, 255},
     {nullptr, 0, 0}
 };
 
@@ -255,7 +260,6 @@ const StringSetting STRING_SETTINGS[] = {
     {"MQTTUSER", 64},
     {"MQTTPASSWORD", 64},
     {"MQTTTOPIC", 64},
-    {"MQTTTIMEOUT", 64},
     {"MQTTOBJIDPREFIX", 64},
     {"MQTTDEVICENAME", 64},
     {"HADEVICEID", 64},
@@ -289,6 +293,13 @@ const char* BOOL_SETTINGS[] = {
     "INTERLOCKREQ",
     "DIGITALHVIL",
     "GTWRHD",
+    "SOCESTIMATED",
+    "PYLONOFFSET",
+    "PYLONORDER",
+    "NCCONTACTOR",
+    "TRIBTR",
+    "CNTCTRLTRI",
+    "ESPNOWENABLED",
     "USE_SCALED_SOC",
     "USEVOLTLIMITS",
     nullptr
