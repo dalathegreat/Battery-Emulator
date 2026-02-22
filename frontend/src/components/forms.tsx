@@ -152,6 +152,6 @@ export function ipField(label: string, name: string) {
 export function textPatternField(label: string, name: string, pattern: string) {
     return <div class="form-row">
         <label>{ label }</label>
-        <input type="text" name={ name } pattern={ pattern } />
+        <input type="text" name={ name } pattern={ pattern || undefined } />
     </div>;
 }

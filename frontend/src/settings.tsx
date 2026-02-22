@@ -120,7 +120,13 @@ export function Settings() {
                     { textPatternField("Cell min design voltage (mV)", "BATTCVMIN", "[0-9]+") }
                 </Show>
                 { checkboxField("Double battery", "DBLBTR") }
-                <Show indent={true} when={merged.DBLBTR}>{ selectField("Second battery interface", "BATT2COMM", INTERFACES) }</Show>
+                <Show indent={true} when={merged.DBLBTR}>
+                    { selectField("Second battery interface", "BATT2COMM", INTERFACES) }
+                    { checkboxField("Triple battery", "TRIBTR") }
+                    <Show indent={true} when={merged.TRIBTR}>
+                        { selectField("Third battery interface", "BATT3COMM", INTERFACES) }
+                    </Show>
+                </Show>
                 { textPatternField("Battery capacity (Wh)", "BATTERY_WH_MAX", "|[1-9][0-9]*") }
                 { checkboxField("Rescale SoC", "USE_SCALED_SOC") }
                 <Show indent={true} when={merged.USE_SCALED_SOC}>
@@ -229,8 +235,16 @@ export function Settings() {
             }) }
 
             { checkboxField("Contactor control via GPIO", "CNTCTRL") }
+            <Show when={merged.DBLBTR}>
+                { checkboxField("Double-Battery Contactor control via GPIO", "CNTCTRLDBL") }
+            </Show>
+            <Show when={merged.TRIBTR}>
+                { checkboxField("Triple-Battery Contactor control via GPIO", "CNTCTRLTRI") }
+            </Show>
+           
             <Show indent={true} when={merged.CNTCTRL}>
                 { textPatternField("Precharge time (ms)", "PRECHGMS", "[0-9]+") }
+                { checkboxField("Normally Closed (NC) contactors", "NCCONTACTOR") }
                 { checkboxField("PWM contactor control", "PWMCNTCTRL") }
                 <Show indent={true} when={merged.PWMCNTCTRL}>
                     { textPatternField("PWM Frequency (Hz)", "PWMFREQ", "[0-9]+") }
@@ -252,6 +266,22 @@ export function Settings() {
                 "0": "Classic",
                 "1": "Energy Flow",
                 "2": "Heartbeat",
+            }) }
+
+            { selectField("Configurable port", "GPIOOPT1", {
+                "0": "WUP1 / WUP2",
+                "1": "I2C Display (SSD1306)",
+                "2": "E-Stop / BMS Power",
+            }) }
+
+            { selectField("BMS power pin", "GPIOOPT2", {
+                "0": "Pin 18",
+                "1": "Pin 25",
+            }) }
+
+            { selectField("SMA enable pin", "GPIOOPT3", {
+                "0": "Pin 5",
+                "1": "Pin 33",
             }) }
         </div>
 
@@ -290,6 +320,8 @@ export function Settings() {
                 { ipField("Gateway", "GATEWAY") }
                 { ipField("Subnet", "SUBNET") }
             </Show>
+
+            { checkboxField("Enable ESPNow", "ESPNOWENABLED") }
 
             { checkboxField("Enable MQTT", "MQTTENABLED") }
             <Show indent={true} when={merged.MQTTENABLED}>
