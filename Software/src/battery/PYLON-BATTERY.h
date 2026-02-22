@@ -33,9 +33,9 @@ class PylonBattery : public CanBattery {
 
  private:
   static const int MAX_CELL_DEVIATION_MV = 150;
-  static const int MAX_CELLS = 192;                           // Maximum cells supported
+  static const int MAX_CELLS = 192;  // Maximum cells supported
   static const uint32_t EMUS_BASE_ID = 0x19B50000;
-  static const uint32_t DYNESS_CELL_VOLTAGE_BASE_ID = 0x18FF9701;            // EMUS extended ID base for cell count
+  static const uint32_t DYNESS_CELL_VOLTAGE_BASE_ID = 0x18FF9701;   // EMUS extended ID base for cell count
   static const uint32_t PYLON_CELL_VOLTAGE_BASE_ID = 0x19B50100;    // Base CAN ID for cell voltages
   static const uint32_t PYLON_CELL_BALANCING_BASE_ID = 0x19B50300;  // Base CAN ID for balancing status
 
