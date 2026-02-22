@@ -281,6 +281,9 @@ void setup_battery() {
 
   if (user_selected_second_battery && !battery2) {
     switch (user_selected_battery_type) {
+      case BatteryType::BydAtto3:
+        battery2 = new BydAttoBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+        break;
       case BatteryType::NissanLeaf:
         battery2 = new NissanLeafBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
@@ -290,6 +293,9 @@ void setup_battery() {
         break;
       case BatteryType::CmfaEv:
         battery2 = new CmfaEvBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+        break;
+      case BatteryType::CmpSmartCar:
+        battery2 = new CmpSmartCarBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
       case BatteryType::KiaHyundai64:
         battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,

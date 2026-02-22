@@ -17,6 +17,7 @@
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
+#include "src/devboard/espnow/espnow.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -37,7 +38,7 @@
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "10.1.dev";
+const char* version_number = "10.2.dev";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -98,11 +99,19 @@ void connectivity_loop(void*) {
 
   init_display();
 
+  if (espnow_enabled) {
+    init_espnow();
+  }
+
   while (true) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
 
     update_display();
+
+    if (espnow_enabled) {
+      update_espnow();
+    }
 
     ota_monitor();
 
