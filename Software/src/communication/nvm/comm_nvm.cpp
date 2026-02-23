@@ -94,6 +94,7 @@ void init_stored_settings() {
   user_selected_inverter_voltage_level = settings.getUInt("INVVLEVEL", 0);
   user_selected_inverter_ah_capacity = settings.getUInt("INVAHCAPACITY", 0);
   user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
+  user_selected_inverter_sungrow_type = settings.getUInt("INVSUNTYPE", 0);
   user_selected_inverter_ignore_contactors = settings.getBool("INVICNT", false);
   user_selected_inverter_deye_workaround = settings.getBool("DEYEBYD", false);
   user_selected_can_addon_crystal_frequency_mhz = settings.getUInt("CANFREQ", 8);
