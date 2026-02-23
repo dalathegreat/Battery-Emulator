@@ -19,9 +19,11 @@ export function Events() {
     };
 
     return ( <>
-        <h2>Events</h2>
-        <div class="panel">
+        <div class="heading">
+            <h2>Events</h2>
             <button onClick={clearEvents}>Clear events</button>
+        </div>
+        <div class="panel">
             <table>
                 <thead>
                     <tr>
