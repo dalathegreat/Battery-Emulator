@@ -14,7 +14,7 @@
 void SolaxInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   // If not receiveing any communication from the inverter, open contactors and return to battery announce state
-  if (millis() - LastFrameTime >= SolaxTimeout && !configured_ignore_contactors) {
+  if (millis() - LastFrameTime >= INTERVAL_2_S && !configured_ignore_contactors) {
     datalayer.system.status.inverter_allows_contactor_closing = false;
     STATE = BATTERY_ANNOUNCE;
   }
@@ -221,13 +221,13 @@ bool SolaxInverter::setup(void) {  // Performs one time setup at startup
   if (user_selected_inverter_modules > 0) {
     configured_number_of_modules = user_selected_inverter_modules;
   } else {
-    configured_number_of_modules = NUMBER_OF_MODULES;
+    configured_number_of_modules = DEFAULT_NUMBER_OF_MODULES;
   }
 
   if (user_selected_inverter_battery_type > 0) {
     configured_battery_type = user_selected_inverter_battery_type;
   } else {
-    configured_battery_type = BATTERY_TYPE;
+    configured_battery_type = DEFAULT_BATTERY_TYPE;
   }
 
   configured_ignore_contactors = user_selected_inverter_ignore_contactors;
