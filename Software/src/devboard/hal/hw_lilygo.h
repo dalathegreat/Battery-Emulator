@@ -73,10 +73,30 @@ class LilyGoHal : public Esp32Hal {
   //        virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
 
   // SD card
-  virtual gpio_num_t SD_MISO_PIN() { return GPIO_NUM_2; }
-  virtual gpio_num_t SD_MOSI_PIN() { return GPIO_NUM_15; }
-  virtual gpio_num_t SD_SCLK_PIN() { return GPIO_NUM_14; }
-  virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_13; }
+  virtual gpio_num_t SD_MISO_PIN() {
+    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
+      return GPIO_NUM_2;
+    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
+    return GPIO_NUM_NC;
+  }
+  virtual gpio_num_t SD_MOSI_PIN() {
+    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
+      return GPIO_NUM_15;
+    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
+    return GPIO_NUM_NC;
+  }
+  virtual gpio_num_t SD_SCLK_PIN() {
+    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
+      return GPIO_NUM_14;
+    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
+    return GPIO_NUM_NC;
+  }
+  virtual gpio_num_t SD_CS_PIN() {
+    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
+      return GPIO_NUM_13;
+    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
+    return GPIO_NUM_NC;
+  }
 
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_4; }
@@ -87,6 +107,20 @@ class LilyGoHal : public Esp32Hal {
   // Battery wake up pins
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_25; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_32; }
+
+  // i2c display
+  virtual gpio_num_t DISPLAY_SDA_PIN() {
+    if (user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306) {
+      return GPIO_NUM_15;
+    }
+    return GPIO_NUM_NC;
+  }
+  virtual gpio_num_t DISPLAY_SCL_PIN() {
+    if (user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306) {
+      return GPIO_NUM_14;
+    }
+    return GPIO_NUM_NC;
+  }
 
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,
