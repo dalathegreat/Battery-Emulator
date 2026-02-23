@@ -65,6 +65,7 @@ void handle_precharge_control(unsigned long currentMillis) {
   // If we are running in test mode (No battery configured, enable precharge sequence so user can test HW)
   if (battery == NULL) {
     datalayer.system.info.start_precharging = true;
+    datalayer.battery.status.real_bms_status = BMS_STANDBY;
   }
 
   int32_t target_voltage = datalayer.battery.status.voltage_dV;
