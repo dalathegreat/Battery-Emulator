@@ -14,6 +14,7 @@ uint16_t user_selected_inverter_cells_per_module = 0;
 uint16_t user_selected_inverter_voltage_level = 0;
 uint16_t user_selected_inverter_ah_capacity = 0;
 uint16_t user_selected_inverter_battery_type = 0;
+uint16_t user_selected_inverter_sungrow_type = 0;
 bool user_selected_inverter_ignore_contactors = false;
 bool user_selected_pylon_30koffset = false;
 bool user_selected_pylon_invert_byteorder = false;

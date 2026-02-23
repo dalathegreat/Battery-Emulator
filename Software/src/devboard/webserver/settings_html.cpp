@@ -263,7 +263,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "SUNGROW_MODEL") {
-    return options_from_map(settings.getUInt("INVBTYPE", 1), sungrow_models);  // Default: SBR096
+    return options_from_map(settings.getUInt("INVSUNTYPE", 1), sungrow_models);  // Default: SBR096
   }
 
 #ifdef HW_LILYGO2CAN
@@ -1420,7 +1420,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-sungrow">
         <label>Battery model: </label>
-        <select name='INVBTYPE'>%SUNGROW_MODEL%</select>
+        <select name='INVSUNTYPE'>%SUNGROW_MODEL%</select>
         </div>
         
         <div class="if-kostal if-solax">
