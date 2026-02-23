@@ -141,7 +141,7 @@ enum class GPIOOPT3 {
 enum class GPIOOPT4 {
   // T-CAN485: Default, uSD Card
   DEFAULT_SD_CARD = 0,
-  // T-CAN485: Disable SD,Enable Display on Pins 14,15 
+  // T-CAN485: Disable SD,Enable Display on Pins 14,15
   I2C_DISPLAY_SSD1306 = 1,
   Highest
 };
