@@ -44,7 +44,6 @@ class RenaultKangooBattery : public CanBattery {
   uint8_t LB_HVBOC = 0;
   uint8_t LB_MaxInput_kW = 0;
   uint8_t LB_MaxOutput_kW = 0;
-  bool GVB_79B_Continue = false;
 
   CAN_frame KANGOO_423 = {.FD = false,
                           .ext_ID = false,

@@ -102,23 +102,19 @@ void RenaultKangooBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           CAN_STILL_ALIVE;  //Indicate that we are still getting CAN messages from the BMS
 
       if (rx_frame.data.u8[0] == 0x10) {  //1st response Bytes 0-7
-        GVB_79B_Continue = true;
+        transmit_can_frame(&KANGOO_79B_Continue);
       }
       if (rx_frame.data.u8[0] == 0x21) {  //2nd response Bytes 8-15
-        GVB_79B_Continue = true;
       }
       if (rx_frame.data.u8[0] == 0x22) {  //3rd response Bytes 16-23
-        GVB_79B_Continue = true;
       }
       if (rx_frame.data.u8[0] == 0x23) {                                               //4th response Bytes 16-23
         LB_Charge_Power_Limit = word(rx_frame.data.u8[5], rx_frame.data.u8[6]) * 100;  //OK!
         LB_Discharge_Power_Limit_Byte1 = rx_frame.data.u8[7];
-        GVB_79B_Continue = true;
       }
       if (rx_frame.data.u8[0] == 0x24) {  //5th response Bytes 24-31
         LB_Discharge_Power_Limit = word(LB_Discharge_Power_Limit_Byte1, rx_frame.data.u8[1]) * 100;  //OK!
         LB_Battery_Voltage = word(rx_frame.data.u8[2], rx_frame.data.u8[3]) / 10;                    //OK!
-        GVB_79B_Continue = false;
       }
       break;
     default:
@@ -141,9 +137,7 @@ void RenaultKangooBattery::transmit_can(unsigned long currentMillis) {
   // 1000ms CAN handling
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
-    if (GVB_79B_Continue)
-      transmit_can_frame(&KANGOO_79B_Continue);
-  } else {
+
     transmit_can_frame(&KANGOO_79B);
   }
 }
