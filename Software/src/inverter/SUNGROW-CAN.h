@@ -39,7 +39,7 @@ class SungrowInverter : public CanInverterProtocol {
   uint32_t capacity_wh = 0;
   uint8_t batch_send_index = 0;
 
-  // Battery configuration (set via user_selected_inverter_battery_type = model 0-6)
+  // Battery configuration (set via user_selected_inverter_sungrow_type = model 0-6)
   SungrowBatteryConfig battery_config = {9600, 3};  // Default: SBR096
 
   // Returns config based on battery model (0=SBR064 through 6=SBR256)

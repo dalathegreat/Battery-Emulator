@@ -125,8 +125,10 @@ Then click the down arrow next to the "Compile Common Images" selection, and the
 
 <img alt="image" src="https://github.com/user-attachments/assets/e38f5c2c-098a-47d0-97be-10494b9ef5b2" />
 
-After selecting the hardware you need, click the "**Upload Artifact**", and there will be a download link. Download the file, and [OTA Update](https://github.com/dalathegreat/Battery-Emulator/wiki/OTA-Update) your device with this file!
+After selecting the hardware you need, click the "**Upload Artifact**", and there will be a download link. Download the file!
 
 <img alt="image" src="https://github.com/user-attachments/assets/68f10c73-772f-499b-a14c-6b84d11c0ef2" />
+
+After downloading the .zip file, extract the .bin file from it. Then [OTA Update](https://github.com/dalathegreat/Battery-Emulator/wiki/OTA-Update) your device with this .bin file!
 
 
