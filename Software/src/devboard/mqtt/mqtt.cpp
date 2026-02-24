@@ -111,6 +111,9 @@ static std::function<bool(Battery*)> always = [](Battery* b) {
 static std::function<bool(Battery*)> supports_charged = [](Battery* b) {
   return b->supports_charged_energy();
 };
+static std::function<bool(Battery*)> supports_offline_bal = [](Battery* b) {
+  return b && b->supports_offline_balancing();
+};
 
 SensorConfig batterySensorConfigTemplate[] = {
     {"SOC", "SOC (Scaled)", "", "%", "battery", always},
@@ -133,7 +136,8 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"charged_energy", "Battery Charged Energy", "", "Wh", "energy", supports_charged},
     {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged},
     {"balancing_active_cells", "Balancing Active Cells", "", "", "", always},
-    {"balancing_status", "Balancing Status", "", "", "", always}};
+    {"balancing_status", "Balancing Status", "", "", "", always},
+    {"offline_balancing_mode", "Offline Balancing Mode", "", "", "", supports_offline_bal}};
 
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
                                              {"pause_status", "Pause Status", "", "", "", always},
@@ -169,7 +173,11 @@ SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, null
                                 {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr, nullptr},
                                 {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr, nullptr},
                                 {"RESTART", "Restart Battery Emulator", nullptr, nullptr, nullptr, nullptr},
-                                {"STOP", "Open Contactors", nullptr, nullptr, nullptr, nullptr}};
+                                {"STOP", "Open Contactors", nullptr, nullptr, nullptr, nullptr},
+                                {"BALANCING", "Balancing", nullptr, nullptr, nullptr,
+                                 [](Battery* b) { return b && b->supports_offline_balancing(); }},
+                                {"STOP_BALANCING", "Stop Balancing Mode", nullptr, nullptr, nullptr,
+                                 [](Battery* b) { return b && b->supports_offline_balancing(); }}};
 
 static String generateCommonInfoAutoConfigTopic(const char* object_id) {
   return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
@@ -316,12 +324,18 @@ static bool publish_common_info(void) {
     //only publish these values if BMS is active and we are comunication  with the battery (can send CAN messages to the battery)
     if (datalayer.battery.status.CAN_battery_still_alive && allowed_to_send_CAN && esp32hal->system_booted_up()) {
       set_battery_attributes(doc, datalayer.battery, "", battery->supports_charged_energy());
+      if (battery->supports_offline_balancing()) {
+        doc["offline_balancing_mode"] = battery->get_offline_balancing_state_string();
+      }
     }
 
     if (battery2) {
       //only publish these values if BMS is active and we are comunication  with the battery (can send CAN messages to the battery)
       if (datalayer.battery2.status.CAN_battery_still_alive && allowed_to_send_CAN && esp32hal->system_booted_up()) {
         set_battery_attributes(doc, datalayer.battery2, "_2", battery2->supports_charged_energy());
+        if (battery2->supports_offline_balancing()) {
+          doc["offline_balancing_mode_2"] = battery2->get_offline_balancing_state_string();
+        }
       }
     }
 
@@ -546,6 +560,9 @@ static bool publish_buttons_discovery(void) {
       static JsonDocument doc;
       for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
         SensorConfig& config = buttonConfigs[i];
+        if (config.condition && !config.condition(battery)) {
+          continue;
+        }
         doc["name"] = config.name;
         doc["unique_id"] = object_id_prefix + config.object_id;
         doc["command_topic"] = generateButtonTopic(config.object_id);
@@ -596,6 +613,20 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   if (strcmp(topic, generateButtonTopic("STOP").c_str()) == 0) {
     setBatteryPause(true, false, true);
+  }
+
+  if (strcmp(topic, generateButtonTopic("BALANCING").c_str()) == 0) {
+    if (battery && battery->supports_offline_balancing() && !battery->is_offline_balancing_active()) {
+      logging.println("Starting offline balancing mode");
+      battery->initiate_offline_balancing();
+    }
+  }
+
+  if (strcmp(topic, generateButtonTopic("STOP_BALANCING").c_str()) == 0) {
+    if (battery && battery->supports_offline_balancing() && battery->is_offline_balancing_active()) {
+      logging.println("Stopping offline balancing mode");
+      battery->end_offline_balancing();
+    }
   }
 
   if (strcmp(topic, generateButtonTopic("SET_LIMITS").c_str()) == 0) {

@@ -102,6 +102,8 @@ class Battery {
   virtual bool supports_chademo_restart() { return false; }
   virtual bool supports_chademo_stop() { return false; }
   virtual bool supports_offline_balancing() { return false; }
+  virtual bool is_offline_balancing_active() { return false; }
+  virtual const char* get_offline_balancing_state_string() { return nullptr; }
 
   virtual void clear_isolation() {}
   virtual void reset_BMS() {}

@@ -36,6 +36,21 @@ class BmwI3Battery : public CanBattery {
   static constexpr const char* Name = "BMW i3";
 
   bool supports_offline_balancing() { return true; }
+  bool is_offline_balancing_active() { return UserRequestBalancing != NONE; }
+  const char* get_offline_balancing_state_string() {
+    switch (UserRequestBalancing) {
+      case NONE:
+        return "None";
+      case REQUESTED:
+        return "Requested";
+      case STARTING:
+        return "Starting";
+      case EXECUTING:
+        return "Executing";
+      default:
+        return "Unknown";
+    }
+  }
   virtual void initiate_offline_balancing();
   virtual void end_offline_balancing();
 
