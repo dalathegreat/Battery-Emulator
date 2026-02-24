@@ -154,6 +154,7 @@ void init_stored_settings() {
 #endif
   user_selected_gpioopt2 = (GPIOOPT2)settings.getUInt("GPIOOPT2", 0);
   user_selected_gpioopt3 = (GPIOOPT3)settings.getUInt("GPIOOPT3", 0);
+  user_selected_gpioopt4 = (GPIOOPT4)settings.getUInt("GPIOOPT4", 0);
 
   precharge_control_enabled = settings.getBool("EXTPRECHARGE", false);
   precharge_inverter_normally_open_contactor = settings.getBool("NOINVDISC", false);
