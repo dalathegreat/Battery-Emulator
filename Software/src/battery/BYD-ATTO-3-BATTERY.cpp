@@ -486,8 +486,10 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (battery_frame_index < (CELLCOUNT_EXTENDED / 3)) {
         uint8_t base_index = battery_frame_index * 3;
         for (uint8_t i = 0; i < 3; i++) {
-          battery_cellvoltages[base_index + i] =
-              (((rx_frame.data.u8[2 * (i + 1)] & 0x0F) << 8) | rx_frame.data.u8[2 * i + 1]);
+          uint16_t cell_voltage = (((rx_frame.data.u8[2 * (i + 1)] & 0x0F) << 8) | rx_frame.data.u8[2 * i + 1]);
+          if (cell_voltage != 0xFFF) {  //Some packs have unpopulated modules at the end
+            battery_cellvoltages[base_index + i] = cell_voltage;
+          }
         }
       }
       break;
