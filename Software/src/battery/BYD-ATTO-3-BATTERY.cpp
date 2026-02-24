@@ -156,10 +156,10 @@ void BydAttoBattery::
     datalayer_battery->status.voltage_dV = battery_voltage * 10;  //Value from periodic CAN data
   }
 
-  if (battery_type == EXTENDED_RANGE) {
+  if (battery_type == BYD_ATTO3_EXTENDED_RANGE) {
     battery_estimated_SOC = estimateSOCextended(datalayer_battery->status.voltage_dV);
   }
-  if (battery_type == STANDARD_RANGE) {
+  if (battery_type == BYD_ATTO3_STANDARD_RANGE) {
     battery_estimated_SOC = estimateSOCstandard(datalayer_battery->status.voltage_dV);
   }
 
@@ -304,31 +304,42 @@ void BydAttoBattery::
 
   // Check if we are on Standard range or Extended range battery.
   // We use a variety of checks to ensure we catch a potential Standard range battery
-  if ((battery_cellvoltages[125] > 0) && (battery_type == NOT_DETERMINED_YET)) {
-    battery_type = EXTENDED_RANGE;
-  }
-  if ((battery_cellvoltages[104] == 4095) && (battery_type == NOT_DETERMINED_YET)) {
-    battery_type = STANDARD_RANGE;  //This cell reading is always 4095 on Standard range
-  }
-  if ((battery_daughterboard_temperatures[9] == 215) && (battery_type == NOT_DETERMINED_YET)) {
-    battery_type = STANDARD_RANGE;  //Sensor 10 is missing on Standard range
-  }
-  if ((battery_daughterboard_temperatures[8] == 215) && (battery_type == NOT_DETERMINED_YET)) {
-    battery_type = STANDARD_RANGE;  //Sensor 9 is missing on Standard range
+  if ((battery_cellvoltages[159] > 0)) {
+    battery_type = BYD_SONG_PLUS_RANGE;  //BYD Song Plus is 160S
+  } else if (battery_cellvoltages[125] > 0) {
+    battery_type = BYD_ATTO3_EXTENDED_RANGE;  //126S
+  } else if (battery_cellvoltages[103] > 0) {
+    battery_type = BYD_ATTO3_STANDARD_RANGE;  //104S
+  } else if (battery_cellvoltages[99] > 0) {
+    battery_type = BYD_E3;  //100S
+  } else {
+    battery_type = NOT_DETERMINED_YET;
   }
 
   switch (battery_type) {
-    case STANDARD_RANGE:
+    case BYD_SONG_PLUS_RANGE:  //BYD Song Plus, 160S LFP
+      datalayer_battery->info.total_capacity_Wh = 87000;
+      datalayer_battery->info.number_of_cells = CELLCOUNT_PLUS;
+      datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_PLUS_DV;
+      datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_PLUS_DV;
+      break;
+    case BYD_ATTO3_STANDARD_RANGE:  //Standard Range Atto 3, 104S LFP
       datalayer_battery->info.total_capacity_Wh = 50000;
       datalayer_battery->info.number_of_cells = CELLCOUNT_STANDARD;
       datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_STANDARD_DV;
       datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_STANDARD_DV;
       break;
-    case EXTENDED_RANGE:
+    case BYD_ATTO3_EXTENDED_RANGE:  //Extended Range Atto 3, 126S LFP
       datalayer_battery->info.total_capacity_Wh = 60000;
       datalayer_battery->info.number_of_cells = CELLCOUNT_EXTENDED;
       datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_EXTENDED_DV;
       datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_EXTENDED_DV;
+      break;
+    case BYD_E3:  //Unsure if this is standard or long range. Guess long range?
+      datalayer_battery->info.total_capacity_Wh = 47300;
+      datalayer_battery->info.number_of_cells = CELLCOUNT_E3;
+      datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_E3_DV;
+      datalayer_battery->info.min_design_voltage_dV = MAX_PACK_VOLTAGE_E3_DV;
       break;
     case NOT_DETERMINED_YET:
     default:
