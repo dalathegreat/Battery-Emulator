@@ -483,6 +483,10 @@ TwsRoute canSenderHandler("/api/cansend",
 CanSender canSender(&canSenderHandler);
 
 
+static bool is_inverter_good() {
+    return get_event_pointer(EVENT_CAN_INVERTER_MISSING)->state == EVENT_STATE_ACTIVE || get_event_pointer(EVENT_CAN_INVERTER_MISSING)->state == EVENT_STATE_ACTIVE_LATCHED;
+}
+
 //TwsRequestHandlerEntry default_handlers[] = {
 TwsRoute *default_handlers[] = {
     new TwsRoute("/api/status", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
@@ -521,6 +525,9 @@ TwsRoute *default_handlers[] = {
         doc["bms_status"] = getBMSStatus(datalayer.battery.status.bms_status);
         // RUNNING/PAUSING/PAUSED/RESUMING/UNKNOWN (progress through the pause state machine)
         doc["pause_status"] = get_emulator_pause_status();
+
+        doc["inverter_status"] = is_inverter_good() ? "OK" : "ERROR";
+
         // Status from the EV BMS itself (only on some battery types)
         doc["real_bms_status"] = datalayer.battery.status.real_bms_status;
         // Whether pause has been requested
