@@ -9,6 +9,22 @@
 - We need to figure out how to keep the BMS alive. Most likely we need to send a specific CAN message
 */
 
+static uint8_t CalculateCRC8(const CAN_frame& frame) {
+  uint8_t crc = 0x00;
+
+  for (uint8_t i = 0; i < 8; i++) {
+    crc ^= frame.data.u8[i];
+    for (uint8_t b = 0; b < 8; b++) {
+      if (crc & 0x80) {
+        crc = (crc << 1) ^ 0x01;
+      } else {
+        crc <<= 1;
+      }
+    }
+  }
+  return crc;
+}
+
 void KiaHyundaiHybridBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
@@ -253,6 +269,37 @@ void KiaHyundaiHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void KiaHyundaiHybridBattery::transmit_can(unsigned long currentMillis) {
+
+  //Send 10ms CAN message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    previousMillis10 = currentMillis;
+
+    KIA_200.data.u8[6] = (counter_200 & 0x0F) << 1;
+
+    // CRC8 – Santa Fe style (byte 7)
+    KIA_200.data.u8[7] = 0x00;
+    KIA_200.data.u8[7] = CalculateCRC8(KIA_200);
+
+    transmit_can_frame(&KIA_200);
+
+    counter_200++;
+    if (counter_200 > 0x0F) {
+      counter_200 = 0;
+    }
+
+    KIA_2A1.data.u8[0] = 0x09;
+    transmit_can_frame(&KIA_2A1);
+
+    KIA_2F0.data.u8[0] = 0x0B;
+    transmit_can_frame(&KIA_2F0);
+  }
+
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
+
+    transmit_can_frame(&KIA_523);
+  }
 
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {

@@ -66,7 +66,6 @@ class BmwIXBattery : public CanBattery {
   bool UserRequestDTCRead = false;
   bool UserRequestEnergySavingModeReset = false;
   bool startup_reset_complete = false;  // Track if startup BMS reset is done
-  unsigned long startup_time = 0;       // Track startup time for delayed reset
   BmwIXHtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_78S_DV = 3354;   // 4.3V per cell | SE12 battery, BMW iX1, 66.45kWh 286.3Vnom
   static const int MIN_PACK_VOLTAGE_78S_DV = 2184;   // 2.8V per cell
@@ -96,13 +95,11 @@ class BmwIXBattery : public CanBattery {
       900000;  //Number of milliseconds before critical values are classed as stale/stuck 900000 = 900 seconds
 
   unsigned long previousMillis10 = 0;     // will store last time a 20ms CAN Message was send
-  unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
-  unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
-  unsigned long previousMillis500 = 0;    // will store last time a 500ms CAN Message was send
-  unsigned long previousMillis640 = 0;    // will store last time a 600ms CAN Message was send
-  unsigned long previousMillis1000 = 0;   // will store last time a 600ms CAN Message was send
-  unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
+  unsigned long previousMillis1000 = 0;   // will store last time a 1s CAN Message was send
+  unsigned long previousMillis10000 = 0;  // will store last time a 10s CAN Message was send
+  unsigned long min_cell_voltage_lastchanged = 0;
+  unsigned long max_cell_voltage_lastchanged = 0;
 
   static const int ALIVE_MAX_VALUE = 14;  // BMW CAN messages contain alive counter, goes from 0...14
   static const int MAX_DTC_COUNT = 30;    // Maximum number of DTCs to store/display
@@ -213,7 +210,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
                                   0xC9,
                                   0x3A,    // 0x3A to close contactors, 0x33 to open contactors
                                   0xF7}};  // 0xF7 to close contactors, 0xF0 to open contactors // CCU output.
-
+  /*
   static constexpr CAN_frame BMWiX_188 = {
       .FD = true,
       .ext_ID = false,
@@ -221,7 +218,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x188,
       .data = {0x00, 0x00, 0x00, 0x00, 0x3C, 0xFF, 0xFF, 0xFF}};  // CCU output - values while driving
 
-  /*
+
   static constexpr CAN_frame BMWiX_1EA = {
       .FD = true,
       .ext_ID = false,
@@ -229,7 +226,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x1EA,
       //.data = {TODO:km_least_significant, TODO:, TODO:, TODO:, TODO:km_most_significant, 0xFF, TODO:, TODO:}
   };  // KOMBI output - kilometerstand
-*/
+
   static constexpr CAN_frame BMWiX_1FC = {
       .FD = true,
       .ext_ID = false,
@@ -237,7 +234,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x1FC,
       .data = {0xFF, 0xFF, 0xFF, 0xFC, 0x00, 0x00, 0xC0,
                0x00}};  // FIXME:(add transmitter node) output - heat management engine control - values
-                        /*
+
   static constexpr CAN_frame BMWiX_21D = {
       .FD = true,
       .ext_ID = false,
@@ -253,7 +250,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .ID = 0x276,
       .data = {0xFF, 0xFF, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF,
                0xFD}};  // BDC output - vehicle condition. Used for contactor closing
-
+  /*
   static constexpr CAN_frame BMWiX_2ED = {
       .FD = true,
       .ext_ID = false,
@@ -269,7 +266,7 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
       .DLC = 8,
       .ID = 0x2F1,
       .data = {0xFF, 0xFF, 0xD0, 0x39, 0x94, 0x00, 0xF3, 0xFF}};  // 1000ms BDC output - values - varies at startup
-  /*
+
   static constexpr CAN_frame BMWiX_340 = {
       .FD = true,
       .ext_ID = false,
@@ -343,6 +340,23 @@ CAN_frame BMWiX_49C = {.FD = true,
       .ID = 0x4F8,
       //  .data = {0xFF, 0xFD, 0xFF, 0xFF, 0xFF, TODO:, TODO:, 0xC8, 0x00, 0x00, 0xF0, 0x40, 0xFE, 0xFF, 0xFD, 0xFF, TODO:, TODO:, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
   };  // CCU output
+    static constexpr CAN_frame BMWiX_6D = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x6D,
+      .data = {
+          0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+          0xFF}};  // 1000ms BDC output - [0] [1,2][3,4] counter x2. 3,4 is 9 higher than 1,2 is needed? [5-7] static
+   static constexpr CAN_frame BMWiX_C0 = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 2,
+      .ID = 0xC0,
+      .data = {
+          0xF0,
+          0x00}};  // BDC output - Keep Alive 2 BDC>SME  200ms First byte cycles F0 > FE  second byte 00 - MINIMUM ID TO KEEP SME AWAKE
+  //Vehicle CAN END
 */
   CAN_frame BMWiX_510 = {
       .FD = true,
@@ -356,25 +370,6 @@ CAN_frame BMWiX_49C = {.FD = true,
           0x80,  // 0x00 at start of contactor closing, changing to 0x80, afterwards 0x80
           0x01,
           0x00}};  // 100ms BDC output - Values change in car logs, these bytes are the most common. Used for contactor closing
-
-  static constexpr CAN_frame BMWiX_6D = {
-      .FD = true,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x6D,
-      .data = {
-          0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
-          0xFF}};  // 1000ms BDC output - [0] [1,2][3,4] counter x2. 3,4 is 9 higher than 1,2 is needed? [5-7] static
-
-  static constexpr CAN_frame BMWiX_C0 = {
-      .FD = true,
-      .ext_ID = false,
-      .DLC = 2,
-      .ID = 0xC0,
-      .data = {
-          0xF0,
-          0x00}};  // BDC output - Keep Alive 2 BDC>SME  200ms First byte cycles F0 > FE  second byte 00 - MINIMUM ID TO KEEP SME AWAKE
-  //Vehicle CAN END
 
   //Request Data CAN START
   static constexpr CAN_frame BMWiX_6F4 = {
@@ -627,10 +622,7 @@ CAN_frame BMWiX_49C = {.FD = true,
   int16_t main_contactor_temperature = 0;
   uint16_t min_cell_voltage = 3700;  //Startup with valid values - needs fixing in future
   uint16_t max_cell_voltage = 3700;  //Startup with valid values - needs fixing in future
-  unsigned long min_cell_voltage_lastchanged = 0;
-  unsigned long max_cell_voltage_lastchanged = 0;
-  unsigned min_cell_voltage_lastreceived = 0;
-  unsigned max_cell_voltage_lastreceived = 0;
+
   uint32_t sme_uptime = 0;               //Uses E4 C0
   int16_t allowable_charge_amps = 0;     //E5 62
   int16_t allowable_discharge_amps = 0;  //E5 62
@@ -653,8 +645,6 @@ CAN_frame BMWiX_49C = {.FD = true,
   uint8_t uds_req_id_counter = 0;
   uint8_t uds_req_id_counter_slow = 0;
   uint8_t detected_number_of_cells = 0;
-  const unsigned long STALE_PERIOD =
-      STALE_PERIOD_CONFIG;  // Time in milliseconds to check for staleness (e.g., 5000 ms = 5 seconds)
 
   // UDS Multi-Frame Reception Context
   UDS_CONTEXT gUDSContext = {
@@ -667,10 +657,6 @@ CAN_frame BMWiX_49C = {.FD = true,
       0,      // receivedInBatch
       0       // UDS_lastFrameMillis
   };
-
-  //End iX Intermediate vars
-
-  uint8_t current_cell_polled = 0;
 
   uint16_t counter_10ms = 0;  // max 65535 --> 655.35 seconds
   uint8_t counter_100ms = 0;  // max 255 --> 25.5 seconds

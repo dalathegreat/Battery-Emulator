@@ -61,21 +61,15 @@ extern "C" {
 
 class AsyncClient;
 
-#ifndef CONFIG_ASYNC_TCP_MAX_ACK_TIME
-#define CONFIG_ASYNC_TCP_MAX_ACK_TIME 5000
-#endif
 #ifndef ASYNC_MAX_ACK_TIME
-#define ASYNC_MAX_ACK_TIME CONFIG_ASYNC_TCP_MAX_ACK_TIME
+#define ASYNC_MAX_ACK_TIME 5000
 #endif
 #define ASYNC_WRITE_FLAG_COPY 0x01 //will allocate new buffer to hold the data while sending (else will hold reference to the data given)
-#define ASYNC_WRITE_FLAG_MORE 0x02 //will not send PSH flag, meaning that there should be more data to be sent before the application should react.
-#define SSL_HANDSHAKE_TIMEOUT 5000 // timeout to complete SSL handshake
 
 typedef std::function<void(void*, AsyncClient*)> AcConnectHandler;
 typedef std::function<void(void*, AsyncClient*, size_t len, uint32_t time)> AcAckHandler;
 typedef std::function<void(void*, AsyncClient*, int8_t error)> AcErrorHandler;
 typedef std::function<void(void*, AsyncClient*, void *data, size_t len)> AcDataHandler;
-//typedef std::function<void(void*, AsyncClient*, struct pbuf *pb)> AcPacketHandler;
 typedef std::function<void(void*, AsyncClient*, uint32_t time)> AcTimeoutHandler;
 
 class AsyncSocketBase
@@ -136,7 +130,6 @@ class AsyncClient : public AsyncSocketBase
     uint32_t getRxTimeout();
     void setRxTimeout(uint32_t timeout);//no RX data timeout for the connection in seconds
     void setNoDelay(bool nodelay);
-    bool getNoDelay();
 
     uint32_t getRemoteAddress();
     uint16_t getRemotePort();
@@ -248,7 +241,6 @@ class AsyncServer : public AsyncSocketBase
     void end();
 
     void setNoDelay(bool nodelay) { _noDelay = nodelay; }
-    bool getNoDelay() { return _noDelay; }
     uint8_t status() const;
 
   protected:

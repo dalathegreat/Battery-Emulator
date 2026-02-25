@@ -193,9 +193,12 @@ class NissanLeafBattery : public CanBattery {
   uint8_t BatterySerialNumber[15] = {0};  // Stores raw HEX values for ASCII chars
   uint8_t BatteryPartNumber[7] = {0};     // Stores raw HEX values for ASCII chars
   uint8_t BMSIDcode[8] = {0};
+  uint8_t stateMachineClearSOH = 0xFF;
+
+#ifndef SMALL_FLASH_DEVICE
 
   // Clear SOH values
-  uint8_t stateMachineClearSOH = 0xFF;
+
   uint32_t incomingChallenge = 0xFFFFFFFF;
   uint8_t solvedChallenge[8];
   bool challengeFailed = false;
@@ -205,6 +208,8 @@ class NissanLeafBattery : public CanBattery {
                               .DLC = 8,
                               .ID = 0x79B,
                               .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+
+#endif
 };
 
 #endif

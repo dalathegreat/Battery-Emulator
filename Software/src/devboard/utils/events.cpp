@@ -29,7 +29,7 @@ void init_events(void) {
     events.entries[i].MQTTpublished = false;  // Not published by default
   }
 
-  events.entries[EVENT_CANMCP2517FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP2518FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2515_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
@@ -76,6 +76,7 @@ void init_events(void) {
   events.entries[EVENT_SOH_DIFFERENCE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOH_LOW].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_HVIL_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_LOW_HEAP_MEMORY].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_PRECHARGE_FAILURE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_AUTOMATIC_PRECHARGE_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_INTERNAL_OPEN_FAULT].level = EVENT_LEVEL_ERROR;
@@ -102,6 +103,8 @@ void init_events(void) {
   events.entries[EVENT_SERIAL_TX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SERIAL_TRANSMITTER_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SMA_PAIRING].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RECOVERY_START].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_RECOVERY_END].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_RESET_UNKNOWN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_POWERON].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_EXT].level = EVENT_LEVEL_INFO;
@@ -171,7 +174,7 @@ void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
 
 String get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
-    case EVENT_CANMCP2517FD_INIT_FAILURE:
+    case EVENT_CANMCP2518FD_INIT_FAILURE:
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
     case EVENT_CANMCP2515_INIT_FAILURE:
       return "CAN-MCP addon initialization failed. Check hardware";
@@ -271,6 +274,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_HVIL_FAILURE:
       return "Battery interlock loop broken. Check that high voltage / low voltage connectors are seated. "
              "Battery will be disabled!";
+    case EVENT_LOW_HEAP_MEMORY:
+      return "Memory almost full. Inform developers.";
     case EVENT_PRECHARGE_FAILURE:
       return "Battery failed to precharge. Check that capacitor is seated on high voltage output.";
     case EVENT_AUTOMATIC_PRECHARGE_FAILURE:
@@ -324,6 +329,10 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "OTA update started!";
     case EVENT_OTA_UPDATE_TIMEOUT:
       return "OTA update timed out!";
+    case EVENT_RECOVERY_START:
+      return "CAUTION! Emergency low charge recovery started! Make sure battery cells do not overheat!";
+    case EVENT_RECOVERY_END:
+      return "Emergency charge recovery max time reached. Reboot and inspect if battery is able to continue normally";
     case EVENT_RESET_UNKNOWN:
       return "The board was reset unexpectedly, and reason can't be determined";
     case EVENT_RESET_POWERON:
@@ -480,7 +489,12 @@ static void update_bms_status(void) {
       datalayer.battery.status.bms_status = UPDATING;
       break;
     case EVENT_LEVEL_ERROR:
-      datalayer.battery.status.bms_status = FAULT;
+      // Normally FAULT mode is set if a catastrophic event has triggered, but incase user has forced a recovery charge, we override any FAULT and continue temporarily in active mode
+      if (datalayer.battery.settings.user_requests_forced_charging_recovery_mode) {
+        datalayer.battery.status.bms_status = ACTIVE;  //Edge case which is active for 30min max
+      } else {
+        datalayer.battery.status.bms_status = FAULT;  //We will in 99.999% of the time go here
+      }
       break;
     default:
       break;

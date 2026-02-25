@@ -21,11 +21,20 @@ void PylonBattery::update_values() {
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  datalayer_battery->status.cell_max_voltage_mV = cellvoltage_max_mV;
-  datalayer_battery->status.cell_voltages_mV[0] = cellvoltage_max_mV;
+  // Update cell count if we've received individual cell data
+  if (actual_cell_count > 0) {
+    datalayer_battery->info.number_of_cells = actual_cell_count;
+  }
 
+  // Use Pylon protocol min/max for alarms
+  datalayer_battery->status.cell_max_voltage_mV = cellvoltage_max_mV;
   datalayer_battery->status.cell_min_voltage_mV = cellvoltage_min_mV;
-  datalayer_battery->status.cell_voltages_mV[1] = cellvoltage_min_mV;
+
+  // Only populate cell voltages if we don't have individual cell data
+  if (actual_cell_count == 0) {
+    datalayer_battery->status.cell_voltages_mV[0] = cellvoltage_max_mV;
+    datalayer_battery->status.cell_voltages_mV[1] = cellvoltage_min_mV;
+  }
 
   datalayer_battery->status.temperature_min_dC = celltemperature_min_dC;
 
@@ -37,6 +46,17 @@ void PylonBattery::update_values() {
 }
 
 void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  // Handle EMUS extended ID frames for cell monitoring
+  if (rx_frame.ID == EMUS_BASE_ID) {
+    // EMUS configuration frame containing cell count
+    uint8_t cell_count = rx_frame.data.u8[7];
+    if (cell_count > 0 && cell_count <= MAX_CELLS) {
+      actual_cell_count = cell_count;
+      datalayer_battery->info.number_of_cells = actual_cell_count;
+    }
+    return;
+  }
+
   switch (rx_frame.ID) {
     case 0x7310:
     case 0x7311:
@@ -108,6 +128,40 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x4291:
       break;
     default:
+      // Handle EMUS individual cell voltage messages (0x19B50100-0x19B5011F)
+      if (rx_frame.ID >= CELL_VOLTAGE_BASE_ID && rx_frame.ID < (CELL_VOLTAGE_BASE_ID + 32)) {
+        datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Keep battery alive on cell data
+        uint8_t group = rx_frame.ID - CELL_VOLTAGE_BASE_ID;
+        uint8_t cell_start = group * 8;
+
+        for (uint8_t i = 0; i < 8; i++) {
+          uint8_t cell_index = cell_start + i;
+          if (cell_index < MAX_CELLS && (actual_cell_count == 0 || cell_index < actual_cell_count)) {
+            // Cell voltage: 2000mV base + (byte value × 10mV)
+            uint16_t cell_voltage = 2000 + (rx_frame.data.u8[i] * 10);
+            // Only update if voltage is in valid range (2500-4200mV)
+            if (cell_voltage >= 2500 && cell_voltage <= 4200) {
+              uint16_t current_voltage = datalayer_battery->status.cell_voltages_mV[cell_index];
+              // Reject sudden large changes (>1000mV)
+              if (current_voltage == 0 || abs((int)cell_voltage - (int)current_voltage) <= 1000) {
+                datalayer_battery->status.cell_voltages_mV[cell_index] = cell_voltage;
+              }
+            }
+          }
+        }
+      }
+      // Handle EMUS individual cell balancing status messages (0x19B50300-0x19B5031F)
+      else if (rx_frame.ID >= CELL_BALANCING_BASE_ID && rx_frame.ID < (CELL_BALANCING_BASE_ID + 32)) {
+        uint8_t group = rx_frame.ID - CELL_BALANCING_BASE_ID;
+        uint8_t cell_start = group * 8;
+
+        for (uint8_t i = 0; i < 8; i++) {
+          uint8_t cell_index = cell_start + i;
+          if (cell_index < MAX_CELLS && (actual_cell_count == 0 || cell_index < actual_cell_count)) {
+            datalayer_battery->status.cell_balancing_status[cell_index] = (rx_frame.data.u8[i] > 0);
+          }
+        }
+      }
       break;
   }
 }
@@ -125,6 +179,16 @@ void PylonBattery::transmit_can(unsigned long currentMillis) {
     if (ensemble_info_ack) {
       PYLON_4200.data.u8[0] = 0x00;  //Request system equipment info
     }
+  }
+
+  // Poll for individual cell voltages every 5 seconds
+  if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
+    previousMillis5000 = currentMillis;
+
+    // Request cell voltage data from EMUS BMS
+    transmit_can_frame(&EMUS_CELL_VOLTAGE_REQUEST);
+    // Request cell balancing status from EMUS BMS
+    transmit_can_frame(&EMUS_CELL_BALANCING_REQUEST);
   }
 }
 
