@@ -272,7 +272,7 @@ bool init_CAN() {
     if (errorCode2517_2 != 0) {
       logging.print("CAN-FD 2 Configuration error 0x");
       logging.println(errorCode2517_2, HEX);
-      set_event(EVENT_CANMCP2517FD_INIT_FAILURE, (uint8_t)errorCode2517_2);
+      set_event(EVENT_CANMCP2518FD_INIT_FAILURE, (uint8_t)errorCode2517_2);
       return false;
     }
   }
