@@ -57,11 +57,6 @@ Watchdog mqtt_loop_watchdog;
 
 Logging logging;
 
-std::string mqtt_user;      //TODO, move?
-std::string mqtt_password;  //TODO, move?
-std::string http_username;  //TODO, move?
-std::string http_password;  //TODO, move?
-
 static std::list<Transmitter*> transmitters;
 void register_transmitter(Transmitter* transmitter) {
   transmitters.push_back(transmitter);

@@ -23,8 +23,9 @@
 #include "html_escape.h"
 
 #include <string>
-extern std::string http_username;
-extern std::string http_password;
+
+std::string http_username;
+std::string http_password;
 
 bool webserver_auth = false;
 
