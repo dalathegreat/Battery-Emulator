@@ -459,6 +459,15 @@ class TeslaBattery : public CanBattery {
   uint8_t stateMachineBMSReset = 0xFF;
   uint8_t stateMachineSOCReset = 0xFF;
   uint8_t stateMachineBMSQuery = 0xFF;
+  // Auto-balance state machine (0xFF = idle, 0-11 = active phases)
+  // 0=INIT, 1=WAIT_OPEN, 2=BLEEDING, 3=ISO_CLEAR, 4=WAIT_ISO_CLEAR,
+  // 5=BMS_RESET, 6=WAIT_BMS_RESET, 7=WAIT_BMS_BOOT, 8=CLOSE_CONTACTORS,
+  // 9=WAIT_CLOSED, 10=CHARGING, 11=RETRY_WAIT_OPEN
+  uint8_t stateMachineAutoBalance = 0xFF;
+  uint32_t autoBalance_phase_start_ms = 0;
+  uint8_t autoBalance_cycle_count = 0;
+  uint8_t autoBalance_close_retry_count = 0;
+  bool autoBalance_hold_contactors_open = false;
   uint16_t battery_cell_max_v = 3300;
   uint16_t battery_cell_min_v = 3300;
   bool cellvoltagesRead = false;

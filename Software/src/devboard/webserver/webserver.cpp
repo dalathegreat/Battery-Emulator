@@ -638,6 +638,30 @@ void init_webserver() {
   // Route for editing balancing enabled
   update_int_setting("/TeslaBalAct", [](int value) { datalayer.battery.settings.user_requests_balancing = value; });
 
+  // Route for Tesla auto-balance (automated bleed+charge cycle)
+  update_int_setting("/TeslaAutoBalAct",
+                     [](int value) { datalayer.battery.settings.user_requests_auto_balancing = value; });
+
+  // Route for auto-balance charge deviation stop threshold (mV)
+  update_string_setting("/AutoBalChargeDevStop", [](String value) {
+    datalayer.battery.settings.auto_balance_charge_deviation_stop_mV = static_cast<uint16_t>(value.toFloat());
+  });
+
+  // Route for auto-balance done deviation threshold (mV)
+  update_string_setting("/AutoBalDoneDev", [](String value) {
+    datalayer.battery.settings.auto_balance_done_deviation_mV = static_cast<uint16_t>(value.toFloat());
+  });
+
+  // Route for auto-balance charge power limit (W) during charging phase
+  update_string_setting("/AutoBalChargePower", [](String value) {
+    datalayer.battery.settings.auto_balance_charge_power_W = static_cast<uint16_t>(value.toFloat());
+  });
+
+  // Route for auto-balance max cell voltage ceiling (mV): NEVER exceed, stops procedure
+  update_string_setting("/AutoBalMaxCell", [](String value) {
+    datalayer.battery.settings.auto_balance_max_cell_mV = static_cast<uint16_t>(value.toFloat());
+  });
+
   // Route for editing balancing max time
   update_string_setting("/BalTime", [](String value) {
     datalayer.battery.settings.balancing_max_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);

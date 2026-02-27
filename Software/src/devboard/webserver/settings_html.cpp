@@ -713,6 +713,30 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0f, 0);
   }
 
+  if (var == "AUTO_BAL_STATUS") {
+    return datalayer.battery.settings.user_requests_auto_balancing ? "ACTIVE" : "INACTIVE";
+  }
+
+  if (var == "AUTO_BAL_STATUS_CLASS") {
+    return datalayer.battery.settings.user_requests_auto_balancing ? "active" : "inactive";
+  }
+
+  if (var == "AUTO_BAL_CHARGE_DEV_STOP") {
+    return String(datalayer.battery.settings.auto_balance_charge_deviation_stop_mV);
+  }
+
+  if (var == "AUTO_BAL_DONE_DEV") {
+    return String(datalayer.battery.settings.auto_balance_done_deviation_mV);
+  }
+
+  if (var == "AUTO_BAL_MAX_CELL") {
+    return String(datalayer.battery.settings.auto_balance_max_cell_mV);
+  }
+
+  if (var == "AUTO_BAL_CHARGE_POWER") {
+    return String(datalayer.battery.settings.auto_balance_charge_power_W);
+  }
+
   if (var == "BMS_RESET_DURATION") {
     return String(datalayer.battery.settings.user_set_bms_reset_duration_ms / 1000.0f, 0);
   }
@@ -1001,8 +1025,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         function editBalMaxCellV(){var value=prompt('Cellvoltage max temporarily raised to this value during forced balancing. Value in mV');if(value!==null){if(value>=3400&&value<=3750){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 3400 and 3750');}}}
     
-        function editBalMaxDevCellV(){var value=prompt('Cellvoltage max deviation temporarily raised to this value during forced balancing. Value in mV');if(value!==null){if(value>=300&&value<=600){var xhr=new 
+        function editBalMaxDevCellV(){var value=prompt('Cellvoltage max deviation temporarily raised to this value during forced balancing. Value in mV');if(value!==null){if(value>=300&&value<=600){var xhr=new
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxDevCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 300 and 600');}}}
+
+        function editTeslaAutoBalAct(){var value=prompt('Auto-balance: automates Tesla bleed (contactors open, BMS bleeds high cells) + recharge cycles. Automatically handles isolation clear and BMS reset between cycles. Enter 1 to START, 0 to STOP.');if(value!==null){if(value==0||value==1){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/TeslaAutoBalAct?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
+
+        function editAutoBalChargeDevStop(){var value=prompt('Cell voltage deviation (mV) during charging that triggers a new bleed phase. Lower value = more bleed cycles. (10-200 mV)');if(value!==null){if(value>=10&&value<=200){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/AutoBalChargeDevStop?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 10 and 200');}}}
+
+        function editAutoBalDoneDev(){var value=prompt('Cell deviation (mV) during charging below which auto-balance is considered complete and stops. (5-100 mV)');if(value!==null){if(value>=5&&value<=100){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/AutoBalDoneDev?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 5 and 100');}}}
+
+        function editAutoBalMaxCell(){var value=prompt('Max cell voltage ceiling (mV). NEVER charge above this during auto-balance. Typical LFP: 3650 mV, NCM: 4200 mV. (2500-4500 mV)');if(value!==null){if(value>=2500&&value<=4500){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/AutoBalMaxCell?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 2500 and 4500');}}}
+
+        function editAutoBalChargePower(){var value=prompt('Max charge power (W) during auto-balance charging phase. Lower = gentler charge, safer for imbalanced cells. 500W ~ 1.4A at 350V, 200W ~ 0.5A. (50-5000 W)');if(value!==null){if(value>=50&&value<=5000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/AutoBalChargePower?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 50 and 5000');}}}
 
           function editFakeBatteryVoltage(){var value=prompt('Enter new fake battery voltage');if(value!==null){if(value>=0&&value<=5000){var xhr=new 
           XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateFakeBatteryVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000');}}}
@@ -1775,6 +1809,25 @@ const char* getCANInterfaceName(CAN_Interface interface) {
            <h4 class="%BALANCING_CLASS%"><span>Max cell voltage: %BAL_MAX_CELL_VOLTAGE% mV</span> <button onclick='editBalMaxCellV()'>Edit</button></h4>
 
           <h4 class="%BALANCING_CLASS%"><span>Max cell voltage deviation: %BAL_MAX_DEV_CELL_VOLTAGE% mV</span> <button onclick='editBalMaxDevCellV()'>Edit</button></h4>
+
+    </div>
+
+    <div style='background-color: #1A4A6B; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%MANUAL_BAL_CLASS%">
+
+          <h4 style='color: white;'>Auto-balance (Tesla bleed+charge cycle):
+          <span class="%AUTO_BAL_STATUS_CLASS%">%AUTO_BAL_STATUS%</span>
+          <button onclick='editTeslaAutoBalAct()'>Start/Stop</button></h4>
+
+          <h4 style='color: #AACCFF; font-size: 0.85em; margin: 2px 0 8px 0;'>
+          Opens contactors so Tesla BMS bleeds high cells. Automatically performs isolation clear + BMS reset, then closes contactors to recharge. Stops when any cell reaches the max voltage ceiling.</h4>
+
+          <h4><span>Max cell voltage ceiling: %AUTO_BAL_MAX_CELL% mV</span> <button onclick='editAutoBalMaxCell()'>Edit</button></h4>
+
+          <h4><span>Charge power limit: %AUTO_BAL_CHARGE_POWER% W</span> <button onclick='editAutoBalChargePower()'>Edit</button></h4>
+
+          <h4><span>Open contactors above deviation: %AUTO_BAL_CHARGE_DEV_STOP% mV</span> <button onclick='editAutoBalChargeDevStop()'>Edit</button></h4>
+
+          <h4><span>Close contactors below deviation: %AUTO_BAL_DONE_DEV% mV</span> <button onclick='editAutoBalDoneDev()'>Edit</button></h4>
 
     </div>
 

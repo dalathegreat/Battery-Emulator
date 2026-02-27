@@ -137,7 +137,12 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_GPIO_CONFLICT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_GPIO_NOT_DEFINED].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_AUTO_BALANCE_START].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_AUTO_BALANCE_CONTACTORS_OPEN].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_AUTO_BALANCE_CONTACTORS_CLOSED].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_AUTO_BALANCE_STOP].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_AUTO_BALANCE_RETRY].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_AUTO_BALANCE_ERROR].level = EVENT_LEVEL_ERROR;
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -400,6 +405,18 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_GPIO_NOT_DEFINED:
       return "Missing GPIO Assignment: The component '" + esp32hal->failed_allocator() +
              "' requires a GPIO pin that isn't configured. Please define a valid pin number in your settings.";
+    case EVENT_AUTO_BALANCE_START:
+      return "Auto-Balance: Activated. Opening contactors for first bleed phase.";
+    case EVENT_AUTO_BALANCE_CONTACTORS_OPEN:
+      return "Auto-Balance: Contactors OPEN - bleed phase started.";
+    case EVENT_AUTO_BALANCE_CONTACTORS_CLOSED:
+      return "Auto-Balance: Contactors CLOSED - charge phase started.";
+    case EVENT_AUTO_BALANCE_STOP:
+      return "Auto-Balance: Stopped. Max cell voltage ceiling reached, normal operation restored.";
+    case EVENT_AUTO_BALANCE_RETRY:
+      return "Auto-Balance: Contactor close attempt failed, retrying isolation clear + BMS reset. Data=attempt number.";
+    case EVENT_AUTO_BALANCE_ERROR:
+      return "Auto-Balance: ABORTED. Data: 1=contactors failed to open, 2=contactors failed to close after 5 attempts.";
     default:
       return "";
   }
