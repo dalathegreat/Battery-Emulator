@@ -571,8 +571,7 @@ void TeslaBattery::
       datalayer.battery.status.max_charge_power_W = datalayer.battery.settings.balancing_float_power_W;
     }
     // Auto-balance charging phase: further cap to the dedicated auto-balance charge power
-    if (datalayer.battery.settings.user_requests_auto_balancing &&
-        datalayer.battery.settings.user_requests_balancing) {
+    if (datalayer.battery.settings.user_requests_auto_balancing && datalayer.battery.settings.user_requests_balancing) {
       datalayer.battery.status.max_charge_power_W = datalayer.battery.settings.auto_balance_charge_power_W;
     }
   }
@@ -632,8 +631,8 @@ void TeslaBattery::
     uint16_t cell_deviation_mV = cellvoltagesRead ? (battery_cell_max_v - battery_cell_min_v) : 9999;
     uint32_t currentTime = (uint32_t)millis64();
     bool contactors_closed = (battery_contactor == 4) ||
-                              (battery_packContPositiveState == 4 && battery_packContNegativeState == 4) ||
-                              (battery_packContPositiveState == 6 && battery_packContNegativeState == 6);
+                             (battery_packContPositiveState == 4 && battery_packContNegativeState == 4) ||
+                             (battery_packContPositiveState == 6 && battery_packContNegativeState == 6);
     switch (stateMachineAutoBalance) {
       case 0:  // INIT: force contactors open to begin bleed phase
         logging.println("INFO: Auto-balance: opening contactors for bleed phase");
@@ -643,10 +642,9 @@ void TeslaBattery::
         autoBalance_phase_start_ms = currentTime;
         stateMachineAutoBalance = 1;
         break;
-      case 1:  // WAIT_CONTACTORS_OPEN
+      case 1:                          // WAIT_CONTACTORS_OPEN
         if (battery_contactor == 1) {  // BMS reports OPEN
-          logging.printf("INFO: Auto-balance: contactors open, bleed phase %d started\n",
-                         autoBalance_cycle_count);
+          logging.printf("INFO: Auto-balance: contactors open, bleed phase %d started\n", autoBalance_cycle_count);
           set_event(EVENT_AUTO_BALANCE_CONTACTORS_OPEN, autoBalance_cycle_count);
           autoBalance_phase_start_ms = currentTime;
           stateMachineAutoBalance = 2;
@@ -660,11 +658,9 @@ void TeslaBattery::
         break;
       case 2:  // BLEEDING: Tesla passively balances cells via internal bleed resistors
         // Exit once deviation drops below the done threshold - cells close enough to recharge
-        if (cellvoltagesRead &&
-            cell_deviation_mV <= datalayer.battery.settings.auto_balance_done_deviation_mV) {
-          logging.printf(
-              "INFO: Auto-balance: bleed complete, deviation %d mV <= %d mV, preparing to recharge\n",
-              cell_deviation_mV, datalayer.battery.settings.auto_balance_done_deviation_mV);
+        if (cellvoltagesRead && cell_deviation_mV <= datalayer.battery.settings.auto_balance_done_deviation_mV) {
+          logging.printf("INFO: Auto-balance: bleed complete, deviation %d mV <= %d mV, preparing to recharge\n",
+                         cell_deviation_mV, datalayer.battery.settings.auto_balance_done_deviation_mV);
           stateMachineAutoBalance = 3;
         }
         break;
@@ -723,24 +719,21 @@ void TeslaBattery::
       case 9:  // WAIT_CONTACTORS_CLOSED: check CLOSED or ECONOMIZED state
         if (contactors_closed) {
           autoBalance_cycle_count++;
-          logging.printf("INFO: Auto-balance: contactors closed, charging phase %d started\n",
-                         autoBalance_cycle_count);
+          logging.printf("INFO: Auto-balance: contactors closed, charging phase %d started\n", autoBalance_cycle_count);
           set_event(EVENT_AUTO_BALANCE_CONTACTORS_CLOSED, autoBalance_cycle_count);
           stateMachineAutoBalance = 10;
         } else if (currentTime - autoBalance_phase_start_ms > 30000UL) {
           autoBalance_close_retry_count++;
           if (autoBalance_close_retry_count <= 5) {
-            logging.printf(
-                "WARN: Auto-balance: close attempt %d/5 failed, retrying isolation clear + BMS reset\n",
-                autoBalance_close_retry_count);
+            logging.printf("WARN: Auto-balance: close attempt %d/5 failed, retrying isolation clear + BMS reset\n",
+                           autoBalance_close_retry_count);
             set_event(EVENT_AUTO_BALANCE_RETRY, autoBalance_close_retry_count);
             autoBalance_hold_contactors_open = true;
             datalayer.battery.settings.user_requests_balancing = false;
             autoBalance_phase_start_ms = currentTime;
             stateMachineAutoBalance = 11;  // Wait for open, then redo iso clear + BMS reset
           } else {
-            logging.println(
-                "ERROR: Auto-balance: failed to close contactors after 5 attempts, aborting");
+            logging.println("ERROR: Auto-balance: failed to close contactors after 5 attempts, aborting");
             set_event(EVENT_AUTO_BALANCE_ERROR, 2);
             datalayer.battery.settings.user_requests_auto_balancing = false;
             autoBalance_hold_contactors_open = false;
@@ -753,9 +746,8 @@ void TeslaBattery::
         if (cellvoltagesRead) {
           if (battery_cell_max_v >= datalayer.battery.settings.auto_balance_max_cell_mV) {
             // Any cell hit the voltage ceiling - stop the whole procedure
-            logging.printf(
-                "INFO: Auto-balance: max cell %d mV reached ceiling %d mV, stopping\n",
-                battery_cell_max_v, datalayer.battery.settings.auto_balance_max_cell_mV);
+            logging.printf("INFO: Auto-balance: max cell %d mV reached ceiling %d mV, stopping\n", battery_cell_max_v,
+                           datalayer.battery.settings.auto_balance_max_cell_mV);
             set_event(EVENT_AUTO_BALANCE_STOP, 0);
             datalayer.battery.settings.user_requests_auto_balancing = false;
             autoBalance_hold_contactors_open = false;
@@ -763,9 +755,8 @@ void TeslaBattery::
             stateMachineAutoBalance = 0xFF;
           } else if (cell_deviation_mV > datalayer.battery.settings.auto_balance_charge_deviation_stop_mV) {
             // Deviation too high during charging - open contactors and re-bleed
-            logging.printf(
-                "INFO: Auto-balance: deviation %d mV exceeds %d mV, re-entering bleed phase\n",
-                cell_deviation_mV, datalayer.battery.settings.auto_balance_charge_deviation_stop_mV);
+            logging.printf("INFO: Auto-balance: deviation %d mV exceeds %d mV, re-entering bleed phase\n",
+                           cell_deviation_mV, datalayer.battery.settings.auto_balance_charge_deviation_stop_mV);
             autoBalance_hold_contactors_open = true;
             datalayer.battery.settings.user_requests_balancing = false;
             autoBalance_phase_start_ms = currentTime;
