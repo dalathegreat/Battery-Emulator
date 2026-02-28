@@ -52,8 +52,14 @@ class NissanLeafCharger : public CanCharger {
   uint8_t OBCpower = 0;
   bool PPStatus = false;
   bool OBCwakeup = false;
+  bool LEAFbatteryDetected = false;
 
   //Actual content messages
+  CAN_frame LEAF_1D4 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x1D4,
+                        .data = {0xF7, 0x70, 0x00, 0x00, 0x07, 0x44, 0xE0, 0x00}};
   CAN_frame LEAF_1DB = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -84,7 +90,6 @@ class NissanLeafCharger : public CanCharger {
                         .DLC = 8,
                         .ID = 0x5BC,
                         .data = {0x3D, 0x80, 0xF0, 0x64, 0xB0, 0x01, 0x00, 0x32}};
-
   CAN_frame LEAF_59E = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,

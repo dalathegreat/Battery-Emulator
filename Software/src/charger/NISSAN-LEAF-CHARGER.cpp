@@ -42,6 +42,9 @@ static uint8_t calculate_checksum_nibble(CAN_frame* frame) {
 void NissanLeafCharger::map_can_frame_to_variable(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
+    case 0x5BC:
+      LEAFbatteryDetected = true;
+      break;
     case 0x679:  // This message fires once when charging cable is plugged in
       datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       OBCwakeup = true;
@@ -89,19 +92,19 @@ void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
 
     mprun10 = (mprun10 + 1) % 4;  // mprun10 cycles between 0-1-2-3-0-1...
 
-/* 1DB is the main control message. If LEAF battery is used, the battery controls almost everything */
-// Only send these messages if Nissan LEAF battery is not used
-#ifndef NISSAN_LEAF_BATTERY
+    /* 1DB is the main control message. If LEAF battery is used, the battery controls almost everything */
+    // Only send these messages if Nissan LEAF battery is not used
 
-    // VCM message, containing info if battery should sleep or stay awake
-    transmit_can_frame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+    if (!LEAFbatteryDetected) {
+      // VCM message, containing info if battery should sleep or stay awake
+      transmit_can_frame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
-    LEAF_1DB.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DB);
-    transmit_can_frame(&LEAF_1DB);
+      LEAF_1DB.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DB);
+      transmit_can_frame(&LEAF_1DB);
 
-    LEAF_1DC.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DC);
-    transmit_can_frame(&LEAF_1DC);
-#endif
+      LEAF_1DC.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DC);
+      transmit_can_frame(&LEAF_1DC);
+    }
 
     OBCpowerSetpoint = ((datalayer.charger.charger_setpoint_HV_IDC * 4) + 0x64);
 
@@ -147,6 +150,11 @@ void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
     LEAF_1F2.data.u8[7] = calculate_checksum_nibble(&LEAF_1F2);
 
     transmit_can_frame(&LEAF_1F2);  // Sending of 1F2 message is halted in LEAF-BATTERY function incase used here
+
+    LEAF_1D4.data.u8[4] = 0x07 | (mprun10 << 6);
+    LEAF_1D4.data.u8[7] = calculate_CRC_Nissan(&LEAF_1D4);
+
+    transmit_can_frame(&LEAF_1D4);  // Sending of 1D4 message is halted in LEAF-BATTERY function incase used here
   }
 
   /* Send messages every 100ms here */
@@ -155,17 +163,17 @@ void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
 
     mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
 
-// Only send these messages if Nissan LEAF battery is not used
-#ifndef NISSAN_LEAF_BATTERY
+    // Only send these messages if Nissan LEAF battery is not used
+    if (!LEAFbatteryDetected) {
 
-    LEAF_55B.data.u8[6] = ((0x1 << 4) | (mprun100));
+      LEAF_55B.data.u8[6] = ((0x1 << 4) | (mprun100));
 
-    LEAF_55B.data.u8[7] = calculate_CRC_Nissan(&LEAF_55B);
-    transmit_can_frame(&LEAF_55B);
+      LEAF_55B.data.u8[7] = calculate_CRC_Nissan(&LEAF_55B);
+      transmit_can_frame(&LEAF_55B);
 
-    transmit_can_frame(&LEAF_59E);
+      transmit_can_frame(&LEAF_59E);
 
-    transmit_can_frame(&LEAF_5BC);
-#endif
+      transmit_can_frame(&LEAF_5BC);
+    }
   }
 }
