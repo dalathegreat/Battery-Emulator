@@ -18,6 +18,7 @@
  *            by NJbubo
  *
  */
+#ifndef CHADEMO_CT
 #include "CHADEMO-SHUNTS.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -27,33 +28,33 @@
 static int framecount = 0;
 
 /* original variables/names/types from SimpleISA. These warrant refinement */
-float Amperes;  // Floating point with current in Amperes
-float AH;       //Floating point with accumulated ampere-hours
-float KW;
-float KWH;
+static float Amperes;  // Floating point with current in Amperes
+static float AH;       //Floating point with accumulated ampere-hours
+static float KW;
+static float KWH;
 
-float Voltage;
-float Voltage1;
-float Voltage2;
-float Voltage3;
-float VoltageHI;
-float Voltage1HI;
-float Voltage2HI;
-float Voltage3HI;
-float VoltageLO;
-float Voltage1LO;
-float Voltage2LO;
-float Voltage3LO;
+static float Voltage;
+static float Voltage1;
+static float Voltage2;
+static float Voltage3;
+static float VoltageHI;
+static float Voltage1HI;
+static float Voltage2HI;
+static float Voltage3HI;
+static float VoltageLO;
+static float Voltage1LO;
+static float Voltage2LO;
+static float Voltage3LO;
 
-float Temperature;
+static float Temperature;
 
-bool firstframe;
-float milliamps;
-long watt;
-long As;
-long lastAs;
-long wh;
-long lastWh;
+static bool firstframe;
+static float milliamps;
+static long watt;
+static long As;
+static long lastAs;
+static long wh;
+static long lastWh;
 
 /* Output command frame used to alter or initialize ISA shunt behavior
  * Please note that all delay/sleep operations are solely in this section of code,
@@ -64,6 +65,7 @@ CAN_frame outframe = {.FD = false,
                       .DLC = 8,
                       .ID = 0x411,
                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
 
 uint16_t get_measured_voltage() {
   return (uint16_t)Voltage;
@@ -420,3 +422,5 @@ void ISA_getINFO(uint8_t i) {
 
   transmit_can_frame(&outframe, can_config.battery);
 }
+
+#endif  // CHADEMO_CT
