@@ -2,9 +2,9 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #ifdef CHADEMO_CT
-  #include "CHADEMO-CT.h" // Include the CT helper if it's being used
+#include "CHADEMO-CT.h"  // Include the CT helper if it's being used
 #else
-  #include "CHADEMO-SHUNTS.h"
+#include "CHADEMO-SHUNTS.h"
 #endif
 
 //This function maps all the values fetched via CAN to the correct parameters used for the inverter
@@ -325,10 +325,10 @@ void ChademoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   handle_chademo_sequence();
 
-  #ifdef CHADEMO_CT
-  #else
-    ISA_handleFrame(&rx_frame);
-  #endif
+#ifdef CHADEMO_CT
+#else
+  ISA_handleFrame(&rx_frame);
+#endif
 }
 
 /* (re)initialize evse structures to pre-charge/discharge states */
@@ -875,11 +875,11 @@ void ChademoBattery::handle_chademo_sequence() {
 
 uint16_t ChademoBattery::get_voltage_handler() {
   float Voltage;
-  #ifdef CHADEMO_CT
-    Voltage = min(x102_chg_session.TargetBatteryVoltage, x108_evse_cap.available_output_voltage);
-  #else
-    Voltage = get_measured_voltage();
-  #endif
+#ifdef CHADEMO_CT
+  Voltage = min(x102_chg_session.TargetBatteryVoltage, x108_evse_cap.available_output_voltage);
+#else
+  Voltage = get_measured_voltage();
+#endif
   return (uint16_t)Voltage;
 }
 
@@ -898,10 +898,10 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
   pinMode(pin4, INPUT);
   pinMode(pin7, INPUT);
 
-  // initialise the CT measurement helper
-  #ifdef CHADEMO_CT
-    setup_ct();
-  #endif
+// initialise the CT measurement helper
+#ifdef CHADEMO_CT
+  setup_ct();
+#endif
 
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
@@ -952,5 +952,3 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
 
   setupMillis = millis();
 }
-
-

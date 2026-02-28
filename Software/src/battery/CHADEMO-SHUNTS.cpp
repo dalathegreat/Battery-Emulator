@@ -66,7 +66,6 @@ CAN_frame outframe = {.FD = false,
                       .ID = 0x411,
                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-
 uint16_t get_measured_voltage() {
   return (uint16_t)Voltage;
 }
