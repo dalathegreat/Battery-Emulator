@@ -23,8 +23,9 @@
 #include "html_escape.h"
 
 #include <string>
-extern std::string http_username;
-extern std::string http_password;
+
+std::string http_username;
+std::string http_password;
 
 bool webserver_auth = false;
 
@@ -741,6 +742,9 @@ String getConnectResultString(wl_status_t status) {
 }
 
 void ota_monitor() {
+
+  ElegantOTA.loop();
+
   if (ota_active && ota_timeout_timer.elapsed()) {
     // OTA timeout, try to restore can and clear the update event
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
@@ -872,7 +876,6 @@ String processor(const String& var) {
       content += "<h4>Values function timing: " + String(datalayer.system.status.time_snap_values_us) + " us</h4>";
       content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
       content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
-      content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
     }
 
     wl_status_t status = WiFi.status();

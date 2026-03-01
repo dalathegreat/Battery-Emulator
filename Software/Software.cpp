@@ -57,11 +57,6 @@ Watchdog mqtt_loop_watchdog;
 
 Logging logging;
 
-std::string mqtt_user;      //TODO, move?
-std::string mqtt_password;  //TODO, move?
-std::string http_username;  //TODO, move?
-std::string http_password;  //TODO, move?
-
 static std::list<Transmitter*> transmitters;
 void register_transmitter(Transmitter* transmitter) {
   transmitters.push_back(transmitter);
@@ -480,17 +475,11 @@ void core_loop(void*) {
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
 
-    monitor_equipment_stop_button();
-
     // Input, Runs as fast as possible
     receive_can();    // Receive CAN messages
     receive_rs485();  // Process serial2 RS485 interface
 
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
-
-    START_TIME_MEASUREMENT(ota);
-    ElegantOTA.loop();
-    END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
 
     // Process
     currentMillis = millis();
@@ -502,6 +491,7 @@ void core_loop(void*) {
       previousMillis10ms = currentMillis;
       if (datalayer.system.info.performance_measurement_active) {
         START_TIME_MEASUREMENT(10ms);
+        monitor_equipment_stop_button();
         led_exe();
         handle_contactors();  // Take care of startup precharge/contactor closing
         if (precharge_control_enabled) {
@@ -509,6 +499,7 @@ void core_loop(void*) {
         }
         END_TIME_MEASUREMENT_MAX(10ms, datalayer.system.status.time_10ms_us);
       } else {  //Run 10ms tasks without timing it
+        monitor_equipment_stop_button();
         led_exe();
         handle_contactors();  // Take care of startup precharge/contactor closing
         if (precharge_control_enabled) {
@@ -573,13 +564,11 @@ void core_loop(void*) {
         datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
         datalayer.system.status.time_snap_values_us = datalayer.system.status.time_values_us;
         datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
-        datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
       }
 
       datalayer.system.status.core_task_max_us =
           MAX(datalayer.system.status.core_task_10s_max_us, datalayer.system.status.core_task_max_us);
       if (core_task_timer_10s.elapsed()) {
-        datalayer.system.status.time_ota_us = 0;
         datalayer.system.status.time_comm_us = 0;
         datalayer.system.status.time_10ms_us = 0;
         datalayer.system.status.time_values_us = 0;
