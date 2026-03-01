@@ -29,14 +29,15 @@ class PylonBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr const char* Name = "Pylon compatible battery";
+  static constexpr const char* Name = "Pylon /Dyness compatible battery";
 
  private:
   static const int MAX_CELL_DEVIATION_MV = 150;
-  static const int MAX_CELLS = 192;                           // Maximum cells supported
-  static const uint32_t EMUS_BASE_ID = 0x19B50000;            // EMUS extended ID base for cell count
-  static const uint32_t CELL_VOLTAGE_BASE_ID = 0x19B50100;    // Base CAN ID for cell voltages
-  static const uint32_t CELL_BALANCING_BASE_ID = 0x19B50300;  // Base CAN ID for balancing status
+  static const int MAX_CELLS = 192;  // Maximum cells supported
+  static const uint32_t EMUS_BASE_ID = 0x19B50000;
+  static const uint32_t DYNESS_CELL_VOLTAGE_BASE_ID = 0x18FF9701;   // EMUS extended ID base for cell count
+  static const uint32_t PYLON_CELL_VOLTAGE_BASE_ID = 0x19B50100;    // Base CAN ID for cell voltages
+  static const uint32_t PYLON_CELL_BALANCING_BASE_ID = 0x19B50300;  // Base CAN ID for balancing status
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
 
@@ -86,12 +87,15 @@ class PylonBattery : public CanBattery {
   int16_t celltemperature_max_dC = 0;
   int16_t celltemperature_min_dC = 0;
   int16_t current_dA = 0;
+  uint16_t total_capacity_Wh = 0;
+  uint16_t remaining_capacity_Wh = 0;
   uint16_t voltage_dV = 0;
   uint16_t cellvoltage_max_mV = 3300;
   uint16_t cellvoltage_min_mV = 3300;
   uint16_t charge_cutoff_voltage = 0;
   uint16_t discharge_cutoff_voltage = 0;
   int16_t max_charge_current = 0;
+  int16_t BMS_temperature_dC = 0;
   int16_t max_discharge_current = 0;
   uint8_t ensemble_info_ack = 0;
   uint8_t battery_module_quantity = 0;
@@ -103,6 +107,11 @@ class PylonBattery : public CanBattery {
   uint8_t SOH = 100;
   uint8_t charge_forbidden = 0;
   uint8_t discharge_forbidden = 0;
+  uint8_t hardware_version = 0;
+  uint8_t hardware_version_V = 0;
+  uint8_t hardware_version_R = 0;
+  uint8_t software_version_major = 0;
+  uint8_t software_version_minor = 0;
   uint8_t actual_cell_count = 0;  // Actual number of cells detected from EMUS
 };
 
