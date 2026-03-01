@@ -37,6 +37,10 @@
 #error You must select a target hardware!
 #endif
 
+#include "src/lib/TinyWebServer/TinyWebServer.h"
+
+extern TinyWebServer tinyWebServer;
+
 // The current software version, shown on webserver
 const char* version_number = "10.2.dev";
 
@@ -86,7 +90,10 @@ void connectivity_loop(void*) {
   // Init wifi
   init_WiFi();
 
-  init_webserver();
+  xTaskCreateUniversal(tiny_web_server_loop, "TinyWebServer_loop", 6000, &tinyWebServer, TASK_CONNECTIVITY_PRIO, NULL,
+                       CONFIG_ASYNC_TCP_RUNNING_CORE);
+
+  //init_webserver();
 
   if (mdns_enabled) {
     init_mDNS();
@@ -108,7 +115,7 @@ void connectivity_loop(void*) {
       update_espnow();
     }
 
-    ota_monitor();
+    //ota_monitor();
 
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
 

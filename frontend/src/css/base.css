@@ -1,0 +1,50 @@
+html, body, * {
+    margin: 0;
+    padding: 0;
+    font-family: "Open Sans", sans-serif;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+html, body {
+    background-color: #101010;
+    color: #eeeeee;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+p {
+    margin: 0 0 1.5rem;
+}
+
+hr {
+    border: none;
+    height: 1px;
+    background: radial-gradient(circle at center, #555555, #333333);
+    margin: 1.5rem 0;
+}
+
+.columns {
+    display: flex;
+}
+
+.content {
+    flex: 1 1 auto;
+    padding: 1.5rem 3rem;
+}
+
+.content h2 {
+    color: #3cddb2;
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin: 0.3rem 0 1.7rem;
+}
+
+.content h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+}
