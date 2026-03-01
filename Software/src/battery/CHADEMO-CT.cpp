@@ -1,6 +1,7 @@
 /*  Uses a simple CT clamp to measure current
- *  ESP32 ADCs are not very accurate
+ *  ESP32 ADCs are not very accurate outside of linear region
  *  To start in the linear region use a 150mV offset
+ *  Use a 100 nF capacitor on the input pin to reduce noise (optional but recommended)
  */
 #ifdef CHADEMO_CT
 #include "CHADEMO-CT.h"
