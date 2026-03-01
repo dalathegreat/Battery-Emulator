@@ -3,16 +3,16 @@
  *  To start in the linear region use a 150mV offset
  */
 #ifdef CHADEMO_CT
-#include "Arduino.h"
-#include "hal/adc_types.h"
 #include "CHADEMO-CT.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "Arduino.h"
 #include "CHADEMO-BATTERY.h"
+#include "hal/adc_types.h"
 
 // Set attenuation to 12dB (allows reading up to ~3.3V)
 // Options: 950mV ADC_0db, 1250mV ADC_2_5db, 1750mV ADC_6db, 3100mV ADC_11db
-static adc_attenuation_t adc_atten = ADC_0db; // ADC attenuation setting
+static adc_attenuation_t adc_atten = ADC_0db;  // ADC attenuation setting
 
 static float Amperes;       // Floating point with current in Amperes
 static float Voltage = -1;  // Voltage not available
@@ -21,7 +21,7 @@ static float Voltage = -1;  // Voltage not available
 // These settings are for a Tamura L03S100D15 CT clamp
 // https://www.tamuracorp.com/global/products/download/pdf/06_L03SxxxD15_e.pdf
 // At 20A the output is 0.8V, so 0Db attenuation can be used to get better resolution at low currents.  The voltage offset is set to 0.15V to start in the linear region of the CT clamp.
-const float CT_V_offset = 0.15;     // in Volts, the voltage corresponding to 0A (the offset of the CT clamp)
+const float CT_V_offset = 0.15;    // in Volts, the voltage corresponding to 0A (the offset of the CT clamp)
 const float CT_A_nominal = 100.0;  // in Amperes
 const float CT_V_nominal = 4.0;    // in Volts, the voltage corresponding to the nominal current
 
