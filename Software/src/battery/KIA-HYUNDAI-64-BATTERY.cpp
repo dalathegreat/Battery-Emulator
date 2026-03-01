@@ -182,6 +182,11 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[1] = 0x2F;
             KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[2] = 0xF0;
             KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[3] = 0x31;
+            // Exit Elevated Mode
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[0] = 0x02;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[1] = 0x10;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[2] = 0x01;
+            KIA64_7E4_OPEN_CONTACTOR_SEQUENCE.data.u8[3] = 0x00;
             open_state = 0;
           }
           transmit_can_frame(&KIA64_7E4_OPEN_CONTACTOR_SEQUENCE);
