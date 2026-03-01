@@ -104,7 +104,9 @@ void BydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
         send_initial_data();
       } else {  // We can identify what inverter type we are connected to
         for (uint8_t i = 0; i < 7; i++) {
-          datalayer.system.info.inverter_brand[i] = rx_frame.data.u8[i + 1];
+          if ((rx_frame.data.u8[i] > 0x40) && (rx_frame.data.u8[i] > 0x7B)) {  //Filter out invalid chars
+            datalayer.system.info.inverter_brand[i] = rx_frame.data.u8[i + 1];
+          }
         }
         datalayer.system.info.inverter_brand[7] = '\0';
       }
