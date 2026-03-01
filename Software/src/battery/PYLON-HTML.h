@@ -9,7 +9,8 @@ class PylonHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
-    content += "<h4>BMS temperature: " + String(datalayer_extended.VolvoPolestar.DTCcount) + "</h4>";
+    content += "<h4>Charge cutoff voltage: " + String(datalayer.battery.info.max_design_voltage_dV) + " dV</h4>";
+    content += "<h4>Discharge cutoff voltage: " + String(datalayer.battery.info.min_design_voltage_dV) + " dV</h4>";
     return content;
   }
 };
