@@ -29,7 +29,15 @@ void RenaultKangooBattery::
     datalayer.battery.status.soh_pptt = 10000;
   }
 
-  datalayer.battery.status.voltage_dV = LB_Battery_Voltage;
+  if (LB_Battery_Voltage == 3700) {
+    //If we do not have battery voltage available, estimate it from cellvoltages
+    uint16_t avg_cellvoltage = 0;
+
+    avg_cellvoltage = (LB_Cell_Min_Voltage + LB_Cell_Max_Voltage) / 2;
+    datalayer.battery.status.voltage_dV = (avg_cellvoltage * 96) / 100;
+  } else {  //Use the PID polled value
+    datalayer.battery.status.voltage_dV = LB_Battery_Voltage;
+  }
 
   datalayer.battery.status.current_dA = LB_Current * 10;
 
@@ -37,12 +45,20 @@ void RenaultKangooBattery::
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   /* Define power able to be discharged from battery */
-  datalayer.battery.status.max_discharge_power_W =
-      (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
+  if (LB_Discharge_Power_Limit > 0) {  //If polled value available
+    datalayer.battery.status.max_discharge_power_W =
+        (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
+  } else {                                 //If no polled value available, use hardcoded value
+    datalayer.battery.status.max_discharge_power_W = MAX_DISCHARGE_POWER_W;
+  }
 
   LB_Charge_Power_Limit_Watts = (LB_Charge_Power_Limit * 500);  //Convert value fetched from battery to watts
-  //The above value is 0 on some packs. We instead hardcode this now.
-  datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_W;
+  if (LB_MaxChargeAllowed_W != 76500) {                         //If the constantly sent value is available, use it!
+    datalayer.battery.status.max_charge_power_W = LB_MaxChargeAllowed_W;
+  } else {
+    //The above value is invalid/0 on some packs. We instead hardcode this now.
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_W;
+  }
 
   datalayer.battery.status.temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
 
