@@ -141,7 +141,8 @@ SensorConfig batterySensorConfigTemplate[] = {
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
                                              {"pause_status", "Pause Status", "", "", "", always},
                                              {"event_level", "Event Level", "", "", "", always},
-                                             {"emulator_status", "Emulator Status", "", "", "", always}};
+                                             {"emulator_status", "Emulator Status", "", "", "", always},
+                                             {"emulator_uptime", "Emulator Uptime", "", "s", "duration", always}};
 
 static std::list<SensorConfig> sensorConfigs;
 
@@ -330,6 +331,7 @@ static bool publish_common_info(void) {
 
     doc["event_level"] = get_event_level_string(get_event_level());
     doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
+    doc["emulator_uptime"] = millis64() / 1000;
 
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
