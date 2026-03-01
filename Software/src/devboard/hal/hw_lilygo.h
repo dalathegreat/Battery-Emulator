@@ -143,8 +143,9 @@ class LilyGoHal : public Esp32Hal {
         return "RS485";
       case comm_interface::Highest:
         return "";
+      default:
+        return Esp32Hal::name_for_comm_interface(comm);
     }
-    return Esp32Hal::name_for_comm_interface(comm);
   }
 };
 

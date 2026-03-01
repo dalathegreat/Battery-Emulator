@@ -122,6 +122,10 @@ class Esp32Hal {
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_NC; }
 
+  // 2nd CANFD Interface: MCP2517/8
+  virtual gpio_num_t MCP2517_CS2() { return GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_INT2() { return GPIO_NUM_NC; }
+
   // CHAdeMO support pin dependencies
   virtual gpio_num_t CHADEMO_PIN_2() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_PIN_10() { return GPIO_NUM_NC; }
@@ -184,6 +188,8 @@ class Esp32Hal {
         return "CAN (MCP2515 add-on)";
       case comm_interface::CanFdAddonMcp2518:
         return "CAN FD (MCP2518 add-on)";
+      case comm_interface::CanFdAddonMcp2518_2:
+        return "";
       default:
         return nullptr;
     }

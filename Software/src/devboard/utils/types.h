@@ -24,6 +24,7 @@ enum class comm_interface {
   CanFdNative = 4,
   CanAddonMcp2515 = 5,
   CanFdAddonMcp2518 = 6,
+  CanFdAddonMcp2518_2 = 7,
   Highest
 };
 
@@ -83,8 +84,11 @@ enum CAN_Interface {
   // Add-on CAN-FD MCP2518 connected to GPIO pins
   CANFD_ADDON_MCP2518 = 3,
 
+  // 2nd add-on CAN-FD MCP2518 sharing bus with above
+  CANFD_ADDON_MCP2518_2 = 4,
+
   // No CAN interface
-  NO_CAN_INTERFACE = 4
+  NO_CAN_INTERFACE = 5
 };
 
 extern const char* getCANInterfaceName(CAN_Interface interface);
