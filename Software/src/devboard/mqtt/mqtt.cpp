@@ -16,6 +16,9 @@
 #include "mqtt.h"
 #include "mqtt_client.h"
 
+std::string mqtt_user;
+std::string mqtt_password;
+
 bool mqtt_enabled = false;
 bool ha_autodiscovery_enabled = false;
 bool mqtt_transmit_all_cellvoltages = false;

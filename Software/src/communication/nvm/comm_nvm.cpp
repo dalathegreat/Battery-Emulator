@@ -94,6 +94,7 @@ void init_stored_settings() {
   user_selected_inverter_voltage_level = settings.getUInt("INVVLEVEL", 0);
   user_selected_inverter_ah_capacity = settings.getUInt("INVAHCAPACITY", 0);
   user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
+  user_selected_inverter_sungrow_type = settings.getUInt("INVSUNTYPE", 0);
   user_selected_inverter_ignore_contactors = settings.getBool("INVICNT", false);
   user_selected_inverter_deye_workaround = settings.getBool("DEYEBYD", false);
   user_selected_can_addon_crystal_frequency_mhz = settings.getUInt("CANFREQ", 8);
@@ -153,6 +154,7 @@ void init_stored_settings() {
 #endif
   user_selected_gpioopt2 = (GPIOOPT2)settings.getUInt("GPIOOPT2", 0);
   user_selected_gpioopt3 = (GPIOOPT3)settings.getUInt("GPIOOPT3", 0);
+  user_selected_gpioopt4 = (GPIOOPT4)settings.getUInt("GPIOOPT4", 0);
 
   precharge_control_enabled = settings.getBool("EXTPRECHARGE", false);
   precharge_inverter_normally_open_contactor = settings.getBool("NOINVDISC", false);
@@ -176,6 +178,7 @@ void init_stored_settings() {
   wifi_channel = settings.getUInt("WIFICHANNEL", 0);
   ssidAP = settings.getString("APNAME", "BatteryEmulator").c_str();
   passwordAP = settings.getString("APPASSWORD", "123456789").c_str();
+  espnow_enabled = settings.getBool("ESPNOWENABLED", false);
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
   mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
   mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);

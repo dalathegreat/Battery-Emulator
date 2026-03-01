@@ -199,6 +199,103 @@ void BydAttoBattery::
 
   datalayer_battery->status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
 
+  // AC-like top-of-charge taper
+
+  // Tune thresholds here
+  const uint16_t V_TAPER_START_mV = 3420;  // begin tapering here
+  const uint16_t V_TAPER_END_mV = 3500;    // reach tail current by here (stay below hard clamp region)
+
+  const uint16_t D_TAPER_START_mV = 40;  // begin tapering if delta exceeds this
+  const uint16_t D_TAPER_END_mV = 80;    // reach tail current by here
+
+  const uint16_t TAIL_CURRENT_dA = 2;  // 0.2A tail (deci-amps). You can set to 1 for 0.1A.
+
+  // Slew limits to make taper gradual
+  const uint16_t DOWN_RATE_dA_per_s = 2;  // ramp down at 0.2A/s  (change to 5 for 0.5A/s)
+  const uint16_t UP_RATE_dA_per_s = 1;    // ramp up at 0.1A/s
+
+  const uint16_t cell_max_mV = datalayer_battery->status.cell_max_voltage_mV;
+  const uint16_t cell_min_mV = datalayer_battery->status.cell_min_voltage_mV;
+  const uint16_t delta_mV = (cell_max_mV > cell_min_mV) ? (cell_max_mV - cell_min_mV) : 0;
+
+  // Start from the user manual limit (deci-amps), but don't allow taper to go below tail current.
+  uint16_t user_cap_dA = datalayer_battery->settings.max_user_set_charge_dA;
+  if (user_cap_dA < TAIL_CURRENT_dA)
+    user_cap_dA = TAIL_CURRENT_dA;
+
+  // Compute taper progress 0..1 from voltage and delta; take whichever is "worse".
+  auto clamp01 = [](float x) -> float {
+    if (x < 0.0f)
+      return 0.0f;
+    if (x > 1.0f)
+      return 1.0f;
+    return x;
+  };
+
+  float vprog = 0.0f;
+  if (cell_max_mV > V_TAPER_START_mV) {
+    const uint16_t denom = (V_TAPER_END_mV > V_TAPER_START_mV) ? (V_TAPER_END_mV - V_TAPER_START_mV) : 1;
+    vprog = float(cell_max_mV - V_TAPER_START_mV) / float(denom);
+  }
+
+  float dprog = 0.0f;
+  if (delta_mV > D_TAPER_START_mV) {
+    const uint16_t denom = (D_TAPER_END_mV > D_TAPER_START_mV) ? (D_TAPER_END_mV - D_TAPER_START_mV) : 1;
+    dprog = float(delta_mV - D_TAPER_START_mV) / float(denom);
+  }
+
+  const float prog = clamp01((vprog > dprog) ? vprog : dprog);
+
+  // Desired current cap (deci-amps): linearly reduce from user_cap -> tail as prog goes 0 -> 1
+  uint16_t cap_target_dA = user_cap_dA;
+  if (prog > 0.0f) {
+    const float span = float(user_cap_dA - TAIL_CURRENT_dA);
+    cap_target_dA = uint16_t(float(TAIL_CURRENT_dA) + (1.0f - prog) * span);
+    if (cap_target_dA < TAIL_CURRENT_dA)
+      cap_target_dA = TAIL_CURRENT_dA;
+  }
+
+  // Slew-limit the cap so it changes smoothly over time
+  static uint16_t cap_slewed_dA = 0;
+  static uint32_t last_ms = 0;
+
+  const uint32_t now_ms = (uint32_t)millis64();
+  if (last_ms == 0) {
+    last_ms = now_ms;
+    cap_slewed_dA = user_cap_dA;
+  }
+
+  uint32_t dt_ms = now_ms - last_ms;
+  last_ms = now_ms;
+  if (dt_ms == 0)
+    dt_ms = 1;
+
+  uint32_t down_step = (uint32_t)DOWN_RATE_dA_per_s * dt_ms / 1000;
+  uint32_t up_step = (uint32_t)UP_RATE_dA_per_s * dt_ms / 1000;
+  if (down_step < 1)
+    down_step = 1;
+  if (up_step < 1)
+    up_step = 1;
+
+  if (cap_target_dA < cap_slewed_dA) {
+    const uint16_t diff = cap_slewed_dA - cap_target_dA;
+    const uint16_t step = (down_step >= diff) ? diff : (uint16_t)down_step;
+    cap_slewed_dA -= step;
+  } else if (cap_target_dA > cap_slewed_dA) {
+    const uint16_t diff = cap_target_dA - cap_slewed_dA;
+    const uint16_t step = (up_step >= diff) ? diff : (uint16_t)up_step;
+    cap_slewed_dA += step;
+  }
+
+  // Convert current cap (dA) -> power cap (W): P = I(dA) * V(dV) / 100
+  const uint32_t power_cap_W = (uint32_t(cap_slewed_dA) * uint32_t(datalayer_battery->status.voltage_dV)) / 100;
+
+  // Apply taper by capping the allowed charge power reported to the rest of BE/inverter logic.
+  if (datalayer_battery->status.max_charge_power_W > power_cap_W) {
+    datalayer_battery->status.max_charge_power_W = power_cap_W;
+  }
+  // End taper
+
   datalayer_battery->status.total_discharged_battery_Wh = BMS_total_discharged_kwh * 1000;
   datalayer_battery->status.total_charged_battery_Wh = BMS_total_charged_kwh * 1000;
 
