@@ -1388,7 +1388,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-byd">
-        <label>Deye offgrid specific fixes: </label>
+        <label>Deye avoid over/undercharge fix: </label>
         <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
         </div>
 
