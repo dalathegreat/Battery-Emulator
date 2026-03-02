@@ -31,6 +31,7 @@
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
+#include "src/system_settings.h"
 
 #if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
     !defined(HW_DEVKIT)
@@ -56,6 +57,11 @@ TaskHandle_t mqtt_loop_task;
 Watchdog mqtt_loop_watchdog;
 
 Logging logging;
+
+extern std::string mqtt_user;
+extern std::string mqtt_password;
+extern std::string http_username;
+extern std::string http_password;
 
 static std::list<Transmitter*> transmitters;
 void register_transmitter(Transmitter* transmitter) {
@@ -90,6 +96,13 @@ void connectivity_loop(void*) {
 
   if (mdns_enabled) {
     init_mDNS();
+  }
+
+  // Loop delay (100 ms), Let Battery cal SOC and Until receipt IP from Router
+  int wifi_timeout = 0;
+  while (WiFi.status() != WL_CONNECTED && wifi_timeout < 100) {
+    vTaskDelay(pdMS_TO_TICKS(100));
+    wifi_timeout++;
   }
 
   init_display();
@@ -326,15 +339,12 @@ void update_calculated_values(unsigned long currentMillis) {
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling
    * A static version of a stochastic oscillator. The scaled SoC is calculated as:
-   * 
-   *     10000 * (real_soc - min_percentage)
+   * * 10000 * (real_soc - min_percentage)
    * ---------------------------------------
-   *     (max_percentage - min_percentage)
-   * 
-   * And scaled capacity is:
-   * 
-   *     reported_total_capacity_Wh = total_capacity_Wh * (max - min) / 10000
-   *     reported_remaining_capacity_Wh = reported_total_capacity_Wh * scaled_soc / 10000
+   * (max_percentage - min_percentage)
+   * * And scaled capacity is:
+   * * reported_total_capacity_Wh = total_capacity_Wh * (max - min) / 10000
+   * reported_remaining_capacity_Wh = reported_total_capacity_Wh * scaled_soc / 10000
    */
     // Compute delta_pct and clamped_soc
     int32_t delta_pct = datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage;
@@ -475,6 +485,13 @@ void core_loop(void*) {
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
 
+    // Only monitor equipment stop button if performance measurement is enabled, or default behavior
+    if (datalayer.system.info.performance_measurement_active) {
+      // Handled in 10ms loop below
+    } else {
+      monitor_equipment_stop_button();
+    }
+
     // Input, Runs as fast as possible
     receive_can();    // Receive CAN messages
     receive_rs485();  // Process serial2 RS485 interface
@@ -491,7 +508,7 @@ void core_loop(void*) {
       previousMillis10ms = currentMillis;
       if (datalayer.system.info.performance_measurement_active) {
         START_TIME_MEASUREMENT(10ms);
-        monitor_equipment_stop_button();
+        monitor_equipment_stop_button();  // Monitored here if performance measurement is active
         led_exe();
         handle_contactors();  // Take care of startup precharge/contactor closing
         if (precharge_control_enabled) {
@@ -499,7 +516,6 @@ void core_loop(void*) {
         }
         END_TIME_MEASUREMENT_MAX(10ms, datalayer.system.status.time_10ms_us);
       } else {  //Run 10ms tasks without timing it
-        monitor_equipment_stop_button();
         led_exe();
         handle_contactors();  // Take care of startup precharge/contactor closing
         if (precharge_control_enabled) {
@@ -540,6 +556,7 @@ void core_loop(void*) {
         END_TIME_MEASUREMENT_MAX(values, datalayer.system.status.time_values_us);
       }
     }
+
     if (datalayer.system.info.performance_measurement_active) {
       START_TIME_MEASUREMENT(cantx);
 
@@ -607,6 +624,17 @@ void setup() {
 
   init_stored_settings();
 
+  BatteryEmulatorSettingsStore auth_settings;
+  http_username = auth_settings.getString("WEBUSER", DEFAULT_WEB_USER).c_str();  // Default
+  http_password = auth_settings.getString("WEBPASS", DEFAULT_WEB_PASS).c_str();  // Default
+
+#ifdef HW_LILYGO2CAN
+  BatteryEmulatorSettingsStore settings;  // declar settings
+  // read display setting (Default=1, OLED_I2C)
+  user_selected_display_type = (DisplayType)settings.getUInt("DISPLAYTYPE", 1);
+  DEBUG_PRINTF("Display Mode: %d\n", (int)user_selected_display_type);
+#endif
+
   if (wifi_enabled) {
     xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
                             &connectivity_loop_task, esp32hal->WIFICORE());
@@ -643,7 +671,7 @@ void setup() {
   // Initialize Task Watchdog for subscribed tasks
   esp_task_wdt_config_t wdt_config = {// 5s should be enough for the connectivity tasks (which are all contending
                                       // for the same core) to yield to each other and reset their watchdogs.
-                                      .timeout_ms = INTERVAL_5_S,
+                                      .timeout_ms = 45000,  // Increased timeout based on your implementation
                                       // We don't benefit from idle task watchdogs, our critical loops have their
                                       // own. The idle watchdogs can cause nuisance reboots under heavy load.
                                       .idle_core_mask = 0,
@@ -674,5 +702,56 @@ void setup() {
   DEBUG_PRINTF("Setup complete!\n");
 }
 
-// Loop empty, all functionality runs in tasks
-void loop() {}
+// Global variables for sw
+uint32_t reset_button_press_start = 0;
+bool is_reset_button_pressed = false;
+
+// Loop for detect reset sw and LED
+void loop() {
+  // read BOOT (GPIO 0)
+  int btn_state = digitalRead(0);
+  gpio_num_t led_pin = esp32hal->LED_PIN();
+
+  if (btn_state == LOW) {  // sw : hold status
+    if (!is_reset_button_pressed) {
+      reset_button_press_start = millis();
+      is_reset_button_pressed = true;
+    } else {
+      uint32_t hold_duration = millis() - reset_button_press_start;
+
+      // LED flashing
+      if (led_pin != GPIO_NUM_NC) {
+        if (hold_duration >= 10000) {
+          digitalWrite(led_pin, HIGH);  // 10s: solid light (prepare Factory Reset)
+        } else if (hold_duration >= 5000) {
+          digitalWrite(led_pin, (millis() / 100) % 2);  // 5s: flashing (reset password)
+        }
+      }
+    }
+  } else {  // status: release button
+    if (is_reset_button_pressed) {
+      uint32_t hold_duration = millis() - reset_button_press_start;
+      is_reset_button_pressed = false;
+      if (led_pin != GPIO_NUM_NC)
+        digitalWrite(led_pin, LOW);  // led close
+
+      if (hold_duration >= 10000) {
+        // --- State 2: FACTORY RESET ---
+        logging.println("10s Button Hold: FACTORY RESET TRIGGERED!");
+        BatteryEmulatorSettingsStore settings;
+        settings.clearAll();
+        delay(500);
+        ESP.restart();
+      } else if (hold_duration >= 5000) {
+        // --- State 1: RESET ADMIN PASSWORD ---
+        logging.println("5s Button Hold: ADMIN PASSWORD RESET!");
+        BatteryEmulatorSettingsStore settings;
+        settings.saveString("WEBUSER", DEFAULT_WEB_USER);
+        settings.saveString("WEBPASS", DEFAULT_WEB_PASS);
+        delay(500);
+        ESP.restart();
+      }
+    }
+  }
+  delay(10);  // Debounce
+}

@@ -27,7 +27,7 @@ enum class comm_interface {
   Highest
 };
 
-enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT };
+enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT, LED_DISABLED };
 enum PrechargeState {
   AUTO_PRECHARGE_IDLE,
   AUTO_PRECHARGE_START,
@@ -122,7 +122,18 @@ enum class GPIOOPT1 {
   ESTOP_BMS_POWER = 2,
   Highest
 };
+
+enum class DisplayType {
+  NONE = 0,
+  OLED_I2C = 1,          // Oled (via QWIIC IO1/IO2)
+  EPAPER_SPI_42_3C = 2,  // epaper (via Header IO4/16/15/45/47/46)
+  EPAPER_SPI_42_BW = 3,  // epaper (via Header IO4/16/15/45/47/46)
+  Highest
+};
+
 extern GPIOOPT1 user_selected_gpioopt1;
+extern DisplayType user_selected_display_type;
+
 #endif
 enum class GPIOOPT2 {
   // T-CAN485: Default, BMS power on PIN18

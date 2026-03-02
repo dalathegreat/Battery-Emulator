@@ -4,6 +4,7 @@
 #ifndef SMALL_FLASH_DEVICE
 #include <ESPmDNS.h>
 #endif
+#include <time.h>
 
 bool wifi_enabled = true;
 bool wifiap_enabled = true;
@@ -209,6 +210,13 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   logging.print("Wi-Fi Got IP. ");
   logging.print("IP address: ");
   logging.println(WiFi.localIP().toString());
+
+  const char* ntpServer = "pool.ntp.org";  // Time server
+  const long gmtOffset_sec = 25200;        //  GMT+7
+  const int daylightOffset_sec = 0;        // Daylight saving time
+
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  logging.println("NTP Time Sync requested (Timezone: GMT+7).");
 }
 
 // Event handler for Wi-Fi disconnection

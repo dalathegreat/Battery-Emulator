@@ -6,6 +6,7 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "../../system_settings.h"
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
@@ -98,7 +99,7 @@ String options_from_map(int selected, const TMap& value_name_map) {
   return options;
 }
 
-static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
+static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}, {3, "Disabled"}};
 
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
@@ -138,6 +139,21 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
       return "I2C Display (SSD1306)";
     case GPIOOPT1::ESTOP_BMS_POWER:
       return "E-Stop / BMS Power";
+    default:
+      return nullptr;
+  }
+}
+
+const char* name_for_display_type(DisplayType type) {
+  switch (type) {
+    case DisplayType::NONE:
+      return "None";
+    case DisplayType::OLED_I2C:
+      return "I2C OLED (SSD1306)";
+    case DisplayType::EPAPER_SPI_42_3C:
+      return "SPI E-Paper 4.2\" (B/W/Red)";
+    case DisplayType::EPAPER_SPI_42_BW:
+      return "SPI E-Paper 4.2\" (B/W)";
     default:
       return nullptr;
   }
@@ -259,7 +275,14 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "LEDMODE") {
-    return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
+    return options_from_map(settings.getUInt("LEDMODE", 3), led_modes);  // Default to disabled to save power
+  }
+
+  if (var == "LEDTAIL") {
+    return String(settings.getUInt("LEDTAIL", 4));
+  }
+  if (var == "LEDCOUNT") {
+    return String(settings.getUInt("LEDCOUNT", 8));
   }
 
   if (var == "SUNGROW_MODEL") {
@@ -270,6 +293,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "GPIOOPT1") {
     return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
+  }
+
+  if (var == "DISPLAYTYPE") {
+    return options_for_enum_with_none((DisplayType)settings.getUInt("DISPLAYTYPE", (int)DisplayType::OLED_I2C),
+                                      name_for_display_type, DisplayType::NONE);
   }
 #endif
   if (var == "GPIOOPT2") {
@@ -311,6 +339,27 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "PASSWORD") {
     return settings.getString("PASSWORD");
+  }
+
+  if (var == "WEBAUTH_1") {
+    // get WEBAUTH, if null set is 1 (safty1st)
+    return settings.getUInt("WEBAUTH", 0) == 1 ? "selected" : "";
+  }
+
+  if (var == "WEBAUTH_0") {
+    return settings.getUInt("WEBAUTH", 0) == 0 ? "selected" : "";
+  }
+
+  if (var == "AUTH_DISPLAY") {
+    return settings.getUInt("WEBAUTH", 0) == 1 ? "block" : "none";
+  }
+
+  if (var == "WEBUSER") {
+    return settings.getString("WEBUSER", DEFAULT_WEB_USER);
+  }
+
+  if (var == "WEBPASS") {
+    return settings.getString("WEBPASS", DEFAULT_WEB_PASS);
   }
 
   if (var == "SAVEDCLASS") {
@@ -375,6 +424,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "DBLBTR") {
     return settings.getBool("DBLBTR") ? "checked" : "";
+  }
+
+  if (var == "EPAPREFRESHBTN") {
+    return settings.getBool("EPAPREFRESHBTN") ? "checked" : "";
   }
 
   if (var == "TRIBTR") {
@@ -884,6 +937,36 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define GPIOOPT1_SETTING ""
 #endif
 
+#ifdef HW_LILYGO2CAN
+#define DISPLAY_SETTING \
+  R"rawliteral(
+    <label for="DISPLAYTYPE">Display Type:</label>
+    <select id="DISPLAYTYPE" name="DISPLAYTYPE" onchange="checkDisplayWarning()">
+      %DISPLAYTYPE%
+    </select>
+    <div class="if-epaper3c">
+      <label>Enable Manual Refresh Button (Pin 40): </label>
+      <input type='checkbox' name='EPAPREFRESHBTN' value='on' %EPAPREFRESHBTN% />
+    </div>
+    
+    <div id="epaper_warning" style="display:none; margin-top:5px; padding:10px; background-color:#fff3cd; border:1px solid #ffeeba; color:#856404; border-radius:5px; font-size: 0.9em; grid-column: span 2;">
+      ⚠️ <b>Constraint Warning:</b><br>
+      Selecting E-Paper will disable:<br>
+      • <b>SMA Inverter Control</b> (Pin 46 used for CS)<br>
+      • <b>Battery3 CTR</b> (Pin 4 used for BUSY)<br>
+      <br><b>Required Pins:</b> SCK:16, MOSI:15, CS:46, DC:45, RST:47, BUSY:4
+    </div>
+
+    <div id="oled_warning" style="display:none; margin-top:5px; padding:10px; background-color:#d1ecf1; border:1px solid #bee5eb; color:#0c5460; border-radius:5px; font-size: 0.9em; grid-column: span 2;">
+      ℹ️ <b>Port Auto-Assigned:</b><br>
+      I2C OLED is using the <b>QWIIC Port (IO1, IO2)</b>.<br>
+      <i>The "Configurable port" above is disabled to prevent conflicts.</i>
+    </div>
+  )rawliteral"
+#else
+#define DISPLAY_SETTING ""
+#endif
+
 #ifdef HW_LILYGO
 #define GPIOOPT2_SETTING \
   R"rawliteral(
@@ -922,7 +1005,47 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
-    <script>
+    <script> 
+
+    // Cal LED power function
+    function checkLedPower() {
+      var countInput = document.getElementById('LEDCOUNT');
+      var warnBox = document.getElementById('led_power_warning');
+      var maText = document.getElementById('led_mA');
+      var msgText = document.getElementById('led_msg');
+      
+      if (countInput && warnBox) {
+        var max_mA = parseInt(countInput.value) * 10; // 1 หลอดสว่างระดับ 40 กินราวๆ 10mA
+        maText.innerText = max_mA;
+
+        if (max_mA > 500) {
+          warnBox.style.backgroundColor = '#f8d7da'; warnBox.style.color = '#721c24';
+          warnBox.style.borderColor = '#f5c6cb';
+          msgText.innerText = "⚠️ DANGER: Exceeds 500mA limit! May crash the ESP32!";
+        } else {
+          warnBox.style.backgroundColor = '#e2e3e5'; warnBox.style.color = '#383d41';
+          warnBox.style.borderColor = '#d6d8db';
+          msgText.innerText = "(Safe: Under 500mA limit)";
+        }
+      }
+    }
+
+    // Toggle Energy Flow Tail Length visibility
+    function checkLedMode() {
+      var modeSelect = document.getElementById('LEDMODE');
+      var tailLabel = document.getElementById('lbl_ledtail');
+      var tailInput = document.getElementById('input_ledtail');
+      
+      if (modeSelect && tailLabel && tailInput) {
+        if (modeSelect.value == "1") { // 1 = Energy Flow
+          tailLabel.style.display = '';
+          tailInput.style.display = '';
+        } else {
+          tailLabel.style.display = 'none';
+          tailInput.style.display = 'none';
+        }
+      }
+    }
 
     function askFactoryReset() {
       if (confirm('Are you sure you want to reset the device to factory settings? This will erase all settings and data.')) {
@@ -1018,7 +1141,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             alert('Invalid value. Please enter a value between 0 and 1000');}}}
 
           function editChargerSetpointIDC(){var value=prompt('Set charging amperage. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 6 to 48.');
-            if(value!==null){if(value>=0&&value<=1000){var xhr=new           XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointA?value='+value,true);xhr.send();}else{
+            if(value!==null){if(value>=0&&value<=1000){var xhr=new            XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointA?value='+value,true);xhr.send();}else{
               alert('Invalid value. Please enter a value between 0 and 100');}}}
 
           function editChargerSetpointEndI(){
@@ -1027,6 +1150,38 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeEndA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 100');}}}
 
           function goToMainPage() { window.location.href = '/'; }
+          
+          function checkDisplayWarning() {
+            var d = document.getElementById('DISPLAYTYPE');
+            var epaperWarn = document.getElementById('epaper_warning');
+            var oledWarn = document.getElementById('oled_warning'); 
+            var gpioPort = document.getElementById('GPIOOPT1');     
+
+            if (d) {
+              // 1. Hide warning and unlock everything first 
+              if (epaperWarn) epaperWarn.style.display = 'none';
+              if (oledWarn) oledWarn.style.display = 'none';
+              if (gpioPort) gpioPort.disabled = false; 
+
+              // 2. check condition
+              if (d.value == '2' || d.value == '3') { 
+                // If is e-paper -> show yellow warning 
+                if (epaperWarn) epaperWarn.style.display = 'block';
+              } 
+              else if (d.value == '1') {
+                // if choose OLED -> blue warning and lock GPIOOPT1
+                if (oledWarn) oledWarn.style.display = 'block';
+                if (gpioPort) gpioPort.disabled = true; 
+              }
+            }
+          }
+
+          // Call on load to set initial state
+          window.addEventListener('load', function() {
+            checkLedPower();
+            checkLedMode();  
+            checkDisplayWarning();
+          });
 
           document.querySelectorAll('select,input').forEach(function(sel) {
             function ch() {
@@ -1083,9 +1238,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-battery, form .if-inverter, form .if-charger, form .if-shunt { display: contents; }
     form[data-battery="0"] .if-battery { display: none; }
-    form[data-inverter="0"] .if-inverter { display: none; }    
+    form[data-inverter="0"] .if-inverter { display: none; }   
     form[data-charger="0"] .if-charger { display: none; }
     form[data-SHUNTTYPE="0"] .if-shunt { display: none; }
+    
+    form .if-auth { display: contents; }
+    form[data-webauth="0"] .if-auth { display: none; }
+
+    form .if-epaper3c { display: none; }
+    form[data-displaytype="2"] .if-epaper3c {
+      display: contents;
+    }
 
     form .if-cbms { display: none; }
     form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms, form[data-battery="41"] .if-cbms, form[data-battery="48"] .if-cbms, form[data-battery="49"] .if-cbms {
@@ -1225,6 +1388,27 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
           <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
         </div>
+        
+        <div class="settings-card">
+        <h3>Webpage config</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+
+        <label for="WEBAUTH">Require Web Login:</label>
+        <select id="WEBAUTH" name="WEBAUTH">
+          <option value="1" %WEBAUTH_1%>Enable (Require Password)</option>
+          <option value="0" %WEBAUTH_0%>Disable (No Password)</option>
+        </select>
+
+        <div class="if-auth">
+            <label for="WEBUSER">Admin Username:</label>
+            <input type='text' id='WEBUSER' name='WEBUSER' value="%WEBUSER%" pattern="[A-Za-z0-9_\-]+" title="Letters and numbers only" />
+          
+            <label for="WEBPASS">Admin Password:</label>
+            <input type='password' id='WEBPASS' name='WEBPASS' value="%WEBPASS%" pattern="[ -~]{4,63}" title="Minimum 4 characters" />
+        </div>
+        
+        </div>
+        </div>
 
         <div class="settings-card">
         <h3>Network config</h3>
@@ -1238,6 +1422,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" 
         pattern="[ -~]{8,63}" 
         title="Password must be 8-63 characters long, printable ASCII only" />
+
         </div>
         </div>
 
@@ -1505,7 +1690,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
              <div class="if-pwmcntctrl">
             <label>PWM Frequency Hz: </label>
-            <input name='PWMFREQ' type='text' value="%PWMFREQ%"             
+            <input name='PWMFREQ' type='text' value="%PWMFREQ%"              
             min="1" max="65000" step="1"
             title="Frequency in Hz used for PWM" />
 
@@ -1513,7 +1698,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <input type='number' name='PWMHOLD' value="%PWMHOLD%" 
             min="1" max="1023" step="1"
             title="1-1023 , lower value = lower power consumption" />
-              </div>
+             </div>
 
         </div>
 
@@ -1534,14 +1719,28 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           <input type='checkbox' name='NOINVDISC' value='on' %NOINVDISC% />
         </div>
 
-        <label for='LEDMODE'>Status LED pattern: </label><select name='LEDMODE' id='LEDMODE'>
+        <label for='LEDMODE'>Status LED pattern: </label>
+        <select name='LEDMODE' id='LEDMODE' onchange="checkLedMode()">
         %LEDMODE%
         </select>
+
+        <label>Number of LEDs (WS2812B): </label>
+        <input type='number' id='LEDCOUNT' name='LEDCOUNT' value="%LEDCOUNT%" 
+               min="1" max="100" step="1" oninput="checkLedPower()" />
+
+        <div id="led_power_warning" style="margin-top:5px; padding:10px; background-color:#e2e3e5; border:1px solid #d6d8db; border-radius:5px; font-size: 0.9em; grid-column: span 2;">
+          ⚡ Estimated Max Current: <strong id="led_mA">--</strong> <strong>mA</strong> 
+          <span id="led_msg" style="margin-left:10px;">(ESP32 Safe Limit is ~500mA, Use external power if you need.)</span>
+        </div>
+
+        <label id="lbl_ledtail">Energy Flow Tail Length: </label>
+        <input id="input_ledtail" type='number' name='LEDTAIL' value="%LEDTAIL%" min="1" max="50" step="1" />
 
         )rawliteral" GPIOOPT1_SETTING R"rawliteral(
         )rawliteral" GPIOOPT2_SETTING R"rawliteral(
         )rawliteral" GPIOOPT3_SETTING R"rawliteral(
         )rawliteral" GPIOOPT4_SETTING R"rawliteral(
+        )rawliteral" DISPLAY_SETTING R"rawliteral(
           
         </div>
         </div>
@@ -1759,8 +1958,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       <h4 style='color: white;'><span>Fake battery voltage: %BATTERY_VOLTAGE% V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>
     </div>
 
-    <!--if (battery && battery->supports_manual_balancing()) {-->
-      
     <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%MANUAL_BAL_CLASS%">
 
           <h4 style='color: white;'>Manual LFP balancing: <span id='TSL_BAL_ACT'><span class="%MANUAL_BALANCING_CLASS%">%MANUAL_BALANCING%</span>

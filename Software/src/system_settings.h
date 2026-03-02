@@ -39,3 +39,7 @@
 #define MAX_AMOUNT_CELLS 192
 
 #endif
+
+// --- Default Web Credentials ---
+#define DEFAULT_WEB_USER "admin"
+#define DEFAULT_WEB_PASS "12345678"

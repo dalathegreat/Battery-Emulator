@@ -2,7 +2,8 @@
 #define LED_H_
 
 #include "../../devboard/utils/types.h"
-#include "../../lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
+//#include "../../lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
+#include <Adafruit_NeoPixel.h>
 
 class LED {
  public:
@@ -12,6 +13,7 @@ class LED {
   LED(led_mode_enum mode, gpio_num_t pin, uint8_t maxBrightness)
       : pixels(pin), max_brightness(maxBrightness), brightness(maxBrightness), mode(mode) {}
 
+  void begin(void);
   void exe(void);
 
  private:
