@@ -1,8 +1,8 @@
 #ifndef __HW_LILYGO2CAN_H__
 #define __HW_LILYGO2CAN_H__
 
-#include "hal.h"
 #include "../utils/types.h"
+#include "hal.h"
 
 /*
 =========================================================
@@ -50,7 +50,7 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_7; }
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_6; }
 
-  // Note: Used by the bootloader UART (115200 baud). Bootloader chatter will be sent 
+  // Note: Used by the bootloader UART (115200 baud). Bootloader chatter will be sent
   // down the RS485 bus on startup. Usually harmless for Modbus (9600 baud).
   virtual gpio_num_t RS485_TX_PIN() { return GPIO_NUM_43; }
   virtual gpio_num_t RS485_RX_PIN() { return GPIO_NUM_44; }
@@ -85,21 +85,21 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_5; }
 
   // Triple Battery Contactor (Shared with EPD_BUSY)
-  virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { 
-    if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C || 
+  virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() {
+    if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C ||
         user_selected_display_type == DisplayType::EPAPER_SPI_42_BW) {
-        return GPIO_NUM_NC; // Disable to free GPIO4 for E-Paper BUSY signal
+      return GPIO_NUM_NC;  // Disable to free GPIO4 for E-Paper BUSY signal
     }
-    return GPIO_NUM_4; 
+    return GPIO_NUM_4;
   }
 
   // SMA Inverter Contactor (Shared with EPD_CS)
-  virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() { 
-    if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C || 
+  virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() {
+    if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C ||
         user_selected_display_type == DisplayType::EPAPER_SPI_42_BW) {
-        return GPIO_NUM_NC; // Disable to free GPIO46 for E-Paper CS signal
+      return GPIO_NUM_NC;  // Disable to free GPIO46 for E-Paper CS signal
     }
-    return GPIO_NUM_46; 
+    return GPIO_NUM_46;
   }
 
   // ==========================================
@@ -109,7 +109,7 @@ class LilyGo2CANHal : public Esp32Hal {
   // BMS Power Control
   virtual gpio_num_t BMS_POWER() {
     if (user_selected_display_type == DisplayType::OLED_I2C) {
-      return GPIO_NUM_3; // Force default pin if QWIIC is used for OLED
+      return GPIO_NUM_3;  // Force default pin if QWIIC is used for OLED
     }
     if (user_selected_gpioopt1 == GPIOOPT1::ESTOP_BMS_POWER) {
       return GPIO_NUM_2;
@@ -120,7 +120,7 @@ class LilyGo2CANHal : public Esp32Hal {
   // Equipment Stop Pin
   virtual gpio_num_t EQUIPMENT_STOP_PIN() {
     if (user_selected_display_type == DisplayType::OLED_I2C) {
-      return GPIO_NUM_36; // Force default pin if QWIIC is used for OLED
+      return GPIO_NUM_36;  // Force default pin if QWIIC is used for OLED
     }
     if (user_selected_gpioopt1 == GPIOOPT1::ESTOP_BMS_POWER) {
       return GPIO_NUM_1;
@@ -131,17 +131,17 @@ class LilyGo2CANHal : public Esp32Hal {
   // Wake Up Pins (WUP)
   virtual gpio_num_t WUP_PIN1() {
     if (user_selected_display_type == DisplayType::OLED_I2C) {
-        return GPIO_NUM_18; // Force fallback pin to avoid I2C collision
+      return GPIO_NUM_18;  // Force fallback pin to avoid I2C collision
     }
     if (user_selected_gpioopt1 == GPIOOPT1::DEFAULT_OPT) {
       return GPIO_NUM_1;
     }
     return GPIO_NUM_18;
   }
-  
+
   virtual gpio_num_t WUP_PIN2() {
     if (user_selected_display_type == DisplayType::OLED_I2C) {
-        return GPIO_NUM_14; // Force fallback pin to avoid I2C collision
+      return GPIO_NUM_14;  // Force fallback pin to avoid I2C collision
     }
     if (user_selected_gpioopt1 == GPIOOPT1::DEFAULT_OPT) {
       return GPIO_NUM_2;
@@ -159,41 +159,41 @@ class LilyGo2CANHal : public Esp32Hal {
 
   // I2C OLED (Uses QWIIC connector - GPIO1 & GPIO2)
   virtual gpio_num_t DISPLAY_SDA_PIN() {
-    if (user_selected_display_type == DisplayType::OLED_I2C || 
+    if (user_selected_display_type == DisplayType::OLED_I2C ||
         user_selected_gpioopt1 == GPIOOPT1::I2C_DISPLAY_SSD1306) {
-        return GPIO_NUM_1;
+      return GPIO_NUM_1;
     }
     return GPIO_NUM_NC;
   }
-  
+
   virtual gpio_num_t DISPLAY_SCL_PIN() {
-    if (user_selected_display_type == DisplayType::OLED_I2C || 
+    if (user_selected_display_type == DisplayType::OLED_I2C ||
         user_selected_gpioopt1 == GPIOOPT1::I2C_DISPLAY_SSD1306) {
-        return GPIO_NUM_2;
+      return GPIO_NUM_2;
     }
     return GPIO_NUM_NC;
   }
 
   // SPI E-Paper 4.2" Display
-  virtual gpio_num_t EPD_BUSY_PIN() { 
-    if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C || 
+  virtual gpio_num_t EPD_BUSY_PIN() {
+    if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C ||
         user_selected_display_type == DisplayType::EPAPER_SPI_42_BW) {
-        return GPIO_NUM_4; // Overrides BAT3_CTRS & CHADEMO_PIN_4
+      return GPIO_NUM_4;  // Overrides BAT3_CTRS & CHADEMO_PIN_4
     }
-    return GPIO_NUM_NC; 
-  } 
-  
+    return GPIO_NUM_NC;
+  }
+
   virtual gpio_num_t EPD_CS_PIN() { return GPIO_NUM_46; }  // Overrides SMA Inverter Control
   virtual gpio_num_t EPD_DC_PIN() { return GPIO_NUM_45; }
-  virtual gpio_num_t EPD_RST_PIN(){ return GPIO_NUM_47; }
-  virtual gpio_num_t EPD_SCK_PIN(){ return GPIO_NUM_16; }  // Overrides CHADEMO_PIN_2
-  virtual gpio_num_t EPD_MOSI_PIN(){ return GPIO_NUM_15; } // Overrides CHADEMO_PIN_10
+  virtual gpio_num_t EPD_RST_PIN() { return GPIO_NUM_47; }
+  virtual gpio_num_t EPD_SCK_PIN() { return GPIO_NUM_16; }   // Overrides CHADEMO_PIN_2
+  virtual gpio_num_t EPD_MOSI_PIN() { return GPIO_NUM_15; }  // Overrides CHADEMO_PIN_10
 
   // Optional manual refresh button for E-Paper
   virtual gpio_num_t EPD_REFRESH_BTN_PIN() {
-    if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C || 
+    if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C ||
         user_selected_display_type == DisplayType::EPAPER_SPI_42_BW) {
-        return GPIO_NUM_40; // Overrides CHADEMO_LOCK
+      return GPIO_NUM_40;  // Overrides CHADEMO_LOCK
     }
     return GPIO_NUM_NC;
   }
@@ -204,21 +204,21 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t CHADEMO_PIN_2() { return GPIO_NUM_16; }
   virtual gpio_num_t CHADEMO_PIN_10() { return GPIO_NUM_15; }
   virtual gpio_num_t CHADEMO_PIN_7() { return GPIO_NUM_47; }
-  
-  virtual gpio_num_t CHADEMO_PIN_4() { 
-    if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C || 
+
+  virtual gpio_num_t CHADEMO_PIN_4() {
+    if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C ||
         user_selected_display_type == DisplayType::EPAPER_SPI_42_BW) {
-        return GPIO_NUM_NC; // Disabled when E-Paper is active
+      return GPIO_NUM_NC;  // Disabled when E-Paper is active
     }
-    return GPIO_NUM_4; 
+    return GPIO_NUM_4;
   }
-  
-  virtual gpio_num_t CHADEMO_LOCK() { 
-    if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C || 
+
+  virtual gpio_num_t CHADEMO_LOCK() {
+    if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C ||
         user_selected_display_type == DisplayType::EPAPER_SPI_42_BW) {
-        return GPIO_NUM_NC; // Disabled when E-Paper is active
+      return GPIO_NUM_NC;  // Disabled when E-Paper is active
     }
-    return GPIO_NUM_40; 
+    return GPIO_NUM_40;
   }
 
   // ==========================================

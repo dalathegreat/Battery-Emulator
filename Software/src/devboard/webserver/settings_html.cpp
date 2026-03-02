@@ -1,12 +1,12 @@
 #include "settings_html.h"
 #include <Arduino.h>
-#include "../../system_settings.h"
 #include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../../src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../../charger/CHARGERS.h"
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "../../system_settings.h"
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
@@ -146,12 +146,17 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
 
 const char* name_for_display_type(DisplayType type) {
   switch (type) {
-        case DisplayType::NONE: return "None";
-        case DisplayType::OLED_I2C: return "I2C OLED (SSD1306)";
-        case DisplayType::EPAPER_SPI_42_3C: return "SPI E-Paper 4.2\" (B/W/Red)";
-        case DisplayType::EPAPER_SPI_42_BW: return "SPI E-Paper 4.2\" (B/W)";
-        default: return nullptr;
-      }
+    case DisplayType::NONE:
+      return "None";
+    case DisplayType::OLED_I2C:
+      return "I2C OLED (SSD1306)";
+    case DisplayType::EPAPER_SPI_42_3C:
+      return "SPI E-Paper 4.2\" (B/W/Red)";
+    case DisplayType::EPAPER_SPI_42_BW:
+      return "SPI E-Paper 4.2\" (B/W)";
+    default:
+      return nullptr;
+  }
 }
 #endif
 const char* name_for_gpioopt2(GPIOOPT2 option) {
@@ -270,14 +275,14 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "LEDMODE") {
-    return options_from_map(settings.getUInt("LEDMODE", 3), led_modes); // Default to disabled to save power
+    return options_from_map(settings.getUInt("LEDMODE", 3), led_modes);  // Default to disabled to save power
   }
 
   if (var == "LEDTAIL") {
-    return String(settings.getUInt("LEDTAIL", 4)); 
+    return String(settings.getUInt("LEDTAIL", 4));
   }
   if (var == "LEDCOUNT") {
-    return String(settings.getUInt("LEDCOUNT", 8)); 
+    return String(settings.getUInt("LEDCOUNT", 8));
   }
 
   if (var == "SUNGROW_MODEL") {
@@ -289,13 +294,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
   }
-  
+
   if (var == "DISPLAYTYPE") {
-    return options_for_enum_with_none(
-      (DisplayType)settings.getUInt("DISPLAYTYPE", (int)DisplayType::OLED_I2C),
-      name_for_display_type, 
-      DisplayType::NONE
-    );
+    return options_for_enum_with_none((DisplayType)settings.getUInt("DISPLAYTYPE", (int)DisplayType::OLED_I2C),
+                                      name_for_display_type, DisplayType::NONE);
   }
 #endif
   if (var == "GPIOOPT2") {
@@ -338,7 +340,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "PASSWORD") {
     return settings.getString("PASSWORD");
   }
-  
+
   if (var == "WEBAUTH_1") {
     // get WEBAUTH, if null set is 1 (safty1st)
     return settings.getUInt("WEBAUTH", 0) == 1 ? "selected" : "";

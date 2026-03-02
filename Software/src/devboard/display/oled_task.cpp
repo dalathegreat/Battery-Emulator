@@ -1,14 +1,14 @@
-#include "Arduino.h"
 #include "oled_task.h"
-#include "../hal/hal.h"
 #include "../../battery/BATTERIES.h"
+#include "../../datalayer/datalayer.h"
+#include "../hal/hal.h"
 #include "../utils/events.h"
 #include "../utils/logging.h"
+#include "Arduino.h"
 #include "driver/i2c_master.h"
 #include "esp_log.h"
-#include "freertos/FreeRTOS.h"
 #include "fonts.h"
-#include "../../datalayer/datalayer.h"
+#include "freertos/FreeRTOS.h"
 
 #define I2C_MASTER_FREQ_HZ 1000000  // Use a ridiculously fast I2C speed (seems to work!)
 
@@ -302,126 +302,126 @@ static void print_wifi_status(int row) {
 }
 
 void setupOLED() {
-    auto display_sda = esp32hal->DISPLAY_SDA_PIN();
-    auto display_scl = esp32hal->DISPLAY_SCL_PIN();
+  auto display_sda = esp32hal->DISPLAY_SDA_PIN();
+  auto display_scl = esp32hal->DISPLAY_SCL_PIN();
 
-    if (display_sda == GPIO_NUM_NC || display_scl == GPIO_NUM_NC) {
+  if (display_sda == GPIO_NUM_NC || display_scl == GPIO_NUM_NC) {
     return;
-    }
+  }
 
-    if (!esp32hal->alloc_pins("I2C Display", display_sda, display_scl)) {
+  if (!esp32hal->alloc_pins("I2C Display", display_sda, display_scl)) {
     logging.printf("Failed to allocate pins for I2C Display\n");
     return;
-    }
+  }
 
-    i2c_master_bus_config_t bus_config = {
-        .i2c_port = -1,  // autoselect
-        .sda_io_num = display_sda,
-        .scl_io_num = display_scl,
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .glitch_ignore_cnt = 7,
-        .intr_priority = 0,
-        .trans_queue_depth = 0,
-        .flags =
-            {
-                .enable_internal_pullup = true,
-                .allow_pd = false,
-            },
-    };
-    ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &bus_handle));
+  i2c_master_bus_config_t bus_config = {
+      .i2c_port = -1,  // autoselect
+      .sda_io_num = display_sda,
+      .scl_io_num = display_scl,
+      .clk_source = I2C_CLK_SRC_DEFAULT,
+      .glitch_ignore_cnt = 7,
+      .intr_priority = 0,
+      .trans_queue_depth = 0,
+      .flags =
+          {
+              .enable_internal_pullup = true,
+              .allow_pd = false,
+          },
+  };
+  ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &bus_handle));
 
-    i2c_device_config_t dev_config = {
-        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-        .device_address = 0x3c,
-        .scl_speed_hz = I2C_MASTER_FREQ_HZ,
-        .scl_wait_us = 0,
-        .flags = {},
-    };
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
+  i2c_device_config_t dev_config = {
+      .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+      .device_address = 0x3c,
+      .scl_speed_hz = I2C_MASTER_FREQ_HZ,
+      .scl_wait_us = 0,
+      .flags = {},
+  };
+  ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
 
-    static const uint8_t init[] = {
-        0xae,    // display off
-        0xd5,    // set display clock divider
-        0x80,    //  /1, middle freq
-        0xa8,    // set multiplex
-        64 - 1,  //   height - 1
+  static const uint8_t init[] = {
+      0xae,    // display off
+      0xd5,    // set display clock divider
+      0x80,    //  /1, middle freq
+      0xa8,    // set multiplex
+      64 - 1,  //   height - 1
 
-        0xd3,  // set display offset
-        0x00,  //   no offset
-        0x40,  // set start line at 0
+      0xd3,  // set display offset
+      0x00,  //   no offset
+      0x40,  // set start line at 0
 
-        0x8d,  // charge pump
-        0x14,  // enable
+      0x8d,  // charge pump
+      0x14,  // enable
 
-        0x20,  // memory mode
-        0x00,  //   horizontal addressing
-        0xa1,  // seg remap = 1 (mirror x)
-        0xc8,  // com scan = dec
+      0x20,  // memory mode
+      0x00,  //   horizontal addressing
+      0xa1,  // seg remap = 1 (mirror x)
+      0xc8,  // com scan = dec
 
-        0x81,  // contrast
-        0x0f,  //   0x0f/0xff
+      0x81,  // contrast
+      0x0f,  //   0x0f/0xff
 
-        0xaf,  // display on
-    };
-    uint8_t buf[sizeof(init) * 2];
-    for (size_t i = 0; i < sizeof(init); i++) {
+      0xaf,  // display on
+  };
+  uint8_t buf[sizeof(init) * 2];
+  for (size_t i = 0; i < sizeof(init); i++) {
     buf[i * 2] = 0x80;  // Control byte for command
     buf[i * 2 + 1] = init[i];
-    }
-    if (i2c_write(buf, sizeof(buf)) != ESP_OK) {
+  }
+  if (i2c_write(buf, sizeof(buf)) != ESP_OK) {
     logging.printf("Failed to initialize I2C Display\n");
     return;
-    }
-        
-    clear();
-    // Count configured batteries
-    if (battery2)
+  }
+
+  clear();
+  // Count configured batteries
+  if (battery2)
     num_batteries++;
-    if (battery3)
+  if (battery3)
     num_batteries++;
 }
 
 void updateOLED() {
-      // We update the display every 500ms
-      auto currentMillis = millis();
-      if (currentMillis - lastUpdateMillis < 500) {
-        return;
-      }
+  // We update the display every 500ms
+  auto currentMillis = millis();
+  if (currentMillis - lastUpdateMillis < 500) {
+    return;
+  }
 
-      // We cycle through several pages of battery data
-      const int NUM_PAGES = 4;
-      const int PAGE_TIME = 3;
-      static int phase = 0;
+  // We cycle through several pages of battery data
+  const int NUM_PAGES = 4;
+  const int PAGE_TIME = 3;
+  static int phase = 0;
 
-      // Calculate total phases: NUM_PAGES per battery, PAGE_TIME seconds each
-      int total_phases = NUM_PAGES * num_batteries * PAGE_TIME * 2;  // *2 for 500ms updates
+  // Calculate total phases: NUM_PAGES per battery, PAGE_TIME seconds each
+  int total_phases = NUM_PAGES * num_batteries * PAGE_TIME * 2;  // *2 for 500ms updates
 
-      int current_phase = phase / (PAGE_TIME * 2);
-      int battery_index = current_phase % num_batteries;
-      int page = (current_phase / num_batteries) % NUM_PAGES;
+  int current_phase = phase / (PAGE_TIME * 2);
+  int battery_index = current_phase % num_batteries;
+  int page = (current_phase / num_batteries) % NUM_PAGES;
 
-      // Print the battery status for current battery
-      if (battery_index == 0) {
-        print_battery_status(0, datalayer.battery.status, 1, page);
-      } else if (battery_index == 1) {
-        print_battery_status(0, datalayer.battery2.status, 2, page);
-      } else {
-        print_battery_status(0, datalayer.battery3.status, 3, page);
-      }
+  // Print the battery status for current battery
+  if (battery_index == 0) {
+    print_battery_status(0, datalayer.battery.status, 1, page);
+  } else if (battery_index == 1) {
+    print_battery_status(0, datalayer.battery2.status, 2, page);
+  } else {
+    print_battery_status(0, datalayer.battery3.status, 3, page);
+  }
 
-      write_text(0, 2, "---------------------", false);
+  write_text(0, 2, "---------------------", false);
 
-      // Print the events below
-      print_events(3, 3);
+  // Print the events below
+  print_events(3, 3);
 
-      write_text(0, 6, "---------------------", false);
+  write_text(0, 6, "---------------------", false);
 
-      // Then IP/RSSI at the bottom
-      print_wifi_status(7);
+  // Then IP/RSSI at the bottom
+  print_wifi_status(7);
 
-      phase++;
-      if (phase >= total_phases) {
-        phase = 0;
-      }
-      lastUpdateMillis = currentMillis;
+  phase++;
+  if (phase >= total_phases) {
+    phase = 0;
+  }
+  lastUpdateMillis = currentMillis;
 }

@@ -12,7 +12,7 @@ class LED {
 
   LED(led_mode_enum mode, gpio_num_t pin, uint8_t maxBrightness)
       : pixels(pin), max_brightness(maxBrightness), brightness(maxBrightness), mode(mode) {}
-  
+
   void begin(void);
   void exe(void);
 
