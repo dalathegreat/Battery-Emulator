@@ -107,6 +107,7 @@ add_executable(tests
     ../Software/src/battery/CMP-SMART-CAR-BATTERY.cpp
     ../Software/src/battery/DALY-BMS.cpp
     ../Software/src/battery/ECMP-BATTERY.cpp
+    ../Software/src/battery/ENNOID-BMS.cpp
     ../Software/src/battery/FORD-MACH-E-BATTERY.cpp
     ../Software/src/battery/FOXESS-BATTERY.cpp
     ../Software/src/battery/GEELY-GEOMETRY-C-BATTERY.cpp
