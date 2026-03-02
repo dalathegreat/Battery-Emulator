@@ -21,6 +21,7 @@ void setup_shunt();
 #include "CELLPOWER-BMS.h"
 #include "CHADEMO-BATTERY.h"
 #include "CHADEMO-SHUNTS.h"
+#include "CHADEMO-CT.h"
 #include "CMFA-EV-BATTERY.h"
 #include "CMP-SMART-CAR-BATTERY.h"
 #include "DALY-BMS.h"

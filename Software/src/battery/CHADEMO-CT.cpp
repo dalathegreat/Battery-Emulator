@@ -30,13 +30,17 @@ const float CT_V_nominal = 4.0;    // in Volts, the voltage corresponding to the
 // on a class member name that only exists inside ChademoBattery.  The
 // value is fetched from the HAL so it will match whatever board is in
 // use.
-static gpio_num_t ct_pin = esp32hal->CHADEMO_CT_PIN();
+static gpio_num_t ct_pin;
+static bool ct_pin_initialized = false;
 
-uint16_t get_measured_voltage() {
+uint16_t get_measured_voltage_ct() {
   return (uint16_t)Voltage;
 }
 
-uint16_t get_measured_current() {
+uint16_t get_measured_current_ct() {
+  if (!ct_pin_initialized) {
+    return 0;
+  }
   // sample the CT pin multiple times and average to reduce noise
   float pin_V = 0;
   for (int i = 0; i < 10; i++) {
@@ -48,13 +52,21 @@ uint16_t get_measured_current() {
 }
 
 void setup_ct(void) {
+  // Initialize ct_pin from HAL if not already done
+  if (!ct_pin_initialized) {
+    ct_pin = esp32hal->CHADEMO_CT_PIN();
+    ct_pin_initialized = true;
+  }
+
   // reserve the pin with the HAL so we detect conflicts early
   if (!esp32hal->alloc_pins("CHAdeMO CT", ct_pin)) {
     return;
   }
 
-  // configure as adc
+  // Configure as adc
   // Set resolution to 12 bits (0-4095) - Default
+  pinMode(ct_pin, INPUT);
+  analogRead(ct_pin); // Avoids error if attenuation is set before first read
   analogReadResolution(ADC_BITWIDTH_DEFAULT);
   analogSetPinAttenuation(ct_pin, adc_atten);
 }

@@ -1,10 +1,15 @@
 #include "CHADEMO-BATTERY.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#ifdef CHADEMO_CT
 #include "CHADEMO-CT.h"  // Include the CT helper if it's being used
-#else
 #include "CHADEMO-SHUNTS.h"
+
+#ifdef CHADEMO_CT
+uint16_t (*get_measured_current_ptr)() = get_measured_current_ct;
+uint16_t (*get_measured_voltage_ptr)() = get_measured_voltage_ct;
+#else
+uint16_t (*get_measured_current_ptr)() = get_measured_current;
+uint16_t (*get_measured_voltage_ptr)() = get_measured_voltage;
 #endif
 
 //This function maps all the values fetched via CAN to the correct parameters used for the inverter
@@ -418,7 +423,7 @@ void ChademoBattery::update_evse_status(CAN_frame& f) {
 
   } else if (EVSE_mode == CHADEMO_CHARGE) {
     x109_evse_state.setpoint_HV_VDC = get_voltage_handler();
-    x109_evse_state.setpoint_HV_IDC = get_measured_current();
+    x109_evse_state.setpoint_HV_IDC = get_measured_current_ptr();
 
     /*For posterity if anyone is forced to simulate a shunt
       NOTE: these are supposed to be measured values, e.g., from a shunt
@@ -501,7 +506,7 @@ void ChademoBattery::update_evse_discharge_estimate(CAN_frame& f) {
 /* x208 EVSE, peer to 0x200 Vehicle */
 void ChademoBattery::update_evse_discharge_capabilities(CAN_frame& f) {
   //present discharge current is a measured value
-  x208_evse_dischg_cap.present_discharge_current = 0xFF - get_measured_current();
+  x208_evse_dischg_cap.present_discharge_current = 0xFF - get_measured_current_ptr();
 
   /* Present discharge current is a measured value. In the absence of
      a shunt, the evse here is quite literally lying to the vehicle. The spec
@@ -840,7 +845,7 @@ void ChademoBattery::handle_chademo_sequence() {
        * We will re-enter the handler until the amperage drops sufficiently
        * and then transition to CHADEMO_IDLE
        */
-      if (get_measured_current() <= 5 && get_voltage_handler() <= 10) {
+      if (get_measured_current_ptr() <= 5 && get_voltage_handler() <= 10) {
         /* welding detection ideally here */
         digitalWrite(pin10, LOW);
         digitalWrite(pin2, LOW);
@@ -874,11 +879,11 @@ void ChademoBattery::handle_chademo_sequence() {
 }
 
 uint16_t ChademoBattery::get_voltage_handler() {
-  float Voltage;
+  float Voltage = 0;
 #ifdef CHADEMO_CT
   Voltage = min(x102_chg_session.TargetBatteryVoltage, x108_evse_cap.available_output_voltage);
 #else
-  Voltage = get_measured_voltage();
+  Voltage = get_measured_voltage_ptr();
 #endif
   return (uint16_t)Voltage;
 }
