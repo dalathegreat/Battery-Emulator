@@ -336,41 +336,11 @@ void BydAttoBattery::
       break;
   }
 
-#ifdef SKIP_TEMPERATURE_SENSOR_NUMBER
-  // Initialize min and max variables for temperature calculation
-  battery_calc_min_temperature = battery_daughterboard_temperatures[0];
-  battery_calc_max_temperature = battery_daughterboard_temperatures[0];
-
-  // Loop through the array of 10x daughterboard temps to find the smallest and largest values
-  // Note, it is possible for user to skip using a faulty sensor in the .h file
-  if (SKIP_TEMPERATURE_SENSOR_NUMBER == 1) {  //If sensor 1 is skipped, init minmax to sensor 2
-    battery_calc_min_temperature = battery_daughterboard_temperatures[1];
-    battery_calc_max_temperature = battery_daughterboard_temperatures[1];
-  }
-  for (int i = 1; i < 10; i++) {
-    if (i == (SKIP_TEMPERATURE_SENSOR_NUMBER - 1)) {
-      i++;
-    }
-    if (battery_daughterboard_temperatures[i] < battery_calc_min_temperature) {
-      battery_calc_min_temperature = battery_daughterboard_temperatures[i];
-    }
-    if (battery_daughterboard_temperatures[i] > battery_calc_max_temperature) {
-      battery_calc_max_temperature = battery_daughterboard_temperatures[i];
-    }
-  }
-  //Write the result to datalayer
-  if ((battery_calc_min_temperature != 0) && (battery_calc_max_temperature != 0)) {
-    //Avoid triggering high delta if only one of the values is available
-    datalayer_battery->status.temperature_min_dC = battery_calc_min_temperature * 10;
-    datalayer_battery->status.temperature_max_dC = battery_calc_max_temperature * 10;
-  }
-#else   //User does not need filtering out a broken sensor, just use the min-max the BMS sends
   if ((BMS_lowest_cell_temperature != 0) && (BMS_highest_cell_temperature != 0)) {
     //Avoid triggering high delta if only one of the values is available
     datalayer_battery->status.temperature_min_dC = BMS_lowest_cell_temperature * 10;
     datalayer_battery->status.temperature_max_dC = BMS_highest_cell_temperature * 10;
   }
-#endif  //!SKIP_TEMPERATURE_SENSOR_NUMBER
 
   // Update webserver datalayer
   if (datalayer_bydatto) {
@@ -818,9 +788,5 @@ void BydAttoBattery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-#ifdef USE_ESTIMATED_SOC  // Initial setup for selected SOC method
-  SOC_method = ESTIMATED;
-#else
-  SOC_method = MEASURED;
-#endif
+  SOC_method = MEASURED;  //Startup in mode assuming SOC is OK to measure (non-crashed)
 }

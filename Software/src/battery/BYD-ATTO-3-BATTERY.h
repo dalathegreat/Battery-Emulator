@@ -7,23 +7,10 @@
 #include "BYD-ATTO-3-HTML.h"
 #include "CanBattery.h"
 
-/* Notes
-SOC% by default is now MEASURED by BMS.
-If you have a crash-locked pack, See the Wiki for more info on how to attempt an unlock.
-Remove the comment from "USE_ESTIMATED_SOC" below if you still decide to use a locked battery and want to use estimated SOC.
-*/
-//#define USE_ESTIMATED_SOC
-
-//Uncomment and configure this line, if you want to filter out a broken temperature sensor (1-10)
-//Make sure you understand risks associated with disabling. Values can be read via "More Battery info"
-//#define SKIP_TEMPERATURE_SENSOR_NUMBER 1
-
 // Ramp down settings that are used when SOC is estimated from voltage
 static const int RAMPDOWN_SOC = 100;  // SOC to start ramping down from. Value set here is scaled by 10 (100 = 10.0%)
 static const int RAMPDOWN_POWER_ALLOWED =
     10000;  // Power to start ramp down from, set a lower value to limit the power even further as SOC decreases
-
-/* Do not modify the rows below */
 
 class BydAttoBattery : public CanBattery {
  public:
@@ -54,10 +41,8 @@ class BydAttoBattery : public CanBattery {
 
   void reset_crash() { datalayer_bydatto->UserRequestCrashReset = true; }
 
-#ifndef USE_ESTIMATED_SOC
   // Toggle SOC method in UI is only enabled if we initially use measured SOC
   bool supports_toggle_SOC_method() { return true; }
-#endif
 
   void toggle_SOC_method() { SOC_method = !SOC_method; }
 
