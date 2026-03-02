@@ -3,14 +3,10 @@
 #include "../devboard/utils/events.h"
 #include "CHADEMO-CT.h"  // Include the CT helper if it's being used
 #include "CHADEMO-SHUNTS.h"
+#include "Shunt.h"
 
-#ifdef CHADEMO_CT
-uint16_t (*get_measured_current_ptr)() = get_measured_current_ct;
-uint16_t (*get_measured_voltage_ptr)() = get_measured_voltage_ct;
-#else
-uint16_t (*get_measured_current_ptr)() = get_measured_current;
-uint16_t (*get_measured_voltage_ptr)() = get_measured_voltage;
-#endif
+uint16_t (*get_measured_current_ptr)(); 
+uint16_t (*get_measured_voltage_ptr)();
 
 //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 void ChademoBattery::update_values() {
@@ -889,6 +885,14 @@ uint16_t ChademoBattery::get_voltage_handler() {
 }
 
 void ChademoBattery::setup(void) {  // Performs one time setup at startup
+  // Select handlers for voltage and current based on shunt type. If using a custom clamp, use the CT handlers, otherwise use the default CAN shunt handlers.
+  if (user_selected_shunt_type == ShuntType::CustomClamp) {
+    get_measured_current_ptr = get_measured_current_ct;
+    get_measured_voltage_ptr = get_measured_voltage_ct;
+  } else {
+    get_measured_current_ptr = get_measured_current;
+    get_measured_voltage_ptr = get_measured_voltage;
+  }
 
   if (!esp32hal->alloc_pins(Name, pin2, pin10, pin4, pin7, pin_lock)) {
     return;

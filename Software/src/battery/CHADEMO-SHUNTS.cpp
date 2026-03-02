@@ -18,7 +18,6 @@
  *            by NJbubo
  *
  */
-#ifndef CHADEMO_CT
 #include "CHADEMO-SHUNTS.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -422,4 +421,3 @@ void ISA_getINFO(uint8_t i) {
   transmit_can_frame(&outframe, can_config.battery);
 }
 
-#endif  // CHADEMO_CT
