@@ -19,7 +19,7 @@ struct DATALAYER_BATTERY_INFO_TYPE {
   uint16_t max_design_voltage_dV = 5000;
   /** The minimum intended packvoltage, in deciVolt. 3300 = 330.0 V */
   uint16_t min_design_voltage_dV = 2500;
-  /** The maximum cellvoltage before shutting down, in milliVolt. 4300 = 4.250 V */
+  /** The maximum cellvoltage before shutting down, in milliVolt. 4300 = 4.300 V */
   uint16_t max_cell_voltage_mV = 4300;
   /** The minimum cellvoltage before shutting down, in milliVolt. 2700 = 2.700 V */
   uint16_t min_cell_voltage_mV = 2700;
@@ -129,20 +129,21 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** Timeout time for remote limits */
   unsigned long remote_set_timeout = 0;
   /* Forced balancing max time & start timestamp */
-  uint32_t balancing_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
-  uint32_t balancing_start_time_ms = 0;  //For keeping track when balancing started
+  uint32_t balancing_max_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
+  uint32_t balancing_start_time_ms = 0;      //For keeping track when balancing started
+  /* Emergency recovery charge max time & start timestamp */
+  uint32_t recovery_charge_max_time_ms = 1800000;  //30min default, (30min*60sec*1000ms)
+  uint32_t recovery_charge_start_time_ms = 0;      //For keeping track when recovery started
 
   /** Maximum percentage setting. Set this value to the highest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
-   * will "see" 100% Example 8000 = 80.0%*/
+   * will "see" 100% Example 8000 = 80.0% */
   uint16_t max_percentage = 8000;
   /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A, persisted to memory 
-   * Updates later on via Settings
-  */
+   * Updates later on via Settings */
   uint16_t max_user_set_charge_dA = 300;
   /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A, persisted to memory 
-   * Updates later on via Settings
-  */
+   * Updates later on via Settings */
   uint16_t max_user_set_discharge_dA = 300;
   /** The remote specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A, NOT persisted to memory */
   uint16_t max_remote_set_charge_dA = max_user_set_charge_dA;
@@ -165,12 +166,16 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
 
   /** Minimum percentage setting. Set this value to the lowest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
-   * will "see" 0% , Example 2000 = 20.0%*/
+   * will "see" 0% , Example 2000 = 20.0% */
   int16_t min_percentage = 2000;
 
   /** Sofar CAN Battery ID (0-15) used to parallel multiple packs */
   uint8_t sofar_user_specified_battery_id = 0;
 
+  /** User is trying to recover charge a severely undercharged battery. Temporarily allow low power charging for 30 minutes and force ACTIVE mode 
+   * Great caution must be taken while in this mode to avoid a battery fire, since we override any BMS value.
+  */
+  bool user_requests_forced_charging_recovery_mode = false;
   /** User specified discharge/charge voltages in use. Set to true to use user specified values */
   /** Some inverters like to see a specific target voltage for charge/discharge. Use these values to override automatic voltage limits*/
   bool user_set_voltage_limits_active = false;
@@ -259,13 +264,15 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
-  char shunt_protocol[64] = {0};
+  char shunt_protocol[32] = {0};
   /** array with type of inverter brand used, for displaying on webserver */
   char inverter_brand[8] = {0};
 
   size_t logged_can_messages_offset = 0;
   /** ESP32 main CPU temperature, for displaying on webserver and for safeties */
   float CPU_temperature = 0;
+  /** ESP32 free heap amount, for displaying on webserver and for safeties */
+  uint32_t CPU_free_heap = 0;
 
   /** uint8_t, enumeration which CAN interface should be used for log playback */
   uint8_t can_replay_interface = CAN_NATIVE;
@@ -305,8 +312,6 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   int64_t mqtt_task_10s_max_us = 0;
   /** Wifi sub-task measurement variable, reset each 10 seconds */
   int64_t wifi_task_10s_max_us = 0;
-  /** OTA handling function measurement variable */
-  int64_t time_ota_us = 0;
   /** CAN RX or serial link function measurement variable */
   int64_t time_comm_us = 0;
   /** 10 ms function measurement variable */
@@ -315,10 +320,6 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   int64_t time_values_us = 0;
   /** CAN TX function measurement variable */
   int64_t time_cantx_us = 0;
-  /** Function measurement snapshot variable.
-   * This will show the performance of OTA handling when the total time reached a new worst case
-   */
-  int64_t time_snap_ota_us = 0;
   /** Function measurement snapshot variable.
    * This will show the performance of CAN RX or serial link when the total time reached a new worst case
    */

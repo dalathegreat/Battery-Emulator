@@ -18,9 +18,11 @@ class RenaultKangooBattery : public CanBattery {
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
   static const int MAX_CHARGE_POWER_W = 5000;   // Battery can be charged with this amount of power
+  static const int MAX_DISCHARGE_POWER_W = 10000;  // Battery can be charged with this amount of power
 
   uint32_t LB_Battery_Voltage = 3700;
   uint32_t LB_Charge_Power_Limit_Watts = 0;
+  uint32_t LB_MaxChargeAllowed_W = 0;
   int32_t LB_Current = 0;
   int16_t LB_MAX_TEMPERATURE = 0;
   int16_t LB_MIN_TEMPERATURE = 0;
@@ -31,7 +33,6 @@ class RenaultKangooBattery : public CanBattery {
   uint16_t LB_kWh_Remaining = 0;
   uint16_t LB_Cell_Max_Voltage = 3700;
   uint16_t LB_Cell_Min_Voltage = 3700;
-  uint16_t LB_MaxChargeAllowed_W = 0;
   uint8_t LB_Discharge_Power_Limit_Byte1 = 0;
   uint8_t GVI_Pollcounter = 0;
   uint8_t LB_EOCR = 0;
@@ -44,7 +45,6 @@ class RenaultKangooBattery : public CanBattery {
   uint8_t LB_HVBOC = 0;
   uint8_t LB_MaxInput_kW = 0;
   uint8_t LB_MaxOutput_kW = 0;
-  bool GVB_79B_Continue = false;
 
   CAN_frame KANGOO_423 = {.FD = false,
                           .ext_ID = false,

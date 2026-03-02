@@ -29,7 +29,15 @@ void RenaultKangooBattery::
     datalayer.battery.status.soh_pptt = 10000;
   }
 
-  datalayer.battery.status.voltage_dV = LB_Battery_Voltage;
+  if (LB_Battery_Voltage == 3700) {
+    //If we do not have battery voltage available, estimate it from cellvoltages
+    uint16_t avg_cellvoltage = 0;
+
+    avg_cellvoltage = (LB_Cell_Min_Voltage + LB_Cell_Max_Voltage) / 2;
+    datalayer.battery.status.voltage_dV = (avg_cellvoltage * 96) / 100;
+  } else {  //Use the PID polled value
+    datalayer.battery.status.voltage_dV = LB_Battery_Voltage;
+  }
 
   datalayer.battery.status.current_dA = LB_Current * 10;
 
@@ -37,12 +45,20 @@ void RenaultKangooBattery::
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   /* Define power able to be discharged from battery */
-  datalayer.battery.status.max_discharge_power_W =
-      (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
+  if (LB_Discharge_Power_Limit > 0) {  //If polled value available
+    datalayer.battery.status.max_discharge_power_W =
+        (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
+  } else {                                 //If no polled value available, use hardcoded value
+    datalayer.battery.status.max_discharge_power_W = MAX_DISCHARGE_POWER_W;
+  }
 
   LB_Charge_Power_Limit_Watts = (LB_Charge_Power_Limit * 500);  //Convert value fetched from battery to watts
-  //The above value is 0 on some packs. We instead hardcode this now.
-  datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_W;
+  if (LB_MaxChargeAllowed_W != 76500) {                         //If the constantly sent value is available, use it!
+    datalayer.battery.status.max_charge_power_W = LB_MaxChargeAllowed_W;
+  } else {
+    //The above value is invalid/0 on some packs. We instead hardcode this now.
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_W;
+  }
 
   datalayer.battery.status.temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
 
@@ -102,23 +118,19 @@ void RenaultKangooBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           CAN_STILL_ALIVE;  //Indicate that we are still getting CAN messages from the BMS
 
       if (rx_frame.data.u8[0] == 0x10) {  //1st response Bytes 0-7
-        GVB_79B_Continue = true;
+        transmit_can_frame(&KANGOO_79B_Continue);
       }
       if (rx_frame.data.u8[0] == 0x21) {  //2nd response Bytes 8-15
-        GVB_79B_Continue = true;
       }
       if (rx_frame.data.u8[0] == 0x22) {  //3rd response Bytes 16-23
-        GVB_79B_Continue = true;
       }
       if (rx_frame.data.u8[0] == 0x23) {                                               //4th response Bytes 16-23
         LB_Charge_Power_Limit = word(rx_frame.data.u8[5], rx_frame.data.u8[6]) * 100;  //OK!
         LB_Discharge_Power_Limit_Byte1 = rx_frame.data.u8[7];
-        GVB_79B_Continue = true;
       }
       if (rx_frame.data.u8[0] == 0x24) {  //5th response Bytes 24-31
         LB_Discharge_Power_Limit = word(LB_Discharge_Power_Limit_Byte1, rx_frame.data.u8[1]) * 100;  //OK!
         LB_Battery_Voltage = word(rx_frame.data.u8[2], rx_frame.data.u8[3]) / 10;                    //OK!
-        GVB_79B_Continue = false;
       }
       break;
     default:
@@ -141,9 +153,7 @@ void RenaultKangooBattery::transmit_can(unsigned long currentMillis) {
   // 1000ms CAN handling
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
-    if (GVB_79B_Continue)
-      transmit_can_frame(&KANGOO_79B_Continue);
-  } else {
+
     transmit_can_frame(&KANGOO_79B);
   }
 }

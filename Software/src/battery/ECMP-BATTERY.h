@@ -26,15 +26,18 @@ class EcmpBattery : public CanBattery {
   bool supports_contactor_reset() { return true; }
   void reset_contactor() { datalayer_extended.stellantisECMP.UserRequestContactorReset = true; }
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { datalayer_extended.stellantisECMP.UserRequestDTCreset = true; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
   EcmpHtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_DV = 4546;
-  static const int MIN_PACK_VOLTAGE_DV = 3210;
+  static const int MIN_PACK_VOLTAGE_DV = 3580;
   static const int MAX_CELL_DEVIATION_MV = 100;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
-  static const int MIN_CELL_VOLTAGE_MV = 2700;
+  static const int MIN_CELL_VOLTAGE_MV = 3280;
 
   unsigned long previousMillis10 = 0;    //- will store last time a 10ms CAN Message was sent
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent
@@ -198,6 +201,11 @@ class EcmpBattery : public CanBattery {
                                                  .DLC = 3,
                                                  .ID = 0x6B4,
                                                  .data = {0x02, 0x3E, 0x00}};
+  static constexpr CAN_frame ECMP_CLEAR_DTC = {.FD = false,
+                                               .ext_ID = false,
+                                               .DLC = 5,
+                                               .ID = 0x6B4,
+                                               .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF}};
 
 #ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
   static constexpr CAN_frame ECMP_0AE = {.FD = false,

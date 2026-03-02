@@ -231,7 +231,7 @@ bool init_CAN() {
     } else {
       logging.print("CAN-FD Configuration error 0x");
       logging.println(errorCode2517, HEX);
-      set_event(EVENT_CANMCP2517FD_INIT_FAILURE, (uint8_t)errorCode2517);
+      set_event(EVENT_CANMCP2518FD_INIT_FAILURE, (uint8_t)errorCode2517);
       return false;
     }
   }
@@ -499,7 +499,7 @@ void restart_can() {
 
   if (canfd) {
     SPI2517.begin();
-    canfd->begin(*settings2517, [] { can2515->isr(); });
+    canfd->begin(*settings2517, [] { canfd->isr(); });
   }
 }
 

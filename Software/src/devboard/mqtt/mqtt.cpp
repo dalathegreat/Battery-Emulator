@@ -16,6 +16,9 @@
 #include "mqtt.h"
 #include "mqtt_client.h"
 
+std::string mqtt_user;
+std::string mqtt_password;
+
 bool mqtt_enabled = false;
 bool ha_autodiscovery_enabled = false;
 bool mqtt_transmit_all_cellvoltages = false;
@@ -344,7 +347,7 @@ static bool publish_cell_voltages(void) {
   static String state_topic_2 = topic_name + "/spec_data_2";
 
   if (ha_autodiscovery_enabled) {
-    bool failed_to_publish = false;
+    bool successfully_published = false;
     if (ha_cell_voltages_published == false) {
 
       // If the cell voltage number isn't initialized...
@@ -357,34 +360,35 @@ static bool publish_cell_voltages(void) {
 
           serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
           if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "").c_str(), mqtt_msg, true) == false) {
-            failed_to_publish = true;
             return false;
           }
         }
+        successfully_published = true;
         doc.clear();  // clear after sending autoconfig
       }
 
       if (battery2) {
+        successfully_published = false;
         // TODO: Combine this identical block with the previous one.
         // If the cell voltage number isn't initialized...
         if (datalayer.battery2.info.number_of_cells != 0u) {
 
-          for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
+          for (int i = 0; i < datalayer.battery2.info.number_of_cells; i++) {
             int cellNumber = i + 1;
             set_battery_voltage_attributes(doc, i, cellNumber, state_topic_2, object_id_prefix + "2_", " 2");
             set_common_discovery_attributes(doc);
 
             serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
             if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "_2_").c_str(), mqtt_msg, true) == false) {
-              failed_to_publish = true;
               return false;
             }
           }
+          successfully_published = true;
           doc.clear();  // clear after sending autoconfig
         }
       }
     }
-    if (failed_to_publish == false) {
+    if (successfully_published) {
       ha_cell_voltages_published = true;
     }
   }
