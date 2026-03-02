@@ -77,4 +77,9 @@ void setup_ct(void) {
   analogRead(ct_pin);  // Avoids error if attenuation is set before first read
   analogReadResolution(ADC_BITWIDTH_DEFAULT);
   analogSetPinAttenuation(ct_pin, adc_atten);
+
+  char shunt_protocol[32];
+  snprintf(shunt_protocol, sizeof(shunt_protocol), "%dA CT Clamp", (int)CT_A_nominal);
+  strncpy(datalayer.system.info.shunt_protocol, shunt_protocol, 31);
+  datalayer.system.info.shunt_protocol[31] = '\0';
 }
