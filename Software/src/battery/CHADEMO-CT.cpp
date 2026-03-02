@@ -66,7 +66,7 @@ void setup_ct(void) {
   // Configure as adc
   // Set resolution to 12 bits (0-4095) - Default
   pinMode(ct_pin, INPUT);
-  analogRead(ct_pin); // Avoids error if attenuation is set before first read
+  analogRead(ct_pin);  // Avoids error if attenuation is set before first read
   analogReadResolution(ADC_BITWIDTH_DEFAULT);
   analogSetPinAttenuation(ct_pin, adc_atten);
 }
