@@ -160,6 +160,15 @@ class Esp32Hal {
   virtual gpio_num_t DISPLAY_SDA_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t DISPLAY_SCL_PIN() { return GPIO_NUM_NC; }
 
+  // e-paper display
+  virtual gpio_num_t EPD_BUSY_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t EPD_CS_PIN()   { return GPIO_NUM_NC; }
+  virtual gpio_num_t EPD_DC_PIN()   { return GPIO_NUM_NC; }
+  virtual gpio_num_t EPD_RST_PIN()  { return GPIO_NUM_NC; }
+  virtual gpio_num_t EPD_SCK_PIN()  { return GPIO_NUM_NC; }
+  virtual gpio_num_t EPD_MOSI_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t EPD_REFRESH_BTN_PIN() { return GPIO_NUM_NC; }
+  
   // Equipment stop pin
   virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_NC; }
 

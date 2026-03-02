@@ -17,7 +17,6 @@
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
-// #include "src/devboard/display/epaper_task.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -96,6 +95,13 @@ void connectivity_loop(void*) {
 
   if (mdns_enabled) {
     init_mDNS();
+  }
+
+  // Loop delay (100 ms), Let Battery cal SOC and Until receipt IP from Router 
+  int wifi_timeout = 0;
+  while (WiFi.status() != WL_CONNECTED && wifi_timeout < 100) {
+      vTaskDelay(pdMS_TO_TICKS(100)); 
+      wifi_timeout++;
   }
 
   init_display();
@@ -601,9 +607,14 @@ void setup() {
   init_events();
 
   init_stored_settings();
+  
+  BatteryEmulatorSettingsStore auth_settings;
+  http_username = auth_settings.getString("WEBUSER", DEFAULT_WEB_USER).c_str();    // Default
+  http_password = auth_settings.getString("WEBPASS", DEFAULT_WEB_PASS).c_str(); // Default
+
   #ifdef HW_LILYGO2CAN
-    BatteryEmulatorSettingsStore settings; // ประกาศตัวแปร settings
-    // อ่านค่า (Default=1 คือ OLED_I2C)
+    BatteryEmulatorSettingsStore settings; // declar settings
+    // read display setting (Default=1, OLED_I2C)
     user_selected_display_type = (DisplayType)settings.getUInt("DISPLAYTYPE", 1); 
     DEBUG_PRINTF("Display Mode: %d\n", (int)user_selected_display_type);
   #endif
@@ -643,7 +654,7 @@ void setup() {
   // Initialize Task Watchdog for subscribed tasks
   esp_task_wdt_config_t wdt_config = {// 5s should be enough for the connectivity tasks (which are all contending
                                       // for the same core) to yield to each other and reset their watchdogs.
-                                      .timeout_ms = INTERVAL_5_S,
+                                      .timeout_ms = 45000, // INTERVAL_5_S,
                                       // We don't benefit from idle task watchdogs, our critical loops have their
                                       // own. The idle watchdogs can cause nuisance reboots under heavy load.
                                       .idle_core_mask = 0,
@@ -674,5 +685,56 @@ void setup() {
   DEBUG_PRINTF("Setup complete!\n");
 }
 
-// Loop empty, all functionality runs in tasks
-void loop() {}
+// Global variables for sw
+uint32_t reset_button_press_start = 0;
+bool is_reset_button_pressed = false;
+
+// Loop for detect reset sw and LED
+void loop() {
+  // read BOOT (GPIO 0)
+  int btn_state = digitalRead(0); 
+  gpio_num_t led_pin = esp32hal->LED_PIN();
+
+  if (btn_state == LOW) { // sw : hold status
+    if (!is_reset_button_pressed) {
+      reset_button_press_start = millis();
+      is_reset_button_pressed = true;
+    } else {
+      uint32_t hold_duration = millis() - reset_button_press_start;
+      
+      // LED flashing
+      if (led_pin != GPIO_NUM_NC) {
+        if (hold_duration >= 10000) {
+          digitalWrite(led_pin, HIGH); // 10s: solid light (prepare Factory Reset)
+        } else if (hold_duration >= 5000) {
+          digitalWrite(led_pin, (millis() / 100) % 2); // 5s: flashing (reset password)
+        }
+      }
+    }
+  } else { // status: release button
+    if (is_reset_button_pressed) {
+      uint32_t hold_duration = millis() - reset_button_press_start;
+      is_reset_button_pressed = false;
+      if (led_pin != GPIO_NUM_NC) digitalWrite(led_pin, LOW); // led close
+
+      if (hold_duration >= 10000) {
+        // --- State 2: FACTORY RESET ---
+        logging.println("10s Button Hold: FACTORY RESET TRIGGERED!");
+        BatteryEmulatorSettingsStore settings;
+        settings.clearAll();
+        delay(500);
+        ESP.restart();
+      } 
+      else if (hold_duration >= 5000) {
+        // --- State 1: RESET ADMIN PASSWORD ---
+        logging.println("5s Button Hold: ADMIN PASSWORD RESET!");
+        BatteryEmulatorSettingsStore settings;
+        settings.saveString("WEBUSER", DEFAULT_WEB_USER);
+        settings.saveString("WEBPASS", DEFAULT_WEB_PASS);
+        delay(500);
+        ESP.restart();
+      }
+    }
+  }
+  delay(10); // Debounce
+}

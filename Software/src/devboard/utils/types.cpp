@@ -21,7 +21,7 @@ std::string getBMSStatus(bms_status_enum status) {
 }
 #ifdef HW_LILYGO2CAN
 GPIOOPT1 user_selected_gpioopt1 = GPIOOPT1::DEFAULT_OPT;
-DisplayType user_selected_display_type = DisplayType::NONE; // ค่า Default (หรือจะเอา NONE ก็ได้)
+DisplayType user_selected_display_type = DisplayType::NONE; // Default 
 #endif
 GPIOOPT2 user_selected_gpioopt2 = GPIOOPT2::DEFAULT_OPT_BMS_POWER_18;
 GPIOOPT3 user_selected_gpioopt3 = GPIOOPT3::DEFAULT_SMA_ENABLE_05;

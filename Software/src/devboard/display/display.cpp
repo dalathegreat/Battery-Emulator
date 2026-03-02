@@ -13,32 +13,29 @@ void update_display() {}
 #include "../../datalayer/datalayer.h"
 #include "oled_task.h"
 #include "epaper_task.h"
-//#include "../../communication/nvm/comm_nvm.h" // เรียกใช้ระบบ Settings ใหม่
-#include "../../devboard/utils/types.h"      // เรียกใช้ Enum GPIOOPT1
-
-//extern BatteryEmulatorSettingsStore settings; // บอกว่ามีตัวแปร settings รออยู่นะ
+#include "../../devboard/utils/types.h"
 
 bool display_initialized = false;
 
 void init_display() {
   
-  // --- ส่วนของ E-Paper (เพิ่มใหม่) ---
-  // เรียกใช้งานทันที ไม่ต้องรอ Config จากหน้าเว็บ
   #ifdef HW_LILYGO2CAN
-    if (user_selected_display_type == DisplayType::EPAPER_SPI_42) {
+    // E-Paper 
+    if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C) {
       Serial.println("Init Display: Starting E-Paper 4.2...");
-      setupEpaper(); 
+      setupEpaper3C(); 
+    }
+    else if (user_selected_display_type == DisplayType::EPAPER_SPI_42_BW) {
+      Serial.println("Init Display: Starting E-Paper 4.2...");
+      setupEpaperBW(); 
     }
     else if (user_selected_display_type == DisplayType::OLED_I2C) {
       Serial.println("Display Manager: Starting OLED...");
-      setupOLED(); // เรียกฟังก์ชันจาก oled_task.cpp
-      return;
+      setupOLED(); // func from oled_task.cpp
+      // return;
     }
   #endif
-  // ----------------------------------
-
   display_initialized = true;
-
 }
 
 void update_display() {
@@ -47,21 +44,15 @@ void update_display() {
     return;
   }
 
-  // อ่านค่าปัจจุบัน
   #ifdef HW_LILYGO2CAN
-    if (user_selected_display_type == DisplayType::EPAPER_SPI_42) {
-      // อัปเดตจอ E-Paper
-      // --- 2. Unit Scaling Logic (แปลงหน่วย) ---
-      // Voltage: เก็บเป็น dV (x10) -> ต้องหาร 10.0
-      // Current: เก็บเป็น dA (x10) -> ต้องหาร 10.0
-      // SOC: เก็บเป็น 0-10000 (0.01%) -> ต้องหาร 100
-      
-      float voltage_v = datalayer.battery.status.voltage_dV / 10.0f;
-      float current_a = datalayer.battery.status.current_dA / 10.0f;
-      int soc_percent = datalayer.battery.status.real_soc / 100; // ตัดทศนิยมทิ้งเอาแค่ % เต็ม
-      
-      // เรียกฟังก์ชันของเรา
-      updateEpaperDisplay(voltage_v, current_a, soc_percent, "Running");
+    if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C) {
+      // E-Paper update
+      updateEpaper3CDisplay();
+      //return;
+    }
+    else if (user_selected_display_type == DisplayType::EPAPER_SPI_42_BW) {
+      // E-Paper update
+      updateEpaperBWDisplay();
       //return;
     }
     else if (user_selected_display_type == DisplayType::OLED_I2C) {

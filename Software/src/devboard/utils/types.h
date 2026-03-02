@@ -125,8 +125,9 @@ std::string getBMSStatus(bms_status_enum status);
 
   enum class DisplayType {
     NONE = 0,
-    OLED_I2C = 1,      // จอเดิม (ผ่าน QWIIC IO1/IO2)
-    EPAPER_SPI_42 = 2,  // จอใหม่ของเรา (ผ่าน Header IO35/46)
+    OLED_I2C = 1,      // Oled (via QWIIC IO1/IO2)
+    EPAPER_SPI_42_3C = 2,  // epaper (via Header IO4/16/15/45/47/46)
+    EPAPER_SPI_42_BW = 3,  // epaper (via Header IO4/16/15/45/47/46)
     Highest
   };
 

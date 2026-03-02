@@ -1,6 +1,5 @@
 #include "Arduino.h"
 #include "oled_task.h"
-//#include <U8g2lib.h>
 #include "../hal/hal.h"
 #include "../../battery/BATTERIES.h"
 #include "../utils/events.h"
@@ -418,7 +417,6 @@ void setupOLED() {
 }
 
 void updateOLED() {
-    // ... (ย้าย logic การวน Loop หน้าจอและวาดภาพมาใส่ที่นี่) ...
     
       // We update the display every 500ms
       auto currentMillis = millis();
