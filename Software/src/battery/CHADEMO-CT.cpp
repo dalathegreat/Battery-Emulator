@@ -10,7 +10,7 @@
 #include "Arduino.h"
 #include "CHADEMO-BATTERY.h"
 #include "hal/adc_types.h"
-#include "shunt.h"
+#include "Shunt.h"
 
 // Ensure valid values at run-time
 // User can update all these values via Settings page
