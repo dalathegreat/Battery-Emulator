@@ -135,8 +135,8 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
   switch (option) {
     case GPIOOPT1::DEFAULT_OPT:
       return "WUP1 / WUP2";
-    //case GPIOOPT1::I2C_DISPLAY_SSD1306:
-    //  return "I2C Display (SSD1306)";
+    case GPIOOPT1::I2C_DISPLAY_SSD1306:
+      return "I2C Display (SSD1306)";
     case GPIOOPT1::ESTOP_BMS_POWER:
       return "E-Stop / BMS Power";
     default:
@@ -170,6 +170,17 @@ const char* name_for_gpioopt3(GPIOOPT3 option) {
       return "Pin 5";
     case GPIOOPT3::SMA_ENABLE_33:
       return "Pin 33";
+    default:
+      return nullptr;
+  }
+}
+
+const char* name_for_gpioopt4(GPIOOPT4 option) {
+  switch (option) {
+    case GPIOOPT4::DEFAULT_SD_CARD:
+      return "uSD Card";
+    case GPIOOPT4::I2C_DISPLAY_SSD1306:
+      return "I2C Display (SSD1306)";
     default:
       return nullptr;
   }
@@ -259,7 +270,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "LEDMODE") {
-    return options_from_map(settings.getUInt("LEDMODE", 3), led_modes);
+    return options_from_map(settings.getUInt("LEDMODE", 3), led_modes); // Default to disabled to save power
   }
 
   if (var == "LEDTAIL") {
@@ -270,7 +281,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "SUNGROW_MODEL") {
-    return options_from_map(settings.getUInt("INVBTYPE", 1), sungrow_models);  // Default: SBR096
+    return options_from_map(settings.getUInt("INVSUNTYPE", 1), sungrow_models);  // Default: SBR096
   }
 
 #ifdef HW_LILYGO2CAN
@@ -295,6 +306,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "GPIOOPT3") {
     return options_for_enum_with_none((GPIOOPT3)settings.getUInt("GPIOOPT3", (int)GPIOOPT3::DEFAULT_SMA_ENABLE_05),
                                       name_for_gpioopt3, GPIOOPT3::DEFAULT_SMA_ENABLE_05);
+  }
+
+  if (var == "GPIOOPT4") {
+    return options_for_enum_with_none((GPIOOPT4)settings.getUInt("GPIOOPT4", (int)GPIOOPT4::DEFAULT_SD_CARD),
+                                      name_for_gpioopt4, GPIOOPT4::DEFAULT_SD_CARD);
   }
 
   // All other values are wrapped by html_escape to avoid HTML injection.
@@ -566,6 +582,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "SDLOGENABLED") {
     return settings.getBool("SDLOGENABLED") ? "checked" : "";
+  }
+
+  if (var == "ESPNOWENABLED") {
+    return settings.getBool("ESPNOWENABLED") ? "checked" : "";
   }
 
   if (var == "MQTTENABLED") {
@@ -969,6 +989,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define GPIOOPT3_SETTING ""
 #endif
 
+#ifdef HW_LILYGO
+#define GPIOOPT4_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT4">uSD Slot:</label>
+    <select id="GPIOOPT4" name="GPIOOPT4">
+      %GPIOOPT4%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT4_SETTING ""
+#endif
+
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
     <script> 
@@ -1012,11 +1044,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         }
       }
     }
-
-    window.addEventListener('load', function() {
-              checkLedPower();
-              checkLedMode();  
-          });
 
     function askFactoryReset() {
       if (confirm('Are you sure you want to reset the device to factory settings? This will erase all settings and data.')) {
@@ -1125,8 +1152,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           function checkDisplayWarning() {
             var d = document.getElementById('DISPLAYTYPE');
             var epaperWarn = document.getElementById('epaper_warning');
-            var oledWarn = document.getElementById('oled_warning'); // ตัวแปรใหม่
-            var gpioPort = document.getElementById('GPIOOPT1');     // ดึงเมนู Config port มาควบคุม
+            var oledWarn = document.getElementById('oled_warning'); 
+            var gpioPort = document.getElementById('GPIOOPT1');     
 
             if (d) {
               // 1. Hide warning and unlock everything first 
@@ -1134,7 +1161,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
               if (oledWarn) oledWarn.style.display = 'none';
               if (gpioPort) gpioPort.disabled = false; 
 
-              // 2. check conditopm
+              // 2. check condition
               if (d.value == '2' || d.value == '3') { 
                 // If is e-paper -> show yellow warning 
                 if (epaperWarn) epaperWarn.style.display = 'block';
@@ -1146,8 +1173,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
               }
             }
           }
+
           // Call on load to set initial state
-          window.addEventListener('load', checkDisplayWarning);
+          window.addEventListener('load', function() {
+            checkLedPower();
+            checkLedMode();  
+            checkDisplayWarning();
+          });
 
           document.querySelectorAll('select,input').forEach(function(sel) {
             function ch() {
@@ -1539,7 +1571,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-byd">
-        <label>Deye offgrid specific fixes: </label>
+        <label>Deye avoid over/undercharge fix: </label>
         <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
         </div>
 
@@ -1571,7 +1603,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-sungrow">
         <label>Battery model: </label>
-        <select name='INVBTYPE'>%SUNGROW_MODEL%</select>
+        <select name='INVSUNTYPE'>%SUNGROW_MODEL%</select>
         </div>
         
         <div class="if-kostal if-solax">
@@ -1705,6 +1737,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         )rawliteral" GPIOOPT1_SETTING R"rawliteral(
         )rawliteral" GPIOOPT2_SETTING R"rawliteral(
         )rawliteral" GPIOOPT3_SETTING R"rawliteral(
+        )rawliteral" GPIOOPT4_SETTING R"rawliteral(
         )rawliteral" DISPLAY_SETTING R"rawliteral(
           
         </div>
@@ -1768,6 +1801,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
         <div></div>
         </div>
+
+        <label>Enable ESPNow: </label>
+        <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED% />
 
         <label>Enable MQTT: </label>
         <input type='checkbox' name='MQTTENABLED' value='on' %MQTTENABLED% />

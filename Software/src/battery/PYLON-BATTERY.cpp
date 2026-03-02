@@ -2,7 +2,10 @@
 #include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
+
+/*Based on CAN-Bus-Protocol-Pylon-high-voltage-V1.26-20210903.pdf , which is the Pylontech 1.26 std */
 
 void PylonBattery::update_values() {
 
@@ -58,25 +61,48 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 
   switch (rx_frame.ID) {
-    case 0x7310:
+    case 0x7310:  //System equipment info
     case 0x7311:
-      ensemble_info_ack = true;
-      // This message contains software/hardware version info. No interest to us
+      hardware_version = rx_frame.data.u8[0];
+      hardware_version_V = rx_frame.data.u8[2];
+      hardware_version_R = rx_frame.data.u8[3];
+      software_version_major = rx_frame.data.u8[4];
+      software_version_minor = rx_frame.data.u8[5];
       break;
     case 0x7320:
     case 0x7321:
-      ensemble_info_ack = true;
-      battery_module_quantity = rx_frame.data.u8[0];
+      battery_module_quantity = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       battery_modules_in_series = rx_frame.data.u8[2];
       cell_quantity_in_module = rx_frame.data.u8[3];
-      voltage_level = rx_frame.data.u8[4];
-      ah_number = rx_frame.data.u8[6];
+      voltage_level = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
+      ah_number = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
+      break;
+    case 0x7330:
+      manufacturer_name[0] = rx_frame.data.u8[0];
+      manufacturer_name[1] = rx_frame.data.u8[1];
+      manufacturer_name[2] = rx_frame.data.u8[2];
+      manufacturer_name[3] = rx_frame.data.u8[3];
+      manufacturer_name[4] = rx_frame.data.u8[4];
+      manufacturer_name[5] = rx_frame.data.u8[5];
+      manufacturer_name[6] = rx_frame.data.u8[6];
+      manufacturer_name[7] = rx_frame.data.u8[7];
+      break;
+    case 0x7340:
+      manufacturer_name[8] = rx_frame.data.u8[0];
+      manufacturer_name[9] = rx_frame.data.u8[1];
+      manufacturer_name[10] = rx_frame.data.u8[2];
+      manufacturer_name[11] = rx_frame.data.u8[3];
+      manufacturer_name[12] = rx_frame.data.u8[4];
+      manufacturer_name[13] = rx_frame.data.u8[5];
+      manufacturer_name[14] = rx_frame.data.u8[6];
+      manufacturer_name[15] = rx_frame.data.u8[7];
       break;
     case 0x4210:
     case 0x4211:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       voltage_dV = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       current_dA = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 30000;
+      BMS_temperature_dC = (((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4])) - 1000;
       SOC = rx_frame.data.u8[6];
       SOH = rx_frame.data.u8[7];
       break;
@@ -171,14 +197,31 @@ void PylonBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
 
+    PYLON_8200.data.u8[0] = 0xAA;  //AA = Quit sleep, 55 = Goto sleep
+
+    PYLON_8210.data.u8[0] = 0xAA;  //TODO: how should we control this?
+    /*Charge Command: When the battery is in under-voltage protection, the contactors are open. When
+    we are about to charge the battery, send this command, then the battery will close contactors. 
+    If the battery is in sleep status, wake up first then use this command.*/
+
+    PYLON_8210.data.u8[1] = 0x00;  //TODO: how should we control this?
+    /*Discharge Command: When the battery is in over-voltage protection, the contactors are open. When
+    we are about to discharge the battery, send this command, then the battery will close contactors. 
+    If the battery is in sleep status, wake up first then use this command.*/
+
     transmit_can_frame(&PYLON_3010);  // Heartbeat
     transmit_can_frame(&PYLON_4200);  // Ensemble OR System equipment info, depends on frame0
     transmit_can_frame(&PYLON_8200);  // Control device quit sleep status
     transmit_can_frame(&PYLON_8210);  // Charge command
 
-    if (ensemble_info_ack) {
-      PYLON_4200.data.u8[0] = 0x00;  //Request system equipment info
-    }
+    //transmit_can_frame(&PYLON_8240);  // Emergency Charge command
+    //TODO: Implement? This message can be used to force battery on for 5 minutes, ignoring ext comm errors
+
+    mux = (mux + 1) % 3;  // mux cycles between 0-1-2-0-1...
+    PYLON_4200.data.u8[0] = mux;
+    /*00 Request Ensamble Information (Battery will respond 0x42XX messages)
+    01 Request Cellvoltages (Battery will respond 0x5XXX messages)
+    02 Request System equipment info (Battery will respond 0x73XX messages)*/
   }
 
   // Poll for individual cell voltages every 5 seconds
@@ -196,10 +239,18 @@ void PylonBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Pylon compatible battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.number_of_cells = 2;
-  datalayer_battery->info.max_design_voltage_dV = user_selected_max_pack_voltage_dV;
-  datalayer_battery->info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
-  datalayer_battery->info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
-  datalayer_battery->info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
+  if (user_selected_max_pack_voltage_dV > 0) {
+    datalayer_battery->info.max_design_voltage_dV = user_selected_max_pack_voltage_dV;
+  }
+  if (user_selected_min_pack_voltage_dV > 0) {
+    datalayer_battery->info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
+  }
+  if (user_selected_max_cell_voltage_mV > 0) {
+    datalayer_battery->info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
+  }
+  if (user_selected_min_cell_voltage_mV > 0) {
+    datalayer_battery->info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
+  }
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 
   if (allows_contactor_closing) {

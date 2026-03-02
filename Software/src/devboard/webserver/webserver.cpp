@@ -22,6 +22,21 @@
 #include "esp_task_wdt.h"
 #include "html_escape.h"
 #include <base64.h>
+
+#include <string>
+
+std::string http_username;
+std::string http_password;
+
+// Note: Kept external declaration matching your implementation for seamless UI settings access
+extern const char* version_number;
+
+// Create AsyncWebServer object on port 80
+AsyncWebServer server(80);
+
+// Measure OTA progress
+unsigned long ota_progress_millis = 0;
+
 #include "advanced_battery_html.h"
 #include "can_logging_html.h"
 #include "can_replay_html.h"
@@ -31,15 +46,21 @@
 #include "index_html.h"
 #include "settings_html.h"
 #include "../../system_settings.h"
-#include <string>
 
-extern std::string http_username;
-extern std::string http_password;
-extern const char* version_number;
+MyTimer ota_timeout_timer = MyTimer(15000);
+bool ota_active = false;
 
-// bool webserver_auth = true;
+const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 
-// 🚨 Forward Declarations: function C++ 
+String importedLogs = "";      // Store the uploaded logfile contents in RAM
+bool isReplayRunning = false;  // Global flag to track replay state
+
+// True when user has updated settings that need a reboot to be effective.
+bool settingsUpdated = false;
+
+CAN_frame currentFrame = {.FD = true, .ext_ID = false, .DLC = 64, .ID = 0x12F, .data = {0}};
+
+// 🚨 Forward Declarations
 String get_uptime();
 String get_firmware_info_processor(const String& var);
 
@@ -296,8 +317,7 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
             // Charging the battery (green light moving from left to right).
             flowElement.className = 'flow-particles status-charging';
             
-            // Speed ​​varies with power! The higher the wattage, the faster it runs!
-            // You can adjust the equation as you like (e.g., 1000W runs in 0.5 seconds).
+            // Speed varies with power!
             let speed = Math.max(0.2, 2000 / totalPowerW); 
             flowElement.style.animationDuration = speed + 's';
             
@@ -317,9 +337,9 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
 
           updateBat('b1', data.b1);
           updateBat('b2', data.b2);
-		      updateBat('b3', data.b3);					   
+          updateBat('b3', data.b3);          
 
-		  // Charger Data			 
+          // Charger Data      
           if(data.chg.en) {
             document.getElementById('card_chg').classList.remove('hidden');
             document.getElementById('chg_v').innerText = data.chg.v;
@@ -373,28 +393,6 @@ const char subpage_html[] PROGMEM = R"rawliteral(
 </body>
 </html>
 )rawliteral";
-
-// Create AsyncWebServer object on port 80
-AsyncWebServer server(80);
-
-// Measure OTA progress
-unsigned long ota_progress_millis = 0;
-MyTimer ota_timeout_timer = MyTimer(15000);
-bool ota_active = false;
-
-const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
-
-String importedLogs = "";      // Store the uploaded logfile contents in RAM
-bool isReplayRunning = false;  // Global flag to track replay state
-
-// True when user has updated settings that need a reboot to be effective.
-bool settingsUpdated = false;
-
-CAN_frame currentFrame = {.FD = true, .ext_ID = false, .DLC = 64, .ID = 0x12F, .data = {0}};
-
-// =========================================================================
-// Helper Functions
-// =========================================================================
 
 // =========================================================================
 // 🚀 HYBRID CAN REPLAY SYSTEM (SD Card + RAM Fallback)
@@ -590,7 +588,6 @@ void canReplayTask(void* param) {
   vTaskDelete(NULL); // Delete the RTOS task
 }
 
-
 // 🛡️ Safe Authentication Check
 bool checkAuth(AsyncWebServerRequest *request) {
     BatteryEmulatorSettingsStore auth_settings(true);
@@ -622,7 +619,7 @@ void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethod
   });
 }
 
-// Provent Chunked Encoding problem
+// Prevent Chunked Encoding problem for large pages
 void send_large_page_safely(AsyncWebServerRequest* request, std::function<String(const String&)> processor_func) {
     String html = String(index_html);
     String payload = processor_func("X");
@@ -641,119 +638,37 @@ void init_webserver() {
     request->send(401, "text/html", "<h2 style='font-family:sans-serif; color:white; background:black; padding:20px;'>Logged Out Successfully</h2><p style='color:white; background:black;'>Please close your browser window, or <a href='/' style='color:#00ff00;'>click here to login again</a>.</p>");
   });
 
+  // Route for firmware info from ota update page
+  def_route_with_auth("/GetFirmwareInfo", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send(200, "application/json", get_firmware_info_html, get_firmware_info_processor);
+  });
+
   // -----------------------------------------------------------------------
   // 1️⃣ ROOT ROUTE: Serve static HTML from Flash (PROGMEM)
   // -----------------------------------------------------------------------
   def_route_with_auth("/", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     ota_active = false;
-    // 🚨 Fixed: Use .send() instead of deprecated .send_P() for PROGMEM in new library
     request->send(200, "text/html", dashboard_html);
   });
 
-  // -----------------------------------------------------------------------
-  // 2️⃣ API ROUTE: JSON Data Endpoint (using ArduinoJson v7)
-  // -----------------------------------------------------------------------
-  def_route_with_auth("/api/data", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    
-    // 🚨 Fixed: Use JsonDocument instead of deprecated DynamicJsonDocument in v7																		   
-    JsonDocument doc; 
-
-    // System Data
-    doc["sys"]["uptime"] = get_uptime();
-    doc["sys"]["heap"]   = ESP.getFreeHeap();
-    doc["sys"]["status"] = get_emulator_pause_status().c_str();
-    doc["sys"]["version"] = version_number;
-
-    // 🔗 Show Protocol (Inverter & Battery)
-    doc["sys"]["inv"] = inverter ? String(inverter->name()) + " " + String(datalayer.system.info.inverter_brand) : "None";
-    String bat_proto = "None";
-    if (battery) {
-      bat_proto = String(datalayer.system.info.battery_protocol);
-      if (battery3) bat_proto += " (Triple)";
-      else if (battery2) bat_proto += " (Double)";
-      if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) bat_proto += " (LFP)";
-    }
-    doc["sys"]["bat"] = bat_proto;
-
-    doc["sys"]["inv_cont"] = datalayer.system.status.inverter_allows_contactor_closing;
-
-    // Helper macro to populate ALL battery data
-    auto populate_battery = [&](JsonObject b, Battery* bat, auto& dt_info, auto& dt_status) {
-      b["en"] = (bat != nullptr);
-      if (bat) {
-        // Basic bat info
-        b["fault"] = (dt_status.bms_status == FAULT);
-        b["soc"]   = String((float)dt_status.real_soc / 100.0f, 2);
-        b["soh"]   = String((float)dt_status.soh_pptt / 100.0f, 2);
-        b["v"]     = String((float)dt_status.voltage_dV / 10.0f, 1);
-        b["a"]     = String((float)dt_status.current_dA / 10.0f, 1);
-        b["p"]     = dt_status.active_power_W;
-        b["cmin"]  = dt_status.cell_min_voltage_mV;
-        b["cmax"]  = dt_status.cell_max_voltage_mV;
-        b["tmin"]  = String((float)dt_status.temperature_min_dC / 10.0f, 1);
-        b["tmax"]  = String((float)dt_status.temperature_max_dC / 10.0f, 1);
-        
-        // Adv. Batt info ( Toggle Show Details)
-        String stat_str = "UNKNOWN";
-        if (dt_status.bms_status == ACTIVE) stat_str = "OK";
-        else if (dt_status.bms_status == UPDATING) stat_str = "UPDATING";
-        else if (dt_status.bms_status == FAULT) stat_str = "FAULT";
-        b["stat"] = stat_str;
-        
-        if (dt_status.current_dA == 0) b["act"] = "Idle 💤";
-        else if (dt_status.current_dA < 0) b["act"] = "Discharging 🔋⬇️";
-        else b["act"] = "Charging 🔋⬆️";
-
-        b["mc"]   = dt_status.max_charge_power_W;
-        b["md"]   = dt_status.max_discharge_power_W;
-        b["rem"]  = dt_status.remaining_capacity_Wh;
-        b["tot"]  = dt_info.total_capacity_Wh;
-        b["b_cont"] = (dt_status.bms_status != FAULT);
-      }
-    };
-
-    // 🚨 Fixed: Use to<JsonObject>() instead of deprecated createNestedObject() in v7
-    populate_battery(doc["b1"].to<JsonObject>(), battery, datalayer.battery.info, datalayer.battery.status);
-    populate_battery(doc["b2"].to<JsonObject>(), battery2, datalayer.battery2.info, datalayer.battery2.status);
-    populate_battery(doc["b3"].to<JsonObject>(), battery3, datalayer.battery3.info, datalayer.battery3.status);
-																					  
-    // Charger Data
-    JsonObject chg = doc["chg"].to<JsonObject>();
-    chg["en"] = (charger != nullptr);
-    if (charger) {
-      chg["v"] = String(charger->HVDC_output_voltage(), 2);
-      chg["a"] = String(charger->HVDC_output_current(), 2);
-    }
-
-    // Serialize to String and send						   
-    String output;
-    serializeJson(doc, output);
-    request->send(200, "application/json", output);
-  });
-
-  // -----------------------------------------------------------------------
-  // Other existing routes (Settings, Advanced, CAN, etc.)
-  // -----------------------------------------------------------------------
-
-  def_route_with_auth("/GetFirmwareInfo", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "application/json", get_firmware_info_html, get_firmware_info_processor);
-  });
-
+  // Route for going to settings web page
   def_route_with_auth("/settings", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     auto settings = std::make_shared<BatteryEmulatorSettingsStore>(true);
     request->send(200, "text/html", settings_html,
                   [settings](const String& content) { return settings_processor(content, *settings); });
   });
 
+  // Route for going to advanced battery info web page
   def_route_with_auth("/advanced", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    //request->send(200, "text/html", index_html, advanced_battery_processor);
     send_large_page_safely(request, advanced_battery_processor);
   });
-  
+
+  // Route for going to CAN logging web page
   def_route_with_auth("/canlog", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(request->beginResponse(200, "text/html", can_logger_processor()));
   });
 
+  // Route for going to CAN replay web page
   def_route_with_auth("/canreplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(request->beginResponse(200, "text/html", can_replay_processor()));
   });
@@ -853,12 +768,10 @@ void init_webserver() {
   }
 
   def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    // request->send(200, "text/html", index_html, cellmonitor_processor);
     send_large_page_safely(request, cellmonitor_processor);
   });
 
   def_route_with_auth("/events", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    // request->send(200, "text/html", index_html, events_processor);
     send_large_page_safely(request, events_processor);
   });
 
@@ -875,9 +788,25 @@ void init_webserver() {
   });
 
   // Settings Definitions
-  const char* boolSettingNames[] = { "DBLBTR", "CNTCTRL", "CNTCTRLDBL", "PWMCNTCTRL", "PERBMSRESET", "SDLOGENABLED", "STATICIP", "REMBMSRESET", "EXTPRECHARGE", "USBENABLED", "CANLOGUSB", "WEBENABLED", "CANFDASCAN", "CANLOGSD", "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC", "HADISC", "MQTTTOPICS", "MQTTCELLV", "INVICNT", "GTWRHD", "DIGITALHVIL", "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED", "PYLONOFFSET", "PYLONORDER", "DEYEBYD", "NCCONTACTOR", "TRIBTR", "CNTCTRLTRI", "EPAPREFRESHBTN" };
-  const char* uintSettingNames[] = { "BATTCVMAX", "BATTCVMIN", "MAXPRETIME", "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER", "CHGPOWER", "LOCALIP1", "LOCALIP2", "LOCALIP3", "LOCALIP4", "GATEWAY1", "GATEWAY2", "GATEWAY3", "GATEWAY4", "SUBNET1", "SUBNET2", "SUBNET3", "SUBNET4", "MQTTPORT", "MQTTTIMEOUT", "SOFAR_ID", "PYLONSEND", "INVCELLS", "INVMODULES", "INVCELLSPER", "INVVLEVEL", "INVCAPACITY", "INVBTYPE", "CANFREQ", "CANFDFREQ", "PRECHGMS", "PWMFREQ", "PWMHOLD", "GTWCOUNTRY", "GTWMAPREG", "GTWCHASSIS", "GTWPACK", "LEDMODE", "LEDTAIL", "LEDCOUNT", "GPIOOPT1", "GPIOOPT2", "GPIOOPT3", "WEBAUTH" };
-  const char* stringSettingNames[] = {"APNAME", "APPASSWORD", "HOSTNAME", "MQTTSERVER", "MQTTUSER", "MQTTPASSWORD", "MQTTTOPIC", "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID"};
+  const char* boolSettingNames[] = {
+      "DBLBTR",        "CNTCTRL",      "CNTCTRLDBL",  "PWMCNTCTRL",   "PERBMSRESET",   "SDLOGENABLED", "STATICIP",
+      "REMBMSRESET",   "EXTPRECHARGE", "USBENABLED",  "CANLOGUSB",    "WEBENABLED",    "CANFDASCAN",   "CANLOGSD",
+      "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",   "HADISC",       "MQTTTOPICS",    "MQTTCELLV",    "INVICNT",
+      "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET",  "PYLONORDER",
+      "DEYEBYD",       "NCCONTACTOR",  "TRIBTR",      "CNTCTRLTRI",   "ESPNOWENABLED", "EPAPREFRESHBTN"
+  };
+
+  const char* uintSettingNames[] = {
+      "BATTCVMAX",  "BATTCVMIN",   "MAXPRETIME", "MAXPREFREQ",  "WIFICHANNEL", "DCHGPOWER", "CHGPOWER",  "LOCALIP1",
+      "LOCALIP2",   "LOCALIP3",    "LOCALIP4",   "GATEWAY1",    "GATEWAY2",    "GATEWAY3",  "GATEWAY4",  "SUBNET1",
+      "SUBNET2",    "SUBNET3",     "SUBNET4",    "MQTTPORT",    "MQTTTIMEOUT", "SOFAR_ID",  "PYLONSEND", "INVCELLS",
+      "INVMODULES", "INVCELLSPER", "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "CANFREQ",   "CANFDFREQ", "PRECHGMS",
+      "PWMFREQ",    "PWMHOLD",     "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS",  "GTWPACK",   "LEDMODE",   "GPIOOPT1",
+      "GPIOOPT2",   "GPIOOPT3",    "INVSUNTYPE", "GPIOOPT4",    "LEDTAIL",     "LEDCOUNT",  "WEBAUTH",   "DISPLAYTYPE"
+  };
+
+  const char* stringSettingNames[] = {"APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
+                                      "MQTTPASSWORD", "MQTTTOPIC",  "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID"};
 
   def_route_with_auth("/saveSettings", server, HTTP_POST,
             [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
@@ -933,7 +862,8 @@ void init_webserver() {
                     http_password = p->value().c_str();
                   }
                 } else if (p->name() == "MQTTPUBLISHMS") {
-                  settings.saveUInt("MQTTPUBLISHMS", atoi(p->value().c_str()) * 1000); 
+                  auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
+                  settings.saveUInt("MQTTPUBLISHMS", interval); 
                 } else if (p->name() == "DISPLAYTYPE") {
                   int val = atoi(p->value().c_str());
                   settings.saveUInt("DISPLAYTYPE", val);
@@ -1046,6 +976,87 @@ void init_webserver() {
     update_int_setting("/updateChargerAux12vEnabled", [](int value) { datalayer.charger.charger_aux12V_enabled = (bool)value; });
   }
 
+  // -----------------------------------------------------------------------
+  // 2️⃣ API ROUTE: JSON Data Endpoint (using ArduinoJson v7)
+  // -----------------------------------------------------------------------
+  def_route_with_auth("/api/data", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    
+    // 🚨 Fixed: Use JsonDocument instead of deprecated DynamicJsonDocument in v7                                    
+    JsonDocument doc; 
+
+    // System Data
+    doc["sys"]["uptime"] = get_uptime();
+    doc["sys"]["heap"]   = ESP.getFreeHeap();
+    doc["sys"]["status"] = get_emulator_pause_status().c_str();
+    doc["sys"]["version"] = version_number;
+
+    // 🔗 Show Protocol (Inverter & Battery)
+    doc["sys"]["inv"] = inverter ? String(inverter->name()) + " " + String(datalayer.system.info.inverter_brand) : "None";
+    String bat_proto = "None";
+    if (battery) {
+      bat_proto = String(datalayer.system.info.battery_protocol);
+      if (battery3) bat_proto += " (Triple)";
+      else if (battery2) bat_proto += " (Double)";
+      if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) bat_proto += " (LFP)";
+    }
+    doc["sys"]["bat"] = bat_proto;
+
+    doc["sys"]["inv_cont"] = datalayer.system.status.inverter_allows_contactor_closing;
+
+    // Helper macro to populate ALL battery data
+    auto populate_battery = [&](JsonObject b, Battery* bat, auto& dt_info, auto& dt_status) {
+      b["en"] = (bat != nullptr);
+      if (bat) {
+        // Basic bat info
+        b["fault"] = (dt_status.bms_status == FAULT);
+        b["soc"]   = String((float)dt_status.real_soc / 100.0f, 2);
+        b["soh"]   = String((float)dt_status.soh_pptt / 100.0f, 2);
+        b["v"]     = String((float)dt_status.voltage_dV / 10.0f, 1);
+        b["a"]     = String((float)dt_status.current_dA / 10.0f, 1);
+        b["p"]     = dt_status.active_power_W;
+        b["cmin"]  = dt_status.cell_min_voltage_mV;
+        b["cmax"]  = dt_status.cell_max_voltage_mV;
+        b["tmin"]  = String((float)dt_status.temperature_min_dC / 10.0f, 1);
+        b["tmax"]  = String((float)dt_status.temperature_max_dC / 10.0f, 1);
+        
+        // Adv. Batt info ( Toggle Show Details)
+        String stat_str = "UNKNOWN";
+        if (dt_status.bms_status == ACTIVE) stat_str = "OK";
+        else if (dt_status.bms_status == UPDATING) stat_str = "UPDATING";
+        else if (dt_status.bms_status == FAULT) stat_str = "FAULT";
+        b["stat"] = stat_str;
+        
+        if (dt_status.current_dA == 0) b["act"] = "Idle 💤";
+        else if (dt_status.current_dA < 0) b["act"] = "Discharging 🔋⬇️";
+        else b["act"] = "Charging 🔋⬆️";
+
+        b["mc"]   = dt_status.max_charge_power_W;
+        b["md"]   = dt_status.max_discharge_power_W;
+        b["rem"]  = dt_status.remaining_capacity_Wh;
+        b["tot"]  = dt_info.total_capacity_Wh;
+        b["b_cont"] = (dt_status.bms_status != FAULT);
+      }
+    };
+
+    // 🚨 Fixed: Use to<JsonObject>() instead of deprecated createNestedObject() in v7
+    populate_battery(doc["b1"].to<JsonObject>(), battery, datalayer.battery.info, datalayer.battery.status);
+    populate_battery(doc["b2"].to<JsonObject>(), battery2, datalayer.battery2.info, datalayer.battery2.status);
+    populate_battery(doc["b3"].to<JsonObject>(), battery3, datalayer.battery3.info, datalayer.battery3.status);
+                                          
+    // Charger Data
+    JsonObject chg = doc["chg"].to<JsonObject>();
+    chg["en"] = (charger != nullptr);
+    if (charger) {
+      chg["v"] = String(charger->HVDC_output_voltage(), 2);
+      chg["a"] = String(charger->HVDC_output_current(), 2);
+    }
+
+    // Serialize to String and send           
+    String output;
+    serializeJson(doc, output);
+    request->send(200, "application/json", output);
+  });
+
   def_route_with_auth("/debug", server, HTTP_GET, [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });
 
   def_route_with_auth("/reboot", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -1077,6 +1088,8 @@ String getConnectResultString(wl_status_t status) {
 }
 
 void ota_monitor() {
+  ElegantOTA.loop(); // Required by the new ElegantOTA version
+  
   if (ota_active && ota_timeout_timer.elapsed()) {
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
     onOTAEnd(false);
@@ -1139,4 +1152,32 @@ void onOTAEnd(bool success) {
     logging.println("There was an error during OTA update!");
     setBatteryPause(false, false);
   }
+}
+
+// Brought back from "Incoming" branch to ensure compatibility
+template <typename T>  // This function makes power values appear as W when under 1000, and kW when over
+String formatPowerValue(String label, T value, String unit, int precision, String color) {
+  String result = "<h4 style='color: " + color + ";'>" + label + ": ";
+  result += formatPowerValue(value, unit, precision);
+  result += "</h4>";
+  return result;
+}
+
+// Brought back from "Incoming" branch to ensure compatibility
+template <typename T>  // This function makes power values appear as W when under 1000, and kW when over
+String formatPowerValue(T value, String unit, int precision) {
+  String result = "";
+
+  if (std::is_same<T, float>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value) {
+    float convertedValue = static_cast<float>(value);
+
+    if (convertedValue >= 1000.0f || convertedValue <= -1000.0f) {
+      result += String(convertedValue / 1000.0f, precision) + " kW";
+    } else {
+      result += String(convertedValue, 0) + " W";
+    }
+  }
+
+  result += unit;
+  return result;
 }

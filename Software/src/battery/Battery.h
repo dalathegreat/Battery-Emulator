@@ -54,6 +54,7 @@ enum class BatteryType {
   ThinkCity = 47,
   TeslaLegacy = 48,
   GrowattHvArk = 49,
+  GeelySea = 50,
   Highest
 };
 
@@ -100,6 +101,7 @@ class Battery {
   virtual bool supports_factory_mode_method() { return false; }
   virtual bool supports_chademo_restart() { return false; }
   virtual bool supports_chademo_stop() { return false; }
+  virtual bool supports_offline_balancing() { return false; }
 
   virtual void clear_isolation() {}
   virtual void reset_BMS() {}
@@ -118,6 +120,8 @@ class Battery {
   virtual void set_factory_mode() {}
   virtual void chademo_restart() {}
   virtual void chademo_stop() {}
+  virtual void initiate_offline_balancing() {}
+  virtual void end_offline_balancing() {}
 
   virtual void set_fake_voltage(float v) {}
   virtual float get_voltage();

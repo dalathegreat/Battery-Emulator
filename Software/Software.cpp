@@ -17,6 +17,7 @@
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
+#include "src/devboard/espnow/espnow.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -38,7 +39,7 @@
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "10.0.RC4";
+const char* version_number = "10.2.dev";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -57,10 +58,10 @@ Watchdog mqtt_loop_watchdog;
 
 Logging logging;
 
-std::string mqtt_user;      //TODO, move?
-std::string mqtt_password;  //TODO, move?
-std::string http_username;  //TODO, move?
-std::string http_password;  //TODO, move?
+extern std::string mqtt_user;
+extern std::string mqtt_password;
+extern std::string http_username;
+extern std::string http_password;
 
 static std::list<Transmitter*> transmitters;
 void register_transmitter(Transmitter* transmitter) {
@@ -106,10 +107,20 @@ void connectivity_loop(void*) {
 
   init_display();
 
+  if (espnow_enabled) {
+    init_espnow();
+  }
+
   while (true) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
+
     update_display();
+
+    if (espnow_enabled) {
+      update_espnow();
+    }
+
     ota_monitor();
 
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
@@ -328,15 +339,12 @@ void update_calculated_values(unsigned long currentMillis) {
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling
    * A static version of a stochastic oscillator. The scaled SoC is calculated as:
-   * 
-   *     10000 * (real_soc - min_percentage)
+   * * 10000 * (real_soc - min_percentage)
    * ---------------------------------------
-   *     (max_percentage - min_percentage)
-   * 
-   * And scaled capacity is:
-   * 
-   *     reported_total_capacity_Wh = total_capacity_Wh * (max - min) / 10000
-   *     reported_remaining_capacity_Wh = reported_total_capacity_Wh * scaled_soc / 10000
+   * (max_percentage - min_percentage)
+   * * And scaled capacity is:
+   * * reported_total_capacity_Wh = total_capacity_Wh * (max - min) / 10000
+   * reported_remaining_capacity_Wh = reported_total_capacity_Wh * scaled_soc / 10000
    */
     // Compute delta_pct and clamped_soc
     int32_t delta_pct = datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage;
@@ -477,17 +485,18 @@ void core_loop(void*) {
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
 
-    monitor_equipment_stop_button();
+    // Only monitor equipment stop button if performance measurement is enabled, or default behavior
+    if (datalayer.system.info.performance_measurement_active) {
+        // Handled in 10ms loop below
+    } else {
+        monitor_equipment_stop_button();
+    }
 
     // Input, Runs as fast as possible
     receive_can();    // Receive CAN messages
     receive_rs485();  // Process serial2 RS485 interface
 
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
-
-    START_TIME_MEASUREMENT(ota);
-    ElegantOTA.loop();
-    END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
 
     // Process
     currentMillis = millis();
@@ -499,15 +508,19 @@ void core_loop(void*) {
       previousMillis10ms = currentMillis;
       if (datalayer.system.info.performance_measurement_active) {
         START_TIME_MEASUREMENT(10ms);
-      }
-      led_exe();
-      handle_contactors();  // Take care of startup precharge/contactor closing
-      if (precharge_control_enabled) {
-        handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
-      }
-
-      if (datalayer.system.info.performance_measurement_active) {
+        monitor_equipment_stop_button(); // Monitored here if performance measurement is active
+        led_exe();
+        handle_contactors();  // Take care of startup precharge/contactor closing
+        if (precharge_control_enabled) {
+          handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
+        }
         END_TIME_MEASUREMENT_MAX(10ms, datalayer.system.status.time_10ms_us);
+      } else {  //Run 10ms tasks without timing it
+        led_exe();
+        handle_contactors();  // Take care of startup precharge/contactor closing
+        if (precharge_control_enabled) {
+          handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
+        }
       }
     }
 
@@ -543,17 +556,22 @@ void core_loop(void*) {
         END_TIME_MEASUREMENT_MAX(values, datalayer.system.status.time_values_us);
       }
     }
+    
     if (datalayer.system.info.performance_measurement_active) {
       START_TIME_MEASUREMENT(cantx);
-    }
 
-    // Let all transmitter objects send their messages
-    for (auto& transmitter : transmitters) {
-      transmitter->transmit(currentMillis);
+      for (auto& transmitter : transmitters) {
+        transmitter->transmit(currentMillis);
+      }
+
+      END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
+    } else {
+      for (auto& transmitter : transmitters) {
+        transmitter->transmit(currentMillis);
+      }
     }
 
     if (datalayer.system.info.performance_measurement_active) {
-      END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
       END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
       if (datalayer.system.status.core_task_10s_max_us > datalayer.system.status.core_task_max_us) {
         // Update worst case total time
@@ -563,13 +581,11 @@ void core_loop(void*) {
         datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
         datalayer.system.status.time_snap_values_us = datalayer.system.status.time_values_us;
         datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
-        datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
       }
 
       datalayer.system.status.core_task_max_us =
           MAX(datalayer.system.status.core_task_10s_max_us, datalayer.system.status.core_task_max_us);
       if (core_task_timer_10s.elapsed()) {
-        datalayer.system.status.time_ota_us = 0;
         datalayer.system.status.time_comm_us = 0;
         datalayer.system.status.time_10ms_us = 0;
         datalayer.system.status.time_values_us = 0;
@@ -625,6 +641,7 @@ void setup() {
   }
 
   led_init();
+
   if (datalayer.system.info.CAN_SD_logging_active || datalayer.system.info.SD_logging_active) {
     xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
                             &logging_loop_task, esp32hal->WIFICORE());
@@ -654,7 +671,7 @@ void setup() {
   // Initialize Task Watchdog for subscribed tasks
   esp_task_wdt_config_t wdt_config = {// 5s should be enough for the connectivity tasks (which are all contending
                                       // for the same core) to yield to each other and reset their watchdogs.
-                                      .timeout_ms = 45000, // INTERVAL_5_S,
+                                      .timeout_ms = 45000, // Increased timeout based on your implementation
                                       // We don't benefit from idle task watchdogs, our critical loops have their
                                       // own. The idle watchdogs can cause nuisance reboots under heavy load.
                                       .idle_core_mask = 0,

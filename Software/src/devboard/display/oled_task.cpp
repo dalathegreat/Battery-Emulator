@@ -62,41 +62,6 @@ static void write_text(int x, int y, const char* str, bool invert) {
   }
 }
 
-/*
-static void write_big_text(int x, int y, const char* str, bool invert) {
-  for (int r = 0; r < 2; r++) {
-    set_ram_pointer(x, y + r);
-
-    char* ptr = (char*)str;
-    while (*ptr) {
-      char c = *ptr++;
-      if (c < ' ' || c > '~') {
-        c = '!';  // Replace unsupported characters
-      }
-
-      char slice[16];
-      for (int col = 0; col < 6; col++) {
-        uint8_t byte = font6x8_basic[c - ' '][col];
-
-        byte = r == 0 ? (byte & 0xf) : (byte >> 4);
-        byte = (byte | (byte << 2)) & 0x33;
-        byte = (byte | (byte << 1)) & 0x55;
-        byte *= 0x03;
-
-        if(invert) {
-          byte = ~byte;
-        }
-
-        slice[col * 2] = byte;
-        slice[col * 2 + 1] = byte;
-      }
-
-      i2c_data((uint8_t*)slice, 12);
-    }
-  }
-}
-*/
-
 static void write_tall_text(int x, int y, const char* str, bool invert) {
   for (int r = 0; r < 2; r++) {
     set_ram_pointer(x, y + r);
@@ -377,7 +342,7 @@ void setupOLED() {
     static const uint8_t init[] = {
         0xae,    // display off
         0xd5,    // set display clock divider
-        0x80,    //   /1, middle freq
+        0x80,    //  /1, middle freq
         0xa8,    // set multiplex
         64 - 1,  //   height - 1
 
@@ -417,7 +382,6 @@ void setupOLED() {
 }
 
 void updateOLED() {
-    
       // We update the display every 500ms
       auto currentMillis = millis();
       if (currentMillis - lastUpdateMillis < 500) {
