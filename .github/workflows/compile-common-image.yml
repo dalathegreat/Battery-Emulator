@@ -71,7 +71,7 @@ jobs:
       run: pio run -e ${{ matrix.pio_env }}
 
     - name: Upload artifact for ${{ matrix.board_name }}
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.artifact_name }}.bin
         path: .pio/build/${{ matrix.pio_env }}/firmware.bin
