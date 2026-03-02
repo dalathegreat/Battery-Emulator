@@ -157,6 +157,10 @@ bool setup_inverter() {
       inverter = new PylonLvInverter();
       break;
 
+    case InverterProtocolType::PylonLV485:
+      inverter = new PylonLV485InverterProtocol();
+      break;
+
     case InverterProtocolType::Schneider:
       inverter = new SchneiderInverter();
       break;

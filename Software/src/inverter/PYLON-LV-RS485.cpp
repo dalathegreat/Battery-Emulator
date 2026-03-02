@@ -5,11 +5,8 @@
 #include "../devboard/utils/events.h"
 #include "INVERTERS.h"
 
-PylonLV485InverterProtocol::PylonLV485InverterProtocol() {
-  memset(rx_buffer, 0, sizeof(rx_buffer));
-}
-
 bool PylonLV485InverterProtocol::setup(void) {  // Performs one time setup at startup
+  memset(rx_buffer, 0, sizeof(rx_buffer));
 
   auto rx_pin = esp32hal->RS485_RX_PIN();
   auto tx_pin = esp32hal->RS485_TX_PIN();

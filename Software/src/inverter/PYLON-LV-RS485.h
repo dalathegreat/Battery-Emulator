@@ -5,7 +5,6 @@
 
 class PylonLV485InverterProtocol : public Rs485InverterProtocol {
  public:
-  PylonLV485InverterProtocol();
   const char* name() override { return Name; }
   bool setup() override;
   void receive();
