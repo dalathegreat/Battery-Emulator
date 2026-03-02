@@ -408,7 +408,7 @@ void init_webserver() {
       "SUBNET2",    "SUBNET3",     "SUBNET4",    "MQTTPORT",    "MQTTTIMEOUT", "SOFAR_ID",  "PYLONSEND", "INVCELLS",
       "INVMODULES", "INVCELLSPER", "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "CANFREQ",   "CANFDFREQ", "PRECHGMS",
       "PWMFREQ",    "PWMHOLD",     "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS",  "GTWPACK",   "LEDMODE",   "GPIOOPT1",
-      "GPIOOPT2",   "GPIOOPT3",    "INVSUNTYPE", "GPIOOPT4",
+      "GPIOOPT2",   "GPIOOPT3",    "INVSUNTYPE", "GPIOOPT4",    "CTOFFSET",    "CTVNOM",    "CTANOM",
   };
 
   const char* stringSettingNames[] = {"APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
@@ -458,7 +458,7 @@ void init_webserver() {
                 } else if (p->name() == "BATT3COMM") {
                   auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
                   settings.saveUInt("BATT3COMM", (int)type);
-                } else if (p->name() == "shunt") {
+                } else if (p->name() == "shunttype") {
                   auto type = static_cast<ShuntType>(atoi(p->value().c_str()));
                   settings.saveUInt("SHUNTTYPE", (int)type);
                 } else if (p->name() == "SHUNTCOMM") {

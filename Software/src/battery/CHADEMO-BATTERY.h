@@ -52,6 +52,7 @@ class ChademoBattery : public CanBattery {
   void update_evse_discharge_estimate(CAN_frame& f);
   void update_evse_discharge_capabilities(CAN_frame& f);
   void handle_chademo_sequence();
+  u_int16_t get_voltage_handler();
 
   static const int MAX_EVSE_POWER_CHARGING = 3300;
   static const int MAX_EVSE_OUTPUT_VOLTAGE = 410;

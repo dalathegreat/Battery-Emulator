@@ -44,6 +44,7 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t CHADEMO_PIN_7() { return GPIO_NUM_34; }
   virtual gpio_num_t CHADEMO_PIN_4() { return GPIO_NUM_35; }
   virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_18; }
+  virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_15; }  // ADC2_CH3
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_32; }
