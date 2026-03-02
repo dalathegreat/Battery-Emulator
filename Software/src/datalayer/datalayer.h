@@ -195,6 +195,12 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   bool user_requests_tesla_isolation_clear = false;
   bool user_requests_tesla_bms_reset = false;
   bool user_requests_tesla_soc_reset = false;
+  /* Tesla auto-balance: automated bleed (contactors open) + charge cycle */
+  bool user_requests_auto_balancing = false;
+  uint16_t auto_balance_max_cell_mV = 3650;             // mV: NEVER charge any cell above this; stops procedure
+  uint16_t auto_balance_charge_power_W = 500;           // W: max charge power during auto-balance (~1.4A at 350V)
+  uint16_t auto_balance_charge_deviation_stop_mV = 50;  // mV: re-bleed if deviation exceeds this during charging
+  uint16_t auto_balance_done_deviation_mV = 20;         // mV: stop early if deviation drops below this during charging
 };
 
 typedef struct {
