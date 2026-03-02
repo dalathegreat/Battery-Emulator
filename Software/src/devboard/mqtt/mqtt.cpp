@@ -239,7 +239,7 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   doc["state_of_health" + suffix] = ((float)battery.status.soh_pptt) / 100.0f;
   doc["temperature_min" + suffix] = ((float)((int16_t)battery.status.temperature_min_dC)) / 10.0f;
   doc["temperature_max" + suffix] = ((float)((int16_t)battery.status.temperature_max_dC)) / 10.0f;
-  doc["cpu_temp" + suffix] = datalayer.system.info.CPU_temperature;
+  doc["cpu_temp" + suffix] = (int)(datalayer.system.info.CPU_temperature + 0.5);
   doc["stat_batt_power" + suffix] = ((float)((int32_t)battery.status.active_power_W));
   doc["battery_current" + suffix] = ((float)((int16_t)battery.status.current_dA)) / 10.0f;
   doc["battery_voltage" + suffix] = ((float)battery.status.voltage_dV) / 10.0f;
