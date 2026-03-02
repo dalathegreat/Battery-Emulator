@@ -5,91 +5,6 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 
-#define POLL_FOR_BATTERY_VOLTAGE 0x0008
-#define POLL_FOR_BATTERY_CURRENT 0x0009
-#define POLL_FOR_LOWEST_TEMP_CELL 0x002f
-#define POLL_FOR_HIGHEST_TEMP_CELL 0x0031
-#define POLL_FOR_BATTERY_PACK_AVG_TEMP 0x0032
-#define POLL_FOR_BATTERY_CELL_MV_MAX 0x002D
-#define POLL_FOR_BATTERY_CELL_MV_MIN 0x002B
-#define UNKNOWN_POLL_0 0x1FFE  //0x64 19 C4 3B
-#define UNKNOWN_POLL_1 0x1FFC  //0x72 1F C4 3B
-#define POLL_MAX_CHARGE_POWER 0x000A
-#define POLL_CHARGE_TIMES 0x000B  // Using Carscanner name for now. Likely a counter for BMS 100% SOC calibration
-#define POLL_MAX_DISCHARGE_POWER 0x000E
-#define POLL_TOTAL_CHARGED_AH 0x000F
-#define POLL_TOTAL_DISCHARGED_AH 0x0010
-#define POLL_TOTAL_CHARGED_KWH 0x0011
-#define POLL_TOTAL_DISCHARGED_KWH 0x0012
-#define POLL_TIMES_FULL_POWER 0x0004  // Using Carscanner name for now. Unknown what it means for the moment
-#define UNKNOWN_POLL_10 0x002A        //0x5B
-#define UNKNOWN_POLL_11 0x002E        //0x08 (probably module number, or cell number?)
-#define UNKNOWN_POLL_12 0x002C        //0x43
-#define UNKNOWN_POLL_13 0x0030        //0x01 (probably module number, or cell number?)
-#define POLL_MODULE_1_LOWEST_MV_NUMBER 0x016C
-#define POLL_MODULE_1_LOWEST_CELL_MV 0x016D
-#define POLL_MODULE_1_HIGHEST_MV_NUMBER 0x016E
-#define POLL_MODULE_1_HIGH_CELL_MV 0x016F
-#define POLL_MODULE_1_HIGH_TEMP 0x0171
-#define POLL_MODULE_1_LOW_TEMP 0x0173
-#define POLL_MODULE_2_LOWEST_MV_NUMBER 0x0174
-#define POLL_MODULE_2_LOWEST_CELL_MV 0x0175
-#define POLL_MODULE_2_HIGHEST_MV_NUMBER 0x0176
-#define POLL_MODULE_2_HIGH_CELL_MV 0x0177
-#define POLL_MODULE_2_HIGH_TEMP 0x0179
-#define POLL_MODULE_2_LOW_TEMP 0x017B
-#define POLL_MODULE_3_LOWEST_MV_NUMBER 0x017C
-#define POLL_MODULE_3_LOWEST_CELL_MV 0x017D
-#define POLL_MODULE_3_HIGHEST_MV_NUMBER 0x017E
-#define POLL_MODULE_3_HIGH_CELL_MV 0x017F
-#define POLL_MODULE_3_HIGH_TEMP 0x0181
-#define POLL_MODULE_3_LOW_TEMP 0x0183
-#define POLL_MODULE_4_LOWEST_MV_NUMBER 0x0184
-#define POLL_MODULE_4_LOWEST_CELL_MV 0x0185
-#define POLL_MODULE_4_HIGHEST_MV_NUMBER 0x0186
-#define POLL_MODULE_4_HIGH_CELL_MV 0x0187
-#define POLL_MODULE_4_HIGH_TEMP 0x0189
-#define POLL_MODULE_4_LOW_TEMP 0x018B
-#define POLL_MODULE_5_LOWEST_MV_NUMBER 0x018C
-#define POLL_MODULE_5_LOWEST_CELL_MV 0x018D
-#define POLL_MODULE_5_HIGHEST_MV_NUMBER 0x018E
-#define POLL_MODULE_5_HIGH_CELL_MV 0x018F
-#define POLL_MODULE_5_HIGH_TEMP 0x0191
-#define POLL_MODULE_5_LOW_TEMP 0x0193
-#define POLL_MODULE_6_LOWEST_MV_NUMBER 0x0194
-#define POLL_MODULE_6_LOWEST_CELL_MV 0x0195
-#define POLL_MODULE_6_HIGHEST_MV_NUMBER 0x0196
-#define POLL_MODULE_6_HIGH_CELL_MV 0x0197
-#define POLL_MODULE_6_HIGH_TEMP 0x0199
-#define POLL_MODULE_6_LOW_TEMP 0x019B
-#define POLL_MODULE_7_LOWEST_MV_NUMBER 0x019C
-#define POLL_MODULE_7_LOWEST_CELL_MV 0x019D
-#define POLL_MODULE_7_HIGHEST_MV_NUMBER 0x019E
-#define POLL_MODULE_7_HIGH_CELL_MV 0x019F
-#define POLL_MODULE_7_HIGH_TEMP 0x01A1
-#define POLL_MODULE_7_LOW_TEMP 0x01A3
-#define POLL_MODULE_8_LOWEST_MV_NUMBER 0x01A4
-#define POLL_MODULE_8_LOWEST_CELL_MV 0x01A5
-#define POLL_MODULE_8_HIGHEST_MV_NUMBER 0x01A6
-#define POLL_MODULE_8_HIGH_CELL_MV 0x01A7
-#define POLL_MODULE_8_HIGH_TEMP 0x01A9
-#define POLL_MODULE_8_LOW_TEMP 0x01AB
-#define POLL_MODULE_9_LOWEST_MV_NUMBER 0x01AC
-#define POLL_MODULE_9_LOWEST_CELL_MV 0x01AD
-#define POLL_MODULE_9_HIGHEST_MV_NUMBER 0x01AE
-#define POLL_MODULE_9_HIGH_CELL_MV 0x01AF
-#define POLL_MODULE_9_HIGH_TEMP 0x01B1
-#define POLL_MODULE_9_LOW_TEMP 0x01B3
-#define POLL_MODULE_10_LOWEST_MV_NUMBER 0x01B4
-#define POLL_MODULE_10_LOWEST_CELL_MV 0x01B5
-#define POLL_MODULE_10_HIGHEST_MV_NUMBER 0x01B6
-#define POLL_MODULE_10_HIGH_CELL_MV 0x01B7
-#define POLL_MODULE_10_HIGH_TEMP 0x01B9
-#define POLL_MODULE_10_LOW_TEMP 0x01BB
-
-#define ESTIMATED 0
-#define MEASURED 1
-
 // Define the data points for %SOC depending on pack voltage
 const uint8_t numPoints = 28;
 const uint16_t SOC[numPoints] = {10000, 9985, 9970, 9730, 9490, 8980, 8470, 8110, 7750, 7270, 6790, 6145, 5500, 5200,
@@ -163,7 +78,7 @@ void BydAttoBattery::
     battery_estimated_SOC = estimateSOCstandard(datalayer_battery->status.voltage_dV);
   }
 
-  if (SOC_method == MEASURED) {
+  if (SOC_method == SOC_MEASURED) {
     // Pack is not crashed, we can use periodically transmitted SOC
     datalayer_battery->status.real_soc = battery_highprecision_SOC * 10;
   } else {
@@ -180,7 +95,7 @@ void BydAttoBattery::
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  if (SOC_method == ESTIMATED && battery_estimated_SOC * 0.1f < RAMPDOWN_SOC && RAMPDOWN_SOC > 0) {
+  if (SOC_method == SOC_ESTIMATED && battery_estimated_SOC * 0.1f < RAMPDOWN_SOC && RAMPDOWN_SOC > 0) {
     // If using estimated SOC, ramp down max discharge power as SOC decreases.
     rampdown_power = RAMPDOWN_POWER_ALLOWED * ((battery_estimated_SOC * 0.1f) / RAMPDOWN_SOC);
 
@@ -788,5 +703,5 @@ void BydAttoBattery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  SOC_method = MEASURED;  //Startup in mode assuming SOC is OK to measure (non-crashed)
+  SOC_method = SOC_MEASURED;  //Startup in mode assuming SOC is OK to measure (non-crashed)
 }

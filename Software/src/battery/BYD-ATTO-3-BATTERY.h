@@ -61,6 +61,93 @@ class BydAttoBattery : public CanBattery {
   uint32_t BMS_unknown0 = 0;
   uint32_t BMS_unknown1 = 0;
 
+  static const bool SOC_ESTIMATED = 0;
+  static const bool SOC_MEASURED = 1;
+
+  static const int POLL_FOR_BATTERY_VOLTAGE = 0x0008;
+  static const int POLL_FOR_BATTERY_CURRENT = 0x0009;
+  static const int POLL_FOR_LOWEST_TEMP_CELL = 0x002f;
+  static const int POLL_FOR_HIGHEST_TEMP_CELL = 0x0031;
+  static const int POLL_FOR_BATTERY_PACK_AVG_TEMP = 0x0032;
+  static const int POLL_FOR_BATTERY_CELL_MV_MAX = 0x002D;
+  static const int POLL_FOR_BATTERY_CELL_MV_MIN = 0x002B;
+  static const int UNKNOWN_POLL_0 = 0x1FFE;  //= 0x64 19 C4 3B
+  static const int UNKNOWN_POLL_1 = 0x1FFC;  //= 0x72 1F C4 3B
+  static const int POLL_MAX_CHARGE_POWER = 0x000A;
+  static const int POLL_CHARGE_TIMES =
+      0x000B;  // Using Carscanner name for now. Likely a counter for BMS 100% SOC calibration
+  static const int POLL_MAX_DISCHARGE_POWER = 0x000E;
+  static const int POLL_TOTAL_CHARGED_AH = 0x000F;
+  static const int POLL_TOTAL_DISCHARGED_AH = 0x0010;
+  static const int POLL_TOTAL_CHARGED_KWH = 0x0011;
+  static const int POLL_TOTAL_DISCHARGED_KWH = 0x0012;
+  static const int POLL_TIMES_FULL_POWER =
+      0x0004;                                 // Using Carscanner name for now. Unknown what it means for the moment
+  static const int UNKNOWN_POLL_10 = 0x002A;  //= 0x5B
+  static const int UNKNOWN_POLL_11 = 0x002E;  //= 0x08 (probably module number, or cell number?)
+  static const int UNKNOWN_POLL_12 = 0x002C;  //= 0x43
+  static const int UNKNOWN_POLL_13 = 0x0030;  //= 0x01 (probably module number, or cell number?)
+  static const int POLL_MODULE_1_LOWEST_MV_NUMBER = 0x016C;
+  static const int POLL_MODULE_1_LOWEST_CELL_MV = 0x016D;
+  static const int POLL_MODULE_1_HIGHEST_MV_NUMBER = 0x016E;
+  static const int POLL_MODULE_1_HIGH_CELL_MV = 0x016F;
+  static const int POLL_MODULE_1_HIGH_TEMP = 0x0171;
+  static const int POLL_MODULE_1_LOW_TEMP = 0x0173;
+  static const int POLL_MODULE_2_LOWEST_MV_NUMBER = 0x0174;
+  static const int POLL_MODULE_2_LOWEST_CELL_MV = 0x0175;
+  static const int POLL_MODULE_2_HIGHEST_MV_NUMBER = 0x0176;
+  static const int POLL_MODULE_2_HIGH_CELL_MV = 0x0177;
+  static const int POLL_MODULE_2_HIGH_TEMP = 0x0179;
+  static const int POLL_MODULE_2_LOW_TEMP = 0x017B;
+  static const int POLL_MODULE_3_LOWEST_MV_NUMBER = 0x017C;
+  static const int POLL_MODULE_3_LOWEST_CELL_MV = 0x017D;
+  static const int POLL_MODULE_3_HIGHEST_MV_NUMBER = 0x017E;
+  static const int POLL_MODULE_3_HIGH_CELL_MV = 0x017F;
+  static const int POLL_MODULE_3_HIGH_TEMP = 0x0181;
+  static const int POLL_MODULE_3_LOW_TEMP = 0x0183;
+  static const int POLL_MODULE_4_LOWEST_MV_NUMBER = 0x0184;
+  static const int POLL_MODULE_4_LOWEST_CELL_MV = 0x0185;
+  static const int POLL_MODULE_4_HIGHEST_MV_NUMBER = 0x0186;
+  static const int POLL_MODULE_4_HIGH_CELL_MV = 0x0187;
+  static const int POLL_MODULE_4_HIGH_TEMP = 0x0189;
+  static const int POLL_MODULE_4_LOW_TEMP = 0x018B;
+  static const int POLL_MODULE_5_LOWEST_MV_NUMBER = 0x018C;
+  static const int POLL_MODULE_5_LOWEST_CELL_MV = 0x018D;
+  static const int POLL_MODULE_5_HIGHEST_MV_NUMBER = 0x018E;
+  static const int POLL_MODULE_5_HIGH_CELL_MV = 0x018F;
+  static const int POLL_MODULE_5_HIGH_TEMP = 0x0191;
+  static const int POLL_MODULE_5_LOW_TEMP = 0x0193;
+  static const int POLL_MODULE_6_LOWEST_MV_NUMBER = 0x0194;
+  static const int POLL_MODULE_6_LOWEST_CELL_MV = 0x0195;
+  static const int POLL_MODULE_6_HIGHEST_MV_NUMBER = 0x0196;
+  static const int POLL_MODULE_6_HIGH_CELL_MV = 0x0197;
+  static const int POLL_MODULE_6_HIGH_TEMP = 0x0199;
+  static const int POLL_MODULE_6_LOW_TEMP = 0x019B;
+  static const int POLL_MODULE_7_LOWEST_MV_NUMBER = 0x019C;
+  static const int POLL_MODULE_7_LOWEST_CELL_MV = 0x019D;
+  static const int POLL_MODULE_7_HIGHEST_MV_NUMBER = 0x019E;
+  static const int POLL_MODULE_7_HIGH_CELL_MV = 0x019F;
+  static const int POLL_MODULE_7_HIGH_TEMP = 0x01A1;
+  static const int POLL_MODULE_7_LOW_TEMP = 0x01A3;
+  static const int POLL_MODULE_8_LOWEST_MV_NUMBER = 0x01A4;
+  static const int POLL_MODULE_8_LOWEST_CELL_MV = 0x01A5;
+  static const int POLL_MODULE_8_HIGHEST_MV_NUMBER = 0x01A6;
+  static const int POLL_MODULE_8_HIGH_CELL_MV = 0x01A7;
+  static const int POLL_MODULE_8_HIGH_TEMP = 0x01A9;
+  static const int POLL_MODULE_8_LOW_TEMP = 0x01AB;
+  static const int POLL_MODULE_9_LOWEST_MV_NUMBER = 0x01AC;
+  static const int POLL_MODULE_9_LOWEST_CELL_MV = 0x01AD;
+  static const int POLL_MODULE_9_HIGHEST_MV_NUMBER = 0x01AE;
+  static const int POLL_MODULE_9_HIGH_CELL_MV = 0x01AF;
+  static const int POLL_MODULE_9_HIGH_TEMP = 0x01B1;
+  static const int POLL_MODULE_9_LOW_TEMP = 0x01B3;
+  static const int POLL_MODULE_10_LOWEST_MV_NUMBER = 0x01B4;
+  static const int POLL_MODULE_10_LOWEST_CELL_MV = 0x01B5;
+  static const int POLL_MODULE_10_HIGHEST_MV_NUMBER = 0x01B6;
+  static const int POLL_MODULE_10_HIGH_CELL_MV = 0x01B7;
+  static const int POLL_MODULE_10_HIGH_TEMP = 0x01B9;
+  static const int POLL_MODULE_10_LOW_TEMP = 0x01BB;
+
   static const uint16_t CELLCOUNT_EXTENDED = 126;
   static const uint16_t CELLCOUNT_STANDARD = 104;
   static const uint16_t MAX_PACK_VOLTAGE_EXTENDED_DV = 4599;  //Extended range
