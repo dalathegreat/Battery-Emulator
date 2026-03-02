@@ -330,7 +330,7 @@ static bool publish_common_info(void) {
 
     doc["event_level"] = get_event_level_string(get_event_level());
     doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
-    doc["cpu_temp"] = datalayer.system.info.CPU_temperature;
+    doc["cpu_temp"] = (int)(datalayer.system.info.CPU_temperature + 0.5);
     doc["emulator_uptime"] = millis64() / 1000;
 
     serializeJson(doc, mqtt_msg);
