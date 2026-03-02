@@ -38,8 +38,9 @@ class BydAttoBattery : public CanBattery {
 
   bool supports_charged_energy() { return true; }
   bool supports_reset_crash() { return true; }
-
   void reset_crash() { datalayer_bydatto->UserRequestCrashReset = true; }
+  bool supports_calibrate_SOC() { return true; }
+  void reset_SOC() { datalayer_bydatto->UserRequestCalibrateSOC = true; }
 
   // Toggle SOC method in UI is only enabled if we initially use measured SOC
   bool supports_toggle_SOC_method() { return true; }
@@ -238,6 +239,11 @@ class BydAttoBattery : public CanBattery {
                                       .DLC = 8,
                                       .ID = 0x7E7,
                                       .data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ATTO_3_7E7_RESET_SOC = {.FD = false,
+                                    .ext_ID = false,
+                                    .DLC = 8,
+                                    .ID = 0x7E7,  //This sets SOC to 100.00% (0x27 10) , and AH to 150.00 (0x3A 98)
+                                    .data = {0x07, 0x2E, 0x1F, 0xFC, 0x10, 0x27, 0x98, 0x3A}};
 };
 
 #endif

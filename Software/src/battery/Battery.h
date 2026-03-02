@@ -91,6 +91,7 @@ class Battery {
   virtual bool supports_read_DTC() { return false; }
   virtual bool supports_reset_SOH() { return false; }
   virtual bool supports_reset_BECM() { return false; }
+  virtual bool supports_calibrate_SOC() { return false; }
   virtual bool supports_contactor_close() { return false; }
   virtual bool supports_contactor_reset() { return false; }
   virtual bool supports_set_fake_voltage() { return false; }
@@ -104,6 +105,7 @@ class Battery {
   virtual bool supports_offline_balancing() { return false; }
 
   virtual void clear_isolation() {}
+  virtual void calibrate_SOC() {}
   virtual void reset_BMS() {}
   virtual void reset_SOC() {}
   virtual void reset_crash() {}

@@ -295,6 +295,11 @@ void BydAttoBattery::
       stateMachineClearCrash = STARTED;
       datalayer_bydatto->UserRequestCrashReset = false;
     }
+
+    if (datalayer_bydatto->UserRequestCalibrateSOC) {
+      transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
+      datalayer_bydatto->UserRequestCalibrateSOC = false;
+    }
   }
 }
 

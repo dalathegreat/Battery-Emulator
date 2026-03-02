@@ -153,6 +153,9 @@ struct DATALAYER_INFO_BYDATTO3 {
   /** User requesting crash reset via WebUI*/
   bool UserRequestCrashReset = false;
   /** bool */
+  /** User requesting SOC calibration via WebUI*/
+  bool UserRequestCalibrateSOC = false;
+  /** bool */
   /** Which SOC method currently used. 0 = Estimated, 1 = Measured */
   bool SOC_method = 0;
 };
