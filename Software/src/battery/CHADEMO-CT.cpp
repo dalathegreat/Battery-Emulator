@@ -9,8 +9,8 @@
 #include "../devboard/utils/events.h"
 #include "Arduino.h"
 #include "CHADEMO-BATTERY.h"
-#include "hal/adc_types.h"
 #include "Shunt.h"
+#include "hal/adc_types.h"
 
 // Ensure valid values at run-time
 // User can update all these values via Settings page
