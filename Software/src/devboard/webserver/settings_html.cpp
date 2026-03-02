@@ -1097,16 +1097,16 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="0"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
     form[data-charger="0"] .if-charger { display: none; }
-    form[data-SHUNTTYPE="0"] .if-shunt,
-    form[data-SHUNTTYPE="3"] .if-shunt { 
+    form[data-shunttype="0"] .if-shunt,
+    form[data-shunttype="3"] .if-shunt { 
       display: none; 
     }
-    form[data-SHUNTTYPE="0"] .if-ctclamp,
-    form[data-SHUNTTYPE="1"] .if-ctclamp,
-    form[data-SHUNTTYPE="2"] .if-ctclamp { 
+    form[data-shunttype="0"] .if-ctclamp,
+    form[data-shunttype="1"] .if-ctclamp,
+    form[data-shunttype="2"] .if-ctclamp { 
       display: none; 
     }
-    form[data-SHUNTTYPE="3"] .if-ctclamp { display: contents;}
+    form[data-shunttype="3"] .if-ctclamp { display: contents;}
     
 
     form .if-cbms { display: none; }
@@ -1467,7 +1467,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
-        <label>Shunt: </label><select name='SHUNTTYPE'>
+        <label>Shunt: </label><select name='shunttype'>
         %SHUNTTYPE%
         </select>
 
