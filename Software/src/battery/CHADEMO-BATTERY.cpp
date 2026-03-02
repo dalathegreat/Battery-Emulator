@@ -1,7 +1,7 @@
 #include "CHADEMO-BATTERY.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "CHADEMO-CT.h"  // Include the CT helper if it's being used
+#include "CHADEMO-CT.h"
 #include "CHADEMO-SHUNTS.h"
 #include "Shunt.h"
 
@@ -326,10 +326,9 @@ void ChademoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   handle_chademo_sequence();
 
-#ifdef CHADEMO_CT
-#else
-  ISA_handleFrame(&rx_frame);
-#endif
+  if (user_selected_shunt_type != ShuntType::CustomClamp) {
+    ISA_handleFrame(&rx_frame);
+  }
 }
 
 /* (re)initialize evse structures to pre-charge/discharge states */
@@ -876,11 +875,11 @@ void ChademoBattery::handle_chademo_sequence() {
 
 uint16_t ChademoBattery::get_voltage_handler() {
   float Voltage = 0;
-#ifdef CHADEMO_CT
-  Voltage = min(x102_chg_session.TargetBatteryVoltage, x108_evse_cap.available_output_voltage);
-#else
-  Voltage = get_measured_voltage_ptr();
-#endif
+  if (user_selected_shunt_type == ShuntType::CustomClamp) {
+    Voltage = min(x102_chg_session.TargetBatteryVoltage, x108_evse_cap.available_output_voltage);
+  } else {
+    Voltage = get_measured_voltage_ptr();
+  }
   return (uint16_t)Voltage;
 }
 
@@ -907,10 +906,10 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
   pinMode(pin4, INPUT);
   pinMode(pin7, INPUT);
 
-// initialise the CT measurement helper
-#ifdef CHADEMO_CT
-  setup_ct();
-#endif
+  // initialise the CT measurement helper
+  if (user_selected_shunt_type == ShuntType::CustomClamp) {
+    setup_ct();
+  }
 
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
