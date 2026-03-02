@@ -29,9 +29,9 @@ static float Voltage = -1;  // Voltage not available
 // These settings are for a Tamura L03S100D15 CT clamp
 // https://www.tamuracorp.com/global/products/download/pdf/06_L03SxxxD15_e.pdf
 // At 20A the output is 0.8V, so 0Db attenuation can be used to get better resolution at low currents.  The voltage offset is set to 0.15V to start in the linear region of the CT clamp.
-float CT_V_offset = (float)ct_clamp_offset_mV / 1000.0f;  // Convert from mV to Volts
+float CT_V_offset = (float)ct_clamp_offset_mV / 1000.0f;          // Convert from mV to Volts
 float CT_V_nominal = (float)ct_clamp_nominal_voltage_dV / 10.0f;  // Convert from dV to Volts
-float CT_A_nominal = (float)ct_clamp_nominal_current_A;  // in Amperes
+float CT_A_nominal = (float)ct_clamp_nominal_current_A;           // in Amperes
 
 // use a dedicated variable for the pin so that this file does not rely
 // on a class member name that only exists inside ChademoBattery.  The
@@ -78,4 +78,3 @@ void setup_ct(void) {
   analogReadResolution(ADC_BITWIDTH_DEFAULT);
   analogSetPinAttenuation(ct_pin, adc_atten);
 }
-

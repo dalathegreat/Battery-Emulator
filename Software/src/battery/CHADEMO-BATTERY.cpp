@@ -5,7 +5,7 @@
 #include "CHADEMO-SHUNTS.h"
 #include "Shunt.h"
 
-uint16_t (*get_measured_current_ptr)(); 
+uint16_t (*get_measured_current_ptr)();
 uint16_t (*get_measured_voltage_ptr)();
 
 //This function maps all the values fetched via CAN to the correct parameters used for the inverter

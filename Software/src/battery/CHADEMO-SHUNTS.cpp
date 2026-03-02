@@ -420,4 +420,3 @@ void ISA_getINFO(uint8_t i) {
 
   transmit_can_frame(&outframe, can_config.battery);
 }
-
