@@ -21,17 +21,17 @@ typedef enum { ADC_0db = 0, ADC_2_5db, ADC_6db, ADC_11db } adc_attenuation_t;
 uint16_t ct_clamp_offset_mV = 0;
 uint16_t ct_clamp_nominal_voltage_dV = 40;
 uint16_t ct_clamp_nominal_current_A = 100;
-adc_attenuation_enum  ct_clamp_pin_atten = adc_attenuation_enum::ADC_11db;
+adc_attenuation_enum ct_clamp_pin_atten = adc_attenuation_enum::ADC_11db;
 extern const char* name_for_adc_attenuation(adc_attenuation_enum type) {
   switch (type) {
     case adc_attenuation_enum::ADC_0db:
-      return "a) 0dB 0-950mV";
+      return "a)   0dB 0-950mV";
     case adc_attenuation_enum::ADC_2_5db:
       return "b) 2.5dB 0-1250mV";
     case adc_attenuation_enum::ADC_6db:
-      return "c) 6dB 0-1750mV";
+      return "c)   6dB 0-1750mV";
     case adc_attenuation_enum::ADC_11db:
-      return "d) 11dB 0-3100mV";
+      return "d)  11dB 0-3100mV";
     default:
       return nullptr;
   }
@@ -44,7 +44,6 @@ static float Voltage = -1;  // Voltage not available
 // These settings are for a Tamura L03S100D15 CT clamp
 // https://www.tamuracorp.com/global/products/download/pdf/06_L03SxxxD15_e.pdf
 // At 20A the output is 0.8V, so 0Db attenuation can be used to get better resolution at low currents.  The voltage offset is set to 0.15V to start in the linear region of the CT clamp.
-
 
 // use a dedicated variable for the pin so that this file does not rely
 // on a class member name that only exists inside ChademoBattery.  The

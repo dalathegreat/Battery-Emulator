@@ -227,8 +227,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "CTATTEN") {
-    return options_for_enum_with_none((adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_0db),
-                            name_for_adc_attenuation, adc_attenuation_enum::ADC_0db);
+    return options_for_enum_with_none(
+        (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_0db), name_for_adc_attenuation,
+        adc_attenuation_enum::ADC_0db);
   }
 
   if (var == "EQSTOP") {
