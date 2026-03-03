@@ -12,7 +12,7 @@ class KostalInverterProtocol : public Rs485InverterProtocol {
   static constexpr const char* Name = "BYD battery via Kostal RS485";
 
  private:
-  int baud_rate() { return 57600; }
+  int baud_rate() { return 9600; }
   void float2frame(uint8_t* arr, float value, uint8_t framepointer);
   bool check_kostal_frame_crc(int len);
   /* How many value updates we can go without inverter gets reported as missing
