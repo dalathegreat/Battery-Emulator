@@ -226,6 +226,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_comm_interface);
   }
 
+  if (var == "CTATTEN") {
+    return options_for_enum_with_none((adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_0db),
+                            name_for_adc_attenuation, adc_attenuation_enum::ADC_0db);
+  }
+
   if (var == "EQSTOP") {
     return options_for_enum_with_none(
         (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
@@ -847,7 +852,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CTOFFSET") {
-    return String(settings.getUInt("CTOFFSET", 150));
+    return String(settings.getUInt("CTOFFSET", 0));
   }
 
   if (var == "CTVNOM") {
@@ -1492,6 +1497,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           <input type='number' name='CTANOM' value="%CTANOM%" 
           min="0" max="200" step="1"
           title="Nominal current of the CT Clamp. Integer only." />
+
+          <label>ESP32 pin attenuation: </label>
+          <select name='CTATTEN'>
+          %CTATTEN%
+          </select>
         </div>
 
         </div>

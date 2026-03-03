@@ -6,6 +6,7 @@
 #include "../../src/communication/can/comm_can.h"
 #include "../../src/devboard/safety/safety.h"
 #include "../../src/devboard/utils/types.h"
+#include "Arduino.h"
 
 #include <vector>
 
@@ -49,5 +50,8 @@ extern ShuntType user_selected_shunt_type;
 extern uint16_t ct_clamp_offset_mV;
 extern uint16_t ct_clamp_nominal_voltage_dV;
 extern uint16_t ct_clamp_nominal_current_A;
+enum class adc_attenuation_enum { ADC_0db = 0, ADC_2_5db, ADC_6db, ADC_11db, Highest };
+extern adc_attenuation_enum ct_clamp_pin_atten;
+extern const char* name_for_adc_attenuation(adc_attenuation_enum type);
 
 #endif
