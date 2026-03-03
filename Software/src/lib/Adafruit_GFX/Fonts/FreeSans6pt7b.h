@@ -1,3 +1,6 @@
+#pragma once
+#include "../Adafruit_GFX.h"
+
 const uint8_t FreeSans6pt7bBitmaps[] PROGMEM = {
     0x00, 0xF8, 0x80, 0xF0, 0x00, 0x24, 0xA7, 0xCA, 0x0B, 0xF4, 0x14, 0x11, 0x65, 0x54, 0x70, 0x71, 0x65, 0x78, 0x40,
     0x70, 0x24, 0x89, 0x01, 0xD0, 0x01, 0x82, 0x91, 0x24, 0x47, 0x51, 0x05, 0x18, 0xB6, 0x68, 0xBD, 0xC0, 0x12, 0xAA,
@@ -124,6 +127,8 @@ const GFXglyph FreeSans6pt7bGlyphs[] PROGMEM = {{0, 1, 1, 3, 0, 0},        // 0x
                                                 {507, 3, 11, 4, 0, -8},    // 0x7D '}'
                                                 {512, 5, 2, 7, 1, -4}};    // 0x7E '~'
 
-const GFXfont FreeSans6pt7b PROGMEM = {(uint8_t*)FreeSans6pt7bBitmaps, (GFXglyph*)FreeSans6pt7bGlyphs, 0x20, 0x7E, 20};
+const GFXfont FreeSans6pt7b PROGMEM = {(uint8_t*)FreeSans6pt7bBitmaps, 
+                                        (GFXglyph*)FreeSans6pt7bGlyphs,
+                                         0x20, 0x7E, 20};
 
 // Approx. 1186 bytes

@@ -5,6 +5,7 @@
 #include <ESPmDNS.h>
 #endif
 #include <time.h>
+#include "esp_sntp.h"
 
 bool wifi_enabled = true;
 bool wifiap_enabled = true;
@@ -203,6 +204,30 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   clear_event(EVENT_WIFI_CONNECT);
 }
 
+// This function will be called automatically when time synchronization is successful (runs in the background, does not interfere with the main system)
+void timeavailable_cb(struct timeval *t) {
+  logging.println("NTP Time Synced Successfully!");
+// The ESP32's time system has been updated. You can use getLocalTime() to display it on the screen.
+}
+
+// Call this function only once when the WiFi connection is successfully established.
+void init_safe_ntp() {
+  static bool ntp_initialized = false;  // Flag, Prevent duplicate setup
+  
+  if (ntp_initialized) {
+    return;  // Jump if initialized
+  }
+  const long gmtOffset_sec = 25200;        //  GMT+7
+  const int daylightOffset_sec = 0;        // Daylight saving time
+  const char* ntpServer1 = "pool.ntp.org";  // Time server
+  const char* ntpServer2 = "time.nist.gov";  // Time server
+
+  sntp_set_time_sync_notification_cb(timeavailable_cb);
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2);
+  ntp_initialized = true;
+  logging.println("NTP Sync started in background...");
+}
+
 // Event handler for Wi-Fi Got IP
 void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   //clear disconnects events if we got a IP
@@ -211,11 +236,7 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   logging.print("IP address: ");
   logging.println(WiFi.localIP().toString());
 
-  const char* ntpServer = "pool.ntp.org";  // Time server
-  const long gmtOffset_sec = 25200;        //  GMT+7
-  const int daylightOffset_sec = 0;        // Daylight saving time
-
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  init_safe_ntp();
   logging.println("NTP Time Sync requested (Timezone: GMT+7).");
 }
 

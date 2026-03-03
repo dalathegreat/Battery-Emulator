@@ -2,8 +2,9 @@
 #define LED_H_
 
 #include "../../devboard/utils/types.h"
-//#include "../../lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
-#include <Adafruit_NeoPixel.h>
+//#include "../../src/lib/Adafruit_NeoPixel/Adafruit_NeoPixel.h"
+#include <src/lib/Adafruit_NeoPixel/Adafruit_NeoPixel.h>
+//#include <Adafruit_NeoPixel.h>
 
 class LED {
  public:

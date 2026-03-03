@@ -1,7 +1,9 @@
 #include "epaper_task.h"
 #include <Arduino.h>
-#include <GxEPD2_3C.h>
-#include <GxEPD2_BW.h>
+//#include <GxEPD2_3C.h>
+#include <src/lib/GxEPD2/src/GxEPD2_3C.h>
+//#include <GxEPD2_BW.h>
+#include <src/lib/GxEPD2/src/GxEPD2_BW.h>
 #include <WiFi.h>
 #include <esp_task_wdt.h>
 #include <time.h>

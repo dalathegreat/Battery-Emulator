@@ -6,13 +6,13 @@
 #include "../../inverter/InverterProtocol.h"
 
 // Load fonts
-#include <Fonts/FreeSans18pt7b.h>
-#include <Fonts/FreeSans9pt7b.h>
-#include <Fonts/FreeSansBold12pt7b.h>
-#include <Fonts/FreeSansBold18pt7b.h>
-#include <Fonts/FreeSansBold24pt7b.h>
-#include <Fonts/FreeSansBold9pt7b.h>
-#include "FreeSans6pt7b.h"
+#include "../../lib/Adafruit_GFX/Fonts/FreeSans18pt7b.h"
+#include "../../lib/Adafruit_GFX/Fonts/FreeSans9pt7b.h"
+#include "../../lib/Adafruit_GFX/Fonts/FreeSansBold12pt7b.h"
+#include "../../lib/Adafruit_GFX/Fonts/FreeSansBold18pt7b.h"
+#include "../../lib/Adafruit_GFX/Fonts/FreeSansBold24pt7b.h"
+#include "../../lib/Adafruit_GFX/Fonts/FreeSansBold9pt7b.h"
+#include "../../lib/Adafruit_GFX/Fonts/FreeSans6pt7b.h"
 
 // Theme structure for display colors
 struct UI_Theme {
@@ -404,7 +404,7 @@ void drawSharedDashboard(T* display, bool is_lcd) {
   display->setCursor(right_x, 60);
   display->print("BAT: " + raw_bat);
 
-  if (getLocalTime(&timeinfo)) {
+  if (getLocalTime(&timeinfo, 0)) {
     display->setCursor(right_x, 80);
     display->print("Updated");
     display->setCursor(right_x + 10, 100);
