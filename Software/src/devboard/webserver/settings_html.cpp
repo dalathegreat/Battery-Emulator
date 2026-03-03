@@ -226,6 +226,12 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_comm_interface);
   }
 
+  if (var == "CTATTEN") {
+    return options_for_enum_with_none(
+        (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_0db), name_for_adc_attenuation,
+        adc_attenuation_enum::ADC_0db);
+  }
+
   if (var == "EQSTOP") {
     return options_for_enum_with_none(
         (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
@@ -846,6 +852,18 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("GTWRHD") ? "checked" : "";
   }
 
+  if (var == "CTOFFSET") {
+    return String(settings.getUInt("CTOFFSET", 0));
+  }
+
+  if (var == "CTVNOM") {
+    return String(settings.getUInt("CTVNOM", 40));
+  }
+
+  if (var == "CTANOM") {
+    return String(settings.getUInt("CTANOM", 100));
+  }
+
   return String();
 }
 
@@ -1085,7 +1103,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="0"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
     form[data-charger="0"] .if-charger { display: none; }
-    form[data-SHUNTTYPE="0"] .if-shunt { display: none; }
+    form[data-shunttype="0"] .if-shunt,
+    form[data-shunttype="3"] .if-shunt { 
+      display: none; 
+    }
+    form[data-shunttype="0"] .if-ctclamp,
+    form[data-shunttype="1"] .if-ctclamp,
+    form[data-shunttype="2"] .if-ctclamp { 
+      display: none; 
+    }
+    form[data-shunttype="3"] .if-ctclamp { display: contents;}
+    
 
     form .if-cbms { display: none; }
     form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms, form[data-battery="41"] .if-cbms, form[data-battery="48"] .if-cbms, form[data-battery="49"] .if-cbms {
@@ -1445,7 +1473,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
-        <label>Shunt: </label><select name='SHUNTTYPE'>
+        <label>Shunt: </label><select name='shunttype'>
         %SHUNTTYPE%
         </select>
 
@@ -1455,7 +1483,28 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
+        <div class="if-ctclamp">
+          <label>CT Clamp offset (mV): </label>
+          <input type='number' name='CTOFFSET' value="%CTOFFSET%" 
+          min="0" max="1000" step="1"
+          title="Voltage offset required to calibrate 0A reading. " />
+
+          <label>CT Clamp nominal voltage (dV): </label>
+          <input type='number' name='CTVNOM' value="%CTVNOM%" 
+          min="0" max="500" step="1"
+          title="Nominal voltage of the CT Clamp x10. Integer only." />
+
+          <label>CT Clamp nominal current (A): </label>
+          <input type='number' name='CTANOM' value="%CTANOM%" 
+          min="0" max="200" step="1"
+          title="Nominal current of the CT Clamp. Integer only." />
+
+          <label>ESP32 pin attenuation: </label>
+          <select name='CTATTEN'>
+          %CTATTEN%
+          </select>
         </div>
+
         </div>
 
         <div class="settings-card">
