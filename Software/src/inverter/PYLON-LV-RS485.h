@@ -17,7 +17,7 @@ class PylonLV485InverterProtocol : public Rs485InverterProtocol {
   const int RS485_HEALTHY = 12;
   uint8_t incoming_message_counter = RS485_HEALTHY;
 
-  int baud_rate() { return 115200; }
+  int baud_rate() { return 9600; }
   // Protocol constants
   static constexpr uint8_t SOI = 0x7E;           // Start of frame
   static constexpr uint8_t EOI = 0x0D;           // End of frame (CR)
