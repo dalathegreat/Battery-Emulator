@@ -196,8 +196,10 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t STARTED = 0;
   static const uint8_t RUNNING_STEP_1 = 1;
   static const uint8_t RUNNING_STEP_2 = 2;
+  static const uint8_t RUNNING_STEP_3 = 3;
   uint8_t battery_type = NOT_DETERMINED_YET;
   uint8_t stateMachineClearCrash = NOT_RUNNING;
+  uint8_t stateMachineCalibrateSOC = NOT_RUNNING;
   uint8_t counter_50ms = 0;
   uint8_t counter_100ms = 0;
   uint8_t frame6_counter = 0xB;

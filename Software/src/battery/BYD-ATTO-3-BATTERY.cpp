@@ -298,8 +298,8 @@ void BydAttoBattery::
       datalayer_bydatto->UserRequestCrashReset = false;
     }
 
-    if (datalayer_bydatto->UserRequestCalibrateSOC) {
-      transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
+    if (datalayer_bydatto->UserRequestCalibrateSOC && stateMachineCalibrateSOC == NOT_RUNNING) {
+      stateMachineCalibrateSOC = STARTED;
       datalayer_bydatto->UserRequestCalibrateSOC = false;
     }
   }
@@ -552,8 +552,10 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     }
 
     transmit_can_frame(&ATTO_3_441);
+
     switch (stateMachineClearCrash) {
       case STARTED:
+        // DiagnosticSesssionControl enter extendedDiagnosticSession
         ATTO_3_7E7_CLEAR_CRASH.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
         transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
         stateMachineClearCrash = RUNNING_STEP_1;
@@ -567,6 +569,37 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         ATTO_3_7E7_CLEAR_CRASH.data = {0x03, 0x19, 0x02, 0x09, 0x00, 0x00, 0x00, 0x00};
         transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
         stateMachineClearCrash = NOT_RUNNING;
+        break;
+      case NOT_RUNNING:
+        break;
+      default:
+        break;
+    }
+    switch (stateMachineCalibrateSOC) {
+      case STARTED:
+        // DiagnosticSesssionControl enter extendedDiagnosticSession
+        ATTO_3_7E7_RESET_SOC.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+        transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
+        stateMachineCalibrateSOC = RUNNING_STEP_1;
+        break;
+      case RUNNING_STEP_1:
+        // SecurityAccess requestSeed
+        ATTO_3_7E7_RESET_SOC.data = {0x02, 0x27, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+        transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
+        stateMachineCalibrateSOC = RUNNING_STEP_2;
+        break;
+      case RUNNING_STEP_2:
+        // SecurityAccess sendKey, key = D8 BE (TODO, we should send correct key!)
+        ATTO_3_7E7_RESET_SOC.data = {0x04, 0x27, 0x02, 0xD8, 0xBE, 0x00, 0x00, 0x00};
+        transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
+        stateMachineCalibrateSOC = RUNNING_STEP_3;
+        break;
+      case RUNNING_STEP_3:
+        // WriteDataByIdentifier dataIdentifier=1F FC (calibrate SOC), data = 10 27 98 3A
+        ATTO_3_7E7_RESET_SOC.data = {0x07, 0x2E, 0x1F, 0xFC,
+                                     0x10, 0x27, 0x98, 0x3A};  //(2710 = 100.00% SOC), (3A98 = 150.00AH)
+        transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
+        stateMachineCalibrateSOC = NOT_RUNNING;
         break;
       case NOT_RUNNING:
         break;
@@ -694,7 +727,8 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         break;
     }
 
-    if (stateMachineClearCrash == NOT_RUNNING) {  //Don't poll battery for data if clear crash running
+    if ((stateMachineClearCrash == NOT_RUNNING) &&
+        (stateMachineCalibrateSOC == NOT_RUNNING)) {  //Don't poll battery for data if any diag ongoing
       transmit_can_frame(&ATTO_3_7E7_POLL);
     }
   }
