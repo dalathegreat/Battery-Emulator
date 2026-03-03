@@ -1503,6 +1503,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           <select name='CTATTEN'>
           %CTATTEN%
           </select>
+          </div>
         </div>
 
         </div>
