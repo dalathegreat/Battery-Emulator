@@ -10,7 +10,12 @@
 #include "Arduino.h"
 #include "CHADEMO-BATTERY.h"
 #include "Shunt.h"
+#ifndef UNIT_TEST
 #include "hal/adc_types.h"
+#else
+// Stubs for unit test environment
+typedef enum { ADC_0db = 0, ADC_2_5db, ADC_6db, ADC_11db } adc_attenuation_t;
+#endif
 
 // Ensure valid values at run-time
 // User can update all these values via Settings page
