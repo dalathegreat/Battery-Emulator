@@ -39,7 +39,7 @@ class BydAttoBattery : public CanBattery {
   bool supports_charged_energy() { return true; }
   bool supports_reset_crash() { return true; }
   void reset_crash() { datalayer_bydatto->UserRequestCrashReset = true; }
-  bool supports_calibrate_SOC() { return true; }
+  //bool supports_calibrate_SOC() { return true; } //TODO, requires elevated service access which we do not have yet
   void reset_SOC() { datalayer_bydatto->UserRequestCalibrateSOC = true; }
 
   // Toggle SOC method in UI is only enabled if we initially use measured SOC
