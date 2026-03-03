@@ -119,9 +119,6 @@ struct DATALAYER_INFO_BMWIX {
 };
 
 struct DATALAYER_INFO_BYDATTO3 {
-  uint32_t unknown0 = 0;  //Unknown polled value
-  uint32_t unknown1 = 0;  //Unknown polled value
-
   /** SOC% estimate. Estimated from total pack voltage */
   uint16_t SOC_estimated = 0;
   /** SOC% raw battery value. Highprecision. Can be locked if pack is crashed */
@@ -140,6 +137,10 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint16_t total_charged_kwh = 0;
   uint16_t total_discharged_kwh = 0;
   uint16_t times_full_power = 0;
+  uint16_t BMS_capacity_original_calibration = 0;
+  uint16_t BMC_SOC_original_calibration = 0;
+  uint16_t BMS_capacity_current_calibration = 0;
+  uint16_t BMC_SOC_current_calibration = 0;
 
   /** int16_t */
   /** All the temperature sensors inside the battery pack*/

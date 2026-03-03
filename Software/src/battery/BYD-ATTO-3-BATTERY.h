@@ -59,9 +59,6 @@ class BydAttoBattery : public CanBattery {
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
 
-  uint32_t BMS_unknown0 = 0;
-  uint32_t BMS_unknown1 = 0;
-
   static const bool SOC_ESTIMATED = 0;
   static const bool SOC_MEASURED = 1;
 
@@ -72,8 +69,8 @@ class BydAttoBattery : public CanBattery {
   static const int POLL_FOR_BATTERY_PACK_AVG_TEMP = 0x0032;
   static const int POLL_FOR_BATTERY_CELL_MV_MAX = 0x002D;
   static const int POLL_FOR_BATTERY_CELL_MV_MIN = 0x002B;
-  static const int UNKNOWN_POLL_0 = 0x1FFE;  //= 0x64 19 C4 3B
-  static const int UNKNOWN_POLL_1 = 0x1FFC;  //= 0x72 1F C4 3B
+  static const int POLL_FOR_ORIGINAL_CALIBRATION = 0x1FFE;
+  static const int POLL_FOR_CURRENT_CALIBRATION = 0x1FFC;
   static const int POLL_MAX_CHARGE_POWER = 0x000A;
   static const int POLL_CHARGE_TIMES =
       0x000B;  // Using Carscanner name for now. Likely a counter for BMS 100% SOC calibration
@@ -177,6 +174,10 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMS_total_charged_kwh = 0;
   uint16_t BMS_total_discharged_kwh = 0;
   uint16_t BMS_times_full_power = 0;
+  uint16_t BMS_capacity_original_calibration = 0;
+  uint16_t BMC_SOC_original_calibration = 0;
+  uint16_t BMS_capacity_current_calibration = 0;
+  uint16_t BMC_SOC_current_calibration = 0;
 
   int16_t battery_temperature_ambient = 0;
   int16_t battery_lowest_temperature = 0;

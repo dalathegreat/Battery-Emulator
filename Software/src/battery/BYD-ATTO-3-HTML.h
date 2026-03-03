@@ -42,8 +42,10 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Total discharged: " + String(byd_datalayer->total_discharged_ah) + " Ah</h4>";
     content += "<h4>Charge times: " + String(byd_datalayer->charge_times) + "</h4>";
     content += "<h4>Times of full power: " + String(byd_datalayer->times_full_power) + "</h4>";
-    content += "<h4>Unknown0: " + String(byd_datalayer->unknown0) + "</h4>";
-    content += "<h4>Unknown1: " + String(byd_datalayer->unknown1) + "</h4>";
+    content += "<h4>Capacity orignal: " + String(byd_datalayer->BMS_capacity_original_calibration) + "AH+2</h4>";
+    content += "<h4>Capacity current: " + String(byd_datalayer->BMS_capacity_current_calibration) + "AH+2</h4>";
+    content += "<h4>SOC original: " + String(byd_datalayer->BMC_SOC_original_calibration) + "&percnt;</h4>";
+    content += "<h4>SOC current: " + String(byd_datalayer->BMC_SOC_current_calibration) + "&percnt;</h4>";
     content += "<h4>Unknown10: " + String(byd_datalayer->unknown10) + "</h4>";
     content += "<h4>Unknown11: " + String(byd_datalayer->unknown11) + "</h4>";
     content += "<h4>Unknown12: " + String(byd_datalayer->unknown12) + "</h4>";
