@@ -24,12 +24,12 @@ uint8_t BmwI3Battery::increment_alive_counter(uint8_t counter) {
   return counter;
 }
 
-void BmwI3Battery::initiate_offline_balancing() {
+void BmwI3Battery::initiate_balancing() {
   UserRequestBalancing = REQUESTED;
   UserRequestBalancingMillis = millis();
 }
 
-void BmwI3Battery::end_offline_balancing() {
+void BmwI3Battery::end_balancing() {
   UserRequestBalancing = NONE;
   UserRequestBalancingMillis = 0;
   cmdState = SOC;
