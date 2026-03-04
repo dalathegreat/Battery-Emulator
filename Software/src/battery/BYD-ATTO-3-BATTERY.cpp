@@ -431,7 +431,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x7EF:  //OBD2 PID reply from battery
       if ((rx_frame.data.u8[0] == 0x04) && (rx_frame.data.u8[1] == 0x67) && (rx_frame.data.u8[2] == 0x01)) {
         seed = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        solvedKey = byd_generate_key(seed, 0xbd);  //For now key can be either 0xbd or 0x64, 50/50 of guessing right
+        solvedKey = byd_generate_key(seed, 0x63);  //For now key can be either 0xbd or 0x63, 50/50 of guessing right
       }
       if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F)) {
         servicemode = REJECTED;
