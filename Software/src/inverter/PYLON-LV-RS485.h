@@ -19,21 +19,22 @@ class PylonLV485InverterProtocol : public Rs485InverterProtocol {
 
   int baud_rate() { return 9600; }
   // Protocol constants
-  static constexpr uint8_t SOI = 0x7E;           // Start of frame
+  static constexpr uint8_t SOI = 0x7E;           // Start of frame '~'
   static constexpr uint8_t EOI = 0x0D;           // End of frame (CR)
   static constexpr uint8_t CID1_BATTERY = 0x46;  // Battery data group
 
-  // Frame positions
-  enum FramePos {
-    POS_SOI = 0,
-    POS_VER = 1,
-    POS_ADR_H = 2,
-    POS_ADR_L = 3,
-    POS_CID1 = 4,
-    POS_CID2 = 5,
-    POS_LEN_H = 6,
-    POS_LEN_L = 7,
-    POS_INFO_START = 8
+  // CID2 command codes (from PDF page 10-11)
+  enum CommandCode {
+    CMD_GET_ANALOG_VALUE = 0x42,
+    CMD_GET_ALARM_INFO = 0x44,
+    CMD_GET_SYSTEM_PARAM = 0x47,
+    CMD_GET_PROTOCOL_VERSION = 0x4F,
+    CMD_GET_MANUFACTURER_INFO = 0x51,
+    CMD_GET_CHARGE_DISCHARGE_INFO = 0x92,
+    CMD_GET_SERIAL_NUMBER = 0x93,
+    CMD_SET_CHARGE_DISCHARGE_INFO = 0x94,
+    CMD_TURN_OFF = 0x95,
+    CMD_GET_SOFTWARE_VERSION = 0x96
   };
 
   // Response codes
@@ -57,6 +58,7 @@ class PylonLV485InverterProtocol : public Rs485InverterProtocol {
   // Timing
   unsigned long currentMillis = 0;
   unsigned long last_command_time = 0;
+  unsigned long last_debug_time = 0;
 
   // Status bits
   uint8_t status1 = 0x00;
@@ -88,10 +90,15 @@ class PylonLV485InverterProtocol : public Rs485InverterProtocol {
 
   // Helper functions
   uint8_t ascii_to_hex(uint8_t high, uint8_t low);
+  uint8_t hex_to_ascii_high(uint8_t value);
+  uint8_t hex_to_ascii_low(uint8_t value);
+  void append_ascii_byte(uint8_t* buffer, uint16_t& pos, uint8_t value);
+  void append_ascii_word(uint8_t* buffer, uint16_t& pos, uint16_t value);
   uint16_t calculate_lchksum(uint16_t lenid);
   uint16_t calculate_chksum(const uint8_t* frame, uint16_t len);
   void send_response(uint8_t adr, uint8_t rtn, const uint8_t* data, uint16_t data_len);
   void send_error_response(uint8_t adr, uint8_t rtn);
+  void debug_print_frame(const char* direction, const uint8_t* frame, uint16_t len);
 
   // Command handlers
   void handle_get_protocol_version(uint8_t adr);
@@ -104,12 +111,6 @@ class PylonLV485InverterProtocol : public Rs485InverterProtocol {
   void handle_set_charge_discharge_info(uint8_t adr, const uint8_t* data, uint16_t len);
   void handle_turn_off(uint8_t adr, uint8_t command);
   void handle_get_software_version(uint8_t adr, uint8_t command);
-
-  // Data conversion helpers
-  uint8_t hex_to_ascii_high(uint8_t value);
-  uint8_t hex_to_ascii_low(uint8_t value);
-  void append_ascii_byte(uint8_t* buffer, uint16_t& pos, uint8_t value);
-  void append_ascii_word(uint8_t* buffer, uint16_t& pos, uint16_t value);
 };
 
 #endif

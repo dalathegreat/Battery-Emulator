@@ -20,6 +20,22 @@ bool PylonLV485InverterProtocol::setup(void) {  // Performs one time setup at st
   return true;
 }
 
+void PylonLV485InverterProtocol::debug_print_frame(const char* direction, const uint8_t* frame, uint16_t len) {
+  logging.print(direction);
+  logging.print(": ");
+  for (uint16_t i = 0; i < len; i++) {
+    if (frame[i] >= 0x20 && frame[i] <= 0x7E) {
+      logging.print((char)frame[i]);
+    } else {
+      logging.print("\\x");
+      if (frame[i] < 0x10)
+        logging.print("0");
+      logging.print(frame[i], HEX);
+    }
+  }
+  logging.println();
+}
+
 uint8_t PylonLV485InverterProtocol::ascii_to_hex(uint8_t high, uint8_t low) {
   uint8_t result = 0;
 
@@ -61,7 +77,7 @@ void PylonLV485InverterProtocol::append_ascii_word(uint8_t* buffer, uint16_t& po
 }
 
 uint16_t PylonLV485InverterProtocol::calculate_lchksum(uint16_t lenid) {
-  // D11D10D9D8 + D7D6D5D4 + D3D2D1D0, then mod 16, invert, +1
+  // From PDF page 8: D11D10D9D8 + D7D6D5D4 + D3D2D1D0, sum, mod 16, invert, +1
   uint16_t d11d8 = (lenid >> 8) & 0x0F;
   uint16_t d7d4 = (lenid >> 4) & 0x0F;
   uint16_t d3d0 = lenid & 0x0F;
@@ -74,6 +90,7 @@ uint16_t PylonLV485InverterProtocol::calculate_lchksum(uint16_t lenid) {
 }
 
 uint16_t PylonLV485InverterProtocol::calculate_chksum(const uint8_t* frame, uint16_t len) {
+  // From PDF page 9: Sum ASCII values, mod 65536, invert, +1
   uint32_t sum = 0;
   for (uint16_t i = 0; i < len; i++) {
     sum += frame[i];
@@ -90,46 +107,36 @@ void PylonLV485InverterProtocol::send_response(uint8_t adr, uint8_t rtn, const u
   response[pos++] = SOI;
 
   // VER (protocol version 2.1 = 0x21)
-  response[pos++] = '2';
-  response[pos++] = '1';
+  append_ascii_byte(response, pos, 0x21);
 
-  // ADR (2 bytes ASCII)
-  response[pos++] = hex_to_ascii_high(adr);
-  response[pos++] = hex_to_ascii_low(adr);
+  // ADR
+  append_ascii_byte(response, pos, adr);
 
   // CID1 (always 0x46 for battery data)
-  response[pos++] = '4';
-  response[pos++] = '6';
+  append_ascii_byte(response, pos, CID1_BATTERY);
 
   // CID2 (response code)
-  response[pos++] = hex_to_ascii_high(rtn);
-  response[pos++] = hex_to_ascii_low(rtn);
+  append_ascii_byte(response, pos, rtn);
 
-  // LENGTH (including LENID and LCHKSUM)
-  uint16_t info_ascii_len = data_len * 2;  // Each byte becomes 2 ASCII chars
-  uint16_t lenid = info_ascii_len;
-  uint16_t length_with_chksum = calculate_lchksum(lenid);
+  // LENGTH
+  uint16_t info_ascii_len = data_len * 2;  // Each data byte becomes 2 ASCII chars
+  uint16_t length_with_chksum = calculate_lchksum(info_ascii_len);
+  append_ascii_word(response, pos, length_with_chksum);
 
-  response[pos++] = hex_to_ascii_high((length_with_chksum >> 8) & 0xFF);
-  response[pos++] = hex_to_ascii_low((length_with_chksum >> 8) & 0xFF);
-  response[pos++] = hex_to_ascii_high(length_with_chksum & 0xFF);
-  response[pos++] = hex_to_ascii_low(length_with_chksum & 0xFF);
-
-  // INFO (data in ASCII format)
+  // INFO data
   for (uint16_t i = 0; i < data_len; i++) {
-    response[pos++] = hex_to_ascii_high(data[i]);
-    response[pos++] = hex_to_ascii_low(data[i]);
+    append_ascii_byte(response, pos, data[i]);
   }
 
   // CHKSUM (excluding SOI, EOI, and CHKSUM itself)
   uint16_t chksum = calculate_chksum(&response[1], pos - 1);
-  response[pos++] = hex_to_ascii_high((chksum >> 8) & 0xFF);
-  response[pos++] = hex_to_ascii_low((chksum >> 8) & 0xFF);
-  response[pos++] = hex_to_ascii_high(chksum & 0xFF);
-  response[pos++] = hex_to_ascii_low(chksum & 0xFF);
+  append_ascii_word(response, pos, chksum);
 
   // EOI
   response[pos++] = EOI;
+
+  // Debug output
+  debug_print_frame("SEND", response, pos);
 
   // Send response
   Serial2.write(response, pos);
@@ -139,31 +146,33 @@ void PylonLV485InverterProtocol::send_error_response(uint8_t adr, uint8_t rtn) {
   send_response(adr, rtn, nullptr, 0);
 }
 
+// Command handlers
 void PylonLV485InverterProtocol::handle_get_protocol_version(uint8_t adr) {
-  // Protocol version 2.1
+  logging.println("Handling get protocol version");
   send_response(adr, RTN_NORMAL, nullptr, 0);
 }
 
 void PylonLV485InverterProtocol::handle_get_manufacturer_info(uint8_t adr) {
-  uint8_t data[32] = {0};
+  logging.println("Handling get manufacturer info");
+  uint8_t data[64] = {0};
   uint16_t pos = 0;
 
-  // Battery name (10 bytes ASCII)
-  const char* name = "PYLON";
+  // Device name (10 bytes)
+  const char* name = "US2000B";
   for (int i = 0; i < 10; i++) {
-    data[pos++] = (i < strlen(name)) ? name[i] : ' ';
+    data[pos++] = (i < (int)strlen(name)) ? name[i] : ' ';
   }
 
-  // Software version (23 bytes ASCII)
-  const char* sw_version = "V3.3";
+  // Software version (23 bytes)
+  const char* sw_version = "V3.3 20210821";
   for (int i = 0; i < 23; i++) {
-    data[pos++] = (i < strlen(sw_version)) ? sw_version[i] : ' ';
+    data[pos++] = (i < (int)strlen(sw_version)) ? sw_version[i] : ' ';
   }
 
-  // Manufacturer name (20 bytes ASCII)
-  const char* manufacturer = "PYLONTECH";
+  // Manufacturer name (20 bytes)
+  const char* manufacturer = "PYLONTECH CO.,LTD";
   for (int i = 0; i < 20; i++) {
-    data[pos++] = (i < strlen(manufacturer)) ? manufacturer[i] : ' ';
+    data[pos++] = (i < (int)strlen(manufacturer)) ? manufacturer[i] : ' ';
   }
 
   send_response(adr, RTN_NORMAL, data, pos);
@@ -235,6 +244,7 @@ void PylonLV485InverterProtocol::handle_get_analog_value(uint8_t adr, uint8_t co
 }
 
 void PylonLV485InverterProtocol::handle_get_system_parameter(uint8_t adr) {
+  logging.println("Handling get system parameter");
   uint8_t data[48];
   uint16_t pos = 0;
 
@@ -290,6 +300,8 @@ void PylonLV485InverterProtocol::handle_get_system_parameter(uint8_t adr) {
 }
 
 void PylonLV485InverterProtocol::handle_get_alarm_info(uint8_t adr, uint8_t command) {
+  logging.print("Handling get alarm info, command=0x");
+  logging.println(command, HEX);
   uint8_t data[256];
   uint16_t pos = 0;
 
@@ -341,6 +353,7 @@ void PylonLV485InverterProtocol::handle_get_alarm_info(uint8_t adr, uint8_t comm
 }
 
 void PylonLV485InverterProtocol::handle_get_charge_discharge_info(uint8_t adr, uint8_t command) {
+  logging.println("Handling get charge/discharge info");
   uint8_t data[10];
   uint16_t pos = 0;
 
@@ -369,6 +382,7 @@ void PylonLV485InverterProtocol::handle_get_charge_discharge_info(uint8_t adr, u
 }
 
 void PylonLV485InverterProtocol::handle_get_serial_number(uint8_t adr, uint8_t command) {
+  logging.println("Handling get serial number");
   uint8_t data[17];
   uint16_t pos = 0;
 
@@ -384,13 +398,14 @@ void PylonLV485InverterProtocol::handle_get_serial_number(uint8_t adr, uint8_t c
 }
 
 void PylonLV485InverterProtocol::handle_set_charge_discharge_info(uint8_t adr, const uint8_t* data, uint16_t len) {
+  logging.println("Handling set charge/discharge info");
   if (len >= 9) {
     // Parse and update settings
     charge_voltage_limit = (data[1] << 8) | data[2];
     discharge_voltage_limit = (data[3] << 8) | data[4];
     max_charge_current = (data[5] << 8) | data[6];
     max_discharge_current = (data[7] << 8) | data[8];
-
+    logging.print("Updated charge voltage limit");
     // Note: According to protocol, this command needs to be sent periodically
     // If not received for 10 seconds, battery reverts to automatic settings
     last_command_time = millis();
@@ -400,11 +415,13 @@ void PylonLV485InverterProtocol::handle_set_charge_discharge_info(uint8_t adr, c
 }
 
 void PylonLV485InverterProtocol::handle_turn_off(uint8_t adr, uint8_t command) {
+  logging.println("Handling turn off command");
   // Implement shutdown logic here
   send_response(adr, RTN_NORMAL, nullptr, 0);
 }
 
 void PylonLV485InverterProtocol::handle_get_software_version(uint8_t adr, uint8_t command) {
+  logging.println("Handling get software version");
   uint8_t data[6];
   uint16_t pos = 0;
 
@@ -424,6 +441,12 @@ void PylonLV485InverterProtocol::handle_get_software_version(uint8_t adr, uint8_
 void PylonLV485InverterProtocol::receive() {
   currentMillis = millis();
 
+  // Debug heartbeat every 5 seconds
+  if (currentMillis - last_debug_time > 5000) {
+    logging.println("PylonLV485 protocol running...");
+    last_debug_time = currentMillis;
+  }
+
   while (Serial2.available()) {
     uint8_t byte = Serial2.read();
 
@@ -433,107 +456,113 @@ void PylonLV485InverterProtocol::receive() {
       rx_index = 0;
       rx_buffer[rx_index++] = byte;
     } else if (byte == EOI && rx_index > 0) {
-      // End of frame - process it
+      // End of frame
       rx_buffer[rx_index++] = byte;
 
-      // Minimum frame length: SOI(1) + VER(2) + ADR(2) + CID1(2) + CID2(2) + LENGTH(4) + CHKSUM(4) + EOI(1) = 18 bytes
+      // Process frame
+      debug_print_frame("RECV", rx_buffer, rx_index);
+
+      // Minimum frame length check
       if (rx_index >= 18) {
-        // Parse frame
-        //uint8_t ver_high = rx_buffer[1];
-        //uint8_t ver_low = rx_buffer[2];
-        uint8_t adr_high = rx_buffer[3];
-        uint8_t adr_low = rx_buffer[4];
-        uint8_t cid1_high = rx_buffer[5];
-        uint8_t cid1_low = rx_buffer[6];
-        uint8_t cid2_high = rx_buffer[7];
-        uint8_t cid2_low = rx_buffer[8];
-        uint8_t len_high_high = rx_buffer[9];
-        uint8_t len_high_low = rx_buffer[10];
-        uint8_t len_low_high = rx_buffer[11];
-        uint8_t len_low_low = rx_buffer[12];
+        // Parse frame (positions from PDF page 6)
+        // SOI(1) + VER(2) + ADR(2) + CID1(2) + CID2(2) + LENGTH(4) + INFO(n) + CHKSUM(4) + EOI(1)
 
-        uint8_t adr = ascii_to_hex(adr_high, adr_low);
-        uint8_t cid1 = ascii_to_hex(cid1_high, cid1_low);
-        uint8_t cid2 = ascii_to_hex(cid2_high, cid2_low);
+        // Extract fields
+        uint8_t ver = ascii_to_hex(rx_buffer[1], rx_buffer[2]);
+        uint8_t adr = ascii_to_hex(rx_buffer[3], rx_buffer[4]);
+        uint8_t cid1 = ascii_to_hex(rx_buffer[5], rx_buffer[6]);
+        uint8_t cid2 = ascii_to_hex(rx_buffer[7], rx_buffer[8]);
 
-        // Verify CID1 is battery data
+        // Get LENGTH field
+        uint16_t len_high = ascii_to_hex(rx_buffer[9], rx_buffer[10]);
+        uint16_t len_low = ascii_to_hex(rx_buffer[11], rx_buffer[12]);
+        uint16_t length = (len_high << 8) | len_low;
+        uint16_t info_ascii_len = length & 0x0FFF;  // Lower 12 bits are LENID
+
+        logging.print("Frame: VER=0x");
+        logging.print(ver, HEX);
+        logging.print(" ADR=0x");
+        logging.print(adr, HEX);
+        logging.print(" CID1=0x");
+        logging.print(cid1, HEX);
+        logging.print(" CID2=0x");
+        logging.print(cid2, HEX);
+        logging.print(" LENID=");
+        logging.println(info_ascii_len);
+
+        // Verify CID1
         if (cid1 != CID1_BATTERY) {
+          logging.println("Invalid CID1");
           continue;
         }
 
-        // Extract INFO data if present
+        // Extract INFO data
         uint8_t info_data[256];
         uint16_t info_len = 0;
 
-        // Calculate INFO length from LENGTH field
-        uint16_t length_high = (ascii_to_hex(len_high_high, len_high_low) << 8);
-        uint16_t length_low = ascii_to_hex(len_low_high, len_low_low);
-        uint16_t length = length_high | length_low;
-        uint16_t info_ascii_len = length & 0x0FFF;  // Lower 12 bits are LENID
-
-        // Extract INFO bytes (each byte is 2 ASCII chars)
         for (int i = 0; i < info_ascii_len / 2; i++) {
           uint8_t high = rx_buffer[13 + i * 2];
           uint8_t low = rx_buffer[13 + i * 2 + 1];
           info_data[info_len++] = ascii_to_hex(high, low);
         }
 
-        // Handle command based on CID2
+        // Handle command
         switch (cid2) {
-          case 0x4F:  // Get protocol version
+          case CMD_GET_PROTOCOL_VERSION:
             handle_get_protocol_version(adr);
             break;
 
-          case 0x51:  // Get manufacturer info
+          case CMD_GET_MANUFACTURER_INFO:
             handle_get_manufacturer_info(adr);
             break;
 
-          case 0x42:  // Get analog value
+          case CMD_GET_ANALOG_VALUE:
             if (info_len >= 1) {
               handle_get_analog_value(adr, info_data[0]);
             }
             break;
 
-          case 0x47:  // Get system parameter
+          case CMD_GET_SYSTEM_PARAM:
             handle_get_system_parameter(adr);
             break;
 
-          case 0x44:  // Get alarm info
+          case CMD_GET_ALARM_INFO:
             if (info_len >= 1) {
               handle_get_alarm_info(adr, info_data[0]);
             }
             break;
 
-          case 0x92:  // Get charge/discharge management info
+          case CMD_GET_CHARGE_DISCHARGE_INFO:
             if (info_len >= 1) {
               handle_get_charge_discharge_info(adr, info_data[0]);
             }
             break;
 
-          case 0x93:  // Get serial number
+          case CMD_GET_SERIAL_NUMBER:
             if (info_len >= 1) {
               handle_get_serial_number(adr, info_data[0]);
             }
             break;
 
-          case 0x94:  // Set charge/discharge management info
+          case CMD_SET_CHARGE_DISCHARGE_INFO:
             handle_set_charge_discharge_info(adr, info_data, info_len);
             break;
 
-          case 0x95:  // Turn off
+          case CMD_TURN_OFF:
             if (info_len >= 1) {
               handle_turn_off(adr, info_data[0]);
             }
             break;
 
-          case 0x96:  // Get software version
+          case CMD_GET_SOFTWARE_VERSION:
             if (info_len >= 1) {
               handle_get_software_version(adr, info_data[0]);
             }
             break;
 
           default:
-            // Unknown command
+            logging.print("Unknown CID2: 0x");
+            logging.println(cid2, HEX);
             send_error_response(adr, RTN_CID2_INVALID);
             break;
         }
@@ -541,10 +570,9 @@ void PylonLV485InverterProtocol::receive() {
 
       rx_index = 0;
     } else if (rx_index < RX_BUFFER_SIZE - 1) {
-      // Add byte to buffer
       rx_buffer[rx_index++] = byte;
     } else {
-      // Buffer overflow, reset
+      logging.println("RX buffer overflow");
       rx_index = 0;
     }
   }
