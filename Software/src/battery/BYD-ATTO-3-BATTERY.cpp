@@ -611,7 +611,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     switch (stateMachineCalibrateSOC) {
       case STARTED:
         // DiagnosticSesssionControl enter extendedDiagnosticSession
-        ATTO_3_7E7_RESET_SOC.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+        ATTO_3_7E7_RESET_SOC.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
         transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
         stateMachineCalibrateSOC = RUNNING_STEP_1;
         break;
