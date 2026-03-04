@@ -39,7 +39,7 @@ class BydAttoBattery : public CanBattery {
   bool supports_charged_energy() { return true; }
   bool supports_reset_crash() { return true; }
   void reset_crash() { datalayer_bydatto->UserRequestCrashReset = true; }
-  //bool supports_calibrate_SOC() { return true; } //TODO, requires elevated service access which we do not have yet
+  bool supports_calibrate_SOC() { return true; }
   void reset_SOC() { datalayer_bydatto->UserRequestCalibrateSOC = true; }
 
   // Toggle SOC method in UI is only enabled if we initially use measured SOC
@@ -178,6 +178,8 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMC_SOC_original_calibration = 0;
   uint16_t BMS_capacity_current_calibration = 0;
   uint16_t BMC_SOC_current_calibration = 0;
+  uint16_t seed = 0;
+  uint16_t solvedKey = 0;
 
   int16_t battery_temperature_ambient = 0;
   int16_t battery_lowest_temperature = 0;
@@ -210,6 +212,8 @@ class BydAttoBattery : public CanBattery {
   uint8_t BMS_unknown12 = 0;
   uint8_t BMS_unknown13 = 0;
   uint8_t battery_frame_index = 0;
+  uint8_t discharge_status = 0;
+  uint8_t increaseTimeoutSOC = 0;
 
   bool SOC_method = false;
   bool BMS_voltage_available = false;
@@ -217,6 +221,17 @@ class BydAttoBattery : public CanBattery {
   int16_t battery_daughterboard_temperatures[10];
   uint16_t battery_cellvoltages[CELLCOUNT_EXTENDED] = {0};
 
+  /* Extra CAN info 
+  - 0x40D supposedly has vehicle model in frame1
+  - 0x2B6 contains date in frame0-6
+  - 
+  
+    */
+
+  /*12D 
+  - Byte0(bits7:6) = IG1 Relay state
+  - Byte1(bits3:2) = IG3 Relay state
+  - Byte1(bits5:4) = IG4 Relay state*/
   CAN_frame ATTO_3_12D = {.FD = false,
                           .ext_ID = false,
                           .DLC = 8,

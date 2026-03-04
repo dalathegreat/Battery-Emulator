@@ -18,6 +18,21 @@ const uint16_t voltage_standard[numPoints] = {3570, 3552, 3485, 3464, 3443, 3439
                                               3425, 3412, 3400, 3396, 3392, 3391, 3390, 3382, 3375, 3362,
                                               3350, 3332, 3315, 3282, 3250, 3195, 3170, 3140};
 
+// BYD UDS 0x27 Seed-to-Key Algorithm (Endian-Safe)
+uint16_t byd_generate_key(uint16_t seed, uint32_t keyK) {
+  // Step 1: XOR mixing
+  // By keeping everything in standard integer variables,
+  // bitwise shifts act on the logical value, ignoring hardware endianness.
+  uint32_t a = seed ^ (seed >> 1);
+  uint32_t b = keyK ^ (seed >> 2);
+
+  // Step 2: Calculate the result
+  uint32_t result = b ^ (a << 3);
+
+  // Step 3: Return the lower 16 bits
+  return (uint16_t)(result & 0xFFFF);
+}
+
 uint16_t estimateSOCextended(uint16_t packVoltage) {  // Linear interpolation function
   if (packVoltage >= voltage_extended[0]) {
     return SOC[0];
@@ -327,6 +342,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x344:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      discharge_status = (rx_frame.data.u8[1] & 0x03);
       break;
     case 0x345:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -409,6 +425,11 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EF:  //OBD2 PID reply from battery
+      if ((rx_frame.data.u8[0] == 0x04) && (rx_frame.data.u8[1] == 0x67) && (rx_frame.data.u8[2] == 0x01)) {
+        seed = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        solvedKey = byd_generate_key(seed, 0xbd);  //For now key can be either 0xbd or 0x64, 50/50 of guessing right
+      }
+
       if (rx_frame.data.u8[0] == 0x10) {
         transmit_can_frame(&ATTO_3_7E7_ACK);  //Send next line request
       }
@@ -589,10 +610,19 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         stateMachineCalibrateSOC = RUNNING_STEP_2;
         break;
       case RUNNING_STEP_2:
-        // SecurityAccess sendKey, key = D8 BE (TODO, we should send correct key!)
-        ATTO_3_7E7_RESET_SOC.data = {0x04, 0x27, 0x02, 0xD8, 0xBE, 0x00, 0x00, 0x00};
-        transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
-        stateMachineCalibrateSOC = RUNNING_STEP_3;
+        // SecurityAccess sendKey
+        if (solvedKey > 0) {  //Process once we have gotten the solved challenge
+          ATTO_3_7E7_RESET_SOC.data = {
+              0x04, 0x27, 0x02, (uint8_t)((solvedKey & 0xFF00) >> 8), (uint8_t)(solvedKey & 0x00FF), 0x00, 0x00, 0x00};
+          transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
+          stateMachineCalibrateSOC = RUNNING_STEP_3;
+        } else {
+          increaseTimeoutSOC++;
+          if (increaseTimeoutSOC > 250) {
+            increaseTimeoutSOC = 0;
+            stateMachineCalibrateSOC = NOT_RUNNING;
+          }
+        }
         break;
       case RUNNING_STEP_3:
         // WriteDataByIdentifier dataIdentifier=1F FC (calibrate SOC), data = 10 27 98 3A
