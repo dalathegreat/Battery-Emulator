@@ -50,7 +50,7 @@ PlatformIO is an extension that adds all the necessary functionality to VSCode.
       - Alternatively, you can use the checkmark icon in the blue status bar at the bottom of the VSCode window, or the keyboard shortcut Ctrl+Alt+B (Windows/Linux) / Cmd+Alt+B (macOS).
    - The build process will start. You can monitor the output in the integrated terminal. A successful build will end with ===== [SUCCESS] Took X.XX seconds =====.
 
-### 4. Uploading Code to Board via USB
+### 4. OptionA: Uploading Code to Board via USB
 
 - Connect your Battery-Emulator hardware to your computer using a USB cable.
 - Select the right board type (Stark, LilyGo)
@@ -64,6 +64,14 @@ PlatformIO is an extension that adds all the necessary functionality to VSCode.
    - Go to Quick Access > PIO > Upload.
    - Alternatively, use the right-arrow icon (→) in the blue status bar at the bottom of the VSCode window, or the keyboard shortcut Ctrl+Alt+U (Windows/Linux) / Cmd+Alt+U (macOS).
 - The upload process will begin. The board may reset automatically. A successful upload will end with ===== [SUCCESS] Took X.XX seconds =====.
+
+### 4. OptionB: Uploading Code via OTA
+
+- If you already have Battery-Emulator installed on the board, you can OTA update the board with the built file
+- Build the project for your hardware
+- Navigate to the folder (Stark used as example) : /Battery-Emulator/.pio/build/stark_330
+- Take the firmware.bin file
+- [OTA update](https://github.com/dalathegreat/Battery-Emulator/wiki/OTA-Update) the board with this file
 
 ### ⚠️ Troubleshooting & Tips
 
