@@ -19,40 +19,39 @@ class PylonLV485InverterProtocol : public Rs485InverterProtocol {
 
   int baud_rate() { return 9600; }
   // Binary mode frame types based on your log
-    enum BinaryFrameType {
-        FRAME_UNKNOWN = 0,
-        FRAME_201 = 0x201,  // Pattern starting with 0x10 0x08
-        FRAME_202 = 0x202,
-        FRAME_203 = 0x203,
-        FRAME_204 = 0x204,
-        FRAME_205 = 0x205,
-        FRAME_206 = 0x206,
-        FRAME_210 = 0x210,  // Pattern starting with 0x0C
-        FRAME_211 = 0x211,
-        FRAME_212 = 0x212,
-        FRAME_213 = 0x213,
-        FRAME_246 = 0x246,  // Pattern with 0x3D (===)
-        FRAME_261 = 0x261,
-        FRAME_262 = 0x262,
-        FRAME_263 = 0x263,
-        FRAME_264 = 0x264
-    };
-    
-    struct BinaryFrame {
-        uint16_t id;
-        uint8_t data[8];
-        uint8_t len;
-    };
-    
-    void process_binary_frame(const uint8_t* frame, uint16_t len);
-    void handle_binary_command(uint16_t frame_id, const uint8_t* data, uint8_t len);
+  enum BinaryFrameType {
+    FRAME_UNKNOWN = 0,
+    FRAME_201 = 0x201,  // Pattern starting with 0x10 0x08
+    FRAME_202 = 0x202,
+    FRAME_203 = 0x203,
+    FRAME_204 = 0x204,
+    FRAME_205 = 0x205,
+    FRAME_206 = 0x206,
+    FRAME_210 = 0x210,  // Pattern starting with 0x0C
+    FRAME_211 = 0x211,
+    FRAME_212 = 0x212,
+    FRAME_213 = 0x213,
+    FRAME_246 = 0x246,  // Pattern with 0x3D (===)
+    FRAME_261 = 0x261,
+    FRAME_262 = 0x262,
+    FRAME_263 = 0x263,
+    FRAME_264 = 0x264
+  };
 
-        // Mode detection
-    bool binary_mode = false;
-    bool mode_detected = false;
-    int ascii_frame_count = 0;
-    int binary_frame_count = 0;
+  struct BinaryFrame {
+    uint16_t id;
+    uint8_t data[8];
+    uint8_t len;
+  };
 
+  void process_binary_frame(const uint8_t* frame, uint16_t len);
+  void handle_binary_command(uint16_t frame_id, const uint8_t* data, uint8_t len);
+
+  // Mode detection
+  bool binary_mode = false;
+  bool mode_detected = false;
+  int ascii_frame_count = 0;
+  int binary_frame_count = 0;
 
   // Protocol constants
   static constexpr uint8_t SOI = 0x7E;           // Start of frame '~'
