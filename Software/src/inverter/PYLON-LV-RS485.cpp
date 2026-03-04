@@ -559,7 +559,13 @@ void PylonLV485InverterProtocol::receive() {
               handle_get_software_version(adr, info_data[0]);
             }
             break;
-
+          case CMD_UNKNOWN_61:
+          case CMD_UNKNOWN_63:
+            Serial.print("Handling unknown command: 0x");
+            Serial.println(cid2, HEX);
+            // Respond with success - these might be keepalive or discovery commands
+            send_response(adr, RTN_NORMAL, nullptr, 0);
+            break;
           default:
             logging.print("Unknown CID2: 0x");
             logging.println(cid2, HEX);

@@ -34,7 +34,10 @@ class PylonLV485InverterProtocol : public Rs485InverterProtocol {
     CMD_GET_SERIAL_NUMBER = 0x93,
     CMD_SET_CHARGE_DISCHARGE_INFO = 0x94,
     CMD_TURN_OFF = 0x95,
-    CMD_GET_SOFTWARE_VERSION = 0x96
+    CMD_GET_SOFTWARE_VERSION = 0x96,
+    // Unknown/proprietary commands - respond with success
+    CMD_UNKNOWN_61 = 0x61,
+    CMD_UNKNOWN_63 = 0x63
   };
 
   // Response codes
