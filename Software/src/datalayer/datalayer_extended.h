@@ -141,6 +141,8 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint16_t BMC_SOC_original_calibration = 0;
   uint16_t BMS_capacity_current_calibration = 0;
   uint16_t BMC_SOC_current_calibration = 0;
+  uint16_t seed = 0;
+  uint16_t solvedKey = 0;
 
   /** int16_t */
   /** All the temperature sensors inside the battery pack*/
@@ -150,6 +152,7 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint8_t unknown11 = 0;  //Unknown polled value
   uint8_t unknown12 = 0;  //Unknown polled value
   uint8_t unknown13 = 0;  //Unknown polled value
+  uint8_t servicemode = 0;
   /** bool */
   /** User requesting crash reset via WebUI*/
   bool UserRequestCrashReset = false;

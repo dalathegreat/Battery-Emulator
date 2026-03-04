@@ -214,6 +214,9 @@ class BydAttoBattery : public CanBattery {
   uint8_t battery_frame_index = 0;
   uint8_t discharge_status = 0;
   uint8_t increaseTimeoutSOC = 0;
+  static const uint8_t REJECTED = 1;
+  static const uint8_t APPROVED = 2;
+  uint8_t servicemode = NOT_DETERMINED_YET;
 
   bool SOC_method = false;
   bool BMS_voltage_available = false;

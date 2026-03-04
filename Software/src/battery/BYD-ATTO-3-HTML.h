@@ -50,6 +50,15 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Unknown11: " + String(byd_datalayer->unknown11) + "</h4>";
     content += "<h4>Unknown12: " + String(byd_datalayer->unknown12) + "</h4>";
     content += "<h4>Unknown13: " + String(byd_datalayer->unknown12) + "</h4>";
+    content += "<h4>Seed: " + String(byd_datalayer->seed) + "</h4>";
+    content += "<h4>SolvedKey: " + String(byd_datalayer->solvedKey) + "</h4>";
+    if (byd_datalayer->servicemode == 0) {
+      content += "<h4>ServiceMode: Not determined yet </h4>";
+    } else if (byd_datalayer->servicemode == 1) {
+      content += "<h4>ServiceMode: REJECTED </h4>";
+    } else if (byd_datalayer->servicemode == 2) {
+      content += "<h4>ServiceMode: APPROVED! </h4>";
+    }
 
     return content;
   }

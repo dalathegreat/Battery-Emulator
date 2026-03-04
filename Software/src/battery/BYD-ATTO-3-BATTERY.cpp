@@ -307,6 +307,10 @@ void BydAttoBattery::
     datalayer_bydatto->unknown12 = BMS_unknown12;
     datalayer_bydatto->unknown13 = BMS_unknown13;
 
+    datalayer_bydatto->seed = seed;
+    datalayer_bydatto->solvedKey = solvedKey;
+    datalayer_bydatto->servicemode = servicemode;
+
     // Update requests from webserver datalayer
     if (datalayer_bydatto->UserRequestCrashReset && stateMachineClearCrash == NOT_RUNNING) {
       stateMachineClearCrash = STARTED;
@@ -387,7 +391,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_daughterboard_temperatures[9] = (rx_frame.data.u8[4] - 40);
       }
       break;
-    case 0x43D:
+    case 0x43D:  //Cellvoltage monitoring, 54 frames for 160cells
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_frame_index = rx_frame.data.u8[0];
 
@@ -428,6 +432,14 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if ((rx_frame.data.u8[0] == 0x04) && (rx_frame.data.u8[1] == 0x67) && (rx_frame.data.u8[2] == 0x01)) {
         seed = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         solvedKey = byd_generate_key(seed, 0xbd);  //For now key can be either 0xbd or 0x64, 50/50 of guessing right
+      }
+      if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x27) &&
+          (rx_frame.data.u8[3] == 0x7F)) {
+        servicemode = REJECTED;
+      }
+      if ((rx_frame.data.u8[0] == 0x02) && (rx_frame.data.u8[1] == 0x67) && (rx_frame.data.u8[2] == 0x02) &&
+          (rx_frame.data.u8[3] == 0xAA)) {
+        servicemode = APPROVED;
       }
 
       if (rx_frame.data.u8[0] == 0x10) {
