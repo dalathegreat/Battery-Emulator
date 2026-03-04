@@ -52,6 +52,13 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     datalayer_battery->status.bms_status = STANDBY;
   }
 
+  // Map internal balancing state to datalayer balancing_status
+  if (UserRequestBalancing == NONE) {
+    datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
+  } else {
+    datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
+  }
+
   if (!battery_awake) {
     return;
   }
