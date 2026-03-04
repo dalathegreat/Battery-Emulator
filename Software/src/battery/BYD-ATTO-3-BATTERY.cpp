@@ -433,8 +433,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         seed = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         solvedKey = byd_generate_key(seed, 0xbd);  //For now key can be either 0xbd or 0x64, 50/50 of guessing right
       }
-      if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x27) &&
-          (rx_frame.data.u8[3] == 0x7F)) {
+      if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F)) {
         servicemode = REJECTED;
       }
       if ((rx_frame.data.u8[0] == 0x02) && (rx_frame.data.u8[1] == 0x67) && (rx_frame.data.u8[2] == 0x02) &&
