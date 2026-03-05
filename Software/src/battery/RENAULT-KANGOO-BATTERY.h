@@ -3,6 +3,8 @@
 
 #include "CanBattery.h"
 
+extern bool user_selected_use_estimated_SOC;
+
 class RenaultKangooBattery : public CanBattery {
  public:
   virtual void setup(void);
@@ -45,6 +47,7 @@ class RenaultKangooBattery : public CanBattery {
   uint8_t LB_HVBOC = 0;
   uint8_t LB_MaxInput_kW = 0;
   uint8_t LB_MaxOutput_kW = 0;
+  uint8_t pollgroup = 0;
 
   CAN_frame KANGOO_423 = {.FD = false,
                           .ext_ID = false,
@@ -55,11 +58,11 @@ class RenaultKangooBattery : public CanBattery {
   // Charging: 0x0B   0x1D  0x00  0x02  0xB2  0x20  0xB2  0xD9
   // Fastcharging: 0x07   0x1E  0x00  0x01  0x5D  0x20  0xB2  0xC7
   // Old hardcoded message: .data = {0x33, 0x00, 0xFF, 0xFF, 0x00, 0xE0, 0x00, 0x00}};
-  CAN_frame KANGOO_79B = {.FD = false,
-                          .ext_ID = false,
-                          .DLC = 8,
-                          .ID = 0x79B,
-                          .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0xE0, 0x00, 0x00}};
+  CAN_frame KANGOO_79B_Poll = {.FD = false,
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = 0x79B,
+                               .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame KANGOO_79B_Continue = {.FD = false,
                                    .ext_ID = false,
                                    .DLC = 8,
