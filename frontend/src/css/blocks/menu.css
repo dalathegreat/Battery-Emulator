@@ -1,0 +1,55 @@
+.menu {
+    min-width: 12rem;
+    top: 0;
+    background: linear-gradient(180deg, #2a2a2a, #111111) top no-repeat;
+    background-size: auto 700px;
+    padding: 1.25rem 12px;
+    gap: 0.5rem;
+}
+.menu > div {
+    min-height: calc(100vh - 110px);
+    position: sticky;
+    top: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.menu a {
+    display: inline-block;
+    padding: 0.6rem 17px;
+    border-radius: 0 6px 6px 0;
+    color: #eeeeee;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+}
+
+.menu a .badge {
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0rem 0.4rem 0.1rem;
+    border-radius: 12px;
+    margin-left: 0.3rem;
+}
+
+.menu a[data-cur] {
+    color: #ffffff;
+    background: #404040;
+    border-color: #3cddb2;
+}
+
+.menu .toggle {
+    cursor: pointer;
+    background: #434343;
+    padding: 0.6rem 17px;
+    border-radius: 0 6px 6px 0;
+    color: #eeeeee;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.menu .toggle input {
+    width: 1.5rem;
+    height: 1.5rem;
+    vertical-align: bottom;
+    margin-right: 0.8rem;
+}
