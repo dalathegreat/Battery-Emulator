@@ -72,19 +72,17 @@ class BydAttoBattery : public CanBattery {
   static const int POLL_FOR_ORIGINAL_CALIBRATION = 0x1FFE;
   static const int POLL_FOR_CURRENT_CALIBRATION = 0x1FFC;
   static const int POLL_MAX_CHARGE_POWER = 0x000A;
-  static const int POLL_CHARGE_TIMES =
-      0x000B;  // Using Carscanner name for now. Likely a counter for BMS 100% SOC calibration
+  static const int POLL_CHARGE_TIMES = 0x000B;  // Using Carscanner name for now.
   static const int POLL_MAX_DISCHARGE_POWER = 0x000E;
   static const int POLL_TOTAL_CHARGED_AH = 0x000F;
   static const int POLL_TOTAL_DISCHARGED_AH = 0x0010;
   static const int POLL_TOTAL_CHARGED_KWH = 0x0011;
   static const int POLL_TOTAL_DISCHARGED_KWH = 0x0012;
-  static const int POLL_TIMES_FULL_POWER =
-      0x0004;                                 // Using Carscanner name for now. Unknown what it means for the moment
-  static const int UNKNOWN_POLL_10 = 0x002A;  //= 0x5B
-  static const int UNKNOWN_POLL_11 = 0x002E;  //= 0x08 (probably module number, or cell number?)
-  static const int UNKNOWN_POLL_12 = 0x002C;  //= 0x43
-  static const int UNKNOWN_POLL_13 = 0x0030;  //= 0x01 (probably module number, or cell number?)
+  static const int POLL_TIMES_FULL_POWER = 0x0004;  // Using Carscanner name for now.
+  static const int POLL_MIN_CELL_VOLTAGE_NUMBER = 0x002A;
+  static const int POLL_MIN_TEMP_MODULE_NUMBER = 0x002E;
+  static const int POLL_MAX_CELL_VOLTAGE_NUMBER = 0x002C;
+  static const int POLL_MAX_TEMP_MODULE_NUMBER = 0x0030;
   static const int POLL_MODULE_1_LOWEST_MV_NUMBER = 0x016C;
   static const int POLL_MODULE_1_LOWEST_CELL_MV = 0x016D;
   static const int POLL_MODULE_1_HIGHEST_MV_NUMBER = 0x016E;
@@ -207,10 +205,10 @@ class BydAttoBattery : public CanBattery {
   uint8_t frame6_counter = 0xB;
   uint8_t frame7_counter = 0x5;
   uint8_t BMS_SOH = 99;
-  uint8_t BMS_unknown10 = 0;
-  uint8_t BMS_unknown11 = 0;
-  uint8_t BMS_unknown12 = 0;
-  uint8_t BMS_unknown13 = 0;
+  uint8_t BMS_min_cell_voltage_number = 0;
+  uint8_t BMS_min_temp_module_number = 0;
+  uint8_t BMS_max_cell_voltage_number = 0;
+  uint8_t BMS_max_temp_module_number = 0;
   uint8_t battery_frame_index = 0;
   uint8_t discharge_status = 0;
   uint8_t increaseTimeoutSOC = 0;

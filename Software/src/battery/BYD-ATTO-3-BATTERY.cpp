@@ -302,10 +302,10 @@ void BydAttoBattery::
     datalayer_bydatto->total_charged_kwh = BMS_total_charged_kwh;
     datalayer_bydatto->total_discharged_kwh = BMS_total_discharged_kwh;
     datalayer_bydatto->times_full_power = BMS_times_full_power;
-    datalayer_bydatto->unknown10 = BMS_unknown10;
-    datalayer_bydatto->unknown11 = BMS_unknown11;
-    datalayer_bydatto->unknown12 = BMS_unknown12;
-    datalayer_bydatto->unknown13 = BMS_unknown13;
+    datalayer_bydatto->BMS_min_cell_voltage_number = BMS_min_cell_voltage_number;
+    datalayer_bydatto->BMS_min_temp_module_number = BMS_min_temp_module_number;
+    datalayer_bydatto->BMS_max_cell_voltage_number = BMS_max_cell_voltage_number;
+    datalayer_bydatto->BMS_max_temp_module_number = BMS_max_temp_module_number;
 
     datalayer_bydatto->seed = seed;
     datalayer_bydatto->solvedKey = solvedKey;
@@ -502,17 +502,17 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case POLL_TIMES_FULL_POWER:
           BMS_times_full_power = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
-        case UNKNOWN_POLL_10:
-          BMS_unknown10 = rx_frame.data.u8[4];
+        case POLL_MIN_CELL_VOLTAGE_NUMBER:
+          BMS_min_cell_voltage_number = rx_frame.data.u8[4];
           break;
-        case UNKNOWN_POLL_11:
-          BMS_unknown11 = rx_frame.data.u8[4];
+        case POLL_MIN_TEMP_MODULE_NUMBER:
+          BMS_min_temp_module_number = rx_frame.data.u8[4];
           break;
-        case UNKNOWN_POLL_12:
-          BMS_unknown12 = rx_frame.data.u8[4];
+        case POLL_MAX_CELL_VOLTAGE_NUMBER:
+          BMS_max_cell_voltage_number = rx_frame.data.u8[4];
           break;
-        case UNKNOWN_POLL_13:
-          BMS_unknown13 = rx_frame.data.u8[4];
+        case POLL_MAX_TEMP_MODULE_NUMBER:
+          BMS_max_temp_module_number = rx_frame.data.u8[4];
           break;
         default:  //Unrecognized reply
           break;
@@ -741,26 +741,26 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
       case POLL_TIMES_FULL_POWER:
         ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TIMES_FULL_POWER & 0xFF00) >> 8);
         ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TIMES_FULL_POWER & 0x00FF);
-        poll_state = UNKNOWN_POLL_10;
+        poll_state = POLL_MIN_CELL_VOLTAGE_NUMBER;
         break;
-      case UNKNOWN_POLL_10:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_10 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_10 & 0x00FF);
-        poll_state = UNKNOWN_POLL_11;
+      case POLL_MIN_CELL_VOLTAGE_NUMBER:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MIN_CELL_VOLTAGE_NUMBER & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MIN_CELL_VOLTAGE_NUMBER & 0x00FF);
+        poll_state = POLL_MIN_TEMP_MODULE_NUMBER;
         break;
-      case UNKNOWN_POLL_11:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_11 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_11 & 0x00FF);
-        poll_state = UNKNOWN_POLL_12;
+      case POLL_MIN_TEMP_MODULE_NUMBER:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MIN_TEMP_MODULE_NUMBER & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MIN_TEMP_MODULE_NUMBER & 0x00FF);
+        poll_state = POLL_MAX_CELL_VOLTAGE_NUMBER;
         break;
-      case UNKNOWN_POLL_12:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_12 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_12 & 0x00FF);
-        poll_state = UNKNOWN_POLL_13;
+      case POLL_MAX_CELL_VOLTAGE_NUMBER:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MAX_CELL_VOLTAGE_NUMBER & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MAX_CELL_VOLTAGE_NUMBER & 0x00FF);
+        poll_state = POLL_MAX_TEMP_MODULE_NUMBER;
         break;
-      case UNKNOWN_POLL_13:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_13 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_13 & 0x00FF);
+      case POLL_MAX_TEMP_MODULE_NUMBER:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MAX_TEMP_MODULE_NUMBER & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MAX_TEMP_MODULE_NUMBER & 0x00FF);
         poll_state = POLL_FOR_BATTERY_SOC;
         break;
       default:

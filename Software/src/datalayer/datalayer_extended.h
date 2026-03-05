@@ -148,10 +148,10 @@ struct DATALAYER_INFO_BYDATTO3 {
   /** All the temperature sensors inside the battery pack*/
   int16_t battery_temperatures[10];
 
-  uint8_t unknown10 = 0;  //Unknown polled value
-  uint8_t unknown11 = 0;  //Unknown polled value
-  uint8_t unknown12 = 0;  //Unknown polled value
-  uint8_t unknown13 = 0;  //Unknown polled value
+  uint8_t BMS_min_cell_voltage_number = 0;
+  uint8_t BMS_min_temp_module_number = 0;
+  uint8_t BMS_max_cell_voltage_number = 0;
+  uint8_t BMS_max_temp_module_number = 0;
   uint8_t servicemode = 0;
   /** bool */
   /** User requesting crash reset via WebUI*/

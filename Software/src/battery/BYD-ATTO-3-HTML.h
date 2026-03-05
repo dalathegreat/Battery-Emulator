@@ -46,10 +46,10 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Capacity current: " + String(byd_datalayer->BMS_capacity_current_calibration) + "AH+2</h4>";
     content += "<h4>SOC original: " + String(byd_datalayer->BMC_SOC_original_calibration) + "&percnt;</h4>";
     content += "<h4>SOC current: " + String(byd_datalayer->BMC_SOC_current_calibration) + "&percnt;</h4>";
-    content += "<h4>Unknown10: " + String(byd_datalayer->unknown10) + "</h4>";
-    content += "<h4>Unknown11: " + String(byd_datalayer->unknown11) + "</h4>";
-    content += "<h4>Unknown12: " + String(byd_datalayer->unknown12) + "</h4>";
-    content += "<h4>Unknown13: " + String(byd_datalayer->unknown12) + "</h4>";
+    content += "<h4>Min cell voltage number: " + String(byd_datalayer->BMS_min_cell_voltage_number) + "</h4>";
+    content += "<h4>Max cell voltage number: " + String(byd_datalayer->BMS_max_cell_voltage_number) + "</h4>";
+    content += "<h4>Min temp module number: " + String(byd_datalayer->BMS_min_temp_module_number) + "</h4>";
+    content += "<h4>Max temp module number: " + String(byd_datalayer->BMS_max_temp_module_number) + "</h4>";
     content += "<h4>Seed: " + String(byd_datalayer->seed) + "</h4>";
     content += "<h4>SolvedKey: " + String(byd_datalayer->solvedKey) + "</h4>";
     if (byd_datalayer->servicemode == 0) {
