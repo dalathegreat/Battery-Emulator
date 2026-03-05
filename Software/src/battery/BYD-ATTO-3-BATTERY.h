@@ -62,15 +62,10 @@ class BydAttoBattery : public CanBattery {
   static const bool SOC_ESTIMATED = 0;
   static const bool SOC_MEASURED = 1;
 
+  static const int POLL_TIMES_FULL_POWER = 0x0004;  // Using Carscanner name for now.
+  static const int POLL_FOR_BATTERY_SOC = 0x0005;
   static const int POLL_FOR_BATTERY_VOLTAGE = 0x0008;
   static const int POLL_FOR_BATTERY_CURRENT = 0x0009;
-  static const int POLL_FOR_LOWEST_TEMP_CELL = 0x002f;
-  static const int POLL_FOR_HIGHEST_TEMP_CELL = 0x0031;
-  static const int POLL_FOR_BATTERY_PACK_AVG_TEMP = 0x0032;
-  static const int POLL_FOR_BATTERY_CELL_MV_MAX = 0x002D;
-  static const int POLL_FOR_BATTERY_CELL_MV_MIN = 0x002B;
-  static const int POLL_FOR_ORIGINAL_CALIBRATION = 0x1FFE;
-  static const int POLL_FOR_CURRENT_CALIBRATION = 0x1FFC;
   static const int POLL_MAX_CHARGE_POWER = 0x000A;
   static const int POLL_CHARGE_TIMES = 0x000B;  // Using Carscanner name for now.
   static const int POLL_MAX_DISCHARGE_POWER = 0x000E;
@@ -78,11 +73,15 @@ class BydAttoBattery : public CanBattery {
   static const int POLL_TOTAL_DISCHARGED_AH = 0x0010;
   static const int POLL_TOTAL_CHARGED_KWH = 0x0011;
   static const int POLL_TOTAL_DISCHARGED_KWH = 0x0012;
-  static const int POLL_TIMES_FULL_POWER = 0x0004;  // Using Carscanner name for now.
   static const int POLL_MIN_CELL_VOLTAGE_NUMBER = 0x002A;
-  static const int POLL_MIN_TEMP_MODULE_NUMBER = 0x002E;
+  static const int POLL_FOR_BATTERY_CELL_MV_MIN = 0x002B;
   static const int POLL_MAX_CELL_VOLTAGE_NUMBER = 0x002C;
+  static const int POLL_FOR_BATTERY_CELL_MV_MAX = 0x002D;
+  static const int POLL_MIN_TEMP_MODULE_NUMBER = 0x002E;
+  static const int POLL_FOR_LOWEST_TEMP_CELL = 0x002F;
   static const int POLL_MAX_TEMP_MODULE_NUMBER = 0x0030;
+  static const int POLL_FOR_HIGHEST_TEMP_CELL = 0x0031;
+  static const int POLL_FOR_BATTERY_PACK_AVG_TEMP = 0x0032;
   static const int POLL_MODULE_1_LOWEST_MV_NUMBER = 0x016C;
   static const int POLL_MODULE_1_LOWEST_CELL_MV = 0x016D;
   static const int POLL_MODULE_1_HIGHEST_MV_NUMBER = 0x016E;
@@ -143,6 +142,8 @@ class BydAttoBattery : public CanBattery {
   static const int POLL_MODULE_10_HIGH_CELL_MV = 0x01B7;
   static const int POLL_MODULE_10_HIGH_TEMP = 0x01B9;
   static const int POLL_MODULE_10_LOW_TEMP = 0x01BB;
+  static const int POLL_FOR_ORIGINAL_CALIBRATION = 0x1FFE;
+  static const int POLL_FOR_CURRENT_CALIBRATION = 0x1FFC;
 
   static const uint16_t CELLCOUNT_EXTENDED = 126;
   static const uint16_t CELLCOUNT_STANDARD = 104;
@@ -153,7 +154,7 @@ class BydAttoBattery : public CanBattery {
   static const uint16_t MAX_CELL_DEVIATION_MV = 230;
   static const uint16_t MAX_CELL_VOLTAGE_MV = 3650;  //Charging stops if one cell exceeds this value
   static const uint16_t MIN_CELL_VOLTAGE_MV = 2800;  //Discharging stops if one cell goes below this value
-  static const uint16_t POLL_FOR_BATTERY_SOC = 0x0005;
+
   uint16_t rampdown_power = 0;
   uint16_t poll_state = POLL_FOR_BATTERY_SOC;
   uint16_t pid_reply = 0;
