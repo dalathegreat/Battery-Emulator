@@ -62,7 +62,7 @@ class RenaultKangooBattery : public CanBattery {
                                .ext_ID = false,
                                .DLC = 8,
                                .ID = 0x79B,
-                               .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0xE0, 0x00, 0x00}};
+                               .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame KANGOO_79B_Continue = {.FD = false,
                                    .ext_ID = false,
                                    .DLC = 8,

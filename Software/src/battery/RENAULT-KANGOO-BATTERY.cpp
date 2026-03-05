@@ -140,9 +140,7 @@ void RenaultKangooBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           LB_Discharge_Power_Limit = word(LB_Discharge_Power_Limit_Byte1, rx_frame.data.u8[1]) * 100;  //OK!
           LB_Battery_Voltage = word(rx_frame.data.u8[2], rx_frame.data.u8[3]) / 10;                    //OK!
         }
-      }
-
-      if (pollgroup == 2) {                 //Group 41
+      } else if (pollgroup == 2) {          //Group 41 cellvoltages
         if (rx_frame.data.u8[0] == 0x10) {  //1st response Bytes 0-7
           transmit_can_frame(&KANGOO_79B_Continue);
           datalayer.battery.status.cell_voltages_mV[0] = word(rx_frame.data.u8[4], rx_frame.data.u8[5]);  // Bytes 0-1
@@ -168,6 +166,7 @@ void RenaultKangooBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         } else if (rx_frame.data.u8[0] == 0x2F) {  //16th response Bytes 1-7 cell voltages 52-55H
         } else if (rx_frame.data.u8[0] == 0x20) {  //17th response Bytes 1-7 cell voltages 55L-58
         }
+      } else if (pollgroup == 0) {  //Group 42
       }
 
       break;
@@ -219,6 +218,7 @@ void RenaultKangooBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
+  datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
