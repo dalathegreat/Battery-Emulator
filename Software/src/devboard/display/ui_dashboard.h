@@ -7,12 +7,12 @@
 
 // Load fonts
 #include "../../lib/Adafruit_GFX/Fonts/FreeSans18pt7b.h"
+#include "../../lib/Adafruit_GFX/Fonts/FreeSans6pt7b.h"
 #include "../../lib/Adafruit_GFX/Fonts/FreeSans9pt7b.h"
 #include "../../lib/Adafruit_GFX/Fonts/FreeSansBold12pt7b.h"
 #include "../../lib/Adafruit_GFX/Fonts/FreeSansBold18pt7b.h"
 #include "../../lib/Adafruit_GFX/Fonts/FreeSansBold24pt7b.h"
 #include "../../lib/Adafruit_GFX/Fonts/FreeSansBold9pt7b.h"
-#include "../../lib/Adafruit_GFX/Fonts/FreeSans6pt7b.h"
 
 // Theme structure for display colors
 struct UI_Theme {
@@ -100,8 +100,8 @@ void drawSharedDashboard(T* display, bool is_lcd) {
   const GFXfont* f_large = (dw >= 480) ? &FreeSansBold24pt7b : &FreeSansBold18pt7b;
 
   // --- Battery Core Data ---
-  int raw_soc = datalayer.battery.status.reported_soc;
-  int display_soc = constrain(raw_soc, 0, 100);
+  int raw_soc = datalayer.battery.status.real_soc;
+  int display_soc = constrain(raw_soc / 100, 0, 100);
 
   int soh = datalayer.battery.status.soh_pptt / 100;
   if (soh <= 0)
@@ -155,23 +155,24 @@ void drawSharedDashboard(T* display, bool is_lcd) {
   }
 
   // --- Battery Status Evaluation ---
-  String bat_status = "";
-  switch (datalayer.battery.status.real_bms_status) {
-    case BMS_ACTIVE:
-      bat_status = "OK";
-      break;
-    case BMS_FAULT:
-      bat_status = "FAULT";
-      break;
-    case BMS_DISCONNECTED:
-      bat_status = "DISCONNECTED";
-      break;
-    case BMS_STANDBY:
-      bat_status = "STANDBY";
-      break;
-    default:
-      bat_status = "UNKNOWN";
-      break;
+  String bat_status = "UNKNOWN";
+
+  if (datalayer.battery.status.CAN_battery_still_alive > 0) {
+    bat_status = "OK (ALIVE)";
+  }
+
+  if (datalayer.battery.status.CAN_battery_still_alive == 0) {
+    bat_status = "DISCONNECTED";
+  }
+
+  if (datalayer.battery.status.real_bms_status == BMS_FAULT) {
+    bat_status = "FAULT";
+  } else if (datalayer.battery.status.real_bms_status == BMS_STANDBY) {
+    bat_status = "STANDBY";
+  }
+
+  if (datalayer.battery.status.bms_status == FAULT) {
+    bat_status = "FAULT";
   }
 
   // --- Cell Diagnostics & Min/Max Extraction ---
@@ -530,11 +531,18 @@ void drawSharedDashboard(T* display, bool is_lcd) {
       }
     }
 
-    // Dynamic bar width calculation
-    int bar_w = gw / active_cells;
-    if (bar_w > 12)
-      bar_w = 12;  // Maximum width for a single bar
-    int act_bar_w = (bar_w > 1) ? bar_w - 1 : 1;
+    // --- 🌟 Dynamic & Float bar width calculation (100% full screen) ---
+    // Calculates width with decimal points To prevent gaps from missing fragments:
+    float float_bar_w = (float)gw / (float)active_cells;
+
+    // Calculate the actual bar thickness to be drawn (act_bar_w)
+    int act_bar_w = (int)float_bar_w;
+    if (act_bar_w > 12)
+      act_bar_w = 12;  // Not more than 12 px
+    if (act_bar_w > 1)
+      act_bar_w -= 1;  // Leave 1 px spacing between bars if space is sufficient
+    if (act_bar_w < 1)
+      act_bar_w = 1;  // Must be at least 1 px thick
 
     for (int i = 0; i < active_cells; i++) {
       float cv = datalayer.battery.status.cell_voltages_mV[i] / 1000.0;
@@ -548,7 +556,8 @@ void drawSharedDashboard(T* display, bool is_lcd) {
       if (bar_h_px < 1)
         bar_h_px = 1;
 
-      int bx = gx + 1 + (i * bar_w);
+      // 🌟 Use float_bar_w to find the X-axis with decimal precision.
+      int bx = gx + 1 + (int)(i * float_bar_w);
       int by = gy + gh - bar_h_px;
 
       // Apply alert color for abnormal cells
