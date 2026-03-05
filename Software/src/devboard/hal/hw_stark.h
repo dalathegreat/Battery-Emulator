@@ -102,9 +102,9 @@ class StarkHal : public Esp32Hal {
         return "RS485";
       case comm_interface::Highest:
         return "";
-        break;
+      default:
+        return Esp32Hal::name_for_comm_interface(comm);
     }
-    return Esp32Hal::name_for_comm_interface(comm);
   }
 };
 
