@@ -12,6 +12,46 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
   String get_status_html() {
     String content;
 
+    content += "<script>";
+    content += "function editComplete() {";
+    content += "  alert('Update successful!');";
+    content += "  setTimeout(function() { location.reload(); }, 1000);";
+    content += "}";
+    content += "function editError() {";
+    content += "  alert('Update failed. Please try again.');";
+    content += "}";
+    content += "function editCalTargetSOC(){";
+    content += "  var value=prompt('Enter calibration target SOC (0 to 100):');";
+    content += "  if(value!==null){";
+    content += "    var numValue=parseFloat(value);";
+    content += "    if(!isNaN(numValue) && numValue>=0 && numValue<=100){";
+    content += "      var xhr=new XMLHttpRequest();";
+    content += "      xhr.onload=editComplete;";
+    content += "      xhr.onerror=editError;";
+    content += "      xhr.open('GET','/editCalTargetSOC?value='+numValue,true);";
+    content += "      xhr.send();";
+    content += "    }else{";
+    content += "      alert('Invalid value. Please enter a value between 0 and 100.');";
+    content += "    }";
+    content += "  }";
+    content += "}";
+    content += "function editCalTargetAH(){";
+    content += "  var value=prompt('Enter calibration target AH:');";
+    content += "  if(value!==null){";
+    content += "    var numValue=parseFloat(value);";
+    content += "    if(!isNaN(numValue) && numValue>0){";
+    content += "      var xhr=new XMLHttpRequest();";
+    content += "      xhr.onload=editComplete;";
+    content += "      xhr.onerror=editError;";
+    content += "      xhr.open('GET','/editCalTargetAH?value='+numValue,true);";
+    content += "      xhr.send();";
+    content += "    }else{";
+    content += "      alert('Invalid value. Please enter a positive number.');";
+    content += "    }";
+    content += "  }";
+    content += "}";
+    content += "</script>";
+
     content += "<h4>Charging battery state: ";
     switch (byd_datalayer->discharge_status) {
       case 0:
@@ -111,7 +151,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
                "&percnt;"
                " </span><button onclick='editCalTargetSOC()'>Edit</button></h4>";
     content += "<h4>Calibration target capacity: " + String(byd_datalayer->calibrationTargetAH) +
-               " AH</span><button onclick='editCalTargetSOC()'>Edit</button></h4>";
+               " AH</span><button onclick='editCalTargetAH()'>Edit</button></h4>";
 
     return content;
   }

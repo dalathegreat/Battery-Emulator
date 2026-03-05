@@ -637,8 +637,14 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         break;
       case RUNNING_STEP_3:
         // WriteDataByIdentifier dataIdentifier=1F FC (calibrate SOC), data = 10 27 98 3A
-        ATTO_3_7E7_RESET_SOC.data = {0x07, 0x2E, 0x1F, 0xFC,
-                                     0x10, 0x27, 0x98, 0x3A};  //(2710 = 100.00% SOC), (3A98 = 150.00AH)
+        ATTO_3_7E7_RESET_SOC.data = {0x07,
+                                     0x2E,
+                                     0x1F,
+                                     0xFC,
+                                     (uint8_t)(datalayer_extended.bydAtto3.calibrationTargetSOC * 100),
+                                     (uint8_t)((datalayer_extended.bydAtto3.calibrationTargetSOC * 100) >> 8),
+                                     (uint8_t)(datalayer_extended.bydAtto3.calibrationTargetAH * 100),
+                                     (uint8_t)((datalayer_extended.bydAtto3.calibrationTargetAH * 100) >> 8)};
         transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
         stateMachineCalibrateSOC = NOT_RUNNING;
         break;
