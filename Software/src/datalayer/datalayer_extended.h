@@ -143,11 +143,14 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint16_t BMC_SOC_current_calibration = 0;
   uint16_t seed = 0;
   uint16_t solvedKey = 0;
+  uint16_t calibrationTargetSOC = 100;
+  uint16_t calibrationTargetAH = 150;
 
   /** int16_t */
   /** All the temperature sensors inside the battery pack*/
-  int16_t battery_temperatures[10];
+  int16_t battery_temperatures[10] = {0};
 
+  uint8_t discharge_status = 14;
   uint8_t BMS_min_cell_voltage_number = 0;
   uint8_t BMS_min_temp_module_number = 0;
   uint8_t BMS_max_cell_voltage_number = 0;

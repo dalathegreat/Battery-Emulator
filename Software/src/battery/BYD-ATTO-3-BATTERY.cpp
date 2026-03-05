@@ -306,7 +306,7 @@ void BydAttoBattery::
     datalayer_bydatto->BMS_min_temp_module_number = BMS_min_temp_module_number;
     datalayer_bydatto->BMS_max_cell_voltage_number = BMS_max_cell_voltage_number;
     datalayer_bydatto->BMS_max_temp_module_number = BMS_max_temp_module_number;
-
+    datalayer_bydatto->discharge_status = discharge_status;
     datalayer_bydatto->seed = seed;
     datalayer_bydatto->solvedKey = solvedKey;
     datalayer_bydatto->servicemode = servicemode;
@@ -346,7 +346,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x344:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      discharge_status = (rx_frame.data.u8[1] & 0x03);
+      discharge_status = (rx_frame.data.u8[1] & 0x0F);
       break;
     case 0x345:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;

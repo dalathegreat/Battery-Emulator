@@ -211,7 +211,7 @@ class BydAttoBattery : public CanBattery {
   uint8_t BMS_max_cell_voltage_number = 0;
   uint8_t BMS_max_temp_module_number = 0;
   uint8_t battery_frame_index = 0;
-  uint8_t discharge_status = 0;
+  uint8_t discharge_status = 14;
   uint8_t increaseTimeoutSOC = 0;
   static const uint8_t REJECTED = 1;
   static const uint8_t APPROVED = 2;
@@ -220,7 +220,7 @@ class BydAttoBattery : public CanBattery {
   bool SOC_method = false;
   bool BMS_voltage_available = false;
 
-  int16_t battery_daughterboard_temperatures[10];
+  int16_t battery_daughterboard_temperatures[10] = {0};
   uint16_t battery_cellvoltages[CELLCOUNT_EXTENDED] = {0};
 
   /* Extra CAN info 
