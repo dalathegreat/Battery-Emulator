@@ -77,6 +77,15 @@ class BatteryEmulatorSettingsStore {
     return settings.getString(name, String(defaultValue));
   }
 
+  // wrappers for float values (Preferences supports putFloat/getFloat)
+  float getFloat(const char* name, float defaultValue) { return settings.getFloat(name, defaultValue); }
+
+  void saveFloat(const char* name, float value) {
+    float oldValue = settings.getFloat(name, std::numeric_limits<float>::quiet_NaN());
+    settings.putFloat(name, value);
+    settingsUpdated = settingsUpdated || value != oldValue;
+  }
+
   void saveString(const char* name, const char* value) {
     auto oldValue = settings.getString(name);
     settings.putString(name, value);

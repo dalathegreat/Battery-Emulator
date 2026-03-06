@@ -408,7 +408,7 @@ void init_webserver() {
       "SUBNET2",    "SUBNET3",     "SUBNET4",    "MQTTPORT",    "MQTTTIMEOUT", "SOFAR_ID",  "PYLONSEND", "INVCELLS",
       "INVMODULES", "INVCELLSPER", "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "CANFREQ",   "CANFDFREQ", "PRECHGMS",
       "PWMFREQ",    "PWMHOLD",     "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS",  "GTWPACK",   "LEDMODE",   "GPIOOPT1",
-      "GPIOOPT2",   "GPIOOPT3",    "INVSUNTYPE", "GPIOOPT4",    "CTOFFSET",    "CTVNOM",    "CTANOM",    "CTATTEN",
+      "GPIOOPT2",   "GPIOOPT3",    "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",    "CTANOM",    "CTATTEN",
   };
 
   const char* stringSettingNames[] = {"APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
@@ -464,6 +464,10 @@ void init_webserver() {
                 } else if (p->name() == "SHUNTCOMM") {
                   auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
                   settings.saveUInt("SHUNTCOMM", (int)type);
+                } else if (p->name() == "CTOFFSET") {
+                  // allow negative offsets so use float storage
+                  float offset = p->value().toFloat();
+                  settings.saveFloat("CTOFFSET", offset);
                 } else if (p->name() == "CTATTEN") {
                   auto type = static_cast<adc_attenuation_t>(atoi(p->value().c_str()));
                   settings.saveUInt("CTATTEN", (int)type);
