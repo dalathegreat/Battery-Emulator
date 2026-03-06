@@ -873,397 +873,398 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
 void MebBattery::transmit_can(unsigned long currentMillis) {
 
-  if (currentMillis - last_can_msg_timestamp > 500) {
-    if (first_can_msg)
-      logging.printf("MEB: No CAN msg received for 500ms\n");
-    can_msg_received = RX_DEFAULT;
-    first_can_msg = 0;
-    if (datalayer.battery.status.real_bms_status != BMS_FAULT) {
-      datalayer.battery.status.real_bms_status = BMS_DISCONNECTED;
-      datalayer.system.status.battery_allows_contactor_closing = false;
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_POWERED_OFF) {
+    if (currentMillis - last_can_msg_timestamp > 500) {
+      if (first_can_msg)
+        logging.printf("MEB: No CAN msg received for 500ms\n");
+      can_msg_received = RX_DEFAULT;
+      first_can_msg = 0;
+      if (datalayer.battery.status.real_bms_status != BMS_FAULT) {
+        datalayer.battery.status.real_bms_status = BMS_DISCONNECTED;
+        datalayer.system.status.battery_allows_contactor_closing = false;
 
-      // Set the link voltage back to 0, so that when the BMS comes back, it
-      // doesn't immediately skip the precharge.
-      BMS_voltage_intermediate = 0;
-      datalayer_extended.meb.BMS_voltage_intermediate_dV = 0;
+        // Set the link voltage back to 0, so that when the BMS comes back, it
+        // doesn't immediately skip the precharge.
+        BMS_voltage_intermediate = 0;
+        datalayer_extended.meb.BMS_voltage_intermediate_dV = 0;
 
-      // Reset the HV requested state so that we don't skip the precharge.
-      hv_requested = false;
-    }
-  }
-  // Send 10ms CAN Message
-  if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
-    previousMillis10ms = currentMillis;
-
-    MEB_0FC.data.u8[1] = ((MEB_0FC.data.u8[1] & 0xF0) | counter_10ms);
-    MEB_0FC.data.u8[0] = vw_crc_calc(MEB_0FC.data.u8, MEB_0FC.DLC, MEB_0FC.ID);
-
-    counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-
-    transmit_can_frame(&MEB_0FC);  // Required for contactor closing
-  }
-  // Send 20ms CAN Message
-  if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
-    previousMillis20ms = currentMillis;
-
-    MEB_0FD.data.u8[1] = ((MEB_0FD.data.u8[1] & 0xF0) | counter_20ms);
-    MEB_0FD.data.u8[0] = vw_crc_calc(MEB_0FD.data.u8, MEB_0FD.DLC, MEB_0FD.ID);
-
-    counter_20ms = (counter_20ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-
-    transmit_can_frame(&MEB_0FD);  // Required for contactor closing
-  }
-  // Send 40ms CAN Message
-  if (currentMillis - previousMillis40ms >= INTERVAL_40_MS) {
-    previousMillis40ms = currentMillis;
-
-    /* Handle content for 0x040 message */
-    /* Airbag message, needed for BMS to function */
-    MEB_040.data.u8[7] = counter_040;
-    MEB_040.data.u8[1] = ((MEB_040.data.u8[1] & 0xF0) | counter_40ms);
-    MEB_040.data.u8[0] = vw_crc_calc(MEB_040.data.u8, MEB_040.DLC, MEB_040.ID);
-    counter_40ms = (counter_40ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-    if (toggle) {
-      counter_040 = (counter_040 + 1) % 256;  // Increment only on every other pass
-    }
-    toggle = !toggle;  // Flip the toggle each time the code block is executed
-
-    transmit_can_frame(&MEB_040);  // Airbag message - Needed for contactor closing
-  }
-  // Send 50ms CAN Message
-  if (currentMillis - previousMillis50ms >= INTERVAL_50_MS) {
-    previousMillis50ms = currentMillis;
-
-    /* Handle content for 0x0C0 message */
-    /* BMS needs to see this EM1 message. Content located in frame5&6 especially (can be static?)*/
-    /* Also the voltage seen externally to battery is in frame 7&8. At least for the 62kWh ID3 version does not seem to matter, but we send it anyway. */
-    MEB_0C0.data.u8[1] = ((MEB_0C0.data.u8[1] & 0xF0) | counter_50ms);
-    MEB_0C0.data.u8[7] = ((datalayer.battery.status.voltage_dV / 10) * 4) & 0x00FF;
-    MEB_0C0.data.u8[8] =
-        ((MEB_0C0.data.u8[8] & 0xF0) | ((((datalayer.battery.status.voltage_dV / 10) * 4) >> 8) & 0x0F));
-    MEB_0C0.data.u8[0] = vw_crc_calc(MEB_0C0.data.u8, MEB_0C0.DLC, MEB_0C0.ID);
-    counter_50ms = (counter_50ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-
-    transmit_can_frame(&MEB_0C0);  //  Needed for contactor closing
-  }
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
-    previousMillis100ms = currentMillis;
-
-    //HV request and DC/DC control lies in 0x503
-
-    if ((!datalayer.system.info.equipment_stop_active) && datalayer.battery.status.real_bms_status != BMS_FAULT &&
-        (datalayer.battery.status.real_bms_status == BMS_ACTIVE ||
-         (datalayer.battery.status.real_bms_status == BMS_STANDBY &&
-          (hv_requested ||
-           (datalayer.battery.status.voltage_dV > 200 && datalayer_extended.meb.BMS_voltage_intermediate_dV > 0 &&
-            labs(((int32_t)datalayer.battery.status.voltage_dV) -
-                 ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
-      // We are either:
-      //  - in BMS_ACTIVE state (contactors closed, normal operation)
-      //  - or in BMS_STANDBY state, ready to request HV from the battery (our precharge is within 20V)
-      //  - or in BMS_STANDBY state, having already requested HV (hv_requested = true)
-
-      if (datalayer.battery.status.real_bms_status != BMS_ACTIVE) {
-        // We're still awaiting contactor closure, so record that we've
-        // requested HV, so that we keep doing so even if the precharge voltage
-        // wavers.
-        hv_requested = true;
+        // Reset the HV requested state so that we don't skip the precharge.
+        hv_requested = false;
       }
+    }
+    // Send 10ms CAN Message
+    if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
+      previousMillis10ms = currentMillis;
 
-      // We can stop precharging now.
-      datalayer.system.info.start_precharging = false;
+      MEB_0FC.data.u8[1] = ((MEB_0FC.data.u8[1] & 0xF0) | counter_10ms);
+      MEB_0FC.data.u8[0] = vw_crc_calc(MEB_0FC.data.u8, MEB_0FC.DLC, MEB_0FC.ID);
 
-      if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
-        logging.printf("MEB: Requesting HV\n");
+      counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
+
+      transmit_can_frame(&MEB_0FC);  // Required for contactor closing
+    }
+    // Send 20ms CAN Message
+    if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
+      previousMillis20ms = currentMillis;
+
+      MEB_0FD.data.u8[1] = ((MEB_0FD.data.u8[1] & 0xF0) | counter_20ms);
+      MEB_0FD.data.u8[0] = vw_crc_calc(MEB_0FD.data.u8, MEB_0FD.DLC, MEB_0FD.ID);
+
+      counter_20ms = (counter_20ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
+
+      transmit_can_frame(&MEB_0FD);  // Required for contactor closing
+    }
+    // Send 40ms CAN Message
+    if (currentMillis - previousMillis40ms >= INTERVAL_40_MS) {
+      previousMillis40ms = currentMillis;
+
+      /* Handle content for 0x040 message */
+      /* Airbag message, needed for BMS to function */
+      MEB_040.data.u8[7] = counter_040;
+      MEB_040.data.u8[1] = ((MEB_040.data.u8[1] & 0xF0) | counter_40ms);
+      MEB_040.data.u8[0] = vw_crc_calc(MEB_040.data.u8, MEB_040.DLC, MEB_040.ID);
+      counter_40ms = (counter_40ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
+      if (toggle) {
+        counter_040 = (counter_040 + 1) % 256;  // Increment only on every other pass
       }
-      if ((MEB_503.data.u8[1] & 0x80) !=
-          (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00)) {
-        if (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) {
-          logging.printf("MEB: Precharge bit set to active\n");
-        } else {
-          logging.printf("MEB: Precharge bit set to inactive\n");
+      toggle = !toggle;  // Flip the toggle each time the code block is executed
+
+      transmit_can_frame(&MEB_040);  // Airbag message - Needed for contactor closing
+    }
+    // Send 50ms CAN Message
+    if (currentMillis - previousMillis50ms >= INTERVAL_50_MS) {
+      previousMillis50ms = currentMillis;
+
+      /* Handle content for 0x0C0 message */
+      /* BMS needs to see this EM1 message. Content located in frame5&6 especially (can be static?)*/
+      /* Also the voltage seen externally to battery is in frame 7&8. At least for the 62kWh ID3 version does not seem to matter, but we send it anyway. */
+      MEB_0C0.data.u8[1] = ((MEB_0C0.data.u8[1] & 0xF0) | counter_50ms);
+      MEB_0C0.data.u8[7] = ((datalayer.battery.status.voltage_dV / 10) * 4) & 0x00FF;
+      MEB_0C0.data.u8[8] =
+          ((MEB_0C0.data.u8[8] & 0xF0) | ((((datalayer.battery.status.voltage_dV / 10) * 4) >> 8) & 0x0F));
+      MEB_0C0.data.u8[0] = vw_crc_calc(MEB_0C0.data.u8, MEB_0C0.DLC, MEB_0C0.ID);
+      counter_50ms = (counter_50ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
+
+      transmit_can_frame(&MEB_0C0);  //  Needed for contactor closing
+    }
+    // Send 100ms CAN Message
+    if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
+      previousMillis100ms = currentMillis;
+
+      //HV request and DC/DC control lies in 0x503
+
+      if ((!datalayer.system.info.equipment_stop_active) && datalayer.battery.status.real_bms_status != BMS_FAULT &&
+          (datalayer.battery.status.real_bms_status == BMS_ACTIVE ||
+           (datalayer.battery.status.real_bms_status == BMS_STANDBY &&
+            (hv_requested ||
+             (datalayer.battery.status.voltage_dV > 200 && datalayer_extended.meb.BMS_voltage_intermediate_dV > 0 &&
+              labs(((int32_t)datalayer.battery.status.voltage_dV) -
+                   ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
+        // We are either:
+        //  - in BMS_ACTIVE state (contactors closed, normal operation)
+        //  - or in BMS_STANDBY state, ready to request HV from the battery (our precharge is within 20V)
+        //  - or in BMS_STANDBY state, having already requested HV (hv_requested = true)
+
+        if (datalayer.battery.status.real_bms_status != BMS_ACTIVE) {
+          // We're still awaiting contactor closure, so record that we've
+          // requested HV, so that we keep doing so even if the precharge voltage
+          // wavers.
+          hv_requested = true;
         }
-      }
-      MEB_503.data.u8[1] =
-          0x30 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
-      MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;
-      MEB_503.data.u8[5] = 0x82;  // Bordnetz Active
-      MEB_503.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
-    } else if ((first_can_msg > 0 && currentMillis > first_can_msg + 1000 && BMS_mode != 7) ||
-               datalayer.system.info.equipment_stop_active) {  //FAULT STATE, open contactors
 
-      if (datalayer.battery.status.bms_status != FAULT && datalayer.battery.status.real_bms_status == BMS_STANDBY &&
-          !datalayer.system.info.equipment_stop_active) {
-        datalayer.system.info.start_precharging = true;
-      }
+        // We can stop precharging now.
+        datalayer.system.info.start_precharging = false;
 
-      if (MEB_503.data.u8[3] != BMS_TARGET_HV_OFF) {
-        logging.printf("MEB: Requesting HV_OFF\n");
-      }
-      if ((MEB_503.data.u8[1] & 0x80) !=
-          (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00)) {
-        if (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) {
-          logging.printf("MEB: Precharge bit set to active\n");
-        } else {
-          logging.printf("MEB: Precharge bit set to inactive\n");
+        if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
+          logging.printf("MEB: Requesting HV\n");
         }
-      }
-      MEB_503.data.u8[1] =
-          0x10 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
-      MEB_503.data.u8[3] = BMS_TARGET_HV_OFF;
-      MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
-      MEB_503.data.u8[6] =
-          0xE3;  // Request emergency shutdown HV system == init (3) (not sure if we dare activate this, this is done with 0xE1)
-    } else {
-      MEB_503.data.u8[3] = 0;
-      MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
-    }
-    MEB_503.data.u8[1] = ((MEB_503.data.u8[1] & 0xF0) | counter_100ms);
-    MEB_503.data.u8[0] = vw_crc_calc(MEB_503.data.u8, MEB_503.DLC, MEB_503.ID);
-
-    //Bidirectional charging message
-    MEB_272.data.u8[1] =
-        0x00;  //0x80;  // Bidirectional charging active (Set to 0x00 incase no bidirectional charging wanted)
-    MEB_272.data.u8[2] = 0x00;
-    //0x01;  // High load bidirectional charging active (Set to 0x00 incase no bidirectional charging wanted)
-    MEB_272.data.u8[5] = DC_FASTCHARGE_NO_START_REQUEST;  //DC_FASTCHARGE_VEHICLE;  //DC charging
-
-    //Klemmen status
-    MEB_3C0.data.u8[2] = 0x02;  //bit to signal that KL_15 is ON // Always 0 in start4.log
-    MEB_3C0.data.u8[1] = ((MEB_3C0.data.u8[1] & 0xF0) | counter_100ms);
-    MEB_3C0.data.u8[0] = vw_crc_calc(MEB_3C0.data.u8, MEB_3C0.DLC, MEB_3C0.ID);
-
-    MEB_3BE.data.u8[1] = ((MEB_3BE.data.u8[1] & 0xF0) | counter_100ms);
-    MEB_3BE.data.u8[0] = vw_crc_calc(MEB_3BE.data.u8, MEB_3BE.DLC, MEB_3BE.ID);
-
-    MEB_14C.data.u8[1] = ((MEB_14C.data.u8[1] & 0xF0) | counter_100ms);
-    MEB_14C.data.u8[0] = vw_crc_calc(MEB_14C.data.u8, MEB_14C.DLC, MEB_14C.ID);
-
-    counter_100ms = (counter_100ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-    transmit_can_frame(&MEB_503);
-    transmit_can_frame(&MEB_272);
-    transmit_can_frame(&MEB_3C0);
-    transmit_can_frame(&MEB_3BE);
-    transmit_can_frame(&MEB_14C);
-  }
-  //Send 200ms message
-  if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
-    previousMillis200ms = currentMillis;
-
-    // MEB_153 does not need CRC even though it has it. Empty in some logs as well.
-
-    //TODO: MEB_1B0000B9 & MEB_1B000010 & MEB_1B000046 has CAN sleep commands. May be removed?
-
-    transmit_can_frame(&MEB_5E1);
-    transmit_can_frame(&MEB_153);
-    transmit_can_frame(&MEB_1B0000B9);
-    transmit_can_frame(&MEB_1B000010);
-    transmit_can_frame(&MEB_1B000046);
-
-    switch (poll_pid) {
-      case PID_SOC:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_SOC >> 8);  // High byte
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_SOC;         // Low byte
-        poll_pid = PID_VOLTAGE;
-        break;
-      case PID_VOLTAGE:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_VOLTAGE >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_VOLTAGE;
-        poll_pid = PID_CURRENT;
-        break;
-      case PID_CURRENT:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_CURRENT >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CURRENT;
-        poll_pid = PID_MAX_TEMP;
-        break;
-      case PID_MAX_TEMP:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MAX_TEMP >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MAX_TEMP;
-        poll_pid = PID_MIN_TEMP;
-        break;
-      case PID_MIN_TEMP:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MIN_TEMP >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MIN_TEMP;
-        poll_pid = PID_TEMP_POINT_1;
-        break;
-      case PID_TEMP_POINT_1:
-      case PID_TEMP_POINT_2:
-      case PID_TEMP_POINT_3:
-      case PID_TEMP_POINT_4:
-      case PID_TEMP_POINT_5:
-      case PID_TEMP_POINT_6:
-      case PID_TEMP_POINT_7:
-      case PID_TEMP_POINT_8:
-      case PID_TEMP_POINT_9:
-      case PID_TEMP_POINT_10:
-      case PID_TEMP_POINT_11:
-      case PID_TEMP_POINT_12:
-      case PID_TEMP_POINT_13:
-      case PID_TEMP_POINT_14:
-      case PID_TEMP_POINT_15:
-      case PID_TEMP_POINT_16:
-      case PID_TEMP_POINT_17:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(poll_pid >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)poll_pid;
-        poll_pid = poll_pid + 1;
-        break;
-      case PID_TEMP_POINT_18:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(poll_pid >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)poll_pid;
-        poll_pid = PID_MAX_CHARGE_VOLTAGE;
-        break;
-      case PID_MAX_CHARGE_VOLTAGE:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MAX_CHARGE_VOLTAGE >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MAX_CHARGE_VOLTAGE;
-        poll_pid = PID_MIN_DISCHARGE_VOLTAGE;
-        break;
-      case PID_MIN_DISCHARGE_VOLTAGE:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MIN_DISCHARGE_VOLTAGE >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MIN_DISCHARGE_VOLTAGE;
-        poll_pid = PID_ENERGY_COUNTERS;
-        break;
-      case PID_ENERGY_COUNTERS:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ENERGY_COUNTERS >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ENERGY_COUNTERS;
-        poll_pid = PID_ALLOWED_CHARGE_POWER;
-        break;
-      case PID_ALLOWED_CHARGE_POWER:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ALLOWED_CHARGE_POWER >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ALLOWED_CHARGE_POWER;
-        poll_pid = PID_ALLOWED_DISCHARGE_POWER;
-        break;
-      case PID_ALLOWED_DISCHARGE_POWER:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ALLOWED_DISCHARGE_POWER >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ALLOWED_DISCHARGE_POWER;
-        poll_pid = PID_CELLVOLTAGE_CELL_1;  // Start polling cell voltages
-        break;
-      // Cell Voltage Cases.
-      // Most of these are handled in the default case.
-      case PID_CELLVOLTAGE_CELL_1:
-        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_CELLVOLTAGE_CELL_1 >> 8);
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_1;
-        poll_pid = PID_CELLVOLTAGE_CELL_2;
-        break;
-      case PID_CELLVOLTAGE_CELL_84:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_84;
-        if (datalayer.battery.info.number_of_cells > 84) {
-          if (nof_cells_determined) {
-            poll_pid = PID_CELLVOLTAGE_CELL_85;
+        if ((MEB_503.data.u8[1] & 0x80) !=
+            (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00)) {
+          if (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) {
+            logging.printf("MEB: Precharge bit set to active\n");
           } else {
-            poll_pid = PID_CELLVOLTAGE_CELL_97;
+            logging.printf("MEB: Precharge bit set to inactive\n");
           }
-        } else {
-          poll_pid = PID_SOC;
         }
-        break;
-      case PID_CELLVOLTAGE_CELL_96:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_96;
-        if (datalayer.battery.info.number_of_cells > 96)
-          poll_pid = PID_CELLVOLTAGE_CELL_97;
-        else
-          poll_pid = PID_SOC;
-        break;
-      case PID_CELLVOLTAGE_CELL_108:
-        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_108;
-        poll_pid = PID_SOC;
-        break;
-      default:
-        if (poll_pid >= PID_CELLVOLTAGE_CELL_1 && poll_pid <= PID_CELLVOLTAGE_CELL_108) {
-          // The general case for cell voltages (some specific cases handled above)
+        MEB_503.data.u8[1] =
+            0x30 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
+        MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;
+        MEB_503.data.u8[5] = 0x82;  // Bordnetz Active
+        MEB_503.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
+      } else if ((first_can_msg > 0 && currentMillis > first_can_msg + 1000 && BMS_mode != 7) ||
+                 datalayer.system.info.equipment_stop_active) {  //FAULT STATE, open contactors
+
+        if (datalayer.battery.status.bms_status != FAULT && datalayer.battery.status.real_bms_status == BMS_STANDBY &&
+            !datalayer.system.info.equipment_stop_active) {
+          datalayer.system.info.start_precharging = true;
+        }
+
+        if (MEB_503.data.u8[3] != BMS_TARGET_HV_OFF) {
+          logging.printf("MEB: Requesting HV_OFF\n");
+        }
+        if ((MEB_503.data.u8[1] & 0x80) !=
+            (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00)) {
+          if (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) {
+            logging.printf("MEB: Precharge bit set to active\n");
+          } else {
+            logging.printf("MEB: Precharge bit set to inactive\n");
+          }
+        }
+        MEB_503.data.u8[1] =
+            0x10 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
+        MEB_503.data.u8[3] = BMS_TARGET_HV_OFF;
+        MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
+        MEB_503.data.u8[6] =
+            0xE3;  // Request emergency shutdown HV system == init (3) (not sure if we dare activate this, this is done with 0xE1)
+      } else {
+        MEB_503.data.u8[3] = 0;
+        MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
+      }
+      MEB_503.data.u8[1] = ((MEB_503.data.u8[1] & 0xF0) | counter_100ms);
+      MEB_503.data.u8[0] = vw_crc_calc(MEB_503.data.u8, MEB_503.DLC, MEB_503.ID);
+
+      //Bidirectional charging message
+      MEB_272.data.u8[1] =
+          0x00;  //0x80;  // Bidirectional charging active (Set to 0x00 incase no bidirectional charging wanted)
+      MEB_272.data.u8[2] = 0x00;
+      //0x01;  // High load bidirectional charging active (Set to 0x00 incase no bidirectional charging wanted)
+      MEB_272.data.u8[5] = DC_FASTCHARGE_NO_START_REQUEST;  //DC_FASTCHARGE_VEHICLE;  //DC charging
+
+      //Klemmen status
+      MEB_3C0.data.u8[2] = 0x02;  //bit to signal that KL_15 is ON // Always 0 in start4.log
+      MEB_3C0.data.u8[1] = ((MEB_3C0.data.u8[1] & 0xF0) | counter_100ms);
+      MEB_3C0.data.u8[0] = vw_crc_calc(MEB_3C0.data.u8, MEB_3C0.DLC, MEB_3C0.ID);
+
+      MEB_3BE.data.u8[1] = ((MEB_3BE.data.u8[1] & 0xF0) | counter_100ms);
+      MEB_3BE.data.u8[0] = vw_crc_calc(MEB_3BE.data.u8, MEB_3BE.DLC, MEB_3BE.ID);
+
+      MEB_14C.data.u8[1] = ((MEB_14C.data.u8[1] & 0xF0) | counter_100ms);
+      MEB_14C.data.u8[0] = vw_crc_calc(MEB_14C.data.u8, MEB_14C.DLC, MEB_14C.ID);
+
+      counter_100ms = (counter_100ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
+      transmit_can_frame(&MEB_503);
+      transmit_can_frame(&MEB_272);
+      transmit_can_frame(&MEB_3C0);
+      transmit_can_frame(&MEB_3BE);
+      transmit_can_frame(&MEB_14C);
+    }
+    //Send 200ms message
+    if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
+      previousMillis200ms = currentMillis;
+
+      // MEB_153 does not need CRC even though it has it. Empty in some logs as well.
+
+      //TODO: MEB_1B0000B9 & MEB_1B000010 & MEB_1B000046 has CAN sleep commands. May be removed?
+
+      transmit_can_frame(&MEB_5E1);
+      transmit_can_frame(&MEB_153);
+      transmit_can_frame(&MEB_1B0000B9);
+      transmit_can_frame(&MEB_1B000010);
+      transmit_can_frame(&MEB_1B000046);
+
+      switch (poll_pid) {
+        case PID_SOC:
+          MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_SOC >> 8);  // High byte
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_SOC;         // Low byte
+          poll_pid = PID_VOLTAGE;
+          break;
+        case PID_VOLTAGE:
+          MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_VOLTAGE >> 8);
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_VOLTAGE;
+          poll_pid = PID_CURRENT;
+          break;
+        case PID_CURRENT:
+          MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_CURRENT >> 8);
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CURRENT;
+          poll_pid = PID_MAX_TEMP;
+          break;
+        case PID_MAX_TEMP:
+          MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MAX_TEMP >> 8);
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MAX_TEMP;
+          poll_pid = PID_MIN_TEMP;
+          break;
+        case PID_MIN_TEMP:
+          MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MIN_TEMP >> 8);
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MIN_TEMP;
+          poll_pid = PID_TEMP_POINT_1;
+          break;
+        case PID_TEMP_POINT_1:
+        case PID_TEMP_POINT_2:
+        case PID_TEMP_POINT_3:
+        case PID_TEMP_POINT_4:
+        case PID_TEMP_POINT_5:
+        case PID_TEMP_POINT_6:
+        case PID_TEMP_POINT_7:
+        case PID_TEMP_POINT_8:
+        case PID_TEMP_POINT_9:
+        case PID_TEMP_POINT_10:
+        case PID_TEMP_POINT_11:
+        case PID_TEMP_POINT_12:
+        case PID_TEMP_POINT_13:
+        case PID_TEMP_POINT_14:
+        case PID_TEMP_POINT_15:
+        case PID_TEMP_POINT_16:
+        case PID_TEMP_POINT_17:
+          MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(poll_pid >> 8);
           MEB_POLLING_FRAME.data.u8[3] = (uint8_t)poll_pid;
-          // Poll the next cell next
           poll_pid = poll_pid + 1;
-        } else {
-          // Out-of-range PID, go back to the start
+          break;
+        case PID_TEMP_POINT_18:
+          MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(poll_pid >> 8);
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)poll_pid;
+          poll_pid = PID_MAX_CHARGE_VOLTAGE;
+          break;
+        case PID_MAX_CHARGE_VOLTAGE:
+          MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MAX_CHARGE_VOLTAGE >> 8);
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MAX_CHARGE_VOLTAGE;
+          poll_pid = PID_MIN_DISCHARGE_VOLTAGE;
+          break;
+        case PID_MIN_DISCHARGE_VOLTAGE:
+          MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MIN_DISCHARGE_VOLTAGE >> 8);
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MIN_DISCHARGE_VOLTAGE;
+          poll_pid = PID_ENERGY_COUNTERS;
+          break;
+        case PID_ENERGY_COUNTERS:
+          MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ENERGY_COUNTERS >> 8);
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ENERGY_COUNTERS;
+          poll_pid = PID_ALLOWED_CHARGE_POWER;
+          break;
+        case PID_ALLOWED_CHARGE_POWER:
+          MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ALLOWED_CHARGE_POWER >> 8);
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ALLOWED_CHARGE_POWER;
+          poll_pid = PID_ALLOWED_DISCHARGE_POWER;
+          break;
+        case PID_ALLOWED_DISCHARGE_POWER:
+          MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ALLOWED_DISCHARGE_POWER >> 8);
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ALLOWED_DISCHARGE_POWER;
+          poll_pid = PID_CELLVOLTAGE_CELL_1;  // Start polling cell voltages
+          break;
+        // Cell Voltage Cases.
+        // Most of these are handled in the default case.
+        case PID_CELLVOLTAGE_CELL_1:
+          MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_CELLVOLTAGE_CELL_1 >> 8);
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_1;
+          poll_pid = PID_CELLVOLTAGE_CELL_2;
+          break;
+        case PID_CELLVOLTAGE_CELL_84:
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_84;
+          if (datalayer.battery.info.number_of_cells > 84) {
+            if (nof_cells_determined) {
+              poll_pid = PID_CELLVOLTAGE_CELL_85;
+            } else {
+              poll_pid = PID_CELLVOLTAGE_CELL_97;
+            }
+          } else {
+            poll_pid = PID_SOC;
+          }
+          break;
+        case PID_CELLVOLTAGE_CELL_96:
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_96;
+          if (datalayer.battery.info.number_of_cells > 96)
+            poll_pid = PID_CELLVOLTAGE_CELL_97;
+          else
+            poll_pid = PID_SOC;
+          break;
+        case PID_CELLVOLTAGE_CELL_108:
+          MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_108;
           poll_pid = PID_SOC;
-        }
-        break;
+          break;
+        default:
+          if (poll_pid >= PID_CELLVOLTAGE_CELL_1 && poll_pid <= PID_CELLVOLTAGE_CELL_108) {
+            // The general case for cell voltages (some specific cases handled above)
+            MEB_POLLING_FRAME.data.u8[3] = (uint8_t)poll_pid;
+            // Poll the next cell next
+            poll_pid = poll_pid + 1;
+          } else {
+            // Out-of-range PID, go back to the start
+            poll_pid = PID_SOC;
+          }
+          break;
+      }
+      if (first_can_msg > 0 && currentMillis > first_can_msg + 1000) {
+        transmit_can_frame(&MEB_POLLING_FRAME);
+      }
     }
-    if (first_can_msg > 0 && currentMillis > first_can_msg + 1000) {
-      transmit_can_frame(&MEB_POLLING_FRAME);
+
+    // Send 500ms CAN Message
+    if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
+      previousMillis500ms = currentMillis;
+
+      transmit_can_frame(&MEB_16A954B4);  //eTM, Cooling valves and pumps for BMS
+      transmit_can_frame(&MEB_569);       // Battery heating requests
+      transmit_can_frame(&MEB_1A55552B);  //Climate, heatpump and priorities
+      transmit_can_frame(&MEB_1A555548);  //ORU, OTA update message for reserving battery
+      transmit_can_frame(&MEB_16A954FB);  //Climate, request to BMS for starting preconditioning
     }
-  }
 
-  // Send 500ms CAN Message
-  if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
-    previousMillis500ms = currentMillis;
+    //Send 1s CANFD message
+    if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
+      previousMillis1s = currentMillis;
 
-    transmit_can_frame(&MEB_16A954B4);  //eTM, Cooling valves and pumps for BMS
-    transmit_can_frame(&MEB_569);       // Battery heating requests
-    transmit_can_frame(&MEB_1A55552B);  //Climate, heatpump and priorities
-    transmit_can_frame(&MEB_1A555548);  //ORU, OTA update message for reserving battery
-    transmit_can_frame(&MEB_16A954FB);  //Climate, request to BMS for starting preconditioning
-  }
+      MEB_641.data.u8[1] = ((MEB_641.data.u8[1] & 0xF0) | counter_1000ms);
+      MEB_641.data.u8[0] = vw_crc_calc(MEB_641.data.u8, MEB_641.DLC, MEB_641.ID);
 
-  //Send 1s CANFD message
-  if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
-    previousMillis1s = currentMillis;
+      MEB_1A5555A6.data.u8[2] = 0x7F;  //Outside temperature, factor 0.5, offset -50
 
-    MEB_641.data.u8[1] = ((MEB_641.data.u8[1] & 0xF0) | counter_1000ms);
-    MEB_641.data.u8[0] = vw_crc_calc(MEB_641.data.u8, MEB_641.DLC, MEB_641.ID);
+      MEB_6B2.data.u8[0] =  //driving cycle counter, 0-254 wrap around. 255 = invalid value
+          //MEB_6B2.data.u8[1-2-3b0-4] // Odometer, km (20 bits long)
+          MEB_6B2.data.u8[3] = (uint8_t)((TIME_YEAR - 2000) << 4) | MEB_6B2.data.u8[3];
+      MEB_6B2.data.u8[4] = (uint8_t)((TIME_DAY & 0x01) << 7 | TIME_MONTH << 3 | (TIME_YEAR - 2000) >> 4);
+      MEB_6B2.data.u8[5] = (uint8_t)((TIME_HOUR & 0x0F) << 4 | TIME_DAY >> 1);
+      MEB_6B2.data.u8[6] = (uint8_t)((seconds & 0x01) << 7 | TIME_MINUTE << 1 | TIME_HOUR >> 4);
+      MEB_6B2.data.u8[7] = (uint8_t)((seconds & 0x3E) >> 1);
+      seconds = (seconds + 1) % 60;
 
-    MEB_1A5555A6.data.u8[2] = 0x7F;  //Outside temperature, factor 0.5, offset -50
+      counter_1000ms = (counter_1000ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
+      transmit_can_frame(&MEB_6B2);                // Diagnostics - Needed for contactor closing
+      transmit_can_frame(&MEB_641);                // Motor - OBD
+      transmit_can_frame(&MEB_5F5);                // Loading profile
+      transmit_can_frame(&MEB_585);                // Systeminfo
+      transmit_can_frame(&MEB_1A5555A6);           // Temperature QBit
 
-    MEB_6B2.data.u8[0] =  //driving cycle counter, 0-254 wrap around. 255 = invalid value
-        //MEB_6B2.data.u8[1-2-3b0-4] // Odometer, km (20 bits long)
-        MEB_6B2.data.u8[3] = (uint8_t)((TIME_YEAR - 2000) << 4) | MEB_6B2.data.u8[3];
-    MEB_6B2.data.u8[4] = (uint8_t)((TIME_DAY & 0x01) << 7 | TIME_MONTH << 3 | (TIME_YEAR - 2000) >> 4);
-    MEB_6B2.data.u8[5] = (uint8_t)((TIME_HOUR & 0x0F) << 4 | TIME_DAY >> 1);
-    MEB_6B2.data.u8[6] = (uint8_t)((seconds & 0x01) << 7 | TIME_MINUTE << 1 | TIME_HOUR >> 4);
-    MEB_6B2.data.u8[7] = (uint8_t)((seconds & 0x3E) >> 1);
-    seconds = (seconds + 1) % 60;
+      transmit_obd_can_frame(0x18DA05F1, can_config.battery, true);
+    }
 
-    counter_1000ms = (counter_1000ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-    transmit_can_frame(&MEB_6B2);                // Diagnostics - Needed for contactor closing
-    transmit_can_frame(&MEB_641);                // Motor - OBD
-    transmit_can_frame(&MEB_5F5);                // Loading profile
-    transmit_can_frame(&MEB_585);                // Systeminfo
-    transmit_can_frame(&MEB_1A5555A6);           // Temperature QBit
+    static auto last_real_bms_status = datalayer.battery.status.real_bms_status;
+    static auto last_start_precharging = datalayer.system.info.start_precharging;
+    static auto last_hv_requested = hv_requested;
+    static auto last_voltage_dV = datalayer.battery.status.voltage_dV;
+    static auto last_BMS_voltage_intermediate_dV = datalayer_extended.meb.BMS_voltage_intermediate_dV;
+    static auto BMS_mode = datalayer_extended.meb.BMS_mode;
 
-    transmit_obd_can_frame(0x18DA05F1, can_config.battery, true);
-  }
+    if (last_real_bms_status != datalayer.battery.status.real_bms_status) {
+      logging.printf("MEB: BMS status %d -> %d\n", last_real_bms_status, datalayer.battery.status.real_bms_status);
+      last_real_bms_status = datalayer.battery.status.real_bms_status;
+    }
 
-  static auto last_real_bms_status = datalayer.battery.status.real_bms_status;
-  static auto last_start_precharging = datalayer.system.info.start_precharging;
-  static auto last_hv_requested = hv_requested;
-  static auto last_voltage_dV = datalayer.battery.status.voltage_dV;
-  static auto last_BMS_voltage_intermediate_dV = datalayer_extended.meb.BMS_voltage_intermediate_dV;
-  static auto BMS_mode = datalayer_extended.meb.BMS_mode;
+    if (last_start_precharging != datalayer.system.info.start_precharging) {
+      logging.printf("MEB: Start precharging %d -> %d\n", last_start_precharging,
+                     datalayer.system.info.start_precharging);
+      last_start_precharging = datalayer.system.info.start_precharging;
+    }
 
-  if (last_real_bms_status != datalayer.battery.status.real_bms_status) {
-    logging.printf("MEB: BMS status %d -> %d\n", last_real_bms_status, datalayer.battery.status.real_bms_status);
-    last_real_bms_status = datalayer.battery.status.real_bms_status;
-  }
+    if (last_hv_requested != hv_requested) {
+      logging.printf("MEB: HV requested %d -> %d\n", last_hv_requested, hv_requested);
+      last_hv_requested = hv_requested;
+    }
 
-  if (last_start_precharging != datalayer.system.info.start_precharging) {
-    logging.printf("MEB: Start precharging %d -> %d\n", last_start_precharging,
-                   datalayer.system.info.start_precharging);
-    last_start_precharging = datalayer.system.info.start_precharging;
-  }
+    if (last_voltage_dV != datalayer.battery.status.voltage_dV) {
+      logging.printf("MEB: Voltage dV %d -> %d\n", last_voltage_dV, datalayer.battery.status.voltage_dV);
+      last_voltage_dV = datalayer.battery.status.voltage_dV;
+    }
 
-  if (last_hv_requested != hv_requested) {
-    logging.printf("MEB: HV requested %d -> %d\n", last_hv_requested, hv_requested);
-    last_hv_requested = hv_requested;
-  }
+    if (last_BMS_voltage_intermediate_dV != datalayer_extended.meb.BMS_voltage_intermediate_dV) {
+      logging.printf("MEB: BMS Voltage intermediate dV %d -> %d\n", last_BMS_voltage_intermediate_dV,
+                     datalayer_extended.meb.BMS_voltage_intermediate_dV);
+      last_BMS_voltage_intermediate_dV = datalayer_extended.meb.BMS_voltage_intermediate_dV;
+    }
 
-  if (last_voltage_dV != datalayer.battery.status.voltage_dV) {
-    logging.printf("MEB: Voltage dV %d -> %d\n", last_voltage_dV, datalayer.battery.status.voltage_dV);
-    last_voltage_dV = datalayer.battery.status.voltage_dV;
-  }
-
-  if (last_BMS_voltage_intermediate_dV != datalayer_extended.meb.BMS_voltage_intermediate_dV) {
-    logging.printf("MEB: BMS Voltage intermediate dV %d -> %d\n", last_BMS_voltage_intermediate_dV,
-                   datalayer_extended.meb.BMS_voltage_intermediate_dV);
-    last_BMS_voltage_intermediate_dV = datalayer_extended.meb.BMS_voltage_intermediate_dV;
-  }
-
-  if (BMS_mode != datalayer_extended.meb.BMS_mode) {
-    logging.printf("MEB: BMS mode %d -> %d\n", BMS_mode, datalayer_extended.meb.BMS_mode);
-    BMS_mode = datalayer_extended.meb.BMS_mode;
+    if (BMS_mode != datalayer_extended.meb.BMS_mode) {
+      logging.printf("MEB: BMS mode %d -> %d\n", BMS_mode, datalayer_extended.meb.BMS_mode);
+      BMS_mode = datalayer_extended.meb.BMS_mode;
+    }
   }
 }
-
 void MebBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
