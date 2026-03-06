@@ -145,6 +145,7 @@ add_executable(tests
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
     ../Software/src/battery/THINK-BATTERY.cpp
     ../Software/src/battery/GEELY-SEA-BATTERY.cpp
+    ../Software/src/battery/UdsCanBattery.cpp
     ../Software/src/battery/VOLVO-SPA-BATTERY.cpp
     ../Software/src/battery/VOLVO-SPA-HYBRID-BATTERY.cpp
     ../Software/src/inverter/AFORE-CAN.cpp
