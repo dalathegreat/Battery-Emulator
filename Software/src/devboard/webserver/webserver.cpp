@@ -465,9 +465,8 @@ void init_webserver() {
                   auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
                   settings.saveUInt("SHUNTCOMM", (int)type);
                 } else if (p->name() == "CTOFFSET") {
-                  // allow negative offsets so use float storage
-                  float offset = p->value().toFloat();
-                  settings.saveFloat("CTOFFSET", offset);
+                  // allow negative offsets so save as string
+                  settings.saveString("CTOFFSET", p->value().c_str());
                 } else if (p->name() == "CTATTEN") {
                   auto type = static_cast<adc_attenuation_t>(atoi(p->value().c_str()));
                   settings.saveUInt("CTATTEN", (int)type);
