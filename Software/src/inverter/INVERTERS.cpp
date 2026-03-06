@@ -68,6 +68,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::PylonLv:
       return PylonLvInverter::Name;
 
+    case InverterProtocolType::PylonLV485:
+      return PylonLV485InverterProtocol::Name;
+
     case InverterProtocolType::Schneider:
       return SchneiderInverter::Name;
 
@@ -152,6 +155,10 @@ bool setup_inverter() {
 
     case InverterProtocolType::PylonLv:
       inverter = new PylonLvInverter();
+      break;
+
+    case InverterProtocolType::PylonLV485:
+      inverter = new PylonLV485InverterProtocol();
       break;
 
     case InverterProtocolType::Schneider:
