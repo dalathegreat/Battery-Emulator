@@ -38,8 +38,8 @@ extern const char* name_for_adc_attenuation(adc_attenuation_enum type) {
   }
 }
 
-static float Amperes;       // Floating point with current in Amperes
-static float Voltage = -1;  // Voltage not available
+static float Amperes;          // Floating point with current in Amperes
+static float Voltage = -1.0f;  // Voltage not available
 
 // CT parameters, need to be updated for the specific CT clamp used
 // These settings are for a Tamura L03S100D15 CT clamp
@@ -54,11 +54,12 @@ static gpio_num_t ct_pin;
 static bool ct_pin_initialized = false;
 
 // Included for future use
-uint16_t get_measured_voltage_ct() {
-  return (uint16_t)Voltage;
+float get_measured_voltage_ct() {
+  return Voltage;
 }
 
-uint16_t get_measured_current_ct() {
+// +ve is charging, -ve is discharging, use invert setting to flip if needed
+float get_measured_current_ct() {
   if (!ct_pin_initialized) {
     return 0;
   }
@@ -68,16 +69,16 @@ uint16_t get_measured_current_ct() {
   float CT_A_nominal = (float)ct_clamp_nominal_current_A;           // in Amperes
 
   // sample the CT pin multiple times and average to reduce noise
-  float pin_V = 0;
+  float pin_V = 0.0f;
   for (int i = 0; i < 10; i++) {
     pin_V += (float)analogReadMilliVolts(ct_pin);
   }
-  pin_V = (pin_V / 10.0) * 1000.0;
+  pin_V = (pin_V / 10.0f) * 1000.0f;
   Amperes = (pin_V - CT_V_offset) * (CT_A_nominal / CT_V_nominal);
   if (ct_invert_current) {
     Amperes = -Amperes;
   }
-  return (uint16_t)Amperes;
+  return Amperes;
 }
 
 void setup_ct(void) {

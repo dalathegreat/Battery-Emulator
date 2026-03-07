@@ -1511,7 +1511,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
           <label>Invert CT current: </label>
           <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% 
-          title="Invert the current reading from the CT clamp" />
+          title="Invert the current reading from the CT clamp, +ve is charging, -ve is discharging" />
           </div>
         </div>
 
