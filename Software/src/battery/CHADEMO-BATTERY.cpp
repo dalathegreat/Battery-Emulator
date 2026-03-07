@@ -1,7 +1,12 @@
 #include "CHADEMO-BATTERY.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "CHADEMO-CT.h"
 #include "CHADEMO-SHUNTS.h"
+#include "Shunt.h"
+
+uint16_t (*get_measured_current_ptr)();
+uint16_t (*get_measured_voltage_ptr)();
 
 //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 void ChademoBattery::update_values() {
@@ -27,7 +32,7 @@ void ChademoBattery::update_values() {
       (x200_discharge_limits.MaximumDischargeCurrent * x100_chg_lim.MaximumBatteryVoltage);  //In Watts, Convert A to P
 
   if (vehicle_can_received) {  // Only update the value sent towards inverter if vehicle is connected (avoids false positive events)
-    datalayer.battery.status.voltage_dV = get_measured_voltage() * 10;
+    datalayer.battery.status.voltage_dV = get_voltage_handler() * 10;
   }
 
   datalayer.battery.info.total_capacity_Wh = (x101_chg_est.RatedBatteryCapacity * 100);
@@ -221,10 +226,10 @@ void ChademoBattery::process_vehicle_charging_limits(CAN_frame rx_frame) {
   }
   */
 
-  if (get_measured_voltage() <= x200_discharge_limits.MinimumDischargeVoltage && CHADEMO_Status > CHADEMO_NEGOTIATE) {
+  if (get_voltage_handler() <= x200_discharge_limits.MinimumDischargeVoltage && CHADEMO_Status > CHADEMO_NEGOTIATE) {
     logging.println("x200 minimum discharge voltage met or exceeded, stopping.");
     logging.printf("Measured: ");
-    logging.print(get_measured_voltage());
+    logging.print(get_voltage_handler());
     logging.printf("Minimum voltage: ");
     logging.print(x200_discharge_limits.MinimumDischargeVoltage);
     CHADEMO_Status = CHADEMO_STOP;
@@ -321,7 +326,9 @@ void ChademoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   handle_chademo_sequence();
 
-  ISA_handleFrame(&rx_frame);
+  if (user_selected_shunt_type != ShuntType::CustomClamp) {
+    ISA_handleFrame(&rx_frame);
+  }
 }
 
 /* (re)initialize evse structures to pre-charge/discharge states */
@@ -410,8 +417,8 @@ void ChademoBattery::update_evse_status(CAN_frame& f) {
     x109_evse_state.remaining_time_1m = 60;
 
   } else if (EVSE_mode == CHADEMO_CHARGE) {
-    x109_evse_state.setpoint_HV_VDC = get_measured_voltage();
-    x109_evse_state.setpoint_HV_IDC = get_measured_current();
+    x109_evse_state.setpoint_HV_VDC = get_voltage_handler();
+    x109_evse_state.setpoint_HV_IDC = get_measured_current_ptr();
 
     /*For posterity if anyone is forced to simulate a shunt
       NOTE: these are supposed to be measured values, e.g., from a shunt
@@ -494,7 +501,7 @@ void ChademoBattery::update_evse_discharge_estimate(CAN_frame& f) {
 /* x208 EVSE, peer to 0x200 Vehicle */
 void ChademoBattery::update_evse_discharge_capabilities(CAN_frame& f) {
   //present discharge current is a measured value
-  x208_evse_dischg_cap.present_discharge_current = 0xFF - get_measured_current();
+  x208_evse_dischg_cap.present_discharge_current = 0xFF - get_measured_current_ptr();
 
   /* Present discharge current is a measured value. In the absence of
      a shunt, the evse here is quite literally lying to the vehicle. The spec
@@ -729,7 +736,7 @@ void ChademoBattery::handle_chademo_sequence() {
                     }
        */
       if (x102_chg_session.s.status.StatusVehicleChargingEnabled) {
-        if (get_measured_voltage() < 20) {
+        if (get_voltage_handler() < 20) {
 
           digitalWrite(pin10, HIGH);
           evse_permission = true;
@@ -770,7 +777,7 @@ void ChademoBattery::handle_chademo_sequence() {
       if (contactors_ready) {
         logging.println("Contactors ready");
         logging.printf("Voltage: ");
-        logging.println(get_measured_voltage());
+        logging.println(get_voltage_handler());
         /* transition to POWERFLOW state if discharge compatible on both sides */
         if (x109_evse_state.discharge_compatible && x102_chg_session.s.status.StatusVehicleDischargeCompatible &&
             (EVSE_mode == CHADEMO_DISCHARGE || EVSE_mode == CHADEMO_BIDIRECTIONAL)) {
@@ -806,7 +813,7 @@ void ChademoBattery::handle_chademo_sequence() {
         //	probably unnecessary as other flags will be set causing this to be caught
       }
 
-      if (get_measured_voltage() <= x200_discharge_limits.MinimumDischargeVoltage) {
+      if (get_voltage_handler() <= x200_discharge_limits.MinimumDischargeVoltage) {
         logging.println("x200 minimum discharge voltage met or exceeded, stopping.");
         CHADEMO_Status = CHADEMO_STOP;
       }
@@ -833,7 +840,7 @@ void ChademoBattery::handle_chademo_sequence() {
        * We will re-enter the handler until the amperage drops sufficiently
        * and then transition to CHADEMO_IDLE
        */
-      if (get_measured_current() <= 5 && get_measured_voltage() <= 10) {
+      if (get_measured_current_ptr() <= 5 && get_voltage_handler() <= 10) {
         /* welding detection ideally here */
         digitalWrite(pin10, LOW);
         digitalWrite(pin2, LOW);
@@ -866,7 +873,25 @@ void ChademoBattery::handle_chademo_sequence() {
   return;
 }
 
+uint16_t ChademoBattery::get_voltage_handler() {
+  float Voltage = 0;
+  if (user_selected_shunt_type == ShuntType::CustomClamp) {
+    Voltage = min(x102_chg_session.TargetBatteryVoltage, x108_evse_cap.available_output_voltage);
+  } else {
+    Voltage = get_measured_voltage_ptr();
+  }
+  return (uint16_t)Voltage;
+}
+
 void ChademoBattery::setup(void) {  // Performs one time setup at startup
+  // Select handlers for voltage and current based on shunt type. If using a custom clamp, use the CT handlers, otherwise use the default CAN shunt handlers.
+  if (user_selected_shunt_type == ShuntType::CustomClamp) {
+    get_measured_current_ptr = get_measured_current_ct;
+    get_measured_voltage_ptr = get_measured_voltage_ct;
+  } else {
+    get_measured_current_ptr = get_measured_current;
+    get_measured_voltage_ptr = get_measured_voltage;
+  }
 
   if (!esp32hal->alloc_pins(Name, pin2, pin10, pin4, pin7, pin_lock)) {
     return;
@@ -880,6 +905,11 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
   digitalWrite(pin_lock, LOW);
   pinMode(pin4, INPUT);
   pinMode(pin7, INPUT);
+
+  // initialise the CT measurement helper
+  if (user_selected_shunt_type == ShuntType::CustomClamp) {
+    setup_ct();
+  }
 
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
