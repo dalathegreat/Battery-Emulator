@@ -62,6 +62,8 @@ const char* name_for_battery_type(BatteryType type) {
       return CmfaEvBattery::Name;
     case BatteryType::CmpSmartCar:
       return CmpSmartCarBattery::Name;
+    case BatteryType::EnnoidBMS:
+      return EnnoidBms::Name;
     case BatteryType::FordMachE:
       return FordMachEBattery::Name;
     case BatteryType::Foxess:
@@ -177,6 +179,8 @@ Battery* create_battery(BatteryType type) {
       return new CmfaEvBattery();
     case BatteryType::CmpSmartCar:
       return new CmpSmartCarBattery();
+    case BatteryType::EnnoidBMS:
+      return new EnnoidBms();
     case BatteryType::FordMachE:
       return new FordMachEBattery();
     case BatteryType::Foxess:
