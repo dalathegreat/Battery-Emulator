@@ -864,6 +864,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("CTANOM", 100));
   }
 
+  if (var == "CTINVERT") {
+    return settings.getBool("CTINVERT") ? "checked" : "";
+  }
+
   return String();
 }
 
@@ -1504,6 +1508,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           <select name='CTATTEN'>
           %CTATTEN%
           </select>
+
+          <label>Invert CT current: </label>
+          <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% 
+          title="Invert the current reading from the CT clamp" />
           </div>
         </div>
 

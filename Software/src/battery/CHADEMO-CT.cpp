@@ -21,6 +21,7 @@ typedef enum { ADC_0db = 0, ADC_2_5db, ADC_6db, ADC_11db } adc_attenuation_t;
 float ct_clamp_offset_mV = -1.0;
 uint16_t ct_clamp_nominal_voltage_dV = 40;
 uint16_t ct_clamp_nominal_current_A = 100;
+bool ct_invert_current = false;
 adc_attenuation_enum ct_clamp_pin_atten = adc_attenuation_enum::ADC_11db;
 extern const char* name_for_adc_attenuation(adc_attenuation_enum type) {
   switch (type) {
@@ -73,6 +74,9 @@ uint16_t get_measured_current_ct() {
   }
   pin_V = (pin_V / 10.0) * 1000.0;
   Amperes = (pin_V - CT_V_offset) * (CT_A_nominal / CT_V_nominal);
+  if (ct_invert_current) {
+    Amperes = -Amperes;
+  }
   return (uint16_t)Amperes;
 }
 
