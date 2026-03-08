@@ -138,6 +138,23 @@ inline const char* getNoYes(bool value) {
   return value ? "Yes" : "No";
 }
 
+// Motorola big-endian bit extractor (Vector DBC @1 semantics)
+uint32_t extract_moto(const uint8_t *d, uint16_t startBit, uint8_t length)
+{
+    uint32_t raw = 0;
+
+    for (int i = 0; i < length; i++) {
+        uint16_t bitIndex = startBit + i;
+        uint16_t byteIndex = 7 - (bitIndex / 8);
+        uint8_t bitInByte = bitIndex % 8;
+
+        uint8_t bit = (d[byteIndex] >> (7 - bitInByte)) & 1;
+        raw = (raw << 1) | bit;
+    }
+
+    return raw;
+}
+
 // Clamp DLC to 0–8 bytes for classic CAN
 inline int getDataLen(uint8_t dlc) {
   return std::min<int>(dlc, 8);
@@ -1156,17 +1173,23 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x2A4:  //676 PCS_thermalStatus
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      PCS_chgPhATemp =
-          (rx_frame.data.u8[0] & 0xFF) | ((rx_frame.data.u8[1] & 0x07) << 8);  //0|11@1- (0.1,-40) [0|0] "C"
-      PCS_chgPhBTemp =
-          ((rx_frame.data.u8[1] & 0xF8) >> 3) | ((rx_frame.data.u8[2] & 0x3F) << 5);  //11|11@1- (0.1,-40) [0|0] "C"
-      PCS_chgPhCTemp = ((rx_frame.data.u8[2] & 0xC0) >> 6) | (rx_frame.data.u8[3] << 2) |
-                       ((rx_frame.data.u8[4] & 0x01) << 10);  //22|11@1- (0.1,-40) [0|0] "C"
-      PCS_dcdcTemp =
-          ((rx_frame.data.u8[4] & 0xFE) >> 1) | ((rx_frame.data.u8[5] & 0x0F) << 7);  //33|11@1- (0.1,-40) [0|0] "C"
-      PCS_ambientTemp =
-          ((rx_frame.data.u8[5] & 0xF0) >> 4) | (rx_frame.data.u8[6] << 4);  //44|11@1- (0.1,-40) [0|0] "C"
+      {
+      const uint8_t *d = rx_frame.data.u8;
+
+      uint16_t rawA    = extract_moto(d, 0, 11);
+      int16_t rawB    = extract_moto(d, 11, 11);
+      uint16_t rawC    = extract_moto(d, 22, 11);
+      uint16_t rawDCDC = extract_moto(d, 33, 11);
+      uint16_t rawAmb  = extract_moto(d, 44, 11);
+
+      PCS_chgPhATemp  = rawA * 0.1f - 40.0f;
+      PCS_chgPhBTemp  = rawB * 0.1f - 40.0f;
+      PCS_chgPhCTemp  = rawC * 0.1f - 40.0f;
+      PCS_dcdcTemp    = rawDCDC * 0.1f - 40.0f;
+      PCS_ambientTemp = rawAmb * 0.1f - 40.0f;
+
       break;
+      }
     case 0x2C4:  // 708 PCS_logging: not all frames are listed, just ones relating to dcdc
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & (0x1FU));
