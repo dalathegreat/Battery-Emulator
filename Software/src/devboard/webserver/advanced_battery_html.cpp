@@ -9,7 +9,7 @@
 std::vector<BatteryCommand> battery_commands = {
     {"clearIsolation", "Clear isolation fault", "clear any active isolation fault?",
      [](Battery* b) { return b && b->supports_clear_isolation(); }, [](Battery* b) { b->clear_isolation(); }},
-    {"calibrateSOC", "Calibrate SOC", "calibrate SOC? Note this will reset SOC to 100percent",
+    {"calibrateSOC", "Calibrate SOC", "calibrate SOC? Note this will calibrate BMS according to set targets",
      [](Battery* b) { return b && b->supports_calibrate_SOC(); }, [](Battery* b) { b->reset_SOC(); }},
     {"chademoRestart", "Restart", "restart the V2X session?",
      [](Battery* b) { return b && b->supports_chademo_restart(); }, [](Battery* b) { b->chademo_restart(); }},

@@ -573,6 +573,16 @@ void init_webserver() {
     }
   });
 
+  // Route for editing SOC Calibration BYD
+  update_string_setting("/editCalTargetSOC", [](String value) {
+    datalayer_extended.bydAtto3.calibrationTargetSOC = static_cast<uint16_t>(value.toFloat());
+  });
+
+  // Route for editing AH Calibration BYD
+  update_string_setting("/editCalTargetAH", [](String value) {
+    datalayer_extended.bydAtto3.calibrationTargetAH = static_cast<uint16_t>(value.toFloat());
+  });
+
   // Route for editing SOCMin
   update_string_setting("/updateSocMin", [](String value) {
     datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);

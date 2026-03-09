@@ -18,6 +18,21 @@ const uint16_t voltage_standard[numPoints] = {3570, 3552, 3485, 3464, 3443, 3439
                                               3425, 3412, 3400, 3396, 3392, 3391, 3390, 3382, 3375, 3362,
                                               3350, 3332, 3315, 3282, 3250, 3195, 3170, 3140};
 
+// BYD UDS 0x27 Seed-to-Key Algorithm (Endian-Safe)
+uint16_t byd_generate_key(uint16_t seed, uint32_t keyK) {
+  // Step 1: XOR mixing
+  // By keeping everything in standard integer variables,
+  // bitwise shifts act on the logical value, ignoring hardware endianness.
+  uint32_t a = seed ^ (seed >> 1);
+  uint32_t b = keyK ^ (seed >> 2);
+
+  // Step 2: Calculate the result
+  uint32_t result = b ^ (a << 3);
+
+  // Step 3: Return the lower 16 bits
+  return (uint16_t)(result & 0xFFFF);
+}
+
 uint16_t estimateSOCextended(uint16_t packVoltage) {  // Linear interpolation function
   if (packVoltage >= voltage_extended[0]) {
     return SOC[0];
@@ -287,10 +302,14 @@ void BydAttoBattery::
     datalayer_bydatto->total_charged_kwh = BMS_total_charged_kwh;
     datalayer_bydatto->total_discharged_kwh = BMS_total_discharged_kwh;
     datalayer_bydatto->times_full_power = BMS_times_full_power;
-    datalayer_bydatto->unknown10 = BMS_unknown10;
-    datalayer_bydatto->unknown11 = BMS_unknown11;
-    datalayer_bydatto->unknown12 = BMS_unknown12;
-    datalayer_bydatto->unknown13 = BMS_unknown13;
+    datalayer_bydatto->BMS_min_cell_voltage_number = BMS_min_cell_voltage_number;
+    datalayer_bydatto->BMS_min_temp_module_number = BMS_min_temp_module_number;
+    datalayer_bydatto->BMS_max_cell_voltage_number = BMS_max_cell_voltage_number;
+    datalayer_bydatto->BMS_max_temp_module_number = BMS_max_temp_module_number;
+    datalayer_bydatto->discharge_status = discharge_status;
+    datalayer_bydatto->seed = seed;
+    datalayer_bydatto->solvedKey = solvedKey;
+    datalayer_bydatto->servicemode = servicemode;
 
     // Update requests from webserver datalayer
     if (datalayer_bydatto->UserRequestCrashReset && stateMachineClearCrash == NOT_RUNNING) {
@@ -327,6 +346,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x344:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      discharge_status = (rx_frame.data.u8[1] & 0x0F);
       break;
     case 0x345:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -371,7 +391,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_daughterboard_temperatures[9] = (rx_frame.data.u8[4] - 40);
       }
       break;
-    case 0x43D:
+    case 0x43D:  //Cellvoltage monitoring, 54 frames for 160cells
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_frame_index = rx_frame.data.u8[0];
 
@@ -409,6 +429,18 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EF:  //OBD2 PID reply from battery
+      if ((rx_frame.data.u8[0] == 0x04) && (rx_frame.data.u8[1] == 0x67) && (rx_frame.data.u8[2] == 0x01)) {
+        seed = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        solvedKey = byd_generate_key(seed, 0x63);  //For now key can be either 0xbd or 0x63, 50/50 of guessing right
+      }
+      if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F)) {
+        servicemode = REJECTED;
+      }
+      if ((rx_frame.data.u8[0] == 0x02) && (rx_frame.data.u8[1] == 0x67) && (rx_frame.data.u8[2] == 0x02) &&
+          (rx_frame.data.u8[3] == 0xAA)) {
+        servicemode = APPROVED;
+      }
+
       if (rx_frame.data.u8[0] == 0x10) {
         transmit_can_frame(&ATTO_3_7E7_ACK);  //Send next line request
       }
@@ -470,17 +502,17 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case POLL_TIMES_FULL_POWER:
           BMS_times_full_power = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
-        case UNKNOWN_POLL_10:
-          BMS_unknown10 = rx_frame.data.u8[4];
+        case POLL_MIN_CELL_VOLTAGE_NUMBER:
+          BMS_min_cell_voltage_number = rx_frame.data.u8[4];
           break;
-        case UNKNOWN_POLL_11:
-          BMS_unknown11 = rx_frame.data.u8[4];
+        case POLL_MIN_TEMP_MODULE_NUMBER:
+          BMS_min_temp_module_number = rx_frame.data.u8[4];
           break;
-        case UNKNOWN_POLL_12:
-          BMS_unknown12 = rx_frame.data.u8[4];
+        case POLL_MAX_CELL_VOLTAGE_NUMBER:
+          BMS_max_cell_voltage_number = rx_frame.data.u8[4];
           break;
-        case UNKNOWN_POLL_13:
-          BMS_unknown13 = rx_frame.data.u8[4];
+        case POLL_MAX_TEMP_MODULE_NUMBER:
+          BMS_max_temp_module_number = rx_frame.data.u8[4];
           break;
         default:  //Unrecognized reply
           break;
@@ -578,7 +610,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     switch (stateMachineCalibrateSOC) {
       case STARTED:
         // DiagnosticSesssionControl enter extendedDiagnosticSession
-        ATTO_3_7E7_RESET_SOC.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+        ATTO_3_7E7_RESET_SOC.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
         transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
         stateMachineCalibrateSOC = RUNNING_STEP_1;
         break;
@@ -589,15 +621,30 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         stateMachineCalibrateSOC = RUNNING_STEP_2;
         break;
       case RUNNING_STEP_2:
-        // SecurityAccess sendKey, key = D8 BE (TODO, we should send correct key!)
-        ATTO_3_7E7_RESET_SOC.data = {0x04, 0x27, 0x02, 0xD8, 0xBE, 0x00, 0x00, 0x00};
-        transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
-        stateMachineCalibrateSOC = RUNNING_STEP_3;
+        // SecurityAccess sendKey
+        if (solvedKey > 0) {  //Process once we have gotten the solved challenge
+          ATTO_3_7E7_RESET_SOC.data = {
+              0x04, 0x27, 0x02, (uint8_t)((solvedKey & 0xFF00) >> 8), (uint8_t)(solvedKey & 0x00FF), 0x00, 0x00, 0x00};
+          transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
+          stateMachineCalibrateSOC = RUNNING_STEP_3;
+        } else {
+          increaseTimeoutSOC++;
+          if (increaseTimeoutSOC > 250) {
+            increaseTimeoutSOC = 0;
+            stateMachineCalibrateSOC = NOT_RUNNING;
+          }
+        }
         break;
       case RUNNING_STEP_3:
         // WriteDataByIdentifier dataIdentifier=1F FC (calibrate SOC), data = 10 27 98 3A
-        ATTO_3_7E7_RESET_SOC.data = {0x07, 0x2E, 0x1F, 0xFC,
-                                     0x10, 0x27, 0x98, 0x3A};  //(2710 = 100.00% SOC), (3A98 = 150.00AH)
+        ATTO_3_7E7_RESET_SOC.data = {0x07,
+                                     0x2E,
+                                     0x1F,
+                                     0xFC,
+                                     (uint8_t)(datalayer_extended.bydAtto3.calibrationTargetSOC * 100),
+                                     (uint8_t)((datalayer_extended.bydAtto3.calibrationTargetSOC * 100) >> 8),
+                                     (uint8_t)(datalayer_extended.bydAtto3.calibrationTargetAH * 100),
+                                     (uint8_t)((datalayer_extended.bydAtto3.calibrationTargetAH * 100) >> 8)};
         transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
         stateMachineCalibrateSOC = NOT_RUNNING;
         break;
@@ -700,26 +747,26 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
       case POLL_TIMES_FULL_POWER:
         ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TIMES_FULL_POWER & 0xFF00) >> 8);
         ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TIMES_FULL_POWER & 0x00FF);
-        poll_state = UNKNOWN_POLL_10;
+        poll_state = POLL_MIN_CELL_VOLTAGE_NUMBER;
         break;
-      case UNKNOWN_POLL_10:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_10 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_10 & 0x00FF);
-        poll_state = UNKNOWN_POLL_11;
+      case POLL_MIN_CELL_VOLTAGE_NUMBER:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MIN_CELL_VOLTAGE_NUMBER & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MIN_CELL_VOLTAGE_NUMBER & 0x00FF);
+        poll_state = POLL_MIN_TEMP_MODULE_NUMBER;
         break;
-      case UNKNOWN_POLL_11:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_11 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_11 & 0x00FF);
-        poll_state = UNKNOWN_POLL_12;
+      case POLL_MIN_TEMP_MODULE_NUMBER:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MIN_TEMP_MODULE_NUMBER & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MIN_TEMP_MODULE_NUMBER & 0x00FF);
+        poll_state = POLL_MAX_CELL_VOLTAGE_NUMBER;
         break;
-      case UNKNOWN_POLL_12:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_12 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_12 & 0x00FF);
-        poll_state = UNKNOWN_POLL_13;
+      case POLL_MAX_CELL_VOLTAGE_NUMBER:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MAX_CELL_VOLTAGE_NUMBER & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MAX_CELL_VOLTAGE_NUMBER & 0x00FF);
+        poll_state = POLL_MAX_TEMP_MODULE_NUMBER;
         break;
-      case UNKNOWN_POLL_13:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_13 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_13 & 0x00FF);
+      case POLL_MAX_TEMP_MODULE_NUMBER:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MAX_TEMP_MODULE_NUMBER & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MAX_TEMP_MODULE_NUMBER & 0x00FF);
         poll_state = POLL_FOR_BATTERY_SOC;
         break;
       default:
