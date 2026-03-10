@@ -399,11 +399,7 @@ void init_webserver() {
       "REMBMSRESET",   "EXTPRECHARGE", "USBENABLED",  "CANLOGUSB",    "WEBENABLED",    "CANFDASCAN",   "CANLOGSD",
       "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",   "HADISC",       "MQTTTOPICS",    "MQTTCELLV",    "INVICNT",
       "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET",  "PYLONORDER",
-<<<<<<< feature/fronius-primo
-      "DEYEBYD",       "NCCONTACTOR",  "TRIBTR",      "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",
-=======
-      "DEYEBYD",       "NCCONTACTOR",  "TRIBTR",      "CNTCTRLTRI",   "ESPNOWENABLED", "CTINVERT",
->>>>>>> main
+      "DEYEBYD",       "NCCONTACTOR",  "TRIBTR",      "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",   "CTINVERT",
   };
 
   const char* uintSettingNames[] = {
