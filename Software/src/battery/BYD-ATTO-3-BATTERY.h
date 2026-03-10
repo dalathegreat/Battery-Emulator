@@ -39,7 +39,7 @@ class BydAttoBattery : public CanBattery {
   bool supports_charged_energy() { return true; }
   bool supports_reset_crash() { return true; }
   void reset_crash() { datalayer_bydatto->UserRequestCrashReset = true; }
-  //bool supports_calibrate_SOC() { return true; } //TODO, requires elevated service access which we do not have yet
+  bool supports_calibrate_SOC() { return true; }
   void reset_SOC() { datalayer_bydatto->UserRequestCalibrateSOC = true; }
 
   // Toggle SOC method in UI is only enabled if we initially use measured SOC
@@ -62,29 +62,26 @@ class BydAttoBattery : public CanBattery {
   static const bool SOC_ESTIMATED = 0;
   static const bool SOC_MEASURED = 1;
 
+  static const int POLL_TIMES_FULL_POWER = 0x0004;  // Using Carscanner name for now.
+  static const int POLL_FOR_BATTERY_SOC = 0x0005;
   static const int POLL_FOR_BATTERY_VOLTAGE = 0x0008;
   static const int POLL_FOR_BATTERY_CURRENT = 0x0009;
-  static const int POLL_FOR_LOWEST_TEMP_CELL = 0x002f;
-  static const int POLL_FOR_HIGHEST_TEMP_CELL = 0x0031;
-  static const int POLL_FOR_BATTERY_PACK_AVG_TEMP = 0x0032;
-  static const int POLL_FOR_BATTERY_CELL_MV_MAX = 0x002D;
-  static const int POLL_FOR_BATTERY_CELL_MV_MIN = 0x002B;
-  static const int POLL_FOR_ORIGINAL_CALIBRATION = 0x1FFE;
-  static const int POLL_FOR_CURRENT_CALIBRATION = 0x1FFC;
   static const int POLL_MAX_CHARGE_POWER = 0x000A;
-  static const int POLL_CHARGE_TIMES =
-      0x000B;  // Using Carscanner name for now. Likely a counter for BMS 100% SOC calibration
+  static const int POLL_CHARGE_TIMES = 0x000B;  // Using Carscanner name for now.
   static const int POLL_MAX_DISCHARGE_POWER = 0x000E;
   static const int POLL_TOTAL_CHARGED_AH = 0x000F;
   static const int POLL_TOTAL_DISCHARGED_AH = 0x0010;
   static const int POLL_TOTAL_CHARGED_KWH = 0x0011;
   static const int POLL_TOTAL_DISCHARGED_KWH = 0x0012;
-  static const int POLL_TIMES_FULL_POWER =
-      0x0004;                                 // Using Carscanner name for now. Unknown what it means for the moment
-  static const int UNKNOWN_POLL_10 = 0x002A;  //= 0x5B
-  static const int UNKNOWN_POLL_11 = 0x002E;  //= 0x08 (probably module number, or cell number?)
-  static const int UNKNOWN_POLL_12 = 0x002C;  //= 0x43
-  static const int UNKNOWN_POLL_13 = 0x0030;  //= 0x01 (probably module number, or cell number?)
+  static const int POLL_MIN_CELL_VOLTAGE_NUMBER = 0x002A;
+  static const int POLL_FOR_BATTERY_CELL_MV_MIN = 0x002B;
+  static const int POLL_MAX_CELL_VOLTAGE_NUMBER = 0x002C;
+  static const int POLL_FOR_BATTERY_CELL_MV_MAX = 0x002D;
+  static const int POLL_MIN_TEMP_MODULE_NUMBER = 0x002E;
+  static const int POLL_FOR_LOWEST_TEMP_CELL = 0x002F;
+  static const int POLL_MAX_TEMP_MODULE_NUMBER = 0x0030;
+  static const int POLL_FOR_HIGHEST_TEMP_CELL = 0x0031;
+  static const int POLL_FOR_BATTERY_PACK_AVG_TEMP = 0x0032;
   static const int POLL_MODULE_1_LOWEST_MV_NUMBER = 0x016C;
   static const int POLL_MODULE_1_LOWEST_CELL_MV = 0x016D;
   static const int POLL_MODULE_1_HIGHEST_MV_NUMBER = 0x016E;
@@ -145,6 +142,8 @@ class BydAttoBattery : public CanBattery {
   static const int POLL_MODULE_10_HIGH_CELL_MV = 0x01B7;
   static const int POLL_MODULE_10_HIGH_TEMP = 0x01B9;
   static const int POLL_MODULE_10_LOW_TEMP = 0x01BB;
+  static const int POLL_FOR_ORIGINAL_CALIBRATION = 0x1FFE;
+  static const int POLL_FOR_CURRENT_CALIBRATION = 0x1FFC;
 
   static const uint16_t CELLCOUNT_EXTENDED = 126;
   static const uint16_t CELLCOUNT_STANDARD = 104;
@@ -155,7 +154,7 @@ class BydAttoBattery : public CanBattery {
   static const uint16_t MAX_CELL_DEVIATION_MV = 230;
   static const uint16_t MAX_CELL_VOLTAGE_MV = 3650;  //Charging stops if one cell exceeds this value
   static const uint16_t MIN_CELL_VOLTAGE_MV = 2800;  //Discharging stops if one cell goes below this value
-  static const uint16_t POLL_FOR_BATTERY_SOC = 0x0005;
+
   uint16_t rampdown_power = 0;
   uint16_t poll_state = POLL_FOR_BATTERY_SOC;
   uint16_t pid_reply = 0;
@@ -178,6 +177,8 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMC_SOC_original_calibration = 0;
   uint16_t BMS_capacity_current_calibration = 0;
   uint16_t BMC_SOC_current_calibration = 0;
+  uint16_t seed = 0;
+  uint16_t solvedKey = 0;
 
   int16_t battery_temperature_ambient = 0;
   int16_t battery_lowest_temperature = 0;
@@ -205,18 +206,34 @@ class BydAttoBattery : public CanBattery {
   uint8_t frame6_counter = 0xB;
   uint8_t frame7_counter = 0x5;
   uint8_t BMS_SOH = 99;
-  uint8_t BMS_unknown10 = 0;
-  uint8_t BMS_unknown11 = 0;
-  uint8_t BMS_unknown12 = 0;
-  uint8_t BMS_unknown13 = 0;
+  uint8_t BMS_min_cell_voltage_number = 0;
+  uint8_t BMS_min_temp_module_number = 0;
+  uint8_t BMS_max_cell_voltage_number = 0;
+  uint8_t BMS_max_temp_module_number = 0;
   uint8_t battery_frame_index = 0;
+  uint8_t discharge_status = 14;
+  uint8_t increaseTimeoutSOC = 0;
+  static const uint8_t REJECTED = 1;
+  static const uint8_t APPROVED = 2;
+  uint8_t servicemode = NOT_DETERMINED_YET;
 
   bool SOC_method = false;
   bool BMS_voltage_available = false;
 
-  int16_t battery_daughterboard_temperatures[10];
+  int16_t battery_daughterboard_temperatures[10] = {0};
   uint16_t battery_cellvoltages[CELLCOUNT_EXTENDED] = {0};
 
+  /* Extra CAN info 
+  - 0x40D supposedly has vehicle model in frame1
+  - 0x2B6 contains date in frame0-6
+  - 
+  
+    */
+
+  /*12D 
+  - Byte0(bits7:6) = IG1 Relay state
+  - Byte1(bits3:2) = IG3 Relay state
+  - Byte1(bits5:4) = IG4 Relay state*/
   CAN_frame ATTO_3_12D = {.FD = false,
                           .ext_ID = false,
                           .DLC = 8,
