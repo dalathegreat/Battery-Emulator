@@ -853,7 +853,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CTOFFSET") {
-    return String(settings.getUInt("CTOFFSET", 0));
+    return settings.getString("CTOFFSET", "-1.0");
   }
 
   if (var == "CTVNOM") {
@@ -862,6 +862,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "CTANOM") {
     return String(settings.getUInt("CTANOM", 100));
+  }
+
+  if (var == "CTINVERT") {
+    return settings.getBool("CTINVERT") ? "checked" : "";
   }
 
   return String();
@@ -1489,8 +1493,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-ctclamp">
           <label>CT Clamp offset (mV): </label>
           <input type='number' name='CTOFFSET' value="%CTOFFSET%" 
-          min="0" max="1000" step="1"
-          title="Voltage offset required to calibrate 0A reading. " />
+          min="-1" max="3000" step="1"
+          title="Voltage offset required to calibrate 0A reading. -1 = auto-detect" />
 
           <label>CT Clamp nominal voltage (dV): </label>
           <input type='number' name='CTVNOM' value="%CTVNOM%" 
@@ -1506,6 +1510,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           <select name='CTATTEN'>
           %CTATTEN%
           </select>
+
+          <label>Invert CT current: </label>
+          <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% 
+          title="Invert the current reading from the CT clamp, +ve is charging, -ve is discharging" />
           </div>
         </div>
 
