@@ -92,7 +92,7 @@ void init_stored_settings() {
   user_selected_inverter_modules = settings.getUInt("INVMODULES", 0);
   user_selected_inverter_cells_per_module = settings.getUInt("INVCELLSPER", 0);
   user_selected_inverter_voltage_level = settings.getUInt("INVVLEVEL", 0);
-  user_selected_inverter_ah_capacity = settings.getUInt("INVAHCAPACITY", 0);
+  user_selected_inverter_ah_capacity = settings.getUInt("INVCAPACITY", 0);
   user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
   user_selected_inverter_sungrow_type = settings.getUInt("INVSUNTYPE", 0);
   user_selected_inverter_ignore_contactors = settings.getBool("INVICNT", false);
