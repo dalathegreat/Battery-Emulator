@@ -267,17 +267,10 @@ void update_calculated_values(unsigned long currentMillis) {
     }
   }
 
-  /* Calculate sum of all currents from all batteries*/
-  if (battery3) {
-    datalayer.battery.status.reported_current_dA =
-        (datalayer.battery.status.current_dA + datalayer.battery2.status.current_dA +
-         datalayer.battery3.status.current_dA);
-  } else if (battery2) {
-    datalayer.battery.status.reported_current_dA =
-        (datalayer.battery.status.current_dA + datalayer.battery2.status.current_dA);
-  } else {  // Only one battery in use
-    datalayer.battery.status.reported_current_dA = datalayer.battery.status.current_dA;
-  }
+  /* Calculate sum of all currents from all batteries. 0 if they are not used*/
+  datalayer.battery.status.reported_current_dA =
+      (datalayer.battery.status.current_dA + datalayer.battery2.status.current_dA +
+       datalayer.battery3.status.current_dA);
 
   /* Calculate active power based on voltage and current*/
   datalayer.battery.status.active_power_W =
