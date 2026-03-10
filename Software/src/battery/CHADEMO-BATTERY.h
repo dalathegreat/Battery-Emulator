@@ -110,7 +110,7 @@ uint8_t CHADEMO_seq = 0x0;
   struct x102_Vehicle_Charging_Session {  //Frame byte
     uint8_t ControlProtocolNumberEV = 0;  // 0
     uint16_t TargetBatteryVoltage = 0;    // 1-2
-    uint8_t ChargingCurrentRequest = 0;   // 3	Note: per spec, units for this changed from kWh --> %
+    uint8_t ChargingCurrentRequest = 0;   // 3
 
     union {
       uint8_t faults;

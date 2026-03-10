@@ -15,6 +15,12 @@ void ChademoBattery::update_values() {
   //On this integration, we don't care if no CAN messages flow (normal before user plugs in)
   //Always write the CAN as alive!
 
+  //Report pin statuses for better visibility and debugging of CHAdeMO connection issues
+  datalayer_extended.chademo.ConnectionCheckStatus = digitalRead(pin7);
+  datalayer_extended.chademo.D1Status = digitalRead(pin2);
+  datalayer_extended.chademo.D2Status = digitalRead(pin10);
+  datalayer_extended.chademo.ChargeEnableStatus = digitalRead(pin4);
+
   //Check if user is requesting an action, if so, have statemachine jump there
   if (datalayer_extended.chademo.UserRequestStop) {
     CHADEMO_Status = CHADEMO_STOP;
@@ -34,6 +40,8 @@ void ChademoBattery::update_values() {
   if (vehicle_can_received) {  // Only update the value sent towards inverter if vehicle is connected (avoids false positive events)
     datalayer.battery.status.voltage_dV = get_voltage_handler() * 10.0f;
     datalayer.battery.status.current_dA = get_measured_current_ptr() * 10.0f;
+    datalayer_extended.chademo.CurrentRequested = x102_chg_session.ChargingCurrentRequest;
+    datalayer_extended.chademo.VoltageRequested = x102_chg_session.TargetBatteryVoltage;
   }
 
   datalayer.battery.info.total_capacity_Wh = (x101_chg_est.RatedBatteryCapacity * 100);
@@ -79,8 +87,8 @@ void ChademoBattery::update_values() {
 
 void ChademoBattery::process_vehicle_charging_minimums(CAN_frame rx_frame) {
   x100_chg_lim.MinimumChargeCurrent = rx_frame.data.u8[0];
-  x100_chg_lim.MinimumBatteryVoltage = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
-  x100_chg_lim.MaximumBatteryVoltage = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
+  x100_chg_lim.MinimumBatteryVoltage = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) / 100.0f;
+  x100_chg_lim.MaximumBatteryVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 100.0f;
   x100_chg_lim.ConstantOfChargingRateIndication = rx_frame.data.u8[6];
 }
 
@@ -88,14 +96,14 @@ void ChademoBattery::process_vehicle_charging_maximums(CAN_frame rx_frame) {
   x101_chg_est.MaxChargingTime10sBit = rx_frame.data.u8[1];
   x101_chg_est.MaxChargingTime1minBit = rx_frame.data.u8[2];
   x101_chg_est.EstimatedChargingTime = rx_frame.data.u8[3];
-  x101_chg_est.RatedBatteryCapacity = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[5]);
+  x101_chg_est.RatedBatteryCapacity = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
 }
 
 void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
-  uint16_t newTargetBatteryVoltage = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[1]);
-  uint16_t priorTargetBatteryVoltage = x102_chg_session.TargetBatteryVoltage;
+  float newTargetBatteryVoltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]) / 100.0f;
+  float priorTargetBatteryVoltage = x102_chg_session.TargetBatteryVoltage;
   uint8_t newChargingCurrentRequest = rx_frame.data.u8[3];
-  //uint8_t priorChargingCurrentRequest = x102_chg_session.ChargingCurrentRequest;
+  // uint8_t priorChargingCurrentRequest = x102_chg_session.ChargingCurrentRequest;
 
   vehicle_can_initialized = true;
 
@@ -214,7 +222,7 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
 void ChademoBattery::process_vehicle_charging_limits(CAN_frame rx_frame) {
 
   x200_discharge_limits.MaximumDischargeCurrent = rx_frame.data.u8[0];
-  x200_discharge_limits.MinimumDischargeVoltage = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
+  x200_discharge_limits.MinimumDischargeVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
   x200_discharge_limits.MinimumBatteryDischargeLevel = rx_frame.data.u8[6];
   x200_discharge_limits.MaxRemainingCapacityForCharging = rx_frame.data.u8[7];
 
@@ -244,8 +252,8 @@ void ChademoBattery::process_vehicle_discharge_estimate(CAN_frame rx_frame) {
   unsigned long currentMillis = millis();
 
   x201_discharge_estimate.V2HchargeDischargeSequenceNum = rx_frame.data.u8[0];
-  x201_discharge_estimate.ApproxDischargeCompletionTime = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[1]);
-  x201_discharge_estimate.AvailableVehicleEnergy = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[3]);
+  x201_discharge_estimate.ApproxDischargeCompletionTime = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
+  x201_discharge_estimate.AvailableVehicleEnergy = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]);
 
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
     previousMillis5000 = currentMillis;
@@ -382,11 +390,11 @@ void ChademoBattery::update_evse_capabilities(CAN_frame& f) {
 
   /* update Frame - byte 6 and 7 are unused */
   CHADEMO_108.data.u8[0] = x108_evse_cap.contactor_weld_detection;
-  CHADEMO_108.data.u8[1] = lowByte(x108_evse_cap.available_output_voltage);
-  CHADEMO_108.data.u8[2] = highByte(x108_evse_cap.available_output_voltage);
+  CHADEMO_108.data.u8[1] = highByte(x108_evse_cap.available_output_voltage * 100);
+  CHADEMO_108.data.u8[2] = lowByte(x108_evse_cap.available_output_voltage * 100);
   CHADEMO_108.data.u8[3] = x108_evse_cap.available_output_current;
-  CHADEMO_108.data.u8[4] = lowByte(x108_evse_cap.threshold_voltage);
-  CHADEMO_108.data.u8[5] = highByte(x108_evse_cap.threshold_voltage);
+  CHADEMO_108.data.u8[4] = highByte(x108_evse_cap.threshold_voltage * 100);
+  CHADEMO_108.data.u8[5] = lowByte(x108_evse_cap.threshold_voltage * 100);
 }
 
 /* updates for x109 */
@@ -461,8 +469,8 @@ void ChademoBattery::update_evse_status(CAN_frame& f) {
   //CHADEMO_109.data.u8[0] hardcoded to 0x2 for CHAdeMO v1, 1.0.1, 1.1, 1.2
   // in initialization
   CHADEMO_109.data.u8[0] = x109_evse_state.CHADEMO_protocol_number;
-  CHADEMO_109.data.u8[1] = lowByte(x109_evse_state.setpoint_HV_VDC);
-  CHADEMO_109.data.u8[2] = highByte(x109_evse_state.setpoint_HV_VDC);
+  CHADEMO_109.data.u8[1] = highByte(x109_evse_state.setpoint_HV_VDC * 100);
+  CHADEMO_109.data.u8[2] = lowByte(x109_evse_state.setpoint_HV_VDC * 100);
   CHADEMO_109.data.u8[3] = x109_evse_state.setpoint_HV_IDC;
   CHADEMO_109.data.u8[4] = x109_evse_state.discharge_compatible;
 
@@ -495,8 +503,8 @@ void ChademoBattery::update_evse_discharge_estimate(CAN_frame& f) {
 	*/
 
   CHADEMO_209.data.u8[0] = x209_evse_dischg_est.sequence_control_number;
-  CHADEMO_209.data.u8[1] = lowByte(x209_evse_dischg_est.remaining_discharge_time);
-  CHADEMO_209.data.u8[2] = highByte(x209_evse_dischg_est.remaining_discharge_time);
+  CHADEMO_209.data.u8[1] = highByte(x209_evse_dischg_est.remaining_discharge_time);
+  CHADEMO_209.data.u8[2] = lowByte(x209_evse_dischg_est.remaining_discharge_time);
 }
 
 /* x208 EVSE, peer to 0x200 Vehicle */
@@ -541,13 +549,13 @@ void ChademoBattery::update_evse_discharge_capabilities(CAN_frame& f) {
 
   //TODO might be ideal to do the 0xFF subtraction HERE during serialization, rather than above?
   CHADEMO_208.data.u8[0] = x208_evse_dischg_cap.present_discharge_current;
-  CHADEMO_208.data.u8[1] = lowByte(x208_evse_dischg_cap.available_input_voltage);
-  CHADEMO_208.data.u8[2] = highByte(x208_evse_dischg_cap.available_input_voltage);
+  CHADEMO_208.data.u8[1] = highByte(x208_evse_dischg_cap.available_input_voltage * 100);
+  CHADEMO_208.data.u8[2] = lowByte(x208_evse_dischg_cap.available_input_voltage * 100);
 
   CHADEMO_208.data.u8[3] = x208_evse_dischg_cap.available_input_current;
 
-  CHADEMO_208.data.u8[6] = lowByte(x208_evse_dischg_cap.lower_threshold_voltage);
-  CHADEMO_208.data.u8[7] = highByte(x208_evse_dischg_cap.lower_threshold_voltage);
+  CHADEMO_208.data.u8[6] = highByte(x208_evse_dischg_cap.lower_threshold_voltage * 100);
+  CHADEMO_208.data.u8[7] = lowByte(x208_evse_dischg_cap.lower_threshold_voltage * 100);
 }
 
 void ChademoBattery::transmit_can(unsigned long currentMillis) {
