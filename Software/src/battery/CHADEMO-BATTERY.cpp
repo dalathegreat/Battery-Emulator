@@ -44,7 +44,7 @@ void ChademoBattery::update_values() {
     datalayer_extended.chademo.VoltageRequested = x102_chg_session.TargetBatteryVoltage;
   }
 
-  datalayer.battery.info.total_capacity_Wh = (x101_chg_est.RatedBatteryCapacity * 100);
+  datalayer.battery.info.total_capacity_Wh = (x101_chg_est.RatedBatteryCapacity * 1000);
   //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
 
   /* TODO max charging rate = 
@@ -96,7 +96,7 @@ void ChademoBattery::process_vehicle_charging_maximums(CAN_frame rx_frame) {
   x101_chg_est.MaxChargingTime10sBit = rx_frame.data.u8[1];
   x101_chg_est.MaxChargingTime1minBit = rx_frame.data.u8[2];
   x101_chg_est.EstimatedChargingTime = rx_frame.data.u8[3];
-  x101_chg_est.RatedBatteryCapacity = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+  x101_chg_est.RatedBatteryCapacity = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]) / 100.0f; //kWh
 }
 
 void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
