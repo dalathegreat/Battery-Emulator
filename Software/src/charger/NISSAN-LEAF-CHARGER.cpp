@@ -86,6 +86,11 @@ void NissanLeafCharger::map_can_frame_to_variable(CAN_frame rx_frame) {
 
 void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
 
+  CHARGER_MAX_A = 32;  //LEAF PDMs can do 32A max. Set here to allow webserver to tune value up to this.
+  CHARGER_MAX_POWER = 6600;
+  CHARGER_MIN_HV = 200;
+  CHARGER_MAX_HV = 420;
+
   /* Send keepalive with mode every 10ms */
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
     previousMillis10ms = currentMillis;
@@ -147,13 +152,13 @@ void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
       }
 
       // if actual battery_voltage is less than setpoint got to max power set from web ui
-      if (datalayer.battery.status.voltage_dV <
-          (CHARGER_SET_HV * 10)) {  //datalayer.battery.status.voltage_dV = V+1,  0-500.0 (0-5000)
+      if (datalayer.battery.status.voltage_dV < (datalayer.charger.charger_setpoint_HV_VDC *
+                                                 10)) {  //datalayer.battery.status.voltage_dV = V+1,  0-500.0 (0-5000)
         OBCpower = OBCpowerSetpoint;
       }
 
       // decrement charger power if volt setpoint is reached
-      if (datalayer.battery.status.voltage_dV >= (CHARGER_SET_HV * 10)) {
+      if (datalayer.battery.status.voltage_dV >= (datalayer.charger.charger_setpoint_HV_VDC * 10)) {
         if (OBCpower > 0x64) {
           OBCpower--;
         }
