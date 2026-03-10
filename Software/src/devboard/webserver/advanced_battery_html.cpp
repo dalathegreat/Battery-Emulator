@@ -9,6 +9,8 @@
 std::vector<BatteryCommand> battery_commands = {
     {"clearIsolation", "Clear isolation fault", "clear any active isolation fault?",
      [](Battery* b) { return b && b->supports_clear_isolation(); }, [](Battery* b) { b->clear_isolation(); }},
+    {"calibrateSOC", "Calibrate SOC", "calibrate SOC? Note this will calibrate BMS according to set targets",
+     [](Battery* b) { return b && b->supports_calibrate_SOC(); }, [](Battery* b) { b->reset_SOC(); }},
     {"chademoRestart", "Restart", "restart the V2X session?",
      [](Battery* b) { return b && b->supports_chademo_restart(); }, [](Battery* b) { b->chademo_restart(); }},
     {"chademoStop", "Stop", "stop V2X?", [](Battery* b) { return b && b->supports_chademo_restart(); },
@@ -17,6 +19,13 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) { b->reset_BMS(); }},
     {"resetSOC", "SOC Reset", "Reset SOC?", [](Battery* b) { return b && b->supports_reset_SOC(); },
      [](Battery* b) { b->reset_SOC(); }},
+    {"startOfflineBalancing", "Start Offline Balancing",
+     "continue? Please charge battery fully for this to work. After a couple of minutes, battery will sleep and do "
+     "balancing. It often takes many hours. There will be no progress indication.",
+     [](Battery* b) { return b && b->supports_offline_balancing(); },
+     [](Battery* b) { b->initiate_offline_balancing(); }},
+    {"endOfflineBalancing", "End Offline Balancing", "end offline balancing?",
+     [](Battery* b) { return b && b->supports_offline_balancing(); }, [](Battery* b) { b->end_offline_balancing(); }},
     {"resetCrash", "Unlock crashed BMS",
      "reset crash data? Note this will unlock your BMS and enable contactor closing and SOC calculation.",
      [](Battery* b) { return b && b->supports_reset_crash(); }, [](Battery* b) { b->reset_crash(); }},

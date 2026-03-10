@@ -12,7 +12,7 @@ class SimpBmsBattery : public CanBattery {
   static constexpr const char* Name = "SIMPBMS battery";
 
  private:
-  static const int SIMPBMS_MAX_CELLS = 128;
+  static const uint8_t SIMPBMS_MAX_CELLS = 128;
 
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
 
@@ -36,7 +36,6 @@ class SimpBmsBattery : public CanBattery {
   uint8_t SOH = 99;
   uint8_t charge_forbidden = 0;
   uint8_t discharge_forbidden = 0;
-  uint16_t cellvoltages_mV[SIMPBMS_MAX_CELLS] = {0};
 };
 
 #endif

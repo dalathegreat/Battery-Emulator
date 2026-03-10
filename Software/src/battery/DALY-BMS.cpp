@@ -31,6 +31,17 @@ void DalyBms::update_values() {
   datalayer.battery.status.max_discharge_power_W =
       (datalayer.battery.settings.max_user_set_discharge_dA * voltage_dV) / 100;
 
+  // limit power when reaching discharge voltage limit
+  uint32_t voltage_power_limit = 999999;
+  uint16_t min_voltage = datalayer.battery.info.min_design_voltage_dV;
+  if (datalayer.battery.settings.user_set_voltage_limits_active &&
+      datalayer.battery.settings.max_user_set_discharge_voltage_dV > min_voltage)
+    min_voltage = datalayer.battery.settings.max_user_set_discharge_voltage_dV;
+  if (voltage_dV - min_voltage < 20)
+    voltage_power_limit = (uint32_t)(voltage_dV - min_voltage) * POWER_PER_DV;
+  if (voltage_power_limit < datalayer.battery.status.max_discharge_power_W)
+    datalayer.battery.status.max_discharge_power_W = voltage_power_limit;
+
   // limit power when SoC is low or high
   uint32_t adaptive_power_limit = 999999;
   if (SOC < 2000)

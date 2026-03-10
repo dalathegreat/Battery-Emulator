@@ -14,26 +14,13 @@
 void SolaxInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   // If not receiveing any communication from the inverter, open contactors and return to battery announce state
-  if (millis() - LastFrameTime >= SolaxTimeout && !configured_ignore_contactors) {
+  if (millis() - LastFrameTime >= INTERVAL_2_S && !configured_ignore_contactors) {
     datalayer.system.status.inverter_allows_contactor_closing = false;
     STATE = BATTERY_ANNOUNCE;
   }
   //Calculate the required values
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
-
-  // Batteries might be larger than uint16_t value can take
-  if (datalayer.battery.info.reported_total_capacity_Wh > 65000) {
-    capped_capacity_Wh = 65000;
-  } else {
-    capped_capacity_Wh = datalayer.battery.info.reported_total_capacity_Wh;
-  }
-  // Batteries might be larger than uint16_t value can take
-  if (datalayer.battery.status.reported_remaining_capacity_Wh > 65000) {
-    capped_remaining_capacity_Wh = 65000;
-  } else {
-    capped_remaining_capacity_Wh = datalayer.battery.status.reported_remaining_capacity_Wh;
-  }
 
   //Put the values into the CAN messages
   //BMS_Limits
@@ -54,8 +41,8 @@ void SolaxInverter::
   SOLAX_1873.data.u8[3] = (datalayer.battery.status.reported_current_dA >> 8);
   SOLAX_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (100.00%)
   //SOLAX_1873.data.u8[5] = //Seems like this is not required? Or shall we put SOC decimals here?
-  SOLAX_1873.data.u8[6] = (uint8_t)(capped_remaining_capacity_Wh / 10);
-  SOLAX_1873.data.u8[7] = ((capped_remaining_capacity_Wh / 10) >> 8);
+  SOLAX_1873.data.u8[6] = (uint8_t)(datalayer.battery.status.reported_remaining_capacity_Wh / 10);
+  SOLAX_1873.data.u8[7] = ((datalayer.battery.status.reported_remaining_capacity_Wh / 10) >> 8);
 
   //BMS_CellData
   SOLAX_1874.data.u8[0] = (int8_t)datalayer.battery.status.temperature_max_dC;
@@ -221,13 +208,13 @@ bool SolaxInverter::setup(void) {  // Performs one time setup at startup
   if (user_selected_inverter_modules > 0) {
     configured_number_of_modules = user_selected_inverter_modules;
   } else {
-    configured_number_of_modules = NUMBER_OF_MODULES;
+    configured_number_of_modules = DEFAULT_NUMBER_OF_MODULES;
   }
 
   if (user_selected_inverter_battery_type > 0) {
     configured_battery_type = user_selected_inverter_battery_type;
   } else {
-    configured_battery_type = BATTERY_TYPE;
+    configured_battery_type = DEFAULT_BATTERY_TYPE;
   }
 
   configured_ignore_contactors = user_selected_inverter_ignore_contactors;

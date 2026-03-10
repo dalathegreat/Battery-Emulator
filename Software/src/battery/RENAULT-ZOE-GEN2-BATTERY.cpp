@@ -239,7 +239,7 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
           break;
         case POLL_12V:
-          battery_12v = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery_12v = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 350;  //350, calibration from testing
           break;
         case POLL_AVG_TEMP:
           battery_avg_temp = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];

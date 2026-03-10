@@ -264,13 +264,15 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
-  char shunt_protocol[64] = {0};
+  char shunt_protocol[32] = {0};
   /** array with type of inverter brand used, for displaying on webserver */
   char inverter_brand[8] = {0};
 
   size_t logged_can_messages_offset = 0;
   /** ESP32 main CPU temperature, for displaying on webserver and for safeties */
   float CPU_temperature = 0;
+  /** ESP32 free heap amount, for displaying on webserver and for safeties */
+  uint32_t CPU_free_heap = 0;
 
   /** uint8_t, enumeration which CAN interface should be used for log playback */
   uint8_t can_replay_interface = CAN_NATIVE;
@@ -310,8 +312,6 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   int64_t mqtt_task_10s_max_us = 0;
   /** Wifi sub-task measurement variable, reset each 10 seconds */
   int64_t wifi_task_10s_max_us = 0;
-  /** OTA handling function measurement variable */
-  int64_t time_ota_us = 0;
   /** CAN RX or serial link function measurement variable */
   int64_t time_comm_us = 0;
   /** 10 ms function measurement variable */
@@ -320,10 +320,6 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   int64_t time_values_us = 0;
   /** CAN TX function measurement variable */
   int64_t time_cantx_us = 0;
-  /** Function measurement snapshot variable.
-   * This will show the performance of OTA handling when the total time reached a new worst case
-   */
-  int64_t time_snap_ota_us = 0;
   /** Function measurement snapshot variable.
    * This will show the performance of CAN RX or serial link when the total time reached a new worst case
    */

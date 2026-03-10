@@ -897,4 +897,16 @@ class TeslaBattery : public CanBattery {
   bool BMS_a180_SW_ECU_reset_blocked = false;
 };
 
+class TeslaModel3YBattery : public TeslaBattery {
+ public:
+  static constexpr const char* Name = "Tesla Model 3/Y";
+  virtual void setup(void);
+};
+
+class TeslaModelSXBattery : public TeslaBattery {
+ public:
+  static constexpr const char* Name = "Tesla Model S/X";
+  virtual void setup(void);
+};
+
 #endif

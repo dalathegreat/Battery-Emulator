@@ -36,6 +36,7 @@ extern uint16_t user_selected_inverter_cells_per_module;
 extern uint16_t user_selected_inverter_voltage_level;
 extern uint16_t user_selected_inverter_ah_capacity;
 extern uint16_t user_selected_inverter_battery_type;
+extern uint16_t user_selected_inverter_sungrow_type;
 extern bool user_selected_inverter_ignore_contactors;
 extern bool user_selected_pylon_30koffset;
 extern bool user_selected_pylon_invert_byteorder;

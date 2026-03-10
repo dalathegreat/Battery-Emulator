@@ -40,6 +40,12 @@ void update_machineryprotection() {
     clear_event(EVENT_CPU_OVERHEATED);  //Hysteresis on the clearing
   }
 
+  if (datalayer.system.info.CPU_free_heap < 62000) {
+    set_event(EVENT_LOW_HEAP_MEMORY, (datalayer.system.info.CPU_free_heap / 1000));
+  } else {
+    clear_event(EVENT_LOW_HEAP_MEMORY);
+  }
+
   // Check health status of CAN interfaces
   if (datalayer.system.info.can_native_send_fail) {
     set_event(EVENT_CAN_NATIVE_TX_FAILURE, 0);

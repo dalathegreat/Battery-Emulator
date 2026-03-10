@@ -102,6 +102,7 @@ add_executable(tests
     ../Software/src/battery/CanBattery.cpp
     ../Software/src/battery/CELLPOWER-BMS.cpp
     ../Software/src/battery/CHADEMO-BATTERY.cpp
+    ../Software/src/battery/CHADEMO-CT.cpp
     ../Software/src/battery/CHADEMO-SHUNTS.cpp
     ../Software/src/battery/CMFA-EV-BATTERY.cpp
     ../Software/src/battery/CMP-SMART-CAR-BATTERY.cpp
@@ -110,6 +111,7 @@ add_executable(tests
     ../Software/src/battery/FORD-MACH-E-BATTERY.cpp
     ../Software/src/battery/FOXESS-BATTERY.cpp
     ../Software/src/battery/GEELY-GEOMETRY-C-BATTERY.cpp
+    ../Software/src/battery/GROWATT-HV-ARK-BATTERY.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY-HTML.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY.cpp
     ../Software/src/battery/IMIEV-CZERO-ION-BATTERY.cpp
@@ -142,6 +144,7 @@ add_executable(tests
     ../Software/src/battery/TESLA-LEGACY-BATTERY.cpp
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
     ../Software/src/battery/THINK-BATTERY.cpp
+    ../Software/src/battery/GEELY-SEA-BATTERY.cpp
     ../Software/src/battery/VOLVO-SPA-BATTERY.cpp
     ../Software/src/battery/VOLVO-SPA-HYBRID-BATTERY.cpp
     ../Software/src/inverter/AFORE-CAN.cpp
