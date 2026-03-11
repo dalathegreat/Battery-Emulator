@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright 2016-2026 Hristo Gochkov, Mathieu Carbou, Emil Muratov, Will Miles
+
 #include "ESPAsyncWebServer.h"
 
 /**
@@ -32,7 +35,7 @@ void AsyncWebServerRequest::send(FS &fs, const String &path, const char *content
   // ETag validation
   if (this->hasHeader(asyncsrv::T_INM)) {
     // Generate server ETag from CRC in gzip trailer
-    char serverETag[9];
+    char serverETag[11];
     if (!_getEtag(gzFile, serverETag)) {
       // Compressed file not found or invalid
       send(404);
@@ -55,14 +58,15 @@ void AsyncWebServerRequest::send(FS &fs, const String &path, const char *content
 }
 
 /**
- * @brief Generates an ETag string from the CRC32 trailer of a GZIP file.
+ * @brief Generates an ETag string (enclosed into quotes) from the CRC32 trailer of a GZIP file.
  *
  * This function reads the CRC32 checksum (4 bytes) located at the end of a GZIP-compressed file
- * and converts it into an 8-character hexadecimal ETag string (null-terminated).
+ * and converts it into an 8-character hexadecimal ETag string (enclosed in double quotes and null-terminated).
+ * Double quotes for ETag value are required by RFC9110 section 8.8.3.
  *
  * @param gzFile  Opened file handle pointing to the GZIP file.
  * @param eTag    Output buffer to store the generated ETag.
- *                Must be pre-allocated with at least 9 bytes (8 for hex digits + 1 for null terminator).
+ *                Must be pre-allocated with at least 11 bytes (8 for hex digits + 2 for quotes + 1 for null terminator).
  *
  * @return true if the ETag was successfully generated, false otherwise (e.g., file too short or seek failed).
  */
@@ -76,15 +80,17 @@ bool AsyncWebServerRequest::_getEtag(File gzFile, char *etag) {
   uint32_t crc;
   gzFile.read(reinterpret_cast<uint8_t *>(&crc), sizeof(crc));
 
-  etag[0] = hexChars[(crc >> 4) & 0x0F];
-  etag[1] = hexChars[crc & 0x0F];
-  etag[2] = hexChars[(crc >> 12) & 0x0F];
-  etag[3] = hexChars[(crc >> 8) & 0x0F];
-  etag[4] = hexChars[(crc >> 20) & 0x0F];
-  etag[5] = hexChars[(crc >> 16) & 0x0F];
-  etag[6] = hexChars[(crc >> 28)];
-  etag[7] = hexChars[(crc >> 24) & 0x0F];
-  etag[8] = '\0';
+  etag[0] = '"';
+  etag[1] = hexChars[(crc >> 4) & 0x0F];
+  etag[2] = hexChars[crc & 0x0F];
+  etag[3] = hexChars[(crc >> 12) & 0x0F];
+  etag[4] = hexChars[(crc >> 8) & 0x0F];
+  etag[5] = hexChars[(crc >> 20) & 0x0F];
+  etag[6] = hexChars[(crc >> 16) & 0x0F];
+  etag[7] = hexChars[(crc >> 28)];
+  etag[8] = hexChars[(crc >> 24) & 0x0F];
+  etag[9] = '"';
+  etag[10] = '\0';
 
   return true;
 }
