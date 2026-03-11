@@ -3,24 +3,6 @@
 
 #include "ESPAsyncWebServer.h"
 
-/**
- * @brief Sends a file from the filesystem to the client, with optional gzip compression and ETag-based caching.
- *
- * This method serves files over HTTP from the provided filesystem. If a compressed version of the file
- * (with a `.gz` extension) exists and uncompressed version does not exist, it serves the compressed file.
- * It also handles ETag caching using the CRC32 value from the gzip trailer, responding with `304 Not Modified`
- * if the client's `If-None-Match` header matches the generated ETag.
- *
- * @param fs Reference to the filesystem (SPIFFS, LittleFS, etc.).
- * @param path Path to the file to be served.
- * @param contentType Optional MIME type of the file to be sent.
- *                    If contentType is "" it will be obtained from the file extension
- * @param download If true, forces the file to be sent as a download.
- * @param callback Optional template processor for dynamic content generation.
- *                 Templates will not be processed in compressed files.
- *
- * @note If neither the file nor its compressed version exists, responds with `404 Not Found`.
- */
 void AsyncWebServerRequest::send(FS &fs, const String &path, const char *contentType, bool download, AwsTemplateProcessor callback) {
   // Check uncompressed file first
   if (fs.exists(path)) {
