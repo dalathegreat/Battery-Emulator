@@ -1,4 +1,5 @@
 #include "CHADEMO-BATTERY.h"
+#include <sstream>
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "CHADEMO-CT.h"
@@ -107,6 +108,16 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
 
   vehicle_can_initialized = true;
 
+  static std::string lastLogMessage;
+  std::ostringstream logStream;
+  auto flushLog = [&]() {
+    std::string msg = logStream.str();
+    if (!msg.empty() && msg != lastLogMessage) {
+      DEBUG_PRINTLN(msg.c_str());
+      lastLogMessage = msg;
+    }
+  };
+
   vehicle_permission = digitalRead(pin4);
 
   x102_chg_session.ControlProtocolNumberEV = rx_frame.data.u8[0];
@@ -137,8 +148,7 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
   uint8_t chargingrate = 0;
   if (x100_chg_lim.ConstantOfChargingRateIndication > 0) {
     chargingrate = x102_chg_session.StateOfCharge / x100_chg_lim.ConstantOfChargingRateIndication * 100;
-    logging.printf("Charge Rate (kW): ");
-    logging.println(chargingrate);
+    logStream << "Charge Rate (kW): " << chargingrate << "\n";
   }
 
   //Table A.26—Charge control termination command patterns -- should echo x108 handling
@@ -151,78 +161,99 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
    */
   if ((CHADEMO_Status == CHADEMO_INIT && vehicle_permission) ||
       (x102_chg_session.s.status.StatusVehicleChargingEnabled && !vehicle_permission)) {
-    logging.println("Inconsistent charge/discharge state.");
+    logStream << "Inconsistent charge/discharge state.\n";
     CHADEMO_Status = CHADEMO_FAULT;
+    flushLog();
     return;
   }
 
   if (x102_chg_session.f.fault.FaultBatteryOverVoltage) {
-    logging.println("Vehicle indicates fault, battery over voltage.");
+    logStream << "Vehicle indicates fault, battery over voltage.\n";
     CHADEMO_Status = CHADEMO_STOP;
+    flushLog();
     return;
   }
 
   if (x102_chg_session.f.fault.FaultBatteryUnderVoltage) {
-    logging.println("Vehicle indicates fault, battery under voltage.");
+    logStream << "Vehicle indicates fault, battery under voltage.\n";
     CHADEMO_Status = CHADEMO_STOP;
+    flushLog();
     return;
   }
 
   if (x102_chg_session.f.fault.FaultBatteryCurrentDeviation) {
-    logging.println("Vehicle indicates fault, battery current deviation. Possible EVSE issue?");
+    logStream << "Vehicle indicates fault, battery current deviation. Possible EVSE issue?\n";
     CHADEMO_Status = CHADEMO_STOP;
+    flushLog();
     return;
   }
 
   if (x102_chg_session.f.fault.FaultBatteryVoltageDeviation) {
-    logging.println("Vehicle indicates fault, battery voltage deviation. Possible EVSE issue?");
+    logStream << "Vehicle indicates fault, battery voltage deviation. Possible EVSE issue?\n";
     CHADEMO_Status = CHADEMO_STOP;
+    flushLog();
     return;
   }
 
   // end
   if (priorTargetBatteryVoltage > 0 && newTargetBatteryVoltage == 0) {
     CHADEMO_Status = CHADEMO_STOP;
+    flushLog();
     return;
   }
 
   //FIXME condition nesting or more stanzas needed here for clear determination of cessation reason
   if (CHADEMO_Status == CHADEMO_POWERFLOW && EVSE_mode == CHADEMO_CHARGE && !vehicle_permission) {
-    logging.println("State of charge ceiling reached or charging interrupted, stop charging");
+    logStream << "State of charge ceiling reached or charging interrupted, stop charging\n";
     CHADEMO_Status = CHADEMO_STOP;
+    flushLog();
     return;
   }
 
   if (vehicle_permission && CHADEMO_Status == CHADEMO_NEGOTIATE) {
     CHADEMO_Status = CHADEMO_EV_ALLOWED;
-    logging.println("STATE shift to CHADEMO_EV_ALLOWED in process_vehicle_charging_session()");
+    logStream << "STATE shift to CHADEMO_EV_ALLOWED in process_vehicle_charging_session()\n";
+    flushLog();
     return;
   }
 
   // TODO this and the next stanza influence state/control
-  //  and probably don't belong in this function
+  // and probably don't belong in this function
   // consider relocating
-  if (vehicle_permission && CHADEMO_Status == CHADEMO_EVSE_PREPARE && priorTargetBatteryVoltage == 0 &&
+  if (vehicle_permission && CHADEMO_Status == CHADEMO_EVSE_PREPARE  &&
       newTargetBatteryVoltage > 0 && x102_chg_session.s.status.StatusVehicleChargingEnabled) {
-    logging.println("STATE SHIFT to EVSE_START reached in process_vehicle_charging_session()");
+    logStream << "STATE SHIFT to EVSE_START reached in process_vehicle_charging_session()\n";
     CHADEMO_Status = CHADEMO_EVSE_START;
+    flushLog();
     return;
   }
 
   if (vehicle_permission && evse_permission && CHADEMO_Status == CHADEMO_POWERFLOW) {
-    logging.println("updating vehicle request in process_vehicle_charging_session()");
+    logStream << "Updating vehicle request in process_vehicle_charging_session()\n";
+    flushLog();
     return;
   }
 
-  logging.println("UNHANDLED CHADEMO STATE, try unplugging chademo cable, reboot emulator, and retry!");
+  logStream << "UNHANDLED CHADEMO STATE, try unplugging chademo cable, reboot emulator, and retry!\n";
+  flushLog();
   return;
 }
 
 /* x200 Vehicle, peer to x208 EVSE */
 void ChademoBattery::process_vehicle_charging_limits(CAN_frame rx_frame) {
 
+  static std::string lastLogMessage;
+  std::ostringstream logStream;
+  auto flushLog = [&]() {
+    std::string msg = logStream.str();
+    if (!msg.empty() && msg != lastLogMessage) {
+      DEBUG_PRINTLN(msg.c_str());
+      lastLogMessage = msg;
+    }
+  };
+
   x200_discharge_limits.MaximumDischargeCurrent = rx_frame.data.u8[0];
-  x200_discharge_limits.MinimumDischargeVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+  x200_discharge_limits.MinimumDischargeVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 100.0f;
   x200_discharge_limits.MinimumBatteryDischargeLevel = rx_frame.data.u8[6];
   x200_discharge_limits.MaxRemainingCapacityForCharging = rx_frame.data.u8[7];
 
@@ -236,19 +267,29 @@ void ChademoBattery::process_vehicle_charging_limits(CAN_frame rx_frame) {
   */
 
   if (get_voltage_handler() <= x200_discharge_limits.MinimumDischargeVoltage && CHADEMO_Status > CHADEMO_NEGOTIATE) {
-    logging.println("x200 minimum discharge voltage met or exceeded, stopping.");
-    logging.printf("Measured: ");
-    logging.print(get_voltage_handler());
-    logging.printf("Minimum voltage: ");
-    logging.print(x200_discharge_limits.MinimumDischargeVoltage);
+    logStream << "x200 minimum discharge voltage met or exceeded, stopping.\n"
+              << "Measured: " << get_voltage_handler() << "V\n"
+              << "Minimum voltage: " << x200_discharge_limits.MinimumDischargeVoltage << "V\n";
     CHADEMO_Status = CHADEMO_STOP;
   }
+
+  flushLog();
 }
 
 /* Vehicle 0x201, peer to EVSE 0x209 
  * HOWEVER, 201 isn't even emitted in any of the v2x canlogs available
  */
 void ChademoBattery::process_vehicle_discharge_estimate(CAN_frame rx_frame) {
+  static std::string lastLogMessage;
+  std::ostringstream logStream;
+  auto flushLog = [&]() {
+    std::string msg = logStream.str();
+    if (!msg.empty() && msg != lastLogMessage) {
+      DEBUG_PRINTLN(msg.c_str());
+      lastLogMessage = msg;
+    }
+  };
+
   unsigned long currentMillis = millis();
 
   x201_discharge_estimate.V2HchargeDischargeSequenceNum = rx_frame.data.u8[0];
@@ -257,11 +298,12 @@ void ChademoBattery::process_vehicle_discharge_estimate(CAN_frame rx_frame) {
 
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
     previousMillis5000 = currentMillis;
-    logging.printf("x201 availabile vehicle energy, completion time: ");
-    logging.println(x201_discharge_estimate.AvailableVehicleEnergy);
-    logging.printf("x201 approx vehicle completion time: ");
-    logging.println(x201_discharge_estimate.ApproxDischargeCompletionTime);
+    logStream << "x201 available vehicle energy: " << x201_discharge_estimate.AvailableVehicleEnergy << "kWh";
+    logStream << "x201 approx vehicle completion time: " << x201_discharge_estimate.ApproxDischargeCompletionTime
+              << "\n";
   }
+
+  flushLog();
 }
 
 void ChademoBattery::process_vehicle_dynamic_control(CAN_frame rx_frame) {
@@ -560,6 +602,16 @@ void ChademoBattery::update_evse_discharge_capabilities(CAN_frame& f) {
 
 void ChademoBattery::transmit_can(unsigned long currentMillis) {
 
+  static std::string lastTransmitLog;
+  std::ostringstream transmitLogStream;
+  auto flushTransmitLog = [&]() {
+    std::string msg = transmitLogStream.str();
+    if (!msg.empty() && msg != lastTransmitLog) {
+      DEBUG_PRINTLN(msg.c_str());
+      lastTransmitLog = msg;
+    }
+  };
+
   handlerBeforeMillis = currentMillis;
   handle_chademo_sequence();
   handlerAfterMillis = millis();
@@ -607,7 +659,8 @@ void ChademoBattery::transmit_can(unsigned long currentMillis) {
     // 	110.0.0
     if (x102_chg_session.ControlProtocolNumberEV >= 0x03) {  //Only send the following on Chademo 2.0 vehicles?
       //FIXME REMOVE
-      logging.println("REMOVE: proto 2.0");
+      transmitLogStream << "REMOVE: proto 2.0\n";
+      flushTransmitLog();
       transmit_can_frame(&CHADEMO_118);
     }
   }
@@ -634,23 +687,28 @@ void ChademoBattery::transmit_can(unsigned long currentMillis) {
  *    5) Emergency stop stage
  *      CHADEMO_FAULT
  */
+
 void ChademoBattery::handle_chademo_sequence() {
 
-  precharge_low = digitalRead(precharge) == LOW;
-  positive_high = digitalRead(positive_contactor) == HIGH;
-  contactors_ready = precharge_low && positive_high;
+  static std::string lastLogMessage;
+  std::ostringstream logStream;
 
   vehicle_permission = digitalRead(pin4);
 
   /* -------------------    State override conditions checks	------------------- */
   /* ------------------------------------------------------------------------------ */
+  if (CHADEMO_Status >= CHADEMO_EV_ALLOWED && x102_chg_session.s.status.StatusNormalStopRequest) {
+    logStream << "Vehicle charging stop requested, STOP.\n";
+    CHADEMO_Status = CHADEMO_STOP;
+  }
+  
   if (CHADEMO_Status >= CHADEMO_EV_ALLOWED && x102_chg_session.s.status.StatusVehicleShifterPosition) {
-    logging.println("Vehicle is not parked, abort.");
+    logStream << "Vehicle is not parked, STOP.\n";
     CHADEMO_Status = CHADEMO_STOP;
   }
 
   if (CHADEMO_Status >= CHADEMO_EV_ALLOWED && !vehicle_permission) {
-    logging.println("Vehicle charge/discharge permission ended, stop.");
+    logStream << "Vehicle charge/discharge permission ended, STOP.\n";
     CHADEMO_Status = CHADEMO_STOP;
   }
 
@@ -669,7 +727,7 @@ void ChademoBattery::handle_chademo_sequence() {
       }
 
       CHADEMO_Status = CHADEMO_CONNECTED;
-      logging.println("CHADEMO plug is inserted. Provide EVSE power to vehicle to trigger initialization.");
+      logStream << "CHADEMO plug is inserted. Provide EVSE power to vehicle to trigger initialization.\n";
 
       break;
     case CHADEMO_CONNECTED:
@@ -679,20 +737,20 @@ void ChademoBattery::handle_chademo_sequence() {
       /* plug_inserted is .. essentially a volatile of sorts, so verify */
       if (plug_inserted) {
         /* If connection is detectable, jumpstart handshake by 
-			 * indicate that the EVSE is ready to begin
-			 */
+		 * indicate that the EVSE is ready to begin
+		 */
         digitalWrite(pin2, HIGH);
 
         /* State change to initializing. We will re-enter the handler upon receipt of CAN */
         CHADEMO_Status = CHADEMO_INIT;
       } else {
         /* this potentially-viewed-as-redundant condition checking is candidly
-	 * an expression racy-relaties of the real world. Depending upon 
-	 * testing/performance, it may be better to pepper this state handler
-	 * with timers to have higher confidence of certain conditions hitting
-	 * a steady state
-	 */
-        DEBUG_PRINTLN("CHADEMO plug is not inserted, cannot connect d2 relay to begin initialization.");
+ 	 * an expression racy-relaties of the real world. Depending upon 
+ 	 * testing/performance, it may be better to pepper this state handler
+ 	 * with timers to have higher confidence of certain conditions hitting
+ 	 * a steady state
+ 	 */
+        logStream << "CHADEMO plug is not inserted, cannot connect d2 relay to begin initialization.\n";
         CHADEMO_Status = CHADEMO_IDLE;
       }
       break;
@@ -701,7 +759,7 @@ void ChademoBattery::handle_chademo_sequence() {
        * Used for triggers/error handling elsewhere;
        * State change to CHADEMO_NEGOTIATE occurs in handle_incoming_can_frame_battery(..)
        */
-      DEBUG_PRINTLN("Awaiting initial vehicle CAN to trigger negotiation");
+      logStream << "Awaiting initial vehicle CAN to trigger negotiation\n";
       evse_init();
       break;
     case CHADEMO_NEGOTIATE:
@@ -714,7 +772,7 @@ void ChademoBattery::handle_chademo_sequence() {
       break;
     case CHADEMO_EV_ALLOWED:
       //        Commented unless needed for debug
-      logging.println("CHADEMO_EV_ALLOWED State");
+      logStream << "CHADEMO_EV_ALLOWED State\n";
       // If we are in this state, vehicle_permission was already set to true...but re-verify
       // that pin 4 (j) reads high
       if (vehicle_permission) {
@@ -730,27 +788,28 @@ void ChademoBattery::handle_chademo_sequence() {
       break;
     case CHADEMO_EVSE_PREPARE:
       //        Commented unless needed for debug
-      logging.println("CHADEMO_EVSE_PREPARE State");
+      logStream << "CHADEMO_EVSE_PREPARE State\n";
       /* TODO voltage check of output < 20v 
        * insulation test hypothetically happens here before triggering PIN 10 high
        * see Table A.28—Requirements for the insulation test for output DC circuit
-	Note: required that if 102.5.0 == 0, do not perform evse insulation test
-	we should not be here in this state unless 102.5.0 was == 1 previously, but check again in case it has changed
+ 	Note: required that if 102.5.0 == 0, do not perform evse insulation test
+ 	we should not be here in this state unless 102.5.0 was == 1 previously, but check again in case it has changed
 
-	simulate via?
-                    if evse_present _voltage + 10 <= vehicle voltage_target {
-                        evse_present_voltage += 10;
-                    } else {
-                        evse_present_voltage = vehicle voltage_target;
-                    }
+ 	simulate via?
+                     if evse_present _voltage + 10 <= vehicle voltage_target {
+                         evse_present_voltage += 10;
+                     } else {
+                         evse_present_voltage = vehicle voltage_target;
+                     }
        */
       if (x102_chg_session.s.status.StatusVehicleChargingEnabled) {
-        if (get_voltage_handler() < 20) {
+        // ignore voltage check if using a CT clamp, as we don't have a voltage reading
+        if (get_voltage_handler() < 20 || user_selected_shunt_type == ShuntType::CustomClamp) {
 
           digitalWrite(pin10, HIGH);
           evse_permission = true;
         } else {
-          logging.println("Insulation check measures > 20v ");
+          logStream << "Insulation check measures > 20V\n";
         }
 
         // likely unnecessary but just to be sure. consider removal
@@ -764,14 +823,14 @@ void ChademoBattery::handle_chademo_sequence() {
       break;
     case CHADEMO_EVSE_START:
       //        Commented unless needed for debug
-      logging.println("CHADEMO_EVSE_START State");
+      logStream << "CHADEMO_EVSE_START State\n";
       datalayer.system.status.battery_allows_contactor_closing = true;
       x109_evse_state.s.status.ChgDischStopControl = 1;
       x109_evse_state.s.status.EVSE_status = 0;
 
       CHADEMO_Status = CHADEMO_EVSE_CONTACTORS_ENABLED;
 
-      logging.println("Initiating contactors");
+      logStream << "Initiating contactors\n";
 
       /* break rather than fall through because contactors are not instantaneous; 
        * worth giving it a cycle to finish
@@ -780,13 +839,13 @@ void ChademoBattery::handle_chademo_sequence() {
       break;
     case CHADEMO_EVSE_CONTACTORS_ENABLED:
       //        Commented unless needed for debug
-      logging.println("CHADEMO_EVSE_CONTACTORS State");
+      logStream << "CHADEMO_EVSE_CONTACTORS State\n";
 
       /* check whether contactors ready, because externally dependent upon inverter allow during discharge */
-      if (contactors_ready) {
-        logging.println("Contactors ready");
-        logging.printf("Voltage: ");
-        logging.println(get_voltage_handler());
+      // contactors are closed when 0, open when 1
+      if (!x102_chg_session.s.status.StatusVehicle) {
+        logStream << "Contactors ready\n";
+        logStream << "Voltage: " << get_voltage_handler() << "V\n";
         /* transition to POWERFLOW state if discharge compatible on both sides */
         if (x109_evse_state.discharge_compatible && x102_chg_session.s.status.StatusVehicleDischargeCompatible &&
             (EVSE_mode == CHADEMO_DISCHARGE || EVSE_mode == CHADEMO_BIDIRECTIONAL)) {
@@ -806,7 +865,7 @@ void ChademoBattery::handle_chademo_sequence() {
       break;
     case CHADEMO_POWERFLOW:
       //        Commented unless needed for debug
-      logging.println("CHADEMO_POWERFLOW State");
+      logStream << "CHADEMO_POWERFLOW State\n";
       /* POWERFLOW for charging, discharging, and bidirectional */
       /* Interpretation */
       if (x102_chg_session.s.status.StatusVehicleShifterPosition) {
@@ -823,7 +882,9 @@ void ChademoBattery::handle_chademo_sequence() {
       }
 
       if (get_voltage_handler() <= x200_discharge_limits.MinimumDischargeVoltage) {
-        logging.println("x200 minimum discharge voltage met or exceeded, stopping.");
+        logStream << "x200 minimum discharge voltage met or exceeded, stopping.\n";
+        logStream << "Voltage: " << get_voltage_handler() << "V\n";
+        logStream << "Minimum Voltage: " << x200_discharge_limits.MinimumDischargeVoltage << "V\n";
         CHADEMO_Status = CHADEMO_STOP;
       }
 
@@ -833,7 +894,7 @@ void ChademoBattery::handle_chademo_sequence() {
       break;
     case CHADEMO_STOP:
       //        Commented unless needed for debug
-      logging.println("CHADEMO_STOP State");
+      logStream << "CHADEMO_STOP State\n";
       /* back to CHADEMO_IDLE after teardown */
       x109_evse_state.s.status.ChgDischStopControl = 1;
       x109_evse_state.s.status.EVSE_status = 0;
@@ -849,7 +910,7 @@ void ChademoBattery::handle_chademo_sequence() {
        * We will re-enter the handler until the amperage drops sufficiently
        * and then transition to CHADEMO_IDLE
        */
-      if (get_measured_current_ptr() <= 5 && get_voltage_handler() <= 10) {
+      if (get_measured_current_ptr() <= 2) {
         /* welding detection ideally here */
         digitalWrite(pin10, LOW);
         digitalWrite(pin2, LOW);
@@ -859,12 +920,12 @@ void ChademoBattery::handle_chademo_sequence() {
       break;
     case CHADEMO_FAULT:
       //        Commented unless needed for debug
-      logging.println("CHADEMO_FAULT State");
+      logStream << "CHADEMO_FAULT State\n";
       /* Once faulted, never departs CHADEMO_FAULT state unless device is power cycled as a safety measure */
       x109_evse_state.s.status.EVSE_error = 1;
       x109_evse_state.s.status.ChgDischError = 1;
       x109_evse_state.s.status.ChgDischStopControl = 1;
-      logging.println("CHADEMO fault encountered, tearing down to make safe");
+      logStream << "CHADEMO fault encountered, tearing down to make safe\n";
       digitalWrite(pin10, LOW);
       digitalWrite(pin2, LOW);
       evse_permission = false;
@@ -874,9 +935,15 @@ void ChademoBattery::handle_chademo_sequence() {
 
       break;
     default:
-      logging.println("UNHANDLED CHADEMO_STATE, setting FAULT");
+      logStream << "UNHANDLED CHADEMO_STATE, setting FAULT\n";
       CHADEMO_Status = CHADEMO_FAULT;
       break;
+  }
+
+  std::string logMessage = logStream.str();
+  if (!logMessage.empty() && logMessage != lastLogMessage) {
+    logging.println(logMessage.c_str());
+    lastLogMessage = logMessage;
   }
 
   return;
