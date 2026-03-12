@@ -46,12 +46,8 @@ void BydModbusInverter::handle_static_data() {
 }
 
 void BydModbusInverter::handle_update_data_modbusp201_byd() {
-  if (battery2) {
-    mbPV[202] = std::min(datalayer.battery.info.total_capacity_Wh + datalayer.battery2.info.total_capacity_Wh,
-                         static_cast<uint32_t>(57960u));  //Cap to 58kWh
-  } else {
-    mbPV[202] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(57960u));  //Cap to 58kWh
-  }
+  mbPV[202] =
+      std::min(datalayer.battery.info.reported_total_capacity_Wh, static_cast<uint32_t>(57960u));  //Cap to 58kWh
   mbPV[205] =
       std::min(datalayer.battery.info.max_design_voltage_dV,
                static_cast<uint16_t>(4500u));  // Max Voltage, if higher Gen24 forces discharge, cap to 450.0V for Primo
