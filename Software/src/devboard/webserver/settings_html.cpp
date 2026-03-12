@@ -784,6 +784,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "PYLONORDER") {
     return settings.getBool("PYLONORDER") ? "checked" : "";
   }
+
   if (var == "PYLONBAUD") {
     return String(settings.getUInt("PYLONBAUD", 500));
   }
@@ -1347,11 +1348,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-pylon-battery">
-        <label>Pylon CAN baudrate: </label>
-        <select name='PYLONBAUD' title="Select CAN bus baudrate (250kbps for most batteries, 500kbps for some configurations)">
-          <option value='250' %PYLONBAUD250%>250 kbps</option>
-          <option value='500' %PYLONBAUD500%>500 kbps</option>
-        </select>
+        <label>Pylon CAN baudrate (kbps): </label>
+        <input name='PYLONBAUD' type='text' value="%PYLONBAUD%" pattern="[0-9]+" title="Select CAN bus baudrate (500kbps for most batteries, 250kbps for some configurations)"/>
         </div>
 
         <div class="if-cbms">
