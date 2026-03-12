@@ -220,8 +220,8 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
   // TODO this and the next stanza influence state/control
   // and probably don't belong in this function
   // consider relocating
-  if (vehicle_permission && CHADEMO_Status == CHADEMO_EVSE_PREPARE  &&
-      newTargetBatteryVoltage > 0 && x102_chg_session.s.status.StatusVehicleChargingEnabled) {
+  if (vehicle_permission && CHADEMO_Status == CHADEMO_EVSE_PREPARE && newTargetBatteryVoltage > 0 &&
+      x102_chg_session.s.status.StatusVehicleChargingEnabled) {
     logStream << "STATE SHIFT to EVSE_START reached in process_vehicle_charging_session()\n";
     CHADEMO_Status = CHADEMO_EVSE_START;
     flushLog();
@@ -701,7 +701,7 @@ void ChademoBattery::handle_chademo_sequence() {
     logStream << "Vehicle charging stop requested, STOP.\n";
     CHADEMO_Status = CHADEMO_STOP;
   }
-  
+
   if (CHADEMO_Status >= CHADEMO_EV_ALLOWED && x102_chg_session.s.status.StatusVehicleShifterPosition) {
     logStream << "Vehicle is not parked, STOP.\n";
     CHADEMO_Status = CHADEMO_STOP;
