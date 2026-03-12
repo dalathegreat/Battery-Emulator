@@ -73,7 +73,7 @@ float get_measured_current_ct() {
   for (int i = 0; i < 10; i++) {
     pin_V += (float)analogReadMilliVolts(ct_pin);
   }
-  pin_V = (pin_V / 10.0f) * 1000.0f;
+  pin_V = (pin_V / 10.0f) / 1000.0f;
   Amperes = (pin_V - CT_V_offset) * (CT_A_nominal / CT_V_nominal);
   if (ct_invert_current) {
     Amperes = -Amperes;
