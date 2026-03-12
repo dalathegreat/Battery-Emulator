@@ -784,6 +784,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "PYLONORDER") {
     return settings.getBool("PYLONORDER") ? "checked" : "";
   }
+
   if (var == "PYLONBAUD") {
     return String(settings.getUInt("PYLONBAUD", 500));
   }
@@ -818,6 +819,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "DEYEBYD") {
     return settings.getBool("DEYEBYD") ? "checked" : "";
+  }
+
+  if (var == "PRIMOGEN24") {
+    return settings.getBool("PRIMOGEN24") ? "checked" : "";
   }
 
   if (var == "CANFREQ") {
@@ -984,6 +989,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         function editSocMax(){var value=prompt('Inverter will see fully charged (100pct)SOC when this value is reached. Enter new maximum SOC value that battery will charge to (50.0-100.0):');if(value!==null){if(value>=50&&value<=100){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSocMax?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 50.0 and 100.0');}}}
     
+
+
         function editSocMin(){
           var value=prompt('Inverter will see completely discharged (0pct)SOC when this value is reached. Advanced users can set to negative values. Enter new minimum SOC value that battery will discharge to (-10.0to50.0):');
           if(value!==null){if(value>=-10&&value<=50){var xhr=new 
@@ -1191,6 +1198,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-bydmodbus { display: none; }
+    form[data-inverter="3"] .if-bydmodbus {
+      display: contents;
+    }
+
     form .if-pylon { display: none; }
     form[data-battery="22"] .if-pylon,
     form[data-inverter="10"] .if-pylon {
@@ -1336,11 +1348,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-pylon-battery">
-        <label>Pylon CAN baudrate: </label>
-        <select name='PYLONBAUD' title="Select CAN bus baudrate (250kbps for most batteries, 500kbps for some configurations)">
-          <option value='250' %PYLONBAUD250%>250 kbps</option>
-          <option value='500' %PYLONBAUD500%>500 kbps</option>
-        </select>
+        <label>Pylon CAN baudrate (kbps): </label>
+        <input name='PYLONBAUD' type='text' value="%PYLONBAUD%" pattern="[0-9]+" title="Select CAN bus baudrate (500kbps for most batteries, 250kbps for some configurations)"/>
         </div>
 
         <div class="if-cbms">
@@ -1423,6 +1432,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-byd">
         <label>Deye avoid over/undercharge fix: </label>
         <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
+        </div>
+
+        <div class="if-bydmodbus">
+        <label>Fronius Primo, 450V maxvoltage cap: </label>
+        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24% />
         </div>
 
         <div class="if-pylonish">

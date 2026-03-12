@@ -73,6 +73,11 @@ class ChademoBatteryHtmlRenderer : public BatteryHtmlRenderer {
     }
     content += "<h4>Protocol: " + String(datalayer_extended.chademo.ControlProtocolNumberEV) + "</h4>";
 
+    //Script for refreshing page
+    content += "<script>";
+    content += "setTimeout(function(){ location.reload(true); }, 5000);";
+    content += "</script>";
+
     return content;
   }
 };
