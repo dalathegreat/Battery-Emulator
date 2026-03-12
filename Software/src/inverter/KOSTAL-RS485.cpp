@@ -176,7 +176,7 @@ void KostalInverterProtocol::update_values() {
   }
 
   if (nominal_voltage_dV > 0) {
-    float2frame(CYCLIC_DATA, (float)(datalayer.battery.info.total_capacity_Wh / nominal_voltage_dV * 10),
+    float2frame(CYCLIC_DATA, (float)(datalayer.battery.info.reported_total_capacity_Wh / nominal_voltage_dV * 10),
                 30);  // Battery capacity Ah
   }
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.temperature_max_dC / 10, 38);
