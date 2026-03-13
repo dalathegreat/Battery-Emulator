@@ -168,8 +168,11 @@ void BydAttoBattery::
     vprog = float(cell_max_mV - V_TAPER_START_mV) / float(denom);
   }
 
+  // Gate delta-taper on voltage: only allow cell spread to trigger taper when
+  // cell_max is already above V_TAPER_START_mV. This prevents low-SOC spread
+  // from incorrectly restricting current.
   float dprog = 0.0f;
-  if (delta_mV > D_TAPER_START_mV) {
+  if (cell_max_mV > V_TAPER_START_mV && delta_mV > D_TAPER_START_mV) {
     const uint16_t denom = (D_TAPER_END_mV > D_TAPER_START_mV) ? (D_TAPER_END_mV - D_TAPER_START_mV) : 1;
     dprog = float(delta_mV - D_TAPER_START_mV) / float(denom);
   }
@@ -188,11 +191,13 @@ void BydAttoBattery::
   // Slew-limit the cap so it changes smoothly over time
   static uint16_t cap_slewed_dA = 0;
   static uint32_t last_ms = 0;
-
+  static bool taper_initialized = false;  // explicit flag avoids cap_slewed_dA starting at 0
+ 
   const uint32_t now_ms = (uint32_t)millis64();
-  if (last_ms == 0) {
+  if (!taper_initialized) {
     last_ms = now_ms;
-    cap_slewed_dA = user_cap_dA;
+    cap_slewed_dA = user_cap_dA;  // seed slewer at full current, not zero
+    taper_initialized = true;
   }
 
   uint32_t dt_ms = now_ms - last_ms;
