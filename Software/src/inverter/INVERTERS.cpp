@@ -14,10 +14,13 @@ uint16_t user_selected_inverter_cells_per_module = 0;
 uint16_t user_selected_inverter_voltage_level = 0;
 uint16_t user_selected_inverter_ah_capacity = 0;
 uint16_t user_selected_inverter_battery_type = 0;
+uint16_t user_selected_inverter_sungrow_type = 0;
 bool user_selected_inverter_ignore_contactors = false;
 bool user_selected_pylon_30koffset = false;
 bool user_selected_pylon_invert_byteorder = false;
 bool user_selected_inverter_deye_workaround = false;
+bool user_selected_primo_gen24 =
+    false;  //Used by BYD-Modbus (Fronius Primo Gen24) inverters to determine if we should cap voltage to 450V or not
 
 std::vector<InverterProtocolType> supported_inverter_protocols() {
   std::vector<InverterProtocolType> types;
@@ -73,14 +76,11 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::SmaBydH:
       return SmaBydHInverter::Name;
 
-    case InverterProtocolType::SmaBydHvs:
-      return SmaBydHvsInverter::Name;
-
     case InverterProtocolType::SmaLv:
       return SmaLvInverter::Name;
 
-    case InverterProtocolType::SmaTripower:
-      return SmaTripowerInverter::Name;
+    case InverterProtocolType::SmaBydHvs:
+      return SmaBydHvsInverter::Name;
 
     case InverterProtocolType::Sofar:
       return SofarInverter::Name;
@@ -96,6 +96,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
 
     case InverterProtocolType::Sungrow:
       return SungrowInverter::Name;
+
+    case InverterProtocolType::VCU:
+      return VCUInverter::Name;
 
     case InverterProtocolType::Highest:
       return "None";
@@ -161,16 +164,12 @@ bool setup_inverter() {
       inverter = new SmaBydHInverter();
       break;
 
-    case InverterProtocolType::SmaBydHvs:
-      inverter = new SmaBydHvsInverter();
-      break;
-
     case InverterProtocolType::SmaLv:
       inverter = new SmaLvInverter();
       break;
 
-    case InverterProtocolType::SmaTripower:
-      inverter = new SmaTripowerInverter();
+    case InverterProtocolType::SmaBydHvs:
+      inverter = new SmaBydHvsInverter();
       break;
 
     case InverterProtocolType::Sofar:
@@ -191,6 +190,10 @@ bool setup_inverter() {
 
     case InverterProtocolType::Sungrow:
       inverter = new SungrowInverter();
+      break;
+
+    case InverterProtocolType::VCU:
+      inverter = new VCUInverter();
       break;
 
     case InverterProtocolType::None:

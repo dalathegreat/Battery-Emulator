@@ -17,15 +17,15 @@ enum class InverterProtocolType {
   Pylon = 10,
   PylonLv = 11,
   Schneider = 12,
-  SmaBydH = 13,
-  SmaBydHvs = 14,
+  SmaBydH = 14,
   SmaLv = 15,
-  SmaTripower = 16,
+  SmaBydHvs = 16,
   Sofar = 17,
   Solax = 18,
   Solxpow = 19,
   SolArkLv = 20,
   Sungrow = 21,
+  VCU = 22,
   Highest
 };
 

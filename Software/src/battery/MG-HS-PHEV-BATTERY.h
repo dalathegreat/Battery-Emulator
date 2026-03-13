@@ -15,6 +15,7 @@ class MgHsPHEVBattery : public CanBattery {
  private:
   void update_soc(uint16_t soc_times_ten);
 
+  static const uint16_t TOTAL_CAPACITY_WH = 16600;
   static const uint16_t MAX_PACK_VOLTAGE_DV = 3780;  //5000 = 500.0V
   static const uint16_t MIN_PACK_VOLTAGE_DV = 2790;
   static const uint16_t MAX_CELL_DEVIATION_MV = 150;
@@ -53,6 +54,9 @@ class MgHsPHEVBattery : public CanBattery {
   uint8_t cell_id = 0;
   uint8_t transmitIndex = 0;  //For polling switchcase
   uint8_t previousState = 0;
+  enum MG_HS_RESET_STATE { IDLE, SENDING_DIAG, SENDING_RESET, WAITING_RESET_COMPLETE };
+  MG_HS_RESET_STATE resetProgress = IDLE;
+  uint8_t resetTimeout = 0;
   static const uint8_t CELL_VOLTAGE_TIMEOUT = 10;  // in seconds
 
   const uint16_t MaxChargePower = 3000;  // Maximum allowable charge power, excluding the taper
@@ -82,6 +86,20 @@ class MgHsPHEVBattery : public CanBattery {
                               .DLC = 8,
                               .ID = 0x7E5,
                               .data = {0x03, 0x22, 0xB0, 0x42, 0x00, 0x00, 0x00, 0x00}};
+
+  // Enter UDS extended-diagnostics mode
+  static constexpr CAN_frame MG_HS_7E5_DIAG = {.FD = false,
+                                               .ext_ID = false,
+                                               .DLC = 8,
+                                               .ID = 0x7E5,
+                                               .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+  // BMS hard reset
+  static constexpr CAN_frame MG_HS_7E5_RESET = {.FD = false,
+                                                .ext_ID = false,
+                                                .DLC = 8,
+                                                .ID = 0x7E5,
+                                                .data = {0x02, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
 };
 
 #endif

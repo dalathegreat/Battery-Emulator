@@ -147,8 +147,9 @@ void KostalInverterProtocol::update_values() {
       float2frame(CYCLIC_DATA, 0.0, 34);
     }
   } else {
-    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 18);  // Last current
-    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 22);  // Should be Avg current(1s)
+    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.reported_current_dA / 10, 18);  // Last current
+    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.reported_current_dA / 10,
+                22);  // Should be Avg current(1s)
 
     // Close contactors after 7 battery info frames requested
     if (f2_startup_count > 7) {
@@ -175,7 +176,7 @@ void KostalInverterProtocol::update_values() {
   }
 
   if (nominal_voltage_dV > 0) {
-    float2frame(CYCLIC_DATA, (float)(datalayer.battery.info.total_capacity_Wh / nominal_voltage_dV * 10),
+    float2frame(CYCLIC_DATA, (float)(datalayer.battery.info.reported_total_capacity_Wh / nominal_voltage_dV * 10),
                 30);  // Battery capacity Ah
   }
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.temperature_max_dC / 10, 38);

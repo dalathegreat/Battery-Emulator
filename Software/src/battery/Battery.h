@@ -51,9 +51,11 @@ enum class BatteryType {
   BmwPhev = 43,
   FordMachE = 44,
   CmpSmartCar = 45,
-  MaxusEV80 = 46,
   ThinkCity = 47,
-  ThunderstruckBMS = 48,
+  TeslaLegacy = 48,
+  GrowattHvArk = 49,
+  GeelySea = 50,
+  ThunderstruckBMS = 51,
   Highest
 };
 
@@ -90,6 +92,7 @@ class Battery {
   virtual bool supports_read_DTC() { return false; }
   virtual bool supports_reset_SOH() { return false; }
   virtual bool supports_reset_BECM() { return false; }
+  virtual bool supports_calibrate_SOC() { return false; }
   virtual bool supports_contactor_close() { return false; }
   virtual bool supports_contactor_reset() { return false; }
   virtual bool supports_set_fake_voltage() { return false; }
@@ -100,8 +103,12 @@ class Battery {
   virtual bool supports_factory_mode_method() { return false; }
   virtual bool supports_chademo_restart() { return false; }
   virtual bool supports_chademo_stop() { return false; }
+  virtual bool supports_balancing() { return false; }
+  virtual bool is_balancing_active() { return false; }
+  virtual const char* get_balancing_state_string() { return nullptr; }
 
   virtual void clear_isolation() {}
+  virtual void calibrate_SOC() {}
   virtual void reset_BMS() {}
   virtual void reset_SOC() {}
   virtual void reset_crash() {}
@@ -118,6 +125,8 @@ class Battery {
   virtual void set_factory_mode() {}
   virtual void chademo_restart() {}
   virtual void chademo_stop() {}
+  virtual void initiate_balancing() {}
+  virtual void end_balancing() {}
 
   virtual void set_fake_voltage(float v) {}
   virtual float get_voltage();

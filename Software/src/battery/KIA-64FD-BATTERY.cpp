@@ -1,6 +1,7 @@
 #include "KIA-64FD-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 #include "../system_settings.h"
@@ -76,7 +77,7 @@ void write_cell_voltages(CAN_frame rx_frame, int start, int length, int startCel
 uint8_t Kia64FDBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
   uint8_t crc = initial_value;
   for (uint8_t j = 1; j < length; j++) {  //start at 1, since 0 is the CRC
-    crc = crc8_table[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
+    crc = crc8_table_SAE_J1850_ZER0[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
   }
   return crc;
 }

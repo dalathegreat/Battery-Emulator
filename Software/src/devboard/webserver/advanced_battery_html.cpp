@@ -9,6 +9,8 @@
 std::vector<BatteryCommand> battery_commands = {
     {"clearIsolation", "Clear isolation fault", "clear any active isolation fault?",
      [](Battery* b) { return b && b->supports_clear_isolation(); }, [](Battery* b) { b->clear_isolation(); }},
+    {"calibrateSOC", "Calibrate SOC", "calibrate SOC? Note this will calibrate BMS according to set targets",
+     [](Battery* b) { return b && b->supports_calibrate_SOC(); }, [](Battery* b) { b->reset_SOC(); }},
     {"chademoRestart", "Restart", "restart the V2X session?",
      [](Battery* b) { return b && b->supports_chademo_restart(); }, [](Battery* b) { b->chademo_restart(); }},
     {"chademoStop", "Stop", "stop V2X?", [](Battery* b) { return b && b->supports_chademo_restart(); },
@@ -27,6 +29,14 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) { return b && b->supports_contactor_reset(); }, [](Battery* b) { b->reset_contactor(); }},
     {"resetDTC", "Erase DTC", "erase DTCs?", [](Battery* b) { return b && b->supports_reset_DTC(); },
      [](Battery* b) { b->reset_DTC(); }},
+    {"startBalancing", "Balancing",
+     "continue? Please charge battery fully for this to work. After a couple of minutes, battery will sleep and do "
+     "balancing. It often takes many hours. There will be no progress indication.",
+     [](Battery* b) { return b && b->supports_balancing() && !b->is_balancing_active(); },
+     [](Battery* b) { b->initiate_balancing(); }},
+    {"endBalancing", "Stop Balancing Mode", "end offline balancing?",
+     [](Battery* b) { return b && b->supports_balancing() && b->is_balancing_active(); },
+     [](Battery* b) { b->end_balancing(); }},
     {"readDTC", "Read DTC", nullptr, [](Battery* b) { return b && b->supports_read_DTC(); },
      [](Battery* b) { b->read_DTC(); }},
     {"resetBECM", "Restart BECM module", "restart BECM??", [](Battery* b) { return b && b->supports_reset_BECM(); },

@@ -19,11 +19,20 @@ class BydCanInverter : public CanInverterProtocol {
   unsigned long previousMillis2s = 0;   // will store last time a 2s CAN Message was send
   unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was send
   unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
+  unsigned long inverter_timestamp = 0;
+  uint16_t remaining_capacity_ah = 0;
+  uint16_t fully_charged_capacity_ah = 0;
+  uint16_t inverter_voltage = 0;
+  uint16_t inverter_SOC = 0;
+  int16_t temperature_average = 0;
+  int16_t inverter_current = 0;
+  int16_t inverter_temperature = 0;
+  static const uint8_t FW_MAJOR_VERSION = 0x03;
+  static const uint8_t FW_MINOR_VERSION = 0x29;
+  static const uint8_t VOLTAGE_OFFSET_DV = 20;
+  bool initialDataSent = false;
+  bool inverterStartedUp = false;
   bool useAsShunt = false;
-
-  static const int FW_MAJOR_VERSION = 0x03;
-  static const int FW_MINOR_VERSION = 0x29;
-  static const int VOLTAGE_OFFSET_DV = 20;
 
   CAN_frame BYD_250 = {.FD = false,
                        .ext_ID = false,
@@ -74,17 +83,6 @@ class BydCanInverter : public CanInverterProtocol {
                        .DLC = 8,
                        .ID = 0x210,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-  int16_t temperature_average = 0;
-  uint16_t inverter_voltage = 0;
-  uint16_t inverter_SOC = 0;
-  int16_t inverter_current = 0;
-  int16_t inverter_temperature = 0;
-  uint16_t remaining_capacity_ah = 0;
-  uint16_t fully_charged_capacity_ah = 0;
-  long inverter_timestamp = 0;
-  bool initialDataSent = false;
-  bool inverterStartedUp = false;
 };
 
 #endif

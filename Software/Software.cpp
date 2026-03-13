@@ -17,6 +17,7 @@
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
+#include "src/devboard/espnow/espnow.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -26,16 +27,18 @@
 #include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/types.h"
 #include "src/devboard/utils/value_mapping.h"
+#include "src/devboard/utils/watchdog.h"
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
 
-#if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_DEVKIT)
+#if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
+    !defined(HW_DEVKIT)
 #error You must select a target hardware!
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "9.4.dev";
+const char* version_number = "10.3.dev";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -50,13 +53,9 @@ TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
 TaskHandle_t logging_loop_task;
 TaskHandle_t mqtt_loop_task;
+Watchdog mqtt_loop_watchdog;
 
 Logging logging;
-
-std::string mqtt_user;      //TODO, move?
-std::string mqtt_password;  //TODO, move?
-std::string http_username;  //TODO, move?
-std::string http_password;  //TODO, move?
 
 static std::list<Transmitter*> transmitters;
 void register_transmitter(Transmitter* transmitter) {
@@ -68,7 +67,7 @@ void register_transmitter(Transmitter* transmitter) {
 void init_serial() {
   // Init Serial monitor
   Serial.begin(115200);
-#if HW_LILYGO2CAN
+#if (HW_LILYGO2CAN || HW_BECOM)
   // Wait up to 100ms for Serial to be available. On the ESP32S3 Serial is
   // provided by the USB controller, so will only work if the board is connected
   // to a computer.
@@ -95,15 +94,25 @@ void connectivity_loop(void*) {
 
   init_display();
 
+  if (espnow_enabled) {
+    init_espnow();
+  }
+
   while (true) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
 
     update_display();
 
+    if (espnow_enabled) {
+      update_espnow();
+    }
+
     ota_monitor();
 
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
+
+    mqtt_loop_watchdog.panic_if_exceeded_ms(60000, "MQTT task watchdog reset triggered!");
 
     esp_task_wdt_reset();  // Reset watchdog
     delay(1);
@@ -111,11 +120,19 @@ void connectivity_loop(void*) {
 }
 
 void logging_loop(void*) {
+  bool sd_initialized = false;
 
   init_logging_buffers();
-  init_sdcard();
+  sd_initialized = init_sdcard();
 
-  while (true) {
+  // If the SD failed to init (delete the buffers and disable SD logging)
+  if (!sd_initialized) {
+    deinit_logging_buffers();
+    datalayer.system.info.SD_logging_active = false;
+    datalayer.system.info.CAN_SD_logging_active = false;
+  }
+
+  while (sd_initialized) {
     if (datalayer.system.info.SD_logging_active) {
       write_log_to_sdcard();
     }
@@ -124,6 +141,8 @@ void logging_loop(void*) {
       write_can_frame_to_sdcard();
     }
   }
+  // Delete the logging task only if SD failed to initialize to prevent panic.
+  vTaskDelete(NULL);
 }
 
 void check_interconnect_available(uint8_t batteryNumber) {
@@ -198,6 +217,9 @@ void update_calculated_values(unsigned long currentMillis) {
     datalayer.system.info.CPU_temperature = temp.temp;
   }
 
+  /*Update free heap*/
+  datalayer.system.info.CPU_free_heap = ESP.getFreeHeap();
+
   /* Check is remote set limits have timed out */
   if (currentMillis > datalayer.battery.settings.remote_set_timestamp + datalayer.battery.settings.remote_set_timeout) {
     datalayer.battery.settings.remote_settings_limit_charge = false;
@@ -245,11 +267,12 @@ void update_calculated_values(unsigned long currentMillis) {
     }
   }
 
-  /* Calculate active power based on voltage and current*/
-  datalayer.battery.status.active_power_W =
-      (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
-  /* Calculate if battery or inverter is limiting factor*/
+  /* Calculate sum of all currents from all batteries. 0 if they are not used*/
+  datalayer.battery.status.reported_current_dA =
+      (datalayer.battery.status.current_dA + datalayer.battery2.status.current_dA +
+       datalayer.battery3.status.current_dA);
 
+  /* Calculate if battery or inverter is limiting factor*/
   if (datalayer.battery.status.current_dA == 0) {  //Battery idle
     if (datalayer.battery.status.max_discharge_current_dA > 0) {
       //We allow discharge, but inverter does nothing. Inverter is limiting
@@ -278,6 +301,9 @@ void update_calculated_values(unsigned long currentMillis) {
     }
   }
 
+  /* Calculate active power based on voltage and current*/
+  datalayer.battery.status.active_power_W =
+      (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
   if (battery2) {
     /* Calculate active power based on voltage and current for battery 2*/
     datalayer.battery2.status.active_power_W =
@@ -350,39 +376,25 @@ void update_calculated_values(unsigned long currentMillis) {
           datalayer.battery2.status.reported_remaining_capacity_Wh;
     }
 
-  } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled to same as real.
+  } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled SOC & capacity to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
-    datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
-
-    if (battery2) {
-      datalayer.battery2.status.reported_soc = datalayer.battery2.status.real_soc;
-      datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
-      datalayer.battery2.info.reported_total_capacity_Wh = datalayer.battery2.info.total_capacity_Wh;
-    }
+    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh +
+                                                              datalayer.battery2.status.remaining_capacity_Wh +
+                                                              datalayer.battery3.status.remaining_capacity_Wh;
+    datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh +
+                                                        datalayer.battery2.info.total_capacity_Wh +
+                                                        datalayer.battery3.info.total_capacity_Wh;
   }
 
-  if (battery2) {
-    // Perform extra SOC sanity checks on double battery setups
-    if (datalayer.battery.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
-      datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
-    }
-    if (datalayer.battery2.status.real_soc <
-        100) {  //If this battery is under 1.00%, use this as SOC instead of average
+  //Check each extra battery, and if they are at the extremes, report the SOC from these batteries instead
+  if (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) {  //Battery2 is in the mix
+    if ((datalayer.battery2.status.real_soc < 100) || (datalayer.battery2.status.real_soc > 9900)) {
       datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
-      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
     }
-
-    if (datalayer.battery.status.real_soc >
-        9900) {  //If this battery is over 99.00%, use this as SOC instead of average
-      datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
-    }
-    if (datalayer.battery2.status.real_soc >
-        9900) {  //If this battery is over 99.00%, use this as SOC instead of average
-      datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
-      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+  }
+  if (battery3 && datalayer.system.status.battery3_allowed_contactor_closing) {  //Battery3 is in the mix
+    if ((datalayer.battery3.status.real_soc < 100) || (datalayer.battery3.status.real_soc > 9900)) {
+      datalayer.battery.status.reported_soc = datalayer.battery3.status.real_soc;
     }
   }
 }
@@ -453,17 +465,11 @@ void core_loop(void*) {
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
 
-    monitor_equipment_stop_button();
-
     // Input, Runs as fast as possible
     receive_can();    // Receive CAN messages
     receive_rs485();  // Process serial2 RS485 interface
 
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
-
-    START_TIME_MEASUREMENT(ota);
-    ElegantOTA.loop();
-    END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
 
     // Process
     currentMillis = millis();
@@ -475,15 +481,20 @@ void core_loop(void*) {
       previousMillis10ms = currentMillis;
       if (datalayer.system.info.performance_measurement_active) {
         START_TIME_MEASUREMENT(10ms);
-      }
-      led_exe();
-      handle_contactors();  // Take care of startup precharge/contactor closing
-      if (precharge_control_enabled) {
-        handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
-      }
-
-      if (datalayer.system.info.performance_measurement_active) {
+        monitor_equipment_stop_button();
+        led_exe();
+        handle_contactors();  // Take care of startup precharge/contactor closing
+        if (precharge_control_enabled) {
+          handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
+        }
         END_TIME_MEASUREMENT_MAX(10ms, datalayer.system.status.time_10ms_us);
+      } else {  //Run 10ms tasks without timing it
+        monitor_equipment_stop_button();
+        led_exe();
+        handle_contactors();  // Take care of startup precharge/contactor closing
+        if (precharge_control_enabled) {
+          handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
+        }
       }
     }
 
@@ -521,15 +532,19 @@ void core_loop(void*) {
     }
     if (datalayer.system.info.performance_measurement_active) {
       START_TIME_MEASUREMENT(cantx);
-    }
 
-    // Let all transmitter objects send their messages
-    for (auto& transmitter : transmitters) {
-      transmitter->transmit(currentMillis);
+      for (auto& transmitter : transmitters) {
+        transmitter->transmit(currentMillis);
+      }
+
+      END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
+    } else {
+      for (auto& transmitter : transmitters) {
+        transmitter->transmit(currentMillis);
+      }
     }
 
     if (datalayer.system.info.performance_measurement_active) {
-      END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
       END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
       if (datalayer.system.status.core_task_10s_max_us > datalayer.system.status.core_task_max_us) {
         // Update worst case total time
@@ -539,13 +554,11 @@ void core_loop(void*) {
         datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
         datalayer.system.status.time_snap_values_us = datalayer.system.status.time_values_us;
         datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
-        datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
       }
 
       datalayer.system.status.core_task_max_us =
           MAX(datalayer.system.status.core_task_10s_max_us, datalayer.system.status.core_task_max_us);
       if (core_task_timer_10s.elapsed()) {
-        datalayer.system.status.time_ota_us = 0;
         datalayer.system.status.time_comm_us = 0;
         datalayer.system.status.time_10ms_us = 0;
         datalayer.system.status.time_values_us = 0;
@@ -561,14 +574,13 @@ void core_loop(void*) {
 }
 
 void mqtt_loop(void*) {
-  esp_task_wdt_add(NULL);  // Register this task with WDT
-
   while (true) {
+    mqtt_loop_watchdog.update();
+
     START_TIME_MEASUREMENT(mqtt);
     mqtt_client_loop();
     END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
-    esp_task_wdt_reset();  // Reset watchdog
-    delay(1);
+    delay(100);
   }
 }
 

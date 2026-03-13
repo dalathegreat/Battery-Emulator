@@ -173,6 +173,17 @@ void init_logging_buffers() {
   }
 }
 
+void deinit_logging_buffers() {
+  if ((!datalayer.system.info.CAN_SD_logging_active) && (!datalayer.system.info.CAN_SD_logging_active)) {
+    if (can_bufferHandle != NULL) {
+      vRingbufferDelete(can_bufferHandle);
+    }
+    if (log_bufferHandle != NULL) {
+      vRingbufferDelete(log_bufferHandle);
+    }
+  }
+}
+
 bool init_sdcard() {
   auto miso_pin = esp32hal->SD_MISO_PIN();
   auto mosi_pin = esp32hal->SD_MOSI_PIN();

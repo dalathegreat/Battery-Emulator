@@ -10,7 +10,7 @@
 #define GENERATE_STRING(STRING) #STRING,
 
 #define EVENTS_ENUM_TYPE(XX)            \
-  XX(EVENT_CANMCP2517FD_INIT_FAILURE)   \
+  XX(EVENT_CANMCP2518FD_INIT_FAILURE)   \
   XX(EVENT_CANMCP2515_INIT_FAILURE)     \
   XX(EVENT_CANFD_BUFFER_FULL)           \
   XX(EVENT_CAN_BUFFER_FULL)             \
@@ -57,6 +57,7 @@
   XX(EVENT_SOH_DIFFERENCE)              \
   XX(EVENT_SOH_LOW)                     \
   XX(EVENT_HVIL_FAILURE)                \
+  XX(EVENT_LOW_HEAP_MEMORY)             \
   XX(EVENT_PRECHARGE_FAILURE)           \
   XX(EVENT_INTERNAL_OPEN_FAULT)         \
   XX(EVENT_INVERTER_OPEN_CONTACTOR)     \
@@ -84,6 +85,8 @@
   XX(EVENT_SMA_PAIRING)                 \
   XX(EVENT_TASK_OVERRUN)                \
   XX(EVENT_THERMAL_RUNAWAY)             \
+  XX(EVENT_RECOVERY_START)              \
+  XX(EVENT_RECOVERY_END)                \
   XX(EVENT_RESET_UNKNOWN)               \
   XX(EVENT_RESET_POWERON)               \
   XX(EVENT_RESET_EXT)                   \

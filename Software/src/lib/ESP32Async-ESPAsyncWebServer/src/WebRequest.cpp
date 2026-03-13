@@ -2,7 +2,6 @@
 // Copyright 2016-2025 Hristo Gochkov, Mathieu Carbou, Emil Muratov
 
 #include "ESPAsyncWebServer.h"
-#include "WebAuthentication.h"
 #include "WebResponseImpl.h"
 #include "literals.h"
 #include <cstring>
@@ -418,12 +417,7 @@ void AsyncWebServerRequest::_parsePlainPostChar(uint8_t data) {
       _params.emplace_back(name, urlDecode(value), true);
     }
 
-#if defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350) || defined(LIBRETINY)
-    // Ancient PRI core does not have String::clear() method 8-()
-    _temp = emptyString;
-#else
     _temp.clear();
-#endif
   }
 }
 
@@ -757,34 +751,12 @@ bool AsyncWebServerRequest::hasHeader(const char *name) const {
   return false;
 }
 
-#ifdef ESP8266
-bool AsyncWebServerRequest::hasHeader(const __FlashStringHelper *data) const {
-  return hasHeader(String(data));
-}
-#endif
-
 const AsyncWebHeader *AsyncWebServerRequest::getHeader(const char *name) const {
   auto iter = std::find_if(std::begin(_headers), std::end(_headers), [&name](const AsyncWebHeader &header) {
     return header.name().equalsIgnoreCase(name);
   });
   return (iter == std::end(_headers)) ? nullptr : &(*iter);
 }
-
-#ifdef ESP8266
-const AsyncWebHeader *AsyncWebServerRequest::getHeader(const __FlashStringHelper *data) const {
-  PGM_P p = reinterpret_cast<PGM_P>(data);
-  size_t n = strlen_P(p);
-  char *name = (char *)malloc(n + 1);
-  if (name) {
-    strcpy_P(name, p);
-    const AsyncWebHeader *result = getHeader(String(name));
-    free(name);
-    return result;
-  } else {
-    return nullptr;
-  }
-}
-#endif
 
 const AsyncWebHeader *AsyncWebServerRequest::getHeader(size_t num) const {
   if (num >= _headers.size()) {
@@ -793,21 +765,6 @@ const AsyncWebHeader *AsyncWebServerRequest::getHeader(size_t num) const {
   return &(*std::next(_headers.cbegin(), num));
 }
 
-size_t AsyncWebServerRequest::getHeaderNames(std::vector<const char *> &names) const {
-  const size_t size = names.size();
-  for (const auto &h : _headers) {
-    names.push_back(h.name().c_str());
-  }
-  return names.size() - size;
-}
-
-bool AsyncWebServerRequest::removeHeader(const char *name) {
-  const size_t size = _headers.size();
-  _headers.remove_if([name](const AsyncWebHeader &header) {
-    return header.name().equalsIgnoreCase(name);
-  });
-  return size != _headers.size();
-}
 
 size_t AsyncWebServerRequest::params() const {
   return _params.size();
@@ -831,12 +788,6 @@ const AsyncWebParameter *AsyncWebServerRequest::getParam(const char *name, bool 
   return nullptr;
 }
 
-#ifdef ESP8266
-const AsyncWebParameter *AsyncWebServerRequest::getParam(const __FlashStringHelper *data, bool post, bool file) const {
-  return getParam(String(data), post, file);
-}
-#endif
-
 const AsyncWebParameter *AsyncWebServerRequest::getParam(size_t num) const {
   if (num >= _params.size()) {
     return nullptr;
@@ -844,26 +795,6 @@ const AsyncWebParameter *AsyncWebServerRequest::getParam(size_t num) const {
   return &(*std::next(_params.cbegin(), num));
 }
 
-const String &AsyncWebServerRequest::getAttribute(const char *name, const String &defaultValue) const {
-  auto it = _attributes.find(name);
-  return it != _attributes.end() ? it->second : defaultValue;
-}
-bool AsyncWebServerRequest::getAttribute(const char *name, bool defaultValue) const {
-  auto it = _attributes.find(name);
-  return it != _attributes.end() ? it->second == "1" : defaultValue;
-}
-long AsyncWebServerRequest::getAttribute(const char *name, long defaultValue) const {
-  auto it = _attributes.find(name);
-  return it != _attributes.end() ? it->second.toInt() : defaultValue;
-}
-float AsyncWebServerRequest::getAttribute(const char *name, float defaultValue) const {
-  auto it = _attributes.find(name);
-  return it != _attributes.end() ? it->second.toFloat() : defaultValue;
-}
-double AsyncWebServerRequest::getAttribute(const char *name, double defaultValue) const {
-  auto it = _attributes.find(name);
-  return it != _attributes.end() ? it->second.toDouble() : defaultValue;
-}
 
 AsyncWebServerResponse *AsyncWebServerRequest::beginResponse(int code, const char *contentType, const char *content, AwsTemplateProcessor callback) {
   if (callback) {
@@ -944,16 +875,7 @@ void AsyncWebServerRequest::redirect(const char *url, int code) {
 }
 
 bool AsyncWebServerRequest::authenticate(const char *username, const char *password, const char *realm, bool passwordIsHash) const {
-  if (_authorization.length()) {
-    if (_authMethod == AsyncAuthType::AUTH_DIGEST) {
-      return checkDigestAuthentication(_authorization.c_str(), methodToString(), username, password, realm, passwordIsHash, NULL, NULL, NULL);
-    } else if (!passwordIsHash) {
-      return checkBasicAuthentication(_authorization.c_str(), username, password);
-    } else {
-      return _authorization.equals(password);
-    }
-  }
-  return false;
+  return true;
 }
 
 bool AsyncWebServerRequest::authenticate(const char *hash) const {
@@ -975,7 +897,7 @@ bool AsyncWebServerRequest::authenticate(const char *hash) const {
     }
     String realm = hStr.substring(0, separator);
     hStr = hStr.substring(separator + 1);
-    return checkDigestAuthentication(_authorization.c_str(), methodToString(), username.c_str(), hStr.c_str(), realm.c_str(), true, NULL, NULL, NULL);
+    return false;
   }
 
   // Basic Auth, Bearer Auth, or other
@@ -989,117 +911,7 @@ void AsyncWebServerRequest::requestAuthentication(AsyncAuthType method, const ch
 
   AsyncWebServerResponse *r = _authFailMsg ? beginResponse(401, T_text_html, _authFailMsg) : beginResponse(401);
 
-  switch (method) {
-    case AsyncAuthType::AUTH_BASIC:
-    {
-      String header;
-      if (header.reserve(strlen(T_BASIC_REALM) + strlen(realm) + 1)) {
-        header.concat(T_BASIC_REALM);
-        header.concat(realm);
-        header.concat('"');
-        r->addHeader(T_WWW_AUTH, header.c_str());
-      } else {
-        //async_ws_log_e("Failed to allocate");
-        abort();
-      }
-
-      break;
-    }
-    case AsyncAuthType::AUTH_DIGEST:
-    {
-      size_t len = strlen(T_DIGEST_) + strlen(T_realm__) + strlen(T_auth_nonce) + 32 + strlen(T__opaque) + 32 + 1;
-      String header;
-      if (header.reserve(len + strlen(realm))) {
-        const String nonce = genRandomMD5();
-        const String opaque = genRandomMD5();
-        if (nonce.length() && opaque.length()) {
-          header.concat(T_DIGEST_);
-          header.concat(T_realm__);
-          header.concat(realm);
-          header.concat(T_auth_nonce);
-          header.concat(nonce);
-          header.concat(T__opaque);
-          header.concat(opaque);
-          header.concat((char)0x22);  // '"'
-          r->addHeader(T_WWW_AUTH, header.c_str());
-        } else {
-          abort();
-        }
-      }
-      break;
-    }
-    default: break;
-  }
-
   send(r);
-}
-
-bool AsyncWebServerRequest::hasArg(const char *name) const {
-  for (const auto &arg : _params) {
-    if (arg.name() == name) {
-      return true;
-    }
-  }
-  return false;
-}
-
-#ifdef ESP8266
-bool AsyncWebServerRequest::hasArg(const __FlashStringHelper *data) const {
-  return hasArg(String(data).c_str());
-}
-#endif
-
-const String &AsyncWebServerRequest::arg(const char *name) const {
-  for (const auto &arg : _params) {
-    if (arg.name() == name) {
-      return arg.value();
-    }
-  }
-  return emptyString;
-}
-
-#ifdef ESP8266
-const String &AsyncWebServerRequest::arg(const __FlashStringHelper *data) const {
-  return arg(String(data).c_str());
-}
-#endif
-
-const String &AsyncWebServerRequest::arg(size_t i) const {
-  return getParam(i)->value();
-}
-
-const String &AsyncWebServerRequest::argName(size_t i) const {
-  return getParam(i)->name();
-}
-
-const String &AsyncWebServerRequest::pathArg(size_t i) const {
-  if (i >= _pathParams.size()) {
-    return emptyString;
-  }
-  auto it = _pathParams.begin();
-  std::advance(it, i);
-  return *it;
-}
-
-const String &AsyncWebServerRequest::header(const char *name) const {
-  const AsyncWebHeader *h = getHeader(name);
-  return h ? h->value() : emptyString;
-}
-
-#ifdef ESP8266
-const String &AsyncWebServerRequest::header(const __FlashStringHelper *data) const {
-  return header(String(data).c_str());
-};
-#endif
-
-const String &AsyncWebServerRequest::header(size_t i) const {
-  const AsyncWebHeader *h = getHeader(i);
-  return h ? h->value() : emptyString;
-}
-
-const String &AsyncWebServerRequest::headerName(size_t i) const {
-  const AsyncWebHeader *h = getHeader(i);
-  return h ? h->name() : emptyString;
 }
 
 String AsyncWebServerRequest::urlDecode(const String &text) const {
@@ -1126,45 +938,6 @@ String AsyncWebServerRequest::urlDecode(const String &text) const {
     decoded.concat(decodedChar);
   }
   return decoded;
-}
-
-const char *AsyncWebServerRequest::methodToString() const {
-  if (_method == HTTP_ANY) {
-    return T_ANY;
-  }
-  if (_method & HTTP_GET) {
-    return T_GET;
-  }
-  if (_method & HTTP_POST) {
-    return T_POST;
-  }
-  if (_method & HTTP_DELETE) {
-    return T_DELETE;
-  }
-  if (_method & HTTP_PUT) {
-    return T_PUT;
-  }
-  if (_method & HTTP_PATCH) {
-    return T_PATCH;
-  }
-  if (_method & HTTP_HEAD) {
-    return T_HEAD;
-  }
-  if (_method & HTTP_OPTIONS) {
-    return T_OPTIONS;
-  }
-  return T_UNKNOWN;
-}
-
-const char *AsyncWebServerRequest::requestedConnTypeToString() const {
-  switch (_reqconntype) {
-    case RCT_NOT_USED: return T_RCT_NOT_USED;
-    case RCT_DEFAULT:  return T_RCT_DEFAULT;
-    case RCT_HTTP:     return T_RCT_HTTP;
-    case RCT_WS:       return T_RCT_WS;
-    case RCT_EVENT:    return T_RCT_EVENT;
-    default:           return T_ERROR;
-  }
 }
 
 bool AsyncWebServerRequest::isExpectedRequestedConnType(RequestedConnectionType erct1, RequestedConnectionType erct2, RequestedConnectionType erct3) const {

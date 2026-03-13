@@ -93,6 +93,24 @@ String BmwI3HtmlRenderer::get_status_html() {
                                       "Invalid Signal"};
   content +=
       "<h4>Cold shutoff valve: " + String(safeArrayAccess(valveText, 16, batt.ST_cold_shutoff_valve())) + "</h4>";
+  static const char* balancingText[16] = {"Not requested",
+                                          "Requested",
+                                          "Starting",
+                                          "Executing",
+                                          "4",
+                                          "5",
+                                          "6",
+                                          "7",
+                                          "8",
+                                          "9",
+                                          "10",
+                                          "11",
+                                          "12",
+                                          "13",
+                                          "14",
+                                          "15"};
+  content +=
+      "<h4>Balancing status: " + String(safeArrayAccess(balancingText, 16, batt.ST_balancing_status())) + "</h4>";
 
   return content;
 }

@@ -13,43 +13,43 @@ void CmpSmartCarBattery::update_values() {
     digitalWrite(esp32hal->WUP_PIN1(), HIGH);  // Wake up the battery
   }
 
-  datalayer.battery.status.real_soc = battery_soc * 10;
+  datalayer_battery->status.real_soc = battery_soc * 10;
 
-  datalayer.battery.status.soh_pptt = SOH_estimated * 100;
+  datalayer_battery->status.soh_pptt = SOH_estimated * 100;
 
-  datalayer.battery.status.voltage_dV = battery_voltage;
+  datalayer_battery->status.voltage_dV = battery_voltage;
 
-  datalayer.battery.status.current_dA = battery_current_dA;
+  datalayer_battery->status.current_dA = battery_current_dA;
 
-  datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
+  datalayer_battery->status.active_power_W =  //Power in watts, Negative = charging batt
+      ((datalayer_battery->status.voltage_dV * datalayer_battery->status.current_dA) / 100);
 
-  datalayer.battery.info.total_capacity_Wh = total_energy_when_full_Wh;
+  datalayer_battery->info.total_capacity_Wh = total_energy_when_full_Wh;
 
-  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  datalayer.battery.status.max_charge_power_W = regen_charge_cont_power * 100;
+  datalayer_battery->status.max_charge_power_W = regen_charge_cont_power * 100;
 
-  datalayer.battery.status.max_discharge_power_W = discharge_cont_available_power * 100;
+  datalayer_battery->status.max_discharge_power_W = discharge_cont_available_power * 100;
 
   if ((battery_temperature_minimum != 0) && (battery_temperature_maximum != 0)) {
     //Only update once both values are available
-    datalayer.battery.status.temperature_min_dC = battery_temperature_minimum * 10;
-    datalayer.battery.status.temperature_max_dC = battery_temperature_maximum * 10;
+    datalayer_battery->status.temperature_min_dC = battery_temperature_minimum * 10;
+    datalayer_battery->status.temperature_max_dC = battery_temperature_maximum * 10;
   }
 
-  datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;
+  datalayer_battery->status.cell_min_voltage_mV = min_cell_voltage;
 
-  datalayer.battery.status.cell_max_voltage_mV = max_cell_voltage;
+  datalayer_battery->status.cell_max_voltage_mV = max_cell_voltage;
 
   if (number_of_cells > 0) {
-    datalayer.battery.info.number_of_cells = number_of_cells;
+    datalayer_battery->info.number_of_cells = number_of_cells;
   }
 
-  datalayer.battery.status.total_discharged_battery_Wh = lifetime_kWh_discharged;
+  datalayer_battery->status.total_discharged_battery_Wh = lifetime_kWh_discharged;
 
-  datalayer.battery.status.total_charged_battery_Wh = lifetime_kWh_charged;
+  datalayer_battery->status.total_charged_battery_Wh = lifetime_kWh_charged;
 
   if (thermal_runaway == 0x01) {
     set_event(EVENT_THERMAL_RUNAWAY, 0);
@@ -152,9 +152,9 @@ uint8_t calculate_checksum432(CAN_frame& rx_frame) {
 void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x205:  //10ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (!checksum_OK(rx_frame, 0x18)) {
-        datalayer.battery.status.CAN_error_counter++;
+        datalayer_battery->status.CAN_error_counter++;
         break;  //Message checksum incorrect, abort reading data from it
       }
       battery_current_dA = -sign_extend_to_int16(((rx_frame.data.u8[0] << 7) | (rx_frame.data.u8[1] >> 1)), 15);
@@ -171,15 +171,15 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //counter_205 = (rx_frame.data.u8[7] & 0x0F);
       break;
     case 0x235:  //10ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       discharge_available_10s_power = ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4));  //*0.1kW
       discharge_available_10s_current =
           (((rx_frame.data.u8[1] & 0x0F) << 9) | (rx_frame.data.u8[2] << 1) | (rx_frame.data.u8[3] >> 7));  //*0.1A
       break;
     case 0x275:  //20ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (!checksum_OK(rx_frame, 0x01)) {
-        datalayer.battery.status.CAN_error_counter++;
+        datalayer_battery->status.CAN_error_counter++;
         break;  //Message checksum incorrect, abort reading data from it
       }
       discharge_cont_available_power = ((rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] >> 5));      //*0.1kW
@@ -189,9 +189,9 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //counter_275 = (rx_frame.data.u8[7] & 0x0F);
       break;
     case 0x285:  //20ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (!checksum_OK(rx_frame, 0x00)) {
-        datalayer.battery.status.CAN_error_counter++;
+        datalayer_battery->status.CAN_error_counter++;
         break;  //Message checksum incorrect, abort reading data from it
       }
       regen_charge_cont_power = ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4));      //*0.1kW
@@ -201,7 +201,7 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //counter_285 = (rx_frame.data.u8[7] & 0x0F);
       break;
     case 0x2A5:  //100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_quickcharge_connect_status = rx_frame.data.u8[0] >> 6;
       regen_charge_10s_current = (((rx_frame.data.u8[0] & 0x3F) << 1) | (rx_frame.data.u8[1] >> 1));  //*0.1a
       regen_charge_10s_power = ((rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[3] >> 4));             //*0.1kW
@@ -211,9 +211,9 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //counter_2A5 = (rx_frame.data.u8[7] & 0x0F);
       break;
     case 0x325:  //100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (!checksum_OK(rx_frame, 0x05)) {
-        datalayer.battery.status.CAN_error_counter++;
+        datalayer_battery->status.CAN_error_counter++;
         break;  //Message checksum incorrect, abort reading data from it
       }
       battery_balancing_active = rx_frame.data.u8[0] & 0x01;
@@ -233,24 +233,24 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //counter_325 = (rx_frame.data.u8[7] & 0x0F);
       break;
     case 0x334:  // Cellvoltages
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] >> 3);  // Mux goes from 0-25
 
       if (mux < 25) {  // Only process valid cell data frames (0-24) (100S, but protocol does support 108S)
         uint8_t base_index = mux * 4;
 
-        datalayer.battery.status.cell_voltages_mV[base_index + 0] =
+        datalayer_battery->status.cell_voltages_mV[base_index + 0] =
             ((rx_frame.data.u8[1] << 4) | (rx_frame.data.u8[2] >> 4)) * 4;
-        datalayer.battery.status.cell_voltages_mV[base_index + 1] =
+        datalayer_battery->status.cell_voltages_mV[base_index + 1] =
             ((rx_frame.data.u8[3] & 0xFF) << 4) | (rx_frame.data.u8[4] >> 4);
-        datalayer.battery.status.cell_voltages_mV[base_index + 2] =
+        datalayer_battery->status.cell_voltages_mV[base_index + 2] =
             (((rx_frame.data.u8[4] & 0x0F) << 8) | (rx_frame.data.u8[5])) * 4;
-        datalayer.battery.status.cell_voltages_mV[base_index + 3] =
+        datalayer_battery->status.cell_voltages_mV[base_index + 3] =
             ((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[7];
       }
       break;
     case 0x335:  //100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //checksum_335 //Init value 0xB
       DC_bus_voltage = ((rx_frame.data.u8[0] << 5) | (rx_frame.data.u8[1] >> 3));
       charge_max_voltage =
@@ -261,16 +261,16 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //counter_335 = (rx_frame.data.u8[7] & 0x0F);
       break;
     case 0x385:  //1000ms Wakeup state message
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       hvbat_wakeup_state = rx_frame.data.u8[0];
       break;
     case 0x3F4:  //Event triggered
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] >> 5);
       //This message contains all individual temperature sensors. Not needed fofr us
       break;
     case 0x434:  //1000ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       hours_spent_overvoltage = ((rx_frame.data.u8[0] << 5) | (rx_frame.data.u8[1] >> 3)) / 10;
       hours_spent_overtemperature =
           (((rx_frame.data.u8[1] & 0x07) << 10) | (rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] >> 6)) / 10;
@@ -280,7 +280,7 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       total_coulomb_counting_kWh = (((rx_frame.data.u8[6] & 0x1F) << 7) | (rx_frame.data.u8[7] >> 1)) * 35;
       break;
     case 0x435:  //500ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       tempval = rx_frame.data.u8[0] - 40;
       if (tempval < 210) {
         battery_temperature_maximum = rx_frame.data.u8[0] - 40;
@@ -297,7 +297,7 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       max_cell_voltage_number = rx_frame.data.u8[7];
       break;
     case 0x455:  //100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       nominal_voltage = ((rx_frame.data.u8[0] << 5) | (rx_frame.data.u8[1] >> 3));
       charge_continue_power_limit =
           (((rx_frame.data.u8[1] & 0x07) << 9) | (rx_frame.data.u8[2] << 1) | (rx_frame.data.u8[3] >> 7));
@@ -305,11 +305,11 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       bulk_SOC_DC_limit = rx_frame.data.u8[6] >> 1;
       break;
     case 0x485:  //Non-periodic
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //heating_contactor_operating_count = ((rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7]))
       break;
     case 0x494:  //1000ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //total_coloumb_counting_Ah
       lifetime_kWh_charged = (((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) * 35;
       lifetime_kWh_discharged = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[4] >> 4)) * 35;
@@ -317,24 +317,24 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       hours_spent_exceeding_discharge_power = (((rx_frame.data.u8[4] & 0x7F) << 5) | (rx_frame.data.u8[7] >> 3));
       break;
     case 0x535:  //1000ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       SOC_actual = ((rx_frame.data.u8[0] << 2) | (rx_frame.data.u8[1] >> 6));
       alert_low_battery_energy = rx_frame.data.u8[1] & 0x01;
       battery_temperature_average = rx_frame.data.u8[4] - 40;
       battery_minimum_voltage_reached_warning = rx_frame.data.u8[7] & 0x01;
       break;
     case 0x543:  //1000ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       remaining_energy_Wh = ((rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] >> 5)) * 32;
       total_energy_when_full_Wh = ((rx_frame.data.u8[2] << 3) | (rx_frame.data.u8[3] >> 5)) * 32;
       SOH_internal_resistance = (((rx_frame.data.u8[3] & 0x1F) << 2) | (rx_frame.data.u8[4] >> 6));
       SOH_estimated = (rx_frame.data.u8[5] >> 1);
       break;
     case 0x575:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x583:  //1000ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       max_temperature_probe_number = rx_frame.data.u8[0];
       min_temperature_probe_number = rx_frame.data.u8[1];
 
@@ -353,10 +353,10 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x595:  //1000ms - Time to charge to 20/40/680/100 , not needed for integration
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x5B5:  //100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       heater_relay_status = rx_frame.data.u8[0] & 0x03;
       preheating_status = (rx_frame.data.u8[0] & 0x0C) >> 3;
       cooling_enabled = (rx_frame.data.u8[0] & 0x10) >> 4;
@@ -368,13 +368,13 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       thermal_runaway_module_ID = (rx_frame.data.u8[6] & 0x1C) >> 2;
       break;
     case 0x615:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x625:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x665:  //1000ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       main_contactor_cycle_count = ((rx_frame.data.u8[0] << 2) | (rx_frame.data.u8[1] >> 6)) * 200;
       QC_contactor_cycle_count = (((rx_frame.data.u8[1] & 0x3F) << 4) | (rx_frame.data.u8[2] >> 4)) * 200;
       break;
@@ -382,14 +382,14 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //battery_remaining_capacity_Ah = //0.001 signal, 20 bit long, byte 5 bit 7 start pos
       break;
     case 0x694:  // Poll reply
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x795:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       rcd_line_active = (rx_frame.data.u8[0] & 0x40) >> 6;
       break;
     case 0x7B5:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       active_DTC_code = rx_frame.data.u8[2];
       break;
     default:
@@ -478,7 +478,7 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
       CMP_351.data.u8[1] = 0x10;
       CMP_351.data.u8[2] = 0x10;
     } else {  //Normal handling of 351 message according to we need to open/close contactors
-      if (datalayer.battery.status.bms_status == FAULT) {
+      if (datalayer_battery->status.bms_status == FAULT) {
         //Open contactors
         CMP_351.data.u8[0] = 0xA6;
         CMP_351.data.u8[1] = 0x10;
@@ -507,7 +507,7 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
       CMP_211.data.u8[4] = 0x17;    //Ready mode (unsure why this opens contactors)
     } else {                        //Normal handling of close/open
 
-      if (datalayer.battery.status.bms_status == FAULT) {
+      if (datalayer_battery->status.bms_status == FAULT) {
         //Open contactors
         CMP_211.data.u8[4] = 0x17;  //Ready mode (unsure why this opens contactors) (Bit 1 is insulation turn-off)
       } else {                      //Close contactors
@@ -549,22 +549,27 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void CmpSmartCarBattery::setup(void) {  // Performs one time setup at startup
-  if (!esp32hal->alloc_pins(Name, esp32hal->WUP_PIN1())) {
-    return;  //TODO, this needs refactoring for double-battery later
+  static bool pins_allocated = false;
+
+  // Only allocate pins once, double-battery uses same WUP pin
+  if (!pins_allocated) {
+    if (!esp32hal->alloc_pins(Name, esp32hal->WUP_PIN1())) {
+      return;  // Pin allocation failed
+    }
+    pinMode(esp32hal->WUP_PIN1(), OUTPUT);
+    digitalWrite(esp32hal->WUP_PIN1(), LOW);  // Set pin to low
+    pins_allocated = true;
   }
 
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.number_of_cells = 100;
-  datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
-  datalayer.battery.info.total_capacity_Wh = 41400;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_100S_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_100S_DV;
+  datalayer_battery->info.number_of_cells = 100;
+  datalayer_battery->info.chemistry = battery_chemistry_enum::LFP;
+  datalayer_battery->info.total_capacity_Wh = 41400;
+  datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_100S_DV;
+  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_100S_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
-
-  pinMode(esp32hal->WUP_PIN1(), OUTPUT);
-  digitalWrite(esp32hal->WUP_PIN1(), LOW);  // Set pin to low, prepare to wakeup later on!
 }

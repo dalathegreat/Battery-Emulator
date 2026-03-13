@@ -444,7 +444,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       switch (mux) {
         case 0:  // Temperatures 1-56. Value is 0xFD if sensor not present
           for (uint8_t i = 0; i < 56; i++) {
-            datalayer_extended.meb.celltemperature_dC[i] = (rx_frame.data.u8[i + 1] * 5) - 400;
+            datalayer_extended.meb.celltemperature_dC[i] = ((int16_t)rx_frame.data.u8[i + 1] * 5) - 400;
           }
           break;
         /*

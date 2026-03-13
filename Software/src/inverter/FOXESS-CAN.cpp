@@ -13,9 +13,9 @@ below that you can customize, incase you use a lower voltage battery with this p
   0b11111111  //0x1875 b2 contains status for operational packs (responding) in binary so 01111111 is pack 8 not operational, 11101101 is pack 5 & 2 not operational
 #define NUMBER_OF_PACKS 8         //1-8
 #define BATTERY_TYPE_MASTER 0x52  //0x52 is HV2600 V2 BMS master
-#define BATTERY_TYPE_SLAVE 0x82   //0x82 is HV2600 V1, 0x83 is ECS4100 v1, 0x84 is HV2600 V2
-#define FIRMWARE_VERSION_MASTER 0xFF
-#define FIRMWARE_VERSION_SLAVE 0x20
+#define BATTERY_TYPE_SLAVE 0x84   //0x82 is HV2600 V1, 0x83 is ECS4100 v1, 0x84 is HV2600 V2
+#define FIRMWARE_VERSION_MASTER 0x12
+#define FIRMWARE_VERSION_SLAVE 0x1F
 //for the PACK_ID (b7 =10,20,30,40,50,60,70,80) then FIRMWARE_VERSION 0x1F = 0001 1111, version is v1.15, and if FIRMWARE_VERSION was 0x20 = 0010 0000 then = v2.0
 #define MASTER 0
 #define MAX_AC_VOLTAGE 2567              //256.7VAC max
@@ -29,6 +29,17 @@ void FoxessCanInverter::
   //Calculate the required values
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
+  //Foxess only supports LFP batteries. We need to fake an LFP cell voltage range if the battery used is not LFP
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+    //Already LFP, pass thru value
+    cell_tweaked_max_voltage_mV = datalayer.battery.status.cell_max_voltage_mV;
+    cell_tweaked_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
+  } else {  //linear interpolation to remap the value from the range [2500-4200] to [2500-3400]
+    cell_tweaked_max_voltage_mV =
+        (2500 + ((datalayer.battery.status.cell_max_voltage_mV - 2500) * (3400 - 2500)) / (4200 - 2500));
+    cell_tweaked_min_voltage_mV =
+        (2500 + ((datalayer.battery.status.cell_min_voltage_mV - 2500) * (3400 - 2500)) / (4200 - 2500));
+  }
 
   //Put the values into the CAN messages
   //BMS_Limits
@@ -44,8 +55,9 @@ void FoxessCanInverter::
   //BMS_PackData
   FOXESS_1873.data.u8[0] = (uint8_t)datalayer.battery.status.voltage_dV;  // OK
   FOXESS_1873.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
-  FOXESS_1873.data.u8[2] = (int8_t)datalayer.battery.status.current_dA;  // OK, Signed (Active current in Amps x 10)
-  FOXESS_1873.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
+  FOXESS_1873.data.u8[2] =
+      (int8_t)datalayer.battery.status.reported_current_dA;  // OK, Signed (Active current in Amps x 10)
+  FOXESS_1873.data.u8[3] = (datalayer.battery.status.reported_current_dA >> 8);
   FOXESS_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (0-100%)
   FOXESS_1873.data.u8[5] = 0x00;
   FOXESS_1873.data.u8[6] = (uint8_t)(datalayer.battery.status.reported_remaining_capacity_Wh / 10);
@@ -56,10 +68,10 @@ void FoxessCanInverter::
   FOXESS_1874.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
   FOXESS_1874.data.u8[2] = (int8_t)datalayer.battery.status.temperature_min_dC;
   FOXESS_1874.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
-  FOXESS_1874.data.u8[4] = (uint8_t)(3300);  //cut_mv_max (Should we send a limit, or the actual mV?)
-  FOXESS_1874.data.u8[5] = (3300 >> 8);
-  FOXESS_1874.data.u8[6] = (uint8_t)(3300);  //cut_mV_min (Should we send a limit, or the actual mV?)
-  FOXESS_1874.data.u8[7] = (3300 >> 8);
+  FOXESS_1874.data.u8[4] = (uint8_t)(cell_tweaked_max_voltage_mV);
+  FOXESS_1874.data.u8[5] = (cell_tweaked_max_voltage_mV >> 8);
+  FOXESS_1874.data.u8[6] = (uint8_t)(cell_tweaked_min_voltage_mV);
+  FOXESS_1874.data.u8[7] = (cell_tweaked_min_voltage_mV >> 8);
 
   //BMS_Status
   FOXESS_1875.data.u8[0] = (uint8_t)temperature_average;
@@ -103,7 +115,6 @@ void FoxessCanInverter::
   FOXESS_1877.data.u8[5] = (uint8_t)0;  //Unused
   if (current_pack_info == MASTER) {
     FOXESS_1877.data.u8[4] = (uint8_t)BATTERY_TYPE_MASTER;
-    FOXESS_1877.data.u8[5] = (uint8_t)0x22;  //Unused?
     FOXESS_1877.data.u8[6] = (uint8_t)FIRMWARE_VERSION_MASTER;
     FOXESS_1877.data.u8[7] = (uint8_t)0x01;
   } else {  // 1-8
@@ -124,7 +135,7 @@ void FoxessCanInverter::
 
   //Errorcodes and flags
   FOXESS_1879.data.u8[0] = (uint8_t)0;  // Error codes go here, still unsure of bitmasking
-  if (datalayer.battery.status.current_dA > 0) {
+  if (datalayer.battery.status.reported_current_dA > 0) {
     FOXESS_1879.data.u8[1] = 0x35;  //Charging
   }  // Mappings taken from https://github.com/FozzieUK/FoxESS-Canbus-Protocol
   else {
@@ -138,8 +149,8 @@ void FoxessCanInverter::
 
   if (NUMBER_OF_PACKS > 0) {  //div0 safeguard
     //We calculate how much each emulated pack should show
-    voltage_per_pack = (datalayer.battery.status.voltage_dV / NUMBER_OF_PACKS);
-    current_per_pack = (datalayer.battery.status.current_dA / NUMBER_OF_PACKS);
+    voltage_per_pack = (datalayer.battery.status.voltage_dV / NUMBER_OF_PACKS) * 10;
+    current_per_pack = (datalayer.battery.status.reported_current_dA / NUMBER_OF_PACKS);
     if (datalayer.battery.status.temperature_max_dC >= 0) {
       temperature_max_per_pack = (uint8_t)((datalayer.battery.status.temperature_max_dC / 10) + 40);
     } else {  // negative values, cap to 0*C for now. Most LFPs are not allowed to go below 0*C.
@@ -160,8 +171,8 @@ void FoxessCanInverter::
   FOXESS_0C05.data.u8[3] = (uint8_t)temperature_min_per_pack;
   FOXESS_0C05.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
   FOXESS_0C05.data.u8[5] = 0x0A;  //b5-7chg/dis?
-  FOXESS_0C05.data.u8[6] = 0xD0;  //pack_1_volts (53.456V) //TODO, does hardcoded value work?
-  FOXESS_0C05.data.u8[7] = 0xD0;  //pack_1_volts (53.456V) //Or shall we put in 'voltage_per_pack'
+  FOXESS_0C05.data.u8[6] = (uint8_t)voltage_per_pack;
+  FOXESS_0C05.data.u8[7] = (voltage_per_pack >> 8);
 
   // Pack 2
   FOXESS_0C06.data.u8[0] = (uint8_t)current_per_pack;
@@ -170,8 +181,8 @@ void FoxessCanInverter::
   FOXESS_0C06.data.u8[3] = (uint8_t)temperature_min_per_pack;
   FOXESS_0C06.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
   FOXESS_0C06.data.u8[5] = 0x0A;  //b5-7chg/dis?
-  FOXESS_0C06.data.u8[6] = 0xD0;  //pack_1_volts (53.456V)
-  FOXESS_0C06.data.u8[7] = 0xD0;  //pack_1_volts (53.456V)
+  FOXESS_0C06.data.u8[6] = (uint8_t)voltage_per_pack;
+  FOXESS_0C06.data.u8[7] = (voltage_per_pack >> 8);
 
   // Pack 3
   FOXESS_0C07.data.u8[0] = (uint8_t)current_per_pack;
@@ -180,8 +191,8 @@ void FoxessCanInverter::
   FOXESS_0C07.data.u8[3] = (uint8_t)temperature_min_per_pack;
   FOXESS_0C07.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
   FOXESS_0C07.data.u8[5] = 0x0A;  //b5-7chg/dis?
-  FOXESS_0C07.data.u8[6] = 0xD0;  //pack_1_volts (53.456V)
-  FOXESS_0C07.data.u8[7] = 0xD0;  //pack_1_volts (53.456V)
+  FOXESS_0C07.data.u8[6] = (uint8_t)voltage_per_pack;
+  FOXESS_0C07.data.u8[7] = (voltage_per_pack >> 8);
 
   // Pack 4
   FOXESS_0C08.data.u8[0] = (uint8_t)current_per_pack;
@@ -190,8 +201,8 @@ void FoxessCanInverter::
   FOXESS_0C08.data.u8[3] = (uint8_t)temperature_min_per_pack;
   FOXESS_0C08.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
   FOXESS_0C08.data.u8[5] = 0x0A;  //b5-7chg/dis?
-  FOXESS_0C08.data.u8[6] = 0xD0;  //pack_1_volts (53.456V)
-  FOXESS_0C08.data.u8[7] = 0xD0;  //pack_1_volts (53.456V)
+  FOXESS_0C08.data.u8[6] = (uint8_t)voltage_per_pack;
+  FOXESS_0C08.data.u8[7] = (voltage_per_pack >> 8);
 
   // Pack 5
   FOXESS_0C09.data.u8[0] = (uint8_t)current_per_pack;
@@ -200,8 +211,8 @@ void FoxessCanInverter::
   FOXESS_0C09.data.u8[3] = (uint8_t)temperature_min_per_pack;
   FOXESS_0C09.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
   FOXESS_0C09.data.u8[5] = 0x0A;  //b5-7chg/dis?
-  FOXESS_0C09.data.u8[6] = 0xD0;  //pack_1_volts (53.456V)
-  FOXESS_0C09.data.u8[7] = 0xD0;  //pack_1_volts (53.456V)
+  FOXESS_0C09.data.u8[6] = (uint8_t)voltage_per_pack;
+  FOXESS_0C09.data.u8[7] = (voltage_per_pack >> 8);
 
   // Pack 6
   FOXESS_0C0A.data.u8[0] = (uint8_t)current_per_pack;
@@ -210,8 +221,8 @@ void FoxessCanInverter::
   FOXESS_0C0A.data.u8[3] = (uint8_t)temperature_min_per_pack;
   FOXESS_0C0A.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
   FOXESS_0C0A.data.u8[5] = 0x0A;  //b5-7chg/dis?
-  FOXESS_0C0A.data.u8[6] = 0xD0;  //pack_1_volts (53.456V)
-  FOXESS_0C0A.data.u8[7] = 0xD0;  //pack_1_volts (53.456V)
+  FOXESS_0C0A.data.u8[6] = (uint8_t)voltage_per_pack;
+  FOXESS_0C0A.data.u8[7] = (voltage_per_pack >> 8);
 
   // Pack 7
   FOXESS_0C0B.data.u8[0] = (uint8_t)current_per_pack;
@@ -220,8 +231,8 @@ void FoxessCanInverter::
   FOXESS_0C0B.data.u8[3] = (uint8_t)temperature_min_per_pack;
   FOXESS_0C0B.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
   FOXESS_0C0B.data.u8[5] = 0x0A;  //b5-7chg/dis?
-  FOXESS_0C0B.data.u8[6] = 0xD0;  //pack_1_volts (53.456V)
-  FOXESS_0C0B.data.u8[7] = 0xD0;  //pack_1_volts (53.456V)
+  FOXESS_0C0B.data.u8[6] = (uint8_t)voltage_per_pack;
+  FOXESS_0C0B.data.u8[7] = (voltage_per_pack >> 8);
 
   // Pack 8
   FOXESS_0C0C.data.u8[0] = (uint8_t)current_per_pack;
@@ -230,8 +241,8 @@ void FoxessCanInverter::
   FOXESS_0C0C.data.u8[3] = (uint8_t)temperature_min_per_pack;
   FOXESS_0C0C.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
   FOXESS_0C0C.data.u8[5] = 0x0A;  //b5-7chg/dis?
-  FOXESS_0C0C.data.u8[6] = 0xD0;  //pack_1_volts (53.456V)
-  FOXESS_0C0C.data.u8[7] = 0xD0;  //pack_1_volts (53.456V)
+  FOXESS_0C0C.data.u8[6] = (uint8_t)voltage_per_pack;
+  FOXESS_0C0C.data.u8[7] = (voltage_per_pack >> 8);
 
   //Cellvoltages
   /*
