@@ -191,8 +191,6 @@ void BydAttoBattery::
 
   // Update webserver datalayer
   if (datalayer_bydatto) {
-    datalayer_bydatto->SOC_method = SOC_method;
-    datalayer_bydatto->SOC_estimated = battery_estimated_SOC;
     datalayer_bydatto->SOC_highprec = battery_highprecision_SOC;
     datalayer_bydatto->SOC_polled = BMS_SOC;
     datalayer_bydatto->voltage_periodic = battery_voltage;
@@ -709,5 +707,4 @@ void BydAttoBattery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  SOC_method = SOC_MEASURED;  //Startup in mode assuming SOC is OK to measure (non-crashed)
 }

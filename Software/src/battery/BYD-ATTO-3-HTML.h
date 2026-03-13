@@ -52,6 +52,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "}";
     content += "</script>";
 
+    content += "<h4>Cells configured: " + String(datalayer.battery.info.number_of_cells) + "</h4>";
     content += "<h4>Charging battery state: ";
     switch (byd_datalayer->discharge_status) {
       case 0:
@@ -100,14 +101,10 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
         content += "Unknown</h4>";
     }
 
-    float soc_estimated = static_cast<float>(byd_datalayer->SOC_estimated) * 0.01f;
     float soc_measured = static_cast<float>(byd_datalayer->SOC_highprec) * 0.1f;
     float BMS_maxChargePower = static_cast<float>(byd_datalayer->chargePower) * 0.1f;
     float BMS_maxDischargePower = static_cast<float>(byd_datalayer->dischargePower) * 0.1f;
-    static const char* SOCmethod[2] = {"Estimated from voltage", "Measured by BMS"};
 
-    content += "<h4>SOC method used: " + String(SOCmethod[byd_datalayer->SOC_method]) + "</h4>";
-    content += "<h4>SOC estimated: " + String(soc_estimated) + "&percnt;</h4>";
     content += "<h4>SOC measured: " + String(soc_measured) + "&percnt;</h4>";
     content += "<h4>SOC OBD2: " + String(byd_datalayer->SOC_polled) + "&percnt;</h4>";
     content += "<h4>Voltage periodic: " + String(byd_datalayer->voltage_periodic) + " V</h4>";

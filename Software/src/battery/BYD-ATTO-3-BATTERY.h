@@ -42,11 +42,6 @@ class BydAttoBattery : public CanBattery {
   bool supports_calibrate_SOC() { return true; }
   void reset_SOC() { datalayer_bydatto->UserRequestCalibrateSOC = true; }
 
-  // Toggle SOC method in UI is only enabled if we initially use measured SOC
-  bool supports_toggle_SOC_method() { return true; }
-
-  void toggle_SOC_method() { SOC_method = !SOC_method; }
-
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
@@ -211,7 +206,6 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t APPROVED = 2;
   uint8_t servicemode = NOT_DETERMINED_YET;
 
-  bool SOC_method = false;
   bool BMS_voltage_available = false;
 
   int16_t battery_daughterboard_temperatures[10] = {0};
