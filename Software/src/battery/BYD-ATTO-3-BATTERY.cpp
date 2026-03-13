@@ -1,22 +1,10 @@
 #include "BYD-ATTO-3-BATTERY.h"
 #include <cstring>  //For unit test
+#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-
-// Define the data points for %SOC depending on pack voltage
-const uint8_t numPoints = 28;
-const uint16_t SOC[numPoints] = {10000, 9985, 9970, 9730, 9490, 8980, 8470, 8110, 7750, 7270, 6790, 6145, 5500, 5200,
-                                 4900,  4405, 3910, 3455, 3000, 2640, 2280, 1940, 1600, 1040, 480,  240,  120,  0};
-
-const uint16_t voltage_extended[numPoints] = {4300, 4250, 4230, 4205, 4180, 4175, 4171, 4170, 4169, 4164,
-                                              4160, 4145, 4130, 4125, 4121, 4120, 4119, 4109, 4100, 4085,
-                                              4070, 4050, 4030, 3990, 3950, 3875, 3840, 3800};
-
-const uint16_t voltage_standard[numPoints] = {3570, 3552, 3485, 3464, 3443, 3439, 3435, 3434, 3433, 3429,
-                                              3425, 3412, 3400, 3396, 3392, 3391, 3390, 3382, 3375, 3362,
-                                              3350, 3332, 3315, 3282, 3250, 3195, 3170, 3140};
 
 // BYD UDS 0x27 Seed-to-Key Algorithm (Endian-Safe)
 uint16_t byd_generate_key(uint16_t seed, uint32_t keyK) {
@@ -33,40 +21,6 @@ uint16_t byd_generate_key(uint16_t seed, uint32_t keyK) {
   return (uint16_t)(result & 0xFFFF);
 }
 
-uint16_t estimateSOCextended(uint16_t packVoltage) {  // Linear interpolation function
-  if (packVoltage >= voltage_extended[0]) {
-    return SOC[0];
-  }
-  if (packVoltage <= voltage_extended[numPoints - 1]) {
-    return SOC[numPoints - 1];
-  }
-
-  for (int i = 1; i < numPoints; ++i) {
-    if (packVoltage >= voltage_extended[i]) {
-      float t = (packVoltage - voltage_extended[i]) / (voltage_extended[i - 1] - voltage_extended[i]);
-      return SOC[i] + t * (SOC[i - 1] - SOC[i]);
-    }
-  }
-  return 0;  // Default return for safety, should never reach here
-}
-
-uint16_t estimateSOCstandard(uint16_t packVoltage) {  // Linear interpolation function
-  if (packVoltage >= voltage_standard[0]) {
-    return SOC[0];
-  }
-  if (packVoltage <= voltage_standard[numPoints - 1]) {
-    return SOC[numPoints - 1];
-  }
-
-  for (int i = 1; i < numPoints; ++i) {
-    if (packVoltage >= voltage_standard[i]) {
-      float t = (packVoltage - voltage_standard[i]) / (voltage_standard[i - 1] - voltage_standard[i]);
-      return SOC[i] + t * (SOC[i - 1] - SOC[i]);
-    }
-  }
-  return 0;  // Default return for safety, should never reach here
-}
-
 uint8_t compute441Checksum(const uint8_t* u8)  // Computes the 441 checksum byte
 {
   int sum = 0;
@@ -80,28 +34,14 @@ uint8_t compute441Checksum(const uint8_t* u8)  // Computes the 441 checksum byte
 void BydAttoBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  if (BMS_voltage > 0) {
-    datalayer_battery->status.voltage_dV = BMS_voltage * 10;  //Polled value
-  } else if (battery_voltage > 0) {
-    datalayer_battery->status.voltage_dV = battery_voltage * 10;  //Value from periodic CAN data
+  if (battery_voltage > 0) {
+    datalayer_battery->status.voltage_dV = battery_voltage * 10;  //Value from periodic CAN data prioritized
+  } else if (BMS_voltage > 0) {
+    datalayer_battery->status.voltage_dV = BMS_voltage * 10;  //Polled value fallback
   }
 
-  if (battery_type == EXTENDED_RANGE) {
-    battery_estimated_SOC = estimateSOCextended(datalayer_battery->status.voltage_dV);
-  }
-  if (battery_type == STANDARD_RANGE) {
-    battery_estimated_SOC = estimateSOCstandard(datalayer_battery->status.voltage_dV);
-  }
-
-  if (SOC_method == SOC_MEASURED) {
-    // Pack is not crashed, we can use periodically transmitted SOC
-    datalayer_battery->status.real_soc = battery_highprecision_SOC * 10;
-  } else {
-    // When the battery is crashed hard, it locks itself and SOC becomes unavailable.
-    // We instead estimate the SOC% based on the battery voltage.
-    // This is a bad solution, you wont be able to use 100% of the battery
-    datalayer_battery->status.real_soc = battery_estimated_SOC;
-  }
+  // We assume pack is not crashed, and use periodically transmitted SOC
+  datalayer_battery->status.real_soc = battery_highprecision_SOC * 10;
 
   datalayer_battery->status.soh_pptt = BMS_SOH * 100;
 
@@ -110,18 +50,7 @@ void BydAttoBattery::
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  if (SOC_method == SOC_ESTIMATED && battery_estimated_SOC * 0.1f < RAMPDOWN_SOC && RAMPDOWN_SOC > 0) {
-    // If using estimated SOC, ramp down max discharge power as SOC decreases.
-    rampdown_power = RAMPDOWN_POWER_ALLOWED * ((battery_estimated_SOC * 0.1f) / RAMPDOWN_SOC);
-
-    if (rampdown_power < BMS_allowed_discharge_power * 100) {  // Never allow more than BMS_allowed_discharge_power
-      datalayer_battery->status.max_discharge_power_W = rampdown_power;
-    } else {
-      datalayer_battery->status.max_discharge_power_W = BMS_allowed_discharge_power * 100;
-    }
-  } else {
-    datalayer_battery->status.max_discharge_power_W = BMS_allowed_discharge_power * 100;
-  }
+  datalayer_battery->status.max_discharge_power_W = BMS_allowed_discharge_power * 100;
 
   datalayer_battery->status.max_charge_power_W = BMS_allowed_charge_power * 100;
 
@@ -229,41 +158,24 @@ void BydAttoBattery::
   datalayer_battery->status.total_discharged_battery_Wh = BMS_total_discharged_kwh * 1000;
   datalayer_battery->status.total_charged_battery_Wh = BMS_total_charged_kwh * 1000;
 
+  if (user_selected_cell_amount > 0) {
+    datalayer_battery->info.number_of_cells = user_selected_cell_amount;
+  } else {  //Inform user they did not configure amount of cells
+    set_event(EVENT_BATTERY_VALUE_NOT_CONFIGURED, 0);
+  }
+
   //Map all cell voltages to the global array
-  memcpy(datalayer_battery->status.cell_voltages_mV, battery_cellvoltages, CELLCOUNT_EXTENDED * sizeof(uint16_t));
-
-  // Check if we are on Standard range or Extended range battery.
-  // We use a variety of checks to ensure we catch a potential Standard range battery
-  if ((battery_cellvoltages[125] > 0) && (battery_type == NOT_DETERMINED_YET)) {
-    battery_type = EXTENDED_RANGE;
-  }
-  if ((battery_cellvoltages[104] == 4095) && (battery_type == NOT_DETERMINED_YET)) {
-    battery_type = STANDARD_RANGE;  //This cell reading is always 4095 on Standard range
-  }
-  if ((battery_daughterboard_temperatures[9] == 215) && (battery_type == NOT_DETERMINED_YET)) {
-    battery_type = STANDARD_RANGE;  //Sensor 10 is missing on Standard range
-  }
-  if ((battery_daughterboard_temperatures[8] == 215) && (battery_type == NOT_DETERMINED_YET)) {
-    battery_type = STANDARD_RANGE;  //Sensor 9 is missing on Standard range
+  if (datalayer_battery->info.number_of_cells < MAX_AMOUNT_CELLS) {  //Sanity check
+    memcpy(datalayer_battery->status.cell_voltages_mV, battery_cellvoltages,
+           datalayer_battery->info.number_of_cells * sizeof(uint16_t));
   }
 
-  switch (battery_type) {
-    case STANDARD_RANGE:
-      datalayer_battery->info.total_capacity_Wh = 50000;
-      datalayer_battery->info.number_of_cells = CELLCOUNT_STANDARD;
-      datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_STANDARD_DV;
-      datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_STANDARD_DV;
-      break;
-    case EXTENDED_RANGE:
-      datalayer_battery->info.total_capacity_Wh = 60000;
-      datalayer_battery->info.number_of_cells = CELLCOUNT_EXTENDED;
-      datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_EXTENDED_DV;
-      datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_EXTENDED_DV;
-      break;
-    case NOT_DETERMINED_YET:
-    default:
-      //Do nothing
-      break;
+  //Based on the number of cells, calculate the max and min design voltage of the pack.
+  if (datalayer_battery->info.number_of_cells > 0) {
+    datalayer_battery->info.max_design_voltage_dV =
+        (datalayer_battery->info.number_of_cells * MAX_CELL_VOLTAGE_MV) / 100;
+    datalayer_battery->info.min_design_voltage_dV =
+        (datalayer_battery->info.number_of_cells * MIN_CELL_VOLTAGE_MV) / 100;
   }
 
   if ((BMS_lowest_cell_temperature != 0) && (BMS_highest_cell_temperature != 0)) {
@@ -395,11 +307,13 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_frame_index = rx_frame.data.u8[0];
 
-      if (battery_frame_index < (CELLCOUNT_EXTENDED / 3)) {
+      if (battery_frame_index < (MAX_AMOUNT_CELLS / 3)) {
         uint8_t base_index = battery_frame_index * 3;
         for (uint8_t i = 0; i < 3; i++) {
-          battery_cellvoltages[base_index + i] =
-              (((rx_frame.data.u8[2 * (i + 1)] & 0x0F) << 8) | rx_frame.data.u8[2 * i + 1]);
+          uint16_t cell_voltage = (((rx_frame.data.u8[2 * (i + 1)] & 0x0F) << 8) | rx_frame.data.u8[2 * i + 1]);
+          if (cell_voltage != 0xFFF) {  //Some packs have unpopulated modules at the end
+            battery_cellvoltages[base_index + i] = cell_voltage;
+          }
         }
       }
       break;
@@ -784,10 +698,9 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
 void BydAttoBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer_battery->info.number_of_cells = CELLCOUNT_STANDARD;
   datalayer_battery->info.chemistry = battery_chemistry_enum::LFP;
-  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_EXTENDED_DV;  //Startup in extremes
-  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_STANDARD_DV;  //We later determine range
+  datalayer_battery->info.max_design_voltage_dV = 5000;  //Startup in extremes
+  datalayer_battery->info.min_design_voltage_dV = 2500;  //We later determine range based on amount of cells
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
