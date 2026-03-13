@@ -122,6 +122,7 @@ add_executable(tests
     ../Software/src/battery/KIA-HYUNDAI-64-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-HYBRID-BATTERY.cpp
     ../Software/src/battery/MEB-BATTERY.cpp
+    ../Software/src/battery/MG-4-BATTERY.cpp
     ../Software/src/battery/MG-5-BATTERY.cpp
     ../Software/src/battery/MG-HS-PHEV-BATTERY.cpp
     ../Software/src/battery/NISSAN-LEAF-BATTERY.cpp
@@ -145,6 +146,7 @@ add_executable(tests
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
     ../Software/src/battery/THINK-BATTERY.cpp
     ../Software/src/battery/GEELY-SEA-BATTERY.cpp
+    ../Software/src/battery/UdsCanBattery.cpp
     ../Software/src/battery/VOLVO-SPA-BATTERY.cpp
     ../Software/src/battery/VOLVO-SPA-HYBRID-BATTERY.cpp
     ../Software/src/inverter/AFORE-CAN.cpp

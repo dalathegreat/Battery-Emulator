@@ -55,6 +55,7 @@ enum class BatteryType {
   TeslaLegacy = 48,
   GrowattHvArk = 49,
   GeelySea = 50,
+  Mg4 = 51,
   Highest
 };
 
