@@ -377,6 +377,25 @@ void receive_frame_canfd_addon() {  // This section checks if we have a complete
   }
 }
 
+// (SSE Batcher) from webserver page
+extern void append_can_stream(const char* line);
+
+void stream_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
+  char line[128];
+  int offset = 0;
+  unsigned long currentTime = millis();
+  
+  offset += snprintf(line + offset, sizeof(line) - offset, "(%lu.%03lu) ", currentTime / 1000, currentTime % 1000);
+  offset += snprintf(line + offset, sizeof(line) - offset, "%s%d ", (msgDir == MSG_RX) ? "RX" : "TX", (int)(interface * 2) + (msgDir == MSG_RX ? 0 : 1));
+  offset += snprintf(line + offset, sizeof(line) - offset, "%lX [%u] ", frame.ID, frame.DLC);
+  
+  for (uint8_t i = 0; i < frame.DLC; i++) {
+    offset += snprintf(line + offset, sizeof(line) - offset, (i < frame.DLC - 1) ? "%02X " : "%02X", frame.data.u8[i]);
+  }
+  
+  append_can_stream(line);
+}
+
 // Support functions
 void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir) {
 
@@ -407,7 +426,10 @@ void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection ms
 
   if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording
     if (frame.ID > user_selected_CAN_ID_cutoff_filter) {  //Only log the message if CAN ID is higher than user set value
-      dump_can_frame(frame, interface, msgDir);
+      
+      dump_can_frame(frame, interface, msgDir); 
+      
+      stream_can_frame(frame, interface, msgDir); 
     }
   }
 }

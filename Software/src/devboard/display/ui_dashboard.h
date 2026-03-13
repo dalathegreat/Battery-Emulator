@@ -114,6 +114,35 @@ void drawSharedDashboard(T* display, bool is_lcd) {
   if (max_cv_info <= 0.0f)
     max_cv_info = 3.65f;  // Default Overvoltage threshold
 
+  // ---------------------------------------------------------
+  // 🛡️ 2. Fallback Mechanism: in case not define
+  // Let use Chemical Type for identify min max instead
+  // ---------------------------------------------------------
+  if (min_cv_info <= 0.0f || max_cv_info <= 0.0f) {
+    switch (datalayer.battery.info.chemistry) {
+      case LFP:
+        min_cv_info = 2.50;
+        max_cv_info = 3.65;
+        break;
+      
+      case NMC:
+      case NCA:
+        min_cv_info = 3.00;
+        max_cv_info = 4.20;
+        break;
+      
+      case ZEBRA:
+        min_cv_info = 2.00;
+        max_cv_info = 2.60;
+        break;
+
+      default: 
+        min_cv_info = 2.80;
+        max_cv_info = 4.10;
+        break;
+    }
+  }
+
   float voltage = datalayer.battery.status.voltage_dV / 10.0f;
   float current = datalayer.battery.status.current_dA / 10.0f;
   float power_kw = (voltage * current) / 1000.0;
@@ -262,9 +291,12 @@ void drawSharedDashboard(T* display, bool is_lcd) {
   } else if (min_cv > 0.5 && min_cv < min_cv_info) {
     has_alarm = true;
     alarm_msg = "ALARM: CELL UNDERVOLTAGE";
-  } else if (voltage > (datalayer.battery.info.max_design_voltage_dV / 10.0f)) {
+  } else if (voltage > (datalayer.battery.info.max_design_voltage_dV / 10.0f) && voltage > 10.0) {
     has_alarm = true;
     alarm_msg = "ALARM: PACK OVERVOLTAGE";
+  } else if (voltage < (datalayer.battery.info.min_design_voltage_dV / 10.0f) && voltage > 10.0) { 
+    has_alarm = true;
+    alarm_msg = "ALARM: PACK UNDERVOLTAGE";
   } else if (display_soc <= 10) {
     has_alarm = true;
     alarm_msg = "WARN: LOW BATTERY SOC";
@@ -345,12 +377,9 @@ void drawSharedDashboard(T* display, bool is_lcd) {
 
   // Draw Chemistry Text (Vertical on the left side of the battery)
   String chem_str = String(datalayer.battery.info.chemistry);
-  if (chem_str == "LiFePO4" || chem_str == "1")
-    chem_str = "LFP";
-  else if (chem_str == "Li-ion" || chem_str == "2")
-    chem_str = "NMC";
-  else if (chem_str.length() > 5)
+  if (chem_str.length() > 5) {
     chem_str = chem_str.substring(0, 4);
+  }
 
   display->setFont(f_small);
   display->setTextSize(1);

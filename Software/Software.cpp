@@ -613,6 +613,7 @@ void mqtt_loop(void*) {
 
 // Initialization
 void setup() {
+  
   init_hal();
 
   init_serial();

@@ -4,8 +4,9 @@
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
+#include "../../devboard/safety/safety.h"
 
-// Available generic battery commands that are taken into use based on what the selected battery supports.
+// This variable stores the list of all commands (which I accidentally deleted last time; this block is also needed)
 std::vector<BatteryCommand> battery_commands = {
     {"clearIsolation", "Clear isolation fault", "clear any active isolation fault?",
      [](Battery* b) { return b && b->supports_clear_isolation(); }, [](Battery* b) { b->clear_isolation(); }},
@@ -54,76 +55,126 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) { b->reset_energy_saving_mode(); }},
 };
 
+// =========================================================================
+// 🚀 Advanced Battery Info Processor (Pro-Level Layout)
+// =========================================================================
+// =========================================================================
+// 🚀 Advanced Battery Info Processor (Pro-Level Layout)
+// =========================================================================
 String advanced_battery_processor(const String& var) {
+  
   if (var == "X") {
-    String content = "";
-    //Page format
-    content += "<style>";
-    content += "body { background-color: black; color: white; }";
-    content +=
-        "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin: 5px; "
-        "cursor: pointer; border-radius: 10px; }";
-    content += "button:hover { background-color: #3A4A52; }";
-    content += "h4 { margin: 0.6em 0; line-height: 1.2; }";
-    content += "</style>";
-    content += "<button onclick='goToMainPage()'>Back to main page</button>";
+    // 🌟 1. Check status and prepare data for button
+    String status = get_emulator_pause_status().c_str();
+    String pauseBtnText = (status == "PAUSED" || status == "PAUSING") ? "▶️ START Batteries" : "⏸ PAUSE Batteries";
+    String pauseBtnPrompt = (status == "PAUSED" || status == "PAUSING") ? "start the system?" : "pause the system?";
 
-    // Start a new block with a specific background color
-    content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+    String html = R"rawliteral(
+      <style>
+        .adv-wrap { display: flex; flex-direction: column; gap: 20px; }
+        
+        /* --- 🎛️ Control Panel --- */
+        .control-card { background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 4px solid #e74c3c; padding: 20px; }
+        .action-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .btn-cmd { background: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 0.95rem; }
+        .btn-cmd:hover { background: #2980b9; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+        .btn-pause { background: #f39c12; }
+        .btn-pause:hover { background: #d68910; }
 
-    // Render buttons dynamically based on what commands the battery supports.
-    auto render_command_buttons = [&content](Battery* batt, int ix) {
-      for (const auto& cmd : battery_commands) {
-        if (cmd.condition(batt)) {
-          // Button for user action
-          content += "<button onclick='ask" + String(cmd.identifier) + "(" + String(ix) + ")'>" + String(cmd.title) +
-                     "</button>";
+        /* --- 🔋 Battery Info Cards --- */
+        .bat-card { background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 4px solid #3498db; padding: 20px; overflow-x: auto; }
+        .bat-title { margin: 0 0 15px 0; color: #2c3e50; font-size: 1.25rem; font-weight: 800; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; }
 
-          // Script that calls the backend to perform the command
-          content += "<script>";
-          content += "function ask" + String(cmd.identifier) + "(batteryNum) { ";
+        /* --- 📊 Auto-Style Tables --- */
+        .bat-card table { width: 100%; border-collapse: collapse; font-size: 0.95rem; min-width: 300px; }
+        .bat-card th, .bat-card td { padding: 12px 15px; border-bottom: 1px solid #eee; text-align: left; color: #444; }
+        .bat-card tr:nth-child(even) { background-color: #fbfcfc; }
+        .bat-card tr:hover { background-color: #f1f4f6; }
+        .bat-card td:first-child { font-weight: 600; color: #34495e; width: 40%; } 
 
-          if (cmd.prompt) {
-            content += "if (window.confirm('Are you sure you want to " + String(cmd.prompt) + "'))";
+        @media (max-width: 768px) {
+          .action-bar { flex-direction: column; }
+          .btn-cmd { width: 100%; }
+          .bat-card th, .bat-card td { padding: 10px 8px; }
+        }
+      </style>
+
+      <script>
+        // Function to reliably send commands to the board.
+        function sendCmd(url, method, promptMsg) {
+          if (promptMsg && promptMsg !== "null") {
+            if (!window.confirm("Are you sure you want to " + promptMsg)) return;
           }
+          
+          var xhr = new XMLHttpRequest();
+          xhr.open(method, url, true);
+          xhr.onreadystatechange = function() {
+            if (xhr.readyState == 4) {
+              if (xhr.status == 200) {
+                setTimeout(function() { window.location.reload(); }, 500); 
+              } else {
+                alert('❌ Failed to execute command!');
+              }
+            }
+          };
+          xhr.send("0");
+        }
+      </script>
 
-          content += "{" + String(cmd.identifier) + "(batteryNum); } }";
-          content += "function " + String(cmd.identifier) + "(batteryNum) {";
-          content += "  var xhr = new XMLHttpRequest();";
-          content += "  xhr.open('PUT', '/" + String(cmd.identifier) + "', true);";
-          // Send index of the battery as PUT content
-          content += "  xhr.send(batteryNum);";
-          content += "}";
-          content += "</script>";
+      <div class="adv-wrap">
+      <div class="control-card">
+        <h3 style="margin:0; color:#333; font-size:1.25rem;">⚙️ Advanced Controls</h3>
+        <div class="action-bar">
+    )rawliteral";
+
+    html += "<button class=\"btn-cmd btn-pause\" onclick=\"sendCmd('/pause?value=toggle', 'GET', '" + pauseBtnPrompt + "')\">" + pauseBtnText + "</button>";
+
+    html += R"rawliteral(
+    )rawliteral";
+
+    // 🤖 Loop to retrieve command button from protocol
+    if (battery) {
+      for (const auto& cmd : battery_commands) {
+        if (cmd.condition(battery)) {
+          String promptStr = cmd.prompt ? String("'") + cmd.prompt + "'" : "null";
+          html += String("<button class=\"btn-cmd\" onclick=\"sendCmd('/") + cmd.identifier + "', 'PUT', " + promptStr +
+                  ")\">⚡ " + cmd.title + "</button>";
+        }
+      }
+    }
+
+    html += R"rawliteral(
+      </div>
+    </div>
+    )rawliteral";
+
+    // 🛠️ Helper Function: Make HTML Box
+    auto addBatteryInfo = [&](Battery* bat, String title, String color) {
+      if (bat) {
+        String batHtml = bat->get_status_renderer().get_status_html();
+
+        if (batHtml.length() > 0) {
+          batHtml.replace("color: white;", "");
+          batHtml.replace("color:white;", "");
+          batHtml.replace("color: white", "");
+          batHtml.replace("color:#fff", "");
+
+          html += "<div class='bat-card' style='border-top-color: " + color + ";'>";
+          html += "<h3 class='bat-title'>🔋 " + title + "</h3>";
+          html += batHtml;
+          html += "</div>";
         }
       }
     };
 
-    if (battery) {
-      content += battery->get_status_renderer().get_status_html();
-      render_command_buttons(battery, 0);
-    }
+    // Draw all the data boxes.
+    addBatteryInfo(battery, "Main Battery Pack Info", "#3498db");
+    addBatteryInfo(battery2, "Battery Pack #2 Info", "#9b59b6");
+    addBatteryInfo(battery3, "Battery Pack #3 Info", "#1abc9c");
 
-    if (battery2) {
-      content += "<h4>Values from battery 2</h4>";
-      content += battery2->get_status_renderer().get_status_html();
-      render_command_buttons(battery2, 1);
-    }
-
-    if (battery3) {
-      content += "<h4>Values from battery 3</h4>";
-      content += battery3->get_status_renderer().get_status_html();
-      render_command_buttons(battery3, 1);
-    }
-
-    content += "</div>";
-
-    content += "<script>";
-    content += "function exportLog() { window.location.href = '/export_log'; }";
-    content += "function goToMainPage() { window.location.href = '/'; }";
-    content += "</script>";
-
-    return content;
+    html += "</div>";  // close adv-wrap
+    return html;
   }
+
   return String();
 }

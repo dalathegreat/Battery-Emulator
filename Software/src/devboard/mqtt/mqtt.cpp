@@ -534,9 +534,9 @@ bool publish_events() {
         set_event_MQTTpublished(event_handle);
       }
       doc.clear();
-      //clear the vector
-      order_events.clear();
     }
+    //clear the vector
+    order_events.clear();
   }
   return true;
 }

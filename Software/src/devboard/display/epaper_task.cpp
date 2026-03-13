@@ -95,6 +95,7 @@ void updateEpaper3CDisplay() {
   display3C->firstPage();
   do {
     drawSharedDashboard(display3C, false);
+    esp_task_wdt_reset();
   } while (display3C->nextPage());
 
   last_3c_update_time = millis();
@@ -152,6 +153,7 @@ void updateEpaperBWDisplay() {
     do {
       displayBW->fillScreen(GxEPD_WHITE);
       drawSharedDashboard(displayBW, false);
+      esp_task_wdt_reset();
     } while (displayBW->nextPage());
 
     bw_partial_refresh_count = 1;  // Reset counter
@@ -163,6 +165,7 @@ void updateEpaperBWDisplay() {
     do {
       displayBW->fillScreen(GxEPD_WHITE);
       drawSharedDashboard(displayBW, false);
+      esp_task_wdt_reset();
     } while (displayBW->nextPage());
 
     bw_partial_refresh_count++;

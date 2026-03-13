@@ -52,32 +52,26 @@ void pause_log_writing() {
 }
 
 void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir) {
-
-  if (!sd_card_active)
-    return;
+  if (!sd_card_active) return;
 
   unsigned long currentTime = millis();
-  static char messagestr_buffer[32];
-  size_t size = 0;
-  size = snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size, "(%lu.%03lu) %s %lX [%u] ",
-                  currentTime / 1000, currentTime % 1000, (msgDir == MSG_RX ? "RX0" : "TX1"), frame.ID, frame.DLC);
+  // Extend Buffer (Safe RAM and CPU)
+  char messagestr_buffer[128]; 
+  int offset = 0;
 
-  if (xRingbufferSend(can_bufferHandle, &messagestr_buffer, size, pdMS_TO_TICKS(2)) != pdTRUE) {
-    logging.println("Failed to send message to can ring buffer!");
-    return;
+  // 1. Make Header
+  offset += snprintf(messagestr_buffer + offset, sizeof(messagestr_buffer) - offset, 
+                     "(%lu.%03lu) %s %lX [%u] ",
+                     currentTime / 1000, currentTime % 1000, 
+                     (msgDir == MSG_RX ? "RX0" : "TX1"), frame.ID, frame.DLC);
+
+  for (uint8_t i = 0; i < frame.DLC; i++) {
+    offset += snprintf(messagestr_buffer + offset, sizeof(messagestr_buffer) - offset, 
+                       (i < frame.DLC - 1) ? "%02X " : "%02X\n", frame.data.u8[i]);
   }
 
-  uint8_t i = 0;
-  for (i = 0; i < frame.DLC; i++) {
-    if (i < frame.DLC - 1)
-      size = snprintf(messagestr_buffer, sizeof(messagestr_buffer), "%02X ", frame.data.u8[i]);
-    else
-      size = snprintf(messagestr_buffer, sizeof(messagestr_buffer), "%02X\n", frame.data.u8[i]);
-
-    if (xRingbufferSend(can_bufferHandle, &messagestr_buffer, size, pdMS_TO_TICKS(2)) != pdTRUE) {
-      logging.println("Failed to send message to can ring buffer!");
-      return;
-    }
+  if (xRingbufferSend(can_bufferHandle, messagestr_buffer, offset, pdMS_TO_TICKS(2)) != pdTRUE) {
+    logging.println("Failed to send message to can ring buffer!");
   }
 }
 

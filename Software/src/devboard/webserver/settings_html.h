@@ -1,31 +1,16 @@
-#ifndef SETTINGS_H
-#define SETTINGS_H
+#ifndef SETTINGS_HTML_H
+#define SETTINGS_HTML_H
 
 #include <Arduino.h>
-#include <string>
 
-extern std::string ssid;
-extern std::string password;
+class BatteryEmulatorSettingsStore;
 
-#include "../../communication/nvm/comm_nvm.h"
-
-/**
- * @brief Replaces placeholder with content section in web page
- *
- * @param[in] var
- *
- * @return String
- */
 String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings);
-/**
- * @brief Maps the value to a string of characters
- *
- * @param[in] char
- *
- * @return String
- */
-const char* getCANInterfaceName(CAN_Interface interface);
 
-extern const char settings_html[];
+extern const char settings_batt_html[];
+extern const char settings_net_html[];
+extern const char settings_hw_html[];
+extern const char settings_web_html[];
+extern const char settings_overrides_html[];
 
 #endif
