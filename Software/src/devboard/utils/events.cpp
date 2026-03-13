@@ -68,7 +68,6 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_OVERVOLTAGE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_UNDERVOLTAGE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_VALUE_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_BATTERY_VALUE_NOT_CONFIGURED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_ISOLATION].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_SOC_RECALIBRATION].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_SOC_RESET_SUCCESS].level = EVENT_LEVEL_INFO;
@@ -257,8 +256,6 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Battery under minimum design voltage. Charge battery to prevent damage!";
     case EVENT_BATTERY_VALUE_UNAVAILABLE:
       return "Battery measurement unavailable. Check 12V power supply and battery wiring!";
-    case EVENT_BATTERY_VALUE_NOT_CONFIGURED:
-      return "Important battery setting not configured. Check user settings and refer to Wiki!";
     case EVENT_BATTERY_ISOLATION:
       return "Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
     case EVENT_BATTERY_SOC_RECALIBRATION:

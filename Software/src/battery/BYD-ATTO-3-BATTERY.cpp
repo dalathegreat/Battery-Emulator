@@ -1,6 +1,5 @@
 #include "BYD-ATTO-3-BATTERY.h"
 #include <cstring>  //For unit test
-#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
@@ -163,10 +162,13 @@ void BydAttoBattery::
   datalayer_battery->status.total_discharged_battery_Wh = BMS_total_discharged_kwh * 1000;
   datalayer_battery->status.total_charged_battery_Wh = BMS_total_charged_kwh * 1000;
 
-  if (user_selected_cell_amount > 0) {
-    datalayer_battery->info.number_of_cells = user_selected_cell_amount;
-  } else {  //Inform user they did not configure amount of cells
-    set_event(EVENT_BATTERY_VALUE_NOT_CONFIGURED, 0);
+  // Count detected cells based on which cell voltage readings are nonzero, up to the max supported by datalayer
+  for (uint8_t cell_num = 0; cell_num < MAX_AMOUNT_CELLS; cell_num++) {
+    if (battery_cellvoltages[cell_num] > 0) {
+      datalayer_battery->info.number_of_cells = cell_num + 1;
+    } else {
+      break;  // Stop counting at the first zero reading, assuming cells are numbered sequentially from 1
+    }
   }
 
   //Map all cell voltages to the global array
@@ -175,12 +177,17 @@ void BydAttoBattery::
            datalayer_battery->info.number_of_cells * sizeof(uint16_t));
   }
 
-  //Based on the number of cells, calculate the max and min design voltage of the pack.
-  if (datalayer_battery->info.number_of_cells > 0) {
-    datalayer_battery->info.max_design_voltage_dV =
-        (datalayer_battery->info.number_of_cells * MAX_CELL_VOLTAGE_MV) / 100;
-    datalayer_battery->info.min_design_voltage_dV =
-        (datalayer_battery->info.number_of_cells * MIN_CELL_VOLTAGE_MV) / 100;
+  //After some time has passed after startup, we assume we have read all cellvoltages at least once, so we can trust the cell count and calculated design voltage limits.
+  //Before that, we keep the limits wide to avoid cutting off the battery in case cell count is not read correctly yet.
+  if (millis64() > INTERVAL_60_S) {
+    //Based on the number of cells, calculate the max and min design voltage of the pack.
+    if (datalayer_battery->info.number_of_cells >
+        80) {  //Sanity check to avoid setting wrong limits in case cell count is not read correctly
+      datalayer_battery->info.max_design_voltage_dV =
+          (datalayer_battery->info.number_of_cells * MAX_CELL_VOLTAGE_MV) / 100;
+      datalayer_battery->info.min_design_voltage_dV =
+          (datalayer_battery->info.number_of_cells * MIN_CELL_VOLTAGE_MV) / 100;
+    }
   }
 
   if ((BMS_lowest_cell_temperature != 0) && (BMS_highest_cell_temperature != 0)) {

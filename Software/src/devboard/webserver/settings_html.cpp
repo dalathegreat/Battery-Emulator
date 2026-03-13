@@ -1140,11 +1140,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
-    form .if-byd { display: none; }
-    form[data-battery="5"] .if-byd {
-      display: contents;
-    }
-
     form .if-tesla { display: none; }
     form[data-battery="32"] .if-tesla, form[data-battery="33"] .if-tesla {
       display: contents;
@@ -1307,11 +1302,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-nissan">
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
-        </div>
-
-        <div class="if-byd">
-          <label>Amount of cells: </label>
-          <input name='BATTCELLCOUNT' type='text' value="%BATTCELLCOUNT%" pattern="[0-9]+" />
         </div>
 
         <div class="if-tesla">

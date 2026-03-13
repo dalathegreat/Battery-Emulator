@@ -84,7 +84,6 @@ void init_stored_settings() {
   user_selected_min_pack_voltage_dV = settings.getUInt("BATTPVMIN", 0);
   user_selected_max_cell_voltage_mV = settings.getUInt("BATTCVMAX", 0);
   user_selected_min_cell_voltage_mV = settings.getUInt("BATTCVMIN", 0);
-  user_selected_cell_amount = settings.getUInt("BATTCELLCOUNT", 0);
   user_selected_pylon_send = settings.getUInt("PYLONSEND", 0);
   user_selected_pylon_30koffset = settings.getBool("PYLONOFFSET", false);
   user_selected_pylon_invert_byteorder = settings.getBool("PYLONORDER", false);

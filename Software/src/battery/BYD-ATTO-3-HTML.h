@@ -52,7 +52,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "}";
     content += "</script>";
 
-    content += "<h4>Cells configured: " + String(datalayer.battery.info.number_of_cells) + "</h4>";
+    content += "<h4>Detected cells: " + String(datalayer.battery.info.number_of_cells) + "</h4>";
     content += "<h4>Charging battery state: ";
     switch (byd_datalayer->discharge_status) {
       case 0:

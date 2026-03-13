@@ -54,9 +54,6 @@ class BydAttoBattery : public CanBattery {
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
 
-  static const bool SOC_ESTIMATED = 0;
-  static const bool SOC_MEASURED = 1;
-
   static const int POLL_TIMES_FULL_POWER = 0x0004;  // Using Carscanner name for now.
   static const int POLL_FOR_BATTERY_SOC = 0x0005;
   static const int POLL_FOR_BATTERY_VOLTAGE = 0x0008;
