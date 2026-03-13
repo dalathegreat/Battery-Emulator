@@ -179,7 +179,7 @@ void BydAttoBattery::
 
   //After some time has passed after startup, we assume we have read all cellvoltages at least once, so we can trust the cell count and calculated design voltage limits.
   //Before that, we keep the limits wide to avoid cutting off the battery in case cell count is not read correctly yet.
-  if (millis64() > INTERVAL_60_S) {
+  if (secondsSinceStartup > 120) {
     //Based on the number of cells, calculate the max and min design voltage of the pack.
     if (datalayer_battery->info.number_of_cells >
         80) {  //Sanity check to avoid setting wrong limits in case cell count is not read correctly
@@ -188,6 +188,8 @@ void BydAttoBattery::
       datalayer_battery->info.min_design_voltage_dV =
           (datalayer_battery->info.number_of_cells * MIN_CELL_VOLTAGE_MV) / 100;
     }
+  } else {
+    secondsSinceStartup++;
   }
 
   if ((BMS_lowest_cell_temperature != 0) && (BMS_highest_cell_temperature != 0)) {

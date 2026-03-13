@@ -202,6 +202,7 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t REJECTED = 1;
   static const uint8_t APPROVED = 2;
   uint8_t servicemode = NOT_DETERMINED_YET;
+  uint8_t secondsSinceStartup = 0;
 
   bool BMS_voltage_available = false;
 
