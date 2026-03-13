@@ -686,8 +686,7 @@ void init_webserver() {
         "/updateChargeSetpointV", [](String value) { datalayer.charger.charger_setpoint_HV_VDC = value.toFloat(); },
         [](String value) {
           float val = value.toFloat();
-          return (val <= CHARGER_MAX_HV && val >= CHARGER_MIN_HV) &&
-                 (val * datalayer.charger.charger_setpoint_HV_IDC <= CHARGER_MAX_POWER);
+          return (val <= CHARGER_MAX_HV && val >= CHARGER_MIN_HV);
         });
 
     // Route for editing ChargerTargetA
