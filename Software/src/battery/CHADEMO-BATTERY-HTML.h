@@ -52,6 +52,9 @@ class ChademoBatteryHtmlRenderer : public BatteryHtmlRenderer {
       case 10:
         content += String("POWERFLOW</h4>");
         break;
+      case 11:
+        content += String("POWERFLOW SUSPENDED</h4>");
+        break;
       default:
         content += String("Unknown</h4>");
         break;
@@ -76,11 +79,11 @@ class ChademoBatteryHtmlRenderer : public BatteryHtmlRenderer {
     if (datalayer_extended.chademo.CHADEMO_Status == 1) {
       content += "<h4>Stop reason: ";
       switch (datalayer_extended.chademo.StopReason) {
-        case EV_SUSPENDED:
-          content += "EV suspended";
+        case EV_REQUEST:
+          content += "EV requested";
           break;
-        case EVSE_SUSPENDED:
-          content += "EVSE suspended";
+        case BATTERY_VOLTAGE:
+          content += "Battery voltage";
           break;
         case VEHICLE_FAULT:
           content += "Vehicle fault";

@@ -36,8 +36,10 @@ void ChademoBattery::update_values() {
 
   datalayer.battery.status.real_soc = x102_chg_session.StateOfCharge * 100;  //Convert % to pptt
 
-  datalayer.battery.status.max_discharge_power_W =
-      (x200_discharge_limits.MaximumDischargeCurrent * x100_chg_lim.MaximumBatteryVoltage);  //In Watts, Convert A to P
+  if (CHADEMO_Status != CHADEMO_POWERFLOW_SUSPENDED) {
+    datalayer.battery.status.max_discharge_power_W = (x200_discharge_limits.MaximumDischargeCurrent *
+                                                      x100_chg_lim.MaximumBatteryVoltage);  //In Watts, Convert A to P
+  }
 
   if (vehicle_can_received) {  // Only update the value sent towards inverter if vehicle is connected (avoids false positive events)
     datalayer.battery.status.voltage_dV = get_voltage_handler() * 10.0f;
@@ -203,7 +205,7 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
   // end
   if (priorTargetBatteryVoltage > 0 && newTargetBatteryVoltage == 0) {
     CHADEMO_Status = CHADEMO_STOP;
-    datalayer_extended.chademo.StopReason = EV_SUSPENDED;
+    datalayer_extended.chademo.StopReason = EV_REQUEST;
     flushLog();
     return;
   }
@@ -407,8 +409,13 @@ void ChademoBattery::update_evse_capabilities(CAN_frame& f) {
 
   // Power and voltage may be best derived from config/defines not from the x108 settings elsewhere, ideally
   // only set current when voltage > 0, as it is set by x102 TargetBatteryVoltage
+  // if max charge power is set to 0, then set current to 0
   if (x108_evse_cap.available_output_voltage) {
-    x108_evse_cap.available_output_current = MAX_EVSE_POWER_CHARGING / x108_evse_cap.available_output_voltage;
+    if (CHADEMO_Status != CHADEMO_POWERFLOW_SUSPENDED) {
+      x108_evse_cap.available_output_current = MAX_EVSE_POWER_CHARGING / x108_evse_cap.available_output_voltage;
+    } else {
+      x108_evse_cap.available_output_current = 0;
+    }
   }
 
   /* update Frame - byte 6 and 7 are unused */
@@ -689,13 +696,13 @@ void ChademoBattery::handle_chademo_sequence() {
     if (!vehicle_permission) {
       logStream << "Vehicle charge/discharge permission ended, STOP.\n";
       CHADEMO_Status = CHADEMO_STOP;
-      datalayer_extended.chademo.StopReason = EV_SUSPENDED;
+      datalayer_extended.chademo.StopReason = EV_REQUEST;
     }
 
     if (x102_chg_session.s.status.StatusNormalStopRequest) {
       logStream << "Vehicle charging stop requested, STOP.\n";
       CHADEMO_Status = CHADEMO_STOP;
-      datalayer_extended.chademo.StopReason = EV_SUSPENDED;
+      datalayer_extended.chademo.StopReason = EV_REQUEST;
     }
 
     if (x102_chg_session.s.status.StatusVehicleShifterPosition) {
@@ -705,16 +712,38 @@ void ChademoBattery::handle_chademo_sequence() {
     }
   }
 
+  if (CHADEMO_Status >= CHADEMO_EVSE_START) {
+    if (datalayer.battery.status.max_charge_power_W == 0 && datalayer.battery.status.max_discharge_power_W == 0) {
+      logStream << "Vehicle max charge or discharge power set to 0, Suspend powerflow.\n";
+      CHADEMO_Status = CHADEMO_POWERFLOW_SUSPENDED;
+    } else {
+      CHADEMO_Status = CHADEMO_POWERFLOW;
+    }
+
+    if (get_voltage_handler() <= x200_discharge_limits.MinimumDischargeVoltage) {
+      logStream << "x200 minimum discharge voltage met or exceeded, stopping.\n";
+      logStream << "Voltage: " << get_voltage_handler() << "V\n";
+      logStream << "Minimum Voltage: " << x200_discharge_limits.MinimumDischargeVoltage << "V\n";
+      CHADEMO_Status = CHADEMO_STOP;
+      datalayer_extended.chademo.StopReason = BATTERY_VOLTAGE;
+    }
+  }
+
   /* ------------------- 		STATE HANDLER		------------------- */
   /* ------------------------------------------------------------------------------ */
   switch (CHADEMO_Status) {
     case CHADEMO_IDLE:
       /* this is where we can unlock connector */
-      digitalWrite(pin_lock, LOW);
-
       if (!plug_inserted) {
         logStream << "CHADEMO plug is not inserted.\n";
         return;
+      }
+      // check contactor is open before unlocking, as a safety measure. If contactor is welded shut, we don't want to unlock the connector and risk arcing
+      if (x102_chg_session.s.status.StatusVehicle) {
+        logStream << "Vehicle contactor is open, unlocking connector.\n";
+        digitalWrite(pin_lock, LOW);
+      } else {
+        logStream << "Vehicle contactor is closed, not unlocking connector for safety.\n";
       }
 
       CHADEMO_Status = CHADEMO_CONNECTED;
@@ -812,10 +841,11 @@ void ChademoBattery::handle_chademo_sequence() {
         // likely unnecessary but just to be sure. consider removal
         x109_evse_state.s.status.ChgDischStopControl = 1;
         x109_evse_state.s.status.EVSE_status = 0;
-      } else {
-        CHADEMO_Status = CHADEMO_STOP;
-        datalayer_extended.chademo.StopReason = EV_SUSPENDED;
       }
+      // else {
+      //   CHADEMO_Status = CHADEMO_STOP;
+      //   datalayer_extended.chademo.StopReason = EVSE_FAULT;
+      // }
       break;
     case CHADEMO_EVSE_START:
       logStream << "CHADEMO_EVSE_START State\n";
@@ -861,30 +891,24 @@ void ChademoBattery::handle_chademo_sequence() {
       logStream << "CHADEMO_POWERFLOW State\n";
       /* POWERFLOW for charging, discharging, and bidirectional */
       /* Interpretation */
-      if (x102_chg_session.s.status.StatusVehicleShifterPosition) {
-        /* Vehicle is no longer in park */
-        // vehicle will switch k off, EVSE MAY see j (pin 4) go low
-        // EVEN IF evse reads read pin 4 to see high, if this condition is true then trigger EVSE charge/discharge stop
-        // 	per spec
-        // SEPARATE check for pin 4/j condition does not depend on this flag. it's an OR condition
-      }
 
       if (x102_chg_session.TargetBatteryVoltage == 0x00) {
         //TODO flag error and do not calculate power in EVSE response?
         //	probably unnecessary as other flags will be set causing this to be caught
       }
 
-      if (get_voltage_handler() <= x200_discharge_limits.MinimumDischargeVoltage) {
-        logStream << "x200 minimum discharge voltage met or exceeded, stopping.\n";
-        logStream << "Voltage: " << get_voltage_handler() << "V\n";
-        logStream << "Minimum Voltage: " << x200_discharge_limits.MinimumDischargeVoltage << "V\n";
-        CHADEMO_Status = CHADEMO_STOP;
-        datalayer_extended.chademo.StopReason = EV_SUSPENDED;
-      }
-
       // Potentially unnecessary (set in CHADEMO_EVSE_CONTACTORS_ENABLED stanza), but just in case
       x109_evse_state.s.status.ChgDischStopControl = 0;
       x109_evse_state.s.status.EVSE_status = 1;
+      break;
+    case CHADEMO_POWERFLOW_SUSPENDED:
+      logStream << "CHADEMO_POWERFLOW_SUSPENDED State\n";
+      /* POWERFLOW temporarily suspended for charging, discharging, and bidirectional */
+      /* Interpretation */
+      evse_permission = false;
+      x109_evse_state.s.status.ChgDischStopControl = 1;
+      x109_evse_state.s.status.EVSE_status = 0;
+      // TODO unclear how unpause works on webpage to exit suspended state
       break;
     case CHADEMO_STOP:
       logStream << "CHADEMO_STOP State\n";
@@ -901,20 +925,17 @@ void ChademoBattery::handle_chademo_sequence() {
        *  see also Table A.29—Charging stage and check item
        *
        * We will re-enter the handler until the amperage drops sufficiently
-       * and then open contactors, if only suspended don't open contactors and transition to CHADEMO_IDLE
+       * and then open contactors, and transition to CHADEMO_IDLE
        */
 
-      if (get_measured_current_ptr() <= 2 && !(datalayer_extended.chademo.StopReason == EV_SUSPENDED ||
-                                               datalayer_extended.chademo.StopReason == EVSE_SUSPENDED)) {
+      if (abs(get_measured_current_ptr()) <= 2) {
         logStream << "Current has dropped sufficiently to open contactors.\n";
         logStream << "Current: " << get_measured_current_ptr() << "A\n";
         /* welding detection ideally here */
         digitalWrite(pin10, LOW);
         digitalWrite(pin2, LOW);
-      } else {
         CHADEMO_Status = CHADEMO_IDLE;
       }
-
       break;
     case CHADEMO_FAULT:
       logStream << "CHADEMO_FAULT State\n";
