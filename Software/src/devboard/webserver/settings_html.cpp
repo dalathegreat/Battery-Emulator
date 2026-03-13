@@ -793,10 +793,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("INVCELLS", 0));
   }
 
-  if (var == "BATTCELLCOUNT") {
-    return String(settings.getUInt("BATTCELLCOUNT", 0));
-  }
-
   if (var == "INVMODULES") {
     return String(settings.getUInt("INVMODULES", 0));
   }
