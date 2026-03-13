@@ -293,8 +293,6 @@ should determine that the other is the EVSE or the vehicle of the model before t
   bool vehicle_permission = false;
   bool evse_permission = false;
 
-  bool precharge_low = false;
-  bool positive_high = false;
   bool contactors_ready = false;
 
   uint8_t framecount = 0;

@@ -71,6 +71,40 @@ class ChademoBatteryHtmlRenderer : public BatteryHtmlRenderer {
     if (datalayer_extended.chademo.FaultHighBatteryTemperature) {
       content += "<h4>FAULT: Battery Temperature</h4>";
     }
+
+    // report stop reason if we are in STOP state
+    if (datalayer_extended.chademo.CHADEMO_Status == 1) {
+      content += "<h4>Stop reason: ";
+      switch (datalayer_extended.chademo.StopReason) {
+        case EV_SUSPENDED:
+          content += "EV suspended";
+          break;
+        case EVSE_SUSPENDED:
+          content += "EVSE suspended";
+          break;
+        case VEHICLE_FAULT:
+          content += "Vehicle fault";
+          break;
+        case EVSE_FAULT:
+          content += "EVSE fault";
+          break;
+        case SHIFTER_POSITION:
+          content += "Shifter position";
+          break;
+        case USER_REQUESTED:
+          content += "User requested";
+          break;
+        case UNPLUGGED:
+          content += "Unplugged";
+          break;
+        case OTHER:
+        default:
+          content += "Other";
+          break;
+      }
+      content += "</h4>";
+    }
+
     content += "<h4>Protocol: " + String(datalayer_extended.chademo.ControlProtocolNumberEV) + "</h4>";
 
     //Script for refreshing page

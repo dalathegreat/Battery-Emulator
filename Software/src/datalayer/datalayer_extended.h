@@ -233,6 +233,17 @@ struct DATALAYER_INFO_CELLPOWER {
   bool warning_Charger_not_responding = false;
 };
 
+enum ChademoStopReason {
+  EV_SUSPENDED,
+  EVSE_SUSPENDED,
+  VEHICLE_FAULT,
+  EVSE_FAULT,
+  SHIFTER_POSITION,
+  UNPLUGGED,
+  USER_REQUESTED,
+  OTHER
+};
+
 struct DATALAYER_INFO_CHADEMO {
   uint8_t CHADEMO_Status = 0;
   uint8_t ControlProtocolNumberEV = 0;
@@ -249,6 +260,7 @@ struct DATALAYER_INFO_CHADEMO {
   bool D1Status = false;
   bool D2Status = false;
   bool ChargeEnableStatus = false;
+  ChademoStopReason StopReason = OTHER;
 };
 
 struct DATALAYER_INFO_CMFAEV {
