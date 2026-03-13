@@ -192,7 +192,7 @@ void BydAttoBattery::
   static uint16_t cap_slewed_dA = 0;
   static uint32_t last_ms = 0;
   static bool taper_initialized = false;  // explicit flag avoids cap_slewed_dA starting at 0
- 
+
   const uint32_t now_ms = (uint32_t)millis64();
   if (!taper_initialized) {
     last_ms = now_ms;
