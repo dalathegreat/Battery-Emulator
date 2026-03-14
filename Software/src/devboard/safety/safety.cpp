@@ -15,6 +15,7 @@ static bool battery_empty_event_fired = false;
 #define CELL_CRITICAL_MV 100  // If cells go this much outside design voltage, shut battery down!
 #define LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV 2000  //If cells are below this, recovery charge not allowed
 #define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
+#define HYSTERESIS_OFFSET_DV 20
 
 //battery pause status begin
 bool emulator_pause_request_ON = false;
@@ -134,6 +135,18 @@ void update_machineryprotection() {
     if (datalayer.battery.status.cell_min_voltage_mV <=
         (datalayer.battery.info.min_cell_voltage_mV - CELL_CRITICAL_MV)) {
       set_event(EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 0);
+    }
+
+    //If user is requesting charge to stop at a specific voltage
+    if (datalayer.battery.settings.user_set_voltage_limits_active) {
+      if (datalayer.battery.status.voltage_dV >
+          (datalayer.battery.settings.max_user_set_charge_voltage_dV + HYSTERESIS_OFFSET_DV)) {
+        datalayer.battery.status.max_charge_power_W = 0;
+      }  //No event triggered on these, charge stops as expected when manual limits are engaged
+      if (datalayer.battery.status.voltage_dV <
+          (datalayer.battery.settings.max_user_set_discharge_voltage_dV + HYSTERESIS_OFFSET_DV)) {
+        datalayer.battery.status.max_discharge_power_W = 0;
+      }
     }
 
     // Battery is fully charged. Dont allow any more power into it
