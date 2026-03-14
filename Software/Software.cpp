@@ -166,7 +166,7 @@ void check_interconnect_available(uint8_t batteryNumber) {
     }
     uint16_t voltage_diff_battery2_towards_main =
         abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV);
-    uint8_t secondsOutOfVoltageSyncBattery2 = 0;
+    static uint8_t secondsOutOfVoltageSyncBattery2 = 0;
 
     if (voltage_diff_battery2_towards_main <= 15) {  // If we are within 1.5V between the batteries
       clear_event(EVENT_VOLTAGE_DIFFERENCE);
@@ -195,7 +195,7 @@ void check_interconnect_available(uint8_t batteryNumber) {
     }
     uint16_t voltage_diff_battery3_towards_main =
         abs(datalayer.battery.status.voltage_dV - datalayer.battery3.status.voltage_dV);
-    uint8_t secondsOutOfVoltageSyncBattery3 = 0;
+    static uint8_t secondsOutOfVoltageSyncBattery3 = 0;
 
     if (voltage_diff_battery3_towards_main <= 15) {  // If we are within 1.5V between the batteries
       clear_event(EVENT_VOLTAGE_DIFFERENCE);

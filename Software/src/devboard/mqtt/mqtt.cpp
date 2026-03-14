@@ -362,6 +362,7 @@ static bool publish_cell_voltages(void) {
           if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "").c_str(), mqtt_msg, true) == false) {
             return false;
           }
+          vTaskDelay(pdMS_TO_TICKS(10));
         }
         successfully_published = true;
         doc.clear();  // clear after sending autoconfig
@@ -382,6 +383,7 @@ static bool publish_cell_voltages(void) {
             if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "_2_").c_str(), mqtt_msg, true) == false) {
               return false;
             }
+            vTaskDelay(pdMS_TO_TICKS(10));
           }
           successfully_published = true;
           doc.clear();  // clear after sending autoconfig
