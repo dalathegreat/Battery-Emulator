@@ -15,6 +15,7 @@ extern InverterProtocol* inverter;
 #include "KOSTAL-RS485.h"
 #include "PYLON-CAN.h"
 #include "PYLON-LV-CAN.h"
+#include "PYLON-LV-RS485.h"
 #include "SCHNEIDER-CAN.h"
 #include "SMA-BYD-H-CAN.h"
 #include "SMA-BYD-HVS-CAN.h"
