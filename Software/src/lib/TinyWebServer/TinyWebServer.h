@@ -193,38 +193,45 @@ protected:
 
 class TwsPostBodyHandler {
 public:
-    // Returns number of bytes consumed, or -1 if the POST body is complete
+    // Called when POST body data is received. Returns bytes consumed, or -1 if processing is complete.
     virtual int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) = 0;
 };
 
 class TwsHeaderHandler {
 public:
+    // Called when a complete HTTP header line is received.
     virtual void handleHeader(TwsRequest &request, const char *line, int len) = 0;
 };
 
 class TwsPartialHeaderHandler {
 public:
+    // Called for chunks of a header line. Returns bytes consumed. 'final' is true if this is the end of the line.
     virtual int handlePartialHeader(TwsRequest &request, const char *line, int len, bool final) = 0;
 };
 
 class TwsQueryParamHandler {
 public:
+    // Called for each query string parameter found in the URL. 'final' is true if this is the last parameter.
     virtual void handleQueryParam(TwsRequest &request, const char *param, int len, bool final) = 0;
 };
 
 class TwsFileUploadHandler {
 public:
+    // Called when a file chunk is received during a multipart upload. 'final' is true if this is the last chunk.
     virtual void handleUpload(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final) = 0;
 };
 
 class TwsRequestHandler {
 public:
+    // Called when the HTTP request is ready to be handled (headers and optional POST body received).
     virtual void handleRequest(TwsRequest &request) = 0;
 };
 
 class TwsAllocableHandler {
 public:
+    // Called during server initialization to calculate the required state data size for this handler.
     virtual int handleAlloc(int max, int start) = 0;
+    // Called when a request is finished to allow cleaning up any allocated state.
     virtual void handleFree(TwsRequest &request) {}
 };
 
