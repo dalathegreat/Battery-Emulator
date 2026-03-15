@@ -111,18 +111,15 @@ TwsRequestWriterCallbackFunction CharBufWriter(const char* buf, int len) {
 }
 
 
-TwsRoute eOtaStartHandler("/ota/start");
-OtaStart eOtaStart(&eOtaStartHandler);
+TwsRoute eOtaStartHandler = TwsRoute("/ota/start").use(*new OtaStart());
 
-
-TwsRoute eOtaUploadHandler("/ota/upload", 
+TwsRoute eOtaUploadHandler = TwsRoute("/ota/upload", 
     new TwsRequestHandlerFunc([](TwsRequest& request) {
         DEBUG_PRINTF("Finished request on /ota/upload\n");
         request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nOK");
         request.finish();
     })
-);
-OtaUpload eOtaUpload(&eOtaUploadHandler);
+).use(*new OtaUpload());
 
 extern const char* version_number;
 const char common_javascript[] = COMMON_JAVASCRIPT;
@@ -388,7 +385,7 @@ TwsRoute settingsHandler("/api/internal/settings", new TwsJsonGetFunc([](TwsRequ
 
     doc["reboot_required"] = settingsUpdated;
 }));
-TwsPostBufferingRequestHandler settingsPostHandler(&settingsHandler, [](TwsRequest &request, uint8_t *data, size_t len) {
+void settingsFullPostBody(TwsRequest &request, uint8_t *data, size_t len) {
     JsonDocument errors;
 
     BatteryEmulatorSettingsStore settings;
@@ -469,9 +466,48 @@ TwsPostBufferingRequestHandler settingsPostHandler(&settingsHandler, [](TwsReque
 
     settingsUpdated |= settings.were_settings_updated();
     DEBUG_PRINTF("Setting updated? %d\n", settings.were_settings_updated());
-});
+}
 
-TwsRoute canSenderHandler("/api/cansend", 
+TwsRoute settingsRoute = TwsRoute("/api/internal/settings", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+    BatteryEmulatorSettingsStore settings;
+
+    JsonArray bats = doc["batteries"].to<JsonArray>();
+    for(int i=0;i<(int)BatteryType::Highest;i++) {
+        bats[i] = name_for_battery_type((BatteryType)i);
+    }
+
+    JsonArray invs = doc["inverters"].to<JsonArray>();
+    for(int i=0;i<(int)InverterProtocolType::Highest;i++) {
+        invs[i] = name_for_inverter_type((InverterProtocolType)i);
+    }
+
+    JsonObject sets = doc["settings"].to<JsonObject>();
+    for(int i=0;UINT_SETTINGS[i].name!=nullptr;i++) {
+        // TODO - handle default values more sensibly?
+        sets[UINT_SETTINGS[i].name] = settings.getUInt(UINT_SETTINGS[i].name, 0);
+    }
+    for(int i=0;FLOAT_TO_UINT_SETTINGS[i].name!=nullptr;i++) {
+        sets[FLOAT_TO_UINT_SETTINGS[i].name] = settings.getUInt(FLOAT_TO_UINT_SETTINGS[i].name, 0) / FLOAT_TO_UINT_SETTINGS[i].scale;
+    }
+    for(int i=0;STRING_SETTINGS[i].name!=nullptr;i++) {
+        if(!STRING_SETTINGS[i].secret) {
+            sets[STRING_SETTINGS[i].name] = settings.getString(STRING_SETTINGS[i].name).c_str();
+        }
+    }
+    for(int i=0;BOOL_SETTINGS[i]!=nullptr;i++) {
+        sets[BOOL_SETTINGS[i]] = settings.getBool(BOOL_SETTINGS[i], false);
+
+        for(int j=0;DEFAULT_TRUE_BOOL_SETTINGS[j]!=nullptr;j++) {
+            if(strcmp(BOOL_SETTINGS[i], DEFAULT_TRUE_BOOL_SETTINGS[j])==0) {
+                sets[BOOL_SETTINGS[i]] = settings.getBool(BOOL_SETTINGS[i], true);
+            }
+        }
+    }
+
+    doc["reboot_required"] = settingsUpdated;
+})).use(*new TwsPostBufferingRequestHandler(settingsFullPostBody));
+
+TwsRoute canSenderHandler = TwsRoute("/api/cansend", 
     new TwsRequestHandlerFunc([](TwsRequest& request) {
         request.write_fully("HTTP/1.1 200 OK\r\n"
                             "Connection: close\r\n"
@@ -479,13 +515,25 @@ TwsRoute canSenderHandler("/api/cansend",
                             "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"
                             "\r\n");
     })
-);
-CanSender canSender(&canSenderHandler);
+).use(*new CanSender());
 
 
 static bool is_inverter_good() {
     return get_event_pointer(EVENT_CAN_INVERTER_MISSING)->state == EVENT_STATE_ACTIVE || get_event_pointer(EVENT_CAN_INVERTER_MISSING)->state == EVENT_STATE_ACTIVE_LATCHED;
 }
+
+TwsRequestHandlerFunc apiBatOldHandler([](TwsRequest& request) {
+    request.write_fully(HTTP_RESPONSE);
+    if(battery) {
+        auto &renderer = battery->get_status_renderer();
+        auto response = std::make_shared<String>(renderer.get_status_html());
+        // response->reserve(5000);
+        // response = ;
+        request.set_writer_callback(StringWriter(response));
+    }
+});
+TwsRoute apiBatOldRoute = TwsRoute("/api/batold", &apiBatOldHandler)
+    .use(*new BasicAuth());
 
 //TwsRequestHandlerEntry default_handlers[] = {
 TwsRoute *default_handlers[] = {
@@ -614,16 +662,17 @@ TwsRoute *default_handlers[] = {
             }
         }
     })),
-    new TwsRoute("/api/batold", new TwsRequestHandlerFunc([](TwsRequest& request) {
-        request.write_fully(HTTP_RESPONSE);
-        if(battery) {
-            auto &renderer = battery->get_status_renderer();
-            auto response = std::make_shared<String>(renderer.get_status_html());
-            // response->reserve(5000);
-            // response = ;
-            request.set_writer_callback(StringWriter(response));
-        }
-    })),
+    // new TwsRoute("/api/batold", new TwsRequestHandlerFunc([](TwsRequest& request) {
+    //     request.write_fully(HTTP_RESPONSE);
+    //     if(battery) {
+    //         auto &renderer = battery->get_status_renderer();
+    //         auto response = std::make_shared<String>(renderer.get_status_html());
+    //         // response->reserve(5000);
+    //         // response = ;
+    //         request.set_writer_callback(StringWriter(response));
+    //     }
+    // })),
+    &apiBatOldRoute,
 
     new TwsRoute("/api/batext", new TwsRequestHandlerFunc([](TwsRequest& request) {
         request.write_fully("HTTP/1.1 200 OK\r\n"
@@ -679,7 +728,7 @@ TwsRoute *default_handlers[] = {
             if(battery->supports_reset_crash()) actions["reset_crash"] = true;
         }
     })),
-    &settingsHandler,
+    &settingsRoute,
     // new TwsRoute("/api/live", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
     //     doc["pause"] = emulator_pause_request_ON;
     //     doc["estop"] = datalayer.system.info.equipment_stop_active;
