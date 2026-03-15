@@ -1,4 +1,5 @@
 #include "TinyWebServer.h"
+#include "DigestAuth.h"
 
 uint64_t millis64(void);
 long random(long max);

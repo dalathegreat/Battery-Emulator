@@ -1,4 +1,5 @@
 #include "TinyWebServer.h"
+#include "BasicAuth.h"
 
 void BasicAuth::handleHeader(TwsRequest &request, const char *line, int len) {
     auto &state = get_state(request);

@@ -1,4 +1,5 @@
 #include "TinyWebServer.h"
+#include "MultipartUploadHandler.h"
 
 MultipartUploadHandler::MultipartUploadHandler(
     TwsFileUploadHandler *onUpload) : onUpload(onUpload) {
