@@ -161,7 +161,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                             // We'll handle the rest of the header in bits.
                             request.parse_state = TWS_AWAITING_PARTIAL_HEADER;
                         }
-                        buf[available] = old_terminator; // Restore the old terminator
+                        buf_ptr[available] = old_terminator; // Restore the old terminator
                     } else {
                         // The handler doesn't accept partial headers, so we skip the whole header
                         DEBUG_PRINTF("TWS client buffer full, skipping header\n");
@@ -173,15 +173,27 @@ void TinyWebServer::handle_request(TwsRequest &request) {
             case TWS_AWAITING_PARTIAL_HEADER:
                 len = request.scan('\n');
                 if(len==0) {
-                    // Still haven't found the end of the header
-
+                    // Still haven't found the end of the header. Keep passing chunks to the handlers.
                     int available = request.available();
+                    if(available==0) {
+                        break;
+                    }
 
-                    // Peek the whole read buffer (will copy into buf)
+                    // Peek the whole read buffer
                     char *buf_ptr = request.get_peek_ptr(buf, available);
 
+                    char old_terminator = buf_ptr[available]; // Save first char beyond the end
+                    buf_ptr[available] = '\0'; // Add a null-terminator for safety
                     int consumed = request.handler->onPartialHeader->handlePartialHeader(request, buf_ptr, available, false);
-                    request.read_flush(consumed);
+                    buf_ptr[available] = old_terminator; // Restore the old terminator
+
+                    if(consumed==0 && request.recv_buffer_full()) {
+                        // Handler couldn't consume a complete buffer so never will. Skip the header.
+                        request.read_flush(available);
+                        request.parse_state = TWS_SKIPPING_HEADER;
+                    } else if(consumed > 0) {
+                        request.read_flush(consumed);
+                    }
                 } else {
                     char *buf_ptr = request.get_read_ptr(buf, len);
                     // Drop the last letter if there's a \r too
@@ -256,14 +268,37 @@ void TinyWebServer::handle_request(TwsRequest &request) {
             {
                 bool found = false;
                 for(int j=0;_handlers[j]!=nullptr;j++) {
-                    int path_len = strlen(_handlers[j]->path);
+                    int path_len = _handlers[j]->path_len;
+                    
+                    // 1. Global wildcard match
                     if(path_len == 1 && _handlers[j]->path[0]=='*') {
-                        // Wildcard match
                         request.read_flush(len-1); // need to flush since match(...) hasn't consumed the path
                         goto matched;
                     }
+
+                    // 2. Prefix match (e.g., "/static/*")
+                    if(path_len > 1 && _handlers[j]->path[path_len-1] == '*') {
+                        int prefix_len = path_len - 1;
+                        
+                        if ((len - 1) >= prefix_len && request.match(_handlers[j]->path, prefix_len)) {
+                            // We matched the prefix! Now extract the wildcard portion.
+                            int wildcard_len = (len - 1) - prefix_len;
+                            int copy_len = min(wildcard_len, TwsRequest::PATH_WILDCARD_SIZE - 1);
+                            
+                            request.read(request.path_wildcard, copy_len);
+                            request.path_wildcard[copy_len] = '\0'; // Null-terminate it
+                            
+                            // Flush any excess characters if the path variable was longer than 31 chars
+                            if (wildcard_len > copy_len) {
+                                request.read_flush(wildcard_len - copy_len);
+                            }
+                            
+                            goto matched;
+                        }
+                    }
+
+                    // 3. Exact match
                     if(len == (path_len + 1) && request.match(_handlers[j]->path, path_len)) {
-                        // Exact match
                         goto matched;
                     }
 
@@ -612,6 +647,7 @@ void TwsRequest::reset() {
     if(handler && handler->onAlloc) {
         handler->onAlloc->handleFree(*this);
     }
+    path_wildcard[0] = '\0';
     handler = nullptr;
     connection_id = 0;
 }
@@ -834,6 +870,22 @@ int TwsRequest::free() {
 bool TwsRequest::recv_buffer_full() {
     return recv_buffer_len >= sizeof(recv_buffer); // Return true if the receive buffer is full
 }
+
+int TwsRequest::read(char *buf, uint16_t len) {
+    if (len == 0 || recv_buffer_len == 0) return 0;
+    uint16_t to_read = min(len, (uint16_t)recv_buffer_len);
+    char* ptr = get_peek_ptr(buf, to_read);
+    // Did get_peek_ptr have to copy the data to a temporary buffer due to
+    // wrapping? If so, it will have returned the supplied buf pointer. If not,
+    // it will have returned a pointer directly into the receive buffer, which
+    // we must now copy from.
+    if (ptr != buf) {
+        memcpy(buf, ptr, to_read);
+    }
+    read_flush(to_read);
+    return to_read;
+}
+
 int TwsRequest::read_flush(uint16_t len) {
     const uint16_t bytes_to_flush = min(len, recv_buffer_len);
     //DEBUG_PRINTF("TWS read_flush %d bytes\n", bytes_to_flush);
