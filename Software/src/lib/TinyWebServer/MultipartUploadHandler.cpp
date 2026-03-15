@@ -1,13 +1,7 @@
 #include "TinyWebServer.h"
 
-MultipartUploadHandler::MultipartUploadHandler(TwsRoute *handler, 
-    TwsFileUploadHandler *onUpload = nullptr) : TwsStatefulHandler<MultipartUploadHandlerState>(handler), onUpload(onUpload) {
-    
-    nextPostBody = handler->onPostBody;
-    nextHeader = handler->onHeader;
-
-    handler->onPostBody = this;
-    handler->onHeader = this;
+MultipartUploadHandler::MultipartUploadHandler(
+    TwsFileUploadHandler *onUpload) : onUpload(onUpload) {
 }
 
 int MultipartUploadHandler::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
@@ -137,10 +131,6 @@ int MultipartUploadHandler::handlePostBody(TwsRequest &request, size_t index, ui
         }
     }
 
-    if(nextPostBody) {
-        nextPostBody->handlePostBody(request, index, data, len);
-    }
-
     if(index+len >= state.content_length) {
         // Finished uploading
         // fclose(state.file);
@@ -148,10 +138,12 @@ int MultipartUploadHandler::handlePostBody(TwsRequest &request, size_t index, ui
         // state.file = nullptr;
         // state.file2 = nullptr;
         //printf("Upload finished, content length was: %d %d\n", content_length, index+len);
+        TwsMiddleware::handlePostBody(request, index, data, len);
         return -1; // Indicate that the upload is complete
     }        
-    return len; // we consumed it all
+    return TwsMiddleware::handlePostBody(request, index, data, len);
 }
+
 void MultipartUploadHandler::handleHeader(TwsRequest &request, const char *line, int len) {
     auto &state = get_state(request);
 
@@ -163,7 +155,7 @@ void MultipartUploadHandler::handleHeader(TwsRequest &request, const char *line,
         }
     } else if(strncasecmp(line, "Content-Type:", 13) == 0) {
         // Check for multipart boundary
-        char *boundary = strstr((char*)line, "boundary=");
+        char *boundary = (char*)strstr(line, "boundary=");
         if (boundary) {
             boundary += 9; // Skip "boundary="
             //int end = len;
@@ -189,7 +181,5 @@ void MultipartUploadHandler::handleHeader(TwsRequest &request, const char *line,
         }
     }
 
-    if(nextHeader) {
-        nextHeader->handleHeader(request, line, len);
-    }
+    TwsMiddleware::handleHeader(request, line, len);
 }
