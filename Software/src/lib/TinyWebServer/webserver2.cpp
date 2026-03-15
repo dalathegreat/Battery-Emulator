@@ -1,4 +1,9 @@
 #include "TinyWebServer.h"
+#include "TwsBuffering.h"
+#include "BasicAuth.h"
+#include "CanSender.h"
+#include "DigestAuth.h"
+#include "Ota.h"
 
 #include <src/battery/BATTERIES.h>
 #include <src/charger/CanCharger.h>
