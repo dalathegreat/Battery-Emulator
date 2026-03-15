@@ -124,12 +124,23 @@ void TinyWebServer::handle_request(TwsRequest &request) {
     // a local buffer which is definitely big enough for the largest read and an extra nul
     char buf[sizeof(request.recv_buffer)+1];
 
+    auto call_handle_partial_header = [&](char *ptr, int available, bool final) {
+        // Temporarily replace the next character with a nul for safety.
+        char old = ptr[available];
+        ptr[available] = '\0';
+        int consumed = request.handler->onPartialHeader->handlePartialHeader(request, ptr, available, final);
+        ptr[available] = old;
+        return consumed;
+    };
+
     while(true) {
         int len = 0;
 
         if(request.done) break;
 
-        // Scan up to the next delimiter based on the current parse state
+        // Step 1: Grab a chunk of data to process, stopping at delimiters where
+        // relevant.
+
         switch(request.parse_state) {
             case TWS_AWAITING_PATH:
                 len = request.scan(' ', '?', '\n');
@@ -140,77 +151,49 @@ void TinyWebServer::handle_request(TwsRequest &request) {
             case TWS_AWAITING_HEADER:
                 len = request.scan('\n');
                 if(len==0 && request.recv_buffer_full()) {
-                    // We can't fit the whole header into the buffer
+                    // We haven't found the end of the header, and the buffer is
+                    // full, so we're not going to be able to read a complete
+                    // one.
                     if(request.handler && request.handler->onPartialHeader) {
-                        // The handler accepts partial headers.
-                        
-                        int available = request.available();
-
-                        // Peek the whole read buffer (will likely copy into buf)
-                        char *buf_ptr = request.get_peek_ptr(buf, available);
-                        char old_terminator = buf_ptr[available]; // Save first char beyond the end
-                        buf_ptr[available] = '\0';
-
-                        int consumed = request.handler->onPartialHeader->handlePartialHeader(request, buf_ptr, available, false);
-                        if(consumed<=0) {
-                            // Handler didn't consume anything, so it never will. Skip the header.
-                            request.read_flush(available);
-                            request.parse_state = TWS_SKIPPING_HEADER;
-                        } else {
-                            request.read_flush(consumed);
-                            // We'll handle the rest of the header in bits.
-                            request.parse_state = TWS_AWAITING_PARTIAL_HEADER;
-                        }
-                        buf_ptr[available] = old_terminator; // Restore the old terminator
-                    } else {
-                        // The handler doesn't accept partial headers, so we skip the whole header
-                        DEBUG_PRINTF("TWS client buffer full, skipping header\n");
-                        request.read_flush(request.available());
-                        request.parse_state = TWS_SKIPPING_HEADER;
+                        // We'll handle it in chunks.
+                        request.parse_state = TWS_AWAITING_PARTIAL_HEADER;
+                        continue;
                     }
+                    // We can't handle it at all, so skip the rest of the header.
+                    DEBUG_PRINTF("TWS client buffer full, skipping header\n");
+                    request.read_flush(request.available());
+                    request.parse_state = TWS_SKIPPING_HEADER;
                 }
                 break;
             case TWS_AWAITING_PARTIAL_HEADER:
                 len = request.scan('\n');
                 if(len==0) {
-                    // Still haven't found the end of the header. Keep passing chunks to the handlers.
+                    // We still haven't found the end of the header.
                     int available = request.available();
-                    if(available==0) {
-                        break;
-                    }
+                    if(available==0) break;
 
-                    // Peek the whole read buffer
-                    char *buf_ptr = request.get_peek_ptr(buf, available);
-
-                    char old_terminator = buf_ptr[available]; // Save first char beyond the end
-                    buf_ptr[available] = '\0'; // Add a null-terminator for safety
-                    int consumed = request.handler->onPartialHeader->handlePartialHeader(request, buf_ptr, available, false);
-                    buf_ptr[available] = old_terminator; // Restore the old terminator
-
-                    if(consumed==0 && request.recv_buffer_full()) {
-                        // Handler couldn't consume a complete buffer so never will. Skip the header.
+                    // Try and handle the chunk we have.
+                    int consumed = call_handle_partial_header(request.get_peek_ptr(buf, available), available, false);
+                    if(consumed > 0) request.read_flush(consumed);
+                    else if(request.recv_buffer_full()) {
+                        // We didn't consume anything, and the buffer is full,
+                        // so we won't be able to consume any more. Skip the
+                        // rest of the header.
                         request.read_flush(available);
                         request.parse_state = TWS_SKIPPING_HEADER;
-                    } else if(consumed > 0) {
-                        request.read_flush(consumed);
                     }
                 } else {
-                    char *buf_ptr = request.get_read_ptr(buf, len);
-                    // Drop the last letter if there's a \r too
-                    if(len>1 && buf_ptr[len-2] == '\r') len--;
-                    // Swap the newline for a nul
-                    buf_ptr[len-1] = '\0';
-                    len -= 1;
-                    while(len>0) {
-                        int consumed = request.handler->onPartialHeader->handlePartialHeader(request, buf_ptr, len, true);
-                        if(consumed<=0) {
-                            break;
-                        } else {
-                            buf_ptr += consumed;
-                            len -= consumed;
-                        }
+                    // We found the end of the header, so handle the final chunk.
+                    char *ptr = request.get_read_ptr(buf, len);
+                    if(len > 1 && ptr[len-2] == '\r') len--;
+                    ptr[--len] = '\0';
+
+                    while(len > 0) {
+                        int consumed = call_handle_partial_header(ptr, len, true);
+                        if(consumed <= 0) break;
+                        ptr += consumed;
+                        len -= consumed;
                     }
-                    len = 0;
                     request.parse_state = TWS_AWAITING_HEADER;
                 }
                 break;
@@ -239,13 +222,18 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                 len = request.scan(' ', '\n');
                 break;
         }
+        // Nothing new to process, so give up for now.
         if(len==0) {
             if(request.recv_buffer_full()) {
+                // We have a full buffer but have failed to parse it, so abandon
+                // the request.
                 DEBUG_PRINTF("TWS client buffer full, closing connection\n");
                 request.reset();
             }
             break;
         }
+
+        // Step 2: Process the chunk of data.
 
         switch(request.parse_state) {
         case TWS_AWAITING_METHOD:
@@ -288,7 +276,8 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                             request.read(request.path_wildcard, copy_len);
                             request.path_wildcard[copy_len] = '\0'; // Null-terminate it
                             
-                            // Flush any excess characters if the path variable was longer than 31 chars
+                            // Flush any excess characters if the path variable
+                            // was longer than the wildcard buffer
                             if (wildcard_len > copy_len) {
                                 request.read_flush(wildcard_len - copy_len);
                             }
@@ -390,6 +379,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                 if(request.handler && request.handler->onPostBody) {
                     bool post_done = false;
                     bool allow_noncontiguous = false;
+                    bool progress_made = false;
 
                     // If our read buffer is significantly smaller than the
                     // underlying socket buffer, then we can attempt several
@@ -402,6 +392,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
 
                         int consumed = request.handler->onPostBody->handlePostBody(request, request.body_read, (uint8_t*)read_ptr, len);
                         post_done = (consumed == -1);
+                        if (consumed != 0) progress_made = true;
 
                         if(consumed==0 && len<request.available() && !allow_noncontiguous) {
                             // The handler didn't consume anything, so it never will.
@@ -425,6 +416,12 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                         if(post_done || request.recv()==0) break;
                         // We just read some more!
                         len = request.available_contiguous();
+                    }
+
+                    if(!progress_made && request.recv_buffer_full()) {
+                        DEBUG_PRINTF("TWS client body handler stuck, closing connection\n");
+                        request.reset();
+                        return;
                     }
 
                     if(post_done && !request.done) {
