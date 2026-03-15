@@ -67,6 +67,7 @@ public:
     uint32_t write_direct(const char *buf, uint16_t len);
     int available();
     int free();
+    int read(char *buf, uint16_t len);
     int read_flush(uint16_t len);
 
     void send(int code, const char *content_type = "", const char *content = "");
@@ -79,8 +80,13 @@ public:
     inline bool active() {
         return socket > -1;
     }
-    inline bool is_post() {
-        return method == TWS_HTTP_POST;
+    inline bool is_post() { return method == TWS_HTTP_POST; }
+    inline bool is_get() { return method == TWS_HTTP_GET; }
+    inline bool is_options() { return method == TWS_HTTP_OPTIONS; }
+    inline const char* method_str() {
+        if (is_post()) return "POST";
+        if (is_options()) return "OPTIONS";
+        return "GET";
     }
     uint16_t get_slot_id() {
         return slot_id;
@@ -148,6 +154,9 @@ protected:
     bool pending_direct_write = false;
     bool done = false;
     TwsRoute *handler = nullptr;
+
+    static const int PATH_WILDCARD_SIZE = 64;
+    char path_wildcard[PATH_WILDCARD_SIZE] = {0};
 
     TwsRequestWriterCallbackFunction writer_callback = nullptr;
     int writer_callback_written_offset = 0;
@@ -219,6 +228,48 @@ public:
     virtual void handleFree(TwsRequest &request) {}
 };
 
+
+class TwsMiddleware : public TwsHeaderHandler, 
+                      public TwsPartialHeaderHandler, 
+                      public TwsPostBodyHandler, 
+                      public TwsRequestHandler, 
+                      public TwsAllocableHandler {
+public:
+    TwsHeaderHandler *nextHeader = nullptr;
+    TwsPartialHeaderHandler *nextPartialHeader = nullptr;
+    TwsPostBodyHandler *nextPostBody = nullptr;
+    TwsRequestHandler *nextRequest = nullptr;
+    TwsAllocableHandler *nextAlloc = nullptr;
+
+    // --- Default Pass-Through Implementations ---
+    virtual void handleHeader(TwsRequest &request, const char *line, int len) override {
+        if (nextHeader) nextHeader->handleHeader(request, line, len);
+    }
+    
+    virtual int handlePartialHeader(TwsRequest &request, const char *line, int len, bool final) override {
+        if (nextPartialHeader) return nextPartialHeader->handlePartialHeader(request, line, len, final);
+        return len; // Consume by default to prevent hangs
+    }
+    
+    virtual int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override {
+        if (nextPostBody) return nextPostBody->handlePostBody(request, index, data, len);
+        return -1; // Indicate upload is complete if nothing handles it
+    }
+    
+    virtual void handleRequest(TwsRequest &request) override {
+        if (nextRequest) nextRequest->handleRequest(request);
+    }
+    
+    virtual int handleAlloc(int max, int start) override {
+        if (nextAlloc) return nextAlloc->handleAlloc(max, start);
+        return start;
+    }
+    
+    virtual void handleFree(TwsRequest &request) override {
+        if (nextAlloc) nextAlloc->handleFree(request);
+    }
+};
+
 // TwsRoute represents a route handler for a specific path. These are created
 // before startup and passed to the TinyWebServer constructor in an array.
 //
@@ -231,14 +282,42 @@ public:
 // provided to ease setting these.
 class TwsRoute {
 public:
-    TwsRoute(const char *path) : path(path) {}
+    TwsRoute(const char *path) : path(path), path_len(strlen(path)) {}
     TwsRoute(const char *path, TwsRequestHandler *onRequest) :
-        path(path), onRequest(onRequest) {
+        path(path), path_len(strlen(path)), onRequest(onRequest) {
     }
     TwsRoute(const char *path, TwsPostBodyHandler *onPostBody) :
-        path(path), onPostBody(onPostBody) {
+        path(path), path_len(strlen(path)), onPostBody(onPostBody) {
     }
+
+    // --- The Fluent API ---
+    template<typename M>
+    TwsRoute& use(M& middleware) {
+        static_assert(std::is_base_of<TwsMiddleware, M>::value, 
+            "ERROR: Only classes derived from TwsMiddleware can be passed to .use()!");
+
+        // Point the middleware's 'next' to whatever the route is currently pointing at.
+        middleware.nextHeader = this->onHeader;
+        this->onHeader = &middleware;
+
+        middleware.nextPartialHeader = this->onPartialHeader;
+        this->onPartialHeader = &middleware;
+
+        middleware.nextPostBody = this->onPostBody;
+        this->onPostBody = &middleware;
+
+        middleware.nextRequest = this->onRequest;
+        this->onRequest = &middleware;
+
+        middleware.nextAlloc = this->onAlloc;
+        this->onAlloc = &middleware;
+
+        // Return the route so we can chain calls
+        return *this;
+    }
+
     const char *path;
+    const uint8_t path_len;
     TwsRequestHandler *onRequest = nullptr;    
     TwsPostBodyHandler *onPostBody = nullptr;
     TwsHeaderHandler *onHeader = nullptr;
@@ -253,31 +332,30 @@ public:
 // A struct T should be defined to hold the state data. This struct will be
 // allocated in the request's state data area, and can be accessed using
 // get_state(request).
-template<class T> 
-class TwsStatefulHandler : public TwsAllocableHandler {
-public:
-    TwsStatefulHandler(TwsRoute *handler) {
-        nextAlloc = handler->onAlloc;
-        handler->onAlloc = this;
-    }
-    int handleAlloc(int max, int start) override {
-        int alloc_size = sizeof(T);
 
+template <typename T>
+class TwsStatefulMiddleware : public TwsMiddleware {
+public:
+    int offset = 0;
+
+    // We override handleAlloc to grab our chunk of memory, 
+    // then forward the rest down the chain.
+    virtual int handleAlloc(int max, int start) override {
+        int alloc_size = sizeof(T);
         offset = start;
         start += alloc_size;
-
-        if(nextAlloc) {
+        
+        // Use TwsMiddleware's nextAlloc pointer to continue the chain
+        if (nextAlloc) {
             start = nextAlloc->handleAlloc(max, start);
         }
         return start;
     }
 
+    // Helper to retrieve the state struct from the request's raw buffer
     T& get_state(TwsRequest &request) {
         return *(T*)(request.get_state_data() + offset);
     }
-
-    int offset;
-    TwsAllocableHandler *nextAlloc = nullptr;
 };
 
 class TwsFileUploadHandlerFunc : public TwsFileUploadHandler {
@@ -310,7 +388,9 @@ public:
         if(size>0) {
             DEBUG_PRINTF("Allocating PostBody of size %zu\n", size);
             data = (uint8_t*)malloc(size+1);
-            data[size] = 0; // nul terminate for convenience
+            if (data) {
+                data[size] = 0; // nul terminate for convenience
+            }
         }
     }
     ~PostBody() {
@@ -334,32 +414,41 @@ struct PostBufferingRequestHandlerState {
     std::shared_ptr<PostBody> post_body = nullptr;
 };
 
-
-class TwsPostBufferingRequestHandler : public TwsHeaderHandler, public TwsPostBodyHandler, public TwsStatefulHandler<PostBufferingRequestHandlerState> {
+class TwsPostBufferingRequestHandler : public TwsStatefulMiddleware<PostBufferingRequestHandlerState> {
 public:
-    TwsPostBufferingRequestHandler(TwsRoute *handler, void (*handleFullPostBody)(TwsRequest &request, uint8_t *data, size_t len) = nullptr) : TwsStatefulHandler<PostBufferingRequestHandlerState>(handler), handleFullPostBody(handleFullPostBody) {
-        nextPostBody = handler->onPostBody;
-        nextHeader = handler->onHeader;
-        handler->onPostBody = this;
-        handler->onHeader = this;
-    }
+    TwsPostBufferingRequestHandler(void (*handleFullPostBody)(TwsRequest &request, uint8_t *data, size_t len) = nullptr, size_t max_size = 16384) 
+        : handleFullPostBody(handleFullPostBody), _max_size(max_size) {}
 
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override {
         auto &state = get_state(request);
         if(!state.post_body) {
+            if (state.content_length > _max_size) {
+                DEBUG_PRINTF("TWS post body too large: %zu > %zu\n", state.content_length, _max_size);
+                request.send(413, "text/plain", "Payload Too Large");
+                request.finish();
+                return -1;
+            }
             state.post_body = std::make_shared<PostBody>(state.content_length);
+            if (state.content_length > 0 && !state.post_body->data) {
+                request.send(500, "text/plain", "Memory Allocation Failed");
+                request.finish();
+                return -1;
+            }
         }
-        DEBUG_PRINTF("Buffering post body: [ %*s ] at index %zu, len %zu\n", (int)len, (char*)data, index, len);
+        //DEBUG_PRINTF("Buffering post body: [ %*s ] at index %zu, len %zu\n", (int)len, (char*)data, index, len);
         state.post_body->set(data, index, len);
-        if(nextPostBody) {
-            return nextPostBody->handlePostBody(request, index, data, len);
-        }
+
         if(index+len >= state.content_length) {
             // Finished uploading
             if(handleFullPostBody) {
                 handleFullPostBody(request, state.post_body->data, state.content_length);
             }
+            if (nextPostBody) return nextPostBody->handlePostBody(request, index, data, len);
             return -1; // Indicate that the upload is complete
+        }
+        
+        if(nextPostBody) {
+            return nextPostBody->handlePostBody(request, index, data, len);
         }
         return len;
     }
@@ -373,23 +462,21 @@ public:
                 state.content_length = content_length;
             }
         }
+        if (nextHeader) nextHeader->handleHeader(request, line, len);
     }
-    void handleFree(TwsRequest &request) {
+    void handleFree(TwsRequest &request) override {
         auto &state = get_state(request);
 
         if(state.post_body && state.post_body->data) {
-            DEBUG_PRINTF("Post body was %*s\n", (int)state.content_length, (char*)state.post_body->data);
+            //DEBUG_PRINTF("Post body was %*s\n", (int)state.content_length, (char*)state.post_body->data);
         }
 
         state.post_body = nullptr;
-        if(nextAlloc) {
-            nextAlloc->handleFree(request);
-        }
+        TwsMiddleware::handleFree(request);
     }
 
-    TwsPostBodyHandler *nextPostBody = nullptr;
-    TwsHeaderHandler *nextHeader = nullptr;
     void (*handleFullPostBody)(TwsRequest &request, uint8_t *data, size_t len) = nullptr;
+    size_t _max_size;
 };
 
 
@@ -469,6 +556,8 @@ protected:
 
 
 
+
+
 void tiny_web_server_loop(void * pData);
 void idle_loop(void * pData);
 
@@ -483,16 +572,13 @@ typedef struct {
     // FILE *file2 = nullptr;
 } MultipartUploadHandlerState;
 
-class MultipartUploadHandler : public TwsPostBodyHandler, public TwsHeaderHandler, public TwsStatefulHandler<MultipartUploadHandlerState> {
+class MultipartUploadHandler : public TwsStatefulMiddleware<MultipartUploadHandlerState> {
 public:
-    MultipartUploadHandler(TwsRoute *handler, TwsFileUploadHandler *onUpload);
+    MultipartUploadHandler(TwsFileUploadHandler *onUpload = nullptr);
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
     void handleHeader(TwsRequest &request, const char *line, int len) override;
 
     TwsFileUploadHandler *onUpload = nullptr;
-    TwsPostBodyHandler *nextPostBody = nullptr;
-    TwsHeaderHandler *nextHeader = nullptr;
-    TwsAllocableHandler *nextAlloc = nullptr;
 };
 
 
@@ -500,21 +586,15 @@ typedef struct {
     bool authed;
 } BasicAuthState;
 
-class BasicAuth : public TwsHeaderHandler, public TwsPostBodyHandler, public TwsRequestHandler, public TwsStatefulHandler<BasicAuthState> {
+class BasicAuth : public TwsStatefulMiddleware<BasicAuthState> {
 public:
-    BasicAuth(TwsRoute *handler);
+    BasicAuth() = default;
 
     void handleHeader(TwsRequest &request, const char *line, int len) override;
-
-    bool denyIfUnauthed(TwsRequest &request);
-
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
-
     void handleRequest(TwsRequest &request) override;
-
-    TwsPostBodyHandler *nextPostBody = nullptr;
-    TwsHeaderHandler *nextHeader = nullptr;
-    TwsRequestHandler *nextRequest = nullptr;
+private:
+    bool denyIfUnauthed(TwsRequest &request);
 };
 
 
@@ -544,9 +624,9 @@ typedef struct {
   int mode;
 } OtaStartState;
 
-class OtaStart : public TwsRequestHandler, public TwsQueryParamHandler, public TwsStatefulHandler<OtaStartState> {
+class OtaStart : public TwsStatefulMiddleware<OtaStartState>, public TwsQueryParamHandler {
 public:
-    OtaStart(TwsRoute *handler);
+    OtaStart() = default;
 
     void handleRequest(TwsRequest &request) override;
     void handleQueryParam(TwsRequest &request, const char *param, int len, bool final) override;
@@ -559,18 +639,14 @@ typedef struct {
     bool error = false;
 } OtaUploadState;
 
-class OtaUpload : public TwsRequestHandler, public TwsPostBodyHandler, public TwsHeaderHandler, public TwsStatefulHandler<OtaUploadState> {
+class OtaUpload : public TwsStatefulMiddleware<OtaUploadState> {
 public:
-    OtaUpload(TwsRoute *handler);
+    OtaUpload() = default;
 
     void handleRequest(TwsRequest &request) override;
 //    void handleUpload(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final) override;
     void handleHeader(TwsRequest &request, const char *line, int len) override;
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
-
-//    MultipartUploadHandler multipart_handler;
-    TwsRequestHandler *nextRequest = nullptr;
-    TwsHeaderHandler *nextHeader = nullptr;
 };
 
 
@@ -673,19 +749,14 @@ typedef int (*GetPasswordHashFunc)(const char* username, char* output);
 
 
 template<typename HASH_CONTEXT, int HASH_TYPE>
-class DigestAuth : public TwsHeaderHandler, public TwsPartialHeaderHandler, public TwsPostBodyHandler, public TwsRequestHandler, public TwsStatefulHandler<DigestAuthState<HASH_CONTEXT>> {
+class DigestAuth : public TwsStatefulMiddleware<DigestAuthState<HASH_CONTEXT>> {
 public:
-    DigestAuth(TwsRoute *handler, GetPasswordHashFunc getPasswordHash, DigestAuthSessionManager *sessionManager = nullptr);
+    DigestAuth(GetPasswordHashFunc getPasswordHash, DigestAuthSessionManager *sessionManager = nullptr);
     void handleHeader(TwsRequest &request, const char *line, int len) override;
     int handlePartialHeader(TwsRequest &request, const char *line, int len, bool final) override;
     bool denyIfUnauthed(TwsRequest &request);
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
     void handleRequest(TwsRequest &request) override;
-
-    TwsPostBodyHandler *nextPostBody = nullptr;
-    TwsHeaderHandler *nextHeader = nullptr;
-    TwsPartialHeaderHandler *nextPartialHeader = nullptr;
-    TwsRequestHandler *nextRequest = nullptr;
 
     GetPasswordHashFunc getPasswordHash;
     DigestAuthSessionManager *sessionManager = nullptr;
@@ -709,16 +780,19 @@ typedef struct {
     //char buf[128];
 } CanSenderState;
 
-class CanSender : public TwsQueryParamHandler, public TwsHeaderHandler, public TwsPostBodyHandler, public TwsStatefulHandler<CanSenderState> {
+class CanSender : public TwsStatefulMiddleware<CanSenderState>, public TwsQueryParamHandler {
 public:
-    CanSender(TwsRoute *handler);
+    CanSender() = default;
 
     //void handleRequest(TwsRequest &request) override;
     //void handleUpload(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final) override;
     void handleHeader(TwsRequest &request, const char *line, int len) override;
     void handleQueryParam(TwsRequest &request, const char *param, int len, bool final) override;
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
+
+    TwsQueryParamHandler *nextQueryParam = nullptr;
 };
+
 
 
 
