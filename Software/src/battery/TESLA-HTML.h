@@ -55,11 +55,11 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     float isolationResistance = static_cast<float>(datalayer_extended.tesla.BMS_isolationResistance) * 10;
     float PCS_dcdcMaxOutputCurrentAllowed =
         static_cast<float>(datalayer_extended.tesla.PCS_dcdcMaxOutputCurrentAllowed) * 0.1f;
-    float PCS_dcdcTemp = static_cast<float>(datalayer_extended.tesla.PCS_dcdcTemp) * 0.1f + 40;
-    float PCS_ambientTemp = static_cast<float>(datalayer_extended.tesla.PCS_ambientTemp) * 0.1f + 40;
-    float PCS_chgPhATemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhATemp) * 0.1f + 40;
-    float PCS_chgPhBTemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhBTemp) * 0.1f + 40;
-    float PCS_chgPhCTemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhCTemp) * 0.1f + 40;
+    float PCS_dcdcTemp = static_cast<float>(datalayer_extended.tesla.PCS_dcdcTemp) * 0.1f + 40.0f;
+    float PCS_ambientTemp = static_cast<float>(datalayer_extended.tesla.PCS_ambientTemp) * 0.1f + 40.0f;
+    float PCS_chgPhATemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhATemp) * 0.1f + 40.0f;
+    float PCS_chgPhBTemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhBTemp) * 0.1f + 40.0f;
+    float PCS_chgPhCTemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhCTemp) * 0.1f + 40.0f;
     float BMS_maxRegenPower = static_cast<float>(datalayer_extended.tesla.BMS_maxRegenPower) * 0.01f;
     float BMS_maxDischargePower = static_cast<float>(datalayer_extended.tesla.BMS_maxDischargePower) * 0.013f;
     //float BMS_maxStationaryHeatPower = static_cast<float>(datalayer_extended.tesla.BMS_maxStationaryHeatPower) * 0.01f;
