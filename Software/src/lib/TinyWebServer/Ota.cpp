@@ -72,13 +72,11 @@ int OtaUpload::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
 
     if((index + len) >= state.content_length) {
         if(Update.end(true)) {
-            //printf("Update completed successfully\n");
             request.write_fully("HTTP/1.1 200 OK\r\n"
                         "Connection: close\r\n"
                         "Content-Type: text/plain\r\n"
                         "\r\nOK");
         } else {
-            //printf("Update failed to end: %s\n", Update.errorString());
             request.write_fully("HTTP/1.1 500 Internal Server Error\r\n"
                         "Connection: close\r\n"
                         "Content-Type: text/plain\r\n"
@@ -88,7 +86,8 @@ int OtaUpload::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
         TwsMiddleware::handlePostBody(request, index, data, len);
         return -1;
     }
-    return TwsMiddleware::handlePostBody(request, index, data, len);
+    int ret = TwsMiddleware::handlePostBody(request, index, data, len);
+    return (ret == -1) ? len : ret;
 }
 
 void OtaUpload::handleHeader(TwsRequest &request, const char *line, int len) {
