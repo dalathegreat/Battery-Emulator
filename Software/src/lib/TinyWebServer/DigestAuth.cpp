@@ -48,16 +48,7 @@ void DigestAuthSessionManager::clear_old_sessions() {
 //     std::map<char const*, int> counts;
 
 template <typename HASH_CONTEXT, int HASH_TYPE>
-DigestAuth<HASH_CONTEXT, HASH_TYPE>::DigestAuth(TwsRoute *handler, GetPasswordHashFunc getPasswordHash, DigestAuthSessionManager *sessionManager) : TwsStatefulHandler<DigestAuthState<HASH_CONTEXT>>(handler), getPasswordHash(getPasswordHash), sessionManager(sessionManager) {
-    nextPostBody = handler->onPostBody;
-    nextHeader = handler->onHeader;
-    nextPartialHeader = handler->onPartialHeader;
-    nextRequest = handler->onRequest;
-
-    handler->onPostBody = this;
-    handler->onHeader = this;
-    handler->onPartialHeader = this;
-    handler->onRequest = this;
+DigestAuth<HASH_CONTEXT, HASH_TYPE>::DigestAuth(GetPasswordHashFunc getPasswordHash, DigestAuthSessionManager *sessionManager) : getPasswordHash(getPasswordHash), sessionManager(sessionManager) {
 }
 
 template <typename HASH_CONTEXT, int HASH_TYPE>
@@ -76,9 +67,7 @@ void DigestAuth<HASH_CONTEXT, HASH_TYPE>::handleHeader(TwsRequest &request, cons
         len -= consumed;
     }
 
-    if(nextHeader) {
-        nextHeader->handleHeader(request, line, len);
-    }
+    TwsMiddleware::handleHeader(request, line, len);
 }
 
 enum {
@@ -150,7 +139,9 @@ int DigestAuth<HASH_CONTEXT, HASH_TYPE>::handlePartialHeader(TwsRequest &request
 
             // Start calculating HA2
             state.ha2.init();
-            state.ha2.update("GET:", 4); // TODO: use actual method
+            const char* method = request.method_str();
+            state.ha2.update(method, strlen(method));
+            state.ha2.update(":", 1);
 
             // Start calculating R
             state.r.init();
@@ -330,6 +321,7 @@ skip_trim:
 
     if(consumed==len && final) state.parse_state = PARSING_HEADER_NAME; // reset state after final
 
+    TwsMiddleware::handlePartialHeader(request, line, len, final);
     return consumed;
 }
 
@@ -388,10 +380,7 @@ int DigestAuth<HASH_CONTEXT, HASH_TYPE>::handlePostBody(TwsRequest &request, siz
         return -1; // finished
     }
 
-    if(nextPostBody) {
-        return nextPostBody->handlePostBody(request, index, data, len);
-    }
-    return -1; // finished
+    return TwsMiddleware::handlePostBody(request, index, data, len);
 }
 
 template <typename HASH_CONTEXT, int HASH_TYPE>
@@ -400,9 +389,7 @@ void DigestAuth<HASH_CONTEXT, HASH_TYPE>::handleRequest(TwsRequest &request) {
         return;
     }
 
-    if(nextRequest) {
-        nextRequest->handleRequest(request);
-    }
+    TwsMiddleware::handleRequest(request);
 }
 
 // Only instantiating the one you're using saves .text ?

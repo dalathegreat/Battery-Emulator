@@ -2,13 +2,6 @@
 
 #include "Update.h"
 
-OtaStart::OtaStart(TwsRoute *handler) : TwsStatefulHandler<OtaStartState>(handler) {
-    nextQueryParam = handler->onQueryParam;
-
-    handler->onRequest = this;
-    handler->onQueryParam = this;
-}
-
 void OtaStart::handleRequest(TwsRequest &request) {
     auto &state = get_state(request);
     
@@ -36,6 +29,7 @@ void OtaStart::handleRequest(TwsRequest &request) {
     #endif
 
     request.finish();
+    TwsMiddleware::handleRequest(request);
 }
 
 void OtaStart::handleQueryParam(TwsRequest &request, const char *param, int len, bool final) {
@@ -62,19 +56,8 @@ void OtaStart::handleQueryParam(TwsRequest &request, const char *param, int len,
 }
 
 
-OtaUpload::OtaUpload(TwsRoute *handler) : TwsStatefulHandler<OtaUploadState>(handler) {
-    nextRequest = handler->onRequest;
-    nextHeader = handler->onHeader;
-
-    handler->onRequest = this;
-    handler->onHeader = this;
-    handler->onPostBody = this;
-}
-
 void OtaUpload::handleRequest(TwsRequest &request) {
-    if(nextRequest) {
-        nextRequest->handleRequest(request);
-    }
+    TwsMiddleware::handleRequest(request);
 }
 
 int OtaUpload::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
@@ -102,9 +85,10 @@ int OtaUpload::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
                         "\r\nUpdate failed.");
         }
         request.finish();
+        TwsMiddleware::handlePostBody(request, index, data, len);
         return -1;
     }
-    return len;
+    return TwsMiddleware::handlePostBody(request, index, data, len);
 }
 
 void OtaUpload::handleHeader(TwsRequest &request, const char *line, int len) {
@@ -118,9 +102,7 @@ void OtaUpload::handleHeader(TwsRequest &request, const char *line, int len) {
         }
     }
 
-    if(nextHeader) {
-        nextHeader->handleHeader(request, line, len);
-    }
+    TwsMiddleware::handleHeader(request, line, len);
 }
 
 /*
