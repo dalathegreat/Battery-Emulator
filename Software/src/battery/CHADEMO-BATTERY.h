@@ -15,10 +15,6 @@ class ChademoBattery : public CanBattery {
     pin4 = esp32hal->CHADEMO_PIN_4();
     pin7 = esp32hal->CHADEMO_PIN_7();
     pin_lock = esp32hal->CHADEMO_LOCK();
-
-    // Assuming these are initialized by contactor control module.
-    precharge = esp32hal->PRECHARGE_PIN();
-    positive_contactor = esp32hal->POSITIVE_CONTACTOR_PIN();
   }
 
   virtual void setup(void);
@@ -36,8 +32,9 @@ class ChademoBattery : public CanBattery {
   static constexpr const char* Name = "Chademo V2X mode";
 
  private:
-  gpio_num_t pin2, pin10, pin4, pin7, pin_lock, precharge, positive_contactor;
+  gpio_num_t pin2, pin10, pin4, pin7, pin_lock;
   ChademoBatteryHtmlRenderer renderer;
+  int max_evse_charging_power_W;  // W
 
   void process_vehicle_charging_minimums(CAN_frame rx_frame);
   void process_vehicle_charging_maximums(CAN_frame rx_frame);
@@ -53,10 +50,6 @@ class ChademoBattery : public CanBattery {
   void update_evse_discharge_capabilities(CAN_frame& f);
   void handle_chademo_sequence();
   float get_voltage_handler();
-
-  static const int MAX_EVSE_POWER_CHARGING = 3300;
-  static const int MAX_EVSE_OUTPUT_VOLTAGE = 410;
-  static const int MAX_EVSE_OUTPUT_CURRENT = 11;
 
 #define CHADEMO_FAULT 0
 #define CHADEMO_STOP 1
@@ -148,11 +141,11 @@ uint8_t CHADEMO_seq = 0x0;
   };
 
   /* ---------- CHARGING: EVSE Data structures */
-  struct x108_EVSE_Capabilities {                                 // Frame byte
-    bool contactor_weld_detection = 1;                            //  0
-    uint16_t available_output_voltage = MAX_EVSE_OUTPUT_VOLTAGE;  //  1,2
-    uint8_t available_output_current = MAX_EVSE_OUTPUT_CURRENT;   //  3
-    uint16_t threshold_voltage = 297;                             //  4,5	 		voltage that EVSE will stop if car fails to
+  struct x108_EVSE_Capabilities {             // Frame byte
+    bool contactor_weld_detection = 1;        //  0
+    uint16_t available_output_voltage = 400;  //  1,2
+    uint8_t available_output_current = 1;     //  3
+    uint16_t threshold_voltage = 297;         //  4,5	 		voltage that EVSE will stop if car fails to
     //  			perhaps vehicle minus 3%, hardcoded initially to 96*2.95
     //  6,7 = unused
   };

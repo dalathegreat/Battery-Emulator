@@ -36,16 +36,15 @@ void ChademoBattery::update_values() {
 
   datalayer.battery.status.real_soc = x102_chg_session.StateOfCharge * 100;  //Convert % to pptt
 
-  if (CHADEMO_Status != CHADEMO_POWERFLOW_SUSPENDED) {
-    datalayer.battery.status.max_discharge_power_W = (x200_discharge_limits.MaximumDischargeCurrent *
-                                                      x100_chg_lim.MaximumBatteryVoltage);  //In Watts, Convert A to P
-  }
-
   if (vehicle_can_received) {  // Only update the value sent towards inverter if vehicle is connected (avoids false positive events)
     datalayer.battery.status.voltage_dV = get_voltage_handler() * 10.0f;
     datalayer.battery.status.current_dA = get_measured_current_ptr() * 10.0f;
     datalayer_extended.chademo.CurrentRequested = x102_chg_session.ChargingCurrentRequest;
     datalayer_extended.chademo.VoltageRequested = x102_chg_session.TargetBatteryVoltage;
+    // included for pausing of battery charging and discharging
+    datalayer.battery.status.max_discharge_power_W = (x200_discharge_limits.MaximumDischargeCurrent *
+                                                      x100_chg_lim.MaximumBatteryVoltage);  //In Watts, Convert A to P
+    datalayer.battery.status.max_charge_power_W = max_evse_charging_power_W;                //from inverter
   }
 
   datalayer.battery.info.total_capacity_Wh = (x101_chg_est.RatedBatteryCapacity * 1000);
@@ -400,19 +399,18 @@ void ChademoBattery::update_evse_capabilities(CAN_frame& f) {
 	 */
   x108_evse_cap.contactor_weld_detection = 0x1;
 
-  /* should this be set to MAX_EVSE_OUTPUT_VOLTAGE or x102_chg_session.TargetBatteryVoltage ? */
-  x108_evse_cap.available_output_voltage = MAX_EVSE_OUTPUT_VOLTAGE;
+  // use settings from user config for now, but this should be set by the inverter based on its capabilities and/or battery
+  x108_evse_cap.available_output_voltage = datalayer.battery.settings.max_user_set_charge_voltage_dV / 10.0f;
 
   /* calculate max threshold to protect battery - using vehicle-provided max minus 2% */
   x108_evse_cap.threshold_voltage =
       x100_chg_lim.MaximumBatteryVoltage - (int)(x100_chg_lim.MaximumBatteryVoltage / 100 * 2);
 
-  // Power and voltage may be best derived from config/defines not from the x108 settings elsewhere, ideally
   // only set current when voltage > 0, as it is set by x102 TargetBatteryVoltage
   // if max charge power is set to 0, then set current to 0
-  if (x108_evse_cap.available_output_voltage) {
+  if (x102_chg_session.TargetBatteryVoltage > 0) {
     if (CHADEMO_Status != CHADEMO_POWERFLOW_SUSPENDED) {
-      x108_evse_cap.available_output_current = MAX_EVSE_POWER_CHARGING / x108_evse_cap.available_output_voltage;
+      x108_evse_cap.available_output_current = max_evse_charging_power_W / x102_chg_session.TargetBatteryVoltage;
     } else {
       x108_evse_cap.available_output_current = 0;
     }
@@ -475,25 +473,12 @@ void ChademoBattery::update_evse_status(CAN_frame& f) {
 
     /* if power overcommitted, back down to just below while maintaining voltage target */
     if (x109_evse_state.setpoint_HV_VDC > 0 &&
-        x109_evse_state.setpoint_HV_IDC * x109_evse_state.setpoint_HV_VDC > MAX_EVSE_POWER_CHARGING) {
-      x109_evse_state.setpoint_HV_IDC = floor(MAX_EVSE_POWER_CHARGING / x109_evse_state.setpoint_HV_VDC);
+        x109_evse_state.setpoint_HV_IDC * x109_evse_state.setpoint_HV_VDC > max_evse_charging_power_W) {
+      x109_evse_state.setpoint_HV_IDC = floor(max_evse_charging_power_W / x109_evse_state.setpoint_HV_VDC);
     }
 
     /* TODO calculate remaining charge time : for now == 60m */
     x109_evse_state.remaining_time_1m = 60;
-  }
-
-  /* Table A.26 - See also Charge control termination command patterns 
-	 * This handling must be mirrored in handling for vehicle x102
-	 *
-	 */
-  if ((x102_chg_session.TargetBatteryVoltage > x108_evse_cap.available_output_voltage) ||
-      (x100_chg_lim.MaximumBatteryVoltage < x108_evse_cap.threshold_voltage)) {
-    //Toggle battery incompatibility flag 109.5.3
-    x109_evse_state.s.status.EVSE_error = 1;
-    x109_evse_state.s.status.battery_incompatible = 1;
-    x109_evse_state.s.status.ChgDischStopControl = 1;
-    CHADEMO_Status = CHADEMO_FAULT;
   }
 
   //CHADEMO_109.data.u8[0] hardcoded to 0x2 for CHAdeMO v1, 1.0.1, 1.1, 1.2
@@ -726,6 +711,20 @@ void ChademoBattery::handle_chademo_sequence() {
       logStream << "Minimum Voltage: " << x200_discharge_limits.MinimumDischargeVoltage << "V\n";
       CHADEMO_Status = CHADEMO_STOP;
       datalayer_extended.chademo.StopReason = BATTERY_VOLTAGE;
+    }
+
+    /* Table A.26 - See also Charge control termination command patterns 
+    * This handling must be mirrored in handling for vehicle x102
+    *
+    */
+    if ((x102_chg_session.TargetBatteryVoltage > x108_evse_cap.available_output_voltage) ||
+        (x100_chg_lim.MaximumBatteryVoltage < x108_evse_cap.threshold_voltage)) {
+      //Toggle battery incompatibility flag 109.5.3
+      x109_evse_state.s.status.EVSE_error = 1;
+      x109_evse_state.s.status.battery_incompatible = 1;
+      x109_evse_state.s.status.ChgDischStopControl = 1;
+      CHADEMO_Status = CHADEMO_FAULT;
+      logStream << "Voltage limit checks failed.\n";
     }
   }
 
@@ -1022,6 +1021,9 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
   //TODO Must be user configured, most likely. Artificially capped for the time being
   datalayer.battery.status.max_discharge_power_W = 1000;
   datalayer.battery.status.max_charge_power_W = 1000;
+  // Ideally this would come from the inverter
+  max_evse_charging_power_W = datalayer.battery.settings.max_user_set_charge_voltage_dV / 10.0f *
+                              datalayer.battery.settings.max_user_set_charge_dA / 10.0f;
 
   datalayer.battery.status.current_dA = 0;
   datalayer.battery.status.remaining_capacity_Wh = 12000;
