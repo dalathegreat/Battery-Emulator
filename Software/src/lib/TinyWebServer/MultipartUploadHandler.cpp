@@ -132,16 +132,11 @@ int MultipartUploadHandler::handlePostBody(TwsRequest &request, size_t index, ui
     }
 
     if(index+len >= state.content_length) {
-        // Finished uploading
-        // fclose(state.file);
-        // fclose(state.file2);
-        // state.file = nullptr;
-        // state.file2 = nullptr;
-        //printf("Upload finished, content length was: %d %d\n", content_length, index+len);
         TwsMiddleware::handlePostBody(request, index, data, len);
         return -1; // Indicate that the upload is complete
     }        
-    return TwsMiddleware::handlePostBody(request, index, data, len);
+    int ret = TwsMiddleware::handlePostBody(request, index, data, len);
+    return (ret == -1) ? len : ret;
 }
 
 void MultipartUploadHandler::handleHeader(TwsRequest &request, const char *line, int len) {
