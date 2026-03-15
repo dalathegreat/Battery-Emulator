@@ -148,7 +148,7 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
     } while(remaining >= 9);
 
     if(index + len >= state.content_length) {
-        DEBUG_PRINTF("End of upload (content length %d reached at %d)\n", state.content_length, index + len);
+        DEBUG_PRINTF("End of upload (content length %d reached at %d)\n", (int)state.content_length, (int)(index + len));
 
         // Finished uploading
         request.write_fully("HTTP/1.1 200 OK\r\n"
@@ -160,6 +160,7 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
         return -1; // finished
     }
 
-    TwsMiddleware::handlePostBody(request, index, data, len);
+    int ret = TwsMiddleware::handlePostBody(request, index, data, len);
+    if (ret != -1) return ret;
     return len - remaining;
 }
