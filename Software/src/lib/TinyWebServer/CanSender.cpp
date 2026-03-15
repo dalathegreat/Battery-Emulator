@@ -5,12 +5,6 @@
 #include "../../lib/pierremolinaro-acan-esp32/ACAN_ESP32.h"
 #include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
 
-CanSender::CanSender(TwsRoute *handler) : TwsStatefulHandler<CanSenderState>(handler) {
-    handler->onHeader = this;
-    handler->onQueryParam = this;
-    handler->onPostBody = this;
-}
-
 void CanSender::handleHeader(TwsRequest &request, const char *line, int len) {
     auto &state = get_state(request);
 
@@ -21,6 +15,7 @@ void CanSender::handleHeader(TwsRequest &request, const char *line, int len) {
             state.content_length = content_length;
         }
     }
+    TwsMiddleware::handleHeader(request, line, len);
 }
 
 struct __attribute__((packed)) CanFrame {
@@ -69,6 +64,9 @@ void CanSender::handleQueryParam(TwsRequest &request, const char *param, int len
     if(strncmp(param, "if=", 3) == 0) {
         state.can_interface = atoi(param + 3);
     }
+    if(nextQueryParam) {
+        nextQueryParam->handleQueryParam(request, param, len, final);
+    }
 }
 
 int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
@@ -86,19 +84,19 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
     uint8_t *ptr = data;
     size_t remaining = len;
     do {
-        CanFrame *frame = (CanFrame*)ptr;
-        int frame_length = 9 + frame->len;
+        if (remaining < 9) break;
+
+        // Copy from ptr into an aligned struct on the stack.
+        CanFrame frame;
+        memcpy(&frame, ptr, 9); // Copy header (packed)
+        
+        int frame_length = 9 + frame.len;
         if(remaining < frame_length) {
             // Not enough data yet
             break;
         }
-        // if(frame->timestamp == 0xffffffff) {
-        //     // special case, frame is just padding
-        //     ptr += frame_length;
-        //     remaining -= frame_length;
-        //     continue;
-        // }
-        if(frame->len > 64) {
+
+        if(frame.len > 64) {
             // Invalid length
             request.write_fully("HTTP/1.1 400 b\r\n"
                         "Connection: close\r\n"
@@ -107,7 +105,11 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
             request.finish();
             return -1; // finished
         }
-        if((millis() - state.start_millis) < frame->timestamp) {
+
+        // Copy actual CAN data
+        memcpy(frame.data, ptr + 9, frame.len);
+
+        if((millis() - state.start_millis) < frame.timestamp) {
             // Need to wait
             break;
         }
@@ -116,19 +118,19 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
             break;
         }
 
-        DEBUG_PRINTF("CAN frame: timestamp %u id 0x%X len %d data:", frame->timestamp, frame->id, frame->len);
-        for(int i=0; i<frame->len; i++) {
-            DEBUG_PRINTF(" %02X", frame->data[i]);
+        DEBUG_PRINTF("CAN frame: timestamp %u id 0x%X len %d data:", frame.timestamp, frame.id, frame.len);
+        for(int i=0; i<frame.len; i++) {
+            DEBUG_PRINTF(" %02X", frame.data[i]);
         }
         DEBUG_PRINTF("\n");
 
         CANMessage send_frame = {
-            .id = frame->id,
-            .ext = frame->id > 0x7FF,
-            .len = frame->len,
+            .id = frame.id,
+            .ext = frame.id > 0x7FF,
+            .len = frame.len,
             .data64 = 0
         };
-        memcpy(send_frame.data, frame->data, frame->len);
+        memcpy(send_frame.data, frame.data, frame.len);
 
         if(!send_can_frame((CAN_Interface)state.can_interface, send_frame)) {
             // Failed to send
@@ -137,6 +139,7 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
                         "Content-Type: text/plain\r\n"
                         "\r\nFailed to send CAN frame.\n");
             request.finish();
+            TwsMiddleware::handlePostBody(request, index, data, len);
             return -1; // finished
         }
 
@@ -153,8 +156,10 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
                     "Content-Type: text/plain\r\n"
                     "\r\nOK\n");
         request.finish();
+        TwsMiddleware::handlePostBody(request, index, data, len);
         return -1; // finished
     }
 
+    TwsMiddleware::handlePostBody(request, index, data, len);
     return len - remaining;
 }
