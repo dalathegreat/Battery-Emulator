@@ -125,10 +125,10 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
 
 <div class="card card-warning" style="padding: 15px;">
   <h2 style="margin-top:0; color:#333;">⚡ System Overview <span id="sys_version" style="font-size: 0.6em; color: #888;"></span></h2>
-  <h4 style="color: #555; margin: 5px 0;">Uptime: <span id="sys_uptime" style="font-weight: normal;">--</span> | Free RAM: <span id="sys_ram" style="font-weight: normal;">--</span> | <span style="color: #9b59b6;">PSRAM: <span id="sys_psram" style="font-weight: normal;">--</span></span></h4>
+  <h4 style="color: #555; margin: 5px 0;">Uptime: <span id="sys_uptime" style="font-weight: normal;">--</span> <br>RAM: <span id="sys_ram" style="font-weight: normal;">--</span><br><span style="color: #9b59b6;">PSRAM: <span id="sys_psram" style="font-weight: normal;">--</span></span></h4>
   <h4 style="color: #555; margin: 5px 0;">Power Status: <strong id="sys_status" style="color: #f39c12;">--</strong></h4>
   <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border: 1px solid #eee; border-radius: 4px; font-size: 0.95em; color: #555;">
-    🔗 <b>Inverter:</b> <strong id="sys_inv" style="color: #2ecc71;">--</strong> &nbsp;|&nbsp; 
+    <b>Inverter:</b> <strong id="sys_inv" style="color: #2ecc71;">--</strong> &nbsp; 🔗 &nbsp; 
     <b>Battery:</b> <strong id="sys_bat" style="color: #3498db;">--</strong>
   </div>
 </div>
@@ -211,84 +211,124 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
   function toggleDetails(id) { document.getElementById(id).classList.toggle('show'); }
   function fetchBatteryData() {
     fetch('/api/data')
-      .then(response => response.json())
-      .then(data => {
-        document.getElementById('sys_version').innerText = "v" + data.sys.version;
-        document.getElementById('sys_uptime').innerText = data.sys.uptime;
-        let freeRamKB = Math.round(data.sys.heap / 1024);
-        let totalRamKB = Math.round(data.sys.heap_size / 1024);
-        let ramPercent = Math.round((data.sys.heap / data.sys.heap_size) * 100);
-        document.getElementById('sys_ram').innerText = freeRamKB + " / " + totalRamKB + " KB (" + ramPercent + "% Free)";
-        
-        if (data.sys.psram_size > 0) {
-            document.getElementById('sys_psram').innerText = Math.round(data.sys.psram / 1024) + " / " + Math.round(data.sys.psram_size / 1024) + " KB";
-        } else {
-            document.getElementById('sys_psram').innerText = "Not Enabled";
-        }
-        document.getElementById('sys_status').innerText = data.sys.status;
-        document.getElementById('sys_inv').innerText = data.sys.inv;
-        document.getElementById('sys_bat').innerText = data.sys.bat;
-
-        const updateBat = (id, bData) => {
-          if(bData.en) {
-            document.getElementById('card_' + id).classList.remove('hidden');
-            document.getElementById(id + '_soc').innerText = bData.soc;
-            document.getElementById(id + '_soh').innerText = bData.soh;
-            document.getElementById(id + '_v').innerText = bData.v;
-            document.getElementById(id + '_a').innerText = bData.a;
-            document.getElementById(id + '_p').innerText = bData.p;
-            document.getElementById(id + '_cmin').innerText = bData.cmin;
-            document.getElementById(id + '_cmax').innerText = bData.cmax;
-            document.getElementById(id + '_tmin').innerText = bData.tmin;
-            document.getElementById(id + '_tmax').innerText = bData.tmax;
-            
-            document.getElementById(id + '_stat').innerText = bData.stat;
-            document.getElementById(id + '_mc').innerText = bData.mc;
-            document.getElementById(id + '_md').innerText = bData.md;
-            if(id === 'b1') {
-              document.getElementById(id + '_rem').innerText = bData.rem;
-              document.getElementById(id + '_tot').innerText = bData.tot;
-              document.getElementById('b1_cont_b').innerText = bData.b_cont ? "YES" : "NO";
-              document.getElementById('sys_cont_i').innerText = data.sys.inv_cont ? "YES" : "NO";
-            }
-            if(bData.fault) document.getElementById('card_' + id).classList.add('fault');
-            else document.getElementById('card_' + id).classList.remove('fault');
+      .then(response => response.text())
+      .then(text => {
+        let data = window.repairAndParseJSON(text);
+        if (data) {
+          document.getElementById('sys_version').innerText = "v" + data.sys.version;
+          // document.getElementById('sys_uptime').innerText = data.sys.uptime;
+          // Smart Sync Uptime
+          let upMatch = data.sys.uptime.match(/(\d+)\s+days,\s+(\d+)\s+hours,\s+(\d+)\s+mins,\s+(\d+)\s+secs/);
+          if (upMatch) {
+              let serverSecs = parseInt(upMatch[1])*86400 + parseInt(upMatch[2])*3600 + parseInt(upMatch[3])*60 + parseInt(upMatch[4]);
+              if (typeof window.localUptimeSecs === 'undefined' || Math.abs(serverSecs - window.localUptimeSecs) > 2 || serverSecs < window.localUptimeSecs) {
+                  window.localUptimeSecs = serverSecs;
+                  document.getElementById('sys_uptime').innerText = data.sys.uptime;
+              }
           }
-        };
+          let freeRamKB = Math.round(data.sys.heap / 1024);
+          let totalRamKB = Math.round(data.sys.heap_size / 1024);
+          let ramPercent = Math.round((data.sys.heap / data.sys.heap_size) * 100);
+          document.getElementById('sys_ram').innerText = freeRamKB + " / " + totalRamKB + " KB (" + ramPercent + "% Free)";
+          
+          if (data.sys.psram_size > 0) {
+              document.getElementById('sys_psram').innerText = Math.round(data.sys.psram / 1024) + " / " + Math.round(data.sys.psram_size / 1024) + " KB";
+          } else {
+              document.getElementById('sys_psram').innerText = "Not Enabled";
+          }
+          document.getElementById('sys_status').innerText = data.sys.status;
+          document.getElementById('sys_inv').innerText = data.sys.inv;
+          document.getElementById('sys_bat').innerText = data.sys.bat;
 
-        let totalPowerW = 0;
-        if (data.b1 && data.b1.en) totalPowerW += parseFloat(data.b1.p) || 0;
-        if (data.b2 && data.b2.en) totalPowerW += parseFloat(data.b2.p) || 0;
-        if (data.b3 && data.b3.en) totalPowerW += parseFloat(data.b3.p) || 0;
+          const updateBat = (id, bData) => {
+            if(bData.en) {
+              document.getElementById('card_' + id).classList.remove('hidden');
+              document.getElementById(id + '_soc').innerText = bData.soc;
+              document.getElementById(id + '_soh').innerText = bData.soh;
+              document.getElementById(id + '_v').innerText = bData.v;
+              document.getElementById(id + '_a').innerText = bData.a;
+              document.getElementById(id + '_p').innerText = bData.p;
+              document.getElementById(id + '_cmin').innerText = bData.cmin;
+              document.getElementById(id + '_cmax').innerText = bData.cmax;
+              document.getElementById(id + '_tmin').innerText = bData.tmin;
+              document.getElementById(id + '_tmax').innerText = bData.tmax;
+              
+              document.getElementById(id + '_stat').innerText = bData.stat;
+              document.getElementById(id + '_mc').innerText = bData.mc;
+              document.getElementById(id + '_md').innerText = bData.md;
+              if(id === 'b1') {
+                document.getElementById(id + '_rem').innerText = bData.rem;
+                document.getElementById(id + '_tot').innerText = bData.tot;
+                document.getElementById('b1_cont_b').innerText = bData.b_cont ? "YES" : "NO";
+                document.getElementById('sys_cont_i').innerText = data.sys.inv_cont ? "YES" : "NO";
+              }
+              if(bData.fault) document.getElementById('card_' + id).classList.add('fault');
+              else document.getElementById('card_' + id).classList.remove('fault');
+            }
+          };
 
-        let flowElement = document.getElementById('energy-flow');
-        if (totalPowerW > 50) {
-          flowElement.className = 'flow-particles status-charging';
-          let speed = Math.max(0.2, 2000 / totalPowerW); 
-          flowElement.style.animationDuration = speed + 's';
-        } else if (totalPowerW < -50) {
-          flowElement.className = 'flow-particles status-discharging';
-          let speed = Math.max(0.2, 2000 / Math.abs(totalPowerW)); 
-          flowElement.style.animationDuration = speed + 's';
-        } else {
-          flowElement.className = 'flow-particles status-idle';
-          flowElement.style.animationDuration = '0s';
+          let totalPowerW = 0;
+          if (data.b1 && data.b1.en) totalPowerW += parseFloat(data.b1.p) || 0;
+          if (data.b2 && data.b2.en) totalPowerW += parseFloat(data.b2.p) || 0;
+          if (data.b3 && data.b3.en) totalPowerW += parseFloat(data.b3.p) || 0;
+
+          let flowElement = document.getElementById('energy-flow');
+          if (totalPowerW > 50) {
+            flowElement.className = 'flow-particles status-charging';
+            let speed = Math.max(0.2, 2000 / totalPowerW); 
+            flowElement.style.animationDuration = speed + 's';
+          } else if (totalPowerW < -50) {
+            flowElement.className = 'flow-particles status-discharging';
+            let speed = Math.max(0.2, 2000 / Math.abs(totalPowerW)); 
+            flowElement.style.animationDuration = speed + 's';
+          } else {
+            flowElement.className = 'flow-particles status-idle';
+            flowElement.style.animationDuration = '0s';
+          }
+
+          updateBat('b1', data.b1); updateBat('b2', data.b2); updateBat('b3', data.b3);          
+
+          if(data.chg.en) {
+            document.getElementById('card_chg').classList.remove('hidden');
+            document.getElementById('chg_v').innerText = data.chg.v;
+            document.getElementById('chg_a').innerText = data.chg.a;
+          }
+          document.getElementById('last_update').innerText = new Date().toLocaleTimeString();
         }
-
-        updateBat('b1', data.b1); updateBat('b2', data.b2); updateBat('b3', data.b3);          
-
-        if(data.chg.en) {
-          document.getElementById('card_chg').classList.remove('hidden');
-          document.getElementById('chg_v').innerText = data.chg.v;
-          document.getElementById('chg_a').innerText = data.chg.a;
-        }
-        document.getElementById('last_update').innerText = new Date().toLocaleTimeString();
       })
       .catch(error => console.error('Error fetching API:', error));
   }
-   
+  
   fetchBatteryData();
   setInterval(fetchBatteryData, 2000); 
+
+  setInterval(function() {
+    if (typeof window.localUptimeSecs !== 'undefined') {
+      window.localUptimeSecs++; 
+      
+      // convert time format
+      // var d = Math.floor(window.localUptimeSecs / 86400);
+      // var h = Math.floor((window.localUptimeSecs % 86400) / 3600);
+      // var m = Math.floor((window.localUptimeSecs % 3600) / 60);
+      // var s = window.localUptimeSecs % 60;
+      
+      var totalSeconds = window.localUptimeSecs;
+      var d = Math.floor(totalSeconds / 86400);
+      totalSeconds = totalSeconds - (d * 86400);
+      var h = Math.floor(totalSeconds / 3600);
+      totalSeconds = totalSeconds - (h * 3600);
+      var m = Math.floor(totalSeconds / 60);
+      totalSeconds = totalSeconds - (m * 60);
+      var s = totalSeconds;
+
+
+      var timeEl = document.getElementById("sys_uptime");
+      if (timeEl) {
+        timeEl.innerText = d + " days, " + h + " hours, " + m + " mins, " + s + " secs";
+      }
+    }
+  }, 1000);
+
 </script>
 )rawliteral";
 
@@ -576,10 +616,12 @@ void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethod
 }
 
 void send_large_page_safely(AsyncWebServerRequest* request, std::function<String(const String&)> processor_func) {
-  String html = String(index_html);
-  String payload = processor_func("X");
-  html.replace("%X%", payload);
-  request->send(200, "text/html", html);
+  // String html = String(index_html);
+  // String payload = processor_func("X");
+  // html.replace("%X%", payload);
+  // request->send(200, "text/html", html);
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", (const uint8_t*)index_html, strlen(index_html), processor_func);
+  request->send(response);
 }
 
 // =========================================================================
@@ -781,8 +823,14 @@ void init_webserver() {
     });
   }
 
-  def_route_with_auth("/cellmonitor", server, HTTP_GET,
-                      [](AsyncWebServerRequest* request) { send_large_page_safely(request, cellmonitor_processor); });
+  // def_route_with_auth("/cellmonitor", server, HTTP_GET,
+  //                    [](AsyncWebServerRequest* request) { send_large_page_safely(request, cellmonitor_processor); });
+
+  // Cell Monitor: use Template Processor RAM 0% 
+  def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/html", index_html, cellmonitor_processor);
+    request->send(response);
+  });
 
   def_route_with_auth("/events", server, HTTP_GET,
                       [](AsyncWebServerRequest* request) { send_large_page_safely(request, events_processor); });
@@ -799,10 +847,17 @@ void init_webserver() {
     request->send(200, "text/html", "OK");
   });
 
+  // auto serve_settings_page = [](AsyncWebServerRequest* request, const char* html_array) {
+  //     auto settings = std::make_shared<BatteryEmulatorSettingsStore>(true);
+  //     request->send(200, "text/html", (const uint8_t*)html_array, strlen(html_array), 
+  //         [settings](const String& content) { return settings_processor(content, *settings); });
+  // };
+
   auto serve_settings_page = [](AsyncWebServerRequest* request, const char* html_array) {
       auto settings = std::make_shared<BatteryEmulatorSettingsStore>(true);
-      request->send(200, "text/html", (const uint8_t*)html_array, strlen(html_array), 
+      AsyncWebServerResponse *response = request->beginResponse(200, "text/html", html_array, 
           [settings](const String& content) { return settings_processor(content, *settings); });
+      request->send(response);
   };
 
   def_route_with_auth("/settings", server, HTTP_GET, [serve_settings_page](AsyncWebServerRequest* request) { serve_settings_page(request, settings_batt_html); });
@@ -864,7 +919,7 @@ void init_webserver() {
         std::vector<const char*> activeBools;
         if (pageUrl == "/set_network") activeBools = {"STATICIP", "WIFIAPENABLED", "ESPNOWENABLED", "MQTTENABLED", "MQTTCELLV", "REMBMSRESET", "MQTTTOPICS", "HADISC"};
         else if (pageUrl == "/settings") activeBools = {"INTERLOCKREQ", "DIGITALHVIL", "GTWRHD", "SOCESTIMATED", "DBLBTR", "TRIBTR", "PYLONOFFSET", "PYLONORDER", "DEYEBYD", "INVICNT"};
-        else if (pageUrl == "/set_hardware") activeBools = {"CANFDASCAN", "CNTCTRLDBL", "CNTCTRLTRI", "CNTCTRL", "NCCONTACTOR", "PWMCNTCTRL", "PERBMSRESET", "EXTPRECHARGE", "NOINVDISC", "EPAPREFRESHBTN"};
+        else if (pageUrl == "/set_hardware") activeBools = {"CANFDASCAN", "CNTCTRLDBL", "CNTCTRLTRI", "CNTCTRL", "NCCONTACTOR", "PWMCNTCTRL", "PERBMSRESET", "EXTPRECHARGE", "NOINVDISC", "EPAPREFRESHBTN", "MULTII2C", "I2C_SHT30", "I2C_ATECC", "I2C_RTC", "I2C_IO"};
         else if (pageUrl == "/set_web") activeBools = {"PERFPROFILE", "CANLOGUSB", "USBENABLED", "WEBENABLED", "CANLOGSD", "SDLOGENABLED"};
 
         for (const char* boolSetting : activeBools) {
@@ -1028,9 +1083,48 @@ void init_webserver() {
       chg["a"] = String(charger->HVDC_output_current(), 2);
     }
 
-    String output;
-    serializeJson(doc, output);
-    request->send(200, "application/json", output);
+    // String output;
+    // serializeJson(doc, output);
+    // request->send(200, "application/json", output);
+    const char* cType = "application/json";
+    AsyncResponseStream *response = request->beginResponseStream(cType);
+    serializeJson(doc, *response);
+    request->send(response);
+  });
+
+  // NEW API : JSON cell battery info
+  def_route_with_auth("/api/cells", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    response->print("{");
+    bool firstBat = true;
+    
+    auto printBat = [&](const char* key, Battery* bat, DATALAYER_BATTERY_TYPE& layer) {
+        if (!bat || layer.info.number_of_cells == 0) return;
+        if (!firstBat) response->print(",");
+        firstBat = false;
+        
+        response->printf("\"%s\":{\"cv\":[", key);
+        int cells = layer.info.number_of_cells;
+        if (cells > MAX_AMOUNT_CELLS) cells = MAX_AMOUNT_CELLS; 
+        
+        for(int i=0; i<cells; i++) {
+            response->print(layer.status.cell_voltages_mV[i]);
+            if(i < cells-1) response->print(",");
+        }
+        response->print("],\"cb\":[");
+        for(int i=0; i<cells; i++) {
+            response->print(layer.status.cell_balancing_status[i] ? 1 : 0); 
+            if(i < cells-1) response->print(",");
+        }
+        response->print("]}");
+    };
+    
+    printBat("b1", battery, datalayer.battery);
+    printBat("b2", battery2, datalayer.battery2);
+    printBat("b3", battery3, datalayer.battery3);
+    
+    response->print("}");
+    request->send(response);
   });
 
   def_route_with_auth("/debug", server, HTTP_GET, [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });

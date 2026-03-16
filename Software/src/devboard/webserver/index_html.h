@@ -167,19 +167,19 @@
             <div class="menu-group">Main Menu</div>
             <a href="/" class="menu-item">📊 Dashboard</a>
             <a href="/cellmonitor" class="menu-item">🔋 Cell Monitor</a>
-            
-            <div class="menu-group">Setup</div>
-            <a href="/settings" class="menu-item">⚙️ Settings</a>
+            <a href="/advanced" class="menu-item">🛰️ Advanced</a>
             
             <div class="menu-group">Diagnostics</div>
             <a href="/events" class="menu-item">⚠️ Events <span class="badge" id="event-badge">0</span></a>
-            <a href="/advanced" class="menu-item">📊 Adv. Info</a>
-            <a href="/canlog" class="menu-item">📝 CAN Log</a>
+            <a href="/canlog" class="menu-item">🔢 CAN Log</a>
             <a href="/canreplay" class="menu-item">⏪ CAN Replay</a>
             <a href="/log" class="menu-item">📄 System Log</a>
             
+            <div class="menu-group">Setup </div>
+            <a href="/settings" class="menu-item">🛠️ Settings</a>
+            
            <div class="menu-group">Administration</div>
-            <a href="/ota" class="menu-item">🔄 OTA Update</a>
+            <a href="/ota" class="menu-item">🧬 OTA Update</a>
             <a href="#" class="menu-item" style="color: #e74c3c;" onclick="askReboot()">🔄 Reboot</a>
             <a href="#" class="menu-item" onclick="logout()"><span>🚪 Logout</span></a>
           </div>
@@ -316,6 +316,31 @@
           }, 1000);
         }
       }
+
+      window.repairAndParseJSON = function(jsonString) {
+        if (!jsonString) return null;
+          try {
+            return JSON.parse(jsonString);
+          } catch (e) {
+            console.warn("⚠️ Data truncated! Attempting Auto-Heal...");
+            let repaired = jsonString.trim().replace(/,\s*$/, '');
+            
+            let openBraces = (repaired.match(/\{/g) || []).length;
+            let closeBraces = (repaired.match(/\}/g) || []).length;
+            let openBrackets = (repaired.match(/\[/g) || []).length;
+            let closeBrackets = (repaired.match(/\]/g) || []).length;
+            
+            for (let i = 0; i < (openBrackets - closeBrackets); i++) repaired += ']';
+            for (let i = 0; i < (openBraces - closeBraces); i++) repaired += '}';
+            
+            try {
+                return JSON.parse(repaired);
+            } catch (err) {
+                console.error("❌ Auto-Heal Failed. Skipping this tick.");
+                return null;
+            }
+          }
+      };
     </script>
     </body>
   </html>)rawliteral";

@@ -117,7 +117,7 @@ enum class GPIOOPT1 {
   // T-2CAN: WUP1/WUP2 on GPIO1/GPIO2
   DEFAULT_OPT = 0,
   // T-2CAN: SDA/SCL on GPIO1/GPIO2
-  I2C_DISPLAY_SSD1306 = 1,
+  I2C_DEVICES = 1,
   // T-2CAN: ESTOP on GPIO1, BMS_POWER on GPIO2
   ESTOP_BMS_POWER = 2,
   Highest
@@ -153,7 +153,7 @@ enum class GPIOOPT4 {
   // T-CAN485: Default, uSD Card
   DEFAULT_SD_CARD = 0,
   // T-CAN485: Disable SD,Enable Display on Pins 14,15
-  I2C_DISPLAY_SSD1306 = 1,
+  I2C_DEVICES = 1,
   Highest
 };
 

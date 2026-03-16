@@ -6,6 +6,8 @@
 #endif
 #include <time.h>
 #include "esp_sntp.h"
+#include "../i2c/i2c_devices.h"
+
 
 bool wifi_enabled = true;
 bool wifiap_enabled = true;
@@ -207,6 +209,7 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 // This function will be called automatically when time synchronization is successful (runs in the background, does not interfere with the main system)
 void timeavailable_cb(struct timeval *t) {
   logging.println("NTP Time Synced Successfully!");
+  updateRTCFromSystemTime();
 // The ESP32's time system has been updated. You can use getLocalTime() to display it on the screen.
 }
 

@@ -1,18 +1,15 @@
+#include <Arduino.h>
 #include "cellmonitor_html.h"
-#include "../../battery/BATTERIES.h"
-#include "../../datalayer/datalayer.h"
 
 // =========================================================================
-// 🎨 1. CSS & HTML HEADER (Hybrid Responsive Edition)
+// Page Static + AJAX 
 // =========================================================================
-const char CELLMONITOR_HTML_START[] PROGMEM = R"rawliteral(
+const char CELLMONITOR_HTML_CONTENT[] PROGMEM = R"rawliteral(
 <style>
   .cm-wrap { display: flex; flex-direction: column; gap: 20px; }
   .bat-card { background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 4px solid #3498db; padding: 20px; }
   .bat-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
   .bat-title { margin: 0; color: #2c3e50; font-size: 1.3rem; font-weight: 800; }
-  
-  /* --- 📊 Stats Grid --- */
   .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
   .stat-box { background: #f8f9fa; border: 1px solid #e9ecef; border-left: 4px solid #3498db; padding: 12px; border-radius: 6px; }
   .stat-box.max { border-left-color: #e74c3c; }
@@ -20,11 +17,7 @@ const char CELLMONITOR_HTML_START[] PROGMEM = R"rawliteral(
   .stat-box.delta { border-left-color: #9b59b6; }
   .stat-box h4 { margin: 0; font-size: 0.8rem; color: #7f8c8d; text-transform: uppercase; }
   .stat-box .val { font-size: 1.4rem; font-weight: bold; color: #333; margin-top: 5px; }
-
-  /* --- 📈 Graph Wrapper --- */
   .graph-wrap { position: relative; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px; margin-top: 10px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.02); min-height: 200px;}
-  
-  /* --- 📱 Mobile Bars CSS --- */
   .m-bars { display: flex; flex-direction: column; gap: 6px; }
   .m-cell { position: relative; background: #f8f9fa; border: 1px solid #eee; border-radius: 4px; height: 38px; display: flex; align-items: center; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
   .m-bar { position: absolute; left: 0; top: 0; height: 100%; z-index: 1; transition: width 0.3s; opacity: 0.75; }
@@ -32,24 +25,21 @@ const char CELLMONITOR_HTML_START[] PROGMEM = R"rawliteral(
   .m-num { color: #7f8c8d; }
   .m-cell.max { border-color: #fadbd8; background: #fdedec; }
   .m-cell.min { border-color: #fdebd0; background: #fef5e7; }
-  
-  /* --- 🚥 Legend --- */
   .legend-box { display: flex; gap: 15px; flex-wrap: wrap; font-size: 0.85rem; color: #666; justify-content: flex-end; margin-top: -10px; }
   .l-item { display: flex; align-items: center; gap: 5px; }
   .l-color { width: 12px; height: 12px; border-radius: 50%; }
 </style>
-<div class="cm-wrap">
-)rawliteral";
 
-// =========================================================================
-// 🧠 2. JAVASCRIPT LOGIC (Hybrid Renderer: Canvas + Mobile List)
-// =========================================================================
-const char CELLMONITOR_HTML_JS_START[] PROGMEM = R"rawliteral(
+<div class="cm-wrap">
+    <div id="bat_b1" style="display:none;"></div>
+    <div id="bat_b2" style="display:none;"></div>
+    <div id="bat_b3" style="display:none;"></div>
 </div>
+
 <script>
   function renderHybridChart(id, data, balancing) {
     const wrap = document.getElementById('wrap_' + id);
-    if(!data || data.length === 0 || !wrap) return;
+    if(!wrap) return;
 
     const validData = data.filter(v => v > 0);
     if(validData.length === 0) return;
@@ -62,12 +52,9 @@ const char CELLMONITOR_HTML_JS_START[] PROGMEM = R"rawliteral(
 
     let currentMode = '';
 
-    // Mobile graph drawing function (vertical).
     function drawMobile() {
         currentMode = 'mobile';
         let html = '<div class="m-bars">';
-        
-        // Calculate the color bar scale to zoom in and clearly see the differences.
         const yPadding = Math.max(15, deviation * 0.5);
         const yMin = min_mv - yPadding;
         const yMax = max_mv + yPadding;
@@ -78,11 +65,10 @@ const char CELLMONITOR_HTML_JS_START[] PROGMEM = R"rawliteral(
             let pct = ((mV - yMin) / yRange) * 100;
             if(pct < 3) pct = 3; if(pct > 100) pct = 100;
 
-            let isBal = balancing[index];
+            let isBal = balancing[index] === 1;
             let isMax = index === max_index;
             let isMin = index === min_index;
 
-            // Green = Normal, Blue = Balance, Red = Max, Orange = Min
             let barColor = isBal ? '#00bcd4' : (isMax ? '#e74c3c' : (isMin ? '#f39c12' : '#3498db'));
             let bgClass = isMax ? 'max' : (isMin ? 'min' : '');
 
@@ -99,7 +85,6 @@ const char CELLMONITOR_HTML_JS_START[] PROGMEM = R"rawliteral(
         wrap.innerHTML = html;
     }
 
-    // Computer graphing function (horizontal).
     function drawDesktop() {
         currentMode = 'desktop';
         wrap.innerHTML = `<canvas id="cvs_${id}" style="width:100%; height:300px; cursor:crosshair;"></canvas>
@@ -130,13 +115,11 @@ const char CELLMONITOR_HTML_JS_START[] PROGMEM = R"rawliteral(
 
             ctx.clearRect(0, 0, w, h);
 
-            // Deviation Background
             const devYTop = getY(max_mv);
             const devYBot = getY(min_mv);
             ctx.fillStyle = 'rgba(52, 152, 219, 0.08)';
             ctx.fillRect(pad.l, devYTop, w - pad.l - pad.r, devYBot - devYTop);
             
-            // Grid Lines
             ctx.fillStyle = '#7f8c8d';
             ctx.font = '11px Arial';
             ctx.textAlign = 'right';
@@ -157,19 +140,17 @@ const char CELLMONITOR_HTML_JS_START[] PROGMEM = R"rawliteral(
                 ctx.fillText(i+1, getX(i), h - pad.b + 10);
             }
 
-            // Bars
             const barWidth = Math.max(2, ((w - pad.l - pad.r) / data.length) * 0.6);
             data.forEach((v, i) => {
                 if(v === 0) return;
                 const x = getX(i);
                 const y = getY(v);
                 const base = getY(yMin);
-                ctx.fillStyle = balancing[i] ? '#00bcd4' : '#2ecc71';
+                ctx.fillStyle = (balancing[i] === 1) ? '#00bcd4' : '#2ecc71';
                 if(hoverIndex === i) ctx.fillStyle = '#f1c40f';
                 ctx.fillRect(x - barWidth/2, y, barWidth, base - y);
             });
 
-            // Line
             ctx.beginPath();
             let first = true;
             data.forEach((v, i) => {
@@ -183,7 +164,6 @@ const char CELLMONITOR_HTML_JS_START[] PROGMEM = R"rawliteral(
             ctx.lineWidth = 2.5;
             ctx.stroke();
 
-            // Dots
             data.forEach((v, i) => {
                 if(v === 0) return;
                 ctx.beginPath();
@@ -198,7 +178,6 @@ const char CELLMONITOR_HTML_JS_START[] PROGMEM = R"rawliteral(
 
         drawCvs();
 
-        // Mouse Hover Event
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
@@ -228,101 +207,93 @@ const char CELLMONITOR_HTML_JS_START[] PROGMEM = R"rawliteral(
         canvas.addEventListener('mouseleave', () => { tt.style.display = 'none'; drawCvs(-1); });
     }
 
-    // Automatically switch graphs according to screen size.
     function render() {
         let newMode = window.innerWidth <= 768 ? 'mobile' : 'desktop';
         if (currentMode !== newMode) {
             if (newMode === 'mobile') drawMobile();
             else drawDesktop();
         } else if (newMode === 'desktop') {
-            drawDesktop(); // Redraw canvas on resize
+            drawDesktop();
         }
     }
 
-    render();
     window.addEventListener('resize', render);
-  }
-)rawliteral";
+    render();
+  } 
 
-// =========================================================================
-// 🔚 3. HTML FOOTER (Auto Reload)
-// =========================================================================
-const char CELLMONITOR_HTML_END[] PROGMEM = R"rawliteral(
-  setTimeout(function(){ location.reload(true); }, 20000);
+  // AJAX sys
+  function updateBatteryBlock(id, title, data, balancing) {
+      const validData = data.filter(v => v > 0);
+      if(validData.length === 0) return;
+
+      const min_mv = Math.min(...validData);
+      const max_mv = Math.max(...validData);
+      const delta_mv = max_mv - min_mv;
+      const cells = data.length;
+
+      let container = document.getElementById('bat_' + id);
+      
+      if(container.innerHTML.trim() === '') {
+          container.innerHTML = `
+          <div class='bat-card'>
+              <div class='bat-header'>
+                  <h3 class='bat-title'>🔋 ${title}</h3>
+                  <div class='legend-box'>
+                      <div class='l-item'><div class='l-color' style='background:#2ecc71;'></div> Normal</div>
+                      <div class='l-item'><div class='l-color' style='background:#e74c3c;'></div> Max</div>
+                      <div class='l-item'><div class='l-item'><div class='l-color' style='background:#f39c12;'></div> Min</div><div class='l-item'><div class='l-color' style='background:#00bcd4;'></div> Balancing</div></div>
+                  </div>
+              </div>
+              <div class='stats-grid'>
+                  <div class='stat-box max'><h4>Highest</h4><div class='val'><span id='max_${id}'>${max_mv}</span> <span style='font-size:0.8rem;'>mV</span></div></div>
+                  <div class='stat-box min'><h4>Lowest</h4><div class='val'><span id='min_${id}'>${min_mv}</span> <span style='font-size:0.8rem;'>mV</span></div></div>
+                  <div class='stat-box delta'><h4>Delta</h4><div class='val'><span id='del_${id}'>${delta_mv}</span> <span style='font-size:0.8rem;'>mV</span></div></div>
+                  <div class='stat-box'><h4>Total Cells</h4><div class='val'>${cells}</div></div>
+              </div>
+              <div id='wrap_${id}' class='graph-wrap'></div>
+          </div>`;
+          container.style.display = 'block';
+      } else {
+          document.getElementById('max_' + id).innerText = max_mv;
+          document.getElementById('min_' + id).innerText = min_mv;
+          document.getElementById('del_' + id).innerText = delta_mv;
+      }
+
+      renderHybridChart(id, data, balancing);
+  }
+
+    // Receive Text then convert to JSON
+    function fetchCellData() {
+        fetch('/api/cells')
+            .then(response => response.text()) 
+            .then(text => {
+                if(!text) return;
+                
+                // Repair json!
+                // let data = repairAndParseJSON(text); 
+                let data = window.repairAndParseJSON(text);
+                
+                if (data) {
+                    if(data.b1 && data.b1.cv) updateBatteryBlock('b1', 'Main Battery Pack', data.b1.cv, data.b1.cb);
+                    if(data.b2 && data.b2.cv) updateBatteryBlock('b2', 'Battery Pack #2', data.b2.cv, data.b2.cb);
+                    if(data.b3 && data.b3.cv) updateBatteryBlock('b3', 'Battery Pack #3', data.b3.cv, data.b3.cb);
+                }
+            })
+            .catch(error => console.error('Error fetching cell data:', error));
+    }
+
+    fetchCellData();
+    setInterval(fetchCellData, 5000);
+
 </script>
 )rawliteral";
 
 // =========================================================================
-// 🛠️ 4. HELPER FUNCTIONS
-// =========================================================================
-String generateBatteryBlock(DATALAYER_BATTERY_TYPE& batLayer, const String& title, const String& id) {
-    if (batLayer.info.number_of_cells == 0) return ""; 
-
-    uint16_t max_mv = batLayer.status.cell_max_voltage_mV;
-    uint16_t min_mv = batLayer.status.cell_min_voltage_mV;
-    uint16_t delta_mv = max_mv - min_mv;
-
-    String html = "<div class='bat-card'>";
-    
-    // Header
-    html += "<div class='bat-header'>";
-    html += "<h3 class='bat-title'>🔋 " + title + "</h3>";
-    html += "<div class='legend-box'>";
-    html += "<div class='l-item'><div class='l-color' style='background:#2ecc71;'></div> Normal</div>";
-    html += "<div class='l-item'><div class='l-color' style='background:#e74c3c;'></div> Max</div>";
-    html += "<div class='l-item'><div class='l-color' style='background:#f39c12;'></div> Min</div>";
-    html += "<div class='l-item'><div class='l-color' style='background:#00bcd4;'></div> Balancing</div>";
-    html += "</div></div>"; 
-
-    // Stats Grid
-    html += "<div class='stats-grid'>";
-    html += "<div class='stat-box max'><h4>Highest</h4><div class='val'>" + String(max_mv) + " <span style='font-size:0.8rem;'>mV</span></div></div>";
-    html += "<div class='stat-box min'><h4>Lowest</h4><div class='val'>" + String(min_mv) + " <span style='font-size:0.8rem;'>mV</span></div></div>";
-    html += "<div class='stat-box delta'><h4>Delta</h4><div class='val'>" + String(delta_mv) + " <span style='font-size:0.8rem;'>mV</span></div></div>";
-    html += "<div class='stat-box'><h4>Total Cells</h4><div class='val'>" + String(batLayer.info.number_of_cells) + "</div></div>";
-    html += "</div>";
-
-    // JavaScript allows switching between graph drawing (Canvas or Mobile Bars).
-    html += "<div id='wrap_" + id + "' class='graph-wrap'></div>";
-
-    html += "</div>"; 
-    return html;
-}
-
-String generateBatteryJS(DATALAYER_BATTERY_TYPE& batLayer, const String& id) {
-    if (batLayer.info.number_of_cells == 0) return "";
-
-    String js = "renderHybridChart('" + id + "', [";
-    for (int i = 0; i < batLayer.info.number_of_cells; i++) {
-        js += String(batLayer.status.cell_voltages_mV[i]) + ",";
-    }
-    js += "], [";
-    for (int i = 0; i < batLayer.info.number_of_cells; i++) {
-        js += batLayer.status.cell_balancing_status[i] ? "true," : "false,";
-    }
-    js += "]);\n";
-    return js;
-}
-
-// =========================================================================
-// 🚀 5. MAIN PROCESSOR
+// 🚀 PROCESSOR (Empty structure RAM 0%)
 // =========================================================================
 String cellmonitor_processor(const String& var) {
   if (var == "X") {
-    String html = FPSTR(CELLMONITOR_HTML_START);
-    
-    html += generateBatteryBlock(datalayer.battery, "Main Battery Pack", "b1");
-    if (battery2) html += generateBatteryBlock(datalayer.battery2, "Battery Pack #2", "b2");
-    if (battery3) html += generateBatteryBlock(datalayer.battery3, "Battery Pack #3", "b3");
-    
-    html += FPSTR(CELLMONITOR_HTML_JS_START);
-
-    html += generateBatteryJS(datalayer.battery, "b1");
-    if (battery2) html += generateBatteryJS(datalayer.battery2, "b2");
-    if (battery3) html += generateBatteryJS(datalayer.battery3, "b3");
-    
-    html += FPSTR(CELLMONITOR_HTML_END);
-    return html;
+    return FPSTR(CELLMONITOR_HTML_CONTENT);
   }
-  return String();
+  return "%" + var + "%"; 
 }

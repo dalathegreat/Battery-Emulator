@@ -160,7 +160,7 @@ class LilyGo2CANHal : public Esp32Hal {
   // I2C OLED (Uses QWIIC connector - GPIO1 & GPIO2)
   virtual gpio_num_t DISPLAY_SDA_PIN() {
     if (user_selected_display_type == DisplayType::OLED_I2C ||
-        user_selected_gpioopt1 == GPIOOPT1::I2C_DISPLAY_SSD1306) {
+        user_selected_gpioopt1 == GPIOOPT1::I2C_DEVICES) {
       return GPIO_NUM_1;
     }
     return GPIO_NUM_NC;
@@ -168,7 +168,7 @@ class LilyGo2CANHal : public Esp32Hal {
 
   virtual gpio_num_t DISPLAY_SCL_PIN() {
     if (user_selected_display_type == DisplayType::OLED_I2C ||
-        user_selected_gpioopt1 == GPIOOPT1::I2C_DISPLAY_SSD1306) {
+        user_selected_gpioopt1 == GPIOOPT1::I2C_DEVICES) {
       return GPIO_NUM_2;
     }
     return GPIO_NUM_NC;

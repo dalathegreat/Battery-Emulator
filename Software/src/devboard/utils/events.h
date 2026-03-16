@@ -185,5 +185,6 @@ const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);
 
 bool compareEventsByTimestampAsc(const EventData& a, const EventData& b);
 bool compareEventsByTimestampDesc(const EventData& a, const EventData& b);
+bool compareEventsBySeverityAndTimestampDesc(const EventData& a, const EventData& b);
 
 #endif  // __MYTIMER_H__

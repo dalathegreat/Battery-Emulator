@@ -141,7 +141,7 @@ String events_processor(const String& var) {
       }
     }
     // Sort events by timestamp
-    std::sort(order_events.begin(), order_events.end(), compareEventsByTimestampDesc);
+    std::sort(order_events.begin(), order_events.end(), compareEventsBySeverityAndTimestampDesc);
     uint64_t current_timestamp = millis64();
 
     // Generate HTML and debug output

@@ -135,8 +135,8 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
   switch (option) {
     case GPIOOPT1::DEFAULT_OPT:
       return "WUP1 / WUP2";
-    case GPIOOPT1::I2C_DISPLAY_SSD1306:
-      return "I2C Display (SSD1306)";
+    case GPIOOPT1::I2C_DEVICES:
+      return "I2C Devices (QWIIC)";
     case GPIOOPT1::ESTOP_BMS_POWER:
       return "E-Stop / BMS Power";
     default:
@@ -184,8 +184,8 @@ const char* name_for_gpioopt4(GPIOOPT4 option) {
   switch (option) {
     case GPIOOPT4::DEFAULT_SD_CARD:
       return "uSD Card";
-    case GPIOOPT4::I2C_DISPLAY_SSD1306:
-      return "I2C Display (SSD1306)";
+    case GPIOOPT4::I2C_DEVICES:
+      return "I2C Devices";
     default:
       return nullptr;
   }
@@ -899,6 +899,25 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("GTWRHD") ? "checked" : "";
   }
 
+  if (var == "MULTII2C") {
+    return settings.getBool("MULTII2C") ? "checked" : "";
+  }
+  if (var == "I2C_OLED") {
+    return settings.getBool("I2C_OLED") ? "checked" : "";
+  }
+  if (var == "I2C_SHT30") {
+    return settings.getBool("I2C_SHT30") ? "checked" : "";
+  }
+  if (var == "I2C_ATECC") {
+    return settings.getBool("I2C_ATECC") ? "checked" : "";
+  }
+  if (var == "I2C_RTC") {
+    return settings.getBool("I2C_RTC") ? "checked" : "";
+  }
+  if (var == "I2C_IO") {
+    return settings.getBool("I2C_IO") ? "checked" : "";
+  }
+
   return String();
 }
 
@@ -932,7 +951,44 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     <select id="GPIOOPT1" name="GPIOOPT1">
       %GPIOOPT1%
     </select>
-  )rawliteral"
+    
+    <div class="if-i2c" style="grid-column: span 2; background: #f9f9f9; padding: 15px; border-left: 4px solid #3498db; margin: 10px 0; border-radius: 4px;">
+        
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 5px;">
+          <label style="font-weight: bold; color: #333; margin: 0; text-align: left; padding: 0;">Enable Multiple I2C Devices:</label>
+          <input type='checkbox' name='MULTII2C' value='on' %MULTII2C% style="margin: 0; width: 20px; height: 20px;" />
+          <span style="font-size: 0.85em; color: #856404; background: #fff3cd; padding: 4px 8px; border-radius: 4px;">
+              💡 To use OLED, select it in "Display Type" below
+          </span>
+        </div>
+        
+        <div class="if-multii2c" style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;">
+          <h4 style="margin-bottom: 12px; color: #555; text-align: left;">Select active I2C devices on the bus:</h4>
+          
+          <div style="display: flex; flex-direction: column; gap: 12px; padding-left: 5px;">
+            <label style="display: flex; align-items: center; gap: 10px; text-align: left; font-weight: normal; margin: 0; padding: 0; cursor: pointer;">
+              <input type="checkbox" name="I2C_SHT30" value="on" %I2C_SHT30% style="margin: 0; flex-shrink: 0;">
+              <span><code>0x44</code> - SHT30 (Ambient Temp/Humidity)</span>
+            </label>
+            
+            <label style="display: flex; align-items: center; gap: 10px; text-align: left; font-weight: normal; margin: 0; padding: 0; cursor: pointer;">
+              <input type="checkbox" name="I2C_ATECC" value="on" %I2C_ATECC% style="margin: 0; flex-shrink: 0;">
+              <span><code>0x60</code> - ATECC608A (Hardware Security)</span>
+            </label>
+            
+            <label style="display: flex; align-items: center; gap: 10px; text-align: left; font-weight: normal; margin: 0; padding: 0; cursor: pointer;">
+              <input type="checkbox" name="I2C_RTC" value="on" %I2C_RTC% style="margin: 0; flex-shrink: 0;">
+              <span><code>0x68</code> - DS3231 (Offline RTC Logging)</span>
+            </label>
+            
+            <label style="display: flex; align-items: center; gap: 10px; text-align: left; font-weight: normal; margin: 0; padding: 0; cursor: pointer;">
+              <input type="checkbox" name="I2C_IO" value="on" %I2C_IO% style="margin: 0; flex-shrink: 0;">
+              <span><code>0x20</code> - PCF8574 (External IO & Relays)</span>
+            </label>
+          </div>
+        </div> 
+        </div> 
+    )rawliteral"
 #else
 #define GPIOOPT1_SETTING ""
 #endif
@@ -959,7 +1015,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     <div id="oled_warning" style="display:none; margin-top:5px; padding:10px; background-color:#d1ecf1; border:1px solid #bee5eb; color:#0c5460; border-radius:5px; font-size: 0.9em; grid-column: span 2;">
       ℹ️ <b>Port Auto-Assigned:</b><br>
-      I2C OLED is using the <b>QWIIC Port (IO1, IO2)</b>.<br>
+      I2C OLED(0x3C) is using the <b>QWIIC Port (IO1, IO2)</b>.<br>
       <i>The "Configurable port" above is disabled to prevent conflicts.</i>
     </div>
   )rawliteral"
@@ -1156,7 +1212,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
 #define SETTINGS_STYLE \
   R"rawliteral(
-<style>h3{color:#2c3e50;font-size:1.15rem;margin-top:0;padding-bottom:8px;border-bottom:2px solid #eee;margin-bottom:15px}h4{margin:0;font-weight:500;color:#444;font-size:.95rem}input[type=number],input[type=password],input[type=text],select{width:100%;max-width:250px;padding:6px 10px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;font-size:.9rem;transition:.2s}input:focus,select:focus{border-color:#3498db;outline:0}input[type=checkbox]{width:18px;height:18px;cursor:pointer;justify-self:start;margin:0}.hidden{display:none!important}.active{color:#2ecc71!important;font-weight:700}.inactive{color:#bdc3c7!important;font-style:italic}.inactiveSoc{color:#e74c3c!important;font-weight:700}.form-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:12px 10px;align-items:center}.form-grid label{color:#555;font-size:.9rem;font-weight:600;text-align:right;padding-right:10px}.override-grid{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center;padding:12px 0;border-bottom:1px dashed #eee}.override-grid:last-child{border-bottom:none}.mqtt-settings,.mqtt-topics{display:none;grid-column:span 2}form .if-battery,form .if-charger,form .if-inverter,form .if-shunt{display:contents}form[data-battery="0"] .if-battery,form[data-charger="0"] .if-charger,form[data-inverter="0"] .if-inverter,form[data-shunttype="0"] .if-shunt{display:none}form .if-auth{display:contents}form[data-webauth="0"] .if-auth{display:none}form .if-epaper3c{display:none}form[data-displaytype="2"] .if-epaper3c{display:contents}form .if-cbms{display:none}form[data-battery="11"] .if-cbms,form[data-battery="22"] .if-cbms,form[data-battery="23"] .if-cbms,form[data-battery="24"] .if-cbms,form[data-battery="31"] .if-cbms,form[data-battery="41"] .if-cbms,form[data-battery="48"] .if-cbms,form[data-battery="49"] .if-cbms,form[data-battery="6"] .if-cbms{display:contents}form .if-nissan{display:none}form[data-battery="21"] .if-nissan{display:contents}form .if-tesla{display:none}form[data-battery="32"] .if-tesla,form[data-battery="33"] .if-tesla{display:contents}form .if-estimated{display:none}form[data-battery="14"] .if-estimated,form[data-battery="16"] .if-estimated,form[data-battery="24"] .if-estimated,form[data-battery="3"] .if-estimated,form[data-battery="32"] .if-estimated,form[data-battery="33"] .if-estimated,form[data-battery="4"] .if-estimated,form[data-battery="40"] .if-estimated,form[data-battery="41"] .if-estimated,form[data-battery="44"] .if-estimated,form[data-battery="6"] .if-estimated{display:contents}form .if-socestimated{display:none}form[data-battery="16"] .if-socestimated,form[data-battery="41"] .if-socestimated{display:contents}form .if-dblbtr{display:none}form[data-dblbtr="true"] .if-dblbtr{display:contents}form .if-tribtr{display:none}form[data-tribtr="true"] .if-tribtr{display:contents}form .if-pwmcntctrl{display:none}form[data-pwmcntctrl="true"] .if-pwmcntctrl{display:contents}form .if-cntctrl{display:none}form[data-cntctrl="true"] .if-cntctrl{display:contents}form .if-extprecharge{display:none}form[data-extprecharge="true"] .if-extprecharge{display:contents}form .if-sofar{display:none}form[data-inverter="17"] .if-sofar{display:contents}form .if-byd{display:none}form[data-inverter="2"] .if-byd{display:contents}form .if-pylon{display:none}form[data-battery="22"] .if-pylon,form[data-inverter="10"] .if-pylon{display:contents}form .if-pylon-inverter{display:none}form[data-inverter="10"] .if-pylon-inverter{display:contents}form .if-pylon-battery{display:none}form[data-battery="22"] .if-pylon-battery{display:contents}form .if-pylonish{display:none}form[data-inverter="10"] .if-pylonish,form[data-inverter="19"] .if-pylonish,form[data-inverter="4"] .if-pylonish{display:contents}form .if-solax{display:none}form[data-inverter="18"] .if-solax{display:contents}form .if-sungrow{display:none}form[data-inverter="21"] .if-sungrow{display:contents}form .if-kostal{display:none}form[data-inverter="9"] .if-kostal{display:contents}form .if-staticip{display:none}form[data-staticip="true"] .if-staticip{display:contents}form .if-mqtt{display:none}form[data-mqttenabled="true"] .if-mqtt{display:contents}form .if-topics{display:none}form[data-mqtttopics="true"] .if-topics{display:contents}</style>
+<style>h3{color:#2c3e50;font-size:1.15rem;margin-top:0;padding-bottom:8px;border-bottom:2px solid #eee;margin-bottom:15px}h4{margin:0;font-weight:500;color:#444;font-size:.95rem}input[type=number],input[type=password],input[type=text],select{width:100%;max-width:250px;padding:6px 10px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;font-size:.9rem;transition:.2s}input:focus,select:focus{border-color:#3498db;outline:0}input[type=checkbox]{width:18px;height:18px;cursor:pointer;justify-self:start;margin:0}.hidden{display:none!important}.active{color:#2ecc71!important;font-weight:700}.inactive{color:#bdc3c7!important;font-style:italic}.inactiveSoc{color:#e74c3c!important;font-weight:700}.form-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:12px 10px;align-items:center}.form-grid label{color:#555;font-size:.9rem;font-weight:600;text-align:right;padding-right:10px}.override-grid{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center;padding:12px 0;border-bottom:1px dashed #eee}.override-grid:last-child{border-bottom:none}.mqtt-settings,.mqtt-topics{display:none;grid-column:span 2}form .if-battery,form .if-charger,form .if-inverter,form .if-shunt{display:contents}form[data-battery="0"] .if-battery,form[data-charger="0"] .if-charger,form[data-inverter="0"] .if-inverter,form[data-shunttype="0"] .if-shunt{display:none}form .if-auth{display:contents}form[data-webauth="0"] .if-auth{display:none}form .if-epaper3c{display:none}form[data-displaytype="2"] .if-epaper3c{display:contents}form .if-cbms{display:none}form[data-battery="11"] .if-cbms,form[data-battery="22"] .if-cbms,form[data-battery="23"] .if-cbms,form[data-battery="24"] .if-cbms,form[data-battery="31"] .if-cbms,form[data-battery="41"] .if-cbms,form[data-battery="48"] .if-cbms,form[data-battery="49"] .if-cbms,form[data-battery="6"] .if-cbms{display:contents}form .if-nissan{display:none}form[data-battery="21"] .if-nissan{display:contents}form .if-tesla{display:none}form[data-battery="32"] .if-tesla,form[data-battery="33"] .if-tesla{display:contents}form .if-estimated{display:none}form[data-battery="14"] .if-estimated,form[data-battery="16"] .if-estimated,form[data-battery="24"] .if-estimated,form[data-battery="3"] .if-estimated,form[data-battery="32"] .if-estimated,form[data-battery="33"] .if-estimated,form[data-battery="4"] .if-estimated,form[data-battery="40"] .if-estimated,form[data-battery="41"] .if-estimated,form[data-battery="44"] .if-estimated,form[data-battery="6"] .if-estimated{display:contents}form .if-socestimated{display:none}form[data-battery="16"] .if-socestimated,form[data-battery="41"] .if-socestimated{display:contents}form .if-dblbtr{display:none}form[data-dblbtr="true"] .if-dblbtr{display:contents}form .if-tribtr{display:none}form[data-tribtr="true"] .if-tribtr{display:contents}form .if-pwmcntctrl{display:none}form[data-pwmcntctrl="true"] .if-pwmcntctrl{display:contents}form .if-cntctrl{display:none}form[data-cntctrl="true"] .if-cntctrl{display:contents}form .if-extprecharge{display:none}form[data-extprecharge="true"] .if-extprecharge{display:contents}form .if-sofar{display:none}form[data-inverter="17"] .if-sofar{display:contents}form .if-byd{display:none}form[data-inverter="2"] .if-byd{display:contents}form .if-pylon{display:none}form[data-battery="22"] .if-pylon,form[data-inverter="10"] .if-pylon{display:contents}form .if-pylon-inverter{display:none}form[data-inverter="10"] .if-pylon-inverter{display:contents}form .if-pylon-battery{display:none}form[data-battery="22"] .if-pylon-battery{display:contents}form .if-pylonish{display:none}form[data-inverter="10"] .if-pylonish,form[data-inverter="19"] .if-pylonish,form[data-inverter="4"] .if-pylonish{display:contents}form .if-solax{display:none}form[data-inverter="18"] .if-solax{display:contents}form .if-sungrow{display:none}form[data-inverter="21"] .if-sungrow{display:contents}form .if-kostal{display:none}form[data-inverter="9"] .if-kostal{display:contents}form .if-staticip{display:none}form[data-staticip="true"] .if-staticip{display:contents}form .if-mqtt{display:none}form[data-mqttenabled="true"] .if-mqtt{display:contents}form .if-topics{display:none}form[data-mqtttopics="true"] .if-topics{display:contents} form .if-i2c { display:none } form[data-gpioopt1="1"] .if-i2c, form[data-displaytype="1"] .if-i2c { display:block } form .if-multii2c { display:none } form[data-multii2c="true"] .if-multii2c { display:block }
+</style>
 )rawliteral"
 
 // =======================================================

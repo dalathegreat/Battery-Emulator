@@ -32,6 +32,7 @@
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
 #include "src/system_settings.h"
+#include "src/devboard/i2c/i2c_devices.h"
 
 #if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
     !defined(HW_DEVKIT)
@@ -634,6 +635,8 @@ void setup() {
   // read display setting (Default=1, OLED_I2C)
   user_selected_display_type = (DisplayType)settings.getUInt("DISPLAYTYPE", 1);
   DEBUG_PRINTF("Display Mode: %d\n", (int)user_selected_display_type);
+  // i2c device
+  setupMultipleI2CDevices(settings);
 #endif
 
   if (wifi_enabled) {
