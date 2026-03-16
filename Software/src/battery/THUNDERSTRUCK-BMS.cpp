@@ -156,9 +156,16 @@ void ThunderstruckBMS::transmit_can(unsigned long currentMillis) {
   // Send 500ms CAN Message
   if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
     previousMillis500 = currentMillis;
+    PGNindex = (PGNindex + 1) % 13;             // PGN repeats after 13 messages. 0-1..12-0
+    THUND_14ebd0d8.data.u8[0] = PGN[PGNindex];  //PGN is in byte 1 of the data
+    THUND_14ebd0d8.data.u8[1] = 0x00;           //(Still PGN field, should this be 0x00 or 0xFF?)) //TODO: !
+    THUND_14ebd0d8.data.u8[2] = 0x0a;  //Request rate (0x0a = 10, and each tick is 50ms, so 500ms between messages)
+    THUND_14ebd0d8.data.u8[3] =
+        0x08;  //Request Repeat Count, requests the message be sent 8 times (0x08) before needing to be requested again.
+    THUND_14ebd0d8.data.u8[7] = 0x00;     //Profile number //TODO: !
+    transmit_can_frame(&THUND_14ebd0d8);  //J1939_MCU_ReadRequest
 
-    transmit_can_frame(&THUND_14efd0d8);
-    //TODO, should 14ebd0d8 be sent also?
+    //transmit_can_frame(&THUND_14efd0d8); //J1939_MCU_WRITE
   }
 }
 
