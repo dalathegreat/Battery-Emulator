@@ -92,9 +92,9 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   /** Minimum temperature currently measured in the pack, in d°C. 150 = 15.0 °C */
   int16_t temperature_min_dC;
   /** Instantaneous battery current in deciAmpere. 95 = 9.5 A */
-  int16_t current_dA;
+  int16_t current_dA = 0;
   /** Instantaneous battery current in deciAmpere. Sum of all batteries in the system 95 = 9.5 A */
-  int16_t reported_current_dA;
+  int16_t reported_current_dA = 0;
 
   /** uint8_t */
   /** A counter set each time a new message comes from battery.

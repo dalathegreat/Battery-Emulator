@@ -136,6 +136,8 @@ const char* name_for_battery_type(BatteryType type) {
       return TestFakeBattery::Name;
     case BatteryType::ThinkCity:
       return ThinkBattery::Name;
+    case BatteryType::ThunderstruckBMS:
+      return ThunderstruckBMS::Name;
     case BatteryType::GeelySea:
       return GeelySeaBattery::Name;
     case BatteryType::VolvoSpa:
@@ -251,6 +253,8 @@ Battery* create_battery(BatteryType type) {
       return new TestFakeBattery();
     case BatteryType::ThinkCity:
       return new ThinkBattery();
+    case BatteryType::ThunderstruckBMS:
+      return new ThunderstruckBMS();
     case BatteryType::GeelySea:
       return new GeelySeaBattery();
     case BatteryType::VolvoSpa:

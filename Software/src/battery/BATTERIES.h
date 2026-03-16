@@ -20,6 +20,7 @@ void setup_shunt();
 #include "BYD-ATTO-3-BATTERY.h"
 #include "CELLPOWER-BMS.h"
 #include "CHADEMO-BATTERY.h"
+#include "CHADEMO-CT.h"
 #include "CHADEMO-SHUNTS.h"
 #include "CMFA-EV-BATTERY.h"
 #include "CMP-SMART-CAR-BATTERY.h"
@@ -59,6 +60,7 @@ void setup_shunt();
 #include "TESLA-LEGACY-BATTERY.h"
 #include "TEST-FAKE-BATTERY.h"
 #include "THINK-BATTERY.h"
+#include "THUNDERSTRUCK-BMS.h"
 #include "VOLVO-SPA-BATTERY.h"
 #include "VOLVO-SPA-HYBRID-BATTERY.h"
 

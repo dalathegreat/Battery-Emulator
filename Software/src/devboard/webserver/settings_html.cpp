@@ -242,6 +242,12 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_comm_interface);
   }
 
+  if (var == "CTATTEN") {
+    return options_for_enum_with_none(
+        (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_0db), name_for_adc_attenuation,
+        adc_attenuation_enum::ADC_0db);
+  }
+
   if (var == "EQSTOP") {
     return options_for_enum_with_none(
         (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
@@ -831,6 +837,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "PYLONORDER") {
     return settings.getBool("PYLONORDER") ? "checked" : "";
   }
+
   if (var == "PYLONBAUD") {
     return String(settings.getUInt("PYLONBAUD", 500));
   }
@@ -865,6 +872,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "DEYEBYD") {
     return settings.getBool("DEYEBYD") ? "checked" : "";
+  }
+
+  if (var == "PRIMOGEN24") {
+    return settings.getBool("PRIMOGEN24") ? "checked" : "";
   }
 
   if (var == "CANFREQ") {
@@ -916,6 +927,21 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
   if (var == "I2C_IO") {
     return settings.getBool("I2C_IO") ? "checked" : "";
+  }
+  if (var == "CTOFFSET") {
+    return settings.getString("CTOFFSET", "-1.0");
+  }
+
+  if (var == "CTVNOM") {
+    return String(settings.getUInt("CTVNOM", 40));
+  }
+
+  if (var == "CTANOM") {
+    return String(settings.getUInt("CTANOM", 100));
+  }
+
+  if (var == "CTINVERT") {
+    return settings.getBool("CTINVERT") ? "checked" : "";
   }
 
   return String();
@@ -1212,7 +1238,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
 #define SETTINGS_STYLE \
   R"rawliteral(
-<style>h3{color:#2c3e50;font-size:1.15rem;margin-top:0;padding-bottom:8px;border-bottom:2px solid #eee;margin-bottom:15px}h4{margin:0;font-weight:500;color:#444;font-size:.95rem}input[type=number],input[type=password],input[type=text],select{width:100%;max-width:250px;padding:6px 10px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;font-size:.9rem;transition:.2s}input:focus,select:focus{border-color:#3498db;outline:0}input[type=checkbox]{width:18px;height:18px;cursor:pointer;justify-self:start;margin:0}.hidden{display:none!important}.active{color:#2ecc71!important;font-weight:700}.inactive{color:#bdc3c7!important;font-style:italic}.inactiveSoc{color:#e74c3c!important;font-weight:700}.form-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:12px 10px;align-items:center}.form-grid label{color:#555;font-size:.9rem;font-weight:600;text-align:right;padding-right:10px}.override-grid{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center;padding:12px 0;border-bottom:1px dashed #eee}.override-grid:last-child{border-bottom:none}.mqtt-settings,.mqtt-topics{display:none;grid-column:span 2}form .if-battery,form .if-charger,form .if-inverter,form .if-shunt{display:contents}form[data-battery="0"] .if-battery,form[data-charger="0"] .if-charger,form[data-inverter="0"] .if-inverter,form[data-shunttype="0"] .if-shunt{display:none}form .if-auth{display:contents}form[data-webauth="0"] .if-auth{display:none}form .if-epaper3c{display:none}form[data-displaytype="2"] .if-epaper3c{display:contents}form .if-cbms{display:none}form[data-battery="11"] .if-cbms,form[data-battery="22"] .if-cbms,form[data-battery="23"] .if-cbms,form[data-battery="24"] .if-cbms,form[data-battery="31"] .if-cbms,form[data-battery="41"] .if-cbms,form[data-battery="48"] .if-cbms,form[data-battery="49"] .if-cbms,form[data-battery="6"] .if-cbms{display:contents}form .if-nissan{display:none}form[data-battery="21"] .if-nissan{display:contents}form .if-tesla{display:none}form[data-battery="32"] .if-tesla,form[data-battery="33"] .if-tesla{display:contents}form .if-estimated{display:none}form[data-battery="14"] .if-estimated,form[data-battery="16"] .if-estimated,form[data-battery="24"] .if-estimated,form[data-battery="3"] .if-estimated,form[data-battery="32"] .if-estimated,form[data-battery="33"] .if-estimated,form[data-battery="4"] .if-estimated,form[data-battery="40"] .if-estimated,form[data-battery="41"] .if-estimated,form[data-battery="44"] .if-estimated,form[data-battery="6"] .if-estimated{display:contents}form .if-socestimated{display:none}form[data-battery="16"] .if-socestimated,form[data-battery="41"] .if-socestimated{display:contents}form .if-dblbtr{display:none}form[data-dblbtr="true"] .if-dblbtr{display:contents}form .if-tribtr{display:none}form[data-tribtr="true"] .if-tribtr{display:contents}form .if-pwmcntctrl{display:none}form[data-pwmcntctrl="true"] .if-pwmcntctrl{display:contents}form .if-cntctrl{display:none}form[data-cntctrl="true"] .if-cntctrl{display:contents}form .if-extprecharge{display:none}form[data-extprecharge="true"] .if-extprecharge{display:contents}form .if-sofar{display:none}form[data-inverter="17"] .if-sofar{display:contents}form .if-byd{display:none}form[data-inverter="2"] .if-byd{display:contents}form .if-pylon{display:none}form[data-battery="22"] .if-pylon,form[data-inverter="10"] .if-pylon{display:contents}form .if-pylon-inverter{display:none}form[data-inverter="10"] .if-pylon-inverter{display:contents}form .if-pylon-battery{display:none}form[data-battery="22"] .if-pylon-battery{display:contents}form .if-pylonish{display:none}form[data-inverter="10"] .if-pylonish,form[data-inverter="19"] .if-pylonish,form[data-inverter="4"] .if-pylonish{display:contents}form .if-solax{display:none}form[data-inverter="18"] .if-solax{display:contents}form .if-sungrow{display:none}form[data-inverter="21"] .if-sungrow{display:contents}form .if-kostal{display:none}form[data-inverter="9"] .if-kostal{display:contents}form .if-staticip{display:none}form[data-staticip="true"] .if-staticip{display:contents}form .if-mqtt{display:none}form[data-mqttenabled="true"] .if-mqtt{display:contents}form .if-topics{display:none}form[data-mqtttopics="true"] .if-topics{display:contents} form .if-i2c { display:none } form[data-gpioopt1="1"] .if-i2c, form[data-displaytype="1"] .if-i2c { display:block } form .if-multii2c { display:none } form[data-multii2c="true"] .if-multii2c { display:block }
+<style>h3{color:#2c3e50;font-size:1.15rem;margin-top:0;padding-bottom:8px;border-bottom:2px solid #eee;margin-bottom:15px}h4{margin:0;font-weight:500;color:#444;font-size:.95rem}input[type=number],input[type=password],input[type=text],select{width:100%;max-width:250px;padding:6px 10px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;font-size:.9rem;transition:.2s}input:focus,select:focus{border-color:#3498db;outline:0}input[type=checkbox]{width:18px;height:18px;cursor:pointer;justify-self:start;margin:0}.hidden{display:none!important}.active{color:#2ecc71!important;font-weight:700}.inactive{color:#bdc3c7!important;font-style:italic}.inactiveSoc{color:#e74c3c!important;font-weight:700}.form-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:12px 10px;align-items:center}.form-grid label{color:#555;font-size:.9rem;font-weight:600;text-align:right;padding-right:10px}.override-grid{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center;padding:12px 0;border-bottom:1px dashed #eee}.override-grid:last-child{border-bottom:none}.mqtt-settings,.mqtt-topics{display:none;grid-column:span 2}form .if-battery,form .if-charger,form .if-inverter,form .if-shunt{display:contents}form[data-battery="0"] .if-battery,form[data-charger="0"] .if-charger,form[data-inverter="0"] .if-inverter,form[data-shunttype="0"] .if-shunt{display:none}form .if-auth{display:contents}form[data-webauth="0"] .if-auth{display:none}form .if-epaper3c{display:none}form[data-displaytype="2"] .if-epaper3c{display:contents}form .if-cbms{display:none}form[data-battery="11"] .if-cbms,form[data-battery="22"] .if-cbms,form[data-battery="23"] .if-cbms,form[data-battery="24"] .if-cbms,form[data-battery="31"] .if-cbms,form[data-battery="41"] .if-cbms,form[data-battery="48"] .if-cbms,form[data-battery="49"] .if-cbms,form[data-battery="6"] .if-cbms{display:contents}form .if-nissan{display:none}form[data-battery="21"] .if-nissan{display:contents}form .if-tesla{display:none}form[data-battery="32"] .if-tesla,form[data-battery="33"] .if-tesla{display:contents}form .if-estimated{display:none}form[data-battery="14"] .if-estimated,form[data-battery="16"] .if-estimated,form[data-battery="24"] .if-estimated,form[data-battery="3"] .if-estimated,form[data-battery="32"] .if-estimated,form[data-battery="33"] .if-estimated,form[data-battery="4"] .if-estimated,form[data-battery="40"] .if-estimated,form[data-battery="41"] .if-estimated,form[data-battery="44"] .if-estimated,form[data-battery="6"] .if-estimated{display:contents}form .if-socestimated{display:none}form[data-battery="16"] .if-socestimated,form[data-battery="41"] .if-socestimated{display:contents}form .if-dblbtr{display:none}form[data-dblbtr="true"] .if-dblbtr{display:contents}form .if-tribtr{display:none}form[data-tribtr="true"] .if-tribtr{display:contents}form .if-pwmcntctrl{display:none}form[data-pwmcntctrl="true"] .if-pwmcntctrl{display:contents}form .if-cntctrl{display:none}form[data-cntctrl="true"] .if-cntctrl{display:contents}form .if-extprecharge{display:none}form[data-extprecharge="true"] .if-extprecharge{display:contents}form .if-sofar{display:none}form[data-inverter="17"] .if-sofar{display:contents}form .if-byd{display:none}form[data-inverter="2"] .if-byd{display:contents}form .if-pylon{display:none}form[data-battery="22"] .if-pylon,form[data-inverter="10"] .if-pylon{display:contents}form .if-pylon-inverter{display:none}form[data-inverter="10"] .if-pylon-inverter{display:contents}form .if-pylon-battery{display:none}form[data-battery="22"] .if-pylon-battery{display:contents}form .if-pylonish{display:none}form[data-inverter="10"] .if-pylonish,form[data-inverter="19"] .if-pylonish,form[data-inverter="4"] .if-pylonish{display:contents}form .if-solax{display:none}form[data-inverter="18"] .if-solax{display:contents}form .if-sungrow{display:none}form[data-inverter="21"] .if-sungrow{display:contents}form .if-kostal{display:none}form[data-inverter="9"] .if-kostal{display:contents}form .if-staticip{display:none}form[data-staticip="true"] .if-staticip{display:contents}form .if-mqtt{display:none}form[data-mqttenabled="true"] .if-mqtt{display:contents}form .if-topics{display:none}form[data-mqtttopics="true"] .if-topics{display:contents} form .if-i2c { display:none } form[data-gpioopt1="1"] .if-i2c, form[data-displaytype="1"] .if-i2c { display:block } form .if-multii2c { display:none } form[data-multii2c="true"] .if-multii2c { display:block } form .if-ctclamp { display:none } form[data-shunttype="3"] .if-ctclamp { display:contents }
 </style>
 )rawliteral"
 
@@ -1388,6 +1414,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       <div class="if-charger"><label>Charger interface:</label><select name='CHGCOMM'>%CHGCOMM%</select></div>
       <label>Shunt:</label><select name='SHUNTTYPE'>%SHUNTTYPE%</select>
       <div class="if-shunt"><label>Shunt interface:</label><select name='SHUNTCOMM'>%SHUNTCOMM%</select></div>
+      <div class="if-ctclamp">
+        <label>CT Clamp offset (mV):</label>
+        <input type='number' name='CTOFFSET' value="%CTOFFSET%" min="-1" max="3000" step="1" title="Voltage offset required to calibrate 0A reading. -1 = auto-detect" />
+        <label>CT Clamp nominal voltage (dV):</label>
+        <input type='number' name='CTVNOM' value="%CTVNOM%" min="0" max="500" step="1" title="Nominal voltage of the CT Clamp x10. Integer only." />
+        <label>CT Clamp nominal current (A):</label>
+        <input type='number' name='CTANOM' value="%CTANOM%" min="0" max="200" step="1" title="Nominal current of the CT Clamp. Integer only." />
+        <label>ESP32 pin attenuation:</label>
+        <select name='CTATTEN'>%CTATTEN%</select>
+        <label>Invert CT current:</label>
+        <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% title="Invert the current reading from the CT clamp, +ve is charging, -ve is discharging" />
+      </div>
     </div>
   </div>
   <div class="card" style="box-shadow:none;border:1px solid #eee;margin-bottom:20px;background:#fcfcfc">

@@ -77,6 +77,7 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_17; }
   virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_21; }
 
+  // Equipment Stop Pin
   // Automatic precharging & Inverter disconnect
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_18; }
   virtual gpio_num_t INVERTER_DISCONNECT_CONTACTOR_PIN() { return GPIO_NUM_14; }
@@ -117,7 +118,7 @@ class LilyGo2CANHal : public Esp32Hal {
     return GPIO_NUM_3;
   }
 
-  // Equipment Stop Pin
+  // Equipment stop pin
   virtual gpio_num_t EQUIPMENT_STOP_PIN() {
     if (user_selected_display_type == DisplayType::OLED_I2C) {
       return GPIO_NUM_36;  // Force default pin if QWIIC is used for OLED
@@ -199,12 +200,11 @@ class LilyGo2CANHal : public Esp32Hal {
   }
 
   // ==========================================
-  // CHAdeMO Support
+  // CHAdeMO Support pin dependencies
   // ==========================================
   virtual gpio_num_t CHADEMO_PIN_2() { return GPIO_NUM_16; }
   virtual gpio_num_t CHADEMO_PIN_10() { return GPIO_NUM_15; }
   virtual gpio_num_t CHADEMO_PIN_7() { return GPIO_NUM_47; }
-
   virtual gpio_num_t CHADEMO_PIN_4() {
     if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C ||
         user_selected_display_type == DisplayType::EPAPER_SPI_42_BW) {
@@ -212,7 +212,6 @@ class LilyGo2CANHal : public Esp32Hal {
     }
     return GPIO_NUM_4;
   }
-
   virtual gpio_num_t CHADEMO_LOCK() {
     if (user_selected_display_type == DisplayType::EPAPER_SPI_42_3C ||
         user_selected_display_type == DisplayType::EPAPER_SPI_42_BW) {
@@ -220,6 +219,7 @@ class LilyGo2CANHal : public Esp32Hal {
     }
     return GPIO_NUM_40;
   }
+  virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_5; }  // ADC1_CH4
 
   // ==========================================
   // Interface Configuration

@@ -24,12 +24,12 @@ uint8_t BmwI3Battery::increment_alive_counter(uint8_t counter) {
   return counter;
 }
 
-void BmwI3Battery::initiate_offline_balancing() {
+void BmwI3Battery::initiate_balancing() {
   UserRequestBalancing = REQUESTED;
   UserRequestBalancingMillis = millis();
 }
 
-void BmwI3Battery::end_offline_balancing() {
+void BmwI3Battery::end_balancing() {
   UserRequestBalancing = NONE;
   UserRequestBalancingMillis = 0;
   cmdState = SOC;
@@ -50,6 +50,13 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   if (UserRequestBalancing == EXECUTING) {
     datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
     datalayer_battery->status.bms_status = STANDBY;
+  }
+
+  // Map internal balancing state to datalayer balancing_status
+  if (UserRequestBalancing == NONE) {
+    datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
+  } else {
+    datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
   }
 
   if (!battery_awake) {

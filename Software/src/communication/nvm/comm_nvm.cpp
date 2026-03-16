@@ -92,7 +92,7 @@ void init_stored_settings() {
   user_selected_inverter_modules = settings.getUInt("INVMODULES", 0);
   user_selected_inverter_cells_per_module = settings.getUInt("INVCELLSPER", 0);
   user_selected_inverter_voltage_level = settings.getUInt("INVVLEVEL", 0);
-  user_selected_inverter_ah_capacity = settings.getUInt("INVAHCAPACITY", 0);
+  user_selected_inverter_ah_capacity = settings.getUInt("INVCAPACITY", 0);
   user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
   user_selected_inverter_sungrow_type = settings.getUInt("INVSUNTYPE", 0);
   user_selected_inverter_ignore_contactors = settings.getBool("INVICNT", false);
@@ -107,6 +107,7 @@ void init_stored_settings() {
   user_selected_tesla_GTW_mapRegion = settings.getUInt("GTWMAPREG", 0);
   user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", 0);
   user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", 0);
+  user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
 
   auto readIf = [](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
@@ -205,6 +206,12 @@ void init_stored_settings() {
   mqtt_user = settings.getString("MQTTUSER").c_str();
   mqtt_password = settings.getString("MQTTPASSWORD").c_str();
 
+  // CT Clamp settings
+  ct_clamp_offset_mV = settings.getString("CTOFFSET", "-1.0").toFloat();
+  ct_clamp_nominal_voltage_dV = settings.getUInt("CTVNOM", 40);
+  ct_clamp_nominal_current_A = settings.getUInt("CTANOM", 100);
+  ct_clamp_pin_atten = (adc_attenuation_enum)settings.getUInt("CTATTEN", 3);
+  ct_invert_current = settings.getBool("CTINVERT", false);
   settings.end();
 }
 

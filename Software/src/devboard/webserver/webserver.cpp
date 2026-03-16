@@ -877,13 +877,13 @@ void init_webserver() {
             "INVCELLS", "INVMODULES", "INVCELLSPER", "INVVLEVEL", "INVCAPACITY", "INVBTYPE", "CANFREQ", 
             "CANFDFREQ", "PRECHGMS", "PWMFREQ", "PWMHOLD", "GTWCOUNTRY", "GTWMAPREG", "GTWCHASSIS", "GTWPACK", 
             "LEDMODE", "GPIOOPT1", "GPIOOPT2", "GPIOOPT3", "INVSUNTYPE", "GPIOOPT4", "LEDTAIL", "LEDCOUNT", 
-            "WEBAUTH", "DISPLAYTYPE"
+            "WEBAUTH", "DISPLAYTYPE", "CTVNOM", "CTANOM", "CTATTEN" // 🌟 เพิ่มค่า CT Clamp จาก main
         };
 
         const char* stringSettingNames[] = {
             "APNAME", "APPASSWORD", "HOSTNAME", "MQTTSERVER", "MQTTUSER",
             "MQTTPASSWORD", "MQTTTOPIC", "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID",
-            "SSID", "PASSWORD", "WEBUSER", "WEBPASS"
+            "SSID", "PASSWORD", "WEBUSER", "WEBPASS", "CTOFFSET" // 🌟 เพิ่มค่า CT Clamp จาก main
         };
 
         int numParams = request->params();
@@ -904,7 +904,7 @@ void init_webserver() {
             else if (pName == "EQSTOP") settings.saveUInt("EQSTOP", atoi(pValue.c_str()));
             else if (pName == "BATT2COMM") settings.saveUInt("BATT2COMM", atoi(pValue.c_str()));
             else if (pName == "BATT3COMM") settings.saveUInt("BATT3COMM", atoi(pValue.c_str()));
-            else if (pName == "shunt") settings.saveUInt("SHUNTTYPE", atoi(pValue.c_str()));
+            else if (pName == "shunttype") settings.saveUInt("SHUNTTYPE", atoi(pValue.c_str())); 
             else if (pName == "SHUNTCOMM") settings.saveUInt("SHUNTCOMM", atoi(pValue.c_str()));
             else if (pName == "MQTTPUBLISHMS") settings.saveUInt("MQTTPUBLISHMS", atoi(pValue.c_str()) * 1000);
 
@@ -918,8 +918,8 @@ void init_webserver() {
 
         std::vector<const char*> activeBools;
         if (pageUrl == "/set_network") activeBools = {"STATICIP", "WIFIAPENABLED", "ESPNOWENABLED", "MQTTENABLED", "MQTTCELLV", "REMBMSRESET", "MQTTTOPICS", "HADISC"};
-        else if (pageUrl == "/settings") activeBools = {"INTERLOCKREQ", "DIGITALHVIL", "GTWRHD", "SOCESTIMATED", "DBLBTR", "TRIBTR", "PYLONOFFSET", "PYLONORDER", "DEYEBYD", "INVICNT"};
-        else if (pageUrl == "/set_hardware") activeBools = {"CANFDASCAN", "CNTCTRLDBL", "CNTCTRLTRI", "CNTCTRL", "NCCONTACTOR", "PWMCNTCTRL", "PERBMSRESET", "EXTPRECHARGE", "NOINVDISC", "EPAPREFRESHBTN", "MULTII2C", "I2C_SHT30", "I2C_ATECC", "I2C_RTC", "I2C_IO"};
+        else if (pageUrl == "/settings") activeBools = {"INTERLOCKREQ", "DIGITALHVIL", "GTWRHD", "SOCESTIMATED", "DBLBTR", "TRIBTR", "PYLONOFFSET", "PYLONORDER", "DEYEBYD", "INVICNT", "PRIMOGEN24"}; // 🌟 เพิ่ม PRIMOGEN24
+        else if (pageUrl == "/set_hardware") activeBools = {"CANFDASCAN", "CNTCTRLDBL", "CNTCTRLTRI", "CNTCTRL", "NCCONTACTOR", "PWMCNTCTRL", "PERBMSRESET", "EXTPRECHARGE", "NOINVDISC", "EPAPREFRESHBTN", "MULTII2C", "I2C_SHT30", "I2C_ATECC", "I2C_RTC", "I2C_IO", "CTINVERT"}; // 🌟 เพิ่ม CTINVERT
         else if (pageUrl == "/set_web") activeBools = {"PERFPROFILE", "CANLOGUSB", "USBENABLED", "WEBENABLED", "CANLOGSD", "SDLOGENABLED"};
 
         for (const char* boolSetting : activeBools) {
@@ -973,6 +973,16 @@ void init_webserver() {
   update_string("/equipmentStop", [](String value) {
     if (value == "true" || value == "1") setBatteryPause(true, false, true);
     else setBatteryPause(false, false, false);
+  });
+
+  // Route for editing SOC Calibration BYD
+  update_string_setting("/editCalTargetSOC", [](String value) {
+    datalayer_extended.bydAtto3.calibrationTargetSOC = static_cast<uint16_t>(value.toFloat());
+  });
+
+  // Route for editing AH Calibration BYD
+  update_string_setting("/editCalTargetAH", [](String value) {
+    datalayer_extended.bydAtto3.calibrationTargetAH = static_cast<uint16_t>(value.toFloat());
   });
 
   update_string_setting("/updateSocMin", [](String value) { datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100); });

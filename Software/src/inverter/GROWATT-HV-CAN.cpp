@@ -44,11 +44,11 @@ void GrowattHvInverter::
     // capacity_10mAh = Wh * 1000 / dV   (because V = dV/10, and 10mAh units = Ah*100)
     const uint16_t v_dV = datalayer.battery.status.voltage_dV;
 
-    uint32_t full_10mAh = (uint32_t)((uint64_t)datalayer.battery.info.total_capacity_Wh * 1000ULL / v_dV);
+    uint32_t full_10mAh = (uint32_t)((uint64_t)datalayer.battery.info.reported_total_capacity_Wh * 1000ULL / v_dV);
 
     uint32_t rem_10mAh = 0;
-    if (datalayer.battery.status.remaining_capacity_Wh > 0) {
-      rem_10mAh = (uint32_t)((uint64_t)datalayer.battery.status.remaining_capacity_Wh * 1000ULL / v_dV);
+    if (datalayer.battery.status.reported_remaining_capacity_Wh > 0) {
+      rem_10mAh = (uint32_t)((uint64_t)datalayer.battery.status.reported_remaining_capacity_Wh * 1000ULL / v_dV);
     } else {
       // Fallback: derive remaining capacity from SOC if remaining Wh is not available.
       const uint32_t soc_pct = (uint32_t)(datalayer.battery.status.reported_soc / 100);  // 0..100
@@ -262,8 +262,8 @@ void GrowattHvInverter::
   //Forced discharge mark
   GROWATT_3220.data.u8[4] = 0;  //When you want to force charge battery, send 0xAA here
   //Battery rated energy information (Unit 0.1 kWh )  30kWh = 300 , so 30000Wh needs to be div by 100
-  GROWATT_3220.data.u8[5] = ((datalayer.battery.info.total_capacity_Wh / 100) >> 8);
-  GROWATT_3220.data.u8[6] = ((datalayer.battery.info.total_capacity_Wh / 100) & 0x00FF);
+  GROWATT_3220.data.u8[5] = ((datalayer.battery.info.reported_total_capacity_Wh / 100) >> 8);
+  GROWATT_3220.data.u8[6] = ((datalayer.battery.info.reported_total_capacity_Wh / 100) & 0x00FF);
   //Software subversion number
   GROWATT_3220.data.u8[7] = 0;
 
