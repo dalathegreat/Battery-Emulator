@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include <Wire.h>
-#include "../../communication/nvm/comm_nvm.h" 
+#include "../../communication/nvm/comm_nvm.h"
 // #include "../debug/logging.h"                 /
 
 // Global variable like extern for public access

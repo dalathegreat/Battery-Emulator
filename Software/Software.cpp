@@ -18,6 +18,7 @@
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
 #include "src/devboard/espnow/espnow.h"
+#include "src/devboard/i2c/i2c_devices.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -32,7 +33,6 @@
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
 #include "src/system_settings.h"
-#include "src/devboard/i2c/i2c_devices.h"
 
 #if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
     !defined(HW_DEVKIT)
@@ -604,7 +604,7 @@ void mqtt_loop(void*) {
 
 // Initialization
 void setup() {
-  
+
   init_hal();
 
   init_serial();
@@ -710,12 +710,12 @@ uint32_t restart_time = 0;
 void loop() {
   uint32_t current_millis = millis();
 
-  // --- 1. Handle Scheduled Restart 
+  // --- 1. Handle Scheduled Restart
   if (pending_restart) {
     if (current_millis >= restart_time) {
-      ESP.restart(); 
+      ESP.restart();
     }
-    return; // Skip the button check if waiting for a restart.
+    return;  // Skip the button check if waiting for a restart.
   }
 
   // --- 2. Non-Blocking Debounce(Instead of using delay(10) at the end of the loop) ---
@@ -723,48 +723,48 @@ void loop() {
     last_debounce_time = current_millis;
 
     // read BOOT (GPIO 0)
-    int btn_state = digitalRead(0); 
+    int btn_state = digitalRead(0);
     gpio_num_t led_pin = esp32hal->LED_PIN();
 
-    if (btn_state == LOW) { // sw : hold status
+    if (btn_state == LOW) {  // sw : hold status
       if (!is_reset_button_pressed) {
         reset_button_press_start = current_millis;
         is_reset_button_pressed = true;
       } else {
         uint32_t hold_duration = current_millis - reset_button_press_start;
-        
+
         // LED flashing
         if (led_pin != GPIO_NUM_NC) {
           if (hold_duration >= 10000) {
-            digitalWrite(led_pin, HIGH); // 10s: solid light (prepare Factory Reset)
+            digitalWrite(led_pin, HIGH);  // 10s: solid light (prepare Factory Reset)
           } else if (hold_duration >= 5000) {
-            digitalWrite(led_pin, (current_millis / 100) % 2); // 5s: flashing (reset password)
+            digitalWrite(led_pin, (current_millis / 100) % 2);  // 5s: flashing (reset password)
           }
         }
       }
-    } else { // status: release button
+    } else {  // status: release button
       if (is_reset_button_pressed) {
         uint32_t hold_duration = current_millis - reset_button_press_start;
         is_reset_button_pressed = false;
-        if (led_pin != GPIO_NUM_NC) digitalWrite(led_pin, LOW); // led close
+        if (led_pin != GPIO_NUM_NC)
+          digitalWrite(led_pin, LOW);  // led close
 
         if (hold_duration >= 10000) {
           // --- State 2: FACTORY RESET ---
           logging.println("10s Button Hold: FACTORY RESET TRIGGERED!");
           BatteryEmulatorSettingsStore settings;
           settings.clearAll();
-          
+
           // Set a timer to 500ms in advance, then restart.
           pending_restart = true;
           restart_time = current_millis + 500;
-        } 
-        else if (hold_duration >= 5000) {
+        } else if (hold_duration >= 5000) {
           // --- State 1: RESET ADMIN PASSWORD ---
           logging.println("5s Button Hold: ADMIN PASSWORD RESET!");
           BatteryEmulatorSettingsStore settings;
           settings.saveString("WEBUSER", DEFAULT_WEB_USER);
           settings.saveString("WEBPASS", DEFAULT_WEB_PASS);
-          
+
           // Set a timer to 500ms in advance, then restart.
           pending_restart = true;
           restart_time = current_millis + 500;

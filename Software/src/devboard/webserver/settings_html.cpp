@@ -1260,7 +1260,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
 #define SAVE_ALERT \
   R"rawliteral(<div style='grid-column:span 2;text-align:center;padding-bottom:15px;' class="%SAVEDCLASS%"><p style="color:#28a745;font-weight:bold;background:#e8f8f5;padding:10px;border-radius:4px">✅ Settings saved. Reboot to take the new settings into use.</p><button type='button' class="btn btn-primary" onclick='askReboot()'>Reboot Now</button></div>)rawliteral"
-  
+
 // =======================================================
 // 🔋 Page 1: Battery & Inverter (URL: /settings)
 // =======================================================
@@ -1402,7 +1402,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 // =======================================================
 // ⚙️ Page 3: Hardware (URL: /set_hardware)
 // =======================================================
-#define HW_BODY \
+#define HW_BODY                                                                         \
   R"rawliteral(
   <div class="set-tabs"><a href="/settings" class="set-tab">🔋 Battery & Inverter</a><a href="/set_network" class="set-tab">📡 Network</a><a href="/set_hardware" class="set-tab active">⚙️ Hardware</a><a href="/set_web" class="set-tab">🌐 Admin & Debug</a><a href="/set_overrides" class="set-tab" style="background:#fdf2f2; border-color:#fadbd8; color:#c0392b;">⚡ Overrides</a></div>
   <div class="card card-warning"><form action='/saveSettings' method='post'><input type='hidden' name='PAGE_ID' value='/set_hardware'>
@@ -1460,7 +1460,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       <label>Number of LEDs (WS2812B):</label><input type='number' id='LEDCOUNT' name='LEDCOUNT' value="%LEDCOUNT%" oninput="checkLedPower()"/>
       <div id="led_power_warning" style="padding:10px;font-size:.9em;grid-column:span 2">⚡ Max Current: <strong id="led_mA">--</strong> <strong>mA</strong> <span id="led_msg"></span></div>
       <label id="lbl_ledtail">Energy Flow Tail Length:</label><input id="input_ledtail" type='number' name='LEDTAIL' value="%LEDTAIL%"/>
-      )rawliteral" GPIOOPT1_SETTING R"rawliteral()rawliteral" GPIOOPT2_SETTING R"rawliteral()rawliteral" GPIOOPT3_SETTING R"rawliteral()rawliteral" GPIOOPT4_SETTING R"rawliteral()rawliteral" DISPLAY_SETTING R"rawliteral(
+      )rawliteral" GPIOOPT1_SETTING R"rawliteral()rawliteral" GPIOOPT2_SETTING          \
+  R"rawliteral()rawliteral" GPIOOPT3_SETTING R"rawliteral()rawliteral" GPIOOPT4_SETTING \
+  R"rawliteral()rawliteral" DISPLAY_SETTING R"rawliteral(
     </div>
   </div>
   )rawliteral" SAVE_BTN
@@ -1564,8 +1566,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 // =======================================================
 // Combine HTML for WebServer
 // =======================================================
-const char settings_batt_html[] = INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE BATT_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
-const char settings_net_html[] = INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE NET_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
-const char settings_hw_html[] = INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE HW_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
-const char settings_web_html[] = INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE WEB_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
-const char settings_overrides_html[] = INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE OVERRIDE_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
+const char settings_batt_html[] =
+    INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE BATT_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
+const char settings_net_html[] =
+    INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE NET_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
+const char settings_hw_html[] =
+    INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE HW_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
+const char settings_web_html[] =
+    INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE WEB_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
+const char settings_overrides_html[] =
+    INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE OVERRIDE_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;

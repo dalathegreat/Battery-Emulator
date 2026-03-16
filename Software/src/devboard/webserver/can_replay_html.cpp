@@ -8,8 +8,8 @@ String can_replay_processor(void) {
     datalayer.system.info.logged_can_messages_offset = 0;
     datalayer.system.info.logged_can_messages[0] = '\0';
   }
-  datalayer.system.info.can_logging_active = true; // Signal to main loop that we should log messages.
-  
+  datalayer.system.info.can_logging_active = true;  // Signal to main loop that we should log messages.
+
   String content = String(index_html_header);
 
   // Prepare Dropdown
@@ -64,10 +64,16 @@ String can_replay_processor(void) {
       <p>Select the interface where the replay data should be transmitted.</p>
       <div class="flex-row">
         <select id="canInterface">
-          <option value=")rawliteral" + String(CAN_NATIVE) + R"rawliteral(" )rawliteral" + opt_native + R"rawliteral(>CAN Native</option>
-          <option value=")rawliteral" + String(CANFD_NATIVE) + R"rawliteral(" )rawliteral" + opt_fd_native + R"rawliteral(>CANFD Native</option>
-          <option value=")rawliteral" + String(CAN_ADDON_MCP2515) + R"rawliteral(" )rawliteral" + opt_mcp2515 + R"rawliteral(>CAN Addon MCP2515</option>
-          <option value=")rawliteral" + String(CANFD_ADDON_MCP2518) + R"rawliteral(" )rawliteral" + opt_mcp2518 + R"rawliteral(>CANFD Addon MCP2518</option>
+          <option value=")rawliteral" +
+             String(CAN_NATIVE) + R"rawliteral(" )rawliteral" + opt_native + R"rawliteral(>CAN Native</option>
+          <option value=")rawliteral" +
+             String(CANFD_NATIVE) + R"rawliteral(" )rawliteral" + opt_fd_native + R"rawliteral(>CANFD Native</option>
+          <option value=")rawliteral" +
+             String(CAN_ADDON_MCP2515) + R"rawliteral(" )rawliteral" + opt_mcp2515 +
+             R"rawliteral(>CAN Addon MCP2515</option>
+          <option value=")rawliteral" +
+             String(CANFD_ADDON_MCP2518) + R"rawliteral(" )rawliteral" + opt_mcp2518 +
+             R"rawliteral(>CANFD Addon MCP2518</option>
         </select>
         <button class="btn-cmd btn-blue" onclick="sendCANSelection()">Apply Interface</button>
       </div>
@@ -228,7 +234,7 @@ String can_replay_processor(void) {
     }
   </script>
   )rawliteral";
-  
+
   content += String(index_html_footer);
   return content;
 }

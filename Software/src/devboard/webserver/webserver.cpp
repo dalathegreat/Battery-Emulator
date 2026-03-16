@@ -1,11 +1,13 @@
 #include "webserver.h"
 #include <Preferences.h>
 #include <base64.h>
-#include <ctime>
-#include <vector>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <ctime>
+#include <vector>
 
+#include <WiFi.h>
+#include <string>
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../battery/Shunt.h"
@@ -25,8 +27,6 @@
 #include "../utils/timer.h"
 #include "esp_task_wdt.h"
 #include "html_escape.h"
-#include <WiFi.h>
-#include <string>
 
 std::string http_username;
 std::string http_password;
@@ -46,25 +46,26 @@ char can_batch_buffer[CAN_BATCH_SIZE];
 size_t can_batch_len = 0;
 
 void append_can_stream(const char* line) {
-    if (!datalayer.system.info.can_logging_active) return; 
+  if (!datalayer.system.info.can_logging_active)
+    return;
 
-    if (can_stream_mutex == NULL) {
-        can_stream_mutex = xSemaphoreCreateMutex();
+  if (can_stream_mutex == NULL) {
+    can_stream_mutex = xSemaphoreCreateMutex();
+  }
+
+  // Lock Task
+  if (xSemaphoreTake(can_stream_mutex, (TickType_t)10) == pdTRUE) {
+    size_t line_len = strlen(line);
+
+    if (can_batch_len + line_len + 2 < CAN_BATCH_SIZE) {
+      strcpy(can_batch_buffer + can_batch_len, line);
+      can_batch_len += line_len;
+      can_batch_buffer[can_batch_len++] = '\n';
+      can_batch_buffer[can_batch_len] = '\0';
     }
 
-    // Lock Task 
-    if (xSemaphoreTake(can_stream_mutex, (TickType_t)10) == pdTRUE) {
-        size_t line_len = strlen(line);
-        
-        if (can_batch_len + line_len + 2 < CAN_BATCH_SIZE) {
-            strcpy(can_batch_buffer + can_batch_len, line);
-            can_batch_len += line_len;
-            can_batch_buffer[can_batch_len++] = '\n';
-            can_batch_buffer[can_batch_len] = '\0';
-        }
-        
-        xSemaphoreGive(can_stream_mutex); 
-    }
+    xSemaphoreGive(can_stream_mutex);
+  }
 }
 // =========================================================================
 
@@ -85,8 +86,8 @@ bool ota_active = false;
 
 const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 
-String importedLogs = "";      
-bool isReplayRunning = false;  
+String importedLogs = "";
+bool isReplayRunning = false;
 bool settingsUpdated = false;
 
 CAN_frame currentFrame = {.FD = true, .ext_ID = false, .DLC = 64, .ID = 0x12F, .data = {0}};
@@ -360,77 +361,80 @@ const char subpage_html[] PROGMEM = R"rawliteral(
 bool is_scanning = false;
 String scan_results = "[]";
 
-void wifiScanTask(void *param) {
-    is_scanning = true;
-    int n = WiFi.scanNetworks(false, false, false, 300); 
-    JsonDocument doc;
-    JsonArray arr = doc.to<JsonArray>();
-    for (int i = 0; i < n; ++i) {
-        JsonObject net = arr.add<JsonObject>();
-        net["ssid"] = WiFi.SSID(i);
-        net["rssi"] = WiFi.RSSI(i);
-    }
-    serializeJson(doc, scan_results);
-    WiFi.scanDelete(); 
-    is_scanning = false;
-    vTaskDelete(NULL);
+void wifiScanTask(void* param) {
+  is_scanning = true;
+  int n = WiFi.scanNetworks(false, false, false, 300);
+  JsonDocument doc;
+  JsonArray arr = doc.to<JsonArray>();
+  for (int i = 0; i < n; ++i) {
+    JsonObject net = arr.add<JsonObject>();
+    net["ssid"] = WiFi.SSID(i);
+    net["rssi"] = WiFi.RSSI(i);
+  }
+  serializeJson(doc, scan_results);
+  WiFi.scanDelete();
+  is_scanning = false;
+  vTaskDelete(NULL);
 }
 
-int wifi_apply_state = 0; 
+int wifi_apply_state = 0;
 String apply_ssid = "";
 String apply_pass = "";
 String applied_ip = "";
 bool keep_ap_mode = true;
 
-void wifiApplyTask(void *param) {
-    wifi_mode_t old_mode = WiFi.getMode();
-    String old_ssid = WiFi.SSID();
-    String old_pass = WiFi.psk();
+void wifiApplyTask(void* param) {
+  wifi_mode_t old_mode = WiFi.getMode();
+  String old_ssid = WiFi.SSID();
+  String old_pass = WiFi.psk();
 
-    WiFi.mode(WIFI_AP_STA);
-    WiFi.disconnect(); 
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.disconnect();
+  vTaskDelay(500 / portTICK_PERIOD_MS);
+
+  WiFi.begin(apply_ssid.c_str(), apply_pass.c_str());
+
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
     vTaskDelay(500 / portTICK_PERIOD_MS);
+    attempts++;
+  }
 
-    WiFi.begin(apply_ssid.c_str(), apply_pass.c_str());
+  if (WiFi.status() == WL_CONNECTED) {
+    wifi_apply_state = 2;
+    applied_ip = WiFi.localIP().toString();
 
-    int attempts = 0;
-    while(WiFi.status() != WL_CONNECTED && attempts < 20) { 
-        vTaskDelay(500 / portTICK_PERIOD_MS);
-        attempts++;
-    }
+    BatteryEmulatorSettingsStore settings;
+    settings.saveString("SSID", apply_ssid.c_str());
+    settings.saveString("PASSWORD", apply_pass.c_str());
+    settings.saveBool("WIFIAPENABLED", keep_ap_mode);
+    settingsUpdated = true;
 
-    if(WiFi.status() == WL_CONNECTED) {
-        wifi_apply_state = 2; 
-        applied_ip = WiFi.localIP().toString();
-
-        BatteryEmulatorSettingsStore settings;
-        settings.saveString("SSID", apply_ssid.c_str());
-        settings.saveString("PASSWORD", apply_pass.c_str());
-        settings.saveBool("WIFIAPENABLED", keep_ap_mode);
-        settingsUpdated = true;
-
-        vTaskDelay(6000 / portTICK_PERIOD_MS);
-        if(!keep_ap_mode) WiFi.mode(WIFI_STA); 
-    } else {
-        wifi_apply_state = 3; 
-        WiFi.disconnect();
-        vTaskDelay(500 / portTICK_PERIOD_MS);
-        if(old_ssid.length() > 0) WiFi.begin(old_ssid.c_str(), old_pass.c_str());
-        WiFi.mode(old_mode);
-    }
-    vTaskDelete(NULL);
+    vTaskDelay(6000 / portTICK_PERIOD_MS);
+    if (!keep_ap_mode)
+      WiFi.mode(WIFI_STA);
+  } else {
+    wifi_apply_state = 3;
+    WiFi.disconnect();
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    if (old_ssid.length() > 0)
+      WiFi.begin(old_ssid.c_str(), old_pass.c_str());
+    WiFi.mode(old_mode);
+  }
+  vTaskDelete(NULL);
 }
 
 bool use_sd_for_replay = false;
 File uploadReplayFile;
 size_t current_upload_size = 0;
-const size_t MAX_RAM_REPLAY_SIZE = 100 * 1024;  
+const size_t MAX_RAM_REPLAY_SIZE = 100 * 1024;
 
-void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len,
+                      bool final) {
   if (!index) {
     logging.printf("Receiving replay file: %s\n", filename.c_str());
     current_upload_size = 0;
-    importedLogs = "";  
+    importedLogs = "";
     use_sd_for_replay = false;
 
     uploadReplayFile = SD_MMC.open("/replay_temp.txt", FILE_WRITE);
@@ -445,21 +449,24 @@ void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t in
   current_upload_size += len;
 
   if (use_sd_for_replay) {
-    if (uploadReplayFile) uploadReplayFile.write(data, len);
+    if (uploadReplayFile)
+      uploadReplayFile.write(data, len);
   } else {
     if (current_upload_size > MAX_RAM_REPLAY_SIZE) {
       if (final) {
         logging.println("ERROR: File too large for RAM! Upload aborted to prevent crash.");
         request->send(400, "text/plain", "File too large! Please insert an SD Card to upload files larger than 100KB.");
       }
-      return;  
+      return;
     }
     importedLogs += String((char*)data).substring(0, len);
   }
 
   if (final) {
-    if (use_sd_for_replay && uploadReplayFile) uploadReplayFile.close();
-    if (!use_sd_for_replay && current_upload_size > MAX_RAM_REPLAY_SIZE) return;
+    if (use_sd_for_replay && uploadReplayFile)
+      uploadReplayFile.close();
+    if (!use_sd_for_replay && current_upload_size > MAX_RAM_REPLAY_SIZE)
+      return;
 
     logging.printf("Upload Complete! Total Size: %d bytes\n", current_upload_size);
     request->send(200, "text/plain", "File uploaded successfully");
@@ -476,7 +483,8 @@ void canReplayTask(void* param) {
       f.close();
     }
   } else {
-    if (importedLogs.length() > 0) hasData = true;
+    if (importedLogs.length() > 0)
+      hasData = true;
   }
 
   if (!hasData) {
@@ -492,21 +500,24 @@ void canReplayTask(void* param) {
     bool firstMessageSent = false;
 
     File replayFile;
-    int ramIndex = 0;  
+    int ramIndex = 0;
 
     if (use_sd_for_replay) {
       replayFile = SD_MMC.open("/replay_temp.txt", FILE_READ);
-      if (!replayFile) break;  
+      if (!replayFile)
+        break;
     }
 
     while (true) {
       String line = "";
 
       if (use_sd_for_replay) {
-        if (!replayFile.available()) break;  
+        if (!replayFile.available())
+          break;
         line = replayFile.readStringUntil('\n');
       } else {
-        if (ramIndex >= importedLogs.length()) break;  
+        if (ramIndex >= importedLogs.length())
+          break;
         int nextIndex = importedLogs.indexOf('\n', ramIndex);
         if (nextIndex == -1) {
           line = importedLogs.substring(ramIndex);
@@ -518,15 +529,18 @@ void canReplayTask(void* param) {
       }
 
       line.trim();
-      if (line.length() == 0) continue;
+      if (line.length() == 0)
+        continue;
 
       int timeStart = line.indexOf("(") + 1;
       int timeEnd = line.indexOf(")");
-      if (timeStart == 0 || timeEnd == -1) continue;
+      if (timeStart == 0 || timeEnd == -1)
+        continue;
 
       float currentTimestamp = line.substring(timeStart, timeEnd).toFloat();
 
-      if (firstTimestamp < 0) firstTimestamp = currentTimestamp;
+      if (firstTimestamp < 0)
+        firstTimestamp = currentTimestamp;
 
       if (!firstMessageSent) {
         firstMessageSent = true;
@@ -542,16 +556,19 @@ void canReplayTask(void* param) {
 
       int interfaceStart = timeEnd + 2;
       int interfaceEnd = line.indexOf(" ", interfaceStart);
-      if (interfaceEnd == -1) continue;
+      if (interfaceEnd == -1)
+        continue;
 
       int idStart = interfaceEnd + 1;
       int idEnd = line.indexOf(" [", idStart);
-      if (idStart == -1 || idEnd == -1) continue;
+      if (idStart == -1 || idEnd == -1)
+        continue;
 
       String messageID = line.substring(idStart, idEnd);
       int dlcStart = idEnd + 2;
       int dlcEnd = line.indexOf("]", dlcStart);
-      if (dlcEnd == -1) continue;
+      if (dlcEnd == -1)
+        continue;
 
       String dlc = line.substring(dlcStart, dlcEnd);
       int dataStart = dlcEnd + 2;
@@ -572,34 +589,35 @@ void canReplayTask(void* param) {
       currentFrame.ext_ID = (currentFrame.ID > 0x7F0);
 
       transmit_can_frame_to_interface(&currentFrame, (CAN_Interface)datalayer.system.info.can_replay_interface);
-
-    }  
+    }
 
     if (use_sd_for_replay && replayFile) {
       replayFile.close();
     }
 
-  } while (datalayer.system.info.loop_playback);  
+  } while (datalayer.system.info.loop_playback);
 
-  importedLogs = "";  
+  importedLogs = "";
   isReplayRunning = false;
-  vTaskDelete(NULL);  
+  vTaskDelete(NULL);
 }
 
 bool checkAuth(AsyncWebServerRequest* request) {
   BatteryEmulatorSettingsStore auth_settings(true);
   bool is_auth_enabled = (auth_settings.getUInt("WEBAUTH", 0) == 1);
 
-  if (!is_auth_enabled) return true;  
+  if (!is_auth_enabled)
+    return true;
 
   String u = (http_username.length() > 0) ? http_username.c_str() : DEFAULT_WEB_USER;
   String p = (http_password.length() >= 4) ? http_password.c_str() : DEFAULT_WEB_PASS;
   String expectedAuth = "Basic " + base64::encode(u + ":" + p);
 
   if (request->hasHeader("Authorization")) {
-    if (request->getHeader("Authorization")->value().equals(expectedAuth)) return true;
+    if (request->getHeader("Authorization")->value().equals(expectedAuth))
+      return true;
   }
-  return false;  
+  return false;
 }
 
 void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethodComposite method,
@@ -620,7 +638,8 @@ void send_large_page_safely(AsyncWebServerRequest* request, std::function<String
   // String payload = processor_func("X");
   // html.replace("%X%", payload);
   // request->send(200, "text/html", html);
-  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", (const uint8_t*)index_html, strlen(index_html), processor_func);
+  AsyncWebServerResponse* response =
+      request->beginResponse(200, "text/html", (const uint8_t*)index_html, strlen(index_html), processor_func);
   request->send(response);
 }
 
@@ -631,28 +650,31 @@ void send_large_page_safely(AsyncWebServerRequest* request, std::function<String
 void init_webserver() {
 
   def_route_with_auth("/startScan", server, HTTP_POST, [](AsyncWebServerRequest* request) {
-    if(!is_scanning) xTaskCreate(wifiScanTask, "WiFiScan", 4096, NULL, 1, NULL);
+    if (!is_scanning)
+      xTaskCreate(wifiScanTask, "WiFiScan", 4096, NULL, 1, NULL);
     request->send(200, "text/plain", "Started");
   });
-  
+
   def_route_with_auth("/getScan", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    if(is_scanning) request->send(200, "application/json", "{\"status\":\"scanning\"}");
-    else request->send(200, "application/json", scan_results);
+    if (is_scanning)
+      request->send(200, "application/json", "{\"status\":\"scanning\"}");
+    else
+      request->send(200, "application/json", scan_results);
   });
 
   def_route_with_auth("/applyWifi", server, HTTP_POST, [](AsyncWebServerRequest* request) {
-    if(request->hasParam("ssid", true)) {
-        apply_ssid = request->getParam("ssid", true)->value();
-        apply_pass = request->hasParam("pass", true) ? request->getParam("pass", true)->value() : "";
-        keep_ap_mode = request->hasParam("keep_ap", true) ? (request->getParam("keep_ap", true)->value() == "1") : true;
-        wifi_apply_state = 1; 
-        xTaskCreate(wifiApplyTask, "WiFiApply", 4096, NULL, 1, NULL); 
-        request->send(200, "text/plain", "Started");
+    if (request->hasParam("ssid", true)) {
+      apply_ssid = request->getParam("ssid", true)->value();
+      apply_pass = request->hasParam("pass", true) ? request->getParam("pass", true)->value() : "";
+      keep_ap_mode = request->hasParam("keep_ap", true) ? (request->getParam("keep_ap", true)->value() == "1") : true;
+      wifi_apply_state = 1;
+      xTaskCreate(wifiApplyTask, "WiFiApply", 4096, NULL, 1, NULL);
+      request->send(200, "text/plain", "Started");
     } else {
-        request->send(400, "text/plain", "No SSID");
+      request->send(400, "text/plain", "No SSID");
     }
   });
-  
+
   def_route_with_auth("/applyWifiStatus", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     String resp = "{\"state\":" + String(wifi_apply_state) + ",\"ip\":\"" + applied_ip + "\"}";
     request->send(200, "application/json", resp);
@@ -677,7 +699,8 @@ void init_webserver() {
   def_route_with_auth("/", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     ota_active = false;
     auto dashboard_processor = [](const String& var) {
-      if (var == "X") return String(dashboard_html);
+      if (var == "X")
+        return String(dashboard_html);
       return String();
     };
     send_large_page_safely(request, dashboard_processor);
@@ -724,13 +747,13 @@ void init_webserver() {
     request->send(request->beginResponse(200, "text/html", debug_logger_processor()));
   });
 
-  // API : Start Stream 
+  // API : Start Stream
   def_route_with_auth("/start_can_logging", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     datalayer.system.info.can_logging_active = true;
     if (can_stream_mutex != NULL && xSemaphoreTake(can_stream_mutex, (TickType_t)50) == pdTRUE) {
-        can_batch_len = 0;
-        can_batch_buffer[0] = '\0';
-        xSemaphoreGive(can_stream_mutex);
+      can_batch_len = 0;
+      can_batch_buffer[0] = '\0';
+      xSemaphoreGive(can_stream_mutex);
     }
     request->send(200, "text/plain", "CAN Stream Started");
   });
@@ -741,27 +764,27 @@ void init_webserver() {
     datalayer.system.info.logged_can_messages_offset = 0;
     datalayer.system.info.logged_can_messages[0] = '\0';
     if (can_stream_mutex != NULL && xSemaphoreTake(can_stream_mutex, (TickType_t)50) == pdTRUE) {
-        can_batch_len = 0;
-        can_batch_buffer[0] = '\0';
-        xSemaphoreGive(can_stream_mutex);
+      can_batch_len = 0;
+      can_batch_buffer[0] = '\0';
+      xSemaphoreGive(can_stream_mutex);
     }
     request->send(200, "text/plain", "Logging stopped");
   });
 
-  // 🌟 API : High-Speed Poller 
+  // 🌟 API : High-Speed Poller
   def_route_with_auth("/api/can_poll", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-      if (can_stream_mutex != NULL && xSemaphoreTake(can_stream_mutex, (TickType_t)50) == pdTRUE) {
-          if (can_batch_len > 0) {
-              request->send(200, "text/plain", can_batch_buffer);
-              can_batch_len = 0; // 
-              can_batch_buffer[0] = '\0';
-          } else {
-              request->send(200, "text/plain", "");
-          }
-          xSemaphoreGive(can_stream_mutex);
+    if (can_stream_mutex != NULL && xSemaphoreTake(can_stream_mutex, (TickType_t)50) == pdTRUE) {
+      if (can_batch_len > 0) {
+        request->send(200, "text/plain", can_batch_buffer);
+        can_batch_len = 0;  //
+        can_batch_buffer[0] = '\0';
       } else {
-          request->send(503, "text/plain", ""); // Server Busy
+        request->send(200, "text/plain", "");
       }
+      xSemaphoreGive(can_stream_mutex);
+    } else {
+      request->send(503, "text/plain", "");  // Server Busy
+    }
   });
 
   def_route_with_auth("/clear_log", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -786,9 +809,8 @@ void init_webserver() {
       request->send(200, "text/plain", "Log file deleted");
     });
   } else {
-    server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-      request->send(400, "text/plain", "Use frontend Export.");
-    });
+    server.on("/export_can_log", HTTP_GET,
+              [](AsyncWebServerRequest* request) { request->send(400, "text/plain", "Use frontend Export."); });
   }
 
   if (datalayer.system.info.SD_logging_active) {
@@ -809,7 +831,8 @@ void init_webserver() {
         return request->send(response);
       }
       String logs = String(datalayer.system.info.logged_can_messages);
-      if (logs.length() == 0) logs = "No logs available.";
+      if (logs.length() == 0)
+        logs = "No logs available.";
       time_t now = time(nullptr);
       struct tm timeinfo;
       localtime_r(&now, &timeinfo);
@@ -826,9 +849,9 @@ void init_webserver() {
   // def_route_with_auth("/cellmonitor", server, HTTP_GET,
   //                    [](AsyncWebServerRequest* request) { send_large_page_safely(request, cellmonitor_processor); });
 
-  // Cell Monitor: use Template Processor RAM 0% 
+  // Cell Monitor: use Template Processor RAM 0%
   def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    AsyncWebServerResponse *response = request->beginResponse(200, "text/html", index_html, cellmonitor_processor);
+    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", index_html, cellmonitor_processor);
     request->send(response);
   });
 
@@ -849,89 +872,127 @@ void init_webserver() {
 
   // auto serve_settings_page = [](AsyncWebServerRequest* request, const char* html_array) {
   //     auto settings = std::make_shared<BatteryEmulatorSettingsStore>(true);
-  //     request->send(200, "text/html", (const uint8_t*)html_array, strlen(html_array), 
+  //     request->send(200, "text/html", (const uint8_t*)html_array, strlen(html_array),
   //         [settings](const String& content) { return settings_processor(content, *settings); });
   // };
 
   auto serve_settings_page = [](AsyncWebServerRequest* request, const char* html_array) {
-      auto settings = std::make_shared<BatteryEmulatorSettingsStore>(true);
-      AsyncWebServerResponse *response = request->beginResponse(200, "text/html", html_array, 
-          [settings](const String& content) { return settings_processor(content, *settings); });
-      request->send(response);
+    auto settings = std::make_shared<BatteryEmulatorSettingsStore>(true);
+    AsyncWebServerResponse* response =
+        request->beginResponse(200, "text/html", html_array,
+                               [settings](const String& content) { return settings_processor(content, *settings); });
+    request->send(response);
   };
 
-  def_route_with_auth("/settings", server, HTTP_GET, [serve_settings_page](AsyncWebServerRequest* request) { serve_settings_page(request, settings_batt_html); });
-  def_route_with_auth("/set_network", server, HTTP_GET, [serve_settings_page](AsyncWebServerRequest* request) { serve_settings_page(request, settings_net_html); });
-  def_route_with_auth("/set_hardware", server, HTTP_GET, [serve_settings_page](AsyncWebServerRequest* request) { serve_settings_page(request, settings_hw_html); });
-  def_route_with_auth("/set_web", server, HTTP_GET, [serve_settings_page](AsyncWebServerRequest* request) { serve_settings_page(request, settings_web_html); });
-  def_route_with_auth("/set_overrides", server, HTTP_GET, [serve_settings_page](AsyncWebServerRequest* request) { serve_settings_page(request, settings_overrides_html); });
+  def_route_with_auth("/settings", server, HTTP_GET, [serve_settings_page](AsyncWebServerRequest* request) {
+    serve_settings_page(request, settings_batt_html);
+  });
+  def_route_with_auth("/set_network", server, HTTP_GET, [serve_settings_page](AsyncWebServerRequest* request) {
+    serve_settings_page(request, settings_net_html);
+  });
+  def_route_with_auth("/set_hardware", server, HTTP_GET, [serve_settings_page](AsyncWebServerRequest* request) {
+    serve_settings_page(request, settings_hw_html);
+  });
+  def_route_with_auth("/set_web", server, HTTP_GET, [serve_settings_page](AsyncWebServerRequest* request) {
+    serve_settings_page(request, settings_web_html);
+  });
+  def_route_with_auth("/set_overrides", server, HTTP_GET, [serve_settings_page](AsyncWebServerRequest* request) {
+    serve_settings_page(request, settings_overrides_html);
+  });
 
   def_route_with_auth("/saveSettings", server, HTTP_POST, [](AsyncWebServerRequest* request) {
-        BatteryEmulatorSettingsStore settings;
-        String pageUrl = request->hasParam("PAGE_ID", true) ? request->getParam("PAGE_ID", true)->value() : "/settings";
+    BatteryEmulatorSettingsStore settings;
+    String pageUrl = request->hasParam("PAGE_ID", true) ? request->getParam("PAGE_ID", true)->value() : "/settings";
 
-        const char* uintSettingNames[] = {
-            "BATTCVMAX", "BATTCVMIN", "MAXPRETIME", "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER", "CHGPOWER", 
-            "LOCALIP1", "LOCALIP2", "LOCALIP3", "LOCALIP4", "GATEWAY1", "GATEWAY2", "GATEWAY3", "GATEWAY4", 
-            "SUBNET1", "SUBNET2", "SUBNET3", "SUBNET4", "MQTTPORT", "MQTTTIMEOUT", "SOFAR_ID", "PYLONSEND", 
-            "INVCELLS", "INVMODULES", "INVCELLSPER", "INVVLEVEL", "INVCAPACITY", "INVBTYPE", "CANFREQ", 
-            "CANFDFREQ", "PRECHGMS", "PWMFREQ", "PWMHOLD", "GTWCOUNTRY", "GTWMAPREG", "GTWCHASSIS", "GTWPACK", 
-            "LEDMODE", "GPIOOPT1", "GPIOOPT2", "GPIOOPT3", "INVSUNTYPE", "GPIOOPT4", "LEDTAIL", "LEDCOUNT", 
-            "WEBAUTH", "DISPLAYTYPE", "CTVNOM", "CTANOM", "CTATTEN" // 🌟 เพิ่มค่า CT Clamp จาก main
-        };
+    const char* uintSettingNames[] = {
+        "BATTCVMAX",  "BATTCVMIN",  "MAXPRETIME", "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER",   "CHGPOWER",
+        "LOCALIP1",   "LOCALIP2",   "LOCALIP3",   "LOCALIP4",   "GATEWAY1",    "GATEWAY2",    "GATEWAY3",
+        "GATEWAY4",   "SUBNET1",    "SUBNET2",    "SUBNET3",    "SUBNET4",     "MQTTPORT",    "MQTTTIMEOUT",
+        "SOFAR_ID",   "PYLONSEND",  "INVCELLS",   "INVMODULES", "INVCELLSPER", "INVVLEVEL",   "INVCAPACITY",
+        "INVBTYPE",   "CANFREQ",    "CANFDFREQ",  "PRECHGMS",   "PWMFREQ",     "PWMHOLD",     "GTWCOUNTRY",
+        "GTWMAPREG",  "GTWCHASSIS", "GTWPACK",    "LEDMODE",    "GPIOOPT1",    "GPIOOPT2",    "GPIOOPT3",
+        "INVSUNTYPE", "GPIOOPT4",   "LEDTAIL",    "LEDCOUNT",   "WEBAUTH",     "DISPLAYTYPE", "CTVNOM",
+        "CTANOM",     "CTATTEN"  // 🌟 เพิ่มค่า CT Clamp จาก main
+    };
 
-        const char* stringSettingNames[] = {
-            "APNAME", "APPASSWORD", "HOSTNAME", "MQTTSERVER", "MQTTUSER",
-            "MQTTPASSWORD", "MQTTTOPIC", "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID",
-            "SSID", "PASSWORD", "WEBUSER", "WEBPASS", "CTOFFSET" // 🌟 เพิ่มค่า CT Clamp จาก main
-        };
+    const char* stringSettingNames[] = {
+        "APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
+        "MQTTPASSWORD", "MQTTTOPIC",  "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID",
+        "SSID",         "PASSWORD",   "WEBUSER",         "WEBPASS",        "CTOFFSET"  // 🌟 เพิ่มค่า CT Clamp จาก main
+    };
 
-        int numParams = request->params();
-        for (int i = 0; i < numParams; i++) {
-            auto p = request->getParam(i);
-            String pName = p->name();
-            String pValue = p->value();
+    int numParams = request->params();
+    for (int i = 0; i < numParams; i++) {
+      auto p = request->getParam(i);
+      String pName = p->name();
+      String pValue = p->value();
 
-            if (pName == "inverter") settings.saveUInt("INVTYPE", atoi(pValue.c_str()));
-            else if (pName == "INVCOMM") settings.saveUInt("INVCOMM", atoi(pValue.c_str()));
-            else if (pName == "battery") settings.saveUInt("BATTTYPE", atoi(pValue.c_str()));
-            else if (pName == "BATTCHEM") settings.saveUInt("BATTCHEM", atoi(pValue.c_str()));
-            else if (pName == "BATTCOMM") settings.saveUInt("BATTCOMM", atoi(pValue.c_str()));
-            else if (pName == "BATTPVMAX") settings.saveUInt("BATTPVMAX", (int)(pValue.toFloat() * 10.0f));
-            else if (pName == "BATTPVMIN") settings.saveUInt("BATTPVMIN", (int)(pValue.toFloat() * 10.0f));
-            else if (pName == "charger") settings.saveUInt("CHGTYPE", atoi(pValue.c_str()));
-            else if (pName == "CHGCOMM") settings.saveUInt("CHGCOMM", atoi(pValue.c_str()));
-            else if (pName == "EQSTOP") settings.saveUInt("EQSTOP", atoi(pValue.c_str()));
-            else if (pName == "BATT2COMM") settings.saveUInt("BATT2COMM", atoi(pValue.c_str()));
-            else if (pName == "BATT3COMM") settings.saveUInt("BATT3COMM", atoi(pValue.c_str()));
-            else if (pName == "shunttype") settings.saveUInt("SHUNTTYPE", atoi(pValue.c_str())); 
-            else if (pName == "SHUNTCOMM") settings.saveUInt("SHUNTCOMM", atoi(pValue.c_str()));
-            else if (pName == "MQTTPUBLISHMS") settings.saveUInt("MQTTPUBLISHMS", atoi(pValue.c_str()) * 1000);
+      if (pName == "inverter")
+        settings.saveUInt("INVTYPE", atoi(pValue.c_str()));
+      else if (pName == "INVCOMM")
+        settings.saveUInt("INVCOMM", atoi(pValue.c_str()));
+      else if (pName == "battery")
+        settings.saveUInt("BATTTYPE", atoi(pValue.c_str()));
+      else if (pName == "BATTCHEM")
+        settings.saveUInt("BATTCHEM", atoi(pValue.c_str()));
+      else if (pName == "BATTCOMM")
+        settings.saveUInt("BATTCOMM", atoi(pValue.c_str()));
+      else if (pName == "BATTPVMAX")
+        settings.saveUInt("BATTPVMAX", (int)(pValue.toFloat() * 10.0f));
+      else if (pName == "BATTPVMIN")
+        settings.saveUInt("BATTPVMIN", (int)(pValue.toFloat() * 10.0f));
+      else if (pName == "charger")
+        settings.saveUInt("CHGTYPE", atoi(pValue.c_str()));
+      else if (pName == "CHGCOMM")
+        settings.saveUInt("CHGCOMM", atoi(pValue.c_str()));
+      else if (pName == "EQSTOP")
+        settings.saveUInt("EQSTOP", atoi(pValue.c_str()));
+      else if (pName == "BATT2COMM")
+        settings.saveUInt("BATT2COMM", atoi(pValue.c_str()));
+      else if (pName == "BATT3COMM")
+        settings.saveUInt("BATT3COMM", atoi(pValue.c_str()));
+      else if (pName == "shunttype")
+        settings.saveUInt("SHUNTTYPE", atoi(pValue.c_str()));
+      else if (pName == "SHUNTCOMM")
+        settings.saveUInt("SHUNTCOMM", atoi(pValue.c_str()));
+      else if (pName == "MQTTPUBLISHMS")
+        settings.saveUInt("MQTTPUBLISHMS", atoi(pValue.c_str()) * 1000);
 
-            for (const char* uintSetting : uintSettingNames) {
-                if (pName == String(uintSetting)) settings.saveUInt(uintSetting, atoi(pValue.c_str()));
-            }
-            for (const char* stringSetting : stringSettingNames) {
-                if (pName == String(stringSetting)) settings.saveString(stringSetting, pValue.c_str());
-            }
-        }
+      for (const char* uintSetting : uintSettingNames) {
+        if (pName == String(uintSetting))
+          settings.saveUInt(uintSetting, atoi(pValue.c_str()));
+      }
+      for (const char* stringSetting : stringSettingNames) {
+        if (pName == String(stringSetting))
+          settings.saveString(stringSetting, pValue.c_str());
+      }
+    }
 
-        std::vector<const char*> activeBools;
-        if (pageUrl == "/set_network") activeBools = {"STATICIP", "WIFIAPENABLED", "ESPNOWENABLED", "MQTTENABLED", "MQTTCELLV", "REMBMSRESET", "MQTTTOPICS", "HADISC"};
-        else if (pageUrl == "/settings") activeBools = {"INTERLOCKREQ", "DIGITALHVIL", "GTWRHD", "SOCESTIMATED", "DBLBTR", "TRIBTR", "PYLONOFFSET", "PYLONORDER", "DEYEBYD", "INVICNT", "PRIMOGEN24"}; // 🌟 เพิ่ม PRIMOGEN24
-        else if (pageUrl == "/set_hardware") activeBools = {"CANFDASCAN", "CNTCTRLDBL", "CNTCTRLTRI", "CNTCTRL", "NCCONTACTOR", "PWMCNTCTRL", "PERBMSRESET", "EXTPRECHARGE", "NOINVDISC", "EPAPREFRESHBTN", "MULTII2C", "I2C_SHT30", "I2C_ATECC", "I2C_RTC", "I2C_IO", "CTINVERT"}; // 🌟 เพิ่ม CTINVERT
-        else if (pageUrl == "/set_web") activeBools = {"PERFPROFILE", "CANLOGUSB", "USBENABLED", "WEBENABLED", "CANLOGSD", "SDLOGENABLED"};
+    std::vector<const char*> activeBools;
+    if (pageUrl == "/set_network")
+      activeBools = {"STATICIP",  "WIFIAPENABLED", "ESPNOWENABLED", "MQTTENABLED",
+                     "MQTTCELLV", "REMBMSRESET",   "MQTTTOPICS",    "HADISC"};
+    else if (pageUrl == "/settings")
+      activeBools = {"INTERLOCKREQ", "DIGITALHVIL", "GTWRHD",  "SOCESTIMATED", "DBLBTR",    "TRIBTR",
+                     "PYLONOFFSET",  "PYLONORDER",  "DEYEBYD", "INVICNT",      "PRIMOGEN24"};  // 🌟 เพิ่ม PRIMOGEN24
+    else if (pageUrl == "/set_hardware")
+      activeBools = {"CANFDASCAN",  "CNTCTRLDBL",   "CNTCTRLTRI", "CNTCTRL",        "NCCONTACTOR", "PWMCNTCTRL",
+                     "PERBMSRESET", "EXTPRECHARGE", "NOINVDISC",  "EPAPREFRESHBTN", "MULTII2C",    "I2C_SHT30",
+                     "I2C_ATECC",   "I2C_RTC",      "I2C_IO",     "CTINVERT"};  // 🌟 เพิ่ม CTINVERT
+    else if (pageUrl == "/set_web")
+      activeBools = {"PERFPROFILE", "CANLOGUSB", "USBENABLED", "WEBENABLED", "CANLOGSD", "SDLOGENABLED"};
 
-        for (const char* boolSetting : activeBools) {
-            auto p = request->getParam(boolSetting, true);
-            settings.saveBool(boolSetting, p != nullptr && p->value() == "on");
-        }
+    for (const char* boolSetting : activeBools) {
+      auto p = request->getParam(boolSetting, true);
+      settings.saveBool(boolSetting, p != nullptr && p->value() == "on");
+    }
 
-        settingsUpdated = settings.were_settings_updated();
-        request->redirect(pageUrl);
-    });
+    settingsUpdated = settings.were_settings_updated();
+    request->redirect(pageUrl);
+  });
 
-  auto update_string = [](const char* route, std::function<void(String)> setter, std::function<bool(String)> validator = nullptr) {
+  auto update_string = [](const char* route, std::function<void(String)> setter,
+                          std::function<bool(String)> validator = nullptr) {
     def_route_with_auth(route, server, HTTP_GET, [=](AsyncWebServerRequest* request) {
       if (request->hasParam("value")) {
         String value = request->getParam("value")->value();
@@ -947,8 +1008,15 @@ void init_webserver() {
     });
   };
 
-  auto update_string_setting = [=](const char* route, std::function<void(String)> setter, std::function<bool(String)> validator = nullptr) {
-    update_string(route, [setter](String value) { setter(value); store_settings(); }, validator);
+  auto update_string_setting = [=](const char* route, std::function<void(String)> setter,
+                                   std::function<bool(String)> validator = nullptr) {
+    update_string(
+        route,
+        [setter](String value) {
+          setter(value);
+          store_settings();
+        },
+        validator);
   };
 
   auto update_int_setting = [=](const char* route, std::function<void(int)> setter) {
@@ -957,22 +1025,27 @@ void init_webserver() {
 
   update_int_setting("/updateBatterySize", [](int value) { datalayer.battery.info.total_capacity_Wh = value; });
   update_int_setting("/updateUseScaledSOC", [](int value) { datalayer.battery.settings.soc_scaling_active = value; });
-  update_int_setting("/enableRecoveryMode", [](int value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; });
-  update_string_setting("/updateSocMax", [](String value) { datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100); });
+  update_int_setting("/enableRecoveryMode",
+                     [](int value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; });
+  update_string_setting("/updateSocMax", [](String value) {
+    datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
+  });
   update_int_setting("/set_can_id_cutoff", [](int value) { user_selected_CAN_ID_cutoff_filter = value; });
 
-  update_string("/pause", [](String value) { 
-      if (value == "" || value == "toggle") {
-          bool current_status = (get_emulator_pause_status() == "PAUSED" || get_emulator_pause_status() == "PAUSING");
-          setBatteryPause(!current_status, false); 
-      } else {
-          setBatteryPause(value == "true" || value == "1", false); 
-      }
+  update_string("/pause", [](String value) {
+    if (value == "" || value == "toggle") {
+      bool current_status = (get_emulator_pause_status() == "PAUSED" || get_emulator_pause_status() == "PAUSING");
+      setBatteryPause(!current_status, false);
+    } else {
+      setBatteryPause(value == "true" || value == "1", false);
+    }
   });
 
   update_string("/equipmentStop", [](String value) {
-    if (value == "true" || value == "1") setBatteryPause(true, false, true);
-    else setBatteryPause(false, false, false);
+    if (value == "true" || value == "1")
+      setBatteryPause(true, false, true);
+    else
+      setBatteryPause(false, false, false);
   });
 
   // Route for editing SOC Calibration BYD
@@ -985,48 +1058,92 @@ void init_webserver() {
     datalayer_extended.bydAtto3.calibrationTargetAH = static_cast<uint16_t>(value.toFloat());
   });
 
-  update_string_setting("/updateSocMin", [](String value) { datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100); });
-  update_string_setting("/updateMaxChargeA", [](String value) { datalayer.battery.settings.max_user_set_charge_dA = static_cast<uint16_t>(value.toFloat() * 10); });
-  update_string_setting("/updateMaxDischargeA", [](String value) { datalayer.battery.settings.max_user_set_discharge_dA = static_cast<uint16_t>(value.toFloat() * 10); });
+  update_string_setting("/updateSocMin", [](String value) {
+    datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
+  });
+  update_string_setting("/updateMaxChargeA", [](String value) {
+    datalayer.battery.settings.max_user_set_charge_dA = static_cast<uint16_t>(value.toFloat() * 10);
+  });
+  update_string_setting("/updateMaxDischargeA", [](String value) {
+    datalayer.battery.settings.max_user_set_discharge_dA = static_cast<uint16_t>(value.toFloat() * 10);
+  });
 
   for (const auto& cmd : battery_commands) {
     auto route = String("/") + cmd.identifier;
-    server.on(route.c_str(), HTTP_PUT,
+    server.on(
+        route.c_str(), HTTP_PUT,
         [cmd](AsyncWebServerRequest* request) {
           BatteryEmulatorSettingsStore auth_settings(true);
           bool is_auth_enabled = (auth_settings.getUInt("WEBAUTH", 1) == 1);
-          if (is_auth_enabled && !checkAuth(request)) return request->requestAuthentication();
+          if (is_auth_enabled && !checkAuth(request))
+            return request->requestAuthentication();
         },
         nullptr,
         [cmd](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
           String battIndex = "";
-          if (len > 0) battIndex += (char)data[0];
+          if (len > 0)
+            battIndex += (char)data[0];
           Battery* batt = battery;
-          if (battIndex == "1") batt = battery2;
-          if (battIndex == "2") batt = battery3;
-          if (batt) cmd.action(batt);
+          if (battIndex == "1")
+            batt = battery2;
+          if (battIndex == "2")
+            batt = battery3;
+          if (batt)
+            cmd.action(batt);
           request->send(200, "text/plain", "Command performed.");
         });
   }
 
-  update_int_setting("/updateUseVoltageLimit", [](int value) { datalayer.battery.settings.user_set_voltage_limits_active = value; });
-  update_string_setting("/updateMaxChargeVoltage", [](String value) { datalayer.battery.settings.max_user_set_charge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10); });
-  update_string_setting("/updateMaxDischargeVoltage", [](String value) { datalayer.battery.settings.max_user_set_discharge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10); });
-  update_string_setting("/updateBMSresetDuration", [](String value) { datalayer.battery.settings.user_set_bms_reset_duration_ms = static_cast<uint16_t>(value.toFloat() * 1000); });
+  update_int_setting("/updateUseVoltageLimit",
+                     [](int value) { datalayer.battery.settings.user_set_voltage_limits_active = value; });
+  update_string_setting("/updateMaxChargeVoltage", [](String value) {
+    datalayer.battery.settings.max_user_set_charge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
+  });
+  update_string_setting("/updateMaxDischargeVoltage", [](String value) {
+    datalayer.battery.settings.max_user_set_discharge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
+  });
+  update_string_setting("/updateBMSresetDuration", [](String value) {
+    datalayer.battery.settings.user_set_bms_reset_duration_ms = static_cast<uint16_t>(value.toFloat() * 1000);
+  });
   update_string_setting("/updateFakeBatteryVoltage", [](String value) { battery->set_fake_voltage(value.toFloat()); });
   update_int_setting("/TeslaBalAct", [](int value) { datalayer.battery.settings.user_requests_balancing = value; });
-  update_string_setting("/BalTime", [](String value) { datalayer.battery.settings.balancing_max_time_ms = static_cast<uint32_t>(value.toFloat() * 60000); });
-  update_string_setting("/BalFloatPower", [](String value) { datalayer.battery.settings.balancing_float_power_W = static_cast<uint16_t>(value.toFloat()); });
-  update_string_setting("/BalMaxPackV", [](String value) { datalayer.battery.settings.balancing_max_pack_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10); });
-  update_string_setting("/BalMaxCellV", [](String value) { datalayer.battery.settings.balancing_max_cell_voltage_mV = static_cast<uint16_t>(value.toFloat()); });
-  update_string_setting("/BalMaxDevCellV", [](String value) { datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV = static_cast<uint16_t>(value.toFloat()); });
+  update_string_setting("/BalTime", [](String value) {
+    datalayer.battery.settings.balancing_max_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);
+  });
+  update_string_setting("/BalFloatPower", [](String value) {
+    datalayer.battery.settings.balancing_float_power_W = static_cast<uint16_t>(value.toFloat());
+  });
+  update_string_setting("/BalMaxPackV", [](String value) {
+    datalayer.battery.settings.balancing_max_pack_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
+  });
+  update_string_setting("/BalMaxCellV", [](String value) {
+    datalayer.battery.settings.balancing_max_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
+  });
+  update_string_setting("/BalMaxDevCellV", [](String value) {
+    datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
+  });
 
   if (charger) {
-    update_string_setting("/updateChargeSetpointV", [](String value) { datalayer.charger.charger_setpoint_HV_VDC = value.toFloat(); }, [](String value) { float val = value.toFloat(); return (val <= CHARGER_MAX_HV && val >= CHARGER_MIN_HV) && (val * datalayer.charger.charger_setpoint_HV_IDC <= CHARGER_MAX_POWER); });
-    update_string_setting("/updateChargeSetpointA", [](String value) { datalayer.charger.charger_setpoint_HV_IDC = value.toFloat(); }, [](String value) { float val = value.toFloat(); return (val <= CHARGER_MAX_A) && (val <= datalayer.battery.settings.max_user_set_charge_dA) && (val * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER); });
-    update_string_setting("/updateChargeEndA", [](String value) { datalayer.charger.charger_setpoint_HV_IDC_END = value.toFloat(); });
-    update_int_setting("/updateChargerHvEnabled", [](int value) { datalayer.charger.charger_HV_enabled = (bool)value; });
-    update_int_setting("/updateChargerAux12vEnabled", [](int value) { datalayer.charger.charger_aux12V_enabled = (bool)value; });
+    update_string_setting(
+        "/updateChargeSetpointV", [](String value) { datalayer.charger.charger_setpoint_HV_VDC = value.toFloat(); },
+        [](String value) {
+          float val = value.toFloat();
+          return (val <= CHARGER_MAX_HV && val >= CHARGER_MIN_HV) &&
+                 (val * datalayer.charger.charger_setpoint_HV_IDC <= CHARGER_MAX_POWER);
+        });
+    update_string_setting(
+        "/updateChargeSetpointA", [](String value) { datalayer.charger.charger_setpoint_HV_IDC = value.toFloat(); },
+        [](String value) {
+          float val = value.toFloat();
+          return (val <= CHARGER_MAX_A) && (val <= datalayer.battery.settings.max_user_set_charge_dA) &&
+                 (val * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER);
+        });
+    update_string_setting("/updateChargeEndA",
+                          [](String value) { datalayer.charger.charger_setpoint_HV_IDC_END = value.toFloat(); });
+    update_int_setting("/updateChargerHvEnabled",
+                       [](int value) { datalayer.charger.charger_HV_enabled = (bool)value; });
+    update_int_setting("/updateChargerAux12vEnabled",
+                       [](int value) { datalayer.charger.charger_aux12V_enabled = (bool)value; });
   }
 
   def_route_with_auth("/api/data", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -1034,18 +1151,22 @@ void init_webserver() {
     doc["sys"]["uptime"] = get_uptime();
     doc["sys"]["heap"] = ESP.getFreeHeap();
     doc["sys"]["heap_size"] = ESP.getHeapSize();
-    doc["sys"]["psram"] = ESP.getFreePsram(); 
+    doc["sys"]["psram"] = ESP.getFreePsram();
     doc["sys"]["psram_size"] = ESP.getPsramSize();
     doc["sys"]["status"] = get_emulator_pause_status().c_str();
     doc["sys"]["version"] = version_number;
 
-    doc["sys"]["inv"] = inverter ? String(inverter->name()) + " " + String(datalayer.system.info.inverter_brand) : "None";
+    doc["sys"]["inv"] =
+        inverter ? String(inverter->name()) + " " + String(datalayer.system.info.inverter_brand) : "None";
     String bat_proto = "None";
     if (battery) {
       bat_proto = String(datalayer.system.info.battery_protocol);
-      if (battery3) bat_proto += " (Triple)";
-      else if (battery2) bat_proto += " (Double)";
-      if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) bat_proto += " (LFP)";
+      if (battery3)
+        bat_proto += " (Triple)";
+      else if (battery2)
+        bat_proto += " (Double)";
+      if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP)
+        bat_proto += " (LFP)";
     }
     doc["sys"]["bat"] = bat_proto;
     doc["sys"]["inv_cont"] = datalayer.system.status.inverter_allows_contactor_closing;
@@ -1065,14 +1186,20 @@ void init_webserver() {
         b["tmax"] = String((float)dt_status.temperature_max_dC / 10.0f, 1);
 
         String stat_str = "UNKNOWN";
-        if (dt_status.bms_status == ACTIVE) stat_str = "OK";
-        else if (dt_status.bms_status == UPDATING) stat_str = "UPDATING";
-        else if (dt_status.bms_status == FAULT) stat_str = "FAULT";
+        if (dt_status.bms_status == ACTIVE)
+          stat_str = "OK";
+        else if (dt_status.bms_status == UPDATING)
+          stat_str = "UPDATING";
+        else if (dt_status.bms_status == FAULT)
+          stat_str = "FAULT";
         b["stat"] = stat_str;
 
-        if (dt_status.current_dA == 0) b["act"] = "Idle 💤";
-        else if (dt_status.current_dA < 0) b["act"] = "Discharging 🔋⬇️";
-        else b["act"] = "Charging 🔋⬆️";
+        if (dt_status.current_dA == 0)
+          b["act"] = "Idle 💤";
+        else if (dt_status.current_dA < 0)
+          b["act"] = "Discharging 🔋⬇️";
+        else
+          b["act"] = "Charging 🔋⬆️";
 
         b["mc"] = dt_status.max_charge_power_W;
         b["md"] = dt_status.max_discharge_power_W;
@@ -1097,47 +1224,53 @@ void init_webserver() {
     // serializeJson(doc, output);
     // request->send(200, "application/json", output);
     const char* cType = "application/json";
-    AsyncResponseStream *response = request->beginResponseStream(cType);
+    AsyncResponseStream* response = request->beginResponseStream(cType);
     serializeJson(doc, *response);
     request->send(response);
   });
 
   // NEW API : JSON cell battery info
   def_route_with_auth("/api/cells", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    AsyncResponseStream* response = request->beginResponseStream("application/json");
     response->print("{");
     bool firstBat = true;
-    
+
     auto printBat = [&](const char* key, Battery* bat, DATALAYER_BATTERY_TYPE& layer) {
-        if (!bat || layer.info.number_of_cells == 0) return;
-        if (!firstBat) response->print(",");
-        firstBat = false;
-        
-        response->printf("\"%s\":{\"cv\":[", key);
-        int cells = layer.info.number_of_cells;
-        if (cells > MAX_AMOUNT_CELLS) cells = MAX_AMOUNT_CELLS; 
-        
-        for(int i=0; i<cells; i++) {
-            response->print(layer.status.cell_voltages_mV[i]);
-            if(i < cells-1) response->print(",");
-        }
-        response->print("],\"cb\":[");
-        for(int i=0; i<cells; i++) {
-            response->print(layer.status.cell_balancing_status[i] ? 1 : 0); 
-            if(i < cells-1) response->print(",");
-        }
-        response->print("]}");
+      if (!bat || layer.info.number_of_cells == 0)
+        return;
+      if (!firstBat)
+        response->print(",");
+      firstBat = false;
+
+      response->printf("\"%s\":{\"cv\":[", key);
+      int cells = layer.info.number_of_cells;
+      if (cells > MAX_AMOUNT_CELLS)
+        cells = MAX_AMOUNT_CELLS;
+
+      for (int i = 0; i < cells; i++) {
+        response->print(layer.status.cell_voltages_mV[i]);
+        if (i < cells - 1)
+          response->print(",");
+      }
+      response->print("],\"cb\":[");
+      for (int i = 0; i < cells; i++) {
+        response->print(layer.status.cell_balancing_status[i] ? 1 : 0);
+        if (i < cells - 1)
+          response->print(",");
+      }
+      response->print("]}");
     };
-    
+
     printBat("b1", battery, datalayer.battery);
     printBat("b2", battery2, datalayer.battery2);
     printBat("b3", battery3, datalayer.battery3);
-    
+
     response->print("}");
     request->send(response);
   });
 
-  def_route_with_auth("/debug", server, HTTP_GET, [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });
+  def_route_with_auth("/debug", server, HTTP_GET,
+                      [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });
 
   def_route_with_auth("/reboot", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/plain", "Rebooting server...");
@@ -1147,7 +1280,7 @@ void init_webserver() {
   });
 
   def_route_with_auth("/ota", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    String html = String(index_html_header); 
+    String html = String(index_html_header);
     html += R"rawliteral(
       <style>
         .ota-wrap { display: flex; flex-direction: column; height: 100%; gap: 15px; }
@@ -1167,7 +1300,7 @@ void init_webserver() {
         </div>
       </div>
     )rawliteral";
-    html += String(index_html_footer); 
+    html += String(index_html_footer);
     request->send(200, "text/html", html);
   });
 
@@ -1177,20 +1310,29 @@ void init_webserver() {
 
 String getConnectResultString(wl_status_t status) {
   switch (status) {
-    case WL_CONNECTED: return "Connected";
-    case WL_NO_SHIELD: return "No shield";
-    case WL_IDLE_STATUS: return "Idle status";
-    case WL_NO_SSID_AVAIL: return "No SSID available";
-    case WL_SCAN_COMPLETED: return "Scan completed";
-    case WL_CONNECT_FAILED: return "Connect failed";
-    case WL_CONNECTION_LOST: return "Connection lost";
-    case WL_DISCONNECTED: return "Disconnected";
-    default: return "Unknown";
+    case WL_CONNECTED:
+      return "Connected";
+    case WL_NO_SHIELD:
+      return "No shield";
+    case WL_IDLE_STATUS:
+      return "Idle status";
+    case WL_NO_SSID_AVAIL:
+      return "No SSID available";
+    case WL_SCAN_COMPLETED:
+      return "Scan completed";
+    case WL_CONNECT_FAILED:
+      return "Connect failed";
+    case WL_CONNECTION_LOST:
+      return "Connection lost";
+    case WL_DISCONNECTED:
+      return "Disconnected";
+    default:
+      return "Unknown";
   }
 }
 
 void ota_monitor() {
-  ElegantOTA.loop(); 
+  ElegantOTA.loop();
   if (ota_active && ota_timeout_timer.elapsed()) {
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
     onOTAEnd(false);
@@ -1223,7 +1365,8 @@ String get_uptime() {
   uint32_t remaining_hours = remaining_seconds_in_day / (60 * 60);
   uint32_t remaining_minutes = (remaining_seconds_in_day % (60 * 60)) / 60;
   uint32_t remaining_seconds = remaining_seconds_in_day % 60;
-  return (String)total_days + " days, " + (String)remaining_hours + " hours, " + (String)remaining_minutes + " mins, " + (String)remaining_seconds + " secs";
+  return (String)total_days + " days, " + (String)remaining_hours + " hours, " + (String)remaining_minutes + " mins, " +
+         (String)remaining_seconds + " secs";
 }
 
 void onOTAStart() {
@@ -1254,7 +1397,7 @@ void onOTAEnd(bool success) {
   }
 }
 
-template <typename T>  
+template <typename T>
 String formatPowerValue(String label, T value, String unit, int precision, String color) {
   String result = "<h4 style='color: " + color + ";'>" + label + ": ";
   result += formatPowerValue(value, unit, precision);
@@ -1262,7 +1405,7 @@ String formatPowerValue(String label, T value, String unit, int precision, Strin
   return result;
 }
 
-template <typename T>  
+template <typename T>
 String formatPowerValue(T value, String unit, int precision) {
   String result = "";
   if (std::is_same<T, float>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value) {

@@ -3,9 +3,9 @@
 //#include <GxEPD2_3C.h>
 #include <src/lib/GxEPD2/src/GxEPD2_3C.h>
 //#include <GxEPD2_BW.h>
-#include <src/lib/GxEPD2/src/GxEPD2_BW.h>
 #include <WiFi.h>
 #include <esp_task_wdt.h>
+#include <src/lib/GxEPD2/src/GxEPD2_BW.h>
 #include <time.h>
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"

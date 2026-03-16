@@ -5,13 +5,16 @@
 
 // Native function for character search.
 char* strnchr(const char* s, int c, size_t n) {
-  if (s == NULL) return NULL;
+  if (s == NULL)
+    return NULL;
   for (size_t i = 0; i < n && s[i] != '\0'; ++i) {
-    if (s[i] == c) return (char*)&s[i];
+    if (s[i] == c)
+      return (char*)&s[i];
   }
   if (c == '\0') {
     for (size_t i = 0; i < n; ++i) {
-      if (s[i] == '\0') return (char*)&s[i];
+      if (s[i] == '\0')
+        return (char*)&s[i];
     }
   }
   return NULL;
@@ -20,7 +23,7 @@ char* strnchr(const char* s, int c, size_t n) {
 String debug_logger_processor(void) {
   String content = String();
   if (!content.reserve(1000 + sizeof(datalayer.system.info.logged_can_messages))) {
-    // 🌟 memory alert display 
+    // 🌟 memory alert display
     content += String(index_html_header);
     content += R"rawliteral(
       <div style="padding: 20px;">
@@ -67,18 +70,22 @@ String debug_logger_processor(void) {
 
   // Check the conditions to show the button as originally intended.
   if (datalayer.system.info.web_logging_active || datalayer.system.info.SD_logging_active) {
-    
+
     if (datalayer.system.info.web_logging_active) {
       content += "<button class='btn-cmd btn-blue' onclick='location.reload(true)'>🔄 Refresh Data</button>\n";
-      content += "<button class='btn-cmd btn-red' onclick='fetch(\"/clear_log\").then(()=>location.reload(true))'>🧹 Clear Display</button>\n";
+      content +=
+          "<button class='btn-cmd btn-red' onclick='fetch(\"/clear_log\").then(()=>location.reload(true))'>🧹 Clear "
+          "Display</button>\n";
     }
-    
-    content += "<button class='btn-cmd btn-green' onclick='window.location.href=\"/export_log\"'>📥 Export to .txt</button>\n";
-    
+
+    content +=
+        "<button class='btn-cmd btn-green' onclick='window.location.href=\"/export_log\"'>📥 Export to .txt</button>\n";
+
     if (datalayer.system.info.SD_logging_active) {
-      content += "<button class='btn-cmd btn-dark' onclick='window.location.href=\"/delete_log\"'>🗑️ Delete log file</button>\n";
+      content +=
+          "<button class='btn-cmd btn-dark' onclick='window.location.href=\"/delete_log\"'>🗑️ Delete log "
+          "file</button>\n";
     }
-    
   }
 
   content += R"rawliteral(
@@ -91,22 +98,26 @@ String debug_logger_processor(void) {
 
   // --- Original logic: Check status and retrieve message ---
   if (!datalayer.system.info.web_logging_active && !datalayer.system.info.SD_logging_active) {
-    content += "> ⚠️ System Logging is currently DISABLED.\n> Please go to 'Settings -> Web Settings' to enable Web Logging.";
+    content +=
+        "> ⚠️ System Logging is currently DISABLED.\n> Please go to 'Settings -> Web Settings' to enable Web Logging.";
   } else {
     if (datalayer.system.info.logged_can_messages[0] == '\0') {
-      content += "> 🟢 System Log buffer is clean and ready.\n> Waiting for new system events to occur...\n>\n> 💡 Note: To save system RAM, this board uses a shared memory buffer.\n> Whenever you view CAN Logs, the System Log history is automatically cleared.";
+      content +=
+          "> 🟢 System Log buffer is clean and ready.\n> Waiting for new system events to occur...\n>\n> 💡 Note: To "
+          "save system RAM, this board uses a shared memory buffer.\n> Whenever you view CAN Logs, the System Log "
+          "history is automatically cleared.";
     } else {
       size_t offset = datalayer.system.info.logged_can_messages_offset;
       if (offset > 0 && offset < (sizeof(datalayer.system.info.logged_can_messages) - 1)) {
         char* next_newline = strnchr(&datalayer.system.info.logged_can_messages[offset + 1], '\n',
-                                    sizeof(datalayer.system.info.logged_can_messages) - offset - 1);
+                                     sizeof(datalayer.system.info.logged_can_messages) - offset - 1);
         if (next_newline != NULL) {
           content.concat(next_newline + 1,
-                        strnlen(next_newline + 1, sizeof(datalayer.system.info.logged_can_messages) - offset - 2));
+                         strnlen(next_newline + 1, sizeof(datalayer.system.info.logged_can_messages) - offset - 2));
         } else {
           content.concat(&datalayer.system.info.logged_can_messages[offset + 1],
-                        strnlen(&datalayer.system.info.logged_can_messages[offset + 1],
-                                sizeof(datalayer.system.info.logged_can_messages) - offset - 1));
+                         strnlen(&datalayer.system.info.logged_can_messages[offset + 1],
+                                 sizeof(datalayer.system.info.logged_can_messages) - offset - 1));
         }
       }
       content.concat(datalayer.system.info.logged_can_messages, offset);

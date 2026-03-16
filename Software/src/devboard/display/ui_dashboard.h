@@ -124,19 +124,19 @@ void drawSharedDashboard(T* display, bool is_lcd) {
         min_cv_info = 2.50;
         max_cv_info = 3.65;
         break;
-      
+
       case NMC:
       case NCA:
         min_cv_info = 3.00;
         max_cv_info = 4.20;
         break;
-      
+
       case ZEBRA:
         min_cv_info = 2.00;
         max_cv_info = 2.60;
         break;
 
-      default: 
+      default:
         min_cv_info = 2.80;
         max_cv_info = 4.10;
         break;
@@ -294,7 +294,7 @@ void drawSharedDashboard(T* display, bool is_lcd) {
   } else if (voltage > (datalayer.battery.info.max_design_voltage_dV / 10.0f) && voltage > 10.0) {
     has_alarm = true;
     alarm_msg = "ALARM: PACK OVERVOLTAGE";
-  } else if (voltage < (datalayer.battery.info.min_design_voltage_dV / 10.0f) && voltage > 10.0) { 
+  } else if (voltage < (datalayer.battery.info.min_design_voltage_dV / 10.0f) && voltage > 10.0) {
     has_alarm = true;
     alarm_msg = "ALARM: PACK UNDERVOLTAGE";
   } else if (display_soc <= 10) {

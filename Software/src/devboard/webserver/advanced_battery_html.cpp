@@ -65,7 +65,7 @@ std::vector<BatteryCommand> battery_commands = {
 // 🚀 Advanced Battery Info Processor (Pro-Level Layout)
 // =========================================================================
 String advanced_battery_processor(const String& var) {
-  
+
   if (var == "X") {
     // 🌟 1. Check status and prepare data for button
     String status = get_emulator_pause_status().c_str();
@@ -130,7 +130,8 @@ String advanced_battery_processor(const String& var) {
         <div class="action-bar">
     )rawliteral";
 
-    html += "<button class=\"btn-cmd btn-pause\" onclick=\"sendCmd('/pause?value=toggle', 'GET', '" + pauseBtnPrompt + "')\">" + pauseBtnText + "</button>";
+    html += "<button class=\"btn-cmd btn-pause\" onclick=\"sendCmd('/pause?value=toggle', 'GET', '" + pauseBtnPrompt +
+            "')\">" + pauseBtnText + "</button>";
 
     html += R"rawliteral(
     )rawliteral";

@@ -6,8 +6,9 @@
 
 String can_logger_processor(void) {
   String content;
-  if(!content.reserve(8192)) {
-      return "<div style='padding:20px;text-align:center;'><h3 style='color:red;'>System Busy! Memory is fully loaded.</h3><p>Please refresh the page (F5) to clear background data.</p></div>";
+  if (!content.reserve(8192)) {
+    return "<div style='padding:20px;text-align:center;'><h3 style='color:red;'>System Busy! Memory is fully "
+           "loaded.</h3><p>Please refresh the page (F5) to clear background data.</p></div>";
   }
 
   content += index_html_header;
@@ -44,9 +45,9 @@ String can_logger_processor(void) {
       <div class="filter-box">
         <span class="filter-text">CAN ID Cutoff Filter:</span>
         <span class="filter-val">)rawliteral";
-        
+
   content += String(user_selected_CAN_ID_cutoff_filter);
-  
+
   content += R"rawliteral(</span>
         <button class="btn-cmd btn-gray" style="padding: 6px 12px; font-size: 0.85rem;" onclick="editCANIDCutoff()">✏️ Edit</button>
       </div>
@@ -170,9 +171,9 @@ String can_logger_processor(void) {
     function editCANIDCutoff() {
       window.skipAutoStop = true; 
       var value = prompt('CAN IDs in decimal, below this value will not be logged (0-65535):', ')rawliteral";
-      
+
   content += String(user_selected_CAN_ID_cutoff_filter);
-  
+
   content += R"rawliteral(');
       if (value !== null) {
         if (value >= 0 && value <= 65535) {

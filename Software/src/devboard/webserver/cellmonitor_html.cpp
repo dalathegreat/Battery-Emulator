@@ -1,8 +1,8 @@
-#include <Arduino.h>
 #include "cellmonitor_html.h"
+#include <Arduino.h>
 
 // =========================================================================
-// Page Static + AJAX 
+// Page Static + AJAX
 // =========================================================================
 const char CELLMONITOR_HTML_CONTENT[] PROGMEM = R"rawliteral(
 <style>
@@ -295,5 +295,5 @@ String cellmonitor_processor(const String& var) {
   if (var == "X") {
     return FPSTR(CELLMONITOR_HTML_CONTENT);
   }
-  return "%" + var + "%"; 
+  return "%" + var + "%";
 }

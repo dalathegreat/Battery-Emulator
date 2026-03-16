@@ -187,7 +187,8 @@
         <div class="content">
 )rawliteral"
 
-#define INDEX_HTML_FOOTER R"rawliteral(
+#define INDEX_HTML_FOOTER \
+  R"rawliteral(
     </div> </div> 
     <script>
       // JS auto highlight ative url (Red color)
