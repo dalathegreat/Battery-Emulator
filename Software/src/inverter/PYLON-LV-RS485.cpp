@@ -169,6 +169,186 @@ void PylonLV485InverterProtocol::handle_get_manufacturer_info(uint8_t adr) {
   send_response(adr, RTN_NORMAL, data, pos);
 }
 
+void PylonLV485InverterProtocol::handle_get_system_basic_info(uint8_t adr) {
+  uint8_t data[256];
+  uint16_t pos = 0;
+
+  // Battery name (10 bytes, space‑padded)
+  const char* batt_name = "PYLON     ";
+  for (int i = 0; i < 10; i++)
+    data[pos++] = batt_name[i];
+
+  // Manufacturer name (20 bytes)
+  const char* manuf = "PYLONTECH          ";
+  for (int i = 0; i < 20; i++)
+    data[pos++] = manuf[i];
+
+  // Software version (24 bytes)
+  const char* sw_ver = "V3.3                   ";
+  for (int i = 0; i < 24; i++)
+    data[pos++] = sw_ver[i];
+
+  // Number of batteries (always 1 for a single unit)
+  data[pos++] = 0x01;
+
+  // Barcode for battery 1 (16 bytes) – you may replace with a real serial
+  const char* barcode = "1234567890123456";
+  for (int i = 0; i < 16; i++)
+    data[pos++] = barcode[i];
+
+  send_response(adr, RTN_NORMAL, data, pos);
+}
+
+void PylonLV485InverterProtocol::handle_get_system_analog_value(uint8_t adr) {
+  uint8_t data[52];  // 26 * 2 bytes
+  uint16_t pos = 0;
+
+  auto append_word = [&](uint16_t val) {
+    data[pos++] = (val >> 8) & 0xFF;
+    data[pos++] = val & 0xFF;
+  };
+
+  // 1. Total voltage (mV)
+  uint16_t total_voltage = datalayer.battery.status.voltage_dV * 100;
+  append_word(total_voltage);
+
+  // 2. Total current (mA) – positive for charge
+  int16_t total_current = datalayer.battery.status.current_dA * 100;
+  append_word((uint16_t)total_current);
+
+  // 3. SOC (%) – stored as 16‑bit with high byte zero
+  uint8_t soc = datalayer.battery.status.reported_soc / 100;  // Convert from pptt to %
+  append_word((uint16_t)soc);
+
+  // 4. Average cycles – not available
+  append_word(0);
+  // 5. Minimum cycles
+  append_word(0);
+  // 6. Average SOH – assume 100%
+  append_word(100);
+  // 7. Max cycles
+  append_word(0);
+
+  // 8. Max cell voltage (mV)
+  uint16_t max_cell_mV = datalayer.battery.status.cell_max_voltage_mV;
+  append_word(max_cell_mV);
+
+  // 9. Module with max voltage (block=1, cell index 1‑based)
+  uint8_t max_cell_idx = 1;
+  for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
+    if (datalayer.battery.status.cell_voltages_mV[i] == max_cell_mV) {
+      max_cell_idx = i + 1;
+      break;
+    }
+  }
+  append_word((0x01 << 8) | max_cell_idx);
+
+  // 10. Min cell voltage
+  uint16_t min_cell_mV = datalayer.battery.status.cell_min_voltage_mV;
+  append_word(min_cell_mV);
+
+  // 11. Module with min voltage
+  uint8_t min_cell_idx = 1;
+  for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
+    if (datalayer.battery.status.cell_voltages_mV[i] == min_cell_mV) {
+      min_cell_idx = i + 1;
+      break;
+    }
+  }
+  append_word((0x01 << 8) | min_cell_idx);
+
+  // 12. Average cell temperature (K * 10)
+  int16_t avg_temp_dC = (datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2;
+  append_word(avg_temp_dC + 2731);
+
+  // 13. Max cell temperature
+  append_word(datalayer.battery.status.temperature_max_dC + 2731);
+
+  // 14. Module with max temperature (dummy)
+  append_word(0x0101);
+
+  // 15. Min cell temperature
+  append_word(datalayer.battery.status.temperature_min_dC + 2731);
+
+  // 16. Module with min temperature (dummy)
+  append_word(0x0101);
+
+  // 17‑26. MOSFET & BMS temperatures – use default values
+  const uint16_t default_temp = 2986;  // 25.5°C
+  for (int i = 17; i <= 26; i++) {
+    append_word(default_temp);  // temperature values
+    if (i == 18 || i == 20 || i == 22 || i == 24 || i == 26)
+      append_word(0x0101);  // module address for the following item
+  }
+
+  send_response(adr, RTN_NORMAL, data, pos);
+}
+
+void PylonLV485InverterProtocol::handle_get_system_alarm_info(uint8_t adr) {
+  uint8_t data[4];
+  uint16_t pos = 0;
+
+  uint8_t alarm1 = 0, alarm2 = 0, protect1 = 0, protect2 = 0;
+
+  /* TODO: Implement this later
+
+    uint16_t voltage_mV = datalayer.battery.status.voltage_dV * 100;
+    uint16_t max_voltage_mV = datalayer.battery.info.max_design_voltage_dV * 100;
+    uint16_t min_voltage_mV = datalayer.battery.info.min_design_voltage_dV * 100;
+    uint16_t max_cell_mV = datalayer.battery.info.max_cell_voltage_mV;
+    uint16_t min_cell_mV = datalayer.battery.info.min_cell_voltage_mV;
+    int16_t current_mA = datalayer.battery.status.current_dA * 100;
+    uint16_t max_charge_mA = datalayer.battery.status.max_charge_current_dA * 100;
+    uint16_t max_discharge_mA = datalayer.battery.status.max_discharge_current_dA * 100;
+
+    // Alarm status 1
+    if (voltage_mV > max_voltage_mV) alarm1 |= 0x80;          // total overvoltage
+    if (voltage_mV < min_voltage_mV) alarm1 |= 0x40;          // total undervoltage
+    if (datalayer.battery.status.cell_max_voltage_mV > max_cell_mV) alarm1 |= 0x20; // cell overvoltage
+    if (datalayer.battery.status.cell_min_voltage_mV < min_cell_mV) alarm1 |= 0x10; // cell undervoltage
+    if (datalayer.battery.status.temperature_max_dC + 2731 > charge_high_temp_limit) alarm1 |= 0x08; // high temp
+    if (datalayer.battery.status.temperature_min_dC + 2731 < charge_low_temp_limit) alarm1 |= 0x04;  // low temp
+
+    // Alarm status 2
+    if (current_mA > max_charge_mA) alarm2 |= 0x40;           // charge overcurrent
+    if (current_mA < -max_discharge_mA) alarm2 |= 0x20;       // discharge overcurrent
+    if (datalayer.battery.status.bms_status == FAULT) alarm2 |= 0x10; // internal comm error (example)
+
+    */
+
+  // Protection status (simplified – you can refine as needed)
+  protect1 = 0;
+  protect2 = 0;
+
+  data[pos++] = alarm1;
+  data[pos++] = alarm2;
+  data[pos++] = protect1;
+  data[pos++] = protect2;
+
+  send_response(adr, RTN_NORMAL, data, pos);
+}
+
+void PylonLV485InverterProtocol::handle_get_system_charge_discharge_info(uint8_t adr) {
+  uint8_t data[9];
+  uint16_t pos = 0;
+
+  data[pos++] = (charge_voltage_limit >> 8) & 0xFF;
+  data[pos++] = charge_voltage_limit & 0xFF;
+  data[pos++] = (discharge_voltage_limit >> 8) & 0xFF;
+  data[pos++] = discharge_voltage_limit & 0xFF;
+  data[pos++] = (max_charge_current >> 8) & 0xFF;
+  data[pos++] = max_charge_current & 0xFF;
+  data[pos++] = (max_discharge_current >> 8) & 0xFF;
+  data[pos++] = max_discharge_current & 0xFF;
+  data[pos++] = charge_discharge_status;
+
+  send_response(adr, RTN_NORMAL, data, pos);
+}
+
+void PylonLV485InverterProtocol::handle_system_turn_off(uint8_t adr) {
+  send_response(adr, RTN_NORMAL, nullptr, 0);
+}
+
 void PylonLV485InverterProtocol::handle_get_analog_value(uint8_t adr, uint8_t command) {
   uint8_t data[256];
   uint16_t pos = 0;
@@ -503,7 +683,21 @@ void PylonLV485InverterProtocol::receive() {
               handle_get_alarm_info(adr, info_data[0]);
             }
             break;
-
+          case 0x60:
+            handle_get_system_basic_info(adr);
+            break;
+          case 0x61:
+            handle_get_system_analog_value(adr);
+            break;
+          case 0x62:
+            handle_get_system_alarm_info(adr);
+            break;
+          case 0x63:
+            handle_get_system_charge_discharge_info(adr);
+            break;
+          case 0x64:
+            handle_system_turn_off(adr);
+            break;
           case 0x92:  // Get charge/discharge management info
             if (info_len >= 1) {
               handle_get_charge_discharge_info(adr, info_data[0]);
@@ -561,7 +755,7 @@ void PylonLV485InverterProtocol::update_values() {
   charge_current_limit = (datalayer.battery.status.max_charge_current_dA * 10);
   discharge_current_limit = (datalayer.battery.status.max_discharge_current_dA * 10);
 
-  charge_discharge_status = 0xC0;  // Bit7: Charge enable, Bit6: Discharge enable TODO, utilize this
+  charge_discharge_status = 0xC0;  // Bit7: Charge enable, Bit6: Discharge enable TODO, utilize this later
 
   if (incoming_message_counter > 0) {
     incoming_message_counter--;

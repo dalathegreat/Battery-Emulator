@@ -104,6 +104,11 @@ class PylonLV485InverterProtocol : public Rs485InverterProtocol {
   void handle_set_charge_discharge_info(uint8_t adr, const uint8_t* data, uint16_t len);
   void handle_turn_off(uint8_t adr, uint8_t command);
   void handle_get_software_version(uint8_t adr, uint8_t command);
+  void handle_get_system_basic_info(uint8_t adr);
+  void handle_get_system_analog_value(uint8_t adr);
+  void handle_get_system_alarm_info(uint8_t adr);
+  void handle_get_system_charge_discharge_info(uint8_t adr);
+  void handle_system_turn_off(uint8_t adr);
 
   // Data conversion helpers
   uint8_t hex_to_ascii_high(uint8_t value);
