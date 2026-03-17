@@ -22,6 +22,7 @@ export function useGetApi(url: string, period: number=0) {
             r => (r.headers.get('Content-Type')?.includes('application/json')) ? r.json().then(patch) : r.text()
         ).then(setResponse);
         if(period>0) {
+            clearTimeout(ctx.t);
             ctx.t = setTimeout(call, period) as unknown as number;
             return () => {
                 // Destructor
