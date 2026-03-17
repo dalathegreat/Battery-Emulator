@@ -10,7 +10,7 @@ import { Settings } from './settings.tsx'
 
 import { Button } from './components/button.tsx'
 
-import { useGetApi } from './utils/api.tsx'
+import { useGetApi, refreshApi } from './utils/api.tsx'
 import { Link, useLocation } from './utils/location.tsx';
 import { reboot } from './utils/reboot.tsx';
 
@@ -54,10 +54,7 @@ export function App() {
         method: 'POST',
         body: shouldPause ? "1" : "0",
         mode: 'no-cors', // don't care about the response
-    }).then(() => {
-      // Trigger a data reload
-      status?._reload();
-    });
+    }).then(refreshApi);
   }
 
   function handleEStop(ev: Event) {
@@ -71,7 +68,7 @@ export function App() {
     fetch(import.meta.env.VITE_API_BASE + '/api/estop', {
         method: 'POST',
         body: status?.estop ? "0" : "1",
-    });
+    }).then(refreshApi);
   }
 
   function handleReboot(ev: Event) {
