@@ -28,7 +28,7 @@ struct DATALAYER_BATTERY_INFO_TYPE {
 
   /** uint8_t */
   /** Total number of cells in the pack */
-  uint8_t number_of_cells;
+  uint8_t number_of_cells = 0;
 
   /** Other */
   /** Chemistry of the pack. Autodetect, or force specific chemistry */
