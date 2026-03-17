@@ -7,6 +7,7 @@ export function Show({ when, indent, children }: { when: boolean | string, inden
     const b = when === true || when === "1";
     useEffect(() => {
         if(!ref.current) return;
+        const inputs = ref.current.querySelectorAll("input, select, textarea");
         if(b) {
             if(prev.current!==null) {
                 // fade in
@@ -17,12 +18,21 @@ export function Show({ when, indent, children }: { when: boolean | string, inden
                 }, 50);
             }
             ref.current.style.display = "";
+            inputs.forEach(el => {
+                const input = el as HTMLInputElement;
+                // Only enable if not inside another hidden Show component
+                const closestShow = input.closest('div[data-show]');
+                if (closestShow === ref.current || (closestShow as HTMLElement)?.style.display !== 'none') {
+                    input.disabled = false;
+                }
+            });
         } else {
             ref.current.style.display = "none";
+            inputs.forEach(el => (el as HTMLInputElement).disabled = true);
         }
         prev.current = b;
     }, [ref, b]);
-    return <div data-ind={indent} ref={ref}>
+    return <div data-ind={indent} ref={ref} data-show>
         { children }
     </div>;
 }
