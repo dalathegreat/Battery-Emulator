@@ -1,4 +1,4 @@
-import { useGetApi } from './utils/api.tsx'
+import { useGetApi, refreshApi } from './utils/api.tsx'
 
 function get_time(now:any, s: number) {
     return (new Date(now - s)).toLocaleString();
@@ -14,7 +14,8 @@ export function Events() {
     
     const clearEvents = () => {
         if(confirm('Clear all events?')) {
-            fetch(import.meta.env.VITE_API_BASE + '/api/events/clear', { method: 'POST' });
+            fetch(import.meta.env.VITE_API_BASE + '/api/events/clear', { method: 'POST' })
+                .then(refreshApi);
         }
     };
 

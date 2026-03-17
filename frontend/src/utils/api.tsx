@@ -8,8 +8,6 @@ export function useGetApi(url: string, period: number=0) {
             // Crudely mark the time we received this response
             resp._now = Date.now();
         }
-        // TODO - should we clear the timeout if this gets called?
-        resp._reload = call;
         return resp;
     }
 
@@ -31,7 +29,19 @@ export function useGetApi(url: string, period: number=0) {
             }
         }
     }
-    useEffect(call, [url, period]);
+    useEffect(() => {
+        const h = () => call();
+        window.addEventListener('api-invalidate', h);
+        const cleanup = call();
+        return () => {
+            window.removeEventListener('api-invalidate', h);
+            cleanup?.();
+        };
+    }, [url, period]);
 
     return response;
+}
+
+export function refreshApi() {
+    window.dispatchEvent(new Event('api-invalidate'));
 }
