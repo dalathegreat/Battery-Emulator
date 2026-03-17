@@ -3,17 +3,8 @@
 
 #include "ESPAsyncWebServer.h"
 #include "WebHandlerImpl.h"
-#include <WiFi.h>
 
 using namespace asyncsrv;
-
-bool ON_STA_FILTER(AsyncWebServerRequest *request) {
-  return WiFi.localIP() == request->client()->localIP();
-}
-
-bool ON_AP_FILTER(AsyncWebServerRequest *request) {
-  return WiFi.localIP() != request->client()->localIP();
-}
 
 const char *fs::FileOpenMode::read = "r";
 const char *fs::FileOpenMode::write = "w";
@@ -42,35 +33,6 @@ AsyncWebServer::~AsyncWebServer() {
   end();
   delete _catchAllHandler;
   _catchAllHandler = nullptr;  // Prevent potential use-after-free
-}
-
-AsyncWebRewrite &AsyncWebServer::addRewrite(std::shared_ptr<AsyncWebRewrite> rewrite) {
-  _rewrites.emplace_back(rewrite);
-  return *_rewrites.back().get();
-}
-
-AsyncWebRewrite &AsyncWebServer::addRewrite(AsyncWebRewrite *rewrite) {
-  _rewrites.emplace_back(rewrite);
-  return *_rewrites.back().get();
-}
-
-bool AsyncWebServer::removeRewrite(AsyncWebRewrite *rewrite) {
-  return removeRewrite(rewrite->from().c_str(), rewrite->toUrl().c_str());
-}
-
-bool AsyncWebServer::removeRewrite(const char *from, const char *to) {
-  for (auto r = _rewrites.begin(); r != _rewrites.end(); ++r) {
-    if (r->get()->from() == from && r->get()->toUrl() == to) {
-      _rewrites.erase(r);
-      return true;
-    }
-  }
-  return false;
-}
-
-AsyncWebRewrite &AsyncWebServer::rewrite(const char *from, const char *to) {
-  _rewrites.emplace_back(std::make_shared<AsyncWebRewrite>(from, to));
-  return *_rewrites.back().get();
 }
 
 AsyncWebHandler &AsyncWebServer::addHandler(AsyncWebHandler *handler) {
@@ -119,7 +81,6 @@ void AsyncWebServer::_attachHandler(AsyncWebServerRequest *request) {
       return;
     }
   }
-  // ESP_LOGD("AsyncWebServer", "No handler found for %s, using _catchAllHandler pointer: %p", request->url().c_str(), _catchAllHandler);
   request->setHandler(_catchAllHandler);
 }
 
@@ -140,14 +101,6 @@ AsyncStaticWebHandler &AsyncWebServer::serveStatic(const char *uri, fs::FS &fs, 
   AsyncStaticWebHandler *handler = new AsyncStaticWebHandler(uri, fs, path, cache_control);
   addHandler(handler);
   return *handler;
-}
-
-void AsyncWebServer::onNotFound(ArRequestHandlerFunction fn) {
-  _catchAllHandler->onRequest(fn);
-}
-
-void AsyncWebServer::onFileUpload(ArUploadHandlerFunction fn) {
-  _catchAllHandler->onUpload(fn);
 }
 
 void AsyncWebServer::onRequestBody(ArBodyHandlerFunction fn) {

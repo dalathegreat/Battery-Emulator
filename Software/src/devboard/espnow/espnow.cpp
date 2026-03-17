@@ -178,25 +178,24 @@ void update_espnow() {
     return;
   }
 
-  int battery_index = 0;
-
-  // Print the battery status for current battery
-  if (battery_index == 0 && battery != nullptr) {
-    send_battery_info(datalayer.battery.info, battery_index);
-    send_battery_status(datalayer.battery.status, battery_index);
-    send_battery_cell_status(datalayer.battery.info, datalayer.battery.status, battery_index);
-    send_battery_balancing(datalayer.battery3.info, datalayer.battery.status, battery_index);
-
-  } else if (battery_index == 1) {
-    send_battery_info(datalayer.battery2.info, battery_index);
-    send_battery_status(datalayer.battery2.status, battery_index);
-    send_battery_cell_status(datalayer.battery2.info, datalayer.battery2.status, battery_index);
-    send_battery_balancing(datalayer.battery3.info, datalayer.battery2.status, battery_index);
-  } else {
-    send_battery_info(datalayer.battery3.info, battery_index);
-    send_battery_status(datalayer.battery3.status, battery_index);
-    send_battery_cell_status(datalayer.battery3.info, datalayer.battery3.status, battery_index);
-    send_battery_balancing(datalayer.battery3.info, datalayer.battery3.status, battery_index);
+  // Send status for all configured batteries
+  for (int battery_index = 0; battery_index < b_num_batteries; battery_index++) {
+    if (battery_index == 0 && battery != nullptr) {
+      send_battery_info(datalayer.battery.info, battery_index);
+      send_battery_status(datalayer.battery.status, battery_index);
+      send_battery_cell_status(datalayer.battery.info, datalayer.battery.status, battery_index);
+      send_battery_balancing(datalayer.battery.info, datalayer.battery.status, battery_index);
+    } else if (battery_index == 1) {
+      send_battery_info(datalayer.battery2.info, battery_index);
+      send_battery_status(datalayer.battery2.status, battery_index);
+      send_battery_cell_status(datalayer.battery2.info, datalayer.battery2.status, battery_index);
+      send_battery_balancing(datalayer.battery2.info, datalayer.battery2.status, battery_index);
+    } else {
+      send_battery_info(datalayer.battery3.info, battery_index);
+      send_battery_status(datalayer.battery3.status, battery_index);
+      send_battery_cell_status(datalayer.battery3.info, datalayer.battery3.status, battery_index);
+      send_battery_balancing(datalayer.battery3.info, datalayer.battery3.status, battery_index);
+    }
   }
 
   b_lastUpdateMillis = currentMillis;

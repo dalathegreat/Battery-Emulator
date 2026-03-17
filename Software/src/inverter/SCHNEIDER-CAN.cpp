@@ -27,7 +27,7 @@ void SchneiderInverter::
     remaining_capacity_ah =
         ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
     fully_charged_capacity_ah =
-        ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
+        ((datalayer.battery.info.reported_total_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
   }
   /* Set active commands/warnings/faults/state*/
   if (datalayer.battery.status.bms_status == FAULT) {

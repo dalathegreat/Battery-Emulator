@@ -97,6 +97,22 @@ inline int analogRead(uint8_t pin) {
   return 0;  // Return 0 for predictable tests
 }
 
+inline uint16_t analogReadMilliVolts(uint8_t pin) {
+  (void)pin;
+  return 0;  // Return 0 for predictable tests
+}
+
+inline void analogReadResolution(uint8_t bits) {
+  (void)bits;  // Stub for test environment
+}
+
+inline void analogSetPinAttenuation(uint8_t pin, uint8_t atten) {
+  (void)pin;
+  (void)atten;  // Stub for test environment
+}
+
+#define ADC_BITWIDTH_DEFAULT 12
+
 // Mock WiFi types
 typedef int WiFiEvent_t;
 typedef int WiFiEventInfo_t;

@@ -26,8 +26,6 @@ class SolaxInverter : public CanInverterProtocol {
   uint8_t STATE = BATTERY_ANNOUNCE;
   unsigned long LastFrameTime = 0;
   uint8_t number_of_batteries = 1;
-  uint16_t capped_capacity_Wh;
-  uint16_t capped_remaining_capacity_Wh;
 
   uint16_t configured_number_of_modules = 0;
   uint16_t configured_battery_type = 0;

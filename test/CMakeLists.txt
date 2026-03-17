@@ -102,6 +102,7 @@ add_executable(tests
     ../Software/src/battery/CanBattery.cpp
     ../Software/src/battery/CELLPOWER-BMS.cpp
     ../Software/src/battery/CHADEMO-BATTERY.cpp
+    ../Software/src/battery/CHADEMO-CT.cpp
     ../Software/src/battery/CHADEMO-SHUNTS.cpp
     ../Software/src/battery/CMFA-EV-BATTERY.cpp
     ../Software/src/battery/CMP-SMART-CAR-BATTERY.cpp
@@ -143,6 +144,7 @@ add_executable(tests
     ../Software/src/battery/TESLA-LEGACY-BATTERY.cpp
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
     ../Software/src/battery/THINK-BATTERY.cpp
+    ../Software/src/battery/THUNDERSTRUCK-BMS.cpp
     ../Software/src/battery/GEELY-SEA-BATTERY.cpp
     ../Software/src/battery/VOLVO-SPA-BATTERY.cpp
     ../Software/src/battery/VOLVO-SPA-HYBRID-BATTERY.cpp

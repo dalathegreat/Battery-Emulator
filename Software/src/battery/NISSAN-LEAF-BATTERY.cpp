@@ -596,7 +596,11 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           LEAF_1D4.data.u8[7] = 0xDE;
           break;
       }
-      transmit_can_frame(&LEAF_1D4);
+      //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
+      //TODO, this breaks double/triple battery setups when using PDM for charging
+      if (!charger || charger->type() != ChargerType::NissanLeaf) {
+        transmit_can_frame(&LEAF_1D4);
+      }
 
       switch (mprun10r) {
         case (0):
@@ -688,6 +692,7 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       }
 
       //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
+      //TODO, this breaks double/triple battery setups when using PDM for charging
       if (!charger || charger->type() != ChargerType::NissanLeaf) {
         transmit_can_frame(&LEAF_1F2);
       }

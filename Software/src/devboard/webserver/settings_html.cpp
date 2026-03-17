@@ -226,6 +226,12 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_comm_interface);
   }
 
+  if (var == "CTATTEN") {
+    return options_for_enum_with_none(
+        (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_0db), name_for_adc_attenuation,
+        adc_attenuation_enum::ADC_0db);
+  }
+
   if (var == "EQSTOP") {
     return options_for_enum_with_none(
         (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
@@ -778,6 +784,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "PYLONORDER") {
     return settings.getBool("PYLONORDER") ? "checked" : "";
   }
+
   if (var == "PYLONBAUD") {
     return String(settings.getUInt("PYLONBAUD", 500));
   }
@@ -814,6 +821,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("DEYEBYD") ? "checked" : "";
   }
 
+  if (var == "PRIMOGEN24") {
+    return settings.getBool("PRIMOGEN24") ? "checked" : "";
+  }
+
   if (var == "CANFREQ") {
     return String(settings.getUInt("CANFREQ", 8));
   }
@@ -844,6 +855,22 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "GTWRHD") {
     return settings.getBool("GTWRHD") ? "checked" : "";
+  }
+
+  if (var == "CTOFFSET") {
+    return settings.getString("CTOFFSET", "-1.0");
+  }
+
+  if (var == "CTVNOM") {
+    return String(settings.getUInt("CTVNOM", 40));
+  }
+
+  if (var == "CTANOM") {
+    return String(settings.getUInt("CTANOM", 100));
+  }
+
+  if (var == "CTINVERT") {
+    return settings.getBool("CTINVERT") ? "checked" : "";
   }
 
   return String();
@@ -962,6 +989,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         function editSocMax(){var value=prompt('Inverter will see fully charged (100pct)SOC when this value is reached. Enter new maximum SOC value that battery will charge to (50.0-100.0):');if(value!==null){if(value>=50&&value<=100){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSocMax?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 50.0 and 100.0');}}}
     
+
+
         function editSocMin(){
           var value=prompt('Inverter will see completely discharged (0pct)SOC when this value is reached. Advanced users can set to negative values. Enter new minimum SOC value that battery will discharge to (-10.0to50.0):');
           if(value!==null){if(value>=-10&&value<=50){var xhr=new 
@@ -1085,7 +1114,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="0"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
     form[data-charger="0"] .if-charger { display: none; }
-    form[data-SHUNTTYPE="0"] .if-shunt { display: none; }
+    form[data-shunttype="0"] .if-shunt,
+    form[data-shunttype="3"] .if-shunt { 
+      display: none; 
+    }
+    form[data-shunttype="0"] .if-ctclamp,
+    form[data-shunttype="1"] .if-ctclamp,
+    form[data-shunttype="2"] .if-ctclamp { 
+      display: none; 
+    }
+    form[data-shunttype="3"] .if-ctclamp { display: contents;}
+    
 
     form .if-cbms { display: none; }
     form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms, form[data-battery="41"] .if-cbms, form[data-battery="48"] .if-cbms, form[data-battery="49"] .if-cbms {
@@ -1119,6 +1158,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
     form[data-battery="16"] .if-socestimated,
+    form[data-battery="26"] .if-socestimated,
     form[data-battery="41"] .if-socestimated {
       display: contents;
     }
@@ -1155,6 +1195,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-byd { display: none; }
     form[data-inverter="2"] .if-byd {
+      display: contents;
+    }
+
+    form .if-bydmodbus { display: none; }
+    form[data-inverter="3"] .if-bydmodbus {
       display: contents;
     }
 
@@ -1303,11 +1348,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-pylon-battery">
-        <label>Pylon CAN baudrate: </label>
-        <select name='PYLONBAUD' title="Select CAN bus baudrate (250kbps for most batteries, 500kbps for some configurations)">
-          <option value='250' %PYLONBAUD250%>250 kbps</option>
-          <option value='500' %PYLONBAUD500%>500 kbps</option>
-        </select>
+        <label>Pylon CAN baudrate (kbps): </label>
+        <input name='PYLONBAUD' type='text' value="%PYLONBAUD%" pattern="[0-9]+" title="Select CAN bus baudrate (500kbps for most batteries, 250kbps for some configurations)"/>
         </div>
 
         <div class="if-cbms">
@@ -1392,6 +1434,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
         </div>
 
+        <div class="if-bydmodbus">
+        <label>Fronius Primo, 450V maxvoltage cap: </label>
+        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24% />
+        </div>
+
         <div class="if-pylonish">
         <label>Reported cell count (0 for default): </label>
         <input name='INVCELLS' type='text' value="%INVCELLS%" pattern="[0-9]+" />
@@ -1445,7 +1492,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
-        <label>Shunt: </label><select name='SHUNTTYPE'>
+        <label>Shunt: </label><select name='shunttype'>
         %SHUNTTYPE%
         </select>
 
@@ -1455,7 +1502,33 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
+        <div class="if-ctclamp">
+          <label>CT Clamp offset (mV): </label>
+          <input type='number' name='CTOFFSET' value="%CTOFFSET%" 
+          min="-1" max="3000" step="1"
+          title="Voltage offset required to calibrate 0A reading. -1 = auto-detect" />
+
+          <label>CT Clamp nominal voltage (dV): </label>
+          <input type='number' name='CTVNOM' value="%CTVNOM%" 
+          min="0" max="500" step="1"
+          title="Nominal voltage of the CT Clamp x10. Integer only." />
+
+          <label>CT Clamp nominal current (A): </label>
+          <input type='number' name='CTANOM' value="%CTANOM%" 
+          min="0" max="200" step="1"
+          title="Nominal current of the CT Clamp. Integer only." />
+
+          <label>ESP32 pin attenuation: </label>
+          <select name='CTATTEN'>
+          %CTATTEN%
+          </select>
+
+          <label>Invert CT current: </label>
+          <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% 
+          title="Invert the current reading from the CT clamp, +ve is charging, -ve is discharging" />
+          </div>
         </div>
+
         </div>
 
         <div class="settings-card">
