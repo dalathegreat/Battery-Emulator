@@ -1,5 +1,5 @@
 #include "CHADEMO-BATTERY.h"
-#include <sstream>
+#include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "CHADEMO-CT.h"
@@ -8,6 +8,40 @@
 
 float (*get_measured_current_ptr)();
 float (*get_measured_voltage_ptr)();
+
+class LightLogger {
+ public:
+  static const size_t BUF_SIZE = 256;  // Adjust based on memory constraints
+  char buffer[BUF_SIZE];
+  size_t pos = 0;
+
+  LightLogger() { buffer[0] = '\0'; }
+
+  // Overload for strings
+  LightLogger& operator<<(const char* s) {
+    pos += snprintf(buffer + pos, BUF_SIZE - pos, "%s", s);
+    return *this;
+  }
+
+  // Overload for floats
+  LightLogger& operator<<(float f) {
+    pos += snprintf(buffer + pos, BUF_SIZE - pos, "%.2f", f);
+    return *this;
+  }
+
+  // Overload for integers
+  LightLogger& operator<<(int i) {
+    pos += snprintf(buffer + pos, BUF_SIZE - pos, "%d", i);
+    return *this;
+  }
+
+  void clear() {
+    pos = 0;
+    buffer[0] = '\0';
+  }
+
+  bool empty() const { return pos == 0; }
+};
 
 //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 void ChademoBattery::update_values() {
@@ -103,22 +137,23 @@ void ChademoBattery::process_vehicle_charging_maximums(CAN_frame rx_frame) {
 }
 
 void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
+  static LightLogger logStream;
+  static char lastLogMessage[LightLogger::BUF_SIZE] = "";
+
+  auto flushLog = [&]() {
+    if (!logStream.empty() && std::strcmp(logStream.buffer, lastLogMessage) != 0) {
+      DEBUG_PRINTLN(logStream.buffer);
+      std::strncpy(lastLogMessage, logStream.buffer, LightLogger::BUF_SIZE);
+    }
+    logStream.clear();
+  };
+
   float newTargetBatteryVoltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]) / 100.0f;
   float priorTargetBatteryVoltage = x102_chg_session.TargetBatteryVoltage;
   uint8_t newChargingCurrentRequest = rx_frame.data.u8[3];
   // uint8_t priorChargingCurrentRequest = x102_chg_session.ChargingCurrentRequest;
 
   vehicle_can_initialized = true;
-
-  static std::string lastLogMessage;
-  std::ostringstream logStream;
-  auto flushLog = [&]() {
-    std::string msg = logStream.str();
-    if (!msg.empty() && msg != lastLogMessage) {
-      DEBUG_PRINTLN(msg.c_str());
-      lastLogMessage = msg;
-    }
-  };
 
   vehicle_permission = digitalRead(pin4);
 
@@ -222,15 +257,15 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
 
 /* x200 Vehicle, peer to x208 EVSE */
 void ChademoBattery::process_vehicle_charging_limits(CAN_frame rx_frame) {
+  static LightLogger logStream;
+  static char lastLogMessage[LightLogger::BUF_SIZE] = "";
 
-  static std::string lastLogMessage;
-  std::ostringstream logStream;
   auto flushLog = [&]() {
-    std::string msg = logStream.str();
-    if (!msg.empty() && msg != lastLogMessage) {
-      DEBUG_PRINTLN(msg.c_str());
-      lastLogMessage = msg;
+    if (!logStream.empty() && std::strcmp(logStream.buffer, lastLogMessage) != 0) {
+      DEBUG_PRINTLN(logStream.buffer);
+      std::strncpy(lastLogMessage, logStream.buffer, LightLogger::BUF_SIZE);
     }
+    logStream.clear();
   };
 
   x200_discharge_limits.MaximumDischargeCurrent = rx_frame.data.u8[0];
@@ -262,14 +297,15 @@ void ChademoBattery::process_vehicle_charging_limits(CAN_frame rx_frame) {
  * HOWEVER, 201 isn't even emitted in any of the v2x canlogs available
  */
 void ChademoBattery::process_vehicle_discharge_estimate(CAN_frame rx_frame) {
-  static std::string lastLogMessage;
-  std::ostringstream logStream;
+  static LightLogger logStream;
+  static char lastLogMessage[LightLogger::BUF_SIZE] = "";
+
   auto flushLog = [&]() {
-    std::string msg = logStream.str();
-    if (!msg.empty() && msg != lastLogMessage) {
-      DEBUG_PRINTLN(msg.c_str());
-      lastLogMessage = msg;
+    if (!logStream.empty() && std::strcmp(logStream.buffer, lastLogMessage) != 0) {
+      DEBUG_PRINTLN(logStream.buffer);
+      std::strncpy(lastLogMessage, logStream.buffer, LightLogger::BUF_SIZE);
     }
+    logStream.clear();
   };
 
   unsigned long currentMillis = millis();
@@ -574,17 +610,6 @@ void ChademoBattery::update_evse_discharge_capabilities(CAN_frame& f) {
 }
 
 void ChademoBattery::transmit_can(unsigned long currentMillis) {
-
-  static std::string lastTransmitLog;
-  std::ostringstream transmitLogStream;
-  auto flushTransmitLog = [&]() {
-    std::string msg = transmitLogStream.str();
-    if (!msg.empty() && msg != lastTransmitLog) {
-      DEBUG_PRINTLN(msg.c_str());
-      lastTransmitLog = msg;
-    }
-  };
-
   handlerBeforeMillis = currentMillis;
   handle_chademo_sequence();
   handlerAfterMillis = millis();
@@ -632,8 +657,6 @@ void ChademoBattery::transmit_can(unsigned long currentMillis) {
     // 	110.0.0
     if (x102_chg_session.ControlProtocolNumberEV >= 0x03) {  //Only send the following on Chademo 2.0 vehicles?
       //FIXME REMOVE
-      transmitLogStream << "REMOVE: proto 2.0\n";
-      flushTransmitLog();
       transmit_can_frame(&CHADEMO_118);
     }
   }
@@ -662,9 +685,16 @@ void ChademoBattery::transmit_can(unsigned long currentMillis) {
  */
 
 void ChademoBattery::handle_chademo_sequence() {
+  static LightLogger logStream;
+  static char lastLogMessage[LightLogger::BUF_SIZE] = "";
 
-  static std::string lastLogMessage;
-  std::ostringstream logStream;
+  auto flushLog = [&]() {
+    if (!logStream.empty() && std::strcmp(logStream.buffer, lastLogMessage) != 0) {
+      DEBUG_PRINTLN(logStream.buffer);
+      std::strncpy(lastLogMessage, logStream.buffer, LightLogger::BUF_SIZE);
+    }
+    logStream.clear();
+  };
 
   vehicle_permission = digitalRead(pin4);
   plug_inserted = digitalRead(pin7);
@@ -957,11 +987,7 @@ void ChademoBattery::handle_chademo_sequence() {
       break;
   }
 
-  std::string logMessage = logStream.str();
-  if (!logMessage.empty() && logMessage != lastLogMessage) {
-    logging.println(logMessage.c_str());
-    lastLogMessage = logMessage;
-  }
+  flushLog();
 
   return;
 }
