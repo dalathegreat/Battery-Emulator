@@ -22,3 +22,13 @@ table td:last-child { padding-right: 0; }
 
 tr[data-level="error"] td:nth-child(2) { color: #ef1f1f; }
 tr[data-level="warning"] td:nth-child(2) { color: #f59807; }
+
+.event-row {
+    background-color: transparent;
+    transition: background-color 5s ease-out;
+}
+
+.event-row[data-highlight] {
+    background-color: #3cddb244;
+    transition-duration: 0s;
+}

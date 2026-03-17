@@ -1,7 +1,27 @@
+import { useEffect, useRef } from 'preact/hooks';
+
 import { useGetApi, refreshApi } from './utils/api.tsx'
 
 function get_time(now:any, s: number) {
     return (new Date(now - s)).toLocaleString();
+}
+
+export function useHighlightIfNew(age: number, now: number, threshold: number=5000) {
+  const domRef = useRef<HTMLTableRowElement>(null);
+
+  useEffect(() => {
+    if (age < threshold) {
+      const el = domRef.current;
+      if (!el) return;
+
+      el.setAttribute('data-highlight', 'true');
+      setTimeout(() => {
+        el.removeAttribute('data-highlight');
+      }, 50);
+    }
+  }, [age, now]);
+
+  return domRef;
 }
 
 export function Events() {
@@ -38,7 +58,7 @@ export function Events() {
                 </thead>
                 <tbody>
                     { data && data.events.map( (ev: any, idx: number) => (
-                        <tr key={idx} data-level={ev.level.toLowerCase()}>
+                        <tr key={idx} data-level={ev.level.toLowerCase()} class='event-row' ref={useHighlightIfNew(ev.age, data._now)}>
                             <td>{ ev.type }</td>
                             <td>{ ev.level }</td>
                             <td>{ get_time(data._now, ev.age) }</td>
