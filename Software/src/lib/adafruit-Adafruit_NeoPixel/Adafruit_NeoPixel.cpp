@@ -24,7 +24,7 @@ void Adafruit_NeoPixel::setPin(int16_t p) {
   }
 }
 
-void Adafruit_NeoPixel::setColorOrder(uint8_t o) {
+void Adafruit_NeoPixel::setColorOrder(uint32_t o) {
   color_order = o;
 }
 
