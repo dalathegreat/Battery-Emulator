@@ -200,7 +200,7 @@ void PylonLV485InverterProtocol::handle_get_system_basic_info(uint8_t adr) {
 }
 
 void PylonLV485InverterProtocol::handle_get_system_analog_value(uint8_t adr) {
-  uint8_t data[52];  // 26 * 2 bytes
+  uint8_t data[52];
   uint16_t pos = 0;
 
   auto append_word = [&](uint16_t val) {
@@ -216,7 +216,7 @@ void PylonLV485InverterProtocol::handle_get_system_analog_value(uint8_t adr) {
   int16_t total_current = datalayer.battery.status.current_dA * 100;
   append_word((uint16_t)total_current);
 
-  // 3. SOC (%) – stored as 16‑bit with high byte zero
+  // 3. SOC (%)
   uint8_t soc = datalayer.battery.status.reported_soc / 100;  // Convert from pptt to %
   append_word((uint16_t)soc);
 
@@ -235,7 +235,7 @@ void PylonLV485InverterProtocol::handle_get_system_analog_value(uint8_t adr) {
 
   // 9. Module with max voltage (block=1, cell index 1‑based)
   uint8_t max_cell_idx = 1;
-  for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
+  for (int i = 0; i < 16; i++) {
     if (datalayer.battery.status.cell_voltages_mV[i] == max_cell_mV) {
       max_cell_idx = i + 1;
       break;
@@ -249,7 +249,7 @@ void PylonLV485InverterProtocol::handle_get_system_analog_value(uint8_t adr) {
 
   // 11. Module with min voltage
   uint8_t min_cell_idx = 1;
-  for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
+  for (int i = 0; i < 16; i++) {
     if (datalayer.battery.status.cell_voltages_mV[i] == min_cell_mV) {
       min_cell_idx = i + 1;
       break;
@@ -273,13 +273,29 @@ void PylonLV485InverterProtocol::handle_get_system_analog_value(uint8_t adr) {
   // 16. Module with min temperature (dummy)
   append_word(0x0101);
 
-  // 17‑26. MOSFET & BMS temperatures – use default values
+  // ----- Items 17‑26 (MOSFET & BMS temperatures and module addresses) -----
   const uint16_t default_temp = 2986;  // 25.5°C
-  for (int i = 17; i <= 26; i++) {
-    append_word(default_temp);  // temperature values
-    if (i == 18 || i == 20 || i == 22 || i == 24 || i == 26)
-      append_word(0x0101);  // module address for the following item
-  }
+
+  // 17. MOSFET average temperature
+  append_word(default_temp);
+  // 18. MOSFET max temperature
+  append_word(default_temp);
+  // 19. MOSFET max temperature module
+  append_word(0x0101);
+  // 20. MOSFET min temperature
+  append_word(default_temp);
+  // 21. MOSFET min temperature module
+  append_word(0x0101);
+  // 22. BMS average temperature
+  append_word(default_temp);
+  // 23. BMS max temperature
+  append_word(default_temp);
+  // 24. BMS max temperature module
+  append_word(0x0101);
+  // 25. BMS min temperature
+  append_word(default_temp);
+  // 26. BMS min temperature module
+  append_word(0x0101);
 
   send_response(adr, RTN_NORMAL, data, pos);
 }
