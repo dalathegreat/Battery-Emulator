@@ -392,6 +392,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
 
                         int consumed = request.handler->onPostBody->handlePostBody(request, request.body_read, (uint8_t*)read_ptr, len);
                         post_done = (consumed == -1);
+                        // maybe return -2 for not-consuming-but-also-not-stuck?
                         if (consumed != 0) progress_made = true;
 
                         if(consumed==0 && len<request.available() && !allow_noncontiguous) {
@@ -418,11 +419,12 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                         len = request.available_contiguous();
                     }
 
-                    if(!progress_made && request.recv_buffer_full()) {
-                        DEBUG_PRINTF("TWS client body handler stuck, closing connection\n");
-                        request.reset();
-                        return;
-                    }
+                    // FIXME - this breaks CanSender currently
+                    // if(!progress_made && request.recv_buffer_full()) {
+                    //     DEBUG_PRINTF("TWS client body handler stuck, closing connection\n");
+                    //     request.reset();
+                    //     return;
+                    // }
 
                     if(post_done && !request.done) {
                         if(request.writer_callback ) {
