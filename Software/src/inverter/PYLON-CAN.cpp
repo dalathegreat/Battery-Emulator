@@ -237,9 +237,9 @@ bool PylonInverter::setup() {
   } else if (user_selected_inverter_pylon_type == 2) {
     //Pylon LV
     PYLON_733X.data.u8[0] = 'D';
-    PYLON_733X.data.u8[1] = 'E';
-    PYLON_733X.data.u8[2] = 'Y';
-    PYLON_733X.data.u8[3] = 'E';
+    PYLON_733X.data.u8[1] = 'e';
+    PYLON_733X.data.u8[2] = 'y';
+    PYLON_733X.data.u8[3] = 'e';
   }
   return true;
 }
