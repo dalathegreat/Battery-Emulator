@@ -1154,23 +1154,29 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       BMS_pcsNoFlowRequest = ((rx_frame.data.u8[7] >> 6) & (0x01U));  // 62|1@1+ (1,0) [0|0] ""
       BMS_noFlowRequest = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""
       break;
-    case 0x2A4: //676 PCS_thermalStatus
+    case 0x2A4:  //676 PCS_thermalStatus
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       // PCS_chgPhATemp : 0|11@1-
       PCS_chgPhATemp = (int16_t)(rx_frame.data.u8[0] | ((rx_frame.data.u8[1] & 0x07) << 8));
-      if (PCS_chgPhATemp & 0x400) PCS_chgPhATemp |= 0xF800;
+      if (PCS_chgPhATemp & 0x400)
+        PCS_chgPhATemp |= 0xF800;
       // PCS_chgPhBTemp : 11|11@1-
       PCS_chgPhBTemp = (int16_t)((rx_frame.data.u8[1] >> 3) | ((rx_frame.data.u8[2] & 0x3F) << 5));
-      if (PCS_chgPhBTemp & 0x400) PCS_chgPhBTemp |= 0xF800;
+      if (PCS_chgPhBTemp & 0x400)
+        PCS_chgPhBTemp |= 0xF800;
       // PCS_chgPhCTemp : 22|11@1-
-      PCS_chgPhCTemp = (int16_t)((rx_frame.data.u8[2] >> 6) | (rx_frame.data.u8[3] << 2) | ((rx_frame.data.u8[4] & 0x01) << 10));
-      if (PCS_chgPhCTemp & 0x400) PCS_chgPhCTemp |= 0xF800;
+      PCS_chgPhCTemp =
+          (int16_t)((rx_frame.data.u8[2] >> 6) | (rx_frame.data.u8[3] << 2) | ((rx_frame.data.u8[4] & 0x01) << 10));
+      if (PCS_chgPhCTemp & 0x400)
+        PCS_chgPhCTemp |= 0xF800;
       // PCS_dcdcTemp : 33|11@1-
       PCS_dcdcTemp = (int16_t)((rx_frame.data.u8[4] >> 1) | ((rx_frame.data.u8[5] & 0x0F) << 7));
-      if (PCS_dcdcTemp & 0x400) PCS_dcdcTemp |= 0xF800;
+      if (PCS_dcdcTemp & 0x400)
+        PCS_dcdcTemp |= 0xF800;
       // PCS_ambientTemp : 44|11@1-
       PCS_ambientTemp = (int16_t)((rx_frame.data.u8[5] >> 4) | ((rx_frame.data.u8[6] & 0x7F) << 4));
-      if (PCS_ambientTemp & 0x400) PCS_ambientTemp |= 0xF800;
+      if (PCS_ambientTemp & 0x400)
+        PCS_ambientTemp |= 0xF800;
       break;
       // PCS_thermalStatus signal decoding uses 11-bit signed values (DBC: @1-)
       // with scaling: temperature = raw * 0.1 + 40.0
