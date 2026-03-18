@@ -41,7 +41,7 @@ class ThunderstruckBMS : public CanBattery {
                               .ext_ID = true,
                               .DLC = 8,
                               .ID = 0x14ebd0d8,
-                              .data = {0x20, 0x00, 0x0a, 0x08, 0x00, 0x00, 0x00, 0x00}};
+                              .data = {0x20, 0xFF, 0x0a, 0x08, 0x00, 0x00, 0x00, 0x00}};
 };
 
 #endif

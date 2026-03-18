@@ -158,7 +158,7 @@ void ThunderstruckBMS::transmit_can(unsigned long currentMillis) {
     previousMillis500 = currentMillis;
     PGNindex = (PGNindex + 1) % 13;             // PGN repeats after 13 messages. 0-1..12-0
     THUND_14ebd0d8.data.u8[0] = PGN[PGNindex];  //PGN is in byte 1 of the data
-    THUND_14ebd0d8.data.u8[1] = 0x00;           //(Still PGN field, should this be 0x00 or 0xFF?)) //TODO: !
+    THUND_14ebd0d8.data.u8[1] = 0xFF;           //(Still PGN field, should this be 0x00 or 0xFF?))
     THUND_14ebd0d8.data.u8[2] = 0x0a;  //Request rate (0x0a = 10, and each tick is 50ms, so 500ms between messages)
     THUND_14ebd0d8.data.u8[3] =
         0x08;  //Request Repeat Count, requests the message be sent 8 times (0x08) before needing to be requested again.
