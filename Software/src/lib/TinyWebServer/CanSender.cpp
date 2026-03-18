@@ -116,6 +116,7 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
         }
         //DEBUG_PRINTF("CAN interface: %d, buffer full: %d\n", state.can_interface, can_buffer_full((CAN_Interface)state.can_interface));
         if(can_buffer_full((CAN_Interface)state.can_interface)) {
+            //DEBUG_PRINTF("  full!\n");
             break;
         }
 
