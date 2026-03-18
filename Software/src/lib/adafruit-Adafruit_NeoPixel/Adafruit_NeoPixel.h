@@ -38,6 +38,8 @@
 
 #include <Arduino.h>
 
+enum led_color_order { RGB, GRB }; // Default lilygo_330 color order RGB; WS2812D-F5 color order GRB (RED and GREEN swapped)
+
 /*!
     @brief  Class that stores state and functions for interacting with
             Adafruit NeoPixels and compatible devices.
@@ -51,6 +53,7 @@ public:
 
   void show(void);
   void setPin(int16_t p);
+  void setColorOrder(uint8_t o);
   void setPixelColor(uint32_t c);
   void updateLength(void);
 
@@ -60,6 +63,7 @@ protected:
   uint8_t numBytes = 3;  ///< Size of 'pixels' buffer below
   int16_t pin;        ///< Output pin number (-1 if not yet set)
   uint8_t *pixels;    ///< Holds LED color values (3 or 4 bytes each)
+  uint8_t color_order = RGB;    ///< Holds LED Color order (RGB,GRB supported)
   uint8_t rOffset = 0b01;    ///< Red index within each 3- or 4-byte pixel
   uint8_t gOffset = 0b00;    ///< Index of green byte
   uint8_t bOffset = 0b10;    ///< Index of blue byte
