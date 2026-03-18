@@ -155,6 +155,8 @@ void PylonInverter::transmit_can(unsigned long currentMillis) {
 void PylonInverter::send_setup_info() {  //Ensemble information
   transmit_can_frame(&PYLON_731X);
   transmit_can_frame(&PYLON_732X);
+  transmit_can_frame(&PYLON_733X);
+  transmit_can_frame(&PYLON_734X);
 }
 
 void PylonInverter::send_system_data() {  //System equipment information
@@ -213,6 +215,31 @@ bool PylonInverter::setup() {
   if (user_selected_inverter_ah_capacity > 0) {
     PYLON_732X.data.u8[6] = user_selected_inverter_ah_capacity & 0xff;
     PYLON_732X.data.u8[7] = (uint8_t)(user_selected_inverter_ah_capacity >> 8);
+  }
+  if (user_selected_inverter_pylon_type == 0) {
+    //PYLONTEC H
+    PYLON_733X.data.u8[0] = 'P';
+    PYLON_733X.data.u8[1] = 'Y';
+    PYLON_733X.data.u8[2] = 'L';
+    PYLON_733X.data.u8[3] = 'O';
+    PYLON_733X.data.u8[4] = 'N';
+    PYLON_733X.data.u8[5] = 'T';
+    PYLON_733X.data.u8[6] = 'E';
+    PYLON_733X.data.u8[7] = 'C';
+    PYLON_734X.data.u8[0] = 'H';
+  } else if (user_selected_inverter_pylon_type == 1) {
+    //Pylon HV
+    PYLON_733X.data.u8[0] = 'P';
+    PYLON_733X.data.u8[1] = 'Y';
+    PYLON_733X.data.u8[2] = 'L';
+    PYLON_733X.data.u8[3] = 'O';
+    PYLON_733X.data.u8[4] = 'N';
+  } else if (user_selected_inverter_pylon_type == 2) {
+    //Pylon LV
+    PYLON_733X.data.u8[0] = 'D';
+    PYLON_733X.data.u8[1] = 'E';
+    PYLON_733X.data.u8[2] = 'Y';
+    PYLON_733X.data.u8[3] = 'E';
   }
   return true;
 }
