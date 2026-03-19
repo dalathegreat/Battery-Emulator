@@ -53,9 +53,11 @@ public:
 
   void show(void);
   void setPin(int16_t p);
-  void setColorOrder(uint32_t o);
   void setPixelColor(uint32_t c);
   void updateLength(void);
+#ifdef HW_LILYGO2CAN  
+  void setColorOrder(uint32_t o);
+#endif
 
 private:
 
@@ -66,7 +68,9 @@ protected:
   uint8_t rOffset = 0b01;    ///< Red index within each 3- or 4-byte pixel
   uint8_t gOffset = 0b00;    ///< Index of green byte
   uint8_t bOffset = 0b10;    ///< Index of blue byte
+#ifdef HW_LILYGO2CAN
   uint32_t color_order = RGB;    ///< Holds LED Color order (RGB,GRB supported)
+#endif
 };
 
 #endif // ADAFRUIT_NEOPIXEL_H
