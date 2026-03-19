@@ -1199,8 +1199,9 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                  ((rx_frame.data.u8[0] >> 5) & (0x07U));  //m7 : 5|10@1+ (0.001,0) [0|0] "1"  X
         PCS_dcdcCLAControllerOutput = ((rx_frame.data.u8[3] & (0x03U)) << 8) |
                                       (rx_frame.data.u8[2] & (0xFFU));  //m7 : 16|10@1+ (0.001,0) [0|0] "1"  X
-        PCS_dcdcTankVoltage = ((rx_frame.data.u8[4] & (0x1FU)) << 6) |
-                              ((rx_frame.data.u8[3] >> 2) & (0x3FU));  //m7 : 26|11@1- (1,0) [0|0] "V"  X
+        PCS_dcdcTankVoltage = (int16_t)(((rx_frame.data.u8[4] & 0x1F) << 6) |
+                                ((rx_frame.data.u8[3] >> 2) & 0x3F));
+        if (PCS_dcdcTankVoltage & 0x400) PCS_dcdcTankVoltage |= 0xF800;  //m7 : 26|11@1- (1,0) [0|0] "V"  X
         PCS_dcdcTankVoltageTarget = ((rx_frame.data.u8[5] & (0x7FU)) << 3) |
                                     ((rx_frame.data.u8[4] >> 5) & (0x07U));  // m7 : 37|10@1+ (1,0) [0|0] "V"  X
         PCS_dcdcClaCurrentFreq = ((rx_frame.data.u8[7] & (0x0FU)) << 8) |
