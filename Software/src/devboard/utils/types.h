@@ -27,7 +27,12 @@ enum class comm_interface {
   Highest
 };
 
+#ifdef HW_LILYGO2CAN
+enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT, GRB_CLASSIC, GRB_FLOW, GRB_HEARTBEAT };
+#else
 enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT };
+#endif
+
 enum PrechargeState {
   AUTO_PRECHARGE_IDLE,
   AUTO_PRECHARGE_START,
