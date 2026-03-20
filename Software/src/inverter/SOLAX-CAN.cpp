@@ -49,10 +49,33 @@ void SolaxInverter::
   SOLAX_1874.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
   SOLAX_1874.data.u8[2] = (int8_t)datalayer.battery.status.temperature_min_dC;
   SOLAX_1874.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
-  SOLAX_1874.data.u8[4] = (uint8_t)(datalayer.battery.info.max_cell_voltage_mV);
-  SOLAX_1874.data.u8[5] = (datalayer.battery.info.max_cell_voltage_mV >> 8);
-  SOLAX_1874.data.u8[6] = (uint8_t)(datalayer.battery.status.cell_min_voltage_mV);
-  SOLAX_1874.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+
+  int32_t cell_max_voltage_mV = datalayer.battery.status.cell_max_voltage_mV;
+  int32_t cell_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
+
+  // Fake values during startup?
+  if (cell_max_voltage_mV == 0) {
+    cell_max_voltage_mV = 3300;
+  }
+  if (cell_min_voltage_mV == 0) {
+    cell_min_voltage_mV = 3300;
+  }
+
+  // Rescale to the range 3.0->3.5V
+  cell_max_voltage_mV =
+      3000 + ((cell_max_voltage_mV - datalayer.battery.info.min_cell_voltage_mV) * (3500 - 3000)) /
+                 (datalayer.battery.info.max_cell_voltage_mV - datalayer.battery.info.min_cell_voltage_mV);
+  cell_min_voltage_mV =
+      3000 + ((cell_min_voltage_mV - datalayer.battery.info.min_cell_voltage_mV) * (3500 - 3000)) /
+                 (datalayer.battery.info.max_cell_voltage_mV - datalayer.battery.info.min_cell_voltage_mV);
+
+  uint16_t cell_max_voltage_dV = cell_max_voltage_mV / 100;
+  uint16_t cell_min_voltage_dV = cell_min_voltage_mV / 100;
+
+  SOLAX_1874.data.u8[4] = (uint8_t)(cell_max_voltage_dV);
+  SOLAX_1874.data.u8[5] = (cell_max_voltage_dV >> 8);
+  SOLAX_1874.data.u8[6] = (uint8_t)(cell_min_voltage_dV);
+  SOLAX_1874.data.u8[7] = (cell_min_voltage_dV >> 8);
 
   //BMS_Status
   SOLAX_1875.data.u8[0] = (uint8_t)temperature_average;
