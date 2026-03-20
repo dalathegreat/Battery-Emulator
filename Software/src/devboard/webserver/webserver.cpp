@@ -484,9 +484,7 @@ void init_webserver() {
                 for (auto& uintSetting : uintSettingNames) {
                   if (p->name() == uintSetting) {
                     auto value = atoi(p->value().c_str());
-                    if (settings.getUInt(uintSetting, 0) != value) {
-                      settings.saveUInt(uintSetting, value);
-                    }
+                    settings.saveUInt(uintSetting, value);
                   }
                 }
 
