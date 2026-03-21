@@ -813,6 +813,14 @@ void ChademoBattery::handle_chademo_sequence() {
     case CHADEMO_NEGOTIATE:
       /* Vehicle and EVSE dance */
       //TODO if pin 4 / j goes high,
+      //lock connector here
+      digitalWrite(pin_lock, HIGH);
+
+      //TODO spec requires test to validate solenoid has indeed engaged.
+      // example uses a comparator/current consumption check around solenoid
+      if (digitalRead(pin_lock)) {
+        x109_evse_state.s.status.connector_locked = true;
+      }
 
       logStream << "CHADEMO_NEGOTIATE State\n";
       if (vehicle_permission) {
@@ -827,13 +835,6 @@ void ChademoBattery::handle_chademo_sequence() {
       // If we are in this state, vehicle_permission was already set to true...but re-verify
       // that pin 4 (j) reads high
       if (vehicle_permission) {
-        //lock connector here
-        digitalWrite(pin_lock, HIGH);
-
-        //TODO spec requires test to validate solenoid has indeed engaged.
-        // example uses a comparator/current consumption check around solenoid
-        x109_evse_state.s.status.connector_locked = true;
-
         CHADEMO_Status = CHADEMO_EVSE_PREPARE;
       }
       break;
