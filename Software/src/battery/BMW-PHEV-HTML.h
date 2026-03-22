@@ -9,6 +9,7 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String getDTCDescription(uint32_t code) {
     switch (code) {
+#ifndef SMALL_FLASH_DEVICE
       // Contactor & Safety System
       case 0x21F1F6:
         return "High-voltage battery, switch contactors: Switch-off after a fault";
@@ -18,7 +19,6 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
         return "High-voltage battery, contactor: Shutdown due to error";
       case 0x21F190:
         return "High-voltage battery: Control of switching contactor deactivated due to transport mode";
-
       // Precharge System
       case 0x21F156:
         return "High-voltage battery, preloading: Safety box, precondition not fulfilled";
@@ -138,9 +138,12 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
         return "High-voltage battery, cell modules: Temperature difference too large (fault threshold)";
       case 0x21F22E:
         return "High-voltage battery, cell modules: Check for faulty temperature sensors failed";
-
       default:
         return "";  // No description available
+#else
+      default:
+        return "Current BE hardware does not support details. Please upgrade to large flash BE";  // Detailed DTC descriptions not available on 4MB low flash devices. The above text takes up a massive amount of flash!
+#endif
     }
   }
   String get_status_html() {
@@ -154,7 +157,6 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content +=
         "<h4>Battery Voltage (After Contactor): " + String(datalayer_extended.bmwphev.battery_voltage_after_contactor) +
         " dV</h4>";
-    content += "<h4>T30 Terminal Voltage (Todo): " + String(datalayer_extended.bmwphev.T30_Voltage) + " mV</h4>";
     content += "<h4>Max Design Voltage: " + String(datalayer.battery.info.max_design_voltage_dV) + " dV</h4>";
     content += "<h4>Min Design Voltage: " + String(datalayer.battery.info.min_design_voltage_dV) + " dV</h4>";
     content += "<h4>Allowed Charge Power: " + String(datalayer.battery.status.max_charge_power_W) + " W</h4>";
@@ -483,7 +485,7 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     } else {
       content += "<p><strong>DTC Count:</strong> " + String(datalayer_extended.bmwphev.dtc_count) + "</p>";
       content += "<p><strong>Last Read:</strong> " +
-                 String((millis() - datalayer_extended.bmwphev.dtc_last_read_millis) / 1000) + "s ago</p>";
+                 String((millis() - datalayer_extended.bmwix.dtc_last_read_millis) / 1000) + "s ago</p>";
 
       content += "<div style='overflow-x: auto; margin-top: 10px; margin-bottom: 15px;'>";
       content +=
@@ -502,8 +504,8 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
       content += "<tbody>";
 
       for (int i = 0; i < datalayer_extended.bmwphev.dtc_count; i++) {
-        uint32_t code = datalayer_extended.bmwphev.dtc_codes[i];
-        uint8_t status = datalayer_extended.bmwphev.dtc_status[i];
+        uint32_t code = datalayer_extended.bmwix.dtc_codes[i];    //Note we re-use datalayer for iX to save space
+        uint8_t status = datalayer_extended.bmwix.dtc_status[i];  //Note we re-use datalayer for iX to save space
 
         char dtcStr[12];
         sprintf(dtcStr, "%06lX", code);

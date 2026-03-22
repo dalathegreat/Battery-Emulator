@@ -1,6 +1,8 @@
 #ifndef CHARGERS_H
 #define CHARGERS_H
 
+#include "CanCharger.h"
+
 #include "CHEVY-VOLT-CHARGER.h"
 #include "NISSAN-LEAF-CHARGER.h"
 

@@ -9,13 +9,15 @@
 std::vector<BatteryCommand> battery_commands = {
     {"clearIsolation", "Clear isolation fault", "clear any active isolation fault?",
      [](Battery* b) { return b && b->supports_clear_isolation(); }, [](Battery* b) { b->clear_isolation(); }},
+    {"calibrateSOC", "Calibrate SOC", "calibrate SOC? Note this will calibrate BMS according to set targets",
+     [](Battery* b) { return b && b->supports_calibrate_SOC(); }, [](Battery* b) { b->reset_SOC(); }},
     {"chademoRestart", "Restart", "restart the V2X session?",
      [](Battery* b) { return b && b->supports_chademo_restart(); }, [](Battery* b) { b->chademo_restart(); }},
     {"chademoStop", "Stop", "stop V2X?", [](Battery* b) { return b && b->supports_chademo_restart(); },
      [](Battery* b) { b->chademo_restart(); }},
-    {"resetBMS", "BMS reset", "reset the BMS?", [](Battery* b) { return b && b->supports_reset_BMS(); },
+    {"resetBMS", "BMS Reset", "Reset the BMS?", [](Battery* b) { return b && b->supports_reset_BMS(); },
      [](Battery* b) { b->reset_BMS(); }},
-    {"resetSOC", "SOC reset", "reset SOC?", [](Battery* b) { return b && b->supports_reset_SOC(); },
+    {"resetSOC", "SOC Reset", "Reset SOC?", [](Battery* b) { return b && b->supports_reset_SOC(); },
      [](Battery* b) { b->reset_SOC(); }},
     {"resetCrash", "Unlock crashed BMS",
      "reset crash data? Note this will unlock your BMS and enable contactor closing and SOC calculation.",
@@ -27,8 +29,16 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) { return b && b->supports_contactor_reset(); }, [](Battery* b) { b->reset_contactor(); }},
     {"resetDTC", "Erase DTC", "erase DTCs?", [](Battery* b) { return b && b->supports_reset_DTC(); },
      [](Battery* b) { b->reset_DTC(); }},
-    {"readDTC", "Read DTC (result must be checked in CANlog)", nullptr,
-     [](Battery* b) { return b && b->supports_read_DTC(); }, [](Battery* b) { b->read_DTC(); }},
+    {"startBalancing", "Balancing",
+     "continue? Please charge battery fully for this to work. After a couple of minutes, battery will sleep and do "
+     "balancing. It often takes many hours. There will be no progress indication.",
+     [](Battery* b) { return b && b->supports_balancing() && !b->is_balancing_active(); },
+     [](Battery* b) { b->initiate_balancing(); }},
+    {"endBalancing", "Stop Balancing Mode", "end offline balancing?",
+     [](Battery* b) { return b && b->supports_balancing() && b->is_balancing_active(); },
+     [](Battery* b) { b->end_balancing(); }},
+    {"readDTC", "Read DTC", nullptr, [](Battery* b) { return b && b->supports_read_DTC(); },
+     [](Battery* b) { b->read_DTC(); }},
     {"resetBECM", "Restart BECM module", "restart BECM??", [](Battery* b) { return b && b->supports_reset_BECM(); },
      [](Battery* b) { b->reset_BECM(); }},
     {"contactorClose", "Close Contactors", "a contactor close request?",
@@ -42,6 +52,9 @@ std::vector<BatteryCommand> battery_commands = {
     {"toggleSOC", "Toggle SOC method",
      "toggle SOC method? This will toggle between ESTIMATED and MEASURED SOC methods.",
      [](Battery* b) { return b && b->supports_toggle_SOC_method(); }, [](Battery* b) { b->toggle_SOC_method(); }},
+    {"resetEnergySavingMode", "Reset Energy Saving Mode", "reset energy saving mode to normal?",
+     [](Battery* b) { return b && b->supports_energy_saving_mode_reset(); },
+     [](Battery* b) { b->reset_energy_saving_mode(); }},
 };
 
 String advanced_battery_processor(const String& var) {
@@ -51,7 +64,7 @@ String advanced_battery_processor(const String& var) {
     content += "<style>";
     content += "body { background-color: black; color: white; }";
     content +=
-        "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
+        "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin: 5px; "
         "cursor: pointer; border-radius: 10px; }";
     content += "button:hover { background-color: #3A4A52; }";
     content += "h4 { margin: 0.6em 0; line-height: 1.2; }";
@@ -98,6 +111,12 @@ String advanced_battery_processor(const String& var) {
       content += "<h4>Values from battery 2</h4>";
       content += battery2->get_status_renderer().get_status_html();
       render_command_buttons(battery2, 1);
+    }
+
+    if (battery3) {
+      content += "<h4>Values from battery 3</h4>";
+      content += battery3->get_status_renderer().get_status_html();
+      render_command_buttons(battery3, 1);
     }
 
     content += "</div>";

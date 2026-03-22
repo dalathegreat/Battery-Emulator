@@ -50,7 +50,7 @@ PlatformIO is an extension that adds all the necessary functionality to VSCode.
       - Alternatively, you can use the checkmark icon in the blue status bar at the bottom of the VSCode window, or the keyboard shortcut Ctrl+Alt+B (Windows/Linux) / Cmd+Alt+B (macOS).
    - The build process will start. You can monitor the output in the integrated terminal. A successful build will end with ===== [SUCCESS] Took X.XX seconds =====.
 
-### 4. Uploading Code to Board via USB
+### 4. OptionA: Uploading Code to Board via USB
 
 - Connect your Battery-Emulator hardware to your computer using a USB cable.
 - Select the right board type (Stark, LilyGo)
@@ -64,6 +64,14 @@ PlatformIO is an extension that adds all the necessary functionality to VSCode.
    - Go to Quick Access > PIO > Upload.
    - Alternatively, use the right-arrow icon (→) in the blue status bar at the bottom of the VSCode window, or the keyboard shortcut Ctrl+Alt+U (Windows/Linux) / Cmd+Alt+U (macOS).
 - The upload process will begin. The board may reset automatically. A successful upload will end with ===== [SUCCESS] Took X.XX seconds =====.
+
+### 4. OptionB: Uploading Code via OTA
+
+- If you already have Battery-Emulator installed on the board, you can OTA update the board with the built file
+- Build the project for your hardware
+- Navigate to the folder (Stark used as example) : /Battery-Emulator/.pio/build/stark_330
+- Take the firmware.bin file
+- [OTA update](https://github.com/dalathegreat/Battery-Emulator/wiki/OTA-Update) the board with this file
 
 ### ⚠️ Troubleshooting & Tips
 
@@ -108,18 +116,27 @@ sudo make
 ```
 
 ## Downloading a pull request build to test locally 🛜
-If you want to help test a new feature that is only available in an open pull request, you can download the precompiled binaries from the build system. To do this,start by clicking on the "**Checks**" tab
+If you want to help test a new feature that is only available in an open pull request, you can download the precompiled binaries from the build system. 
 
-<img width="779" height="312" alt="image" src="https://github.com/user-attachments/assets/fc7783c1-ba61-440e-ab09-b53d2b49f1bb" />
+First, login to Github. If you don't have an account already, create one.
 
-Then select which hardware you need the binaries for. Currently we build for these hardwares:
+Start by clicking on the "**Checks**" tab
+
+<img alt="image" src="https://github.com/user-attachments/assets/fc7783c1-ba61-440e-ab09-b53d2b49f1bb" />
+
+Then click the down arrow next to the "Compile Common Images" selection, and then click on the hardware you need the binaries for. Currently we build for these hardwares:
 - LilyGo T-CAN485
 - Stark CMR
 - LilyGo T-2CAN
+- ESP32 Devkit
+- BECom
 
-<img width="647" height="476" alt="image" src="https://github.com/user-attachments/assets/fbb97719-0155-4792-9d91-c51e6052fa57" />
+<img alt="image" src="https://github.com/user-attachments/assets/e38f5c2c-098a-47d0-97be-10494b9ef5b2" />
 
-After selecting the hardware you need, click the "**Upload Artifact**", and there will be a download link. Download the file, and [OTA Update](https://github.com/dalathegreat/Battery-Emulator/wiki/OTA-Update) your device with this file!
+After selecting the hardware you need, click the "**Upload Artifact**", and there will be a download link. Download the file!
 
-<img width="1714" height="697" alt="image" src="https://github.com/user-attachments/assets/2e17f90f-cc7d-4265-b7bc-7aa5cc6b6ec8" />
+<img alt="image" src="https://github.com/user-attachments/assets/68f10c73-772f-499b-a14c-6b84d11c0ef2" />
+
+After downloading the .zip file, extract the .bin file from it. Then [OTA Update](https://github.com/dalathegreat/Battery-Emulator/wiki/OTA-Update) your device with this .bin file!
+
 

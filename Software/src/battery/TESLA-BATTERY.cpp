@@ -504,6 +504,14 @@ void TeslaBattery::
 
   /* Value mapping is completed. Start to check all safeties */
 
+  //12V battery too low for contactor operation. Inform user via Event
+  if (battery_dcdcLvBusVolt > 0) {  //If value has been read
+    if ((battery_dcdcLvBusVolt * 0.0390625) < 11.7) {
+      set_event(EVENT_12V_LOW, 0);
+    } else {
+      clear_event(EVENT_12V_LOW);
+    }
+  }
   //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
   if (battery_hvil_status == 3) {
     set_event(EVENT_INTERNAL_OPEN_FAULT, 0);
@@ -1923,9 +1931,27 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     if (battery_contactor == 4) {  // Contactors closed
 
       // Frames to be sent only when contactors closed
-
+      if (timeToMux3A1) {
+        timeToMux3A1 = false;
+        TESLA_3A1.data.u8[0] = 0xC3;
+        TESLA_3A1.data.u8[1] = 0xFF;
+        TESLA_3A1.data.u8[2] = 0xFF;
+        TESLA_3A1.data.u8[3] = 0xFF;
+        TESLA_3A1.data.u8[4] = 0x3D;
+        TESLA_3A1.data.u8[5] = 0x00;
+      } else {  //!timeToMux3A1
+        TESLA_3A1.data.u8[0] = 0x08;
+        TESLA_3A1.data.u8[1] = 0x62;
+        TESLA_3A1.data.u8[2] = 0x0B;
+        TESLA_3A1.data.u8[3] = 0x18;
+        TESLA_3A1.data.u8[4] = 0x00;
+        TESLA_3A1.data.u8[5] = 0x28;
+        timeToMux3A1 = true;
+      }
+      TESLA_3A1.data.u8[6] = frame6_3A1[frameCounter_TESLA_3A1];
+      TESLA_3A1.data.u8[7] = frame7_3A1[frameCounter_TESLA_3A1];
       //0x3A1 VCFRONT_vehicleStatus, critical otherwise VCFRONT_MIA triggered
-      transmit_can_frame(&TESLA_3A1[frameCounter_TESLA_3A1]);
+      transmit_can_frame(&TESLA_3A1);
       frameCounter_TESLA_3A1 = (frameCounter_TESLA_3A1 + 1) % 16;
     }
 

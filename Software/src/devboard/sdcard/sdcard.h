@@ -10,6 +10,7 @@
 #define LOG_FILE "/log.txt"
 
 void init_logging_buffers();
+void deinit_logging_buffers();
 
 bool init_sdcard();
 void log_sdcard_details();

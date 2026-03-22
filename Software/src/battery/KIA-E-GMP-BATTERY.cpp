@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 #include "../system_settings.h"
@@ -107,7 +108,7 @@ void KiaEGmpBattery::set_voltage_minmax_limits() {
 uint8_t KiaEGmpBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
   uint8_t crc = initial_value;
   for (uint8_t j = 1; j < length; j++) {  //start at 1, since 0 is the CRC
-    crc = crc8_table[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
+    crc = crc8_table_SAE_J1850_ZER0[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
   }
   return crc;
 }
@@ -148,7 +149,7 @@ void KiaEGmpBattery::update_values() {
   }
 
   //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
-  //The allowed discharge power is not available. We hardcode this value for now
+  //The allowed discharge power is not available. We use user set value for now
   datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
 
   datalayer.battery.status.temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C

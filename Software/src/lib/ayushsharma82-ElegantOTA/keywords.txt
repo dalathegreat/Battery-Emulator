@@ -1,9 +1,0 @@
-ElegantOTA	        KEYWORD1
-begin		        KEYWORD2
-loop                KEYWORD2
-setAuth             KEYWORD2
-clearAuth           KEYWORD2
-setAutoReboot       KEYWORD2
-onStart             KEYWORD2
-onEnd               KEYWORD2
-onProgress	        KEYWORD2

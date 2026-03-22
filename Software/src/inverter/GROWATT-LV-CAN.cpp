@@ -12,13 +12,13 @@ The inverter replies data every second (standard frame/decimal)0x301:*/
 void GrowattLvInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
-  cell_delta_mV = datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
+  cell_delta_mV = abs(datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
 
   if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
     ampere_hours_remaining =
         ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
          100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
-    ampere_hours_full = ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.status.voltage_dV) *
+    ampere_hours_full = ((datalayer.battery.info.reported_total_capacity_Wh / datalayer.battery.status.voltage_dV) *
                          100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
   }
   //Map values to CAN messages
@@ -58,8 +58,8 @@ void GrowattLvInverter::
   GROWATT_313.data.u8[0] = ((datalayer.battery.status.voltage_dV * 10) >> 8);
   GROWATT_313.data.u8[1] = ((datalayer.battery.status.voltage_dV * 10) & 0x00FF);
   //Module or system total current (0.1A Sint16)
-  GROWATT_313.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
-  GROWATT_313.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  GROWATT_313.data.u8[2] = (datalayer.battery.status.reported_current_dA >> 8);
+  GROWATT_313.data.u8[3] = (datalayer.battery.status.reported_current_dA & 0x00FF);
   //Cell max temperature (0.1C)
   GROWATT_313.data.u8[4] = (datalayer.battery.status.temperature_max_dC >> 8);
   GROWATT_313.data.u8[5] = (datalayer.battery.status.temperature_max_dC & 0x00FF);

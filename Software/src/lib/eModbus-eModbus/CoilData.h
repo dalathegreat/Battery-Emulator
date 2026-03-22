@@ -98,11 +98,6 @@ public:
   // Return number of coils set to 0 (or OFF)
   uint16_t coilsSetOFF() const;
 
-#if !LINUX
-  // Helper function to dump out coils in logical order
-  void print(const char *label, Print& s);
-#endif
-
 protected:
   // bit masks for bits left of a bit index in a byte
   const uint8_t CDfilter[8] = { 0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3F, 0x7F, 0xFF };

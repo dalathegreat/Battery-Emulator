@@ -3,16 +3,17 @@
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/hal/hal.h"
+#include "src/battery/BATTERIES.h"
 
 // Parameters adjustable by user in Settings page
 bool precharge_control_enabled = false;
 bool precharge_inverter_normally_open_contactor = false;
 uint16_t precharge_max_precharge_time_before_fault = 15000;
+uint16_t Precharge_max_PWM_Freq = 34000;
 
 // Hardcoded parameters
 #define Precharge_default_PWM_Freq 11000
 #define Precharge_min_PWM_Freq 5000
-#define Precharge_max_PWM_Freq 34000
 #define Precharge_PWM_Res 8
 #define PWM_Freq 20000  // 20 kHz frequency, beyond audible range
 #define PWM_Precharge_Channel 0
@@ -59,6 +60,12 @@ void handle_precharge_control(unsigned long currentMillis) {
     digitalWrite(hia4v1_pin, LOW);
     digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_ON);
     return;  // Exit immediately - no further processing allowed. Reboot required to recover
+  }
+
+  // If we are running in test mode (No battery configured, enable precharge sequence so user can test HW)
+  if (battery == NULL) {
+    datalayer.system.info.start_precharging = true;
+    datalayer.battery.status.real_bms_status = BMS_STANDBY;
   }
 
   int32_t target_voltage = datalayer.battery.status.voltage_dV;
@@ -134,13 +141,18 @@ void handle_precharge_control(unsigned long currentMillis) {
       break;
 
     case AUTO_PRECHARGE_COMPLETED:
-      if (datalayer.system.info.equipment_stop_active || datalayer.battery.status.bms_status != ACTIVE) {
+      // If equipment stop is activated, or BE is in a non-active state, or the
+      // BMS has gone back to standby (eg, after a BMS reset), then we'll allow
+      // the precharge to be restarted.
+      if (datalayer.system.info.equipment_stop_active || datalayer.battery.status.bms_status != ACTIVE ||
+          datalayer.battery.status.real_bms_status == BMS_STANDBY) {
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
         logging.printf("Precharge: equipment stop activated -> IDLE\n");
       }
       break;
 
     case AUTO_PRECHARGE_OFF:
+      // This is not used anymore?
       if (!datalayer.system.status.battery_allows_contactor_closing ||
           !datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.info.equipment_stop_active ||
           datalayer.battery.status.bms_status != FAULT) {

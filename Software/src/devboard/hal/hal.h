@@ -128,6 +128,7 @@ class Esp32Hal {
   virtual gpio_num_t CHADEMO_PIN_7() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_PIN_4() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_NC; }
+  virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_NC; }
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_NC; }
@@ -135,6 +136,7 @@ class Esp32Hal {
   virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t BMS_POWER() { return GPIO_NUM_NC; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
 
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_NC; }
@@ -154,6 +156,10 @@ class Esp32Hal {
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_NC; }
   virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
+
+  // i2c display
+  virtual gpio_num_t DISPLAY_SDA_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t DISPLAY_SCL_PIN() { return GPIO_NUM_NC; }
 
   // Equipment stop pin
   virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_NC; }

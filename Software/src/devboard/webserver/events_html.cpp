@@ -5,7 +5,7 @@
 #include "../../devboard/utils/millis64.h"
 
 const char EVENTS_HTML_START[] = R"=====(
-<style>body{background-color:#000;color:#fff}.event-log{display:flex;flex-direction:column}.event{display:flex;flex-wrap:wrap;border:1px solid #fff;padding:10px}.event>div{flex:1;min-width:100px;max-width:90%;word-break:break-word}</style><div style="background-color:#303e47;padding:10px;margin-bottom:10px;border-radius:25px"><div class="event-log"><div class="event" style="background-color:#1e2c33;font-weight:700"><div>Event Type</div><div>Severity</div><div>Last Event</div><div>Count</div><div>Data</div><div>Message</div></div>
+<style>body{background-color:#000;color:#fff}.event-log{display:flex;flex-direction:column}.event{display:flex;flex-wrap:wrap;border:1px solid #fff;padding:10px}.event>div{flex:1;min-width:100px;word-break:break-word}</style><div style="background-color:#303e47;padding:10px;margin-bottom:10px;border-radius:25px"><div class="event-log"><div class="event" style="background-color:#1e2c33;font-weight:700"><div>Event Type</div><div>Severity</div><div>Last Event</div><div>Count</div><div>Data</div><div>Message</div></div>
 )=====";
 const char EVENTS_HTML_END[] = R"=====(
 </div></div>
@@ -46,9 +46,33 @@ String events_processor(const String& var) {
       EVENTS_ENUM_TYPE event_handle = event.event_handle;
       event_pointer = event.event_pointer;
 
-      content.concat("<div class='event'>");
+      // Get the event level string and determine background color
+      String event_level = String(get_event_level_string(event_handle));
+      String bg_color;
+      String text_color = "#000000";
+
+      // Set colors based on event level
+      if (event_level == "INFO") {
+        bg_color = "#04b34f";
+      } else if (event_level == "WARNING") {
+        bg_color = "#ff9900";
+      } else if (event_level == "ERROR") {
+        bg_color = "#a6192e";
+        text_color = "#ffffff";
+      } else {
+        bg_color = "";
+      }
+
+      // Start event div with inline style for background color
+      content.concat("<div class='event'");
+      if (bg_color.length() > 0) {
+        content.concat(" style='background-color: " + bg_color + "; color: " + text_color + ";'>");
+      } else {
+        content.concat(">");
+      }
+
       content.concat("<div>" + String(get_event_enum_string(event_handle)) + "</div>");
-      content.concat("<div>" + String(get_event_level_string(event_handle)) + "</div>");
+      content.concat("<div>" + event_level + "</div>");
       // Frontend expects to see time difference (in ms) from now to event
       content.concat("<div class='sec-ago'>" + String(current_timestamp - event_pointer->timestamp) + "</div>");
       content.concat("<div>" + String(event_pointer->occurences) + "</div>");

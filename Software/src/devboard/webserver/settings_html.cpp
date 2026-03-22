@@ -9,6 +9,7 @@
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
+#include "src/battery/Shunt.h"
 #include "src/inverter/INVERTERS.h"
 
 extern bool settingsUpdated;
@@ -96,8 +97,12 @@ String options_from_map(int selected, const TMap& value_name_map) {
   }
   return options;
 }
-
+#ifdef HW_LILYGO2CAN
+static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy Flow"},     {2, "Heartbeat"},
+                                                {3, "GRB Classic"}, {4, "GRB Energy Flow"}, {5, "GRB Heartbeat"}};
+#else
 static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
+#endif
 
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
@@ -111,6 +116,13 @@ static const std::map<int, String> tesla_chassis = {{0, "Model S"}, {1, "Model X
 
 static const std::map<int, String> tesla_pack = {{0, "50 kWh"}, {2, "62 kWh"}, {1, "74 kWh"}, {3, "100 kWh"}};
 
+static const std::map<int, String> sungrow_models = {
+    {0, "SBR064 (6.4 kWh, 2 modules)"},  {1, "SBR096 (9.6 kWh, 3 modules)"},  {2, "SBR128 (12.8 kWh, 4 modules)"},
+    {3, "SBR160 (16.0 kWh, 5 modules)"}, {4, "SBR192 (19.2 kWh, 6 modules)"}, {5, "SBR224 (22.4 kWh, 7 modules)"},
+    {6, "SBR256 (25.6 kWh, 8 modules)"}};
+
+static const std::map<int, String> pylon_models = {{0, "PYLONTECH"}, {1, "PYLON"}, {2, "DEYE"}};
+
 const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   switch (behavior) {
     case STOP_BUTTON_BEHAVIOR::LATCHING_SWITCH:
@@ -119,6 +131,51 @@ const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
       return "Momentary";
     case STOP_BUTTON_BEHAVIOR::NOT_CONNECTED:
       return "Not connected";
+    default:
+      return nullptr;
+  }
+}
+#ifdef HW_LILYGO2CAN
+const char* name_for_gpioopt1(GPIOOPT1 option) {
+  switch (option) {
+    case GPIOOPT1::DEFAULT_OPT:
+      return "WUP1 / WUP2";
+    case GPIOOPT1::I2C_DISPLAY_SSD1306:
+      return "I2C Display (SSD1306)";
+    case GPIOOPT1::ESTOP_BMS_POWER:
+      return "E-Stop / BMS Power";
+    default:
+      return nullptr;
+  }
+}
+#endif
+const char* name_for_gpioopt2(GPIOOPT2 option) {
+  switch (option) {
+    case GPIOOPT2::DEFAULT_OPT_BMS_POWER_18:
+      return "Pin 18";
+    case GPIOOPT2::BMS_POWER_25:
+      return "Pin 25";
+    default:
+      return nullptr;
+  }
+}
+const char* name_for_gpioopt3(GPIOOPT3 option) {
+  switch (option) {
+    case GPIOOPT3::DEFAULT_SMA_ENABLE_05:
+      return "Pin 5";
+    case GPIOOPT3::SMA_ENABLE_33:
+      return "Pin 33";
+    default:
+      return nullptr;
+  }
+}
+
+const char* name_for_gpioopt4(GPIOOPT4 option) {
+  switch (option) {
+    case GPIOOPT4::DEFAULT_SD_CARD:
+      return "uSD Card";
+    case GPIOOPT4::I2C_DISPLAY_SSD1306:
+      return "I2C Display (SSD1306)";
     default:
       return nullptr;
   }
@@ -133,11 +190,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
   // HTML-ready values (such as select options) are returned here. These don't
   // get any additional escaping.
-
-  if (var == "SHUNTCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("SHUNTCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
 
   if (var == "BATTTYPE") {
     return options_for_enum_with_none((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None),
@@ -180,6 +232,12 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_comm_interface);
   }
 
+  if (var == "CTATTEN") {
+    return options_for_enum_with_none(
+        (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_0db), name_for_adc_attenuation,
+        adc_attenuation_enum::ADC_0db);
+  }
+
   if (var == "EQSTOP") {
     return options_for_enum_with_none(
         (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
@@ -188,6 +246,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "BATT2COMM") {
     return options_for_enum((comm_interface)settings.getUInt("BATT2COMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+
+  if (var == "BATT3COMM") {
+    return options_for_enum((comm_interface)settings.getUInt("BATT3COMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
   }
 
@@ -209,6 +272,35 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "LEDMODE") {
     return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
+  }
+
+  if (var == "SUNGROW_MODEL") {
+    return options_from_map(settings.getUInt("INVSUNTYPE", 1), sungrow_models);  // Default: SBR096
+  }
+
+  if (var == "PYLON_MODEL") {
+    return options_from_map(settings.getUInt("PYLONBRAND", 0), pylon_models);
+  }
+
+#ifdef HW_LILYGO2CAN
+  if (var == "GPIOOPT1") {
+    return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
+                                      name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
+  }
+#endif
+  if (var == "GPIOOPT2") {
+    return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
+                                      name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
+  }
+
+  if (var == "GPIOOPT3") {
+    return options_for_enum_with_none((GPIOOPT3)settings.getUInt("GPIOOPT3", (int)GPIOOPT3::DEFAULT_SMA_ENABLE_05),
+                                      name_for_gpioopt3, GPIOOPT3::DEFAULT_SMA_ENABLE_05);
+  }
+
+  if (var == "GPIOOPT4") {
+    return options_for_enum_with_none((GPIOOPT4)settings.getUInt("GPIOOPT4", (int)GPIOOPT4::DEFAULT_SD_CARD),
+                                      name_for_gpioopt4, GPIOOPT4::DEFAULT_SD_CARD);
   }
 
   // All other values are wrapped by html_escape to avoid HTML injection.
@@ -279,8 +371,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     }
   }
 
+  if (var == "SHUNTINTF") {
+    if (shunt) {
+      return shunt->interface_name();
+    }
+  }
+
   if (var == "SHUNTCLASS") {
-    if (user_selected_shunt_type == ShuntType::None) {
+    if (!shunt) {
       return "hidden";
     }
   }
@@ -295,6 +393,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("DBLBTR") ? "checked" : "";
   }
 
+  if (var == "TRIBTR") {
+    return settings.getBool("TRIBTR") ? "checked" : "";
+  }
+
   if (var == "SOCESTIMATED") {
     return settings.getBool("SOCESTIMATED") ? "checked" : "";
   }
@@ -303,8 +405,16 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
 
+  if (var == "NCCONTACTOR") {
+    return settings.getBool("NCCONTACTOR") ? "checked" : "";
+  }
+
   if (var == "CNTCTRLDBL") {
     return settings.getBool("CNTCTRLDBL") ? "checked" : "";
+  }
+
+  if (var == "CNTCTRLTRI") {
+    return settings.getBool("CNTCTRLTRI") ? "checked" : "";
   }
 
   if (var == "PWMCNTCTRL") {
@@ -325,6 +435,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "MAXPRETIME") {
     return String(settings.getUInt("MAXPRETIME", 15000));
+  }
+
+  if (var == "MAXPREFREQ") {
+    return String(settings.getUInt("MAXPREFREQ", 34000));
   }
 
   if (var == "NOINVDISC") {
@@ -435,6 +549,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("SDLOGENABLED") ? "checked" : "";
   }
 
+  if (var == "ESPNOWENABLED") {
+    return settings.getBool("ESPNOWENABLED") ? "checked" : "";
+  }
+
   if (var == "MQTTENABLED") {
     return settings.getBool("MQTTENABLED") ? "checked" : "";
   }
@@ -465,6 +583,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "MQTTTIMEOUT") {
     return String(settings.getUInt("MQTTTIMEOUT", 2000));
+  }
+
+  if (var == "MQTTPUBLISHMS") {
+    return String(settings.getUInt("MQTTPUBLISHMS", 5000) / 1000);
   }
 
   if (var == "MQTTOBJIDPREFIX") {
@@ -590,7 +712,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "BALANCING_MAX_TIME") {
-    return String(datalayer.battery.settings.balancing_time_ms / 60000.0f, 1);
+    return String(datalayer.battery.settings.balancing_max_time_ms / 60000.0f, 1);
   }
 
   if (var == "BAL_POWER") {
@@ -673,6 +795,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("PYLONORDER") ? "checked" : "";
   }
 
+  if (var == "PYLONBAUD") {
+    return String(settings.getUInt("PYLONBAUD", 500));
+  }
+
   if (var == "INVCELLS") {
     return String(settings.getUInt("INVCELLS", 0));
   }
@@ -703,6 +829,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "DEYEBYD") {
     return settings.getBool("DEYEBYD") ? "checked" : "";
+  }
+
+  if (var == "PRIMOGEN24") {
+    return settings.getBool("PRIMOGEN24") ? "checked" : "";
   }
 
   if (var == "CANFREQ") {
@@ -737,6 +867,22 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("GTWRHD") ? "checked" : "";
   }
 
+  if (var == "CTOFFSET") {
+    return settings.getString("CTOFFSET", "-1.0");
+  }
+
+  if (var == "CTVNOM") {
+    return String(settings.getUInt("CTVNOM", 40));
+  }
+
+  if (var == "CTANOM") {
+    return String(settings.getUInt("CTANOM", 100));
+  }
+
+  if (var == "CTINVERT") {
+    return settings.getBool("CTINVERT") ? "checked" : "";
+  }
+
   return String();
 }
 
@@ -762,6 +908,54 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       return "UNKNOWN";
   }
 }
+
+#ifdef HW_LILYGO2CAN
+#define GPIOOPT1_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT1">Configurable port:</label>
+    <select id="GPIOOPT1" name="GPIOOPT1">
+      %GPIOOPT1%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT1_SETTING ""
+#endif
+
+#ifdef HW_LILYGO
+#define GPIOOPT2_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT2">BMS Power pin:</label>
+    <select id="GPIOOPT2" name="GPIOOPT2">
+      %GPIOOPT2%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT2_SETTING ""
+#endif
+
+#ifdef HW_LILYGO
+#define GPIOOPT3_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT3">SMA enable pin:</label>
+    <select id="GPIOOPT3" name="GPIOOPT3">
+      %GPIOOPT3%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT3_SETTING ""
+#endif
+
+#ifdef HW_LILYGO
+#define GPIOOPT4_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT4">uSD Slot:</label>
+    <select id="GPIOOPT4" name="GPIOOPT4">
+      %GPIOOPT4%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT4_SETTING ""
+#endif
 
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
@@ -789,6 +983,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     function editComplete(){if(this.status==200){window.location.reload();}}
 
     function editError(){alert('Invalid input');}
+        function editRecoveryMode(){var value=prompt('Extremely dangerous option. Emergency charge allows recovery for a severely undercharged battery. Limit charge power to avoid cell rupture and possible fire. Start 30min recovery process? (0 = No, 1 = Yes):');
+          if(value!==null){if(value==0||value==1){var xhr=new 
+        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/enableRecoveryMode?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1.');}}}
 
         function editWh(){var value=prompt('How much energy the battery can store. Enter new Wh value (1-400000):');
           if(value!==null){if(value>=1&&value<=400000){var xhr=new 
@@ -802,6 +999,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         function editSocMax(){var value=prompt('Inverter will see fully charged (100pct)SOC when this value is reached. Enter new maximum SOC value that battery will charge to (50.0-100.0):');if(value!==null){if(value>=50&&value<=100){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSocMax?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 50.0 and 100.0');}}}
     
+
+
         function editSocMin(){
           var value=prompt('Inverter will see completely discharged (0pct)SOC when this value is reached. Advanced users can set to negative values. Enter new minimum SOC value that battery will discharge to (-10.0to50.0):');
           if(value!==null){if(value>=-10&&value<=50){var xhr=new 
@@ -925,10 +1124,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="0"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
     form[data-charger="0"] .if-charger { display: none; }
-    form[data-shunt="0"] .if-shunt { display: none; }
+    form[data-shunttype="0"] .if-shunt,
+    form[data-shunttype="3"] .if-shunt { 
+      display: none; 
+    }
+    form[data-shunttype="0"] .if-ctclamp,
+    form[data-shunttype="1"] .if-ctclamp,
+    form[data-shunttype="2"] .if-ctclamp { 
+      display: none; 
+    }
+    form[data-shunttype="3"] .if-ctclamp { display: contents;}
+    
 
     form .if-cbms { display: none; }
-    form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms {
+    form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms, form[data-battery="41"] .if-cbms, form[data-battery="48"] .if-cbms, form[data-battery="49"] .if-cbms {
       display: contents;
     }
 
@@ -951,17 +1160,26 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="24"] .if-estimated,
     form[data-battery="32"] .if-estimated, 
     form[data-battery="33"] .if-estimated,
+    form[data-battery="40"] .if-estimated,
+    form[data-battery="41"] .if-estimated,
     form[data-battery="44"] .if-estimated {
       display: contents;
     }
 
     form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
-    form[data-battery="16"] .if-socestimated {
+    form[data-battery="16"] .if-socestimated,
+    form[data-battery="26"] .if-socestimated,
+    form[data-battery="41"] .if-socestimated {
       display: contents;
     }
 
     form .if-dblbtr { display: none; }
     form[data-dblbtr="true"] .if-dblbtr {
+      display: contents;
+    }
+
+    form .if-tribtr { display: none; }
+    form[data-tribtr="true"] .if-tribtr {
       display: contents;
     }
 
@@ -990,13 +1208,31 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-bydmodbus { display: none; }
+    form[data-inverter="3"] .if-bydmodbus {
+      display: contents;
+    }
+
     form .if-pylon { display: none; }
+    form[data-battery="22"] .if-pylon,
     form[data-inverter="10"] .if-pylon {
       display: contents;
     }
 
+    form .if-pylon-inverter { display: none; }
+    form[data-inverter="10"] .if-pylon-inverter {
+      display: contents;
+    }
+
+    form .if-pylon-battery { display: none; }
+    form[data-battery="22"] .if-pylon-battery {
+      display: contents;
+    }
+
     form .if-pylonish { display: none; }
-    form[data-inverter="4"] .if-pylonish, form[data-inverter="10"] .if-pylonish, form[data-inverter="19"] .if-pylonish {
+    form[data-inverter="4"] .if-pylonish, 
+    form[data-inverter="10"] .if-pylonish, 
+    form[data-inverter="19"] .if-pylonish {
       display: contents;
     }
 
@@ -1004,7 +1240,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-inverter="18"] .if-solax {
       display: contents;
     }
-
+      
+    form .if-sungrow { display: none; }
+    form[data-inverter="21"] .if-sungrow {
+      display: contents;
+    }
+      
     form .if-kostal { display: none; }
     form[data-inverter="9"] .if-kostal {
       display: contents;
@@ -1116,6 +1357,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
+        <div class="if-pylon-battery">
+        <label>Pylon CAN baudrate (kbps): </label>
+        <input name='PYLONBAUD' type='text' value="%PYLONBAUD%" pattern="[0-9]+" title="Select CAN bus baudrate (500kbps for most batteries, 250kbps for some configurations)"/>
+        </div>
+
         <div class="if-cbms">
         <label>Battery max design voltage (V): </label>
         <input name='BATTPVMAX' pattern="[0-9]+(\.[0-9]+)?" type='text' value='%BATTPVMAX%'   
@@ -1143,6 +1389,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <select name='BATT2COMM'>
                 %BATT2COMM%
             </select>
+
+        <label>Triple battery: </label>
+        <input type='checkbox' name='TRIBTR' value='on' %TRIBTR% 
+        title="Enable this option if you intend to run three batteries in parallel" />
+
+        <div class="if-tribtr">
+        <label>Battery 3 interface: </label>
+        <select name='BATT3COMM'>
+            %BATT3COMM%
+        </select>
+        </div>
+
         </div>
 
         </div>
@@ -1167,7 +1425,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input name='SOFAR_ID' type='text' value="%SOFAR_ID%" pattern="[0-9]{1,2}" />
         </div>
 
-        <div class="if-pylon">
+        <div class="if-pylon-inverter">
         <label>Pylon, send group (0-1): </label>
         <input name='PYLONSEND' type='text' value="%PYLONSEND%" pattern="[0-9]+" 
         title="Select if we should send ###0 or ###1 CAN messages, useful for multi-battery setups or ID problems" />
@@ -1179,11 +1437,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Pylon, invert byteorder: </label>
         <input type='checkbox' name='PYLONORDER' value='on' %PYLONORDER% 
         title="When enabled, byteorder will be inverted on some signals, useful for some inverters that see wrong data otherwise" />
+
+        <label>Pylon, manufacturer name: </label>
+        <select name='PYLONBRAND'>%PYLON_MODEL%</select>
         </div>
 
         <div class="if-byd">
-        <label>Deye offgrid specific fixes: </label>
+        <label>Deye avoid over/undercharge fix: </label>
         <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
+        </div>
+
+        <div class="if-bydmodbus">
+        <label>Fronius Primo, 450V maxvoltage cap: </label>
+        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24% />
         </div>
 
         <div class="if-pylonish">
@@ -1212,6 +1478,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input name='INVBTYPE' type='text' value="%INVBTYPE%" pattern="[0-9]+" />
         </div>
 
+        <div class="if-sungrow">
+        <label>Battery model: </label>
+        <select name='INVSUNTYPE'>%SUNGROW_MODEL%</select>
+        </div>
+        
         <div class="if-kostal if-solax">
         <label>Prevent inverter opening contactors: </label>
         <input type='checkbox' name='INVICNT' value='on' %INVICNT% />
@@ -1234,7 +1505,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
-        <label>Shunt: </label><select name='SHUNT'>
+        <label>Shunt: </label><select name='shunttype'>
         %SHUNTTYPE%
         </select>
 
@@ -1244,7 +1515,33 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
+        <div class="if-ctclamp">
+          <label>CT Clamp offset (mV): </label>
+          <input type='number' name='CTOFFSET' value="%CTOFFSET%" 
+          min="-1" max="3000" step="1"
+          title="Voltage offset required to calibrate 0A reading. -1 = auto-detect" />
+
+          <label>CT Clamp nominal voltage (dV): </label>
+          <input type='number' name='CTVNOM' value="%CTVNOM%" 
+          min="0" max="500" step="1"
+          title="Nominal voltage of the CT Clamp x10. Integer only." />
+
+          <label>CT Clamp nominal current (A): </label>
+          <input type='number' name='CTANOM' value="%CTANOM%" 
+          min="0" max="200" step="1"
+          title="Nominal current of the CT Clamp. Integer only." />
+
+          <label>ESP32 pin attenuation: </label>
+          <select name='CTATTEN'>
+          %CTATTEN%
+          </select>
+
+          <label>Invert CT current: </label>
+          <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% 
+          title="Invert the current reading from the CT clamp, +ve is charging, -ve is discharging" />
+          </div>
         </div>
+
         </div>
 
         <div class="settings-card">
@@ -1272,6 +1569,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-dblbtr">
             <label>Double-Battery Contactor control via GPIO: </label>
             <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
+            <label>Triple-Battery Contactor control via GPIO: </label>
+            <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
         </div>
 
         <label>Contactor control via GPIO: </label>
@@ -1282,6 +1581,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <input type='number' name='PRECHGMS' value="%PRECHGMS%" 
             min="1" max="65000" step="1"
             title="Time in milliseconds the precharge should be active" />
+
+            <label>Use Normally Closed logic: </label>
+            <input type='checkbox' name='NCCONTACTOR' value='on' %NCCONTACTOR% 
+            title="Extremely rare option. If configured, GPIO control logic will be inverted for operation with normally closed contactors" />
 
             <label>PWM contactor control: </label>
             <input type='checkbox' name='PWMCNTCTRL' value='on' %PWMCNTCTRL% />
@@ -1310,6 +1613,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <label>Precharge, maximum ms before fault: </label>
             <input name='MAXPRETIME' type='text' value="%MAXPRETIME%" pattern="[0-9]+" />
 
+            <label>Precharge, maximum PWM frequency: </label>
+            <input name='MAXPREFREQ' type='text' value="%MAXPREFREQ%" pattern="[0-9]+" />
+
           <label>Normally Open (NO) inverter disconnect contactor: </label>
           <input type='checkbox' name='NOINVDISC' value='on' %NOINVDISC% />
         </div>
@@ -1318,6 +1624,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         %LEDMODE%
         </select>
 
+        )rawliteral" GPIOOPT1_SETTING R"rawliteral(
+        )rawliteral" GPIOOPT2_SETTING R"rawliteral(
+        )rawliteral" GPIOOPT3_SETTING R"rawliteral(
+        )rawliteral" GPIOOPT4_SETTING R"rawliteral(
+          
         </div>
         </div>
 
@@ -1335,7 +1646,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         required />
 
         <label>Access point password: </label>
-        <input type='text' name='APPASSWORD' value="%APPASSWORD%" 
+        <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
         pattern="[ -~]{8,63}" 
         title="Password must be 8-63 characters long, printable ASCII only"
         required />
@@ -1380,6 +1691,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div></div>
         </div>
 
+        <label>Enable ESPNow: </label>
+        <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED% />
+
         <label>Enable MQTT: </label>
         <input type='checkbox' name='MQTTENABLED' value='on' %MQTTENABLED% />
 
@@ -1402,6 +1716,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
         min="1" max="60000" step="1"
         title="Timeout in milliseconds (1-60000)" />
+        <label>MQTT publish interval (seconds): </label>
+        <input name='MQTTPUBLISHMS' type='number' value="%MQTTPUBLISHMS%" 
+        min="1" max="300" step="1"
+        title="How often to publish MQTT messages in seconds (1-300, step 1). Default: 5" />
         <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
         <label>Remote BMS reset via MQTT allowed: </label>
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
@@ -1490,7 +1808,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       <h4 style='color: white;' class="%INVCLASS%">Inverter interface: <span id='Inverter'>%INVINTF%</span></h4>
       
-      <h4 style='color: white;' class="%SHUNTCLASS%">Shunt interface: <span id='Inverter'>%SHUNTINTF%</span></h4>
+      <h4 style='color: white;' class="%SHUNTCLASS%">Shunt interface: <span id='Shunt'>%SHUNTINTF%</span></h4>
 
     </div>
 
@@ -1518,6 +1836,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target discharge voltage: %DISCHARGE_VOLTAGE% V </span> <button onclick='editMaxDischargeVoltage()'>Edit</button></h4>
 
       <h4 style='color: white;'>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
+
+      <h4 style='color: red;'>Undercharged emergency recovery mode: </span><button onclick='editRecoveryMode()'>Start</button></h4>
 
     </div>
 

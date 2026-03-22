@@ -4,10 +4,11 @@
 
 class Battery;
 
-// Currently initialized objects for primary and secondary battery.
+// Currently initialized objects for primary/secondary/tertiary battery.
 // Null value indicates that battery is not configured/initialized
 extern Battery* battery;
 extern Battery* battery2;
+extern Battery* battery3;
 
 void setup_shunt();
 
@@ -19,13 +20,17 @@ void setup_shunt();
 #include "BYD-ATTO-3-BATTERY.h"
 #include "CELLPOWER-BMS.h"
 #include "CHADEMO-BATTERY.h"
+#include "CHADEMO-CT.h"
 #include "CHADEMO-SHUNTS.h"
 #include "CMFA-EV-BATTERY.h"
+#include "CMP-SMART-CAR-BATTERY.h"
 #include "DALY-BMS.h"
 #include "ECMP-BATTERY.h"
 #include "FORD-MACH-E-BATTERY.h"
 #include "FOXESS-BATTERY.h"
 #include "GEELY-GEOMETRY-C-BATTERY.h"
+#include "GEELY-SEA-BATTERY.h"
+#include "GROWATT-HV-ARK-BATTERY.h"
 #include "HYUNDAI-IONIQ-28-BATTERY.h"
 #include "IMIEV-CZERO-ION-BATTERY.h"
 #include "JAGUAR-IPACE-BATTERY.h"
@@ -52,7 +57,10 @@ void setup_shunt();
 #include "SIMPBMS-BATTERY.h"
 #include "SONO-BATTERY.h"
 #include "TESLA-BATTERY.h"
+#include "TESLA-LEGACY-BATTERY.h"
 #include "TEST-FAKE-BATTERY.h"
+#include "THINK-BATTERY.h"
+#include "THUNDERSTRUCK-BMS.h"
 #include "VOLVO-SPA-BATTERY.h"
 #include "VOLVO-SPA-HYBRID-BATTERY.h"
 
@@ -71,5 +79,6 @@ extern bool user_selected_tesla_GTW_rightHandDrive;
 extern uint16_t user_selected_tesla_GTW_mapRegion;
 extern uint16_t user_selected_tesla_GTW_chassisType;
 extern uint16_t user_selected_tesla_GTW_packEnergy;
+extern uint16_t user_selected_pylon_baudrate;
 
 #endif

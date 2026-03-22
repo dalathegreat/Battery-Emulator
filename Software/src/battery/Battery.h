@@ -50,6 +50,12 @@ enum class BatteryType {
   RivianBattery = 42,
   BmwPhev = 43,
   FordMachE = 44,
+  CmpSmartCar = 45,
+  ThinkCity = 47,
+  TeslaLegacy = 48,
+  GrowattHvArk = 49,
+  GeelySea = 50,
+  ThunderstruckBMS = 51,
   Highest
 };
 
@@ -60,6 +66,7 @@ extern const char* name_for_comm_interface(comm_interface comm);
 
 extern BatteryType user_selected_battery_type;
 extern bool user_selected_second_battery;
+extern bool user_selected_triple_battery;
 
 extern battery_chemistry_enum user_selected_battery_chemistry;
 
@@ -85,17 +92,23 @@ class Battery {
   virtual bool supports_read_DTC() { return false; }
   virtual bool supports_reset_SOH() { return false; }
   virtual bool supports_reset_BECM() { return false; }
+  virtual bool supports_calibrate_SOC() { return false; }
   virtual bool supports_contactor_close() { return false; }
   virtual bool supports_contactor_reset() { return false; }
   virtual bool supports_set_fake_voltage() { return false; }
   virtual bool supports_manual_balancing() { return false; }
   virtual bool supports_real_BMS_status() { return false; }
   virtual bool supports_toggle_SOC_method() { return false; }
+  virtual bool supports_energy_saving_mode_reset() { return false; }
   virtual bool supports_factory_mode_method() { return false; }
   virtual bool supports_chademo_restart() { return false; }
   virtual bool supports_chademo_stop() { return false; }
+  virtual bool supports_balancing() { return false; }
+  virtual bool is_balancing_active() { return false; }
+  virtual const char* get_balancing_state_string() { return nullptr; }
 
   virtual void clear_isolation() {}
+  virtual void calibrate_SOC() {}
   virtual void reset_BMS() {}
   virtual void reset_SOC() {}
   virtual void reset_crash() {}
@@ -108,9 +121,12 @@ class Battery {
   virtual void request_open_contactors() {}
   virtual void request_close_contactors() {}
   virtual void toggle_SOC_method() {}
+  virtual void reset_energy_saving_mode() {}
   virtual void set_factory_mode() {}
   virtual void chademo_restart() {}
   virtual void chademo_stop() {}
+  virtual void initiate_balancing() {}
+  virtual void end_balancing() {}
 
   virtual void set_fake_voltage(float v) {}
   virtual float get_voltage();

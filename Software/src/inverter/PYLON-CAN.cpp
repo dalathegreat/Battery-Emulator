@@ -54,8 +54,8 @@ void PylonInverter::
   PYLON_421X.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
   PYLON_421X.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
   //Current (15.0)
-  PYLON_421X.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
-  PYLON_421X.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  PYLON_421X.data.u8[2] = (datalayer.battery.status.reported_current_dA >> 8);
+  PYLON_421X.data.u8[3] = (datalayer.battery.status.reported_current_dA & 0x00FF);
   // BMS Temperature (We dont have BMS temp, send max cell voltage instead)
   PYLON_421X.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
   PYLON_421X.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
@@ -123,11 +123,11 @@ void PylonInverter::
   // Status=Bit 0,1,2= 0:Sleep, 1:Charge, 2:Discharge 3:Idle. Bit3 ForceChargeReq. Bit4 Balance charge Request
   if (datalayer.battery.status.bms_status == FAULT) {
     PYLON_425X.data.u8[0] = (0x00);  // Sleep
-  } else if (datalayer.battery.status.current_dA < 0) {
+  } else if (datalayer.battery.status.reported_current_dA < 0) {
     PYLON_425X.data.u8[0] = (0x01);  // Charge
-  } else if (datalayer.battery.status.current_dA > 0) {
+  } else if (datalayer.battery.status.reported_current_dA > 0) {
     PYLON_425X.data.u8[0] = (0x02);  // Discharge
-  } else if (datalayer.battery.status.current_dA == 0) {
+  } else if (datalayer.battery.status.reported_current_dA == 0) {
     PYLON_425X.data.u8[0] = (0x03);  // Idle
   }
 }
@@ -155,6 +155,8 @@ void PylonInverter::transmit_can(unsigned long currentMillis) {
 void PylonInverter::send_setup_info() {  //Ensemble information
   transmit_can_frame(&PYLON_731X);
   transmit_can_frame(&PYLON_732X);
+  transmit_can_frame(&PYLON_733X);
+  transmit_can_frame(&PYLON_734X);
 }
 
 void PylonInverter::send_system_data() {  //System equipment information
@@ -213,6 +215,31 @@ bool PylonInverter::setup() {
   if (user_selected_inverter_ah_capacity > 0) {
     PYLON_732X.data.u8[6] = user_selected_inverter_ah_capacity & 0xff;
     PYLON_732X.data.u8[7] = (uint8_t)(user_selected_inverter_ah_capacity >> 8);
+  }
+  if (user_selected_inverter_pylon_type == 0) {
+    //PYLONTEC H
+    PYLON_733X.data.u8[0] = 'P';
+    PYLON_733X.data.u8[1] = 'Y';
+    PYLON_733X.data.u8[2] = 'L';
+    PYLON_733X.data.u8[3] = 'O';
+    PYLON_733X.data.u8[4] = 'N';
+    PYLON_733X.data.u8[5] = 'T';
+    PYLON_733X.data.u8[6] = 'E';
+    PYLON_733X.data.u8[7] = 'C';
+    PYLON_734X.data.u8[0] = 'H';
+  } else if (user_selected_inverter_pylon_type == 1) {
+    //Pylon HV
+    PYLON_733X.data.u8[0] = 'P';
+    PYLON_733X.data.u8[1] = 'Y';
+    PYLON_733X.data.u8[2] = 'L';
+    PYLON_733X.data.u8[3] = 'O';
+    PYLON_733X.data.u8[4] = 'N';
+  } else if (user_selected_inverter_pylon_type == 2) {
+    //Pylon LV
+    PYLON_733X.data.u8[0] = 'D';
+    PYLON_733X.data.u8[1] = 'e';
+    PYLON_733X.data.u8[2] = 'y';
+    PYLON_733X.data.u8[3] = 'e';
   }
   return true;
 }

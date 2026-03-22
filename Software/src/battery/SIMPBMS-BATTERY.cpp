@@ -34,8 +34,6 @@ void SimpBmsBattery::update_values() {
 
   datalayer.battery.info.min_design_voltage_dV = discharge_cutoff_voltage;
 
-  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mV, SIMPBMS_MAX_CELLS * sizeof(uint16_t));
-
   datalayer.battery.info.number_of_cells = cells_in_series;
 }
 
@@ -57,7 +55,7 @@ void SimpBmsBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x356:
       //current status
-      current_dA = ((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[2]) / 1000;
+      current_dA = ((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[2]) / 100;
       voltage_dV = ((rx_frame.data.u8[1] << 8) + rx_frame.data.u8[0]) / 10;
       break;
     case 0x373:
@@ -74,7 +72,7 @@ void SimpBmsBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if (cellnumber > cells_in_series) {
           cells_in_series = cellnumber;
         }
-        cellvoltages_mV[cellnumber - 1] = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
+        datalayer.battery.status.cell_voltages_mV[cellnumber - 1] = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
       }
 
       break;

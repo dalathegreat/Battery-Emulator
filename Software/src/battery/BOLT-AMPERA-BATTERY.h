@@ -253,7 +253,6 @@ class BoltAmperaBattery : public CanBattery {
   int16_t temperature_6 = 0;
   int16_t temperature_highest_C = 0;
   int16_t temperature_lowest_C = 0;
-  uint8_t cellbank_mux = 0;
   uint8_t poll_index_7E4 = 0;
   uint16_t currentpoll_7E4 = POLL_7E4_CAPACITY_EST_GEN1;
   uint16_t reply_poll_7E4 = 0;

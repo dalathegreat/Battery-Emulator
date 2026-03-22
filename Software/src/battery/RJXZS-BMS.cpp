@@ -119,6 +119,11 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
         host_temperature = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         status_accounting = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         equalization_starting_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+        if ((status_accounting & 0x020) >> 5) {  //balancing active
+          datalayer.battery.status.balancing_status = BALANCING_STATUS_ACTIVE;
+        } else {  //balancing off
+          datalayer.battery.status.balancing_status = BALANCING_STATUS_READY;
+        }
         if ((rx_frame.data.u8[4] & 0x40) >> 6) {
           charging_active = true;
           discharging_active = false;
@@ -129,13 +134,20 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
       } else if (mux >= 0x07 && mux <= 0x46) {
         // Cell voltages 1-192 (3 per message, 0x07=1-3, 0x08=4-6, ..., 0x46=190-192)
         int cell_index = (mux - 0x07) * 3;
+        bool has_valid_data = false;
         for (int i = 0; i < 3; i++) {
           if (cell_index + i >= MAX_AMOUNT_CELLS) {
             break;
           }
-          cellvoltages[cell_index + i] = (rx_frame.data.u8[1 + i * 2] << 8) | rx_frame.data.u8[2 + i * 2];
+          uint16_t cell_voltage = (rx_frame.data.u8[1 + i * 2] << 8) | rx_frame.data.u8[2 + i * 2];
+          cellvoltages[cell_index + i] = cell_voltage;
+          // Check if this cell has valid (non-zero) voltage data
+          if (cell_voltage != 0) {
+            has_valid_data = true;
+          }
         }
-        if (cell_index + 2 >= populated_cellvoltages) {
+        // Only update populated cell count if we received valid voltage data
+        if (has_valid_data && cell_index + 2 >= populated_cellvoltages) {
           populated_cellvoltages = cell_index + 2 + 1;
         }
       } else if (mux == 0x47) {

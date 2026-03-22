@@ -34,7 +34,7 @@ void CmfaEvBattery::
 
   datalayer_battery->status.current_dA = current * 10;
 
-  datalayer_battery->status.voltage_dV = average_voltage_of_cells / 100;
+  datalayer_battery->status.voltage_dV = pack_voltage * 5;
 
   datalayer_battery->info.total_capacity_Wh = 27000;
 
@@ -77,6 +77,7 @@ void CmfaEvBattery::
     datalayer_cmfa->cumulative_energy_when_charging = cumulative_energy_when_charging;
     datalayer_cmfa->cumulative_energy_in_regen = cumulative_energy_in_regen;
     datalayer_cmfa->soh_average = soh_average;
+    datalayer_cmfa->average_voltage_of_cells = average_voltage_of_cells;
   }
 }
 
@@ -86,6 +87,7 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       current = (((((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) * 0.25) - 500);
       SOC_raw = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      pack_voltage = (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[7]);
       break;
     case 0x3D6:  //100ms, Same structure as old Zoe 0x424 message!
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -98,7 +100,6 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x3D7:  //100ms
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      pack_voltage = ((rx_frame.data.u8[6] << 4 | (rx_frame.data.u8[5] & 0x0F)));
       break;
     case 0x3D8:  //100ms
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -212,14 +213,28 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           break;
         case PID_POLL_DIDS_SUPPORTED_IN_RANGE_9041_9060:
           break;
-        default:                                                                //Unknown pid_reply, or a cellvoltage
-          if (pid_reply >= PID_POLL_CELL_1 && pid_reply <= PID_POLL_CELL_72) {  //Cellvoltage PID reply
-            uint8_t cellnumber = (pid_reply - PID_POLL_CELL_1);
-            if (cellnumber < MAX_AMOUNT_CELLS) {  //Prevent out of bounds array write
-              datalayer_battery->status.cell_voltages_mV[cellnumber] =
-                  (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-            }
+        default:  //Unknown pid_reply, or a cellvoltage
+          uint8_t cellnumber = 0;
+          if (pid_reply >= PID_POLL_CELL_1 && pid_reply <= PID_POLL_CELL_31) {  //Cellvoltage PID reply
+            cellnumber = (pid_reply - PID_POLL_CELL_1);
+          } else if (pid_reply >= PID_POLL_CELL_32 && pid_reply <= PID_POLL_CELL_62) {
+            cellnumber = (pid_reply - PID_POLL_CELL_1) - 1;
+          } else if (pid_reply >= PID_POLL_CELL_63 && pid_reply <= PID_POLL_CELL_72) {
+            cellnumber = (pid_reply - PID_POLL_CELL_1) - 2;
+          } else {  //Unknown pid_reply
+            break;
           }
+
+          if (cellnumber < MAX_AMOUNT_CELLS) {  //Prevent out of bounds array write
+            uint16_t cellvoltage_reading = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+            if (cellvoltage_reading == 0) {
+              //Blown fuse/celltap. Force value to 10mV so user sees this in cellmonitor page. Also fire event
+              cellvoltage_reading = 10;
+              set_event(EVENT_BATTERY_FUSE, cellnumber);
+            }
+            datalayer_battery->status.cell_voltages_mV[cellnumber] = cellvoltage_reading * 0.976563;
+          }
+
           break;
       }
       break;
@@ -727,7 +742,12 @@ void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
         break;
     }
 
-    transmit_can_frame(&CMFA_POLLING_FRAME);
+    if (UserRequestDTCclear) {
+      transmit_can_frame(&CMFA_CLEAR_DTC);
+      UserRequestDTCclear = false;
+    } else {  //Normal PID polling
+      transmit_can_frame(&CMFA_POLLING_FRAME);
+    }
   }
 }
 
