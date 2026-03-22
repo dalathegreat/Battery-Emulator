@@ -87,10 +87,6 @@ TEST_F(Mg4BatteryTest, CoulombCountAndLimitsTest) {
   EXPECT_EQ(datalayer.battery.status.real_soc, 10000);
 
   // Test Coulomb Counting
-  // Reset to 3.7V
-  send_can_12c_fd(pack_voltage_dV, 0, 3700, 3700);
-  battery->update_values();
-  uint16_t soc_start = datalayer.battery.status.real_soc;
 
   // Simulate discharge: 100A (1000dA) for some "ticks"
   // update_values is called "every second" in real life.
@@ -99,7 +95,7 @@ TEST_F(Mg4BatteryTest, CoulombCountAndLimitsTest) {
   // current_dA = -(((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]) - 20000) / 2;
   // If we want 100A discharge, current_dA should be -1000.
 
-  for (int i = 0; i < 2000; i++) {  // 100A discharge
+  for (int i = 0; i < 4500; i++) {  // 100A discharge
     send_can_12c_fd(pack_voltage_dV, -1000, 3700, 3700);
     battery->update_values();
   }

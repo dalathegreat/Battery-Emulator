@@ -202,10 +202,11 @@ void Mg4Battery::
     soc_centipercent = 0;
   }
 
-  if (datalayer.battery.status.cell_max_voltage_mV >= get_working_max_cell_voltage_mV()) {
+  if (datalayer.battery.status.cell_max_voltage_mV >= (get_working_max_cell_voltage_mV() - 10)) {
     // We're full
     soc_centipercent = 10000;
-  } else if (datalayer.battery.status.cell_min_voltage_mV <= get_working_min_cell_voltage_mV()) {
+    total_discharge_dC = 0;
+  } else if (datalayer.battery.status.cell_min_voltage_mV <= (get_working_min_cell_voltage_mV() + 10)) {
     // We're empty
     soc_centipercent = 0;
   } else if (soc_centipercent < 100 &&
