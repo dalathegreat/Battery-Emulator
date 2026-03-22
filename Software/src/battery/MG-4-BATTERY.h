@@ -10,14 +10,27 @@ class Mg4Battery : public UdsCanBattery {
   virtual uint16_t handle_pid(uint16_t pid, uint32_t value);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  virtual uint32_t calculate_max_discharge_power_W();
+  virtual uint32_t calculate_max_charge_power_W();
+  //virtual uint32_t calculate_pack_voltage_limit_max_dV();
 
   static constexpr const char* Name = "MG4 battery";
 
  private:
   static const uint16_t MAX_CELL_DEVIATION_MV = 150;
 
+  int32_t working_cell_min_mV = 0;
+  int32_t working_cell_max_mV = 0;
+  bool below_working_min = false;
+  int32_t cell_voltage_freshness = 0;
+
   int sendPhase = 0;
   bool reportsSoC = false;
+
+  unsigned long total_discharge_dC = 0;
+  bool total_discharge_initialized = false;
+
+  unsigned long lastTickMillis = 0;
 
   unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
