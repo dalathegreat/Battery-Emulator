@@ -16,7 +16,14 @@ extern uint16_t user_selected_tesla_GTW_packEnergy;
 class TeslaBattery : public CanBattery {
  public:
   // Use the default constructor to create the first or single battery.
-  TeslaBattery() { allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing; }
+  virtual void setup(void);
+  // Use this constructor for the second battery.
+  TeslaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
+    datalayer_battery = datalayer_ptr;
+  }
+
+  // Use the default constructor to create the first or single battery.
+  TeslaBattery() { datalayer_battery = &datalayer.battery; }
 
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -37,8 +44,11 @@ class TeslaBattery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
+  static constexpr const char* Name = "Tesla Model S/3/X/Y";
+
  private:
   TeslaHtmlRenderer renderer;
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
 
  protected:
   /* Do not change anything below this line! */
@@ -62,9 +72,6 @@ class TeslaBattery : public CanBattery {
   static const int MIN_CELL_VOLTAGE_LFP = 2800;  //Battery is put into emergency stop if one cell goes below this value
 
   bool operate_contactors = false;
-
-  // If not null, this battery decides when the contactor can be closed and writes the value here.
-  bool* allows_contactor_closing;
 
   void printFaultCodesIfActive();
 
