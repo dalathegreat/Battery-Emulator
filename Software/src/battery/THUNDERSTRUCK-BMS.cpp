@@ -79,12 +79,12 @@ void ThunderstruckBMS::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x14ff26d0:  //OCV
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x14ff25d0:  //DCL / CCL
+    case 0x14ff25d0:  //DCL / CCL / Discharge/Charge Current Limits
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      DCLMin = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
-      CCLMin = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
-      DCLMax = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-      CCLMax = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+      DCLMin = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
+      CCLMin = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+      DCLMax = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
+      CCLMax = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
       break;
     case 0x14ff24d0:  //SOC
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -97,13 +97,13 @@ void ThunderstruckBMS::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x14ff22d0:  //Minmax cellvoltages
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      lowest_cell_voltage = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
-      highest_cell_voltage = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+      lowest_cell_voltage = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+      highest_cell_voltage = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
       break;
     case 0x14ff21d0:  //Packvoltage
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      packvoltage_dV = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
-      pack_curent_dA = (int16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      packvoltage_dV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+      pack_curent_dA = (int16_t)((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
       break;
     case 0x14ff20d0:  //Active faults
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -161,7 +161,7 @@ void ThunderstruckBMS::transmit_can(unsigned long currentMillis) {
     THUND_14ebd0d8.data.u8[1] = 0xFF;           //(Still PGN field, should this be 0x00 or 0xFF?))
     THUND_14ebd0d8.data.u8[2] = 0x0a;  //Request rate (0x0a = 10, and each tick is 50ms, so 500ms between messages)
     THUND_14ebd0d8.data.u8[3] =
-        0x08;  //Request Repeat Count, requests the message be sent 8 times (0x08) before needing to be requested again.
+        0x01;  //Request Repeat Count, requests the message be sent X times (0x0X) before needing to be requested again.
     THUND_14ebd0d8.data.u8[7] = 0x00;     //Profile number //TODO: !
     transmit_can_frame(&THUND_14ebd0d8);  //J1939_MCU_ReadRequest
 
