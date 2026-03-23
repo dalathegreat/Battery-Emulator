@@ -1343,7 +1343,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='number' name='DCHGPOWER' value="%DCHGPOWER%" 
         min="0" max="65000" step="1"
         title="Continous max discharge power. Used since CAN data not valid for this integration. Do not set too high!" />
-        </div>
 
         <label>Rampdown SOC, pptt: </label>
         <input type='number' name='RAMPDOWNSOC' value="%RAMPDOWNSOC%" 
