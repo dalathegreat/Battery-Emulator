@@ -477,6 +477,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("DCHGPOWER", 0));
   }
 
+  if (var == "RAMPDOWNSOC") {
+    return String(settings.getUInt("RAMPDOWNSOC", 9000));
+  }
+
   if (var == "LOCALIP1") {
     return String(settings.getUInt("LOCALIP1", 0));
   }
@@ -1339,6 +1343,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='number' name='DCHGPOWER' value="%DCHGPOWER%" 
         min="0" max="65000" step="1"
         title="Continous max discharge power. Used since CAN data not valid for this integration. Do not set too high!" />
+        </div>
+
+        <label>Rampdown SOC, pptt: </label>
+        <input type='number' name='RAMPDOWNSOC' value="%RAMPDOWNSOC%" 
+        min="7500" max="9000" step="1"
+        title="SOC percentage to start ramping down from max charge power towards 0W at 100.00%" />
         </div>
 
         <div class="if-socestimated">

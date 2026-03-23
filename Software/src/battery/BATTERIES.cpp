@@ -365,7 +365,8 @@ uint16_t user_selected_tesla_GTW_packEnergy = 1;
 /* User-selected EGMP+others settings */
 bool user_selected_use_estimated_SOC = false;
 uint16_t user_selected_pylon_baudrate = 500;
-
+/* For custom BMS which need rampdown. SOC% to start ramping down from max charge power towards 0 at 100.00%*/
+uint16_t user_set_rampdown_SOC = 9000;  //9000 = 90.00%
 // Use 0V for user selected cell/pack voltage defaults (On boot will be replaced with saved values from NVM)
 uint16_t user_selected_max_pack_voltage_dV = 0;
 uint16_t user_selected_min_pack_voltage_dV = 0;
