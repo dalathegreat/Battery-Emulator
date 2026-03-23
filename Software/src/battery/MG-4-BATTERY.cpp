@@ -262,8 +262,8 @@ void Mg4Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         datalayer.battery.status.cell_min_voltage_mV = ((rx_frame.data.u8[30] << 8) | (rx_frame.data.u8[31])) / 8;
         datalayer.battery.status.cell_max_voltage_mV = ((rx_frame.data.u8[32] << 8) | (rx_frame.data.u8[33])) / 8;
 
-        datalayer.battery.status.temperature_max_dC = ((int)rx_frame.data.u8[22] * 5) - 400;
-        datalayer.battery.status.temperature_min_dC = ((int)rx_frame.data.u8[23] * 5) - 400;
+        datalayer.battery.status.temperature_max_dC = ((int)rx_frame.data.u8[19] * 5) - 400;
+        datalayer.battery.status.temperature_min_dC = ((int)rx_frame.data.u8[22] * 5) - 400;
 
         cell_voltage_freshness = 10;
       }
