@@ -41,12 +41,16 @@ extern "C" {
 //If core is not defined, then we are running in Arduino or PIO
 #ifndef CONFIG_ASYNC_TCP_RUNNING_CORE
 #define CONFIG_ASYNC_TCP_RUNNING_CORE WIFI_CORE
+#define CONFIG_ASYNC_TCP_USE_WDT 0 //if enabled, adds between 33us and 200us per event
 #endif
 #ifndef CONFIG_ASYNC_TCP_STACK_SIZE
 #define CONFIG_ASYNC_TCP_STACK_SIZE 16384  // 8192 * 2
 #endif
 #ifndef CONFIG_ASYNC_TCP_STACK
 #define CONFIG_ASYNC_TCP_STACK CONFIG_ASYNC_TCP_STACK_SIZE
+#endif
+#ifndef CONFIG_ASYNC_TCP_PRIORITY
+#define CONFIG_ASYNC_TCP_PRIORITY 3
 #endif
 #ifndef CONFIG_ASYNC_TCP_TASK_PRIORITY
 #define CONFIG_ASYNC_TCP_TASK_PRIORITY TASK_CONNECTIVITY_PRIO

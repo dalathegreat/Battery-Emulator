@@ -14,7 +14,7 @@ class SolaxInverter : public CanInverterProtocol {
 
  private:
   static const uint8_t DEFAULT_NUMBER_OF_MODULES = 0;
-  static const uint8_t DEFAULT_BATTERY_TYPE = 0x50;
+  static const uint8_t DEFAULT_BATTERY_TYPE = 0x51;
   //SOLAX BMS States Definition
   static const int BATTERY_ANNOUNCE = 0;
   static const int WAITING_FOR_CONTACTOR = 1;

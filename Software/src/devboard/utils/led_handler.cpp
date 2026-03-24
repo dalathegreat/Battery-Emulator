@@ -70,23 +70,43 @@ void LED::exe(void) {
   uint16_t num_leds = pixels.numPixels();
 
   switch (datalayer.battery.status.led_mode) {
-    case led_mode_enum::FLOW:
-      if (get_emulator_status() == EMULATOR_STATUS::STATUS_OK) {
-        flow_run();
-        return;
-      }
-      break;
-    case led_mode_enum::HEARTBEAT:
-      heartbeat_run();
-      break;
+
     case led_mode_enum::LED_DISABLED:
       pixels.clear();
       pixels.show();
       return;
-    case led_mode_enum::CLASSIC:
-    default:
-      classic_run();
-      break;
+
+    #ifdef HW_LILYGO2CAN
+      case led_mode_enum::GRB_FLOW:
+        pixels.setColorOrder(GRB);
+        flow_run();
+        break;
+      case led_mode_enum::GRB_HEARTBEAT:
+        pixels.setColorOrder(GRB);
+        heartbeat_run();
+        break;
+      case led_mode_enum::GRB_CLASSIC:
+        pixels.setColorOrder(GRB);
+        classic_run();
+        break;
+
+    #endif
+      case led_mode_enum::FLOW:
+        if (get_emulator_status() == EMULATOR_STATUS::STATUS_OK) {
+          flow_run();
+          return;
+        }
+        break;
+
+      case led_mode_enum::HEARTBEAT:
+        heartbeat_run();
+        break;
+
+      case led_mode_enum::CLASSIC:
+      default:
+        classic_run();
+        break;
+
   }
 
   uint32_t target_color = 0;

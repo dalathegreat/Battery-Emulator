@@ -149,9 +149,33 @@ String events_processor(const String& var) {
       EVENTS_ENUM_TYPE event_handle = event.event_handle;
       event_pointer = event.event_pointer;
 
-      content.concat("<div class='event'>");
+      // Get the event level string and determine background color
+      String event_level = String(get_event_level_string(event_handle));
+      String bg_color;
+      String text_color = "#000000";
+
+      // Set colors based on event level
+      if (event_level == "INFO") {
+        bg_color = "#04b34f";
+      } else if (event_level == "WARNING") {
+        bg_color = "#ff9900";
+      } else if (event_level == "ERROR") {
+        bg_color = "#a6192e";
+        text_color = "#ffffff";
+      } else {
+        bg_color = "";
+      }
+
+      // Start event div with inline style for background color
+      content.concat("<div class='event'");
+      if (bg_color.length() > 0) {
+        content.concat(" style='background-color: " + bg_color + "; color: " + text_color + ";'>");
+      } else {
+        content.concat(">");
+      }
+
       content.concat("<div>" + String(get_event_enum_string(event_handle)) + "</div>");
-      content.concat("<div>" + String(get_event_level_string(event_handle)) + "</div>");
+      content.concat("<div>" + event_level + "</div>");
       // Frontend expects to see time difference (in ms) from now to event
       content.concat("<div class='sec-ago'>" + String(current_timestamp - event_pointer->timestamp) + "</div>");
       content.concat("<div>" + String(event_pointer->occurences) + "</div>");
@@ -168,9 +192,8 @@ String events_processor(const String& var) {
   return String();
 }
 
-// 🌟 เปลี่ยนชื่อเป็น print_events_html และรับค่าเป็น AsyncResponseStream
+// Rename to print_events_html and accept as AsyncResponseStream
 void print_events_html(AsyncResponseStream *response) {
-    // แปะ Header ของ Events
     response->print(FPSTR(EVENTS_HTML_START));
 
     order_events.clear();
@@ -184,7 +207,7 @@ void print_events_html(AsyncResponseStream *response) {
     std::sort(order_events.begin(), order_events.end(), compareEventsBySeverityAndTimestampDesc);
     uint64_t current_timestamp = millis64();
 
-    // 🌟 ทยอยยัดข้อมูลลงท่อ (ไม่ใช้ String บวกกันแล้ว!)
+    // Gradually adding data to the pipe (no longer using string addition!)
     for (const auto& event : order_events) {
       EVENTS_ENUM_TYPE event_handle = event.event_handle;
       const EVENTS_STRUCT_TYPE* event_pointer = event.event_pointer;

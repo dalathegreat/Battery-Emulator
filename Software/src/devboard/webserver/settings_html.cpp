@@ -99,7 +99,17 @@ String options_from_map(int selected, const TMap& value_name_map) {
   return options;
 }
 
-static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}, {3, "Disabled"}};
+static const std::map<int, String> led_modes = {
+    {static_cast<int>(led_mode_enum::CLASSIC), "Classic"},
+    {static_cast<int>(led_mode_enum::FLOW), "Energy Flow"},
+    {static_cast<int>(led_mode_enum::HEARTBEAT), "Heartbeat"},
+#ifdef HW_LILYGO2CAN
+    {static_cast<int>(led_mode_enum::GRB_CLASSIC), "GRB Classic"},
+    {static_cast<int>(led_mode_enum::GRB_FLOW), "GRB Energy Flow"},
+    {static_cast<int>(led_mode_enum::GRB_HEARTBEAT), "GRB Heartbeat"},
+#endif
+    {static_cast<int>(led_mode_enum::LED_DISABLED), "Disabled"}
+};
 
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
@@ -117,6 +127,8 @@ static const std::map<int, String> sungrow_models = {
     {0, "SBR064 (6.4 kWh, 2 modules)"},  {1, "SBR096 (9.6 kWh, 3 modules)"},  {2, "SBR128 (12.8 kWh, 4 modules)"},
     {3, "SBR160 (16.0 kWh, 5 modules)"}, {4, "SBR192 (19.2 kWh, 6 modules)"}, {5, "SBR224 (22.4 kWh, 7 modules)"},
     {6, "SBR256 (25.6 kWh, 8 modules)"}};
+
+static const std::map<int, String> pylon_models = {{0, "PYLONTECH"}, {1, "PYLON"}, {2, "DEYE"}};
 
 const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   switch (behavior) {
@@ -293,6 +305,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "SUNGROW_MODEL") {
     return options_from_map(settings.getUInt("INVSUNTYPE", 1), sungrow_models);  // Default: SBR096
+  }
+
+  if (var == "PYLON_MODEL") {
+    return options_from_map(settings.getUInt("PYLONBRAND", 0), pylon_models);
   }
 
 #ifdef HW_LILYGO2CAN
@@ -975,9 +991,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     <select id="GPIOOPT1" name="GPIOOPT1">
       %GPIOOPT1%
     </select>
-    
+
     <div class="if-i2c" style="grid-column: span 2; background: #f9f9f9; padding: 15px; border-left: 4px solid #3498db; margin: 10px 0; border-radius: 4px;">
-        
+
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 5px;">
           <label style="font-weight: bold; color: #333; margin: 0; text-align: left; padding: 0;">Enable Multiple I2C Devices:</label>
           <input type='checkbox' name='MULTII2C' value='on' %MULTII2C% style="margin: 0; width: 20px; height: 20px;" />
@@ -985,33 +1001,33 @@ const char* getCANInterfaceName(CAN_Interface interface) {
               💡 To use OLED, select it in "Display Type" below
           </span>
         </div>
-        
+
         <div class="if-multii2c" style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;">
           <h4 style="margin-bottom: 12px; color: #555; text-align: left;">Select active I2C devices on the bus:</h4>
-          
+
           <div style="display: flex; flex-direction: column; gap: 12px; padding-left: 5px;">
             <label style="display: flex; align-items: center; gap: 10px; text-align: left; font-weight: normal; margin: 0; padding: 0; cursor: pointer;">
               <input type="checkbox" name="I2C_SHT30" value="on" %I2C_SHT30% style="margin: 0; flex-shrink: 0;">
               <span><code>0x44</code> - SHT30 (Ambient Temp/Humidity)</span>
             </label>
-            
+
             <label style="display: flex; align-items: center; gap: 10px; text-align: left; font-weight: normal; margin: 0; padding: 0; cursor: pointer;">
               <input type="checkbox" name="I2C_ATECC" value="on" %I2C_ATECC% style="margin: 0; flex-shrink: 0;">
               <span><code>0x60</code> - ATECC608A (Hardware Security)</span>
             </label>
-            
+
             <label style="display: flex; align-items: center; gap: 10px; text-align: left; font-weight: normal; margin: 0; padding: 0; cursor: pointer;">
               <input type="checkbox" name="I2C_RTC" value="on" %I2C_RTC% style="margin: 0; flex-shrink: 0;">
               <span><code>0x68</code> - DS3231 (Offline RTC Logging)</span>
             </label>
-            
+
             <label style="display: flex; align-items: center; gap: 10px; text-align: left; font-weight: normal; margin: 0; padding: 0; cursor: pointer;">
               <input type="checkbox" name="I2C_IO" value="on" %I2C_IO% style="margin: 0; flex-shrink: 0;">
               <span><code>0x20</code> - PCF8574 (External IO & Relays)</span>
             </label>
           </div>
-        </div> 
-        </div> 
+        </div>
+        </div>
     )rawliteral"
 #else
 #define GPIOOPT1_SETTING ""
@@ -1028,7 +1044,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       <label>Enable Manual Refresh Button (Pin 40): </label>
       <input type='checkbox' name='EPAPREFRESHBTN' value='on' %EPAPREFRESHBTN% />
     </div>
-    
+
     <div id="epaper_warning" style="display:none; margin-top:5px; padding:10px; background-color:#fff3cd; border:1px solid #ffeeba; color:#856404; border-radius:5px; font-size: 0.9em; grid-column: span 2;">
       ⚠️ <b>Constraint Warning:</b><br>
       Selecting E-Paper will disable:<br>
@@ -1085,16 +1101,16 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
-    <script> 
+    <script>
       function checkLedPower(){var e=document.getElementById("LEDCOUNT"),t=document.getElementById("led_power_warning"),n=document.getElementById("led_mA"),d=document.getElementById("led_msg");if(e&&t){var l=parseInt(e.value)*10;n.innerText=l,l>500?(t.style.backgroundColor="#f8d7da",t.style.color="#721c24",t.style.borderColor="#f5c6cb",d.innerText="⚠️ DANGER: Exceeds 500mA limit! May crash ESP32!"):(t.style.backgroundColor="#e2e3e5",t.style.color="#383d41",t.style.borderColor="#d6d8db",d.innerText="(Safe: Under 500mA limit)")}}
       function checkLedMode(){var e=document.getElementById("LEDMODE"),t=document.getElementById("lbl_ledtail"),n=document.getElementById("input_ledtail");e&&t&&n&&("1"==e.value?(t.style.display="",n.style.display=""):(t.style.display="none",n.style.display="none"))}
-      
+
       function askFactoryReset(){confirm("Are you sure you want to reset the device to factory settings?")&&((xhr=new XMLHttpRequest).onload=function(){200==this.status?(alert("Factory reset successful. Restarting..."),window.location.href="/reboot"):alert("Factory reset failed.")},xhr.onerror=function(){alert("Error resetting device.")},xhr.open("POST","/factoryReset",!0),xhr.send())}
-      
+
       function askReboot() {
         if(confirm("Are you sure you want to reboot the system?")) {
           var modal = document.createElement('div');
-          
+
           modal.innerHTML = '<div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.85);z-index:99999;display:flex;justify-content:center;align-items:center;backdrop-filter:blur(5px);">' +
             '<div style="background:#fff;padding:35px 20px;border-radius:15px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.5);width:350px;max-width:90vw;font-family:sans-serif;">' +
               '<h2 style="color:#e74c3c;margin-top:0;font-size:1.8rem;">🔄 System Rebooting</h2>' +
@@ -1102,11 +1118,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
               '<p style="color:#555;font-size:1.1rem;margin:10px 0;">Please wait <span id="rebootCount" style="font-weight:bold;color:#e74c3c;font-size:1.3rem;">15</span> seconds.</p>' +
               '<p style="font-size:0.85rem;color:#888;">The system is restarting.<br>The page will reload automatically.</p>' +
             '</div></div><style>@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }</style>';
-          
+
           document.body.appendChild(modal);
 
           fetch('/reboot', { method: 'GET', keepalive: true }).catch(function(){});
-          
+
           let timeLeft = 15;
           let countEl = document.getElementById('rebootCount');
           let timer = setInterval(function() {
@@ -1147,9 +1163,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       function editChargerSetpointEndI(){sendEdit("Set cut-off amperage (A 0-1000):","/updateChargeEndA?value=","Value between 0-1000",0,1e3,!0)}
       function goToMainPage(){window.location.href="/"}
       function checkDisplayWarning(){var e=document.getElementById("DISPLAYTYPE"),t=document.getElementById("epaper_warning"),n=document.getElementById("oled_warning"),d=document.getElementById("GPIOOPT1");e&&(t&&(t.style.display="none"),n&&(n.style.display="none"),d&&(d.disabled=!1),"2"==e.value||"3"==e.value?t&&(t.style.display="block"):"1"==e.value&&(n&&(n.style.display="block"),d&&(d.disabled=!0)))}
-      
+
       window.addEventListener("load",function(){checkLedPower(),checkLedMode(),checkDisplayWarning()});
-      
+
       var frm = document.querySelector("form");
       if (frm) {
         // 🌟 1. Capture the Save button press and send it via AJAX (Background Save).
@@ -1157,16 +1173,16 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           e.preventDefault(); // Stop the old page transition method.
           var btn = frm.querySelector("button[type='submit']");
           if (btn) btn.innerText = "⏳ Saving...";
-          
+
           // Gather information from all fields on the current page.
           var params = new URLSearchParams(new FormData(frm));
-          params.append("PAGE_ID", window.location.pathname); 
-          
+          params.append("PAGE_ID", window.location.pathname);
+
           // Silently sending data to the board via API.
           fetch("/api/saveBulk?" + params.toString())
             .then(response => {
               if(response.ok) {
-                window.location.reload(); 
+                window.location.reload();
               } else {
                 alert("❌ Save failed! Board returned error.");
                 if (btn) btn.innerText = "💾 Save Settings";
@@ -1244,10 +1260,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
                         document.getElementById('wm_title').innerHTML = "✅ Success!";
                         document.getElementById('wm_title').style.color = "#28a745";
                         document.getElementById('wm_spinner').style.display = "none";
-                        
+
                         var actionHtml = '<p style="font-size:1.1rem;margin:15px 0;">Device is online!</p>' +
                                         '<a href="http://' + data.ip + '" style="display:inline-block;padding:12px 25px;background:#3498db;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-bottom:10px;box-shadow:0 4px 6px rgba(52,152,219,0.3);">Go to New IP: ' + data.ip + '</a>';
-                        
+
                         if(!keep_ap) {
                             actionHtml += '<p style="color:#e74c3c;font-size:0.85rem;margin-top:15px;">⚠️ Hotspot is now turning off.<br>Connect your phone to <b>' + ssid + '</b> to continue.</p>';
                         } else {
@@ -1391,7 +1407,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       <label>SSID:</label><input type='text' id='net_ssid' name='SSID' value="%SSID%"/>
       <label>Password:</label><input type='password' id='net_pass' name='PASSWORD' value="%PASSWORD%"/>
-      
+
       <label></label>
       <button type="button" onclick="applyWifi()" style="background:#28a745; color:white; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1); transition:0.2s; max-width: 250px; display:block; flex:1;">🔗 Connect & Save</button>
     </div>
@@ -1541,7 +1557,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define OVERRIDE_BODY \
   R"rawliteral(
   <div class="set-tabs"><a href="/settings" class="set-tab">🔋 Battery & Inverter</a><a href="/set_network" class="set-tab">📡 Network</a><a href="/set_hardware" class="set-tab">⚙️ Hardware</a><a href="/set_web" class="set-tab">🌐 Admin & Debug</a><a href="/set_overrides" class="set-tab active" style="background:#e74c3c; border-color:#e74c3c; color:#fff;">⚡ Overrides</a></div>
-  
+
   <div class="card card-danger">
     <h3 style="color:#e74c3c">⚡ Manual Overrides (Live Update)</h3>
     <div class="override-grid"><h4>Battery capacity: <strong style="color:#3498db">%BATTERY_WH_MAX% Wh</strong></h4><button class="btn btn-primary" onclick='editWh()'>Edit</button></div>
@@ -1560,11 +1576,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     <div class="override-grid"><h4>Periodic BMS reset off time: <strong>%BMS_RESET_DURATION% s</strong></h4><button class="btn btn-primary" onclick='editBMSresetDuration()'>Edit</button></div>
     <div class="override-grid" style="background:#fdf2f2"><h4 style="color:#c0392b">🚨 Undercharged emergency recovery:</h4><button class="btn btn-danger" onclick='editRecoveryMode()'>Start</button></div>
   </div>
-  
+
   <div class="card card-warning %FAKE_VOLTAGE_CLASS%">
     <div class="override-grid" style="border:none"><h4>Fake battery voltage: <strong>%BATTERY_VOLTAGE% V</strong></h4><button class="btn btn-warning" onclick='editFakeBatteryVoltage()'>Edit</button></div>
   </div>
-  
+
   <div class="card card-warning %MANUAL_BAL_CLASS%">
     <h3 style="color:#f39c12">⚖️ LFP Manual Balancing</h3>
     <div class="override-grid"><h4>Manual LFP balancing: <strong class="%MANUAL_BALANCING_CLASS%">%MANUAL_BALANCING%</strong></h4><button class="btn btn-primary" onclick='editTeslaBalAct()'>Edit</button></div>
@@ -1576,7 +1592,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       <div class="override-grid" style="padding-left:20px"><h4>↳ Max cell deviation: <strong>%BAL_MAX_DEV_CELL_VOLTAGE% mV</strong></h4><button class="btn btn-primary" onclick='editBalMaxDevCellV()'>Edit</button></div>
     </div>
   </div>
-  
+
   <div class="card card-warning %CHARGER_CLASS%">
     <h3 style="color:#f39c12">🔌 Charger Setpoints</h3>
     <div class="override-grid"><h4>Charger HVDC: <strong class="%CHG_HV_CLASS%">%CHG_HV%</strong></h4><button class="btn btn-primary" onclick='editChargerHVDCEnabled()'>Edit</button></div>
@@ -1584,7 +1600,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     <div class="override-grid"><h4>Voltage Setpoint: <strong>%CHG_VOLTAGE_SETPOINT% V</strong></h4><button class="btn btn-primary" onclick='editChargerSetpointVDC()'>Edit</button></div>
     <div class="override-grid"><h4>Current Setpoint: <strong>%CHG_CURRENT_SETPOINT% A</strong></h4><button class="btn btn-primary" onclick='editChargerSetpointIDC()'>Edit</button></div>
   </div>
-  
+
   <script>
     var frm = document.querySelector("form");
     if (frm) {

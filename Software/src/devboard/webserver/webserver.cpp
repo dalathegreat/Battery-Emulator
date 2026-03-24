@@ -864,12 +864,12 @@ void init_webserver() {
      request->send(response);
    });
 
-  // 🌟 ท่าไม้ตาย RAM 0% ของแท้! ส่งข้อมูลจาก Flash ลงท่อเน็ตเวิร์กตรงๆ
+  // 🌟 The ultimate 0% RAM technique! Sending data directly from Flash down the network pipe.
   // def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
   //   AsyncResponseStream *response = request->beginResponseStream("text/html");
-  //   response->print(index_html_header);    // 1. แปะหัวเว็บ (Dashboard)
-  //   response->print(cellmonitor_processor);     // 2. แปะไส้ใน (Cell Monitor)
-  //   response->print(index_html_footer);    // 3. แปะท้ายเว็บ
+  //   response->print(index_html_header);
+  //   response->print(cellmonitor_processor);
+  //   response->print(index_html_footer);
   //   request->send(response);
   // });
 
@@ -958,8 +958,9 @@ void init_webserver() {
         "INVBTYPE",   "CANFREQ",    "CANFDFREQ",  "PRECHGMS",   "PWMFREQ",     "PWMHOLD",     "GTWCOUNTRY",
         "GTWMAPREG",  "GTWCHASSIS", "GTWPACK",    "LEDMODE",    "GPIOOPT1",    "GPIOOPT2",    "GPIOOPT3",
         "INVSUNTYPE", "GPIOOPT4",   "LEDTAIL",    "LEDCOUNT",   "WEBAUTH",     "DISPLAYTYPE", "CTVNOM",
-        "CTANOM",     "CTATTEN",    "PYLONBAUD"
+        "CTANOM",     "CTATTEN",    "PYLONBAUD", "PYLONBRAND"
     };
+
     for (const char* uintSetting : uintSettingNames) {
       if (request->hasParam(uintSetting)) {
         settings.saveUInt(uintSetting, request->getParam(uintSetting)->value().toInt());

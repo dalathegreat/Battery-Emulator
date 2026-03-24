@@ -162,9 +162,6 @@ struct DATALAYER_INFO_BYDATTO3 {
   /** bool */
   /** User requesting SOC calibration via WebUI*/
   bool UserRequestCalibrateSOC = false;
-  /** bool */
-  /** Which SOC method currently used. 0 = Estimated, 1 = Measured */
-  bool SOC_method = 0;
 };
 
 struct DATALAYER_INFO_CELLPOWER {
@@ -532,11 +529,11 @@ struct DATALAYER_INFO_TESLA {
   uint16_t battery_BrickVoltageMin = 0;
   uint16_t HVP_hvp1v5Ref = 0;
   uint16_t HVP_shuntCurrentDebug = 0;
-  uint16_t PCS_dcdcTemp = 0;
-  uint16_t PCS_ambientTemp = 0;
-  uint16_t PCS_chgPhATemp = 0;
-  uint16_t PCS_chgPhBTemp = 0;
-  uint16_t PCS_chgPhCTemp = 0;
+  int16_t PCS_dcdcTemp = 0;
+  int16_t PCS_ambientTemp = 0;
+  int16_t PCS_chgPhATemp = 0;
+  int16_t PCS_chgPhBTemp = 0;
+  int16_t PCS_chgPhCTemp = 0;
   uint16_t PCS_dcdcMaxLvOutputCurrent = 0;
   uint16_t PCS_dcdcCurrentLimit = 0;
   uint16_t PCS_dcdcLvOutputCurrentTempLimit = 0;
