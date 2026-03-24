@@ -76,9 +76,9 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   datalayer_battery->status.soh_pptt = battery_soh * 100;
 
   if (UserRequestBalancing == NONE) {
-    datalayer_battery->status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
+    datalayer_battery->status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge / 3;
 
-    datalayer_battery->status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
+    datalayer_battery->status.max_charge_power_W = battery_BEV_available_power_longterm_charge / 3;
   } else {
     datalayer_battery->status.max_discharge_power_W = 0;
 
