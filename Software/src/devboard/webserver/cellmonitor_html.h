@@ -1,5 +1,6 @@
 #ifndef CELLMONITOR_H
 #define CELLMONITOR_H
+#include <Arduino.h>
 
 // #include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 

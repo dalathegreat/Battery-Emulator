@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <vector>
 #include "../utils/events.h"
+#include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 
 /**
  * @brief Replaces placeholder with content section in web page
@@ -14,5 +15,6 @@
  * @return String
  */
 String events_processor(const String& var);
+void print_events_html(AsyncResponseStream *response);
 
 #endif

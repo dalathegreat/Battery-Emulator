@@ -108,7 +108,7 @@ const char CELLMONITOR_HTML_CONTENT[] PROGMEM = R"rawliteral(
 
             const w = rect.width;
             const h = 300;
-            const pad = { t: 40, r: 20, b: 40, l: 55 }; 
+            const pad = { t: 40, r: 20, b: 40, l: 55 };
 
             const getX = (i) => pad.l + (i * (w - pad.l - pad.r) / Math.max(1, data.length - 1));
             const getY = (v) => h - pad.b - ((v - yMin) / yRange) * (h - pad.t - pad.b);
@@ -119,7 +119,7 @@ const char CELLMONITOR_HTML_CONTENT[] PROGMEM = R"rawliteral(
             const devYBot = getY(min_mv);
             ctx.fillStyle = 'rgba(52, 152, 219, 0.08)';
             ctx.fillRect(pad.l, devYTop, w - pad.l - pad.r, devYBot - devYTop);
-            
+
             ctx.fillStyle = '#7f8c8d';
             ctx.font = '11px Arial';
             ctx.textAlign = 'right';
@@ -128,14 +128,14 @@ const char CELLMONITOR_HTML_CONTENT[] PROGMEM = R"rawliteral(
                 let v = yMin + (yRange * i / 5);
                 let y = getY(v);
                 ctx.fillText(Math.round(v) + " mV", pad.l - 10, y);
-                ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); 
+                ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y);
                 ctx.strokeStyle = 'rgba(0,0,0,0.05)';
                 ctx.stroke();
             }
 
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
-            let step = Math.ceil(data.length / 20); 
+            let step = Math.ceil(data.length / 20);
             for(let i=0; i<data.length; i+=step) {
                 ctx.fillText(i+1, getX(i), h - pad.b + 10);
             }
@@ -183,7 +183,7 @@ const char CELLMONITOR_HTML_CONTENT[] PROGMEM = R"rawliteral(
             const mouseX = e.clientX - rect.left;
             const padL = 55;
             const segment = (rect.width - padL - 20) / Math.max(1, data.length - 1);
-            
+
             let index = Math.round((mouseX - padL) / segment);
             if (index < 0) index = 0;
             if (index >= data.length) index = data.length - 1;
@@ -219,7 +219,7 @@ const char CELLMONITOR_HTML_CONTENT[] PROGMEM = R"rawliteral(
 
     window.addEventListener('resize', render);
     render();
-  } 
+  }
 
   // AJAX sys
   function updateBatteryBlock(id, title, data, balancing) {
@@ -232,7 +232,7 @@ const char CELLMONITOR_HTML_CONTENT[] PROGMEM = R"rawliteral(
       const cells = data.length;
 
       let container = document.getElementById('bat_' + id);
-      
+
       if(container.innerHTML.trim() === '') {
           container.innerHTML = `
           <div class='bat-card'>
@@ -262,24 +262,34 @@ const char CELLMONITOR_HTML_CONTENT[] PROGMEM = R"rawliteral(
       renderHybridChart(id, data, balancing);
   }
 
+    if (typeof window.isFetchingAPI === 'undefined') {
+        window.isFetchingAPI = false;
+    }
     // Receive Text then convert to JSON
     function fetchCellData() {
+
+        if (window.isFetchingAPI) return;
+        window.isFetchingAPI = true;
+
         fetch('/api/cells')
-            .then(response => response.text()) 
+            .then(response => response.text())
             .then(text => {
                 if(!text) return;
-                
+
                 // Repair json!
-                // let data = repairAndParseJSON(text); 
+                // let data = repairAndParseJSON(text);
                 let data = window.repairAndParseJSON(text);
-                
+
                 if (data) {
                     if(data.b1 && data.b1.cv) updateBatteryBlock('b1', 'Main Battery Pack', data.b1.cv, data.b1.cb);
                     if(data.b2 && data.b2.cv) updateBatteryBlock('b2', 'Battery Pack #2', data.b2.cv, data.b2.cb);
                     if(data.b3 && data.b3.cv) updateBatteryBlock('b3', 'Battery Pack #3', data.b3.cv, data.b3.cb);
                 }
             })
-            .catch(error => console.error('Error fetching cell data:', error));
+            .catch(error => console.error('Error fetching cell data:', error))
+            .finally(() => {
+                window.isFetchingAPI = false;
+            });
     }
 
     fetchCellData();

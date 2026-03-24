@@ -15,19 +15,19 @@ const char EVENTS_HTML_START[] = R"=====(
 
   /* --- 💻 Desktop Grid Layout --- */
   .event-table { width: 100%; border-collapse: collapse; }
-  .ev-header-row { 
-	display: grid; 
-	grid-template-columns: 2fr 1fr 1.5fr 0.8fr 1fr 3fr; 
-	background-color: #3498db; 
-	color: white; 
-	padding: 12px 15px; 
-	font-weight: bold; 
+  .ev-header-row {
+	display: grid;
+	grid-template-columns: 2fr 1fr 1.5fr 0.8fr 1fr 3fr;
+	background-color: #3498db;
+	color: white;
+	padding: 12px 15px;
+	font-weight: bold;
 	border-radius: 6px 6px 0 0; }
-  .event { 
-	display: grid; 
+  .event {
+	display: grid;
     grid-template-columns: 2fr 1fr 1.5fr 0.8fr 1fr 3fr; /* Locks column alignment to prevent overlapping */
-	padding: 12px 15px; 
-	border-bottom: 1px solid #ddd; 
+	padding: 12px 15px;
+	border-bottom: 1px solid #ddd;
 	align-items: center; }
   .event:nth-child(even) { background-color: #f9f9f9; }
   .event:hover { background-color: #f1f1f1; }
@@ -37,28 +37,28 @@ const char EVENTS_HTML_START[] = R"=====(
   @media (max-width: 768px) {
     /* 1. Hidden Header */
     .ev-header-row { display: none; }
-    
+
     /* 2. Convert (Row) into Card */
-    .event { 
-      display: block; 
-      border: 1px solid #ccc; 
-      border-radius: 8px; 
-      margin-bottom: 15px; 
-      padding: 10px; 
+    .event {
+      display: block;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      padding: 10px;
       background: #fff;
       box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
-    
+
     /* 3. Arrange each column on a separate line, leaving space for labels */
-    .event div { 
-      position: relative; 
+    .event div {
+      position: relative;
       padding: 8px 0 8px 100px;
       border-bottom: 1px dashed #eee;
       text-align: right;
       word-break: break-word;
     }
     .event div:last-child { border-bottom: none; }
-    
+
     .event div::before {
       position: absolute;
       left: 5px;
@@ -66,7 +66,7 @@ const char EVENTS_HTML_START[] = R"=====(
       color: #3498db;
       text-align: left;
     }
-	
+
     .event div:nth-child(1)::before { content: "📌 Type: "; font-weight: bold; color: #7f8c8d; }
     .event div:nth-child(2)::before { content: "🚨 Severity: "; font-weight: bold; color: #7f8c8d; }
     .event div:nth-child(3)::before { content: "🕒 Last Event: "; font-weight: bold; color: #7f8c8d; }
@@ -101,7 +101,7 @@ const char EVENTS_HTML_END[] = R"=====(
   @media (min-width: 769px) {
     .event:nth-child(even) { background-color: #f9f9f9; }
     .event:nth-child(odd) { background-color: #ffffff; }
-    .event.event-title { background-color: #f0f0f0; } 
+    .event.event-title { background-color: #f0f0f0; }
   }
 </style>
 
@@ -168,6 +168,60 @@ String events_processor(const String& var) {
   return String();
 }
 
+// 🌟 เปลี่ยนชื่อเป็น print_events_html และรับค่าเป็น AsyncResponseStream
+void print_events_html(AsyncResponseStream *response) {
+    // แปะ Header ของ Events
+    response->print(FPSTR(EVENTS_HTML_START));
+
+    order_events.clear();
+    for (int i = 0; i < EVENT_NOF_EVENTS; i++) {
+      const EVENTS_STRUCT_TYPE* event_pointer = get_event_pointer((EVENTS_ENUM_TYPE)i);
+      if (event_pointer->occurences > 0) {
+        order_events.push_back({static_cast<EVENTS_ENUM_TYPE>(i), event_pointer});
+      }
+    }
+
+    std::sort(order_events.begin(), order_events.end(), compareEventsBySeverityAndTimestampDesc);
+    uint64_t current_timestamp = millis64();
+
+    // 🌟 ทยอยยัดข้อมูลลงท่อ (ไม่ใช้ String บวกกันแล้ว!)
+    for (const auto& event : order_events) {
+      EVENTS_ENUM_TYPE event_handle = event.event_handle;
+      const EVENTS_STRUCT_TYPE* event_pointer = event.event_pointer;
+
+      response->print("<div class='event'>");
+
+      response->print("<div>");
+      response->print(get_event_enum_string(event_handle));
+      response->print("</div>");
+
+      response->print("<div>");
+      response->print(get_event_level_string(event_handle));
+      response->print("</div>");
+
+      response->print("<div class='sec-ago'>");
+      response->print((unsigned long)(current_timestamp - event_pointer->timestamp));
+      response->print("</div>");
+
+      response->print("<div>");
+      response->print(event_pointer->occurences);
+      response->print("</div>");
+
+      response->print("<div>");
+      response->print(event_pointer->data);
+      response->print("</div>");
+
+      response->print("<div>");
+      response->print(get_event_message_string(event_handle));
+      response->print("</div>");
+
+      response->print("</div>"); // End of event row
+    }
+
+    order_events.clear();
+    response->print(FPSTR(EVENTS_HTML_END));
+}
+
 /* Script for displaying event log before it gets minified
 <button onclick="askClear()">Clear all events</button>
 <button onclick="home()">Back to main page</button>
@@ -186,10 +240,10 @@ String events_processor(const String& var) {
             n && (n.innerText = new Date(Number(BigInt(Date.now()) - BigInt(n.innerText))).toLocaleString());
         });
     }
-    function askClear() { 
+    function askClear() {
         if (window.confirm('Are you sure you want to clear all events?')) {
             window.location.href = '/clearevents';
-        } 
+        }
     }
     function home() {
         window.location.href = "/";

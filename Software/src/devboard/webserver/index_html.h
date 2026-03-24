@@ -235,17 +235,20 @@
       // Update status bar every 2s
       function updateTopbarStatus() {
         fetch('/api/data')
-          .then(response => response.json())
-          .then(data => {
-            var topStatus = document.getElementById('topbar_status');
-            if(topStatus) {
-              topStatus.innerText = data.sys.status;
-              if (data.sys.status === 'RUNNING') {
-                topStatus.style.color = '#2ecc71'; 
-              } else if (data.sys.status.includes('PAUSE')) {
-                topStatus.style.color = '#f39c12'; 
-              } else {
-                topStatus.style.color = '#e74c3c'; 
+          .then(response => response.text())
+          .then(text => {
+            let data = window.repairAndParseJSON(text);
+            if (data) {
+              var topStatus = document.getElementById('topbar_status');
+              if(topStatus) {
+                topStatus.innerText = data.sys.status;
+                if (data.sys.status === 'RUNNING') {
+                  topStatus.style.color = '#2ecc71'; 
+                } else if (data.sys.status.includes('PAUSE')) {
+                  topStatus.style.color = '#f39c12'; 
+                } else {
+                  topStatus.style.color = '#e74c3c'; 
+                }
               }
             }
           })

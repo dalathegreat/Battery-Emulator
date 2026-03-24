@@ -96,15 +96,15 @@ String get_uptime();
 String get_firmware_info_processor(const String& var);
 
 const char dashboard_html[] PROGMEM = R"rawliteral(
-<style> 
+<style>
   .battery-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-bottom: 20px; }
   .bat-card { flex: 1; min-width: 280px; max-width: 400px; transition: 0.3s; margin-bottom: 0; }
   .bat-card.fault { border-top-color: #e74c3c; background-color: #fdf2f2; }
   .bat-card.hidden { display: none; }
-  
+
   .details-box { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; display: none; text-align: left; background: #f9f9f9; border-radius: 6px; padding: 15px; color: #333; }
   .details-box.show { display: block; animation: fadeIn 0.3s; }
-  
+
   .btn-toggle { background-color: transparent; border: 1px solid #3498db; color: #3498db; width: 100%; margin-top: 10px; padding: 8px; border-radius: 4px; cursor: pointer; transition: 0.2s; font-weight: bold; }
   .btn-toggle:hover { background-color: #3498db; color: #fff; }
 
@@ -115,10 +115,10 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
   .flow-box { background: #f4f4f4; padding: 10px; border-radius: 4px; font-weight: bold; text-align: center; width: 80px; border: 1px solid #ddd; color: #333; }
   .flow-wire { flex-grow: 1; height: 10px; background: #eee; margin: 0 15px; position: relative; overflow: hidden; border-radius: 5px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
   .flow-particles { width: 200%; height: 100%; position: absolute; left: 0; background-size: 40px 100%; }
-  
+
   @keyframes flow-charge { 0% { transform: translateX(-50%); } 100% { transform: translateX(0%); } }
   @keyframes flow-discharge { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
-  
+
   .status-charging { animation: flow-charge 1s linear infinite; background-image: linear-gradient(90deg, transparent 0%, transparent 50%, #2ecc71 50%, #81C784 100%); }
   .status-discharging { animation: flow-discharge 1s linear infinite; background-image: linear-gradient(90deg, transparent 0%, transparent 50%, #e74c3c 50%, #f1948a 100%); }
   .status-idle { opacity: 0.2; background-image: linear-gradient(90deg, transparent 0%, transparent 50%, #ccc 50%, #ddd 100%); }
@@ -129,7 +129,7 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
   <h4 style="color: #555; margin: 5px 0;">Uptime: <span id="sys_uptime" style="font-weight: normal;">--</span> <br>RAM: <span id="sys_ram" style="font-weight: normal;">--</span><br><span style="color: #9b59b6;">PSRAM: <span id="sys_psram" style="font-weight: normal;">--</span></span></h4>
   <h4 style="color: #555; margin: 5px 0;">Power Status: <strong id="sys_status" style="color: #f39c12;">--</strong></h4>
   <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border: 1px solid #eee; border-radius: 4px; font-size: 0.95em; color: #555;">
-    <b>Inverter:</b> <strong id="sys_inv" style="color: #2ecc71;">--</strong> &nbsp; 🔗 &nbsp; 
+    <b>Inverter:</b> <strong id="sys_inv" style="color: #2ecc71;">--</strong> &nbsp; 🔗 &nbsp;
     <b>Battery:</b> <strong id="sys_bat" style="color: #3498db;">--</strong>
   </div>
 </div>
@@ -148,7 +148,7 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
     <h4 style="color: #555;">Power: <span id="b1_p" style="color:#000;">--</span> W</h4>
     <h4 style="color: #555;">Cell (Min/Max): <span id="b1_cmin" style="color:#000;">--</span> / <span id="b1_cmax" style="color:#000;">--</span> mV</h4>
     <h4 style="color: #555;">Temp: <span id="b1_tmin" style="color:#000;">--</span> / <span id="b1_tmax" style="color:#000;">--</span> &deg;C</h4>
-    
+
     <button class="btn-toggle" onclick="toggleDetails('b1_more')">🔽 Show / Hide Details</button>
     <div id="b1_more" class="details-box">
       <h4>📡 Status: <span id="b1_stat" style="color:#f39c12;">--</span></h4>
@@ -171,7 +171,7 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
     <h4 style="color: #555;">Power: <span id="b2_p" style="color:#000;">--</span> W</h4>
     <h4 style="color: #555;">Cell (Min/Max): <span id="b2_cmin" style="color:#000;">--</span> / <span id="b2_cmax" style="color:#000;">--</span> mV</h4>
     <h4 style="color: #555;">Temp: <span id="b2_tmin" style="color:#000;">--</span> / <span id="b2_tmax" style="color:#000;">--</span> &deg;C</h4>
-    
+
     <button class="btn-toggle" onclick="toggleDetails('b2_more')">🔽 Show / Hide Details</button>
     <div id="b2_more" class="details-box">
       <h4>📡 Status: <span id="b2_stat" style="color:#f39c12;">--</span></h4>
@@ -189,7 +189,7 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
     <h4 style="color: #555;">Power: <span id="b3_p" style="color:#000;">--</span> W</h4>
     <h4 style="color: #555;">Cell (Min/Max): <span id="b3_cmin" style="color:#000;">--</span> / <span id="b3_cmax" style="color:#000;">--</span> mV</h4>
     <h4 style="color: #555;">Temp: <span id="b3_tmin" style="color:#000;">--</span> / <span id="b3_tmax" style="color:#000;">--</span> &deg;C</h4>
-    
+
     <button class="btn-toggle" onclick="toggleDetails('b3_more')">🔽 Show / Hide Details</button>
     <div id="b3_more" class="details-box">
       <h4>📡 Status: <span id="b3_stat" style="color:#f39c12;">--</span></h4>
@@ -210,7 +210,13 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
 
 <script>
   function toggleDetails(id) { document.getElementById(id).classList.toggle('show'); }
+
+  window.isFetchingAPI = false;
+
   function fetchBatteryData() {
+    if (window.isFetchingAPI) return;
+    window.isFetchingAPI = true;
+
     fetch('/api/data')
       .then(response => response.text())
       .then(text => {
@@ -231,7 +237,7 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
           let totalRamKB = Math.round(data.sys.heap_size / 1024);
           let ramPercent = Math.round((data.sys.heap / data.sys.heap_size) * 100);
           document.getElementById('sys_ram').innerText = freeRamKB + " / " + totalRamKB + " KB (" + ramPercent + "% Free)";
-          
+
           if (data.sys.psram_size > 0) {
               document.getElementById('sys_psram').innerText = Math.round(data.sys.psram / 1024) + " / " + Math.round(data.sys.psram_size / 1024) + " KB";
           } else {
@@ -253,7 +259,7 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
               document.getElementById(id + '_cmax').innerText = bData.cmax;
               document.getElementById(id + '_tmin').innerText = bData.tmin;
               document.getElementById(id + '_tmax').innerText = bData.tmax;
-              
+
               document.getElementById(id + '_stat').innerText = bData.stat;
               document.getElementById(id + '_mc').innerText = bData.mc;
               document.getElementById(id + '_md').innerText = bData.md;
@@ -276,18 +282,18 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
           let flowElement = document.getElementById('energy-flow');
           if (totalPowerW > 50) {
             flowElement.className = 'flow-particles status-charging';
-            let speed = Math.max(0.2, 2000 / totalPowerW); 
+            let speed = Math.max(0.2, 2000 / totalPowerW);
             flowElement.style.animationDuration = speed + 's';
           } else if (totalPowerW < -50) {
             flowElement.className = 'flow-particles status-discharging';
-            let speed = Math.max(0.2, 2000 / Math.abs(totalPowerW)); 
+            let speed = Math.max(0.2, 2000 / Math.abs(totalPowerW));
             flowElement.style.animationDuration = speed + 's';
           } else {
             flowElement.className = 'flow-particles status-idle';
             flowElement.style.animationDuration = '0s';
           }
 
-          updateBat('b1', data.b1); updateBat('b2', data.b2); updateBat('b3', data.b3);          
+          updateBat('b1', data.b1); updateBat('b2', data.b2); updateBat('b3', data.b3);
 
           if(data.chg.en) {
             document.getElementById('card_chg').classList.remove('hidden');
@@ -297,22 +303,25 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
           document.getElementById('last_update').innerText = new Date().toLocaleTimeString();
         }
       })
-      .catch(error => console.error('Error fetching API:', error));
+      .catch(error => console.error('Error fetching API:', error))
+      .finally(() => {
+          window.isFetchingAPI = false;
+      });
   }
-  
+
   fetchBatteryData();
-  setInterval(fetchBatteryData, 2000); 
+  setInterval(fetchBatteryData, 2000);
 
   setInterval(function() {
     if (typeof window.localUptimeSecs !== 'undefined') {
-      window.localUptimeSecs++; 
-      
+      window.localUptimeSecs++;
+
       // convert time format
       // var d = Math.floor(window.localUptimeSecs / 86400);
       // var h = Math.floor((window.localUptimeSecs % 86400) / 3600);
       // var m = Math.floor((window.localUptimeSecs % 3600) / 60);
       // var s = window.localUptimeSecs % 60;
-      
+
       var totalSeconds = window.localUptimeSecs;
       var d = Math.floor(totalSeconds / 86400);
       totalSeconds = totalSeconds - (d * 86400);
@@ -771,19 +780,19 @@ void init_webserver() {
     request->send(200, "text/plain", "Logging stopped");
   });
 
-  // 🌟 API : High-Speed Poller
+  // API : High-Speed Poller
   def_route_with_auth("/api/can_poll", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (can_stream_mutex != NULL && xSemaphoreTake(can_stream_mutex, (TickType_t)50) == pdTRUE) {
+    if (can_stream_mutex != NULL && xSemaphoreTake(can_stream_mutex, 0) == pdTRUE) {
       if (can_batch_len > 0) {
         request->send(200, "text/plain", can_batch_buffer);
-        can_batch_len = 0;  //
+        can_batch_len = 0;
         can_batch_buffer[0] = '\0';
       } else {
         request->send(200, "text/plain", "");
       }
       xSemaphoreGive(can_stream_mutex);
     } else {
-      request->send(503, "text/plain", "");  // Server Busy
+      request->send(503, "text/plain", "");
     }
   });
 
@@ -847,16 +856,35 @@ void init_webserver() {
   }
 
   // def_route_with_auth("/cellmonitor", server, HTTP_GET,
-  //                    [](AsyncWebServerRequest* request) { send_large_page_safely(request, cellmonitor_processor); });
+  //     [](AsyncWebServerRequest* request) { send_large_page_safely(request, cellmonitor_processor); });
 
-  // Cell Monitor: use Template Processor RAM 0%
-  def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", index_html, cellmonitor_processor);
+   // Cell Monitor: use Template Processor RAM 0%
+   def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+     AsyncWebServerResponse* response = request->beginResponse(200, "text/html", index_html, cellmonitor_processor);
+     request->send(response);
+   });
+
+  // 🌟 ท่าไม้ตาย RAM 0% ของแท้! ส่งข้อมูลจาก Flash ลงท่อเน็ตเวิร์กตรงๆ
+  // def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+  //   AsyncResponseStream *response = request->beginResponseStream("text/html");
+  //   response->print(index_html_header);    // 1. แปะหัวเว็บ (Dashboard)
+  //   response->print(cellmonitor_processor);     // 2. แปะไส้ใน (Cell Monitor)
+  //   response->print(index_html_footer);    // 3. แปะท้ายเว็บ
+  //   request->send(response);
+  // });
+
+  // def_route_with_auth("/events", server, HTTP_GET,
+  //                   [](AsyncWebServerRequest* request) { send_large_page_safely(request, events_processor); });
+
+  // Use AsyncResponseStream instead
+  def_route_with_auth("/events", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncResponseStream *response = request->beginResponseStream("text/html");
+
+    response->print(index_html_header);
+    print_events_html(response);
+    response->print(index_html_footer);
     request->send(response);
   });
-
-  def_route_with_auth("/events", server, HTTP_GET,
-                      [](AsyncWebServerRequest* request) { send_large_page_safely(request, events_processor); });
 
   def_route_with_auth("/clearevents", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     reset_all_events();
@@ -870,19 +898,19 @@ void init_webserver() {
     request->send(200, "text/html", "OK");
   });
 
-  // auto serve_settings_page = [](AsyncWebServerRequest* request, const char* html_array) {
-  //     auto settings = std::make_shared<BatteryEmulatorSettingsStore>(true);
-  //     request->send(200, "text/html", (const uint8_t*)html_array, strlen(html_array),
-  //         [settings](const String& content) { return settings_processor(content, *settings); });
-  // };
-
   auto serve_settings_page = [](AsyncWebServerRequest* request, const char* html_array) {
-    auto settings = std::make_shared<BatteryEmulatorSettingsStore>(true);
-    AsyncWebServerResponse* response =
-        request->beginResponse(200, "text/html", html_array,
-                               [settings](const String& content) { return settings_processor(content, *settings); });
-    request->send(response);
+      auto settings = std::make_shared<BatteryEmulatorSettingsStore>(true);
+      request->send(200, "text/html", (const uint8_t*)html_array, strlen(html_array),
+          [settings](const String& content) { return settings_processor(content, *settings); });
   };
+
+  // auto serve_settings_page = [](AsyncWebServerRequest* request, const char* html_array) {
+  //   auto settings = std::make_shared<BatteryEmulatorSettingsStore>(true);
+  //   AsyncWebServerResponse* response =
+  //       request->beginResponse(200, "text/html", html_array,
+  //                              [settings](const String& content) { return settings_processor(content, *settings); });
+  //   request->send(response);
+  // };
 
   def_route_with_auth("/settings", server, HTTP_GET, [serve_settings_page](AsyncWebServerRequest* request) {
     serve_settings_page(request, settings_batt_html);
@@ -900,9 +928,27 @@ void init_webserver() {
     serve_settings_page(request, settings_overrides_html);
   });
 
-  def_route_with_auth("/saveSettings", server, HTTP_POST, [](AsyncWebServerRequest* request) {
+  //saveSettings, Use this API to receive values ​​via GET instead!
+  def_route_with_auth("/api/saveBulk", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     BatteryEmulatorSettingsStore settings;
-    String pageUrl = request->hasParam("PAGE_ID", true) ? request->getParam("PAGE_ID", true)->value() : "/settings";
+
+    if (request->hasParam("inverter")) settings.saveUInt("INVTYPE", request->getParam("inverter")->value().toInt());
+    if (request->hasParam("INVCOMM")) settings.saveUInt("INVCOMM", request->getParam("INVCOMM")->value().toInt());
+    if (request->hasParam("battery")) settings.saveUInt("BATTTYPE", request->getParam("battery")->value().toInt());
+    if (request->hasParam("BATTCHEM")) settings.saveUInt("BATTCHEM", request->getParam("BATTCHEM")->value().toInt());
+    if (request->hasParam("BATTCOMM")) settings.saveUInt("BATTCOMM", request->getParam("BATTCOMM")->value().toInt());
+    if (request->hasParam("BATTPVMAX")) settings.saveUInt("BATTPVMAX", (int)(request->getParam("BATTPVMAX")->value().toFloat() * 10.0f));
+    if (request->hasParam("BATTPVMIN")) settings.saveUInt("BATTPVMIN", (int)(request->getParam("BATTPVMIN")->value().toFloat() * 10.0f));
+    if (request->hasParam("charger")) settings.saveUInt("CHGTYPE", request->getParam("charger")->value().toInt());
+    if (request->hasParam("CHGCOMM")) settings.saveUInt("CHGCOMM", request->getParam("CHGCOMM")->value().toInt());
+    if (request->hasParam("EQSTOP")) settings.saveUInt("EQSTOP", request->getParam("EQSTOP")->value().toInt());
+    if (request->hasParam("BATT2COMM")) settings.saveUInt("BATT2COMM", request->getParam("BATT2COMM")->value().toInt());
+    if (request->hasParam("BATT3COMM")) settings.saveUInt("BATT3COMM", request->getParam("BATT3COMM")->value().toInt());
+
+    if (request->hasParam("shunttype")) settings.saveUInt("SHUNTTYPE", request->getParam("shunttype")->value().toInt());
+    if (request->hasParam("SHUNTTYPE")) settings.saveUInt("SHUNTTYPE", request->getParam("SHUNTTYPE")->value().toInt());
+    if (request->hasParam("SHUNTCOMM")) settings.saveUInt("SHUNTCOMM", request->getParam("SHUNTCOMM")->value().toInt());
+    if (request->hasParam("MQTTPUBLISHMS")) settings.saveUInt("MQTTPUBLISHMS", request->getParam("MQTTPUBLISHMS")->value().toInt() * 1000);
 
     const char* uintSettingNames[] = {
         "BATTCVMAX",  "BATTCVMIN",  "MAXPRETIME", "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER",   "CHGPOWER",
@@ -912,83 +958,46 @@ void init_webserver() {
         "INVBTYPE",   "CANFREQ",    "CANFDFREQ",  "PRECHGMS",   "PWMFREQ",     "PWMHOLD",     "GTWCOUNTRY",
         "GTWMAPREG",  "GTWCHASSIS", "GTWPACK",    "LEDMODE",    "GPIOOPT1",    "GPIOOPT2",    "GPIOOPT3",
         "INVSUNTYPE", "GPIOOPT4",   "LEDTAIL",    "LEDCOUNT",   "WEBAUTH",     "DISPLAYTYPE", "CTVNOM",
-        "CTANOM",     "CTATTEN"  // 🌟 เพิ่มค่า CT Clamp จาก main
+        "CTANOM",     "CTATTEN",    "PYLONBAUD"
     };
+    for (const char* uintSetting : uintSettingNames) {
+      if (request->hasParam(uintSetting)) {
+        settings.saveUInt(uintSetting, request->getParam(uintSetting)->value().toInt());
+      }
+    }
 
     const char* stringSettingNames[] = {
         "APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
         "MQTTPASSWORD", "MQTTTOPIC",  "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID",
-        "SSID",         "PASSWORD",   "WEBUSER",         "WEBPASS",        "CTOFFSET"  // 🌟 เพิ่มค่า CT Clamp จาก main
+        "SSID",         "PASSWORD",   "WEBUSER",         "WEBPASS",        "CTOFFSET"
     };
-
-    int numParams = request->params();
-    for (int i = 0; i < numParams; i++) {
-      auto p = request->getParam(i);
-      String pName = p->name();
-      String pValue = p->value();
-
-      if (pName == "inverter")
-        settings.saveUInt("INVTYPE", atoi(pValue.c_str()));
-      else if (pName == "INVCOMM")
-        settings.saveUInt("INVCOMM", atoi(pValue.c_str()));
-      else if (pName == "battery")
-        settings.saveUInt("BATTTYPE", atoi(pValue.c_str()));
-      else if (pName == "BATTCHEM")
-        settings.saveUInt("BATTCHEM", atoi(pValue.c_str()));
-      else if (pName == "BATTCOMM")
-        settings.saveUInt("BATTCOMM", atoi(pValue.c_str()));
-      else if (pName == "BATTPVMAX")
-        settings.saveUInt("BATTPVMAX", (int)(pValue.toFloat() * 10.0f));
-      else if (pName == "BATTPVMIN")
-        settings.saveUInt("BATTPVMIN", (int)(pValue.toFloat() * 10.0f));
-      else if (pName == "charger")
-        settings.saveUInt("CHGTYPE", atoi(pValue.c_str()));
-      else if (pName == "CHGCOMM")
-        settings.saveUInt("CHGCOMM", atoi(pValue.c_str()));
-      else if (pName == "EQSTOP")
-        settings.saveUInt("EQSTOP", atoi(pValue.c_str()));
-      else if (pName == "BATT2COMM")
-        settings.saveUInt("BATT2COMM", atoi(pValue.c_str()));
-      else if (pName == "BATT3COMM")
-        settings.saveUInt("BATT3COMM", atoi(pValue.c_str()));
-      else if (pName == "shunttype")
-        settings.saveUInt("SHUNTTYPE", atoi(pValue.c_str()));
-      else if (pName == "SHUNTCOMM")
-        settings.saveUInt("SHUNTCOMM", atoi(pValue.c_str()));
-      else if (pName == "MQTTPUBLISHMS")
-        settings.saveUInt("MQTTPUBLISHMS", atoi(pValue.c_str()) * 1000);
-
-      for (const char* uintSetting : uintSettingNames) {
-        if (pName == String(uintSetting))
-          settings.saveUInt(uintSetting, atoi(pValue.c_str()));
-      }
-      for (const char* stringSetting : stringSettingNames) {
-        if (pName == String(stringSetting))
-          settings.saveString(stringSetting, pValue.c_str());
+    for (const char* stringSetting : stringSettingNames) {
+      if (request->hasParam(stringSetting)) {
+        settings.saveString(stringSetting, request->getParam(stringSetting)->value().c_str());
       }
     }
 
+    String pageId = request->hasParam("PAGE_ID") ? request->getParam("PAGE_ID")->value() : "";
     std::vector<const char*> activeBools;
-    if (pageUrl == "/set_network")
-      activeBools = {"STATICIP",  "WIFIAPENABLED", "ESPNOWENABLED", "MQTTENABLED",
-                     "MQTTCELLV", "REMBMSRESET",   "MQTTTOPICS",    "HADISC"};
-    else if (pageUrl == "/settings")
-      activeBools = {"INTERLOCKREQ", "DIGITALHVIL", "GTWRHD",  "SOCESTIMATED", "DBLBTR",    "TRIBTR",
-                     "PYLONOFFSET",  "PYLONORDER",  "DEYEBYD", "INVICNT",      "PRIMOGEN24"};  // 🌟 เพิ่ม PRIMOGEN24
-    else if (pageUrl == "/set_hardware")
-      activeBools = {"CANFDASCAN",  "CNTCTRLDBL",   "CNTCTRLTRI", "CNTCTRL",        "NCCONTACTOR", "PWMCNTCTRL",
-                     "PERBMSRESET", "EXTPRECHARGE", "NOINVDISC",  "EPAPREFRESHBTN", "MULTII2C",    "I2C_SHT30",
-                     "I2C_ATECC",   "I2C_RTC",      "I2C_IO",     "CTINVERT"};  // 🌟 เพิ่ม CTINVERT
-    else if (pageUrl == "/set_web")
+
+    if (pageId == "/set_network")
+      activeBools = {"STATICIP",  "WIFIAPENABLED", "ESPNOWENABLED", "MQTTENABLED", "MQTTCELLV", "REMBMSRESET",   "MQTTTOPICS",    "HADISC"};
+    else if (pageId == "/settings")
+      activeBools = {"INTERLOCKREQ", "DIGITALHVIL", "GTWRHD",  "SOCESTIMATED", "DBLBTR",    "TRIBTR", "PYLONOFFSET",  "PYLONORDER",  "DEYEBYD", "INVICNT",      "PRIMOGEN24"};
+    else if (pageId == "/set_hardware")
+      activeBools = {"CANFDASCAN",  "CNTCTRLDBL",   "CNTCTRLTRI", "CNTCTRL",        "NCCONTACTOR", "PWMCNTCTRL", "PERBMSRESET", "EXTPRECHARGE", "NOINVDISC",  "EPAPREFRESHBTN", "MULTII2C",    "I2C_SHT30", "I2C_ATECC",   "I2C_RTC",      "I2C_IO",     "CTINVERT"};
+    else if (pageId == "/set_web")
       activeBools = {"PERFPROFILE", "CANLOGUSB", "USBENABLED", "WEBENABLED", "CANLOGSD", "SDLOGENABLED"};
 
     for (const char* boolSetting : activeBools) {
-      auto p = request->getParam(boolSetting, true);
-      settings.saveBool(boolSetting, p != nullptr && p->value() == "on");
+      bool isChecked = request->hasParam(boolSetting) && request->getParam(boolSetting)->value() == "on";
+      settings.saveBool(boolSetting, isChecked);
     }
 
-    settingsUpdated = settings.were_settings_updated();
-    request->redirect(pageUrl);
+    settingsUpdated = true;
+    settings.were_settings_updated();
+
+    request->send(200, "text/plain", "OK");
   });
 
   auto update_string = [](const char* route, std::function<void(String)> setter,
@@ -1223,50 +1232,60 @@ void init_webserver() {
     // String output;
     // serializeJson(doc, output);
     // request->send(200, "application/json", output);
-    const char* cType = "application/json";
-    AsyncResponseStream* response = request->beginResponseStream(cType);
-    serializeJson(doc, *response);
-    request->send(response);
+    // const char* cType = "application/json";
+    // AsyncResponseStream* response = request->beginResponseStream(cType);
+    // serializeJson(doc, *response);
+    // request->send(response);
+
+    String output;
+    output.reserve(measureJson(doc) + 128);
+    serializeJson(doc, output);
+    request->send(200, "application/json", output);
   });
 
   // NEW API : JSON cell battery info
   def_route_with_auth("/api/cells", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    AsyncResponseStream* response = request->beginResponseStream("application/json");
-    response->print("{");
+    String output;
+
+    int total_cells = 0;
+    if (battery) total_cells += datalayer.battery.info.number_of_cells;
+    if (battery2) total_cells += datalayer.battery2.info.number_of_cells;
+    if (battery3) total_cells += datalayer.battery3.info.number_of_cells;
+
+    // One cell uses approximately 7 bytes of text + offer 150 bytes of curly braces.
+    output.reserve((total_cells * 7) + 150);
+
+    output += "{";
     bool firstBat = true;
 
     auto printBat = [&](const char* key, Battery* bat, DATALAYER_BATTERY_TYPE& layer) {
-      if (!bat || layer.info.number_of_cells == 0)
-        return;
-      if (!firstBat)
-        response->print(",");
+      if (!bat || layer.info.number_of_cells == 0) return;
+      if (!firstBat) output += ",";
       firstBat = false;
 
-      response->printf("\"%s\":{\"cv\":[", key);
+      output += "\"" + String(key) + "\":{\"cv\":[";
       int cells = layer.info.number_of_cells;
-      if (cells > MAX_AMOUNT_CELLS)
-        cells = MAX_AMOUNT_CELLS;
+      if (cells > MAX_AMOUNT_CELLS) cells = MAX_AMOUNT_CELLS;
 
       for (int i = 0; i < cells; i++) {
-        response->print(layer.status.cell_voltages_mV[i]);
-        if (i < cells - 1)
-          response->print(",");
+        output += String(layer.status.cell_voltages_mV[i]);
+        if (i < cells - 1) output += ",";
       }
-      response->print("],\"cb\":[");
+      output += "],\"cb\":[";
       for (int i = 0; i < cells; i++) {
-        response->print(layer.status.cell_balancing_status[i] ? 1 : 0);
-        if (i < cells - 1)
-          response->print(",");
+        output += String(layer.status.cell_balancing_status[i] ? 1 : 0);
+        if (i < cells - 1) output += ",";
       }
-      response->print("]}");
+      output += "]}";
     };
 
     printBat("b1", battery, datalayer.battery);
     printBat("b2", battery2, datalayer.battery2);
     printBat("b3", battery3, datalayer.battery3);
 
-    response->print("}");
-    request->send(response);
+    output += "}";
+
+    request->send(200, "application/json", output);
   });
 
   def_route_with_auth("/debug", server, HTTP_GET,
@@ -1275,13 +1294,19 @@ void init_webserver() {
   def_route_with_auth("/reboot", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/plain", "Rebooting server...");
     setBatteryPause(true, true, true, false);
-    delay(1000);
-    ESP.restart();
+
+    // FreeRTOS Timer Create Task exec Restart, Non-block Network Thread!
+    xTaskCreate([](void* param) {
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
+      ESP.restart();
+    }, "RebootTask", 2048, NULL, 1, NULL);
   });
 
   def_route_with_auth("/ota", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    String html = String(index_html_header);
-    html += R"rawliteral(
+    // Use Stream Less RAM (0% Heap Allocation)
+    AsyncResponseStream *response = request->beginResponseStream("text/html");
+    response->print(index_html_header);
+    response->print(R"rawliteral(
       <style>
         .ota-wrap { display: flex; flex-direction: column; height: 100%; gap: 15px; }
         .ota-card { background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 4px solid #3498db; padding: 0; overflow: hidden; display: flex; flex-direction: column; height: 80vh; min-height: 600px; }
@@ -1299,9 +1324,9 @@ void init_webserver() {
           <iframe src="/update" class="ota-iframe" title="OTA Update"></iframe>
         </div>
       </div>
-    )rawliteral";
-    html += String(index_html_footer);
-    request->send(200, "text/html", html);
+    )rawliteral");
+    response->print(index_html_footer);
+    request->send(response);
   });
 
   init_ElegantOTA();

@@ -183,8 +183,8 @@ void connectToWiFi() {
     if (wifi_channel > 14) {
       wifi_channel = 0;
     }  //prevent users going out of bounds
-    DEBUG_PRINTF("Connecting to Wi-Fi SSID: %s, password: %s, Channel: %d\n", ssid.c_str(), password.c_str(),
-                 wifi_channel);
+    // DEBUG_PRINTF("Connecting to Wi-Fi SSID: %s, password: %s, Channel: %d\n", ssid.c_str(), password.c_str(), wifi_channel);
+    DEBUG_PRINTF("Connecting to Wi-Fi SSID: %s, Channel: %d\n", ssid.c_str(), wifi_channel);
     WiFi.begin(ssid.c_str(), password.c_str(), wifi_channel);
   } else {
     logging.println("Wi-Fi already connected.");
@@ -283,6 +283,6 @@ void init_WiFi_AP() {
 
   WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
   IPAddress IP = WiFi.softAPIP();
-
+  WiFi.setSleep(false);
   DEBUG_PRINTF("Access Point created.\nIP address: %s\n", IP.toString().c_str());
 }

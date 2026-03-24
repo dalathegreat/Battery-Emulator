@@ -374,10 +374,8 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     }
   }
 
-  if (var == "BATTERY2CLASS") {
-    if (!battery2) {
-      return "hidden";
-    }
+  if (var == "SAVEDCLASS") {
+    return settingsUpdated ? "" : "hidden";
   }
 
   if (var == "BATTERY2INTF") {
@@ -1151,8 +1149,44 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       function checkDisplayWarning(){var e=document.getElementById("DISPLAYTYPE"),t=document.getElementById("epaper_warning"),n=document.getElementById("oled_warning"),d=document.getElementById("GPIOOPT1");e&&(t&&(t.style.display="none"),n&&(n.style.display="none"),d&&(d.disabled=!1),"2"==e.value||"3"==e.value?t&&(t.style.display="block"):"1"==e.value&&(n&&(n.style.display="block"),d&&(d.disabled=!0)))}
       
       window.addEventListener("load",function(){checkLedPower(),checkLedMode(),checkDisplayWarning()});
-      var frm=document.querySelector("form");if(frm){document.querySelectorAll("select,input").forEach(function(e){function t(){if(e.name)frm.setAttribute("data-"+e.name.toLowerCase(),e.type=="checkbox"?e.checked:e.value)}e.addEventListener("change",t);t()})}
       
+      var frm = document.querySelector("form");
+      if (frm) {
+        // 🌟 1. Capture the Save button press and send it via AJAX (Background Save).
+        frm.addEventListener("submit", function(e) {
+          e.preventDefault(); // Stop the old page transition method.
+          var btn = frm.querySelector("button[type='submit']");
+          if (btn) btn.innerText = "⏳ Saving...";
+          
+          // Gather information from all fields on the current page.
+          var params = new URLSearchParams(new FormData(frm));
+          params.append("PAGE_ID", window.location.pathname); 
+          
+          // Silently sending data to the board via API.
+          fetch("/api/saveBulk?" + params.toString())
+            .then(response => {
+              if(response.ok) {
+                window.location.reload(); 
+              } else {
+                alert("❌ Save failed! Board returned error.");
+                if (btn) btn.innerText = "💾 Save Settings";
+              }
+            }).catch(err => {
+                alert("❌ Connection error! Is the board online?");
+                if (btn) btn.innerText = "💾 Save Settings";
+            });
+        });
+
+        // Sync CSS values
+        document.querySelectorAll("select,input").forEach(function(e) {
+          function t() {
+            if (e.name) frm.setAttribute("data-" + e.name.toLowerCase(), e.type == "checkbox" ? e.checked : e.value);
+          }
+          e.addEventListener("change", t);
+          t();
+        });
+      }
+
       function selectScannedNet() {
         var sel = document.getElementById('scanned_ssids');
         if(sel.value) {
@@ -1238,7 +1272,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
 #define SETTINGS_STYLE \
   R"rawliteral(
-<style>h3{color:#2c3e50;font-size:1.15rem;margin-top:0;padding-bottom:8px;border-bottom:2px solid #eee;margin-bottom:15px}h4{margin:0;font-weight:500;color:#444;font-size:.95rem}input[type=number],input[type=password],input[type=text],select{width:100%;max-width:250px;padding:6px 10px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;font-size:.9rem;transition:.2s}input:focus,select:focus{border-color:#3498db;outline:0}input[type=checkbox]{width:18px;height:18px;cursor:pointer;justify-self:start;margin:0}.hidden{display:none!important}.active{color:#2ecc71!important;font-weight:700}.inactive{color:#bdc3c7!important;font-style:italic}.inactiveSoc{color:#e74c3c!important;font-weight:700}.form-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:12px 10px;align-items:center}.form-grid label{color:#555;font-size:.9rem;font-weight:600;text-align:right;padding-right:10px}.override-grid{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center;padding:12px 0;border-bottom:1px dashed #eee}.override-grid:last-child{border-bottom:none}.mqtt-settings,.mqtt-topics{display:none;grid-column:span 2}form .if-battery,form .if-charger,form .if-inverter,form .if-shunt{display:contents}form[data-battery="0"] .if-battery,form[data-charger="0"] .if-charger,form[data-inverter="0"] .if-inverter,form[data-shunttype="0"] .if-shunt{display:none}form .if-auth{display:contents}form[data-webauth="0"] .if-auth{display:none}form .if-epaper3c{display:none}form[data-displaytype="2"] .if-epaper3c{display:contents}form .if-cbms{display:none}form[data-battery="11"] .if-cbms,form[data-battery="22"] .if-cbms,form[data-battery="23"] .if-cbms,form[data-battery="24"] .if-cbms,form[data-battery="31"] .if-cbms,form[data-battery="41"] .if-cbms,form[data-battery="48"] .if-cbms,form[data-battery="49"] .if-cbms,form[data-battery="6"] .if-cbms{display:contents}form .if-nissan{display:none}form[data-battery="21"] .if-nissan{display:contents}form .if-tesla{display:none}form[data-battery="32"] .if-tesla,form[data-battery="33"] .if-tesla{display:contents}form .if-estimated{display:none}form[data-battery="14"] .if-estimated,form[data-battery="16"] .if-estimated,form[data-battery="24"] .if-estimated,form[data-battery="3"] .if-estimated,form[data-battery="32"] .if-estimated,form[data-battery="33"] .if-estimated,form[data-battery="4"] .if-estimated,form[data-battery="40"] .if-estimated,form[data-battery="41"] .if-estimated,form[data-battery="44"] .if-estimated,form[data-battery="6"] .if-estimated{display:contents}form .if-socestimated{display:none}form[data-battery="16"] .if-socestimated,form[data-battery="41"] .if-socestimated{display:contents}form .if-dblbtr{display:none}form[data-dblbtr="true"] .if-dblbtr{display:contents}form .if-tribtr{display:none}form[data-tribtr="true"] .if-tribtr{display:contents}form .if-pwmcntctrl{display:none}form[data-pwmcntctrl="true"] .if-pwmcntctrl{display:contents}form .if-cntctrl{display:none}form[data-cntctrl="true"] .if-cntctrl{display:contents}form .if-extprecharge{display:none}form[data-extprecharge="true"] .if-extprecharge{display:contents}form .if-sofar{display:none}form[data-inverter="17"] .if-sofar{display:contents}form .if-byd{display:none}form[data-inverter="2"] .if-byd{display:contents}form .if-pylon{display:none}form[data-battery="22"] .if-pylon,form[data-inverter="10"] .if-pylon{display:contents}form .if-pylon-inverter{display:none}form[data-inverter="10"] .if-pylon-inverter{display:contents}form .if-pylon-battery{display:none}form[data-battery="22"] .if-pylon-battery{display:contents}form .if-pylonish{display:none}form[data-inverter="10"] .if-pylonish,form[data-inverter="19"] .if-pylonish,form[data-inverter="4"] .if-pylonish{display:contents}form .if-solax{display:none}form[data-inverter="18"] .if-solax{display:contents}form .if-sungrow{display:none}form[data-inverter="21"] .if-sungrow{display:contents}form .if-kostal{display:none}form[data-inverter="9"] .if-kostal{display:contents}form .if-staticip{display:none}form[data-staticip="true"] .if-staticip{display:contents}form .if-mqtt{display:none}form[data-mqttenabled="true"] .if-mqtt{display:contents}form .if-topics{display:none}form[data-mqtttopics="true"] .if-topics{display:contents} form .if-i2c { display:none } form[data-gpioopt1="1"] .if-i2c, form[data-displaytype="1"] .if-i2c { display:block } form .if-multii2c { display:none } form[data-multii2c="true"] .if-multii2c { display:block } form .if-ctclamp { display:none } form[data-shunttype="3"] .if-ctclamp { display:contents }
+<style>h3{color:#2c3e50;font-size:1.15rem;margin-top:0;padding-bottom:8px;border-bottom:2px solid #eee;margin-bottom:15px}h4{margin:0;font-weight:500;color:#444;font-size:.95rem}input[type=number],input[type=password],input[type=text],select{width:100%;max-width:250px;padding:6px 10px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;font-size:.9rem;transition:.2s}input:focus,select:focus{border-color:#3498db;outline:0}input[type=checkbox]{width:18px;height:18px;cursor:pointer;justify-self:start;margin:0}.hidden{display:none!important}.active{color:#2ecc71!important;font-weight:700}.inactive{color:#bdc3c7!important;font-style:italic}.inactiveSoc{color:#e74c3c!important;font-weight:700}.form-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:12px 10px;align-items:center}.form-grid label{color:#555;font-size:.9rem;font-weight:600;text-align:right;padding-right:10px}.override-grid{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center;padding:12px 0;border-bottom:1px dashed #eee}.override-grid:last-child{border-bottom:none}.mqtt-settings,.mqtt-topics{display:none;grid-column:span 2}form .if-battery,form .if-charger,form .if-inverter,form .if-shunt{display:contents}form[data-battery="0"] .if-battery,form[data-charger="0"] .if-charger,form[data-inverter="0"] .if-inverter,form[data-shunttype="0"] .if-shunt{display:none}form .if-auth{display:contents}form[data-webauth="0"] .if-auth{display:none}form .if-epaper3c{display:none}form[data-displaytype="2"] .if-epaper3c{display:contents}form .if-cbms{display:none}form[data-battery="11"] .if-cbms,form[data-battery="22"] .if-cbms,form[data-battery="23"] .if-cbms,form[data-battery="24"] .if-cbms,form[data-battery="31"] .if-cbms,form[data-battery="41"] .if-cbms,form[data-battery="48"] .if-cbms,form[data-battery="49"] .if-cbms,form[data-battery="6"] .if-cbms{display:contents}form .if-nissan{display:none}form[data-battery="21"] .if-nissan{display:contents}form .if-tesla{display:none}form[data-battery="32"] .if-tesla,form[data-battery="33"] .if-tesla{display:contents}form .if-estimated{display:none}form[data-battery="14"] .if-estimated,form[data-battery="16"] .if-estimated,form[data-battery="24"] .if-estimated,form[data-battery="3"] .if-estimated,form[data-battery="32"] .if-estimated,form[data-battery="33"] .if-estimated,form[data-battery="4"] .if-estimated,form[data-battery="40"] .if-estimated,form[data-battery="41"] .if-estimated,form[data-battery="44"] .if-estimated,form[data-battery="6"] .if-estimated{display:contents}form .if-socestimated{display:none}form[data-battery="16"] .if-socestimated,form[data-battery="41"] .if-socestimated{display:contents}form .if-dblbtr{display:none}form[data-dblbtr="true"] .if-dblbtr{display:contents}form .if-tribtr{display:none}form[data-tribtr="true"] .if-tribtr{display:contents}form .if-pwmcntctrl{display:none}form[data-pwmcntctrl="true"] .if-pwmcntctrl{display:contents}form .if-cntctrl{display:none}form[data-cntctrl="true"] .if-cntctrl{display:contents}form .if-extprecharge{display:none}form[data-extprecharge="true"] .if-extprecharge{display:contents}form .if-sofar{display:none}form[data-inverter="17"] .if-sofar{display:contents}form .if-byd{display:none}form[data-inverter="2"] .if-byd{display:contents}form .if-bydmodbus{display:none}form[data-inverter="3"] .if-bydmodbus{display:contents}form .if-pylon{display:none}form[data-battery="22"] .if-pylon,form[data-inverter="10"] .if-pylon{display:contents}form .if-pylon-inverter{display:none}form[data-inverter="10"] .if-pylon-inverter{display:contents}form .if-pylon-battery{display:none}form[data-battery="22"] .if-pylon-battery{display:contents}form .if-pylonish{display:none}form[data-inverter="10"] .if-pylonish,form[data-inverter="19"] .if-pylonish,form[data-inverter="4"] .if-pylonish{display:contents}form .if-solax{display:none}form[data-inverter="18"] .if-solax{display:contents}form .if-sungrow{display:none}form[data-inverter="21"] .if-sungrow{display:contents}form .if-kostal{display:none}form[data-inverter="9"] .if-kostal{display:contents}form .if-staticip{display:none}form[data-staticip="true"] .if-staticip{display:contents}form .if-mqtt{display:none}form[data-mqttenabled="true"] .if-mqtt{display:contents}form .if-topics{display:none}form[data-mqtttopics="true"] .if-topics{display:contents} form .if-i2c { display:none } form[data-gpioopt1="1"] .if-i2c, form[data-displaytype="1"] .if-i2c { display:block } form .if-multii2c { display:none } form[data-multii2c="true"] .if-multii2c { display:block } form .if-ctclamp { display:none } form[data-shunttype="3"] .if-ctclamp { display:contents }
 </style>
 )rawliteral"
 
@@ -1267,7 +1301,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define BATT_BODY \
   R"rawliteral(
   <div class="set-tabs"><a href="/settings" class="set-tab active">🔋 Battery & Inverter</a><a href="/set_network" class="set-tab">📡 Network</a><a href="/set_hardware" class="set-tab">⚙️ Hardware</a><a href="/set_web" class="set-tab">🌐 Admin & Debug</a><a href="/set_overrides" class="set-tab" style="background:#fdf2f2; border-color:#fadbd8; color:#c0392b;">⚡ Overrides</a></div>
-  <div class="card card-warning"><form action='/saveSettings' method='post'><input type='hidden' name='PAGE_ID' value='/settings'>
+  <div class="card card-warning"><form>
   )rawliteral" SAVE_ALERT R"rawliteral(
   <div class="card" style="box-shadow:none;border:1px solid #eee;margin-bottom:20px;background:#fcfcfc">
     <h3>🔋 Battery config</h3>
@@ -1291,7 +1325,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Battery interface:</label><select name='BATTCOMM'>%BATTCOMM%</select>
         <label>Battery chemistry:</label><select name='BATTCHEM'>%BATTCHEM%</select>
       </div>
-      <div class="if-pylon-battery"><label>Pylon CAN baudrate:</label><select name='PYLONBAUD'><option value='250' %PYLONBAUD250%>250 kbps</option><option value='500' %PYLONBAUD500%>500 kbps</option></select></div>
+      <div class="if-pylon-battery">
+        <label>Pylon CAN baudrate (kbps):</label>
+        <input name='PYLONBAUD' type='number' value="%PYLONBAUD%"/>
+      </div>
       <div class="if-cbms">
         <label>Battery max design voltage (V):</label><input name='BATTPVMAX' type='text' value='%BATTPVMAX%'/>
         <label>Battery min design voltage (V):</label><input name='BATTPVMIN' type='text' value='%BATTPVMIN%'/>
@@ -1318,7 +1355,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Pylon, invert byteorder:</label><input type='checkbox' name='PYLONORDER' value='on' %PYLONORDER% />
       </div>
       <div class="if-byd"><label>Deye avoid over/undercharge fix:</label><input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% /></div>
-      <div class="if-pylonish"><label>Reported cell count:</label><input name='INVCELLS' type='text' value="%INVCELLS%"/></div>
+      <div class="if-bydmodbus"><label>Fronius Primo, 450V max cap:</label><input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24% /></div> <div class="if-pylonish"><label>Reported cell count:</label><input name='INVCELLS' type='text' value="%INVCELLS%"/></div>
       <div class="if-pylonish if-solax"><label>Reported module count:</label><input name='INVMODULES' type='text' value="%INVMODULES%"/></div>
       <div class="if-pylonish">
         <label>Reported cells per module:</label><input name='INVCELLSPER' type='text' value="%INVCELLSPER%"/>
@@ -1338,9 +1375,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define NET_BODY \
   R"rawliteral(
   <div class="set-tabs"><a href="/settings" class="set-tab">🔋 Battery & Inverter</a><a href="/set_network" class="set-tab active">📡 Network</a><a href="/set_hardware" class="set-tab">⚙️ Hardware</a><a href="/set_web" class="set-tab">🌐 Admin & Debug</a><a href="/set_overrides" class="set-tab" style="background:#fdf2f2; border-color:#fadbd8; color:#c0392b;">⚡ Overrides</a></div>
-  <div class="card card-warning"><form action='/saveSettings' method='post'><input type='hidden' name='PAGE_ID' value='/set_network'>
+  <div class="card card-warning"><form>
   )rawliteral" SAVE_ALERT R"rawliteral(
-  
   <div class="card" style="box-shadow:none;border:1px solid #eee;margin-bottom:20px;background:#fcfcfc; border-top: 4px solid #3498db;">
     <h3 style="color:#2c3e50; margin-bottom:5px;">🚀 Smart Connect (WiFi)</h3>
     <p style="font-size:0.85rem; color:#7f8c8d; margin-bottom:15px; margin-top:0;">Scan for networks or enter manually to connect instantly.</p>
@@ -1405,7 +1441,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define HW_BODY                                                                         \
   R"rawliteral(
   <div class="set-tabs"><a href="/settings" class="set-tab">🔋 Battery & Inverter</a><a href="/set_network" class="set-tab">📡 Network</a><a href="/set_hardware" class="set-tab active">⚙️ Hardware</a><a href="/set_web" class="set-tab">🌐 Admin & Debug</a><a href="/set_overrides" class="set-tab" style="background:#fdf2f2; border-color:#fadbd8; color:#c0392b;">⚡ Overrides</a></div>
-  <div class="card card-warning"><form action='/saveSettings' method='post'><input type='hidden' name='PAGE_ID' value='/set_hardware'>
+  <div class="card card-warning"><form>
   )rawliteral" SAVE_ALERT R"rawliteral(
   <div class="card" style="box-shadow:none;border:1px solid #eee;margin-bottom:20px;background:#fcfcfc">
     <h3>⚡ Optional components</h3>
@@ -1474,7 +1510,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   R"rawliteral(
   <div class="set-tabs"><a href="/settings" class="set-tab">🔋 Battery & Inverter</a><a href="/set_network" class="set-tab">📡 Network</a><a href="/set_hardware" class="set-tab">⚙️ Hardware</a><a href="/set_web" class="set-tab active">🌐 Admin & Debug</a><a href="/set_overrides" class="set-tab" style="background:#fdf2f2; border-color:#fadbd8; color:#c0392b;">⚡ Overrides</a></div>
   <div style="display:flex;justify-content:flex-end;margin-bottom:15px"><button class="btn btn-danger" onclick="askFactoryReset()">⚠️ Factory Reset</button></div>
-  <div class="card card-warning"><form action='/saveSettings' method='post'><input type='hidden' name='PAGE_ID' value='/set_web'>
+  <div class="card card-warning"><form>
   )rawliteral" SAVE_ALERT R"rawliteral(
   <div class="card" style="box-shadow:none;border:1px solid #eee;margin-bottom:20px;background:#fcfcfc">
     <h3>🌐 Webpage config</h3>
