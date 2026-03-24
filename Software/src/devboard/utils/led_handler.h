@@ -5,7 +5,6 @@
 //#include "../../src/lib/Adafruit_NeoPixel/Adafruit_NeoPixel.h"
 #include <src/lib/Adafruit_NeoPixel/Adafruit_NeoPixel.h>
 
-
 class LED {
  public:
   LED(gpio_num_t pin, uint8_t maxBrightness)

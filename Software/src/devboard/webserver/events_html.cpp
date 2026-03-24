@@ -193,56 +193,56 @@ String events_processor(const String& var) {
 }
 
 // Rename to print_events_html and accept as AsyncResponseStream
-void print_events_html(AsyncResponseStream *response) {
-    response->print(FPSTR(EVENTS_HTML_START));
+void print_events_html(AsyncResponseStream* response) {
+  response->print(FPSTR(EVENTS_HTML_START));
 
-    order_events.clear();
-    for (int i = 0; i < EVENT_NOF_EVENTS; i++) {
-      const EVENTS_STRUCT_TYPE* event_pointer = get_event_pointer((EVENTS_ENUM_TYPE)i);
-      if (event_pointer->occurences > 0) {
-        order_events.push_back({static_cast<EVENTS_ENUM_TYPE>(i), event_pointer});
-      }
+  order_events.clear();
+  for (int i = 0; i < EVENT_NOF_EVENTS; i++) {
+    const EVENTS_STRUCT_TYPE* event_pointer = get_event_pointer((EVENTS_ENUM_TYPE)i);
+    if (event_pointer->occurences > 0) {
+      order_events.push_back({static_cast<EVENTS_ENUM_TYPE>(i), event_pointer});
     }
+  }
 
-    std::sort(order_events.begin(), order_events.end(), compareEventsBySeverityAndTimestampDesc);
-    uint64_t current_timestamp = millis64();
+  std::sort(order_events.begin(), order_events.end(), compareEventsBySeverityAndTimestampDesc);
+  uint64_t current_timestamp = millis64();
 
-    // Gradually adding data to the pipe (no longer using string addition!)
-    for (const auto& event : order_events) {
-      EVENTS_ENUM_TYPE event_handle = event.event_handle;
-      const EVENTS_STRUCT_TYPE* event_pointer = event.event_pointer;
+  // Gradually adding data to the pipe (no longer using string addition!)
+  for (const auto& event : order_events) {
+    EVENTS_ENUM_TYPE event_handle = event.event_handle;
+    const EVENTS_STRUCT_TYPE* event_pointer = event.event_pointer;
 
-      response->print("<div class='event'>");
+    response->print("<div class='event'>");
 
-      response->print("<div>");
-      response->print(get_event_enum_string(event_handle));
-      response->print("</div>");
+    response->print("<div>");
+    response->print(get_event_enum_string(event_handle));
+    response->print("</div>");
 
-      response->print("<div>");
-      response->print(get_event_level_string(event_handle));
-      response->print("</div>");
+    response->print("<div>");
+    response->print(get_event_level_string(event_handle));
+    response->print("</div>");
 
-      response->print("<div class='sec-ago'>");
-      response->print((unsigned long)(current_timestamp - event_pointer->timestamp));
-      response->print("</div>");
+    response->print("<div class='sec-ago'>");
+    response->print((unsigned long)(current_timestamp - event_pointer->timestamp));
+    response->print("</div>");
 
-      response->print("<div>");
-      response->print(event_pointer->occurences);
-      response->print("</div>");
+    response->print("<div>");
+    response->print(event_pointer->occurences);
+    response->print("</div>");
 
-      response->print("<div>");
-      response->print(event_pointer->data);
-      response->print("</div>");
+    response->print("<div>");
+    response->print(event_pointer->data);
+    response->print("</div>");
 
-      response->print("<div>");
-      response->print(get_event_message_string(event_handle));
-      response->print("</div>");
+    response->print("<div>");
+    response->print(get_event_message_string(event_handle));
+    response->print("</div>");
 
-      response->print("</div>"); // End of event row
-    }
+    response->print("</div>");  // End of event row
+  }
 
-    order_events.clear();
-    response->print(FPSTR(EVENTS_HTML_END));
+  order_events.clear();
+  response->print(FPSTR(EVENTS_HTML_END));
 }
 
 /* Script for displaying event log before it gets minified

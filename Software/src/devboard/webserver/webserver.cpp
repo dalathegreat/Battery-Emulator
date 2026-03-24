@@ -858,11 +858,11 @@ void init_webserver() {
   // def_route_with_auth("/cellmonitor", server, HTTP_GET,
   //     [](AsyncWebServerRequest* request) { send_large_page_safely(request, cellmonitor_processor); });
 
-   // Cell Monitor: use Template Processor RAM 0%
-   def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-     AsyncWebServerResponse* response = request->beginResponse(200, "text/html", index_html, cellmonitor_processor);
-     request->send(response);
-   });
+  // Cell Monitor: use Template Processor RAM 0%
+  def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", index_html, cellmonitor_processor);
+    request->send(response);
+  });
 
   // 🌟 The ultimate 0% RAM technique! Sending data directly from Flash down the network pipe.
   // def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -878,7 +878,7 @@ void init_webserver() {
 
   // Use AsyncResponseStream instead
   def_route_with_auth("/events", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    AsyncResponseStream *response = request->beginResponseStream("text/html");
+    AsyncResponseStream* response = request->beginResponseStream("text/html");
 
     response->print(index_html_header);
     print_events_html(response);
@@ -899,9 +899,9 @@ void init_webserver() {
   });
 
   auto serve_settings_page = [](AsyncWebServerRequest* request, const char* html_array) {
-      auto settings = std::make_shared<BatteryEmulatorSettingsStore>(true);
-      request->send(200, "text/html", (const uint8_t*)html_array, strlen(html_array),
-          [settings](const String& content) { return settings_processor(content, *settings); });
+    auto settings = std::make_shared<BatteryEmulatorSettingsStore>(true);
+    request->send(200, "text/html", (const uint8_t*)html_array, strlen(html_array),
+                  [settings](const String& content) { return settings_processor(content, *settings); });
   };
 
   // auto serve_settings_page = [](AsyncWebServerRequest* request, const char* html_array) {
@@ -932,23 +932,39 @@ void init_webserver() {
   def_route_with_auth("/api/saveBulk", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     BatteryEmulatorSettingsStore settings;
 
-    if (request->hasParam("inverter")) settings.saveUInt("INVTYPE", request->getParam("inverter")->value().toInt());
-    if (request->hasParam("INVCOMM")) settings.saveUInt("INVCOMM", request->getParam("INVCOMM")->value().toInt());
-    if (request->hasParam("battery")) settings.saveUInt("BATTTYPE", request->getParam("battery")->value().toInt());
-    if (request->hasParam("BATTCHEM")) settings.saveUInt("BATTCHEM", request->getParam("BATTCHEM")->value().toInt());
-    if (request->hasParam("BATTCOMM")) settings.saveUInt("BATTCOMM", request->getParam("BATTCOMM")->value().toInt());
-    if (request->hasParam("BATTPVMAX")) settings.saveUInt("BATTPVMAX", (int)(request->getParam("BATTPVMAX")->value().toFloat() * 10.0f));
-    if (request->hasParam("BATTPVMIN")) settings.saveUInt("BATTPVMIN", (int)(request->getParam("BATTPVMIN")->value().toFloat() * 10.0f));
-    if (request->hasParam("charger")) settings.saveUInt("CHGTYPE", request->getParam("charger")->value().toInt());
-    if (request->hasParam("CHGCOMM")) settings.saveUInt("CHGCOMM", request->getParam("CHGCOMM")->value().toInt());
-    if (request->hasParam("EQSTOP")) settings.saveUInt("EQSTOP", request->getParam("EQSTOP")->value().toInt());
-    if (request->hasParam("BATT2COMM")) settings.saveUInt("BATT2COMM", request->getParam("BATT2COMM")->value().toInt());
-    if (request->hasParam("BATT3COMM")) settings.saveUInt("BATT3COMM", request->getParam("BATT3COMM")->value().toInt());
+    if (request->hasParam("inverter"))
+      settings.saveUInt("INVTYPE", request->getParam("inverter")->value().toInt());
+    if (request->hasParam("INVCOMM"))
+      settings.saveUInt("INVCOMM", request->getParam("INVCOMM")->value().toInt());
+    if (request->hasParam("battery"))
+      settings.saveUInt("BATTTYPE", request->getParam("battery")->value().toInt());
+    if (request->hasParam("BATTCHEM"))
+      settings.saveUInt("BATTCHEM", request->getParam("BATTCHEM")->value().toInt());
+    if (request->hasParam("BATTCOMM"))
+      settings.saveUInt("BATTCOMM", request->getParam("BATTCOMM")->value().toInt());
+    if (request->hasParam("BATTPVMAX"))
+      settings.saveUInt("BATTPVMAX", (int)(request->getParam("BATTPVMAX")->value().toFloat() * 10.0f));
+    if (request->hasParam("BATTPVMIN"))
+      settings.saveUInt("BATTPVMIN", (int)(request->getParam("BATTPVMIN")->value().toFloat() * 10.0f));
+    if (request->hasParam("charger"))
+      settings.saveUInt("CHGTYPE", request->getParam("charger")->value().toInt());
+    if (request->hasParam("CHGCOMM"))
+      settings.saveUInt("CHGCOMM", request->getParam("CHGCOMM")->value().toInt());
+    if (request->hasParam("EQSTOP"))
+      settings.saveUInt("EQSTOP", request->getParam("EQSTOP")->value().toInt());
+    if (request->hasParam("BATT2COMM"))
+      settings.saveUInt("BATT2COMM", request->getParam("BATT2COMM")->value().toInt());
+    if (request->hasParam("BATT3COMM"))
+      settings.saveUInt("BATT3COMM", request->getParam("BATT3COMM")->value().toInt());
 
-    if (request->hasParam("shunttype")) settings.saveUInt("SHUNTTYPE", request->getParam("shunttype")->value().toInt());
-    if (request->hasParam("SHUNTTYPE")) settings.saveUInt("SHUNTTYPE", request->getParam("SHUNTTYPE")->value().toInt());
-    if (request->hasParam("SHUNTCOMM")) settings.saveUInt("SHUNTCOMM", request->getParam("SHUNTCOMM")->value().toInt());
-    if (request->hasParam("MQTTPUBLISHMS")) settings.saveUInt("MQTTPUBLISHMS", request->getParam("MQTTPUBLISHMS")->value().toInt() * 1000);
+    if (request->hasParam("shunttype"))
+      settings.saveUInt("SHUNTTYPE", request->getParam("shunttype")->value().toInt());
+    if (request->hasParam("SHUNTTYPE"))
+      settings.saveUInt("SHUNTTYPE", request->getParam("SHUNTTYPE")->value().toInt());
+    if (request->hasParam("SHUNTCOMM"))
+      settings.saveUInt("SHUNTCOMM", request->getParam("SHUNTCOMM")->value().toInt());
+    if (request->hasParam("MQTTPUBLISHMS"))
+      settings.saveUInt("MQTTPUBLISHMS", request->getParam("MQTTPUBLISHMS")->value().toInt() * 1000);
 
     const char* uintSettingNames[] = {
         "BATTCVMAX",  "BATTCVMIN",  "MAXPRETIME", "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER",   "CHGPOWER",
@@ -958,8 +974,7 @@ void init_webserver() {
         "INVBTYPE",   "CANFREQ",    "CANFDFREQ",  "PRECHGMS",   "PWMFREQ",     "PWMHOLD",     "GTWCOUNTRY",
         "GTWMAPREG",  "GTWCHASSIS", "GTWPACK",    "LEDMODE",    "GPIOOPT1",    "GPIOOPT2",    "GPIOOPT3",
         "INVSUNTYPE", "GPIOOPT4",   "LEDTAIL",    "LEDCOUNT",   "WEBAUTH",     "DISPLAYTYPE", "CTVNOM",
-        "CTANOM",     "CTATTEN",    "PYLONBAUD", "PYLONBRAND"
-    };
+        "CTANOM",     "CTATTEN",    "PYLONBAUD",  "PYLONBRAND"};
 
     for (const char* uintSetting : uintSettingNames) {
       if (request->hasParam(uintSetting)) {
@@ -967,11 +982,9 @@ void init_webserver() {
       }
     }
 
-    const char* stringSettingNames[] = {
-        "APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
-        "MQTTPASSWORD", "MQTTTOPIC",  "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID",
-        "SSID",         "PASSWORD",   "WEBUSER",         "WEBPASS",        "CTOFFSET"
-    };
+    const char* stringSettingNames[] = {"APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
+                                        "MQTTPASSWORD", "MQTTTOPIC",  "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID",
+                                        "SSID",         "PASSWORD",   "WEBUSER",         "WEBPASS",        "CTOFFSET"};
     for (const char* stringSetting : stringSettingNames) {
       if (request->hasParam(stringSetting)) {
         settings.saveString(stringSetting, request->getParam(stringSetting)->value().c_str());
@@ -982,11 +995,15 @@ void init_webserver() {
     std::vector<const char*> activeBools;
 
     if (pageId == "/set_network")
-      activeBools = {"STATICIP",  "WIFIAPENABLED", "ESPNOWENABLED", "MQTTENABLED", "MQTTCELLV", "REMBMSRESET",   "MQTTTOPICS",    "HADISC"};
+      activeBools = {"STATICIP",  "WIFIAPENABLED", "ESPNOWENABLED", "MQTTENABLED",
+                     "MQTTCELLV", "REMBMSRESET",   "MQTTTOPICS",    "HADISC"};
     else if (pageId == "/settings")
-      activeBools = {"INTERLOCKREQ", "DIGITALHVIL", "GTWRHD",  "SOCESTIMATED", "DBLBTR",    "TRIBTR", "PYLONOFFSET",  "PYLONORDER",  "DEYEBYD", "INVICNT",      "PRIMOGEN24"};
+      activeBools = {"INTERLOCKREQ", "DIGITALHVIL", "GTWRHD",  "SOCESTIMATED", "DBLBTR",    "TRIBTR",
+                     "PYLONOFFSET",  "PYLONORDER",  "DEYEBYD", "INVICNT",      "PRIMOGEN24"};
     else if (pageId == "/set_hardware")
-      activeBools = {"CANFDASCAN",  "CNTCTRLDBL",   "CNTCTRLTRI", "CNTCTRL",        "NCCONTACTOR", "PWMCNTCTRL", "PERBMSRESET", "EXTPRECHARGE", "NOINVDISC",  "EPAPREFRESHBTN", "MULTII2C",    "I2C_SHT30", "I2C_ATECC",   "I2C_RTC",      "I2C_IO",     "CTINVERT"};
+      activeBools = {"CANFDASCAN",  "CNTCTRLDBL",   "CNTCTRLTRI", "CNTCTRL",        "NCCONTACTOR", "PWMCNTCTRL",
+                     "PERBMSRESET", "EXTPRECHARGE", "NOINVDISC",  "EPAPREFRESHBTN", "MULTII2C",    "I2C_SHT30",
+                     "I2C_ATECC",   "I2C_RTC",      "I2C_IO",     "CTINVERT"};
     else if (pageId == "/set_web")
       activeBools = {"PERFPROFILE", "CANLOGUSB", "USBENABLED", "WEBENABLED", "CANLOGSD", "SDLOGENABLED"};
 
@@ -1249,9 +1266,12 @@ void init_webserver() {
     String output;
 
     int total_cells = 0;
-    if (battery) total_cells += datalayer.battery.info.number_of_cells;
-    if (battery2) total_cells += datalayer.battery2.info.number_of_cells;
-    if (battery3) total_cells += datalayer.battery3.info.number_of_cells;
+    if (battery)
+      total_cells += datalayer.battery.info.number_of_cells;
+    if (battery2)
+      total_cells += datalayer.battery2.info.number_of_cells;
+    if (battery3)
+      total_cells += datalayer.battery3.info.number_of_cells;
 
     // One cell uses approximately 7 bytes of text + offer 150 bytes of curly braces.
     output.reserve((total_cells * 7) + 150);
@@ -1260,22 +1280,27 @@ void init_webserver() {
     bool firstBat = true;
 
     auto printBat = [&](const char* key, Battery* bat, DATALAYER_BATTERY_TYPE& layer) {
-      if (!bat || layer.info.number_of_cells == 0) return;
-      if (!firstBat) output += ",";
+      if (!bat || layer.info.number_of_cells == 0)
+        return;
+      if (!firstBat)
+        output += ",";
       firstBat = false;
 
       output += "\"" + String(key) + "\":{\"cv\":[";
       int cells = layer.info.number_of_cells;
-      if (cells > MAX_AMOUNT_CELLS) cells = MAX_AMOUNT_CELLS;
+      if (cells > MAX_AMOUNT_CELLS)
+        cells = MAX_AMOUNT_CELLS;
 
       for (int i = 0; i < cells; i++) {
         output += String(layer.status.cell_voltages_mV[i]);
-        if (i < cells - 1) output += ",";
+        if (i < cells - 1)
+          output += ",";
       }
       output += "],\"cb\":[";
       for (int i = 0; i < cells; i++) {
         output += String(layer.status.cell_balancing_status[i] ? 1 : 0);
-        if (i < cells - 1) output += ",";
+        if (i < cells - 1)
+          output += ",";
       }
       output += "]}";
     };
@@ -1297,15 +1322,17 @@ void init_webserver() {
     setBatteryPause(true, true, true, false);
 
     // FreeRTOS Timer Create Task exec Restart, Non-block Network Thread!
-    xTaskCreate([](void* param) {
-      vTaskDelay(1000 / portTICK_PERIOD_MS);
-      ESP.restart();
-    }, "RebootTask", 2048, NULL, 1, NULL);
+    xTaskCreate(
+        [](void* param) {
+          vTaskDelay(1000 / portTICK_PERIOD_MS);
+          ESP.restart();
+        },
+        "RebootTask", 2048, NULL, 1, NULL);
   });
 
   def_route_with_auth("/ota", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     // Use Stream Less RAM (0% Heap Allocation)
-    AsyncResponseStream *response = request->beginResponseStream("text/html");
+    AsyncResponseStream* response = request->beginResponseStream("text/html");
     response->print(index_html_header);
     response->print(R"rawliteral(
       <style>

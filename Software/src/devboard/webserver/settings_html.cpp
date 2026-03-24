@@ -99,17 +99,15 @@ String options_from_map(int selected, const TMap& value_name_map) {
   return options;
 }
 
-static const std::map<int, String> led_modes = {
-    {static_cast<int>(led_mode_enum::CLASSIC), "Classic"},
-    {static_cast<int>(led_mode_enum::FLOW), "Energy Flow"},
-    {static_cast<int>(led_mode_enum::HEARTBEAT), "Heartbeat"},
+static const std::map<int, String> led_modes = {{static_cast<int>(led_mode_enum::CLASSIC), "Classic"},
+                                                {static_cast<int>(led_mode_enum::FLOW), "Energy Flow"},
+                                                {static_cast<int>(led_mode_enum::HEARTBEAT), "Heartbeat"},
 #ifdef HW_LILYGO2CAN
-    {static_cast<int>(led_mode_enum::GRB_CLASSIC), "GRB Classic"},
-    {static_cast<int>(led_mode_enum::GRB_FLOW), "GRB Energy Flow"},
-    {static_cast<int>(led_mode_enum::GRB_HEARTBEAT), "GRB Heartbeat"},
+                                                {static_cast<int>(led_mode_enum::GRB_CLASSIC), "GRB Classic"},
+                                                {static_cast<int>(led_mode_enum::GRB_FLOW), "GRB Energy Flow"},
+                                                {static_cast<int>(led_mode_enum::GRB_HEARTBEAT), "GRB Heartbeat"},
 #endif
-    {static_cast<int>(led_mode_enum::LED_DISABLED), "Disabled"}
-};
+                                                {static_cast<int>(led_mode_enum::LED_DISABLED), "Disabled"}};
 
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
