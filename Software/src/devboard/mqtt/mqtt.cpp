@@ -270,12 +270,12 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   doc["stat_batt_power" + suffix] = ((float)((int32_t)battery.status.active_power_W));
   doc["battery_current" + suffix] = ((float)((int16_t)battery.status.current_dA)) / 10.0f;
   doc["battery_voltage" + suffix] = ((float)battery.status.voltage_dV) / 10.0f;
-  if (battery.info.number_of_cells != 0u && battery.status.cell_voltages_mV[battery.info.number_of_cells - 1] != 0u) {
-    doc["cell_max_voltage" + suffix] = ((float)battery.status.cell_max_voltage_mV) / 1000.0f;
-    doc["cell_min_voltage" + suffix] = ((float)battery.status.cell_min_voltage_mV) / 1000.0f;
-    doc["cell_voltage_delta" + suffix] =
-        ((float)battery.status.cell_max_voltage_mV) - ((float)battery.status.cell_min_voltage_mV);
-  }
+  //if (battery.info.number_of_cells != 0u && battery.status.cell_voltages_mV[battery.info.number_of_cells - 1] != 0u) {
+  doc["cell_max_voltage" + suffix] = ((float)battery.status.cell_max_voltage_mV) / 1000.0f;
+  doc["cell_min_voltage" + suffix] = ((float)battery.status.cell_min_voltage_mV) / 1000.0f;
+  doc["cell_voltage_delta" + suffix] =
+      ((float)battery.status.cell_max_voltage_mV) - ((float)battery.status.cell_min_voltage_mV);
+  //}
   doc["total_capacity" + suffix] = ((float)battery.info.total_capacity_Wh);
   doc["remaining_capacity_real" + suffix] = ((float)battery.status.remaining_capacity_Wh);
   doc["remaining_capacity" + suffix] = ((float)battery.status.reported_remaining_capacity_Wh);
