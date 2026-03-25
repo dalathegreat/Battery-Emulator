@@ -309,8 +309,10 @@ const char dashboard_html[] PROGMEM = R"rawliteral(
       });
   }
 
-  fetchBatteryData();
-  setInterval(fetchBatteryData, 2000);
+  setTimeout(() => {
+    fetchBatteryData();
+    setInterval(fetchBatteryData, 2000);
+  }, 500);
 
   setInterval(function() {
     if (typeof window.localUptimeSecs !== 'undefined') {

@@ -37,6 +37,7 @@ const char CELLMONITOR_HTML_CONTENT[] PROGMEM = R"rawliteral(
 </div>
 
 <script>
+
   function renderHybridChart(id, data, balancing) {
     const wrap = document.getElementById('wrap_' + id);
     if(!wrap) return;
@@ -292,8 +293,10 @@ const char CELLMONITOR_HTML_CONTENT[] PROGMEM = R"rawliteral(
             });
     }
 
-    fetchCellData();
-    setInterval(fetchCellData, 5000);
+    setTimeout(() => {
+        fetchCellData();
+        setInterval(fetchCellData, 2000);
+    }, 500);
 
 </script>
 )rawliteral";
