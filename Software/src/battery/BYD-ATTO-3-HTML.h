@@ -145,6 +145,9 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     if (byd_datalayer->battery_temperatures[11] != -40) {
       content += "<h4>Temperature sensor 12: " + String(byd_datalayer->battery_temperatures[11]) + " &deg;C</h4>";
     }
+    if (byd_datalayer->battery_temperatures[12] != -40) {
+      content += "<h4>Temperature sensor 13: " + String(byd_datalayer->battery_temperatures[12]) + " &deg;C</h4>";
+    }
     content += "<h4>Max discharge power: " + String(BMS_maxDischargePower) + " kW</h4>";
     content += "<h4>Max charge (regen) power: " + String(BMS_maxChargePower) + " kW</h4>";
     content += "<h4>Total charged: " + String(byd_datalayer->total_charged_kwh) + " kWh</h4>";
