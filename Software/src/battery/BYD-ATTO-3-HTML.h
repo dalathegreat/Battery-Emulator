@@ -109,16 +109,42 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>SOC OBD2: " + String(byd_datalayer->SOC_polled) + "&percnt;</h4>";
     content += "<h4>Voltage periodic: " + String(byd_datalayer->voltage_periodic) + " V</h4>";
     content += "<h4>Voltage OBD2: " + String(byd_datalayer->voltage_polled) + " V</h4>";
-    content += "<h4>Temperature sensor 1: " + String(byd_datalayer->battery_temperatures[0]) + " &deg;C</h4>";
-    content += "<h4>Temperature sensor 2: " + String(byd_datalayer->battery_temperatures[1]) + " &deg;C</h4>";
-    content += "<h4>Temperature sensor 3: " + String(byd_datalayer->battery_temperatures[2]) + " &deg;C</h4>";
-    content += "<h4>Temperature sensor 4: " + String(byd_datalayer->battery_temperatures[3]) + " &deg;C</h4>";
-    content += "<h4>Temperature sensor 5: " + String(byd_datalayer->battery_temperatures[4]) + " &deg;C</h4>";
-    content += "<h4>Temperature sensor 6: " + String(byd_datalayer->battery_temperatures[5]) + " &deg;C</h4>";
-    content += "<h4>Temperature sensor 7: " + String(byd_datalayer->battery_temperatures[6]) + " &deg;C</h4>";
-    content += "<h4>Temperature sensor 8: " + String(byd_datalayer->battery_temperatures[7]) + " &deg;C</h4>";
-    content += "<h4>Temperature sensor 9: " + String(byd_datalayer->battery_temperatures[8]) + " &deg;C</h4>";
-    content += "<h4>Temperature sensor 10: " + String(byd_datalayer->battery_temperatures[9]) + " &deg;C</h4>";
+    if (byd_datalayer->battery_temperatures[0] != -40) {
+      content += "<h4>Temperature sensor 1: " + String(byd_datalayer->battery_temperatures[0]) + " &deg;C</h4>";
+    }
+    if (byd_datalayer->battery_temperatures[1] != -40) {
+      content += "<h4>Temperature sensor 2: " + String(byd_datalayer->battery_temperatures[1]) + " &deg;C</h4>";
+    }
+    if (byd_datalayer->battery_temperatures[2] != -40) {
+      content += "<h4>Temperature sensor 3: " + String(byd_datalayer->battery_temperatures[2]) + " &deg;C</h4>";
+    }
+    if (byd_datalayer->battery_temperatures[3] != -40) {
+      content += "<h4>Temperature sensor 4: " + String(byd_datalayer->battery_temperatures[3]) + " &deg;C</h4>";
+    }
+    if (byd_datalayer->battery_temperatures[4] != -40) {
+      content += "<h4>Temperature sensor 5: " + String(byd_datalayer->battery_temperatures[4]) + " &deg;C</h4>";
+    }
+    if (byd_datalayer->battery_temperatures[5] != -40) {
+      content += "<h4>Temperature sensor 6: " + String(byd_datalayer->battery_temperatures[5]) + " &deg;C</h4>";
+    }
+    if (byd_datalayer->battery_temperatures[6] != -40) {
+      content += "<h4>Temperature sensor 7: " + String(byd_datalayer->battery_temperatures[6]) + " &deg;C</h4>";
+    }
+    if (byd_datalayer->battery_temperatures[7] != -40) {
+      content += "<h4>Temperature sensor 8: " + String(byd_datalayer->battery_temperatures[7]) + " &deg;C</h4>";
+    }
+    if (byd_datalayer->battery_temperatures[8] != -40) {
+      content += "<h4>Temperature sensor 9: " + String(byd_datalayer->battery_temperatures[8]) + " &deg;C</h4>";
+    }
+    if (byd_datalayer->battery_temperatures[9] != -40) {
+      content += "<h4>Temperature sensor 10: " + String(byd_datalayer->battery_temperatures[9]) + " &deg;C</h4>";
+    }
+    if (byd_datalayer->battery_temperatures[10] != -40) {
+      content += "<h4>Temperature sensor 11: " + String(byd_datalayer->battery_temperatures[10]) + " &deg;C</h4>";
+    }
+    if (byd_datalayer->battery_temperatures[11] != -40) {
+      content += "<h4>Temperature sensor 12: " + String(byd_datalayer->battery_temperatures[11]) + " &deg;C</h4>";
+    }
     content += "<h4>Max discharge power: " + String(BMS_maxDischargePower) + " kW</h4>";
     content += "<h4>Max charge (regen) power: " + String(BMS_maxChargePower) + " kW</h4>";
     content += "<h4>Total charged: " + String(byd_datalayer->total_charged_kwh) + " kWh</h4>";

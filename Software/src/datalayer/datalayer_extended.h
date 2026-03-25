@@ -148,7 +148,7 @@ struct DATALAYER_INFO_BYDATTO3 {
 
   /** int16_t */
   /** All the temperature sensors inside the battery pack*/
-  int16_t battery_temperatures[10] = {0};
+  int16_t battery_temperatures[13] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};
 
   uint8_t discharge_status = 14;
   uint8_t BMS_min_cell_voltage_number = 0;
