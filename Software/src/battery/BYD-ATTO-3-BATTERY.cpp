@@ -312,37 +312,13 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_daughterboard_temperatures[5] = (rx_frame.data.u8[6] - 40);
       }
       if (rx_frame.data.u8[0] == 0x01) {  //Mux
-        //Some packs have unpopulated modules at the end, skip reading those
-        if (rx_frame.data.u8[1] == 0xFF) {
-          battery_daughterboard_temperatures[6] = -40;
-        } else {
-          battery_daughterboard_temperatures[6] = (rx_frame.data.u8[1] - 40);
-        }
-        if (rx_frame.data.u8[1] == 0xFF) {
-          battery_daughterboard_temperatures[7] = -40;
-        } else {
-          battery_daughterboard_temperatures[7] = (rx_frame.data.u8[2] - 40);
-        }
-        if (rx_frame.data.u8[1] == 0xFF) {
-          battery_daughterboard_temperatures[8] = -40;
-        } else {
-          battery_daughterboard_temperatures[8] = (rx_frame.data.u8[3] - 40);
-        }
-        if (rx_frame.data.u8[1] == 0xFF) {
-          battery_daughterboard_temperatures[9] = -40;
-        } else {
-          battery_daughterboard_temperatures[9] = (rx_frame.data.u8[4] - 40);
-        }
-        if (rx_frame.data.u8[1] == 0xFF) {
-          battery_daughterboard_temperatures[10] = -40;
-        } else {
-          battery_daughterboard_temperatures[10] = (rx_frame.data.u8[5] - 40);
-        }
-        if (rx_frame.data.u8[1] == 0xFF) {
-          battery_daughterboard_temperatures[11] = -40;
-        } else {
-          battery_daughterboard_temperatures[11] = (rx_frame.data.u8[6] - 40);
-        }
+        //Some packs have unpopulated modules at the end, (0xFF), we dont show those in webserver
+        battery_daughterboard_temperatures[6] = (rx_frame.data.u8[1] - 40);
+        battery_daughterboard_temperatures[7] = (rx_frame.data.u8[2] - 40);
+        battery_daughterboard_temperatures[8] = (rx_frame.data.u8[3] - 40);
+        battery_daughterboard_temperatures[9] = (rx_frame.data.u8[4] - 40);
+        battery_daughterboard_temperatures[10] = (rx_frame.data.u8[5] - 40);
+        battery_daughterboard_temperatures[11] = (rx_frame.data.u8[6] - 40);
       }
       break;
     case 0x43D:  //Cellvoltage monitoring, 54 frames for 160cells
