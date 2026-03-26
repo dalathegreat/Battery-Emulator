@@ -106,14 +106,14 @@ void connectivity_loop(void*) {
     wifi_timeout++;
   }
 
-  #ifdef HW_LILYGO2CAN
-    BatteryEmulatorSettingsStore settings;  // declar settings
-    // read display setting (Default=1, OLED_I2C)
-    user_selected_display_type = (DisplayType)settings.getUInt("DISPLAYTYPE", 1);
-    DEBUG_PRINTF("Display Mode: %d\n", (int)user_selected_display_type);
-    // i2c device
-    setupMultipleI2CDevices(settings);
-  #endif
+#ifdef HW_LILYGO2CAN
+  BatteryEmulatorSettingsStore settings;  // declar settings
+  // read display setting (Default=1, OLED_I2C)
+  user_selected_display_type = (DisplayType)settings.getUInt("DISPLAYTYPE", 1);
+  DEBUG_PRINTF("Display Mode: %d\n", (int)user_selected_display_type);
+  // i2c device
+  setupMultipleI2CDevices(settings);
+#endif
 
   init_display();
 
@@ -628,15 +628,15 @@ void setup() {
   http_username = auth_settings.getString("WEBUSER", DEFAULT_WEB_USER).c_str();  // Default
   http_password = auth_settings.getString("WEBPASS", DEFAULT_WEB_PASS).c_str();  // Default
 
-  #ifdef HW_LILYGO2CAN
-    uint32_t connectivity_stack_size = 8192;
-  #else
-    uint32_t connectivity_stack_size = 4096;
-  #endif
+#ifdef HW_LILYGO2CAN
+  uint32_t connectivity_stack_size = 8192;
+#else
+  uint32_t connectivity_stack_size = 4096;
+#endif
   if (wifi_enabled) {
     // 4096 -> 8192
-    xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", connectivity_stack_size, NULL, TASK_CONNECTIVITY_PRIO,
-                            &connectivity_loop_task, esp32hal->WIFICORE());
+    xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", connectivity_stack_size, NULL,
+                            TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, esp32hal->WIFICORE());
   }
 
   led_init();
@@ -691,8 +691,8 @@ void setup() {
   if (mqtt_enabled) {
     init_mqtt();
 
-    xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", connectivity_stack_size, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
-                            esp32hal->WIFICORE());
+    xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", connectivity_stack_size, NULL, TASK_MQTT_PRIO,
+                            &mqtt_loop_task, esp32hal->WIFICORE());
   }
 
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,

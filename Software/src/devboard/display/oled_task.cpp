@@ -5,10 +5,10 @@
 #include "../utils/events.h"
 #include "../utils/logging.h"
 #include "Arduino.h"
+#include "Wire.h"
 #include "esp_log.h"
 #include "fonts.h"
 #include "freertos/FreeRTOS.h"
-#include "Wire.h"
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -18,7 +18,8 @@ static std::vector<EventData> order_events;
 int num_batteries = 1;
 
 static esp_err_t i2c_write(const uint8_t* data, size_t len) {
-  if (len == 0) return ESP_OK;
+  if (len == 0)
+    return ESP_OK;
 
   if (len == 1) {
     Wire.beginTransmission(0x3C);
@@ -45,11 +46,12 @@ static esp_err_t i2c_write(const uint8_t* data, size_t len) {
 }
 
 static void i2c_data(const uint8_t* data, size_t len) {
-  if (len == 0) return;
+  if (len == 0)
+    return;
   size_t i = 0;
   while (i < len) {
     Wire.beginTransmission(0x3C);
-    Wire.write(0x40); // 0x40 Control byte 0x40 for data
+    Wire.write(0x40);  // 0x40 Control byte 0x40 for data
 
     size_t chunk_size = MIN(len - i, (size_t)31);
     Wire.write(data + i, chunk_size);
@@ -315,7 +317,7 @@ static void print_wifi_status(int row) {
   memset(buf, ' ', sizeof(buf));
   buf[21] = '\0';
 
-   // --- Network IP Address & RSSI ---
+  // --- Network IP Address & RSSI ---
   String ipStr = "No WiFi";
   int rssi = -200;
   if (WiFi.status() == WL_CONNECTED) {
@@ -363,7 +365,7 @@ void setupOLED() {
       0xaf,  // display on
   };
 
-  Wire.beginTransmission(0x3C); // 0x3C, OLED Address
+  Wire.beginTransmission(0x3C);  // 0x3C, OLED Address
   Wire.write(0x00);
 
   for (size_t i = 0; i < sizeof(init); i++) {

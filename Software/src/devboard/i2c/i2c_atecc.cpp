@@ -1,7 +1,7 @@
 #include "i2c_atecc.h"
-#include "i2c_devices.h"
-#include "../utils/logging.h"
 #include "../../lib/ArduinoECCX08/ArduinoECCX08.h"
+#include "../utils/logging.h"
+#include "i2c_devices.h"
 
 bool is_atecc_online = false;
 
@@ -40,5 +40,4 @@ void init_i2c_atecc(BatteryEmulatorSettingsStore& settings) {
     logging.println(" ❌ ATECC608A is DISABLED in settings! Bypassing...");
     is_atecc_online = false;
   }
-
 }

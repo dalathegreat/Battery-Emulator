@@ -1,11 +1,11 @@
 #include "i2c_devices.h"
+#include <Wire.h>
 #include <src/lib/RTClib/RTClib.h>
 #include <sys/time.h>
+#include "../hal/hal.h"
 #include "i2c_atecc.h"
 #include "i2c_rtc.h"
 #include "i2c_sht30.h"
-#include <Wire.h>
-#include "../hal/hal.h"
 // #include "i2c_sht30.h"
 // #include "i2c_atecc.h"
 
@@ -25,19 +25,20 @@ void scan_i2c_bus() {
   Serial.println("=================================");
   Serial.println("🔍 I2C device scan start...");
 
-  for(address = 1; address < 127; address++ ) {
+  for (address = 1; address < 127; address++) {
     Wire.beginTransmission(address);
     error = Wire.endTransmission();
 
     if (error == 0) {
       Serial.print("✅ Found I2C at Address: 0x");
-      if (address < 16) Serial.print("0");
+      if (address < 16)
+        Serial.print("0");
       Serial.println(address, HEX);
       nDevices++;
-    }
-    else if (error == 4) {
+    } else if (error == 4) {
       Serial.print("⚠️ Got Error at Address: 0x");
-      if (address < 16) Serial.print("0");
+      if (address < 16)
+        Serial.print("0");
       Serial.println(address, HEX);
     }
   }
@@ -56,7 +57,7 @@ void init_i2c_bus() {
     int scl_pin = esp32hal->I2C_SCL_PIN();
 
     Wire.begin(sda_pin, scl_pin);
-    Wire.setClock(400000); // 400kHz is the most stable speed for connecting multiple devices.
+    Wire.setClock(400000);  // 400kHz is the most stable speed for connecting multiple devices.
     is_i2c_bus_initialized = true;
     Serial.println("🌐 Central I2C Bus Initialized (400kHz)");
   }

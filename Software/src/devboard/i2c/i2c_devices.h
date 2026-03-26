@@ -20,5 +20,4 @@ void updateRTCFromSystemTime();
 void init_i2c_bus();
 void scan_i2c_bus();
 
-
 #endif
