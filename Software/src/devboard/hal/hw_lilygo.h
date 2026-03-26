@@ -110,13 +110,13 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_32; }
 
   // i2c display
-  virtual gpio_num_t DISPLAY_SDA_PIN() {
+  virtual gpio_num_t I2C_SDA_PIN() {
     if (user_selected_gpioopt4 == GPIOOPT4::I2C_DEVICES) {
       return GPIO_NUM_15;
     }
     return GPIO_NUM_NC;
   }
-  virtual gpio_num_t DISPLAY_SCL_PIN() {
+  virtual gpio_num_t I2C_SCL_PIN() {
     if (user_selected_gpioopt4 == GPIOOPT4::I2C_DEVICES) {
       return GPIO_NUM_14;
     }

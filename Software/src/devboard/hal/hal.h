@@ -158,8 +158,8 @@ class Esp32Hal {
   virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
 
   // i2c display
-  virtual gpio_num_t DISPLAY_SDA_PIN() { return GPIO_NUM_NC; }
-  virtual gpio_num_t DISPLAY_SCL_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t I2C_SDA_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t I2C_SCL_PIN() { return GPIO_NUM_NC; }
 
   // e-paper display
   virtual gpio_num_t EPD_BUSY_PIN() { return GPIO_NUM_NC; }

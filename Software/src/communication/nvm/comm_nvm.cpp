@@ -13,6 +13,12 @@
 
 // Parameters
 Preferences settings;  // Store user settings
+String nvm_ssid;
+String nvm_password;
+String nvm_ssidAP;
+String nvm_passwordAP;
+String nvm_hostname;
+String nvm_mqtt_server;
 
 // Initialization functions
 
@@ -32,8 +38,15 @@ void init_stored_settings() {
 
   esp32hal->set_default_configuration_values();
 
-  ssid = settings.getString("SSID").c_str();
-  password = settings.getString("PASSWORD").c_str();
+  nvm_ssid = settings.getString("SSID", "");
+  ssid = nvm_ssid.c_str();
+  nvm_password = settings.getString("PASSWORD", "");
+  password = nvm_password.c_str();
+
+  nvm_ssidAP = settings.getString("APNAME", "BatteryEmulator");
+  nvm_passwordAP = settings.getString("APPASSWORD", "123456789");
+  nvm_hostname = settings.getString("HOSTNAME", "BatteryEmulator");
+  nvm_mqtt_server = settings.getString("MQTTSERVER");
 
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
@@ -178,15 +191,15 @@ void init_stored_settings() {
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
   wifi_channel = settings.getUInt("WIFICHANNEL", 0);
-  ssidAP = settings.getString("APNAME", "BatteryEmulator").c_str();
-  passwordAP = settings.getString("APPASSWORD", "123456789").c_str();
+  ssidAP = nvm_ssidAP.c_str();
+  passwordAP = nvm_passwordAP.c_str();
   espnow_enabled = settings.getBool("ESPNOWENABLED", false);
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
   mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
   mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
   mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
-  custom_hostname = settings.getString("HOSTNAME").c_str();
+  custom_hostname = nvm_hostname.c_str();
 
   static_IP_enabled = settings.getBool("STATICIP", false);
   static_local_IP1 = settings.getUInt("LOCALIP1", 192);
@@ -202,7 +215,7 @@ void init_stored_settings() {
   static_subnet3 = settings.getUInt("SUBNET3", 255);
   static_subnet4 = settings.getUInt("SUBNET4", 0);
 
-  mqtt_server = settings.getString("MQTTSERVER").c_str();
+  mqtt_server = nvm_mqtt_server.c_str();
   mqtt_port = settings.getUInt("MQTTPORT", 0);
   mqtt_user = settings.getString("MQTTUSER").c_str();
   mqtt_password = settings.getString("MQTTPASSWORD").c_str();

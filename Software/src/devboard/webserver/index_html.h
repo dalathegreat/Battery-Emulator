@@ -328,14 +328,14 @@
             '<div style="background:#fff;padding:35px 20px;border-radius:15px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.5);width:350px;max-width:90vw;font-family:sans-serif;">' +
               '<h2 style="color:#e74c3c;margin-top:0;font-size:1.8rem;">🔄 System Rebooting</h2>' +
               '<div style="border:5px solid #f3f3f3;border-top:5px solid #e74c3c;border-radius:50vw;width:60px;height:60px;animation:spin 1s linear infinite;margin:25px auto;"></div>' +
-              '<p style="color:#555;font-size:1.1rem;margin:10px 0;">Please wait <span id="rebootCount" style="font-weight:bold;color:#e74c3c;font-size:1.3rem;">15</span> seconds.</p>' +
+              '<p style="color:#555;font-size:1.1rem;margin:10px 0;">Please wait <span id="rebootCount" style="font-weight:bold;color:#e74c3c;font-size:1.3rem;">12</span> seconds.</p>' +
               '<p style="font-size:0.85rem;color:#888;">The system is restarting.<br>The page will reload automatically.</p>' +
             '</div></div><style>@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }</style>';
 
           document.body.appendChild(modal);
           fetch('/reboot', { method: 'GET', keepalive: true }).catch(function(){});
 
-          let timeLeft = 15;
+          let timeLeft = 12;
           let countEl = document.getElementById('rebootCount');
           let timer = setInterval(function() {
             timeLeft--;

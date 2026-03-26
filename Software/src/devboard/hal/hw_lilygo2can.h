@@ -159,14 +159,14 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
 
   // I2C OLED (Uses QWIIC connector - GPIO1 & GPIO2)
-  virtual gpio_num_t DISPLAY_SDA_PIN() {
+  virtual gpio_num_t I2C_SDA_PIN() {
     if (user_selected_display_type == DisplayType::OLED_I2C || user_selected_gpioopt1 == GPIOOPT1::I2C_DEVICES) {
       return GPIO_NUM_1;
     }
     return GPIO_NUM_NC;
   }
 
-  virtual gpio_num_t DISPLAY_SCL_PIN() {
+  virtual gpio_num_t I2C_SCL_PIN() {
     if (user_selected_display_type == DisplayType::OLED_I2C || user_selected_gpioopt1 == GPIOOPT1::I2C_DEVICES) {
       return GPIO_NUM_2;
     }

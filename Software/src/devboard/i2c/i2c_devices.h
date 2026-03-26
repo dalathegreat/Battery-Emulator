@@ -17,5 +17,8 @@ bool checkI2CDevicePresence(uint8_t address);
 
 void syncSystemTimeFromRTC();
 void updateRTCFromSystemTime();
+void init_i2c_bus();
+void scan_i2c_bus();
+
 
 #endif

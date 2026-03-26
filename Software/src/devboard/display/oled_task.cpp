@@ -5,31 +5,59 @@
 #include "../utils/events.h"
 #include "../utils/logging.h"
 #include "Arduino.h"
-#include "driver/i2c_master.h"
 #include "esp_log.h"
 #include "fonts.h"
 #include "freertos/FreeRTOS.h"
-
-#define I2C_MASTER_FREQ_HZ 1000000  // Use a ridiculously fast I2C speed (seems to work!)
+#include "Wire.h"
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-i2c_master_bus_handle_t bus_handle;
-i2c_master_dev_handle_t dev_handle;
 unsigned long lastUpdateMillis = 0;
 static std::vector<EventData> order_events;
 int num_batteries = 1;
 
 static esp_err_t i2c_write(const uint8_t* data, size_t len) {
-  return i2c_master_transmit(dev_handle, data, len, 1000 / portTICK_PERIOD_MS);
+  if (len == 0) return ESP_OK;
+
+  if (len == 1) {
+    Wire.beginTransmission(0x3C);
+    Wire.write(data[0]);
+    return (Wire.endTransmission() == 0) ? ESP_OK : ESP_FAIL;
+  }
+
+  uint8_t control_byte = data[0];
+  size_t i = 1;
+
+  while (i < len) {
+    Wire.beginTransmission(0x3C);
+    Wire.write(control_byte);
+
+    size_t chunk_size = MIN(len - i, (size_t)31);
+    Wire.write(data + i, chunk_size);
+
+    if (Wire.endTransmission() != 0) {
+      return ESP_FAIL;
+    }
+    i += chunk_size;
+  }
+  return ESP_OK;
 }
 
 static void i2c_data(const uint8_t* data, size_t len) {
-  uint8_t write_buf[1025];
-  write_buf[0] = 0x40;  // Control byte 0x40 for data
-  memcpy(&write_buf[1], data, len);
-  i2c_write(write_buf, len + 1);
+  if (len == 0) return;
+  size_t i = 0;
+  while (i < len) {
+    Wire.beginTransmission(0x3C);
+    Wire.write(0x40); // 0x40 Control byte 0x40 for data
+
+    size_t chunk_size = MIN(len - i, (size_t)31);
+    Wire.write(data + i, chunk_size);
+    Wire.endTransmission();
+
+    i += chunk_size;
+    vTaskDelay(pdMS_TO_TICKS(2));
+  }
 }
 
 static void set_ram_pointer(int x, int y) {
@@ -94,14 +122,11 @@ static void write_tall_text(int x, int y, const char* str, bool invert) {
   }
 }
 
-static void clear() {
-  uint8_t blank[128] = {
-      0,
-  };
-  for (int i = 0; i < 8; i++) {
-    set_ram_pointer(0, i);
-    i2c_data(blank, sizeof(blank));
-  }
+void clear() {
+  // save up to 1KB of RAM for tasks.
+  static const uint8_t zero_buffer[1024] = {0};
+
+  i2c_data(zero_buffer, sizeof(zero_buffer));
 }
 
 static void printn(char* buf, int value, int digits) {
@@ -286,58 +311,32 @@ static void print_events(int row, int count) {
 }
 
 static void print_wifi_status(int row) {
-  wl_status_t status = WiFi.status();
   char buf[22];
   memset(buf, ' ', sizeof(buf));
   buf[21] = '\0';
 
-  if (status == WL_CONNECTED) {
-    cpy(buf, WiFi.localIP().toString().c_str());
-    print3(buf + 16, WiFi.RSSI());
-    buf[19] = 'd';
-    buf[20] = 'B';
+   // --- Network IP Address & RSSI ---
+  String ipStr = "No WiFi";
+  int rssi = -200;
+  if (WiFi.status() == WL_CONNECTED) {
+    ipStr = WiFi.localIP().toString();
+    rssi = WiFi.RSSI();
+  } else if ((WiFi.getMode() & WIFI_AP) != 0) {
+    ipStr = WiFi.softAPIP().toString();
+    rssi = WiFi.RSSI();
   }
+
+  cpy(buf, ipStr.c_str());
+  print3(buf + 16, rssi);
+  buf[19] = 'd';
+  buf[20] = 'B';
 
   write_text(0, row, buf, false);
 }
 
 void setupOLED() {
-  auto display_sda = esp32hal->DISPLAY_SDA_PIN();
-  auto display_scl = esp32hal->DISPLAY_SCL_PIN();
 
-  if (display_sda == GPIO_NUM_NC || display_scl == GPIO_NUM_NC) {
-    return;
-  }
-
-  if (!esp32hal->alloc_pins("I2C Display", display_sda, display_scl)) {
-    logging.printf("Failed to allocate pins for I2C Display\n");
-    return;
-  }
-
-  i2c_master_bus_config_t bus_config = {
-      .i2c_port = -1,  // autoselect
-      .sda_io_num = display_sda,
-      .scl_io_num = display_scl,
-      .clk_source = I2C_CLK_SRC_DEFAULT,
-      .glitch_ignore_cnt = 7,
-      .intr_priority = 0,
-      .trans_queue_depth = 0,
-      .flags =
-          {
-              .enable_internal_pullup = true,
-              .allow_pd = false,
-          },
-  };
-  ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &bus_handle));
-
-  i2c_device_config_t dev_config = {
-      .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-      .device_address = 0x3c,
-      .scl_speed_hz = I2C_MASTER_FREQ_HZ,
-      .scl_wait_us = 0,
-      .flags = {},
-  };
-  ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
+  // Wire.begin(esp32hal->I2C_SDA_PIN(), esp32hal->I2C_SCL_PIN());
 
   static const uint8_t init[] = {
       0xae,    // display off
@@ -363,15 +362,15 @@ void setupOLED() {
 
       0xaf,  // display on
   };
-  uint8_t buf[sizeof(init) * 2];
+
+  Wire.beginTransmission(0x3C); // 0x3C, OLED Address
+  Wire.write(0x00);
+
   for (size_t i = 0; i < sizeof(init); i++) {
-    buf[i * 2] = 0x80;  // Control byte for command
-    buf[i * 2 + 1] = init[i];
+    Wire.write(init[i]);
   }
-  if (i2c_write(buf, sizeof(buf)) != ESP_OK) {
-    logging.printf("Failed to initialize I2C Display\n");
-    return;
-  }
+
+  Wire.endTransmission();
 
   clear();
   // Count configured batteries
