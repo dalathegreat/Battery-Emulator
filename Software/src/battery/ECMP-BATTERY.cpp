@@ -844,13 +844,23 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               pid_coldest_module = (rx_frame.data.u8[4]);
               break;
             case PID_LOWEST_TEMPERATURE:
-              pid_lowest_temperature = (rx_frame.data.u8[4] - 40);
+              if (rx_frame.data.u8[4] == 0xFF) {
+                pid_lowest_temperature = 0;  //FF means value unavailable, set to 0 to avoid confusion
+                set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, 0);
+              } else {
+                pid_lowest_temperature = (rx_frame.data.u8[4] - 40);
+              }
               break;
             case PID_AVERAGE_TEMPERATURE:
               pid_average_temperature = (rx_frame.data.u8[4] - 40);
               break;
             case PID_HIGHEST_TEMPERATURE:
-              pid_highest_temperature = (rx_frame.data.u8[4] - 40);
+              if (rx_frame.data.u8[4] == 0xFF) {
+                pid_highest_temperature = 0;  //FF means value unavailable, set to 0 to avoid confusion
+                set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, 0);
+              } else {
+                pid_highest_temperature = (rx_frame.data.u8[4] - 40);
+              }
               break;
             case PID_HOTTEST_MODULE:
               pid_hottest_module = (rx_frame.data.u8[4]);
