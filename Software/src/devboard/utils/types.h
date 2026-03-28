@@ -27,7 +27,12 @@ enum class comm_interface {
   Highest
 };
 
+#ifdef HW_LILYGO2CAN
+enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT, GRB_CLASSIC, GRB_FLOW, GRB_HEARTBEAT };
+#else
 enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT };
+#endif
+
 enum PrechargeState {
   AUTO_PRECHARGE_IDLE,
   AUTO_PRECHARGE_START,
@@ -138,8 +143,16 @@ enum class GPIOOPT3 {
   SMA_ENABLE_33 = 1,
   Highest
 };
+enum class GPIOOPT4 {
+  // T-CAN485: Default, uSD Card
+  DEFAULT_SD_CARD = 0,
+  // T-CAN485: Disable SD,Enable Display on Pins 14,15
+  I2C_DISPLAY_SSD1306 = 1,
+  Highest
+};
 
 extern GPIOOPT2 user_selected_gpioopt2;
 extern GPIOOPT3 user_selected_gpioopt3;
+extern GPIOOPT4 user_selected_gpioopt4;
 
 #endif

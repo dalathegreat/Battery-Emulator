@@ -1214,6 +1214,9 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
         DisableIsoMonitoringStatemachine = COMPLETED_STATE;
         timeSpentDisableIsoMonitoring = COMPLETED_STATE;
       }
+    } else if (datalayer_extended.stellantisECMP.UserRequestDTCreset) {
+      transmit_can_frame(&ECMP_CLEAR_DTC);
+      datalayer_extended.stellantisECMP.UserRequestDTCreset = false;
     } else if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
       if (ContactorResetStatemachine == 0) {
         transmit_can_frame(&ECMP_DIAG_START);

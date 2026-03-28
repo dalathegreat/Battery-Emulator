@@ -46,9 +46,33 @@ String events_processor(const String& var) {
       EVENTS_ENUM_TYPE event_handle = event.event_handle;
       event_pointer = event.event_pointer;
 
-      content.concat("<div class='event'>");
+      // Get the event level string and determine background color
+      String event_level = String(get_event_level_string(event_handle));
+      String bg_color;
+      String text_color = "#000000";
+
+      // Set colors based on event level
+      if (event_level == "INFO") {
+        bg_color = "#04b34f";
+      } else if (event_level == "WARNING") {
+        bg_color = "#ff9900";
+      } else if (event_level == "ERROR") {
+        bg_color = "#a6192e";
+        text_color = "#ffffff";
+      } else {
+        bg_color = "";
+      }
+
+      // Start event div with inline style for background color
+      content.concat("<div class='event'");
+      if (bg_color.length() > 0) {
+        content.concat(" style='background-color: " + bg_color + "; color: " + text_color + ";'>");
+      } else {
+        content.concat(">");
+      }
+
       content.concat("<div>" + String(get_event_enum_string(event_handle)) + "</div>");
-      content.concat("<div>" + String(get_event_level_string(event_handle)) + "</div>");
+      content.concat("<div>" + event_level + "</div>");
       // Frontend expects to see time difference (in ms) from now to event
       content.concat("<div class='sec-ago'>" + String(current_timestamp - event_pointer->timestamp) + "</div>");
       content.concat("<div>" + String(event_pointer->occurences) + "</div>");
@@ -56,6 +80,11 @@ String events_processor(const String& var) {
       content.concat("<div>" + get_event_message_string(event_handle) + "</div>");
       content.concat("</div>");  // End of event row
     }
+
+    //Script for refreshing page
+    content += "<script>";
+    content += "setTimeout(function(){ location.reload(true); }, 5000);";
+    content += "</script>";
 
     //clear the vector
     order_events.clear();

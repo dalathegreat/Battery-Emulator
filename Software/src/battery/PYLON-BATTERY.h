@@ -3,6 +3,7 @@
 
 #include "../datalayer/datalayer.h"
 #include "CanBattery.h"
+#include "PYLON-HTML.h"
 
 extern uint16_t user_selected_pylon_baudrate;
 
@@ -31,7 +32,10 @@ class PylonBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Pylon compatible battery";
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  PylonHtmlRenderer renderer;
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELLS = 192;                           // Maximum cells supported
   static const uint32_t EMUS_BASE_ID = 0x19B50000;            // EMUS extended ID base for cell count
@@ -58,7 +62,7 @@ class PylonBattery : public CanBattery {
   CAN_frame PYLON_8200 = {.FD = false,
                           .ext_ID = true,
                           .DLC = 8,
-                          .ID = 0x8200,
+                          .ID = 0x8200,  //AA quit sleep //55 goto sleep
                           .data = {0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame PYLON_8210 = {.FD = false,
                           .ext_ID = true,
@@ -93,7 +97,7 @@ class PylonBattery : public CanBattery {
   uint16_t discharge_cutoff_voltage = 0;
   int16_t max_charge_current = 0;
   int16_t max_discharge_current = 0;
-  uint8_t ensemble_info_ack = 0;
+  int16_t BMS_temperature_dC = 0;
   uint8_t battery_module_quantity = 0;
   uint8_t battery_modules_in_series = 0;
   uint8_t cell_quantity_in_module = 0;
@@ -103,6 +107,13 @@ class PylonBattery : public CanBattery {
   uint8_t SOH = 100;
   uint8_t charge_forbidden = 0;
   uint8_t discharge_forbidden = 0;
+  uint8_t manufacturer_name[16] = {0};
+  uint8_t mux = 0;
+  uint8_t hardware_version = 0;
+  uint8_t hardware_version_V = 0;
+  uint8_t hardware_version_R = 0;
+  uint8_t software_version_major = 0;
+  uint8_t software_version_minor = 0;
   uint8_t actual_cell_count = 0;  // Actual number of cells detected from EMUS
 };
 

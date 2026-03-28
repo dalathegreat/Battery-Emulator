@@ -1,12 +1,3 @@
-#ifdef SMALL_FLASH_DEVICE
-
-// Don't build the display code on small flash devices to save space
-
-void init_display() {}
-void update_display() {}
-
-#else
-
 // A realtime display of battery status and events, using a I2C-connected 128x64
 // OLED display based on the SSD1306 driver.
 
@@ -479,5 +470,3 @@ void update_display() {
   }
   lastUpdateMillis = currentMillis;
 }
-
-#endif

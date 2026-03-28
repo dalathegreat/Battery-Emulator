@@ -36,7 +36,7 @@ void VolvoSpaBattery::
 
   datalayer.battery.status.real_soc = SOC_BMS * 10;   //Add one decimal to make it pptt
   datalayer.battery.status.voltage_dV = BATT_U / 10;  //Remove one decimal
-  datalayer.battery.status.current_dA = BATT_I;
+  datalayer.battery.status.current_dA = -BATT_I;      //Invert direction
 
   datalayer.battery.status.max_discharge_power_W = HvBattPwrLimDchaSlowAgi * 1000;  //kW to W
   datalayer.battery.status.max_charge_power_W = HvBattPwrLimChrgSlowAgi * 1000;     //kW to W

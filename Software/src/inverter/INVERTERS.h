@@ -15,6 +15,7 @@ extern InverterProtocol* inverter;
 #include "KOSTAL-RS485.h"
 #include "PYLON-CAN.h"
 #include "PYLON-LV-CAN.h"
+#include "PYLON-LV-RS485.h"
 #include "SCHNEIDER-CAN.h"
 #include "SMA-BYD-H-CAN.h"
 #include "SMA-BYD-HVS-CAN.h"
@@ -36,8 +37,11 @@ extern uint16_t user_selected_inverter_cells_per_module;
 extern uint16_t user_selected_inverter_voltage_level;
 extern uint16_t user_selected_inverter_ah_capacity;
 extern uint16_t user_selected_inverter_battery_type;
+extern uint16_t user_selected_inverter_sungrow_type;
+extern uint16_t user_selected_inverter_pylon_type;
 extern bool user_selected_inverter_ignore_contactors;
 extern bool user_selected_pylon_30koffset;
 extern bool user_selected_pylon_invert_byteorder;
 extern bool user_selected_inverter_deye_workaround;
+extern bool user_selected_primo_gen24;
 #endif

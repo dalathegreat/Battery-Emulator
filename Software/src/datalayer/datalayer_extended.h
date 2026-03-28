@@ -119,9 +119,6 @@ struct DATALAYER_INFO_BMWIX {
 };
 
 struct DATALAYER_INFO_BYDATTO3 {
-  uint32_t unknown0 = 0;  //Unknown polled value
-  uint32_t unknown1 = 0;  //Unknown polled value
-
   /** SOC% estimate. Estimated from total pack voltage */
   uint16_t SOC_estimated = 0;
   /** SOC% raw battery value. Highprecision. Can be locked if pack is crashed */
@@ -140,21 +137,31 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint16_t total_charged_kwh = 0;
   uint16_t total_discharged_kwh = 0;
   uint16_t times_full_power = 0;
+  uint16_t BMS_capacity_original_calibration = 0;
+  uint16_t BMC_SOC_original_calibration = 0;
+  uint16_t BMS_capacity_current_calibration = 0;
+  uint16_t BMC_SOC_current_calibration = 0;
+  uint16_t seed = 0;
+  uint16_t solvedKey = 0;
+  uint16_t calibrationTargetSOC = 100;
+  uint16_t calibrationTargetAH = 150;
 
   /** int16_t */
   /** All the temperature sensors inside the battery pack*/
-  int16_t battery_temperatures[10];
+  int16_t battery_temperatures[13] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};
 
-  uint8_t unknown10 = 0;  //Unknown polled value
-  uint8_t unknown11 = 0;  //Unknown polled value
-  uint8_t unknown12 = 0;  //Unknown polled value
-  uint8_t unknown13 = 0;  //Unknown polled value
+  uint8_t discharge_status = 14;
+  uint8_t BMS_min_cell_voltage_number = 0;
+  uint8_t BMS_min_temp_module_number = 0;
+  uint8_t BMS_max_cell_voltage_number = 0;
+  uint8_t BMS_max_temp_module_number = 0;
+  uint8_t servicemode = 0;
   /** bool */
   /** User requesting crash reset via WebUI*/
   bool UserRequestCrashReset = false;
   /** bool */
-  /** Which SOC method currently used. 0 = Estimated, 1 = Measured */
-  bool SOC_method = 0;
+  /** User requesting SOC calibration via WebUI*/
+  bool UserRequestCalibrateSOC = false;
 };
 
 struct DATALAYER_INFO_CELLPOWER {
@@ -371,6 +378,7 @@ struct DATALAYER_INFO_ECMP {
   bool MysteryVan = false;      //mysteryvan parameters
   bool CrashMemorized = false;  //mysteryvan parameters
   bool InterlockOpen = false;
+  bool UserRequestDTCreset = false;
   bool UserRequestContactorReset = false;
   bool UserRequestCollisionReset = false;
   bool UserRequestIsolationReset = false;
@@ -521,11 +529,11 @@ struct DATALAYER_INFO_TESLA {
   uint16_t battery_BrickVoltageMin = 0;
   uint16_t HVP_hvp1v5Ref = 0;
   uint16_t HVP_shuntCurrentDebug = 0;
-  uint16_t PCS_dcdcTemp = 0;
-  uint16_t PCS_ambientTemp = 0;
-  uint16_t PCS_chgPhATemp = 0;
-  uint16_t PCS_chgPhBTemp = 0;
-  uint16_t PCS_chgPhCTemp = 0;
+  int16_t PCS_dcdcTemp = 0;
+  int16_t PCS_ambientTemp = 0;
+  int16_t PCS_chgPhATemp = 0;
+  int16_t PCS_chgPhBTemp = 0;
+  int16_t PCS_chgPhCTemp = 0;
   uint16_t PCS_dcdcMaxLvOutputCurrent = 0;
   uint16_t PCS_dcdcCurrentLimit = 0;
   uint16_t PCS_dcdcLvOutputCurrentTempLimit = 0;
