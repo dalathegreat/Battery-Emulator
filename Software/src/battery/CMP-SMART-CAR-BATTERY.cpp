@@ -13,7 +13,11 @@ void CmpSmartCarBattery::update_values() {
     digitalWrite(esp32hal->WUP_PIN1(), HIGH);  // Wake up the battery
   }
 
-  datalayer_battery->status.real_soc = battery_soc * 10;
+  if (battery_soc > 990) {
+    datalayer_battery->status.real_soc = 9900;  //Cap at 99,00%%
+  } else {
+    datalayer_battery->status.real_soc = battery_soc * 10;
+  }
 
   datalayer_battery->status.soh_pptt = SOH_estimated * 100;
 
