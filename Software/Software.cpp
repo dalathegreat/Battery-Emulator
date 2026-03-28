@@ -38,7 +38,7 @@
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "10.4.dev";
+const char* version_number = "10.4.0";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
