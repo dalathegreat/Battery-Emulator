@@ -1,7 +1,8 @@
 #ifndef CELLMONITOR_H
 #define CELLMONITOR_H
+#include <Arduino.h>
 
-#include <WString.h>
+// #include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 
 /**
  * @brief Replaces placeholder with content section in web page

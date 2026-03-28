@@ -1,0 +1,14 @@
+friend class GDEH0154D67_OTP;
+friend class GDEH0154M10_OTP;
+friend class GDEW026T0_OTP;
+friend class GDEW029T5_OTP;
+friend class GDEW029T5D_OTP;
+friend class GDEH029Z13_OTP;
+friend class GDEH0213Z19_OTP;
+friend class GDEW0371W7_OTP;
+friend class GDEW042T2_OTP;
+friend class GDEW075T7_OTP;
+friend class GDEY075T7_OTP;
+friend class GDEH075Z90_OTP;
+friend class GDEW075Z08_OTP;
+friend class GDEY075Z08_OTP;

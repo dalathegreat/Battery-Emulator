@@ -501,6 +501,14 @@ static void update_bms_status(void) {
   }
 }
 
+// Function to compare events by level desc then timestamp descending
+bool compareEventsBySeverityAndTimestampDesc(const EventData& a, const EventData& b) {
+  if (a.event_pointer->level != b.event_pointer->level) {
+    return a.event_pointer->level > b.event_pointer->level;
+  }
+  return a.event_pointer->timestamp > b.event_pointer->timestamp;
+}
+
 // Function to compare events by timestamp descending
 bool compareEventsByTimestampDesc(const EventData& a, const EventData& b) {
   return a.event_pointer->timestamp > b.event_pointer->timestamp;

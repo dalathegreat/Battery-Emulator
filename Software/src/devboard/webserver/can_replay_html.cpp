@@ -8,140 +8,233 @@ String can_replay_processor(void) {
     datalayer.system.info.logged_can_messages_offset = 0;
     datalayer.system.info.logged_can_messages[0] = '\0';
   }
-  datalayer.system.info.can_logging_active =
-      true;  // Signal to main loop that we should log messages. Disabled by default for performance reasons
-  String content = index_html_header;
-  // Page format
-  content += "<style>";
-  content += "body { background-color: black; color: white; font-family: Arial, sans-serif; }";
-  content +=
-      "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
-      "cursor: pointer; border-radius: 10px; }";
-  content += "button:hover { background-color: #3A4A52; }";
-  content +=
-      ".can-message { background-color: #404E57; margin-bottom: 5px; padding: 10px; border-radius: 5px; font-family: "
-      "monospace; }";
-  content += "</style>";
-  content += "<button onclick='home()'>Back to main page</button>";
+  datalayer.system.info.can_logging_active = true;  // Signal to main loop that we should log messages.
 
-  // Start a new block for the CAN messages
-  content += "<div style='background-color: #303E47; padding: 20px; border-radius: 15px'>";
+  String content = String(index_html_header);
 
-  // Ask user to select which CAN interface log should be sent to
-  content += "<h3>Step 1: Select CAN Interface for Playback</h3>";
+  // Prepare Dropdown
+  String opt_native = (datalayer.system.info.can_replay_interface == CAN_NATIVE) ? "selected" : "";
+  String opt_fd_native = (datalayer.system.info.can_replay_interface == CANFD_NATIVE) ? "selected" : "";
+  String opt_mcp2515 = (datalayer.system.info.can_replay_interface == CAN_ADDON_MCP2515) ? "selected" : "";
+  String opt_mcp2518 = (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518) ? "selected" : "";
 
-  // Dropdown with choices
-  content += "<label for='canInterface'>CAN Interface:</label>";
-  content += "<select id='canInterface' name='canInterface'>";
-  content += "<option value='" + String(CAN_NATIVE) + "' " +
-             (datalayer.system.info.can_replay_interface == CAN_NATIVE ? "selected" : "") + ">CAN Native</option>";
-  content += "<option value='" + String(CANFD_NATIVE) + "' " +
-             (datalayer.system.info.can_replay_interface == CANFD_NATIVE ? "selected" : "") + ">CANFD Native</option>";
-  content += "<option value='" + String(CAN_ADDON_MCP2515) + "' " +
-             (datalayer.system.info.can_replay_interface == CAN_ADDON_MCP2515 ? "selected" : "") +
-             ">CAN Addon MCP2515</option>";
-  content += "<option value='" + String(CANFD_ADDON_MCP2518) + "' " +
-             (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518 ? "selected" : "") +
-             ">CANFD Addon MCP2518</option>";
+  // ==========================================
+  // 🎨 CSS & HTML STRUCTURE ( Card UI Style)
+  // ==========================================
+  content += R"rawliteral(
+  <style>
+    .can-wrap { display: flex; flex-direction: column; gap: 20px; }
+    
+    /* --- 🎛️ Cards Style --- */
+    .control-card { background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 20px; }
+    .control-card h3 { margin: 0 0 10px 0; color: #2c3e50; font-size: 1.25rem; font-weight: 800; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    .control-card p { color: #7f8c8d; font-size: 0.9rem; margin-top: 0; margin-bottom: 15px; }
+    
+    .flex-row { display: flex; align-items: center; flex-wrap: wrap; gap: 15px; }
+    
+    select, input[type='file'] { padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; background-color: #f8f9fa; color: #333; font-size: 0.95rem; }
+    
+    /* --- Buttons --- */
+    .btn-cmd { color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 0.95rem; }
+    .btn-cmd:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+    .btn-cmd:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; box-shadow: none; color: #fff; }
+    
+    .btn-blue { background: #3498db; } .btn-blue:hover { background: #2980b9; }
+    .btn-green { background: #2ecc71; } .btn-green:hover { background: #27ae60; }
+    .btn-red { background: #e74c3c; } .btn-red:hover { background: #c0392b; }
+    .btn-purple { background: #9b59b6; } .btn-purple:hover { background: #8e44ad; }
 
-  content += "</select>";
+    /* --- Status Box --- */
+    .status-box { background: #f8f9fa; border: 1px solid #ddd; padding: 10px 15px; border-radius: 6px; font-weight: bold; color: #333; margin-left: auto; }
 
-  // Add a button to submit the selected CAN interface
-  // This function writes the selection to datalayer.system.info.can_replay_interface
-  content += "<button onclick='sendCANSelection()'>Apply</button>";
+    /* --- Modal (Popup) --- */
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(3px); }
+    .modal-content { background-color: #fff; margin: 5% auto; padding: 25px; border-top: 5px solid #3498db; width: 85%; max-width: 800px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 1; margin-top: -5px; }
+    .close-btn:hover { color: #333; }
+    pre.log-preview { background-color: #1e1e1e; padding: 15px; border-radius: 6px; color: #00ff00; max-height: 50vh; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', Courier, monospace; box-shadow: inset 0 0 10px rgba(0,0,0,0.8); }
+    
+    @media (max-width: 768px) { .status-box { margin-left: 0; width: 100%; text-align: center; } }
+  </style>
 
-  content += "<h3>Step 2: Upload CAN Log File</h3>";
-  content += "<p>Click Browse to select a .txt CANdump log file to upload</p>";
-  content += "<input type='file' id='file-input' accept='.txt'>";
-  content += "<button id='upload-btn'>Upload</button>";
+  <div class="can-wrap">
+    
+    <div class="control-card" style="border-top-color: #3498db;">
+      <h3>🔌 Step 1: Select CAN Interface</h3>
+      <p>Select the interface where the replay data should be transmitted.</p>
+      <div class="flex-row">
+        <select id="canInterface">
+          <option value=")rawliteral" +
+             String(CAN_NATIVE) + R"rawliteral(" )rawliteral" + opt_native + R"rawliteral(>CAN Native</option>
+          <option value=")rawliteral" +
+             String(CANFD_NATIVE) + R"rawliteral(" )rawliteral" + opt_fd_native + R"rawliteral(>CANFD Native</option>
+          <option value=")rawliteral" +
+             String(CAN_ADDON_MCP2515) + R"rawliteral(" )rawliteral" + opt_mcp2515 +
+             R"rawliteral(>CAN Addon MCP2515</option>
+          <option value=")rawliteral" +
+             String(CANFD_ADDON_MCP2518) + R"rawliteral(" )rawliteral" + opt_mcp2518 +
+             R"rawliteral(>CANFD Addon MCP2518</option>
+        </select>
+        <button class="btn-cmd btn-blue" onclick="sendCANSelection()">Apply Interface</button>
+      </div>
+    </div>
 
-  content += "<h3>Step 3: Playback control</h3>";
+    <div class="control-card" style="border-top-color: #9b59b6;">
+      <h3>📂 Step 2: Upload CAN Log File</h3>
+      <p>Select a .txt CANdump file. (Max 100KB if no SD Card is present)</p>
+      <div class="flex-row">
+        <input type="file" id="file-input" accept=".txt">
+        <button id="upload-btn" class="btn-cmd btn-purple">📤 Upload File</button>
+        <button id="view-preview-btn" class="btn-cmd btn-blue" style="display:none;" onclick="openModal()">👁️ View Preview</button>
+      </div>
+    </div>
 
-  //Checkbox to see if the user wants the log to repeat once it reaches the end
-  content += "<input type=\"checkbox\" id=\"loopCheckbox\"> Loop ";
+    <div class="control-card" style="border-top-color: #2ecc71;">
+      <h3>▶️ Step 3: Playback Control</h3>
+      <div class="flex-row">
+        <label style="cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="loopCheckbox" style="transform: scale(1.3);"> Loop Playback
+        </label>
+        <button id="start-btn" class="btn-cmd btn-green" onclick="startReplay()">▶️ Start</button>
+        <button id="stop-btn" class="btn-cmd btn-red" onclick="stopReplay()">⏹️ Stop</button>
+        
+        <div class="status-box">
+          Status: <span id="statusIndicator" style="color: #7f8c8d; margin-left: 5px;">Ready</span>
+        </div>
+      </div>
+    </div>
 
-  // Add a button to start playing the log
-  content += "<button onclick='startReplay()'>Start</button> ";
+  </div> <div id="previewModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeModal()">&times;</span>
+      <h3 style="color: #2c3e50; margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">📄 Uploaded Log Preview</h3>
+      <pre id="file-content" class="log-preview">No data uploaded yet.</pre>
+    </div>
+  </div>
 
-  // Add a button to stop playing the log
-  content += "<button onclick='stopReplay()'>Stop</button> ";
+  <script>
+    // Modal Functions
+    function openModal() { document.getElementById('previewModal').style.display = 'block'; }
+    function closeModal() { document.getElementById('previewModal').style.display = 'none'; }
+    window.onclick = function(event) { if (event.target == document.getElementById('previewModal')) closeModal(); };
 
-  // Status indicator
-  content += "<span id='statusIndicator' style='margin-left:10px; font-weight:bold;'>Stopped</span> ";
+    // Elements
+    const fileInput = document.getElementById('file-input');
+    const uploadBtn = document.getElementById('upload-btn');
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const fileContent = document.getElementById('file-content');
+    const viewBtn = document.getElementById('view-preview-btn');
+    const statInd = document.getElementById('statusIndicator');
+    let selectedFile = null;
 
-  content += "<h3>Uploaded Log Preview:</h3>";
-  content += "<pre id='file-content'></pre>";
+    fileInput.addEventListener('change', () => { selectedFile = fileInput.files[0]; });
 
-  content += "<script>";
-  content += "const fileInput = document.getElementById('file-input');";
-  content += "const uploadBtn = document.getElementById('upload-btn');";
-  content += "const fileContent = document.getElementById('file-content');";
-  content += "let selectedFile = null;";
+    function resetUploadUI() {
+      uploadBtn.disabled = false;
+      uploadBtn.innerText = '📤 Upload File';
+      fileInput.disabled = false;
+      startBtn.disabled = false;
+      stopBtn.disabled = false;
+      statInd.innerText = 'Ready';
+      statInd.style.color = '#7f8c8d';
+    }
 
-  content += "fileInput.addEventListener('change', () => { selectedFile = fileInput.files[0]; });";
+    uploadBtn.addEventListener('click', () => {
+      if (!selectedFile) { alert('Please select a file first!'); return; }
+      
+      if (selectedFile.size > 102400) {
+        if (!confirm('Warning: File is larger than 100KB!\n\nIf you do NOT have an SD Card inserted, the server will reject this upload to protect system memory.\n\nContinue?')) return;
+      }
 
-  content += "uploadBtn.addEventListener('click', () => {";
-  content += "if (!selectedFile) { alert('Please select a file first!'); return; }";
-  content += "const formData = new FormData();";
-  content += "formData.append('file', selectedFile);";
-  content += "const xhr = new XMLHttpRequest();";
-  content += "xhr.open('POST', '/import_can_log', true);";
-  content +=
-      "xhr.onload = () => { if (xhr.status === 200) { alert('File uploaded successfully!'); const reader = new "
-      "FileReader(); reader.onload = function (e) { fileContent.textContent = e.target.result; }; "
-      "reader.readAsText(selectedFile); } else { alert('Upload failed! Server error.'); }};";
-  content += "xhr.send(formData);";
-  content += "});";
-  content += "</script>";
+      uploadBtn.disabled = true;
+      fileInput.disabled = true;
+      startBtn.disabled = true;
+      stopBtn.disabled = true;
+      viewBtn.style.display = 'none';
+      uploadBtn.innerText = '⏳ Uploading...';
+      statInd.innerText = 'Uploading...';
+      statInd.style.color = '#f39c12';
+      fileContent.textContent = 'Loading preview...';
 
-  content += "</div>";
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/import_can_log', true);
+      
+      xhr.onload = () => {
+        resetUploadUI();
+        if (xhr.status === 200) {
+          alert('✅ File uploaded successfully!');
+          viewBtn.style.display = 'inline-block';
+          const reader = new FileReader();
+          reader.onload = function (e) { 
+            let text = e.target.result;
+            if(selectedFile.size > 5000) text += '\n\n... [Preview Truncated to prevent Browser lag] ...';
+            fileContent.textContent = text;
+          };
+          reader.readAsText(selectedFile.slice(0, 5000));
+        } else if (xhr.status === 400) {
+          alert('❌ Upload Rejected: ' + xhr.responseText);
+          fileContent.textContent = 'Upload failed: ' + xhr.responseText;
+        } else {
+          alert('❌ Upload failed! Server returned code ' + xhr.status);
+          fileContent.textContent = 'Error during upload. Check server logs.';
+        }
+      };
+      
+      xhr.onerror = () => {
+        resetUploadUI();
+        alert('❌ Network error during upload.');
+        fileContent.textContent = 'Network disconnected or board restarted.';
+      };
+      
+      xhr.send(formData);
+    });
 
-  // Add JavaScript for updating status
-  content += "<script>";
-  content += "function startReplay() {";
-  content += "  let loop = document.getElementById('loopCheckbox').checked ? 1 : 0;";
-  content += "  fetch('/startReplay?loop=' + loop, { method: 'GET' })";
-  content += "    .then(response => response.text())";
-  content += "    .then(data => {";
-  content += "      console.log(data);";
-  content += "      document.getElementById('statusIndicator').innerText = 'Running...';";
-  content += "      document.getElementById('statusIndicator').style.color = 'green';";
-  content += "      if (loop === 0) {";  // If loop is not checked
-  content += "        setTimeout(() => {";
-  content += "          document.getElementById('statusIndicator').innerText = 'Completed';";
-  content += "          document.getElementById('statusIndicator').style.color = 'white';";
-  content += "        }, 5000);";  // 5-second timeout before reverting the text
-  content += "      }";
-  content += "    })";
-  content += "    .catch(error => console.error('Error:', error));";
-  content += "}";
-  content += "function stopReplay() {";
-  content += "  fetch('/stopReplay', { method: 'GET' })";
-  content += "    .then(response => response.text())";
-  content += "    .then(data => {";
-  content += "      console.log(data);";
-  content += "      document.getElementById('statusIndicator').innerText = 'Stopped';";
-  content += "      document.getElementById('statusIndicator').style.color = 'red';";
-  content += "    })";
-  content += "    .catch(error => console.error('Error:', error));";
-  content += "}";
-  content += "function sendCANSelection() {";
-  content += "  var selectedInterface = document.getElementById('canInterface').value;";
-  content += "  var xhr = new XMLHttpRequest();";
-  content += "  xhr.open('GET', '/setCANInterface?interface=' + selectedInterface, true);";
-  content += "  xhr.onreadystatechange = function() {";
-  content += "    if (xhr.readyState === 4) {";
-  content += "      if (xhr.status === 200) {";
-  content += "        alert('Success: ' + xhr.responseText);";
-  content += "      } else {";
-  content += "        alert('Error: ' + xhr.responseText);";
-  content += "      }";
-  content += "    }";
-  content += "  };";
-  content += "  xhr.send();";
-  content += "}";
-  content += "function home() { window.location.href = '/'; }";
-  content += "</script>";
-  content += index_html_footer;
+    // Playback Logic
+    function startReplay() {
+      let loop = document.getElementById('loopCheckbox').checked ? 1 : 0;
+      fetch('/startReplay?loop=' + loop, { method: 'GET' })
+        .then(response => response.text())
+        .then(data => {
+          statInd.innerText = '▶️ Running';
+          statInd.style.color = '#2ecc71';
+          if (loop === 0) {
+            setTimeout(() => {
+              statInd.innerText = '✅ Completed';
+              statInd.style.color = '#7f8c8d';
+            }, 5000);
+          }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function stopReplay() {
+      fetch('/stopReplay', { method: 'GET' })
+        .then(response => response.text())
+        .then(data => {
+          statInd.innerText = '⏹️ Stopped';
+          statInd.style.color = '#e74c3c';
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function sendCANSelection() {
+      var selectedInterface = document.getElementById('canInterface').value;
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/setCANInterface?interface=' + selectedInterface, true);
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) { alert('✅ Success: Interface Updated'); }
+          else { alert('❌ Error: ' + xhr.responseText); }
+        }
+      };
+      xhr.send();
+    }
+  </script>
+  )rawliteral";
+
+  content += String(index_html_footer);
   return content;
 }

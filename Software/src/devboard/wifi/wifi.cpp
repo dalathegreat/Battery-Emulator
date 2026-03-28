@@ -4,6 +4,9 @@
 #ifndef SMALL_FLASH_DEVICE
 #include <ESPmDNS.h>
 #endif
+#include <time.h>
+#include "../i2c/i2c_devices.h"
+#include "esp_sntp.h"
 
 bool wifi_enabled = true;
 bool wifiap_enabled = true;
@@ -180,8 +183,8 @@ void connectToWiFi() {
     if (wifi_channel > 14) {
       wifi_channel = 0;
     }  //prevent users going out of bounds
-    DEBUG_PRINTF("Connecting to Wi-Fi SSID: %s, password: %s, Channel: %d\n", ssid.c_str(), password.c_str(),
-                 wifi_channel);
+    // DEBUG_PRINTF("Connecting to Wi-Fi SSID: %s, password: %s, Channel: %d\n", ssid.c_str(), password.c_str(), wifi_channel);
+    DEBUG_PRINTF("Connecting to Wi-Fi SSID: %s, Channel: %d\n", ssid.c_str(), wifi_channel);
     WiFi.begin(ssid.c_str(), password.c_str(), wifi_channel);
   } else {
     logging.println("Wi-Fi already connected.");
@@ -202,6 +205,31 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   clear_event(EVENT_WIFI_CONNECT);
 }
 
+// This function will be called automatically when time synchronization is successful (runs in the background, does not interfere with the main system)
+void timeavailable_cb(struct timeval* t) {
+  logging.println("NTP Time Synced Successfully!");
+  updateRTCFromSystemTime();
+  // The ESP32's time system has been updated. You can use getLocalTime() to display it on the screen.
+}
+
+// Call this function only once when the WiFi connection is successfully established.
+void init_safe_ntp() {
+  static bool ntp_initialized = false;  // Flag, Prevent duplicate setup
+
+  if (ntp_initialized) {
+    return;  // Jump if initialized
+  }
+  const long gmtOffset_sec = 25200;          //  GMT+7
+  const int daylightOffset_sec = 0;          // Daylight saving time
+  const char* ntpServer1 = "pool.ntp.org";   // Time server
+  const char* ntpServer2 = "time.nist.gov";  // Time server
+
+  sntp_set_time_sync_notification_cb(timeavailable_cb);
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2);
+  ntp_initialized = true;
+  logging.println("NTP Sync started in background...");
+}
+
 // Event handler for Wi-Fi Got IP
 void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   //clear disconnects events if we got a IP
@@ -209,6 +237,9 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   logging.print("Wi-Fi Got IP. ");
   logging.print("IP address: ");
   logging.println(WiFi.localIP().toString());
+
+  init_safe_ntp();
+  logging.println("NTP Time Sync requested (Timezone: GMT+7).");
 }
 
 // Event handler for Wi-Fi disconnection
@@ -252,6 +283,6 @@ void init_WiFi_AP() {
 
   WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
   IPAddress IP = WiFi.softAPIP();
-
+  WiFi.setSleep(false);
   DEBUG_PRINTF("Access Point created.\nIP address: %s\n", IP.toString().c_str());
 }

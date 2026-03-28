@@ -45,6 +45,16 @@ bool init_precharge_control() {
   pinMode(inverter_disconnect_contactor_pin, OUTPUT);
   digitalWrite(inverter_disconnect_contactor_pin, LOW);
 
+  // Prevent the board from freezing by checking first whether the pins are actually present.
+  if (hia4v1_pin != GPIO_NUM_NC) {
+    pinMode(hia4v1_pin, OUTPUT);
+    digitalWrite(hia4v1_pin, LOW);
+  }
+  if (inverter_disconnect_contactor_pin != GPIO_NUM_NC) {
+    pinMode(inverter_disconnect_contactor_pin, OUTPUT);
+    digitalWrite(inverter_disconnect_contactor_pin, LOW);
+  }
+
   DEBUG_PRINTF("Precharge control setup successful\n");
   return true;
 }
