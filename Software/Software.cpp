@@ -231,8 +231,7 @@ void update_calculated_values(unsigned long currentMillis) {
   /* Calculate allowed charge/discharge currents*/
   if (datalayer.battery.status.voltage_dV > 10) {
     // Only update value when we have voltage available to avoid div0. TODO: This should be based on nominal voltage
-    int32_t target_charge =
-        ((datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV);
+    int32_t target_charge = ((datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV);
     int32_t target_discharge =
         ((datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV);
 
