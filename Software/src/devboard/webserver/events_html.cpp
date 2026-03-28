@@ -85,7 +85,7 @@ String events_processor(const String& var) {
     content += "<script>";
     content += "setTimeout(function(){ location.reload(true); }, 5000);";
     content += "</script>";
-    
+
     //clear the vector
     order_events.clear();
     content.concat(FPSTR(EVENTS_HTML_END));
