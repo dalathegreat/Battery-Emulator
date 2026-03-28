@@ -1,4 +1,5 @@
 #include "BMW-IX-BATTERY.h"
+#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
@@ -448,12 +449,13 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
 
   // Calculate charge power limit based on multiple factors, taking the lowest value
 
-  // Factor 1: SOC-based limiting (linear ramp from RAMPDOWN_SOC to 100%)
+  // Factor 1: SOC-based limiting (linear ramp from user_set_rampdown_SOC (Defined in webserver) to 100%)
   int max_charge_power_soc = datalayer.battery.status.override_charge_power_W;
-  if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
+  if (datalayer.battery.status.real_soc > user_set_rampdown_SOC) {
     // When real SOC is above RAMPDOWN_SOC, ramp the value linearly down to 0W at 100%
-    max_charge_power_soc = datalayer.battery.status.override_charge_power_W *
-                           (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
+    max_charge_power_soc =
+        datalayer.battery.status.override_charge_power_W *
+        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
     // Ensure we never go negative (in case SOC exceeds 100%)
     if (max_charge_power_soc < 0) {
       max_charge_power_soc = 0;

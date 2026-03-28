@@ -34,10 +34,8 @@ class RelionBattery : public CanBattery {
   static const int MAX_CELL_VOLTAGE_MV = 3750;
   static const int MIN_CELL_VOLTAGE_MV = 2800;
 
-  static const int RAMPDOWN_SOC = 900;  // 90.0 SOC% to start ramping down from max charge power towards 0 at 100.00%
-  static const int RAMPDOWNPOWERALLOWED = 1000;  // What power we ramp down from towards top balancing
-  static const int FLOAT_MAX_POWER_W = 150;      // W, what power to allow for top balancing battery
-  static const int FLOAT_START_MV = 20;          // mV, how many mV under overvoltage to start float charging
+  static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 150;  // W, what power to allow for top balancing battery
+  static const int FLOAT_START_MV = 20;  // mV, how many mV under overvoltage to start float charging
 
   const uint16_t SOC[101] = {10000, 9900, 9800, 9700, 9600, 9500, 9400, 9300, 9200, 9100, 9000, 8900, 8800, 8700, 8600,
                              8500,  8400, 8300, 8200, 8100, 8000, 7900, 7800, 7700, 7600, 7500, 7400, 7300, 7200, 7100,
