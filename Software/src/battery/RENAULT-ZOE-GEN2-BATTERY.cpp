@@ -346,7 +346,7 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           battery_fan_duty = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_TEMPORISATION:
-          battery_temporisation = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery_temporisation = rx_frame.data.u8[4] >> 7;
           break;
         case POLL_TIME:
           battery_time = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
