@@ -230,9 +230,23 @@ struct DATALAYER_INFO_CELLPOWER {
   bool warning_Charger_not_responding = false;
 };
 
+enum ChademoStopReason {
+  BATTERY_VOLTAGE,
+  EV_REQUEST,
+  EVSE_SUSPENDED,
+  VEHICLE_FAULT,
+  EVSE_FAULT,
+  SHIFTER_POSITION,
+  UNPLUGGED,
+  USER_REQUESTED,
+  OTHER
+};
+
 struct DATALAYER_INFO_CHADEMO {
   uint8_t CHADEMO_Status = 0;
   uint8_t ControlProtocolNumberEV = 0;
+  uint8_t CurrentRequested = 0;
+  float VoltageRequested = 0;
   bool UserRequestRestart = false;
   bool UserRequestStop = false;
   bool FaultBatteryVoltageDeviation = false;
@@ -240,6 +254,11 @@ struct DATALAYER_INFO_CHADEMO {
   bool FaultBatteryCurrentDeviation = false;
   bool FaultBatteryUnderVoltage = false;
   bool FaultBatteryOverVoltage = false;
+  bool ConnectionCheckStatus = false;
+  bool D1Status = false;
+  bool D2Status = false;
+  bool ChargeEnableStatus = false;
+  ChademoStopReason StopReason = OTHER;
 };
 
 struct DATALAYER_INFO_CMFAEV {

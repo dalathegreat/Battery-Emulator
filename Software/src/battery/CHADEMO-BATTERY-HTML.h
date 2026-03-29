@@ -9,6 +9,14 @@ class ChademoBatteryHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
+    content += "<h4>Vehicle current requested: " + String(datalayer_extended.chademo.CurrentRequested) + " A</h4>";
+    content += "<h4>Vehicle voltage requested: " + String(datalayer_extended.chademo.VoltageRequested) + " V</h4>";
+    content += "<h4>Pin 7 Connection Check Status: " +
+               String(datalayer_extended.chademo.ConnectionCheckStatus ? "Connected" : "Disconnected") + "</h4>";
+    content += "<h4>Pin 2 D1 Status: " + String(datalayer_extended.chademo.D1Status ? "On" : "Off") + "</h4>";
+    content += "<h4>Pin 4 Charge Enable Status: " +
+               String(datalayer_extended.chademo.ChargeEnableStatus ? "Enabled" : "Disabled") + "</h4>";
+    content += "<h4>Pin 10 D2 Status: " + String(datalayer_extended.chademo.D2Status ? "On" : "Off") + "</h4>";
     content += "<h4>Chademo state: ";
     switch (datalayer_extended.chademo.CHADEMO_Status) {
       case 0:
@@ -44,6 +52,9 @@ class ChademoBatteryHtmlRenderer : public BatteryHtmlRenderer {
       case 10:
         content += String("POWERFLOW</h4>");
         break;
+      case 11:
+        content += String("POWERFLOW SUSPENDED</h4>");
+        break;
       default:
         content += String("Unknown</h4>");
         break;
@@ -63,6 +74,40 @@ class ChademoBatteryHtmlRenderer : public BatteryHtmlRenderer {
     if (datalayer_extended.chademo.FaultHighBatteryTemperature) {
       content += "<h4>FAULT: Battery Temperature</h4>";
     }
+
+    // report stop reason if we are in STOP state
+    if (datalayer_extended.chademo.CHADEMO_Status == 1) {
+      content += "<h4>Stop reason: ";
+      switch (datalayer_extended.chademo.StopReason) {
+        case EV_REQUEST:
+          content += "EV requested";
+          break;
+        case BATTERY_VOLTAGE:
+          content += "Battery voltage";
+          break;
+        case VEHICLE_FAULT:
+          content += "Vehicle fault";
+          break;
+        case EVSE_FAULT:
+          content += "EVSE fault";
+          break;
+        case SHIFTER_POSITION:
+          content += "Shifter position";
+          break;
+        case USER_REQUESTED:
+          content += "User requested";
+          break;
+        case UNPLUGGED:
+          content += "Unplugged";
+          break;
+        case OTHER:
+        default:
+          content += "Other";
+          break;
+      }
+      content += "</h4>";
+    }
+
     content += "<h4>Protocol: " + String(datalayer_extended.chademo.ControlProtocolNumberEV) + "</h4>";
 
     //Script for refreshing page
