@@ -86,6 +86,12 @@ void RenaultZoeGen2Battery::update_values() {
     }
   }
 
+  if (battery_slave_failures > 0) {
+    set_event(EVENT_BATTERY_CAUTION, 0);
+  } else {
+    clear_event(EVENT_BATTERY_CAUTION);
+  }
+
   // Update webserver datalayer
   datalayer_extended.zoePH2.battery_soc = battery_soc;
   datalayer_extended.zoePH2.battery_usable_soc = battery_usable_soc;
@@ -328,7 +334,8 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           battery_energy_partial = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_SLAVE_FAILURES:
-          battery_slave_failures = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery_slave_failures = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
+                                    (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
           break;
         case POLL_MILEAGE:
           battery_mileage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];

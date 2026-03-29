@@ -228,7 +228,7 @@ class RenaultZoeGen2Battery : public CanBattery {
   uint16_t battery_balance_switches = 0;
   uint16_t battery_energy_complete = 0;
   uint16_t battery_energy_partial = 0;
-  uint16_t battery_slave_failures = 0;
+  uint32_t battery_slave_failures = 0;
   uint16_t battery_mileage = 0;
   uint16_t battery_fan_speed = 0;
   uint16_t battery_fan_period = 0;
