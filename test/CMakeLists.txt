@@ -75,6 +75,7 @@ add_executable(tests
     battery/still_alive_tests.cpp
     can_log_based/canlog_safety_tests.cpp
     utils/utils.cpp
+    ../Software/src/core/parallel_safety.cpp
     ../Software/src/communication/can/obd.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
