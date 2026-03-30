@@ -318,13 +318,13 @@ void update_calculated_values(unsigned long currentMillis) {
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling
    * A static version of a stochastic oscillator. The scaled SoC is calculated as:
-   * 
+   *
    *     10000 * (real_soc - min_percentage)
    * ---------------------------------------
    *     (max_percentage - min_percentage)
-   * 
+   *
    * And scaled capacity is:
-   * 
+   *
    *     reported_total_capacity_Wh = total_capacity_Wh * (max - min) / 10000
    *     reported_remaining_capacity_Wh = reported_total_capacity_Wh * scaled_soc / 10000
    */

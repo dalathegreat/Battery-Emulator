@@ -79,75 +79,77 @@ static uint16_t estimateSOC(uint16_t cellVoltage) {  // Linear interpolation fun
 
 void BoltAmperaBattery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
 
-  datalayer.battery.status.real_soc = estimateSOC(battery_cell_voltage_max_mV);  //TODO, this is bad and barely works
+  datalayer_battery->status.real_soc = estimateSOC(battery_cell_voltage_max_mV);  //TODO, this is bad and barely works
 
-  datalayer.battery.status.voltage_dV = battery_voltage_periodic_dV;
+  datalayer_battery->status.voltage_dV = battery_voltage_periodic_dV;
 
-  datalayer.battery.status.current_dA = (sensed_current_sensor_1 * 0.2);  //TODO: Is sensor 1 OK?
+  datalayer_battery->status.current_dA = (sensed_current_sensor_1 * 0.2);  //TODO: Is sensor 1 OK?
 
-  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  datalayer.battery.status.soh_pptt = 9900;
+  datalayer_battery->status.soh_pptt = 9900;
 
   // Charge power is set in .h file (TODO: Remove this estimation when real value has been found)
-  if (datalayer.battery.status.real_soc > 9900) {
-    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
-  } else if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
+  if (datalayer_battery->status.real_soc > 9900) {
+    datalayer_battery->status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
+  } else if (datalayer_battery->status.real_soc > RAMPDOWN_SOC) {
     // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
-    datalayer.battery.status.max_charge_power_W =
-        datalayer.battery.status.override_charge_power_W *
-        (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
+    datalayer_battery->status.max_charge_power_W =
+        datalayer_battery->status.override_charge_power_W *
+        (1 - (datalayer_battery->status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
   } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
+    datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
   }
 
   // Discharge power is also set in .h file (TODO: Remove this estimation when real value has been found)
-  datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
+  datalayer_battery->status.max_discharge_power_W = datalayer_battery->status.override_discharge_power_W;
 
-  datalayer.battery.status.temperature_min_dC = temperature_lowest_C * 10;
+  datalayer_battery->status.temperature_min_dC = temperature_lowest_C * 10;
 
-  datalayer.battery.status.temperature_max_dC = temperature_highest_C * 10;
+  datalayer_battery->status.temperature_max_dC = temperature_highest_C * 10;
 
   //Map all cell voltages to the global array
-  memcpy(datalayer.battery.status.cell_voltages_mV, cellblock_voltage, 96 * sizeof(uint16_t));
+  memcpy(datalayer_battery->status.cell_voltages_mV, cellblock_voltage, 96 * sizeof(uint16_t));
 
-  datalayer.battery.status.cell_max_voltage_mV = battery_cell_voltage_max_mV;
+  datalayer_battery->status.cell_max_voltage_mV = battery_cell_voltage_max_mV;
 
-  datalayer.battery.status.cell_min_voltage_mV = battery_cell_voltage_min_mV;
+  datalayer_battery->status.cell_min_voltage_mV = battery_cell_voltage_min_mV;
 
   // Update webserver datalayer
-  datalayer_extended.boltampera.battery_5V_ref = battery_5V_ref;
-  datalayer_extended.boltampera.battery_module_temp_1 = battery_module_temp_1;
-  datalayer_extended.boltampera.battery_module_temp_2 = battery_module_temp_2;
-  datalayer_extended.boltampera.battery_module_temp_3 = battery_module_temp_3;
-  datalayer_extended.boltampera.battery_module_temp_4 = battery_module_temp_4;
-  datalayer_extended.boltampera.battery_module_temp_5 = battery_module_temp_5;
-  datalayer_extended.boltampera.battery_module_temp_6 = battery_module_temp_6;
-  datalayer_extended.boltampera.battery_cell_average_voltage = battery_cell_average_voltage;
-  datalayer_extended.boltampera.battery_cell_average_voltage_2 = battery_cell_average_voltage_2;
-  datalayer_extended.boltampera.battery_terminal_voltage = battery_terminal_voltage;
-  datalayer_extended.boltampera.battery_ignition_power_mode = battery_ignition_power_mode;
-  datalayer_extended.boltampera.battery_current_7E7 = battery_current_7E7;
-  datalayer_extended.boltampera.battery_capacity_my17_18 = battery_capacity_my17_18;
-  datalayer_extended.boltampera.battery_capacity_my19plus = battery_capacity_my19plus;
-  datalayer_extended.boltampera.battery_SOC_display = battery_SOC_display;
-  datalayer_extended.boltampera.battery_SOC_raw_highprec = battery_SOC_raw_highprec;
-  datalayer_extended.boltampera.battery_max_temperature = battery_max_temperature;
-  datalayer_extended.boltampera.battery_min_temperature = battery_min_temperature;
-  datalayer_extended.boltampera.battery_min_cell_voltage = battery_min_cell_voltage;
-  datalayer_extended.boltampera.battery_max_cell_voltage = battery_max_cell_voltage;
-  datalayer_extended.boltampera.battery_lowest_cell = battery_lowest_cell;
-  datalayer_extended.boltampera.battery_highest_cell = battery_highest_cell;
-  datalayer_extended.boltampera.battery_internal_resistance = battery_internal_resistance;
-  datalayer_extended.boltampera.battery_voltage_polled = battery_voltage_polled;
-  datalayer_extended.boltampera.battery_vehicle_isolation = battery_vehicle_isolation;
-  datalayer_extended.boltampera.battery_isolation_kohm = battery_isolation_kohm;
-  datalayer_extended.boltampera.battery_HV_locked = battery_HV_locked;
-  datalayer_extended.boltampera.battery_crash_event = battery_crash_event;
-  datalayer_extended.boltampera.battery_HVIL = battery_HVIL;
-  datalayer_extended.boltampera.battery_HVIL_status = battery_HVIL_status;
-  datalayer_extended.boltampera.battery_current_7E4 = battery_current_7E4;
+  if (datalayer_boltampera) {
+    datalayer_boltampera->battery_5V_ref = battery_5V_ref;
+    datalayer_boltampera->battery_module_temp_1 = battery_module_temp_1;
+    datalayer_boltampera->battery_module_temp_2 = battery_module_temp_2;
+    datalayer_boltampera->battery_module_temp_3 = battery_module_temp_3;
+    datalayer_boltampera->battery_module_temp_4 = battery_module_temp_4;
+    datalayer_boltampera->battery_module_temp_5 = battery_module_temp_5;
+    datalayer_boltampera->battery_module_temp_6 = battery_module_temp_6;
+    datalayer_boltampera->battery_cell_average_voltage = battery_cell_average_voltage;
+    datalayer_boltampera->battery_cell_average_voltage_2 = battery_cell_average_voltage_2;
+    datalayer_boltampera->battery_terminal_voltage = battery_terminal_voltage;
+    datalayer_boltampera->battery_ignition_power_mode = battery_ignition_power_mode;
+    datalayer_boltampera->battery_current_7E7 = battery_current_7E7;
+    datalayer_boltampera->battery_capacity_my17_18 = battery_capacity_my17_18;
+    datalayer_boltampera->battery_capacity_my19plus = battery_capacity_my19plus;
+    datalayer_boltampera->battery_SOC_display = battery_SOC_display;
+    datalayer_boltampera->battery_SOC_raw_highprec = battery_SOC_raw_highprec;
+    datalayer_boltampera->battery_max_temperature = battery_max_temperature;
+    datalayer_boltampera->battery_min_temperature = battery_min_temperature;
+    datalayer_boltampera->battery_min_cell_voltage = battery_min_cell_voltage;
+    datalayer_boltampera->battery_max_cell_voltage = battery_max_cell_voltage;
+    datalayer_boltampera->battery_lowest_cell = battery_lowest_cell;
+    datalayer_boltampera->battery_highest_cell = battery_highest_cell;
+    datalayer_boltampera->battery_internal_resistance = battery_internal_resistance;
+    datalayer_boltampera->battery_voltage_polled = battery_voltage_polled;
+    datalayer_boltampera->battery_vehicle_isolation = battery_vehicle_isolation;
+    datalayer_boltampera->battery_isolation_kohm = battery_isolation_kohm;
+    datalayer_boltampera->battery_HV_locked = battery_HV_locked;
+    datalayer_boltampera->battery_crash_event = battery_crash_event;
+    datalayer_boltampera->battery_HVIL = battery_HVIL;
+    datalayer_boltampera->battery_HVIL_status = battery_HVIL_status;
+    datalayer_boltampera->battery_current_7E4 = battery_current_7E4;
+  }
 }
 
 void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -155,7 +157,7 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   uint8_t cellblock_index = 0;
   switch (rx_frame.ID) {
     case 0x200:  //High voltage Battery Cell Voltage Matrix 1
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       cellbank_mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //Goes from 0-7
       cellblock_index = cellbank_mux * 3;
       cellblock_voltage[cellblock_index] =
@@ -166,7 +168,7 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25f;
       break;
     case 0x202:  //High voltage Battery Cell Voltage Matrix 2
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       cellbank_mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       cellblock_index = 24 + (cellbank_mux * 3);
       cellblock_voltage[cellblock_index] =
@@ -177,7 +179,7 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25f;
       break;
     case 0x204:  //High voltage Battery Cell Voltage Matrix 3
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       cellbank_mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       cellblock_index = 48 + (cellbank_mux * 3);
       cellblock_voltage[cellblock_index] =
@@ -188,7 +190,7 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25f;
       break;
     case 0x206:  //High voltage Battery Cell Voltage Matrix 4
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       cellbank_mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       cellblock_index = 72 + (cellbank_mux * 3);
       cellblock_voltage[cellblock_index] =
@@ -199,48 +201,48 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           (((rx_frame.data.u8[4]) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 1.25f;
       break;
     case 0x208:  //High voltage Battery Cell Voltage Matrix 5 (Empty on most packs)
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       cellbank_mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       break;
     case 0x20A:  //VICM Status HV
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x20C:  //VITM Status HV
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_isolation_kohm = (rx_frame.data.u8[1] * 25);
       battery_cell_voltage_max_mV = (rx_frame.data.u8[4] * 20);
       battery_cell_voltage_min_mV = (rx_frame.data.u8[5] * 20);
       break;
     case 0x216:  // High voltage battery sensed Output HV
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       sensed_battery_voltage_mV = (((rx_frame.data.u8[1] & 0x0F) << 4) | rx_frame.data.u8[2]) * 125;  //mV
       sensed_current_sensor_1 = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]);
       sensed_current_sensor_2 = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
       break;
     case 0x2C7:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_voltage_periodic_dV = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[4] >> 4)) * 1.25;
       /*355V 2C7 [6] 03 20 00 AF A0 00
       360V 2C7 [6] 03 20 00 AD D0 00
       396V 2C7 [6] 03 20 53 C7 30 00*/
       break;
     case 0x260:  //VITM Diagnostic Status 1 HV (Contains which DTCs are active)
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x262:  //Battery block voltage diagnostic status
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x270:  //Battery VoltageSensor BalancingSwitches diagnostic status
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x272:  //Battery Cell Voltage Diagnostic Status HV
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x274:  //Battery Temperature Sensor diagnostic status HV
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x302:  // High Voltage Battery Temperature Matrix
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       temperature_1 = ((rx_frame.data.u8[1] / 2) - 40);  //Module 1 Temperature
       temperature_2 = ((rx_frame.data.u8[2] / 2) - 40);  //Module 2 Temperature
       temperature_3 = ((rx_frame.data.u8[3] / 2) - 40);  //Module 3 Temperature
@@ -251,26 +253,26 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //since we only care about min and max temps (from message 3E3)
       break;
     case 0x308:  //24 92 49 24 90
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x3E3:  //Min and maximum values
       //Frame0 is cellvoltage min * 20
       //Frame1 is cellvoltage max * 20
       //Frame7 is cellvoltage avg * 20
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       temperature_lowest_C = ((rx_frame.data.u8[2] / 2) - 40);
       temperature_highest_C = ((rx_frame.data.u8[4] / 2) - 40);
       break;
     case 0x460:  //Energy Storage System Temp HV
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       inlet_coolant_temperature = ((((rx_frame.data.u8[0] & 0x03) << 8) | rx_frame.data.u8[1]) / 2) - 40;
       outlet_coolant_temperature = ((((rx_frame.data.u8[2] & 0x03) << 8) | rx_frame.data.u8[3]) / 2) - 40;
       break;
     case 0x5EF:  //OBD7E7 Unsolicited tester responce (UUDT)
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x5EC:  //OBD7E4 Unsolicited tester responce (ECU to tester)
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EC:  //When polling 7E4 BMS replies with 7EC (This is not working for some reason)
 
@@ -449,12 +451,14 @@ void BoltAmperaBattery::transmit_can(unsigned long currentMillis) {
 void BoltAmperaBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.number_of_cells = 96;
-  datalayer.battery.info.total_capacity_Wh = 64000;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  datalayer.system.status.battery_allows_contactor_closing = true;
+  datalayer_battery->info.number_of_cells = 96;
+  datalayer_battery->info.total_capacity_Wh = 64000;
+  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  if (allows_contactor_closing) {
+    *allows_contactor_closing = true;
+  }
 }
