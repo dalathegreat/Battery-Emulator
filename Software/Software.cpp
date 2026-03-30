@@ -15,6 +15,7 @@
 #include "src/communication/nvm/comm_nvm.h"
 #include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
+#include "src/core/parallel_safety.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
 #include "src/devboard/espnow/espnow.h"
@@ -30,7 +31,6 @@
 #include "src/devboard/utils/watchdog.h"
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"
-#include "src/core/parallel_safety.h"
 #include "src/inverter/INVERTERS.h"
 
 #if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
@@ -145,8 +145,6 @@ void logging_loop(void*) {
   // Delete the logging task only if SD failed to initialize to prevent panic.
   vTaskDelete(NULL);
 }
-
-
 
 void update_calculated_values(unsigned long currentMillis) {
   /* Update CPU temperature*/

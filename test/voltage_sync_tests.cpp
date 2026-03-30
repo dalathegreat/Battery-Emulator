@@ -10,8 +10,8 @@ class VoltageSyncTest : public ::testing::Test {
     init_events();
     // Reset datalayer to known state
     datalayer.battery.status.voltage_dV = 3700;   // 370.0V
-    datalayer.battery2.status.voltage_dV = 3700;   // 370.0V
-    datalayer.battery3.status.voltage_dV = 3700;   // 370.0V
+    datalayer.battery2.status.voltage_dV = 3700;  // 370.0V
+    datalayer.battery3.status.voltage_dV = 3700;  // 370.0V
     datalayer.battery.status.bms_status = ACTIVE;
     datalayer.system.status.battery2_allowed_contactor_closing = true;
     datalayer.system.status.battery3_allowed_contactor_closing = true;
@@ -30,8 +30,8 @@ TEST_F(VoltageSyncTest, Battery2AllowedWhenVoltagesInSync) {
 
 // Test: When voltage drifts >1.5V, battery2 should be disconnected after 10 seconds
 TEST_F(VoltageSyncTest, Battery2DisconnectedAfterVoltageDriftTimeout) {
-  datalayer.battery.status.voltage_dV = 3700;    // 370.0V
-  datalayer.battery2.status.voltage_dV = 3500;   // 350.0V — 20V difference, way over 1.5V
+  datalayer.battery.status.voltage_dV = 3700;   // 370.0V
+  datalayer.battery2.status.voltage_dV = 3500;  // 350.0V — 20V difference, way over 1.5V
 
   // Simulate 10 seconds of calls (function called once per second)
   for (int i = 0; i < 10; i++) {
