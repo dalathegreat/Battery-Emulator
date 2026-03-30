@@ -969,6 +969,7 @@ struct DATALAYER_INFO_ZOE_PH2 {
 class DataLayerExtended {
  public:
   DATALAYER_INFO_BOLTAMPERA boltampera;
+  DATALAYER_INFO_BOLTAMPERA boltampera_2;
   DATALAYER_INFO_BMWPHEV bmwphev;
   DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
