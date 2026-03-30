@@ -1,9 +1,9 @@
 #ifndef BOLT_AMPERA_BATTERY_H
 #define BOLT_AMPERA_BATTERY_H
-#include "BOLT-AMPERA-HTML.h"
-#include "CanBattery.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
+#include "BOLT-AMPERA-HTML.h"
+#include "CanBattery.h"
 
 class BoltAmperaBattery : public CanBattery {
  public:
@@ -15,8 +15,7 @@ class BoltAmperaBattery : public CanBattery {
   }
 
   // Second battery constructor
-  BoltAmperaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_BOLTAMPERA* extended,
-                    CAN_Interface targetCan)
+  BoltAmperaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_BOLTAMPERA* extended, CAN_Interface targetCan)
       : CanBattery(targetCan), renderer(extended) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = nullptr;

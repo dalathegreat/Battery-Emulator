@@ -22,13 +22,10 @@ class BoltAmperaHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Module 4 temp: " + String(boltampera_dl->battery_module_temp_4) + "</h4>";
     content += "<h4>Module 5 temp: " + String(boltampera_dl->battery_module_temp_5) + "</h4>";
     content += "<h4>Module 6 temp: " + String(boltampera_dl->battery_module_temp_6) + "</h4>";
-    content +=
-        "<h4>Cell average voltage: " + String(boltampera_dl->battery_cell_average_voltage) + "</h4>";
-    content +=
-        "<h4>Cell average voltage 2: " + String(boltampera_dl->battery_cell_average_voltage_2) + "</h4>";
+    content += "<h4>Cell average voltage: " + String(boltampera_dl->battery_cell_average_voltage) + "</h4>";
+    content += "<h4>Cell average voltage 2: " + String(boltampera_dl->battery_cell_average_voltage_2) + "</h4>";
     content += "<h4>Terminal voltage: " + String(boltampera_dl->battery_terminal_voltage) + "</h4>";
-    content +=
-        "<h4>Ignition power mode: " + String(boltampera_dl->battery_ignition_power_mode) + "</h4>";
+    content += "<h4>Ignition power mode: " + String(boltampera_dl->battery_ignition_power_mode) + "</h4>";
     content += "<h4>Battery current (7E7): " + String(boltampera_dl->battery_current_7E7) + "</h4>";
     content += "<h4>Capacity MY17-18: " + String(boltampera_dl->battery_capacity_my17_18) + "</h4>";
     content += "<h4>Capacity MY19+: " + String(boltampera_dl->battery_capacity_my19plus) + "</h4>";
@@ -40,8 +37,7 @@ class BoltAmperaHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Cell min mV: " + String(boltampera_dl->battery_min_cell_voltage) + "</h4>";
     content += "<h4>Lowest cell: " + String(boltampera_dl->battery_lowest_cell) + "</h4>";
     content += "<h4>Highest cell: " + String(boltampera_dl->battery_highest_cell) + "</h4>";
-    content +=
-        "<h4>Internal resistance: " + String(boltampera_dl->battery_internal_resistance) + "</h4>";
+    content += "<h4>Internal resistance: " + String(boltampera_dl->battery_internal_resistance) + "</h4>";
     content += "<h4>Voltage: " + String(boltampera_dl->battery_voltage_polled) + "</h4>";
     content += "<h4>Isolation Ohm: " + String(boltampera_dl->battery_vehicle_isolation) + "</h4>";
     content += "<h4>Isolation kOhm: " + String(boltampera_dl->battery_isolation_kohm) + "</h4>";
