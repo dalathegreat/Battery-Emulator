@@ -921,6 +921,7 @@ struct DATALAYER_INFO_ZOE {
 };
 
 struct DATALAYER_INFO_ZOE_PH2 {
+  uint32_t battery_slave_failures = 0;
   /** uint16_t */
   uint16_t battery_soc = 0;
   uint16_t battery_usable_soc = 0;
@@ -951,13 +952,12 @@ struct DATALAYER_INFO_ZOE_PH2 {
   uint16_t battery_bms_state = 0;
   uint16_t battery_energy_complete = 0;
   uint16_t battery_energy_partial = 0;
-  uint16_t battery_slave_failures = 0;
   uint16_t battery_mileage = 0;
   uint16_t battery_fan_speed = 0;
   uint16_t battery_fan_period = 0;
   uint16_t battery_fan_control = 0;
   uint16_t battery_fan_duty = 0;
-  uint16_t battery_temporisation = 0;
+  uint16_t battery_temporisation = 255;
   uint16_t battery_time = 0;
   uint16_t battery_pack_time = 0;
   uint16_t battery_soc_min = 0;
