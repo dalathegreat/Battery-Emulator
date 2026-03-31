@@ -42,6 +42,9 @@ static uint8_t calculate_checksum_nibble(CAN_frame* frame) {
 void NissanLeafCharger::map_can_frame_to_variable(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
+    case 0x5BC:
+      LEAFbatteryDetected = true;
+      break;
     case 0x679:  // This message fires once when charging cable is plugged in
       datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       OBCwakeup = true;
@@ -83,25 +86,48 @@ void NissanLeafCharger::map_can_frame_to_variable(CAN_frame rx_frame) {
 
 void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
 
+  CHARGER_MAX_A = 32;  //LEAF PDMs can do 32A max. Set here to allow webserver to tune value up to this.
+  CHARGER_MAX_POWER = 6600;
+  CHARGER_MIN_HV = 200;
+  CHARGER_MAX_HV = 420;
+
   /* Send keepalive with mode every 10ms */
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
     previousMillis10ms = currentMillis;
 
     mprun10 = (mprun10 + 1) % 4;  // mprun10 cycles between 0-1-2-3-0-1...
 
-/* 1DB is the main control message. If LEAF battery is used, the battery controls almost everything */
-// Only send these messages if Nissan LEAF battery is not used
-#ifndef NISSAN_LEAF_BATTERY
+    /* 1DB is the main control message. If LEAF battery is used, the battery controls almost everything */
+    // Only send these messages if Nissan LEAF battery is not used
 
-    // VCM message, containing info if battery should sleep or stay awake
-    transmit_can_frame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+    if (!LEAFbatteryDetected) {
+      // VCM message, containing info if battery should sleep or stay awake
+      transmit_can_frame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
-    LEAF_1DB.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DB);
-    transmit_can_frame(&LEAF_1DB);
+      uint16_t Vbatt = (datalayer.battery.status.voltage_dV / 10) * 2;  //0-450V, 0.5V/bit
+      uint16_t Ibatt = (datalayer.battery.status.current_dA / 10) * 2;
+      LEAF_1DB.data.u8[0] = Ibatt >> 3;  //MSB current. 11 bit signed MSBit first
+      LEAF_1DB.data.u8[1] = (Ibatt & 0x07)
+                            << 5;  //LSB current bits 7-5. Dont need to mess with bits 0-4 for now as 0 works.
+      LEAF_1DB.data.u8[2] = Vbatt >> 2;
+      LEAF_1DB.data.u8[3] =
+          (((Vbatt & 0x07) << 6) | (0x2b));  //0x2b should give no cut req, main rly on permission,normal p limit.
+      LEAF_1DB.data.u8[4] = (datalayer.battery.status.reported_soc / 100);  //SOC for dash
+      LEAF_1DB.data.u8[5] = 0x00;
+      LEAF_1DB.data.u8[6] = mprun10;
+      LEAF_1DB.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DB);
+      transmit_can_frame(&LEAF_1DB);
 
-    LEAF_1DC.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DC);
-    transmit_can_frame(&LEAF_1DC);
-#endif
+      LEAF_1DC.data.u8[0] = 0xA0;  //0x6E - 110kw limit 0xA0-160Kw discharge limit, not used for charger
+      LEAF_1DC.data.u8[1] = 0x0A;
+      LEAF_1DC.data.u8[2] = 0x05;
+      LEAF_1DC.data.u8[3] = 0xD5;
+      LEAF_1DC.data.u8[4] = 0x00;  //may not need pairing code crap here...and we don't:)
+      LEAF_1DC.data.u8[5] = 0x00;
+      LEAF_1DC.data.u8[6] = mprun10;
+      LEAF_1DC.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DC);
+      transmit_can_frame(&LEAF_1DC);
+    }
 
     OBCpowerSetpoint = ((datalayer.charger.charger_setpoint_HV_IDC * 4) + 0x64);
 
@@ -126,13 +152,13 @@ void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
       }
 
       // if actual battery_voltage is less than setpoint got to max power set from web ui
-      if (datalayer.battery.status.voltage_dV <
-          (CHARGER_SET_HV * 10)) {  //datalayer.battery.status.voltage_dV = V+1,  0-500.0 (0-5000)
+      if (datalayer.battery.status.voltage_dV < (datalayer.charger.charger_setpoint_HV_VDC *
+                                                 10)) {  //datalayer.battery.status.voltage_dV = V+1,  0-500.0 (0-5000)
         OBCpower = OBCpowerSetpoint;
       }
 
       // decrement charger power if volt setpoint is reached
-      if (datalayer.battery.status.voltage_dV >= (CHARGER_SET_HV * 10)) {
+      if (datalayer.battery.status.voltage_dV >= (datalayer.charger.charger_setpoint_HV_VDC * 10)) {
         if (OBCpower > 0x64) {
           OBCpower--;
         }
@@ -141,12 +167,21 @@ void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
       // set power to 0 if charge control is set to off or not in charge mode
       OBCpower = 0x64;
     }
-
+    LEAF_1F2.data.u8[0] = 0x30;  // msg is muxed but pdm doesn't seem to care.
     LEAF_1F2.data.u8[1] = OBCpower;
+    LEAF_1F2.data.u8[2] = 0x20;  //0x20=Normal Charge
+    LEAF_1F2.data.u8[3] = 0xAC;
+    LEAF_1F2.data.u8[4] = 0x00;
+    LEAF_1F2.data.u8[5] = 0x3C;
     LEAF_1F2.data.u8[6] = mprun10;
     LEAF_1F2.data.u8[7] = calculate_checksum_nibble(&LEAF_1F2);
 
     transmit_can_frame(&LEAF_1F2);  // Sending of 1F2 message is halted in LEAF-BATTERY function incase used here
+
+    LEAF_1D4.data.u8[4] = 0x07 | (mprun10 << 6);
+    LEAF_1D4.data.u8[7] = calculate_CRC_Nissan(&LEAF_1D4);
+
+    transmit_can_frame(&LEAF_1D4);  // Sending of 1D4 message is halted in LEAF-BATTERY function incase used here
   }
 
   /* Send messages every 100ms here */
@@ -155,17 +190,17 @@ void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
 
     mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
 
-// Only send these messages if Nissan LEAF battery is not used
-#ifndef NISSAN_LEAF_BATTERY
+    // Only send these messages if Nissan LEAF battery is not used
+    if (!LEAFbatteryDetected) {
 
-    LEAF_55B.data.u8[6] = ((0x1 << 4) | (mprun100));
+      LEAF_55B.data.u8[6] = ((0x1 << 4) | (mprun100));
 
-    LEAF_55B.data.u8[7] = calculate_CRC_Nissan(&LEAF_55B);
-    transmit_can_frame(&LEAF_55B);
+      LEAF_55B.data.u8[7] = calculate_CRC_Nissan(&LEAF_55B);
+      transmit_can_frame(&LEAF_55B);
 
-    transmit_can_frame(&LEAF_59E);
+      transmit_can_frame(&LEAF_59E);
 
-    transmit_can_frame(&LEAF_5BC);
-#endif
+      transmit_can_frame(&LEAF_5BC);
+    }
   }
 }

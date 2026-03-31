@@ -35,9 +35,24 @@ class BmwI3Battery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "BMW i3";
 
-  bool supports_offline_balancing() { return true; }
-  virtual void initiate_offline_balancing();
-  virtual void end_offline_balancing();
+  bool supports_balancing() { return true; }
+  bool is_balancing_active() { return UserRequestBalancing != NONE; }
+  const char* get_balancing_state_string() {
+    switch (UserRequestBalancing) {
+      case NONE:
+        return "None";
+      case REQUESTED:
+        return "Requested";
+      case STARTING:
+        return "Starting";
+      case EXECUTING:
+        return "Executing";
+      default:
+        return "Unknown";
+    }
+  }
+  virtual void initiate_balancing();
+  virtual void end_balancing();
 
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
@@ -86,14 +101,14 @@ class BmwI3Battery : public CanBattery {
   const int MIN_CELL_VOLTAGE_60AH = 2700;   // Battery is put into emergency stop if one cell goes below this value
   const int MAX_CELL_VOLTAGE_94AH = 4140;   // Battery is put into emergency stop if one cell goes over this value
   const int MIN_CELL_VOLTAGE_94AH = 2700;   // Battery is put into emergency stop if one cell goes below this value
-  const int MAX_CELL_VOLTAGE_120AH = 4190;  // Battery is put into emergency stop if one cell goes over this value
+  const int MAX_CELL_VOLTAGE_120AH = 4210;  // Battery is put into emergency stop if one cell goes over this value
   const int MIN_CELL_VOLTAGE_120AH = 2790;  // Battery is put into emergency stop if one cell goes below this value
   const int MAX_CELL_DEVIATION_MV = 250;    // LED turns yellow on the board if mv delta exceeds this value
   const int MAX_PACK_VOLTAGE_60AH = 3950;   // Charge stops if pack voltage exceeds this value
   const int MIN_PACK_VOLTAGE_60AH = 2590;   // Discharge stops if pack voltage exceeds this value
   const int MAX_PACK_VOLTAGE_94AH = 3980;   // Charge stops if pack voltage exceeds this value
   const int MIN_PACK_VOLTAGE_94AH = 2590;   // Discharge stops if pack voltage exceeds this value
-  const int MAX_PACK_VOLTAGE_120AH = 4030;  // Charge stops if pack voltage exceeds this value
+  const int MAX_PACK_VOLTAGE_120AH = 4032;  // Charge stops if pack voltage exceeds this value
   const int MIN_PACK_VOLTAGE_120AH = 2680;  // Discharge stops if pack voltage exceeds this value
   const int NUMBER_OF_CELLS = 96;
 

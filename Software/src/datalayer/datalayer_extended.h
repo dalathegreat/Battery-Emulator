@@ -141,24 +141,27 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint16_t BMC_SOC_original_calibration = 0;
   uint16_t BMS_capacity_current_calibration = 0;
   uint16_t BMC_SOC_current_calibration = 0;
+  uint16_t seed = 0;
+  uint16_t solvedKey = 0;
+  uint16_t calibrationTargetSOC = 100;
+  uint16_t calibrationTargetAH = 150;
 
   /** int16_t */
   /** All the temperature sensors inside the battery pack*/
-  int16_t battery_temperatures[10];
+  int16_t battery_temperatures[13] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};
 
-  uint8_t unknown10 = 0;  //Unknown polled value
-  uint8_t unknown11 = 0;  //Unknown polled value
-  uint8_t unknown12 = 0;  //Unknown polled value
-  uint8_t unknown13 = 0;  //Unknown polled value
+  uint8_t discharge_status = 14;
+  uint8_t BMS_min_cell_voltage_number = 0;
+  uint8_t BMS_min_temp_module_number = 0;
+  uint8_t BMS_max_cell_voltage_number = 0;
+  uint8_t BMS_max_temp_module_number = 0;
+  uint8_t servicemode = 0;
   /** bool */
   /** User requesting crash reset via WebUI*/
   bool UserRequestCrashReset = false;
   /** bool */
   /** User requesting SOC calibration via WebUI*/
   bool UserRequestCalibrateSOC = false;
-  /** bool */
-  /** Which SOC method currently used. 0 = Estimated, 1 = Measured */
-  bool SOC_method = 0;
 };
 
 struct DATALAYER_INFO_CELLPOWER {
@@ -526,11 +529,11 @@ struct DATALAYER_INFO_TESLA {
   uint16_t battery_BrickVoltageMin = 0;
   uint16_t HVP_hvp1v5Ref = 0;
   uint16_t HVP_shuntCurrentDebug = 0;
-  uint16_t PCS_dcdcTemp = 0;
-  uint16_t PCS_ambientTemp = 0;
-  uint16_t PCS_chgPhATemp = 0;
-  uint16_t PCS_chgPhBTemp = 0;
-  uint16_t PCS_chgPhCTemp = 0;
+  int16_t PCS_dcdcTemp = 0;
+  int16_t PCS_ambientTemp = 0;
+  int16_t PCS_chgPhATemp = 0;
+  int16_t PCS_chgPhBTemp = 0;
+  int16_t PCS_chgPhCTemp = 0;
   uint16_t PCS_dcdcMaxLvOutputCurrent = 0;
   uint16_t PCS_dcdcCurrentLimit = 0;
   uint16_t PCS_dcdcLvOutputCurrentTempLimit = 0;
@@ -966,6 +969,7 @@ struct DATALAYER_INFO_ZOE_PH2 {
 class DataLayerExtended {
  public:
   DATALAYER_INFO_BOLTAMPERA boltampera;
+  DATALAYER_INFO_BOLTAMPERA boltampera_2;
   DATALAYER_INFO_BMWPHEV bmwphev;
   DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BYDATTO3 bydAtto3;

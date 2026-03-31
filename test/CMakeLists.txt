@@ -108,6 +108,7 @@ add_executable(tests
     ../Software/src/battery/CMP-SMART-CAR-BATTERY.cpp
     ../Software/src/battery/DALY-BMS.cpp
     ../Software/src/battery/ECMP-BATTERY.cpp
+    ../Software/src/battery/ENNOID-BMS.cpp
     ../Software/src/battery/FORD-MACH-E-BATTERY.cpp
     ../Software/src/battery/FOXESS-BATTERY.cpp
     ../Software/src/battery/GEELY-GEOMETRY-C-BATTERY.cpp
@@ -144,6 +145,7 @@ add_executable(tests
     ../Software/src/battery/TESLA-LEGACY-BATTERY.cpp
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
     ../Software/src/battery/THINK-BATTERY.cpp
+    ../Software/src/battery/THUNDERSTRUCK-BMS.cpp
     ../Software/src/battery/GEELY-SEA-BATTERY.cpp
     ../Software/src/battery/VOLVO-SPA-BATTERY.cpp
     ../Software/src/battery/VOLVO-SPA-HYBRID-BATTERY.cpp
@@ -159,6 +161,7 @@ add_executable(tests
     ../Software/src/inverter/KOSTAL-RS485.cpp
     ../Software/src/inverter/ModbusInverterProtocol.cpp
     ../Software/src/inverter/PYLON-CAN.cpp
+    ../Software/src/inverter/PYLON-LV-RS485.cpp
     ../Software/src/inverter/PYLON-LV-CAN.cpp
     ../Software/src/inverter/SCHNEIDER-CAN.cpp
     ../Software/src/inverter/SMA-BYD-H-CAN.cpp

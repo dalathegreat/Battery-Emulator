@@ -5,8 +5,8 @@
 #include "CHADEMO-SHUNTS.h"
 #include "Shunt.h"
 
-uint16_t (*get_measured_current_ptr)();
-uint16_t (*get_measured_voltage_ptr)();
+float (*get_measured_current_ptr)();
+float (*get_measured_voltage_ptr)();
 
 //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 void ChademoBattery::update_values() {
@@ -32,7 +32,8 @@ void ChademoBattery::update_values() {
       (x200_discharge_limits.MaximumDischargeCurrent * x100_chg_lim.MaximumBatteryVoltage);  //In Watts, Convert A to P
 
   if (vehicle_can_received) {  // Only update the value sent towards inverter if vehicle is connected (avoids false positive events)
-    datalayer.battery.status.voltage_dV = get_voltage_handler() * 10;
+    datalayer.battery.status.voltage_dV = get_voltage_handler() * 10.0f;
+    datalayer.battery.status.current_dA = get_measured_current_ptr() * 10.0f;
   }
 
   datalayer.battery.info.total_capacity_Wh = (x101_chg_est.RatedBatteryCapacity * 100);
@@ -873,14 +874,14 @@ void ChademoBattery::handle_chademo_sequence() {
   return;
 }
 
-uint16_t ChademoBattery::get_voltage_handler() {
+float ChademoBattery::get_voltage_handler() {
   float Voltage = 0;
   if (user_selected_shunt_type == ShuntType::CustomClamp) {
     Voltage = min(x102_chg_session.TargetBatteryVoltage, x108_evse_cap.available_output_voltage);
   } else {
     Voltage = get_measured_voltage_ptr();
   }
-  return (uint16_t)Voltage;
+  return Voltage;
 }
 
 void ChademoBattery::setup(void) {  // Performs one time setup at startup

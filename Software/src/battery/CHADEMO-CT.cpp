@@ -18,9 +18,10 @@ typedef enum { ADC_0db = 0, ADC_2_5db, ADC_6db, ADC_11db } adc_attenuation_t;
 
 // Ensure valid values at run-time
 // User can update all these values via Settings page
-uint16_t ct_clamp_offset_mV = 0;
+float ct_clamp_offset_mV = -1.0;
 uint16_t ct_clamp_nominal_voltage_dV = 40;
 uint16_t ct_clamp_nominal_current_A = 100;
+bool ct_invert_current = false;
 adc_attenuation_enum ct_clamp_pin_atten = adc_attenuation_enum::ADC_11db;
 extern const char* name_for_adc_attenuation(adc_attenuation_enum type) {
   switch (type) {
@@ -37,8 +38,8 @@ extern const char* name_for_adc_attenuation(adc_attenuation_enum type) {
   }
 }
 
-static float Amperes;       // Floating point with current in Amperes
-static float Voltage = -1;  // Voltage not available
+static float Amperes;          // Floating point with current in Amperes
+static float Voltage = -1.0f;  // Voltage not available
 
 // CT parameters, need to be updated for the specific CT clamp used
 // These settings are for a Tamura L03S100D15 CT clamp
@@ -53,27 +54,31 @@ static gpio_num_t ct_pin;
 static bool ct_pin_initialized = false;
 
 // Included for future use
-uint16_t get_measured_voltage_ct() {
-  return (uint16_t)Voltage;
+float get_measured_voltage_ct() {
+  return Voltage;
 }
 
-uint16_t get_measured_current_ct() {
+// +ve is charging, -ve is discharging, use invert setting to flip if needed
+float get_measured_current_ct() {
   if (!ct_pin_initialized) {
     return 0;
   }
 
-  float CT_V_offset = (float)ct_clamp_offset_mV / 1000.0f;          // Convert from mV to Volts
+  float CT_V_offset = ct_clamp_offset_mV / 1000.0f;                 // Convert from mV to Volts
   float CT_V_nominal = (float)ct_clamp_nominal_voltage_dV / 10.0f;  // Convert from dV to Volts
   float CT_A_nominal = (float)ct_clamp_nominal_current_A;           // in Amperes
 
   // sample the CT pin multiple times and average to reduce noise
-  float pin_V = 0;
+  float pin_V = 0.0f;
   for (int i = 0; i < 10; i++) {
     pin_V += (float)analogReadMilliVolts(ct_pin);
   }
-  pin_V = (pin_V / 10.0) * 1000.0;
+  pin_V = (pin_V / 10.0f) / 1000.0f;
   Amperes = (pin_V - CT_V_offset) * (CT_A_nominal / CT_V_nominal);
-  return (uint16_t)Amperes;
+  if (ct_invert_current) {
+    Amperes = -Amperes;
+  }
+  return Amperes;
 }
 
 void setup_ct(void) {
@@ -93,6 +98,9 @@ void setup_ct(void) {
   pinMode(ct_pin, INPUT);
   analogRead(ct_pin);  // Avoids error if attenuation is set before first read
   analogSetPinAttenuation(ct_pin, (adc_attenuation_t)ct_clamp_pin_atten);
+  if (!(bool)digitalRead(esp32hal->CHADEMO_PIN_4()) && ct_clamp_offset_mV < 0) {
+    ct_clamp_offset_mV = (float)analogReadMilliVolts(ct_pin);
+  }
 
   char shunt_protocol[32];
   snprintf(shunt_protocol, sizeof(shunt_protocol), "%dA CT Clamp", (int)ct_clamp_nominal_current_A);
