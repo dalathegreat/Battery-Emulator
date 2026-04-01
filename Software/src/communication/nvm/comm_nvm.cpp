@@ -101,6 +101,11 @@ void init_stored_settings() {
   user_selected_can_addon_crystal_frequency_mhz = settings.getUInt("CANFREQ", 8);
   user_selected_canfd_addon_crystal_frequency_mhz = settings.getUInt("CANFDFREQ", 40);
   user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
+  user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
+  user_selected_daly_power_per_dV = settings.getUInt("DALYPWRDV", 50);
+  user_selected_daly_power_per_dV_start = settings.getUInt("DALYDVSTART", 20);
+  user_selected_daly_power_per_degree_C = settings.getUInt("DALYPWRDEG", 60);
+  user_selected_daly_power_at_0_degree_C = settings.getUInt("DALYPWR0C", 800);
   user_selected_use_estimated_SOC = settings.getBool("SOCESTIMATED", false);
   user_selected_tesla_digital_HVIL = settings.getBool("DIGITALHVIL", false);
   user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", 0);
