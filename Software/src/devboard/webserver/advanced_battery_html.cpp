@@ -109,14 +109,14 @@ String advanced_battery_processor(const String& var) {
 
     if (battery2) {
       content += "<h4>Values from battery 2</h4>";
-      content += battery2->get_status_renderer().get_status_html();
+      content += "<h4 style='color: #f39c12;'>⚠️ Advanced detailed info is currently limited to the Main Battery.</h4>";
       render_command_buttons(battery2, 1);
     }
 
     if (battery3) {
       content += "<h4>Values from battery 3</h4>";
-      content += battery3->get_status_renderer().get_status_html();
-      render_command_buttons(battery3, 1);
+      content += "<h4 style='color: #f39c12;'>⚠️ Advanced detailed info is currently limited to the Main Battery.</h4>";
+      render_command_buttons(battery3, 2);
     }
 
     content += "</div>";
