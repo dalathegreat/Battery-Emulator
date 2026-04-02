@@ -27,6 +27,8 @@
 #include "../utils/timer.h"
 #include "esp_task_wdt.h"
 #include "html_escape.h"
+#include "../../devboard/i2c/i2c_atecc.h"
+#include "../mqtt/mqtt.h"
 
 std::string http_username;
 std::string http_password;
@@ -54,7 +56,8 @@ void append_can_stream(const char* line) {
   }
 
   // Lock Task
-  if (xSemaphoreTake(can_stream_mutex, (TickType_t)10) == pdTRUE) {
+  // if (xSemaphoreTake(can_stream_mutex, (TickType_t)10) == pdTRUE) {
+  if (xSemaphoreTake(can_stream_mutex, 0) == pdTRUE) {
     size_t line_len = strlen(line);
 
     if (can_batch_len + line_len + 2 < CAN_BATCH_SIZE) {
@@ -80,6 +83,7 @@ unsigned long ota_progress_millis = 0;
 #include "events_html.h"
 #include "index_html.h"
 #include "settings_html.h"
+#include "dashboard_html.h"
 
 MyTimer ota_timeout_timer = MyTimer(15000);
 bool ota_active = false;
@@ -94,255 +98,6 @@ CAN_frame currentFrame = {.FD = true, .ext_ID = false, .DLC = 64, .ID = 0x12F, .
 
 String get_uptime();
 String get_firmware_info_processor(const String& var);
-
-const char dashboard_html[] PROGMEM = R"rawliteral(
-<style>
-  .battery-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-bottom: 20px; }
-  .bat-card { flex: 1; min-width: 280px; max-width: 400px; transition: 0.3s; margin-bottom: 0; }
-  .bat-card.fault { border-top-color: #e74c3c; background-color: #fdf2f2; }
-  .bat-card.hidden { display: none; }
-
-  .details-box { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; display: none; text-align: left; background: #f9f9f9; border-radius: 6px; padding: 15px; color: #333; }
-  .details-box.show { display: block; animation: fadeIn 0.3s; }
-
-  .btn-toggle { background-color: transparent; border: 1px solid #3498db; color: #3498db; width: 100%; margin-top: 10px; padding: 8px; border-radius: 4px; cursor: pointer; transition: 0.2s; font-weight: bold; }
-  .btn-toggle:hover { background-color: #3498db; color: #fff; }
-
-  .status-text { font-size: 0.85rem; color: #777; margin-top: 15px; text-align: center; }
-
-  /* ⚡ Energy Flow Animation ⚡ */
-  .flow-wrapper { display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 15px 20px; border-radius: 6px; margin: 15px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 4px solid #9b59b6; }
-  .flow-box { background: #f4f4f4; padding: 10px; border-radius: 4px; font-weight: bold; text-align: center; width: 80px; border: 1px solid #ddd; color: #333; }
-  .flow-wire { flex-grow: 1; height: 10px; background: #eee; margin: 0 15px; position: relative; overflow: hidden; border-radius: 5px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
-  .flow-particles { width: 200%; height: 100%; position: absolute; left: 0; background-size: 40px 100%; }
-
-  @keyframes flow-charge { 0% { transform: translateX(-50%); } 100% { transform: translateX(0%); } }
-  @keyframes flow-discharge { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
-
-  .status-charging { animation: flow-charge 1s linear infinite; background-image: linear-gradient(90deg, transparent 0%, transparent 50%, #2ecc71 50%, #81C784 100%); }
-  .status-discharging { animation: flow-discharge 1s linear infinite; background-image: linear-gradient(90deg, transparent 0%, transparent 50%, #e74c3c 50%, #f1948a 100%); }
-  .status-idle { opacity: 0.2; background-image: linear-gradient(90deg, transparent 0%, transparent 50%, #ccc 50%, #ddd 100%); }
-</style>
-
-<div class="card card-warning" style="padding: 15px;">
-  <h2 style="margin-top:0; color:#333;">⚡ System Overview <span id="sys_version" style="font-size: 0.6em; color: #888;"></span></h2>
-  <h4 style="color: #555; margin: 5px 0;">Uptime: <span id="sys_uptime" style="font-weight: normal;">--</span> <br>RAM: <span id="sys_ram" style="font-weight: normal;">--</span><br><span style="color: #9b59b6;">PSRAM: <span id="sys_psram" style="font-weight: normal;">--</span></span></h4>
-  <h4 style="color: #555; margin: 5px 0;">Power Status: <strong id="sys_status" style="color: #f39c12;">--</strong></h4>
-  <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border: 1px solid #eee; border-radius: 4px; font-size: 0.95em; color: #555;">
-    <b>Inverter:</b> <strong id="sys_inv" style="color: #2ecc71;">--</strong> &nbsp; 🔗 &nbsp;
-    <b>Battery:</b> <strong id="sys_bat" style="color: #3498db;">--</strong>
-  </div>
-</div>
-
-<div class="flow-wrapper">
-    <div class="flow-box">INVERTER</div>
-    <div class="flow-wire"><div id="energy-flow" class="flow-particles status-idle"></div></div>
-    <div class="flow-box">BATTERY</div>
-</div>
-
-<div class="battery-container">
-  <div id="card_b1" class="card bat-card hidden">
-    <h3 style="margin-top: 0; color: #333;">🔋 Main Battery</h3>
-    <h4 style="color: #555;">SOC: <strong id="b1_soc" style="color:#000;">--</strong>% | SOH: <strong id="b1_soh" style="color:#000;">--</strong>%</h4>
-    <h4 style="margin: 10px 0;"><span id="b1_v" style="color: #2ecc71; font-size: 1.4em;">--</span> V &nbsp;&nbsp; <span id="b1_a" style="color: #3498db; font-size: 1.4em;">--</span> A</h4>
-    <h4 style="color: #555;">Power: <span id="b1_p" style="color:#000;">--</span> W</h4>
-    <h4 style="color: #555;">Cell (Min/Max): <span id="b1_cmin" style="color:#000;">--</span> / <span id="b1_cmax" style="color:#000;">--</span> mV</h4>
-    <h4 style="color: #555;">Temp: <span id="b1_tmin" style="color:#000;">--</span> / <span id="b1_tmax" style="color:#000;">--</span> &deg;C</h4>
-
-    <button class="btn-toggle" onclick="toggleDetails('b1_more')">🔽 Show / Hide Details</button>
-    <div id="b1_more" class="details-box">
-      <h4>📡 Status: <span id="b1_stat" style="color:#f39c12;">--</span></h4>
-      <h4>⚡ Activity: <span id="b1_act" style="color:#3498db;">--</span></h4>
-      <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
-      <h4>Total Capacity: <span id="b1_tot" style="font-weight:normal;">--</span> Wh</h4>
-      <h4>Remaining: <span id="b1_rem" style="font-weight:normal;">--</span> Wh</h4>
-      <h4>Max Charge: <span id="b1_mc" style="font-weight:normal;">--</span> W</h4>
-      <h4>Max Discharge: <span id="b1_md" style="font-weight:normal;">--</span> W</h4>
-      <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
-      <h4>🔌 Contactor Allowed:</h4>
-      <h4 style="margin-left: 20px;">Battery: <span id="b1_cont_b" style="font-weight:normal;">--</span> | Inverter: <span id="sys_cont_i" style="font-weight:normal;">--</span></h4>
-    </div>
-  </div>
-
-  <div id="card_b2" class="card bat-card hidden">
-    <h3 style="margin-top: 0; color: #333;">🔋 Battery 2</h3>
-    <h4 style="color: #555;">SOC: <strong id="b2_soc" style="color:#000;">--</strong>% | SOH: <strong id="b2_soh" style="color:#000;">--</strong>%</h4>
-    <h4 style="margin: 10px 0;"><span id="b2_v" style="color: #2ecc71; font-size: 1.4em;">--</span> V &nbsp;&nbsp; <span id="b2_a" style="color: #3498db; font-size: 1.4em;">--</span> A</h4>
-    <h4 style="color: #555;">Power: <span id="b2_p" style="color:#000;">--</span> W</h4>
-    <h4 style="color: #555;">Cell (Min/Max): <span id="b2_cmin" style="color:#000;">--</span> / <span id="b2_cmax" style="color:#000;">--</span> mV</h4>
-    <h4 style="color: #555;">Temp: <span id="b2_tmin" style="color:#000;">--</span> / <span id="b2_tmax" style="color:#000;">--</span> &deg;C</h4>
-
-    <button class="btn-toggle" onclick="toggleDetails('b2_more')">🔽 Show / Hide Details</button>
-    <div id="b2_more" class="details-box">
-      <h4>📡 Status: <span id="b2_stat" style="color:#f39c12;">--</span></h4>
-      <h4>⚡ Activity: <span id="b2_act" style="color:#3498db;">--</span></h4>
-      <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
-      <h4>Max Charge: <span id="b2_mc" style="font-weight:normal;">--</span> W</h4>
-      <h4>Max Discharge: <span id="b2_md" style="font-weight:normal;">--</span> W</h4>
-    </div>
-  </div>
-
-  <div id="card_b3" class="card bat-card hidden">
-    <h3 style="margin-top: 0; color: #333;">🔋 Battery 3</h3>
-    <h4 style="color: #555;">SOC: <strong id="b3_soc" style="color:#000;">--</strong>% | SOH: <strong id="b3_soh" style="color:#000;">--</strong>%</h4>
-    <h4 style="margin: 10px 0;"><span id="b3_v" style="color: #2ecc71; font-size: 1.4em;">--</span> V &nbsp;&nbsp; <span id="b3_a" style="color: #3498db; font-size: 1.4em;">--</span> A</h4>
-    <h4 style="color: #555;">Power: <span id="b3_p" style="color:#000;">--</span> W</h4>
-    <h4 style="color: #555;">Cell (Min/Max): <span id="b3_cmin" style="color:#000;">--</span> / <span id="b3_cmax" style="color:#000;">--</span> mV</h4>
-    <h4 style="color: #555;">Temp: <span id="b3_tmin" style="color:#000;">--</span> / <span id="b3_tmax" style="color:#000;">--</span> &deg;C</h4>
-
-    <button class="btn-toggle" onclick="toggleDetails('b3_more')">🔽 Show / Hide Details</button>
-    <div id="b3_more" class="details-box">
-      <h4>📡 Status: <span id="b3_stat" style="color:#f39c12;">--</span></h4>
-      <h4>⚡ Activity: <span id="b3_act" style="color:#3498db;">--</span></h4>
-      <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
-      <h4>Max Charge: <span id="b3_mc" style="font-weight:normal;">--</span> W</h4>
-      <h4>Max Discharge: <span id="b3_md" style="font-weight:normal;">--</span> W</h4>
-    </div>
-  </div>
-</div>
-
-<div id="card_chg" class="card card-warning hidden" style="border-top-color: #e67e22;">
-  <h3 style="margin-top:0; color:#333;">🔌 Charger Output</h3>
-  <h4><span id="chg_v" style="font-size: 1.4em; color: #2ecc71;">--</span> V &nbsp;&nbsp; <span id="chg_a" style="font-size: 1.4em; color: #3498db;">--</span> A</h4>
-</div>
-
-<div class="status-text">Last Updated: <span id="last_update">Waiting for data...</span></div>
-
-<script>
-  function toggleDetails(id) { document.getElementById(id).classList.toggle('show'); }
-
-  window.isFetchingAPI = false;
-
-  function fetchBatteryData() {
-    if (window.isFetchingAPI) return;
-    window.isFetchingAPI = true;
-
-    fetch('/api/data')
-      .then(response => response.text())
-      .then(text => {
-        let data = window.repairAndParseJSON(text);
-        if (data) {
-          document.getElementById('sys_version').innerText = "v" + data.sys.version;
-          // document.getElementById('sys_uptime').innerText = data.sys.uptime;
-          // Smart Sync Uptime
-          let upMatch = data.sys.uptime.match(/(\d+)\s+days,\s+(\d+)\s+hours,\s+(\d+)\s+mins,\s+(\d+)\s+secs/);
-          if (upMatch) {
-              let serverSecs = parseInt(upMatch[1])*86400 + parseInt(upMatch[2])*3600 + parseInt(upMatch[3])*60 + parseInt(upMatch[4]);
-              if (typeof window.localUptimeSecs === 'undefined' || Math.abs(serverSecs - window.localUptimeSecs) > 2 || serverSecs < window.localUptimeSecs) {
-                  window.localUptimeSecs = serverSecs;
-                  document.getElementById('sys_uptime').innerText = data.sys.uptime;
-              }
-          }
-          let freeRamKB = Math.round(data.sys.heap / 1024);
-          let totalRamKB = Math.round(data.sys.heap_size / 1024);
-          let ramPercent = Math.round((data.sys.heap / data.sys.heap_size) * 100);
-          document.getElementById('sys_ram').innerText = freeRamKB + " / " + totalRamKB + " KB (" + ramPercent + "% Free)";
-
-          if (data.sys.psram_size > 0) {
-              document.getElementById('sys_psram').innerText = Math.round(data.sys.psram / 1024) + " / " + Math.round(data.sys.psram_size / 1024) + " KB";
-          } else {
-              document.getElementById('sys_psram').innerText = "Not Enabled";
-          }
-          document.getElementById('sys_status').innerText = data.sys.status;
-          document.getElementById('sys_inv').innerText = data.sys.inv;
-          document.getElementById('sys_bat').innerText = data.sys.bat;
-
-          const updateBat = (id, bData) => {
-            if(bData.en) {
-              document.getElementById('card_' + id).classList.remove('hidden');
-              document.getElementById(id + '_soc').innerText = bData.soc;
-              document.getElementById(id + '_soh').innerText = bData.soh;
-              document.getElementById(id + '_v').innerText = bData.v;
-              document.getElementById(id + '_a').innerText = bData.a;
-              document.getElementById(id + '_p').innerText = bData.p;
-              document.getElementById(id + '_cmin').innerText = bData.cmin;
-              document.getElementById(id + '_cmax').innerText = bData.cmax;
-              document.getElementById(id + '_tmin').innerText = bData.tmin;
-              document.getElementById(id + '_tmax').innerText = bData.tmax;
-
-              document.getElementById(id + '_stat').innerText = bData.stat;
-              document.getElementById(id + '_mc').innerText = bData.mc;
-              document.getElementById(id + '_md').innerText = bData.md;
-              if(id === 'b1') {
-                document.getElementById(id + '_rem').innerText = bData.rem;
-                document.getElementById(id + '_tot').innerText = bData.tot;
-                document.getElementById('b1_cont_b').innerText = bData.b_cont ? "YES" : "NO";
-                document.getElementById('sys_cont_i').innerText = data.sys.inv_cont ? "YES" : "NO";
-              }
-              if(bData.fault) document.getElementById('card_' + id).classList.add('fault');
-              else document.getElementById('card_' + id).classList.remove('fault');
-            }
-          };
-
-          let totalPowerW = 0;
-          if (data.b1 && data.b1.en) totalPowerW += parseFloat(data.b1.p) || 0;
-          if (data.b2 && data.b2.en) totalPowerW += parseFloat(data.b2.p) || 0;
-          if (data.b3 && data.b3.en) totalPowerW += parseFloat(data.b3.p) || 0;
-
-          let flowElement = document.getElementById('energy-flow');
-          if (totalPowerW > 50) {
-            flowElement.className = 'flow-particles status-charging';
-            let speed = Math.max(0.2, 2000 / totalPowerW);
-            flowElement.style.animationDuration = speed + 's';
-          } else if (totalPowerW < -50) {
-            flowElement.className = 'flow-particles status-discharging';
-            let speed = Math.max(0.2, 2000 / Math.abs(totalPowerW));
-            flowElement.style.animationDuration = speed + 's';
-          } else {
-            flowElement.className = 'flow-particles status-idle';
-            flowElement.style.animationDuration = '0s';
-          }
-
-          updateBat('b1', data.b1); updateBat('b2', data.b2); updateBat('b3', data.b3);
-
-          if(data.chg.en) {
-            document.getElementById('card_chg').classList.remove('hidden');
-            document.getElementById('chg_v').innerText = data.chg.v;
-            document.getElementById('chg_a').innerText = data.chg.a;
-          }
-          document.getElementById('last_update').innerText = new Date().toLocaleTimeString();
-        }
-      })
-      .catch(error => console.error('Error fetching API:', error))
-      .finally(() => {
-          window.isFetchingAPI = false;
-      });
-  }
-
-  setTimeout(() => {
-    fetchBatteryData();
-    setInterval(fetchBatteryData, 2000);
-  }, 500);
-
-  setInterval(function() {
-    if (typeof window.localUptimeSecs !== 'undefined') {
-      window.localUptimeSecs++;
-
-      // convert time format
-      // var d = Math.floor(window.localUptimeSecs / 86400);
-      // var h = Math.floor((window.localUptimeSecs % 86400) / 3600);
-      // var m = Math.floor((window.localUptimeSecs % 3600) / 60);
-      // var s = window.localUptimeSecs % 60;
-
-      var totalSeconds = window.localUptimeSecs;
-      var d = Math.floor(totalSeconds / 86400);
-      totalSeconds = totalSeconds - (d * 86400);
-      var h = Math.floor(totalSeconds / 3600);
-      totalSeconds = totalSeconds - (h * 3600);
-      var m = Math.floor(totalSeconds / 60);
-      totalSeconds = totalSeconds - (m * 60);
-      var s = totalSeconds;
-
-
-      var timeEl = document.getElementById("sys_uptime");
-      if (timeEl) {
-        timeEl.innerText = d + " days, " + h + " hours, " + m + " mins, " + s + " secs";
-      }
-    }
-  }, 1000);
-
-</script>
-)rawliteral";
 
 const char subpage_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -613,19 +368,31 @@ void canReplayTask(void* param) {
   vTaskDelete(NULL);
 }
 
-bool checkAuth(AsyncWebServerRequest* request) {
+// Global variable Cache on RAM
+static bool auth_cached = false;
+static bool cached_auth_enabled = false;
+static String cached_expected_auth = "";
+
+void load_auth_cache() {
   BatteryEmulatorSettingsStore auth_settings(true);
-  bool is_auth_enabled = (auth_settings.getUInt("WEBAUTH", 0) == 1);
+  cached_auth_enabled = (auth_settings.getUInt("WEBAUTH", 0) == 1);
 
-  if (!is_auth_enabled)
-    return true;
+  String u = auth_settings.getString("WEBUSER", DEFAULT_WEB_USER);
+  String p = auth_settings.getString("WEBPASS", DEFAULT_WEB_PASS);
+  if (u.length() == 0) u = DEFAULT_WEB_USER;
+  if (p.length() < 4) p = DEFAULT_WEB_PASS;
 
-  String u = (http_username.length() > 0) ? http_username.c_str() : DEFAULT_WEB_USER;
-  String p = (http_password.length() >= 4) ? http_password.c_str() : DEFAULT_WEB_PASS;
-  String expectedAuth = "Basic " + base64::encode(u + ":" + p);
+  cached_expected_auth = "Basic " + base64::encode(u + ":" + p);
+  auth_cached = true;
+}
+
+bool checkAuth(AsyncWebServerRequest* request) {
+  if (!auth_cached) load_auth_cache();
+
+  if (!cached_auth_enabled) return true;
 
   if (request->hasHeader("Authorization")) {
-    if (request->getHeader("Authorization")->value().equals(expectedAuth))
+    if (request->getHeader("Authorization")->value().equals(cached_expected_auth))
       return true;
   }
   return false;
@@ -635,7 +402,6 @@ void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethod
                          std::function<void(AsyncWebServerRequest*)> handler) {
   serv.on(uri, method, [handler, uri](AsyncWebServerRequest* request) {
     if (!checkAuth(request)) {
-      Serial.printf("[DEBUG] 🛡️ IP: %s invalid password Pop-up...\n", request->client()->remoteIP().toString().c_str());
       AsyncWebServerResponse* response = request->beginResponse(401, "text/plain", "Authentication Required");
       response->addHeader("WWW-Authenticate", "Basic realm=\"Battery_Emulator_Secure\"");
       return request->send(response);
@@ -644,22 +410,12 @@ void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethod
   });
 }
 
-void send_large_page_safely(AsyncWebServerRequest* request, std::function<String(const String&)> processor_func) {
-  // String html = String(index_html);
-  // String payload = processor_func("X");
-  // html.replace("%X%", payload);
-  // request->send(200, "text/html", html);
-  AsyncWebServerResponse* response =
-      request->beginResponse(200, "text/html", (const uint8_t*)index_html, strlen(index_html), processor_func);
-  request->send(response);
-}
-
 // =========================================================================
 // WebServer Initialization
 // =========================================================================
 
 void init_webserver() {
-
+  load_auth_cache();
   def_route_with_auth("/startScan", server, HTTP_POST, [](AsyncWebServerRequest* request) {
     if (!is_scanning)
       xTaskCreate(wifiScanTask, "WiFiScan", 4096, NULL, 1, NULL);
@@ -699,34 +455,55 @@ void init_webserver() {
   });
 
   server.on("/api/is_auth", HTTP_GET, [](AsyncWebServerRequest* request) {
-    BatteryEmulatorSettingsStore auth_settings(true);
-    request->send(200, "text/plain", (auth_settings.getUInt("WEBAUTH", 0) == 1) ? "1" : "0");
+    if (!auth_cached) load_auth_cache();
+    request->send(200, "text/plain", cached_auth_enabled ? "1" : "0");
   });
 
-  def_route_with_auth("/GetFirmwareInfo", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "application/json", get_firmware_info_html, get_firmware_info_processor);
+  // 🌟 API MQTT status
+  server.on("/api/mqtt/status", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!mqtt_enabled) {
+      AsyncWebServerResponse *res = request->beginResponse(200, "application/json", "{\"enabled\":false,\"connected\":false}");
+      res->addHeader("Connection", "close");
+      return request->send(res);
+    }
+
+    String out;
+    out.reserve(64);
+    out = "{\"enabled\":true,\"connected\":";
+    out += mqtt_is_connected ? "true" : "false";
+    out += "}";
+
+    AsyncWebServerResponse *response = request->beginResponse(200, "application/json", out);
+    response->addHeader("Connection", "close");
+    request->send(response);
   });
 
   def_route_with_auth("/", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     ota_active = false;
-    auto dashboard_processor = [](const String& var) {
-      if (var == "X")
-        return String(dashboard_html);
-      return String();
-    };
-    send_large_page_safely(request, dashboard_processor);
+    AsyncResponseStream* response = request->beginResponseStream("text/html");
+    response->print(FPSTR(full_dashboard_html));
+    request->send(response);
   });
 
   def_route_with_auth("/advanced", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    send_large_page_safely(request, advanced_battery_processor);
+    AsyncResponseStream* response = request->beginResponseStream("text/html");
+    response->print(FPSTR(index_html_header));
+    print_advanced_battery_html(response);
+    response->print(FPSTR(index_html_footer));
+    request->send(response);
   });
 
   def_route_with_auth("/canlog", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(request->beginResponse(200, "text/html", can_logger_processor()));
+    request->send(200, "text/html", can_logger_full_html, can_logger_processor);
   });
 
   def_route_with_auth("/canreplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(request->beginResponse(200, "text/html", can_replay_processor()));
+    if (!datalayer.system.info.can_logging_active) {
+      datalayer.system.info.logged_can_messages_offset = 0;
+      datalayer.system.info.logged_can_messages[0] = '\0';
+    }
+    datalayer.system.info.can_logging_active = true;
+    request->send(200, "text/html", can_replay_full_html, can_replay_template_processor);
   });
 
   def_route_with_auth("/startReplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -755,7 +532,11 @@ void init_webserver() {
   });
 
   def_route_with_auth("/log", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(request->beginResponse(200, "text/html", debug_logger_processor()));
+    AsyncResponseStream* response = request->beginResponseStream("text/html");
+    response->print(FPSTR(index_html_header));
+    print_debug_logger_html(response);
+    response->print(FPSTR(index_html_footer));
+    request->send(response);
   });
 
   // API : Start Stream
@@ -784,17 +565,22 @@ void init_webserver() {
 
   // API : High-Speed Poller
   def_route_with_auth("/api/can_poll", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    String send_buffer = "";
+
     if (can_stream_mutex != NULL && xSemaphoreTake(can_stream_mutex, 0) == pdTRUE) {
       if (can_batch_len > 0) {
-        request->send(200, "text/plain", can_batch_buffer);
+        send_buffer = String(can_batch_buffer);
         can_batch_len = 0;
         can_batch_buffer[0] = '\0';
-      } else {
-        request->send(200, "text/plain", "");
       }
+
       xSemaphoreGive(can_stream_mutex);
+    }
+
+    if (send_buffer.length() > 0) {
+      request->send(200, "text/plain", send_buffer);
     } else {
-      request->send(503, "text/plain", "");
+      request->send(200, "text/plain", "");
     }
   });
 
@@ -857,26 +643,11 @@ void init_webserver() {
     });
   }
 
-  // def_route_with_auth("/cellmonitor", server, HTTP_GET,
-  //     [](AsyncWebServerRequest* request) { send_large_page_safely(request, cellmonitor_processor); });
+  extern const char full_cellmonitor_html[];
 
-  // Cell Monitor: use Template Processor RAM 0%
   def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", index_html, cellmonitor_processor);
-    request->send(response);
+    request->send(200, "text/html", full_cellmonitor_html);
   });
-
-  // 🌟 The ultimate 0% RAM technique! Sending data directly from Flash down the network pipe.
-  // def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-  //   AsyncResponseStream *response = request->beginResponseStream("text/html");
-  //   response->print(index_html_header);
-  //   response->print(cellmonitor_processor);
-  //   response->print(index_html_footer);
-  //   request->send(response);
-  // });
-
-  // def_route_with_auth("/events", server, HTTP_GET,
-  //                   [](AsyncWebServerRequest* request) { send_large_page_safely(request, events_processor); });
 
   // Use AsyncResponseStream instead
   def_route_with_auth("/events", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -929,46 +700,26 @@ void init_webserver() {
   def_route_with_auth("/set_overrides", server, HTTP_GET, [serve_settings_page](AsyncWebServerRequest* request) {
     serve_settings_page(request, settings_overrides_html);
   });
+  def_route_with_auth("/set_cloud", server, HTTP_GET, [serve_settings_page](AsyncWebServerRequest* request) {
+    serve_settings_page(request, settings_cloud_html);
+  });
 
   //saveSettings, Use this API to receive values ​​via GET instead!
   def_route_with_auth("/api/saveBulk", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     BatteryEmulatorSettingsStore settings;
 
-    if (request->hasParam("inverter"))
-      settings.saveUInt("INVTYPE", request->getParam("inverter")->value().toInt());
-    if (request->hasParam("INVCOMM"))
-      settings.saveUInt("INVCOMM", request->getParam("INVCOMM")->value().toInt());
-    if (request->hasParam("battery"))
-      settings.saveUInt("BATTTYPE", request->getParam("battery")->value().toInt());
-    if (request->hasParam("BATTCHEM"))
-      settings.saveUInt("BATTCHEM", request->getParam("BATTCHEM")->value().toInt());
-    if (request->hasParam("BATTCOMM"))
-      settings.saveUInt("BATTCOMM", request->getParam("BATTCOMM")->value().toInt());
-    if (request->hasParam("BATTPVMAX"))
-      settings.saveUInt("BATTPVMAX", (int)(request->getParam("BATTPVMAX")->value().toFloat() * 10.0f));
-    if (request->hasParam("BATTPVMIN"))
-      settings.saveUInt("BATTPVMIN", (int)(request->getParam("BATTPVMIN")->value().toFloat() * 10.0f));
-    if (request->hasParam("charger"))
-      settings.saveUInt("CHGTYPE", request->getParam("charger")->value().toInt());
-    if (request->hasParam("CHGCOMM"))
-      settings.saveUInt("CHGCOMM", request->getParam("CHGCOMM")->value().toInt());
-    if (request->hasParam("EQSTOP"))
-      settings.saveUInt("EQSTOP", request->getParam("EQSTOP")->value().toInt());
-    if (request->hasParam("BATT2COMM"))
-      settings.saveUInt("BATT2COMM", request->getParam("BATT2COMM")->value().toInt());
-    if (request->hasParam("BATT3COMM"))
-      settings.saveUInt("BATT3COMM", request->getParam("BATT3COMM")->value().toInt());
+    if (request->hasParam("inverter")) settings.saveUInt("INVTYPE", request->getParam("inverter")->value().toInt());
+    if (request->hasParam("battery")) settings.saveUInt("BATTTYPE", request->getParam("battery")->value().toInt());
+    if (request->hasParam("charger")) settings.saveUInt("CHGTYPE", request->getParam("charger")->value().toInt());
+    if (request->hasParam("shunttype")) settings.saveUInt("SHUNTTYPE", request->getParam("shunttype")->value().toInt());
 
-    if (request->hasParam("shunttype"))
-      settings.saveUInt("SHUNTTYPE", request->getParam("shunttype")->value().toInt());
-    if (request->hasParam("SHUNTTYPE"))
-      settings.saveUInt("SHUNTTYPE", request->getParam("SHUNTTYPE")->value().toInt());
-    if (request->hasParam("SHUNTCOMM"))
-      settings.saveUInt("SHUNTCOMM", request->getParam("SHUNTCOMM")->value().toInt());
-    if (request->hasParam("MQTTPUBLISHMS"))
-      settings.saveUInt("MQTTPUBLISHMS", request->getParam("MQTTPUBLISHMS")->value().toInt() * 1000);
+    if (request->hasParam("BATTPVMAX")) settings.saveUInt("BATTPVMAX", (int)(request->getParam("BATTPVMAX")->value().toFloat() * 10.0f));
+    if (request->hasParam("BATTPVMIN")) settings.saveUInt("BATTPVMIN", (int)(request->getParam("BATTPVMIN")->value().toFloat() * 10.0f));
+    if (request->hasParam("MQTTPUBLISHMS")) settings.saveUInt("MQTTPUBLISHMS", request->getParam("MQTTPUBLISHMS")->value().toInt() * 1000);
 
-    const char* uintSettingNames[] = {
+    // 2. Group of number
+    static const char* uintSettingNames[] = {
+        "INVCOMM", "BATTCHEM", "BATTCOMM", "CHGCOMM", "EQSTOP", "BATT2COMM", "BATT3COMM", "SHUNTTYPE", "SHUNTCOMM",
         "BATTCVMAX",  "BATTCVMIN",  "MAXPRETIME", "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER",   "CHGPOWER",
         "LOCALIP1",   "LOCALIP2",   "LOCALIP3",   "LOCALIP4",   "GATEWAY1",    "GATEWAY2",    "GATEWAY3",
         "GATEWAY4",   "SUBNET1",    "SUBNET2",    "SUBNET3",    "SUBNET4",     "MQTTPORT",    "MQTTTIMEOUT",
@@ -976,7 +727,8 @@ void init_webserver() {
         "INVBTYPE",   "CANFREQ",    "CANFDFREQ",  "PRECHGMS",   "PWMFREQ",     "PWMHOLD",     "GTWCOUNTRY",
         "GTWMAPREG",  "GTWCHASSIS", "GTWPACK",    "LEDMODE",    "GPIOOPT1",    "GPIOOPT2",    "GPIOOPT3",
         "INVSUNTYPE", "GPIOOPT4",   "LEDTAIL",    "LEDCOUNT",   "WEBAUTH",     "DISPLAYTYPE", "CTVNOM",
-        "CTANOM",     "CTATTEN",    "PYLONBAUD",  "PYLONBRAND"};
+        "CTANOM",     "CTATTEN",    "PYLONBAUD",  "PYLONBRAND", "MQTTFORMAT"
+    };
 
     for (const char* uintSetting : uintSettingNames) {
       if (request->hasParam(uintSetting)) {
@@ -984,39 +736,43 @@ void init_webserver() {
       }
     }
 
-    const char* stringSettingNames[] = {"APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
-                                        "MQTTPASSWORD", "MQTTTOPIC",  "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID",
-                                        "SSID",         "PASSWORD",   "WEBUSER",         "WEBPASS",        "CTOFFSET"};
+    // 3. Group of String
+    static const char* stringSettingNames[] = {
+        "APNAME", "APPASSWORD", "HOSTNAME", "MQTTSERVER", "MQTTUSER",
+        "MQTTPASSWORD", "MQTTTOPIC", "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID",
+        "SSID", "PASSWORD", "WEBUSER", "WEBPASS", "CTOFFSET"
+    };
+
     for (const char* stringSetting : stringSettingNames) {
       if (request->hasParam(stringSetting)) {
         settings.saveString(stringSetting, request->getParam(stringSetting)->value().c_str());
       }
     }
 
+    // group of Checkbox (use Static Array instead of std::vector)
     String pageId = request->hasParam("PAGE_ID") ? request->getParam("PAGE_ID")->value() : "";
-    std::vector<const char*> activeBools;
 
-    if (pageId == "/set_network")
-      activeBools = {"STATICIP",  "WIFIAPENABLED", "ESPNOWENABLED", "MQTTENABLED",
-                     "MQTTCELLV", "REMBMSRESET",   "MQTTTOPICS",    "HADISC"};
-    else if (pageId == "/settings")
-      activeBools = {"INTERLOCKREQ", "DIGITALHVIL", "GTWRHD",  "SOCESTIMATED", "DBLBTR",    "TRIBTR",
-                     "PYLONOFFSET",  "PYLONORDER",  "DEYEBYD", "INVICNT",      "PRIMOGEN24"};
-    else if (pageId == "/set_hardware")
-      activeBools = {"CANFDASCAN",  "CNTCTRLDBL",   "CNTCTRLTRI", "CNTCTRL",        "NCCONTACTOR", "PWMCNTCTRL",
-                     "PERBMSRESET", "EXTPRECHARGE", "NOINVDISC",  "EPAPREFRESHBTN", "MULTII2C",    "I2C_SHT30",
-                     "I2C_ATECC",   "I2C_RTC",      "I2C_IO",     "CTINVERT"};
-    else if (pageId == "/set_web")
-      activeBools = {"PERFPROFILE", "CANLOGUSB", "USBENABLED", "WEBENABLED", "CANLOGSD", "SDLOGENABLED"};
+    const char** activeBools = nullptr;
+    size_t boolCount = 0;
 
-    for (const char* boolSetting : activeBools) {
+    static const char* netBools[] = {"STATICIP",  "WIFIAPENABLED", "ESPNOWENABLED", "MQTTENABLED", "MQTTCELLV", "REMBMSRESET",   "MQTTTOPICS",    "HADISC"};
+    static const char* setBools[] = {"INTERLOCKREQ", "DIGITALHVIL", "GTWRHD",  "SOCESTIMATED", "DBLBTR",    "TRIBTR", "PYLONOFFSET",  "PYLONORDER",  "DEYEBYD", "INVICNT",      "PRIMOGEN24"};
+    static const char* hwBools[]  = {"CANFDASCAN",  "CNTCTRLDBL",   "CNTCTRLTRI", "CNTCTRL",        "NCCONTACTOR", "PWMCNTCTRL", "PERBMSRESET", "EXTPRECHARGE", "NOINVDISC",  "EPAPREFRESHBTN", "MULTII2C",    "I2C_SHT30", "I2C_ATECC",   "I2C_RTC",      "I2C_IO",     "CTINVERT"};
+    static const char* webBools[] = {"PERFPROFILE", "CANLOGUSB", "USBENABLED", "WEBENABLED", "CANLOGSD", "SDLOGENABLED"};
+
+    if (pageId == "/set_network") { activeBools = netBools; boolCount = sizeof(netBools) / sizeof(netBools[0]); }
+    else if (pageId == "/settings") { activeBools = setBools; boolCount = sizeof(setBools) / sizeof(setBools[0]); }
+    else if (pageId == "/set_hardware") { activeBools = hwBools; boolCount = sizeof(hwBools) / sizeof(hwBools[0]); }
+    else if (pageId == "/set_web") { activeBools = webBools; boolCount = sizeof(webBools) / sizeof(webBools[0]); }
+
+    for (size_t i = 0; i < boolCount; i++) {
+      const char* boolSetting = activeBools[i];
       bool isChecked = request->hasParam(boolSetting) && request->getParam(boolSetting)->value() == "on";
       settings.saveBool(boolSetting, isChecked);
     }
 
     settingsUpdated = true;
     settings.were_settings_updated();
-
     request->send(200, "text/plain", "OK");
   });
 
@@ -1175,145 +931,143 @@ void init_webserver() {
                        [](int value) { datalayer.charger.charger_aux12V_enabled = (bool)value; });
   }
 
+  // API: System & Battery Data
   def_route_with_auth("/api/data", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    JsonDocument doc;
-    doc["sys"]["uptime"] = get_uptime();
-    doc["sys"]["heap"] = ESP.getFreeHeap();
-    doc["sys"]["heap_size"] = ESP.getHeapSize();
-    doc["sys"]["psram"] = ESP.getFreePsram();
-    doc["sys"]["psram_size"] = ESP.getPsramSize();
-    doc["sys"]["status"] = get_emulator_pause_status().c_str();
-    doc["sys"]["version"] = version_number;
+    String out;
+    out.reserve(3072);
 
-    doc["sys"]["inv"] =
-        inverter ? String(inverter->name()) + " " + String(datalayer.system.info.inverter_brand) : "None";
+    out += "{\"sys\":{";
+    out += "\"uptime\":\"" + get_uptime() + "\",";
+    out += "\"heap\":" + String(ESP.getFreeHeap()) + ",";
+    out += "\"heap_size\":" + String(ESP.getHeapSize()) + ",";
+    out += "\"psram\":" + String(ESP.getFreePsram()) + ",";
+    out += "\"psram_size\":" + String(ESP.getPsramSize()) + ",";
+    out += "\"status\":\"" + String(get_emulator_pause_status().c_str()) + "\",";
+    out += "\"version\":\"" + String(version_number) + "\",";
+
+    String inv_name = inverter ? String(inverter->name()) + " " + String(datalayer.system.info.inverter_brand) : "None";
+    out += "\"inv\":\"" + inv_name + "\",";
+
     String bat_proto = "None";
     if (battery) {
       bat_proto = String(datalayer.system.info.battery_protocol);
-      if (battery3)
-        bat_proto += " (Triple)";
-      else if (battery2)
-        bat_proto += " (Double)";
-      if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP)
-        bat_proto += " (LFP)";
+      if (battery3) bat_proto += " (Triple)";
+      else if (battery2) bat_proto += " (Double)";
+      if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) bat_proto += " (LFP)";
     }
-    doc["sys"]["bat"] = bat_proto;
-    doc["sys"]["inv_cont"] = datalayer.system.status.inverter_allows_contactor_closing;
+    out += "\"bat\":\"" + bat_proto + "\",";
+    out += "\"inv_cont\":" + String(datalayer.system.status.inverter_allows_contactor_closing ? "true" : "false");
+    out += "},";
 
-    auto populate_battery = [&](JsonObject b, Battery* bat, auto& dt_info, auto& dt_status) {
-      b["en"] = (bat != nullptr);
+    auto print_battery = [&](const char* key, Battery* bat, auto& dt_info, auto& dt_status) {
+      out += String("\"") + key + "\":{";
+      out += "\"en\":" + String(bat ? "true" : "false");
       if (bat) {
-        b["fault"] = (dt_status.bms_status == FAULT);
-        b["soc"] = String((float)dt_status.real_soc / 100.0f, 2);
-        b["soh"] = String((float)dt_status.soh_pptt / 100.0f, 2);
-        b["v"] = String((float)dt_status.voltage_dV / 10.0f, 1);
-        b["a"] = String((float)dt_status.current_dA / 10.0f, 1);
-        b["p"] = dt_status.active_power_W;
-        b["cmin"] = dt_status.cell_min_voltage_mV;
-        b["cmax"] = dt_status.cell_max_voltage_mV;
-        b["tmin"] = String((float)dt_status.temperature_min_dC / 10.0f, 1);
-        b["tmax"] = String((float)dt_status.temperature_max_dC / 10.0f, 1);
+        out += ",\"fault\":" + String((dt_status.bms_status == FAULT) ? "true" : "false");
+        out += ",\"soc\":\"" + String((float)dt_status.real_soc / 100.0f, 2) + "\"";
+        out += ",\"soh\":\"" + String((float)dt_status.soh_pptt / 100.0f, 2) + "\"";
+        out += ",\"v\":\"" + String((float)dt_status.voltage_dV / 10.0f, 1) + "\"";
+        out += ",\"a\":\"" + String((float)dt_status.current_dA / 10.0f, 1) + "\"";
+        out += ",\"p\":" + String((int)dt_status.active_power_W);
+        out += ",\"cmin\":" + String((int)dt_status.cell_min_voltage_mV);
+        out += ",\"cmax\":" + String((int)dt_status.cell_max_voltage_mV);
+        out += ",\"tmin\":\"" + String((float)dt_status.temperature_min_dC / 10.0f, 1) + "\"";
+        out += ",\"tmax\":\"" + String((float)dt_status.temperature_max_dC / 10.0f, 1) + "\"";
 
-        String stat_str = "UNKNOWN";
-        if (dt_status.bms_status == ACTIVE)
-          stat_str = "OK";
-        else if (dt_status.bms_status == UPDATING)
-          stat_str = "UPDATING";
-        else if (dt_status.bms_status == FAULT)
-          stat_str = "FAULT";
-        b["stat"] = stat_str;
+        const char* stat_str = "UNKNOWN";
+        if (dt_status.bms_status == ACTIVE) stat_str = "OK";
+        else if (dt_status.bms_status == UPDATING) stat_str = "UPDATING";
+        else if (dt_status.bms_status == FAULT) stat_str = "FAULT";
+        out += ",\"stat\":\"" + String(stat_str) + "\"";
 
-        if (dt_status.current_dA == 0)
-          b["act"] = "Idle 💤";
-        else if (dt_status.current_dA < 0)
-          b["act"] = "Discharging 🔋⬇️";
-        else
-          b["act"] = "Charging 🔋⬆️";
+        const char* act_str = "Idle 💤";
+        if (dt_status.current_dA < 0) act_str = "Discharging 🔋⬇️";
+        else if (dt_status.current_dA > 0) act_str = "Charging 🔋⬆️";
+        out += ",\"act\":\"" + String(act_str) + "\"";
 
-        b["mc"] = dt_status.max_charge_power_W;
-        b["md"] = dt_status.max_discharge_power_W;
-        b["rem"] = dt_status.remaining_capacity_Wh;
-        b["tot"] = dt_info.total_capacity_Wh;
-        b["b_cont"] = (dt_status.bms_status != FAULT);
+        out += ",\"mc\":" + String((int)dt_status.max_charge_power_W);
+        out += ",\"md\":" + String((int)dt_status.max_discharge_power_W);
+        out += ",\"rem\":" + String((int)dt_status.remaining_capacity_Wh);
+        out += ",\"tot\":" + String((int)dt_info.total_capacity_Wh);
+        out += ",\"b_cont\":" + String((dt_status.bms_status != FAULT) ? "true" : "false");
       }
+      out += "}";
     };
 
-    populate_battery(doc["b1"].to<JsonObject>(), battery, datalayer.battery.info, datalayer.battery.status);
-    populate_battery(doc["b2"].to<JsonObject>(), battery2, datalayer.battery2.info, datalayer.battery2.status);
-    populate_battery(doc["b3"].to<JsonObject>(), battery3, datalayer.battery3.info, datalayer.battery3.status);
+    print_battery("b1", battery, datalayer.battery.info, datalayer.battery.status); out += ",";
+    print_battery("b2", battery2, datalayer.battery2.info, datalayer.battery2.status); out += ",";
+    print_battery("b3", battery3, datalayer.battery3.info, datalayer.battery3.status); out += ",";
 
-    JsonObject chg = doc["chg"].to<JsonObject>();
-    chg["en"] = (charger != nullptr);
+    out += "\"chg\":{";
+    out += "\"en\":" + String(charger ? "true" : "false");
     if (charger) {
-      chg["v"] = String(charger->HVDC_output_voltage(), 2);
-      chg["a"] = String(charger->HVDC_output_current(), 2);
+      out += ",\"v\":\"" + String(charger->HVDC_output_voltage(), 2) + "\"";
+      out += ",\"a\":\"" + String(charger->HVDC_output_current(), 2) + "\"";
     }
+    out += "}";
 
-    // String output;
-    // serializeJson(doc, output);
-    // request->send(200, "application/json", output);
-    // const char* cType = "application/json";
-    // AsyncResponseStream* response = request->beginResponseStream(cType);
-    // serializeJson(doc, *response);
-    // request->send(response);
+    out += "}"; // end JSON
 
-    String output;
-    output.reserve(measureJson(doc) + 128);
-    serializeJson(doc, output);
-    request->send(200, "application/json", output);
+    AsyncWebServerResponse *response = request->beginResponse(200, "application/json", out);
+    response->addHeader("Connection", "close");
+    request->send(response);
   });
 
-  // NEW API : JSON cell battery info
+  // API: JSON cell battery info (Dynamic RAM & Anti-Leak)
   def_route_with_auth("/api/cells", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    String output;
 
-    int total_cells = 0;
-    if (battery)
-      total_cells += datalayer.battery.info.number_of_cells;
-    if (battery2)
-      total_cells += datalayer.battery2.info.number_of_cells;
-    if (battery3)
-      total_cells += datalayer.battery3.info.number_of_cells;
+    int total_active_cells = 0;
+    if (battery)  total_active_cells += datalayer.battery.info.number_of_cells;
+    if (battery2) total_active_cells += datalayer.battery2.info.number_of_cells;
+    if (battery3) total_active_cells += datalayer.battery3.info.number_of_cells;
 
-    // One cell uses approximately 7 bytes of text + offer 150 bytes of curly braces.
-    output.reserve((total_cells * 7) + 150);
+    if (total_active_cells == 0) {
+       AsyncWebServerResponse *res = request->beginResponse(200, "application/json", "{}");
+       res->addHeader("Connection", "close");
+       return request->send(res);
+    }
 
-    output += "{";
+    size_t required_ram = 128 + (total_active_cells * 15);
+
+    String out;
+    out.reserve(required_ram);
+    out += "{";
     bool firstBat = true;
 
-    auto printBat = [&](const char* key, Battery* bat, DATALAYER_BATTERY_TYPE& layer) {
-      if (!bat || layer.info.number_of_cells == 0)
-        return;
-      if (!firstBat)
-        output += ",";
+    auto add_cells = [&](const char* key, Battery* bat, DATALAYER_BATTERY_TYPE& layer) {
+      if (!bat || layer.info.number_of_cells == 0) return;
+
+      if (!firstBat) out += ",";
       firstBat = false;
 
-      output += "\"" + String(key) + "\":{\"cv\":[";
+      out += String("\"") + key + "\":{\"cv\":[";
+
       int cells = layer.info.number_of_cells;
-      if (cells > MAX_AMOUNT_CELLS)
-        cells = MAX_AMOUNT_CELLS;
+      if (cells > MAX_AMOUNT_CELLS) cells = MAX_AMOUNT_CELLS;
 
       for (int i = 0; i < cells; i++) {
-        output += String(layer.status.cell_voltages_mV[i]);
-        if (i < cells - 1)
-          output += ",";
+        out += String(layer.status.cell_voltages_mV[i]);
+        if (i < cells - 1) out += ",";
       }
-      output += "],\"cb\":[";
+
+      out += "],\"cb\":[";
+
       for (int i = 0; i < cells; i++) {
-        output += String(layer.status.cell_balancing_status[i] ? 1 : 0);
-        if (i < cells - 1)
-          output += ",";
+        out += String(layer.status.cell_balancing_status[i] ? 1 : 0);
+        if (i < cells - 1) out += ",";
       }
-      output += "]}";
+      out += "]}";
     };
 
-    printBat("b1", battery, datalayer.battery);
-    printBat("b2", battery2, datalayer.battery2);
-    printBat("b3", battery3, datalayer.battery3);
+    if (battery)  add_cells("b1", battery, datalayer.battery);
+    if (battery2) add_cells("b2", battery2, datalayer.battery2);
+    if (battery3) add_cells("b3", battery3, datalayer.battery3);
 
-    output += "}";
+    out += "}";
 
-    request->send(200, "application/json", output);
+    AsyncWebServerResponse *response = request->beginResponse(200, "application/json", out);
+    response->addHeader("Connection", "close");
+    request->send(response);
   });
 
   def_route_with_auth("/debug", server, HTTP_GET,
@@ -1332,18 +1086,34 @@ void init_webserver() {
         "RebootTask", 2048, NULL, 1, NULL);
   });
 
+  // 🌟 API: Get Firmware Info for OTA
+  def_route_with_auth("/GetFirmwareInfo", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    String out;
+    out.reserve(128);
+
+    out += "{\"hardware\":\"";
+    out += String(esp32hal->name());
+    out += "\",\"firmware\":\"";
+    out += String(version_number);
+    out += "\"}";
+
+    AsyncWebServerResponse *response = request->beginResponse(200, "application/json", out);
+    response->addHeader("Connection", "close");
+    request->send(response);
+  });
+
   def_route_with_auth("/ota", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     // Use Stream Less RAM (0% Heap Allocation)
     AsyncResponseStream* response = request->beginResponseStream("text/html");
     response->print(index_html_header);
     response->print(R"rawliteral(
       <style>
-        .ota-wrap { display: flex; flex-direction: column; height: 100%; gap: 15px; }
+        .ota-wrap { display: flex; flex-direction: column; height: 100vh; gap: 15px; }
         .ota-card { background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 4px solid #3498db; padding: 0; overflow: hidden; display: flex; flex-direction: column; height: 80vh; min-height: 600px; }
         .ota-header { padding: 15px 20px; border-bottom: 1px solid #eee; background: #fbfcfc; }
         .ota-header h3 { margin: 0; color: #2c3e50; font-size: 1.25rem; font-weight: 800; }
         .ota-header p { margin: 5px 0 0 0; color: #7f8c8d; font-size: 0.9rem; }
-        .ota-iframe { width: 100%; height: 100%; border: none; flex: 1; }
+        .ota-iframe { align-self: stretch; border: none; flex: 1; }
       </style>
       <div class="ota-wrap">
         <div class="ota-card">
@@ -1356,6 +1126,100 @@ void init_webserver() {
       </div>
     )rawliteral");
     response->print(index_html_footer);
+    request->send(response);
+  });
+
+  // =======================================================
+  // ☁️ ATECC608A Cloud Security APIs
+  // =======================================================
+
+  // Web page for checking safe status (retrieval of serial number, checking lock status).
+  server.on("/api/atecc/status", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    JsonDocument doc;
+
+    doc["serial"] = atecc_get_serial();
+    doc["config_locked"] = atecc_is_config_locked();
+    doc["data_locked"] = atecc_is_data_locked();
+
+    serializeJson(doc, *response);
+    request->send(response);
+  });
+
+  // Web page for generating Private Key and CSR.
+  server.on("/api/atecc/gencsr", HTTP_POST, [](AsyncWebServerRequest* request) {
+    String cn = request->hasParam("cn", true) ? request->getParam("cn", true)->value() : "BatteryEmulator";
+    String platform = request->hasParam("platform", true) ? request->getParam("platform", true)->value() : "AWS";
+
+    // Instruct the ATECC chip to calculate the secret code (takes 1-2 seconds)
+    String country = request->hasParam("country", true) ? request->getParam("country", true)->value() : "TH";
+    String state = request->hasParam("state", true) ? request->getParam("state", true)->value() : "Bangkok";
+    String locality = request->hasParam("locality", true) ? request->getParam("locality", true)->value() : "Bangkok";
+    String org = request->hasParam("org", true) ? request->getParam("org", true)->value() : "BatteryEmulator";
+
+    // Pass all variables to the function.
+    String csr_pem = atecc_generate_csr(cn, platform, country, state, locality, org);
+
+    if (csr_pem.length() > 0) {
+      request->send(200, "text/plain", csr_pem);
+    } else {
+      request->send(500, "text/plain", "❌ Error generating CSR. Is Config Zone locked? Or missing chip?");
+    }
+  });
+
+  // Lock Zone page
+  server.on("/api/atecc/lock", HTTP_POST, [](AsyncWebServerRequest* request) {
+    String zone = request->hasParam("zone", true) ? request->getParam("zone", true)->value() : "";
+
+    bool success = false;
+    String message = "";
+
+    if (zone == "config") {
+      success = atecc_lock_config_zone();
+      message = success ? "✅ Config Zone Locked Successfully! Now you can generate CSR." : "❌ Failed to lock Config Zone.";
+    } else if (zone == "data") {
+      success = atecc_lock_data_zone();
+      message = success ? "✅ Data Zone Locked Successfully! Device is fully secured." : "❌ Failed to lock Data Zone.";
+    } else {
+      message = "Invalid zone specified.";
+    }
+
+    request->send(success ? 200 : 500, "text/plain", message);
+  });
+
+  // =======================================================
+  // 📜 Cloud Certificates APIs (NVM Storage)
+  // =======================================================
+
+  // API 4: Display previous certificates on the website.
+  server.on("/api/cloud/getcerts", HTTP_GET, [](AsyncWebServerRequest* request) {
+    BatteryEmulatorSettingsStore settings;
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    JsonDocument doc; // It uses a bit of RAM because the certificate has a long text.
+
+    doc["cert"] = settings.getString("AWS_CERT", "");
+    doc["ca"] = settings.getString("AWS_CA", "");
+
+    serializeJson(doc, *response);
+    request->send(response);
+  });
+
+  // API 5: Receive the new certificate and save it to NVM.
+  server.on("/api/cloud/savecerts", HTTP_POST, [](AsyncWebServerRequest* request) {
+    String cert = request->hasParam("cert", true) ? request->getParam("cert", true)->value() : "";
+    String ca = request->hasParam("ca", true) ? request->getParam("ca", true)->value() : "";
+
+    BatteryEmulatorSettingsStore settings;
+    // Save NVM (ESP32's permanent memory)
+    settings.saveString("AWS_CERT", cert.c_str());
+    settings.saveString("AWS_CA", ca.c_str());
+
+    request->send(200, "text/plain", "✅ Certificates saved successfully to ESP32 NVM!");
+  });
+
+  server.on("/settings.css", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(200, "text/css", SETTINGS_CSS);
+    response->addHeader("Cache-Control", "max-age=86400");
     request->send(response);
   });
 
@@ -1420,8 +1284,11 @@ String get_uptime() {
   uint32_t remaining_hours = remaining_seconds_in_day / (60 * 60);
   uint32_t remaining_minutes = (remaining_seconds_in_day % (60 * 60)) / 60;
   uint32_t remaining_seconds = remaining_seconds_in_day % 60;
-  return (String)total_days + " days, " + (String)remaining_hours + " hours, " + (String)remaining_minutes + " mins, " +
-         (String)remaining_seconds + " secs";
+
+  char buf[64];
+  snprintf(buf, sizeof(buf), "%u days, %lu hours, %lu mins, %lu secs",
+           total_days, remaining_hours, remaining_minutes, remaining_seconds);
+  return String(buf);
 }
 
 void onOTAStart() {

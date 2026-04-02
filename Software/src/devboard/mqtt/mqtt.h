@@ -1,16 +1,16 @@
 /**
  * MQTT add-on for the battery emulator
- * 
+ *
  * Usage:
- * 
+ *
  * Subscription - Add topics to MQTT_SUBSCRIPTIONS in USER_SETTINGS.h and handle the messages in mqtt.cpp:callback()
- * 
+ *
  * Publishing - See example in mqtt.cpp:publish_values() for constructing the payload
- * 
+ *
  * Home assistant - See below for an example, and the official documentation is quite good (https://www.home-assistant.io/integrations/sensor.mqtt/)
  * in configuration.yaml:
  * mqtt: !include mqtt.yaml
- * 
+ *
  * in mqtt.yaml:
  * sensor:
  *   - name: "Cell max"
@@ -55,6 +55,7 @@ extern const char* mqtt_topic_name;
 extern const char* mqtt_object_id_prefix;
 extern const char* mqtt_device_name;
 extern const char* ha_device_id;
+extern bool mqtt_is_connected;
 
 extern char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 

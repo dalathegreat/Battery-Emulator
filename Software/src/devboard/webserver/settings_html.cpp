@@ -1,5 +1,6 @@
 #include "settings_html.h"
 #include <Arduino.h>
+#include <map>
 #include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../../src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../../charger/CHARGERS.h"
@@ -99,15 +100,16 @@ String options_from_map(int selected, const TMap& value_name_map) {
   return options;
 }
 
-static const std::map<int, String> led_modes = {{static_cast<int>(led_mode_enum::CLASSIC), "Classic"},
-                                                {static_cast<int>(led_mode_enum::FLOW), "Energy Flow"},
-                                                {static_cast<int>(led_mode_enum::HEARTBEAT), "Heartbeat"},
+static const std::map<int, String> led_modes = {
+{static_cast<int>(led_mode_enum::CLASSIC), "Classic"},
+{static_cast<int>(led_mode_enum::FLOW), "Energy Flow"},
+{static_cast<int>(led_mode_enum::HEARTBEAT), "Heartbeat"},
 #ifdef HW_LILYGO2CAN
-                                                {static_cast<int>(led_mode_enum::GRB_CLASSIC), "GRB Classic"},
-                                                {static_cast<int>(led_mode_enum::GRB_FLOW), "GRB Energy Flow"},
-                                                {static_cast<int>(led_mode_enum::GRB_HEARTBEAT), "GRB Heartbeat"},
+{static_cast<int>(led_mode_enum::GRB_CLASSIC), "GRB Classic"},
+{static_cast<int>(led_mode_enum::GRB_FLOW), "GRB Energy Flow"},
+{static_cast<int>(led_mode_enum::GRB_HEARTBEAT), "GRB Heartbeat"},
 #endif
-                                                {static_cast<int>(led_mode_enum::LED_DISABLED), "Disabled"}};
+{static_cast<int>(led_mode_enum::LED_DISABLED), "Disabled"}};
 
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
@@ -127,6 +129,12 @@ static const std::map<int, String> sungrow_models = {
     {6, "SBR256 (25.6 kWh, 8 modules)"}};
 
 static const std::map<int, String> pylon_models = {{0, "PYLONTECH"}, {1, "PYLON"}, {2, "DEYE"}};
+
+static const std::map<int, String> mqtt_formats = {
+    {0, "Generic JSON (Home Assistant / Custom)"},
+    {1, "NETPIE (TH) (Device Shadow)"},
+    {2, "AWS IoT Core (Device Shadow)"}
+};
 
 const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   switch (behavior) {
@@ -211,750 +219,188 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   // HTML-ready values (such as select options) are returned here. These don't
   // get any additional escaping.
 
-  if (var == "BATTTYPE") {
-    return options_for_enum_with_none((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None),
-                                      name_for_battery_type, BatteryType::None);
-  }
-  if (var == "BATTCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-  if (var == "BATTCHEM") {
-    return options_for_enum(
-        (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::Autodetect),
-        name_for_chemistry);
-  }
-  if (var == "INVTYPE") {
-    return options_for_enum_with_none(
-        (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None), name_for_inverter_type,
-        InverterProtocolType::None);
-  }
-  if (var == "INVCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("INVCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-  if (var == "CHGTYPE") {
-    return options_for_enum_with_none((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None),
-                                      name_for_charger_type, ChargerType::None);
-  }
-  if (var == "CHGCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("CHGCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
+  // Comm Interface group
+  static const char* comm_keys[] = {
+      "BATTCOMM", "INVCOMM", "CHGCOMM", "SHUNTCOMM", "BATT2COMM", "BATT3COMM"
+  };
+  for (const char* key : comm_keys) {
+    if (var == key) {
+      return options_for_enum((comm_interface)settings.getUInt(key, (int)comm_interface::CanNative), name_for_comm_interface);
+    }
   }
 
-  if (var == "SHUNTTYPE") {
-    return options_for_enum_with_none((ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None),
-                                      name_for_shunt_type, ShuntType::None);
+  // Dropdown group (std::map)
+  struct MapDef { const char* key; int def_val; const std::map<int, String>* map_ptr; };
+  static const MapDef map_keys[] = {
+      {"GTWCOUNTRY",    0, &tesla_countries},
+      {"GTWMAPREG",     0, &tesla_mapregion},
+      {"GTWCHASSIS",    0, &tesla_chassis},
+      {"GTWPACK",       0, &tesla_pack},
+      {"LEDMODE",       3, &led_modes},       // Default 3 = disabled
+      {"SUNGROW_MODEL", 1, &sungrow_models},  // Default 1 = SBR096
+      {"PYLON_MODEL",   0, &pylon_models},
+      {"MQTTFORMAT",    0, &mqtt_formats}
+  };
+  for (const auto& item : map_keys) {
+    if (var == item.key) {
+      return options_from_map(settings.getUInt(item.key, item.def_val), *item.map_ptr);
+    }
   }
 
-  if (var == "SHUNTCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("SHUNTCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
+  //  Unique Enums group
+  if (var == "BATTTYPE")  return options_for_enum_with_none((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None), name_for_battery_type, BatteryType::None);
+  if (var == "BATTCHEM")  return options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::Autodetect), name_for_chemistry);
+  if (var == "INVTYPE")   return options_for_enum_with_none((InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None), name_for_inverter_type, InverterProtocolType::None);
+  if (var == "CHGTYPE")   return options_for_enum_with_none((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None), name_for_charger_type, ChargerType::None);
+  if (var == "SHUNTTYPE") return options_for_enum_with_none((ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None), name_for_shunt_type, ShuntType::None);
+  if (var == "CTATTEN")   return options_for_enum_with_none((adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_0db), name_for_adc_attenuation, adc_attenuation_enum::ADC_0db);
+  if (var == "EQSTOP")    return options_for_enum_with_none((STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED), name_for_button_type, STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
 
-  if (var == "CTATTEN") {
-    return options_for_enum_with_none(
-        (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_0db), name_for_adc_attenuation,
-        adc_attenuation_enum::ADC_0db);
-  }
+  // group of ordinary numbers
+  if (var == "LEDTAIL")  return String(settings.getUInt("LEDTAIL", 4));
+  if (var == "LEDCOUNT") return String(settings.getUInt("LEDCOUNT", 4));
 
-  if (var == "EQSTOP") {
-    return options_for_enum_with_none(
-        (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
-        name_for_button_type, STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
-  }
-
-  if (var == "BATT2COMM") {
-    return options_for_enum((comm_interface)settings.getUInt("BATT2COMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-
-  if (var == "BATT3COMM") {
-    return options_for_enum((comm_interface)settings.getUInt("BATT3COMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-
-  if (var == "GTWCOUNTRY") {
-    return options_from_map(settings.getUInt("GTWCOUNTRY", 0), tesla_countries);
-  }
-
-  if (var == "GTWMAPREG") {
-    return options_from_map(settings.getUInt("GTWMAPREG", 0), tesla_mapregion);
-  }
-
-  if (var == "GTWCHASSIS") {
-    return options_from_map(settings.getUInt("GTWCHASSIS", 0), tesla_chassis);
-  }
-
-  if (var == "GTWPACK") {
-    return options_from_map(settings.getUInt("GTWPACK", 0), tesla_pack);
-  }
-
-  if (var == "LEDMODE") {
-    return options_from_map(settings.getUInt("LEDMODE", 3), led_modes);  // Default to disabled to save power
-  }
-
-  if (var == "LEDTAIL") {
-    return String(settings.getUInt("LEDTAIL", 4));
-  }
-  if (var == "LEDCOUNT") {
-    return String(settings.getUInt("LEDCOUNT", 8));
-  }
-
-  if (var == "SUNGROW_MODEL") {
-    return options_from_map(settings.getUInt("INVSUNTYPE", 1), sungrow_models);  // Default: SBR096
-  }
-
-  if (var == "PYLON_MODEL") {
-    return options_from_map(settings.getUInt("PYLONBRAND", 0), pylon_models);
-  }
-
+  // Hardware GPIO & Display
 #ifdef HW_LILYGO2CAN
-  if (var == "GPIOOPT1") {
-    return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
-                                      name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
-  }
-
-  if (var == "DISPLAYTYPE") {
-    return options_for_enum_with_none((DisplayType)settings.getUInt("DISPLAYTYPE", (int)DisplayType::OLED_I2C),
-                                      name_for_display_type, DisplayType::NONE);
-  }
+  if (var == "GPIOOPT1") return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT), name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
+  if (var == "DISPLAYTYPE") return options_for_enum_with_none((DisplayType)settings.getUInt("DISPLAYTYPE", (int)DisplayType::OLED_I2C), name_for_display_type, DisplayType::NONE);
 #endif
-  if (var == "GPIOOPT2") {
-    return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
-                                      name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
-  }
-
-  if (var == "GPIOOPT3") {
-    return options_for_enum_with_none((GPIOOPT3)settings.getUInt("GPIOOPT3", (int)GPIOOPT3::DEFAULT_SMA_ENABLE_05),
-                                      name_for_gpioopt3, GPIOOPT3::DEFAULT_SMA_ENABLE_05);
-  }
-
-  if (var == "GPIOOPT4") {
-    return options_for_enum_with_none((GPIOOPT4)settings.getUInt("GPIOOPT4", (int)GPIOOPT4::DEFAULT_SD_CARD),
-                                      name_for_gpioopt4, GPIOOPT4::DEFAULT_SD_CARD);
-  }
+  if (var == "GPIOOPT2") return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18), name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
+  if (var == "GPIOOPT3") return options_for_enum_with_none((GPIOOPT3)settings.getUInt("GPIOOPT3", (int)GPIOOPT3::DEFAULT_SMA_ENABLE_05), name_for_gpioopt3, GPIOOPT3::DEFAULT_SMA_ENABLE_05);
+  if (var == "GPIOOPT4") return options_for_enum_with_none((GPIOOPT4)settings.getUInt("GPIOOPT4", (int)GPIOOPT4::DEFAULT_SD_CARD), name_for_gpioopt4, GPIOOPT4::DEFAULT_SD_CARD);
 
   // All other values are wrapped by html_escape to avoid HTML injection.
-
   return html_escape(raw_settings_processor(var, settings));
 }
 
 String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
-  // All of these returned values are raw un-escaped UTF-8 strings.
-
-  if (var == "HOSTNAME") {
-    return settings.getString("HOSTNAME");
-  }
-
-  if (var == "BATTERYINTF") {
-    if (battery) {
-      return battery->interface_name();
-    }
-  }
-
-  if (var == "SSID") {
-    return settings.getString("SSID");
-  }
-
-  if (var == "PASSWORD") {
-    return settings.getString("PASSWORD");
-  }
-
-  if (var == "WEBAUTH_1") {
-    // get WEBAUTH, if null set is 1 (safty1st)
-    return settings.getUInt("WEBAUTH", 0) == 1 ? "selected" : "";
-  }
-
-  if (var == "WEBAUTH_0") {
-    return settings.getUInt("WEBAUTH", 0) == 0 ? "selected" : "";
-  }
-
-  if (var == "AUTH_DISPLAY") {
-    return settings.getUInt("WEBAUTH", 0) == 1 ? "block" : "none";
-  }
-
-  if (var == "WEBUSER") {
-    return settings.getString("WEBUSER", DEFAULT_WEB_USER);
-  }
-
-  if (var == "WEBPASS") {
-    return settings.getString("WEBPASS", DEFAULT_WEB_PASS);
-  }
-
-  if (var == "SAVEDCLASS") {
-    if (!settingsUpdated) {
-      return "hidden";
-    }
-  }
-
-  if (var == "SAVEDCLASS") {
-    return settingsUpdated ? "" : "hidden";
-  }
-
-  if (var == "BATTERY2INTF") {
-    if (battery2) {
-      return battery2->interface_name();
-    }
-  }
-
-  if (var == "INVCLASS") {
-    if (!inverter) {
-      return "hidden";
-    }
-  }
-
-  if (var == "INVBIDCLASS") {
-    if (!inverter || !inverter->supports_battery_id()) {
-      return "hidden";
-    }
-  }
-
-  if (var == "INVBID") {
-    if (inverter && inverter->supports_battery_id()) {
-      return String(datalayer.battery.settings.sofar_user_specified_battery_id);
-    }
-  }
-
-  if (var == "INVINTF") {
-    if (inverter) {
-      return inverter->interface_name();
-    }
-  }
-
-  if (var == "SHUNTINTF") {
-    if (shunt) {
-      return shunt->interface_name();
-    }
-  }
-
-  if (var == "SHUNTCLASS") {
-    if (!shunt) {
-      return "hidden";
-    }
-  }
-
-  if (var == "CHARGERCLASS") {
-    if (!charger) {
-      return "hidden";
-    }
-  }
-
-  if (var == "DBLBTR") {
-    return settings.getBool("DBLBTR") ? "checked" : "";
-  }
-
-  if (var == "EPAPREFRESHBTN") {
-    return settings.getBool("EPAPREFRESHBTN") ? "checked" : "";
-  }
-
-  if (var == "TRIBTR") {
-    return settings.getBool("TRIBTR") ? "checked" : "";
-  }
-
-  if (var == "SOCESTIMATED") {
-    return settings.getBool("SOCESTIMATED") ? "checked" : "";
-  }
-
-  if (var == "CNTCTRL") {
-    return settings.getBool("CNTCTRL") ? "checked" : "";
-  }
-
-  if (var == "NCCONTACTOR") {
-    return settings.getBool("NCCONTACTOR") ? "checked" : "";
-  }
-
-  if (var == "CNTCTRLDBL") {
-    return settings.getBool("CNTCTRLDBL") ? "checked" : "";
-  }
-
-  if (var == "CNTCTRLTRI") {
-    return settings.getBool("CNTCTRLTRI") ? "checked" : "";
-  }
-
-  if (var == "PWMCNTCTRL") {
-    return settings.getBool("PWMCNTCTRL") ? "checked" : "";
-  }
-
-  if (var == "PERBMSRESET") {
-    return settings.getBool("PERBMSRESET") ? "checked" : "";
-  }
-
-  if (var == "REMBMSRESET") {
-    return settings.getBool("REMBMSRESET") ? "checked" : "";
-  }
-
-  if (var == "EXTPRECHARGE") {
-    return settings.getBool("EXTPRECHARGE") ? "checked" : "";
-  }
-
-  if (var == "MAXPRETIME") {
-    return String(settings.getUInt("MAXPRETIME", 15000));
-  }
-
-  if (var == "MAXPREFREQ") {
-    return String(settings.getUInt("MAXPREFREQ", 34000));
-  }
-
-  if (var == "NOINVDISC") {
-    return settings.getBool("NOINVDISC") ? "checked" : "";
-  }
-
-  if (var == "CANFDASCAN") {
-    return settings.getBool("CANFDASCAN") ? "checked" : "";
-  }
-
-  if (var == "WIFIAPENABLED") {
-    return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
-  }
-
-  if (var == "APPASSWORD") {
-    return settings.getString("APPASSWORD", "123456789");
-  }
-
-  if (var == "APNAME") {
-    return settings.getString("APNAME", "BatteryEmulator");
-  }
-
-  if (var == "STATICIP") {
-    return settings.getBool("STATICIP") ? "checked" : "";
-  }
-
-  if (var == "WIFICHANNEL") {
-    return String(settings.getUInt("WIFICHANNEL", 0));
-  }
-
-  if (var == "CHGPOWER") {
-    return String(settings.getUInt("CHGPOWER", 0));
-  }
-
-  if (var == "DCHGPOWER") {
-    return String(settings.getUInt("DCHGPOWER", 0));
-  }
-
-  if (var == "LOCALIP1") {
-    return String(settings.getUInt("LOCALIP1", 0));
-  }
-
-  if (var == "LOCALIP2") {
-    return String(settings.getUInt("LOCALIP2", 0));
-  }
-
-  if (var == "LOCALIP3") {
-    return String(settings.getUInt("LOCALIP3", 0));
-  }
-
-  if (var == "LOCALIP4") {
-    return String(settings.getUInt("LOCALIP4", 0));
-  }
-
-  if (var == "GATEWAY1") {
-    return String(settings.getUInt("GATEWAY1", 0));
-  }
-
-  if (var == "GATEWAY2") {
-    return String(settings.getUInt("GATEWAY2", 0));
-  }
-
-  if (var == "GATEWAY3") {
-    return String(settings.getUInt("GATEWAY3", 0));
-  }
-
-  if (var == "GATEWAY4") {
-    return String(settings.getUInt("GATEWAY4", 0));
-  }
-
-  if (var == "SUBNET1") {
-    return String(settings.getUInt("SUBNET1", 0));
-  }
-
-  if (var == "SUBNET2") {
-    return String(settings.getUInt("SUBNET2", 0));
-  }
-
-  if (var == "SUBNET3") {
-    return String(settings.getUInt("SUBNET3", 0));
-  }
-
-  if (var == "SUBNET4") {
-    return String(settings.getUInt("SUBNET4", 0));
-  }
-
-  if (var == "PERFPROFILE") {
-    return settings.getBool("PERFPROFILE") ? "checked" : "";
-  }
-
-  if (var == "CANLOGUSB") {
-    return settings.getBool("CANLOGUSB") ? "checked" : "";
-  }
-
-  if (var == "USBENABLED") {
-    return settings.getBool("USBENABLED") ? "checked" : "";
-  }
-
-  if (var == "WEBENABLED") {
-    return settings.getBool("WEBENABLED") ? "checked" : "";
-  }
-
-  if (var == "CANLOGSD") {
-    return settings.getBool("CANLOGSD") ? "checked" : "";
-  }
-
-  if (var == "SDLOGENABLED") {
-    return settings.getBool("SDLOGENABLED") ? "checked" : "";
-  }
-
-  if (var == "ESPNOWENABLED") {
-    return settings.getBool("ESPNOWENABLED") ? "checked" : "";
-  }
-
-  if (var == "MQTTENABLED") {
-    return settings.getBool("MQTTENABLED") ? "checked" : "";
-  }
-
-  if (var == "MQTTSERVER") {
-    return settings.getString("MQTTSERVER");
-  }
-
-  if (var == "MQTTPORT") {
-    return String(settings.getUInt("MQTTPORT", 1883));
-  }
-
-  if (var == "MQTTUSER") {
-    return settings.getString("MQTTUSER");
-  }
-
-  if (var == "MQTTPASSWORD") {
-    return settings.getString("MQTTPASSWORD");
-  }
-
-  if (var == "MQTTTOPICS") {
-    return settings.getBool("MQTTTOPICS") ? "checked" : "";
-  }
-
-  if (var == "MQTTTOPIC") {
-    return settings.getString("MQTTTOPIC");
-  }
-
-  if (var == "MQTTTIMEOUT") {
-    return String(settings.getUInt("MQTTTIMEOUT", 2000));
-  }
-
-  if (var == "MQTTPUBLISHMS") {
-    return String(settings.getUInt("MQTTPUBLISHMS", 5000) / 1000);
-  }
-
-  if (var == "MQTTOBJIDPREFIX") {
-    return settings.getString("MQTTOBJIDPREFIX");
-  }
-
-  if (var == "MQTTDEVICENAME") {
-    return settings.getString("MQTTDEVICENAME");
-  }
-
-  if (var == "MQTTCELLV") {
-    return settings.getBool("MQTTCELLV") ? "checked" : "";
-  }
-
-  if (var == "HADEVICEID") {
-    return settings.getString("HADEVICEID");
-  }
-
-  if (var == "HADISC") {
-    return settings.getBool("HADISC") ? "checked" : "";
-  }
-
-  if (var == "MANUAL_BAL_CLASS") {
-    if (battery && battery->supports_manual_balancing()) {
-      return "";
-    } else {
-      return "hidden";
-    }
-  }
-
-  if (var == "BATTPVMAX") {
-    return String(static_cast<float>(settings.getUInt("BATTPVMAX", 0)) / 10.0f, 1);
-  }
-
-  if (var == "BATTPVMIN") {
-    return String(static_cast<float>(settings.getUInt("BATTPVMIN", 0)) / 10.0f, 1);
-  }
-
-  if (var == "BATTCVMAX") {
-    return String(settings.getUInt("BATTCVMAX", 0));
-  }
-
-  if (var == "BATTCVMIN") {
-    return String(settings.getUInt("BATTCVMIN", 0));
-  }
-
-  if (var == "BATTERY_WH_MAX") {
-    return String(datalayer.battery.info.total_capacity_Wh);
-  }
-
-  if (var == "MAX_CHARGE_SPEED") {
-    return String(datalayer.battery.settings.max_user_set_charge_dA / 10.0f, 1);
-  }
-
-  if (var == "MAX_DISCHARGE_SPEED") {
-    return String(datalayer.battery.settings.max_user_set_discharge_dA / 10.0f, 1);
-  }
-
-  if (var == "SOC_MAX_PERCENTAGE") {
-    return String(datalayer.battery.settings.max_percentage / 100.0f, 1);
-  }
-
-  if (var == "SOC_MIN_PERCENTAGE") {
-    return String(datalayer.battery.settings.min_percentage / 100.0f, 1);
-  }
-
-  if (var == "CHARGE_VOLTAGE") {
-    return String(datalayer.battery.settings.max_user_set_charge_voltage_dV / 10.0f, 1);
-  }
-
-  if (var == "DISCHARGE_VOLTAGE") {
-    return String(datalayer.battery.settings.max_user_set_discharge_voltage_dV / 10.0f, 1);
-  }
-
-  if (var == "SOC_SCALING_ACTIVE_CLASS") {
-    return datalayer.battery.settings.soc_scaling_active ? "active" : "inactive";
-  }
-
-  if (var == "VOLTAGE_LIMITS_ACTIVE_CLASS") {
-    return datalayer.battery.settings.user_set_voltage_limits_active ? "active" : "inactive";
-  }
-
-  if (var == "SOC_SCALING_CLASS") {
-    return datalayer.battery.settings.soc_scaling_active ? "active" : "inactiveSoc";
-  }
-
-  if (var == "SOC_SCALING") {
-    return datalayer.battery.settings.soc_scaling_active ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
-  }
-
-  if (var == "FAKE_VOLTAGE_CLASS") {
-    return battery && battery->supports_set_fake_voltage() ? "" : "hidden";
-  }
-
-  if (var == "MANUAL_BALANCING_CLASS") {
-    return datalayer.battery.settings.user_requests_balancing ? "" : "inactiveSoc";
-  }
-
-  if (var == "MANUAL_BALANCING") {
-    if (datalayer.battery.settings.user_requests_balancing) {
-      return TRUE_CHAR_CODE;
-    } else {
-      return FALSE_CHAR_CODE;
-    }
-  }
-
-  if (var == "BATTERY_VOLTAGE") {
-    if (battery) {
-      return String(battery->get_voltage(), 1);
-    }
-  }
-
-  if (var == "VOLTAGE_LIMITS") {
-    if (datalayer.battery.settings.user_set_voltage_limits_active) {
-      return TRUE_CHAR_CODE;
-    } else {
-      return FALSE_CHAR_CODE;
-    }
-  }
-
-  if (var == "BALANCING_CLASS") {
-    return datalayer.battery.settings.user_requests_balancing ? "active" : "inactive";
-  }
-
-  if (var == "BALANCING_MAX_TIME") {
-    return String(datalayer.battery.settings.balancing_max_time_ms / 60000.0f, 1);
-  }
-
-  if (var == "BAL_POWER") {
-    return String(datalayer.battery.settings.balancing_float_power_W / 1.0f, 0);
-  }
-
-  if (var == "BAL_MAX_PACK_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0f, 0);
-  }
-  if (var == "BAL_MAX_CELL_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0f, 0);
-  }
-  if (var == "BAL_MAX_DEV_CELL_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0f, 0);
-  }
-
-  if (var == "BMS_RESET_DURATION") {
-    return String(datalayer.battery.settings.user_set_bms_reset_duration_ms / 1000.0f, 0);
-  }
-
-  if (var == "CHARGER_CLASS") {
-    if (!charger) {
-      return "hidden";
-    }
-  }
-
-  if (var == "CHG_HV_CLASS") {
-    if (datalayer.charger.charger_HV_enabled) {
-      return "active";
-    } else {
-      return "inactiveSoc";
-    }
-  }
-
-  if (var == "CHG_HV") {
-    if (datalayer.charger.charger_HV_enabled) {
-      return TRUE_CHAR_CODE;
-    } else {
-      return FALSE_CHAR_CODE;
-    }
-  }
-
-  if (var == "CHG_AUX12V_CLASS") {
-    if (datalayer.charger.charger_aux12V_enabled) {
-      return "active";
-    } else {
-      return "inactiveSoc";
-    }
-  }
-
-  if (var == "CHG_AUX12V") {
-    if (datalayer.charger.charger_aux12V_enabled) {
-      return TRUE_CHAR_CODE;
-    } else {
-      return FALSE_CHAR_CODE;
-    }
-  }
-
-  if (var == "CHG_VOLTAGE_SETPOINT") {
-    return String(datalayer.charger.charger_setpoint_HV_VDC, 1);
-  }
-
-  if (var == "CHG_CURRENT_SETPOINT") {
-    return String(datalayer.charger.charger_setpoint_HV_IDC, 1);
-  }
-
-  if (var == "SOFAR_ID") {
-    return String(settings.getUInt("SOFAR_ID", 0));
-  }
-
-  if (var == "PYLONSEND") {
-    return String(settings.getUInt("PYLONSEND", 0));
-  }
-
-  if (var == "PYLONOFFSET") {
-    return settings.getBool("PYLONOFFSET") ? "checked" : "";
-  }
-
-  if (var == "PYLONORDER") {
-    return settings.getBool("PYLONORDER") ? "checked" : "";
-  }
-
-  if (var == "PYLONBAUD") {
-    return String(settings.getUInt("PYLONBAUD", 500));
-  }
-
-  if (var == "INVCELLS") {
-    return String(settings.getUInt("INVCELLS", 0));
-  }
-
-  if (var == "INVMODULES") {
-    return String(settings.getUInt("INVMODULES", 0));
-  }
-
-  if (var == "INVCELLSPER") {
-    return String(settings.getUInt("INVCELLSPER", 0));
-  }
-
-  if (var == "INVVLEVEL") {
-    return String(settings.getUInt("INVVLEVEL", 0));
-  }
-
-  if (var == "INVCAPACITY") {
-    return String(settings.getUInt("INVCAPACITY", 0));
-  }
-
-  if (var == "INVBTYPE") {
-    return String(settings.getUInt("INVBTYPE", 0));
-  }
-
-  if (var == "INVICNT") {
-    return settings.getBool("INVICNT") ? "checked" : "";
-  }
-
-  if (var == "DEYEBYD") {
-    return settings.getBool("DEYEBYD") ? "checked" : "";
-  }
-
-  if (var == "PRIMOGEN24") {
-    return settings.getBool("PRIMOGEN24") ? "checked" : "";
-  }
-
-  if (var == "CANFREQ") {
-    return String(settings.getUInt("CANFREQ", 8));
-  }
-
-  if (var == "CANFDFREQ") {
-    return String(settings.getUInt("CANFDFREQ", 40));
-  }
-
-  if (var == "PRECHGMS") {
-    return String(settings.getUInt("PRECHGMS", 100));
-  }
-
-  if (var == "PWMFREQ") {
-    return String(settings.getUInt("PWMFREQ", 20000));
-  }
-
-  if (var == "PWMHOLD") {
-    return String(settings.getUInt("PWMHOLD", 250));
-  }
-
-  if (var == "INTERLOCKREQ") {
-    return settings.getBool("INTERLOCKREQ") ? "checked" : "";
-  }
-
-  if (var == "DIGITALHVIL") {
-    return settings.getBool("DIGITALHVIL") ? "checked" : "";
-  }
-
-  if (var == "GTWRHD") {
-    return settings.getBool("GTWRHD") ? "checked" : "";
-  }
-
-  if (var == "MULTII2C") {
-    return settings.getBool("MULTII2C") ? "checked" : "";
-  }
-  if (var == "I2C_OLED") {
-    return settings.getBool("I2C_OLED") ? "checked" : "";
-  }
-  if (var == "I2C_SHT30") {
-    return settings.getBool("I2C_SHT30") ? "checked" : "";
-  }
-  if (var == "I2C_ATECC") {
-    return settings.getBool("I2C_ATECC") ? "checked" : "";
-  }
-  if (var == "I2C_RTC") {
-    return settings.getBool("I2C_RTC") ? "checked" : "";
-  }
-  if (var == "I2C_IO") {
-    return settings.getBool("I2C_IO") ? "checked" : "";
-  }
-  if (var == "CTOFFSET") {
-    return settings.getString("CTOFFSET", "-1.0");
-  }
-
-  if (var == "CTVNOM") {
-    return String(settings.getUInt("CTVNOM", 40));
-  }
-
-  if (var == "CTANOM") {
-    return String(settings.getUInt("CTANOM", 100));
-  }
-
-  if (var == "CTINVERT") {
-    return settings.getBool("CTINVERT") ? "checked" : "";
-  }
+  // Checkbox group (if enabled, return "checked")
+  static const char* checkbox_keys[] = {
+      "DBLBTR", "EPAPREFRESHBTN", "TRIBTR", "SOCESTIMATED", "CNTCTRL", "NCCONTACTOR",
+      "CNTCTRLDBL", "CNTCTRLTRI", "PWMCNTCTRL", "PERBMSRESET", "REMBMSRESET",
+      "EXTPRECHARGE", "NOINVDISC", "CANFDASCAN", "STATICIP", "PERFPROFILE",
+      "CANLOGUSB", "USBENABLED", "WEBENABLED", "CANLOGSD", "SDLOGENABLED",
+      "ESPNOWENABLED", "MQTTENABLED", "MQTTTOPICS", "MQTTCELLV", "HADISC",
+      "PYLONOFFSET", "PYLONORDER", "INVICNT", "DEYEBYD", "PRIMOGEN24",
+      "INTERLOCKREQ", "DIGITALHVIL", "GTWRHD", "MULTII2C", "I2C_OLED",
+      "I2C_SHT30", "I2C_ATECC", "I2C_RTC", "I2C_IO", "CTINVERT"
+  };
+  for (const char* key : checkbox_keys) {
+    if (var == key) return settings.getBool(key) ? "checked" : "";
+  }
+  // The special, its default value is tied to an external variable.
+  if (var == "WIFIAPENABLED") return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
+
+  // A group of numbers (UInt) with a default value.
+  struct UIntDef { const char* key; uint32_t def; };
+  static const UIntDef uint_keys[] = {
+      {"MAXPRETIME", 15000}, {"MAXPREFREQ", 34000}, {"WIFICHANNEL", 0},
+      {"CHGPOWER", 0}, {"DCHGPOWER", 0}, {"LOCALIP1", 0}, {"LOCALIP2", 0},
+      {"LOCALIP3", 0}, {"LOCALIP4", 0}, {"GATEWAY1", 0}, {"GATEWAY2", 0},
+      {"GATEWAY3", 0}, {"GATEWAY4", 0}, {"SUBNET1", 0}, {"SUBNET2", 0},
+      {"SUBNET3", 0}, {"SUBNET4", 0}, {"MQTTPORT", 1883}, {"MQTTTIMEOUT", 2000},
+      {"SOFAR_ID", 0}, {"PYLONSEND", 0}, {"PYLONBAUD", 500}, {"INVCELLS", 0},
+      {"INVMODULES", 0}, {"INVCELLSPER", 0}, {"INVVLEVEL", 0}, {"INVCAPACITY", 0},
+      {"INVBTYPE", 0}, {"CANFREQ", 8}, {"CANFDFREQ", 40}, {"PRECHGMS", 100},
+      {"PWMFREQ", 20000}, {"PWMHOLD", 250}, {"CTVNOM", 40}, {"CTANOM", 100},
+      {"BATTCVMAX", 0}, {"BATTCVMIN", 0}
+  };
+  for (const auto& item : uint_keys) {
+    if (var == item.key) return String(settings.getUInt(item.key, item.def));
+  }
+
+  // group of normal String
+  static const char* string_keys[] = {
+      "HOSTNAME", "SSID", "PASSWORD", "MQTTSERVER", "MQTTUSER",
+      "MQTTPASSWORD", "MQTTTOPIC", "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID"
+  };
+  for (const char* key : string_keys) {
+    if (var == key) return settings.getString(key);
+  }
+  // group of normal String with Default
+  if (var == "WEBUSER") return settings.getString("WEBUSER", DEFAULT_WEB_USER);
+  if (var == "WEBPASS") return settings.getString("WEBPASS", DEFAULT_WEB_PASS);
+  if (var == "APPASSWORD") return settings.getString("APPASSWORD", "123456789");
+  if (var == "APNAME") return settings.getString("APNAME", "BatteryEmulator");
+  if (var == "CTOFFSET") return settings.getString("CTOFFSET", "-1.0");
+
+  // Hardware Interface & Visibility Class
+  if (var == "BATTERYINTF") return battery ? battery->interface_name() : String();
+  if (var == "BATTERY2INTF") return battery2 ? battery2->interface_name() : String();
+  if (var == "INVINTF") return inverter ? inverter->interface_name() : String();
+  if (var == "SHUNTINTF") return shunt ? shunt->interface_name() : String();
+
+  if (var == "SAVEDCLASS") return settingsUpdated ? "" : "hidden";
+  if (var == "INVCLASS") return inverter ? "" : "hidden";
+  if (var == "SHUNTCLASS") return shunt ? "" : "hidden";
+  if (var == "CHARGERCLASS") return charger ? "" : "hidden";
+  if (var == "CHARGER_CLASS") return charger ? "" : "hidden";
+
+  if (var == "INVBIDCLASS") return (inverter && inverter->supports_battery_id()) ? "" : "hidden";
+  if (var == "INVBID") return (inverter && inverter->supports_battery_id()) ? String(datalayer.battery.settings.sofar_user_specified_battery_id) : String();
+
+  if (var == "MANUAL_BAL_CLASS") return (battery && battery->supports_manual_balancing()) ? "" : "hidden";
+  if (var == "FAKE_VOLTAGE_CLASS") return (battery && battery->supports_set_fake_voltage()) ? "" : "hidden";
+
+  // Mathematics and Specific Value Calculation
+  if (var == "WEBAUTH_1") return settings.getUInt("WEBAUTH", 0) == 1 ? "selected" : "";
+  if (var == "WEBAUTH_0") return settings.getUInt("WEBAUTH", 0) == 0 ? "selected" : "";
+  if (var == "AUTH_DISPLAY") return settings.getUInt("WEBAUTH", 0) == 1 ? "block" : "none";
+
+  // Divide to one decimal place (/10.0f)
+  if (var == "BATTPVMAX") return String(settings.getUInt("BATTPVMAX", 0) / 10.0f, 1);
+  if (var == "BATTPVMIN") return String(settings.getUInt("BATTPVMIN", 0) / 10.0f, 1);
+  if (var == "MAX_CHARGE_SPEED") return String(datalayer.battery.settings.max_user_set_charge_dA / 10.0f, 1);
+  if (var == "MAX_DISCHARGE_SPEED") return String(datalayer.battery.settings.max_user_set_discharge_dA / 10.0f, 1);
+  if (var == "CHARGE_VOLTAGE") return String(datalayer.battery.settings.max_user_set_charge_voltage_dV / 10.0f, 1);
+  if (var == "DISCHARGE_VOLTAGE") return String(datalayer.battery.settings.max_user_set_discharge_voltage_dV / 10.0f, 1);
+
+  // Divide to one decimal place (/100.0f)
+  if (var == "SOC_MAX_PERCENTAGE") return String(datalayer.battery.settings.max_percentage / 100.0f, 1);
+  if (var == "SOC_MIN_PERCENTAGE") return String(datalayer.battery.settings.min_percentage / 100.0f, 1);
+
+  // DataLayer
+  if (var == "BATTERY_WH_MAX") return String(datalayer.battery.info.total_capacity_Wh);
+  if (var == "BATTERY_VOLTAGE") return battery ? String(battery->get_voltage(), 1) : String();
+  if (var == "MQTTPUBLISHMS") return String(settings.getUInt("MQTTPUBLISHMS", 5000) / 1000);
+
+  // UI switch group (Active/Inactive, True/False)
+  if (var == "SOC_SCALING_ACTIVE_CLASS") return datalayer.battery.settings.soc_scaling_active ? "active" : "inactive";
+  if (var == "VOLTAGE_LIMITS_ACTIVE_CLASS") return datalayer.battery.settings.user_set_voltage_limits_active ? "active" : "inactive";
+  if (var == "SOC_SCALING_CLASS") return datalayer.battery.settings.soc_scaling_active ? "active" : "inactiveSoc";
+  if (var == "MANUAL_BALANCING_CLASS") return datalayer.battery.settings.user_requests_balancing ? "" : "inactiveSoc";
+  if (var == "BALANCING_CLASS") return datalayer.battery.settings.user_requests_balancing ? "active" : "inactive";
+
+  if (var == "SOC_SCALING") return datalayer.battery.settings.soc_scaling_active ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
+  if (var == "VOLTAGE_LIMITS") return datalayer.battery.settings.user_set_voltage_limits_active ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
+  if (var == "MANUAL_BALANCING") return datalayer.battery.settings.user_requests_balancing ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
+
+  if (var == "BALANCING_MAX_TIME") return String(datalayer.battery.settings.balancing_max_time_ms / 60000.0f, 1);
+  if (var == "BAL_POWER") return String(datalayer.battery.settings.balancing_float_power_W / 1.0f, 0);
+  if (var == "BAL_MAX_PACK_VOLTAGE") return String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0f, 0);
+  if (var == "BAL_MAX_CELL_VOLTAGE") return String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0f, 0);
+  if (var == "BAL_MAX_DEV_CELL_VOLTAGE") return String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0f, 0);
+  if (var == "BMS_RESET_DURATION") return String(datalayer.battery.settings.user_set_bms_reset_duration_ms / 1000.0f, 0);
+
+  // Charger Info
+  if (var == "CHG_HV_CLASS") return datalayer.charger.charger_HV_enabled ? "active" : "inactiveSoc";
+  if (var == "CHG_HV") return datalayer.charger.charger_HV_enabled ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
+  if (var == "CHG_AUX12V_CLASS") return datalayer.charger.charger_aux12V_enabled ? "active" : "inactiveSoc";
+  if (var == "CHG_AUX12V") return datalayer.charger.charger_aux12V_enabled ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
+  if (var == "CHG_VOLTAGE_SETPOINT") return String(datalayer.charger.charger_setpoint_HV_VDC, 1);
+  if (var == "CHG_CURRENT_SETPOINT") return String(datalayer.charger.charger_setpoint_HV_IDC, 1);
+
+  // Cloud & Devices (True/False Strings)
+  if (var == "HAS_AWS_CERTS") {
+    String ca = settings.getString("AWS_CA", "");
+    String cert = settings.getString("AWS_CERT", "");
+    return (ca.length() > 0 && cert.length() > 0) ? "true" : "false";
+  }
+
+  if (var == "I2C_ATECC_ENABLED") return settings.getBool("I2C_ATECC") ? "true" : "false";
+  if (var == "I2C_RTC_ENABLED") return settings.getBool("I2C_RTC_ENABLED") ? "true" : "false";
+  if (var == "I2C_SHT30_ENABLED") return settings.getBool("I2C_SHT30_ENABLED") ? "true" : "false";
+  if (var == "I2C_OLED_ENABLED") return settings.getBool("I2C_OLED_ENABLED") ? "true" : "false";
 
   return String();
 }
@@ -1100,40 +546,45 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
     <script>
-      function checkLedPower(){var e=document.getElementById("LEDCOUNT"),t=document.getElementById("led_power_warning"),n=document.getElementById("led_mA"),d=document.getElementById("led_msg");if(e&&t){var l=parseInt(e.value)*10;n.innerText=l,l>500?(t.style.backgroundColor="#f8d7da",t.style.color="#721c24",t.style.borderColor="#f5c6cb",d.innerText="⚠️ DANGER: Exceeds 500mA limit! May crash ESP32!"):(t.style.backgroundColor="#e2e3e5",t.style.color="#383d41",t.style.borderColor="#d6d8db",d.innerText="(Safe: Under 500mA limit)")}}
-      function checkLedMode(){var e=document.getElementById("LEDMODE"),t=document.getElementById("lbl_ledtail"),n=document.getElementById("input_ledtail");e&&t&&n&&("1"==e.value?(t.style.display="",n.style.display=""):(t.style.display="none",n.style.display="none"))}
+      function askFactoryReset() {
+        if (confirm("⚠️ WARNING: Are you sure you want to FACTORY RESET all settings? This cannot be undone!")) {
+          var xhr = new XMLHttpRequest();
+          xhr.onload = function() {
+            if (this.status == 200) {
+              var modal = document.createElement('div');
+              modal.innerHTML = '<div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.85);z-index:99999;display:flex;justify-content:center;align-items:center;backdrop-filter:blur(5px);">' +
+                '<div style="background:#fff;padding:35px 20px;border-radius:15px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.5);width:350px;max-width:90vw;font-family:sans-serif;">' +
+                  '<h2 style="color:#e74c3c;margin-top:0;font-size:1.8rem;">🔄 Factory Resetting...</h2>' +
+                  '<div style="border:5px solid #f3f3f3;border-top:5px solid #e74c3c;border-radius:50px;width:60px;height:60px;animation:spin 1s linear infinite;margin:25px auto;"></div>' +
+                  '<p style="color:#555;font-size:1.1rem;margin:10px 0;">Please wait <span id="rebootCount" style="font-weight:bold;color:#e74c3c;font-size:1.3rem;">12</span> seconds.</p>' +
+                  '<p style="font-size:0.85rem;color:#888;">System is wiping data and restarting...</p>' +
+                '</div></div><style>@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }</style>';
+              document.body.appendChild(modal);
 
-      function askFactoryReset(){confirm("Are you sure you want to reset the device to factory settings?")&&((xhr=new XMLHttpRequest).onload=function(){200==this.status?(alert("Factory reset successful. Restarting..."),window.location.href="/reboot"):alert("Factory reset failed.")},xhr.onerror=function(){alert("Error resetting device.")},xhr.open("POST","/factoryReset",!0),xhr.send())}
+              fetch('/reboot', { method: 'GET', keepalive: true }).catch(function(){});
 
-      function askReboot() {
-        if(confirm("Are you sure you want to reboot the system?")) {
-          var modal = document.createElement('div');
+              let timeLeft = 12;
+              let countEl = document.getElementById('rebootCount');
+              let timer = setInterval(function() {
+                timeLeft--;
+                if(countEl) countEl.innerText = timeLeft;
+                if (timeLeft <= 0) {
+                  clearInterval(timer);
+                  window.location.href = '/';
+                }
+              }, 1000);
 
-          modal.innerHTML = '<div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.85);z-index:99999;display:flex;justify-content:center;align-items:center;backdrop-filter:blur(5px);">' +
-            '<div style="background:#fff;padding:35px 20px;border-radius:15px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.5);width:350px;max-width:90vw;font-family:sans-serif;">' +
-              '<h2 style="color:#e74c3c;margin-top:0;font-size:1.8rem;">🔄 System Rebooting</h2>' +
-              '<div style="border:5px solid #f3f3f3;border-top:5px solid #e74c3c;border-radius:50vw;width:60px;height:60px;animation:spin 1s linear infinite;margin:25px auto;"></div>' +
-              '<p style="color:#555;font-size:1.1rem;margin:10px 0;">Please wait <span id="rebootCount" style="font-weight:bold;color:#e74c3c;font-size:1.3rem;">12</span> seconds.</p>' +
-              '<p style="font-size:0.85rem;color:#888;">The system is restarting.<br>The page will reload automatically.</p>' +
-            '</div></div><style>@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }</style>';
-
-          document.body.appendChild(modal);
-
-          fetch('/reboot', { method: 'GET', keepalive: true }).catch(function(){});
-
-          let timeLeft = 12;
-          let countEl = document.getElementById('rebootCount');
-          let timer = setInterval(function() {
-            timeLeft--;
-            countEl.innerText = timeLeft;
-            if (timeLeft <= 0) {
-              clearInterval(timer);
-              window.location.href = '/';
+            } else {
+              alert("Factory reset failed.");
             }
-          }, 1000);
+          };
+          xhr.onerror = function() { alert("Error resetting device."); };
+          xhr.open("POST", "/factoryReset", true);
+          xhr.send();
         }
       }
-
+      function checkLedPower(){var e=document.getElementById("LEDCOUNT"),t=document.getElementById("led_power_warning"),n=document.getElementById("led_mA"),d=document.getElementById("led_msg");if(e&&t){var l=parseInt(e.value)*10;n.innerText=l,l>500?(t.style.backgroundColor="#f8d7da",t.style.color="#721c24",t.style.borderColor="#f5c6cb",d.innerText="⚠️ DANGER: Exceeds 500mA limit! May crash ESP32!"):(t.style.backgroundColor="#e2e3e5",t.style.color="#383d41",t.style.borderColor="#d6d8db",d.innerText="(Safe: Under 500mA limit)")}}
+      function checkLedMode(){var e=document.getElementById("LEDMODE"),t=document.getElementById("lbl_ledtail"),n=document.getElementById("input_ledtail");e&&t&&n&&("1"==e.value?(t.style.display="",n.style.display=""):(t.style.display="none",n.style.display="none"))}
       function editComplete(){200==this.status&&window.location.reload()}function editError(){alert("Invalid input")}
       function sendEdit(e,t,n,d,l,o){var r=prompt(e);null!==r&&(r>=d&&l>=r?((xhr=new XMLHttpRequest).onload=editComplete,xhr.onerror=editError,xhr.open("GET",t+r,parseInt(o)),xhr.send()):alert(n))}
       function editRecoveryMode(){sendEdit("Extremely dangerous! Start 30min recovery process? (0=No, 1=Yes):","/enableRecoveryMode?value=","Enter 0 or 1",0,1,!0)}
@@ -1163,6 +614,29 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       function checkDisplayWarning(){var e=document.getElementById("DISPLAYTYPE"),t=document.getElementById("epaper_warning"),n=document.getElementById("oled_warning"),d=document.getElementById("GPIOOPT1");e&&(t&&(t.style.display="none"),n&&(n.style.display="none"),d&&(d.disabled=!1),"2"==e.value||"3"==e.value?t&&(t.style.display="block"):"1"==e.value&&(n&&(n.style.display="block"),d&&(d.disabled=!0)))}
 
       window.addEventListener("load",function(){checkLedPower(),checkLedMode(),checkDisplayWarning()});
+
+      // Cloud playload foramt selection (Real-time Popup)
+      var mqttFormatSelect = document.querySelector("select[name='MQTTFORMAT']");
+      if (mqttFormatSelect) {
+
+        mqttFormatSelect.dataset.prevValue = mqttFormatSelect.value;
+
+        mqttFormatSelect.addEventListener("change", function(e) {
+          if (this.value == "2") { // AWS (Value = 2)
+            var hasCerts = document.getElementById("has_aws_certs");
+            if (hasCerts && hasCerts.value === "false") {
+
+              var confirmAws = confirm("⚠️ Alert: AWS IoT Core Connection Issue!\n\nIt appears you haven't uploaded certificates to the board yet.\n\nAWS connection requires ATECC608 and a valid certificate settings (May be costs associated on the cloud usage).\nPlease go to the '☁️ Cloud' tab to set this up first.\n\nDo you still wish to select AWS format?");
+
+              if (!confirmAws) {
+                this.value = this.dataset.prevValue;
+                return;
+              }
+            }
+          }
+          this.dataset.prevValue = this.value;
+        });
+      }
 
       var frm = document.querySelector("form");
       if (frm) {
@@ -1296,25 +770,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     </script>
   )rawliteral"
 
-#define SETTINGS_STYLE \
-  R"rawliteral(
-<style>h3{color:#2c3e50;font-size:1.15rem;margin-top:0;padding-bottom:8px;border-bottom:2px solid #eee;margin-bottom:15px}h4{margin:0;font-weight:500;color:#444;font-size:.95rem}input[type=number],input[type=password],input[type=text],select{width:100%;max-width:250px;padding:6px 10px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;font-size:.9rem;transition:.2s}input:focus,select:focus{border-color:#3498db;outline:0}input[type=checkbox]{width:18px;height:18px;cursor:pointer;justify-self:start;margin:0}.hidden{display:none!important}.active{color:#2ecc71!important;font-weight:700}.inactive{color:#bdc3c7!important;font-style:italic}.inactiveSoc{color:#e74c3c!important;font-weight:700}.form-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:12px 10px;align-items:center}.form-grid label{color:#555;font-size:.9rem;font-weight:600;text-align:right;padding-right:10px}.override-grid{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center;padding:12px 0;border-bottom:1px dashed #eee}.override-grid:last-child{border-bottom:none}.mqtt-settings,.mqtt-topics{display:none;grid-column:span 2}form .if-battery,form .if-charger,form .if-inverter,form .if-shunt{display:contents}form[data-battery="0"] .if-battery,form[data-charger="0"] .if-charger,form[data-inverter="0"] .if-inverter,form[data-shunttype="0"] .if-shunt{display:none}form .if-auth{display:contents}form[data-webauth="0"] .if-auth{display:none}form .if-epaper3c{display:none}form[data-displaytype="2"] .if-epaper3c{display:contents}form .if-cbms{display:none}form[data-battery="11"] .if-cbms,form[data-battery="22"] .if-cbms,form[data-battery="23"] .if-cbms,form[data-battery="24"] .if-cbms,form[data-battery="31"] .if-cbms,form[data-battery="41"] .if-cbms,form[data-battery="48"] .if-cbms,form[data-battery="49"] .if-cbms,form[data-battery="6"] .if-cbms{display:contents}form .if-nissan{display:none}form[data-battery="21"] .if-nissan{display:contents}form .if-tesla{display:none}form[data-battery="32"] .if-tesla,form[data-battery="33"] .if-tesla{display:contents}form .if-estimated{display:none}form[data-battery="14"] .if-estimated,form[data-battery="16"] .if-estimated,form[data-battery="24"] .if-estimated,form[data-battery="3"] .if-estimated,form[data-battery="32"] .if-estimated,form[data-battery="33"] .if-estimated,form[data-battery="4"] .if-estimated,form[data-battery="40"] .if-estimated,form[data-battery="41"] .if-estimated,form[data-battery="44"] .if-estimated,form[data-battery="6"] .if-estimated{display:contents}form .if-socestimated{display:none}form[data-battery="16"] .if-socestimated,form[data-battery="41"] .if-socestimated{display:contents}form .if-dblbtr{display:none}form[data-dblbtr="true"] .if-dblbtr{display:contents}form .if-tribtr{display:none}form[data-tribtr="true"] .if-tribtr{display:contents}form .if-pwmcntctrl{display:none}form[data-pwmcntctrl="true"] .if-pwmcntctrl{display:contents}form .if-cntctrl{display:none}form[data-cntctrl="true"] .if-cntctrl{display:contents}form .if-extprecharge{display:none}form[data-extprecharge="true"] .if-extprecharge{display:contents}form .if-sofar{display:none}form[data-inverter="17"] .if-sofar{display:contents}form .if-byd{display:none}form[data-inverter="2"] .if-byd{display:contents}form .if-bydmodbus{display:none}form[data-inverter="3"] .if-bydmodbus{display:contents}form .if-pylon{display:none}form[data-battery="22"] .if-pylon,form[data-inverter="10"] .if-pylon{display:contents}form .if-pylon-inverter{display:none}form[data-inverter="10"] .if-pylon-inverter{display:contents}form .if-pylon-battery{display:none}form[data-battery="22"] .if-pylon-battery{display:contents}form .if-pylonish{display:none}form[data-inverter="10"] .if-pylonish,form[data-inverter="19"] .if-pylonish,form[data-inverter="4"] .if-pylonish{display:contents}form .if-solax{display:none}form[data-inverter="18"] .if-solax{display:contents}form .if-sungrow{display:none}form[data-inverter="21"] .if-sungrow{display:contents}form .if-kostal{display:none}form[data-inverter="9"] .if-kostal{display:contents}form .if-staticip{display:none}form[data-staticip="true"] .if-staticip{display:contents}form .if-mqtt{display:none}form[data-mqttenabled="true"] .if-mqtt{display:contents}form .if-topics{display:none}form[data-mqtttopics="true"] .if-topics{display:contents} form .if-i2c { display:none } form[data-gpioopt1="1"] .if-i2c, form[data-displaytype="1"] .if-i2c { display:block } form .if-multii2c { display:none } form[data-multii2c="true"] .if-multii2c { display:block } form .if-ctclamp { display:none } form[data-shunttype="3"] .if-ctclamp { display:contents }
-</style>
-)rawliteral"
-
-// =======================================================
-// 🗂️ Menu (Tab Navigation)
-// =======================================================
-#define TABS_CSS \
-  R"rawliteral(
-  <style>
-    .set-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 12px; }
-    .set-tab { padding: 10px 15px; background: #f8f9fa; border: 1px solid #ccc; border-radius: 6px; color: #555; text-decoration: none; font-weight: bold; transition: 0.2s; font-size: 0.95rem; }
-    .set-tab:hover { background: #e2e6ea; }
-    .set-tab.active { background: #3498db; color: white; border-color: #3498db; box-shadow: 0 2px 4px rgba(52,152,219,0.3); }
-  </style>
-  )rawliteral"
-
 #define SAVE_BTN \
   R"rawliteral(<div style='text-align:center;padding-top:15px'><button type='submit' class="btn btn-primary" style="padding:12px 40px;font-size:1.1rem;box-shadow:0 4px 6px rgba(52,152,219,0.3);">💾 Save Settings</button></div></form></div>)rawliteral"
 
@@ -1326,7 +781,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 // =======================================================
 #define BATT_BODY \
   R"rawliteral(
-  <div class="set-tabs"><a href="/settings" class="set-tab active">🔋 Battery & Inverter</a><a href="/set_network" class="set-tab">📡 Network</a><a href="/set_hardware" class="set-tab">⚙️ Hardware</a><a href="/set_web" class="set-tab">🌐 Admin & Debug</a><a href="/set_overrides" class="set-tab" style="background:#fdf2f2; border-color:#fadbd8; color:#c0392b;">⚡ Overrides</a></div>
+  <div class="set-tabs">
+    <a href="/settings" class="set-tab active">🔋 Battery & Inverter</a>
+    <a href="/set_network" class="set-tab">📡 Network</a>
+    <a href="/set_hardware" class="set-tab">⚙️ Hardware</a>
+    <a href="/set_web" class="set-tab">🌐 Admin & Debug</a>
+    <a href="/set_overrides" class="set-tab" style="background:#fdf2f2; border-color:#fadbd8; color:#c0392b;">⚡ Overrides</a>
+    <a href="/set_cloud" class="set-tab">☁️ Cloud</a></div>
   <div class="card card-warning"><form>
   )rawliteral" SAVE_ALERT R"rawliteral(
   <div class="card" style="box-shadow:none;border:1px solid #eee;margin-bottom:20px;background:#fcfcfc">
@@ -1400,7 +861,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 // =======================================================
 #define NET_BODY \
   R"rawliteral(
-  <div class="set-tabs"><a href="/settings" class="set-tab">🔋 Battery & Inverter</a><a href="/set_network" class="set-tab active">📡 Network</a><a href="/set_hardware" class="set-tab">⚙️ Hardware</a><a href="/set_web" class="set-tab">🌐 Admin & Debug</a><a href="/set_overrides" class="set-tab" style="background:#fdf2f2; border-color:#fadbd8; color:#c0392b;">⚡ Overrides</a></div>
+  <div class="set-tabs"><a href="/settings" class="set-tab">🔋 Battery & Inverter</a>
+  <a href="/set_network" class="set-tab active">📡 Network</a>
+  <a href="/set_hardware" class="set-tab">⚙️ Hardware</a>
+  <a href="/set_web" class="set-tab">🌐 Admin & Debug</a>
+  <a href="/set_overrides" class="set-tab" style="background:#fdf2f2; border-color:#fadbd8; color:#c0392b;">⚡ Overrides</a>
+  <a href="/set_cloud" class="set-tab">☁️ Cloud</a></div>
   <div class="card card-warning"><form>
   )rawliteral" SAVE_ALERT R"rawliteral(
   <div class="card" style="box-shadow:none;border:1px solid #eee;margin-bottom:20px;background:#fcfcfc; border-top: 4px solid #3498db;">
@@ -1440,6 +906,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       <label>Enable ESPNow:</label><input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED% />
       <label>Enable MQTT:</label><input type='checkbox' name='MQTTENABLED' value='on' %MQTTENABLED% />
       <div class='if-mqtt'>
+        <label>Cloud Payload Format:</label>
+        <select name='MQTTFORMAT'>%MQTTFORMAT%</select>
+        <input type='hidden' id='has_aws_certs' value='%HAS_AWS_CERTS%' />
+
         <label>MQTT server:</label><input type='text' name='MQTTSERVER' value="%MQTTSERVER%"/>
         <label>MQTT port:</label><input type='number' name='MQTTPORT' value="%MQTTPORT%"/>
         <label>MQTT user:</label><input type='text' name='MQTTUSER' value="%MQTTUSER%"/>
@@ -1466,7 +936,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 // =======================================================
 #define HW_BODY                                                                         \
   R"rawliteral(
-  <div class="set-tabs"><a href="/settings" class="set-tab">🔋 Battery & Inverter</a><a href="/set_network" class="set-tab">📡 Network</a><a href="/set_hardware" class="set-tab active">⚙️ Hardware</a><a href="/set_web" class="set-tab">🌐 Admin & Debug</a><a href="/set_overrides" class="set-tab" style="background:#fdf2f2; border-color:#fadbd8; color:#c0392b;">⚡ Overrides</a></div>
+  <div class="set-tabs"><a href="/settings" class="set-tab">🔋 Battery & Inverter</a>
+  <a href="/set_network" class="set-tab">📡 Network</a>
+  <a href="/set_hardware" class="set-tab active">⚙️ Hardware</a>
+  <a href="/set_web" class="set-tab">🌐 Admin & Debug</a>
+  <a href="/set_overrides" class="set-tab" style="background:#fdf2f2; border-color:#fadbd8; color:#c0392b;">⚡ Overrides</a>
+  <a href="/set_cloud" class="set-tab">☁️ Cloud</a></div>
   <div class="card card-warning"><form>
   )rawliteral" SAVE_ALERT R"rawliteral(
   <div class="card" style="box-shadow:none;border:1px solid #eee;margin-bottom:20px;background:#fcfcfc">
@@ -1534,7 +1009,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 // =======================================================
 #define WEB_BODY \
   R"rawliteral(
-  <div class="set-tabs"><a href="/settings" class="set-tab">🔋 Battery & Inverter</a><a href="/set_network" class="set-tab">📡 Network</a><a href="/set_hardware" class="set-tab">⚙️ Hardware</a><a href="/set_web" class="set-tab active">🌐 Admin & Debug</a><a href="/set_overrides" class="set-tab" style="background:#fdf2f2; border-color:#fadbd8; color:#c0392b;">⚡ Overrides</a></div>
+  <div class="set-tabs"><a href="/settings" class="set-tab">🔋 Battery & Inverter</a>
+  <a href="/set_network" class="set-tab">📡 Network</a>
+  <a href="/set_hardware" class="set-tab">⚙️ Hardware</a>
+  <a href="/set_web" class="set-tab active">🌐 Admin & Debug</a>
+  <a href="/set_overrides" class="set-tab" style="background:#fdf2f2; border-color:#fadbd8; color:#c0392b;">⚡ Overrides</a>
+  <a href="/set_cloud" class="set-tab">☁️ Cloud</a></div>
   <div style="display:flex;justify-content:flex-end;margin-bottom:15px"><button class="btn btn-danger" onclick="askFactoryReset()">⚠️ Factory Reset</button></div>
   <div class="card card-warning"><form>
   )rawliteral" SAVE_ALERT R"rawliteral(
@@ -1566,8 +1046,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 // =======================================================
 #define OVERRIDE_BODY \
   R"rawliteral(
-  <div class="set-tabs"><a href="/settings" class="set-tab">🔋 Battery & Inverter</a><a href="/set_network" class="set-tab">📡 Network</a><a href="/set_hardware" class="set-tab">⚙️ Hardware</a><a href="/set_web" class="set-tab">🌐 Admin & Debug</a><a href="/set_overrides" class="set-tab active" style="background:#e74c3c; border-color:#e74c3c; color:#fff;">⚡ Overrides</a></div>
-
+  <div class="set-tabs"><a href="/settings" class="set-tab">🔋 Battery & Inverter</a>
+  <a href="/set_network" class="set-tab">📡 Network</a>
+  <a href="/set_hardware" class="set-tab">⚙️ Hardware</a>
+  <a href="/set_web" class="set-tab">🌐 Admin & Debug</a>
+  <a href="/set_overrides" class="set-tab active" style="background:#e74c3c; border-color:#e74c3c; color:#fff;">⚡ Overrides</a>
+  <a href="/set_cloud" class="set-tab">☁️ Cloud</a></div
   <div class="card card-danger">
     <h3 style="color:#e74c3c">⚡ Manual Overrides (Live Update)</h3>
     <div class="override-grid"><h4>Battery capacity: <strong style="color:#3498db">%BATTERY_WH_MAX% Wh</strong></h4><button class="btn btn-primary" onclick='editWh()'>Edit</button></div>
@@ -1626,15 +1110,365 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   )rawliteral"
 
 // =======================================================
-// Combine HTML for WebServer
+// ☁️ Page 6: Cloud Security (URL: /set_cloud)
 // =======================================================
-const char settings_batt_html[] =
-    INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE BATT_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
-const char settings_net_html[] =
-    INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE NET_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
-const char settings_hw_html[] =
-    INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE HW_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
-const char settings_web_html[] =
-    INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE WEB_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
-const char settings_overrides_html[] =
-    INDEX_HTML_HEADER TABS_CSS SETTINGS_STYLE OVERRIDE_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
+#define CLOUD_SEC_BODY \
+  R"rawliteral(
+  <div class="set-tabs"><a href="/settings" class="set-tab">🔋 Battery & Inverter</a>
+  <a href="/set_network" class="set-tab">📡 Network</a>
+  <a href="/set_hardware" class="set-tab">⚙️ Hardware</a>
+  <a href="/set_web" class="set-tab">🌐 Admin & Debug</a>
+  <a href="/set_overrides" class="set-tab" style="background:#fdf2f2; border-color:#fadbd8; color:#c0392b;">⚡ Overrides</a>
+  <a href="/set_cloud" class="set-tab active" style="background:#8e44ad; border-color:#8e44ad; color:#fff;">☁️ Cloud</a></div>
+
+  <div class="cloud-wrapper" data-atecc="%I2C_ATECC_ENABLED%">
+
+      <div class="cloud-alert-box">
+          <div class="alert-container">
+              <div class="alert-content-wrapper">
+                  <div class="alert-icon">🔒</div>
+                  <div class="alert-text">
+                      <h2>Hardware Security is Disabled</h2>
+                      <p>To use Cloud Secure MQTT, you must enable the <b>ATECC608A</b> secure chip in the Hardware settings first.</p>
+                  </div>
+              </div>
+              <a href="/set_hardware" class="btn-goToHw-alert">⚙️ Go to Hardware Settings</a>
+          </div>
+      </div>
+
+      <div class="cloud-content">
+          <div class="card" style="border-top: 4px solid #8e44ad; box-shadow:0 4px 6px rgba(0,0,0,0.1); margin-bottom:20px;">
+            <h3 style="color:#8e44ad; margin-bottom: 10px;">🔐 ATECC608A Secure Element</h3>
+            <div class="form-grid">
+              <label>Serial Number:</label>
+              <strong style="color:#2c3e50; font-family:monospace; font-size:1.1em;" id="lbl_atecc_serial">⏳ Loading...</strong>
+
+              <label>Configuration Zone:</label>
+              <strong id="lbl_atecc_config">⏳ Loading...</strong>
+
+              <label>Data / Key Zone:</label>
+              <strong id="lbl_atecc_data">⏳ Loading...</strong>
+            </div>
+          </div>
+
+          <div class="card" style="border:1px solid #e74c3c; background:#fdf2f2; margin-bottom:20px;">
+            <h3 style="color:#e74c3c; margin-bottom: 5px;">🛠️ Step 1: Hardware Provisioning (Danger Zone)</h3>
+            <p style="font-size:0.85rem; color:#c0392b; font-weight:bold; margin-top:0;">WARNING: Locking the ATECC608A is IRREVERSIBLE. Once locked, zones cannot be modified or unlocked ever again.</p>
+
+            <div style="display:flex; flex-direction:column; gap:10px; align-items:flex-start; margin-top:10px;">
+              <label style="font-size:0.9rem; color:#555;" id="lbl_lock_instruct">Type <strong>PROVISION</strong> to enable lock buttons:</label>
+              <input type="text" id="lock_confirm" onkeyup="checkDangerLock()" placeholder="Type PROVISION here..." style="max-width:250px; text-align:center; font-weight:bold; text-transform:uppercase;">
+
+              <div style="display:flex; gap:10px; align-self:stretch; flex-wrap:wrap; margin-top:5px;">
+                <button type="button" id="btn_lock_config" onclick="lockZone('config')" class="btn btn-danger" style="background:#c0392b; flex:1;" disabled>🔒 1. Lock Config Zone</button>
+                <button type="button" id="btn_lock_data" onclick="lockZone('data')" class="btn btn-danger" style="background:#c0392b; flex:1;" disabled>🔒 2. Lock Data Zone</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="box-shadow:none;border:1px solid #eee;margin-bottom:20px;background:#fcfcfc">
+            <h3 style="margin-bottom: 5px;">☁️ Step 2: Generate Identity (CSR)</h3>
+            <p style="font-size:0.85rem; color:#7f8c8d; margin-top:0;">Generate a cryptographic identity (Private Key in Slot 0) and request a Certificate.</p>
+
+            <div class="form-grid">
+              <label>Cloud Platform:</label>
+              <select id="cloud_platform">
+                <option value="AWS">AWS IoT Core</option>
+                <option value="GCP">Google Cloud IoT</option>
+                <option value="GENERIC">Generic MQTT (Mosquitto/EMQX)</option>
+              </select>
+
+              <label>Thing Name (Common Name):</label>
+              <input type="text" id="csr_common_name" value="BatteryEmulator_01" title="Must match your Cloud Device ID">
+
+              <label>Country Code (C):</label>
+              <input type="text" id="csr_country" value="TH" maxlength="2" title="2-letter country code (e.g., TH, US)">
+
+              <label>State/Province (ST):</label>
+              <input type="text" id="csr_state" value="Bangkok">
+
+              <label>Locality/City (L):</label>
+              <input type="text" id="csr_locality" value="Bangkok">
+
+              <label>Organization (O):</label>
+              <input type="text" id="csr_org" value="BatteryEmulator">
+
+              <label></label>
+              <div style="display:flex; flex-direction:column; align-items:stretch;">
+                <button type="button" id="btn_generate_csr" onclick="generateCSR()" class="btn btn-primary" style="background:#3498db; max-width:250px;">🚀 Generate Private Key & CSR</button>
+              </div>
+            </div>
+
+            <div style="margin-top:15px; display:flex; flex-direction:column; align-items:stretch;">
+              <textarea id="csr_output" rows="10" style="font-family:monospace; font-size:0.85rem; padding:10px; background:#f4f6f7; border:1px solid #ccc; border-radius:4px;" readonly placeholder="-----BEGIN CERTIFICATE REQUEST-----&#10;Your CSR will appear here...&#10;-----END CERTIFICATE REQUEST-----"></textarea>
+              <button type="button" onclick="copyCSR()" style="margin-top:5px; padding:5px 15px; cursor:pointer; max-width:200px; align-self:flex-start;">📋 Copy to Clipboard</button>
+            </div>
+          </div>
+
+          <div class="card" style="box-shadow:none;border:1px solid #3498db;margin-bottom:20px;background:#f0f8ff">
+            <h3 style="color:#2980b9; margin-bottom: 5px;">📜 Step 3: Cloud Certificates (Public Identity)</h3>
+            <p style="font-size:0.85rem; color:#555; margin-top:0;">
+              <strong>Note:</strong> Paste your AWS/Cloud Public Certificates here to store them in ESP32 Flash memory.
+            </p>
+
+            <div class="form-grid" style="display:flex; flex-direction:column; gap:10px; align-items:stretch;">
+              <label style="text-align:left; font-weight:bold;">1. Device Certificate (e.g. xxx-certificate.pem.crt):</label>
+              <textarea id="aws_device_cert" rows="6" style="font-family:monospace; font-size:0.8rem; padding:8px; border:1px solid #ccc; border-radius:4px;" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"></textarea>
+
+              <label style="text-align:left; font-weight:bold;">2. Root CA Certificate (Amazon Root CA 1):</label>
+              <textarea id="aws_root_ca" rows="6" style="font-family:monospace; font-size:0.8rem; padding:8px; border:1px solid #ccc; border-radius:4px;" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"></textarea>
+
+              <button type="button" onclick="saveCloudCerts()" class="btn btn-primary" style="background:#2980b9; margin-top:10px; max-width:250px;">💾 Save Certificates to ESP32</button>
+            </div>
+          </div>
+      </div>
+  </div>
+
+  <script>
+    window.addEventListener('load', function() {
+      let wrapper = document.querySelector('.cloud-wrapper');
+      if (wrapper && wrapper.getAttribute('data-atecc') === 'false') return;
+
+      fetch('/api/atecc/status').then(r => r.json()).then(data => {
+        document.getElementById('lbl_atecc_serial').innerText = data.serial || "Not Found";
+        let cfg = document.getElementById('lbl_atecc_config');
+        cfg.innerText = data.config_locked ? "🟢 LOCKED" : "🔴 UNLOCKED (Needs Provision)";
+        cfg.style.color = data.config_locked ? "#27ae60" : "#e74c3c";
+        let dat = document.getElementById('lbl_atecc_data');
+        dat.innerText = data.data_locked ? "🟢 LOCKED" : "🟡 UNLOCKED (Dev Mode)";
+        dat.style.color = data.data_locked ? "#27ae60" : "#f39c12";
+
+        let btnCsr = document.getElementById('btn_generate_csr');
+        let txtLock = document.getElementById('lock_confirm');
+        let lblLock = document.getElementById('lbl_lock_instruct');
+
+        if (!data.config_locked) {
+            btnCsr.disabled = true;
+            btnCsr.innerText = "🔒 Complete Step 1 First";
+            btnCsr.style.background = "#95a5a6";
+        } else {
+            txtLock.disabled = true;
+            txtLock.placeholder = "🔒 CHIP SECURED";
+            lblLock.innerText = "ATECC608A Config Zone is permanently locked.";
+        }
+      }).catch(e => {
+        document.getElementById('lbl_atecc_serial').innerText = "❌ Communication Error";
+      });
+
+      fetch('/api/cloud/getcerts').then(r => r.json()).then(data => {
+        if(data.cert) document.getElementById('aws_device_cert').value = data.cert;
+        if(data.ca) document.getElementById('aws_root_ca').value = data.ca;
+      });
+    });
+
+    function generateCSR() {
+      let btn = document.getElementById('btn_generate_csr');
+      let out = document.getElementById('csr_output');
+      let cn = document.getElementById('csr_common_name').value;
+      let platform = document.getElementById('cloud_platform').value;
+      let country = document.getElementById('csr_country').value;
+      let state = document.getElementById('csr_state').value;
+      let locality = document.getElementById('csr_locality').value;
+      let org = document.getElementById('csr_org').value;
+
+      if(!cn) { alert("Please enter a Thing Name!"); return; }
+
+      let originalText = btn.innerText;
+      btn.innerText = "⏳ Generating (Takes 2-3s)...";
+      btn.disabled = true;
+      out.value = "Generating Private Key inside ATECC608A and creating CSR...\nPlease wait...";
+
+      let payload = 'cn=' + encodeURIComponent(cn) +
+                    '&platform=' + encodeURIComponent(platform) +
+                    '&country=' + encodeURIComponent(country) +
+                    '&state=' + encodeURIComponent(state) +
+                    '&locality=' + encodeURIComponent(locality) +
+                    '&org=' + encodeURIComponent(org);
+
+      fetch('/api/atecc/gencsr', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: payload
+      }).then(r => r.text()).then(text => {
+        out.value = text;
+        btn.innerText = originalText;
+        btn.disabled = false;
+      }).catch(e => {
+        out.value = "❌ Error generating CSR. Check Serial Monitor.";
+        btn.innerText = originalText;
+        btn.disabled = false;
+      });
+    }
+
+    function copyCSR() {
+      let out = document.getElementById('csr_output');
+      out.select();
+      document.execCommand("copy");
+      alert("CSR Copied to clipboard!");
+    }
+
+    function checkDangerLock() {
+      let val = document.getElementById('lock_confirm').value.toUpperCase();
+      let enabled = (val === "PROVISION");
+      document.getElementById('btn_lock_config').disabled = !enabled;
+      document.getElementById('btn_lock_data').disabled = !enabled;
+    }
+
+    function lockZone(zone) {
+      if(!confirm("⚠️ FINAL WARNING! Are you absolutely sure you want to permanently lock the " + zone.toUpperCase() + " zone? THIS CANNOT BE UNDONE!")) return;
+      fetch('/api/atecc/lock', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'zone=' + zone
+      }).then(r => r.text()).then(res => {
+        alert(res);
+        window.location.reload();
+      });
+    }
+
+    function saveCloudCerts() {
+      let btn = document.querySelector('button[onclick="saveCloudCerts()"]');
+      let cert = document.getElementById('aws_device_cert').value;
+      let ca = document.getElementById('aws_root_ca').value;
+
+      btn.innerText = "⏳ Saving...";
+      btn.disabled = true;
+
+      fetch('/api/cloud/savecerts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'cert=' + encodeURIComponent(cert) + '&ca=' + encodeURIComponent(ca)
+      }).then(r => r.text()).then(res => {
+        alert(res);
+        btn.innerText = "💾 Save Certificates to ESP32";
+        btn.disabled = false;
+      });
+    }
+  </script>
+  )rawliteral"
+
+// =======================================================
+// Combine HTML for WebServer ( External CSS)
+// =======================================================
+#define SETTINGS_LINK_CSS "<link rel=\"stylesheet\" href=\"/settings.css\">\n"
+
+const char settings_batt_html[] PROGMEM =
+    INDEX_HTML_HEADER SETTINGS_LINK_CSS BATT_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
+const char settings_net_html[] PROGMEM =
+    INDEX_HTML_HEADER SETTINGS_LINK_CSS NET_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
+const char settings_hw_html[] PROGMEM =
+    INDEX_HTML_HEADER SETTINGS_LINK_CSS HW_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
+const char settings_web_html[] PROGMEM =
+    INDEX_HTML_HEADER SETTINGS_LINK_CSS WEB_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
+const char settings_overrides_html[] PROGMEM =
+    INDEX_HTML_HEADER SETTINGS_LINK_CSS OVERRIDE_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
+const char settings_cloud_html[] PROGMEM =
+    INDEX_HTML_HEADER SETTINGS_LINK_CSS CLOUD_SEC_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
+
+const char SETTINGS_CSS[] PROGMEM = R"rawliteral(
+  h3{color:#2c3e50;font-size:1.15rem;margin-top:0;padding-bottom:8px;border-bottom:2px solid #eee;margin-bottom:15px}
+  h4{margin:0;font-weight:500;color:#444;font-size:.95rem}
+  input[type=number],input[type=password],input[type=text],select{width:100%;max-width:250px;padding:6px 10px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;font-size:.9rem;transition:.2s}
+  input:focus,select:focus{border-color:#3498db;outline:0}
+  input[type=checkbox]{width:18px;height:18px;cursor:pointer;justify-self:start;margin:0}
+  .hidden{display:none!important}
+  .active{color:#2ecc71!important;font-weight:700}
+  .inactive{color:#bdc3c7!important;font-style:italic}
+  .inactiveSoc{color:#e74c3c!important;font-weight:700}
+  .form-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:12px 10px;align-items:center}
+  .form-grid label{color:#555;font-size:.9rem;font-weight:600;text-align:right;padding-right:10px}
+  .override-grid{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center;padding:12px 0;border-bottom:1px dashed #eee}
+  .override-grid:last-child{border-bottom:none}
+  .mqtt-settings,.mqtt-topics{display:none;grid-column:span 2}
+
+  form .if-battery,form .if-charger,form .if-inverter,form .if-shunt{display:contents}
+  form[data-battery="0"] .if-battery,form[data-charger="0"] .if-charger,form[data-inverter="0"] .if-inverter,form[data-shunttype="0"] .if-shunt{display:none}
+  form .if-auth{display:contents}
+  form[data-webauth="0"] .if-auth{display:none}
+  form .if-epaper3c{display:none}
+  form[data-displaytype="2"] .if-epaper3c{display:contents}
+  form .if-cbms{display:none}
+  form[data-battery="11"] .if-cbms,form[data-battery="22"] .if-cbms,form[data-battery="23"] .if-cbms,form[data-battery="24"] .if-cbms,form[data-battery="31"] .if-cbms,form[data-battery="41"] .if-cbms,form[data-battery="48"] .if-cbms,form[data-battery="49"] .if-cbms,form[data-battery="6"] .if-cbms{display:contents}
+  form .if-nissan{display:none}
+  form[data-battery="21"] .if-nissan{display:contents}
+  form .if-tesla{display:none}
+  form[data-battery="32"] .if-tesla,form[data-battery="33"] .if-tesla{display:contents}
+  form .if-estimated{display:none}
+  form[data-battery="14"] .if-estimated,form[data-battery="16"] .if-estimated,form[data-battery="24"] .if-estimated,form[data-battery="3"] .if-estimated,form[data-battery="32"] .if-estimated,form[data-battery="33"] .if-estimated,form[data-battery="4"] .if-estimated,form[data-battery="40"] .if-estimated,form[data-battery="41"] .if-estimated,form[data-battery="44"] .if-estimated,form[data-battery="6"] .if-estimated{display:contents}
+  form .if-socestimated{display:none}
+  form[data-battery="16"] .if-socestimated,form[data-battery="41"] .if-socestimated{display:contents}
+  form .if-dblbtr{display:none}
+  form[data-dblbtr="true"] .if-dblbtr{display:contents}
+  form .if-tribtr{display:none}
+  form[data-tribtr="true"] .if-tribtr{display:contents}
+  form .if-pwmcntctrl{display:none}
+  form[data-pwmcntctrl="true"] .if-pwmcntctrl{display:contents}
+  form .if-cntctrl{display:none}
+  form[data-cntctrl="true"] .if-cntctrl{display:contents}
+  form .if-extprecharge{display:none}
+  form[data-extprecharge="true"] .if-extprecharge{display:contents}
+  form .if-sofar{display:none}
+  form[data-inverter="17"] .if-sofar{display:contents}
+  form .if-byd{display:none}
+  form[data-inverter="2"] .if-byd{display:contents}
+  form .if-bydmodbus{display:none}
+  form[data-inverter="3"] .if-bydmodbus{display:contents}
+  form .if-pylon{display:none}
+  form[data-battery="22"] .if-pylon,form[data-inverter="10"] .if-pylon{display:contents}
+  form .if-pylon-inverter{display:none}
+  form[data-inverter="10"] .if-pylon-inverter{display:contents}
+  form .if-pylon-battery{display:none}
+  form[data-battery="22"] .if-pylon-battery{display:contents}
+  form .if-pylonish{display:none}
+  form[data-inverter="10"] .if-pylonish,form[data-inverter="19"] .if-pylonish,form[data-inverter="4"] .if-pylonish{display:contents}
+  form .if-solax{display:none}
+  form[data-inverter="18"] .if-solax{display:contents}
+  form .if-sungrow{display:none}
+  form[data-inverter="21"] .if-sungrow{display:contents}
+  form .if-kostal{display:none}
+  form[data-inverter="9"] .if-kostal{display:contents}
+  form .if-staticip{display:none}
+  form[data-staticip="true"] .if-staticip{display:contents}
+  form .if-mqtt{display:none}
+  form[data-mqttenabled="true"] .if-mqtt{display:contents}
+  form .if-topics{display:none}
+  form[data-mqtttopics="true"] .if-topics{display:contents}
+  form .if-i2c { display:none }
+  form[data-gpioopt1="1"] .if-i2c, form[data-displaytype="1"] .if-i2c { display:block }
+  form .if-multii2c { display:none }
+  form[data-multii2c="true"] .if-multii2c { display:block }
+  form .if-ctclamp { display:none }
+  form[data-shunttype="3"] .if-ctclamp { display:contents }
+
+  /* Tabs */
+  .set-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 12px; }
+  .set-tab { padding: 10px 15px; background: #f8f9fa; border: 1px solid #ccc; border-radius: 6px; color: #555; text-decoration: none; font-weight: bold; transition: 0.2s; font-size: 0.95rem; }
+  .set-tab:hover { background: #e2e6ea; }
+  .set-tab.active { background: #3498db; color: white; border-color: #3498db; box-shadow: 0 2px 4px rgba(52,152,219,0.3); }
+
+  /* Cloud Alert Box */
+  .cloud-alert-box { display: none; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); background-color: #fdf6f0; border-left: 6px solid #f39c12; width: 100%; box-sizing: border-box; }
+  .cloud-wrapper[data-atecc="false"] .cloud-alert-box { display: block; }
+  .alert-container { display: flex; flex-direction: row; align-items: center; justify-content: space-between; padding: 20px; gap: 20px; box-sizing: border-box; flex-wrap: wrap; }
+  .alert-content-wrapper { display: flex; flex-direction: row; align-items: center; gap: 15px; flex: 1; min-width: 0; }
+  .alert-icon { font-size: 2.5rem; line-height: 1; flex-shrink: 0; }
+  .alert-text { display: flex; flex-direction: column; min-width: 0; }
+  .alert-text h2 { color: #8e4e13; margin: 0 0 5px 0; font-size: 1.3rem; font-weight: 800; letter-spacing: 0.5px; word-wrap: break-word; }
+  .alert-text p { color: #af601a; margin: 0; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; }
+  .btn-goToHw-alert { background-color: #af601a; color: white; padding: 12px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; text-decoration: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.2s; white-space: nowrap; font-size: 0.9rem; text-align: center; flex-shrink: 0; display: inline-block; }
+  .btn-goToHw-alert:hover { background-color: #8e4e13; transform: translateY(-1px); }
+  .cloud-wrapper[data-atecc="false"] .cloud-content { pointer-events: none; user-select: none; opacity: 0.4; filter: grayscale(1); }
+
+  /* Mobile Responsive Fixes */
+  @media (max-width: 768px) {
+    .form-grid { grid-template-columns: 1fr; gap: 5px; }
+    .form-grid label { text-align: left; padding-top: 10px; }
+    .form-grid input[type="text"], .form-grid input[type="number"], .form-grid input[type="password"], .form-grid select { max-width: 100%; }
+    .form-grid input[type="checkbox"] { margin-bottom: 10px; }
+    .override-grid { grid-template-columns: 1fr; gap: 10px; align-items: start; }
+    .override-grid button { width: 100%; box-sizing: border-box; }
+    .alert-container { flex-direction: column; align-items: stretch; padding: 15px; }
+    .alert-content-wrapper { align-items: flex-start; }
+    .btn-goToHw-alert { width: 100%; box-sizing: border-box; }
+  }
+)rawliteral";

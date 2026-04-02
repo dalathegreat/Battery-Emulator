@@ -1,5 +1,4 @@
-#ifndef WEBSERVER_H
-#define WEBSERVER_H
+#pragma once
 
 #include <Preferences.h>
 #include <WiFi.h>
@@ -45,7 +44,7 @@ void init_webserver();
  * @brief Initialization function for ElegantOTA.
  *
  * @param[in] void
- * 
+ *
  * @return void
  */
 void init_ElegantOTA();
@@ -61,7 +60,7 @@ String processor(const String& var);
 String get_firmware_info_processor(const String& var);
 
 /**
- * @brief Executes on OTA start 
+ * @brief Executes on OTA start
  *
  * @param[in] void
  *
@@ -70,8 +69,8 @@ String get_firmware_info_processor(const String& var);
 void onOTAStart();
 
 /**
- * @brief Executes on OTA progress 
- * 
+ * @brief Executes on OTA progress
+ *
  * @param[in] current Current bytes
  * @param[in] final Final bytes
  *
@@ -80,19 +79,19 @@ void onOTAStart();
 void onOTAProgress(size_t current, size_t final);
 
 /**
- * @brief Executes on OTA end 
+ * @brief Executes on OTA end
  *
  * @param[in] void
- * 
+ *
  * @return bool success: success = true, failed = false
  */
 void onOTAEnd(bool success);
 
 /**
- * @brief Formats power values 
+ * @brief Formats power values
  *
- * @param[in] float or uint16_t 
- * 
+ * @param[in] float or uint16_t
+ *
  * @return string: values
  */
 template <typename T>
@@ -104,5 +103,3 @@ String formatPowerValue(T value, String unit, int precision);
 extern void store_settings();
 
 void ota_monitor();
-
-#endif

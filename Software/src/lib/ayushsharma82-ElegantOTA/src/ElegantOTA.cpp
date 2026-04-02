@@ -43,7 +43,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server){
           Update.printError(str);
           _update_error_str = str.c_str();
           _update_error_str.concat("\n");
-        }        
+        }
 
       return request->send((Update.hasError()) ? 400 : 200, "text/plain", (Update.hasError()) ? _update_error_str.c_str() : "OK");
     });
@@ -76,7 +76,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server){
             // Progress update callback
             if (progressUpdateCallback != NULL) progressUpdateCallback(_current_progress_size, request->contentLength());
         }
-            
+
         if (final) { // if the final flag is set then this is the last frame of data
             if (!Update.end(true)) { //true to set the size to the current progress
                 // Save error to string

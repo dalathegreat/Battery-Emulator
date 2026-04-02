@@ -1,5 +1,4 @@
-#ifndef SETTINGS_HTML_H
-#define SETTINGS_HTML_H
+#pragma once
 
 #include <Arduino.h>
 
@@ -12,5 +11,5 @@ extern const char settings_net_html[];
 extern const char settings_hw_html[];
 extern const char settings_web_html[];
 extern const char settings_overrides_html[];
-
-#endif
+extern const char settings_cloud_html[];
+extern const char SETTINGS_CSS[];

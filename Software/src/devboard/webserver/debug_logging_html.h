@@ -1,16 +1,7 @@
-#ifndef DEBUGLOGGER_H
-#define DEBUGLOGGER_H
+#pragma once
 
 #include <Arduino.h>
 #include <string>
+#include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 
-/**
- * @brief Replaces placeholder with content section in web page
- *
- * @param[in] var
- *
- * @return String
- */
-String debug_logger_processor(void);
-
-#endif
+void print_debug_logger_html(AsyncResponseStream* response);

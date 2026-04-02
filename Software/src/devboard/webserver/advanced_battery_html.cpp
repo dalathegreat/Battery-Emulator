@@ -59,123 +59,102 @@ std::vector<BatteryCommand> battery_commands = {
 };
 
 // =========================================================================
-// 🚀 Advanced Battery Info Processor (Pro-Level Layout)
+// 🚀 Advanced Battery Info Processor (Stream Mode)
 // =========================================================================
-String advanced_battery_processor(const String& var) {
+void print_advanced_battery_html(AsyncResponseStream* response) {
+  // 🌟 1. Check status and prepare data for button
+  String status = get_emulator_pause_status().c_str();
+  String pauseBtnText = (status == "PAUSED" || status == "PAUSING") ? "▶️ START Batteries" : "⏸ PAUSE Batteries";
+  String pauseBtnPrompt = (status == "PAUSED" || status == "PAUSING") ? "start the system?" : "pause the system?";
 
-  if (var == "X") {
-    // 🌟 1. Check status and prepare data for button
-    String status = get_emulator_pause_status().c_str();
-    String pauseBtnText = (status == "PAUSED" || status == "PAUSING") ? "▶️ START Batteries" : "⏸ PAUSE Batteries";
-    String pauseBtnPrompt = (status == "PAUSED" || status == "PAUSING") ? "start the system?" : "pause the system?";
-
-    String html = R"rawliteral(
-      <style>
-        .adv-wrap { display: flex; flex-direction: column; gap: 20px; }
-        
-        /* --- 🎛️ Control Panel --- */
-        .control-card { background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 4px solid #e74c3c; padding: 20px; }
-        .action-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
-        .btn-cmd { background: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 0.95rem; }
-        .btn-cmd:hover { background: #2980b9; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
-        .btn-pause { background: #f39c12; }
-        .btn-pause:hover { background: #d68910; }
-
-        /* --- 🔋 Battery Info Cards --- */
-        .bat-card { background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 4px solid #3498db; padding: 20px; overflow-x: auto; }
-        .bat-title { margin: 0 0 15px 0; color: #2c3e50; font-size: 1.25rem; font-weight: 800; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; }
-
-        /* --- 📊 Auto-Style Tables --- */
-        .bat-card table { width: 100%; border-collapse: collapse; font-size: 0.95rem; min-width: 300px; }
-        .bat-card th, .bat-card td { padding: 12px 15px; border-bottom: 1px solid #eee; text-align: left; color: #444; }
-        .bat-card tr:nth-child(even) { background-color: #fbfcfc; }
-        .bat-card tr:hover { background-color: #f1f4f6; }
-        .bat-card td:first-child { font-weight: 600; color: #34495e; width: 40%; } 
-
-        @media (max-width: 768px) {
-          .action-bar { flex-direction: column; }
-          .btn-cmd { width: 100%; }
-          .bat-card th, .bat-card td { padding: 10px 8px; }
+  response->print(R"rawliteral(
+    <style>
+      .adv-wrap { display: flex; flex-direction: column; gap: 20px; }
+      .control-card { background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 4px solid #e74c3c; padding: 20px; }
+      .action-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+      .btn-cmd { background: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 0.95rem; }
+      .btn-cmd:hover { background: #2980b9; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+      .btn-pause { background: #f39c12; }
+      .btn-pause:hover { background: #d68910; }
+      .bat-card { background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 4px solid #3498db; padding: 20px; overflow-x: auto; }
+      .bat-title { margin: 0 0 15px 0; color: #2c3e50; font-size: 1.25rem; font-weight: 800; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; }
+      .bat-card table { border-collapse: collapse; font-size: 0.95rem; min-width: 300px; width: 85vw; max-width: 1000px; }
+      .bat-card th, .bat-card td { padding: 12px 15px; border-bottom: 1px solid #eee; text-align: left; color: #444; }
+      .bat-card tr:nth-child(even) { background-color: #fbfcfc; }
+      .bat-card tr:hover { background-color: #f1f4f6; }
+      .bat-card td:first-child { font-weight: 600; color: #34495e; min-width: 150px; max-width: 250px; }
+      @media (max-width: 768px) {
+        .action-bar { flex-direction: column; align-items: stretch; }
+        .btn-cmd { align-self: stretch; }
+        .bat-card th, .bat-card td { padding: 10px 8px; }
+      }
+    </style>
+    <script>
+      function sendCmd(url, method, promptMsg) {
+        if (promptMsg && promptMsg !== "null") {
+          if (!window.confirm("Are you sure you want to " + promptMsg)) return;
         }
-      </style>
-
-      <script>
-        // Function to reliably send commands to the board.
-        function sendCmd(url, method, promptMsg) {
-          if (promptMsg && promptMsg !== "null") {
-            if (!window.confirm("Are you sure you want to " + promptMsg)) return;
+        var xhr = new XMLHttpRequest();
+        xhr.open(method, url, true);
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState == 4) {
+            if (xhr.status == 200) { setTimeout(function() { window.location.reload(); }, 500); }
+            else { alert('❌ Failed to execute command!'); }
           }
-          
-          var xhr = new XMLHttpRequest();
-          xhr.open(method, url, true);
-          xhr.onreadystatechange = function() {
-            if (xhr.readyState == 4) {
-              if (xhr.status == 200) {
-                setTimeout(function() { window.location.reload(); }, 500); 
-              } else {
-                alert('❌ Failed to execute command!');
-              }
-            }
-          };
-          xhr.send("0");
-        }
-      </script>
+        };
+        xhr.send("0");
+      }
+    </script>
+    <div class="adv-wrap">
+    <div class="control-card">
+      <h3 style="margin:0; color:#333; font-size:1.25rem;">⚙️ Advanced Controls</h3>
+      <div class="action-bar">
+  )rawliteral");
 
-      <div class="adv-wrap">
-      <div class="control-card">
-        <h3 style="margin:0; color:#333; font-size:1.25rem;">⚙️ Advanced Controls</h3>
-        <div class="action-bar">
-    )rawliteral";
+  response->print("<button class=\"btn-cmd btn-pause\" onclick=\"sendCmd('/pause?value=toggle', 'GET', '" + pauseBtnPrompt + "')\">" + pauseBtnText + "</button>");
 
-    html += "<button class=\"btn-cmd btn-pause\" onclick=\"sendCmd('/pause?value=toggle', 'GET', '" + pauseBtnPrompt +
-            "')\">" + pauseBtnText + "</button>";
-
-    html += R"rawliteral(
-    )rawliteral";
-
-    // 🤖 Loop to retrieve command button from protocol
-    if (battery) {
-      for (const auto& cmd : battery_commands) {
-        if (cmd.condition(battery)) {
-          String promptStr = cmd.prompt ? String("'") + cmd.prompt + "'" : "null";
-          html += String("<button class=\"btn-cmd\" onclick=\"sendCmd('/") + cmd.identifier + "', 'PUT', " + promptStr +
-                  ")\">⚡ " + cmd.title + "</button>";
-        }
+  if (battery) {
+    for (const auto& cmd : battery_commands) {
+      if (cmd.condition(battery)) {
+        String promptStr = cmd.prompt ? String("'") + cmd.prompt + "'" : "null";
+        response->print("<button class=\"btn-cmd\" onclick=\"sendCmd('/" + String(cmd.identifier) + "', 'PUT', " + promptStr + ")\">⚡ " + String(cmd.title) + "</button>");
       }
     }
-
-    html += R"rawliteral(
-      </div>
-    </div>
-    )rawliteral";
-
-    // 🛠️ Helper Function: Make HTML Box
-    auto addBatteryInfo = [&](Battery* bat, String title, String color) {
-      if (bat) {
-        String batHtml = bat->get_status_renderer().get_status_html();
-
-        if (batHtml.length() > 0) {
-          batHtml.replace("color: white;", "");
-          batHtml.replace("color:white;", "");
-          batHtml.replace("color: white", "");
-          batHtml.replace("color:#fff", "");
-
-          html += "<div class='bat-card' style='border-top-color: " + color + ";'>";
-          html += "<h3 class='bat-title'>🔋 " + title + "</h3>";
-          html += batHtml;
-          html += "</div>";
-        }
-      }
-    };
-
-    // Draw all the data boxes.
-    addBatteryInfo(battery, "Main Battery Pack Info", "#3498db");
-    addBatteryInfo(battery2, "Battery Pack #2 Info", "#9b59b6");
-    addBatteryInfo(battery3, "Battery Pack #3 Info", "#1abc9c");
-
-    html += "</div>";  // close adv-wrap
-    return html;
   }
 
-  return String();
+  response->print(R"rawliteral(
+      </div>
+    </div>
+  )rawliteral");
+
+  // Try to manage Multi-batt
+  auto addBatteryInfo = [&](Battery* bat, String title, String color, bool isMain) {
+    if (bat) {
+      response->print("<div class='bat-card' style='border-top-color: " + color + ";'>");
+      response->print("<h3 class='bat-title'>🔋 " + title + "</h3>");
+
+      if (isMain) {
+        // Main batt let show deep info as normal
+        String batHtml = bat->get_status_renderer().get_status_html();
+        if (batHtml.length() > 0) {
+          batHtml.replace("color: white;", ""); batHtml.replace("color:white;", "");
+          batHtml.replace("color: white", ""); batHtml.replace("color:#fff", "");
+          response->print(batHtml);
+        } else {
+          response->print("<h4>No advanced info available.</h4>");
+        }
+      } else {
+        // If it's a secondary block (block 2 or 3), skip fetching to prevent a Null Pointer Crash!
+        response->print("<h4 style='color: #7f8c8d;'>⚠️ Advanced detailed info is currently limited to the Main Battery.</h4>");
+      }
+
+      response->print("</div>");
+    }
+  };
+
+  addBatteryInfo(battery, "Main Battery Pack Info", "#3498db", true);
+  addBatteryInfo(battery2, "Battery Pack #2 Info", "#9b59b6", false);
+  addBatteryInfo(battery3, "Battery Pack #3 Info", "#1abc9c", false);
+
+  response->print("</div>");
 }

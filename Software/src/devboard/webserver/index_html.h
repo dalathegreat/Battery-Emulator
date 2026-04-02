@@ -1,5 +1,4 @@
-#ifndef INDEX_HTML_H
-#define INDEX_HTML_H
+#pragma once
 
 #define INDEX_HTML_HEADER \
   R"rawliteral(<!doctype html><html>
@@ -9,7 +8,7 @@
   <title>Battery Emulator</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB5PSIuOWVtIiBmb250LXNpemU9IjkwIj7imqE8L3RleHQ+PC9zdmc+">
   <style>
-      /* --- 🎨 1. Base Styles (CSS) --- */
+      /* --- 🎨 1. Base Styles CSS --- */
       body {
         margin: 0;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -40,6 +39,48 @@
       /* --- 📐 Layout Structure --- */
       .container { display: flex; flex: 1; overflow: hidden; position: relative; }
 
+      /* --- 🌟 Modern Topbar Badges --- */
+      .topbar-badge {
+        display: flex; align-items: center; gap: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 5px 14px;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(5px);
+      }
+      .topbar-badge span { font-size: 0.7rem; letter-spacing: 0.5px; color: #fff; }
+
+      .mqtt-badge {
+        font-size: 0.7rem;
+        color: #bbb;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 3px 10px;
+        border-radius: 12px;
+        border: 1px solid #333;
+        display: flex; align-items: center; gap: 5px;
+      }
+
+      /* Pulsing Status */
+      .status-indicator-wrapper { display: flex; align-items: center; gap: 8px; background: #f8f9fa; padding: 5px 12px; border-radius: 20px; border: 1px solid #eee; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); }
+      .blob { border-radius: 50px; width: 12px; height: 12px; transform: scale(1); }
+
+      .blob.green { background: #2ecc71; animation: pulse-green 1s infinite alternate; }
+      .blob.orange { background: #f39c12; animation: pulse-orange 1s infinite alternate; }
+      .blob.red { background: #e74c3c; animation: pulse-red 1s infinite alternate; }
+
+      @keyframes pulse-green {
+        from { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
+        to { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(46, 204, 113, 0); }
+      }
+      @keyframes pulse-orange {
+        from { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.7); }
+        to { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(243, 156, 18, 0); }
+      }
+      @keyframes pulse-red {
+        from { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+        to { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(231, 76, 60, 0); }
+      }
+
       /* --- 📑 Sidebar Navigation --- */
       .sidebar, aside, #sidebar, .main-sidebar {
         width: 260px;
@@ -50,7 +91,8 @@
         display: flex;
         flex-direction: column;
         transition: left 0.3s ease-in-out;
-      -webkit-overflow-scrolling: touch;
+        -webkit-overflow-scrolling: touch;
+        z-index: 9999;
       }
 
       .menu-group {
@@ -140,8 +182,8 @@
           position: absolute;
           left: -260px; /* Hide sidebar off-screen to the left */
           top: 0;
-          height: 100%;
-          z-index: 100;
+          height: 100vh;
+          z-index: 9999;
           box-shadow: 2px 0 10px rgba(0,0,0,0.5);
         }
 
@@ -156,9 +198,23 @@
       <div class="header">
           <div style="display: flex; align-items: center;">
             <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <div style="display: flex; align-items: flex-start; flex-direction: column; gap: 2px;">
             <div style="font-size: 1.2rem; font-weight: bold;">⚡ Battery Emulator</div>
+            <span id="sys_version" style="font-size: 0.75rem; color: #ccc; font-weight: normal; background: rgba(255, 255, 255, 0.15); padding: 3px 8px; border-radius: 12px; letter-spacing: 0.5px; border: 1px solid rgba(255, 255, 255, 0.1);"></span>
           </div>
-          <div class="header-status">Status: <span id="topbar_status" style="font-weight: bold; color: #888;">--</span></div>
+          </div>
+          <div class="header-status" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+
+            <div class="topbar-badge">
+              <div id="topbar_sys_status_blob" class="blob orange"></div>
+              <span id="topbar_sys_status">⏳...</span>
+            </div>
+
+            <div class="mqtt-badge">
+              MQTT: <span id="mqtt_status_badge" style="color: #f39c12;">⏳...</span>
+            </div>
+
+          </div>
 
         </div>
         <div class="container">
@@ -183,7 +239,6 @@
             <a href="#" class="menu-item" style="color: #e74c3c;" onclick="askReboot()">🔄 Reboot</a>
             <a href="#" class="menu-item" onclick="logout()"><span>🚪 Logout</span></a>
           </div>
-
         <div class="content">
 )rawliteral"
 
@@ -191,31 +246,6 @@
   R"rawliteral(
     </div> </div>
     <script>
-
-      window.repairAndParseJSON = function(jsonString) {
-        if (!jsonString) return null;
-          try {
-            return JSON.parse(jsonString);
-          } catch (e) {
-            console.warn("⚠️ Data truncated! Attempting Auto-Heal...");
-            let s = jsonString.trim();
-            if (s.endsWith(",")) s = s.slice(0, -1);
-
-            let diffBrack = s.split('[').length - s.split(']').length;
-            let diffBrace = s.split('{').length - s.split('}').length;
-
-            for(let i=0; i < diffBrack; i++) s += ']';
-            for(let i=0; i < diffBrace; i++) s += '}';
-
-            try {
-                return JSON.parse(s);
-            } catch (e2) {
-                console.error("❌ Auto-Heal Failed. Skipping this tick.");
-                return null;
-            }
-          }
-      }
-
       // JS auto highlight ative url (Red color)
       document.querySelectorAll('.menu-item').forEach(link => {
         if(window.location.href.endsWith(link.getAttribute('href'))) {
@@ -256,34 +286,6 @@
           touchStartY = 0;
         }
       }, {passive: true});
-
-      // Update status bar every 2s
-      function updateTopbarStatus() {
-        fetch('/api/data')
-          .then(response => response.text())
-          .then(text => {
-            let data = window.repairAndParseJSON(text);
-            if (data) {
-              var topStatus = document.getElementById('topbar_status');
-              if(topStatus) {
-                topStatus.innerText = data.sys.status;
-                if (data.sys.status === 'RUNNING') {
-                  topStatus.style.color = '#2ecc71';
-                } else if (data.sys.status.includes('PAUSE')) {
-                  topStatus.style.color = '#f39c12';
-                } else {
-                  topStatus.style.color = '#e74c3c';
-                }
-              }
-            }
-          })
-          .catch(error => console.log('Topbar sync error:', error));
-      }
-      setTimeout(() => {
-          updateTopbarStatus();
-          setInterval(updateTopbarStatus, 2000);
-        }, 500);
-
 
       document.addEventListener('click', function(event) {
           if (window.innerWidth <= 768) {
@@ -327,7 +329,7 @@
           modal.innerHTML = '<div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.85);z-index:99999;display:flex;justify-content:center;align-items:center;backdrop-filter:blur(5px);">' +
             '<div style="background:#fff;padding:35px 20px;border-radius:15px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.5);width:350px;max-width:90vw;font-family:sans-serif;">' +
               '<h2 style="color:#e74c3c;margin-top:0;font-size:1.8rem;">🔄 System Rebooting</h2>' +
-              '<div style="border:5px solid #f3f3f3;border-top:5px solid #e74c3c;border-radius:50vw;width:60px;height:60px;animation:spin 1s linear infinite;margin:25px auto;"></div>' +
+              '<div style="border:5px solid #f3f3f3;border-top:5px solid #e74c3c;border-radius:50px;width:60px;height:60px;animation:spin 1s linear infinite;margin:25px auto;"></div>' +
               '<p style="color:#555;font-size:1.1rem;margin:10px 0;">Please wait <span id="rebootCount" style="font-weight:bold;color:#e74c3c;font-size:1.3rem;">12</span> seconds.</p>' +
               '<p style="font-size:0.85rem;color:#888;">The system is restarting.<br>The page will reload automatically.</p>' +
             '</div></div><style>@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }</style>';
@@ -347,18 +349,81 @@
           }, 1000);
         }
       }
+
+      // Load Version from Cache
+      let vEl = document.getElementById('sys_version');
+      let cachedVer = sessionStorage.getItem('fw_version');
+      if (cachedVer && vEl) vEl.innerText = cachedVer;
+
+      // Update status bar every 2s
+      function updateTopbarStatus() {
+        fetch('/api/data')
+          .then(response => response.json())
+          .then(data => {
+            if (data && data.sys) {
+
+              if (!cachedVer && data.sys.version && vEl) {
+                cachedVer = "v" + data.sys.version;
+                sessionStorage.setItem('fw_version', cachedVer);
+                vEl.innerText = cachedVer;
+              }
+
+              let statusEl = document.getElementById('topbar_sys_status');
+              let sysStatusStr = data.sys.status;
+              let blobEl = document.getElementById('topbar_sys_status_blob');
+
+              if (statusEl) {
+                statusEl.innerText = sysStatusStr;
+                blobEl.className = 'blob'; // Reset classes
+                if (sysStatusStr === 'RUNNING') {
+                    blobEl.classList.add('green');
+                } else if (sysStatusStr === 'PAUSED' || sysStatusStr === 'PAUSING') {
+                    blobEl.classList.add('orange');
+                } else {
+                    blobEl.classList.add('red');
+                }
+              }
+            }
+          })
+          .catch(error => console.log('Topbar sync error:', error));
+      }
+      setTimeout(() => {
+          updateTopbarStatus();
+          setInterval(updateTopbarStatus, 2000);
+        }, 500);
+
+      // MQTT Real-time status
+      setInterval(function() {
+        fetch('/api/mqtt/status')
+          .then(response => response.json())
+          .then(data => {
+            let badge = document.getElementById('mqtt_status_badge');
+            if (!badge) return;
+
+            if (!data.enabled) {
+               badge.innerText = "DISABLED";
+               badge.style.color = "#95a5a6";
+            } else if (data.connected) {
+              badge.innerText = "ONLINE";
+              badge.style.color = "#27ae60";
+            } else {
+              badge.innerText = "OFFLINE";
+              badge.style.color = "#e74c3c";
+            }
+          }).catch(e => {
+              let badge = document.getElementById('mqtt_status_badge');
+              if (badge) {
+                badge.innerText = "API ERROR";
+                badge.style.color = "#a21505";
+              }
+          });
+      }, 3000);
+
     </script>
     </body>
-  </html>)rawliteral";
-
-#define COMMON_JAVASCRIPT \
-  R"rawliteral(
-<script>
-</script>
+  </html>
 )rawliteral"
 
 extern const char index_html[];
 extern const char index_html_header[];
 extern const char index_html_footer[];
-
-#endif  // INDEX_HTML_H

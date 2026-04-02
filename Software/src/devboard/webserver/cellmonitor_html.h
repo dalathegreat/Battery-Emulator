@@ -1,16 +1,6 @@
-#ifndef CELLMONITOR_H
-#define CELLMONITOR_H
+#pragma once
+
 #include <Arduino.h>
+#include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 
-// #include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
-
-/**
- * @brief Replaces placeholder with content section in web page
- *
- * @param[in] var
- *
- * @return String
- */
-String cellmonitor_processor(const String& var);
-
-#endif
+void print_cellmonitor_html(AsyncResponseStream* response);

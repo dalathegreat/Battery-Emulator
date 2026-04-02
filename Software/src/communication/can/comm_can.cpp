@@ -149,7 +149,8 @@ bool init_CAN() {
     }
 
     logging.println("Dual CAN Bus (ESP32+MCP2515) selected");
-    gBuffer.initWithSize(25);
+    //gBuffer.initWithSize(25);
+    gBuffer.initWithSize(128);
 
     if (rst_pin != GPIO_NUM_NC) {
       pinMode(rst_pin, OUTPUT);
@@ -544,6 +545,9 @@ uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin) 
   settingsespcan->mRequestedCANMode = ACAN_ESP32_Settings::NormalMode;
   settingsespcan->mTxPin = tx_pin;
   settingsespcan->mRxPin = rx_pin;
+
+  settingsespcan->mDriverReceiveBufferSize = 256;
+  settingsespcan->mDriverTransmitBufferSize = 256;
 
   // (Re)start the CAN interface
   return ACAN_ESP32::can.begin(*settingsespcan);

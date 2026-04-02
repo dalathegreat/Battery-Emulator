@@ -1,4 +1,5 @@
 #include "comm_nvm.h"
+#include "../../devboard/hal/hal.h"
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../battery/Shunt.h"

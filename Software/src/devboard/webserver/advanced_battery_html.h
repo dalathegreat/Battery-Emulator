@@ -1,17 +1,10 @@
-#ifndef ADVANCEDBATTERY_H
-#define ADVANCEDBATTERY_H
+#pragma once
 
 #include <Arduino.h>
 #include <string>
+#include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 
-/**
- * @brief Replaces placeholder with content section in web page
- *
- * @param[in] var
- *
- * @return String
- */
-String advanced_battery_processor(const String& var);
+void print_advanced_battery_html(AsyncResponseStream* response);
 
 class Battery;
 
@@ -36,5 +29,3 @@ struct BatteryCommand {
 };
 
 extern std::vector<BatteryCommand> battery_commands;
-
-#endif

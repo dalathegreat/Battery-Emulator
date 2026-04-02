@@ -1,6 +1,8 @@
 #include "mqtt.h"
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClient.h>        // (port 1883)
+#include <WiFiClientSecure.h>  // (port 8883)
 #include <freertos/FreeRTOS.h>
 #include <src/communication/nvm/comm_nvm.h>
 #include <list>
@@ -16,10 +18,15 @@
 #include "mqtt.h"
 #include "mqtt_client.h"
 
+WiFiClient espClient_Generic;
+WiFiClientSecure espClient_Secure;
+bool is_cloud_secure_mode = false;
+
 std::string mqtt_user;
 std::string mqtt_password;
 
 bool mqtt_enabled = false;
+bool mqtt_is_connected = false;
 bool ha_autodiscovery_enabled = false;
 bool mqtt_transmit_all_cellvoltages = false;
 uint16_t mqtt_timeout_ms = 2000;
@@ -28,6 +35,7 @@ uint16_t mqtt_publish_interval_ms = 5000;
 const int mqtt_port_default = 0;
 const char* mqtt_server_default = "";
 
+int mqtt_payload_format = 0; // 0 = Generic, 1 = NETPIE, 2 = AWS
 int mqtt_port = mqtt_port_default;
 std::string mqtt_server = mqtt_server_default;
 
@@ -333,10 +341,37 @@ static bool publish_common_info(void) {
     doc["cpu_temp"] = (int)(datalayer.system.info.CPU_temperature + 0.5);
     doc["emulator_uptime"] = millis64() / 1000;
 
-    serializeJson(doc, mqtt_msg);
-    if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
-      logging.println("Common info MQTT msg could not be sent");
-      return false;
+    // 🔀 2. Track switching point! Format and select the topic according to the customer's choice on the webpage.
+    if (mqtt_payload_format == 1) {
+      static JsonDocument netpieDoc;
+      netpieDoc["data"] = doc;
+      serializeJson(netpieDoc, mqtt_msg);
+      if (mqtt_publish("@shadow/data/update", mqtt_msg, false) == false) {
+        logging.println("NETPIE MQTT msg could not be sent");
+        return false;
+      }
+      netpieDoc.clear();
+    } else if (mqtt_payload_format == 2) {
+      // ☁️ AWS IoT Core mode (wrapped with "state.reported" and referencing the Thing Name from the Device ID)
+      static JsonDocument awsDoc;
+      awsDoc["state"]["reported"] = doc;
+      serializeJson(awsDoc, mqtt_msg);
+
+      String aws_topic = "$aws/things/" + String(device_id) + "/shadow/update";
+
+      if (mqtt_publish(aws_topic.c_str(), mqtt_msg, false) == false) {
+        logging.println("AWS Shadow MQTT msg could not be sent");
+      }
+      awsDoc.clear();
+
+    } else {
+      // 🌐 Generic mode (sending raw JSON to a regular topic)
+      static String state_topic = topic_name + "/info";
+      serializeJson(doc, mqtt_msg);
+      if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
+        logging.println("Generic MQTT msg could not be sent");
+        return false;
+      }
     }
     doc.clear();
   }
@@ -644,6 +679,8 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
   esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
   switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
+      mqtt_is_connected = true;
+      logging.println("MQTT connected");
       clear_event(EVENT_MQTT_DISCONNECT);
       set_event(EVENT_MQTT_CONNECT, 0);
 
@@ -652,6 +689,8 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       logging.println("MQTT connected");
       break;
     case MQTT_EVENT_DISCONNECTED:
+      mqtt_is_connected = false;
+      clear_event(EVENT_MQTT_CONNECT);
       set_event(EVENT_MQTT_DISCONNECT, 0);
       logging.println("MQTT disconnected!");
       break;
@@ -659,6 +698,7 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       mqtt_message_received(event->topic, event->topic_len, event->data, event->data_len);
       break;
     case MQTT_EVENT_ERROR:
+      mqtt_is_connected = true;
       logging.println("MQTT_ERROR");
       logging.print("reported from esp-tls");
       logging.println(event->error_handle->esp_tls_last_esp_err);
@@ -690,46 +730,58 @@ bool init_mqtt(void) {
     create_global_sensor_configs();
   }
 
-  if (mqtt_manual_topic_object_name) {
+  BatteryEmulatorSettingsStore settings;
 
-    BatteryEmulatorSettingsStore settings;
+  mqtt_payload_format = settings.getUInt("MQTTFORMAT", 0);
+  mqtt_server = settings.getString("MQTTSERVER", "").c_str();
+  mqtt_port = settings.getUInt("MQTTPORT", 1883);
+  mqtt_user = settings.getString("MQTTUSER", "").c_str();
+  mqtt_password = settings.getString("MQTTPASSWORD", "").c_str();
+
+  if (mqtt_server.length() == 0) {
+    logging.println("❌ ERROR: MQTT Server is empty. Aborting MQTT Init to prevent crash!");
+    return false;
+  }
+
+  if (mqtt_manual_topic_object_name) {
     topic_name = settings.getString("MQTTTOPIC", mqtt_topic_name);
     object_id_prefix = settings.getString("MQTTOBJIDPREFIX", mqtt_object_id_prefix);
     device_name = settings.getString("MQTTDEVICENAME", mqtt_device_name);
     device_id = settings.getString("HADEVICEID", ha_device_id);
 
-    if (topic_name.length() == 0) {
-      topic_name = mqtt_topic_name;
-    }
-
-    if (object_id_prefix.length() == 0) {
-      object_id_prefix = mqtt_object_id_prefix;
-    }
-
-    if (device_name.length() == 0) {
-      device_name = mqtt_device_name;
-    }
-
-    if (device_id.length() == 0) {
-      device_id = ha_device_id;
-    }
-
+    if (topic_name.length() == 0) topic_name = mqtt_topic_name;
+    if (object_id_prefix.length() == 0) object_id_prefix = mqtt_object_id_prefix;
+    if (device_name.length() == 0) device_name = mqtt_device_name;
+    if (device_id.length() == 0) device_id = ha_device_id;
   } else {
-    // Use default naming based on WiFi hostname for topic, object ID prefix, and device name
     topic_name = "battery-emulator_" + String(WiFi.getHostname());
     object_id_prefix = String(WiFi.getHostname()) + String("_");
     device_name = "BatteryEmulator_" + String(WiFi.getHostname());
     device_id = "battery-emulator";
   }
 
-  String clientId = String("BatteryEmulatorClient-") + WiFi.getHostname();
+  //String clientId = String("BatteryEmulatorClient-") + WiFi.getHostname();
+  String clientId = String(device_id);
+  if (clientId.length() == 0) {
+      clientId = "BatteryEmulatorClient";
+  }
+  clientId.trim();
+
+  // ------------------------------------------------------------------
+  // The Switcher: Check the port to select the pipe.
+  // ------------------------------------------------------------------
+  is_cloud_secure_mode = (mqtt_port == 8883 || mqtt_port == 443);
+
+  // Clear the old settings first.
+  memset(&mqtt_cfg, 0, sizeof(mqtt_cfg));
 
   mqtt_cfg.broker.address.transport = MQTT_TRANSPORT_OVER_TCP;
   mqtt_cfg.broker.address.hostname = mqtt_server.c_str();
   mqtt_cfg.broker.address.port = mqtt_port;
   mqtt_cfg.credentials.client_id = clientId.c_str();
-  mqtt_cfg.credentials.username = mqtt_user.c_str();
-  mqtt_cfg.credentials.authentication.password = mqtt_password.c_str();
+  if (mqtt_user.length() > 0) mqtt_cfg.credentials.username = mqtt_user.c_str();
+  if (mqtt_password.length() > 0) mqtt_cfg.credentials.authentication.password = mqtt_password.c_str();
+
   lwt_topic = topic_name + "/status";
   mqtt_cfg.session.last_will.topic = lwt_topic.c_str();
   mqtt_cfg.session.last_will.qos = 1;
@@ -737,13 +789,59 @@ bool init_mqtt(void) {
   mqtt_cfg.session.last_will.msg = "offline";
   mqtt_cfg.session.last_will.msg_len = strlen(mqtt_cfg.session.last_will.msg);
   mqtt_cfg.network.timeout_ms = mqtt_timeout_ms;
+
+  static String safe_aws_ca;
+  static String safe_aws_cert;
+
+  if (is_cloud_secure_mode) {
+    // ==========================================
+    // ☁️ CLOUD SECURE MODE (AWS IoT Core / 8883)
+    // ==========================================
+    logging.println("🔒 Activating SECURE MQTT (Cloud Mode)...");
+
+    // Enforce SSL/TLS transport.
+    mqtt_cfg.broker.address.transport = MQTT_TRANSPORT_OVER_SSL;
+
+    // Extract the certificate from NVM
+    String aws_ca = settings.getString("AWS_CA", "");
+    String aws_cert = settings.getString("AWS_CERT", "");
+
+    if (aws_ca.length() == 0 || aws_cert.length() == 0) {
+      logging.println("❌ ERROR: Missing Certificates in NVM! Please provision via Web UI.");
+      return false;
+    }
+
+    // Insert the certificate (Public) so that the ESP32's mbedTLS system can recognize it.
+    // *Note: For esp-mqtt, we need to cast to (const char*)
+    mqtt_cfg.broker.verification.certificate = (const char*)aws_ca.c_str();
+    mqtt_cfg.credentials.authentication.certificate = (const char*)aws_cert.c_str();
+
+    // Telling the ESP32 to retrieve the Private Key from the ATECC608A chip (Slot 0)
+    mqtt_cfg.credentials.authentication.use_secure_element = true;
+
+  } else {
+    // ==========================================
+    // 🌐 GENERIC Mode (Home Assistant / Local 1883)
+    // ==========================================
+    logging.println("🌐 Activating GENERIC MQTT (Local Mode)...");
+
+    // Enforce normal TCP transport
+    mqtt_cfg.broker.address.transport = MQTT_TRANSPORT_OVER_TCP;
+
+    // Enter Username / Password (if available).
+    if(mqtt_user.length() > 0) mqtt_cfg.credentials.username = mqtt_user.c_str();
+    if(mqtt_password.length() > 0) mqtt_cfg.credentials.authentication.password = mqtt_password.c_str();
+  }
+
   client = esp_mqtt_client_init(&mqtt_cfg);
 
   if (client == nullptr) {
+    logging.println("❌ ERROR: Failed to initialize MQTT Client!");
     return false;
   }
 
   if (esp_mqtt_client_register_event(client, MQTT_EVENT_ANY, mqtt_event_handler, client) != ESP_OK) {
+    logging.println("❌ ERROR: Failed to register MQTT Event Handler!");
     return false;
   }
 
@@ -771,6 +869,7 @@ void mqtt_client_loop(void) {
 }
 
 bool mqtt_publish(const char* topic, const char* mqtt_msg, bool retain) {
+  if (client == nullptr) return false;
   int msg_id = esp_mqtt_client_publish(client, topic, mqtt_msg, strlen(mqtt_msg), MQTT_QOS, retain);
   return msg_id > -1;
 }

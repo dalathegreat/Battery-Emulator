@@ -4,28 +4,105 @@
 #include "InverterProtocol.h"
 extern InverterProtocol* inverter;
 
-#include "AFORE-CAN.h"
-#include "BYD-CAN.h"
-#include "BYD-MODBUS.h"
-#include "FERROAMP-CAN.h"
-#include "FOXESS-CAN.h"
-#include "GROWATT-HV-CAN.h"
-#include "GROWATT-LV-CAN.h"
-#include "GROWATT-WIT-CAN.h"
-#include "KOSTAL-RS485.h"
-#include "PYLON-CAN.h"
-#include "PYLON-LV-CAN.h"
-#include "PYLON-LV-RS485.h"
-#include "SCHNEIDER-CAN.h"
-#include "SMA-BYD-H-CAN.h"
-#include "SMA-BYD-HVS-CAN.h"
-#include "SMA-LV-CAN.h"
-#include "SOFAR-CAN.h"
-#include "SOL-ARK-LV-CAN.h"
-#include "SOLAX-CAN.h"
-#include "SOLXPOW-CAN.h"
-#include "SUNGROW-CAN.h"
-#include "VCU-CAN.h"
+// ====================================================================
+// FEATURE TOGGLES (Opt-in Compilation)
+// Use -D ENABLE_BATT_<NAME> in platformio.ini to include specific batteries
+// Use -D ENABLE_ALL_INVERTERS to include everything (Full Version)
+// If the MINI_BUILD flag is not declared, automatically enable ENABLE_ALL_INVERTERS!
+// ====================================================================
+#ifndef MINI_BUILD
+  #define ENABLE_ALL_INVERTERS
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_AFORE_CAN)
+  #include "AFORE-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_BYD_CAN)
+  #include "BYD-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_BYD_MODBUS)
+  #include "BYD-MODBUS.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_FERROAMP_CAN)
+  #include "FERROAMP-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_FOXESS_CAN)
+  #include "FOXESS-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_GROWATT_HV_CAN)
+  #include "GROWATT-HV-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_GROWATT_LV_CAN)
+  #include "GROWATT-LV-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_GROWATT_WIT_CAN)
+  #include "GROWATT-WIT-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_KOSTAL_RS485)
+  #include "KOSTAL-RS485.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_PYLON_CAN)
+  #include "PYLON-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_PYLON_LV_CAN)
+  #include "PYLON-LV-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_PYLON_LV_RS485)
+  #include "PYLON-LV-RS485.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_SCHNEIDER_CAN)
+  #include "SCHNEIDER-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_SMA_BYD_H_CAN)
+  #include "SMA-BYD-H-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_SMA_BYD_HVS_CAN)
+  #include "SMA-BYD-HVS-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_SMA_LV_CAN)
+  #include "SMA-LV-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_SOFAR_CAN)
+  #include "SOFAR-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_SOLARK_LV_CAN)
+  #include "SOL-ARK-LV-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_SOLAX_CAN)
+  #include "SOLAX-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_SOLXPOW_CAN)
+  #include "SOLXPOW-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_SUNGROW_CAN)
+  #include "SUNGROW-CAN.h"
+#endif
+
+#if defined(ENABLE_ALL_INVERTERS) || defined(ENABLE_INV_VCU_CAN)
+  #include "VCU-CAN.h"
+#endif
+
+// ====================================================================
 
 // Call to initialize the build-time selected inverter. Safe to call even though inverter was not selected.
 bool setup_inverter();

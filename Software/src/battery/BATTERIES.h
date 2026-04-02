@@ -12,57 +12,215 @@ extern Battery* battery3;
 
 void setup_shunt();
 
-#include "BMW-I3-BATTERY.h"
-#include "BMW-IX-BATTERY.h"
-#include "BMW-PHEV-BATTERY.h"
-#include "BMW-SBOX.h"
-#include "BOLT-AMPERA-BATTERY.h"
-#include "BYD-ATTO-3-BATTERY.h"
-#include "CELLPOWER-BMS.h"
-#include "CHADEMO-BATTERY.h"
-#include "CHADEMO-CT.h"
-#include "CHADEMO-SHUNTS.h"
-#include "CMFA-EV-BATTERY.h"
-#include "CMP-SMART-CAR-BATTERY.h"
-#include "DALY-BMS.h"
-#include "ECMP-BATTERY.h"
-#include "FORD-MACH-E-BATTERY.h"
-#include "FOXESS-BATTERY.h"
-#include "GEELY-GEOMETRY-C-BATTERY.h"
-#include "GEELY-SEA-BATTERY.h"
-#include "GROWATT-HV-ARK-BATTERY.h"
-#include "HYUNDAI-IONIQ-28-BATTERY.h"
-#include "IMIEV-CZERO-ION-BATTERY.h"
-#include "JAGUAR-IPACE-BATTERY.h"
-#include "KIA-64FD-BATTERY.h"
-#include "KIA-E-GMP-BATTERY.h"
-#include "KIA-HYUNDAI-64-BATTERY.h"
-#include "KIA-HYUNDAI-HYBRID-BATTERY.h"
-#include "MEB-BATTERY.h"
-#include "MG-5-BATTERY.h"
-#include "MG-HS-PHEV-BATTERY.h"
-#include "NISSAN-LEAF-BATTERY.h"
-#include "ORION-BMS.h"
-#include "PYLON-BATTERY.h"
-#include "RANGE-ROVER-PHEV-BATTERY.h"
-#include "RELION-LV-BATTERY.h"
-#include "RENAULT-KANGOO-BATTERY.h"
-#include "RENAULT-TWIZY.h"
-#include "RENAULT-ZOE-GEN1-BATTERY.h"
-#include "RENAULT-ZOE-GEN2-BATTERY.h"
-#include "RIVIAN-BATTERY.h"
-#include "RJXZS-BMS.h"
-#include "SAMSUNG-SDI-LV-BATTERY.h"
-#include "SANTA-FE-PHEV-BATTERY.h"
-#include "SIMPBMS-BATTERY.h"
-#include "SONO-BATTERY.h"
-#include "TESLA-BATTERY.h"
-#include "TESLA-LEGACY-BATTERY.h"
-#include "TEST-FAKE-BATTERY.h"
-#include "THINK-BATTERY.h"
-#include "THUNDERSTRUCK-BMS.h"
-#include "VOLVO-SPA-BATTERY.h"
-#include "VOLVO-SPA-HYBRID-BATTERY.h"
+// ====================================================================
+// FEATURE TOGGLES (Opt-in Compilation)
+// Use -D ENABLE_BATT_<NAME> in platformio.ini to include specific batteries
+// Use -D ENABLE_ALL_BATTERIES to include everything (Full Version)
+// If the MINI_BUILD flag is not declared, automatically enable ENABLE_ALL_BATTERIES!
+// ====================================================================
+#ifndef MINI_BUILD
+  #define ENABLE_ALL_BATTERIES
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_BMW_I3)
+  #include "BMW-I3-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_BMW_IX)
+  #include "BMW-IX-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_BMW_PHEV)
+  #include "BMW-PHEV-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_BMW_SBOX)
+  #include "BMW-SBOX.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_BOLT_AMPERA)
+  #include "BOLT-AMPERA-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_BYD_ATTO3)
+  #include "BYD-ATTO-3-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_CELLPOWER)
+  #include "CELLPOWER-BMS.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_CHADEMO)
+  #include "CHADEMO-BATTERY.h"
+  #include "CHADEMO-CT.h"
+  #include "CHADEMO-SHUNTS.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_CMFA_EV)
+  #include "CMFA-EV-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_CMP_SMART_CAR)
+  #include "CMP-SMART-CAR-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_DALY)
+  #include "DALY-BMS.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_ECMP)
+  #include "ECMP-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_FORD_MACH_E)
+  #include "FORD-MACH-E-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_FOXESS)
+  #include "FOXESS-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_GEELY_GEOMETRY_C)
+  #include "GEELY-GEOMETRY-C-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_GEELY_SEA)
+  #include "GEELY-SEA-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_GROWATT_HV_ARK)
+  #include "GROWATT-HV-ARK-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_HYUNDAI_IONIQ_28)
+  #include "HYUNDAI-IONIQ-28-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_IMIEV_CZERO)
+  #include "IMIEV-CZERO-ION-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_JAGUAR_IPACE)
+  #include "JAGUAR-IPACE-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_KIA_64FD)
+  #include "KIA-64FD-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_KIA_E_GMP)
+  #include "KIA-E-GMP-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_KIA_HYUNDAI_64)
+  #include "KIA-HYUNDAI-64-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_KIA_HYUNDAI_HYBRID)
+  #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_MEB)
+  #include "MEB-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_MG_5)
+  #include "MG-5-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_MG_HS_PHEV)
+  #include "MG-HS-PHEV-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_NISSAN_LEAF)
+  #include "NISSAN-LEAF-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_ORION)
+  #include "ORION-BMS.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_PYLON)
+  #include "PYLON-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_RANGE_ROVER_PHEV)
+  #include "RANGE-ROVER-PHEV-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_RELION_LV)
+  #include "RELION-LV-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_RENAULT_KANGOO)
+  #include "RENAULT-KANGOO-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_RENAULT_TWIZY)
+  #include "RENAULT-TWIZY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_RENAULT_ZOE_GEN1)
+  #include "RENAULT-ZOE-GEN1-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_RENAULT_ZOE_GEN2)
+  #include "RENAULT-ZOE-GEN2-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_RIVIAN)
+  #include "RIVIAN-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_RJXZS)
+  #include "RJXZS-BMS.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_SAMSUNG_SDI_LV)
+  #include "SAMSUNG-SDI-LV-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_SANTA_FE_PHEV)
+  #include "SANTA-FE-PHEV-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_SIMPBMS)
+  #include "SIMPBMS-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_SONO)
+  #include "SONO-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_TESLA)
+  #include "TESLA-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_TESLA_LEGACY)
+  #include "TESLA-LEGACY-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_TEST_FAKE)
+  #include "TEST-FAKE-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_THINK)
+  #include "THINK-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_THUNDERSTRUCK)
+  #include "THUNDERSTRUCK-BMS.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_VOLVO_SPA)
+  #include "VOLVO-SPA-BATTERY.h"
+#endif
+
+#if defined(ENABLE_ALL_BATTERIES) || defined(ENABLE_BATT_VOLVO_SPA_HYBRID)
+  #include "VOLVO-SPA-HYBRID-BATTERY.h"
+#endif
+
+// ====================================================================
 
 void setup_battery(void);
 Battery* create_battery(BatteryType type);

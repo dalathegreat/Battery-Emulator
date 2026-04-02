@@ -3,8 +3,9 @@
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/logging.h"
 #include "../../devboard/utils/millis64.h"
+#include "index_html.h"
 
-const char EVENTS_HTML_START[] = R"=====(
+const char EVENTS_HTML_START[] PROGMEM = R"=====(
 <style>
   /* --- 📦 Container & Header --- */
   .card-events { background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 20px; border-top: 4px solid #e74c3c; margin-bottom: 20px; }
@@ -14,7 +15,7 @@ const char EVENTS_HTML_START[] = R"=====(
   .btn-clear:hover { background: #c0392b; }
 
   /* --- 💻 Desktop Grid Layout --- */
-  .event-table { width: 100%; border-collapse: collapse; }
+  .event-table { display: block; border-collapse: collapse; }
   .ev-header-row {
 	display: grid;
 	grid-template-columns: 2fr 1fr 1.5fr 0.8fr 1fr 3fr;
@@ -35,6 +36,9 @@ const char EVENTS_HTML_START[] = R"=====(
 
   /* --- Style config (Mobile) --- */
   @media (max-width: 768px) {
+    .ev-header { flex-direction: column; align-items: stretch; text-align: center; }
+    .btn-clear { margin-top: 5px; padding: 12px; }
+
     /* 1. Hidden Header */
     .ev-header-row { display: none; }
 
@@ -73,9 +77,6 @@ const char EVENTS_HTML_START[] = R"=====(
     .event div:nth-child(4)::before { content: "🔄 Count: "; font-weight: bold; color: #7f8c8d; }
     .event div:nth-child(5)::before { content: "🔢 Data: "; font-weight: bold; color: #7f8c8d; }
     .event div:nth-child(6)::before { content: "💬 Message: "; font-weight: bold; color: #7f8c8d; }
-
-    /* Improved button responsiveness on mobile */
-    .btn-clear { width: 100%; margin-top: 10px; }
   }
 </style>
 
@@ -95,7 +96,7 @@ const char EVENTS_HTML_START[] = R"=====(
     </div>
 )=====";
 
-const char EVENTS_HTML_END[] = R"=====(
+const char EVENTS_HTML_END[] PROGMEM = R"=====(
   </div> </div> <style>
   /* 🦓 Zebra Striping: Alternating colors on the desktop for easier reading */
   @media (min-width: 769px) {
@@ -123,76 +124,6 @@ const char EVENTS_HTML_END[] = R"=====(
 
 static std::vector<EventData> order_events;
 
-String events_processor(const String& var) {
-  if (var == "X") {
-    String content = "";
-    content.reserve(5000);
-    // Page format
-    content.concat(FPSTR(EVENTS_HTML_START));
-    const EVENTS_STRUCT_TYPE* event_pointer;
-
-    //clear the vector
-    order_events.clear();
-    // Collect all events
-    for (int i = 0; i < EVENT_NOF_EVENTS; i++) {
-      event_pointer = get_event_pointer((EVENTS_ENUM_TYPE)i);
-      if (event_pointer->occurences > 0) {
-        order_events.push_back({static_cast<EVENTS_ENUM_TYPE>(i), event_pointer});
-      }
-    }
-    // Sort events by timestamp
-    std::sort(order_events.begin(), order_events.end(), compareEventsBySeverityAndTimestampDesc);
-    uint64_t current_timestamp = millis64();
-
-    // Generate HTML and debug output
-    for (const auto& event : order_events) {
-      EVENTS_ENUM_TYPE event_handle = event.event_handle;
-      event_pointer = event.event_pointer;
-
-      // Get the event level string and determine background color
-      String event_level = String(get_event_level_string(event_handle));
-      String bg_color;
-      String text_color = "#000000";
-
-      // Set colors based on event level
-      if (event_level == "INFO") {
-        bg_color = "#04b34f";
-      } else if (event_level == "WARNING") {
-        bg_color = "#ff9900";
-      } else if (event_level == "ERROR") {
-        bg_color = "#a6192e";
-        text_color = "#ffffff";
-      } else {
-        bg_color = "";
-      }
-
-      // Start event div with inline style for background color
-      content.concat("<div class='event'");
-      if (bg_color.length() > 0) {
-        content.concat(" style='background-color: " + bg_color + "; color: " + text_color + ";'>");
-      } else {
-        content.concat(">");
-      }
-
-      content.concat("<div>" + String(get_event_enum_string(event_handle)) + "</div>");
-      content.concat("<div>" + event_level + "</div>");
-      // Frontend expects to see time difference (in ms) from now to event
-      content.concat("<div class='sec-ago'>" + String(current_timestamp - event_pointer->timestamp) + "</div>");
-      content.concat("<div>" + String(event_pointer->occurences) + "</div>");
-      content.concat("<div>" + String(event_pointer->data) + "</div>");
-      content.concat("<div>" + get_event_message_string(event_handle) + "</div>");
-      content.concat("</div>");  // End of event row
-    }
-
-    //clear the vector
-    order_events.clear();
-    content.concat(FPSTR(EVENTS_HTML_END));
-    return content;
-  }
-  return String();
-}
-
-// Rename to print_events_html and accept as AsyncResponseStream
 void print_events_html(AsyncResponseStream* response) {
   response->print(FPSTR(EVENTS_HTML_START));
 
@@ -207,19 +138,39 @@ void print_events_html(AsyncResponseStream* response) {
   std::sort(order_events.begin(), order_events.end(), compareEventsBySeverityAndTimestampDesc);
   uint64_t current_timestamp = millis64();
 
-  // Gradually adding data to the pipe (no longer using string addition!)
+  // Stream data out each row
   for (const auto& event : order_events) {
     EVENTS_ENUM_TYPE event_handle = event.event_handle;
     const EVENTS_STRUCT_TYPE* event_pointer = event.event_pointer;
 
-    response->print("<div class='event'>");
+    String event_level = String(get_event_level_string(event_handle));
+    String bg_style = "";
+    String text_color = "#000000";
+
+    // Blackground color change Logic (INFO=Green, WARNING=Orange, ERROR=Red)
+    if (event_level == "ERROR") {
+      bg_style = "linear-gradient(180deg,rgba(250, 5, 5, 1) 25%, rgba(252, 252, 252, 1) 100%)";
+      text_color = "#ffffff";
+    } else {
+      bg_style = "linear-gradient(180deg,rgba(245, 255, 240, 1) 0%, rgba(252, 252, 252, 1) 100%)";
+    }
+
+    if (bg_style.length() > 0) {
+      response->print("<div class='event' style='background: ");
+      response->print(bg_style);
+      response->print("; color: ");
+      response->print(text_color);
+      response->print(";'>");
+    } else {
+      response->print("<div class='event'>");
+    }
 
     response->print("<div>");
     response->print(get_event_enum_string(event_handle));
     response->print("</div>");
 
     response->print("<div>");
-    response->print(get_event_level_string(event_handle));
+    response->print(event_level);
     response->print("</div>");
 
     response->print("<div class='sec-ago'>");
@@ -238,41 +189,9 @@ void print_events_html(AsyncResponseStream* response) {
     response->print(get_event_message_string(event_handle));
     response->print("</div>");
 
-    response->print("</div>");  // End of event row
+    response->print("</div>");  // ปิด div Row
   }
 
   order_events.clear();
   response->print(FPSTR(EVENTS_HTML_END));
 }
-
-/* Script for displaying event log before it gets minified
-<button onclick="askClear()">Clear all events</button>
-<button onclick="home()">Back to main page</button>
-<style>
-    .event:nth-child(even) {
-        background-color: #455a64;
-    }
-    .event:nth-child(odd) {
-        background-color: #394b52;
-    }
-</style>
-<script>
-    function showEvent() {
-        document.querySelectorAll(".event").forEach(function (e) {
-            var n = e.querySelector(".sec-ago");
-            n && (n.innerText = new Date(Number(BigInt(Date.now()) - BigInt(n.innerText))).toLocaleString());
-        });
-    }
-    function askClear() {
-        if (window.confirm('Are you sure you want to clear all events?')) {
-            window.location.href = '/clearevents';
-        }
-    }
-    function home() {
-        window.location.href = "/";
-    }
-    window.onload = function () {
-        showEvent();
-    };
-</script>
-*/

@@ -12,7 +12,7 @@ async function checkEmulatorStatusReboot() {
 		document.getElementById('firmwareVersion').textContent = data.firmware;
 		document.getElementById('hardwareID').textContent = data.hardware;
 		stopLoadingEfect();
-		resetView();				
+		resetView();
 	} else {
 		// Emulator not online, keep waiting
 		setTimeout(checkEmulatorStatusReboot, 2000); // Check again in 2 seconds
@@ -30,7 +30,7 @@ function stopLoadingEfect(){
 function startRebootWait(){
 	loadingDivText = "Rebooting...";
 	const div1 = document.getElementById('successColumn');
-	
+
 	if (!div1.classList.contains('hidden')) {
 		setTimeout(startLoadingEfect, 1000);
 		setTimeout(checkEmulatorStatusReboot, 5000);
@@ -68,9 +68,9 @@ async function getData(relativePath) {
 window.onload = () => {
 	let hardware ="?";
 	let firmware="?";
-	
+
 	// Set a timeout of 10 seconds (10000 milliseconds)
-    const timeout = new Promise((_, reject) => 
+    const timeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Request timed out')), 10000)
     );
 
@@ -90,7 +90,7 @@ window.onload = () => {
 			document.getElementById('firmwareVersion').textContent = "(timeout)";
 			document.getElementById('hardwareID').textContent = "(timeout)";
         });
-		
+
 	stopLoadingEfect();
 	const div1 = document.getElementById('progressColumn');
 	observer.observe(div1, { attributes: true, attributeFilter: ['class'] });
@@ -176,7 +176,7 @@ h3 {font-size: 2rem; margin: 0.00em 0 0.00em 0; font-weight: bold; font-family: 
         </p>
         <p id="errorReason" class="text-xs dark:text-[#b0b3b8]">
           Please try again
-        </p> 
+        </p>
       </div>
       <!-- Settings Column -->
       <div id="settingsColumn" class="flex flex-col justify-center mt-10">
@@ -221,7 +221,7 @@ h3 {font-size: 2rem; margin: 0.00em 0 0.00em 0; font-weight: bold; font-family: 
       </div>
 	  <div id="actionsButtons" style="display: inline;width: 350px;" class="flex flex-col justify-center mt-12 mb-4">
         <!-- Create a button -->
-		<button style="display: inline-block;padding: 10px 20px;margin: 5px;" onclick="window.location.href = '/';" type="button" class="dark:text-white bg-gray-50 border border-[#b0b3b8] border-opacity-40 hover:bg-gray-200 text-gray-700 text-xs focus:outline-none focus:ring-4 focus:ring-gray-300 font-medium rounded-full px-4 py-2 mr-2 mt-2 flex flex-row gap-2 items-center dark:bg-[#242526] dark:hover:bg-[#3a3b3c] dark:focus:ring-[#3a3b3c] dark:border-[#3a3b3c]">
+		<button style="display: inline-block;padding: 10px 20px;margin: 5px;" onclick="window.top.location.href = '/';" type="button" class="dark:text-white bg-gray-50 border border-[#b0b3b8] border-opacity-40 hover:bg-gray-200 text-gray-700 text-xs focus:outline-none focus:ring-4 focus:ring-gray-300 font-medium rounded-full px-4 py-2 mr-2 mt-2 flex flex-row gap-2 items-center dark:bg-[#242526] dark:hover:bg-[#3a3b3c] dark:focus:ring-[#3a3b3c] dark:border-[#3a3b3c]">
               Back to Battery Emulator
           </button>
 	  <button style="display: inline-block;padding: 10px 20px;margin: 5px;" onclick="resetView()" type="button" class="dark:text-white bg-gray-50 border border-[#b0b3b8] border-opacity-40 hover:bg-gray-200 text-gray-700 text-xs focus:outline-none focus:ring-4 focus:ring-gray-300 font-medium rounded-full px-4 py-2 mr-2 mt-4 flex flex-row gap-2 items-center dark:bg-[#242526] dark:hover:bg-[#3a3b3c] dark:focus:ring-[#3a3b3c] dark:border-[#3a3b3c]">

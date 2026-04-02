@@ -1,8 +1,8 @@
 #include "index_html.h"
+#include <Arduino.h>
 
-const char index_html[] = INDEX_HTML_HEADER COMMON_JAVASCRIPT "%X%" INDEX_HTML_FOOTER;
-const char index_html_header[] = INDEX_HTML_HEADER;
-const char index_html_footer[] = INDEX_HTML_FOOTER;
+const char index_html_header[] PROGMEM = INDEX_HTML_HEADER;
+const char index_html_footer[] PROGMEM = INDEX_HTML_FOOTER;
 
 /* The above code is minified (https://kangax.github.io/html-minifier/) to increase performance. Here is the full HTML function:
 <!DOCTYPE HTML><html>

@@ -3,77 +3,37 @@
 #include "../../datalayer/datalayer.h"
 #include "index_html.h"
 
-String can_replay_processor(void) {
-  if (!datalayer.system.info.can_logging_active) {
-    datalayer.system.info.logged_can_messages_offset = 0;
-    datalayer.system.info.logged_can_messages[0] = '\0';
-  }
-  datalayer.system.info.can_logging_active = true;  // Signal to main loop that we should log messages.
-
-  String content = String(index_html_header);
-
-  // Prepare Dropdown
-  String opt_native = (datalayer.system.info.can_replay_interface == CAN_NATIVE) ? "selected" : "";
-  String opt_fd_native = (datalayer.system.info.can_replay_interface == CANFD_NATIVE) ? "selected" : "";
-  String opt_mcp2515 = (datalayer.system.info.can_replay_interface == CAN_ADDON_MCP2515) ? "selected" : "";
-  String opt_mcp2518 = (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518) ? "selected" : "";
-
-  // ==========================================
-  // 🎨 CSS & HTML STRUCTURE ( Card UI Style)
-  // ==========================================
-  content += R"rawliteral(
+const char can_replay_full_html[] PROGMEM = INDEX_HTML_HEADER R"rawliteral(
   <style>
     .can-wrap { display: flex; flex-direction: column; gap: 20px; }
-    
-    /* --- 🎛️ Cards Style --- */
     .control-card { background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 20px; }
     .control-card h3 { margin: 0 0 10px 0; color: #2c3e50; font-size: 1.25rem; font-weight: 800; border-bottom: 1px solid #eee; padding-bottom: 10px; }
     .control-card p { color: #7f8c8d; font-size: 0.9rem; margin-top: 0; margin-bottom: 15px; }
-    
     .flex-row { display: flex; align-items: center; flex-wrap: wrap; gap: 15px; }
-    
     select, input[type='file'] { padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; background-color: #f8f9fa; color: #333; font-size: 0.95rem; }
-    
-    /* --- Buttons --- */
     .btn-cmd { color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 0.95rem; }
     .btn-cmd:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
     .btn-cmd:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; box-shadow: none; color: #fff; }
-    
     .btn-blue { background: #3498db; } .btn-blue:hover { background: #2980b9; }
     .btn-green { background: #2ecc71; } .btn-green:hover { background: #27ae60; }
     .btn-red { background: #e74c3c; } .btn-red:hover { background: #c0392b; }
     .btn-purple { background: #9b59b6; } .btn-purple:hover { background: #8e44ad; }
-
-    /* --- Status Box --- */
     .status-box { background: #f8f9fa; border: 1px solid #ddd; padding: 10px 15px; border-radius: 6px; font-weight: bold; color: #333; margin-left: auto; }
-
-    /* --- Modal (Popup) --- */
-    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(3px); }
-    .modal-content { background-color: #fff; margin: 5% auto; padding: 25px; border-top: 5px solid #3498db; width: 85%; max-width: 800px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(3px); }
+    .modal-content { background-color: #fff; margin: 5vh auto; padding: 25px; border-top: 5px solid #3498db; width: 85vw; max-width: 800px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
     .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 1; margin-top: -5px; }
     .close-btn:hover { color: #333; }
     pre.log-preview { background-color: #1e1e1e; padding: 15px; border-radius: 6px; color: #00ff00; max-height: 50vh; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', Courier, monospace; box-shadow: inset 0 0 10px rgba(0,0,0,0.8); }
-    
-    @media (max-width: 768px) { .status-box { margin-left: 0; width: 100%; text-align: center; } }
+    @media (max-width: 768px) { .status-box { margin-left: 0; width: auto; flex: 1 1 250px; text-align: center; } }
   </style>
 
   <div class="can-wrap">
-    
     <div class="control-card" style="border-top-color: #3498db;">
       <h3>🔌 Step 1: Select CAN Interface</h3>
       <p>Select the interface where the replay data should be transmitted.</p>
       <div class="flex-row">
         <select id="canInterface">
-          <option value=")rawliteral" +
-             String(CAN_NATIVE) + R"rawliteral(" )rawliteral" + opt_native + R"rawliteral(>CAN Native</option>
-          <option value=")rawliteral" +
-             String(CANFD_NATIVE) + R"rawliteral(" )rawliteral" + opt_fd_native + R"rawliteral(>CANFD Native</option>
-          <option value=")rawliteral" +
-             String(CAN_ADDON_MCP2515) + R"rawliteral(" )rawliteral" + opt_mcp2515 +
-             R"rawliteral(>CAN Addon MCP2515</option>
-          <option value=")rawliteral" +
-             String(CANFD_ADDON_MCP2518) + R"rawliteral(" )rawliteral" + opt_mcp2518 +
-             R"rawliteral(>CANFD Addon MCP2518</option>
+          %CAN_OPTIONS%
         </select>
         <button class="btn-cmd btn-blue" onclick="sendCANSelection()">Apply Interface</button>
       </div>
@@ -97,14 +57,16 @@ String can_replay_processor(void) {
         </label>
         <button id="start-btn" class="btn-cmd btn-green" onclick="startReplay()">▶️ Start</button>
         <button id="stop-btn" class="btn-cmd btn-red" onclick="stopReplay()">⏹️ Stop</button>
-        
+
         <div class="status-box">
           Status: <span id="statusIndicator" style="color: #7f8c8d; margin-left: 5px;">Ready</span>
         </div>
       </div>
     </div>
 
-  </div> <div id="previewModal" class="modal">
+  </div>
+
+  <div id="previewModal" class="modal">
     <div class="modal-content">
       <span class="close-btn" onclick="closeModal()">&times;</span>
       <h3 style="color: #2c3e50; margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">📄 Uploaded Log Preview</h3>
@@ -113,12 +75,10 @@ String can_replay_processor(void) {
   </div>
 
   <script>
-    // Modal Functions
     function openModal() { document.getElementById('previewModal').style.display = 'block'; }
     function closeModal() { document.getElementById('previewModal').style.display = 'none'; }
     window.onclick = function(event) { if (event.target == document.getElementById('previewModal')) closeModal(); };
 
-    // Elements
     const fileInput = document.getElementById('file-input');
     const uploadBtn = document.getElementById('upload-btn');
     const startBtn = document.getElementById('start-btn');
@@ -142,7 +102,7 @@ String can_replay_processor(void) {
 
     uploadBtn.addEventListener('click', () => {
       if (!selectedFile) { alert('Please select a file first!'); return; }
-      
+
       if (selectedFile.size > 102400) {
         if (!confirm('Warning: File is larger than 100KB!\n\nIf you do NOT have an SD Card inserted, the server will reject this upload to protect system memory.\n\nContinue?')) return;
       }
@@ -161,14 +121,14 @@ String can_replay_processor(void) {
       formData.append('file', selectedFile);
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/import_can_log', true);
-      
+
       xhr.onload = () => {
         resetUploadUI();
         if (xhr.status === 200) {
           alert('✅ File uploaded successfully!');
           viewBtn.style.display = 'inline-block';
           const reader = new FileReader();
-          reader.onload = function (e) { 
+          reader.onload = function (e) {
             let text = e.target.result;
             if(selectedFile.size > 5000) text += '\n\n... [Preview Truncated to prevent Browser lag] ...';
             fileContent.textContent = text;
@@ -182,17 +142,16 @@ String can_replay_processor(void) {
           fileContent.textContent = 'Error during upload. Check server logs.';
         }
       };
-      
+
       xhr.onerror = () => {
         resetUploadUI();
         alert('❌ Network error during upload.');
         fileContent.textContent = 'Network disconnected or board restarted.';
       };
-      
+
       xhr.send(formData);
     });
 
-    // Playback Logic
     function startReplay() {
       let loop = document.getElementById('loopCheckbox').checked ? 1 : 0;
       fetch('/startReplay?loop=' + loop, { method: 'GET' })
@@ -233,8 +192,16 @@ String can_replay_processor(void) {
       xhr.send();
     }
   </script>
-  )rawliteral";
+)rawliteral" INDEX_HTML_FOOTER;
 
-  content += String(index_html_footer);
-  return content;
+String can_replay_template_processor(const String& var) {
+  if (var == "CAN_OPTIONS") {
+    String opts = "";
+    opts += "<option value=\"" + String(CAN_NATIVE) + "\" " + ((datalayer.system.info.can_replay_interface == CAN_NATIVE) ? "selected" : "") + ">CAN Native</option>";
+    opts += "<option value=\"" + String(CANFD_NATIVE) + "\" " + ((datalayer.system.info.can_replay_interface == CANFD_NATIVE) ? "selected" : "") + ">CANFD Native</option>";
+    opts += "<option value=\"" + String(CAN_ADDON_MCP2515) + "\" " + ((datalayer.system.info.can_replay_interface == CAN_ADDON_MCP2515) ? "selected" : "") + ">CAN Addon MCP2515</option>";
+    opts += "<option value=\"" + String(CANFD_ADDON_MCP2518) + "\" " + ((datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518) ? "selected" : "") + ">CANFD Addon MCP2518</option>";
+    return opts;
+  }
+  return String();
 }

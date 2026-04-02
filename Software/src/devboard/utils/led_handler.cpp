@@ -53,7 +53,7 @@ void led_exe(void) {
 
 void LED::begin() {
   BatteryEmulatorSettingsStore settings;
-  int num_leds = settings.getUInt("LEDCOUNT", 8);
+  int num_leds = settings.getUInt("LEDCOUNT", 4);
   int pin = esp32hal->LED_PIN();
 
   // Change the pin type and number of LEDs directly through the same object, no pointer needed!
