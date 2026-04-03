@@ -207,7 +207,7 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
           transmit_can_frame(&SOLAX_1878);
           // Message from the inverter to open contactor
           // Byte 4 changes from 1 to 0
-          if (rx_frame.data.u64 == Contactor_Open_Payload) {
+          if (!configured_ignore_contactors && rx_frame.data.u64 == Contactor_Open_Payload) {
             set_event(EVENT_INVERTER_OPEN_CONTACTOR, 0);
             STATE = BATTERY_ANNOUNCE;
           }
