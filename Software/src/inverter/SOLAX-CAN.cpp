@@ -16,9 +16,8 @@ void SolaxInverter::
   // If not receiveing any communication from the inverter, open contactors and return to battery announce state
   if (millis() - LastFrameTime >= INTERVAL_2_S) {
     if (!configured_ignore_contactors) {
-      datalayer.system.status.inverter_allows_contactor_closing = false;
+      STATE = BATTERY_ANNOUNCE;
     }
-    STATE = BATTERY_ANNOUNCE;
   }
   //Calculate the required values
   temperature_average =
@@ -140,9 +139,7 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       switch (STATE) {
         case (BATTERY_ANNOUNCE):
           logging.println("Solax Battery State: Announce");
-          if (!configured_ignore_contactors) {
-            datalayer.system.status.inverter_allows_contactor_closing = false;
-          }
+          datalayer.system.status.inverter_allows_contactor_closing = false;
           SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
           for (uint8_t i = 0; i < number_of_batteries; i++) {
             transmit_can_frame(&SOLAX_187E);
@@ -192,7 +189,7 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
           transmit_can_frame(&SOLAX_1878);
           // Message from the inverter to open contactor
           // Byte 4 changes from 1 to 0
-          if (rx_frame.data.u64 == Contactor_Open_Payload) {
+          if (!configured_ignore_contactors && rx_frame.data.u64 == Contactor_Open_Payload) {
             set_event(EVENT_INVERTER_OPEN_CONTACTOR, 0);
             STATE = BATTERY_ANNOUNCE;
           }
