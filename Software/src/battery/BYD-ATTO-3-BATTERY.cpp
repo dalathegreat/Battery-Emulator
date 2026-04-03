@@ -81,8 +81,7 @@ void BydAttoBattery::
   // drops to zero (e.g. cell delta cutoff, overvoltage protection).
   uint16_t user_cap_dA = datalayer_battery->settings.max_user_set_charge_dA;
   if (BMS_allowed_charge_power > 0 && datalayer_battery->status.voltage_dV > 0) {
-    uint16_t bms_cap_dA = (uint16_t)((uint32_t)BMS_allowed_charge_power * 10 /
-                                     datalayer_battery->status.voltage_dV);
+    uint16_t bms_cap_dA = (uint16_t)((uint32_t)BMS_allowed_charge_power * 10 / datalayer_battery->status.voltage_dV);
     if (bms_cap_dA < user_cap_dA)
       user_cap_dA = bms_cap_dA;
   } else if (BMS_allowed_charge_power == 0) {
