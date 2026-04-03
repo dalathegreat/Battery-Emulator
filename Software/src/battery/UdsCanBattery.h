@@ -34,6 +34,7 @@ class UdsCanBattery : public CanBattery {
   // passed the PID query responses. The value returned is used as the next PID
   // to query. Return 0 to let the PID cycle continue as normal.
   virtual uint16_t handle_pid(uint16_t pid, uint32_t value) { return 0; }
+  virtual uint16_t handle_long_pid(uint16_t pid, const uint8_t* data, uint16_t length) { return 0; }
   virtual bool supports_read_DTC();
   virtual bool supports_reset_DTC();
   virtual void read_DTC();
@@ -52,8 +53,8 @@ class UdsCanBattery : public CanBattery {
   uint16_t first_pid = 0;
   uint16_t next_pid = 0;
   uint16_t uds_busy_timeout = 0;
-  uint16_t obd_address_min = 0x7DF;
-  uint16_t obd_address_max = 0x7FF;
+  uint16_t uds_address = 0x7DF;
+  //uint16_t obd_address_max = 0x7FF;
 
   bool user_request_read_dtc = false;
   bool user_request_clear_dtc = false;
