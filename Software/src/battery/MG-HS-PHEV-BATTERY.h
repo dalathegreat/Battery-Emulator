@@ -8,6 +8,7 @@ class MgHsPHEVBattery : public UdsCanBattery {
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual uint16_t handle_pid(uint16_t pid, uint32_t value);
+  virtual uint16_t handle_long_pid(uint16_t pid, const uint8_t* data, uint16_t length);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
@@ -38,8 +39,19 @@ class MgHsPHEVBattery : public UdsCanBattery {
   static const uint16_t POLL_MAX_CELL_VOLTAGE = 0xB058;
   static const uint16_t POLL_MIN_CELL_VOLTAGE = 0xB059;
   static const uint16_t POLL_BATTERY_SOH = 0xB061;
+  static const uint16_t POLL_BATTERY_TYPE = 0xF18A;
+
+  static const uint32_t BATTERY_TYPE_MG_HS_PHEV = 0x535345;  // "SSE"
+  static const uint32_t BATTERY_TYPE_MG_ZS = 0x5a5331;       // "ZS1"
+  static const uint32_t BATTERY_TYPE_MG5 = 0x1234;
+  // MG5/MarvelR unknown!
+
+  uint32_t batteryType = 0;
+  //uint32_t pidCount = 0;
+  bool contactorCloseReset = false;
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
+  unsigned long previousMillis2000 = 0;
 
   static const uint16_t MAX_CHARGE_POWER_W = 3000;
   static const uint16_t CHARGE_TRICKLE_POWER_W = 20;
