@@ -1346,17 +1346,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-daly">
-          <label>Power limit per % SOC (W/%): </label>
+          <label>Power limit per percent SOC above 80 / below 20 (W/pct): </label>
           <input type='number' name='DALYPWRPCT' value="%DALYPWRPCT%"
           min="1" max="10000" step="1"
           title="Below 20% and above 80% SOC, limit power to this value * SOC% (e.g. 50 W/% means 150W at 3%, 500W at 10%)" />
 
-          <label>Power-per-dV limiting start (dV from discharge voltage): </label>
+          <label>Voltage difference for start of voltage based discharge limit (dV): </label>
           <input type='number' name='DALYDVSTART' value="%DALYDVSTART%"
           min="1" max="200" step="1"
           title="Power limiting begins when pack voltage is this many dV above the discharge voltage limit (default 20 = 2.0V)" />
 
-          <label>Power limit per dV from discharge limit (W/dV): </label>
+          <label>Max power per dV distance from minimum voltage (W/dV): </label>
           <input type='number' name='DALYPWRDV' value="%DALYPWRDV%"
           min="1" max="10000" step="1"
           title="Max power per dV when approaching the discharge voltage limit" />
