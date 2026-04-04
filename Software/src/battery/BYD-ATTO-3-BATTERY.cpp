@@ -1,9 +1,11 @@
 #include "BYD-ATTO-3-BATTERY.h"
 #include <cstring>  //For unit test
+#include <cmath>  // For std::abs used in the drift check
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 
 // BYD UDS 0x27 Seed-to-Key Algorithm (Endian-Safe)
 uint16_t byd_generate_key(uint16_t seed, uint32_t keyK) {
@@ -144,16 +146,41 @@ void BydAttoBattery::
     const uint16_t diff = cap_slewed_dA - cap_target_dA;
     const uint16_t step = (down_step >= diff) ? diff : (uint16_t)down_step;
     cap_slewed_dA -= step;
-  } else if (cap_target_dA > cap_slewed_dA) {
-    const uint16_t diff = cap_target_dA - cap_slewed_dA;
-    const uint16_t step = (up_step >= diff) ? diff : (uint16_t)up_step;
-    cap_slewed_dA += step;
-  }
+} else if (cap_target_dA > cap_slewed_dA) {
+  const uint16_t diff = cap_target_dA - cap_slewed_dA;
+  const uint16_t step = (up_step >= diff) ? diff : (uint16_t)up_step;
+  cap_slewed_dA += step;
+}
 
+// Automatic SOC Calibration to 100%
+if (datalayer_bydatto->auto_calibrate_soc_enabled &&
+    datalayer_bydatto->UserRequestCalibrateSOC == false &&          // Don't fight manual request
+    stateMachineCalibrateSOC == NOT_RUNNING &&
+    datalayer.system.status.battery_allows_contactor_closing &&
+    prog >= 0.95f &&                                                // Charge taper reached
+    cap_slewed_dA <= (TAIL_CURRENT_dA + 2) &&
+    datalayer_battery->status.current_dA < 0 &&                     // Still charging?
+    std::abs(datalayer_battery->status.current_dA) < 30 &&          // and < 3 A
+     (1000 - battery_highprecision_SOC) > (uint16_t)(datalayer_bydatto->auto_calibrate_soc_drift_percent * 10) &&
+    (millis64() - last_auto_calibrate_ms > 3600000ULL)) {           // 1-hour cooldown
+
+  float soc_at_trigger = battery_highprecision_SOC * 0.1f;
+  float stored_soc_at_trigger = BMC_SOC_current_calibration * 0.01f;  // hundredths of a percent
+  DEBUG_PRINTF("[BYD Auto-Cal] Triggered: real SOC=%.1f%%, stored cal SOC=%.2f%%, drift threshold=%u%%\n",
+    soc_at_trigger, stored_soc_at_trigger, datalayer_bydatto->auto_calibrate_soc_drift_percent);
+
+  datalayer_bydatto->calibrationTargetSOC = 100;
+  if (BMS_capacity_current_calibration > 0) {  // Guard: only use polled capacity if valid
+    datalayer_bydatto->calibrationTargetAH = BMS_capacity_current_calibration / 100;
+  }
+  datalayer_bydatto->UserRequestCalibrateSOC = true;
+
+  last_auto_calibrate_ms = millis64();
+}
   // Convert current cap (dA) -> power cap (W): P = I(dA) * V(dV) / 100
   const uint32_t power_cap_W = (uint32_t(cap_slewed_dA) * uint32_t(datalayer_battery->status.voltage_dV)) / 100;
 
-  // Apply taper by capping the allowed charge power reported to the rest of BE/inverter logic.
+  // Apply taper by capping the allowed charge power reported to the rest of BE/inverter logic
   if (datalayer_battery->status.max_charge_power_W > power_cap_W) {
     datalayer_battery->status.max_charge_power_W = power_cap_W;
   }

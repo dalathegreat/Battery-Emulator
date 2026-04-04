@@ -50,6 +50,22 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "    }";
     content += "  }";
     content += "}";
+    content += "function toggleAutoCalSOCEnabled(){";
+    content += "  var enabled = document.getElementById('autoCalEnabled').checked ? 1 : 0;";
+    content += "  var xhr=new XMLHttpRequest();";
+    content += "  xhr.onload=editComplete;";
+    content += "  xhr.onerror=editError;";
+    content += "  xhr.open('GET','/editBydAtto3AutoCalEnabled?value='+enabled,true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function setAutoCalDriftPercent(){";
+    content += "  var percent = document.getElementById('driftPercent').value;";
+    content += "  var xhr=new XMLHttpRequest();";
+    content += "  xhr.onload=editComplete;";
+    content += "  xhr.onerror=editError;";
+    content += "  xhr.open('GET','/editBydAtto3AutoCalDriftPercent?value='+percent,true);";
+    content += "  xhr.send();";
+    content += "}";
     content += "</script>";
 
     content += "<h4>Detected cells: " + String(datalayer.battery.info.number_of_cells) + "</h4>";
@@ -172,6 +188,13 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Capacity current: " + String((byd_datalayer->BMS_capacity_current_calibration) / 100) + "AH</h4>";
     content += "<h4>SOC original: " + String(byd_datalayer->BMC_SOC_original_calibration) + "&percnt;</h4>";
     content += "<h4>SOC current: " + String(byd_datalayer->BMC_SOC_current_calibration) + "&percnt;</h4>";
+
+    content += "<h4>Auto-calibrate SOC to 100% when full: <input type='checkbox' id='autoCalEnabled' ";
+    content += (byd_datalayer->auto_calibrate_soc_enabled ? "checked" : "");
+    content += " onchange='toggleAutoCalSOCEnabled()'> (default ON)</h4>";
+    content += "<h4>Auto-calibrate trigger drift: <input type='number' id='driftPercent' value='";
+    content += String(byd_datalayer->auto_calibrate_soc_drift_percent);
+    content += "' min='1' max='20'> % <button onclick='setAutoCalDriftPercent()'>Save Drift %</button></h4>";
 
     content += "<h4>Calibration target SOC: " + String(byd_datalayer->calibrationTargetSOC) +
                "&percnt;"

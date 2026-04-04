@@ -10,6 +10,7 @@
 #include "../contactorcontrol/comm_contactorcontrol.h"
 #include "../equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../precharge_control/precharge_control.h"
+#include "../../datalayer/datalayer_extended.h"
 
 // Parameters
 Preferences settings;  // Store user settings
@@ -259,6 +260,12 @@ void store_settings() {
   if (!settings.putUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 13);
   }
+
+  uint8_t drift = settings.getUChar("BYDAUTOCALDRIFT", 5);
+if (drift >= 1 && drift <= 20) {
+  datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent = drift;
+}
+datalayer_extended.bydAtto3.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN", true);
 
   settings.end();  // Close preferences handle
 }
