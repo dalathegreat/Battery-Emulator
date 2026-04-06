@@ -138,13 +138,28 @@ void update_machineryprotection() {
     }
 
     //If user is requesting charge to stop at a specific voltage
+    static bool charge_blocked = false;
+    static bool discharge_blocked = false;
     if (datalayer.battery.settings.user_set_voltage_limits_active) {
-      if (datalayer.battery.status.voltage_dV >
-          (datalayer.battery.settings.max_user_set_charge_voltage_dV + HYSTERESIS_OFFSET_DV)) {
+      // --- Charge limiting with hysteresis ---
+      if (datalayer.battery.status.voltage_dV >= datalayer.battery.settings.max_user_set_charge_voltage_dV) {
+        charge_blocked = true;  // Latch: block charging once target is hit
+      } else if (datalayer.battery.status.voltage_dV <
+                 (datalayer.battery.settings.max_user_set_charge_voltage_dV - HYSTERESIS_OFFSET_DV)) {
+        charge_blocked = false;  // Only release when voltage drops well below target
+      }
+      if (charge_blocked) {
         datalayer.battery.status.max_charge_power_W = 0;
-      }  //No event triggered on these, charge stops as expected when manual limits are engaged
-      if (datalayer.battery.status.voltage_dV <
-          (datalayer.battery.settings.max_user_set_discharge_voltage_dV + HYSTERESIS_OFFSET_DV)) {
+      }
+
+      // --- Discharge limiting with hysteresis ---
+      if (datalayer.battery.status.voltage_dV <= datalayer.battery.settings.max_user_set_discharge_voltage_dV) {
+        discharge_blocked = true;
+      } else if (datalayer.battery.status.voltage_dV >
+                 (datalayer.battery.settings.max_user_set_discharge_voltage_dV + HYSTERESIS_OFFSET_DV)) {
+        discharge_blocked = false;
+      }
+      if (discharge_blocked) {
         datalayer.battery.status.max_discharge_power_W = 0;
       }
     }
