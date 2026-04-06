@@ -460,13 +460,13 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   // If the event is already set, no reason to continue
   if ((events.entries[event].state != EVENT_STATE_ACTIVE) &&
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
-    events.entries[event].occurences++;
     events.entries[event].MQTTpublished = false;
 
     DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
   }
 
   // We should set the event, update event info
+  events.entries[event].occurences++;
   events.entries[event].timestamp = millis64();
   events.entries[event].data = data;
   // Check if the event is latching

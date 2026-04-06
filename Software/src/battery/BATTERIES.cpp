@@ -62,6 +62,8 @@ const char* name_for_battery_type(BatteryType type) {
       return CmfaEvBattery::Name;
     case BatteryType::CmpSmartCar:
       return CmpSmartCarBattery::Name;
+    case BatteryType::EnnoidBMS:
+      return EnnoidBms::Name;
     case BatteryType::FordMachE:
       return FordMachEBattery::Name;
     case BatteryType::Foxess:
@@ -179,6 +181,8 @@ Battery* create_battery(BatteryType type) {
       return new CmfaEvBattery();
     case BatteryType::CmpSmartCar:
       return new CmpSmartCarBattery();
+    case BatteryType::EnnoidBMS:
+      return new EnnoidBms();
     case BatteryType::FordMachE:
       return new FordMachEBattery();
     case BatteryType::Foxess:
@@ -285,6 +289,10 @@ void setup_battery() {
 
   if (user_selected_second_battery && !battery2) {
     switch (user_selected_battery_type) {
+      case BatteryType::BoltAmpera:
+        battery2 =
+            new BoltAmperaBattery(&datalayer.battery2, &datalayer_extended.boltampera_2, can_config.battery_double);
+        break;
       case BatteryType::BydAtto3:
         battery2 = new BydAttoBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;

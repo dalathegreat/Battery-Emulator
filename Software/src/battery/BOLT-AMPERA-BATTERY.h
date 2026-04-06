@@ -1,10 +1,27 @@
 #ifndef BOLT_AMPERA_BATTERY_H
 #define BOLT_AMPERA_BATTERY_H
+#include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "BOLT-AMPERA-HTML.h"
 #include "CanBattery.h"
 
 class BoltAmperaBattery : public CanBattery {
  public:
+  // Default constructor - first or single battery
+  BoltAmperaBattery() : renderer(&datalayer_extended.boltampera) {
+    datalayer_battery = &datalayer.battery;
+    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+    datalayer_boltampera = &datalayer_extended.boltampera;
+  }
+
+  // Second battery constructor
+  BoltAmperaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_BOLTAMPERA* extended, CAN_Interface targetCan)
+      : CanBattery(targetCan), renderer(extended) {
+    datalayer_battery = datalayer_ptr;
+    allows_contactor_closing = nullptr;
+    datalayer_boltampera = extended;
+  }
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -16,6 +33,9 @@ class BoltAmperaBattery : public CanBattery {
 
  private:
   BoltAmperaHtmlRenderer renderer;
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+  DATALAYER_INFO_BOLTAMPERA* datalayer_boltampera;
+  bool* allows_contactor_closing;
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
 
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V

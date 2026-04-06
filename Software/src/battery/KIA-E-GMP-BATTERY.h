@@ -23,7 +23,11 @@ class KiaEGmpBattery : public CanBattery {
   int get_BMS_ign() const;
   int get_batRelay() const;
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+
  private:
+  bool UserRequestDTCreset = false;
   KiaEGMPHtmlRenderer renderer;
   uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps);
   uint16_t selectSOC(uint16_t SOC_low, uint16_t SOC_high);
@@ -565,6 +569,12 @@ class KiaEGmpBattery : public CanBattery {
       .DLC = 8,
       .ID = 0x7E4,
       .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Ack frame, correct PID is returned
+  static constexpr CAN_frame EGMP_DTCreset = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x7DF,
+      .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};  //DTC reset frame
 };
 
 #endif
