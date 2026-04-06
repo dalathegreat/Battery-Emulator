@@ -355,7 +355,7 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   bool battery3_allowed_contactor_closing = false;
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
-  /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
+  /** True if the contactor controlled by battery-emulator is closed. Determined by check_parallel_battery_safety(); if voltage is OK */
   bool contactors_battery2_engaged = false;
   bool contactors_battery3_engaged = false;
   /** State of BMS reset sequence */
