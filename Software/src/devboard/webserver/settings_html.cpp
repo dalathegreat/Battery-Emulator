@@ -1356,7 +1356,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Rampdown SOC, pptt: </label>
         <input type='number' name='RAMPDOWNSOC' value="%RAMPDOWNSOC%" 
-        min="7500" max="9000" step="1"
+        min="7000" max="9000" step="1"
         title="SOC percentage to start ramping down from max charge power towards 0W at 100.00pct" />
         </div>
 
