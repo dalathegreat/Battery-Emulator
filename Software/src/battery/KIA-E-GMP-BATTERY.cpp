@@ -453,7 +453,10 @@ void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
 
       EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
 
-      if (ok_start_polling_battery) {
+      if (UserRequestDTCreset) {
+        transmit_can_frame(&EGMP_DTCreset);
+        UserRequestDTCreset = false;
+      } else if (ok_start_polling_battery) {
         transmit_can_frame(&EGMP_7E4);
       }
 

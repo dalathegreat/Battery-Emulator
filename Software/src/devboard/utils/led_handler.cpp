@@ -47,6 +47,20 @@ void LED::exe(void) {
     case led_mode_enum::HEARTBEAT:
       heartbeat_run();
       break;
+#ifdef HW_LILYGO2CAN
+    case led_mode_enum::GRB_FLOW:
+      pixels.setColorOrder(GRB);
+      flow_run();
+      break;
+    case led_mode_enum::GRB_HEARTBEAT:
+      pixels.setColorOrder(GRB);
+      heartbeat_run();
+      break;
+    case led_mode_enum::GRB_CLASSIC:
+      pixels.setColorOrder(GRB);
+      classic_run();
+      break;
+#endif
     case led_mode_enum::CLASSIC:
     default:
       classic_run();

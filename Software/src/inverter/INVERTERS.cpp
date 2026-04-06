@@ -15,6 +15,7 @@ uint16_t user_selected_inverter_voltage_level = 0;
 uint16_t user_selected_inverter_ah_capacity = 0;
 uint16_t user_selected_inverter_battery_type = 0;
 uint16_t user_selected_inverter_sungrow_type = 0;
+uint16_t user_selected_inverter_pylon_type = 0;
 bool user_selected_inverter_ignore_contactors = false;
 bool user_selected_pylon_30koffset = false;
 bool user_selected_pylon_invert_byteorder = false;
@@ -69,6 +70,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
 
     case InverterProtocolType::PylonLv:
       return PylonLvInverter::Name;
+
+    case InverterProtocolType::PylonLV485:
+      return PylonLV485InverterProtocol::Name;
 
     case InverterProtocolType::Schneider:
       return SchneiderInverter::Name;
@@ -154,6 +158,10 @@ bool setup_inverter() {
 
     case InverterProtocolType::PylonLv:
       inverter = new PylonLvInverter();
+      break;
+
+    case InverterProtocolType::PylonLV485:
+      inverter = new PylonLV485InverterProtocol();
       break;
 
     case InverterProtocolType::Schneider:
