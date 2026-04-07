@@ -5,6 +5,7 @@
 #include "../devboard/utils/events.h"
 
 /* TODO
+This integration has not been tested, there are lots of TODOs left like CAN sending towards battery and the allowed charge power/current values
 */
 
 void LandRoverVelarPhevBattery::update_values() {
