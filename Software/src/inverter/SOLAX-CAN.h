@@ -2,6 +2,7 @@
 #define SOLAX_CAN_H
 
 #include "CanInverterProtocol.h"
+#include "INVERTERS.h"
 
 class SolaxInverter : public CanInverterProtocol {
  public:
