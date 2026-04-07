@@ -5,19 +5,11 @@
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/common_functions.h"
 #include "../devboard/utils/events.h"
-#include "../devboard/utils/logging.h"
 
 void VolvoSpaBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 
   // Update webserver datalayer
-  datalayer_extended.VolvoPolestar.soc_bms = SOC_BMS;
-  datalayer_extended.VolvoPolestar.soc_calc = SOC_CALC;
-  datalayer_extended.VolvoPolestar.soc_rescaled = datalayer.battery.status.reported_soc;
-  datalayer_extended.VolvoPolestar.soh_bms = datalayer.battery.status.soh_pptt;
-
-  datalayer_extended.VolvoPolestar.BECMBatteryVoltage = BATT_U;
-  datalayer_extended.VolvoPolestar.BECMBatteryCurrent = BATT_I;
   datalayer_extended.VolvoPolestar.BECMUDynMaxLim = MAX_U;
   datalayer_extended.VolvoPolestar.BECMUDynMinLim = MIN_U;
 
@@ -42,16 +34,9 @@ void VolvoSpaBattery::
 
   datalayer.battery.status.remaining_capacity_Wh = (datalayer.battery.info.total_capacity_Wh - CHARGE_ENERGY);
 
-  datalayer.battery.status.real_soc = SOC_BMS * 10;  //Add one decimal to make it pptt
-
-  // Use calculated SOC based on remaining_capacity
-  /*
-  SOC_CALC = (datalayer.battery.status.remaining_capacity_Wh / (datalayer.battery.info.total_capacity_Wh / 1000));
-  datalayer.battery.status.real_soc = SOC_CALC * 10;  //Add one decimal to make it pptt
-  */
-
-  datalayer.battery.status.voltage_dV = BATT_U * 10;
-  datalayer.battery.status.current_dA = BATT_I * 10;
+  datalayer.battery.status.real_soc = SOC_BMS * 10;   //Add one decimal to make it pptt
+  datalayer.battery.status.voltage_dV = BATT_U / 10;  //Remove one decimal
+  datalayer.battery.status.current_dA = -BATT_I;      //Invert direction
 
   datalayer.battery.status.max_discharge_power_W = HvBattPwrLimDchaSlowAgi * 1000;  //kW to W
   datalayer.battery.status.max_charge_power_W = HvBattPwrLimChrgSlowAgi * 1000;     //kW to W
@@ -95,29 +80,20 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x3A:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
-      if ((rx_frame.data.u8[6] & 0x80) == 0x80)
-        BATT_I = (0 - ((((rx_frame.data.u8[6] & 0x7F) * 256.0 + rx_frame.data.u8[7]) * 0.1) - 1638));
-      else {
-        BATT_I = 0;
-        logging.println("BATT_I not valid");
+      if ((rx_frame.data.u8[6] & 0x80) == 0x80) {
+        BATT_I = ((((rx_frame.data.u8[6] & 0x7F) << 8) | rx_frame.data.u8[7]) - 16380);
       }
 
-      if ((rx_frame.data.u8[2] & 0x08) == 0x08)
-        MAX_U = (((rx_frame.data.u8[2] & 0x07) * 256.0 + rx_frame.data.u8[3]) * 0.25);
-      else {
-        //MAX_U = 0;
-        //logging.println("MAX_U not valid");	// Value toggles between true/false from BMS
+      if ((rx_frame.data.u8[2] & 0x08) == 0x08) {
+        MAX_U = ((((rx_frame.data.u8[2] & 0x07) << 8) | rx_frame.data.u8[3]) / 4);
       }
 
-      if ((rx_frame.data.u8[4] & 0x08) == 0x08)
-        MIN_U = (((rx_frame.data.u8[4] & 0x07) * 256.0 + rx_frame.data.u8[5]) * 0.25);
-      else {
-        //MIN_U = 0;
-        //logging.println("MIN_U not valid");	// Value toggles between true/false from BMS
+      if ((rx_frame.data.u8[4] & 0x08) == 0x08) {
+        MIN_U = ((((rx_frame.data.u8[4] & 0x07) << 8) | rx_frame.data.u8[5]) / 4);
       }
 
       if ((rx_frame.data.u8[0] & 0x08) == 0x08) {
-        BATT_U = (((rx_frame.data.u8[0] & 0x07) * 256.0 + rx_frame.data.u8[1]) * 0.25);
+        BATT_U = ((((rx_frame.data.u8[0] & 0x07) << 8) | rx_frame.data.u8[1]) * 25);
       }
 
       if ((rx_frame.data.u8[0] & 0x40) == 0x40)
@@ -148,11 +124,8 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x413:
-      if ((rx_frame.data.u8[0] & 0x80) == 0x80)
-        BATT_ERR_INDICATION = ((rx_frame.data.u8[0] & 0x40) >> 6);
-      else {
-        BATT_ERR_INDICATION = 0;
-        logging.println("BATT_ERR_INDICATION not valid");
+      if ((rx_frame.data.u8[0] & 0x80) == 0x80) {
+        BATT_ERR_INDICATION = ((rx_frame.data.u8[0] & 0x40) >> 6);  //TODO, do something with this value?
       }
       if ((rx_frame.data.u8[0] & 0x20) == 0x20) {
         BATT_T_MAX = sign_extend_to_int16((((rx_frame.data.u8[2] & 0x1F) << 8) | rx_frame.data.u8[3]), 13);
@@ -163,9 +136,6 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x369:
       if ((rx_frame.data.u8[0] & 0x80) == 0x80) {
         HvBattPwrLimDchaSoft = (((rx_frame.data.u8[6] & 0x03) * 256 + rx_frame.data.u8[6]) >> 2);
-      } else {
-        HvBattPwrLimDchaSoft = 0;
-        logging.println("HvBattPwrLimDchaSoft not valid");
       }
       break;
     case 0x175:

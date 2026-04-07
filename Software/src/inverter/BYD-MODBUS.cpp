@@ -3,6 +3,7 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
+#include "../inverter/INVERTERS.h"
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
 
@@ -46,15 +47,14 @@ void BydModbusInverter::handle_static_data() {
 }
 
 void BydModbusInverter::handle_update_data_modbusp201_byd() {
-  if (battery2) {
-    mbPV[202] = std::min(datalayer.battery.info.total_capacity_Wh + datalayer.battery2.info.total_capacity_Wh,
-                         static_cast<uint32_t>(57960u));  //Cap to 58kWh
-  } else {
-    mbPV[202] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(57960u));  //Cap to 58kWh
+  mbPV[202] =
+      std::min(datalayer.battery.info.reported_total_capacity_Wh, static_cast<uint32_t>(57960u));  //Cap to 58kWh
+  if (user_selected_primo_gen24) {
+    mbPV[205] =  // Max Voltage, if higher Gen24 forces discharge, cap to 450.0V for Primo to avoid constant warning
+        std::min(datalayer.battery.info.max_design_voltage_dV, static_cast<uint16_t>(4500u));
+  } else {  //Symo inverter which can take up to 700V, so we can use the real max voltage of the battery without capping
+    mbPV[205] = datalayer.battery.info.max_design_voltage_dV;
   }
-  mbPV[205] =
-      std::min(datalayer.battery.info.max_design_voltage_dV,
-               static_cast<uint16_t>(4500u));  // Max Voltage, if higher Gen24 forces discharge, cap to 450.0V for Primo
   mbPV[206] = (datalayer.battery.info.min_design_voltage_dV);  // Min Voltage, if lower Gen24 disables battery
 }
 
@@ -68,13 +68,13 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   }
   // Convert max discharge Amp value to max Watt
   user_configured_max_discharge_W =
-      ((datalayer.battery.settings.max_user_set_discharge_dA * datalayer.battery.info.max_design_voltage_dV) / 100);
+      ((datalayer.battery.settings.max_user_set_discharge_dA * datalayer.battery.status.voltage_dV) / 100);
   // Use the smaller value, battery reported value OR user configured value
   max_discharge_W = std::min(datalayer.battery.status.max_discharge_power_W, user_configured_max_discharge_W);
 
   // Convert max charge Amp value to max Watt
   user_configured_max_charge_W =
-      ((datalayer.battery.settings.max_user_set_charge_dA * datalayer.battery.info.max_design_voltage_dV) / 100);
+      ((datalayer.battery.settings.max_user_set_charge_dA * datalayer.battery.status.voltage_dV) / 100);
   // Use the smaller value, battery reported value OR user configured value
   max_charge_W = std::min(datalayer.battery.status.max_charge_power_W, user_configured_max_charge_W);
 

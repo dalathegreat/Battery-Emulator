@@ -15,8 +15,10 @@
 #include "src/communication/nvm/comm_nvm.h"
 #include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
+#include "src/core/parallel_safety.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
+#include "src/devboard/espnow/espnow.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -37,7 +39,7 @@
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "10.0.RC4";
+const char* version_number = "10.6.dev";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -55,11 +57,6 @@ TaskHandle_t mqtt_loop_task;
 Watchdog mqtt_loop_watchdog;
 
 Logging logging;
-
-std::string mqtt_user;      //TODO, move?
-std::string mqtt_password;  //TODO, move?
-std::string http_username;  //TODO, move?
-std::string http_password;  //TODO, move?
 
 static std::list<Transmitter*> transmitters;
 void register_transmitter(Transmitter* transmitter) {
@@ -98,11 +95,19 @@ void connectivity_loop(void*) {
 
   init_display();
 
+  if (espnow_enabled) {
+    init_espnow();
+  }
+
   while (true) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
 
     update_display();
+
+    if (espnow_enabled) {
+      update_espnow();
+    }
 
     ota_monitor();
 
@@ -139,67 +144,6 @@ void logging_loop(void*) {
   }
   // Delete the logging task only if SD failed to initialize to prevent panic.
   vTaskDelete(NULL);
-}
-
-void check_interconnect_available(uint8_t batteryNumber) {
-
-  if (batteryNumber == 2) {
-    if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery2.status.voltage_dV == 0) {
-      return;  // Both voltage values need to be available to start check
-    }
-    uint16_t voltage_diff_battery2_towards_main =
-        abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV);
-    uint8_t secondsOutOfVoltageSyncBattery2 = 0;
-
-    if (voltage_diff_battery2_towards_main <= 15) {  // If we are within 1.5V between the batteries
-      clear_event(EVENT_VOLTAGE_DIFFERENCE);
-      secondsOutOfVoltageSyncBattery2 = 0;
-      if (datalayer.battery.status.bms_status == FAULT) {
-        // If main battery is in fault state, disengage the second battery
-        datalayer.system.status.battery2_allowed_contactor_closing = false;
-      } else {  // If main battery is OK, allow second battery to join
-        datalayer.system.status.battery2_allowed_contactor_closing = true;
-      }
-    } else {  //Voltage between the two packs is too large
-      set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff_battery2_towards_main / 10));
-
-      //If we start to drift out of sync between the two packs for more than 10 seconds, open contactors
-      if (secondsOutOfVoltageSyncBattery2 < 10) {
-        secondsOutOfVoltageSyncBattery2++;
-      } else {
-        datalayer.system.status.battery2_allowed_contactor_closing = false;
-      }
-    }
-  }
-
-  if (batteryNumber == 3) {
-    if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery3.status.voltage_dV == 0) {
-      return;  // Both voltage values need to be available to start check
-    }
-    uint16_t voltage_diff_battery3_towards_main =
-        abs(datalayer.battery.status.voltage_dV - datalayer.battery3.status.voltage_dV);
-    uint8_t secondsOutOfVoltageSyncBattery3 = 0;
-
-    if (voltage_diff_battery3_towards_main <= 15) {  // If we are within 1.5V between the batteries
-      clear_event(EVENT_VOLTAGE_DIFFERENCE);
-      secondsOutOfVoltageSyncBattery3 = 0;
-      if (datalayer.battery.status.bms_status == FAULT) {
-        // If main battery is in fault state, disengage the second battery
-        datalayer.system.status.battery3_allowed_contactor_closing = false;
-      } else {  // If main battery is OK, allow second battery to join
-        datalayer.system.status.battery3_allowed_contactor_closing = true;
-      }
-    } else {  //Voltage between the two packs is too large
-      set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff_battery3_towards_main / 10));
-
-      //If we start to drift out of sync between the two packs for more than 10 seconds, open contactors
-      if (secondsOutOfVoltageSyncBattery3 < 10) {
-        secondsOutOfVoltageSyncBattery3++;
-      } else {
-        datalayer.system.status.battery3_allowed_contactor_closing = false;
-      }
-    }
-  }
 }
 
 void update_calculated_values(unsigned long currentMillis) {
@@ -263,23 +207,12 @@ void update_calculated_values(unsigned long currentMillis) {
     }
   }
 
-  /* Calculate sum of all currents from all batteries*/
-  if (battery3) {
-    datalayer.battery.status.reported_current_dA =
-        (datalayer.battery.status.current_dA + datalayer.battery2.status.current_dA +
-         datalayer.battery3.status.current_dA);
-  } else if (battery2) {
-    datalayer.battery.status.reported_current_dA =
-        (datalayer.battery.status.current_dA + datalayer.battery2.status.current_dA);
-  } else {  // Only one battery in use
-    datalayer.battery.status.reported_current_dA = datalayer.battery.status.current_dA;
-  }
+  /* Calculate sum of all currents from all batteries. 0 if they are not used*/
+  datalayer.battery.status.reported_current_dA =
+      (datalayer.battery.status.current_dA + datalayer.battery2.status.current_dA +
+       datalayer.battery3.status.current_dA);
 
-  /* Calculate active power based on voltage and current*/
-  datalayer.battery.status.active_power_W =
-      (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
   /* Calculate if battery or inverter is limiting factor*/
-
   if (datalayer.battery.status.current_dA == 0) {  //Battery idle
     if (datalayer.battery.status.max_discharge_current_dA > 0) {
       //We allow discharge, but inverter does nothing. Inverter is limiting
@@ -308,6 +241,9 @@ void update_calculated_values(unsigned long currentMillis) {
     }
   }
 
+  /* Calculate active power based on voltage and current*/
+  datalayer.battery.status.active_power_W =
+      (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
   if (battery2) {
     /* Calculate active power based on voltage and current for battery 2*/
     datalayer.battery2.status.active_power_W =
@@ -322,13 +258,13 @@ void update_calculated_values(unsigned long currentMillis) {
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling
    * A static version of a stochastic oscillator. The scaled SoC is calculated as:
-   * 
+   *
    *     10000 * (real_soc - min_percentage)
    * ---------------------------------------
    *     (max_percentage - min_percentage)
-   * 
+   *
    * And scaled capacity is:
-   * 
+   *
    *     reported_total_capacity_Wh = total_capacity_Wh * (max - min) / 10000
    *     reported_remaining_capacity_Wh = reported_total_capacity_Wh * scaled_soc / 10000
    */
@@ -380,16 +316,14 @@ void update_calculated_values(unsigned long currentMillis) {
           datalayer.battery2.status.reported_remaining_capacity_Wh;
     }
 
-  } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled to same as real.
+  } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled SOC & capacity to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
-    datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
-
-    if (battery2) {
-      datalayer.battery2.status.reported_soc = datalayer.battery2.status.real_soc;
-      datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
-      datalayer.battery2.info.reported_total_capacity_Wh = datalayer.battery2.info.total_capacity_Wh;
-    }
+    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh +
+                                                              datalayer.battery2.status.remaining_capacity_Wh +
+                                                              datalayer.battery3.status.remaining_capacity_Wh;
+    datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh +
+                                                        datalayer.battery2.info.total_capacity_Wh +
+                                                        datalayer.battery3.info.total_capacity_Wh;
   }
 
   //Check each extra battery, and if they are at the extremes, report the SOC from these batteries instead
@@ -471,17 +405,11 @@ void core_loop(void*) {
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
 
-    monitor_equipment_stop_button();
-
     // Input, Runs as fast as possible
     receive_can();    // Receive CAN messages
     receive_rs485();  // Process serial2 RS485 interface
 
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
-
-    START_TIME_MEASUREMENT(ota);
-    ElegantOTA.loop();
-    END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
 
     // Process
     currentMillis = millis();
@@ -493,15 +421,20 @@ void core_loop(void*) {
       previousMillis10ms = currentMillis;
       if (datalayer.system.info.performance_measurement_active) {
         START_TIME_MEASUREMENT(10ms);
-      }
-      led_exe();
-      handle_contactors();  // Take care of startup precharge/contactor closing
-      if (precharge_control_enabled) {
-        handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
-      }
-
-      if (datalayer.system.info.performance_measurement_active) {
+        monitor_equipment_stop_button();
+        led_exe();
+        handle_contactors();  // Take care of startup precharge/contactor closing
+        if (precharge_control_enabled) {
+          handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
+        }
         END_TIME_MEASUREMENT_MAX(10ms, datalayer.system.status.time_10ms_us);
+      } else {  //Run 10ms tasks without timing it
+        monitor_equipment_stop_button();
+        led_exe();
+        handle_contactors();  // Take care of startup precharge/contactor closing
+        if (precharge_control_enabled) {
+          handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
+        }
       }
     }
 
@@ -519,11 +452,11 @@ void core_loop(void*) {
 
       if (battery2) {
         battery2->update_values();
-        check_interconnect_available(2);
+        check_parallel_battery_safety(2);
       }
       if (battery3) {
         battery3->update_values();
-        check_interconnect_available(3);
+        check_parallel_battery_safety(3);
       }
       update_calculated_values(currentMillis);
       update_machineryprotection();  // Check safeties
@@ -539,15 +472,19 @@ void core_loop(void*) {
     }
     if (datalayer.system.info.performance_measurement_active) {
       START_TIME_MEASUREMENT(cantx);
-    }
 
-    // Let all transmitter objects send their messages
-    for (auto& transmitter : transmitters) {
-      transmitter->transmit(currentMillis);
+      for (auto& transmitter : transmitters) {
+        transmitter->transmit(currentMillis);
+      }
+
+      END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
+    } else {
+      for (auto& transmitter : transmitters) {
+        transmitter->transmit(currentMillis);
+      }
     }
 
     if (datalayer.system.info.performance_measurement_active) {
-      END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
       END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
       if (datalayer.system.status.core_task_10s_max_us > datalayer.system.status.core_task_max_us) {
         // Update worst case total time
@@ -557,13 +494,11 @@ void core_loop(void*) {
         datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
         datalayer.system.status.time_snap_values_us = datalayer.system.status.time_values_us;
         datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
-        datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
       }
 
       datalayer.system.status.core_task_max_us =
           MAX(datalayer.system.status.core_task_10s_max_us, datalayer.system.status.core_task_max_us);
       if (core_task_timer_10s.elapsed()) {
-        datalayer.system.status.time_ota_us = 0;
         datalayer.system.status.time_comm_us = 0;
         datalayer.system.status.time_10ms_us = 0;
         datalayer.system.status.time_values_us = 0;
@@ -657,10 +592,14 @@ void setup() {
   // Start tasks
 
   if (mqtt_enabled) {
-    init_mqtt();
 
-    xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
-                            esp32hal->WIFICORE());
+    if (init_mqtt()) {
+      logging.println("MQTT initialized successfully.");
+      xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
+                              esp32hal->WIFICORE());
+    } else {
+      logging.println("MQTT failed to initialize. MQTT will be disabled.");
+    }
   }
 
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,

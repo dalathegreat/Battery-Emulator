@@ -28,7 +28,7 @@ struct DATALAYER_BATTERY_INFO_TYPE {
 
   /** uint8_t */
   /** Total number of cells in the pack */
-  uint8_t number_of_cells;
+  uint8_t number_of_cells = 0;
 
   /** Other */
   /** Chemistry of the pack. Autodetect, or force specific chemistry */
@@ -92,9 +92,9 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   /** Minimum temperature currently measured in the pack, in d°C. 150 = 15.0 °C */
   int16_t temperature_min_dC;
   /** Instantaneous battery current in deciAmpere. 95 = 9.5 A */
-  int16_t current_dA;
+  int16_t current_dA = 0;
   /** Instantaneous battery current in deciAmpere. Sum of all batteries in the system 95 = 9.5 A */
-  int16_t reported_current_dA;
+  int16_t reported_current_dA = 0;
 
   /** uint8_t */
   /** A counter set each time a new message comes from battery.
@@ -312,8 +312,6 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   int64_t mqtt_task_10s_max_us = 0;
   /** Wifi sub-task measurement variable, reset each 10 seconds */
   int64_t wifi_task_10s_max_us = 0;
-  /** OTA handling function measurement variable */
-  int64_t time_ota_us = 0;
   /** CAN RX or serial link function measurement variable */
   int64_t time_comm_us = 0;
   /** 10 ms function measurement variable */
@@ -322,10 +320,6 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   int64_t time_values_us = 0;
   /** CAN TX function measurement variable */
   int64_t time_cantx_us = 0;
-  /** Function measurement snapshot variable.
-   * This will show the performance of OTA handling when the total time reached a new worst case
-   */
-  int64_t time_snap_ota_us = 0;
   /** Function measurement snapshot variable.
    * This will show the performance of CAN RX or serial link when the total time reached a new worst case
    */
@@ -361,7 +355,7 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   bool battery3_allowed_contactor_closing = false;
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
-  /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
+  /** True if the contactor controlled by battery-emulator is closed. Determined by check_parallel_battery_safety(); if voltage is OK */
   bool contactors_battery2_engaged = false;
   bool contactors_battery3_engaged = false;
   /** State of BMS reset sequence */

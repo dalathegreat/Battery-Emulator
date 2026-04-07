@@ -7,7 +7,8 @@
 
 bool wifi_enabled = true;
 bool wifiap_enabled = true;
-bool mdns_enabled = true;  //If true, allows battery monitor te be found by .local address
+bool mdns_enabled = true;    //If true, allows battery monitor te be found by .local address
+bool espnow_enabled = true;  //If true, allows battery emulator to send battery status by using ESPNow messages
 uint16_t wifi_channel = 0;
 
 std::string custom_hostname;  //If not set, the default naming format 'esp32-XXXXXX' will be used

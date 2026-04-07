@@ -106,40 +106,6 @@ void TeslaLegacyBattery::update_values() {
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  /*
-    Following section is useful if we ever need to go back to manually set charge/discharge values
-
-  // Define the allowed discharge power
-  datalayer.battery.status.max_discharge_power_W = (battery_max_discharge_current * battery_volts);
-  // Cap the allowed discharge power if higher than the maximum discharge power allowed
-  if (datalayer.battery.status.max_discharge_power_W > datalayer.battery.status.override_discharge_power_W) {
-    datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
-  }
-
-  //The allowed charge power behaves strangely. We instead estimate this value
-  if (battery_soc_ui > 990) {
-    datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
-  } else if (battery_soc_ui >
-             RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
-    datalayer.battery.status.max_charge_power_W =
-        RAMPDOWNPOWERALLOWED * (1 - (battery_soc_ui - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
-    //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
-    //if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
-    //  if (battery_cell_max_v > (MAX_CELL_VOLTAGE_LFP - FLOAT_START_MV)) {
-    //    datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
-    //  }
-    //} else {  //NCM/A
-    //  if (battery_cell_max_v > (MAX_CELL_VOLTAGE_NCA_NCM - FLOAT_START_MV)) {
-    //    datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
-    //  }
-    if (battery_cell_max_v > (MAX_CELL_VOLTAGE_MV - FLOAT_START_MV)) {
-      datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
-    }
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
-  }
-  */
-
   datalayer.battery.status.max_charge_power_W = (datalayer.battery.status.voltage_dV * battery_max_charge_current) / 10;
 
   datalayer.battery.status.max_discharge_power_W =

@@ -29,7 +29,7 @@ void init_events(void) {
     events.entries[i].MQTTpublished = false;  // Not published by default
   }
 
-  events.entries[EVENT_CANMCP2517FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP2518FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2515_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
@@ -174,7 +174,7 @@ void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
 
 String get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
-    case EVENT_CANMCP2517FD_INIT_FAILURE:
+    case EVENT_CANMCP2518FD_INIT_FAILURE:
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
     case EVENT_CANMCP2515_INIT_FAILURE:
       return "CAN-MCP addon initialization failed. Check hardware";
@@ -460,13 +460,13 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   // If the event is already set, no reason to continue
   if ((events.entries[event].state != EVENT_STATE_ACTIVE) &&
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
-    events.entries[event].occurences++;
     events.entries[event].MQTTpublished = false;
 
     DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
   }
 
   // We should set the event, update event info
+  events.entries[event].occurences++;
   events.entries[event].timestamp = millis64();
   events.entries[event].data = data;
   // Check if the event is latching

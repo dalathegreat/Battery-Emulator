@@ -45,6 +45,9 @@ jobs:
           - board_name: "BECom"
             pio_env: "BECom_330"
             artifact_name: "battery-emulator-becom"
+          - board_name: "Compiler warning check"
+            pio_env: "compiler_warning_check"
+            artifact_name: "battery-dummy-check"
 
     steps:
     - uses: actions/checkout@v6
@@ -68,7 +71,7 @@ jobs:
       run: pio run -e ${{ matrix.pio_env }}
 
     - name: Upload artifact for ${{ matrix.board_name }}
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.artifact_name }}.bin
         path: .pio/build/${{ matrix.pio_env }}/firmware.bin

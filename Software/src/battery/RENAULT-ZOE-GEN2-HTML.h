@@ -48,11 +48,20 @@ class RenaultZoeGen2HtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>fan period: " + String(datalayer_extended.zoePH2.battery_fan_period) + "</h4>";
     content += "<h4>fan control: " + String(datalayer_extended.zoePH2.battery_fan_control) + "</h4>";
     content += "<h4>fan duty: " + String(datalayer_extended.zoePH2.battery_fan_duty) + "</h4>";
-    content += "<h4>temporisation: " + String(datalayer_extended.zoePH2.battery_temporisation) + "</h4>";
     content += "<h4>time: " + String(datalayer_extended.zoePH2.battery_time) + "</h4>";
     content += "<h4>pack time: " + String(datalayer_extended.zoePH2.battery_pack_time) + "</h4>";
     content += "<h4>soc min: " + String(datalayer_extended.zoePH2.battery_soc_min) + "</h4>";
     content += "<h4>soc max: " + String(datalayer_extended.zoePH2.battery_soc_max) + "</h4>";
+    content += "<h4>temporisation: ";
+    if (datalayer_extended.zoePH2.battery_temporisation == 255) {
+      content += "Not read yet</h4>";
+    } else if (datalayer_extended.zoePH2.battery_temporisation == 0) {
+      content += "0 Activated!</h4>";
+    } else if (datalayer_extended.zoePH2.battery_temporisation == 1) {
+      content += "1 Disabled!</h4>";
+    } else {
+      content += String(datalayer_extended.zoePH2.battery_temporisation) + "</h4>";
+    }
 
     return content;
   }

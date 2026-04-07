@@ -62,12 +62,16 @@ const char* name_for_battery_type(BatteryType type) {
       return CmfaEvBattery::Name;
     case BatteryType::CmpSmartCar:
       return CmpSmartCarBattery::Name;
+    case BatteryType::EnnoidBMS:
+      return EnnoidBms::Name;
     case BatteryType::FordMachE:
       return FordMachEBattery::Name;
     case BatteryType::Foxess:
       return FoxessBattery::Name;
     case BatteryType::GeelyGeometryC:
       return GeelyGeometryCBattery::Name;
+    case BatteryType::GrowattHvArk:
+      return GrowattHvArkBattery::Name;
     case BatteryType::HyundaiIoniq28:
       return HyundaiIoniq28Battery::Name;
     case BatteryType::OrionBms:
@@ -136,6 +140,10 @@ const char* name_for_battery_type(BatteryType type) {
       return TestFakeBattery::Name;
     case BatteryType::ThinkCity:
       return ThinkBattery::Name;
+    case BatteryType::ThunderstruckBMS:
+      return ThunderstruckBMS::Name;
+    case BatteryType::GeelySea:
+      return GeelySeaBattery::Name;
     case BatteryType::VolvoSpa:
       return VolvoSpaBattery::Name;
     case BatteryType::VolvoSpaHybrid:
@@ -175,12 +183,16 @@ Battery* create_battery(BatteryType type) {
       return new CmfaEvBattery();
     case BatteryType::CmpSmartCar:
       return new CmpSmartCarBattery();
+    case BatteryType::EnnoidBMS:
+      return new EnnoidBms();
     case BatteryType::FordMachE:
       return new FordMachEBattery();
     case BatteryType::Foxess:
       return new FoxessBattery();
     case BatteryType::GeelyGeometryC:
       return new GeelyGeometryCBattery();
+    case BatteryType::GrowattHvArk:
+      return new GrowattHvArkBattery();
     case BatteryType::HyundaiIoniq28:
       return new HyundaiIoniq28Battery();
     case BatteryType::OrionBms:
@@ -240,7 +252,7 @@ Battery* create_battery(BatteryType type) {
     case BatteryType::SimpBms:
       return new SimpBmsBattery();
     case BatteryType::TeslaModel3Y:
-      return new TeslaModel3YBattery(user_selected_battery_chemistry);
+      return new TeslaModel3YBattery();
     case BatteryType::TeslaModelSX:
       return new TeslaModelSXBattery();
     case BatteryType::TeslaLegacy:
@@ -249,6 +261,10 @@ Battery* create_battery(BatteryType type) {
       return new TestFakeBattery();
     case BatteryType::ThinkCity:
       return new ThinkBattery();
+    case BatteryType::ThunderstruckBMS:
+      return new ThunderstruckBMS();
+    case BatteryType::GeelySea:
+      return new GeelySeaBattery();
     case BatteryType::VolvoSpa:
       return new VolvoSpaBattery();
     case BatteryType::VolvoSpaHybrid:
@@ -264,6 +280,11 @@ void setup_battery() {
     return;
   }
 
+  // Set the chemistry to the user selected value, the battery can override.
+  datalayer.battery.info.chemistry = user_selected_battery_chemistry;
+  datalayer.battery2.info.chemistry = user_selected_battery_chemistry;
+  datalayer.battery3.info.chemistry = user_selected_battery_chemistry;
+
   battery = create_battery(user_selected_battery_type);
 
   if (battery) {
@@ -272,6 +293,13 @@ void setup_battery() {
 
   if (user_selected_second_battery && !battery2) {
     switch (user_selected_battery_type) {
+      case BatteryType::BoltAmpera:
+        battery2 =
+            new BoltAmperaBattery(&datalayer.battery2, &datalayer_extended.boltampera_2, can_config.battery_double);
+        break;
+      case BatteryType::BydAtto3:
+        battery2 = new BydAttoBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+        break;
       case BatteryType::NissanLeaf:
         battery2 = new NissanLeafBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
@@ -281,6 +309,9 @@ void setup_battery() {
         break;
       case BatteryType::CmfaEv:
         battery2 = new CmfaEvBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+        break;
+      case BatteryType::CmpSmartCar:
+        battery2 = new CmpSmartCarBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
       case BatteryType::KiaHyundai64:
         battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,

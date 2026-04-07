@@ -16,6 +16,9 @@
 #include "mqtt.h"
 #include "mqtt_client.h"
 
+std::string mqtt_user;
+std::string mqtt_password;
+
 bool mqtt_enabled = false;
 bool ha_autodiscovery_enabled = false;
 bool mqtt_transmit_all_cellvoltages = false;
@@ -118,7 +121,6 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"state_of_health", "State Of Health", "", "%", "battery", always},
     {"temperature_min", "Temperature Min", "", "°C", "temperature", always},
     {"temperature_max", "Temperature Max", "", "°C", "temperature", always},
-    {"cpu_temp", "CPU Temperature", "", "°C", "temperature", always},
     {"stat_batt_power", "Stat Batt Power", "", "W", "power", always},
     {"battery_current", "Battery Current", "", "A", "current", always},
     {"cell_max_voltage", "Cell Max Voltage", "", "V", "voltage", always},
@@ -138,7 +140,9 @@ SensorConfig batterySensorConfigTemplate[] = {
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
                                              {"pause_status", "Pause Status", "", "", "", always},
                                              {"event_level", "Event Level", "", "", "", always},
-                                             {"emulator_status", "Emulator Status", "", "", "", always}};
+                                             {"emulator_status", "Emulator Status", "", "", "", always},
+                                             {"emulator_uptime", "Emulator Uptime", "", "s", "duration", always},
+                                             {"cpu_temp", "CPU Temperature", "", "°C", "temperature", always}};
 
 static std::list<SensorConfig> sensorConfigs;
 
@@ -236,7 +240,6 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   doc["state_of_health" + suffix] = ((float)battery.status.soh_pptt) / 100.0f;
   doc["temperature_min" + suffix] = ((float)((int16_t)battery.status.temperature_min_dC)) / 10.0f;
   doc["temperature_max" + suffix] = ((float)((int16_t)battery.status.temperature_max_dC)) / 10.0f;
-  doc["cpu_temp" + suffix] = datalayer.system.info.CPU_temperature;
   doc["stat_batt_power" + suffix] = ((float)((int32_t)battery.status.active_power_W));
   doc["battery_current" + suffix] = ((float)((int16_t)battery.status.current_dA)) / 10.0f;
   doc["battery_voltage" + suffix] = ((float)battery.status.voltage_dV) / 10.0f;
@@ -327,6 +330,8 @@ static bool publish_common_info(void) {
 
     doc["event_level"] = get_event_level_string(get_event_level());
     doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
+    doc["cpu_temp"] = (int)(datalayer.system.info.CPU_temperature + 0.5);
+    doc["emulator_uptime"] = millis64() / 1000;
 
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
@@ -344,7 +349,7 @@ static bool publish_cell_voltages(void) {
   static String state_topic_2 = topic_name + "/spec_data_2";
 
   if (ha_autodiscovery_enabled) {
-    bool failed_to_publish = false;
+    bool successfully_published = false;
     if (ha_cell_voltages_published == false) {
 
       // If the cell voltage number isn't initialized...
@@ -357,34 +362,35 @@ static bool publish_cell_voltages(void) {
 
           serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
           if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "").c_str(), mqtt_msg, true) == false) {
-            failed_to_publish = true;
             return false;
           }
         }
+        successfully_published = true;
         doc.clear();  // clear after sending autoconfig
       }
 
       if (battery2) {
+        successfully_published = false;
         // TODO: Combine this identical block with the previous one.
         // If the cell voltage number isn't initialized...
         if (datalayer.battery2.info.number_of_cells != 0u) {
 
-          for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
+          for (int i = 0; i < datalayer.battery2.info.number_of_cells; i++) {
             int cellNumber = i + 1;
             set_battery_voltage_attributes(doc, i, cellNumber, state_topic_2, object_id_prefix + "2_", " 2");
             set_common_discovery_attributes(doc);
 
             serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
             if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "_2_").c_str(), mqtt_msg, true) == false) {
-              failed_to_publish = true;
               return false;
             }
           }
+          successfully_published = true;
           doc.clear();  // clear after sending autoconfig
         }
       }
     }
-    if (failed_to_publish == false) {
+    if (successfully_published) {
       ha_cell_voltages_published = true;
     }
   }
@@ -677,6 +683,12 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
 }
 
 bool init_mqtt(void) {
+
+  if (battery == nullptr) {
+    logging.println("ERROR: No battery selected. Aborting MQTT initialization");
+    return false;
+  }
+
   if (ha_autodiscovery_enabled) {
     create_battery_sensor_configs();
     create_global_sensor_configs();

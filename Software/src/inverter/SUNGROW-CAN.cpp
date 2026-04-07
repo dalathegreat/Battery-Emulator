@@ -70,7 +70,7 @@ uint16_t modbus_crc(const uint8_t* data, uint8_t length) {
 
 bool SungrowInverter::setup() {
   // Stored value is model (0-6), get_config_for_model handles default
-  battery_config = get_config_for_model(user_selected_inverter_battery_type);
+  battery_config = get_config_for_model(user_selected_inverter_sungrow_type);
 
   // Cell type for each active module
   // 0x42 = IEC

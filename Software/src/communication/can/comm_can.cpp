@@ -200,7 +200,7 @@ bool init_CAN() {
 
     canfd = new ACAN2517FD(cs_pin, SPI2517, int_pin);
 
-    logging.println("CAN FD add-on (ESP32+MCP2517) selected");
+    logging.println("CAN FD add-on (ESP32+MCP2518) selected");
     SPI2517.begin(sck_pin, sdo_pin, sdi_pin);
     auto bitRate = (int)speed * 1000UL;
     settings2517 = new ACAN2517FDSettings(quartz_fd_frequency, bitRate, DataBitRateFactor::x4);
@@ -231,7 +231,7 @@ bool init_CAN() {
     } else {
       logging.print("CAN-FD Configuration error 0x");
       logging.println(errorCode2517, HEX);
-      set_event(EVENT_CANMCP2517FD_INIT_FAILURE, (uint8_t)errorCode2517);
+      set_event(EVENT_CANMCP2518FD_INIT_FAILURE, (uint8_t)errorCode2517);
       return false;
     }
   }
