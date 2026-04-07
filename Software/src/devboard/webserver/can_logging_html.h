@@ -1,5 +1,4 @@
-#ifndef CANLOGGER_H
-#define CANLOGGER_H
+#pragma once
 
 #include <Arduino.h>
 #include <string>
@@ -11,6 +10,5 @@
  *
  * @return String
  */
-String can_logger_processor(void);
-
-#endif
+extern const char can_logger_full_html[];
+String can_logger_processor(const String& var);

@@ -149,7 +149,8 @@ bool init_CAN() {
     }
 
     logging.println("Dual CAN Bus (ESP32+MCP2515) selected");
-    gBuffer.initWithSize(25);
+    //gBuffer.initWithSize(25);
+    gBuffer.initWithSize(128);
 
     if (rst_pin != GPIO_NUM_NC) {
       pinMode(rst_pin, OUTPUT);
@@ -377,6 +378,27 @@ void receive_frame_canfd_addon() {  // This section checks if we have a complete
   }
 }
 
+// (SSE Batcher) from webserver page
+extern void append_can_stream(const char* line);
+extern volatile bool is_can_streaming;
+
+void stream_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
+  char line[128];
+  int offset = 0;
+  unsigned long currentTime = millis();
+
+  offset += snprintf(line + offset, sizeof(line) - offset, "(%lu.%03lu) ", currentTime / 1000, currentTime % 1000);
+  offset += snprintf(line + offset, sizeof(line) - offset, "%s%d ", (msgDir == MSG_RX) ? "RX" : "TX",
+                     (int)(interface * 2) + (msgDir == MSG_RX ? 0 : 1));
+  offset += snprintf(line + offset, sizeof(line) - offset, "%lX [%u] ", frame.ID, frame.DLC);
+
+  for (uint8_t i = 0; i < frame.DLC; i++) {
+    offset += snprintf(line + offset, sizeof(line) - offset, (i < frame.DLC - 1) ? "%02X " : "%02X", frame.data.u8[i]);
+  }
+
+  append_can_stream(line);
+}
+
 // Support functions
 void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir) {
 
@@ -408,6 +430,13 @@ void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection ms
   if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording
     if (frame.ID > user_selected_CAN_ID_cutoff_filter) {  //Only log the message if CAN ID is higher than user set value
       dump_can_frame(frame, interface, msgDir);
+    }
+  }
+
+  // Stream Logging
+  if (is_can_streaming && datalayer.system.info.can_logging_active) {
+    if (frame.ID > user_selected_CAN_ID_cutoff_filter) {
+      stream_can_frame(frame, interface, msgDir);
     }
   }
 }
@@ -521,6 +550,9 @@ uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin) 
   settingsespcan->mRequestedCANMode = ACAN_ESP32_Settings::NormalMode;
   settingsespcan->mTxPin = tx_pin;
   settingsespcan->mRxPin = rx_pin;
+
+  settingsespcan->mDriverReceiveBufferSize = 256;
+  settingsespcan->mDriverTransmitBufferSize = 256;
 
   // (Re)start the CAN interface
   return ACAN_ESP32::can.begin(*settingsespcan);

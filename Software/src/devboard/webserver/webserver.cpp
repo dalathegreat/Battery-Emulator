@@ -32,6 +32,16 @@ bool webserver_auth = false;
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
+// =========================================================================
+// 🚀 Real-time CAN Stream Backend (ZERO Memory Fragmentation Mode)
+// =========================================================================
+SemaphoreHandle_t can_stream_mutex = NULL;
+volatile bool is_can_streaming = false;
+// (Raw Array) 4000 chars 100%!
+#define CAN_BATCH_SIZE 4000
+char can_batch_buffer[CAN_BATCH_SIZE];
+size_t can_batch_len = 0;
+
 // Measure OTA progress
 unsigned long ota_progress_millis = 0;
 
@@ -56,6 +66,30 @@ bool isReplayRunning = false;  // Global flag to track replay state
 bool settingsUpdated = false;
 
 CAN_frame currentFrame = {.FD = true, .ext_ID = false, .DLC = 64, .ID = 0x12F, .data = {0}};
+
+void append_can_stream(const char* line) {
+  if (!datalayer.system.info.can_logging_active)
+    return;
+
+  if (can_stream_mutex == NULL) {
+    can_stream_mutex = xSemaphoreCreateMutex();
+  }
+
+  // Lock Task
+  // if (xSemaphoreTake(can_stream_mutex, (TickType_t)10) == pdTRUE) {
+  if (xSemaphoreTake(can_stream_mutex, 0) == pdTRUE) {
+    size_t line_len = strlen(line);
+
+    if (can_batch_len + line_len + 2 < CAN_BATCH_SIZE) {
+      strcpy(can_batch_buffer + can_batch_len, line);
+      can_batch_len += line_len;
+      can_batch_buffer[can_batch_len++] = '\n';
+      can_batch_buffer[can_batch_len] = '\0';
+    }
+
+    xSemaphoreGive(can_stream_mutex);
+  }
+}
 
 void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len,
                       bool final) {
@@ -212,12 +246,64 @@ void init_webserver() {
 
   // Route for going to CAN logging web page
   def_route_with_auth("/canlog", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(request->beginResponse(200, "text/html", can_logger_processor()));
+    request->send(200, "text/html", can_logger_full_html, can_logger_processor);
+  });
+
+  // API : Start Stream
+  def_route_with_auth("/start_can_logging", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    datalayer.system.info.can_logging_active = true;
+    is_can_streaming = true;
+    if (can_stream_mutex != NULL && xSemaphoreTake(can_stream_mutex, (TickType_t)50) == pdTRUE) {
+      can_batch_len = 0;
+      can_batch_buffer[0] = '\0';
+      xSemaphoreGive(can_stream_mutex);
+    }
+    request->send(200, "text/plain", "CAN Stream Started");
+  });
+
+  // 🌟 API : Stop Stream
+  server.on("/stop_can_logging", HTTP_GET, [](AsyncWebServerRequest* request) {
+    datalayer.system.info.can_logging_active = false;
+    is_can_streaming = false;
+    datalayer.system.info.logged_can_messages_offset = 0;
+    datalayer.system.info.logged_can_messages[0] = '\0';
+    if (can_stream_mutex != NULL && xSemaphoreTake(can_stream_mutex, (TickType_t)50) == pdTRUE) {
+      can_batch_len = 0;
+      can_batch_buffer[0] = '\0';
+      xSemaphoreGive(can_stream_mutex);
+    }
+    request->send(200, "text/plain", "Logging stopped");
+  });
+
+  // API : High-Speed Poller
+  def_route_with_auth("/api/can_poll", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    String send_buffer = "";
+
+    if (can_stream_mutex != NULL && xSemaphoreTake(can_stream_mutex, 0) == pdTRUE) {
+      if (can_batch_len > 0) {
+        send_buffer = String(can_batch_buffer);
+        can_batch_len = 0;
+        can_batch_buffer[0] = '\0';
+      }
+
+      xSemaphoreGive(can_stream_mutex);
+    }
+
+    if (send_buffer.length() > 0) {
+      request->send(200, "text/plain", send_buffer);
+    } else {
+      request->send(200, "text/plain", "");
+    }
   });
 
   // Route for going to CAN replay web page
   def_route_with_auth("/canreplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(request->beginResponse(200, "text/html", can_replay_processor()));
+    if (!datalayer.system.info.can_logging_active) {
+      datalayer.system.info.logged_can_messages_offset = 0;
+      datalayer.system.info.logged_can_messages[0] = '\0';
+    }
+    datalayer.system.info.can_logging_active = true;
+    request->send(200, "text/html", can_replay_full_html, can_replay_template_processor);
   });
 
   def_route_with_auth("/startReplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -373,7 +459,12 @@ void init_webserver() {
 
   // Route for going to event log web page
   def_route_with_auth("/events", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/html", index_html, events_processor);
+    AsyncResponseStream* response = request->beginResponseStream("text/html");
+
+    response->print(index_html_header);
+    print_events_html(response);
+    response->print(index_html_footer);
+    request->send(response);
   });
 
   // Route for clearing all events
