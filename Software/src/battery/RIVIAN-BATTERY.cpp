@@ -48,8 +48,13 @@ void RivianBattery::update_values() {
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_charge_power_W = ((pre_contactor_voltage / 10) * battery_charge_limit_amp);
-  datalayer.battery.status.max_discharge_power_W = ((pre_contactor_voltage / 10) * battery_discharge_limit_amp);
+  if (user_selected_use_estimated_SOC) {
+    datalayer.battery.status.max_charge_power_W = 50000;
+    datalayer.battery.status.max_discharge_power_W = 50000;
+  } else {
+    datalayer.battery.status.max_charge_power_W = ((pre_contactor_voltage / 10) * battery_charge_limit_amp);
+    datalayer.battery.status.max_discharge_power_W = ((pre_contactor_voltage / 10) * battery_discharge_limit_amp);
+  }
 
   if (cell_min_voltage_mV > 0) {
     datalayer.battery.status.cell_min_voltage_mV = cell_min_voltage_mV;
