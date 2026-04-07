@@ -824,7 +824,8 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "INVICNT") {
-    return settings.getBool("INVICNT") ? "checked" : "";
+    uint8_t mode = settings.getUInt("INVICNT", 0);
+    return String(mode);
   }
 
   if (var == "DEYEBYD") {
@@ -1494,8 +1495,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
         
         <div class="if-kostal if-solax">
-        <label>Prevent inverter opening contactors: </label>
-        <input type='checkbox' name='INVICNT' value='on' %INVICNT% />
+        <label>Inverter Contactor Workaround: </label>
+        <select name='INVICNT'>
+          <option value='0'>No Workaround</option>
+          <option value='1'>Keep contactors always closed</option>
+          <option value='2'>Lock contactors closed after first close request</option>
+        </select>
         </div>
 
         </div>
