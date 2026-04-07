@@ -41,12 +41,12 @@ static void dbg_message(const char* msg) {
 
 void setInverterAllowsContactorClosing(bool state) {
   // AlwaysClosed and LockAfterFirstClose modes: Keep contactors always closed
-  if (user_selected_inverter_contactor_mode == InverterContactorMode::AlwaysClosed || 
+  if (user_selected_inverter_contactor_mode == InverterContactorMode::AlwaysClosed ||
       user_selected_inverter_contactor_mode == InverterContactorMode::LockAfterFirstClose) {
     datalayer.system.status.inverter_allows_contactor_closing = true;
     return;
   }
-  
+
   // NoWorkaround mode: Normal operation
   if (state) {
     datalayer.system.status.inverter_allows_contactor_closing = true;

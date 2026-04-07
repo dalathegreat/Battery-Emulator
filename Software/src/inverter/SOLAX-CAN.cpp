@@ -14,7 +14,8 @@
 void SolaxInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   // If not receiveing any communication from the inverter, open contactors and return to battery announce state
-  if (millis() - LastFrameTime >= INTERVAL_2_S && configured_contactor_mode == inverter_contactor_mode_enum::NoWorkaround) {
+  if (millis() - LastFrameTime >= INTERVAL_2_S &&
+      configured_contactor_mode == inverter_contactor_mode_enum::NoWorkaround) {
     datalayer.system.status.inverter_allows_contactor_closing = false;
     STATE = BATTERY_ANNOUNCE;
   }
@@ -207,7 +208,8 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
           // Message from the inverter to open contactor
           // Byte 4 changes from 1 to 0
           // Only process open request in NoWorkaround mode; LockAfterFirstClose mode ignores it
-          if (rx_frame.data.u64 == Contactor_Open_Payload && configured_contactor_mode == inverter_contactor_mode_enum::NoWorkaround) {
+          if (rx_frame.data.u64 == Contactor_Open_Payload &&
+              configured_contactor_mode == inverter_contactor_mode_enum::NoWorkaround) {
             set_event(EVENT_INVERTER_OPEN_CONTACTOR, 0);
             STATE = BATTERY_ANNOUNCE;
           }

@@ -5,9 +5,9 @@
 
 // Inverter contactor workaround modes
 enum inverter_contactor_mode_enum {
-  NoWorkaround = 0,           // Normal operation - follow inverter's open/close requests
-  AlwaysClosed = 1,           // Keep contactors always closed
-  LockAfterFirstClose = 2     // Wait for first close request, then ignore opens
+  NoWorkaround = 0,        // Normal operation - follow inverter's open/close requests
+  AlwaysClosed = 1,        // Keep contactors always closed
+  LockAfterFirstClose = 2  // Wait for first close request, then ignore opens
 };
 extern InverterProtocol* inverter;
 
