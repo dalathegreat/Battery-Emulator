@@ -168,6 +168,7 @@ add_executable(tests
     ../Software/src/inverter/SCHNEIDER-CAN.cpp
     ../Software/src/inverter/SMA-BYD-H-CAN.cpp
     ../Software/src/inverter/SMA-BYD-HVS-CAN.cpp
+    ../Software/src/inverter/SMA-SBS-BYD-CAN.cpp
     ../Software/src/inverter/SMA-LV-CAN.cpp
     ../Software/src/inverter/SOFAR-CAN.cpp
     ../Software/src/inverter/SOL-ARK-LV-CAN.cpp
