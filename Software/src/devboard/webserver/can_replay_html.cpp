@@ -214,10 +214,16 @@ const char can_replay_full_html[] PROGMEM = INDEX_HTML_HEADER R"rawliteral(
 String can_replay_template_processor(const String& var) {
   if (var == "CAN_OPTIONS") {
     String opts = "";
-    opts += "<option value=\"" + String(CAN_NATIVE) + "\" " + ((datalayer.system.info.can_replay_interface == CAN_NATIVE) ? "selected" : "") + ">CAN Native</option>";
-    opts += "<option value=\"" + String(CANFD_NATIVE) + "\" " + ((datalayer.system.info.can_replay_interface == CANFD_NATIVE) ? "selected" : "") + ">CANFD Native</option>";
-    opts += "<option value=\"" + String(CAN_ADDON_MCP2515) + "\" " + ((datalayer.system.info.can_replay_interface == CAN_ADDON_MCP2515) ? "selected" : "") + ">CAN Addon MCP2515</option>";
-    opts += "<option value=\"" + String(CANFD_ADDON_MCP2518) + "\" " + ((datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518) ? "selected" : "") + ">CANFD Addon MCP2518</option>";
+    opts += "<option value=\"" + String(CAN_NATIVE) + "\" " +
+            ((datalayer.system.info.can_replay_interface == CAN_NATIVE) ? "selected" : "") + ">CAN Native</option>";
+    opts += "<option value=\"" + String(CANFD_NATIVE) + "\" " +
+            ((datalayer.system.info.can_replay_interface == CANFD_NATIVE) ? "selected" : "") + ">CANFD Native</option>";
+    opts += "<option value=\"" + String(CAN_ADDON_MCP2515) + "\" " +
+            ((datalayer.system.info.can_replay_interface == CAN_ADDON_MCP2515) ? "selected" : "") +
+            ">CAN Addon MCP2515</option>";
+    opts += "<option value=\"" + String(CANFD_ADDON_MCP2518) + "\" " +
+            ((datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518) ? "selected" : "") +
+            ">CANFD Addon MCP2518</option>";
     return opts;
   }
   return String();
