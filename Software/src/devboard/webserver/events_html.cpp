@@ -123,9 +123,9 @@ const char EVENTS_HTML_END[] PROGMEM = R"=====(
   </div> </div> <style>
   /* 🦓 Zebra Striping: Alternating colors on the desktop for easier reading */
   @media (min-width: 769px) {
-    .event:nth-child(even) { background-color: #f9f9f9; }
-    .event:nth-child(odd) { background-color: #ffffff; }
-    .event.event-title { background-color: #f0f0f0; }
+    .event:nth-child(even) { background-color: #1e2a35; }
+    .event:nth-child(odd) { background-color: transparent; }
+    .event.event-title { background-color: #2c3e50; }
   }
 </style>
 
@@ -144,6 +144,9 @@ const char EVENTS_HTML_END[] PROGMEM = R"=====(
   window.onload = function() { showEvent(); }
 
   function goToMainPage() { window.location.href = '/'; }
+
+  // Auto-refresh every 5 seconds.
+  setTimeout(function(){ location.reload(true); }, 5000);
 </script>
 )=====";
 

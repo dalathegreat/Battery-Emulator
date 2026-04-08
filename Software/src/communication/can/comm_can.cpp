@@ -201,7 +201,7 @@ bool init_CAN() {
 
     canfd = new ACAN2517FD(cs_pin, SPI2517, int_pin);
 
-    logging.println("CAN FD add-on (ESP32+MCP2517) selected");
+    logging.println("CAN FD add-on (ESP32+MCP2518) selected");
     SPI2517.begin(sck_pin, sdo_pin, sdi_pin);
     auto bitRate = (int)speed * 1000UL;
     settings2517 = new ACAN2517FDSettings(quartz_fd_frequency, bitRate, DataBitRateFactor::x4);
