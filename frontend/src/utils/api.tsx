@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'preact/hooks'
 
+import { useMockGetApi } from './mock_api.tsx';
+
 export function useGetApi(url: string, period: number=0) {
+    if (import.meta.env.VITE_DEMO_MODE === 'true') {
+        return useMockGetApi(url, period);
+    }
     const [response, setResponse] = useState<any>(null);
 
     function patch(resp: any) {
