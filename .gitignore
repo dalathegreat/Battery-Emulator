@@ -34,3 +34,9 @@ compile.bat
 
 # Ignore secret file
 USER_SECRETS.h
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+Software/src/devboard/webserver/app_bundle.cpp
+Software/src/devboard/webserver/app_bundle.h
