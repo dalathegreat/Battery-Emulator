@@ -368,6 +368,12 @@ uint16_t MgHsPHEVBattery::handle_long_pid(uint16_t pid, const uint8_t* data, uin
   return 0;  // Continue normal PID cycling
 }
 
+uint8_t cycle_pos = 0;
+uint8_t EIGHT8_CLOSED_CYCLE[] = {0xB6, 0xB7, 0xB4, 0xB5, 0xB2, 0xB3, 0xB0, 0xB1,
+                                 0xBE, 0xBF, 0xBC, 0xBD, 0xBA, 0xBB, 0xB8, 0xB9};
+uint8_t EIGHT8_OPEN_CYCLE[] = {0x94, 0x95, 0x96, 0x97, 0x90, 0x91, 0x92, 0x93,
+                               0x9c, 0x9d, 0x9e, 0x9f, 0x98, 0x99, 0x9a, 0x9b};
+
 void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     // Transmitting towards battery is halted while BMS is being reset
@@ -392,9 +398,16 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
         || (batteryType == 0)) {
       MG_HS_8A.data.u8[5] = 0x00;
       contactorCloseReset = false;
+
+      MG_HS_8A.data.u8[6] = 0x10 | cycle_pos;
+      MG_HS_8A.data.u8[7] = EIGHT8_OPEN_CYCLE[cycle_pos];
+
     } else {
       // Everything ready, close contactors
       MG_HS_8A.data.u8[5] = 0x02;
+
+      MG_HS_8A.data.u8[6] = 0x30 | cycle_pos;
+      MG_HS_8A.data.u8[7] = EIGHT8_CLOSED_CYCLE[cycle_pos];
 
       if (!contactorCloseReset && batteryType == BATTERY_TYPE_MG5) {
         // MG5 requires DTCs clearing to get contactors to close
@@ -403,6 +416,8 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
       }
     }
 #endif  // MG_HS_PHEV_DISABLE_CONTACTORS
+
+    cycle_pos = (cycle_pos + 1) & 0xF;
 
     transmit_can_frame(&MG_HS_8A);
     transmit_can_frame(&MG_HS_1F1);
