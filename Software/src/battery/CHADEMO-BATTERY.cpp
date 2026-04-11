@@ -1023,8 +1023,8 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
   digitalWrite(pin10, LOW);
   pinMode(pin_lock, OUTPUT);
   digitalWrite(pin_lock, LOW);
-  pinMode(pin4, INPUT);
-  pinMode(pin7, INPUT);
+  pinMode(pin4, INPUT_PULLDOWN);
+  pinMode(pin7, INPUT_PULLDOWN);
 
   // initialise the CT measurement helper
   if (user_selected_shunt_type == ShuntType::CustomClamp) {
