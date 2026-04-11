@@ -149,13 +149,13 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               (uint32_t)((rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7]));
           break;
         case PID_POLL_HIGHEST_CELL_VOLTAGE:
-          highest_cell_voltage_mv = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          highest_cell_voltage_mv = (uint16_t)(((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.976563);
           break;
         case PID_POLL_CELL_NUMBER_HIGHEST_VOLTAGE:
           highest_cell_voltage_number = rx_frame.data.u8[4];
           break;
         case PID_POLL_LOWEST_CELL_VOLTAGE:
-          lowest_cell_voltage_mv = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          lowest_cell_voltage_mv = (uint16_t)(((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.976563);
           break;
         case PID_POLL_CELL_NUMBER_LOWEST_VOLTAGE:
           lowest_cell_voltage_number = rx_frame.data.u8[4];

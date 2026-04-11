@@ -56,6 +56,7 @@ enum class BatteryType {
   GrowattHvArk = 49,
   GeelySea = 50,
   ThunderstruckBMS = 51,
+  EnnoidBMS = 52,
   Highest
 };
 
