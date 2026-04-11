@@ -255,6 +255,7 @@ struct DATALAYER_INFO_CHADEMO {
   bool FaultBatteryUnderVoltage = false;
   bool FaultBatteryOverVoltage = false;
   bool ConnectionCheckStatus = false;
+  bool ConnectorLockStatus = false;
   bool D1Status = false;
   bool D2Status = false;
   bool ChargeEnableStatus = false;

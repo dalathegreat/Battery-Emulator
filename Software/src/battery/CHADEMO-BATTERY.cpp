@@ -51,6 +51,7 @@ void ChademoBattery::update_values() {
   //Always write the CAN as alive!
 
   //Report pin statuses for better visibility and debugging of CHAdeMO connection issues
+  datalayer_extended.chademo.ConnectorLockStatus = digitalRead(pin_lock);
   datalayer_extended.chademo.ConnectionCheckStatus = digitalRead(pin7);
   datalayer_extended.chademo.D1Status = digitalRead(pin2);
   datalayer_extended.chademo.D2Status = digitalRead(pin10);

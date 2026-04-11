@@ -13,6 +13,9 @@ class ChademoBatteryHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Vehicle voltage requested: " + String(datalayer_extended.chademo.VoltageRequested) + " V</h4>";
     content += "<h4>Pin 7 Connection Check Status: " +
                String(datalayer_extended.chademo.ConnectionCheckStatus ? "Connected" : "Disconnected") + "</h4>";
+    content +=
+        "<h4>Connector Lock Status: " + String(datalayer_extended.chademo.ConnectorLockStatus ? "Locked" : "Unlocked") +
+        "</h4>";
     content += "<h4>Pin 2 D1 Status: " + String(datalayer_extended.chademo.D1Status ? "On" : "Off") + "</h4>";
     content += "<h4>Pin 4 Charge Enable Status: " +
                String(datalayer_extended.chademo.ChargeEnableStatus ? "Enabled" : "Disabled") + "</h4>";
