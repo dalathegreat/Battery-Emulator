@@ -1,12 +1,23 @@
-form {
-    max-width: 40rem;
-}
 form[data-initialized="0"] {
   visibility: hidden;
 }
 
 form .actions {
     text-align: right;
+}
+
+.form__with-aside {
+    display: flex;
+    gap: 1rem;
+}
+
+.form__main {
+  flex: 0 1 40rem;
+}
+
+.form__aside > div {
+    position: sticky;
+    top: 1rem;
 }
 
 .form-row {
@@ -69,4 +80,14 @@ form .actions {
   display: inline-block;
   vertical-align: top;
   margin: 0.1rem 0.8rem 0 0;
+}
+
+@media (max-width: 768px) {
+    .form__with-aside {
+        flex-direction: column;
+    }
+    .form__aside > div {
+        position: static;
+        top: auto;
+    }
 }

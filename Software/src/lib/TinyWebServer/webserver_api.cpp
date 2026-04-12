@@ -17,8 +17,14 @@ extern bool contactor_control_enabled;
 extern int contactorStatus;
 extern BatteryType user_selected_battery_type;
 
-static bool is_inverter_good() {
-    return get_event_pointer(EVENT_CAN_INVERTER_MISSING)->state == EVENT_STATE_ACTIVE || get_event_pointer(EVENT_CAN_INVERTER_MISSING)->state == EVENT_STATE_ACTIVE_LATCHED;
+static const char* get_inverter_status() {
+    if(get_event_pointer(EVENT_CAN_INVERTER_MISSING)->state == EVENT_STATE_ACTIVE || get_event_pointer(EVENT_CAN_INVERTER_MISSING)->state == EVENT_STATE_ACTIVE_LATCHED) {
+        return "ERROR";
+    } else if(!datalayer.system.status.inverter_allows_contactor_closing) {
+        return "INACTIVE";
+    } else {
+        return "OK";
+    }
 }
 
 TwsRoute apiBatOldRoute = TwsRoute("/api/batold", new TwsRequestHandlerFunc([](TwsRequest& request) {
@@ -55,7 +61,7 @@ TwsRoute statusRoute("/api/status", new TwsJsonGetFunc([](TwsRequest& request, J
     doc["status"] = get_emulator_status_string(get_emulator_status());
     doc["bms_status"] = getBMSStatus(datalayer.battery.status.bms_status);
     doc["pause_status"] = get_emulator_pause_status();
-    doc["inverter_status"] = is_inverter_good() ? "OK" : "ERROR";
+    doc["inverter_status"] = get_inverter_status();
     doc["real_bms_status"] = datalayer.battery.status.real_bms_status;
     doc["pause"] = emulator_pause_request_ON;
     doc["estop"] = datalayer.system.info.equipment_stop_active;

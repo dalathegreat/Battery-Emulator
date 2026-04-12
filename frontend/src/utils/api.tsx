@@ -51,3 +51,22 @@ export function useGetApi(url: string, period: number=0) {
 export function refreshApi() {
     window.dispatchEvent(new Event('api-invalidate'));
 }
+
+export async function apiPost(url: string, data: any) {
+    if (import.meta.env.VITE_DEMO_MODE === 'true') {
+        const { apiPostMock } = await import('./mock_api.tsx');
+        return apiPostMock(url, data);
+    }
+    const response = await fetch(import.meta.env.VITE_API_BASE + url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    });
+    if (response.status >= 400) {
+        const errorData = await response.json();
+        throw new Error('Failed to save settings: ' + JSON.stringify(errorData));
+    }
+    return response.json();
+}
