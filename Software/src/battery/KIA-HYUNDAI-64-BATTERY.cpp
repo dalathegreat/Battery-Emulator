@@ -93,8 +93,8 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x594:
       startedUp = true;
-      allowedChargePower = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
-      allowedDischargePower = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+      allowedChargePower = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) / 2;
+      allowedDischargePower = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 2;
       SOC_BMS = rx_frame.data.u8[5] * 5;  //100% = 200 ( 200 * 5 = 1000 )
       break;
     case 0x595:
