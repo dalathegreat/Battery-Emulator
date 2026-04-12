@@ -2417,6 +2417,24 @@ void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
   write_signal_value(&TESLA_7FF_Mux3, 18, 3, user_selected_tesla_GTW_chassisType, false);
   write_signal_value(&TESLA_7FF_Mux3, 32, 5, user_selected_tesla_GTW_packEnergy, false);
 
+  switch (
+      user_selected_tesla_GTW_packEnergy) {  //static const std::map<int, String> tesla_pack = {{0, "50 kWh"}, {2, "62 kWh"}, {1, "74 kWh"}, {3, "100 kWh"}};
+    case 0:
+      datalayer.battery.info.total_capacity_Wh = 50000;
+      break;
+    case 1:
+      datalayer.battery.info.total_capacity_Wh = 74000;
+      break;
+    case 2:
+      datalayer.battery.info.total_capacity_Wh = 62000;
+      break;
+    case 3:
+      datalayer.battery.info.total_capacity_Wh = 100000;
+      break;
+    default:
+      break;
+  }
+
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
