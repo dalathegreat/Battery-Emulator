@@ -1,4 +1,5 @@
 #include "FOXESS-CAN.h"
+#include <WiFi.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -41,6 +42,15 @@ void FoxessCanInverter::
         (2500 + ((datalayer.battery.status.cell_min_voltage_mV - 2500) * (3400 - 2500)) / (4200 - 2500));
   }
 
+  //Set serial number according to MAC address of ESP32 CPU
+  FOXESS_1881.data.u8[1] = (uint8_t)WiFi.macAddress().charAt(0);
+  FOXESS_1881.data.u8[2] = (uint8_t)WiFi.macAddress().charAt(1);
+  FOXESS_1881.data.u8[3] = (uint8_t)WiFi.macAddress().charAt(2);
+  FOXESS_1881.data.u8[4] = (uint8_t)WiFi.macAddress().charAt(3);
+  FOXESS_1881.data.u8[5] = (uint8_t)WiFi.macAddress().charAt(4);
+  FOXESS_1881.data.u8[6] = (uint8_t)WiFi.macAddress().charAt(5);
+  FOXESS_1881.data.u8[7] = (uint8_t)WiFi.macAddress().charAt(6);
+
   //Put the values into the CAN messages
   //BMS_Limits
   FOXESS_1872.data.u8[0] = (uint8_t)datalayer.battery.info.max_design_voltage_dV;
@@ -59,7 +69,7 @@ void FoxessCanInverter::
       (int8_t)datalayer.battery.status.reported_current_dA;  // OK, Signed (Active current in Amps x 10)
   FOXESS_1873.data.u8[3] = (datalayer.battery.status.reported_current_dA >> 8);
   FOXESS_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (0-100%)
-  FOXESS_1873.data.u8[5] = 0x00;
+  FOXESS_1873.data.u8[5] = 98;                                                      //(TEST to find SOH)
   FOXESS_1873.data.u8[6] = (uint8_t)(datalayer.battery.status.reported_remaining_capacity_Wh / 10);
   FOXESS_1873.data.u8[7] = ((datalayer.battery.status.reported_remaining_capacity_Wh / 10) >> 8);
 
@@ -79,9 +89,9 @@ void FoxessCanInverter::
   FOXESS_1875.data.u8[2] = (uint8_t)STATUS_OPERATIONAL_PACKS;
   FOXESS_1875.data.u8[3] = (uint8_t)NUMBER_OF_PACKS;
   FOXESS_1875.data.u8[4] = (uint8_t)1;     // Contactor Status 0=off, 1=on.
-  FOXESS_1875.data.u8[5] = (uint8_t)0;     //Unused
+  FOXESS_1875.data.u8[5] = 99;             //0 Unused (TEST to find SOH)
   FOXESS_1875.data.u8[6] = (uint8_t)0x8E;  //Cycle count
-  FOXESS_1875.data.u8[7] = (uint8_t)0;     //Cycle count
+  FOXESS_1875.data.u8[7] = 100;            //0 Cycle count? (TEST to find SOH)
 
   //BMS_PackTemps
   // 0x1876 b0 bit 0 appears to be 1 when at maxsoc and BMS says charge is not allowed -

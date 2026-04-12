@@ -82,17 +82,17 @@ class FoxessCanInverter : public CanInverterProtocol {
   CAN_frame FOXESS_1881 = {.FD = false,
                            .ext_ID = true,
                            .DLC = 8,
-                           .ID = 0x1881,
+                           .ID = 0x1881,  //First byte specifies which pack the serial number is for, 0-7
                            .data = {0x00, '6', '0', 'E', 'P', '0', '0', '5'}};
   CAN_frame FOXESS_1882 = {.FD = false,
                            .ext_ID = true,
                            .DLC = 8,
-                           .ID = 0x1882,
+                           .ID = 0x1882,  //First byte specifies which pack the serial number is for, 0-7
                            .data = {0x00, '0', '4', '7', 'M', 'A', '0', '5'}};
   CAN_frame FOXESS_1883 = {.FD = false,
                            .ext_ID = true,
                            .DLC = 8,
-                           .ID = 0x1883,
+                           .ID = 0x1883,  //First byte specifies which pack the serial number is for, 0-7
                            .data = {0x00, '2', '\0', '\0', '\0', '\0', '\0', '\0'}};
 
   CAN_frame FOXESS_0C05 = {.FD = false,
