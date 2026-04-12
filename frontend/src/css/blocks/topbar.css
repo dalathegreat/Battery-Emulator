@@ -1,5 +1,7 @@
 .topbar {
     display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
     background: #2a2a2a;
     padding: 1rem 48px 1rem 24px;
 }
@@ -30,7 +32,6 @@
     font-weight: 600;
     background: #444444;
     padding: 0.5rem 0.8rem 0.5rem 0.6rem;
-    margin-left: 1rem;
     /* color: #ffffff; */
 }
 
@@ -41,4 +42,10 @@
 .topbar h1 {
     font-size: 1.7rem;
     font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .topbar {
+        padding: 1rem 1rem 0;
+    }
 }
