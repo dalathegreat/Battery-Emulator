@@ -96,10 +96,10 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t CHADEMO_PIN_2() { return GPIO_NUM_16; }
   virtual gpio_num_t CHADEMO_PIN_10() { return GPIO_NUM_15; }
   virtual gpio_num_t CHADEMO_PIN_7() { return GPIO_NUM_47; }
-  virtual gpio_num_t CHADEMO_PIN_4() { return GPIO_NUM_4; }
+  virtual gpio_num_t CHADEMO_PIN_4() { return GPIO_NUM_17; }
   virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_40; }
-  virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_5; }      // ADC1_CH4
-  virtual gpio_num_t CHADEMO_CT_0V_PIN() { return GPIO_NUM_17; }  // ADC2_CH6
+  virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_5; }          // ADC1_CH4
+  virtual gpio_num_t CHADEMO_CT_OFFSETV_PIN() { return GPIO_NUM_4; }  // ADC2_CH6
 
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() {
