@@ -165,12 +165,94 @@ TwsRoute batextRoute("/api/batext", new TwsRequestHandlerFunc([](TwsRequest& req
     else if(user_selected_battery_type==BatteryType::RenaultZoe2) request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.zoePH2, sizeof(datalayer_extended.zoePH2)));
 }));
 
-TwsRoute batactRoute("/api/batact", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
-    JsonObject actions = doc["actions"].to<JsonObject>();
-    if(battery) {
+TwsRoute batactRoute("/api/batteries/*", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+    //const char* wildcard = request.get_path_wildcard();
+    std::string_view wildcard(request.get_path_wildcard());
+
+    //logging.printf("Path wildcard is: %.*s\n", (int)wildcard.size(), wildcard);
+
+    auto add_battery_actions = [](JsonObject &actions, Battery* battery) {
         if(battery->supports_reset_SOH()) actions["reset_soh"] = true;
         if(battery->supports_reset_crash()) actions["reset_crash"] = true;
+        if(battery->supports_clear_isolation()) actions["clear_isolation"] = true;
+        if(battery->supports_reset_BMS()) actions["reset_BMS"] = true;
+        if(battery->supports_reset_SOC()) actions["reset_SOC"] = true;
+        if(battery->supports_reset_crash()) actions["reset_crash"] = true;
+        if(battery->supports_reset_NVROL()) actions["reset_NVROL"] = true;
+        if(battery->supports_reset_DTC()) actions["reset_DTC"] = true;
+        if(battery->supports_read_DTC()) actions["read_DTC"] = true;
+        if(battery->supports_reset_SOH()) actions["reset_SOH"] = true;
+        if(battery->supports_reset_BECM()) actions["reset_BECM"] = true;
+        if(battery->supports_calibrate_SOC()) actions["calibrate_SOC"] = true;
+        if(battery->supports_contactor_close()) actions["contactor_close"] = true;
+        if(battery->supports_contactor_reset()) actions["contactor_reset"] = true;
+        if(battery->supports_set_fake_voltage()) actions["set_fake_voltage"] = true;
+        if(battery->supports_manual_balancing()) actions["manual_balancing"] = true;
+        if(battery->supports_real_BMS_status()) actions["real_BMS_status"] = true;
+        if(battery->supports_toggle_SOC_method()) actions["toggle_SOC_method"] = true;
+        if(battery->supports_energy_saving_mode_reset()) actions["energy_saving_mode_reset"] = true;
+        if(battery->supports_factory_mode_method()) actions["factory_mode_method"] = true;
+        if(battery->supports_chademo_restart()) actions["chademo_restart"] = true;
+        if(battery->supports_chademo_stop()) actions["chademo_stop"] = true;
+        if(battery->supports_balancing()) actions["balancing"] = true;
+        if(battery->is_balancing_active()) actions["balancing_active"] = true;
+    };
+
+    if(wildcard.empty()) {
+        JsonArray batteries = doc["battery"].to<JsonArray>();
+        if(battery) {
+            JsonObject bat = batteries.add<JsonObject>();
+            bat["id"] = "1";
+            JsonObject actions = bat["actions"].to<JsonObject>();
+            add_battery_actions(actions, battery);
+        }
+        if(battery2) {
+            JsonObject bat = batteries.add<JsonObject>();
+            bat["id"] = "2";
+            JsonObject actions = bat["actions"].to<JsonObject>();
+            add_battery_actions(actions, battery2);
+        }
+        return;
     }
+
+    int first_slash = wildcard.find('/');
+    if(first_slash==-1) {
+        request.write_fully(HTTP_404);
+        return;
+    }
+
+    std::string_view id_part = wildcard.substr(0, first_slash);
+    int second_slash = wildcard.find('/', first_slash+1);
+    if(second_slash!=-1) {
+        request.write_fully(HTTP_404);
+        return;
+    }
+
+    
+
+
+
+    
+
+    //if(wild)
+    // std::string_view id_part = wildcard.substr(0, wildcard.find('/'));
+    // logging.printf("ID part is: %.*s\n", (int)id_part.size(), id_part);
+    logging.printf("/ is at position: %d\n", (int)wildcard.find('/'));
+    
+    // else if(wildcard[0]=='1' && wildcard[1]=='/' && wildcard[2]=='\0' && battery) {
+    //     JsonObject actions = doc["actions"].to<JsonObject>();
+    //     add_battery_actions(actions, battery);
+    //     return;
+    // } else if(wildcard[0]=='2' && wildcard[1]=='/' && wildcard[2]=='\0' && battery2) {
+    //     JsonObject actions = doc["actions"].to<JsonObject>();
+    //     add_battery_actions(actions, battery2);
+    //     return;
+    // }
+
+
+
+    // JsonObject actions = doc["actions"].to<JsonObject>();
+    // if(battery) add_battery_actions(actions, battery);
 }));
 
 TwsRoute eventsRoute("/api/events", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
