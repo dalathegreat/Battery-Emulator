@@ -76,9 +76,25 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   datalayer_battery->status.soh_pptt = battery_soh * 100;
 
   if (UserRequestBalancing == NONE) {
-    datalayer_battery->status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
+    // Low pass filter only when increasing values (10% new, 90% old)
+    if (datalayer_battery->status.max_charge_power_W == 0) {
+      datalayer_battery->status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
+    } else if (battery_BEV_available_power_longterm_charge > datalayer_battery->status.max_charge_power_W) {
+      datalayer_battery->status.max_charge_power_W =
+          (battery_BEV_available_power_longterm_charge * 10 + datalayer_battery->status.max_charge_power_W * 90) / 100;
+    } else {
+      datalayer_battery->status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
+    }
 
-    datalayer_battery->status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
+    if (datalayer_battery->status.max_discharge_power_W == 0) {
+      datalayer_battery->status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
+    } else if (battery_BEV_available_power_longterm_discharge > datalayer_battery->status.max_discharge_power_W) {
+      datalayer_battery->status.max_discharge_power_W =
+          (battery_BEV_available_power_longterm_discharge * 10 + datalayer_battery->status.max_discharge_power_W * 90) /
+          100;
+    } else {
+      datalayer_battery->status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
+    }
   } else {
     datalayer_battery->status.max_discharge_power_W = 0;
 
