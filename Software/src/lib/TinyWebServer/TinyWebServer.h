@@ -92,6 +92,9 @@ public:
         if (is_options()) return "OPTIONS";
         return "GET";
     }
+    inline const char* get_path_wildcard() {
+        return path_wildcard;
+    }
     uint16_t get_slot_id() {
         return slot_id;
     }
