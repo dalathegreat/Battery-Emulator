@@ -86,7 +86,7 @@ void setup_ct(void) {
   // Set resolution to 12 bits (0-4095) - Default
   pinMode(ct_pin, INPUT);
   pinMode(ct_offsetV_pin, INPUT);
- 
+
   char shunt_protocol[32];
   snprintf(shunt_protocol, sizeof(shunt_protocol), "%dA CT Clamp", (int)ct_clamp_nominal_current_A);
   strncpy(datalayer.system.info.shunt_protocol, shunt_protocol, 31);
