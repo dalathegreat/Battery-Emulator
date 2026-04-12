@@ -29,7 +29,11 @@ function Tray({status}: {status: any}) {
 
 function EventCount({status}: {status: any}) {
   const latest = window.latest_event_time || 0;
+  console.log('latest is', latest);
   const events = (status?.events || []).filter((ev: any) => ((status._now - ev.age) > (latest + 10)));
+  for(let ev of status?.events || []) {
+    console.log('ev', ev, status._now - ev.age);
+  }
   const levels: {[key: string]: number} = {'ERROR': 2, 'WARNING': 1};
   const level = Math.max(...events.map((ev: any) => (levels[ev.level] || 0)), 0);
   const worst = level === 2 ? 'error' : level === 1 ? 'warn' : 'info';
@@ -100,8 +104,7 @@ export function App() {
             <Link href="/cansender">CAN sender</Link>
             <Link href="/log">System Log</Link>
             <Link href="/ota">OTA upgrade</Link>
-            <a href="#" onClick={handlePause} class="button" style="margin: auto 0 0.75rem; background-color: #bf7c13; color: #ffffff;">{ status?.pause ? "Resume" : "Pause" }</a>
-            <label class="toggle">
+            <label class="toggle" style="background-color: #bf7c13;">
               <input type="checkbox" onChange={ handlePause } />
               Pause
             </label>

@@ -5,7 +5,7 @@ import { useState } from "preact/hooks";
 import { Button } from "./components/button.tsx";
 import { Show, Form, selectField, checkboxField, ipField, textPatternField, passwordField } from "./components/forms.tsx";
 
-import { useGetApi } from "./utils/api.tsx";
+import { apiPost, useGetApi } from "./utils/api.tsx";
 import { reboot } from "./utils/reboot.tsx";
 
 const INTERFACES = {
@@ -47,19 +47,14 @@ export function Settings() {
         splitIp(data, 'GATEWAY');
         splitIp(data, 'SUBNET');
 
-        const r = await fetch(import.meta.env.VITE_API_BASE + '/api/internal/settings', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(Object.fromEntries(data)),
-        });
-        if(r.status>=400) {
-            alert('Failed to save settings: ' + JSON.stringify(await r.json()));
+        let rr;
+        try {
+            rr = await apiPost('/api/internal/settings', Object.fromEntries(data));
+        } catch (e: any) {
+            alert(e.message || "Failed to save settings");
             return;
         }
-        const rr = await r.json();
-        // Successful save
+
         setCurrent({});
         setSavedSettings(rr);
         window.scrollTo(0,0);
@@ -81,6 +76,7 @@ export function Settings() {
     const estimated = ["3", "4", "6", "14", "16", "24", "32", "33"].includes(""+merged.BATTTYPE);
     const tesla = ["32", "33"].includes(""+merged.BATTTYPE);
     const socestimated = ""+merged.BATTTYPE==="16";
+    const manual_balancing = tesla;
     const pylonish = ["4", "10", "19"].includes(""+merged.INVTYPE);
     const byd = ""+merged.INVTYPE==="2";
     const kostal = ""+merged.INVTYPE==="9";
@@ -93,11 +89,6 @@ export function Settings() {
 
         { !!settings && <div>
 
-        { reboot_required && <div class="alert">
-            Settings saved, reboot to apply.
-            <Button onClick={reboot}>Reboot now</Button>
-        </div> }
-
         <Form initial={settings.settings}
               changed={(k, v) => {
                 setCurrent({
@@ -109,6 +100,8 @@ export function Settings() {
               submit={submit}
               >
         
+        <div class="form__with-aside"><div class="form__main">
+
         <div class="panel">
             <h3>Battery</h3>
             { selectField("Battery", "BATTTYPE", batteries) }
@@ -118,6 +111,9 @@ export function Settings() {
                     { textPatternField("Battery min design voltage (V)", "BATTPVMIN", "[0-9]+(\\.[0-9]+)?") }
                     { textPatternField("Cell max design voltage (mV)", "BATTCVMAX", "[0-9]+") }
                     { textPatternField("Cell min design voltage (mV)", "BATTCVMIN", "[0-9]+") }
+                </Show>
+                <Show when={""+merged.BATTTYPE==="34"}>
+                    { textPatternField("Fake battery voltage (V)", "TMP_FAKEBATTERYV", "[0-9]+(\\.[0-9]+)?") }
                 </Show>
                 { checkboxField("Double battery", "DBLBTR") }
                 <Show indent={true} when={merged.DBLBTR}>
@@ -158,6 +154,14 @@ export function Settings() {
                 <Show when={socestimated}>
                     { checkboxField("Use estimated SoC", "SOCESTIMATED") }
                 </Show>
+                <Show when={manual_balancing}>
+                    { checkboxField("Manual LFP balancing enabled", "TMP_BALANCE") }
+                    { textPatternField("Balancing max time (min)", "TMP_BALTIME", "[0-9]+(\\.[0-9]+)?") }
+                    { textPatternField("Balancing float power (W)", "TMP_BALFLOATPOWER", "[0-9]+") }
+                    { textPatternField("Max battery voltage (V)", "TMP_BALMAXPACKV", "[0-9]+(\\.[0-9]+)?") }
+                    { textPatternField("Max cell voltage (mV)", "TMP_BALMAXCELLV", "[0-9]+") }
+                    { textPatternField("Max cell voltage deviation (mV)", "TMP_BALMAXDEVCELLV", "[0-9]+") }
+                </Show>
                 { selectField("Battery interface", "BATTCOMM", INTERFACES) }
                 { selectField("Battery chemistry", "BATTCHEM", {
                     "3": "LFP",
@@ -165,7 +169,6 @@ export function Settings() {
                     "2": "NMC",
                 }) }
             </Show>
-
         </div>
 
         <div class="panel">
@@ -213,6 +216,11 @@ export function Settings() {
             }) }
             <Show when={""+merged.CHGTYPE!=="0"}>
                 { selectField("Charger interface", "CHGCOMM", INTERFACES) }
+                { textPatternField("Charging voltage (V)", "TMP_CHARGERSETPOINTV", "[0-9]+(\\.[0-9]+)?") }
+                { textPatternField("Charging current (A)", "TMP_CHARGERSETPOINTA", "[0-9]+(\\.[0-9]+)?") }
+                { textPatternField("Stop charging below current (A)", "TMP_CHARGERENDA", "[0-9]+(\\.[0-9]+)?") }
+                { checkboxField("Enable HV DC output", "TMP_CHARGERENABLED") }
+                { checkboxField("Enable 12V aux output", "TMP_CHARGERAUX12VENABLED") }
             </Show>
             { selectField("Shunt", "SHUNTTYPE", {
                 "0": "None",
@@ -256,6 +264,7 @@ export function Settings() {
 
             { checkboxField("Periodic BMS reset every 24h", "PERBMSRESET") }
             { textPatternField("Periodic BMS reset off time (s)", "BMSRESETDUR", "[0-9]+") }
+            { checkboxField("Start undercharged emergency recovery mode", "TMP_RECOVERYMODE") }
             { checkboxField("External precharge via HIA4V1", "EXTPRECHARGE") }
             <Show indent={true} when={merged.EXTPRECHARGE}>
                 { textPatternField("Precharge, maximum ms before fault", "MAXPRETIME", "[0-9]+") }
@@ -353,9 +362,16 @@ export function Settings() {
             { checkboxField("Enable general logging via SD card", "SDLOGENABLED") }
         </div>
 
-        <div class="actions">
+        </div><div class="form__aside"><div>
+
+            { reboot_required && <div class="alert">
+                Settings saved, reboot to apply.
+                <Button onClick={reboot}>Reboot now</Button>
+            </div> }
+
             <button type="submit" disabled={!Object.keys(current).length}>Save settings</button>
-        </div>
+        
+        </div></div></div>
 
 
         </Form>

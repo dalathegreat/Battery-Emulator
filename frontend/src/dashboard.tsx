@@ -35,7 +35,6 @@ function uptime(s: number) {
 const CONTACTOR_STATE_NAME = ["DISCONNECTED", "NEGATIVE CONNECTED", "PRECHARGING", "POSITIVE CONNECTED", "PRECHARGED", "CONNECTED", "SHUTDOWN REQUESTED"];
 const CONTACTOR_STATE_STATUS = ["error", "warn", "warn", "ok", "ok", "ok", "error"];
 
-
 export function Dashboard({status}: {status: any}) {
   if(!status) {
     return <div></div>;
@@ -54,7 +53,7 @@ export function Dashboard({status}: {status: any}) {
     ) */}
     <h2>Dashboard</h2>
       <div class="panel">
-        <h3 data-status="warn">System</h3>
+        <h3 data-status="ok">System</h3>
         <div class="stats">
           <div class="stat stat__small">
             <span>SOFTWARE</span>
@@ -104,7 +103,7 @@ export function Dashboard({status}: {status: any}) {
 
       { status.inverter && 
         <div class="panel">
-            <h3 data-status="ok">Inverter &nbsp;<span>-&nbsp; { status.inverter.name }</span></h3>
+            <h3 data-status={ status.inverter_status?.toLowerCase() }>Inverter &nbsp;<span>-&nbsp; { status.inverter.name }</span></h3>
         </div> }
 
       { status.contactor && 
