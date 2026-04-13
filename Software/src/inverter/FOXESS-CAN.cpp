@@ -69,7 +69,7 @@ void FoxessCanInverter::
       (int8_t)datalayer.battery.status.reported_current_dA;  // OK, Signed (Active current in Amps x 10)
   FOXESS_1873.data.u8[3] = (datalayer.battery.status.reported_current_dA >> 8);
   FOXESS_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (0-100%)
-  FOXESS_1873.data.u8[5] = 98;                                                      //(TEST to find SOH)
+  FOXESS_1873.data.u8[5] = 0;  //SOC, but not used since SOC cannot go higher than 100
   FOXESS_1873.data.u8[6] = (uint8_t)(datalayer.battery.status.reported_remaining_capacity_Wh / 10);
   FOXESS_1873.data.u8[7] = ((datalayer.battery.status.reported_remaining_capacity_Wh / 10) >> 8);
 
