@@ -76,8 +76,17 @@ void BydAttoBattery::
   const uint16_t cell_min_mV = datalayer_battery->status.cell_min_voltage_mV;
   const uint16_t delta_mV = (cell_max_mV > cell_min_mV) ? (cell_max_mV - cell_min_mV) : 0;
 
-  // Start from the user manual limit (deci-amps), but don't allow taper to go below tail current.
+  // Start from the lower of: user manual limit, or what the BMS says it will accept.
+  // This ensures the taper always honours the BMS allowed charge power, even if it
+  // drops to zero (e.g. cell delta cutoff, overvoltage protection).
   uint16_t user_cap_dA = datalayer_battery->settings.max_user_set_charge_dA;
+  if (BMS_allowed_charge_power > 0 && datalayer_battery->status.voltage_dV > 0) {
+    uint16_t bms_cap_dA = (uint16_t)((uint32_t)BMS_allowed_charge_power * 10 / datalayer_battery->status.voltage_dV);
+    if (bms_cap_dA < user_cap_dA)
+      user_cap_dA = bms_cap_dA;
+  } else if (BMS_allowed_charge_power == 0) {
+    user_cap_dA = 0;
+  }
   if (user_cap_dA < TAIL_CURRENT_dA)
     user_cap_dA = TAIL_CURRENT_dA;
 
