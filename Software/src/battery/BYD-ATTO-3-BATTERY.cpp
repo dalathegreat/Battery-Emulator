@@ -68,7 +68,7 @@ void BydAttoBattery::
   const uint16_t D_TAPER_START_mV = 40;  // begin tapering if delta exceeds this
   const uint16_t D_TAPER_END_mV = 80;    // reach tail current by here
 
-  const uint16_t TAIL_CURRENT_dA = 2;  // 0.2A tail (deci-amps). You can set to 1 for 0.1A.
+  const uint16_t TAIL_CURRENT_dA = 10;  // 0.2A tail (deci-amps). You can set to 1 for 0.1A.
 
   // Slew limits to make taper gradual
   const uint16_t DOWN_RATE_dA_per_s = 2;  // ramp down at 0.2A/s  (change to 5 for 0.5A/s)
@@ -153,42 +153,29 @@ void BydAttoBattery::
 }
 
 // Automatic SOC Calibration to 100%
-
-// Track how long we've been continuously at true tail current.
-// Reset the clock any time conditions drop out, so transients don't count.
 if (prog >= 0.95f &&
-    cap_slewed_dA <= TAIL_CURRENT_dA &&                             // at actual tail, not near it
-    datalayer_battery->status.current_dA < 0 &&                    // still charging
-    std::abs(datalayer_battery->status.current_dA) < 30) {         // and < 3A
+    cap_slewed_dA <= TAIL_CURRENT_dA &&
+    std::abs(datalayer_battery->status.current_dA) < 30) {  // within 3A either direction
   if (tail_dwell_start_ms == 0) {
-    tail_dwell_start_ms = millis64();                               // start the dwell clock
+    tail_dwell_start_ms = millis64();
   }
 } else {
-  tail_dwell_start_ms = 0;                                          // reset on any dropout
+  tail_dwell_start_ms = 0;
 }
 
 static const uint64_t TAIL_DWELL_MS = 10ULL * 60ULL * 1000ULL;    // 10 minutes
 
 if (datalayer_bydatto->auto_calibrate_soc_enabled &&
-    datalayer_bydatto->UserRequestCalibrateSOC == false &&          // don't fight manual request
+    datalayer_bydatto->UserRequestCalibrateSOC == false &&          // dont fight manual request
     stateMachineCalibrateSOC == NOT_RUNNING &&
     datalayer.system.status.battery_allows_contactor_closing &&
     tail_dwell_start_ms != 0 &&                                     // 1. dwell clock is running
     (millis64() - tail_dwell_start_ms >= TAIL_DWELL_MS) &&          // 2. held at tail for 10 min
-    // 3. Real-time SOC is more than configured drift% below 100%.
-    //    battery_highprecision_SOC is in tenths of a percent (e.g. 976 = 97.6%),
-    //    so multiply the drift threshold by 10 to match units.
-    (battery_highprecision_SOC < 1000 &&
+      (battery_highprecision_SOC < 1000 &&
      (1000 - battery_highprecision_SOC) > (uint16_t)(datalayer_bydatto->auto_calibrate_soc_drift_percent * 10)) &&
     (millis64() - last_auto_calibrate_ms > 3600000ULL)) {           // 4. 1-hour cooldown
-
-  float soc_at_trigger = battery_highprecision_SOC * 0.1f;
-  float stored_soc_at_trigger = BMC_SOC_current_calibration * 0.01f;
-  uint32_t dwell_minutes = (uint32_t)((millis64() - tail_dwell_start_ms) / 60000ULL);
-  DEBUG_PRINTF("[BYD Auto-Cal] Triggered: real SOC=%.1f%%, stored cal SOC=%.2f%%, "
-        "drift threshold=%u%%\n, tail dwell=%u min",
-        soc_at_trigger, stored_soc_at_trigger,
-        datalayer_bydatto->auto_calibrate_soc_drift_percent, dwell_minutes);
+      
+  set_event(EVENT_BATTERY_SOC_RECALIBRATION, (uint8_t)(1000 - battery_highprecision_SOC) / 10);
 
   datalayer_bydatto->calibrationTargetSOC = 100;
   if (BMS_capacity_current_calibration > 0) {                       // guard against startup zero
