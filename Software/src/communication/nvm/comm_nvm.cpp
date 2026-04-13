@@ -109,6 +109,8 @@ void init_stored_settings() {
   user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", 0);
   user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", 0);
   user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
+  user_selected_ECMP_mode = settings.getBool("ECMPMODE", false);
+  user_selected_MysteryVan_mode = settings.getBool("ECMPMODE2", false);
 
   auto readIf = [](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);

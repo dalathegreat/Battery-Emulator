@@ -859,6 +859,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("INTERLOCKREQ") ? "checked" : "";
   }
 
+  if (var == "ECMPMODE") {
+    return settings.getBool("ECMPMODE") ? "checked" : "";
+  }
+
+  if (var == "ECMPMODE2") {
+    return settings.getBool("ECMPMODE2") ? "checked" : "";
+  }
+
   if (var == "DIGITALHVIL") {
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
@@ -1160,6 +1168,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-ecmp { display: none; }
+    form[data-battery="13"] .if-ecmp {
+      display: contents;
+    }
+
     form .if-estimated { display: none; } /* Integrations with manually set charge/discharge power */
     form[data-battery="3"] .if-estimated, 
     form[data-battery="4"] .if-estimated, 
@@ -1318,6 +1331,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-nissan">
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
+        </div>
+
+        <div class="if-ecmp">
+            <label for='ecmpmode'>Force ECMP mode: </label>
+            <input type='checkbox' name='ECMPMODE' id='ecmpmode' value='on' %ECMPMODE% />
+
+            <label for='ecmpmode2'>Force MysteryVan mode: </label>
+            <input type='checkbox' name='ECMPMODE2' id='ecmpmode2' value='on' %ECMPMODE2% />
         </div>
 
         <div class="if-tesla">

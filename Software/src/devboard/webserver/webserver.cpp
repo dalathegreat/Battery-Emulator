@@ -400,6 +400,7 @@ void init_webserver() {
       "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",   "HADISC",       "MQTTTOPICS",    "MQTTCELLV",    "INVICNT",
       "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET",  "PYLONORDER",
       "DEYEBYD",       "NCCONTACTOR",  "TRIBTR",      "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",   "CTINVERT",
+      "ECMPMODE",      "ECMPMODE2",
   };
 
   const char* uintSettingNames[] = {

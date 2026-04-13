@@ -3,6 +3,7 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For More Battery Info page
 #include "../devboard/utils/events.h"
+#include "BATTERIES.h"
 
 /* TODO:
 This integration is still ongoing. The same integration can be used on multiple variants of the Stellantis platforms
@@ -234,7 +235,10 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x2D4:  //MysteryVan 50/75kWh platform (TBMU 100ms periodic)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      MysteryVan = true;
+      if (!user_selected_MysteryVan_mode && !user_selected_ECMP_mode) {
+        //If user did not explicitly select a mode, try to detect if we are on a MysteryVan battery
+        MysteryVan = true;
+      }
       SOE_MAX_CURRENT_TEMP = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];                       // (Wh, 0-200000)
       FRONT_MACHINE_POWER_LIMIT = (rx_frame.data.u8[4] << 6) | ((rx_frame.data.u8[5] & 0xFC) >> 2);  // (W 0-1000000)
       REAR_MACHINE_POWER_LIMIT = ((rx_frame.data.u8[5] & 0x03) << 12) | (rx_frame.data.u8[6] << 4) |
@@ -1908,6 +1912,14 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void EcmpBattery::setup(void) {  // Performs one time setup at startup
+
+  if (user_selected_ECMP_mode) {
+    MysteryVan = false;
+  }
+  if (user_selected_MysteryVan_mode) {
+    MysteryVan = true;
+  }
+
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 108;

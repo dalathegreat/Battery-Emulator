@@ -81,5 +81,7 @@ extern uint16_t user_selected_tesla_GTW_mapRegion;
 extern uint16_t user_selected_tesla_GTW_chassisType;
 extern uint16_t user_selected_tesla_GTW_packEnergy;
 extern uint16_t user_selected_pylon_baudrate;
+extern bool user_selected_ECMP_mode;
+extern bool user_selected_MysteryVan_mode;
 
 #endif
