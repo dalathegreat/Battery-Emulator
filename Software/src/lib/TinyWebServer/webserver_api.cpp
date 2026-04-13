@@ -167,7 +167,7 @@ TwsRoute batextRoute("/api/batext", new TwsRequestHandlerFunc([](TwsRequest& req
     else if(user_selected_battery_type==BatteryType::RenaultZoe2) request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.zoePH2, sizeof(datalayer_extended.zoePH2)));
 }));
 
-void batactFullPostBody(TwsRequest &request, uint8_t *data, size_t len) {
+void batcmdFullPostBody(TwsRequest &request, uint8_t *data, size_t len) {
     logging.printf("Post len is %d\n", (int)len);
 
     std::string_view wildcard(request.get_path_wildcard());
@@ -190,6 +190,7 @@ void batactFullPostBody(TwsRequest &request, uint8_t *data, size_t len) {
     Battery *bat;
     if(battery && id_part=="1") bat = battery;
     else if(battery2 && id_part=="2") bat = battery2;
+    else if(battery3 && id_part=="3") bat = battery3;
     else {
         request.write_fully(HTTP_404);
         request.finish();
@@ -198,51 +199,90 @@ void batactFullPostBody(TwsRequest &request, uint8_t *data, size_t len) {
 
     if(action_part=="reset_soh" && bat->supports_reset_SOH()) {
         bat->reset_SOH();
-        DEBUG_PRINTF("SOH reset performed");
     } else if(action_part=="reset_crash" && bat->supports_reset_crash()) {
         bat->reset_crash();
+    } else if(action_part=="clear_isolation" && bat->supports_clear_isolation()) {
+        bat->clear_isolation();
+    } else if(action_part=="reset_bms" && bat->supports_reset_BMS()) {
+        bat->reset_BMS();
+    } else if(action_part=="reset_soc" && bat->supports_reset_SOC()) {
+        bat->reset_SOC();
+    } else if(action_part=="reset_nvrol" && bat->supports_reset_NVROL()) {
+        bat->reset_NVROL();
+    } else if(action_part=="reset_dtc" && bat->supports_reset_DTC()) {
+        bat->reset_DTC();
+    } else if(action_part=="read_dtc" && bat->supports_read_DTC()) {
+        bat->read_DTC();
+    } else if(action_part=="reset_becm" && bat->supports_reset_BECM()) {
+        bat->reset_BECM();
+    } else if(action_part=="calibrate_soc" && bat->supports_calibrate_SOC()) {
+        bat->calibrate_SOC();
+    } else if(action_part=="contactor_close" && bat->supports_contactor_close()) {
+        bat->request_close_contactors();
+    } else if(action_part=="contactor_reset" && bat->supports_contactor_reset()) {
+        bat->request_open_contactors();
+    } else if(action_part=="set_fake_voltage" && bat->supports_set_fake_voltage()) {
+        // ?
+    } else if(action_part=="manual_balancing" && bat->supports_manual_balancing()) {
+        // ?
+    } else if(action_part=="toggle_soc_method" && bat->supports_toggle_SOC_method()) {
+        bat->toggle_SOC_method();
+    } else if(action_part=="energy_saving_mode_reset" && bat->supports_energy_saving_mode_reset()) {
+        bat->reset_energy_saving_mode();
+    } else if(action_part=="factory_mode_method" && bat->supports_factory_mode_method()) {
+        bat->set_factory_mode();
+    } else if(action_part=="chademo_restart" && bat->supports_chademo_restart()) {
+        bat->chademo_restart();
+    } else if(action_part=="chademo_stop" && bat->supports_chademo_stop()) {
+        bat->chademo_stop();
+    } else if(action_part=="balancing" && bat->supports_balancing()) {
+        if(bat->is_balancing_active()) bat->end_balancing();
+        else bat->initiate_balancing();
+    } else {
+        // The original path is NUL terminated so this is OK
+        if(!bat->handle_custom_command(action_part.data(), data, len)) {
+            request.write_fully(HTTP_404);
+            request.finish();
+            return;
+        }
     }
-
-    //logging.printf("POST id_part: %.*s, action_part: %.*s\n", (int)id_part.size(), id_part.data(), (int)action_part.size(), action_part.data());
-
-    //if(
 
     request.write_fully(HTTP_204);
     request.finish();
 }
 
 
-TwsRoute batactRoute = TwsRoute("/api/batteries/*", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+TwsRoute batcmdRoute = TwsRoute("/api/batteries/*", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
     //const char* wildcard = request.get_path_wildcard();
     std::string_view wildcard(request.get_path_wildcard());
 
     //logging.printf("Path wildcard is: %.*s\n", (int)wildcard.size(), wildcard);
 
-    auto add_battery_actions = [](JsonObject &actions, Battery* battery) {
-        if(battery->supports_reset_SOH()) actions["reset_soh"] = true;
-        if(battery->supports_reset_crash()) actions["reset_crash"] = true;
-        if(battery->supports_clear_isolation()) actions["clear_isolation"] = true;
-        if(battery->supports_reset_BMS()) actions["reset_BMS"] = true;
-        if(battery->supports_reset_SOC()) actions["reset_SOC"] = true;
-        if(battery->supports_reset_crash()) actions["reset_crash"] = true;
-        if(battery->supports_reset_NVROL()) actions["reset_NVROL"] = true;
-        if(battery->supports_reset_DTC()) actions["reset_DTC"] = true;
-        if(battery->supports_read_DTC()) actions["read_DTC"] = true;
-        if(battery->supports_reset_SOH()) actions["reset_SOH"] = true;
-        if(battery->supports_reset_BECM()) actions["reset_BECM"] = true;
-        if(battery->supports_calibrate_SOC()) actions["calibrate_SOC"] = true;
-        if(battery->supports_contactor_close()) actions["contactor_close"] = true;
-        if(battery->supports_contactor_reset()) actions["contactor_reset"] = true;
-        if(battery->supports_set_fake_voltage()) actions["set_fake_voltage"] = true;
-        if(battery->supports_manual_balancing()) actions["manual_balancing"] = true;
-        if(battery->supports_real_BMS_status()) actions["real_BMS_status"] = true;
-        if(battery->supports_toggle_SOC_method()) actions["toggle_SOC_method"] = true;
-        if(battery->supports_energy_saving_mode_reset()) actions["energy_saving_mode_reset"] = true;
-        if(battery->supports_factory_mode_method()) actions["factory_mode_method"] = true;
-        if(battery->supports_chademo_restart()) actions["chademo_restart"] = true;
-        if(battery->supports_chademo_stop()) actions["chademo_stop"] = true;
-        if(battery->supports_balancing()) actions["balancing"] = true;
-        if(battery->is_balancing_active()) actions["balancing_active"] = true;
+    auto add_battery_commands = [](JsonObject &commands, Battery* battery) {
+        if(battery->supports_reset_SOH()) commands["reset_soh"] = true;
+        if(battery->supports_reset_crash()) commands["reset_crash"] = true;
+        if(battery->supports_clear_isolation()) commands["clear_isolation"] = true;
+        if(battery->supports_reset_BMS()) commands["reset_bms"] = true;
+        if(battery->supports_reset_SOC()) commands["reset_soc"] = true;
+        if(battery->supports_reset_crash()) commands["reset_crash"] = true;
+        if(battery->supports_reset_NVROL()) commands["reset_nvrol"] = true;
+        if(battery->supports_reset_DTC()) commands["reset_dtc"] = true;
+        if(battery->supports_read_DTC()) commands["read_dtc"] = true;
+        if(battery->supports_reset_SOH()) commands["reset_soh"] = true;
+        if(battery->supports_reset_BECM()) commands["reset_becm"] = true;
+        if(battery->supports_calibrate_SOC()) commands["calibrate_soc"] = true;
+        if(battery->supports_contactor_close()) commands["contactor_close"] = true;
+        if(battery->supports_contactor_reset()) commands["contactor_reset"] = true;
+        if(battery->supports_set_fake_voltage()) commands["set_fake_voltage"] = true;
+        if(battery->supports_manual_balancing()) commands["manual_balancing"] = true;
+        if(battery->supports_real_BMS_status()) commands["real_bms_status"] = true;
+        if(battery->supports_toggle_SOC_method()) commands["toggle_soc_method"] = true;
+        if(battery->supports_energy_saving_mode_reset()) commands["energy_saving_mode_reset"] = true;
+        if(battery->supports_factory_mode_method()) commands["factory_mode_method"] = true;
+        if(battery->supports_chademo_restart()) commands["chademo_restart"] = true;
+        if(battery->supports_chademo_stop()) commands["chademo_stop"] = true;
+        if(battery->supports_balancing()) commands["balancing"] = true;
+        if(battery->is_balancing_active()) commands["balancing_active"] = true;
     };
 
     if(wildcard.empty()) {
@@ -250,59 +290,27 @@ TwsRoute batactRoute = TwsRoute("/api/batteries/*", new TwsJsonGetFunc([](TwsReq
         if(battery) {
             JsonObject bat = batteries.add<JsonObject>();
             bat["id"] = "1";
-            JsonObject actions = bat["actions"].to<JsonObject>();
-            add_battery_actions(actions, battery);
+            JsonObject commands = bat["commands"].to<JsonObject>();
+            add_battery_commands(commands, battery);
         }
         if(battery2) {
             JsonObject bat = batteries.add<JsonObject>();
             bat["id"] = "2";
-            JsonObject actions = bat["actions"].to<JsonObject>();
-            add_battery_actions(actions, battery2);
+            JsonObject commands = bat["commands"].to<JsonObject>();
+            add_battery_commands(commands, battery2);
+        }
+        if(battery3) {
+            JsonObject bat = batteries.add<JsonObject>();
+            bat["id"] = "3";
+            JsonObject commands = bat["commands"].to<JsonObject>();
+            add_battery_commands(commands, battery3);
         }
         return;
     }
-    // int first_slash = wildcard.find('/');
-    // if (first_slash == -1) {
-    //     request.write_fully(HTTP_404);
-    //     return;
-    // }
-
-    // int second_slash = wildcard.find('/', first_slash + 1);
-
-    // std::string_view id_part = wildcard.substr(0, first_slash);
-    // std::string_view action_part = wildcard.substr(
-    //     first_slash + 1, 
-    //     second_slash == -1 ? std::string_view::npos : (second_slash - first_slash - 1)
-    // );
-
-    // logging.printf("id_part: %.*s, action_part: %.*s\n", (int)id_part.size(), id_part.data(), (int)action_part.size(), action_part.data());
-
+    
     request.write_fully(HTTP_404);
     request.finish();
-
-
-    
-
-    //if(wild)
-    // std::string_view id_part = wildcard.substr(0, wildcard.find('/'));
-    // logging.printf("ID part is: %.*s\n", (int)id_part.size(), id_part);
-    
-    
-    // else if(wildcard[0]=='1' && wildcard[1]=='/' && wildcard[2]=='\0' && battery) {
-    //     JsonObject actions = doc["actions"].to<JsonObject>();
-    //     add_battery_actions(actions, battery);
-    //     return;
-    // } else if(wildcard[0]=='2' && wildcard[1]=='/' && wildcard[2]=='\0' && battery2) {
-    //     JsonObject actions = doc["actions"].to<JsonObject>();
-    //     add_battery_actions(actions, battery2);
-    //     return;
-    // }
-
-
-
-    // JsonObject actions = doc["actions"].to<JsonObject>();
-    // if(battery) add_battery_actions(actions, battery);
-})).use(*new TwsPostBufferingRequestHandler(batactFullPostBody));
+})).use(*new TwsPostBufferingRequestHandler(batcmdFullPostBody));
 
 TwsRoute eventsRoute("/api/events", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
     JsonArray events = doc["events"].to<JsonArray>();
