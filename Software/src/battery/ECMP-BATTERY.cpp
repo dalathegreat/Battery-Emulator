@@ -475,8 +475,16 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x358:  //Common
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_highestTemperature = rx_frame.data.u8[6] - 40;
-      battery_lowestTemperature = rx_frame.data.u8[7] - 40;
+      if (rx_frame.data.u8[6] > 200) {
+        set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, 3);
+      } else {
+        battery_highestTemperature = rx_frame.data.u8[6] - 40;
+      }
+      if (rx_frame.data.u8[7] > 200) {
+        set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, 4);
+      } else {
+        battery_lowestTemperature = rx_frame.data.u8[7] - 40;
+      }
       break;
     case 0x359:
       break;
