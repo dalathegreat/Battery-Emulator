@@ -26,7 +26,7 @@ extern TwsRoute statusRoute;
 extern TwsRoute cellsRoute;
 extern TwsRoute apiBatOldRoute;
 extern TwsRoute batextRoute;
-extern TwsRoute batactRoute;
+extern TwsRoute batcmdRoute;
 extern TwsRoute eventsRoute;
 extern TwsRoute eventsClearRoute;
 extern TwsRoute logRoute;
@@ -75,7 +75,7 @@ TwsRoute *default_handlers[] = {
     &cellsRoute,
     &apiBatOldRoute,
     &batextRoute,
-    &batactRoute,
+    &batcmdRoute,
     &settingsRoute,
     &eventsRoute,
     &eventsClearRoute,

@@ -132,6 +132,8 @@ class Battery {
   virtual void set_fake_voltage(float v) {}
   virtual float get_voltage();
 
+  virtual bool handle_custom_command(const char* cmd, uint8_t* data, size_t len) { return false; }
+
   // This allows for battery specific SOC plausibility calculations to be performed.
   virtual bool soc_plausible() { return true; }
 
