@@ -133,6 +133,20 @@ void TinyWebServer::handle_request(TwsRequest &request) {
         return consumed;
     };
 
+    auto call_request_handler = [&]() {
+        if(request.done) {
+            // pass
+        } else if(request.handler && request.handler->onRequest) {
+            // Call the GET handler function
+            request.handler->onRequest->handleRequest(request);
+            if(request.writer_callback && request.free()>0) request.writer_callback(request, request.total_written - request.writer_callback_written_offset);
+            request.parse_state = TWS_WRITING_OUT;
+        } else {
+            request.write_fully(HTTP_404);
+            request.finish();
+        }
+    };
+
     while(true) {
         int len = 0;
 
@@ -352,15 +366,17 @@ void TinyWebServer::handle_request(TwsRequest &request) {
 
                 if(request.handler && request.method==TWS_HTTP_POST && request.handler->onPostBody) {
                     // Prepare to receive the POST body
-                    request.parse_state = TWS_AWAITING_BODY;
-                } else if(request.handler && request.handler->onRequest) {
-                    // Call the GET handler function
-                    request.handler->onRequest->handleRequest(request);
-                    if(request.writer_callback && request.free()>0) request.writer_callback(request, request.total_written - request.writer_callback_written_offset);
-                    request.parse_state = TWS_WRITING_OUT;
+
+                    // Attempt a initial zero-length call to see if the handler
+                    // is expecting a body
+                    if(request.handler->onPostBody->handlePostBody(request, 0, nullptr, 0) == -1) {
+                        // No, skip the body and go straight to the request handler
+                        call_request_handler();
+                    } else {
+                        request.parse_state = TWS_AWAITING_BODY;
+                    }
                 } else {
-                    request.write_fully(HTTP_404);
-                    request.finish();
+                    call_request_handler();
                 }
             } else {
                 char *buf_ptr = request.get_read_ptr(buf, len);
@@ -431,13 +447,8 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                             // The post handler set a writer callback, so skip the normal request handler
                             if(request.free()>0) request.writer_callback(request, request.total_written - request.writer_callback_written_offset);
                             request.parse_state = TWS_WRITING_OUT;
-                        } else if(request.handler->onRequest) {
-                            request.handler->onRequest->handleRequest(request);
-                            if(request.writer_callback && request.free()>0) request.writer_callback(request, request.total_written - request.writer_callback_written_offset);
-                            request.parse_state = TWS_WRITING_OUT;
                         } else {
-                            request.write_fully(HTTP_404);
-                            request.finish();
+                            call_request_handler();
                         }
                     }
                 } else {

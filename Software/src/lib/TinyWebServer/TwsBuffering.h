@@ -77,11 +77,14 @@ public:
     void handleHeader(TwsRequest &request, const char *line, int len) override {
         auto &state = get_state(request);
 
+        DEBUG_PRINTF("Received header line: %.*s\n", len, line);
+
         if(strncasecmp(line, "Content-Length:", 15) == 0) {
             char *endptr;
             int content_length = strtol(line + 15, &endptr, 10);
-            if (endptr != line + 15 && content_length > 0) {
+            if (endptr != line + 15 && content_length >= 0) {
                 state.content_length = content_length;
+                //DEBUG_PRINTF("Parsed Content-Length: %zu\n", state.content_length);
             }
         }
         if (nextHeader) nextHeader->handleHeader(request, line, len);

@@ -1,4 +1,5 @@
 #include "TinyWebServer.h"
+#include "TwsBuffering.h"
 #include "BasicAuth.h"
 #include "webserver_utils.h"
 #include <src/battery/BATTERIES.h>
@@ -16,6 +17,7 @@ extern bool emulator_pause_request_ON;
 extern bool contactor_control_enabled;
 extern int contactorStatus;
 extern BatteryType user_selected_battery_type;
+extern const char* HTTP_404;
 
 static const char* get_inverter_status() {
     if(get_event_pointer(EVENT_CAN_INVERTER_MISSING)->state == EVENT_STATE_ACTIVE || get_event_pointer(EVENT_CAN_INVERTER_MISSING)->state == EVENT_STATE_ACTIVE_LATCHED) {
@@ -165,7 +167,52 @@ TwsRoute batextRoute("/api/batext", new TwsRequestHandlerFunc([](TwsRequest& req
     else if(user_selected_battery_type==BatteryType::RenaultZoe2) request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.zoePH2, sizeof(datalayer_extended.zoePH2)));
 }));
 
-TwsRoute batactRoute("/api/batteries/*", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
+void batactFullPostBody(TwsRequest &request, uint8_t *data, size_t len) {
+    logging.printf("Post len is %d\n", (int)len);
+
+    std::string_view wildcard(request.get_path_wildcard());
+
+    int first_slash = wildcard.find('/');
+    if (first_slash == -1) {
+        request.write_fully(HTTP_404);
+        request.finish();
+        return;
+    }
+
+    int second_slash = wildcard.find('/', first_slash + 1);
+
+    std::string_view id_part = wildcard.substr(0, first_slash);
+    std::string_view action_part = wildcard.substr(
+        first_slash + 1, 
+        second_slash == -1 ? std::string_view::npos : (second_slash - first_slash - 1)
+    );
+
+    Battery *bat;
+    if(battery && id_part=="1") bat = battery;
+    else if(battery2 && id_part=="2") bat = battery2;
+    else {
+        request.write_fully(HTTP_404);
+        request.finish();
+        return;
+    }
+
+    if(action_part=="reset_soh" && bat->supports_reset_SOH()) {
+        bat->reset_SOH();
+        DEBUG_PRINTF("SOH reset performed");
+    } else if(action_part=="reset_crash" && bat->supports_reset_crash()) {
+        bat->reset_crash();
+    }
+
+    //logging.printf("POST id_part: %.*s, action_part: %.*s\n", (int)id_part.size(), id_part.data(), (int)action_part.size(), action_part.data());
+
+    //if(
+
+    request.write_fully(HTTP_204);
+    request.finish();
+}
+
+
+TwsRoute batactRoute = TwsRoute("/api/batteries/*", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
     //const char* wildcard = request.get_path_wildcard();
     std::string_view wildcard(request.get_path_wildcard());
 
@@ -214,22 +261,24 @@ TwsRoute batactRoute("/api/batteries/*", new TwsJsonGetFunc([](TwsRequest& reque
         }
         return;
     }
+    // int first_slash = wildcard.find('/');
+    // if (first_slash == -1) {
+    //     request.write_fully(HTTP_404);
+    //     return;
+    // }
 
-    int first_slash = wildcard.find('/');
-    if(first_slash==-1) {
-        request.write_fully(HTTP_404);
-        return;
-    }
+    // int second_slash = wildcard.find('/', first_slash + 1);
 
-    std::string_view id_part = wildcard.substr(0, first_slash);
-    int second_slash = wildcard.find('/', first_slash+1);
-    if(second_slash!=-1) {
-        request.write_fully(HTTP_404);
-        return;
-    }
+    // std::string_view id_part = wildcard.substr(0, first_slash);
+    // std::string_view action_part = wildcard.substr(
+    //     first_slash + 1, 
+    //     second_slash == -1 ? std::string_view::npos : (second_slash - first_slash - 1)
+    // );
 
-    
+    // logging.printf("id_part: %.*s, action_part: %.*s\n", (int)id_part.size(), id_part.data(), (int)action_part.size(), action_part.data());
 
+    request.write_fully(HTTP_404);
+    request.finish();
 
 
     
@@ -237,7 +286,7 @@ TwsRoute batactRoute("/api/batteries/*", new TwsJsonGetFunc([](TwsRequest& reque
     //if(wild)
     // std::string_view id_part = wildcard.substr(0, wildcard.find('/'));
     // logging.printf("ID part is: %.*s\n", (int)id_part.size(), id_part);
-    logging.printf("/ is at position: %d\n", (int)wildcard.find('/'));
+    
     
     // else if(wildcard[0]=='1' && wildcard[1]=='/' && wildcard[2]=='\0' && battery) {
     //     JsonObject actions = doc["actions"].to<JsonObject>();
@@ -253,7 +302,7 @@ TwsRoute batactRoute("/api/batteries/*", new TwsJsonGetFunc([](TwsRequest& reque
 
     // JsonObject actions = doc["actions"].to<JsonObject>();
     // if(battery) add_battery_actions(actions, battery);
-}));
+})).use(*new TwsPostBufferingRequestHandler(batactFullPostBody));
 
 TwsRoute eventsRoute("/api/events", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
     JsonArray events = doc["events"].to<JsonArray>();
