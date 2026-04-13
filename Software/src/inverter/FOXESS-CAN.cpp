@@ -89,9 +89,9 @@ void FoxessCanInverter::
   FOXESS_1875.data.u8[2] = (uint8_t)STATUS_OPERATIONAL_PACKS;
   FOXESS_1875.data.u8[3] = (uint8_t)NUMBER_OF_PACKS;
   FOXESS_1875.data.u8[4] = (uint8_t)1;     // Contactor Status 0=off, 1=on.
-  FOXESS_1875.data.u8[5] = 99;             //0 Unused (TEST to find SOH)
-  FOXESS_1875.data.u8[6] = (uint8_t)0x8E;  //Cycle count
-  FOXESS_1875.data.u8[7] = 100;            //0 Cycle count? (TEST to find SOH)
+  FOXESS_1875.data.u8[5] = 0;              //0 Confirmed Unused in Battery Details page
+  FOXESS_1875.data.u8[6] = (uint8_t)0x8E;  //Cycle count LSB (Hardcoded to 142 cycles)
+  FOXESS_1875.data.u8[7] = 0;              //Cycle count MSB
 
   //BMS_PackTemps
   // 0x1876 b0 bit 0 appears to be 1 when at maxsoc and BMS says charge is not allowed -
@@ -133,11 +133,16 @@ void FoxessCanInverter::
     FOXESS_1877.data.u8[7] = (uint8_t)(current_pack_info << 4);
   }
 
+  current_pack_info = (current_pack_info + 1);
+  if (current_pack_info > NUMBER_OF_PACKS) {
+    current_pack_info = 0;
+  }
+
   //BMS_PackStats
   FOXESS_1878.data.u8[0] = (uint8_t)(MAX_AC_VOLTAGE);
   FOXESS_1878.data.u8[1] = ((MAX_AC_VOLTAGE) >> 8);
-  FOXESS_1878.data.u8[2] = (uint8_t)0;  //Unused
-  FOXESS_1878.data.u8[3] = (uint8_t)0;  //Unused
+  FOXESS_1878.data.u8[2] = (uint8_t)98;  //Unused (TEST TO FIND MORE DATA)
+  FOXESS_1878.data.u8[3] = (uint8_t)99;  //Unused (TEST TO FIND MORE DATA)
   FOXESS_1878.data.u8[4] = (uint8_t)TOTAL_LIFETIME_WH_ACCUMULATED;
   FOXESS_1878.data.u8[5] = (TOTAL_LIFETIME_WH_ACCUMULATED >> 8);
   FOXESS_1878.data.u8[6] = (TOTAL_LIFETIME_WH_ACCUMULATED >> 16);
@@ -150,11 +155,6 @@ void FoxessCanInverter::
   }  // Mappings taken from https://github.com/FozzieUK/FoxESS-Canbus-Protocol
   else {
     FOXESS_1879.data.u8[1] = 0x2B;  //Discharging
-  }
-
-  current_pack_info = (current_pack_info + 1);
-  if (current_pack_info > NUMBER_OF_PACKS) {
-    current_pack_info = 0;
   }
 
   if (NUMBER_OF_PACKS > 0) {  //div0 safeguard
