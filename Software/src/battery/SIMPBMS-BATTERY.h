@@ -20,7 +20,7 @@ class SimpBmsBattery : public CanBattery {
 
   int16_t celltemperature_max_dC = 0;
   int16_t celltemperature_min_dC = 0;
-  int16_t current_dA = 0;
+  int16_t current_mA = 0;
   uint16_t voltage_dV = 0;
   uint16_t cellvoltage_max_mV = 3700;
   uint16_t cellvoltage_min_mV = 3700;
