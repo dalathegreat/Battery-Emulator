@@ -51,6 +51,14 @@ void FoxessCanInverter::
   FOXESS_1881.data.u8[6] = (uint8_t)WiFi.macAddress().charAt(5);
   FOXESS_1881.data.u8[7] = (uint8_t)WiFi.macAddress().charAt(6);
 
+  FOXESS_1882.data.u8[1] = (uint8_t)WiFi.macAddress().charAt(7);
+  FOXESS_1882.data.u8[2] = (uint8_t)WiFi.macAddress().charAt(8);
+  FOXESS_1882.data.u8[3] = (uint8_t)WiFi.macAddress().charAt(9);
+  FOXESS_1882.data.u8[4] = (uint8_t)WiFi.macAddress().charAt(10);
+  FOXESS_1882.data.u8[5] = (uint8_t)WiFi.macAddress().charAt(11);
+  FOXESS_1882.data.u8[6] = (uint8_t)WiFi.macAddress().charAt(12);
+  FOXESS_1882.data.u8[7] = (uint8_t)WiFi.macAddress().charAt(13);
+
   //Put the values into the CAN messages
   //BMS_Limits
   FOXESS_1872.data.u8[0] = (uint8_t)datalayer.battery.info.max_design_voltage_dV;
@@ -104,11 +112,11 @@ void FoxessCanInverter::
     FOXESS_1876.data.u8[0] = 0x00;
   }
 
-  FOXESS_1876.data.u8[1] = (uint8_t)0;  //Unused
+  FOXESS_1876.data.u8[1] = (uint8_t)50;  //TEST
   FOXESS_1876.data.u8[2] = (uint8_t)datalayer.battery.status.cell_max_voltage_mV;
   FOXESS_1876.data.u8[3] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
-  FOXESS_1876.data.u8[4] = (uint8_t)0;  //Unused
-  FOXESS_1876.data.u8[5] = (uint8_t)0;  //Unused
+  FOXESS_1876.data.u8[4] = (uint8_t)51;  //TEST
+  FOXESS_1876.data.u8[5] = (uint8_t)52;  //TEST
   FOXESS_1876.data.u8[6] = (uint8_t)datalayer.battery.status.cell_min_voltage_mV;
   FOXESS_1876.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
@@ -119,10 +127,10 @@ void FoxessCanInverter::
   } else {
     FOXESS_1877.data.u8[0] = (uint8_t)0;
   }
-  FOXESS_1877.data.u8[1] = (uint8_t)0;  //Unused
-  FOXESS_1877.data.u8[2] = (uint8_t)0;  //Unused
-  FOXESS_1877.data.u8[3] = (uint8_t)0;  //Unused
-  FOXESS_1877.data.u8[5] = (uint8_t)0;  //Unused
+  FOXESS_1877.data.u8[1] = (uint8_t)53;  //TEST
+  FOXESS_1877.data.u8[2] = (uint8_t)54;  //TEST
+  FOXESS_1877.data.u8[3] = (uint8_t)55;  //TEST
+  FOXESS_1877.data.u8[5] = (uint8_t)56;  //TEST
   if (current_pack_info == MASTER) {
     FOXESS_1877.data.u8[4] = (uint8_t)BATTERY_TYPE_MASTER;
     FOXESS_1877.data.u8[6] = (uint8_t)FIRMWARE_VERSION_MASTER;
@@ -141,8 +149,8 @@ void FoxessCanInverter::
   //BMS_PackStats
   FOXESS_1878.data.u8[0] = (uint8_t)(MAX_AC_VOLTAGE);
   FOXESS_1878.data.u8[1] = ((MAX_AC_VOLTAGE) >> 8);
-  FOXESS_1878.data.u8[2] = (uint8_t)98;  //Unused (TEST TO FIND MORE DATA)
-  FOXESS_1878.data.u8[3] = (uint8_t)99;  //Unused (TEST TO FIND MORE DATA)
+  FOXESS_1878.data.u8[2] = (uint8_t)0;  //Confirmed Unused in Battery Details page
+  FOXESS_1878.data.u8[3] = (uint8_t)0;  //Confirmed Unused in Battery Details page
   FOXESS_1878.data.u8[4] = (uint8_t)TOTAL_LIFETIME_WH_ACCUMULATED;
   FOXESS_1878.data.u8[5] = (TOTAL_LIFETIME_WH_ACCUMULATED >> 8);
   FOXESS_1878.data.u8[6] = (TOTAL_LIFETIME_WH_ACCUMULATED >> 16);
