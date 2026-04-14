@@ -18,6 +18,7 @@ void setup_shunt();
 #include "BMW-SBOX.h"
 #include "BOLT-AMPERA-BATTERY.h"
 #include "BYD-ATTO-3-BATTERY.h"
+#include "CCS-WHITE-BEET.h"
 #include "CELLPOWER-BMS.h"
 #include "CHADEMO-BATTERY.h"
 #include "CHADEMO-CT.h"

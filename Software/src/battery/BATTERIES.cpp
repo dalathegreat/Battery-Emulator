@@ -54,6 +54,8 @@ const char* name_for_battery_type(BatteryType type) {
       return BoltAmperaBattery::Name;
     case BatteryType::BydAtto3:
       return BydAttoBattery::Name;
+    case BatteryType::CcsWhitebeet:
+      return WhitebeetCcsBattery::Name;
     case BatteryType::CellPowerBms:
       return CellPowerBms::Name;
     case BatteryType::Chademo:
@@ -173,6 +175,8 @@ Battery* create_battery(BatteryType type) {
       return new BoltAmperaBattery();
     case BatteryType::BydAtto3:
       return new BydAttoBattery();
+    case BatteryType::CcsWhitebeet:
+      return new WhitebeetCcsBattery();
     case BatteryType::CellPowerBms:
       return new CellPowerBms();
     case BatteryType::Chademo:

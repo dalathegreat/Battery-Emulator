@@ -122,6 +122,14 @@ class Esp32Hal {
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_NC; }
 
+  // Whitebeet (Sevenstax ISO15118 module) SPI + handshake pins
+  virtual gpio_num_t WHITEBEET_SCK() { return GPIO_NUM_NC; }
+  virtual gpio_num_t WHITEBEET_MOSI() { return GPIO_NUM_NC; }
+  virtual gpio_num_t WHITEBEET_MISO() { return GPIO_NUM_NC; }
+  virtual gpio_num_t WHITEBEET_CS() { return GPIO_NUM_NC; }
+  virtual gpio_num_t WHITEBEET_RX_READY() { return GPIO_NUM_NC; }
+  virtual gpio_num_t WHITEBEET_TX_PENDING() { return GPIO_NUM_NC; }
+
   // CHAdeMO support pin dependencies
   virtual gpio_num_t CHADEMO_PIN_2() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_PIN_10() { return GPIO_NUM_NC; }
