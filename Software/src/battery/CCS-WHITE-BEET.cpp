@@ -869,10 +869,14 @@ Whitebeet::DcUpdate CcsBattery::buildDcUpdate() const {
   u.isolation_level = 0;
   // Use the configured shunt's live reading if available, otherwise fall back
   // to the inverter-reported voltage/current from the datalayer.
-  uint32_t v = datalayer.shunt.measured_voltage_dV ? (uint32_t)datalayer.shunt.measured_voltage_dV / 10
-                                                   : (uint32_t)datalayer.battery.status.voltage_dV / 10;
-  uint32_t a = datalayer.shunt.measured_amperage_dA ? (uint32_t)datalayer.shunt.measured_amperage_dA / 10
-                                                    : (uint32_t)datalayer.battery.status.current_dA / 10;
+
+  uint32_t v = ev_precharge_voltage_;
+  uint32_t a = 0;
+  if (datalayer.shunt.available) {
+    v = datalayer.shunt.measured_voltage_dV;
+    a = datalayer.shunt.measured_amperage_dA;
+  }
+
   u.present_voltage = v;
   u.present_current = a;
   u.max_voltage = ev_max_voltage_;
@@ -907,7 +911,6 @@ void CcsBattery::handleNotification(const Frame& f) {
         if (p.has_max_power) {
           ev_max_power_ = p.max_power;
         }
-        enter(CHARGE_ACTIVE);
       }
       break;
     }
@@ -917,16 +920,27 @@ void CcsBattery::handleNotification(const Frame& f) {
     case NOTIF_DC_PARAMS_CHANGED: {
       Whitebeet::ParsedDcChanged p;
       if (wb_.parseDcChanged(f, &p)) {
-        ev_max_voltage_ = p.max_voltage;
-        ev_max_current_ = p.max_current;
-        if (p.has_max_power) {
-          ev_max_power_ = p.max_power;
-        }
-        ev_target_voltage_ = p.target_voltage;
-        ev_target_current_ = p.target_current;
         ev_reported_soc_ = p.soc;
         datalayer.battery.status.real_soc = (uint16_t)p.soc * 100;
-        datalayer.battery.status.max_charge_power_W = (uint32_t)ev_max_voltage_ * ev_max_current_;
+
+        ev_max_voltage_ = p.max_voltage;
+        ev_max_current_ = p.max_current;
+        datalayer.battery.info.max_design_voltage_dV = ev_max_voltage_;
+
+        ev_target_voltage_ = p.target_voltage;
+        ev_target_current_ = p.target_current;
+        if (p.has_max_power) {
+          ev_max_power_ = p.max_power;
+          datalayer.battery.status.max_charge_power_W = ev_max_power_;
+          datalayer.battery.status.max_discharge_power_W = ev_max_power_;
+        } else {
+          datalayer.battery.status.max_charge_power_W = ev_target_voltage_ * ev_target_current_;
+          datalayer.battery.status.max_discharge_power_W = ev_target_voltage_ * ev_target_current_;
+        }
+
+        if (state_ == PRECHARGING) {
+          ev_precharge_voltage_ = p.target_voltage;
+        }
       }
       // The FreeV2G reference immediately replies with an update after every
       // DC-params-changed event. We do the same so the EV's numbers stay in
@@ -942,12 +956,16 @@ void CcsBattery::handleNotification(const Frame& f) {
       wb_.v2gEvseSetCableCheckFinished(true);
       break;
     case NOTIF_PRECHARGE_STARTED:
-      datalayer.system.status.battery_allows_contactor_closing = true;
+      enter(PRECHARGING);
       break;
     case NOTIF_REQUEST_START_CHARGING:
+      datalayer.system.status.battery_allows_contactor_closing = true;
       wb_.v2gEvseStartCharging();
+      enter(CHARGE_ACTIVE);
       break;
     case NOTIF_REQUEST_STOP_CHARGING:
+      datalayer.battery.status.max_charge_power_W = 0;
+      datalayer.battery.status.max_discharge_power_W = 0;
       wb_.v2gEvseStopCharging();
       enter(STOPPING);
       break;
@@ -984,6 +1002,14 @@ void CcsBattery::update_values() {
   if (now - last_tick_ms_ >= 5) {
     last_tick_ms_ = now;
     wb_.tick();
+  }
+
+  if (datalayer.shunt.available) {
+    datalayer.battery.status.voltage_dV = datalayer.shunt.measured_voltage_dV;
+    datalayer.battery.status.current_dA = datalayer.shunt.measured_amperage_dA;
+  } else if (state_ == PRECHARGING) {
+    datalayer.battery.status.voltage_dV = ev_precharge_voltage_ * 10;
+    datalayer.battery.status.current_dA = 0;
   }
 
   switch (state_) {
@@ -1064,12 +1090,9 @@ void CcsBattery::update_values() {
       Whitebeet::DcParams dc;
       // Seed limits from the configured pack shape. The inverter & user
       // settings will further constrain these elsewhere.
-      dc.max_voltage = datalayer.battery.info.max_design_voltage_dV / 10;
-      dc.min_voltage = datalayer.battery.info.min_design_voltage_dV / 10;
+      dc.max_voltage = datalayer.battery.settings.max_user_set_charge_voltage_dV / 10;
+      dc.min_voltage = datalayer.battery.settings.max_user_set_discharge_voltage_dV / 10;
       dc.max_current = datalayer.battery.settings.max_user_set_charge_dA / 10;
-      if (dc.max_current == 0) {
-        dc.max_current = 125;
-      }
       dc.max_power = dc.max_voltage * dc.max_current;
       wb_.v2gEvseSetDcChargingParameters(dc);
 
@@ -1078,6 +1101,7 @@ void CcsBattery::update_values() {
       break;
     }
     case LISTENING:
+    case PRECHARGING:
     case CHARGE_ACTIVE: {
       Frame f;
       while (wb_.pollEvseNotification(&f)) {
@@ -1103,6 +1127,11 @@ void CcsBattery::update_values() {
       break;
     }
     case FAULT:
+      if (now - state_entered_ms_ > 60000) {
+        logging.println("Whitebeet: Recovering from fault state");
+        enter(BOOT);
+      }
+      break;
     default:
       break;
   }

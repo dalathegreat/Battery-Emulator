@@ -325,6 +325,7 @@ class CcsBattery : public ::Battery {
     WAIT_SLAC_MATCH,
     START_V2G,
     LISTENING,
+    PRECHARGING,
     CHARGE_ACTIVE,
     STOPPING,
     FAULT,
@@ -344,6 +345,7 @@ class CcsBattery : public ::Battery {
   uint8_t ev_reported_soc_ = 0;
   uint32_t ev_target_voltage_ = 0;
   uint32_t ev_target_current_ = 0;
+  uint32_t ev_precharge_voltage_ = 0;
   uint32_t ev_max_voltage_ = 500;
   uint32_t ev_max_current_ = 125;
   uint32_t ev_max_power_ = 50000;
