@@ -43,13 +43,25 @@ const FIELD_LISTS = {
     29: DATALAYER_INFO_ZOE_PH2_FIELDS,
 } as { [key: number]: any[] };
 
+function command(id: string, cmd: string) {
+    return () => {
+        fetch(`/api/batteries/${id}/${cmd}`, { method: 'POST' }).then((r) => {
+            if(r.status == 204) {
+                alert(cmd + ' sent.');
+            } else {
+                alert('Error sending command: ' + r.statusText);
+            }
+        });
+    };
+}
+
 export function Extended() {
     const data = useGetApi('/api/batext', 5000);
-    const actions = useGetApi('/api/batact', 0);
+    const commands = useGetApi('/api/batteries/', 0);
 
     const old = useGetApi('/api/batold', 5000);
 
-    console.log(actions);
+    console.log(commands);
 
     const view = useMemo(() => {
         if(!data) return null;
@@ -75,7 +87,13 @@ export function Extended() {
                 <Basic view={ view } fields={ fields } />
             }
 
-            { actions?.actions?.reset_crash && <button>Unlock crashed BMS</button> }
+            { commands?.battery?.map((bat: any) => (
+                <div key={ bat.id }>
+                    <h3>Battery { bat.id }</h3>
+                    { bat.commands?.reset_bms && <button onClick={command(bat.id, 'reset_bms')}>Reset BMS</button> }&nbsp;
+                    { bat.commands?.reset_dtc && <button onClick={command(bat.id, 'reset_dtc')}>Reset DTCs</button> }&nbsp;
+                </div>
+            )) }
         </>
     );
 };

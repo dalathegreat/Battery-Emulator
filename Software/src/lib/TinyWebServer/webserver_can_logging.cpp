@@ -15,12 +15,17 @@ char* put_hex(char *ptr, uint32_t value, uint8_t digits) {
 }
 
 char* put_time(char *ptr, unsigned long time) {
+    // Wrap around after 100000 seconds (about 27.7 hours) to avoid overflowing the buffer
     if(time >= 100000000) time = time % 100000000;
+
+    // Seconds part
     if(time >= 10000000) { *ptr++ = (time / 10000000) + '0'; time %= 10000000; }
     if(time >= 1000000) { *ptr++ = (time / 1000000) + '0'; time %= 1000000; }
     if(time >= 100000) { *ptr++ = (time / 100000) + '0'; time %= 100000; }
     if(time >= 10000) { *ptr++ = (time / 10000) + '0'; time %= 10000; }
     *ptr++ = (time / 1000) + '0'; time %= 1000;
+    
+    // Milliseconds part
     *ptr++ = '.';
     *ptr++ = (time / 100) + '0'; time %= 100;
     *ptr++ = (time / 10) + '0'; time %= 10;

@@ -76,7 +76,7 @@ public:
 
     void send(int code, const char *content_type = "", const char *content = "");
     void finish();
-    void set_writer_callback(TwsRequestWriterCallbackFunction callback) {
+    inline void set_writer_callback(TwsRequestWriterCallbackFunction callback) {
         writer_callback = callback;
         // record the current total written bytes to use as an offset
         writer_callback_written_offset = total_written;
@@ -95,17 +95,18 @@ public:
     inline const char* get_path_wildcard() {
         return path_wildcard;
     }
-    uint16_t get_slot_id() {
+    inline uint16_t get_slot_id() {
         return slot_id;
     }
-    uint32_t get_connection_id() {
+    inline uint32_t get_connection_id() {
         return connection_id;
     }
-
-    uint8_t* get_state_data() {
+    inline uint8_t* get_state_data() {
         return state_data;
     }
-
+    inline bool reply_started() {
+        return total_written > 0;
+    }
     inline static int sub_mod(int a, int b) {
         while(a >= b) {
             a -= b;
@@ -216,8 +217,10 @@ public:
     TwsRoute(const char *path, TwsPostBodyHandler *onPostBody) :
         path(path), path_len(strlen(path)), onPostBody(onPostBody) {
     }
+    TwsRoute(const char *path, TwsMiddleware *middleware) : TwsRoute(path) {
+        this->use(*middleware);
+    }
 
-    // --- The Fluent API ---
     template<typename M>
     TwsRoute& use(M& middleware) {
         static_assert(std::is_base_of<TwsMiddleware, M>::value, 
