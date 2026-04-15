@@ -49,9 +49,7 @@ class TwsRawPostFunc : public TwsPostBodyHandler {
 public:
     TwsRawPostFunc(int (*handle)(TwsRequest& request, size_t index, uint8_t *data, size_t len)) : handle(handle) {}
     
-    int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override {
-        return handle(request, index, data, len);
-    }
+    int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
 
     int (*handle)(TwsRequest& request, size_t index, uint8_t *data, size_t len);
 };
@@ -60,62 +58,17 @@ class TwsJsonRestHandler : public TwsStatefulMiddleware<PostBufferingRequestHand
 public:
     TwsJsonRestHandler(size_t max_size = 16384) : _max_size(max_size) {}
 
-    int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override {
-        auto &state = get_state(request);
-        if(!state.post_body) {
-            if (state.content_length > _max_size) {
-                request.send(413, "text/plain", "Payload Too Large");
-                request.finish();
-                return -1;
-            }
-            state.post_body = std::make_shared<PostBody>(state.content_length);
-            // Allocation error handling omitted for brevity, but same as your original
-        }
-        
-        state.post_body->set(data, index, len);
-
-        if(index + len >= state.content_length) {
-            return -1; // Upload complete, wait for handleRequest to fire
-        }
-        return len;
-    }
+    int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
 
     // 2. Dispatch to the right logic safely
-    void handleRequest(TwsRequest &request) override {
-        // If it's a POST/PUT, execute the POST logic first
-        if (request.is_post()) { // Assuming TwsRequest has method helpers
-            auto &state = get_state(request);
-            uint8_t* payload = state.post_body ? state.post_body->data : nullptr;
-            
-            // If handleJsonPost returns false, it means an error was encountered 
-            // (e.g., 400 Bad Request) and the GET response should be aborted.
-            if (!handleJsonPost(request, payload, state.content_length)) {
-                return; 
-            }
-        }
-
-        // If it's a GET request, OR if the POST request succeeded and we want to 
-        // return the updated state, we drop down into the GET logic.
-        JsonDocument doc;
-        handleJsonGet(request, doc);
-
-        auto response = std::make_shared<String>();
-        serializeJson(doc, *response);
-        request.write_fully("HTTP/1.1 200 OK\r\n"
-                            "Connection: close\r\n"
-                            "Content-Type: application/json\r\n"
-                            "Access-Control-Allow-Origin: *\r\n\r\n");
-        request.set_writer_callback(StringWriter(response));
-    }
+    void handleRequest(TwsRequest &request) override;
 
 protected:
     // Return true to cascade into handleJsonGet (success). Return false to abort.
-    virtual bool handleJsonPost(TwsRequest& request, uint8_t* data, size_t len) {
-        return true; 
-    }
+    virtual bool handleJsonPost(TwsRequest& request, uint8_t* data, size_t len);
 
     // Populate the GET response
-    virtual void handleJsonGet(TwsRequest& request, JsonDocument& doc) {}
+    virtual void handleJsonGet(TwsRequest& request, JsonDocument& doc);
 
 private:
     size_t _max_size;
@@ -130,21 +83,9 @@ public:
         : TwsJsonRestHandler(max_size), _onGet(onGet), _onPost(onPost) {}
 
 protected:
-    bool handleJsonPost(TwsRequest& request, uint8_t* data, size_t len) override {
-        if (_onPost) {
-            return _onPost(request, data, len);
-        }
-        // Reject POSTs if no handler was provided
-        request.write_fully(HTTP_405);
-        request.finish();
-        return false; 
-    }
+    bool handleJsonPost(TwsRequest& request, uint8_t* data, size_t len) override;
 
-    void handleJsonGet(TwsRequest& request, JsonDocument& doc) override {
-        if (_onGet) {
-            _onGet(request, doc);
-        }
-    }
+    void handleJsonGet(TwsRequest& request, JsonDocument& doc) override;
 
 private:
     JsonGetCallback _onGet;
