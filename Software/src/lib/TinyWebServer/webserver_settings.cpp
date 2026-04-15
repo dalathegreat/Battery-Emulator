@@ -273,7 +273,49 @@ bool isVolatileSetting(const char* name) {
 
 extern bool settingsUpdated;
 
-void settingsFullPostBody(TwsRequest &request, uint8_t *data, size_t len) {
+TwsRoute settingsRoute = TwsRoute("/api/internal/settings", new TwsJsonRestFunc([](TwsRequest& request, JsonDocument& doc) {
+    BatteryEmulatorSettingsStore settings;
+    JsonArray bats = doc["batteries"].to<JsonArray>();
+    for(int i=0;i<(int)BatteryType::Highest;i++) bats[i] = name_for_battery_type((BatteryType)i);
+    JsonArray invs = doc["inverters"].to<JsonArray>();
+    for(int i=0;i<(int)InverterProtocolType::Highest;i++) invs[i] = name_for_inverter_type((InverterProtocolType)i);
+
+    JsonObject sets = doc["settings"].to<JsonObject>();
+    for(int i=0;UINT_SETTINGS[i].name!=nullptr;i++) sets[UINT_SETTINGS[i].name] = settings.getUInt(UINT_SETTINGS[i].name, 0);
+    for(int i=0;FLOAT_TO_UINT_SETTINGS[i].name!=nullptr;i++) sets[FLOAT_TO_UINT_SETTINGS[i].name] = settings.getUInt(FLOAT_TO_UINT_SETTINGS[i].name, 0) / FLOAT_TO_UINT_SETTINGS[i].scale;
+    for(int i=0;STRING_SETTINGS[i].name!=nullptr;i++) {
+        if(!STRING_SETTINGS[i].secret) sets[STRING_SETTINGS[i].name] = settings.getString(STRING_SETTINGS[i].name).c_str();
+    }
+    for(int i=0;BOOL_SETTINGS[i].name!=nullptr;i++) {
+        bool def = false;
+        for(int j=0;DEFAULT_TRUE_BOOL_SETTINGS[j]!=nullptr;j++) {
+            if(strcmp(BOOL_SETTINGS[i].name, DEFAULT_TRUE_BOOL_SETTINGS[j])==0) { def = true; break; }
+        }
+        sets[BOOL_SETTINGS[i].name] = settings.getBool(BOOL_SETTINGS[i].name, def);
+    }
+
+    // All the volatile settings that aren't stored in flash.
+
+    sets["TMP_CALTARGETSOC"] = datalayer_extended.bydAtto3.calibrationTargetSOC;
+    sets["TMP_CALTARGETAH"] = datalayer_extended.bydAtto3.calibrationTargetAH;
+    if(battery) sets["TMP_FAKEBATTERYV"] = battery->get_voltage();
+    sets["TMP_BALTIME"] = datalayer.battery.settings.balancing_max_time_ms / 60000.0f;
+    sets["TMP_BALFLOATPOWER"] = datalayer.battery.settings.balancing_float_power_W;
+    sets["TMP_BALMAXPACKV"] = datalayer.battery.settings.balancing_max_pack_voltage_dV;
+    sets["TMP_BALMAXCELLV"] = datalayer.battery.settings.balancing_max_cell_voltage_mV;
+    sets["TMP_BALMAXDEVCELLV"] = datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV;
+    
+    sets["TMP_CHARGERSETPOINTV"] = datalayer.charger.charger_setpoint_HV_VDC;
+    sets["TMP_CHARGERSETPOINTA"] = datalayer.charger.charger_setpoint_HV_IDC;
+    sets["TMP_CHARGERENDA"] = datalayer.charger.charger_setpoint_HV_IDC_END;
+
+    sets["TMP_RECOVERYMODE"] = datalayer.battery.settings.user_requests_forced_charging_recovery_mode;
+    sets["TMP_BALANCE"] = datalayer.battery.settings.user_requests_balancing;
+    sets["TMP_CHARGERHVENABLED"] = datalayer.charger.charger_HV_enabled;
+    sets["TMP_CHARGERAUX12VENABLED"] = datalayer.charger.charger_aux12V_enabled;
+
+    doc["reboot_required"] = settingsUpdated;
+}, []( TwsRequest& request, uint8_t* data, size_t len) {
     JsonDocument errors;
     BatteryEmulatorSettingsStore settings;
     JsonDocument doc;
@@ -361,52 +403,11 @@ void settingsFullPostBody(TwsRequest &request, uint8_t *data, size_t len) {
                             "Access-Control-Allow-Origin: *\r\n"
                             "\r\n");
             request.set_writer_callback(StringWriter(response));
-            return;
+            return false;
         }
     }
     settingsUpdated |= settings.were_settings_updated();
-}
-
-TwsRoute settingsRoute = TwsRoute("/api/internal/settings", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
-    BatteryEmulatorSettingsStore settings;
-    JsonArray bats = doc["batteries"].to<JsonArray>();
-    for(int i=0;i<(int)BatteryType::Highest;i++) bats[i] = name_for_battery_type((BatteryType)i);
-    JsonArray invs = doc["inverters"].to<JsonArray>();
-    for(int i=0;i<(int)InverterProtocolType::Highest;i++) invs[i] = name_for_inverter_type((InverterProtocolType)i);
-
-    JsonObject sets = doc["settings"].to<JsonObject>();
-    for(int i=0;UINT_SETTINGS[i].name!=nullptr;i++) sets[UINT_SETTINGS[i].name] = settings.getUInt(UINT_SETTINGS[i].name, 0);
-    for(int i=0;FLOAT_TO_UINT_SETTINGS[i].name!=nullptr;i++) sets[FLOAT_TO_UINT_SETTINGS[i].name] = settings.getUInt(FLOAT_TO_UINT_SETTINGS[i].name, 0) / FLOAT_TO_UINT_SETTINGS[i].scale;
-    for(int i=0;STRING_SETTINGS[i].name!=nullptr;i++) {
-        if(!STRING_SETTINGS[i].secret) sets[STRING_SETTINGS[i].name] = settings.getString(STRING_SETTINGS[i].name).c_str();
-    }
-    for(int i=0;BOOL_SETTINGS[i].name!=nullptr;i++) {
-        bool def = false;
-        for(int j=0;DEFAULT_TRUE_BOOL_SETTINGS[j]!=nullptr;j++) {
-            if(strcmp(BOOL_SETTINGS[i].name, DEFAULT_TRUE_BOOL_SETTINGS[j])==0) { def = true; break; }
-        }
-        sets[BOOL_SETTINGS[i].name] = settings.getBool(BOOL_SETTINGS[i].name, def);
-    }
-
-    // All the volatile settings that aren't stored in flash.
-
-    sets["TMP_CALTARGETSOC"] = datalayer_extended.bydAtto3.calibrationTargetSOC;
-    sets["TMP_CALTARGETAH"] = datalayer_extended.bydAtto3.calibrationTargetAH;
-    if(battery) sets["TMP_FAKEBATTERYV"] = battery->get_voltage();
-    sets["TMP_BALTIME"] = datalayer.battery.settings.balancing_max_time_ms / 60000.0f;
-    sets["TMP_BALFLOATPOWER"] = datalayer.battery.settings.balancing_float_power_W;
-    sets["TMP_BALMAXPACKV"] = datalayer.battery.settings.balancing_max_pack_voltage_dV;
-    sets["TMP_BALMAXCELLV"] = datalayer.battery.settings.balancing_max_cell_voltage_mV;
-    sets["TMP_BALMAXDEVCELLV"] = datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV;
     
-    sets["TMP_CHARGERSETPOINTV"] = datalayer.charger.charger_setpoint_HV_VDC;
-    sets["TMP_CHARGERSETPOINTA"] = datalayer.charger.charger_setpoint_HV_IDC;
-    sets["TMP_CHARGERENDA"] = datalayer.charger.charger_setpoint_HV_IDC_END;
-
-    sets["TMP_RECOVERYMODE"] = datalayer.battery.settings.user_requests_forced_charging_recovery_mode;
-    sets["TMP_BALANCE"] = datalayer.battery.settings.user_requests_balancing;
-    sets["TMP_CHARGERHVENABLED"] = datalayer.charger.charger_HV_enabled;
-    sets["TMP_CHARGERAUX12VENABLED"] = datalayer.charger.charger_aux12V_enabled;
-
-    doc["reboot_required"] = settingsUpdated;
-})).use(*new TwsPostBufferingRequestHandler(settingsFullPostBody));
+    // Let the GET handler run
+    return true;
+}));

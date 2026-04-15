@@ -607,7 +607,7 @@ bool TinyWebServer::poll() {
 int TinyWebServer::write(uint32_t connection_id, const char *data, size_t len) {
     // Find the request with the given connection ID
     for (int i = 0; i < MAX_REQUESTS; i++) {
-        if (slots[i].active() && slots[i].connection_id == connection_id) {
+        if (slots[i].active() && slots[i].connection_id == connection_id && slots[0].reply_started()) {
             return slots[i].write(data, len);
         }
     }
