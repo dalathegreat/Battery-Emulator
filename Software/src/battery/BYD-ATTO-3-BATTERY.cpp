@@ -68,7 +68,7 @@ void BydAttoBattery::
   const uint16_t D_TAPER_START_mV = 40;  // begin tapering if delta exceeds this
   const uint16_t D_TAPER_END_mV = 80;    // reach tail current by here
 
-  const uint16_t TAIL_CURRENT_dA = 10;  // 0.2A tail (deci-amps). You can set to 1 for 0.1A.
+  const uint16_t TAIL_CURRENT_dA = 10;  // 1.0A tail (deci-amps). You can set to 1 for 0.1A.
 
   // Slew limits to make taper gradual
   const uint16_t DOWN_RATE_dA_per_s = 2;  // ramp down at 0.2A/s  (change to 5 for 0.5A/s)
