@@ -70,6 +70,7 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_VALUE_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_ISOLATION].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_SOC_RECALIBRATION].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BYD_AUTO_SOC_CALIBRATION].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_SOC_RESET_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_SOC_RESET_FAIL].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_VOLTAGE_DIFFERENCE].level = EVENT_LEVEL_INFO;
@@ -260,6 +261,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
     case EVENT_BATTERY_SOC_RECALIBRATION:
       return "The BMS updated the HV battery State of Charge (SOC) by more than 3pct based on SocByOcv.";
+    case EVENT_BYD_AUTO_SOC_CALIBRATION:
+      return "Auto SOC recalibration to 100% triggered. Data column shows drift% below 100%.";
     case EVENT_BATTERY_SOC_RESET_SUCCESS:
       return "SOC reset routine was successful.";
     case EVENT_BATTERY_SOC_RESET_FAIL:

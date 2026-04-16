@@ -175,7 +175,7 @@ if (datalayer_bydatto->auto_calibrate_soc_enabled &&
      (1000 - battery_highprecision_SOC) > (uint16_t)(datalayer_bydatto->auto_calibrate_soc_drift_percent * 10)) &&
     (millis64() - last_auto_calibrate_ms > 3600000ULL)) {           // 4. 1-hour cooldown
       
-  set_event(EVENT_BATTERY_SOC_RECALIBRATION, (uint8_t)(1000 - battery_highprecision_SOC) / 10);
+  set_event(EVENT_BYD_AUTO_SOC_CALIBRATION, (uint8_t)(1000 - battery_highprecision_SOC) / 10);
 
   datalayer_bydatto->calibrationTargetSOC = 100;
   if (BMS_capacity_current_calibration > 0) {                       // guard against startup zero
