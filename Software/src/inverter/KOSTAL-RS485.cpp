@@ -40,15 +40,18 @@ static void dbg_message(const char* msg) {
 }
 
 void setInverterAllowsContactorClosing(bool state) {
+  // AlwaysClosed and LockAfterFirstClose modes: Keep contactors always closed
+  if (user_selected_inverter_contactor_mode == inverter_contactor_mode_enum::AlwaysClosed ||
+      user_selected_inverter_contactor_mode == inverter_contactor_mode_enum::LockAfterFirstClose) {
+    datalayer.system.status.inverter_allows_contactor_closing = true;
+    return;
+  }
+
+  // NoWorkaround mode: Normal operation
   if (state) {
     datalayer.system.status.inverter_allows_contactor_closing = true;
-  } else {  //false, we want to open contactors
-    //Only open contactors if we are configured to allow this
-    if (user_selected_inverter_ignore_contactors) {
-      datalayer.system.status.inverter_allows_contactor_closing = true;
-    } else {
-      datalayer.system.status.inverter_allows_contactor_closing = false;
-    }
+  } else {  // false, we want to open contactors
+    datalayer.system.status.inverter_allows_contactor_closing = false;
   }
 }
 
