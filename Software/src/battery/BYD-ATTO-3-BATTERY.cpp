@@ -146,47 +146,48 @@ void BydAttoBattery::
     const uint16_t diff = cap_slewed_dA - cap_target_dA;
     const uint16_t step = (down_step >= diff) ? diff : (uint16_t)down_step;
     cap_slewed_dA -= step;
-} else if (cap_target_dA > cap_slewed_dA) {
-  const uint16_t diff = cap_target_dA - cap_slewed_dA;
-  const uint16_t step = (up_step >= diff) ? diff : (uint16_t)up_step;
-  cap_slewed_dA += step;
-}
-
-// Automatic SOC Calibration to 100%
-if (prog >= 0.95f &&
-    cap_slewed_dA <= TAIL_CURRENT_dA &&
-    datalayer_battery->status.current_dA < 0 &&
-    std::abs(datalayer_battery->status.current_dA) < 30) {
-  if (tail_dwell_start_ms == 0) {
-    tail_dwell_start_ms = millis64();
+  } else if (cap_target_dA > cap_slewed_dA) {
+    const uint16_t diff = cap_target_dA - cap_slewed_dA;
+    const uint16_t step = (up_step >= diff) ? diff : (uint16_t)up_step;
+    cap_slewed_dA += step;
   }
-} else {
-  tail_dwell_start_ms = 0;
-}
 
-static const uint64_t TAIL_DWELL_MS = 10ULL * 60ULL * 1000ULL;    // 10 minutes
+  // Automatic SOC Calibration to 100%
+  if (prog >= 0.95f &&
+      cap_slewed_dA <= TAIL_CURRENT_dA &&
+      datalayer_battery->status.current_dA < 0 &&
+      std::abs(datalayer_battery->status.current_dA) < 30) {
+    if (tail_dwell_start_ms == 0) {
+      tail_dwell_start_ms = millis64();
+    }
+  } else {
+    tail_dwell_start_ms = 0;
+  }
 
-if (datalayer_bydatto->auto_calibrate_soc_enabled &&
-    datalayer_bydatto->UserRequestCalibrateSOC == false &&          // dont fight manual request
-    stateMachineCalibrateSOC == NOT_RUNNING &&
-    datalayer.system.status.battery_allows_contactor_closing &&
-    tail_dwell_start_ms != 0 &&                                     // 1. dwell clock is running
-    (millis64() - tail_dwell_start_ms >= TAIL_DWELL_MS) &&          // 2. held at tail for 10 min
+  const uint64_t TAIL_DWELL_MS = 10ULL * 60ULL * 1000ULL;
+  const uint64_t now64 = millis64();
+
+  if (datalayer_bydatto->auto_calibrate_soc_enabled &&
+      datalayer_bydatto->UserRequestCalibrateSOC == false &&          // dont fight manual request
+      stateMachineCalibrateSOC == NOT_RUNNING &&
+      datalayer.system.status.battery_allows_contactor_closing &&
+      tail_dwell_start_ms != 0 &&                                     // 1. dwell clock is running
+      (now64 - tail_dwell_start_ms >= TAIL_DWELL_MS) &&               // 2. held at tail for 10 min
       (battery_highprecision_SOC < 1000 &&
-     (1000 - battery_highprecision_SOC) > (uint16_t)(datalayer_bydatto->auto_calibrate_soc_drift_percent * 10)) &&
-    (millis64() - last_auto_calibrate_ms > 3600000ULL)) {           // 4. 1-hour cooldown
-      
-  set_event(EVENT_BYD_AUTO_SOC_CALIBRATION, (uint8_t)((1000 - battery_highprecision_SOC) / 10));
+       (1000 - battery_highprecision_SOC) > (uint16_t)(datalayer_bydatto->auto_calibrate_soc_drift_percent * 10)) &&
+      (now64 - last_auto_calibrate_ms > 3600000ULL)) {                // 4. 1-hour cooldown
 
-  datalayer_bydatto->calibrationTargetSOC = 100;
-  if (BMS_capacity_current_calibration > 0) {                       // guard against startup zero
-    datalayer_bydatto->calibrationTargetAH = BMS_capacity_current_calibration / 100;
+    set_event(EVENT_BYD_AUTO_SOC_CALIBRATION, (uint8_t)((1000 - battery_highprecision_SOC) / 10));
+
+    datalayer_bydatto->calibrationTargetSOC = 100;
+    if (BMS_capacity_current_calibration > 0) {                       // guard against startup zero
+      datalayer_bydatto->calibrationTargetAH = BMS_capacity_current_calibration / 100;
+    }
+    datalayer_bydatto->UserRequestCalibrateSOC = true;
+
+    last_auto_calibrate_ms = now64;
+    tail_dwell_start_ms = 0;                                          // reset after firing
   }
-  datalayer_bydatto->UserRequestCalibrateSOC = true;
-
-  last_auto_calibrate_ms = millis64();
-  tail_dwell_start_ms = 0;                                          // reset after firing
-}
 
   // Convert current cap (dA) -> power cap (W): P = I(dA) * V(dV) / 100
   const uint32_t power_cap_W = (uint32_t(cap_slewed_dA) * uint32_t(datalayer_battery->status.voltage_dV)) / 100;
@@ -401,7 +402,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x7EF:  //OBD2 PID reply from battery
       if ((rx_frame.data.u8[0] == 0x04) && (rx_frame.data.u8[1] == 0x67) && (rx_frame.data.u8[2] == 0x01)) {
         seed = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        solvedKey = byd_generate_key(seed, 0x63);  //For now key can be either 0xbd or 0x63, 50/50 of guessing right
+          solvedKey = byd_generate_key(seed, 0x63);  //For now key can be either 0xbd or 0x63, 50/50 of guessing right
       }
       if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F)) {
         servicemode = REJECTED;

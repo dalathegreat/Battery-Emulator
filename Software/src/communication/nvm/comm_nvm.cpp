@@ -213,8 +213,7 @@ void init_stored_settings() {
   ct_clamp_nominal_current_A = settings.getUInt("CTANOM", 100);
   ct_clamp_pin_atten = (adc_attenuation_enum)settings.getUInt("CTATTEN", 3);
   ct_invert_current = settings.getBool("CTINVERT", false);
-  settings.end();
-
+  
   datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent =
       constrain(settings.getUChar("BYDAUTOCALDRIFT", 5), 1, 20);
   datalayer_extended.bydAtto3.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN", true);
