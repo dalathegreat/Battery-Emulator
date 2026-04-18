@@ -69,8 +69,9 @@ public:
     bool write_fully(const char *buf);
     bool write_fully(const char *buf, uint16_t len);
     uint32_t write_direct(const char *buf, uint16_t len);
+    uint32_t write_indirect(const char *buf, uint16_t len);
     int available();
-    int free();
+    inline int free() { return sizeof(send_buffer) - send_buffer_len; }
     int read(char *buf, uint16_t len);
     int read_flush(uint16_t len);
 

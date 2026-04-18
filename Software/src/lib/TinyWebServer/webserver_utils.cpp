@@ -71,34 +71,15 @@ int TwsRawPostFunc::handlePostBody(TwsRequest &request, size_t index, uint8_t *d
     return handle(request, index, data, len);
 }
 
-int TwsJsonRestHandler::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
-    auto &state = get_state(request);
-    if(!state.post_body) {
-        if (state.content_length > _max_size) {
-            request.send(413, "text/plain", "Payload Too Large");
-            request.finish();
-            return -1;
-        }
-        state.post_body = std::make_shared<PostBody>(state.content_length);
-    }
-    
-    state.post_body->set(data, index, len);
-
-    if(index + len >= state.content_length) {
-        return -1; // Upload complete, wait for handleRequest to fire
-    }
-    return len;
-}
-
 void TwsJsonRestHandler::handleRequest(TwsRequest &request) {
     // If it's a POST, execute the POST logic first
     if (request.is_post()) {
         auto &state = get_state(request);
         uint8_t* payload = state.post_body ? state.post_body->data : nullptr;
         
-        // If handleJsonPost returns false, it means the POST completed the
+        // If handleJsonPost returns true, it means the POST completed the
         // response (eg, due to an error), so we should finish.
-        if (!handleJsonPost(request, payload, state.content_length)) {
+        if (handleJsonPost(request, payload, state.content_length)) {
             return; 
         }
     }
@@ -118,7 +99,7 @@ void TwsJsonRestHandler::handleRequest(TwsRequest &request) {
 }
 
 bool TwsJsonRestHandler::handleJsonPost(TwsRequest& request, uint8_t* data, size_t len) {
-    return true; 
+    return false; 
 }
 
 void TwsJsonRestHandler::handleJsonGet(TwsRequest& request, JsonDocument& doc) {}
@@ -130,7 +111,7 @@ bool TwsJsonRestFunc::handleJsonPost(TwsRequest& request, uint8_t* data, size_t 
     // Reject POSTs if no handler was provided
     request.write_fully(HTTP_405);
     request.finish();
-    return false; 
+    return true; 
 }
 
 void TwsJsonRestFunc::handleJsonGet(TwsRequest& request, JsonDocument& doc) {

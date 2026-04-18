@@ -121,7 +121,7 @@ export function Form({ children, initial, changed, validate, submit }: {
 
     // preload the form fields as uncontrolled inputs?
 
-    return <form ref={form} action="#" onSubmit={ handleSubmit } onChange={ handleChange } data-initialized="0">
+    return <form ref={form} action="#" onSubmit={ handleSubmit } onChange={ handleChange } onInput={ handleChange } data-initialized="0">
         {children}
     </form>
 }
@@ -159,10 +159,11 @@ export function ipField(label: string, name: string) {
     </div>;
 }
 
-export function textPatternField(label: string, name: string, pattern: string) {
+export function textPatternField(label: string, name: string, pattern: string, help_text?: string) {
     return <div class="form-row">
         <label>{ label }</label>
         <input type="text" name={ name } pattern={ pattern || undefined } />
+        { help_text && <span>{ help_text }</span> }
     </div>;
 }
 

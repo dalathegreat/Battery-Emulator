@@ -7,14 +7,14 @@ int can_dumper_connection_id = 0;
 
 static const char *hex = "0123456789abcdef";
 
-char* put_hex(char *ptr, uint32_t value, uint8_t digits) {
+char* IRAM_ATTR put_hex(char *ptr, uint32_t value, uint8_t digits) {
     for(int i=digits-1;i>=0;i--) {
         *ptr++ = hex[(value >> (i*4)) & 0x0f];
     }
     return ptr;
 }
 
-char* put_time(char *ptr, unsigned long time) {
+char* IRAM_ATTR put_time(char *ptr, unsigned long time) {
     // Wrap around after 100000 seconds (about 27.7 hours) to avoid overflowing the buffer
     if(time >= 100000000) time = time % 100000000;
 
@@ -33,7 +33,7 @@ char* put_time(char *ptr, unsigned long time) {
     return ptr;
 }
 
-void dump_can_frame2(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
+void IRAM_ATTR dump_can_frame2(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
     const int required_space = 29 + frame.DLC*3 + 20;
     if(tinyWebServer.free(can_dumper_connection_id) < required_space) {
         tinyWebServer.write(can_dumper_connection_id, "\n", 1);

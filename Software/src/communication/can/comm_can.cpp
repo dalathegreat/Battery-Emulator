@@ -413,7 +413,10 @@ void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection ms
     }
   }
   if (datalayer.system.info.can_logging_active2) {  // If user clicked on CAN Dumping page in webserver, start recording
+    //uint32_t t = esp_timer_get_time();
     dump_can_frame2(frame, interface, msgDir);
+    //uint32_t elapsed = esp_timer_get_time() - t;
+    //logging.printf("Took: %uus\n", elapsed);
   }
 }
 

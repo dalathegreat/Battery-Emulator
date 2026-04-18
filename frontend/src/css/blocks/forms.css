@@ -82,6 +82,18 @@ form .actions {
   margin: 0.1rem 0.8rem 0 0;
 }
 
+.form-row span {
+  display: block;
+  font-size: 0.83rem;
+  color: #aaaaaa;
+  text-align: right;
+  margin: -23px 12px 15px 0;
+}
+
+.form-row input:has(+ span) {
+  padding-bottom: 22px;
+}
+
 @media (max-width: 768px) {
     .form__with-aside {
         flex-direction: column;
