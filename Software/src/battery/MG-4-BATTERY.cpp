@@ -152,79 +152,91 @@ void Mg4Battery::
 
   // Should be called every second
 
-  // cell_voltage_freshness = 10;
-  // datalayer.battery.status.cell_min_voltage_mV = 2900;
-  // datalayer.battery.status.cell_max_voltage_mV = 2910;
-  // datalayer.battery.status.current_dA = 1000;
+  if (coulombCounting) {
+    if (cell_voltage_freshness <= 0) {
+      // No valid cell voltage received yet, can't update
+      datalayer.battery.status.max_charge_power_W = 0;
+      datalayer.battery.status.max_discharge_power_W = 0;
+      return;
+    }
 
-  if (cell_voltage_freshness <= 0) {
-    // No valid cell voltage received yet, can't update
-    datalayer.battery.status.max_charge_power_W = 0;
-    datalayer.battery.status.max_discharge_power_W = 0;
-    return;
-  }
+    uint32_t nominal_cell_voltage_mV = (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) ? 3300 : 3700;
+    uint32_t capacity_mAh =
+        ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.info.number_of_cells) * 1000000) /
+        nominal_cell_voltage_mV;
 
-  uint32_t nominal_cell_voltage_mV = (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) ? 3300 : 3700;
-  uint32_t capacity_mAh =
-      ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.info.number_of_cells) * 1000000) /
-      nominal_cell_voltage_mV;
+    if (!total_discharge_initialized) {
+      // Initialize the total discharge counter based on the min cell voltage
+      printf("cell min voltage: %d mV\n", datalayer.battery.status.cell_min_voltage_mV);
+      uint16_t initial_soc_centipercent = ocv_to_soc(datalayer.battery.status.cell_min_voltage_mV);
+      logging.printf("Initial soc: %d\n", initial_soc_centipercent);
+      logging.printf("Capacity mAh: %lu\n", capacity_mAh);
 
-  if (!total_discharge_initialized) {
-    // Initialize the total discharge counter based on the min cell voltage
-    printf("cell min voltage: %d mV\n", datalayer.battery.status.cell_min_voltage_mV);
-    uint16_t initial_soc_centipercent = ocv_to_soc(datalayer.battery.status.cell_min_voltage_mV);
-    logging.printf("Initial soc: %d\n", initial_soc_centipercent);
-    logging.printf("Capacity mAh: %lu\n", capacity_mAh);
+      total_discharge_dC = ((uint64_t)(10000 - initial_soc_centipercent) * capacity_mAh * 36) / 10000;
+      logging.printf("Initial total discharge: %lu dC\n", total_discharge_dC);
+      total_discharge_initialized = true;
+    }
 
-    total_discharge_dC = ((uint64_t)(10000 - initial_soc_centipercent) * capacity_mAh * 36) / 10000;
-    logging.printf("Initial total discharge: %lu dC\n", total_discharge_dC);
-    total_discharge_initialized = true;
-  }
+    // Do coulomb count
 
-  // Do coulomb count
+    if (datalayer.battery.status.current_dA > (int32_t)total_discharge_dC) {
+      // We're charging, but discharge is nearly zero - cap at zero
+      total_discharge_dC = 0;
+    } else {
+      // Subtract the (charging) current from the discharge counter
+      total_discharge_dC -= datalayer.battery.status.current_dA;
+    }
 
-  if (datalayer.battery.status.current_dA > (int32_t)total_discharge_dC) {
-    // We're charging, but discharge is nearly zero - cap at zero
-    total_discharge_dC = 0;
+    int32_t soc_centipercent = 10000;
+    if (capacity_mAh > 0) {
+      // (total_discharge_dC * 10000)
+      soc_centipercent = 10000 - (((total_discharge_dC / 9) * 2500) / capacity_mAh);
+    }
+    if (soc_centipercent > 10000) {
+      soc_centipercent = 10000;
+    } else if (soc_centipercent < 0) {
+      soc_centipercent = 0;
+    }
+
+    if (datalayer.battery.status.cell_max_voltage_mV >= (get_working_max_cell_voltage_mV() - 10)) {
+      // We're full
+      soc_centipercent = 10000;
+      total_discharge_dC = 0;
+    } else if (datalayer.battery.status.cell_min_voltage_mV <= (get_working_min_cell_voltage_mV() + 10)) {
+      // We're empty
+      soc_centipercent = 0;
+    } else if (soc_centipercent < 100 &&
+               datalayer.battery.status.cell_min_voltage_mV > get_working_min_cell_voltage_mV()) {
+      // Floor at 1% if we're still not down to the working min
+      soc_centipercent = 100;
+    } else if (soc_centipercent > 9900 &&
+               datalayer.battery.status.cell_max_voltage_mV < get_working_max_cell_voltage_mV()) {
+      // Cap at 99% if we're still not up to the working max
+      soc_centipercent = 9900;
+    }
+
+    update_soc(soc_centipercent);
+
+    if (cell_voltage_freshness > 0)
+      cell_voltage_freshness--;
+    datalayer.battery.status.max_charge_power_W = calculate_max_charge_power_W();
+    datalayer.battery.status.max_discharge_power_W = calculate_max_discharge_power_W();
   } else {
-    // Subtract the (charging) current from the discharge counter
-    total_discharge_dC -= datalayer.battery.status.current_dA;
-  }
+    if (soc_freshness > 0) {
+      soc_freshness--;
+    }
 
-  int32_t soc_centipercent = 10000;
-  if (capacity_mAh > 0) {
-    // (total_discharge_dC * 10000)
-    soc_centipercent = 10000 - (((total_discharge_dC / 9) * 2500) / capacity_mAh);
-  }
-  if (soc_centipercent > 10000) {
-    soc_centipercent = 10000;
-  } else if (soc_centipercent < 0) {
-    soc_centipercent = 0;
-  }
+    if (soc_freshness <= 0) {
+      datalayer.battery.status.max_charge_power_W = 0;
+      datalayer.battery.status.max_discharge_power_W = 0;
+    } else {
+      datalayer.battery.status.max_charge_power_W = taper_charge_power_linear(
+          datalayer.battery.status.real_soc, MAX_CHARGE_POWER_W, CHARGE_TRICKLE_POWER_W, DERATE_CHARGE_ABOVE_SOC);
 
-  if (datalayer.battery.status.cell_max_voltage_mV >= (get_working_max_cell_voltage_mV() - 10)) {
-    // We're full
-    soc_centipercent = 10000;
-    total_discharge_dC = 0;
-  } else if (datalayer.battery.status.cell_min_voltage_mV <= (get_working_min_cell_voltage_mV() + 10)) {
-    // We're empty
-    soc_centipercent = 0;
-  } else if (soc_centipercent < 100 &&
-             datalayer.battery.status.cell_min_voltage_mV > get_working_min_cell_voltage_mV()) {
-    // Floor at 1% if we're still not down to the working min
-    soc_centipercent = 100;
-  } else if (soc_centipercent > 9900 &&
-             datalayer.battery.status.cell_max_voltage_mV < get_working_max_cell_voltage_mV()) {
-    // Cap at 99% if we're still not up to the working max
-    soc_centipercent = 9900;
+      datalayer.battery.status.max_discharge_power_W = taper_discharge_power_linear(
+          datalayer.battery.status.real_soc, MAX_DISCHARGE_POWER_W, DISCHARGE_MIN_SOC, DERATE_DISCHARGE_BELOW_SOC);
+    }
   }
-
-  update_soc(soc_centipercent);
-
-  if (cell_voltage_freshness > 0)
-    cell_voltage_freshness--;
-  datalayer.battery.status.max_charge_power_W = calculate_max_charge_power_W();
-  datalayer.battery.status.max_discharge_power_W = calculate_max_discharge_power_W();
 
   // Taper charge/discharge power at high/low SoC
   // if (datalayer.battery.status.real_soc > 9000) {
@@ -252,8 +264,10 @@ void Mg4Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
       if (rx_frame.DLC == 8) {
-        // datalayer.battery.status.voltage_dV = (((rx_frame.data.u8[4] << 4) | (rx_frame.data.u8[5] >> 4)) * 5) / 2;
-        // datalayer.battery.status.current_dA = -(((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) - 20000) / 2;
+        if (!reportsFDVoltages) {
+          datalayer.battery.status.voltage_dV = (((rx_frame.data.u8[4] << 4) | (rx_frame.data.u8[5] >> 4)) * 5) / 2;
+          datalayer.battery.status.current_dA = -(((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) - 20000) / 2;
+        }
       } else {
         // Longer FD one
         datalayer.battery.status.voltage_dV = (((rx_frame.data.u8[8] << 4) | (rx_frame.data.u8[9] >> 4)) * 5) / 2;
@@ -270,13 +284,18 @@ void Mg4Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         datalayer.battery.status.temperature_min_dC = ((int)rx_frame.data.u8[22] * 5) - 400;
 
         cell_voltage_freshness = 10;
+        reportsFDVoltages = true;
       }
 
       break;
     case 0x401:
       soc_times_ten = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]) & 0x3FF;
+
       if (soc_times_ten <= 1000) {
-        //update_soc(soc_times_ten * 10);
+        if (!coulombCounting) {
+          update_soc(soc_times_ten * 10);
+          soc_freshness = 10;
+        }
         reportsSoC = true;
       }
 

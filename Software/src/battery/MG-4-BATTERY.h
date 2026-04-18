@@ -23,9 +23,12 @@ class Mg4Battery : public UdsCanBattery {
   int32_t working_cell_max_mV = 0;
   bool below_working_min = false;
   int32_t cell_voltage_freshness = 0;
+  int32_t soc_freshness = 0;
 
   int sendPhase = 0;
+  bool reportsFDVoltages = false;
   bool reportsSoC = false;
+  bool coulombCounting = false;
 
   unsigned long total_discharge_dC = 0;
   bool total_discharge_initialized = false;
