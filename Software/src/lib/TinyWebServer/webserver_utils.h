@@ -36,6 +36,9 @@ private:
 TwsRequestWriterCallbackFunction StringListWriter(std::shared_ptr<std::vector<StringLike>> &response);
 TwsRequestWriterCallbackFunction CharBufWriter(const char* buf, int len);
 
+// A simple handler that responds to GET requests with a JSON document generated
+// by a user-supplied callback
+
 class TwsJsonGetFunc : public TwsRequestHandler {
 public:
     TwsJsonGetFunc(void (*respond)(TwsRequest& request, JsonDocument& doc)) : respond(respond) {}
@@ -44,6 +47,9 @@ public:
 
     void (*respond)(TwsRequest& request, JsonDocument& doc);
 };
+
+// A simple handler that responds to POST requests, repeatedly calling a
+// user-supplied callback with the raw POST body data as it is received.
 
 class TwsRawPostFunc : public TwsPostBodyHandler {
 public:
@@ -54,25 +60,35 @@ public:
     int (*handle)(TwsRequest& request, size_t index, uint8_t *data, size_t len);
 };
 
-class TwsJsonRestHandler : public TwsStatefulMiddleware<PostBufferingRequestHandlerState> {
+// A handler superclass for JSON REST endpoint handlers, supporting both GET and
+// POST. The POST body is buffered in memory up to a configurable maximum size. 
+
+class TwsJsonRestHandler : public TwsPostBufferingRequestHandler {
 public:
-    TwsJsonRestHandler(size_t max_size = 16384) : _max_size(max_size) {}
+    TwsJsonRestHandler(size_t max_size = 16384) : TwsPostBufferingRequestHandler(nullptr, max_size)
+    {}
 
-    int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
-
-    // 2. Dispatch to the right logic safely
     void handleRequest(TwsRequest &request) override;
 
 protected:
-    // Return true to cascade into handleJsonGet (success). Return false to abort.
+    // Return false to cascade into handleJsonGet. Return true to abort.
     virtual bool handleJsonPost(TwsRequest& request, uint8_t* data, size_t len);
 
     // Populate the GET response
     virtual void handleJsonGet(TwsRequest& request, JsonDocument& doc);
-
-private:
-    size_t _max_size;
 };
+
+
+// A handler for JSON REST endpoints, where the request handling logic is
+// implemented by user-supplied callbacks.
+
+// For POST requests the second callback will called first, with the entire
+// buffered POST body. The callback can end processing at this point by
+// returning true, otherwise the GET handler will then be called.
+
+// For GET requests (and continuing POSTs) the first callback is called, with an
+// empty JsonDocument to populate, which will be sent as the response body after
+// the callback returns.
 
 typedef void (*JsonGetCallback)(TwsRequest& request, JsonDocument& doc);
 typedef bool (*JsonPostCallback)(TwsRequest& request, uint8_t* data, size_t len);
