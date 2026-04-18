@@ -74,10 +74,30 @@ async function downloadAndFlash(path: string, cb: (ratio: number) => void) {
     });
 }
 
+function renderMarkdown(text: string) {
+    if (!text) return null;
+    
+    const [marked, setMarked] = useState<any>(null);
+
+    useEffect(() => {
+        import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js")
+            .then(m => setMarked(m))
+            .catch(e => console.error("Failed to load 'marked' from CDN", e));
+    }, []);
+
+    if (marked) {
+        return <div dangerouslySetInnerHTML={{ __html: marked.parse(text) }} />;
+    }
+
+    // Fallback: show the unformatted markdown
+    return <div style="white-space: pre-wrap;">{text}</div>;
+}
+
 export function Ota() {
     const [progress, setProgress] = useState(-1);
     const status = useGetApi('/api/status', 0);
     const blah = useGetApi("https://api.github.com/repos/dalathegreat/BE-Web-Installer/git/trees/main?recursive=1");
+    const githubReleases = useGetApi("https://api.github.com/repos/dalathegreat/Battery-Emulator/releases");
 
     const currentVersionKey = versionSortKey("1.2.3");//versionSortKey(status?.firmware);
     const hardware: string = {
@@ -89,6 +109,7 @@ export function Ota() {
     const releases: any[] = blah?.tree?.map((item: any) =>({
        ...item,
        k: versionSortKey(item.path.split('/')[1]),
+       version: item.path.split('/')[1]
     })).filter((item: any) => item.path.endsWith('_' + hardware + '.ota.bin')) || [];
     releases.sort((a: any, b: any) => b.k.localeCompare(a.k));
     
@@ -99,15 +120,30 @@ export function Ota() {
     }, [progress]);
 
     function formatReleases(releases: any[], level?: string) {
-        return releases.map(r=>
-            <div class={"alert slim"} data-level={level}>
-                { r.path.split('/')[2] }&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                <Button onClick={ ()=>downloadAndFlash(r.path, setProgress) } 
-                        confirm="This will install this version and reboot. Are you sure?"
-                        disabled={progress>=0 && progress<1}
-                        >Install</Button>
-            </div>
-        );
+        return releases.map(r => {
+            const filename = r.path.split('/')[2];
+            const releaseInfo = Array.isArray(githubReleases) && githubReleases.find((rel: any) => 
+                rel.tag_name === r.version || rel.name === r.version || 
+                rel.assets?.some((a: any) => a.name === filename)
+            );
+
+            return (
+                <div class={"alert slim"} data-level={level} style="display: block; margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>{ filename }</span>
+                        <Button onClick={ ()=>downloadAndFlash(r.path, setProgress) } 
+                                confirm="This will install this version and reboot. Are you sure?"
+                                disabled={progress>=0 && progress<1}
+                                >Install</Button>
+                    </div>
+                    { releaseInfo && (
+                        <div style="margin-top: 0.5rem; font-size: 0.85rem; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 0.5rem;">
+                            { renderMarkdown(releaseInfo.body) }
+                        </div>
+                    )}
+                </div>
+            );
+        });
     }
     const newReleases = releases.filter((r)=> r.k > currentVersionKey);
     const oldReleases = releases.filter((r)=> r.k <= currentVersionKey);
