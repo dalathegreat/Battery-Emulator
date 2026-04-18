@@ -29,11 +29,7 @@ function Tray({status}: {status: any}) {
 
 function EventCount({status}: {status: any}) {
   const latest = window.latest_event_time || 0;
-  console.log('latest is', latest);
   const events = (status?.events || []).filter((ev: any) => ((status._now - ev.age) > (latest + 10)));
-  for(let ev of status?.events || []) {
-    console.log('ev', ev, status._now - ev.age);
-  }
   const levels: {[key: string]: number} = {'ERROR': 2, 'WARNING': 1};
   const level = Math.max(...events.map((ev: any) => (levels[ev.level] || 0)), 0);
   const worst = level === 2 ? 'error' : level === 1 ? 'warn' : 'info';

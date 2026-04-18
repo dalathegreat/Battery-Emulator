@@ -6,8 +6,10 @@
 #include <src/charger/CHARGERS.h>
 #include <src/inverter/INVERTERS.h>
 #include <src/charger/CanCharger.h>
+#include <src/communication/contactorcontrol/comm_contactorcontrol.h>
 #include <src/communication/equipmentstopbutton/comm_equipmentstopbutton.h>
-
+#include <src/communication/precharge_control/precharge_control.h>
+#include <src/devboard/mqtt/mqtt.h>
 /* 
 
 Adding settings
@@ -61,6 +63,7 @@ const UintSetting UINT_SETTINGS[] = {
     {"SHUNTTYPE", 0, (uint32_t)ShuntType::Highest-1, nullptr},
     {"SHUNTCOMM", 0, (uint32_t)comm_interface::Highest-1, nullptr},
     {"MAXPRETIME", 0, 120000, nullptr},
+    {"MAXPREFREQ", 0, 65535, nullptr},
     {"WIFICHANNEL", 0, 14, nullptr},
     {"DCHGPOWER", 0, 100000, nullptr},
     {"CHGPOWER", 0, 100000, nullptr},
@@ -101,6 +104,13 @@ const UintSetting UINT_SETTINGS[] = {
     {"GPIOOPT1", 0, 255, nullptr},
     {"GPIOOPT2", 0, 255, nullptr},
     {"GPIOOPT3", 0, 255, nullptr},
+    {"GPIOOPT4", 0, 255, nullptr},
+    {"INVSUNTYPE", 0, 255, nullptr},
+    {"CTVNOM", 0, 65535, nullptr},
+    {"CTANOM", 0, 65535, nullptr},
+    {"CTATTEN", 0, (uint32_t)adc_attenuation_enum::Highest-1, nullptr},
+    {"PYLONBAUD", 0, 1000000, nullptr},
+    {"PYLONBRAND", 0, 255, nullptr},
     {"TMP_CALTARGETSOC", 0, 100,
         [](uint32_t value) { datalayer_extended.bydAtto3.calibrationTargetSOC = value; }
     },
@@ -136,11 +146,12 @@ struct FloatToUintSetting {
 const FloatToUintSetting FLOAT_TO_UINT_SETTINGS[] = {
     {"BATTPVMAX", 0.0f, 1000.0f, 10.0f, nullptr},
     {"BATTPVMIN", 0.0f, 1000.0f, 10.0f, nullptr},
-    {"MAXPERCENTAGE", 0.0f, 100.0f, 100.0f, 
-        [](uint32_t value) { datalayer.battery.settings.max_percentage = value; }
+    // Confusingly, these two are stored as d% in NVM but c% in the datalayer.
+    {"MAXPERCENTAGE", 0.0f, 100.0f, 10.0f, 
+        [](uint32_t value) { datalayer.battery.settings.max_percentage = value * 10.0f; }
     },
-    {"MINPERCENTAGE", 0.0f, 100.0f, 100.0f,
-        [](uint32_t value) { datalayer.battery.settings.min_percentage = value; }
+    {"MINPERCENTAGE", 0.0f, 100.0f, 10.0f,
+        [](uint32_t value) { datalayer.battery.settings.min_percentage = value * 10.0f; }
     },
     {"MAXCHARGEAMP", 0.0f, 100.0f, 10.0f,
         [](uint32_t value) { datalayer.battery.settings.max_user_set_charge_dA = value; }
@@ -250,6 +261,7 @@ const BoolSetting BOOL_SETTINGS[] = {
     {"TRIBTR", nullptr},
     {"CNTCTRLTRI", nullptr},
     {"ESPNOWENABLED", nullptr},
+    {"PRIMOGEN24", nullptr},
     {"USE_SCALED_SOC",
         [](bool value) { datalayer.battery.settings.soc_scaling_active = value; }
     },    
@@ -281,10 +293,40 @@ TwsRoute settingsRoute = TwsRoute("/api/internal/settings", new TwsJsonRestFunc(
     for(int i=0;i<(int)InverterProtocolType::Highest;i++) invs[i] = name_for_inverter_type((InverterProtocolType)i);
 
     JsonObject sets = doc["settings"].to<JsonObject>();
-    for(int i=0;UINT_SETTINGS[i].name!=nullptr;i++) sets[UINT_SETTINGS[i].name] = settings.getUInt(UINT_SETTINGS[i].name, 0);
-    for(int i=0;FLOAT_TO_UINT_SETTINGS[i].name!=nullptr;i++) sets[FLOAT_TO_UINT_SETTINGS[i].name] = settings.getUInt(FLOAT_TO_UINT_SETTINGS[i].name, 0) / FLOAT_TO_UINT_SETTINGS[i].scale;
+
+    // Pre-set some defaults (where non-zero by default)
+    sets["APNAME"] = ssidAP;
+
+    sets["BMSRESETDUR"] = datalayer.battery.settings.user_set_bms_reset_duration_ms;
+    
+    sets["PRECHGMS"] = precharge_time_ms;
+    sets["MAXPRETIME"] = precharge_max_precharge_time_before_fault;
+    sets["MAXPREFREQ"] = Precharge_max_PWM_Freq;
+    sets["PWMFREQ"] = pwm_frequency;
+    sets["PWMHOLD"] = pwm_hold_duty;
+
+    sets["MQTTTIMEOUT"] = mqtt_timeout_ms;
+    sets["MQTTPUBLISHMS"] = mqtt_publish_interval_ms;
+    
+    sets["CTOFFSET"] = -1;
+    sets["CTVNOM"] = 40;
+    sets["CTANOM"] = 100;
+    sets["CTATTEN"] = 3;
+
+    for(int i=0;UINT_SETTINGS[i].name!=nullptr;i++) {
+        if(settings.settingExists(UINT_SETTINGS[i].name)) {
+            sets[UINT_SETTINGS[i].name] = settings.getUInt(UINT_SETTINGS[i].name, 0);
+        }
+    }
+    for(int i=0;FLOAT_TO_UINT_SETTINGS[i].name!=nullptr;i++) {
+        if(settings.settingExists(FLOAT_TO_UINT_SETTINGS[i].name)) {
+            sets[FLOAT_TO_UINT_SETTINGS[i].name] = settings.getUInt(FLOAT_TO_UINT_SETTINGS[i].name, 0) / FLOAT_TO_UINT_SETTINGS[i].scale;
+        }
+    }
     for(int i=0;STRING_SETTINGS[i].name!=nullptr;i++) {
-        if(!STRING_SETTINGS[i].secret) sets[STRING_SETTINGS[i].name] = settings.getString(STRING_SETTINGS[i].name).c_str();
+        if(settings.settingExists(STRING_SETTINGS[i].name) && !STRING_SETTINGS[i].secret) {
+            sets[STRING_SETTINGS[i].name] = settings.getString(STRING_SETTINGS[i].name).c_str();
+        }
     }
     for(int i=0;BOOL_SETTINGS[i].name!=nullptr;i++) {
         bool def = false;
@@ -316,6 +358,9 @@ TwsRoute settingsRoute = TwsRoute("/api/internal/settings", new TwsJsonRestFunc(
 
     doc["reboot_required"] = settingsUpdated;
 }, []( TwsRequest& request, uint8_t* data, size_t len) {
+
+    logging.printf("Got settings POST with len %d: %.*s\n", len, (int)len, data);
+
     JsonDocument errors;
     BatteryEmulatorSettingsStore settings;
     JsonDocument doc;
@@ -403,11 +448,11 @@ TwsRoute settingsRoute = TwsRoute("/api/internal/settings", new TwsJsonRestFunc(
                             "Access-Control-Allow-Origin: *\r\n"
                             "\r\n");
             request.set_writer_callback(StringWriter(response));
-            return false;
+            return true; // The request is now finished
         }
     }
     settingsUpdated |= settings.were_settings_updated();
     
     // Let the GET handler run
-    return true;
+    return false;
 }));

@@ -177,17 +177,15 @@ TwsRoute batcmdRoute = TwsRoute("/api/batteries/*", new TwsJsonRestFunc([](TwsRe
         if(battery->supports_clear_isolation()) commands["clear_isolation"] = true;
         if(battery->supports_reset_BMS()) commands["reset_bms"] = true;
         if(battery->supports_reset_SOC()) commands["reset_soc"] = true;
-        if(battery->supports_reset_crash()) commands["reset_crash"] = true;
         if(battery->supports_reset_NVROL()) commands["reset_nvrol"] = true;
         if(battery->supports_reset_DTC()) commands["reset_dtc"] = true;
         if(battery->supports_read_DTC()) commands["read_dtc"] = true;
-        if(battery->supports_reset_SOH()) commands["reset_soh"] = true;
         if(battery->supports_reset_BECM()) commands["reset_becm"] = true;
         if(battery->supports_calibrate_SOC()) commands["calibrate_soc"] = true;
         if(battery->supports_contactor_close()) commands["contactor_close"] = true;
         if(battery->supports_contactor_reset()) commands["contactor_reset"] = true;
-        if(battery->supports_set_fake_voltage()) commands["set_fake_voltage"] = true;
-        if(battery->supports_manual_balancing()) commands["manual_balancing"] = true;
+        //if(battery->supports_set_fake_voltage()) commands["set_fake_voltage"] = true;
+        //if(battery->supports_manual_balancing()) commands["manual_balancing"] = true;
         if(battery->supports_real_BMS_status()) commands["real_bms_status"] = true;
         if(battery->supports_toggle_SOC_method()) commands["toggle_soc_method"] = true;
         if(battery->supports_energy_saving_mode_reset()) commands["energy_saving_mode_reset"] = true;
@@ -220,15 +218,13 @@ TwsRoute batcmdRoute = TwsRoute("/api/batteries/*", new TwsJsonRestFunc([](TwsRe
         }
     }
 }, []( TwsRequest& request, uint8_t* data, size_t len) {
-    logging.printf("Post len is %d\n", (int)len);
-
     std::string_view wildcard(request.get_path_wildcard());
 
     int first_slash = wildcard.find('/');
     if (first_slash == -1) {
         request.write_fully(HTTP_404);
         request.finish();
-        return false;
+        return true; // The request is now finished
     }
 
     int second_slash = wildcard.find('/', first_slash + 1);
@@ -246,7 +242,7 @@ TwsRoute batcmdRoute = TwsRoute("/api/batteries/*", new TwsJsonRestFunc([](TwsRe
     else {
         request.write_fully(HTTP_404);
         request.finish();
-        return false;
+        return true; // The request is now finished
     }
 
     if(action_part=="reset_soh" && bat->supports_reset_SOH()) {
@@ -271,12 +267,10 @@ TwsRoute batcmdRoute = TwsRoute("/api/batteries/*", new TwsJsonRestFunc([](TwsRe
         bat->calibrate_SOC();
     } else if(action_part=="contactor_close" && bat->supports_contactor_close()) {
         bat->request_close_contactors();
+    } else if(action_part=="contactor_open" && bat->supports_contactor_close()) {
+        bat->request_open_contactors();
     } else if(action_part=="contactor_reset" && bat->supports_contactor_reset()) {
         bat->request_open_contactors();
-    } else if(action_part=="set_fake_voltage" && bat->supports_set_fake_voltage()) {
-        // ?
-    } else if(action_part=="manual_balancing" && bat->supports_manual_balancing()) {
-        // ?
     } else if(action_part=="toggle_soc_method" && bat->supports_toggle_SOC_method()) {
         bat->toggle_SOC_method();
     } else if(action_part=="energy_saving_mode_reset" && bat->supports_energy_saving_mode_reset()) {
@@ -287,9 +281,10 @@ TwsRoute batcmdRoute = TwsRoute("/api/batteries/*", new TwsJsonRestFunc([](TwsRe
         bat->chademo_restart();
     } else if(action_part=="chademo_stop" && bat->supports_chademo_stop()) {
         bat->chademo_stop();
-    } else if(action_part=="balancing" && bat->supports_balancing()) {
+    } else if(action_part=="start_balancing" && bat->supports_balancing()) {
+        bat->initiate_balancing();
+    } else if(action_part=="stop_balancing" && bat->supports_balancing()) {
         if(bat->is_balancing_active()) bat->end_balancing();
-        else bat->initiate_balancing();
     } else {
         // The original path is NUL terminated so this is OK
         auto response = std::make_shared<String>(bat->handle_custom_command(action_part.data(), data, len, request.get_connection_id()));
@@ -304,13 +299,12 @@ TwsRoute batcmdRoute = TwsRoute("/api/batteries/*", new TwsJsonRestFunc([](TwsRe
             request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/json\r\n\r\n");
             request.set_writer_callback(StringWriter(response));
         }
-
-        return false;
+        return true; // The request is now finished
     }
 
     request.write_fully(HTTP_204);
     request.finish();
-    return false;
+    return true; // The request is now finished
 }));
 
 TwsRoute eventsRoute("/api/events", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {

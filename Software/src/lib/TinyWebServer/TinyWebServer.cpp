@@ -369,7 +369,9 @@ void TinyWebServer::handle_request(TwsRequest &request) {
 
                     // Attempt a initial zero-length call to see if the handler
                     // is expecting a body
-                    if(request.handler->onPostBody->handlePostBody(request, 0, nullptr, 0) == -1) {
+                    auto rret = request.handler->onPostBody->handlePostBody(request, 0, nullptr, 0);
+                    logging.printf("Testing handlePostBody, returned %d\n", rret);
+                    if(rret == -1) {
                         // No, skip the body and go straight to the request handler
                         call_request_handler();
                     } else {
@@ -443,7 +445,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                     // }
 
                     if(post_done && !request.done) {
-                        if(request.writer_callback ) {
+                        if(request.writer_callback) {
                             // The post handler set a writer callback, so skip the normal request handler
                             if(request.free()>0) request.writer_callback(request, request.total_written - request.writer_callback_written_offset);
                             request.parse_state = TWS_WRITING_OUT;
@@ -604,17 +606,18 @@ bool TinyWebServer::poll() {
     return active_polling;
 }
 
-int TinyWebServer::write(uint32_t connection_id, const char *data, size_t len) {
+int IRAM_ATTR TinyWebServer::write(uint32_t connection_id, const char *data, size_t len) {
     // Find the request with the given connection ID
     for (int i = 0; i < MAX_REQUESTS; i++) {
         if (slots[i].active() && slots[i].connection_id == connection_id && slots[0].reply_started()) {
-            return slots[i].write(data, len);
+            // Always use indirect writes, since these might come from different threads
+            return slots[i].write_indirect(data, len);
         }
     }
     return -1; // Connection ID not found
 }
 
-int TinyWebServer::free(uint32_t connection_id) {
+int IRAM_ATTR TinyWebServer::free(uint32_t connection_id) {
     // Find the request with the given connection ID
     for (int i = 0; i < MAX_REQUESTS; i++) {
         if (slots[i].active() && slots[i].connection_id == connection_id) {
@@ -745,7 +748,7 @@ void TwsRequest::tick() {
     }
 }
 
-uint32_t TwsRequest::write(const char *buf) {
+uint32_t IRAM_ATTR TwsRequest::write(const char *buf) {
     if (send_buffer_len >= sizeof(send_buffer)) {
         return 0; // Buffer full
     }
@@ -778,7 +781,12 @@ uint32_t TwsRequest::write(const char* buf, uint16_t len) {
             return bytes_sent;
         }
     }
-    
+
+    // Send the rest indirectly
+    return bytes_sent + write_indirect(buf, len);
+}
+
+uint32_t IRAM_ATTR TwsRequest::write_indirect(const char *buf, uint16_t len) {
     const uint16_t available_space = sizeof(send_buffer) - send_buffer_len;
     if (available_space == 0) {
         return 0;
@@ -794,8 +802,9 @@ uint32_t TwsRequest::write(const char* buf, uint16_t len) {
     // Increase the stored data length by the number of bytes copied.
     send_buffer_len += bytes_to_copy;
     total_written += bytes_to_copy; // Update total written bytes
-    return bytes_sent + bytes_to_copy;
+    return bytes_to_copy;    
 }
+
 
 bool TwsRequest::write_fully(const char *buf) {
     size_t wrote = write(buf);
@@ -874,9 +883,9 @@ uint32_t TwsRequest::write_direct(const char *buf, uint16_t len) {
 int TwsRequest::available() {
     return recv_buffer_len; // Return the number of bytes available to read
 }
-int TwsRequest::free() {
-    return sizeof(send_buffer) - send_buffer_len; // Return the number of free bytes in the send buffer
-}
+// int TwsRequest::free() {
+//     return sizeof(send_buffer) - send_buffer_len; // Return the number of free bytes in the send buffer
+// }
 bool TwsRequest::recv_buffer_full() {
     return recv_buffer_len >= sizeof(recv_buffer); // Return true if the receive buffer is full
 }

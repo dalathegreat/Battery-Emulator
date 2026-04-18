@@ -14,6 +14,10 @@ a.button {
     transition: background-color 0.3s ease;
 }
 
+button + button {
+    margin-left: 1rem;
+}
+
 button:hover,
 a.button:hover {
     opacity: 0.9;

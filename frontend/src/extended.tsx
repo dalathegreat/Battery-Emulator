@@ -75,6 +75,26 @@ export function Extended() {
     const btype = view?.getUint32(0, true) || 0;
     const fields = FIELD_LISTS[btype] || [];
 
+    // These commands all have one command per 'supports' flag
+    const commands_list = [
+        ["reset_soh", "Reset SoH"],
+        ["reset_crash", "Reset crash"],
+        ["clear_isolation", "Clear isolation fault"],
+        ["reset_bms", "Reset BMS"],
+        ["reset_soc", "Reset SoC"],
+        ["reset_nvrol", "Reset NVROL"],
+        ["reset_dtc", "Reset DTCs"],
+        ["read_dtc", "Read DTCs"],
+        ["reset_becm", "Restart BECM module"],
+        ["calibrate_soc", "Calibrate SoC"],
+        ["contactor_reset", "Contactor reset"],
+        ["toggle_soc_method", "Toggle SoC method"],
+        ["energy_saving_mode_reset", "Energy saving mode reset"],
+        ["factory_mode_method", "Factory mode method"],
+        ["chademo_restart", "Chademo restart"],
+        ["chademo_stop", "Chademo stop"],
+        ];
+
     return (
         <>
             <h2>Extended battery info</h2>
@@ -90,8 +110,19 @@ export function Extended() {
             { commands?.battery?.map((bat: any) => (
                 <div key={ bat.id }>
                     <h3>Battery { bat.id }</h3>
-                    { bat.commands?.reset_bms && <button onClick={command(bat.id, 'reset_bms')}>Reset BMS</button> }&nbsp;
-                    { bat.commands?.reset_dtc && <button onClick={command(bat.id, 'reset_dtc')}>Reset DTCs</button> }&nbsp;
+                    { commands_list.map(([cmd, label]) => (
+                        bat.commands?.[cmd] && <button key={ cmd } onClick={command(bat.id, cmd)}>{ label }</button>
+                    )) }
+                    { bat.commands?.balancing && <>
+                        <button onClick={command(bat.id, "start_balancing")}>Start balancing</button>
+                        { bat.commands?.balancing_active &&
+                            <button onClick={command(bat.id, "stop_balancing")}>Stop balancing</button>
+                        }
+                    </> }
+                    { bat.commands?.contactor_close && <>
+                        <button onClick={command(bat.id, "contactor_close")}>Close contactors</button>
+                        <button onClick={command(bat.id, "contactor_open")}>Open contactors</button>
+                    </> }
                 </div>
             )) }
         </>

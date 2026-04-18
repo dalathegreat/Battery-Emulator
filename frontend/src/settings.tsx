@@ -1,6 +1,4 @@
 import { useState } from "preact/hooks";
-// import { signal } from '@preact/signals';
-// console.log(signal);
 
 import { Button } from "./components/button.tsx";
 import { Show, Form, selectField, checkboxField, ipField, textPatternField, passwordField } from "./components/forms.tsx";
@@ -43,13 +41,22 @@ export function Settings() {
     }
 
     const submit = async (data: any) => {
-        splitIp(data, 'LOCALIP');
-        splitIp(data, 'GATEWAY');
-        splitIp(data, 'SUBNET');
+        // Ignore the passed in data and only submit actually changed values
+        // that we have been tracking ourselves.
+        data;
+        
+        const post_data = new FormData();
+        for(const [k, v] of Object.entries(current)) {
+            post_data.set(k, v);
+        }
+
+        splitIp(post_data, 'LOCALIP');
+        splitIp(post_data, 'GATEWAY');
+        splitIp(post_data, 'SUBNET');
 
         let rr;
         try {
-            rr = await apiPost('/api/internal/settings', Object.fromEntries(data));
+            rr = await apiPost('/api/internal/settings', Object.fromEntries(post_data));
         } catch (e: any) {
             alert(e.message || "Failed to save settings");
             return;
@@ -79,10 +86,14 @@ export function Settings() {
     const manual_balancing = tesla;
     const pylonish = ["4", "10", "19"].includes(""+merged.INVTYPE);
     const byd = ""+merged.INVTYPE==="2";
+    const bydmodbus = ""+merged.INVTYPE==="3";
     const kostal = ""+merged.INVTYPE==="9";
     const pylon = ""+merged.INVTYPE==="10";
     const sofar = ""+merged.INVTYPE==="17";
     const solax = ""+merged.INVTYPE==="18";
+    const sungrow = ""+merged.INVTYPE==="21";
+
+    const custom_clamp = ""+merged.SHUNTTYPE==="3";
 
     return <div>
         <h2>Settings</h2>
@@ -91,10 +102,16 @@ export function Settings() {
 
         <Form initial={settings.settings}
               changed={(k, v) => {
-                setCurrent({
-                    ...current,
-                    [k]: v
-                });
+                if(v==='' && (settings.settings[k]===undefined || settings.settings[k]==='')) {
+                    const cur = {...current};
+                    delete cur[k];
+                    setCurrent(cur);
+                } else {
+                    setCurrent({
+                        ...current,
+                        [k]: v
+                    });
+                }
               }}
               validate={validate}
               submit={submit}
@@ -105,7 +122,7 @@ export function Settings() {
         <div class="panel">
             <h3>Battery</h3>
             { selectField("Battery", "BATTTYPE", batteries) }
-            <Show when={""+merged.BATTTYPE!=="0"}>
+            <Show when={parseInt(merged.BATTTYPE)>0}>
                 <Show when={custom_bms}>
                     { textPatternField("Battery max design voltage (V)", "BATTPVMAX", "[0-9]+(\\.[0-9]+)?") }
                     { textPatternField("Battery min design voltage (V)", "BATTPVMIN", "[0-9]+(\\.[0-9]+)?") }
@@ -174,18 +191,27 @@ export function Settings() {
         <div class="panel">
             <h3>Inverter</h3>
             { selectField("Inverter protocol", "INVTYPE", inverters) }
-            <Show when={""+merged.INVTYPE!=="0"}>
+            <Show when={parseInt(merged.INVTYPE)>0}>
                 { selectField("Inverter interface", "INVCOMM", INTERFACES) }
                 <Show when={sofar}>
                     { textPatternField("Sofar Battery ID (0-15)", "SOFAR_ID", "[0-9]{1,2}") }
                 </Show>
                 <Show when={pylon}>
+                    { selectField("Pylon manufacturer", "PYLONBRAND", {
+                        "0": "PYLONTECH",
+                        "1": "PYLON",
+                        "2": "DEYE",
+                    }) }
                     { textPatternField("Pylon, send group (0-1)", "PYLONSEND", "[0-1]") }
                     { checkboxField("Pylon, 30k offset", "PYLONOFFSET") }
                     { checkboxField("Pylon, invert byteorder", "PYLONORDER") }
+                    { textPatternField("Pylon CAN baudrate (kbps)", "PYLONBAUD", "[0-9]+", "Usually 500, sometimes 250") }
                 </Show>
                 <Show when={byd}>
                     { checkboxField("Deye offgrid specific fixes", "DEYEBYD") }
+                </Show>
+                <Show when={bydmodbus}>
+                    { checkboxField("Fronius Primo, 450V maxvoltage cap", "PRIMOGEN24") }
                 </Show>
                 <Show when={pylonish}>
                     { textPatternField("Reported cell count (0 for default)", "INVCELLS", "[0-9]+") }
@@ -204,6 +230,17 @@ export function Settings() {
                 <Show when={solax||kostal}>
                     { checkboxField("Prevent inverter opening contactors", "INVICNT") }
                 </Show>
+                <Show when={sungrow}>
+                    { selectField("Sungrow model", "INVSUNTYPE", {
+                        "0": "SBR064 (6.4 kWh, 2 modules)",
+                        "1": "SBR096 (9.6 kWh, 3 modules)",
+                        "2": "SBR128 (12.8 kWh, 4 modules)",
+                        "3": "SBR160 (16.0 kWh, 5 modules)",
+                        "4": "SBR192 (19.2 kWh, 6 modules)",
+                        "5": "SBR224 (22.4 kWh, 7 modules)",
+                        "6": "SBR256 (25.6 kWh, 8 modules)",
+                    }) }
+                </Show>
             </Show>
         </div>
 
@@ -214,7 +251,7 @@ export function Settings() {
                 "2": "Chevy Volt Gen1 Charger",
                 "1": "Nissan LEAF 2013-2024 PDM charger",
             }) }
-            <Show when={""+merged.CHGTYPE!=="0"}>
+            <Show when={parseInt(merged.CHGTYPE)>0}>
                 { selectField("Charger interface", "CHGCOMM", INTERFACES) }
                 { textPatternField("Charging voltage (V)", "TMP_CHARGERSETPOINTV", "[0-9]+(\\.[0-9]+)?") }
                 { textPatternField("Charging current (A)", "TMP_CHARGERSETPOINTA", "[0-9]+(\\.[0-9]+)?") }
@@ -225,9 +262,23 @@ export function Settings() {
             { selectField("Shunt", "SHUNTTYPE", {
                 "0": "None",
                 "1": "BMW SBOX",
+                "2": "Using inverter values",
+                "3": "Custom Clamp"
             }) }
-            <Show when={""+merged.SHUNTTYPE!=="0"}>
+            <Show when={parseInt(merged.SHUNTTYPE)>0}>
                 { selectField("Shunt interface", "SHUNTCOMM", INTERFACES) }
+            </Show>
+            <Show when={custom_clamp}>
+                { textPatternField("CT Clamp offset (mV)", "CTOFFSET", "-?[0-9]+", "Voltage offset required to calibrate 0A reading. -1 = auto-detect") }
+                { textPatternField("CT Clamp nominal voltage (dV)", "CTVNOM", "[1-5]?[0-9]?[0-9]") }
+                { textPatternField("CT Clamp nominal current (A)", "CTANOM", "[1-5]?[0-9]?[0-9]") }
+                { selectField("ESP32 pin attenuation", "CTATTEN", {
+                    "0": "0 dB (max 950 mV)",
+                    "1": "2.5 dB (max 1250 mV)",
+                    "2": "6 dB (max 1750 mV)",
+                    "3": "11 dB (max 3100 mV)",
+                }) }
+                { checkboxField("Invert CT current (charging positive)", "CTINVERT") }
             </Show>
         </div>
 
@@ -263,11 +314,12 @@ export function Settings() {
             { checkboxField("Double-Battery Contactor control via GPIO", "CNTCTRLDBL") }
 
             { checkboxField("Periodic BMS reset every 24h", "PERBMSRESET") }
-            { textPatternField("Periodic BMS reset off time (s)", "BMSRESETDUR", "[0-9]+") }
+            { textPatternField("Periodic BMS reset off time (ms)", "BMSRESETDUR", "[0-9]+") }
             { checkboxField("Start undercharged emergency recovery mode", "TMP_RECOVERYMODE") }
             { checkboxField("External precharge via HIA4V1", "EXTPRECHARGE") }
             <Show indent={true} when={merged.EXTPRECHARGE}>
                 { textPatternField("Precharge, maximum ms before fault", "MAXPRETIME", "[0-9]+") }
+                { textPatternField("Precharge, maximum PWM frequency (Hz)", "MAXPREFREQ", "[0-9]+") }
                 { checkboxField("Normally Open (NO) inverter disconnect contactor", "NOINVDISC") }
             </Show>
                 
@@ -275,6 +327,9 @@ export function Settings() {
                 "0": "Classic",
                 "1": "Energy Flow",
                 "2": "Heartbeat",
+                "3": "GRB Classic (2CAN only)",
+                "4": "GRB Energy Flow (2CAN only)",
+                "5": "GRB Heartbeat (2CAN only)",
             }) }
 
             { selectField("Configurable port", "GPIOOPT1", {
@@ -291,6 +346,11 @@ export function Settings() {
             { selectField("SMA enable pin", "GPIOOPT3", {
                 "0": "Pin 5",
                 "1": "Pin 33",
+            }) }
+
+            { selectField("uSD Slot", "GPIOOPT4", {
+                "0": "uSD Card",
+                "1": "I2C Display (SSD1306)",
             }) }
         </div>
 
