@@ -1,0 +1,194 @@
+#include "SLAVE-CAN.h"
+
+#include <Arduino.h>
+
+#include "../../communication/Transmitter.h"
+#include "../../datalayer/datalayer.h"
+#include "../../devboard/utils/events.h"
+#include "../../devboard/utils/logging.h"
+#include "comm_can.h"
+
+SlaveCan slave_can;
+
+void setup_slave_can() {
+  // Set inter_unit CAN interface to MCP2515 (CAN2 on T-2CAN)
+  can_config.inter_unit = CAN_ADDON_MCP2515;
+  register_can_receiver(&slave_can, CAN_ADDON_MCP2515, CAN_Speed::CAN_SPEED_500KBPS);
+  register_transmitter(&slave_can);
+  logging.println("Slave CAN: registered on inter-unit bus (CAN_ADDON_MCP2515 @ 500kbps)");
+}
+
+void SlaveCan::begin() {
+  _last_heartbeat_ms = 0;
+  _reply_pending = false;
+  _master_online = false;
+  _heartbeat_count = 0;
+}
+
+void SlaveCan::receive_can_frame(CAN_frame* rx_frame) {
+  const uint32_t id = rx_frame->ID;
+  const uint8_t node_id = datalayer.system.status.slave_node_id;
+
+  // Master heartbeat broadcast
+  if (id == IU_MASTER_HEARTBEAT_ID) {
+    _last_heartbeat_ms = millis();
+    _master_online = true;
+    datalayer.system.status.master_online = true;
+    _heartbeat_count++;
+
+    // Schedule reply after (node_id * 5ms) to avoid CAN collisions
+    _reply_due_ms = millis() + IU_SLAVE_REPLY_DELAY_MS(node_id);
+    _reply_pending = true;
+    return;
+  }
+
+  // Contactor command addressed to this slave
+  if (id == IU_MASTER_CONTACTOR_ID(node_id)) {
+    bool allow = (rx_frame->data.u8[0] & IU_CONTACTOR_ALLOW) != 0;
+    datalayer.system.status.battery_allows_contactor_closing = allow;
+    return;
+  }
+}
+
+void SlaveCan::transmit(unsigned long currentMillis) {
+  // === Safety: master offline check ===
+  if (_master_online && _last_heartbeat_ms > 0) {
+    unsigned long elapsed_s = (currentMillis - _last_heartbeat_ms) / 1000UL;
+    if (elapsed_s >= IU_OFFLINE_TIMEOUT_S) {
+      _master_online = false;
+      datalayer.system.status.master_online = false;
+      // Open contactors for safety — master is gone
+      datalayer.system.status.battery_allows_contactor_closing = false;
+      logging.println("Slave CAN: MASTER OFFLINE — contactors opened for safety");
+    }
+  }
+
+  // === Send reply frames if due ===
+  if (_reply_pending && currentMillis >= _reply_due_ms) {
+    _reply_pending = false;
+    send_status_frame();
+    send_power_frame();
+    if (_heartbeat_count % IU_INFO_INTERVAL_HEARTBEATS == 0) {
+      send_info_frame();
+    }
+  }
+}
+
+uint8_t SlaveCan::build_fault_flags() {
+  uint8_t flags = 0;
+  const auto& status = datalayer.battery.status;
+  const auto& info = datalayer.battery.info;
+
+  // BMS fault
+  if (status.bms_status == FAULT) {
+    flags |= IU_FAULT_BMS_FAULT;
+  }
+  // Cell over-voltage
+  if (status.cell_max_voltage_mV > info.max_cell_voltage_mV) {
+    flags |= IU_FAULT_CELL_OVERVOLTAGE;
+  }
+  // Cell under-voltage
+  if (status.cell_min_voltage_mV < info.min_cell_voltage_mV && status.cell_min_voltage_mV > 0) {
+    flags |= IU_FAULT_CELL_UNDERVOLTAGE;
+  }
+  // Over-temperature (use 55°C = 550 dC as safety threshold)
+  if (status.temperature_max_dC > 550) {
+    flags |= IU_FAULT_OVERTEMPERATURE;
+  }
+  // Battery CAN timeout (battery went offline at slave)
+  if (status.CAN_battery_still_alive == 0) {
+    flags |= IU_FAULT_BATTERY_TIMEOUT;
+  }
+  // Contactor engaged confirmation
+  if (datalayer.system.status.contactors_engaged != 0) {
+    flags |= IU_FLAG_CONTACTOR_ENGAGED;
+  }
+  return flags;
+}
+
+void SlaveCan::send_status_frame() {
+  const uint8_t node_id = datalayer.system.status.slave_node_id;
+  const auto& status = datalayer.battery.status;
+
+  CAN_frame frame = {};
+  frame.ID = IU_SLAVE_STATUS_ID(node_id);
+  frame.DLC = 8;
+  frame.ext_ID = false;
+
+  // [0..1] voltage_dV
+  frame.data.u8[0] = (status.voltage_dV >> 8) & 0xFF;
+  frame.data.u8[1] = status.voltage_dV & 0xFF;
+  // [2..3] real_soc
+  frame.data.u8[2] = (status.real_soc >> 8) & 0xFF;
+  frame.data.u8[3] = status.real_soc & 0xFF;
+  // [4..5] current_dA (signed)
+  uint16_t current_raw = (uint16_t)status.current_dA;
+  frame.data.u8[4] = (current_raw >> 8) & 0xFF;
+  frame.data.u8[5] = current_raw & 0xFF;
+  // [6] temp_max in °C (divide dC by 10, clamp to int8)
+  int8_t temp_max = (int8_t)((int16_t)(status.temperature_max_dC / 10));
+  frame.data.u8[6] = (uint8_t)temp_max;
+  // [7] flags
+  frame.data.u8[7] = build_fault_flags();
+
+  transmit_can_frame_to_interface(&frame, CAN_ADDON_MCP2515);
+}
+
+void SlaveCan::send_power_frame() {
+  const uint8_t node_id = datalayer.system.status.slave_node_id;
+  const auto& status = datalayer.battery.status;
+
+  CAN_frame frame = {};
+  frame.ID = IU_SLAVE_POWER_ID(node_id);
+  frame.DLC = 8;
+  frame.ext_ID = false;
+
+  // Clamp power values to uint16_t range
+  uint16_t max_chg = (status.max_charge_power_W > 65535u) ? 65535u : (uint16_t)status.max_charge_power_W;
+  uint16_t max_dch = (status.max_discharge_power_W > 65535u) ? 65535u : (uint16_t)status.max_discharge_power_W;
+  uint16_t rem_wh = (status.remaining_capacity_Wh > 65535u) ? 65535u : (uint16_t)status.remaining_capacity_Wh;
+
+  // [0..1] max_charge_W
+  frame.data.u8[0] = (max_chg >> 8) & 0xFF;
+  frame.data.u8[1] = max_chg & 0xFF;
+  // [2..3] max_discharge_W
+  frame.data.u8[2] = (max_dch >> 8) & 0xFF;
+  frame.data.u8[3] = max_dch & 0xFF;
+  // [4..5] remaining_Wh
+  frame.data.u8[4] = (rem_wh >> 8) & 0xFF;
+  frame.data.u8[5] = rem_wh & 0xFF;
+  // [6] temp_min in °C
+  int8_t temp_min = (int8_t)((int16_t)(status.temperature_min_dC / 10));
+  frame.data.u8[6] = (uint8_t)temp_min;
+  // [7] reserved
+  frame.data.u8[7] = 0;
+
+  transmit_can_frame_to_interface(&frame, CAN_ADDON_MCP2515);
+}
+
+void SlaveCan::send_info_frame() {
+  const uint8_t node_id = datalayer.system.status.slave_node_id;
+  const auto& info = datalayer.battery.info;
+
+  CAN_frame frame = {};
+  frame.ID = IU_SLAVE_INFO_ID(node_id);
+  frame.DLC = 8;
+  frame.ext_ID = false;
+
+  uint16_t total_wh = (info.total_capacity_Wh > 65535u) ? 65535u : (uint16_t)info.total_capacity_Wh;
+
+  // [0..1] total_capacity_Wh
+  frame.data.u8[0] = (total_wh >> 8) & 0xFF;
+  frame.data.u8[1] = total_wh & 0xFF;
+  // [2..3] max_design_voltage_dV
+  frame.data.u8[2] = (info.max_design_voltage_dV >> 8) & 0xFF;
+  frame.data.u8[3] = info.max_design_voltage_dV & 0xFF;
+  // [4..5] min_design_voltage_dV
+  frame.data.u8[4] = (info.min_design_voltage_dV >> 8) & 0xFF;
+  frame.data.u8[5] = info.min_design_voltage_dV & 0xFF;
+  // [6..7] reserved
+  frame.data.u8[6] = 0;
+  frame.data.u8[7] = 0;
+
+  transmit_can_frame_to_interface(&frame, CAN_ADDON_MCP2515);
+}

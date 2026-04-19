@@ -313,6 +313,15 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
   }
 #endif
+
+  if (var == "NODEMODE") {
+    int mode = (int)settings.getUInt("NODEMODE", 0);
+    String opts;
+    opts += "<option value=\"0\"" + String(mode == 0 ? " selected" : "") + ">Standalone</option>";
+    opts += "<option value=\"1\"" + String(mode == 1 ? " selected" : "") + ">Master</option>";
+    opts += "<option value=\"2\"" + String(mode == 2 ? " selected" : "") + ">Slave</option>";
+    return opts;
+  }
   if (var == "GPIOOPT2") {
     return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
                                       name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
@@ -960,6 +969,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("DALYPWR0C", 800));
   }
 
+  if (var == "SLAVENODEID") {
+    return String(settings.getUInt("SLAVENODEID", 1));
+  }
+
   return String();
 }
 
@@ -1318,6 +1331,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-slave { display: none; }
+    form[data-nodemode="2"] .if-slave {
+      display: contents;
+    }
+
     form .if-extprecharge { display: none; }
     form[data-extprecharge="true"] .if-extprecharge {
       display: contents;
@@ -1433,6 +1451,25 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
           <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
+        </div>
+
+        <div class="settings-card">
+        <h3>Node configuration</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+
+        <label for='NODEMODE'>Node mode: </label>
+        <select id='NODEMODE' name='NODEMODE'>
+        %NODEMODE%
+        </select>
+
+        <div class="if-slave">
+        <label for='SLAVENODEID'>Slave node ID (1-8): </label>
+        <input type='number' id='SLAVENODEID' name='SLAVENODEID' value='%SLAVENODEID%'
+        min='1' max='8' step='1'
+        title="Unique ID for this slave node. Each slave in the network must have a different ID (1-8)." />
+        </div>
+
+        </div>
         </div>
 
         <div class="settings-card">

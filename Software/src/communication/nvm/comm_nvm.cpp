@@ -238,6 +238,13 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent =
       constrain(settings.getUInt("BYDAUTOCALDRFT2", 5), 1u, 20u);
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN2", true);
+
+  // Master/Slave inter-unit protocol settings
+  datalayer.system.status.node_mode = (node_mode_enum)settings.getUInt("NODEMODE", (int)NODE_STANDALONE);
+  datalayer.system.status.slave_node_id = (uint8_t)settings.getUInt("SLAVENODEID", 1);
+  if (datalayer.system.status.slave_node_id < 1 || datalayer.system.status.slave_node_id > MAX_SLAVE_NODES) {
+    datalayer.system.status.slave_node_id = 1;  // Clamp to valid range
+  }
 }
 
 void store_settings_equipment_stop() {
@@ -263,4 +270,8 @@ void store_settings() {
   settings.saveBool("BYDAUTOCALEN", datalayer_extended.bydAtto3.auto_calibrate_soc_enabled);
   settings.saveUInt("BYDAUTOCALDRFT2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
+
+  // Master/Slave inter-unit protocol settings
+  settings.saveUInt("NODEMODE", (int)datalayer.system.status.node_mode);
+  settings.saveUInt("SLAVENODEID", datalayer.system.status.slave_node_id);
 }

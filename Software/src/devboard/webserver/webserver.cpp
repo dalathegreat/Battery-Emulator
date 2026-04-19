@@ -423,7 +423,7 @@ void init_webserver() {
       "PWMFREQ",    "PWMHOLD",     "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS",  "GTWPACK",   "LEDMODE",     "GPIOOPT1",
       "GPIOOPT2",   "GPIOOPT3",    "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",      "CTANOM",    "CTATTEN",     "PYLONBAUD",
       "PYLONBRAND", "DALYPWRPCT",  "DALYPWRDV",  "DALYDVSTART", "DALYPWRDEG",  "DALYPWR0C", "RAMPDOWNSOC", "GPIOOPT5",
-      "GPIOOPT6",   "INVICNT",
+      "GPIOOPT6",   "INVICNT",     "NODEMODE",   "SLAVENODEID",
   };
 
   const char* stringSettingNames[] = {"APNAME",         "APPASSWORD",   "HOSTNAME",  "MQTTSERVER",
@@ -943,6 +943,19 @@ String processor(const String& var) {
     content += ".tooltip-icon { color: #505E67; cursor: help; }";  // Matching your button color
     content += "</style>";
 
+    // === SLAVE MODE: status banner at top ===
+    if (datalayer.system.status.node_mode == NODE_SLAVE) {
+      const char* master_dot = datalayer.system.status.master_online ? "&#9679;" : "&#9675;";
+      const char* master_color = datalayer.system.status.master_online ? "color:lightgreen;" : "color:red;";
+      const char* contactor_text = datalayer.system.status.battery_allows_contactor_closing ? "Allowed" : "Blocked";
+      content += "<div style='background-color:#2D3F2F; padding:8px; margin-bottom:8px; border-radius:20px;'>";
+      content += "<h4 style='color:white;'>&#9889; Slave Node " +
+                 String(datalayer.system.status.slave_node_id) + " &nbsp;|&nbsp; Master: <span style='" +
+                 String(master_color) + "'>" + String(master_dot) + "</span> &nbsp;|&nbsp; Contactor: " +
+                 String(contactor_text) + "</h4>";
+      content += "</div>";
+    }
+
     // Compact header
     content += "<h2>Battery Emulator</h2>";
 
@@ -1427,6 +1440,51 @@ String processor(const String& var) {
     }
     // Block for Contactor status and component request status
     // Start a new block with gray background color
+
+    // === MASTER MODE: slave status grid ===
+    if (datalayer.system.status.node_mode == NODE_MASTER) {
+      content +=
+          "<div style='background-color:#303E47; padding:10px; margin-bottom:10px; border-radius:20px;'>"
+          "<h4 style='color:white;'>Slave Nodes</h4>"
+          "<div style='display:flex; flex-wrap:wrap; gap:8px; justify-content:center;'>";
+      bool any_slave = false;
+      for (int i = 0; i < MAX_SLAVE_NODES; i++) {
+        const auto& s = datalayer.system.slave_nodes[i];
+        if (!s.online) {
+          continue;
+        }
+        any_slave = true;
+        bool fault = (s.fault_flags & 0x3F) != 0;  // Lower 6 bits are fault flags
+        const char* bg = fault ? "#A70107" : "#2D3F2F";
+        float v = s.voltage_dV / 10.0f;
+        float soc = s.real_soc / 100.0f;
+        float cur = s.current_dA / 10.0f;
+        float tmax = s.temp_max_dC / 10.0f;
+        float tmin = s.temp_min_dC / 10.0f;
+        const char* contactor_icon = s.contactor_engaged ? "&#9679;" : "&#9675;";
+        const char* contactor_color = s.contactor_engaged ? "color:lightgreen;" : "color:gray;";
+        content += "<div style='background-color:" + String(bg) +
+                   ";padding:8px;border-radius:12px;min-width:120px;'>";
+        content += "<h4 style='color:white;margin:2px 0;'>Node " + String(i + 1) + "</h4>";
+        content += "<h4 style='margin:2px 0;'>" + String(v, 1) + " V &nbsp; " + String(soc, 1) + "%</h4>";
+        content += "<h4 style='margin:2px 0;'>" + String(cur, 1) + " A</h4>";
+        content += "<h4 style='margin:2px 0;'>" + String(tmin, 0) + "/" + String(tmax, 0) + " &deg;C</h4>";
+        content += "<h4 style='margin:2px 0;'>" +
+                   String(s.remaining_Wh / 1000.0f, 1) + "/" + String(s.total_capacity_Wh / 1000.0f, 1) + " kWh</h4>";
+        content += "<h4 style='margin:2px 0;'>Chg max: " + String(s.max_charge_W / 1000.0f, 1) + " kW</h4>";
+        content += "<h4 style='margin:2px 0;'>Contactor: <span style='" + String(contactor_color) + "'>" +
+                   String(contactor_icon) + "</span></h4>";
+        if (fault) {
+          content += "<h4 style='color:red;margin:2px 0;'>FAULT 0x" + String(s.fault_flags, HEX) + "</h4>";
+        }
+        content += "</div>";
+      }
+      if (!any_slave) {
+        content += "<h4 style='color:gray;'>No slaves online</h4>";
+      }
+      content += "</div></div>";
+    }
+
     content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
     if (emulator_pause_status == NORMAL) {

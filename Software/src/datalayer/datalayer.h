@@ -302,6 +302,26 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   bool start_precharging = false;      //Is precharge ongoing?
 };
 
+/** Per-slave node status maintained by master */
+struct SLAVE_NODE_TYPE {
+  uint16_t voltage_dV = 0;               // Pack voltage in deciVolts
+  uint16_t real_soc = 0;                 // SOC in 0.01% units (9550 = 95.50%)
+  int16_t current_dA = 0;               // Current in deciAmpere
+  int8_t temp_max_dC = 0;              // Max temperature in deci-Celsius divided by 10
+  int8_t temp_min_dC = 0;              // Min temperature
+  uint16_t max_charge_W = 0;            // Max allowed charge power in Watts
+  uint16_t max_discharge_W = 0;         // Max allowed discharge power in Watts
+  uint16_t remaining_Wh = 0;           // Remaining capacity in Wh
+  uint16_t total_capacity_Wh = 0;       // Total capacity in Wh
+  uint16_t max_design_voltage_dV = 0;  // Max design voltage in dV
+  uint16_t min_design_voltage_dV = 0;  // Min design voltage in dV
+  uint8_t fault_flags = 0;             // Bitmask of faults (see INTER-UNIT-PROTOCOL.h)
+  uint8_t still_alive = 0;             // Countdown counter: decremented each second, reset on message
+  bool contactor_engaged = false;       // Confirmed contactor state from slave
+  bool contactor_allowed = false;       // Master decision: is slave allowed to close contactor
+  bool online = false;                  // True if slave is responding
+};
+
 struct DATALAYER_SYSTEM_STATUS_TYPE {
   /** Core task measurement variable */
   int64_t core_task_max_us = 0;
@@ -361,11 +381,17 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   BMSResetState bms_reset_status = BMS_RESET_IDLE;
   /** The current system status, determined by which Events are active, usually pending between ACTIVE and FAULT, but there are more enums. Used to signal incase we have a critical fault active, or if we should proceed operating */
   system_status_enum system_status = ACTIVE;
+
+  /** Master/Slave inter-unit protocol */
+  node_mode_enum node_mode = NODE_STANDALONE;
+  uint8_t slave_node_id = 1;   // 1-8, used when node_mode == NODE_SLAVE
+  bool master_online = false;  // true when master heartbeat received within timeout (slave mode only)
 };
 
 struct DATALAYER_SYSTEM_TYPE {
   DATALAYER_SYSTEM_INFO_TYPE info;
   DATALAYER_SYSTEM_STATUS_TYPE status;
+  SLAVE_NODE_TYPE slave_nodes[MAX_SLAVE_NODES];  // Index 0 = Slave Node ID 1, used by master
 };
 
 class DataLayer {
