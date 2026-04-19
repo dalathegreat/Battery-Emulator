@@ -680,7 +680,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cellvoltages[105] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[106] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       cellvoltages[107] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages, 108 * sizeof(uint16_t));
+      memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages, 108 * sizeof(uint16_t));
       break;
     case 0x694:  // Poll reply
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
