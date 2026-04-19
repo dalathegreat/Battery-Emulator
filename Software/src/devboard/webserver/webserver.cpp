@@ -409,7 +409,7 @@ void init_webserver() {
       "SOFAR_ID",   "PYLONSEND",  "INVCELLS",   "INVMODULES", "INVCELLSPER", "INVVLEVEL", "INVCAPACITY",
       "INVBTYPE",   "CANFREQ",    "CANFDFREQ",  "PRECHGMS",   "PWMFREQ",     "PWMHOLD",   "GTWCOUNTRY",
       "GTWMAPREG",  "GTWCHASSIS", "GTWPACK",    "LEDMODE",    "GPIOOPT1",    "GPIOOPT2",  "GPIOOPT3",
-      "INVSUNTYPE", "GPIOOPT4",   "CTVNOM",     "CTANOM",     "CTATTEN",     "PYLONBAUD", "PYLONBRAND", 
+      "INVSUNTYPE", "GPIOOPT4",   "CTVNOM",     "CTANOM",     "CTATTEN",     "PYLONBAUD", "PYLONBRAND",
   };
 
   const char* stringSettingNames[] = {"APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
