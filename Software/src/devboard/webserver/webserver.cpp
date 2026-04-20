@@ -1490,12 +1490,14 @@ String processor(const String& var) {
         float v = s.voltage_dV / 10.0f;
         float soc = s.real_soc / 100.0f;
         float cur = s.current_dA / 10.0f;
-        float tmax = s.temp_max_dC / 10.0f;
-        float tmin = s.temp_min_dC / 10.0f;
+        float tmax = (float)s.temp_max_dC;
+        float tmin = (float)s.temp_min_dC;
         float chg_kW = s.max_charge_W / 1000.0f;
         float dis_kW = s.max_discharge_W / 1000.0f;
+        float power_kW = (v * cur) / 1000.0f;
         const char* contactor_icon = s.contactor_engaged ? "&#9679;" : "&#9675;";
         const char* contactor_color = s.contactor_engaged ? "color:lightgreen;" : "color:gray;";
+        const char* contactor_state = s.contactor_engaged ? "Engaged" : "Open";
         content += "<div style='background-color:" + String(bg) +
                    ";padding:10px;border-radius:12px;min-width:160px;'>";
         if (s.ip_address != 0) {
@@ -1508,14 +1510,21 @@ String processor(const String& var) {
         content += "<h4 style='margin:2px 0;'>SOC: " + String(soc, 1) + " %</h4>";
         content += "<h4 style='margin:2px 0;'>Voltage: " + String(v, 1) + " V</h4>";
         content += "<h4 style='margin:2px 0;'>Current: " + String(cur, 1) + " A</h4>";
+        content += "<h4 style='margin:2px 0;'>Power: " + String(power_kW, 1) + " kW</h4>";
         content += "<h4 style='margin:2px 0;'>Temp: " + String(tmin, 0) + " / " + String(tmax, 0) + " &deg;C</h4>";
         content += "<h4 style='margin:2px 0;'>Remaining: " + String(s.remaining_Wh / 1000.0f, 1) + " kWh</h4>";
         content += "<h4 style='margin:2px 0;'>Max charge: " + String(chg_kW, 1) + " kW</h4>";
         content += "<h4 style='margin:2px 0;'>Max discharge: " + String(dis_kW, 1) + " kW</h4>";
         content += "<h4 style='margin:2px 0;'>Contactor: <span style='" + String(contactor_color) + "'>" +
-                   String(contactor_icon) + "</span></h4>";
+                   String(contactor_state) + "</span></h4>";
         if (fault) {
-          content += "<h4 style='color:red;margin:2px 0;'>FAULT 0x" + String(s.fault_flags, HEX) + "</h4>";
+          if (s.ip_address != 0) {
+            IPAddress faultIp(s.ip_address);
+            content += "<h4 style='color:red;margin:2px 0;'><a href='http://" + faultIp.toString() +
+                       "/events' target='_blank' style='color:red;'>&#9888; FAULT</a></h4>";
+          } else {
+            content += "<h4 style='color:red;margin:2px 0;'>&#9888; FAULT</h4>";
+          }
         }
         content += "</div>";
       }
