@@ -316,8 +316,10 @@ void MasterCan::update_slave_aggregation() {
   datalayer.battery.info.reported_total_capacity_Wh = total_capacity_Wh;
   datalayer.battery.status.remaining_capacity_Wh = total_remaining_Wh;
   datalayer.battery.status.reported_remaining_capacity_Wh = total_remaining_Wh;
-  datalayer.battery.status.max_charge_power_W = charge_blocked ? 0u : total_max_charge_W;
-  datalayer.battery.status.max_discharge_power_W = discharge_blocked ? 0u : total_max_discharge_W;
+  datalayer.battery.status.max_charge_power_W =
+      (charge_blocked || datalayer.system.info.equipment_stop_active) ? 0u : total_max_charge_W;
+  datalayer.battery.status.max_discharge_power_W =
+      (discharge_blocked || datalayer.system.info.equipment_stop_active) ? 0u : total_max_discharge_W;
   datalayer.battery.status.reported_current_dA = (int16_t)total_current_dA;
   datalayer.battery.status.current_dA = (int16_t)total_current_dA;
   datalayer.battery.status.voltage_dV = shared_voltage_dV;
