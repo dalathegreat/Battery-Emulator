@@ -1495,7 +1495,6 @@ String processor(const String& var) {
         float chg_kW = s.max_charge_W / 1000.0f;
         float dis_kW = s.max_discharge_W / 1000.0f;
         float power_kW = (v * cur) / 1000.0f;
-        const char* contactor_icon = s.contactor_engaged ? "&#9679;" : "&#9675;";
         const char* contactor_color = s.contactor_engaged ? "color:lightgreen;" : "color:gray;";
         const char* contactor_state = s.contactor_engaged ? "Engaged" : "Open";
         content += "<div style='background-color:" + String(bg) +
