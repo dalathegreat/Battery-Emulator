@@ -1446,6 +1446,32 @@ String processor(const String& var) {
           "<div style='background-color:#303E47; padding:10px; margin-bottom:10px; border-radius:20px;'>"
           "<h4 style='color:white;'>Slave Nodes</h4>"
           "<div style='display:flex; flex-wrap:wrap; gap:8px; justify-content:center;'>";
+
+      // Inverter box — first in the flex grid
+      {
+        float inv_voltage = datalayer.battery.status.voltage_dV / 10.0f;
+        float inv_soc = datalayer.battery.status.reported_soc / 100.0f;
+        float inv_current = datalayer.battery.status.reported_current_dA / 10.0f;
+        float inv_tmin = datalayer.battery.status.temperature_min_dC / 10.0f;
+        float inv_tmax = datalayer.battery.status.temperature_max_dC / 10.0f;
+        float inv_remaining_kWh = datalayer.battery.status.reported_remaining_capacity_Wh / 1000.0f;
+        float inv_total_kWh = datalayer.battery.info.reported_total_capacity_Wh / 1000.0f;
+        float inv_power = datalayer.battery.status.active_power_W / 1000.0f;
+        bool inv_contactor = datalayer.system.status.inverter_allows_contactor_closing;
+        content += "<div style='background-color:#1a2a3a;padding:8px;border-radius:12px;min-width:120px;'>";
+        content += "<h4 style='color:#aad4ff;margin:2px 0;'>&#8594; Inverter</h4>";
+        content += "<h4 style='margin:2px 0;'>" + String(inv_soc, 1) + "%</h4>";
+        content += "<h4 style='margin:2px 0;'>" + String(inv_voltage, 1) + " V</h4>";
+        content += "<h4 style='margin:2px 0;'>" + String(inv_current, 1) + " A</h4>";
+        content += "<h4 style='margin:2px 0;'>" + String(inv_tmin, 0) + "/" + String(inv_tmax, 0) + " &deg;C</h4>";
+        content += "<h4 style='margin:2px 0;'>" + String(inv_remaining_kWh, 1) + "/" + String(inv_total_kWh, 1) + " kWh</h4>";
+        content += "<h4 style='margin:2px 0;'>Pwr: " + String(inv_power, 2) + " kW</h4>";
+        content += "<h4 style='margin:2px 0;'>Contactor: <span style='" +
+                   String(inv_contactor ? "color:lightgreen;" : "color:gray;") + "'>" +
+                   String(inv_contactor ? "&#9679;" : "&#9675;") + "</span></h4>";
+        content += "</div>";
+      }
+
       bool any_slave = false;
       for (int i = 0; i < MAX_SLAVE_NODES; i++) {
         const auto& s = datalayer.system.slave_nodes[i];
@@ -1465,7 +1491,8 @@ String processor(const String& var) {
         content += "<div style='background-color:" + String(bg) +
                    ";padding:8px;border-radius:12px;min-width:120px;'>";
         content += "<h4 style='color:white;margin:2px 0;'>Node " + String(i + 1) + "</h4>";
-        content += "<h4 style='margin:2px 0;'>" + String(v, 1) + " V &nbsp; " + String(soc, 1) + "%</h4>";
+        content += "<h4 style='margin:2px 0;'>" + String(soc, 1) + "%</h4>";
+        content += "<h4 style='margin:2px 0;'>" + String(v, 1) + " V</h4>";
         content += "<h4 style='margin:2px 0;'>" + String(cur, 1) + " A</h4>";
         content += "<h4 style='margin:2px 0;'>" + String(tmin, 0) + "/" + String(tmax, 0) + " &deg;C</h4>";
         content += "<h4 style='margin:2px 0;'>" +
@@ -1482,31 +1509,6 @@ String processor(const String& var) {
         content += "<h4 style='color:gray;'>No slaves online</h4>";
       }
       content += "</div>";
-
-      // Aggregated summary sent to inverter
-      float inv_voltage = datalayer.battery.status.voltage_dV / 10.0f;
-      float inv_current = datalayer.battery.status.reported_current_dA / 10.0f;
-      float inv_power = datalayer.battery.status.active_power_W;
-      float inv_soc = datalayer.battery.status.reported_soc / 100.0f;
-      float inv_remaining_kWh = datalayer.battery.status.reported_remaining_capacity_Wh / 1000.0f;
-      float inv_total_kWh = datalayer.battery.info.reported_total_capacity_Wh / 1000.0f;
-      float inv_dis_A = datalayer.battery.status.max_discharge_current_dA / 10.0f;
-      float inv_chg_A = datalayer.battery.status.max_charge_current_dA / 10.0f;
-      float inv_tmin = datalayer.battery.status.temperature_min_dC / 10.0f;
-      float inv_tmax = datalayer.battery.status.temperature_max_dC / 10.0f;
-      content +=
-          "<div style='background-color:#1a2a3a;padding:8px 14px;border-radius:12px;margin-top:8px;'>"
-          "<h4 style='color:#aad4ff;margin:2px 0;'>&#8594; Inverter signals </h4>";
-      content += "<h4 style='margin:2px 0;'>Voltage: " + String(inv_voltage, 1) + " V</h4>";
-      content += "<h4 style='margin:2px 0;'>Current: " + String(inv_current, 1) + " A</h4>";
-      content += "<h4 style='margin:2px 0;'>Power: " + String(inv_power / 1000.0f, 2) + " kW</h4>";
-      content += "<h4 style='margin:2px 0;'>SOC: " + String(inv_soc, 2) + " %</h4>";
-      content += "<h4 style='margin:2px 0;'>Remaining: " + String(inv_remaining_kWh, 1) + " / " + String(inv_total_kWh, 1) + " kWh</h4>";
-      content += "<h4 style='margin:2px 0;'>Max discharge: " + String(inv_dis_A, 1) + " A</h4>";
-      content += "<h4 style='margin:2px 0;'>Max charge: " + String(inv_chg_A, 1) + " A</h4>";
-      content += "<h4 style='margin:2px 0;'>Temp: " + String(inv_tmin, 1) + " / " + String(inv_tmax, 1) + " &deg;C</h4>";
-      content += "</div>";
-
       content += "</div>";
     }
 
