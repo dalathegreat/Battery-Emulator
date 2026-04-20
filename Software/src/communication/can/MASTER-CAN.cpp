@@ -127,7 +127,8 @@ void MasterCan::send_contactor_commands() {
     frame.ID = IU_MASTER_CONTACTOR_ID(node_id);
     frame.DLC = 1;
     frame.ext_ID = false;
-    frame.data.u8[0] = (node.contactor_allowed && datalayer.system.status.inverter_allows_contactor_closing)
+    frame.data.u8[0] = (node.contactor_allowed && datalayer.system.status.inverter_allows_contactor_closing &&
+                        !datalayer.system.info.equipment_stop_active)
                            ? IU_CONTACTOR_ALLOW
                            : IU_CONTACTOR_OPEN;
     transmit_can_frame_to_interface(&frame, can_config.inter_unit);

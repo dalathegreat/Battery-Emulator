@@ -607,6 +607,11 @@ void init_webserver() {
   // Route for pause/resume Battery emulator
   update_string("/pause", [](String value) { setBatteryPause(value == "true" || value == "1", false); });
 
+  // Route for manual master contactor override (testing without real inverter)
+  update_string("/masterContactorOverride", [](String value) {
+    datalayer.system.status.inverter_allows_contactor_closing = (value == "true" || value == "1");
+  });
+
   // Route for equipment stop/resume
   update_string("/equipmentStop", [](String value) {
     if (value == "true" || value == "1") {
@@ -1481,7 +1486,14 @@ String processor(const String& var) {
       if (!any_slave) {
         content += "<h4 style='color:gray;'>No slaves online</h4>";
       }
-      content += "</div></div>";
+      content += "</div>";
+      // Manual contactor override toggle button (for testing without inverter)
+      bool cur_allow = datalayer.system.status.inverter_allows_contactor_closing;
+      const char* btn_label = cur_allow ? "&#9632; Block Contactor Close (TEST)" : "&#9654; Allow Contactor Close (TEST)";
+      const char* btn_style = cur_allow ? "background:orange;color:black;padding:6px 14px;border-radius:8px;cursor:pointer;"
+                                        : "background:green;color:white;padding:6px 14px;border-radius:8px;cursor:pointer;";
+      content += "<button style='" + String(btn_style) + "' onclick='masterContactor(" + String(cur_allow ? "false" : "true") + ")'>" + String(btn_label) + "</button>";
+      content += "</div>";
     }
 
     content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
@@ -1673,6 +1685,12 @@ String processor(const String& var) {
         "var xhr=new "
         "XMLHttpRequest();xhr.onload=function() { "
         "window.location.reload();};xhr.open('GET','/pause?value='+pause,true);xhr.send();";
+    content += "}";
+    content += "function masterContactor(allow){";
+    content +=
+        "var xhr=new "
+        "XMLHttpRequest();xhr.onload=function() { "
+        "window.location.reload();};xhr.open('GET','/masterContactorOverride?value='+allow,true);xhr.send();";
     content += "}";
     content += "function estop(stop){";
     content +=
