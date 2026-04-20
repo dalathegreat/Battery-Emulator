@@ -50,27 +50,20 @@ void SolaxInverter::
   SOLAX_1874.data.u8[2] = (int8_t)datalayer.battery.status.temperature_min_dC;
   SOLAX_1874.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
 
-  int32_t cell_max_voltage_mV = datalayer.battery.status.cell_max_voltage_mV;
-  int32_t cell_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
-
-  // Fake values during startup?
-  if (cell_max_voltage_mV == 0) {
-    cell_max_voltage_mV = 3300;
+  //Solax only supports LFP batteries. We need to fake an LFP cell voltage range if the battery used is not LFP
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+    //Already LFP, pass thru value
+    cell_tweaked_max_voltage_mV = datalayer.battery.status.cell_max_voltage_mV;
+    cell_tweaked_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
+  } else {  //linear interpolation to remap the value from the range [2500-4200] to [2500-3400]
+    cell_tweaked_max_voltage_mV =
+        (2500 + ((datalayer.battery.status.cell_max_voltage_mV - 2500) * (3400 - 2500)) / (4200 - 2500));
+    cell_tweaked_min_voltage_mV =
+        (2500 + ((datalayer.battery.status.cell_min_voltage_mV - 2500) * (3400 - 2500)) / (4200 - 2500));
   }
-  if (cell_min_voltage_mV == 0) {
-    cell_min_voltage_mV = 3300;
-  }
 
-  // Rescale to the range 3.0->3.5V
-  cell_max_voltage_mV =
-      3000 + ((cell_max_voltage_mV - datalayer.battery.info.min_cell_voltage_mV) * (3500 - 3000)) /
-                 (datalayer.battery.info.max_cell_voltage_mV - datalayer.battery.info.min_cell_voltage_mV);
-  cell_min_voltage_mV =
-      3000 + ((cell_min_voltage_mV - datalayer.battery.info.min_cell_voltage_mV) * (3500 - 3000)) /
-                 (datalayer.battery.info.max_cell_voltage_mV - datalayer.battery.info.min_cell_voltage_mV);
-
-  uint16_t cell_max_voltage_dV = cell_max_voltage_mV / 100;
-  uint16_t cell_min_voltage_dV = cell_min_voltage_mV / 100;
+  cell_max_voltage_dV = cell_tweaked_max_voltage_mV / 100;
+  cell_min_voltage_dV = cell_tweaked_min_voltage_mV / 100;
 
   SOLAX_1874.data.u8[4] = (uint8_t)(cell_max_voltage_dV);
   SOLAX_1874.data.u8[5] = (cell_max_voltage_dV >> 8);

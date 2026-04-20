@@ -27,6 +27,10 @@ class SolaxInverter : public CanInverterProtocol {
   unsigned long LastFrameTime = 0;
   uint8_t number_of_batteries = 1;
 
+  uint16_t cell_tweaked_max_voltage_mV = 3300;
+  uint16_t cell_tweaked_min_voltage_mV = 3300;
+  uint16_t cell_max_voltage_dV = 33;
+  uint16_t cell_min_voltage_dV = 33;
   uint16_t configured_number_of_modules = 0;
   uint16_t configured_battery_type = 0;
   // If true, the integration will ignore the inverter's requests to open the
