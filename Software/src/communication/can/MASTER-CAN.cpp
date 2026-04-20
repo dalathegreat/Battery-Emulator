@@ -251,6 +251,7 @@ void MasterCan::update_slave_aggregation() {
   uint16_t highest_soc = 0;
   int16_t highest_temp = -1270;
   int16_t lowest_temp = 1270;
+  uint16_t shared_voltage_dV = 0;  // All slaves share voltage (parallel)
   uint8_t active_count = 0;
   // If any battery's BMS says stop charging/discharging, block all power flow.
   // This ensures we stop as soon as the first battery is full or empty,
@@ -264,6 +265,9 @@ void MasterCan::update_slave_aggregation() {
       continue;
     }
     active_count++;
+    if (shared_voltage_dV == 0 && node.voltage_dV > 0) {
+      shared_voltage_dV = node.voltage_dV;  // Same for all — take first available
+    }
     total_capacity_Wh += node.total_capacity_Wh;
     total_remaining_Wh += node.remaining_Wh;
     if (node.max_charge_W == 0) {
@@ -308,6 +312,10 @@ void MasterCan::update_slave_aggregation() {
   datalayer.battery.status.max_discharge_power_W = discharge_blocked ? 0u : total_max_discharge_W;
   datalayer.battery.status.reported_current_dA = (int16_t)total_current_dA;
   datalayer.battery.status.current_dA = (int16_t)total_current_dA;
+  datalayer.battery.status.voltage_dV = shared_voltage_dV;
+  // Power = V × I: voltage in dV, current in dA → W = (dV × dA) / 100
+  datalayer.battery.status.active_power_W =
+      (int32_t)shared_voltage_dV * (int32_t)total_current_dA / 100;
   datalayer.battery.status.real_soc = lowest_soc;
   // Mirror Software.cpp multi-battery logic: report lowest SOC normally (discharge protection),
   // but override with highest SOC when any battery is nearly full (charge protection).
