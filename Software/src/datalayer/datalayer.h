@@ -363,10 +363,10 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
    */
   uint8_t CAN_inverter_still_alive = CAN_STILL_ALIVE;
   /** A counter set each time a heartbeat is received from the master.
-   * Starts at 0 so the slave blocks contactor until the first heartbeat arrives.
+   * Starts at CAN_STILL_ALIVE so the event fires after 60s even if master was never seen.
    * Decremented every second. Reaches 0 => master is considered offline.
    */
-  uint8_t CAN_master_still_alive = 0;
+  uint8_t CAN_master_still_alive = CAN_STILL_ALIVE;
   /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
   uint8_t contactors_engaged = 0;
   /** State of automatic precharge sequence */
@@ -390,7 +390,7 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   /** Master/Slave inter-unit protocol */
   node_mode_enum node_mode = NODE_STANDALONE;
   uint8_t slave_node_id = 1;   // 1-8, used when node_mode == NODE_SLAVE
-  bool master_online = false;  // true when master heartbeat received within timeout (slave mode only)
+  bool master_online = false;       // true when master heartbeat received within timeout (slave mode only)
 };
 
 struct DATALAYER_SYSTEM_TYPE {
