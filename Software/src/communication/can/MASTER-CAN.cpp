@@ -93,6 +93,14 @@ void MasterCan::receive_can_frame(CAN_frame* rx_frame) {
       node.min_design_voltage_dV = ((uint16_t)rx_frame->data.u8[4] << 8) | rx_frame->data.u8[5];
       break;
     }
+    case 0x03:  // IP address message (every 10s)
+    {
+      if (rx_frame->DLC >= 4) {
+        node.ip_address = ((uint32_t)rx_frame->data.u8[0] << 24) | ((uint32_t)rx_frame->data.u8[1] << 16) |
+                          ((uint32_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
+      }
+      break;
+    }
     default:
       break;
   }

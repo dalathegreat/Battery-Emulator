@@ -320,6 +320,7 @@ struct SLAVE_NODE_TYPE {
   bool contactor_engaged = false;       // Confirmed contactor state from slave
   bool contactor_allowed = false;       // Master decision: is slave allowed to close contactor
   bool online = false;                  // True if slave is responding
+  uint32_t ip_address = 0;             // IPv4 address of slave (0 = unknown)
 };
 
 struct DATALAYER_SYSTEM_STATUS_TYPE {

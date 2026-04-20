@@ -21,6 +21,7 @@
  *   0x110+N*0x10 : Slave N -> Master, STATUS message  (msg 0x00)
  *   0x111+N*0x10 : Slave N -> Master, POWER message   (msg 0x01)
  *   0x112+N*0x10 : Slave N -> Master, INFO message    (msg 0x02)
+ *   0x113+N*0x10 : Slave N -> Master, IP message      (msg 0x03)
  *   Where N = node ID (1..8)
  */
 
@@ -34,10 +35,11 @@
 #define IU_SLAVE_STATUS_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x00u)  // Status (8 bytes, every 1s)
 #define IU_SLAVE_POWER_ID(n)  (0x100u + ((uint32_t)(n) * 0x10u) + 0x01u)  // Power  (8 bytes, every 1s)
 #define IU_SLAVE_INFO_ID(n)   (0x100u + ((uint32_t)(n) * 0x10u) + 0x02u)  // Info   (8 bytes, every 10s)
+#define IU_SLAVE_IP_ID(n)     (0x100u + ((uint32_t)(n) * 0x10u) + 0x03u)  // IP addr (4 bytes, every 10s)
 
 /* ---- Slave ID range detection ---- */
 #define IU_SLAVE_MSG_MIN_ID 0x110u  // Slave 1, msg 0x00
-#define IU_SLAVE_MSG_MAX_ID 0x182u  // Slave 8, msg 0x02
+#define IU_SLAVE_MSG_MAX_ID 0x183u  // Slave 8, msg 0x03
 
 /* ---- Contactor command byte (master → slave, data[0]) ---- */
 #define IU_CONTACTOR_ALLOW 0x01u  // Slave may close contactor
@@ -81,6 +83,9 @@
  *   [2..3] : uint16_t  max_design_voltage_dV — max design voltage in dV
  *   [4..5] : uint16_t  min_design_voltage_dV — min design voltage in dV
  *   [6..7] : uint16_t  reserved
+ *
+ * IP message layout — IU_SLAVE_IP_ID(n), 4 bytes:
+ *   [0..3] : uint32_t  IPv4 address (big-endian, e.g. 192.168.1.10 = 0xC0A8010A)
  *
  * CONTACTOR COMMAND layout — IU_MASTER_CONTACTOR_ID(n), 1 byte:
  *   [0]    : uint8_t   command — IU_CONTACTOR_ALLOW or IU_CONTACTOR_OPEN

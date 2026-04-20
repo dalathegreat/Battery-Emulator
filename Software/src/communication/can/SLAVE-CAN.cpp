@@ -1,6 +1,7 @@
 #include "SLAVE-CAN.h"
 
 #include <Arduino.h>
+#include <WiFi.h>
 
 #include "../../communication/Transmitter.h"
 #include "../../datalayer/datalayer.h"
@@ -60,6 +61,11 @@ void SlaveCan::transmit(unsigned long currentMillis) {
     send_power_frame();
     if (_heartbeat_count % IU_INFO_INTERVAL_HEARTBEATS == 0) {
       send_info_frame();
+    }
+    // Send IP on first 3 heartbeats (so master gets it quickly after boot),
+    // then only every 10 minutes (600s) since IP rarely changes.
+    if (_heartbeat_count <= 3 || _heartbeat_count % 600 == 0) {
+      send_ip_frame();
     }
   }
 }
@@ -179,6 +185,28 @@ void SlaveCan::send_info_frame() {
   // [6..7] reserved
   frame.data.u8[6] = 0;
   frame.data.u8[7] = 0;
+
+  transmit_can_frame_to_interface(&frame, can_config.inter_unit);
+}
+
+void SlaveCan::send_ip_frame() {
+  const uint8_t node_id = datalayer.system.status.slave_node_id;
+
+  uint32_t ip = (uint32_t)WiFi.localIP();
+  if (ip == 0) {
+    return;  // Not connected yet — skip
+  }
+
+  CAN_frame frame = {};
+  frame.ID = IU_SLAVE_IP_ID(node_id);
+  frame.DLC = 4;
+  frame.ext_ID = false;
+
+  // [0..3] IPv4 address, big-endian
+  frame.data.u8[0] = (ip >> 24) & 0xFF;
+  frame.data.u8[1] = (ip >> 16) & 0xFF;
+  frame.data.u8[2] = (ip >> 8) & 0xFF;
+  frame.data.u8[3] = ip & 0xFF;
 
   transmit_can_frame_to_interface(&frame, can_config.inter_unit);
 }

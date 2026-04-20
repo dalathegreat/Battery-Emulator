@@ -1498,7 +1498,13 @@ String processor(const String& var) {
         const char* contactor_color = s.contactor_engaged ? "color:lightgreen;" : "color:gray;";
         content += "<div style='background-color:" + String(bg) +
                    ";padding:10px;border-radius:12px;min-width:160px;'>";
-        content += "<h4 style='color:white;margin:2px 0;'>Node " + String(i + 1) + "</h4>";
+        if (s.ip_address != 0) {
+          IPAddress ip(s.ip_address);
+          content += "<h4 style='color:white;margin:2px 0;'><a href='http://" + ip.toString() +
+                     "' target='_blank' style='color:white;'>Node " + String(i + 1) + " &#8599;</a></h4>";
+        } else {
+          content += "<h4 style='color:white;margin:2px 0;'>Node " + String(i + 1) + "</h4>";
+        }
         content += "<h4 style='margin:2px 0;'>SOC: " + String(soc, 1) + " %</h4>";
         content += "<h4 style='margin:2px 0;'>Voltage: " + String(v, 1) + " V</h4>";
         content += "<h4 style='margin:2px 0;'>Current: " + String(cur, 1) + " A</h4>";
