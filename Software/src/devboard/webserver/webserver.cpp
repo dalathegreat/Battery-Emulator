@@ -1024,7 +1024,7 @@ String processor(const String& var) {
       if (datalayer.system.status.node_mode == NODE_SLAVE) {
         const char* master_dot = datalayer.system.status.master_online ? "&#10003;" : "&#10060;";
         const char* master_color = datalayer.system.status.master_online ? "color:lightgreen;" : "color:red;";
-        const char* contactor_text = datalayer.system.status.battery_allows_contactor_closing ? "Allowed" : "Blocked";
+        const char* contactor_text = datalayer.system.status.inverter_allows_contactor_closing ? "Allowed" : "Blocked";
         content += "<h4 style='color:white;'>&#9889; Slave Node " +
                    String(datalayer.system.status.slave_node_id) + " &nbsp;|&nbsp; Master: <span style='" +
                    String(master_color) + "'>" + String(master_dot) + "</span> &nbsp;|&nbsp; Contactor closing: " +

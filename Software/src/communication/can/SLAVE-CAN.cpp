@@ -13,6 +13,8 @@ SlaveCan slave_can;
 void setup_slave_can() {
   register_can_receiver(&slave_can, can_config.inter_unit, CAN_Speed::CAN_SPEED_500KBPS);
   register_transmitter(&slave_can);
+  // Block contactor until master explicitly sends ALLOW command
+  datalayer.system.status.inverter_allows_contactor_closing = false;
   logging.println("Slave CAN: registered on inter-unit bus @ 500kbps");
 }
 
@@ -44,7 +46,7 @@ void SlaveCan::receive_can_frame(CAN_frame* rx_frame) {
   // Contactor command addressed to this slave
   if (id == IU_MASTER_CONTACTOR_ID(node_id)) {
     bool allow = (rx_frame->data.u8[0] & IU_CONTACTOR_ALLOW) != 0;
-    datalayer.system.status.battery_allows_contactor_closing = allow;
+    datalayer.system.status.inverter_allows_contactor_closing = allow;
     return;
   }
 }
