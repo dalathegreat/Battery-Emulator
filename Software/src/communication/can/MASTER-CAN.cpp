@@ -240,10 +240,16 @@ void MasterCan::update_slave_aggregation() {
   uint32_t total_max_charge_W = 0;
   uint32_t total_max_discharge_W = 0;
   int32_t total_current_dA = 0;
-  uint16_t lowest_soc = 10001;  // Above max to detect "no data"
+  uint16_t lowest_soc = 10001;   // Above max to detect "no data"
+  uint16_t highest_soc = 0;
   int16_t highest_temp = -1270;
   int16_t lowest_temp = 1270;
   uint8_t active_count = 0;
+  // If any battery's BMS says stop charging/discharging, block all power flow.
+  // This ensures we stop as soon as the first battery is full or empty,
+  // protecting against overcharge/overdischarge in mixed battery setups.
+  bool charge_blocked = false;
+  bool discharge_blocked = false;
 
   for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
     const SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
@@ -253,12 +259,23 @@ void MasterCan::update_slave_aggregation() {
     active_count++;
     total_capacity_Wh += node.total_capacity_Wh;
     total_remaining_Wh += node.remaining_Wh;
-    total_max_charge_W += node.max_charge_W;
-    total_max_discharge_W += node.max_discharge_W;
+    if (node.max_charge_W == 0) {
+      charge_blocked = true;
+    } else {
+      total_max_charge_W += node.max_charge_W;
+    }
+    if (node.max_discharge_W == 0) {
+      discharge_blocked = true;
+    } else {
+      total_max_discharge_W += node.max_discharge_W;
+    }
     total_current_dA += node.current_dA;
 
     if (node.real_soc < lowest_soc) {
       lowest_soc = node.real_soc;
+    }
+    if (node.real_soc > highest_soc) {
+      highest_soc = node.real_soc;
     }
     // temp stored as °C, convert to dC (×10) for datalayer
     int16_t t_max_dC = (int16_t)node.temp_max_dC * 10;
@@ -280,12 +297,18 @@ void MasterCan::update_slave_aggregation() {
   datalayer.battery.info.reported_total_capacity_Wh = total_capacity_Wh;
   datalayer.battery.status.remaining_capacity_Wh = total_remaining_Wh;
   datalayer.battery.status.reported_remaining_capacity_Wh = total_remaining_Wh;
-  datalayer.battery.status.max_charge_power_W = total_max_charge_W;
-  datalayer.battery.status.max_discharge_power_W = total_max_discharge_W;
+  datalayer.battery.status.max_charge_power_W = charge_blocked ? 0u : total_max_charge_W;
+  datalayer.battery.status.max_discharge_power_W = discharge_blocked ? 0u : total_max_discharge_W;
   datalayer.battery.status.reported_current_dA = (int16_t)total_current_dA;
   datalayer.battery.status.current_dA = (int16_t)total_current_dA;
   datalayer.battery.status.real_soc = lowest_soc;
-  datalayer.battery.status.reported_soc = lowest_soc;
+  // Mirror Software.cpp multi-battery logic: report lowest SOC normally (discharge protection),
+  // but override with highest SOC when any battery is nearly full (charge protection).
+  uint16_t reported_soc = lowest_soc;
+  if (highest_soc > 9900) {
+    reported_soc = highest_soc;
+  }
+  datalayer.battery.status.reported_soc = reported_soc;
   datalayer.battery.status.temperature_max_dC = highest_temp;
   datalayer.battery.status.temperature_min_dC = lowest_temp;
 
