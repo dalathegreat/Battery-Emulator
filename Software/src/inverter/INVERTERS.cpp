@@ -76,6 +76,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::PylonLV485:
       return PylonLV485InverterProtocol::Name;
 
+    case InverterProtocolType::InterUnitSlave:
+      return "Inter-Unit Slave";
+
     case InverterProtocolType::Schneider:
       return SchneiderInverter::Name;
 
@@ -168,6 +171,9 @@ bool setup_inverter() {
     case InverterProtocolType::PylonLV485:
       inverter = new PylonLV485InverterProtocol();
       break;
+
+    case InverterProtocolType::InterUnitSlave:
+      break;  // Slave has no inverter protocol
 
     case InverterProtocolType::Schneider:
       inverter = new SchneiderInverter();

@@ -260,6 +260,18 @@ void update_machineryprotection() {
     }
   }
 
+  if (datalayer.system.status.node_mode == NODE_SLAVE) {
+    // Check if the master is still sending heartbeats. If we go 60s without one we raise a warning
+    if (!datalayer.system.status.CAN_master_still_alive) {
+      set_event(EVENT_CAN_MASTER_MISSING, can_config.inter_unit);
+      datalayer.system.status.master_online = false;
+      datalayer.system.status.battery_allows_contactor_closing = false;
+    } else {
+      datalayer.system.status.CAN_master_still_alive--;
+      clear_event(EVENT_CAN_MASTER_MISSING);
+    }
+  }
+
   if (charger) {
     // Assuming chargers are all CAN here.
     // Check if the charger is still sending CAN messages. If we go 60s without messages we raise a warning

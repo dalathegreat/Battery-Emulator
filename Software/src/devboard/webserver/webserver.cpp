@@ -423,7 +423,7 @@ void init_webserver() {
       "PWMFREQ",    "PWMHOLD",     "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS",  "GTWPACK",   "LEDMODE",     "GPIOOPT1",
       "GPIOOPT2",   "GPIOOPT3",    "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",      "CTANOM",    "CTATTEN",     "PYLONBAUD",
       "PYLONBRAND", "DALYPWRPCT",  "DALYPWRDV",  "DALYDVSTART", "DALYPWRDEG",  "DALYPWR0C", "RAMPDOWNSOC", "GPIOOPT5",
-      "GPIOOPT6",   "INVICNT",     "NODEMODE",   "SLAVENODEID",
+      "GPIOOPT6",   "INVICNT",     "SLAVENODEID",
   };
 
   const char* stringSettingNames[] = {"APNAME",         "APPASSWORD",   "HOSTNAME",  "MQTTSERVER",
@@ -467,6 +467,9 @@ void init_webserver() {
                 } else if (p->name() == "INVCOMM") {
                   auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
                   settings.saveUInt("INVCOMM", (int)type);
+                } else if (p->name() == "IUCOMM") {
+                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                  settings.saveUInt("IUCOMM", (int)type);
                 } else if (p->name() == "battery") {
                   auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
                   settings.saveUInt("BATTTYPE", (int)type);

@@ -18,11 +18,9 @@ static const uint8_t VOLTAGE_DIFF_SECONDS_LIMIT = 10;  // 10s grace period
 static uint8_t voltage_diff_seconds[MAX_SLAVE_NODES] = {0};
 
 void setup_master_can() {
-  // Set inter_unit CAN interface to MCP2515 (CAN2 on T-2CAN)
-  can_config.inter_unit = CAN_ADDON_MCP2515;
-  register_can_receiver(&master_can, CAN_ADDON_MCP2515, CAN_Speed::CAN_SPEED_500KBPS);
+  register_can_receiver(&master_can, can_config.inter_unit, CAN_Speed::CAN_SPEED_500KBPS);
   register_transmitter(&master_can);
-  logging.println("Master CAN: registered on inter-unit bus (CAN_ADDON_MCP2515 @ 500kbps)");
+  logging.println("Master CAN: registered on inter-unit bus @ 500kbps");
 }
 
 void MasterCan::begin() {
@@ -59,6 +57,9 @@ void MasterCan::receive_can_frame(CAN_frame* rx_frame) {
   // Reset still_alive counter (60s timeout)
   node.still_alive = IU_OFFLINE_TIMEOUT_S;
   node.online = true;
+  // Note: EVENT_SLAVE_BATTERY_MISSING is intentionally NOT cleared here so the
+  // event history shows that a slave was offline. Contactor is re-allowed by
+  // check_slave_voltage_safety() once voltage is within ±1.5V.
 
   switch (sub) {
     case 0x00:  // STATUS message
@@ -112,7 +113,7 @@ void MasterCan::send_heartbeat() {
   frame.ID = IU_MASTER_HEARTBEAT_ID;
   frame.DLC = 0;
   frame.ext_ID = false;
-  transmit_can_frame_to_interface(&frame, CAN_ADDON_MCP2515);
+  transmit_can_frame_to_interface(&frame, can_config.inter_unit);
 }
 
 void MasterCan::send_contactor_commands() {
@@ -127,7 +128,7 @@ void MasterCan::send_contactor_commands() {
     frame.DLC = 1;
     frame.ext_ID = false;
     frame.data.u8[0] = node.contactor_allowed ? IU_CONTACTOR_ALLOW : IU_CONTACTOR_OPEN;
-    transmit_can_frame_to_interface(&frame, CAN_ADDON_MCP2515);
+    transmit_can_frame_to_interface(&frame, can_config.inter_unit);
   }
 }
 
@@ -162,6 +163,7 @@ void MasterCan::update_values() {
     if (node.still_alive == 0) {
       node.online = false;
       node.contactor_allowed = false;
+      set_event(EVENT_SLAVE_BATTERY_MISSING, i + 1);  // data = node ID (1-8)
       logging.printf("Master CAN: Slave %d went OFFLINE\n", i + 1);
     }
 

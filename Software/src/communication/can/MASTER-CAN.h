@@ -8,7 +8,7 @@
 /**
  * MasterCan — Inter-Unit protocol handler for MASTER nodes.
  *
- * Registers on can_config.inter_unit (CAN_ADDON_MCP2515).
+ * Registers on can_config.inter_unit (configured via IUCOMM setting).
  *
  * Every second:
  *   1. Sends heartbeat broadcast (0x200)

@@ -4,7 +4,7 @@
 /**
  * Inter-Unit CAN Protocol for Master/Slave Battery Emulator Network
  *
- * Uses CAN_ADDON_MCP2515 (CAN2 on Lilygo T-2CAN) at 500 kbps.
+ * CAN interface selected via IUCOMM setting (default: CAN_ADDON_MCP2515). Speed: 500 kbps.
  *
  * Timing:
  *   - Master sends heartbeat every 1 second

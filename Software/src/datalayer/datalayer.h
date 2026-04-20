@@ -362,6 +362,10 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
    * we report the inverter as missing entirely on the CAN bus.
    */
   uint8_t CAN_inverter_still_alive = CAN_STILL_ALIVE;
+  /** A counter set each time a heartbeat is received from the master.
+   * Decremented every second. Reaches 0 => master is considered offline.
+   */
+  uint8_t CAN_master_still_alive = CAN_STILL_ALIVE;
   /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
   uint8_t contactors_engaged = 0;
   /** State of automatic precharge sequence */

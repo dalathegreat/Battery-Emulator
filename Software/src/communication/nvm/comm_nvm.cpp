@@ -119,8 +119,8 @@ void init_stored_settings() {
   user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
   user_set_rampdown_SOC = settings.getUInt("RAMPDOWNSOC", 9000);
 
-  auto readIf = [&settings](const char* settingName) {
-    auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
+  auto readIf = [&settings](const char* settingName, comm_interface defaultIf = comm_interface::CanNative) {
+    auto batt1If = (comm_interface)settings.getUInt(settingName, (int)defaultIf);
     switch (batt1If) {
       case comm_interface::CanNative:
         return CAN_Interface::CAN_NATIVE;
@@ -147,6 +147,7 @@ void init_stored_settings() {
   can_config.inverter = readIf("INVCOMM");
   can_config.charger = readIf("CHGCOMM");
   can_config.shunt = readIf("SHUNTCOMM");
+  can_config.inter_unit = readIf("IUCOMM", comm_interface::CanAddonMcp2515);
 
   equipment_stop_behavior = (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
   user_selected_second_battery = settings.getBool("DBLBTR", false);
@@ -240,7 +241,16 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN2", true);
 
   // Master/Slave inter-unit protocol settings
-  datalayer.system.status.node_mode = (node_mode_enum)settings.getUInt("NODEMODE", (int)NODE_STANDALONE);
+  // Derive node mode from battery/inverter selection — no separate NODEMODE key needed.
+  // InterUnitMaster battery type → this unit is the Master.
+  // InterUnitSlave inverter type  → this unit is a Slave.
+  if (user_selected_battery_type == BatteryType::InterUnitMaster) {
+    datalayer.system.status.node_mode = NODE_MASTER;
+  } else if (user_selected_inverter_protocol == InverterProtocolType::InterUnitSlave) {
+    datalayer.system.status.node_mode = NODE_SLAVE;
+  } else {
+    datalayer.system.status.node_mode = NODE_STANDALONE;
+  }
   datalayer.system.status.slave_node_id = (uint8_t)settings.getUInt("SLAVENODEID", 1);
   if (datalayer.system.status.slave_node_id < 1 || datalayer.system.status.slave_node_id > MAX_SLAVE_NODES) {
     datalayer.system.status.slave_node_id = 1;  // Clamp to valid range
@@ -272,6 +282,6 @@ void store_settings() {
   settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
 
   // Master/Slave inter-unit protocol settings
-  settings.saveUInt("NODEMODE", (int)datalayer.system.status.node_mode);
+  // node_mode is derived from BATTTYPE/INVTYPE at load time — no need to save separately.
   settings.saveUInt("SLAVENODEID", datalayer.system.status.slave_node_id);
 }

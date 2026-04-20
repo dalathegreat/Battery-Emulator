@@ -64,6 +64,8 @@ const char* name_for_battery_type(BatteryType type) {
       return CmpSmartCarBattery::Name;
     case BatteryType::EnnoidBMS:
       return EnnoidBms::Name;
+    case BatteryType::InterUnitMaster:
+      return "Inter-Unit Master";
     case BatteryType::FordMachE:
       return FordMachEBattery::Name;
     case BatteryType::Foxess:
@@ -185,6 +187,8 @@ Battery* create_battery(BatteryType type) {
       return new CmpSmartCarBattery();
     case BatteryType::EnnoidBMS:
       return new EnnoidBms();
+    case BatteryType::InterUnitMaster:
+      return nullptr;  // Master has no local battery
     case BatteryType::FordMachE:
       return new FordMachEBattery();
     case BatteryType::Foxess:

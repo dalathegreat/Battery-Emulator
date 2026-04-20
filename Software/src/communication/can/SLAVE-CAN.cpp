@@ -11,11 +11,9 @@
 SlaveCan slave_can;
 
 void setup_slave_can() {
-  // Set inter_unit CAN interface to MCP2515 (CAN2 on T-2CAN)
-  can_config.inter_unit = CAN_ADDON_MCP2515;
-  register_can_receiver(&slave_can, CAN_ADDON_MCP2515, CAN_Speed::CAN_SPEED_500KBPS);
+  register_can_receiver(&slave_can, can_config.inter_unit, CAN_Speed::CAN_SPEED_500KBPS);
   register_transmitter(&slave_can);
-  logging.println("Slave CAN: registered on inter-unit bus (CAN_ADDON_MCP2515 @ 500kbps)");
+  logging.println("Slave CAN: registered on inter-unit bus @ 500kbps");
 }
 
 void SlaveCan::begin() {
@@ -34,6 +32,7 @@ void SlaveCan::receive_can_frame(CAN_frame* rx_frame) {
     _last_heartbeat_ms = millis();
     _master_online = true;
     datalayer.system.status.master_online = true;
+    datalayer.system.status.CAN_master_still_alive = CAN_STILL_ALIVE;  // Reset watchdog
     _heartbeat_count++;
 
     // Schedule reply after (node_id * 5ms) to avoid CAN collisions
@@ -51,19 +50,8 @@ void SlaveCan::receive_can_frame(CAN_frame* rx_frame) {
 }
 
 void SlaveCan::transmit(unsigned long currentMillis) {
-  // === Safety: master offline check ===
-  if (_master_online && _last_heartbeat_ms > 0) {
-    unsigned long elapsed_s = (currentMillis - _last_heartbeat_ms) / 1000UL;
-    if (elapsed_s >= IU_OFFLINE_TIMEOUT_S) {
-      _master_online = false;
-      datalayer.system.status.master_online = false;
-      // Open contactors for safety — master is gone
-      datalayer.system.status.battery_allows_contactor_closing = false;
-      logging.println("Slave CAN: MASTER OFFLINE — contactors opened for safety");
-    }
-  }
-
   // === Send reply frames if due ===
+  // Master offline detection and event raising is handled by safety.cpp via CAN_master_still_alive counter.
   if (_reply_pending && currentMillis >= _reply_due_ms) {
     _reply_pending = false;
     send_status_frame();
@@ -131,7 +119,7 @@ void SlaveCan::send_status_frame() {
   // [7] flags
   frame.data.u8[7] = build_fault_flags();
 
-  transmit_can_frame_to_interface(&frame, CAN_ADDON_MCP2515);
+  transmit_can_frame_to_interface(&frame, can_config.inter_unit);
 }
 
 void SlaveCan::send_power_frame() {
@@ -163,7 +151,7 @@ void SlaveCan::send_power_frame() {
   // [7] reserved
   frame.data.u8[7] = 0;
 
-  transmit_can_frame_to_interface(&frame, CAN_ADDON_MCP2515);
+  transmit_can_frame_to_interface(&frame, can_config.inter_unit);
 }
 
 void SlaveCan::send_info_frame() {
@@ -190,5 +178,5 @@ void SlaveCan::send_info_frame() {
   frame.data.u8[6] = 0;
   frame.data.u8[7] = 0;
 
-  transmit_can_frame_to_interface(&frame, CAN_ADDON_MCP2515);
+  transmit_can_frame_to_interface(&frame, can_config.inter_unit);
 }

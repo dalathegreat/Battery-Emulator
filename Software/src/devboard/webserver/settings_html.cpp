@@ -238,6 +238,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum((comm_interface)settings.getUInt("INVCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
   }
+  if (var == "IUCOMM") {
+    return options_for_enum((comm_interface)settings.getUInt("IUCOMM", (int)comm_interface::CanAddonMcp2515),
+                            name_for_comm_interface);
+  }
   if (var == "CHGTYPE") {
     return options_for_enum_with_none((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None),
                                       name_for_charger_type, ChargerType::None);
@@ -314,14 +318,6 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 #endif
 
-  if (var == "NODEMODE") {
-    int mode = (int)settings.getUInt("NODEMODE", 0);
-    String opts;
-    opts += "<option value=\"0\"" + String(mode == 0 ? " selected" : "") + ">Standalone</option>";
-    opts += "<option value=\"1\"" + String(mode == 1 ? " selected" : "") + ">Master</option>";
-    opts += "<option value=\"2\"" + String(mode == 2 ? " selected" : "") + ">Slave</option>";
-    return opts;
-  }
   if (var == "GPIOOPT2") {
     return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
                                       name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
@@ -1242,12 +1238,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-battery, form .if-inverter, form .if-charger, form .if-shunt { display: contents; }
     form[data-battery="0"] .if-battery { display: none; }
+    form[data-battery="53"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
+    form[data-inverter="24"] .if-inverter { display: none; }
     form[data-charger="0"] .if-charger { display: none; }
     form[data-shunttype="0"] .if-shunt,
     form[data-shunttype="3"] .if-shunt { 
       display: none; 
     }
+
+    form .if-inter-master { display: none; }
+    form[data-battery="53"] .if-inter-master { display: contents; }
     form[data-shunttype="0"] .if-ctclamp,
     form[data-shunttype="1"] .if-ctclamp,
     form[data-shunttype="2"] .if-ctclamp { 
@@ -1331,8 +1332,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
-    form .if-slave { display: none; }
-    form[data-nodemode="2"] .if-slave {
+    form .if-inter-slave { display: none; }
+    form[data-inverter="24"] .if-inter-slave {
       display: contents;
     }
 
@@ -1451,25 +1452,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
           <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
-        </div>
-
-        <div class="settings-card">
-        <h3>Node configuration</h3>
-        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
-
-        <label for='NODEMODE'>Node mode: </label>
-        <select id='NODEMODE' name='NODEMODE'>
-        %NODEMODE%
-        </select>
-
-        <div class="if-slave">
-        <label for='SLAVENODEID'>Slave node ID (1-8): </label>
-        <input type='number' id='SLAVENODEID' name='SLAVENODEID' value='%SLAVENODEID%'
-        min='1' max='8' step='1'
-        title="Unique ID for this slave node. Each slave in the network must have a different ID (1-8)." />
-        </div>
-
-        </div>
         </div>
 
         <div class="settings-card">
@@ -1608,6 +1590,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
+        <div class="if-inter-master">
+        <label for='IUCOMM'>Inter-unit interface: </label><select name='IUCOMM' id='IUCOMM'>
+        %IUCOMM%
+        </select>
+        </div>
+
         <div class="if-pylon-battery">
         <label>Pylon CAN baudrate (kbps): </label>
         <input name='PYLONBAUD' type='text' value="%PYLONBAUD%" pattern="[0-9]+" title="Select CAN bus baudrate (500kbps for most batteries, 250kbps for some configurations)"/>
@@ -1664,6 +1652,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Inverter protocol: </label><select name='inverter'>
         %INVTYPE%
         </select>
+
+        <div class="if-inter-slave">
+        <label for='SLAVENODEID'>Slave node ID (1-8): </label>
+        <input type='number' id='SLAVENODEID' name='SLAVENODEID' value='%SLAVENODEID%'
+        min='1' max='8' step='1'
+        title="Unique ID for this slave node. Each slave must have a different ID (1-8)." />
+
+        <label for='IUCOMM'>Inter-unit interface: </label><select name='IUCOMM' id='IUCOMM'>
+        %IUCOMM%
+        </select>
+        </div>
 
         <div class="if-inverter">        
         <label>Inverter interface: </label><select name='INVCOMM'>
