@@ -1,4 +1,5 @@
 #include "BATTERIES.h"
+#include "../communication/can/MASTER-CAN.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/logging.h"
@@ -188,7 +189,7 @@ Battery* create_battery(BatteryType type) {
     case BatteryType::EnnoidBMS:
       return new EnnoidBms();
     case BatteryType::InterUnitMaster:
-      return nullptr;  // Master has no local battery
+      return new InterUnitMasterBattery();
     case BatteryType::FordMachE:
       return new FordMachEBattery();
     case BatteryType::Foxess:

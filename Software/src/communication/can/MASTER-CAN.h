@@ -1,9 +1,42 @@
 #ifndef _MASTER_CAN_H_
 #define _MASTER_CAN_H_
 
+#include "../../battery/Battery.h"
 #include "../../communication/Transmitter.h"
+#include "../../datalayer/datalayer.h"
 #include "CanReceiver.h"
 #include "INTER-UNIT-PROTOCOL.h"
+
+/**
+ * InterUnitMasterBattery — virtual Battery that makes safety.cpp treat the
+ * master node as a real battery.  update_values() only keeps CAN_battery_still_alive
+ * fresh; the actual data is already written into datalayer.battery by
+ * MasterCan::update_slave_aggregation() which runs just before this.
+ */
+class InterUnitMasterBattery : public Battery {
+ public:
+  static constexpr const char* Name = "Inter-Unit Master (virtual battery)";
+
+  void setup() override {
+    datalayer.system.status.battery_allows_contactor_closing = false;
+    strncpy(datalayer.system.info.battery_protocol, Name, 63);
+    datalayer.system.info.battery_protocol[63] = '\0';
+  }
+
+  void update_values() override {
+    // Only keep alive if at least one slave node is online.
+    // If no slaves respond, let the counter run down so safety.cpp raises EVENT_CAN_BATTERY_MISSING.
+    for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
+      if (datalayer.system.slave_nodes[i].online) {
+        datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+        return;
+      }
+    }
+    // No slaves online — do NOT reset the counter
+  }
+
+  const char* interface_name() override { return "Inter-Unit CAN"; }
+};
 
 /**
  * MasterCan — Inter-Unit protocol handler for MASTER nodes.
