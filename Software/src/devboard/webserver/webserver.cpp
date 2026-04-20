@@ -1508,9 +1508,9 @@ String processor(const String& var) {
         if (s.ip_address != 0) {
           IPAddress ip(s.ip_address);
           content += "<h4 style='color:white;margin:2px 0;'><a href='http://" + ip.toString() +
-                     "' target='_blank' style='color:white;'>Node " + String(i + 1) + " &#8599;</a></h4>";
+                     "' target='_blank' style='color:white;'>Battery " + String(i + 1) + " &#8599;</a></h4>";
         } else {
-          content += "<h4 style='color:white;margin:2px 0;'>Node " + String(i + 1) + "</h4>";
+          content += "<h4 style='color:white;margin:2px 0;'>Battery " + String(i + 1) + "</h4>";
         }
         content += "<h4 style='margin:2px 0;'>SOC: " + String(soc, 1) + " %</h4>";
         content += "<h4 style='margin:2px 0;'>Voltage: " + String(v, 1) + " V</h4>";
