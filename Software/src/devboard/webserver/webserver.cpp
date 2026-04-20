@@ -1455,20 +1455,26 @@ String processor(const String& var) {
         float inv_tmin = datalayer.battery.status.temperature_min_dC / 10.0f;
         float inv_tmax = datalayer.battery.status.temperature_max_dC / 10.0f;
         float inv_remaining_kWh = datalayer.battery.status.reported_remaining_capacity_Wh / 1000.0f;
-        float inv_total_kWh = datalayer.battery.info.reported_total_capacity_Wh / 1000.0f;
         float inv_power = datalayer.battery.status.active_power_W / 1000.0f;
-        bool inv_contactor = datalayer.system.status.inverter_allows_contactor_closing;
-        content += "<div style='background-color:#1a2a3a;padding:8px;border-radius:12px;min-width:120px;'>";
-        content += "<h4 style='color:#aad4ff;margin:2px 0;'>&#8594; Inverter</h4>";
-        content += "<h4 style='margin:2px 0;'>" + String(inv_soc, 1) + "%</h4>";
-        content += "<h4 style='margin:2px 0;'>" + String(inv_voltage, 1) + " V</h4>";
-        content += "<h4 style='margin:2px 0;'>" + String(inv_current, 1) + " A</h4>";
-        content += "<h4 style='margin:2px 0;'>" + String(inv_tmin, 0) + "/" + String(inv_tmax, 0) + " &deg;C</h4>";
-        content += "<h4 style='margin:2px 0;'>" + String(inv_remaining_kWh, 1) + "/" + String(inv_total_kWh, 1) + " kWh</h4>";
-        content += "<h4 style='margin:2px 0;'>Pwr: " + String(inv_power, 2) + " kW</h4>";
-        content += "<h4 style='margin:2px 0;'>Contactor: <span style='" +
-                   String(inv_contactor ? "color:lightgreen;" : "color:gray;") + "'>" +
-                   String(inv_contactor ? "&#9679;" : "&#9675;") + "</span></h4>";
+        float inv_chg_kW = datalayer.battery.status.max_charge_power_W / 1000.0f;
+        float inv_dis_kW = datalayer.battery.status.max_discharge_power_W / 1000.0f;
+        content += "<div style='background-color:#1a2a3a;padding:10px;border-radius:12px;min-width:160px;'>";
+        content += "<h4 style='color:#aad4ff;margin:2px 0;'>Inverter</h4>";
+        content += "<h4 style='margin:2px 0;'>SOC: " + String(inv_soc, 1) + " %</h4>";
+        content += "<h4 style='margin:2px 0;'>Voltage: " + String(inv_voltage, 1) + " V</h4>";
+        content += "<h4 style='margin:2px 0;'>Current: " + String(inv_current, 1) + " A</h4>";
+        content += "<h4 style='margin:2px 0;'>Power: " + String(inv_power, 2) + " kW</h4>";
+        content += "<h4 style='margin:2px 0;'>Temp: " + String(inv_tmin, 0) + " / " + String(inv_tmax, 0) + " &deg;C</h4>";
+        content += "<h4 style='margin:2px 0;'>Remaining: " + String(inv_remaining_kWh, 1) + " kWh</h4>";
+        content += "<h4 style='margin:2px 0;'>Max charge: " + String(inv_chg_kW, 1) + " kW</h4>";
+        content += "<h4 style='margin:2px 0;'>Max discharge: " + String(inv_dis_kW, 1) + " kW</h4>";
+        if (datalayer.battery.status.reported_current_dA == 0) {
+          content += "<h4 style='margin:2px 0;'>Battery idle</h4>";
+        } else if (datalayer.battery.status.reported_current_dA < 0) {
+          content += "<h4 style='margin:2px 0;'>Battery discharging!</h4>";
+        } else {
+          content += "<h4 style='margin:2px 0;'>Battery charging!</h4>";
+        }
         content += "</div>";
       }
 
@@ -1486,18 +1492,20 @@ String processor(const String& var) {
         float cur = s.current_dA / 10.0f;
         float tmax = s.temp_max_dC / 10.0f;
         float tmin = s.temp_min_dC / 10.0f;
+        float chg_kW = s.max_charge_W / 1000.0f;
+        float dis_kW = s.max_discharge_W / 1000.0f;
         const char* contactor_icon = s.contactor_engaged ? "&#9679;" : "&#9675;";
         const char* contactor_color = s.contactor_engaged ? "color:lightgreen;" : "color:gray;";
         content += "<div style='background-color:" + String(bg) +
-                   ";padding:8px;border-radius:12px;min-width:120px;'>";
+                   ";padding:10px;border-radius:12px;min-width:160px;'>";
         content += "<h4 style='color:white;margin:2px 0;'>Node " + String(i + 1) + "</h4>";
-        content += "<h4 style='margin:2px 0;'>" + String(soc, 1) + "%</h4>";
-        content += "<h4 style='margin:2px 0;'>" + String(v, 1) + " V</h4>";
-        content += "<h4 style='margin:2px 0;'>" + String(cur, 1) + " A</h4>";
-        content += "<h4 style='margin:2px 0;'>" + String(tmin, 0) + "/" + String(tmax, 0) + " &deg;C</h4>";
-        content += "<h4 style='margin:2px 0;'>" +
-                   String(s.remaining_Wh / 1000.0f, 1) + "/" + String(s.total_capacity_Wh / 1000.0f, 1) + " kWh</h4>";
-        content += "<h4 style='margin:2px 0;'>Chg max: " + String(s.max_charge_W / 1000.0f, 1) + " kW</h4>";
+        content += "<h4 style='margin:2px 0;'>SOC: " + String(soc, 1) + " %</h4>";
+        content += "<h4 style='margin:2px 0;'>Voltage: " + String(v, 1) + " V</h4>";
+        content += "<h4 style='margin:2px 0;'>Current: " + String(cur, 1) + " A</h4>";
+        content += "<h4 style='margin:2px 0;'>Temp: " + String(tmin, 0) + " / " + String(tmax, 0) + " &deg;C</h4>";
+        content += "<h4 style='margin:2px 0;'>Remaining: " + String(s.remaining_Wh / 1000.0f, 1) + " kWh</h4>";
+        content += "<h4 style='margin:2px 0;'>Max charge: " + String(chg_kW, 1) + " kW</h4>";
+        content += "<h4 style='margin:2px 0;'>Max discharge: " + String(dis_kW, 1) + " kW</h4>";
         content += "<h4 style='margin:2px 0;'>Contactor: <span style='" + String(contactor_color) + "'>" +
                    String(contactor_icon) + "</span></h4>";
         if (fault) {
