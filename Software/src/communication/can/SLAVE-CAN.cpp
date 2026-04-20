@@ -53,8 +53,12 @@ void SlaveCan::receive_can_frame(CAN_frame* rx_frame) {
 }
 
 void SlaveCan::transmit(unsigned long currentMillis) {
+  // If master has gone offline (timeout handled by safety.cpp), open contactor
+  if (!datalayer.system.status.master_online) {
+    datalayer.system.status.inverter_allows_contactor_closing = false;
+  }
+
   // === Send reply frames if due ===
-  // Master offline detection and event raising is handled by safety.cpp via CAN_master_still_alive counter.
   if (_reply_pending && currentMillis >= _reply_due_ms) {
     _reply_pending = false;
     send_status_frame();
