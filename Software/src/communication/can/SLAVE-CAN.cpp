@@ -114,9 +114,9 @@ void SlaveCan::send_status_frame() {
   // [0..1] voltage_dV
   frame.data.u8[0] = (status.voltage_dV >> 8) & 0xFF;
   frame.data.u8[1] = status.voltage_dV & 0xFF;
-  // [2..3] real_soc
-  frame.data.u8[2] = (status.real_soc >> 8) & 0xFF;
-  frame.data.u8[3] = status.real_soc & 0xFF;
+  // [2..3] reported_soc (scaled if soc_scaling_active, otherwise real_soc)
+  frame.data.u8[2] = (status.reported_soc >> 8) & 0xFF;
+  frame.data.u8[3] = status.reported_soc & 0xFF;
   // [4..5] current_dA (signed)
   uint16_t current_raw = (uint16_t)status.current_dA;
   frame.data.u8[4] = (current_raw >> 8) & 0xFF;

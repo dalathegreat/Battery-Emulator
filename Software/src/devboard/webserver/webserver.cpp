@@ -1456,8 +1456,10 @@ String processor(const String& var) {
         float inv_tmax = datalayer.battery.status.temperature_max_dC / 10.0f;
         float inv_remaining_kWh = datalayer.battery.status.reported_remaining_capacity_Wh / 1000.0f;
         float inv_power = datalayer.battery.status.active_power_W / 1000.0f;
-        float inv_chg_kW = datalayer.battery.status.max_charge_power_W / 1000.0f;
-        float inv_dis_kW = datalayer.battery.status.max_discharge_power_W / 1000.0f;
+        float inv_chg_kW = ((float)datalayer.battery.status.max_charge_current_dA *
+                             (float)datalayer.battery.status.voltage_dV) / 100000.0f;
+        float inv_dis_kW = ((float)datalayer.battery.status.max_discharge_current_dA *
+                             (float)datalayer.battery.status.voltage_dV) / 100000.0f;
         content += "<div style='background-color:#1a2a3a;padding:10px;border-radius:12px;min-width:160px;'>";
         content += "<h4 style='color:#aad4ff;margin:2px 0;'>Inverter</h4>";
         content += "<h4 style='margin:2px 0;'>SOC: " + String(inv_soc, 1) + " %</h4>";
