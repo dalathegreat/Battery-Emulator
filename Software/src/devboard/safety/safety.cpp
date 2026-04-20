@@ -266,6 +266,7 @@ void update_machineryprotection() {
       set_event(EVENT_CAN_MASTER_MISSING, can_config.inter_unit);
       datalayer.system.status.master_online = false;
       datalayer.system.status.battery_allows_contactor_closing = false;
+      datalayer.system.status.inverter_allows_contactor_closing = false;  // Open contactor — master lost
     } else {
       datalayer.system.status.CAN_master_still_alive--;
       clear_event(EVENT_CAN_MASTER_MISSING);
