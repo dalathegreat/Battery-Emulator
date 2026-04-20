@@ -53,7 +53,8 @@ void SlaveCan::receive_can_frame(CAN_frame* rx_frame) {
 }
 
 void SlaveCan::transmit(unsigned long currentMillis) {
-  // If master has gone offline (timeout handled by safety.cpp), open contactor
+  // If master has gone offline, block contactor closing.
+  // contactor control only checks inverter_allows_contactor_closing, so we must set it here.
   if (!datalayer.system.status.master_online) {
     datalayer.system.status.inverter_allows_contactor_closing = false;
   }
