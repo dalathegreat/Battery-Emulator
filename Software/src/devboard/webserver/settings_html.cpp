@@ -1190,6 +1190,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             sel.addEventListener('change', ch);
             ch();
           });
+          document.querySelectorAll('form').forEach(function(form) {
+            form.addEventListener('submit', function() {
+              var seen = {};
+              form.querySelectorAll('select[name="IUCOMM"]').forEach(function(sel) {
+                if (sel.offsetParent === null) { sel.disabled = true; }
+              });
+            });
+          });
     </script>
 )rawliteral"
 

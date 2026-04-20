@@ -946,19 +946,6 @@ String processor(const String& var) {
     content += ".tooltip-icon { color: #505E67; cursor: help; }";  // Matching your button color
     content += "</style>";
 
-    // === SLAVE MODE: status banner at top ===
-    if (datalayer.system.status.node_mode == NODE_SLAVE) {
-      const char* master_dot = datalayer.system.status.master_online ? "&#9679;" : "&#9675;";
-      const char* master_color = datalayer.system.status.master_online ? "color:lightgreen;" : "color:red;";
-      const char* contactor_text = datalayer.system.status.battery_allows_contactor_closing ? "Allowed" : "Blocked";
-      content += "<div style='background-color:#2D3F2F; padding:8px; margin-bottom:8px; border-radius:20px;'>";
-      content += "<h4 style='color:white;'>&#9889; Slave Node " +
-                 String(datalayer.system.status.slave_node_id) + " &nbsp;|&nbsp; Master: <span style='" +
-                 String(master_color) + "'>" + String(master_dot) + "</span> &nbsp;|&nbsp; Contactor: " +
-                 String(contactor_text) + "</h4>";
-      content += "</div>";
-    }
-
     // Compact header
     content += "<h2>Battery Emulator</h2>";
 
@@ -1034,6 +1021,15 @@ String processor(const String& var) {
       content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
 
       // Display which components are used
+      if (datalayer.system.status.node_mode == NODE_SLAVE) {
+        const char* master_dot = datalayer.system.status.master_online ? "&#10003;" : "&#10060;";
+        const char* master_color = datalayer.system.status.master_online ? "color:lightgreen;" : "color:red;";
+        const char* contactor_text = datalayer.system.status.battery_allows_contactor_closing ? "Allowed" : "Blocked";
+        content += "<h4 style='color:white;'>&#9889; Slave Node " +
+                   String(datalayer.system.status.slave_node_id) + " &nbsp;|&nbsp; Master: <span style='" +
+                   String(master_color) + "'>" + String(master_dot) + "</span> &nbsp;|&nbsp; Contactor closing: " +
+                   String(contactor_text) + "</h4>";
+      }
       if (inverter) {
         content += "<h4 style='color: white;'>Inverter protocol: ";
         content += inverter->name();
