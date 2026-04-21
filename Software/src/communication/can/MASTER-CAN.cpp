@@ -225,27 +225,21 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
   uint16_t diff = (node.voltage_dV > reference_voltage_dV) ? (node.voltage_dV - reference_voltage_dV)
                                                             : (reference_voltage_dV - node.voltage_dV);
 
-  if (diff <= VOLTAGE_DIFF_THRESHOLD_dV) {
-    // Voltage OK — allow contactor unless there's a fault
-    voltage_diff_seconds[idx] = 0;
-    bool has_fault = (node.fault_flags != 0);
-    if (!has_fault && !node.contactor_allowed) {
-      node.contactor_allowed = true;
-      logging.printf("Master CAN: Slave %d contactor ALLOWED (voltage OK: %u.%uV)\n", idx + 1,
-                     node.voltage_dV / 10, node.voltage_dV % 10);
-    } else if (has_fault && node.contactor_allowed) {
+  bool has_fault = (node.fault_flags != 0);
+
+  if (has_fault) {
+    if (node.contactor_allowed) {
       node.contactor_allowed = false;
       logging.printf("Master CAN: Slave %d contactor OPENED (fault flags: 0x%02X)\n", idx + 1, node.fault_flags);
     }
-  } else {
-    // Voltage difference too large
-    voltage_diff_seconds[idx]++;
-    if (voltage_diff_seconds[idx] >= VOLTAGE_DIFF_SECONDS_LIMIT && node.contactor_allowed) {
-      node.contactor_allowed = false;
-      logging.printf("Master CAN: Slave %d contactor OPENED (voltage diff %.1fV > threshold)\n", idx + 1,
-                     diff / 10.0f);
+  } else if (!node.contactor_allowed) {
+    if (diff <= VOLTAGE_DIFF_THRESHOLD_dV) {
+      node.contactor_allowed = true;
+      logging.printf("Master CAN: Slave %d contactor ALLOWED (voltage OK: %u.%uV)\n", idx + 1,
+                     node.voltage_dV / 10, node.voltage_dV % 10);
     }
   }
+  // If the contactor is already allowed and there are no faults, we permit voltage differences without opening the contactor.
 }
 
 void MasterCan::update_slave_aggregation() {

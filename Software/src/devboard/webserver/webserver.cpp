@@ -1464,6 +1464,8 @@ String processor(const String& var) {
             (float)datalayer.battery.status.max_discharge_power_W,
             ((float)datalayer.battery.status.max_discharge_current_dA *
              (float)datalayer.battery.status.voltage_dV) / 100.0f) / 1000.0f;
+        float inv_chg_A = datalayer.battery.status.max_charge_current_dA / 10.0f;
+        float inv_dis_A = datalayer.battery.status.max_discharge_current_dA / 10.0f;
         content += "<div style='background-color:#1a2a3a;padding:10px;border-radius:12px;min-width:160px;'>";
         content += "<h4 style='color:#aad4ff;margin:2px 0;'>Inverter</h4>";
         content += "<h4 style='margin:2px 0;'>SOC: " + String(inv_soc, 1) + " %</h4>";
@@ -1472,8 +1474,8 @@ String processor(const String& var) {
         content += "<h4 style='margin:2px 0;'>Power: " + String(inv_power, 2) + " kW</h4>";
         content += "<h4 style='margin:2px 0;'>Temp: " + String(inv_tmin, 0) + " / " + String(inv_tmax, 0) + " &deg;C</h4>";
         content += "<h4 style='margin:2px 0;'>Remaining: " + String(inv_remaining_kWh, 1) + " kWh</h4>";
-        content += "<h4 style='margin:2px 0;'>Max charge: " + String(inv_chg_kW, 1) + " kW</h4>";
-        content += "<h4 style='margin:2px 0;'>Max discharge: " + String(inv_dis_kW, 1) + " kW</h4>";
+        content += "<h4 style='margin:2px 0;'>Max charge: " + String(inv_chg_kW, 1) + " kW / " + String(inv_chg_A, 1) + " A</h4>";
+        content += "<h4 style='margin:2px 0;'>Max discharge: " + String(inv_dis_kW, 1) + " kW / " + String(inv_dis_A, 1) + " A</h4>";
         if (datalayer.battery.status.reported_current_dA == 0) {
           content += "<h4 style='margin:2px 0;'>Battery idle</h4>";
         } else if (datalayer.battery.status.reported_current_dA < 0) {
