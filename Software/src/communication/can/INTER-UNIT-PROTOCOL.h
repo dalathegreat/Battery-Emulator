@@ -16,20 +16,20 @@
  *   - Safety: Master marks slave offline if no reply for 60 seconds
  *
  * CAN ID allocation:
- *   0x200        : Master heartbeat broadcast
- *   0x201-0x208  : Master -> Slave N contactor command
+ *   0x300        : Master heartbeat broadcast
+ *   0x301-0x318  : Master -> Slave N contactor command
  *   0x110+N*0x10 : Slave N -> Master, STATUS message  (msg 0x00)
  *   0x111+N*0x10 : Slave N -> Master, POWER message   (msg 0x01)
  *   0x112+N*0x10 : Slave N -> Master, INFO message    (msg 0x02)
  *   0x113+N*0x10 : Slave N -> Master, IP message      (msg 0x03)
- *   Where N = node ID (1..8)
+ *   Where N = node ID (1..24)
  */
 
 /* ---- Master → Broadcast ---- */
-#define IU_MASTER_HEARTBEAT_ID 0x200u  // Heartbeat, no payload needed
+#define IU_MASTER_HEARTBEAT_ID 0x300u  // Heartbeat, no payload needed
 
 /* ---- Master → Slave N ---- */
-#define IU_MASTER_CONTACTOR_ID(n) (0x200u + (uint32_t)(n))  // n = 1..8
+#define IU_MASTER_CONTACTOR_ID(n) (0x300u + (uint32_t)(n))  // n = 1..24
 
 /* ---- Slave N → Master ---- */
 #define IU_SLAVE_STATUS_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x00u)  // Status (8 bytes, every 1s)
@@ -39,7 +39,7 @@
 
 /* ---- Slave ID range detection ---- */
 #define IU_SLAVE_MSG_MIN_ID 0x110u  // Slave 1, msg 0x00
-#define IU_SLAVE_MSG_MAX_ID 0x183u  // Slave 8, msg 0x03
+#define IU_SLAVE_MSG_MAX_ID 0x283u  // Slave 24, msg 0x03
 
 /* ---- Contactor command byte (master → slave, data[0]) ---- */
 #define IU_CONTACTOR_ALLOW 0x01u  // Slave may close contactor

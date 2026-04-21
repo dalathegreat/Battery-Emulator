@@ -265,7 +265,6 @@ void update_machineryprotection() {
     if (!datalayer.system.status.CAN_master_still_alive) {
       set_event(EVENT_CAN_MASTER_MISSING, can_config.inter_unit);
       datalayer.system.status.master_online = false;
-      datalayer.system.status.battery_allows_contactor_closing = false;
     } else {
       datalayer.system.status.CAN_master_still_alive--;
       clear_event(EVENT_CAN_MASTER_MISSING);
