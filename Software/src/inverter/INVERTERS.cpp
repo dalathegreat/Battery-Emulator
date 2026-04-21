@@ -23,6 +23,8 @@ bool user_selected_inverter_deye_workaround = false;
 bool user_selected_primo_gen24 =
     false;  //Used by BYD-Modbus (Fronius Primo Gen24) inverters to determine if we should cap voltage to 450V or not
 
+bool inverter_low_pass_filter = false;  //Should the charge/discharge limits be filtered with a low pass filter?
+
 std::vector<InverterProtocolType> supported_inverter_protocols() {
   std::vector<InverterProtocolType> types;
 

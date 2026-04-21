@@ -236,21 +236,26 @@ void update_calculated_values(unsigned long currentMillis) {
         ((datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV);
 
     // Low pass filter only when increasing values (10% new, 90% old)
-    if (datalayer.battery.status.max_charge_current_dA == 0) {
-      datalayer.battery.status.max_charge_current_dA = target_charge;  // Initialize immediately if 0
-    } else if (target_charge > datalayer.battery.status.max_charge_current_dA) {
-      datalayer.battery.status.max_charge_current_dA =
-          (target_charge * 10 + datalayer.battery.status.max_charge_current_dA * 90) / 100;
+    if (inverter_low_pass_filter) {
+      if (datalayer.battery.status.max_charge_current_dA == 0) {
+        datalayer.battery.status.max_charge_current_dA = target_charge;  // Initialize immediately if 0
+      } else if (target_charge > datalayer.battery.status.max_charge_current_dA) {
+        datalayer.battery.status.max_charge_current_dA =
+            (target_charge * 10 + datalayer.battery.status.max_charge_current_dA * 90) / 100;
+      } else {
+        datalayer.battery.status.max_charge_current_dA = target_charge;
+      }
+
+      if (datalayer.battery.status.max_discharge_current_dA == 0) {
+        datalayer.battery.status.max_discharge_current_dA = target_discharge;  // Initialize immediately if 0
+      } else if (target_discharge > datalayer.battery.status.max_discharge_current_dA) {
+        datalayer.battery.status.max_discharge_current_dA =
+            (target_discharge * 10 + datalayer.battery.status.max_discharge_current_dA * 90) / 100;
+      } else {
+        datalayer.battery.status.max_discharge_current_dA = target_discharge;
+      }
     } else {
       datalayer.battery.status.max_charge_current_dA = target_charge;
-    }
-
-    if (datalayer.battery.status.max_discharge_current_dA == 0) {
-      datalayer.battery.status.max_discharge_current_dA = target_discharge;  // Initialize immediately if 0
-    } else if (target_discharge > datalayer.battery.status.max_discharge_current_dA) {
-      datalayer.battery.status.max_discharge_current_dA =
-          (target_discharge * 10 + datalayer.battery.status.max_discharge_current_dA * 90) / 100;
-    } else {
       datalayer.battery.status.max_discharge_current_dA = target_discharge;
     }
   }

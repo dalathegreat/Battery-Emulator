@@ -141,6 +141,7 @@ void init_stored_settings() {
   user_selected_second_battery = settings.getBool("DBLBTR", false);
   user_selected_triple_battery = settings.getBool("TRIBTR", false);
   contactor_control_enabled = settings.getBool("CNTCTRL", false);
+  inverter_low_pass_filter = settings.getBool("LOWPASSFILTER", false);
   contactor_control_inverted_logic = settings.getBool("NCCONTACTOR", false);
   precharge_time_ms = settings.getUInt("PRECHGMS", 100);
   contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);
