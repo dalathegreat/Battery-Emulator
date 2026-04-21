@@ -279,9 +279,9 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Battery SOC Min: " + String(soc_min) + " </h4>";
     content += "<h4>Battery Temp Percent: " + String(battTempPct) + " </h4>";
     //0x2B4 PCS_dcdcRailStatus
-    content += "<h4>PCS Lv Output: " + String(dcdcLvOutputCurrent) + " A</h4>";
-    content += "<h4>PCS Lv Bus: " + String(dcdcLvBusVolt) + " V</h4>";
-    content += "<h4>PCS Hv Bus: " + String(dcdcHvBusVolt) + " V</h4>";
+    content += "<h4>PCS DC-DC 12V Output Current: " + String(dcdcLvOutputCurrent) + " A</h4>";
+    content += "<h4>PCS DC-DC 12V Bus Voltage: " + String(dcdcLvBusVolt) + " V</h4>";
+    content += "<h4>PCS DC-DC HV Input Voltage: " + String(dcdcHvBusVolt) + " V</h4>";
     //0x392 BMS_packConfig
     //content += "<h4>packConfigMultiplexer: " + String(datalayer_extended.tesla.battery_packConfigMultiplexer) + "</h4>"; // Not giving useable data
     //content += "<h4>moduleType: " + String(datalayer_extended.tesla.battery_moduleType) + "</h4>";  // Not giving useable data

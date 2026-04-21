@@ -646,6 +646,9 @@ void TeslaBattery::
   datalayer_extended.tesla.battery_dcdcLvBusVolt = battery_dcdcLvBusVolt;
   datalayer_extended.tesla.battery_dcdcHvBusVolt = battery_dcdcHvBusVolt;
   datalayer_extended.tesla.battery_dcdcLvOutputCurrent = battery_dcdcLvOutputCurrent;
+  datalayer.battery.status.pcs_dcdc_12v_bus_voltage_dV = static_cast<uint16_t>(battery_dcdcLvBusVolt * 0.390625f);
+  datalayer.battery.status.pcs_dcdc_hv_input_voltage_dV = static_cast<uint16_t>(battery_dcdcHvBusVolt * 1.46484f);
+  datalayer.battery.status.pcs_dcdc_12v_output_current_dA = static_cast<int16_t>(battery_dcdcLvOutputCurrent);
   //0x352
   datalayer_extended.tesla.BMS352_mux = BMS352_mux;
   datalayer_extended.tesla.battery_nominal_full_pack_energy = battery_nominal_full_pack_energy;
