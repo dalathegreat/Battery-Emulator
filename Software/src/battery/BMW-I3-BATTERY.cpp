@@ -322,10 +322,11 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
   if (battery_awake) {
-    //Send 20ms message
+    // Send 20ms message
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
 
+      // Delay contactor close command by ~160ms (8 cycles of 20ms) after awake to comply with BMS timing
       if (datalayer.system.status.system_status == FAULT) {
         BMW_10B.data.u8[1] = 0x00;  // Keep contactors open - fault condition
       } else if (startup_counter_contactor < 160) {
@@ -333,7 +334,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
         BMW_10B.data.u8[1] = 0x00;  // Keep contactors open during startup
       } else if (contactor_closing_allowed && !(*contactor_closing_allowed)) {
         BMW_10B.data.u8[1] = 0x00;  // Keep contactors open - master (primary battery) not ready
-      } else if (datalayer.system.status.inverter_allows_contactor_closing) {
+      } else if (datalayer.system.status.inverter_allows_contactor_closing && BMW_13E_counter > 8) {
         BMW_10B.data.u8[1] = 0x10;  // Close contactors
       } else {
         BMW_10B.data.u8[1] = 0x00;  // Keep contactors open
