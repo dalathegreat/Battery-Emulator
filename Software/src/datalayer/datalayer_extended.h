@@ -378,11 +378,6 @@ struct DATALAYER_INFO_ECMP {
   bool MysteryVan = false;      //mysteryvan parameters
   bool CrashMemorized = false;  //mysteryvan parameters
   bool InterlockOpen = false;
-  bool UserRequestDTCreset = false;
-  bool UserRequestContactorReset = false;
-  bool UserRequestCollisionReset = false;
-  bool UserRequestIsolationReset = false;
-  bool UserRequestDisableIsoMonitoring = false;
   bool ALERT_CELL_POOR_CONSIST = false;  //mysteryvan parameters
   bool ALERT_OVERCHARGE = false;         //mysteryvan parameters
   bool ALERT_BATT = false;               //mysteryvan parameters

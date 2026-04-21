@@ -38,6 +38,8 @@ void init_stored_settings() {
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
     datalayer.battery.info.total_capacity_Wh = temp;
+    datalayer.battery2.info.total_capacity_Wh = temp;
+    datalayer.battery3.info.total_capacity_Wh = temp;
   }
   temp = settings.getUInt("MAXPERCENTAGE", false);
   if (temp != 0) {

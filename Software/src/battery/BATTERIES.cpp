@@ -309,6 +309,9 @@ void setup_battery() {
       case BatteryType::CmpSmartCar:
         battery2 = new CmpSmartCarBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
+      case BatteryType::StellantisEcmp:
+        battery2 = new EcmpBattery(&datalayer.battery2, can_config.battery_double);
+        break;
       case BatteryType::KiaHyundai64:
         battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
                                            &datalayer.system.status.battery2_allowed_contactor_closing,
