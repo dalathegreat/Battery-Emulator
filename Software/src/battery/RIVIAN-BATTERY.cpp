@@ -24,9 +24,21 @@ uint8_t RivianBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t 
   return crc;
 }
 
+uint16_t estimate_SOC_based_on_voltage(uint16_t voltage) {
+  uint16_t result = 0;
+  //Voltage ranges between 4500dV when full, and 3500dV when empty
+  result = (voltage - 3500);  //Make the range
+  result = result * 10;       //Add decimal
+  return result;
+}
+
 void RivianBattery::update_values() {
 
-  datalayer.battery.status.real_soc = battery_SOC_average;
+  if (user_selected_use_estimated_SOC) {  //Crash locked packs with bypassed contactors
+    datalayer.battery.status.real_soc = estimate_SOC_based_on_voltage(datalayer.battery.status.voltage_dV);
+  } else {
+    datalayer.battery.status.real_soc = battery_SOC_average;
+  }
 
   //datalayer.battery.status.soh_pptt; //TODO: Find usable SOH
 
@@ -36,8 +48,13 @@ void RivianBattery::update_values() {
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_charge_power_W = ((pre_contactor_voltage / 10) * battery_charge_limit_amp);
-  datalayer.battery.status.max_discharge_power_W = ((pre_contactor_voltage / 10) * battery_discharge_limit_amp);
+  if (user_selected_use_estimated_SOC) {
+    datalayer.battery.status.max_charge_power_W = 50000;
+    datalayer.battery.status.max_discharge_power_W = 50000;
+  } else {
+    datalayer.battery.status.max_charge_power_W = ((pre_contactor_voltage / 10) * battery_charge_limit_amp);
+    datalayer.battery.status.max_discharge_power_W = ((pre_contactor_voltage / 10) * battery_discharge_limit_amp);
+  }
 
   if (cell_min_voltage_mV > 0) {
     datalayer.battery.status.cell_min_voltage_mV = cell_min_voltage_mV;

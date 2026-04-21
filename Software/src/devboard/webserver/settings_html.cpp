@@ -1179,7 +1179,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
     form[data-battery="16"] .if-socestimated,
     form[data-battery="26"] .if-socestimated,
-    form[data-battery="41"] .if-socestimated {
+    form[data-battery="41"] .if-socestimated,
+    form[data-battery="42"] .if-socestimated {
       display: contents;
     }
 
