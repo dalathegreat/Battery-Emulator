@@ -22,12 +22,7 @@ static void update_bms_status(void);
 
 /* Initialization function */
 void init_events(void) {
-  for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
-    events.entries[i].data = 0;
-    events.entries[i].timestamp = 0;
-    events.entries[i].occurences = 0;
-    events.entries[i].MQTTpublished = false;  // Not published by default
-  }
+  reset_all_events();
 
   events.entries[EVENT_CANMCP2518FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2515_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
@@ -515,8 +510,10 @@ static void update_event_level(void) {
   EVENTS_LEVEL_TYPE temporary_level = EVENT_LEVEL_INFO;
   for (uint8_t i = 0u; i < EVENT_NOF_EVENTS; i++) {
     if ((events.entries[i].state == EVENT_STATE_ACTIVE) || (events.entries[i].state == EVENT_STATE_ACTIVE_LATCHED)) {
+      printf("Event %s is active with level %d\n", get_event_enum_string((EVENTS_ENUM_TYPE)i), events.entries[i].level);
       temporary_level = (EVENTS_LEVEL_TYPE)max(events.entries[i].level, temporary_level);
     }
   }
+  printf("Updating event level to %d\n", temporary_level);
   events.level = temporary_level;
 }
