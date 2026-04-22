@@ -7,6 +7,7 @@
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/logging.h"
+#include <Arduino.h>
 #ifndef SMALL_FLASH_DEVICE
 #include <ESPmDNS.h>
 #endif

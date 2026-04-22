@@ -21,16 +21,17 @@ void FullReconnectToWiFi();
 
 // In the real wifi.h
 #ifndef UNIT_TEST
+#else
+// Mock declarations for unit tests
+//typedef int WiFiEvent_t;
+//typedef int WiFiEventInfo_t;
+// void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info);
+// void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info);
+#endif
+
 void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info);
 void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info);
 void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info);
-#else
-// Mock declarations for unit tests
-typedef int WiFiEvent_t;
-typedef int WiFiEventInfo_t;
-void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info);
-void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info);
-#endif
 
 // Returns the default hostname ("battery-emulator-" + last two bytes of the MAC, lowercase)
 // used when no custom hostname is configured. Safe to call at any time (reads eFuse directly).
