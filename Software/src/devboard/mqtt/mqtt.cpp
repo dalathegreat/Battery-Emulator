@@ -139,11 +139,9 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"charged_energy", "Battery Charged Energy", "", "Wh", "energy", supports_charged},
     {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged},
     {"balancing_active_cells", "Balancing Active Cells", "", "", "", always},
-    {"balancing_status", "Balancing Status", "", "", "", always}};
-
-SensorConfig teslaSensorConfigTemplate[] = {
-    {"pcs_dcdc_12v_output_current", "DC-DC Current", "", "A", "current", supports_tesla_dcdc_metrics},
-    {"pcs_dcdc_12v_bus_voltage", "DC-DC Voltage", "", "V", "voltage", supports_tesla_dcdc_metrics}};
+    {"balancing_status", "Balancing Status", "", "", "", always},
+    {"dcdc_12v_current", "DC-DC Current", "", "A", "current", supports_tesla_dcdc_metrics},
+    {"dcdc_12v_voltage", "DC-DC Voltage", "", "V", "voltage", supports_tesla_dcdc_metrics}};
 
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
                                              {"pause_status", "Pause Status", "", "", "", always},
@@ -171,11 +169,6 @@ void create_battery_sensor_configs() {
 
       sensorConfigs.push_back(config);
     }
-  }
-
-  for (auto& config : teslaSensorConfigTemplate) {
-    config.value_template = strdup(("{{ value_json." + std::string(config.default_entity_id) + " }}").c_str());
-    sensorConfigs.push_back(config);
   }
 }
 
@@ -291,8 +284,8 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   }
   doc["balancing_active_cells" + suffix] = active_cells;
   doc["balancing_status" + suffix] = get_balancing_status_text(battery.status.balancing_status);
-  doc["pcs_dcdc_12v_output_current" + suffix] = ((float)battery.status.pcs_dcdc_12v_output_current_dA) / 10.0f;
-  doc["pcs_dcdc_12v_bus_voltage" + suffix] = ((float)battery.status.pcs_dcdc_12v_bus_voltage_dV) / 10.0f;
+  doc["dcdc_12v_current" + suffix] = ((float)battery.status.dcdc_12v_current_dA) / 10.0f;
+  doc["dcdc_12v_voltage" + suffix] = ((float)battery.status.dcdc_12v_voltage_dV) / 10.0f;
 }
 
 static std::vector<EventData> order_events;
