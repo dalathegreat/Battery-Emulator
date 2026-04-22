@@ -74,8 +74,6 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint16_t voltage_dV = 3700;
   /** Tesla PCS DC-DC 12V bus voltage in deciVolts. 142 = 14.2 V */
   uint16_t pcs_dcdc_12v_bus_voltage_dV = 0;
-  /** Tesla PCS DC-DC HV input voltage in deciVolts. 3880 = 388.0 V */
-  uint16_t pcs_dcdc_hv_input_voltage_dV = 0;
   /** Maximum cell voltage currently measured in the pack, in mV */
   uint16_t cell_max_voltage_mV = 3700;
   /** Minimum cell voltage currently measured in the pack, in mV */

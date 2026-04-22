@@ -142,8 +142,8 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"balancing_status", "Balancing Status", "", "", "", always}};
 
 SensorConfig teslaSensorConfigTemplate[] = {
-    {"pcs_dcdc_12v_current", "DC-DC Current", "", "A", "current", supports_tesla_dcdc_metrics},
-    {"pcs_dcdc_12v_voltage", "DC-DC Voltage", "", "V", "voltage", supports_tesla_dcdc_metrics}};
+    {"pcs_dcdc_12v_output_current", "DC-DC Current", "", "A", "current", supports_tesla_dcdc_metrics},
+    {"pcs_dcdc_12v_bus_voltage", "DC-DC Voltage", "", "V", "voltage", supports_tesla_dcdc_metrics}};
 
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
                                              {"pause_status", "Pause Status", "", "", "", always},
@@ -162,9 +162,9 @@ void create_battery_sensor_configs() {
 
     if (battery2) {
       auto original_condition = config.condition;
-      config.value_template = strdup(("{{ value_json." + std::string(config.object_id) + "_2 }}").c_str());
+      config.value_template = strdup(("{{ value_json." + std::string(config.default_entity_id) + "_2 }}").c_str());
       config.name = strdup(String(config.name + String(" 2")).c_str());
-      config.object_id = strdup(String(config.object_id + String("_2")).c_str());
+      config.default_entity_id = strdup(String(config.default_entity_id + String("_2")).c_str());
       config.condition = [original_condition](Battery*) {
         return battery2 && original_condition(battery2);
       };
@@ -174,7 +174,7 @@ void create_battery_sensor_configs() {
   }
 
   for (auto& config : teslaSensorConfigTemplate) {
-    config.value_template = strdup(("{{ value_json." + std::string(config.object_id) + " }}").c_str());
+    config.value_template = strdup(("{{ value_json." + std::string(config.default_entity_id) + " }}").c_str());
     sensorConfigs.push_back(config);
   }
 }
