@@ -67,6 +67,9 @@ void SlaveCan::transmit(unsigned long currentMillis) {
     if (_heartbeat_count % IU_INFO_INTERVAL_HEARTBEATS == 0) {
       send_info_frame();
     }
+    if (_heartbeat_count % (IU_INFO_INTERVAL_HEARTBEATS / 5) == 0) {  // Every 2s (assuming heartbeat is 1s and info interval is 10)
+      send_cell_frame();
+    }
     // Send IP on first 3 heartbeats (so master gets it quickly after boot),
     // then only every 10 minutes (600s) since IP rarely changes.
     if (_heartbeat_count <= 3 || _heartbeat_count % 600 == 0) {
@@ -187,7 +190,31 @@ void SlaveCan::send_info_frame() {
   // [4..5] min_design_voltage_dV
   frame.data.u8[4] = (info.min_design_voltage_dV >> 8) & 0xFF;
   frame.data.u8[5] = info.min_design_voltage_dV & 0xFF;
-  // [6..7] reserved
+  // [6..7] soh_pptt
+  uint16_t soh_pptt = datalayer.battery.status.soh_pptt;
+  frame.data.u8[6] = (soh_pptt >> 8) & 0xFF;
+  frame.data.u8[7] = soh_pptt & 0xFF;
+
+  transmit_can_frame_to_interface(&frame, can_config.inter_unit);
+}
+
+void SlaveCan::send_cell_frame() {
+  const uint8_t node_id = datalayer.system.status.slave_node_id;
+
+  CAN_frame frame = {};
+  frame.ID = IU_SLAVE_CELL_ID(node_id);
+  frame.DLC = 8;
+  frame.ext_ID = false;
+
+  uint16_t max_mv = datalayer.battery.status.cell_max_voltage_mV;
+  uint16_t min_mv = datalayer.battery.status.cell_min_voltage_mV;
+
+  frame.data.u8[0] = (max_mv >> 8) & 0xFF;
+  frame.data.u8[1] = max_mv & 0xFF;
+  frame.data.u8[2] = (min_mv >> 8) & 0xFF;
+  frame.data.u8[3] = min_mv & 0xFF;
+  frame.data.u8[4] = 0;
+  frame.data.u8[5] = 0;
   frame.data.u8[6] = 0;
   frame.data.u8[7] = 0;
 

@@ -22,7 +22,18 @@
  *   0x111+N*0x10 : Slave N -> Master, POWER message   (msg 0x01)
  *   0x112+N*0x10 : Slave N -> Master, INFO message    (msg 0x02)
  *   0x113+N*0x10 : Slave N -> Master, IP message      (msg 0x03)
+ *   0x114+N*0x10 : Slave N -> Master, CELL message    (msg 0x04)
  *   Where N = node ID (1..24)
+ *
+ * INFO Message Content:
+ *   [0..1] : total_capacity_Wh
+ *   [2..3] : max_design_voltage_dV
+ *   [4..5] : min_design_voltage_dV
+ *   [6..7] : soh_pptt (State of Health in 0.01% units, e.g. 9900 = 99.00%)
+ *
+ * CELL Message Content:
+ *   [0..1] : cell_max_voltage_mV
+ *   [2..3] : cell_min_voltage_mV
  */
 
 /* ---- Master → Broadcast ---- */
@@ -36,10 +47,11 @@
 #define IU_SLAVE_POWER_ID(n)  (0x100u + ((uint32_t)(n) * 0x10u) + 0x01u)  // Power  (8 bytes, every 1s)
 #define IU_SLAVE_INFO_ID(n)   (0x100u + ((uint32_t)(n) * 0x10u) + 0x02u)  // Info   (8 bytes, every 10s)
 #define IU_SLAVE_IP_ID(n)     (0x100u + ((uint32_t)(n) * 0x10u) + 0x03u)  // IP addr (4 bytes, every 10s)
+#define IU_SLAVE_CELL_ID(n)   (0x100u + ((uint32_t)(n) * 0x10u) + 0x04u)  // Cell info (8 bytes, every 2s)
 
 /* ---- Slave ID range detection ---- */
 #define IU_SLAVE_MSG_MIN_ID 0x110u  // Slave 1, msg 0x00
-#define IU_SLAVE_MSG_MAX_ID 0x283u  // Slave 24, msg 0x03
+#define IU_SLAVE_MSG_MAX_ID 0x284u  // Slave 24, msg 0x04
 
 /* ---- Contactor command byte (master → slave, data[0]) ---- */
 #define IU_CONTACTOR_ALLOW 0x01u  // Slave may close contactor

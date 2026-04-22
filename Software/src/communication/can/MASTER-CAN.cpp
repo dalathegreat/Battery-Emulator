@@ -91,6 +91,7 @@ void MasterCan::receive_can_frame(CAN_frame* rx_frame) {
       node.total_capacity_Wh = ((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1];
       node.max_design_voltage_dV = ((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
       node.min_design_voltage_dV = ((uint16_t)rx_frame->data.u8[4] << 8) | rx_frame->data.u8[5];
+      node.soh_pptt              = ((uint16_t)rx_frame->data.u8[6] << 8) | rx_frame->data.u8[7];
       break;
     }
     case 0x03:  // IP address message (every 10s)
@@ -98,6 +99,14 @@ void MasterCan::receive_can_frame(CAN_frame* rx_frame) {
       if (rx_frame->DLC >= 4) {
         node.ip_address = ((uint32_t)rx_frame->data.u8[0] << 24) | ((uint32_t)rx_frame->data.u8[1] << 16) |
                           ((uint32_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
+      }
+      break;
+    }
+    case 0x04:  // CELL message (every 2s)
+    {
+      if (rx_frame->DLC >= 4) {
+        node.cell_max_voltage_mV = ((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1];
+        node.cell_min_voltage_mV = ((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
       }
       break;
     }
@@ -254,6 +263,8 @@ void MasterCan::update_slave_aggregation() {
   int16_t highest_temp = -1270;
   int16_t lowest_temp = 1270;
   uint16_t shared_voltage_dV = 0;  // All slaves share voltage (parallel)
+  uint16_t lowest_max_design_voltage_dV = 65535; // To safely limit inverter charge voltage
+  uint16_t highest_min_design_voltage_dV = 0;    // To safely limit inverter discharge voltage
   uint8_t active_count = 0;
   // If any battery's BMS says stop charging/discharging, block all power flow.
   // This ensures we stop as soon as the first battery is full or empty,
@@ -295,6 +306,13 @@ void MasterCan::update_slave_aggregation() {
     int16_t t_min_dC = (int16_t)node.temp_min_dC * 10;
     if (t_max_dC > highest_temp) highest_temp = t_max_dC;
     if (t_min_dC < lowest_temp) lowest_temp = t_min_dC;
+
+    if (node.max_design_voltage_dV > 0 && node.max_design_voltage_dV < lowest_max_design_voltage_dV) {
+      lowest_max_design_voltage_dV = node.max_design_voltage_dV;
+    }
+    if (node.min_design_voltage_dV > highest_min_design_voltage_dV) {
+      highest_min_design_voltage_dV = node.min_design_voltage_dV;
+    }
   }
 
   if (active_count == 0) {
@@ -308,6 +326,14 @@ void MasterCan::update_slave_aggregation() {
   // Push aggregated values into datalayer.battery (what the inverter reads)
   datalayer.battery.info.total_capacity_Wh = total_capacity_Wh;
   datalayer.battery.info.reported_total_capacity_Wh = total_capacity_Wh;
+  
+  if (lowest_max_design_voltage_dV < 65535) {
+    datalayer.battery.info.max_design_voltage_dV = lowest_max_design_voltage_dV;
+  }
+  if (highest_min_design_voltage_dV > 0) {
+    datalayer.battery.info.min_design_voltage_dV = highest_min_design_voltage_dV;
+  }
+
   datalayer.battery.status.remaining_capacity_Wh = total_remaining_Wh;
   datalayer.battery.status.reported_remaining_capacity_Wh = total_remaining_Wh;
   datalayer.battery.status.max_charge_power_W =

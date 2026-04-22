@@ -315,6 +315,9 @@ struct SLAVE_NODE_TYPE {
   uint16_t total_capacity_Wh = 0;       // Total capacity in Wh
   uint16_t max_design_voltage_dV = 0;  // Max design voltage in dV
   uint16_t min_design_voltage_dV = 0;  // Min design voltage in dV
+  uint16_t soh_pptt = 9900;            // State of health
+  uint16_t cell_max_voltage_mV = 0;    // Highest cell voltage in pack
+  uint16_t cell_min_voltage_mV = 0;    // Lowest cell voltage in pack
   uint8_t fault_flags = 0;             // Bitmask of faults (see INTER-UNIT-PROTOCOL.h)
   uint8_t still_alive = 0;             // Countdown counter: decremented each second, reset on message
   bool contactor_engaged = false;       // Confirmed contactor state from slave

@@ -33,6 +33,7 @@ class SlaveCan : public CanReceiver, public Transmitter {
   void send_status_frame();
   void send_power_frame();
   void send_info_frame();
+  void send_cell_frame();
   void send_ip_frame();
   uint8_t build_fault_flags();
 

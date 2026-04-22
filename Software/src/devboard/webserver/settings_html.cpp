@@ -1662,10 +1662,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
 
         <div class="if-inter-slave">
-        <label for='SLAVENODEID'>Slave node ID (1-8): </label>
+        <label for='SLAVENODEID'>Slave node ID (1-24): </label>
         <input type='number' id='SLAVENODEID' name='SLAVENODEID' value='%SLAVENODEID%'
-        min='1' max='8' step='1'
-        title="Unique ID for this slave node. Each slave must have a different ID (1-8)." />
+        min='1' max='24' step='1'
+        title="Unique ID for this slave node. Each slave must have a different ID (1-244)." />
 
         <label for='IUCOMM'>Inter-unit interface: </label><select name='IUCOMM' id='IUCOMM'>
         %IUCOMM%
