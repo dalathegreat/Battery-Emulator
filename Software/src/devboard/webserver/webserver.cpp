@@ -1607,7 +1607,7 @@ String formatPowerValue(T value, String unit, int precision) {
 #else
 #include "../utils/types.h"
 bool settingsUpdated = false;
-const char* getCANInterfaceName(CAN_Interface interface) {
-  return "";
-}
+// const char* getCANInterfaceName(CAN_Interface interface) {
+//   return "";
+// }
 #endif

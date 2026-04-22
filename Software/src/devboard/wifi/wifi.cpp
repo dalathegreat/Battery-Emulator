@@ -1,4 +1,5 @@
 #include "wifi.h"
+#include <Arduino.h>
 #include "../utils/events.h"
 #include "../utils/logging.h"
 #ifndef SMALL_FLASH_DEVICE
