@@ -142,9 +142,8 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"balancing_status", "Balancing Status", "", "", "", always}};
 
 SensorConfig teslaSensorConfigTemplate[] = {
-    {"pcs_dcdc_12v_output_current", "PCS DC-DC 12V Output Current", "", "A", "current", supports_tesla_dcdc_metrics},
-    {"pcs_dcdc_12v_bus_voltage", "PCS DC-DC 12V Bus Voltage", "", "V", "voltage", supports_tesla_dcdc_metrics},
-    {"pcs_dcdc_hv_input_voltage", "PCS DC-DC HV Input Voltage", "", "V", "voltage", supports_tesla_dcdc_metrics}};
+    {"pcs_dcdc_12v_current", "DC-DC Current", "", "A", "current", supports_tesla_dcdc_metrics},
+    {"pcs_dcdc_12v_voltage", "DC-DC Voltage", "", "V", "voltage", supports_tesla_dcdc_metrics}};
 
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
                                              {"pause_status", "Pause Status", "", "", "", always},
@@ -294,7 +293,6 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   doc["balancing_status" + suffix] = get_balancing_status_text(battery.status.balancing_status);
   doc["pcs_dcdc_12v_output_current" + suffix] = ((float)battery.status.pcs_dcdc_12v_output_current_dA) / 10.0f;
   doc["pcs_dcdc_12v_bus_voltage" + suffix] = ((float)battery.status.pcs_dcdc_12v_bus_voltage_dV) / 10.0f;
-  doc["pcs_dcdc_hv_input_voltage" + suffix] = ((float)battery.status.pcs_dcdc_hv_input_voltage_dV) / 10.0f;
 }
 
 static std::vector<EventData> order_events;
