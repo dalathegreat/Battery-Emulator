@@ -8,7 +8,8 @@ class Stream : public Print {
   virtual int available() { return 0; }
   virtual int read() { return -1; }
   virtual int peek() { return -1; }
-  // flush() is already inherited from Print
+  virtual int readBytes(char* buffer, size_t length) { return 0; }
+  virtual int readBytes(uint8_t* buffer, size_t length) { return 0; }
 };
 
 #endif
