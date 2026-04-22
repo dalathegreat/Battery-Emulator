@@ -35,6 +35,8 @@ TwsRoute apiBatOldRoute = TwsRoute("/api/batold", new TwsRequestHandlerFunc([](T
         auto &renderer = battery->get_status_renderer();
         auto response = std::make_shared<String>(renderer.get_status_html());
         request.set_writer_callback(StringWriter(response));
+    } else {
+        request.finish();
     }
 }));//.use(*new BasicAuth());
 
@@ -55,9 +57,9 @@ TwsRoute statusRoute("/api/status", new TwsJsonGetFunc([](TwsRequest& request, J
     if(wifiap_enabled) {
         wifi_config_t info;
         if (esp_wifi_get_config(WIFI_IF_AP, &info) == ESP_OK) {
-            doc["ap_ssid"] = (info.ap.ssid_len > 0) ? String((char*)info.ap.ssid, info.ap.ssid_len) : String((char*)info.ap.ssid);
+            //doc["ap_ssid"] = (info.ap.ssid_len > 0) ? String((char*)info.ap.ssid, info.ap.ssid_len) : String((char*)info.ap.ssid);
         }
-        doc["ap_ip"] = WiFi.softAPIP().toString();
+        //doc["ap_ip"] = WiFi.softAPIP().toString();
     }
 
     doc["status"] = get_emulator_status_string(get_emulator_status());
@@ -165,6 +167,7 @@ TwsRoute batextRoute("/api/batext", new TwsRequestHandlerFunc([](TwsRequest& req
     else if(user_selected_battery_type==BatteryType::VolvoSpaHybrid) request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.VolvoHybrid, sizeof(datalayer_extended.VolvoHybrid)));
     else if(user_selected_battery_type==BatteryType::RenaultZoe1) request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.zoe, sizeof(datalayer_extended.zoe)));
     else if(user_selected_battery_type==BatteryType::RenaultZoe2) request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.zoePH2, sizeof(datalayer_extended.zoePH2)));
+    else request.finish();
 }));
 
 
@@ -328,28 +331,30 @@ TwsRoute eventsRoute("/api/events", new TwsJsonGetFunc([](TwsRequest& request, J
 }));
 
 TwsRoute eventsClearRoute("/api/events/clear", new TwsRequestHandlerFunc([](TwsRequest& request) {
-    if(!request.is_post()) { request.write_fully(HTTP_405); return; }
+    if(!request.is_post()) { request.write_fully(HTTP_405); request.finish(); return; }
     reset_all_events();
     request.write_fully(HTTP_204);
+    request.finish();
 }));
 
 TwsRoute rebootRoute("/api/reboot", new TwsRequestHandlerFunc([](TwsRequest& request) {
-    if(!request.is_post()) { request.write_fully(HTTP_405); return; }
+    if(!request.is_post()) { request.write_fully(HTTP_405); request.finish(); return; }
     request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nRebooting server...\n");
     setBatteryPause(true, true, true, false);
     delay(1000);
     ESP.restart();
+    request.finish();
 }));
 
-TwsRoute pauseRoute("/api/pause", new TwsRawPostFunc([](TwsRequest& request, size_t index, uint8_t *data, size_t len) -> int {
-    if(len==1 && data[0]=='1') setBatteryPause(true, false);
-    else if(len==1 && data[0]=='0') setBatteryPause(false, false);
+TwsRoute pauseRoute("/api/pause", new TwsRawPostFunc([](TwsRequest& request, size_t index, uint8_t *data, size_t len, size_t total) -> int {
+    if(len==1 && data[0]=='1') setBatteryPause(true, false, datalayer.system.info.equipment_stop_active);
+    else if(len==1 && data[0]=='0') setBatteryPause(false, false, datalayer.system.info.equipment_stop_active);
     request.write_fully(HTTP_204);
     request.finish();
     return len;
 }));
 
-TwsRoute estopRoute("/api/estop", new TwsRawPostFunc([](TwsRequest& request, size_t index, uint8_t *data, size_t len) -> int {
+TwsRoute estopRoute("/api/estop", new TwsRawPostFunc([](TwsRequest& request, size_t index, uint8_t *data, size_t len, size_t total) -> int {
     if(len==1 && data[0]=='1') setBatteryPause(true, false, true);
     else if(len==1 && data[0]=='0') setBatteryPause(false, false, false);
     request.write_fully(HTTP_204);

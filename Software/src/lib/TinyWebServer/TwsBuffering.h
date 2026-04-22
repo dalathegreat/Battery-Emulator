@@ -77,7 +77,7 @@ public:
     void handleHeader(TwsRequest &request, const char *line, int len) override {
         auto &state = get_state(request);
 
-        DEBUG_PRINTF("Received header line: %.*s\n", len, line);
+        //DEBUG_PRINTF("Received header line: %.*s\n", len, line);
 
         if(strncasecmp(line, "Content-Length:", 15) == 0) {
             char *endptr;

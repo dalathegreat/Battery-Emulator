@@ -80,6 +80,7 @@ function renderMarkdown(text: string) {
     const [marked, setMarked] = useState<any>(null);
 
     useEffect(() => {
+        // @ts-ignore
         import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js")
             .then(m => setMarked(m))
             .catch(e => console.error("Failed to load 'marked' from CDN", e));
@@ -128,7 +129,7 @@ export function Ota() {
             );
 
             return (
-                <div class={"alert slim"} data-level={level} style="display: block; margin-bottom: 1rem;">
+                <div class={"release"} data-level={level} style="display: block; margin-bottom: 1rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span>{ filename }</span>
                         <Button onClick={ ()=>downloadAndFlash(r.path, setProgress) } 

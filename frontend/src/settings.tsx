@@ -6,14 +6,14 @@ import { Show, Form, selectField, checkboxField, ipField, textPatternField, pass
 import { apiPost, useGetApi } from "./utils/api.tsx";
 import { reboot } from "./utils/reboot.tsx";
 
-const INTERFACES = {
-    "6": "CAN FD MCP 2518 add-on",
-    "5": "CAN MCP 2515 add-on",
-    "1": "Modbus RTU (RS485)",
-    "3": "Native CAN",
-    "4": "Native CAN FD",
-    "2": "Modbus TCP"
-};
+const INTERFACES : [string, string][] = [
+    ["3", "Native CAN"],
+    ["4", "Native CAN FD"],
+    ["5", "CAN MCP 2515 add-on"],
+    ["6", "CAN FD MCP 2518 add-on"],
+    ["1", "Modbus RTU (RS485)"],
+    ["2", "Modbus TCP"]
+];
 
 export function Settings() {
     const settings = useGetApi('/api/internal/settings');
@@ -78,6 +78,7 @@ export function Settings() {
 
     const reboot_required = settings?.reboot_required || savedSettings?.reboot_required;
     const merged = { ...settings?.settings, ...savedSettings?.settings, ...current };
+    console.log('merged is', merged);
 
     const custom_bms = ["6", "11", "22", "23", "24", "31"].includes(""+merged.BATTTYPE);
     const estimated = ["3", "4", "6", "14", "16", "24", "32", "33"].includes(""+merged.BATTTYPE);
