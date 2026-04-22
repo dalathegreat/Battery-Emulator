@@ -30,6 +30,7 @@ extern ACAN2515* can2515;
 extern ACAN2517FD* canfd;
 
 bool can_buffer_full(CAN_Interface interface) {
+#ifndef UNIT_TEST
     if(interface == CAN_NATIVE) {
         return ACAN_ESP32::can.driverTransmitBufferCount() >= ACAN_ESP32::can.driverTransmitBufferSize();
     } else if(interface == CAN_ADDON_MCP2515) {
@@ -38,6 +39,7 @@ bool can_buffer_full(CAN_Interface interface) {
     } else if(interface == CANFD_ADDON_MCP2518) {
         return canfd && canfd->driverTransmitBufferCount() >= canfd->driverTransmitBufferSize();
     }
+#endif
     return false;
 }
 
@@ -49,6 +51,7 @@ bool send_can_frame(CAN_Interface interface, const CANMessage &frame) {
     // (it is not ideal having this called directly from the webserver thread,
     // but the alternative involves queues and locking)
 
+#ifndef UNIT_TEST
     if(interface == CAN_NATIVE) {
         return ACAN_ESP32::can.tryToSend(frame);
     } else if(interface == CAN_ADDON_MCP2515) {
@@ -56,6 +59,7 @@ bool send_can_frame(CAN_Interface interface, const CANMessage &frame) {
     } else if(interface == CANFD_ADDON_MCP2518) {
         return canfd && canfd->tryToSend(frame);
     }
+#endif
     return false;
 }
 

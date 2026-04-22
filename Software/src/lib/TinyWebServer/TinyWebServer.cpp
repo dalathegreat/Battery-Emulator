@@ -174,7 +174,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                         continue;
                     }
                     // We can't handle it at all, so skip the rest of the header.
-                    DEBUG_PRINTF("TWS client buffer full, skipping header\n");
+                    //DEBUG_PRINTF("TWS client buffer full, skipping header\n");
                     request.read_flush(request.available());
                     request.parse_state = TWS_SKIPPING_HEADER;
                 }
@@ -368,7 +368,9 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                     // Prepare to receive the POST body
 
                     // Attempt a initial zero-length call to see if the handler
-                    // is expecting a body
+                    // is expecting a body. We need to do this since we're not
+                    // parsing Content-Length ourselves, so we don't know
+                    // whether to wait for a body or not.
                     auto rret = request.handler->onPostBody->handlePostBody(request, 0, nullptr, 0);
                     logging.printf("Testing handlePostBody, returned %d\n", rret);
                     if(rret == -1) {
@@ -469,6 +471,8 @@ void TinyWebServer::handle_request(TwsRequest &request) {
     }
 }
 
+#include <poll.h>
+
 void TinyWebServer::accept_new_connections() {
     // Find a free client slot
     int slot_index = -1;
@@ -480,6 +484,21 @@ void TinyWebServer::accept_new_connections() {
     }
     if (slot_index < 0) {
         // No free client slot, cannot accept new connections
+
+        // Is the listen socket readable
+        // struct pollfd pfd;
+        // pfd.fd = _listen_socket;
+        // pfd.events = POLLIN;
+        // int ret = ::poll(&pfd, 1, 0);
+        // if(ret>0 && (pfd.revents & POLLIN)) {
+        //     DEBUG_PRINTF("TWS no free slots for new connection\n");
+        //     for(int i=0; i < MAX_REQUESTS; i++) {
+        //         if(slots[i].active()) {
+        //             DEBUG_PRINTF("  active: %s\n", slots[i].handler ? slots[i].handler->path : "no handler");
+        //         }
+        //     }
+        // }
+        
         return;
     }
 
