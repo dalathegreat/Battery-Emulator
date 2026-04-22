@@ -9,7 +9,7 @@
 .menu > div {
     min-height: calc(100vh - 110px);
     position: sticky;
-    top: 10px;
+    top: 90px;
     display: flex;
     flex-direction: column;
 }
@@ -52,4 +52,12 @@
     height: 1.5rem;
     vertical-align: bottom;
     margin-right: 0.8rem;
+}
+
+.menu .gap-above {
+    margin-top: auto;
+}
+
+.menu *:has(+ .gap-above) {
+    margin-bottom: 20px;
 }

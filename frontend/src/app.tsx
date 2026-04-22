@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'preact/hooks';
+
 import { CanLog } from './can_log.tsx'
 import { CanSender } from './can_sender.tsx'
 import { CellMonitor } from './cellmonitor.tsx'
@@ -22,6 +24,7 @@ function Tray({status}: {status: any}) {
           battery.i > 0.05 ? <span>▲</span> : battery.i < -0.05 ? <span>▼</span> : ''
         }</div>
       )) }
+      { status?.estop && <div class="badge" data-status="error">ESTOP</div> }
       { status?.pause && <div class="badge" data-status="warn">PAUSED</div> }
     </div>
   );
@@ -43,6 +46,7 @@ function EventCount({status}: {status: any}) {
 export function App() {
   const status = useGetApi("/api/status", 3000);
   const location = useLocation();
+  const [pauseChecked, setPauseChecked] = useState(false);
 
   function handlePause(ev: Event) {
     ev.preventDefault();
@@ -80,6 +84,10 @@ export function App() {
     return new Promise<void>((_res, _rej) => {});
   }
 
+  useEffect(() => {
+    setPauseChecked(!!status?.pause);
+  }, [status?.pause]);
+
   return (
     <>
       <div class="topbar">
@@ -100,11 +108,13 @@ export function App() {
             <Link href="/cansender">CAN sender</Link>
             <Link href="/log">System Log</Link>
             <Link href="/ota">OTA upgrade</Link>
-            <label class="toggle" style="background-color: #bf7c13;">
-              <input type="checkbox" onChange={ handlePause } />
+            <label class="toggle gap-above" style="background-color: #bf7c13">
+              <input type="checkbox" onChange={ handlePause } checked={ pauseChecked } />
               Pause
             </label>
-            <a href="#" onClick={handleEStop} class="button" style="margin: 0 0 0.75rem; background-color: #b50909; color: #ffffff;">Open contactors</a>
+            <a href="#" onClick={handleEStop} class="button" style="margin: 0 0 0.75rem; background-color: #b50909; color: #ffffff;">
+              { status?.estop ? "Close contactors" : "Open contactors" }
+            </a>
             <Button onClick={handleReboot} style={{"background-color": "#434343", "color": "#ffffff", "border-radius": "0 8px 8px 0"}}>Reboot emulator</Button>
           </div>
         </div>

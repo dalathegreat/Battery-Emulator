@@ -18,8 +18,8 @@
 #include <src/lib/ayushsharma82-ElegantOTA/src/elop.h>
 #include <src/lib/bblanchon-ArduinoJson/ArduinoJson.h>
 
-#include "esp_task_wdt.h"
-#include "esp_wifi.h"
+//#include "esp_task_wdt.h"
+//#include "esp_wifi.h"
 
 extern TwsRoute settingsRoute;
 extern TwsRoute statusRoute;
@@ -92,7 +92,7 @@ TwsRoute *default_handlers[] = {
     nullptr,
 };
 
-TinyWebServer tinyWebServer(80, default_handlers);
+TinyWebServer tinyWebServer(8000, default_handlers);
 
 void tiny_web_server_loop(void * pData) {
     TinyWebServer * server = (TinyWebServer *)pData;
@@ -102,5 +102,6 @@ void tiny_web_server_loop(void * pData) {
         if(server->poll()) time_since_watchdog_reset_ms += TinyWebServer::ACTIVE_POLL_TIME_MS;
         else time_since_watchdog_reset_ms += TinyWebServer::IDLE_POLL_TIME_MS;
         if(time_since_watchdog_reset_ms >= 1000) time_since_watchdog_reset_ms = 0;
+        taskYIELD(); // Yield to other tasks to prevent starving
     }
 }

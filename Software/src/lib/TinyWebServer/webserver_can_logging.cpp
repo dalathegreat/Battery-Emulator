@@ -33,7 +33,11 @@ char* IRAM_ATTR put_time(char *ptr, unsigned long time) {
     return ptr;
 }
 
-void IRAM_ATTR dump_can_frame2(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
+void IRAM_ATTR dump_can_frame2(const CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
+    if (!datalayer.system.info.can_logging_active2) {
+        return;
+    }
+
     const int required_space = 29 + frame.DLC*3 + 20;
     if(tinyWebServer.free(can_dumper_connection_id) < required_space) {
         tinyWebServer.write(can_dumper_connection_id, "\n", 1);

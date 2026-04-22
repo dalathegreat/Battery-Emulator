@@ -12,6 +12,9 @@ const char *HTTP_405 = "HTTP/1.1 405 x\r\n"
                        "Connection: close\r\n"
                        "\r\n";
 
+// A writer callback wrapper that writes the contents of a String in chunks, and
+// finishes the response when done.
+
 TwsRequestWriterCallbackFunction StringWriter(std::shared_ptr<String> &response) {
     return [response = std::move(response)](TwsRequest &req, int alreadyWritten) {
         const int remaining = response->length() - alreadyWritten;
@@ -22,6 +25,9 @@ TwsRequestWriterCallbackFunction StringWriter(std::shared_ptr<String> &response)
         req.write_direct(response->c_str() + alreadyWritten, remaining);
     };
 }
+
+// A writer callback wrapper that writes the contents of a list of StringLikes
+// in chunks, and finishes the response when done.
 
 TwsRequestWriterCallbackFunction StringListWriter(std::shared_ptr<std::vector<StringLike>> &response) {
     return [response = std::move(response)](TwsRequest &req, int alreadyWritten) {
@@ -67,8 +73,32 @@ void TwsJsonGetFunc::handleRequest(TwsRequest &request) {
     request.set_writer_callback(StringWriter(response));
 }
 
+void TwsRawPostFunc::handleHeader(TwsRequest &request, const char *line, int len) {
+    auto &state = get_state(request);
+    if(strncasecmp(line, "Content-Length:", 15) == 0) {
+        char *endptr;
+        int content_length = (int)strtol(line + 15, &endptr, 10);
+        if (endptr != line + 15 && content_length >= 0) {
+            state.content_length = content_length;
+        }
+    }
+    if (nextHeader) nextHeader->handleHeader(request, line, len);
+}
+
 int TwsRawPostFunc::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
-    return handle(request, index, data, len);
+    auto &state = get_state(request);
+    
+    if(state.content_length == 0) {
+        // No body expected, so treat this as the end of the upload
+        return -1;
+    }
+
+    if(len == 0) {
+        // Zero-length chunk, ignore
+        return 0;
+    }
+
+    return handle(request, index, data, len, state.content_length);
 }
 
 void TwsJsonRestHandler::handleRequest(TwsRequest &request) {

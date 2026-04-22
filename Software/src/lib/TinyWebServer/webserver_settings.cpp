@@ -10,6 +10,8 @@
 #include <src/communication/equipmentstopbutton/comm_equipmentstopbutton.h>
 #include <src/communication/precharge_control/precharge_control.h>
 #include <src/devboard/mqtt/mqtt.h>
+#include <src/devboard/wifi/wifi.h>
+
 /* 
 
 Adding settings

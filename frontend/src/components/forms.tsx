@@ -132,11 +132,13 @@ function sortNoneFirst(a: [string, string], b: [string, string]) {
     return (a[1] as string).localeCompare(b[1] as string);
 }
 
-export function selectField(label: string, name: string, options: {[index: string]:string}) {
+export function selectField(label: string, name: string, options: {[index: string]:string} | [string, string][]) {
+    // If a list, use original order, otherwise sort the object entries alphabetically by value, with the "0" key first if it exists.
+    const entries = Array.isArray(options) ? options : Object.entries(options).sort(sortNoneFirst)
     return <div class="form-row">
         <label>{ label }</label>
         <select name={ name }>
-            { Object.entries(options).sort(sortNoneFirst).map(([k, v]) => (
+            { entries.map(([k, v]) => (
                 <option value={k}>{v}</option>
             )) }
         </select>

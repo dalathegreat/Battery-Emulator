@@ -127,7 +127,7 @@ protected:
     // Set the size of the send buffer. This needs to be large enough to
     // handle the largest HTTP response (including headers) that you need to
     // send in one go, without using a callback (usually just error responses).
-    static const int SEND_BUFFER_SIZE = 512;
+    static const int SEND_BUFFER_SIZE = 4096;//512;
 
     // Set the size of the receive buffer. This value affects several direct
     // limitations in the protocol handling:
@@ -271,7 +271,7 @@ public:
     void finish(uint32_t connection_id);
 
     // must be <= 32
-    static const int MAX_REQUESTS = 3;
+    static const int MAX_REQUESTS = 32;
     // How long to block polling for activity when there are requests active.
     static const int ACTIVE_POLL_TIME_MS = 10;
     // How long to block polling when there are no requests active.

@@ -36,7 +36,7 @@ private:
 TwsRequestWriterCallbackFunction StringListWriter(std::shared_ptr<std::vector<StringLike>> &response);
 TwsRequestWriterCallbackFunction CharBufWriter(const char* buf, int len);
 
-// A simple handler that responds to GET requests with a JSON document generated
+// A simple handler that responds to GET requests with a JSON document populated
 // by a user-supplied callback
 
 class TwsJsonGetFunc : public TwsRequestHandler {
@@ -51,13 +51,18 @@ public:
 // A simple handler that responds to POST requests, repeatedly calling a
 // user-supplied callback with the raw POST body data as it is received.
 
-class TwsRawPostFunc : public TwsPostBodyHandler {
+struct RawPostFuncState {
+    size_t content_length = 0;
+};
+
+class TwsRawPostFunc : public TwsStatefulMiddleware<RawPostFuncState> {
 public:
-    TwsRawPostFunc(int (*handle)(TwsRequest& request, size_t index, uint8_t *data, size_t len)) : handle(handle) {}
+    TwsRawPostFunc(int (*handle)(TwsRequest& request, size_t index, uint8_t *data, size_t len, size_t total)) : handle(handle) {}
     
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
+    void handleHeader(TwsRequest &request, const char *line, int len) override;
 
-    int (*handle)(TwsRequest& request, size_t index, uint8_t *data, size_t len);
+    int (*handle)(TwsRequest& request, size_t index, uint8_t *data, size_t len, size_t total);
 };
 
 // A handler superclass for JSON REST endpoint handlers, supporting both GET and
