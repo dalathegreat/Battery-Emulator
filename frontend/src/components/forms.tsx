@@ -65,6 +65,7 @@ export function Form({ children, initial, changed, validate, submit }: {
                 const el = (form.current[k] as any);
                 if(el) {
                     if(el.type==='checkbox') {
+                        console.log('setting checkbox', k, 'to', v);
                         el.checked = (""+v)==='1' || (""+v)==='true';
                     } else {
                         el.value = "" + v;

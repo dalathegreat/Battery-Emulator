@@ -15,21 +15,35 @@ char* IRAM_ATTR put_hex(char *ptr, uint32_t value, uint8_t digits) {
 }
 
 char* IRAM_ATTR put_time(char *ptr, unsigned long time) {
-    // Wrap around after 100000 seconds (about 27.7 hours) to avoid overflowing the buffer
+    // Wrap around after 100000 seconds (about 27.7 hours)
     if(time >= 100000000) time = time % 100000000;
 
     // Seconds part
-    if(time >= 10000000) { *ptr++ = (time / 10000000) + '0'; time %= 10000000; }
-    if(time >= 1000000) { *ptr++ = (time / 1000000) + '0'; time %= 1000000; }
-    if(time >= 100000) { *ptr++ = (time / 100000) + '0'; time %= 100000; }
-    if(time >= 10000) { *ptr++ = (time / 10000) + '0'; time %= 10000; }
-    *ptr++ = (time / 1000) + '0'; time %= 1000;
+    // bool started = false;
+    // if(time >= 10000000 || started) { *ptr++ = (time / 10000000) + '0'; time %= 10000000; started = true; }
+    // if(time >= 1000000 || started) { *ptr++ = (time / 1000000) + '0'; time %= 1000000; started = true; }
+    // if(time >= 100000 || started) { *ptr++ = (time / 100000) + '0'; time %= 100000; started = true; }
+    // if(time >= 10000 || started) { *ptr++ = (time / 10000) + '0'; time %= 10000; started = true; }
+    // *ptr++ = (time / 1000) + '0'; time %= 1000;
     
     // Milliseconds part
-    *ptr++ = '.';
-    *ptr++ = (time / 100) + '0'; time %= 100;
-    *ptr++ = (time / 10) + '0'; time %= 10;
-    *ptr++ = (time) + '0';
+    // *ptr++ = '.';
+    // *ptr++ = (time / 100) + '0'; time %= 100;
+    // *ptr++ = (time / 10) + '0'; time %= 10;
+    // *ptr++ = (time) + '0';
+    
+    char buf[8];
+    int i = 0;
+    do {
+        buf[i++] = (time % 10) + '0';
+        time /= 10;
+    } while (time > 0);
+    while (i > 0) {
+        *ptr++ = buf[--i];
+        if(i == 3) {
+            *ptr++ = '.';
+        }
+    }
     return ptr;
 }
 
