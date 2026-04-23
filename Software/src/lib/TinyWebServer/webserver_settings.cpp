@@ -289,6 +289,7 @@ extern bool settingsUpdated;
 
 TwsRoute settingsRoute = TwsRoute("/api/internal/settings", new TwsJsonRestFunc([](TwsRequest& request, JsonDocument& doc) {
     BatteryEmulatorSettingsStore settings;
+
     JsonArray bats = doc["batteries"].to<JsonArray>();
     for(int i=0;i<(int)BatteryType::Highest;i++) bats[i] = name_for_battery_type((BatteryType)i);
     JsonArray invs = doc["inverters"].to<JsonArray>();
@@ -296,24 +297,53 @@ TwsRoute settingsRoute = TwsRoute("/api/internal/settings", new TwsJsonRestFunc(
 
     JsonObject sets = doc["settings"].to<JsonObject>();
 
-    // Pre-set some defaults (where non-zero by default)
-    sets["APNAME"] = ssidAP;
+    // Pre-set settings which are nonzero by default, so it populates the field
+    // on the settings page with the default value, rather than leaving it
+    // blank.
 
-    sets["BMSRESETDUR"] = datalayer.battery.settings.user_set_bms_reset_duration_ms;
+    // It isn't vital to set these, since the frontend will only overwrite them
+    // if the user actually changes the value, but it is confusing to see an
+    // empty field for a value with a default.
     
+    sets["BMSRESETDUR"] = datalayer.battery.settings.user_set_bms_reset_duration_ms;
+    sets["PYLONBAUD"] = user_selected_pylon_baudrate;
+    sets["CANFDFREQ"] = user_selected_canfd_addon_crystal_frequency_mhz;
+    sets["CANFREQ"] = user_selected_can_addon_crystal_frequency_mhz;
+    sets["DALYPWRPCT"] = user_selected_daly_power_per_percent;
+    sets["DALYPWRDV"] = user_selected_daly_power_per_dV;
+    sets["DALYDVSTART"] = user_selected_daly_power_per_dV_start;
+    sets["DALYPWRDEG"] = user_selected_daly_power_per_degree_C;
+    sets["DALYPWR0C"] = user_selected_daly_power_at_0_degree_C;
     sets["PRECHGMS"] = precharge_time_ms;
-    sets["MAXPRETIME"] = precharge_max_precharge_time_before_fault;
-    sets["MAXPREFREQ"] = Precharge_max_PWM_Freq;
     sets["PWMFREQ"] = pwm_frequency;
     sets["PWMHOLD"] = pwm_hold_duty;
-
+    sets["MAXPRETIME"] = precharge_max_precharge_time_before_fault;
+    sets["MAXPREFREQ"] = Precharge_max_PWM_Freq;
+    sets["CHGPOWER"] = datalayer.battery.status.override_charge_power_W;
+    sets["DCHGPOWER"] = datalayer.battery.status.override_discharge_power_W;
     sets["MQTTTIMEOUT"] = mqtt_timeout_ms;
     sets["MQTTPUBLISHMS"] = mqtt_publish_interval_ms;
-    
-    sets["CTOFFSET"] = -1;
-    sets["CTVNOM"] = 40;
-    sets["CTANOM"] = 100;
-    sets["CTATTEN"] = 3;
+    sets["WIFIAPENABLED"] = wifiap_enabled;
+    sets["APNAME"] = ssidAP;
+    sets["LOCALIP1"] = static_local_IP1;
+    sets["LOCALIP2"] = static_local_IP2;
+    sets["LOCALIP3"] = static_local_IP3;
+    sets["LOCALIP4"] = static_local_IP4;
+    sets["GATEWAY1"] = static_gateway1;
+    sets["GATEWAY2"] = static_gateway2;
+    sets["GATEWAY3"] = static_gateway3;
+    sets["GATEWAY4"] = static_gateway4;
+    sets["SUBNET1"] = static_subnet1;
+    sets["SUBNET2"] = static_subnet2;
+    sets["SUBNET3"] = static_subnet3;
+    sets["SUBNET4"] = static_subnet4;
+    sets["CTOFFSET"] = ct_clamp_offset_mV;
+    sets["CTVNOM"] = ct_clamp_nominal_voltage_dV;
+    sets["CTANOM"] = ct_clamp_nominal_current_A;
+    sets["CTATTEN"] = (int)ct_clamp_pin_atten;
+
+    // Grab all the stored settings from flash. These are only used if they
+    // exist (ie, have been saved before).
 
     for(int i=0;UINT_SETTINGS[i].name!=nullptr;i++) {
         if(settings.settingExists(UINT_SETTINGS[i].name)) {

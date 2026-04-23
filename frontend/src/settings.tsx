@@ -1,9 +1,9 @@
-import { useState } from "preact/hooks";
+import { useMemo, useState } from "preact/hooks";
 
 import { Button } from "./components/button.tsx";
 import { Show, Form, selectField, checkboxField, ipField, textPatternField, passwordField } from "./components/forms.tsx";
 
-import { apiPost, useGetApi } from "./utils/api.tsx";
+import { apiPost, refreshApi, useGetApi } from "./utils/api.tsx";
 import { reboot } from "./utils/reboot.tsx";
 
 const INTERFACES : [string, string][] = [
@@ -17,7 +17,7 @@ const INTERFACES : [string, string][] = [
 
 export function Settings() {
     const settings = useGetApi('/api/internal/settings');
-    const [savedSettings, setSavedSettings] = useState<any>(null);
+    //const [savedSettings, setSavedSettings] = useState<any>(null);
     const [current, setCurrent] = useState<{[index: string]:string}>({});
 
     const validate = (data: any) => {
@@ -38,6 +38,26 @@ export function Settings() {
             }
         }
         data.delete(field);
+    }
+
+    const joinIp = (data: any, field: string) => {
+        // LOCALIP1=1, LOCALIP2=2, LOCALIP3=3, LOCALIP4=4 gets joined into LOCALIP=1.2.3.4
+        
+        // If the joined key is already present, we must be changing the value,
+        // don't trample on it.
+        if(data[field]) return;
+
+        const p1 = data[field + '1'] || '0';
+        const p2 = data[field + '2'] || '0';
+        const p3 = data[field + '3'] || '0';
+        const p4 = data[field + '4'] || '0';
+        if([p1, p2, p3, p4].some(p => p !== '0')) {
+            data[field] = `${p1}.${p2}.${p3}.${p4}`;
+        }
+        delete data[field + '1'];
+        delete data[field + '2'];
+        delete data[field + '3'];
+        delete data[field + '4'];
     }
 
     const submit = async (data: any) => {
@@ -61,9 +81,13 @@ export function Settings() {
             alert(e.message || "Failed to save settings");
             return;
         }
+        // We ignore the return value, instead calling refreshApi to retrigger
+        // the main settings GET, which simplifies the form state handling a
+        // bit.
+        rr;
 
         setCurrent({});
-        setSavedSettings(rr);
+        refreshApi();
         window.scrollTo(0,0);
     };
 
@@ -76,9 +100,22 @@ export function Settings() {
         if(settings.inverters[i]) inverters[i] = settings.inverters[i];
     }
 
-    const reboot_required = settings?.reboot_required || savedSettings?.reboot_required;
-    const merged = { ...settings?.settings, ...savedSettings?.settings, ...current };
-    console.log('merged is', merged);
+    const reboot_required = settings?.reboot_required;
+    
+    // Transform the retrieved settings, applying any local changes at the time
+    // that the settings were retrieved. The 'current' dict is deliberately not
+    // in the sensitivity list - we don't want this updating everytime a field
+    // is changed or it'll fight the user.
+    const initial_settings = useMemo(() => {
+        const s = { ...settings?.settings, ...current };
+        joinIp(s, 'LOCALIP');
+        joinIp(s, 'GATEWAY');
+        joinIp(s, 'SUBNET');
+        return s;
+    }, [settings?.settings]);
+    // Merge the retrieved settings with any unsaved changes - this is used by
+    // dependent fields to decide whether to hide/show.
+    const merged = { ...settings?.settings, ...current };
 
     const custom_bms = ["6", "11", "22", "23", "24", "31"].includes(""+merged.BATTTYPE);
     const estimated = ["3", "4", "6", "14", "16", "24", "32", "33"].includes(""+merged.BATTTYPE);
@@ -101,7 +138,7 @@ export function Settings() {
 
         { !!settings && <div>
 
-        <Form initial={settings.settings}
+        <Form initial={initial_settings}
               changed={(k, v) => {
                 if(v==='' && (settings.settings[k]===undefined || settings.settings[k]==='')) {
                     const cur = {...current};
@@ -124,6 +161,7 @@ export function Settings() {
             <h3>Battery</h3>
             { selectField("Battery", "BATTTYPE", batteries) }
             <Show when={parseInt(merged.BATTTYPE)>0}>
+                { selectField("Battery interface", "BATTCOMM", INTERFACES) }
                 <Show when={custom_bms}>
                     { textPatternField("Battery max design voltage (V)", "BATTPVMAX", "[0-9]+(\\.[0-9]+)?") }
                     { textPatternField("Battery min design voltage (V)", "BATTPVMIN", "[0-9]+(\\.[0-9]+)?") }
@@ -180,7 +218,6 @@ export function Settings() {
                     { textPatternField("Max cell voltage (mV)", "TMP_BALMAXCELLV", "[0-9]+") }
                     { textPatternField("Max cell voltage deviation (mV)", "TMP_BALMAXDEVCELLV", "[0-9]+") }
                 </Show>
-                { selectField("Battery interface", "BATTCOMM", INTERFACES) }
                 { selectField("Battery chemistry", "BATTCHEM", {
                     "3": "LFP",
                     "1": "NCA",
@@ -287,7 +324,7 @@ export function Settings() {
             <h3>Hardware</h3>
             { checkboxField("Use CAN FD as classic CAN", "CANFDASCAN") }
             { textPatternField("CAN addon crystal (Mhz)", "CANFREQ", "[0-9]{1,2}") }
-            { textPatternField("CAN-FD-addon crystal (Mhz)", "CANFDFREQ", "[0-9]{1,2}") }
+            { textPatternField("CAN-FD addon crystal (Mhz)", "CANFDFREQ", "[0-9]{1,2}") }
             { selectField("Equipment stop button", "EQSTOP", {
                 "0": "Not connected",
                 "1": "Latching switch",
