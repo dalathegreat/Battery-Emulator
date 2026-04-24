@@ -338,6 +338,11 @@ void update_calculated_values(unsigned long currentMillis) {
     }
   }
 
+  datalayer.battery2.status.reported_soc =
+      datalayer.battery2.status.real_soc;  //For screen to display correct SOC of battery 2
+  datalayer.battery3.status.reported_soc =
+      datalayer.battery3.status.real_soc;  //For screen to display correct SOC of battery 3
+
   //Check each extra battery, and if they are at the extremes, report the SOC from these batteries instead
   if (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) {  //Battery2 is in the mix
     if ((datalayer.battery2.status.real_soc < 100) || (datalayer.battery2.status.real_soc > 9900)) {
