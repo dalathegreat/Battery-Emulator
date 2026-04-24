@@ -7,6 +7,7 @@
 #include "../../battery/Shunt.h"
 #include "../../charger/CHARGERS.h"
 #include "../../communication/can/comm_can.h"
+#include "../../communication/can/INTER-UNIT-PROTOCOL.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../../communication/nvm/comm_nvm.h"
@@ -1444,7 +1445,6 @@ String processor(const String& var) {
     if (datalayer.system.status.node_mode == NODE_MASTER) {
       const char* master_bg;
       switch (get_emulator_status()) {
-        case EMULATOR_STATUS::STATUS_WARNING:  master_bg = "#F5CC00"; break;
         case EMULATOR_STATUS::STATUS_ERROR:    master_bg = "#A70107"; break;
         case EMULATOR_STATUS::STATUS_UPDATING: master_bg = "#2B35AF"; break;
         default:                               master_bg = "#303E47"; break;
@@ -1500,8 +1500,9 @@ String processor(const String& var) {
           continue;
         }
         any_slave = true;
-        bool fault = (s.fault_flags & 0x3F) != 0;  // Lower 6 bits are fault flags
-        const char* bg = fault ? "#A70107" : "#2D3F2F";
+        bool is_error   = (s.fault_flags & IU_FAULT_ERROR_MASK) != 0;
+        bool is_warning = !is_error && (s.fault_flags & IU_FAULT_WARNING_MASK) != 0;
+        const char* bg = is_error ? "#A70107" : (is_warning ? "#F5CC00" : "#2D3F2F");
         float v = s.voltage_dV / 10.0f;
         float soc = s.real_soc / 100.0f;
         float cur = s.current_dA / 10.0f;
@@ -1531,13 +1532,16 @@ String processor(const String& var) {
         content += "<h4 style='margin:2px 0;'>Max discharge: " + String(dis_kW, 1) + " kW</h4>";
         content += "<h4 style='margin:2px 0;'>Contactor: <span style='" + String(contactor_color) + "'>" +
                    String(contactor_state) + "</span></h4>";
-        if (fault) {
+        if (is_error || is_warning) {
+          const char* label      = is_error ? "FAULT"   : "WARNING";
+          const char* labelColor = is_error ? "red"     : "#cc8800";
           if (s.ip_address != 0) {
             IPAddress faultIp(s.ip_address);
-            content += "<h4 style='color:red;margin:2px 0;'><a href='http://" + faultIp.toString() +
-                       "/events' target='_blank' style='color:red;'>&#9888; FAULT</a></h4>";
+            content += "<h4 style='color:" + String(labelColor) + ";margin:2px 0;'><a href='http://" +
+                       faultIp.toString() + "/events' target='_blank' style='color:" +
+                       String(labelColor) + ";'>&#9888; " + String(label) + "</a></h4>";
           } else {
-            content += "<h4 style='color:red;margin:2px 0;'>&#9888; FAULT</h4>";
+            content += "<h4 style='color:" + String(labelColor) + ";margin:2px 0;'>&#9888; " + String(label) + "</h4>";
           }
         }
         content += "</div>";

@@ -259,11 +259,7 @@ void MasterCan::update_values() {
       } else {
         clear_event(EVENT_SLAVE_FAULT);
       }
-      if (node.fault_flags & IU_FAULT_WARNING_MASK) {
-        set_event(EVENT_SLAVE_WARNING, node_id_1based);
-      } else {
-        clear_event(EVENT_SLAVE_WARNING);
-      }
+      // Slave warnings are shown per-node in the web UI — no master event needed
     }
   }
 
