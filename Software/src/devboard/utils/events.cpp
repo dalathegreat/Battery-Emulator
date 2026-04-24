@@ -44,6 +44,9 @@ void init_events(void) {
   events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_MASTER_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SLAVE_BATTERY_MISSING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_SLAVE_WARNING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_SLAVE_FAULT].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_SLAVE_IDENT_MISMATCH].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CONTACTOR_OPEN].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
@@ -210,6 +213,12 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Master unit not sending heartbeat via CAN for the last 60 seconds. Check wiring!";
     case EVENT_SLAVE_BATTERY_MISSING:
       return "A slave battery unit stopped responding. Check inter-unit CAN wiring!";
+    case EVENT_SLAVE_WARNING:
+      return "A slave battery unit is reporting a warning condition (cell voltage or temperature fault).";
+    case EVENT_SLAVE_FAULT:
+      return "A slave battery unit is reporting a critical fault. Contactor blocked!";
+    case EVENT_SLAVE_IDENT_MISMATCH:
+      return "Slave firmware version or battery type mismatch detected. Contactor blocked until resolved!";
     case EVENT_CONTACTOR_WELDED:
       return "Contactors sticking/welded. Inspect battery with caution!";
     case EVENT_CONTACTOR_OPEN:

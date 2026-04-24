@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 
+#include "../../battery/Battery.h"
 #include "../../communication/Transmitter.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/events.h"
@@ -74,6 +75,7 @@ void SlaveCan::transmit(unsigned long currentMillis) {
     // then only every 10 minutes (600s) since IP rarely changes.
     if (_heartbeat_count <= 3 || _heartbeat_count % 600 == 0) {
       send_ip_frame();
+      send_ident_frame();
     }
   }
 }
@@ -81,23 +83,14 @@ void SlaveCan::transmit(unsigned long currentMillis) {
 uint8_t SlaveCan::build_fault_flags() {
   uint8_t flags = 0;
   const auto& status = datalayer.battery.status;
-  const auto& info = datalayer.battery.info;
 
-  // BMS fault
+  // BMS fault (set by any ERROR-level event on the slave)
   if (status.bms_status == FAULT) {
     flags |= IU_FAULT_BMS_FAULT;
   }
-  // Cell over-voltage
-  if (status.cell_max_voltage_mV > info.max_cell_voltage_mV) {
-    flags |= IU_FAULT_CELL_OVERVOLTAGE;
-  }
-  // Cell under-voltage
-  if (status.cell_min_voltage_mV < info.min_cell_voltage_mV && status.cell_min_voltage_mV > 0) {
-    flags |= IU_FAULT_CELL_UNDERVOLTAGE;
-  }
-  // Over-temperature (use 55°C = 550 dC as safety threshold)
-  if (status.temperature_max_dC > 550) {
-    flags |= IU_FAULT_OVERTEMPERATURE;
+  // Any active WARNING on this slave (covers all warning event types)
+  if (get_event_level() == EVENT_LEVEL_WARNING) {
+    flags |= IU_FAULT_CELL_UNDERVOLTAGE;  // any bit in IU_FAULT_WARNING_MASK is sufficient
   }
   // Battery CAN timeout (battery went offline at slave)
   if (status.CAN_battery_still_alive == 0) {
@@ -132,8 +125,10 @@ void SlaveCan::send_status_frame() {
   // [6] temp_max in °C (divide dC by 10, clamp to int8)
   int8_t temp_max = (int8_t)((int16_t)(status.temperature_max_dC / 10));
   frame.data.u8[6] = (uint8_t)temp_max;
-  // [7] flags
-  frame.data.u8[7] = build_fault_flags();
+  // [7] flags (bit7 = toggle, alternates each frame so master can detect stale data)
+  static bool _toggle = false;
+  _toggle = !_toggle;
+  frame.data.u8[7] = build_fault_flags() | (_toggle ? IU_FLAG_STATUS_TOGGLE : 0u);
 
   transmit_can_frame_to_interface(&frame, can_config.inter_unit);
 }
@@ -239,6 +234,31 @@ void SlaveCan::send_ip_frame() {
   frame.data.u8[1] = (ip >> 16) & 0xFF;
   frame.data.u8[2] = (ip >> 8) & 0xFF;
   frame.data.u8[3] = ip & 0xFF;
+
+  transmit_can_frame_to_interface(&frame, can_config.inter_unit);
+}
+
+void SlaveCan::send_ident_frame() {
+  const uint8_t node_id = datalayer.system.status.slave_node_id;
+
+  CAN_frame frame = {};
+  frame.ID = IU_SLAVE_IDENT_ID(node_id);
+  frame.DLC = 8;
+  frame.ext_ID = false;
+
+  // [0..1] firmware version: (major<<8)|minor
+  uint16_t fw_ver = (uint16_t)IU_FW_VERSION_NUM;
+  frame.data.u8[0] = (fw_ver >> 8) & 0xFF;
+  frame.data.u8[1] = fw_ver & 0xFF;
+  // [2..3] battery type ID (BatteryType enum)
+  uint16_t btype = (uint16_t)user_selected_battery_type;
+  frame.data.u8[2] = (btype >> 8) & 0xFF;
+  frame.data.u8[3] = btype & 0xFF;
+  // [4..7] reserved
+  frame.data.u8[4] = 0;
+  frame.data.u8[5] = 0;
+  frame.data.u8[6] = 0;
+  frame.data.u8[7] = 0;
 
   transmit_can_frame_to_interface(&frame, can_config.inter_unit);
 }

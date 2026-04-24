@@ -323,7 +323,12 @@ struct SLAVE_NODE_TYPE {
   bool contactor_engaged = false;       // Confirmed contactor state from slave
   bool contactor_allowed = false;       // Master decision: is slave allowed to close contactor
   bool online = false;                  // True if slave is responding
+  bool ident_received = false;          // True once IDENT frame has been received from slave
   uint32_t ip_address = 0;             // IPv4 address of slave (0 = unknown)
+  uint16_t fw_version_num = 0;          // Firmware version: (major<<8)|minor, e.g. 10.6 -> 0x0A06
+  uint16_t battery_type_id = 0;         // BatteryType enum value reported by slave
+  uint8_t status_stale_seconds = 0;    // Incremented each second; reset when STATUS toggle bit changes
+  uint8_t _last_status_toggle = 0xFF;  // Previous value of STATUS toggle bit (0xFF = never seen)
 };
 
 struct DATALAYER_SYSTEM_STATUS_TYPE {

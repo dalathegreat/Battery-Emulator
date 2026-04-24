@@ -74,8 +74,15 @@ void MasterCan::receive_can_frame(CAN_frame* rx_frame) {
       node.real_soc = real_soc;
       node.current_dA = current_dA;
       node.temp_max_dC = temp_max_raw;  // stored as °C (not deci)
-      node.fault_flags = flags & ~IU_FLAG_CONTACTOR_ENGAGED;
+      // Strip non-fault bits from stored fault_flags; handle toggle separately
+      uint8_t toggle_now = flags & IU_FLAG_STATUS_TOGGLE;
+      node.fault_flags = flags & ~(IU_FLAG_CONTACTOR_ENGAGED | IU_FLAG_STATUS_TOGGLE);
       node.contactor_engaged = (flags & IU_FLAG_CONTACTOR_ENGAGED) != 0;
+      // Toggle bit changed -> data is fresh, reset stale counter
+      if (toggle_now != node._last_status_toggle) {
+        node._last_status_toggle = toggle_now;
+        node.status_stale_seconds = 0;
+      }
       break;
     }
     case 0x01:  // POWER message
@@ -107,6 +114,15 @@ void MasterCan::receive_can_frame(CAN_frame* rx_frame) {
       if (rx_frame->DLC >= 4) {
         node.cell_max_voltage_mV = ((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1];
         node.cell_min_voltage_mV = ((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
+      }
+      break;
+    }
+    case 0x05:  // IDENT message (startup only)
+    {
+      if (rx_frame->DLC >= 4) {
+        node.fw_version_num  = ((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1];
+        node.battery_type_id = ((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
+        node.ident_received  = true;
       }
       break;
     }
@@ -189,8 +205,66 @@ void MasterCan::update_values() {
       logging.printf("Master CAN: Slave %d went OFFLINE\n", i + 1);
     }
 
-    // Check voltage safety
+    // Check voltage safety first (may allow contactor based on voltage match)
     check_slave_voltage_safety(i);
+
+    // Stale data detection: if STATUS toggle bit has not changed for IU_STATUS_STALE_SECONDS,
+    // the slave is frozen/stuck — block contactor and fire stale event.
+    // This runs AFTER voltage safety so it always overrides any re-allow.
+    if (node.online && node._last_status_toggle != 0xFF) {
+      node.status_stale_seconds++;
+      if (node.status_stale_seconds > IU_STATUS_STALE_SECONDS) {
+        node.contactor_allowed = false;
+        set_event(EVENT_STALE_VALUE, i + 1);
+        logging.printf("Master CAN: Slave %d STATUS is STALE (%u s)\n", i + 1, node.status_stale_seconds);
+      } else {
+        clear_event(EVENT_STALE_VALUE);
+      }
+    }
+
+    // IDENT mismatch: firmware version or battery type mismatch blocks contactor.
+    // Only check after IDENT has been received from this slave.
+    // Runs AFTER voltage safety so it always overrides any re-allow.
+    if (node.online && node.ident_received) {
+      bool fw_ok = (node.fw_version_num == (uint16_t)IU_FW_VERSION_NUM);
+      // Battery type must match the first slave that reported one (used as reference).
+      // Find the reference battery_type_id from the first slave that has ident_received.
+      uint16_t ref_btype = 0;
+      bool ref_found = false;
+      for (uint8_t j = 0; j < MAX_SLAVE_NODES; j++) {
+        if (datalayer.system.slave_nodes[j].ident_received) {
+          ref_btype = datalayer.system.slave_nodes[j].battery_type_id;
+          ref_found = true;
+          break;
+        }
+      }
+      bool btype_ok = (!ref_found || node.battery_type_id == ref_btype);
+      if (!fw_ok || !btype_ok) {
+        node.contactor_allowed = false;
+        set_event(EVENT_SLAVE_IDENT_MISMATCH, i + 1);
+        logging.printf("Master CAN: Slave %d IDENT mismatch (fw=0x%04X exp=0x%04X btype=%u exp=%u)\n",
+                       i + 1, node.fw_version_num, IU_FW_VERSION_NUM, node.battery_type_id, ref_btype);
+      } else {
+        clear_event(EVENT_SLAVE_IDENT_MISMATCH);
+      }
+    }
+
+    // Fault flag events: ERROR mask blocks contactor (red), WARNING mask is advisory (yellow).
+    // Runs AFTER voltage safety so error faults always override any re-allow.
+    if (node.online) {
+      uint8_t node_id_1based = i + 1;
+      if (node.fault_flags & IU_FAULT_ERROR_MASK) {
+        set_event(EVENT_SLAVE_FAULT, node_id_1based);
+        node.contactor_allowed = false;
+      } else {
+        clear_event(EVENT_SLAVE_FAULT);
+      }
+      if (node.fault_flags & IU_FAULT_WARNING_MASK) {
+        set_event(EVENT_SLAVE_WARNING, node_id_1based);
+      } else {
+        clear_event(EVENT_SLAVE_WARNING);
+      }
+    }
   }
 
   // Aggregate all valid online slaves into datalayer.battery

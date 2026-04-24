@@ -23,6 +23,7 @@
  *   0x112+N*0x10 : Slave N -> Master, INFO message    (msg 0x02)
  *   0x113+N*0x10 : Slave N -> Master, IP message      (msg 0x03)
  *   0x114+N*0x10 : Slave N -> Master, CELL message    (msg 0x04)
+ *   0x115+N*0x10 : Slave N -> Master, IDENT message   (msg 0x05, startup only)
  *   Where N = node ID (1..24)
  *
  * INFO Message Content:
@@ -34,7 +35,18 @@
  * CELL Message Content:
  *   [0..1] : cell_max_voltage_mV
  *   [2..3] : cell_min_voltage_mV
+ *
+ * IDENT Message Content (sent at startup, same timing as IP frame):
+ *   [0..1] : uint16_t  fw_version_num   — (major << 8) | minor, e.g. 10.6 -> 0x0A06
+ *   [2..3] : uint16_t  battery_type_id  — BatteryType enum cast to uint16_t
+ *   [4..7] : reserved
  */
+
+/* ---- Firmware version encoding ---- */
+// Update these when version_number in Software.cpp changes (e.g. "10.6.0" -> major=10, minor=6)
+#define IU_FW_VERSION_MAJOR 10u
+#define IU_FW_VERSION_MINOR  6u
+#define IU_FW_VERSION_NUM   ((IU_FW_VERSION_MAJOR << 8u) | IU_FW_VERSION_MINOR)  // 0x0A06
 
 /* ---- Master → Broadcast ---- */
 #define IU_MASTER_HEARTBEAT_ID 0x300u  // Heartbeat, no payload needed
@@ -48,10 +60,11 @@
 #define IU_SLAVE_INFO_ID(n)   (0x100u + ((uint32_t)(n) * 0x10u) + 0x02u)  // Info   (8 bytes, every 10s)
 #define IU_SLAVE_IP_ID(n)     (0x100u + ((uint32_t)(n) * 0x10u) + 0x03u)  // IP addr (4 bytes, every 10s)
 #define IU_SLAVE_CELL_ID(n)   (0x100u + ((uint32_t)(n) * 0x10u) + 0x04u)  // Cell info (8 bytes, every 2s)
+#define IU_SLAVE_IDENT_ID(n)  (0x100u + ((uint32_t)(n) * 0x10u) + 0x05u)  // Ident (8 bytes, startup only)
 
 /* ---- Slave ID range detection ---- */
 #define IU_SLAVE_MSG_MIN_ID 0x110u  // Slave 1, msg 0x00
-#define IU_SLAVE_MSG_MAX_ID 0x284u  // Slave 24, msg 0x04
+#define IU_SLAVE_MSG_MAX_ID 0x285u  // Slave 24, msg 0x05
 
 /* ---- Contactor command byte (master → slave, data[0]) ---- */
 #define IU_CONTACTOR_ALLOW 0x01u  // Slave may close contactor
@@ -65,6 +78,14 @@
 #define IU_FAULT_CONTACTOR_FAILED  0x10u  // bit 4: Contactor failed to close
 #define IU_FAULT_BATTERY_TIMEOUT   0x20u  // bit 5: Battery CAN timeout on slave
 #define IU_FLAG_CONTACTOR_ENGAGED  0x40u  // bit 6: Contactor is physically engaged (not a fault)
+#define IU_FLAG_STATUS_TOGGLE      0x80u  // bit 7: Alternating toggle bit — flips each STATUS frame for stale detection
+
+/* ---- Fault classification masks ---- */
+#define IU_FAULT_ERROR_MASK   (IU_FAULT_BMS_FAULT | IU_FAULT_BATTERY_TIMEOUT | IU_FAULT_CONTACTOR_FAILED)
+#define IU_FAULT_WARNING_MASK (IU_FAULT_CELL_OVERVOLTAGE | IU_FAULT_CELL_UNDERVOLTAGE | IU_FAULT_OVERTEMPERATURE)
+
+/* ---- Stale data detection ---- */
+#define IU_STATUS_STALE_SECONDS 3u  // Flag stale if STATUS toggle has not changed for this many seconds
 
 /* ---- Delay constants ---- */
 #define IU_SLAVE_REPLY_DELAY_MS(node_id) ((node_id) * 5u)  // Collision avoidance

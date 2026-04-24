@@ -35,6 +35,7 @@ class SlaveCan : public CanReceiver, public Transmitter {
   void send_info_frame();
   void send_cell_frame();
   void send_ip_frame();
+  void send_ident_frame();
   uint8_t build_fault_flags();
 
   unsigned long _last_heartbeat_ms = 0;  // millis() when last heartbeat was received

@@ -1442,8 +1442,15 @@ String processor(const String& var) {
 
     // === MASTER MODE: slave status grid ===
     if (datalayer.system.status.node_mode == NODE_MASTER) {
+      const char* master_bg;
+      switch (get_emulator_status()) {
+        case EMULATOR_STATUS::STATUS_WARNING:  master_bg = "#F5CC00"; break;
+        case EMULATOR_STATUS::STATUS_ERROR:    master_bg = "#A70107"; break;
+        case EMULATOR_STATUS::STATUS_UPDATING: master_bg = "#2B35AF"; break;
+        default:                               master_bg = "#303E47"; break;
+      }
       content +=
-          "<div style='background-color:#303E47; padding:10px; margin-bottom:10px; border-radius:20px;'>"
+          "<div style='background-color:" + String(master_bg) + "; padding:10px; margin-bottom:10px; border-radius:20px;'>"
           "<h4 style='color:white;'>Slave Nodes</h4>"
           "<div style='display:flex; flex-wrap:wrap; gap:8px; justify-content:center;'>";
 
