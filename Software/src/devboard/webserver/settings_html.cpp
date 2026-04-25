@@ -887,6 +887,26 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CTINVERT") ? "checked" : "";
   }
 
+  if (var == "DALYPWRPCT") {
+    return String(settings.getUInt("DALYPWRPCT", 50));
+  }
+
+  if (var == "DALYPWRDV") {
+    return String(settings.getUInt("DALYPWRDV", 50));
+  }
+
+  if (var == "DALYDVSTART") {
+    return String(settings.getUInt("DALYDVSTART", 20));
+  }
+
+  if (var == "DALYPWRDEG") {
+    return String(settings.getUInt("DALYPWRDEG", 60));
+  }
+
+  if (var == "DALYPWR0C") {
+    return String(settings.getUInt("DALYPWR0C", 800));
+  }
+
   return String();
 }
 
@@ -1159,6 +1179,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-daly { display: none; }
+    form[data-battery="23"] .if-daly {
+      display: contents;
+    }
+
     form .if-tesla { display: none; }
     form[data-battery="32"] .if-tesla, form[data-battery="33"] .if-tesla {
       display: contents;
@@ -1184,7 +1209,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
     form[data-battery="16"] .if-socestimated,
     form[data-battery="26"] .if-socestimated,
-    form[data-battery="41"] .if-socestimated {
+    form[data-battery="41"] .if-socestimated,
+    form[data-battery="42"] .if-socestimated {
       display: contents;
     }
 
@@ -1323,6 +1349,33 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-nissan">
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
+        </div>
+
+        <div class="if-daly">
+          <label>Power limit per percent SOC above 80 / below 20 (W/pct): </label>
+          <input type='number' name='DALYPWRPCT' value="%DALYPWRPCT%"
+          min="1" max="10000" step="1"
+          title="Below 20% and above 80% SOC, limit power to this value * SOC% (e.g. 50 W/% means 150W at 3%, 500W at 10%)" />
+
+          <label>Voltage difference for start of voltage based discharge limit (dV): </label>
+          <input type='number' name='DALYDVSTART' value="%DALYDVSTART%"
+          min="1" max="200" step="1"
+          title="Power limiting begins when pack voltage is this many dV above the discharge voltage limit (default 20 = 2.0V)" />
+
+          <label>Max power per dV distance from minimum voltage (W/dV): </label>
+          <input type='number' name='DALYPWRDV' value="%DALYPWRDV%"
+          min="1" max="10000" step="1"
+          title="Max power per dV when approaching the discharge voltage limit" />
+
+          <label>Power change per °C above/below 0°C (W/°C): </label>
+          <input type='number' name='DALYPWRDEG' value="%DALYPWRDEG%"
+          min="1" max="10000" step="1"
+          title="Max power added or removed per degree above or below 0°C" />
+
+          <label>Power at 0°C (W): </label>
+          <input type='number' name='DALYPWR0C' value="%DALYPWR0C%"
+          min="0" max="100000" step="1"
+          title="Maximum allowed charge/discharge power at exactly 0°C" />
         </div>
 
         <div class="if-tesla">

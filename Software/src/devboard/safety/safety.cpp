@@ -15,6 +15,7 @@ static bool battery_empty_event_fired = false;
 #define CELL_CRITICAL_MV 100  // If cells go this much outside design voltage, shut battery down!
 #define LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV 2000  //If cells are below this, recovery charge not allowed
 #define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
+#define HYSTERESIS_OFFSET_DV 20
 
 //battery pause status begin
 bool emulator_pause_request_ON = false;
@@ -134,6 +135,33 @@ void update_machineryprotection() {
     if (datalayer.battery.status.cell_min_voltage_mV <=
         (datalayer.battery.info.min_cell_voltage_mV - CELL_CRITICAL_MV)) {
       set_event(EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 0);
+    }
+
+    //If user is requesting charge to stop at a specific voltage
+    static bool charge_blocked = false;
+    static bool discharge_blocked = false;
+    if (datalayer.battery.settings.user_set_voltage_limits_active) {
+      // --- Charge limiting with hysteresis ---
+      if (datalayer.battery.status.voltage_dV >= datalayer.battery.settings.max_user_set_charge_voltage_dV) {
+        charge_blocked = true;  // Latch: block charging once target is hit
+      } else if (datalayer.battery.status.voltage_dV <
+                 (datalayer.battery.settings.max_user_set_charge_voltage_dV - HYSTERESIS_OFFSET_DV)) {
+        charge_blocked = false;  // Only release when voltage drops well below target
+      }
+      if (charge_blocked) {
+        datalayer.battery.status.max_charge_power_W = 0;
+      }
+
+      // --- Discharge limiting with hysteresis ---
+      if (datalayer.battery.status.voltage_dV <= datalayer.battery.settings.max_user_set_discharge_voltage_dV) {
+        discharge_blocked = true;
+      } else if (datalayer.battery.status.voltage_dV >
+                 (datalayer.battery.settings.max_user_set_discharge_voltage_dV + HYSTERESIS_OFFSET_DV)) {
+        discharge_blocked = false;
+      }
+      if (discharge_blocked) {
+        datalayer.battery.status.max_discharge_power_W = 0;
+      }
     }
 
     // Battery is fully charged. Dont allow any more power into it

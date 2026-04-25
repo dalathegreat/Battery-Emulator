@@ -86,6 +86,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::SmaBydHvs:
       return SmaBydHvsInverter::Name;
 
+    case InverterProtocolType::SmaSBSByd:
+      return SmaSBSBydHvsInverter::Name;
+
     case InverterProtocolType::Sofar:
       return SofarInverter::Name;
 
@@ -170,6 +173,10 @@ bool setup_inverter() {
 
     case InverterProtocolType::SmaBydH:
       inverter = new SmaBydHInverter();
+      break;
+
+    case InverterProtocolType::SmaSBSByd:
+      inverter = new SmaSBSBydHvsInverter();
       break;
 
     case InverterProtocolType::SmaLv:
