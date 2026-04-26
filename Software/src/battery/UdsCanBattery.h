@@ -25,7 +25,14 @@
 
 class UdsCanBattery : public CanBattery {
  public:
-  void setup_uds(uint16_t obd_address, uint16_t first_pid = 0);
+  enum class UdsStatus : uint8_t {
+    OK = 0,
+    OK_SHORT,
+    TIMEOUT,
+    NEGATIVE_RESPONSE,  // The ECU returned an NRC (e.g., 0x7F)
+  };
+
+  void setup_uds(uint16_t obd_address, uint32_t first_pid = 0);
   void transmit_uds_can(unsigned long currentMillis);
   bool handle_incoming_uds_can_frame(CAN_frame rx_frame);
   // Temporarily pause UDS requests for the specified number of 200ms ticks.
@@ -33,8 +40,10 @@ class UdsCanBattery : public CanBattery {
   // If you let UdsCanBattery handle UDS responses, you can override this be
   // passed the PID query responses. The value returned is used as the next PID
   // to query. Return 0 to let the PID cycle continue as normal.
-  virtual uint16_t handle_pid(uint16_t pid, uint32_t value) { return 0; }
-  virtual uint16_t handle_long_pid(uint16_t pid, const uint8_t* data, uint16_t length) { return 0; }
+  virtual uint32_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length, UdsStatus status) {
+    return 0;
+  }
+  //virtual uint32_t handle_long_pid(uint16_t pid, const uint8_t* data, uint16_t length) { return 0; }
   virtual bool supports_read_DTC();
   virtual bool supports_reset_DTC();
   virtual void read_DTC();
@@ -49,12 +58,13 @@ class UdsCanBattery : public CanBattery {
   static const uint16_t MIN_UDS_RESPONSE_ID = 0x780;
   static const uint16_t MAX_UDS_RESPONSE_ID = 0x7EF;
 
+  static const uint32_t SHORT_PID = 0x10000;
+
   uint32_t previousUdsMillis200 = 0;
-  uint16_t first_pid = 0;
-  uint16_t next_pid = 0;
+  uint32_t first_pid = 0;
+  uint32_t next_pid = 0;
   uint16_t uds_busy_timeout = 0;
   uint16_t uds_address = 0x7DF;
-  //uint16_t obd_address_max = 0x7FF;
 
   bool user_request_read_dtc = false;
   bool user_request_clear_dtc = false;

@@ -8,45 +8,40 @@ void UdsCanBattery::transmit_uds_can(unsigned long currentMillis) {
     previousUdsMillis200 = currentMillis;
 
     if (uds_busy_timeout > 0) {
+      // Still busy, do not send new requests
       uds_busy_timeout--;
-      return;  // still busy, do not send new requests
+      return;
     }
 
     if (user_request_clear_dtc) {
-      //user_request_clear_dtc = false;
-
       UDS_CLEAR_DTCs.ID = uds_address;
       transmit_can_frame(&UDS_CLEAR_DTCs);
 
-      uds_busy_timeout = 25;
+      uds_busy_timeout = 25;  // 2.5s
       return;
     }
 
     if (user_request_read_dtc) {
-      //user_request_read_dtc = false;
-
       UDS_RQ_DTCs.ID = uds_address;
-      logging.printf("Requesting DTCs with CAN ID 0x%03X\n", UDS_RQ_DTCs.ID);
       transmit_can_frame(&UDS_RQ_DTCs);
 
-      uds_busy_timeout = 10;
+      uds_busy_timeout = 10;  // 1s
       return;
     }
 
     if (next_pid == 0 && first_pid != 0) {
       // Reset PID cycle
-      //logging.printf("PID cycle restarting with PID 0x%04X\n", first_pid);
       next_pid = first_pid;
     }
 
     if (next_pid) {
-      UDS_PID_REQUEST.ID = uds_address;  // Request to ECU address
+      // Request the next PID
+      UDS_PID_REQUEST.ID = uds_address;
       UDS_PID_REQUEST.data.u8[2] = (next_pid >> 8) & 0xFF;
       UDS_PID_REQUEST.data.u8[3] = next_pid & 0xFF;
-      //logging.printf("Requesting PID 0x%04X\n", next_pid);
       transmit_can_frame(&UDS_PID_REQUEST);
 
-      uds_busy_timeout = 2;
+      uds_busy_timeout = 2;  // 0.2s
     }
   }
 }
@@ -59,12 +54,12 @@ void UdsCanBattery::startUDSMultiFrameReception(uint16_t totalLength, uint8_t mo
   gUDSContext.receivedInBatch = 0;
   memset(gUDSContext.UDS_buffer, 0, sizeof(gUDSContext.UDS_buffer));
   gUDSContext.UDS_lastFrameMillis = millis();  // if you want to track timeouts
-  uds_busy_timeout = 5;
+  uds_busy_timeout = 5;                        // 0.5s
 }
 
 bool UdsCanBattery::storeUDSPayload(const uint8_t* payload, uint8_t length) {
   if (gUDSContext.UDS_bytesReceived + length > sizeof(gUDSContext.UDS_buffer)) {
-    // Overflow => abort
+    // We have received too many bytes, abort
     gUDSContext.UDS_inProgress = false;
 #ifdef DEBUG_LOG
     logging.println("UDS Payload Overflow");
@@ -78,7 +73,6 @@ bool UdsCanBattery::storeUDSPayload(const uint8_t* payload, uint8_t length) {
   // If we’ve reached or exceeded the expected length, mark complete
   if (gUDSContext.UDS_bytesReceived >= gUDSContext.UDS_expectedLength) {
     gUDSContext.UDS_inProgress = false;
-    //logging.println("Received all expected UDS bytes");
   }
   return true;
 }
@@ -140,9 +134,6 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
     uint8_t pciLower = pciByte & 0x0F;      // length nibble or sequence
     switch (pciType) {
       case 0x0: {  // Single Frame (SF)
-        uint8_t sfLength = pciLower;
-        (void)sfLength;  // if unused, silence warning
-
         uint8_t sid = rx_frame.data.u8[1];
 
         // Positive response to Diagnostic Session Control (0x10 -> 0x50)
@@ -153,8 +144,7 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
             // logging.print("entered ");
             // logging.println(sub == 0x03 ? "extended diagnostic session" : "default session");
 
-            // mark this UDS transaction done
-            //uds_tx_in_flight = false;
+            // This UDS transaction is done
             uds_busy_timeout = 0;
           }
           break;
@@ -180,7 +170,6 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
             logging.printf("UDS: positive ClearDTC response, group/DTC = %02X %02X %02X\n", b2, b3, b4);
           }
 
-          //uds_tx_in_flight = false;
           uds_busy_timeout = 0;
           break;
         }
@@ -193,7 +182,6 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
           logging.printf("UDS negative response to 0x%02X: NRC=0x%02X\n", origSid, nrc);
 
           if (nrc != 0x78) {  // 0x78 = Response Pending; otherwise we’re done with this tx
-            //uds_tx_in_flight = false;
             uds_busy_timeout = 0;
           }
           break;
@@ -205,10 +193,10 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
           // logging.printf("UDS [%03X] DID 0x%04X: %02X %02X %02X %02X\n", rx_frame.ID, did, rx_frame.data.u8[4],
           //                rx_frame.data.u8[5], rx_frame.data.u8[6], rx_frame.data.u8[7]);
 
-          // signal that UDS transaction is complete
+          // The UDS transaction is now complete
           uds_busy_timeout = 0;
 
-          // Value is 1-4 bytes
+          // Value is 1-4 bytes (big endian), fit it into a uint32_t
           uint32_t value = 0;
           if (pciLower == 4) {
             value = rx_frame.data.u8[4];
@@ -221,20 +209,25 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
                     rx_frame.data.u8[7];
           }
 
-          next_pid = handle_pid(did, value);
+          next_pid = handle_pid(did, value, &rx_frame.data.u8[4], pciLower - 3, UdsStatus::OK);
         }
         break;
       }
 
       case 0x1: {  // First Frame (FF)
+        const bool allow_multiframe_pids = (next_pid & SHORT_PID) == 0;
+
         uint16_t totalLength = (uint16_t(pciLower) << 8) | rx_frame.data.u8[1];
-        if (rx_frame.DLC == 8 && rx_frame.data.u8[2] == 0x62) {
+        if (rx_frame.DLC == 8 && rx_frame.data.u8[2] == 0x62 && !allow_multiframe_pids) {
           // Multi-frame PID, but we'll only look at the first frame and ignore the rest.
           // This avoids tying up the BMS with regular multi-frame queries.
+
           uint16_t did = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
           uint32_t value = (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          next_pid = handle_pid(did, value);
+          next_pid = handle_pid(did, value, &rx_frame.data.u8[5], 3, UdsStatus::OK_SHORT);
         } else if (rx_frame.DLC >= 4) {  //} && rx_frame.data.u8[2] == 0x59 && rx_frame.data.u8[3] == 0x02) {
+          // Probably a multi-frame DTC response. Start storing it.
+
           startUDSMultiFrameReception(totalLength - 1, rx_frame.data.u8[2]);
           // FF payload starts at data[3]
           uint8_t avail = rx_frame.DLC - 3;
@@ -244,10 +237,12 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
           if (toStore)
             storeUDSPayload(&rx_frame.data.u8[3], toStore);
 
-          UDS_RQ_CONTINUE_MULTIFRAME.ID = 0x7E5;
+          //logging.printf("Requesting next frames\n");
 
+          // Ask for the next frames in the sequence
+          UDS_RQ_CONTINUE_MULTIFRAME.ID = uds_address;
           transmit_can_frame(&UDS_RQ_CONTINUE_MULTIFRAME);
-          uds_busy_timeout = 5;
+          uds_busy_timeout = 5;  // 0.5s
         }
 
         break;
@@ -263,6 +258,7 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
 
         gUDSContext.receivedInBatch++;
         if (gUDSContext.receivedInBatch == 3) {
+          // After 3 CFs, we send a Flow Control frame to keep things moving
           transmit_can_frame(&UDS_RQ_CONTINUE_MULTIFRAME);
           gUDSContext.receivedInBatch = 0;
         }
@@ -290,14 +286,12 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
             }
           } else if (gUDSContext.UDS_moduleID == 0x62) {
             uint16_t did = (gUDSContext.UDS_buffer[0] << 8) | gUDSContext.UDS_buffer[1];
-
-            // logging.printf("Received multi-frame response for DID 0x%04X: ", did);
-            // for (uint16_t i = 2; i < gUDSContext.UDS_bytesReceived; i++) {
-            //   logging.printf("%02X ", gUDSContext.UDS_buffer[i]);
-            // }
-            // logging.println();
-
-            next_pid = handle_long_pid(did, &gUDSContext.UDS_buffer[2], gUDSContext.UDS_bytesReceived - 2);
+            // We read a multi-frame PID response
+            //logging.printf("UDS multi-frame response for DID 0x%04X: %d bytes\n", did, gUDSContext.UDS_bytesReceived - 2);
+            next_pid = handle_pid(did,
+                                  ((gUDSContext.UDS_buffer[2] << 24) | (gUDSContext.UDS_buffer[3] << 16) |
+                                   (gUDSContext.UDS_buffer[4] << 8) | gUDSContext.UDS_buffer[5]),
+                                  &gUDSContext.UDS_buffer[2], gUDSContext.UDS_bytesReceived - 2, UdsStatus::OK);
           }
 
           user_request_read_dtc = false;
@@ -322,9 +316,8 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
   return false;
 }
 
-void UdsCanBattery::setup_uds(uint16_t uds_address, uint16_t first_pid) {
+void UdsCanBattery::setup_uds(uint16_t uds_address, uint32_t first_pid) {
   this->uds_address = uds_address;
-  //this->obd_address_max = obd_address;
   this->first_pid = first_pid;
   this->next_pid = first_pid;
 }

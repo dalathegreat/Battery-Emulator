@@ -525,7 +525,7 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 
-uint16_t Mg5Battery::handle_pid(uint16_t pid, uint32_t value) {
+uint32_t Mg5Battery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length, UdsStatus status) {
   // This receives on 0x789
   switch (pid) {
     case POLL_BUS_VOLTAGE:

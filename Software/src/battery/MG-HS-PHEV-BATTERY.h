@@ -7,12 +7,12 @@ class MgHsPHEVBattery : public UdsCanBattery {
  public:
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
-  virtual uint16_t handle_pid(uint16_t pid, uint32_t value);
-  virtual uint16_t handle_long_pid(uint16_t pid, const uint8_t* data, uint16_t length);
+  virtual uint32_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length, UdsStatus status);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  virtual void got_battery_type(uint32_t type);
 
-  static constexpr const char* Name = "MG HS PHEV 16.6kWh battery";
+  static constexpr const char* Name = "MG Gen1 (HS/ZS/MG5/MarvelR)";
 
  private:
   void update_soc(uint16_t soc_times_ten);
@@ -43,15 +43,16 @@ class MgHsPHEVBattery : public UdsCanBattery {
 
   static const uint32_t BATTERY_TYPE_MG_HS_PHEV = 0x535345;  // "SSE"
   static const uint32_t BATTERY_TYPE_MG_ZS = 0x5a5331;       // "ZS1"
+  static const uint32_t BATTERY_TYPE_MG5_61_NMC = 0x102;
   static const uint32_t BATTERY_TYPE_MG5 = 0x1234;
-  // MG5/MarvelR unknown!
+  // MG5/MarvelR currently unknown!
 
   uint32_t batteryType = 0;
   //uint32_t pidCount = 0;
   bool contactorCloseReset = false;
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-  unsigned long previousMillis2000 = 0;
+  //unsigned long previousMillis2000 = 0;
 
   static const uint16_t MAX_CHARGE_POWER_W = 3000;
   static const uint16_t CHARGE_TRICKLE_POWER_W = 20;
@@ -74,6 +75,12 @@ class MgHsPHEVBattery : public UdsCanBattery {
                         .DLC = 8,
                         .ID = 0x08A,
                         .data = {0x80, 0x00, 0x00, 0x04, 0x00, 0x02, 0x36, 0xB0}};
+
+  CAN_frame MG_391 = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x391,
+                      .data = {0x10, 0x01, 0xA0, 0x00, 0xD0, 0x00, 0x48, 0x00}};
 
   static constexpr CAN_frame MG_HS_1F1 = {.FD = false,
                                           .ext_ID = false,
