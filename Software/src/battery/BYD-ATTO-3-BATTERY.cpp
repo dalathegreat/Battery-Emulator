@@ -517,7 +517,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_can_frame(&ATTO_3_441);
 
-   switch (stateMachineClearCrash) {
+    switch (stateMachineClearCrash) {
       case STARTED:
         // DiagnosticSessionControl: enter extendedDiagnosticSession
         solvedKey = 0;
@@ -536,8 +536,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         // SecurityAccess: sendKey
         if (solvedKey > 0) {
           ATTO_3_7E7_CLEAR_CRASH.data = {
-              0x04, 0x27, 0x02, (uint8_t)((solvedKey & 0xFF00) >> 8),
-              (uint8_t)(solvedKey & 0x00FF), 0x00, 0x00, 0x00};
+              0x04, 0x27, 0x02, (uint8_t)((solvedKey & 0xFF00) >> 8), (uint8_t)(solvedKey & 0x00FF), 0x00, 0x00, 0x00};
           transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
           stateMachineClearCrash = RUNNING_STEP_3;
         } else {
