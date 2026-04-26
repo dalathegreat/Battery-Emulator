@@ -517,20 +517,40 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_can_frame(&ATTO_3_441);
 
-    switch (stateMachineClearCrash) {
+   switch (stateMachineClearCrash) {
       case STARTED:
-        // DiagnosticSesssionControl enter extendedDiagnosticSession
-        ATTO_3_7E7_CLEAR_CRASH.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+        // DiagnosticSessionControl: enter extendedDiagnosticSession
+        solvedKey = 0;
+        increaseTimeoutSOC = 0;
+        ATTO_3_7E7_CLEAR_CRASH.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
         transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
         stateMachineClearCrash = RUNNING_STEP_1;
         break;
       case RUNNING_STEP_1:
-        ATTO_3_7E7_CLEAR_CRASH.data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00};
+        // SecurityAccess: requestSeed
+        ATTO_3_7E7_CLEAR_CRASH.data = {0x02, 0x27, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
         transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
         stateMachineClearCrash = RUNNING_STEP_2;
         break;
       case RUNNING_STEP_2:
-        ATTO_3_7E7_CLEAR_CRASH.data = {0x03, 0x19, 0x02, 0x09, 0x00, 0x00, 0x00, 0x00};
+        // SecurityAccess: sendKey
+        if (solvedKey > 0) {
+          ATTO_3_7E7_CLEAR_CRASH.data = {
+              0x04, 0x27, 0x02, (uint8_t)((solvedKey & 0xFF00) >> 8),
+              (uint8_t)(solvedKey & 0x00FF), 0x00, 0x00, 0x00};
+          transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
+          stateMachineClearCrash = RUNNING_STEP_3;
+        } else {
+          increaseTimeoutSOC++;
+          if (increaseTimeoutSOC > 250) {
+            increaseTimeoutSOC = 0;
+            stateMachineClearCrash = NOT_RUNNING;
+          }
+        }
+        break;
+      case RUNNING_STEP_3:
+        // ClearDiagnosticInformation: clear all DTCs
+        ATTO_3_7E7_CLEAR_CRASH.data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00};
         transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
         stateMachineClearCrash = NOT_RUNNING;
         break;
