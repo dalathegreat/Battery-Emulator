@@ -288,6 +288,46 @@ void Mg4Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
 
       break;
+    case 0x159:
+      if (rx_frame.DLC > 8) {
+        // Cellvoltages are only in the FD message
+
+        // Loop through the subframes in the message
+        for (int i = 0; i < rx_frame.DLC; i += 12) {
+          uint8_t length = rx_frame.data.u8[i + 3];
+          if (length != 8) {
+            // Unexpected length, give up
+            break;
+          }
+          // Get the subframe address and data
+          uint32_t addr = (rx_frame.data.u8[i] << 16) | (rx_frame.data.u8[i + 1] << 8) | rx_frame.data.u8[i + 2];
+          const uint8_t* sub = &rx_frame.data.u8[i + 4];
+
+          if (addr == 0x509 || addr == 0x510) {
+            uint8_t mux = sub[7];
+            // 0x509 frames cover cells 1-80, 0x510 frames cover cells 81-104
+            int celloffset = (addr == 0x509) ? (mux - 1) : 20 + (mux - 1);
+
+            // Unpack the 4 cell voltages
+            uint16_t c0 = (sub[0] << 5) | ((sub[1] & 0xF8) >> 3);
+            uint16_t c1 = (sub[2] << 5) | ((sub[3] & 0xF8) >> 3);
+            uint16_t c2 = ((sub[3] & 0x07) << 10) | (sub[4] << 2) | ((sub[5] & 0xC0) >> 6);
+            uint16_t c3 = ((sub[5] & 0x1F) << 8) | sub[6];
+
+            int idx = celloffset * 4;
+            if (idx + 3 < MAX_AMOUNT_CELLS) {
+              // This seemingly arbitrary ordering is guessed based on the
+              // min/max cell indices given in the 12C messages.
+              datalayer.battery.status.cell_voltages_mV[idx + 0] = c2;
+              datalayer.battery.status.cell_voltages_mV[idx + 1] = c3;
+              datalayer.battery.status.cell_voltages_mV[idx + 2] = c1;
+              datalayer.battery.status.cell_voltages_mV[idx + 3] = c0;
+            }
+          }
+          // Cell module temps are in 0x511
+        }
+      }
+      break;
     case 0x401:
       soc_times_ten = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]) & 0x3FF;
 
