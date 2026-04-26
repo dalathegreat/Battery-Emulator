@@ -1,16 +1,18 @@
 #ifndef MG_HS_PHEV_BATTERY_H
 #define MG_HS_PHEV_BATTERY_H
 
-#include "CanBattery.h"
+#include "UdsCanBattery.h"
 
-class MgHsPHEVBattery : public CanBattery {
+class MgHsPHEVBattery : public UdsCanBattery {
  public:
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
+  virtual uint32_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length, UdsStatus status);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  virtual void got_battery_type(uint32_t type);
 
-  static constexpr const char* Name = "MG HS PHEV 16.6kWh battery";
+  static constexpr const char* Name = "MG Gen1 (HS/ZS/MG5/MarvelR)";
 
  private:
   void update_soc(uint16_t soc_times_ten);
@@ -37,55 +39,54 @@ class MgHsPHEVBattery : public CanBattery {
   static const uint16_t POLL_MAX_CELL_VOLTAGE = 0xB058;
   static const uint16_t POLL_MIN_CELL_VOLTAGE = 0xB059;
   static const uint16_t POLL_BATTERY_SOH = 0xB061;
+  static const uint16_t POLL_BATTERY_TYPE = 0xF18A;
+
+  static const uint32_t BATTERY_TYPE_MG_HS_PHEV = 0x535345;  // "SSE"
+  static const uint32_t BATTERY_TYPE_MG_ZS = 0x5a5331;       // "ZS1"
+  static const uint32_t BATTERY_TYPE_MG5_61_NMC = 0x102;
+  static const uint32_t BATTERY_TYPE_MG5 = 0x1234;
+  // MG5/MarvelR currently unknown!
+
+  uint32_t batteryType = 0;
+  //uint32_t pidCount = 0;
+  bool contactorCloseReset = false;
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-  unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
+  //unsigned long previousMillis2000 = 0;
 
-  // For calculating charge and discharge power
-  float RealVoltage;
-  float RealSoC;
-  float tempfloat;
+  static const uint16_t MAX_CHARGE_POWER_W = 3000;
+  static const uint16_t CHARGE_TRICKLE_POWER_W = 20;
+  static const uint16_t DERATE_CHARGE_ABOVE_SOC = 9000;  // in 0.01% units
+
+  static const uint16_t MAX_DISCHARGE_POWER_W = 4000;
+  static const uint16_t DERATE_DISCHARGE_BELOW_SOC = 1500;  // in 0.01% units
+  static const uint16_t DISCHARGE_MIN_SOC = 1000;
 
   uint16_t cellVoltageValidTime = 0;
-  uint16_t soc1 = 0;
-  uint16_t soc2 = 0;
-  uint16_t v = 0;
 
-  uint8_t cell_id = 0;
-  uint8_t transmitIndex = 0;  //For polling switchcase
   uint8_t previousState = 0;
   enum MG_HS_RESET_STATE { IDLE, SENDING_DIAG, SENDING_RESET, WAITING_RESET_COMPLETE };
   MG_HS_RESET_STATE resetProgress = IDLE;
   uint8_t resetTimeout = 0;
   static const uint8_t CELL_VOLTAGE_TIMEOUT = 10;  // in seconds
 
-  const uint16_t MaxChargePower = 3000;  // Maximum allowable charge power, excluding the taper
-  const uint8_t StartChargeTaper = 90;   // Battery percentage above which the charge power will taper to zero
-  const float ChargeTaperExponent =
-      1;  // Shape of charge power taper to zero. 1 is linear. >1 reduces quickly and is small at nearly full.
-  const uint8_t TricklePower = 20;  // Minimimum trickle charge or discharge power (W)
-
-  const uint16_t MaxDischargePower = 4000;  // Maximum allowable discharge power, excluding the taper
-  const uint8_t MinSoC = 20;                // Minimum SoC allowed
-  const uint8_t StartDischargeTaper = 30;   // Battery percentage below which the discharge power will taper to zero
-  const float DischargeTaperExponent =
-      1;  // Shape of discharge power taper to zero. 1 is linear. >1 reduces quickly and is small at nearly full.
-
   CAN_frame MG_HS_8A = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x08A,
                         .data = {0x80, 0x00, 0x00, 0x04, 0x00, 0x02, 0x36, 0xB0}};
-  CAN_frame MG_HS_1F1 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x1F1,
-                         .data = {0x0E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame MG_HS_7E5_POLL = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x7E5,
-                              .data = {0x03, 0x22, 0xB0, 0x42, 0x00, 0x00, 0x00, 0x00}};
+
+  CAN_frame MG_391 = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x391,
+                      .data = {0x10, 0x01, 0xA0, 0x00, 0xD0, 0x00, 0x48, 0x00}};
+
+  static constexpr CAN_frame MG_HS_1F1 = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 8,
+                                          .ID = 0x1F1,
+                                          .data = {0x0E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
   // Enter UDS extended-diagnostics mode
   static constexpr CAN_frame MG_HS_7E5_DIAG = {.FD = false,
