@@ -1,5 +1,6 @@
 #include "FORD-MACH-E-BATTERY.h"
 #include <Arduino.h>
+#include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
@@ -21,16 +22,14 @@ void FordMachEBattery::update_values() {
       datalayer.battery.status.override_discharge_power_W;  //TODO, fix when v alue is found
 
   //We have not found allowed charge power yet. Estimate it for now absed on UI setting. TODO. remove this once found
-  if (battery_soc > 9900) {
-    datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
-  } else if ((battery_soc / 10) >
-             RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+  // Charge power is manually set
+  if (datalayer.battery.status.real_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
+  } else if (datalayer.battery.status.real_soc > user_set_rampdown_SOC) {
+    // When real SOC is between user_set_rampdown_SOC-99%, ramp the value between Max<->0
     datalayer.battery.status.max_charge_power_W =
-        RAMPDOWNPOWERALLOWED * (1 - ((battery_soc / 10) - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
-    //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
-    if (maximum_cellvoltage_mV > (MAX_CELL_VOLTAGE_MV - FLOAT_START_MV)) {
-      datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
-    }
+        datalayer.battery.status.override_charge_power_W *
+        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
   } else {  // No limits, max charging power allowed
     datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
   }

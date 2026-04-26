@@ -6,7 +6,7 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
-inline const char* getContactorState(int index) {
+inline const char* getContactorStates(int index) {
   switch (index) {
     case 0:
       return "Open";
@@ -32,11 +32,11 @@ class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
       content += "No</h4>";
     }
     content += "<h4>Positive contactor: ";
-    content += getContactorState(datalayer_extended.stellantisCMPsmart.battery_positive_contactor_state);
+    content += getContactorStates(datalayer_extended.stellantisCMPsmart.battery_positive_contactor_state);
     content += "</h4><h4>Negative contactor: ";
-    content += getContactorState(datalayer_extended.stellantisCMPsmart.battery_negative_contactor_state);
+    content += getContactorStates(datalayer_extended.stellantisCMPsmart.battery_negative_contactor_state);
     content += "</h4><h4>Precharge contactor: ";
-    content += getContactorState(datalayer_extended.stellantisCMPsmart.battery_precharge_contactor_state);
+    content += getContactorStates(datalayer_extended.stellantisCMPsmart.battery_precharge_contactor_state);
     content += "</h4><h4>Wakeup reason: " + String(datalayer_extended.stellantisCMPsmart.hvbat_wakeup_state) + "</h4>";
     content += "<h4>Battery state: ";
     if (datalayer_extended.stellantisCMPsmart.battery_state == 0) {

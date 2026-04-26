@@ -81,6 +81,8 @@ extern uint16_t user_selected_tesla_GTW_mapRegion;
 extern uint16_t user_selected_tesla_GTW_chassisType;
 extern uint16_t user_selected_tesla_GTW_packEnergy;
 extern uint16_t user_selected_pylon_baudrate;
+extern uint16_t user_set_rampdown_SOC;
+
 /* User-selected DALY BMS settings */
 extern int user_selected_daly_power_per_percent;
 extern int user_selected_daly_power_per_dV;

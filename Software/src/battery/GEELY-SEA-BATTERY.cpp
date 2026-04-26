@@ -1,5 +1,6 @@
 #include "GEELY-SEA-BATTERY.h"
 #include <cstring>  //For unit test
+#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
@@ -58,9 +59,20 @@ void GeelySeaBattery::
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W = 5000;  //TODO: Take from CAN!
+  //The allowed charge power is not available. We estimate this value for now
+  if (datalayer.battery.status.real_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = 0;
+  } else if (datalayer.battery.status.real_soc >
+             user_set_rampdown_SOC) {  // When real SOC is between 90-99%, ramp the value between Max<->0
+    datalayer.battery.status.max_charge_power_W =
+        datalayer.battery.status.override_charge_power_W *
+        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
+  } else {  // No limits, max charging power allowed
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
+  }
 
-  datalayer.battery.status.max_charge_power_W = 5000;  //TODO: Take from CAN!
+  //The allowed discharge power is not available. We use user set value for now
+  datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
 
   if (datalayer.battery.info.chemistry == LFP) {  //If configured LFP in use (or we autodetected it), switch to it
     datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_LFP_WH;  //EX30 51kWh LFP battery

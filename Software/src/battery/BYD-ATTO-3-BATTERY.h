@@ -7,11 +7,6 @@
 #include "BYD-ATTO-3-HTML.h"
 #include "CanBattery.h"
 
-// Ramp down settings that are used when SOC is estimated from voltage
-static const int RAMPDOWN_SOC = 100;  // SOC to start ramping down from. Value set here is scaled by 10 (100 = 10.0%)
-static const int RAMPDOWN_POWER_ALLOWED =
-    10000;  // Power to start ramp down from, set a lower value to limit the power even further as SOC decreases
-
 class BydAttoBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
@@ -49,6 +44,11 @@ class BydAttoBattery : public CanBattery {
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_BYDATTO3* datalayer_bydatto;
   bool* allows_contactor_closing;
+
+  // Ramp down settings that are used when SOC is estimated from voltage
+  static const int RAMPDOWN_SOC = 100;  // SOC to start ramping down from. Value set here is scaled by 10 (100 = 10.0%)
+  static const int RAMPDOWN_POWER_ALLOWED =
+      10000;  // Power to start ramp down from, set a lower value to limit the power even further as SOC decreases
 
   unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
