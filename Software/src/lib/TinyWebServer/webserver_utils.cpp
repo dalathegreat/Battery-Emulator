@@ -1,0 +1,151 @@
+#include "webserver_utils.h"
+
+const char* HTTP_RESPONSE = "HTTP/1.1 200 OK\r\n"
+                        "Connection: close\r\n"
+                        "Content-Type: text/html\r\n"
+                        "Access-Control-Allow-Origin: *\r\n"
+                        "\r\n";
+const char* HTTP_204 = "HTTP/1.1 204 n\r\n"
+                       "Connection: close\r\n"
+                       "\r\n";
+const char *HTTP_405 = "HTTP/1.1 405 x\r\n"
+                       "Connection: close\r\n"
+                       "\r\n";
+
+// A writer callback wrapper that writes the contents of a String in chunks, and
+// finishes the response when done.
+
+TwsRequestWriterCallbackFunction StringWriter(std::shared_ptr<String> &response) {
+    return [response = std::move(response)](TwsRequest &req, int alreadyWritten) {
+        const int remaining = response->length() - alreadyWritten;
+        if(remaining <= 0) {
+            req.finish(); 
+            return;
+        }
+        req.write_direct(response->c_str() + alreadyWritten, remaining);
+    };
+}
+
+// A writer callback wrapper that writes the contents of a list of StringLikes
+// in chunks, and finishes the response when done.
+
+TwsRequestWriterCallbackFunction StringListWriter(std::shared_ptr<std::vector<StringLike>> &response) {
+    return [response = std::move(response)](TwsRequest &req, int alreadyWritten) {
+        for(auto &str : *response) {
+            int length = str.length();
+            if(alreadyWritten >= length) {
+                alreadyWritten -= length;
+                continue; 
+            }
+
+            const int remaining = length - alreadyWritten;
+            if(req.write_direct(str.c_str() + alreadyWritten, remaining) < remaining) {
+                return;
+            }
+            alreadyWritten = 0; 
+        }  
+
+        req.finish();
+    };
+}
+
+TwsRequestWriterCallbackFunction CharBufWriter(const char* buf, int len) {
+    return [buf, len](TwsRequest &req, int alreadyWritten) {
+        const int remaining = len - alreadyWritten;
+        if(remaining <= 0) {
+            req.finish(); 
+            return;
+        }
+        req.write_direct(buf + alreadyWritten, remaining);
+    };
+}
+
+void TwsJsonGetFunc::handleRequest(TwsRequest &request) {
+    JsonDocument doc;
+    respond(request, doc);
+    auto response = std::make_shared<String>();
+    serializeJson(doc, *response);
+    request.write_fully("HTTP/1.1 200 OK\r\n"
+                    "Connection: close\r\n"
+                    "Content-Type: application/json\r\n"
+                    "Access-Control-Allow-Origin: *\r\n"
+                    "\r\n");
+    request.set_writer_callback(StringWriter(response));
+}
+
+void TwsRawPostFunc::handleHeader(TwsRequest &request, const char *line, int len) {
+    auto &state = get_state(request);
+    if(strncasecmp(line, "Content-Length:", 15) == 0) {
+        char *endptr;
+        int content_length = (int)strtol(line + 15, &endptr, 10);
+        if (endptr != line + 15 && content_length >= 0) {
+            state.content_length = content_length;
+        }
+    }
+    if (nextHeader) nextHeader->handleHeader(request, line, len);
+}
+
+int TwsRawPostFunc::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
+    auto &state = get_state(request);
+    
+    if(state.content_length == 0) {
+        // No body expected, so treat this as the end of the upload
+        return -1;
+    }
+
+    if(len == 0) {
+        // Zero-length chunk, ignore
+        return 0;
+    }
+
+    return handle(request, index, data, len, state.content_length);
+}
+
+void TwsJsonRestHandler::handleRequest(TwsRequest &request) {
+    // If it's a POST, execute the POST logic first
+    if (request.is_post()) {
+        auto &state = get_state(request);
+        uint8_t* payload = state.post_body ? state.post_body->data : nullptr;
+        
+        // If handleJsonPost returns true, it means the POST completed the
+        // response (eg, due to an error), so we should finish.
+        if (handleJsonPost(request, payload, state.content_length)) {
+            return; 
+        }
+    }
+
+    // If it's a GET request, OR if the POST handler returned true, we drop down
+    // into the GET logic.
+    JsonDocument doc;
+    handleJsonGet(request, doc);
+
+    auto response = std::make_shared<String>();
+    serializeJson(doc, *response);
+    request.write_fully("HTTP/1.1 200 OK\r\n"
+                        "Connection: close\r\n"
+                        "Content-Type: application/json\r\n"
+                        "Access-Control-Allow-Origin: *\r\n\r\n");
+    request.set_writer_callback(StringWriter(response));
+}
+
+bool TwsJsonRestHandler::handleJsonPost(TwsRequest& request, uint8_t* data, size_t len) {
+    return false; 
+}
+
+void TwsJsonRestHandler::handleJsonGet(TwsRequest& request, JsonDocument& doc) {}
+
+bool TwsJsonRestFunc::handleJsonPost(TwsRequest& request, uint8_t* data, size_t len) {
+    if (_onPost) {
+        return _onPost(request, data, len);
+    }
+    // Reject POSTs if no handler was provided
+    request.write_fully(HTTP_405);
+    request.finish();
+    return true; 
+}
+
+void TwsJsonRestFunc::handleJsonGet(TwsRequest& request, JsonDocument& doc) {
+    if (_onGet) {
+        _onGet(request, doc);
+    }
+}

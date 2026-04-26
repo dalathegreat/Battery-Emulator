@@ -31,5 +31,9 @@ bool ledcAttachChannel(uint8_t pin, uint32_t freq, uint8_t resolution, int8_t ch
 bool ledcWrite(uint8_t pin, uint32_t duty) {
   return true;
 }
+bool ledcWriteTone(uint8_t pin, uint32_t freq) {
+  return true;
+}
 
 ESPClass ESP;
+WiFiClass WiFi;
