@@ -9,9 +9,9 @@ void SimpBmsBattery::update_values() {
 
   datalayer.battery.status.soh_pptt = (SOH * 100);  //Increase decimals from 100% -> 100.00%
 
-  datalayer.battery.status.voltage_dV = voltage_dV;  //value is *10 (3700 = 370.0)
+  datalayer.battery.status.voltage_dV = voltage_dV;
 
-  datalayer.battery.status.current_dA = current_dA;  //value is *10 (150 = 15.0) , invert the sign
+  datalayer.battery.status.current_dA = current_mA / 100;
 
   datalayer.battery.status.max_charge_power_W = (max_charge_current * (voltage_dV / 10));
 
@@ -55,7 +55,7 @@ void SimpBmsBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x356:
       //current status
-      current_dA = ((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[2]) / 100;
+      current_mA = ((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[2]);
       voltage_dV = ((rx_frame.data.u8[1] << 8) + rx_frame.data.u8[0]) / 10;
       break;
     case 0x373:

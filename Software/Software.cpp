@@ -39,7 +39,7 @@
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "10.5.dev";
+const char* version_number = "10.7.dev";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -318,13 +318,30 @@ void update_calculated_values(unsigned long currentMillis) {
 
   } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled SOC & capacity to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh +
-                                                              datalayer.battery2.status.remaining_capacity_Wh +
-                                                              datalayer.battery3.status.remaining_capacity_Wh;
-    datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh +
-                                                        datalayer.battery2.info.total_capacity_Wh +
-                                                        datalayer.battery3.info.total_capacity_Wh;
+
+    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+    datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
+
+    if (battery2) {
+      datalayer.battery.status.reported_remaining_capacity_Wh =
+          datalayer.battery.status.remaining_capacity_Wh + datalayer.battery2.status.remaining_capacity_Wh;
+      datalayer.battery.info.reported_total_capacity_Wh =
+          datalayer.battery.info.total_capacity_Wh + datalayer.battery2.info.total_capacity_Wh;
+    }
+    if (battery3) {
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh +
+                                                                datalayer.battery2.status.remaining_capacity_Wh +
+                                                                datalayer.battery3.status.remaining_capacity_Wh;
+      datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh +
+                                                          datalayer.battery2.info.total_capacity_Wh +
+                                                          datalayer.battery3.info.total_capacity_Wh;
+    }
   }
+
+  datalayer.battery2.status.reported_soc =
+      datalayer.battery2.status.real_soc;  //For screen to display correct SOC of battery 2
+  datalayer.battery3.status.reported_soc =
+      datalayer.battery3.status.real_soc;  //For screen to display correct SOC of battery 3
 
   //Check each extra battery, and if they are at the extremes, report the SOC from these batteries instead
   if (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) {  //Battery2 is in the mix
