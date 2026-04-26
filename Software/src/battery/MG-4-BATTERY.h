@@ -7,7 +7,7 @@ class Mg4Battery : public UdsCanBattery {
  public:
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
-  virtual uint16_t handle_pid(uint16_t pid, uint32_t value);
+  virtual uint32_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length, UdsStatus status);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
   virtual uint32_t calculate_max_discharge_power_W();
@@ -25,18 +25,25 @@ class Mg4Battery : public UdsCanBattery {
   int32_t cell_voltage_freshness = 0;
   int32_t soc_freshness = 0;
 
+  int16_t module_temperatures_dC[12] = {0};
+  int16_t module_temps_received = 0;
+
   int sendPhase = 0;
   bool reportsFDVoltages = false;
   bool reportsSoC = false;
   bool coulombCounting = false;
 
-  unsigned long total_discharge_dC = 0;
+  uint32_t total_discharge_dC = 0;  // in deci-Coulombs
   bool total_discharge_initialized = false;
 
   unsigned long lastTickMillis = 0;
 
   unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
+
+  uint32_t* nonvolatile_cookie = 0;
+  uint32_t* nonvolatile_total_discharge_dC = 0;
+  static const uint32_t NONVOLATILE_COOKIE_VALUE = 0x7734b1f5;
 
   static const uint16_t POLL_BATTERY_VOLTAGE = 0xB042;
   static const uint16_t POLL_BATTERY_CURRENT = 0xB043;

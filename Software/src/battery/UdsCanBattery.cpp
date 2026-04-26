@@ -21,13 +21,13 @@ void UdsCanBattery::transmit_uds_can(unsigned long currentMillis) {
 
     switch (resetProgress) {
       case SENDING_DIAG:
-        UDS_DIAG.ID = obd_address_min;
+        UDS_DIAG.ID = uds_address;
         transmit_can_frame(&UDS_DIAG);
         resetProgress = SENDING_RESET;
         uds_busy_timeout = 5;
         return;
       case SENDING_RESET:
-        UDS_RESET.ID = obd_address_min;
+        UDS_RESET.ID = uds_address;
         transmit_can_frame(&UDS_RESET);
         resetProgress = IDLE;
         uds_busy_timeout = 5;
@@ -56,7 +56,7 @@ void UdsCanBattery::transmit_uds_can(unsigned long currentMillis) {
       return;
     }
 
-    if (next_pid == 0 && first_pid != 0) {
+    if (next_pid == 0) {
       // Reset PID cycle
       next_pid = first_pid;
     }
