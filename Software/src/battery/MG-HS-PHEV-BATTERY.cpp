@@ -384,7 +384,7 @@ uint32_t MgHsPHEVBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t
       if (length < 4) {
         // Short PID, is the initial battery detection
         got_battery_type(value);
-        } else {
+      } else {
         // Query the rest of the identifier PIDs once
         return 0xF120;
       }
