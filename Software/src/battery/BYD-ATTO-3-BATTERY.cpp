@@ -1,9 +1,11 @@
 #include "BYD-ATTO-3-BATTERY.h"
+#include <cmath>    // For std::abs used in the drift check
 #include <cstring>  //For unit test
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 
 // BYD UDS 0x27 Seed-to-Key Algorithm (Endian-Safe)
 uint16_t byd_generate_key(uint16_t seed, uint32_t keyK) {
@@ -66,7 +68,7 @@ void BydAttoBattery::
   const uint16_t D_TAPER_START_mV = 40;  // begin tapering if delta exceeds this
   const uint16_t D_TAPER_END_mV = 80;    // reach tail current by here
 
-  const uint16_t TAIL_CURRENT_dA = 2;  // 0.2A tail (deci-amps). You can set to 1 for 0.1A.
+  const uint16_t TAIL_CURRENT_dA = 10;  // 1.0A tail (deci-amps). You can set to 1 for 0.1A.
 
   // Slew limits to make taper gradual
   const uint16_t DOWN_RATE_dA_per_s = 2;  // ramp down at 0.2A/s  (change to 5 for 0.5A/s)
@@ -150,10 +152,44 @@ void BydAttoBattery::
     cap_slewed_dA += step;
   }
 
+  // Automatic SOC Calibration to 100%
+  if (prog >= 0.95f && cap_slewed_dA <= TAIL_CURRENT_dA && datalayer_battery->status.current_dA < 0 &&
+      std::abs(datalayer_battery->status.current_dA) < 30) {
+    if (tail_dwell_start_ms == 0) {
+      tail_dwell_start_ms = millis64();
+    }
+  } else {
+    tail_dwell_start_ms = 0;
+  }
+
+  const uint64_t TAIL_DWELL_MS = 10ULL * 60ULL * 1000ULL;
+  const uint64_t now64 = millis64();
+
+  if (datalayer_bydatto->auto_calibrate_soc_enabled &&
+      datalayer_bydatto->UserRequestCalibrateSOC == false &&  // dont fight manual request
+      stateMachineCalibrateSOC == NOT_RUNNING && datalayer.system.status.battery_allows_contactor_closing &&
+      tail_dwell_start_ms != 0 &&                        // 1. dwell clock is running
+      (now64 - tail_dwell_start_ms >= TAIL_DWELL_MS) &&  // 2. held at tail for 10 min
+      (battery_highprecision_SOC < 1000 &&
+       (1000 - battery_highprecision_SOC) > (uint16_t)(datalayer_bydatto->auto_calibrate_soc_drift_percent * 10)) &&
+      (now64 - last_auto_calibrate_ms > 3600000ULL)) {  // 4. 1-hour cooldown
+
+    set_event(EVENT_BYD_AUTO_SOC_CALIBRATION, (uint8_t)((1000 - battery_highprecision_SOC) / 10));
+
+    datalayer_bydatto->calibrationTargetSOC = 100;
+    if (BMS_capacity_current_calibration > 0) {  // guard against startup zero
+      datalayer_bydatto->calibrationTargetAH = BMS_capacity_current_calibration / 100;
+    }
+    datalayer_bydatto->UserRequestCalibrateSOC = true;
+
+    last_auto_calibrate_ms = now64;
+    tail_dwell_start_ms = 0;  // reset after firing
+  }
+
   // Convert current cap (dA) -> power cap (W): P = I(dA) * V(dV) / 100
   const uint32_t power_cap_W = (uint32_t(cap_slewed_dA) * uint32_t(datalayer_battery->status.voltage_dV)) / 100;
 
-  // Apply taper by capping the allowed charge power reported to the rest of BE/inverter logic.
+  // Apply taper by capping the allowed charge power reported to the rest of BE/inverter logic
   if (datalayer_battery->status.max_charge_power_W > power_cap_W) {
     datalayer_battery->status.max_charge_power_W = power_cap_W;
   }

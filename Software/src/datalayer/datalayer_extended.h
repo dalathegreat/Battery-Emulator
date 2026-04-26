@@ -162,6 +162,12 @@ struct DATALAYER_INFO_BYDATTO3 {
   /** bool */
   /** User requesting SOC calibration via WebUI*/
   bool UserRequestCalibrateSOC = false;
+  /** bool */
+  /** Enable automatic SOC calibration to 100% when physically full (taper + low current) */
+  bool auto_calibrate_soc_enabled = true;
+  /** uint8_t */
+  /** Drift threshold (%) before auto-calibrate triggers */
+  uint8_t auto_calibrate_soc_drift_percent = 5;
 };
 
 struct DATALAYER_INFO_CELLPOWER {
