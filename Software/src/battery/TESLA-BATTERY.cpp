@@ -505,22 +505,22 @@ void TeslaBattery::
   /* Value mapping is completed. Start to check all safeties */
 
   //12V battery too low for contactor operation. Inform user via Event
-// Only monitor 12V health while contactors are OPEN to avoid false triggers during energization
-if ( HVP_packNegativeV == 0 && HVP_packPositiveV == 0  ) { 
+  // Only monitor 12V health while contactors are OPEN to avoid false triggers during energization
+  if (HVP_packNegativeV == 0 && HVP_packPositiveV == 0) {
 
-    if (HVP_battery12V > 0) { 
-        // Scale is 0.1, so HVP_battery12V * 0.1 is the physical voltage
-        if ((HVP_battery12V * 0.1) < 11.7) {
-            set_event(EVENT_12V_LOW, 0);
-        } else {
-            clear_event(EVENT_12V_LOW);
-        }
+    if (HVP_battery12V > 0) {
+      // Scale is 0.1, so HVP_battery12V * 0.1 is the physical voltage
+      if ((HVP_battery12V * 0.1) < 11.7) {
+        set_event(EVENT_12V_LOW, 0);
+      } else {
+        clear_event(EVENT_12V_LOW);
+      }
     }
-} else {
-    // Optional: If contactors are closed, we might want to clear the event 
+  } else {
+    // Optional: If contactors are closed, we might want to clear the event
     // or simply stop updating it to prevent a latching error.
     clear_event(EVENT_12V_LOW);
-}
+  }
   //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
   if (battery_hvil_status == 3) {
     set_event(EVENT_INTERNAL_OPEN_FAULT, 0);
