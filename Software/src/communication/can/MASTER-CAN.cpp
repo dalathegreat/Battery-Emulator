@@ -18,8 +18,8 @@ static const uint8_t VOLTAGE_DIFF_SECONDS_LIMIT = 10;  // 10s grace period
 static uint8_t voltage_diff_seconds[MAX_SLAVE_NODES] = {0};
 
 // How long to keep the contactor allowed after offline balancing starts.
-// BMW I3 opens its own contactor ~20s after balancing begins; we wait 60s to be safe.
-static const uint8_t BALANCING_HOLD_SECONDS = 60u;
+// BMW I3 opens its own contactor ~20s after balancing begins; we wait 25s to be safe.
+static const uint8_t BALANCING_HOLD_SECONDS = 25u;
 // Per-slave countdown: while > 0, contactor_allowed is not yet forced false
 static uint8_t balancing_hold_seconds[MAX_SLAVE_NODES] = {0};
 
@@ -103,7 +103,7 @@ void MasterCan::receive_can_frame(CAN_frame* rx_frame) {
       node.balancing = (rx_frame->data.u8[7] & IU_SLAVE_PFLAG_BALANCING) != 0;
       if (!was_balancing && node.balancing) {
         // Balancing just started: start hold timer — BMW I3 opens its own contactor ~20s later.
-        // Master will block contactor_allowed after BALANCING_HOLD_SECONDS (60s).
+        // Master will block contactor_allowed after BALANCING_HOLD_SECONDS (25s).
         balancing_hold_seconds[node_id - 1] = BALANCING_HOLD_SECONDS;
         logging.printf("Master CAN: Slave %d offline balancing started — contactor held for %us\n",
                        node_id, BALANCING_HOLD_SECONDS);
