@@ -54,8 +54,10 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   // Map internal balancing state to datalayer balancing_status
   if (UserRequestBalancing == NONE) {
     datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
+    datalayer_battery->status.offline_balancing = false;
   } else {
     datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
+    datalayer_battery->status.offline_balancing = true; // Inter-unit Master/slave balancing is active, so we set offline_balancing to true to signal to the inverter that it should not expect the battery to be able to provide power during balancing
   }
 
   if (!battery_awake) {

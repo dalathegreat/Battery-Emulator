@@ -109,6 +109,8 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   led_mode_enum led_mode = CLASSIC;
   /** Balancing status */
   balancing_status_enum balancing_status = BALANCING_STATUS_UNKNOWN;
+  /** True when offline balancing is active (battery goes to sleep, excluded from master aggregation) */
+  bool offline_balancing = false;
 
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.
@@ -324,6 +326,7 @@ struct SLAVE_NODE_TYPE {
   bool contactor_allowed = false;       // Master decision: is slave allowed to close contactor
   bool online = false;                  // True if slave is responding
   bool ident_received = false;          // True once IDENT frame has been received from slave
+  bool balancing = false;               // True when slave is performing offline balancing (excluded from aggregation)
   uint32_t ip_address = 0;             // IPv4 address of slave (0 = unknown)
   uint16_t fw_version_num = 0;          // Firmware version: (major<<8)|minor, e.g. 10.6 -> 0x0A06
   uint16_t battery_type_id = 0;         // BatteryType enum value reported by slave

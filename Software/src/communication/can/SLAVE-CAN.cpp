@@ -159,8 +159,9 @@ void SlaveCan::send_power_frame() {
   // [6] temp_min in °C
   int8_t temp_min = (int8_t)((int16_t)(status.temperature_min_dC / 10));
   frame.data.u8[6] = (uint8_t)temp_min;
-  // [7] reserved
-  frame.data.u8[7] = 0;
+  // [7] slave_pflags: IU_SLAVE_PFLAG_BALANCING only for offline balancing (battery goes to sleep)
+  // Online balancing (e.g. BMW IX) does NOT set this flag — slave stays in aggregation
+  frame.data.u8[7] = status.offline_balancing ? IU_SLAVE_PFLAG_BALANCING : 0u;
 
   transmit_can_frame_to_interface(&frame, can_config.inter_unit);
 }

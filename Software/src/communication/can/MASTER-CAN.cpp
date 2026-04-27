@@ -17,6 +17,12 @@ static const uint8_t VOLTAGE_DIFF_SECONDS_LIMIT = 10;  // 10s grace period
 // Per-slave voltage diff grace period counters
 static uint8_t voltage_diff_seconds[MAX_SLAVE_NODES] = {0};
 
+// How long to keep the contactor allowed after offline balancing starts.
+// BMW I3 opens its own contactor ~20s after balancing begins; we wait 60s to be safe.
+static const uint8_t BALANCING_HOLD_SECONDS = 60u;
+// Per-slave countdown: while > 0, contactor_allowed is not yet forced false
+static uint8_t balancing_hold_seconds[MAX_SLAVE_NODES] = {0};
+
 void setup_master_can() {
   register_can_receiver(&master_can, can_config.inter_unit, CAN_Speed::CAN_SPEED_500KBPS);
   register_transmitter(&master_can);
@@ -27,6 +33,7 @@ void MasterCan::begin() {
   _last_heartbeat_ms = 0;
   for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
     voltage_diff_seconds[i] = 0;
+    balancing_hold_seconds[i] = 0;
   }
 }
 
@@ -91,6 +98,16 @@ void MasterCan::receive_can_frame(CAN_frame* rx_frame) {
       node.max_discharge_W = ((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
       node.remaining_Wh = ((uint16_t)rx_frame->data.u8[4] << 8) | rx_frame->data.u8[5];
       node.temp_min_dC = (int8_t)rx_frame->data.u8[6];
+      // [7] slave_pflags: check offline balancing flag
+      bool was_balancing = node.balancing;
+      node.balancing = (rx_frame->data.u8[7] & IU_SLAVE_PFLAG_BALANCING) != 0;
+      if (!was_balancing && node.balancing) {
+        // Balancing just started: start hold timer — BMW I3 opens its own contactor ~20s later.
+        // Master will block contactor_allowed after BALANCING_HOLD_SECONDS (60s).
+        balancing_hold_seconds[node_id - 1] = BALANCING_HOLD_SECONDS;
+        logging.printf("Master CAN: Slave %d offline balancing started — contactor held for %us\n",
+                       node_id, BALANCING_HOLD_SECONDS);
+      }
       break;
     }
     case 0x02:  // INFO message (every 10s)
@@ -203,6 +220,16 @@ void MasterCan::update_values() {
       node.contactor_allowed = false;
       set_event(EVENT_SLAVE_BATTERY_MISSING, i + 1);  // data = node ID (1-8)
       logging.printf("Master CAN: Slave %d went OFFLINE\n", i + 1);
+    }
+
+    // Offline balancing hold timer: once expired, block the contactor
+    if (node.balancing) {
+      if (balancing_hold_seconds[i] > 0) {
+        balancing_hold_seconds[i]--;
+      } else if (node.contactor_allowed) {
+        node.contactor_allowed = false;
+        logging.printf("Master CAN: Slave %d balancing hold expired — contactor BLOCKED\n", i + 1);
+      }
     }
 
     // Check voltage safety first (may allow contactor based on voltage match)
@@ -345,6 +372,10 @@ void MasterCan::update_slave_aggregation() {
   for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
     const SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
     if (!node.online || !node.contactor_allowed) {
+      continue;
+    }
+    // Exclude slaves performing offline balancing — they are sleeping and not part of the pack
+    if (node.balancing) {
       continue;
     }
     active_count++;

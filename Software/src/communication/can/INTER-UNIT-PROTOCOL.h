@@ -84,6 +84,9 @@
 #define IU_FAULT_ERROR_MASK   (IU_FAULT_BMS_FAULT | IU_FAULT_BATTERY_TIMEOUT | IU_FAULT_CONTACTOR_FAILED)
 #define IU_FAULT_WARNING_MASK (IU_FAULT_CELL_OVERVOLTAGE | IU_FAULT_CELL_UNDERVOLTAGE | IU_FAULT_OVERTEMPERATURE)
 
+/* ---- FLAGS byte in POWER message (data[7]) ---- */
+#define IU_SLAVE_PFLAG_BALANCING 0x01u  // bit 0: Slave is performing offline balancing — exclude from aggregation
+
 /* ---- Stale data detection ---- */
 #define IU_STATUS_STALE_SECONDS 3u  // Flag stale if STATUS toggle has not changed for this many seconds
 
@@ -109,7 +112,7 @@
  *   [2..3] : uint16_t  max_discharge_W   — max discharge power in Watts
  *   [4..5] : uint16_t  remaining_Wh      — remaining capacity in Wh (max 65535 Wh)
  *   [6]    : int8_t    temp_min_dC       — min temperature (°C, as int8)
- *   [7]    : uint8_t   reserved
+ *   [7]    : uint8_t   slave_pflags      — see IU_SLAVE_PFLAG_* below
  *
  * INFO message layout — IU_SLAVE_INFO_ID(n), 8 bytes:
  *   [0..1] : uint16_t  total_capacity_Wh    — total pack capacity in Wh

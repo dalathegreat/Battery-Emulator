@@ -1532,6 +1532,9 @@ String processor(const String& var) {
         content += "<h4 style='margin:2px 0;'>Max discharge: " + String(dis_kW, 1) + " kW</h4>";
         content += "<h4 style='margin:2px 0;'>Contactor: <span style='" + String(contactor_color) + "'>" +
                    String(contactor_state) + "</span></h4>";
+        if (s.balancing) {
+          content += "<h4 style='color:#00FFFF;margin:2px 0;'>&#9863; Offline Balancing</h4>";
+        }
         if (is_error || is_warning) {
           const char* label      = is_error ? "FAULT"   : "WARNING";
           const char* labelColor = is_error ? "red"     : "#cc8800";
