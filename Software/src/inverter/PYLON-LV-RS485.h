@@ -48,8 +48,8 @@ class PylonLV485InverterProtocol : public Rs485InverterProtocol {
   uint16_t min_cell_v = 3350;           // 3.35V default
   uint16_t max_charge_v_mv = 52000;     // 52V default
   uint16_t min_discharge_v_mv = 48000;  // 48V default
-  uint16_t max_charge_i_da = 500;       // 5A default
-  uint16_t max_discharge_i_da = 500;    // 5A default
+  uint16_t max_charge_i_da = 0;         // 0A default
+  uint16_t max_discharge_i_da = 0;      // 0A default
 };
 
 #endif

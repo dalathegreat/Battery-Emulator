@@ -40,9 +40,9 @@ void PylonLV485InverterProtocol::update_values() {
 
   min_discharge_v_mv = datalayer.battery.info.min_design_voltage_dV * 100;
 
-  // Optional: Current limits for 0x63
-  max_charge_i_da = datalayer.battery.status.max_charge_current_dA * 10;
-  max_discharge_i_da = datalayer.battery.status.max_discharge_current_dA * 10;
+  max_charge_i_da = datalayer.battery.status.max_charge_current_dA;
+
+  max_discharge_i_da = datalayer.battery.status.max_discharge_current_dA;
 
   if (incoming_message_counter > 0) {
     incoming_message_counter--;
@@ -182,21 +182,7 @@ void PylonLV485InverterProtocol::handle_command_63() {
   // Command 0x63: Charge/Discharge Management (9 bytes)
   // Format: Max_Charge_Voltage(2) | Min_Discharge_Voltage(2) | Max_Charge_Current(2) | Max_Discharge_Current(2) | Status(1)
 
-  uint16_t max_charge_v_mv = 58000;     // 58V default
-  uint16_t min_discharge_v_mv = 48000;  // 48V default
-  uint16_t max_charge_i_da = 500;       // 5A default
-  uint16_t max_discharge_i_da = 500;    // 5A default
-  uint8_t status_byte = 0xC0;           // Bit 7 & 6: Charge & Discharge enabled
-
-  // Override with datalayer limits if available
-  if (datalayer.battery.info.max_design_voltage_dV > 0)
-    max_charge_v_mv = datalayer.battery.info.max_design_voltage_dV * 100;
-  if (datalayer.battery.info.min_design_voltage_dV > 0)
-    min_discharge_v_mv = datalayer.battery.info.min_design_voltage_dV * 100;
-  if (datalayer.battery.status.max_charge_current_dA > 0)
-    max_charge_i_da = datalayer.battery.status.max_charge_current_dA * 10;
-  if (datalayer.battery.status.max_discharge_current_dA > 0)
-    max_discharge_i_da = datalayer.battery.status.max_discharge_current_dA * 10;
+  uint8_t status_byte = 0xC0;  // Bit 7 & 6: Charge & Discharge enabled
 
   char info_payload[19];
   snprintf(info_payload, sizeof(info_payload), "%04X%04X%04X%04X%02X", max_charge_v_mv, min_discharge_v_mv,
