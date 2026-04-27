@@ -21,6 +21,7 @@ static const uint16_t DISCHARGE_MIN_SOC = 1000;
 
 static const uint16_t WORKING_CELL_VOLTAGE_HYSTERESIS_MV = 100;
 
+// 101 voltage values from 0% to 100%
 static const uint16_t nmc_voltages[] = {
     2500, 3100, 3246, 3336, 3400, 3448, 3468, 3473, 3478, 3483, 3488, 3494, 3501, 3509, 3519, 3529, 3539,
     3549, 3559, 3568, 3576, 3585, 3595, 3601, 3605, 3609, 3612, 3615, 3618, 3621, 3624, 3627, 3629, 3632,
@@ -68,6 +69,31 @@ static uint16_t ocv_to_soc(uint16_t voltage_mV) {
   return 10000;
 }
 
+static uint16_t soc_to_ocv(uint16_t soc_in_centipercent) {
+  const uint16_t* voltages;
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+    voltages = lfp_voltages;
+  } else {
+    voltages = nmc_voltages;
+  }
+
+  if (soc_in_centipercent >= 10000) {
+    return voltages[100];
+  }
+
+  uint16_t index = soc_in_centipercent / 100;
+  uint16_t remainder = soc_in_centipercent % 100;
+
+  if (remainder == 0) {
+    return voltages[index];
+  }
+
+  // Linear interpolation between points
+  uint16_t voltage_low = voltages[index];
+  uint16_t voltage_high = voltages[index + 1];
+  return voltage_low + ((voltage_high - voltage_low) * remainder) / 100;
+}
+
 uint32_t Mg4Battery::calculate_max_discharge_power_W() {
   uint32_t working_min = working_cell_min_mV + (below_working_min ? WORKING_CELL_VOLTAGE_HYSTERESIS_MV : 0);
 
@@ -98,14 +124,28 @@ uint32_t Mg4Battery::calculate_max_charge_power_W() {
     return 0;
   }
 
+  int32_t charge_power_W = MAX_CHARGE_POWER_W;
+
   if (datalayer.battery.status.cell_max_voltage_mV > (working_max - 50)) {
     // Taper from MAX down to 0 over the last 50mV
     int32_t mV_above_taper_start = datalayer.battery.status.cell_max_voltage_mV - (working_max - 50);
-    int32_t ret = (MAX_CHARGE_POWER_W * (50 - mV_above_taper_start)) / 50;
-    return ret > 0 ? ret : 0;
+    int32_t power = (MAX_CHARGE_POWER_W * (50 - mV_above_taper_start)) / 50;
+    if (power >= 0 && power < charge_power_W) {
+      charge_power_W = power;
+    }
   }
 
-  return MAX_CHARGE_POWER_W;
+  if (datalayer.battery.status.real_soc > 9900) {
+    // Taper from current power down to CHARGE_TRICKLE_POWER_W between 99% and 100%
+    int32_t soc_above_99 = datalayer.battery.status.real_soc - 9900;
+    int32_t power =
+        CHARGE_TRICKLE_POWER_W + ((MAX_CHARGE_POWER_W - CHARGE_TRICKLE_POWER_W) * (100 - soc_above_99 / 100)) / 100;
+    if (power >= 0 && power < charge_power_W) {
+      charge_power_W = power;
+    }
+  }
+
+  return charge_power_W;
 }
 
 // uint32_t Mg4Battery::update_pack_max_voltage_limits() {
@@ -166,27 +206,26 @@ void Mg4Battery::
     uint32_t capacity_mAh =
         ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.info.number_of_cells) * 1000000) /
         nominal_cell_voltage_mV;
+    uint32_t one_percent_dC = (capacity_mAh * (9 + 1)) / 25;  // 1.11% of capacity in deci-Coulombs
 
     if (!total_discharge_initialized) {
       if (nonvolatile_cookie != 0 && *nonvolatile_cookie == NONVOLATILE_COOKIE_VALUE) {
         // Non-volatile memory contains a valid previous discharge value, use it
         total_discharge_dC = *nonvolatile_total_discharge_dC;
-        logging.printf("Restored total discharge from non-volatile memory: %lu dC\n", total_discharge_dC);
+        logging.printf("[MG4] Restored total discharge from non-volatile memory: %lu dC\n", total_discharge_dC);
       } else {
         // No previous value, Initialize the total discharge counter based on the min cell voltage
-        printf("cell min voltage: %d mV\n", datalayer.battery.status.cell_min_voltage_mV);
         uint16_t initial_soc_centipercent = ocv_to_soc(datalayer.battery.status.cell_min_voltage_mV);
-        logging.printf("Initial soc: %d\n", initial_soc_centipercent);
-        logging.printf("Capacity mAh: %lu\n", capacity_mAh);
+        logging.printf("[MG4] Initial soc: %d\n", initial_soc_centipercent);
+        logging.printf("[MG4] Capacity mAh: %lu\n", capacity_mAh);
 
         total_discharge_dC = ((uint64_t)(10000 - initial_soc_centipercent) * capacity_mAh * 36) / 10000;
       }
-      logging.printf("Initial total discharge: %lu dC\n", total_discharge_dC);
+      logging.printf("[MG4] Initial total discharge: %lu dC\n", total_discharge_dC);
       total_discharge_initialized = true;
     }
 
-    // Do coulomb count
-
+    // 1. Do coulomb count
     if (datalayer.battery.status.current_dA > (int32_t)total_discharge_dC) {
       // We're charging, but discharge is nearly zero - cap at zero
       total_discharge_dC = 0;
@@ -195,36 +234,44 @@ void Mg4Battery::
       total_discharge_dC -= datalayer.battery.status.current_dA;
     }
 
+    // 2. State correction to handle drift
+    if (datalayer.battery.status.cell_max_voltage_mV >= (working_cell_max_mV - 10)) {
+      // We're full
+      total_discharge_dC = 0;
+    } else if (datalayer.battery.status.cell_max_voltage_mV < working_cell_recharge_threshold_mV &&
+               total_discharge_dC < one_percent_dC) {
+      // We've drifted - the voltage is low, but the counter is empty.
+      // Force charge to 99%-SoC-equivalent to keep the battery charging.
+      total_discharge_dC = one_percent_dC;
+    }
+
+    // 3. Save to NVRAM
     if (nonvolatile_total_discharge_dC != 0) {
       // Store the total discharged amount in non-volatile memory
       (*nonvolatile_total_discharge_dC) = total_discharge_dC;
       (*nonvolatile_cookie) = NONVOLATILE_COOKIE_VALUE;
     }
 
+    // 4. Calculate SoC Centipercent
     int32_t soc_centipercent = 10000;
     if (capacity_mAh > 0) {
-      // (total_discharge_dC * 10000)
       soc_centipercent = 10000 - ((((uint64_t)total_discharge_dC * 2500) / 9) / capacity_mAh);
     }
+
+    // 5. Cap the SoC to 0-100%
     if (soc_centipercent > 10000) {
       soc_centipercent = 10000;
     } else if (soc_centipercent < 0) {
       soc_centipercent = 0;
     }
 
-    if (datalayer.battery.status.cell_max_voltage_mV >= (working_cell_max_mV - 10)) {
-      // We're full
-      soc_centipercent = 10000;
-      total_discharge_dC = 0;
-    } else if (datalayer.battery.status.cell_min_voltage_mV <= (working_cell_min_mV + 10)) {
-      // We're empty
+    // 6. Handle empty/near-empty case
+    if (datalayer.battery.status.cell_min_voltage_mV <= (working_cell_min_mV + 10)) {
+      // Battery is empty
       soc_centipercent = 0;
     } else if (soc_centipercent < 100 && datalayer.battery.status.cell_min_voltage_mV > working_cell_min_mV) {
-      // Floor at 1% if we're still not down to the working min
+      // Count indicates empty but battery still has charge left, floor at 1%
       soc_centipercent = 100;
-    } else if (soc_centipercent > 9900 && datalayer.battery.status.cell_max_voltage_mV < working_cell_max_mV) {
-      // Cap at 99% if we're still not up to the working max
-      soc_centipercent = 9900;
     }
 
     update_soc(soc_centipercent);
@@ -413,12 +460,20 @@ void Mg4Battery::transmit_can(unsigned long currentMillis) {
     return;
   }
 
+  auto ptext_transmit = [&](CAN_frame* frame) {
+    if (shunt && user_selected_shunt_type == ShuntType::BatterySecondInterface) {
+      static_cast<BatterySecondInterfaceShunt*>(shunt)->transmit_can_frame(frame);
+    } else {
+      transmit_can_frame(frame);
+    }
+  };
+
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
     if (sendPhase == 3 || sendPhase == 13 || sendPhase == 23) {
       // Send a non-FD 4F3 to wake up the PTEXT interface.
-      transmit_can_frame(&MG4_4F3);
+      ptext_transmit(&MG4_4F3);
     }
 
     // Send the non-FD 047 frame to close contactors on PTEXT.
@@ -428,7 +483,7 @@ void Mg4Battery::transmit_can(unsigned long currentMillis) {
     } else {
       MG4_047.data.u8[1] = sendPhase;
     }
-    transmit_can_frame(&MG4_047);
+    ptext_transmit(&MG4_047);
 
     if (sendPhase == 2 || sendPhase == 12 || sendPhase == 22) {
       // Send a FD 4F3 to wake up the FD interface.
@@ -491,21 +546,26 @@ void Mg4Battery::setup(void) {  // Performs one time setup at startup
 
   working_cell_max_mV = datalayer.battery.info.max_cell_voltage_mV - 150;
   working_cell_min_mV = datalayer.battery.info.min_cell_voltage_mV + 300;
+  working_cell_recharge_threshold_mV = working_cell_max_mV - 100;
   coulombCounting = user_selected_use_estimated_SOC;
   if (coulombCounting) {
     static const uint32_t MINIMUM_WORKING_RANGE_MV = 200;
     if (user_selected_max_cell_voltage_mV > (datalayer.battery.info.min_cell_voltage_mV + MINIMUM_WORKING_RANGE_MV) &&
         user_selected_max_cell_voltage_mV <= datalayer.battery.info.max_cell_voltage_mV) {
       working_cell_max_mV = user_selected_max_cell_voltage_mV;
+      // Calculate threshold as 1% lower SoC than max, using ocv_to_soc
+      working_cell_recharge_threshold_mV = soc_to_ocv(ocv_to_soc(working_cell_max_mV) - 100);
     } else {
-      logging.printf("Invalid user-selected max cell voltage, using default of %d mV\n", working_cell_max_mV);
+      logging.printf("[MG4] Invalid user-selected max cell voltage, using default of %d mV\n", working_cell_max_mV);
     }
     if (user_selected_min_cell_voltage_mV >= datalayer.battery.info.min_cell_voltage_mV &&
         user_selected_min_cell_voltage_mV <= (working_cell_max_mV - MINIMUM_WORKING_RANGE_MV)) {
       working_cell_min_mV = user_selected_min_cell_voltage_mV;
     } else {
-      logging.printf("Invalid user-selected min cell voltage, using default of %d mV\n", working_cell_min_mV);
+      logging.printf("[MG4] Invalid user-selected min cell voltage, using default of %d mV\n", working_cell_min_mV);
     }
+    logging.printf("[MG4] Working cell voltage range: %d mV - %d mV, recharge threshold: %d mV\n", working_cell_min_mV,
+                   working_cell_max_mV, working_cell_recharge_threshold_mV);
   }
 
   datalayer.battery.info.max_design_voltage_dV =

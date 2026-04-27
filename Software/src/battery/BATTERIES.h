@@ -12,6 +12,7 @@ extern Battery* battery3;
 
 void setup_shunt();
 
+#include "BATTERY-SECOND-INTERFACE.h"
 #include "BMW-I3-BATTERY.h"
 #include "BMW-IX-BATTERY.h"
 #include "BMW-PHEV-BATTERY.h"

@@ -20,6 +20,7 @@ class Mg4Battery : public UdsCanBattery {
   static const uint16_t MAX_CELL_DEVIATION_MV = 150;
 
   int32_t working_cell_min_mV = 0;
+  int32_t working_cell_recharge_threshold_mV = 0;
   int32_t working_cell_max_mV = 0;
   bool below_working_min = false;
   int32_t cell_voltage_freshness = 0;

@@ -1,4 +1,5 @@
 #include "../inverter/INVERTERS.h"
+#include "BATTERY-SECOND-INTERFACE.h"
 #include "BMW-SBOX.h"
 #include "Shunt.h"
 
@@ -25,6 +26,10 @@ void setup_shunt() {
       return;
     case ShuntType::CustomClamp:
       shunt = nullptr;
+      return;
+    case ShuntType::BatterySecondInterface:
+      shunt = new BatterySecondInterfaceShunt();
+      shunt->setup();
       return;
     default:
       return;
@@ -53,6 +58,8 @@ extern const char* name_for_shunt_type(ShuntType type) {
       return "Using inverter values";
     case ShuntType::CustomClamp:
       return "Custom Clamp";
+    case ShuntType::BatterySecondInterface:
+      return "Battery second interface";
     default:
       return nullptr;
   }
