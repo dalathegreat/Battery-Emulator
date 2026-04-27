@@ -538,6 +538,14 @@ void TeslaBattery::
     clear_event(EVENT_CONTACTOR_WELDED);
   }
 
+  //Loop thru all cellvoltages, if any cell reading is missing, write that cell to 1mV
+  //This helps spot any defective cellblock
+  for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
+    if (datalayer.battery.status.cell_voltages_mV[i] == 0) {
+      datalayer.battery.status.cell_voltages_mV[i] = 1;
+    }
+  }
+
   if (user_selected_tesla_GTW_chassisType > 1) {  //{{0, "Model S"}, {1, "Model X"}, {2, "Model 3"}, {3, "Model Y"}};
     // Autodetect algorithm for chemistry on 3/Y packs.
     // NCM/A batteries have 96s, LFP has 102-108s
