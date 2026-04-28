@@ -1,0 +1,43 @@
+.stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2.5rem;
+    row-gap: 1.25rem;
+}
+
+.stat {
+    font-size: 1.8rem;
+    line-height: 0.7em;
+    font-weight: 600;
+}
+
+.stat__double {
+    font-size: 1.1rem;
+    line-height: 0.9em;
+}
+
+.stat__small {
+    font-size: 1.4rem;
+    line-height: 1em;
+}
+
+.stat span {
+    display: block;
+    font-weight: 400;
+    font-size: 0.9rem;
+    line-height: 1em;
+    margin: 0 0 0.5rem;
+    color: #888;
+}
+
+.stat em, .stat u {
+    display: inline;
+    font-style: normal;
+    text-decoration: none;
+    font-size: 0.7em;
+    color: #999;
+    padding-left: 0.1rem;
+}
+.stat em {
+    padding-left: 0.4rem;
+}

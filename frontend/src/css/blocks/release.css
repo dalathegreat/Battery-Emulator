@@ -1,0 +1,19 @@
+.release {
+    border: 2px solid #333;
+    padding: 0.5rem 1rem;
+    border-radius: 0.7rem;
+}
+
+.release > div > span {
+    font-weight: bold;
+}
+
+.release ul,
+.release ol {
+    margin: 0 0 2rem 1.8rem;
+    padding: 0;
+}
+
+.release h2 {
+    font-size: 1.1rem;
+}

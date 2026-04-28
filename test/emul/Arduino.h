@@ -9,12 +9,15 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <csignal>
 #include <cstdlib>
 #include <cstring>
 
-#include "HardwareSerial.h"
-#include "Logging.h"
-#include "Print.h"
+#include <HardwareSerial.h>
+#include <Logging.h>
+#include <Print.h>
+#include <Printable.h>
+#include <WiFi.h>
 
 #include "esp-hal-gpio.h"
 
@@ -113,21 +116,6 @@ inline void analogSetPinAttenuation(uint8_t pin, uint8_t atten) {
 
 #define ADC_BITWIDTH_DEFAULT 12
 
-// Mock WiFi types
-typedef int WiFiEvent_t;
-typedef int WiFiEventInfo_t;
-
-// Mock WiFi functions
-inline void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
-  (void)event;
-  (void)info;
-}
-
-inline void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
-  (void)event;
-  (void)info;
-}
-
 unsigned long micros();
 // Can be previously declared as a macro in stupid eModbus
 #undef millis
@@ -140,6 +128,7 @@ int max(int a, int b);
 
 bool ledcAttachChannel(uint8_t pin, uint32_t freq, uint8_t resolution, int8_t channel);
 bool ledcWrite(uint8_t pin, uint32_t duty);
+bool ledcWriteTone(uint8_t pin, uint32_t freq);
 
 class ESPClass {
  public:
@@ -147,6 +136,12 @@ class ESPClass {
     // This is a placeholder for the actual implementation
     // that retrieves the flash chip size.
     return 4 * 1024 * 1024;  // Example: returning 4MB
+  }
+  size_t getFreeHeap() { return 100000; }
+  size_t getMaxAllocHeap() { return 100000; }
+  void restart() {
+    // Send USR1 signal to the current process to simulate a restart
+    raise(SIGUSR1);
   }
 };
 
