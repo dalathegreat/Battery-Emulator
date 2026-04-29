@@ -201,6 +201,8 @@ void MasterCan::send_contactor_commands() {
 // ---- Value aggregation (called every 1s) ---------------------------
 
 void MasterCan::update_values() {
+  bool estop_active = datalayer.system.info.equipment_stop_active;
+
   // Lazy-init startup grace timer on first call
   if (_startup_begin_ms == 0) {
     _startup_begin_ms = millis();
@@ -217,12 +219,31 @@ void MasterCan::update_values() {
     }
   }
 
+  if (estop_active && !_estop_was_active) {
+    logging.println("Master CAN: E-stop ACTIVE — resetting slave contactor permissions and voltage qualification");
+  } else if (!estop_active && _estop_was_active) {
+    _startup_begin_ms = millis();
+    _startup_grace_done = false;
+    logging.printf("Master CAN: E-stop CLEARED — restarting %us startup grace before slaves may re-qualify\n",
+                   IU_STARTUP_GRACE_S);
+  }
+  _estop_was_active = estop_active;
+
   // Decrement still_alive counters
   for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
     SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
     if (!node.online) {
       continue;
     }
+
+    if (estop_active) {
+      voltage_diff_seconds[i] = 0;
+      if (node.contactor_allowed) {
+        node.contactor_allowed = false;
+        logging.printf("Master CAN: Slave %d contactor BLOCKED by E-stop\n", i + 1);
+      }
+    }
+
     if (node.still_alive > 0) {
       node.still_alive--;
     }
@@ -312,13 +333,22 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
     return;
   }
 
+  // While e-stop is active, contactors must stay blocked and any pending
+  // voltage qualification must restart when the stop is cleared.
+  if (datalayer.system.info.equipment_stop_active) {
+    voltage_diff_seconds[idx] = 0;
+    return;
+  }
+
   // During startup grace period, keep all contactors blocked so all slaves
   // can announce themselves at matching voltages before the inverter starts.
   if (!_startup_grace_done) {
     return;
   }
 
-  // First slave to come online sets the reference voltage
+  // First slave to come online sets the reference voltage.
+  // Additional slaves must stay within the voltage threshold for
+  // VOLTAGE_DIFF_SECONDS_LIMIT consecutive update cycles before closing.
   uint16_t reference_voltage_dV = 0;
   for (uint8_t j = 0; j < MAX_SLAVE_NODES; j++) {
     if (j == idx) continue;
@@ -345,16 +375,27 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
   bool has_fault = (node.fault_flags != 0);
 
   if (has_fault) {
+    voltage_diff_seconds[idx] = 0;
     if (node.contactor_allowed) {
       node.contactor_allowed = false;
       logging.printf("Master CAN: Slave %d contactor OPENED (fault flags: 0x%02X)\n", idx + 1, node.fault_flags);
     }
   } else if (!node.contactor_allowed) {
     if (diff <= VOLTAGE_DIFF_THRESHOLD_dV) {
-      node.contactor_allowed = true;
-      logging.printf("Master CAN: Slave %d contactor ALLOWED (voltage OK: %u.%uV)\n", idx + 1,
-                     node.voltage_dV / 10, node.voltage_dV % 10);
+      if (voltage_diff_seconds[idx] < VOLTAGE_DIFF_SECONDS_LIMIT) {
+        voltage_diff_seconds[idx]++;
+      }
+      if (voltage_diff_seconds[idx] >= VOLTAGE_DIFF_SECONDS_LIMIT) {
+        node.contactor_allowed = true;
+        voltage_diff_seconds[idx] = 0;
+        logging.printf("Master CAN: Slave %d contactor ALLOWED (voltage OK for %us: %u.%uV)\n", idx + 1,
+                       VOLTAGE_DIFF_SECONDS_LIMIT, node.voltage_dV / 10, node.voltage_dV % 10);
+      }
+    } else {
+      voltage_diff_seconds[idx] = 0;
     }
+  } else {
+    voltage_diff_seconds[idx] = 0;
   }
   // If the contactor is already allowed and there are no faults, we permit voltage differences without opening the contactor.
 }
