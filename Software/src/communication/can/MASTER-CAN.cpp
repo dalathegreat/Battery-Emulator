@@ -22,6 +22,8 @@ static uint8_t voltage_diff_seconds[MAX_SLAVE_NODES] = {0};
 static const uint8_t BALANCING_HOLD_SECONDS = 25u;
 // Per-slave countdown: while > 0, contactor_allowed is not yet forced false
 static uint8_t balancing_hold_seconds[MAX_SLAVE_NODES] = {0};
+// Per-slave last transmitted contactor command for change logging
+static uint8_t last_contactor_command[MAX_SLAVE_NODES] = {0};
 
 void setup_master_can() {
   register_can_receiver(&master_can, can_config.inter_unit, CAN_Speed::CAN_SPEED_500KBPS);
@@ -34,6 +36,7 @@ void MasterCan::begin() {
   for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
     voltage_diff_seconds[i] = 0;
     balancing_hold_seconds[i] = 0;
+    last_contactor_command[i] = 0xFFu;
   }
 }
 
@@ -177,12 +180,20 @@ void MasterCan::send_contactor_commands() {
     frame.ID = IU_MASTER_CONTACTOR_ID(node_id);
     frame.DLC = 1;
     frame.ext_ID = false;
-    frame.data.u8[0] = (node.contactor_allowed &&
-                        datalayer.system.status.inverter_allows_contactor_closing &&
-                        datalayer.system.status.battery_allows_contactor_closing &&
-                        !datalayer.system.info.equipment_stop_active)
-                           ? IU_CONTACTOR_ALLOW
-                           : IU_CONTACTOR_OPEN;
+    bool allow_command = node.contactor_allowed && datalayer.system.status.inverter_allows_contactor_closing &&
+                         !datalayer.system.info.equipment_stop_active;
+    frame.data.u8[0] = allow_command ? IU_CONTACTOR_ALLOW : IU_CONTACTOR_OPEN;
+
+    if (last_contactor_command[i] != frame.data.u8[0]) {
+      last_contactor_command[i] = frame.data.u8[0];
+      logging.printf(
+          "Master CAN: TX contactor cmd slave %u -> %s (node_allowed=%u inverter_allow=%u estop=%u pack_allow=%u online=%u)\n",
+          node_id, allow_command ? "ALLOW" : "OPEN", node.contactor_allowed ? 1 : 0,
+          datalayer.system.status.inverter_allows_contactor_closing ? 1 : 0,
+          datalayer.system.info.equipment_stop_active ? 1 : 0,
+          datalayer.system.status.battery_allows_contactor_closing ? 1 : 0, node.online ? 1 : 0);
+    }
+
     transmit_can_frame_to_interface(&frame, can_config.inter_unit);
   }
 }
