@@ -222,10 +222,7 @@ void MasterCan::update_values() {
   if (estop_active && !_estop_was_active) {
     logging.println("Master CAN: E-stop ACTIVE — resetting slave contactor permissions and voltage qualification");
   } else if (!estop_active && _estop_was_active) {
-    _startup_begin_ms = millis();
-    _startup_grace_done = false;
-    logging.printf("Master CAN: E-stop CLEARED — restarting %us startup grace before slaves may re-qualify\n",
-                   IU_STARTUP_GRACE_S);
+    logging.println("Master CAN: E-stop CLEARED — resuming contactor logic immediately");
   }
   _estop_was_active = estop_active;
 
