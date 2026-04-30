@@ -10,6 +10,9 @@ class TeslaLegacyBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Tesla Model S/X 2012-2020";
 
+  bool supports_reset_BMS() { return true; }
+  void reset_BMS() { user_requests_bms_reset = true; }
+
  private:
   static const int MAX_PACK_VOLTAGE_60_DV = 5000;  //TODO, set
   static const int MIN_PACK_VOLTAGE_60_DV = 3000;
@@ -46,6 +49,12 @@ class TeslaLegacyBattery : public CanBattery {
                          .DLC = 8,
                          .ID = 0x20E,
                          .data = {0x05, 0x56, 0x22, 0x00, 0xC3, 0x00, 0x02, 0x08}};
+  //0x602 BMS UDS diagnostic request: on demand
+  CAN_frame TESLA_602 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x602,
+                         .data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  // Define initial UDS request
   // Keep alive
   CAN_frame TESLA_408 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x408, .data = {0x00}};
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
@@ -98,6 +107,11 @@ class TeslaLegacyBattery : public CanBattery {
   uint8_t battery_BMS_cpChargeStatus = 0;
   uint16_t battery_BMS_isolationResistance = 0;
   uint8_t battery_BMS_contactorState = 0;
+  uint8_t stateMachineBMSReset = 0xFF;  //0xFF means not active, otherwise counts up in steps of the reset sequence
+  uint8_t bms_uds_response = 0;
+  bool user_requests_bms_reset = false;
+  bool bms_uds_response_received = false;
+  unsigned long bms_uds_timeout = 0;
 };
 
 #endif

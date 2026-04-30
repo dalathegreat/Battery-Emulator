@@ -236,6 +236,18 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  //We are getting CAN messages from the BMS
       battery_soc_ui = ((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0];  // 0|10@1+ (0.1,0) [0|102.2] "%"
       break;
+    case 0x612: {
+      uint8_t service = rx_frame.data.u8[1];
+      bms_uds_response = service;
+      bms_uds_response_received = true;
+      if (service == 0x7F) {
+        uint8_t rejected = rx_frame.data.u8[2];
+        uint8_t error = rx_frame.data.u8[3];
+        logging.printf("WARN: BMS UDS REJECTED svc=0x%02X err=0x%02X\n", rejected, error);
+      } else {
+        logging.printf("INFO: BMS UDS OK svc=0x%02X\n", service);
+      }
+    } break;
     default:
       break;
   }
@@ -248,6 +260,117 @@ void TeslaLegacyBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_can_frame(&TESLA_408);
     logging.println(getBMSState(battery_BMS_state));
+  }
+
+  if (user_requests_bms_reset) {
+    stateMachineBMSReset = 0;
+    user_requests_bms_reset = false;
+    bms_uds_response_received = false;
+    bms_uds_response = 0;
+    bms_uds_timeout = currentMillis;
+    logging.println("INFO: Starting BMS reset sequence (Legacy)");
+  }
+
+  if (stateMachineBMSReset != 0xFF) {
+    static unsigned long lastUDS = 0;
+
+    if (bms_uds_response_received) {
+      if (bms_uds_response == 0x7F) {
+        logging.printf("WARN: UDS step %d rejected (0x7F), aborting\n", stateMachineBMSReset);
+        stateMachineBMSReset = 0xFF;
+        bms_uds_response_received = false;
+        return;
+      }
+      bms_uds_response_received = false;
+      lastUDS = currentMillis + 80;
+      bms_uds_timeout = currentMillis;
+    } else if (currentMillis - lastUDS < 130) {
+      return;
+    } else if (currentMillis - bms_uds_timeout > 3000) {
+      logging.printf("WARN: UDS step %d timeout, aborting\n", stateMachineBMSReset);
+      stateMachineBMSReset = 0xFF;
+      return;
+    }
+
+    lastUDS = currentMillis;
+
+    switch (stateMachineBMSReset) {
+      case 0:
+        TESLA_602.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
+        transmit_can_frame(&TESLA_602);
+        logging.println("UDS[0]: Diagnostic Session");
+        stateMachineBMSReset = 1;
+        break;
+      case 1:
+        TESLA_602.data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00};
+        transmit_can_frame(&TESLA_602);
+        logging.println("UDS[1]: Security Access seed request");
+        stateMachineBMSReset = 2;
+        break;
+      case 2:
+        TESLA_602.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+        transmit_can_frame(&TESLA_602);
+        logging.println("UDS[2]: Flow Control");
+        stateMachineBMSReset = 3;
+        break;
+      case 3:
+        TESLA_602.data = {0x10, 0x12, 0x27, 0x06, 0x35, 0x34, 0x37, 0x36};
+        transmit_can_frame(&TESLA_602);
+        stateMachineBMSReset = 4;
+        break;
+      case 4:
+        TESLA_602.data = {0x21, 0x31, 0x30, 0x33, 0x32, 0x3D, 0x3C, 0x3F};
+        transmit_can_frame(&TESLA_602);
+        stateMachineBMSReset = 5;
+        break;
+      case 5:
+        TESLA_602.data = {0x22, 0x3E, 0x39, 0x38, 0x3B, 0x3A, 0x00, 0x00};
+        transmit_can_frame(&TESLA_602);
+        logging.println("UDS[5]: Security Access key sent");
+        stateMachineBMSReset = 6;
+        break;
+      case 6:
+        TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x01, 0x00, 0x00, 0x00};
+        transmit_can_frame(&TESLA_602);
+        logging.println("UDS[6]: BMS_w026 reset");
+        stateMachineBMSReset = 7;
+        break;
+      case 7:
+        TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x0A, 0x00, 0x00, 0x00};
+        transmit_can_frame(&TESLA_602);
+        logging.println("UDS[7]: BMS_f026 reset");
+        stateMachineBMSReset = 8;
+        break;
+      case 8:
+        TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x02, 0x00, 0x00, 0x00};
+        transmit_can_frame(&TESLA_602);
+        logging.println("UDS[8]: BMS_f023 reset");
+        stateMachineBMSReset = 9;
+        break;
+      case 9:
+        TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x04, 0x00, 0x00, 0x00};
+        transmit_can_frame(&TESLA_602);
+        logging.println("UDS[9]: BMS_f152 reset");
+        stateMachineBMSReset = 10;
+        break;
+      case 10:
+        TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x0D, 0x00, 0x00, 0x00};
+        transmit_can_frame(&TESLA_602);
+        logging.println("UDS[10]: BMS_f107 reset");
+        stateMachineBMSReset = 11;
+        break;
+      case 11:
+        TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x0C, 0x00, 0x00, 0x00};
+        transmit_can_frame(&TESLA_602);
+        logging.println("UDS[11]: BMS_u029 reset");
+        stateMachineBMSReset = 0xFF;
+        logging.println("INFO: BMS reset sequence complete (Legacy)");
+        break;
+      default:
+        stateMachineBMSReset = 0xFF;
+        break;
+    }
+    return;
   }
 
   if (!cellvoltagesRead) {
