@@ -265,7 +265,10 @@ void MasterCan::update_values() {
     }
 
     // Check voltage safety first (may allow contactor based on voltage match)
-    check_slave_voltage_safety(i);
+    // Skip entirely while e-stop is active — contactor must stay blocked
+    if (!estop_active) {
+      check_slave_voltage_safety(i);
+    }
 
     // Stale data detection: if STATUS toggle bit has not changed for IU_STATUS_STALE_SECONDS,
     // the slave is frozen/stuck — block contactor and fire stale event.
