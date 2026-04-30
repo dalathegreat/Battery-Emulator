@@ -628,7 +628,7 @@ bool TinyWebServer::poll() {
 int IRAM_ATTR TinyWebServer::write(uint32_t connection_id, const char *data, size_t len) {
     // Find the request with the given connection ID
     for (int i = 0; i < MAX_REQUESTS; i++) {
-        if (slots[i].active() && slots[i].connection_id == connection_id && slots[0].reply_started()) {
+        if (slots[i].active() && slots[i].connection_id == connection_id && slots[i].reply_started()) {
             // Always use indirect writes, since these might come from different threads
             return slots[i].write_indirect(data, len);
         }
