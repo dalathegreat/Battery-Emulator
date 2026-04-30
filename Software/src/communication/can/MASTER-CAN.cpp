@@ -26,6 +26,7 @@ static uint8_t balancing_hold_seconds[MAX_SLAVE_NODES] = {0};
 static uint8_t last_contactor_command[MAX_SLAVE_NODES] = {0};
 
 void setup_master_can() {
+  master_can.begin();
   register_can_receiver(&master_can, can_config.inter_unit, CAN_Speed::CAN_SPEED_500KBPS);
   register_transmitter(&master_can);
   logging.println("Master CAN: registered on inter-unit bus @ 500kbps");
@@ -33,10 +34,17 @@ void setup_master_can() {
 
 void MasterCan::begin() {
   _last_heartbeat_ms = 0;
+  _startup_begin_ms = 0;
+  _startup_grace_done = false;
+  _estop_was_active = false;
   for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
     voltage_diff_seconds[i] = 0;
     balancing_hold_seconds[i] = 0;
     last_contactor_command[i] = 0xFFu;
+    // Force all contactors blocked on (re)start — RAM may retain state from before
+    datalayer.system.slave_nodes[i].contactor_allowed = false;
+    datalayer.system.slave_nodes[i].online = false;
+    datalayer.system.slave_nodes[i].still_alive = 0;
   }
 }
 
@@ -215,6 +223,10 @@ void MasterCan::update_values() {
     unsigned long elapsed_s = (millis() - _startup_begin_ms) / 1000UL;
     if (elapsed_s >= IU_STARTUP_GRACE_S) {
       _startup_grace_done = true;
+      // Pre-fill counters so slaves already within voltage threshold qualify immediately
+      for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
+        voltage_diff_seconds[i] = VOLTAGE_DIFF_SECONDS_LIMIT;
+      }
       logging.println("Master CAN: Startup grace period done — contactor logic now active");
     }
   }
