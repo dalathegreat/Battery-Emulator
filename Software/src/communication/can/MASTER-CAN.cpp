@@ -499,14 +499,20 @@ void MasterCan::update_slave_aggregation() {
   // Power = V × I: voltage in dV, current in dA → W = (dV × dA) / 100
   datalayer.battery.status.active_power_W =
       (int32_t)shared_voltage_dV * (int32_t)total_current_dA / 100;
-  datalayer.battery.status.real_soc = lowest_soc;
-  // Mirror Software.cpp multi-battery logic: report lowest SOC normally (discharge protection),
-  // but override with highest SOC when any battery is nearly full (charge protection).
-  uint16_t reported_soc = lowest_soc;
-  if (highest_soc > 9900) {
-    reported_soc = highest_soc;
+
+  // SOC selection: report lowest_soc normally (discharge protection).
+  // When the fullest slave enters the top 5% (>=95%), blend smoothly toward
+  // highest_soc so the inverter sees a gradual rise to 100% rather than a jump.
+  // blend_factor goes 0..500 as highest_soc goes 9500..10000.
+  uint16_t reported_real_soc;
+  if (highest_soc >= 9500) {
+    uint32_t blend = (uint32_t)(highest_soc - 9500);  // 0..500
+    uint32_t diff = (highest_soc > lowest_soc) ? (uint32_t)(highest_soc - lowest_soc) : 0u;
+    reported_real_soc = (uint16_t)(lowest_soc + diff * blend / 500u);
+  } else {
+    reported_real_soc = lowest_soc;
   }
-  datalayer.battery.status.reported_soc = reported_soc;
+  datalayer.battery.status.real_soc = reported_real_soc;
   datalayer.battery.status.temperature_max_dC = highest_temp;
   datalayer.battery.status.temperature_min_dC = lowest_temp;
 
