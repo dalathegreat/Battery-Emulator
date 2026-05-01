@@ -136,7 +136,7 @@ void BydModbusInverter::verify_temperature() {
 
 void BydModbusInverter::verify_inverter_modbus() {
   // Every 60 seconds, the Gen24 writes to this 401 register, alternating between 00FF and FF00.
-  // We sample the register every 60 seconds. Incase the value has not changed for 3 minutes, we raise an event
+  // We sample the register every 60 seconds. Incase the value has not changed for 5 minutes, we raise an event
   unsigned long currentMillis = millis();
 
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
