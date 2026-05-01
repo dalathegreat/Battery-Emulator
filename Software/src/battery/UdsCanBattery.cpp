@@ -286,6 +286,7 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
         gUDSContext.receivedInBatch++;
         if (gUDSContext.receivedInBatch == 3) {
           // After 3 CFs, we send a Flow Control frame to keep things moving
+          UDS_RQ_CONTINUE_MULTIFRAME.ID = uds_address;
           transmit_can_frame(&UDS_RQ_CONTINUE_MULTIFRAME);
           gUDSContext.receivedInBatch = 0;
         }

@@ -526,7 +526,7 @@ uint32_t Mg4Battery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* dat
 }
 
 void Mg4Battery::setup(void) {  // Performs one time setup at startup
-  setup_uds(0x7DF, 0);          //POLL_BATTERY_VOLTAGE);
+  setup_uds(0x7E5, 0);          //POLL_BATTERY_VOLTAGE);
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
