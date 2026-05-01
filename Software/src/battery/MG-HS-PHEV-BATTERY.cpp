@@ -725,31 +725,31 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
   }
 
   // 1ms passed
-  if (currentMillis - last_msg_time > 0) {
-    last_msg_time = currentMillis;
+  // if (currentMillis - last_msg_time > 0) {
+  //   last_msg_time = currentMillis;
 
-    while (1) {
-      uint8_t* msg_ptr = (uint8_t*)&static_messages[msg_index];
+  //   while (1) {
+  //     uint8_t* msg_ptr = (uint8_t*)&static_messages[msg_index];
 
-      CAN_frame frame = {
-          0,
-      };
-      frame.DLC = msg_ptr[2];
-      frame.ID = (msg_ptr[1] << 8) | msg_ptr[0];
+  //     CAN_frame frame = {
+  //         0,
+  //     };
+  //     frame.DLC = msg_ptr[2];
+  //     frame.ID = (msg_ptr[1] << 8) | msg_ptr[0];
 
-      memcpy(frame.data.u8, &msg_ptr[3], 8);
-      transmit_can_frame(&frame);
+  //     memcpy(frame.data.u8, &msg_ptr[3], 8);
+  //     transmit_can_frame(&frame);
 
-      msg_index += 11;
-      if (msg_index > sizeof(static_messages)) {
-        msg_index = 0;
-      }
+  //     msg_index += 11;
+  //     if (msg_index > sizeof(static_messages)) {
+  //       msg_index = 0;
+  //     }
 
-      //if(frame.ID >= 0x94) continue;
+  //     //if(frame.ID >= 0x94) continue;
 
-      break;
-    }
-  }
+  //     break;
+  //   }
+  // }
 
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
