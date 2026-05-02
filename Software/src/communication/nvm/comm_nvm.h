@@ -53,32 +53,36 @@ class BatteryEmulatorSettingsStore {
     settingsUpdated = true;
   }
 
-  uint32_t getUInt(const char* name, uint32_t defaultValue) { return settings.getUInt(name, defaultValue); }
+  uint32_t getUInt(const char* name, uint32_t defaultValue) {
+    return settings.isKey(name) ? settings.getUInt(name, defaultValue) : defaultValue;
+  }
 
   void saveUInt(const char* name, uint32_t value) {
-    auto oldValue = settings.getUInt(name, std::numeric_limits<uint32_t>::max());
+    auto oldValue = getUInt(name, std::numeric_limits<uint32_t>::max());
     settings.putUInt(name, value);
     settingsUpdated = settingsUpdated || value != oldValue;
   }
 
   bool settingExists(const char* name) { return settings.isKey(name); }
 
-  bool getBool(const char* name, bool defaultValue = false) { return settings.getBool(name, defaultValue); }
+  bool getBool(const char* name, bool defaultValue = false) {
+    return settings.isKey(name) ? settings.getBool(name, defaultValue) : defaultValue;
+  }
 
   void saveBool(const char* name, bool value) {
-    auto oldValue = settings.getBool(name, false);
+    auto oldValue = getBool(name, false);
     settings.putBool(name, value);
     settingsUpdated = settingsUpdated || value != oldValue;
   }
 
-  String getString(const char* name) { return settings.getString(name, String()); }
+  String getString(const char* name) { return getString(name, ""); }
 
   String getString(const char* name, const char* defaultValue) {
-    return settings.getString(name, String(defaultValue));
+    return settings.isKey(name) ? settings.getString(name, defaultValue) : String(defaultValue);
   }
 
   void saveString(const char* name, const char* value) {
-    auto oldValue = settings.getString(name);
+    auto oldValue = getString(name, "");
     settings.putString(name, value);
     settingsUpdated = settingsUpdated || String(value) != oldValue;
   }
