@@ -458,7 +458,7 @@ static void receive_frame_canfd_addon_2() {
   _receive_frame_canfd(canfd_2, false);
 }
 
-extern void dump_can_frame2(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);
+extern void dump_can_frame2(const CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);
 
 // Support functions
 static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir) {

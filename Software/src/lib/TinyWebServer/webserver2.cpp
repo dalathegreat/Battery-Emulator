@@ -92,7 +92,7 @@ TwsRoute *default_handlers[] = {
     nullptr,
 };
 
-TinyWebServer tinyWebServer(8000, default_handlers);
+TinyWebServer tinyWebServer(80, default_handlers);
 
 void tiny_web_server_loop(void * pData) {
     TinyWebServer * server = (TinyWebServer *)pData;
