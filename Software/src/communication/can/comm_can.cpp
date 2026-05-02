@@ -377,7 +377,7 @@ void receive_frame_canfd_addon() {  // This section checks if we have a complete
   }
 }
 
-extern void dump_can_frame2(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);
+extern void dump_can_frame2(const CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);
 
 // Support functions
 void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir) {

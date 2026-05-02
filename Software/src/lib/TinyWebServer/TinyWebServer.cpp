@@ -471,8 +471,6 @@ void TinyWebServer::handle_request(TwsRequest &request) {
     }
 }
 
-#include <poll.h>
-
 void TinyWebServer::accept_new_connections() {
     // Find a free client slot
     int slot_index = -1;
@@ -484,21 +482,6 @@ void TinyWebServer::accept_new_connections() {
     }
     if (slot_index < 0) {
         // No free client slot, cannot accept new connections
-
-        // Is the listen socket readable
-        // struct pollfd pfd;
-        // pfd.fd = _listen_socket;
-        // pfd.events = POLLIN;
-        // int ret = ::poll(&pfd, 1, 0);
-        // if(ret>0 && (pfd.revents & POLLIN)) {
-        //     DEBUG_PRINTF("TWS no free slots for new connection\n");
-        //     for(int i=0; i < MAX_REQUESTS; i++) {
-        //         if(slots[i].active()) {
-        //             DEBUG_PRINTF("  active: %s\n", slots[i].handler ? slots[i].handler->path : "no handler");
-        //         }
-        //     }
-        // }
-        
         return;
     }
 
