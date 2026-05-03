@@ -66,14 +66,14 @@ void SmaLvInverter::
 void SmaLvInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x305:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       //Frame0-1 Battery Voltage
       //Frame2-3 Battery Current
       //Frame4-5 Battery Temperature
       //Frame6-7 SOC Battery
       break;
     case 0x306:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       //Frame0-1 SOH Battery
       //Frame2 Charging procedure
       //Frame3 Operating state

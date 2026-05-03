@@ -158,74 +158,74 @@ void SmaSBSBydHvsInverter::
 void SmaSBSBydHvsInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x360:  //Message originating from SMA inverter - Voltage and current
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       inverter_voltage = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       inverter_current = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       break;
     case 0x3E0:  //Message originating from SMA inverter - ?
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x420:  //Message originating from SMA inverter - Timestamp
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       inverter_time =
           (rx_frame.data.u8[0] << 24) | (rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       break;
     case 0x560:  //Message originating from SMA inverter - Init
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x561:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x562:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x563:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x564:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x565:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x566:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x567:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x5E0:  //Message originating from SMA inverter - String
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       //Inverter brand (frame1-3 = 0x53 0x4D 0x41) = SMA
       break;
     case 0x5E1:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x5E2:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x5E3:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x5E4:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x5E5:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x5E6:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     case 0x5E7:  //Message originating from SMA inverter - Pairing request
     case 0x660:  //Message originating from SMA inverter - Pairing request
       logging.println("Received SMA pairing request");
       pairing_events++;
       set_event(EVENT_SMA_PAIRING, pairing_events);
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       transmit_can_init = true;
       break;
     case 0x62C:
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       break;
     default:
       break;
