@@ -8,6 +8,7 @@
 // Changed OUTPUT from 0x02 to behave the same as Arduino pinMode(pin,OUTPUT)
 // where you can read the state of pin even when it is set as OUTPUT
 #define OUTPUT 0x03
+#define INPUT_PULLDOWN 0x05
 
 void pinMode(uint8_t pin, uint8_t mode);
 void digitalWrite(uint8_t pin, uint8_t val);

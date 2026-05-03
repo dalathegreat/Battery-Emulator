@@ -232,12 +232,6 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_comm_interface);
   }
 
-  if (var == "CTATTEN") {
-    return options_for_enum_with_none(
-        (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_0db), name_for_adc_attenuation,
-        adc_attenuation_enum::ADC_0db);
-  }
-
   if (var == "EQSTOP") {
     return options_for_enum_with_none(
         (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
@@ -1579,11 +1573,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-ctclamp">
-          <label>CT Clamp offset (mV): </label>
-          <input type='number' name='CTOFFSET' value="%CTOFFSET%" 
-          min="-1" max="3000" step="1"
-          title="Voltage offset required to calibrate 0A reading. -1 = auto-detect" />
-
           <label>CT Clamp nominal voltage (dV): </label>
           <input type='number' name='CTVNOM' value="%CTVNOM%" 
           min="0" max="500" step="1"
@@ -1593,11 +1582,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           <input type='number' name='CTANOM' value="%CTANOM%" 
           min="0" max="200" step="1"
           title="Nominal current of the CT Clamp. Integer only." />
-
-          <label>ESP32 pin attenuation: </label>
-          <select name='CTATTEN'>
-          %CTATTEN%
-          </select>
 
           <label>Invert CT current: </label>
           <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% 
