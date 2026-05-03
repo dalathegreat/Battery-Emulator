@@ -16,8 +16,6 @@ class RjxzsBms : public CanBattery {
 
  private:
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
-  static const int RAMPDOWN_SOC =
-      9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
 
   unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was sent
 

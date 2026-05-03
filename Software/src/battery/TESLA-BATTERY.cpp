@@ -1,5 +1,6 @@
 #include "TESLA-BATTERY.h"
 #include <cstring>  //For unit test
+#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For Advanced Battery Insights webpage
@@ -476,10 +477,11 @@ void TeslaBattery::
   //The allowed charge power behaves strangely. We instead estimate this value
   if (battery_soc_ui > 990) {
     datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
-  } else if (battery_soc_ui >
-             RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+  } else if (battery_soc_ui > (user_set_rampdown_SOC /
+                               10)) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
     datalayer.battery.status.max_charge_power_W =
-        RAMPDOWNPOWERALLOWED * (1 - (battery_soc_ui - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
+        RAMPDOWNPOWERALLOWED *
+        (1 - (battery_soc_ui - (user_set_rampdown_SOC / 10)) / (1000.0 - (user_set_rampdown_SOC / 10)));
     //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
     if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
       if (battery_cell_max_v > (MAX_CELL_VOLTAGE_LFP - FLOAT_START_MV)) {

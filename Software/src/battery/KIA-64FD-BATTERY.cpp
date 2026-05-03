@@ -1,4 +1,5 @@
 #include "KIA-64FD-BATTERY.h"
+#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/common_functions.h"  //For CRC table
@@ -109,9 +110,10 @@ void Kia64FDBattery::update_values() {
   if (datalayer.battery.status.real_soc > 9900) {
     datalayer.battery.status.max_charge_power_W = 0;
   } else if (datalayer.battery.status.real_soc >
-             RAMPDOWN_SOC) {  // When real SOC is between 90-99%, ramp the value between Max<->0
+             user_set_rampdown_SOC) {  // When real SOC is between 90-99%, ramp the value between Max<->0
     datalayer.battery.status.max_charge_power_W =
-        RAMPDOWNPOWERALLOWED * (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
+        datalayer.battery.status.override_charge_power_W *
+        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
   } else {  // No limits, max charging power allowed
     datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
   }

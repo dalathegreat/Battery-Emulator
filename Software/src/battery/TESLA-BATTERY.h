@@ -42,7 +42,6 @@ class TeslaBattery : public CanBattery {
 
  protected:
   /* Do not change anything below this line! */
-  static const int RAMPDOWN_SOC = 900;  // 90.0 SOC% to start ramping down from max charge power towards 0 at 100.00%
   static const int RAMPDOWNPOWERALLOWED = 10000;      // What power we ramp down from towards top balancing
   static const int FLOAT_MAX_POWER_W = 200;           // W, what power to allow for top balancing battery
   static const int FLOAT_START_MV = 20;               // mV, how many mV under overvoltage to start float charging
