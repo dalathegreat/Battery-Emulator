@@ -127,7 +127,7 @@ protected:
     // Set the size of the send buffer. This needs to be large enough to
     // handle the largest HTTP response (including headers) that you need to
     // send in one go, without using a callback (usually just error responses).
-    static const int SEND_BUFFER_SIZE = 4096;//512;
+    static const int SEND_BUFFER_SIZE = 1024;
 
     // Set the size of the receive buffer. This value affects several direct
     // limitations in the protocol handling:
@@ -162,6 +162,7 @@ protected:
     uint8_t method = 0;
     bool pending_direct_write = false;
     bool done = false;
+    bool aborted = false;
     TwsRoute *handler = nullptr;
 
     static const int PATH_WILDCARD_SIZE = 64;
@@ -228,6 +229,9 @@ public:
             "ERROR: Only classes derived from TwsMiddleware can be passed to .use()!");
 
         // Point the middleware's 'next' to whatever the route is currently pointing at.
+        middleware.nextQueryParam = this->onQueryParam;
+        this->onQueryParam = &middleware;
+
         middleware.nextHeader = this->onHeader;
         this->onHeader = &middleware;
 
@@ -271,7 +275,7 @@ public:
     void finish(uint32_t connection_id);
 
     // must be <= 32
-    static const int MAX_REQUESTS = 32;
+    static const int MAX_REQUESTS = 4;
     // How long to block polling for activity when there are requests active.
     static const int ACTIVE_POLL_TIME_MS = 10;
     // How long to block polling when there are no requests active.

@@ -23,6 +23,7 @@ struct __attribute__((packed)) CanFrame {
     uint32_t timestamp;
     uint32_t id;
     uint8_t len;
+    uint8_t bus;
     uint8_t data[64];
 };
 
@@ -43,7 +44,9 @@ bool can_buffer_full(CAN_Interface interface) {
     return false;
 }
 
-bool send_can_frame(CAN_Interface interface, const CANMessage &frame) {
+extern void dump_can_frame2(const CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);
+
+bool send_can_frame(CAN_Interface interface, const CANMessage &frame, bool log) {
     // This can be slow as the first call will (for the SPI ones) perform a
     // sequence of blocking SPI transactions. Subsequent calls will be faster as
     // the frames will be buffered instead.
@@ -52,13 +55,24 @@ bool send_can_frame(CAN_Interface interface, const CANMessage &frame) {
     // but the alternative involves queues and locking)
 
 #ifndef UNIT_TEST
+    bool success = false;
     if(interface == CAN_NATIVE) {
-        return ACAN_ESP32::can.tryToSend(frame);
+        success = ACAN_ESP32::can.tryToSend(frame);
     } else if(interface == CAN_ADDON_MCP2515) {
-        return can2515 && can2515->tryToSend(frame);
+        success = can2515 && can2515->tryToSend(frame);
     } else if(interface == CANFD_ADDON_MCP2518) {
-        return canfd && canfd->tryToSend(frame);
+        success = canfd && canfd->tryToSend(frame);
     }
+
+    if(log && success) {
+        CAN_frame log_frame;
+        log_frame.ID = frame.id;
+        log_frame.ext_ID = frame.id > 0x7FF;
+        log_frame.DLC = frame.len;
+        memcpy(log_frame.data.u8, frame.data, frame.len);
+        dump_can_frame2(log_frame, interface, frameDirection(MSG_TX));
+    }
+    return success;
 #endif
     return false;
 }
@@ -68,6 +82,8 @@ void CanSender::handleQueryParam(TwsRequest &request, const char *param, int len
     // if param starts with if=
     if(strncmp(param, "if=", 3) == 0) {
         state.can_interface = atoi(param + 3);
+    } else if(strncmp(param, "log=", 4) == 0) {
+        state.log = param[4] == '1';
     }
     if(nextQueryParam) {
         nextQueryParam->handleQueryParam(request, param, len, final);
@@ -75,7 +91,13 @@ void CanSender::handleQueryParam(TwsRequest &request, const char *param, int len
 }
 
 int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
-    if(len < 9) {
+    if(!request.is_post()) {
+        // Not a POST request
+        return -1;
+    }
+
+    const size_t header_len = 10; // timestamp (4) + id (4) + len (1) + bus (1)
+    if(len < header_len) {
         // Not enough data yet
         return 0;
     }
@@ -89,13 +111,11 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
     uint8_t *ptr = data;
     size_t remaining = len;
     do {
-        if (remaining < 9) break;
-
         // Copy from ptr into an aligned struct on the stack.
         CanFrame frame;
-        memcpy(&frame, ptr, 9); // Copy header (packed)
+        memcpy(&frame, ptr, header_len); // Copy packed header
         
-        int frame_length = 9 + frame.len;
+        int frame_length = header_len + frame.len;
         if(remaining < frame_length) {
             // Not enough data yet
             break;
@@ -103,6 +123,7 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
 
         if(frame.len > 64) {
             // Invalid length
+            DEBUG_PRINTF("Invalid CAN frame length: %d\n", frame.len);
             request.write_fully("HTTP/1.1 400 b\r\n"
                         "Connection: close\r\n"
                         "Content-Type: text/plain\r\n"
@@ -111,24 +132,28 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
             return -1; // finished
         }
 
+        CAN_Interface iface = state.can_interface == 15
+            ? (CAN_Interface)(frame.bus / 2) // both RX6 and TX7 -> bus 3
+            : (CAN_Interface)state.can_interface;
+
         // Copy actual CAN data
-        memcpy(frame.data, ptr + 9, frame.len);
+        memcpy(frame.data, ptr + header_len, frame.len);
 
         if((millis() - state.start_millis) < frame.timestamp) {
             // Need to wait
             break;
         }
-        //DEBUG_PRINTF("CAN interface: %d, buffer full: %d\n", state.can_interface, can_buffer_full((CAN_Interface)state.can_interface));
-        if(can_buffer_full((CAN_Interface)state.can_interface)) {
-            //DEBUG_PRINTF("  full!\n");
+        if(can_buffer_full(iface)) {
+            DEBUG_PRINTF("  full!\n");
+            // Buffer is full, wait before sending more
             break;
         }
 
-        DEBUG_PRINTF("CAN frame: timestamp %u id 0x%X len %d data:", frame.timestamp, frame.id, frame.len);
-        for(int i=0; i<frame.len; i++) {
-            DEBUG_PRINTF(" %02X", frame.data[i]);
-        }
-        DEBUG_PRINTF("\n");
+        // DEBUG_PRINTF("CAN frame: timestamp %u id 0x%X len %d data:", frame.timestamp, frame.id, frame.len);
+        // for(int i=0; i<frame.len; i++) {
+        //     DEBUG_PRINTF(" %02X", frame.data[i]);
+        // }
+        // DEBUG_PRINTF("\n");
 
         CANMessage send_frame = {
             .id = frame.id,
@@ -138,7 +163,8 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
         };
         memcpy(send_frame.data, frame.data, frame.len);
 
-        if(!send_can_frame((CAN_Interface)state.can_interface, send_frame)) {
+        // TODO - we probably just want to consider this the same as "buffer full" and wait
+        if(!send_can_frame(iface, send_frame, state.log)) {
             // Failed to send
             request.write_fully("HTTP/1.1 500 e\r\n"
                         "Connection: close\r\n"
@@ -151,9 +177,9 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
 
         ptr += frame_length;
         remaining -= frame_length;
-    } while(remaining >= 9);
+    } while(remaining >= header_len);
 
-    if(index + len >= state.content_length) {
+    if(remaining == 0 && index + len >= state.content_length) {
         DEBUG_PRINTF("End of upload (content length %d reached at %d)\n", (int)state.content_length, (int)(index + len));
 
         // Finished uploading
@@ -168,5 +194,7 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
 
     int ret = TwsMiddleware::handlePostBody(request, index, data, len);
     if (ret != -1) return ret;
+
+    // Only consume the data we processed
     return len - remaining;
 }

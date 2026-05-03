@@ -40,7 +40,7 @@ async function flash(file: File, cb: (ratio: number) => void) {
 
         await fetch(import.meta.env.VITE_API_BASE + '/ota/start?mode=fr&hash=' + md5Hash);
         
-        await upload(import.meta.env.VITE_API_BASE + "/ota/upload", file, cb);
+        await upload(import.meta.env.VITE_API_BASE + "/ota/upload", file, cb).promise;
 
         cb(1);
     } catch (error) {
