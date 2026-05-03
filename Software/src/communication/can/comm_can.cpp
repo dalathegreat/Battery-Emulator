@@ -1,7 +1,7 @@
 #include "comm_can.h"
+#include "../../lib/mcp2515_lite/mcp2515_lite.h"
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "../../lib/pierremolinaro-acan-esp32/ACAN_ESP32.h"
-#include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
 #include "CanReceiver.h"
 #include "comm_can.h"
 #include "src/datalayer/datalayer.h"
@@ -54,13 +54,10 @@ uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin);
 ACAN_ESP32_Settings* settingsespcan = nullptr;
 
 static uint32_t QUARTZ_FREQUENCY;
-SPIClass SPI2515(SPI2515_BUS);
 uint8_t user_selected_can_addon_crystal_frequency_mhz = 0;
 
-ACAN2515* can2515;
-ACAN2515Settings* settings2515;
-
-static ACAN2515_Buffer16 gBuffer;
+static MCP2515_Lite* can2515;
+static SPIClass SPI2515(SPI2515_BUS);
 
 static ACAN2517FDSettings::Oscillator quartz_fd_frequency;
 SPIClass SPI2517(SPI2517_BUS);
@@ -149,7 +146,6 @@ bool init_CAN() {
     }
 
     logging.println("Dual CAN Bus (ESP32+MCP2515) selected");
-    gBuffer.initWithSize(25);
 
     if (rst_pin != GPIO_NUM_NC) {
       pinMode(rst_pin, OUTPUT);
@@ -161,22 +157,13 @@ bool init_CAN() {
       delay(100);
     }
 
-    can2515 = new ACAN2515(cs_pin, SPI2515, int_pin);
-
     SPI2515.begin(sck_pin, miso_pin, mosi_pin);
-
-    // CAN bit rate 250 or 500 kb/s
-    auto bitRate = (int)addonIt->second.speed * 1000UL;
-
-    settings2515 = new ACAN2515Settings(QUARTZ_FREQUENCY, bitRate);
-    settings2515->mRequestedMode = ACAN2515Settings::NormalMode;
-    const uint16_t errorCode2515 = can2515->begin(*settings2515, [] { can2515->isr(); });
-    if (errorCode2515 == 0) {
-      logging.println("Can ok");
+    can2515 = new MCP2515_Lite(SPI2515, cs_pin, int_pin);
+    if (can2515->begin({(int)addonIt->second.speed * 1000UL, QUARTZ_FREQUENCY})) {
+      logging.println("MCP2515 CAN ok");
     } else {
-      logging.print("Error Can: 0x");
-      logging.println(errorCode2515, HEX);
-      set_event(EVENT_CANMCP2515_INIT_FAILURE, (uint8_t)errorCode2515);
+      logging.println("MCP2515 CAN init failed");
+      set_event(EVENT_CANMCP2515_INIT_FAILURE, 1);
       return false;
     }
   }
@@ -266,17 +253,9 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       }
     } break;
     case CAN_ADDON_MCP2515: {
-      //Struct with ACAN2515 library format, needed to use the MCP2515 library for CAN2
-      CANMessage MCP2515Frame;
-      MCP2515Frame.id = tx_frame->ID;
-      MCP2515Frame.ext = tx_frame->ext_ID;
-      MCP2515Frame.len = tx_frame->DLC;
-      MCP2515Frame.rtr = false;
-      for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
-        MCP2515Frame.data[i] = tx_frame->data.u8[i];
-      }
-
-      send_ok_2515 = can2515->tryToSend(MCP2515Frame);
+      // MCP2515CANFrame has the same layout as CAN_frame so we can avoid a copy.
+      // (This is probably UB but seems to work, and will be obvious if it doesn't).
+      send_ok_2515 = can2515->sendFrame((MCP2515_Lite_Frame&)*tx_frame);
       if (!send_ok_2515) {
         datalayer.system.info.can_2515_send_fail = true;
       }
@@ -343,19 +322,12 @@ void receive_frame_can_native() {  // This section checks if we have a complete 
 
 void receive_frame_can_addon() {  // This section checks if we have a complete CAN message incoming on add-on CAN port
   CAN_frame rx_frame;             // Struct with our CAN format
-  CANMessage MCP2515frame;        // Struct with ACAN2515 library format, needed to use the MCP2515 library
 
-  if (can2515->available()) {
-    can2515->receive(MCP2515frame);
-
-    rx_frame.ID = MCP2515frame.id;
-    rx_frame.ext_ID = MCP2515frame.ext;
-    rx_frame.DLC = MCP2515frame.len;
-    for (uint8_t i = 0; i < MCP2515frame.len && i < 8; i++) {
-      rx_frame.data.u8[i] = MCP2515frame.data[i];
-    }
-
-    //message incoming, pass it on to the handler
+  // MCP2515_Lite_Frame has the same layout as CAN_frame so we can avoid a copy
+  // (with some minor UB).
+  int count = 0;
+  while (can2515->receiveFrame((MCP2515_Lite_Frame&)rx_frame) && count++ < 16) {
+    // Successfully received a message, pass it on to the handler
     map_can_frame_to_variable(&rx_frame, CAN_ADDON_MCP2515);
   }
 }
@@ -477,8 +449,7 @@ void stop_can() {
   }
 
   if (can2515) {
-    can2515->end();
-    SPI2515.end();
+    can2515->pause(true);
   }
 
   if (canfd) {
@@ -493,8 +464,7 @@ void restart_can() {
   }
 
   if (can2515) {
-    SPI2515.begin();
-    can2515->begin(*settings2515, [] { can2515->isr(); });
+    can2515->pause(false);
   }
 
   if (canfd) {
@@ -536,6 +506,9 @@ bool change_can_speed(CAN_Interface interface, CAN_Speed speed) {
       logging.println(errorCode, HEX);
       return false;
     }
+    return true;
+  } else if (interface == CAN_Interface::CAN_ADDON_MCP2515 && can2515) {
+    can2515->changeSpeed({(int)speed * 1000UL, QUARTZ_FREQUENCY});
     return true;
   }
 
