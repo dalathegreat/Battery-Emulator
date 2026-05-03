@@ -35,6 +35,7 @@ extern TwsRoute pauseRoute;
 extern TwsRoute estopRoute;
 extern TwsRoute dumpCanRoute;
 extern TwsRoute statsRoute;
+extern TwsRoute canSenderRoute;
 
 bool ota_active = false;
 
@@ -46,16 +47,6 @@ TwsRoute eOtaUploadHandler = TwsRoute("/ota/upload",
         request.finish();
     })
 ).use(*new OtaUpload());
-
-TwsRoute canSenderHandler = TwsRoute("/api/cansend", 
-    new TwsRequestHandlerFunc([](TwsRequest& request) {
-        request.write_fully("HTTP/1.1 200 OK\r\n"
-                            "Connection: close\r\n"
-                            "Access-Control-Allow-Origin: *\r\n"
-                            "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"
-                            "\r\n");
-    })
-).use(*new CanSender());
 
 #include "frontend.h"
 
@@ -87,12 +78,14 @@ TwsRoute *default_handlers[] = {
     &statsRoute,
     &eOtaStartHandler,
     &eOtaUploadHandler,
-    &canSenderHandler,
+    &canSenderRoute,
     &frontendHandler,
     nullptr,
 };
 
 TinyWebServer tinyWebServer(80, default_handlers);
+
+#include "FreeRTOS.h"
 
 void tiny_web_server_loop(void * pData) {
     TinyWebServer * server = (TinyWebServer *)pData;
@@ -102,6 +95,6 @@ void tiny_web_server_loop(void * pData) {
         if(server->poll()) time_since_watchdog_reset_ms += TinyWebServer::ACTIVE_POLL_TIME_MS;
         else time_since_watchdog_reset_ms += TinyWebServer::IDLE_POLL_TIME_MS;
         if(time_since_watchdog_reset_ms >= 1000) time_since_watchdog_reset_ms = 0;
-        taskYIELD(); // Yield to other tasks to prevent starving
+        taskYIELD();
     }
 }

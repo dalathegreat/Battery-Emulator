@@ -2,6 +2,8 @@
 #define TWS_HANDLER_H
 
 #include <functional>
+#include <stddef.h>
+#include <stdint.h>
 
 // Forward declarations to avoid circular include with TinyWebServer.h
 class TwsRequest;
@@ -54,12 +56,14 @@ public:
 
 class TwsMiddleware : public TwsHeaderHandler, 
                       public TwsPartialHeaderHandler, 
+                      public TwsQueryParamHandler,
                       public TwsPostBodyHandler, 
                       public TwsRequestHandler, 
                       public TwsAllocableHandler {
 public:
     TwsHeaderHandler *nextHeader = nullptr;
     TwsPartialHeaderHandler *nextPartialHeader = nullptr;
+    TwsQueryParamHandler *nextQueryParam = nullptr;
     TwsPostBodyHandler *nextPostBody = nullptr;
     TwsRequestHandler *nextRequest = nullptr;
     TwsAllocableHandler *nextAlloc = nullptr;
@@ -72,6 +76,10 @@ public:
     virtual int handlePartialHeader(TwsRequest &request, const char *line, int len, bool final) override {
         if (nextPartialHeader) return nextPartialHeader->handlePartialHeader(request, line, len, final);
         return len; // Consume by default to prevent hangs
+    }
+
+    virtual void handleQueryParam(TwsRequest &request, const char *param, int len, bool final) override {
+        if (nextQueryParam) nextQueryParam->handleQueryParam(request, param, len, final);
     }
     
     virtual int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override {

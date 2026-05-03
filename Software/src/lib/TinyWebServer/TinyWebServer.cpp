@@ -242,7 +242,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                 // We have a full buffer but have failed to parse it, so abandon
                 // the request.
                 DEBUG_PRINTF("TWS client buffer full, closing connection\n");
-                request.reset();
+                request.abort();
             }
             break;
         }
@@ -263,7 +263,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
             } else {
                 char *pp = request.get_read_ptr(buf, len);
                 DEBUG_PRINTF("TWS client invalid method! [%s]\n", pp);
-                request.reset();
+                request.abort();
             }
             break;
         case TWS_AWAITING_PATH:
@@ -372,7 +372,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                     // parsing Content-Length ourselves, so we don't know
                     // whether to wait for a body or not.
                     auto rret = request.handler->onPostBody->handlePostBody(request, 0, nullptr, 0);
-                    logging.printf("Testing handlePostBody, returned %d\n", rret);
+                    //logging.printf("Testing handlePostBody, returned %d\n", rret);
                     if(rret == -1) {
                         // No, skip the body and go straight to the request handler
                         call_request_handler();
@@ -442,11 +442,12 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                     // FIXME - this breaks CanSender currently
                     // if(!progress_made && request.recv_buffer_full()) {
                     //     DEBUG_PRINTF("TWS client body handler stuck, closing connection\n");
-                    //     request.reset();
+                    //     request.abort();
                     //     return;
                     // }
 
                     if(post_done && !request.done) {
+                        DEBUG_PRINTF("TWS finished reading POST body!");
                         if(request.writer_callback) {
                             // The post handler set a writer callback, so skip the normal request handler
                             if(request.free()>0) request.writer_callback(request, request.total_written - request.writer_callback_written_offset);
@@ -640,6 +641,8 @@ void TinyWebServer::finish(uint32_t connection_id) {
 }
 
 void TwsRequest::reset() {
+    // Reset a request ready to be reused for a new connection.
+    // Don't call this during request handling, use abort() instead.
     if(socket>-1) {
         close(socket);
     }
@@ -654,6 +657,7 @@ void TwsRequest::reset() {
     recv_buffer_scan_ptr = 0;
     parse_state = TWS_AWAITING_METHOD;
     done = false;
+    aborted = false;
     total_written = 0;
     body_read = 0;
     pending_direct_write = false;
@@ -682,7 +686,7 @@ void TwsRequest::perform_io() {
         } else if (bytes_sent <= 0 && errno != EINPROGRESS && errno != EAGAIN && errno != EWOULDBLOCK) {
             // An error occurred, close the connection
             DEBUG_PRINTF("TWS send error: %d - %s\n", errno, strerror(errno));
-            reset();
+            abort();
             return;
         } else {
             // No more space available to write, break out of the loop
@@ -712,12 +716,12 @@ int TwsRequest::recv() {
         } else if (bytes_received == 0) {
             // Connection closed by the client
             //DEBUG_PRINTF("TWS client closed connection\n");
-            reset();
+            abort();
             break;
         } else if (bytes_received < 0 && errno != EINPROGRESS && errno != EAGAIN && errno != EWOULDBLOCK) {
             // An error occurred, close the connection
             DEBUG_PRINTF("TWS recv error on %d: %d - %s\n", slot_id, errno, strerror(errno));
-            reset();
+            abort();
             break;
         } else {
             // No more data available to read
@@ -728,8 +732,9 @@ int TwsRequest::recv() {
 }
 
 void TwsRequest::tick() {
-    if(send_buffer_len==0 && done && !pending_direct_write) {
+    if((send_buffer_len==0 && done && !pending_direct_write) || aborted) {
         // If the send buffer is empty and the request is done, close the connection
+        // (or if aborted, finish immediately)
         //DEBUG_PRINTF("TWS done, closing %d\n", connection_id);
         reset();
         return;
@@ -842,7 +847,7 @@ uint32_t TwsRequest::write_direct(const char *buf, uint16_t len) {
     if(bytes_written < 0 && errno != EINPROGRESS && errno != EAGAIN && errno != EWOULDBLOCK) {
         // An error occurred, close the connection
         DEBUG_PRINTF("TWS write_direct error: %d - %s\n", errno, strerror(errno));
-        reset();
+        abort();
         return 0;
     } else if(bytes_written < 0) {
         // No data was written, return 0
@@ -1075,11 +1080,12 @@ void TwsRequest::send(int code, const char *content_type, const char *content) {
 }
 
 void TwsRequest::abort() {
-    finish();
+    aborted = true; // Mark the request as aborted
 }
 
 void TwsRequest::finish() {
     done = true; // Mark the request as done
+    last_activity = millis(); // Avoid timing out before the connection is closed
 }
 
 /*

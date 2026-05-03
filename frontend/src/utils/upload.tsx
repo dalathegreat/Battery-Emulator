@@ -1,7 +1,7 @@
-export function upload(url: string, body: any, cb: (progress: number, rate: number) => void) {
-    return new Promise((resolve, reject)=>{
+export function upload(url: string, body: any, cb: (progress: number, rate: number) => void): { abort: () => void, promise: Promise<any> } {
+    const xhr = new XMLHttpRequest();
+    const promise = new Promise((resolve, reject)=>{
         const ctx = { l: performance.now(), n: 0 };
-        const xhr = new XMLHttpRequest();
         //xhr.responseType = "json";
         xhr.open("POST", url);
         xhr.upload.onprogress = (event) => {
@@ -28,7 +28,15 @@ export function upload(url: string, body: any, cb: (progress: number, rate: numb
         xhr.onerror = () => {
             reject([xhr.status, resp() || "Network error"]);
         };
+        xhr.onabort = () => {
+            reject([0, "Aborted"]);
+        };
         xhr.send(body);
     });
+
+    return {
+        abort: () => xhr.abort(),
+        promise
+    };
 }
 

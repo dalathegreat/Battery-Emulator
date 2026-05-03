@@ -3,16 +3,20 @@
 
 #include "TwsHandler.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 typedef struct {
     uint32_t content_length;
     uint32_t can_interface;
     uint32_t start_millis;
+    bool log;
     //bool error = false;
     // Buffer incomplete lines
     //char buf[128];
 } CanSenderState;
 
-class CanSender : public TwsStatefulMiddleware<CanSenderState>, public TwsQueryParamHandler {
+class CanSender : public TwsStatefulMiddleware<CanSenderState> {
 public:
     CanSender() = default;
 

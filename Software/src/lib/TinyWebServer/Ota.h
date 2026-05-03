@@ -7,7 +7,7 @@ typedef struct {
   int mode;
 } OtaStartState;
 
-class OtaStart : public TwsStatefulMiddleware<OtaStartState>, public TwsQueryParamHandler {
+class OtaStart : public TwsStatefulMiddleware<OtaStartState> {
 public:
     OtaStart() = default;
 
