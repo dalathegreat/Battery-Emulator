@@ -524,7 +524,10 @@ __attribute__((noinline)) uint32_t TinyWebServer::get_waiting_requests(long max_
     FD_SET(_listen_socket, &read_sockets);
     int max_fds = _listen_socket + 1;
     int pending_write_sockets = 0;
- 
+
+    // select(..) only allows fds up to FD_SETSIZE (32 on ESP32), but the max
+    // socket fd on ESP32 should be below that.
+
     for (int i = 0; i < MAX_REQUESTS; i++) {
         auto &request = slots[i];
         if (request.active()) {

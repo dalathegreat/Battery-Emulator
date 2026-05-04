@@ -73,7 +73,11 @@ function upload_log(frames: CanFrame[], selectedIds: Set<number>, iface: number,
     }
 
     const avg_len = off / (list.length * repeats);
-    const res = upload(import.meta.env.VITE_API_BASE + '/api/cansend?if=' + iface + "&log=" + (log?"1":"0"), buf, (progress, rate) => cb({ progress, rate: rate / avg_len }));
+    const res = upload(
+        import.meta.env.VITE_API_BASE + '/api/cansend?if=' + iface + "&log=" + (log?"1":"0"),
+        buf, 
+        (progress, rate) => cb({ progress, rate: rate / avg_len })
+    );
     res.promise.catch(([s, r]) => s && alert(`Upload failed: ${s} ${r}`));
     return res;
 }
@@ -83,8 +87,8 @@ export function CanSender() {
     const [st, setSt] = useState<{progress: number, rate: number}>({ progress: -1, rate: 0 });
     const [iface, setIface] = useState(0);
     const [loop, setLoop] = useState(false);
-    const [loopGap, setLoopGap] = useState(1);
-    const [log, setLog] = useState(false);
+    const [loopGap, setLoopGap] = useState(10);
+    const [log, setLog] = useState(true);
     const [frames, setFrames] = useState<CanFrame[]>([]);
     const [selIds, setSelIds] = useState<Set<number>>(new Set());
     const [ids, setIds] = useState<number[]>([]);
