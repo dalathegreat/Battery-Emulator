@@ -45,4 +45,5 @@ extern bool user_selected_pylon_30koffset;
 extern bool user_selected_pylon_invert_byteorder;
 extern bool user_selected_inverter_deye_workaround;
 extern bool user_selected_primo_gen24;
+extern bool inverter_low_pass_filter;
 #endif
