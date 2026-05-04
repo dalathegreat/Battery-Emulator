@@ -1860,9 +1860,15 @@ CAN_frame can_msg_118[] = {
     {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x70, 0x8F, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}}};
 
 void TeslaBattery::transmit_can(unsigned long currentMillis) {
+  // Ensure we only send one message branch at a time, to reduce worst-case
+  // runtime.
+  static int transmitPhase = -1;
+  if (++transmitPhase >= 5) {
+    transmitPhase = 0;
+  }
 
   //Send 10ms messages
-  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS && transmitPhase == 0) {
     previousMillis10 = currentMillis;
 
     if (user_selected_tesla_digital_HVIL) {  //Special Digital HVIL mode for S/X 2024+ batteries
@@ -1909,7 +1915,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
   }
 
   //Send 50ms messages
-  if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
+  if (currentMillis - previousMillis50 >= INTERVAL_50_MS && transmitPhase == 1) {
     previousMillis50 = currentMillis;
 
     //0x221 VCFRONT_LVPowerState
@@ -1989,7 +1995,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
   }
 
   //Send 100ms messages
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS && transmitPhase == 2) {
     previousMillis100 = currentMillis;
 
     //0x102 VCLEFT_doorStatus, static
@@ -2203,7 +2209,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
   }
 
   //Send 500ms messages
-  if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
+  if (currentMillis - previousMillis500 >= INTERVAL_500_MS && transmitPhase == 3) {
     previousMillis500 = currentMillis;
 
     transmit_can_frame(&TESLA_213);
@@ -2228,7 +2234,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
   }
 
   //Send 1000ms messages
-  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S && transmitPhase == 4) {
     previousMillis1000 = currentMillis;
 
     transmit_can_frame(&TESLA_082);
