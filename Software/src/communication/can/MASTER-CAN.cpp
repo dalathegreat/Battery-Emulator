@@ -413,7 +413,23 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
 }
 
 void MasterCan::update_slave_aggregation() {
-  // Aggregate online slaves into datalayer.battery
+  // Aggregate online slaves into datalayer.battery.
+  //
+  // Charge/discharge rate inclusion rule:
+  //   - If NO slave has confirmed contactor_engaged yet (startup / first slave):
+  //     use contactor_allowed — the first slave connects and the inverter needs to
+  //     see valid rates to decide to allow contactor closing.
+  //   - Once at least one slave is contactor_engaged: require contactor_engaged for
+  //     charge/discharge rates so parallel slaves only contribute once physically connected.
+  uint8_t engaged_count = 0;
+  for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
+    const SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
+    if (node.online && node.contactor_engaged && !node.balancing) {
+      engaged_count++;
+    }
+  }
+  const bool require_engaged = (engaged_count > 0);
+
   uint32_t total_capacity_Wh = 0;
   uint32_t total_remaining_Wh = 0;
   uint32_t total_max_charge_W = 0;
@@ -436,6 +452,10 @@ void MasterCan::update_slave_aggregation() {
   for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
     const SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
     if (!node.online || !node.contactor_allowed) {
+      continue;
+    }
+    // For charge/discharge rates: require contactor_engaged once any slave is engaged
+    if (require_engaged && !node.contactor_engaged) {
       continue;
     }
     // Exclude slaves performing offline balancing — they are sleeping and not part of the pack
