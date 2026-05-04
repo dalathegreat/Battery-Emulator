@@ -416,7 +416,7 @@ void core_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
-  int loopPhase;
+  int loopPhase = 0;
 
   while (true) {
     START_TIME_MEASUREMENT(all);
