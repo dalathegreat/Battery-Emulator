@@ -405,6 +405,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
 
+  if (var == "LOWPASSFILTER") {
+    return settings.getBool("LOWPASSFILTER") ? "checked" : "";
+  }
+
   if (var == "NCCONTACTOR") {
     return settings.getBool("NCCONTACTOR") ? "checked" : "";
   }
@@ -1492,6 +1496,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         %INVCOMM%     
         </select>
         </div>
+
+        <label>Inverter limits low pass filter: </label>
+        <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
+        title="Applies a low pass filter to charge/discharge rates to prevent oscillation." />
 
         <div class="if-sofar">
         <label>Sofar Battery ID (0-15): </label>
