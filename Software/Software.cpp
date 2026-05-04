@@ -439,9 +439,9 @@ void core_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
+  int loopPhase = 0;
 
   while (true) {
-
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
 
@@ -453,7 +453,8 @@ void core_loop(void*) {
 
     // Process
     currentMillis = millis();
-    if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
+    loopPhase = 1 - loopPhase;  // Spread out slower tasks across multiple iterations
+    if (currentMillis - previousMillis10ms >= INTERVAL_10_MS && loopPhase == 0) {
       if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) &&
           (milliseconds(currentMillis) > esp32hal->BOOTUP_TIME())) {
         set_event(EVENT_TASK_OVERRUN, (currentMillis - previousMillis10ms));
@@ -478,7 +479,7 @@ void core_loop(void*) {
       }
     }
 
-    if (currentMillis - previousMillisUpdateVal >= INTERVAL_1_S) {
+    if (currentMillis - previousMillisUpdateVal >= INTERVAL_1_S && loopPhase == 1) {
       previousMillisUpdateVal = currentMillis;  // Order matters on the update_loop!
       if (datalayer.system.info.performance_measurement_active) {
         START_TIME_MEASUREMENT(values);
