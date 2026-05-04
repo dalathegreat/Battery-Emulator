@@ -4,6 +4,7 @@
 #include "../communication/can/comm_can.h"
 #include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/common_functions.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
@@ -89,41 +90,30 @@ void MgHsPHEVBattery::update_soc(uint16_t soc_times_ten) {
   // Set the state of charge in the datalayer
   datalayer.battery.status.real_soc = soc_times_ten * 10;
 
-  RealSoC = datalayer.battery.status.real_soc / 100;
-
   // Calculate the remaining capacity.
-  tempfloat = datalayer.battery.info.total_capacity_Wh * (RealSoC - MinSoC) / 100;
-  if (tempfloat > 0) {
-    datalayer.battery.status.remaining_capacity_Wh = tempfloat;
+  uint32_t remaining =
+      (datalayer.battery.info.total_capacity_Wh * (datalayer.battery.status.real_soc - DISCHARGE_MIN_SOC)) /
+      (10000 - DISCHARGE_MIN_SOC);
+  if (remaining > 0) {
+    datalayer.battery.status.remaining_capacity_Wh = remaining;
   } else {
     datalayer.battery.status.remaining_capacity_Wh = 0;
   }
 
-  // Calculate the maximum charge power. Taper the charge power between 90% and 100% SoC, as 100% SoC is approached
-  if (RealSoC < StartChargeTaper) {
-    datalayer.battery.status.max_charge_power_W = MaxChargePower;
-  } else if (RealSoC >= 100) {
-    datalayer.battery.status.max_charge_power_W = TricklePower;
-  } else {
-    //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
-    datalayer.battery.status.max_charge_power_W =
-        (MaxChargePower * pow(((100 - RealSoC) / (100 - StartChargeTaper)), ChargeTaperExponent)) + TricklePower;
-  }
+  datalayer.battery.status.max_charge_power_W = taper_charge_power_linear(
+      datalayer.battery.status.real_soc, MAX_CHARGE_POWER_W, CHARGE_TRICKLE_POWER_W, DERATE_CHARGE_ABOVE_SOC);
 
-  // Calculate the maximum discharge power. Taper the discharge power between 35% and Min% SoC, as Min% SoC is approached
-  if (RealSoC > StartDischargeTaper) {
-    datalayer.battery.status.max_discharge_power_W = MaxDischargePower;
-  } else if (RealSoC < MinSoC) {
-    datalayer.battery.status.max_discharge_power_W = TricklePower;
-  } else {
-    //Taper the charge to the Trickle value. The shape and start point of the taper is set by the constants
-    datalayer.battery.status.max_discharge_power_W =
-        (MaxDischargePower * pow(((RealSoC - MinSoC) / (StartDischargeTaper - MinSoC)), DischargeTaperExponent)) +
-        TricklePower;
-  }
+  datalayer.battery.status.max_discharge_power_W = taper_discharge_power_linear(
+      datalayer.battery.status.real_soc, MAX_DISCHARGE_POWER_W, DISCHARGE_MIN_SOC, DERATE_DISCHARGE_BELOW_SOC);
 }
 
 void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  if (handle_incoming_uds_can_frame(rx_frame)) {
+    return;
+  }
+
+  uint32_t v, cell_id, soc2;
+
   switch (rx_frame.ID) {
     case 0x173:
       // Contains cell min/max voltages
@@ -145,7 +135,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // 1 = disconnected
       // 2 = precharge
       // 3 = connected
-      // 15 = isolation fault
+      // 15 = fault (eg isolation, or waiting-too-long-before-closing-contactors)
       // 0/8 = checking
 
       if (rx_frame.data.u8[1] != previousState) {
@@ -158,28 +148,32 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
 
-      if (rx_frame.data.u8[1] == 0xf && previousState != 0xf) {
-        // Isolation fault, set event
-        set_event(EVENT_BATTERY_ISOLATION, rx_frame.data.u8[0]);
-      } else if (rx_frame.data.u8[1] != 0xf && previousState == 0xf) {
-        // Isolation fault has cleared, clear event
-        clear_event(EVENT_BATTERY_ISOLATION);
-      }
+      // if (rx_frame.data.u8[1] == 0xf && previousState != 0xf) {
+      //   // Isolation fault, set event
+      //   set_event(EVENT_BATTERY_ISOLATION, rx_frame.data.u8[0]);
+      // } else if (rx_frame.data.u8[1] != 0xf && previousState == 0xf) {
+      //   // Isolation fault has cleared, clear event
+      //   clear_event(EVENT_BATTERY_ISOLATION);
+      // }
 
       if (datalayer.battery.status.bms_status == FAULT) {
         // If in fault state, don't try resetting things yet as it'll turn the
         // BMS off and we'll lose CAN info
+      } else if (!datalayer.system.status.inverter_allows_contactor_closing) {
+        // We haven't requested contactor closing, so we don't care what state
+        // the BMS is in.
+        datalayer.system.status.battery_allows_contactor_closing = false;
       } else if ((rx_frame.data.u8[0] == 0x02 || rx_frame.data.u8[0] == 0x06) && rx_frame.data.u8[1] == 0x01) {
         // A weird 'stuck' state where the battery won't reconnect
         datalayer.system.status.battery_allows_contactor_closing = false;
-        if (resetProgress == IDLE) {
+        if (batteryType == BATTERY_TYPE_MG_HS_PHEV && resetProgress == IDLE) {
           logging.printf("MG_HS_PHEV: Stuck, resetting.\n");
           resetProgress = SENDING_DIAG;
         }
       } else if (rx_frame.data.u8[1] == 0xf) {
         // A fault state (likely isolation failure)
         datalayer.system.status.battery_allows_contactor_closing = false;
-        if (resetProgress == IDLE) {
+        if (batteryType == BATTERY_TYPE_MG_HS_PHEV && resetProgress == IDLE) {
           logging.printf("MG_HS_PHEV: Fault, resetting.\n");
           resetProgress = SENDING_DIAG;
         }
@@ -218,7 +212,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // They are scaled differently, the relationship seems to be:
       // soc2 = (1.392*soc1) - 28.064
 
-      soc1 = (rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1]);
+      //soc1 = (rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1]);
       soc2 = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3]);
 
       // soc2 is present in both CAN1 and CAN2 messages
@@ -228,14 +222,17 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       if ((((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) != 0) {
         // 3AC message contains a nonzero voltage (so must have come from CAN1)
+
+        // Battery voltage
         v = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]);
         if (v > 0 && v < 4000) {
-          datalayer.battery.status.voltage_dV = v * 2.5;
+          datalayer.battery.status.voltage_dV = (v * 5) / 2;
         }
+
         // Current
         v = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
         if (v > 0 && v < 0xf000) {
-          datalayer.battery.status.current_dA = -(v - 20000) * 0.5;
+          datalayer.battery.status.current_dA = -(v - 20000) / 2;
         }
       }
 
@@ -243,13 +240,15 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x3BE:
       // Per-cell voltages and temps
       cell_id = rx_frame.data.u8[5];
-      if (cell_id < 90) {
+      if (cell_id < datalayer.battery.info.number_of_cells) {
         v = 1000 + ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
         datalayer.battery.status.cell_voltages_mV[cell_id] = v < 10000 ? v : 0;
         // cell temperature is rx_frame.data.u8[1]-40 but BE doesn't use it
       }
 
       break;
+    /*
+    These are handled via handle_pid now.
     case 0x7ED:
       // A response from our CAN2 OBD requests
       // We mostly ignore these, apart from SoH, and also the voltage as a
@@ -313,15 +312,151 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }  // data.u8[1] = 0x62)
 
       break;
+    */
     default:
       break;
   }
 }
+
+void MgHsPHEVBattery::got_battery_type(uint32_t type) {
+  // We've received a battery type code, which we can use to update the UDS
+  // address and battery parameters.
+
+  // We need to switch UDS address from the generic 7DF to the BMS-specific one,
+  // if we want to be able to perform multi-frame UDS messages (like DTC read).
+
+  // We'll scan battery type again, but the full identifier this time.
+  const uint32_t next_pid = POLL_BATTERY_TYPE;
+
+  logging.printf("[MG] Battery type code: %X\n", type);
+  batteryType = type;
+  if (batteryType == BATTERY_TYPE_MG_HS_PHEV) {
+    logging.println("[MG] Detected MG HS PHEV battery.");
+    datalayer.battery.info.number_of_cells = 90;
+    setup_uds(0x7E5, next_pid);  // or 7E5
+  } else if (batteryType == BATTERY_TYPE_MG_ZS) {
+    logging.println("[MG] Detected MG ZS EV battery.");
+    datalayer.battery.info.number_of_cells = 108;
+    setup_uds(0x781, next_pid);  // or 781
+  } else if (batteryType == BATTERY_TYPE_MG5_61_NMC) {
+    logging.println("[MG] Detected MG5 61kWh NMC.");
+    datalayer.battery.info.number_of_cells = 96;
+    setup_uds(0x7E5, next_pid);  // Hopefully?
+  } else {
+    logging.println("[MG] Detected probably MG5/MarvelR.");
+    batteryType = BATTERY_TYPE_MG5;
+    datalayer.battery.info.number_of_cells = 96;
+    setup_uds(0x781, next_pid);  // MG5 (781)
+    // setup_uds(0x7E5, POLL_BAT_SOH); // MarvelR (7E5?)
+  }
+  datalayer.battery.info.max_design_voltage_dV =
+      (MAX_CELL_VOLTAGE_MV * (uint32_t)datalayer.battery.info.number_of_cells) / 100;
+  datalayer.battery.info.min_design_voltage_dV =
+      (MIN_CELL_VOLTAGE_MV * (uint32_t)datalayer.battery.info.number_of_cells) / 100;
+}
+
+uint32_t MgHsPHEVBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length,
+                                     UdsStatus status) {
+  //logging.printf("PID: Got %X with data: %d\n", pid, value);
+  //pidCount++;
+
+  // if(batteryType!=0 && pid >= 0xF100) {
+  //   return handle_long_pid(pid, (uint8_t*)&value, 4);
+  // }
+
+  if (pid >= 0xF100 || length > 4) {
+    logging.printf("[MG] PID %X:", pid);
+    for (int i = 0; i < length; i++) {
+      logging.printf(" %02X", data[i]);
+    }
+    logging.printf("\n");
+  }
+
+  switch (pid) {
+    case POLL_BATTERY_VOLTAGE:
+      // We don't actually use this value
+      return POLL_BATTERY_SOH;
+    case POLL_BATTERY_SOH:  // Battery SoH
+      datalayer.battery.status.soh_pptt = value;
+      break;
+
+    case POLL_BATTERY_TYPE:  // Battery type
+      if (length < 4) {
+        // Short PID, is the initial battery detection
+        got_battery_type(value);
+      } else {
+        // Query the rest of the identifier PIDs once
+        return 0xF120;
+      }
+      break;
+    case 0xF120:
+      return 0xB18C;
+    case 0xB18C:
+      return 0xF183;
+    case 0xF183:
+      return 0xF18B;
+    case 0xF18B:
+      return 0xF190;
+    case 0xF190:
+      return 0xF191;
+    case 0xF191:
+      return 0xF192;
+    case 0xF192:
+      return 0xF194;
+    case 0xF194:
+      return 0xF1A2;
+    case 0xF1A2:
+      return 0xF1AA;
+    case 0xF1AA:
+      // Finished reading identifiers, start normal polling
+      setup_uds(uds_address, POLL_BATTERY_SOH);
+      break;
+  }
+  return 0;  // Continue normal PID cycling
+}
+
+// uint32_t MgHsPHEVBattery::handle_long_pid(uint16_t pid, const uint8_t* data, uint16_t length) {
+//   logging.printf("[MG] PID: %X:", pid);
+//   for (int i = 0; i < length; i++) {
+//     logging.printf(" %02X", data[i]);
+//   }
+//   logging.printf("\n");
+
+//   switch(pid) {
+//     case 0xF120:
+//       return 0xF183;
+//     case 0xF183:
+//       return 0xF18A;
+//     case 0xF18A:
+//       return 0xF18B;
+//     case 0xF18B:
+//       return 0xF190;
+//     case 0xF190:
+//       return 0xF191;
+//     case 0xF191:
+//       return 0xF192;
+//     case 0xF192:
+//       return 0xF194;
+//     case 0xF194:
+//       return 0xF1AA;
+//     case 0xF1AA:
+//       break;
+//   }
+//   // Revert to normal scanning
+//   setup_uds(uds_address, POLL_BATTERY_SOH);
+//   return 0;  // Continue normal PID cycling
+// }
+
+uint8_t cycle_pos = 0;
+uint8_t EIGHT8_CLOSED_CYCLE[] = {0xB6, 0xB7, 0xB4, 0xB5, 0xB2, 0xB3, 0xB0, 0xB1,
+                                 0xBE, 0xBF, 0xBC, 0xBD, 0xBA, 0xBB, 0xB8, 0xB9};
+uint8_t EIGHT8_OPEN_CYCLE[] = {0x94, 0x95, 0x96, 0x97, 0x90, 0x91, 0x92, 0x93,
+                               0x9c, 0x9d, 0x9e, 0x9f, 0x98, 0x99, 0x9a, 0x9b};
+
 void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     // Transmitting towards battery is halted while BMS is being reset
     previousMillis100 = currentMillis;
-    previousMillis200 = currentMillis;
     return;
   }
 
@@ -333,84 +468,93 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
     // Leave the contactors open
     MG_HS_8A.data.u8[5] = 0x00;
 #else
-    if (datalayer.battery.status.bms_status == FAULT) {
-      // Fault, so open contactors!
+    if (
+        // Open contactors if fault
+        (datalayer.battery.status.bms_status == FAULT)
+        // or if inverter requests contactor opening
+        || !datalayer.system.status.inverter_allows_contactor_closing
+        // or if we haven't detected the battery type yet
+        || (batteryType == 0)) {
       MG_HS_8A.data.u8[5] = 0x00;
-    } else if (!datalayer.system.status.inverter_allows_contactor_closing) {
-      // Inverter requests contactor opening
-      MG_HS_8A.data.u8[5] = 0x00;
+      MG_391.data.u8[4] = 0xB0;
+      contactorCloseReset = false;
+
+      MG_HS_8A.data.u8[6] = 0x10 | cycle_pos;
+      MG_HS_8A.data.u8[7] = EIGHT8_OPEN_CYCLE[cycle_pos];
+
     } else {
       // Everything ready, close contactors
       MG_HS_8A.data.u8[5] = 0x02;
+      MG_391.data.u8[4] = 0xD0;
+
+      MG_HS_8A.data.u8[6] = 0x30 | cycle_pos;
+      MG_HS_8A.data.u8[7] = EIGHT8_CLOSED_CYCLE[cycle_pos];
+
+      if (!contactorCloseReset && batteryType == BATTERY_TYPE_MG5) {
+        // MG5 requires DTCs clearing to get contactors to close
+        reset_DTC();
+        contactorCloseReset = true;
+      }
     }
 #endif  // MG_HS_PHEV_DISABLE_CONTACTORS
 
+    cycle_pos = (cycle_pos + 1) & 0xF;
+
     transmit_can_frame(&MG_HS_8A);
+    //transmit_can_frame(&MG_391);
     transmit_can_frame(&MG_HS_1F1);
 
-    switch (resetProgress) {
-      case IDLE:
-        // Nothing to do
-        break;
-      case SENDING_DIAG:
-        // Enter diag mode
-        transmit_can_frame(&MG_HS_7E5_DIAG);
-        resetProgress = SENDING_RESET;
-        break;
-      case SENDING_RESET:
-        // Send reset command
-        transmit_can_frame(&MG_HS_7E5_RESET);
-        resetProgress = WAITING_RESET_COMPLETE;
-        resetTimeout = 0;
-        break;
-      case WAITING_RESET_COMPLETE:
-        resetTimeout++;
-        if (resetTimeout >= 50) {
-          // 5 second timeout expired
-          logging.printf("MG_HS_PHEV: Reset timeout expired.\n");
-          resetProgress = IDLE;
-        }
-        break;
-      default:
-        break;
+    if (resetProgress == SENDING_DIAG) {
+      // Enter diag mode
+      transmit_can_frame(&MG_HS_7E5_DIAG);
+      // Pause UDS or it interferes with our reset sequence
+      pause_uds(2);
+      resetProgress = SENDING_RESET;
+    } else if (resetProgress == SENDING_RESET) {
+      // Send reset command
+      transmit_can_frame(&MG_HS_7E5_RESET);
+      // Pause UDS or it interferes with our reset sequence
+      pause_uds(2);
+      resetProgress = WAITING_RESET_COMPLETE;
+      resetTimeout = 0;  // 5 seconds timeout
+    } else if (resetProgress == WAITING_RESET_COMPLETE) {
+      resetTimeout++;
+      if (resetTimeout >= 50) {
+        // Timeout expired
+        logging.printf("MG_HS_PHEV: Reset timeout expired.\n");
+        resetProgress = IDLE;
+      }
     }
   }
-  // Send 200ms CAN Message
-  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
-    previousMillis200 = currentMillis;
 
-    switch (transmitIndex) {
-      case 0:
-        // We don't actually use this value currently
-        MG_HS_7E5_POLL.data.u8[2] = (uint8_t)((POLL_BATTERY_VOLTAGE & 0xFF00) >> 8);
-        MG_HS_7E5_POLL.data.u8[3] = (uint8_t)(POLL_BATTERY_VOLTAGE & 0x00FF);
-        transmit_can_frame(&MG_HS_7E5_POLL);
-        break;
-      case 1:
-        MG_HS_7E5_POLL.data.u8[2] = (uint8_t)((POLL_BATTERY_SOH & 0xFF00) >> 8);
-        MG_HS_7E5_POLL.data.u8[3] = (uint8_t)(POLL_BATTERY_SOH & 0x00FF);
-        transmit_can_frame(&MG_HS_7E5_POLL);
-        break;
-      default:
-        break;
-    }
+  // if (currentMillis - previousMillis2000 >= 2000) {
+  //   previousMillis2000 = currentMillis;
 
-    transmitIndex++;  //Increment the message index
-    if (transmitIndex > 30) {
-      // Wrap after a while (we don't need to poll every tick)
-      transmitIndex = 0;
-    }
+  //   // if(batteryType==0) {
+  //   //   // Still haven't detected the battery type yet, try another UDS address
+  //   //   if(uds_address==0x7E5) {
+  //   //     setup_uds(0x781, POLL_BATTERY_TYPE);
+  //   //   } else {
+  //   //     setup_uds(0x7E5, POLL_BATTERY_TYPE);
+  //   //   }
+  //   // }
+  // }
 
-  }  //endif
+  // Send UDS messages too.
+  transmit_uds_can(currentMillis);
 }
 
 void MgHsPHEVBattery::setup(void) {  // Performs one time setup at startup
+  //setup_uds(0x7E5, POLL_BATTERY_VOLTAGE);
+  setup_uds(0x7DF, POLL_BATTERY_TYPE | SHORT_PID);
+
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.system.status.battery_allows_contactor_closing = true;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.system.status.battery_allows_contactor_closing = false;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.number_of_cells = 90;
+  // Start off with wide range until we detect the battery type
+  datalayer.battery.info.max_design_voltage_dV = ((uint32_t)108 * MAX_CELL_VOLTAGE_MV) / 100;
+  datalayer.battery.info.min_design_voltage_dV = ((uint32_t)90 * MIN_CELL_VOLTAGE_MV) / 100;
 }

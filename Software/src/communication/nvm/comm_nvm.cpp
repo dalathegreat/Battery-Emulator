@@ -49,14 +49,10 @@ void init_stored_settings() {
   if (temp2 <= 500 && temp2 >= -100) {
     datalayer.battery.settings.min_percentage = temp2 * 10;  // Multiply by 10 for backwards compatibility
   }
-  temp = settings.getUInt("MAXCHARGEAMP", false);
-  if (temp != 0) {
-    datalayer.battery.settings.max_user_set_charge_dA = temp;
-  }
-  temp = settings.getUInt("MAXDISCHARGEAMP", false);
-  if (temp != 0) {
-    datalayer.battery.settings.max_user_set_discharge_dA = temp;
-  }
+  datalayer.battery.settings.max_user_set_charge_dA =
+      settings.getUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA);
+  datalayer.battery.settings.max_user_set_discharge_dA =
+      settings.getUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA);
   datalayer.battery.settings.soc_scaling_active = settings.getBool("USE_SCALED_SOC", false);
   temp = settings.getUInt("TARGETCHVOLT", false);
   if (temp != 0) {
