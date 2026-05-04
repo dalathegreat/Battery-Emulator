@@ -72,7 +72,7 @@ class MasterCan : public CanReceiver, public Transmitter {
   void check_slave_voltage_safety(uint8_t slave_idx);
 
   unsigned long _last_heartbeat_ms = 0;
-  unsigned long _startup_begin_ms = 0;   // Set on first update_values() call
+  unsigned long _startup_begin_ms = 0;   // Set when first slave comes online
   bool _startup_grace_done = false;      // True after IU_STARTUP_GRACE_S seconds
   bool _estop_was_active = false;        // Tracks e-stop transitions to force re-qualification
 };

@@ -211,23 +211,33 @@ void MasterCan::send_contactor_commands() {
 void MasterCan::update_values() {
   bool estop_active = datalayer.system.info.equipment_stop_active;
 
-  // Lazy-init startup grace timer on first call
+  // Start grace timer the moment the first slave comes online
   if (_startup_begin_ms == 0) {
-    _startup_begin_ms = millis();
-    logging.printf("Master CAN: Startup grace period started (%u s) — all contactors held OPEN\n",
-                   IU_STARTUP_GRACE_S);
+    for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
+      if (datalayer.system.slave_nodes[i].online) {
+        _startup_begin_ms = millis();
+        logging.printf("Master CAN: First slave online — grace period started (%u s)\n", IU_STARTUP_GRACE_S);
+        break;
+      }
+    }
   }
 
-  // Advance grace period
-  if (!_startup_grace_done) {
+  // Grace period: when it expires, allow ALL currently online slaves at once.
+  // This gives every slave that came online during the grace window a contactor at the same time.
+  if (!_startup_grace_done && _startup_begin_ms != 0) {
     unsigned long elapsed_s = (millis() - _startup_begin_ms) / 1000UL;
     if (elapsed_s >= IU_STARTUP_GRACE_S) {
       _startup_grace_done = true;
-      // Pre-fill counters so slaves already within voltage threshold qualify immediately
       for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
+        SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
+        if (node.online && !node.balancing) {
+          node.contactor_allowed = true;
+          logging.printf("Master CAN: Grace done — Slave %d contactor ALLOWED\n", i + 1);
+        }
+        // Pre-fill so hot-plug slaves after grace qualify faster
         voltage_diff_seconds[i] = VOLTAGE_DIFF_SECONDS_LIMIT;
       }
-      logging.println("Master CAN: Startup grace period done — contactor logic now active");
+      logging.println("Master CAN: Startup grace done — all online contactors now allowed");
     }
   }
 
@@ -481,10 +491,38 @@ void MasterCan::update_slave_aggregation() {
   }
 
   if (active_count == 0) {
-    // No active slaves — report safe zeros
+    // No contactor_allowed slaves yet (during grace period or startup).
+    // Show informational data from the first online slave so the inverter can
+    // initialise, but hold charge/discharge rates at zero.
+    for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
+      const SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
+      if (!node.online || node.balancing) {
+        continue;
+      }
+      datalayer.battery.status.voltage_dV = node.voltage_dV;
+      datalayer.battery.status.real_soc = node.real_soc;
+      datalayer.battery.status.temperature_max_dC = (int16_t)node.temp_max_dC * 10;
+      datalayer.battery.status.temperature_min_dC = (int16_t)node.temp_min_dC * 10;
+      datalayer.battery.info.total_capacity_Wh = node.total_capacity_Wh;
+      datalayer.battery.info.reported_total_capacity_Wh = node.total_capacity_Wh;
+      datalayer.battery.status.remaining_capacity_Wh = node.remaining_Wh;
+      datalayer.battery.status.reported_remaining_capacity_Wh = node.remaining_Wh;
+      if (node.max_design_voltage_dV > 0) {
+        datalayer.battery.info.max_design_voltage_dV = node.max_design_voltage_dV;
+      }
+      if (node.min_design_voltage_dV > 0) {
+        datalayer.battery.info.min_design_voltage_dV = node.min_design_voltage_dV;
+      }
+      datalayer.battery.status.bms_status = ACTIVE;
+      datalayer.battery.status.real_bms_status = BMS_ACTIVE;
+      datalayer.system.status.battery_allows_contactor_closing = true;
+      break;
+    }
     datalayer.battery.status.max_charge_power_W = 0;
     datalayer.battery.status.max_discharge_power_W = 0;
     datalayer.battery.status.reported_current_dA = 0;
+    datalayer.battery.status.current_dA = 0;
+    datalayer.battery.status.active_power_W = 0;
     return;
   }
 
