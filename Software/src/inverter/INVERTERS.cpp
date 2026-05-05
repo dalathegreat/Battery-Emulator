@@ -1,8 +1,29 @@
-#include "../include.h"
+#include "INVERTERS.h"
 
 InverterProtocol* inverter = nullptr;
 
 InverterProtocolType user_selected_inverter_protocol = InverterProtocolType::BydModbus;
+
+// Some user-configurable settings that can be used by inverters. These
+// inverters should use sensible defaults if the corresponding user_selected
+// value is zero.
+uint16_t user_selected_pylon_send = 0;
+uint16_t user_selected_inverter_cells = 0;
+uint16_t user_selected_inverter_modules = 0;
+uint16_t user_selected_inverter_cells_per_module = 0;
+uint16_t user_selected_inverter_voltage_level = 0;
+uint16_t user_selected_inverter_ah_capacity = 0;
+uint16_t user_selected_inverter_battery_type = 0;
+uint16_t user_selected_inverter_sungrow_type = 0;
+uint16_t user_selected_inverter_pylon_type = 0;
+bool user_selected_inverter_ignore_contactors = false;
+bool user_selected_pylon_30koffset = false;
+bool user_selected_pylon_invert_byteorder = false;
+bool user_selected_inverter_deye_workaround = false;
+bool user_selected_primo_gen24 =
+    false;  //Used by BYD-Modbus (Fronius Primo Gen24) inverters to determine if we should cap voltage to 450V or not
+
+bool inverter_low_pass_filter = false;  //Should the charge/discharge limits be filtered with a low pass filter?
 
 std::vector<InverterProtocolType> supported_inverter_protocols() {
   std::vector<InverterProtocolType> types;
@@ -40,6 +61,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::GrowattLv:
       return GrowattLvInverter::Name;
 
+    case InverterProtocolType::GrowattWit:
+      return GrowattWitInverter::Name;
+
     case InverterProtocolType::Kostal:
       return KostalInverterProtocol::Name;
 
@@ -49,20 +73,23 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::PylonLv:
       return PylonLvInverter::Name;
 
+    case InverterProtocolType::PylonLV485:
+      return PylonLV485InverterProtocol::Name;
+
     case InverterProtocolType::Schneider:
       return SchneiderInverter::Name;
 
     case InverterProtocolType::SmaBydH:
       return SmaBydHInverter::Name;
 
-    case InverterProtocolType::SmaBydHvs:
-      return SmaBydHvsInverter::Name;
-
     case InverterProtocolType::SmaLv:
       return SmaLvInverter::Name;
 
-    case InverterProtocolType::SmaTripower:
-      return SmaTripowerInverter::Name;
+    case InverterProtocolType::SmaBydHvs:
+      return SmaBydHvsInverter::Name;
+
+    case InverterProtocolType::SmaSBSByd:
+      return SmaSBSBydHvsInverter::Name;
 
     case InverterProtocolType::Sofar:
       return SofarInverter::Name;
@@ -70,20 +97,27 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::Solax:
       return SolaxInverter::Name;
 
+    case InverterProtocolType::Solxpow:
+      return SolxpowInverter::Name;
+
+    case InverterProtocolType::SolArkLv:
+      return SolArkLvInverter::Name;
+
     case InverterProtocolType::Sungrow:
       return SungrowInverter::Name;
+
+    case InverterProtocolType::VCU:
+      return VCUInverter::Name;
+
+    case InverterProtocolType::Highest:
+      return "None";
   }
   return nullptr;
 }
 
-#ifdef COMMON_IMAGE
-#ifdef SELECTED_INVERTER_CLASS
-#error "Compile time SELECTED_INVERTER_CLASS should not be defined with COMMON_IMAGE"
-#endif
-
-void setup_inverter() {
+bool setup_inverter() {
   if (inverter) {
-    return;
+    return true;
   }
 
   switch (user_selected_inverter_protocol) {
@@ -115,6 +149,10 @@ void setup_inverter() {
       inverter = new GrowattLvInverter();
       break;
 
+    case InverterProtocolType::GrowattWit:
+      inverter = new GrowattWitInverter();
+      break;
+
     case InverterProtocolType::Kostal:
       inverter = new KostalInverterProtocol();
       break;
@@ -127,6 +165,10 @@ void setup_inverter() {
       inverter = new PylonLvInverter();
       break;
 
+    case InverterProtocolType::PylonLV485:
+      inverter = new PylonLV485InverterProtocol();
+      break;
+
     case InverterProtocolType::Schneider:
       inverter = new SchneiderInverter();
       break;
@@ -135,16 +177,16 @@ void setup_inverter() {
       inverter = new SmaBydHInverter();
       break;
 
-    case InverterProtocolType::SmaBydHvs:
-      inverter = new SmaBydHvsInverter();
+    case InverterProtocolType::SmaSBSByd:
+      inverter = new SmaSBSBydHvsInverter();
       break;
 
     case InverterProtocolType::SmaLv:
       inverter = new SmaLvInverter();
       break;
 
-    case InverterProtocolType::SmaTripower:
-      inverter = new SmaTripowerInverter();
+    case InverterProtocolType::SmaBydHvs:
+      inverter = new SmaBydHvsInverter();
       break;
 
     case InverterProtocolType::Sofar:
@@ -155,11 +197,24 @@ void setup_inverter() {
       inverter = new SolaxInverter();
       break;
 
+    case InverterProtocolType::Solxpow:
+      inverter = new SolxpowInverter();
+      break;
+
+    case InverterProtocolType::SolArkLv:
+      inverter = new SolArkLvInverter();
+      break;
+
     case InverterProtocolType::Sungrow:
       inverter = new SungrowInverter();
       break;
 
+    case InverterProtocolType::VCU:
+      inverter = new VCUInverter();
+      break;
+
     case InverterProtocolType::None:
+      return true;
     case InverterProtocolType::Highest:
     default:
       inverter = nullptr;  // Or handle as error
@@ -167,23 +222,8 @@ void setup_inverter() {
   }
 
   if (inverter) {
-    inverter->setup();
+    return inverter->setup();
   }
+
+  return false;
 }
-
-#else
-void setup_inverter() {
-  if (inverter) {
-    // The inverter is setup only once.
-    return;
-  }
-
-#ifdef SELECTED_INVERTER_CLASS
-  inverter = new SELECTED_INVERTER_CLASS();
-
-  if (inverter) {
-    inverter->setup();
-  }
-#endif
-}
-#endif

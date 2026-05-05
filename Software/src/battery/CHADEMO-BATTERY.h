@@ -3,19 +3,24 @@
 #include <Arduino.h>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
-#include "../include.h"
+#include "../devboard/hal/hal.h"
 #include "CHADEMO-BATTERY-HTML.h"
 #include "CanBattery.h"
 
-#ifdef CHADEMO_BATTERY
-#define SELECTED_BATTERY_CLASS ChademoBattery
-
-//Contactor control is required for CHADEMO support
-#define CONTACTOR_CONTROL
-#endif
-
 class ChademoBattery : public CanBattery {
  public:
+  ChademoBattery() {
+    pin2 = esp32hal->CHADEMO_PIN_2();
+    pin10 = esp32hal->CHADEMO_PIN_10();
+    pin4 = esp32hal->CHADEMO_PIN_4();
+    pin7 = esp32hal->CHADEMO_PIN_7();
+    pin_lock = esp32hal->CHADEMO_LOCK();
+
+    // Assuming these are initialized by contactor control module.
+    precharge = esp32hal->PRECHARGE_PIN();
+    positive_contactor = esp32hal->POSITIVE_CONTACTOR_PIN();
+  }
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -31,6 +36,7 @@ class ChademoBattery : public CanBattery {
   static constexpr const char* Name = "Chademo V2X mode";
 
  private:
+  gpio_num_t pin2, pin10, pin4, pin7, pin_lock, precharge, positive_contactor;
   ChademoBatteryHtmlRenderer renderer;
 
   void process_vehicle_charging_minimums(CAN_frame rx_frame);
@@ -46,6 +52,7 @@ class ChademoBattery : public CanBattery {
   void update_evse_discharge_estimate(CAN_frame& f);
   void update_evse_discharge_capabilities(CAN_frame& f);
   void handle_chademo_sequence();
+  float get_voltage_handler();
 
   static const int MAX_EVSE_POWER_CHARGING = 3300;
   static const int MAX_EVSE_OUTPUT_VOLTAGE = 410;

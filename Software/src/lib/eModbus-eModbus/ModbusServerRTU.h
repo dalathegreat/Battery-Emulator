@@ -47,6 +47,9 @@ public:
   // Inquire protocol mode
   bool isModbusASCII();
 
+  // set timeout
+  void setModbusTimeout(unsigned long timeout);
+
   // Toggle skipping of leading 0x00 byte
   void skipLeading0x00(bool onOff = true);
 
@@ -60,8 +63,6 @@ protected:
   // Prevent copy construction and assignment
   ModbusServerRTU(ModbusServerRTU& m) = delete;
   ModbusServerRTU& operator=(ModbusServerRTU& m) = delete;
-
-  inline void isInstance() { }           // Make class instantiable
 
   // internal common begin function
   void doBegin(uint32_t baudRate, int coreID, uint32_t userInterval);

@@ -1,9 +1,16 @@
 #ifndef _SHUNT_H
 #define _SHUNT_H
 
-#include "src/communication/Transmitter.h"
-#include "src/communication/can/CanReceiver.h"
-#include "src/devboard/utils/types.h"
+#include "../../src/communication/Transmitter.h"
+#include "../../src/communication/can/CanReceiver.h"
+#include "../../src/communication/can/comm_can.h"
+#include "../../src/devboard/safety/safety.h"
+#include "../../src/devboard/utils/types.h"
+#include "Arduino.h"
+
+#include <vector>
+
+enum class ShuntType { None = 0, BmwSbox = 1, Inverter = 2, CustomClamp = 3, Highest };
 
 class CanShunt : public Transmitter, CanReceiver {
  public:
@@ -12,7 +19,7 @@ class CanShunt : public Transmitter, CanReceiver {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame) = 0;
 
   // The name of the comm interface the shunt is using.
-  virtual String interface_name() { return getCANInterfaceName(can_config.shunt); }
+  virtual const char* interface_name() { return getCANInterfaceName(can_config.shunt); }
 
   void transmit(unsigned long currentMillis) {
     if (allowed_to_send_CAN) {
@@ -26,12 +33,26 @@ class CanShunt : public Transmitter, CanReceiver {
   CAN_Interface can_interface;
 
   CanShunt() {
-    can_interface = can_config.battery;
+    can_interface = can_config.shunt;
     register_transmitter(this);
     register_can_receiver(this, can_interface);
   }
+
+  void transmit_can_frame(CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
 };
 
 extern CanShunt* shunt;
+extern std::vector<ShuntType> supported_shunt_types();
+extern const char* name_for_shunt_type(ShuntType type);
+extern ShuntType user_selected_shunt_type;
+
+// Updateable parameters for the Chademo CT Clamp shunt type. Stored in NVM and modifiable via the webserver.
+extern float ct_clamp_offset_mV;
+extern uint16_t ct_clamp_nominal_voltage_dV;
+extern uint16_t ct_clamp_nominal_current_A;
+enum class adc_attenuation_enum { ADC_0db = 0, ADC_2_5db, ADC_6db, ADC_11db, Highest };
+extern adc_attenuation_enum ct_clamp_pin_atten;
+extern const char* name_for_adc_attenuation(adc_attenuation_enum type);
+extern bool ct_invert_current;
 
 #endif

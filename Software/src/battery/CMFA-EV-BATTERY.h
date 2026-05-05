@@ -1,13 +1,10 @@
 #ifndef CMFA_EV_BATTERY_H
 #define CMFA_EV_BATTERY_H
-#include "../include.h"
 
+#include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "CMFA-EV-HTML.h"
 #include "CanBattery.h"
-
-#ifdef CMFA_EV_BATTERY
-#define SELECTED_BATTERY_CLASS CmfaEvBattery
-#endif
 
 class CmfaEvBattery : public CanBattery {
  public:
@@ -28,6 +25,9 @@ class CmfaEvBattery : public CanBattery {
     datalayer_cmfa = &datalayer_extended.CMFAEV;
   }
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCclear = true; }
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -44,6 +44,8 @@ class CmfaEvBattery : public CanBattery {
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
+
+  bool UserRequestDTCclear = false;
 
   uint16_t rescale_raw_SOC(uint32_t raw_SOC);
 
@@ -189,6 +191,11 @@ class CmfaEvBattery : public CanBattery {
                                   .DLC = 8,
                                   .ID = 0x79B,
                                   .data = {0x03, 0x22, 0x90, 0x01, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame CMFA_CLEAR_DTC = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x79B,
+                              .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
   bool end_of_charge = false;
   bool interlock_flag = false;
   uint16_t soc_z = 0;
@@ -211,7 +218,6 @@ class CmfaEvBattery : public CanBattery {
   uint64_t cumulative_energy_when_charging = 0;
   uint64_t cumulative_energy_in_regen = 0;
   uint16_t soh_average = 10000;
-  uint16_t cellvoltages_mv[72];
   uint32_t poll_pid = PID_POLL_SOH_AVERAGE;
   uint16_t pid_reply = 0;
 
@@ -232,7 +238,7 @@ class CmfaEvBattery : public CanBattery {
   uint32_t SOC_raw = 0;
   uint16_t SOH = 99;
   int16_t current = 0;
-  uint16_t pack_voltage = 2700;
+  uint16_t pack_voltage = 500;
   int16_t highest_cell_temperature = 0;
   int16_t lowest_cell_temperature = 0;
   uint32_t discharge_power_w = 0;

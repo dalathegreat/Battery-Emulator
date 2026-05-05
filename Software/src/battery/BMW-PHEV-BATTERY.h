@@ -1,13 +1,7 @@
 #ifndef BMW_PHEV_BATTERY_H
 #define BMW_PHEV_BATTERY_H
-#include <Arduino.h>
-#include "../include.h"
 #include "BMW-PHEV-HTML.h"
 #include "CanBattery.h"
-
-#ifdef BMW_PHEV_BATTERY
-#define SELECTED_BATTERY_CLASS BmwPhevBattery
-#endif
 
 class BmwPhevBattery : public CanBattery {
  public:
@@ -15,6 +9,14 @@ class BmwPhevBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+
+  static constexpr const char* Name = "BMW PHEV Battery";
+
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { datalayer_extended.bmwphev.UserRequestDTCreset = true; }
+
+  bool supports_reset_BMS() { return true; }
+  void reset_BMS() { datalayer_extended.bmwphev.UserRequestBMSReset = true; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
@@ -29,8 +31,7 @@ class BmwPhevBattery : public CanBattery {
   static const int MAX_DISCHARGE_POWER_ALLOWED_W = 10000;
   static const int MAX_CHARGE_POWER_ALLOWED_W = 10000;
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
-  static const int RAMPDOWN_SOC =
-      9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
+  static const int MAX_DTC_COUNT = 20;  // Maximum number of DTCs to store/display
   static const int STALE_PERIOD_CONFIG =
       3600000;  //Number of milliseconds before critical values are classed as stale/stuck 1800000 = 3600 seconds / 60mins
 
@@ -38,9 +39,11 @@ class BmwPhevBattery : public CanBattery {
   void startUDSMultiFrameReception(uint16_t totalLength, uint8_t moduleID);
   bool storeUDSPayload(const uint8_t* payload, uint8_t length);
   bool isUDSMessageComplete();
+  void parseDTCResponse();
   void processCellVoltages();
   void wake_battery_via_canbus();
   uint8_t increment_alive_counter(uint8_t counter);
+  const char* getUDSRequestName(CAN_frame* frame);
 
   unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
@@ -50,6 +53,8 @@ class BmwPhevBattery : public CanBattery {
   unsigned long previousMillis1000 = 0;   // will store last time a 1000ms CAN Message was send
   unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
   unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
+  unsigned long min_cell_voltage_lastchanged = 0;
+  unsigned long max_cell_voltage_lastchanged = 0;
 
   static const int ALIVE_MAX_VALUE = 14;  // BMW CAN messages contain alive counter, goes from 0...14
 
@@ -72,22 +77,17 @@ class BmwPhevBattery : public CanBattery {
   UDS_RxContext gUDSContext;
 
   //Vehicle CAN START
-
-  CAN_frame BMWiX_0C0 = {
+  CAN_frame BMW_12F = {
       .FD = false,
       .ext_ID = false,
-      .DLC = 2,
-      .ID = 0x0C0,
-      .data = {
-          0xF0,
-          0x08}};  // Keep Alive 2 BDC>SME  200ms First byte cycles F0 > FE  second byte 08 - MINIMUM ID TO KEEP SME AWAKE
-
-  CAN_frame BMW_13E = {.FD = false,
+      .DLC = 8,
+      .ID = 0x12F,
+      .data = {0x00, 0x20, 0x86, 0x1B, 0xF1, 0x35, 0x30, 0x02}};  // CRC, counter starts at 0x20, static data
+  CAN_frame BMW_10B = {.FD = false,
                        .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x13E,
-                       .data = {0xFF, 0x31, 0xFA, 0xFA, 0xFA, 0xFA, 0x0C, 0x00}};
-
+                       .DLC = 3,
+                       .ID = 0x10B,
+                       .data = {0xCD, 0x00, 0xFC}};  // Contactor closing command
   //Vehicle CAN END
 
   //Request Data CAN START
@@ -125,6 +125,20 @@ class BmwPhevBattery : public CanBattery {
       .DLC = 5,
       .ID = 0x6F1,
       .data = {0x07, 0x03, 0x22, 0xDD, 0x7E}};  //  Pack Voltage Limits  Multi Frame
+
+  // UDS $19 ReadDTC Request (Report DTC by status mask - all DTCs)
+  CAN_frame BMWPHEV_6F1_REQUEST_READ_DTC = {.FD = false,
+                                            .ext_ID = false,
+                                            .DLC = 8,
+                                            .ID = 0x6F1,
+                                            .data = {0x07, 0x03, 0x19, 0x02, 0x0C, 0x00, 0x00, 0x00}};
+
+  // UDS $14 ClearDTC Request (Clear all DTCs)
+  CAN_frame BMWPHEV_6F1_REQUEST_CLEAR_DTC = {.FD = false,
+                                             .ext_ID = false,
+                                             .DLC = 8,
+                                             .ID = 0x6F1,
+                                             .data = {0x07, 0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00}};
 
   CAN_frame BMWPHEV_6F1_REQUEST_PAIRED_VIN = {.FD = false,
                                               .ext_ID = false,
@@ -256,14 +270,7 @@ class BmwPhevBattery : public CanBattery {
       .DLC = 8,
       .ID = 0x6F1,
       .data = {0x07, 0x04, 0x31, 0x02, 0xAD, 0x6B, 0x00, 0x00}};  // Balancing stop request
-
-  //Action Requests:
-  CAN_frame BMW_10B = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 3,
-                       .ID = 0x10B,
-                       .data = {0xCD, 0x00, 0xFC}};  // Contactor closing command?
-
+                                                                  /*
   CAN_frame BMWPHEV_6F1_CELL_SOC = {.FD = false,
                                     .ext_ID = false,
                                     .DLC = 5,
@@ -274,65 +281,78 @@ class BmwPhevBattery : public CanBattery {
                                      .DLC = 5,
                                      .ID = 0x6F1,
                                      .data = {0x07, 0x03, 0x22, 0xE5, 0xCA}};
+                                     */
   //Request Data CAN End
 
-  bool battery_awake = false;
-
   //Setup Fast UDS values to poll for
-  CAN_frame* UDS_REQUESTS_FAST[6] = {&BMWPHEV_6F1_REQUEST_CELLSUMMARY,
-                                     &BMWPHEV_6F1_REQUEST_SOC,
-                                     &BMWPHEV_6F1_REQUEST_CURRENT,
-                                     &BMWPHEV_6F1_REQUEST_VOLTAGE_LIMITS,
-                                     &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_PRECONTACTOR,
+  CAN_frame* UDS_REQUESTS_FAST[5] = {&BMWPHEV_6F1_REQUEST_CELLSUMMARY, &BMWPHEV_6F1_REQUEST_SOC,
+                                     &BMWPHEV_6F1_REQUEST_VOLTAGE_LIMITS, &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_PRECONTACTOR,
                                      &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR};
   int numFastUDSreqs =
       sizeof(UDS_REQUESTS_FAST) / sizeof(UDS_REQUESTS_FAST[0]);  //Store Number of elements in the array
 
   //Setup Slow UDS values to poll for
-  CAN_frame* UDS_REQUESTS_SLOW[8] = {&BMWPHEV_6F1_REQUEST_ISO_READING1,           &BMWPHEV_6F1_REQUEST_ISO_READING2,
-                                     &BMWPHEV_6F1_REQUEST_CURRENT_LIMITS,         &BMWPHEV_6F1_REQUEST_SOH,
-                                     &BMWPHEV_6F1_REQUEST_CELLS_INDIVIDUAL_VOLTS, &BMWPHEV_6F1_REQUEST_CELL_TEMP,
-                                     &BMWPHEV_6F1_REQUEST_BALANCING_STATUS,       &BMWPHEV_6F1_REQUEST_PAIRED_VIN};
+  CAN_frame* UDS_REQUESTS_SLOW[9] = {&BMWPHEV_6F1_REQUEST_ISO_READING1,
+                                     &BMWPHEV_6F1_REQUEST_ISO_READING2,
+                                     &BMWPHEV_6F1_REQUEST_CURRENT_LIMITS,
+                                     &BMWPHEV_6F1_REQUEST_SOH,
+                                     &BMWPHEV_6F1_REQUEST_CELLS_INDIVIDUAL_VOLTS,
+                                     &BMWPHEV_6F1_REQUEST_CELL_TEMP,
+                                     &BMWPHEV_6F1_REQUEST_BALANCING_STATUS,
+                                     &BMWPHEV_6F1_REQUEST_PAIRED_VIN,
+                                     &BMWPHEV_6F1_REQUEST_READ_DTC};
   int numSlowUDSreqs =
       sizeof(UDS_REQUESTS_SLOW) / sizeof(UDS_REQUESTS_SLOW[0]);  // Store Number of elements in the array
 
   //PHEV intermediate vars
   //#define UDS_LOG //Useful for logging multiframe handling
-  uint16_t battery_max_charge_voltage = 0;
-  int16_t battery_max_charge_amperage = 0;
-  uint16_t battery_min_discharge_voltage = 0;
-  int16_t battery_max_discharge_amperage = 0;
-
-  uint8_t startup_counter_contactor = 0;
-  uint8_t alive_counter_20ms = 0;
-  uint8_t BMW_13E_counter = 0;
 
   uint32_t battery_BEV_available_power_shortterm_charge = 0;
   uint32_t battery_BEV_available_power_shortterm_discharge = 0;
   uint32_t battery_BEV_available_power_longterm_charge = 0;
   uint32_t battery_BEV_available_power_longterm_discharge = 0;
 
+  int32_t battery_current = 0;
+
+  uint16_t battery_max_charge_voltage = 0;
+  uint16_t battery_min_discharge_voltage = 0;
   uint16_t battery_predicted_energy_charge_condition = 0;
   uint16_t battery_predicted_energy_charging_target = 0;
-
   uint16_t battery_prediction_voltage_shortterm_charge = 0;
   uint16_t battery_prediction_voltage_shortterm_discharge = 0;
   uint16_t battery_prediction_voltage_longterm_charge = 0;
   uint16_t battery_prediction_voltage_longterm_discharge = 0;
+  uint16_t battery_prediction_duration_charging_minutes = 0;
+  uint16_t battery_energy_content_maximum_kWh = 0;
+  uint16_t battery_target_voltage_in_CV_mode = 0;
+  uint16_t battery_display_SOC = 0;
+  uint16_t battery_voltage = 3700;  //Initialize as valid - should be fixed in future
+  uint16_t battery_voltage_after_contactor = 0;
+  uint16_t avg_soc_state = 5000;
+  uint16_t min_soh_state = 9999;  // Uses E5 45, also available in 78 73
+  uint16_t max_design_voltage = MAX_PACK_VOLTAGE_DV;
+  uint16_t min_design_voltage = MIN_PACK_VOLTAGE_DV;
+  uint16_t iso_safety_int_kohm = 0;  //STAT_ISOWIDERSTAND_INT_WERT
+  uint16_t iso_safety_ext_kohm = 0;  //STAT_ISOWIDERSTAND_EXT_STD_WERT
+  uint16_t iso_safety_trg_kohm = 0;
+  uint16_t iso_safety_kohm = 0;  //STAT_R_ISO_ROH_01_WERT
+
+  int16_t battery_max_discharge_amperage = 0;
+  int16_t battery_max_charge_amperage = 0;
+  int16_t battery_temperature_max = 0;
+  int16_t battery_temperature_min = 0;
+  int16_t min_cell_voltage = 3700;       //Initialize as valid - should be fixed in future
+  int16_t max_cell_voltage = 3700;       //Initialize as valid - should be fixed in future
+  int16_t allowable_charge_amps = 0;     //E5 62
+  int16_t allowable_discharge_amps = 0;  //E5 62
 
   uint8_t battery_status_service_disconnection_plug = 0;
   uint8_t battery_status_measurement_isolation = 0;
   uint8_t battery_request_abort_charging = 0;
-  uint16_t battery_prediction_duration_charging_minutes = 0;
   uint8_t battery_prediction_time_end_of_charging_minutes = 0;
-  uint16_t battery_energy_content_maximum_kWh = 0;
-
-  uint8_t battery_request_operating_mode = 0;
-  uint16_t battery_target_voltage_in_CV_mode = 0;
   uint8_t battery_request_charging_condition_minimum = 0;
   uint8_t battery_request_charging_condition_maximum = 0;
-  uint16_t battery_display_SOC = 0;
-
+  uint8_t battery_request_operating_mode = 0;
   uint8_t battery_status_error_isolation_external_Bordnetz = 0;
   uint8_t battery_status_error_isolation_internal_Bordnetz = 0;
   uint8_t battery_request_cooling = 0;
@@ -346,73 +366,24 @@ class BmwPhevBattery : public CanBattery {
   uint8_t battery_status_error_disconnecting_switch = 0;
   uint8_t battery_status_warning_isolation = 0;
   uint8_t battery_status_cold_shutoff_valve = 0;
-  int16_t battery_temperature_HV = 0;
-  int16_t battery_temperature_heat_exchanger = 0;
-  int16_t battery_temperature_max = 0;
-  int16_t battery_temperature_min = 0;
-  bool pack_limit_info_available = false;
-  bool cell_limit_info_available = false;
-
-  //iX Intermediate vars
-
-  uint32_t battery_serial_number = 0;
-  int32_t battery_current = 0;
-  int16_t battery_voltage = 3700;  //Initialize as valid - should be fixed in future
-  int16_t terminal30_12v_voltage = 0;
-  int16_t battery_voltage_after_contactor = 0;
-  int16_t min_soc_state = 5000;
-  int16_t avg_soc_state = 5000;
-  int16_t max_soc_state = 5000;
-  int16_t min_soh_state = 9999;  // Uses E5 45, also available in 78 73
-  int16_t avg_soh_state = 9999;  // Uses E5 45, also available in 78 73
-  int16_t max_soh_state = 9999;  // Uses E5 45, also available in 78 73
-  uint16_t max_design_voltage = 0;
-  uint16_t min_design_voltage = 0;
-  int32_t remaining_capacity = 0;
-  int32_t max_capacity = 0;
-
-  int16_t main_contactor_temperature = 0;
-  int16_t min_cell_voltage = 3700;  //Initialize as valid - should be fixed in future
-  int16_t max_cell_voltage = 3700;  //Initialize as valid - should be fixed in future
-  unsigned long min_cell_voltage_lastchanged = 0;
-  unsigned long max_cell_voltage_lastchanged = 0;
-  unsigned min_cell_voltage_lastreceived = 0;
-  unsigned max_cell_voltage_lastreceived = 0;
-  int16_t allowable_charge_amps = 0;     //E5 62
-  int16_t allowable_discharge_amps = 0;  //E5 62
-
-  int32_t iso_safety_int_kohm = 0;  //STAT_ISOWIDERSTAND_INT_WERT
-  int32_t iso_safety_ext_kohm = 0;  //STAT_ISOWIDERSTAND_EXT_STD_WERT
-  int32_t iso_safety_trg_kohm = 0;
-  int32_t iso_safety_ext_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_PLAUS
-  int32_t iso_safety_int_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_WERT
-  int32_t iso_safety_trg_plausible = 0;
-  int32_t iso_safety_kohm = 0;          //STAT_R_ISO_ROH_01_WERT
-  int32_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
-
-  uint8_t paired_vin[17] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //17 Byte array for paired VIN
-
-  int16_t count_full_charges = 0;  //TODO  42
-  int16_t count_charges = 0;       //TODO  42
-  int16_t hvil_status = 0;
-  int16_t voltage_qualifier_status = 0;    //0 = Valid, 1 = Invalid
-  int16_t balancing_status = 0;            //4 = not active
-  uint8_t contactors_closed = 0;           //TODO  E5 BF  or E5 51
-  uint8_t contactor_status_precharge = 0;  //TODO E5 BF
-  uint8_t contactor_status_negative = 0;   //TODO E5 BF
-  uint8_t contactor_status_positive = 0;   //TODO E5 BF
+  uint8_t battery_request_open_contactors = 0;
+  uint8_t battery_request_open_contactors_instantly = 0;
+  uint8_t battery_request_open_contactors_fast = 0;
+  uint8_t battery_charging_condition_delta = 0;
+  uint8_t startup_counter_contactor = 0;
+  uint8_t alive_counter_20ms = 0;
+  uint8_t iso_safety_ext_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_PLAUS
+  uint8_t iso_safety_int_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_WERT
+  uint8_t iso_safety_trg_plausible = 0;
+  uint8_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
+  uint8_t balancing_status = 0;         //4 = not active
   uint8_t uds_fast_req_id_counter = 0;
   uint8_t uds_slow_req_id_counter = 0;
-  uint8_t detected_number_of_cells = 96;
-  const unsigned long STALE_PERIOD =
-      STALE_PERIOD_CONFIG;  // Time in milliseconds to check for staleness (e.g., 5000 ms = 5 seconds)
-
-  byte iX_0C0_counter = 0xF0;  // Initialize to 0xF0
-
-  //End iX Intermediate vars
-
-  uint8_t current_cell_polled = 0;
+  uint8_t alive_counter_100ms = 0;
+  uint8_t paired_vin[17] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //17 Byte array for paired VIN
+  bool pack_limit_info_available = false;
+  bool battery_awake = false;
 };
 
 #endif

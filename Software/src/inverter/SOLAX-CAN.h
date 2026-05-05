@@ -1,25 +1,20 @@
 #ifndef SOLAX_CAN_H
 #define SOLAX_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 
-#ifdef SOLAX_CAN
-#define SELECTED_INVERTER_CLASS SolaxInverter
-#endif
-
 class SolaxInverter : public CanInverterProtocol {
  public:
-  void setup();
+  const char* name() override { return Name; }
+  bool setup();
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
   static constexpr const char* Name = "SolaX Triple Power LFP over CAN bus";
 
  private:
-  // Timeout in milliseconds
-  static const int SolaxTimeout = 2000;
-
+  static const uint8_t DEFAULT_NUMBER_OF_MODULES = 0;
+  static const uint8_t DEFAULT_BATTERY_TYPE = 0x51;
   //SOLAX BMS States Definition
   static const int BATTERY_ANNOUNCE = 0;
   static const int WAITING_FOR_CONTACTOR = 1;
@@ -31,8 +26,13 @@ class SolaxInverter : public CanInverterProtocol {
   uint8_t STATE = BATTERY_ANNOUNCE;
   unsigned long LastFrameTime = 0;
   uint8_t number_of_batteries = 1;
-  uint16_t capped_capacity_Wh;
-  uint16_t capped_remaining_capacity_Wh;
+
+  uint16_t configured_number_of_modules = 0;
+  uint16_t configured_battery_type = 0;
+  // If true, the integration will ignore the inverter's requests to open the
+  // battery contactors. Useful for batteries that can't open contactors on
+  // request.
+  bool configured_ignore_contactors = false;
 
   //CAN message translations from this amazing repository: https://github.com/rand12345/solax_can_bus
 

@@ -2,21 +2,32 @@
 #include <Preferences.h>
 #include <ctime>
 #include <vector>
-#include "../../../USER_SECRETS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
+#include "../../battery/Shunt.h"
+#include "../../charger/CHARGERS.h"
+#include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
+#include "../../communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
+#include "../../devboard/safety/safety.h"
+#include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../sdcard/sdcard.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
 #include "esp_task_wdt.h"
+#include "html_escape.h"
 
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
+#include <string>
+
+std::string http_username;
+std::string http_password;
+
+bool webserver_auth = false;
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -80,8 +91,8 @@ void canReplayTask(void* param) {
     }
 
     do {
-      float firstTimestamp = -1.0;
-      float lastTimestamp = 0.0;
+      float firstTimestamp = -1.0f;
+      float lastTimestamp = 0.0f;
       bool firstMessageSent = false;  // Track first message
 
       for (size_t i = 0; i < messages.size(); i++) {
@@ -147,7 +158,7 @@ void canReplayTask(void* param) {
                           (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518);
         currentFrame.ext_ID = (currentFrame.ID > 0x7F0);
 
-        transmit_can_frame(&currentFrame, datalayer.system.info.can_replay_interface);
+        transmit_can_frame_to_interface(&currentFrame, (CAN_Interface)datalayer.system.info.can_replay_interface);
       }
     } while (datalayer.system.info.loop_playback);
 
@@ -159,56 +170,57 @@ void canReplayTask(void* param) {
   vTaskDelete(NULL);
 }
 
+void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethodComposite method,
+                         std::function<void(AsyncWebServerRequest*)> handler) {
+  serv.on(uri, method, [handler](AsyncWebServerRequest* request) {
+    if (webserver_auth && !request->authenticate(http_username.c_str(), http_password.c_str())) {
+      return request->requestAuthentication();
+    }
+    handler(request);
+  });
+}
+
 void init_webserver() {
 
   server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(401); });
 
   // Route for firmware info from ota update page
-  server.on("/GetFirmwareInfo", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
+  def_route_with_auth("/GetFirmwareInfo", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "application/json", get_firmware_info_html, get_firmware_info_processor);
   });
 
   // Route for root / web page
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
+  def_route_with_auth("/", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    // Clear OTA active flag as a safeguard in case onOTAEnd() wasn't called
+    ota_active = false;
     request->send(200, "text/html", index_html, processor);
   });
 
   // Route for going to settings web page
-  server.on("/settings", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    request->send(200, "text/html", index_html, settings_processor);
+  def_route_with_auth("/settings", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    // Using make_shared to ensure lifetime for the settings object during send() lambda execution
+    auto settings = std::make_shared<BatteryEmulatorSettingsStore>(true);
+
+    request->send(200, "text/html", settings_html,
+                  [settings](const String& content) { return settings_processor(content, *settings); });
   });
 
   // Route for going to advanced battery info web page
-  server.on("/advanced", HTTP_GET, [](AsyncWebServerRequest* request) {
+  def_route_with_auth("/advanced", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/html", index_html, advanced_battery_processor);
   });
 
   // Route for going to CAN logging web page
-  server.on("/canlog", HTTP_GET, [](AsyncWebServerRequest* request) {
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", can_logger_processor());
-    request->send(response);
+  def_route_with_auth("/canlog", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send(request->beginResponse(200, "text/html", can_logger_processor()));
   });
 
   // Route for going to CAN replay web page
-  server.on("/canreplay", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
-      return request->requestAuthentication();
-    }
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", can_replay_processor());
-    request->send(response);
+  def_route_with_auth("/canreplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send(request->beginResponse(200, "text/html", can_replay_processor()));
   });
 
-  server.on("/startReplay", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
-      return request->requestAuthentication();
-    }
-
+  def_route_with_auth("/startReplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     // Prevent multiple replay tasks from being created
     if (isReplayRunning) {
       request->send(400, "text/plain", "Replay already running!");
@@ -224,18 +236,14 @@ void init_webserver() {
   });
 
   // Route for stopping the CAN replay
-  server.on("/stopReplay", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
-      return request->requestAuthentication();
-    }
-
+  def_route_with_auth("/stopReplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     datalayer.system.info.loop_playback = false;
 
     request->send(200, "text/plain", "CAN replay stopped!");
   });
 
   // Route to handle setting the CAN interface for CAN replay
-  server.on("/setCANInterface", HTTP_GET, [](AsyncWebServerRequest* request) {
+  def_route_with_auth("/setCANInterface", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("interface")) {
       String canInterface = request->getParam("interface")->value();
 
@@ -252,13 +260,13 @@ void init_webserver() {
     }
   });
 
-#if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
-  // Route for going to debug logging web page
-  server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", debug_logger_processor());
-    request->send(response);
-  });
-#endif  // DEBUG_VIA_WEB
+  if (datalayer.system.info.web_logging_active || datalayer.system.info.SD_logging_active) {
+    // Route for going to debug logging web page
+    server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      AsyncWebServerResponse* response = request->beginResponse(200, "text/html", debug_logger_processor());
+      request->send(response);
+    });
+  }
 
   // Define the handler to stop can logging
   server.on("/stop_can_logging", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -274,112 +282,102 @@ void init_webserver() {
       },
       handleFileUpload);
 
-#ifndef LOG_CAN_TO_SD
-  // Define the handler to export can log
-  server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    String logs = String(datalayer.system.info.logged_can_messages);
-    if (logs.length() == 0) {
-      logs = "No logs available.";
-    }
+  if (datalayer.system.info.CAN_SD_logging_active) {
+    // Define the handler to export can log
+    server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      pause_can_writing();
+      request->send(SD_MMC, CAN_LOG_FILE, String(), true);
+      resume_can_writing();
+    });
 
-    // Get the current time
-    time_t now = time(nullptr);
-    struct tm timeinfo;
-    localtime_r(&now, &timeinfo);
+    // Define the handler to delete can log
+    server.on("/delete_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      delete_can_log();
+      request->send(200, "text/plain", "Log file deleted");
+    });
+  } else {
+    // Define the handler to export can log
+    server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      String logs = String(datalayer.system.info.logged_can_messages);
+      if (logs.length() == 0) {
+        logs = "No logs available.";
+      }
 
-    // Ensure time retrieval was successful
-    char filename[32];
-    if (strftime(filename, sizeof(filename), "canlog_%H-%M-%S.txt", &timeinfo)) {
-      // Valid filename created
-    } else {
-      // Fallback filename if automatic timestamping failed
-      strcpy(filename, "battery_emulator_can_log.txt");
-    }
+      // Get the current time
+      time_t now = time(nullptr);
+      struct tm timeinfo;
+      localtime_r(&now, &timeinfo);
 
-    // Use request->send with dynamic headers
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
-    response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
-    request->send(response);
-  });
-#endif
+      // Ensure time retrieval was successful
+      char filename[32];
+      if (strftime(filename, sizeof(filename), "canlog_%H-%M-%S.txt", &timeinfo)) {
+        // Valid filename created
+      } else {
+        // Fallback filename if automatic timestamping failed
+        strcpy(filename, "battery_emulator_can_log.txt");
+      }
 
-#ifdef LOG_CAN_TO_SD
-  // Define the handler to export can log
-  server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    pause_can_writing();
-    request->send(SD_MMC, CAN_LOG_FILE, String(), true);
-    resume_can_writing();
-  });
+      // Use request->send with dynamic headers
+      AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
+      response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
+      request->send(response);
+    });
+  }
 
-  // Define the handler to delete can log
-  server.on("/delete_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    delete_can_log();
-    request->send(200, "text/plain", "Log file deleted");
-  });
-#endif
+  if (datalayer.system.info.SD_logging_active) {
+    // Define the handler to delete log file
+    server.on("/delete_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      delete_log();
+      request->send(200, "text/plain", "Log file deleted");
+    });
 
-#ifdef LOG_TO_SD
-  // Define the handler to delete log file
-  server.on("/delete_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    delete_log();
-    request->send(200, "text/plain", "Log file deleted");
-  });
+    // Define the handler to export debug log
+    server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      pause_log_writing();
+      request->send(SD_MMC, LOG_FILE, String(), true);
+      resume_log_writing();
+    });
+  } else {
+    // Define the handler to export debug log
+    server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+      String logs = String(datalayer.system.info.logged_can_messages);
+      if (logs.length() == 0) {
+        logs = "No logs available.";
+      }
 
-  // Define the handler to export debug log
-  server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    pause_log_writing();
-    request->send(SD_MMC, LOG_FILE, String(), true);
-    resume_log_writing();
-  });
-#endif
+      // Get the current time
+      time_t now = time(nullptr);
+      struct tm timeinfo;
+      localtime_r(&now, &timeinfo);
 
-#ifndef LOG_TO_SD
-  // Define the handler to export debug log
-  server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    String logs = String(datalayer.system.info.logged_can_messages);
-    if (logs.length() == 0) {
-      logs = "No logs available.";
-    }
+      // Ensure time retrieval was successful
+      char filename[32];
+      if (strftime(filename, sizeof(filename), "log_%H-%M-%S.txt", &timeinfo)) {
+        // Valid filename created
+      } else {
+        // Fallback filename if automatic timestamping failed
+        strcpy(filename, "battery_emulator_log.txt");
+      }
 
-    // Get the current time
-    time_t now = time(nullptr);
-    struct tm timeinfo;
-    localtime_r(&now, &timeinfo);
-
-    // Ensure time retrieval was successful
-    char filename[32];
-    if (strftime(filename, sizeof(filename), "log_%H-%M-%S.txt", &timeinfo)) {
-      // Valid filename created
-    } else {
-      // Fallback filename if automatic timestamping failed
-      strcpy(filename, "battery_emulator_log.txt");
-    }
-
-    // Use request->send with dynamic headers
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
-    response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
-    request->send(response);
-  });
-#endif
+      // Use request->send with dynamic headers
+      AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
+      response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
+      request->send(response);
+    });
+  }
 
   // Route for going to cellmonitor web page
-  server.on("/cellmonitor", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
+  def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/html", index_html, cellmonitor_processor);
   });
 
   // Route for going to event log web page
-  server.on("/events", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
+  def_route_with_auth("/events", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/html", index_html, events_processor);
   });
 
   // Route for clearing all events
-  server.on("/clearevents", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
+  def_route_with_auth("/clearevents", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     reset_all_events();
     // Send back a response that includes an instant redirect to /events
     String response = "<html><body>";
@@ -388,217 +386,219 @@ void init_webserver() {
     request->send(200, "text/html", response);
   });
 
-  struct BoolSetting {
-    const char* name;
-    bool existingValue;
-    bool newValue;
+  def_route_with_auth("/factoryReset", server, HTTP_POST, [](AsyncWebServerRequest* request) {
+    // Reset all settings to factory defaults
+    BatteryEmulatorSettingsStore settings;
+    settings.clearAll();
+
+    request->send(200, "text/html", "OK");
+  });
+
+  const char* boolSettingNames[] = {
+      "DBLBTR",       "CNTCTRL",      "CNTCTRLDBL",    "PWMCNTCTRL",  "PERBMSRESET", "SDLOGENABLED",
+      "STATICIP",     "REMBMSRESET",  "EXTPRECHARGE",  "USBENABLED",  "CANLOGUSB",   "WEBENABLED",
+      "CANFDASCAN",   "CANLOGSD",     "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC",   "HADISC",
+      "MQTTTOPICS",   "MQTTCELLV",    "INVICNT",       "GTWRHD",      "DIGITALHVIL", "PERFPROFILE",
+      "INTERLOCKREQ", "SOCESTIMATED", "PYLONOFFSET",   "PYLONORDER",  "DEYEBYD",     "NCCONTACTOR",
+      "TRIBTR",       "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",  "CTINVERT",    "LOWPASSFILTER",
   };
 
-  const char* boolSettingNames[] = {"DBLBTR", "CNTCTRL", "CNTCTRLDBL", "PWMCNTCTRL", "PERBMSRESET", "REMBMSRESET"};
+  const char* uintSettingNames[] = {
+      "BATTCVMAX",  "BATTCVMIN",   "MAXPRETIME", "MAXPREFREQ",  "WIFICHANNEL", "DCHGPOWER", "CHGPOWER",    "LOCALIP1",
+      "LOCALIP2",   "LOCALIP3",    "LOCALIP4",   "GATEWAY1",    "GATEWAY2",    "GATEWAY3",  "GATEWAY4",    "SUBNET1",
+      "SUBNET2",    "SUBNET3",     "SUBNET4",    "MQTTPORT",    "MQTTTIMEOUT", "SOFAR_ID",  "PYLONSEND",   "INVCELLS",
+      "INVMODULES", "INVCELLSPER", "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "CANFREQ",   "CANFDFREQ",   "PRECHGMS",
+      "PWMFREQ",    "PWMHOLD",     "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS",  "GTWPACK",   "LEDMODE",     "GPIOOPT1",
+      "GPIOOPT2",   "GPIOOPT3",    "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",      "CTANOM",    "CTATTEN",     "PYLONBAUD",
+      "PYLONBRAND", "DALYPWRPCT",  "DALYPWRDV",  "DALYDVSTART", "DALYPWRDEG",  "DALYPWR0C", "RAMPDOWNSOC",
+  };
 
-#ifdef COMMON_IMAGE
-  // Handles the form POST from UI to save certain settings: battery/inverter type and double battery on/off
-  server.on("/saveSettings", HTTP_POST, [boolSettingNames](AsyncWebServerRequest* request) {
-    BatteryEmulatorSettingsStore settings;
+  const char* stringSettingNames[] = {"APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
+                                      "MQTTPASSWORD", "MQTTTOPIC",  "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID"};
 
-    std::vector<BoolSetting> boolSettings;
+  // Handles the form POST from UI to save settings of the common image
+  server.on("/saveSettings", HTTP_POST,
+            [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
+              BatteryEmulatorSettingsStore settings;
 
-    for (auto& name : boolSettingNames) {
-      boolSettings.push_back({name, settings.getBool(name), false});
-    }
+              int numParams = request->params();
+              for (int i = 0; i < numParams; i++) {
+                auto p = request->getParam(i);
+                if (p->name() == "inverter") {
+                  auto type = static_cast<InverterProtocolType>(atoi(p->value().c_str()));
+                  settings.saveUInt("INVTYPE", (int)type);
+                } else if (p->name() == "INVCOMM") {
+                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                  settings.saveUInt("INVCOMM", (int)type);
+                } else if (p->name() == "battery") {
+                  auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
+                  settings.saveUInt("BATTTYPE", (int)type);
+                } else if (p->name() == "BATTCHEM") {
+                  auto type = static_cast<battery_chemistry_enum>(atoi(p->value().c_str()));
+                  settings.saveUInt("BATTCHEM", (int)type);
+                } else if (p->name() == "BATTCOMM") {
+                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                  settings.saveUInt("BATTCOMM", (int)type);
+                } else if (p->name() == "BATTPVMAX") {
+                  auto type = p->value().toFloat() * 10.0f;
+                  settings.saveUInt("BATTPVMAX", (int)type);
+                } else if (p->name() == "BATTPVMIN") {
+                  auto type = p->value().toFloat() * 10.0f;
+                  settings.saveUInt("BATTPVMIN", (int)type);
+                } else if (p->name() == "charger") {
+                  auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
+                  settings.saveUInt("CHGTYPE", (int)type);
+                } else if (p->name() == "CHGCOMM") {
+                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                  settings.saveUInt("CHGCOMM", (int)type);
+                } else if (p->name() == "EQSTOP") {
+                  auto type = static_cast<STOP_BUTTON_BEHAVIOR>(atoi(p->value().c_str()));
+                  settings.saveUInt("EQSTOP", (int)type);
+                } else if (p->name() == "BATT2COMM") {
+                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                  settings.saveUInt("BATT2COMM", (int)type);
+                } else if (p->name() == "BATT3COMM") {
+                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                  settings.saveUInt("BATT3COMM", (int)type);
+                } else if (p->name() == "shunttype") {
+                  auto type = static_cast<ShuntType>(atoi(p->value().c_str()));
+                  settings.saveUInt("SHUNTTYPE", (int)type);
+                } else if (p->name() == "SHUNTCOMM") {
+                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                  settings.saveUInt("SHUNTCOMM", (int)type);
+                } else if (p->name() == "CTOFFSET") {
+                  // allow negative offsets so save as string
+                  settings.saveString("CTOFFSET", p->value().c_str());
+                } else if (p->name() == "CTATTEN") {
+                  auto type = static_cast<adc_attenuation_t>(atoi(p->value().c_str()));
+                  settings.saveUInt("CTATTEN", (int)type);
+                } else if (p->name() == "SSID") {
+                  settings.saveString("SSID", p->value().c_str());
+                  ssid = settings.getString("SSID", "").c_str();
+                } else if (p->name() == "PASSWORD") {
+                  settings.saveString("PASSWORD", p->value().c_str());
+                  password = settings.getString("PASSWORD", "").c_str();
+                } else if (p->name() == "MQTTPUBLISHMS") {
+                  auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
+                  settings.saveUInt("MQTTPUBLISHMS", interval);
+                }
 
-    int numParams = request->params();
-    for (int i = 0; i < numParams; i++) {
-      auto p = request->getParam(i);
-      if (p->name() == "inverter") {
-        auto type = static_cast<InverterProtocolType>(atoi(p->value().c_str()));
-        settings.saveUInt("INVTYPE", (int)type);
-      } else if (p->name() == "battery") {
-        auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
-        settings.saveUInt("BATTTYPE", (int)type);
-      } else if (p->name() == "charger") {
-        auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
-        settings.saveUInt("CHGTYPE", (int)type);
-      } /*else if (p->name() == "dblbtr") {
-        newDoubleBattery = p->value() == "on";
-      } else if (p->name() == "contctrl") {
-        settings.saveBool("CNTCTRL", p->value() == "on");
-      } else if (p->name() == "contctrldbl") {
-        settings.saveBool("CNTCTRLDBL", p->value() == "on");
-      } else if (p->name() == "pwmcontctrl") {
-        settings.saveBool("PWMCNTCTRL", p->value() == "on");
-      } else if (p->name() == "PERBMSRESET") {
-        settings.saveBool("PERBMSRESET", p->value() == "on");
-      } else if (p->name() == "REMBMSRESET") {
-        settings.saveBool("REMBMSRESET", p->value() == "on");
-      }*/
+                for (auto& uintSetting : uintSettingNames) {
+                  if (p->name() == uintSetting) {
+                    auto value = atoi(p->value().c_str());
+                    settings.saveUInt(uintSetting, value);
+                  }
+                }
 
-      for (auto& boolSetting : boolSettings) {
-        if (p->name() == boolSetting.name) {
-          boolSetting.newValue = p->value() == "on";
+                for (auto& stringSetting : stringSettingNames) {
+                  if (p->name() == stringSetting) {
+                    if (settings.getString(stringSetting) != p->value()) {
+                      settings.saveString(stringSetting, p->value().c_str());
+                    }
+                  }
+                }
+              }
+
+              for (auto& boolSetting : boolSettingNames) {
+                auto p = request->getParam(boolSetting, true);
+                const bool default_value = (std::string(boolSetting) == std::string("WIFIAPENABLED"));
+                const bool value = p != nullptr && p->value() == "on";
+                if (settings.getBool(boolSetting, default_value) != value) {
+                  settings.saveBool(boolSetting, value);
+                }
+              }
+
+              settingsUpdated = settings.were_settings_updated();
+              request->redirect("/settings");
+            });
+
+  auto update_string = [](const char* route, std::function<void(String)> setter,
+                          std::function<bool(String)> validator = nullptr) {
+    def_route_with_auth(route, server, HTTP_GET, [=](AsyncWebServerRequest* request) {
+      if (request->hasParam("value")) {
+        String value = request->getParam("value")->value();
+
+        if (validator && !validator(value)) {
+          request->send(400, "text/plain", "Invalid value");
+          return;
         }
-      }
-    }
 
-    for (auto& boolSetting : boolSettings) {
-      if (boolSetting.existingValue != boolSetting.newValue) {
-        settings.saveBool(boolSetting.name, boolSetting.newValue);
-      }
-    }
-
-    settingsUpdated = true;
-    request->redirect("/settings");
-  });
-#endif
-
-  // Route for editing SSID
-  server.on("/updateSSID", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      if (value.length() <= 63) {  // Check if SSID is within the allowable length
-        ssid = value.c_str();
-        store_settings();
+        setter(value);
         request->send(200, "text/plain", "Updated successfully");
       } else {
-        request->send(400, "text/plain", "SSID must be 63 characters or less");
+        request->send(400, "text/plain", "Bad Request");
       }
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
-  });
-  // Route for editing Password
-  server.on("/updatePassword", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      if (value.length() > 8) {  // Check if password is within the allowable length
-        password = value.c_str();
-        store_settings();
-        request->send(200, "text/plain", "Updated successfully");
-      } else {
-        request->send(400, "text/plain", "Password must be atleast 8 characters");
-      }
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
-  });
+    });
+  };
+
+  auto update_string_setting = [=](const char* route, std::function<void(String)> setter,
+                                   std::function<bool(String)> validator = nullptr) {
+    update_string(
+        route,
+        [setter](String value) {
+          setter(value);
+          store_settings();
+        },
+        validator);
+  };
+
+  auto update_int_setting = [=](const char* route, std::function<void(int)> setter) {
+    update_string_setting(route, [setter](String value) { setter(value.toInt()); });
+  };
 
   // Route for editing Wh
-  server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.info.total_capacity_Wh = value.toInt();
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
-  });
+  update_int_setting("/updateBatterySize", [](int value) { datalayer.battery.info.total_capacity_Wh = value; });
 
   // Route for editing USE_SCALED_SOC
-  server.on("/updateUseScaledSOC", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.settings.soc_scaling_active = value.toInt();
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
-  });
+  update_int_setting("/updateUseScaledSOC", [](int value) { datalayer.battery.settings.soc_scaling_active = value; });
+
+  // Route for enabling recovery mode charging
+  update_int_setting("/enableRecoveryMode",
+                     [](int value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; });
 
   // Route for editing SOCMax
-  server.on("/updateSocMax", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
+  update_string_setting("/updateSocMax", [](String value) {
+    datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
   });
+
+  // Route for editing CAN ID cutoff filter
+  update_int_setting("/set_can_id_cutoff", [](int value) { user_selected_CAN_ID_cutoff_filter = value; });
 
   // Route for pause/resume Battery emulator
-  server.on("/pause", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("p")) {
-      String valueStr = request->getParam("p")->value();
-      setBatteryPause(valueStr == "true" || valueStr == "1", false);
-      request->send(200, "text/plain", "Updated successfully");
+  update_string("/pause", [](String value) { setBatteryPause(value == "true" || value == "1", false); });
+
+  // Route for equipment stop/resume
+  update_string("/equipmentStop", [](String value) {
+    if (value == "true" || value == "1") {
+      setBatteryPause(true, false, true);  //Pause battery, do not pause CAN, equipment stop on (store to flash)
     } else {
-      request->send(400, "text/plain", "Bad Request");
+      setBatteryPause(false, false, false);
     }
   });
 
-  // Route for equipment stop/resume
-  server.on("/equipmentStop", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("stop")) {
-      String valueStr = request->getParam("stop")->value();
-      if (valueStr == "true" || valueStr == "1") {
-        setBatteryPause(true, false, true);  //Pause battery, do not pause CAN, equipment stop on (store to flash)
-      } else {
-        setBatteryPause(false, false, false);
-      }
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
+  // Route for editing SOC Calibration BYD
+  update_string_setting("/editCalTargetSOC", [](String value) {
+    datalayer_extended.bydAtto3.calibrationTargetSOC = static_cast<uint16_t>(value.toFloat());
+  });
+
+  // Route for editing AH Calibration BYD
+  update_string_setting("/editCalTargetAH", [](String value) {
+    datalayer_extended.bydAtto3.calibrationTargetAH = static_cast<uint16_t>(value.toFloat());
   });
 
   // Route for editing SOCMin
-  server.on("/updateSocMin", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
+  update_string_setting("/updateSocMin", [](String value) {
+    datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
   });
 
   // Route for editing MaxChargeA
-  server.on("/updateMaxChargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.settings.max_user_set_charge_dA = static_cast<uint16_t>(value.toFloat() * 10);
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
+  update_string_setting("/updateMaxChargeA", [](String value) {
+    datalayer.battery.settings.max_user_set_charge_dA = static_cast<uint16_t>(value.toFloat() * 10);
   });
 
   // Route for editing MaxDischargeA
-  server.on("/updateMaxDischargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.settings.max_user_set_discharge_dA = static_cast<uint16_t>(value.toFloat() * 10);
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
+  update_string_setting("/updateMaxDischargeA", [](String value) {
+    datalayer.battery.settings.max_user_set_discharge_dA = static_cast<uint16_t>(value.toFloat() * 10);
   });
 
   for (const auto& cmd : battery_commands) {
@@ -606,7 +606,7 @@ void init_webserver() {
     server.on(
         route.c_str(), HTTP_PUT,
         [cmd](AsyncWebServerRequest* request) {
-          if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+          if (webserver_auth && !request->authenticate(http_username.c_str(), http_password.c_str())) {
             return request->requestAuthentication();
           }
         },
@@ -620,6 +620,9 @@ void init_webserver() {
           if (battIndex == "1") {
             batt = battery2;
           }
+          if (battIndex == "2") {
+            batt = battery3;
+          }
           if (batt) {
             cmd.action(batt);
           }
@@ -628,247 +631,92 @@ void init_webserver() {
   }
 
   // Route for editing BATTERY_USE_VOLTAGE_LIMITS
-  server.on("/updateUseVoltageLimit", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.settings.user_set_voltage_limits_active = value.toInt();
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
-  });
+  update_int_setting("/updateUseVoltageLimit",
+                     [](int value) { datalayer.battery.settings.user_set_voltage_limits_active = value; });
 
   // Route for editing MaxChargeVoltage
-  server.on("/updateMaxChargeVoltage", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.settings.max_user_set_charge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
+  update_string_setting("/updateMaxChargeVoltage", [](String value) {
+    datalayer.battery.settings.max_user_set_charge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
   });
 
   // Route for editing MaxDischargeVoltage
-  server.on("/updateMaxDischargeVoltage", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.settings.max_user_set_discharge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
+  update_string_setting("/updateMaxDischargeVoltage", [](String value) {
+    datalayer.battery.settings.max_user_set_discharge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
+  });
+
+  // Route for editing BMSresetDuration
+  update_string_setting("/updateBMSresetDuration", [](String value) {
+    datalayer.battery.settings.user_set_bms_reset_duration_ms = static_cast<uint16_t>(value.toFloat() * 1000);
   });
 
   // Route for editing FakeBatteryVoltage
-  server.on("/updateFakeBatteryVoltage", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (!request->hasParam("value")) {
-      request->send(400, "text/plain", "Bad Request");
-    }
-
-    String value = request->getParam("value")->value();
-    float val = value.toFloat();
-
-    battery->set_fake_voltage(val);
-
-    request->send(200, "text/plain", "Updated successfully");
-  });
+  update_string_setting("/updateFakeBatteryVoltage", [](String value) { battery->set_fake_voltage(value.toFloat()); });
 
   // Route for editing balancing enabled
-  server.on("/TeslaBalAct", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.settings.user_requests_balancing = value.toInt();
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
-  });
+  update_int_setting("/TeslaBalAct", [](int value) { datalayer.battery.settings.user_requests_balancing = value; });
 
   // Route for editing balancing max time
-  server.on("/BalTime", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.settings.balancing_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
+  update_string_setting("/BalTime", [](String value) {
+    datalayer.battery.settings.balancing_max_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);
   });
 
   // Route for editing balancing max power
-  server.on("/BalFloatPower", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.settings.balancing_float_power_W = static_cast<uint16_t>(value.toFloat());
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
+  update_string_setting("/BalFloatPower", [](String value) {
+    datalayer.battery.settings.balancing_float_power_W = static_cast<uint16_t>(value.toFloat());
   });
 
   // Route for editing balancing max pack voltage
-  server.on("/BalMaxPackV", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.settings.balancing_max_pack_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
+  update_string_setting("/BalMaxPackV", [](String value) {
+    datalayer.battery.settings.balancing_max_pack_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
   });
 
   // Route for editing balancing max cell voltage
-  server.on("/BalMaxCellV", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.settings.balancing_max_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
+  update_string_setting("/BalMaxCellV", [](String value) {
+    datalayer.battery.settings.balancing_max_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
   });
 
   // Route for editing balancing max cell voltage deviation
-  server.on("/BalMaxDevCellV", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
-      store_settings();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
+  update_string_setting("/BalMaxDevCellV", [](String value) {
+    datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
   });
 
   if (charger) {
     // Route for editing ChargerTargetV
-    server.on("/updateChargeSetpointV", HTTP_GET, [](AsyncWebServerRequest* request) {
-      if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-        return request->requestAuthentication();
-      if (!request->hasParam("value")) {
-        request->send(400, "text/plain", "Bad Request");
-      }
-
-      String value = request->getParam("value")->value();
-      float val = value.toFloat();
-
-      if (!(val <= CHARGER_MAX_HV && val >= CHARGER_MIN_HV)) {
-        request->send(400, "text/plain", "Bad Request");
-      }
-
-      if (!(val * datalayer.charger.charger_setpoint_HV_IDC <= CHARGER_MAX_POWER)) {
-        request->send(400, "text/plain", "Bad Request");
-      }
-
-      datalayer.charger.charger_setpoint_HV_VDC = val;
-
-      request->send(200, "text/plain", "Updated successfully");
-    });
+    update_string_setting(
+        "/updateChargeSetpointV", [](String value) { datalayer.charger.charger_setpoint_HV_VDC = value.toFloat(); },
+        [](String value) {
+          float val = value.toFloat();
+          return (val <= CHARGER_MAX_HV && val >= CHARGER_MIN_HV);
+        });
 
     // Route for editing ChargerTargetA
-    server.on("/updateChargeSetpointA", HTTP_GET, [](AsyncWebServerRequest* request) {
-      if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-        return request->requestAuthentication();
-      if (!request->hasParam("value")) {
-        request->send(400, "text/plain", "Bad Request");
-      }
-
-      String value = request->getParam("value")->value();
-      float val = value.toFloat();
-
-      if (!(val <= datalayer.battery.settings.max_user_set_charge_dA && val <= CHARGER_MAX_A)) {
-        request->send(400, "text/plain", "Bad Request");
-      }
-
-      if (!(val * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER)) {
-        request->send(400, "text/plain", "Bad Request");
-      }
-
-      datalayer.charger.charger_setpoint_HV_IDC = value.toFloat();
-
-      request->send(200, "text/plain", "Updated successfully");
-    });
+    update_string_setting(
+        "/updateChargeSetpointA", [](String value) { datalayer.charger.charger_setpoint_HV_IDC = value.toFloat(); },
+        [](String value) {
+          float val = value.toFloat();
+          return (val <= CHARGER_MAX_A) && (val <= datalayer.battery.settings.max_user_set_charge_dA) &&
+                 (val * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER);
+        });
 
     // Route for editing ChargerEndA
-    server.on("/updateChargeEndA", HTTP_GET, [](AsyncWebServerRequest* request) {
-      if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-        return request->requestAuthentication();
-      if (request->hasParam("value")) {
-        String value = request->getParam("value")->value();
-        datalayer.charger.charger_setpoint_HV_IDC_END = value.toFloat();
-        request->send(200, "text/plain", "Updated successfully");
-      } else {
-        request->send(400, "text/plain", "Bad Request");
-      }
-    });
+    update_string_setting("/updateChargeEndA",
+                          [](String value) { datalayer.charger.charger_setpoint_HV_IDC_END = value.toFloat(); });
 
     // Route for enabling/disabling HV charger
-    server.on("/updateChargerHvEnabled", HTTP_GET, [](AsyncWebServerRequest* request) {
-      if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-        return request->requestAuthentication();
-      if (request->hasParam("value")) {
-        String value = request->getParam("value")->value();
-        datalayer.charger.charger_HV_enabled = (bool)value.toInt();
-        request->send(200, "text/plain", "Updated successfully");
-      } else {
-        request->send(400, "text/plain", "Bad Request");
-      }
-    });
+    update_int_setting("/updateChargerHvEnabled",
+                       [](int value) { datalayer.charger.charger_HV_enabled = (bool)value; });
 
     // Route for enabling/disabling aux12v charger
-    server.on("/updateChargerAux12vEnabled", HTTP_GET, [](AsyncWebServerRequest* request) {
-      if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-        return request->requestAuthentication();
-      if (request->hasParam("value")) {
-        String value = request->getParam("value")->value();
-        datalayer.charger.charger_aux12V_enabled = (bool)value.toInt();
-        request->send(200, "text/plain", "Updated successfully");
-      } else {
-        request->send(400, "text/plain", "Bad Request");
-      }
-    });
+    update_int_setting("/updateChargerAux12vEnabled",
+                       [](int value) { datalayer.charger.charger_aux12V_enabled = (bool)value; });
   }
 
   // Send a GET request to <ESP_IP>/update
-  server.on("/debug", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    request->send(200, "text/plain", "Debug: all OK.");
-  });
+  def_route_with_auth("/debug", server, HTTP_GET,
+                      [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });
 
   // Route to handle reboot command
-  server.on("/reboot", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
+  def_route_with_auth("/reboot", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/plain", "Rebooting server...");
 
     //Equipment STOP without persisting the equipment state before restart
@@ -909,6 +757,9 @@ String getConnectResultString(wl_status_t status) {
 }
 
 void ota_monitor() {
+
+  ElegantOTA.loop();
+
   if (ota_active && ota_timeout_timer.elapsed()) {
     // OTA timeout, try to restore can and clear the update event
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
@@ -929,24 +780,34 @@ String get_firmware_info_processor(const String& var) {
   if (var == "X") {
     String content = "";
     static JsonDocument doc;
-#ifdef HW_LILYGO
-    doc["hardware"] = "LilyGo T-CAN485";
-#endif  // HW_LILYGO
-#ifdef HW_STARK
-    doc["hardware"] = "Stark CMR Module";
-#endif  // HW_STARK
-#ifdef HW_3LB
-    doc["hardware"] = "3LB board";
-#endif  // HW_3LB
-#ifdef HW_DEVKIT
-    doc["hardware"] = "ESP32 DevKit V1";
-#endif  // HW_DEVKIT
 
+    doc["hardware"] = esp32hal->name();
     doc["firmware"] = String(version_number);
     serializeJson(doc, content);
     return content;
   }
   return String();
+}
+
+String get_uptime() {
+  uint64_t milliseconds;
+  uint32_t remaining_seconds_in_day;
+  uint32_t remaining_seconds;
+  uint32_t remaining_minutes;
+  uint32_t remaining_hours;
+  uint16_t total_days;
+
+  milliseconds = millis64();
+
+  //convert passed millis to days, hours, minutes, seconds
+  total_days = milliseconds / (1000 * 60 * 60 * 24);
+  remaining_seconds_in_day = (milliseconds / 1000) % (60 * 60 * 24);
+  remaining_hours = remaining_seconds_in_day / (60 * 60);
+  remaining_minutes = (remaining_seconds_in_day % (60 * 60)) / 60;
+  remaining_seconds = remaining_seconds_in_day % 60;
+
+  return (String)total_days + " days, " + (String)remaining_hours + " hours, " + (String)remaining_minutes +
+         " minutes, " + (String)remaining_seconds + " seconds";
 }
 
 String processor(const String& var) {
@@ -960,55 +821,88 @@ String processor(const String& var) {
     content += "button:hover { background-color: #3A4A52; }";
     content += "h2 { font-size: 1.2em; margin: 0.3em 0 0.5em 0; }";
     content += "h4 { margin: 0.6em 0; line-height: 1.2; }";
+    //content += ".tooltip { position: relative; display: inline-block; }";
+    content += ".tooltip .tooltiptext {";
+    content += "  visibility: hidden;";
+    content += "  width: 200px;";
+    content += "  background-color: #3A4A52;";  // Matching your button hover color
+    content += "  color: white;";
+    content += "  text-align: center;";
+    content += "  border-radius: 6px;";
+    content += "  padding: 8px;";
+    content += "  position: absolute;";
+    content += "  z-index: 1;";
+    content += "  margin-left: -100px;";
+    content += "  opacity: 0;";
+    content += "  transition: opacity 0.3s;";
+    content += "  font-size: 0.9em;";
+    content += "  font-weight: normal;";
+    content += "  line-height: 1.4;";
+    content += "}";
+    content += ".tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }";
+    content += ".tooltip-icon { color: #505E67; cursor: help; }";  // Matching your button color
     content += "</style>";
 
     // Compact header
-    content += "<h2>" + String(ssidAP) + "</h2>";
+    content += "<h2>Battery Emulator</h2>";
 
     // Start content block
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
     content += "<h4>Software: " + String(version_number);
 
-#ifdef COMMON_IMAGE
-    content += " (Common image) ";
-#endif
 // Show hardware used:
 #ifdef HW_LILYGO
     content += " Hardware: LilyGo T-CAN485";
 #endif  // HW_LILYGO
+#ifdef HW_LILYGO2CAN
+    content += " Hardware: LilyGo T_2CAN";
+#endif  // HW_LILYGO2CAN
+#ifdef HW_BECOM
+    content += " Hardware: BECom";
+#endif  // HW_BECOM
 #ifdef HW_STARK
     content += " Hardware: Stark CMR Module";
 #endif  // HW_STARK
     content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
-    content += "<h4>Uptime: " + uptime_formatter::getUptime() + "</h4>";
-#ifdef FUNCTION_TIME_MEASUREMENT
-    // Load information
-    content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
-    content += "<h4>Core task max load last 10 s: " + String(datalayer.system.status.core_task_10s_max_us) + " us</h4>";
-    content +=
-        "<h4>MQTT function (MQTT task) max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) +
-        " us</h4>";
-    content +=
-        "<h4>WIFI function (MQTT task) max load last 10 s: " + String(datalayer.system.status.wifi_task_10s_max_us) +
-        " us</h4>";
-    content += "<h4>Max load @ worst case execution of core task:</h4>";
-    content += "<h4>10ms function timing: " + String(datalayer.system.status.time_snap_10ms_us) + " us</h4>";
-    content += "<h4>Values function timing: " + String(datalayer.system.status.time_snap_values_us) + " us</h4>";
-    content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
-    content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
-    content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
-#endif  // FUNCTION_TIME_MEASUREMENT
+    content += "<h4>Uptime: " + get_uptime() + "</h4>";
+    if (datalayer.system.info.performance_measurement_active) {
+      content +=
+          "<h4>Free heap: " + String(ESP.getFreeHeap()) + ", max alloc: " + String(ESP.getMaxAllocHeap()) + "</h4>";
+      FlashMode_t mode = ESP.getFlashChipMode();
+      content += "<h4>Flash mode: " +
+                 String(mode == FM_QIO    ? "QIO"
+                        : mode == FM_QOUT ? "QOUT"
+                        : mode == FM_DIO  ? "DIO"
+                        : mode == FM_DOUT ? "DOUT"
+                                          : /*mode == FM_UNKNOWN*/ "Unknown") +
+                 ", size: " + String(ESP.getFlashChipSize() / (1024 * 1024)) + " MB</h4>";
+      // Load information
+      content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
+      content +=
+          "<h4>Core task max load last 10 s: " + String(datalayer.system.status.core_task_10s_max_us) + " us</h4>";
+      content +=
+          "<h4>MQTT function (MQTT task) max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) +
+          " us</h4>";
+      content +=
+          "<h4>WIFI function (MQTT task) max load last 10 s: " + String(datalayer.system.status.wifi_task_10s_max_us) +
+          " us</h4>";
+      content += "<h4>Max load @ worst case execution of core task:</h4>";
+      content += "<h4>10ms function timing: " + String(datalayer.system.status.time_snap_10ms_us) + " us</h4>";
+      content += "<h4>Values function timing: " + String(datalayer.system.status.time_snap_values_us) + " us</h4>";
+      content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
+      content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
+    }
 
     wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
-    content += "<h4>SSID: " + String(ssid.c_str());
+    content += "<h4>SSID: " + html_escape(ssid.c_str());
     if (status == WL_CONNECTED) {
       // Get and display the signal strength (RSSI) and channel
       content += " RSSI:" + String(WiFi.RSSI()) + " dBm Ch: " + String(WiFi.channel());
     }
     content += "</h4>";
     if (status == WL_CONNECTED) {
-      content += "<h4>Hostname: " + String(WiFi.getHostname()) + "</h4>";
+      content += "<h4>Hostname: " + html_escape(WiFi.getHostname()) + "</h4>";
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
     } else {
       content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
@@ -1016,14 +910,14 @@ String processor(const String& var) {
     // Close the block
     content += "</div>";
 
-    if (inverter || battery || shunt || charger) {
+    if (inverter || battery || charger || user_selected_shunt_type != ShuntType::None) {
       // Start a new block with a specific background color
       content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
 
       // Display which components are used
       if (inverter) {
         content += "<h4 style='color: white;'>Inverter protocol: ";
-        content += datalayer.system.info.inverter_protocol;
+        content += inverter->name();
         content += " ";
         content += datalayer.system.info.inverter_brand;
         content += "</h4>";
@@ -1032,7 +926,9 @@ String processor(const String& var) {
       if (battery) {
         content += "<h4 style='color: white;'>Battery protocol: ";
         content += datalayer.system.info.battery_protocol;
-        if (battery2) {
+        if (battery3) {
+          content += " (Triple battery)";
+        } else if (battery2) {
           content += " (Double battery)";
         }
         if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
@@ -1041,7 +937,7 @@ String processor(const String& var) {
         content += "</h4>";
       }
 
-      if (shunt) {
+      if (user_selected_shunt_type != ShuntType::None) {
         content += "<h4 style='color: white;'>Shunt protocol: ";
         content += datalayer.system.info.shunt_protocol;
         content += "</h4>";
@@ -1067,21 +963,18 @@ String processor(const String& var) {
         content += "<div style='background-color: ";
       }
 
-      switch (led_get_color()) {
-        case led_color::GREEN:
+      switch (get_emulator_status()) {
+        case EMULATOR_STATUS::STATUS_OK:
           content += "#2D3F2F;";
           break;
-        case led_color::YELLOW:
+        case EMULATOR_STATUS::STATUS_WARNING:
           content += "#F5CC00;";
           break;
-        case led_color::BLUE:
-          content += "#2B35AF;";  // Blue in test mode
-          break;
-        case led_color::RED:
+        case EMULATOR_STATUS::STATUS_ERROR:
           content += "#A70107;";
           break;
-        default:  // Some new color, make background green
-          content += "#2D3F2F;";
+        case EMULATOR_STATUS::STATUS_UPDATING:
+          content += "#2B35AF;";  // Blue in test mode
           break;
       }
 
@@ -1090,22 +983,22 @@ String processor(const String& var) {
 
       // Display battery statistics within this block
       float socRealFloat =
-          static_cast<float>(datalayer.battery.status.real_soc) / 100.0;  // Convert to float and divide by 100
+          static_cast<float>(datalayer.battery.status.real_soc) / 100.0f;  // Convert to float and divide by 100
       float socScaledFloat =
-          static_cast<float>(datalayer.battery.status.reported_soc) / 100.0;  // Convert to float and divide by 100
+          static_cast<float>(datalayer.battery.status.reported_soc) / 100.0f;  // Convert to float and divide by 100
       float sohFloat =
-          static_cast<float>(datalayer.battery.status.soh_pptt) / 100.0;  // Convert to float and divide by 100
+          static_cast<float>(datalayer.battery.status.soh_pptt) / 100.0f;  // Convert to float and divide by 100
       float voltageFloat =
-          static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0;  // Convert to float and divide by 10
+          static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0f;  // Convert to float and divide by 10
       float currentFloat =
-          static_cast<float>(datalayer.battery.status.current_dA) / 10.0;  // Convert to float and divide by 10
-      float powerFloat = static_cast<float>(datalayer.battery.status.active_power_W);               // Convert to float
-      float tempMaxFloat = static_cast<float>(datalayer.battery.status.temperature_max_dC) / 10.0;  // Convert to float
-      float tempMinFloat = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0;  // Convert to float
+          static_cast<float>(datalayer.battery.status.current_dA) / 10.0f;  // Convert to float and divide by 10
+      float powerFloat = static_cast<float>(datalayer.battery.status.active_power_W);                // Convert to float
+      float tempMaxFloat = static_cast<float>(datalayer.battery.status.temperature_max_dC) / 10.0f;  // Convert to float
+      float tempMinFloat = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0f;  // Convert to float
       float maxCurrentChargeFloat =
-          static_cast<float>(datalayer.battery.status.max_charge_current_dA) / 10.0;  // Convert to float
+          static_cast<float>(datalayer.battery.status.max_charge_current_dA) / 10.0f;  // Convert to float
       float maxCurrentDischargeFloat =
-          static_cast<float>(datalayer.battery.status.max_discharge_current_dA) / 10.0;  // Convert to float
+          static_cast<float>(datalayer.battery.status.max_discharge_current_dA) / 10.0f;  // Convert to float
       uint16_t cell_delta_mv =
           datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
 
@@ -1134,7 +1027,7 @@ String processor(const String& var) {
       else
         content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
 
-      if (datalayer.system.settings.equipment_stop_active) {
+      if (datalayer.system.info.equipment_stop_active) {
         content +=
             formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1, "red");
         content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1, "red");
@@ -1144,13 +1037,17 @@ String processor(const String& var) {
         content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
         content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
         content += "<h4 style='color: white;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A";
-        if (datalayer.battery.settings.user_settings_limit_discharge) {
+        if (datalayer.battery.settings.remote_settings_limit_discharge) {
+          content += " (Remote)</h4>";
+        } else if (datalayer.battery.settings.user_settings_limit_discharge) {
           content += " (Manual)</h4>";
         } else {
           content += " (BMS)</h4>";
         }
         content += "<h4 style='color: white;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A";
-        if (datalayer.battery.settings.user_settings_limit_charge) {
+        if (datalayer.battery.settings.remote_settings_limit_charge) {
+          content += " (Remote)</h4>";
+        } else if (datalayer.battery.settings.user_settings_limit_charge) {
           content += " (Manual)</h4>";
         } else {
           content += " (BMS)</h4>";
@@ -1166,29 +1063,6 @@ String processor(const String& var) {
       }
       content += "<h4>Temperature min/max: " + String(tempMinFloat, 1) + " &deg;C / " + String(tempMaxFloat, 1) +
                  " &deg;C</h4>";
-
-      content += "<h4>System status: ";
-      switch (datalayer.battery.status.bms_status) {
-        case ACTIVE:
-          content += String("OK");
-          break;
-        case UPDATING:
-          content += String("UPDATING");
-          break;
-        case FAULT:
-          content += String("FAULT");
-          break;
-        case INACTIVE:
-          content += String("INACTIVE");
-          break;
-        case STANDBY:
-          content += String("STANDBY");
-          break;
-        default:
-          content += String("??");
-          break;
-      }
-      content += "</h4>";
 
       if (battery && battery->supports_real_BMS_status()) {
         content += "<h4>Battery BMS status: ";
@@ -1239,55 +1113,29 @@ String processor(const String& var) {
         }
       }
 
-      content += "<h4>Battery allows contactor closing: ";
-      if (datalayer.system.status.battery_allows_contactor_closing == true) {
-        content += "<span>&#10003;</span>";
-      } else {
-        content += "<span style='color: red;'>&#10005;</span>";
+      content += "<h4>System status: ";
+      switch (datalayer.battery.status.bms_status) {
+        case ACTIVE:
+          content += String("OK");
+          break;
+        case UPDATING:
+          content += String("UPDATING");
+          break;
+        case FAULT:
+          content += String("FAULT ");
+          content += "<button onclick='Events()'>Inspect reason</button> ";
+          break;
+        case INACTIVE:
+          content += String("INACTIVE");
+          break;
+        case STANDBY:
+          content += String("STANDBY");
+          break;
+        default:
+          content += String("??");
+          break;
       }
-
-      content += " Inverter allows contactor closing: ";
-      if (datalayer.system.status.inverter_allows_contactor_closing == true) {
-        content += "<span>&#10003;</span></h4>";
-      } else {
-        content += "<span style='color: red;'>&#10005;</span></h4>";
-      }
-      if (emulator_pause_status == NORMAL)
-        content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
-      else
-        content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
-
-      if (contactor_control_enabled) {
-        content += "<h4>Contactors controlled by emulator, state: ";
-        if (datalayer.system.status.contactors_engaged) {
-          content += "<span style='color: green;'>ON</span>";
-        } else {
-          content += "<span style='color: red;'>OFF</span>";
-        }
-        content += "</h4>";
-        if (contactor_control_enabled_double_battery) {
-          if (pwm_contactor_control) {
-            content += "<h4>Cont. Neg.: ";
-            if (datalayer.system.status.contactors_battery2_engaged) {
-              content += "<span style='color: green;'>Economized</span>";
-              content += " Cont. Pos.: ";
-              content += "<span style='color: green;'>Economized</span>";
-            } else {
-              content += "<span style='color: red;'>&#10005;</span>";
-              content += " Cont. Pos.: ";
-              content += "<span style='color: red;'>&#10005;</span>";
-            }
-          } else {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
-            content += "<h4>Cont. Neg.: ";
-            if (digitalRead(SECOND_BATTERY_CONTACTORS_PIN) == HIGH) {
-              content += "<span style='color: green;'>&#10003;</span>";
-            } else {
-              content += "<span style='color: red;'>&#10005;</span>";
-            }
-          }  //no PWM_CONTACTOR_CONTROL
-          content += "</h4>";
-        }
-      }
+      content += "</h4>";
 
       // Close the block
       content += "</div>";
@@ -1310,17 +1158,17 @@ String processor(const String& var) {
 
         // Display battery statistics within this block
         socRealFloat =
-            static_cast<float>(datalayer.battery2.status.real_soc) / 100.0;  // Convert to float and divide by 100
+            static_cast<float>(datalayer.battery2.status.real_soc) / 100.0f;  // Convert to float and divide by 100
         //socScaledFloat; // Same value used for bat2
         sohFloat =
-            static_cast<float>(datalayer.battery2.status.soh_pptt) / 100.0;  // Convert to float and divide by 100
+            static_cast<float>(datalayer.battery2.status.soh_pptt) / 100.0f;  // Convert to float and divide by 100
         voltageFloat =
-            static_cast<float>(datalayer.battery2.status.voltage_dV) / 10.0;  // Convert to float and divide by 10
+            static_cast<float>(datalayer.battery2.status.voltage_dV) / 10.0f;  // Convert to float and divide by 10
         currentFloat =
-            static_cast<float>(datalayer.battery2.status.current_dA) / 10.0;        // Convert to float and divide by 10
+            static_cast<float>(datalayer.battery2.status.current_dA) / 10.0f;       // Convert to float and divide by 10
         powerFloat = static_cast<float>(datalayer.battery2.status.active_power_W);  // Convert to float
-        tempMaxFloat = static_cast<float>(datalayer.battery2.status.temperature_max_dC) / 10.0;  // Convert to float
-        tempMinFloat = static_cast<float>(datalayer.battery2.status.temperature_min_dC) / 10.0;  // Convert to float
+        tempMaxFloat = static_cast<float>(datalayer.battery2.status.temperature_max_dC) / 10.0f;  // Convert to float
+        tempMinFloat = static_cast<float>(datalayer.battery2.status.temperature_min_dC) / 10.0f;  // Convert to float
         cell_delta_mv = datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV;
 
         if (datalayer.battery.settings.soc_scaling_active)
@@ -1348,7 +1196,7 @@ String processor(const String& var) {
         else
           content += formatPowerValue("Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
 
-        if (datalayer.system.settings.equipment_stop_active) {
+        if (datalayer.system.info.equipment_stop_active) {
           content +=
               formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1, "red");
           content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1, "red");
@@ -1372,13 +1220,6 @@ String processor(const String& var) {
         }
         content += "<h4>Temperature min/max: " + String(tempMinFloat, 1) + " &deg;C / " + String(tempMaxFloat, 1) +
                    " &deg;C</h4>";
-        if (datalayer.battery.status.bms_status == ACTIVE) {
-          content += "<h4>System status: OK </h4>";
-        } else if (datalayer.battery.status.bms_status == UPDATING) {
-          content += "<h4>System status: UPDATING </h4>";
-        } else {
-          content += "<h4>System status: FAULT </h4>";
-        }
         if (datalayer.battery2.status.current_dA == 0) {
           content += "<h4>Battery idle</h4>";
         } else if (datalayer.battery2.status.current_dA < 0) {
@@ -1386,71 +1227,178 @@ String processor(const String& var) {
         } else {  // > 0
           content += "<h4>Battery charging!</h4>";
         }
+        content += "</div>";
+        if (battery3) {
+          content += "<div style='flex: 1; background-color: ";
+          switch (datalayer.battery.status.bms_status) {
+            case ACTIVE:
+              content += "#2D3F2F;";
+              break;
+            case FAULT:
+              content += "#A70107;";
+              break;
+            default:
+              content += "#2D3F2F;";
+              break;
+          }
+          // Add the common style properties
+          content += "padding: 10px; margin-bottom: 10px; border-radius: 50px;'>";
 
-        content += "<h4>Automatic contactor closing allowed:</h4>";
-        content += "<h4>Battery: ";
-        if (datalayer.system.status.battery2_allowed_contactor_closing == true) {
-          content += "<span>&#10003;</span>";
-        } else {
-          content += "<span style='color: red;'>&#10005;</span>";
+          // Display battery statistics within this block
+          socRealFloat =
+              static_cast<float>(datalayer.battery3.status.real_soc) / 100.0f;  // Convert to float and divide by 100
+          //socScaledFloat; // Same value used for bat2
+          sohFloat =
+              static_cast<float>(datalayer.battery3.status.soh_pptt) / 100.0f;  // Convert to float and divide by 100
+          voltageFloat =
+              static_cast<float>(datalayer.battery3.status.voltage_dV) / 10.0f;  // Convert to float and divide by 10
+          currentFloat =
+              static_cast<float>(datalayer.battery3.status.current_dA) / 10.0f;  // Convert to float and divide by 10
+          powerFloat = static_cast<float>(datalayer.battery3.status.active_power_W);                // Convert to float
+          tempMaxFloat = static_cast<float>(datalayer.battery3.status.temperature_max_dC) / 10.0f;  // Convert to float
+          tempMinFloat = static_cast<float>(datalayer.battery3.status.temperature_min_dC) / 10.0f;  // Convert to float
+          cell_delta_mv = datalayer.battery3.status.cell_max_voltage_mV - datalayer.battery3.status.cell_min_voltage_mV;
+
+          if (datalayer.battery.settings.soc_scaling_active)
+            content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) +
+                       "&percnt; (real: " + String(socRealFloat, 2) + "&percnt;)</h4>";
+          else
+            content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
+
+          content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
+          content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) +
+                     " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
+          content += formatPowerValue("Power", powerFloat, "", 1);
+
+          if (datalayer.battery.settings.soc_scaling_active)
+            content += "<h4 style='color: white;'>Scaled total capacity: " +
+                       formatPowerValue(datalayer.battery3.info.reported_total_capacity_Wh, "h", 1) +
+                       " (real: " + formatPowerValue(datalayer.battery3.info.total_capacity_Wh, "h", 1) + ")</h4>";
+          else
+            content += formatPowerValue("Total capacity", datalayer.battery3.info.total_capacity_Wh, "h", 1);
+
+          if (datalayer.battery.settings.soc_scaling_active)
+            content += "<h4 style='color: white;'>Scaled remaining capacity: " +
+                       formatPowerValue(datalayer.battery3.status.reported_remaining_capacity_Wh, "h", 1) +
+                       " (real: " + formatPowerValue(datalayer.battery3.status.remaining_capacity_Wh, "h", 1) +
+                       ")</h4>";
+          else
+            content += formatPowerValue("Remaining capacity", datalayer.battery3.status.remaining_capacity_Wh, "h", 1);
+
+          if (datalayer.system.info.equipment_stop_active) {
+            content +=
+                formatPowerValue("Max discharge power", datalayer.battery3.status.max_discharge_power_W, "", 1, "red");
+            content += formatPowerValue("Max charge power", datalayer.battery3.status.max_charge_power_W, "", 1, "red");
+            content +=
+                "<h4 style='color: red;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+            content += "<h4 style='color: red;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
+          } else {
+            content += formatPowerValue("Max discharge power", datalayer.battery3.status.max_discharge_power_W, "", 1);
+            content += formatPowerValue("Max charge power", datalayer.battery3.status.max_charge_power_W, "", 1);
+            content +=
+                "<h4 style='color: white;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+            content += "<h4 style='color: white;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
+          }
+
+          content += "<h4>Cell min/max: " + String(datalayer.battery3.status.cell_min_voltage_mV) + " mV / " +
+                     String(datalayer.battery3.status.cell_max_voltage_mV) + " mV</h4>";
+          if (cell_delta_mv > datalayer.battery3.info.max_cell_voltage_deviation_mV) {
+            content += "<h4 style='color: red;'>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+          } else {
+            content += "<h4>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+          }
+          content += "<h4>Temperature min/max: " + String(tempMinFloat, 1) + " &deg;C / " + String(tempMaxFloat, 1) +
+                     " &deg;C</h4>";
+          if (datalayer.battery3.status.current_dA == 0) {
+            content += "<h4>Battery idle</h4>";
+          } else if (datalayer.battery3.status.current_dA < 0) {
+            content += "<h4>Battery discharging!</h4>";
+          } else {  // > 0
+            content += "<h4>Battery charging!</h4>";
+          }
+          content += "</div>";
+          content += "</div>";
         }
+        content += "</div>";
+      }
+    }
+    // Block for Contactor status and component request status
+    // Start a new block with gray background color
+    content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
-        content += " Inverter: ";
-        if (datalayer.system.status.inverter_allows_contactor_closing == true) {
-          content += "<span>&#10003;</span></h4>";
-        } else {
-          content += "<span style='color: red;'>&#10005;</span></h4>";
-        }
+    if (emulator_pause_status == NORMAL) {
+      content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    } else {
+      content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    }
 
-        if (emulator_pause_status == NORMAL)
-          content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
-        else
-          content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    content += "<h4>Emulator allows contactor closing: ";
+    if (datalayer.battery.status.bms_status == FAULT) {
+      content += "<span style='color: red;'>&#10005;</span>";
+    } else {
+      content += "<span>&#10003;</span>";
+    }
+    content += " Inverter allows contactor closing: ";
+    if (datalayer.system.status.inverter_allows_contactor_closing == true) {
+      content += "<span>&#10003;</span></h4>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span></h4>";
+    }
+    if (battery2) {
+      content += "<h4>Secondary battery allowed to join ";
+      if (datalayer.system.status.battery2_allowed_contactor_closing == true) {
+        content += "<span>&#10003;</span>";
+      } else {
+        content += "<span style='color: red;'>&#10005; (voltage mismatch)</span>";
+      }
+    }
 
-        if (contactor_control_enabled) {
-          content += "<h4>Contactors controlled by emulator, state: ";
+    if (!contactor_control_enabled) {
+      content += "<div class=\"tooltip\">";
+      content += "<h4>Contactors not fully controlled via emulator <span style=\"color:orange\">[?]</span></h4>";
+      content +=
+          "<span class=\"tooltiptext\">This means you are either running CAN controlled contactors OR manually "
+          "powering the contactors. Battery-Emulator will have limited amount of control over the contactors!</span>";
+      content += "</div>";
+    } else {  //contactor_control_enabled TRUE
+      content += "<div class=\"tooltip\"><h4>Contactors controlled by emulator, state: ";
+      if (datalayer.system.status.contactors_engaged == 0) {
+        content += "<span style='color: red;'>OFF (DISCONNECTED)</span>";
+      } else if (datalayer.system.status.contactors_engaged == 1) {
+        content += "<span style='color: green;'>ON</span>";
+      } else if (datalayer.system.status.contactors_engaged == 2) {
+        content += "<span style='color: red;'>OFF (FAULT)</span>";
+        content += "<span class=\"tooltip-icon\"> [!]</span>";
+        content +=
+            "<span class=\"tooltiptext\">Emulator spent too much time in critical FAULT event. Investigate event "
+            "causing this via Events page. Reboot required to resume operation!</span>";
+      } else if (datalayer.system.status.contactors_engaged == 3) {
+        content += "<span style='color: orange;'>PRECHARGE</span>";
+      }
+      content += "</h4></div>";
+      if (contactor_control_enabled_double_battery && battery2) {
+        content += "<h4>Secondary battery contactor, state: ";
+        if (pwm_contactor_control) {
           if (datalayer.system.status.contactors_battery2_engaged) {
+            content += "<span style='color: green;'>Economized</span>";
+          } else {
+            content += "<span style='color: red;'>OFF</span>";
+          }
+        } else if (
+            esp32hal->SECOND_BATTERY_CONTACTORS_PIN() !=
+            GPIO_NUM_NC) {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
+          if (digitalRead(esp32hal->SECOND_BATTERY_CONTACTORS_PIN()) == HIGH) {
             content += "<span style='color: green;'>ON</span>";
           } else {
             content += "<span style='color: red;'>OFF</span>";
           }
-          content += "</h4>";
-
-          if (contactor_control_enabled_double_battery) {
-            content += "<h4>Cont. Neg.: ";
-            if (pwm_contactor_control) {
-              if (datalayer.system.status.contactors_battery2_engaged) {
-                content += "<span style='color: green;'>Economized</span>";
-                content += " Cont. Pos.: ";
-                content += "<span style='color: green;'>Economized</span>";
-              } else {
-                content += "<span style='color: red;'>&#10005;</span>";
-                content += " Cont. Pos.: ";
-                content += "<span style='color: red;'>&#10005;</span>";
-              }
-            } else {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
-#if defined(SECOND_POSITIVE_CONTACTOR_PIN) && defined(SECOND_NEGATIVE_CONTACTOR_PIN)
-              if (digitalRead(SECOND_NEGATIVE_CONTACTOR_PIN) == HIGH) {
-                content += "<span style='color: green;'>&#10003;</span>";
-              } else {
-                content += "<span style='color: red;'>&#10005;</span>";
-              }
-
-              content += " Cont. Pos.: ";
-              if (digitalRead(SECOND_POSITIVE_CONTACTOR_PIN) == HIGH) {
-                content += "<span style='color: green;'>&#10003;</span>";
-              } else {
-                content += "<span style='color: red;'>&#10005;</span>";
-              }
-#endif
-            }
-            content += "</h4>";
-          }
-        }
-        content += "</div>";
-        content += "</div>";
+        }  //no PWM_CONTACTOR_CONTROL
+        content += "</h4>";
       }
     }
+
+    // Close the block
+    content += "</div>";
 
     if (charger) {
       // Start a new block with orange background color
@@ -1512,15 +1460,15 @@ String processor(const String& var) {
     content += "<button onclick='Advanced()'>More Battery Info</button> ";
     content += "<button onclick='CANlog()'>CAN logger</button> ";
     content += "<button onclick='CANreplay()'>CAN replay</button> ";
-#if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
-    content += "<button onclick='Log()'>Log</button> ";
-#endif  // DEBUG_VIA_WEB
+    if (datalayer.system.info.web_logging_active || datalayer.system.info.SD_logging_active) {
+      content += "<button onclick='Log()'>Log</button> ";
+    }
     content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
     content += "<button onclick='Events()'>Events</button> ";
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
-    if (WEBSERVER_AUTH_REQUIRED)
+    if (webserver_auth)
       content += "<button onclick='logout()'>Logout</button>";
-    if (!datalayer.system.settings.equipment_stop_active)
+    if (!datalayer.system.info.equipment_stop_active)
       content +=
           "<br/><button style=\"background:red;color:white;cursor:pointer;\""
           " onclick=\""
@@ -1544,16 +1492,7 @@ String processor(const String& var) {
     content += "function CANreplay() { window.location.href = '/canreplay'; }";
     content += "function Log() { window.location.href = '/log'; }";
     content += "function Events() { window.location.href = '/events'; }";
-    content +=
-        "function askReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
-        "emulator is handling contactors, they will open during reboot!')) { "
-        "reboot(); } }";
-    content += "function reboot() {";
-    content += "  var xhr = new XMLHttpRequest();";
-    content += "  xhr.open('GET', '/reboot', true);";
-    content += "  xhr.send();";
-    content += "}";
-    if (WEBSERVER_AUTH_REQUIRED) {
+    if (webserver_auth) {
       content += "function logout() {";
       content += "  var xhr = new XMLHttpRequest();";
       content += "  xhr.open('GET', '/logout', true);";
@@ -1565,13 +1504,13 @@ String processor(const String& var) {
     content +=
         "var xhr=new "
         "XMLHttpRequest();xhr.onload=function() { "
-        "window.location.reload();};xhr.open('GET','/pause?p='+pause,true);xhr.send();";
+        "window.location.reload();};xhr.open('GET','/pause?value='+pause,true);xhr.send();";
     content += "}";
     content += "function estop(stop){";
     content +=
         "var xhr=new "
         "XMLHttpRequest();xhr.onload=function() { "
-        "window.location.reload();};xhr.open('GET','/equipmentStop?stop='+stop,true);xhr.send();";
+        "window.location.reload();};xhr.open('GET','/equipmentStop?value='+stop,true);xhr.send();";
     content += "}";
     content += "</script>";
 
@@ -1603,9 +1542,7 @@ void onOTAProgress(size_t current, size_t final) {
   // Log every 1 second
   if (millis() - ota_progress_millis > 1000) {
     ota_progress_millis = millis();
-#ifdef DEBUG_LOG
     logging.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
-#endif  // DEBUG_LOG
     // Reset the "watchdog"
     ota_timeout_timer.reset();
   }
@@ -1622,13 +1559,9 @@ void onOTAEnd(bool success) {
     // Max Charge/Discharge = 0; CAN = stop; contactors = open
     setBatteryPause(true, true, true, false);
     // a reboot will be done by the OTA library. no need to do anything here
-#ifdef DEBUG_LOG
     logging.println("OTA update finished successfully!");
-#endif  // DEBUG_LOG
   } else {
-#ifdef DEBUG_LOG
     logging.println("There was an error during OTA update!");
-#endif  // DEBUG_LOG
     //try to Resume the battery pause and CAN communication
     setBatteryPause(false, false);
   }
@@ -1648,8 +1581,8 @@ String formatPowerValue(T value, String unit, int precision) {
   if (std::is_same<T, float>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value) {
     float convertedValue = static_cast<float>(value);
 
-    if (convertedValue >= 1000.0 || convertedValue <= -1000.0) {
-      result += String(convertedValue / 1000.0, precision) + " kW";
+    if (convertedValue >= 1000.0f || convertedValue <= -1000.0f) {
+      result += String(convertedValue / 1000.0f, precision) + " kW";
     } else {
       result += String(convertedValue, 0) + " W";
     }

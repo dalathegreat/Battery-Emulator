@@ -1,10 +1,14 @@
 #ifndef _PRECHARGE_CONTROL_H_
 #define _PRECHARGE_CONTROL_H_
 
-#include "../../include.h"
-
 #include "../../devboard/utils/events.h"
 
+// TODO: Ensure valid values at run-time
+// User can update all these values via Settings page
+extern bool precharge_control_enabled;
+extern bool precharge_inverter_normally_open_contactor;
+extern uint16_t precharge_max_precharge_time_before_fault;
+extern uint16_t Precharge_max_PWM_Freq;
 /**
  * @brief Contactor initialization
  *
@@ -12,7 +16,7 @@
  *
  * @return void
  */
-void init_precharge_control();
+bool init_precharge_control();
 
 /**
  * @brief Handle contactors

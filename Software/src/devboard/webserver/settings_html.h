@@ -7,7 +7,7 @@
 extern std::string ssid;
 extern std::string password;
 
-#include "../../../USER_SETTINGS.h"  // Needed for WiFi ssid and password
+#include "../../communication/nvm/comm_nvm.h"
 
 /**
  * @brief Replaces placeholder with content section in web page
@@ -16,7 +16,7 @@ extern std::string password;
  *
  * @return String
  */
-String settings_processor(const String& var);
+String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings);
 /**
  * @brief Maps the value to a string of characters
  *
@@ -25,5 +25,7 @@ String settings_processor(const String& var);
  * @return String
  */
 const char* getCANInterfaceName(CAN_Interface interface);
+
+extern const char settings_html[];
 
 #endif

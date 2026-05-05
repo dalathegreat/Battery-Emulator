@@ -1,16 +1,11 @@
 #ifndef FOXESS_CAN_H
 #define FOXESS_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 
-#ifdef FOXESS_CAN
-#define SELECTED_INVERTER_CLASS FoxessCanInverter
-#endif
-
 class FoxessCanInverter : public CanInverterProtocol {
  public:
-  void setup();
+  const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
@@ -19,6 +14,8 @@ class FoxessCanInverter : public CanInverterProtocol {
  private:
   int16_t temperature_average = 0;
   uint16_t voltage_per_pack = 0;
+  uint16_t cell_tweaked_max_voltage_mV = 3300;
+  uint16_t cell_tweaked_min_voltage_mV = 3300;
   int16_t current_per_pack = 0;
   uint8_t temperature_max_per_pack = 0;
   uint8_t temperature_min_per_pack = 0;
@@ -86,17 +83,17 @@ class FoxessCanInverter : public CanInverterProtocol {
                            .ext_ID = true,
                            .DLC = 8,
                            .ID = 0x1881,
-                           .data = {0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}};
+                           .data = {0x00, '6', '0', 'E', 'P', '0', '0', '5'}};
   CAN_frame FOXESS_1882 = {.FD = false,
                            .ext_ID = true,
                            .DLC = 8,
                            .ID = 0x1882,
-                           .data = {0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}};
+                           .data = {0x00, '0', '4', '7', 'M', 'A', '0', '5'}};
   CAN_frame FOXESS_1883 = {.FD = false,
                            .ext_ID = true,
                            .DLC = 8,
                            .ID = 0x1883,
-                           .data = {0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}};
+                           .data = {0x00, '2', '\0', '\0', '\0', '\0', '\0', '\0'}};
 
   CAN_frame FOXESS_0C05 = {.FD = false,
                            .ext_ID = true,

@@ -1,7 +1,6 @@
 #include "SCHNEIDER-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 /* Version 2: SE BMS Communication Protocol 
 Protocol: CAN 2.0 Specification
@@ -28,7 +27,7 @@ void SchneiderInverter::
     remaining_capacity_ah =
         ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
     fully_charged_capacity_ah =
-        ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
+        ((datalayer.battery.info.reported_total_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
   }
   /* Set active commands/warnings/faults/state*/
   if (datalayer.battery.status.bms_status == FAULT) {
@@ -79,10 +78,10 @@ void SchneiderInverter::
   SE_323.data.u8[2] = (((datalayer.battery.status.voltage_dV * 10) & 0x0000FF00) >> 8);
   SE_323.data.u8[3] = ((datalayer.battery.status.voltage_dV * 10) & 0x000000FF);
   //Current (ex 81.00A = 8100) TODO: Note s32 bit, which direction?
-  SE_323.data.u8[4] = ((datalayer.battery.status.current_dA * 10) >> 24);
-  SE_323.data.u8[5] = (((datalayer.battery.status.current_dA * 10) & 0x00FF0000) >> 16);
-  SE_323.data.u8[6] = (((datalayer.battery.status.current_dA * 10) & 0x0000FF00) >> 8);
-  SE_323.data.u8[7] = ((datalayer.battery.status.current_dA * 10) & 0x000000FF);
+  SE_323.data.u8[4] = ((datalayer.battery.status.reported_current_dA * 10) >> 24);
+  SE_323.data.u8[5] = (((datalayer.battery.status.reported_current_dA * 10) & 0x00FF0000) >> 16);
+  SE_323.data.u8[6] = (((datalayer.battery.status.reported_current_dA * 10) & 0x0000FF00) >> 8);
+  SE_323.data.u8[7] = ((datalayer.battery.status.reported_current_dA * 10) & 0x000000FF);
 
   //Temperature average
   SE_324.data.u8[0] = (temperature_average >> 8);
@@ -201,32 +200,27 @@ void SchneiderInverter::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
     previousMillis500ms = currentMillis;
 
-    transmit_can_frame(&SE_321, can_config.inverter);
-    transmit_can_frame(&SE_322, can_config.inverter);
-    transmit_can_frame(&SE_323, can_config.inverter);
-    transmit_can_frame(&SE_324, can_config.inverter);
-    transmit_can_frame(&SE_325, can_config.inverter);
+    transmit_can_frame(&SE_321);
+    transmit_can_frame(&SE_322);
+    transmit_can_frame(&SE_323);
+    transmit_can_frame(&SE_324);
+    transmit_can_frame(&SE_325);
   }
   // Send 2s CAN Message
   if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
     previousMillis2s = currentMillis;
 
-    transmit_can_frame(&SE_320, can_config.inverter);
-    transmit_can_frame(&SE_326, can_config.inverter);
-    transmit_can_frame(&SE_327, can_config.inverter);
+    transmit_can_frame(&SE_320);
+    transmit_can_frame(&SE_326);
+    transmit_can_frame(&SE_327);
   }
   // Send 10s CAN Message
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
-    transmit_can_frame(&SE_328, can_config.inverter);
-    transmit_can_frame(&SE_330, can_config.inverter);
-    transmit_can_frame(&SE_331, can_config.inverter);
-    transmit_can_frame(&SE_332, can_config.inverter);
-    transmit_can_frame(&SE_333, can_config.inverter);
+    transmit_can_frame(&SE_328);
+    transmit_can_frame(&SE_330);
+    transmit_can_frame(&SE_331);
+    transmit_can_frame(&SE_332);
+    transmit_can_frame(&SE_333);
   }
-}
-
-void SchneiderInverter::setup(void) {  // Performs one time setup
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
 }

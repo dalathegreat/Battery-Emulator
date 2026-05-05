@@ -1,7 +1,8 @@
 #include "BMW-SBOX.h"
+#include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
+#include "../devboard/utils/logging.h"
 
 uint8_t reverse_bits(uint8_t byte) {
   uint8_t reversed = 0;
@@ -102,8 +103,7 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
       SBOX_100.data.u8[0] = 0x55;  // All open
 
       if (datalayer.system.status.battery_allows_contactor_closing &&
-          datalayer.system.status.inverter_allows_contactor_closing &&
-          !datalayer.system.settings.equipment_stop_active &&
+          datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active &&
           (datalayer.shunt.measured_voltage_mV > MINIMUM_INPUT_VOLTAGE * 1000)) {
         contactorStatus = PRECHARGE;
       }
@@ -111,8 +111,7 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
     // In case the inverter requests contactors to open, set the state accordingly
     if (contactorStatus == COMPLETED) {
       //Incase inverter (or estop) requests contactors to open, make state machine jump to Disconnected state (recoverable)
-      if (!datalayer.system.status.inverter_allows_contactor_closing ||
-          datalayer.system.settings.equipment_stop_active) {
+      if (!datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.info.equipment_stop_active) {
         contactorStatus = DISCONNECTED;
       }
     }
@@ -122,9 +121,7 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
         SBOX_100.data.u8[0] = 0x86;  // Precharge relay only
         prechargeStartTime = currentMillis;
         contactorStatus = NEGATIVE;
-#ifdef DEBUG_VIA_USB
-        Serial.println("S-BOX Precharge relay engaged");
-#endif
+        logging.println("S-BOX Precharge relay engaged");
         break;
       case NEGATIVE:
         if (currentMillis - prechargeStartTime >= CONTACTOR_CONTROL_T1) {
@@ -132,9 +129,7 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
           negativeStartTime = currentMillis;
           contactorStatus = POSITIVE;
           datalayer.shunt.precharging = true;
-#ifdef DEBUG_VIA_USB
-          Serial.println("S-BOX Negative relay engaged");
-#endif
+          logging.println("S-BOX Negative relay engaged");
         }
         break;
       case POSITIVE:
@@ -145,18 +140,14 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
           positiveStartTime = currentMillis;
           contactorStatus = PRECHARGE_OFF;
           datalayer.shunt.precharging = false;
-#ifdef DEBUG_VIA_USB
-          Serial.println("S-BOX Positive relay engaged");
-#endif
+          logging.println("S-BOX Positive relay engaged");
         }
         break;
       case PRECHARGE_OFF:
         if (currentMillis - positiveStartTime >= CONTACTOR_CONTROL_T3) {
           SBOX_100.data.u8[0] = 0x6A;  // Negative + Positive
           contactorStatus = COMPLETED;
-#ifdef DEBUG_VIA_USB
-          Serial.println("S-BOX Precharge relay released");
-#endif
+          logging.println("S-BOX Precharge relay released");
           datalayer.shunt.contactors_engaged = true;
         }
         break;
@@ -172,12 +163,12 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
     SBOX_100.data.u8[1] = CAN100_cnt << 4 | 0x01;
     SBOX_100.data.u8[3] = 0x00;
     SBOX_100.data.u8[3] = calculateCRC(SBOX_100);
-    transmit_can_frame(&SBOX_100, can_config.shunt);
-    transmit_can_frame(&SBOX_300, can_config.shunt);
+    transmit_can_frame(&SBOX_100);
+    transmit_can_frame(&SBOX_300);
   }
 }
 
 void BmwSbox::setup() {
-  strncpy(datalayer.system.info.shunt_protocol, Name, 63);
-  datalayer.system.info.shunt_protocol[63] = '\0';
+  strncpy(datalayer.system.info.shunt_protocol, Name, 31);
+  datalayer.system.info.shunt_protocol[31] = '\0';
 }

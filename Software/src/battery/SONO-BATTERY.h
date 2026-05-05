@@ -1,13 +1,7 @@
 #ifndef SONO_BATTERY_H
 #define SONO_BATTERY_H
-#include <Arduino.h>
-#include "../include.h"
 
 #include "CanBattery.h"
-
-#ifdef SONO_BATTERY
-#define SELECTED_BATTERY_CLASS SonoBattery
-#endif
 
 class SonoBattery : public CanBattery {
  public:
@@ -48,7 +42,7 @@ class SonoBattery : public CanBattery {
   CAN_frame SONO_401 = {.FD = false,  //Message of Vehicle Date, 1000ms
                         .ext_ID = false,
                         .DLC = 8,
-                        .ID = 0x400,
+                        .ID = 0x401,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 };
 

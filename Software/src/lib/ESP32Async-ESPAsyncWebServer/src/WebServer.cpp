@@ -3,30 +3,21 @@
 
 #include "ESPAsyncWebServer.h"
 #include "WebHandlerImpl.h"
+#include <WiFi.h>
 
 using namespace asyncsrv;
 
 bool ON_STA_FILTER(AsyncWebServerRequest *request) {
-#ifndef CONFIG_IDF_TARGET_ESP32H2
   return WiFi.localIP() == request->client()->localIP();
-#else
-  return false;
-#endif
 }
 
 bool ON_AP_FILTER(AsyncWebServerRequest *request) {
-#ifndef CONFIG_IDF_TARGET_ESP32H2
   return WiFi.localIP() != request->client()->localIP();
-#else
-  return false;
-#endif
 }
 
-#ifndef HAVE_FS_FILE_OPEN_MODE
 const char *fs::FileOpenMode::read = "r";
 const char *fs::FileOpenMode::write = "w";
 const char *fs::FileOpenMode::append = "a";
-#endif
 
 AsyncWebServer::AsyncWebServer(uint16_t port) : _server(port) {
   _catchAllHandler = new AsyncCallbackWebHandler();
@@ -105,16 +96,6 @@ void AsyncWebServer::begin() {
 void AsyncWebServer::end() {
   _server.end();
 }
-
-#if ASYNC_TCP_SSL_ENABLED
-void AsyncWebServer::onSslFileRequest(AcSSlFileHandler cb, void *arg) {
-  _server.onSslFileRequest(cb, arg);
-}
-
-void AsyncWebServer::beginSecure(const char *cert, const char *key, const char *password) {
-  _server.beginSecure(cert, key, password);
-}
-#endif
 
 void AsyncWebServer::_handleDisconnect(AsyncWebServerRequest *request) {
   delete request;

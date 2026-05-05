@@ -1,13 +1,9 @@
 #ifndef RENAULT_KANGOO_BATTERY_H
 #define RENAULT_KANGOO_BATTERY_H
-#include <Arduino.h>
-#include "../include.h"
 
 #include "CanBattery.h"
 
-#ifdef RENAULT_KANGOO_BATTERY
-#define SELECTED_BATTERY_CLASS RenaultKangooBattery
-#endif
+extern bool user_selected_use_estimated_SOC;
 
 class RenaultKangooBattery : public CanBattery {
  public:
@@ -24,9 +20,11 @@ class RenaultKangooBattery : public CanBattery {
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
   static const int MAX_CHARGE_POWER_W = 5000;   // Battery can be charged with this amount of power
+  static const int MAX_DISCHARGE_POWER_W = 10000;  // Battery can be charged with this amount of power
 
   uint32_t LB_Battery_Voltage = 3700;
   uint32_t LB_Charge_Power_Limit_Watts = 0;
+  uint32_t LB_MaxChargeAllowed_W = 0;
   int32_t LB_Current = 0;
   int16_t LB_MAX_TEMPERATURE = 0;
   int16_t LB_MIN_TEMPERATURE = 0;
@@ -37,7 +35,6 @@ class RenaultKangooBattery : public CanBattery {
   uint16_t LB_kWh_Remaining = 0;
   uint16_t LB_Cell_Max_Voltage = 3700;
   uint16_t LB_Cell_Min_Voltage = 3700;
-  uint16_t LB_MaxChargeAllowed_W = 0;
   uint8_t LB_Discharge_Power_Limit_Byte1 = 0;
   uint8_t GVI_Pollcounter = 0;
   uint8_t LB_EOCR = 0;
@@ -50,7 +47,7 @@ class RenaultKangooBattery : public CanBattery {
   uint8_t LB_HVBOC = 0;
   uint8_t LB_MaxInput_kW = 0;
   uint8_t LB_MaxOutput_kW = 0;
-  bool GVB_79B_Continue = false;
+  uint8_t pollgroup = 0;
 
   CAN_frame KANGOO_423 = {.FD = false,
                           .ext_ID = false,
@@ -61,11 +58,11 @@ class RenaultKangooBattery : public CanBattery {
   // Charging: 0x0B   0x1D  0x00  0x02  0xB2  0x20  0xB2  0xD9
   // Fastcharging: 0x07   0x1E  0x00  0x01  0x5D  0x20  0xB2  0xC7
   // Old hardcoded message: .data = {0x33, 0x00, 0xFF, 0xFF, 0x00, 0xE0, 0x00, 0x00}};
-  CAN_frame KANGOO_79B = {.FD = false,
-                          .ext_ID = false,
-                          .DLC = 8,
-                          .ID = 0x79B,
-                          .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0xE0, 0x00, 0x00}};
+  CAN_frame KANGOO_79B_Poll = {.FD = false,
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = 0x79B,
+                               .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame KANGOO_79B_Continue = {.FD = false,
                                    .ext_ID = false,
                                    .DLC = 8,

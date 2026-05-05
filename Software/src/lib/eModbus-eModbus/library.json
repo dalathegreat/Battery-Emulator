@@ -1,0 +1,69 @@
+{
+  "name": "eModbus",
+  "version": "1.7.4",
+  "keywords": "Arduino, ESP32, Modbus, RTU, ASCII, ModbusASCII, ModbusRTU, ModbusTCP",
+  "description": "ModbusRTU, ModbusASCII and ModbusTCP functions for ESP32",
+  "homepage": "https://emodbus.github.io",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Bert Melis",
+      "url": "https://github.com/bertmelis",
+      "maintainer": true
+    },
+    {
+      "name": "Michael Harwerth",
+      "url": "https://github.com/Miq1",
+      "email": "miq1@gmx.de",
+      "maintainer": true
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eModbus/eModbus",
+    "branch": "master"
+  },
+  "dependencies": [
+    {
+      "owner": "ESP32Async",
+      "name": "AsyncTCP",
+      "version": "^3.3.8",
+      "platforms": ["espressif32"]
+    },
+    {
+      "owner": "ESP32Async",
+      "name": "ESPAsyncTCP",
+      "version": "^2.0.0",
+      "platforms": ["espressif8266"]
+    },
+    {
+      "name": "Ethernet",
+      "version": "https://github.com/arduino-libraries/Ethernet.git",
+      "platforms": ["espressif32"]
+    }
+  ],
+  "export": {
+    "include":
+    [
+        "src/*.cpp",
+        "src/*.h",
+        "examples/*",
+        "Test/*",
+        ".gitignore",
+        "README.md",
+        "license.md",
+        "keywords.txt",
+        "library.properties",
+        "library.json"
+    ]
+  },
+  "frameworks": "arduino",
+  "platforms": [
+    "espressif32",
+    "espressif8266"
+  ],
+  "build":
+  {
+    "lib_ldf_Mode": "deep+"
+  }
+}

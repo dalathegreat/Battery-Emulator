@@ -1,9 +1,6 @@
 #include "sdcard.h"
 #include "freertos/ringbuf.h"
 
-#if defined(SD_CS_PIN) && defined(SD_SCLK_PIN) && defined(SD_MOSI_PIN) && \
-    defined(SD_MISO_PIN)  // ensure code is only compiled if all SD card pins are defined
-
 File can_log_file;
 File log_file;
 RingbufHandle_t can_bufferHandle;
@@ -61,14 +58,12 @@ void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir) {
 
   unsigned long currentTime = millis();
   static char messagestr_buffer[32];
-  size_t size =
-      snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size, "(%lu.%03lu) %s %X [%u] ",
-               currentTime / 1000, currentTime % 1000, (msgDir == MSG_RX ? "RX0" : "TX1"), frame.ID, frame.DLC);
+  size_t size = 0;
+  size = snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size, "(%lu.%03lu) %s %lX [%u] ",
+                  currentTime / 1000, currentTime % 1000, (msgDir == MSG_RX ? "RX0" : "TX1"), frame.ID, frame.DLC);
 
   if (xRingbufferSend(can_bufferHandle, &messagestr_buffer, size, pdMS_TO_TICKS(2)) != pdTRUE) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("Failed to send message to can ring buffer!");
-#endif  // DEBUG_VIA_USB
+    logging.println("Failed to send message to can ring buffer!");
     return;
   }
 
@@ -80,9 +75,7 @@ void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir) {
       size = snprintf(messagestr_buffer, sizeof(messagestr_buffer), "%02X\n", frame.data.u8[i]);
 
     if (xRingbufferSend(can_bufferHandle, &messagestr_buffer, size, pdMS_TO_TICKS(2)) != pdTRUE) {
-#ifdef DEBUG_VIA_USB
-      Serial.println("Failed to send message to can ring buffer!");
-#endif  // DEBUG_VIA_USB
+      logging.println("Failed to send message to can ring buffer!");
       return;
     }
   }
@@ -130,9 +123,7 @@ void add_log_to_buffer(const uint8_t* buffer, size_t size) {
     return;
 
   if (xRingbufferSend(log_bufferHandle, buffer, size, pdMS_TO_TICKS(1)) != pdTRUE) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("Failed to send message to log ring buffer!");
-#endif  // DEBUG_VIA_USB
+    logging.println("Failed to send message to log ring buffer!");
     return;
   }
 }
@@ -164,50 +155,61 @@ void write_log_to_sdcard() {
 }
 
 void init_logging_buffers() {
-#if defined(LOG_CAN_TO_SD)
-  can_bufferHandle = xRingbufferCreate(32 * 1024, RINGBUF_TYPE_BYTEBUF);
-  if (can_bufferHandle == NULL) {
-#ifdef DEBUG_LOG
-    logging.println("Failed to create CAN ring buffer!");
-#endif  // DEBUG_LOG
-    return;
-  }
-#endif  // defined(LOG_CAN_TO_SD)
 
-#if defined(LOG_TO_SD)
-  log_bufferHandle = xRingbufferCreate(1024, RINGBUF_TYPE_BYTEBUF);
-  if (log_bufferHandle == NULL) {
-#ifdef DEBUG_LOG
-    logging.println("Failed to create log ring buffer!");
-#endif  // DEBUG_LOG
-    return;
+  if (datalayer.system.info.CAN_SD_logging_active) {
+    can_bufferHandle = xRingbufferCreate(32 * 1024, RINGBUF_TYPE_BYTEBUF);
+    if (can_bufferHandle == NULL) {
+      logging.println("Failed to create CAN ring buffer!");
+      return;
+    }
   }
-#endif  // defined(LOG_TO_SD)
+
+  if (datalayer.system.info.SD_logging_active) {
+    log_bufferHandle = xRingbufferCreate(1024, RINGBUF_TYPE_BYTEBUF);
+    if (log_bufferHandle == NULL) {
+      logging.println("Failed to create log ring buffer!");
+      return;
+    }
+  }
 }
 
-void init_sdcard() {
+void deinit_logging_buffers() {
+  if ((!datalayer.system.info.CAN_SD_logging_active) && (!datalayer.system.info.CAN_SD_logging_active)) {
+    if (can_bufferHandle != NULL) {
+      vRingbufferDelete(can_bufferHandle);
+    }
+    if (log_bufferHandle != NULL) {
+      vRingbufferDelete(log_bufferHandle);
+    }
+  }
+}
 
-  pinMode(SD_MISO_PIN, INPUT_PULLUP);
+bool init_sdcard() {
+  auto miso_pin = esp32hal->SD_MISO_PIN();
+  auto mosi_pin = esp32hal->SD_MOSI_PIN();
+  auto sclk_pin = esp32hal->SD_SCLK_PIN();
 
-  SD_MMC.setPins(SD_SCLK_PIN, SD_MOSI_PIN, SD_MISO_PIN);
+  if (!esp32hal->alloc_pins("SD Card", miso_pin, mosi_pin, sclk_pin)) {
+    return false;
+  }
+
+  pinMode(miso_pin, INPUT_PULLUP);
+
+  SD_MMC.setPins(sclk_pin, mosi_pin, miso_pin);
   if (!SD_MMC.begin("/root", true, true, SDMMC_FREQ_HIGHSPEED)) {
     set_event_latched(EVENT_SD_INIT_FAILED, 0);
-#ifdef DEBUG_LOG
     logging.println("SD Card initialization failed!");
-#endif  // DEBUG_LOG
-    return;
+    return false;
   }
 
   clear_event(EVENT_SD_INIT_FAILED);
-#ifdef DEBUG_LOG
   logging.println("SD Card initialization successful.");
-#endif  // DEBUG_LOG
 
   sd_card_active = true;
 
-#ifdef DEBUG_LOG
   log_sdcard_details();
-#endif  // DEBUG_LOG
+
+  return true;
 }
 
 void log_sdcard_details() {
@@ -245,4 +247,3 @@ void log_sdcard_details() {
     logging.println(" MB");
   }
 }
-#endif  // defined(SD_CS_PIN) && defined(SD_SCLK_PIN) && defined(SD_MOSI_PIN) && defined(SD_MISO_PIN)

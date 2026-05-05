@@ -2,19 +2,15 @@
 #define BMW_I3_BATTERY_H
 
 #include "../datalayer/datalayer.h"
-#include "../include.h"
+#include "../devboard/hal/hal.h"
 #include "BMW-I3-HTML.h"
 #include "CanBattery.h"
-
-#ifdef BMW_I3_BATTERY
-#define SELECTED_BATTERY_CLASS BmwI3Battery
-#endif
 
 class BmwI3Battery : public CanBattery {
  public:
   // Use this constructor for the second battery.
   BmwI3Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr, CAN_Interface targetCan,
-               int wakeup)
+               gpio_num_t wakeup)
       : CanBattery(targetCan), renderer(*this) {
     datalayer_battery = datalayer_ptr;
     contactor_closing_allowed = contactor_closing_allowed_ptr;
@@ -30,7 +26,7 @@ class BmwI3Battery : public CanBattery {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     contactor_closing_allowed = nullptr;
-    wakeup_pin = WUP_PIN1;
+    wakeup_pin = esp32hal->WUP_PIN1();
   }
 
   virtual void setup(void);
@@ -38,6 +34,28 @@ class BmwI3Battery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "BMW i3";
+
+  bool supports_balancing() { return true; }
+  bool is_balancing_active() { return UserRequestBalancing != NONE; }
+  const char* get_balancing_state_string() {
+    switch (UserRequestBalancing) {
+      case NONE:
+        return "None";
+      case REQUESTED:
+        return "Requested";
+      case STARTING:
+        return "Starting";
+      case EXECUTING:
+        return "Executing";
+      default:
+        return "Unknown";
+    }
+  }
+  virtual void initiate_balancing();
+  virtual void end_balancing();
+
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
 
   // SOC% raw battery value. Might not always reach 100%
   uint16_t SOC_raw() { return (battery_HVBatt_SOC * 10); }
@@ -65,6 +83,8 @@ class BmwI3Battery : public CanBattery {
   uint8_t ST_isolation() { return battery_status_warning_isolation; }
   // Status cold shutoff valve, 0 OK, 1 Short circuit to GND, 2 Short circuit to 12V, 3 Line break, 6 Driver error, 12 Stuck, 13 Stuck, 15 Invalid Signal
   uint8_t ST_cold_shutoff_valve() { return battery_status_cold_shutoff_valve; }
+  // Status balancing
+  uint8_t ST_balancing_status() { return UserRequestBalancing; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
@@ -72,18 +92,23 @@ class BmwI3Battery : public CanBattery {
   BmwI3HtmlRenderer renderer;
 
  private:
+  bool UserRequestDTCreset = false;
+  enum BalancingState { NONE, REQUESTED, STARTING, EXECUTING };
+  BalancingState UserRequestBalancing = NONE;
+  unsigned long UserRequestBalancingMillis = 0;
+
   const int MAX_CELL_VOLTAGE_60AH = 4110;   // Battery is put into emergency stop if one cell goes over this value
   const int MIN_CELL_VOLTAGE_60AH = 2700;   // Battery is put into emergency stop if one cell goes below this value
   const int MAX_CELL_VOLTAGE_94AH = 4140;   // Battery is put into emergency stop if one cell goes over this value
   const int MIN_CELL_VOLTAGE_94AH = 2700;   // Battery is put into emergency stop if one cell goes below this value
-  const int MAX_CELL_VOLTAGE_120AH = 4190;  // Battery is put into emergency stop if one cell goes over this value
+  const int MAX_CELL_VOLTAGE_120AH = 4210;  // Battery is put into emergency stop if one cell goes over this value
   const int MIN_CELL_VOLTAGE_120AH = 2790;  // Battery is put into emergency stop if one cell goes below this value
   const int MAX_CELL_DEVIATION_MV = 250;    // LED turns yellow on the board if mv delta exceeds this value
   const int MAX_PACK_VOLTAGE_60AH = 3950;   // Charge stops if pack voltage exceeds this value
   const int MIN_PACK_VOLTAGE_60AH = 2590;   // Discharge stops if pack voltage exceeds this value
   const int MAX_PACK_VOLTAGE_94AH = 3980;   // Charge stops if pack voltage exceeds this value
   const int MIN_PACK_VOLTAGE_94AH = 2590;   // Discharge stops if pack voltage exceeds this value
-  const int MAX_PACK_VOLTAGE_120AH = 4030;  // Charge stops if pack voltage exceeds this value
+  const int MAX_PACK_VOLTAGE_120AH = 4032;  // Charge stops if pack voltage exceeds this value
   const int MIN_PACK_VOLTAGE_120AH = 2680;  // Discharge stops if pack voltage exceeds this value
   const int NUMBER_OF_CELLS = 96;
 
@@ -95,7 +120,7 @@ class BmwI3Battery : public CanBattery {
   // If not null, this battery listens to this boolean to determine whether contactor closing is allowed
   bool* contactor_closing_allowed;
 
-  int wakeup_pin;
+  gpio_num_t wakeup_pin;
 
   unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
@@ -113,7 +138,7 @@ class BmwI3Battery : public CanBattery {
   enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
   BatterySize detectedBattery = BATTERY_60AH;
 
-  enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST };
+  enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST, CLEAR_DTC, OFF };
 
   CmdState cmdState = SOC;
 
@@ -137,11 +162,11 @@ class BmwI3Battery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x13E,
                        .data = {0xFF, 0x31, 0xFA, 0xFA, 0xFA, 0xFA, 0x0C, 0x00}};
-  CAN_frame BMW_192 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x192,
-                       .data = {0xFF, 0xFF, 0xA3, 0x8F, 0x93, 0xFF, 0xFF, 0xFF}};
+  static constexpr CAN_frame BMW_192 = {.FD = false,
+                                        .ext_ID = false,
+                                        .DLC = 8,
+                                        .ID = 0x192,
+                                        .data = {0xFF, 0xFF, 0xA3, 0x8F, 0x93, 0xFF, 0xFF, 0xFF}};
   CAN_frame BMW_19B = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
@@ -152,12 +177,12 @@ class BmwI3Battery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x1D0,
                        .data = {0x4D, 0xF0, 0xAE, 0xF8, 0xFF, 0xFF, 0xFF, 0xFF}};
-  CAN_frame BMW_2CA = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x2CA, .data = {0x57, 0x57}};
-  CAN_frame BMW_2E2 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x2E2,
-                       .data = {0x4F, 0xDB, 0x7F, 0xB9, 0x07, 0x51, 0xff, 0x00}};
+  static constexpr CAN_frame BMW_2CA = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x2CA, .data = {0x57, 0x57}};
+  static constexpr CAN_frame BMW_2E2 = {.FD = false,
+                                        .ext_ID = false,
+                                        .DLC = 8,
+                                        .ID = 0x2E2,
+                                        .data = {0x4F, 0xDB, 0x7F, 0xB9, 0x07, 0x51, 0xff, 0x00}};
   CAN_frame BMW_30B = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
@@ -168,21 +193,21 @@ class BmwI3Battery : public CanBattery {
                        .DLC = 6,
                        .ID = 0x328,
                        .data = {0xB0, 0xE4, 0x87, 0x0E, 0x30, 0x22}};
-  CAN_frame BMW_37B = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 6,
-                       .ID = 0x37B,
-                       .data = {0x40, 0x00, 0x00, 0xFF, 0xFF, 0x00}};
-  CAN_frame BMW_380 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 7,
-                       .ID = 0x380,
-                       .data = {0x56, 0x5A, 0x37, 0x39, 0x34, 0x34, 0x34}};
-  CAN_frame BMW_3A0 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x3A0,
-                       .data = {0xFF, 0xFF, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC}};
+  static constexpr CAN_frame BMW_37B = {.FD = false,
+                                        .ext_ID = false,
+                                        .DLC = 6,
+                                        .ID = 0x37B,
+                                        .data = {0x40, 0x00, 0x00, 0xFF, 0xFF, 0x00}};
+  static constexpr CAN_frame BMW_380 = {.FD = false,
+                                        .ext_ID = false,
+                                        .DLC = 7,
+                                        .ID = 0x380,
+                                        .data = {0x56, 0x5A, 0x37, 0x39, 0x34, 0x34, 0x34}};
+  static constexpr CAN_frame BMW_3A0 = {.FD = false,
+                                        .ext_ID = false,
+                                        .DLC = 8,
+                                        .ID = 0x3A0,
+                                        .data = {0xFF, 0xFF, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC}};
   CAN_frame BMW_3A7 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 7,
@@ -193,19 +218,24 @@ class BmwI3Battery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x3C5,
                        .data = {0x30, 0x05, 0x47, 0x70, 0x2c, 0xce, 0xc3, 0x34}};
-  CAN_frame BMW_3CA = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x3CA,
-                       .data = {0x87, 0x80, 0x30, 0x0C, 0x0C, 0x81, 0xFF, 0xFF}};
-  CAN_frame BMW_3D0 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x3D0, .data = {0xFD, 0xFF}};
-  CAN_frame BMW_3E4 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 6,
-                       .ID = 0x3E4,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF}};
+  static constexpr CAN_frame BMW_3CA = {.FD = false,
+                                        .ext_ID = false,
+                                        .DLC = 8,
+                                        .ID = 0x3CA,
+                                        .data = {0x87, 0x80, 0x30, 0x0C, 0x0C, 0x81, 0xFF, 0xFF}};
+  static constexpr CAN_frame BMW_3D0 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x3D0, .data = {0xFD, 0xFF}};
+  static constexpr CAN_frame BMW_3E4 = {.FD = false,
+                                        .ext_ID = false,
+                                        .DLC = 6,
+                                        .ID = 0x3E4,
+                                        .data = {0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF}};
   CAN_frame BMW_3E5 = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x3E5, .data = {0xFC, 0xFF, 0xFF}};
   CAN_frame BMW_3E8 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x3E8, .data = {0xF0, 0xFF}};  //1000ms OBD reset
+  CAN_frame BMW_3E9 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x3E9,
+                       .data = {0x08, 0x52, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame BMW_3EC = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
@@ -216,66 +246,88 @@ class BmwI3Battery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x3F9,
                        .data = {0xA7, 0x2A, 0x00, 0xE2, 0xA6, 0x30, 0xC3, 0xFF}};
-  CAN_frame BMW_3FB = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 6,
-                       .ID = 0x3FB,
-                       .data = {0xFF, 0xFF, 0xFF, 0xFF, 0x5F, 0x00}};
+  static constexpr CAN_frame BMW_3FB = {.FD = false,
+                                        .ext_ID = false,
+                                        .DLC = 6,
+                                        .ID = 0x3FB,
+                                        .data = {0xFF, 0xFF, 0xFF, 0xFF, 0x5F, 0x00}};
   CAN_frame BMW_3FC = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x3FC, .data = {0xC0, 0xF9, 0x0F}};
-  CAN_frame BMW_418 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x418,
-                       .data = {0xFF, 0x7C, 0xFF, 0x00, 0xC0, 0x3F, 0xFF, 0xFF}};
-  CAN_frame BMW_41D = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x41D, .data = {0xFF, 0xF7, 0x7F, 0xFF}};
+  static constexpr CAN_frame BMW_418 = {.FD = false,
+                                        .ext_ID = false,
+                                        .DLC = 8,
+                                        .ID = 0x418,
+                                        .data = {0xFF, 0x7C, 0xFF, 0x00, 0xC0, 0x3F, 0xFF, 0xFF}};
+  static constexpr CAN_frame BMW_41D = {.FD = false,
+                                        .ext_ID = false,
+                                        .DLC = 4,
+                                        .ID = 0x41D,
+                                        .data = {0xFF, 0xF7, 0x7F, 0xFF}};
   CAN_frame BMW_433 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 4,
                        .ID = 0x433,
                        .data = {0xFF, 0x00, 0x0F, 0xFF}};  // HV specification
-  CAN_frame BMW_512 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x512,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12}};  // 0x512 Network management
-  CAN_frame BMW_592_0 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x592,
-                         .data = {0x86, 0x10, 0x07, 0x21, 0x6e, 0x35, 0x5e, 0x86}};
-  CAN_frame BMW_592_1 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x592,
-                         .data = {0x86, 0x21, 0xb4, 0xdd, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame BMW_5F8 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x5F8,
-                       .data = {0x64, 0x01, 0x00, 0x0B, 0x92, 0x03, 0x00, 0x05}};
-  CAN_frame BMW_6F1_CELL = {.FD = false,
-                            .ext_ID = false,
-                            .DLC = 5,
-                            .ID = 0x6F1,
-                            .data = {0x07, 0x03, 0x22, 0xDD, 0xBF}};
-  CAN_frame BMW_6F1_SOH = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x6F1, .data = {0x07, 0x03, 0x22, 0x63, 0x35}};
-  CAN_frame BMW_6F1_SOC = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x6F1, .data = {0x07, 0x03, 0x22, 0xDD, 0xBC}};
-  CAN_frame BMW_6F1_CELL_VOLTAGE_AVG = {.FD = false,
+  static constexpr CAN_frame BMW_512 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x512,
+      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12}};  // 0x512 Network management
+  static constexpr CAN_frame BMW_592_0 = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 8,
+                                          .ID = 0x592,
+                                          .data = {0x86, 0x10, 0x07, 0x21, 0x6e, 0x35, 0x5e, 0x86}};
+  static constexpr CAN_frame BMW_592_1 = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 8,
+                                          .ID = 0x592,
+                                          .data = {0x86, 0x21, 0xb4, 0xdd, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame BMW_5F8 = {.FD = false,
                                         .ext_ID = false,
-                                        .DLC = 5,
-                                        .ID = 0x6F1,
-                                        .data = {0x07, 0x03, 0x22, 0xDF, 0xA0}};
-  CAN_frame BMW_6F1_CONTINUE = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x6F1, .data = {0x07, 0x30, 0x00, 0x02}};
+                                        .DLC = 8,
+                                        .ID = 0x5F8,
+                                        .data = {0x64, 0x01, 0x00, 0x0B, 0x92, 0x03, 0x00, 0x05}};
+  static constexpr CAN_frame BMW_6F1_CELL = {.FD = false,
+                                             .ext_ID = false,
+                                             .DLC = 5,
+                                             .ID = 0x6F1,
+                                             .data = {0x07, 0x03, 0x22, 0xDD, 0xBF}};
+  static constexpr CAN_frame BMW_6F1_SOH = {.FD = false,
+                                            .ext_ID = false,
+                                            .DLC = 5,
+                                            .ID = 0x6F1,
+                                            .data = {0x07, 0x03, 0x22, 0x63, 0x35}};
+  static constexpr CAN_frame BMW_6F1_SOC = {.FD = false,
+                                            .ext_ID = false,
+                                            .DLC = 5,
+                                            .ID = 0x6F1,
+                                            .data = {0x07, 0x03, 0x22, 0xDD, 0xBC}};
+  static constexpr CAN_frame BMW_6F1_CELL_VOLTAGE_AVG = {.FD = false,
+                                                         .ext_ID = false,
+                                                         .DLC = 5,
+                                                         .ID = 0x6F1,
+                                                         .data = {0x07, 0x03, 0x22, 0xDF, 0xA0}};
+  static constexpr CAN_frame BMW_6F1_CONTINUE = {.FD = false,
+                                                 .ext_ID = false,
+                                                 .DLC = 4,
+                                                 .ID = 0x6F1,
+                                                 .data = {0x07, 0x30, 0x00, 0x02}};
+  static constexpr CAN_frame BMW_6F1_CLEAR_DTC = {.FD = false,
+                                                  .ext_ID = false,
+                                                  .DLC = 6,
+                                                  .ID = 0x6F1,
+                                                  .data = {0xDF, 0x04, 0x14, 0xFF, 0xFF, 0xFF}};
   CAN_frame BMW_6F4_CELL_VOLTAGE_CELLNO = {.FD = false,
                                            .ext_ID = false,
                                            .DLC = 7,
                                            .ID = 0x6F4,
                                            .data = {0x07, 0x05, 0x31, 0x01, 0xAD, 0x6E, 0x01}};
-  CAN_frame BMW_6F4_CELL_CONTINUE = {.FD = false,
-                                     .ext_ID = false,
-                                     .DLC = 6,
-                                     .ID = 0x6F4,
-                                     .data = {0x07, 0x04, 0x31, 0x03, 0xAD, 0x6E}};
+  static constexpr CAN_frame BMW_6F4_CELL_CONTINUE = {.FD = false,
+                                                      .ext_ID = false,
+                                                      .DLC = 6,
+                                                      .ID = 0x6F4,
+                                                      .data = {0x07, 0x04, 0x31, 0x03, 0xAD, 0x6E}};
 
   //The above CAN messages need to be sent towards the battery to keep it alive
 

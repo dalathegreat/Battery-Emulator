@@ -1,8 +1,6 @@
 #ifndef CHEVYVOLT_CHARGER_H
 #define CHEVYVOLT_CHARGER_H
-#include <Arduino.h>
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 #include "CanCharger.h"
 
 #ifdef CHEVYVOLT_CHARGER
@@ -34,9 +32,9 @@ class ChevyVoltCharger : public CanCharger {
  * Relative to runtime settings, expectations are:
  * hw minimum <= setting minimum <= setting maximum <= hw max
  */
-  const float CHEVYVOLT_MAX_HVDC = 420.0;
-  const float CHEVYVOLT_MIN_HVDC = 200.0;
-  const float CHEVYVOLT_MAX_AMP = 11.5;
+  const float CHEVYVOLT_MAX_HVDC = 420.0f;
+  const float CHEVYVOLT_MIN_HVDC = 200.0f;
+  const float CHEVYVOLT_MAX_AMP = 11.5f;
   const float CHEVYVOLT_MAX_POWER = 3300;
 
   /* CAN cycles and timers */

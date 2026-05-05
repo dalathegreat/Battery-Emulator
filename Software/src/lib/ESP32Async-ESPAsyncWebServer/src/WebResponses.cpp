@@ -6,17 +6,6 @@
 
 using namespace asyncsrv;
 
-// Since ESP8266 does not link memchr by default, here's its implementation.
-void *memchr(void *ptr, int ch, size_t count) {
-  unsigned char *p = static_cast<unsigned char *>(ptr);
-  while (count--) {
-    if (*p++ == static_cast<unsigned char>(ch)) {
-      return --p;
-    }
-  }
-  return nullptr;
-}
-
 /*
  * Abstract Response
  *
@@ -77,11 +66,7 @@ AsyncWebServerResponse::AsyncWebServerResponse()
   }
 }
 
-void AsyncWebServerResponse::setCode(int code) {
-  if (_state == RESPONSE_SETUP) {
-    _code = code;
-  }
-}
+
 
 void AsyncWebServerResponse::setContentLength(size_t len) {
   if (_state == RESPONSE_SETUP && addHeader(T_Content_Length, len, true)) {
@@ -132,6 +117,30 @@ bool AsyncWebServerResponse::headerMustBePresentOnce(const String &name) {
     }
   }
   return false;
+}
+
+bool AsyncWebServerResponse::addHeader(AsyncWebHeader &&header, bool replaceExisting) {
+  if (!header) {
+    return false;  // invalid header
+  }
+  for (auto i = _headers.begin(); i != _headers.end(); ++i) {
+    if (i->name().equalsIgnoreCase(header.name())) {
+      // header already set
+      if (replaceExisting) {
+        // remove, break and add the new one
+        _headers.erase(i);
+        break;
+      } else if (headerMustBePresentOnce(i->name())) {  // we can have only one header with that name
+        // do not update
+        return false;
+      } else {
+        break;  // accept multiple headers with the same name
+      }
+    }
+  }
+  // header was not found found, or existing one was removed
+  _headers.emplace_back(std::move(header));
+  return true;
 }
 
 bool AsyncWebServerResponse::addHeader(const char *name, const char *value, bool replaceExisting) {
@@ -345,14 +354,6 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest *request, size_t len, u
     ++_in_flight_credit;
   }
 
-  // for chunked responses ignore acks if there are no _in_flight_credits left
-  if (_chunked && !_in_flight_credit) {
-#ifdef ESP32
-    log_d("(chunk) out of in-flight credits");
-#endif
-    return 0;
-  }
-
   _in_flight -= (_in_flight > len) ? len : _in_flight;
   // get the size of available sock space
 #endif
@@ -384,7 +385,7 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest *request, size_t len, u
     // Let's ignore polled acks and acks in case when we have more in-flight data then the available socket buff space.
     // That way we could balance on having half the buffer in-flight while another half is filling up, while minimizing events in asynctcp q
     if (_in_flight > space) {
-      // log_d("defer user call %u/%u", _in_flight, space);
+      // async_ws_log_d("defer user call %u/%u", _in_flight, space);
       //  take the credit back since we are ignoring this ack and rely on other inflight data
       if (len) {
         --_in_flight_credit;
@@ -408,9 +409,6 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest *request, size_t len, u
 
     uint8_t *buf = (uint8_t *)malloc(outLen + headLen);
     if (!buf) {
-#ifdef ESP32
-      log_e("Failed to allocate");
-#endif
       request->abort();
       return 0;
     }
@@ -586,6 +584,10 @@ size_t AsyncAbstractResponse::_fillBufferAndProcessTemplates(uint8_t *data, size
         const size_t roomTaken = pTemplateStart + numBytesCopied - pTemplateEnd - 1;
         len = std::min(len + roomTaken, originalLen);
       }
+      // Battery Emulator Fix: update pTemplateStart to point after inserted
+      // parameter value, so that % characters in the inserted value aren't
+      // parsed again
+      pTemplateStart += numBytesCopied;
     }
   }  // while(pTemplateStart)
   return len;
@@ -595,99 +597,137 @@ size_t AsyncAbstractResponse::_fillBufferAndProcessTemplates(uint8_t *data, size
  * File Response
  * */
 
+/**
+ * @brief Sets the content type based on the file path extension
+ *
+ * This method determines the appropriate MIME content type for a file based on its
+ * file extension. It supports both external content type functions (if available)
+ * and an internal mapping of common file extensions to their corresponding MIME types.
+ *
+ * @param path The file path string from which to extract the extension
+ * @note The method modifies the internal _contentType member variable
+ */
 void AsyncFileResponse::_setContentTypeFromPath(const String &path) {
-#if HAVE_EXTERN_GET_Content_Type_FUNCTION
-#ifndef ESP8266
-  extern const char *getContentType(const String &path);
-#else
-  extern const __FlashStringHelper *getContentType(const String &path);
-#endif
-  _contentType = getContentType(path);
-#else
-  if (path.endsWith(T__html)) {
-    _contentType = T_text_html;
-  } else if (path.endsWith(T__htm)) {
-    _contentType = T_text_html;
-  } else if (path.endsWith(T__css)) {
-    _contentType = T_text_css;
-  } else if (path.endsWith(T__json)) {
-    _contentType = T_application_json;
-  } else if (path.endsWith(T__js)) {
-    _contentType = T_application_javascript;
-  } else if (path.endsWith(T__png)) {
-    _contentType = T_image_png;
-  } else if (path.endsWith(T__gif)) {
-    _contentType = T_image_gif;
-  } else if (path.endsWith(T__jpg)) {
-    _contentType = T_image_jpeg;
-  } else if (path.endsWith(T__ico)) {
-    _contentType = T_image_x_icon;
-  } else if (path.endsWith(T__svg)) {
-    _contentType = T_image_svg_xml;
-  } else if (path.endsWith(T__eot)) {
-    _contentType = T_font_eot;
-  } else if (path.endsWith(T__woff)) {
-    _contentType = T_font_woff;
-  } else if (path.endsWith(T__woff2)) {
-    _contentType = T_font_woff2;
-  } else if (path.endsWith(T__ttf)) {
-    _contentType = T_font_ttf;
-  } else if (path.endsWith(T__xml)) {
-    _contentType = T_text_xml;
-  } else if (path.endsWith(T__pdf)) {
-    _contentType = T_application_pdf;
-  } else if (path.endsWith(T__zip)) {
-    _contentType = T_application_zip;
-  } else if (path.endsWith(T__gz)) {
-    _contentType = T_application_x_gzip;
-  } else {
-    _contentType = T_text_plain;
+  const char *cpath = path.c_str();
+  const char *dot = strrchr(cpath, '.');
+
+  if (!dot) {
+    _contentType = T_application_octet_stream;
+    return;
   }
-#endif
+
+  if (strcmp(dot, T__html) == 0 || strcmp(dot, T__htm) == 0) {
+    _contentType = T_text_html;
+  } else if (strcmp(dot, T__css) == 0) {
+    _contentType = T_text_css;
+  } else if (strcmp(dot, T__js) == 0 || strcmp(dot, T__mjs) == 0) {
+    _contentType = T_text_javascript;
+  } else if (strcmp(dot, T__json) == 0) {
+    _contentType = T_application_json;
+  } else if (strcmp(dot, T__png) == 0) {
+    _contentType = T_image_png;
+  } else if (strcmp(dot, T__ico) == 0) {
+    _contentType = T_image_x_icon;
+  } else if (strcmp(dot, T__svg) == 0) {
+    _contentType = T_image_svg_xml;
+  } else if (strcmp(dot, T__jpg) == 0) {
+    _contentType = T_image_jpeg;
+  } else if (strcmp(dot, T__webp) == 0) {
+    _contentType = T_image_webp;
+  } else if (strcmp(dot, T__avif) == 0) {
+    _contentType = T_image_avif;
+  } else if (strcmp(dot, T__gif) == 0) {
+    _contentType = T_image_gif;
+  } else if (strcmp(dot, T__woff2) == 0) {
+    _contentType = T_font_woff2;
+  } else if (strcmp(dot, T__ttf) == 0) {
+    _contentType = T_font_ttf;
+  } else if (strcmp(dot, T__xml) == 0) {
+    _contentType = T_text_xml;
+  } else if (strcmp(dot, T__txt) == 0) {
+    _contentType = T_text_plain;
+  } else {
+    _contentType = T_application_octet_stream;
+  }
 }
 
+/**
+ * @brief Constructor for AsyncFileResponse that handles file serving with compression support
+ *
+ * This constructor creates an AsyncFileResponse object that can serve files from a filesystem,
+ * with automatic fallback to gzip-compressed versions if the original file is not found.
+ * It also handles ETag generation for caching and supports both inline and download modes.
+ *
+ * @param fs Reference to the filesystem object used to open files
+ * @param path Path to the file to be served (without compression extension)
+ * @param contentType MIME type of the file content (empty string for auto-detection)
+ * @param download If true, file will be served as download attachment; if false, as inline content
+ * @param callback Template processor callback for dynamic content processing
+ */
 AsyncFileResponse::AsyncFileResponse(FS &fs, const String &path, const char *contentType, bool download, AwsTemplateProcessor callback)
   : AsyncAbstractResponse(callback) {
-  _code = 200;
-  _path = path;
 
-  if (!download && !fs.exists(_path) && fs.exists(_path + T__gz)) {
-    _path = _path + T__gz;
-    addHeader(T_Content_Encoding, T_gzip, false);
-    _callback = nullptr;  // Unable to process zipped templates
-    _sendContentLength = true;
-    _chunked = false;
+  // Try to open the uncompressed version first
+  _content = fs.open(path, fs::FileOpenMode::read);
+  if (!_content.available()) {
+    // If not available try to open the compressed version (.gz)
+    String gzPath;
+    uint16_t pathLen = path.length();
+    gzPath.reserve(pathLen + 3);
+    gzPath.concat(path);
+    gzPath.concat(asyncsrv::T__gz);
+    _content = fs.open(gzPath, fs::FileOpenMode::read);
+
+    char serverETag[9];
+    if (AsyncWebServerRequest::_getEtag(_content, serverETag)) {
+      addHeader(T_Content_Encoding, T_gzip, false);
+      _callback = nullptr;  // Unable to process zipped templates
+      _sendContentLength = true;
+      _chunked = false;
+
+      // Add ETag and cache headers
+      addHeader(T_ETag, serverETag, true);
+      addHeader(T_Cache_Control, T_no_cache, true);
+
+      _content.seek(0);
+    } else {
+      // File is corrupted or invalid
+      _code = 404;
+      return;
+    }
   }
 
-  _content = fs.open(_path, fs::FileOpenMode::read);
   _contentLength = _content.size();
 
-  if (strlen(contentType) == 0) {
+  if (*contentType == '\0') {
     _setContentTypeFromPath(path);
   } else {
     _contentType = contentType;
   }
 
-  int filenameStart = path.lastIndexOf('/') + 1;
-  char buf[26 + path.length() - filenameStart];
-  char *filename = (char *)path.c_str() + filenameStart;
-
   if (download) {
-    // set filename and force download
-    snprintf_P(buf, sizeof(buf), PSTR("attachment; filename=\"%s\""), filename);
+    // Extract filename from path and set as download attachment
+    int filenameStart = path.lastIndexOf('/') + 1;
+    const char *filename = path.c_str() + filenameStart;
+    String buf;
+    buf.reserve(strlen(T_attachment) + strlen(filename) + 2);
+    buf = T_attachment;
+    buf += filename;
+    buf += "\"";
+    addHeader(T_Content_Disposition, buf, false);
   } else {
-    // set filename and force rendering
-    snprintf_P(buf, sizeof(buf), PSTR("inline"));
+    // Serve file inline (display in browser)
+    addHeader(T_Content_Disposition, T_inline, false);
   }
-  addHeader(T_Content_Disposition, buf, false);
+
+  _code = 200;
 }
 
 AsyncFileResponse::AsyncFileResponse(File content, const String &path, const char *contentType, bool download, AwsTemplateProcessor callback)
   : AsyncAbstractResponse(callback) {
   _code = 200;
-  _path = path;
 
-  if (!download && String(content.name()).endsWith(T__gz) && !path.endsWith(T__gz)) {
+  if (String(content.name()).endsWith(T__gz) && !path.endsWith(T__gz)) {
     addHeader(T_Content_Encoding, T_gzip, false);
     _callback = nullptr;  // Unable to process gzipped templates
     _sendContentLength = true;
@@ -697,22 +737,26 @@ AsyncFileResponse::AsyncFileResponse(File content, const String &path, const cha
   _content = content;
   _contentLength = _content.size();
 
-  if (strlen(contentType) == 0) {
+  if (*contentType == '\0') {
     _setContentTypeFromPath(path);
   } else {
     _contentType = contentType;
   }
 
-  int filenameStart = path.lastIndexOf('/') + 1;
-  char buf[26 + path.length() - filenameStart];
-  char *filename = (char *)path.c_str() + filenameStart;
-
   if (download) {
-    snprintf_P(buf, sizeof(buf), PSTR("attachment; filename=\"%s\""), filename);
+    // Extract filename from path and set as download attachment
+    int filenameStart = path.lastIndexOf('/') + 1;
+    const char *filename = path.c_str() + filenameStart;
+    String buf;
+    buf.reserve(strlen(T_attachment) + strlen(filename) + 2);
+    buf = T_attachment;
+    buf += filename;
+    buf += "\"";
+    addHeader(T_Content_Disposition, buf, false);
   } else {
-    snprintf_P(buf, sizeof(buf), PSTR("inline"));
+    // Serve file inline (display in browser)
+    addHeader(T_Content_Disposition, T_inline, false);
   }
-  addHeader(T_Content_Disposition, buf, false);
 }
 
 size_t AsyncFileResponse::_fillBuffer(uint8_t *data, size_t len) {
@@ -820,22 +864,23 @@ AsyncResponseStream::AsyncResponseStream(const char *contentType, size_t bufferS
   _code = 200;
   _contentLength = 0;
   _contentType = contentType;
-  if (!_content.reserve(bufferSize)) {
-#ifdef ESP32
-    log_e("Failed to allocate");
-#endif
-  }
+  // internal buffer will be null on allocation failure
+  _content = std::unique_ptr<cbuf>(new cbuf(bufferSize));
 }
 
 size_t AsyncResponseStream::_fillBuffer(uint8_t *buf, size_t maxLen) {
-  return _content.readBytes((char *)buf, maxLen);
+  return _content->read((char *)buf, maxLen);
 }
 
 size_t AsyncResponseStream::write(const uint8_t *data, size_t len) {
   if (_started()) {
     return 0;
   }
-  size_t written = _content.write(data, len);
+  if (len > _content->room()) {
+    size_t needed = len - _content->room();
+    _content->resizeAdd(needed);
+  }
+  size_t written = _content->write((const char *)data, len);
   _contentLength += written;
   return written;
 }

@@ -3,10 +3,6 @@
 
 #include "CanBattery.h"
 
-#ifdef JAGUAR_IPACE_BATTERY
-#define SELECTED_BATTERY_CLASS JaguarIpaceBattery
-#endif
-
 class JaguarIpaceBattery : public CanBattery {
  public:
   virtual void setup(void);

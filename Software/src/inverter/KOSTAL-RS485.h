@@ -1,36 +1,22 @@
 #ifndef BYD_KOSTAL_RS485_H
 #define BYD_KOSTAL_RS485_H
-#include <Arduino.h>
-#include "../include.h"
-
+#include <stdint.h>
 #include "Rs485InverterProtocol.h"
-
-#ifdef BYD_KOSTAL_RS485
-#define RS485_INVERTER_SELECTED
-#define SELECTED_INVERTER_CLASS KostalInverterProtocol
-#endif
-
-//#define DEBUG_KOSTAL_RS485_DATA  // Enable this line to get TX / RX printed out via logging
-//#define DEBUG_KOSTAL_RS485_DATA_USB  // Enable this line to get TX / RX printed out via USB
-
-#if defined(DEBUG_KOSTAL_RS485_DATA) && !defined(DEBUG_LOG)
-#error "enable LOG_TO_SD, DEBUG_VIA_USB or DEBUG_VIA_WEB in order to use DEBUG_KOSTAL_RS485_DATA"
-#endif
 
 class KostalInverterProtocol : public Rs485InverterProtocol {
  public:
-  void setup();
+  const char* name() override { return Name; }
+  bool setup() override;
   void receive();
   void update_values();
   static constexpr const char* Name = "BYD battery via Kostal RS485";
 
  private:
   int baud_rate() { return 57600; }
-  void float2frame(byte* arr, float value, byte framepointer);
+  void float2frame(uint8_t* arr, float value, uint8_t framepointer);
   bool check_kostal_frame_crc(int len);
-
-  // How many value updates we can go without inverter gets reported as missing \
-    // e.g. value set to 12, 12*5sec=60seconds without comm before event is raised
+  /* How many value updates we can go without inverter gets reported as missing
+  e.g. value set to 12, 12*5sec=60seconds without comm before event is raised */
   const int RS485_HEALTHY = 12;
 
   const uint8_t KOSTAL_FRAMEHEADER[5] = {0x62, 0xFF, 0x02, 0xFF, 0x29};
@@ -40,18 +26,19 @@ class KostalInverterProtocol : public Rs485InverterProtocol {
   uint8_t incoming_message_counter = RS485_HEALTHY;
   int8_t f2_startup_count = 0;
 
-  boolean B1_delay = false;
-  unsigned long B1_last_millis = 0;
+  bool info_sent = false;
   unsigned long currentMillis;
   unsigned long startupMillis = 0;
   unsigned long contactorMillis = 0;
+  unsigned long contactortestTimerStart = 0;
+  bool contactortestTimerActive = false;
 
   uint16_t rx_index = 0;
-  boolean RX_allow = false;
+  bool RX_allow = false;
 
   union f32b {
     float f;
-    byte b[4];
+    uint8_t b[4];
   };
 
   // clang-format off

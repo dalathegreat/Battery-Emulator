@@ -1,7 +1,6 @@
 #include "AFORE-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 #define SOCMAX 100
 #define SOCMIN 1
@@ -17,8 +16,8 @@ void AforeCanInverter::
   AFORE_350.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
   //Total battery current unit: 0.1A offset 5000; positive is charging,
   //Negative means discharge; for example: 1A = (5010-5000)/10
-  AFORE_350.data.u8[2] = ((datalayer.battery.status.current_dA + 5000) & 0x00FF);
-  AFORE_350.data.u8[3] = ((datalayer.battery.status.current_dA + 5000) >> 8);
+  AFORE_350.data.u8[2] = ((datalayer.battery.status.reported_current_dA + 5000) & 0x00FF);
+  AFORE_350.data.u8[3] = ((datalayer.battery.status.reported_current_dA + 5000) >> 8);
   //Battery temperature unit: 0.1C offset 1000; for example: 20C
   //= (1200 -1000)/10; when all temperatures are greater than or equal to 0
   AFORE_350.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
@@ -79,7 +78,7 @@ void AforeCanInverter::
   15 InterlockOpen
   AFORE_353.data.u8[0] = Fault H table & 0x00FF
   AFORE_353.data.u8[1] = Fault H table >> 8);
-  /* Fault L, bit, definitions
+  Fault L, bit, definitions
   8 VoltageInterlockShortCircuit
   9 SystemFailure
   10 ErrorChargeReferenceOvervoltage
@@ -92,11 +91,23 @@ void AforeCanInverter::
   AFORE_353.data.u8[3] = Fault L table >> 8);
   */
 
-  /*0x354 - Single cell voltage parameters*/
-  AFORE_354.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
-  AFORE_354.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
-  AFORE_354.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
-  AFORE_354.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  //Afore only supports LFP batteries. We need to fake an LFP voltage range if the battery used is not LFP
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+    //Already LFP, pass thru value
+    cell_tweaked_max_voltage_mV = datalayer.battery.status.cell_max_voltage_mV;
+    cell_tweaked_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
+  } else {  //linear interpolation to remap the value from the range [2500-4200] to [2500-3400]
+    cell_tweaked_max_voltage_mV =
+        (2500 + ((datalayer.battery.status.cell_max_voltage_mV - 2500) * (3400 - 2500)) / (4200 - 2500));
+    cell_tweaked_min_voltage_mV =
+        (2500 + ((datalayer.battery.status.cell_min_voltage_mV - 2500) * (3400 - 2500)) / (4200 - 2500));
+  }
+
+  /*0x354 - Single cell voltage parameters, We fake LFP cellvoltage range if needed*/
+  AFORE_354.data.u8[0] = (cell_tweaked_max_voltage_mV & 0x00FF);
+  AFORE_354.data.u8[1] = (cell_tweaked_max_voltage_mV >> 8);
+  AFORE_354.data.u8[2] = (cell_tweaked_min_voltage_mV & 0x00FF);
+  AFORE_354.data.u8[3] = (cell_tweaked_min_voltage_mV >> 8);
   AFORE_354.data.u8[4] = (1 & 0x00FF);  //Maximum single cell voltage number, not used on emulator
   AFORE_354.data.u8[5] = (1 >> 8);
   AFORE_354.data.u8[6] = (2 & 0x00FF);  //Minimum single cell voltage number, not used on emulator
@@ -140,11 +151,10 @@ void AforeCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x305:  // Every 1s from inverter
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      char0 = rx_frame.data.u8[0];  // A
-      char1 = rx_frame.data.u8[0];  // F
-      char2 = rx_frame.data.u8[0];  // O
-      char3 = rx_frame.data.u8[0];  // R
-      char4 = rx_frame.data.u8[0];  // E
+      for (uint8_t i = 0; i < 5; i++) {
+        datalayer.system.info.inverter_brand[i] = rx_frame.data.u8[i];
+      }
+      datalayer.system.info.inverter_brand[7] = '\0';
       inverter_status = rx_frame.data.u8[7];
       time_to_send_info = true;
       break;
@@ -155,22 +165,17 @@ void AforeCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 
 void AforeCanInverter::transmit_can(unsigned long currentMillis) {
   if (time_to_send_info) {  // Set every 1s if we get message from inverter
-    transmit_can_frame(&AFORE_350, can_config.inverter);
-    transmit_can_frame(&AFORE_351, can_config.inverter);
-    transmit_can_frame(&AFORE_352, can_config.inverter);
-    transmit_can_frame(&AFORE_353, can_config.inverter);
-    transmit_can_frame(&AFORE_354, can_config.inverter);
-    transmit_can_frame(&AFORE_355, can_config.inverter);
-    transmit_can_frame(&AFORE_356, can_config.inverter);
-    transmit_can_frame(&AFORE_357, can_config.inverter);
-    transmit_can_frame(&AFORE_358, can_config.inverter);
-    transmit_can_frame(&AFORE_359, can_config.inverter);
-    transmit_can_frame(&AFORE_35A, can_config.inverter);
+    transmit_can_frame(&AFORE_350);
+    transmit_can_frame(&AFORE_351);
+    transmit_can_frame(&AFORE_352);
+    transmit_can_frame(&AFORE_353);
+    transmit_can_frame(&AFORE_354);
+    transmit_can_frame(&AFORE_355);
+    transmit_can_frame(&AFORE_356);
+    transmit_can_frame(&AFORE_357);
+    transmit_can_frame(&AFORE_358);
+    transmit_can_frame(&AFORE_359);
+    transmit_can_frame(&AFORE_35A);
     time_to_send_info = false;
   }
-}
-
-void AforeCanInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
 }

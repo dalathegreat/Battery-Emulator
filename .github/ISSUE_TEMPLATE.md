@@ -16,13 +16,11 @@
 
 ### Settings
 
-<!-- Please fill in the settings used below from USER_SETTINGS.h, as it will help with diagnosis. -->
+<!-- Please attach screenshot of configuration for easier debugging, as it will help with diagnosis. -->
 
-- Software version: ``
-- Battery used: ``
-- Inverter communication protocol: ``
-- Hardware used for Battery-Emulator: `HW_LILYGO, HW_STARK, Custom`
-- CONTACTOR_CONTROL: `yes/no`
-- CAN_ADDON: `yes/no`
-- WEBSERVER: `yes/no`
-- MQTT: `yes/no`
+- Software version: X.Y.Z
+- Battery used: [Nissan LEAF]
+- Inverter communication protocol: [BYD Modbus]
+- Hardware used for Battery-Emulator: [LilyGo T-CAN/Stark CMR/LilyGo T-2CAN]
+- GPIO controlled contactors: [yes/no]
+- MQTT: [yes/no]

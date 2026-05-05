@@ -1,14 +1,7 @@
 #ifndef VOLVO_SPA_HYBRID_BATTERY_H
 #define VOLVO_SPA_HYBRID_BATTERY_H
-#include <Arduino.h>
-#include "../include.h"
-
 #include "CanBattery.h"
 #include "VOLVO-SPA-HYBRID-HTML.h"
-
-#ifdef VOLVO_SPA_HYBRID_BATTERY
-#define SELECTED_BATTERY_CLASS VolvoSpaHybridBattery
-#endif
 
 class VolvoSpaHybridBattery : public CanBattery {
  public:

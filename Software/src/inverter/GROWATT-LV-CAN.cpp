@@ -1,7 +1,6 @@
 #include "GROWATT-LV-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../include.h"
 
 /* Growatt BMS CAN-Bus-protocol Low Voltage Rev_04
 CAN 2.0A
@@ -13,13 +12,13 @@ The inverter replies data every second (standard frame/decimal)0x301:*/
 void GrowattLvInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
-  cell_delta_mV = datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
+  cell_delta_mV = abs(datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
 
   if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
     ampere_hours_remaining =
         ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
          100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
-    ampere_hours_full = ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.status.voltage_dV) *
+    ampere_hours_full = ((datalayer.battery.info.reported_total_capacity_Wh / datalayer.battery.status.voltage_dV) *
                          100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
   }
   //Map values to CAN messages
@@ -59,8 +58,8 @@ void GrowattLvInverter::
   GROWATT_313.data.u8[0] = ((datalayer.battery.status.voltage_dV * 10) >> 8);
   GROWATT_313.data.u8[1] = ((datalayer.battery.status.voltage_dV * 10) & 0x00FF);
   //Module or system total current (0.1A Sint16)
-  GROWATT_313.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
-  GROWATT_313.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  GROWATT_313.data.u8[2] = (datalayer.battery.status.reported_current_dA >> 8);
+  GROWATT_313.data.u8[3] = (datalayer.battery.status.reported_current_dA & 0x00FF);
   //Cell max temperature (0.1C)
   GROWATT_313.data.u8[4] = (datalayer.battery.status.temperature_max_dC >> 8);
   GROWATT_313.data.u8[5] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
@@ -182,17 +181,17 @@ void GrowattLvInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x301:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      transmit_can_frame(&GROWATT_311, can_config.inverter);
-      transmit_can_frame(&GROWATT_312, can_config.inverter);
-      transmit_can_frame(&GROWATT_313, can_config.inverter);
-      transmit_can_frame(&GROWATT_314, can_config.inverter);
-      transmit_can_frame(&GROWATT_315, can_config.inverter);
-      transmit_can_frame(&GROWATT_316, can_config.inverter);
-      transmit_can_frame(&GROWATT_317, can_config.inverter);
-      transmit_can_frame(&GROWATT_318, can_config.inverter);
-      transmit_can_frame(&GROWATT_319, can_config.inverter);
-      transmit_can_frame(&GROWATT_320, can_config.inverter);
-      transmit_can_frame(&GROWATT_321, can_config.inverter);
+      transmit_can_frame(&GROWATT_311);
+      transmit_can_frame(&GROWATT_312);
+      transmit_can_frame(&GROWATT_313);
+      transmit_can_frame(&GROWATT_314);
+      transmit_can_frame(&GROWATT_315);
+      transmit_can_frame(&GROWATT_316);
+      transmit_can_frame(&GROWATT_317);
+      transmit_can_frame(&GROWATT_318);
+      transmit_can_frame(&GROWATT_319);
+      transmit_can_frame(&GROWATT_320);
+      transmit_can_frame(&GROWATT_321);
       break;
     default:
       break;
@@ -201,9 +200,4 @@ void GrowattLvInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 
 void GrowattLvInverter::transmit_can(unsigned long currentMillis) {
   // No periodic sending for this battery type. Data is sent when inverter requests it
-}
-
-void GrowattLvInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
 }

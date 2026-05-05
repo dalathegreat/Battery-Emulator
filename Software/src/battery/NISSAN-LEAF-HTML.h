@@ -1,9 +1,10 @@
 #ifndef _NISSAN_LEAF_HTML_H
 #define _NISSAN_LEAF_HTML_H
 
+#include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
-#include "src/devboard/webserver/BatteryHtmlRenderer.h"
+#include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
  public:
@@ -39,6 +40,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     readableBMSID[8] = '\0';  // Null terminate the string
     content += "<h4>BMS ID: " + String(readableBMSID) + "</h4>";
     content += "<h4>GIDS: " + String(datalayer_extended.nissanleaf.GIDS) + "</h4>";
+    content += "<h4>HX: " + String(datalayer_extended.nissanleaf.battery_HX) + "</h4>";
     content += "<h4>Regen kW: " + String(datalayer_extended.nissanleaf.ChargePowerLimit) + "</h4>";
     content += "<h4>Charge kW: " + String(datalayer_extended.nissanleaf.MaxPowerForCharger) + "</h4>";
     content += "<h4>Interlock: " + String(datalayer_extended.nissanleaf.Interlock) + "</h4>";
@@ -52,6 +54,12 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Heating stopped: " + String(datalayer_extended.nissanleaf.HeatingStop) + "</h4>";
     content += "<h4>Heating started: " + String(datalayer_extended.nissanleaf.HeatingStart) + "</h4>";
     content += "<h4>Heating requested: " + String(datalayer_extended.nissanleaf.HeaterSendRequest) + "</h4>";
+    content += "<h4>Temperature 1: " + String(datalayer_extended.nissanleaf.temperature1 / 10.0) + " &deg;C</h4>";
+    content += "<h4>Temperature 2: " + String(datalayer_extended.nissanleaf.temperature2 / 10.0) + " &deg;C</h4>";
+    if (datalayer_extended.nissanleaf.LEAF_gen == 0) {
+      content += "<h4>Temperature 3: " + String(datalayer_extended.nissanleaf.temperature3 / 10.0) + " &deg;C</h4>";
+    }
+    content += "<h4>Temperature 4: " + String(datalayer_extended.nissanleaf.temperature4 / 10.0) + " &deg;C</h4>";
     content += "<h4>CryptoChallenge: " + String(datalayer_extended.nissanleaf.CryptoChallenge) + "</h4>";
     content += "<h4>SolvedChallenge: " + String(datalayer_extended.nissanleaf.SolvedChallengeMSB) +
                String(datalayer_extended.nissanleaf.SolvedChallengeLSB) + "</h4>";

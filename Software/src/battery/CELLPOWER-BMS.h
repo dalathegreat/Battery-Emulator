@@ -1,17 +1,11 @@
 #ifndef CELLPOWER_BMS_H
 #define CELLPOWER_BMS_H
-#include <Arduino.h>
-#include "../include.h"
 #include "CELLPOWER-HTML.h"
 #include "CanBattery.h"
 
-#ifdef CELLPOWER_BMS
-#define SELECTED_BATTERY_CLASS CellPowerBms
-#endif
-
 class CellPowerBms : public CanBattery {
  public:
-  CellPowerBms() : CanBattery(true) {}
+  CellPowerBms() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) {}
 
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
@@ -24,15 +18,10 @@ class CellPowerBms : public CanBattery {
 
  private:
   CellpowerHtmlRenderer renderer;
-  /* Tweak these according to your battery build */
-  static const int MAX_PACK_VOLTAGE_DV = 5000;  //5000 = 500.0V
-  static const int MIN_PACK_VOLTAGE_DV = 1500;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
 
   unsigned long previousMillis1s = 0;  // will store last time a 1s CAN Message was sent
 
-  //Actual content messages
+  /*Actual content messages
   // Optional add-on charger module. Might not be needed to send these towards the BMS to keep it happy.
   CAN_frame CELLPOWER_18FF50E9 = {.FD = false,
                                   .ext_ID = true,
@@ -54,7 +43,7 @@ class CellPowerBms : public CanBattery {
                                   .DLC = 5,
                                   .ID = 0x18FF50E5,
                                   .data = {0x00, 0x00, 0x00, 0x00, 0x00}};
-
+  */
   bool system_state_discharge = false;
   bool system_state_charge = false;
   bool system_state_cellbalancing = false;

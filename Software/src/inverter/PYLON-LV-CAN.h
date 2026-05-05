@@ -1,16 +1,11 @@
 #ifndef PYLON_LV_CAN_H
 #define PYLON_LV_CAN_H
-#include "../include.h"
 
 #include "CanInverterProtocol.h"
 
-#ifdef PYLON_LV_CAN
-#define SELECTED_INVERTER_CLASS PylonLvInverter
-#endif
-
 class PylonLvInverter : public CanInverterProtocol {
  public:
-  void setup();
+  const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);

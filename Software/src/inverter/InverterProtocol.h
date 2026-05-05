@@ -1,26 +1,33 @@
 #ifndef INVERTER_PROTOCOL_H
 #define INVERTER_PROTOCOL_H
 
+#include <vector>
+
 enum class InverterProtocolType {
   None = 0,
-  AforeCan,
-  BydCan,
-  BydModbus,
-  FerroampCan,
-  Foxess,
-  GrowattHv,
-  GrowattLv,
-  Kostal,
-  Pylon,
-  PylonLv,
-  Schneider,
-  SmaBydH,
-  SmaBydHvs,
-  SmaLv,
-  SmaTripower,
-  Sofar,
-  Solax,
-  Sungrow,
+  AforeCan = 1,
+  BydCan = 2,
+  BydModbus = 3,
+  FerroampCan = 4,
+  Foxess = 5,
+  GrowattHv = 6,
+  GrowattLv = 7,
+  GrowattWit = 8,
+  Kostal = 9,
+  Pylon = 10,
+  PylonLv = 11,
+  Schneider = 12,
+  SmaBydH = 14,
+  SmaLv = 15,
+  SmaBydHvs = 16,
+  Sofar = 17,
+  Solax = 18,
+  Solxpow = 19,
+  SolArkLv = 20,
+  Sungrow = 21,
+  VCU = 22,
+  PylonLV485 = 23,
+  SmaSBSByd = 24,
   Highest
 };
 
@@ -34,7 +41,8 @@ enum class InverterInterfaceType { Can, Rs485, Modbus };
 // The abstract base class for all inverter protocols
 class InverterProtocol {
  public:
-  virtual void setup() = 0;
+  virtual const char* name() = 0;
+  virtual bool setup() { return true; }
   virtual const char* interface_name() = 0;
   virtual InverterInterfaceType interface_type() = 0;
 
@@ -45,6 +53,11 @@ class InverterProtocol {
   virtual bool controls_contactor() { return false; }
 
   virtual bool allows_contactor_closing() { return false; }
+
+  virtual bool supports_battery_id() { return false; }
+
+  virtual bool provides_shunt() { return false; }
+  virtual void enable_shunt() {}
 };
 
 extern InverterProtocol* inverter;

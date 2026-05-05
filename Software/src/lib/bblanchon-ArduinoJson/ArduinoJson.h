@@ -1,5 +1,5 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2025, Benoit BLANCHON
+// Copyright © 2014-2026, Benoit BLANCHON
 // MIT License
 
 #pragma once
@@ -213,6 +213,12 @@
 #    pragma GCC system_header
 #  endif
 #endif
+#ifdef true
+#  undef true
+#endif
+#ifdef false
+#  undef false
+#endif
 #define ARDUINOJSON_CONCAT_(A, B) A##B
 #define ARDUINOJSON_CONCAT2(A, B) ARDUINOJSON_CONCAT_(A, B)
 #define ARDUINOJSON_CONCAT3(A, B, C) \
@@ -239,11 +245,11 @@
 #define ARDUINOJSON_BIN2ALPHA_1111() P
 #define ARDUINOJSON_BIN2ALPHA_(A, B, C, D) ARDUINOJSON_BIN2ALPHA_##A##B##C##D()
 #define ARDUINOJSON_BIN2ALPHA(A, B, C, D) ARDUINOJSON_BIN2ALPHA_(A, B, C, D)
-#define ARDUINOJSON_VERSION "7.4.1"
+#define ARDUINOJSON_VERSION "7.4.3"
 #define ARDUINOJSON_VERSION_MAJOR 7
 #define ARDUINOJSON_VERSION_MINOR 4
-#define ARDUINOJSON_VERSION_REVISION 1
-#define ARDUINOJSON_VERSION_MACRO V741
+#define ARDUINOJSON_VERSION_REVISION 3
+#define ARDUINOJSON_VERSION_MACRO V743
 #ifndef ARDUINOJSON_VERSION_NAMESPACE
 #  define ARDUINOJSON_VERSION_NAMESPACE                               \
     ARDUINOJSON_CONCAT5(                                              \
@@ -1559,6 +1565,7 @@ struct FloatTraits<T, 8 /*64bits*/> {
       (mantissa_type(1) << mantissa_bits) - 1;
   using exponent_type = int16_t;
   static const exponent_type exponent_max = 308;
+  static const size_t binaryPowersOfTen = 9;
   static pgm_ptr<T> positiveBinaryPowersOfTen() {
     ARDUINOJSON_DEFINE_PROGMEM_ARRAY(  //
         uint64_t, factors,
@@ -1629,6 +1636,7 @@ struct FloatTraits<T, 4 /*32bits*/> {
       (mantissa_type(1) << mantissa_bits) - 1;
   using exponent_type = int8_t;
   static const exponent_type exponent_max = 38;
+  static const size_t binaryPowersOfTen = 6;
   static pgm_ptr<T> positiveBinaryPowersOfTen() {
     ARDUINOJSON_DEFINE_PROGMEM_ARRAY(uint32_t, factors,
                                      {
@@ -1702,9 +1710,12 @@ inline TFloat make_float(TFloat m, TExponent e) {
   using traits = FloatTraits<TFloat>;
   auto powersOfTen = e > 0 ? traits::positiveBinaryPowersOfTen()
                            : traits::negativeBinaryPowersOfTen();
+  auto count = traits::binaryPowersOfTen;
   if (e <= 0)
     e = TExponent(-e);
   for (uint8_t index = 0; e != 0; index++) {
+    if (index >= count)
+      return traits::nan();
     if (e & 1)
       m *= powersOfTen[index];
     e >>= 1;

@@ -1,13 +1,6 @@
 #ifndef FOXESS_BATTERY_H
 #define FOXESS_BATTERY_H
-#include <Arduino.h>
-#include "../include.h"
-
 #include "CanBattery.h"
-
-#ifdef FOXESS_BATTERY
-#define SELECTED_BATTERY_CLASS FoxessBattery
-#endif
 
 class FoxessBattery : public CanBattery {
  public:
@@ -38,7 +31,6 @@ class FoxessBattery : public CanBattery {
   uint16_t cut_mv_min = 0;
   uint16_t cycle_count = 0;
   uint16_t max_ac_voltage = 0;
-  uint16_t cellvoltages_mV[128] = {0};
   int16_t temperature_average = 0;
   int16_t pack1_current_sensor = 0;
   int16_t pack2_current_sensor = 0;

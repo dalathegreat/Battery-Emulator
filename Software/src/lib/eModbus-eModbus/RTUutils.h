@@ -5,9 +5,6 @@
 #ifndef _RTU_UTILS_H
 #define _RTU_UTILS_H
 #include <stdint.h>
-#if NEED_UART_PATCH
-#include <soc/uart_struct.h>
-#endif
 #include <vector>
 #include "Stream.h"
 #include "ModbusTypeDefs.h"
@@ -52,16 +49,18 @@ public:
 // RTSauto: dummy callback for auto half duplex RS485 boards
   inline static void RTSauto(bool level) { return; } // NOLINT
 
+#if HAS_FREERTOS
 // Necessary preparations for a HardwareSerial
 static void prepareHardwareSerial(HardwareSerial& s, uint16_t bufferSize = 260) {
   s.setRxBufferSize(bufferSize);
   s.setTxBufferSize(bufferSize);
 }
+#endif
 
 protected:
 // Printable characters for ASCII protocol: 012345678ABCDEF
   static const char ASCIIwrite[];
-  static const char ASCIIread[];
+  static const uint8_t ASCIIread[];
 
   RTUutils() = delete;
 

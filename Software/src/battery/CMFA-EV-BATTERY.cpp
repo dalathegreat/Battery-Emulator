@@ -1,9 +1,10 @@
 #include "CMFA-EV-BATTERY.h"
+#include <cstring>  //unit tests memcpy
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
+#include "BATTERIES.h"
 
 /* The raw SOC value sits at 90% when the battery is full, so we should report back 100% once this value is reached
 Same goes for low point, when 10% is reached we report 0% */
@@ -33,7 +34,7 @@ void CmfaEvBattery::
 
   datalayer_battery->status.current_dA = current * 10;
 
-  datalayer_battery->status.voltage_dV = average_voltage_of_cells / 100;
+  datalayer_battery->status.voltage_dV = pack_voltage * 5;
 
   datalayer_battery->info.total_capacity_Wh = 27000;
 
@@ -53,31 +54,31 @@ void CmfaEvBattery::
 
   datalayer_battery->status.cell_max_voltage_mV = highest_cell_voltage_mv;
 
-  //Map all cell voltages to the global array
-  memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages_mv, 72 * sizeof(uint16_t));
-
   if (lead_acid_voltage < 11000) {  //11.000V
     set_event(EVENT_12V_LOW, lead_acid_voltage);
   }
 
-  // Update webserver datalayer
-  datalayer_cmfa->soc_u = soc_u;
-  datalayer_cmfa->soc_z = soc_z;
-  datalayer_cmfa->lead_acid_voltage = lead_acid_voltage;
-  datalayer_cmfa->highest_cell_voltage_number = highest_cell_voltage_number;
-  datalayer_cmfa->lowest_cell_voltage_number = lowest_cell_voltage_number;
-  datalayer_cmfa->max_regen_power = max_regen_power;
-  datalayer_cmfa->max_discharge_power = max_discharge_power;
-  datalayer_cmfa->average_temperature = average_temperature;
-  datalayer_cmfa->minimum_temperature = minimum_temperature;
-  datalayer_cmfa->maximum_temperature = maximum_temperature;
-  datalayer_cmfa->maximum_charge_power = maximum_charge_power;
-  datalayer_cmfa->SOH_available_power = SOH_available_power;
-  datalayer_cmfa->SOH_generated_power = SOH_generated_power;
-  datalayer_cmfa->cumulative_energy_when_discharging = cumulative_energy_when_discharging;
-  datalayer_cmfa->cumulative_energy_when_charging = cumulative_energy_when_charging;
-  datalayer_cmfa->cumulative_energy_in_regen = cumulative_energy_in_regen;
-  datalayer_cmfa->soh_average = soh_average;
+  if (!battery2) {  //Avoid pointer crash on double bat, not sure why this wont work
+    // Update webserver datalayer
+    datalayer_cmfa->soc_u = soc_u;
+    datalayer_cmfa->soc_z = soc_z;
+    datalayer_cmfa->lead_acid_voltage = lead_acid_voltage;
+    datalayer_cmfa->highest_cell_voltage_number = highest_cell_voltage_number;
+    datalayer_cmfa->lowest_cell_voltage_number = lowest_cell_voltage_number;
+    datalayer_cmfa->max_regen_power = max_regen_power;
+    datalayer_cmfa->max_discharge_power = max_discharge_power;
+    datalayer_cmfa->average_temperature = average_temperature;
+    datalayer_cmfa->minimum_temperature = minimum_temperature;
+    datalayer_cmfa->maximum_temperature = maximum_temperature;
+    datalayer_cmfa->maximum_charge_power = maximum_charge_power;
+    datalayer_cmfa->SOH_available_power = SOH_available_power;
+    datalayer_cmfa->SOH_generated_power = SOH_generated_power;
+    datalayer_cmfa->cumulative_energy_when_discharging = cumulative_energy_when_discharging;
+    datalayer_cmfa->cumulative_energy_when_charging = cumulative_energy_when_charging;
+    datalayer_cmfa->cumulative_energy_in_regen = cumulative_energy_in_regen;
+    datalayer_cmfa->soh_average = soh_average;
+    datalayer_cmfa->average_voltage_of_cells = average_voltage_of_cells;
+  }
 }
 
 void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -86,6 +87,7 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       current = (((((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) * 0.25) - 500);
       SOC_raw = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      pack_voltage = (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[7]);
       break;
     case 0x3D6:  //100ms, Same structure as old Zoe 0x424 message!
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -98,7 +100,6 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x3D7:  //100ms
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      pack_voltage = ((rx_frame.data.u8[6] << 4 | (rx_frame.data.u8[5] & 0x0F)));
       break;
     case 0x3D8:  //100ms
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -128,7 +129,7 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x7BB:                           // Reply from battery
       if (rx_frame.data.u8[0] == 0x10) {  //PID header
-        transmit_can_frame(&CMFA_ACK, can_config.battery);
+        transmit_can_frame(&CMFA_ACK);
       }
 
       pid_reply = (rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3];
@@ -148,13 +149,13 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               (uint32_t)((rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7]));
           break;
         case PID_POLL_HIGHEST_CELL_VOLTAGE:
-          highest_cell_voltage_mv = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          highest_cell_voltage_mv = (uint16_t)(((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.976563);
           break;
         case PID_POLL_CELL_NUMBER_HIGHEST_VOLTAGE:
           highest_cell_voltage_number = rx_frame.data.u8[4];
           break;
         case PID_POLL_LOWEST_CELL_VOLTAGE:
-          lowest_cell_voltage_mv = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          lowest_cell_voltage_mv = (uint16_t)(((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.976563);
           break;
         case PID_POLL_CELL_NUMBER_LOWEST_VOLTAGE:
           lowest_cell_voltage_number = rx_frame.data.u8[4];
@@ -209,227 +210,33 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case PID_POLL_CUMULATIVE_ENERGY_IN_REGEN:
           cumulative_energy_in_regen = (uint64_t)((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
                                                   (rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7]));
-        case PID_POLL_CELL_1:
-          cellvoltages_mv[0] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           break;
-        case PID_POLL_CELL_2:
-          cellvoltages_mv[1] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_3:
-          cellvoltages_mv[2] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_4:
-          cellvoltages_mv[3] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_5:
-          cellvoltages_mv[4] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_6:
-          cellvoltages_mv[5] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_7:
-          cellvoltages_mv[6] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_8:
-          cellvoltages_mv[7] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_9:
-          cellvoltages_mv[8] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_10:
-          cellvoltages_mv[9] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_11:
-          cellvoltages_mv[10] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_12:
-          cellvoltages_mv[11] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_13:
-          cellvoltages_mv[12] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_14:
-          cellvoltages_mv[13] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_15:
-          cellvoltages_mv[14] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_16:
-          cellvoltages_mv[15] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_17:
-          cellvoltages_mv[16] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_18:
-          cellvoltages_mv[17] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_19:
-          cellvoltages_mv[18] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_20:
-          cellvoltages_mv[19] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_21:
-          cellvoltages_mv[20] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_22:
-          cellvoltages_mv[21] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_23:
-          cellvoltages_mv[22] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_24:
-          cellvoltages_mv[23] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_25:
-          cellvoltages_mv[24] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_26:
-          cellvoltages_mv[25] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_27:
-          cellvoltages_mv[26] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_28:
-          cellvoltages_mv[27] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_29:
-          cellvoltages_mv[28] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_30:
-          cellvoltages_mv[29] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_31:
-          cellvoltages_mv[30] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_32:
-          cellvoltages_mv[31] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_33:
-          cellvoltages_mv[32] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_34:
-          cellvoltages_mv[33] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_35:
-          cellvoltages_mv[34] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_36:
-          cellvoltages_mv[35] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_37:
-          cellvoltages_mv[36] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_38:
-          cellvoltages_mv[37] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_39:
-          cellvoltages_mv[38] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_40:
-          cellvoltages_mv[39] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_41:
-          cellvoltages_mv[40] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_42:
-          cellvoltages_mv[41] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_43:
-          cellvoltages_mv[42] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_44:
-          cellvoltages_mv[43] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_45:
-          cellvoltages_mv[44] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_46:
-          cellvoltages_mv[45] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_47:
-          cellvoltages_mv[46] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_48:
-          cellvoltages_mv[47] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_49:
-          cellvoltages_mv[48] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_50:
-          cellvoltages_mv[49] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_51:
-          cellvoltages_mv[50] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_52:
-          cellvoltages_mv[51] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_53:
-          cellvoltages_mv[52] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_54:
-          cellvoltages_mv[53] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_55:
-          cellvoltages_mv[54] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_56:
-          cellvoltages_mv[55] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_57:
-          cellvoltages_mv[56] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_58:
-          cellvoltages_mv[57] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_59:
-          cellvoltages_mv[58] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_60:
-          cellvoltages_mv[59] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_61:
-          cellvoltages_mv[60] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_62:
-          cellvoltages_mv[61] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_63:
-          cellvoltages_mv[62] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_64:
-          cellvoltages_mv[63] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_65:
-          cellvoltages_mv[64] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_66:
-          cellvoltages_mv[65] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_67:
-          cellvoltages_mv[66] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_68:
-          cellvoltages_mv[67] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_69:
-          cellvoltages_mv[68] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_70:
-          cellvoltages_mv[69] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_71:
-          cellvoltages_mv[70] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-        case PID_POLL_CELL_72:
-          cellvoltages_mv[71] = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          break;
-          break;
-        default:
+        case PID_POLL_DIDS_SUPPORTED_IN_RANGE_9041_9060:
+          break;
+        default:  //Unknown pid_reply, or a cellvoltage
+          uint8_t cellnumber = 0;
+          if (pid_reply >= PID_POLL_CELL_1 && pid_reply <= PID_POLL_CELL_31) {  //Cellvoltage PID reply
+            cellnumber = (pid_reply - PID_POLL_CELL_1);
+          } else if (pid_reply >= PID_POLL_CELL_32 && pid_reply <= PID_POLL_CELL_62) {
+            cellnumber = (pid_reply - PID_POLL_CELL_1) - 1;
+          } else if (pid_reply >= PID_POLL_CELL_63 && pid_reply <= PID_POLL_CELL_72) {
+            cellnumber = (pid_reply - PID_POLL_CELL_1) - 2;
+          } else {  //Unknown pid_reply
+            break;
+          }
+
+          if (cellnumber < MAX_AMOUNT_CELLS) {  //Prevent out of bounds array write
+            uint16_t cellvoltage_reading = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+            if (cellvoltage_reading == 0) {
+              //Blown fuse/celltap. Force value to 10mV so user sees this in cellmonitor page. Also fire event
+              cellvoltage_reading = 10;
+              set_event(EVENT_BATTERY_FUSE, cellnumber);
+            }
+            datalayer_battery->status.cell_voltages_mV[cellnumber] = cellvoltage_reading * 0.976563;
+          }
+
           break;
       }
-
       break;
     default:
       break;
@@ -440,10 +247,10 @@ void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
     previousMillis10ms = currentMillis;
-    transmit_can_frame(&CMFA_1EA, can_config.battery);
-    transmit_can_frame(&CMFA_135, can_config.battery);
-    transmit_can_frame(&CMFA_134, can_config.battery);
-    transmit_can_frame(&CMFA_125, can_config.battery);
+    transmit_can_frame(&CMFA_1EA);
+    transmit_can_frame(&CMFA_135);
+    transmit_can_frame(&CMFA_134);
+    transmit_can_frame(&CMFA_125);
 
     CMFA_135.data.u8[1] = content_135[counter_10ms];
     CMFA_125.data.u8[3] = content_125[counter_10ms];
@@ -453,8 +260,8 @@ void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
-    transmit_can_frame(&CMFA_59B, can_config.battery);
-    transmit_can_frame(&CMFA_3D3, can_config.battery);
+    transmit_can_frame(&CMFA_59B);
+    transmit_can_frame(&CMFA_3D3);
   }
   //Send 200ms message
   if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
@@ -935,7 +742,12 @@ void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
         break;
     }
 
-    transmit_can_frame(&CMFA_POLLING_FRAME, can_config.battery);
+    if (UserRequestDTCclear) {
+      transmit_can_frame(&CMFA_CLEAR_DTC);
+      UserRequestDTCclear = false;
+    } else {  //Normal PID polling
+      transmit_can_frame(&CMFA_POLLING_FRAME);
+    }
   }
 }
 

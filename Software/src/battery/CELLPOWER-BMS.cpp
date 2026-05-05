@@ -1,9 +1,9 @@
 #include "CELLPOWER-BMS.h"
+#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
-#include "../include.h"
 
 void CellPowerBms::update_values() {
 
@@ -20,9 +20,11 @@ void CellPowerBms::update_values() {
 
   datalayer.battery.status.current_dA = battery_pack_current_dA;
 
-  datalayer.battery.status.max_charge_power_W = 5000;  //TODO, is this available via CAN?
+  datalayer.battery.status.max_charge_power_W =
+      datalayer.battery.status.override_charge_power_W;  //TODO, is this available via CAN?
 
-  datalayer.battery.status.max_discharge_power_W = 5000;  //TODO, is this available via CAN?
+  datalayer.battery.status.max_discharge_power_W =
+      datalayer.battery.status.override_discharge_power_W;  //TODO, is this available via CAN?
 
   datalayer.battery.status.temperature_min_dC = (int16_t)(pack_temperature_low_C * 10);
 
@@ -214,26 +216,26 @@ void CellPowerBms::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void CellPowerBms::transmit_can(unsigned long currentMillis) {
-
-  // Send 1s CAN Message
+  /*
+  // Send 1s CAN Message. NOTE; Not required to keep BMS happy
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
     previousMillis1s = currentMillis;
+    
+    transmit_can_frame(&CELLPOWER_18FF50E9);
+    transmit_can_frame(&CELLPOWER_18FF50E8);
+    transmit_can_frame(&CELLPOWER_18FF50E7);
+    transmit_can_frame(&CELLPOWER_18FF50E5);
 
-    /*
-    transmit_can_frame(&CELLPOWER_18FF50E9, can_config.battery);
-    transmit_can_frame(&CELLPOWER_18FF50E8, can_config.battery);
-    transmit_can_frame(&CELLPOWER_18FF50E7, can_config.battery);
-    transmit_can_frame(&CELLPOWER_18FF50E5, can_config.battery);
-    */
   }
+  */
 }
 
 void CellPowerBms::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_design_voltage_dV = user_selected_max_pack_voltage_dV;
+  datalayer.battery.info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
+  datalayer.battery.info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
+  datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
 }

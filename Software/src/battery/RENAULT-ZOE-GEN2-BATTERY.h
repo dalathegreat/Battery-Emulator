@@ -1,13 +1,8 @@
 #ifndef RENAULT_ZOE_GEN2_BATTERY_H
 #define RENAULT_ZOE_GEN2_BATTERY_H
-#include "../include.h"
 
 #include "CanBattery.h"
 #include "RENAULT-ZOE-GEN2-HTML.h"
-
-#ifdef RENAULT_ZOE_GEN2_BATTERY
-#define SELECTED_BATTERY_CLASS RenaultZoeGen2Battery
-#endif
 
 class RenaultZoeGen2Battery : public CanBattery {
  public:
@@ -19,7 +14,7 @@ class RenaultZoeGen2Battery : public CanBattery {
     allows_contactor_closing = nullptr;
     datalayer_zoePH2 = extended;
 
-    battery_pack_voltage = 0;
+    battery_pack_voltage_periodic_dV = 0;
   }
 
   // Use the default constructor to create the first or single battery.
@@ -40,6 +35,8 @@ class RenaultZoeGen2Battery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
+  uint8_t calculate_crc_zoe(CAN_frame& frame, uint8_t crc_xor);
+
  private:
   RenaultZoeGen2HtmlRenderer renderer;
 
@@ -48,6 +45,8 @@ class RenaultZoeGen2Battery : public CanBattery {
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
+
+  bool is_message_corrupt(CAN_frame rx_frame, uint8_t crc_xor);
 
   static const int MAX_PACK_VOLTAGE_DV = 4100;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 3000;
@@ -198,15 +197,19 @@ class RenaultZoeGen2Battery : public CanBattery {
   uint16_t battery_soc = 0;
   uint16_t battery_usable_soc = 5000;
   uint16_t battery_soh = 10000;
-  uint16_t battery_pack_voltage = 3700;
-  uint16_t battery_max_cell_voltage = 3700;
-  uint16_t battery_min_cell_voltage = 3700;
+  uint16_t battery_pack_voltage_polled_dV = 3700;
+  uint16_t battery_pack_voltage_periodic_dV = 3700;
+  uint16_t battery_minimum_cell_voltage_mV = 3700;
+  uint16_t battery_maximum_cell_voltage_mV = 3700;
+  uint16_t battery_max_cell_voltage_polled = 3700;
+  uint16_t battery_min_cell_voltage_polled = 3700;
   uint16_t battery_12v = 12000;
   uint16_t battery_avg_temp = 920;
   uint16_t battery_min_temp = 920;
   uint16_t battery_max_temp = 920;
   uint16_t battery_max_power = 0;
-  uint16_t battery_interlock = 0;
+  uint16_t battery_interlock = 0xFFFE;
+  uint16_t battery_interlock_polled = 0;
   uint16_t battery_kwh = 0;
   int32_t battery_current = 32640;
   uint16_t battery_current_offset = 0;
@@ -225,13 +228,13 @@ class RenaultZoeGen2Battery : public CanBattery {
   uint16_t battery_balance_switches = 0;
   uint16_t battery_energy_complete = 0;
   uint16_t battery_energy_partial = 0;
-  uint16_t battery_slave_failures = 0;
+  uint32_t battery_slave_failures = 0;
   uint16_t battery_mileage = 0;
   uint16_t battery_fan_speed = 0;
   uint16_t battery_fan_period = 0;
   uint16_t battery_fan_control = 0;
   uint16_t battery_fan_duty = 0;
-  uint16_t battery_temporisation = 0;
+  uint16_t battery_temporisation = 255;
   uint16_t battery_time = 0;
   uint16_t battery_pack_time = 0;
   uint16_t battery_soc_min = 0;
@@ -240,22 +243,45 @@ class RenaultZoeGen2Battery : public CanBattery {
   uint32_t ZOE_376_time_now_s = 1745452800;  // Initialized to make the battery think it is April 24, 2025
   unsigned long kProductionTimestamp_s =
       1614454107;  // Production timestamp in seconds since January 1, 1970. Production timestamp used: February 25, 2021 at 8:08:27 AM GMT
-  bool battery_balancing_shunts[96];
 
-  CAN_frame ZOE_373 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x373,
-      .data = {0xC1, 0x40, 0x5D, 0xB2, 0x00, 0x01, 0xff,
-               0xe3}};  // FIXME: remove if not needed: {0xC1, 0x80, 0x5D, 0x5D, 0x00, 0x00, 0xff, 0xcb}};
+  CAN_frame ZOE_0EE = {//Pedal position
+                       .FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x0EE,
+                       .data = {0x32, 0x3, 0x20, 0xAA, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ZOE_373 = {//HEVC sender, wakeup message
+                       .FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x373,
+                       .data = {0xC1, 0x40, 0x5D, 0xB2, 0x00, 0x01, 0xff, 0xe3}};
+  CAN_frame ZOE_375 = {//HEVC status message
+                       .FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x375,
+                       .data = {0x02, 0x29, 0x00, 0xBF, 0xFE, 0x64, 0x0, 0xff}};
   CAN_frame ZOE_376 = {
+      //HEVC sender
       .FD = false,
       .ext_ID = false,
       .DLC = 8,
       .ID = 0x376,
       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A,
                0x00}};  // fill first 6 bytes with 0's. The first 6 bytes are calculated based on the current time.
+  CAN_frame ZOE_5F8 = { //Vehicle ID
+                       .FD = false,
+                       .ext_ID = false,
+                       .DLC = 4,
+                       .ID = 0x5F8,
+                       .data = {0x16, 0x44, 0x90, 0x8F}};
+  CAN_frame ZOE_6BF = {//Total Boost Time
+                       .FD = false,
+                       .ext_ID = false,
+                       .DLC = 3,
+                       .ID = 0x6BF,
+                       .data = {0x00, 0x00, 0x00}};
   CAN_frame ZOE_POLL_18DADBF1 = {.FD = false,
                                  .ext_ID = true,
                                  .DLC = 8,
@@ -456,7 +482,8 @@ class RenaultZoeGen2Battery : public CanBattery {
   uint8_t poll_index = 0;
   uint16_t currentpoll = POLL_SOC;
   uint16_t reply_poll = 0;
-
+  uint8_t counter_10ms = 0;
+  unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
   unsigned long previousMillis200 = 0;   // will store last time a 200ms CAN Message was sent
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
