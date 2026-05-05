@@ -174,6 +174,8 @@ void MicrovastBattery::transmit_can(unsigned long currentMillis) {
     MICRO_cee00a0.data.u8[1] = counter_1s;
 
     transmit_can_frame(&MICRO_cee00a0);  //Extended frame
+
+    transmit_can_frame(&MICRO_0C20FFF4);  //Extended frame
   }
 }
 

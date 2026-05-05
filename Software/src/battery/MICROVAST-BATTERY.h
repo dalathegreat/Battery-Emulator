@@ -34,6 +34,11 @@ class MicrovastBattery : public CanBattery {
   int16_t discharge_current_max = 0;
   int16_t charge_current_max = 0;
 
+  CAN_frame MICRO_0C20FFF4 = {.FD = false,
+                              .ext_ID = true,
+                              .DLC = 8,
+                              .ID = 0x0C20FFF4,
+                              .data = {0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame MICRO_cee00a0 = {.FD = false,
                              .ext_ID = true,
                              .DLC = 7,
