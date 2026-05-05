@@ -44,11 +44,11 @@ class MicrovastBattery : public CanBattery {
                              .DLC = 7,
                              .ID = 0xcee00a0,  //frame0 CRC, frame1 counter, frame2 interlock OK
                              .data = {0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame MICRO_084 = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x084,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-};
+#  CAN_frame MICRO_084 = {.FD = false,
+#                         .ext_ID = false,
+#                         .DLC = 8,
+#                         .ID = 0x084,
+#                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+#};
 
 #endif
