@@ -7,6 +7,7 @@
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
+#include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
@@ -114,6 +115,10 @@ static std::function<bool(Battery*)> always = [](Battery* b) {
 static std::function<bool(Battery*)> supports_charged = [](Battery* b) {
   return b->supports_charged_energy();
 };
+static std::function<bool(Battery*)> supports_tesla_dcdc_metrics = [](Battery* b) {
+  return b != nullptr && (user_selected_battery_type == BatteryType::TeslaModel3Y ||
+                          user_selected_battery_type == BatteryType::TeslaModelSX);
+};
 
 SensorConfig batterySensorConfigTemplate[] = {
     {"SOC", "SOC (Scaled)", "", "%", "battery", always},
@@ -135,7 +140,9 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"charged_energy", "Battery Charged Energy", "", "Wh", "energy", supports_charged},
     {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged},
     {"balancing_active_cells", "Balancing Active Cells", "", "", "", always},
-    {"balancing_status", "Balancing Status", "", "", "", always}};
+    {"balancing_status", "Balancing Status", "", "", "", always},
+    {"dc_dc_current", "DC-DC Current", "", "A", "current", supports_tesla_dcdc_metrics},
+    {"dc_dc_voltage", "DC-DC Voltage", "", "V", "voltage", supports_tesla_dcdc_metrics}};
 
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
                                              {"pause_status", "Pause Status", "", "", "", always},
@@ -153,9 +160,13 @@ void create_battery_sensor_configs() {
     sensorConfigs.push_back(config);
 
     if (battery2) {
+      auto original_condition = config.condition;
       config.value_template = strdup(("{{ value_json." + std::string(config.default_entity_id) + "_2 }}").c_str());
       config.name = strdup(String(config.name + String(" 2")).c_str());
       config.default_entity_id = strdup(String(config.default_entity_id + String("_2")).c_str());
+      config.condition = [original_condition](Battery*) {
+        return battery2 && original_condition(battery2);
+      };
 
       sensorConfigs.push_back(config);
     }
@@ -274,6 +285,10 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   }
   doc["balancing_active_cells" + suffix] = active_cells;
   doc["balancing_status" + suffix] = get_balancing_status_text(battery.status.balancing_status);
+  if (suffix.length() == 0u && supports_tesla_dcdc_metrics(::battery)) {
+    doc["dc_dc_current" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
+    doc["dc_dc_voltage" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625f;
+  }
 }
 
 static std::vector<EventData> order_events;
