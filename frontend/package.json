@@ -1,0 +1,32 @@
+{
+  "name": "battery-emulator-ui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lit": "^3.3.2",
+    "pwa-helpers": "^0.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.8",
+    "vite-plugin-css-injected-by-js": "^4.0.1"
+  },
+  "importSort": {
+    ".js, .jsx, .ts, .tsx": {
+      "style": "module",
+      "parser": "typescript"
+    }
+  },
+  "engines": {
+    "npm": "\n\n🛑🛑 You must use `pnpm` 🛑🛑\n\n",
+    "yarn": "\n\n🛑🛑 You must use `pnpm` 🛑🛑\n\n",
+    "node": ">22.9.0",
+    "pnpm": ">=10.6.5 <11.0.0"
+  }
+}
