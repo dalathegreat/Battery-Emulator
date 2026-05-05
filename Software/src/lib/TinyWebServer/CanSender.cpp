@@ -4,7 +4,7 @@
 //#include "../../communication/can/comm_can.h"
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "../../lib/pierremolinaro-acan-esp32/ACAN_ESP32.h"
-#include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
+//#include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
 
 void CanSender::handleHeader(TwsRequest &request, const char *line, int len) {
     auto &state = get_state(request);
@@ -27,7 +27,7 @@ struct __attribute__((packed)) CanFrame {
     uint8_t data[64];
 };
 
-extern ACAN2515* can2515;
+//extern ACAN2515* can2515;
 extern ACAN2517FD* canfd;
 
 bool can_buffer_full(CAN_Interface interface) {
@@ -36,7 +36,7 @@ bool can_buffer_full(CAN_Interface interface) {
         return ACAN_ESP32::can.driverTransmitBufferCount() >= ACAN_ESP32::can.driverTransmitBufferSize();
     } else if(interface == CAN_ADDON_MCP2515) {
         // We always use buffer 0?
-        return can2515 && can2515->transmitBufferCount(0) >= can2515->transmitBufferSize(0);
+        //return can2515 && can2515->transmitBufferCount(0) >= can2515->transmitBufferSize(0);
     } else if(interface == CANFD_ADDON_MCP2518) {
         return canfd && canfd->driverTransmitBufferCount() >= canfd->driverTransmitBufferSize();
     }
@@ -59,7 +59,7 @@ bool send_can_frame(CAN_Interface interface, const CANMessage &frame, bool log) 
     if(interface == CAN_NATIVE) {
         success = ACAN_ESP32::can.tryToSend(frame);
     } else if(interface == CAN_ADDON_MCP2515) {
-        success = can2515 && can2515->tryToSend(frame);
+        //success = can2515 && can2515->tryToSend(frame);
     } else if(interface == CANFD_ADDON_MCP2518) {
         success = canfd && canfd->tryToSend(frame);
     }
