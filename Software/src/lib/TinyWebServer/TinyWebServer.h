@@ -284,6 +284,8 @@ public:
     static const int IDLE_TIMEOUT_MS = 10000;
 
 protected:
+    inline int slot_count() { return MAX_REQUESTS; }
+
     uint16_t _port;
     int _listen_socket = -1;
     TwsRoute **_handlers = nullptr;
@@ -293,7 +295,7 @@ protected:
     uint32_t get_waiting_requests(long max_delay_us);
     void handle_request(TwsRequest &request);
 
-    TwsRequest slots[MAX_REQUESTS];
+    TwsRequest* slots[MAX_REQUESTS];
     int last_connection_id = 0;
 };
 

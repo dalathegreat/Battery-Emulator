@@ -30,18 +30,19 @@ TwsRoute nullHandler("/nope");
 TinyWebServer::TinyWebServer(uint16_t port, TwsRoute *handlers[]) {
     _port = port;
     _handlers = handlers;
-    
-    for (int i = 0; i < MAX_REQUESTS; i++) {
-        slots[i].slot_id = i;
+
+    for (int i = 0; i < slot_count(); i++) {
+        slots[i] = new TwsRequest();
+        slots[i]->slot_id = i;
     }
 
     for(int i = 0; _handlers[i] != nullptr; i++) {
         if(_handlers[i]->onAlloc) {
             // Allocate state data for this handler
-            unsigned int alloc_size = _handlers[i]->onAlloc->handleAlloc(sizeof(slots[0].state_data), 0);
-            if(alloc_size > sizeof(slots[0].state_data)) {
+            unsigned int alloc_size = _handlers[i]->onAlloc->handleAlloc(sizeof(slots[0]->state_data), 0);
+            if(alloc_size > sizeof(slots[0]->state_data)) {
                 DEBUG_PRINTF("TWS handler %s requires more state data than available (%d > %zu)\n", 
-                    _handlers[i]->path, alloc_size, sizeof(slots[0].state_data));
+                    _handlers[i]->path, alloc_size, sizeof(slots[0]->state_data));
                 _handlers[i] = &nullHandler; // Replace with a null handler
             } else if(alloc_size > max_handler_state_size) {
                 max_handler_state_size = alloc_size;
@@ -56,8 +57,9 @@ TinyWebServer::~TinyWebServer() {
         _listen_socket = -1;
     }
 
-    for(int i=0; i < MAX_REQUESTS; i++) {
-        slots[i].reset();
+    for(int i=0; i < slot_count(); i++) {
+        slots[i]->reset();
+        delete slots[i];
     }
 }
 
@@ -475,8 +477,8 @@ void TinyWebServer::handle_request(TwsRequest &request) {
 void TinyWebServer::accept_new_connections() {
     // Find a free client slot
     int slot_index = -1;
-    for (int i = 0; i < MAX_REQUESTS; i++) {
-        if (slots[i].socket == -1) {
+    for (int i = 0; i < slot_count(); i++) {
+        if (slots[i]->socket == -1) {
             slot_index = i;
             break;
         }
@@ -508,10 +510,10 @@ void TinyWebServer::accept_new_connections() {
     // int nodelay = 1; 
     // setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay));
 
-    slots[slot_index].reset();
-    slots[slot_index].connection_id = ++last_connection_id;
-    slots[slot_index].socket = socket;
-    slots[slot_index].last_activity = millis();
+    slots[slot_index]->reset();
+    slots[slot_index]->connection_id = ++last_connection_id;
+    slots[slot_index]->socket = socket;
+    slots[slot_index]->last_activity = millis();
 }
 
 __attribute__((noinline)) uint32_t TinyWebServer::get_waiting_requests(long max_delay_us) {
@@ -528,8 +530,8 @@ __attribute__((noinline)) uint32_t TinyWebServer::get_waiting_requests(long max_
     // select(..) only allows fds up to FD_SETSIZE (32 on ESP32), but the max
     // socket fd on ESP32 should be below that.
 
-    for (int i = 0; i < MAX_REQUESTS; i++) {
-        auto &request = slots[i];
+    for (int i = 0; i < slot_count(); i++) {
+        auto &request = *slots[i];
         if (request.active()) {
             //DEBUG_PRINTF("FD_SET read %d\n", request.connection_id);
             FD_SET(request.socket, &read_sockets);
@@ -558,8 +560,8 @@ __attribute__((noinline)) uint32_t TinyWebServer::get_waiting_requests(long max_
             accept_new_connections();
         }
         // Check each client socket for activity
-        for (int i = 0; i < MAX_REQUESTS; i++) {
-            auto &request = slots[i];
+        for (int i = 0; i < slot_count(); i++) {
+            auto &request = *slots[i];
             if (request.active() && FD_ISSET(request.socket, &read_sockets)) {
                 // There is data waiting to be read, so flag a tick.
                 ret |= (1 << i);
@@ -579,8 +581,8 @@ bool TinyWebServer::poll() {
     long max_delay_us = IDLE_POLL_TIME_MS * 1000;
     bool active_polling = false;
 
-    for(int i = 0; i < MAX_REQUESTS; i++) {
-        if(slots[i].active()) {
+    for(int i = 0; i < slot_count(); i++) {
+        if(slots[i]->active()) {
             // If there are active clients, we poll more frequently (due to
             // writer callbacks, etc).
             max_delay_us = ACTIVE_POLL_TIME_MS * 1000;
@@ -591,21 +593,21 @@ bool TinyWebServer::poll() {
 
     uint32_t waiting_requests = get_waiting_requests(max_delay_us);
 
-    for(int i = 0; i < MAX_REQUESTS; i++) {
-        if(slots[i].active()) {
+    for(int i = 0; i < slot_count(); i++) {
+        if(slots[i]->active()) {
             if(waiting_requests & (1 << i)) {
                 // Client has activity, process it
-                slots[i].perform_io();
-                if(!slots[i].active()) continue;
+                slots[i]->perform_io();
+                if(!slots[i]->active()) continue;
             }
            
             // Handle the client regardless of activity, since there may be
             // writer callbacks that now have data ready.
-            handle_request(slots[i]);
-            if(!slots[i].active()) continue;
+            handle_request(*slots[i]);
+            if(!slots[i]->active()) continue;
 
             // Handle completions and timeouts.
-            slots[i].tick();
+            slots[i]->tick();
         }
     }
 
@@ -614,10 +616,10 @@ bool TinyWebServer::poll() {
 
 int IRAM_ATTR TinyWebServer::write(uint32_t connection_id, const char *data, size_t len) {
     // Find the request with the given connection ID
-    for (int i = 0; i < MAX_REQUESTS; i++) {
-        if (slots[i].active() && slots[i].connection_id == connection_id && slots[i].reply_started()) {
+    for (int i = 0; i < slot_count(); i++) {
+        if (slots[i]->active() && slots[i]->connection_id == connection_id && slots[i]->reply_started()) {
             // Always use indirect writes, since these might come from different threads
-            return slots[i].write_indirect(data, len);
+            return slots[i]->write_indirect(data, len);
         }
     }
     return -1; // Connection ID not found
@@ -625,9 +627,9 @@ int IRAM_ATTR TinyWebServer::write(uint32_t connection_id, const char *data, siz
 
 int IRAM_ATTR TinyWebServer::free(uint32_t connection_id) {
     // Find the request with the given connection ID
-    for (int i = 0; i < MAX_REQUESTS; i++) {
-        if (slots[i].active() && slots[i].connection_id == connection_id) {
-            return slots[i].free();
+    for (int i = 0; i < slot_count(); i++) {
+        if (slots[i]->active() && slots[i]->connection_id == connection_id) {
+            return slots[i]->free();
         }
     }
     return -1; // Connection ID not found
@@ -635,9 +637,9 @@ int IRAM_ATTR TinyWebServer::free(uint32_t connection_id) {
 
 void TinyWebServer::finish(uint32_t connection_id) {
     // Find the request with the given connection ID
-    for (int i = 0; i < MAX_REQUESTS; i++) {
-        if (slots[i].active() && slots[i].connection_id == connection_id) {
-            slots[i].finish();
+    for (int i = 0; i < slot_count(); i++) {
+        if (slots[i]->active() && slots[i]->connection_id == connection_id) {
+            slots[i]->finish();
             return;
         }
     }
