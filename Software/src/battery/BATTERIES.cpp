@@ -100,6 +100,8 @@ const char* name_for_battery_type(BatteryType type) {
 #endif
     case BatteryType::MgHsPhev:
       return MgHsPHEVBattery::Name;
+    case BatteryType::MicrovastBattery:
+      return MicrovastBattery::Name;
     case BatteryType::NissanLeaf:
       return NissanLeafBattery::Name;
     case BatteryType::Pylon:
@@ -219,6 +221,8 @@ Battery* create_battery(BatteryType type) {
 #endif
     case BatteryType::MgHsPhev:
       return new MgHsPHEVBattery();
+    case BatteryType::MicrovastBattery:
+      return new MicrovastBattery();
     case BatteryType::NissanLeaf:
       return new NissanLeafBattery();
     case BatteryType::Pylon:
