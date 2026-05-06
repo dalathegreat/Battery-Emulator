@@ -47,7 +47,7 @@ static CAN_Speed native_can_speed;
 
 static uint32_t quartz_frequency;
 
-static MCP2515_Lite* can2515;
+MCP2515_Lite* can2515;
 static SPIClass* SPI2515;
 
 static SPIClass* SPI2517;
