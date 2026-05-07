@@ -56,6 +56,18 @@ class StarkHal : public Esp32Hal {
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_18; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_35; }
 
+  // CAN_ADDON
+  // SCK input of MCP2515
+  virtual gpio_num_t MCP2515_SCK() { return GPIO_NUM_14; }
+  // SDI input of MCP2515
+  virtual gpio_num_t MCP2515_MOSI() { return GPIO_NUM_12; }
+  // SDO output of MCP2515
+  virtual gpio_num_t MCP2515_MISO() { return GPIO_NUM_34; }
+  // CS input of MCP2515
+  virtual gpio_num_t MCP2515_CS() { return GPIO_NUM_15; }
+  // INT output of MCP2515
+  virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_13; }
+
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_32; }
   virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_33; }
@@ -83,7 +95,8 @@ class StarkHal : public Esp32Hal {
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_32; }
 
   std::vector<comm_interface> available_interfaces() {
-    return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanFdNative};
+    return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,
+            comm_interface::CanFdNative};
   }
 
   virtual const char* name_for_comm_interface(comm_interface comm) {
@@ -93,7 +106,7 @@ class StarkHal : public Esp32Hal {
       case comm_interface::CanFdNative:
         return "CAN FD 2 (Native)";
       case comm_interface::CanAddonMcp2515:
-        return "";
+        return "MCP2515 (GPIO add-on)";
       case comm_interface::CanFdAddonMcp2518:
         return "";
       case comm_interface::Modbus:
