@@ -113,6 +113,12 @@ const UintSetting UINT_SETTINGS[] = {
     {"CTATTEN", 0, (uint32_t)adc_attenuation_enum::Highest-1, nullptr},
     {"PYLONBAUD", 0, 1000000, nullptr},
     {"PYLONBRAND", 0, 255, nullptr},
+    {"RAMPDOWNSOC", 7000, 9000, nullptr},
+    {"DALYPWRPCT", 0, 10000, nullptr},
+    {"DALYPWRDV", 0, 10000, nullptr},
+    {"DALYDVSTART", 0, 255, nullptr},
+    {"DALYPWRDEG", 0, 10000, nullptr},
+    {"DALYPWR0C", 0, 100000, nullptr},
     {"TMP_CALTARGETSOC", 0, 100,
         [](uint32_t value) { datalayer_extended.bydAtto3.calibrationTargetSOC = value; }
     },
@@ -268,6 +274,7 @@ const BoolSetting BOOL_SETTINGS[] = {
         [](bool value) { datalayer.battery.settings.soc_scaling_active = value; }
     },    
     {"USEVOLTLIMITS", nullptr},
+    {"LOWPASSFILTER", nullptr},
     {"TMP_RECOVERYMODE", [] (bool value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; } },
     {"TMP_BALANCE", [] (bool value) { datalayer.battery.settings.user_requests_balancing = value; } },
     {"TMP_CHARGERHVENABLED", [] (bool value) { datalayer.charger.charger_HV_enabled = value; } },
@@ -314,6 +321,7 @@ TwsRoute settingsRoute = TwsRoute("/api/internal/settings", new TwsJsonRestFunc(
     sets["DALYDVSTART"] = user_selected_daly_power_per_dV_start;
     sets["DALYPWRDEG"] = user_selected_daly_power_per_degree_C;
     sets["DALYPWR0C"] = user_selected_daly_power_at_0_degree_C;
+    sets["RAMPDOWNSOC"] = user_set_rampdown_SOC;
     sets["PRECHGMS"] = precharge_time_ms;
     sets["PWMFREQ"] = pwm_frequency;
     sets["PWMHOLD"] = pwm_hold_duty;

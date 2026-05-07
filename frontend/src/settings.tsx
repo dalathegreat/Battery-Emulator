@@ -120,6 +120,7 @@ export function Settings() {
     const custom_bms = ["6", "11", "22", "23", "24", "31"].includes(""+merged.BATTTYPE);
     const estimated = ["3", "4", "6", "14", "16", "24", "32", "33"].includes(""+merged.BATTTYPE);
     const tesla = ["32", "33"].includes(""+merged.BATTTYPE);
+    const daly = ["23"].includes(""+merged.BATTTYPE);
     const socestimated = ""+merged.BATTTYPE==="16";
     const manual_balancing = tesla;
     const pylonish = ["4", "10", "19"].includes(""+merged.INVTYPE);
@@ -187,6 +188,13 @@ export function Settings() {
                 </Show>
                 { textPatternField("Max charge current (A)", "MAXCHARGEAMP", "[0-9]+(\\.[0-9]+)?") }
                 { textPatternField("Max discharge current (A)", "MAXDISCHARGEAMP", "[0-9]+(\\.[0-9]+)?") }
+                <Show when={daly}>
+                    { textPatternField("Daly: power limit per % SOC (W/%)", "DALYPWRPCT", "[0-9]+") }
+                    { textPatternField("Daly: voltage difference for start of voltage based discharge limit (dV)", "DALYDVSTART", "[0-9]+") }
+                    { textPatternField("Daly: max power per dV distance from minimum voltage (W/dV)", "DALYPWRDV", "[0-9]+") }
+                    { textPatternField("Daly: power change per °C above/below 0°C (W/°C)", "DALYPWRDEG", "[0-9]+") }
+                    { textPatternField("Daly: power at 0°C (W)", "DALYPWR0C", "[0-9]+") }
+                </Show>
                 { checkboxField("Manual voltage limits", "USEVOLTLIMITS") }
                 <Show indent={true} when={merged.USEVOLTLIMITS}>
                     { textPatternField("Max charge voltage (V)", "TARGETCHVOLT", "[0-9]+(\\.[0-9]+)?") }
@@ -245,6 +253,8 @@ export function Settings() {
                     { checkboxField("Pylon, invert byteorder", "PYLONORDER") }
                     { textPatternField("Pylon CAN baudrate (kbps)", "PYLONBAUD", "[0-9]+", "Usually 500, sometimes 250") }
                 </Show>
+                { checkboxField("Inverter limits low pass filter", "LOWPASSFILTER") }
+                { textPatternField("Rampdown SOC start (7000-9000)", "RAMPDOWNSOC", "[0-9]+") }
                 <Show when={byd}>
                     { checkboxField("Deye offgrid specific fixes", "DEYEBYD") }
                 </Show>
