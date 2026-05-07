@@ -71,12 +71,14 @@ class UdsCanBattery : public CanBattery {
 
   // A structure to keep track of the ongoing multi-frame UDS response
   typedef struct {
-    bool UDS_inProgress;                // Are we currently receiving a multi-frame message?
-    uint16_t UDS_expectedLength;        // Expected total payload length
-    uint16_t UDS_bytesReceived;         // How many bytes have been stored so far
-    uint8_t UDS_moduleID;               // The "module" indicated by the first frame
-    uint8_t receivedInBatch;            // Number of CFs received in the current batch
+    bool UDS_inProgress;          // Are we currently receiving a multi-frame message?
+    uint16_t UDS_expectedLength;  // Expected total payload length
+    uint16_t UDS_bytesReceived;   // How many bytes have been stored so far
+    uint16_t responding_id;
+    uint8_t UDS_moduleID;  // The "module" indicated by the first frame
+    //uint8_t receivedInBatch;            // Number of CFs received in the current batch
     uint8_t UDS_buffer[1024];           // Buffer for the reassembled data
+    uint8_t expected_sn;                // Expected sequence number of the next CF
     unsigned long UDS_lastFrameMillis;  // Timestamp of last frame (for timeouts, if desired)
   } UDS_RxContext;
 
@@ -107,7 +109,7 @@ class UdsCanBattery : public CanBattery {
                                           .ext_ID = false,
                                           .DLC = 8,
                                           .ID = 0x781,
-                                          .data = {0x30, 0x03, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                                          .data = {0x30, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00}};
 };
 
 #endif  // UDS_CAN_BATTERY_H
