@@ -541,9 +541,17 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&CMP_552);
     //This message is odd. Non periodic, but increments 10 per cycle. Might be enough to send it once every second
     */
-    if (datalayer_extended.stellantisCMPsmart.UserRequestDTCreset) {
+    if (UserRequestDTCreset) {
       transmit_can_frame(&CMP_CLEAR_ALL_DTC);
-      datalayer_extended.stellantisCMPsmart.UserRequestDTCreset = false;
+      UserRequestDTCreset = false;
+    }
+    if (UserRequestCrashReset) {
+      transmit_can_frame(&CMP_CRASH_RESET);
+      UserRequestCrashReset = false;
+    }
+    if (UserRequestIsolationClear) {
+      transmit_can_frame(&CMP_CLEAR_ISOLATION);
+      UserRequestIsolationClear = false;
     }
   }
 }
