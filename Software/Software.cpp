@@ -159,6 +159,8 @@ void update_calculated_values(unsigned long currentMillis) {
 
   /*Update free heap*/
   datalayer.system.info.CPU_free_heap = ESP.getFreeHeap();
+  datalayer.system.info.CPU_free_heap_smoothed =
+      (datalayer.system.info.CPU_free_heap_smoothed * 3 + datalayer.system.info.CPU_free_heap) / 4;
 
   /* Check is remote set limits have timed out */
   if (currentMillis > datalayer.battery.settings.remote_set_timestamp + datalayer.battery.settings.remote_set_timeout) {

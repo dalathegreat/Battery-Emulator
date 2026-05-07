@@ -273,6 +273,7 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   float CPU_temperature = 0;
   /** ESP32 free heap amount, for displaying on webserver and for safeties */
   uint32_t CPU_free_heap = 0;
+  uint32_t CPU_free_heap_smoothed = 131072;  // Start above the warning threshold
 
   /** uint8_t, enumeration which CAN interface should be used for log playback */
   uint8_t can_replay_interface = CAN_NATIVE;
