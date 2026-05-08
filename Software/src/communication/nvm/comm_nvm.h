@@ -53,6 +53,18 @@ class BatteryEmulatorSettingsStore {
     settingsUpdated = true;
   }
 
+  int32_t getInt(const char* name, int32_t defaultValue) {
+    return settings.isKey(name) ? settings.getInt(name, defaultValue) : defaultValue;
+  }
+
+  void saveInt(const char* name, int32_t value) {
+    auto oldValue = getInt(name, std::numeric_limits<int32_t>::max());
+    if (value != oldValue) {
+      settings.putInt(name, value);
+      settingsUpdated = true;
+    }
+  }
+
   uint32_t getUInt(const char* name, uint32_t defaultValue) {
     return settings.isKey(name) ? settings.getUInt(name, defaultValue) : defaultValue;
   }

@@ -11,15 +11,12 @@
 #include "../equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../precharge_control/precharge_control.h"
 
-// Parameters
-Preferences settings;  // Store user settings
-
 // Initialization functions
 
 void init_stored_settings() {
   static uint32_t temp = 0;
+  BatteryEmulatorSettingsStore settings(false);
   //  ATTENTION ! The maximum length for settings keys is 15 characters
-  settings.begin("batterySettings", false);
 
   // Always get the equipment stop status
   datalayer.system.info.equipment_stop_active = settings.getBool("EQUIPMENT_STOP", false);
@@ -118,7 +115,7 @@ void init_stored_settings() {
   user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
   user_set_rampdown_SOC = settings.getUInt("RAMPDOWNSOC", 9000);
 
-  auto readIf = [](const char* settingName) {
+  auto readIf = [&settings](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
     switch (batt1If) {
       case comm_interface::CanNative:
@@ -222,52 +219,25 @@ void init_stored_settings() {
   ct_clamp_nominal_current_A = settings.getUInt("CTANOM", 100);
   ct_clamp_pin_atten = (adc_attenuation_enum)settings.getUInt("CTATTEN", 3);
   ct_invert_current = settings.getBool("CTINVERT", false);
-  settings.end();
 }
 
 void store_settings_equipment_stop() {
-  settings.begin("batterySettings", false);
-  settings.putBool("EQUIPMENT_STOP", datalayer.system.info.equipment_stop_active);
-  settings.end();
+  BatteryEmulatorSettingsStore settings(false);
+  settings.saveBool("EQUIPMENT_STOP", datalayer.system.info.equipment_stop_active);
 }
 
 void store_settings() {
   //  ATTENTION ! The maximum length for settings keys is 15 characters
-  if (!settings.begin("batterySettings", false)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 0);
-    return;
-  }
+  BatteryEmulatorSettingsStore settings(false);
 
-  if (!settings.putUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 3);
-  }
-  if (!settings.putBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 4);
-  }
-  if (!settings.putUInt("MAXPERCENTAGE", datalayer.battery.settings.max_percentage / 10)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 5);
-  }
-  if (!settings.putInt("MINPERCENTAGE", datalayer.battery.settings.min_percentage / 10)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 6);
-  }
-  if (!settings.putUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 7);
-  }
-  if (!settings.putUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 8);
-  }
-  if (!settings.putBool("USEVOLTLIMITS", datalayer.battery.settings.user_set_voltage_limits_active)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 9);
-  }
-  if (!settings.putUInt("TARGETCHVOLT", datalayer.battery.settings.max_user_set_charge_voltage_dV)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 10);
-  }
-  if (!settings.putUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 11);
-  }
-  if (!settings.putUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 13);
-  }
-
-  settings.end();  // Close preferences handle
+  settings.saveUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh);
+  settings.saveBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active);
+  settings.saveUInt("MAXPERCENTAGE", datalayer.battery.settings.max_percentage / 10);
+  settings.saveInt("MINPERCENTAGE", datalayer.battery.settings.min_percentage / 10);
+  settings.saveUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA);
+  settings.saveUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA);
+  settings.saveBool("USEVOLTLIMITS", datalayer.battery.settings.user_set_voltage_limits_active);
+  settings.saveUInt("TARGETCHVOLT", datalayer.battery.settings.max_user_set_charge_voltage_dV);
+  settings.saveUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV);
+  settings.saveUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms);
 }
