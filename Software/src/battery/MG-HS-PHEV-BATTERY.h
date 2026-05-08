@@ -1,10 +1,19 @@
 #ifndef MG_HS_PHEV_BATTERY_H
 #define MG_HS_PHEV_BATTERY_H
 
+#include "../datalayer/datalayer.h"
 #include "CanBattery.h"
 
 class MgHsPHEVBattery : public CanBattery {
  public:
+  // Use this constructor for the second battery.
+  MgHsPHEVBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
+    datalayer_battery = datalayer_ptr;
+  }
+
+  // Use the default constructor to create the first or single battery.
+  MgHsPHEVBattery() { datalayer_battery = &datalayer.battery; }
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -13,6 +22,7 @@ class MgHsPHEVBattery : public CanBattery {
   static constexpr const char* Name = "MG HS PHEV 16.6kWh battery";
 
  private:
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
   void update_soc(uint16_t soc_times_ten);
 
   static const uint16_t TOTAL_CAPACITY_WH = 16600;
