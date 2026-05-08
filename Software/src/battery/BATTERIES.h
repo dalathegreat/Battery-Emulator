@@ -57,6 +57,7 @@ void setup_shunt();
 #include "SANTA-FE-PHEV-BATTERY.h"
 #include "SIMPBMS-BATTERY.h"
 #include "SONO-BATTERY.h"
+#include "STELLANTIS-SMALL-WIDE-4x4.h"
 #include "TESLA-BATTERY.h"
 #include "TESLA-LEGACY-BATTERY.h"
 #include "TEST-FAKE-BATTERY.h"

@@ -126,6 +126,8 @@ const char* name_for_battery_type(BatteryType type) {
       return SamsungSdiLVBattery::Name;
     case BatteryType::SantaFePhev:
       return SantaFePhevBattery::Name;
+    case BatteryType::StellantisSmallWide4x4:
+      return SteellantisSmallWide4x4Battery::Name;
     case BatteryType::SimpBms:
       return SimpBmsBattery::Name;
     case BatteryType::TeslaModel3Y:
@@ -247,6 +249,8 @@ Battery* create_battery(BatteryType type) {
       return new SantaFePhevBattery();
     case BatteryType::SimpBms:
       return new SimpBmsBattery();
+    case BatteryType::StellantisSmallWide4x4:
+      return new SteellantisSmallWide4x4Battery();
     case BatteryType::TeslaModel3Y:
       return new TeslaModel3YBattery();
     case BatteryType::TeslaModelSX:
