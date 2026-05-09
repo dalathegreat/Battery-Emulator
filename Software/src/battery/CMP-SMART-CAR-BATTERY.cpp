@@ -532,6 +532,7 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&CMP_CLEAR_ALL_DTC);
       UserRequestDTCreset = false;
     }
+
     if (UserRequestCrashReset) {
       if (CrashResetStatemachine == 0) {
         transmit_can_frame(&CMP_DIAG_START);
@@ -553,6 +554,7 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
         timeSpentCrashReset = COMPLETED_STATE;
       }
     }
+
     if (UserRequestIsolationClear) {
       transmit_can_frame(&CMP_CLEAR_ISOLATION);
       UserRequestIsolationClear = false;

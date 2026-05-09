@@ -137,19 +137,14 @@ class CmpSmartCarBattery : public CanBattery {
                                  .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF}};
   CAN_frame CMP_CRASH_RESET_START = {.FD = false,
                                      .ext_ID = false,
-                                     .DLC = 6,
+                                     .DLC = 5,
                                      .ID = 0x6B4,
-                                     .data = {0x04, 0x31, 0x01, 0x06, 0x02, 0x03}};
+                                     .data = {0x04, 0x31, 0x01, 0x06, 0x02}};
   CAN_frame CMP_CRASH_RESET_PROGRESS = {.FD = false,
                                         .ext_ID = false,
-                                        .DLC = 6,
+                                        .DLC = 5,
                                         .ID = 0x6B4,
-                                        .data = {0x04, 0x31, 0x03, 0x06, 0x02, 0x03}};
-  CAN_frame CMP_COLLISION_RESET = {.FD = false,
-                                   .ext_ID = false,
-                                   .DLC = 5,
-                                   .ID = 0x6B4,
-                                   .data = {0x04, 0x31, 0x01, 0xDF, 0x60}};
+                                        .data = {0x04, 0x31, 0x03, 0x06, 0x02}};
   CAN_frame CMP_CLEAR_ISOLATION = {.FD = false,
                                    .ext_ID = false,
                                    .DLC = 5,
