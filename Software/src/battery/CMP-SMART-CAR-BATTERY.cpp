@@ -383,6 +383,9 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x694:  // Poll reply
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (UserRequestCrashReset) {
+        CrashResetStatemachine++;
+      }
       break;
     case 0x795:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
