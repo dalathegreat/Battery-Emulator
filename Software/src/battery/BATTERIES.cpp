@@ -94,6 +94,8 @@ const char* name_for_battery_type(BatteryType type) {
       return KiaHyundaiHybridBattery::Name;
     case BatteryType::Meb:
       return MebBattery::Name;
+    case BatteryType::MebOdisBridge:
+      return MebOdisBridge::Name;
 #ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return Mg5Battery::Name;
@@ -213,6 +215,8 @@ Battery* create_battery(BatteryType type) {
       return new KiaHyundaiHybridBattery();
     case BatteryType::Meb:
       return new MebBattery();
+    case BatteryType::MebOdisBridge:
+      return new MebOdisBridge();
 #ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return new Mg5Battery();

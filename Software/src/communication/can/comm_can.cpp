@@ -316,6 +316,11 @@ void receive_frame_can_native() {  // This section checks if we have a complete 
 
       //message incoming, pass it on to the handler
       map_can_frame_to_variable(&rx_frame, CAN_NATIVE);
+
+      if (datalayer.system.info.can_ODIS_bridge_active) {
+        //Incoming Native CAN message. Pass it as-is to the CANFD interface
+        transmit_can_frame_to_interface(&rx_frame, CANFD_ADDON_MCP2518);
+      }
     }
   }
 }
@@ -346,6 +351,15 @@ void receive_frame_canfd_addon() {  // This section checks if we have a complete
     //message incoming, pass it on to the handler
     map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518);
     map_can_frame_to_variable(&rx_frame, CANFD_NATIVE);
+
+    if (datalayer.system.info.can_ODIS_bridge_active) {
+      //ODIS: Incoming CAN-FD message. Format it as normal CAN, and send to Native CAN
+      if (rx_frame.DLC > 8) {
+        rx_frame.DLC = 8;
+      }
+      rx_frame.FD = false;
+      transmit_can_frame_to_interface(&rx_frame, CAN_NATIVE);
+    }
   }
 }
 

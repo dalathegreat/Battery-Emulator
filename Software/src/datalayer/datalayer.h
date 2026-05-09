@@ -301,6 +301,8 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   bool performance_measurement_active = false;
   bool equipment_stop_active = false;  //Has user enabled equipment stop?
   bool start_precharging = false;      //Is precharge ongoing?
+  /** bool, determines if ODIS CAN relay mode should be active */
+  bool can_ODIS_bridge_active = false;
 };
 
 struct DATALAYER_SYSTEM_STATUS_TYPE {

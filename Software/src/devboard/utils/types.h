@@ -76,7 +76,7 @@ enum BMSResetState {
 // Set by battery each time we get a CAN message. Decrements every second. When reaching 0, sets event
 
 enum CAN_Interface {
-  // Native CAN port on the LilyGo & Stark hardware
+  // Native CAN port on the LilyGo T-CAN & Stark hardware, CAN-B on LilyGo T-2CAN
   CAN_NATIVE = 0,
 
   // Native CANFD port on the Stark CMR hardware
