@@ -1242,26 +1242,6 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     } else if (UserRequestCollisionReset) {
 
-      if (CollisionResetStatemachine == 0) {
-        transmit_can_frame(&ECMP_DIAG_START);
-        CollisionResetStatemachine = 1;
-      }
-      if (CollisionResetStatemachine == 2) {
-        transmit_can_frame(&ECMP_COLLISION_RESET_START);
-        CollisionResetStatemachine = 3;
-      }
-      if (CollisionResetStatemachine == 4) {
-        transmit_can_frame(&ECMP_COLLISION_RESET_PROGRESS);
-        CollisionResetStatemachine = 5;
-      }
-
-      timeSpentCollisionReset++;
-      if (timeSpentCollisionReset > 40) {  //Timeout, if command takes more than 10s to complete
-        UserRequestCollisionReset = false;
-        CollisionResetStatemachine = COMPLETED_STATE;
-        timeSpentCollisionReset = COMPLETED_STATE;
-      }
-
     } else if (UserRequestIsolationReset) {
 
       if (IsolationResetStatemachine == 0) {

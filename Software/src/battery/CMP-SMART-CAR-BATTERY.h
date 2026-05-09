@@ -135,11 +135,16 @@ class CmpSmartCarBattery : public CanBattery {
                                  .DLC = 5,
                                  .ID = 0x6B4,
                                  .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF}};
-  CAN_frame CMP_CRASH_RESET = {.FD = false,
-                               .ext_ID = false,
-                               .DLC = 6,
-                               .ID = 0x6B4,
-                               .data = {0x04, 0x31, 0x01, 0x06, 0x02, 0x03}};
+  CAN_frame CMP_CRASH_RESET_START = {.FD = false,
+                                     .ext_ID = false,
+                                     .DLC = 6,
+                                     .ID = 0x6B4,
+                                     .data = {0x04, 0x31, 0x01, 0x06, 0x02, 0x03}};
+  CAN_frame CMP_CRASH_RESET_PROGRESS = {.FD = false,
+                                        .ext_ID = false,
+                                        .DLC = 6,
+                                        .ID = 0x6B4,
+                                        .data = {0x04, 0x31, 0x03, 0x06, 0x02, 0x03}};
   CAN_frame CMP_COLLISION_RESET = {.FD = false,
                                    .ext_ID = false,
                                    .DLC = 5,
@@ -150,6 +155,12 @@ class CmpSmartCarBattery : public CanBattery {
                                    .DLC = 5,
                                    .ID = 0x6B4,
                                    .data = {0x04, 0x31, 0x01, 0x06, 0x0F}};
+  static constexpr CAN_frame CMP_DIAG_START = {.FD = false,
+                                               .ext_ID = false,
+                                               .DLC = 3,
+                                               .ID = 0x6B4,
+                                               .data = {0x02, 0x10, 0x03}};
+  //Start diagnostic session (extended diagnostic session, mode 0x10 with sub-mode 0x03)
   uint32_t vehicle_time_counter = 0x088B390B;  //Taken from log on 19thOctober2025
   uint32_t main_contactor_cycle_count = 0;
   uint32_t QC_contactor_cycle_count = 0;
@@ -199,6 +210,10 @@ class CmpSmartCarBattery : public CanBattery {
   int16_t battery_temperature_minimum = 0;
   int16_t battery_current_dA = 0;
 
+  uint8_t CrashResetStatemachine = 0;
+  uint8_t timeSpentCrashReset = 0;
+  static const uint8_t NOT_SAMPLED_YET = 255;
+  static const uint8_t COMPLETED_STATE = 0;
   uint8_t tempval = 0;
   uint8_t startup_increment = 0;
   uint8_t active_DTC_code = 0;

@@ -524,6 +524,36 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     //transmit_can_frame(&CMP_231);  // Battery Preconditioning (Apparently not needed for contactor closing?)
     //transmit_can_frame(&CMP_422);  // (Apparently not needed for contactor closing?)
     //transmit_can_frame(&CMP_4A2);  //Should we send plugged in, or unplugged? (Apparently not needed for contactor closing?)
+
+    if (UserRequestDTCreset) {
+      transmit_can_frame(&CMP_CLEAR_ALL_DTC);
+      UserRequestDTCreset = false;
+    }
+    if (UserRequestCrashReset) {
+      if (CrashResetStatemachine == 0) {
+        transmit_can_frame(&CMP_DIAG_START);
+        CrashResetStatemachine = 1;
+      }
+      if (CrashResetStatemachine == 2) {
+        transmit_can_frame(&CMP_CRASH_RESET_START);
+        CrashResetStatemachine = 3;
+      }
+      if (CrashResetStatemachine == 4) {
+        transmit_can_frame(&CMP_CRASH_RESET_PROGRESS);
+        CrashResetStatemachine = 5;
+      }
+
+      timeSpentCrashReset++;
+      if (timeSpentCrashReset > 15) {  //Timeout, if command takes more than 1.5s to complete
+        UserRequestCrashReset = false;
+        CrashResetStatemachine = COMPLETED_STATE;
+        timeSpentCrashReset = COMPLETED_STATE;
+      }
+    }
+    if (UserRequestIsolationClear) {
+      transmit_can_frame(&CMP_CLEAR_ISOLATION);
+      UserRequestIsolationClear = false;
+    }
   }
 
   // Send 1s messages
@@ -541,18 +571,6 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&CMP_552);
     //This message is odd. Non periodic, but increments 10 per cycle. Might be enough to send it once every second
     */
-    if (UserRequestDTCreset) {
-      transmit_can_frame(&CMP_CLEAR_ALL_DTC);
-      UserRequestDTCreset = false;
-    }
-    if (UserRequestCrashReset) {
-      transmit_can_frame(&CMP_CRASH_RESET);
-      UserRequestCrashReset = false;
-    }
-    if (UserRequestIsolationClear) {
-      transmit_can_frame(&CMP_CLEAR_ISOLATION);
-      UserRequestIsolationClear = false;
-    }
   }
 }
 
