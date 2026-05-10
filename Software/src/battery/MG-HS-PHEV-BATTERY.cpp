@@ -406,11 +406,11 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // 0/8 = checking
 
       if (rx_frame.data.u8[1] != previousState) {
-        logging.printf("MG_HS_PHEV: Battery status changed to %d (%d)\n", rx_frame.data.u8[1], rx_frame.data.u8[0]);
+        logging.printf("[MG] Battery status changed to %d (%d)\n", rx_frame.data.u8[1], rx_frame.data.u8[0]);
 
         if (resetProgress == WAITING_RESET_COMPLETE) {
           // We were waiting for a reset to complete, now has!
-          logging.printf("MG_HS_PHEV: Reset complete.\n");
+          logging.printf("[MG] Reset complete.\n");
           resetProgress = IDLE;
         }
       }
@@ -434,14 +434,14 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         // A weird 'stuck' state where the battery won't reconnect
         datalayer.system.status.battery_allows_contactor_closing = false;
         if (batteryType == BATTERY_TYPE_MG_HS_PHEV && resetProgress == IDLE) {
-          logging.printf("MG_HS_PHEV: Stuck, resetting.\n");
+          logging.printf("[MG] Stuck, resetting.\n");
           resetProgress = SENDING_DIAG;
         }
       } else if (rx_frame.data.u8[1] == 0xf) {
         // A fault state (likely isolation failure)
         datalayer.system.status.battery_allows_contactor_closing = false;
         if (batteryType == BATTERY_TYPE_MG_HS_PHEV && resetProgress == IDLE) {
-          logging.printf("MG_HS_PHEV: Fault, resetting.\n");
+          logging.printf("[MG] Fault, resetting.\n");
           resetProgress = SENDING_DIAG;
         }
       } else {
@@ -590,27 +590,27 @@ void MgHsPHEVBattery::got_battery_type(uint32_t type) {
   // if we want to be able to perform multi-frame UDS messages (like DTC read).
 
   // We'll scan battery type again, but the full identifier this time.
-  const uint32_t next_pid = POLL_BATTERY_TYPE;
+  //const uint32_t next_pid = POLL_BATTERY_TYPE;
 
   logging.printf("[MG] Battery type code: %X\n", type);
   batteryType = type;
   if (batteryType == BATTERY_TYPE_MG_HS_PHEV) {
     logging.println("[MG] Detected MG HS PHEV battery.");
     datalayer_battery->info.number_of_cells = 90;
-    setup_uds(0x7E5, next_pid);  // or 7E5
+    //setup_uds(0x7E5, next_pid);  // or 7E5
   } else if (batteryType == BATTERY_TYPE_MG_ZS) {
     logging.println("[MG] Detected MG ZS EV battery.");
     datalayer_battery->info.number_of_cells = 108;
-    setup_uds(0x781, next_pid);  // or 781
+    //setup_uds(0x781, next_pid);  // or 781
   } else if (batteryType == BATTERY_TYPE_MG5_61_NMC) {
     logging.println("[MG] Detected MG5 61kWh NMC.");
     datalayer_battery->info.number_of_cells = 96;
-    setup_uds(0x7E5, next_pid);  // Hopefully?
+    //setup_uds(0x7E5, next_pid);  // Hopefully?
   } else {
     logging.println("[MG] Detected probably MG5/MarvelR.");
     batteryType = BATTERY_TYPE_MG5;
     datalayer_battery->info.number_of_cells = 96;
-    setup_uds(0x781, next_pid);  // MG5 (781)
+    //setup_uds(0x781, next_pid);  // MG5 (781)
     // setup_uds(0x7E5, POLL_BAT_SOH); // MarvelR (7E5?)
   }
   datalayer_battery->info.max_design_voltage_dV =
@@ -645,33 +645,44 @@ uint32_t MgHsPHEVBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t
       break;
 
     case POLL_BATTERY_TYPE:  // Battery type
-      if (length < 4) {
-        // Short PID, is the initial battery detection
-        got_battery_type(value);
-      } else {
-        // Query the rest of the identifier PIDs once
-        return 0xF120;
-      }
+      //if (length < 4) {
+      // Short PID, is the initial battery detection
+      got_battery_type(value);
+      //} else {
+      // Query the rest of the identifier PIDs once
+      memcpy(pid_f18a, data, length > sizeof(pid_f18a) ? sizeof(pid_f18a) : length);
+      return 0xF120;
+      //}
       break;
     case 0xF120:
+      memcpy(pid_f120, data, length > sizeof(pid_f120) ? sizeof(pid_f120) : length);
       return 0xB18C;
     case 0xB18C:
+      memcpy(pid_b18c, data, length > sizeof(pid_b18c) ? sizeof(pid_b18c) : length);
       return 0xF183;
     case 0xF183:
+      memcpy(pid_f183, data, length > sizeof(pid_f183) ? sizeof(pid_f183) : length);
       return 0xF18B;
     case 0xF18B:
+      memcpy(pid_f18b, data, length > sizeof(pid_f18b) ? sizeof(pid_f18b) : length);
       return 0xF190;
     case 0xF190:
+      memcpy(pid_f190, data, length > sizeof(pid_f190) ? sizeof(pid_f190) : length);
       return 0xF191;
     case 0xF191:
+      memcpy(pid_f191, data, length > sizeof(pid_f191) ? sizeof(pid_f191) : length);
       return 0xF192;
     case 0xF192:
+      memcpy(pid_f192, data, length > sizeof(pid_f192) ? sizeof(pid_f192) : length);
       return 0xF194;
     case 0xF194:
+      memcpy(pid_f194, data, length > sizeof(pid_f194) ? sizeof(pid_f194) : length);
       return 0xF1A2;
     case 0xF1A2:
+      memcpy(pid_f1a2, data, length > sizeof(pid_f1a2) ? sizeof(pid_f1a2) : length);
       return 0xF1AA;
     case 0xF1AA:
+      memcpy(pid_f1aa, data, length > sizeof(pid_f1aa) ? sizeof(pid_f1aa) : length);
       // Finished reading identifiers, start normal polling
       setup_uds(uds_address, POLL_BATTERY_SOH);
       break;
@@ -797,13 +808,15 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
 
     if (resetProgress == SENDING_DIAG) {
       // Enter diag mode
-      transmit_can_frame(&MG_HS_7E5_DIAG);
+      MG_HS_UDS_DIAG.ID = uds_address;
+      transmit_can_frame(&MG_HS_UDS_DIAG);
       // Pause UDS or it interferes with our reset sequence
       pause_uds(2);
       resetProgress = SENDING_RESET;
     } else if (resetProgress == SENDING_RESET) {
       // Send reset command
-      transmit_can_frame(&MG_HS_7E5_RESET);
+      MG_HS_UDS_RESET.ID = uds_address;
+      transmit_can_frame(&MG_HS_UDS_RESET);
       // Pause UDS or it interferes with our reset sequence
       pause_uds(2);
       resetProgress = WAITING_RESET_COMPLETE;
@@ -812,7 +825,7 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
       resetTimeout++;
       if (resetTimeout >= 50) {
         // Timeout expired
-        logging.printf("MG_HS_PHEV: Reset timeout expired.\n");
+        logging.printf("[MG] Reset timeout expired.\n");
         resetProgress = IDLE;
       }
     }
@@ -837,7 +850,7 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
 
 void MgHsPHEVBattery::setup(void) {  // Performs one time setup at startup
   //setup_uds(0x7E5, POLL_BATTERY_VOLTAGE);
-  setup_uds(0x7DF, POLL_BATTERY_TYPE | SHORT_PID);
+  setup_uds(0x7DF, POLL_BATTERY_TYPE);  // | SHORT_PID);
 
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';

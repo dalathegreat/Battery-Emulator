@@ -25,7 +25,7 @@ void UdsCanBattery::transmit_uds_can(unsigned long currentMillis) {
       UDS_RQ_DTCs.ID = uds_address;
       transmit_can_frame(&UDS_RQ_DTCs);
 
-      uds_busy_timeout = 10;  // 1s
+      uds_busy_timeout = 20;  // 2s
       return;
     }
 
@@ -48,17 +48,15 @@ void UdsCanBattery::transmit_uds_can(unsigned long currentMillis) {
 
 void UdsCanBattery::startUDSMultiFrameReception(uint16_t totalLength, uint8_t moduleID) {
   gUDSContext.UDS_inProgress = true;
-  gUDSContext.UDS_expectedLength = totalLength;
-  gUDSContext.UDS_bytesReceived = 0;
+  gUDSContext.expected_length = totalLength;
+  gUDSContext.bytes_received = 0;
   gUDSContext.UDS_moduleID = moduleID;
-  //gUDSContext.receivedInBatch = 0;
-  memset(gUDSContext.UDS_buffer, 0, sizeof(gUDSContext.UDS_buffer));
-  gUDSContext.UDS_lastFrameMillis = millis();  // if you want to track timeouts
-  uds_busy_timeout = 5;                        // 0.5s
+  memset(gUDSContext.buffer, 0, sizeof(gUDSContext.buffer));
+  uds_busy_timeout = 5;  // 0.5s
 }
 
 bool UdsCanBattery::storeUDSPayload(const uint8_t* payload, uint8_t length) {
-  if (gUDSContext.UDS_bytesReceived + length > sizeof(gUDSContext.UDS_buffer)) {
+  if (gUDSContext.bytes_received + length > sizeof(gUDSContext.buffer)) {
     // We have received too many bytes, abort
     gUDSContext.UDS_inProgress = false;
 #ifdef DEBUG_LOG
@@ -66,19 +64,18 @@ bool UdsCanBattery::storeUDSPayload(const uint8_t* payload, uint8_t length) {
 #endif  // DEBUG_LOG
     return false;
   }
-  memcpy(&gUDSContext.UDS_buffer[gUDSContext.UDS_bytesReceived], payload, length);
-  gUDSContext.UDS_bytesReceived += length;
-  gUDSContext.UDS_lastFrameMillis = millis();
+  memcpy(&gUDSContext.buffer[gUDSContext.bytes_received], payload, length);
+  gUDSContext.bytes_received += length;
 
   // If we’ve reached or exceeded the expected length, mark complete
-  if (gUDSContext.UDS_bytesReceived >= gUDSContext.UDS_expectedLength) {
+  if (gUDSContext.bytes_received >= gUDSContext.expected_length) {
     gUDSContext.UDS_inProgress = false;
   }
   return true;
 }
 
 bool UdsCanBattery::isUDSMessageComplete() {
-  return (!gUDSContext.UDS_inProgress && gUDSContext.UDS_bytesReceived > 0);
+  return (!gUDSContext.UDS_inProgress && gUDSContext.bytes_received > 0);
 }
 
 void UdsCanBattery::print_formatted_dtc(uint32_t dtc24, uint8_t status) {
@@ -221,7 +218,7 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
       case 0x1: {  // First Frame (FF)
         const bool allow_multiframe_pids = (next_pid & SHORT_PID) == 0;
         gUDSContext.responding_id = rx_frame.ID;
-        gUDSContext.expected_sn = 1;
+        gUDSContext.next_sequence_number = 1;
 
         uint16_t totalLength = (uint16_t(pciLower) << 8) | rx_frame.data.u8[1];
         if (rx_frame.DLC == 8 && rx_frame.data.u8[2] == 0x62 && !allow_multiframe_pids) {
@@ -237,7 +234,7 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
           startUDSMultiFrameReception(totalLength - 1, rx_frame.data.u8[2]);
           // FF payload starts at data[3]
           uint8_t avail = rx_frame.DLC - 3;
-          uint16_t remain = gUDSContext.UDS_expectedLength - gUDSContext.UDS_bytesReceived;
+          uint16_t remain = gUDSContext.expected_length - gUDSContext.bytes_received;
           uint8_t toStore = uint8_t(remain < avail ? remain : avail);
           //uint8_t toStore =
           if (toStore)
@@ -259,32 +256,24 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
 
         if (rx_frame.ID != gUDSContext.responding_id)
           return false;
-        if (pciLower != gUDSContext.expected_sn) {
-          logging.printf("UDS Sequence Error! Expected %d, got %d\n", gUDSContext.expected_sn, pciLower);
+        if (pciLower != gUDSContext.next_sequence_number) {
+          logging.printf("UDS Sequence Error! Expected %d, got %d\n", gUDSContext.next_sequence_number, pciLower);
           gUDSContext.UDS_inProgress = false;  // Abort
           return false;
         }
-        gUDSContext.expected_sn = (gUDSContext.expected_sn + 1) & 0x0F;
+        gUDSContext.next_sequence_number = (gUDSContext.next_sequence_number + 1) & 0x0F;
+        uds_busy_timeout = 10;  // Reset timeout
 
         uint8_t avail = (rx_frame.DLC > 1) ? (rx_frame.DLC - 1) : 0;  // CF payload at data[1]
-        uint16_t remain = gUDSContext.UDS_expectedLength - gUDSContext.UDS_bytesReceived;
+        uint16_t remain = gUDSContext.expected_length - gUDSContext.bytes_received;
         uint8_t toStore = uint8_t(remain < avail ? remain : avail);
         if (toStore)
           storeUDSPayload(&rx_frame.data.u8[1], toStore);
 
-        // gUDSContext.receivedInBatch++;
-        // if (gUDSContext.receivedInBatch == 3) {
-        //   // After 3 CFs, we send a Flow Control frame to keep things moving
-        //   UDS_RQ_CONTINUE_MULTIFRAME.ID = uds_address;
-        //   transmit_can_frame(&UDS_RQ_CONTINUE_MULTIFRAME);
-        //   gUDSContext.receivedInBatch = 0;
-        // }
-
         if (isUDSMessageComplete()) {
-
           if (gUDSContext.UDS_moduleID == 0x59) {
-            const uint8_t* p = gUDSContext.UDS_buffer;
-            uint16_t len = gUDSContext.UDS_bytesReceived;
+            const uint8_t* p = gUDSContext.buffer;
+            uint16_t len = gUDSContext.bytes_received;
 
             // moduleID: SID(0x59), 0: subfunc(0x02), 1: status availability mask
             if (len >= 2 && p[0] == 0x02) {
@@ -302,13 +291,13 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
               }
             }
           } else if (gUDSContext.UDS_moduleID == 0x62) {
-            uint16_t did = (gUDSContext.UDS_buffer[0] << 8) | gUDSContext.UDS_buffer[1];
+            uint16_t did = (gUDSContext.buffer[0] << 8) | gUDSContext.buffer[1];
             // We read a multi-frame PID response
-            //logging.printf("UDS multi-frame response for DID 0x%04X: %d bytes\n", did, gUDSContext.UDS_bytesReceived - 2);
+            //logging.printf("UDS multi-frame response for DID 0x%04X: %d bytes\n", did, gUDSContext.bytes_received - 2);
             next_pid = handle_pid(did,
-                                  ((gUDSContext.UDS_buffer[2] << 24) | (gUDSContext.UDS_buffer[3] << 16) |
-                                   (gUDSContext.UDS_buffer[4] << 8) | gUDSContext.UDS_buffer[5]),
-                                  &gUDSContext.UDS_buffer[2], gUDSContext.UDS_bytesReceived - 2, UdsStatus::OK);
+                                  ((gUDSContext.buffer[2] << 24) | (gUDSContext.buffer[3] << 16) |
+                                   (gUDSContext.buffer[4] << 8) | gUDSContext.buffer[5]),
+                                  &gUDSContext.buffer[2], gUDSContext.bytes_received - 2, UdsStatus::OK);
           }
 
           user_request_read_dtc = false;
@@ -316,8 +305,8 @@ bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
 
           // ready for the next transaction
           gUDSContext.UDS_inProgress = false;
-          gUDSContext.UDS_expectedLength = 0;
-          gUDSContext.UDS_bytesReceived = 0;
+          // gUDSContext.expected_length = 0;
+          // gUDSContext.bytes_received = 0;
         }
         break;
       }

@@ -25,6 +25,10 @@
 
 class UdsCanBattery : public CanBattery {
  public:
+  UdsCanBattery(CAN_Speed speed = CAN_Speed::CAN_SPEED_500KBPS) : CanBattery(speed) {}
+  UdsCanBattery(CAN_Interface interface, CAN_Speed speed = CAN_Speed::CAN_SPEED_500KBPS)
+      : CanBattery(interface, speed) {}
+
   enum class UdsStatus : uint8_t {
     OK = 0,
     OK_SHORT,
@@ -71,15 +75,13 @@ class UdsCanBattery : public CanBattery {
 
   // A structure to keep track of the ongoing multi-frame UDS response
   typedef struct {
-    bool UDS_inProgress;          // Are we currently receiving a multi-frame message?
-    uint16_t UDS_expectedLength;  // Expected total payload length
-    uint16_t UDS_bytesReceived;   // How many bytes have been stored so far
+    bool UDS_inProgress;       // Are we currently receiving a multi-frame message?
+    uint16_t expected_length;  // Expected total payload length
+    uint16_t bytes_received;   // How many bytes have been stored so far
     uint16_t responding_id;
-    uint8_t UDS_moduleID;  // The "module" indicated by the first frame
-    //uint8_t receivedInBatch;            // Number of CFs received in the current batch
-    uint8_t UDS_buffer[1024];           // Buffer for the reassembled data
-    uint8_t expected_sn;                // Expected sequence number of the next CF
-    unsigned long UDS_lastFrameMillis;  // Timestamp of last frame (for timeouts, if desired)
+    uint8_t UDS_moduleID;          // The "module" indicated by the first frame
+    uint8_t buffer[1024];          // Buffer for the reassembled data
+    uint8_t next_sequence_number;  // Expected sequence number of the next CF
   } UDS_RxContext;
 
   // A single global UDS context, since only one module can respond at a time

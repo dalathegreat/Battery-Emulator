@@ -90,14 +90,19 @@ String advanced_battery_processor(const String& var) {
             content += "if (window.confirm('Are you sure you want to " + String(cmd.prompt) + "'))";
           }
 
-          content += "{" + String(cmd.identifier) + "(batteryNum); } }";
-          content += "function " + String(cmd.identifier) + "(batteryNum) {";
-          content += "  var xhr = new XMLHttpRequest();";
-          content += "  xhr.open('PUT', '/" + String(cmd.identifier) + "', true);";
-          // Send index of the battery as PUT content
-          content += "  xhr.send(batteryNum);";
-          content += "}";
-          content += "</script>";
+          content += "{" + String(cmd.identifier) +
+                     "(batteryNum); } }"
+                     "function " +
+                     String(cmd.identifier) +
+                     "(batteryNum) {"
+                     "  var xhr = new XMLHttpRequest();"
+                     "  xhr.open('PUT', '/" +
+                     String(cmd.identifier) +
+                     "', true);"
+                     "  xhr.send(batteryNum);"
+                     "  setTimeout(function() { window.location.reload(); }, 3000);"
+                     "}"
+                     "</script>";
         }
       }
     };
