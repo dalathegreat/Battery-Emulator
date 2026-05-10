@@ -13,7 +13,7 @@ static uint8_t CalculateCRC8SAEJ1850(CAN_frame rx_frame) {
   return crc ^ 0xFF;  // final XOR 0xFF
 }
 
-void SteellantisSmallWide4x4Battery::
+void StellantisSmallWide4x4Battery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   //datalayer_battery->status.real_soc; //TODO: locate
@@ -35,7 +35,7 @@ void SteellantisSmallWide4x4Battery::
   }
 }
 
-void SteellantisSmallWide4x4Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
+void StellantisSmallWide4x4Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x305:  //BPCM_HV_PowerLimits 8 lenght 100ms, BPCM sender (HV battery power limit status)
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -67,7 +67,7 @@ void SteellantisSmallWide4x4Battery::handle_incoming_can_frame(CAN_frame rx_fram
   }
 }
 
-void SteellantisSmallWide4x4Battery::transmit_can(unsigned long currentMillis) {
+void StellantisSmallWide4x4Battery::transmit_can(unsigned long currentMillis) {
 
   // Send 20ms CAN Message
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
@@ -81,7 +81,7 @@ void SteellantisSmallWide4x4Battery::transmit_can(unsigned long currentMillis) {
   }
 }
 
-void SteellantisSmallWide4x4Battery::setup(void) {  // Performs one time setup at startup
+void StellantisSmallWide4x4Battery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.number_of_cells = 96;

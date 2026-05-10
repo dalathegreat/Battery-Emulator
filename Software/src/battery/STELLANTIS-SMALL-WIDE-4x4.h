@@ -3,17 +3,17 @@
 #include "../datalayer/datalayer.h"
 #include "CanBattery.h"
 
-class SteellantisSmallWide4x4Battery : public CanBattery {
+class StellantisSmallWide4x4Battery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  SteellantisSmallWide4x4Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan)
+  StellantisSmallWide4x4Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan)
       : CanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = nullptr;
   }
 
   // Use the default constructor to create the first or single battery.
-  SteellantisSmallWide4x4Battery() {
+  StellantisSmallWide4x4Battery() {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
   }
