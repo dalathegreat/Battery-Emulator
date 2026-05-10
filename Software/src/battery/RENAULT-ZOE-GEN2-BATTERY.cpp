@@ -86,11 +86,12 @@ void RenaultZoeGen2Battery::update_values() {
     }
   }
 
+  /* Removed until we have a way to clear failures
   if (battery_slave_failures > 0) {
     set_event(EVENT_BATTERY_CAUTION, 0);
   } else {
     clear_event(EVENT_BATTERY_CAUTION);
-  }
+  }*/
 
   // Update webserver datalayer
   datalayer_extended.zoePH2.battery_soc = battery_soc;
