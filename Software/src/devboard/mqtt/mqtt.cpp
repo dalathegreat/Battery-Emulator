@@ -202,6 +202,10 @@ static String generateButtonAutoConfigTopic(const char* subtype) {
   return "homeassistant/button/" + topic_name + "/" + String(subtype) + "/config";
 }
 
+static String generateSensorDefaultEntityId(const String& object_id) {
+  return "sensor." + object_id;
+}
+
 void set_common_discovery_attributes(JsonDocument& doc) {
   doc["device"]["identifiers"][0] = device_id;
   doc["device"]["manufacturer"] = "DalaTech";
@@ -215,8 +219,9 @@ void set_common_discovery_attributes(JsonDocument& doc) {
 
 void set_battery_voltage_attributes(JsonDocument& doc, int i, int cellNumber, const String& state_topic,
                                     const String& default_entity_id_prefix, const String& battery_name_suffix) {
+  const String default_entity_object_id = default_entity_id_prefix + "battery_voltage_cell" + String(cellNumber);
   doc["name"] = "Battery" + battery_name_suffix + " Cell Voltage " + String(cellNumber);
-  doc["default_entity_id"] = default_entity_id_prefix + "battery_voltage_cell" + String(cellNumber);
+  doc["default_entity_id"] = generateSensorDefaultEntityId(default_entity_object_id);
   doc["unique_id"] = topic_name + default_entity_id_prefix + "_battery_voltage_cell" + String(cellNumber);
   doc["device_class"] = "voltage";
   doc["state_class"] = "measurement";
@@ -308,7 +313,8 @@ static bool publish_common_info(void) {
       doc["name"] = config.name;
       doc["state_topic"] = state_topic;
       doc["unique_id"] = topic_name + "_" + String(config.default_entity_id);
-      doc["default_entity_id"] = default_entity_id_prefix + String(config.default_entity_id);
+      const String default_entity_object_id = default_entity_id_prefix + String(config.default_entity_id);
+      doc["default_entity_id"] = generateSensorDefaultEntityId(default_entity_object_id);
       doc["value_template"] = config.value_template;
       if (config.unit != nullptr && strlen(config.unit) > 0) {
         doc["unit_of_measurement"] = config.unit;
@@ -501,7 +507,7 @@ bool publish_events() {
     doc["name"] = "Event";
     doc["state_topic"] = state_topic;
     doc["unique_id"] = topic_name + "_event";
-    doc["default_entity_id"] = default_entity_id_prefix + "event";
+    doc["default_entity_id"] = generateSensorDefaultEntityId(default_entity_id_prefix + "event");
     doc["value_template"] =
         "{{ value_json.event_type ~ ' (c:' ~ value_json.count ~ ',m:' ~  value_json.millis ~ ') ' ~ value_json.message "
         "}}";
