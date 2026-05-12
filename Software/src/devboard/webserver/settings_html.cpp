@@ -1495,11 +1495,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Inverter interface: </label><select name='INVCOMM'>
         %INVCOMM%     
         </select>
-        </div>
 
-        <label>Inverter limits low pass filter: </label>
+        <label>Filter charge limits towards inverter: </label>
         <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
-        title="Applies a low pass filter to charge/discharge rates to prevent oscillation." />
+        title="Applies a low-pass filter to charge/discharge values to prevent inverter oscillating when approaching fully charged/discharged" />
+        </div>
 
         <div class="if-sofar">
         <label>Sofar Battery ID (0-15): </label>
