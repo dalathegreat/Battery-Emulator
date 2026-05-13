@@ -34,8 +34,7 @@ void BmwI3Battery::end_balancing() {
   UserRequestBalancingMillis = 0;
   cmdState = SOC;
   battery_info_available = false;
-  datalayer.system.status.system_status =
-      ACTIVE;  //TODO this is not a good variable to use since EVENTS will overwrite it
+  set_event(EVENT_BALANCING_END, 0);
 }
 
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
@@ -50,8 +49,6 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   // so the safety check (EVENT_CAN_BATTERY_MISSING) does not trigger
   if (UserRequestBalancing == EXECUTING) {
     datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-    datalayer.system.status.system_status =
-        STANDBY;  //TODO this is not a good variable to use since EVENTS will overwrite it
   }
 
   // Map internal balancing state to datalayer balancing_status
