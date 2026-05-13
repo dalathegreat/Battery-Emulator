@@ -224,7 +224,7 @@ void init_stored_settings() {
   ct_invert_current = settings.getBool("CTINVERT", false);
 
   datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent =
-    constrain(settings.getUInt("BYDAUTOCALDRIFT", 5), 1u, 20u);
+      constrain(settings.getUInt("BYDAUTOCALDRIFT", 5), 1u, 20u);
   datalayer_extended.bydAtto3.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN", true);
 }
 
