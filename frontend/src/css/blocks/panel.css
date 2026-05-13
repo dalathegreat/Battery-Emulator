@@ -22,7 +22,7 @@
     color: #999;
 }
 
-.panel h3[data-status]:before {
+.panel[data-status] h3:before {
     content: "";
     display: inline-block;
     width: 13px;
@@ -33,6 +33,12 @@
     margin-right: 0.6rem;
 }
 
-.panel h3[data-status="inactive"]:before,
-.panel h3[data-status="warn"]:before { background: #bf7c13; box-shadow: 0 0 4px #bf7c13aa; }
-.panel h3[data-status="error"]:before { background: #b50909; box-shadow: 0 0 4px #b50909aa; }
+.panel[data-status="inactive"] h3:before { background: #838383; box-shadow: 0 0 4px #838383aa; }
+.panel[data-status="warn"] h3:before { background: #bf7c13; box-shadow: 0 0 4px #bf7c13aa; }
+.panel[data-status="error"] h3:before { background: #b50909; box-shadow: 0 0 4px #b50909aa; }
+
+
+.panel[data-status="error"] {
+    border: 1px solid #b50909;
+    box-shadow: 0 0 8px #b50909aa;
+}

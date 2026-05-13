@@ -40,6 +40,65 @@ TwsRoute apiBatOldRoute = TwsRoute("/api/batold", new TwsRequestHandlerFunc([](T
     }
 }));//.use(*new BasicAuth());
 
+const EVENTS_ENUM_TYPE GENERIC_BATTERY_EVENTS[] = {
+    EVENT_BATTERY_OVERHEAT,
+    EVENT_BATTERY_FROZEN,
+    EVENT_BATTERY_OVERVOLTAGE,
+    EVENT_BATTERY_UNDERVOLTAGE,
+    EVENT_CELL_OVER_VOLTAGE,
+    EVENT_CELL_CRITICAL_OVER_VOLTAGE,
+    EVENT_CELL_UNDER_VOLTAGE,
+    EVENT_CELL_CRITICAL_UNDER_VOLTAGE,
+    EVENT_SOH_LOW,
+    EVENT_SOC_PLAUSIBILITY_ERROR,
+    EVENT_CELL_DEVIATION_HIGH,
+    EVENT_SOH_DIFFERENCE
+};
+
+const char* get_battery_status(int battery_index) {
+    auto evptr = get_event_pointer(
+        battery_index == 1 ? EVENT_CAN_BATTERY_MISSING :
+        battery_index == 2 ? EVENT_CAN_BATTERY2_MISSING :
+        EVENT_CAN_BATTERY3_MISSING
+    );
+    if(evptr->state == EVENT_STATE_ACTIVE) {
+        return "ERROR";
+    }
+
+    for(auto event_type : GENERIC_BATTERY_EVENTS) {
+        auto evptr = get_event_pointer(event_type);
+        if(evptr->level == EVENT_LEVEL_ERROR && (
+            evptr->state == EVENT_STATE_ACTIVE || evptr->state == EVENT_STATE_ACTIVE_LATCHED
+        )) {
+            return "ERROR";
+        }
+    }
+
+    evptr = get_event_pointer(EVENT_CAN_CORRUPTED_WARNING);
+    if(evptr->state == EVENT_STATE_ACTIVE && evptr->data == (
+        battery_index == 1 ? can_config.battery
+        : battery_index == 2 ? can_config.battery_double
+        : can_config.battery_triple
+    )) {
+        return "WARNING";
+    }
+
+    for(auto event_type : GENERIC_BATTERY_EVENTS) {
+        auto evptr = get_event_pointer(event_type);
+        if(evptr->level == EVENT_LEVEL_WARNING && (
+            evptr->state == EVENT_STATE_ACTIVE || evptr->state == EVENT_STATE_ACTIVE_LATCHED
+        )) {
+            return "WARNING";
+        }
+    }
+
+    // check BMS_status??
+
+    // IDLE if contactors open??
+
+    return "OK";
+}
+
 TwsRoute statusRoute("/api/status", new TwsJsonGetFunc([](TwsRequest& request, JsonDocument& doc) {
     doc["hardware"] = esp32hal->name();
     doc["firmware"] = version_number;
@@ -62,16 +121,18 @@ TwsRoute statusRoute("/api/status", new TwsJsonGetFunc([](TwsRequest& request, J
         //doc["ap_ip"] = WiFi.softAPIP().toString();
     }
 
+    // Emulator status (the worst active event level)
     doc["status"] = get_emulator_status_string(get_emulator_status());
+    // 'BMS status', which seems to just be emulator status stored separately for some reason?
+    // (does get directly manipulated by BMW i3 also?).
     doc["bms_status"] = getBMSStatus(datalayer.battery.status.bms_status);
+    // Pause status, goes through intermediate states during pausing/resuming
     doc["pause_status"] = get_emulator_pause_status();
-    doc["inverter_status"] = get_inverter_status();
-    doc["real_bms_status"] = datalayer.battery.status.real_bms_status;
     doc["pause"] = emulator_pause_request_ON;
     doc["estop"] = datalayer.system.info.equipment_stop_active;
 
     JsonArray batteries = doc["battery"].to<JsonArray>();
-    auto add_battery = [&](auto& bat_data) {
+    auto add_battery = [&](auto battery, auto& bat_data, int bat_index) {
         JsonObject bat = batteries.add<JsonObject>();
         bat["protocol"] = datalayer.system.info.battery_protocol;
         bat["chemistry"] = bat_data.info.chemistry;
@@ -99,15 +160,23 @@ TwsRoute statusRoute("/api/status", new TwsJsonGetFunc([](TwsRequest& request, J
         bat["inverter_limits_charge"] = bat_data.settings.inverter_limits_charge;
         bat["user_settings_limit_charge"] = bat_data.settings.user_settings_limit_charge;
         bat["inverter_allows_contactor_closing"] = datalayer.system.status.inverter_allows_contactor_closing;
+
+        bat["status"] = get_battery_status(bat_index);
+        // Additional status info from the BMS itself (if supported)
+        if(battery->supports_real_BMS_status()) {
+            bat["real_bms_status"] = bat_data.status.real_bms_status;
+        }
     };
 
     if(battery) {
-        add_battery(datalayer.battery);
-        if(battery2) add_battery(datalayer.battery2);
+        add_battery(battery, datalayer.battery, 1);
+        if(battery2) add_battery(battery2, datalayer.battery2, 2);
+        if(battery3) add_battery(battery3, datalayer.battery3, 3);
     }
     if(inverter) {
         JsonObject inv = doc["inverter"].to<JsonObject>();
         inv["name"] = inverter->name();
+        inv["status"] = get_inverter_status();
     }
     if(contactor_control_enabled) {
         JsonObject con = doc["contactor"].to<JsonObject>();

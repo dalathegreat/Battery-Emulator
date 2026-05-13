@@ -26,8 +26,9 @@ unsigned long millis(void);
 
 #include "TwsHandler.h"
 
-#include <functional>
+#include <atomic>
 #include <cstring>
+#include <functional>
 #include <map>
 #include <memory>
 #include <stdint.h>
@@ -64,14 +65,16 @@ typedef std::function<void(TwsRequest &request, int alreadyWritten)> TwsRequestW
 
 class TwsRequest {
 public:
-    uint32_t write(const char *buf);
     uint32_t write(const char *buf, uint16_t len);
-    bool write_fully(const char *buf);
+    inline bool write_fully(const char *buf) {
+        const int len = strlen(buf);
+        return write_fully(buf, len);
+    }
     bool write_fully(const char *buf, uint16_t len);
     uint32_t write_direct(const char *buf, uint16_t len);
     uint32_t write_indirect(const char *buf, uint16_t len);
     int available();
-    inline int free() { return sizeof(send_buffer) - send_buffer_len; }
+    inline int free() { return sizeof(send_buffer) - send_buffer_len() - 1; }
     int read(char *buf, uint16_t len);
     int read_flush(uint16_t len);
 
@@ -146,14 +149,20 @@ protected:
         char _overread_protection = 0;
     };
 
-    volatile uint16_t send_buffer_len = 0;
-    uint16_t send_buffer_write_ptr = 0;
-    uint16_t send_buffer_read_ptr = 0;
+    volatile uint16_t send_buffer_write_ptr = 0;
+    volatile uint16_t send_buffer_read_ptr = 0;
+    std::atomic_flag send_buffer_lock = ATOMIC_FLAG_INIT;
     volatile uint16_t recv_buffer_len = 0;
     uint16_t recv_buffer_write_ptr = 0;
     uint16_t recv_buffer_read_ptr = 0;
     uint16_t recv_buffer_scan_ptr = 0;
     uint16_t recv_buffer_scan_len = 0;
+
+    inline int send_buffer_len() {
+        uint16_t w = send_buffer_write_ptr;
+        uint16_t r = send_buffer_read_ptr;
+        return (w >= r) ? (w - r) : (SEND_BUFFER_SIZE - r + w);
+    }
 
     uint32_t total_written = 0;
     uint32_t body_read = 0;

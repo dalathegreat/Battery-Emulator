@@ -83,6 +83,7 @@ const UintSetting UINT_SETTINGS[] = {
     {"SUBNET4", 0, 255, nullptr},
     {"MQTTPORT", 0, 65535, nullptr},
     {"MQTTTIMEOUT", 0, 30000, nullptr},
+    {"MQTTPUBLISHMS", 0, 3600000, nullptr},
     {"SOFAR_ID", 0, 255, nullptr},
     {"INVCELLS", 0, 65535, nullptr},
     {"INVMODULES", 0, 65535, nullptr},
@@ -119,6 +120,10 @@ const UintSetting UINT_SETTINGS[] = {
     {"DALYDVSTART", 0, 255, nullptr},
     {"DALYPWRDEG", 0, 10000, nullptr},
     {"DALYPWR0C", 0, 100000, nullptr},
+    {"PYLONSEND", 0, 1, nullptr},
+    {"BMSRESETDUR", 0, 60000, 
+        [](uint32_t value) { datalayer.battery.settings.user_set_bms_reset_duration_ms = value; }
+    },
     {"TMP_CALTARGETSOC", 0, 100,
         [](uint32_t value) { datalayer_extended.bydAtto3.calibrationTargetSOC = value; }
     },
@@ -227,6 +232,7 @@ const StringSetting STRING_SETTINGS[] = {
     {"MQTTOBJIDPREFIX", 64, false},
     {"MQTTDEVICENAME", 64, false},
     {"HADEVICEID", 64, false},
+    {"CTOFFSET", 16, false},
     {nullptr, 0, false},
 };
 
@@ -275,6 +281,7 @@ const BoolSetting BOOL_SETTINGS[] = {
     },    
     {"USEVOLTLIMITS", nullptr},
     {"LOWPASSFILTER", nullptr},
+    {"CTINVERT", nullptr},
     {"TMP_RECOVERYMODE", [] (bool value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; } },
     {"TMP_BALANCE", [] (bool value) { datalayer.battery.settings.user_requests_balancing = value; } },
     {"TMP_CHARGERHVENABLED", [] (bool value) { datalayer.charger.charger_HV_enabled = value; } },

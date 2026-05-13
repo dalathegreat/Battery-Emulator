@@ -157,6 +157,10 @@ void TinyWebServer::handle_request(TwsRequest &request) {
         // Step 1: Grab a chunk of data to process, stopping at delimiters where
         // relevant.
 
+        // In each parse state there are only a limited number of valid
+        // delimiters, so scan(...) persists the scan position to avoid
+        // rescanning data we've already looked at.
+
         switch(request.parse_state) {
             case TWS_AWAITING_PATH:
                 len = request.scan(' ', '?', '\n');
@@ -253,11 +257,11 @@ void TinyWebServer::handle_request(TwsRequest &request) {
 
         switch(request.parse_state) {
         case TWS_AWAITING_METHOD:
-            if(request.match("POST ")) {
-                request.method = TWS_HTTP_POST;
-                request.parse_state = TWS_AWAITING_PATH;
-            } else if(request.match("GET ")) {
+            if(request.match("GET ")) {
                 request.method = TWS_HTTP_GET;
+                request.parse_state = TWS_AWAITING_PATH;
+            } else if(request.match("POST ")) {
+                request.method = TWS_HTTP_POST;
                 request.parse_state = TWS_AWAITING_PATH;
             } else if(request.match("OPTIONS ")) {
                 request.method = TWS_HTTP_OPTIONS;
@@ -276,7 +280,8 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                     
                     // 1. Global wildcard match
                     if(path_len == 1 && _handlers[j]->path[0]=='*') {
-                        request.read_flush(len-1); // need to flush since match(...) hasn't consumed the path
+                        request.read_flush(len-1); // consume the entire path
+                        // TODO: should we store it in path_wildcard instead?
                         goto matched;
                     }
 
@@ -533,11 +538,9 @@ __attribute__((noinline)) uint32_t TinyWebServer::get_waiting_requests(long max_
     for (int i = 0; i < slot_count(); i++) {
         auto &request = *slots[i];
         if (request.active()) {
-            //DEBUG_PRINTF("FD_SET read %d\n", request.connection_id);
             FD_SET(request.socket, &read_sockets);
             max_fds = std::max(max_fds, request.socket + 1);
-            if (request.send_buffer_len > 0 || request.pending_direct_write) {
-                //DEBUG_PRINTF("FD_SET write %d\n", request.connection_id);
+            if (request.send_buffer_len() > 0 || request.pending_direct_write) {
                 FD_SET(request.socket, &write_sockets);
                 pending_write_sockets |= (1 << i);
             }
@@ -615,17 +618,30 @@ bool TinyWebServer::poll() {
 }
 
 int IRAM_ATTR TinyWebServer::write(uint32_t connection_id, const char *data, size_t len) {
+    // Write to the given connection ID (if it is still active).
+
     // Find the request with the given connection ID
     for (int i = 0; i < slot_count(); i++) {
         if (slots[i]->active() && slots[i]->connection_id == connection_id && slots[i]->reply_started()) {
-            // Always use indirect writes, since these might come from different threads
-            return slots[i]->write_indirect(data, len);
+            while(slots[i]->send_buffer_lock.test_and_set(std::memory_order_acquire)) {
+                // Avoid priority inversion with an explicit delay. An
+                // alternative would be a proper FreeRTOS mutex instead of this
+                // spinlock, but that has much worse uncontended performance.
+                vTaskDelay(1);
+            }
+
+            int ret = slots[i]->write_indirect(data, len);
+            slots[i]->send_buffer_lock.clear(std::memory_order_release);
+            return ret;
         }
     }
     return -1; // Connection ID not found
 }
 
 int IRAM_ATTR TinyWebServer::free(uint32_t connection_id) {
+    // Return the free space in the send buffer for the given connection ID (if
+    // it is still active).
+
     // Find the request with the given connection ID
     for (int i = 0; i < slot_count(); i++) {
         if (slots[i]->active() && slots[i]->connection_id == connection_id) {
@@ -652,7 +668,6 @@ void TwsRequest::reset() {
         close(socket);
     }
     socket = -1;
-    send_buffer_len = 0;
     send_buffer_write_ptr = 0;
     send_buffer_read_ptr = 0;
     recv_buffer_len = 0;
@@ -678,15 +693,16 @@ void TwsRequest::reset() {
 
 void TwsRequest::perform_io() {
     // send any data awaiting sending
-    while(send_buffer_len>0) {
+    int current_len = send_buffer_len();
+    while(current_len > 0) {
         const uint16_t contiguous_block_size = sizeof(send_buffer) - send_buffer_read_ptr;
-        const uint16_t bytes_to_send = min(send_buffer_len, contiguous_block_size);
+        const uint16_t bytes_to_send = min(current_len, contiguous_block_size);
         const int bytes_sent = ::send(socket, &send_buffer[send_buffer_read_ptr], bytes_to_send, 0);
         //DEBUG_PRINTF("  ::send returned %d\n", bytes_sent);
         if (bytes_sent > 0) {
             // Advance the read pointer, wrapping around the buffer if necessary.
             send_buffer_read_ptr = sub_mod(send_buffer_read_ptr + bytes_sent, sizeof(send_buffer));
-            send_buffer_len -= bytes_sent;
+            current_len -= bytes_sent;
             last_activity = millis();
         } else if (bytes_sent <= 0 && errno != EINPROGRESS && errno != EAGAIN && errno != EWOULDBLOCK) {
             // An error occurred, close the connection
@@ -737,51 +753,29 @@ int TwsRequest::recv() {
 }
 
 void TwsRequest::tick() {
-    if((send_buffer_len==0 && done && !pending_direct_write) || aborted) {
+    if((send_buffer_len()==0 && done && !pending_direct_write) || aborted) {
         // If the send buffer is empty and the request is done, close the connection
         // (or if aborted, finish immediately)
-        //DEBUG_PRINTF("TWS done, closing %d\n", connection_id);
         reset();
         return;
     }
 
-    if(send_buffer_len==0 && !done && writer_callback) {
+    if(send_buffer_len()==0 && !done && writer_callback) {
         // If the send buffer is empty and a callback is set, call it.
         writer_callback(*this, this->total_written - this->writer_callback_written_offset);
     }
 
-    unsigned long elapsed = millis() - last_activity;
-    if(elapsed > TinyWebServer::IDLE_TIMEOUT_MS && elapsed < 0x80000000) {
+    if ((millis() - last_activity) > TinyWebServer::IDLE_TIMEOUT_MS) {
         // No activity for 10 seconds, close the connection
-        // (hacky workaround for stale values in millis)
         DEBUG_PRINTF("TWS client timeout, closing connection %d\n", connection_id);
         reset();
         return;
     }
 }
 
-uint32_t IRAM_ATTR TwsRequest::write(const char *buf) {
-    if (send_buffer_len >= sizeof(send_buffer)) {
-        return 0; // Buffer full
-    }
-    int i;
-    int limit = sizeof(send_buffer) - send_buffer_len;
-    for(i = 0; buf[i] != '\0' && i < limit; ++i) {
-        // Place the byte at the current write position.
-        send_buffer[send_buffer_write_ptr] = buf[i];
-        send_buffer_write_ptr = sub_mod(send_buffer_write_ptr + 1, sizeof(send_buffer));
-    }
-
-    send_buffer_len += i;
-    total_written += i; // Update total written bytes
-
-    // Return the number of bytes written
-    return i;
-}
-
 uint32_t TwsRequest::write(const char* buf, uint16_t len) {
     int bytes_sent = 0;
-    if(send_buffer_len==0) {
+    if(send_buffer_len()==0) {
         // Try to write directly, skipping the circular buffer.
         bytes_sent = write_direct(buf, len);
         if(bytes_sent>0) {
@@ -798,8 +792,33 @@ uint32_t TwsRequest::write(const char* buf, uint16_t len) {
     return bytes_sent + write_indirect(buf, len);
 }
 
+
+// uint32_t IRAM_ATTR TwsRequest::write(const char *buf) {
+//     // TODO: worth calling strlen and seeing if we can do a direct write?
+
+//     const uint16_t available_space = (sizeof(send_buffer) - 1) - send_buffer_len();
+//     if (available_space == 0) {
+//         return 0;
+//     }
+    
+//     int i;
+//     for(i = 0; buf[i] != '\0' && i < available_space; ++i) {
+//         // Place the byte at the current write position.
+//         send_buffer[send_buffer_write_ptr] = buf[i];
+//         send_buffer_write_ptr = sub_mod(send_buffer_write_ptr + 1, sizeof(send_buffer));
+//     }
+
+//     total_written += i; // Update total written bytes
+
+//     // Return the number of bytes written
+//     return i;
+// }
+
+
 uint32_t IRAM_ATTR TwsRequest::write_indirect(const char *buf, uint16_t len) {
-    const uint16_t available_space = sizeof(send_buffer) - send_buffer_len;
+    // We can only write up to (buffer size - 1) bytes to distinguish full
+    // (write_ptr one behind read_ptr) vs empty (write_ptr == read_ptr).
+    const uint16_t available_space = free();
     if (available_space == 0) {
         return 0;
     }
@@ -811,23 +830,10 @@ uint32_t IRAM_ATTR TwsRequest::write_indirect(const char *buf, uint16_t len) {
         send_buffer_write_ptr = sub_mod(send_buffer_write_ptr + 1, sizeof(send_buffer));
     }
 
-    // Increase the stored data length by the number of bytes copied.
-    send_buffer_len += bytes_to_copy;
     total_written += bytes_to_copy; // Update total written bytes
     return bytes_to_copy;    
 }
 
-
-bool TwsRequest::write_fully(const char *buf) {
-    size_t wrote = write(buf);
-    if(wrote < strlen(buf)) {
-        // Not all data was written, return false
-        //DEBUG_PRINTF("TWS write_fully failed to write all data: %zu > %d\n", strlen(buf), wrote);
-        finish();
-        return false;
-    }
-    return true;
-}
 
 bool TwsRequest::write_fully(const char *buf, uint16_t len) {
     int wrote = write(buf, len);
@@ -842,7 +848,7 @@ bool TwsRequest::write_fully(const char *buf, uint16_t len) {
 
 uint32_t TwsRequest::write_direct(const char *buf, uint16_t len) {
     // Write data directly to the socket, bypassing the send buffer.
-    if(send_buffer_len > 0) {
+    if(send_buffer_len() > 0) {
         // Can't bypass the send buffer if there is already data in it
         return 0;
     }
@@ -895,9 +901,7 @@ uint32_t TwsRequest::write_direct(const char *buf, uint16_t len) {
 int TwsRequest::available() {
     return recv_buffer_len; // Return the number of bytes available to read
 }
-// int TwsRequest::free() {
-//     return sizeof(send_buffer) - send_buffer_len; // Return the number of free bytes in the send buffer
-// }
+
 bool TwsRequest::recv_buffer_full() {
     return recv_buffer_len >= sizeof(recv_buffer); // Return true if the receive buffer is full
 }
@@ -918,8 +922,9 @@ int TwsRequest::read(char *buf, uint16_t len) {
 }
 
 int TwsRequest::read_flush(uint16_t len) {
+    // Discard up to len bytes from the read buffer.
+
     const uint16_t bytes_to_flush = min(len, recv_buffer_len);
-    //DEBUG_PRINTF("TWS read_flush %d bytes\n", bytes_to_flush);
     recv_buffer_read_ptr = sub_mod(recv_buffer_read_ptr + bytes_to_flush, sizeof(recv_buffer));
     recv_buffer_len -= bytes_to_flush;
     
@@ -937,6 +942,10 @@ int TwsRequest::read_flush(uint16_t len) {
 }
 
 int TwsRequest::scan(char delim1) {
+    // Scan through the receive buffer for the given delimiter, starting from
+    // the current scan pointer, and return the length up to and including the
+    // delimiter if found, or 0 if not found.
+
     // Keep looping until we catch up with the write pointer
     while(recv_buffer_scan_len<recv_buffer_len) {
         if (recv_buffer[recv_buffer_scan_ptr] == delim1) {
@@ -952,7 +961,10 @@ int TwsRequest::scan(char delim1) {
     }
     return 0; // No delimiter found, return 0
 }
+
 int TwsRequest::scan(char delim1, char delim2) {
+    // Like scan(char), but matching either of two delimiters.
+
     // Keep looping until we catch up with the write pointer
     while(recv_buffer_scan_len<recv_buffer_len) {
         if (recv_buffer[recv_buffer_scan_ptr] == delim1 || recv_buffer[recv_buffer_scan_ptr] == delim2) {
@@ -968,7 +980,10 @@ int TwsRequest::scan(char delim1, char delim2) {
     }
     return 0; // No delimiter found, return 0
 }
+
 int TwsRequest::scan(char delim1, char delim2, char delim3) {
+    // Like scan(char), but matching any of three delimiters.
+
     // Keep looping until we catch up with the write pointer
     while(recv_buffer_scan_len<recv_buffer_len) {//recv_buffer_scan_ptr != recv_buffer_write_ptr) {
         if (recv_buffer[recv_buffer_scan_ptr] == delim1 || recv_buffer[recv_buffer_scan_ptr] == delim2 || recv_buffer[recv_buffer_scan_ptr] == delim3) {
@@ -984,32 +999,23 @@ int TwsRequest::scan(char delim1, char delim2, char delim3) {
     }
     return 0; // No delimiter found, return 0
 }
+
 int TwsRequest::available_contiguous() {
     // Get the number of bytes available to read in the receive buffer
     // without wrapping around.
     return min((unsigned int)recv_buffer_len, (unsigned int)(sizeof(recv_buffer) - recv_buffer_read_ptr));
 }
+
 char* TwsRequest::get_read_ptr(char *buf, uint16_t len) {
     // Get a pointer to the read position in the receive buffer.
     // If the full read would wrap, copy into the supplied buffer and return
     // that instead.
+
     char* ret = get_peek_ptr(buf, len);
     read_flush(len); // Update the read pointer
     return ret;
-
-    // if(recv_buffer_read_ptr + len <= sizeof(recv_buffer)) {
-    //     // Read doesn't wrap
-    //     char* ret = &recv_buffer[recv_buffer_read_ptr];
-    //     read_flush(len);
-    //     return ret;
-    // } else {
-    //     if(buf == nullptr) {
-    //         return nullptr;
-    //     }
-    //     read(buf, len);
-    //     return buf;
-    // }
 }
+
 char* TwsRequest::get_peek_ptr(char *buf, uint16_t len) {
     // Get a pointer to the read position in the receive buffer.
     // If the full read would wrap, copy into the supplied buffer and return
@@ -1029,6 +1035,9 @@ char* TwsRequest::get_peek_ptr(char *buf, uint16_t len) {
     }
 }
 bool TwsRequest::match(const char *str) {
+    // Check if the next bytes in the receive buffer match the given string, and
+    // if so, consume them and return true. Otherwise, return false and don't
+    // consume anything.
     int i;
     for(i = 0; str[i] != '\0'; ++i) {
         if (recv_buffer_len <= i || recv_buffer[sub_mod(recv_buffer_read_ptr + i, sizeof(recv_buffer))] != str[i]) {
@@ -1085,11 +1094,15 @@ void TwsRequest::send(int code, const char *content_type, const char *content) {
 }
 
 void TwsRequest::abort() {
-    aborted = true; // Mark the request as aborted
+    // Abort the request, which will close the connection. Any unsent data will
+    // be discarded.
+    aborted = true;
 }
 
 void TwsRequest::finish() {
-    done = true; // Mark the request as done
+    // Finish the request, which will close the connection after all pending
+    // data has been sent.
+    done = true;
     last_activity = millis(); // Avoid timing out before the connection is closed
 }
 

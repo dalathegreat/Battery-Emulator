@@ -52,8 +52,8 @@ export function Dashboard({status}: {status: any}) {
         tray
     ) */}
     <h2>Dashboard</h2>
-      <div class="panel">
-        <h3 data-status="ok">System</h3>
+      <div class="panel" data-status="ok">
+        <h3>System</h3>
         <div class="stats">
           <div class="stat stat__small">
             <span>SOFTWARE</span>
@@ -73,8 +73,8 @@ export function Dashboard({status}: {status: any}) {
           </div>
         </div>
       </div>
-      <div class="panel">
-          <h3 data-status="ok">Network</h3>
+      <div class="panel" data-status="ok">
+          <h3>Network</h3>
           <div class="stats">
               { status.ssid && <>
                 <div class="stat stat__small">
@@ -102,18 +102,18 @@ export function Dashboard({status}: {status: any}) {
       </div>
 
       { status.inverter && 
-        <div class="panel">
-            <h3 data-status={ status.inverter_status?.toLowerCase() }>Inverter &nbsp;<span>-&nbsp; { status.inverter.name }</span></h3>
+        <div class="panel" data-status={ status.inverter.status?.toLowerCase() }>
+            <h3>Inverter &nbsp;<span>-&nbsp; { status.inverter.name }</span></h3>
         </div> }
 
       { status.contactor && 
-        <div class="panel">
+        <div class="panel" data-status={ CONTACTOR_STATE_STATUS[status.contactor.state] }>
           <div class="badge" style="float: right" data-status={ CONTACTOR_STATE_STATUS[status.contactor.state] }>{ CONTACTOR_STATE_NAME[status.contactor.state] }</div>
-          <h3 data-status={ CONTACTOR_STATE_STATUS[status.contactor.state] }>Contactors &nbsp;<span>-&nbsp; GPIO</span></h3>
+          <h3>Contactors &nbsp;<span>-&nbsp; GPIO</span></h3>
         </div> }
 
       { (status.battery || []).map((battery: any, idx: number) =>
-        <div class="panel" key={idx}>
+        <div class="panel" key={idx} data-status={ battery.status?.toLowerCase() }>
             { battery.i > 0.05 ?
               <div class="badge" style="float: right; background: #1DB706; margin-left: 0.8rem">CHARGING</div>
               : battery.i < -0.05 ?
@@ -122,7 +122,7 @@ export function Dashboard({status}: {status: any}) {
                 <div class="badge" style="float: right; background: #3a516f; margin-left: 0.8rem">IDLE</div>
             }
             <div style="float: right; background: #3a516f; color: #ffffff; padding: 0.3rem 0.6rem 0.2rem; border-radius: 6px; font-size: 0.9rem; font-weight: 600">SCALED</div>
-            <h3 data-status="ok">Battery { (status.battery?.length>1)?(idx+1):'' }&nbsp;<span>-&nbsp; { battery.protocol }</span></h3>
+            <h3>Battery { (status.battery?.length>1)?(idx+1):'' }&nbsp;<span>-&nbsp; { battery.protocol }</span></h3>
 
             <div class="stats">
                 <div class="stat">

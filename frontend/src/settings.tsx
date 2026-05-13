@@ -214,6 +214,7 @@ export function Settings() {
                 <Show when={estimated}>
                     { textPatternField("Manual charging power (W)", "CHGPOWER", "[0-9]+") }
                     { textPatternField("Manual discharging power (W)", "DCHGPOWER", "[0-9]+") }
+                    { textPatternField("Rampdown SOC start (7000-9000)", "RAMPDOWNSOC", "[0-9]+") }
                 </Show>
                 <Show when={socestimated}>
                     { checkboxField("Use estimated SoC", "SOCESTIMATED") }
@@ -239,6 +240,7 @@ export function Settings() {
             { selectField("Inverter protocol", "INVTYPE", inverters) }
             <Show when={parseInt(merged.INVTYPE)>0}>
                 { selectField("Inverter interface", "INVCOMM", INTERFACES) }
+                { checkboxField("Inverter limits low pass filter", "LOWPASSFILTER") }
                 <Show when={sofar}>
                     { textPatternField("Sofar Battery ID (0-15)", "SOFAR_ID", "[0-9]{1,2}") }
                 </Show>
@@ -253,8 +255,6 @@ export function Settings() {
                     { checkboxField("Pylon, invert byteorder", "PYLONORDER") }
                     { textPatternField("Pylon CAN baudrate (kbps)", "PYLONBAUD", "[0-9]+", "Usually 500, sometimes 250") }
                 </Show>
-                { checkboxField("Inverter limits low pass filter", "LOWPASSFILTER") }
-                { textPatternField("Rampdown SOC start (7000-9000)", "RAMPDOWNSOC", "[0-9]+") }
                 <Show when={byd}>
                     { checkboxField("Deye offgrid specific fixes", "DEYEBYD") }
                 </Show>
@@ -358,11 +358,9 @@ export function Settings() {
                     { textPatternField("PWM Hold (0-1023)", "PWMHOLD", "[0-9]+") }
                 </Show>
             </Show>
-
-            { checkboxField("Double-Battery Contactor control via GPIO", "CNTCTRLDBL") }
-
+            
             { checkboxField("Periodic BMS reset every 24h", "PERBMSRESET") }
-            { textPatternField("Periodic BMS reset off time (ms)", "BMSRESETDUR", "[0-9]+") }
+            { textPatternField("BMS reset off time (ms)", "BMSRESETDUR", "[0-9]+") }
             { checkboxField("Start undercharged emergency recovery mode", "TMP_RECOVERYMODE") }
             { checkboxField("External precharge via HIA4V1", "EXTPRECHARGE") }
             <Show indent={true} when={merged.EXTPRECHARGE}>
@@ -448,6 +446,7 @@ export function Settings() {
                 { passwordField("MQTT password", "MQTTPASSWORD") }
                 { textPatternField("MQTT timeout (ms)", "MQTTTIMEOUT", "[0-9]+") }
                 { checkboxField("Send all cell voltages via MQTT", "MQTTCELLV") }
+                { textPatternField("MQTT publish interval (ms)", "MQTTPUBLISHMS", "[0-9]+") }
                 { checkboxField("Remote BMS reset via MQTT allowed", "REMBMSRESET") }
                 { checkboxField("Customized MQTT topics", "MQTTTOPICS") }
                 <Show indent={true} when={merged.MQTTTOPICS}>

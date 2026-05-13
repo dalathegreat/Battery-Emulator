@@ -46,7 +46,7 @@ bool can_buffer_full(CAN_Interface interface) {
 
 extern void dump_can_frame2(const CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);
 
-bool send_can_frame(CAN_Interface interface, const CANMessage &frame, bool log) {
+bool send_can_frame(CAN_Interface interface, const CAN_frame &frame, bool log) {
     // This can be slow as the first call will (for the SPI ones) perform a
     // sequence of blocking SPI transactions. Subsequent calls will be faster as
     // the frames will be buffered instead.
@@ -56,28 +56,27 @@ bool send_can_frame(CAN_Interface interface, const CANMessage &frame, bool log) 
 
 #ifndef UNIT_TEST
     bool success = false;
-    if(interface == CAN_NATIVE) {
-        success = ACAN_ESP32::can.tryToSend(frame);
+    if(interface == CAN_NATIVE || interface == CANFD_ADDON_MCP2518) {
+        CANMessage send_frame;
+        send_frame.id = frame.ID;
+        send_frame.ext = frame.ext_ID;
+        send_frame.len = frame.DLC;
+        memcpy(send_frame.data, frame.data.u8, frame.DLC);
+        if(interface == CAN_NATIVE) {
+            success = ACAN_ESP32::can.tryToSend(send_frame);
+        } else {
+            success = canfd && canfd->tryToSend(send_frame);
+        }
     } else if(interface == CAN_ADDON_MCP2515) {
         if(can2515) {
-            MCP2515_Lite_Frame lite_frame;
-            lite_frame.id = frame.id;
-            lite_frame.ext = frame.ext;
-            lite_frame.dlc = frame.len;
-            memcpy(lite_frame.data, frame.data, 8);
-            success = can2515->sendFrame(lite_frame);
+            // MCP2515_Lite_Frame has the same layout as the first 13 bytes of CAN_frame
+            MCP2515_Lite_Frame *lite_frame = (MCP2515_Lite_Frame*)&frame; 
+            success = can2515->sendFrame(*lite_frame);
         }
-    } else if(interface == CANFD_ADDON_MCP2518) {
-        success = canfd && canfd->tryToSend(frame);
     }
 
     if(log && success) {
-        CAN_frame log_frame;
-        log_frame.ID = frame.id;
-        log_frame.ext_ID = frame.id > 0x7FF;
-        log_frame.DLC = frame.len;
-        memcpy(log_frame.data.u8, frame.data, frame.len);
-        dump_can_frame2(log_frame, interface, frameDirection(MSG_TX));
+        dump_can_frame2(frame, interface, frameDirection(MSG_TX));
     }
     return success;
 #endif
@@ -162,13 +161,14 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
         // }
         // DEBUG_PRINTF("\n");
 
-        CANMessage send_frame = {
-            .id = frame.id,
-            .ext = frame.id > 0x7FF,
-            .len = frame.len,
-            .data64 = 0
+        CAN_frame send_frame = {
+            .FD = false, // TODO: make this configurable?
+            .ext_ID = frame.id > 0x7FF,
+            .DLC = frame.len,
+            .ID = frame.id,
+            .data = {}
         };
-        memcpy(send_frame.data, frame.data, frame.len);
+        memcpy(send_frame.data.u8, frame.data, frame.len);
 
         // TODO - we probably just want to consider this the same as "buffer full" and wait
         if(!send_can_frame(iface, send_frame, state.log)) {

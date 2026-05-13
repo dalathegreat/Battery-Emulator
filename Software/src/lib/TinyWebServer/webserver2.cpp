@@ -85,8 +85,6 @@ TwsRoute *default_handlers[] = {
 
 TinyWebServer tinyWebServer(80, default_handlers);
 
-#include "FreeRTOS.h"
-
 void tiny_web_server_loop(void * pData) {
     TinyWebServer * server = (TinyWebServer *)pData;
     uint16_t time_since_watchdog_reset_ms = 0;
