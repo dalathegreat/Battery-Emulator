@@ -377,7 +377,7 @@ void TeslaLegacyBattery::transmit_can(unsigned long currentMillis) {
     return;  //All cellvoltages not read yet, do not proceed with contactor closing
   }
 
-  if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
+  if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.system.status.system_status != FAULT)) {
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
       previousMillis100 = currentMillis;
 

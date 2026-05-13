@@ -39,7 +39,7 @@ void EcmpBattery::update_values() {
     datalayer_battery->status.voltage_dV = battery_voltage * 10;
 
     // If High Precision Curent is avilable, use it
-    if (pid_current != NOT_SAMPLED_YET && datalayer.battery.status.bms_status != FAULT) {
+    if (pid_current != NOT_SAMPLED_YET && datalayer.system.status.system_status != FAULT) {
       datalayer_battery->status.current_dA = (int16_t)(pid_current / 100);
     } else {
       datalayer_battery->status.current_dA = -(battery_current * 10);
@@ -1292,7 +1292,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     } else {  //Normal PID polling goes here
 
-      if (datalayer.battery.status.bms_status != FAULT) {  //Stop PID polling if battery is in FAULT mode
+      if (datalayer.system.status.system_status != FAULT) {  //Stop PID polling if we are in FAULT mode
 
         // Sample High Precison Current every other time
         if (HighPrecisionCurrentSampling) {
@@ -1666,7 +1666,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     counter_10ms = (counter_10ms + 1) % 16;
 
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       //Make vehicle appear as in idle HV state. Useful for clearing DTCs
       ECMP_0F2.data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x60, 0x0D};
       ECMP_17B.data = {0x00, 0x00, 0x00, 0x7E, 0x78, 0x00, 0x00, 0x0F};
@@ -1699,7 +1699,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
 
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       //Open contactors!
       ECMP_0F0.data.u8[1] = 0x00;
     } else {  // Not in faulted mode, Close contactors!
@@ -1716,7 +1716,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     previousMillis50 = currentMillis;
 
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       //Make vehicle appear as in idle HV state. Useful for clearing DTCs
       ECMP_27A.data = {0x4F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     } else {
@@ -1733,7 +1733,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     counter_100ms = (counter_100ms + 1) % 16;
     counter_010 = (counter_010 + 1) % 8;
 
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       //Make vehicle appear as in idle HV state. Useful for clearing DTCs
 #ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
       ECMP_31E.data.u8[0] = 0x48;

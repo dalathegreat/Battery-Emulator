@@ -1114,7 +1114,7 @@ String processor(const String& var) {
       }
 
       content += "<h4>System status: ";
-      switch (datalayer.battery.status.bms_status) {
+      switch (datalayer.system.status.system_status) {
         case ACTIVE:
           content += String("OK");
           break;
@@ -1142,7 +1142,7 @@ String processor(const String& var) {
 
       if (battery2) {
         content += "<div style='flex: 1; background-color: ";
-        switch (datalayer.battery.status.bms_status) {
+        switch (datalayer.system.status.system_status) {
           case ACTIVE:
             content += "#2D3F2F;";
             break;
@@ -1230,7 +1230,7 @@ String processor(const String& var) {
         content += "</div>";
         if (battery3) {
           content += "<div style='flex: 1; background-color: ";
-          switch (datalayer.battery.status.bms_status) {
+          switch (datalayer.system.status.system_status) {
             case ACTIVE:
               content += "#2D3F2F;";
               break;
@@ -1333,7 +1333,7 @@ String processor(const String& var) {
     }
 
     content += "<h4>Emulator allows contactor closing: ";
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       content += "<span style='color: red;'>&#10005;</span>";
     } else {
       content += "<span>&#10003;</span>";

@@ -34,7 +34,7 @@ void BmwI3Battery::end_balancing() {
   UserRequestBalancingMillis = 0;
   cmdState = SOC;
   battery_info_available = false;
-  datalayer_battery->status.bms_status = ACTIVE;
+  set_event(EVENT_BALANCING_END, 0);
 }
 
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
@@ -49,7 +49,6 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   // so the safety check (EVENT_CAN_BATTERY_MISSING) does not trigger
   if (UserRequestBalancing == EXECUTING) {
     datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-    datalayer_battery->status.bms_status = STANDBY;
   }
 
   // Map internal balancing state to datalayer balancing_status
@@ -333,7 +332,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       BMW_13E_counter++;
       BMW_13E.data.u8[4] = BMW_13E_counter;
 
-      if (datalayer_battery->status.bms_status == FAULT) {
+      if (datalayer.system.status.system_status == FAULT) {
       } else if (allows_contactor_closing) {
         //If battery is not in Fault mode, and we are allowed to control contactors, we allow contactor to close by sending 10B
         *allows_contactor_closing = true;

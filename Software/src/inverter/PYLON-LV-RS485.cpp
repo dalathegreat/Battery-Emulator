@@ -44,7 +44,7 @@ void PylonLV485InverterProtocol::update_values() {
 
   max_discharge_i_dA = datalayer.battery.status.max_discharge_current_dA;
 
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     //If we are in FAULT mode, do not allow charging or discharging
     charge_allowed = false;
     discharge_allowed = false;

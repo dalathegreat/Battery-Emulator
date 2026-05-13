@@ -334,7 +334,7 @@ static bool publish_common_info(void) {
     }
 
   } else {
-    doc["bms_status"] = getBMSStatus(datalayer.battery.status.bms_status);
+    doc["bms_status"] = getBMSStatus(datalayer.system.status.system_status);
     doc["pause_status"] = get_emulator_pause_status();
 
     //only publish these values if BMS is active and we are comunication  with the battery (can send CAN messages to the battery)

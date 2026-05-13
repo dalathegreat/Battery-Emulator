@@ -851,7 +851,7 @@ void TeslaBattery::
 
   //Safety checks for CAN message sending
   if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
-      (datalayer.battery.status.bms_status != FAULT) && (!datalayer.system.info.equipment_stop_active)) {
+      (datalayer.system.status.system_status != FAULT) && (!datalayer.system.info.equipment_stop_active)) {
     // Carry on: 0x221 DRIVE state & reset power down timer
     vehicleState = CAR_DRIVE;
     powerDownSeconds = 9;
@@ -1873,7 +1873,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
 
     if (user_selected_tesla_digital_HVIL) {  //Special Digital HVIL mode for S/X 2024+ batteries
       if ((datalayer.system.status.inverter_allows_contactor_closing) &&
-          (datalayer.battery.status.bms_status != FAULT)) {
+          (datalayer.system.status.system_status != FAULT)) {
         transmit_can_frame(&can_msg_1CF[index_1CF]);
         index_1CF = (index_1CF + 1) % 8;
         transmit_can_frame(&can_msg_118[index_118]);

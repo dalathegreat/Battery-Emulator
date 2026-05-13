@@ -159,7 +159,7 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           KIA64_7E4_poll.data.u8[3] = (uint8_t)(POLL_ECU_VERSION & 0x00FF);
           poll_data_pid = 0;
         }
-        if (datalayer.battery.status.bms_status == FAULT) {
+        if (datalayer.system.status.system_status == FAULT) {
           //If we are in fault mode, request contactors to open via UDS
           open_state++;
           if (open_state == 1) {  //Enter elevated mode
@@ -469,7 +469,7 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
 void KiaHyundai64Battery::transmit_can(unsigned long currentMillis) {
 
-  if (!startedUp || (datalayer.battery.status.bms_status == FAULT)) {
+  if (!startedUp || (datalayer.system.status.system_status == FAULT)) {
     return;  // Don't send any CAN messages towards battery until it has started up. Also stop sending if we are in critical FAULT mode
   }
 

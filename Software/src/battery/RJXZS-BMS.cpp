@@ -251,7 +251,7 @@ void RjxzsBms::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
 
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       // Incase we loose BMS comms, resend CAN start
       setup_completed = false;
     }
