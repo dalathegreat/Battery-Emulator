@@ -328,7 +328,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
 
-      if (datalayer.system.status.system_status == FAULT) {
+      if (datalayer_battery->status.bms_status == FAULT) {
         BMW_10B.data.u8[1] = 0x00;  // Keep contactors open - fault condition
       } else if (startup_counter_contactor < 160) {
         startup_counter_contactor++;
