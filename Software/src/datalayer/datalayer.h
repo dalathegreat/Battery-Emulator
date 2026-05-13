@@ -359,7 +359,7 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   bool contactors_battery3_engaged = false;
   /** State of BMS reset sequence */
   BMSResetState bms_reset_status = BMS_RESET_IDLE;
-  /** The current system status, usually pending between ACTIVE and FAULT, but there are more enums. Used to signal incase we have a critical fault active, or if we should proceed operating */
+  /** The current system status, determined by which Events are active, usually pending between ACTIVE and FAULT, but there are more enums. Used to signal incase we have a critical fault active, or if we should proceed operating */
   system_status_enum system_status = ACTIVE;
 };
 
