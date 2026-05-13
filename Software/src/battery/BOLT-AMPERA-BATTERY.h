@@ -37,7 +37,8 @@ class BoltAmperaBattery : public CanBattery {
   DATALAYER_INFO_BOLTAMPERA* datalayer_boltampera;
   bool* allows_contactor_closing;
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
-  static const int RAMPDOWN_SOC = 9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
+  static const int RAMPDOWN_SOC =
+      9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
 
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2510;
@@ -189,9 +190,9 @@ class BoltAmperaBattery : public CanBattery {
   unsigned long previousMillis120ms = 0;  // will store last time a 120ms CAN Message was send
 
   // --- NEW: BALANCING VARIABLES ---
-  unsigned long previousMillisBalancingPrint = 0; // Timer to prevent Serial monitor spam
-  uint8_t balanceMask[12] = {0};                  // Array of 12 bytes representing the cell bits
-  void calculateBalancing();                      // Our new balancing calculation function
+  unsigned long previousMillisBalancingPrint = 0;  // Timer to prevent Serial monitor spam
+  uint8_t balanceMask[12] = {0};                   // Array of 12 bytes representing the cell bits
+  void calculateBalancing();                       // Our new balancing calculation function
   // -----------------------------------
 
   CAN_frame BOLT_778 = {.FD = false,  // Unsure of what this message is, added only as example
