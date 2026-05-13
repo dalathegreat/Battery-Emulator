@@ -12,7 +12,7 @@ class VoltageSyncTest : public ::testing::Test {
     datalayer.battery.status.voltage_dV = 3700;   // 370.0V
     datalayer.battery2.status.voltage_dV = 3700;  // 370.0V
     datalayer.battery3.status.voltage_dV = 3700;  // 370.0V
-    datalayer.battery.status.bms_status = ACTIVE;
+    datalayer.system.status.system_status = ACTIVE;
     datalayer.system.status.battery2_allowed_contactor_closing = true;
     datalayer.system.status.battery3_allowed_contactor_closing = true;
   }
@@ -82,7 +82,7 @@ TEST_F(VoltageSyncTest, Battery3DisconnectedAfterVoltageDriftTimeout) {
 TEST_F(VoltageSyncTest, Battery1FaultDisengagesBattery2) {
   datalayer.battery.status.voltage_dV = 3700;
   datalayer.battery2.status.voltage_dV = 3700;  // In sync
-  datalayer.battery.status.bms_status = FAULT;
+  datalayer.system.status.system_status = FAULT;
 
   check_parallel_battery_safety(2);
   EXPECT_FALSE(datalayer.system.status.battery2_allowed_contactor_closing);
