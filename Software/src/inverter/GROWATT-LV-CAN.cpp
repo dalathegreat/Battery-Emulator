@@ -82,7 +82,7 @@ void GrowattLvInverter::
   GROWATT_314.data.u8[7] = 0;
 
   //Request charge/discharge
-  if (datalayer.battery.status.bms_status == ACTIVE) {
+  if (datalayer.system.status.system_status == ACTIVE) {
     GROWATT_319.data.u8[0] =
         0xC0;  //Bit7 charge enabled, Bit 6 discharge enabled (bit5 req force charge, bit 4 req force charge 2)
   } else {

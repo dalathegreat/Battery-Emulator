@@ -993,7 +993,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     } else if ((first_can_msg > 0 && currentMillis > first_can_msg + 1000 && BMS_mode != 7) ||
                datalayer.system.info.equipment_stop_active) {  //FAULT STATE, open contactors
 
-      if (datalayer.battery.status.bms_status != FAULT && datalayer.battery.status.real_bms_status == BMS_STANDBY &&
+      if (datalayer.system.status.system_status != FAULT && datalayer.battery.status.real_bms_status == BMS_STANDBY &&
           !datalayer.system.info.equipment_stop_active) {
         datalayer.system.info.start_precharging = true;
       }

@@ -7,7 +7,7 @@
 using milliseconds = std::chrono::milliseconds;
 using duration = std::chrono::duration<unsigned long, std::ratio<1, 1000>>;
 
-enum bms_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
+enum system_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
 enum real_bms_status_enum { BMS_DISCONNECTED = 0, BMS_STANDBY = 1, BMS_ACTIVE = 2, BMS_FAULT = 3 };
 enum balancing_status_enum {
   BALANCING_STATUS_UNKNOWN = 0,
@@ -114,7 +114,7 @@ typedef struct {
   frameDirection direction;
 } CAN_log_frame;
 
-std::string getBMSStatus(bms_status_enum status);
+std::string getBMSStatus(system_status_enum status);
 
 #ifdef HW_LILYGO2CAN
 /* Configurable GPIO options (device specific) */

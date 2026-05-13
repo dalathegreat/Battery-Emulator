@@ -88,7 +88,7 @@ void FoxessCanInverter::
   // when at 0 indicates charge is possible - additional note there is something more to it than this,
   // it's not as straight forward - needs more testing to find what sets/unsets bit0 of byte0
   if ((datalayer.battery.status.max_charge_current_dA == 0) || (datalayer.battery.status.reported_soc == 10000) ||
-      (datalayer.battery.status.bms_status == FAULT)) {
+      (datalayer.system.status.system_status == FAULT)) {
     FOXESS_1876.data.u8[0] = 0x01;
   } else {  //continue using battery
     FOXESS_1876.data.u8[0] = 0x00;
@@ -104,7 +104,7 @@ void FoxessCanInverter::
 
   //BMS_ErrorsBrand
   //0x1877 b0 appears to be an error code, 0x02 when pack is in error.
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     FOXESS_1877.data.u8[0] = (uint8_t)0x02;
   } else {
     FOXESS_1877.data.u8[0] = (uint8_t)0;

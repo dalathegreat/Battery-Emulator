@@ -15,7 +15,7 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
     if (voltage_diff_battery2_towards_main <= 15) {  // If we are within 1.5V between the batteries
       clear_event(EVENT_VOLTAGE_DIFFERENCE);
       secondsOutOfVoltageSyncBattery2 = 0;
-      if (datalayer.battery.status.bms_status == FAULT) {
+      if (datalayer.system.status.system_status == FAULT) {
         // If main battery is in fault state, disengage the second battery
         datalayer.system.status.battery2_allowed_contactor_closing = false;
       } else {  // If main battery is OK, allow second battery to join
@@ -44,7 +44,7 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
     if (voltage_diff_battery3_towards_main <= 15) {  // If we are within 1.5V between the batteries
       clear_event(EVENT_VOLTAGE_DIFFERENCE);
       secondsOutOfVoltageSyncBattery3 = 0;
-      if (datalayer.battery.status.bms_status == FAULT) {
+      if (datalayer.system.status.system_status == FAULT) {
         // If main battery is in fault state, disengage the second battery
         datalayer.system.status.battery3_allowed_contactor_closing = false;
       } else {  // If main battery is OK, allow second battery to join

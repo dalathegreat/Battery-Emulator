@@ -295,7 +295,7 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
 
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       FORD_25B.data.u8[2] = 0x01;
     } else {
       FORD_25B.data.u8[2] = 0x09;
