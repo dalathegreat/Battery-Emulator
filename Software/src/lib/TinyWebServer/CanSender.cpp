@@ -88,8 +88,8 @@ void CanSender::handleQueryParam(TwsRequest &request, const char *param, int len
     // if param starts with if=
     if(strncmp(param, "if=", 3) == 0) {
         state.can_interface = atoi(param + 3);
-    } else if(strncmp(param, "log=", 4) == 0) {
-        state.log = param[4] == '1';
+    // } else if(strncmp(param, "log=", 4) == 0) {
+    //     state.log = param[4] == '1';
     }
     if(nextQueryParam) {
         nextQueryParam->handleQueryParam(request, param, len, final);
@@ -171,7 +171,7 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
         memcpy(send_frame.data.u8, frame.data, frame.len);
 
         // TODO - we probably just want to consider this the same as "buffer full" and wait
-        if(!send_can_frame(iface, send_frame, state.log)) {
+        if(!send_can_frame(iface, send_frame, true /*state.log*/)) {
             // Buffer probably full?
             break;
             // Failed to send

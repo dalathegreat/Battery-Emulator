@@ -9,7 +9,7 @@ interface CanFrame {
     data: number[];
 }
 
-export interface LogInfo {
+interface LogInfo {
     frames: CanFrame[];
     ids: number[];
     frequencies: Record<number, number>;
@@ -22,6 +22,7 @@ async function parse_log(file: File): Promise<LogInfo> {
     let start_time = 0, prev_time = 0, max_ts = 0;
 
     text.split('\n').forEach((line) => {
+        // TODO - match some other formats?
         const r = line.match(/^\(([0-9.]*)\) [TR]X([0-9]*) ([A-F0-9]*) \[[0-9]*\] (.*)/);
         if(!r) return;
 
@@ -46,7 +47,7 @@ async function parse_log(file: File): Promise<LogInfo> {
     return { frames, ids, frequencies };
 }
 
-function upload_log(frames: CanFrame[], selectedIds: Set<number>, iface: number, cb: (v: any) => void, loop: boolean, log: boolean, loopGap: number) {
+function upload_log(frames: CanFrame[], selectedIds: Set<number>, iface: number, cb: (v: any) => void, loop: boolean, loopGap: number) {
     const list = frames.filter(f => selectedIds.has(f.id));
     if(!list.length) return alert('No frames selected'), null;
 
@@ -74,7 +75,7 @@ function upload_log(frames: CanFrame[], selectedIds: Set<number>, iface: number,
 
     const avg_len = off / (list.length * repeats);
     const res = upload(
-        import.meta.env.VITE_API_BASE + '/api/cansend?if=' + iface + "&log=" + (log?"1":"0"),
+        import.meta.env.VITE_API_BASE + '/api/cansend?if=' + iface,
         buf, 
         (progress, rate) => cb({ progress, rate: rate / avg_len })
     );
@@ -88,38 +89,33 @@ export function CanSender() {
     const [iface, setIface] = useState(0);
     const [loop, setLoop] = useState(false);
     const [loopGap, setLoopGap] = useState(10);
-    const [log, setLog] = useState(true);
-    const [frames, setFrames] = useState<CanFrame[]>([]);
-    const [selIds, setSelIds] = useState<Set<number>>(new Set());
-    const [ids, setIds] = useState<number[]>([]);
-    const [freqs, setFreqs] = useState<Record<number, number>>({});
+    const [logData, setLogData] = useState<LogInfo | null>(null);
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [request, setRequest] = useState<{ abort: () => void } | null>(null);
 
     const onFile = async (ev: any) => {
         const input = ev.target as HTMLInputElement;
         if (input?.files?.[0]) {
             const d = await parse_log(input.files[0]);
-            setFrames(d.frames);
-            setIds(d.ids);
-            setFreqs(d.frequencies);
-            setSelIds(new Set(d.ids));
+            setLogData(d);
+            setSelectedIds(new Set(d.ids));
             input.value = '';
             setSt({ progress: -1, rate: 0 });
         }
     };
 
     const toggle = (id: number) => {
-        const n = new Set(selIds);
+        const n = new Set(selectedIds);
         n.has(id) ? n.delete(id) : n.add(id);
-        setSelIds(n);
+        setSelectedIds(n);
     };
 
-    const start = (isLoop = false, log = false) => {
-        const o = upload_log(frames, selIds, iface, setSt, isLoop, log, loopGap);
+    const start = (isLoop = false) => {
+        const o = upload_log(logData?.frames || [], selectedIds, iface, setSt, isLoop, loopGap);
         if (o) {
             setRequest(o);
             o.promise.then(() => {
-                if (isLoop) start(true, log);
+                if (isLoop) start(true);
                 else setRequest(null);
             }).catch(() => setRequest(null));
         }
@@ -149,9 +145,6 @@ export function CanSender() {
                         <input type="checkbox" checked={loop} onChange={e => setLoop((e.target as any).checked)} /> Loop
                     </label>
                     <label style="margin-left: 2rem; cursor: pointer;">
-                        <input type="checkbox" checked={log} onChange={e => setLog((e.target as any).checked)} /> Log
-                    </label>
-                    <label style="margin-left: 2rem; cursor: pointer;">
                         Loop gap (ms): <input type="number" value={loopGap} min="1" onChange={e => setLoopGap(parseInt((e.target as any).value) || 0)} style="width: 8ch; font-size: 1rem; margin-left: 0.5rem;" />
                     </label>
                 </div>
@@ -160,7 +153,7 @@ export function CanSender() {
                     {request ? (
                         <button onClick={stop} style="font-size: 1.25rem; background-color: #f44; color: #fff; border: none; border-radius: 4px;">Stop</button>
                     ) : (
-                        <button disabled={!frames.length || !selIds.size} onClick={() => start(loop, log)} style="font-size: 1.25rem;">Play</button>
+                        <button disabled={!logData?.frames.length || !selectedIds.size} onClick={() => start(loop)} style="font-size: 1.25rem;">Play</button>
                     )}
                 </div>
 
@@ -172,15 +165,15 @@ export function CanSender() {
                 </div> }
                 </b></div>
             </div>
-            {ids.length > 0 && (
+            {(logData?.ids || []).length > 0 && (
                 <div style="margin: 1rem 0 0 auto; width: 20rem; max-height: 70vh; overflow-y: auto; border: 1px solid #666; background: #212121; border-radius: 5px; padding: 1rem 1.25rem;">
                     <h3>Select IDs to send</h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem;">
-                        {ids.map(id => (
+                        {logData?.ids.map(id => (
                             <label key={id} style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                                <input type="checkbox" checked={selIds.has(id)} onChange={() => toggle(id)} />
+                                <input type="checkbox" checked={selectedIds.has(id)} onChange={() => toggle(id)} />
                                 <span style="font-family: monospace;">0x{id.toString(16).toUpperCase()}</span>
-                                <span style="font-size: 0.8rem; color: #aaa;">({freqs[id]?.toFixed(1)} msgs/s)</span>
+                                <span style="font-size: 0.8rem; color: #aaa;">({logData.frequencies[id]?.toFixed(1)} msgs/s)</span>
                             </label>
                         ))}
                     </div>

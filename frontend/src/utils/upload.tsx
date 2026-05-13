@@ -1,6 +1,6 @@
-export function upload(url: string, body: any, cb: (progress: number, rate: number) => void): { abort: () => void, promise: Promise<any> } {
+export function upload<T = any>(url: string, body: any, cb: (progress: number, rate: number) => void): { abort: () => void, promise: Promise<T> } {
     const xhr = new XMLHttpRequest();
-    const promise = new Promise((resolve, reject)=>{
+    const promise = new Promise<T>((resolve, reject)=>{
         const ctx = { l: performance.now(), n: 0 };
         //xhr.responseType = "json";
         xhr.open("POST", url);

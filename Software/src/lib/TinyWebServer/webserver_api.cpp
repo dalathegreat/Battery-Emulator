@@ -121,11 +121,9 @@ TwsRoute statusRoute("/api/status", new TwsJsonGetFunc([](TwsRequest& request, J
         //doc["ap_ip"] = WiFi.softAPIP().toString();
     }
 
-    // Emulator status (the worst active event level)
-    doc["status"] = get_emulator_status_string(get_emulator_status());
-    // 'BMS status', which seems to just be emulator status stored separately for some reason?
-    // (does get directly manipulated by BMW i3 also?).
-    doc["bms_status"] = getBMSStatus(datalayer.battery.status.bms_status);
+    // Emulator status seems to be redundant, it is just the worst active event level
+    // System status is the same, updated when events are set or cleared.
+    doc["status"] = getBMSStatus(datalayer.system.status.system_status);
     // Pause status, goes through intermediate states during pausing/resuming
     doc["pause_status"] = get_emulator_pause_status();
     doc["pause"] = emulator_pause_request_ON;

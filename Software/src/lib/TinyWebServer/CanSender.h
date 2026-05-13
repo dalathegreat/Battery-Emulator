@@ -10,7 +10,7 @@ typedef struct {
     uint32_t content_length;
     uint32_t can_interface;
     uint32_t start_millis;
-    bool log;
+    //bool log;
     //bool error = false;
     // Buffer incomplete lines
     //char buf[128];
