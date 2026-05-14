@@ -128,8 +128,12 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive =
           CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
       battery_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
-      battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
-      datalayer_battery->status.voltage_dV = battery_volts;  // Update the datalayer as soon as possible with this info
+      temp_voltage = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);            //500.0 V
+      if (temp_voltage < 10000) {  //Some SMEs have been observed to send 0xFFFF when booting, so ignore those readings
+        battery_volts = temp_voltage;
+        datalayer_battery->status.voltage_dV =
+            battery_volts;  // Update the datalayer as soon as possible with this info
+      }
       battery_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
       battery_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
       battery_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
@@ -153,8 +157,12 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
       battery_temperature_HV = (rx_frame.data.u8[4] - 50);
       battery_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
-      battery_temperature_min = (rx_frame.data.u8[6] - 50);
-      battery_temperature_max = (rx_frame.data.u8[7] - 50);
+      if (rx_frame.data.u8[6] != 0xFF) {  //Unavailable value during boot on some packs
+        battery_temperature_min = (rx_frame.data.u8[6] - 50);
+      }
+      if (rx_frame.data.u8[7] != 0xFF) {  //Unavailable value during boot on some packs
+        battery_temperature_max = (rx_frame.data.u8[7] - 50);
+      }
       break;
     case 0x239:                                                                                      //BMS [200ms]
       battery_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);  //Wh
