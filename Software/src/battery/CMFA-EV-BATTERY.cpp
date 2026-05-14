@@ -52,6 +52,8 @@ void CmfaEvBattery::
       datalayer_battery->status.max_charge_power_W =
           datalayer.battery.status.override_charge_power_W *
           (1 - (datalayer_battery->status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
+    } else {
+      datalayer_battery->status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
     }
   } else {
     datalayer_battery->status.max_charge_power_W = charge_power_w;  //Use value sent from BMS
