@@ -8,6 +8,7 @@
 #include "src/devboard/safety/safety.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/logging.h"
+#include "utils.h"
 
 #include <esp_private/periph_ctrl.h>
 
@@ -253,9 +254,9 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       }
     } break;
     case CAN_ADDON_MCP2515: {
-      // MCP2515CANFrame has the same layout as CAN_frame so we can avoid a copy.
-      // (This is probably UB but seems to work, and will be obvious if it doesn't).
-      send_ok_2515 = can2515->sendFrame((MCP2515_Lite_Frame&)*tx_frame);
+      MCP2515_Lite_Frame mcp2515_frame;
+      copy_can_frame_to_mcp2515_lite_frame(*tx_frame, mcp2515_frame);
+      send_ok_2515 = can2515->sendFrame(mcp2515_frame);
       if (!send_ok_2515) {
         datalayer.system.info.can_2515_send_fail = true;
       }
@@ -321,14 +322,13 @@ void receive_frame_can_native() {  // This section checks if we have a complete 
 }
 
 void receive_frame_can_addon() {  // This section checks if we have a complete CAN message incoming on add-on CAN port
-  CAN_frame rx_frame;             // Struct with our CAN format
+  MCP2515_Lite_Frame rx_frame;
+  CAN_frame full_frame;
 
-  // MCP2515_Lite_Frame has the same layout as CAN_frame so we can avoid a copy
-  // (with some minor UB).
   int count = 0;
-  while (can2515->receiveFrame((MCP2515_Lite_Frame&)rx_frame) && count++ < 16) {
-    // Successfully received a message, pass it on to the handler
-    map_can_frame_to_variable(&rx_frame, CAN_ADDON_MCP2515);
+  while (count++ < 16 && can2515->receiveFrame(rx_frame)) {
+    copy_mcp2515_lite_frame_to_can_frame(rx_frame, full_frame);
+    map_can_frame_to_variable(&full_frame, CAN_ADDON_MCP2515);
   }
 }
 
