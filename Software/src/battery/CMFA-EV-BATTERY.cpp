@@ -42,9 +42,28 @@ void CmfaEvBattery::
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  datalayer_battery->status.max_discharge_power_W = discharge_power_w;
+  //Some packs are locked and do not report allowed charge power, in this case we need to use the user specified override value
+  //instead of the value sent from the BMS
+  if (datalayer.battery.status.override_charge_power_W > 0) {
+    if (datalayer_battery->status.real_soc > 9900) {
+      datalayer_battery->status.max_charge_power_W = 0;
+    } else if (datalayer_battery->status.real_soc >
+               user_set_rampdown_SOC) {  // When real SOC is between 90-99%, ramp the value between Max<->0
+      datalayer_battery->status.max_charge_power_W =
+          datalayer.battery.status.override_charge_power_W *
+          (1 - (datalayer_battery->status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
+    }
+  } else {
+    datalayer_battery->status.max_charge_power_W = charge_power_w;  //Use value sent from BMS
+  }
 
-  datalayer_battery->status.max_charge_power_W = charge_power_w;
+  //Some packs are locked and do not report allowed discharge power, in this case we need to use the user specified override value
+  //instead of the value sent from the BMS
+  if (datalayer.battery.status.override_discharge_power_W > 0) {
+    datalayer_battery->status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
+  } else {
+    datalayer_battery->status.max_discharge_power_W = discharge_power_w;  //Use value sent from BMS
+  }
 
   datalayer_battery->status.temperature_min_dC = (lowest_cell_temperature * 10);
 
