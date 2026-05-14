@@ -1269,7 +1269,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="48"] .if-cbms,
     form[data-battery="49"] .if-cbms,
     form[data-battery="51"] .if-cbms,
-    form[data-battery="53"] .if-cv {
+    form[data-battery="54"] .if-cv {
       display: contents;
     }
 
@@ -1311,7 +1311,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="26"] .if-socestimated,
     form[data-battery="41"] .if-socestimated,
     form[data-battery="42"] .if-socestimated,
-    form[data-battery="53"] .if-socestimated {
+    form[data-battery="54"] .if-socestimated {
       display: contents;
     }
 
