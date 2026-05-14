@@ -153,6 +153,8 @@ bool MCP2515_Lite::receiveFrame(MCP2515_Lite_Frame& msg) {
 void MCP2515_Lite::changeSpeed(const MCP2515_Lite_Speed& new_speed) {
     _next_speed = new_speed;
     _speed_change_pending = true;
+    // Wake the task to enact the speed change
+    xTaskNotifyGive(_can_task_handle);
 }
 
 void MCP2515_Lite::pause(bool paused) {
@@ -239,7 +241,7 @@ void MCP2515_Lite::canTask(void* pvParameters) {
                         can_frame.ext = false;
                         can_frame.id = unpackStandardId(&rx_frame[1]);
                     }
-                    can_frame.dlc = rx_frame[5] & 0x0F;
+                    can_frame.dlc = rx_frame[5] > 8 ? 8 : rx_frame[5]; // 8 bytes maximum
                     memcpy(can_frame.data, &rx_frame[6], can_frame.dlc);
                     
                     if(xQueueSend(self->_rx_queue, &can_frame, 0) != pdTRUE) {
