@@ -1,11 +1,11 @@
 #include <Arduino.h>
+#include <WiFi.h>
 #include "HardwareSerial.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include <WiFi.h>
 
 #include "src/battery/BATTERIES.h"
 #include "src/charger/CHARGERS.h"
@@ -13,8 +13,8 @@
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
-#include "src/communication/nvm/comm_nvm.h"
 #include "src/communication/modbus_gateway/modbus_gateway.h"
+#include "src/communication/nvm/comm_nvm.h"
 #include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/core/parallel_safety.h"

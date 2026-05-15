@@ -140,8 +140,8 @@ bool handle_client_request() {
     return false;
   }
 
-  const uint16_t expected_crc = (static_cast<uint16_t>(rtu_response[rtu_response_length - 1]) << 8) |
-                                rtu_response[rtu_response_length - 2];
+  const uint16_t expected_crc =
+      (static_cast<uint16_t>(rtu_response[rtu_response_length - 1]) << 8) | rtu_response[rtu_response_length - 2];
   const uint16_t actual_crc = modbus_gateway_crc16(rtu_response, rtu_response_length - 2);
   if (actual_crc != expected_crc) {
     return false;
@@ -193,7 +193,7 @@ bool setup_modbus_gateway() {
   const auto pin_5v_en = esp32hal->PIN_5V_EN();
 
   if (!esp32hal->alloc_pins_ignore_unused("Modbus Gateway", rs485_en_pin, rs485_se_pin, rs485_rx_pin, rs485_tx_pin,
-                                           pin_5v_en)) {
+                                          pin_5v_en)) {
     logging.println("Modbus TCP-to-RTU gateway failed to reserve RS485 pins.");
     return false;
   }
