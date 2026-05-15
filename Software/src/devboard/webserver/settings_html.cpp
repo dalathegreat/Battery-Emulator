@@ -8,6 +8,7 @@
 #include "../../datalayer/datalayer.h"
 #include "html_escape.h"
 #include "index_html.h"
+#include "../../communication/modbus_gateway/modbus_gateway.h"
 #include "src/battery/BATTERIES.h"
 #include "src/battery/Shunt.h"
 #include "src/inverter/INVERTERS.h"
@@ -321,6 +322,16 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     }
   }
 
+  if (var == "MBGWCONFLICT") {
+    return modbus_gateway_has_conflict() ? "" : "hidden";
+  }
+
+  if (var == "MBGWCONFLICTTEXT") {
+    return modbus_gateway_has_conflict()
+               ? "Modbus TCP-to-RTU gateway is disabled because another selected protocol owns RS485."
+               : "";
+  }
+
   if (var == "SSID") {
     return settings.getString("SSID");
   }
@@ -565,6 +576,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("MQTTENABLED") ? "checked" : "";
   }
 
+  if (var == "MBGWEN") {
+    return settings.getBool("MBGWEN") ? "checked" : "";
+  }
+
   if (var == "MQTTSERVER") {
     return settings.getString("MQTTSERVER");
   }
@@ -595,6 +610,18 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "MQTTPUBLISHMS") {
     return String(settings.getUInt("MQTTPUBLISHMS", 5000) / 1000);
+  }
+
+  if (var == "MBGWPORT") {
+    return String(settings.getUInt("MBGWPORT", 502));
+  }
+
+  if (var == "MBGWBAUD") {
+    return String(settings.getUInt("MBGWBAUD", 9600));
+  }
+
+  if (var == "MBGWTIME") {
+    return String(settings.getUInt("MBGWTIME", 60000));
   }
 
   if (var == "MQTTOBJIDPREFIX") {
@@ -1484,7 +1511,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="settings-card">
-      <h3>Inverter config</h3>
+        <h3>Inverter config</h3>
       <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Inverter protocol: </label><select name='inverter'>
@@ -1568,6 +1595,27 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Prevent inverter opening contactors: </label>
         <input type='checkbox' name='INVICNT' value='on' %INVICNT% />
         </div>
+
+        </div>
+        </div>
+
+        <div class="settings-card">
+        <h3>Modbus gateway</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+
+        <label>Enable Modbus TCP-to-RTU gateway: </label>
+        <input type='checkbox' name='MBGWEN' value='on' %MBGWEN% />
+
+        <div class="%MBGWCONFLICT%" style='grid-column: span 2; color: #ffb4b4;'>%MBGWCONFLICTTEXT%</div>
+
+        <label>TCP port: </label>
+        <input type='number' name='MBGWPORT' value='%MBGWPORT%' min='1' max='65535' step='1' />
+
+        <label>RTU baud rate: </label>
+        <input type='number' name='MBGWBAUD' value='%MBGWBAUD%' min='1200' max='921600' step='1' />
+
+        <label>RTU timeout (ms): </label>
+        <input type='number' name='MBGWTIME' value='%MBGWTIME%' min='1' max='600000' step='1' />
 
         </div>
         </div>

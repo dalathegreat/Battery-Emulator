@@ -21,6 +21,7 @@
 #include "../utils/timer.h"
 #include "esp_task_wdt.h"
 #include "html_escape.h"
+#include "../../communication/modbus_gateway/modbus_gateway.h"
 
 #include <string>
 
@@ -401,6 +402,7 @@ void init_webserver() {
       "MQTTTOPICS",   "MQTTCELLV",    "INVICNT",       "GTWRHD",      "DIGITALHVIL", "PERFPROFILE",
       "INTERLOCKREQ", "SOCESTIMATED", "PYLONOFFSET",   "PYLONORDER",  "DEYEBYD",     "NCCONTACTOR",
       "TRIBTR",       "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",  "CTINVERT",    "LOWPASSFILTER",
+      "MBGWEN",
   };
 
   const char* uintSettingNames[] = {
@@ -410,7 +412,8 @@ void init_webserver() {
       "INVMODULES", "INVCELLSPER", "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "CANFREQ",   "CANFDFREQ",   "PRECHGMS",
       "PWMFREQ",    "PWMHOLD",     "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS",  "GTWPACK",   "LEDMODE",     "GPIOOPT1",
       "GPIOOPT2",   "GPIOOPT3",    "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",      "CTANOM",    "CTATTEN",     "PYLONBAUD",
-      "PYLONBRAND", "DALYPWRPCT",  "DALYPWRDV",  "DALYDVSTART", "DALYPWRDEG",  "DALYPWR0C", "RAMPDOWNSOC",
+      "PYLONBRAND", "DALYPWRPCT",  "DALYPWRDV",  "DALYDVSTART", "DALYPWRDEG",  "DALYPWR0C", "RAMPDOWNSOC", "MBGWPORT",
+      "MBGWBAUD",   "MBGWTIME",
   };
 
   const char* stringSettingNames[] = {"APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
