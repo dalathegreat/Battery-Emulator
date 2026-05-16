@@ -17,12 +17,12 @@
 
 .cell-grid__cell[data-min],
 .cell-bars__bar[data-min] {
-  box-shadow: 0 0 8px inset #2e0dc0;
+  box-shadow: 0 0 12px inset #2e0dc0;
 }
 
 .cell-grid__cell[data-max],
 .cell-bars__bar[data-max] {
-  box-shadow: 0 0 8px inset #bc6100;
+  box-shadow: 0 0 12px inset #ee0000;
 }
 
 .cell-bars {

@@ -8,7 +8,7 @@
 .stat {
     font-size: 1.8rem;
     line-height: 0.7em;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .stat__double {
@@ -18,26 +18,53 @@
 
 .stat__small {
     font-size: 1.4rem;
-    line-height: 1em;
+    line-height: 1;
 }
 
 .stat span {
     display: block;
     font-weight: 400;
     font-size: 0.9rem;
-    line-height: 1em;
+    line-height: 1;
     margin: 0 0 0.5rem;
     color: #888;
 }
 
-.stat em, .stat u {
+.stat em, .stat u, .stat-circle em {
     display: inline;
     font-style: normal;
     text-decoration: none;
-    font-size: 0.7em;
+    font-size: 0.6em;
     color: #999;
     padding-left: 0.1rem;
 }
 .stat em {
-    padding-left: 0.4rem;
+    padding-left: 0.3rem;
+}
+
+.stat-circle svg {
+    width: 100px;
+    height: 100px;
+    margin-right: 1rem;
+    transform: rotate(-90deg);
+}
+
+.stat-circle svg circle {
+    fill: none;
+    stroke: #1DB706;
+    stroke-width: 4;
+    stroke-linecap: round;
+}
+
+.stat-circle svg circle:first-child {
+    stroke: #ffffff1a;
+}
+
+.stat-circle div {
+    margin: -70px 0 0;
+    width: 100px;
+    text-align: center;
+    font-size: 2rem;
+    line-height: 0.65;
+    position: absolute;
 }
