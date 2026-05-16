@@ -75,14 +75,14 @@ class MgGen1HtmlRenderer : public BatteryHtmlRenderer {
     ret += "<br>";
 
     auto uds_response = battery.get_uds_response();
-    ret += "<div></div><script>var uds = [";
+    ret += "<div></div><script>(()=>{var uds = [";
     for (int i = 0; i < uds_response.first; i++) {
       snprintf(buf, sizeof(buf), "%u,", uds_response.second[i]);
       ret += buf;
     }
     ret +=
         "];\n"
-        "let h='<table>';\n"
+        "var h='<table>';\n"
         "if(uds[0]==2){\n"
         "for(let i=2;i<uds.length;i+=4){\n"
         "  let a=uds[i],b=uds[i+1],s=uds[i+3],f=[];\n"
@@ -93,7 +93,7 @@ class MgGen1HtmlRenderer : public BatteryHtmlRenderer {
         "  h+=`<tr><td><b>${d.toUpperCase()}</b></td><td>${f.join(', ')||'NoFlags'}</td></tr>`;\n"
         "}}\n"
         "document.currentScript.previousElementSibling.innerHTML = h+'</table>';\n"
-        "</script>\n";
+        "})();</script>\n";
 
     return ret;
   }
