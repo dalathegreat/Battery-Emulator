@@ -75,7 +75,7 @@ class MgGen1HtmlRenderer : public BatteryHtmlRenderer {
     ret += "<br>";
 
     auto uds_response = battery.get_uds_response();
-    ret += "<script>var uds = [";
+    ret += "<div></div><script>var uds = [";
     for (int i = 0; i < uds_response.first; i++) {
       snprintf(buf, sizeof(buf), "%u,", uds_response.second[i]);
       ret += buf;
@@ -92,7 +92,7 @@ class MgGen1HtmlRenderer : public BatteryHtmlRenderer {
         "  let d='PCBU'[a>>6]+((a>>4)&3).toString(16)+(a&15).toString(16)+(b>>4).toString(16)+(b&15).toString(16);\n"
         "  h+=`<tr><td><b>${d.toUpperCase()}</b></td><td>${f.join(', ')||'NoFlags'}</td></tr>`;\n"
         "}}\n"
-        "document.write(h+'</table>');\n"
+        "document.currentScript.previousElementSibling.innerHTML = h+'</table>';\n"
         "</script>\n";
 
     return ret;
