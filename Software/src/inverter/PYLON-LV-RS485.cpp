@@ -7,18 +7,14 @@
 
 bool PylonLV485InverterProtocol::setup() {
   // Initialize Serial2 with proper pins from HAL
-  auto rx_pin = esp32hal->RS485_RX_PIN();
-  auto tx_pin = esp32hal->RS485_TX_PIN();
-
-  if (!esp32hal->alloc_pins(Name, rx_pin, tx_pin)) {
-    logging.println("Failed to allocate RS485 pins!");
+  if (!rs485_begin(Name, Serial2, baud_rate(), SERIAL_8N1)) {
+    logging.println("Failed to initialize RS485 pins!");
     return false;
   }
 
   //initialize safe defaults before we start receiving real data
   datalayer.battery.status.voltage_dV = 480;  // 48.0V
 
-  Serial2.begin(baud_rate(), SERIAL_8N1, rx_pin, tx_pin);
   return true;
 }
 
@@ -164,7 +160,7 @@ void PylonLV485InverterProtocol::handle_command_61() {
   std::string checksum = calculate_checksum(frame_data);
   std::string full_frame = "~" + frame_data + checksum + "\r";
 
-  Serial2.write((const uint8_t*)full_frame.c_str(), full_frame.length());
+  rs485_write(full_frame.c_str(), full_frame.length());
 }
 
 void PylonLV485InverterProtocol::handle_command_62() {
@@ -190,7 +186,7 @@ void PylonLV485InverterProtocol::handle_command_62() {
   std::string checksum = calculate_checksum(frame_data);
   std::string full_frame = "~" + frame_data + checksum + "\r";
 
-  Serial2.write((const uint8_t*)full_frame.c_str(), full_frame.length());
+  rs485_write(full_frame.c_str(), full_frame.length());
 
   if (datalayer.system.info.web_logging_active) {
     // logging.printf("[FakePylontech485] Frame TX 0x62: %s\n", full_frame.c_str());
@@ -212,7 +208,7 @@ void PylonLV485InverterProtocol::handle_command_63() {
   std::string checksum = calculate_checksum(frame_data);
   std::string full_frame = "~" + frame_data + checksum + "\r";
 
-  Serial2.write((const uint8_t*)full_frame.c_str(), full_frame.length());
+  rs485_write(full_frame.c_str(), full_frame.length());
 
   last_cmd63_ms = millis();
 }

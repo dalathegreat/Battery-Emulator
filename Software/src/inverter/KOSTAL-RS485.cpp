@@ -66,7 +66,7 @@ static void null_stuffer(uint8_t* lfc, int len) {
 
 static void send_kostal(uint8_t* frame, int len) {
   dbg_frame(frame, len, "TX");
-  Serial2.write(frame, len);
+  rs485_write(frame, len);
 }
 
 static uint8_t calculate_kostal_crc(byte* lfc, int len) {
@@ -316,14 +316,5 @@ bool KostalInverterProtocol::setup(void) {  // Performs one time setup at startu
   setInverterAllowsContactorClosing(false);
   dbg_message("inverter_allows_contactor_closing -> false");
 
-  auto rx_pin = esp32hal->RS485_RX_PIN();
-  auto tx_pin = esp32hal->RS485_TX_PIN();
-
-  if (!esp32hal->alloc_pins(Name, rx_pin, tx_pin)) {
-    return false;
-  }
-
-  Serial2.begin(baud_rate(), SERIAL_8N1, rx_pin, tx_pin);
-
-  return true;
+  return rs485_begin(Name, Serial2, baud_rate(), SERIAL_8N1);
 }

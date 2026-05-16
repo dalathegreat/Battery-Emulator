@@ -87,14 +87,7 @@ void DalyBms::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 
-  auto rx_pin = esp32hal->RS485_RX_PIN();
-  auto tx_pin = esp32hal->RS485_TX_PIN();
-
-  if (!esp32hal->alloc_pins(Name, rx_pin, tx_pin)) {
-    return;
-  }
-
-  Serial2.begin(baud_rate(), SERIAL_8N1, rx_pin, tx_pin);
+  rs485_begin(Name, Serial2, baud_rate(), SERIAL_8N1);
 }
 
 uint8_t calculate_checksum(uint8_t buff[12]) {
@@ -191,7 +184,7 @@ void DalyBms::transmit_rs485(unsigned long currentMillis) {
     tx_buff[3] = 8;
     tx_buff[12] = calculate_checksum(tx_buff);
     dump_buff("transmitting: ", tx_buff, 13);
-    Serial2.write(tx_buff, 13);
+    rs485_write(tx_buff, 13);
     nextCommand++;
     if (nextCommand > 0x98)
       nextCommand = 0x90;
