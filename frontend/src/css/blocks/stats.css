@@ -45,7 +45,6 @@
 .stat-circle svg {
     width: 100px;
     height: 100px;
-    margin-right: 1rem;
     transform: rotate(-90deg);
 }
 
@@ -54,10 +53,19 @@
     stroke: #1DB706;
     stroke-width: 4;
     stroke-linecap: round;
+    transition: stroke-dasharray 0.3s ease;
 }
 
-.stat-circle svg circle:first-child {
-    stroke: #ffffff1a;
+@keyframes pulse {
+    0% { opacity: 0.4; }
+    50% { opacity: 1; }
+    100% { opacity: 0.4; }
+}
+
+.stat-circle svg circle.base { stroke: #ffffff11; }
+.stat-circle svg circle.delta { 
+    stroke: #5555ffaa;
+    animation: pulse 2s ease-in-out infinite;
 }
 
 .stat-circle div {

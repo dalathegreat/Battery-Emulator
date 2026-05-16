@@ -32,6 +32,29 @@ function uptime(s: number) {
   );
 }
 
+function SocMeter({soc, one_hour_delta}: { soc: number, one_hour_delta: number }) {
+  let arc = (
+    <circle cx="50" cy="50" r="46" pathLength={100} style={{ strokeDasharray: `${soc} 100` }} />
+  );
+  let delta = (
+    <circle cx="50" cy="50" r="46" pathLength={100} class="delta" style={{ 
+      strokeDasharray: `${Math.abs(one_hour_delta)} 100`, 
+      strokeDashoffset: -soc - (one_hour_delta < 0 ? one_hour_delta : 0),
+      opacity: 0.5 
+    }} />
+  );
+  return <svg>
+    <circle cx="50" cy="50" r="46" pathLength={100} class="base" />
+    { one_hour_delta < 0 ?
+      // Delta overlaps the arc
+      <>{arc}{delta}</>
+      :
+      // Arc overlaps the delta
+      <>{delta}{arc}</>
+    }
+  </svg>
+}
+
 const CONTACTOR_STATE_NAME = ["DISCONNECTED", "NEGATIVE CONNECTED", "PRECHARGING", "POSITIVE CONNECTED", "PRECHARGED", "CONNECTED", "SHUTDOWN REQUESTED"];
 const CONTACTOR_STATE_STATUS = ["error", "warn", "warn", "ok", "ok", "ok", "error"];
 
@@ -41,6 +64,7 @@ export function Dashboard({ status }: { status: any }) {
   }
 
   //const tray = document.getElementById('tray');
+  //status.battery[0].p = -1000;
 
   return <div>
     { /*tray && createPortal(
@@ -129,10 +153,7 @@ export function Dashboard({ status }: { status: any }) {
 
         <div class="stats">
           <div class="stat-circle">
-            <svg>
-              <circle cx="50" cy="50" r="46" pathLength={100} />
-              <circle cx="50" cy="50" r="46" pathLength={100} style={{ strokeDasharray: `${battery.reported_soc} 100` }} />
-            </svg>
+            <SocMeter soc={battery.reported_soc} one_hour_delta={battery.p * 100 / battery.reported_total_capacity} />
             <div>{sf(battery.reported_soc, 3)}<br /><em>%</em></div>
           </div>
           <div class="stat">
