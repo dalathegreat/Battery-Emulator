@@ -1,4 +1,4 @@
-import { useMemo } from "preact/hooks";
+import { useMemo, useEffect, useRef } from "preact/hooks";
 
 import { useGetApi } from "./utils/api.tsx";
 import { 
@@ -60,6 +60,22 @@ export function Extended() {
     const commands = useGetApi('/api/batteries/', 0);
 
     const old = useGetApi('/api/batold', 5000);
+    const oldContainerRef = useRef<HTMLDivElement>(null);
+
+    // Execute <script> tags in the old HTML
+    useEffect(() => {
+        if (oldContainerRef.current && old) {
+            const scripts = oldContainerRef.current.querySelectorAll("script");
+            scripts.forEach((oldScript) => {
+                const newScript = document.createElement("script");
+                Array.from(oldScript.attributes).forEach((attr) => {
+                    newScript.setAttribute(attr.name, attr.value);
+                });
+                newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                oldScript.parentNode?.replaceChild(newScript, oldScript);
+            });
+        }
+    }, [old]);
 
     console.log(commands);
 
@@ -99,7 +115,7 @@ export function Extended() {
         <>
             <h2>Extended battery info</h2>
 
-            <div dangerouslySetInnerHTML={{__html: old }}></div>
+            <div ref={oldContainerRef} dangerouslySetInnerHTML={{__html: old }}></div>
             <hr />
 
             { btype == 32 || btype == 33 ?
