@@ -25,12 +25,16 @@ bool init_rs485() {
 
   if (!esp32hal->alloc_pins_ignore_unused("RS485", en_pin, se_pin, pin_5v_en)) {
     DEBUG_PRINTF("RS485 failed to allocate static enable pins\n");
-    return true;  //Early return, we do not set the pins
+    // Leave RS485 DE disabled rather than bypassing HAL pin ownership later in rs485_begin().
+    rs485_de_pin = GPIO_NUM_NC;
+    return true;  // Safe to call even when RS485 is not used.
   }
 
   if (rs485_de_pin != GPIO_NUM_NC && !esp32hal->alloc_pins("RS485 DE", rs485_de_pin)) {
     DEBUG_PRINTF("RS485 failed to allocate DE pin\n");
-    return true;  //Early return, we do not set the pins
+    // Do not let uart_set_pin() claim a pin that the HAL allocator rejected.
+    rs485_de_pin = GPIO_NUM_NC;
+    return true;  // Safe to call even when RS485 is not used.
   }
 
   if (en_pin != GPIO_NUM_NC) {
@@ -71,6 +75,14 @@ bool rs485_begin(const char* owner, HardwareSerial& serial, uint32_t baud, uint3
   serial.begin(baud, config, rx_pin, tx_pin);
 
   if (rs485_de_pin != GPIO_NUM_NC) {
+    // The current Battery-Emulator RS485 stack is wired to Serial2/UART2.
+    // Keep this explicit because UART_MODE_RS485_HALF_DUPLEX configures a UART port,
+    // not the HardwareSerial object itself.
+    if (&serial != &Serial2) {
+      DEBUG_PRINTF("RS485 half-duplex DE is only supported on Serial2/UART2\n");
+      return false;
+    }
+
     if (!rs485_de_active_high) {
       DEBUG_PRINTF("RS485 active-low DE is not supported by UART RS485 mode\n");
       return false;
