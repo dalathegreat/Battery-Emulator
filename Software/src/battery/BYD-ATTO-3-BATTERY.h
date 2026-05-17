@@ -205,6 +205,7 @@ class BydAttoBattery : public CanBattery {
   uint8_t secondsSinceStartup = 0;
 
   bool BMS_voltage_available = false;
+  bool calibrationAH_seeded = false;
 
   int16_t battery_daughterboard_temperatures[13] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};
   uint16_t battery_cellvoltages[MAX_AMOUNT_CELLS] = {0};
