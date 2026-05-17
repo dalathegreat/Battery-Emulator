@@ -1,6 +1,7 @@
 #include "PYLON-LV-RS485.h"
 #include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
+#include "../communication/rs485/comm_rs485.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
 #include "INVERTERS.h"
@@ -160,7 +161,7 @@ void PylonLV485InverterProtocol::handle_command_61() {
   std::string checksum = calculate_checksum(frame_data);
   std::string full_frame = "~" + frame_data + checksum + "\r";
 
-  rs485_write(full_frame.c_str(), full_frame.length());
+  Serial2.write((const uint8_t*)full_frame.c_str(), full_frame.length());
 }
 
 void PylonLV485InverterProtocol::handle_command_62() {
@@ -186,7 +187,7 @@ void PylonLV485InverterProtocol::handle_command_62() {
   std::string checksum = calculate_checksum(frame_data);
   std::string full_frame = "~" + frame_data + checksum + "\r";
 
-  rs485_write(full_frame.c_str(), full_frame.length());
+  Serial2.write((const uint8_t*)full_frame.c_str(), full_frame.length());
 
   if (datalayer.system.info.web_logging_active) {
     // logging.printf("[FakePylontech485] Frame TX 0x62: %s\n", full_frame.c_str());
@@ -208,7 +209,7 @@ void PylonLV485InverterProtocol::handle_command_63() {
   std::string checksum = calculate_checksum(frame_data);
   std::string full_frame = "~" + frame_data + checksum + "\r";
 
-  rs485_write(full_frame.c_str(), full_frame.length());
+  Serial2.write((const uint8_t*)full_frame.c_str(), full_frame.length());
 
   last_cmd63_ms = millis();
 }

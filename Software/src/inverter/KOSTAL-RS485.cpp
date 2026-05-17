@@ -1,6 +1,7 @@
 #include "KOSTAL-RS485.h"
 #include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
+#include "../communication/rs485/comm_rs485.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
 #include "INVERTERS.h"
@@ -66,7 +67,7 @@ static void null_stuffer(uint8_t* lfc, int len) {
 
 static void send_kostal(uint8_t* frame, int len) {
   dbg_frame(frame, len, "TX");
-  rs485_write(frame, len);
+  Serial2.write(frame, len);
 }
 
 static uint8_t calculate_kostal_crc(byte* lfc, int len) {

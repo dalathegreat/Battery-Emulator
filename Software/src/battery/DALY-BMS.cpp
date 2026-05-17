@@ -3,6 +3,7 @@
 #include <cstdint>
 #include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
+#include "../communication/rs485/comm_rs485.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
 
@@ -184,7 +185,7 @@ void DalyBms::transmit_rs485(unsigned long currentMillis) {
     tx_buff[3] = 8;
     tx_buff[12] = calculate_checksum(tx_buff);
     dump_buff("transmitting: ", tx_buff, 13);
-    rs485_write(tx_buff, 13);
+    Serial2.write(tx_buff, 13);
     nextCommand++;
     if (nextCommand > 0x98)
       nextCommand = 0x90;
