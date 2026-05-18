@@ -35,11 +35,11 @@
     font-style: normal;
     text-decoration: none;
     font-size: 0.6em;
-    color: #999;
+    opacity: 0.6;
     padding-left: 0.1rem;
 }
 .stat em {
-    padding-left: 0.3rem;
+    padding-left: 0.25em;
 }
 
 .stat-circle svg {
@@ -58,7 +58,7 @@
 .stat-circle svg circle.base { stroke: #ffffff11; }
 .stat-circle svg circle.delta { 
     stroke: #138cd2cc;
-    animation: pulse 2s ease-in-out infinite;
+    /* animation: pulse 2s ease-in-out infinite; */
 }
 
 .stat-circle div {

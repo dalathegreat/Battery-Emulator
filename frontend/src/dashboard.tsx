@@ -1,7 +1,7 @@
 //import { createPortal } from 'preact/compat';
 
 function sf(v: number, digits: number, unit?: string) {
-  if (unit && v >= 1000) {
+  if (unit && Math.abs(v) >= 1000) {
     return sf(v / 1000, digits, "k" + unit);
   }
   let ret = '' + v;
@@ -35,14 +35,15 @@ function SocMeter({soc, one_hour_delta}: { soc: number, one_hour_delta: number }
   let arc = (
     <circle cx="50" cy="50" r="46" pathLength={100} style={{ strokeDasharray: `${soc} 100` }} />
   );
-  let delta = (
-    <circle cx="50" cy="50" r="46" pathLength={100} class="delta" style={{
-      stroke: one_hour_delta > 0 ? '#138cd2' : '#fbe81bff',
+  let delta = Math.abs(one_hour_delta) > 1 ? (
+    <circle cx="50" cy="50" r="43" pathLength={100} class="delta" style={{
+      stroke: one_hour_delta > 0 ? '#138cd2' : '#e7ce11ff',
       strokeDasharray: `${Math.abs(one_hour_delta)} 100`, 
       strokeDashoffset: -soc - (one_hour_delta < 0 ? one_hour_delta : 0),
-      opacity: 0.5 
+      strokeWidth: 3,
+      opacity: 1
     }} />
-  );
+  ) : '';
   return <svg>
     <circle cx="50" cy="50" r="46" pathLength={100} class="base" />
     { one_hour_delta < 0 ?
@@ -55,74 +56,11 @@ function SocMeter({soc, one_hour_delta}: { soc: number, one_hour_delta: number }
   </svg>
 }
 
-function PowerMeter1({ p, discharge_p_max, charge_p_max }: { p: number, discharge_p_max: number, charge_p_max: number }) {
-  return <div>
-            <div style="
-              position: relative;
-              width: 150px; height: 30px; margin-top: 0.5rem;
-            ">
-
-              <div style={`
-                width: ${Math.min(100, Math.max(0, discharge_p_max / 10000 * 100))}%;
-                position: absolute;
-                right: 50%;
-                top: 70%;
-                height: 30%;
-                background: #ffffff33;
-              `}></div>
-              <div style={`
-                position: absolute;
-                font-size: 0.7rem;
-                left: 0;
-              `}>-{ sf(discharge_p_max, 3, 'W') }</div>
-              <div style={`
-                position: absolute;
-                font-size: 0.7rem;
-                right: 0;
-              `}>{ sf(charge_p_max, 3, 'W') }</div>
-              <div style={`
-                width: ${Math.min(100, Math.max(0, charge_p_max / 10000 * 100))}%;
-                position: absolute;
-                left: 50%;
-                top: 70%;
-                height: 30%;
-                background: #ffffff33;
-              `}></div>
-              <div style={`
-                width: ${Math.min(100, Math.max(0, p / 10000 * 100))}%;
-                position: absolute;
-                left: 50%;
-                top: 70%;
-                height: 30%;
-                background: ${p > 0 ? '#138cd2' : p < 0 ? '#fbe81bff' : '#3a516f'};
-              `}></div>
-              <div style={`
-                position: absolute;
-                width: 100%;
-                top: 70%;
-                height: 30%;
-                border: 1px solid #555555; border-radius: 2px; 
-              `}></div>
-              <div style={`
-                position: absolute;
-                width: 1px;
-                left: 50%;
-                top: 70%;
-                height: 30%;
-                background: #cccccc;
-              `}></div>
-
-            </div>
-          </div>
-}
-PowerMeter1;
-
-function PowerMeter2({ p, discharge_p_max, charge_p_max }: { p: number, discharge_p_max: number, charge_p_max: number }) {
-  //charge_p_max = 0;
-
-  var percent_per_watt = 50 / Math.max(discharge_p_max, charge_p_max);
-  var offset = 100 * (discharge_p_max / (discharge_p_max + charge_p_max));
-
+function PowerMeter({ p, discharge_p_max, charge_p_max, unit }: { p: number, discharge_p_max: number, charge_p_max: number, unit: string }) {
+  var percent_per_watt = 50 / Math.max(discharge_p_max, charge_p_max, 1);
+  var inner_percent_per_watt = 100 / Math.max(discharge_p_max + charge_p_max, 1);
+  var offset = 100 * (Math.max(discharge_p_max, 1) / Math.max(discharge_p_max + charge_p_max, 2));
+  var over = p > charge_p_max || p < -discharge_p_max;
 
   // const cpm = charge_p_max;//Math.max(charge_p_max, 1000);
   // const dpm = discharge_p_max;//Math.max(discharge_p_max, 1000);
@@ -136,36 +74,35 @@ function PowerMeter2({ p, discharge_p_max, charge_p_max }: { p: number, discharg
   return <div>
             <div style="
               position: relative;
-              width: 150px; height: 30px;
+              width: 150px; height: 30px; margin: 0 9px 0 8px;
             ">
               <div style={`
                 position: absolute;
                 height: 21px;
-                left: calc(${50 - (discharge_p_max * percent_per_watt)}% - 1px);
-                right: calc(${50 - (charge_p_max * percent_per_watt)}% - 1px);
+                left: calc(min(${50 - (discharge_p_max * percent_per_watt)}%, 43%) - 1px);
+                right: calc(min(${50 - (charge_p_max * percent_per_watt)}%, 43%) - 1px);
                 border-bottom: 1px solid #fff;
               }`}>
               <div style={`
                 position: absolute;
                 font-size: 0.7rem;
                 line-height: 1;
-                left: -5px;
-              `}>-{ +(discharge_p_max/1000).toFixed(1) + 'kW' }</div>
+                left: -7px;
+              `}>{ sf(-discharge_p_max, 2, unit) }</div>
               <div style={`
                 position: absolute;
                 font-size: 0.7rem;
                 line-height: 1;
-                right: 0;
-              `}>{ +(charge_p_max/1000).toFixed(1) + 'kW' }</div>
+                right: -8px;
+              `}>{ sf(charge_p_max, 2, unit) }</div>
               <div style={`
                 position: absolute;
-                left: ${offset - Math.max(0, -p * percent_per_watt)}%;
-                right: ${100 - (offset + Math.max(0, p * percent_per_watt))}%;
+                left: ${offset - Math.max(0, -p * inner_percent_per_watt)}%;
+                right: ${100 - (offset + Math.max(0, p * inner_percent_per_watt))}%;
                 bottom: 0px;
                 height: 6px;
-                background: ${p > charge_p_max ? '#bc0000ff' :
-                              p < -discharge_p_max ? '#bc0000ff' :
-                              p > 0 ? '#138cd2' : '#fbe81bff'};
+                background: ${over ? '#bc0000ff' :
+                              p > 0 ? '#138cd2' : '#e7ce11'};
               `}></div>
               <div style={`
                 position: absolute;
@@ -185,7 +122,7 @@ function PowerMeter2({ p, discharge_p_max, charge_p_max }: { p: number, discharg
               `}></div>
               <div style={`
                 position: absolute;
-                left: calc(${offset + (p * percent_per_watt)}% - 5px);
+                left: calc(${offset + (p * inner_percent_per_watt)}% - 5px);
                 height: 5px;
                 width: 5px;
                 bottom: -6px;
@@ -195,7 +132,7 @@ function PowerMeter2({ p, discharge_p_max, charge_p_max }: { p: number, discharg
               <div style={`
                 position: absolute;
                 width: 1px;
-                left: calc(${offset}% - 1px);
+                left: max(${offset}% - 1px, 0px);
                 height: 9px;
                 bottom: 0px;
                 background: #ffffff;
@@ -205,69 +142,18 @@ function PowerMeter2({ p, discharge_p_max, charge_p_max }: { p: number, discharg
                 width: 1px;
                 width: 50px;
                 text-align: center;
-                left: calc(${offset + (p * percent_per_watt)}% - 25px);
-                font-size: 0.8rem;
-                font-weight: 600;
-                bottom: -27px;
-              `}>{ sf(p, 3, 'W') }</div>
+                left: max(min(${offset + (p * inner_percent_per_watt)}%, 100%) - 25px, 0px);
+                font-size: 1.3rem;
+                font-weight: 500;
+                bottom: -32px;
+                color: ${over ? '#ee0000ff' : 'inherit'};
+              `}>{ sf(p, 2, unit) }</div>
 
               </div>
             </div>
           </div>;
 }
 
-function sf_str(v: number, digits: number): string {
-  for (let i = 0; i <= digits; i++) {
-    if (Math.abs(v) >= Math.pow(10, digits - i - 1)) {
-      return v.toFixed(i);
-    }
-  }
-  return '' + v;
-}
-
-function PowerMeter2canvas({ p, discharge_p_max, charge_p_max }: { p: number, discharge_p_max: number, charge_p_max: number }) {
-  const width = 150, height = 30, center = width / 2;
-  const max = Math.max(discharge_p_max, charge_p_max, 1);
-  const scale = (width / 2) / max;
-
-  return <canvas width={width} height={height + 15} ref={el => {
-    if (!el) return;
-    const ctx = el.getContext('2d')!;
-    ctx.clearRect(0, 0, width, height + 15);
-    ctx.font = '10px Inter, sans-serif';
-    ctx.fillStyle = ctx.strokeStyle = '#fff';
-
-    // Scales & Limits
-    ctx.fillText(`-${sf_str(discharge_p_max, 3)}W`, 0, 10);
-    ctx.textAlign = 'right';
-    ctx.fillText(`${sf_str(charge_p_max, 3)}W`, width, 10);
-    
-    // Axis
-    ctx.beginPath();
-    ctx.moveTo(center - discharge_p_max * scale, 25);
-    ctx.lineTo(center + charge_p_max * scale, 25);
-    ctx.stroke();
-
-    // Ticks
-    [center - discharge_p_max * scale, center + charge_p_max * scale, center].forEach(x => {
-      ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, 25); ctx.stroke();
-    });
-
-    // Power Bar
-    ctx.fillStyle = p > 0 ? '#138cd2' : p < 0 ? '#fbe81b' : '#3a516f';
-    ctx.fillRect(center, 20, p * scale, 5);
-
-    // Indicator Triangle & Text
-    const px = center + p * scale;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.moveTo(px, 30); ctx.lineTo(px - 4, 35); ctx.lineTo(px + 4, 35);
-    ctx.fill();
-    ctx.textAlign = 'center';
-    ctx.fillText(`${sf_str(p, 3)}W`, px, 43);
-  }} />;
-}
-PowerMeter2canvas;
 
 const CONTACTOR_STATE_NAME = ["DISCONNECTED", "NEGATIVE CONNECTED", "PRECHARGING", "POSITIVE CONNECTED", "PRECHARGED", "CONNECTED", "SHUTDOWN REQUESTED"];
 const CONTACTOR_STATE_STATUS = ["error", "warn", "warn", "ok", "ok", "ok", "error"];
@@ -279,7 +165,7 @@ export function Dashboard({ status }: { status: any }) {
 
   //const tray = document.getElementById('tray');
   //status.battery[0].p = -1000;
-  status.battery[0].discharge_p_max = 2000;
+  //status.battery[0].discharge_p_max = 2000;
 
   return <div>
     { /*tray && createPortal(
@@ -359,7 +245,7 @@ export function Dashboard({ status }: { status: any }) {
         {battery.i > 0.05 ?
           <div class="badge" style="float: right; background: #138cd2; margin-left: 0.8rem">CHARGING</div>
           : battery.i < -0.05 ?
-            <div class="badge" style="float: right; background: #fbe81bff; margin-left: 0.8rem">DISCHARGING</div>
+            <div class="badge" style="float: right; background: #e7ce11; margin-left: 0.8rem">DISCHARGING</div>
             :
             <div class="badge" style="float: right; background: #3a516f; margin-left: 0.8rem">IDLE</div>
         }
@@ -378,7 +264,7 @@ export function Dashboard({ status }: { status: any }) {
           
           <div class="stat">
             <span>POWER</span>
-            <PowerMeter2 p={battery.p} discharge_p_max={battery.discharge_p_max} charge_p_max={battery.charge_p_max} />
+            <PowerMeter p={battery.p} discharge_p_max={battery.discharge_p_max} charge_p_max={battery.charge_p_max} unit="W" />
           </div>
 
           <div class="stat">
@@ -391,7 +277,7 @@ export function Dashboard({ status }: { status: any }) {
           </div>
           <div class="stat">
             <span>CURRENT</span>
-            {sf(battery.i, 2, 'A')}
+            <PowerMeter p={battery.i} discharge_p_max={battery.discharge_i_max} charge_p_max={battery.charge_i_max} unit="A" />
           </div>
 
           {battery.temp_min < 10 &&
