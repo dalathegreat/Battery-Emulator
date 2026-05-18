@@ -12,12 +12,18 @@ void BydCanInverter::
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
-  /* Calculate capacity, Amp hours(Ah) = Watt hours (Wh) / Voltage (V)*/
-  if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
-    remaining_capacity_ah =
-        ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
-    fully_charged_capacity_ah =
-        ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
+  /* Calculate capacity in 0.1 Ah units. Use nominal (mid-design) voltage so the rated value
+   * is stable across SOC; multiply before divide to avoid integer truncation. Fall back to
+   * current pack voltage when design limits aren't set yet (generic BMS without configured
+   * BATTPVMAX/MIN, or BMS that hasn't reported its limits). */
+  uint16_t nominal_voltage_dV =
+      (datalayer.battery.info.max_design_voltage_dV + datalayer.battery.info.min_design_voltage_dV) / 2;
+  if (nominal_voltage_dV < 100) {
+    nominal_voltage_dV = datalayer.battery.status.voltage_dV;
+  }
+  if (nominal_voltage_dV > 10) {
+    remaining_capacity_ah = (datalayer.battery.status.reported_remaining_capacity_Wh * 100UL) / nominal_voltage_dV;
+    fully_charged_capacity_ah = (datalayer.battery.info.reported_total_capacity_Wh * 100UL) / nominal_voltage_dV;
   }
 
   //Map values to CAN messages
