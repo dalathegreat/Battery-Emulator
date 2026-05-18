@@ -1,6 +1,6 @@
 #include "parallel_safety.h"
-#include "../datalayer/datalayer.h"
-#include "../devboard/utils/events.h"
+#include "../../datalayer/datalayer.h"
+#include "../utils/events.h"
 
 void check_parallel_battery_safety(uint8_t batteryNumber) {
 
