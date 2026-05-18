@@ -53,18 +53,11 @@
     stroke: #1DB706;
     stroke-width: 4;
     stroke-linecap: round;
-    transition: stroke-dasharray 0.3s ease;
-}
-
-@keyframes pulse {
-    0% { opacity: 0.4; }
-    50% { opacity: 1; }
-    100% { opacity: 0.4; }
 }
 
 .stat-circle svg circle.base { stroke: #ffffff11; }
 .stat-circle svg circle.delta { 
-    stroke: #5555ffaa;
+    stroke: #138cd2cc;
     animation: pulse 2s ease-in-out infinite;
 }
 
