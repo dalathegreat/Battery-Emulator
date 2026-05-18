@@ -1,16 +1,23 @@
 #include "comm_rs485.h"
 #include <Arduino.h>
 #include "../../devboard/hal/hal.h"
+#ifndef UNIT_TEST
 #include "driver/uart.h"
+#endif
 
 #include <list>
 
-// All current Battery-Emulator RS485 users use Serial2/UART2.  For boards with
+// All current Battery-Emulator RS485 users use Serial2/UART2. For boards with
 // a real DE/~RE pin (for example Waveshare ESP32-S3-RS485-CAN with SP3485EN),
 // we let the ESP-IDF UART driver control RTS in UART_MODE_RS485_HALF_DUPLEX.
 // This keeps the existing Serial2.write() path and the Arduino/ESP32 UART
 // locking behavior intact instead of wrapping writes in a separate function.
+//
+// Host unit tests do not have ESP-IDF UART headers or hardware, so the actual
+// UART RS485 mode setup is compiled only for firmware builds.
+#ifndef UNIT_TEST
 static constexpr uart_port_t RS485_UART_NUM = UART_NUM_2;
+#endif
 
 static gpio_num_t rs485_de_pin = GPIO_NUM_NC;
 static bool rs485_de_active_high = true;
@@ -88,6 +95,7 @@ bool rs485_begin(const char* owner, HardwareSerial& serial, uint32_t baud, uint3
       return false;
     }
 
+#ifndef UNIT_TEST
     // Configure UART2 RTS as RS485 driver-enable.  This is intentionally done
     // after Serial2.begin(), because Serial2.begin() configures the UART pins.
     const esp_err_t pin_result = uart_set_pin(RS485_UART_NUM, tx_pin, rx_pin, rs485_de_pin, UART_PIN_NO_CHANGE);
@@ -98,6 +106,12 @@ bool rs485_begin(const char* owner, HardwareSerial& serial, uint32_t baud, uint3
                    static_cast<int>(mode_result));
       return false;
     }
+#else
+    // Host unit tests only verify that the common RS485 initialization compiles
+    // and keeps the existing Serial2.begin()/Serial2.write() path. The ESP-IDF
+    // UART driver owns the RTS/DE timing in firmware builds.
+    DEBUG_PRINTF("RS485 UART half-duplex setup skipped in UNIT_TEST\n");
+#endif
   }
 
   return true;
