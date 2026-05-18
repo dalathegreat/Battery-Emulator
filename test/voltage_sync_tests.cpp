@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "../Software/src/core/parallel_safety.h"
+#include "../Software/src/devboard/safety/parallel_safety.h"
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/utils/events.h"
 
