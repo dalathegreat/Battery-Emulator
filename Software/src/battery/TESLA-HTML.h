@@ -185,6 +185,7 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     static const char* Fault[] = {"NOT_ACTIVE", "ACTIVE"};
 
     //Main battery info
+    content += "<h4>Cells detected: " + String(datalayer.battery.info.number_of_cells) + "</h4>";
     char readableBatterySerialNumber[15];  // One extra space for null terminator
     memcpy(readableBatterySerialNumber, datalayer_extended.tesla.battery_serialNumber,
            sizeof(datalayer_extended.tesla.battery_serialNumber));
