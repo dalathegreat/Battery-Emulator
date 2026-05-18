@@ -232,7 +232,7 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_energy_content_maximum_Wh = (((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[5]) * 20;
       if (battery_energy_content_maximum_Wh > 33000) {
         detectedBattery = BATTERY_120AH;
-      } else if (battery_energy_content_maximum_Wh > 20000) {
+      } else if (battery_energy_content_maximum_Wh > 22050) {
         detectedBattery = BATTERY_94AH;
       } else {
         detectedBattery = BATTERY_60AH;
