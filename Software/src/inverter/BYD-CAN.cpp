@@ -22,10 +22,8 @@ void BydCanInverter::
     nominal_voltage_dV = datalayer.battery.status.voltage_dV;
   }
   if (nominal_voltage_dV > 10) {
-    remaining_capacity_ah =
-        (datalayer.battery.status.reported_remaining_capacity_Wh * 100UL) / nominal_voltage_dV;
-    fully_charged_capacity_ah =
-        (datalayer.battery.info.reported_total_capacity_Wh * 100UL) / nominal_voltage_dV;
+    remaining_capacity_ah = (datalayer.battery.status.reported_remaining_capacity_Wh * 100UL) / nominal_voltage_dV;
+    fully_charged_capacity_ah = (datalayer.battery.info.reported_total_capacity_Wh * 100UL) / nominal_voltage_dV;
   }
 
   //Map values to CAN messages
