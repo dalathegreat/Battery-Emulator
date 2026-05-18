@@ -2,8 +2,8 @@
 #include <Arduino.h>
 #include <cstdint>
 #include "../battery/BATTERIES.h"
-#include "../datalayer/datalayer.h"
 #include "../communication/rs485/comm_rs485.h"
+#include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
 
