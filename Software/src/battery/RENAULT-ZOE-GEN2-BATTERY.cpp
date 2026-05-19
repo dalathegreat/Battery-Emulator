@@ -81,8 +81,11 @@ void RenaultZoeGen2Battery::update_values() {
   }
 
   for (int i = 0; i < 96; i++) {
-    if (datalayer_battery->status.cell_balancing_status[i]) {
-      set_event_latched(EVENT_BALANCING_START, datalayer_battery->status.cell_balancing_status[i]);
+    //balancing_status_cell has cells ordered 96-1, while datalayer_battery->status.cell_balancing_status has cells ordered 1-96
+    //Due to this we need to invert the index when writing to datalayer_battery->status.cell_balancing_status
+    datalayer_battery->status.cell_balancing_status[95 - i] = balancing_status_cell[i];
+    if (balancing_status_cell[i]) {
+      set_event_latched(EVENT_BALANCING_START, (95 - i));
     }
   }
 
@@ -311,20 +314,17 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case POLL_BALANCE_SWITCHES:
           if (rx_frame.data.u8[0] == 0x23) {
             for (int i = 0; i < 32; i++) {
-              datalayer_battery->status.cell_balancing_status[i] =
-                  (rx_frame.data.u8[4 + (i / 8)] >> (7 - (i % 8))) & 0x01;
+              balancing_status_cell[i] = (rx_frame.data.u8[4 + (i / 8)] >> (7 - (i % 8))) & 0x01;
             }
           }
           if (rx_frame.data.u8[0] == 0x24) {
             for (int i = 0; i < 56; i++) {
-              datalayer_battery->status.cell_balancing_status[32 + i] =
-                  (rx_frame.data.u8[1 + (i / 8)] >> (7 - (i % 8))) & 0x01;
+              balancing_status_cell[32 + i] = (rx_frame.data.u8[1 + (i / 8)] >> (7 - (i % 8))) & 0x01;
             }
           }
           if (rx_frame.data.u8[0] == 0x25) {
             for (int i = 0; i < 8; i++) {
-              datalayer_battery->status.cell_balancing_status[88 + i] =
-                  (rx_frame.data.u8[1 + (i / 8)] >> (7 - (i % 8))) & 0x01;
+              balancing_status_cell[88 + i] = (rx_frame.data.u8[1 + (i / 8)] >> (7 - (i % 8))) & 0x01;
             }
           }
           break;
