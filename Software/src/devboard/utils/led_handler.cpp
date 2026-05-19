@@ -27,7 +27,6 @@ bool led_init(void) {
   gpio_num_t led_pin = esp32hal->LED_PIN();
 
   if (led_pin == GPIO_NUM_NC) {
-    DEBUG_PRINTF("No LED configured for selected HW. Skipping LED setup.\n");
     return true;
   }
 
