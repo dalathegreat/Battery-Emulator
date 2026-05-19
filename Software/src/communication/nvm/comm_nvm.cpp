@@ -9,6 +9,7 @@
 #include "../../inverter/INVERTERS.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
 #include "../equipmentstopbutton/comm_equipmentstopbutton.h"
+#include "../modbus_gateway/modbus_gateway.h"
 #include "../precharge_control/precharge_control.h"
 
 // Initialization functions
@@ -97,6 +98,10 @@ void init_stored_settings() {
   user_selected_inverter_pylon_type = settings.getUInt("PYLONBRAND", 0);
   user_selected_inverter_ignore_contactors = settings.getBool("INVICNT", false);
   user_selected_inverter_deye_workaround = settings.getBool("DEYEBYD", false);
+  modbus_gateway_enabled = settings.getBool("MBGWEN", false);
+  modbus_gateway_port = settings.getUInt("MBGWPORT", 502);
+  modbus_gateway_baud = settings.getUInt("MBGWBAUD", 9600);
+  modbus_gateway_timeout_ms = settings.getUInt("MBGWTIME", 60000);
   user_selected_can_addon_crystal_frequency_mhz = settings.getUInt("CANFREQ", 8);
   user_selected_canfd_addon_crystal_frequency_mhz = settings.getUInt("CANFDFREQ", 40);
   user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);

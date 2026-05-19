@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <WiFi.h>
 #include "HardwareSerial.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
@@ -12,6 +13,7 @@
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
+#include "src/communication/modbus_gateway/modbus_gateway.h"
 #include "src/communication/nvm/comm_nvm.h"
 #include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
@@ -87,6 +89,10 @@ void connectivity_loop(void*) {
   // Init wifi
   init_WiFi();
 
+  if (WiFi.status() == WL_CONNECTED && modbus_gateway_should_own_rs485() && !setup_modbus_gateway()) {
+    init_rs485();
+  }
+
   init_webserver();
 
   if (mdns_enabled) {
@@ -102,6 +108,9 @@ void connectivity_loop(void*) {
   while (true) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
+    if (WiFi.status() == WL_CONNECTED && modbus_gateway_should_own_rs485() && !setup_modbus_gateway()) {
+      init_rs485();
+    }
 
     update_display();
 
@@ -602,7 +611,9 @@ void setup() {
   // Init CAN only after any CAN receivers have had a chance to register.
   init_CAN();
 
-  init_rs485();
+  if (!wifi_enabled || !modbus_gateway_should_own_rs485()) {
+    init_rs485();
+  }
 
   init_equipment_stop_button();
 
@@ -650,4 +661,6 @@ void setup() {
 }
 
 // Loop empty, all functionality runs in tasks
-void loop() {}
+void loop() {
+  loop_modbus_gateway();
+}

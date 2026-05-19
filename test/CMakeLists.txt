@@ -70,6 +70,8 @@ add_executable(tests
     tests.cpp
     voltage_sync_tests.cpp
     bms_reset_tests.cpp
+    modbus_gateway_tests.cpp
+    ../Software/src/communication/modbus_gateway/modbus_gateway.cpp
     battery/NissanLeafTest.cpp 
     battery/still_alive_tests.cpp
     can_log_based/canlog_safety_tests.cpp
