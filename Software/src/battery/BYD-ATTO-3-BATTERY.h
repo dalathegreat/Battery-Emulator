@@ -53,6 +53,8 @@ class BydAttoBattery : public CanBattery {
   unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
+  uint32_t last_auto_calibrate_ms = 0;  // Cooldown timer for auto-calibration
+  uint32_t tail_dwell_start_ms = 0;     // Tracks when sustained tail current began
 
   static const int POLL_TIMES_FULL_POWER = 0x0004;  // Using Carscanner name for now.
   static const int POLL_FOR_BATTERY_SOC = 0x0005;

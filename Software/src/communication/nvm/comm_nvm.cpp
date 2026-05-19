@@ -219,6 +219,10 @@ void init_stored_settings() {
   ct_clamp_nominal_current_A = settings.getUInt("CTANOM", 100);
   ct_clamp_pin_atten = (adc_attenuation_enum)settings.getUInt("CTATTEN", 3);
   ct_invert_current = settings.getBool("CTINVERT", false);
+
+  datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent =
+      constrain(settings.getUInt("BYDAUTOCALDRIFT", 5), 1u, 20u);
+  datalayer_extended.bydAtto3.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN", true);
 }
 
 void store_settings_equipment_stop() {
@@ -240,4 +244,6 @@ void store_settings() {
   settings.saveUInt("TARGETCHVOLT", datalayer.battery.settings.max_user_set_charge_voltage_dV);
   settings.saveUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV);
   settings.saveUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms);
+  settings.saveUInt("BYDAUTOCALDRIFT", datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent);
+  settings.saveBool("BYDAUTOCALEN", datalayer_extended.bydAtto3.auto_calibrate_soc_enabled);
 }
