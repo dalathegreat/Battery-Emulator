@@ -29,7 +29,13 @@ class CmpSmartCarBattery : public CanBattery {
   bool supports_charged_energy() { return true; }
 
   bool supports_reset_DTC() { return true; }
-  void reset_DTC() { datalayer_extended.stellantisCMPsmart.UserRequestDTCreset = true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+
+  bool supports_clear_isolation() { return true; }
+  void clear_isolation() { UserRequestIsolationClear = true; }
+
+  bool supports_reset_crash() { return true; }
+  void reset_crash() { UserRequestCrashReset = true; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
@@ -129,6 +135,27 @@ class CmpSmartCarBattery : public CanBattery {
                                  .DLC = 5,
                                  .ID = 0x6B4,
                                  .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF}};
+  CAN_frame CMP_CRASH_RESET_START = {.FD = false,
+                                     .ext_ID = false,
+                                     .DLC = 5,
+                                     .ID = 0x6B4,
+                                     .data = {0x04, 0x31, 0x01, 0x06, 0x02}};
+  CAN_frame CMP_CRASH_RESET_PROGRESS = {.FD = false,
+                                        .ext_ID = false,
+                                        .DLC = 5,
+                                        .ID = 0x6B4,
+                                        .data = {0x04, 0x31, 0x03, 0x06, 0x02}};
+  CAN_frame CMP_CLEAR_ISOLATION = {.FD = false,
+                                   .ext_ID = false,
+                                   .DLC = 5,
+                                   .ID = 0x6B4,
+                                   .data = {0x04, 0x31, 0x01, 0x06, 0x0F}};
+  static constexpr CAN_frame CMP_DIAG_START = {.FD = false,
+                                               .ext_ID = false,
+                                               .DLC = 3,
+                                               .ID = 0x6B4,
+                                               .data = {0x02, 0x10, 0x03}};
+  //Start diagnostic session (extended diagnostic session, mode 0x10 with sub-mode 0x03)
   uint32_t vehicle_time_counter = 0x088B390B;  //Taken from log on 19thOctober2025
   uint32_t main_contactor_cycle_count = 0;
   uint32_t QC_contactor_cycle_count = 0;
@@ -178,6 +205,10 @@ class CmpSmartCarBattery : public CanBattery {
   int16_t battery_temperature_minimum = 0;
   int16_t battery_current_dA = 0;
 
+  uint8_t CrashResetStatemachine = 0;
+  uint8_t timeSpentCrashReset = 0;
+  static const uint8_t NOT_SAMPLED_YET = 255;
+  static const uint8_t COMPLETED_STATE = 0;
   uint8_t tempval = 0;
   uint8_t startup_increment = 0;
   uint8_t active_DTC_code = 0;
@@ -234,5 +265,9 @@ class CmpSmartCarBattery : public CanBattery {
   bool cooling_enabled = false;
   bool battery_minimum_voltage_reached_warning = false;
   bool alert_low_battery_energy = false;
+
+  bool UserRequestDTCreset = false;       /** User requesting DTC reset via WebUI*/
+  bool UserRequestIsolationClear = false; /** User requesting isolation fault clear via WebUI*/
+  bool UserRequestCrashReset = false;     /** User requesting crash reset via WebUI*/
 };
 #endif
