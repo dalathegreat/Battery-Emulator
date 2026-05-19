@@ -181,5 +181,7 @@ bool BydModbusInverter::setup(void) {  // Performs one time setup at startup ove
   // Start ModbusRTU background task
   MBserver.begin(Serial2, esp32hal->MODBUS_CORE());
 
+  DEBUG_PRINTF("Modbus RTU server started at 9600 baud\n");
+
   return true;
 }

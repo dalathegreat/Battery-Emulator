@@ -129,6 +129,7 @@ class Esp32Hal {
   virtual gpio_num_t CHADEMO_PIN_4() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t CHADEMO_CT_OFFSETV_PIN() { return GPIO_NUM_NC; }
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_NC; }
