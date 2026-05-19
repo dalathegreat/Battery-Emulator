@@ -59,6 +59,7 @@ bool init_rs485() {
     digitalWrite(pin_5v_en, HIGH);
   }
 
+#ifndef SMALL_FLASH_DEVICE  // Hack to not include this for the LilyGo T-CAN485 which has limited memory (adds 2K)
   if (rs485_de_pin != GPIO_NUM_NC) {
     // Idle receive state until the UART driver takes over this pin as RTS/DE
     // in rs485_begin().  UART_MODE_RS485_HALF_DUPLEX asserts RTS high while the
@@ -66,6 +67,7 @@ bool init_rs485() {
     pinMode(rs485_de_pin, OUTPUT);
     digitalWrite(rs485_de_pin, rs485_de_active_high ? LOW : HIGH);
   }
+#endif
 
   // Inverters and batteries initialize the serial port in their setup-function.
   return true;
@@ -94,7 +96,8 @@ bool rs485_begin(const char* owner, HardwareSerial& serial, uint32_t baud, uint3
       DEBUG_PRINTF("RS485 active-low DE is not supported by UART RS485 mode\n");
       return false;
     }
-
+#ifndef SMALL_FLASH_DEVICE  // Hack to not include this for the LilyGo T-CAN485 which has limited memory (adds 2K)
+                            // This board has no DE pin so we can safely skip it here
 #ifndef UNIT_TEST
     // Configure UART2 RTS as RS485 driver-enable.  This is intentionally done
     // after Serial2.begin(), because Serial2.begin() configures the UART pins.
@@ -111,6 +114,7 @@ bool rs485_begin(const char* owner, HardwareSerial& serial, uint32_t baud, uint3
     // and keeps the existing Serial2.begin()/Serial2.write() path. The ESP-IDF
     // UART driver owns the RTS/DE timing in firmware builds.
     DEBUG_PRINTF("RS485 UART half-duplex setup skipped in UNIT_TEST\n");
+#endif
 #endif
   }
 
