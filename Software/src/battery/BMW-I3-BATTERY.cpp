@@ -320,10 +320,15 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void BmwI3Battery::transmit_can(unsigned long currentMillis) {
+  // Ensure we only send one message branch at a time, to reduce worst-case runtime
+  static int transmitPhase = -1;
+  if (++transmitPhase >= 8) {
+    transmitPhase = 0;
+  }
 
   if (battery_awake) {
     //Send 20ms message
-    if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
+    if (currentMillis - previousMillis20 >= INTERVAL_20_MS && transmitPhase == 0) {
       previousMillis20 = currentMillis;
 
       if (startup_counter_contactor < 160) {
@@ -351,7 +356,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
     }
 
     // Send 100ms CAN Message
-    if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    if (currentMillis - previousMillis100 >= INTERVAL_100_MS && transmitPhase == 1) {
       previousMillis100 = currentMillis;
 
       BMW_12F.data.u8[1] = ((BMW_12F.data.u8[1] & 0xF0) + alive_counter_100ms);
@@ -362,7 +367,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&BMW_12F);
     }
     // Send 200ms CAN Message
-    if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+    if (currentMillis - previousMillis200 >= INTERVAL_200_MS && transmitPhase == 2) {
       previousMillis200 = currentMillis;
 
       BMW_19B.data.u8[1] = ((BMW_19B.data.u8[1] & 0xF0) + alive_counter_200ms);
@@ -405,7 +410,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       }
     }
     // Send 500ms CAN Message
-    if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
+    if (currentMillis - previousMillis500 >= INTERVAL_500_MS && transmitPhase == 3) {
       previousMillis500 = currentMillis;
 
       BMW_30B.data.u8[1] = ((BMW_30B.data.u8[1] & 0xF0) + alive_counter_500ms);
@@ -416,14 +421,14 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&BMW_30B);
     }
     // Send 640ms CAN Message
-    if (currentMillis - previousMillis640 >= INTERVAL_640_MS) {
+    if (currentMillis - previousMillis640 >= INTERVAL_640_MS && transmitPhase == 4) {
       previousMillis640 = currentMillis;
 
       transmit_can_frame(&BMW_512);  // Keep BMS alive
       transmit_can_frame(&BMW_5F8);
     }
     // Send 1000ms CAN Message
-    if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+    if (currentMillis - previousMillis1000 >= INTERVAL_1_S && transmitPhase == 5) {
       previousMillis1000 = currentMillis;
       //BMW_328 byte0-3 = Second Counter (T_SEC_COU_REL) time_second_counter_relative
       // This signal shows the time in seconds since the system time was started (typically in the factory)
@@ -526,7 +531,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       }
     }
     // Send 5000ms CAN Message
-    if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
+    if (currentMillis - previousMillis5000 >= INTERVAL_5_S && transmitPhase == 6) {
       previousMillis5000 = currentMillis;
 
       BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
@@ -546,7 +551,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       }
     }
     // Send 10000ms CAN Message
-    if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
+    if (currentMillis - previousMillis10000 >= INTERVAL_10_S && transmitPhase == 7) {
       previousMillis10000 = currentMillis;
 
       transmit_can_frame(&BMW_3E5);  //Order comes from CAN logs
