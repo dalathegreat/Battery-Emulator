@@ -124,6 +124,20 @@ void MgHsPHEVBattery::update_soc(uint16_t soc_times_ten) {
 }
 
 void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  // We start polling with UDS ID 0x7DF, the generic broadcast one. Our first
+  // reply will indicate what the BMS-specific one is, which we switch to.
+  if (uds_address == 0x7DF && rx_frame.ID == 0x789) {
+    setup_uds(0x781, next_pid);
+  } else if (uds_address == 0x7DF && rx_frame.ID == 0x7ED) {
+    setup_uds(0x7E5, next_pid);
+  }
+
+  if (handle_incoming_uds_can_frame(rx_frame)) {
+    return;
+  }
+
+  uint32_t v, i, cell_id, soc2;
+
   switch (rx_frame.ID) {
     case 0x173:
       // Contains cell min/max voltages
@@ -226,17 +240,17 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         update_soc(soc2);
       }
 
-      if ((((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) != 0) {
-        // 3AC message contains a nonzero voltage (so must have come from CAN1)
-        v = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]);
-        if (v > 0 && v < 4000) {
-          datalayer_battery->status.voltage_dV = v * 2.5;
-        }
-        // Current
-        v = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
-        if (v > 0 && v < 0xf000) {
-          datalayer_battery->status.current_dA = -(v - 20000) * 0.5;
-        }
+      // Battery voltage
+      v = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]);
+      // Current
+      i = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
+
+      if (v > 0 && v < 2400 && i > 16000 && i < 24000) {
+        // 3AC message contains a credible voltage and current (so must have come from CAN1)
+        // (voltage between 0 and 600V, current between -200A and +200A)
+
+        datalayer_battery->status.voltage_dV = (v * 5) / 2;
+        datalayer_battery->status.current_dA = -(i - 20000) / 2;
       }
 
       break;
