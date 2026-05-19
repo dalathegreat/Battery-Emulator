@@ -150,7 +150,16 @@ enum class GPIOOPT4 {
   I2C_DISPLAY_SSD1306 = 1,
   Highest
 };
-
+#ifdef HW_STARK
+enum class GPIOOPT5 {
+  // StarkCMR: Default, Gpio23 as BMS power
+  DEFAULT_BMS_POWER_23 = 0,
+  // StarkCMR: Gpio25 as BMS power
+  BMS_POWER_25 = 1,
+  Highest
+};
+extern GPIOOPT5 user_selected_gpioopt5;
+#endif
 extern GPIOOPT2 user_selected_gpioopt2;
 extern GPIOOPT3 user_selected_gpioopt3;
 extern GPIOOPT4 user_selected_gpioopt4;

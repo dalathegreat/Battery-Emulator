@@ -71,10 +71,20 @@ class StarkHal : public Esp32Hal {
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_32; }
   virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_33; }
-  virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_25; }
-  virtual gpio_num_t BMS_POWER() { return GPIO_NUM_23; }
+  virtual gpio_num_t PRECHARGE_PIN() {  //Precharge and BMS power pins can be swapped in config
+    if (user_selected_gpioopt5 == GPIOOPT5::BMS_POWER_25) {
+      return GPIO_NUM_23;
+    }
+    return GPIO_NUM_25;
+  }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_19; }
   virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t BMS_POWER() {
+    if (user_selected_gpioopt5 == GPIOOPT5::BMS_POWER_25) {
+      return GPIO_NUM_25;
+    }
+    return GPIO_NUM_23;
+  }
 
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_19; }

@@ -181,6 +181,19 @@ const char* name_for_gpioopt4(GPIOOPT4 option) {
   }
 }
 
+#ifdef HW_STARK
+const char* name_for_gpioopt5(GPIOOPT5 option) {
+  switch (option) {
+    case GPIOOPT5::DEFAULT_BMS_POWER_23:
+      return "Pin 23 (BMS POWER)";
+    case GPIOOPT5::BMS_POWER_25:
+      return "Pin 25 (PRECHARGE)";
+    default:
+      return nullptr;
+  }
+}
+#endif
+
 // Special unicode characters
 const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
 const char* FALSE_CHAR_CODE = "\u2715";  //&#10005";
@@ -302,7 +315,12 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum_with_none((GPIOOPT4)settings.getUInt("GPIOOPT4", (int)GPIOOPT4::DEFAULT_SD_CARD),
                                       name_for_gpioopt4, GPIOOPT4::DEFAULT_SD_CARD);
   }
-
+#ifdef HW_STARK
+  if (var == "GPIOOPT5") {
+    return options_for_enum_with_none((GPIOOPT5)settings.getUInt("GPIOOPT5", (int)GPIOOPT5::DEFAULT_BMS_POWER_23),
+                                      name_for_gpioopt5, GPIOOPT5::DEFAULT_BMS_POWER_23);
+  }
+#endif
   // All other values are wrapped by html_escape to avoid HTML injection.
 
   return html_escape(raw_settings_processor(var, settings));
@@ -983,6 +1001,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   )rawliteral"
 #else
 #define GPIOOPT4_SETTING ""
+#endif
+
+#ifdef HW_STARK
+#define GPIOOPT5_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT5">BMS Power pin:</label>
+    <select id="GPIOOPT5" name="GPIOOPT5">
+      %GPIOOPT5%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT5_SETTING ""
 #endif
 
 #define SETTINGS_HTML_SCRIPTS \
@@ -1710,6 +1740,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         )rawliteral" GPIOOPT2_SETTING R"rawliteral(
         )rawliteral" GPIOOPT3_SETTING R"rawliteral(
         )rawliteral" GPIOOPT4_SETTING R"rawliteral(
+        )rawliteral" GPIOOPT5_SETTING R"rawliteral(
           
         </div>
         </div>
