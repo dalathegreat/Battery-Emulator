@@ -1,5 +1,6 @@
 #include "PYLON-LV-RS485.h"
 #include "../battery/BATTERIES.h"
+#include "../communication/rs485/comm_rs485.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
@@ -7,18 +8,14 @@
 
 bool PylonLV485InverterProtocol::setup() {
   // Initialize Serial2 with proper pins from HAL
-  auto rx_pin = esp32hal->RS485_RX_PIN();
-  auto tx_pin = esp32hal->RS485_TX_PIN();
-
-  if (!esp32hal->alloc_pins(Name, rx_pin, tx_pin)) {
-    logging.println("Failed to allocate RS485 pins!");
+  if (!rs485_begin(Name, Serial2, baud_rate(), SERIAL_8N1)) {
+    logging.println("Failed to initialize RS485 pins!");
     return false;
   }
 
   //initialize safe defaults before we start receiving real data
   datalayer.battery.status.voltage_dV = 480;  // 48.0V
 
-  Serial2.begin(baud_rate(), SERIAL_8N1, rx_pin, tx_pin);
   return true;
 }
 

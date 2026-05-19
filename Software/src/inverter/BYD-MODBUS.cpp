@@ -1,5 +1,6 @@
 #include "BYD-MODBUS.h"
 #include "../battery/BATTERIES.h"
+#include "../communication/rs485/comm_rs485.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
@@ -169,14 +170,9 @@ bool BydModbusInverter::setup(void) {  // Performs one time setup at startup ove
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
 
-  auto rx_pin = esp32hal->RS485_RX_PIN();
-  auto tx_pin = esp32hal->RS485_TX_PIN();
-
-  if (!esp32hal->alloc_pins(Name, rx_pin, tx_pin)) {
+  if (!rs485_begin(Name, Serial2, 9600, SERIAL_8N1)) {
     return false;
   }
-
-  Serial2.begin(9600, SERIAL_8N1, rx_pin, tx_pin);
 
   // Start ModbusRTU background task
   MBserver.begin(Serial2, esp32hal->MODBUS_CORE());
