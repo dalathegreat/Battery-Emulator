@@ -145,6 +145,10 @@ void BydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       inverter_timestamp = ((rx_frame.data.u8[0] << 24) | (rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) |
                             rx_frame.data.u8[3]);
       break;
+    case 0x191:
+      inverterStartedUp = true;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
     default:
       break;
   }
