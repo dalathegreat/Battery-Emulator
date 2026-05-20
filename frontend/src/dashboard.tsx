@@ -58,7 +58,11 @@ function SocMeter({soc, one_hour_delta}: { soc: number, one_hour_delta: number }
 
 function PowerMeter({ p, discharge_p_max, charge_p_max, unit }: { p: number, discharge_p_max: number, charge_p_max: number, unit: string }) {
   var percent_per_watt = 50 / Math.max(discharge_p_max, charge_p_max, 1);
-  var inner_percent_per_watt = 100 / Math.max(discharge_p_max + charge_p_max, 1);
+  var inner_percent_per_watt = 100 / Math.max(discharge_p_max + charge_p_max, 2);
+  if(discharge_p_max == 0 && charge_p_max == 0 && p != 0) {
+    // Make it shoot past the end by a fixed amount
+    inner_percent_per_watt = 300 / Math.abs(p);
+  }
   var offset = 100 * (Math.max(discharge_p_max, 1) / Math.max(discharge_p_max + charge_p_max, 2));
   var over = p > charge_p_max || p < -discharge_p_max;
 
