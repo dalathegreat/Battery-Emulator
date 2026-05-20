@@ -146,11 +146,11 @@ protected:
         char recv_buffer[RECV_BUFFER_SIZE];
         // We add a nul after the recv buffer, so we can pass chunks at the end
         // of recv_buffer as nul-terminated strings.
-        char _overread_protection = 0;
+        char _overread_protection[2] = {0, 0};
     };
 
-    volatile uint16_t send_buffer_write_ptr = 0;
-    volatile uint16_t send_buffer_read_ptr = 0;
+    std::atomic<uint32_t> send_buffer_write_ptr{0};
+    std::atomic<uint32_t> send_buffer_read_ptr{0};
     std::atomic_flag send_buffer_lock = ATOMIC_FLAG_INIT;
     volatile uint16_t recv_buffer_len = 0;
     uint16_t recv_buffer_write_ptr = 0;
@@ -159,8 +159,8 @@ protected:
     uint16_t recv_buffer_scan_len = 0;
 
     inline int send_buffer_len() {
-        uint16_t w = send_buffer_write_ptr;
-        uint16_t r = send_buffer_read_ptr;
+        uint16_t w = send_buffer_write_ptr.load(std::memory_order_acquire);
+        uint16_t r = send_buffer_read_ptr.load(std::memory_order_acquire);
         return (w >= r) ? (w - r) : (SEND_BUFFER_SIZE - r + w);
     }
 

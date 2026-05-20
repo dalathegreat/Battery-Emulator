@@ -668,8 +668,8 @@ void TwsRequest::reset() {
         close(socket);
     }
     socket = -1;
-    send_buffer_write_ptr = 0;
-    send_buffer_read_ptr = 0;
+    send_buffer_write_ptr.store(0, std::memory_order_release);
+    send_buffer_read_ptr.store(0, std::memory_order_release);
     recv_buffer_len = 0;
     recv_buffer_write_ptr = 0;
     recv_buffer_read_ptr = 0;
@@ -695,13 +695,13 @@ void TwsRequest::perform_io() {
     // send any data awaiting sending
     int current_len = send_buffer_len();
     while(current_len > 0) {
-        const uint16_t contiguous_block_size = sizeof(send_buffer) - send_buffer_read_ptr;
+        const uint16_t r = send_buffer_read_ptr.load(std::memory_order_acquire);
+        const uint16_t contiguous_block_size = sizeof(send_buffer) - r;
         const uint16_t bytes_to_send = min(current_len, contiguous_block_size);
-        const int bytes_sent = ::send(socket, &send_buffer[send_buffer_read_ptr], bytes_to_send, 0);
-        //DEBUG_PRINTF("  ::send returned %d\n", bytes_sent);
+        const int bytes_sent = ::send(socket, &send_buffer[r], bytes_to_send, 0);
         if (bytes_sent > 0) {
             // Advance the read pointer, wrapping around the buffer if necessary.
-            send_buffer_read_ptr = sub_mod(send_buffer_read_ptr + bytes_sent, sizeof(send_buffer));
+            send_buffer_read_ptr.store(sub_mod(r + bytes_sent, sizeof(send_buffer)), std::memory_order_release);
             current_len -= bytes_sent;
             last_activity = millis();
         } else if (bytes_sent <= 0 && errno != EINPROGRESS && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -824,11 +824,13 @@ uint32_t IRAM_ATTR TwsRequest::write_indirect(const char *buf, uint16_t len) {
     }
     const uint16_t bytes_to_copy = min(len, available_space);
 
+    uint32_t w = send_buffer_write_ptr.load(std::memory_order_acquire);
     for (uint16_t i = 0; i < bytes_to_copy; ++i) {
         // Place the byte at the current write position.
-        send_buffer[send_buffer_write_ptr] = buf[i];
-        send_buffer_write_ptr = sub_mod(send_buffer_write_ptr + 1, sizeof(send_buffer));
+        send_buffer[w] = buf[i];
+        w = sub_mod(w + 1, sizeof(send_buffer));
     }
+    send_buffer_write_ptr.store(w, std::memory_order_release);
 
     total_written += bytes_to_copy; // Update total written bytes
     return bytes_to_copy;    
