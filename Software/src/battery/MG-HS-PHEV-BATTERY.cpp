@@ -310,6 +310,22 @@ void MgHsPHEVBattery::
 
   datalayer_battery->info.total_capacity_Wh = TOTAL_CAPACITY_WH;  // update to actual battery capacity.
 
+  // Calculate the remaining capacity.
+  uint32_t remaining =
+      (datalayer_battery->info.total_capacity_Wh * (datalayer_battery->status.real_soc - DISCHARGE_MIN_SOC)) /
+      (10000 - DISCHARGE_MIN_SOC);
+  if (remaining > 0) {
+    datalayer_battery->status.remaining_capacity_Wh = remaining;
+  } else {
+    datalayer_battery->status.remaining_capacity_Wh = 0;
+  }
+
+  datalayer_battery->status.max_charge_power_W = taper_charge_power_linear(
+      datalayer_battery->status.real_soc, MAX_CHARGE_POWER_W, CHARGE_TRICKLE_POWER_W, DERATE_CHARGE_ABOVE_SOC);
+
+  datalayer_battery->status.max_discharge_power_W = taper_discharge_power_linear(
+      datalayer_battery->status.real_soc, MAX_DISCHARGE_POWER_W, DISCHARGE_MIN_SOC, DERATE_DISCHARGE_BELOW_SOC);
+
   // Should be called every second
   if (cellVoltageValidTime > 0) {
     cellVoltageValidTime--;
@@ -348,22 +364,6 @@ void MgHsPHEVBattery::update_soc(uint16_t soc_times_ten) {
 
   // Set the state of charge in the datalayer
   datalayer_battery->status.real_soc = soc_times_ten * 10;
-
-  // Calculate the remaining capacity.
-  uint32_t remaining =
-      (datalayer_battery->info.total_capacity_Wh * (datalayer_battery->status.real_soc - DISCHARGE_MIN_SOC)) /
-      (10000 - DISCHARGE_MIN_SOC);
-  if (remaining > 0) {
-    datalayer_battery->status.remaining_capacity_Wh = remaining;
-  } else {
-    datalayer_battery->status.remaining_capacity_Wh = 0;
-  }
-
-  datalayer_battery->status.max_charge_power_W = taper_charge_power_linear(
-      datalayer_battery->status.real_soc, MAX_CHARGE_POWER_W, CHARGE_TRICKLE_POWER_W, DERATE_CHARGE_ABOVE_SOC);
-
-  datalayer_battery->status.max_discharge_power_W = taper_discharge_power_linear(
-      datalayer_battery->status.real_soc, MAX_DISCHARGE_POWER_W, DISCHARGE_MIN_SOC, DERATE_DISCHARGE_BELOW_SOC);
 }
 
 void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {

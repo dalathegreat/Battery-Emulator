@@ -71,6 +71,10 @@ void Mg5Battery::update_soc(uint16_t soc_times_ten) {
 
   // Set the state of charge in the datalayer
   datalayer.battery.status.real_soc = soc_times_ten * 10;
+}
+
+void Mg5Battery::
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   uint32_t remaining =
       (datalayer.battery.info.total_capacity_Wh * (datalayer.battery.status.real_soc - DISCHARGE_MIN_SOC)) /
@@ -86,12 +90,6 @@ void Mg5Battery::update_soc(uint16_t soc_times_ten) {
 
   datalayer.battery.status.max_discharge_power_W = taper_discharge_power_linear(
       datalayer.battery.status.real_soc, MAX_DISCHARGE_POWER_W, DISCHARGE_MIN_SOC, DERATE_DISCHARGE_BELOW_SOC);
-}
-
-void Mg5Battery::
-    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-
-  //all data are already update when it is received via CAN
 
   //reduce timout valeue for cell voltage timeout, reduce by 1 every second
   if (cellVoltageValidTime > 0) {
