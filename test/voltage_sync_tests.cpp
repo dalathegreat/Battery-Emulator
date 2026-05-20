@@ -7,12 +7,6 @@
 class VoltageSyncTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    init_events();
-    // Reset datalayer to known state
-    datalayer.battery.status.voltage_dV = 3700;   // 370.0V
-    datalayer.battery2.status.voltage_dV = 3700;  // 370.0V
-    datalayer.battery3.status.voltage_dV = 3700;  // 370.0V
-    datalayer.system.status.system_status = ACTIVE;
     datalayer.system.status.battery2_allowed_contactor_closing = true;
     datalayer.system.status.battery3_allowed_contactor_closing = true;
   }

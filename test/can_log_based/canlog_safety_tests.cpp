@@ -21,14 +21,6 @@ class CanLogTestFixture : public testing::Test {
   //   static void TearDownTestSuite() { ... }
 
   void SetUp() override {
-    // Reset the datalayer and events before each test
-    datalayer = DataLayer();
-    reset_all_events();
-    if (battery) {
-      delete battery;
-      battery = nullptr;
-    }
-
     // Assume a 90s NMC pack for custom-BMS batteries
     user_selected_max_pack_voltage_dV = 378 + 10;
     user_selected_min_pack_voltage_dV = 261 - 10;
@@ -39,6 +31,7 @@ class CanLogTestFixture : public testing::Test {
     std::string filename = path_.filename().string();
     std::string batteryId = filename.substr(0, filename.find('_'));
     user_selected_battery_type = (BatteryType)std::stoi(batteryId);
+    battery = nullptr;
     setup_battery();
 
     // Initialize datalayer to invalid values
@@ -51,25 +44,31 @@ class CanLogTestFixture : public testing::Test {
     datalayer.battery.status.temperature_min_dC = INT16_MIN;
   }
 
-  void TearDown() override {
-    if (battery) {
-      delete battery;
-      battery = nullptr;
-    }
-  }
+  void HandleFrames() {
+    // Read the CAN frames in and handle them. In the emulator this would run
+    // every 1ms or so.
 
-  void ProcessLog() {
     std::vector<CAN_frame> parsedMessages = parse_can_log_file(path_);
 
     for (const auto& msg : parsedMessages) {
       dynamic_cast<CanBattery*>(battery)->handle_incoming_can_frame(msg);
-      dynamic_cast<CanBattery*>(battery)->update_values();
     }
-
-    update_machineryprotection();
 
     // When debugging, uncomment this to see the parsed values
     // PrintValues();
+  }
+
+  void UpdateValues() {
+    // Run the battery update_values functions and apply safety protections. In
+    // the emulator this happens every 1s.
+
+    dynamic_cast<CanBattery*>(battery)->update_values();
+    update_machineryprotection();
+  }
+
+  void HandleFramesAndUpdateValues() {
+    HandleFrames();
+    UpdateValues();
   }
 
   void PrintValues() {
@@ -96,7 +95,19 @@ class BaseValuesPresentTest : public CanLogTestFixture {
   void TestBody() override {
     datalayer.battery.status.CAN_battery_still_alive = 10;
 
-    ProcessLog();
+    // Set the charge/discharge power to a specific value
+    datalayer.battery.status.max_charge_power_W = 11;
+    datalayer.battery.status.max_discharge_power_W = 12;
+
+    // Handle the CAN frames. This shouldn't touch the above limits.
+    HandleFrames();
+    EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 11);
+    EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 12);
+
+    // Update the values, which should overwrite the above limits
+    UpdateValues();
+    EXPECT_NE(datalayer.battery.status.max_charge_power_W, 11);
+    EXPECT_NE(datalayer.battery.status.max_discharge_power_W, 12);
 
     EXPECT_GT(datalayer.battery.status.CAN_battery_still_alive, 10);
     EXPECT_NE(datalayer.battery.status.voltage_dV, 0);
@@ -118,7 +129,7 @@ class OverVoltageTest : public CanLogTestFixture {
  public:
   explicit OverVoltageTest(fs::path path) : CanLogTestFixture(path) {}
   void TestBody() override {
-    ProcessLog();
+    HandleFramesAndUpdateValues();
 
     EXPECT_EQ(get_event_pointer(EVENT_BATTERY_OVERVOLTAGE)->occurences, 1);
   }
@@ -129,7 +140,7 @@ class CellOverVoltageTest : public CanLogTestFixture {
  public:
   explicit CellOverVoltageTest(fs::path path) : CanLogTestFixture(path) {}
   void TestBody() override {
-    ProcessLog();
+    HandleFramesAndUpdateValues();
 
     EXPECT_EQ(get_event_pointer(EVENT_CELL_OVER_VOLTAGE)->occurences, 1);
     EXPECT_EQ(get_event_pointer(EVENT_CELL_CRITICAL_OVER_VOLTAGE)->occurences, 1);
@@ -141,7 +152,7 @@ class CellUnderVoltageTest : public CanLogTestFixture {
  public:
   explicit CellUnderVoltageTest(fs::path path) : CanLogTestFixture(path) {}
   void TestBody() override {
-    ProcessLog();
+    HandleFramesAndUpdateValues();
 
     EXPECT_EQ(get_event_pointer(EVENT_CELL_UNDER_VOLTAGE)->occurences, 1);
     EXPECT_EQ(get_event_pointer(EVENT_CELL_CRITICAL_UNDER_VOLTAGE)->occurences, 1);
@@ -153,7 +164,7 @@ class CellVoltageTest : public CanLogTestFixture {
  public:
   explicit CellVoltageTest(fs::path path, int cellnum) : CanLogTestFixture(path), cellnum_(cellnum) {}
   void TestBody() override {
-    ProcessLog();
+    HandleFramesAndUpdateValues();
 
     // Target is 3123mV, but some integrations round strangely so need a margin
     EXPECT_GT(datalayer.battery.status.cell_voltages_mV[cellnum_], 3121);

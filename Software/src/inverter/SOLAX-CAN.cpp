@@ -219,10 +219,10 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   if (rx_frame.ID == 0x1871 && rx_frame.data.u64 == __builtin_bswap64(0x0500010000000000)) {
     transmit_can_frame(&SOLAX_1881);
     transmit_can_frame(&SOLAX_1882);
-    logging.println("1871 05-frame received from inverter");
+    //logging.println("1871 05-frame received from inverter");
   }
   if (rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x03)) {
-    logging.println("1871 03-frame received from inverter");
+    //logging.println("1871 03-frame received from inverter");
   }
 }
 

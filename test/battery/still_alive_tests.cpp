@@ -13,24 +13,8 @@ class BatteryTestFixture : public testing::Test {
   //   static void TearDownTestSuite() { ... }
 
   void SetUp() override {
-    // Reset the datalayer and events before each test
-    datalayer = DataLayer();
-    reset_all_events();
-    if (battery) {
-      delete battery;
-      battery = nullptr;
-    }
-    init_hal();
-
     user_selected_battery_type = type;
     setup_battery();
-  }
-
-  void TearDown() override {
-    if (battery) {
-      delete battery;
-      battery = nullptr;
-    }
   }
 
  private:
