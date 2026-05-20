@@ -21,14 +21,6 @@ class CanLogTestFixture : public testing::Test {
   //   static void TearDownTestSuite() { ... }
 
   void SetUp() override {
-    // Reset the datalayer and events before each test
-    datalayer = DataLayer();
-    reset_all_events();
-    if (battery) {
-      delete battery;
-      battery = nullptr;
-    }
-
     // Assume a 90s NMC pack for custom-BMS batteries
     user_selected_max_pack_voltage_dV = 378 + 10;
     user_selected_min_pack_voltage_dV = 261 - 10;
@@ -39,6 +31,7 @@ class CanLogTestFixture : public testing::Test {
     std::string filename = path_.filename().string();
     std::string batteryId = filename.substr(0, filename.find('_'));
     user_selected_battery_type = (BatteryType)std::stoi(batteryId);
+    battery = nullptr;
     setup_battery();
 
     // Initialize datalayer to invalid values
