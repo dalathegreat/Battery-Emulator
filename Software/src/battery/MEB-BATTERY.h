@@ -183,11 +183,11 @@ class MebBattery : public CanBattery {
   static const int PID_TEMP_POINT_18 = 0x1EBF;
 
   /* Define CAN ID messages */
-  static const int OBD_Hybrid_01_Req  = 0x18DA05F1;
+  static const int OBD_Hybrid_01_Req = 0x18DA05F1;
   static const int OBD_Hybrid_01_Resp = 0x18DAF105;
-  static const int ISO_Hybrid_01_Req  = 0x17FC007B;
+  static const int ISO_Hybrid_01_Req = 0x17FC007B;
   static const int ISO_Hybrid_01_Resp = 0x17FE007B;
-  static const int ISO_Hybrid_01_Req_FD  = 0x1C40007B;
+  static const int ISO_Hybrid_01_Req_FD = 0x1C40007B;
   static const int ISO_Hybrid_01_Resp_FD = 0x1C42007B;
   static const int ISO_Functional_Req_FD = 0x1C410000;
   static const int BMS_04 = 0x5A2;
@@ -286,18 +286,23 @@ class MebBattery : public CanBattery {
   uint16_t battery_allowed_discharge_power = 0;
   uint16_t cellvoltages_polled[108];
   uint16_t tempval = 0;
-  bool BMS_ext_limits_active = false;  //The current current limits of the HV battery are expanded to start the combustion engine / confirmation of the request
-  uint8_t BMS_mode = 0x07;  //0: standby; Gates open; Communication active 1: Main contactor closed / HV network activated / normal driving operation
+  bool BMS_ext_limits_active =
+      false;  //The current current limits of the HV battery are expanded to start the combustion engine / confirmation of the request
+  uint8_t BMS_mode =
+      0x07;  //0: standby; Gates open; Communication active 1: Main contactor closed / HV network activated / normal driving operation
   //2: assigned depending on the project (e.g. balancing, extended DC fast charging) //3: external charging
   uint8_t BMS_HVIL_status = 0;         //0 init, 1 seated, 2 open, 3 fault
   bool BMS_fault_performance = false;  //Error: Battery performance is limited (e.g. due to sensor or fan failure)
   uint16_t BMS_current = 16300;
-  bool BMS_fault_emergency_shutdown_crash = false;  //Error: Safety-critical error (crash detection) Battery contactors are already opened / will be opened immediately Signal is read directly by the EMS and initiates an AKS of the PWR and an active discharge of the DC link
+  bool BMS_fault_emergency_shutdown_crash =
+      false;  //Error: Safety-critical error (crash detection) Battery contactors are already opened / will be opened immediately Signal is read directly by the EMS and initiates an AKS of the PWR and an active discharge of the DC link
   uint32_t BMS_voltage_intermediate = 2000;
   uint32_t BMS_voltage = 1480;
-  uint8_t BMS_status_voltage_free = 0;  //0=Init, 1=BMS intermediate circuit voltage-free (U_Zwkr < 20V), 2=BMS intermediate circuit not voltage-free (U_Zwkr >/= 25V, hysteresis), 3=Error
+  uint8_t BMS_status_voltage_free =
+      0;  //0=Init, 1=BMS intermediate circuit voltage-free (U_Zwkr < 20V), 2=BMS intermediate circuit not voltage-free (U_Zwkr >/= 25V, hysteresis), 3=Error
   bool BMS_OBD_MIL = false;
-  uint8_t BMS_error_status = 0x7;  //0 Component_IO, 1 Restricted_CompFkt_Isoerror_I, 2 Restricted_CompFkt_Isoerror_II, 3 Restricted_CompFkt_Interlock, 4 Restricted_CompFkt_SD, 5 Restricted_CompFkt_Performance red, 6 = No component function, 7 = Init
+  uint8_t BMS_error_status =
+      0x7;  //0 Component_IO, 1 Restricted_CompFkt_Isoerror_I, 2 Restricted_CompFkt_Isoerror_II, 3 Restricted_CompFkt_Interlock, 4 Restricted_CompFkt_SD, 5 Restricted_CompFkt_Performance red, 6 = No component function, 7 = Init
   uint16_t BMS_capacity_ah = 0;
   bool BMS_error_lamp_req = false;
   bool BMS_warning_lamp_req = false;
@@ -325,15 +330,21 @@ class MebBattery : public CanBattery {
   uint16_t regen_battery = 0;
   uint16_t energy_extracted_from_battery = 0;
   uint16_t max_fastcharging_current_amp = 0;  //maximum DC charging current allowed
-  uint8_t BMS_Status_DCLS = 0;  //Status of the voltage monitoring on the DC charging interface. 0 inactive, 1 I_O , 2 N_I_O , 3 active
+  uint8_t BMS_Status_DCLS =
+      0;  //Status of the voltage monitoring on the DC charging interface. 0 inactive, 1 I_O , 2 N_I_O , 3 active
   uint16_t DC_voltage_DCLS = 0;  //Factor 1, DC voltage of the charging station. Measurement between the DC HV lines.
-  uint16_t DC_voltage_chargeport = 0;  //Factor 0.5,  Current voltage at the HV battery DC charging terminals; Outlet to the DC charging plug.
-  uint8_t BMS_welded_contactors_status = 0;  //0: Init no diagnostic result, 1: no contactor welded, 2: at least 1 contactor welded, 3: Protection status detection error
-  bool BMS_error_shutdown_request = false;  // Fault: Fault condition, requires battery contactors to be opened internal battery error; Advance notification of an impending opening of the battery contactors by the BMS
-  bool BMS_error_shutdown = false;  // Fault: Fault condition, requires battery contactors to be opened Internal battery error, battery contactors opened without notice by the BMS
+  uint16_t DC_voltage_chargeport =
+      0;  //Factor 0.5,  Current voltage at the HV battery DC charging terminals; Outlet to the DC charging plug.
+  uint8_t BMS_welded_contactors_status =
+      0;  //0: Init no diagnostic result, 1: no contactor welded, 2: at least 1 contactor welded, 3: Protection status detection error
+  bool BMS_error_shutdown_request =
+      false;  // Fault: Fault condition, requires battery contactors to be opened internal battery error; Advance notification of an impending opening of the battery contactors by the BMS
+  bool BMS_error_shutdown =
+      false;  // Fault: Fault condition, requires battery contactors to be opened Internal battery error, battery contactors opened without notice by the BMS
   uint16_t power_battery_heating_watt = 0;
   uint16_t power_battery_heating_req_watt = 0;
-  uint8_t cooling_request = 0;  //0 = No cooling, 1 = Light cooling, cabin prio, 2= higher cooling, 3 = immediate cooling, 4 = emergency cooling
+  uint8_t cooling_request =
+      0;  //0 = No cooling, 1 = Light cooling, cabin prio, 2= higher cooling, 3 = immediate cooling, 4 = emergency cooling
   uint8_t heating_request = 0;       //0 = init, 1= maintain temp, 2=higher demand, 3 = immediate heat demand
   uint8_t balancing_active = false;  //0 = init, 1 active, 2 not active
   bool charging_active = false;
@@ -349,13 +360,17 @@ class MebBattery : public CanBattery {
   uint8_t return_temperature_C = 0;       //*0,5 -40
   uint8_t status_valve_1 = 0;             //0 not active, 1 active, 5 not installed, 6 init, 7 fault
   uint8_t status_valve_2 = 0;             //0 not active, 1 active, 5 not installed, 6 init, 7 fault
-  uint8_t temperature_request = 0;  //0 high cooling, 1 medium cooling, 2 low cooling, 3 no temp requirement init, 4 low heating , 5 medium heating, 6 high heating, 7 circulation
+  uint8_t temperature_request =
+      0;  //0 high cooling, 1 medium cooling, 2 low cooling, 3 no temp requirement init, 4 low heating , 5 medium heating, 6 high heating, 7 circulation
   uint16_t performance_index_discharge_peak_temperature_percentage = 0;
   uint16_t performance_index_charge_peak_temperature_percentage = 0;
-  uint8_t temperature_status_discharge = 0; //0 init, 1 temp under optimal, 2 temp optimal, 3 temp over optimal, 7 fault
+  uint8_t temperature_status_discharge =
+      0;                                  //0 init, 1 temp under optimal, 2 temp optimal, 3 temp over optimal, 7 fault
   uint8_t temperature_status_charge = 0;  //0 init, 1 temp under optimal, 2 temp optimal, 3 temp over optimal, 7 fault
-  uint8_t isolation_fault = 0;  //0 init, 1 no iso fault, 2 iso fault threshold1, 3 iso fault threshold2, 4 IWU defective
-  uint8_t isolation_status = 0;  // 0 init, 1 = larger threshold1, 2 = smaller threshold1 total, 3 = smaller threshold1 intern, 4 = smaller threshold2 total, 5 = smaller threshold2 intern, 6 = no measurement, 7 = measurement active
+  uint8_t isolation_fault =
+      0;  //0 init, 1 no iso fault, 2 iso fault threshold1, 3 iso fault threshold2, 4 IWU defective
+  uint8_t isolation_status =
+      0;  // 0 init, 1 = larger threshold1, 2 = smaller threshold1 total, 3 = smaller threshold1 intern, 4 = smaller threshold2 total, 5 = smaller threshold2 intern, 6 = no measurement, 7 = measurement active
   uint8_t actual_temperature_highest_C = 0;    //*0,5 -40
   uint8_t actual_temperature_lowest_C = 0;     //*0,5 -40
   uint16_t actual_cellvoltage_highest_mV = 0;  //bias 1000
@@ -442,10 +457,10 @@ class MebBattery : public CanBattery {
                                                      .data = {0x02, 0x3E, 0x80, 0x55, 0x55, 0x55, 0x55, 0x55}};
   //Messages needed for contactor closing
   CAN_frame Airbag_01_frame = {.FD = true,  // Airbag
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = Airbag_01,  //Frame5 has HV deactivate request. Needs to be 0x00
-                       .data = {0x7E, 0x83, 0x00, 0x01, 0x00, 0x00, 0x15, 0x00}};
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = Airbag_01,  //Frame5 has HV deactivate request. Needs to be 0x00
+                               .data = {0x7E, 0x83, 0x00, 0x01, 0x00, 0x00, 0x15, 0x00}};
   CAN_frame EM1_01_frame = {
       .FD = true,  // EM1 message
       .ext_ID = false,
@@ -462,15 +477,15 @@ class MebBattery : public CanBattery {
                0xFE, 0xFE, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                0x00, 0x00, 0x00, 0xF4, 0x01, 0x40, 0xFF, 0xEB, 0x7F, 0x0A, 0x88, 0xE3, 0x81, 0xAF, 0x42}};
   CAN_frame Diagnose_01_frame = {.FD = true,  // Diagnostics
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = Diagnose_01,
-                       .data = {0x6A, 0xA7, 0x37, 0x80, 0xC9, 0xBD, 0xF6, 0xC2}};
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = Diagnose_01,
+                                 .data = {0x6A, 0xA7, 0x37, 0x80, 0xC9, 0xBD, 0xF6, 0xC2}};
   CAN_frame Temperaturen_01_frame = {.FD = true,
-                            .ext_ID = true,
-                            .DLC = 8,
-                            .ID = Temperaturen_01,
-                            .data = {0x00, 0x00, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                                     .ext_ID = true,
+                                     .DLC = 8,
+                                     .ID = Temperaturen_01,
+                                     .data = {0x00, 0x00, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00}};
   static constexpr CAN_frame Systeminfo_01_frame = {
       .FD = true,
       .ext_ID = false,
@@ -479,90 +494,90 @@ class MebBattery : public CanBattery {
       .data = {0xCF, 0x38, 0xAF, 0x5B, 0x25, 0x00, 0x00, 0x00}};  // CF 38 AF 5B 25 00 00 00 in start4.log
   //                     .data = {0xCF, 0x38, 0x20, 0x02, 0x25, 0xF7, 0x30, 0x00}}; // CF 38 AF 5B 25 00 00 00 in start4.log
   static constexpr CAN_frame Reichweite_01_frame = {.FD = true,
-                                        .ext_ID = false,
-                                        .DLC = 8,
-                                        .ID = Reichweite_01,
-                                        .data = {0x23, 0x02, 0x39, 0xC0, 0x1B, 0x8B, 0xC8, 0x1B}};
+                                                    .ext_ID = false,
+                                                    .DLC = 8,
+                                                    .ID = Reichweite_01,
+                                                    .data = {0x23, 0x02, 0x39, 0xC0, 0x1B, 0x8B, 0xC8, 0x1B}};
   CAN_frame Motor_Code_01_frame = {.FD = true,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = Motor_Code_01,
-                       .data = {0x37, 0x18, 0x00, 0x00, 0xF0, 0x00, 0xAA, 0x70}};
+                                   .ext_ID = false,
+                                   .DLC = 8,
+                                   .ID = Motor_Code_01,
+                                   .data = {0x37, 0x18, 0x00, 0x00, 0xF0, 0x00, 0xAA, 0x70}};
   CAN_frame Klemmen_Status_01_frame = {.FD = true,
-                       .ext_ID = false,
-                       .DLC = 4,
-                       .ID = Klemmen_Status_01,
-                       .data = {0x66, 0x00, 0x00, 0x00}};  // Klemmen_status_01
+                                       .ext_ID = false,
+                                       .DLC = 4,
+                                       .ID = Klemmen_Status_01,
+                                       .data = {0x66, 0x00, 0x00, 0x00}};  // Klemmen_status_01
   CAN_frame ESP_21_frame = {.FD = true,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = ESP_21,  //CRC and counter, otherwise static
-                       .data = {0x5F, 0xD0, 0x1F, 0x81, 0x00, 0x00, 0x00, 0x00}};
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = ESP_21,  //CRC and counter, otherwise static
+                            .data = {0x5F, 0xD0, 0x1F, 0x81, 0x00, 0x00, 0x00, 0x00}};
   static constexpr CAN_frame Standklima_01_frame = {.FD = true,
-                                             .ext_ID = true,
-                                             .DLC = 8,
-                                             .ID = Standklima_01,
-                                             .data = {0x00, 0xC0, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                                                    .ext_ID = true,
+                                                    .DLC = 8,
+                                                    .ID = Standklima_01,
+                                                    .data = {0x00, 0xC0, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00}};
   static constexpr CAN_frame ORU_01_frame = {.FD = true,
                                              .ext_ID = true,
                                              .DLC = 8,
                                              .ID = ORU_01,
                                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   static constexpr CAN_frame Klima_EV_06_frame = {.FD = true,
-                                             .ext_ID = true,
-                                             .DLC = 8,
-                                             .ID = Klima_EV_06,
-                                             .data = {0x00, 0x00, 0x00, 0xA0, 0x02, 0x04, 0x00, 0x30}};
+                                                  .ext_ID = true,
+                                                  .DLC = 8,
+                                                  .ID = Klima_EV_06,
+                                                  .data = {0x00, 0x00, 0x00, 0xA0, 0x02, 0x04, 0x00, 0x30}};
   static constexpr CAN_frame HVEM_04_frame = {.FD = true,
-                                        .ext_ID = false,
-                                        .DLC = 8,
-                                        .ID = HVEM_04,  //HVEM
-                                        .data = {0x00, 0x00, 0x01, 0x3A, 0x00, 0x00, 0x00, 0x00}};
+                                              .ext_ID = false,
+                                              .DLC = 8,
+                                              .ID = HVEM_04,  //HVEM
+                                              .data = {0x00, 0x00, 0x01, 0x3A, 0x00, 0x00, 0x00, 0x00}};
   static constexpr CAN_frame eTM_01_frame = {.FD = true,
                                              .ext_ID = true,
                                              .DLC = 8,
                                              .ID = eTM_01,  //eTM
                                              .data = {0xFE, 0xB6, 0x0D, 0x00, 0x00, 0xD5, 0x48, 0xFD}};
   static constexpr CAN_frame NMH_Klima_frame = {.FD = false,  // Not FD
-                                             .ext_ID = true,
-                                             .DLC = 8,
-                                             .ID = NMH_Klima,  // Klima
-                                             .data = {0x00, 0x40, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00}};
+                                                .ext_ID = true,
+                                                .DLC = 8,
+                                                .ID = NMH_Klima,  // Klima
+                                                .data = {0x00, 0x40, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00}};
   static constexpr CAN_frame NMH_Gateway_frame = {.FD = false,  // Not FD
-                                             .ext_ID = true,
-                                             .DLC = 8,
-                                             .ID = NMH_Gateway,  // Gateway
-                                             .data = {0x00, 0x50, 0x08, 0x50, 0x01, 0xFF, 0x30, 0x00}};
+                                                  .ext_ID = true,
+                                                  .DLC = 8,
+                                                  .ID = NMH_Gateway,  // Gateway
+                                                  .data = {0x00, 0x50, 0x08, 0x50, 0x01, 0xFF, 0x30, 0x00}};
   static constexpr CAN_frame NMH_DCDC_NV_frame = {.FD = false,  // Not FD
-                                             .ext_ID = true,
-                                             .DLC = 8,
-                                             .ID = NMH_DCDC_NV,  //DC/DC converter
-                                             .data = {0x00, 0x40, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00}};
+                                                  .ext_ID = true,
+                                                  .DLC = 8,
+                                                  .ID = NMH_DCDC_NV,  //DC/DC converter
+                                                  .data = {0x00, 0x40, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00}};
   static constexpr CAN_frame MSG_HYB_30_frame = {.FD = true,
-                                        .ext_ID = false,
-                                        .DLC = 8,
-                                        .ID = MSG_HYB_30,  // content
-                                        .data = {0x00, 0x00, 0x00, 0xFF, 0xEF, 0xFE, 0xFF, 0xFF}};
+                                                 .ext_ID = false,
+                                                 .DLC = 8,
+                                                 .ID = MSG_HYB_30,  // content
+                                                 .data = {0x00, 0x00, 0x00, 0xFF, 0xEF, 0xFE, 0xFF, 0xFF}};
   static constexpr CAN_frame Klima_Sensor_02_frame = {.FD = true,
-                                        .ext_ID = false,
-                                        .DLC = 8,
-                                        .ID = Klima_Sensor_02,  // content
-                                        .data = {0x7F, 0x2A, 0x00, 0x60, 0xFE, 0x00, 0x00, 0x00}};
+                                                      .ext_ID = false,
+                                                      .DLC = 8,
+                                                      .ID = Klima_Sensor_02,  // content
+                                                      .data = {0x7F, 0x2A, 0x00, 0x60, 0xFE, 0x00, 0x00, 0x00}};
   CAN_frame Motor_14_frame = {.FD = true,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = Motor_14,  // CRC, otherwise content
-                       .data = {0x57, 0x0D, 0x00, 0x00, 0x00, 0x02, 0x04, 0x40}};
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = Motor_14,  // CRC, otherwise content
+                              .data = {0x57, 0x0D, 0x00, 0x00, 0x00, 0x02, 0x04, 0x40}};
   CAN_frame HVLM_14_frame = {.FD = true,  //HVLM_14
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = HVLM_14,  // content
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x48, 0x08, 0x00, 0x94}};
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = HVLM_14,  // content
+                             .data = {0x00, 0x00, 0x00, 0x00, 0x48, 0x08, 0x00, 0x94}};
   CAN_frame HVK_01_frame = {.FD = true,  //HVK_01
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = HVK_01,  // Content varies. Frame1 & 3 has HV req
-                       .data = {0x5D, 0x61, 0x00, 0xFF, 0x7F, 0x80, 0xE3, 0x03}};
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = HVK_01,  // Content varies. Frame1 & 3 has HV req
+                            .data = {0x5D, 0x61, 0x00, 0xFF, 0x7F, 0x80, 0xE3, 0x03}};
   CAN_frame Motor_54_frame = {
       .FD = true,  //Motor message
       .ext_ID = false,
@@ -571,10 +586,10 @@ class MebBattery : public CanBattery {
       .data = {0x38, 0x0A, 0xFF, 0x01, 0x01, 0xFF, 0x01, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE,
                0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0x25, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE}};
   static constexpr CAN_frame Kombi_02_frame = {.FD = false,
-                                        .ext_ID = false,
-                                        .DLC = 8,
-                                        .ID = Kombi_02,  // content
-                                        .data = {0xFE, 0xFF, 0xEF, 0xFF, 0x3F, 0x1C, 0x02, 0x94}};
+                                               .ext_ID = false,
+                                               .DLC = 8,
+                                               .ID = Kombi_02,  // content
+                                               .data = {0xFE, 0xFF, 0xEF, 0xFF, 0x3F, 0x1C, 0x02, 0x94}};
 
   uint32_t can_msg_received = 0;
 };

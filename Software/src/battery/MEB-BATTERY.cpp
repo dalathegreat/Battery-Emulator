@@ -73,9 +73,9 @@ static const uint8_t BMS_07_PDU_CONST[16] = {0x43, 0x43, 0x43, 0x43, 0x43, 0x43,
 static const uint8_t Motor_Code_01_PDU_CONST[16] = {0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47,
                                                     0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47};
 static const uint8_t BMS_HYB_06_PDU_CONST[16] = {0xC1, 0x8B, 0x38, 0xA8, 0xA4, 0x27, 0xEB, 0xC8,
-                                               0xEF, 0x05, 0x9A, 0xBB, 0x39, 0xF7, 0x80, 0xA7};
+                                                 0xEF, 0x05, 0x9A, 0xBB, 0x39, 0xF7, 0x80, 0xA7};
 static const uint8_t EM_HYB_05_PDU_CONST[16] = {0xC7, 0xD8, 0xF1, 0xC4, 0xE3, 0x5E, 0x9A, 0xE2,
-                                               0xA1, 0xCB, 0x02, 0x4F, 0x57, 0x4E, 0x8E, 0xE4};
+                                                0xA1, 0xCB, 0x02, 0x4F, 0x57, 0x4E, 0x8E, 0xE4};
 static const uint8_t BMS_11_PDU_CONST[16] = {0x79, 0xB9, 0x67, 0xAD, 0xD5, 0xF7, 0x70, 0xAA,
                                              0x44, 0x61, 0x5A, 0xDC, 0x26, 0xB4, 0xD2, 0xC3};
 
@@ -118,10 +118,10 @@ uint8_t MebBattery::vw_crc_calc(const uint8_t* inputBytes, uint8_t length, uint3
     case BMS_20:  // BMS_20 (0xCF)
       magicByte = BMS_20_PDU_CONST[counter];
       break;
-    case ESC_51_Auth: // (0xFC)
+    case ESC_51_Auth:  // (0xFC)
       magicByte = ESC_51_Auth_PDU_CONST[counter];
       break;
-    case ESP_21: // ESP_21 (0xFD)
+    case ESP_21:  // ESP_21 (0xFD)
       magicByte = ESP_21_PDU_CONST[counter];
       break;
     case DCDC_04:  // DCDC (0xF7)
@@ -671,7 +671,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       regen_battery = ((rx_frame.data.u8[5] & 0x7F) << 8) | rx_frame.data.u8[4];
       energy_extracted_from_battery = ((rx_frame.data.u8[7] & 0x7F) << 8) | rx_frame.data.u8[6];
       break;
-    case BMS_DC_01:  // BMS 100ms
+    case BMS_DC_01:                                      // BMS 100ms
       BMS_DC_01_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       BMS_Status_DCLS = ((rx_frame.data.u8[1] & 0x30) >> 4);
       DC_voltage_DCLS = (rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[1] >> 6);
@@ -760,7 +760,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         BMS_voltage = ((rx_frame.data.u8[7] << 4) + ((rx_frame.data.u8[6] & 0xF0) >> 4));
       }
       break;
-    case ISO_Hybrid_01_Resp_FD:  // Reply from battery
+    case ISO_Hybrid_01_Resp_FD:           // Reply from battery
       if (rx_frame.data.u8[0] == 0x10) {  //PID header
         transmit_can_frame(&MEB_ACK_FRAME);
       }
@@ -1039,7 +1039,8 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     //Klemmen status
     Klemmen_Status_01_frame.data.u8[2] = 0x02;  //bit to signal that KL_15 is ON // Always 0 in start4.log
     Klemmen_Status_01_frame.data.u8[1] = ((Klemmen_Status_01_frame.data.u8[1] & 0xF0) | counter_100ms);
-    Klemmen_Status_01_frame.data.u8[0] = vw_crc_calc(Klemmen_Status_01_frame.data.u8, Klemmen_Status_01_frame.DLC, Klemmen_Status_01_frame.ID);
+    Klemmen_Status_01_frame.data.u8[0] =
+        vw_crc_calc(Klemmen_Status_01_frame.data.u8, Klemmen_Status_01_frame.DLC, Klemmen_Status_01_frame.ID);
 
     Motor_14_frame.data.u8[1] = ((Motor_14_frame.data.u8[1] & 0xF0) | counter_100ms);
     Motor_14_frame.data.u8[0] = vw_crc_calc(Motor_14_frame.data.u8, Motor_14_frame.DLC, Motor_14_frame.ID);
@@ -1202,10 +1203,10 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     previousMillis500ms = currentMillis;
 
     transmit_can_frame(&eTM_01_frame);         //eTM, Cooling valves and pumps for BMS
-    transmit_can_frame(&HVEM_04_frame);         // Battery heating requests
-    transmit_can_frame(&Klima_EV_06_frame);     //Climate, heatpump and priorities
-    transmit_can_frame(&ORU_01_frame);          //ORU, OTA update message for reserving battery
-    transmit_can_frame(&Standklima_01_frame);   //Climate, request to BMS for starting preconditioning
+    transmit_can_frame(&HVEM_04_frame);        // Battery heating requests
+    transmit_can_frame(&Klima_EV_06_frame);    //Climate, heatpump and priorities
+    transmit_can_frame(&ORU_01_frame);         //ORU, OTA update message for reserving battery
+    transmit_can_frame(&Standklima_01_frame);  //Climate, request to BMS for starting preconditioning
   }
 
   //Send 1s CANFD message
@@ -1213,13 +1214,14 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     previousMillis1s = currentMillis;
 
     Motor_Code_01_frame.data.u8[1] = ((Motor_Code_01_frame.data.u8[1] & 0xF0) | counter_1000ms);
-    Motor_Code_01_frame.data.u8[0] = vw_crc_calc(Motor_Code_01_frame.data.u8, Motor_Code_01_frame.DLC, Motor_Code_01_frame.ID);
+    Motor_Code_01_frame.data.u8[0] =
+        vw_crc_calc(Motor_Code_01_frame.data.u8, Motor_Code_01_frame.DLC, Motor_Code_01_frame.ID);
 
     Temperaturen_01_frame.data.u8[2] = 0x7F;  //Outside temperature, factor 0.5, offset -50
 
     Diagnose_01_frame.data.u8[0] =  //driving cycle counter, 0-254 wrap around. 255 = invalid value
-    //Diagnose_01_frame.data.u8[1-2-3b0-4] // Odometer, km (20 bits long)
-    Diagnose_01_frame.data.u8[3] = (uint8_t)((TIME_YEAR - 2000) << 4) | Diagnose_01_frame.data.u8[3];
+        //Diagnose_01_frame.data.u8[1-2-3b0-4] // Odometer, km (20 bits long)
+        Diagnose_01_frame.data.u8[3] = (uint8_t)((TIME_YEAR - 2000) << 4) | Diagnose_01_frame.data.u8[3];
     Diagnose_01_frame.data.u8[4] = (uint8_t)((TIME_DAY & 0x01) << 7 | TIME_MONTH << 3 | (TIME_YEAR - 2000) >> 4);
     Diagnose_01_frame.data.u8[5] = (uint8_t)((TIME_HOUR & 0x0F) << 4 | TIME_DAY >> 1);
     Diagnose_01_frame.data.u8[6] = (uint8_t)((seconds & 0x01) << 7 | TIME_MINUTE << 1 | TIME_HOUR >> 4);
@@ -1227,11 +1229,11 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     seconds = (seconds + 1) % 60;
 
     counter_1000ms = (counter_1000ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-    transmit_can_frame(&Diagnose_01_frame);          // Diagnostics - Needed for contactor closing
-    transmit_can_frame(&Motor_Code_01_frame);        // Motor - OBD
-    transmit_can_frame(&Reichweite_01_frame);        // Loading profile
-    transmit_can_frame(&Systeminfo_01_frame);        // Systeminfo
-    transmit_can_frame(&Temperaturen_01_frame);      // Temperature QBit
+    transmit_can_frame(&Diagnose_01_frame);      // Diagnostics - Needed for contactor closing
+    transmit_can_frame(&Motor_Code_01_frame);    // Motor - OBD
+    transmit_can_frame(&Reichweite_01_frame);    // Loading profile
+    transmit_can_frame(&Systeminfo_01_frame);    // Systeminfo
+    transmit_can_frame(&Temperaturen_01_frame);  // Temperature QBit
 
     transmit_obd_can_frame(OBD_Hybrid_01_Req, can_config.battery, true);
   }
