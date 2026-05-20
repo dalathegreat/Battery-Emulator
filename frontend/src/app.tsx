@@ -15,6 +15,7 @@ import { Button } from './components/button.tsx'
 import { useGetApi, refreshApi } from './utils/api.tsx'
 import { Link, useLocation } from './utils/location.tsx';
 import { reboot } from './utils/reboot.tsx';
+import { delay } from './utils/delay.ts';
 
 function Tray({status}: {status: any}) {
   return (
@@ -58,7 +59,7 @@ export function App() {
         method: 'POST',
         body: shouldPause ? "1" : "0",
         mode: 'no-cors', // don't care about the response
-    }).then(refreshApi);
+    }).then(() => delay(500)).then(refreshApi);
   }
 
   function handleEStop(ev: Event) {
@@ -72,7 +73,7 @@ export function App() {
     fetch(import.meta.env.VITE_API_BASE + '/api/estop', {
         method: 'POST',
         body: status?.estop ? "0" : "1",
-    }).then(refreshApi);
+    }).then(() => delay(500)).then(refreshApi);
   }
 
   function handleReboot(ev: Event) {
