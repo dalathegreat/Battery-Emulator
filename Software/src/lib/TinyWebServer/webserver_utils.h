@@ -60,7 +60,7 @@ public:
     TwsRawPostFunc(int (*handle)(TwsRequest& request, size_t index, uint8_t *data, size_t len, size_t total)) : handle(handle) {}
     
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
-    void handleHeader(TwsRequest &request, const char *line, int len) override;
+    //void handleHeader(TwsRequest &request, const char *line, int len) override;
 
     int (*handle)(TwsRequest& request, size_t index, uint8_t *data, size_t len, size_t total);
 };

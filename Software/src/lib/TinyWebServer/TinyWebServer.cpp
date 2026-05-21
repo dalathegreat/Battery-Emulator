@@ -371,26 +371,45 @@ void TinyWebServer::handle_request(TwsRequest &request) {
             if(request.match("\r\n") || request.match("\n")) {
                 // End of headers, process the request
 
-                if(request.handler && request.method==TWS_HTTP_POST && request.handler->onPostBody) {
+                if(request.is_post() && request.content_length > 0) {
                     // Prepare to receive the POST body
-
-                    // Attempt a initial zero-length call to see if the handler
-                    // is expecting a body. We need to do this since we're not
-                    // parsing Content-Length ourselves, so we don't know
-                    // whether to wait for a body or not.
-                    auto rret = request.handler->onPostBody->handlePostBody(request, 0, nullptr, 0);
-                    //logging.printf("Testing handlePostBody, returned %d\n", rret);
-                    if(rret == -1) {
-                        // No, skip the body and go straight to the request handler
-                        call_request_handler();
-                    } else {
-                        request.parse_state = TWS_AWAITING_BODY;
-                    }
+                    request.parse_state = TWS_AWAITING_BODY;
                 } else {
                     call_request_handler();
                 }
+                
+                // && request.content_length == 0) {
+                //     // No POST body, go straight to the request handler
+                //     call_request_handler();
+                //     break;
+                // } else if(request.method==TWS_HTTP_POST) {//} && request.handler && request.handler->onPostBody) {
+                //     // Prepare to receive the POST body
+                //     request.parse_state = TWS_AWAITING_BODY;
+
+                //     // Attempt a initial zero-length call to see if the handler
+                //     // is expecting a body. We need to do this since we're not
+                //     // parsing Content-Length ourselves, so we don't know
+                //     // whether to wait for a body or not.
+                //     // auto rret = request.handler->onPostBody->handlePostBody(request, 0, nullptr, 0);
+                //     // //logging.printf("Testing handlePostBody, returned %d\n", rret);
+                //     // if(rret == -1) {
+                //     //     // No, skip the body and go straight to the request handler
+                //     //     call_request_handler();
+                //     // } else {
+                //     //     request.parse_state = TWS_AWAITING_BODY;
+                //     // }
+                // } else {
+                //     call_request_handler();
+                // }
             } else {
                 char *buf_ptr = request.get_read_ptr(buf, len);
+
+                if(request.is_post() && len > 15 && strncasecmp(buf_ptr, "Content-Length:", 15)==0) {
+                    // Parse the Content-Length header
+                    char *cl_ptr = trim_delimiter_and_whitespace(buf_ptr + 15, &len);
+                    request.content_length = atoi(cl_ptr);
+                    DEBUG_PRINTF("TWS content length: %d\n", request.content_length);
+                }
 
                 if(request.handler && request.handler->onHeader) {
                     // Don't trim leading whitespace, as we may be mid-chunk
@@ -406,7 +425,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                 if(request.handler && request.handler->onPostBody) {
                     bool post_done = false;
                     bool allow_noncontiguous = false;
-                    bool progress_made = false;
+                    //bool progress_made = false;
 
                     // If our read buffer is significantly smaller than the
                     // underlying socket buffer, then we can attempt several
@@ -417,10 +436,22 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                         // contiguous length.
                         char *read_ptr = request.get_peek_ptr(buf, len);
 
-                        int consumed = request.handler->onPostBody->handlePostBody(request, request.body_read, (uint8_t*)read_ptr, len);
-                        post_done = (consumed == -1);
+                        uint32_t remaining = request.content_length - request.body_read;
+                        int to_process = min((uint32_t)len, remaining);
+
+                        int consumed = request.handler->onPostBody->handlePostBody(
+                            request, request.body_read, (uint8_t*)read_ptr, to_process
+                        );
+
+                        if (consumed == -1 || request.body_read + consumed >= request.content_length) {
+                            post_done = true;
+                        }
+
+
+                        //int consumed = request.handler->onPostBody->handlePostBody(request, request.body_read, (uint8_t*)read_ptr, len);
+                        //post_done = (consumed == -1);
                         // maybe return -2 for not-consuming-but-also-not-stuck?
-                        if (consumed != 0) progress_made = true;
+                        //if (consumed != 0) progress_made = true;
 
                         if(consumed==0 && len<request.available() && !allow_noncontiguous) {
                             // The handler didn't consume anything, so it never will.
@@ -431,8 +462,12 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                             continue;
                         }
 
-                        request.body_read += post_done ? len : consumed;
-                        request.read_flush(post_done ? len : consumed);
+                        request.body_read += consumed > 0 ? consumed : 0;
+                        request.read_flush(consumed > 0 ? consumed : 0);
+                        // request.read_flush(post_done ? len : consumed);
+
+                        // request.body_read += post_done ? len : consumed;
+                        // request.read_flush(post_done ? len : consumed);
 
                         if(consumed>0) {
                             // We are consuming data (potentially slowly), so
@@ -678,6 +713,7 @@ void TwsRequest::reset() {
     parse_state = TWS_AWAITING_METHOD;
     done = false;
     aborted = false;
+    content_length = 0;
     total_written = 0;
     body_read = 0;
     pending_direct_write = false;

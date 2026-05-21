@@ -105,6 +105,9 @@ public:
     inline uint32_t get_connection_id() {
         return connection_id;
     }
+    inline uint32_t get_content_length() {
+        return content_length;
+    }
     inline uint8_t* get_state_data() {
         return state_data;
     }
@@ -164,6 +167,7 @@ protected:
         return (w >= r) ? (w - r) : (SEND_BUFFER_SIZE - r + w);
     }
 
+    uint32_t content_length = 0;
     uint32_t total_written = 0;
     uint32_t body_read = 0;
 

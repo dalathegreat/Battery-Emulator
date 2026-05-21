@@ -7,18 +7,18 @@
 #include "../../lib/mcp2515_lite/mcp2515_lite.h"
 //#include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
 
-void CanSender::handleHeader(TwsRequest &request, const char *line, int len) {
-    auto &state = get_state(request);
+// void CanSender::handleHeader(TwsRequest &request, const char *line, int len) {
+//     auto &state = get_state(request);
 
-    if(strncasecmp(line, "Content-Length:", 15) == 0) {
-        char *endptr;
-        int content_length = strtol(line + 15, &endptr, 10);
-        if (endptr != line + 15 && content_length > 0) {
-            state.content_length = content_length;
-        }
-    }
-    TwsMiddleware::handleHeader(request, line, len);
-}
+//     if(strncasecmp(line, "Content-Length:", 15) == 0) {
+//         char *endptr;
+//         int content_length = strtol(line + 15, &endptr, 10);
+//         if (endptr != line + 15 && content_length > 0) {
+//             state.content_length = content_length;
+//         }
+//     }
+//     TwsMiddleware::handleHeader(request, line, len);
+// }
 
 struct __attribute__((packed)) CanFrame {
     uint32_t timestamp;
@@ -188,8 +188,9 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
         remaining -= frame_length;
     } while(remaining >= header_len);
 
-    if(remaining == 0 && index + len >= state.content_length) {
-        DEBUG_PRINTF("End of upload (content length %d reached at %d)\n", (int)state.content_length, (int)(index + len));
+    uint32_t content_length = request.get_content_length();
+    if(remaining == 0 && index + len >= content_length) {
+        DEBUG_PRINTF("End of upload (content length %d reached at %d)\n", (int)content_length, (int)(index + len));
 
         // Finished uploading
         request.write_fully("HTTP/1.1 200 OK\r\n"

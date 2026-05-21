@@ -73,22 +73,22 @@ void TwsJsonGetFunc::handleRequest(TwsRequest &request) {
     request.set_writer_callback(StringWriter(response));
 }
 
-void TwsRawPostFunc::handleHeader(TwsRequest &request, const char *line, int len) {
-    auto &state = get_state(request);
-    if(strncasecmp(line, "Content-Length:", 15) == 0) {
-        char *endptr;
-        int content_length = (int)strtol(line + 15, &endptr, 10);
-        if (endptr != line + 15 && content_length >= 0) {
-            state.content_length = content_length;
-        }
-    }
-    if (nextHeader) nextHeader->handleHeader(request, line, len);
-}
+// void TwsRawPostFunc::handleHeader(TwsRequest &request, const char *line, int len) {
+//     auto &state = get_state(request);
+//     if(strncasecmp(line, "Content-Length:", 15) == 0) {
+//         char *endptr;
+//         int content_length = (int)strtol(line + 15, &endptr, 10);
+//         if (endptr != line + 15 && content_length >= 0) {
+//             state.content_length = content_length;
+//         }
+//     }
+//     if (nextHeader) nextHeader->handleHeader(request, line, len);
+// }
 
 int TwsRawPostFunc::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
-    auto &state = get_state(request);
+    uint32_t content_length = request.get_content_length();
     
-    if(state.content_length == 0) {
+    if(content_length == 0) {
         // No body expected, so treat this as the end of the upload
         return -1;
     }
@@ -98,7 +98,7 @@ int TwsRawPostFunc::handlePostBody(TwsRequest &request, size_t index, uint8_t *d
         return 0;
     }
 
-    return handle(request, index, data, len, state.content_length);
+    return handle(request, index, data, len, content_length);
 }
 
 void TwsJsonRestHandler::handleRequest(TwsRequest &request) {
@@ -109,7 +109,7 @@ void TwsJsonRestHandler::handleRequest(TwsRequest &request) {
         
         // If handleJsonPost returns true, it means the POST completed the
         // response (eg, due to an error), so we should finish.
-        if (handleJsonPost(request, payload, state.content_length)) {
+        if (handleJsonPost(request, payload, request.get_content_length())) {
             return; 
         }
     }

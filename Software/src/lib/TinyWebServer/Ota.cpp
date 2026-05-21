@@ -62,7 +62,7 @@ void OtaUpload::handleRequest(TwsRequest &request) {
 }
 
 int OtaUpload::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
-    auto &state = get_state(request);
+    //auto &state = get_state(request);
 
    if(Update.write(data, len) != len) {
         //printf("Update.write failed: %s\n", Update.errorString());
@@ -71,7 +71,7 @@ int OtaUpload::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
         return -1;
     }
 
-    if((index + len) >= state.content_length) {
+    if((index + len) >= request.get_content_length()) {
         if(Update.end(true)) {
             request.write_fully("HTTP/1.1 200 OK\r\n"
                         "Connection: close\r\n"
@@ -91,19 +91,19 @@ int OtaUpload::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
     return (ret == -1) ? len : ret;
 }
 
-void OtaUpload::handleHeader(TwsRequest &request, const char *line, int len) {
-    auto &state = get_state(request);
+// void OtaUpload::handleHeader(TwsRequest &request, const char *line, int len) {
+//     auto &state = get_state(request);
 
-    if(strncasecmp(line, "Content-Length:", 15) == 0) {
-        char *endptr;
-        int content_length = strtol(line + 15, &endptr, 10);
-        if (endptr != line + 15 && content_length > 0) {
-            state.content_length = content_length;
-        }
-    }
+//     if(strncasecmp(line, "Content-Length:", 15) == 0) {
+//         char *endptr;
+//         int content_length = strtol(line + 15, &endptr, 10);
+//         if (endptr != line + 15 && content_length > 0) {
+//             state.content_length = content_length;
+//         }
+//     }
 
-    TwsMiddleware::handleHeader(request, line, len);
-}
+//     TwsMiddleware::handleHeader(request, line, len);
+// }
 
 /*
 void OtaUpload::handleUpload(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final) {

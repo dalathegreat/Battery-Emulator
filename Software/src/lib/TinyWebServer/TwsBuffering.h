@@ -32,7 +32,7 @@ public:
 };
 
 struct PostBufferingRequestHandlerState {
-    size_t content_length = 0;
+    //size_t content_length = 0;
     std::shared_ptr<PostBody> post_body = nullptr;
 };
 
@@ -43,15 +43,16 @@ public:
 
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override {
         auto &state = get_state(request);
+        uint32_t content_length = request.get_content_length();
         if(!state.post_body) {
-            if (state.content_length > _max_size) {
-                DEBUG_PRINTF("TWS post body too large: %zu > %zu\n", state.content_length, _max_size);
+            if (content_length > _max_size) {
+                DEBUG_PRINTF("TWS post body too large: %zu > %zu\n", content_length, _max_size);
                 request.send(413, "text/plain", "Payload Too Large");
                 request.finish();
                 return -1;
             }
-            state.post_body = std::make_shared<PostBody>(state.content_length);
-            if (state.content_length > 0 && !state.post_body->data) {
+            state.post_body = std::make_shared<PostBody>(content_length);
+            if (content_length > 0 && !state.post_body->data) {
                 request.send(500, "text/plain", "Memory Allocation Failed");
                 request.finish();
                 return -1;
@@ -60,10 +61,10 @@ public:
         //DEBUG_PRINTF("Buffering post body: [ %*s ] at index %zu, len %zu\n", (int)len, (char*)data, index, len);
         state.post_body->set(data, index, len);
 
-        if(index+len >= state.content_length) {
+        if(index+len >= content_length) {
             // Finished uploading
             if(handleFullPostBody) {
-                handleFullPostBody(request, state.post_body->data, state.content_length);
+                handleFullPostBody(request, state.post_body->data, content_length);
             }
             if (nextPostBody) return nextPostBody->handlePostBody(request, index, data, len);
             return -1; // Indicate that the upload is complete
@@ -74,21 +75,21 @@ public:
         }
         return len;
     }
-    void handleHeader(TwsRequest &request, const char *line, int len) override {
-        auto &state = get_state(request);
+    // void handleHeader(TwsRequest &request, const char *line, int len) override {
+    //     auto &state = get_state(request);
 
-        //DEBUG_PRINTF("Received header line: %.*s\n", len, line);
+    //     //DEBUG_PRINTF("Received header line: %.*s\n", len, line);
 
-        if(strncasecmp(line, "Content-Length:", 15) == 0) {
-            char *endptr;
-            int content_length = strtol(line + 15, &endptr, 10);
-            if (endptr != line + 15 && content_length >= 0) {
-                state.content_length = content_length;
-                //DEBUG_PRINTF("Parsed Content-Length: %zu\n", state.content_length);
-            }
-        }
-        if (nextHeader) nextHeader->handleHeader(request, line, len);
-    }
+    //     if(strncasecmp(line, "Content-Length:", 15) == 0) {
+    //         char *endptr;
+    //         int content_length = strtol(line + 15, &endptr, 10);
+    //         if (endptr != line + 15 && content_length >= 0) {
+    //             content_length = content_length;
+    //             //DEBUG_PRINTF("Parsed Content-Length: %zu\n", state.content_length);
+    //         }
+    //     }
+    //     if (nextHeader) nextHeader->handleHeader(request, line, len);
+    // }
     void handleFree(TwsRequest &request) override {
         auto &state = get_state(request);
 

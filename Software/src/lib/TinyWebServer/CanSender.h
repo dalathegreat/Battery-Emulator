@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 typedef struct {
-    uint32_t content_length;
+    //uint32_t content_length;
     uint32_t can_interface;
     uint32_t start_millis;
     //bool log;
@@ -20,7 +20,7 @@ class CanSender : public TwsStatefulMiddleware<CanSenderState> {
 public:
     CanSender() = default;
 
-    void handleHeader(TwsRequest &request, const char *line, int len) override;
+    //void handleHeader(TwsRequest &request, const char *line, int len) override;
     void handleQueryParam(TwsRequest &request, const char *param, int len, bool final) override;
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
 

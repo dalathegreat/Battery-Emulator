@@ -17,17 +17,17 @@ public:
     TwsQueryParamHandler *nextQueryParam = nullptr;
 };
 
-typedef struct {
-    int content_length;
-    bool error = false;
-} OtaUploadState;
+// typedef struct {
+// //    int content_length;
+//     bool error = false;
+// } OtaUploadState;
 
-class OtaUpload : public TwsStatefulMiddleware<OtaUploadState> {
+class OtaUpload : public TwsMiddleware {
 public:
     OtaUpload() = default;
 
     void handleRequest(TwsRequest &request) override;
-    void handleHeader(TwsRequest &request, const char *line, int len) override;
+    //void handleHeader(TwsRequest &request, const char *line, int len) override;
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
 };
 
