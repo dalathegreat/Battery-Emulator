@@ -37,6 +37,8 @@ class RelionBattery : public CanBattery {
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 150;  // W, what power to allow for top balancing battery
   static const int FLOAT_START_MV = 20;  // mV, how many mV under overvoltage to start float charging
 
+  unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was sent
+
   const uint16_t SOC[101] = {10000, 9900, 9800, 9700, 9600, 9500, 9400, 9300, 9200, 9100, 9000, 8900, 8800, 8700, 8600,
                              8500,  8400, 8300, 8200, 8100, 8000, 7900, 7800, 7700, 7600, 7500, 7400, 7300, 7200, 7100,
                              7000,  6900, 6800, 6700, 6600, 6500, 6400, 6300, 6200, 6100, 6000, 5900, 5800, 5700, 5600,
@@ -77,6 +79,12 @@ class RelionBattery : public CanBattery {
   int16_t charge_current_A = 0;
   int16_t regen_charge_current_A = 0;
   int16_t discharge_current_A = 0;
+
+  CAN_frame RELION_CONTACTOR_MESSAGE = {.FD = false,
+                                        .ext_ID = true,
+                                        .DLC = 8,
+                                        .ID = 0x18010081,
+                                        .data = {0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 };
 
 #endif
