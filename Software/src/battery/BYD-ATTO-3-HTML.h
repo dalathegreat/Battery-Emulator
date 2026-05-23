@@ -196,6 +196,95 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += String(byd_datalayer->auto_calibrate_soc_drift_percent);
     content += "' min='1' max='20'> % <button onclick='setAutoCalDriftPercent()'>Save Drift %</button></h4>";
 
+    // Auto-calibration live status panel
+    {
+      uint32_t dwell_sec = byd_datalayer->autocal_dwell_accumulated_ms / 1000;
+      uint32_t dwell_min = dwell_sec / 60;
+      uint32_t dwell_rem = dwell_sec % 60;
+      uint32_t grace_sec = byd_datalayer->autocal_grace_timer_ms / 1000;
+      float autocal_current_A = static_cast<float>(byd_datalayer->autocal_current_dA) / 10.0f;
+      const char* current_direction = "idle";
+      if (byd_datalayer->autocal_current_dA < 0) {
+        current_direction = "discharge";
+      } else if (byd_datalayer->autocal_current_dA > 0) {
+        current_direction = "charge";
+      }
+      bool dwell_done = byd_datalayer->autocal_crit_dwell;
+      const char* label_td = "<td style='padding:3px 14px 3px 0;color:#d8dee4'>";
+      const char* value_td = "<td style='padding:3px 0;color:white;font-weight:bold'>";
+
+      content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
+      content += "<h4 style='margin:0 0 8px 0;color:white'>Auto-calibration status</h4>";
+      content += "<table style='margin:0 auto;border-collapse:collapse;font-size:0.95em;text-align:left;color:white'>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "Contactors:</td>";
+      content += value_td;
+      content += byd_datalayer->autocal_crit_contactors ? "<span style='color:#3fb950'>OK</span>"
+                                                        : "<span style='color:#ff7b72'>Open</span>";
+      content += "</td></tr>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "Full / In taper?</td>";
+      content += value_td;
+      content += byd_datalayer->autocal_crit_taper ? "<span style='color:#3fb950'>Yes</span>"
+                                                   : "<span style='color:#ff7b72'>No</span>";
+      content += "</td></tr>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "Battery current:</td>";
+      content += value_td;
+      content += String(autocal_current_A, 1) + " A (" + String(current_direction) + ")";
+      content += "</td></tr>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "Current in range:</td>";
+      content += value_td;
+      if (!byd_datalayer->autocal_crit_taper) {
+        content += "<span style='color:#8b949e'>Waiting for taper</span>";
+      } else if (byd_datalayer->autocal_crit_low_current) {
+        content += "<span style='color:#3fb950'>Yes</span>";
+        content += " <span style='color:#8b949e;font-weight:normal'>(chg &le;3A, disch &le;0.5A)</span>";
+      } else {
+        content += "<span style='color:#d29922'>No &mdash; " + String(grace_sec) + "s / 60s</span>";
+      }
+      content += "</td></tr>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "Dwell time:</td>";
+      content += value_td;
+      content += dwell_done ? "<span style='color:#3fb950'>" : "";
+      content += String(dwell_min) + "m " + String(dwell_rem) + "s / 10m";
+      content += dwell_done ? "</span>" : "";
+      content += "</td></tr>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "SOC drift:</td>";
+      content += value_td;
+      content += byd_datalayer->autocal_crit_drift ? "<span style='color:#3fb950'>" : "";
+      content += String(byd_datalayer->autocal_drift_percent, 1) + "% / threshold " +
+                 String(byd_datalayer->auto_calibrate_soc_drift_percent) + "%";
+      content += byd_datalayer->autocal_crit_drift ? "</span>" : "";
+      content += "</td></tr>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "Cooldown:</td>";
+      content += value_td;
+      content += byd_datalayer->autocal_crit_cooldown_ready ? "<span style='color:#3fb950'>Ready</span>"
+                                                            : "<span style='color:#d29922'>Waiting</span>";
+      content += "</td></tr>";
+
+      content += "</table>";
+      content += "</div>";
+    }
+
     content += "<h4>Calibration target SOC: " + String(byd_datalayer->calibrationTargetSOC) +
                "&percnt;"
                " </span><button onclick='editCalTargetSOC()'>Edit</button></h4>";

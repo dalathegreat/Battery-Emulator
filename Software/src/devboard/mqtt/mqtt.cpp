@@ -119,6 +119,9 @@ static std::function<bool(Battery*)> supports_tesla_dcdc_metrics = [](Battery* b
   return b != nullptr && (user_selected_battery_type == BatteryType::TeslaModel3Y ||
                           user_selected_battery_type == BatteryType::TeslaModelSX);
 };
+static std::function<bool(Battery*)> supports_byd_autocal_metrics = [](Battery* b) {
+  return b != nullptr && user_selected_battery_type == BatteryType::BydAtto3;
+};
 
 SensorConfig batterySensorConfigTemplate[] = {
     {"SOC", "SOC (Scaled)", "", "%", "battery", always},
@@ -142,7 +145,11 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"balancing_active_cells", "Balancing Active Cells", "", "", "", always},
     {"balancing_status", "Balancing Status", "", "", "", always},
     {"dc_dc_current", "DC-DC Current", "", "A", "current", supports_tesla_dcdc_metrics},
-    {"dc_dc_voltage", "DC-DC Voltage", "", "V", "voltage", supports_tesla_dcdc_metrics}};
+    {"dc_dc_voltage", "DC-DC Voltage", "", "V", "voltage", supports_tesla_dcdc_metrics},
+    {"autocal_taper", "BYD Auto-cal: In Taper", "", "", "", supports_byd_autocal_metrics},
+    {"autocal_dwell_s", "BYD Auto-cal: Dwell Time", "", "s", "duration", supports_byd_autocal_metrics},
+    {"autocal_cooldown_ready", "BYD Auto-cal: Cooldown Ready", "", "", "", supports_byd_autocal_metrics},
+    {"autocal_soc_drift", "BYD Auto-cal: SOC Drift", "", "%", "battery", supports_byd_autocal_metrics}};
 
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
                                              {"pause_status", "Pause Status", "", "", "", always},
@@ -293,6 +300,12 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   if (suffix.length() == 0u && supports_tesla_dcdc_metrics(::battery)) {
     doc["dc_dc_current" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
     doc["dc_dc_voltage" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625f;
+  }
+  if (suffix.length() == 0u && supports_byd_autocal_metrics(::battery)) {
+    doc["autocal_taper" + suffix] = datalayer_extended.bydAtto3.autocal_crit_taper;
+    doc["autocal_dwell_s" + suffix] = datalayer_extended.bydAtto3.autocal_dwell_accumulated_ms / 1000u;
+    doc["autocal_cooldown_ready" + suffix] = datalayer_extended.bydAtto3.autocal_crit_cooldown_ready;
+    doc["autocal_soc_drift" + suffix] = datalayer_extended.bydAtto3.autocal_drift_percent;
   }
 }
 

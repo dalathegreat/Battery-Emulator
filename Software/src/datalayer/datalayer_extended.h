@@ -168,6 +168,18 @@ struct DATALAYER_INFO_BYDATTO3 {
   /** uint8_t */
   /** Drift threshold (%) before auto-calibrate triggers */
   uint8_t auto_calibrate_soc_drift_percent = 5;
+
+  // Auto-calibration live status
+  uint32_t autocal_dwell_accumulated_ms = 0;
+  uint32_t autocal_grace_timer_ms = 0;
+  float autocal_drift_percent = 0.0f;
+  int16_t autocal_current_dA = 0;
+  bool autocal_crit_taper = false;
+  bool autocal_crit_low_current = false;
+  bool autocal_crit_dwell = false;
+  bool autocal_crit_drift = false;
+  bool autocal_crit_cooldown_ready = false;
+  bool autocal_crit_contactors = false;
 };
 
 struct DATALAYER_INFO_CELLPOWER {
