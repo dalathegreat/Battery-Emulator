@@ -1,6 +1,7 @@
 import { useState } from "preact/hooks";
 
 import { upload } from "./utils/upload.tsx";
+import { useStored, CANSENDER_SELECTED_IDS_KEY } from "./utils/storage.tsx";
 
 interface CanFrame {
     ts: number;
@@ -15,31 +16,55 @@ interface LogInfo {
     frequencies: Record<number, number>;
 }
 
+interface CanFormat {
+    regex: RegExp;
+    ts: number;
+    mul: number;
+    id: number;
+    bus: number;
+    len: number;
+}
+
+const CAN_FORMATS: CanFormat[] = [
+    { regex: /^\((-?[0-9.]+)\) [TR]X([0-9]*) ([A-F0-9]*) \[([0-9]*)\] (.*)/i, ts: 1, mul: 1000, bus: 2, id: 3, len: 4 },
+    { regex: /^(-?[0-9.]+),([A-F0-9]+),(?:true|false),([RT]x),[0-9]+,([0-9]+),(.*)/i, ts: 1, mul: 0.001, bus: 3, id: 2, len: 4 },
+];
+
 async function parse_log(file: File): Promise<LogInfo> {
     const text = new TextDecoder().decode(await file.arrayBuffer()).toUpperCase();
 
     const frames: CanFrame[] = [], counts: Record<number, number> = {};
-    let start_time = 0, prev_time = 0, max_ts = 0;
+    let start_time: number | null = null, prev_time = 0, max_ts = 0;
 
     text.split('\n').forEach((line) => {
         // TODO - match some other formats?
-        const r = line.match(/^\(([0-9.]*)\) [TR]X([0-9]*) ([A-F0-9]*) \[[0-9]*\] (.*)/);
-        if(!r) return;
+        //const r = line.match(/^\((-?[0-9.]*)\) [TR]X([0-9]*) ([A-F0-9]*) \[[0-9]*\] (.*)/);
+        
+        //-1759383948177212,000003A3,false,Rx,0,8,00,00,00,00,00,00,00,00,
+        //const r2 = line.match(/^(-?[0-9.]*),([0-9]+),(?:true|false),[RT]x,([0-9]+),[0-9]+,(.*)/);
+        for (const fmt of CAN_FORMATS) {
+            let r = line.match(fmt.regex);
+            //console.log(line, fmt.regex, r);
+            if(!r) continue;
 
-        const ts = parseFloat(r[1])*1000;
-        // If time goes backwards, adjust start_time to keep things monotonic
-        if(!start_time) start_time = ts;
-        if(ts < prev_time) start_time -= (prev_time - ts);
-        prev_time = ts;
+            // Convert to milliseconds
+            const ts = parseFloat(r[fmt.ts])*fmt.mul;
+            // If time goes backwards, adjust start_time to keep things monotonic
+            if(start_time===null) start_time = prev_time = ts;
+            if(ts < prev_time) start_time -= (prev_time - ts);
+            prev_time = ts;
 
-        const bus = parseInt(r[2]);
-        const id = parseInt(r[3], 16);
-        const data = r[4].trim().split(' ').map(v => parseInt(v, 16));
-        const rel = ts - start_time;
-        frames.push({ ts: rel, bus, id, data });
-        counts[id] = (counts[id] || 0) + 1;
-        if (rel > max_ts) max_ts = rel;
+            const bus = parseInt(r[fmt.bus]);
+            const id = parseInt(r[fmt.id], 16);
+            const data = r[5].replace(/,/g, ' ').trim().split(' ').map(v => parseInt(v, 16)).slice(0, parseInt(r[fmt.len]));
+            const rel = ts - start_time;
+            frames.push({ ts: rel, bus, id, data });
+            counts[id] = (counts[id] || 0) + 1;
+            if (rel > max_ts) max_ts = rel;
+            break;
+        }
     });
+    console.log(`Parsed ${frames.length} frames, ${Object.keys(counts).length} unique IDs, duration: ${(max_ts/1000).toFixed(2)}s`);
 
     const dur = max_ts / 1000, frequencies: Record<number, number> = {}, ids = Object.keys(counts).map(Number).sort((a, b) => a - b);
     if (dur > 0) ids.forEach(id => frequencies[id] = counts[id] / dur);
@@ -47,8 +72,9 @@ async function parse_log(file: File): Promise<LogInfo> {
     return { frames, ids, frequencies };
 }
 
-function upload_log(frames: CanFrame[], selectedIds: Set<number>, iface: number, cb: (v: any) => void, loop: boolean, loopGap: number) {
-    const list = frames.filter(f => selectedIds.has(f.id));
+function upload_log(frames: CanFrame[], selectedIds: number[], iface: number, cb: (v: any) => void, loop: boolean, loopGap: number) {
+    const s = new Set(selectedIds);
+    const list = frames.filter(f => s.has(f.id));
     if(!list.length) return alert('No frames selected'), null;
 
     const max_ts = list.reduce((m, f) => Math.max(m, f.ts), 0);
@@ -64,7 +90,6 @@ function upload_log(frames: CanFrame[], selectedIds: Set<number>, iface: number,
     for (let i = 0; i < repeats; i++) {
         const ts_offset = i * duration;
         list.forEach(f => {
-            console.log(f.ts + ts_offset);
             view.setUint32(off, f.ts + ts_offset, true); off += 4;
             view.setUint32(off, f.id, true); off += 4;
             view.setUint8(off++, f.data.length);
@@ -90,7 +115,7 @@ export function CanSender() {
     const [loop, setLoop] = useState(false);
     const [loopGap, setLoopGap] = useState(10);
     const [logData, setLogData] = useState<LogInfo | null>(null);
-    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+    const [selectedIds, setSelectedIds] = useStored(CANSENDER_SELECTED_IDS_KEY, [] as number[]);
     const [request, setRequest] = useState<{ abort: () => void } | null>(null);
 
     const onFile = async (ev: any) => {
@@ -98,16 +123,14 @@ export function CanSender() {
         if (input?.files?.[0]) {
             const d = await parse_log(input.files[0]);
             setLogData(d);
-            setSelectedIds(new Set(d.ids));
+            setSelectedIds(d.ids);
             input.value = '';
             setSt({ progress: -1, rate: 0 });
         }
     };
 
     const toggle = (id: number) => {
-        const n = new Set(selectedIds);
-        n.has(id) ? n.delete(id) : n.add(id);
-        setSelectedIds(n);
+        setSelectedIds(selectedIds.includes(id) ? selectedIds.filter(i => i !== id) : [...selectedIds, id]);
     };
 
     const start = (isLoop = false) => {
@@ -153,7 +176,7 @@ export function CanSender() {
                     {request ? (
                         <button onClick={stop} style="font-size: 1.25rem; background-color: #f44; color: #fff; border: none; border-radius: 4px;">Stop</button>
                     ) : (
-                        <button disabled={!logData?.frames.length || !selectedIds.size} onClick={() => start(loop)} style="font-size: 1.25rem;">Play</button>
+                        <button disabled={!logData?.frames.length || !selectedIds.length} onClick={() => start(loop)} style="font-size: 1.25rem;">Play</button>
                     )}
                 </div>
 
@@ -171,7 +194,7 @@ export function CanSender() {
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem;">
                         {logData?.ids.map(id => (
                             <label key={id} style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                                <input type="checkbox" checked={selectedIds.has(id)} onChange={() => toggle(id)} />
+                                <input type="checkbox" checked={selectedIds.includes(id)} onChange={() => toggle(id)} />
                                 <span style="font-family: monospace;">0x{id.toString(16).toUpperCase()}</span>
                                 <span style="font-size: 0.8rem; color: #aaa;">({logData.frequencies[id]?.toFixed(1)} msgs/s)</span>
                             </label>

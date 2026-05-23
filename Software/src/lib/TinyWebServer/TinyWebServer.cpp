@@ -454,7 +454,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                         //if (consumed != 0) progress_made = true;
 
                         if(consumed==0 && len<request.available() && !allow_noncontiguous) {
-                            // The handler didn't consume anything, so it never will.
+                            // The handler didn't consume any of our contiguous buffer.
                             // Try again with the whole buffer.
                             allow_noncontiguous = true;
                             len = request.available(); // read the full buffer this time
@@ -477,7 +477,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
 
                         // Are we done, or is there nothing more to be read?
                         if(post_done || request.recv()==0) break;
-                        // We just read some more!
+                        // We just read some more, go round again!
                         len = request.available_contiguous();
                     }
 

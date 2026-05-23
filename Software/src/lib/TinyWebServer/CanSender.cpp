@@ -96,6 +96,8 @@ void CanSender::handleQueryParam(TwsRequest &request, const char *param, int len
     }
 }
 
+//uint32_t tx_full_count = 0;
+
 int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
     if(!request.is_post()) {
         // Not a POST request
@@ -147,13 +149,14 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
 
         if((millis() - state.start_millis) < frame.timestamp) {
             // Need to wait
+            //DEBUG_PRINTF("Waiting for %u ms\n", frame.timestamp - (millis() - state.start_millis));
             break;
         }
-        if(can_buffer_full(iface)) {
-            DEBUG_PRINTF("  full!\n");
-            // Buffer is full, wait before sending more
-            break;
-        }
+        // if(can_buffer_full(iface)) {
+        //     DEBUG_PRINTF("  full!\n");
+        //     // Buffer is full, wait before sending more
+        //     break;
+        // }
 
         // DEBUG_PRINTF("CAN frame: timestamp %u id 0x%X len %d data:", frame.timestamp, frame.id, frame.len);
         // for(int i=0; i<frame.len; i++) {
@@ -173,6 +176,8 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
         // TODO - we probably just want to consider this the same as "buffer full" and wait
         if(!send_can_frame(iface, send_frame, true /*state.log*/)) {
             // Buffer probably full?
+            //tx_full_count++;
+            //DEBUG_PRINTF("notx\n");
             break;
             // Failed to send
             // request.write_fully("HTTP/1.1 500 e\r\n"
@@ -183,6 +188,10 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
             // TwsMiddleware::handlePostBody(request, index, data, len);
             // return -1; // finished
         }
+        // if(tx_full_count > 0) {
+        //     DEBUG_PRINTF("txfull: %u\n", tx_full_count);
+        //     tx_full_count = 0;
+        // }
 
         ptr += frame_length;
         remaining -= frame_length;

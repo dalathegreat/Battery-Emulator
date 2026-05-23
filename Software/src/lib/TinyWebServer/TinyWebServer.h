@@ -142,7 +142,7 @@ protected:
     //   split into partial chunks
     // - The maximum length of a query parameter (as a key=value string) that
     //   can passed on without being split
-    static const int RECV_BUFFER_SIZE = 512;
+    static const int RECV_BUFFER_SIZE = 1024;
 
     char send_buffer[SEND_BUFFER_SIZE];
     struct __attribute__((packed)) {
