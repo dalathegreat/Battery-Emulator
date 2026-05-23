@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <cstdint>
 #include "../battery/BATTERIES.h"
+#include "../communication/rs485/comm_rs485.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
@@ -31,19 +32,31 @@ void DalyBms::update_values() {
   datalayer.battery.status.max_discharge_power_W =
       (datalayer.battery.settings.max_user_set_discharge_dA * voltage_dV) / 100;
 
+  // limit power when reaching discharge voltage limit
+  uint32_t voltage_power_limit = 999999;
+  uint16_t min_voltage = datalayer.battery.info.min_design_voltage_dV;
+  if (datalayer.battery.settings.user_set_voltage_limits_active &&
+      datalayer.battery.settings.max_user_set_discharge_voltage_dV > min_voltage)
+    min_voltage = datalayer.battery.settings.max_user_set_discharge_voltage_dV;
+  if (voltage_dV - min_voltage < user_selected_daly_power_per_dV_start)
+    voltage_power_limit = (uint32_t)(voltage_dV - min_voltage) * user_selected_daly_power_per_dV;
+  if (voltage_power_limit < datalayer.battery.status.max_discharge_power_W)
+    datalayer.battery.status.max_discharge_power_W = voltage_power_limit;
+
   // limit power when SoC is low or high
   uint32_t adaptive_power_limit = 999999;
   if (SOC < 2000)
-    adaptive_power_limit = ((uint32_t)(SOC + 100) * POWER_PER_PERCENT) / 100;
+    adaptive_power_limit = ((uint32_t)(SOC + 100) * user_selected_daly_power_per_percent) / 100;
   else if (SOC > 8000)
-    adaptive_power_limit = ((10000 - (uint32_t)SOC) * POWER_PER_PERCENT) / 100;
+    adaptive_power_limit = ((10000 - (uint32_t)SOC) * user_selected_daly_power_per_percent) / 100;
 
   if (adaptive_power_limit < datalayer.battery.status.max_charge_power_W)
     datalayer.battery.status.max_charge_power_W = adaptive_power_limit;
   if (SOC < 2000 && adaptive_power_limit < datalayer.battery.status.max_discharge_power_W)
     datalayer.battery.status.max_discharge_power_W = adaptive_power_limit;
 
-  int32_t temperature_limit = POWER_PER_DEGREE_C * (int32_t)temperature_min_dC / 10 + POWER_AT_0_DEGREE_C;
+  int32_t temperature_limit =
+      user_selected_daly_power_per_degree_C * (int32_t)temperature_min_dC / 10 + user_selected_daly_power_at_0_degree_C;
   if (temperature_limit <= 0 || temperature_min_dC < BATTERY_MINTEMPERATURE ||
       temperature_max_dC > BATTERY_MAXTEMPERATURE)
     temperature_limit = 0;
@@ -75,14 +88,7 @@ void DalyBms::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 
-  auto rx_pin = esp32hal->RS485_RX_PIN();
-  auto tx_pin = esp32hal->RS485_TX_PIN();
-
-  if (!esp32hal->alloc_pins(Name, rx_pin, tx_pin)) {
-    return;
-  }
-
-  Serial2.begin(baud_rate(), SERIAL_8N1, rx_pin, tx_pin);
+  rs485_begin(Name, Serial2, baud_rate(), SERIAL_8N1);
 }
 
 uint8_t calculate_checksum(uint8_t buff[12]) {

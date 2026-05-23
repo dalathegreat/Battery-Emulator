@@ -90,18 +90,16 @@ void RelionBattery::update_values() {
   }
 
   //We have not found allowed charge power yet. Estimate it for now absed on UI setting. TODO. remove this once found
-  if (datalayer_battery->status.real_soc > 9900) {
-    datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
-  } else if ((datalayer_battery->status.real_soc / 10) >
-             RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
-    datalayer_battery->status.max_charge_power_W =
-        RAMPDOWNPOWERALLOWED * (1 - ((battery_soc / 10) - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
-    //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
-    if (datalayer_battery->status.cell_max_voltage_mV > (MAX_CELL_VOLTAGE_MV - FLOAT_START_MV)) {
-      datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
-    }
+  // Charge power is manually set
+  if (datalayer.battery.status.real_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
+  } else if (datalayer.battery.status.real_soc > user_set_rampdown_SOC) {
+    // When real SOC is between user_set_rampdown_SOC-99%, ramp the value between Max<->0
+    datalayer.battery.status.max_charge_power_W =
+        datalayer.battery.status.override_charge_power_W *
+        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
   } else {  // No limits, max charging power allowed
-    datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
   }
 
   datalayer_battery->status.temperature_min_dC = max_cell_temperature * 10;

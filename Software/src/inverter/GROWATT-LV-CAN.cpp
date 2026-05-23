@@ -12,13 +12,13 @@ The inverter replies data every second (standard frame/decimal)0x301:*/
 void GrowattLvInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
-  cell_delta_mV = datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
+  cell_delta_mV = abs(datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
 
   if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
     ampere_hours_remaining =
         ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
          100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
-    ampere_hours_full = ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.status.voltage_dV) *
+    ampere_hours_full = ((datalayer.battery.info.reported_total_capacity_Wh / datalayer.battery.status.voltage_dV) *
                          100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
   }
   //Map values to CAN messages
@@ -82,7 +82,7 @@ void GrowattLvInverter::
   GROWATT_314.data.u8[7] = 0;
 
   //Request charge/discharge
-  if (datalayer.battery.status.bms_status == ACTIVE) {
+  if (datalayer.system.status.system_status == ACTIVE) {
     GROWATT_319.data.u8[0] =
         0xC0;  //Bit7 charge enabled, Bit 6 discharge enabled (bit5 req force charge, bit 4 req force charge 2)
   } else {

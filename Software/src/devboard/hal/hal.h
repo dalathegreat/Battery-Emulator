@@ -97,6 +97,11 @@ class Esp32Hal {
   virtual gpio_num_t RS485_RX_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t RS485_SE_PIN() { return GPIO_NUM_NC; }
 
+  // Direction pin for half-duplex RS485 transceivers with DE and /RE tied together.
+  // Default polarity: HIGH = transmit, LOW = receive.
+  virtual gpio_num_t RS485_DE_PIN() { return GPIO_NUM_NC; }
+  virtual bool RS485_DE_ACTIVE_HIGH() { return true; }
+
   virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t CAN_SE_PIN() { return GPIO_NUM_NC; }
@@ -128,6 +133,7 @@ class Esp32Hal {
   virtual gpio_num_t CHADEMO_PIN_7() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_PIN_4() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_NC; }
+  virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_NC; }
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_NC; }

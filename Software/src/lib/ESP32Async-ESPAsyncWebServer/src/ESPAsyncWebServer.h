@@ -1210,7 +1210,6 @@ public:
   }
 };
 
-#include "AsyncEventSource.h"
 #include "WebHandlerImpl.h"
 #include "WebResponseImpl.h"
 

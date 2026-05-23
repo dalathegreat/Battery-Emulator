@@ -20,14 +20,18 @@ void setup_shunt();
 #include "BYD-ATTO-3-BATTERY.h"
 #include "CELLPOWER-BMS.h"
 #include "CHADEMO-BATTERY.h"
+#include "CHADEMO-CT.h"
 #include "CHADEMO-SHUNTS.h"
 #include "CMFA-EV-BATTERY.h"
 #include "CMP-SMART-CAR-BATTERY.h"
 #include "DALY-BMS.h"
 #include "ECMP-BATTERY.h"
+#include "ENNOID-BMS.h"
 #include "FORD-MACH-E-BATTERY.h"
 #include "FOXESS-BATTERY.h"
 #include "GEELY-GEOMETRY-C-BATTERY.h"
+#include "GEELY-SEA-BATTERY.h"
+#include "GROWATT-HV-ARK-BATTERY.h"
 #include "HYUNDAI-IONIQ-28-BATTERY.h"
 #include "IMIEV-CZERO-ION-BATTERY.h"
 #include "JAGUAR-IPACE-BATTERY.h"
@@ -35,7 +39,6 @@ void setup_shunt();
 #include "KIA-E-GMP-BATTERY.h"
 #include "KIA-HYUNDAI-64-BATTERY.h"
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
-#include "MAXUS-EV80-BATTERY.h"
 #include "MEB-BATTERY.h"
 #include "MG-5-BATTERY.h"
 #include "MG-HS-PHEV-BATTERY.h"
@@ -54,9 +57,12 @@ void setup_shunt();
 #include "SANTA-FE-PHEV-BATTERY.h"
 #include "SIMPBMS-BATTERY.h"
 #include "SONO-BATTERY.h"
+#include "STELLANTIS-SMALL-WIDE-4x4.h"
 #include "TESLA-BATTERY.h"
+#include "TESLA-LEGACY-BATTERY.h"
 #include "TEST-FAKE-BATTERY.h"
 #include "THINK-BATTERY.h"
+#include "THUNDERSTRUCK-BMS.h"
 #include "VOLVO-SPA-BATTERY.h"
 #include "VOLVO-SPA-HYBRID-BATTERY.h"
 
@@ -75,5 +81,14 @@ extern bool user_selected_tesla_GTW_rightHandDrive;
 extern uint16_t user_selected_tesla_GTW_mapRegion;
 extern uint16_t user_selected_tesla_GTW_chassisType;
 extern uint16_t user_selected_tesla_GTW_packEnergy;
+extern uint16_t user_selected_pylon_baudrate;
+extern uint16_t user_set_rampdown_SOC;
+
+/* User-selected DALY BMS settings */
+extern int user_selected_daly_power_per_percent;
+extern int user_selected_daly_power_per_dV;
+extern int user_selected_daly_power_per_dV_start;
+extern int user_selected_daly_power_per_degree_C;
+extern int user_selected_daly_power_at_0_degree_C;
 
 #endif

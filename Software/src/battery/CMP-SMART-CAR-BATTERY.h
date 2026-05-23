@@ -1,11 +1,25 @@
 #ifndef CMP_SMART_CAR_BATTERY_H
 #define CMP_SMART_CAR_BATTERY_H
+#include "../datalayer/datalayer_extended.h"
 #include "../devboard/hal/hal.h"
 #include "CMP-SMART-CAR-BATTERY-HTML.h"
 #include "CanBattery.h"
 
 class CmpSmartCarBattery : public CanBattery {
  public:
+  // Use this constructor for the second battery.
+  CmpSmartCarBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_CMPSMART* extended, CAN_Interface targetCan)
+      : CanBattery(targetCan) {
+    datalayer_battery = datalayer_ptr;
+    datalayer_cmpsmart = extended;
+  }
+
+  // Use the default constructor to create the first or single battery.
+  CmpSmartCarBattery() {
+    datalayer_battery = &datalayer.battery;
+    datalayer_cmpsmart = &datalayer_extended.stellantisCMPsmart;
+  }
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -21,6 +35,9 @@ class CmpSmartCarBattery : public CanBattery {
 
  private:
   CmpSmartCarHtmlRenderer renderer;
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+  DATALAYER_INFO_CMPSMART* datalayer_cmpsmart;
+
   static const int MAX_PACK_VOLTAGE_100S_DV = 3700;
   static const int MIN_PACK_VOLTAGE_100S_DV = 2900;
   static const int MAX_CELL_DEVIATION_MV = 100;

@@ -3,11 +3,18 @@
 
 #include "CanInverterProtocol.h"
 
+// Sungrow battery configuration
+struct SungrowBatteryConfig {
+  uint16_t nameplate_wh;
+  uint8_t module_count;
+};
+
 class SungrowInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }
   // Constructor: request 250 kbps on the inverter CAN interface
   SungrowInverter() : CanInverterProtocol(CAN_Speed::CAN_SPEED_250KBPS) {}
+  bool setup() override;
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
@@ -31,7 +38,31 @@ class SungrowInverter : public CanInverterProtocol {
   uint32_t remaining_wh = 0;
   uint32_t capacity_wh = 0;
   uint8_t batch_send_index = 0;
-  static constexpr uint16_t NAMEPLATE_WH = 9600;
+
+  // Battery configuration (set via user_selected_inverter_sungrow_type = model 0-6)
+  SungrowBatteryConfig battery_config = {9600, 3};  // Default: SBR096
+
+  // Returns config based on battery model (0=SBR064 through 6=SBR256)
+  // Model + 2 = module count, each module adds 3200Wh of capacity
+  static constexpr SungrowBatteryConfig get_config_for_model(uint16_t model) {
+    switch (model) {
+      case 0:
+        return {6400, 2};  // SBR064
+      case 2:
+        return {12800, 4};  // SBR128
+      case 3:
+        return {16000, 5};  // SBR160
+      case 4:
+        return {19200, 6};  // SBR192
+      case 5:
+        return {22400, 7};  // SBR224
+      case 6:
+        return {25600, 8};  // SBR256
+      case 1:
+      default:
+        return {9600, 3};  // SBR096
+    }
+  }
 
   // Cached signed current in deci-amps (range: int16_t)
   int16_t current_dA = 0;
@@ -459,114 +490,168 @@ class SungrowInverter : public CanInverterProtocol {
                            .DLC = 8,
                            .ID = 0x719,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  // 0x71A - Module Cell Type
-  // byte 5 of module serial number
-  // 42 = IEC
-  // 44 = Mon-IEC
+  // 0x71A - Module Cell Type (set in setup)
   CAN_frame SUNGROW_71A = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x71A,
-                           .data = {0x44,    // Module 1 Cell type
-                                    0x44,    // Module 2 Cell type
-                                    0x44,    // Module 3 Cell type
-                                    0x00,    // Module 4 Cell type
-                                    0x00,    // Module 5 Cell type
-                                    0x00,    // Module 6 Cell type
-                                    0x00,    // Module 7 Cell type
-                                    0x00}};  // Module 8 Cell type
-  // 0x71B - Module 1+2 Production Date
+                           .data = {0x00,    // Module 1 Cell type (set in setup)
+                                    0x00,    // Module 2 Cell type (set in setup)
+                                    0x00,    // Module 3 Cell type (set in setup)
+                                    0x00,    // Module 4 Cell type (set in setup)
+                                    0x00,    // Module 5 Cell type (set in setup)
+                                    0x00,    // Module 6 Cell type (set in setup)
+                                    0x00,    // Module 7 Cell type (set in setup)
+                                    0x00}};  // Module 8 Cell type (set in setup)
+  // 0x71B - Module 1+2 Production Date (set in setup)
   CAN_frame SUNGROW_71B = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x71B,
-                           .data = {0x3F, 0x7A, 0x6F, 0x01,    // Module 1 production date
-                                    0x3F, 0x7A, 0x6F, 0x01}};  // Module 2 production date
-  // 0x71B - Module 3+4 Production Date
+                           .data = {0x00, 0x00, 0x00, 0x00,    // Module 1 production date
+                                    0x00, 0x00, 0x00, 0x00}};  // Module 2 production date
+  // 0x71C - Module 3+4 Production Date (set in setup)
   CAN_frame SUNGROW_71C = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x71C,
-                           .data = {0x3F, 0x7A, 0x6F, 0x01,    // Module 3 production date
+                           .data = {0x00, 0x00, 0x00, 0x00,    // Module 3 production date
                                     0x00, 0x00, 0x00, 0x00}};  // Module 4 production date
-  // 0x71B - Module 5+6 Production Date
+  // 0x71D - Module 5+6 Production Date (set in setup)
   CAN_frame SUNGROW_71D = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x71D,
                            .data = {0x00, 0x00, 0x00, 0x00,    // Module 5 production date
                                     0x00, 0x00, 0x00, 0x00}};  // Module 6 production date
-  // 0x71B - Module 7+8 Production Date
+  // 0x71E - Module 7+8 Production Date (set in setup)
   CAN_frame SUNGROW_71E = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x71E,
                            .data = {0x00, 0x00, 0x00, 0x00,    // Module 7 production date
                                     0x00, 0x00, 0x00, 0x00}};  // Module 8 production date
-  // 0x71F - Module Serial Number (MUX)
+  // 0x71F - Module Serial Number (MUX) - set in setup()
   CAN_frame SUNGROW_71F_01_01 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x01,                                  // Moddule #
-                                          0x01,                                  // Fragment #
-                                          0x45, 0x4D, 0x30, 0x33, 0x32, 0x44}};  // "EM032D"
+                                 .data = {0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_71F_01_02 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x01,                                  // Moddule #
-                                          0x02,                                  // Fragment #
-                                          0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "231012"
+                                 .data = {0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_71F_01_03 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x01,                                  // Moddule #
-                                          0x03,                                  // Fragment #
-                                          0x33, 0x34, 0x36, 0x31, 0x44, 0x46}};  // "3461DF"
+                                 .data = {0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_71F_02_01 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x02,                                  // Moddule #
-                                          0x01,                                  // Fragment #
-                                          0x45, 0x4D, 0x30, 0x33, 0x32, 0x44}};  // "EM032D"
+                                 .data = {0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_71F_02_02 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x02,                                  // Moddule #
-                                          0x02,                                  // Fragment #
-                                          0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "231012"
+                                 .data = {0x02, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_71F_02_03 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x02,                                  // Moddule #
-                                          0x03,                                  // Fragment #
-                                          0x33, 0x34, 0x36, 0x32, 0x44, 0x46}};  // "3462DF"
+                                 .data = {0x02, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_71F_03_01 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x03,                                  // Moddule #
-                                          0x01,                                  // Fragment #
-                                          0x45, 0x4D, 0x30, 0x33, 0x32, 0x44}};  // "EM032D"
+                                 .data = {0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_71F_03_02 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x03,                                  // Moddule #
-                                          0x02,                                  // Fragment #
-                                          0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "231012"
+                                 .data = {0x03, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_71F_03_03 = {.FD = false,
                                  .ext_ID = false,
                                  .DLC = 8,
                                  .ID = 0x71F,
-                                 .data = {0x03,                                  // Moddule #
-                                          0x03,                                  // Fragment #
-                                          0x33, 0x34, 0x36, 0x33, 0x44, 0x46}};  // "3463DF"
+                                 .data = {0x03, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_04_01 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_04_02 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x04, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_04_03 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x04, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_05_01 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x05, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_05_02 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x05, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_05_03 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x05, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_06_01 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x06, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_06_02 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x06, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_06_03 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x06, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_07_01 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x07, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_07_02 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x07, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_07_03 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x07, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_08_01 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x08, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_08_02 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x08, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SUNGROW_71F_08_03 = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x71F,
+                                 .data = {0x08, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 };
 
 #endif

@@ -14,6 +14,8 @@ class FoxessCanInverter : public CanInverterProtocol {
  private:
   int16_t temperature_average = 0;
   uint16_t voltage_per_pack = 0;
+  uint16_t cell_tweaked_max_voltage_mV = 3300;
+  uint16_t cell_tweaked_min_voltage_mV = 3300;
   int16_t current_per_pack = 0;
   uint8_t temperature_max_per_pack = 0;
   uint8_t temperature_min_per_pack = 0;

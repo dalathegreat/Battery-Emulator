@@ -1,5 +1,6 @@
 #include "FORD-MACH-E-BATTERY.h"
 #include <Arduino.h>
+#include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
@@ -21,16 +22,15 @@ void FordMachEBattery::update_values() {
       datalayer_battery->status.override_discharge_power_W;  //TODO, fix when v alue is found
 
   //We have not found allowed charge power yet. Estimate it for now absed on UI setting. TODO. remove this once found
-  if (battery_soc > 9900) {
-    datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
-  } else if ((battery_soc / 10) >
-             RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+
+  // Charge power is manually set
+  if (datalayer_battery->status.real_soc > 9900) {
+    datalayer_battery->status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
+  } else if (datalayer_battery->status.real_soc > user_set_rampdown_SOC) {
+    // When real SOC is between user_set_rampdown_SOC-99%, ramp the value between Max<->0
     datalayer_battery->status.max_charge_power_W =
-        RAMPDOWNPOWERALLOWED * (1 - ((battery_soc / 10) - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
-    //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
-    if (maximum_cellvoltage_mV > (MAX_CELL_VOLTAGE_MV - FLOAT_START_MV)) {
-      datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
-    }
+        datalayer.battery.status.override_charge_power_W *
+        (1 - (datalayer_battery->status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
   } else {  // No limits, max charging power allowed
     datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
   }
@@ -75,12 +75,32 @@ void FordMachEBattery::update_values() {
 
   datalayer_battery->status.temperature_max_dC = maximum_temperature * 10;
 
-  if (datalayer_battery->info.number_of_cells == 94) {
-    datalayer_battery->info.total_capacity_Wh = 98000;
+  // Loop through the array to find how many cellvoltages we have
+  // We should get either 90/94/96/108
+  for (uint8_t i = 0; i < MAX_AMOUNT_CELLS; i++) {
+    if (datalayer_battery->status.cell_voltages_mV[i] > 1000) {  //If we have a valid cellvoltage measurement
+      datalayer_battery->info.number_of_cells = i + 1;           //Set amount of cells to that amount
+    }
   }
 
-  if (datalayer_battery->info.number_of_cells == 96) {
-    datalayer_battery->info.total_capacity_Wh = 88000;
+  if (datalayer_battery->info.number_of_cells == 90) {  //NMC
+    datalayer_battery->info.total_capacity_Wh = MAX_CAPACITY_90S_WH;
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_90S_DV;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;
+  } else if (datalayer_battery->info.number_of_cells == 96) {  //75.7 kWh NMC LGES
+    datalayer_battery->info.total_capacity_Wh = MAX_CAPACITY_96S_WH;
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;
+  } else if (datalayer_battery->info.number_of_cells == 94) {  //98.8 kWh NMC LGES
+    datalayer_battery->info.total_capacity_Wh = MAX_CAPACITY_94S_WH;
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94S_DV;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94S_DV;
+  } else if (datalayer_battery->info.number_of_cells == 108) {  //78.2 kWh LFP CATL
+    datalayer.battery.info.chemistry = LFP;
+    datalayer_battery->info.total_capacity_Wh = MAX_CAPACITY_108S_WH;
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_108S_DV;
+    datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP_MV;
   }
 
   // Check vehicle specific safeties
@@ -170,36 +190,82 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           voltage = (rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[7] >> 4);
         }
 
-        datalayer_battery->status.cell_voltages_mV[start_index + i] = voltage + 1000;
+        if (voltage == 0xFFE) {
+          //Voltage measurement is unavailable (Happens on 90/94S battery on last message)
+        } else {
+          //Voltage measurement is available
+          datalayer_battery->status.cell_voltages_mV[start_index + i] = voltage + 1000;
+        }
       }
       break;
     }
     case 0x4a3:  //1s
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if ((rx_frame.data.u8[0] == 0xFF) && (rx_frame.data.u8[1] == 0xE0)) {
-        datalayer_battery->info.number_of_cells = 94;
-      } else {  //96S battery
+        //Do nothing, no voltage here (for instance on 90/94S battery)
+      } else {  //96th voltage resides in this frame
         datalayer_battery->status.cell_voltages_mV[95] =
             ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4)) + 1000;
-        datalayer_battery->info.number_of_cells = 96;
       }
 
       //Celltemperatures
       cell_temperature[0] = ((rx_frame.data.u8[2] - 40) / 2);
-      cell_temperature[1] = ((rx_frame.data.u8[2] - 40) / 2);
-      cell_temperature[2] = ((rx_frame.data.u8[2] - 40) / 2);
-      cell_temperature[3] = ((rx_frame.data.u8[2] - 40) / 2);
-      cell_temperature[4] = ((rx_frame.data.u8[2] - 40) / 2);
-      cell_temperature[5] = ((rx_frame.data.u8[2] - 40) / 2);
+      cell_temperature[1] = ((rx_frame.data.u8[3] - 40) / 2);
+      cell_temperature[2] = ((rx_frame.data.u8[4] - 40) / 2);
+      cell_temperature[3] = ((rx_frame.data.u8[5] - 40) / 2);
+      cell_temperature[4] = ((rx_frame.data.u8[6] - 40) / 2);
+      cell_temperature[5] = ((rx_frame.data.u8[7] - 40) / 2);
       break;
     case 0x4a4:  //1s
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Some batteries have more celltemps here, (LFP 90S), but not the 108S
+      //celltemp6 = rx_frame.data.u8[0]
+      //celltemp7 = rx_frame.data.u8[1]
+      //celltemp8 = rx_frame.data.u8[2]
+      //celltemp9 = rx_frame.data.u8[3]
       break;
     case 0x4a5:  //1s
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Some batteries have more info here, unknown content
       break;
     case 0x4a7:  //1s
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Some batteries have more celltemps here
+      //celltemp10 = rx_frame.data.u8[0]
+      //celltemp11 = rx_frame.data.u8[1]
+      //celltemp12 = rx_frame.data.u8[2]
+      //celltemp13 = rx_frame.data.u8[3]
+      //celltemp14 = rx_frame.data.u8[4]
+      break;
+    case 0x1BC:  //1s cellvoltages (only on 108S)
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.cell_voltages_mV[96] = ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4)) + 1000;
+      datalayer_battery->status.cell_voltages_mV[97] = ((rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[3] >> 4)) + 1000;
+      break;
+    case 0x1BD:  //1s cellvoltages (only on 108S)
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.cell_voltages_mV[98] = ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4)) + 1000;
+      datalayer_battery->status.cell_voltages_mV[99] =
+          (((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) + 1000;
+      datalayer_battery->status.cell_voltages_mV[100] =
+          ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[4] >> 4)) + 1000;
+      datalayer_battery->status.cell_voltages_mV[101] =
+          (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) + 1000;
+      datalayer_battery->status.cell_voltages_mV[102] =
+          ((rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[7] >> 4)) + 1000;
+      break;
+    case 0x1BE:  //1s cellvoltages (only on 108S)
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.cell_voltages_mV[103] =
+          ((rx_frame.data.u8[0] << 4) | (rx_frame.data.u8[1] >> 4)) + 1000;
+      datalayer_battery->status.cell_voltages_mV[104] =
+          (((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) + 1000;
+      datalayer_battery->status.cell_voltages_mV[105] =
+          ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[4] >> 4)) + 1000;
+      datalayer_battery->status.cell_voltages_mV[106] =
+          (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) + 1000;
+      datalayer_battery->status.cell_voltages_mV[107] =
+          ((rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[7] >> 4)) + 1000;
       break;
     case 0x46f:  //100ms
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -234,7 +300,7 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
 
-    if (datalayer_battery->status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       FORD_25B.data.u8[2] = 0x01;
     } else {
       FORD_25B.data.u8[2] = 0x09;
@@ -364,8 +430,7 @@ void FordMachEBattery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  datalayer_battery->info.max_design_voltage_dV =
-      MAX_PACK_VOLTAGE_96S_DV;  //Startup in extreme end of max voltage diff allowed
-  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94S_DV;
+  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;  //Startup in extreme ends
+  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }

@@ -67,18 +67,20 @@ add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
 
 # add the executable
 add_executable(tests 
-    tests.cpp 
-    safety_tests.cpp 
+    tests.cpp
+    voltage_sync_tests.cpp
     bms_reset_tests.cpp
     battery/NissanLeafTest.cpp 
     battery/still_alive_tests.cpp
     can_log_based/canlog_safety_tests.cpp
     utils/utils.cpp
+    ../Software/src/devboard/safety/parallel_safety.cpp
     ../Software/src/communication/can/obd.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
     ../Software/src/devboard/safety/safety.cpp
     ../Software/src/devboard/hal/hal.cpp
+    ../Software/src/devboard/utils/types.cpp
     ../Software/src/devboard/utils/events.cpp
     ../Software/src/devboard/utils/common_functions.cpp
     ../Software/src/datalayer/datalayer.cpp
@@ -101,14 +103,17 @@ add_executable(tests
     ../Software/src/battery/CanBattery.cpp
     ../Software/src/battery/CELLPOWER-BMS.cpp
     ../Software/src/battery/CHADEMO-BATTERY.cpp
+    ../Software/src/battery/CHADEMO-CT.cpp
     ../Software/src/battery/CHADEMO-SHUNTS.cpp
     ../Software/src/battery/CMFA-EV-BATTERY.cpp
     ../Software/src/battery/CMP-SMART-CAR-BATTERY.cpp
     ../Software/src/battery/DALY-BMS.cpp
     ../Software/src/battery/ECMP-BATTERY.cpp
+    ../Software/src/battery/ENNOID-BMS.cpp
     ../Software/src/battery/FORD-MACH-E-BATTERY.cpp
     ../Software/src/battery/FOXESS-BATTERY.cpp
     ../Software/src/battery/GEELY-GEOMETRY-C-BATTERY.cpp
+    ../Software/src/battery/GROWATT-HV-ARK-BATTERY.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY-HTML.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY.cpp
     ../Software/src/battery/IMIEV-CZERO-ION-BATTERY.cpp
@@ -118,7 +123,6 @@ add_executable(tests
     ../Software/src/battery/KIA-64FD-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-64-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-HYBRID-BATTERY.cpp
-    ../Software/src/battery/MAXUS-EV80-BATTERY.cpp
     ../Software/src/battery/MEB-BATTERY.cpp
     ../Software/src/battery/MG-5-BATTERY.cpp
     ../Software/src/battery/MG-HS-PHEV-BATTERY.cpp
@@ -138,9 +142,13 @@ add_executable(tests
     ../Software/src/battery/Shunts.cpp
     ../Software/src/battery/SIMPBMS-BATTERY.cpp
     ../Software/src/battery/SONO-BATTERY.cpp
+    ../Software/src/battery/STELLANTIS-SMALL-WIDE-4x4.cpp
     ../Software/src/battery/TESLA-BATTERY.cpp
+    ../Software/src/battery/TESLA-LEGACY-BATTERY.cpp
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
     ../Software/src/battery/THINK-BATTERY.cpp
+    ../Software/src/battery/THUNDERSTRUCK-BMS.cpp
+    ../Software/src/battery/GEELY-SEA-BATTERY.cpp
     ../Software/src/battery/VOLVO-SPA-BATTERY.cpp
     ../Software/src/battery/VOLVO-SPA-HYBRID-BATTERY.cpp
     ../Software/src/inverter/AFORE-CAN.cpp
@@ -155,17 +163,19 @@ add_executable(tests
     ../Software/src/inverter/KOSTAL-RS485.cpp
     ../Software/src/inverter/ModbusInverterProtocol.cpp
     ../Software/src/inverter/PYLON-CAN.cpp
+    ../Software/src/inverter/PYLON-LV-RS485.cpp
     ../Software/src/inverter/PYLON-LV-CAN.cpp
     ../Software/src/inverter/SCHNEIDER-CAN.cpp
     ../Software/src/inverter/SMA-BYD-H-CAN.cpp
     ../Software/src/inverter/SMA-BYD-HVS-CAN.cpp
+    ../Software/src/inverter/SMA-SBS-BYD-CAN.cpp
     ../Software/src/inverter/SMA-LV-CAN.cpp
-    ../Software/src/inverter/SMA-TRIPOWER-CAN.cpp
     ../Software/src/inverter/SOFAR-CAN.cpp
     ../Software/src/inverter/SOL-ARK-LV-CAN.cpp
     ../Software/src/inverter/SOLAX-CAN.cpp
     ../Software/src/inverter/SOLXPOW-CAN.cpp
     ../Software/src/inverter/SUNGROW-CAN.cpp
+    ../Software/src/inverter/VCU-CAN.cpp
     ../Software/src/charger/CHARGERS.cpp
     ../Software/src/charger/CHEVY-VOLT-CHARGER.cpp
     ../Software/src/charger/NISSAN-LEAF-CHARGER.cpp
@@ -179,6 +189,11 @@ add_executable(tests
 target_link_libraries(tests
     libgtest
     libgmock
+)
+
+# Define the path for tests
+target_compile_definitions(tests PRIVATE 
+    TEST_CAN_LOG_DIR="${CMAKE_SOURCE_DIR}/can_log_based/can_logs"
 )
 
 gtest_discover_tests(tests)

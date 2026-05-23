@@ -62,12 +62,16 @@ const char* name_for_battery_type(BatteryType type) {
       return CmfaEvBattery::Name;
     case BatteryType::CmpSmartCar:
       return CmpSmartCarBattery::Name;
+    case BatteryType::EnnoidBMS:
+      return EnnoidBms::Name;
     case BatteryType::FordMachE:
       return FordMachEBattery::Name;
     case BatteryType::Foxess:
       return FoxessBattery::Name;
     case BatteryType::GeelyGeometryC:
       return GeelyGeometryCBattery::Name;
+    case BatteryType::GrowattHvArk:
+      return GrowattHvArkBattery::Name;
     case BatteryType::HyundaiIoniq28:
       return HyundaiIoniq28Battery::Name;
     case BatteryType::OrionBms:
@@ -88,12 +92,12 @@ const char* name_for_battery_type(BatteryType type) {
       return Kia64FDBattery::Name;
     case BatteryType::KiaHyundaiHybrid:
       return KiaHyundaiHybridBattery::Name;
-    case BatteryType::MaxusEV80:
-      return MaxusEV80Battery::Name;
     case BatteryType::Meb:
       return MebBattery::Name;
+#ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return Mg5Battery::Name;
+#endif
     case BatteryType::MgHsPhev:
       return MgHsPHEVBattery::Name;
     case BatteryType::NissanLeaf:
@@ -122,16 +126,24 @@ const char* name_for_battery_type(BatteryType type) {
       return SamsungSdiLVBattery::Name;
     case BatteryType::SantaFePhev:
       return SantaFePhevBattery::Name;
+    case BatteryType::StellantisSmallWide4x4:
+      return StellantisSmallWide4x4Battery::Name;
     case BatteryType::SimpBms:
       return SimpBmsBattery::Name;
     case BatteryType::TeslaModel3Y:
       return TeslaModel3YBattery::Name;
     case BatteryType::TeslaModelSX:
       return TeslaModelSXBattery::Name;
+    case BatteryType::TeslaLegacy:
+      return TeslaLegacyBattery::Name;
     case BatteryType::TestFake:
       return TestFakeBattery::Name;
     case BatteryType::ThinkCity:
       return ThinkBattery::Name;
+    case BatteryType::ThunderstruckBMS:
+      return ThunderstruckBMS::Name;
+    case BatteryType::GeelySea:
+      return GeelySeaBattery::Name;
     case BatteryType::VolvoSpa:
       return VolvoSpaBattery::Name;
     case BatteryType::VolvoSpaHybrid:
@@ -171,12 +183,16 @@ Battery* create_battery(BatteryType type) {
       return new CmfaEvBattery();
     case BatteryType::CmpSmartCar:
       return new CmpSmartCarBattery();
+    case BatteryType::EnnoidBMS:
+      return new EnnoidBms();
     case BatteryType::FordMachE:
       return new FordMachEBattery();
     case BatteryType::Foxess:
       return new FoxessBattery();
     case BatteryType::GeelyGeometryC:
       return new GeelyGeometryCBattery();
+    case BatteryType::GrowattHvArk:
+      return new GrowattHvArkBattery();
     case BatteryType::HyundaiIoniq28:
       return new HyundaiIoniq28Battery();
     case BatteryType::OrionBms:
@@ -197,12 +213,12 @@ Battery* create_battery(BatteryType type) {
       return new KiaHyundai64Battery();
     case BatteryType::KiaHyundaiHybrid:
       return new KiaHyundaiHybridBattery();
-    case BatteryType::MaxusEV80:
-      return new MaxusEV80Battery();
     case BatteryType::Meb:
       return new MebBattery();
+#ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return new Mg5Battery();
+#endif
     case BatteryType::MgHsPhev:
       return new MgHsPHEVBattery();
     case BatteryType::NissanLeaf:
@@ -233,14 +249,22 @@ Battery* create_battery(BatteryType type) {
       return new SantaFePhevBattery();
     case BatteryType::SimpBms:
       return new SimpBmsBattery();
+    case BatteryType::StellantisSmallWide4x4:
+      return new StellantisSmallWide4x4Battery();
     case BatteryType::TeslaModel3Y:
-      return new TeslaModel3YBattery(user_selected_battery_chemistry);
+      return new TeslaModel3YBattery();
     case BatteryType::TeslaModelSX:
       return new TeslaModelSXBattery();
+    case BatteryType::TeslaLegacy:
+      return new TeslaLegacyBattery();
     case BatteryType::TestFake:
       return new TestFakeBattery();
     case BatteryType::ThinkCity:
       return new ThinkBattery();
+    case BatteryType::ThunderstruckBMS:
+      return new ThunderstruckBMS();
+    case BatteryType::GeelySea:
+      return new GeelySeaBattery();
     case BatteryType::VolvoSpa:
       return new VolvoSpaBattery();
     case BatteryType::VolvoSpaHybrid:
@@ -256,6 +280,11 @@ void setup_battery() {
     return;
   }
 
+  // Set the chemistry to the user selected value, the battery can override.
+  datalayer.battery.info.chemistry = user_selected_battery_chemistry;
+  datalayer.battery2.info.chemistry = user_selected_battery_chemistry;
+  datalayer.battery3.info.chemistry = user_selected_battery_chemistry;
+
   battery = create_battery(user_selected_battery_type);
 
   if (battery) {
@@ -264,6 +293,13 @@ void setup_battery() {
 
   if (user_selected_second_battery && !battery2) {
     switch (user_selected_battery_type) {
+      case BatteryType::BoltAmpera:
+        battery2 =
+            new BoltAmperaBattery(&datalayer.battery2, &datalayer_extended.boltampera_2, can_config.battery_double);
+        break;
+      case BatteryType::BydAtto3:
+        battery2 = new BydAttoBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+        break;
       case BatteryType::NissanLeaf:
         battery2 = new NissanLeafBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
@@ -276,11 +312,22 @@ void setup_battery() {
         break;
       case BatteryType::FordMachE:
         battery2 = new FordMachEBattery(&datalayer.battery2, can_config.battery_double);
+      case BatteryType::CmpSmartCar:
+        battery2 = new CmpSmartCarBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+        break;
+      case BatteryType::StellantisEcmp:
+        battery2 = new EcmpBattery(&datalayer.battery2, can_config.battery_double);
         break;
       case BatteryType::KiaHyundai64:
         battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
                                            &datalayer.system.status.battery2_allowed_contactor_closing,
                                            can_config.battery_double);
+        break;
+      case BatteryType::MgHsPhev:
+        battery2 = new MgHsPHEVBattery(&datalayer.battery2, can_config.battery_double);
+        break;
+      case BatteryType::Pylon:
+        battery2 = new PylonBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
       case BatteryType::SantaFePhev:
         battery2 = new SantaFePhevBattery(&datalayer.battery2, can_config.battery_double);
@@ -312,6 +359,9 @@ void setup_battery() {
       case BatteryType::NissanLeaf:
         battery3 = new NissanLeafBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
         break;
+      case BatteryType::RelionBattery:
+        battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple);
+        break;
       default:
         DEBUG_PRINTF("User tried enabling triple battery on non-supported integration!\n");
         break;
@@ -332,9 +382,17 @@ bool user_selected_tesla_GTW_rightHandDrive = true;
 uint16_t user_selected_tesla_GTW_mapRegion = 2;
 uint16_t user_selected_tesla_GTW_chassisType = 2;
 uint16_t user_selected_tesla_GTW_packEnergy = 1;
+/* User-selected DALY BMS settings */
+int user_selected_daly_power_per_percent = 50;
+int user_selected_daly_power_per_dV = 50;
+int user_selected_daly_power_per_dV_start = 20;
+int user_selected_daly_power_per_degree_C = 60;
+int user_selected_daly_power_at_0_degree_C = 800;
 /* User-selected EGMP+others settings */
 bool user_selected_use_estimated_SOC = false;
-
+uint16_t user_selected_pylon_baudrate = 500;
+/* For custom BMS which need rampdown. SOC% to start ramping down from max charge power towards 0 at 100.00%*/
+uint16_t user_set_rampdown_SOC = 9000;  //9000 = 90.00%
 // Use 0V for user selected cell/pack voltage defaults (On boot will be replaced with saved values from NVM)
 uint16_t user_selected_max_pack_voltage_dV = 0;
 uint16_t user_selected_min_pack_voltage_dV = 0;

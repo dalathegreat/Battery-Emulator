@@ -1,5 +1,6 @@
 #include "KOSTAL-RS485.h"
 #include "../battery/BATTERIES.h"
+#include "../communication/rs485/comm_rs485.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
@@ -176,7 +177,7 @@ void KostalInverterProtocol::update_values() {
   }
 
   if (nominal_voltage_dV > 0) {
-    float2frame(CYCLIC_DATA, (float)(datalayer.battery.info.total_capacity_Wh / nominal_voltage_dV * 10),
+    float2frame(CYCLIC_DATA, (float)(datalayer.battery.info.reported_total_capacity_Wh / nominal_voltage_dV * 10),
                 30);  // Battery capacity Ah
   }
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.temperature_max_dC / 10, 38);
@@ -316,14 +317,5 @@ bool KostalInverterProtocol::setup(void) {  // Performs one time setup at startu
   setInverterAllowsContactorClosing(false);
   dbg_message("inverter_allows_contactor_closing -> false");
 
-  auto rx_pin = esp32hal->RS485_RX_PIN();
-  auto tx_pin = esp32hal->RS485_TX_PIN();
-
-  if (!esp32hal->alloc_pins(Name, rx_pin, tx_pin)) {
-    return false;
-  }
-
-  Serial2.begin(baud_rate(), SERIAL_8N1, rx_pin, tx_pin);
-
-  return true;
+  return rs485_begin(Name, Serial2, baud_rate(), SERIAL_8N1);
 }

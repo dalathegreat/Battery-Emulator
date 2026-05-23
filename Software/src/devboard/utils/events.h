@@ -10,7 +10,7 @@
 #define GENERATE_STRING(STRING) #STRING,
 
 #define EVENTS_ENUM_TYPE(XX)            \
-  XX(EVENT_CANMCP2517FD_INIT_FAILURE)   \
+  XX(EVENT_CANMCP2518FD_INIT_FAILURE)   \
   XX(EVENT_CANMCP2515_INIT_FAILURE)     \
   XX(EVENT_CANFD_BUFFER_FULL)           \
   XX(EVENT_CAN_BUFFER_FULL)             \
@@ -24,8 +24,6 @@
   XX(EVENT_CHARGE_LIMIT_EXCEEDED)       \
   XX(EVENT_CONTACTOR_WELDED)            \
   XX(EVENT_CONTACTOR_OPEN)              \
-  XX(EVENT_CPU_OVERHEATING)             \
-  XX(EVENT_CPU_OVERHEATED)              \
   XX(EVENT_DISCHARGE_LIMIT_EXCEEDED)    \
   XX(EVENT_WATER_INGRESS)               \
   XX(EVENT_12V_LOW)                     \
@@ -57,6 +55,7 @@
   XX(EVENT_SOH_DIFFERENCE)              \
   XX(EVENT_SOH_LOW)                     \
   XX(EVENT_HVIL_FAILURE)                \
+  XX(EVENT_LOW_HEAP_MEMORY)             \
   XX(EVENT_PRECHARGE_FAILURE)           \
   XX(EVENT_INTERNAL_OPEN_FAULT)         \
   XX(EVENT_INVERTER_OPEN_CONTACTOR)     \
@@ -84,6 +83,8 @@
   XX(EVENT_SMA_PAIRING)                 \
   XX(EVENT_TASK_OVERRUN)                \
   XX(EVENT_THERMAL_RUNAWAY)             \
+  XX(EVENT_RECOVERY_START)              \
+  XX(EVENT_RECOVERY_END)                \
   XX(EVENT_RESET_UNKNOWN)               \
   XX(EVENT_RESET_POWERON)               \
   XX(EVENT_RESET_EXT)                   \
@@ -130,7 +131,7 @@ typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
   XX(EVENT_LEVEL_ERROR)       \
   XX(EVENT_LEVEL_UPDATE)
 
-typedef enum { EVENTS_LEVEL_TYPE(GENERATE_ENUM) } EVENTS_LEVEL_TYPE;
+typedef enum : uint8_t { EVENTS_LEVEL_TYPE(GENERATE_ENUM) } EVENTS_LEVEL_TYPE;
 
 #define EMULATOR_STATUS(XX) \
   XX(STATUS_OK)             \
@@ -140,7 +141,7 @@ typedef enum { EVENTS_LEVEL_TYPE(GENERATE_ENUM) } EVENTS_LEVEL_TYPE;
 
 typedef enum { EMULATOR_STATUS(GENERATE_ENUM) } EMULATOR_STATUS;
 
-typedef enum {
+typedef enum : uint8_t {
   EVENT_STATE_PENDING = 0,
   EVENT_STATE_INACTIVE,
   EVENT_STATE_ACTIVE,

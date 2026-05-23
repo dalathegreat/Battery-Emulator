@@ -30,17 +30,17 @@ void AforeCanInverter::
   AFORE_351.data.u8[3] = SOCMIN;
   AFORE_351.data.u8[4] = 0x03;  //Bit0 and Bit1 set
   if ((datalayer.battery.status.max_charge_current_dA == 0) || (datalayer.battery.status.reported_soc == 10000) ||
-      (datalayer.battery.status.bms_status == FAULT)) {
+      (datalayer.system.status.system_status == FAULT)) {
     AFORE_351.data.u8[4] &= ~0x01;  // Remove Bit0 (clear) Charge enable flag
   }
   if ((datalayer.battery.status.max_discharge_current_dA == 0) || (datalayer.battery.status.reported_soc == 0) ||
-      (datalayer.battery.status.bms_status == FAULT)) {
+      (datalayer.system.status.system_status == FAULT)) {
     AFORE_351.data.u8[4] &= ~0x02;  // Remove Bit1 (clear) Discharge enable flag
   }
   // Bit5-7 is BMS working status.
   //A value of 0 here is INIT, 1 = Normal operation, 2 = standby/sleep, 3 = warning, 4 = fault, rest is reserved
   AFORE_351.data.u8[4] &= ~(0xE0);  // Clear bits 5, 6, and 7 (11100000)
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     AFORE_351.data.u8[4] |= 0x80;  // Set bits 5-7 to 0b100 (Fault = 4)
   } else {                         // Normal mode
     AFORE_351.data.u8[4] |= 0x20;  // Set Bit5 to 1 (Normal operation)
@@ -91,11 +91,23 @@ void AforeCanInverter::
   AFORE_353.data.u8[3] = Fault L table >> 8);
   */
 
-  /*0x354 - Single cell voltage parameters*/
-  AFORE_354.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
-  AFORE_354.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
-  AFORE_354.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
-  AFORE_354.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  //Afore only supports LFP batteries. We need to fake an LFP voltage range if the battery used is not LFP
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+    //Already LFP, pass thru value
+    cell_tweaked_max_voltage_mV = datalayer.battery.status.cell_max_voltage_mV;
+    cell_tweaked_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
+  } else {  //linear interpolation to remap the value from the range [2500-4200] to [2500-3400]
+    cell_tweaked_max_voltage_mV =
+        (2500 + ((datalayer.battery.status.cell_max_voltage_mV - 2500) * (3400 - 2500)) / (4200 - 2500));
+    cell_tweaked_min_voltage_mV =
+        (2500 + ((datalayer.battery.status.cell_min_voltage_mV - 2500) * (3400 - 2500)) / (4200 - 2500));
+  }
+
+  /*0x354 - Single cell voltage parameters, We fake LFP cellvoltage range if needed*/
+  AFORE_354.data.u8[0] = (cell_tweaked_max_voltage_mV & 0x00FF);
+  AFORE_354.data.u8[1] = (cell_tweaked_max_voltage_mV >> 8);
+  AFORE_354.data.u8[2] = (cell_tweaked_min_voltage_mV & 0x00FF);
+  AFORE_354.data.u8[3] = (cell_tweaked_min_voltage_mV >> 8);
   AFORE_354.data.u8[4] = (1 & 0x00FF);  //Maximum single cell voltage number, not used on emulator
   AFORE_354.data.u8[5] = (1 >> 8);
   AFORE_354.data.u8[6] = (2 & 0x00FF);  //Minimum single cell voltage number, not used on emulator

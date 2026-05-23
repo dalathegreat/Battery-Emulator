@@ -12,6 +12,8 @@ class AforeCanInverter : public CanInverterProtocol {
   static constexpr const char* Name = "Afore battery over CAN";
 
  private:
+  uint16_t cell_tweaked_max_voltage_mV = 3300;
+  uint16_t cell_tweaked_min_voltage_mV = 3300;
   /* The code is following the Afore 2.3 CAN standard, little-endian, 500kbps, from 2023.08.07 */
   uint8_t inverter_status =
       0;  //0 = init, 1 = standby, 2 = starting, 3 = grid connected, 4 off-grid, 5 diesel generator, 6 grid connected, but disconnected, 7off grid and disconnected, 8 = power failure processing, 9 = power off, 10 = Failure

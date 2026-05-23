@@ -42,9 +42,30 @@ void CmfaEvBattery::
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  datalayer_battery->status.max_discharge_power_W = discharge_power_w;
+  //Some packs are locked and do not report allowed charge power, in this case we need to use the user specified override value
+  //instead of the value sent from the BMS
+  if (datalayer.battery.status.override_charge_power_W > 0) {
+    if (datalayer_battery->status.real_soc > 9900) {
+      datalayer_battery->status.max_charge_power_W = 0;
+    } else if (datalayer_battery->status.real_soc >
+               user_set_rampdown_SOC) {  // When real SOC is between 90-99%, ramp the value between Max<->0
+      datalayer_battery->status.max_charge_power_W =
+          datalayer.battery.status.override_charge_power_W *
+          (1 - (datalayer_battery->status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
+    } else {
+      datalayer_battery->status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
+    }
+  } else {
+    datalayer_battery->status.max_charge_power_W = charge_power_w;  //Use value sent from BMS
+  }
 
-  datalayer_battery->status.max_charge_power_W = charge_power_w;
+  //Some packs are locked and do not report allowed discharge power, in this case we need to use the user specified override value
+  //instead of the value sent from the BMS
+  if (datalayer.battery.status.override_discharge_power_W > 0) {
+    datalayer_battery->status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
+  } else {
+    datalayer_battery->status.max_discharge_power_W = discharge_power_w;  //Use value sent from BMS
+  }
 
   datalayer_battery->status.temperature_min_dC = (lowest_cell_temperature * 10);
 
@@ -149,13 +170,13 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               (uint32_t)((rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7]));
           break;
         case PID_POLL_HIGHEST_CELL_VOLTAGE:
-          highest_cell_voltage_mv = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          highest_cell_voltage_mv = (uint16_t)(((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.976563);
           break;
         case PID_POLL_CELL_NUMBER_HIGHEST_VOLTAGE:
           highest_cell_voltage_number = rx_frame.data.u8[4];
           break;
         case PID_POLL_LOWEST_CELL_VOLTAGE:
-          lowest_cell_voltage_mv = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          lowest_cell_voltage_mv = (uint16_t)(((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.976563);
           break;
         case PID_POLL_CELL_NUMBER_LOWEST_VOLTAGE:
           lowest_cell_voltage_number = rx_frame.data.u8[4];

@@ -17,10 +17,15 @@ void setup_shunt() {
     case ShuntType::BmwSbox:
       shunt = new BmwSbox();
       shunt->setup();
-      break;
+      return;
     case ShuntType::Inverter:
-      if (inverter && inverter->provides_shunt())
+      if (inverter && inverter->provides_shunt()) {
         inverter->enable_shunt();
+      }
+      return;
+    case ShuntType::CustomClamp:
+      shunt = nullptr;
+      return;
     default:
       return;
   }
@@ -34,6 +39,7 @@ extern std::vector<ShuntType> supported_shunt_types() {
   if (inverter && inverter->provides_shunt())
     types.push_back(ShuntType::Inverter);
 
+  types.push_back(ShuntType::CustomClamp);
   return types;
 }
 
@@ -45,6 +51,8 @@ extern const char* name_for_shunt_type(ShuntType type) {
       return BmwSbox::Name;
     case ShuntType::Inverter:
       return "Using inverter values";
+    case ShuntType::CustomClamp:
+      return "Custom Clamp";
     default:
       return nullptr;
   }

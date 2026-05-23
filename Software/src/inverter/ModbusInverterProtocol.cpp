@@ -2,8 +2,13 @@
 #include "../devboard/utils/logging.h"
 #include "../lib/eModbus-eModbus/ModbusServerRTU.h"
 
+// Fill up the RS485 DE pin with -1 if not available
+// The library ignores it if its defibe to -1
+#ifndef RS485_DE_PIN
+#define RS485_DE_PIN -1
+#endif
 // Creates a ModbusRTU server instance with 2000ms timeout
-ModbusInverterProtocol::ModbusInverterProtocol(int serverId) : MBserver(2000) {
+ModbusInverterProtocol::ModbusInverterProtocol(int serverId) : MBserver(2000, RS485_DE_PIN) {
   _serverId = serverId;
 
   MBserver.registerWorker(_serverId, READ_HOLD_REGISTER,

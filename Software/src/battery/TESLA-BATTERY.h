@@ -42,14 +42,13 @@ class TeslaBattery : public CanBattery {
 
  protected:
   /* Do not change anything below this line! */
-  static const int RAMPDOWN_SOC = 900;  // 90.0 SOC% to start ramping down from max charge power towards 0 at 100.00%
   static const int RAMPDOWNPOWERALLOWED = 10000;      // What power we ramp down from towards top balancing
   static const int FLOAT_MAX_POWER_W = 200;           // W, what power to allow for top balancing battery
   static const int FLOAT_START_MV = 20;               // mV, how many mV under overvoltage to start float charging
   static const int MAX_PACK_VOLTAGE_SX_NCMA = 4600;   // V+1, if pack voltage goes over this, charge stops
-  static const int MIN_PACK_VOLTAGE_SX_NCMA = 3100;   // V+1, if pack voltage goes over this, charge stops
+  static const int MIN_PACK_VOLTAGE_SX_NCMA = 2850;   // V+1, if pack voltage goes over this, charge stops
   static const int MAX_PACK_VOLTAGE_3Y_NCMA = 4030;   // V+1, if pack voltage goes over this, charge stops
-  static const int MIN_PACK_VOLTAGE_3Y_NCMA = 3100;   // V+1, if pack voltage goes below this, discharge stops
+  static const int MIN_PACK_VOLTAGE_3Y_NCMA = 2850;   // V+1, if pack voltage goes below this, discharge stops
   static const int MAX_PACK_VOLTAGE_3Y_LFP = 3880;    // V+1, if pack voltage goes over this, charge stops
   static const int MIN_PACK_VOLTAGE_3Y_LFP = 2968;    // V+1, if pack voltage goes below this, discharge stops
   static const int MAX_CELL_DEVIATION_NCA_NCM = 500;  //LED turns yellow on the board if mv delta exceeds this value
@@ -91,6 +90,7 @@ class TeslaBattery : public CanBattery {
   bool TESLA_334_INITIAL_SENT = false;
   //0x3A1 VCFRONT_vehicleStatus, 15 frame counter (temporary)
   uint8_t frameCounter_TESLA_3A1 = 0;
+  bool timeToMux3A1 = true;
   //0x504 TWC_status
   bool TESLA_504_INITIAL_SENT = false;
   //0x7FF GTW_carConfig, 5 mux tracker
@@ -288,25 +288,15 @@ class TeslaBattery : public CanBattery {
 
   //0x3A1 VCFRONT_vehicleStatus: "cycle_time" 50ms, VCFRONT_vehicleStatusChecksum/VCFRONT_vehicleStatusCounter eventually need to be generated via generateMuxFrameCounterChecksum
   //Looks like 2 muxes, counter at bit 52 width 4 and checksum at bit 56 width 8? Need later software Model3_ETH.compact.json signal file or DBC.
-  //Migrated to an array until figured out
-  static constexpr CAN_frame TESLA_3A1[16] = {
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0xD0, 0x01}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0xE2, 0xCB}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0xF0, 0x21}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0x02, 0xEB}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0x10, 0x41}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0x22, 0x0B}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0x30, 0x61}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0x42, 0x2B}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0x50, 0x81}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0x62, 0x4B}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0x70, 0xA1}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0x82, 0x6B}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0x90, 0xC1}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0xA2, 0x8B}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0xB0, 0xE1}},
-      {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x3A1, .data = {0x08, 0x62, 0x0B, 0x18, 0x00, 0x28, 0xC2, 0xAB}}};
-
+  CAN_frame TESLA_3A1 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x3A1,
+                         .data = {0xC3, 0xFF, 0xFF, 0xFF, 0x3D, 0x00, 0xD0, 0x01}};
+  uint8_t frame6_3A1[16] = {0xD0, 0xE2, 0xF0, 0x02, 0x10, 0x22, 0x30, 0x42,
+                            0x50, 0x62, 0x70, 0x82, 0x90, 0xA2, 0xB0, 0xC2};
+  uint8_t frame7_3A1[16] = {0x01, 0xCB, 0x21, 0xEB, 0x41, 0x0B, 0x61, 0x2B,
+                            0x81, 0x4B, 0xA1, 0x6B, 0xC1, 0x8B, 0xE1, 0xAB};
   //0x313 UI_powertrainControl: "cycle_time" 500ms, UI_powertrainControlChecksum/UI_powertrainControlCounter generated via generateFrameCounterChecksum
   CAN_frame TESLA_313 = {.FD = false,
                          .ext_ID = false,
@@ -901,14 +891,12 @@ class TeslaBattery : public CanBattery {
 
 class TeslaModel3YBattery : public TeslaBattery {
  public:
-  TeslaModel3YBattery(battery_chemistry_enum chemistry) { datalayer.battery.info.chemistry = chemistry; }
   static constexpr const char* Name = "Tesla Model 3/Y";
   virtual void setup(void);
 };
 
 class TeslaModelSXBattery : public TeslaBattery {
  public:
-  TeslaModelSXBattery() {}
   static constexpr const char* Name = "Tesla Model S/X";
   virtual void setup(void);
 };

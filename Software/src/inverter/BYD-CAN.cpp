@@ -12,12 +12,18 @@ void BydCanInverter::
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
-  /* Calculate capacity, Amp hours(Ah) = Watt hours (Wh) / Voltage (V)*/
-  if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
-    remaining_capacity_ah =
-        ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
-    fully_charged_capacity_ah =
-        ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
+  /* Calculate capacity in 0.1 Ah units. Use nominal (mid-design) voltage so the rated value
+   * is stable across SOC; multiply before divide to avoid integer truncation. Fall back to
+   * current pack voltage when design limits aren't set yet (generic BMS without configured
+   * BATTPVMAX/MIN, or BMS that hasn't reported its limits). */
+  uint16_t nominal_voltage_dV =
+      (datalayer.battery.info.max_design_voltage_dV + datalayer.battery.info.min_design_voltage_dV) / 2;
+  if (nominal_voltage_dV < 100) {
+    nominal_voltage_dV = datalayer.battery.status.voltage_dV;
+  }
+  if (nominal_voltage_dV > 10) {
+    remaining_capacity_ah = (datalayer.battery.status.reported_remaining_capacity_Wh * 100UL) / nominal_voltage_dV;
+    fully_charged_capacity_ah = (datalayer.battery.info.reported_total_capacity_Wh * 100UL) / nominal_voltage_dV;
   }
 
   //Map values to CAN messages
@@ -104,7 +110,9 @@ void BydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
         send_initial_data();
       } else {  // We can identify what inverter type we are connected to
         for (uint8_t i = 0; i < 7; i++) {
-          datalayer.system.info.inverter_brand[i] = rx_frame.data.u8[i + 1];
+          if ((rx_frame.data.u8[i] > 0x40) && (rx_frame.data.u8[i] > 0x7B)) {  //Filter out invalid chars
+            datalayer.system.info.inverter_brand[i] = rx_frame.data.u8[i + 1];
+          }
         }
         datalayer.system.info.inverter_brand[7] = '\0';
       }
@@ -136,6 +144,10 @@ void BydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       inverter_timestamp = ((rx_frame.data.u8[0] << 24) | (rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) |
                             rx_frame.data.u8[3]);
+      break;
+    case 0x191:
+      inverterStartedUp = true;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     default:
       break;
@@ -192,6 +204,7 @@ void BydCanInverter::send_initial_data() {
 }
 
 void BydCanInverter::enable_shunt() {
-  strncpy(datalayer.system.info.shunt_protocol, Name, 63);
+  strncpy(datalayer.system.info.shunt_protocol, Name, 31);
+  datalayer.system.info.shunt_protocol[31] = '\0';
   useAsShunt = true;
 }

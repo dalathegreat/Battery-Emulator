@@ -7,6 +7,7 @@
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
+#include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
@@ -15,6 +16,9 @@
 #include "../webserver/webserver.h"
 #include "mqtt.h"
 #include "mqtt_client.h"
+
+std::string mqtt_user;
+std::string mqtt_password;
 
 bool mqtt_enabled = false;
 bool ha_autodiscovery_enabled = false;
@@ -35,7 +39,7 @@ bool mqtt_manual_topic_object_name =
 // may break compatibility with previous versions of MQTT naming
 const char* mqtt_topic_name =
     "BE";  // Custom MQTT topic name. Previously, the name was automatically set to "battery-emulator_esp32-XXXXXX"
-const char* mqtt_object_id_prefix =
+const char* mqtt_default_entity_id_prefix =
     "be_";  // Custom prefix for MQTT object ID. Previously, the prefix was automatically set to "esp32-XXXXXX_"
 const char* mqtt_device_name =
     "Battery Emulator";  // Custom device name in Home Assistant. Previously, the name was automatically set to "BatteryEmulator_esp32-XXXXXX"
@@ -53,7 +57,7 @@ bool client_started = false;
 static String lwt_topic = "";
 
 static String topic_name = "";
-static String object_id_prefix = "";
+static String default_entity_id_prefix = "";
 static String device_name = "";
 static String device_id = "";
 
@@ -95,7 +99,7 @@ static bool ha_cell_voltages_published = false;
 static bool ha_events_published = false;
 static bool ha_buttons_published = false;
 struct SensorConfig {
-  const char* object_id;
+  const char* default_entity_id;
   const char* name;
   const char* value_template;
   const char* unit;
@@ -111,6 +115,10 @@ static std::function<bool(Battery*)> always = [](Battery* b) {
 static std::function<bool(Battery*)> supports_charged = [](Battery* b) {
   return b->supports_charged_energy();
 };
+static std::function<bool(Battery*)> supports_tesla_dcdc_metrics = [](Battery* b) {
+  return b != nullptr && (user_selected_battery_type == BatteryType::TeslaModel3Y ||
+                          user_selected_battery_type == BatteryType::TeslaModelSX);
+};
 
 SensorConfig batterySensorConfigTemplate[] = {
     {"SOC", "SOC (Scaled)", "", "%", "battery", always},
@@ -118,7 +126,6 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"state_of_health", "State Of Health", "", "%", "battery", always},
     {"temperature_min", "Temperature Min", "", "°C", "temperature", always},
     {"temperature_max", "Temperature Max", "", "°C", "temperature", always},
-    {"cpu_temp", "CPU Temperature", "", "°C", "temperature", always},
     {"stat_batt_power", "Stat Batt Power", "", "W", "power", always},
     {"battery_current", "Battery Current", "", "A", "current", always},
     {"cell_max_voltage", "Cell Max Voltage", "", "V", "voltage", always},
@@ -133,25 +140,33 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"charged_energy", "Battery Charged Energy", "", "Wh", "energy", supports_charged},
     {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged},
     {"balancing_active_cells", "Balancing Active Cells", "", "", "", always},
-    {"balancing_status", "Balancing Status", "", "", "", always}};
+    {"balancing_status", "Balancing Status", "", "", "", always},
+    {"dc_dc_current", "DC-DC Current", "", "A", "current", supports_tesla_dcdc_metrics},
+    {"dc_dc_voltage", "DC-DC Voltage", "", "V", "voltage", supports_tesla_dcdc_metrics}};
 
 SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
                                              {"pause_status", "Pause Status", "", "", "", always},
                                              {"event_level", "Event Level", "", "", "", always},
-                                             {"emulator_status", "Emulator Status", "", "", "", always}};
+                                             {"emulator_status", "Emulator Status", "", "", "", always},
+                                             {"emulator_uptime", "Emulator Uptime", "", "s", "duration", always},
+                                             {"cpu_temp", "CPU Temperature", "", "°C", "temperature", always}};
 
 static std::list<SensorConfig> sensorConfigs;
 
 void create_battery_sensor_configs() {
   for (auto& config : batterySensorConfigTemplate) {
-    config.value_template = strdup(("{{ value_json." + std::string(config.object_id) + " }}").c_str());
+    config.value_template = strdup(("{{ value_json." + std::string(config.default_entity_id) + " }}").c_str());
 
     sensorConfigs.push_back(config);
 
     if (battery2) {
-      config.value_template = strdup(("{{ value_json." + std::string(config.object_id) + "_2 }}").c_str());
+      auto original_condition = config.condition;
+      config.value_template = strdup(("{{ value_json." + std::string(config.default_entity_id) + "_2 }}").c_str());
       config.name = strdup(String(config.name + String(" 2")).c_str());
-      config.object_id = strdup(String(config.object_id + String("_2")).c_str());
+      config.default_entity_id = strdup(String(config.default_entity_id + String("_2")).c_str());
+      config.condition = [original_condition](Battery*) {
+        return battery2 && original_condition(battery2);
+      };
 
       sensorConfigs.push_back(config);
     }
@@ -160,7 +175,7 @@ void create_battery_sensor_configs() {
 
 void create_global_sensor_configs() {
   for (auto& config : globalSensorConfigTemplate) {
-    config.value_template = strdup(("{{ value_json." + std::string(config.object_id) + " }}").c_str());
+    config.value_template = strdup(("{{ value_json." + std::string(config.default_entity_id) + " }}").c_str());
     sensorConfigs.push_back(config);
   }
 }
@@ -171,20 +186,24 @@ SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, null
                                 {"RESTART", "Restart Battery Emulator", nullptr, nullptr, nullptr, nullptr},
                                 {"STOP", "Open Contactors", nullptr, nullptr, nullptr, nullptr}};
 
-static String generateCommonInfoAutoConfigTopic(const char* object_id) {
-  return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
+static String generateCommonInfoAutoConfigTopic(const char* default_entity_id) {
+  return "homeassistant/sensor/" + topic_name + "/" + String(default_entity_id) + "/config";
 }
 
 static String generateCellVoltageAutoConfigTopic(int cell_number, String battery_suffix) {
   return "homeassistant/sensor/" + topic_name + "/cell_voltage" + battery_suffix + String(cell_number) + "/config";
 }
 
-static String generateEventsAutoConfigTopic(const char* object_id) {
-  return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
+static String generateEventsAutoConfigTopic(const char* default_entity_id) {
+  return "homeassistant/sensor/" + topic_name + "/" + String(default_entity_id) + "/config";
 }
 
 static String generateButtonAutoConfigTopic(const char* subtype) {
   return "homeassistant/button/" + topic_name + "/" + String(subtype) + "/config";
+}
+
+static String generateSensorDefaultEntityId(const String& object_id) {
+  return "sensor." + object_id;
 }
 
 void set_common_discovery_attributes(JsonDocument& doc) {
@@ -199,10 +218,11 @@ void set_common_discovery_attributes(JsonDocument& doc) {
 }
 
 void set_battery_voltage_attributes(JsonDocument& doc, int i, int cellNumber, const String& state_topic,
-                                    const String& object_id_prefix, const String& battery_name_suffix) {
+                                    const String& default_entity_id_prefix, const String& battery_name_suffix) {
+  const String default_entity_object_id = default_entity_id_prefix + "battery_voltage_cell" + String(cellNumber);
   doc["name"] = "Battery" + battery_name_suffix + " Cell Voltage " + String(cellNumber);
-  doc["object_id"] = object_id_prefix + "battery_voltage_cell" + String(cellNumber);
-  doc["unique_id"] = topic_name + object_id_prefix + "_battery_voltage_cell" + String(cellNumber);
+  doc["default_entity_id"] = generateSensorDefaultEntityId(default_entity_object_id);
+  doc["unique_id"] = topic_name + default_entity_id_prefix + "_battery_voltage_cell" + String(cellNumber);
   doc["device_class"] = "voltage";
   doc["state_class"] = "measurement";
   doc["state_topic"] = state_topic;
@@ -236,7 +256,6 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   doc["state_of_health" + suffix] = ((float)battery.status.soh_pptt) / 100.0f;
   doc["temperature_min" + suffix] = ((float)((int16_t)battery.status.temperature_min_dC)) / 10.0f;
   doc["temperature_max" + suffix] = ((float)((int16_t)battery.status.temperature_max_dC)) / 10.0f;
-  doc["cpu_temp" + suffix] = datalayer.system.info.CPU_temperature;
   doc["stat_batt_power" + suffix] = ((float)((int32_t)battery.status.active_power_W));
   doc["battery_current" + suffix] = ((float)((int16_t)battery.status.current_dA)) / 10.0f;
   doc["battery_voltage" + suffix] = ((float)battery.status.voltage_dV) / 10.0f;
@@ -271,6 +290,10 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   }
   doc["balancing_active_cells" + suffix] = active_cells;
   doc["balancing_status" + suffix] = get_balancing_status_text(battery.status.balancing_status);
+  if (suffix.length() == 0u && supports_tesla_dcdc_metrics(::battery)) {
+    doc["dc_dc_current" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
+    doc["dc_dc_voltage" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625f;
+  }
 }
 
 static std::vector<EventData> order_events;
@@ -289,8 +312,9 @@ static bool publish_common_info(void) {
 
       doc["name"] = config.name;
       doc["state_topic"] = state_topic;
-      doc["unique_id"] = topic_name + "_" + String(config.object_id);
-      doc["object_id"] = object_id_prefix + String(config.object_id);
+      doc["unique_id"] = topic_name + "_" + String(config.default_entity_id);
+      const String default_entity_object_id = default_entity_id_prefix + String(config.default_entity_id);
+      doc["default_entity_id"] = generateSensorDefaultEntityId(default_entity_object_id);
       doc["value_template"] = config.value_template;
       if (config.unit != nullptr && strlen(config.unit) > 0) {
         doc["unit_of_measurement"] = config.unit;
@@ -301,7 +325,7 @@ static bool publish_common_info(void) {
       }
       set_common_discovery_attributes(doc);
       serializeJson(doc, mqtt_msg);
-      if (mqtt_publish(generateCommonInfoAutoConfigTopic(config.object_id).c_str(), mqtt_msg, true)) {
+      if (mqtt_publish(generateCommonInfoAutoConfigTopic(config.default_entity_id).c_str(), mqtt_msg, true)) {
         ha_common_info_published = true;
       } else {
         return false;
@@ -310,7 +334,7 @@ static bool publish_common_info(void) {
     }
 
   } else {
-    doc["bms_status"] = getBMSStatus(datalayer.battery.status.bms_status);
+    doc["bms_status"] = getBMSStatus(datalayer.system.status.system_status);
     doc["pause_status"] = get_emulator_pause_status();
 
     //only publish these values if BMS is active and we are comunication  with the battery (can send CAN messages to the battery)
@@ -327,6 +351,8 @@ static bool publish_common_info(void) {
 
     doc["event_level"] = get_event_level_string(get_event_level());
     doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
+    doc["cpu_temp"] = (int)(datalayer.system.info.CPU_temperature + 0.5);
+    doc["emulator_uptime"] = millis64() / 1000;
 
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
@@ -344,7 +370,7 @@ static bool publish_cell_voltages(void) {
   static String state_topic_2 = topic_name + "/spec_data_2";
 
   if (ha_autodiscovery_enabled) {
-    bool failed_to_publish = false;
+    bool successfully_published = false;
     if (ha_cell_voltages_published == false) {
 
       // If the cell voltage number isn't initialized...
@@ -352,39 +378,40 @@ static bool publish_cell_voltages(void) {
 
         for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
           int cellNumber = i + 1;
-          set_battery_voltage_attributes(doc, i, cellNumber, state_topic, object_id_prefix, "");
+          set_battery_voltage_attributes(doc, i, cellNumber, state_topic, default_entity_id_prefix, "");
           set_common_discovery_attributes(doc);
 
           serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
           if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "").c_str(), mqtt_msg, true) == false) {
-            failed_to_publish = true;
             return false;
           }
         }
+        successfully_published = true;
         doc.clear();  // clear after sending autoconfig
       }
 
       if (battery2) {
+        successfully_published = false;
         // TODO: Combine this identical block with the previous one.
         // If the cell voltage number isn't initialized...
         if (datalayer.battery2.info.number_of_cells != 0u) {
 
-          for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
+          for (int i = 0; i < datalayer.battery2.info.number_of_cells; i++) {
             int cellNumber = i + 1;
-            set_battery_voltage_attributes(doc, i, cellNumber, state_topic_2, object_id_prefix + "2_", " 2");
+            set_battery_voltage_attributes(doc, i, cellNumber, state_topic_2, default_entity_id_prefix + "2_", " 2");
             set_common_discovery_attributes(doc);
 
             serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
             if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "_2_").c_str(), mqtt_msg, true) == false) {
-              failed_to_publish = true;
               return false;
             }
           }
+          successfully_published = true;
           doc.clear();  // clear after sending autoconfig
         }
       }
     }
-    if (failed_to_publish == false) {
+    if (successfully_published) {
       ha_cell_voltages_published = true;
     }
   }
@@ -480,7 +507,7 @@ bool publish_events() {
     doc["name"] = "Event";
     doc["state_topic"] = state_topic;
     doc["unique_id"] = topic_name + "_event";
-    doc["object_id"] = object_id_prefix + "event";
+    doc["default_entity_id"] = generateSensorDefaultEntityId(default_entity_id_prefix + "event");
     doc["value_template"] =
         "{{ value_json.event_type ~ ' (c:' ~ value_json.count ~ ',m:' ~  value_json.millis ~ ') ' ~ value_json.message "
         "}}";
@@ -546,11 +573,11 @@ static bool publish_buttons_discovery(void) {
       for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
         SensorConfig& config = buttonConfigs[i];
         doc["name"] = config.name;
-        doc["unique_id"] = object_id_prefix + config.object_id;
-        doc["command_topic"] = generateButtonTopic(config.object_id);
+        doc["unique_id"] = default_entity_id_prefix + config.default_entity_id;
+        doc["command_topic"] = generateButtonTopic(config.default_entity_id);
         set_common_discovery_attributes(doc);
         serializeJson(doc, mqtt_msg);
-        if (mqtt_publish(generateButtonAutoConfigTopic(config.object_id).c_str(), mqtt_msg, true)) {
+        if (mqtt_publish(generateButtonAutoConfigTopic(config.default_entity_id).c_str(), mqtt_msg, true)) {
           ha_buttons_published = true;
         } else {
           return false;
@@ -677,6 +704,12 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
 }
 
 bool init_mqtt(void) {
+
+  if (battery == nullptr) {
+    logging.println("ERROR: No battery selected. Aborting MQTT initialization");
+    return false;
+  }
+
   if (ha_autodiscovery_enabled) {
     create_battery_sensor_configs();
     create_global_sensor_configs();
@@ -686,7 +719,7 @@ bool init_mqtt(void) {
 
     BatteryEmulatorSettingsStore settings;
     topic_name = settings.getString("MQTTTOPIC", mqtt_topic_name);
-    object_id_prefix = settings.getString("MQTTOBJIDPREFIX", mqtt_object_id_prefix);
+    default_entity_id_prefix = settings.getString("MQTTOBJIDPREFIX", mqtt_default_entity_id_prefix);
     device_name = settings.getString("MQTTDEVICENAME", mqtt_device_name);
     device_id = settings.getString("HADEVICEID", ha_device_id);
 
@@ -694,8 +727,8 @@ bool init_mqtt(void) {
       topic_name = mqtt_topic_name;
     }
 
-    if (object_id_prefix.length() == 0) {
-      object_id_prefix = mqtt_object_id_prefix;
+    if (default_entity_id_prefix.length() == 0) {
+      default_entity_id_prefix = mqtt_default_entity_id_prefix;
     }
 
     if (device_name.length() == 0) {
@@ -709,7 +742,7 @@ bool init_mqtt(void) {
   } else {
     // Use default naming based on WiFi hostname for topic, object ID prefix, and device name
     topic_name = "battery-emulator_" + String(WiFi.getHostname());
-    object_id_prefix = String(WiFi.getHostname()) + String("_");
+    default_entity_id_prefix = String(WiFi.getHostname()) + String("_");
     device_name = "BatteryEmulator_" + String(WiFi.getHostname());
     device_id = "battery-emulator";
   }

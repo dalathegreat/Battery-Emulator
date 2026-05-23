@@ -7,7 +7,7 @@
 using milliseconds = std::chrono::milliseconds;
 using duration = std::chrono::duration<unsigned long, std::ratio<1, 1000>>;
 
-enum bms_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
+enum system_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
 enum real_bms_status_enum { BMS_DISCONNECTED = 0, BMS_STANDBY = 1, BMS_ACTIVE = 2, BMS_FAULT = 3 };
 enum balancing_status_enum {
   BALANCING_STATUS_UNKNOWN = 0,
@@ -27,7 +27,12 @@ enum class comm_interface {
   Highest
 };
 
+#ifdef HW_LILYGO2CAN
+enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT, GRB_CLASSIC, GRB_FLOW, GRB_HEARTBEAT };
+#else
 enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT };
+#endif
+
 enum PrechargeState {
   AUTO_PRECHARGE_IDLE,
   AUTO_PRECHARGE_START,
@@ -109,8 +114,9 @@ typedef struct {
   frameDirection direction;
 } CAN_log_frame;
 
-std::string getBMSStatus(bms_status_enum status);
+std::string getBMSStatus(system_status_enum status);
 
+#ifdef HW_LILYGO2CAN
 /* Configurable GPIO options (device specific) */
 enum class GPIOOPT1 {
   // T-2CAN: WUP1/WUP2 on GPIO1/GPIO2
@@ -121,7 +127,41 @@ enum class GPIOOPT1 {
   ESTOP_BMS_POWER = 2,
   Highest
 };
-
 extern GPIOOPT1 user_selected_gpioopt1;
+#endif
+enum class GPIOOPT2 {
+  // T-CAN485: Default, BMS power on PIN18
+  DEFAULT_OPT_BMS_POWER_18 = 0,
+  // T-CAN485: Move BMS power to PIN25
+  BMS_POWER_25 = 1,
+  Highest
+};
+enum class GPIOOPT3 {
+  // T-CAN485: Default, SMA inverter pin PIN5
+  DEFAULT_SMA_ENABLE_05 = 0,
+  // T-CAN485: Move SMA inverter pin to PIN33
+  SMA_ENABLE_33 = 1,
+  Highest
+};
+enum class GPIOOPT4 {
+  // T-CAN485: Default, uSD Card
+  DEFAULT_SD_CARD = 0,
+  // T-CAN485: Disable SD,Enable Display on Pins 14,15
+  I2C_DISPLAY_SSD1306 = 1,
+  Highest
+};
+#ifdef HW_STARK
+enum class GPIOOPT5 {
+  // StarkCMR: Default, Gpio23 as BMS power
+  DEFAULT_BMS_POWER_23 = 0,
+  // StarkCMR: Gpio25 as BMS power
+  BMS_POWER_25 = 1,
+  Highest
+};
+extern GPIOOPT5 user_selected_gpioopt5;
+#endif
+extern GPIOOPT2 user_selected_gpioopt2;
+extern GPIOOPT3 user_selected_gpioopt3;
+extern GPIOOPT4 user_selected_gpioopt4;
 
 #endif

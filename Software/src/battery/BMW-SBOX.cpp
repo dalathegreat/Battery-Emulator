@@ -80,7 +80,7 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
   if (currentMillis - LastMsgTime >= INTERVAL_20_MS) {
     LastMsgTime = currentMillis;
     // First check if we have any active errors, incase we do, turn off the battery
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       timeSpentInFaultedMode++;
     } else {
       timeSpentInFaultedMode = 0;
@@ -169,6 +169,6 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
 }
 
 void BmwSbox::setup() {
-  strncpy(datalayer.system.info.shunt_protocol, Name, 63);
-  datalayer.system.info.shunt_protocol[63] = '\0';
+  strncpy(datalayer.system.info.shunt_protocol, Name, 31);
+  datalayer.system.info.shunt_protocol[31] = '\0';
 }

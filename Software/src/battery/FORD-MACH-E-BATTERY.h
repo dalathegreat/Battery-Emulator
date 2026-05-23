@@ -21,18 +21,34 @@ class FordMachEBattery : public CanBattery {
 
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
-  static const int MAX_PACK_VOLTAGE_96S_DV = 4140;
-  static const int MIN_PACK_VOLTAGE_96S_DV = 2680;
+  //90S NMC
+  static const int MAX_PACK_VOLTAGE_90S_DV = 3902;
+  static const int MIN_PACK_VOLTAGE_90S_DV = 2490;
+  static const int MAX_CAPACITY_90S_WH = 98800;
+
+  //94S 98.8 kWh NMC LGES
   static const int MAX_PACK_VOLTAGE_94S_DV = 4072;
   static const int MIN_PACK_VOLTAGE_94S_DV = 2612;
+  static const int MAX_CAPACITY_94S_WH = 98800;
+
+  //75.7 kWh NMC LGES
+  static const int MAX_PACK_VOLTAGE_96S_DV = 4140;
+  static const int MIN_PACK_VOLTAGE_96S_DV = 2680;
+  static const int MAX_CAPACITY_96S_WH = 75700;
+
+  //78.2 kWh LFP CATL
+  static const int MAX_PACK_VOLTAGE_108S_DV = 3870;
+  static const int MIN_PACK_VOLTAGE_108S_DV = 3200;
+  static const int MAX_CAPACITY_108S_WH = 78200;
+  static const int MAX_CELL_VOLTAGE_LFP_MV = 3670;
+
+  //Common
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
   static const int MIN_CELL_VOLTAGE_MV = 2900;
 
-  static const int RAMPDOWN_SOC = 900;  // 90.0 SOC% to start ramping down from max charge power towards 0 at 100.00%
-  static const int RAMPDOWNPOWERALLOWED = 8000;  // What power we ramp down from towards top balancing
-  static const int FLOAT_MAX_POWER_W = 200;      // W, what power to allow for top balancing battery
-  static const int FLOAT_START_MV = 20;          // mV, how many mV under overvoltage to start float charging
+  static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 200;  // W, what power to allow for top balancing battery
+  static const int FLOAT_START_MV = 20;  // mV, how many mV under overvoltage to start float charging
 
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was send
   unsigned long previousMillis30 = 0;    // will store last time a 10ms CAN Message was send
