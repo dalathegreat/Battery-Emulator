@@ -18,6 +18,9 @@ You're in luck. There's various sources to contribute:
 ## Notes on embedded system 🕙
 The Battery-Emulator is a real-time control system, which performs lots of time critical operations. Some operations, like contactor control, need to complete within 10 milliseconds periodically. The resources of the ESP32 microcontroller is limited, so keeping track of CPU and memory usage is essential. Keep this in mind when coding for the system! Performance profiling the system can be done by enabling the "Enable performance profiling:" option in the webserver
 
+### Notes on CPU architecture
+The project supports only ESP32 boards. By default we support a handful of easy to source boards. You can even add your own board by modifying the Hardware Abstraction Layer (HAL) file, and essentially port the emulator to any ESP32 variant.
+
 ## Setting up the compilation environment (VScode + PlatformIO) 💻
 
 This project uses the PlatformIO extension within Visual Studio Code for development and uploading. It handles all the complex toolchains and library management for you.
