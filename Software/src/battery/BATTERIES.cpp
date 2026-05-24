@@ -312,6 +312,7 @@ void setup_battery() {
         break;
       case BatteryType::FordMachE:
         battery2 = new FordMachEBattery(&datalayer.battery2, can_config.battery_double);
+        break;
       case BatteryType::CmpSmartCar:
         battery2 = new CmpSmartCarBattery(&datalayer.battery2, nullptr, can_config.battery_double);
         break;
