@@ -24,6 +24,30 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
 
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_NC; }
 
+  // Contactor handling
+  virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_3; }
+  virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_4; }
+  virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_5; }
+  virtual gpio_num_t BMS_POWER() { return GPIO_NUM_6; }
+
+  // Equipment stop pin
+  virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_7; }
+
+  // Battery wake up pins
+  virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_8; }
+  virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_9; }
+
+  // i2c display
+  virtual gpio_num_t DISPLAY_SDA_PIN() { return GPIO_NUM_1; }
+  virtual gpio_num_t DISPLAY_SCL_PIN() { return GPIO_NUM_2; }
+
+  // CANFD add-on defines for MCP2517
+  virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_10; }
+  virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_11; }
+  virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_12; }
+  virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_13; }
+  virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_14; }
+
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative};
   }
@@ -37,7 +61,7 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
       case comm_interface::CanAddonMcp2515:
         return "";
       case comm_interface::CanFdAddonMcp2518:
-        return "";
+        return "CAN FD (MCP2518 add-on)";
       case comm_interface::Modbus:
         return "Modbus";
       case comm_interface::RS485:
