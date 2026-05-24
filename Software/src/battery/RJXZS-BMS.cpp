@@ -121,8 +121,10 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
         equalization_starting_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
         if ((status_accounting & 0x020) >> 5) {  //balancing active
           datalayer.battery.status.balancing_status = BALANCING_STATUS_ACTIVE;
+          set_event_latched(EVENT_BALANCING_START, 0);
         } else {  //balancing off
           datalayer.battery.status.balancing_status = BALANCING_STATUS_READY;
+          set_event(EVENT_BALANCING_END, 0);
         }
         if ((rx_frame.data.u8[4] & 0x40) >> 6) {
           charging_active = true;

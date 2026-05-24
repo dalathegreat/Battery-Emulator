@@ -304,10 +304,14 @@ void MebBattery::
   datalayer_extended.meb.rt_cell_undervol = realtime_cell_undervoltage_warning;
   datalayer_extended.meb.rt_cell_imbalance = realtime_cell_imbalance_warning;
   datalayer_extended.meb.rt_battery_unathorized = realtime_warning_battery_unathorized;
-  if (balancing_active == 1 && datalayer_extended.meb.balancing_active != 1)
+  if (balancing_active == 1 && datalayer_extended.meb.balancing_active != 1) {
+    datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
     set_event_latched(EVENT_BALANCING_START, 0);
-  if (balancing_active == 2 && datalayer_extended.meb.balancing_active == 1)
+  }
+  if (balancing_active == 2 && datalayer_extended.meb.balancing_active == 1) {
+    datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
     set_event(EVENT_BALANCING_END, 0);
+  }
   datalayer_extended.meb.balancing_active = balancing_active;
   datalayer_extended.meb.balancing_request = balancing_request;
   datalayer_extended.meb.charging_active = charging_active;
