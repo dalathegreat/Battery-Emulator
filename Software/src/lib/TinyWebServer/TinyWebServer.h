@@ -114,7 +114,12 @@ public:
     inline bool reply_started() {
         return total_written > 0;
     }
-    inline static int sub_mod(int a, int b) {
+    inline static uint16_t sub_mod(uint16_t a, uint16_t b) {
+        // Compile-time optimization if b is a power of 2
+        if (__builtin_constant_p(b) && (b > 0 && (b & (b - 1)) == 0)) {
+            return a & (b - 1);
+        }
+        
         while(a >= b) {
             a -= b;
         }
@@ -167,7 +172,7 @@ protected:
         return (w >= r) ? (w - r) : (SEND_BUFFER_SIZE - r + w);
     }
 
-    uint32_t content_length = 0;
+    int32_t content_length = 0;
     uint32_t total_written = 0;
     uint32_t body_read = 0;
 

@@ -92,8 +92,13 @@ void TinyWebServer::open_listen_port() {
 }
 
 char* trim_delimiter_and_whitespace(char *str, int *len) {
-    // Trim leading and trailing whitespace, returning a pointer into the original string.
-    // The last character is always removed.
+    // Modify the string in-place to remove the last character and trim leading
+    // and trailing whitespace, and return a pointer to the start of the trimmed
+    // string (with whitespace skipped). A nul terminator is added after the
+    // last non-white-space character.
+
+    // The new length of the string is written back to *len.
+
     (*len)--;
     while(*len > 0 && (str[(*len)-1]==' ' || str[(*len)-1]=='\r' || str[(*len)-1]=='\n')) {
         (*len)--;
@@ -103,8 +108,8 @@ char* trim_delimiter_and_whitespace(char *str, int *len) {
 };
 
 char* trim_delimiter_and_trailing_whitespace(char *str, int *len) {
-    // Trim trailing whitespace, returning a pointer into the original string.
-    // The last character is always removed.
+    // Like trim_delimiter_and_whitespace, but only trims trailing whitespace.
+
     (*len)--;
     while(*len > 0 && (str[(*len)-1]==' ' || str[(*len)-1]=='\r' || str[(*len)-1]=='\n')) {
         (*len)--;
@@ -117,9 +122,14 @@ char* trim_delimiter_and_trailing_whitespace(char *str, int *len) {
     return str;
 };
 
+const char *HTTP_400 = "HTTP/1.1 400 x\r\n"
+                       "Connection: close\r\n"
+                       "\r\n";
+
 const char *HTTP_404 = "HTTP/1.1 404 x\r\n"
                        "Connection: close\r\n"
                        "\r\n";
+        
 //static_assert(strlen(HTTP_404) < TwsRequest::SEND_BUFFER_SIZE, "HTTP_404 response is too large for send buffer");
 
 void TinyWebServer::handle_request(TwsRequest &request) {
@@ -344,8 +354,8 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                     bool final = (delim == '&' || delim == '\n' || delim == ' ');
                     char *trimmed = trim_delimiter_and_whitespace(buf_ptr, &len);
                     request.handler->onQueryParam->handleQueryParam(request, trimmed, len, final);
-                } else {
-                    DEBUG_PRINTF("TWS query param is %s\n", trim_delimiter_and_whitespace(buf_ptr, &len));
+                // } else {
+                //     DEBUG_PRINTF("TWS query param is %s\n", trim_delimiter_and_whitespace(buf_ptr, &len));
                 }
 
                 if(delim == '&') {
@@ -374,49 +384,37 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                 if(request.is_post() && request.content_length > 0) {
                     // Prepare to receive the POST body
                     request.parse_state = TWS_AWAITING_BODY;
+                } else if(request.is_post() && request.content_length < 0) {
+                    // No valid Content-Length header was supplied
+                    request.write_fully(HTTP_400);
+                    request.finish();
                 } else {
                     call_request_handler();
                 }
-                
-                // && request.content_length == 0) {
-                //     // No POST body, go straight to the request handler
-                //     call_request_handler();
-                //     break;
-                // } else if(request.method==TWS_HTTP_POST) {//} && request.handler && request.handler->onPostBody) {
-                //     // Prepare to receive the POST body
-                //     request.parse_state = TWS_AWAITING_BODY;
-
-                //     // Attempt a initial zero-length call to see if the handler
-                //     // is expecting a body. We need to do this since we're not
-                //     // parsing Content-Length ourselves, so we don't know
-                //     // whether to wait for a body or not.
-                //     // auto rret = request.handler->onPostBody->handlePostBody(request, 0, nullptr, 0);
-                //     // //logging.printf("Testing handlePostBody, returned %d\n", rret);
-                //     // if(rret == -1) {
-                //     //     // No, skip the body and go straight to the request handler
-                //     //     call_request_handler();
-                //     // } else {
-                //     //     request.parse_state = TWS_AWAITING_BODY;
-                //     // }
-                // } else {
-                //     call_request_handler();
-                // }
             } else {
                 char *buf_ptr = request.get_read_ptr(buf, len);
 
                 if(request.is_post() && len > 15 && strncasecmp(buf_ptr, "Content-Length:", 15)==0) {
                     // Parse the Content-Length header
-                    char *cl_ptr = trim_delimiter_and_whitespace(buf_ptr + 15, &len);
-                    request.content_length = atoi(cl_ptr);
-                    DEBUG_PRINTF("TWS content length: %d\n", request.content_length);
+
+                    int value_len = len - 15;
+                    char *cl_ptr = trim_delimiter_and_whitespace(buf_ptr + 15, &value_len);
+
+                    char *endptr = nullptr;
+                    int32_t val = (int32_t)strtoul(cl_ptr, &endptr, 10);
+
+                    if (cl_ptr[0] != '\0' && *endptr == '\0' && val >= 0) {
+                        // Only keep the result if it is a valid non-negative integer
+                        request.content_length = val;
+                    } else {
+                        DEBUG_PRINTF("TWS invalid content length: %s\n", cl_ptr);
+                    }
                 }
 
                 if(request.handler && request.handler->onHeader) {
                     // Don't trim leading whitespace, as we may be mid-chunk
                     char *trimmed = trim_delimiter_and_trailing_whitespace(buf_ptr, &len);
                     request.handler->onHeader->handleHeader(request, trimmed, len);
-                } else {
-                    //DEBUG_PRINTF("TWS client header: [%s]\n", trim(hbuf_ptr, len));
                 }
             }
             break;
@@ -443,15 +441,18 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                             request, request.body_read, (uint8_t*)read_ptr, to_process
                         );
 
-                        if (consumed == -1 || request.body_read + consumed >= request.content_length) {
+                        if(request.done) {
+                            // Handler may have finished the request.
+                            return;
+                        } else if(request.body_read + consumed >= request.content_length) {
                             post_done = true;
+                        } else if(consumed == -1) {
+                            // Handler doesn't want any more body but we still have some left.
+                            // Must have been a bad request.
+                            request.write_fully(HTTP_400);
+                            request.finish();
+                            return;
                         }
-
-
-                        //int consumed = request.handler->onPostBody->handlePostBody(request, request.body_read, (uint8_t*)read_ptr, len);
-                        //post_done = (consumed == -1);
-                        // maybe return -2 for not-consuming-but-also-not-stuck?
-                        //if (consumed != 0) progress_made = true;
 
                         if(consumed==0 && len<request.available() && !allow_noncontiguous) {
                             // The handler didn't consume any of our contiguous buffer.
@@ -499,6 +500,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                         }
                     }
                 } else {
+                    // Don't accept POST requests that aren't handled
                     request.write_fully(HTTP_404);
                     request.finish();
                 }
@@ -657,15 +659,20 @@ int IRAM_ATTR TinyWebServer::write(uint32_t connection_id, const char *data, siz
 
     // Find the request with the given connection ID
     for (int i = 0; i < slot_count(); i++) {
-        if (slots[i]->active() && slots[i]->connection_id == connection_id && slots[i]->reply_started()) {
+        if (slots[i]->connection_id == connection_id) {
+            // Lock the slot
             while(slots[i]->send_buffer_lock.test_and_set(std::memory_order_acquire)) {
                 // Avoid priority inversion with an explicit delay. An
                 // alternative would be a proper FreeRTOS mutex instead of this
                 // spinlock, but that has much worse uncontended performance.
                 vTaskDelay(1);
             }
-
-            int ret = slots[i]->write_indirect(data, len);
+            // Recheck we still have a valid connection after acquiring the lock
+            int ret = (
+                (slots[i]->active() && slots[i]->connection_id == connection_id && slots[i]->reply_started())
+                ? slots[i]->write_indirect(data, len)
+                : -1 // Connection lost while waiting for lock, report failure
+            );
             slots[i]->send_buffer_lock.clear(std::memory_order_release);
             return ret;
         }
@@ -699,6 +706,13 @@ void TinyWebServer::finish(uint32_t connection_id) {
 void TwsRequest::reset() {
     // Reset a request ready to be reused for a new connection.
     // Don't call this during request handling, use abort() instead.
+
+    // Get the send_buffer_lock here to avoid external writers overwriting fresh
+    // connections
+    while(send_buffer_lock.test_and_set(std::memory_order_acquire)) {
+        vTaskDelay(1);
+    }
+
     if(socket>-1) {
         close(socket);
     }
@@ -713,7 +727,7 @@ void TwsRequest::reset() {
     parse_state = TWS_AWAITING_METHOD;
     done = false;
     aborted = false;
-    content_length = 0;
+    content_length = -1;
     total_written = 0;
     body_read = 0;
     pending_direct_write = false;
@@ -725,6 +739,8 @@ void TwsRequest::reset() {
     path_wildcard[0] = '\0';
     handler = nullptr;
     connection_id = 0;
+
+    send_buffer_lock.clear(std::memory_order_release);
 }
 
 void TwsRequest::perform_io() {
