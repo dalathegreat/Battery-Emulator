@@ -86,6 +86,7 @@ void RenaultZoeGen2Battery::update_values() {
     datalayer_battery->status.cell_balancing_status[95 - i] = balancing_status_cell[i];
     if (balancing_status_cell[i]) {
       set_event_latched(EVENT_BALANCING_START, (95 - i));
+      datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
     }
   }
 
@@ -469,6 +470,7 @@ void RenaultZoeGen2Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
 }
 
 void RenaultZoeGen2Battery::transmit_can_frame_376(void) {
