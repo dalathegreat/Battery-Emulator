@@ -285,6 +285,7 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
         switch (cmdState) {
           case CELL_VOLTAGE_MINMAX:
+          case CELL_VOLTAGE_MINMAX2:
             if (next_data >= 4) {
               cellvoltage_temp_mV = (message_data[0] << 8 | message_data[1]);
               if (cellvoltage_temp_mV < 4500) {  // Prevents garbage data from being read on bootup
@@ -351,213 +352,234 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
         *allows_contactor_closing = true;
       }
       transmit_can_frame(&BMW_10B);  // Always send 10B - content (0x00/0x10) controlled by logic above
-    }
+    } else
 
-    // Send 100ms CAN Message
-    if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-      previousMillis100 = currentMillis;
+      // Send 100ms CAN Message
+      if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+        previousMillis100 = currentMillis;
 
-      BMW_12F.data.u8[1] = ((BMW_12F.data.u8[1] & 0xF0) + alive_counter_100ms);
-      BMW_12F.data.u8[0] = calculateCRC(BMW_12F, 8, 0x60);
+        BMW_12F.data.u8[1] = ((BMW_12F.data.u8[1] & 0xF0) + alive_counter_100ms);
+        BMW_12F.data.u8[0] = calculateCRC(BMW_12F, 8, 0x60);
 
-      alive_counter_100ms = increment_alive_counter(alive_counter_100ms);
+        alive_counter_100ms = increment_alive_counter(alive_counter_100ms);
 
-      transmit_can_frame(&BMW_12F);
-    }
-    // Send 200ms CAN Message
-    if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
-      previousMillis200 = currentMillis;
+        transmit_can_frame(&BMW_12F);
+      } else
+        // Send 200ms CAN Message
+        if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+          previousMillis200 = currentMillis;
 
-      BMW_19B.data.u8[1] = ((BMW_19B.data.u8[1] & 0xF0) + alive_counter_200ms);
-      BMW_19B.data.u8[0] = calculateCRC(BMW_19B, 8, 0x6C);
+          BMW_19B.data.u8[1] = ((BMW_19B.data.u8[1] & 0xF0) + alive_counter_200ms);
+          BMW_19B.data.u8[0] = calculateCRC(BMW_19B, 8, 0x6C);
 
-      alive_counter_200ms = increment_alive_counter(alive_counter_200ms);
+          alive_counter_200ms = increment_alive_counter(alive_counter_200ms);
 
-      transmit_can_frame(&BMW_19B);
+          transmit_can_frame(&BMW_19B);
 
-      if (UserRequestBalancing != NONE && battery_info_available) {
-        switch (detectedBattery) {
-          case BATTERY_60AH:
-            transmit_can_frame(&BMW_3E9);
-            break;
-          case BATTERY_94AH:
-            BMW_3E9.data.u8[0] = 0x0B;
-            BMW_3E9.data.u8[1] = 0x81;
-            transmit_can_frame(&BMW_3E9);
-            break;
-          case BATTERY_120AH:
-            BMW_3E9.data.u8[0] = 0xD8;
-            BMW_3E9.data.u8[1] = 0xA4;
-            transmit_can_frame(&BMW_3E9);
-            break;
-        }
+          if (UserRequestBalancing != NONE && battery_info_available) {
+            switch (detectedBattery) {
+              case BATTERY_60AH:
+                transmit_can_frame(&BMW_3E9);
+                break;
+              case BATTERY_94AH:
+                BMW_3E9.data.u8[0] = 0x0B;
+                BMW_3E9.data.u8[1] = 0x81;
+                transmit_can_frame(&BMW_3E9);
+                break;
+              case BATTERY_120AH:
+                BMW_3E9.data.u8[0] = 0xD8;
+                BMW_3E9.data.u8[1] = 0xA4;
+                transmit_can_frame(&BMW_3E9);
+                break;
+            }
 
-        cmdState = OFF;
-        if (UserRequestBalancing == REQUESTED && currentMillis - UserRequestBalancingMillis > 20000) {
-          UserRequestBalancing = STARTING;
-        }
-        if (UserRequestBalancing == STARTING && currentMillis - UserRequestBalancingMillis > 30000) {
-          battery_awake = false;
-          UserRequestBalancing = EXECUTING;
-          set_event(EVENT_BALANCING_START, 0);
-        }
-        if (UserRequestBalancing == EXECUTING && battery_awake) {
-          set_event(EVENT_BALANCING_START, 1);
-          battery_awake = false;
-        }
-      }
-    }
-    // Send 500ms CAN Message
-    if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
-      previousMillis500 = currentMillis;
-
-      BMW_30B.data.u8[1] = ((BMW_30B.data.u8[1] & 0xF0) + alive_counter_500ms);
-      BMW_30B.data.u8[0] = calculateCRC(BMW_30B, 8, 0xBE);
-
-      alive_counter_500ms = increment_alive_counter(alive_counter_500ms);
-
-      transmit_can_frame(&BMW_30B);
-    }
-    // Send 640ms CAN Message
-    if (currentMillis - previousMillis640 >= INTERVAL_640_MS) {
-      previousMillis640 = currentMillis;
-
-      transmit_can_frame(&BMW_512);  // Keep BMS alive
-      transmit_can_frame(&BMW_5F8);
-    }
-    // Send 1000ms CAN Message
-    if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
-      previousMillis1000 = currentMillis;
-      //BMW_328 byte0-3 = Second Counter (T_SEC_COU_REL) time_second_counter_relative
-      // This signal shows the time in seconds since the system time was started (typically in the factory)
-      BMW_328_seconds++;  // Used to increment seconds
-      BMW_328.data.u8[0] = (uint8_t)(BMW_328_seconds & 0xFF);
-      BMW_328.data.u8[1] = (uint8_t)((BMW_328_seconds >> 8) & 0xFF);
-      BMW_328.data.u8[2] = (uint8_t)((BMW_328_seconds >> 16) & 0xFF);
-      BMW_328.data.u8[3] = (uint8_t)((BMW_328_seconds >> 24) & 0xFF);
-      //BMW_328 byte 4-5 = Day Counter (T_DAY_COU_ABSL) time_day_counter_absolute
-      //This value goes from 1 ... 65543
-      // Day 1 = 1.1.2000 ... Day 65543 = year 2179
-      BMS_328_seconds_to_day++;
-      if (BMS_328_seconds_to_day > 86400) {
-        BMW_328_days++;
-        BMS_328_seconds_to_day = 0;
-      }
-      BMW_328.data.u8[4] = (uint8_t)(BMW_328_days & 0xFF);
-      BMW_328.data.u8[5] = (uint8_t)((BMW_328_days >> 8) & 0xFF);
-
-      BMW_1D0.data.u8[1] = ((BMW_1D0.data.u8[1] & 0xF0) + alive_counter_1000ms);
-      BMW_1D0.data.u8[0] = calculateCRC(BMW_1D0, 8, 0xF9);
-
-      BMW_3F9.data.u8[1] = ((BMW_3F9.data.u8[1] & 0xF0) + alive_counter_1000ms);
-      BMW_3F9.data.u8[0] = calculateCRC(BMW_3F9, 8, 0x38);
-
-      BMW_3EC.data.u8[1] = ((BMW_3EC.data.u8[1] & 0xF0) + alive_counter_1000ms);
-      BMW_3EC.data.u8[0] = calculateCRC(BMW_3EC, 8, 0x53);
-
-      BMW_3A7.data.u8[1] = ((BMW_3A7.data.u8[1] & 0xF0) + alive_counter_1000ms);
-      BMW_3A7.data.u8[0] = calculateCRC(BMW_3A7, 8, 0x05);
-
-      alive_counter_1000ms = increment_alive_counter(alive_counter_1000ms);
-
-      transmit_can_frame(&BMW_3E8);  //Order comes from CAN logs
-      transmit_can_frame(&BMW_328);
-      transmit_can_frame(&BMW_3F9);
-      transmit_can_frame(&BMW_2E2);
-      transmit_can_frame(&BMW_41D);
-      transmit_can_frame(&BMW_3D0);
-      transmit_can_frame(&BMW_3CA);
-      transmit_can_frame(&BMW_3A7);
-      transmit_can_frame(&BMW_2CA);
-      transmit_can_frame(&BMW_3FB);
-      transmit_can_frame(&BMW_418);
-      transmit_can_frame(&BMW_1D0);
-      transmit_can_frame(&BMW_3EC);
-      transmit_can_frame(&BMW_192);
-      transmit_can_frame(&BMW_13E);
-      transmit_can_frame(&BMW_433);
-
-      BMW_433.data.u8[1] = 0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
-      BMW_3E8.data.u8[0] = 0xF1;  // First 3E8 message byte0 we send is unique, once we sent initial value send this
-
-      if (UserRequestDTCreset) {
-        cmdState = CLEAR_DTC;
-        UserRequestDTCreset = false;
-      }
-
-      next_data = 0;
-      switch (cmdState) {
-        case SOC:
-          transmit_can_frame(&BMW_6F1_CELL);
-          cmdState = CELL_VOLTAGE_MINMAX;
-          break;
-        case CELL_VOLTAGE_MINMAX:
-          transmit_can_frame(&BMW_6F1_SOH);
-          cmdState = SOH;
-          break;
-        case SOH:
-          transmit_can_frame(&BMW_6F1_CELL_VOLTAGE_AVG);
-          cmdState = CELL_VOLTAGE_CELLNO;
-          current_cell_polled = 0;
-
-          break;
-        case CELL_VOLTAGE_CELLNO:
-          current_cell_polled++;
-          if (current_cell_polled > 96) {
-            cmdState = CELL_VOLTAGE_CELLNO_LAST;
-          } else {
-            cmdState = CELL_VOLTAGE_CELLNO;
-
-            BMW_6F4_CELL_VOLTAGE_CELLNO.data.u8[6] = current_cell_polled;
-            transmit_can_frame(&BMW_6F4_CELL_VOLTAGE_CELLNO);
+            cmdState = OFF;
+            if (UserRequestBalancing == REQUESTED && currentMillis - UserRequestBalancingMillis > 20000) {
+              UserRequestBalancing = STARTING;
+            }
+            if (UserRequestBalancing == STARTING && currentMillis - UserRequestBalancingMillis > 30000) {
+              battery_awake = false;
+              UserRequestBalancing = EXECUTING;
+              set_event(EVENT_BALANCING_START, 0);
+            }
+            if (UserRequestBalancing == EXECUTING && battery_awake) {
+              set_event(EVENT_BALANCING_START, 1);
+              battery_awake = false;
+            }
           }
-          break;
-        case CELL_VOLTAGE_CELLNO_LAST:
-          transmit_can_frame(&BMW_6F1_SOC);
-          cmdState = SOC;
-          break;
-        case CLEAR_DTC:
-          transmit_can_frame(&BMW_6F1_CLEAR_DTC);
-          cmdState = SOC;  //jump back to normal polling
-          break;
-        case OFF:
-          break;
-        default:
-          //Should never end up here
-          cmdState = SOC;
-          break;
-      }
-    }
-    // Send 5000ms CAN Message
-    if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
-      previousMillis5000 = currentMillis;
+        } else
+          // Send 500ms CAN Message
+          if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
+            previousMillis500 = currentMillis;
 
-      BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
-      BMW_3C5.data.u8[0] = ((BMW_3C5.data.u8[0] & 0xF0) + alive_counter_5000ms);
+            BMW_30B.data.u8[1] = ((BMW_30B.data.u8[1] & 0xF0) + alive_counter_500ms);
+            BMW_30B.data.u8[0] = calculateCRC(BMW_30B, 8, 0xBE);
 
-      transmit_can_frame(&BMW_3FC);  //Order comes from CAN logs
-      transmit_can_frame(&BMW_3C5);
-      transmit_can_frame(&BMW_3A0);
-      transmit_can_frame(&BMW_592_0);
-      transmit_can_frame(&BMW_592_1);
+            alive_counter_500ms = increment_alive_counter(alive_counter_500ms);
 
-      alive_counter_5000ms = increment_alive_counter(alive_counter_5000ms);
+            transmit_can_frame(&BMW_30B);
+          } else
+            // Send 640ms CAN Message
+            if (currentMillis - previousMillis640 >= INTERVAL_640_MS) {
+              previousMillis640 = currentMillis;
 
-      if (BMW_380_counter < 3) {
-        transmit_can_frame(&BMW_380);  // This message stops after 3 times on startup
-        BMW_380_counter++;
-      }
-    }
-    // Send 10000ms CAN Message
-    if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
-      previousMillis10000 = currentMillis;
+              transmit_can_frame(&BMW_512);  // Keep BMS alive
+              transmit_can_frame(&BMW_5F8);
 
-      transmit_can_frame(&BMW_3E5);  //Order comes from CAN logs
-      transmit_can_frame(&BMW_3E4);
-      transmit_can_frame(&BMW_37B);
+              if (UserRequestDTCreset) {
+                cmdState = CLEAR_DTC;
+                UserRequestDTCreset = false;
+              }
 
-      BMW_3E5.data.u8[0] = 0xFD;  // First 3E5 message byte0 we send is unique, once we sent initial value send this
-    }
+              next_data = 0;
+              switch (cmdState) {
+                case SOC:
+                  transmit_can_frame(&BMW_6F1_CELL);
+                  cmdState = CELL_VOLTAGE_MINMAX;
+                  break;
+                case CELL_VOLTAGE_MINMAX:
+                  transmit_can_frame(&BMW_6F1_SOH);
+                  cmdState = SOH;
+                  break;
+                case CELL_VOLTAGE_MINMAX2:
+                  BMW_6F4_CELL_VOLTAGE_CELLNO.data.u8[6] = current_cell_polled;
+                  transmit_can_frame(&BMW_6F4_CELL_VOLTAGE_CELLNO);
+                  cmdState = CELL_VOLTAGE_CELLNO;
+                  break;
+                case SOH:
+                  transmit_can_frame(&BMW_6F1_CELL_VOLTAGE_AVG);
+                  cmdState = CELL_VOLTAGE_CELLNO;
+                  current_cell_polled = 0;
+
+                  break;
+                case CELL_VOLTAGE_CELLNO:
+                  current_cell_polled++;
+                  if (current_cell_polled > 96) {
+                    cmdState = CELL_VOLTAGE_CELLNO_LAST;
+                  } else if (current_cell_polled % 6 == 0) {
+                    transmit_can_frame(&BMW_6F1_CELL);
+                    cmdState = CELL_VOLTAGE_MINMAX2;
+                  } else {
+                    cmdState = CELL_VOLTAGE_CELLNO;
+
+                    BMW_6F4_CELL_VOLTAGE_CELLNO.data.u8[6] = current_cell_polled;
+                    transmit_can_frame(&BMW_6F4_CELL_VOLTAGE_CELLNO);
+                  }
+                  break;
+                case CELL_VOLTAGE_CELLNO_LAST:
+                  transmit_can_frame(&BMW_6F1_SOC);
+                  cmdState = SOC;
+                  break;
+                case CLEAR_DTC:
+                  transmit_can_frame(&BMW_6F1_CLEAR_DTC);
+                  cmdState = SOC;  //jump back to normal polling
+                  break;
+                case OFF:
+                  break;
+                default:
+                  //Should never end up here
+                  cmdState = SOC;
+                  break;
+              }
+
+            } else
+              // Send 1000ms CAN Message
+              if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+                previousMillis1000 = currentMillis;
+                //BMW_328 byte0-3 = Second Counter (T_SEC_COU_REL) time_second_counter_relative
+                // This signal shows the time in seconds since the system time was started (typically in the factory)
+                BMW_328_seconds++;  // Used to increment seconds
+                BMW_328.data.u8[0] = (uint8_t)(BMW_328_seconds & 0xFF);
+                BMW_328.data.u8[1] = (uint8_t)((BMW_328_seconds >> 8) & 0xFF);
+                BMW_328.data.u8[2] = (uint8_t)((BMW_328_seconds >> 16) & 0xFF);
+                BMW_328.data.u8[3] = (uint8_t)((BMW_328_seconds >> 24) & 0xFF);
+                //BMW_328 byte 4-5 = Day Counter (T_DAY_COU_ABSL) time_day_counter_absolute
+                //This value goes from 1 ... 65543
+                // Day 1 = 1.1.2000 ... Day 65543 = year 2179
+                BMS_328_seconds_to_day++;
+                if (BMS_328_seconds_to_day > 86400) {
+                  BMW_328_days++;
+                  BMS_328_seconds_to_day = 0;
+                }
+                BMW_328.data.u8[4] = (uint8_t)(BMW_328_days & 0xFF);
+                BMW_328.data.u8[5] = (uint8_t)((BMW_328_days >> 8) & 0xFF);
+
+                BMW_3F9.data.u8[1] = ((BMW_3F9.data.u8[1] & 0xF0) + alive_counter_1000ms);
+                BMW_3F9.data.u8[0] = calculateCRC(BMW_3F9, 8, 0x38);
+
+                BMW_3A7.data.u8[1] = ((BMW_3A7.data.u8[1] & 0xF0) + alive_counter_1000ms);
+                BMW_3A7.data.u8[0] = calculateCRC(BMW_3A7, 8, 0x05);
+
+                alive_counter_1000ms = increment_alive_counter(alive_counter_1000ms);
+
+                transmit_can_frame(&BMW_3E8);  //Order comes from CAN logs
+                transmit_can_frame(&BMW_328);
+                transmit_can_frame(&BMW_3F9);
+                transmit_can_frame(&BMW_2E2);
+                transmit_can_frame(&BMW_41D);
+                transmit_can_frame(&BMW_3D0);
+                transmit_can_frame(&BMW_3CA);
+                transmit_can_frame(&BMW_3A7);
+
+                BMW_3E8.data.u8[0] =
+                    0xF1;  // First 3E8 message byte0 we send is unique, once we sent initial value send this
+
+              } else
+                // Send 1000ms CAN Message
+                if (currentMillis - previousMillis1000Part2 >= INTERVAL_1_S) {
+                  previousMillis1000Part2 = currentMillis;
+
+                  BMW_1D0.data.u8[1] = ((BMW_1D0.data.u8[1] & 0xF0) + alive_counter_1000ms);
+                  BMW_1D0.data.u8[0] = calculateCRC(BMW_1D0, 8, 0xF9);
+
+                  BMW_3EC.data.u8[1] = ((BMW_3EC.data.u8[1] & 0xF0) + alive_counter_1000ms);
+                  BMW_3EC.data.u8[0] = calculateCRC(BMW_3EC, 8, 0x53);
+
+                  transmit_can_frame(&BMW_2CA);
+                  transmit_can_frame(&BMW_3FB);
+                  transmit_can_frame(&BMW_418);
+                  transmit_can_frame(&BMW_1D0);
+                  transmit_can_frame(&BMW_3EC);
+                  transmit_can_frame(&BMW_192);
+                  transmit_can_frame(&BMW_13E);
+                  transmit_can_frame(&BMW_433);
+
+                  BMW_433.data.u8[1] =
+                      0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
+
+                } else
+
+                  // Send 5000ms CAN Message
+                  if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
+                    previousMillis5000 = currentMillis;
+
+                    BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
+                    BMW_3C5.data.u8[0] = ((BMW_3C5.data.u8[0] & 0xF0) + alive_counter_5000ms);
+
+                    transmit_can_frame(&BMW_3FC);  //Order comes from CAN logs
+                    transmit_can_frame(&BMW_3C5);
+                    transmit_can_frame(&BMW_3A0);
+                    transmit_can_frame(&BMW_592_0);
+                    transmit_can_frame(&BMW_592_1);
+
+                    alive_counter_5000ms = increment_alive_counter(alive_counter_5000ms);
+
+                    if (BMW_380_counter < 3) {
+                      transmit_can_frame(&BMW_380);  // This message stops after 3 times on startup
+                      BMW_380_counter++;
+                    }
+                  } else
+                    // Send 10000ms CAN Message
+                    if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
+                      previousMillis10000 = currentMillis;
+
+                      transmit_can_frame(&BMW_3E5);  //Order comes from CAN logs
+                      transmit_can_frame(&BMW_3E4);
+                      transmit_can_frame(&BMW_37B);
+
+                      BMW_3E5.data.u8[0] =
+                          0xFD;  // First 3E5 message byte0 we send is unique, once we sent initial value send this
+                    }
   } else {
     previousMillis20 = currentMillis;
     previousMillis100 = currentMillis;
@@ -565,6 +587,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
     previousMillis500 = currentMillis;
     previousMillis640 = currentMillis;
     previousMillis1000 = currentMillis;
+    previousMillis1000Part2 = currentMillis;
     previousMillis5000 = currentMillis;
     previousMillis10000 = currentMillis;
   }
