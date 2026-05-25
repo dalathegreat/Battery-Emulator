@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "../../battery/BATTERIES.h"
 #include "../../communication/Transmitter.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/events.h"
@@ -26,6 +27,11 @@ static uint8_t balancing_hold_seconds[MAX_SLAVE_NODES] = {0};
 static uint8_t last_contactor_command[MAX_SLAVE_NODES] = {0};
 
 void setup_master_can() {
+  // Register as a virtual battery so safety.cpp and the rest of the system
+  // treat the master exactly like a standalone battery node.
+  battery = new InterUnitMasterBattery();
+  battery->setup();
+
   master_can.begin();
   register_can_receiver(&master_can, can_config.inter_unit, CAN_Speed::CAN_SPEED_500KBPS);
   register_transmitter(&master_can);
@@ -436,6 +442,9 @@ void MasterCan::update_slave_aggregation() {
   uint16_t shared_voltage_dV = 0;  // All slaves share voltage (parallel)
   uint16_t lowest_max_design_voltage_dV = 65535; // To safely limit inverter charge voltage
   uint16_t highest_min_design_voltage_dV = 0;    // To safely limit inverter discharge voltage
+  uint16_t lowest_soh_pptt = 9900;              // Use lowest SOH across all slaves
+  uint16_t max_cell_voltage_mV = 0;
+  uint16_t min_cell_voltage_mV = 65535;
   uint8_t active_count = 0;
   // If any battery's BMS says stop charging/discharging, block all power flow.
   // This ensures we stop as soon as the first battery is full or empty,
@@ -487,6 +496,15 @@ void MasterCan::update_slave_aggregation() {
     }
     if (node.min_design_voltage_dV > highest_min_design_voltage_dV) {
       highest_min_design_voltage_dV = node.min_design_voltage_dV;
+    }
+    if (node.soh_pptt > 0 && node.soh_pptt < lowest_soh_pptt) {
+      lowest_soh_pptt = node.soh_pptt;
+    }
+    if (node.cell_max_voltage_mV > max_cell_voltage_mV) {
+      max_cell_voltage_mV = node.cell_max_voltage_mV;
+    }
+    if (node.cell_min_voltage_mV > 0 && node.cell_min_voltage_mV < min_cell_voltage_mV) {
+      min_cell_voltage_mV = node.cell_min_voltage_mV;
     }
   }
 
@@ -565,6 +583,15 @@ void MasterCan::update_slave_aggregation() {
   datalayer.battery.status.real_soc = reported_real_soc;
   datalayer.battery.status.temperature_max_dC = highest_temp;
   datalayer.battery.status.temperature_min_dC = lowest_temp;
+  datalayer.battery.status.soh_pptt = lowest_soh_pptt;
+  if (max_cell_voltage_mV > 0) {
+    datalayer.battery.status.cell_max_voltage_mV = max_cell_voltage_mV;
+  }
+  if (min_cell_voltage_mV < 65535) {
+    datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage_mV;
+  }
+  // Keep the CAN alive counter refreshed so safety.cpp treats master like a live battery
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
   // Keep BMS status active so inverter sees system as alive
   datalayer.battery.status.bms_status = ACTIVE;
