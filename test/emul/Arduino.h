@@ -26,6 +26,18 @@ constexpr int HEX = 16;
 // Arduino type aliases
 using byte = uint8_t;
 #define boolean bool
+#ifndef INPUT
+#define INPUT 0
+#endif
+#ifndef OUTPUT
+#define OUTPUT 1
+#endif
+#ifndef INPUT_PULLUP
+#define INPUT_PULLUP 2
+#endif
+#ifndef INPUT_PULLDOWN
+#define INPUT_PULLDOWN 3
+#endif
 // Arduino random functions
 inline long random(long max) {
   (void)max;
