@@ -57,6 +57,10 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
     return 0;
   }
 
+  // If size is 0, we can skip all the processing and just return
+  if (size == 0)
+    return 0;
+
   if (previous_message_was_newline) {
     add_timestamp(size);
   }
