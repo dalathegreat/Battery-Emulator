@@ -8,10 +8,6 @@
 bool previous_message_was_newline = true;
 
 void Logging::add_timestamp(size_t size) {
-  // Check if any logging is enabled at runtime
-  if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active) {
-    return;
-  }
 
   int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
@@ -52,7 +48,8 @@ void Logging::add_timestamp(size_t size) {
 
 size_t Logging::write(const uint8_t* buffer, size_t size) {
   // Check if any logging is enabled at runtime
-  if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active) {
+  if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active &&
+      !datalayer.system.info.SD_logging_active) {
     return 0;
   }
 
@@ -91,7 +88,8 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
 
 void Logging::printf(const char* fmt, ...) {
   // Check if any logging is enabled at runtime
-  if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active) {
+  if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active &&
+      !datalayer.system.info.SD_logging_active) {
     return;
   }
 
