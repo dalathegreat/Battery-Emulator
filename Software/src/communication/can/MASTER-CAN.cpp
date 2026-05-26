@@ -314,18 +314,21 @@ void MasterCan::update_values() {
     // Runs AFTER voltage safety so it always overrides any re-allow.
     if (node.online && node.ident_received) {
       bool fw_ok = (node.fw_version_num == (uint16_t)IU_FW_VERSION_NUM);
+      // TEMPORARILY DISABLED: battery type check disabled to allow mixed protocols on different slaves.
       // Battery type must match the first slave that reported one (used as reference).
       // Find the reference battery_type_id from the first slave that has ident_received.
-      uint16_t ref_btype = 0;
-      bool ref_found = false;
-      for (uint8_t j = 0; j < MAX_SLAVE_NODES; j++) {
-        if (datalayer.system.slave_nodes[j].ident_received) {
-          ref_btype = datalayer.system.slave_nodes[j].battery_type_id;
-          ref_found = true;
-          break;
-        }
-      }
-      bool btype_ok = (!ref_found || node.battery_type_id == ref_btype);
+      // uint16_t ref_btype = 0;
+      // bool ref_found = false;
+      // for (uint8_t j = 0; j < MAX_SLAVE_NODES; j++) {
+      //   if (datalayer.system.slave_nodes[j].ident_received) {
+      //     ref_btype = datalayer.system.slave_nodes[j].battery_type_id;
+      //     ref_found = true;
+      //     break;
+      //   }
+      // }
+      // bool btype_ok = (!ref_found || node.battery_type_id == ref_btype);
+      uint16_t ref_btype = 0;  // kept for logging only
+      bool btype_ok = true;
       if (!fw_ok || !btype_ok) {
         node.contactor_allowed = false;
         set_event(EVENT_SLAVE_IDENT_MISMATCH, i + 1);
