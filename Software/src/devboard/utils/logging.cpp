@@ -9,7 +9,8 @@ bool previous_message_was_newline = true;
 
 void Logging::add_timestamp(size_t size) {
 
-  int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
+  size_t offset =
+      datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
   unsigned long currentTime = millis();
   char* timestr;
@@ -72,7 +73,8 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
 
   if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
     char* message_string = datalayer.system.info.logged_can_messages;
-    int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
+    size_t offset =
+        datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
     size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
 
     if (offset + size > message_string_size) {
@@ -99,7 +101,8 @@ void Logging::printf(const char* fmt, ...) {
 
   char* message_string = datalayer.system.info.logged_can_messages;
   size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
-  int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
+  size_t offset =
+      datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   static char buffer[MAX_LINE_LENGTH_PRINTF];
   char* message_buffer;
 
