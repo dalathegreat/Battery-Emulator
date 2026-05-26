@@ -722,8 +722,8 @@ void BydAttoBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.chemistry = battery_chemistry_enum::LFP;
-  datalayer_battery->info.max_design_voltage_dV = 5000;  //Startup in extremes
-  datalayer_battery->info.min_design_voltage_dV = 2500;  //We later determine range based on amount of cells
+  datalayer_battery->info.max_design_voltage_dV = 6500;  //Startup in extremes
+  datalayer_battery->info.min_design_voltage_dV = 2000;  //We later determine range based on amount of cells
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
