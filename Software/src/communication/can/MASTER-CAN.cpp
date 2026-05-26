@@ -126,8 +126,8 @@ void MasterCan::receive_can_frame(CAN_frame* rx_frame) {
         // Balancing just started: start hold timer — BMW I3 opens its own contactor ~20s later.
         // Master will block contactor_allowed after BALANCING_HOLD_SECONDS (25s).
         balancing_hold_seconds[node_id - 1] = BALANCING_HOLD_SECONDS;
-        logging.printf("Master CAN: Slave %d offline balancing started — contactor held for %us\n",
-                       node_id, BALANCING_HOLD_SECONDS);
+        logging.printf("Master CAN: Slave %d offline balancing started — contactor held for %us\n", node_id,
+                       BALANCING_HOLD_SECONDS);
       }
       break;
     }
@@ -136,7 +136,7 @@ void MasterCan::receive_can_frame(CAN_frame* rx_frame) {
       node.total_capacity_Wh = ((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1];
       node.max_design_voltage_dV = ((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
       node.min_design_voltage_dV = ((uint16_t)rx_frame->data.u8[4] << 8) | rx_frame->data.u8[5];
-      node.soh_pptt              = ((uint16_t)rx_frame->data.u8[6] << 8) | rx_frame->data.u8[7];
+      node.soh_pptt = ((uint16_t)rx_frame->data.u8[6] << 8) | rx_frame->data.u8[7];
       break;
     }
     case 0x03:  // IP address message (every 10s)
@@ -158,9 +158,9 @@ void MasterCan::receive_can_frame(CAN_frame* rx_frame) {
     case 0x05:  // IDENT message (startup only)
     {
       if (rx_frame->DLC >= 4) {
-        node.fw_version_num  = ((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1];
+        node.fw_version_num = ((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1];
         node.battery_type_id = ((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
-        node.ident_received  = true;
+        node.ident_received = true;
       }
       break;
     }
@@ -223,7 +223,8 @@ void MasterCan::send_contactor_commands(unsigned long currentMillis) {
     if (last_contactor_command[i] != frame.data.u8[0]) {
       last_contactor_command[i] = frame.data.u8[0];
       logging.printf(
-          "Master CAN: TX contactor cmd slave %u -> %s (node_allowed=%u inverter_allow=%u estop=%u pack_allow=%u online=%u)\n",
+          "Master CAN: TX contactor cmd slave %u -> %s (node_allowed=%u inverter_allow=%u estop=%u pack_allow=%u "
+          "online=%u)\n",
           node_id, allow_command ? "ALLOW" : "OPEN", node.contactor_allowed ? 1 : 0,
           datalayer.system.status.inverter_allows_contactor_closing ? 1 : 0,
           datalayer.system.info.equipment_stop_active ? 1 : 0,
@@ -298,8 +299,8 @@ void MasterCan::update_values() {
           SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
           if (node.online && !node.balancing && node.voltage_dV > 0) {
             node.contactor_allowed = true;
-            logging.printf("Master CAN: Grace done — Slave %d contactor ALLOWED together (voltage %u.%uV)\n",
-                           i + 1, node.voltage_dV / 10, node.voltage_dV % 10);
+            logging.printf("Master CAN: Grace done — Slave %d contactor ALLOWED together (voltage %u.%uV)\n", i + 1,
+                           node.voltage_dV / 10, node.voltage_dV % 10);
           }
         }
         logging.println("Master CAN: Startup grace done — matched online slaves may close together");
@@ -394,8 +395,8 @@ void MasterCan::update_values() {
       if (!fw_ok || !btype_ok) {
         node.contactor_allowed = false;
         set_event(EVENT_SLAVE_IDENT_MISMATCH, i + 1);
-        logging.printf("Master CAN: Slave %d IDENT mismatch (fw=0x%04X exp=0x%04X btype=%u exp=%u)\n",
-                       i + 1, node.fw_version_num, IU_FW_VERSION_NUM, node.battery_type_id, ref_btype);
+        logging.printf("Master CAN: Slave %d IDENT mismatch (fw=0x%04X exp=0x%04X btype=%u exp=%u)\n", i + 1,
+                       node.fw_version_num, IU_FW_VERSION_NUM, node.battery_type_id, ref_btype);
       } else {
         clear_event(EVENT_SLAVE_IDENT_MISMATCH);
       }
@@ -444,7 +445,8 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
   // VOLTAGE_DIFF_SECONDS_LIMIT consecutive update cycles before closing.
   uint16_t reference_voltage_dV = 0;
   for (uint8_t j = 0; j < MAX_SLAVE_NODES; j++) {
-    if (j == idx) continue;
+    if (j == idx)
+      continue;
     if (datalayer.system.slave_nodes[j].online && datalayer.system.slave_nodes[j].voltage_dV > 0 &&
         datalayer.system.slave_nodes[j].contactor_allowed) {
       reference_voltage_dV = datalayer.system.slave_nodes[j].voltage_dV;
@@ -463,7 +465,7 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
   }
 
   uint16_t diff = (node.voltage_dV > reference_voltage_dV) ? (node.voltage_dV - reference_voltage_dV)
-                                                            : (reference_voltage_dV - node.voltage_dV);
+                                                           : (reference_voltage_dV - node.voltage_dV);
 
   bool has_fault = (node.fault_flags != 0);
 
@@ -486,8 +488,8 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
       }
     } else {
       if (voltage_diff_seconds[idx] != 0) {
-        logging.printf("Master CAN: Slave %d contactor BLOCKED (voltage diff %u.%uV > %u.%uV)\n", idx + 1,
-                       diff / 10, diff % 10, VOLTAGE_DIFF_THRESHOLD_dV / 10, VOLTAGE_DIFF_THRESHOLD_dV % 10);
+        logging.printf("Master CAN: Slave %d contactor BLOCKED (voltage diff %u.%uV > %u.%uV)\n", idx + 1, diff / 10,
+                       diff % 10, VOLTAGE_DIFF_THRESHOLD_dV / 10, VOLTAGE_DIFF_THRESHOLD_dV % 10);
       }
       voltage_diff_seconds[idx] = 0;
     }
@@ -504,14 +506,14 @@ void MasterCan::update_slave_aggregation() {
   uint32_t total_max_charge_W = 0;
   uint32_t total_max_discharge_W = 0;
   int32_t total_current_dA = 0;
-  uint16_t lowest_soc = 10001;   // Above max to detect "no data"
+  uint16_t lowest_soc = 10001;  // Above max to detect "no data"
   uint16_t highest_soc = 0;
   int16_t highest_temp = -1270;
   int16_t lowest_temp = 1270;
-  uint16_t shared_voltage_dV = 0;  // All slaves share voltage (parallel)
-  uint16_t lowest_max_design_voltage_dV = 65535; // To safely limit inverter charge voltage
-  uint16_t highest_min_design_voltage_dV = 0;    // To safely limit inverter discharge voltage
-  uint16_t lowest_soh_pptt = 9900;              // Use lowest SOH across all slaves
+  uint16_t shared_voltage_dV = 0;                 // All slaves share voltage (parallel)
+  uint16_t lowest_max_design_voltage_dV = 65535;  // To safely limit inverter charge voltage
+  uint16_t highest_min_design_voltage_dV = 0;     // To safely limit inverter discharge voltage
+  uint16_t lowest_soh_pptt = 9900;                // Use lowest SOH across all slaves
   uint16_t max_cell_voltage_mV = 0;
   uint16_t min_cell_voltage_mV = 65535;
   uint8_t active_count = 0;
@@ -557,8 +559,10 @@ void MasterCan::update_slave_aggregation() {
     // temp stored as °C, convert to dC (×10) for datalayer
     int16_t t_max_dC = (int16_t)node.temp_max_dC * 10;
     int16_t t_min_dC = (int16_t)node.temp_min_dC * 10;
-    if (t_max_dC > highest_temp) highest_temp = t_max_dC;
-    if (t_min_dC < lowest_temp) lowest_temp = t_min_dC;
+    if (t_max_dC > highest_temp)
+      highest_temp = t_max_dC;
+    if (t_min_dC < lowest_temp)
+      lowest_temp = t_min_dC;
 
     if (node.max_design_voltage_dV > 0 && node.max_design_voltage_dV < lowest_max_design_voltage_dV) {
       lowest_max_design_voltage_dV = node.max_design_voltage_dV;
@@ -616,7 +620,7 @@ void MasterCan::update_slave_aggregation() {
   // Push aggregated values into datalayer.battery (what the inverter reads)
   datalayer.battery.info.total_capacity_Wh = total_capacity_Wh;
   datalayer.battery.info.reported_total_capacity_Wh = total_capacity_Wh;
-  
+
   if (lowest_max_design_voltage_dV < 65535) {
     datalayer.battery.info.max_design_voltage_dV = lowest_max_design_voltage_dV;
   }
@@ -634,8 +638,7 @@ void MasterCan::update_slave_aggregation() {
   datalayer.battery.status.current_dA = (int16_t)total_current_dA;
   datalayer.battery.status.voltage_dV = shared_voltage_dV;
   // Power = V × I: voltage in dV, current in dA → W = (dV × dA) / 100
-  datalayer.battery.status.active_power_W =
-      (int32_t)shared_voltage_dV * (int32_t)total_current_dA / 100;
+  datalayer.battery.status.active_power_W = (int32_t)shared_voltage_dV * (int32_t)total_current_dA / 100;
 
   // SOC selection: report lowest_soc normally (discharge protection).
   // When the fullest slave enters the top 5% (>=95%), blend smoothly toward

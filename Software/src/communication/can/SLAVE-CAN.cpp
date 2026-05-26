@@ -48,8 +48,10 @@ void SlaveCan::receive_can_frame(CAN_frame* rx_frame) {
   // Contactor command addressed to this slave
   if (id == IU_MASTER_CONTACTOR_ID(node_id)) {
     bool allow = (rx_frame->data.u8[0] & IU_CONTACTOR_ALLOW) != 0;
-    logging.printf("Slave CAN: contactor command received - %s (raw byte: 0x%02X)\n", allow ? "ALLOW CLOSE" : "BLOCK CLOSE",
-                   rx_frame->data.u8[0]);
+    if (datalayer.system.status.inverter_allows_contactor_closing != allow) {
+      logging.printf("Slave CAN: contactor command received - %s (raw byte: 0x%02X)\n",
+                     allow ? "ALLOW CLOSE" : "BLOCK CLOSE", rx_frame->data.u8[0]);
+    }
     datalayer.system.status.inverter_allows_contactor_closing = allow;
     return;
   }
@@ -70,7 +72,8 @@ void SlaveCan::transmit(unsigned long currentMillis) {
     if (_heartbeat_count % IU_INFO_INTERVAL_HEARTBEATS == 0) {
       send_info_frame();
     }
-    if (_heartbeat_count % (IU_INFO_INTERVAL_HEARTBEATS / 5) == 0) {  // Every 2s (assuming heartbeat is 1s and info interval is 10)
+    if (_heartbeat_count % (IU_INFO_INTERVAL_HEARTBEATS / 5) ==
+        0) {  // Every 2s (assuming heartbeat is 1s and info interval is 10)
       send_cell_frame();
     }
     // Send IP on first 3 heartbeats (so master gets it quickly after boot),
