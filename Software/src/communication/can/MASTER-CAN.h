@@ -67,11 +67,14 @@ class MasterCan : public CanReceiver, public Transmitter {
 
  private:
   void send_heartbeat();
-  void send_contactor_commands();
+  void send_contactor_commands(unsigned long currentMillis);
   void update_slave_aggregation();
   void check_slave_voltage_safety(uint8_t slave_idx);
 
   unsigned long _last_heartbeat_ms = 0;
+  unsigned long _next_contactor_tx_ms = 0;
+  uint8_t _next_contactor_idx = 0;
+  bool _contactor_burst_pending = false;
   unsigned long _startup_begin_ms = 0;   // Set when first slave comes online
   bool _startup_grace_done = false;      // True after IU_STARTUP_GRACE_S seconds
   bool _estop_was_active = false;        // Tracks e-stop transitions to force re-qualification

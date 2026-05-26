@@ -14,6 +14,7 @@ MasterCan master_can;
 // Voltage threshold for contactor safety (same as check_interconnect_available)
 static const uint16_t VOLTAGE_DIFF_THRESHOLD_dV = 15;  // 1.5V
 static const uint8_t VOLTAGE_DIFF_SECONDS_LIMIT = 10;  // 10s grace period
+static const uint8_t MASTER_CONTACTOR_STAGGER_MS = 3;  // master-only inter-frame spacing
 
 // Per-slave voltage diff grace period counters
 static uint8_t voltage_diff_seconds[MAX_SLAVE_NODES] = {0};
@@ -40,6 +41,9 @@ void setup_master_can() {
 
 void MasterCan::begin() {
   _last_heartbeat_ms = 0;
+  _next_contactor_tx_ms = 0;
+  _next_contactor_idx = 0;
+  _contactor_burst_pending = false;
   _startup_begin_ms = 0;
   _startup_grace_done = false;
   _estop_was_active = false;
@@ -171,8 +175,15 @@ void MasterCan::transmit(unsigned long currentMillis) {
   if (currentMillis - _last_heartbeat_ms >= IU_HEARTBEAT_INTERVAL_MS) {
     _last_heartbeat_ms = currentMillis;
     send_heartbeat();
-    send_contactor_commands();
+
+    // Start a fresh burst of per-slave contactor commands after each heartbeat.
+    // Commands are staggered over a few milliseconds to avoid native CAN TX bursts.
+    _next_contactor_idx = 0;
+    _contactor_burst_pending = true;
+    _next_contactor_tx_ms = currentMillis + 1u;
   }
+
+  send_contactor_commands(currentMillis);
 }
 
 void MasterCan::send_heartbeat() {
@@ -183,12 +194,23 @@ void MasterCan::send_heartbeat() {
   transmit_can_frame_to_interface(&frame, can_config.inter_unit);
 }
 
-void MasterCan::send_contactor_commands() {
-  for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
+void MasterCan::send_contactor_commands(unsigned long currentMillis) {
+  if (!_contactor_burst_pending) {
+    return;
+  }
+
+  if ((long)(currentMillis - _next_contactor_tx_ms) < 0) {
+    return;
+  }
+
+  // Send one online slave command per slot, then wait for the next stagger step.
+  while (_next_contactor_idx < MAX_SLAVE_NODES) {
+    uint8_t i = _next_contactor_idx++;
     SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
     if (!node.online) {
-      continue;  // Don't send commands to slaves we've never heard from
+      continue;
     }
+
     uint8_t node_id = i + 1;
     CAN_frame frame = {};
     frame.ID = IU_MASTER_CONTACTOR_ID(node_id);
@@ -209,7 +231,11 @@ void MasterCan::send_contactor_commands() {
     }
 
     transmit_can_frame_to_interface(&frame, can_config.inter_unit);
+    _next_contactor_tx_ms = currentMillis + MASTER_CONTACTOR_STAGGER_MS;
+    return;
   }
+
+  _contactor_burst_pending = false;
 }
 
 // ---- Value aggregation (called every 1s) ---------------------------
@@ -228,22 +254,58 @@ void MasterCan::update_values() {
     }
   }
 
-  // Grace period: when it expires, allow ALL currently online slaves at once.
-  // This gives every slave that came online during the grace window a contactor at the same time.
+  // Grace period: when it expires, move from startup hold to per-slave voltage control.
+  // This only marks startup as complete; actual contactor permission is still
+  // decided per slave by voltage safety.
   if (!_startup_grace_done && _startup_begin_ms != 0) {
     unsigned long elapsed_s = (millis() - _startup_begin_ms) / 1000UL;
     if (elapsed_s >= IU_STARTUP_GRACE_S) {
       _startup_grace_done = true;
+      uint16_t reference_voltage_dV = 0;
+      bool reference_found = false;
+      bool all_online_slaves_match = true;
+      uint8_t reference_slave_id = 0;
+
       for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
-        SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
-        if (node.online && !node.balancing) {
-          node.contactor_allowed = true;
-          logging.printf("Master CAN: Grace done — Slave %d contactor ALLOWED\n", i + 1);
+        const SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
+        voltage_diff_seconds[i] = 0;
+
+        if (!node.online || node.balancing || node.voltage_dV == 0) {
+          continue;
         }
-        // Pre-fill so hot-plug slaves after grace qualify faster
-        voltage_diff_seconds[i] = VOLTAGE_DIFF_SECONDS_LIMIT;
+
+        if (!reference_found) {
+          reference_voltage_dV = node.voltage_dV;
+          reference_slave_id = i + 1;
+          reference_found = true;
+          continue;
+        }
+
+        uint16_t diff = (node.voltage_dV > reference_voltage_dV) ? (node.voltage_dV - reference_voltage_dV)
+                                                                 : (reference_voltage_dV - node.voltage_dV);
+        if (diff > VOLTAGE_DIFF_THRESHOLD_dV) {
+          all_online_slaves_match = false;
+        }
       }
-      logging.println("Master CAN: Startup grace done — all online contactors now allowed");
+
+      if (reference_found) {
+        logging.printf("Master CAN: Grace reference slave %u at %u.%uV\n", reference_slave_id,
+                       reference_voltage_dV / 10, reference_voltage_dV % 10);
+      }
+
+      if (reference_found && all_online_slaves_match) {
+        for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
+          SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
+          if (node.online && !node.balancing && node.voltage_dV > 0) {
+            node.contactor_allowed = true;
+            logging.printf("Master CAN: Grace done — Slave %d contactor ALLOWED together (voltage %u.%uV)\n",
+                           i + 1, node.voltage_dV / 10, node.voltage_dV % 10);
+          }
+        }
+        logging.println("Master CAN: Startup grace done — matched online slaves may close together");
+      } else {
+        logging.println("Master CAN: Startup grace done — voltage safety now controls contactor permission");
+      }
     }
   }
 
@@ -423,6 +485,10 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
                        VOLTAGE_DIFF_SECONDS_LIMIT, node.voltage_dV / 10, node.voltage_dV % 10);
       }
     } else {
+      if (voltage_diff_seconds[idx] != 0) {
+        logging.printf("Master CAN: Slave %d contactor BLOCKED (voltage diff %u.%uV > %u.%uV)\n", idx + 1,
+                       diff / 10, diff % 10, VOLTAGE_DIFF_THRESHOLD_dV / 10, VOLTAGE_DIFF_THRESHOLD_dV % 10);
+      }
       voltage_diff_seconds[idx] = 0;
     }
   } else {
