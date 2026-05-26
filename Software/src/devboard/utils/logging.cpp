@@ -41,10 +41,9 @@ void Logging::add_timestamp(size_t size) {
     datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
   }
 
-  // LOG_TO_SD remains as compile-time option for now
-#ifdef LOG_TO_SD
-  add_log_to_buffer((uint8_t*)timestr, MAX_LENGTH_TIME_STR);
-#endif  // LOG_TO_SD
+  if (datalayer.system.info.SD_logging_active) {
+    add_log_to_buffer((uint8_t*)timestr, MAX_LENGTH_TIME_STR);
+  }
 
   if (datalayer.system.info.usb_logging_active) {
     Serial.write(timestr);
@@ -58,16 +57,17 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
   }
 
   // If size is 0, we can skip all the processing and just return
-  if (size == 0)
+  if (size == 0) {
     return 0;
+  }
 
   if (previous_message_was_newline) {
     add_timestamp(size);
   }
 
-#ifdef LOG_TO_SD
-  add_log_to_buffer(buffer, size);
-#endif
+  if (datalayer.system.info.SD_logging_active) {
+    add_log_to_buffer(buffer, size);
+  }
 
   if (datalayer.system.info.usb_logging_active) {
     Serial.write(buffer, size);
@@ -126,9 +126,9 @@ void Logging::printf(const char* fmt, ...) {
   int size = min(MAX_LINE_LENGTH_PRINTF - 1, vsnprintf(message_buffer, MAX_LINE_LENGTH_PRINTF, fmt, args));
   va_end(args);
 
-#ifdef LOG_TO_SD
-  add_log_to_buffer((uint8_t*)message_buffer, size);
-#endif  // LOG_TO_SD
+  if (datalayer.system.info.SD_logging_active) {
+    add_log_to_buffer((uint8_t*)message_buffer, size);
+  }
 
   if (datalayer.system.info.usb_logging_active) {
     Serial.write(message_buffer, size);
