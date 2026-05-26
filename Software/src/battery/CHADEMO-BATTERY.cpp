@@ -51,11 +51,12 @@ void ChademoBattery::update_values() {
   //Always write the CAN as alive!
 
   //Report pin statuses for better visibility and debugging of CHAdeMO connection issues
+  //Connection check and charge enable statuses are inverted by optocoupler design, so we invert when reading to reflect the actual status
   datalayer_extended.chademo.ConnectorLockStatus = digitalRead(pin_lock);
-  datalayer_extended.chademo.ConnectionCheckStatus = digitalRead(pin7);
+  datalayer_extended.chademo.ConnectionCheckStatus = !digitalRead(pin7);
   datalayer_extended.chademo.D1Status = digitalRead(pin2);
   datalayer_extended.chademo.D2Status = digitalRead(pin10);
-  datalayer_extended.chademo.ChargeEnableStatus = digitalRead(pin4);
+  datalayer_extended.chademo.ChargeEnableStatus = !digitalRead(pin4);
 
   //Check if user is requesting an action, if so, have statemachine jump there
   if (datalayer_extended.chademo.UserRequestStop) {
@@ -156,7 +157,7 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
 
   vehicle_can_initialized = true;
 
-  vehicle_permission = digitalRead(pin4);
+  vehicle_permission = !digitalRead(pin4);
 
   x102_chg_session.ControlProtocolNumberEV = rx_frame.data.u8[0];
 
@@ -364,7 +365,7 @@ void ChademoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x102:
       framecount++;
       //the first few frames start as 0x03, then like 20 of 0x01
-      if (vehicle_can_initialized && framecount < 20) {
+      if (vehicle_can_initialized && framecount < 25) {
         return;
       }
       process_vehicle_charging_session(rx_frame);
@@ -573,11 +574,9 @@ void ChademoBattery::update_evse_discharge_capabilities(CAN_frame& f) {
 
   //EVSE maximum current input is partly an inverter-influenced value i.e., min(inverter, vehicle_max_discharge)
   //use max_discharge_current variable if nonzero, otherwise tell the vehicle the EVSE will take everything it can give
-  if (max_discharge_current) {
-    x208_evse_dischg_cap.available_input_current = 0xFF - max_discharge_current;
-  } else {
-    x208_evse_dischg_cap.available_input_current = 0xFF - x200_discharge_limits.MaximumDischargeCurrent;
-  }
+  max_discharge_current = min(int(x200_discharge_limits.MaximumDischargeCurrent),
+                              int(datalayer.battery.settings.max_user_set_discharge_dA / 10));
+  x208_evse_dischg_cap.available_input_current = 0xFF - max_discharge_current;
 
   x208_evse_dischg_cap.available_input_voltage = x200_discharge_limits.MinimumDischargeVoltage;
 
@@ -697,8 +696,8 @@ void ChademoBattery::handle_chademo_sequence() {
     logStream.clear();
   };
 
-  vehicle_permission = digitalRead(pin4);
-  plug_inserted = digitalRead(pin7);
+  vehicle_permission = !digitalRead(pin4);
+  plug_inserted = !digitalRead(pin7);
 
   /* -------------------    State override conditions checks	------------------- */
   /* ------------------------------------------------------------------------------ */
@@ -813,18 +812,11 @@ void ChademoBattery::handle_chademo_sequence() {
       break;
     case CHADEMO_NEGOTIATE:
       /* Vehicle and EVSE dance */
-      //TODO if pin 4 / j goes high,
-      //lock connector here
-      digitalWrite(pin_lock, HIGH);
-
-      //TODO spec requires test to validate solenoid has indeed engaged.
-      // example uses a comparator/current consumption check around solenoid
-      if (digitalRead(pin_lock)) {
-        x109_evse_state.s.status.connector_locked = true;
-      }
 
       logStream << "CHADEMO_NEGOTIATE State\n";
       if (vehicle_permission) {
+        digitalWrite(pin_lock, HIGH);
+        x109_evse_state.s.status.connector_locked = true;
         CHADEMO_Status = CHADEMO_EV_ALLOWED;
         logStream << "STATE shift to CHADEMO_EV_ALLOWED in process_vehicle_charging_session()\n";
         break;
@@ -1024,8 +1016,9 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
   digitalWrite(pin10, LOW);
   pinMode(pin_lock, OUTPUT);
   digitalWrite(pin_lock, LOW);
-  pinMode(pin4, INPUT_PULLDOWN);
-  pinMode(pin7, INPUT_PULLDOWN);
+  // uses optocoupler to read 12V which inverts input
+  pinMode(pin4, INPUT_PULLUP);  // pulled up, so reads LOW when vehicle permission is granted
+  pinMode(pin7, INPUT_PULLUP);  // pulled up, so reads LOW when plug is inserted
 
   // initialise the CT measurement helper
   if (user_selected_shunt_type == ShuntType::CustomClamp) {

@@ -291,7 +291,7 @@ should determine that the other is the EVSE or the vehicle of the model before t
 
   uint8_t framecount = 0;
 
-  uint8_t max_discharge_current = 0;  //TODO not sure on this one, but really influenced by inverter capability
+  uint8_t max_discharge_current = 0;
 
   bool high_current_control_enabled = false;  // set to true when high current control is operating
                                               //  if true, values from 110.1 and 110.2 should be used instead of 102.3
