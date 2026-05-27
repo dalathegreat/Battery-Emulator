@@ -49,6 +49,10 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   // so the safety check (EVENT_CAN_BATTERY_MISSING) does not trigger
   if (UserRequestBalancing == EXECUTING) {
     datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+    datalayer_battery->status.bms_status = STANDBY;
+    // During offline balancing sleep, report contactor as open so slave STATUS
+    // does not keep an old engaged state latched.
+    datalayer.system.status.contactors_engaged = 0;
   }
 
   // Map internal balancing state to datalayer balancing_status
@@ -61,6 +65,9 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   }
 
   if (!battery_awake) {
+    if (datalayer_battery->status.offline_balancing) {
+      datalayer.system.status.contactors_engaged = 0;
+    }
     return;
   }
 
