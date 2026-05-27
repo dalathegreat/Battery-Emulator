@@ -492,8 +492,11 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   if ((events.entries[event].state != EVENT_STATE_ACTIVE) &&
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
     events.entries[event].MQTTpublished = false;
-
-    DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
+    if (event == EVENT_SLAVE_FAULT && data > 0) {
+      DEBUG_PRINTF("Event: Slave %u is reporting a critical fault. Contactor blocked!\n", data);
+    } else {
+      DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
+    }
   }
 
   // We should set the event, update event info

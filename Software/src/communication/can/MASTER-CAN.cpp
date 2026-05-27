@@ -20,8 +20,8 @@ static const uint8_t MASTER_CONTACTOR_STAGGER_MS = 3;  // master-only inter-fram
 static uint8_t voltage_diff_seconds[MAX_SLAVE_NODES] = {0};
 
 // How long to keep the contactor allowed after offline balancing starts.
-// BMW I3 opens its own contactor ~20s after balancing begins; we wait 25s to be safe.
-static const uint8_t BALANCING_HOLD_SECONDS = 25u;
+// Keep it allowed for 50s, then force block while balancing is active.
+static const uint8_t BALANCING_HOLD_SECONDS = 50u;
 // Per-slave countdown: while > 0, contactor_allowed is not yet forced false
 static uint8_t balancing_hold_seconds[MAX_SLAVE_NODES] = {0};
 // Per-slave last transmitted contactor command for change logging
@@ -124,7 +124,7 @@ void MasterCan::receive_can_frame(CAN_frame* rx_frame) {
       node.balancing = (rx_frame->data.u8[7] & IU_SLAVE_PFLAG_BALANCING) != 0;
       if (!was_balancing && node.balancing) {
         // Balancing just started: start hold timer — BMW I3 opens its own contactor ~20s later.
-        // Master will block contactor_allowed after BALANCING_HOLD_SECONDS (25s).
+        // Master will block contactor_allowed after BALANCING_HOLD_SECONDS (50s).
         balancing_hold_seconds[node_id - 1] = BALANCING_HOLD_SECONDS;
         logging.printf("Master CAN: Slave %d offline balancing started — contactor held for %us\n", node_id,
                        BALANCING_HOLD_SECONDS);
@@ -424,6 +424,13 @@ void MasterCan::update_values() {
 void MasterCan::check_slave_voltage_safety(uint8_t idx) {
   SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[idx];
   if (!node.online || node.voltage_dV == 0) {
+    return;
+  }
+
+  // Offline balancing slaves are handled by balancing_hold_seconds logic.
+  // Never re-allow from voltage matching while balancing is active.
+  if (node.balancing) {
+    voltage_diff_seconds[idx] = 0;
     return;
   }
 
