@@ -16,6 +16,19 @@ static const uint16_t VOLTAGE_DIFF_THRESHOLD_dV = 15;  // 1.5V
 static const uint8_t VOLTAGE_DIFF_SECONDS_LIMIT = 10;  // 10s grace period
 static const uint8_t MASTER_CONTACTOR_STAGGER_MS = 3;  // master-only inter-frame spacing
 
+// Pre-join controller constants (master-only):
+// adaptively reduce pack power while an additional blocked slave is preparing to join.
+static const uint16_t PREJOIN_POWER_FLOOR_W = 2000u;
+static const uint16_t PREJOIN_ENTER_DIFF_dV = 18u;      // 1.8V
+static const uint16_t PREJOIN_ABORT_DIFF_dV = 20u;      // 2.0V
+static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 15u;  // 1.5V hard gate
+static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
+// Integer EMA alpha = 1/5 = 0.2 (new = old*4/5 + raw*1/5)
+static const uint8_t PREJOIN_EMA_DEN = 5u;
+static const uint8_t PREJOIN_EMA_NUM = 1u;
+// Smooth cap ramp in permille per second (0..1000)
+static const uint16_t PREJOIN_PRESSURE_STEP_PER_S = 150u;
+
 // Per-slave voltage diff grace period counters
 static uint8_t voltage_diff_seconds[MAX_SLAVE_NODES] = {0};
 
@@ -26,6 +39,22 @@ static const uint8_t BALANCING_HOLD_SECONDS = 50u;
 static uint8_t balancing_hold_seconds[MAX_SLAVE_NODES] = {0};
 // Per-slave last transmitted contactor command for change logging
 static uint8_t last_contactor_command[MAX_SLAVE_NODES] = {0};
+
+// Per-slave pre-join tracking
+static bool prejoin_active[MAX_SLAVE_NODES] = {false};
+static uint16_t prejoin_diff_ema_dV[MAX_SLAVE_NODES] = {0};
+static uint8_t prejoin_raw_stable_seconds[MAX_SLAVE_NODES] = {0};
+static uint16_t prejoin_pressure_permille[MAX_SLAVE_NODES] = {0};
+// Global applied pressure (used to cap BOTH charge and discharge simultaneously)
+static uint16_t prejoin_applied_pressure_permille = 0;
+static uint16_t prejoin_last_logged_pressure_permille = 0xFFFFu;
+
+static void reset_prejoin_state(uint8_t idx) {
+  prejoin_active[idx] = false;
+  prejoin_diff_ema_dV[idx] = 0;
+  prejoin_raw_stable_seconds[idx] = 0;
+  prejoin_pressure_permille[idx] = 0;
+}
 
 void setup_master_can() {
   // Register as a virtual battery so safety.cpp and the rest of the system
@@ -51,11 +80,14 @@ void MasterCan::begin() {
     voltage_diff_seconds[i] = 0;
     balancing_hold_seconds[i] = 0;
     last_contactor_command[i] = 0xFFu;
+    reset_prejoin_state(i);
     // Force all contactors blocked on (re)start — RAM may retain state from before
     datalayer.system.slave_nodes[i].contactor_allowed = false;
     datalayer.system.slave_nodes[i].online = false;
     datalayer.system.slave_nodes[i].still_alive = 0;
   }
+  prejoin_applied_pressure_permille = 0;
+  prejoin_last_logged_pressure_permille = 0xFFFFu;
 }
 
 // ---- CAN RX --------------------------------------------------------
@@ -321,11 +353,13 @@ void MasterCan::update_values() {
   for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
     SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
     if (!node.online) {
+      reset_prejoin_state(i);
       continue;
     }
 
     if (estop_active) {
       voltage_diff_seconds[i] = 0;
+      reset_prejoin_state(i);
       if (node.contactor_allowed) {
         node.contactor_allowed = false;
         logging.printf("Master CAN: Slave %d contactor BLOCKED by E-stop\n", i + 1);
@@ -338,12 +372,14 @@ void MasterCan::update_values() {
     if (node.still_alive == 0) {
       node.online = false;
       node.contactor_allowed = false;
+      reset_prejoin_state(i);
       set_event(EVENT_SLAVE_BATTERY_MISSING, i + 1);  // data = node ID (1-8)
       logging.printf("Master CAN: Slave %d went OFFLINE\n", i + 1);
     }
 
     // Offline balancing hold timer: once expired, block the contactor
     if (node.balancing) {
+      reset_prejoin_state(i);
       if (balancing_hold_seconds[i] > 0) {
         balancing_hold_seconds[i]--;
       } else if (node.contactor_allowed) {
@@ -424,6 +460,7 @@ void MasterCan::update_values() {
 void MasterCan::check_slave_voltage_safety(uint8_t idx) {
   SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[idx];
   if (!node.online || node.voltage_dV == 0) {
+    reset_prejoin_state(idx);
     return;
   }
 
@@ -431,6 +468,7 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
   // Never re-allow from voltage matching while balancing is active.
   if (node.balancing) {
     voltage_diff_seconds[idx] = 0;
+    reset_prejoin_state(idx);
     return;
   }
 
@@ -438,12 +476,14 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
   // voltage qualification must restart when the stop is cleared.
   if (datalayer.system.info.equipment_stop_active) {
     voltage_diff_seconds[idx] = 0;
+    reset_prejoin_state(idx);
     return;
   }
 
   // During startup grace period, keep all contactors blocked so all slaves
   // can announce themselves at matching voltages before the inverter starts.
   if (!_startup_grace_done) {
+    reset_prejoin_state(idx);
     return;
   }
 
@@ -466,6 +506,7 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
     if (!node.contactor_allowed) {
       node.contactor_allowed = true;
       voltage_diff_seconds[idx] = 0;
+      reset_prejoin_state(idx);
       logging.printf("Master CAN: Slave %d contactor ALLOWED (first slave)\n", idx + 1);
     }
     return;
@@ -476,8 +517,61 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
 
   bool has_fault = (node.fault_flags != 0);
 
+  if (!node.contactor_allowed && !has_fault) {
+    // Track EMA of diff for adaptive pre-join power capping.
+    if (prejoin_diff_ema_dV[idx] == 0) {
+      prejoin_diff_ema_dV[idx] = diff;
+    } else {
+      prejoin_diff_ema_dV[idx] =
+          (uint16_t)(((uint32_t)prejoin_diff_ema_dV[idx] * (PREJOIN_EMA_DEN - PREJOIN_EMA_NUM) +
+                      (uint32_t)diff * PREJOIN_EMA_NUM) /
+                     PREJOIN_EMA_DEN);
+    }
+
+    if (!prejoin_active[idx] && prejoin_diff_ema_dV[idx] <= PREJOIN_ENTER_DIFF_dV) {
+      prejoin_active[idx] = true;
+      prejoin_raw_stable_seconds[idx] = 0;
+      logging.printf("Master CAN: Pre-join START slave %d (raw=%u.%uV ema=%u.%uV)\n", idx + 1, diff / 10,
+                     diff % 10, prejoin_diff_ema_dV[idx] / 10, prejoin_diff_ema_dV[idx] % 10);
+    }
+
+    if (prejoin_active[idx] && (diff > PREJOIN_ABORT_DIFF_dV || prejoin_diff_ema_dV[idx] > PREJOIN_ABORT_DIFF_dV)) {
+      prejoin_active[idx] = false;
+      prejoin_raw_stable_seconds[idx] = 0;
+      prejoin_pressure_permille[idx] = 0;
+      logging.printf("Master CAN: Pre-join ABORT slave %d (raw=%u.%uV ema=%u.%uV)\n", idx + 1, diff / 10,
+                     diff % 10, prejoin_diff_ema_dV[idx] / 10, prejoin_diff_ema_dV[idx] % 10);
+    }
+
+    if (prejoin_active[idx]) {
+      if (diff <= PREJOIN_CLOSE_RAW_DIFF_dV) {
+        if (prejoin_raw_stable_seconds[idx] < PREJOIN_CLOSE_DWELL_S) {
+          prejoin_raw_stable_seconds[idx]++;
+        }
+      } else {
+        prejoin_raw_stable_seconds[idx] = 0;
+      }
+
+      if (prejoin_diff_ema_dV[idx] <= PREJOIN_CLOSE_RAW_DIFF_dV) {
+        prejoin_pressure_permille[idx] = 1000u;
+      } else if (prejoin_diff_ema_dV[idx] >= PREJOIN_ENTER_DIFF_dV) {
+        prejoin_pressure_permille[idx] = 0u;
+      } else {
+        uint16_t span = (uint16_t)(PREJOIN_ENTER_DIFF_dV - PREJOIN_CLOSE_RAW_DIFF_dV);
+        uint16_t above_close = (uint16_t)(prejoin_diff_ema_dV[idx] - PREJOIN_CLOSE_RAW_DIFF_dV);
+        prejoin_pressure_permille[idx] = (uint16_t)((uint32_t)(span - above_close) * 1000u / span);
+      }
+    } else {
+      prejoin_pressure_permille[idx] = 0;
+      prejoin_raw_stable_seconds[idx] = 0;
+    }
+  } else if (node.contactor_allowed) {
+    reset_prejoin_state(idx);
+  }
+
   if (has_fault) {
     voltage_diff_seconds[idx] = 0;
+    reset_prejoin_state(idx);
     if (node.contactor_allowed) {
       node.contactor_allowed = false;
       logging.printf("Master CAN: Slave %d contactor OPENED (fault flags: 0x%02X)\n", idx + 1, node.fault_flags);
@@ -488,10 +582,18 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
         voltage_diff_seconds[idx]++;
       }
       if (voltage_diff_seconds[idx] >= VOLTAGE_DIFF_SECONDS_LIMIT) {
-        node.contactor_allowed = true;
-        voltage_diff_seconds[idx] = 0;
-        logging.printf("Master CAN: Slave %d contactor ALLOWED (voltage OK for %us: %u.%uV)\n", idx + 1,
-                       VOLTAGE_DIFF_SECONDS_LIMIT, node.voltage_dV / 10, node.voltage_dV % 10);
+        bool prejoin_gate_ok = true;
+        if (prejoin_active[idx]) {
+          prejoin_gate_ok = (diff <= PREJOIN_CLOSE_RAW_DIFF_dV) &&
+                            (prejoin_raw_stable_seconds[idx] >= PREJOIN_CLOSE_DWELL_S);
+        }
+        if (prejoin_gate_ok) {
+          node.contactor_allowed = true;
+          voltage_diff_seconds[idx] = 0;
+          reset_prejoin_state(idx);
+          logging.printf("Master CAN: Slave %d contactor ALLOWED (voltage OK for %us: %u.%uV)\n", idx + 1,
+                         VOLTAGE_DIFF_SECONDS_LIMIT, node.voltage_dV / 10, node.voltage_dV % 10);
+        }
       }
     } else {
       if (voltage_diff_seconds[idx] != 0) {
@@ -637,10 +739,60 @@ void MasterCan::update_slave_aggregation() {
 
   datalayer.battery.status.remaining_capacity_Wh = total_remaining_Wh;
   datalayer.battery.status.reported_remaining_capacity_Wh = total_remaining_Wh;
+
+  // Apply master pre-join power cap (both charge/discharge simultaneously).
+  // The cap is driven by the strongest active pre-join pressure among blocked slaves.
+  uint16_t target_pressure_permille = 0;
+  for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
+    if (prejoin_pressure_permille[i] > target_pressure_permille) {
+      target_pressure_permille = prejoin_pressure_permille[i];
+    }
+  }
+
+  if (prejoin_applied_pressure_permille < target_pressure_permille) {
+    uint16_t delta = (uint16_t)(target_pressure_permille - prejoin_applied_pressure_permille);
+    if (delta > PREJOIN_PRESSURE_STEP_PER_S) {
+      delta = PREJOIN_PRESSURE_STEP_PER_S;
+    }
+    prejoin_applied_pressure_permille = (uint16_t)(prejoin_applied_pressure_permille + delta);
+  } else if (prejoin_applied_pressure_permille > target_pressure_permille) {
+    uint16_t delta = (uint16_t)(prejoin_applied_pressure_permille - target_pressure_permille);
+    if (delta > PREJOIN_PRESSURE_STEP_PER_S) {
+      delta = PREJOIN_PRESSURE_STEP_PER_S;
+    }
+    prejoin_applied_pressure_permille = (uint16_t)(prejoin_applied_pressure_permille - delta);
+  }
+
+  uint32_t capped_max_charge_W = total_max_charge_W;
+  uint32_t capped_max_discharge_W = total_max_discharge_W;
+  if (prejoin_applied_pressure_permille > 0) {
+    if (total_max_charge_W > PREJOIN_POWER_FLOOR_W) {
+      uint32_t span = total_max_charge_W - PREJOIN_POWER_FLOOR_W;
+      capped_max_charge_W = PREJOIN_POWER_FLOOR_W +
+                            (uint32_t)((span * (1000u - prejoin_applied_pressure_permille)) / 1000u);
+    }
+    if (total_max_discharge_W > PREJOIN_POWER_FLOOR_W) {
+      uint32_t span = total_max_discharge_W - PREJOIN_POWER_FLOOR_W;
+      capped_max_discharge_W = PREJOIN_POWER_FLOOR_W +
+                               (uint32_t)((span * (1000u - prejoin_applied_pressure_permille)) / 1000u);
+    }
+  }
+
+  if (prejoin_last_logged_pressure_permille == 0xFFFFu ||
+      ((prejoin_applied_pressure_permille > prejoin_last_logged_pressure_permille)
+           ? (prejoin_applied_pressure_permille - prejoin_last_logged_pressure_permille)
+           : (prejoin_last_logged_pressure_permille - prejoin_applied_pressure_permille)) >= 100u) {
+    prejoin_last_logged_pressure_permille = prejoin_applied_pressure_permille;
+    if (prejoin_applied_pressure_permille > 0) {
+      logging.printf("Master CAN: Pre-join cap pressure=%u permille, cap charge=%uW discharge=%uW\n",
+                     prejoin_applied_pressure_permille, capped_max_charge_W, capped_max_discharge_W);
+    }
+  }
+
   datalayer.battery.status.max_charge_power_W =
-      (charge_blocked || datalayer.system.info.equipment_stop_active) ? 0u : total_max_charge_W;
+      (charge_blocked || datalayer.system.info.equipment_stop_active) ? 0u : capped_max_charge_W;
   datalayer.battery.status.max_discharge_power_W =
-      (discharge_blocked || datalayer.system.info.equipment_stop_active) ? 0u : total_max_discharge_W;
+      (discharge_blocked || datalayer.system.info.equipment_stop_active) ? 0u : capped_max_discharge_W;
   datalayer.battery.status.reported_current_dA = (int16_t)total_current_dA;
   datalayer.battery.status.current_dA = (int16_t)total_current_dA;
   datalayer.battery.status.voltage_dV = shared_voltage_dV;
