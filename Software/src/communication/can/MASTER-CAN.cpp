@@ -21,7 +21,7 @@ static const uint8_t MASTER_CONTACTOR_STAGGER_MS = 3;  // master-only inter-fram
 static const uint16_t PREJOIN_POWER_FLOOR_W = 2000u;
 static const uint16_t PREJOIN_ENTER_DIFF_dV = 18u;      // 1.8V
 static const uint16_t PREJOIN_ABORT_DIFF_dV = 20u;      // 2.0V
-static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 15u;  // 1.5V hard gate
+static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 5u;  // 0.5V hard gate
 static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
 // Integer EMA alpha = 1/5 = 0.2 (new = old*4/5 + raw*1/5)
 static const uint8_t PREJOIN_EMA_DEN = 5u;
