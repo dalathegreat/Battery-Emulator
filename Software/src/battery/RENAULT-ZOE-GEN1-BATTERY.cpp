@@ -18,7 +18,7 @@ void RenaultZoeGen1Battery::
   datalayer_battery->status.real_soc = SOC_polled;
   //datalayer_battery->status.real_soc = LB_Display_SOC; //Alternative would be to use Dash SOC%
 
-  datalayer_battery->status.current_dA = LB_Current * 10;  //Convert A to dA
+  datalayer_battery->status.current_dA = (((int32_t)LB_Current_raw * 10) / 4) - 5000;
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
@@ -79,7 +79,7 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x155:  //10ms - Charging power, current and SOC - Confirmed sent by: Fluence ZE40, Zoe 22/41kWh, Kangoo 33kWh
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Charging_Power_W = rx_frame.data.u8[0] * 300;
-      LB_Current = (((((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) * 0.25) - 500);
+      LB_Current_raw = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2];
       LB_Display_SOC = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
       break;
 
