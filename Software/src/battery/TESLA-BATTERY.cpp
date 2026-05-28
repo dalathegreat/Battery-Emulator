@@ -139,12 +139,12 @@ inline const char* getNoYes(bool value) {
   return value ? "Yes" : "No";
 }
 
-// Clamp DLC to 0–8 bytes for classic CAN
+// Clamp DLC to 0â€“8 bytes for classic CAN
 inline int getDataLen(uint8_t dlc) {
   return std::min<int>(dlc, 8);
 }
 
-// Fast bit‐field writer: writes 'bitLen' bits of 'value' starting at 'startBit'
+// Fast bitâ€field writer: writes 'bitLen' bits of 'value' starting at 'startBit'
 inline void setBitField(uint8_t* data, int bytes, int startBit, int bitLen, uint64_t value) {
   int bit = startBit;
   for (int i = 0; i < bitLen && bit < bytes * 8; ++i, ++bit) {
@@ -154,7 +154,7 @@ inline void setBitField(uint8_t* data, int bytes, int startBit, int bitLen, uint
   }
 }
 
-/// Increment a counter field and recompute an 8‑bit checksum as part of a mux
+/// Increment a counter field and recompute an 8â€‘bit checksum as part of a mux
 void generateMuxFrameCounterChecksum(CAN_frame& f,
                                      uint8_t frameCounter,  // counter value
                                      int ctrStartBit,       // bit index of counter LSB
@@ -165,7 +165,7 @@ void generateMuxFrameCounterChecksum(CAN_frame& f,
   int bytes = getDataLen(f.DLC);
   auto data = f.data.u8;
 
-  // Pack payload into a 64‑bit word
+  // Pack payload into a 64â€‘bit word
   uint64_t w = 0;
   for (uint8_t i = 0; i < bytes; ++i) {
     w |= uint64_t(data[i]) << (8 * i);
@@ -209,7 +209,7 @@ void generateMuxFrameCounterChecksum(CAN_frame& f,
   setBitField(data, bytes, csumStartBit, csumBitLength, checksum);
 }
 
-// Increment a counter field and recompute an 8‑bit checksum
+// Increment a counter field and recompute an 8â€‘bit checksum
 void generateFrameCounterChecksum(CAN_frame& f,
                                   int ctrStartBit,   // bit index of counter LSB
                                   int ctrBitLength,  // width of counter in bits
@@ -219,7 +219,7 @@ void generateFrameCounterChecksum(CAN_frame& f,
   int bytes = getDataLen(f.DLC);
   auto data = f.data.u8;
 
-  // Pack payload into a 64‑bit word
+  // Pack payload into a 64â€‘bit word
   uint64_t w = 0;
   for (int i = 0; i < bytes; ++i) {
     w |= uint64_t(data[i]) << (8 * i);
@@ -455,54 +455,54 @@ void TeslaBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
 
-  datalayer.battery.status.soh_pptt = 9900;  //Tesla batteries do not send a SOH% value on bus. Hardcode to 99%
+  datalayer_battery->status.soh_pptt = 9900;  //Tesla batteries do not send a SOH% value on bus. Hardcode to 99%
 
-  datalayer.battery.status.real_soc = (battery_soc_ui * 10);  //increase SOC range from 0-100.0 -> 100.00
+  datalayer_battery->status.real_soc = (battery_soc_ui * 10);  //increase SOC range from 0-100.0 -> 100.00
 
-  datalayer.battery.status.voltage_dV = battery_volts;
+  datalayer_battery->status.voltage_dV = battery_volts;
 
-  datalayer.battery.status.current_dA = battery_amps;  //13.0A
+  datalayer_battery->status.current_dA = battery_amps;  //13.0A
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
-  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
   // Define the allowed discharge power
-  datalayer.battery.status.max_discharge_power_W = (battery_max_discharge_current * (battery_volts / 10));
+  datalayer_battery->status.max_discharge_power_W = (battery_max_discharge_current * (battery_volts / 10));
   // Cap the allowed discharge power if higher than the maximum discharge power allowed
-  if (datalayer.battery.status.max_discharge_power_W > datalayer.battery.status.override_discharge_power_W) {
-    datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
+  if (datalayer_battery->status.max_discharge_power_W > datalayer_battery->status.override_discharge_power_W) {
+    datalayer_battery->status.max_discharge_power_W = datalayer_battery->status.override_discharge_power_W;
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
   if (battery_soc_ui > 990) {
-    datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
+    datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
   } else if (battery_soc_ui > (user_set_rampdown_SOC /
                                10)) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
-    datalayer.battery.status.max_charge_power_W =
+    datalayer_battery->status.max_charge_power_W =
         RAMPDOWNPOWERALLOWED *
         (1 - (battery_soc_ui - (user_set_rampdown_SOC / 10)) / (1000.0 - (user_set_rampdown_SOC / 10)));
     //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
-    if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+    if (datalayer_battery->info.chemistry == battery_chemistry_enum::LFP) {
       if (battery_cell_max_v > (MAX_CELL_VOLTAGE_LFP - FLOAT_START_MV)) {
-        datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
+        datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
       }
     } else {  //NCM/A
       if (battery_cell_max_v > (MAX_CELL_VOLTAGE_NCA_NCM - FLOAT_START_MV)) {
-        datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
+        datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
       }
     }
   } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
+    datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
   }
 
-  datalayer.battery.status.temperature_min_dC = battery_min_temp;
+  datalayer_battery->status.temperature_min_dC = battery_min_temp;
 
-  datalayer.battery.status.temperature_max_dC = battery_max_temp;
+  datalayer_battery->status.temperature_max_dC = battery_max_temp;
 
-  datalayer.battery.status.cell_max_voltage_mV = battery_cell_max_v;
+  datalayer_battery->status.cell_max_voltage_mV = battery_cell_max_v;
 
-  datalayer.battery.status.cell_min_voltage_mV = battery_cell_min_v;
+  datalayer_battery->status.cell_min_voltage_mV = battery_cell_min_v;
 
   /* Value mapping is completed. Start to check all safeties */
 
@@ -530,7 +530,7 @@ void TeslaBattery::
     clear_event(EVENT_INTERNAL_OPEN_FAULT);
   }
   //Voltage between 0.5-5.0V, pyrofuse most likely blown
-  if (datalayer.battery.status.voltage_dV >= 5 && datalayer.battery.status.voltage_dV <= 50) {
+  if (datalayer_battery->status.voltage_dV >= 5 && datalayer_battery->status.voltage_dV <= 50) {
     set_event(EVENT_BATTERY_FUSE, 0);
   } else {
     clear_event(EVENT_BATTERY_FUSE);
@@ -553,66 +553,66 @@ void TeslaBattery::
     // Autodetect algorithm for chemistry on 3/Y packs.
     // NCM/A batteries have 96s, LFP has 102-108s
     // Drawback with this check is that it takes 3-5 minutes before all cells have been counted!
-    if (datalayer.battery.info.number_of_cells > 101) {
-      datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
+    if (datalayer_battery->info.number_of_cells > 101) {
+      datalayer_battery->info.chemistry = battery_chemistry_enum::LFP;
     }
 
     //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
-    if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
-      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
-      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
-      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
-      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
-      datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
+    if (datalayer_battery->info.chemistry == battery_chemistry_enum::LFP) {
+      datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
+      datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
+      datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
+      datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
+      datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
     } else {  // NCM/A chemistry
-      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
-      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
-      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
-      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
-      datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
+      datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
+      datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
+      datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+      datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+      datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
     }
 
     // During forced balancing request via webserver, we allow the battery to exceed normal safety parameters
-    if (datalayer.battery.settings.user_requests_balancing) {
-      datalayer.battery.status.real_soc = 9900;  //Force battery to show up as 99% when balancing
-      datalayer.battery.info.max_design_voltage_dV = datalayer.battery.settings.balancing_max_pack_voltage_dV;
-      datalayer.battery.info.max_cell_voltage_mV = datalayer.battery.settings.balancing_max_cell_voltage_mV;
-      datalayer.battery.info.max_cell_voltage_deviation_mV =
-          datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV;
-      datalayer.battery.status.max_charge_power_W = datalayer.battery.settings.balancing_float_power_W;
+    if (datalayer_battery->settings.user_requests_balancing) {
+      datalayer_battery->status.real_soc = 9900;  //Force battery to show up as 99% when balancing
+      datalayer_battery->info.max_design_voltage_dV = datalayer_battery->settings.balancing_max_pack_voltage_dV;
+      datalayer_battery->info.max_cell_voltage_mV = datalayer_battery->settings.balancing_max_cell_voltage_mV;
+      datalayer_battery->info.max_cell_voltage_deviation_mV =
+          datalayer_battery->settings.balancing_max_deviation_cell_voltage_mV;
+      datalayer_battery->status.max_charge_power_W = datalayer_battery->settings.balancing_float_power_W;
     }
   }
 
   // Check if user requests some action
-  if (datalayer.battery.settings.user_requests_tesla_isolation_clear) {
+  if (datalayer_battery->settings.user_requests_tesla_isolation_clear) {
     stateMachineClearIsolationFault = 0;  //Start the isolation fault statemachine
-    datalayer.battery.settings.user_requests_tesla_isolation_clear = false;
+    datalayer_battery->settings.user_requests_tesla_isolation_clear = false;
   }
-  if (datalayer.battery.settings.user_requests_tesla_bms_reset) {
+  if (datalayer_battery->settings.user_requests_tesla_bms_reset) {
     if (battery_contactor == 1 && BMS_a180_SW_ECU_reset_blocked == false) {
       //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
       stateMachineBMSReset = 0;
-      datalayer.battery.settings.user_requests_tesla_bms_reset = false;
+      datalayer_battery->settings.user_requests_tesla_bms_reset = false;
       logging.println("INFO: BMS reset requested");
     } else {
       logging.println("ERROR: BMS reset failed due to contactors not being open, or BMS ECU not allowing it");
       stateMachineBMSReset = 0xFF;
-      datalayer.battery.settings.user_requests_tesla_bms_reset = false;
+      datalayer_battery->settings.user_requests_tesla_bms_reset = false;
       set_event(EVENT_BMS_RESET_REQ_FAIL, 0);
       clear_event(EVENT_BMS_RESET_REQ_FAIL);
     }
   }
-  if (datalayer.battery.settings.user_requests_tesla_soc_reset) {
-    if ((datalayer.battery.status.real_soc < 1500 || datalayer.battery.status.real_soc > 9000) &&
+  if (datalayer_battery->settings.user_requests_tesla_soc_reset) {
+    if ((datalayer_battery->status.real_soc < 1500 || datalayer_battery->status.real_soc > 9000) &&
         battery_contactor == 1) {
       //Start the SOC reset statemachine, only if SOC less than 15% or greater than 90%, and contactors open
       stateMachineSOCReset = 0;
-      datalayer.battery.settings.user_requests_tesla_soc_reset = false;
+      datalayer_battery->settings.user_requests_tesla_soc_reset = false;
       logging.println("INFO: SOC reset requested");
     } else {
       logging.println("ERROR: SOC reset failed, SOC not < 15 or > 90, or contactors not open");
       stateMachineSOCReset = 0xFF;
-      datalayer.battery.settings.user_requests_tesla_soc_reset = false;
+      datalayer_battery->settings.user_requests_tesla_soc_reset = false;
       set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);
       clear_event(EVENT_BATTERY_SOC_RESET_FAIL);
     }
@@ -620,7 +620,7 @@ void TeslaBattery::
 
   //Update 0x333 UI_chargeTerminationPct (bit 16, width 10) value to SOC max value - expose via UI?
   //One firmware version this was seen at bit 17 width 11
-  write_signal_value(&TESLA_333, 16, 10, static_cast<int64_t>(datalayer.battery.settings.max_percentage / 10), false);
+  write_signal_value(&TESLA_333, 16, 10, static_cast<int64_t>(datalayer_battery->settings.max_percentage / 10), false);
 
   // Update webserver datalayer
   //datalayer_extended.tesla.BMS_hvilFault = BMS_a036_SW_HvpHvilFault;
@@ -673,8 +673,8 @@ void TeslaBattery::
   datalayer_extended.tesla.battery_full_charge_complete = battery_full_charge_complete;
   datalayer_extended.tesla.battery_fully_charged = battery_fully_charged;
   //0x3D2
-  datalayer.battery.status.total_discharged_battery_Wh = battery_total_discharge;
-  datalayer.battery.status.total_charged_battery_Wh = battery_total_charge;
+  datalayer_battery->status.total_discharged_battery_Wh = battery_total_discharge;
+  datalayer_battery->status.total_charged_battery_Wh = battery_total_charge;
   //0x392
   datalayer_extended.tesla.battery_moduleType = battery_moduleType;
   datalayer_extended.tesla.battery_packMass = battery_packMass;
@@ -897,14 +897,11 @@ void TeslaBattery::
 }
 
 void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  static uint8_t mux = 0;
-  static uint16_t temp = 0;
-  static bool mux0_read = false;
-  static bool mux1_read = false;
+  // mux, temp, mux0_read, mux1_read are instance member variables (TESLA-BATTERY.h)
 
   switch (rx_frame.ID) {
     case 0x352:  // 850 BMS_energyStatus newer BMS
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = ((rx_frame.data.u8[0]) & 0x03);  //BMS_energyStatusIndex M : 0|2@1+ (1,0) [0|0] ""  X
       if (mux == 0) {
         battery_nominal_full_pack_energy_m0 =
@@ -958,7 +955,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           ((rx_frame.data.u8[7] >> 7) & 0x01);  //noYes
       break;
     case 0x20A:  //522 HVP_contactorState:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_packContNegativeState =
           (rx_frame.data.u8[0] & 0x07);  //(_d[0] & (0x07U)); 0|3@1+ (1,0) [0|7] //contactorState
       battery_packContPositiveState =
@@ -990,7 +987,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_fcLinkAllowedToEnergize = ((rx_frame.data.u8[5] >> 4) & (0x03U));     //44|2@1+ (1,0) [0|2] ""  Receiver
       break;
     case 0x212:  //530 BMS_status: 8
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMS_hvacPowerRequest = (rx_frame.data.u8[0] & (0x01U));
       BMS_notEnoughPowerForDrive = ((rx_frame.data.u8[0] >> 1) & (0x01U));
       BMS_notEnoughPowerForSupport = ((rx_frame.data.u8[0] >> 2) & (0x01U));
@@ -1030,7 +1027,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       BMS_minPackTemperature = (rx_frame.data.u8[7] & (0xFFU));  //56|8@1+ (0.5,-40) [0|0] "DegC
       break;
     case 0x224:  //548 PCS_dcdcStatus:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       PCS_dcdcPrechargeStatus = (rx_frame.data.u8[0] & (0x03U));              //0 "IDLE" 1 "ACTIVE" 2 "FAULTED" ;
       PCS_dcdc12VSupportStatus = ((rx_frame.data.u8[0] >> 2) & (0x03U));      //0 "IDLE" 1 "ACTIVE" 2 "FAULTED"
       PCS_dcdcHvBusDischargeStatus = ((rx_frame.data.u8[0] >> 4) & (0x03U));  //0 "IDLE" 1 "ACTIVE" 2 "FAULTED"
@@ -1058,7 +1055,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
            (0x1FU));  //0 "PWR_UP_INIT" 1 "STANDBY" 2 "12V_SUPPORT_ACTIVE" 3 "DIS_HVBUS" 4 "PCHG_FAST_DIS_HVBUS" 5 "PCHG_SLOW_DIS_HVBUS" 6 "PCHG_DWELL_CHARGE" 7 "PCHG_DWELL_WAIT" 8 "PCHG_DI_RECOVERY_WAIT" 9 "PCHG_ACTIVE" 10 "PCHG_FLT_FAST_DIS_HVBUS" 11 "SHUTDOWN" 12 "12V_SUPPORT_FAULTED" 13 "DIS_HVBUS_FAULTED" 14 "PCHG_FAULTED" 15 "CLEAR_FAULTS" 16 "FAULTED" 17 "NUM" ;
       break;
     case 0x252:  //Limit //594 BMS_powerAvailable:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMS_maxRegenPower = ((rx_frame.data.u8[1] << 8) |
                            rx_frame.data.u8[0]);  //0|16@1+ (0.01,0) [0|655.35] "kW"  //Example 4715 * 0.01 = 47.15kW
       BMS_maxDischargePower =
@@ -1078,7 +1075,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       BMS_inverterTQF = ((rx_frame.data.u8[7] >> 4) & (0x03U));
       break;
     case 0x132:  //battery amps/volts //HVBattAmpVolt
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) *
                       0.1;  //0|16@1+ (0.01,0) [0|655.35] "V"  //Example 37030mv * 0.01 = 3703dV
       battery_amps =
@@ -1096,7 +1093,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x3D2:  //TotalChargeDischarge:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_total_discharge = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) |
                                  (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       //0|32@1+ (0.001,0) [0|4294970] "kWh"
@@ -1105,7 +1102,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //32|32@1+ (0.001,0) [0|4294970] "kWh"
       break;
     case 0x332:  //min/max hist values //BattBrickMinMax:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & 0x03);  //BattBrickMultiplexer M : 0|2@1+ (1,0) [0|0] ""
 
       if (mux == 1)  //Cell voltages
@@ -1147,7 +1144,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x312:  // 786 BMS_thermalStatus
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMS_powerDissipation =
           ((rx_frame.data.u8[1] & (0x03U)) << 8) | (rx_frame.data.u8[0] & (0xFFU));  //0|10@1+ (0.02,0) [0|0] "kW"
       BMS_flowRequest = ((rx_frame.data.u8[2] & (0x01U)) << 6) |
@@ -1166,7 +1163,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       BMS_noFlowRequest = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""
       break;
     case 0x2A4:  //676 PCS_thermalStatus
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       // PCS_chgPhATemp : 0|11@1-
       PCS_chgPhATemp = (int16_t)(rx_frame.data.u8[0] | ((rx_frame.data.u8[1] & 0x07) << 8));
       if (PCS_chgPhATemp & 0x400)
@@ -1194,7 +1191,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // Temperatures below 40C require negative raw values (bit 10 set),
       // so sign extension from 11-bit to 16-bit is required after extraction.
     case 0x2C4:  // 708 PCS_logging: not all frames are listed, just ones relating to dcdc
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & (0x1FU));
       //PCS_logMessageSelect = (rx_frame.data.u8[0] & (0x1FU));  //0|5@1+ (1,0) [0|0] ""
       if (mux == 6) {
@@ -1253,25 +1250,23 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x401:  // Cell stats  //BrickVoltages
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0]);  //MultiplexSelector M : 0|8@1+ (1,0) [0|0] ""
                                     //StatusFlags : 8|8@1+ (1,0) [0|0] ""
                                     //Brick0 m0 : 16|16@1+ (0.0001,0) [0|0] "V"
                                     //Brick1 m0 : 32|16@1+ (0.0001,0) [0|0] "V"
                                     //Brick2 m0 : 48|16@1+ (0.0001,0) [0|0] "V"
-      static uint16_t volts;
-      static uint8_t mux_zero_counter = 0u;
-      static uint8_t mux_max = 0u;
+      // brick_volts, mux_zero_counter, mux_max are instance member variables (TESLA-BATTERY.h)
 
       if (rx_frame.data.u8[1] == 0x2A)  // status byte must be 0x2A to read cellvoltages
       {
         // Example, frame3=0x89,frame2=0x1D = 35101 / 10 = 3510mV
-        volts = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 10;
-        datalayer.battery.status.cell_voltages_mV[mux * 3] = volts;
-        volts = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) / 10;
-        datalayer.battery.status.cell_voltages_mV[1 + mux * 3] = volts;
-        volts = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) / 10;
-        datalayer.battery.status.cell_voltages_mV[2 + mux * 3] = volts;
+        brick_volts = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 10;
+        datalayer_battery->status.cell_voltages_mV[mux * 3] = brick_volts;
+        brick_volts = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) / 10;
+        datalayer_battery->status.cell_voltages_mV[1 + mux * 3] = brick_volts;
+        brick_volts = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) / 10;
+        datalayer_battery->status.cell_voltages_mV[2 + mux * 3] = brick_volts;
 
         // Track the max value of mux. If we've seen two 0 values for mux, we've probably gathered all
         // cell voltages. Then, 2 + mux_max * 3 + 1 is the number of cell voltages.
@@ -1280,7 +1275,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           mux_zero_counter++;
           if (mux_zero_counter == 2u) {
             // The max index will be 2 + mux_max * 3 (see above), so "+ 1" for the number of cells
-            datalayer.battery.info.number_of_cells = 2 + 3 * mux_max + 1;
+            datalayer_battery->info.number_of_cells = 2 + 3 * mux_max + 1;
             // Increase the counter arbitrarily another time to make the initial if-statement evaluate to false
             mux_zero_counter++;
           }
@@ -1288,7 +1283,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x2d2:  //BMSVAlimits:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMS_min_voltage = ((rx_frame.data.u8[1] << 8) |
                          rx_frame.data.u8[0]);  //0|16@1+ (0.01,0) [0|430] "V"  //Example 24148mv * 0.01 = 241.48 V
       BMS_max_voltage = ((rx_frame.data.u8[3] << 8) |
@@ -1299,7 +1294,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                       0.128;  //48|14@1+ (0.128,0) [0|2096.9] "A"  //Example 430? * 0.128 = 55.4?
       break;
     case 0x2b4:  //PCS_dcdcRailStatus:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_dcdcLvBusVolt =
           (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);  //0|10@1+ (0.0390625,0) [0|39.9609] "V"
       battery_dcdcHvBusVolt = (((rx_frame.data.u8[2] & 0x3F) << 6) |
@@ -1308,7 +1303,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]);  //24|12@1+ (0.1,0) [0|400] "A"
       break;
     case 0x292:  //BMS_socStatus
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_beginning_of_life =
           (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5]) * 0.1;          //40|10@1+ (0.1,0) [0|102.3] "kWh"
       battery_soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);  //0|10@1+ (0.1,0) [0|102.3] "%"
@@ -1322,7 +1317,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           (((rx_frame.data.u8[7] & 0x03) << 6) | (rx_frame.data.u8[6] & 0x3F) >> 2);  //50|8@1+ (0.4,0) [0|100] "%"
       break;
     case 0x392:  //BMS_packConfig
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & (0xFF));
       if (mux == 1) {
         battery_packConfigMultiplexer = (rx_frame.data.u8[0] & (0xff));  //0|8@1+ (1,0) [0|1] ""
@@ -1340,7 +1335,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x7AA:  //1962 HVP_debugMessage:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & (0x0FU));
       //HVP_debugMessageMultiplexer = (rx_frame.data.u8[0] & (0x0FU));  //0|4@1+ (1,0) [0|6] ""
       if (mux == 0) {
@@ -1492,7 +1487,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_shuntThermistorMia = ((rx_frame.data.u8[6] & 0x04) >> 2);
       break;*/
     case 0x320:  //800 BMS_alertMatrix                                                //BMS_alertMatrix 800 BMS_alertMatrix: 8 VEH
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & (0x0F));
       if (mux == 0) {                                                               //mux0
         BMS_matrixIndex = (rx_frame.data.u8[0] & (0x0F));                           // 0|4@1+ (1,0) [0|0] ""  X
@@ -1595,7 +1590,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x72A:  //BMS_serialNumber
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //Pack serial number in ASCII: 00 54 47 33 32 31 32 30 (mux 0) .TG32120 + 01 32 30 30 33 41 48 58 (mux 1) .2003AHX = TG321202003AHX
       if (rx_frame.data.u8[0] == 0x00 && !parsed_battery_serialNumber) {  // Serial number 1-7
         battery_serialNumber[0] = rx_frame.data.u8[1];
@@ -1631,7 +1626,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x300:  //BMS_info
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //Display internal BMS info and other build/version data
       if (rx_frame.data.u8[0] == 0x0A) {  // Mux 10: BUILD_HWID_COMPONENTID
         if (BMS_info_buildConfigId == 0) {
@@ -1665,7 +1660,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       */
       break;
     case 0x3C4:  //PCS_info
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //Display internal PCS info and other build/version data
       if (rx_frame.data.u8[0] == 0x0A) {  // Mux 10: BUILD_HWID_COMPONENTID
         if (PCS_info_buildConfigId == 0) {
@@ -1723,7 +1718,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x310:  //HVP_info
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //Display internal HVP info and other build/version data
       if (rx_frame.data.u8[0] == 0x0A) {  // Mux 10: BUILD_HWID_COMPONENTID
         if (HVP_info_buildConfigId == 0) {
@@ -1757,7 +1752,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       */
       break;
     case 0x612:  // CAN UDS responses for BMS
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //BMS Query
       if (stateMachineBMSQuery != 0xFF && stateMachineBMSReset == 0xFF && stateMachineSOCReset == 0xFF) {
         if (memcmp(rx_frame.data.u8, "\x02\x50\x03\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
@@ -1862,7 +1857,7 @@ static constexpr CAN_frame can_msg_118[] = {
 void TeslaBattery::transmit_can(unsigned long currentMillis) {
   // Ensure we only send one message branch at a time, to reduce worst-case
   // runtime.
-  static int transmitPhase = -1;
+  // transmitPhase is an instance member variable (TESLA-BATTERY.h)
   if (++transmitPhase >= 5) {
     transmitPhase = 0;
   }
@@ -2437,16 +2432,16 @@ void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
   switch (
       user_selected_tesla_GTW_packEnergy) {  //static const std::map<int, String> tesla_pack = {{0, "50 kWh"}, {2, "62 kWh"}, {1, "74 kWh"}, {3, "100 kWh"}};
     case 0:
-      datalayer.battery.info.total_capacity_Wh = 50000;
+      datalayer_battery->info.total_capacity_Wh = 50000;
       break;
     case 1:
-      datalayer.battery.info.total_capacity_Wh = 74000;
+      datalayer_battery->info.total_capacity_Wh = 74000;
       break;
     case 2:
-      datalayer.battery.info.total_capacity_Wh = 62000;
+      datalayer_battery->info.total_capacity_Wh = 62000;
       break;
     case 3:
-      datalayer.battery.info.total_capacity_Wh = 100000;
+      datalayer_battery->info.total_capacity_Wh = 100000;
       break;
     default:
       break;
@@ -2455,18 +2450,18 @@ void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
-  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
-    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
-    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
-    datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
+  if (datalayer_battery->info.chemistry == battery_chemistry_enum::LFP) {
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
+    datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
+    datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
+    datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
   } else {
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
-    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
-    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
-    datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
+    datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+    datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+    datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
   }
 }
 
@@ -2477,9 +2472,9 @@ void TeslaModelSXBattery::setup(void) {
 
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_SX_NCMA;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_SX_NCMA;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
+  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_SX_NCMA;
+  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_SX_NCMA;
+  datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+  datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+  datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
 }
