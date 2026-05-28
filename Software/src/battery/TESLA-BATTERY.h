@@ -79,9 +79,9 @@ class TeslaBattery : public CanBattery {
   uint16_t temp = 0;
   bool mux0_read = false;
   bool mux1_read = false;
-  uint16_t brick_volts = 0;       // per-brick voltage scratch variable (0x401)
-  uint8_t mux_zero_counter = 0;   // counts mux==0 frames to detect full cell scan
-  uint8_t mux_max = 0;            // highest mux index seen so far
+  uint16_t brick_volts = 0;      // per-brick voltage scratch variable (0x401)
+  uint8_t mux_zero_counter = 0;  // counts mux==0 frames to detect full cell scan
+  uint8_t mux_max = 0;           // highest mux index seen so far
 
   // Per-instance state for transmit_can.
   int transmitPhase = -1;
