@@ -27,7 +27,7 @@ static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
 static const uint8_t PREJOIN_EMA_DEN = 5u;
 static const uint8_t PREJOIN_EMA_NUM = 1u;
 // Smooth cap ramp in permille per second (0..1000)
-static const uint16_t PREJOIN_PRESSURE_STEP_PER_S = 150u;
+static const uint16_t PREJOIN_PRESSURE_STEP_PER_S = 300u;
 
 // Per-slave voltage diff grace period counters
 static uint8_t voltage_diff_seconds[MAX_SLAVE_NODES] = {0};
@@ -742,26 +742,35 @@ void MasterCan::update_slave_aggregation() {
 
   // Apply master pre-join power cap (both charge/discharge simultaneously).
   // The cap is driven by the strongest active pre-join pressure among blocked slaves.
+  // One-way ratchet: pressure only increases while any slave is in prejoin.
+  // Power is never released back until all prejoin sessions complete (slave connected or aborted).
   uint16_t target_pressure_permille = 0;
+  bool any_prejoin_active = false;
   for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
     if (prejoin_pressure_permille[i] > target_pressure_permille) {
       target_pressure_permille = prejoin_pressure_permille[i];
     }
+    if (prejoin_active[i]) {
+      any_prejoin_active = true;
+    }
   }
 
   if (prejoin_applied_pressure_permille < target_pressure_permille) {
+    // Ramp up pressure (reduce power) — always allowed
     uint16_t delta = (uint16_t)(target_pressure_permille - prejoin_applied_pressure_permille);
     if (delta > PREJOIN_PRESSURE_STEP_PER_S) {
       delta = PREJOIN_PRESSURE_STEP_PER_S;
     }
     prejoin_applied_pressure_permille = (uint16_t)(prejoin_applied_pressure_permille + delta);
-  } else if (prejoin_applied_pressure_permille > target_pressure_permille) {
+  } else if (!any_prejoin_active && prejoin_applied_pressure_permille > target_pressure_permille) {
+    // Release pressure only after all prejoin sessions are done (slave connected or aborted)
     uint16_t delta = (uint16_t)(prejoin_applied_pressure_permille - target_pressure_permille);
     if (delta > PREJOIN_PRESSURE_STEP_PER_S) {
       delta = PREJOIN_PRESSURE_STEP_PER_S;
     }
     prejoin_applied_pressure_permille = (uint16_t)(prejoin_applied_pressure_permille - delta);
   }
+  // While any_prejoin_active and applied >= target: hold — diff rose but power is NOT released
 
   uint32_t capped_max_charge_W = total_max_charge_W;
   uint32_t capped_max_discharge_W = total_max_discharge_W;
