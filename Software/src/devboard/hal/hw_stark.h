@@ -104,6 +104,10 @@ class StarkHal : public Esp32Hal {
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_25; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_32; }
 
+  // I2C display
+  virtual gpio_num_t DISPLAY_SDA_PIN() { return GPIO_NUM_14; }
+  virtual gpio_num_t DISPLAY_SCL_PIN() { return GPIO_NUM_17; }
+
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,
             comm_interface::CanFdNative};
