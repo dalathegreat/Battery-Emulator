@@ -863,6 +863,9 @@ String processor(const String& var) {
 #ifdef HW_STARK
     content += " Hardware: Stark CMR Module";
 #endif  // HW_STARK
+#ifdef HW_WAVESHARE
+    content += " Hardware: Waveshare ESP32-S3-RS485-CAN";
+#endif  // HW_WAVESHARE
     content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
     content += "<h4>Uptime: " + get_uptime() + "</h4>";
     if (datalayer.system.info.performance_measurement_active) {
