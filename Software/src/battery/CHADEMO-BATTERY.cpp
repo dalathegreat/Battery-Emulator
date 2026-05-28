@@ -293,8 +293,7 @@ void ChademoBattery::process_vehicle_charging_limits(CAN_frame rx_frame) {
   //If discharging and we are at or below the vehicle's minimum discharge voltage, stop. This is a safety measure to avoid over-discharging the vehicle battery
   //Check whether there is a discharge status that can be used instead of current measurement, which can be noisy and lead to false positives. If not, use current as a proxy for discharge status, with the understanding that this may lead to false positives and should be tuned based on testing and vehicle behavior
   if (x102_chg_session.s.status.StatusVehicleChargingEnabled &&
-      get_voltage_handler() <= x200_discharge_limits.MinimumDischargeVoltage &&
-      CHADEMO_Status > CHADEMO_NEGOTIATE) {
+      get_voltage_handler() <= x200_discharge_limits.MinimumDischargeVoltage && CHADEMO_Status > CHADEMO_NEGOTIATE) {
     logStream << "x200 minimum discharge voltage met or exceeded, stopping.\n"
               << "Measured: " << get_voltage_handler() << "V\n"
               << "Minimum voltage: " << x200_discharge_limits.MinimumDischargeVoltage << "V\n";
