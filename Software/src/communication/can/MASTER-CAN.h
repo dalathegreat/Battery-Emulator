@@ -15,7 +15,7 @@
  */
 class InterUnitMasterBattery : public Battery {
  public:
-  static constexpr const char* Name = "Inter-Unit Master (virtual battery)";
+  static constexpr const char* Name = "Inter-Unit Master";
 
   void setup() override {
     datalayer.system.status.battery_allows_contactor_closing = false;
