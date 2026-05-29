@@ -23,39 +23,42 @@ class ChademoBatteryHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Chademo state: ";
     switch (datalayer_extended.chademo.CHADEMO_Status) {
       case 0:
-        content += String("FAULT</h4>");
+        content += String("NONE</h4>");
         break;
       case 1:
-        content += String("STOP</h4>");
+        content += String("FAULT</h4>");
         break;
       case 2:
-        content += String("IDLE</h4>");
+        content += String("STOP</h4>");
         break;
       case 3:
-        content += String("CONNECTED</h4>");
+        content += String("IDLE</h4>");
         break;
       case 4:
-        content += String("INIT</h4>");
+        content += String("CONNECTED</h4>");
         break;
       case 5:
-        content += String("NEGOTIATE</h4>");
+        content += String("INIT</h4>");
         break;
       case 6:
-        content += String("EV ALLOWED</h4>");
+        content += String("NEGOTIATE</h4>");
         break;
       case 7:
-        content += String("EVSE PREPARE</h4>");
+        content += String("EV ALLOWED</h4>");
         break;
       case 8:
-        content += String("EVSE START</h4>");
+        content += String("EVSE PREPARE</h4>");
         break;
       case 9:
-        content += String("EVSE CONTACTORS ENABLED</h4>");
+        content += String("EVSE START</h4>");
         break;
       case 10:
-        content += String("POWERFLOW</h4>");
+        content += String("EVSE CONTACTORS ENABLED</h4>");
         break;
       case 11:
+        content += String("POWERFLOW</h4>");
+        break;
+      case 12:
         content += String("POWERFLOW SUSPENDED</h4>");
         break;
       default:
@@ -79,7 +82,7 @@ class ChademoBatteryHtmlRenderer : public BatteryHtmlRenderer {
     }
 
     // report stop reason if we are in STOP state
-    if (datalayer_extended.chademo.CHADEMO_Status == 1) {
+    if (datalayer_extended.chademo.CHADEMO_Status <= 2) {
       content += "<h4>Stop reason: ";
       switch (datalayer_extended.chademo.StopReason) {
         case EV_REQUEST:

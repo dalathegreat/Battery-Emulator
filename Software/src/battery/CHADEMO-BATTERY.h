@@ -51,18 +51,19 @@ class ChademoBattery : public CanBattery {
   void handle_chademo_sequence();
   float get_voltage_handler();
 
-#define CHADEMO_FAULT 0
-#define CHADEMO_STOP 1
-#define CHADEMO_IDLE 2
-#define CHADEMO_CONNECTED 3
-#define CHADEMO_INIT 4  // intermediate state indicating CAN from Vehicle not yet received after connection
-#define CHADEMO_NEGOTIATE 5
-#define CHADEMO_EV_ALLOWED 6
-#define CHADEMO_EVSE_PREPARE 7
-#define CHADEMO_EVSE_START 8
-#define CHADEMO_EVSE_CONTACTORS_ENABLED 9
-#define CHADEMO_POWERFLOW 10
-#define CHADEMO_POWERFLOW_SUSPENDED 11
+#define CHADEMO_NONE 0
+#define CHADEMO_FAULT 1
+#define CHADEMO_STOP 2
+#define CHADEMO_IDLE 3
+#define CHADEMO_CONNECTED 4
+#define CHADEMO_INIT 5  // intermediate state indicating CAN from Vehicle not yet received after connection
+#define CHADEMO_NEGOTIATE 6
+#define CHADEMO_EV_ALLOWED 7
+#define CHADEMO_EVSE_PREPARE 8
+#define CHADEMO_EVSE_START 9
+#define CHADEMO_EVSE_CONTACTORS_ENABLED 10
+#define CHADEMO_POWERFLOW 11
+#define CHADEMO_POWERFLOW_SUSPENDED 12
 
   enum Mode { CHADEMO_CHARGE, CHADEMO_DISCHARGE, CHADEMO_BIDIRECTIONAL };
 
@@ -298,7 +299,8 @@ should determine that the other is the EVSE or the vehicle of the model before t
                                               //  and 118 should be used for evse responses
                                               //  permissible rate of change is -20A/s to 20A/s relative to 102.3
 
-  Mode EVSE_mode = CHADEMO_DISCHARGE;
+  Mode EVSE_mode =
+      CHADEMO_BIDIRECTIONAL;  // default to bidirectional for now, but can be set to charge-only or discharge-only depending on use case and vehicle compatibility. Note that discharge and bidirectional modes are only compatible with vehicles that indicate discharge compatibility via 102.5 bit 7
   uint8_t CHADEMO_Status = CHADEMO_IDLE;
 
   /* Charge/discharge sequence, indicating applicable V2H guideline 
