@@ -989,21 +989,21 @@ void ChademoBattery::handle_chademo_sequence() {
        * and then open contactors, and transition to CHADEMO_IDLE
        */
 
-      if (abs(get_measured_current_ptr()) <= 2) {
+      if (abs(get_measured_current_ptr()) <= 2 && digitalRead(pin10)) {
         logStream << "Current has dropped sufficiently to open contactors.\n";
         logStream << "Current: " << get_measured_current_ptr() << "A\n";
         /* welding detection ideally here */
         digitalWrite(pin10, LOW);
         digitalWrite(pin2, LOW);
         digitalWrite(pin_lock, LOW);
-      }
-      if (datalayer_extended.chademo.UserRequestRestart) {
-        datalayer_extended.chademo.UserRequestRestart = false;
-        CHADEMO_Status = CHADEMO_IDLE;
-      } else {
-        datalayer_extended.chademo.UserRequestStop = false;
         CHADEMO_Status = CHADEMO_NONE;  //avoid re-entering stop state handler until next plug in event
       }
+      //if restart move to idle state instead to restart handshake sequence
+      if (datalayer_extended.chademo.UserRequestRestart) {
+        CHADEMO_Status = CHADEMO_IDLE; 
+      }
+      datalayer_extended.chademo.UserRequestRestart = false;
+      datalayer_extended.chademo.UserRequestStop = false;
       break;
     case CHADEMO_FAULT:
       logStream << "CHADEMO_FAULT State\n";
