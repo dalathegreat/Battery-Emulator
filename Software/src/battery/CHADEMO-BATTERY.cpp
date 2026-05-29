@@ -1000,7 +1000,7 @@ void ChademoBattery::handle_chademo_sequence() {
       }
       //if restart move to idle state instead to restart handshake sequence
       if (datalayer_extended.chademo.UserRequestRestart) {
-        CHADEMO_Status = CHADEMO_IDLE; 
+        CHADEMO_Status = CHADEMO_IDLE;
       }
       datalayer_extended.chademo.UserRequestRestart = false;
       datalayer_extended.chademo.UserRequestStop = false;
