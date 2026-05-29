@@ -483,7 +483,9 @@ void Mg4Battery::transmit_can(unsigned long currentMillis) {
     } else {
       MG4_047.data.u8[1] = sendPhase;
     }
-    ptext_transmit(&MG4_047);
+    if (datalayer.system.status.system_status != FAULT) {
+      ptext_transmit(&MG4_047);
+    }
 
     if (sendPhase == 2 || sendPhase == 12 || sendPhase == 22) {
       // Send a FD 4F3 to wake up the FD interface.
@@ -526,7 +528,9 @@ uint32_t Mg4Battery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* dat
 }
 
 void Mg4Battery::setup(void) {  // Performs one time setup at startup
-  setup_uds(0x7E5, 0);          //POLL_BATTERY_VOLTAGE);
+  renderer = new Mg4BatteryHtmlRenderer(this);
+
+  setup_uds(0x7E5, 0);  //POLL_BATTERY_VOLTAGE);
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
@@ -591,4 +595,46 @@ void Mg4Battery::setup(void) {  // Performs one time setup at startup
   // // set to a random value
   // *nonvolatile_cookie = esp_timer_get_time();
   // logging.printf("Nonvolatile cookie set to %lu\n", *nonvolatile_cookie);
+}
+
+void Mg4Battery::action(uint32_t action, uint32_t value) {
+  if (action == 0x47) {
+    uint32_t bit = value & 0xFF;
+    uint32_t state = (value >> 8) & 0xFF;
+    if (state) {
+      // set bit
+      MG4_047.data.u8[bit / 8] |= (1 << (bit % 8));
+    } else {
+      // clear bit
+      MG4_047.data.u8[bit / 8] &= ~(1 << (bit % 8));
+    }
+  }
+}
+
+// Mg4BatteryHtmlRenderer::Mg4BatteryHtmlRenderer(Mg4Battery* battery) : HtmlRenderer(battery) {
+//   this->battery = battery;
+// }
+
+String Mg4BatteryHtmlRenderer::get_status_html() {
+  String html = "<h3>MG4 0x047 bits</h3>";
+  html += "<div style='display: flex; gap: 10px; flex-wrap: wrap;'>";
+
+  for (int b = 2; b < 8; b++) {
+    uint8_t byteValue = battery->get_message_byte(b);
+    html += "<div style='border: 1px solid #ccc; padding: 5px;'>";
+    html += "Byte " + String(b) + ": 0x" + (byteValue < 16 ? "0" : "") + String(byteValue, HEX) + "<br>";
+    for (int i = 7; i >= 0; i--) {
+      bool isSet = (byteValue >> i) & 1;
+      int bitIdx = (b * 8) + i;
+      html += "<button onclick=\"fetch('/batteryAction?value=71," + String((bitIdx) | (!isSet << 8)) +
+              "').then(() => location.reload())\" style='background-color: " + (isSet ? "#f44336" : "#4CAF50") +
+              "; color: white; margin: 2px;'>" + String(i) + "</button>";
+      if (i == 4)
+        html += "<br>";
+    }
+    html += "</div>";
+  }
+
+  html += "</div>";
+  return html;
 }

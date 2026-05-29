@@ -1,7 +1,17 @@
-#ifndef MG_4_BATTERY_H
-#define MG_4_BATTERY_H
+#pragma once
 
 #include "UdsCanBattery.h"
+
+class Mg4Battery;
+
+class Mg4BatteryHtmlRenderer : public BatteryHtmlRenderer {
+ public:
+  Mg4BatteryHtmlRenderer(Mg4Battery* battery) : battery(battery) {}
+  virtual String get_status_html();
+
+ private:
+  Mg4Battery* battery;
+};
 
 class Mg4Battery : public UdsCanBattery {
  public:
@@ -12,11 +22,17 @@ class Mg4Battery : public UdsCanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   virtual uint32_t calculate_max_discharge_power_W();
   virtual uint32_t calculate_max_charge_power_W();
+  virtual void action(uint32_t action_id, uint32_t value) override;
   //virtual uint32_t calculate_pack_voltage_limit_max_dV();
 
   static constexpr const char* Name = "MG4 battery";
 
+  BatteryHtmlRenderer& get_status_renderer() { return *renderer; }
+
+  uint8_t get_message_byte(uint8_t index) { return MG4_047.data.u8[index]; }
+
  private:
+  Mg4BatteryHtmlRenderer* renderer;
   static const uint16_t MAX_CELL_DEVIATION_MV = 150;
 
   int32_t working_cell_min_mV = 0;
@@ -75,5 +91,3 @@ class Mg4Battery : public UdsCanBattery {
                           .data = {0x00, 0x01, 0x27, 0x08, 0xF4, 0xF0, 0x80, 0x04, 0x00, 0x5F, 0x3C, 0x00,
                                    0x00, 0x01, 0x48, 0x08, 0x61, 0xF0, 0x6A, 0x06, 0xA0, 0xFF, 0xF0, 0xFF}};
 };
-
-#endif

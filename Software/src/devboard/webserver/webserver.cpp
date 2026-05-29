@@ -740,6 +740,17 @@ void init_webserver() {
         });
   }
 
+  update_string_setting("/batteryAction", [](String value) {
+    int commaIndex = value.indexOf(',');
+    if (commaIndex == -1) {
+      return;
+    }
+    String action = value.substring(0, commaIndex);
+    String arg = value.substring(commaIndex + 1);
+    Battery* batt = battery;
+    batt->action(action.toInt(), arg.toInt());
+  });
+
   // Route for editing BATTERY_USE_VOLTAGE_LIMITS
   update_int_setting("/updateUseVoltageLimit",
                      [](int value) { datalayer.battery.settings.user_set_voltage_limits_active = value; });
