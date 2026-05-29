@@ -1466,12 +1466,16 @@ String processor(const String& var) {
         const char* bg = is_error ? "#A70107" : (is_warning ? "#F5CC00" : "#2D3F2F");
         float v = s.voltage_dV / 10.0f;
         float soc = s.real_soc / 100.0f;
+        float soh = s.soh_pptt / 100.0f;
         float cur = s.current_dA / 10.0f;
         float tmax = (float)s.temp_max_dC;
         float tmin = (float)s.temp_min_dC;
         float chg_kW = s.max_charge_W / 1000.0f;
         float dis_kW = s.max_discharge_W / 1000.0f;
         float power_kW = (v * cur) / 1000.0f;
+        int cell_delta_mV = (s.cell_max_voltage_mV > 0 && s.cell_min_voltage_mV > 0)
+                                ? (int)s.cell_max_voltage_mV - (int)s.cell_min_voltage_mV
+                                : -1;
         const char* contactor_state = s.contactor_engaged ? "Engaged" : "Open";
         const char* contactor_color = s.contactor_engaged ? "color:white;" : "color:gray;";
         content += "<div style='background-color:" + String(bg) +
@@ -1484,10 +1488,14 @@ String processor(const String& var) {
           content += "<h4 style='color:white;margin:2px 0;'>Battery " + String(i + 1) + "</h4>";
         }
         content += "<h4 style='margin:2px 0;'>SOC: " + String(soc, 1) + " %</h4>";
+        content += "<h4 style='margin:2px 0;'>SOH: " + String(soh, 1) + " %</h4>";
         content += "<h4 style='margin:2px 0;'>Voltage: " + String(v, 1) + " V</h4>";
         content += "<h4 style='margin:2px 0;'>Current: " + String(cur, 1) + " A</h4>";
         content += "<h4 style='margin:2px 0;'>Power: " + String(power_kW, 1) + " kW</h4>";
         content += "<h4 style='margin:2px 0;'>Temp: " + String(tmin, 0) + " / " + String(tmax, 0) + " &deg;C</h4>";
+        if (cell_delta_mV >= 0) {
+          content += "<h4 style='margin:2px 0;'>Cell delta: " + String(cell_delta_mV) + " mV</h4>";
+        }
         content += "<h4 style='margin:2px 0;'>Remaining: " + String(s.remaining_Wh / 1000.0f, 1) + " kWh</h4>";
         content += "<h4 style='margin:2px 0;'>Max charge: " + String(chg_kW, 1) + " kW</h4>";
         content += "<h4 style='margin:2px 0;'>Max discharge: " + String(dis_kW, 1) + " kW</h4>";
