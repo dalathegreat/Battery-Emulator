@@ -1078,12 +1078,6 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
   /* disallow contactors until permissions is granted by vehicle */
   datalayer.system.status.battery_allows_contactor_closing = false;
 
-  /* Pretend that we know the SOH, assert that it is 99% */
-  datalayer.battery.status.soh_pptt = 9900;
-
-  /* Briefly assert that we're starting at a modest SOC of 30% */
-  datalayer.battery.status.real_soc = 300;
-
   //TODO Must be user configured, most likely. Artificially capped for the time being
   datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
 
@@ -1093,7 +1087,6 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
   max_evse_charging_power_W = datalayer.battery.status.max_charge_power_W;
 
   datalayer.battery.status.current_dA = 0;
-  datalayer.battery.status.remaining_capacity_Wh = 12000;
 
   //TODO this is probably fine for a baseline, though CHADEMO can go as low as 150v and as high as 1500v in the latest revision
   //the below is relative to a 96 cell NMC. lower end is possibly too low
