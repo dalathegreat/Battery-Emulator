@@ -1,6 +1,7 @@
 // A realtime display of battery status and events, using a I2C-connected 128x64
 // OLED display based on the SSD1306 driver.
 
+#include <cstring>
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
 #include "../hal/hal.h"
@@ -28,6 +29,10 @@ int num_batteries = 1;
 static esp_err_t i2c_write(const uint8_t* data, size_t len) {
   return i2c_master_transmit(dev_handle, data, len, 1000 / portTICK_PERIOD_MS);
 }
+
+static const int PRE_SCROLL = 4;   // How long to wait before scrolling
+static const int POST_SCROLL = 4;  // How long to wait after scrolling
+int scroll_x = 0;
 
 static void i2c_data(const uint8_t* data, size_t len) {
   uint8_t write_buf[1025];
@@ -349,9 +354,59 @@ static void print_battery_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status,
   write_text(6 * 6, row, buf + 6, false);
 }
 
-static const int PRE_SCROLL = 4;   // How long to wait before scrolling
-static const int POST_SCROLL = 4;  // How long to wait after scrolling
-int scroll_x = 0;
+static void print_chademo_top_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status, int num, int page) {
+  char buf[22];
+  memset(buf, ' ', sizeof(buf));
+
+  print3(buf, status.reported_soc / 100);
+  buf[3] = '%';
+  buf[4] = '\0';
+  write_tall_text(0, row, buf, false);
+
+  buf[6] = 'M';
+  buf[7] = ':';
+
+  printn(buf + 9, status.voltage_dV / 10, 3);
+  buf[12] = 'V';
+  print3d1(buf + 15, status.current_dA);
+  buf[20] = 'A';
+  buf[21] = '\0';
+  write_text(6 * 6, row++, buf + 6, false);
+
+  memset(buf, ' ', sizeof(buf));
+
+  buf[6] = 'R';
+  buf[7] = ':';
+
+  printn(buf + 9, datalayer_extended.chademo.VoltageRequested / 10, 3);
+  buf[12] = 'V';
+  print3d1(buf + 15, datalayer_extended.chademo.CurrentRequested * 10);
+  buf[20] = 'A';
+  buf[21] = '\0';
+
+  write_text(6 * 6, row, buf + 6, false);
+}
+
+static void print_chademo_bottom_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status) {
+  char buf[22];
+  memset(buf, ' ', sizeof(buf));
+
+  buf[0] = 'S';
+  buf[1] = ':';
+  print2(buf + 2, datalayer_extended.chademo.CHADEMO_Status);
+
+  print3d1(buf + 5, status.active_power_W / 100);
+  buf[10] = 'k';
+  buf[11] = 'W';
+
+  print3d1(buf + 13, status.remaining_capacity_Wh / 100);
+  buf[18] = 'k';
+  buf[19] = 'W';
+  buf[20] = 'h';
+  buf[21] = '\0';
+
+  write_text(0, row, buf, false);
+}
 
 static void print_events(int row, int count) {
   char buf[22];
@@ -433,36 +488,67 @@ void update_display() {
     return;
   }
 
-  // We cycle through several pages of battery data
-  const int NUM_PAGES = 4;
-  const int PAGE_TIME = 3;
   static int phase = 0;
+  int total_phases = 0;
+  int current_phase = 0;
+  int battery_index = 0;
+  int page = 0;
+  int NUM_PAGES = 0;
 
-  // Calculate total phases: NUM_PAGES per battery, PAGE_TIME seconds each
-  int total_phases = NUM_PAGES * num_batteries * PAGE_TIME * 2;  // *2 for 500ms updates
+  const int PAGE_TIME = 3;
 
-  int current_phase = phase / (PAGE_TIME * 2);
-  int battery_index = current_phase % num_batteries;
-  int page = (current_phase / num_batteries) % NUM_PAGES;
+  if (std::strcmp(datalayer.system.info.battery_protocol, "Chademo V2X mode\0") == 0) {
+    // We cycle through several pages of battery data
+    NUM_PAGES = 1;
 
-  // Print the battery status for current battery
-  if (battery_index == 0) {
-    print_battery_status(0, datalayer.battery.status, 1, page);
-  } else if (battery_index == 1) {
-    print_battery_status(0, datalayer.battery2.status, 2, page);
+    // Calculate total phases: NUM_PAGES per battery, PAGE_TIME seconds each
+    total_phases = NUM_PAGES * num_batteries * PAGE_TIME * 2;  // *2 for 500ms updates
+
+    current_phase = phase / (PAGE_TIME * 2);
+    page = (current_phase / num_batteries) % NUM_PAGES;
+
+    // Print the battery status for current battery
+    print_chademo_top_status(0, datalayer.battery.status, 1, page);
+
+    write_text(0, 2, "---------------------", false);
+
+    // Print the events below
+    print_events(3, 3);
+
+    write_text(0, 6, "---------------------", false);
+
+    // Then power and remaining capacity at the bottom
+    print_chademo_bottom_status(7, datalayer.battery.status);
   } else {
-    print_battery_status(0, datalayer.battery3.status, 3, page);
+    // We cycle through several pages of battery data
+    NUM_PAGES = 4;
+
+    // Calculate total phases: NUM_PAGES per battery, PAGE_TIME seconds each
+    total_phases = NUM_PAGES * num_batteries * PAGE_TIME * 2;  // *2 for 500ms updates
+
+    current_phase = phase / (PAGE_TIME * 2);
+    battery_index = current_phase % num_batteries;
+    page = (current_phase / num_batteries) % NUM_PAGES;
+
+    // Print the battery status for current battery
+    if (battery_index == 0) {
+      print_battery_status(0, datalayer.battery.status, 1, page);
+    } else if (battery_index == 1) {
+      print_battery_status(0, datalayer.battery2.status, 2, page);
+    } else {
+      print_battery_status(0, datalayer.battery3.status, 3, page);
+    }
+
+    write_text(0, 2, "---------------------", false);
+
+    // Print the events below
+    print_events(3, 3);
+
+    write_text(0, 6, "---------------------", false);
+
+    // Then IP/RSSI at the bottom
+    print_wifi_status(7);
   }
-
-  write_text(0, 2, "---------------------", false);
-
-  // Print the events below
-  print_events(3, 3);
-
-  write_text(0, 6, "---------------------", false);
-
-  // Then IP/RSSI at the bottom
-  print_wifi_status(7);
 
   phase++;
   if (phase >= total_phases) {
