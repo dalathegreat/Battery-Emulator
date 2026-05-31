@@ -12,6 +12,7 @@
 #include <esp_private/periph_ctrl.h>
 
 #include <algorithm>
+#include <cstring>
 #include <map>
 
 // The spare ESP32 SPI buses are called HSPI and VSPI, whereas on a ESP32S3
@@ -439,34 +440,45 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
 void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
   char* message_string = datalayer.system.info.logged_can_messages;
   int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
-  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
+  const size_t buffer_size = CAN_LOG_BUFFER_SIZE;
+  char new_message[256];
 
-  if (offset + 128 > sizeof(datalayer.system.info.logged_can_messages)) {
-    // Not enough space, reset and start from the beginning
-    offset = 0;
-  }
   unsigned long currentTime = millis();
-  // Add timestamp
-  offset += snprintf(message_string + offset, message_string_size - offset, "(%lu.%03lu) ", currentTime / 1000,
-                     currentTime % 1000);
+  int message_length = snprintf(new_message, sizeof(new_message), "(%lu.%03lu) %s%d %lX [%u] ", currentTime / 1000,
+                                currentTime % 1000, (msgDir == MSG_RX) ? "RX" : "TX",
+                                (int)(interface * 2) + (msgDir == MSG_RX ? 0 : 1), frame.ID, frame.DLC);
 
-  // Add direction. Multiplying the interface by two ensures that SavvyCAN puts TX and RX in a different bus.
-  offset += snprintf(message_string + offset, message_string_size - offset, "%s%d ", (msgDir == MSG_RX) ? "RX" : "TX",
-                     (int)(interface * 2) + (msgDir == MSG_RX ? 0 : 1));
-
-  // Add ID and DLC
-  offset += snprintf(message_string + offset, message_string_size - offset, "%lX [%u] ", frame.ID, frame.DLC);
-
-  // Add data bytes
-  for (uint8_t i = 0; i < frame.DLC; i++) {
-    if (i < frame.DLC - 1) {
-      offset += snprintf(message_string + offset, message_string_size - offset, "%02X ", frame.data.u8[i]);
-    } else {
-      offset += snprintf(message_string + offset, message_string_size - offset, "%02X", frame.data.u8[i]);
-    }
+  for (uint8_t i = 0; i < frame.DLC && message_length < (int)(sizeof(new_message) - 1); i++) {
+    message_length += snprintf(new_message + message_length, sizeof(new_message) - message_length, "%02X%s",
+                               frame.data.u8[i], (i < frame.DLC - 1) ? " " : "");
   }
-  // Add linebreak
-  offset += snprintf(message_string + offset, message_string_size - offset, "\n");
+  if (message_length < (int)(sizeof(new_message) - 1)) {
+    message_length += snprintf(new_message + message_length, sizeof(new_message) - message_length, "\n");
+  }
+
+  while (offset + message_length >= (int)(buffer_size - 1)) {
+    // Drop the oldest complete message to make room.
+    int oldest_newline = -1;
+    for (int i = 0; i < offset; ++i) {
+      if (message_string[i] == '\n') {
+        oldest_newline = i;
+        break;
+      }
+    }
+    if (oldest_newline < 0) {
+      offset = 0;
+      message_string[0] = '\0';
+      break;
+    }
+    int drop_bytes = oldest_newline + 1;
+    memmove(message_string, message_string + drop_bytes, offset - drop_bytes);
+    offset -= drop_bytes;
+    message_string[offset] = '\0';
+  }
+
+  memcpy(message_string + offset, new_message, message_length);
+  offset += message_length;
+  message_string[offset] = '\0';
 
   datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
 }
