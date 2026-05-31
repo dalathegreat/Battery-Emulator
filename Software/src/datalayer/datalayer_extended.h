@@ -395,7 +395,7 @@ struct DATALAYER_INFO_ECMP {
 
 struct DATALAYER_INFO_FORD_MACH_E {
   int16_t pid_hvb_temp = 0;
-  uint16_t pid_hvb_soc = 0;
+  uint32_t pid_hvb_soc = 0;
   uint32_t pid_hvb_contactor_status = 0;
   uint16_t pid_hvb_contactor_positive_leak_voltage = 0;
   uint16_t pid_hvb_contactor_negative_leak_voltage = 0;

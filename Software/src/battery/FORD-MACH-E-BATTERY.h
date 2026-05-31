@@ -150,7 +150,7 @@ class FordMachEBattery : public CanBattery {
                                       PID_BATTERY_CAPACITY};
 
   int16_t pid_hvb_temp = NOT_SAMPLED_YET;
-  uint16_t pid_hvb_soc = NOT_SAMPLED_YET;
+  uint32_t pid_hvb_soc = NOT_SAMPLED_YET;
   uint32_t pid_hvb_contactor_status = NOT_SAMPLED_YET;
   uint16_t pid_hvb_contactor_positive_leak_voltage = NOT_SAMPLED_YET;
   uint16_t pid_hvb_contactor_negative_leak_voltage = NOT_SAMPLED_YET;
