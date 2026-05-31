@@ -110,6 +110,46 @@ class FordMachEBattery : public CanBattery {
   static const uint16_t PID_TIME = 0xDD00;                             // many modules
   static const uint16_t PID_LORES_ODOMETER = 0xDD01;                   // many modules
   static const uint16_t PID_ENGINE_RUNTIME = 0xF41F;                   // SOBDMB, SOBDMC, PCM
+  // Unknown PIDs seen in CAN log — not yet decoded
+  /*
+static const uint16_t PID_UNKNOWN_1 = 0x0117;
+static const uint16_t PID_UNKNOWN_2 = 0x0119;
+static const uint16_t PID_UNKNOWN_3 = 0x011A;
+static const uint16_t PID_UNKNOWN_4 = 0x0599;
+static const uint16_t PID_UNKNOWN_5 = 0x05A1;
+static const uint16_t PID_UNKNOWN_6 = 0x05CB;
+static const uint16_t PID_UNKNOWN_7 = 0x4808;
+static const uint16_t PID_UNKNOWN_8 = 0x4809;
+static const uint16_t PID_UNKNOWN_9 = 0x480A;
+static const uint16_t PID_UNKNOWN_10 = 0x4810;
+static const uint16_t PID_UNKNOWN_11 = 0x4818;
+static const uint16_t PID_UNKNOWN_12 = 0x481D;
+static const uint16_t PID_UNKNOWN_13 = 0x483E;
+static const uint16_t PID_UNKNOWN_14 = 0x483F;
+static const uint16_t PID_UNKNOWN_15 = 0x4840;
+static const uint16_t PID_UNKNOWN_16 = 0x4841;
+static const uint16_t PID_UNKNOWN_17 = 0x4846;
+static const uint16_t PID_UNKNOWN_18 = 0x485D;
+static const uint16_t PID_UNKNOWN_19 = 0x4878;
+static const uint16_t PID_UNKNOWN_20 = 0x4898;
+static const uint16_t PID_UNKNOWN_21 = 0x489E;
+static const uint16_t PID_UNKNOWN_22 = 0x48A1;
+static const uint16_t PID_UNKNOWN_23 = 0x48AF;
+static const uint16_t PID_UNKNOWN_24 = 0x48CF;
+static const uint16_t PID_UNKNOWN_25 = 0x48E2;
+static const uint16_t PID_UNKNOWN_26 = 0x48E4;
+static const uint16_t PID_UNKNOWN_27 = 0x4901;
+static const uint16_t PID_UNKNOWN_28 = 0x4903;
+static const uint16_t PID_UNKNOWN_29 = 0x4904;
+static const uint16_t PID_UNKNOWN_30 = 0x5B56;
+static const uint16_t PID_UNKNOWN_31 = 0xD002;
+static const uint16_t PID_UNKNOWN_32 = 0xDD80;
+static const uint16_t PID_UNKNOWN_33 = 0xF404;
+static const uint16_t PID_UNKNOWN_34 = 0xF405;
+static const uint16_t PID_UNKNOWN_35 = 0xF40C;
+static const uint16_t PID_UNKNOWN_36 = 0xF40D;
+static const uint16_t PID_UNKNOWN_37 = 0xF449;
+*/
 
   uint16_t currentpoll = PID_HVB_TEMP;
   uint8_t poll_index = 0;
