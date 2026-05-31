@@ -409,6 +409,7 @@ struct DATALAYER_INFO_FORD_MACH_E {
   uint16_t pid_hvb_voltage = 0;
   uint8_t pid_hvb_calendar_age_months = 0;
   uint16_t pid_battery_capacity_ah = 0;
+  uint8_t pid_maintenance_rebalance_status = 0;
 };
 
 struct DATALAYER_INFO_GEELY_GEOMETRY_C {

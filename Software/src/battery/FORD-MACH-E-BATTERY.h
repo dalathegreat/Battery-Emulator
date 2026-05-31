@@ -91,6 +91,7 @@ class FordMachEBattery : public CanBattery {
   static const uint16_t PID_HVB_SOH = 0x490C;
   static const uint16_t PID_HVB_CALENDAR_AGE_MONTHS = 0x48B9;  //Could also be Max voltage battery module ID
   static const uint16_t PID_BATTERY_CAPACITY = 0x485C;
+  static const uint16_t PID_MAINTENANCE_REBALANCE_STATUS = 0x4818;
   //Shared PIDs with other modules, but also seen in BECM
   static const uint16_t PID_HVB_VOLTAGE = 0x480D;                   // OBCC, SOBDM, SOBDMC, SOBDMB
   static const uint16_t PID_HVB_CHARGE_VOLTAGE_REQUESTED = 0x4844;  // OBCC, SOBDM
@@ -122,7 +123,6 @@ static const uint16_t PID_UNKNOWN_7 = 0x4808;
 static const uint16_t PID_UNKNOWN_8 = 0x4809;
 static const uint16_t PID_UNKNOWN_9 = 0x480A;
 static const uint16_t PID_UNKNOWN_10 = 0x4810;
-static const uint16_t PID_UNKNOWN_11 = 0x4818;
 static const uint16_t PID_UNKNOWN_12 = 0x481D;
 static const uint16_t PID_UNKNOWN_13 = 0x483E;
 static const uint16_t PID_UNKNOWN_14 = 0x483F;
@@ -153,7 +153,7 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
 
   uint16_t currentpoll = PID_HVB_TEMP;
   uint8_t poll_index = 0;
-  const uint16_t poll_commands[35] = {PID_HVB_TEMP,
+  const uint16_t poll_commands[36] = {PID_HVB_TEMP,
                                       PID_HVB_SOC,
                                       PID_HVB_CONTACTOR_STATUS,
                                       PID_HVB_CONTACTOR_POSITIVE_LEAK_VOLTAGE,
@@ -187,7 +187,8 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
                                       PID_LORES_ODOMETER,
                                       PID_ENGINE_RUNTIME,
                                       PID_HVB_CALENDAR_AGE_MONTHS,
-                                      PID_BATTERY_CAPACITY};
+                                      PID_BATTERY_CAPACITY,
+                                      PID_MAINTENANCE_REBALANCE_STATUS};
 
   int16_t pid_hvb_temp = NOT_SAMPLED_YET;
   uint32_t pid_hvb_soc = NOT_SAMPLED_YET;
@@ -224,6 +225,7 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
   uint8_t pid_engine_runtime = NOT_SAMPLED_YET;
   uint8_t pid_hvb_calendar_age_months = NOT_SAMPLED_YET;  //Could be max module voltage PID?
   uint16_t pid_battery_capacity_ah = NOT_SAMPLED_YET;
+  uint8_t pid_maintenance_rebalance_status = NOT_SAMPLED_YET;
 
   uint16_t poll_state = PID_HVB_TEMP;
   uint16_t incoming_poll = 0;
@@ -238,11 +240,6 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
                                     .DLC = 8,
                                     .ID = 0x7E4,
                                     .data = {0x03, 0x22, 0x48, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_PID_ACK_7DF = {.FD = false,
-                                .ext_ID = false,
-                                .DLC = 8,
-                                .ID = 0x7DF,
-                                .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame FORD_DTC_RESET = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,

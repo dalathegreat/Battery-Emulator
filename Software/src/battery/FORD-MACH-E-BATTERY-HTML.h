@@ -92,10 +92,20 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
     } else {
       content += "<h4>Capacity: " + String(datalayer_extended.fordMachE.pid_battery_capacity_ah) + " AH+1 </h4>";
     }
+    if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 255) {
+      content += "<h4>Maintenance rebalance status: N/A </h4>";
+    } else {
+      if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x04) {
+        content += "<h4>Maintenance rebalance status: Initializing</h4>";
+      } else {
+        content += "<h4>Maintenance rebalance status: " +
+                   String(datalayer_extended.fordMachE.pid_maintenance_rebalance_status) + "</h4>";
+      }
+    }
     if (datalayer_extended.fordMachE.pid_hvb_calendar_age_months == 255) {
       content += "<h4>Unknown 1: N/A </h4>";
     } else {
-      content += "<h4>Unknown 1: " + String(datalayer_extended.fordMachE.pid_hvb_calendar_age_months) + " months </h4>";
+      content += "<h4>Unknown 1: " + String(datalayer_extended.fordMachE.pid_hvb_calendar_age_months) + " </h4>";
     }
     return content;
   }

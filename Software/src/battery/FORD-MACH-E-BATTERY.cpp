@@ -127,6 +127,7 @@ void FordMachEBattery::update_values() {
   datalayer_extended.fordMachE.pid_hvb_contactor_open_leak_resistance = pid_hvb_contactor_open_leak_resistance;
   datalayer_extended.fordMachE.pid_hvb_calendar_age_months = pid_hvb_calendar_age_months;
   datalayer_extended.fordMachE.pid_battery_capacity_ah = pid_battery_capacity_ah;
+  datalayer_extended.fordMachE.pid_maintenance_rebalance_status = pid_maintenance_rebalance_status;
 }
 
 void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -389,6 +390,9 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case PID_BATTERY_CAPACITY:
           pid_battery_capacity_ah = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
+        case PID_MAINTENANCE_REBALANCE_STATUS:
+          pid_maintenance_rebalance_status = rx_frame.data.u8[4];
+          break;
         default:
           break;
       }
@@ -517,7 +521,7 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
 
     // Update current poll from the array
     currentpoll = poll_commands[poll_index];
-    poll_index = (poll_index + 1) % 35;
+    poll_index = (poll_index + 1) % 36;
 
     FORD_PID_REQUEST_7E4.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
     FORD_PID_REQUEST_7E4.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
