@@ -125,6 +125,8 @@ void FordMachEBattery::update_values() {
       pid_hvb_contactor_negative_bus_leak_resistance;
   datalayer_extended.fordMachE.pid_hvb_contactor_overall_leak_resistance = pid_hvb_contactor_overall_leak_resistance;
   datalayer_extended.fordMachE.pid_hvb_contactor_open_leak_resistance = pid_hvb_contactor_open_leak_resistance;
+  datalayer_extended.fordMachE.pid_hvb_calendar_age_months = pid_hvb_calendar_age_months;
+  datalayer_extended.fordMachE.pid_battery_capacity_ah = pid_battery_capacity_ah;
 }
 
 void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -287,7 +289,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x7EC:  //OBD2 diag reply from BMS (Replies to both 7DF and 7E4)
 
       if (rx_frame.data.u8[0] < 0x10) {  //One line response
-        incoming_poll = ((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
+        incoming_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       }
 
       if (rx_frame.data.u8[0] == 0x10) {  //Multiframe response, send ACK
@@ -357,6 +359,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case PID_GEAR_COMMANDED:
           break;
         case PID_KEY_STATE:
+          //0x0E = Error
           break;
         case PID_CHARGE_PLUG:
           break;
@@ -379,6 +382,12 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case PID_LORES_ODOMETER:
           break;
         case PID_ENGINE_RUNTIME:
+          break;
+        case PID_HVB_CALENDAR_AGE_MONTHS:
+          pid_hvb_calendar_age_months = rx_frame.data.u8[4];
+          break;
+        case PID_BATTERY_CAPACITY:
+          pid_battery_capacity_ah = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         default:
           break;
@@ -508,7 +517,7 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
 
     // Update current poll from the array
     currentpoll = poll_commands[poll_index];
-    poll_index = (poll_index + 1) % 33;
+    poll_index = (poll_index + 1) % 35;
 
     FORD_PID_REQUEST_7E4.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
     FORD_PID_REQUEST_7E4.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);

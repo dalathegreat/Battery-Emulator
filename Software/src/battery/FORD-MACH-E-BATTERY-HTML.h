@@ -87,6 +87,17 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
       content += "<h4>Open contactor leak resistance: " +
                  String(datalayer_extended.fordMachE.pid_hvb_contactor_open_leak_resistance) + " kOhm </h4>";
     }
+    if (datalayer_extended.fordMachE.pid_hvb_calendar_age_months == 255) {
+      content += "<h4>Battery age: N/A </h4>";
+    } else {
+      content +=
+          "<h4>Battery age: " + String(datalayer_extended.fordMachE.pid_hvb_calendar_age_months) + " months </h4>";
+    }
+    if (datalayer_extended.fordMachE.pid_battery_capacity_ah == 255) {
+      content += "<h4>Capacity: N/A </h4>";
+    } else {
+      content += "<h4>Capacity: " + String(datalayer_extended.fordMachE.pid_battery_capacity_ah) + " AH+1 </h4>";
+    }
     return content;
   }
 };

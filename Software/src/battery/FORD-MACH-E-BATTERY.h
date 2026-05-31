@@ -89,6 +89,8 @@ class FordMachEBattery : public CanBattery {
   static const uint16_t PID_HVB_CURRENT = 0x48F9;
   static const uint16_t PID_CHARGER_POWER_LIMIT = 0x48FB;
   static const uint16_t PID_HVB_SOH = 0x490C;
+  static const uint16_t PID_HVB_CALENDAR_AGE_MONTHS = 0x48B9;  //Could also be Max voltage battery module ID
+  static const uint16_t PID_BATTERY_CAPACITY = 0x485C;
   //Shared PIDs with other modules, but also seen in BECM
   static const uint16_t PID_HVB_VOLTAGE = 0x480D;                   // OBCC, SOBDM, SOBDMC, SOBDMB
   static const uint16_t PID_HVB_CHARGE_VOLTAGE_REQUESTED = 0x4844;  // OBCC, SOBDM
@@ -111,7 +113,7 @@ class FordMachEBattery : public CanBattery {
 
   uint16_t currentpoll = PID_HVB_TEMP;
   uint8_t poll_index = 0;
-  const uint16_t poll_commands[33] = {PID_HVB_TEMP,
+  const uint16_t poll_commands[35] = {PID_HVB_TEMP,
                                       PID_HVB_SOC,
                                       PID_HVB_CONTACTOR_STATUS,
                                       PID_HVB_CONTACTOR_POSITIVE_LEAK_VOLTAGE,
@@ -143,7 +145,9 @@ class FordMachEBattery : public CanBattery {
                                       PID_CHARGER_INPUT_POWER_AVAILABLE,
                                       PID_TIME,
                                       PID_LORES_ODOMETER,
-                                      PID_ENGINE_RUNTIME};
+                                      PID_ENGINE_RUNTIME,
+                                      PID_HVB_CALENDAR_AGE_MONTHS,
+                                      PID_BATTERY_CAPACITY};
 
   int16_t pid_hvb_temp = NOT_SAMPLED_YET;
   uint16_t pid_hvb_soc = NOT_SAMPLED_YET;
@@ -178,6 +182,8 @@ class FordMachEBattery : public CanBattery {
   uint8_t pid_time = NOT_SAMPLED_YET;
   uint8_t pid_lores_odometer = NOT_SAMPLED_YET;
   uint8_t pid_engine_runtime = NOT_SAMPLED_YET;
+  uint8_t pid_hvb_calendar_age_months = NOT_SAMPLED_YET;
+  uint16_t pid_battery_capacity_ah = NOT_SAMPLED_YET;
 
   uint16_t poll_state = PID_HVB_TEMP;
   uint16_t incoming_poll = 0;
