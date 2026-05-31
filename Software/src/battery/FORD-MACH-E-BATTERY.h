@@ -182,7 +182,7 @@ class FordMachEBattery : public CanBattery {
   uint8_t pid_time = NOT_SAMPLED_YET;
   uint8_t pid_lores_odometer = NOT_SAMPLED_YET;
   uint8_t pid_engine_runtime = NOT_SAMPLED_YET;
-  uint8_t pid_hvb_calendar_age_months = NOT_SAMPLED_YET;
+  uint8_t pid_hvb_calendar_age_months = NOT_SAMPLED_YET;  //Could be max module voltage PID?
   uint16_t pid_battery_capacity_ah = NOT_SAMPLED_YET;
 
   uint16_t poll_state = PID_HVB_TEMP;

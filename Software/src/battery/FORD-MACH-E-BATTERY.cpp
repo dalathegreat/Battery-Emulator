@@ -10,7 +10,7 @@ void FordMachEBattery::update_values() {
   datalayer.battery.status.real_soc = battery_soc;
 
   if (pid_hvb_soh < 101) {
-    datalayer.battery.status.soh_pptt = pid_hvb_soh;
+    datalayer.battery.status.soh_pptt = pid_hvb_soh * 100;
   }
 
   datalayer.battery.status.voltage_dV = battery_voltage * 10;
@@ -305,7 +305,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           pid_hvb_temp = rx_frame.data.u8[4] - 40;
           break;
         case PID_HVB_SOC:
-          pid_hvb_soc = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          pid_hvb_soc = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 2;
           break;
         case PID_HVB_CONTACTOR_STATUS:
           pid_hvb_contactor_status = (rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
