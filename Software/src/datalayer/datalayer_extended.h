@@ -393,6 +393,22 @@ struct DATALAYER_INFO_ECMP {
   uint8_t pid_battery_serial[13] = {0};
 };
 
+struct DATALAYER_INFO_FORD_MACH_E {
+  int16_t pid_hvb_temp = 0;
+  uint16_t pid_hvb_soc = 0;
+  uint32_t pid_hvb_contactor_status = 0;
+  uint16_t pid_hvb_contactor_positive_leak_voltage = 0;
+  uint16_t pid_hvb_contactor_negative_leak_voltage = 0;
+  uint16_t pid_hvb_contactor_positive_voltage = 0;
+  uint16_t pid_hvb_contactor_negative_voltage = 0;
+  uint16_t pid_hvb_contactor_positive_bus_leak_resistance = 0;
+  uint16_t pid_hvb_contactor_negative_bus_leak_resistance = 0;
+  uint16_t pid_hvb_contactor_overall_leak_resistance = 0;
+  uint16_t pid_hvb_contactor_open_leak_resistance = 0;
+  uint8_t pid_hvb_soh = 0;
+  uint16_t pid_hvb_voltage = 0;
+};
+
 struct DATALAYER_INFO_GEELY_GEOMETRY_C {
   /** int16_t */
   /** Module temperatures 1-6 */
@@ -973,6 +989,7 @@ class DataLayerExtended {
   DATALAYER_INFO_CMFAEV CMFAEV;
   DATALAYER_INFO_CMPSMART stellantisCMPsmart;
   DATALAYER_INFO_ECMP stellantisECMP;
+  DATALAYER_INFO_FORD_MACH_E fordMachE;
   DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;

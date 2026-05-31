@@ -2,6 +2,7 @@
 #define FORD_MACH_E_BATTERY_H
 #include "../datalayer/datalayer.h"
 #include "CanBattery.h"
+#include "FORD-MACH-E-BATTERY-HTML.h"
 
 class FordMachEBattery : public CanBattery {
  public:
@@ -10,8 +11,14 @@ class FordMachEBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Ford Mustang Mach-E battery";
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
 
  private:
+  FordMachEHtmlRenderer renderer;
+  bool UserRequestDTCreset = false;
   //90S NMC
   static const int MAX_PACK_VOLTAGE_90S_DV = 3902;
   static const int MIN_PACK_VOLTAGE_90S_DV = 2490;
@@ -65,16 +72,136 @@ class FordMachEBattery : public CanBattery {
 
   uint16_t polled_12V = 12000;
 
+  static const uint8_t NOT_SAMPLED_YET = 255;
+  // BECM Module PID Definitions
+  static const uint16_t PID_HVB_TEMP = 0x4800;
+  static const uint16_t PID_HVB_SOC = 0x4801;
+  static const uint16_t PID_HVB_CONTACTOR_STATUS = 0x4802;
+  static const uint16_t PID_HVB_CONTACTOR_POSITIVE_LEAK_VOLTAGE = 0x4803;
+  static const uint16_t PID_HVB_CONTACTOR_NEGATIVE_LEAK_VOLTAGE = 0x4804;
+  static const uint16_t PID_HVB_CONTACTOR_POSITIVE_VOLTAGE = 0x4805;
+  static const uint16_t PID_HVB_CONTACTOR_NEGATIVE_VOLTAGE = 0x4806;
+  static const uint16_t PID_HVB_CONTACTOR_POSITIVE_BUS_LEAK_RESISTANCE = 0x4811;
+  static const uint16_t PID_HVB_CONTACTOR_NEGATIVE_BUS_LEAK_RESISTANCE = 0x4812;
+  static const uint16_t PID_HVB_CONTACTOR_OVERALL_LEAK_RESISTANCE = 0x4813;
+  static const uint16_t PID_HVB_CONTACTOR_OPEN_LEAK_RESISTANCE = 0x4814;
+  static const uint16_t PID_HVB_ETE = 0x4848;
+  static const uint16_t PID_HVB_CURRENT = 0x48F9;
+  static const uint16_t PID_CHARGER_POWER_LIMIT = 0x48FB;
+  static const uint16_t PID_HVB_SOH = 0x490C;
+  //Shared PIDs with other modules, but also seen in BECM
+  static const uint16_t PID_HVB_VOLTAGE = 0x480D;                   // OBCC, SOBDM, SOBDMC, SOBDMB
+  static const uint16_t PID_HVB_CHARGE_VOLTAGE_REQUESTED = 0x4844;  // OBCC, SOBDM
+  static const uint16_t PID_HVB_SOC_D = 0x4845;                     // OBCC, SOBDM
+  static const uint16_t PID_HVB_MAX_CHARGE_CURRENT = 0x48BC;        // OBCC, SOBDM
+  static const uint16_t PID_HVB_CHARGE_CURRENT_REQUESTED = 0x4842;  // OBCC, SOBDM
+  static const uint16_t PID_GEAR_COMMANDED = 0x1E12;                // GSM, SOBDM, SOBDMC
+  static const uint16_t PID_KEY_STATE = 0x411F;               // GWM, WACM, ACM, HVAC, DSP, APIM, SOBDM, SOBDMC, SOBDMB
+  static const uint16_t PID_CHARGE_PLUG = 0x4843;             // OBCC, SOBDM
+  static const uint16_t PID_CHARGER_OUTPUT_VOLTAGE = 0x484A;  // OBCC, SOBDM
+  static const uint16_t PID_CHARGER_STATUS = 0x484F;          // OBCC, SOBDM
+  static const uint16_t PID_CHARGER_OUTPUT_CURRENT_MEASURED = 0x4850;  // OBCC, SOBDM
+  static const uint16_t PID_EVSE_TYPE = 0x4851;                        // OBCC, SOBDM
+  static const uint16_t PID_CHARGER_MAX_POWER = 0x48C4;                // OBCC, SOBDM
+  static const uint16_t PID_CHARGING_STATUS = 0x484D;                  // SOBDM
+  static const uint16_t PID_CHARGER_INPUT_POWER_AVAILABLE = 0x484E;    // SOBDM
+  static const uint16_t PID_TIME = 0xDD00;                             // many modules
+  static const uint16_t PID_LORES_ODOMETER = 0xDD01;                   // many modules
+  static const uint16_t PID_ENGINE_RUNTIME = 0xF41F;                   // SOBDMB, SOBDMC, PCM
+
+  uint16_t currentpoll = PID_HVB_TEMP;
+  uint8_t poll_index = 0;
+  const uint16_t poll_commands[33] = {PID_HVB_TEMP,
+                                      PID_HVB_SOC,
+                                      PID_HVB_CONTACTOR_STATUS,
+                                      PID_HVB_CONTACTOR_POSITIVE_LEAK_VOLTAGE,
+                                      PID_HVB_CONTACTOR_NEGATIVE_LEAK_VOLTAGE,
+                                      PID_HVB_CONTACTOR_POSITIVE_VOLTAGE,
+                                      PID_HVB_CONTACTOR_NEGATIVE_VOLTAGE,
+                                      PID_HVB_CONTACTOR_POSITIVE_BUS_LEAK_RESISTANCE,
+                                      PID_HVB_CONTACTOR_NEGATIVE_BUS_LEAK_RESISTANCE,
+                                      PID_HVB_CONTACTOR_OVERALL_LEAK_RESISTANCE,
+                                      PID_HVB_CONTACTOR_OPEN_LEAK_RESISTANCE,
+                                      PID_HVB_ETE,
+                                      PID_HVB_CURRENT,
+                                      PID_CHARGER_POWER_LIMIT,
+                                      PID_HVB_SOH,
+                                      PID_HVB_VOLTAGE,
+                                      PID_HVB_CHARGE_VOLTAGE_REQUESTED,
+                                      PID_HVB_SOC_D,
+                                      PID_HVB_MAX_CHARGE_CURRENT,
+                                      PID_HVB_CHARGE_CURRENT_REQUESTED,
+                                      PID_GEAR_COMMANDED,
+                                      PID_KEY_STATE,
+                                      PID_CHARGE_PLUG,
+                                      PID_CHARGER_OUTPUT_VOLTAGE,
+                                      PID_CHARGER_STATUS,
+                                      PID_CHARGER_OUTPUT_CURRENT_MEASURED,
+                                      PID_EVSE_TYPE,
+                                      PID_CHARGER_MAX_POWER,
+                                      PID_CHARGING_STATUS,
+                                      PID_CHARGER_INPUT_POWER_AVAILABLE,
+                                      PID_TIME,
+                                      PID_LORES_ODOMETER,
+                                      PID_ENGINE_RUNTIME};
+
+  int16_t pid_hvb_temp = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_soc = NOT_SAMPLED_YET;
+  uint32_t pid_hvb_contactor_status = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_contactor_positive_leak_voltage = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_contactor_negative_leak_voltage = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_contactor_positive_voltage = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_contactor_negative_voltage = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_contactor_positive_bus_leak_resistance = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_contactor_negative_bus_leak_resistance = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_contactor_overall_leak_resistance = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_contactor_open_leak_resistance = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_ete = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_current = NOT_SAMPLED_YET;
+  uint16_t pid_charger_power_limit = NOT_SAMPLED_YET;
+  uint8_t pid_hvb_soh = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_voltage = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_charge_voltage_requested = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_soc_d = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_max_charge_current = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_charge_current_requested = NOT_SAMPLED_YET;
+  uint8_t pid_gear_commanded = NOT_SAMPLED_YET;
+  uint8_t pid_key_state = NOT_SAMPLED_YET;
+  uint8_t pid_charge_plug = NOT_SAMPLED_YET;
+  uint8_t pid_charger_output_voltage = NOT_SAMPLED_YET;
+  uint8_t pid_charger_status = NOT_SAMPLED_YET;
+  uint8_t pid_charger_output_current_measured = NOT_SAMPLED_YET;
+  uint8_t pid_evse_type = NOT_SAMPLED_YET;
+  uint8_t pid_charger_max_power = NOT_SAMPLED_YET;
+  uint8_t pid_charging_status = NOT_SAMPLED_YET;
+  uint8_t pid_charger_input_power_available = NOT_SAMPLED_YET;
+  uint8_t pid_time = NOT_SAMPLED_YET;
+  uint8_t pid_lores_odometer = NOT_SAMPLED_YET;
+  uint8_t pid_engine_runtime = NOT_SAMPLED_YET;
+
+  uint16_t poll_state = PID_HVB_TEMP;
+  uint16_t incoming_poll = 0;
+
   CAN_frame FORD_PID_REQUEST_7DF = {.FD = false,
                                     .ext_ID = false,
                                     .DLC = 8,
                                     .ID = 0x7DF,
                                     .data = {0x02, 0x01, 0x42, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_PID_ACK = {.FD = false,
-                            .ext_ID = false,
-                            .DLC = 8,
-                            .ID = 0x7DF,
-                            .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_PID_REQUEST_7E4 = {.FD = false,
+                                    .ext_ID = false,
+                                    .DLC = 8,
+                                    .ID = 0x7E4,
+                                    .data = {0x03, 0x22, 0x48, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_PID_ACK_7DF = {.FD = false,
+                                .ext_ID = false,
+                                .DLC = 8,
+                                .ID = 0x7DF,
+                                .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_DTC_RESET = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7E4,
+                              .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
 
   //Message needed for contactor closing
   CAN_frame FORD_25B = {.FD = false,
