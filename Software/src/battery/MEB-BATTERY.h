@@ -436,12 +436,12 @@ class MebBattery : public CanBattery {
   CAN_frame MEB_POLLING_FRAME = {.FD = true,
                                  .ext_ID = true,
                                  .DLC = 8,
-                                 .ID = ISO_Functional_Req_FD,  // SOC 02 8C
+                                 .ID = ISO_Hybrid_01_Req_FD,  // SOC 02 8C
                                  .data = {0x03, 0x22, 0x02, 0x8C, 0x55, 0x55, 0x55, 0x55}};
   static constexpr CAN_frame MEB_ACK_FRAME = {.FD = true,
                                               .ext_ID = true,
                                               .DLC = 8,
-                                              .ID = ISO_Functional_Req_FD,  // Ack
+                                              .ID = ISO_Hybrid_01_Req_FD,  // Ack
                                               .data = {0x30, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}};
   static constexpr CAN_frame OBD_CLEAR_DTC = {.FD = true,
                                               .ext_ID = true,
