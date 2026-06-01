@@ -20,7 +20,6 @@ static const uint8_t MASTER_CONTACTOR_STAGGER_MS = 3;  // master-only inter-fram
 // adaptively reduce pack power while an additional blocked slave is preparing to join.
 static const uint16_t PREJOIN_POWER_FLOOR_W = 2000u;
 static const uint16_t PREJOIN_ENTER_DIFF_dV = 18u;      // 1.8V
-static const uint16_t PREJOIN_ABORT_DIFF_dV = 20u;      // 2.0V
 static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 5u;  // 0.5V hard gate
 static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
 // Integer EMA alpha = 1/5 = 0.2 (new = old*4/5 + raw*1/5)
@@ -532,14 +531,6 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
                      diff % 10, prejoin_diff_ema_dV[idx] / 10, prejoin_diff_ema_dV[idx] % 10);
     }
 
-    if (prejoin_active[idx] && (diff > PREJOIN_ABORT_DIFF_dV || prejoin_diff_ema_dV[idx] > PREJOIN_ABORT_DIFF_dV)) {
-      prejoin_active[idx] = false;
-      prejoin_raw_stable_seconds[idx] = 0;
-      prejoin_pressure_permille[idx] = 0;
-      logging.printf("Master CAN: Pre-join ABORT slave %d (raw=%u.%uV ema=%u.%uV)\n", idx + 1, diff / 10,
-                     diff % 10, prejoin_diff_ema_dV[idx] / 10, prejoin_diff_ema_dV[idx] % 10);
-    }
-
     if (prejoin_active[idx]) {
       if (diff <= PREJOIN_CLOSE_RAW_DIFF_dV) {
         if (prejoin_raw_stable_seconds[idx] < PREJOIN_CLOSE_DWELL_S) {
@@ -582,7 +573,8 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
         bool prejoin_gate_ok = true;
         if (prejoin_active[idx]) {
           prejoin_gate_ok = (diff <= PREJOIN_CLOSE_RAW_DIFF_dV) &&
-                            (prejoin_raw_stable_seconds[idx] >= PREJOIN_CLOSE_DWELL_S);
+                            (prejoin_raw_stable_seconds[idx] >= PREJOIN_CLOSE_DWELL_S) &&
+                            (prejoin_applied_pressure_permille >= 1000u);
         }
         if (prejoin_gate_ok) {
           node.contactor_allowed = true;
@@ -606,6 +598,9 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
 }
 
 void MasterCan::update_slave_aggregation() {
+  // Save previous cycle caps before overwriting — used by pre-join inverter-response check.
+  uint32_t prev_max_charge_power_W = datalayer.battery.status.max_charge_power_W;
+  uint32_t prev_max_discharge_power_W = datalayer.battery.status.max_discharge_power_W;
   // Aggregate online slaves into datalayer.battery
   uint32_t total_capacity_Wh = 0;
   uint32_t total_remaining_Wh = 0;
@@ -753,12 +748,19 @@ void MasterCan::update_slave_aggregation() {
   }
 
   if (prejoin_applied_pressure_permille < target_pressure_permille) {
-    // Ramp up pressure (reduce power) — always allowed
-    uint16_t delta = (uint16_t)(target_pressure_permille - prejoin_applied_pressure_permille);
-    if (delta > PREJOIN_PRESSURE_STEP_PER_S) {
-      delta = PREJOIN_PRESSURE_STEP_PER_S;
+    // Ramp up pressure (reduce power) only if the inverter has backed off to within 2000W
+    // of the cap sent last cycle — prevents racing ahead of the inverter response.
+    int32_t act_W = datalayer.battery.status.active_power_W;
+    uint32_t abs_act_W = (act_W >= 0) ? (uint32_t)act_W : (uint32_t)(-act_W);
+    uint32_t ref_cap_W = (act_W >= 0) ? prev_max_charge_power_W : prev_max_discharge_power_W;
+    bool inverter_responded = (ref_cap_W == 0) || (abs_act_W <= ref_cap_W + 2000u);
+    if (inverter_responded) {
+      uint16_t delta = (uint16_t)(target_pressure_permille - prejoin_applied_pressure_permille);
+      if (delta > PREJOIN_PRESSURE_STEP_PER_S) {
+        delta = PREJOIN_PRESSURE_STEP_PER_S;
+      }
+      prejoin_applied_pressure_permille = (uint16_t)(prejoin_applied_pressure_permille + delta);
     }
-    prejoin_applied_pressure_permille = (uint16_t)(prejoin_applied_pressure_permille + delta);
   } else if (!any_prejoin_active && prejoin_applied_pressure_permille > target_pressure_permille) {
     // Release pressure only after all prejoin sessions are done (slave connected or aborted)
     uint16_t delta = (uint16_t)(prejoin_applied_pressure_permille - target_pressure_permille);
@@ -769,16 +771,34 @@ void MasterCan::update_slave_aggregation() {
   }
   // While any_prejoin_active and applied >= target: hold — diff rose but power is NOT released
 
-  uint32_t capped_max_charge_W = total_max_charge_W;
-  uint32_t capped_max_discharge_W = total_max_discharge_W;
+  // Use the inverter-facing clamped current as the cap base — it already reflects
+  // user/remote limits and the slow-ramp filter, so it matches what the inverter
+  // is actually allowed to draw. Fall back to the raw battery sum on startup.
+  uint32_t cap_base_charge_W = total_max_charge_W;
+  uint32_t cap_base_discharge_W = total_max_discharge_W;
+  if (shared_voltage_dV > 0 && datalayer.battery.status.max_charge_current_dA > 0) {
+    uint32_t effective = (uint32_t)datalayer.battery.status.max_charge_current_dA * shared_voltage_dV / 100u;
+    if (effective < total_max_charge_W) {
+      cap_base_charge_W = effective;
+    }
+  }
+  if (shared_voltage_dV > 0 && datalayer.battery.status.max_discharge_current_dA > 0) {
+    uint32_t effective = (uint32_t)datalayer.battery.status.max_discharge_current_dA * shared_voltage_dV / 100u;
+    if (effective < total_max_discharge_W) {
+      cap_base_discharge_W = effective;
+    }
+  }
+
+  uint32_t capped_max_charge_W = cap_base_charge_W;
+  uint32_t capped_max_discharge_W = cap_base_discharge_W;
   if (prejoin_applied_pressure_permille > 0) {
-    if (total_max_charge_W > PREJOIN_POWER_FLOOR_W) {
-      uint32_t span = total_max_charge_W - PREJOIN_POWER_FLOOR_W;
+    if (cap_base_charge_W > PREJOIN_POWER_FLOOR_W) {
+      uint32_t span = cap_base_charge_W - PREJOIN_POWER_FLOOR_W;
       capped_max_charge_W = PREJOIN_POWER_FLOOR_W +
                             (uint32_t)((span * (1000u - prejoin_applied_pressure_permille)) / 1000u);
     }
-    if (total_max_discharge_W > PREJOIN_POWER_FLOOR_W) {
-      uint32_t span = total_max_discharge_W - PREJOIN_POWER_FLOOR_W;
+    if (cap_base_discharge_W > PREJOIN_POWER_FLOOR_W) {
+      uint32_t span = cap_base_discharge_W - PREJOIN_POWER_FLOOR_W;
       capped_max_discharge_W = PREJOIN_POWER_FLOOR_W +
                                (uint32_t)((span * (1000u - prejoin_applied_pressure_permille)) / 1000u);
     }
