@@ -89,7 +89,7 @@ class FordMachEBattery : public CanBattery {
   static const uint16_t PID_HVB_CURRENT = 0x48F9;
   static const uint16_t PID_CHARGER_POWER_LIMIT = 0x48FB;
   static const uint16_t PID_HVB_SOH = 0x490C;
-  static const uint16_t PID_HVB_CALENDAR_AGE_MONTHS = 0x48B9;  //Could also be Max voltage battery module ID
+  static const uint16_t PID_HVB_CALENDAR_AGE_MONTHS = 0x4810;
   static const uint16_t PID_BATTERY_CAPACITY = 0x485C;
   static const uint16_t PID_MAINTENANCE_REBALANCE_STATUS = 0x4818;
   //Shared PIDs with other modules, but also seen in BECM
@@ -111,6 +111,7 @@ class FordMachEBattery : public CanBattery {
   static const uint16_t PID_TIME = 0xDD00;                             // many modules
   static const uint16_t PID_LORES_ODOMETER = 0xDD01;                   // many modules
   static const uint16_t PID_ENGINE_RUNTIME = 0xF41F;                   // SOBDMB, SOBDMC, PCM
+  static const uint16_t PID_TIME_SINCE_MODULE_POWER_UP_OR_RESET = 0xD002;
   // Unknown PIDs seen in CAN log — not yet decoded
   /*
 static const uint16_t PID_UNKNOWN_1 = 0x0117;
@@ -122,7 +123,6 @@ static const uint16_t PID_UNKNOWN_6 = 0x05CB;
 static const uint16_t PID_UNKNOWN_7 = 0x4808;
 static const uint16_t PID_UNKNOWN_8 = 0x4809;
 static const uint16_t PID_UNKNOWN_9 = 0x480A;
-static const uint16_t PID_UNKNOWN_10 = 0x4810;
 static const uint16_t PID_UNKNOWN_12 = 0x481D;
 static const uint16_t PID_UNKNOWN_13 = 0x483E;
 static const uint16_t PID_UNKNOWN_14 = 0x483F;
@@ -142,7 +142,7 @@ static const uint16_t PID_UNKNOWN_27 = 0x4901;
 static const uint16_t PID_UNKNOWN_28 = 0x4903;
 static const uint16_t PID_UNKNOWN_29 = 0x4904;
 static const uint16_t PID_UNKNOWN_30 = 0x5B56;
-static const uint16_t PID_UNKNOWN_31 = 0xD002;
+static const uint16_t PID_UNKNOWN_30 = 0x48B9;  //Could be Max voltage battery module ID ?
 static const uint16_t PID_UNKNOWN_32 = 0xDD80;
 static const uint16_t PID_UNKNOWN_33 = 0xF404;
 static const uint16_t PID_UNKNOWN_34 = 0xF405;

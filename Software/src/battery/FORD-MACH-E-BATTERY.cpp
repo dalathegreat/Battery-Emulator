@@ -385,7 +385,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case PID_ENGINE_RUNTIME:
           break;
         case PID_HVB_CALENDAR_AGE_MONTHS:
-          pid_hvb_calendar_age_months = rx_frame.data.u8[4];
+          pid_hvb_calendar_age_months = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case PID_BATTERY_CAPACITY:
           pid_battery_capacity_ah = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
