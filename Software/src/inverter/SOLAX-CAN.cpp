@@ -232,7 +232,11 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   }
 
   if (rx_frame.ID == 0x1871 && rx_frame.data.u64 == __builtin_bswap64(0x0500010000000000)) {
-    int slot_count = (int)configured_number_of_modules + 1;
+    uint16_t modules = configured_number_of_modules;
+    if (modules > 254) {
+      modules = 254;
+    }
+    int slot_count = (int)modules + 1;
 
     uint64_t mac64 = ESP.getEfuseMac();
     uint8_t mac[6];
