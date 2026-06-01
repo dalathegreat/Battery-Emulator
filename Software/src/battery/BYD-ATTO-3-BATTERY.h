@@ -53,6 +53,9 @@ class BydAttoBattery : public CanBattery {
   unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
+  uint64_t last_auto_calibrate_ms = 0;  // Cooldown timer for auto-calibration
+  uint32_t autocal_dwell_ms = 0;        // Valid low-current/full time
+  uint32_t autocal_grace_start_ms = 0;  // When current left the valid window
 
   static const int POLL_TIMES_FULL_POWER = 0x0004;  // Using Carscanner name for now.
   static const int POLL_FOR_BATTERY_SOC = 0x0005;
@@ -251,6 +254,8 @@ class BydAttoBattery : public CanBattery {
                                     .DLC = 8,
                                     .ID = 0x7E7,  //This sets SOC to 100.00% (0x27 10) , and AH to 150.00 (0x3A 98)
                                     .data = {0x07, 0x2E, 0x1F, 0xFC, 0x10, 0x27, 0x98, 0x3A}};
+
+  void handle_auto_soc_calibration(bool crit_taper, uint32_t dt_ms, uint32_t now_ms);
 };
 
 #endif
