@@ -35,7 +35,16 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
     if (datalayer_extended.fordMachE.pid_hvb_contactor_status == 255) {
       content += "<h4>Contactor status: N/A </h4>";
     } else {
-      content += "<h4>Contactor status: " + String(datalayer_extended.fordMachE.pid_hvb_contactor_status) + "</h4>";
+      if (datalayer_extended.fordMachE.pid_hvb_contactor_status == 0xA00A8400) {
+        content += "<h4>Contactor status: Interlock Seated OK</h4>";
+      } else if (datalayer_extended.fordMachE.pid_hvb_contactor_status == 0) {
+        content += "<h4>Contactor status: Interlock Not evaluated yet</h4>";
+      } else if (datalayer_extended.fordMachE.pid_hvb_contactor_status == 0x00000400) {
+        content += "<h4>Contactor status: Interlock OPEN!</h4>";
+      } else {
+        content +=
+            "<h4>Contactor status: Unknown" + String(datalayer_extended.fordMachE.pid_hvb_contactor_status) + "</h4>";
+      }
     }
     if (datalayer_extended.fordMachE.pid_hvb_contactor_positive_leak_voltage == 255) {
       content += "<h4>Pos contactor leak voltage: N/A </h4>";
@@ -103,9 +112,9 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
       }
     }
     if (datalayer_extended.fordMachE.pid_hvb_calendar_age_months == 255) {
-      content += "<h4>Unknown 1: N/A </h4>";
+      content += "<h4>Calendar age: N/A </h4>";
     } else {
-      content += "<h4>Unknown 1: " + String(datalayer_extended.fordMachE.pid_hvb_calendar_age_months) + " </h4>";
+      content += "<h4>Calendar age: " + String(datalayer_extended.fordMachE.pid_hvb_calendar_age_months) + " </h4>";
     }
     return content;
   }
