@@ -254,6 +254,8 @@ class BydAttoBattery : public CanBattery {
                                     .DLC = 8,
                                     .ID = 0x7E7,  //This sets SOC to 100.00% (0x27 10) , and AH to 150.00 (0x3A 98)
                                     .data = {0x07, 0x2E, 0x1F, 0xFC, 0x10, 0x27, 0x98, 0x3A}};
+
+  void handle_auto_soc_calibration(bool crit_taper, uint32_t dt_ms, uint32_t now_ms);
 };
 
 #endif
