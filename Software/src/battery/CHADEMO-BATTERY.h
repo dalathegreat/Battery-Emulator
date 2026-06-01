@@ -95,7 +95,7 @@ uint8_t CHADEMO_seq = 0x0;
     uint8_t MaxChargingTime10sBit = 0;
     uint8_t MaxChargingTime1minBit = 0;
     uint8_t EstimatedChargingTime = 0;
-    uint16_t RatedBatteryCapacity = 0;
+    uint16_t RatedBatteryCapacity = 0; // in Wh
   };
 
   //H102 - Vehicle - Charging targets and Status
@@ -192,8 +192,8 @@ uint8_t CHADEMO_seq = 0x0;
   struct x200_Vehicle_Discharge_Limits {
     uint8_t MaximumDischargeCurrent = 0xFF;
     uint16_t MinimumDischargeVoltage = 260;  //Initialized to a semi-sane value, updates via CAN later
-    uint16_t MinimumBatteryDischargeLevel = 0;
-    uint16_t MaxRemainingCapacityForCharging = 0;
+    uint16_t MinimumBatteryDischargeLevel = 0; // in Wh
+    uint16_t MaxRemainingCapacityForDischarging = 0; // in Wh
   };
 
   /* TODO When charge/discharge sequence control number (ID201/209) is not received, the vehicle or the EVSE

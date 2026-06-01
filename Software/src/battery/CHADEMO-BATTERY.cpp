@@ -84,16 +84,10 @@ void ChademoBattery::update_values() {
     datalayer.battery.status.max_charge_power_W = max_evse_charging_power_W;                  //from inverter
   }
 
-  datalayer.battery.info.total_capacity_Wh = (x101_chg_est.RatedBatteryCapacity * 1000);
+  datalayer.battery.info.total_capacity_Wh = x101_chg_est.RatedBatteryCapacity;
   //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
 
-  /* TODO max charging rate = 
-   * 	x200_discharge_limits.MaxRemainingCapacityForCharging /
-   * 	    x101_chg_est.RatedBatteryCapacity * 100;
-   */
-
-  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  datalayer.battery.status.remaining_capacity_Wh = x200_discharge_limits.MaxRemainingCapacityForDischarging;
 
   /* To simulate or NOT to simulate battery cell voltages, that is .. A question.
    * Answer for now: Not, because they are not available in any direct manner.
@@ -143,7 +137,7 @@ void ChademoBattery::process_vehicle_charging_maximums(CAN_frame rx_frame) {
   x101_chg_est.MaxChargingTime10sBit = rx_frame.data.u8[1];
   x101_chg_est.MaxChargingTime1minBit = rx_frame.data.u8[2];
   x101_chg_est.EstimatedChargingTime = rx_frame.data.u8[3];
-  x101_chg_est.RatedBatteryCapacity = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[5]) / 10.0f;  //kWh
+  x101_chg_est.RatedBatteryCapacity = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[5]) * 100;  // in Wh
 }
 
 void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
@@ -289,25 +283,25 @@ void ChademoBattery::process_vehicle_charging_limits(CAN_frame rx_frame) {
 
   x200_discharge_limits.MaximumDischargeCurrent = rx_frame.data.u8[0] - 0xFF;
   x200_discharge_limits.MinimumDischargeVoltage = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
-  x200_discharge_limits.MinimumBatteryDischargeLevel = rx_frame.data.u8[6];
-  x200_discharge_limits.MaxRemainingCapacityForCharging = rx_frame.data.u8[7];
+  x200_discharge_limits.MinimumBatteryDischargeLevel = rx_frame.data.u8[6] * 100;        // in Wh
+  x200_discharge_limits.MaxRemainingCapacityForDischarging = rx_frame.data.u8[7] * 100;  // in Wh
 
-  /*  unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
-    previousMillis5000 = currentMillis;
-    logging.println("x200 Max remaining capacity for charging/discharging:");
-    // initially this is set to 0, which is represented as 0xFF
-    logging.println(0xFF - x200_discharge_limits.MaxRemainingCapacityForCharging);
-  }
-  */
-
-  //If discharging and we are at or below the vehicle's minimum discharge voltage, stop. This is a safety measure to avoid over-discharging the vehicle battery
-  //Check whether there is a discharge status that can be used instead of current measurement, which can be noisy and lead to false positives. If not, use current as a proxy for discharge status, with the understanding that this may lead to false positives and should be tuned based on testing and vehicle behavior
+  //If discharging and we are at or below the vehicle's minimum discharge levels, stop. This is a safety measure to avoid over-discharging the vehicle battery
   if (x102_chg_session.s.status.StatusVehicleChargingEnabled &&
       get_voltage_handler() <= x200_discharge_limits.MinimumDischargeVoltage && CHADEMO_Status > CHADEMO_NEGOTIATE) {
     logStream << "x200 minimum discharge voltage met or exceeded, stopping.\n"
               << "Measured: " << get_voltage_handler() << "V\n"
               << "Minimum voltage: " << x200_discharge_limits.MinimumDischargeVoltage << "V\n";
+    CHADEMO_Status = CHADEMO_STOP;
+    datalayer_extended.chademo.StopReason = EVSE_SUSPENDED;
+  }
+
+  int min_soc = std::ceil(static_cast<float>(x200_discharge_limits.MinimumBatteryDischargeLevel) /
+                          x101_chg_est.RatedBatteryCapacity * 100.0f);  // convert from kWh to percentage
+  if (x102_chg_session.StateOfCharge <= min_soc && CHADEMO_Status > CHADEMO_NEGOTIATE) {
+    logStream << "x200 minimum discharge capacity met or exceeded, stopping.\n"
+              << "Measured: " << x102_chg_session.StateOfCharge << "%\n"
+              << "Minimum soc: " << min_soc << "%\n";
     CHADEMO_Status = CHADEMO_STOP;
     datalayer_extended.chademo.StopReason = EVSE_SUSPENDED;
   }
@@ -582,9 +576,9 @@ void ChademoBattery::update_evse_discharge_estimate(CAN_frame& f) {
 
   //do nothing to alter the default initialized values..this may be unneeded
   /* TODO
-	if (x200_discharge_limits.MaxRemainingCapacityForCharging = max charge voltage){
+	if (x200_discharge_limits.MaxRemainingCapacityForDischarging = max charge voltage){
 	if (x200_discharge_limits.MinimumBatteryDischargeLevel = kwH for v2h<1.0){
-	if (x200_discharge_limits.MaxRemainingCapacityForCharging = kwH for v2h<1.0){
+	if (x200_discharge_limits.MaxRemainingCapacityForDischarging = kwH for v2h<1.0){
 	*/
 
   CHADEMO_209.data.u8[0] = x209_evse_dischg_est.sequence_control_number;
