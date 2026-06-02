@@ -46,22 +46,6 @@ Start by watching this [quickstart guide](https://www.youtube.com/watch?v=sR3t7j
 5. (OPTIONAL, connect the board to your home Wifi)
 6. Connect your battery and inverter to the board and you are done! 🔋⚡
 
-## Optional CYD screen
-
-This project can also be used with a separate CYD touchscreen display.
-
-The CYD screen can:
-- show battery data
-- show cell voltages
-- show faults
-- show single or dual battery layouts
-- pause and resume the emulator
-- open and close contactors
-- reboot the emulator
-
-See the full screen project here:
-- [CYD_Battery_Emulator](./CYD_Battery_Emulator/README.md)
-
 ## Dependencies 📖
 This code uses the following excellent libraries: 
 - [adafruit/Adafruit_NeoPixel](https://github.com/adafruit/Adafruit_NeoPixel) LGPL-3.0 license
