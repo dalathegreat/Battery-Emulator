@@ -6,6 +6,7 @@
 #include "../../datalayer/datalayer.h"
 #include "CanReceiver.h"
 #include "INTER-UNIT-PROTOCOL.h"
+#include "INTER-UNIT-MASTER-HTML.h"
 
 /**
  * InterUnitMasterBattery — virtual Battery that makes safety.cpp treat the
@@ -36,6 +37,11 @@ class InterUnitMasterBattery : public Battery {
   }
 
   const char* interface_name() override { return "Inter-Unit CAN"; }
+
+  BatteryHtmlRenderer& get_status_renderer() override { return _renderer; }
+
+ private:
+  InterUnitMasterHtmlRenderer _renderer;
 };
 
 /**
