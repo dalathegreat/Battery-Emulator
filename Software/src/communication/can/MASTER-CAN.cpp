@@ -23,7 +23,10 @@ static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 5u;   // 0.5V hard gate for co
 static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
 // Cancel prejoin if EMA rises above ENTER + hysteresis (slave drifted away from pack)
 static const uint16_t PREJOIN_CANCEL_HYSTERESIS_dV = 4u;  // 0.4V
-// Minimum absolute load before prejoin is triggered (prevents activation at idle/0 W)
+// Minimum absolute load before prejoin is triggered.
+// Normally the dynamic floor (PREJOIN_FLOOR_PERCENT % of cap) governs this — this
+// constant acts as a hard minimum fallback for when cap data is not yet available,
+// and also as a lower bound so tiny packs don't trigger at near-zero load.
 static const uint16_t PREJOIN_MIN_LOAD_W = 300u;
 // Power floor at full pressure = this % of cap-base (dynamic, works for any system)
 static const uint16_t PREJOIN_FLOOR_PERCENT = 10u;
@@ -565,21 +568,38 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
     // 1.5 V (VOLTAGE_DIFF_THRESHOLD_dV) path which closes the contactor without capping.
     int32_t load_W = datalayer.battery.status.active_power_W;
     uint32_t abs_load_W = (load_W >= 0) ? (uint32_t)load_W : (uint32_t)(-load_W);
-    bool inverter_working = (abs_load_W >= PREJOIN_MIN_LOAD_W);
+    // Compute the dynamic floor from last-tick cap data so we only enter prejoin
+    // when there is real headroom above the floor to squeeze into.
+    // If load <= floor, reducing the cap cannot help — the inverter is already
+    // drawing less than the floor and voltage-matching pressure would be useless.
+    uint16_t pj_v_dV = datalayer.battery.status.voltage_dV;
+    uint32_t pj_cap_W = 0;
+    if (pj_v_dV > 0) {
+      if (load_W >= 0 && datalayer.battery.status.max_charge_current_dA > 0) {
+        pj_cap_W = (uint32_t)datalayer.battery.status.max_charge_current_dA * pj_v_dV / 100u;
+      } else if (load_W < 0 && datalayer.battery.status.max_discharge_current_dA > 0) {
+        pj_cap_W = (uint32_t)datalayer.battery.status.max_discharge_current_dA * pj_v_dV / 100u;
+      }
+    }
+    uint32_t pj_floor_W = (pj_cap_W > 0) ? (pj_cap_W * PREJOIN_FLOOR_PERCENT / 100u) : (uint32_t)PREJOIN_MIN_LOAD_W;
+    if (pj_floor_W < (uint32_t)PREJOIN_MIN_LOAD_W) {
+      pj_floor_W = (uint32_t)PREJOIN_MIN_LOAD_W;
+    }
+    bool inverter_working = (abs_load_W > pj_floor_W);
 
-    // Cancel an already-active prejoin session if load has dropped to (near) zero.
+    // Cancel an already-active prejoin session if load has dropped below the floor.
     if (prejoin_active[idx] && !inverter_working) {
-      logging.printf("Master CAN: Pre-join CANCELLED slave %d (inverter idle %dW — using normal 1.5V path)\n",
-                     idx + 1, (int)load_W);
+      logging.printf("Master CAN: Pre-join CANCELLED slave %d (load %dW <= floor %uW — using normal 1.5V path)\n",
+                     idx + 1, (int)load_W, (unsigned)pj_floor_W);
       reset_prejoin_state(idx);
     }
 
     if (!prejoin_active[idx] && inverter_working && prejoin_diff_ema_dV[idx] <= PREJOIN_ENTER_DIFF_dV) {
       prejoin_active[idx] = true;
       prejoin_raw_stable_seconds[idx] = 0;
-      logging.printf("Master CAN: Pre-join START slave %d (raw=%u.%uV ema=%u.%uV load=%dW)\n", idx + 1,
+      logging.printf("Master CAN: Pre-join START slave %d (raw=%u.%uV ema=%u.%uV load=%dW floor=%uW)\n", idx + 1,
                      diff / 10, diff % 10, prejoin_diff_ema_dV[idx] / 10, prejoin_diff_ema_dV[idx] % 10,
-                     (int)load_W);
+                     (int)load_W, (unsigned)pj_floor_W);
     }
 
     if (prejoin_active[idx]) {
