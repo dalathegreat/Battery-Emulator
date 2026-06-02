@@ -12,109 +12,131 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
     String content;
     content += "<h3>Ford Mach-E Extra Information</h2>";
     //If values are not sampled yet (255), show "N/A" instead of 255
+
+    content += "<h4>Average temperature:";
     if (datalayer_extended.fordMachE.pid_hvb_temp == 255) {
-      content += "<h4>Average temperature: N/A </h4>";
+      content += "N/A</h4>";
     } else {
-      content += "<h4>Average temperature: " + String(datalayer_extended.fordMachE.pid_hvb_temp) + " °C </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_temp) + " °C </h4>";
     }
+
+    content += "<h4>High precision voltage:";
     if (datalayer_extended.fordMachE.pid_hvb_voltage == 255) {
-      content += "<h4>High precision voltage: N/A </h4>";
+      content += "N/A</h4>";
     } else {
-      content += "<h4>High precision voltage: " + String(datalayer_extended.fordMachE.pid_hvb_voltage) + " mV </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_voltage) + " mV </h4>";
     }
+
+    content += "<h4>State of health:";
     if (datalayer_extended.fordMachE.pid_hvb_soh == 255) {
-      content += "<h4>State of health: N/A </h4>";
+      content += "N/A</h4>";
     } else {
-      content += "<h4>State of health: " + String(datalayer_extended.fordMachE.pid_hvb_soh) + " % </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_soh) + " % </h4>";
     }
+
+    content += "<h4>State of charge:";
     if (datalayer_extended.fordMachE.pid_hvb_soc == 255) {
-      content += "<h4>State of charge: N/A </h4>";
+      content += "N/A</h4>";
     } else {
-      content += "<h4>State of charge: " + String(datalayer_extended.fordMachE.pid_hvb_soc) + " % </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_soc) + " % </h4>";
     }
+
+    content += "<h4>Contactor status:";
     if (datalayer_extended.fordMachE.pid_hvb_contactor_status == 255) {
-      content += "<h4>Contactor status: N/A </h4>";
+      content += "N/A</h4>";
     } else {
       if (datalayer_extended.fordMachE.pid_hvb_contactor_status == 0xA00A8400) {
-        content += "<h4>Contactor status: Interlock Seated OK</h4>";
+        content += "Interlock Seated OK</h4>";
       } else if (datalayer_extended.fordMachE.pid_hvb_contactor_status == 0) {
-        content += "<h4>Contactor status: Interlock Not evaluated yet</h4>";
+        content += "Interlock Not evaluated yet</h4>";
       } else if (datalayer_extended.fordMachE.pid_hvb_contactor_status == 0x00000400) {
-        content += "<h4>Contactor status: Interlock OPEN!</h4>";
+        content += "Interlock OPEN!</h4>";
       } else {
-        content +=
-            "<h4>Contactor status: Unknown" + String(datalayer_extended.fordMachE.pid_hvb_contactor_status) + "</h4>";
+        content += "Unknown" + String(datalayer_extended.fordMachE.pid_hvb_contactor_status) + "</h4>";
       }
     }
+
+    content += "<h4>Pos contactor leak voltage:";
     if (datalayer_extended.fordMachE.pid_hvb_contactor_positive_leak_voltage == 255) {
-      content += "<h4>Pos contactor leak voltage: N/A </h4>";
+      content += "N/A</h4>";
     } else {
-      content += "<h4>Pos contactor leak voltage: " +
-                 String(datalayer_extended.fordMachE.pid_hvb_contactor_positive_leak_voltage) + " mV </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_positive_leak_voltage) + " mV </h4>";
     }
+
+    content += "<h4>Neg contactor leak voltage:";
     if (datalayer_extended.fordMachE.pid_hvb_contactor_negative_leak_voltage == 255) {
-      content += "<h4>Neg contactor leak voltage: N/A </h4>";
+      content += "N/A</h4>";
     } else {
-      content += "<h4>Neg contactor leak voltage: " +
-                 String(datalayer_extended.fordMachE.pid_hvb_contactor_negative_leak_voltage) + " mV </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_negative_leak_voltage) + " mV </h4>";
     }
+
+    content += "<h4>Pos contactor voltage:";
     if (datalayer_extended.fordMachE.pid_hvb_contactor_positive_voltage == 255) {
-      content += "<h4>Pos contactor voltage: N/A </h4>";
+      content += "N/A</h4>";
     } else {
-      content +=
-          "<h4>Pos contactor voltage: " + String(datalayer_extended.fordMachE.pid_hvb_contactor_positive_voltage) +
-          " mV </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_positive_voltage) + " mV </h4>";
     }
+
+    content += "<h4>Neg contactor voltage:";
     if (datalayer_extended.fordMachE.pid_hvb_contactor_negative_voltage == 255) {
-      content += "<h4>Neg contactor voltage: N/A </h4>";
+      content += "N/A</h4>";
+    } else {
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_negative_voltage) + " mV </h4>";
+    }
+
+    content += "<h4>Pos contactor bus leak resistance:";
+    if (datalayer_extended.fordMachE.pid_hvb_contactor_positive_bus_leak_resistance == 255) {
+      content += "N/A</h4>";
     } else {
       content +=
-          "<h4>Neg contactor voltage: " + String(datalayer_extended.fordMachE.pid_hvb_contactor_negative_voltage) +
-          " mV </h4>";
+          " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_positive_bus_leak_resistance) + " kOhm </h4>";
     }
-    if (datalayer_extended.fordMachE.pid_hvb_contactor_positive_bus_leak_resistance == 255) {
-      content += "<h4>Pos contactor bus leak resistance: N/A </h4>";
-    } else {
-      content += "<h4>Pos contactor bus leak resistance: " +
-                 String(datalayer_extended.fordMachE.pid_hvb_contactor_positive_bus_leak_resistance) + " kOhm </h4>";
-    }
+
+    content += "<h4>Neg contactor bus leak resistance:";
     if (datalayer_extended.fordMachE.pid_hvb_contactor_negative_bus_leak_resistance == 255) {
-      content += "<h4>Neg contactor bus leak resistance: N/A </h4>";
+      content += "N/A</h4>";
     } else {
-      content += "<h4>Neg contactor bus leak resistance: " +
-                 String(datalayer_extended.fordMachE.pid_hvb_contactor_negative_bus_leak_resistance) + " kOhm </h4>";
+      content +=
+          " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_negative_bus_leak_resistance) + " kOhm </h4>";
     }
+
+    content += "<h4>Overall contactor leak resistance:";
     if (datalayer_extended.fordMachE.pid_hvb_contactor_overall_leak_resistance == 255) {
-      content += "<h4>Overall contactor leak resistance: N/A </h4>";
+      content += "N/A</h4>";
     } else {
-      content += "<h4>Overall contactor leak resistance: " +
-                 String(datalayer_extended.fordMachE.pid_hvb_contactor_overall_leak_resistance) + " kOhm </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_overall_leak_resistance) + " kOhm </h4>";
     }
+
+    content += "<h4>Open contactor leak resistance:";
     if (datalayer_extended.fordMachE.pid_hvb_contactor_open_leak_resistance == 255) {
-      content += "<h4>Open contactor leak resistance: N/A </h4>";
+      content += "N/A</h4>";
     } else {
-      content += "<h4>Open contactor leak resistance: " +
-                 String(datalayer_extended.fordMachE.pid_hvb_contactor_open_leak_resistance) + " kOhm </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_open_leak_resistance) + " kOhm </h4>";
     }
+
+    content += "<h4>Capacity:";
     if (datalayer_extended.fordMachE.pid_battery_capacity_ah == 255) {
-      content += "<h4>Capacity: N/A </h4>";
+      content += "N/A</h4>";
     } else {
-      content += "<h4>Capacity: " + String(datalayer_extended.fordMachE.pid_battery_capacity_ah) + " AH+1 </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_battery_capacity_ah) + " AH+1 </h4>";
     }
+
+    content += "<h4>Maintenance rebalance status:";
     if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 255) {
-      content += "<h4>Maintenance rebalance status: N/A </h4>";
+      content += "N/A</h4>";
     } else {
       if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x04) {
-        content += "<h4>Maintenance rebalance status: Initializing</h4>";
+        content += " Initializing</h4>";
       } else {
-        content += "<h4>Maintenance rebalance status: " +
-                   String(datalayer_extended.fordMachE.pid_maintenance_rebalance_status) + "</h4>";
+        content += " " + String(datalayer_extended.fordMachE.pid_maintenance_rebalance_status) + "</h4>";
       }
     }
+
+    content += "<h4>Calendar age:";
     if (datalayer_extended.fordMachE.pid_hvb_calendar_age_months == 255) {
-      content += "<h4>Calendar age: N/A </h4>";
+      content += "N/A</h4>";
     } else {
-      content += "<h4>Calendar age: " + String(datalayer_extended.fordMachE.pid_hvb_calendar_age_months) + " </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_calendar_age_months) + " </h4>";
     }
     return content;
   }
