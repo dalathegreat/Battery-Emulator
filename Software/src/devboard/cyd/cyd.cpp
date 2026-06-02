@@ -12,9 +12,9 @@ void update_cyd() {}
 #else
 
 #include <WiFi.h>
-#include <algorithm>
 #include <esp_now.h>
 #include <freertos/FreeRTOS.h>
+#include <algorithm>
 #include <vector>
 
 #include "../../battery/BATTERIES.h"
@@ -260,7 +260,8 @@ void process_pending_remote_command() {
 void OnDataRecv(const esp_now_recv_info_t* recv_info, const uint8_t* incoming_data, int len) {
   (void)recv_info;
 
-  if (incoming_data == nullptr || len < static_cast<int>(kEspNowHeaderSize + sizeof(cyd_protocol::BATTERY_REMOTE_COMMAND_TYPE))) {
+  if (incoming_data == nullptr ||
+      len < static_cast<int>(kEspNowHeaderSize + sizeof(cyd_protocol::BATTERY_REMOTE_COMMAND_TYPE))) {
     return;
   }
 
@@ -545,8 +546,8 @@ void send_fault_events(uint8_t battery_index) {
   }
 
   for (uint8_t start_index = 0; start_index < total_events; start_index += kMaxFaultEventRecordsPerChunk) {
-    const uint8_t records_in_chunk = std::min<uint8_t>(
-        kMaxFaultEventRecordsPerChunk, static_cast<uint8_t>(total_events - start_index));
+    const uint8_t records_in_chunk =
+        std::min<uint8_t>(kMaxFaultEventRecordsPerChunk, static_cast<uint8_t>(total_events - start_index));
 
     uint8_t payload[kEspNowTotalPayloadLimit] = {0};
     auto* message = reinterpret_cast<cyd_protocol::ESPNOW_BATTERY_MESSAGE*>(payload);
@@ -614,8 +615,7 @@ void send_remote_state(uint8_t battery_index) {
   remote_state->equipment_stop_active = datalayer.system.info.equipment_stop_active ? 1U : 0U;
   remote_state->system_status = static_cast<uint8_t>(datalayer.system.status.system_status);
   remote_state->contactors_engaged = datalayer.system.status.contactors_engaged;
-  remote_state->inverter_allows_contactor_closing =
-      datalayer.system.status.inverter_allows_contactor_closing ? 1U : 0U;
+  remote_state->inverter_allows_contactor_closing = datalayer.system.status.inverter_allows_contactor_closing ? 1U : 0U;
   remote_state->battery1_contactors_engaged = datalayer.system.status.contactors_engaged;
   remote_state->battery2_contactors_engaged = datalayer.system.status.contactors_battery2_engaged ? 1U : 0U;
 
