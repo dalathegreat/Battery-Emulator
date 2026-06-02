@@ -579,6 +579,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("ESPNOWENABLED") ? "checked" : "";
   }
 
+  if (var == "CYDENABLED") {
+    return settings.getBool("CYDENABLED") ? "checked" : "";
+  }
+
   if (var == "MQTTENABLED") {
     return settings.getBool("MQTTENABLED") ? "checked" : "";
   }
@@ -1806,6 +1810,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Enable ESPNow: </label>
         <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED% />
+
+        <label>Enable CYD: </label>
+        <input type='checkbox' name='CYDENABLED' value='on' %CYDENABLED% />
 
         <label>Enable MQTT: </label>
         <input type='checkbox' name='MQTTENABLED' value='on' %MQTTENABLED% />

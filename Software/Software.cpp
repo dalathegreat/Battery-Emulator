@@ -17,6 +17,7 @@
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
+#include "src/devboard/cyd/cyd.h"
 #include "src/devboard/espnow/espnow.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
@@ -98,6 +99,9 @@ void connectivity_loop(void*) {
   if (espnow_enabled) {
     init_espnow();
   }
+  if (cyd_enabled) {
+    init_cyd();
+  }
 
   while (true) {
     START_TIME_MEASUREMENT(wifi);
@@ -107,6 +111,9 @@ void connectivity_loop(void*) {
 
     if (espnow_enabled) {
       update_espnow();
+    }
+    if (cyd_enabled) {
+      update_cyd();
     }
 
     ota_monitor();

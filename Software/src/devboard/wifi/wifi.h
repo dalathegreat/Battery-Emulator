@@ -38,6 +38,7 @@ extern bool wifi_enabled;
 extern bool wifiap_enabled;
 extern bool mdns_enabled;
 extern bool espnow_enabled;
+extern bool cyd_enabled;
 extern bool static_IP_enabled;
 extern uint8_t static_local_IP1;
 extern uint8_t static_local_IP2;
