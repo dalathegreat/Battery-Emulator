@@ -190,6 +190,7 @@ void init_stored_settings() {
   ssidAP = settings.getString("APNAME", "BatteryEmulator").c_str();
   passwordAP = settings.getString("APPASSWORD", "123456789").c_str();
   espnow_enabled = settings.getBool("ESPNOWENABLED", false);
+  cyd_enabled = settings.getBool("CYDENABLED", false);
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
   mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
   mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);
