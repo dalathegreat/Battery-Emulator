@@ -5,8 +5,8 @@
 #include "../../communication/Transmitter.h"
 #include "../../datalayer/datalayer.h"
 #include "CanReceiver.h"
-#include "INTER-UNIT-PROTOCOL.h"
 #include "INTER-UNIT-MASTER-HTML.h"
+#include "INTER-UNIT-PROTOCOL.h"
 
 /**
  * InterUnitMasterBattery — virtual Battery that makes safety.cpp treat the
@@ -18,23 +18,8 @@ class InterUnitMasterBattery : public Battery {
  public:
   static constexpr const char* Name = "Inter-Unit Master";
 
-  void setup() override {
-    datalayer.system.status.battery_allows_contactor_closing = false;
-    strncpy(datalayer.system.info.battery_protocol, Name, 63);
-    datalayer.system.info.battery_protocol[63] = '\0';
-  }
-
-  void update_values() override {
-    // Only keep alive if at least one slave node is online.
-    // If no slaves respond, let the counter run down so safety.cpp raises EVENT_CAN_BATTERY_MISSING.
-    for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
-      if (datalayer.system.slave_nodes[i].online) {
-        datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-        return;
-      }
-    }
-    // No slaves online — do NOT reset the counter
-  }
+  void setup() override;
+  void update_values() override;
 
   const char* interface_name() override { return "Inter-Unit CAN"; }
 
@@ -47,7 +32,7 @@ class InterUnitMasterBattery : public Battery {
 /**
  * MasterCan — Inter-Unit protocol handler for MASTER nodes.
  *
- * Registers on can_config.inter_unit (configured via IUCOMM setting).
+ * Registers on can_config.battery (configured via BATTCOMM setting).
  *
  * Every second:
  *   1. Sends heartbeat broadcast (0x200)
@@ -87,6 +72,5 @@ class MasterCan : public CanReceiver, public Transmitter {
 };
 
 extern MasterCan master_can;
-void setup_master_can();
 
 #endif  // _MASTER_CAN_H_

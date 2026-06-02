@@ -32,8 +32,6 @@
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
-#include "src/communication/can/MASTER-CAN.h"
-#include "src/communication/can/SLAVE-CAN.h"
 
 #if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
     !defined(HW_WAVESHARE) && !defined(HW_DEVKIT)
@@ -502,10 +500,6 @@ void core_loop(void*) {
         check_parallel_battery_safety(3);
       }
 
-      // Master: update slave aggregation
-      if (datalayer.system.status.node_mode == NODE_MASTER) {
-        master_can.update_values();
-      }
       update_calculated_values(currentMillis);
       update_machineryprotection();  // Check safeties
 
@@ -605,23 +599,9 @@ void setup() {
 
   setup_charger();
 
-  // STANDALONE: normal — inverter + battery both active
-  // MASTER: inverter talks to slaves via inter-unit CAN, no local battery
-  // SLAVE:  local battery only, no inverter
-  if (datalayer.system.status.node_mode != NODE_SLAVE) {
-    setup_inverter();  // Standalone + Master need inverter
-  }
-  if (datalayer.system.status.node_mode != NODE_MASTER) {
-    setup_battery();  // Standalone + Slave need local battery
-  }
+  setup_inverter();
+  setup_battery();
   setup_shunt();
-
-  // Setup inter-unit protocol after battery/inverter (so can_config IS set before inter_unit adds itself)
-  if (datalayer.system.status.node_mode == NODE_MASTER) {
-    setup_master_can();
-  } else if (datalayer.system.status.node_mode == NODE_SLAVE) {
-    setup_slave_can();
-  }
 
   // Init CAN only after any CAN receivers have had a chance to register.
   init_CAN();

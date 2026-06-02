@@ -147,7 +147,6 @@ void init_stored_settings() {
   can_config.inverter = readIf("INVCOMM");
   can_config.charger = readIf("CHGCOMM");
   can_config.shunt = readIf("SHUNTCOMM");
-  can_config.inter_unit = readIf("IUCOMM", comm_interface::CanAddonMcp2515);
 
   equipment_stop_behavior = (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
   user_selected_second_battery = settings.getBool("DBLBTR", false);

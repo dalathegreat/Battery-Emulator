@@ -468,9 +468,6 @@ void init_webserver() {
                 } else if (p->name() == "INVCOMM") {
                   auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
                   settings.saveUInt("INVCOMM", (int)type);
-                } else if (p->name() == "IUCOMM") {
-                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-                  settings.saveUInt("IUCOMM", (int)type);
                 } else if (p->name() == "battery") {
                   auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
                   settings.saveUInt("BATTTYPE", (int)type);

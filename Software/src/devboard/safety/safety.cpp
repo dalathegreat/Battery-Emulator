@@ -263,7 +263,7 @@ void update_machineryprotection() {
   if (datalayer.system.status.node_mode == NODE_SLAVE) {
     // Check if the master is still sending heartbeats. If we go 60s without one we raise a warning
     if (!datalayer.system.status.CAN_master_still_alive) {
-      set_event(EVENT_CAN_MASTER_MISSING, can_config.inter_unit);
+      set_event(EVENT_CAN_MASTER_MISSING, can_config.inverter);
       datalayer.system.status.master_online = false;
     } else {
       datalayer.system.status.CAN_master_still_alive--;

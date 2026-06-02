@@ -30,8 +30,7 @@ volatile CAN_Configuration can_config = {.battery = CAN_NATIVE,
                                          .battery_double = CAN_ADDON_MCP2515,
                                          .battery_triple = CAN_ADDON_MCP2515,
                                          .charger = CAN_NATIVE,
-                                         .shunt = CAN_NATIVE,
-                                         .inter_unit = NO_CAN_INTERFACE};
+                                         .shunt = CAN_NATIVE};
 
 struct CanReceiverRegistration {
   CanReceiver* receiver;

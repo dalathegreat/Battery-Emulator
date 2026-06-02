@@ -8,7 +8,7 @@
 /**
  * SlaveCan — Inter-Unit protocol handler for SLAVE nodes.
  *
- * Registers on can_config.inter_unit (configured via IUCOMM setting).
+ * Registers on can_config.inverter (configured via INVCOMM setting).
  *
  * On heartbeat received: schedules reply frames after (node_id * 5ms)
  *   - STATUS message: voltage, SOC, current, temp_max, flags (contactor + faults)

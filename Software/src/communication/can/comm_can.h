@@ -24,7 +24,6 @@ typedef struct {
   CAN_Interface battery_triple;
   CAN_Interface charger;
   CAN_Interface shunt;
-  CAN_Interface inter_unit;  // Inter-unit bus for master/slave protocol
 } CAN_Configuration;
 
 extern volatile CAN_Configuration can_config;

@@ -51,16 +51,27 @@ static void reset_prejoin_state(uint8_t idx) {
   prejoin_low_power_seconds[idx] = 0;
 }
 
-void setup_master_can() {
-  // Register as a virtual battery so safety.cpp and the rest of the system
-  // treat the master exactly like a standalone battery node.
-  battery = new InterUnitMasterBattery();
-  battery->setup();
-
+void InterUnitMasterBattery::setup() {
+  datalayer.system.status.battery_allows_contactor_closing = false;
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   master_can.begin();
-  register_can_receiver(&master_can, can_config.inter_unit, CAN_Speed::CAN_SPEED_500KBPS);
+  register_can_receiver(&master_can, can_config.battery, CAN_Speed::CAN_SPEED_500KBPS);
   register_transmitter(&master_can);
-  logging.println("Master CAN: registered on inter-unit bus @ 500kbps");
+  logging.println("Master CAN: registered on battery bus @ 500kbps");
+}
+
+void InterUnitMasterBattery::update_values() {
+  master_can.update_values();
+  // Only keep alive if at least one slave node is online.
+  // If no slaves respond, let the counter run down so safety.cpp raises EVENT_CAN_BATTERY_MISSING.
+  for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
+    if (datalayer.system.slave_nodes[i].online) {
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      return;
+    }
+  }
+  // No slaves online — do NOT reset the counter
 }
 
 void MasterCan::begin() {
@@ -218,7 +229,7 @@ void MasterCan::send_heartbeat() {
   frame.ID = IU_MASTER_HEARTBEAT_ID;
   frame.DLC = 0;
   frame.ext_ID = false;
-  transmit_can_frame_to_interface(&frame, can_config.inter_unit);
+  transmit_can_frame_to_interface(&frame, can_config.battery);
 }
 
 void MasterCan::send_contactor_commands(unsigned long currentMillis) {
@@ -258,7 +269,7 @@ void MasterCan::send_contactor_commands(unsigned long currentMillis) {
           datalayer.system.status.battery_allows_contactor_closing ? 1 : 0, node.online ? 1 : 0);
     }
 
-    transmit_can_frame_to_interface(&frame, can_config.inter_unit);
+    transmit_can_frame_to_interface(&frame, can_config.battery);
     _next_contactor_tx_ms = currentMillis + MASTER_CONTACTOR_STAGGER_MS;
     return;
   }

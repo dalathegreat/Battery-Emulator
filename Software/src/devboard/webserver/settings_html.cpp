@@ -238,10 +238,6 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum((comm_interface)settings.getUInt("INVCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
   }
-  if (var == "IUCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("IUCOMM", (int)comm_interface::CanAddonMcp2515),
-                            name_for_comm_interface);
-  }
   if (var == "CHGTYPE") {
     return options_for_enum_with_none((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None),
                                       name_for_charger_type, ChargerType::None);
@@ -1193,9 +1189,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           document.querySelectorAll('form').forEach(function(form) {
             form.addEventListener('submit', function() {
               var seen = {};
-              form.querySelectorAll('select[name="IUCOMM"]').forEach(function(sel) {
-                if (sel.offsetParent === null) { sel.disabled = true; }
-              });
             });
           });
     </script>
@@ -1602,12 +1595,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-inter-master">
-        <label for='IUCOMM'>Inter-unit interface: </label><select name='IUCOMM' id='IUCOMM'>
-        %IUCOMM%
-        </select>
-        </div>
-
-        <div class="if-inter-master">
         <p style='color:#FFD700;margin:4px 0;grid-column: span 2;'>&#9888; Inter-Unit Master: Set Max charge and discharge speed (below) to your inverter&apos;s maximum current (A) for correct prejoin power regulation.</p>
         </div>
 
@@ -1676,8 +1663,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         min='1' max='24' step='1'
         title="Unique ID for this slave node. Each slave must have a different ID (1-244)." />
 
-        <label for='IUCOMM'>Inter-unit interface: </label><select name='IUCOMM' id='IUCOMM'>
-        %IUCOMM%
+        <label for='INVCOMM'>Inter-unit interface: </label><select name='INVCOMM' id='INVCOMM'>
+        %INVCOMM%
         </select>
         </div>
 

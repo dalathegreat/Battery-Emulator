@@ -13,11 +13,11 @@
 SlaveCan slave_can;
 
 void setup_slave_can() {
-  register_can_receiver(&slave_can, can_config.inter_unit, CAN_Speed::CAN_SPEED_500KBPS);
+  register_can_receiver(&slave_can, can_config.inverter, CAN_Speed::CAN_SPEED_500KBPS);
   register_transmitter(&slave_can);
   // Block contactor until master explicitly sends ALLOW command
   datalayer.system.status.inverter_allows_contactor_closing = false;
-  logging.println("Slave CAN: registered on inter-unit bus @ 500kbps");
+  logging.println("Slave CAN: registered on inverter bus @ 500kbps");
 }
 
 void SlaveCan::begin() {
@@ -135,7 +135,7 @@ void SlaveCan::send_status_frame() {
   _toggle = !_toggle;
   frame.data.u8[7] = build_fault_flags() | (_toggle ? IU_FLAG_STATUS_TOGGLE : 0u);
 
-  transmit_can_frame_to_interface(&frame, can_config.inter_unit);
+  transmit_can_frame_to_interface(&frame, can_config.inverter);
 }
 
 void SlaveCan::send_power_frame() {
@@ -168,7 +168,7 @@ void SlaveCan::send_power_frame() {
   // Online balancing (e.g. BMW IX) does NOT set this flag — slave stays in aggregation
   frame.data.u8[7] = status.offline_balancing ? IU_SLAVE_PFLAG_BALANCING : 0u;
 
-  transmit_can_frame_to_interface(&frame, can_config.inter_unit);
+  transmit_can_frame_to_interface(&frame, can_config.inverter);
 }
 
 void SlaveCan::send_info_frame() {
@@ -196,7 +196,7 @@ void SlaveCan::send_info_frame() {
   frame.data.u8[6] = (soh_pptt >> 8) & 0xFF;
   frame.data.u8[7] = soh_pptt & 0xFF;
 
-  transmit_can_frame_to_interface(&frame, can_config.inter_unit);
+  transmit_can_frame_to_interface(&frame, can_config.inverter);
 }
 
 void SlaveCan::send_cell_frame() {
@@ -219,7 +219,7 @@ void SlaveCan::send_cell_frame() {
   frame.data.u8[6] = 0;
   frame.data.u8[7] = 0;
 
-  transmit_can_frame_to_interface(&frame, can_config.inter_unit);
+  transmit_can_frame_to_interface(&frame, can_config.inverter);
 }
 
 void SlaveCan::send_ip_frame() {
@@ -241,7 +241,7 @@ void SlaveCan::send_ip_frame() {
   frame.data.u8[2] = (ip >> 8) & 0xFF;
   frame.data.u8[3] = ip & 0xFF;
 
-  transmit_can_frame_to_interface(&frame, can_config.inter_unit);
+  transmit_can_frame_to_interface(&frame, can_config.inverter);
 }
 
 void SlaveCan::send_ident_frame() {
@@ -266,5 +266,5 @@ void SlaveCan::send_ident_frame() {
   frame.data.u8[6] = 0;
   frame.data.u8[7] = 0;
 
-  transmit_can_frame_to_interface(&frame, can_config.inter_unit);
+  transmit_can_frame_to_interface(&frame, can_config.inverter);
 }

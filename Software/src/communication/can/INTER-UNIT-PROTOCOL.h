@@ -4,7 +4,7 @@
 /**
  * Inter-Unit CAN Protocol for Master/Slave Battery Emulator Network
  *
- * CAN interface selected via IUCOMM setting (default: CAN_ADDON_MCP2515). Speed: 500 kbps.
+ * Master uses can_config.battery (BATTCOMM), slave uses can_config.inverter (INVCOMM). Speed: 500 kbps.
  *
  * Timing:
  *   - Master sends heartbeat every 1 second
