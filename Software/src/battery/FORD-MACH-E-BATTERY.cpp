@@ -11,6 +11,8 @@ void FordMachEBattery::update_values() {
 
   if (pid_hvb_soh < 101) {
     datalayer.battery.status.soh_pptt = pid_hvb_soh * 100;
+  } else if (pid_hvb_soh < 128) {
+    datalayer.battery.status.soh_pptt = 10000;
   }
 
   datalayer.battery.status.voltage_dV = battery_voltage * 10;
