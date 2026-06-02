@@ -46,6 +46,8 @@ Start by watching this [quickstart guide](https://www.youtube.com/watch?v=sR3t7j
 5. (OPTIONAL, connect the board to your home Wifi)
 6. Connect your battery and inverter to the board and you are done! 🔋⚡
 
+For the separate CYD touchscreen client, see [CYD-Battery-Emulator](https://github.com/pauLTU3/CYD-Battery-Emulator).
+
 ## Dependencies 📖
 This code uses the following excellent libraries: 
 - [adafruit/Adafruit_NeoPixel](https://github.com/adafruit/Adafruit_NeoPixel) LGPL-3.0 license
