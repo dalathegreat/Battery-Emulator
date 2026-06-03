@@ -12,10 +12,15 @@ class RelionBattery : public CanBattery {
   RelionBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan)
       : CanBattery(targetCan, CAN_Speed::CAN_SPEED_250KBPS) {
     datalayer_battery = datalayer_ptr;
+    allows_contactor_closing = &datalayer.system.status.battery2_allowed_contactor_closing;
+    battery_total_voltage = 0;
   }
 
   // Use the default constructor to create the first or single battery.
-  RelionBattery() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) { datalayer_battery = &datalayer.battery; }
+  RelionBattery() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) {
+    datalayer_battery = &datalayer.battery;
+    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+  }
 
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
@@ -27,6 +32,8 @@ class RelionBattery : public CanBattery {
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   uint16_t estimateSOC();
   uint16_t estimateSOCfromCellvoltage(uint16_t cellVoltage);
+
+  bool* allows_contactor_closing;
 
   static const int MAX_PACK_VOLTAGE_DV = 584;  //58.4V recommended charge voltage. BMS protection steps in at 60.8V
   static const int MIN_PACK_VOLTAGE_DV = 440;  //44.0V Recommended LV disconnect. BMS protection steps in at 40.0V

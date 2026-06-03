@@ -220,7 +220,7 @@ void RelionBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
     previousMillis500ms = currentMillis;
 
-    if (datalayer.system.status.system_status == FAULT) {
+    if ((datalayer.system.status.system_status == FAULT) && !(*allows_contactor_closing)) {
       RELION_CONTACTOR_MESSAGE.data.u8[0] = 0x02;  // Open contactors in case of fault
     } else {
       RELION_CONTACTOR_MESSAGE.data.u8[0] = 0x01;  // Close contactors if no fault
@@ -258,5 +258,6 @@ void RelionBattery::setup(void) {  // Performs one time setup at startup
   } else {
     datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   }
+
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
