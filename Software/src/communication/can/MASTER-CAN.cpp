@@ -21,20 +21,17 @@ static const uint8_t MASTER_CONTACTOR_STAGGER_MS = 3;  // master-only inter-fram
 static const uint16_t PREJOIN_ENTER_DIFF_dV = 18u;       // 1.8V — activate when EMA diff <= this
 static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 5u;   // 0.5V hard gate for contactor close
 static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
-// Cancel prejoin if EMA rises above ENTER + hysteresis (slave drifted away from pack)
-static const uint16_t PREJOIN_CANCEL_HYSTERESIS_dV = 4u;  // 0.4V
-// Minimum absolute load before prejoin is triggered.
-// Normally the dynamic floor (PREJOIN_FLOOR_PERCENT % of cap) governs this — this
-// constant acts as a hard minimum fallback for when cap data is not yet available,
-// and also as a lower bound so tiny packs don't trigger at near-zero load.
-static const uint16_t PREJOIN_MIN_LOAD_W = 300u;
-// Power floor at full pressure = this % of cap-base (dynamic, works for any system)
-static const uint16_t PREJOIN_FLOOR_PERCENT = 10u;
+// Fixed inverter-independent prejoin floor profile:
+// 1 joined battery => 1000W, each additional joined battery adds +400W,
+// capped at 3000W.
+static const uint16_t PREJOIN_FLOOR_BASE_W = 1000u;
+static const uint16_t PREJOIN_FLOOR_PER_EXTRA_BATTERY_W = 400u;
+static const uint16_t PREJOIN_FLOOR_MAX_W = 3000u;
 // Integer EMA alpha = 1/5 = 0.2 (new = old*4/5 + raw*1/5)
 static const uint8_t PREJOIN_EMA_DEN = 5u;
 static const uint8_t PREJOIN_EMA_NUM = 1u;
-// Smooth cap ramp in permille per second (0..1000) — 50 = 5%/s, ~20 s to full pressure
-static const uint16_t PREJOIN_PRESSURE_STEP_PER_S = 50u;
+// Smooth cap ramp in permille per second (0..1000) — 25 = 2.5%/s, ~40 s to full pressure
+static const uint16_t PREJOIN_PRESSURE_STEP_PER_S = 25u;
 
 // Per-slave voltage diff grace period counters
 static uint8_t voltage_diff_seconds[MAX_SLAVE_NODES] = {0};
@@ -61,6 +58,28 @@ static uint16_t prejoin_applied_pressure_permille = 0;
 // Prevents feedback: as we reduce power the live cap_base stays at the snapshot value.
 static uint32_t prejoin_cap_snapshot_charge_W = 0;
 static uint32_t prejoin_cap_snapshot_discharge_W = 0;
+
+static uint8_t count_joined_slaves() {
+  uint8_t joined_count = 0;
+  for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
+    const auto& node = datalayer.system.slave_nodes[i];
+    if (node.online && node.contactor_allowed && !node.balancing) {
+      joined_count++;
+    }
+  }
+  return joined_count;
+}
+
+static uint32_t prejoin_floor_w_for_joined(uint8_t joined_count) {
+  uint32_t floor_W = PREJOIN_FLOOR_BASE_W;
+  if (joined_count > 1u) {
+    floor_W += (uint32_t)(joined_count - 1u) * PREJOIN_FLOOR_PER_EXTRA_BATTERY_W;
+  }
+  if (floor_W > PREJOIN_FLOOR_MAX_W) {
+    floor_W = PREJOIN_FLOOR_MAX_W;
+  }
+  return floor_W;
+}
 
 static void reset_prejoin_state(uint8_t idx) {
   prejoin_active[idx] = false;
@@ -568,31 +587,11 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
     // 1.5 V (VOLTAGE_DIFF_THRESHOLD_dV) path which closes the contactor without capping.
     int32_t load_W = datalayer.battery.status.active_power_W;
     uint32_t abs_load_W = (load_W >= 0) ? (uint32_t)load_W : (uint32_t)(-load_W);
-    // Compute the dynamic floor from last-tick cap data so we only enter prejoin
-    // when there is real headroom above the floor to squeeze into.
-    // If load <= floor, reducing the cap cannot help — the inverter is already
-    // drawing less than the floor and voltage-matching pressure would be useless.
-    uint16_t pj_v_dV = datalayer.battery.status.voltage_dV;
-    uint32_t pj_cap_W = 0;
-    if (pj_v_dV > 0) {
-      if (load_W >= 0 && datalayer.battery.status.max_charge_current_dA > 0) {
-        pj_cap_W = (uint32_t)datalayer.battery.status.max_charge_current_dA * pj_v_dV / 100u;
-      } else if (load_W < 0 && datalayer.battery.status.max_discharge_current_dA > 0) {
-        pj_cap_W = (uint32_t)datalayer.battery.status.max_discharge_current_dA * pj_v_dV / 100u;
-      }
-    }
-    uint32_t pj_floor_W = (pj_cap_W > 0) ? (pj_cap_W * PREJOIN_FLOOR_PERCENT / 100u) : (uint32_t)PREJOIN_MIN_LOAD_W;
-    if (pj_floor_W < (uint32_t)PREJOIN_MIN_LOAD_W) {
-      pj_floor_W = (uint32_t)PREJOIN_MIN_LOAD_W;
-    }
+    // Use the fixed joined-battery floor for prejoin entry gating.
+    // If load <= floor, there is no headroom to apply pressure capping.
+    uint8_t joined_count = count_joined_slaves();
+    uint32_t pj_floor_W = prejoin_floor_w_for_joined(joined_count);
     bool inverter_working = (abs_load_W > pj_floor_W);
-
-    // Cancel an already-active prejoin session if load has dropped below the floor.
-    if (prejoin_active[idx] && !inverter_working) {
-      logging.printf("Master CAN: Pre-join CANCELLED slave %d (load %dW <= floor %uW — using normal 1.5V path)\n",
-                     idx + 1, (int)load_W, (unsigned)pj_floor_W);
-      reset_prejoin_state(idx);
-    }
 
     if (!prejoin_active[idx] && inverter_working && prejoin_diff_ema_dV[idx] <= PREJOIN_ENTER_DIFF_dV) {
       prejoin_active[idx] = true;
@@ -603,36 +602,28 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
     }
 
     if (prejoin_active[idx]) {
-      // Cancel if EMA diff has risen well above the enter threshold — slave drifted away
-      if (prejoin_diff_ema_dV[idx] > PREJOIN_ENTER_DIFF_dV + PREJOIN_CANCEL_HYSTERESIS_dV) {
-        logging.printf("Master CAN: Pre-join CANCELLED slave %d (ema=%u.%uV drifted away)\n",
-                       idx + 1, prejoin_diff_ema_dV[idx] / 10, prejoin_diff_ema_dV[idx] % 10);
-        reset_prejoin_state(idx);
-        // prejoin_active[idx] is now false; prejoin_pressure_permille[idx] = 0
+      if (diff <= PREJOIN_CLOSE_RAW_DIFF_dV) {
+        if (prejoin_raw_stable_seconds[idx] < PREJOIN_CLOSE_DWELL_S) {
+          prejoin_raw_stable_seconds[idx]++;
+        }
       } else {
-        if (diff <= PREJOIN_CLOSE_RAW_DIFF_dV) {
-          if (prejoin_raw_stable_seconds[idx] < PREJOIN_CLOSE_DWELL_S) {
-            prejoin_raw_stable_seconds[idx]++;
-          }
-        } else {
-          prejoin_raw_stable_seconds[idx] = 0;
-        }
-
-        if (prejoin_diff_ema_dV[idx] <= PREJOIN_CLOSE_RAW_DIFF_dV) {
-          prejoin_pressure_permille[idx] = 1000u;
-        } else if (prejoin_diff_ema_dV[idx] >= PREJOIN_ENTER_DIFF_dV) {
-          prejoin_pressure_permille[idx] = 0u;
-        } else {
-          uint16_t span = (uint16_t)(PREJOIN_ENTER_DIFF_dV - PREJOIN_CLOSE_RAW_DIFF_dV);
-          uint16_t above_close = (uint16_t)(prejoin_diff_ema_dV[idx] - PREJOIN_CLOSE_RAW_DIFF_dV);
-          prejoin_pressure_permille[idx] = (uint16_t)((uint32_t)(span - above_close) * 1000u / span);
-        }
-        // Log per-slave state every second while prejoin is active
-        logging.printf("Master CAN: Pre-join slave %d: raw=%u.%uV ema=%u.%uV target=%u permille stable=%us\n",
-                       idx + 1, diff / 10, diff % 10,
-                       prejoin_diff_ema_dV[idx] / 10, prejoin_diff_ema_dV[idx] % 10,
-                       prejoin_pressure_permille[idx], prejoin_raw_stable_seconds[idx]);
+        prejoin_raw_stable_seconds[idx] = 0;
       }
+
+      if (prejoin_diff_ema_dV[idx] <= PREJOIN_CLOSE_RAW_DIFF_dV) {
+        prejoin_pressure_permille[idx] = 1000u;
+      } else if (prejoin_diff_ema_dV[idx] >= PREJOIN_ENTER_DIFF_dV) {
+        prejoin_pressure_permille[idx] = 0u;
+      } else {
+        uint16_t span = (uint16_t)(PREJOIN_ENTER_DIFF_dV - PREJOIN_CLOSE_RAW_DIFF_dV);
+        uint16_t above_close = (uint16_t)(prejoin_diff_ema_dV[idx] - PREJOIN_CLOSE_RAW_DIFF_dV);
+        prejoin_pressure_permille[idx] = (uint16_t)((uint32_t)(span - above_close) * 1000u / span);
+      }
+      // Log per-slave state every second while prejoin is active
+      logging.printf("Master CAN: Pre-join slave %d: raw=%u.%uV ema=%u.%uV target=%u permille stable=%us\n",
+                     idx + 1, diff / 10, diff % 10,
+                     prejoin_diff_ema_dV[idx] / 10, prejoin_diff_ema_dV[idx] % 10,
+                     prejoin_pressure_permille[idx], prejoin_raw_stable_seconds[idx]);
     } else {
       prejoin_pressure_permille[idx] = 0;
       prejoin_raw_stable_seconds[idx] = 0;
@@ -835,15 +826,14 @@ void MasterCan::update_slave_aggregation() {
       delta = PREJOIN_PRESSURE_STEP_PER_S;
     }
     prejoin_applied_pressure_permille = (uint16_t)(prejoin_applied_pressure_permille + delta);
-  } else if (!any_prejoin_active && prejoin_applied_pressure_permille > target_pressure_permille) {
-    // Release pressure only after all prejoin sessions are done (slave connected or aborted)
+  } else if (prejoin_applied_pressure_permille > target_pressure_permille) {
+    // Release pressure toward target whenever applied exceeds target
     uint16_t delta = (uint16_t)(prejoin_applied_pressure_permille - target_pressure_permille);
     if (delta > PREJOIN_PRESSURE_STEP_PER_S) {
       delta = PREJOIN_PRESSURE_STEP_PER_S;
     }
     prejoin_applied_pressure_permille = (uint16_t)(prejoin_applied_pressure_permille - delta);
   }
-  // While any_prejoin_active and applied >= target: hold — diff rose but power is NOT released
 
   // Always use the inverter-facing current limit as the cap base so pressure
   // is proportional to what the inverter can actually draw (e.g. 30 A × V).
@@ -875,9 +865,10 @@ void MasterCan::update_slave_aggregation() {
       (prejoin_cap_snapshot_charge_W > 0) ? prejoin_cap_snapshot_charge_W : cap_base_charge_W;
   uint32_t base_discharge_W =
       (prejoin_cap_snapshot_discharge_W > 0) ? prejoin_cap_snapshot_discharge_W : cap_base_discharge_W;
-  // Dynamic floor = PREJOIN_FLOOR_PERCENT % of base (works for any system voltage/current)
-  uint32_t floor_charge_W = base_charge_W * PREJOIN_FLOOR_PERCENT / 100u;
-  uint32_t floor_discharge_W = base_discharge_W * PREJOIN_FLOOR_PERCENT / 100u;
+  // Fixed floor based only on joined battery count (inverter-independent).
+  uint32_t fixed_floor_W = prejoin_floor_w_for_joined(active_count);
+  uint32_t floor_charge_W = fixed_floor_W;
+  uint32_t floor_discharge_W = fixed_floor_W;
 
   uint32_t capped_max_charge_W = cap_base_charge_W;
   uint32_t capped_max_discharge_W = cap_base_discharge_W;
@@ -897,6 +888,19 @@ void MasterCan::update_slave_aggregation() {
       if (pressure_cap < capped_max_discharge_W) {
         capped_max_discharge_W = pressure_cap;
       }
+    }
+
+  }
+
+  // Hard floor for the full prejoin flow.
+  // While prejoin is active for any slave (or pressure is still releasing),
+  // caps are never allowed below the defined joined-battery floor.
+  if (any_prejoin_active || prejoin_applied_pressure_permille > 0) {
+    if (capped_max_charge_W < floor_charge_W) {
+      capped_max_charge_W = floor_charge_W;
+    }
+    if (capped_max_discharge_W < floor_discharge_W) {
+      capped_max_discharge_W = floor_discharge_W;
     }
   }
 
