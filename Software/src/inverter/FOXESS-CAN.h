@@ -82,19 +82,18 @@ class FoxessCanInverter : public CanInverterProtocol {
   CAN_frame FOXESS_1881 = {.FD = false,
                            .ext_ID = true,
                            .DLC = 8,
-                           .ID = 0x1881,
+                           .ID = 0x1881,  //First byte specifies which pack the serial number is for, 0-7
                            .data = {0x00, '6', '0', 'E', 'P', '0', '0', '5'}};
   CAN_frame FOXESS_1882 = {.FD = false,
                            .ext_ID = true,
                            .DLC = 8,
-                           .ID = 0x1882,
+                           .ID = 0x1882,  //First byte specifies which pack the serial number is for, 0-7
                            .data = {0x00, '0', '4', '7', 'M', 'A', '0', '5'}};
   CAN_frame FOXESS_1883 = {.FD = false,
                            .ext_ID = true,
                            .DLC = 8,
-                           .ID = 0x1883,
+                           .ID = 0x1883,  //First byte specifies which pack the serial number is for, 0-7
                            .data = {0x00, '2', '\0', '\0', '\0', '\0', '\0', '\0'}};
-
   CAN_frame FOXESS_0C05 = {.FD = false,
                            .ext_ID = true,
                            .DLC = 8,
@@ -136,228 +135,18 @@ class FoxessCanInverter : public CanInverterProtocol {
                            .ID = 0x0C0C,
                            .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xD0, 0xD0}};
   // Cellvoltages
-  CAN_frame FOXESS_0C1D = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C1D,                                               //Cell 1-4
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C21 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C21,                                               //Cell 5-8
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C25 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C25,                                               //Cell 9-12
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C29 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C29,                                               //Cell 13-16
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C2D = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C2D,                                               //Cell 17-20
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C31 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C31,                                               //Cell 21-24
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C35 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C35,                                               //Cell 25-28
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C39 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C39,                                               //Cell 29-32
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C3D = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C3D,                                               //Cell 33-36
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C41 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C41,                                               //Cell 37-40
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C45 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C45,                                               //Cell 41-44
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C49 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C49,                                               //Cell 45-48
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C4D = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C4D,                                               //Cell 49-52
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C51 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C51,                                               //Cell 53-56
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C55 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C55,                                               //Cell 57-60
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C59 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C59,                                               //Cell 61-64
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C5D = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C5D,                                               //Cell 65-68
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C61 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C61,                                               //Cell 69-72
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C65 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C65,                                               //Cell 73-76
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C69 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C69,                                               //Cell 77-80
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C6D = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C6D,                                               //Cell 81-84
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C71 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C71,                                               //Cell 85-88
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C75 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C75,                                               //Cell 89-92
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C79 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C79,                                               //Cell 93-96
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C7D = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C7D,                                               //Cell 97-100
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C81 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C81,                                               //Cell 101-104
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C85 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C85,                                               //Cell 105-108
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C89 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C89,                                               //Cell 109-112
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C8D = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C8D,                                               //Cell 113-116
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C91 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C91,                                               //Cell 117-120
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C95 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C95,                                               //Cell 121-124
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C99 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C99,                                               //Cell 125-128
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0C9D = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0C9D,                                               //Cell 129-132
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0CA1 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0CA1,                                               //Cell 133-136
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0CA5 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0CA5,                                               //Cell 137-140
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-  CAN_frame FOXESS_0CA9 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0CA9,                                               //Cell 141-144
-                           .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
-
+  CAN_frame FOXESS_CELLVOLTAGES = {
+      .FD = false,
+      .ext_ID = true,
+      .DLC = 8,
+      .ID = 0x0C1D,                                               //Cell XXX
+      .data = {0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C, 0xE4, 0x0C}};  //All cells init to 3300mV
   // Temperatures
-  CAN_frame FOXESS_0D21 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0D21,  //Celltemperatures Pack 1
-                           .data = {0x49, 0x48, 0x47, 0x47, 0x48, 0x49, 0x46, 0x47}};
-  CAN_frame FOXESS_0D29 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0D29,  //Celltemperatures Pack 2
-                           .data = {0x49, 0x48, 0x47, 0x47, 0x48, 0x49, 0x46, 0x47}};
-  CAN_frame FOXESS_0D31 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0D31,  //Celltemperatures Pack 3
-                           .data = {0x49, 0x48, 0x47, 0x47, 0x48, 0x49, 0x46, 0x47}};
-  CAN_frame FOXESS_0D39 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0D39,  //Celltemperatures Pack 4
-                           .data = {0x49, 0x48, 0x47, 0x47, 0x48, 0x49, 0x46, 0x47}};
-  CAN_frame FOXESS_0D41 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0D41,  //Celltemperatures Pack 5
-                           .data = {0x49, 0x48, 0x47, 0x47, 0x48, 0x49, 0x46, 0x47}};
-  CAN_frame FOXESS_0D49 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0D49,  //Celltemperatures Pack 6
-                           .data = {0x49, 0x48, 0x47, 0x47, 0x48, 0x49, 0x46, 0x47}};
-  CAN_frame FOXESS_0D51 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0D51,  //Celltemperatures Pack 7
-                           .data = {0x49, 0x48, 0x47, 0x47, 0x48, 0x49, 0x46, 0x47}};
-  CAN_frame FOXESS_0D59 = {.FD = false,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x0D59,  //Celltemperatures Pack 8
-                           .data = {0x49, 0x48, 0x47, 0x47, 0x48, 0x49, 0x46, 0x47}};
+  CAN_frame FOXESS_CELLTEMPERATURES = {.FD = false,
+                                       .ext_ID = true,
+                                       .DLC = 8,
+                                       .ID = 0x0D21,  //Celltemperatures Pack X
+                                       .data = {0x49, 0x48, 0x47, 0x47, 0x48, 0x49, 0x46, 0x47}};
 };
 
 #endif
