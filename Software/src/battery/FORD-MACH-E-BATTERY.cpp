@@ -346,7 +346,9 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case PID_CHARGER_POWER_LIMIT:
           break;
         case PID_HVB_SOH:
-          pid_hvb_soh = rx_frame.data.u8[4] / 2;
+          if (rx_frame.data.u8[4] > 0) {
+            pid_hvb_soh = rx_frame.data.u8[4] / 2;
+          }
           break;
         case PID_HVB_VOLTAGE:
           pid_hvb_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
