@@ -1476,8 +1476,8 @@ String processor(const String& var) {
         int cell_delta_mV = (s.cell_max_voltage_mV > 0 && s.cell_min_voltage_mV > 0)
                                 ? (int)s.cell_max_voltage_mV - (int)s.cell_min_voltage_mV
                                 : -1;
-        const char* contactor_state = s.contactor_engaged ? "Engaged" : "Open";
-        const char* contactor_color = s.contactor_engaged ? "color:white;" : "color:gray;";
+        const char* contactor_state = s.contactor_engaged ? "Engaged" : (s.prejoin_active ? "Prejoin" : "Open");
+        const char* contactor_color = s.contactor_engaged ? "color:white;" : (s.prejoin_active ? "color:orange;" : "color:gray;");
         content += "<div style='background-color:" + String(bg) +
                    ";padding:10px;border-radius:12px;min-width:160px;'>";
         if (s.ip_address != 0) {

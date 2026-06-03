@@ -327,6 +327,7 @@ struct SLAVE_NODE_TYPE {
   bool online = false;                  // True if slave is responding
   bool ident_received = false;          // True once IDENT frame has been received from slave
   bool balancing = false;               // True when slave is performing offline balancing (excluded from aggregation)
+  bool prejoin_active = false;           // True when master prejoin is running for this slave
   uint32_t ip_address = 0;             // IPv4 address of slave (0 = unknown)
   uint16_t fw_version_num = 0;          // Firmware version: (major<<8)|minor, e.g. 10.6 -> 0x0A06
   uint16_t battery_type_id = 0;         // BatteryType enum value reported by slave

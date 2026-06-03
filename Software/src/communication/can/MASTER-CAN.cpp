@@ -83,6 +83,7 @@ static uint32_t prejoin_floor_w_for_joined(uint8_t joined_count) {
 
 static void reset_prejoin_state(uint8_t idx) {
   prejoin_active[idx] = false;
+  datalayer.system.slave_nodes[idx].prejoin_active = false;
   prejoin_diff_ema_dV[idx] = 0;
   prejoin_raw_stable_seconds[idx] = 0;
   prejoin_pressure_permille[idx] = 0;
@@ -816,6 +817,7 @@ void MasterCan::update_slave_aggregation() {
     }
     if (prejoin_active[i]) {
       any_prejoin_active = true;
+      datalayer.system.slave_nodes[i].prejoin_active = true;
     }
   }
 
