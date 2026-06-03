@@ -454,65 +454,110 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
       // Send a subset of messages per iteration to avoid overloading the CAN bus / transmit buffer
       switch (can_message_cellvolt_index) {
         case 0:
-          transmit_can_frame(&FOXESS_0C1D);
-          transmit_can_frame(&FOXESS_0C21);
-          transmit_can_frame(&FOXESS_0C29);
-          transmit_can_frame(&FOXESS_0C2D);
-          transmit_can_frame(&FOXESS_0C31);
+          FOXESS_CELLVOLTAGES.ID = 0x0C1D;  //Cell 1-4
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C21;  //Cell 5-8
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C25;  //Cell 9-12
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C29;  //Cell 13-16
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C2D;  //Cell 17-20
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C31;  //Cell 21-24
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
           break;
         case 1:
-          transmit_can_frame(&FOXESS_0C35);
-          transmit_can_frame(&FOXESS_0C39);
-          transmit_can_frame(&FOXESS_0C3D);
-          transmit_can_frame(&FOXESS_0C41);
-          transmit_can_frame(&FOXESS_0C45);
+          FOXESS_CELLVOLTAGES.ID = 0x0C35;  //Cell 25-28
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C39;  //Cell 29-32
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C3D;  //Cell 33-36
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C41;  //Cell 37-40
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C45;  //Cell 41-44
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
           break;
         case 2:
-          transmit_can_frame(&FOXESS_0C49);
-          transmit_can_frame(&FOXESS_0C4D);
-          transmit_can_frame(&FOXESS_0C51);
-          transmit_can_frame(&FOXESS_0C55);
-          transmit_can_frame(&FOXESS_0C59);
+          FOXESS_CELLVOLTAGES.ID = 0x0C49;  //Cell 45-48
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C4D;  //Cell 49-52
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C51;  //Cell 53-56
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C55;  //Cell 57-60
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C59;  //Cell 61-64
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
           break;
         case 3:
-          transmit_can_frame(&FOXESS_0C5D);
-          transmit_can_frame(&FOXESS_0C61);
-          transmit_can_frame(&FOXESS_0C65);
-          transmit_can_frame(&FOXESS_0C69);
-          transmit_can_frame(&FOXESS_0C6D);
+          FOXESS_CELLVOLTAGES.ID = 0x0C5D;  //Cell 65-68
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C61;  //Cell 69-72
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C65;  //Cell 73-76
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C69;  //Cell 77-80
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C6D;  //Cell 81-84
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
           break;
         case 4:
-          transmit_can_frame(&FOXESS_0C71);
-          transmit_can_frame(&FOXESS_0C75);
-          transmit_can_frame(&FOXESS_0C79);
-          transmit_can_frame(&FOXESS_0C7D);
-          transmit_can_frame(&FOXESS_0C81);
+          FOXESS_CELLVOLTAGES.ID = 0x0C71;  //Cell 85-88
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C75;  //Cell 89-92
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C79;  //Cell 93-96
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C7D;  //Cell 97-100
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C81;  //Cell 101-104
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
           break;
         case 5:
-          transmit_can_frame(&FOXESS_0C85);
-          transmit_can_frame(&FOXESS_0C89);
-          transmit_can_frame(&FOXESS_0C8D);
-          transmit_can_frame(&FOXESS_0C91);
-          transmit_can_frame(&FOXESS_0C95);
+          FOXESS_CELLVOLTAGES.ID = 0x0C85;  //Cell 105-108
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C89;  //Cell 109-112
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C8D;  //Cell 113-116
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C91;  //Cell 117-120
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C95;  //Cell 121-124
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
           break;
         case 6:
-          transmit_can_frame(&FOXESS_0C99);
-          transmit_can_frame(&FOXESS_0C9D);
-          transmit_can_frame(&FOXESS_0CA1);
-          transmit_can_frame(&FOXESS_0CA5);
-          transmit_can_frame(&FOXESS_0CA9);
+          FOXESS_CELLVOLTAGES.ID = 0x0C99;  //Cell 125-128
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C9D;  //Cell 129-132
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0CA1;  //Cell 133-136
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0CA5;  //Cell 137-140
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0CA9;  //Cell 141-144
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
           break;
-        case 7:  //Celltemperatures
-          transmit_can_frame(&FOXESS_0D21);
-          transmit_can_frame(&FOXESS_0D29);
-          transmit_can_frame(&FOXESS_0D31);
-          transmit_can_frame(&FOXESS_0D39);
+        case 7:                                 //Celltemperatures
+          FOXESS_CELLTEMPERATURES.ID = 0x0D21;  //Pack 1
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
+          FOXESS_CELLTEMPERATURES.ID = 0x0D29;  //Pack 2
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
+          FOXESS_CELLTEMPERATURES.ID = 0x0D31;  //Pack 3
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
+          FOXESS_CELLTEMPERATURES.ID = 0x0D39;  //Pack 4
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
           break;
-        case 8:  //Celltemperatures
-          transmit_can_frame(&FOXESS_0D41);
-          transmit_can_frame(&FOXESS_0D49);
-          transmit_can_frame(&FOXESS_0D51);
-          transmit_can_frame(&FOXESS_0D59);
+        case 8:                                 //Celltemperatures
+          FOXESS_CELLTEMPERATURES.ID = 0x0D41;  //Pack 5
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
+          FOXESS_CELLTEMPERATURES.ID = 0x0D49;  //Pack 6
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
+          FOXESS_CELLTEMPERATURES.ID = 0x0D51;  //Pack 7
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
+          FOXESS_CELLTEMPERATURES.ID = 0x0D59;  //Pack 8
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
           send_cellvoltages = false;
           break;
         default:
