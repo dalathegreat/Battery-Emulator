@@ -59,7 +59,7 @@ void FoxessCanInverter::
       (int8_t)datalayer.battery.status.reported_current_dA;  // OK, Signed (Active current in Amps x 10)
   FOXESS_1873.data.u8[3] = (datalayer.battery.status.reported_current_dA >> 8);
   FOXESS_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (0-100%)
-  FOXESS_1873.data.u8[5] = 0x00;
+  FOXESS_1873.data.u8[5] = 0x00;  //SOC, but not used since SOC cannot go higher than 100
   FOXESS_1873.data.u8[6] = (uint8_t)(datalayer.battery.status.reported_remaining_capacity_Wh / 10);
   FOXESS_1873.data.u8[7] = ((datalayer.battery.status.reported_remaining_capacity_Wh / 10) >> 8);
 
@@ -79,9 +79,9 @@ void FoxessCanInverter::
   FOXESS_1875.data.u8[2] = (uint8_t)STATUS_OPERATIONAL_PACKS;
   FOXESS_1875.data.u8[3] = (uint8_t)NUMBER_OF_PACKS;
   FOXESS_1875.data.u8[4] = (uint8_t)1;     // Contactor Status 0=off, 1=on.
-  FOXESS_1875.data.u8[5] = (uint8_t)0;     //Unused
-  FOXESS_1875.data.u8[6] = (uint8_t)0x8E;  //Cycle count
-  FOXESS_1875.data.u8[7] = (uint8_t)0;     //Cycle count
+  FOXESS_1875.data.u8[5] = (uint8_t)0;     //0 Confirmed Unused in Battery Details page
+  FOXESS_1875.data.u8[6] = (uint8_t)0x8E;  //Cycle count LSB (Hardcoded to 142 cycles)
+  FOXESS_1875.data.u8[7] = (uint8_t)0;     //Cycle count MSB
 
   //BMS_PackTemps
   // 0x1876 b0 bit 0 appears to be 1 when at maxsoc and BMS says charge is not allowed -
@@ -126,8 +126,8 @@ void FoxessCanInverter::
   //BMS_PackStats
   FOXESS_1878.data.u8[0] = (uint8_t)(MAX_AC_VOLTAGE);
   FOXESS_1878.data.u8[1] = ((MAX_AC_VOLTAGE) >> 8);
-  FOXESS_1878.data.u8[2] = (uint8_t)0;  //Unused
-  FOXESS_1878.data.u8[3] = (uint8_t)0;  //Unused
+  FOXESS_1878.data.u8[2] = (uint8_t)0;  //Confirmed Unused in Battery Details page
+  FOXESS_1878.data.u8[3] = (uint8_t)0;  //Confirmed Unused in Battery Details page
   FOXESS_1878.data.u8[4] = (uint8_t)TOTAL_LIFETIME_WH_ACCUMULATED;
   FOXESS_1878.data.u8[5] = (TOTAL_LIFETIME_WH_ACCUMULATED >> 8);
   FOXESS_1878.data.u8[6] = (TOTAL_LIFETIME_WH_ACCUMULATED >> 16);
