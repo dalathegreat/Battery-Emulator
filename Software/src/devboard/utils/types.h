@@ -160,6 +160,16 @@ enum class GPIOOPT5 {
 };
 extern GPIOOPT5 user_selected_gpioopt5;
 #endif
+#ifdef HW_WAVESHARE
+enum class GPIOOPT6 {
+  // Waveshare: GPIO2 = Status LED (default)
+  DEFAULT_STATUS_LED = 0,
+  // Waveshare: GPIO1 = I2C SDA, GPIO2 = I2C SCL
+  I2C_DISPLAY_SSD1306 = 1,
+  Highest
+};
+extern GPIOOPT6 user_selected_gpioopt6;
+#endif
 extern GPIOOPT2 user_selected_gpioopt2;
 extern GPIOOPT3 user_selected_gpioopt3;
 extern GPIOOPT4 user_selected_gpioopt4;

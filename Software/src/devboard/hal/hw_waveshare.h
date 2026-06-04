@@ -22,7 +22,12 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
   virtual gpio_num_t RS485_SE_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t PIN_5V_EN() { return GPIO_NUM_NC; }
 
-  virtual gpio_num_t LED_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t LED_PIN() {
+    if (user_selected_gpioopt6 == GPIOOPT6::I2C_DISPLAY_SSD1306) {
+      return GPIO_NUM_NC;
+    }
+    return GPIO_NUM_2;
+  }
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_3; }
@@ -38,8 +43,18 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_9; }
 
   // i2c display
-  virtual gpio_num_t DISPLAY_SDA_PIN() { return GPIO_NUM_1; }
-  virtual gpio_num_t DISPLAY_SCL_PIN() { return GPIO_NUM_2; }
+  virtual gpio_num_t DISPLAY_SDA_PIN() {
+    if (user_selected_gpioopt6 == GPIOOPT6::I2C_DISPLAY_SSD1306) {
+      return GPIO_NUM_1;
+    }
+    return GPIO_NUM_NC;
+  }
+  virtual gpio_num_t DISPLAY_SCL_PIN() {
+    if (user_selected_gpioopt6 == GPIOOPT6::I2C_DISPLAY_SSD1306) {
+      return GPIO_NUM_2;
+    }
+    return GPIO_NUM_NC;
+  }
 
   // CANFD add-on defines for MCP2517
   virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_10; }
