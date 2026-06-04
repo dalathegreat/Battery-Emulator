@@ -26,10 +26,16 @@ battery_pause_status emulator_pause_status = NORMAL;
 //battery pause status end
 
 void update_machineryprotection() {
+  //Check if we start to get low on memory
+  static uint8_t hysteresisHeapSeconds = 0;
   if (datalayer.system.info.CPU_free_heap < 62000) {
-    set_event(EVENT_LOW_HEAP_MEMORY, (datalayer.system.info.CPU_free_heap / 1000));
+    hysteresisHeapSeconds++;
+    if (hysteresisHeapSeconds > 5) {  //Trigger after X seconds of low heap, to prevent false positives during spikes
+      set_event(EVENT_LOW_HEAP_MEMORY, (datalayer.system.info.CPU_free_heap / 1000));
+    }
   } else {
     clear_event(EVENT_LOW_HEAP_MEMORY);
+    hysteresisHeapSeconds = 0;
   }
 
   // Check health status of CAN interfaces
