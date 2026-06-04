@@ -5,35 +5,6 @@
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 
-// Strips any <h4>...</h4> line whose value is "NOT_ACTIVE" from a battery
-// renderer's HTML output. Works for all battery types universally.
-static String filter_not_active(const String& html) {
-  String result;
-  result.reserve(html.length());
-  int pos = 0;
-  while (pos < (int)html.length()) {
-    int start = html.indexOf("<h4>", pos);
-    if (start < 0) {
-      result += html.substring(pos);
-      break;
-    }
-    result += html.substring(pos, start);  // keep everything before this tag
-    int end = html.indexOf("</h4>", start);
-    if (end < 0) {
-      result += html.substring(start);  // malformed — keep as-is
-      break;
-    }
-    end += 5;  // include the closing </h4>
-    if (html.indexOf("NOT_ACTIVE", start) < end) {
-      // tag contains NOT_ACTIVE — skip it
-    } else {
-      result += html.substring(start, end);
-    }
-    pos = end;
-  }
-  return result;
-}
-
 // Available generic battery commands that are taken into use based on what the selected battery supports.
 std::vector<BatteryCommand> battery_commands = {
     {"clearIsolation", "Clear isolation fault", "clear any active isolation fault?",
@@ -132,7 +103,7 @@ String advanced_battery_processor(const String& var) {
     };
 
     if (battery) {
-      content += filter_not_active(battery->get_status_renderer().get_status_html());
+      content += battery->get_status_renderer().get_status_html();
       render_command_buttons(battery, 0);
     }
 
