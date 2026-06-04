@@ -4,7 +4,7 @@
 #include "../devboard/utils/types.h"
 #include "../system_settings.h"
 
-constexpr size_t CAN_LOG_BUFFER_SIZE = 30000;
+constexpr size_t CAN_LOG_BUFFER_SIZE = 15000;
 
 /*Note when editing this file. Order of datatypes matter heavily to keep padding and flash size in check*/
 
