@@ -67,6 +67,8 @@ class Mg5Battery : public CanBattery {
   const int StartDischargeTaper = 10;      // Battery percentage below which the discharge power will taper to zero
   const float DischargeTaperExponent = 1;  // Shape of discharge power taper to zero. 1 is linear. >1 red
 
+  uint16_t uds_address = 0x7DF;
+
   // poll counters
   int uds_slow_req_id_counter = -1;
 
