@@ -495,6 +495,14 @@ class BmwPhevBattery : public CanBattery {
   unsigned long phev_pre_close_stop_last_ms = 0;
   static const uint8_t PHEV_PRE_CLOSE_STOP_COUNT = 3;                 // Number of stops to send before close
   static const unsigned long PHEV_PRE_CLOSE_STOP_INTERVAL_MS = 1000;  // One per UDS-guard window
+  // Balancing start/stop is sent as a guarded burst on request CHANGE (like the pre-close burst),
+  // not continuously in a timed loop - a single periodic send was getting missed by the SME.
+  bool phev_last_balancing_request = false;     // Tracks user_requests_balancing to detect edges
+  bool phev_balancing_burst_start = false;      // true = burst START frames, false = burst STOP frames
+  uint8_t phev_balancing_bursts_remaining = 0;  // Guarded balancing frames still to send
+  unsigned long phev_balancing_burst_last_ms = 0;
+  static const uint8_t PHEV_BALANCING_BURST_COUNT = 3;                 // Frames to send per request change
+  static const unsigned long PHEV_BALANCING_BURST_INTERVAL_MS = 1000;  // One per UDS-guard window
   // How long to stream the STATE B closing frame before settling to STATE D steady (observed ~3.5s)
   static const unsigned long CONTACTOR_CLOSE_REQUEST_DURATION_MS = 3500;
 

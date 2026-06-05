@@ -992,6 +992,32 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       phev_pre_close_stops_remaining--;
     }
 
+    // Balancing start/stop, sent as a guarded burst on REQUEST CHANGE (like the pre-close burst above),
+    // not in a timed loop - a single periodic send was getting missed by the SME. When the user
+    // toggles balancing, fire several guarded frames of the new desired state (startRoutine when
+    // requested, stopRoutine when cancelled), one per UDS-guard window, so the latching routine takes.
+    // NOTE: balancing only works with contactors OPEN and it BLOCKS contactor close while active.
+    if (datalayer.battery.settings.user_requests_balancing != phev_last_balancing_request) {
+      phev_last_balancing_request = datalayer.battery.settings.user_requests_balancing;
+      phev_balancing_burst_start = datalayer.battery.settings.user_requests_balancing;
+      phev_balancing_bursts_remaining = PHEV_BALANCING_BURST_COUNT;
+      phev_balancing_burst_last_ms = 0;  // 0 = send the first frame immediately
+    }
+    if (phev_balancing_bursts_remaining > 0 &&
+        (phev_balancing_burst_last_ms == 0 ||
+         currentMillis - phev_balancing_burst_last_ms >= PHEV_BALANCING_BURST_INTERVAL_MS)) {
+      if (phev_balancing_burst_start) {
+        logging.println("Balancing burst: startRoutine");
+        transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_START);  // Enable Balancing
+      } else {
+        logging.println("Balancing burst: stopRoutine");
+        transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_STOP);  // Cancel any latched balancing routine
+      }
+      uds_one_shot_sent_ms = currentMillis;  // Silence polls for UDS_ONE_SHOT_SILENCE_MS
+      phev_balancing_burst_last_ms = currentMillis;
+      phev_balancing_bursts_remaining--;
+    }
+
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
 
@@ -1171,27 +1197,12 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
     // Send 5000ms CAN Message
     if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
       previousMillis5000 = currentMillis;
-
-      // transmit_can_frame(&BMWPHEV_6F1_REQUEST_CONTACTORS_CLOSE,
-      //                    can_config.battery);  // Attempt contactor close - experimental
     }
     // Send 10000ms CAN Message
     if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
       previousMillis10000 = currentMillis;
-      // Only request balancing when the user has explicitly asked for it (i3-style gating).
-      // The request is a UDS startRoutine that LATCHES in the SME, so when balancing is NOT
-      // requested we actively send stopRoutine to keep the SME's state in sync with our intent.
-      // Previously startRoutine was sent unconditionally every 10s, so once the cells reached
-      // "at rest" (~10 min idle) the latched routine executed, balancing began, and precharge was
-      // blocked. START when requested / STOP otherwise stops the spontaneous idle balancing.
-      // NOTE: balancing only works with contactors OPEN and it BLOCKS contactor close while active.
-      // Like the other one-shot UDS commands, guard the polls so the routine reply isn't clobbered.
-      if (datalayer.battery.settings.user_requests_balancing) {
-        transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_START);  // Enable Balancing
-      } else {
-        transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_STOP);  // Cancel any latched balancing routine
-      }
-      uds_one_shot_sent_ms = currentMillis;  // Silence polls for UDS_ONE_SHOT_SILENCE_MS
+      // Balancing is no longer sent here - it is handled as a guarded burst on request change
+      // (see "Balancing start/stop" burst near the top of the awake section).
     }
   } else {
     // Battery is asleep - try and wake it every 1 seconds
