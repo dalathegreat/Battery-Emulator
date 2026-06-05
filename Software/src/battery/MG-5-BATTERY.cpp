@@ -651,14 +651,14 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void Mg5Battery::transmit_can(unsigned long currentMillis) {
-  //Send 10ms message
-  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
-    previousMillis10 = currentMillis;
+  static int8_t send_phase = -1;
+  if (++send_phase > 3) {
+    send_phase = 0;
   }
 
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    previousMillis100 = currentMillis;
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS && send_phase == 0) {
+    previousMillis10 = currentMillis;
 
     if (datalayer.system.status.system_status != FAULT                // Fault, so open contactors!
         && userRequestContactorClose == true                          // User requested contactor closing
@@ -666,6 +666,15 @@ void Mg5Battery::transmit_can(unsigned long currentMillis) {
     ) {
       MG5_8A.data.u8[5] = 0x02;  // Command to close contactors
       //logging.println("contactor close command sent");
+
+      if (warmupCounter < 110) {
+        // Keep the 1 asserted for 110 messages
+        MG5_8A.data.u8[6] = 0x10 | eightAcycle;
+        warmupCounter++;
+      } else {
+        MG5_8A.data.u8[6] = 0x30 | eightAcycle;
+      }
+
       if (contactorClosed == false) {
         // Just changed to closed
         contactorClosed = true;
@@ -675,13 +684,24 @@ void Mg5Battery::transmit_can(unsigned long currentMillis) {
       }
     } else {
       contactorClosed = false;
+      warmupCounter = 0;
       MG5_8A.data.u8[5] = 0x00;  // Command to open contactors
       //userRequestClearDTC = true; //clear DTCs to be able to close the contactors afterwards
       //logging.println("conctactor open command sent");
+
+      MG5_8A.data.u8[6] = 0x10 | eightAcycle;
     }
 
-    transmit_can_frame(&MG5_1F1);
+    MG5_8A.data.u8[7] = (MG5_8A.data.u8[0] ^ MG5_8A.data.u8[1] ^ MG5_8A.data.u8[2] ^ MG5_8A.data.u8[3] ^
+                         MG5_8A.data.u8[4] ^ MG5_8A.data.u8[5] ^ MG5_8A.data.u8[6]);
+    eightAcycle = (eightAcycle + 1) & 0xF;
+
     transmit_can_frame(&MG5_8A);
+  }
+
+  if (currentMillis - previousMillis20 >= INTERVAL_20_MS && send_phase == 1) {
+    previousMillis20 = currentMillis;
+    transmit_can_frame(&MG5_1F1);
   }
 
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -696,46 +716,48 @@ void Mg5Battery::transmit_can(unsigned long currentMillis) {
     previousMillis2000 = currentMillis;
   }
 
-  if (uds_tx_in_flight == false) {     // No UDS transaction is in progress
-    if (userRequestReadDTC == true) {  // DTC requested by user
+  if (send_phase == 2) {
+    if (uds_tx_in_flight == false) {     // No UDS transaction is in progress
+      if (userRequestReadDTC == true) {  // DTC requested by user
         MG5_781_RQ_DTCs.ID = uds_address;
-      transmit_can_frame(&MG5_781_RQ_DTCs);
-      uds_tx_in_flight = true;                    //singal that a UDS transaction is in progress
-      uds_req_started_ms = currentMillis;         //timestamp when request was sent for timeout tracking
-      uds_timeout_ms = UDS_TIMEOUT_BEFORE_FF_MS;  //increase timeout for multi-frame response
-      logging.println("UDS DTC RQ sent");
-
-    } else {
-      if (userRequestClearDTC == true) {  // Clear DTC requested by user
-          MG5_781_CLEAR_DTCs.ID = uds_address;
-        transmit_can_frame(&MG5_781_CLEAR_DTCs);
+        transmit_can_frame(&MG5_781_RQ_DTCs);
         uds_tx_in_flight = true;                    //singal that a UDS transaction is in progress
         uds_req_started_ms = currentMillis;         //timestamp when request was sent for timeout tracking
         uds_timeout_ms = UDS_TIMEOUT_BEFORE_FF_MS;  //increase timeout for multi-frame response
-        logging.println("UDS Clear DTC RQ sent");
+        logging.println("UDS DTC RQ sent");
+
       } else {
-        // Time to send next PID request, DTC has priority since it is slower
-        if (currentMillis - previousMillisPID >= UDS_PID_REFRESH_MS) {
-          previousMillisPID = currentMillis;
-          // normal single-frame poll round-robin
-          uds_slow_req_id_counter = increment_uds_req_id_counter(uds_slow_req_id_counter, numSlowUDSreqs);
+        if (userRequestClearDTC == true) {  // Clear DTC requested by user
+          MG5_781_CLEAR_DTCs.ID = uds_address;
+          transmit_can_frame(&MG5_781_CLEAR_DTCs);
+          uds_tx_in_flight = true;                    //singal that a UDS transaction is in progress
+          uds_req_started_ms = currentMillis;         //timestamp when request was sent for timeout tracking
+          uds_timeout_ms = UDS_TIMEOUT_BEFORE_FF_MS;  //increase timeout for multi-frame response
+          logging.println("UDS Clear DTC RQ sent");
+        } else {
+          // Time to send next PID request, DTC has priority since it is slower
+          if (currentMillis - previousMillisPID >= UDS_PID_REFRESH_MS) {
+            previousMillisPID = currentMillis;
+            // normal single-frame poll round-robin
+            uds_slow_req_id_counter = increment_uds_req_id_counter(uds_slow_req_id_counter, numSlowUDSreqs);
             UDS_REQUESTS_SLOW[uds_slow_req_id_counter]->ID = uds_address;
-          transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]);
-          uds_tx_in_flight = true;
-          uds_req_started_ms = currentMillis;
-          uds_timeout_ms = UDS_TIMEOUT_BEFORE_FF_MS;
+            transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]);
+            uds_tx_in_flight = true;
+            uds_req_started_ms = currentMillis;
+            uds_timeout_ms = UDS_TIMEOUT_BEFORE_FF_MS;
+          }
         }
       }
-    }
-  } else {  // UDS transaction in progress
-    // Timeout / retry Session Control ------------------------------------
-    if ((currentMillis - uds_req_started_ms) > uds_timeout_ms) {
-      // re-enter Extended Session
+    } else {  // UDS transaction in progress
+      // Timeout / retry Session Control ------------------------------------
+      if ((currentMillis - uds_req_started_ms) > uds_timeout_ms) {
+        // re-enter Extended Session
         MG5_781_ses_ctrl.ID = uds_address;
-      transmit_can_frame(&MG5_781_ses_ctrl);
-      uds_tx_in_flight = true;
-      uds_req_started_ms = currentMillis;
-      uds_timeout_ms = UDS_TIMEOUT_BEFORE_FF_MS;
+        transmit_can_frame(&MG5_781_ses_ctrl);
+        uds_tx_in_flight = true;
+        uds_req_started_ms = currentMillis;
+        uds_timeout_ms = UDS_TIMEOUT_BEFORE_FF_MS;
+      }
     }
   }
 }
