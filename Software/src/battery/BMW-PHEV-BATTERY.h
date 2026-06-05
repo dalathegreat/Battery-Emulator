@@ -15,9 +15,6 @@ class BmwPhevBattery : public CanBattery {
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { datalayer_extended.bmwphev.UserRequestDTCreset = true; }
 
-  bool supports_read_DTC() { return true; }
-  void read_DTC() { UserRequestDTCRead = true; }
-
   bool supports_reset_BMS() { return true; }
   void reset_BMS() { datalayer_extended.bmwphev.UserRequestBMSReset = true; }
 
@@ -359,15 +356,15 @@ class BmwPhevBattery : public CanBattery {
       sizeof(UDS_REQUESTS_FAST) / sizeof(UDS_REQUESTS_FAST[0]);  //Store Number of elements in the array
 
   //Setup Slow UDS values to poll for
-  CAN_frame* UDS_REQUESTS_SLOW[8] = {&BMWPHEV_6F1_REQUEST_ISO_READING1,
+  CAN_frame* UDS_REQUESTS_SLOW[9] = {&BMWPHEV_6F1_REQUEST_ISO_READING1,
                                      &BMWPHEV_6F1_REQUEST_ISO_READING2,
                                      &BMWPHEV_6F1_REQUEST_CURRENT_LIMITS,
                                      &BMWPHEV_6F1_REQUEST_SOH,
                                      &BMWPHEV_6F1_REQUEST_CELLS_INDIVIDUAL_VOLTS,
                                      &BMWPHEV_6F1_REQUEST_CELL_TEMP,
                                      &BMWPHEV_6F1_REQUEST_BALANCING_STATUS,
-                                     &BMWPHEV_6F1_REQUEST_PAIRED_VIN};
-                                     // &BMWPHEV_6F1_REQUEST_READ_DTC - removed from auto-poll; triggered on-demand via Read DTC button
+                                     &BMWPHEV_6F1_REQUEST_PAIRED_VIN,
+                                     &BMWPHEV_6F1_REQUEST_READ_DTC};
   int numSlowUDSreqs =
       sizeof(UDS_REQUESTS_SLOW) / sizeof(UDS_REQUESTS_SLOW[0]);  // Store Number of elements in the array
 
@@ -455,12 +452,6 @@ class BmwPhevBattery : public CanBattery {
   // Beta CAN-based contactor close (0x53A) state
   bool userRequestContactorClose = false;
   bool userRequestContactorOpen = false;
-  bool UserRequestDTCRead = false;
-  // While a user-triggered DTC read is in flight we pause the periodic UDS polls so the DTC
-  // multiframe gets exclusive use of the single global UDS context (gUDSContext).
-  bool dtcReadInProgress = false;
-  unsigned long dtcReadRequest_ms = 0;
-  static const unsigned long DTC_READ_TIMEOUT_MS = 2500;  // give up / resume polling after this
   bool contactorCloseReq = false;  // Desired contactor state: true = stream closing/steady frames
   unsigned long contactor_close_start_ms = 0;  // millis() when a close was last requested
   // How long to stream the STATE B closing frame before settling to STATE D steady (observed ~3.5s)

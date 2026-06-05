@@ -822,7 +822,6 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           logging.println(gUDSContext.UDS_bytesReceived);
 
           parseDTCResponse();
-          dtcReadInProgress = false;  // DTC read complete - resume periodic UDS polling
         }
         if (gUDSContext.UDS_moduleID == 0x7E) {  // Voltage Limits
           max_design_voltage = (gUDSContext.UDS_buffer[3] << 8 | gUDSContext.UDS_buffer[4]) / 10;
@@ -908,21 +907,6 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&BMW_6F1_REQUEST_HARD_RESET);  // Send SME reset command
       datalayer_extended.bmwphev.UserRequestBMSReset = false;
     }
-    if (UserRequestDTCRead) {
-      logging.println("User req. DTC read");
-      transmit_can_frame(&BMWPHEV_6F1_REQUEST_READ_DTC);
-      UserRequestDTCRead = false;
-      datalayer_extended.bmwphev.dtc_read_failed = false;
-      // Pause periodic UDS polling so this multiframe DTC read isn't clobbered by another
-      // request sharing the single global UDS context.
-      dtcReadInProgress = true;
-      dtcReadRequest_ms = currentMillis;
-    }
-    // Resume periodic polling once the DTC read completes (UDS_moduleID cleared) or times out.
-    if (dtcReadInProgress &&
-        (!gUDSContext.UDS_inProgress && currentMillis - dtcReadRequest_ms > DTC_READ_TIMEOUT_MS)) {
-      dtcReadInProgress = false;
-    }
 
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
@@ -979,12 +963,9 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
     // Send 200ms CAN Message
     if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
       previousMillis200 = currentMillis;
-      // Skip the periodic UDS poll while a user DTC read is in flight (shared UDS context).
-      if (!dtcReadInProgress) {
-        uds_fast_req_id_counter = increment_uds_req_id_counter(
-            uds_fast_req_id_counter, numFastUDSreqs);  //Loop through and send a different UDS request each cycle
-        transmit_can_frame(UDS_REQUESTS_FAST[uds_fast_req_id_counter]);
-      }
+      uds_fast_req_id_counter = increment_uds_req_id_counter(
+          uds_fast_req_id_counter, numFastUDSreqs);  //Loop through and send a different UDS request each cycle
+      transmit_can_frame(UDS_REQUESTS_FAST[uds_fast_req_id_counter]);
 
       // Beta - stream 0x53A associated vehicle/contactor STATE indication.
       // 0x53A does NOT drive the contactors (0x10B does - see INFO). For now we stream STATE D
@@ -1002,14 +983,11 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
       previousMillis1000 = currentMillis;
 
-      // Skip the periodic UDS poll while a user DTC read is in flight (shared UDS context).
-      if (!dtcReadInProgress) {
-        uds_slow_req_id_counter = increment_uds_req_id_counter(
-            uds_slow_req_id_counter, numSlowUDSreqs);  //Loop through and send a different UDS request each cycle
-        logging.print("Sending UDS_SLOW: ");
-        logging.println(getUDSRequestName(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]));
-        transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]);
-      }
+      uds_slow_req_id_counter = increment_uds_req_id_counter(
+          uds_slow_req_id_counter, numSlowUDSreqs);  //Loop through and send a different UDS request each cycle
+      logging.print("Sending UDS_SLOW: ");
+      logging.println(getUDSRequestName(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]));
+      transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]);
 
       // Vehicle environment frames the SME expects (silence "No message" DTCs).
       // Only STATIC frames are sent here. Frames that require a rolling counter/CRC on the real
