@@ -64,6 +64,8 @@ const char* name_for_battery_type(BatteryType type) {
       return CmpSmartCarBattery::Name;
     case BatteryType::EnnoidBMS:
       return EnnoidBms::Name;
+    case BatteryType::FiskerOcean:
+      return FiskerOceanBattery::Name;
     case BatteryType::FordMachE:
       return FordMachEBattery::Name;
     case BatteryType::Foxess:
@@ -227,6 +229,8 @@ Battery* create_battery(BatteryType type) {
       return new PylonBattery();
     case BatteryType::DalyBms:
       return new DalyBms();
+    case BatteryType::FiskerOcean:
+      return new FiskerOceanBattery();
     case BatteryType::RjxzsBms:
       return new RjxzsBms();
     case BatteryType::RangeRoverPhev:

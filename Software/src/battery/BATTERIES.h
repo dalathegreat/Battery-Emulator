@@ -27,6 +27,7 @@ void setup_shunt();
 #include "DALY-BMS.h"
 #include "ECMP-BATTERY.h"
 #include "ENNOID-BMS.h"
+#include "FISKER-OCEAN-BATTERY.h"
 #include "FORD-MACH-E-BATTERY.h"
 #include "FOXESS-BATTERY.h"
 #include "GEELY-GEOMETRY-C-BATTERY.h"
