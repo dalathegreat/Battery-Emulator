@@ -12,7 +12,7 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
 #ifndef SMALL_FLASH_DEVICE
       // Contactor & Safety System
       case 0x21F1F6:
-        return "High-voltage battery, switch contactors: Switch-off after a fault";
+        return "High-voltage battery, switching contactors: Switch-off after a fault";
       case 0x21F200:
         return "High-voltage battery, switch contactors: Activation not possible due to overload current";
       case 0x21F18A:
@@ -57,6 +57,8 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
         return "High-voltage battery, cooling system: Activation of coolant pump, line disconnection";
       case 0x21F0F2:
         return "High-voltage battery, cooling system: Activation of refrigerant shutoff valve, line disconnection";
+      case 0x21F00F:
+        return "High-voltage battery, cooling system: Activation of refrigerant shutoff valve, line disconnection";
       case 0x21F05C:
         return "High-voltage battery, cooling circuit: failure";
       case 0x21EFF5:
@@ -99,6 +101,38 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
       case 0x21F04B:
         return "High-voltage battery unit: Internal CAN bus between SME and cell supervision circuit, communication "
                "fault";
+
+      // Missing CAN Messages (SME receiver)
+      case 0xCAD415:
+        return "No message (ETS high-voltage battery specifications, 0x10B), receiver SME, transmitter EME";
+      case 0xCAD408:
+        return "No message (vehicle condition, 0x3A0), receiver SME, transmitter BDC";
+      case 0xCAD426:
+        return "No message (state of charge, 0x3E), receiver SME, transmitter EME";
+      case 0xCAD416:
+        return "Signal (status of electric motor 1, 0x10B) invalid, transmitter EME";
+      case 0xCAD402:
+        return "No message (relative time, 0x328), receiver SME, transmitter KOMBI";
+      case 0xCAD429:
+        return "No message (driving information forecast, 0x3CA), receiver SME, transmitter KOMBI";
+      case 0xCAD413:
+        return "No message (specification high-voltage battery, 0x433), receiver SME, transmitter EME";
+      case 0xCAD401:
+        return "No message (ambient temperature, 0x2CA), receiver SME, transmitter KOMBI";
+      case 0xCAD40A:
+        return "No message (vehicle speed, 0x1A1), receiver SME, transmitter DSC";
+      case 0xCAD409:
+        return "No message (enable, high-voltage battery cooling, 0x37B), receiver SME, transmitter IHKA";
+      case 0xCAD40B:
+        return "No message (km-reading/range, 0x330), receiver SME, transmitter KOMBI";
+      case 0xCAD405:
+        return "No message (OBD diagnosis, engine control, electrical, 0x3E8), receiver SME, transmitter EME";
+      case 0xCAC47C:
+        return "SME, K-CAN9: Communication fault";
+      case 0xCAD404:
+        return "No message (request, high-voltage battery, 0xCC), receiver SME, transmitter EME";
+      case 0xCAD403:
+        return "No message (VCU_FD01, 0xB5), receiver SME, transmitter EDME";
 
       // SME Internal Errors
       case 0x21F178:
