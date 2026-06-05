@@ -60,10 +60,10 @@ ID    DTC      Meaning                         TX     DLC  Sample payload       
                                                                                                       every 100ms tick (no CRC observed).
 0x3A0 CAD408   Vehicle condition               BDC    8    FF FF CF FF FF FF FF FD   ~1000ms  YES    Static. mostly FF (signals not-active);
                                                                                                       byte2 CF, byte7 FD are the live bits.
-0x328 CAD402   Relative time / clock           KOMBI  6    27 58 DC 0D 7A 25         ~1000ms  NO     NEEDS COUNTER: byte0=seconds-ish
-                                                                                                      counter (0e->27->32), bytes1-5=date/
-                                                                                                      time fields stable. To enable: tick
-                                                                                                      byte0 as a seconds counter each 1000ms.
+0x328 CAD402   Relative time / clock           KOMBI  6    <live>                    ~1000ms  YES    Live counter (ported from i3):
+                                                                                                      bytes0-3=seconds since system start
+                                                                                                      (LE), bytes4-5=day counter (LE, day 1
+                                                                                                      =1.1.2000). Incremented each 1000ms.
 0x3CA CAD429   Driving-info forecast           KOMBI  8    B7 60 01 0F 0F 31 FF FF   ~1000ms  YES    Static forecast payload.
 0x433 CAD413   HV-battery specification        EME    4    FF 0C 0C F1               ~1000ms  NO     NEEDS COUNTER: byte1 toggles 0c<->0d
                                                                                                       each frame, bytes2-3=0C F1 spec const.
@@ -81,7 +81,9 @@ Notes:
  - Sent=YES (static): 0x3A0 + 0x3CA in the 1000ms loop, 0x3E8 in the 1000ms loop. 0x2CA is also
    sent static in the 1000ms loop (no rolling counter needed). 0x10B is sent as the contactor
    driver in the 20ms loop (it already maintains its own alive counter + CRC).
- - Sent=NO (needs counter): 0x1A1, 0x328, 0x433 - frame definitions exist in the header for
+ - 0x328 (relative-time clock) is now transmitted every 1000ms with a live seconds + day counter
+   (ported from the i3). A frozen/absent clock was a likely trigger for the idle precharge block.
+ - Sent=NO (needs counter): 0x1A1, 0x433 - frame definitions exist in the header for
    reference, but they are NOT transmitted until rolling-counter logic is added per the
    "To enable" note on each. Sending them frozen risks a "signal invalid" DTC.
  - 0x37B (cooling enable) is reference only and not transmitted.
@@ -115,8 +117,13 @@ Notes:
  - byte[0] (0x40) looks static; byte[1] (0x3A) matches the low byte of the ID.
  - Contactors observed to close even while 0x53A streams STATE A, confirming 0x53A is a STATE
    indication and 0x10B is the actual driver.
- - For now we stream STATE D (steady on) as the active indication. Earlier we attempted the full
-   A -> B -> D progression; STATE C escalated is a single transient and is not reproduced.
+ - 0x53A STATE SEQUENCE [CURRENT IMPLEMENTATION]: a state machine now replays A -> B -> C -> D on a
+   close request, and 0x10B is held open until the machine reaches STATE C/D (i.e. after STATE B
+   has been announced for CONTACTOR_CLOSE_REQUEST_DURATION_MS, ~3.5s). This mirrors the OEM order
+   (announce "close requested" on 0x53A BEFORE 0x10B drives the contactors) and was added to fix an
+   intermittent open->close safety warning seen when 0x53A jumped straight to STATE D.
+   The inter-state timing is compressed vs the OEM bus (which left a ~10.5s gap before STATE C);
+   only the B-before-close ordering is reproduced. C ESCALATED is emitted as a single transient.
  - Timing/handshake not fully confirmed - beta.
 
 UDS MAP
@@ -945,6 +952,18 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       uds_one_shot_sent_ms = currentMillis;  // Silence polls for UDS_ONE_SHOT_SILENCE_MS
     }
 
+    // One-shot at boot: explicitly stop the balancing routine (UDS stopRoutine 0x31 02 AD 6B).
+    // A startRoutine latches inside the SME and keeps running until stopped or the SME power-cycles.
+    // Earlier firmware sent startRoutine unconditionally every 10s, so the routine can be left
+    // latched ON - causing autonomous balancing + precharge block once the cells reach rest (~10 min).
+    // Clearing it once on every boot guarantees we start from a known "not balancing" state.
+    if (!phev_balancing_stop_sent && !datalayer.battery.settings.user_requests_balancing) {
+      logging.println("Clearing any latched balancing routine in SME (stopRoutine)");
+      transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_STOP);
+      phev_balancing_stop_sent = true;
+      uds_one_shot_sent_ms = currentMillis;  // Silence polls for UDS_ONE_SHOT_SILENCE_MS
+    }
+
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
 
@@ -956,8 +975,11 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       //  - GPIO contactor control is disabled (otherwise GPIO drives the contactors directly)
       //  - a close has been requested (user via WebUI or inverter)
       //  - the ~3.2s startup boot delay has elapsed (let the SME wake)
-      bool allow_can_close =
-          (!contactor_control_enabled) && contactorCloseReq && (startup_counter_contactor >= 160);
+      //  - the 0x53A state machine has finished announcing STATE B (reached ESCALATED/STEADY).
+      //    The OEM bus announces "close requested" on 0x53A for ~3.5s BEFORE 0x10B closes; doing
+      //    both at once was triggering an intermittent open->close safety warning.
+      bool allow_can_close = (!contactor_control_enabled) && contactorCloseReq && (startup_counter_contactor >= 160) &&
+                             (phev_53a_state == PHEV_53A_ESCALATED || phev_53a_state == PHEV_53A_STEADY);
       if (allow_can_close) {
         BMW_10B.data.u8[1] = 0x10;  // Close contactors
         //BMW_10B.data.u8[1] = 0xD0;  // Close contactors v2
@@ -1006,10 +1028,9 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       // wedging polling permanently.
       // Also pause during the one-shot silence window (Clear DTC / BMS Reset) so the response
       // has time to arrive before the next request is sent.
-      bool uds_poll_allowed = !gUDSContext.UDS_inProgress &&
-                              (currentMillis - uds_one_shot_sent_ms > UDS_ONE_SHOT_SILENCE_MS);
-      if (gUDSContext.UDS_inProgress &&
-          (currentMillis - gUDSContext.UDS_lastFrameMillis > UDS_REASSEMBLY_TIMEOUT_MS)) {
+      bool uds_poll_allowed =
+          !gUDSContext.UDS_inProgress && (currentMillis - uds_one_shot_sent_ms > UDS_ONE_SHOT_SILENCE_MS);
+      if (gUDSContext.UDS_inProgress && (currentMillis - gUDSContext.UDS_lastFrameMillis > UDS_REASSEMBLY_TIMEOUT_MS)) {
         gUDSContext.UDS_inProgress = false;  // Abandon stalled reassembly
         uds_poll_allowed = (currentMillis - uds_one_shot_sent_ms > UDS_ONE_SHOT_SILENCE_MS);
       }
@@ -1020,18 +1041,52 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       }
 
       // Beta - stream 0x53A associated vehicle/contactor STATE indication.
-      // 0x53A does NOT drive the contactors (0x10B does - see INFO).
-      // Stream STATE D (steady/on) when contactors are requested, STATE A (idle/off) otherwise.
-      //   STATE A - idle / off       byte5=0x00 byte6=0x01
-      //   STATE B - close requested  byte5=0x80 byte6=0x01
-      //   STATE C - escalated        byte5=0x84 byte6=0x01 (single transient)
-      //   STATE D - steady / on      byte5=0x84 byte6=0x00
-      if (contactorCloseReq) {
-        BMW_53A.data.u8[5] = 0x84;  // STATE D - steady / contactors on
-        BMW_53A.data.u8[6] = 0x00;
+      // 0x53A does NOT drive the contactors (0x10B does - see INFO), but the OEM announces a
+      // close on 0x53A before 0x10B closes. We replay that handshake as a small state machine so
+      // the SME sees the expected open->close sequence (avoids an intermittent safety warning):
+      //   STATE A IDLE      byte5=0x00 byte6=0x01  default, contactors not requested
+      //   STATE B CLOSE_REQ byte5=0x80 byte6=0x01  held ~3.5s before 0x10B is allowed to close
+      //   STATE C ESCALATED byte5=0x84 byte6=0x01  single transient frame
+      //   STATE D STEADY    byte5=0x84 byte6=0x00  held while contactors closed
+      // 0x10B is gated on this reaching ESCALATED/STEADY (see 20ms block).
+      if (!contactorCloseReq) {
+        phev_53a_state = PHEV_53A_IDLE;
       } else {
-        BMW_53A.data.u8[5] = 0x00;  // STATE A - idle / contactors off
-        BMW_53A.data.u8[6] = 0x01;
+        unsigned long close_elapsed = currentMillis - contactor_close_start_ms;
+        switch (phev_53a_state) {
+          case PHEV_53A_IDLE:
+            phev_53a_state = PHEV_53A_CLOSE_REQ;  // close just requested - begin announcing STATE B
+            break;
+          case PHEV_53A_CLOSE_REQ:
+            if (close_elapsed >= CONTACTOR_CLOSE_REQUEST_DURATION_MS) {
+              phev_53a_state = PHEV_53A_ESCALATED;  // B hold done - escalate (single transient)
+            }
+            break;
+          case PHEV_53A_ESCALATED:
+            phev_53a_state = PHEV_53A_STEADY;  // escalation is a single frame - settle to steady
+            break;
+          case PHEV_53A_STEADY:
+            break;  // hold steady while closed
+        }
+      }
+
+      switch (phev_53a_state) {
+        case PHEV_53A_IDLE:
+          BMW_53A.data.u8[5] = 0x00;
+          BMW_53A.data.u8[6] = 0x01;
+          break;
+        case PHEV_53A_CLOSE_REQ:
+          BMW_53A.data.u8[5] = 0x80;
+          BMW_53A.data.u8[6] = 0x01;
+          break;
+        case PHEV_53A_ESCALATED:
+          BMW_53A.data.u8[5] = 0x84;
+          BMW_53A.data.u8[6] = 0x01;
+          break;
+        case PHEV_53A_STEADY:
+          BMW_53A.data.u8[5] = 0x84;
+          BMW_53A.data.u8[6] = 0x00;
+          break;
       }
       transmit_can_frame(&BMW_53A);
     }
@@ -1042,8 +1097,7 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       // Same guard as the fast poll: skip starting a new request while a multi-frame response is
       // still being reassembled, so the slow DTC read isn't clobbered (or doesn't clobber others).
       // Also respects the one-shot silence window.
-      if (!gUDSContext.UDS_inProgress &&
-          (currentMillis - uds_one_shot_sent_ms > UDS_ONE_SHOT_SILENCE_MS)) {
+      if (!gUDSContext.UDS_inProgress && (currentMillis - uds_one_shot_sent_ms > UDS_ONE_SHOT_SILENCE_MS)) {
         uds_slow_req_id_counter = increment_uds_req_id_counter(
             uds_slow_req_id_counter, numSlowUDSreqs);  //Loop through and send a different UDS request each cycle
         logging.print("Sending UDS_SLOW: ");
@@ -1053,10 +1107,28 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
 
       // Vehicle environment frames the SME expects (silence "No message" DTCs).
       // Only STATIC frames are sent here. Frames that require a rolling counter/CRC on the real
-      // bus (0x1A1, 0x328, 0x433) are intentionally NOT transmitted yet - see VEHICLE TX MAP.
+      // bus (0x1A1, 0x433) are intentionally NOT transmitted yet - see VEHICLE TX MAP.
       transmit_can_frame(&BMW_3A0);  // CAD408 Vehicle condition (BDC) - static
       transmit_can_frame(&BMW_3CA);  // CAD429 Driving-info forecast (KOMBI) - static
       transmit_can_frame(&BMW_3E8);  // CAD405 OBD diagnosis, engine control (EME) - static
+
+      // 0x328 Relative time / clock (KOMBI) - CAD402. Ported from the i3 implementation.
+      // byte0-3 = T_SEC_COU_REL: seconds since system start (LE). byte4-5 = T_DAY_COU_ABSL: absolute
+      // day counter (LE), day 1 = 1.1.2000. A live, incrementing clock keeps the SME from treating the
+      // bus as stale - a frozen/absent clock is a likely trigger for the idle precharge block.
+      BMW_328_seconds++;
+      BMW_328.data.u8[0] = (uint8_t)(BMW_328_seconds & 0xFF);
+      BMW_328.data.u8[1] = (uint8_t)((BMW_328_seconds >> 8) & 0xFF);
+      BMW_328.data.u8[2] = (uint8_t)((BMW_328_seconds >> 16) & 0xFF);
+      BMW_328.data.u8[3] = (uint8_t)((BMW_328_seconds >> 24) & 0xFF);
+      BMW_328_seconds_to_day++;
+      if (BMW_328_seconds_to_day > 86400) {
+        BMW_328_days++;
+        BMW_328_seconds_to_day = 0;
+      }
+      BMW_328.data.u8[4] = (uint8_t)(BMW_328_days & 0xFF);
+      BMW_328.data.u8[5] = (uint8_t)((BMW_328_days >> 8) & 0xFF);
+      transmit_can_frame(&BMW_328);  // CAD402 Relative time / clock (KOMBI) - live counter
 
       // 0x2CA Ambient temperature (KOMBI) - CAD401. byte0 = (T+40)*2 (0.5C/bit, -40 offset);
       // 0x6E = 15C, a moderate in-range ambient that avoids cold/hot charge derating.
@@ -1075,7 +1147,17 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
     // Send 10000ms CAN Message
     if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
       previousMillis10000 = currentMillis;
-      transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_START);  // Enable Balancing
+      // Only request balancing when the user has explicitly asked for it (i3-style gating).
+      // The request is a UDS startRoutine that LATCHES in the SME, so when balancing is NOT
+      // requested we actively send stopRoutine to keep the SME's state in sync with our intent.
+      // Previously startRoutine was sent unconditionally every 10s, so once the cells reached
+      // "at rest" (~10 min idle) the latched routine executed, balancing began, and precharge was
+      // blocked. START when requested / STOP otherwise stops the spontaneous idle balancing.
+      if (datalayer.battery.settings.user_requests_balancing) {
+        transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_START);  // Enable Balancing
+      } else {
+        transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_STOP);  // Cancel any latched balancing routine
+      }
     }
   } else {
     // Battery is asleep - try and wake it every 1 seconds

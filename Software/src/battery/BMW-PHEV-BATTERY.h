@@ -23,6 +23,14 @@ class BmwPhevBattery : public CanBattery {
   void request_open_contactors() { userRequestContactorOpen = true; }
   void request_close_contactors() { userRequestContactorClose = true; }
 
+  // Online balancing via the SME UDS routine (0xAD6B). Drives the user_requests_balancing flag the
+  // transmit loop reads: when set it sends startRoutine, otherwise stopRoutine (cancels any latched
+  // balancing). Renders independent, always-visible Start and Stop Balancing buttons on the advanced page.
+  bool supports_balancing_request() { return true; }
+  bool is_balancing_active() { return datalayer.battery.settings.user_requests_balancing; }
+  void initiate_balancing() { datalayer.battery.settings.user_requests_balancing = true; }
+  void end_balancing() { datalayer.battery.settings.user_requests_balancing = false; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
@@ -137,7 +145,7 @@ class BmwPhevBattery : public CanBattery {
                        .DLC = 6,
                        .ID = 0x328,
                        .data = {0x27, 0x58, 0xDC, 0x0D, 0x7A,
-                                0x25}};  // Relative time / clock (KOMBI). NEEDS COUNTER: byte0 = seconds counter
+                                0x25}};  // Relative time / clock (KOMBI). Sent 1000ms w/ live counter: bytes0-3=seconds, 4-5=days
   CAN_frame BMW_3CA = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
@@ -449,9 +457,16 @@ class BmwPhevBattery : public CanBattery {
   uint8_t iso_safety_trg_plausible = 0;
   uint8_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
   uint8_t balancing_status = 0;         //4 = not active
+  bool phev_balancing_stop_sent = false;  // One-shot: send UDS stopRoutine(0xAD6B) at boot to clear
+                                          // any balancing routine left latched in the SME from a prior run.
   uint8_t uds_fast_req_id_counter = 0;
   uint8_t uds_slow_req_id_counter = 0;
   uint8_t alive_counter_100ms = 0;
+  // 0x328 relative-time clock counters (ported from i3). Seconds since system start (T_SEC_COU_REL,
+  // bytes 0-3 LE) and absolute day counter (T_DAY_COU_ABSL, bytes 4-5 LE, day 1 = 1.1.2000).
+  uint32_t BMW_328_seconds = 243785948;  // Seeded so the SME thinks the vehicle was made ~7.7 years ago
+  uint16_t BMW_328_days = 9244;          // ~23rd April 2025 (days since 1.1.2000)
+  uint32_t BMW_328_seconds_to_day = 0;   // Rolls into a day at 86400
   uint8_t paired_vin[17] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //17 Byte array for paired VIN
   bool pack_limit_info_available = false;
@@ -464,6 +479,16 @@ class BmwPhevBattery : public CanBattery {
   unsigned long contactor_close_start_ms = 0;  // millis() when a close was last requested
   // How long to stream the STATE B closing frame before settling to STATE D steady (observed ~3.5s)
   static const unsigned long CONTACTOR_CLOSE_REQUEST_DURATION_MS = 3500;
+
+  // 0x53A contactor-announce state machine. Replays the OEM open->close handshake observed on the
+  // vehicle bus so the SME sees STATE B (close requested) announced for ~3.5s BEFORE 0x10B drives
+  // the contactors closed. Jumping straight to closed (STATE D + 0x10B close at once) was
+  // triggering an intermittent open->close safety warning.
+  // Sequence: A IDLE -> B CLOSE_REQ (held) -> C ESCALATED (single transient) -> D STEADY.
+  //   0x10B is held open until the state machine reaches ESCALATED/STEADY (i.e. after the B hold).
+  // See "0x53A STATE SEQUENCE" in the CONTACTOR CLOSE notes of the .cpp.
+  enum Phev53AState { PHEV_53A_IDLE, PHEV_53A_CLOSE_REQ, PHEV_53A_ESCALATED, PHEV_53A_STEADY };
+  Phev53AState phev_53a_state = PHEV_53A_IDLE;
 
   struct InverterContactorCloseRequestStruct {
     bool previous;
