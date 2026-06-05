@@ -305,7 +305,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           polled_12V = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
           break;
         case PID_HVB_TEMP:
-          pid_hvb_temp = rx_frame.data.u8[4] - 40;
+          pid_hvb_temp = rx_frame.data.u8[4] - 50;
           break;
         case PID_HVB_SOC:
           pid_hvb_soc = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 2;
