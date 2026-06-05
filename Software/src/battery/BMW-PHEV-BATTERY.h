@@ -249,7 +249,7 @@ class BmwPhevBattery : public CanBattery {
                                           .ext_ID = false,
                                           .DLC = 4,
                                           .ID = 0x6F1,
-                                          .data = {0x07, 0x03, 0x11, 0x01}};  // Reset BMS - TBC
+                                          .data = {0x07, 0x02, 0x11, 0x01}};  // UDS ECU hard reset (0x11 0x01)
 
   CAN_frame BMWPHEV_6F1_REQUEST_CONTACTORS_CLOSE = {
       .FD = false,
