@@ -859,6 +859,12 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&BMW_6F1_REQUEST_HARD_RESET);  // Send SME reset command
       datalayer_extended.bmwphev.UserRequestBMSReset = false;
     }
+    if (UserRequestDTCRead) {
+      logging.println("User req. DTC read");
+      transmit_can_frame(&BMWPHEV_6F1_REQUEST_READ_DTC);
+      UserRequestDTCRead = false;
+      datalayer_extended.bmwphev.dtc_read_failed = false;
+    }
 
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
