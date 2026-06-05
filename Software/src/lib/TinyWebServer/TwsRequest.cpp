@@ -7,6 +7,8 @@ extern "C" {
     #include <netinet/in.h>
     #include <unistd.h>
     #else
+    #include <freertos/FreeRTOS.h>
+    #include <freertos/task.h>
     #include "lwip/sockets.h"
     #endif
 }

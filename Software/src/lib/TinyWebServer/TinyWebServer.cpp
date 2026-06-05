@@ -1,8 +1,8 @@
 #include "TinyWebServer.h"
 
-#ifndef LOCAL
+//#ifndef LOCAL
 #include <src/devboard/utils/logging.h>
-#endif
+//#endif
 
 #define min(a,b) \
    ({ __typeof__ (a) _a = (a); \
@@ -17,10 +17,9 @@ extern "C" {
     #include <netinet/in.h>
     #include <unistd.h>
     #define IRAM_ATTR
-    void vTaskDelay(int ms) {
-        usleep(ms * 1000);
-    }
     #else
+    #include <freertos/FreeRTOS.h>
+    #include <freertos/task.h>
     #include "lwip/sockets.h"
     #endif
 }

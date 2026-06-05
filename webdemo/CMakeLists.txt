@@ -62,12 +62,13 @@ add_executable(BatteryEmulator
     ../Software/src/lib/TinyWebServer/CanSender.cpp
     ../Software/src/lib/TinyWebServer/Ota.cpp
     ../Software/src/lib/TinyWebServer/TinyWebServer.cpp
+    ../Software/src/lib/TinyWebServer/TwsRequest.cpp
     ../Software/src/lib/TinyWebServer/webserver2.cpp
     ../Software/src/lib/TinyWebServer/webserver_api.cpp
     ../Software/src/lib/TinyWebServer/webserver_can_logging.cpp
+    ../Software/src/lib/TinyWebServer/webserver_can_sender.cpp
     ../Software/src/lib/TinyWebServer/webserver_settings.cpp
     ../Software/src/lib/TinyWebServer/webserver_utils.cpp
-    ../Software/src/core/parallel_safety.cpp
     ../Software/src/communication/can/obd.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/nvm/comm_nvm.cpp
@@ -139,6 +140,7 @@ add_executable(BatteryEmulator
     ../Software/src/battery/Shunts.cpp
     ../Software/src/battery/SIMPBMS-BATTERY.cpp
     ../Software/src/battery/SONO-BATTERY.cpp
+    ../Software/src/battery/STELLANTIS-SMALL-WIDE-4x4.cpp
     ../Software/src/battery/TESLA-BATTERY.cpp
     ../Software/src/battery/TESLA-LEGACY-BATTERY.cpp
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp

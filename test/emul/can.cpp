@@ -13,9 +13,9 @@ void stop_can() {}
 
 void restart_can() {}
 
-char const* getCANInterfaceName(CAN_Interface) {
-  return "Foobar";
-}
+// char const* getCANInterfaceName(CAN_Interface) {
+//   return "Foobar";
+// }
 
 void register_transmitter(Transmitter* transmitter) {}
 
