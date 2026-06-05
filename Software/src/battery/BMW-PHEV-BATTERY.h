@@ -140,24 +140,25 @@ class BmwPhevBattery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x3A0,
                        .data = {0xFF, 0xFF, 0xCF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFD}};  // Vehicle condition (BDC) - static
-  CAN_frame BMW_328 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 6,
-                       .ID = 0x328,
-                       .data = {0x27, 0x58, 0xDC, 0x0D, 0x7A,
-                                0x25}};  // Relative time / clock (KOMBI). Sent 1000ms w/ live counter: bytes0-3=seconds, 4-5=days
-  CAN_frame BMW_3CA = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x3CA,
-                       .data = {0xB7, 0x60, 0x01, 0x0F, 0x0F, 0x31, 0xFF,
-                                0xFF}};  // Driving-info forecast (KOMBI) - static
-  CAN_frame BMW_433 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 4,
-                       .ID = 0x433,
-                       .data = {0xFF, 0x0C, 0x0C,
-                                0xF1}};  // HV-battery specification (EME). NEEDS COUNTER: byte1 toggles 0x0C<->0x0D
+  CAN_frame BMW_328 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 6,
+      .ID = 0x328,
+      .data = {0x27, 0x58, 0xDC, 0x0D, 0x7A,
+               0x25}};  // Relative time / clock (KOMBI). Sent 1000ms w/ live counter: bytes0-3=seconds, 4-5=days
+  CAN_frame BMW_3CA = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x3CA,
+      .data = {0xB7, 0x60, 0x01, 0x0F, 0x0F, 0x31, 0xFF, 0xFF}};  // Driving-info forecast (KOMBI) - static
+  CAN_frame BMW_433 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 4,
+      .ID = 0x433,
+      .data = {0xFF, 0x0C, 0x0C, 0xF1}};  // HV-battery specification (EME). NEEDS COUNTER: byte1 toggles 0x0C<->0x0D
   CAN_frame BMW_2CA = {.FD = false,
                        .ext_ID = false,
                        .DLC = 2,
@@ -455,8 +456,8 @@ class BmwPhevBattery : public CanBattery {
   uint8_t iso_safety_ext_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_PLAUS
   uint8_t iso_safety_int_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_WERT
   uint8_t iso_safety_trg_plausible = 0;
-  uint8_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
-  uint8_t balancing_status = 0;         //4 = not active
+  uint8_t iso_safety_kohm_quality = 0;    //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
+  uint8_t balancing_status = 0;           //4 = not active
   bool phev_balancing_stop_sent = false;  // One-shot: send UDS stopRoutine(0xAD6B) at boot to clear
                                           // any balancing routine left latched in the SME from a prior run.
   uint8_t uds_fast_req_id_counter = 0;
@@ -475,7 +476,7 @@ class BmwPhevBattery : public CanBattery {
   // Beta CAN-based contactor close (0x53A) state
   bool userRequestContactorClose = false;
   bool userRequestContactorOpen = false;
-  bool contactorCloseReq = false;  // Desired contactor state: true = stream closing/steady frames
+  bool contactorCloseReq = false;              // Desired contactor state: true = stream closing/steady frames
   unsigned long contactor_close_start_ms = 0;  // millis() when a close was last requested
   // How long to stream the STATE B closing frame before settling to STATE D steady (observed ~3.5s)
   static const unsigned long CONTACTOR_CLOSE_REQUEST_DURATION_MS = 3500;
