@@ -3,6 +3,7 @@
 #include <cstring>  //For unit test
 #include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/common_functions.h"  //For CRC table
@@ -34,6 +35,41 @@ BROADCAST MAP
 0x431 200ms Data High-Voltage Battery Unit
 0x432 200ms SOC% info
 0x12F 100ms Terminal Data (possibly needed for contactor close)
+0x10B 20ms  Contactor command - ACTUAL DRIVER of contactor close (see CONTACTOR CLOSE notes below)
+0x53A 200ms Associated vehicle/contactor STATE indication (states A/B/C/D - see CONTACTOR CLOSE notes below)
+
+CONTACTOR CLOSE - BETA / OBSERVED CANLOG BEHAVIOUR
+Two messages are involved. Bench testing shows 0x10B is what actually drives the contactors;
+0x53A reflects an associated vehicle/contactor state (contactors close even while 0x53A still
+streams STATE A "40 3A 04 00 00 00 01 00"). Both are documented below.
+
+0x10B (20ms) - ACTUAL CONTACTOR DRIVER  [CURRENT IMPLEMENTATION]
+ - Base data {0xCD, 0x00, 0xFC}. byte[0]=CRC (SAE J1850, init 0x3F, over 3 bytes).
+ - byte[1] high nibble = contactor command, low nibble = alive counter (0..14).
+ - High nibble 0x1 (0x10) = "Close contactors". 0xD0 ("Close contactors v2") was an
+   alternative seen on the bus - kept commented for reference.
+ - Close is only commanded when ALL of the following are true:
+     * contactor_control_enabled == false  (when true, GPIO drives the physical contactors,
+       so we must not also command close over CAN)
+     * contactorCloseReq == true            (set by the WebUI user request or inverter request)
+     * startup_counter_contactor >= 160     (~3.2s boot delay to let the SME wake)
+   Otherwise the high nibble stays 0x0 (open / no close request).
+
+0x53A (200ms) - ASSOCIATED VEHICLE/CONTACTOR STATE INDICATION
+Captured on the vehicle bus (DLC8). The differentiating bytes are byte[5] and byte[6].
+Observed state sequence during a close event:
+  STATE A - idle / off        40 3A 04 00 00 00 01 00   (byte5=0x00, byte6=0x01)  default when contactors not requested
+  STATE B - close requested   40 3A 04 00 00 80 01 00   (byte5=0x80, byte6=0x01)  CONFIRMED - held ~3.5s, ~500ms cadence
+        ---- ~10.5s gap on 0x53A; physical close occurs here (seen on 0x112 / 0x3A4 / 0x326) ----
+  STATE C - escalated         40 3A 04 00 00 84 01 00   (byte5=0x84, byte6=0x01)  single transient frame
+  STATE D - steady / on       40 3A 04 00 00 84 00 00   (byte5=0x84, byte6=0x00)  held after physical close
+Notes:
+ - byte[0] (0x40) looks static; byte[1] (0x3A) matches the low byte of the ID.
+ - Contactors observed to close even while 0x53A streams STATE A, confirming 0x53A is a STATE
+   indication and 0x10B is the actual driver.
+ - For now we stream STATE D (steady on) as the active indication. Earlier we attempted the full
+   A -> B -> D progression; STATE C escalated is a single transient and is not reproduced.
+ - Timing/handshake not fully confirmed - beta.
 
 UDS MAP
 22 D6 CF - CSC Temps
@@ -167,6 +203,57 @@ uint8_t BmwPhevBattery::increment_alive_counter(uint8_t counter) {
     counter = 0;
   }
   return counter;
+}
+
+/* --------------------------------------------------------------------------
+   Beta CAN-based contactor close (0x53A)
+   Streams an idle frame by default and a closing frame while a close is
+   requested (by the inverter or the user via WebUI). See CONTACTOR CLOSE
+   notes in the INFO section above. The exact close handshake/timing is not
+   yet fully characterised, so this simply toggles between the two observed
+   payloads - sequencing may be needed in future.
+   -------------------------------------------------------------------------- */
+
+void BmwPhevBattery::PhevCloseContactors(void) {
+  logging.println("Closing contactors (0x10B)");
+  contactorCloseReq = true;
+  contactor_close_start_ms = millis();  // Start of STATE B closing phase
+}
+
+void BmwPhevBattery::PhevOpenContactors(void) {
+  logging.println("Opening contactors (0x10B)");
+  contactorCloseReq = false;
+}
+
+void BmwPhevBattery::HandleIncomingUserRequest(void) {
+  if ((userRequestContactorClose == false) && (userRequestContactorOpen == false)) {
+    // do nothing
+  } else if ((userRequestContactorClose == true) && (userRequestContactorOpen == false)) {
+    PhevCloseContactors();
+    userRequestContactorClose = false;
+  } else if ((userRequestContactorClose == false) && (userRequestContactorOpen == true)) {
+    PhevOpenContactors();
+    userRequestContactorOpen = false;
+  } else {
+    // Both flags should never be set together - opening is the safest state
+    PhevOpenContactors();
+    userRequestContactorClose = false;
+    userRequestContactorOpen = false;
+    logging.println("Error: contactor close+open both requested. Contactors opened.");
+  }
+}
+
+void BmwPhevBattery::HandleIncomingInverterRequest(void) {
+  InverterContactorCloseRequest.present = datalayer.system.status.inverter_allows_contactor_closing;
+  // Detect edge
+  if (InverterContactorCloseRequest.previous == false && InverterContactorCloseRequest.present == true) {
+    logging.println("Inverter req. to close contactors");
+    PhevCloseContactors();
+  } else if (InverterContactorCloseRequest.previous == true && InverterContactorCloseRequest.present == false) {
+    logging.println("Inverter req. to open contactors");
+    PhevOpenContactors();
+  }  // else: do nothing
+  InverterContactorCloseRequest.previous = InverterContactorCloseRequest.present;
 }
 void BmwPhevBattery::parseDTCResponse() {
   // Check for negative response
@@ -778,9 +865,19 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
 
       if (startup_counter_contactor < 160) {
         startup_counter_contactor++;
-      } else {                      //After 160 messages, turn on the request
+      }
+
+      // 0x10B drives the physical contactors. Only command close when:
+      //  - GPIO contactor control is disabled (otherwise GPIO drives the contactors directly)
+      //  - a close has been requested (user via WebUI or inverter)
+      //  - the ~3.2s startup boot delay has elapsed (let the SME wake)
+      bool allow_can_close =
+          (!contactor_control_enabled) && contactorCloseReq && (startup_counter_contactor >= 160);
+      if (allow_can_close) {
         BMW_10B.data.u8[1] = 0x10;  // Close contactors
         //BMW_10B.data.u8[1] = 0xD0;  // Close contactors v2
+      } else {
+        BMW_10B.data.u8[1] = 0x00;  // Open / no close request
       }
 
       BMW_10B.data.u8[1] = ((BMW_10B.data.u8[1] & 0xF0) + alive_counter_20ms);
@@ -810,6 +907,10 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       if (alive_counter_100ms > 14) {  // Reset after 14 (0x2E is 0x20 + 14)
         alive_counter_100ms = 0;
       }
+
+      // Beta CAN-based contactor close - evaluate inverter/user requests (edge detected)
+      HandleIncomingInverterRequest();
+      HandleIncomingUserRequest();
     }
     // Send 200ms CAN Message
     if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -817,6 +918,18 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       uds_fast_req_id_counter = increment_uds_req_id_counter(
           uds_fast_req_id_counter, numFastUDSreqs);  //Loop through and send a different UDS request each cycle
       transmit_can_frame(UDS_REQUESTS_FAST[uds_fast_req_id_counter]);
+
+      // Beta - stream 0x53A associated vehicle/contactor STATE indication.
+      // 0x53A does NOT drive the contactors (0x10B does - see INFO). For now we stream STATE D
+      // (steady / on) as the active indication. Other observed states kept documented for reference:
+      //   STATE A - idle / off       byte5=0x00 byte6=0x01
+      //   STATE B - close requested  byte5=0x80 byte6=0x01
+      //   STATE C - escalated        byte5=0x84 byte6=0x01 (single transient)
+      //   STATE D - steady / on      byte5=0x84 byte6=0x00
+      // STATE D - steady / contactors on
+      BMW_53A.data.u8[5] = 0x84;
+      BMW_53A.data.u8[6] = 0x00;
+      transmit_can_frame(&BMW_53A);
     }
     // Send 1000ms CAN Message
     if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {

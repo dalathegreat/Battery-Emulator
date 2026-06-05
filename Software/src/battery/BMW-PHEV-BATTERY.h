@@ -18,6 +18,11 @@ class BmwPhevBattery : public CanBattery {
   bool supports_reset_BMS() { return true; }
   void reset_BMS() { datalayer_extended.bmwphev.UserRequestBMSReset = true; }
 
+  // Beta CAN-based contactor close support via 0x53A (see INFO section in .cpp)
+  bool supports_contactor_close() { return true; }
+  void request_open_contactors() { userRequestContactorOpen = true; }
+  void request_close_contactors() { userRequestContactorClose = true; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
@@ -44,6 +49,12 @@ class BmwPhevBattery : public CanBattery {
   void wake_battery_via_canbus();
   uint8_t increment_alive_counter(uint8_t counter);
   const char* getUDSRequestName(CAN_frame* frame);
+
+  // Beta CAN-based contactor close (0x53A) helpers
+  void HandleIncomingUserRequest(void);
+  void HandleIncomingInverterRequest(void);
+  void PhevCloseContactors(void);
+  void PhevOpenContactors(void);
 
   unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
@@ -88,6 +99,14 @@ class BmwPhevBattery : public CanBattery {
                        .DLC = 3,
                        .ID = 0x10B,
                        .data = {0xCD, 0x00, 0xFC}};  // Contactor closing command
+  // Beta CAN-based contactor control - streamed at 200ms. data[5]/data[6] select the state:
+  //   STATE A idle 0x00/0x01, STATE B closing 0x80/0x01, STATE D steady 0x84/0x00
+  // See CONTACTOR CLOSE notes in the INFO section of the .cpp
+  CAN_frame BMW_53A = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x53A,
+                       .data = {0x40, 0x3A, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00}};  // STATE A - idle / contactors off
   //Vehicle CAN END
 
   //Request Data CAN START
@@ -384,6 +403,20 @@ class BmwPhevBattery : public CanBattery {
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //17 Byte array for paired VIN
   bool pack_limit_info_available = false;
   bool battery_awake = false;
+
+  // Beta CAN-based contactor close (0x53A) state
+  bool userRequestContactorClose = false;
+  bool userRequestContactorOpen = false;
+  bool contactorCloseReq = false;  // Desired contactor state: true = stream closing/steady frames
+  unsigned long contactor_close_start_ms = 0;  // millis() when a close was last requested
+  // How long to stream the STATE B closing frame before settling to STATE D steady (observed ~3.5s)
+  static const unsigned long CONTACTOR_CLOSE_REQUEST_DURATION_MS = 3500;
+
+  struct InverterContactorCloseRequestStruct {
+    bool previous;
+    bool present;
+  };
+  InverterContactorCloseRequestStruct InverterContactorCloseRequest = {false, false};
 };
 
 #endif
