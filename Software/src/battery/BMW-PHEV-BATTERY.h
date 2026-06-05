@@ -87,6 +87,14 @@ class BmwPhevBattery : public CanBattery {
   // A single global UDS context, since only one module can respond at a time
   UDS_RxContext gUDSContext;
 
+  // Max time to wait for the next frame of a multi-frame UDS response before abandoning it,
+  // so a lost frame can't wedge polling permanently (see UDS poll guards in transmit_can).
+  static const unsigned long UDS_REASSEMBLY_TIMEOUT_MS = 500;
+  // How long to silence the timed UDS polls after a one-shot command (Clear DTC, BMS Reset)
+  // so the response has time to arrive before the next request is sent.
+  static const unsigned long UDS_ONE_SHOT_SILENCE_MS = 1000;
+  unsigned long uds_one_shot_sent_ms = 0;  // millis() when last one-shot command was sent
+
   //Vehicle CAN START
   CAN_frame BMW_12F = {
       .FD = false,

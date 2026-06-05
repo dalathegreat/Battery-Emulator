@@ -12,8 +12,9 @@ enum real_bms_status_enum { BMS_DISCONNECTED = 0, BMS_STANDBY = 1, BMS_ACTIVE = 
 enum balancing_status_enum {
   BALANCING_STATUS_UNKNOWN = 0,
   BALANCING_STATUS_ERROR = 1,
-  BALANCING_STATUS_READY = 2,  //No balancing active, system supports balancing
-  BALANCING_STATUS_ACTIVE = 3  //Balancing active!
+  BALANCING_STATUS_READY = 2,    //No balancing active, system supports balancing
+  BALANCING_STATUS_ACTIVE = 3,   //Balancing active!
+  BALANCING_STATUS_BLOCKED = 4   //Balancing blocked, cells not yet at rest
 };
 enum battery_chemistry_enum { Autodetect = 0, NCA = 1, NMC = 2, LFP = 3, ZEBRA = 4, Highest };
 

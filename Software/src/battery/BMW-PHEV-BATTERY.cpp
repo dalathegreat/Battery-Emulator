@@ -500,6 +500,27 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
 
   datalayer_extended.bmwphev.balancing_status = balancing_status;
 
+  // Map PHEV balancing_status raw value to the shared datalayer enum so MQTT picks it up.
+  // PHEV values (from BMW-PHEV-HTML.h): 0=inactive not needed, 1=active, 2=not resting,
+  // 3=inactive, 4=unknown/qualifier invalid.
+  switch (balancing_status) {
+    case 1:
+      datalayer.battery.status.balancing_status = BALANCING_STATUS_ACTIVE;
+      break;
+    case 0:
+      datalayer.battery.status.balancing_status = BALANCING_STATUS_READY;
+      break;
+    case 2:  // Cells not at rest — balancing blocked until they settle
+      datalayer.battery.status.balancing_status = BALANCING_STATUS_BLOCKED;
+      break;
+    case 4:
+      datalayer.battery.status.balancing_status = BALANCING_STATUS_ERROR;
+      break;
+    default:  // 3 (inactive)
+      datalayer.battery.status.balancing_status = BALANCING_STATUS_UNKNOWN;
+      break;
+  }
+
   datalayer_extended.bmwphev.battery_voltage_after_contactor = battery_voltage_after_contactor;
 
   // Update webserver datalayer
@@ -632,6 +653,20 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               rx_frame.data.u8[3] == 0x03 &&
               rx_frame.data.u8[4] == 0xAD) {  //Balancing Status  01 Active 03 Not Active    7DLC F1 05 71 03 AD 6B 01
             balancing_status = (rx_frame.data.u8[6]);
+          }
+
+          // Single-frame DTC response ($19 -> $59), e.g. F1 03 59 02 FF when few/no DTCs are
+          // stored. The multi-frame path (FF/CF) only triggers when the list is long, so without
+          // this branch a short/empty DTC reply was silently dropped and never parsed.
+          if (rx_frame.data.u8[2] == 0x59 && rx_frame.data.u8[3] == 0x02) {
+            uint8_t sfLen = pciLower;  // SF payload length (e.g. 3 for 59 02 FF)
+            memset(gUDSContext.UDS_buffer, 0, sizeof(gUDSContext.UDS_buffer));
+            if (sfLen > 0 && sfLen <= 6) {
+              memcpy(gUDSContext.UDS_buffer, &rx_frame.data.u8[2], sfLen);
+              gUDSContext.UDS_bytesReceived = sfLen;
+              gUDSContext.UDS_inProgress = false;
+              parseDTCResponse();
+            }
           }
 
           break;
@@ -901,11 +936,13 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       logging.println("User requested DTC reset");
       transmit_can_frame(&BMWPHEV_6F1_REQUEST_CLEAR_DTC);  // Send DTC erase command
       datalayer_extended.bmwphev.UserRequestDTCreset = false;
+      uds_one_shot_sent_ms = currentMillis;  // Silence polls for UDS_ONE_SHOT_SILENCE_MS
     }
     if (datalayer_extended.bmwphev.UserRequestBMSReset) {
       logging.println("User requested SME reset");
       transmit_can_frame(&BMW_6F1_REQUEST_HARD_RESET);  // Send SME reset command
       datalayer_extended.bmwphev.UserRequestBMSReset = false;
+      uds_one_shot_sent_ms = currentMillis;  // Silence polls for UDS_ONE_SHOT_SILENCE_MS
     }
 
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
@@ -963,31 +1000,56 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
     // Send 200ms CAN Message
     if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
       previousMillis200 = currentMillis;
-      uds_fast_req_id_counter = increment_uds_req_id_counter(
-          uds_fast_req_id_counter, numFastUDSreqs);  //Loop through and send a different UDS request each cycle
-      transmit_can_frame(UDS_REQUESTS_FAST[uds_fast_req_id_counter]);
+      // Don't start a new UDS request while a multi-frame response is still being reassembled -
+      // an incoming First Frame resets gUDSContext and clobbers the in-progress response (this is
+      // why long multi-frame DTC reads never completed). A timeout prevents a lost frame from
+      // wedging polling permanently.
+      // Also pause during the one-shot silence window (Clear DTC / BMS Reset) so the response
+      // has time to arrive before the next request is sent.
+      bool uds_poll_allowed = !gUDSContext.UDS_inProgress &&
+                              (currentMillis - uds_one_shot_sent_ms > UDS_ONE_SHOT_SILENCE_MS);
+      if (gUDSContext.UDS_inProgress &&
+          (currentMillis - gUDSContext.UDS_lastFrameMillis > UDS_REASSEMBLY_TIMEOUT_MS)) {
+        gUDSContext.UDS_inProgress = false;  // Abandon stalled reassembly
+        uds_poll_allowed = (currentMillis - uds_one_shot_sent_ms > UDS_ONE_SHOT_SILENCE_MS);
+      }
+      if (uds_poll_allowed) {
+        uds_fast_req_id_counter = increment_uds_req_id_counter(
+            uds_fast_req_id_counter, numFastUDSreqs);  //Loop through and send a different UDS request each cycle
+        transmit_can_frame(UDS_REQUESTS_FAST[uds_fast_req_id_counter]);
+      }
 
       // Beta - stream 0x53A associated vehicle/contactor STATE indication.
-      // 0x53A does NOT drive the contactors (0x10B does - see INFO). For now we stream STATE D
-      // (steady / on) as the active indication. Other observed states kept documented for reference:
+      // 0x53A does NOT drive the contactors (0x10B does - see INFO).
+      // Stream STATE D (steady/on) when contactors are requested, STATE A (idle/off) otherwise.
       //   STATE A - idle / off       byte5=0x00 byte6=0x01
       //   STATE B - close requested  byte5=0x80 byte6=0x01
       //   STATE C - escalated        byte5=0x84 byte6=0x01 (single transient)
       //   STATE D - steady / on      byte5=0x84 byte6=0x00
-      // STATE D - steady / contactors on
-      BMW_53A.data.u8[5] = 0x84;
-      BMW_53A.data.u8[6] = 0x00;
+      if (contactorCloseReq) {
+        BMW_53A.data.u8[5] = 0x84;  // STATE D - steady / contactors on
+        BMW_53A.data.u8[6] = 0x00;
+      } else {
+        BMW_53A.data.u8[5] = 0x00;  // STATE A - idle / contactors off
+        BMW_53A.data.u8[6] = 0x01;
+      }
       transmit_can_frame(&BMW_53A);
     }
     // Send 1000ms CAN Message
     if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
       previousMillis1000 = currentMillis;
 
-      uds_slow_req_id_counter = increment_uds_req_id_counter(
-          uds_slow_req_id_counter, numSlowUDSreqs);  //Loop through and send a different UDS request each cycle
-      logging.print("Sending UDS_SLOW: ");
-      logging.println(getUDSRequestName(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]));
-      transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]);
+      // Same guard as the fast poll: skip starting a new request while a multi-frame response is
+      // still being reassembled, so the slow DTC read isn't clobbered (or doesn't clobber others).
+      // Also respects the one-shot silence window.
+      if (!gUDSContext.UDS_inProgress &&
+          (currentMillis - uds_one_shot_sent_ms > UDS_ONE_SHOT_SILENCE_MS)) {
+        uds_slow_req_id_counter = increment_uds_req_id_counter(
+            uds_slow_req_id_counter, numSlowUDSreqs);  //Loop through and send a different UDS request each cycle
+        logging.print("Sending UDS_SLOW: ");
+        logging.println(getUDSRequestName(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]));
+        transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]);
+      }
 
       // Vehicle environment frames the SME expects (silence "No message" DTCs).
       // Only STATIC frames are sent here. Frames that require a rolling counter/CRC on the real

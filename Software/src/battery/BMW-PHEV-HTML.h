@@ -516,6 +516,10 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
       content += "<p style='color: #d32f2f;'>⚠ Last DTC read failed or not supported</p>";
     } else if (datalayer_extended.bmwphev.dtc_count == 0) {
       content += "<p style='color: #4CAF50;'>✓ No DTCs present</p>";
+      if (datalayer_extended.bmwix.dtc_last_read_millis > 0) {
+        content += "<p><strong>Last Read:</strong> " +
+                   String((millis() - datalayer_extended.bmwix.dtc_last_read_millis) / 1000) + "s ago</p>";
+      }
     } else {
       content += "<p><strong>DTC Count:</strong> " + String(datalayer_extended.bmwphev.dtc_count) + "</p>";
       content += "<p><strong>Last Read:</strong> " +
