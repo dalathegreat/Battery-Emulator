@@ -110,6 +110,51 @@ class BmwPhevBattery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x53A,
                        .data = {0x40, 0x3A, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00}};  // STATE A - idle / contactors off
+
+  // --- Vehicle environment / status frames the SME expects (silences CAD4xx "No message" DTCs).
+  //     Sample payloads captured on the bus; see VEHICLE TX MAP in the INFO section of the .cpp.
+  //     STATIC frames (0x3A0, 0x3CA, 0x3E8) and 0x2CA (simple byte1 LSB toggle) are transmitted.
+  //     The frames marked NEEDS COUNTER below carry a rolling counter on the real bus and are NOT
+  //     transmitted yet - sending them frozen risks a "signal invalid" DTC. Kept here for reference.
+  CAN_frame BMW_1A1 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 5,
+                       .ID = 0x1A1,
+                       .data = {0x00, 0xC0, 0x00, 0x00,
+                                0x8A}};  // Vehicle speed (DSC), standstill. NEEDS COUNTER: byte1 lo-nibble rolls 0..E
+  CAN_frame BMW_3A0 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x3A0,
+                       .data = {0xFF, 0xFF, 0xCF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFD}};  // Vehicle condition (BDC) - static
+  CAN_frame BMW_328 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 6,
+                       .ID = 0x328,
+                       .data = {0x27, 0x58, 0xDC, 0x0D, 0x7A,
+                                0x25}};  // Relative time / clock (KOMBI). NEEDS COUNTER: byte0 = seconds counter
+  CAN_frame BMW_3CA = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x3CA,
+                       .data = {0xB7, 0x60, 0x01, 0x0F, 0x0F, 0x31, 0xFF,
+                                0xFF}};  // Driving-info forecast (KOMBI) - static
+  CAN_frame BMW_433 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 4,
+                       .ID = 0x433,
+                       .data = {0xFF, 0x0C, 0x0C,
+                                0xF1}};  // HV-battery specification (EME). NEEDS COUNTER: byte1 toggles 0x0C<->0x0D
+  CAN_frame BMW_2CA = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 2,
+                       .ID = 0x2CA,
+                       .data = {0x6E, 0x6F}};  // Ambient temperature (KOMBI). SENT static: byte0=(T+40)*2 (0x6E=15C)
+  CAN_frame BMW_3E8 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 2,
+                       .ID = 0x3E8,
+                       .data = {0xF1, 0xFF}};  // OBD diagnosis, engine control (EME) - static, diag idle
   //Vehicle CAN END
 
   //Request Data CAN START
@@ -411,6 +456,11 @@ class BmwPhevBattery : public CanBattery {
   bool userRequestContactorClose = false;
   bool userRequestContactorOpen = false;
   bool UserRequestDTCRead = false;
+  // While a user-triggered DTC read is in flight we pause the periodic UDS polls so the DTC
+  // multiframe gets exclusive use of the single global UDS context (gUDSContext).
+  bool dtcReadInProgress = false;
+  unsigned long dtcReadRequest_ms = 0;
+  static const unsigned long DTC_READ_TIMEOUT_MS = 2500;  // give up / resume polling after this
   bool contactorCloseReq = false;  // Desired contactor state: true = stream closing/steady frames
   unsigned long contactor_close_start_ms = 0;  // millis() when a close was last requested
   // How long to stream the STATE B closing frame before settling to STATE D steady (observed ~3.5s)

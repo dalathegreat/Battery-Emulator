@@ -38,6 +38,54 @@ BROADCAST MAP
 0x10B 20ms  Contactor command - ACTUAL DRIVER of contactor close (see CONTACTOR CLOSE notes below)
 0x53A 200ms Associated vehicle/contactor STATE indication (states A/B/C/D - see CONTACTOR CLOSE notes below)
 
+VEHICLE TX MAP - frames WE transmit to keep the SME happy (silence CAD4xx "No message" DTCs)
+Captured on the vehicle bus; the SME raises a "No message" DTC for each of these if absent.
+NOTE: the source canlog was captured during a CHARGING session, so these payloads represent the
+vehicle-condition / environment seen while charging (not driving). Values that depend on vehicle
+state (e.g. 0x3A0 vehicle condition) may differ in other modes - revisit if behaviour differs.
+Only STATIC frames are transmitted. Any frame that needs a rolling counter (and usually a CRC)
+is NOT sent yet, because a wrong/frozen counter can trigger a "signal invalid" DTC that is worse
+than the "No message" DTC - those need counter (and CRC where noted) logic added before enabling.
+ID    DTC      Meaning                         TX     DLC  Sample payload            Period   Sent?  Notes
+0x10B CAD415/  EME status / e-motor 1          EME    3    XX Cn FC open /           ~100ms   YES*   byte1 hi-nibble=state (C=open/idle,
+      CAD416   (HV spec + alive)                                XX Dn FC closed                       D=close/charge), lo-nibble=rolling
+                                                                                                      0..E, byte0=CRC, byte2=FC const.
+                                                                                                      *Sent as the contactor driver (20ms),
+                                                                                                      not as a generic vehicle frame -
+                                                                                                      already has alive counter + CRC.
+0x1A1 CAD40A   Vehicle speed (DSC)             DSC    5    00 C0 00 00 8A            ~100ms   NO     NEEDS COUNTER: byte1 lo-nibble=rolling
+                                                                                                      0..E each frame. bytes2-3=speed
+                                                                                                      (00 00=standstill), byte4=8A const.
+                                                                                                      To enable: increment byte1 lo-nibble
+                                                                                                      every 100ms tick (no CRC observed).
+0x3A0 CAD408   Vehicle condition               BDC    8    FF FF CF FF FF FF FF FD   ~1000ms  YES    Static. mostly FF (signals not-active);
+                                                                                                      byte2 CF, byte7 FD are the live bits.
+0x328 CAD402   Relative time / clock           KOMBI  6    27 58 DC 0D 7A 25         ~1000ms  NO     NEEDS COUNTER: byte0=seconds-ish
+                                                                                                      counter (0e->27->32), bytes1-5=date/
+                                                                                                      time fields stable. To enable: tick
+                                                                                                      byte0 as a seconds counter each 1000ms.
+0x3CA CAD429   Driving-info forecast           KOMBI  8    B7 60 01 0F 0F 31 FF FF   ~1000ms  YES    Static forecast payload.
+0x433 CAD413   HV-battery specification        EME    4    FF 0C 0C F1               ~1000ms  NO     NEEDS COUNTER: byte1 toggles 0c<->0d
+                                                                                                      each frame, bytes2-3=0C F1 spec const.
+                                                                                                      To enable: alternate byte1 0x0C/0x0D
+                                                                                                      every 1000ms tick.
+0x2CA CAD401   Ambient temperature             KOMBI  2    6E 6F                     ~1000ms  YES    byte0=temp (T+40)*2 @ 0.5C/bit -40
+                                                                                                      offset; sent 0x6E=15C (in-range, no
+                                                                                                      cold/hot charge derating). Static -
+                                                                                                      6F/6E variance in log was noise.
+0x37B CAD409   Enable HV-battery cooling       IHKA   6    00 FF 00 00 00 00         ~1000ms  NO     Reference only - NOT transmitted.
+                                                                                                      byte1 FF=cooling-request/availability;
+                                                                                                      00 elsewhere=no active demand.
+0x3E8 CAD405   OBD diagnosis, engine ctrl      EME    2    F1 FF                     ~1000ms  YES    Static; F1 FF=no DTC / diag idle.
+Notes:
+ - Sent=YES (static): 0x3A0 + 0x3CA in the 1000ms loop, 0x3E8 in the 1000ms loop. 0x2CA is also
+   sent static in the 1000ms loop (no rolling counter needed). 0x10B is sent as the contactor
+   driver in the 20ms loop (it already maintains its own alive counter + CRC).
+ - Sent=NO (needs counter): 0x1A1, 0x328, 0x433 - frame definitions exist in the header for
+   reference, but they are NOT transmitted until rolling-counter logic is added per the
+   "To enable" note on each. Sending them frozen risks a "signal invalid" DTC.
+ - 0x37B (cooling enable) is reference only and not transmitted.
+
 CONTACTOR CLOSE - BETA / OBSERVED CANLOG BEHAVIOUR
 Two messages are involved. Bench testing shows 0x10B is what actually drives the contactors;
 0x53A reflects an associated vehicle/contactor state (contactors close even while 0x53A still
@@ -774,6 +822,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           logging.println(gUDSContext.UDS_bytesReceived);
 
           parseDTCResponse();
+          dtcReadInProgress = false;  // DTC read complete - resume periodic UDS polling
         }
         if (gUDSContext.UDS_moduleID == 0x7E) {  // Voltage Limits
           max_design_voltage = (gUDSContext.UDS_buffer[3] << 8 | gUDSContext.UDS_buffer[4]) / 10;
@@ -864,6 +913,15 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&BMWPHEV_6F1_REQUEST_READ_DTC);
       UserRequestDTCRead = false;
       datalayer_extended.bmwphev.dtc_read_failed = false;
+      // Pause periodic UDS polling so this multiframe DTC read isn't clobbered by another
+      // request sharing the single global UDS context.
+      dtcReadInProgress = true;
+      dtcReadRequest_ms = currentMillis;
+    }
+    // Resume periodic polling once the DTC read completes (UDS_moduleID cleared) or times out.
+    if (dtcReadInProgress &&
+        (!gUDSContext.UDS_inProgress && currentMillis - dtcReadRequest_ms > DTC_READ_TIMEOUT_MS)) {
+      dtcReadInProgress = false;
     }
 
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
@@ -921,9 +979,12 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
     // Send 200ms CAN Message
     if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
       previousMillis200 = currentMillis;
-      uds_fast_req_id_counter = increment_uds_req_id_counter(
-          uds_fast_req_id_counter, numFastUDSreqs);  //Loop through and send a different UDS request each cycle
-      transmit_can_frame(UDS_REQUESTS_FAST[uds_fast_req_id_counter]);
+      // Skip the periodic UDS poll while a user DTC read is in flight (shared UDS context).
+      if (!dtcReadInProgress) {
+        uds_fast_req_id_counter = increment_uds_req_id_counter(
+            uds_fast_req_id_counter, numFastUDSreqs);  //Loop through and send a different UDS request each cycle
+        transmit_can_frame(UDS_REQUESTS_FAST[uds_fast_req_id_counter]);
+      }
 
       // Beta - stream 0x53A associated vehicle/contactor STATE indication.
       // 0x53A does NOT drive the contactors (0x10B does - see INFO). For now we stream STATE D
@@ -941,11 +1002,28 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
       previousMillis1000 = currentMillis;
 
-      uds_slow_req_id_counter = increment_uds_req_id_counter(
-          uds_slow_req_id_counter, numSlowUDSreqs);  //Loop through and send a different UDS request each cycle
-      logging.print("Sending UDS_SLOW: ");
-      logging.println(getUDSRequestName(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]));
-      transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]);
+      // Skip the periodic UDS poll while a user DTC read is in flight (shared UDS context).
+      if (!dtcReadInProgress) {
+        uds_slow_req_id_counter = increment_uds_req_id_counter(
+            uds_slow_req_id_counter, numSlowUDSreqs);  //Loop through and send a different UDS request each cycle
+        logging.print("Sending UDS_SLOW: ");
+        logging.println(getUDSRequestName(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]));
+        transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter]);
+      }
+
+      // Vehicle environment frames the SME expects (silence "No message" DTCs).
+      // Only STATIC frames are sent here. Frames that require a rolling counter/CRC on the real
+      // bus (0x1A1, 0x328, 0x433) are intentionally NOT transmitted yet - see VEHICLE TX MAP.
+      transmit_can_frame(&BMW_3A0);  // CAD408 Vehicle condition (BDC) - static
+      transmit_can_frame(&BMW_3CA);  // CAD429 Driving-info forecast (KOMBI) - static
+      transmit_can_frame(&BMW_3E8);  // CAD405 OBD diagnosis, engine control (EME) - static
+
+      // 0x2CA Ambient temperature (KOMBI) - CAD401. byte0 = (T+40)*2 (0.5C/bit, -40 offset);
+      // 0x6E = 15C, a moderate in-range ambient that avoids cold/hot charge derating.
+      // Sent static - no rolling counter needed (the 6F/6E variance in the log was measurement noise).
+      BMW_2CA.data.u8[0] = 0x6E;  // 15 C ambient
+      BMW_2CA.data.u8[1] = 0x6F;
+      transmit_can_frame(&BMW_2CA);
     }
     // Send 5000ms CAN Message
     if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
