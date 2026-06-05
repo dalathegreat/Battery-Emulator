@@ -498,6 +498,10 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Unknown</h4>");
     }
+    content += "<h4>Balancing Request: ";
+    content += datalayer.battery.settings.user_requests_balancing ? String("<span style='color: #43a047;'>True</span>")
+                                                                  : String("False");
+    content += "</h4>";
     content += "</div>";
 
     // Diagnostics Section

@@ -514,7 +514,8 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
     case 1:
       datalayer.battery.status.balancing_status = BALANCING_STATUS_ACTIVE;
       break;
-    case 0:
+    case 0:  // Inactive - not needed
+    case 3:  // Inactive
       datalayer.battery.status.balancing_status = BALANCING_STATUS_READY;
       break;
     case 2:  // Cells not at rest — balancing blocked until they settle
@@ -523,7 +524,7 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
     case 4:
       datalayer.battery.status.balancing_status = BALANCING_STATUS_ERROR;
       break;
-    default:  // 3 (inactive)
+    default:
       datalayer.battery.status.balancing_status = BALANCING_STATUS_UNKNOWN;
       break;
   }
@@ -951,6 +952,12 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       datalayer_extended.bmwphev.UserRequestBMSReset = false;
       uds_one_shot_sent_ms = currentMillis;  // Silence polls for UDS_ONE_SHOT_SILENCE_MS
     }
+    if (datalayer_extended.bmwphev.UserRequestIsolationTest) {
+      logging.println("User requested isolation test");
+      transmit_can_frame(&BMWPHEV_6F1_REQUEST_ISOLATION_TEST);  // Start isolation test routine (0xAD61)
+      datalayer_extended.bmwphev.UserRequestIsolationTest = false;
+      uds_one_shot_sent_ms = currentMillis;  // Silence polls for UDS_ONE_SHOT_SILENCE_MS
+    }
 
     // One-shot at boot: explicitly stop the balancing routine (UDS stopRoutine 0x31 02 AD 6B).
     // A startRoutine latches inside the SME and keeps running until stopped or the SME power-cycles.
@@ -1153,11 +1160,14 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       // Previously startRoutine was sent unconditionally every 10s, so once the cells reached
       // "at rest" (~10 min idle) the latched routine executed, balancing began, and precharge was
       // blocked. START when requested / STOP otherwise stops the spontaneous idle balancing.
+      // NOTE: balancing only works with contactors OPEN and it BLOCKS contactor close while active.
+      // Like the other one-shot UDS commands, guard the polls so the routine reply isn't clobbered.
       if (datalayer.battery.settings.user_requests_balancing) {
         transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_START);  // Enable Balancing
       } else {
         transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_STOP);  // Cancel any latched balancing routine
       }
+      uds_one_shot_sent_ms = currentMillis;  // Silence polls for UDS_ONE_SHOT_SILENCE_MS
     }
   } else {
     // Battery is asleep - try and wake it every 1 seconds

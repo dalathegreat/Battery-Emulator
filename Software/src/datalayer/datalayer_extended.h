@@ -101,9 +101,10 @@ struct DATALAYER_INFO_BMWPHEV {
   uint8_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
   uint8_t balancing_status = 0;
 
-  bool dtc_read_failed = false;     // Indicates last read attempt failed
-  bool UserRequestDTCreset = false; /** User requesting DTC reset via WebUI*/
-  bool UserRequestBMSReset = false; /** User requesting BMS reset via WebUI*/
+  bool dtc_read_failed = false;           // Indicates last read attempt failed
+  bool UserRequestDTCreset = false;       /** User requesting DTC reset via WebUI*/
+  bool UserRequestBMSReset = false;       /** User requesting BMS reset via WebUI*/
+  bool UserRequestIsolationTest = false;  /** User requesting isolation test via WebUI*/
 };
 
 struct DATALAYER_INFO_BMWIX {

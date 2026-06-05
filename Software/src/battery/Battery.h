@@ -111,7 +111,9 @@ class Battery {
   // Like supports_balancing(), but renders independent Start and Stop buttons that are BOTH always
   // visible (instead of a single toggle). Used by batteries where balancing is a latching request.
   virtual bool supports_balancing_request() { return false; }
+  virtual bool supports_isolation_test() { return false; }
 
+  virtual void request_isolation_test() {}
   virtual void clear_isolation() {}
   virtual void calibrate_SOC() {}
   virtual void reset_BMS() {}
