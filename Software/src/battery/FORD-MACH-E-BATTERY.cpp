@@ -232,12 +232,12 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
 
       //Celltemperatures
-      cell_temperature[0] = ((rx_frame.data.u8[2] - 40) / 2);
-      cell_temperature[1] = ((rx_frame.data.u8[3] - 40) / 2);
-      cell_temperature[2] = ((rx_frame.data.u8[4] - 40) / 2);
-      cell_temperature[3] = ((rx_frame.data.u8[5] - 40) / 2);
-      cell_temperature[4] = ((rx_frame.data.u8[6] - 40) / 2);
-      cell_temperature[5] = ((rx_frame.data.u8[7] - 40) / 2);
+      cell_temperature[0] = ((rx_frame.data.u8[2] - 30) / 2);
+      cell_temperature[1] = ((rx_frame.data.u8[3] - 30) / 2);
+      cell_temperature[2] = ((rx_frame.data.u8[4] - 30) / 2);
+      cell_temperature[3] = ((rx_frame.data.u8[5] - 30) / 2);
+      cell_temperature[4] = ((rx_frame.data.u8[6] - 30) / 2);
+      cell_temperature[5] = ((rx_frame.data.u8[7] - 30) / 2);
       break;
     case 0x4a4:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
