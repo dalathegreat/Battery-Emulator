@@ -223,6 +223,8 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     logging.println("MG5: Detected UDS address 0x7E5");
   }
 
+  uint32_t v, i;
+
   switch (rx_frame.ID) {
     case 0x297: {                                                          //BMS state
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
@@ -312,15 +314,17 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if ((((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) != 0) {
         // 3AC message contains a nonzero voltage (so must have come from PTCAN)
 
-        // battery voltage
+        // Battery voltage
         v = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]);
-        if (v > 0 && v < 4000) {
-          datalayer.battery.status.voltage_dV = v * 2.5;
-        }
         // Current
-        v = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
-        if (v > 0 && v < 0xf000) {
-          datalayer.battery.status.current_dA = -(v - 20000) * 0.5;
+        i = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
+
+        if (v > 0 && v < 2400 && i > 16000 && i < 24000) {
+          // 3AC message contains a credible voltage and current (so must have come from PTCAN)
+          // (voltage between 0 and 600V, current between -200A and +200A)
+
+          datalayer.battery.status.voltage_dV = (v * 5) / 2;
+          datalayer.battery.status.current_dA = -(i - 20000) / 2;
         }
 
         // SOC
