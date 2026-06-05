@@ -271,6 +271,14 @@ uint8_t BmwPhevBattery::increment_alive_counter(uint8_t counter) {
 
 void BmwPhevBattery::PhevCloseContactors(void) {
   logging.println("Closing contactors (0x10B)");
+  // Balancing BLOCKS contactor close in the SME. Before the 0x10B driver is allowed to close, we
+  // must make sure balancing is cancelled. Clear the user flag (so the 10s UDS loop sends stopRoutine
+  // instead of startRoutine) AND kick off a short pre-close phase that sends several guarded
+  // stopRoutine frames (one per UDS-guard window). 0x10B close is held off until those are sent
+  // (see phev_pre_close_stops_remaining gating in the 20ms block).
+  datalayer.battery.settings.user_requests_balancing = false;
+  phev_pre_close_stops_remaining = PHEV_PRE_CLOSE_STOP_COUNT;
+  phev_pre_close_stop_last_ms = 0;  // 0 = send the first stop immediately
   contactorCloseReq = true;
   contactor_close_start_ms = millis();  // Start of STATE B closing phase
 }
@@ -971,6 +979,19 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       uds_one_shot_sent_ms = currentMillis;  // Silence polls for UDS_ONE_SHOT_SILENCE_MS
     }
 
+    // Pre-close balancing-stop phase. When a contactor close is requested we send several guarded
+    // stopRoutine frames (one per UDS-guard window) to make sure balancing is cancelled in the SME
+    // before 0x10B is allowed to close. Each send silences the UDS polls so it isn't clobbered.
+    if (phev_pre_close_stops_remaining > 0 &&
+        (phev_pre_close_stop_last_ms == 0 ||
+         currentMillis - phev_pre_close_stop_last_ms >= PHEV_PRE_CLOSE_STOP_INTERVAL_MS)) {
+      logging.println("Pre-close: sending balancing stopRoutine");
+      transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_STOP);
+      uds_one_shot_sent_ms = currentMillis;  // Silence polls for UDS_ONE_SHOT_SILENCE_MS
+      phev_pre_close_stop_last_ms = currentMillis;
+      phev_pre_close_stops_remaining--;
+    }
+
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
 
@@ -985,8 +1006,11 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       //  - the 0x53A state machine has finished announcing STATE B (reached ESCALATED/STEADY).
       //    The OEM bus announces "close requested" on 0x53A for ~3.5s BEFORE 0x10B closes; doing
       //    both at once was triggering an intermittent open->close safety warning.
+      //  - the pre-close balancing-stop frames have all been sent (phev_pre_close_stops_remaining==0),
+      //    so balancing can't be blocking the close.
       bool allow_can_close = (!contactor_control_enabled) && contactorCloseReq && (startup_counter_contactor >= 160) &&
-                             (phev_53a_state == PHEV_53A_ESCALATED || phev_53a_state == PHEV_53A_STEADY);
+                             (phev_53a_state == PHEV_53A_ESCALATED || phev_53a_state == PHEV_53A_STEADY) &&
+                             (phev_pre_close_stops_remaining == 0);
       if (allow_can_close) {
         BMW_10B.data.u8[1] = 0x10;  // Close contactors
         //BMW_10B.data.u8[1] = 0xD0;  // Close contactors v2

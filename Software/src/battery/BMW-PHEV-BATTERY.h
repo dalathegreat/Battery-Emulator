@@ -488,6 +488,13 @@ class BmwPhevBattery : public CanBattery {
   bool userRequestContactorOpen = false;
   bool contactorCloseReq = false;              // Desired contactor state: true = stream closing/steady frames
   unsigned long contactor_close_start_ms = 0;  // millis() when a close was last requested
+  // Pre-close balancing-stop phase: number of guarded stopRoutine frames still to send before 0x10B
+  // is allowed to close (balancing blocks contactor close in the SME), and the timestamp of the last
+  // one sent (0 = send immediately).
+  uint8_t phev_pre_close_stops_remaining = 0;
+  unsigned long phev_pre_close_stop_last_ms = 0;
+  static const uint8_t PHEV_PRE_CLOSE_STOP_COUNT = 3;                 // Number of stops to send before close
+  static const unsigned long PHEV_PRE_CLOSE_STOP_INTERVAL_MS = 1000;  // One per UDS-guard window
   // How long to stream the STATE B closing frame before settling to STATE D steady (observed ~3.5s)
   static const unsigned long CONTACTOR_CLOSE_REQUEST_DURATION_MS = 3500;
 
