@@ -223,7 +223,7 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
   uint8_t pid_time = NOT_SAMPLED_YET;
   uint8_t pid_lores_odometer = NOT_SAMPLED_YET;
   uint8_t pid_engine_runtime = NOT_SAMPLED_YET;
-  uint8_t pid_hvb_calendar_age_months = NOT_SAMPLED_YET;  //Could be max module voltage PID?
+  uint16_t pid_hvb_calendar_age_months = NOT_SAMPLED_YET;
   uint16_t pid_battery_capacity_ah = NOT_SAMPLED_YET;
   uint8_t pid_maintenance_rebalance_status = NOT_SAMPLED_YET;
 
