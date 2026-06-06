@@ -369,8 +369,8 @@ TwsRoute uploadHandler2("/ota/upload",
         request.finish();
     })
 );
-MultipartUploadHandler uploadWotsit(&uploadHandler2, new TwsFileUploadHandlerFunc([](TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final) {
-    DEBUG_PRINTF("Received upload: key: %s, filename: %s, index: %zu, len: %zu, end: %zu, final: %d\n", key, filename, index, len, index+len, final);
+MultipartUploadHandler uploadWotsit(&uploadHandler2, new TwsFileUploadHandlerFunc([](TwsRequest &request, std::string_view key, std::string_view filename, size_t index, uint8_t *data, size_t len, bool final) {
+    DEBUG_PRINTF("Received upload: key: %.*s, filename: %.*s, index: %zu, len: %zu, end: %zu, final: %d\n", (int)key.size(), key.data(), (int)filename.size(), filename.data(), index, len, index+len, final);
     // FILE *myfile = fopen("/tmp/blah.bin", "a");
     // fwrite(data, 1, len, myfile);
     // fclose(myfile);

@@ -1,13 +1,13 @@
 #include "TinyWebServer.h"
 #include "BasicAuth.h"
 
-void BasicAuth::handleHeader(TwsRequest &request, const char *line, int len) {
+void BasicAuth::handleHeader(TwsRequest &request, std::string_view line) {
     auto &state = get_state(request);
-    if(strcmp(line, "Authorization: Basic YXV0aDphdXRo") == 0) {
+    if(line == "Authorization: Basic YXV0aDphdXRo") {
         state.authed = true;
     }
     // Automatically forward to next via base class
-    TwsMiddleware::handleHeader(request, line, len);
+    TwsMiddleware::handleHeader(request, line);
 }
 
 bool BasicAuth::denyIfUnauthed(TwsRequest &request) {

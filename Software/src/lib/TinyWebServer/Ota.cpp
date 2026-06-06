@@ -1,3 +1,4 @@
+#include <string>
 #include "TinyWebServer.h"
 #include "Ota.h"
 
@@ -33,17 +34,20 @@ void OtaStart::handleRequest(TwsRequest &request) {
     TwsMiddleware::handleRequest(request);
 }
 
-void OtaStart::handleQueryParam(TwsRequest &request, const char *param, int len, bool final) {
+void OtaStart::handleQueryParam(TwsRequest &request, std::string_view param, bool final) {
     auto &state = get_state(request);
-    //printf("got query param %s\n", param);
-    if(strcmp(param, "mode=fs") == 0) {
+    //printf("got query param %.*s\n", (int)param.size(), param.data());
+    if(param == "mode=fs") {
         state.mode = 1; // filesystem mode
     }
     // if param starts with hash=
-    if(strncmp(param, "hash=", 5) == 0) {
-        //printf("hash: %s\n", param + 5);
+    if(param.size() >= 5 && param.substr(0, 5) == "hash=") {
+        //printf("hash: %.*s\n", (int)param.size() - 5, param.data() + 5);
         #ifndef LOCAL
-        if (!Update.setMD5(param + 5)) {
+        char md5_buf[33];
+        memcpy(md5_buf, param.data() + 5, 32);
+        md5_buf[32] = '\0';
+        if (!Update.setMD5(md5_buf)) {
             //printf("Update.setMD5 failed!\n");
             request.send(400, "text/plain", "MD5 parameter invalid.");
             request.finish();
@@ -52,7 +56,7 @@ void OtaStart::handleQueryParam(TwsRequest &request, const char *param, int len,
     }
 
     if(nextQueryParam) {
-        nextQueryParam->handleQueryParam(request, param, len, final);
+        nextQueryParam->handleQueryParam(request, param, final);
     }
 }
 

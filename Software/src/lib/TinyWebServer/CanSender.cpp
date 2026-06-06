@@ -83,16 +83,16 @@ bool send_can_frame(CAN_Interface interface, const CAN_frame &frame, bool log) {
     return false;
 }
 
-void CanSender::handleQueryParam(TwsRequest &request, const char *param, int len, bool final) {
+void CanSender::handleQueryParam(TwsRequest &request, std::string_view param, bool final) {
     auto &state = get_state(request);
     // if param starts with if=
-    if(strncmp(param, "if=", 3) == 0) {
-        state.can_interface = atoi(param + 3);
-    // } else if(strncmp(param, "log=", 4) == 0) {
+    if(param.size() >= 3 && param.substr(0, 3) == "if=") {
+        state.can_interface = atoi(param.data() + 3);
+    // } else if(param.size() >= 4 && param.substr(0, 4) == "log=") {
     //     state.log = param[4] == '1';
     }
     if(nextQueryParam) {
-        nextQueryParam->handleQueryParam(request, param, len, final);
+        nextQueryParam->handleQueryParam(request, param, final);
     }
 }
 

@@ -1,3 +1,4 @@
+#include <string>
 #include "TinyWebServer.h"
 #include "DigestAuth.h"
 
@@ -53,22 +54,21 @@ DigestAuth<HASH_CONTEXT, HASH_TYPE>::DigestAuth(GetPasswordHashFunc getPasswordH
 }
 
 template <typename HASH_CONTEXT, int HASH_TYPE>
-void DigestAuth<HASH_CONTEXT, HASH_TYPE>::handleHeader(TwsRequest &request, const char *line, int len) {
-    const char *line_ptr = line;
-    while(len > 0) {
-        // All headers goo via the partial handler
-        int consumed = this->handlePartialHeader(request, line_ptr, len, true);
+void DigestAuth<HASH_CONTEXT, HASH_TYPE>::handleHeader(TwsRequest &request, std::string_view line) {
+    std::string_view remaining = line;
+    while(!remaining.empty()) {
+        // All headers go via the partial handler
+        int consumed = this->handlePartialHeader(request, remaining, true);
         if(consumed <= 0) {
             // It didn't like the full header at all? give up!
             break;
         }
         // The handler might not have consumed the whole header, so advance the
         // pointer and go around again.
-        line_ptr += consumed;
-        len -= consumed;
+        remaining.remove_prefix(consumed);
     }
 
-    TwsMiddleware::handleHeader(request, line, len);
+    TwsMiddleware::handleHeader(request, line);
 }
 
 enum {
@@ -90,7 +90,7 @@ enum {
 };
 
 template <typename HASH_CONTEXT, int HASH_TYPE>
-int DigestAuth<HASH_CONTEXT, HASH_TYPE>::handlePartialHeader(TwsRequest &request, const char *line, int len, bool final) {
+int DigestAuth<HASH_CONTEXT, HASH_TYPE>::handlePartialHeader(TwsRequest &request, std::string_view chunk, bool final) {
     auto &state = this->get_state(request);
 
     // Temporary buffer for the hex representation of hash output.
@@ -98,31 +98,31 @@ int DigestAuth<HASH_CONTEXT, HASH_TYPE>::handlePartialHeader(TwsRequest &request
     char hash_output_hex[64];
 
     // By default we consume the whole buffer.
-    int consumed = len;
+    int consumed = chunk.size();
 
     auto parse_into_hash = [&](auto hash, char delimiter, const char* suffix) -> bool {
         // Feed data into the supplied hasher up until the delimiter.
         // If a suffix is supplied, feed that into the hash at the end.
-        char *value_end = strchr((char*)line, delimiter);
-        if(value_end) {
+        size_t value_end_idx = chunk.find(delimiter);
+        if (value_end_idx != std::string_view::npos) {
             // Found ending delimiter
-            int value_len = value_end - line;
-            hash->update(line, value_len);
+            int value_len = (int)value_end_idx;
+            hash->update(chunk.data(), value_len);
             if(suffix && *suffix) {
                 hash->update(suffix, strlen(suffix));
             }
             consumed = value_len + 1; // +1 to include the delimiter
             return true;
         } else {
-            hash->update(line, len);
+            hash->update(chunk.data(), chunk.size());
         }
         return false;
     };
 
-    auto check_auth = [&](const char hash_hex[]) {
+    auto check_auth = [&](std::string_view response_hex) {
         // Check whether we successfully authenticated.
-        printf("Checking auth: %.*s : %.*s\n", state.r.getHashLengthHex(), state.response, state.r.getHashLengthHex(), hash_hex);
-        if(strncmp(state.response, hash_hex, state.r.getHashLengthHex()) == 0) {
+        // printf("Checking auth: %.*s : %.*s\n", state.r.getHashLengthHex(), state.response, state.r.getHashLengthHex(), response_hex.data());
+        if (response_hex.size() >= (size_t)state.r.getHashLengthHex() && strncmp(state.response, response_hex.data(), state.r.getHashLengthHex()) == 0) {
             state.authed = true;
         } else {
             state.authed = false;
@@ -132,7 +132,7 @@ int DigestAuth<HASH_CONTEXT, HASH_TYPE>::handlePartialHeader(TwsRequest &request
 
     switch(state.parse_state) {
     case PARSING_HEADER_NAME: // header name
-        if(strncasecmp(line, "Authorization:", 14) == 0) {
+        if (chunk.size() >= 14 && strncasecmp(chunk.data(), "Authorization:", 14) == 0) {
             state.parse_state = PARSING_AUTH_TYPE;
             state.response[0] = '\0'; // reset response
             hash_output_hex[0] = '\0'; // reset hash output hex
@@ -152,49 +152,47 @@ int DigestAuth<HASH_CONTEXT, HASH_TYPE>::handlePartialHeader(TwsRequest &request
         // Probably a different header, skip it.
         return 0; 
     case PARSING_AUTH_TYPE: // auth type
-        if(strncasecmp(line, "Digest ", 7) == 0) {
+        if(strncasecmp(chunk.data(), "Digest ", 7) == 0) {
             state.parse_state = PARSING_KEY;
             consumed = 7;
         }
         goto trim;
     case PARSING_KEY: // key (of a key=value pair)
-        if(strncasecmp(line, "username=\"", 10) == 0) {
+        if (chunk.size() >= 10 && strncasecmp(chunk.data(), "username=\"", 10) == 0) {
             state.parse_state = PARSING_USERNAME;
             consumed = 10;
-        } else if(state.hash_state == HASHED_HA1 && strncasecmp(line, "nonce=\"", 7) == 0) {
+        } else if (state.hash_state == HASHED_HA1 && chunk.size() >= 7 && strncasecmp(chunk.data(), "nonce=\"", 7) == 0) {
             state.parse_state = PARSING_NONCE; // parse nonce
             consumed = 7;
-        } else if(strncasecmp(line, "uri=\"", 5) == 0) {
+        } else if (chunk.size() >= 5 && strncasecmp(chunk.data(), "uri=\"", 5) == 0) {
             state.parse_state = PARSING_URI; // parse uri
             consumed = 5;
-        } else if(strncasecmp(line, "response=\"", 10) == 0) {
+        } else if (chunk.size() >= 10 && strncasecmp(chunk.data(), "response=\"", 10) == 0) {
             state.parse_state = PARSING_RESPONSE; // parse response
             consumed = 10;
-        } else if(state.hash_state == HASHED_NONCE && strncasecmp(line, "nc=", 3) == 0) {
+        } else if (state.hash_state == HASHED_NONCE && chunk.size() >= 3 && strncasecmp(chunk.data(), "nc=", 3) == 0) {
             state.parse_state = PARSING_NC; // parse nc
             consumed = 3;
-        } else if(strncasecmp(line, "cnonce=\"", 8) == 0) {
+        } else if (chunk.size() >= 8 && strncasecmp(chunk.data(), "cnonce=\"", 8) == 0) {
             state.parse_state = PARSING_CNONCE; // parse cnonce
             consumed = 8;
         } else {
             // skip past the next comma
-            const char *comma = strchr(line, ',');
-            if(comma) {
-                consumed = comma - line + 1; // +1 to include the comma
+            size_t comma_idx = chunk.find(',');
+            if (comma_idx != std::string_view::npos) {
+                consumed = (int)comma_idx + 1; // +1 to include the comma
             }
             goto trim;
         }
         goto skip_trim;
     case PARSING_USERNAME: // username
         {
-            char *username_end = strchr((char*)line, '"');
-            if(username_end) {
-                consumed = username_end - line + 1; // +1 to include the closing quote
-                state.parse_state = PARSING_KEY;
+            size_t username_end_idx = chunk.find('"');
+            if (username_end_idx != std::string_view::npos) {
+                consumed = (int)username_end_idx + 1; // +1 to include the closing quote
 
-                *username_end = '\0'; // terminate the string
-
-                int ha1_len = getPasswordHash(line, hash_output_hex);
+                std::string username(chunk.substr(0, username_end_idx));
+                int ha1_len = getPasswordHash(username.c_str(), hash_output_hex);
                 state.r.update(hash_output_hex, ha1_len);
                 state.r.update(":", 1);
                 state.hash_state = HASHED_HA1; // {ha1}:
@@ -208,35 +206,35 @@ int DigestAuth<HASH_CONTEXT, HASH_TYPE>::handlePartialHeader(TwsRequest &request
         }
         goto trim;
     case PARSING_NONCE: // nonce
-        if(len>=NONCE_LENGTH && sessionManager) {
+        if (chunk.size() >= NONCE_LENGTH && sessionManager) {
             // Store the nonce for checking with the session manager later
-            memcpy(state.nonce.data(), line, NONCE_LENGTH);
+            memcpy(state.nonce.data(), chunk.data(), NONCE_LENGTH);
         }
-        if(parse_into_hash(&state.r, '"', ":")) {
+        if (parse_into_hash(&state.r, '"', ":")) {
             state.parse_state = PARSING_KEY;
             state.hash_state = HASHED_NONCE; // {ha1}:{nonce}:
             goto trim;
         }
         goto skip_trim;
     case PARSING_URI: // uri
-        if(parse_into_hash(&state.ha2, '"', "")) {
+        if (parse_into_hash(&state.ha2, '"', "")) {
             state.parse_state = PARSING_KEY;
             goto trim;
         }
         goto skip_trim;
     case PARSING_RESPONSE:
         {
-            char *response_end = strchr((char*)line, '"');
-            if(response_end) {
-                consumed = response_end - line + 1; // +1 to include the closing quote
+            size_t response_end_idx = chunk.find('"');
+            if (response_end_idx != std::string_view::npos) {
+                consumed = (int)response_end_idx + 1; // +1 to include the closing quote
                 state.parse_state = PARSING_KEY;
 
-                if(state.response[0] == '\0') {
+                if (state.response[0] == '\0') {
                     // We're receiving the response param before we've calculated the hash,
                     // so store and we'll check later.
-                    memcpy(state.response, line, state.r.getHashLengthHex());
+                    memcpy(state.response, chunk.data(), state.r.getHashLengthHex());
                 } else {
-                    check_auth(line);
+                    check_auth(chunk.substr(0, response_end_idx));
                 }
             } else {
                 // wait for a complete string
@@ -247,18 +245,18 @@ int DigestAuth<HASH_CONTEXT, HASH_TYPE>::handlePartialHeader(TwsRequest &request
         }
         goto trim;   
     case PARSING_NC: // nc
-        if(len>=8 && sessionManager) {
+        if (chunk.size() >= 8 && sessionManager) {
             // Should always be 8 hex digits
             char nc_str[9];
-            memcpy(nc_str, line, 8);
+            memcpy(nc_str, chunk.data(), 8);
             nc_str[8] = '\0';
             uint32_t nc = strtoul(nc_str, nullptr, 16);
-            if(!sessionManager->check(state.nonce, nc)) {
+            if (!sessionManager->check(state.nonce, nc)) {
                 state.denied = true;
             }
         }
 
-        if(parse_into_hash(&state.r, ',', ":")) {
+        if (parse_into_hash(&state.r, ',', ":")) {
             state.parse_state = PARSING_KEY;
             state.hash_state = HASHED_NC; // {ha1}:{nonce}:{nc}:
             goto trim;
@@ -267,22 +265,22 @@ int DigestAuth<HASH_CONTEXT, HASH_TYPE>::handlePartialHeader(TwsRequest &request
     case PARSING_CNONCE: // cnonce
         // Special case for cURL which annoyingly sends nc after cnonce (despite
         // it needing to be before it in the hash).
-        if(state.hash_state == HASHED_NONCE) {
+        if (state.hash_state == HASHED_NONCE) {
             // Hope that the full nc is later on in the buffer
-            char* nc_start = strstr((char*)line, "\", nc=");
-            if(nc_start) {
-                nc_start += 6;
+            size_t nc_start_idx = chunk.find("\", nc=");
+            if (nc_start_idx != std::string_view::npos) {
+                size_t nc_val_start_idx = nc_start_idx + 6;
 
-                char* nc_end = strchr(nc_start, ',');
-                if(nc_end) {
-                    state.r.update(nc_start, nc_end - nc_start);
+                size_t nc_end_idx = chunk.find(',', nc_val_start_idx);
+                if (nc_end_idx != std::string_view::npos) {
+                    state.r.update(chunk.data() + nc_val_start_idx, nc_end_idx - nc_val_start_idx);
                     state.r.update(":", 1);
                     state.hash_state = HASHED_NC; // {ha1}:{nonce}:{nc}:
                 }
             }
         }
 
-        if(state.hash_state == HASHED_NC && parse_into_hash(&state.r, '"', "")) {
+        if (state.hash_state == HASHED_NC && parse_into_hash(&state.r, '"', "")) {
             state.parse_state = PARSING_KEY;
 
             // Finish calculating ha2 and convert to hex.
@@ -293,7 +291,7 @@ int DigestAuth<HASH_CONTEXT, HASH_TYPE>::handlePartialHeader(TwsRequest &request
             state.r.update(hash_output_hex, state.ha2.getHashLengthHex());
             state.r.toHex(hash_output_hex);
 
-            if(state.response[0] == '\0') {
+            if (state.response[0] == '\0') {
                 // We haven't received the response param yet, so store the hash
                 // there instead and we'll compare later.
                 memcpy(state.response, hash_output_hex, state.r.getHashLengthHex());
@@ -304,25 +302,25 @@ int DigestAuth<HASH_CONTEXT, HASH_TYPE>::handlePartialHeader(TwsRequest &request
         }
         goto skip_trim;
     default:
-        DEBUG_PRINTF("erk rest of header: %.*s\n", len, line);
+        DEBUG_PRINTF("erk rest of header: %.*s\n", (int)chunk.size(), chunk.data());
         DEBUG_PRINTF("erk consuming %d\n", consumed);
     }
 
 trim:
-    // line is nul-terminated so this is safe
-    while(line[consumed] == ' ' || line[consumed] == '\t') {
+    // chunk is nul-terminated (by TwsRequest) so this is safe
+    while (consumed < (int)chunk.size() && (chunk[consumed] == ' ' || chunk[consumed] == '\t')) {
         consumed++;
     }
 skip_trim:
 
     //printf("state is now %d, consumed %d\n", state.parse_state, consumed);
-    if(consumed==0) {
+    if (consumed == 0) {
         DEBUG_PRINTF("erk, no consumed bytes, state is %d\n", state.parse_state);
     }
 
-    if(consumed==len && final) state.parse_state = PARSING_HEADER_NAME; // reset state after final
+    if (consumed == (int)chunk.size() && final) state.parse_state = PARSING_HEADER_NAME; // reset state after final
 
-    TwsMiddleware::handlePartialHeader(request, line, len, final);
+    TwsMiddleware::handlePartialHeader(request, chunk, final);
     return consumed;
 }
 

@@ -2,6 +2,7 @@
 #define TWS_HANDLER_H
 
 #include <functional>
+#include <string_view>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -18,25 +19,25 @@ public:
 class TwsHeaderHandler {
 public:
     // Called when a complete HTTP header line is received.
-    virtual void handleHeader(TwsRequest &request, const char *line, int len) = 0;
+    virtual void handleHeader(TwsRequest &request, std::string_view line) = 0;
 };
 
 class TwsPartialHeaderHandler {
 public:
     // Called for chunks of a header line. Returns bytes consumed. 'final' is true if this is the end of the line.
-    virtual int handlePartialHeader(TwsRequest &request, const char *line, int len, bool final) = 0;
+    virtual int handlePartialHeader(TwsRequest &request, std::string_view chunk, bool final) = 0;
 };
 
 class TwsQueryParamHandler {
 public:
     // Called for each query string parameter found in the URL. 'final' is true if this is the last parameter.
-    virtual void handleQueryParam(TwsRequest &request, const char *param, int len, bool final) = 0;
+    virtual void handleQueryParam(TwsRequest &request, std::string_view param, bool final) = 0;
 };
 
 class TwsFileUploadHandler {
 public:
     // Called when a file chunk is received during a multipart upload. 'final' is true if this is the last chunk.
-    virtual void handleUpload(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final) = 0;
+    virtual void handleUpload(TwsRequest &request, std::string_view key, std::string_view filename, size_t index, uint8_t *data, size_t len, bool final) = 0;
 };
 
 class TwsRequestHandler {
@@ -69,17 +70,17 @@ public:
     TwsAllocableHandler *nextAlloc = nullptr;
 
     // --- Default Pass-Through Implementations ---
-    virtual void handleHeader(TwsRequest &request, const char *line, int len) override {
-        if (nextHeader) nextHeader->handleHeader(request, line, len);
+    virtual void handleHeader(TwsRequest &request, std::string_view line) override {
+        if (nextHeader) nextHeader->handleHeader(request, line);
     }
     
-    virtual int handlePartialHeader(TwsRequest &request, const char *line, int len, bool final) override {
-        if (nextPartialHeader) return nextPartialHeader->handlePartialHeader(request, line, len, final);
-        return len; // Consume by default to prevent hangs
+    virtual int handlePartialHeader(TwsRequest &request, std::string_view chunk, bool final) override {
+        if (nextPartialHeader) return nextPartialHeader->handlePartialHeader(request, chunk, final);
+        return chunk.size(); // Consume by default to prevent hangs
     }
 
-    virtual void handleQueryParam(TwsRequest &request, const char *param, int len, bool final) override {
-        if (nextQueryParam) nextQueryParam->handleQueryParam(request, param, len, final);
+    virtual void handleQueryParam(TwsRequest &request, std::string_view param, bool final) override {
+        if (nextQueryParam) nextQueryParam->handleQueryParam(request, param, final);
     }
     
     virtual int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override {
@@ -122,15 +123,15 @@ public:
 
 class TwsFileUploadHandlerFunc : public TwsFileUploadHandler {
 public:
-    TwsFileUploadHandlerFunc(std::function<void(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final)> onUpload) :
+    TwsFileUploadHandlerFunc(std::function<void(TwsRequest &request, std::string_view key, std::string_view filename, size_t index, uint8_t *data, size_t len, bool final)> onUpload) :
         onUpload(onUpload) {
     }
 
-    void handleUpload(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final) override {
+    void handleUpload(TwsRequest &request, std::string_view key, std::string_view filename, size_t index, uint8_t *data, size_t len, bool final) override {
         onUpload(request, key, filename, index, data, len, final);
     }
 
-    std::function<void(TwsRequest &request, const char *key, const char *filename, size_t index, uint8_t *data, size_t len, bool final)> onUpload;
+    std::function<void(TwsRequest &request, std::string_view key, std::string_view filename, size_t index, uint8_t *data, size_t len, bool final)> onUpload;
 };
 
 class TwsRequestHandlerFunc : public TwsRequestHandler {

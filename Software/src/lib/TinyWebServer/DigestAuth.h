@@ -102,8 +102,8 @@ template<typename HASH_CONTEXT, int HASH_TYPE>
 class DigestAuth : public TwsStatefulMiddleware<DigestAuthState<HASH_CONTEXT>> {
 public:
     DigestAuth(GetPasswordHashFunc getPasswordHash, DigestAuthSessionManager *sessionManager = nullptr);
-    void handleHeader(TwsRequest &request, const char *line, int len) override;
-    int handlePartialHeader(TwsRequest &request, const char *line, int len, bool final) override;
+    void handleHeader(TwsRequest &request, std::string_view line) override;
+    int handlePartialHeader(TwsRequest &request, std::string_view line, bool final) override;
     bool denyIfUnauthed(TwsRequest &request);
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
     void handleRequest(TwsRequest &request) override;

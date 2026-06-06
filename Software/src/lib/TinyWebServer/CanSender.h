@@ -20,8 +20,8 @@ class CanSender : public TwsStatefulMiddleware<CanSenderState> {
 public:
     CanSender() = default;
 
-    //void handleHeader(TwsRequest &request, const char *line, int len) override;
-    void handleQueryParam(TwsRequest &request, const char *param, int len, bool final) override;
+    //void handleHeader(TwsRequest &request, std::string_view line) override;
+    void handleQueryParam(TwsRequest &request, std::string_view param, bool final) override;
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
 
     TwsQueryParamHandler *nextQueryParam = nullptr;

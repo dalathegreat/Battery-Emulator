@@ -18,7 +18,7 @@ class MultipartUploadHandler : public TwsStatefulMiddleware<MultipartUploadHandl
 public:
     MultipartUploadHandler(TwsFileUploadHandler *onUpload = nullptr);
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
-    void handleHeader(TwsRequest &request, const char *line, int len) override;
+    void handleHeader(TwsRequest &request, std::string_view line) override;
 
     TwsFileUploadHandler *onUpload = nullptr;
 };

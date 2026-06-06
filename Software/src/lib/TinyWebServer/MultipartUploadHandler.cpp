@@ -140,22 +140,22 @@ int MultipartUploadHandler::handlePostBody(TwsRequest &request, size_t index, ui
     return (ret == -1) ? len : ret;
 }
 
-void MultipartUploadHandler::handleHeader(TwsRequest &request, const char *line, int len) {
+void MultipartUploadHandler::handleHeader(TwsRequest &request, std::string_view line) {
     auto &state = get_state(request);
 
-    if(strncasecmp(line, "Content-Length:", 15) == 0) {
+    if (line.size() >= 15 && strncasecmp(line.data(), "Content-Length:", 15) == 0) {
         char *endptr;
-        int content_length = strtol(line + 15, &endptr, 10);
-        if (endptr != line + 15 && content_length > 0) {
+        int content_length = strtol(line.data() + 15, &endptr, 10);
+        if (endptr != line.data() + 15 && content_length > 0) {
             state.content_length = content_length;
         }
-    } else if(strncasecmp(line, "Content-Type:", 13) == 0) {
+    } else if (line.size() >= 13 && strncasecmp(line.data(), "Content-Type:", 13) == 0) {
         // Check for multipart boundary
-        char *boundary = (char*)strstr(line, "boundary=");
+        const char *boundary = strstr(line.data(), "boundary=");
         if (boundary) {
             boundary += 9; // Skip "boundary="
             //int end = len;
-            const char *end = line + len - 1;
+            const char *end = line.data() + line.size() - 1;
             if(*end == ';') end--;
             size_t blen = end - boundary;
             if(blen > sizeof(state.boundary) - 8) {
@@ -165,9 +165,9 @@ void MultipartUploadHandler::handleHeader(TwsRequest &request, const char *line,
                 state.boundary[1] = '\n';
                 state.boundary[2] = '-';
                 state.boundary[3] = '-';
-                strncpy(state.boundary + 4, boundary, blen+1);
-                state.boundary[blen + 5] = '\0';
-                state.boundary_length = blen + 5;
+                strncpy(state.boundary + 4, boundary, blen);
+                state.boundary[blen + 4] = '\0';
+                state.boundary_length = blen + 4;
                 state.file_start = -1; // Reset file start index
                 state.part_header_end_index = -1;
                 // start after the first \r\n which will have already been consumed
@@ -177,5 +177,5 @@ void MultipartUploadHandler::handleHeader(TwsRequest &request, const char *line,
         }
     }
 
-    TwsMiddleware::handleHeader(request, line, len);
+    TwsMiddleware::handleHeader(request, line);
 }

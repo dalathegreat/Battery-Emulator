@@ -11,7 +11,7 @@ class BasicAuth : public TwsStatefulMiddleware<BasicAuthState> {
 public:
     BasicAuth() = default;
 
-    void handleHeader(TwsRequest &request, const char *line, int len) override;
+    void handleHeader(TwsRequest &request, std::string_view line) override;
     int handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) override;
     void handleRequest(TwsRequest &request) override;
 private:

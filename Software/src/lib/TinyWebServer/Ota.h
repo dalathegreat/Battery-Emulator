@@ -12,7 +12,7 @@ public:
     OtaStart() = default;
 
     void handleRequest(TwsRequest &request) override;
-    void handleQueryParam(TwsRequest &request, const char *param, int len, bool final) override;
+    void handleQueryParam(TwsRequest &request, std::string_view param, bool final) override;
     
     TwsQueryParamHandler *nextQueryParam = nullptr;
 };

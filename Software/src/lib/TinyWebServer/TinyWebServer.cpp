@@ -91,36 +91,59 @@ void TinyWebServer::open_listen_port() {
     fcntl(_listen_socket, F_SETFL, flags | O_NONBLOCK);
 }
 
-char* trim_delimiter_and_whitespace(char *str, int *len) {
-    // Modify the string in-place to remove the last character and trim leading
-    // and trailing whitespace, and return a pointer to the start of the trimmed
-    // string (with whitespace skipped). A nul terminator is added after the
-    // last non-white-space character.
+// char* trim_delimiter_and_whitespace(char *str, int *len) {
+//     // Modify the string in-place to remove the last character and trim leading
+//     // and trailing whitespace, and return a pointer to the start of the trimmed
+//     // string (with whitespace skipped). A nul terminator is added after the
+//     // last non-white-space character.
 
-    // The new length of the string is written back to *len.
+//     // The new length of the string is written back to *len.
 
-    (*len)--;
-    while(*len > 0 && (str[(*len)-1]==' ' || str[(*len)-1]=='\r' || str[(*len)-1]=='\n')) {
-        (*len)--;
+//     (*len)--;
+//     while(*len > 0 && (str[(*len)-1]==' ' || str[(*len)-1]=='\r' || str[(*len)-1]=='\n')) {
+//         (*len)--;
+//     }
+//     str[*len] = '\0'; // Null-terminate the trimmed string
+//     return str;
+// };
+
+std::string_view trim_trailing_whitespace(std::string_view str) {
+    size_t end_pos = str.find_last_not_of(" \r\n");
+    if (end_pos == std::string_view::npos) {
+        // The string is entirely trailing whitespace (or empty)
+        str = {};
+    } else {
+        str = str.substr(0, end_pos + 1);
     }
-    str[*len] = '\0'; // Null-terminate the trimmed string
+
     return str;
+}
+
+std::string_view trim_whitespace(std::string_view str) {
+    size_t start_pos = str.find_first_not_of(" \r\n");
+    if (start_pos == std::string_view::npos) {
+        // The string is entirely whitespace (or empty)
+        return {};
+    }
+    str.remove_prefix(start_pos);
+
+    return trim_trailing_whitespace(str);
 };
 
-char* trim_delimiter_and_trailing_whitespace(char *str, int *len) {
-    // Like trim_delimiter_and_whitespace, but only trims trailing whitespace.
+// char* trim_delimiter_and_trailing_whitespace(char *str, int *len) {
+//     // Like trim_delimiter_and_whitespace, but only trims trailing whitespace.
 
-    (*len)--;
-    while(*len > 0 && (str[(*len)-1]==' ' || str[(*len)-1]=='\r' || str[(*len)-1]=='\n')) {
-        (*len)--;
-    }
-    while(*len > 0 && str[0]==' ') {
-        str++;
-        (*len)--;
-    }
-    str[*len] = '\0'; // Null-terminate the trimmed string
-    return str;
-};
+//     (*len)--;
+//     while(*len > 0 && (str[(*len)-1]==' ' || str[(*len)-1]=='\r' || str[(*len)-1]=='\n')) {
+//         (*len)--;
+//     }
+//     while(*len > 0 && str[0]==' ') {
+//         str++;
+//         (*len)--;
+//     }
+//     str[*len] = '\0'; // Null-terminate the trimmed string
+//     return str;
+// };
 
 const char *HTTP_400 = "HTTP/1.1 400 x\r\n"
                        "Connection: close\r\n"
@@ -138,10 +161,11 @@ void TinyWebServer::handle_request(TwsRequest &request) {
 
     auto call_handle_partial_header = [&](char *ptr, int available, bool final) {
         // Temporarily replace the next character with a nul for safety.
-        char old = ptr[available];
-        ptr[available] = '\0';
-        int consumed = request.handler->onPartialHeader->handlePartialHeader(request, ptr, available, final);
-        ptr[available] = old;
+        //char old = ptr[available];
+        //ptr[available] = '\0';
+        std::string_view chunk(ptr, available);
+        int consumed = request.handler->onPartialHeader->handlePartialHeader(request, chunk, final);
+        //ptr[available] = old;
         return consumed;
     };
 
@@ -352,8 +376,9 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                 if(len>0 && request.handler && request.handler->onQueryParam) {
                     // Call the query param handler function
                     bool final = (delim == '&' || delim == '\n' || delim == ' ');
-                    char *trimmed = trim_delimiter_and_whitespace(buf_ptr, &len);
-                    request.handler->onQueryParam->handleQueryParam(request, trimmed, len, final);
+                    //char *trimmed = trim_delimiter_and_whitespace(buf_ptr, &len);
+                    std::string_view trimmed = trim_whitespace(std::string_view(buf_ptr, len - 1));
+                    request.handler->onQueryParam->handleQueryParam(request, trimmed, final);
                 // } else {
                 //     DEBUG_PRINTF("TWS query param is %s\n", trim_delimiter_and_whitespace(buf_ptr, &len));
                 }
@@ -397,24 +422,42 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                 if(request.is_post() && len > 15 && strncasecmp(buf_ptr, "Content-Length:", 15)==0) {
                     // Parse the Content-Length header
 
-                    int value_len = len - 15;
-                    char *cl_ptr = trim_delimiter_and_whitespace(buf_ptr + 15, &value_len);
+                    // int value_len = len - 15;
+                    // char *cl_ptr = trim_delimiter_and_whitespace(buf_ptr + 15, &value_len);
 
-                    char *endptr = nullptr;
-                    int32_t val = (int32_t)strtoul(cl_ptr, &endptr, 10);
+                    // char *endptr = nullptr;
+                    // int32_t val = (int32_t)strtoul(cl_ptr, &endptr, 10);
 
-                    if (cl_ptr[0] != '\0' && *endptr == '\0' && val >= 0) {
-                        // Only keep the result if it is a valid non-negative integer
+                    // if (cl_ptr[0] != '\0' && *endptr == '\0' && val >= 0) {
+                    //     // Only keep the result if it is a valid non-negative integer
+                    //     request.content_length = val;
+                    // } else {
+                    //     DEBUG_PRINTF("TWS invalid content length: %s\n", cl_ptr);
+                    // }
+                    std::string_view cl_view(buf_ptr + 15, len - 16);
+    
+                    // 2. Trim using your updated string_view function
+                    cl_view = trim_whitespace(cl_view);
+
+                    int32_t val = -1;
+                    
+                    // 3. Parse the integer safely using std::from_chars
+                    auto [ptr, ec] = std::from_chars(cl_view.data(), cl_view.data() + cl_view.size(), val);
+
+                    // 4. Validate: not empty, parsed successfully without errors, consumed the ENTIRE view, and non-negative
+                    if (!cl_view.empty() && ec == std::errc() && ptr == cl_view.data() + cl_view.size() && val >= 0) {
                         request.content_length = val;
                     } else {
-                        DEBUG_PRINTF("TWS invalid content length: %s\n", cl_ptr);
+                        // 5. Use '%.*s' precision formatting to safely print a non-null-terminated string_view
+                        DEBUG_PRINTF("TWS invalid content length: %.*s\n", 
+                                    static_cast<int>(cl_view.size()), cl_view.data());
                     }
                 }
 
                 if(request.handler && request.handler->onHeader) {
-                    // Don't trim leading whitespace, as we may be mid-chunk
-                    char *trimmed = trim_delimiter_and_trailing_whitespace(buf_ptr, &len);
-                    request.handler->onHeader->handleHeader(request, trimmed, len);
+                    // Remove the delimiter and trim trailing whitespace
+                    std::string_view trimmed = trim_whitespace(std::string_view(buf_ptr, len - 1));
+                    request.handler->onHeader->handleHeader(request, trimmed);
                 }
             }
             break;
