@@ -160,6 +160,8 @@ class ESPClass {
     // that retrieves the flash chip size.
     return 4 * 1024 * 1024;  // Example: returning 4MB
   }
+
+  uint64_t getEfuseMac() { return 0xAABBCCDDEEFFULL; }
 };
 
 extern ESPClass ESP;

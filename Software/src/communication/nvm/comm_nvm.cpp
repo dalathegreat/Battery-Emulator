@@ -11,15 +11,12 @@
 #include "../equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../precharge_control/precharge_control.h"
 
-// Parameters
-Preferences settings;  // Store user settings
-
 // Initialization functions
 
 void init_stored_settings() {
   static uint32_t temp = 0;
+  BatteryEmulatorSettingsStore settings(false);
   //  ATTENTION ! The maximum length for settings keys is 15 characters
-  settings.begin("batterySettings", false);
 
   // Always get the equipment stop status
   datalayer.system.info.equipment_stop_active = settings.getBool("EQUIPMENT_STOP", false);
@@ -38,6 +35,8 @@ void init_stored_settings() {
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
     datalayer.battery.info.total_capacity_Wh = temp;
+    datalayer.battery2.info.total_capacity_Wh = temp;
+    datalayer.battery3.info.total_capacity_Wh = temp;
   }
   temp = settings.getUInt("MAXPERCENTAGE", false);
   if (temp != 0) {
@@ -101,6 +100,11 @@ void init_stored_settings() {
   user_selected_can_addon_crystal_frequency_mhz = settings.getUInt("CANFREQ", 8);
   user_selected_canfd_addon_crystal_frequency_mhz = settings.getUInt("CANFDFREQ", 40);
   user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
+  user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
+  user_selected_daly_power_per_dV = settings.getUInt("DALYPWRDV", 50);
+  user_selected_daly_power_per_dV_start = settings.getUInt("DALYDVSTART", 20);
+  user_selected_daly_power_per_degree_C = settings.getUInt("DALYPWRDEG", 60);
+  user_selected_daly_power_at_0_degree_C = settings.getUInt("DALYPWR0C", 800);
   user_selected_use_estimated_SOC = settings.getBool("SOCESTIMATED", false);
   user_selected_tesla_digital_HVIL = settings.getBool("DIGITALHVIL", false);
   user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", 0);
@@ -109,8 +113,9 @@ void init_stored_settings() {
   user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", 0);
   user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", 0);
   user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
+  user_set_rampdown_SOC = settings.getUInt("RAMPDOWNSOC", 9000);
 
-  auto readIf = [](const char* settingName) {
+  auto readIf = [&settings](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
     switch (batt1If) {
       case comm_interface::CanNative:
@@ -141,6 +146,7 @@ void init_stored_settings() {
   user_selected_second_battery = settings.getBool("DBLBTR", false);
   user_selected_triple_battery = settings.getBool("TRIBTR", false);
   contactor_control_enabled = settings.getBool("CNTCTRL", false);
+  inverter_low_pass_filter = settings.getBool("LOWPASSFILTER", false);
   contactor_control_inverted_logic = settings.getBool("NCCONTACTOR", false);
   precharge_time_ms = settings.getUInt("PRECHGMS", 100);
   contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);
@@ -157,6 +163,12 @@ void init_stored_settings() {
   user_selected_gpioopt2 = (GPIOOPT2)settings.getUInt("GPIOOPT2", 0);
   user_selected_gpioopt3 = (GPIOOPT3)settings.getUInt("GPIOOPT3", 0);
   user_selected_gpioopt4 = (GPIOOPT4)settings.getUInt("GPIOOPT4", 0);
+#ifdef HW_STARK
+  user_selected_gpioopt5 = (GPIOOPT5)settings.getUInt("GPIOOPT5", 0);
+#endif
+#ifdef HW_WAVESHARE
+  user_selected_gpioopt6 = (GPIOOPT6)settings.getUInt("GPIOOPT6", 0);
+#endif
 
   precharge_control_enabled = settings.getBool("EXTPRECHARGE", false);
   precharge_inverter_normally_open_contactor = settings.getBool("NOINVDISC", false);
@@ -212,52 +224,31 @@ void init_stored_settings() {
   ct_clamp_nominal_current_A = settings.getUInt("CTANOM", 100);
   ct_clamp_max_battery_V = settings.getUInt("CTMAXBATT", 400);
   ct_invert_current = settings.getBool("CTINVERT", false);
-  settings.end();
+
+  datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent =
+      constrain(settings.getUInt("BYDAUTOCALDRIFT", 5), 1u, 20u);
+  datalayer_extended.bydAtto3.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN", true);
 }
 
 void store_settings_equipment_stop() {
-  settings.begin("batterySettings", false);
-  settings.putBool("EQUIPMENT_STOP", datalayer.system.info.equipment_stop_active);
-  settings.end();
+  BatteryEmulatorSettingsStore settings(false);
+  settings.saveBool("EQUIPMENT_STOP", datalayer.system.info.equipment_stop_active);
 }
 
 void store_settings() {
   //  ATTENTION ! The maximum length for settings keys is 15 characters
-  if (!settings.begin("batterySettings", false)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 0);
-    return;
-  }
+  BatteryEmulatorSettingsStore settings(false);
 
-  if (!settings.putUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 3);
-  }
-  if (!settings.putBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 4);
-  }
-  if (!settings.putUInt("MAXPERCENTAGE", datalayer.battery.settings.max_percentage / 10)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 5);
-  }
-  if (!settings.putInt("MINPERCENTAGE", datalayer.battery.settings.min_percentage / 10)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 6);
-  }
-  if (!settings.putUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 7);
-  }
-  if (!settings.putUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 8);
-  }
-  if (!settings.putBool("USEVOLTLIMITS", datalayer.battery.settings.user_set_voltage_limits_active)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 9);
-  }
-  if (!settings.putUInt("TARGETCHVOLT", datalayer.battery.settings.max_user_set_charge_voltage_dV)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 10);
-  }
-  if (!settings.putUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 11);
-  }
-  if (!settings.putUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms)) {
-    set_event(EVENT_PERSISTENT_SAVE_INFO, 13);
-  }
-
-  settings.end();  // Close preferences handle
+  settings.saveUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh);
+  settings.saveBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active);
+  settings.saveUInt("MAXPERCENTAGE", datalayer.battery.settings.max_percentage / 10);
+  settings.saveInt("MINPERCENTAGE", datalayer.battery.settings.min_percentage / 10);
+  settings.saveUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA);
+  settings.saveUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA);
+  settings.saveBool("USEVOLTLIMITS", datalayer.battery.settings.user_set_voltage_limits_active);
+  settings.saveUInt("TARGETCHVOLT", datalayer.battery.settings.max_user_set_charge_voltage_dV);
+  settings.saveUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV);
+  settings.saveUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms);
+  settings.saveUInt("BYDAUTOCALDRIFT", datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent);
+  settings.saveBool("BYDAUTOCALEN", datalayer_extended.bydAtto3.auto_calibrate_soc_enabled);
 }

@@ -60,6 +60,13 @@ void init_WiFi() {
   DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s, password=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str(),
                password.c_str());
 
+  // Register event handlers BEFORE WiFi.mode() creates the arduino_events task.
+  // WiFi events can fire immediately once the task exists, and vector reallocation
+  // during concurrent emplace_back() would corrupt the iterator in _checkForEvent().
+  WiFi.onEvent(onWifiConnect, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
+  WiFi.onEvent(onWifiDisconnect, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+  WiFi.onEvent(onWifiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
+
   if (!custom_hostname.empty()) {
     WiFi.setHostname(custom_hostname.c_str());
   }
@@ -84,12 +91,6 @@ void init_WiFi() {
                      (uint8_t)static_subnet4);
     WiFi.config(local_IP, gateway, subnet);
   }
-  DEBUG_PRINTF("init_Wifi set event handlers\n");
-
-  // Initialize Wi-Fi event handlers
-  WiFi.onEvent(onWifiConnect, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
-  WiFi.onEvent(onWifiDisconnect, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
-  WiFi.onEvent(onWifiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
 
   // Start Wi-Fi connection
   DEBUG_PRINTF("start Wifi\n");

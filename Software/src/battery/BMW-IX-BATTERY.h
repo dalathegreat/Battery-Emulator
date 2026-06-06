@@ -85,8 +85,6 @@ class BmwIXBattery : public CanBattery {
   static const int MAX_CELL_VOLTAGE_MV = 4300;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2800;  //Battery is put into emergency stop if one cell goes below this value
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
-  static const int RAMPDOWN_SOC =
-      9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
   static const int RAMPDOWN_TEMP_MIN_dC = -100;  // (-10.0°C) Temperature below which charging is not allowed
   static const int RAMPDOWN_TEMP_MAX_dC = 50;    // (5.0°C) Temperature above which no temperature limitation applies
   static const int RAMPDOWN_TEMP_POWER_W =

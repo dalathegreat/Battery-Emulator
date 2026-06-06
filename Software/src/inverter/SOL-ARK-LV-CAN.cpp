@@ -62,7 +62,7 @@ void SolArkLvInverter::update_values() {
     SOLARK_359.data.u8[0] |= 0x0C;
   if (datalayer.battery.status.voltage_dV <= datalayer.battery.info.min_design_voltage_dV)
     SOLARK_359.data.u8[0] |= 0x04;
-  if (datalayer.battery.status.bms_status == FAULT)
+  if (datalayer.system.status.system_status == FAULT)
     SOLARK_359.data.u8[1] |= 0x80;
   if (datalayer.battery.status.reported_current_dA <= -1 * datalayer.battery.status.max_charge_current_dA)
     SOLARK_359.data.u8[1] |= 0x01;
@@ -71,7 +71,7 @@ void SolArkLvInverter::update_values() {
   // TODO: Not enabled in this integration yet. See Pylon protocol for example integration
 
   SOLARK_35C.data.u8[0] = 0xC0;  // enable charging and discharging
-  if (datalayer.battery.status.bms_status == FAULT)
+  if (datalayer.system.status.system_status == FAULT)
     SOLARK_35C.data.u8[0] = 0x00;  // disable all
   else if (datalayer.battery.settings.user_set_voltage_limits_active &&
            datalayer.battery.status.voltage_dV > datalayer.battery.settings.max_user_set_charge_voltage_dV)

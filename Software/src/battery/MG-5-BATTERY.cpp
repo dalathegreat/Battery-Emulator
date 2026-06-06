@@ -644,7 +644,7 @@ void Mg5Battery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    if (datalayer.battery.status.bms_status != FAULT                  // Fault, so open contactors!
+    if (datalayer.system.status.system_status != FAULT                // Fault, so open contactors!
         && userRequestContactorClose == true                          // User requested contactor closing
         && datalayer.system.status.inverter_allows_contactor_closing  // Inverter requests contactor closing
     ) {

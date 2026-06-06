@@ -1,5 +1,6 @@
 #include "TESLA-BATTERY.h"
 #include <cstring>  //For unit test
+#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For Advanced Battery Insights webpage
@@ -476,10 +477,11 @@ void TeslaBattery::
   //The allowed charge power behaves strangely. We instead estimate this value
   if (battery_soc_ui > 990) {
     datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
-  } else if (battery_soc_ui >
-             RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+  } else if (battery_soc_ui > (user_set_rampdown_SOC /
+                               10)) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
     datalayer.battery.status.max_charge_power_W =
-        RAMPDOWNPOWERALLOWED * (1 - (battery_soc_ui - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
+        RAMPDOWNPOWERALLOWED *
+        (1 - (battery_soc_ui - (user_set_rampdown_SOC / 10)) / (1000.0 - (user_set_rampdown_SOC / 10)));
     //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
     if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
       if (battery_cell_max_v > (MAX_CELL_VOLTAGE_LFP - FLOAT_START_MV)) {
@@ -505,12 +507,21 @@ void TeslaBattery::
   /* Value mapping is completed. Start to check all safeties */
 
   //12V battery too low for contactor operation. Inform user via Event
-  if (battery_dcdcLvBusVolt > 0) {  //If value has been read
-    if ((battery_dcdcLvBusVolt * 0.0390625) < 11.7) {
-      set_event(EVENT_12V_LOW, 0);
-    } else {
-      clear_event(EVENT_12V_LOW);
+  // Only monitor 12V health while contactors are OPEN to avoid false triggers during energization
+  if (HVP_packNegativeV == 0 && HVP_packPositiveV == 0) {
+
+    if (HVP_battery12V > 0) {
+      // Scale is 0.1, so HVP_battery12V * 0.1 is the physical voltage
+      if ((HVP_battery12V * 0.1) < 11.7) {
+        set_event(EVENT_12V_LOW, 0);
+      } else {
+        clear_event(EVENT_12V_LOW);
+      }
     }
+  } else {
+    // Optional: If contactors are closed, we might want to clear the event
+    // or simply stop updating it to prevent a latching error.
+    clear_event(EVENT_12V_LOW);
   }
   //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
   if (battery_hvil_status == 3) {
@@ -840,7 +851,7 @@ void TeslaBattery::
 
   //Safety checks for CAN message sending
   if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
-      (datalayer.battery.status.bms_status != FAULT) && (!datalayer.system.info.equipment_stop_active)) {
+      (datalayer.system.status.system_status != FAULT) && (!datalayer.system.info.equipment_stop_active)) {
     // Carry on: 0x221 DRIVE state & reset power down timer
     vehicleState = CAR_DRIVE;
     powerDownSeconds = 9;
@@ -1820,7 +1831,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 
-CAN_frame can_msg_1CF[] = {
+static constexpr CAN_frame can_msg_1CF[] = {
     {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x1CF, .data = {0x01, 0x00, 0x00, 0x1A, 0x1C, 0x02, 0x60, 0x69}},
     {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x1CF, .data = {0x01, 0x00, 0x00, 0x1A, 0x1C, 0x02, 0x80, 0x89}},
     {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x1CF, .data = {0x01, 0x00, 0x00, 0x1A, 0x1C, 0x02, 0xA0, 0xA9}},
@@ -1830,7 +1841,7 @@ CAN_frame can_msg_1CF[] = {
     {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x1CF, .data = {0x01, 0x00, 0x00, 0x1A, 0x1C, 0x02, 0x20, 0x29}},
     {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x1CF, .data = {0x01, 0x00, 0x00, 0x1A, 0x1C, 0x02, 0x40, 0x49}}};
 
-CAN_frame can_msg_118[] = {
+static constexpr CAN_frame can_msg_118[] = {
     {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x61, 0x80, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
     {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x62, 0x81, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
     {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x63, 0x82, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
@@ -1849,14 +1860,20 @@ CAN_frame can_msg_118[] = {
     {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x70, 0x8F, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}}};
 
 void TeslaBattery::transmit_can(unsigned long currentMillis) {
+  // Ensure we only send one message branch at a time, to reduce worst-case
+  // runtime.
+  static int transmitPhase = -1;
+  if (++transmitPhase >= 5) {
+    transmitPhase = 0;
+  }
 
   //Send 10ms messages
-  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS && transmitPhase == 0) {
     previousMillis10 = currentMillis;
 
     if (user_selected_tesla_digital_HVIL) {  //Special Digital HVIL mode for S/X 2024+ batteries
       if ((datalayer.system.status.inverter_allows_contactor_closing) &&
-          (datalayer.battery.status.bms_status != FAULT)) {
+          (datalayer.system.status.system_status != FAULT)) {
         transmit_can_frame(&can_msg_1CF[index_1CF]);
         index_1CF = (index_1CF + 1) % 8;
         transmit_can_frame(&can_msg_118[index_118]);
@@ -1898,7 +1915,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
   }
 
   //Send 50ms messages
-  if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
+  if (currentMillis - previousMillis50 >= INTERVAL_50_MS && transmitPhase == 1) {
     previousMillis50 = currentMillis;
 
     //0x221 VCFRONT_LVPowerState
@@ -1978,7 +1995,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
   }
 
   //Send 100ms messages
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS && transmitPhase == 2) {
     previousMillis100 = currentMillis;
 
     //0x102 VCLEFT_doorStatus, static
@@ -2192,7 +2209,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
   }
 
   //Send 500ms messages
-  if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
+  if (currentMillis - previousMillis500 >= INTERVAL_500_MS && transmitPhase == 3) {
     previousMillis500 = currentMillis;
 
     transmit_can_frame(&TESLA_213);
@@ -2217,7 +2234,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
   }
 
   //Send 1000ms messages
-  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S && transmitPhase == 4) {
     previousMillis1000 = currentMillis;
 
     transmit_can_frame(&TESLA_082);
@@ -2416,6 +2433,24 @@ void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
   write_signal_value(&TESLA_7FF_Mux3, 8, 4, user_selected_tesla_GTW_mapRegion, false);
   write_signal_value(&TESLA_7FF_Mux3, 18, 3, user_selected_tesla_GTW_chassisType, false);
   write_signal_value(&TESLA_7FF_Mux3, 32, 5, user_selected_tesla_GTW_packEnergy, false);
+
+  switch (
+      user_selected_tesla_GTW_packEnergy) {  //static const std::map<int, String> tesla_pack = {{0, "50 kWh"}, {2, "62 kWh"}, {1, "74 kWh"}, {3, "100 kWh"}};
+    case 0:
+      datalayer.battery.info.total_capacity_Wh = 50000;
+      break;
+    case 1:
+      datalayer.battery.info.total_capacity_Wh = 74000;
+      break;
+    case 2:
+      datalayer.battery.info.total_capacity_Wh = 62000;
+      break;
+    case 3:
+      datalayer.battery.info.total_capacity_Wh = 100000;
+      break;
+    default:
+      break;
+  }
 
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
