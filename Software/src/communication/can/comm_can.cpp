@@ -454,7 +454,6 @@ void stop_can() {
 
   if (canfd) {
     canfd->end();
-    SPI2517.end();
   }
 }
 
@@ -468,8 +467,8 @@ void restart_can() {
   }
 
   if (canfd) {
-    SPI2517.begin();
     canfd->begin(*settings2517, [] { canfd->isr(); });
+    canfd->poll();
   }
 }
 
