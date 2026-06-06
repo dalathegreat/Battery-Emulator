@@ -504,7 +504,7 @@ class BmwPhevBattery : public CanBattery {
   static const uint8_t PHEV_BALANCING_BURST_COUNT = 3;                 // Frames to send per request change
   static const unsigned long PHEV_BALANCING_BURST_INTERVAL_MS = 1000;  // One per UDS-guard window
   // How long to stream the STATE B closing frame before settling to STATE D steady (observed ~3.5s)
-  static const unsigned long CONTACTOR_CLOSE_REQUEST_DURATION_MS = 3500;
+  static const unsigned long CONTACTOR_CLOSE_REQUEST_DURATION_MS = 1000;
 
   // 0x53A contactor-announce state machine. Replays the OEM open->close handshake observed on the
   // vehicle bus so the SME sees STATE B (close requested) announced for ~3.5s BEFORE 0x10B drives
