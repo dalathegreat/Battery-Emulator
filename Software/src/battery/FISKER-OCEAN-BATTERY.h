@@ -11,7 +11,11 @@ class FiskerOceanBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Fisker Ocean 113/106kWh battery";
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+
  private:
+  bool UserRequestDTCreset = false;
   unsigned long previousMillis200 = 0;   // will store last time a 200ms CAN Message was send
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
 
@@ -79,11 +83,16 @@ class FiskerOceanBattery : public CanBattery {
   static const uint16_t PID_APPLICATION_SOFTWARE_FINGERPRINT = 0xF184;
   static const uint16_t PID_VEHICLE_IDENTIFICATION_NUMBER = 0xF190;
 
-  CAN_frame FISKER_PID_REQUEST_7E4 = {.FD = false,
-                                      .ext_ID = false,
-                                      .DLC = 8,
-                                      .ID = 0x7E1,
-                                      .data = {0x03, 0x22, 0x20, 0x03, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FISKER_PID_REQUEST = {.FD = false,
+                                  .ext_ID = false,
+                                  .DLC = 8,
+                                  .ID = 0x7E1,
+                                  .data = {0x03, 0x22, 0x20, 0x03, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FISKER_DTC_RESET = {.FD = false,
+                                .ext_ID = false,
+                                .DLC = 8,
+                                .ID = 0x7E1,
+                                .data = {0x04, 0x14, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
   uint16_t currentpoll = PID_BATTERY_SUM_VOLTAGE;
   uint16_t incoming_poll = 0;

@@ -198,10 +198,19 @@ void FiskerOceanBattery::transmit_can(unsigned long currentMillis) {
     currentpoll = poll_commands[poll_index];
     poll_index = (poll_index + 1) % 36;
 
-    FISKER_PID_REQUEST_7E4.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
-    FISKER_PID_REQUEST_7E4.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
+    FISKER_PID_REQUEST.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
+    FISKER_PID_REQUEST.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
-    transmit_can_frame(&FISKER_PID_REQUEST_7E4);
+    transmit_can_frame(&FISKER_PID_REQUEST);
+  }
+  // Send 1000ms CAN Message
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+    previousMillis1000 = currentMillis;
+
+    if (UserRequestDTCreset) {
+      transmit_can_frame(&FISKER_DTC_RESET);
+      UserRequestDTCreset = false;
+    }
   }
 }
 
