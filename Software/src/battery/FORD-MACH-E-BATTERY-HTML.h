@@ -127,6 +127,8 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
     } else {
       if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x04) {
         content += " Initializing</h4>";
+      } else if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x01) {
+        content += " In progress</h4>";
       } else if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x02) {
         content += " Successfully</h4>";
       } else {
