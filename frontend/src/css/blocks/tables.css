@@ -20,8 +20,8 @@ table td {
 }
 table td:last-child { padding-right: 0; }
 
-tr[data-level="error"] td:nth-child(2) { color: #ef1f1f; }
-tr[data-level="warning"] td:nth-child(2) { color: #f59807; }
+tr[data-level="error"] td { color: #ef1f1f; }
+tr[data-level="warning"] td { color: #f59807; }
 
 .event-row {
     background-color: transparent;

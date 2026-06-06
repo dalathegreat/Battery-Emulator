@@ -1,21 +1,6 @@
 //import { createPortal } from 'preact/compat';
-
-function sf(v: number, digits: number, unit?: string) {
-  if (unit && Math.abs(v) >= 1000) {
-    return sf(v / 1000, digits, "k" + unit);
-  }
-  let ret = '' + v;
-  for (let i = 0; i <= digits; i++) {
-    if (Math.abs(v) >= Math.pow(10, digits - i - 1)) {
-      ret = v.toFixed(i);
-      break;
-    }
-  }
-  if (unit) {
-    return (<>{ret}<em>{unit}</em></>);
-  }
-  return ret;
-}
+import { PowerMeter } from './components/power_meter';
+import { sf } from "./utils/formatting";
 
 function uptime(s: number) {
   s = (s / 1000);
@@ -33,10 +18,10 @@ function uptime(s: number) {
 
 function SocMeter({soc, one_hour_delta}: { soc: number, one_hour_delta: number }) {
   let arc = (
-    <circle cx="50" cy="50" r="46" pathLength={100} style={{ strokeDasharray: `${soc} 100` }} />
+    <circle cx="50" cy="50" r="48" pathLength={100} style={{ strokeDasharray: `${soc} 100` }} />
   );
   let delta = Math.abs(one_hour_delta) > 1 ? (
-    <circle cx="50" cy="50" r="43" pathLength={100} class="delta" style={{
+    <circle cx="50" cy="50" r="46" pathLength={100} class="delta" style={{
       stroke: one_hour_delta > 0 ? '#138cd2' : '#e7ce11ff',
       strokeDasharray: `${Math.abs(one_hour_delta)} 100`, 
       strokeDashoffset: -soc - (one_hour_delta < 0 ? one_hour_delta : 0),
@@ -44,8 +29,8 @@ function SocMeter({soc, one_hour_delta}: { soc: number, one_hour_delta: number }
       opacity: 1
     }} />
   ) : '';
-  return <svg>
-    <circle cx="50" cy="50" r="46" pathLength={100} class="base" />
+  return <svg viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="48" pathLength={100} class="base" />
     { one_hour_delta < 0 ?
       // Delta overlaps the arc
       <>{arc}{delta}</>
@@ -54,108 +39,6 @@ function SocMeter({soc, one_hour_delta}: { soc: number, one_hour_delta: number }
       <>{delta}{arc}</>
     }
   </svg>
-}
-
-function PowerMeter({ p, discharge_p_max, charge_p_max, unit }: { p: number, discharge_p_max: number, charge_p_max: number, unit: string }) {
-  var percent_per_watt = 50 / Math.max(discharge_p_max, charge_p_max, 1);
-  var inner_percent_per_watt = 100 / Math.max(discharge_p_max + charge_p_max, 2);
-  if(discharge_p_max == 0 && charge_p_max == 0 && p != 0) {
-    // Make it shoot past the end by a fixed amount
-    inner_percent_per_watt = 300 / Math.abs(p);
-  }
-  var offset = 100 * (Math.max(discharge_p_max, 1) / Math.max(discharge_p_max + charge_p_max, 2));
-  var over = p > charge_p_max || p < -discharge_p_max;
-
-  // const cpm = charge_p_max;//Math.max(charge_p_max, 1000);
-  // const dpm = discharge_p_max;//Math.max(discharge_p_max, 1000);
-  // var percent_per_watt = 100 / (dpm + cpm);
-  // var offset = 100 * (dpm / (dpm + cpm));
-                // left: calc(5% - 1px);
-                // right: calc(5% - 1px);
-                // left: calc(${50 - (discharge_p_max * percent_per_watt)}% - 1px);
-                // right: calc(${50 - (charge_p_max * percent_per_watt)}% - 1px);
-
-  return <div>
-            <div style="
-              position: relative;
-              width: 150px; height: 30px; margin: 0 9px 0 8px;
-            ">
-              <div style={`
-                position: absolute;
-                height: 21px;
-                left: calc(min(${50 - (discharge_p_max * percent_per_watt)}%, 43%) - 1px);
-                right: calc(min(${50 - (charge_p_max * percent_per_watt)}%, 43%) - 1px);
-                border-bottom: 1px solid #fff;
-              }`}>
-              <div style={`
-                position: absolute;
-                font-size: 0.7rem;
-                line-height: 1;
-                left: -7px;
-              `}>{ sf(-discharge_p_max, 2, unit) }</div>
-              <div style={`
-                position: absolute;
-                font-size: 0.7rem;
-                line-height: 1;
-                right: -8px;
-              `}>{ sf(charge_p_max, 2, unit) }</div>
-              <div style={`
-                position: absolute;
-                left: ${offset - Math.max(0, -p * inner_percent_per_watt)}%;
-                right: ${100 - (offset + Math.max(0, p * inner_percent_per_watt))}%;
-                bottom: 0px;
-                height: 6px;
-                background: ${over ? '#bc0000ff' :
-                              p > 0 ? '#138cd2' : '#e7ce11'};
-              `}></div>
-              <div style={`
-                position: absolute;
-                left: 0px;
-                height: 5px;
-                width: 1px;
-                bottom: 0px;
-                border-left: 1px solid #ffffff;
-              `}></div>
-              <div style={`
-                position: absolute;
-                right: 0;
-                height: 5px;
-                width: 1px;
-                bottom: 0px;
-                border-right: 1px solid #ffffff;
-              `}></div>
-              <div style={`
-                position: absolute;
-                left: calc(${offset + (p * inner_percent_per_watt)}% - 5px);
-                height: 5px;
-                width: 5px;
-                bottom: -6px;
-                border: 5px solid #0000;
-                border-bottom: 5px solid #ffffff;
-              `}></div>
-              <div style={`
-                position: absolute;
-                width: 1px;
-                left: max(${offset}% - 1px, 0px);
-                height: 9px;
-                bottom: 0px;
-                background: #ffffff;
-              `}></div>
-              <div style={`
-                position: absolute;
-                width: 1px;
-                width: 50px;
-                text-align: center;
-                left: max(min(${offset + (p * inner_percent_per_watt)}%, 100%) - 25px, 0px);
-                font-size: 1.3rem;
-                font-weight: 500;
-                bottom: -32px;
-                color: ${over ? '#ee0000ff' : 'inherit'};
-              `}>{ sf(p, 2, unit) }</div>
-
-              </div>
-            </div>
-          </div>;
 }
 
 
@@ -181,62 +64,8 @@ export function Dashboard({ status }: { status: any }) {
         tray
     ) */}
     <h2>Dashboard</h2>
-    <div class="panel" data-status="ok">
-      <h3>System</h3>
-      <div class="stats">
-        <div class="stat stat__small">
-          <span>SOFTWARE</span>
-          {status.firmware}
-        </div>
-        <div class="stat stat__small">
-          <span>HARDWARE</span>
-          {status.hardware}
-        </div>
-        <div class="stat stat__small">
-          <span>CPU</span>
-          {sf(status.temp, 3)}<em>°C</em>
-        </div>
-        <div class="stat stat__small">
-          <span>UPTIME</span>
-          {uptime(status.uptime)}
-        </div>
-      </div>
-    </div>
-    <div class="panel" data-status="ok">
-      <h3>Network</h3>
-      <div class="stats">
-        {status.ssid && <>
-          <div class="stat stat__small">
-            <span>SSID</span>
-            {status.ssid}
-          </div>
-          <div class="stat stat__small">
-            <span>RSSI</span>
-            {status.rssi}<em>dBm</em>
-          </div>
-          <div class="stat stat__small">
-            <span>HOSTNAME</span>
-            {status.hostname}
-          </div>
-          <div class="stat stat__small">
-            <span>IP</span>
-            {status.ip}
-          </div>
-        </>}
-        {!!status.ap_ssid && <div class="stat stat__small">
-          <span>AP SSID</span>
-          {status.ap_ssid}
-        </div>}
-      </div>
-    </div>
 
-    {status.inverter &&
-      <div class="panel" data-status={status.inverter.status?.toLowerCase()}>
-        { status.inverter.status == 'INACTIVE' && 
-          <div style="float: right; background: #3a516f; color: #ffffff; padding: 0.3rem 0.6rem 0.2rem; border-radius: 6px; font-size: 0.9rem; font-weight: 600">IDLE</div>
-        }
-        <h3>Inverter &nbsp;<span>-&nbsp; {status.inverter.name}</span></h3>
-      </div>}
+
 
     {status.contactor &&
       <div class="panel" data-status={CONTACTOR_STATE_STATUS[status.contactor.state]}>
@@ -265,6 +94,7 @@ export function Dashboard({ status }: { status: any }) {
             <span>POWER</span>
             {sf(battery.p, 3, 'W')}
           </div> */}
+          <div class="stats">
           
           <div class="stat">
             <span>POWER</span>
@@ -278,6 +108,7 @@ export function Dashboard({ status }: { status: any }) {
           <div class="stat">
             <span>VOLTAGE</span>
             {sf(battery.v, 4, 'V')}
+            <em>123.3V 🡘 222.2V</em>
           </div>
           <div class="stat">
             <span>CURRENT</span>
@@ -298,10 +129,68 @@ export function Dashboard({ status }: { status: any }) {
             <span>CELL DELTA</span>
             {battery.cell_mv_max - battery.cell_mv_min}<em>mV</em>
           </div>
+          </div>
         </div>
       </div>
     )}
 
+    {status.inverter &&
+      <div class="panel" data-status={status.inverter.status?.toLowerCase()}>
+        { status.inverter.status == 'INACTIVE' && 
+          <div style="float: right; background: #3a516f; color: #ffffff; padding: 0.3rem 0.6rem 0.2rem; border-radius: 6px; font-size: 0.9rem; font-weight: 600">IDLE</div>
+        }
+        <h3>Inverter &nbsp;<span>-&nbsp; {status.inverter.name}</span></h3>
+      </div>}    
+
+    <div class="panel" data-status="ok">
+      <h3>Network</h3>
+      <div class="stats">
+        {status.ssid && <>
+          <div class="stat stat__small">
+            <span>SSID</span>
+            {status.ssid}
+          </div>
+          <div class="stat stat__small">
+            <span>RSSI</span>
+            {status.rssi}<em>dBm</em>
+          </div>
+          <div class="stat stat__small">
+            <span>HOSTNAME</span>
+            {status.hostname}
+          </div>
+          <div class="stat stat__small">
+            <span>IP</span>
+            {status.ip}
+          </div>
+        </>}
+        {!!status.ap_ssid && <div class="stat stat__small">
+          <span>AP SSID</span>
+          {status.ap_ssid}
+        </div>}
+      </div>
+    </div>
+
+    <div class="panel" data-status="ok">
+      <h3>System</h3>
+      <div class="stats">
+        <div class="stat stat__small">
+          <span>SOFTWARE</span>
+          {status.firmware}
+        </div>
+        <div class="stat stat__small">
+          <span>HARDWARE</span>
+          {status.hardware}
+        </div>
+        <div class="stat stat__small">
+          <span>CPU</span>
+          {sf(status.temp, 3)}<em>°C</em>
+        </div>
+        <div class="stat stat__small">
+          <span>UPTIME</span>
+          {uptime(status.uptime)}
+        </div>
+      </div>
+    </div>
 
   </div>;
 }

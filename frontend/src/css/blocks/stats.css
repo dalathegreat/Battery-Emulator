@@ -1,6 +1,7 @@
 .stats {
     display: flex;
     flex-wrap: wrap;
+    flex: 1 1 0;
     gap: 2.5rem;
     row-gap: 1.25rem;
 }
@@ -43,15 +44,15 @@
 }
 
 .stat-circle svg {
-    width: 100px;
-    height: 100px;
+    width: 150px;
+    height: 150px;
     transform: rotate(-90deg);
 }
 
 .stat-circle svg circle {
     fill: none;
     stroke: #1DB706;
-    stroke-width: 4;
+    stroke-width: 3;
     stroke-linecap: round;
 }
 
@@ -62,10 +63,10 @@
 }
 
 .stat-circle div {
-    margin: -70px 0 0;
-    width: 100px;
+    margin: -100px 0 0;
+    width: 150px;
     text-align: center;
-    font-size: 2rem;
+    font-size: 2.5rem;
     line-height: 0.65;
     position: absolute;
 }
