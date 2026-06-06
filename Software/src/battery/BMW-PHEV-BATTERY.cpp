@@ -581,13 +581,14 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x112:  //BMS [20ms] Status Of High-Voltage Battery 2
       battery_awake = true;
+      battery_voltage =
+          (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);  // HV pack voltage in dV (0.1 V/bit LE, raw = dV directly)
       battery_current = ((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192) * 10;  //deciAmps to milliAmps
       battery_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >>
                                         6;  //00 Keine Aussage möglich   01 nicht aktiv    10 aktiv   11 Signal ungültig
       battery_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
       battery_request_open_contactors_fast = (rx_frame.data.u8[6] & 0x0C) >> 2;
       battery_charging_condition_delta = (rx_frame.data.u8[6] & 0xF0) >> 4;
-      //battery_DC_link_voltage = rx_frame.data.u8[7];
       datalayer.battery.status.CAN_battery_still_alive =
           CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
       break;
@@ -608,6 +609,10 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_BEV_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
       break;
     case 0x430:  //BMS [1s] - Charging status of high-voltage battery - 2
+      // BMW "Prädiktionsspannung" - predicted terminal voltage under max charge/discharge load
+      // (not hard limits - those come from UDS 0xDD7E). Decoded at 0.1 V/bit LE (same as 0x112).
+      // Example at 368.3 V resting: shortterm_charge=382.7 V, shortterm_discharge=346.8 V.
+      // Long-term values are 0xFFFF (not available) when pack is at rest.
       battery_prediction_voltage_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
       battery_prediction_voltage_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
       battery_prediction_voltage_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
@@ -662,8 +667,9 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
 
           if (rx_frame.DLC == 7 && rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xDD &&
-              rx_frame.data.u8[4] == 0xB4) {  //Main Battery Voltage (Pre Contactor)
-            battery_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
+              rx_frame.data.u8[4] ==
+                  0xB4) {  //Main Battery Voltage (Pre Contactor) - DEPRECATED: now read from 0x112 broadcast
+            // battery_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
           }
 
           if (rx_frame.DLC == 7 && rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xDD &&
