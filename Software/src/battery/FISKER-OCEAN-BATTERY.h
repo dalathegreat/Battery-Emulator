@@ -12,6 +12,7 @@ class FiskerOceanBattery : public CanBattery {
   static constexpr const char* Name = "Fisker Ocean 113/106kWh battery";
 
  private:
+  unsigned long previousMillis200 = 0;   // will store last time a 200ms CAN Message was send
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
 
   static const uint16_t PID_BATTERY_SUM_VOLTAGE = 0x2003;
@@ -77,6 +78,79 @@ class FiskerOceanBattery : public CanBattery {
   static const uint16_t PID_ST_MIN = 0xEFFE;
   static const uint16_t PID_APPLICATION_SOFTWARE_FINGERPRINT = 0xF184;
   static const uint16_t PID_VEHICLE_IDENTIFICATION_NUMBER = 0xF190;
+
+  CAN_frame FISKER_PID_REQUEST_7E4 = {.FD = false,
+                                      .ext_ID = false,
+                                      .DLC = 8,
+                                      .ID = 0x7E1,
+                                      .data = {0x03, 0x22, 0x20, 0x03, 0x00, 0x00, 0x00, 0x00}};
+
+  uint16_t currentpoll = PID_BATTERY_SUM_VOLTAGE;
+  uint16_t incoming_poll = 0;
+  uint8_t poll_index = 0;
+  const uint16_t poll_commands[63] = {PID_BATTERY_SUM_VOLTAGE,
+                                      PID_BATTERY_CURRENT,
+                                      PID_BATTERY_CURRENT_VALID,
+                                      PID_DISCHARGE_CURR_LIMIT,
+                                      PID_CHARGE_CURR_LIMIT,
+                                      PID_CHARGE_OVER_CURR_LIMIT,
+                                      PID_HALL_SAMPLE_CURRENT,
+                                      PID_CSU_SAMPLE_CURRENT,
+                                      PID_CSU_CURRENT_STATE,
+                                      PID_INLET_WATER_TEMP,
+                                      PID_OUTLET_WATER_TEMP,
+                                      PID_MAX_BALANCE_CIRCUIT_TEMP,
+                                      PID_SA_LVMD_BAL_TEMP_VALID,
+                                      PID_MAX_CHIP_TEMP,
+                                      PID_SA_LVMD_CHIP_INSIDE_TEMP_VALID,
+                                      PID_AVG_MODULE_TEMP,
+                                      PID_MAX_MODULE_TEMP,
+                                      PID_MIN_MODULE_TEMP,
+                                      PID_MAX_MODULE_TEMP_CMC_AND_POINT_PSTN,
+                                      PID_MIN_MODULE_TEMP_CMC_AND_POINT_PSTN,
+                                      PID_MODULE_TEMP_VALID,
+                                      PID_MAX_VOLT_CELL_SOC_PERCENT,
+                                      PID_MIN_VOLT_CELL_SOC_PERCENT,
+                                      PID_AVG_VOLT_CELL_SOC_PERCENT,
+                                      PID_PACK_DISPLAY_SOC_PERCENT,
+                                      PID_UNEXPECTED_POWER_DOWN_FAULT,
+                                      PID_MODULE_TEMP_DAISYCHAIN_UPDATED,
+                                      PID_CELL_VOLT_DAISYCHAIN_UPDATED,
+                                      PID_CMC_RESET_ERR_FLAG,
+                                      PID_VCU_CRASH_MESSAGE_STATUS,
+                                      PID_HARDWARE_SIG_PWM_PERIOD,
+                                      PID_HARDWARE_PWM_DUTY_CYCLE,
+                                      PID_FORCE_FORBIDDEN_ISO_DETECT_CMD,
+                                      PID_ISOLATION_MEAS_STATUS,
+                                      PID_ISOLATION_MEAS_STATE,
+                                      PID_POS_ISO_MEAS_VOLT_RAW,
+                                      PID_NEG_ISO_MEAS_VOLT_RAW,
+                                      PID_ISO_MEAS_POS_RES_KOHM,
+                                      PID_ISO_MEAS_NEG_RES_KOHM,
+                                      PID_BAL_CIRCUIT_OPEN_ERR_CMC_PSTN,
+                                      PID_BAL_CIRCUIT_OPEN_ERR_CELL_PSTN,
+                                      PID_BAL_CIRCUIT_SHORT_ERR_CMC_PSTN,
+                                      PID_BAL_CIRCUIT_SHORT_ERR_CELL_PSTN,
+                                      PID_VOLT_OR_CURR_CH0_HIGH_VOLT_MV,
+                                      PID_VOLT_OR_CURR_CH1_HIGH_VOLT_MV,
+                                      PID_BATTERY_TO_G0_VOLT,
+                                      PID_PV_POS_TO_G0_VOLT,
+                                      PID_MAIN_POS_TO_G0_VOLT,
+                                      PID_MAIN_POS_TO_G1_VOLT,
+                                      PID_KL30C_VOLTAGE,
+                                      PID_MAX_CELL_VOLT_CMC_AND_POINT_PSTN,
+                                      PID_MIN_CELL_VOLT_CMC_AND_POINT_PSTN,
+                                      PID_AVG_CELL_VOLTAGE,
+                                      PID_MAX_CELL_VOLTAGE,
+                                      PID_MIN_CELL_VOLTAGE,
+                                      PID_CELL_VOLT_VALID,
+                                      PID_PV_POS_CONTACTOR_AGING,
+                                      PID_PR_NEG_CONTACTOR_AGING,
+                                      PID_TIME_STAMP,
+                                      PID_VEHICLE_SPEED,
+                                      PID_ST_MIN,
+                                      PID_APPLICATION_SOFTWARE_FINGERPRINT,
+                                      PID_VEHICLE_IDENTIFICATION_NUMBER};
 };
 
 #endif

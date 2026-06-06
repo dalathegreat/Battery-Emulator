@@ -40,13 +40,169 @@ void FiskerOceanBattery::update_values() {
 void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x355:
+      break;
+    case 0x7E9:
+
+      if (rx_frame.data.u8[0] < 0x10) {  //One line response
+        incoming_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+      }
+
+      if (rx_frame.data.u8[0] == 0x10) {  //Multiframe response, send ACK
+        //transmit_can_frame(&FISKER_PID_ACK); //Not seen yet
+        //incoming_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+      }
+
+      switch (incoming_poll) {
+        case PID_BATTERY_SUM_VOLTAGE:
+          datalayer.battery.status.voltage_dV = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 10;
+          break;
+        case PID_BATTERY_CURRENT:
+          datalayer.battery.status.current_dA = ((int16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5])) / 10;
+          break;
+        case PID_BATTERY_CURRENT_VALID:
+          break;
+        case PID_DISCHARGE_CURR_LIMIT:
+          break;
+        case PID_CHARGE_CURR_LIMIT:
+          break;
+        case PID_CHARGE_OVER_CURR_LIMIT:
+          break;
+        case PID_HALL_SAMPLE_CURRENT:
+          break;
+        case PID_CSU_SAMPLE_CURRENT:
+          break;
+        case PID_CSU_CURRENT_STATE:
+          break;
+        case PID_INLET_WATER_TEMP:
+          break;
+        case PID_OUTLET_WATER_TEMP:
+          break;
+        case PID_MAX_BALANCE_CIRCUIT_TEMP:
+          break;
+        case PID_SA_LVMD_BAL_TEMP_VALID:
+          break;
+        case PID_MAX_CHIP_TEMP:
+          break;
+        case PID_SA_LVMD_CHIP_INSIDE_TEMP_VALID:
+          break;
+        case PID_AVG_MODULE_TEMP:
+          break;
+        case PID_MAX_MODULE_TEMP:
+          break;
+        case PID_MIN_MODULE_TEMP:
+          break;
+        case PID_MAX_MODULE_TEMP_CMC_AND_POINT_PSTN:
+          break;
+        case PID_MIN_MODULE_TEMP_CMC_AND_POINT_PSTN:
+          break;
+        case PID_MODULE_TEMP_VALID:
+          break;
+        case PID_MAX_VOLT_CELL_SOC_PERCENT:
+          break;
+        case PID_MIN_VOLT_CELL_SOC_PERCENT:
+          break;
+        case PID_AVG_VOLT_CELL_SOC_PERCENT:
+          break;
+        case PID_PACK_DISPLAY_SOC_PERCENT:
+          break;
+        case PID_UNEXPECTED_POWER_DOWN_FAULT:
+          break;
+        case PID_MODULE_TEMP_DAISYCHAIN_UPDATED:
+          break;
+        case PID_CELL_VOLT_DAISYCHAIN_UPDATED:
+          break;
+        case PID_CMC_RESET_ERR_FLAG:
+          break;
+        case PID_VCU_CRASH_MESSAGE_STATUS:
+          break;
+        case PID_HARDWARE_SIG_PWM_PERIOD:
+          break;
+        case PID_HARDWARE_PWM_DUTY_CYCLE:
+          break;
+        case PID_FORCE_FORBIDDEN_ISO_DETECT_CMD:
+          break;
+        case PID_ISOLATION_MEAS_STATUS:
+          break;
+        case PID_ISOLATION_MEAS_STATE:
+          break;
+        case PID_POS_ISO_MEAS_VOLT_RAW:
+          break;
+        case PID_NEG_ISO_MEAS_VOLT_RAW:
+          break;
+        case PID_ISO_MEAS_POS_RES_KOHM:
+          break;
+        case PID_ISO_MEAS_NEG_RES_KOHM:
+          break;
+        case PID_BAL_CIRCUIT_OPEN_ERR_CMC_PSTN:
+          break;
+        case PID_BAL_CIRCUIT_OPEN_ERR_CELL_PSTN:
+          break;
+        case PID_BAL_CIRCUIT_SHORT_ERR_CMC_PSTN:
+          break;
+        case PID_BAL_CIRCUIT_SHORT_ERR_CELL_PSTN:
+          break;
+        case PID_VOLT_OR_CURR_CH0_HIGH_VOLT_MV:
+          break;
+        case PID_VOLT_OR_CURR_CH1_HIGH_VOLT_MV:
+          break;
+        case PID_BATTERY_TO_G0_VOLT:
+          break;
+        case PID_PV_POS_TO_G0_VOLT:
+          break;
+        case PID_MAIN_POS_TO_G0_VOLT:
+          break;
+        case PID_MAIN_POS_TO_G1_VOLT:
+          break;
+        case PID_KL30C_VOLTAGE:
+          break;
+        case PID_MAX_CELL_VOLT_CMC_AND_POINT_PSTN:
+          break;
+        case PID_MIN_CELL_VOLT_CMC_AND_POINT_PSTN:
+          break;
+        case PID_AVG_CELL_VOLTAGE:
+          break;
+        case PID_MAX_CELL_VOLTAGE:
+          break;
+        case PID_MIN_CELL_VOLTAGE:
+          break;
+        case PID_CELL_VOLT_VALID:
+          break;
+        case PID_PV_POS_CONTACTOR_AGING:
+          break;
+        case PID_PR_NEG_CONTACTOR_AGING:
+          break;
+        case PID_TIME_STAMP:
+          break;
+        case PID_VEHICLE_SPEED:
+          break;
+        case PID_ST_MIN:
+          break;
+        case PID_APPLICATION_SOFTWARE_FINGERPRINT:
+          break;
+        case PID_VEHICLE_IDENTIFICATION_NUMBER:
+          break;
+        default:
+          break;
+      }
     default:
       break;
   }
 }
 
 void FiskerOceanBattery::transmit_can(unsigned long currentMillis) {
-  // No periodic transmitting for this battery type
+  // Send 250ms CAN Message
+  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+    previousMillis200 = currentMillis;
+
+    // Update current poll from the array
+    currentpoll = poll_commands[poll_index];
+    poll_index = (poll_index + 1) % 36;
+
+    FISKER_PID_REQUEST_7E4.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
+    FISKER_PID_REQUEST_7E4.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
+
+    transmit_can_frame(&FISKER_PID_REQUEST_7E4);
+  }
 }
 
 void FiskerOceanBattery::setup(void) {  // Performs one time setup at startup
