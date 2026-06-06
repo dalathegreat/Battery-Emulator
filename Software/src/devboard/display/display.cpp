@@ -378,7 +378,7 @@ static void print_chademo_top_status(int row, DATALAYER_BATTERY_STATUS_TYPE& sta
   buf[6] = 'R';
   buf[7] = ':';
 
-  printn(buf + 9, datalayer_extended.chademo.VoltageRequested / 10, 3);
+  printn(buf + 9, datalayer_extended.chademo.VoltageRequested, 3);
   buf[12] = 'V';
   print3d1(buf + 15, datalayer_extended.chademo.CurrentRequested * 10);
   buf[20] = 'A';

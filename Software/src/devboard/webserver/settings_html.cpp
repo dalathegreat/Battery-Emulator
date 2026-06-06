@@ -873,6 +873,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("CTANOM", 100));
   }
 
+  if (var == "CTMAXBATT") {
+    return String(settings.getUInt("CTMAXBATT", 400));
+  }
+
   if (var == "CTINVERT") {
     return settings.getBool("CTINVERT") ? "checked" : "";
   }
@@ -1499,43 +1503,47 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <h3>Optional components config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
-        <label>Charger: </label><select name='charger'>
-        %CHGTYPE%
-        </select>
+          <label>Charger: </label><select name='charger'>
+          %CHGTYPE%
+          </select>
 
-        <div class="if-charger">
-        <label>Charger interface: </label><select name='CHGCOMM'>
-        %CHGCOMM%
-        </select>
-        </div>
+          <div class="if-charger">
+            <label>Charger interface: </label><select name='CHGCOMM'>
+            %CHGCOMM%
+            </select>
+          </div>
 
-        <label>Shunt: </label><select name='shunttype'>
-        %SHUNTTYPE%
-        </select>
+          <label>Shunt: </label><select name='shunttype'>
+          %SHUNTTYPE%
+          </select>
 
-        <div class="if-shunt">
-        <label>Shunt interface: </label><select name='SHUNTCOMM'>
-        %SHUNTCOMM%
-        </select>
-        </div>
+          <div class="if-shunt">
+            <label>Shunt interface: </label><select name='SHUNTCOMM'>
+            %SHUNTCOMM%
+            </select>
+          </div>
 
-        <div class="if-ctclamp">
-          <label>CT Clamp nominal voltage (dV): </label>
-          <input type='number' name='CTVNOM' value="%CTVNOM%" 
-          min="0" max="500" step="1"
-          title="Nominal voltage of the CT Clamp x10. Integer only." />
+          <div class="if-ctclamp">
+            <label>CT Clamp nominal voltage (dV): </label>
+            <input type='number' name='CTVNOM' value="%CTVNOM%" 
+            min="0" max="500" step="1"
+            title="Nominal voltage of the CT Clamp x10. Integer only." />
 
-          <label>CT Clamp nominal current (A): </label>
-          <input type='number' name='CTANOM' value="%CTANOM%" 
-          min="0" max="200" step="1"
-          title="Nominal current of the CT Clamp. Integer only." />
+            <label>CT Clamp nominal current (A): </label>
+            <input type='number' name='CTANOM' value="%CTANOM%" 
+            min="0" max="200" step="1"
+            title="Nominal current of the CT Clamp. Integer only." />
 
-          <label>Invert CT current: </label>
-          <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% 
-          title="Invert the current reading from the CT clamp, +ve is charging, -ve is discharging" />
+            <label>CT Max battery voltage (V): </label>
+            <input type='number' name='CTMAXBATT' value="%CTMAXBATT%"
+            min="0" max="999" step="1"
+            title="Maximum battery pack voltage at 100 SOC in volts." />
+
+            <label>Invert CT current: </label>
+            <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% 
+            title="Invert the current reading from the CT clamp, +ve is charging, -ve is discharging" />
           </div>
         </div>
-
         </div>
 
         <div class="settings-card">

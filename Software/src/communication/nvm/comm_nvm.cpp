@@ -210,6 +210,7 @@ void init_stored_settings() {
   // CT Clamp settings
   ct_clamp_nominal_voltage_dV = settings.getUInt("CTVNOM", 40);
   ct_clamp_nominal_current_A = settings.getUInt("CTANOM", 100);
+  ct_clamp_max_battery_V = settings.getUInt("CTMAXBATT", 400);
   ct_invert_current = settings.getBool("CTINVERT", false);
   settings.end();
 }

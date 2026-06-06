@@ -16,6 +16,8 @@
 uint16_t ct_clamp_nominal_voltage_dV = 40;
 uint16_t ct_clamp_nominal_current_A = 100;
 bool ct_invert_current = false;
+// Maximum battery pack voltage used by CT logic (Volts)
+uint16_t ct_clamp_max_battery_V = 400;
 
 static float Amperes;          // Floating point with current in Amperes
 static float Voltage = -1.0f;  // Voltage not available

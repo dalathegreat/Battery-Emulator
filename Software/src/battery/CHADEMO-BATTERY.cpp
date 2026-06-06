@@ -87,7 +87,8 @@ void ChademoBattery::update_values() {
   datalayer.battery.info.total_capacity_Wh = x101_chg_est.RatedBatteryCapacity;
   //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
 
-  datalayer.battery.status.remaining_capacity_Wh = x200_discharge_limits.MaxRemainingCapacityForDischarging;
+  datalayer.battery.status.remaining_capacity_Wh = x101_chg_est.RatedBatteryCapacity * x102_chg_session.StateOfCharge /
+                                                   100.0f;  // in Wh, convert from % by multiplying by total capacity
 
   /* To simulate or NOT to simulate battery cell voltages, that is .. A question.
    * Answer for now: Not, because they are not available in any direct manner.
@@ -1027,8 +1028,15 @@ void ChademoBattery::handle_chademo_sequence() {
 
 float ChademoBattery::get_voltage_handler() {
   float Voltage = 0;
+  // approximate voltage based on SOC if using a custom clamp, as we don't have a voltage reading. Otherwise, get voltage from shunt or sensor.
   if (user_selected_shunt_type == ShuntType::CustomClamp) {
-    Voltage = min(x102_chg_session.TargetBatteryVoltage, x108_evse_cap.available_output_voltage);
+    if (x102_chg_session.StateOfCharge < 20) {
+      Voltage = (90 - 20 + x102_chg_session.StateOfCharge) / 100.0f * ct_clamp_max_battery_V;
+    } else if (x102_chg_session.StateOfCharge < 95) {
+      Voltage = 0.95f * ct_clamp_max_battery_V;
+    } else {
+      Voltage = x102_chg_session.StateOfCharge / 100.0f * ct_clamp_max_battery_V;
+    }
   } else {
     Voltage = get_measured_voltage_ptr();
   }
