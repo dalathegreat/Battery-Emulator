@@ -27,11 +27,11 @@ static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
 static const uint16_t PREJOIN_FLOOR_BASE_W = 1000u;
 static const uint16_t PREJOIN_FLOOR_PER_EXTRA_BATTERY_W = 400u;
 static const uint16_t PREJOIN_FLOOR_MAX_W = 3000u;
-// Integer EMA alpha = 1/5 = 0.2 (new = old*4/5 + raw*1/5)
-static const uint8_t PREJOIN_EMA_DEN = 5u;
+// Integer EMA alpha = 1/3 = 0.33 (new = old*2/3 + raw*1/3) — faster convergence than 1/5
+static const uint8_t PREJOIN_EMA_DEN = 3u;
 static const uint8_t PREJOIN_EMA_NUM = 1u;
-// Smooth cap ramp in permille per second (0..1000) — 25 = 2.5%/s, ~40 s to full pressure
-static const uint16_t PREJOIN_PRESSURE_STEP_PER_S = 25u;
+// Smooth cap ramp in permille per second (0..1000) — 15 = 1.5%/s, ~66 s to full pressure
+static const uint16_t PREJOIN_PRESSURE_STEP_PER_S = 15u;
 
 // Per-slave voltage diff grace period counters
 static uint8_t voltage_diff_seconds[MAX_SLAVE_NODES] = {0};
@@ -607,7 +607,7 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
         if (prejoin_raw_stable_seconds[idx] < PREJOIN_CLOSE_DWELL_S) {
           prejoin_raw_stable_seconds[idx]++;
         }
-      } else {
+      } else if (diff > PREJOIN_CLOSE_RAW_DIFF_dV + 1u) {  // 0.1V hysteresis — noise won't reset dwell
         prejoin_raw_stable_seconds[idx] = 0;
       }
 
@@ -872,8 +872,10 @@ void MasterCan::update_slave_aggregation() {
   uint32_t floor_charge_W = fixed_floor_W;
   uint32_t floor_discharge_W = fixed_floor_W;
 
-  uint32_t capped_max_charge_W = cap_base_charge_W;
-  uint32_t capped_max_discharge_W = cap_base_discharge_W;
+  // Start from snapshot (base_*) so the pressure formula can ramp the cap both up and down.
+  // Without this, a low live cap would prevent the cap from rising during pressure release.
+  uint32_t capped_max_charge_W = base_charge_W;
+  uint32_t capped_max_discharge_W = base_discharge_W;
   if (prejoin_applied_pressure_permille > 0) {
     if (base_charge_W > floor_charge_W) {
       uint32_t span = base_charge_W - floor_charge_W;
@@ -891,7 +893,13 @@ void MasterCan::update_slave_aggregation() {
         capped_max_discharge_W = pressure_cap;
       }
     }
-
+  }
+  // Never promise more than the battery is currently capable of delivering.
+  if (capped_max_charge_W > cap_base_charge_W) {
+    capped_max_charge_W = cap_base_charge_W;
+  }
+  if (capped_max_discharge_W > cap_base_discharge_W) {
+    capped_max_discharge_W = cap_base_discharge_W;
   }
 
   // Hard floor for the full prejoin flow.
