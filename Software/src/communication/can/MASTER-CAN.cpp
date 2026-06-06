@@ -487,6 +487,17 @@ void MasterCan::update_values() {
       }
       // Slave warnings are shown per-node in the web UI — no master event needed
     }
+
+    // Manual stop: user-forced contactor open via WebUI — always wins last.
+    // Reset voltage qualification so slave re-joins cleanly when stop is cleared.
+    if (node.manual_contactor_open) {
+      voltage_diff_seconds[i] = 0;
+      reset_prejoin_state(i);
+      if (node.contactor_allowed) {
+        node.contactor_allowed = false;
+        logging.printf("Master CAN: Slave %d contactor BLOCKED by manual stop\n", i + 1);
+      }
+    }
   }
 
   // Set or clear EVENT_SLAVE_FAULT once after the full loop to avoid clear/set ping-pong
