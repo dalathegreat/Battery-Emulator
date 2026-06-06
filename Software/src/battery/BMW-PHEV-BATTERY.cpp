@@ -270,6 +270,12 @@ uint8_t BmwPhevBattery::increment_alive_counter(uint8_t counter) {
    -------------------------------------------------------------------------- */
 
 void BmwPhevBattery::PhevCloseContactors(void) {
+  // Ignore if already closed/steady - don't restart the handshake and re-arm the stop burst,
+  // which would briefly open 0x10B and re-run the ~3.5s 0x53A announce before closing again.
+  if (contactorCloseReq && phev_53a_state == PHEV_53A_STEADY) {
+    logging.println("Close contactors requested but already closed - ignoring");
+    return;
+  }
   logging.println("Closing contactors (0x10B)");
   // Balancing BLOCKS contactor close in the SME. Before the 0x10B driver is allowed to close, we
   // must make sure balancing is cancelled. Clear the user flag (so the 10s UDS loop sends stopRoutine
