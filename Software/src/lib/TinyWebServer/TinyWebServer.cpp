@@ -154,7 +154,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
             if(request.writer_callback && request.free()>0) request.writer_callback(request, request.total_written - request.writer_callback_written_offset);
             request.parse_state = TWS_WRITING_OUT;
         } else {
-            request.write_fully(HTTP_404);
+            request.write_or_abort(HTTP_404);
             request.finish();
         }
     };
@@ -386,7 +386,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                     request.parse_state = TWS_AWAITING_BODY;
                 } else if(request.is_post() && request.content_length < 0) {
                     // No valid Content-Length header was supplied
-                    request.write_fully(HTTP_400);
+                    request.write_or_abort(HTTP_400);
                     request.finish();
                 } else {
                     call_request_handler();
@@ -449,7 +449,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                         } else if(consumed == -1) {
                             // Handler doesn't want any more body but we still have some left.
                             // Must have been a bad request.
-                            request.write_fully(HTTP_400);
+                            request.write_or_abort(HTTP_400);
                             request.finish();
                             return;
                         }
@@ -501,7 +501,7 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                     }
                 } else {
                     // Don't accept POST requests that aren't handled
-                    request.write_fully(HTTP_404);
+                    request.write_or_abort(HTTP_404);
                     request.finish();
                 }
                 return;

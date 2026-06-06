@@ -310,11 +310,11 @@ const char* HTTP_RESPONSE_GZIP = "HTTP/1.1 200 OK\r\n"
                         "\r\n";
 
 TwsRoute indexHandler("*", new TwsRequestHandlerFunc([](TwsRequest &request) {
-    request.write_fully(HTTP_RESPONSE_GZIP, strlen(HTTP_RESPONSE_GZIP));
+    request.write_or_abort(HTTP_RESPONSE_GZIP, strlen(HTTP_RESPONSE_GZIP));
     request.set_writer_callback(CharBufWriter((const char*)html_data, sizeof(html_data)));
 
     // //tws_log_printf("Received request on /\n");
-    // request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nHello from TinyWebServer!\n");
+    // request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nHello from TinyWebServer!\n");
     // //request.set_writer_callback(StringWriter(strings[request.get_slot_id()]));
     // //String response = String();
     // auto response = std::make_shared<String>();
@@ -347,7 +347,7 @@ Md5DigestAuth authHandler(&indexHandler, [](const char *username, char *output) 
 }, &sessions);*/
 
 TwsRoute uploadHandler("/upload", new TwsRequestHandlerFunc([](TwsRequest& request) {
-    request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\n\r\n<input type=\"file\" onchange=\""
+    request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\n\r\n<input type=\"file\" onchange=\""
         "const c = new FormData;"
         "let l = this.files[0];"
         "let i = new XMLHttpRequest;"
@@ -365,7 +365,7 @@ TwsRoute uploadHandler("/upload", new TwsRequestHandlerFunc([](TwsRequest& reque
 TwsRoute uploadHandler2("/ota/upload", 
     new TwsRequestHandlerFunc([](TwsRequest& request) {
         //tws_log_printf("Finished request on /ota/upload\n");
-        request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nFile uploaded successfully.\n");
+        request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nFile uploaded successfully.\n");
         request.finish();
     })
 );
@@ -380,7 +380,7 @@ MultipartUploadHandler uploadWotsit(&uploadHandler2, new TwsFileUploadHandlerFun
 // TwsRoute eOtaUploadHandler("/ota/upload", 
 //     new TwsRequestHandlerFunc([](TwsRequest& request) {
 //         //tws_log_printf("Finished request on /ota/upload\n");
-//         request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nOK");
+//         request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nOK");
 //         request.finish();
 //     })
 // );
@@ -402,7 +402,7 @@ TwsRoute stringHandler("/strings", new TwsRequestHandlerFunc([](TwsRequest &requ
 }));
 
 TwsRoute settingsHandler("/settings", new TwsRequestHandlerFunc([](TwsRequest &request) {
-    request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nSettings go here\n");
+    request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nSettings go here\n");
     request.finish();
 }));
 TwsPostBufferingRequestHandler settingsBufferingHandler(&settingsHandler, [](TwsRequest &request, uint8_t *data, size_t len) {
@@ -410,7 +410,7 @@ TwsPostBufferingRequestHandler settingsBufferingHandler(&settingsHandler, [](Tws
     DEBUG_PRINTF("Received settings data: len: %zu\n", len);
     DEBUG_PRINTF("Data: %.*s\n", (int)len, data);
     // Just echo it back for now
-    // request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\n");
+    // request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\n");
     // request.write_direct(data, len);
     // request.finish();
 });

@@ -140,7 +140,7 @@ void TwsRequest::tick() {
     }
 }
 
-uint32_t TwsRequest::write(const char* buf, uint16_t len) {
+uint32_t TwsRequest::write_some(const char* buf, uint16_t len) {
     int bytes_sent = 0;
     if(send_buffer_len()==0) {
         // Try to write directly, skipping the circular buffer.
@@ -204,12 +204,13 @@ uint32_t IRAM_ATTR TwsRequest::write_indirect(const char *buf, uint16_t len) {
 }
 
 
-bool TwsRequest::write_fully(const char *buf, uint16_t len) {
-    int wrote = write(buf, len);
+bool TwsRequest::write_or_abort(const char *buf, uint16_t len) {
+    int wrote = write_some(buf, len);
     if(wrote < len) {
         // Not all data was written, return false
-        //DEBUG_PRINTF("TWS write_fully failed to write all data: %d > %d\n", len, wrote);
-        finish();
+        //DEBUG_PRINTF("TWS write_or_abort failed to write all data: %d > %d\n", len, wrote);
+        abort(); // Better to abort rather than partially write?
+        //finish();
         return false;
     }
     return true;
@@ -443,22 +444,22 @@ void TwsRequest::send(int code, const char *content_type, const char *content) {
     buf[10] = code / 10 + '0';
     code = code % 10;
     buf[11] = code + '0';
-    write_fully(buf, 16); // Write the HTTP status line
+    write_or_abort(buf, 16); // Write the HTTP status line
 
     if(content_type && content_type[0] != '\0') {
-        write_fully("Content-Type: ");
-        write_fully(content_type);
-        write_fully("\r\n");
+        write_or_abort("Content-Type: ");
+        write_or_abort(content_type);
+        write_or_abort("\r\n");
     }
-    // write_fully("Content-Length: ");
+    // write_or_abort("Content-Length: ");
     // if(content && content[0] != '\0') {
-    //     write_fully(content);
+    //     write_or_abort(content);
     // } else {
-    //     write_fully("0");
+    //     write_or_abort("0");
     // }
     if(content != nullptr) {
-        write_fully("\r\n");
-        write_fully(content);
+        write_or_abort("\r\n");
+        write_or_abort(content);
     }
 }
 

@@ -43,7 +43,7 @@ TwsRoute eOtaStartHandler = TwsRoute("/ota/start").use(*new OtaStart());
 
 TwsRoute eOtaUploadHandler = TwsRoute("/ota/upload", 
     new TwsRequestHandlerFunc([](TwsRequest& request) {
-        request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nOK");
+        request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nOK");
         request.finish();
     })
 ).use(*new OtaUpload());
@@ -57,7 +57,7 @@ const char* HTTP_RESPONSE_GZIP = "HTTP/1.1 200 OK\r\n"
                         "\r\n";
 
 TwsRoute frontendHandler = TwsRoute("*", new TwsRequestHandlerFunc([](TwsRequest& request) {
-    request.write_fully(HTTP_RESPONSE_GZIP, strlen(HTTP_RESPONSE_GZIP));
+    request.write_or_abort(HTTP_RESPONSE_GZIP, strlen(HTTP_RESPONSE_GZIP));
     request.set_writer_callback(CharBufWriter((const char*)html_data, sizeof(html_data)));
 }));
 

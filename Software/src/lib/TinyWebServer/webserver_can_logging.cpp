@@ -79,12 +79,12 @@ void IRAM_ATTR dump_can_frame2(const CAN_frame& frame, CAN_Interface interface, 
 }
 
 TwsRoute logRoute("/api/log", new TwsRequestHandlerFunc([](TwsRequest& request) {
-    request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\nAccess-Control-Allow-Origin: *\r\n\r\n");
+    request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\nAccess-Control-Allow-Origin: *\r\n\r\n");
     request.set_writer_callback(CharBufWriter((const char*)datalayer.system.info.logged_can_messages, sizeof(datalayer.system.info.logged_can_messages)));
 }));
 
 TwsRoute dumpCanRoute("/dump_can", new TwsRequestHandlerFunc([](TwsRequest& request) {
-    request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\n");
+    request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\n");
     if(can_dumper_connection_id) tinyWebServer.finish(can_dumper_connection_id);
     can_dumper_connection_id = request.get_connection_id();
     datalayer.system.info.can_logging_active2 = true;

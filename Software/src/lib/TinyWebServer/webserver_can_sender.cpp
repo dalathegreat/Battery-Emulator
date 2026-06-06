@@ -3,7 +3,7 @@
 
 TwsRoute canSenderRoute = TwsRoute("/api/cansend", 
     new TwsRequestHandlerFunc([](TwsRequest& request) {
-        request.write_fully("HTTP/1.1 200 OK\r\n"
+        request.write_or_abort("HTTP/1.1 200 OK\r\n"
                             "Connection: close\r\n"
                             "Access-Control-Allow-Origin: *\r\n"
                             "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"

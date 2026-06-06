@@ -14,7 +14,7 @@ bool BasicAuth::denyIfUnauthed(TwsRequest &request) {
     if (request.is_options()) return false;
     auto &state = get_state(request);
     if(!state.authed) {
-        request.write_fully("HTTP/1.1 401 Unauthorized\r\n"
+        request.write_or_abort("HTTP/1.1 401 Unauthorized\r\n"
                     "Connection: close\r\n"
                     "Content-Type: text/plain\r\n"
                     "WWW-Authenticate: Basic realm=\"TinyWebServer\"\r\n"

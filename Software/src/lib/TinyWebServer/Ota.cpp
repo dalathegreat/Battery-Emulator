@@ -9,12 +9,12 @@ void OtaStart::handleRequest(TwsRequest &request) {
     #ifndef LOCAL
 
     if(!Update.begin(UPDATE_SIZE_UNKNOWN, state.mode == 1 ? U_SPIFFS : U_FLASH)) {
-        request.write_fully("HTTP/1.1 400 Bad Request\r\n"
+        request.write_or_abort("HTTP/1.1 400 Bad Request\r\n"
                     "Connection: close\r\n"
                     "Content-Type: text/plain\r\n"
                     "\r\nNot ok");
     } else {
-        request.write_fully("HTTP/1.1 200 OK\r\n"
+        request.write_or_abort("HTTP/1.1 200 OK\r\n"
                     "Connection: close\r\n"
                     "Content-Type: text/plain\r\n"
                     "Access-Control-Allow-Origin: *\r\n"
@@ -22,7 +22,7 @@ void OtaStart::handleRequest(TwsRequest &request) {
     }
 
     #else
-    request.write_fully("HTTP/1.1 200 OK\r\n"
+    request.write_or_abort("HTTP/1.1 200 OK\r\n"
                     "Connection: close\r\n"
                     "Content-Type: text/plain\r\n"
                     "Access-Control-Allow-Origin: *\r\n"
@@ -73,12 +73,12 @@ int OtaUpload::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
 
     if((index + len) >= request.get_content_length()) {
         if(Update.end(true)) {
-            request.write_fully("HTTP/1.1 200 OK\r\n"
+            request.write_or_abort("HTTP/1.1 200 OK\r\n"
                         "Connection: close\r\n"
                         "Content-Type: text/plain\r\n"
                         "\r\nOK");
         } else {
-            request.write_fully("HTTP/1.1 500 Internal Server Error\r\n"
+            request.write_or_abort("HTTP/1.1 500 Internal Server Error\r\n"
                         "Connection: close\r\n"
                         "Content-Type: text/plain\r\n"
                         "\r\nUpdate failed.");
@@ -116,7 +116,7 @@ void OtaUpload::handleUpload(TwsRequest &request, const char *key, const char *f
     fclose(file);
 
     if(final) {
-        request.write_fully("HTTP/1.1 200 OK\r\n"
+        request.write_or_abort("HTTP/1.1 200 OK\r\n"
                     "Connection: close\r\n"
                     "Content-Type: text/plain\r\n"
                     "\r\nOK");
@@ -136,13 +136,13 @@ void OtaUpload::handleUpload(TwsRequest &request, const char *key, const char *f
     if(final) {
         if(Update.end(true)) {
             //printf("Update completed successfully\n");
-            request.write_fully("HTTP/1.1 200 OK\r\n"
+            request.write_or_abort("HTTP/1.1 200 OK\r\n"
                         "Connection: close\r\n"
                         "Content-Type: text/plain\r\n"
                         "\r\nOK");
         } else {
             //printf("Update failed to end: %s\n", Update.errorString());
-            request.write_fully("HTTP/1.1 500 Internal Server Error\r\n"
+            request.write_or_abort("HTTP/1.1 500 Internal Server Error\r\n"
                         "Connection: close\r\n"
                         "Content-Type: text/plain\r\n"
                         "\r\nUpdate failed.");

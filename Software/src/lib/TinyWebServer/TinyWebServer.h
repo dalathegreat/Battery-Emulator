@@ -1,5 +1,4 @@
-#ifndef TINY_WEB_SERVER_H
-#define TINY_WEB_SERVER_H
+#pragma once
 
 #ifndef LOCAL
 // Arduino build
@@ -65,12 +64,12 @@ typedef std::function<void(TwsRequest &request, int alreadyWritten)> TwsRequestW
 
 class TwsRequest {
 public:
-    uint32_t write(const char *buf, uint16_t len);
-    inline bool write_fully(const char *buf) {
+    uint32_t write_some(const char *buf, uint16_t len);
+    inline bool write_or_abort(const char *buf) {
         const int len = strlen(buf);
-        return write_fully(buf, len);
+        return write_or_abort(buf, len);
     }
-    bool write_fully(const char *buf, uint16_t len);
+    bool write_or_abort(const char *buf, uint16_t len);
     uint32_t write_direct(const char *buf, uint16_t len);
     uint32_t write_indirect(const char *buf, uint16_t len);
     int available();
@@ -345,8 +344,19 @@ public:
 
 template <typename T>
 int TwsStatefulMiddleware<T>::handleAlloc(int max, int start) {
+    // TODO - add a debug flag that checks handleAlloc is only called once?
+
+    constexpr size_t alignment = alignof(T);
+    size_t misalignment = start % alignment;
+    if (misalignment != 0) {
+        // Nudge start to the next aligned address for type T
+        start += (alignment - misalignment);
+    }
+
     int alloc_size = sizeof(T);
+    // Store the start offset in the middleware instance
     offset = start;
+    // Move the start pointer forward by the size of T to reserve space for it
     start += alloc_size;
     
     // Use TwsMiddleware's nextAlloc pointer to continue the chain
@@ -360,5 +370,3 @@ template <typename T>
 T& TwsStatefulMiddleware<T>::get_state(TwsRequest &request) {
     return *(T*)(request.get_state_data() + offset);
 }
-
-#endif // TINY_WEB_SERVER_H

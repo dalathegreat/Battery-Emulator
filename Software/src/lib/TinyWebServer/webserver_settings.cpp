@@ -489,7 +489,7 @@ TwsRoute settingsRoute = TwsRoute("/api/internal/settings", new TwsJsonRestFunc(
         if(errors.size()) {
             auto response = std::make_shared<String>();
             serializeJson(errors, *response);
-            request.write_fully("HTTP/1.1 400 Bad\r\n"
+            request.write_or_abort("HTTP/1.1 400 Bad\r\n"
                             "Connection: close\r\n"
                             "Content-Type: application/json\r\n"
                             "Access-Control-Allow-Origin: *\r\n"

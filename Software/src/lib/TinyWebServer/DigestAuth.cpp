@@ -330,29 +330,29 @@ template <typename HASH_CONTEXT, int HASH_TYPE>
 bool DigestAuth<HASH_CONTEXT, HASH_TYPE>::denyIfUnauthed(TwsRequest &request) {
     auto &state = this->get_state(request);
     if(!state.authed || state.denied) {
-        request.write_fully("HTTP/1.1 401 Unauthorized\r\n"
+        request.write_or_abort("HTTP/1.1 401 Unauthorized\r\n"
                                 "Connection: close\r\n"
                                 "WWW-Authenticate: Digest "
                                 "qop=\"auth\", "
                                 "algorithm=");
         if(HASH_TYPE==0) { // MD5
-            request.write_fully("MD5, nonce=\"");
+            request.write_or_abort("MD5, nonce=\"");
         } else { // SHA-256
-            request.write_fully("SHA-256, nonce=\"");
+            request.write_or_abort("SHA-256, nonce=\"");
         }
         char buf[NONCE_LENGTH+1];
         for(int i=0; i<NONCE_LENGTH; i++) {
             buf[i] = "0123456789abcdefghijklmnopqrstuv"[random(32)];
         }
         buf[NONCE_LENGTH] = '\0';
-        request.write_fully(buf);
-        request.write_fully("\"\r\n\r\n");
+        request.write_or_abort(buf);
+        request.write_or_abort("\"\r\n\r\n");
                                 
         //                         MD5, "
         //                         "nonce=\"");
 
         // if(HASH_TYPE==0) { // MD5
-        //     request.write_fully("HTTP/1.1 401 Unauthorized\r\n"
+        //     request.write_or_abort("HTTP/1.1 401 Unauthorized\r\n"
         //                         "Connection: close\r\n"
         //                         "WWW-Authenticate: Digest "
         //                         "qop=\"auth\", "
@@ -360,7 +360,7 @@ bool DigestAuth<HASH_CONTEXT, HASH_TYPE>::denyIfUnauthed(TwsRequest &request) {
         //                         "nonce=\"7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v\"\r\n"
         //                         "\r\n\n");
         // } else { // SHA-256
-        //     request.write_fully("HTTP/1.1 401 Unauthorized\r\n"
+        //     request.write_or_abort("HTTP/1.1 401 Unauthorized\r\n"
         //                         "Connection: close\r\n"
         //                         "WWW-Authenticate: Digest "
         //                         "qop=\"auth\", "

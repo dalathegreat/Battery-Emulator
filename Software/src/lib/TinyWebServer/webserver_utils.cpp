@@ -65,7 +65,7 @@ void TwsJsonGetFunc::handleRequest(TwsRequest &request) {
     respond(request, doc);
     auto response = std::make_shared<String>();
     serializeJson(doc, *response);
-    request.write_fully("HTTP/1.1 200 OK\r\n"
+    request.write_or_abort("HTTP/1.1 200 OK\r\n"
                     "Connection: close\r\n"
                     "Content-Type: application/json\r\n"
                     "Access-Control-Allow-Origin: *\r\n"
@@ -121,7 +121,7 @@ void TwsJsonRestHandler::handleRequest(TwsRequest &request) {
 
     auto response = std::make_shared<String>();
     serializeJson(doc, *response);
-    request.write_fully("HTTP/1.1 200 OK\r\n"
+    request.write_or_abort("HTTP/1.1 200 OK\r\n"
                         "Connection: close\r\n"
                         "Content-Type: application/json\r\n"
                         "Access-Control-Allow-Origin: *\r\n\r\n");
@@ -139,7 +139,7 @@ bool TwsJsonRestFunc::handleJsonPost(TwsRequest& request, uint8_t* data, size_t 
         return _onPost(request, data, len);
     }
     // Reject POSTs if no handler was provided
-    request.write_fully(HTTP_405);
+    request.write_or_abort(HTTP_405);
     request.finish();
     return true; 
 }

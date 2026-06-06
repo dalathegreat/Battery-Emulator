@@ -30,7 +30,7 @@ static const char* get_inverter_status() {
 }
 
 TwsRoute apiBatOldRoute = TwsRoute("/api/batold", new TwsRequestHandlerFunc([](TwsRequest& request) {
-    request.write_fully(HTTP_RESPONSE);
+    request.write_or_abort(HTTP_RESPONSE);
     if(battery) {
         auto &renderer = battery->get_status_renderer();
         auto response = std::make_shared<String>(renderer.get_status_html());
@@ -153,6 +153,8 @@ TwsRoute statusRoute("/api/status", new TwsJsonGetFunc([](TwsRequest& request, J
         bat["discharge_p_max"] = bat_data.status.max_discharge_power_W;
         bat["cell_mv_max"] = bat_data.status.cell_max_voltage_mV;
         bat["cell_mv_min"] = bat_data.status.cell_min_voltage_mV;
+        bat["v_max"] = static_cast<float>(bat_data.info.max_design_voltage_dV) / 10.0f;
+        bat["v_min"] = static_cast<float>(bat_data.info.min_design_voltage_dV) / 10.0f;
         bat["inverter_limits_discharge"] = bat_data.settings.inverter_limits_discharge;
         bat["user_settings_limit_discharge"] = bat_data.settings.user_settings_limit_discharge;
         bat["inverter_limits_charge"] = bat_data.settings.inverter_limits_charge;
@@ -214,9 +216,9 @@ TwsRoute cellsRoute("/api/cells", new TwsJsonGetFunc([](TwsRequest& request, Jso
 }));
 
 TwsRoute batextRoute("/api/batext", new TwsRequestHandlerFunc([](TwsRequest& request) {
-    request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/octet-stream\r\nAccess-Control-Allow-Origin: *\r\n\r\n");
+    request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/octet-stream\r\nAccess-Control-Allow-Origin: *\r\n\r\n");
     uint32_t btype = (uint32_t)user_selected_battery_type;
-    request.write((const char*)&btype, 4);
+    request.write_or_abort((const char*)&btype, 4);
 
     if(user_selected_battery_type==BatteryType::BoltAmpera) request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.boltampera, sizeof(datalayer_extended.boltampera)));
     else if(user_selected_battery_type==BatteryType::BmwPhev) request.set_writer_callback(CharBufWriter((const char*)&datalayer_extended.bmwphev, sizeof(datalayer_extended.bmwphev)));
@@ -292,7 +294,7 @@ TwsRoute batcmdRoute = TwsRoute("/api/batteries/*", new TwsJsonRestFunc([](TwsRe
 
     int first_slash = wildcard.find('/');
     if (first_slash == -1) {
-        request.write_fully(HTTP_404);
+        request.write_or_abort(HTTP_404);
         request.finish();
         return true; // The request is now finished
     }
@@ -310,7 +312,7 @@ TwsRoute batcmdRoute = TwsRoute("/api/batteries/*", new TwsJsonRestFunc([](TwsRe
     else if(battery2 && id_part=="2") bat = battery2;
     else if(battery3 && id_part=="3") bat = battery3;
     else {
-        request.write_fully(HTTP_404);
+        request.write_or_abort(HTTP_404);
         request.finish();
         return true; // The request is now finished
     }
@@ -360,19 +362,19 @@ TwsRoute batcmdRoute = TwsRoute("/api/batteries/*", new TwsJsonRestFunc([](TwsRe
         auto response = std::make_shared<String>(bat->handle_custom_command(action_part.data(), data, len, request.get_connection_id()));
         if(*response == "__SSE__") {
             // Start a SSE stream.
-            request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/event-stream\r\n\r\n");
+            request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/event-stream\r\n\r\n");
         } else if(*response == "__STREAM__") {
             // Start a generic stream.
-            request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/octet-stream\r\n\r\n");
+            request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/octet-stream\r\n\r\n");
         } else {
             // Send a JSON response.
-            request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/json\r\n\r\n");
+            request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/json\r\n\r\n");
             request.set_writer_callback(StringWriter(response));
         }
         return true; // The request is now finished
     }
 
-    request.write_fully(HTTP_204);
+    request.write_or_abort(HTTP_204);
     request.finish();
     return true; // The request is now finished
 }));
@@ -398,15 +400,15 @@ TwsRoute eventsRoute("/api/events", new TwsJsonGetFunc([](TwsRequest& request, J
 }));
 
 TwsRoute eventsClearRoute("/api/events/clear", new TwsRequestHandlerFunc([](TwsRequest& request) {
-    if(!request.is_post()) { request.write_fully(HTTP_405); request.finish(); return; }
+    if(!request.is_post()) { request.write_or_abort(HTTP_405); request.finish(); return; }
     reset_all_events();
-    request.write_fully(HTTP_204);
+    request.write_or_abort(HTTP_204);
     request.finish();
 }));
 
 TwsRoute rebootRoute("/api/reboot", new TwsRequestHandlerFunc([](TwsRequest& request) {
-    if(!request.is_post()) { request.write_fully(HTTP_405); request.finish(); return; }
-    request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nRebooting server...\n");
+    if(!request.is_post()) { request.write_or_abort(HTTP_405); request.finish(); return; }
+    request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nRebooting server...\n");
     setBatteryPause(true, true, true, false);
     delay(1000);
     ESP.restart();
@@ -416,7 +418,7 @@ TwsRoute rebootRoute("/api/reboot", new TwsRequestHandlerFunc([](TwsRequest& req
 TwsRoute pauseRoute("/api/pause", new TwsRawPostFunc([](TwsRequest& request, size_t index, uint8_t *data, size_t len, size_t total) -> int {
     if(len==1 && data[0]=='1') setBatteryPause(true, false, datalayer.system.info.equipment_stop_active);
     else if(len==1 && data[0]=='0') setBatteryPause(false, false, datalayer.system.info.equipment_stop_active);
-    request.write_fully(HTTP_204);
+    request.write_or_abort(HTTP_204);
     request.finish();
     return len;
 }));
@@ -424,13 +426,13 @@ TwsRoute pauseRoute("/api/pause", new TwsRawPostFunc([](TwsRequest& request, siz
 TwsRoute estopRoute("/api/estop", new TwsRawPostFunc([](TwsRequest& request, size_t index, uint8_t *data, size_t len, size_t total) -> int {
     if(len==1 && data[0]=='1') setBatteryPause(true, false, true);
     else if(len==1 && data[0]=='0') setBatteryPause(false, false, false);
-    request.write_fully(HTTP_204);
+    request.write_or_abort(HTTP_204);
     request.finish();
     return len;
 }));
 
 TwsRoute statsRoute("/api/stats", new TwsRequestHandlerFunc([](TwsRequest& request) {
-    request.write_fully("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\n");
+    request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\n");
     auto response = std::make_shared<String>();
     response->reserve(5000);
     char output[3000] = {0};

@@ -132,7 +132,7 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
         if(frame.len > 64) {
             // Invalid length
             DEBUG_PRINTF("Invalid CAN frame length: %d\n", frame.len);
-            request.write_fully("HTTP/1.1 400 b\r\n"
+            request.write_or_abort("HTTP/1.1 400 b\r\n"
                         "Connection: close\r\n"
                         "Content-Type: text/plain\r\n"
                         "\r\nInvalid CAN frame length.\n");
@@ -180,7 +180,7 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
             //DEBUG_PRINTF("notx\n");
             break;
             // Failed to send
-            // request.write_fully("HTTP/1.1 500 e\r\n"
+            // request.write_or_abort("HTTP/1.1 500 e\r\n"
             //             "Connection: close\r\n"
             //             "Content-Type: text/plain\r\n"
             //             "\r\nFailed to send CAN frame.\n");
@@ -202,7 +202,7 @@ int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, 
         DEBUG_PRINTF("End of upload (content length %d reached at %d)\n", (int)content_length, (int)(index + len));
 
         // Finished uploading
-        request.write_fully("HTTP/1.1 200 OK\r\n"
+        request.write_or_abort("HTTP/1.1 200 OK\r\n"
                     "Connection: close\r\n"
                     "Content-Type: text/plain\r\n"
                     "\r\nOK\n");
