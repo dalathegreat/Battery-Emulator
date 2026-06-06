@@ -458,7 +458,7 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
 
   datalayer.battery.status.real_soc = avg_soc_state;
   datalayer.battery.status.voltage_dV = battery_voltage;
-  datalayer.battery.status.current_dA = battery_current;
+  datalayer.battery.status.current_dA = battery_current / 100;  // battery_current is in mA, convert to dA
   datalayer.battery.info.total_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
   datalayer.battery.status.remaining_capacity_Wh = battery_predicted_energy_charge_condition;
   datalayer.battery.status.soh_pptt = min_soh_state;
