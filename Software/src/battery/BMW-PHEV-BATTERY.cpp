@@ -24,7 +24,7 @@ i3 messages don't affect contact close block except 0x380 which gives an error o
 
 BROADCAST MAP
 0x112 20ms Status Of High-Voltage Battery 2
-0x1F1 1000ms Status Of High-Voltage Battery 1
+0x1F1 1000ms Status Of High-Voltage Battery 1 //PHEV doesn't seem to send this - at leasst as 0x1F1
 0x239 200ms predicted charge condition and predicted target
 0x295 1000ms ? [1] Alive Counter 50-5F?
 0x2A5 200ms ?
@@ -655,7 +655,7 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                 (rx_frame.data.u8[7]);  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
           }
 
-          if (rx_frame.DLC == 8 && rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xDD &&
+          if (rx_frame.DLC == 7 && rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xDD &&
               rx_frame.data.u8[4] == 0xB4) {  //Main Battery Voltage (Pre Contactor)
             battery_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
           }
