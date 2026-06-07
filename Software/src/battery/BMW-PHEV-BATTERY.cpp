@@ -144,9 +144,9 @@ UDS MAP
 
 
 TODO:
- BMWPHEV_6F1_REQUEST_LAST_ISO_READING - add results to advanced
- BMWPHEV_6F1_REQUEST_PACK_INFO - add cell count reading
- Find current measurement reading
+BMWPHEV_6F1_REQUEST_PACK_INFO - add cell count reading
+BMWPHEV_6F1_REQUEST_ISOLATION_RESULT  - add isolation test progress results 
+
 
 */
 

@@ -237,29 +237,13 @@ class BmwPhevBattery : public CanBattery {
                                               .ID = 0x6F1,
                                               .data = {0x07, 0x03, 0x22, 0xF1, 0x90}};  //  SME Paired VIN
 
-  CAN_frame BMWPHEV_6F1_REQUEST_ISO_READING1 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 5,
-      .ID = 0x6F1,
-      .data = {
-          0x07, 0x03, 0x22, 0xDD,
-          0x6A}};  // MULTI FRAME ISOLATIONSWIDERSTAND 62 DD 6A [07 D0] [07 D0] [07 D0] [01] [01] [01] 00 00 00 00 00   [EXT Reading] [INT reading] [ EXT - 0 not plausible, 1 plausible]
-
-  CAN_frame BMWPHEV_6F1_REQUEST_ISO_READING2 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 5,
-      .ID = 0x6F1,
-      .data = {0x07, 0x03, 0x22, 0xD6,
-               0xD9}};  //  R_ISO_ROH 62 D6 D9 [07 FF] [13] (2047kohm) quality of reading 0-21 (19)
-
   CAN_frame BMWPHEV_6F1_REQUEST_PACK_INFO = {
       .FD = false,
       .ext_ID = false,
       .DLC = 5,
       .ID = 0x6F1,
-      .data = {0x07, 0x03, 0x22, 0xDF, 0x71}};  //   62 DF 71 00 60 1C 25 1C? Cell Count, Module Count
+      .data = {0x07, 0x03, 0x22, 0xDF,
+               0x71}};  //   62 DF 71 00 60 1C 25 1C? Cell Count,  (byte 4 0x60 = 96)  - Module count assumed here too
 
   CAN_frame BMWPHEV_6F1_REQUEST_CURRENT_LIMITS = {
       .FD = false,
@@ -347,6 +331,43 @@ class BmwPhevBattery : public CanBattery {
       .DLC = 8,
       .ID = 0x6F1,
       .data = {0x07, 0x04, 0x31, 0x01, 0xAD, 0x61, 0x00, 0x00}};  // Start Isolation Test
+
+  // --- Isolation test: requestRoutineResults (UDS $31 sub 0x03) on RID 0xAD61.
+  //     Send AFTER starting the routine (0x31 0x01 0xAD 0x61). Poll this until the SME
+  //     reports the measurement finished. Response layout (positive, 0x71):
+  //       71 03 AD 61 [B5 STAT_MESSUNG_ERFOLGREICH] [B6 STAT_MESSUNG_ISOLATIONSFEHLER]
+  //       B5: 0x00 = Isolationsmessung NICHT erfolgreich (failed / no valid result)
+  //           0x01 = Isolationsmessung erfolgreich (measurement valid - read iso kohm values)
+  //           0x02 = Isolationsmessung laeuft (IN PROGRESS - keep polling, result not ready)
+  //       B6: 0x00 = kein Fehler (no isolation fault)
+  //           0xFF = nicht definiert (undefined - typical while result not yet valid)
+  //     Observed:
+  //       71 03 AD 61 00 FF  -> measurement not successful, fault undefined
+  //       71 03 AD 61 02 00  -> measurement in progress (running), no fault yet
+  //       71 03 AD 61 01 00  -> measurement successful, no isolation fault
+  CAN_frame BMWPHEV_6F1_REQUEST_ISOLATION_RESULT = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x6F1,
+      .data = {0x07, 0x04, 0x31, 0x03, 0xAD, 0x61, 0x00, 0x00}};  // requestRoutineResults - Isolation Test
+
+  CAN_frame BMWPHEV_6F1_REQUEST_ISO_READING1 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 5,
+      .ID = 0x6F1,
+      .data = {
+          0x07, 0x03, 0x22, 0xDD,
+          0x6A}};  // MULTI FRAME ISOLATIONSWIDERSTAND 62 DD 6A [07 D0] [07 D0] [07 D0] [01] [01] [01] 00 00 00 00 00   [EXT Reading] [INT reading] [ EXT - 0 not plausible, 1 plausible]
+
+  CAN_frame BMWPHEV_6F1_REQUEST_ISO_READING2 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 5,
+      .ID = 0x6F1,
+      .data = {0x07, 0x03, 0x22, 0xD6,
+               0xD9}};  //  R_ISO_ROH 62 D6 D9 [07 FF] [13] (2047kohm) quality of reading 0-21 (19)
 
   CAN_frame BMWPHEV_6F1_REQUEST_BALANCING_START = {
       .FD = false,
