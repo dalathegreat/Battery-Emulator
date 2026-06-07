@@ -298,7 +298,7 @@ void setup_battery() {
             new BoltAmperaBattery(&datalayer.battery2, &datalayer_extended.boltampera_2, can_config.battery_double);
         break;
       case BatteryType::BydAtto3:
-        battery2 = new BydAttoBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+        battery2 = new BydAttoBattery(&datalayer.battery2, &datalayer_extended.bydAtto3_2, can_config.battery_double);
         break;
       case BatteryType::NissanLeaf:
         battery2 = new NissanLeafBattery(&datalayer.battery2, nullptr, can_config.battery_double);
