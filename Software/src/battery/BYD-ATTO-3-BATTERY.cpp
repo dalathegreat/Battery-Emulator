@@ -261,6 +261,8 @@ void BydAttoBattery::
 }
 
 void BydAttoBattery::handle_auto_soc_calibration(bool crit_taper, uint32_t dt_ms, uint32_t now_ms) {
+  if (!datalayer_bydatto)
+    return;
   const uint32_t TAIL_DWELL_REQUIRED_MS = 10UL * 60UL * 1000UL;
   const uint32_t CURRENT_SPIKE_GRACE_MS = 60UL * 1000UL;
 
