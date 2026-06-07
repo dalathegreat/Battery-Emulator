@@ -55,10 +55,11 @@ static uint8_t prejoin_raw_stable_seconds[MAX_SLAVE_NODES] = {0};
 static uint16_t prejoin_pressure_permille[MAX_SLAVE_NODES] = {0};
 // Global applied pressure (used to cap BOTH charge and discharge simultaneously)
 static uint16_t prejoin_applied_pressure_permille = 0;
-// Snapshot of inverter cap at the moment the first prejoin session starts.
-// Prevents feedback: as we reduce power the live cap_base stays at the snapshot value.
+// Snapshot of cap base at the moment a new prejoin session begins (rising edge of any_prejoin_active).
+// Holds base_* stable throughout the session so mid-session slave reporting changes cannot shift the curve.
 static uint32_t prejoin_cap_snapshot_charge_W = 0;
 static uint32_t prejoin_cap_snapshot_discharge_W = 0;
+static bool prejoin_was_active = false;  // edge detector
 
 static uint8_t count_joined_slaves() {
   uint8_t joined_count = 0;
@@ -852,40 +853,34 @@ void MasterCan::update_slave_aggregation() {
     prejoin_applied_pressure_permille = (uint16_t)(prejoin_applied_pressure_permille - delta);
   }
 
-  // Cap base: slave-aggregated sum clipped to the user's configured inverter limit.
-  // Using the user limit ensures the pressure curve spans a meaningful range
-  // (e.g. 30 A × 370 V = 11 100 W, not 100 kW from raw battery sum).
-  // We read from max_user_set_*_dA (a static setting) rather than max_*_current_dA
-  // (derived from our own capped output) to avoid a self-referencing feedback loop.
   uint32_t cap_base_charge_W = total_max_charge_W;
   uint32_t cap_base_discharge_W = total_max_discharge_W;
-  if (shared_voltage_dV > 0) {
-    uint32_t user_charge_W =
-        (uint32_t)datalayer.battery.settings.max_user_set_charge_dA * shared_voltage_dV / 100u;
-    uint32_t user_discharge_W =
-        (uint32_t)datalayer.battery.settings.max_user_set_discharge_dA * shared_voltage_dV / 100u;
-    if (user_charge_W > 0 && user_charge_W < cap_base_charge_W) {
-      cap_base_charge_W = user_charge_W;
-    }
-    if (user_discharge_W > 0 && user_discharge_W < cap_base_discharge_W) {
-      cap_base_discharge_W = user_discharge_W;
-    }
-  }
 
-  // Snapshot cap-base the moment the first prejoin session begins.
-  // This prevents a feedback loop: as we reduce the cap, the base stays fixed at
-  // what the inverter was allowed at prejoin start (e.g. 30 A × 370 V = 11 100 W).
-  if (any_prejoin_active && prejoin_cap_snapshot_charge_W == 0) {
-    prejoin_cap_snapshot_charge_W = cap_base_charge_W;
-    prejoin_cap_snapshot_discharge_W = cap_base_discharge_W;
+  // Snapshot on rising edge of any_prejoin_active: capture the actual inverter-facing
+  // current limit (max_*_current_dA × voltage) so the pressure curve spans a meaningful
+  // range relative to what the inverter can draw. Only taken once per session — no
+  // feedback loop since snapshot is frozen for the duration of the session.
+  if (any_prejoin_active && !prejoin_was_active) {
+    if (shared_voltage_dV > 0 && datalayer.battery.status.max_charge_current_dA > 0) {
+      prejoin_cap_snapshot_charge_W =
+          (uint32_t)datalayer.battery.status.max_charge_current_dA * shared_voltage_dV / 100u;
+    } else {
+      prejoin_cap_snapshot_charge_W = cap_base_charge_W;
+    }
+    if (shared_voltage_dV > 0 && datalayer.battery.status.max_discharge_current_dA > 0) {
+      prejoin_cap_snapshot_discharge_W =
+          (uint32_t)datalayer.battery.status.max_discharge_current_dA * shared_voltage_dV / 100u;
+    } else {
+      prejoin_cap_snapshot_discharge_W = cap_base_discharge_W;
+    }
     logging.printf("Master CAN: Pre-join cap snapshot: charge=%uW discharge=%uW\n",
                    prejoin_cap_snapshot_charge_W, prejoin_cap_snapshot_discharge_W);
   } else if (!any_prejoin_active && prejoin_applied_pressure_permille == 0) {
-    // Clear snapshot only once pressure is fully released
     prejoin_cap_snapshot_charge_W = 0;
     prejoin_cap_snapshot_discharge_W = 0;
   }
-  // Use snapshot when available; fall back to live cap_base
+  prejoin_was_active = any_prejoin_active;
+
   uint32_t base_charge_W =
       (prejoin_cap_snapshot_charge_W > 0) ? prejoin_cap_snapshot_charge_W : cap_base_charge_W;
   uint32_t base_discharge_W =
