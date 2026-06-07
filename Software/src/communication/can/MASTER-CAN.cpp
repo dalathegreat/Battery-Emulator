@@ -853,25 +853,28 @@ void MasterCan::update_slave_aggregation() {
     prejoin_applied_pressure_permille = (uint16_t)(prejoin_applied_pressure_permille - delta);
   }
 
+  // Outside prejoin: use full slave aggregation as cap base (normal operation).
   uint32_t cap_base_charge_W = total_max_charge_W;
   uint32_t cap_base_discharge_W = total_max_discharge_W;
 
-  // Snapshot on rising edge of any_prejoin_active: capture the actual inverter-facing
-  // current limit (max_*_current_dA × voltage) so the pressure curve spans a meaningful
-  // range relative to what the inverter can draw. Only taken once per session — no
-  // feedback loop since snapshot is frozen for the duration of the session.
+  // Snapshot on rising edge only: clip to user's configured inverter limit so the
+  // pressure curve spans a meaningful range (e.g. 30 A × 370 V = 11 100 W).
+  // max_user_set_*_dA is a static setting — no feedback loop.
+  // Before and after prejoin, full slave aggregation is used unchanged.
   if (any_prejoin_active && !prejoin_was_active) {
-    if (shared_voltage_dV > 0 && datalayer.battery.status.max_charge_current_dA > 0) {
-      prejoin_cap_snapshot_charge_W =
-          (uint32_t)datalayer.battery.status.max_charge_current_dA * shared_voltage_dV / 100u;
-    } else {
-      prejoin_cap_snapshot_charge_W = cap_base_charge_W;
-    }
-    if (shared_voltage_dV > 0 && datalayer.battery.status.max_discharge_current_dA > 0) {
-      prejoin_cap_snapshot_discharge_W =
-          (uint32_t)datalayer.battery.status.max_discharge_current_dA * shared_voltage_dV / 100u;
-    } else {
-      prejoin_cap_snapshot_discharge_W = cap_base_discharge_W;
+    prejoin_cap_snapshot_charge_W = cap_base_charge_W;
+    prejoin_cap_snapshot_discharge_W = cap_base_discharge_W;
+    if (shared_voltage_dV > 0) {
+      uint32_t user_charge_W =
+          (uint32_t)datalayer.battery.settings.max_user_set_charge_dA * shared_voltage_dV / 100u;
+      uint32_t user_discharge_W =
+          (uint32_t)datalayer.battery.settings.max_user_set_discharge_dA * shared_voltage_dV / 100u;
+      if (user_charge_W > 0 && user_charge_W < prejoin_cap_snapshot_charge_W) {
+        prejoin_cap_snapshot_charge_W = user_charge_W;
+      }
+      if (user_discharge_W > 0 && user_discharge_W < prejoin_cap_snapshot_discharge_W) {
+        prejoin_cap_snapshot_discharge_W = user_discharge_W;
+      }
     }
     logging.printf("Master CAN: Pre-join cap snapshot: charge=%uW discharge=%uW\n",
                    prejoin_cap_snapshot_charge_W, prejoin_cap_snapshot_discharge_W);

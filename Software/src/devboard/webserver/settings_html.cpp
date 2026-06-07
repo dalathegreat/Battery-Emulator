@@ -1604,6 +1604,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
+        <div class="if-inter-master">
+        <p style='color:#FFD700;margin:4px 0;'>&#9888; Inter-Unit Master: Set Max charge and discharge speed (below) to your inverter&apos;s maximum current (A) for correct prejoin power regulation.</p>
+        </div>
+
         <div class="if-pylon-battery">
         <label>Pylon CAN baudrate (kbps): </label>
         <input name='PYLONBAUD' type='text' value="%PYLONBAUD%" pattern="[0-9]+" title="Select CAN bus baudrate (500kbps for most batteries, 250kbps for some configurations)"/>
