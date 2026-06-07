@@ -1257,6 +1257,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-inter-master { display: none; }
     form[data-battery="53"] .if-inter-master { display: contents; }
+
+    form .if-not-inter-master { display: contents; }
+    form[data-battery="53"] .if-not-inter-master { display: none; }
     form[data-shunttype="0"] .if-ctclamp,
     form[data-shunttype="1"] .if-ctclamp,
     form[data-shunttype="2"] .if-ctclamp { 
@@ -1605,7 +1608,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-inter-master">
-        <p style='color:#FFD700;margin:4px 0;'>&#9888; Inter-Unit Master: Set Max charge and discharge speed (below) to your inverter&apos;s maximum current (A) for correct prejoin power regulation.</p>
+        <p style='color:#FFD700;margin:4px 0;grid-column: span 2;'>&#9888; Inter-Unit Master: Set Max charge and discharge speed (below) to your inverter&apos;s maximum current (A) for correct prejoin power regulation.</p>
         </div>
 
         <div class="if-pylon-battery">
@@ -1631,9 +1634,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Minimum voltage per individual cell in millivolts. Discharge stops if one cell drops to this voltage." />
         </div>
 
+        <div class="if-not-inter-master">
         <label>Double battery: </label>
-        <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% 
+        <input type='checkbox' name='DBLBTR' value='on' %DBLBTR%
         title="Enable this option if you intend to run two batteries in parallel" />
+        </div>
 
         <div class="if-dblbtr">
             <label>Battery 2 interface: </label>
