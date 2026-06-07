@@ -105,7 +105,7 @@ void BydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x151:  //Message originating from BYD HVS compatible inverter. Reply with CAN identifier!
       inverterStartedUp = true;
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 2;
       if (rx_frame.data.u8[0] & 0x01) {  //Battery requests identification
         send_initial_data();
       } else {  // We can identify what inverter type we are connected to
@@ -119,7 +119,7 @@ void BydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       break;
     case 0x091:
       inverterStartedUp = true;
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 2;
       inverter_voltage = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) * 0.1;
       inverter_current = (int16_t)((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
       inverter_temperature = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.1;
@@ -136,18 +136,18 @@ void BydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       break;
     case 0x0D1:
       inverterStartedUp = true;
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 2;
       inverter_SOC = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) * 0.1;
       break;
     case 0x111:
       inverterStartedUp = true;
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 2;
       inverter_timestamp = ((rx_frame.data.u8[0] << 24) | (rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) |
                             rx_frame.data.u8[3]);
       break;
     case 0x191:
       inverterStartedUp = true;
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 2;
       break;
     default:
       break;
