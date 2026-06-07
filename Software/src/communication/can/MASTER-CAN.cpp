@@ -18,8 +18,9 @@ static const uint8_t MASTER_CONTACTOR_STAGGER_MS = 3;  // master-only inter-fram
 
 // Pre-join controller constants (master-only):
 // adaptively reduce pack power while an additional blocked slave is preparing to join.
-static const uint16_t PREJOIN_ENTER_DIFF_dV = 18u;       // 1.8V — activate when EMA diff <= this
-static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 5u;   // 0.5V hard gate for contactor close
+static const uint16_t PREJOIN_ENTER_DIFF_dV = 18u;         // 1.8V — activate when EMA diff <= this
+static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 5u;     // 0.5V hard gate for contactor close and dwell counter
+static const uint16_t PREJOIN_PRESSURE_FULL_DIFF_dV = 3u;  // 0.3V — quadratic curve reaches 1000 permille here
 static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
 // Fixed inverter-independent prejoin floor profile:
 // 1 joined battery => 1000W, each additional joined battery adds +400W,
@@ -27,11 +28,11 @@ static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
 static const uint16_t PREJOIN_FLOOR_BASE_W = 1000u;
 static const uint16_t PREJOIN_FLOOR_PER_EXTRA_BATTERY_W = 400u;
 static const uint16_t PREJOIN_FLOOR_MAX_W = 3000u;
-// Integer EMA alpha = 1/3 = 0.33 (new = old*2/3 + raw*1/3) — faster convergence than 1/5
-static const uint8_t PREJOIN_EMA_DEN = 3u;
-static const uint8_t PREJOIN_EMA_NUM = 1u;
+// Asymmetric EMA: slow when diff falls (avoids cutting cap prematurely), fast when diff rises (releases cap quickly).
+static const uint8_t PREJOIN_EMA_DEN_FALL = 5u;  // alpha=0.2 — diff falling → pressure would rise → be conservative
+static const uint8_t PREJOIN_EMA_DEN_RISE = 3u;  // alpha=0.33 — diff rising → pressure would fall → react fast
 // Smooth cap ramp in permille per second (0..1000) — 15 = 1.5%/s, ~66 s to full pressure
-static const uint16_t PREJOIN_PRESSURE_STEP_PER_S = 15u;
+static const uint16_t PREJOIN_PRESSURE_STEP_PER_S = 8u;
 
 // Per-slave voltage diff grace period counters
 static uint8_t voltage_diff_seconds[MAX_SLAVE_NODES] = {0};
@@ -588,10 +589,9 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
     if (prejoin_diff_ema_dV[idx] == 0) {
       prejoin_diff_ema_dV[idx] = diff;
     } else {
+      uint8_t ema_den = (diff < prejoin_diff_ema_dV[idx]) ? PREJOIN_EMA_DEN_FALL : PREJOIN_EMA_DEN_RISE;
       prejoin_diff_ema_dV[idx] =
-          (uint16_t)(((uint32_t)prejoin_diff_ema_dV[idx] * (PREJOIN_EMA_DEN - PREJOIN_EMA_NUM) +
-                      (uint32_t)diff * PREJOIN_EMA_NUM) /
-                     PREJOIN_EMA_DEN);
+          (uint16_t)(((uint32_t)prejoin_diff_ema_dV[idx] * (ema_den - 1u) + (uint32_t)diff) / ema_den);
     }
 
     // Prejoin is only relevant while the inverter is actively working with batteries
@@ -622,14 +622,15 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
         prejoin_raw_stable_seconds[idx] = 0;
       }
 
-      if (prejoin_diff_ema_dV[idx] <= PREJOIN_CLOSE_RAW_DIFF_dV) {
+      if (prejoin_diff_ema_dV[idx] <= PREJOIN_PRESSURE_FULL_DIFF_dV) {
         prejoin_pressure_permille[idx] = 1000u;
       } else if (prejoin_diff_ema_dV[idx] >= PREJOIN_ENTER_DIFF_dV) {
         prejoin_pressure_permille[idx] = 0u;
       } else {
-        uint16_t span = (uint16_t)(PREJOIN_ENTER_DIFF_dV - PREJOIN_CLOSE_RAW_DIFF_dV);
-        uint16_t above_close = (uint16_t)(prejoin_diff_ema_dV[idx] - PREJOIN_CLOSE_RAW_DIFF_dV);
-        prejoin_pressure_permille[idx] = (uint16_t)((uint32_t)(span - above_close) * 1000u / span);
+        uint32_t span = (uint32_t)(PREJOIN_ENTER_DIFF_dV - PREJOIN_PRESSURE_FULL_DIFF_dV);  // 1.8V–0.3V = 15 dV
+        uint32_t above_full = (uint32_t)(prejoin_diff_ema_dV[idx] - PREJOIN_PRESSURE_FULL_DIFF_dV);
+        uint32_t norm = (span - above_full) * 1000u / span;  // 0 at ENTER_DIFF, 1000 at PRESSURE_FULL_DIFF
+        prejoin_pressure_permille[idx] = (uint16_t)(norm * norm / 1000u);  // quadratic: smooth ramp, no jump at 0.5V
       }
       // Log per-slave state every second while prejoin is active
       logging.printf("Master CAN: Pre-join slave %d: raw=%u.%uV ema=%u.%uV target=%u permille stable=%us\n",
@@ -832,15 +833,18 @@ void MasterCan::update_slave_aggregation() {
     }
   }
 
-  if (prejoin_applied_pressure_permille < target_pressure_permille) {
-    // Ramp up slowly (PREJOIN_PRESSURE_STEP_PER_S permille/s = 5%/s → ~20 s to full pressure)
+  if (target_pressure_permille == 0) {
+    // All prejoin done — release immediately so cap returns to full without delay or getting stuck
+    prejoin_applied_pressure_permille = 0;
+  } else if (prejoin_applied_pressure_permille < target_pressure_permille) {
+    // Ramp up slowly toward target
     uint16_t delta = (uint16_t)(target_pressure_permille - prejoin_applied_pressure_permille);
     if (delta > PREJOIN_PRESSURE_STEP_PER_S) {
       delta = PREJOIN_PRESSURE_STEP_PER_S;
     }
     prejoin_applied_pressure_permille = (uint16_t)(prejoin_applied_pressure_permille + delta);
   } else if (prejoin_applied_pressure_permille > target_pressure_permille) {
-    // Release pressure toward target whenever applied exceeds target
+    // Ramp down toward non-zero target (another slave still in prejoin at lower pressure)
     uint16_t delta = (uint16_t)(prejoin_applied_pressure_permille - target_pressure_permille);
     if (delta > PREJOIN_PRESSURE_STEP_PER_S) {
       delta = PREJOIN_PRESSURE_STEP_PER_S;
@@ -848,16 +852,24 @@ void MasterCan::update_slave_aggregation() {
     prejoin_applied_pressure_permille = (uint16_t)(prejoin_applied_pressure_permille - delta);
   }
 
-  // Always use the inverter-facing current limit as the cap base so pressure
-  // is proportional to what the inverter can actually draw (e.g. 30 A × V).
-  // Fall back to the raw battery sum only if no current limit has been set yet.
+  // Cap base: slave-aggregated sum clipped to the user's configured inverter limit.
+  // Using the user limit ensures the pressure curve spans a meaningful range
+  // (e.g. 30 A × 370 V = 11 100 W, not 100 kW from raw battery sum).
+  // We read from max_user_set_*_dA (a static setting) rather than max_*_current_dA
+  // (derived from our own capped output) to avoid a self-referencing feedback loop.
   uint32_t cap_base_charge_W = total_max_charge_W;
   uint32_t cap_base_discharge_W = total_max_discharge_W;
-  if (shared_voltage_dV > 0 && datalayer.battery.status.max_charge_current_dA > 0) {
-    cap_base_charge_W = (uint32_t)datalayer.battery.status.max_charge_current_dA * shared_voltage_dV / 100u;
-  }
-  if (shared_voltage_dV > 0 && datalayer.battery.status.max_discharge_current_dA > 0) {
-    cap_base_discharge_W = (uint32_t)datalayer.battery.status.max_discharge_current_dA * shared_voltage_dV / 100u;
+  if (shared_voltage_dV > 0) {
+    uint32_t user_charge_W =
+        (uint32_t)datalayer.battery.settings.max_user_set_charge_dA * shared_voltage_dV / 100u;
+    uint32_t user_discharge_W =
+        (uint32_t)datalayer.battery.settings.max_user_set_discharge_dA * shared_voltage_dV / 100u;
+    if (user_charge_W > 0 && user_charge_W < cap_base_charge_W) {
+      cap_base_charge_W = user_charge_W;
+    }
+    if (user_discharge_W > 0 && user_discharge_W < cap_base_discharge_W) {
+      cap_base_discharge_W = user_discharge_W;
+    }
   }
 
   // Snapshot cap-base the moment the first prejoin session begins.
@@ -883,8 +895,10 @@ void MasterCan::update_slave_aggregation() {
   uint32_t floor_charge_W = fixed_floor_W;
   uint32_t floor_discharge_W = fixed_floor_W;
 
-  // Start from snapshot (base_*) so the pressure formula can ramp the cap both up and down.
-  // Without this, a low live cap would prevent the cap from rising during pressure release.
+  // Start from snapshot (base_*) and apply pressure formula.
+  // Snapshot is frozen at prejoin start to break the feedback loop where capping the inverter
+  // causes the battery to report lower limits, which would otherwise further tighten the cap.
+  // After pressure reaches 0 and the snapshot clears, base_* equals the live cap naturally.
   uint32_t capped_max_charge_W = base_charge_W;
   uint32_t capped_max_discharge_W = base_discharge_W;
   if (prejoin_applied_pressure_permille > 0) {
@@ -904,13 +918,6 @@ void MasterCan::update_slave_aggregation() {
         capped_max_discharge_W = pressure_cap;
       }
     }
-  }
-  // Never promise more than the battery is currently capable of delivering.
-  if (capped_max_charge_W > cap_base_charge_W) {
-    capped_max_charge_W = cap_base_charge_W;
-  }
-  if (capped_max_discharge_W > cap_base_discharge_W) {
-    capped_max_discharge_W = cap_base_discharge_W;
   }
 
   // Hard floor for the full prejoin flow.
