@@ -130,6 +130,26 @@ std::string_view trim_whitespace(std::string_view str) {
     return trim_trailing_whitespace(str);
 };
 
+inline int32_t parse_positive_int(std::string_view str) {
+    str = trim_whitespace(str);
+
+    int32_t value = 0;
+    for(char c : str) {
+        if(c < '0' || c > '9') return -1;
+        if(value >= (INT32_MAX/10)) return -1;
+        value = value * 10 + (c - '0');
+    }
+    return value;
+    // char cl_buf[11]; // INT_MAX is 10 digits, plus a nul terminator
+    // auto copy_len = min(str.size(), sizeof(cl_buf)-1);
+    // memcpy(cl_buf, str.data(), copy_len);
+    // cl_buf[copy_len] = '\0';
+    // char *endptr;
+    // uint32_t value = strtoul(cl_buf, &endptr, 10);
+    // if(endptr == cl_buf || *endptr != '\0' || value > INT32_MAX) return -1;
+    // return value;
+};
+
 // char* trim_delimiter_and_trailing_whitespace(char *str, int *len) {
 //     // Like trim_delimiter_and_whitespace, but only trims trailing whitespace.
 
@@ -434,24 +454,51 @@ void TinyWebServer::handle_request(TwsRequest &request) {
                     // } else {
                     //     DEBUG_PRINTF("TWS invalid content length: %s\n", cl_ptr);
                     // }
-                    std::string_view cl_view(buf_ptr + 15, len - 16);
+                    // std::string_view cl_view(buf_ptr + 15, len - 16);
     
-                    // 2. Trim using your updated string_view function
-                    cl_view = trim_whitespace(cl_view);
+                    // // 2. Trim using your updated string_view function
+                    // cl_view = trim_whitespace(cl_view);
 
-                    int32_t val = -1;
+                    // int32_t val = -1;
                     
-                    // 3. Parse the integer safely using std::from_chars
-                    auto [ptr, ec] = std::from_chars(cl_view.data(), cl_view.data() + cl_view.size(), val);
+                    // // 3. Parse the integer safely using std::from_chars
+                    // auto [ptr, ec] = std::from_chars(cl_view.data(), cl_view.data() + cl_view.size(), val);
 
-                    // 4. Validate: not empty, parsed successfully without errors, consumed the ENTIRE view, and non-negative
-                    if (!cl_view.empty() && ec == std::errc() && ptr == cl_view.data() + cl_view.size() && val >= 0) {
-                        request.content_length = val;
+                    // // 4. Validate: not empty, parsed successfully without errors, consumed the ENTIRE view, and non-negative
+                    // if (!cl_view.empty() && ec == std::errc() && ptr == cl_view.data() + cl_view.size() && val >= 0) {
+                    //     request.content_length = val;
+                    // } else {
+                    //     // 5. Use '%.*s' precision formatting to safely print a non-null-terminated string_view
+                    //     DEBUG_PRINTF("TWS invalid content length: %.*s\n", 
+                    //                 static_cast<int>(cl_view.size()), cl_view.data());
+                    // }
+
+                    // std::string_view cl_view(buf_ptr + 15, len - 16);
+                    // cl_view = trim_whitespace(cl_view);
+
+                    // char cl_buf[11]; // INT_MAX is 10 digits, plus a nul terminator
+                    // auto copy_len = min(cl_view.size(), sizeof(cl_buf)-1);
+                    // memcpy(cl_buf, cl_view.data(), copy_len);
+                    // cl_buf[copy_len] = '\0';
+
+                    // char *endptr = nullptr;
+                    // int32_t val = (int32_t)strtoul(cl_buf, &endptr, 10);
+                    // if (cl_view.empty() || endptr == cl_buf || *endptr != '\0' || val < 0) {
+                    //     DEBUG_PRINTF("TWS invalid content length: %.*s\n", 
+                    //                 static_cast<int>(cl_view.size()), cl_view.data());
+                    // } else {
+                    //     request.content_length = val;
+                    // }
+                    int32_t val = parse_positive_int(std::string_view(buf_ptr + 15, len - 16));
+                    if(val < 0) {
+                        DEBUG_PRINTF("TWS invalid content length: %.*s\n",
+                                    static_cast<int>(len - 16), buf_ptr + 15);
+                        request.abort();
                     } else {
-                        // 5. Use '%.*s' precision formatting to safely print a non-null-terminated string_view
-                        DEBUG_PRINTF("TWS invalid content length: %.*s\n", 
-                                    static_cast<int>(cl_view.size()), cl_view.data());
+                        request.content_length = val;
                     }
+
+
                 }
 
                 if(request.handler && request.handler->onHeader) {
