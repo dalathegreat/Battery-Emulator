@@ -19,9 +19,9 @@ static const uint8_t MASTER_CONTACTOR_STAGGER_MS = 3;  // master-only inter-fram
 // Pre-join controller constants (master-only):
 // adaptively reduce pack power while an additional blocked slave is preparing to join.
 static const uint16_t PREJOIN_ENTER_DIFF_dV = 18u;          // 1.8V — activate when EMA diff <= this
-static const uint16_t PREJOIN_PRESSURE_START_DIFF_dV = 6u;  // 0.6V — pressure ramp starts; full power above this
-static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 3u;       // 0.3V hard gate for contactor close and dwell counter
-static const uint16_t PREJOIN_PRESSURE_FULL_DIFF_dV = 1u;   // 0.1V — quadratic curve reaches 1000 permille here
+static const uint16_t PREJOIN_PRESSURE_START_DIFF_dV = 0u;  // TEST: pressure disabled — full power throughout prejoin
+static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 0u;       // TEST: close at diff = 0V
+static const uint16_t PREJOIN_PRESSURE_FULL_DIFF_dV = 0u;   // TEST: unused (pressure disabled)
 static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
 // Fixed inverter-independent prejoin floor profile:
 // 1 joined battery => 1000W, each additional joined battery adds +400W,
@@ -637,11 +637,11 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
         prejoin_low_power_seconds[idx] = 0;
       }
 
-      if (diff <= PREJOIN_CLOSE_RAW_DIFF_dV && prejoin_applied_pressure_permille >= 1000u) {
+      if (diff <= PREJOIN_CLOSE_RAW_DIFF_dV) {
         if (prejoin_raw_stable_seconds[idx] < PREJOIN_CLOSE_DWELL_S) {
           prejoin_raw_stable_seconds[idx]++;
         }
-      } else if (diff > PREJOIN_CLOSE_RAW_DIFF_dV + 1u || prejoin_applied_pressure_permille < 1000u) {
+      } else if (diff > PREJOIN_CLOSE_RAW_DIFF_dV + 1u) {
         prejoin_raw_stable_seconds[idx] = 0;
       }
 
@@ -656,10 +656,11 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
         prejoin_pressure_permille[idx] = (uint16_t)(norm * norm / 1000u);  // quadratic: steep near 0.3V
       }
       // Log per-slave state every second while prejoin is active
-      logging.printf("Master CAN: Pre-join slave %d: raw=%u.%uV ema=%u.%uV target=%u permille stable=%us\n",
-                     idx + 1, diff / 10, diff % 10,
-                     prejoin_diff_ema_dV[idx] / 10, prejoin_diff_ema_dV[idx] % 10,
-                     prejoin_pressure_permille[idx], prejoin_raw_stable_seconds[idx]);
+      logging.printf(
+          "Master CAN: Pre-join slave %d: raw=%u.%uV ema=%u.%uV target=%u permille stable=%us current=%d.%uA\n",
+          idx + 1, diff / 10, diff % 10, prejoin_diff_ema_dV[idx] / 10, prejoin_diff_ema_dV[idx] % 10,
+          prejoin_pressure_permille[idx], prejoin_raw_stable_seconds[idx],
+          (int)node.current_dA / 10, (unsigned)(abs((int)node.current_dA) % 10));
     } else {
       prejoin_pressure_permille[idx] = 0;
       prejoin_raw_stable_seconds[idx] = 0;
@@ -684,8 +685,7 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
         bool prejoin_gate_ok = true;
         if (prejoin_active[idx]) {
           prejoin_gate_ok = (diff <= PREJOIN_CLOSE_RAW_DIFF_dV) &&
-                            (prejoin_raw_stable_seconds[idx] >= PREJOIN_CLOSE_DWELL_S) &&
-                            (prejoin_applied_pressure_permille >= 1000u);
+                            (prejoin_raw_stable_seconds[idx] >= PREJOIN_CLOSE_DWELL_S);
         }
         if (prejoin_gate_ok) {
           node.contactor_allowed = true;
