@@ -31,7 +31,7 @@ static const uint16_t PREJOIN_FLOOR_PER_EXTRA_BATTERY_W = 400u;
 static const uint16_t PREJOIN_FLOOR_MAX_W = 3000u;
 // Asymmetric EMA: slow when diff falls (avoids cutting cap prematurely), fast when diff rises (releases cap quickly).
 static const uint8_t PREJOIN_EMA_DEN_FALL = 5u;  // alpha=0.2 — diff falling → pressure would rise → be conservative
-static const uint8_t PREJOIN_EMA_DEN_RISE = 3u;  // alpha=0.33 — diff rising → pressure would fall → react fast
+static const uint8_t PREJOIN_EMA_DEN_RISE = 8u;  // alpha=0.125 — diff rising → damped so brief spikes don't crash target
 // Smooth cap ramp in permille per second (0..1000) — 15 = 1.5%/s, ~66 s to full pressure
 static const uint16_t PREJOIN_PRESSURE_STEP_PER_S = 8u;
 // Abort an active prejoin if load stays below this for too long (solar disappears mid-prejoin)
