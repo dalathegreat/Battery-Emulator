@@ -139,7 +139,8 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += " onchange='toggleAutoCalSOCEnabled" + s + "()'> (default ON)</h4>";
     content += "<h4>Auto-calibrate trigger drift: <input type='number' id='driftPercent" + s + "' value='";
     content += String(byd_datalayer->auto_calibrate_soc_drift_percent);
-    content += "' min='1' max='20'> &percnt; <button onclick='setAutoCalDriftPercent" + s + "()'>Save Drift &percnt;</button></h4>";
+    content += "' min='1' max='20'> &percnt; <button onclick='setAutoCalDriftPercent" + s +
+               "()'>Save Drift &percnt;</button></h4>";
 
     // Auto-calibration live status panel
     {
