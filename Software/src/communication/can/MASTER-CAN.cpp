@@ -33,6 +33,9 @@ static const uint8_t PREJOIN_EMA_DEN_FALL = 5u;  // alpha=0.2 — diff falling �
 static const uint8_t PREJOIN_EMA_DEN_RISE = 3u;  // alpha=0.33 — diff rising → pressure would fall → react fast
 // Smooth cap ramp in permille per second (0..1000) — 15 = 1.5%/s, ~66 s to full pressure
 static const uint16_t PREJOIN_PRESSURE_STEP_PER_S = 8u;
+// Abort an active prejoin if load stays below this for too long (solar disappears mid-prejoin)
+static const uint16_t PREJOIN_LOW_POWER_ABORT_W = 300u;
+static const uint8_t PREJOIN_LOW_POWER_ABORT_S = 30u;
 
 // Per-slave voltage diff grace period counters
 static uint8_t voltage_diff_seconds[MAX_SLAVE_NODES] = {0};
@@ -53,6 +56,8 @@ static bool prejoin_active[MAX_SLAVE_NODES] = {false};
 static uint16_t prejoin_diff_ema_dV[MAX_SLAVE_NODES] = {0};
 static uint8_t prejoin_raw_stable_seconds[MAX_SLAVE_NODES] = {0};
 static uint16_t prejoin_pressure_permille[MAX_SLAVE_NODES] = {0};
+// Per-slave low-power abort counter: how many seconds load has been below PREJOIN_LOW_POWER_ABORT_W
+static uint8_t prejoin_low_power_seconds[MAX_SLAVE_NODES] = {0};
 // Global applied pressure (used to cap BOTH charge and discharge simultaneously)
 static uint16_t prejoin_applied_pressure_permille = 0;
 // Snapshot of cap base at the moment a new prejoin session begins (rising edge of any_prejoin_active).
@@ -89,6 +94,7 @@ static void reset_prejoin_state(uint8_t idx) {
   prejoin_diff_ema_dV[idx] = 0;
   prejoin_raw_stable_seconds[idx] = 0;
   prejoin_pressure_permille[idx] = 0;
+  prejoin_low_power_seconds[idx] = 0;
 }
 
 void setup_master_can() {
@@ -615,6 +621,21 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
     }
 
     if (prejoin_active[idx]) {
+      // Abort prejoin if power stays below 300W for 30s — e.g. solar source disappears mid-prejoin
+      if (abs_load_W < PREJOIN_LOW_POWER_ABORT_W) {
+        if (prejoin_low_power_seconds[idx] < PREJOIN_LOW_POWER_ABORT_S) {
+          prejoin_low_power_seconds[idx]++;
+        }
+        if (prejoin_low_power_seconds[idx] >= PREJOIN_LOW_POWER_ABORT_S) {
+          logging.printf(
+              "Master CAN: Pre-join ABORT slave %d — load %dW below %uW for %us\n", idx + 1, (int)load_W,
+              (unsigned)PREJOIN_LOW_POWER_ABORT_W, (unsigned)PREJOIN_LOW_POWER_ABORT_S);
+          reset_prejoin_state(idx);
+        }
+      } else {
+        prejoin_low_power_seconds[idx] = 0;
+      }
+
       if (diff <= PREJOIN_CLOSE_RAW_DIFF_dV) {
         if (prejoin_raw_stable_seconds[idx] < PREJOIN_CLOSE_DWELL_S) {
           prejoin_raw_stable_seconds[idx]++;
