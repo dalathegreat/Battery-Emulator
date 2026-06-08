@@ -1,65 +1,6 @@
 #include "BMW-IX-HTML.h"
 #include "BMW-IX-BATTERY.h"
 
-String BmwIXHtmlRenderer::getDTCDescription(uint32_t code) {
-  switch (code) {
-#ifndef SMALL_FLASH_DEVICE
-    case 0x020700:
-      return "SME: Transport mode active";
-    case 0x020708:
-      return "SME: Control unit is not encoded";
-    case 0x020709:
-      return "SME: Encoded data does not match vehicle";
-    case 0x020740:
-      return "SME, voltage supply: Undervoltage";
-    case 0x020780:
-      return "SME: Certificates (Type 1) not ready";
-    case 0x020785:
-      return "SME: Control unit not in field mode";
-    case 0x21F001:
-      return "High-voltage battery unit, coolant shutoff valve: Line disconnection";
-    case 0x21F00F:
-      return "High-voltage battery unit, coolant shutoff valve: Line disconnection";
-    case 0x21F121:
-      return "High-voltage battery unit, control unit: internal defective alarm function";
-    case 0x21F306:
-      return "High-voltage battery unit, control unit, idle time estimation: Estimation failed";
-    case 0x21F37E:
-      return "Impact detection: Crash detected due to ACSM signal";
-    case 0x21F38F:
-      return "SME: internal control unit errors (Group fault software)";
-    case 0x21F393:
-      return "High-voltage battery unit, multiple fault: Transport restricting fault memory active";
-    case 0x21F3F0:
-      return "High-voltage battery unit: Expansion of the operating range for the state of charge active";
-    case 0x21F436:
-      return "High-voltage battery unit, high-voltage safety battery terminal: High-voltage-minus not disconnected due "
-             "to unsuccessful actuation";
-    case 0x21F44F:
-      return "High-voltage battery unit, SME: Pyrofuse ignited or faulty actuation";
-    case 0x21F4B5:
-      return "High-voltage battery unit, voltage and current sensor: Power-down requested";
-    case 0x21F4ED:
-      return "High-voltage battery unit, voltage and current sensor: Line protection, threshold value exceeded";
-    case 0x3B001A:
-      return "High-voltage battery unit: Multiple faults, high-voltage system cannot be activated";
-    case 0xCAD450:
-      return "No message (- 0x125), SME receiver, CCU transmitter";
-    case 0xCAD454:
-      return "No message (- 0x16E), SME receiver, CCU transmitter";
-    case 0xCAD4B0:
-      return "No message (vehicle speed, 0x1A1), receiver SME, transmitter DSC";
-    case 0xCAD6D8:
-      return "No message (- 0x91), SME receiver, EME transmitter";
-
-    default:
-      return "";
-#else
-    default:
-      return "Current BE hardware does not support details. Please upgrade to large flash BE";  // Detailed DTC descriptions not available on 4MB low flash devices. The above text takes up a massive amount of flash!
-#endif
-  }
-}
 
 String BmwIXHtmlRenderer::get_status_html() {
   String content;
@@ -315,11 +256,6 @@ String BmwIXHtmlRenderer::get_status_html() {
         statusColor = "#d32f2f";
       }
 
-      String description = getDTCDescription(code);
-      if (description.length() == 0) {
-        description = "Unknown";
-      }
-
       content += "<tr>";
       content +=
           "<td style='padding: 12px 15px; border-top: 1px solid #e0e0e0; font-family: monospace; font-size: 1.1em; "
@@ -327,14 +263,15 @@ String BmwIXHtmlRenderer::get_status_html() {
           String(dtcStr) + "</td>";
       content += "<td style='padding: 12px 15px; border-top: 1px solid #e0e0e0; color: " + statusColor +
                  "; font-weight: 500;'>" + statusStr + "</td>";
-      content += "<td style='padding: 12px 15px; border-top: 1px solid #e0e0e0; font-size: 0.95em; color: #ddd;'>" +
-                 description + "</td>";
+      content += "<td data-dtc-code='" + String(code) + "' style='padding: 12px 15px; border-top: 1px solid #e0e0e0; font-size: 0.95em; color: #ddd;'>Unknown</td>";
       content += "</tr>";
     }
 
     content += "</tbody>";
     content += "</table>";
     content += "</div>";
+
+    content += get_dtc_json_loader_html(GITHUB_RAW_BASE_URL, "bmw_ix_dtc.json");
   }
 
   content += "</div>";
