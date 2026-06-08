@@ -637,11 +637,11 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
         prejoin_low_power_seconds[idx] = 0;
       }
 
-      if (diff <= PREJOIN_CLOSE_RAW_DIFF_dV) {
+      if (diff <= PREJOIN_CLOSE_RAW_DIFF_dV && prejoin_applied_pressure_permille >= 1000u) {
         if (prejoin_raw_stable_seconds[idx] < PREJOIN_CLOSE_DWELL_S) {
           prejoin_raw_stable_seconds[idx]++;
         }
-      } else if (diff > PREJOIN_CLOSE_RAW_DIFF_dV + 1u) {  // 0.1V hysteresis — noise won't reset dwell
+      } else if (diff > PREJOIN_CLOSE_RAW_DIFF_dV + 1u || prejoin_applied_pressure_permille < 1000u) {
         prejoin_raw_stable_seconds[idx] = 0;
       }
 
