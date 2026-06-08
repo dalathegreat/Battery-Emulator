@@ -71,7 +71,8 @@ void init_events(void) {
   events.entries[EVENT_BYD_AUTO_SOC_CALIBRATION].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_SOC_RESET_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_SOC_RESET_FAIL].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_VOLTAGE_DIFFERENCE].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_VOLTAGE_DIFFERENCE_BAT2].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_VOLTAGE_DIFFERENCE_BAT3].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_SOH_DIFFERENCE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOH_LOW].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_HVIL_FAILURE].level = EVENT_LEVEL_ERROR;
@@ -261,8 +262,10 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "SOC reset routine was successful.";
     case EVENT_BATTERY_SOC_RESET_FAIL:
       return "SOC reset routine failed - check SOC is < 15 or > 90, and contactors are open.";
-    case EVENT_VOLTAGE_DIFFERENCE:
+    case EVENT_VOLTAGE_DIFFERENCE_BAT2:
       return "Too large voltage diff between the batteries. Second battery cannot join the DC-link";
+    case EVENT_VOLTAGE_DIFFERENCE_BAT3:
+      return "Too large voltage diff between the batteries. Third battery cannot join the DC-link";
     case EVENT_SOH_DIFFERENCE:
       return "Large deviation in State of health between packs. Inspect battery.";
     case EVENT_SOH_LOW:
