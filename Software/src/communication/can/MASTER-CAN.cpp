@@ -18,9 +18,10 @@ static const uint8_t MASTER_CONTACTOR_STAGGER_MS = 3;  // master-only inter-fram
 
 // Pre-join controller constants (master-only):
 // adaptively reduce pack power while an additional blocked slave is preparing to join.
-static const uint16_t PREJOIN_ENTER_DIFF_dV = 18u;         // 1.8V — activate when EMA diff <= this
-static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 5u;     // 0.5V hard gate for contactor close and dwell counter
-static const uint16_t PREJOIN_PRESSURE_FULL_DIFF_dV = 3u;  // 0.3V — quadratic curve reaches 1000 permille here
+static const uint16_t PREJOIN_ENTER_DIFF_dV = 18u;          // 1.8V — activate when EMA diff <= this
+static const uint16_t PREJOIN_PRESSURE_START_DIFF_dV = 6u;  // 0.6V — pressure ramp starts; full power above this
+static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 5u;       // 0.5V hard gate for contactor close and dwell counter
+static const uint16_t PREJOIN_PRESSURE_FULL_DIFF_dV = 3u;   // 0.3V — quadratic curve reaches 1000 permille here
 static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
 // Fixed inverter-independent prejoin floor profile:
 // 1 joined battery => 1000W, each additional joined battery adds +400W,
@@ -646,13 +647,13 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
 
       if (prejoin_diff_ema_dV[idx] <= PREJOIN_PRESSURE_FULL_DIFF_dV) {
         prejoin_pressure_permille[idx] = 1000u;
-      } else if (prejoin_diff_ema_dV[idx] >= PREJOIN_ENTER_DIFF_dV) {
-        prejoin_pressure_permille[idx] = 0u;
+      } else if (prejoin_diff_ema_dV[idx] >= PREJOIN_PRESSURE_START_DIFF_dV) {
+        prejoin_pressure_permille[idx] = 0u;  // full power above 0.6V
       } else {
-        uint32_t span = (uint32_t)(PREJOIN_ENTER_DIFF_dV - PREJOIN_PRESSURE_FULL_DIFF_dV);  // 1.8V–0.3V = 15 dV
+        uint32_t span = (uint32_t)(PREJOIN_PRESSURE_START_DIFF_dV - PREJOIN_PRESSURE_FULL_DIFF_dV);  // 0.6V–0.3V = 3 dV
         uint32_t above_full = (uint32_t)(prejoin_diff_ema_dV[idx] - PREJOIN_PRESSURE_FULL_DIFF_dV);
-        uint32_t norm = (span - above_full) * 1000u / span;  // 0 at ENTER_DIFF, 1000 at PRESSURE_FULL_DIFF
-        prejoin_pressure_permille[idx] = (uint16_t)(norm * norm / 1000u);  // quadratic: smooth ramp, no jump at 0.5V
+        uint32_t norm = (span - above_full) * 1000u / span;  // 0 at PRESSURE_START, 1000 at PRESSURE_FULL
+        prejoin_pressure_permille[idx] = (uint16_t)(norm * norm / 1000u);  // quadratic: steep near 0.3V
       }
       // Log per-slave state every second while prejoin is active
       logging.printf("Master CAN: Pre-join slave %d: raw=%u.%uV ema=%u.%uV target=%u permille stable=%us\n",
@@ -855,8 +856,8 @@ void MasterCan::update_slave_aggregation() {
     }
   }
 
-  if (target_pressure_permille == 0) {
-    // All prejoin done — release immediately so cap returns to full without delay or getting stuck
+  if (target_pressure_permille == 0 && !any_prejoin_active) {
+    // All prejoin sessions done — release immediately so cap returns to full without delay
     prejoin_applied_pressure_permille = 0;
   } else if (prejoin_applied_pressure_permille < target_pressure_permille) {
     // Ramp up slowly toward target
