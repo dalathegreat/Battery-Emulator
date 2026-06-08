@@ -23,7 +23,7 @@ class BydModbusInverter : public ModbusInverterProtocol {
   const uint16_t MAX_POWER = 40960;
 
   static const int HISTORY_LENGTH =
-      3;  // Amount of samples(minutes) that needs to match for register to be considered stale
+      5;  // Amount of samples(minutes) that needs to match for register to be considered stale
   unsigned long previousMillis60s = 0;  // will store last time a 60s event occured
   uint32_t user_configured_max_discharge_W = 0;
   uint32_t user_configured_max_charge_W = 0;

@@ -49,10 +49,33 @@ void SolaxInverter::
   SOLAX_1874.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
   SOLAX_1874.data.u8[2] = (int8_t)datalayer.battery.status.temperature_min_dC;
   SOLAX_1874.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
-  SOLAX_1874.data.u8[4] = (uint8_t)(datalayer.battery.info.max_cell_voltage_mV);
-  SOLAX_1874.data.u8[5] = (datalayer.battery.info.max_cell_voltage_mV >> 8);
-  SOLAX_1874.data.u8[6] = (uint8_t)(datalayer.battery.status.cell_min_voltage_mV);
-  SOLAX_1874.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+
+  int32_t cell_max_voltage_mV = datalayer.battery.status.cell_max_voltage_mV;
+  int32_t cell_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
+
+  // Fake values during startup?
+  if (cell_max_voltage_mV == 0) {
+    cell_max_voltage_mV = 3300;
+  }
+  if (cell_min_voltage_mV == 0) {
+    cell_min_voltage_mV = 3300;
+  }
+
+  // Rescale to the range 3.0->3.5V
+  cell_max_voltage_mV =
+      3000 + ((cell_max_voltage_mV - datalayer.battery.info.min_cell_voltage_mV) * (3500 - 3000)) /
+                 (datalayer.battery.info.max_cell_voltage_mV - datalayer.battery.info.min_cell_voltage_mV);
+  cell_min_voltage_mV =
+      3000 + ((cell_min_voltage_mV - datalayer.battery.info.min_cell_voltage_mV) * (3500 - 3000)) /
+                 (datalayer.battery.info.max_cell_voltage_mV - datalayer.battery.info.min_cell_voltage_mV);
+
+  uint16_t cell_max_voltage_dV = cell_max_voltage_mV / 100;
+  uint16_t cell_min_voltage_dV = cell_min_voltage_mV / 100;
+
+  SOLAX_1874.data.u8[4] = (uint8_t)(cell_max_voltage_dV);
+  SOLAX_1874.data.u8[5] = (cell_max_voltage_dV >> 8);
+  SOLAX_1874.data.u8[6] = (uint8_t)(cell_min_voltage_dV);
+  SOLAX_1874.data.u8[7] = (cell_min_voltage_dV >> 8);
 
   //BMS_Status
   SOLAX_1875.data.u8[0] = (uint8_t)temperature_average;
@@ -102,6 +125,21 @@ void SolaxInverter::
 
 void SolaxInverter::transmit_can(unsigned long currentMillis) {
   // No periodic sending used on this protocol, we react only on incoming CAN messages!
+}
+
+// Write 7 uppercase hex ASCII chars (D2..D8) from eFuse MAC, slot index, and frame half (0=1881, 1=1882).
+void solax_pack_identity_ascii(const uint8_t mac[6], uint8_t slot, uint8_t half, uint8_t out[7]) {
+  static const char hex[] = "0123456789ABCDEF";
+  uint8_t mix[4] = {
+      (uint8_t)(mac[0] ^ slot ^ (half * 0x11u)),
+      (uint8_t)(mac[1] ^ slot ^ (half * 0x22u)),
+      (uint8_t)(mac[2] ^ slot ^ (half * 0x33u)),
+      (uint8_t)(mac[3] ^ slot ^ (half * 0x44u)),
+  };
+  for (int i = 0; i < 7; i++) {
+    uint8_t b = mix[i >> 1];
+    out[i] = hex[(b >> ((1 - (i & 1)) * 4)) & 0x0F];
+  }
 }
 
 void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
@@ -194,8 +232,26 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   }
 
   if (rx_frame.ID == 0x1871 && rx_frame.data.u64 == __builtin_bswap64(0x0500010000000000)) {
-    transmit_can_frame(&SOLAX_1881);
-    transmit_can_frame(&SOLAX_1882);
+    uint16_t modules = configured_number_of_modules;
+    if (modules > 254) {
+      modules = 254;
+    }
+    int slot_count = (int)modules + 1;
+
+    uint64_t mac64 = ESP.getEfuseMac();
+    uint8_t mac[6];
+    for (int i = 0; i < 6; i++) {
+      mac[i] = (uint8_t)(mac64 >> (i * 8));
+    }
+
+    for (int slot = 0; slot < slot_count; slot++) {
+      SOLAX_1881.data.u8[0] = (uint8_t)slot;
+      solax_pack_identity_ascii(mac, (uint8_t)slot, 0, &SOLAX_1881.data.u8[1]);
+      SOLAX_1882.data.u8[0] = (uint8_t)slot;
+      solax_pack_identity_ascii(mac, (uint8_t)slot, 1, &SOLAX_1882.data.u8[1]);
+      transmit_can_frame(&SOLAX_1881);
+      transmit_can_frame(&SOLAX_1882);
+    }
     logging.println("1871 05-frame received from inverter");
   }
   if (rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x03)) {

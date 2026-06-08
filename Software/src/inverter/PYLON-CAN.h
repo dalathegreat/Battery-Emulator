@@ -38,6 +38,16 @@ class PylonInverter : public CanInverterProtocol {
                           .data = {TOTAL_CELL_AMOUNT, (uint8_t)(TOTAL_CELL_AMOUNT >> 8), MODULES_IN_SERIES,
                                    CELLS_PER_MODULE, (uint8_t)(VOLTAGE_LEVEL & 0x00FF), (uint8_t)(VOLTAGE_LEVEL >> 8),
                                    (uint8_t)(AH_CAPACITY & 0x00FF), (uint8_t)(AH_CAPACITY >> 8)}};
+  CAN_frame PYLON_733X = {.FD = false,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x7330,  //Manufacturer ASCII part 1
+                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame PYLON_734X = {.FD = false,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x7340,  //Manufacturer ASCII part 2
+                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame PYLON_421X = {.FD = false,
                           .ext_ID = true,
                           .DLC = 8,

@@ -28,7 +28,7 @@ struct DATALAYER_BATTERY_INFO_TYPE {
 
   /** uint8_t */
   /** Total number of cells in the pack */
-  uint8_t number_of_cells;
+  uint8_t number_of_cells = 0;
 
   /** Other */
   /** Chemistry of the pack. Autodetect, or force specific chemistry */
@@ -92,9 +92,9 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   /** Minimum temperature currently measured in the pack, in d°C. 150 = 15.0 °C */
   int16_t temperature_min_dC;
   /** Instantaneous battery current in deciAmpere. 95 = 9.5 A */
-  int16_t current_dA;
+  int16_t current_dA = 0;
   /** Instantaneous battery current in deciAmpere. Sum of all batteries in the system 95 = 9.5 A */
-  int16_t reported_current_dA;
+  int16_t reported_current_dA = 0;
 
   /** uint8_t */
   /** A counter set each time a new message comes from battery.
@@ -102,8 +102,7 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
    * we report the battery as missing entirely on the CAN bus.
    */
   uint8_t CAN_battery_still_alive = CAN_STILL_ALIVE;
-  /** The current system status, which for now still has the name bms_status */
-  bms_status_enum bms_status = ACTIVE;
+
   /** The current battery status, which for now has the name real_bms_status */
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
   /** LED mode, customizable by user */
@@ -355,11 +354,13 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   bool battery3_allowed_contactor_closing = false;
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
-  /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
+  /** True if the contactor controlled by battery-emulator is closed. Determined by check_parallel_battery_safety(); if voltage is OK */
   bool contactors_battery2_engaged = false;
   bool contactors_battery3_engaged = false;
   /** State of BMS reset sequence */
   BMSResetState bms_reset_status = BMS_RESET_IDLE;
+  /** The current system status, determined by which Events are active, usually pending between ACTIVE and FAULT, but there are more enums. Used to signal incase we have a critical fault active, or if we should proceed operating */
+  system_status_enum system_status = ACTIVE;
 };
 
 struct DATALAYER_SYSTEM_TYPE {

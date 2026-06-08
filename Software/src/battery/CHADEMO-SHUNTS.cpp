@@ -65,12 +65,12 @@ CAN_frame outframe = {.FD = false,
                       .ID = 0x411,
                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-uint16_t get_measured_voltage() {
-  return (uint16_t)Voltage;
+float get_measured_voltage() {
+  return Voltage;
 }
 
-uint16_t get_measured_current() {
-  return (uint16_t)Amperes;
+float get_measured_current() {
+  return Amperes;
 }
 
 //This is our CAN interrupt service routine to catch inbound frames

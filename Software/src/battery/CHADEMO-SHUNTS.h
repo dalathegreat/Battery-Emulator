@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include "../devboard/utils/types.h"
 
-uint16_t get_measured_voltage();
-uint16_t get_measured_current();
+float get_measured_voltage();
+float get_measured_current();
 
 void ISA_handleFrame(CAN_frame* frame);
 inline void ISA_handle521(CAN_frame* frame);

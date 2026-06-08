@@ -8,12 +8,9 @@
 bool previous_message_was_newline = true;
 
 void Logging::add_timestamp(size_t size) {
-  // Check if any logging is enabled at runtime
-  if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active) {
-    return;
-  }
 
-  int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
+  size_t offset =
+      datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
   unsigned long currentTime = millis();
   char* timestr;
@@ -41,10 +38,9 @@ void Logging::add_timestamp(size_t size) {
     datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
   }
 
-  // LOG_TO_SD remains as compile-time option for now
-#ifdef LOG_TO_SD
-  add_log_to_buffer((uint8_t*)timestr, MAX_LENGTH_TIME_STR);
-#endif  // LOG_TO_SD
+  if (datalayer.system.info.SD_logging_active) {
+    add_log_to_buffer((uint8_t*)timestr, MAX_LENGTH_TIME_STR);
+  }
 
   if (datalayer.system.info.usb_logging_active) {
     Serial.write(timestr);
@@ -53,7 +49,13 @@ void Logging::add_timestamp(size_t size) {
 
 size_t Logging::write(const uint8_t* buffer, size_t size) {
   // Check if any logging is enabled at runtime
-  if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active) {
+  if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active &&
+      !datalayer.system.info.SD_logging_active) {
+    return 0;
+  }
+
+  // If size is 0, we can skip all the processing and just return
+  if (size == 0) {
     return 0;
   }
 
@@ -61,9 +63,9 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
     add_timestamp(size);
   }
 
-#ifdef LOG_TO_SD
-  add_log_to_buffer(buffer, size);
-#endif
+  if (datalayer.system.info.SD_logging_active) {
+    add_log_to_buffer(buffer, size);
+  }
 
   if (datalayer.system.info.usb_logging_active) {
     Serial.write(buffer, size);
@@ -71,7 +73,8 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
 
   if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
     char* message_string = datalayer.system.info.logged_can_messages;
-    int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
+    size_t offset =
+        datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
     size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
 
     if (offset + size > message_string_size) {
@@ -87,7 +90,8 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
 
 void Logging::printf(const char* fmt, ...) {
   // Check if any logging is enabled at runtime
-  if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active) {
+  if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active &&
+      !datalayer.system.info.SD_logging_active) {
     return;
   }
 
@@ -97,7 +101,8 @@ void Logging::printf(const char* fmt, ...) {
 
   char* message_string = datalayer.system.info.logged_can_messages;
   size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
-  int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
+  size_t offset =
+      datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   static char buffer[MAX_LINE_LENGTH_PRINTF];
   char* message_buffer;
 
@@ -122,9 +127,9 @@ void Logging::printf(const char* fmt, ...) {
   int size = min(MAX_LINE_LENGTH_PRINTF - 1, vsnprintf(message_buffer, MAX_LINE_LENGTH_PRINTF, fmt, args));
   va_end(args);
 
-#ifdef LOG_TO_SD
-  add_log_to_buffer((uint8_t*)message_buffer, size);
-#endif  // LOG_TO_SD
+  if (datalayer.system.info.SD_logging_active) {
+    add_log_to_buffer((uint8_t*)message_buffer, size);
+  }
 
   if (datalayer.system.info.usb_logging_active) {
     Serial.write(message_buffer, size);

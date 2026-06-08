@@ -26,6 +26,8 @@ enum class InverterProtocolType {
   SolArkLv = 20,
   Sungrow = 21,
   VCU = 22,
+  PylonLV485 = 23,
+  SmaSBSByd = 24,
   Highest
 };
 

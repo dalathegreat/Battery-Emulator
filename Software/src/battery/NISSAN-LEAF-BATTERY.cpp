@@ -160,6 +160,13 @@ void NissanLeafBattery::
     }
   }
 
+  if (datalayer_battery->status.cell_max_voltage_mV > 60000 || datalayer_battery->status.cell_min_voltage_mV > 60000) {
+    set_event(EVENT_12V_LOW, 0);
+    //This is a bit of a hack, but we don't have a dedicated event for "12V low" and this is the first indicator of low 12V
+  } else {
+    clear_event(EVENT_12V_LOW);
+  }
+
   if (battery_HeatExist) {
     if (battery_Heating_Stop) {
       set_event(EVENT_BATTERY_WARMED_UP, 0);
@@ -596,7 +603,11 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           LEAF_1D4.data.u8[7] = 0xDE;
           break;
       }
-      transmit_can_frame(&LEAF_1D4);
+      //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
+      //TODO, this breaks double/triple battery setups when using PDM for charging
+      if (!charger || charger->type() != ChargerType::NissanLeaf) {
+        transmit_can_frame(&LEAF_1D4);
+      }
 
       switch (mprun10r) {
         case (0):
@@ -688,6 +699,7 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       }
 
       //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
+      //TODO, this breaks double/triple battery setups when using PDM for charging
       if (!charger || charger->type() != ChargerType::NissanLeaf) {
         transmit_can_frame(&LEAF_1F2);
       }

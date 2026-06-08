@@ -18,7 +18,7 @@ void GrowattLvInverter::
     ampere_hours_remaining =
         ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
          100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
-    ampere_hours_full = ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.status.voltage_dV) *
+    ampere_hours_full = ((datalayer.battery.info.reported_total_capacity_Wh / datalayer.battery.status.voltage_dV) *
                          100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
   }
   //Map values to CAN messages
@@ -82,7 +82,7 @@ void GrowattLvInverter::
   GROWATT_314.data.u8[7] = 0;
 
   //Request charge/discharge
-  if (datalayer.battery.status.bms_status == ACTIVE) {
+  if (datalayer.system.status.system_status == ACTIVE) {
     GROWATT_319.data.u8[0] =
         0xC0;  //Bit7 charge enabled, Bit 6 discharge enabled (bit5 req force charge, bit 4 req force charge 2)
   } else {

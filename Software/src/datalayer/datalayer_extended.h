@@ -141,15 +141,21 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint16_t BMC_SOC_original_calibration = 0;
   uint16_t BMS_capacity_current_calibration = 0;
   uint16_t BMC_SOC_current_calibration = 0;
+  uint16_t seed = 0;
+  uint16_t solvedKey = 0;
+  uint16_t calibrationTargetSOC = 100;
+  uint16_t calibrationTargetAH = 150;
 
   /** int16_t */
   /** All the temperature sensors inside the battery pack*/
-  int16_t battery_temperatures[10];
+  int16_t battery_temperatures[13] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};
 
-  uint8_t unknown10 = 0;  //Unknown polled value
-  uint8_t unknown11 = 0;  //Unknown polled value
-  uint8_t unknown12 = 0;  //Unknown polled value
-  uint8_t unknown13 = 0;  //Unknown polled value
+  uint8_t discharge_status = 14;
+  uint8_t BMS_min_cell_voltage_number = 0;
+  uint8_t BMS_min_temp_module_number = 0;
+  uint8_t BMS_max_cell_voltage_number = 0;
+  uint8_t BMS_max_temp_module_number = 0;
+  uint8_t servicemode = 0;
   /** bool */
   /** User requesting crash reset via WebUI*/
   bool UserRequestCrashReset = false;
@@ -157,8 +163,23 @@ struct DATALAYER_INFO_BYDATTO3 {
   /** User requesting SOC calibration via WebUI*/
   bool UserRequestCalibrateSOC = false;
   /** bool */
-  /** Which SOC method currently used. 0 = Estimated, 1 = Measured */
-  bool SOC_method = 0;
+  /** Enable automatic SOC calibration to 100% when physically full (taper + low current) */
+  bool auto_calibrate_soc_enabled = true;
+  /** uint8_t */
+  /** Drift threshold (%) before auto-calibrate triggers */
+  uint8_t auto_calibrate_soc_drift_percent = 5;
+
+  // Auto-calibration live status
+  uint32_t autocal_dwell_accumulated_ms = 0;
+  uint32_t autocal_grace_timer_ms = 0;
+  float autocal_drift_percent = 0.0f;
+  int16_t autocal_current_dA = 0;
+  bool autocal_crit_taper = false;
+  bool autocal_crit_low_current = false;
+  bool autocal_crit_dwell = false;
+  bool autocal_crit_drift = false;
+  bool autocal_crit_cooldown_ready = false;
+  bool autocal_crit_contactors = false;
 };
 
 struct DATALAYER_INFO_CELLPOWER {
@@ -375,11 +396,6 @@ struct DATALAYER_INFO_ECMP {
   bool MysteryVan = false;      //mysteryvan parameters
   bool CrashMemorized = false;  //mysteryvan parameters
   bool InterlockOpen = false;
-  bool UserRequestDTCreset = false;
-  bool UserRequestContactorReset = false;
-  bool UserRequestCollisionReset = false;
-  bool UserRequestIsolationReset = false;
-  bool UserRequestDisableIsoMonitoring = false;
   bool ALERT_CELL_POOR_CONSIST = false;  //mysteryvan parameters
   bool ALERT_OVERCHARGE = false;         //mysteryvan parameters
   bool ALERT_BATT = false;               //mysteryvan parameters
@@ -393,6 +409,25 @@ struct DATALAYER_INFO_ECMP {
   bool ALERT_CELL_UNDERVOLTAGE = false;  //mysteryvan parameters
 
   uint8_t pid_battery_serial[13] = {0};
+};
+
+struct DATALAYER_INFO_FORD_MACH_E {
+  int16_t pid_hvb_temp = 0;
+  uint32_t pid_hvb_soc = 0;
+  uint32_t pid_hvb_contactor_status = 0;
+  uint16_t pid_hvb_contactor_positive_leak_voltage = 0;
+  uint16_t pid_hvb_contactor_negative_leak_voltage = 0;
+  uint16_t pid_hvb_contactor_positive_voltage = 0;
+  uint16_t pid_hvb_contactor_negative_voltage = 0;
+  uint16_t pid_hvb_contactor_positive_bus_leak_resistance = 0;
+  uint16_t pid_hvb_contactor_negative_bus_leak_resistance = 0;
+  uint16_t pid_hvb_contactor_overall_leak_resistance = 0;
+  uint16_t pid_hvb_contactor_open_leak_resistance = 0;
+  uint8_t pid_hvb_soh = 0;
+  uint16_t pid_hvb_voltage = 0;
+  uint8_t pid_hvb_calendar_age_months = 0;
+  uint16_t pid_battery_capacity_ah = 0;
+  uint8_t pid_maintenance_rebalance_status = 0;
 };
 
 struct DATALAYER_INFO_GEELY_GEOMETRY_C {
@@ -526,11 +561,11 @@ struct DATALAYER_INFO_TESLA {
   uint16_t battery_BrickVoltageMin = 0;
   uint16_t HVP_hvp1v5Ref = 0;
   uint16_t HVP_shuntCurrentDebug = 0;
-  uint16_t PCS_dcdcTemp = 0;
-  uint16_t PCS_ambientTemp = 0;
-  uint16_t PCS_chgPhATemp = 0;
-  uint16_t PCS_chgPhBTemp = 0;
-  uint16_t PCS_chgPhCTemp = 0;
+  int16_t PCS_dcdcTemp = 0;
+  int16_t PCS_ambientTemp = 0;
+  int16_t PCS_chgPhATemp = 0;
+  int16_t PCS_chgPhBTemp = 0;
+  int16_t PCS_chgPhCTemp = 0;
   uint16_t PCS_dcdcMaxLvOutputCurrent = 0;
   uint16_t PCS_dcdcCurrentLimit = 0;
   uint16_t PCS_dcdcLvOutputCurrentTempLimit = 0;
@@ -918,6 +953,7 @@ struct DATALAYER_INFO_ZOE {
 };
 
 struct DATALAYER_INFO_ZOE_PH2 {
+  uint32_t battery_slave_failures = 0;
   /** uint16_t */
   uint16_t battery_soc = 0;
   uint16_t battery_usable_soc = 0;
@@ -948,13 +984,12 @@ struct DATALAYER_INFO_ZOE_PH2 {
   uint16_t battery_bms_state = 0;
   uint16_t battery_energy_complete = 0;
   uint16_t battery_energy_partial = 0;
-  uint16_t battery_slave_failures = 0;
   uint16_t battery_mileage = 0;
   uint16_t battery_fan_speed = 0;
   uint16_t battery_fan_period = 0;
   uint16_t battery_fan_control = 0;
   uint16_t battery_fan_duty = 0;
-  uint16_t battery_temporisation = 0;
+  uint16_t battery_temporisation = 255;
   uint16_t battery_time = 0;
   uint16_t battery_pack_time = 0;
   uint16_t battery_soc_min = 0;
@@ -966,14 +1001,17 @@ struct DATALAYER_INFO_ZOE_PH2 {
 class DataLayerExtended {
  public:
   DATALAYER_INFO_BOLTAMPERA boltampera;
+  DATALAYER_INFO_BOLTAMPERA boltampera_2;
   DATALAYER_INFO_BMWPHEV bmwphev;
   DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
+  DATALAYER_INFO_BYDATTO3 bydAtto3_2;
   DATALAYER_INFO_CELLPOWER cellpower;
   DATALAYER_INFO_CHADEMO chademo;
   DATALAYER_INFO_CMFAEV CMFAEV;
   DATALAYER_INFO_CMPSMART stellantisCMPsmart;
   DATALAYER_INFO_ECMP stellantisECMP;
+  DATALAYER_INFO_FORD_MACH_E fordMachE;
   DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;

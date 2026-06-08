@@ -193,6 +193,7 @@ class RenaultZoeGen2Battery : public CanBattery {
   static const int POLL_CELL_94 = 0x9082;
   static const int POLL_CELL_95 = 0x9083;
   volatile unsigned long startTimeNVROL = 0;
+  bool balancing_status_cell[96] = {0};
   uint8_t NVROLstateMachine = 0;
   uint16_t battery_soc = 0;
   uint16_t battery_usable_soc = 5000;
@@ -228,13 +229,13 @@ class RenaultZoeGen2Battery : public CanBattery {
   uint16_t battery_balance_switches = 0;
   uint16_t battery_energy_complete = 0;
   uint16_t battery_energy_partial = 0;
-  uint16_t battery_slave_failures = 0;
+  uint32_t battery_slave_failures = 0;
   uint16_t battery_mileage = 0;
   uint16_t battery_fan_speed = 0;
   uint16_t battery_fan_period = 0;
   uint16_t battery_fan_control = 0;
   uint16_t battery_fan_duty = 0;
-  uint16_t battery_temporisation = 0;
+  uint16_t battery_temporisation = 255;
   uint16_t battery_time = 0;
   uint16_t battery_pack_time = 0;
   uint16_t battery_soc_min = 0;

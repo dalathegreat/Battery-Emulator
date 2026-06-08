@@ -163,7 +163,7 @@ void handle_contactors() {
 
   if (contactor_control_enabled) {
     // First check if we have any active errors, incase we do, turn off the battery
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       timeSpentInFaultedMode++;
     } else {
       timeSpentInFaultedMode = 0;

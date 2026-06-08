@@ -26,6 +26,7 @@ void setup_shunt();
 #include "CMP-SMART-CAR-BATTERY.h"
 #include "DALY-BMS.h"
 #include "ECMP-BATTERY.h"
+#include "ENNOID-BMS.h"
 #include "FORD-MACH-E-BATTERY.h"
 #include "FOXESS-BATTERY.h"
 #include "GEELY-GEOMETRY-C-BATTERY.h"
@@ -56,10 +57,12 @@ void setup_shunt();
 #include "SANTA-FE-PHEV-BATTERY.h"
 #include "SIMPBMS-BATTERY.h"
 #include "SONO-BATTERY.h"
+#include "STELLANTIS-SMALL-WIDE-4x4.h"
 #include "TESLA-BATTERY.h"
 #include "TESLA-LEGACY-BATTERY.h"
 #include "TEST-FAKE-BATTERY.h"
 #include "THINK-BATTERY.h"
+#include "THUNDERSTRUCK-BMS.h"
 #include "VOLVO-SPA-BATTERY.h"
 #include "VOLVO-SPA-HYBRID-BATTERY.h"
 
@@ -79,5 +82,13 @@ extern uint16_t user_selected_tesla_GTW_mapRegion;
 extern uint16_t user_selected_tesla_GTW_chassisType;
 extern uint16_t user_selected_tesla_GTW_packEnergy;
 extern uint16_t user_selected_pylon_baudrate;
+extern uint16_t user_set_rampdown_SOC;
+
+/* User-selected DALY BMS settings */
+extern int user_selected_daly_power_per_percent;
+extern int user_selected_daly_power_per_dV;
+extern int user_selected_daly_power_per_dV_start;
+extern int user_selected_daly_power_per_degree_C;
+extern int user_selected_daly_power_at_0_degree_C;
 
 #endif

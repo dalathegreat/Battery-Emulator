@@ -97,8 +97,12 @@ String options_from_map(int selected, const TMap& value_name_map) {
   }
   return options;
 }
-
+#ifdef HW_LILYGO2CAN
+static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy Flow"},     {2, "Heartbeat"},
+                                                {3, "GRB Classic"}, {4, "GRB Energy Flow"}, {5, "GRB Heartbeat"}};
+#else
 static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
+#endif
 
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
@@ -116,6 +120,8 @@ static const std::map<int, String> sungrow_models = {
     {0, "SBR064 (6.4 kWh, 2 modules)"},  {1, "SBR096 (9.6 kWh, 3 modules)"},  {2, "SBR128 (12.8 kWh, 4 modules)"},
     {3, "SBR160 (16.0 kWh, 5 modules)"}, {4, "SBR192 (19.2 kWh, 6 modules)"}, {5, "SBR224 (22.4 kWh, 7 modules)"},
     {6, "SBR256 (25.6 kWh, 8 modules)"}};
+
+static const std::map<int, String> pylon_models = {{0, "PYLONTECH"}, {1, "PYLON"}, {2, "DEYE"}};
 
 const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   switch (behavior) {
@@ -174,6 +180,31 @@ const char* name_for_gpioopt4(GPIOOPT4 option) {
       return nullptr;
   }
 }
+
+#ifdef HW_STARK
+const char* name_for_gpioopt5(GPIOOPT5 option) {
+  switch (option) {
+    case GPIOOPT5::DEFAULT_BMS_POWER_23:
+      return "Pin 23 (BMS POWER)";
+    case GPIOOPT5::BMS_POWER_25:
+      return "Pin 25 (PRECHARGE)";
+    default:
+      return nullptr;
+  }
+}
+#endif
+#ifdef HW_WAVESHARE
+const char* name_for_gpioopt6(GPIOOPT6 option) {
+  switch (option) {
+    case GPIOOPT6::DEFAULT_STATUS_LED:
+      return "Status LED (GPIO2)";
+    case GPIOOPT6::I2C_DISPLAY_SSD1306:
+      return "I2C Display SSD1306 (GPIO1=SDA, GPIO2=SCL)";
+    default:
+      return nullptr;
+  }
+}
+#endif
 
 // Special unicode characters
 const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
@@ -272,6 +303,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_from_map(settings.getUInt("INVSUNTYPE", 1), sungrow_models);  // Default: SBR096
   }
 
+  if (var == "PYLON_MODEL") {
+    return options_from_map(settings.getUInt("PYLONBRAND", 0), pylon_models);
+  }
+
 #ifdef HW_LILYGO2CAN
   if (var == "GPIOOPT1") {
     return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
@@ -292,7 +327,18 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum_with_none((GPIOOPT4)settings.getUInt("GPIOOPT4", (int)GPIOOPT4::DEFAULT_SD_CARD),
                                       name_for_gpioopt4, GPIOOPT4::DEFAULT_SD_CARD);
   }
-
+#ifdef HW_STARK
+  if (var == "GPIOOPT5") {
+    return options_for_enum_with_none((GPIOOPT5)settings.getUInt("GPIOOPT5", (int)GPIOOPT5::DEFAULT_BMS_POWER_23),
+                                      name_for_gpioopt5, GPIOOPT5::DEFAULT_BMS_POWER_23);
+  }
+#endif
+#ifdef HW_WAVESHARE
+  if (var == "GPIOOPT6") {
+    return options_for_enum_with_none((GPIOOPT6)settings.getUInt("GPIOOPT6", (int)GPIOOPT6::DEFAULT_STATUS_LED),
+                                      name_for_gpioopt6, GPIOOPT6::DEFAULT_STATUS_LED);
+  }
+#endif
   // All other values are wrapped by html_escape to avoid HTML injection.
 
   return html_escape(raw_settings_processor(var, settings));
@@ -395,6 +441,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
 
+  if (var == "LOWPASSFILTER") {
+    return settings.getBool("LOWPASSFILTER") ? "checked" : "";
+  }
+
   if (var == "NCCONTACTOR") {
     return settings.getBool("NCCONTACTOR") ? "checked" : "";
   }
@@ -465,6 +515,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "DCHGPOWER") {
     return String(settings.getUInt("DCHGPOWER", 0));
+  }
+
+  if (var == "RAMPDOWNSOC") {
+    return String(settings.getUInt("RAMPDOWNSOC", 9000));
   }
 
   if (var == "LOCALIP1") {
@@ -784,6 +838,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "PYLONORDER") {
     return settings.getBool("PYLONORDER") ? "checked" : "";
   }
+
   if (var == "PYLONBAUD") {
     return String(settings.getUInt("PYLONBAUD", 500));
   }
@@ -820,6 +875,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("DEYEBYD") ? "checked" : "";
   }
 
+  if (var == "PRIMOGEN24") {
+    return settings.getBool("PRIMOGEN24") ? "checked" : "";
+  }
+
   if (var == "CANFREQ") {
     return String(settings.getUInt("CANFREQ", 8));
   }
@@ -853,7 +912,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CTOFFSET") {
-    return String(settings.getUInt("CTOFFSET", 0));
+    return settings.getString("CTOFFSET", "-1.0");
   }
 
   if (var == "CTVNOM") {
@@ -862,6 +921,30 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "CTANOM") {
     return String(settings.getUInt("CTANOM", 100));
+  }
+
+  if (var == "CTINVERT") {
+    return settings.getBool("CTINVERT") ? "checked" : "";
+  }
+
+  if (var == "DALYPWRPCT") {
+    return String(settings.getUInt("DALYPWRPCT", 50));
+  }
+
+  if (var == "DALYPWRDV") {
+    return String(settings.getUInt("DALYPWRDV", 50));
+  }
+
+  if (var == "DALYDVSTART") {
+    return String(settings.getUInt("DALYDVSTART", 20));
+  }
+
+  if (var == "DALYPWRDEG") {
+    return String(settings.getUInt("DALYPWRDEG", 60));
+  }
+
+  if (var == "DALYPWR0C") {
+    return String(settings.getUInt("DALYPWR0C", 800));
   }
 
   return String();
@@ -938,6 +1021,30 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define GPIOOPT4_SETTING ""
 #endif
 
+#ifdef HW_STARK
+#define GPIOOPT5_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT5">BMS Power pin:</label>
+    <select id="GPIOOPT5" name="GPIOOPT5">
+      %GPIOOPT5%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT5_SETTING ""
+#endif
+
+#ifdef HW_WAVESHARE
+#define GPIOOPT6_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT6">GPIO 1/2 function:</label>
+    <select id="GPIOOPT6" name="GPIOOPT6">
+      %GPIOOPT6%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT6_SETTING ""
+#endif
+
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
     <script>
@@ -980,6 +1087,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         function editSocMax(){var value=prompt('Inverter will see fully charged (100pct)SOC when this value is reached. Enter new maximum SOC value that battery will charge to (50.0-100.0):');if(value!==null){if(value>=50&&value<=100){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSocMax?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 50.0 and 100.0');}}}
     
+
+
         function editSocMin(){
           var value=prompt('Inverter will see completely discharged (0pct)SOC when this value is reached. Advanced users can set to negative values. Enter new minimum SOC value that battery will discharge to (-10.0to50.0):');
           if(value!==null){if(value>=-10&&value<=50){var xhr=new 
@@ -1116,12 +1225,26 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     
 
     form .if-cbms { display: none; }
-    form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms, form[data-battery="41"] .if-cbms, form[data-battery="48"] .if-cbms, form[data-battery="49"] .if-cbms {
+    form[data-battery="6"] .if-cbms,
+    form[data-battery="11"] .if-cbms,
+    form[data-battery="22"] .if-cbms,
+    form[data-battery="23"] .if-cbms,
+    form[data-battery="24"] .if-cbms,
+    form[data-battery="31"] .if-cbms,
+    form[data-battery="41"] .if-cbms,
+    form[data-battery="48"] .if-cbms,
+    form[data-battery="49"] .if-cbms,
+    form[data-battery="51"] .if-cbms {
       display: contents;
     }
 
     form .if-nissan { display: none; }
     form[data-battery="21"] .if-nissan {
+      display: contents;
+    }
+
+    form .if-daly { display: none; }
+    form[data-battery="23"] .if-daly {
       display: contents;
     }
 
@@ -1134,6 +1257,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="3"] .if-estimated, 
     form[data-battery="4"] .if-estimated, 
     form[data-battery="6"] .if-estimated, 
+    form[data-battery="8"] .if-estimated, 
     form[data-battery="14"] .if-estimated, 
     form[data-battery="16"] .if-estimated, 
     form[data-battery="24"] .if-estimated,
@@ -1141,14 +1265,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="33"] .if-estimated,
     form[data-battery="40"] .if-estimated,
     form[data-battery="41"] .if-estimated,
-    form[data-battery="44"] .if-estimated {
+    form[data-battery="44"] .if-estimated,
+    form[data-battery="50"] .if-estimated,
+    form[data-battery="51"] .if-estimated {
       display: contents;
     }
 
     form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
     form[data-battery="16"] .if-socestimated,
     form[data-battery="26"] .if-socestimated,
-    form[data-battery="41"] .if-socestimated {
+    form[data-battery="41"] .if-socestimated,
+    form[data-battery="42"] .if-socestimated {
       display: contents;
     }
 
@@ -1184,6 +1311,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-byd { display: none; }
     form[data-inverter="2"] .if-byd {
+      display: contents;
+    }
+
+    form .if-bydmodbus { display: none; }
+    form[data-inverter="3"] .if-bydmodbus {
       display: contents;
     }
 
@@ -1284,6 +1416,33 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
         </div>
 
+        <div class="if-daly">
+          <label>Power limit per percent SOC above 80 / below 20 (W/pct): </label>
+          <input type='number' name='DALYPWRPCT' value="%DALYPWRPCT%"
+          min="1" max="10000" step="1"
+          title="Below 20% and above 80% SOC, limit power to this value * SOC% (e.g. 50 W/% means 150W at 3%, 500W at 10%)" />
+
+          <label>Voltage difference for start of voltage based discharge limit (dV): </label>
+          <input type='number' name='DALYDVSTART' value="%DALYDVSTART%"
+          min="1" max="200" step="1"
+          title="Power limiting begins when pack voltage is this many dV above the discharge voltage limit (default 20 = 2.0V)" />
+
+          <label>Max power per dV distance from minimum voltage (W/dV): </label>
+          <input type='number' name='DALYPWRDV' value="%DALYPWRDV%"
+          min="1" max="10000" step="1"
+          title="Max power per dV when approaching the discharge voltage limit" />
+
+          <label>Power change per °C above/below 0°C (W/°C): </label>
+          <input type='number' name='DALYPWRDEG' value="%DALYPWRDEG%"
+          min="1" max="10000" step="1"
+          title="Max power added or removed per degree above or below 0°C" />
+
+          <label>Power at 0°C (W): </label>
+          <input type='number' name='DALYPWR0C' value="%DALYPWR0C%"
+          min="0" max="100000" step="1"
+          title="Maximum allowed charge/discharge power at exactly 0°C" />
+        </div>
+
         <div class="if-tesla">
           <label for='digitalhvil'>Digital HVIL (2024+): </label>
           <input type='checkbox' name='DIGITALHVIL' id='digitalhvil' value='on' %DIGITALHVIL% />
@@ -1313,6 +1472,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='number' name='DCHGPOWER' value="%DCHGPOWER%" 
         min="0" max="65000" step="1"
         title="Continous max discharge power. Used since CAN data not valid for this integration. Do not set too high!" />
+
+        <label>Rampdown SOC, pptt: </label>
+        <input type='number' name='RAMPDOWNSOC' value="%RAMPDOWNSOC%" 
+        min="7000" max="9000" step="1"
+        title="SOC percentage to start ramping down from max charge power towards 0W at 100.00pct" />
         </div>
 
         <div class="if-socestimated">
@@ -1332,11 +1496,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-pylon-battery">
-        <label>Pylon CAN baudrate: </label>
-        <select name='PYLONBAUD' title="Select CAN bus baudrate (250kbps for most batteries, 500kbps for some configurations)">
-          <option value='250' %PYLONBAUD250%>250 kbps</option>
-          <option value='500' %PYLONBAUD500%>500 kbps</option>
-        </select>
+        <label>Pylon CAN baudrate (kbps): </label>
+        <input name='PYLONBAUD' type='text' value="%PYLONBAUD%" pattern="[0-9]+" title="Select CAN bus baudrate (500kbps for most batteries, 250kbps for some configurations)"/>
         </div>
 
         <div class="if-cbms">
@@ -1397,6 +1558,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
+        <label>Inverter limits low pass filter: </label>
+        <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
+        title="Applies a low pass filter to charge/discharge rates to prevent oscillation." />
+
         <div class="if-sofar">
         <label>Sofar Battery ID (0-15): </label>
         <input name='SOFAR_ID' type='text' value="%SOFAR_ID%" pattern="[0-9]{1,2}" />
@@ -1414,11 +1579,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Pylon, invert byteorder: </label>
         <input type='checkbox' name='PYLONORDER' value='on' %PYLONORDER% 
         title="When enabled, byteorder will be inverted on some signals, useful for some inverters that see wrong data otherwise" />
+
+        <label>Pylon, manufacturer name: </label>
+        <select name='PYLONBRAND'>%PYLON_MODEL%</select>
         </div>
 
         <div class="if-byd">
         <label>Deye avoid over/undercharge fix: </label>
         <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
+        </div>
+
+        <div class="if-bydmodbus">
+        <label>Fronius Primo, 450V maxvoltage cap: </label>
+        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24% />
         </div>
 
         <div class="if-pylonish">
@@ -1487,8 +1660,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-ctclamp">
           <label>CT Clamp offset (mV): </label>
           <input type='number' name='CTOFFSET' value="%CTOFFSET%" 
-          min="0" max="1000" step="1"
-          title="Voltage offset required to calibrate 0A reading. " />
+          min="-1" max="3000" step="1"
+          title="Voltage offset required to calibrate 0A reading. -1 = auto-detect" />
 
           <label>CT Clamp nominal voltage (dV): </label>
           <input type='number' name='CTVNOM' value="%CTVNOM%" 
@@ -1504,6 +1677,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           <select name='CTATTEN'>
           %CTATTEN%
           </select>
+
+          <label>Invert CT current: </label>
+          <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% 
+          title="Invert the current reading from the CT clamp, +ve is charging, -ve is discharging" />
           </div>
         </div>
 
@@ -1593,7 +1770,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         )rawliteral" GPIOOPT2_SETTING R"rawliteral(
         )rawliteral" GPIOOPT3_SETTING R"rawliteral(
         )rawliteral" GPIOOPT4_SETTING R"rawliteral(
-          
+        )rawliteral" GPIOOPT5_SETTING R"rawliteral(
+        )rawliteral" GPIOOPT6_SETTING R"rawliteral(
+
         </div>
         </div>
 

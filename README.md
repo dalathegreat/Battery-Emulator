@@ -55,7 +55,6 @@ This code uses the following excellent libraries:
 - [ESP32Async/AsyncTCP](https://github.com/ESP32Async/AsyncTCP) LGPL-3.0 license
 - [ESP32Async/ESPAsyncWebServer](https://github.com/ESP32Async/ESPAsyncWebServer) LGPL-3.0 license
 - [pierremolinaro/acan-esp32](https://github.com/pierremolinaro/acan-esp32) MIT-License
-- [pierremolinaro/acan2515](https://github.com/pierremolinaro/acan2515) MIT-License
 - [pierremolinaro/acan2517FD](https://github.com/pierremolinaro/acan2517FD) MIT-License
 
 It is also based on the information found in the following excellent repositories/websites:

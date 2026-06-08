@@ -81,10 +81,21 @@ void RenaultZoeGen2Battery::update_values() {
   }
 
   for (int i = 0; i < 96; i++) {
-    if (datalayer_battery->status.cell_balancing_status[i]) {
-      set_event_latched(EVENT_BALANCING_START, datalayer_battery->status.cell_balancing_status[i]);
+    //balancing_status_cell has cells ordered 96-1, while datalayer_battery->status.cell_balancing_status has cells ordered 1-96
+    //Due to this we need to invert the index when writing to datalayer_battery->status.cell_balancing_status
+    datalayer_battery->status.cell_balancing_status[95 - i] = balancing_status_cell[i];
+    if (balancing_status_cell[i]) {
+      set_event_latched(EVENT_BALANCING_START, (95 - i));
+      datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
     }
   }
+
+  /* Removed until we have a way to clear failures
+  if (battery_slave_failures > 0) {
+    set_event(EVENT_BATTERY_CAUTION, 0);
+  } else {
+    clear_event(EVENT_BATTERY_CAUTION);
+  }*/
 
   // Update webserver datalayer
   datalayer_extended.zoePH2.battery_soc = battery_soc;
@@ -304,20 +315,17 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case POLL_BALANCE_SWITCHES:
           if (rx_frame.data.u8[0] == 0x23) {
             for (int i = 0; i < 32; i++) {
-              datalayer_battery->status.cell_balancing_status[i] =
-                  (rx_frame.data.u8[4 + (i / 8)] >> (7 - (i % 8))) & 0x01;
+              balancing_status_cell[i] = (rx_frame.data.u8[4 + (i / 8)] >> (7 - (i % 8))) & 0x01;
             }
           }
           if (rx_frame.data.u8[0] == 0x24) {
             for (int i = 0; i < 56; i++) {
-              datalayer_battery->status.cell_balancing_status[32 + i] =
-                  (rx_frame.data.u8[1 + (i / 8)] >> (7 - (i % 8))) & 0x01;
+              balancing_status_cell[32 + i] = (rx_frame.data.u8[1 + (i / 8)] >> (7 - (i % 8))) & 0x01;
             }
           }
           if (rx_frame.data.u8[0] == 0x25) {
             for (int i = 0; i < 8; i++) {
-              datalayer_battery->status.cell_balancing_status[88 + i] =
-                  (rx_frame.data.u8[1 + (i / 8)] >> (7 - (i % 8))) & 0x01;
+              balancing_status_cell[88 + i] = (rx_frame.data.u8[1 + (i / 8)] >> (7 - (i % 8))) & 0x01;
             }
           }
           break;
@@ -328,7 +336,8 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           battery_energy_partial = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_SLAVE_FAILURES:
-          battery_slave_failures = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery_slave_failures = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
+                                    (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
           break;
         case POLL_MILEAGE:
           battery_mileage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -346,7 +355,7 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           battery_fan_duty = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_TEMPORISATION:
-          battery_temporisation = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery_temporisation = rx_frame.data.u8[4] >> 7;
           break;
         case POLL_TIME:
           battery_time = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -461,6 +470,7 @@ void RenaultZoeGen2Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
 }
 
 void RenaultZoeGen2Battery::transmit_can_frame_376(void) {
