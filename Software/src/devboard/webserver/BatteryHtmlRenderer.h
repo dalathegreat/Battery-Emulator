@@ -13,7 +13,7 @@ class BatteryHtmlRenderer {
   // Battery renderers can pass this to get_dtc_json_loader_html() directly,
   // or supply their own URL string for a different server/fork.
   static constexpr const char* GITHUB_RAW_BASE_URL =
-      "https://raw.githubusercontent.com/dalathegreat/Battery-Emulator/main/dtc_files/";
+      "https://raw.githubusercontent.com/dalathegreat/Battery-Emulator/main/web_data/dtc/";
   // Renders a status line + optional file-picker widget + JavaScript that fills
   // DTC descriptions into any table cell carrying a data-dtc-code='<decimal>'
   // attribute.
