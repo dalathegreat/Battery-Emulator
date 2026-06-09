@@ -72,6 +72,8 @@ class FordMachEBattery : public CanBattery {
 
   uint16_t polled_12V = 12000;
 
+  uint8_t display_soc = 0;
+
   static const uint8_t NOT_SAMPLED_YET = 255;
   // BECM Module PID Definitions
   static const uint16_t PID_HVB_TEMP = 0x4800;

@@ -151,6 +151,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x24c:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_soc = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+      display_soc = rx_frame.data.u8[6] / 2;
       break;
     case 0x24d:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
