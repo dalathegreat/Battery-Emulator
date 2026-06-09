@@ -261,6 +261,8 @@ void BydAttoBattery::
 }
 
 void BydAttoBattery::handle_auto_soc_calibration(bool crit_taper, uint32_t dt_ms, uint32_t now_ms) {
+  if (!datalayer_bydatto)
+    return;
   const uint32_t TAIL_DWELL_REQUIRED_MS = 10UL * 60UL * 1000UL;
   const uint32_t CURRENT_SPIKE_GRACE_MS = 60UL * 1000UL;
 
@@ -651,10 +653,10 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
                                      0x2E,
                                      0x1F,
                                      0xFC,
-                                     (uint8_t)(datalayer_extended.bydAtto3.calibrationTargetSOC * 100),
-                                     (uint8_t)((datalayer_extended.bydAtto3.calibrationTargetSOC * 100) >> 8),
-                                     (uint8_t)(datalayer_extended.bydAtto3.calibrationTargetAH * 100),
-                                     (uint8_t)((datalayer_extended.bydAtto3.calibrationTargetAH * 100) >> 8)};
+                                     (uint8_t)(datalayer_bydatto->calibrationTargetSOC * 100),
+                                     (uint8_t)((datalayer_bydatto->calibrationTargetSOC * 100) >> 8),
+                                     (uint8_t)(datalayer_bydatto->calibrationTargetAH * 100),
+                                     (uint8_t)((datalayer_bydatto->calibrationTargetAH * 100) >> 8)};
         transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
         stateMachineCalibrateSOC = NOT_RUNNING;
         break;
