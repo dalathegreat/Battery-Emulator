@@ -188,7 +188,7 @@ void update_machineryprotection() {
 
     // Battery is extremely degraded, not fit for secondlifestorage!
     if (datalayer.battery.status.soh_pptt < 2500) {
-      set_event(EVENT_SOH_LOW, datalayer.battery.status.soh_pptt);
+      set_event(EVENT_SOH_LOW, (datalayer.battery.status.soh_pptt / 100));
     } else {
       clear_event(EVENT_SOH_LOW);
     }
