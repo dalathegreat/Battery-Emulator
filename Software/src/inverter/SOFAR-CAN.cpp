@@ -24,13 +24,8 @@ void SofarInverter::
   SOFAR_351.data.u8[7] = (datalayer.battery.info.min_design_voltage_dV >> 8);
 
   // ----- Frame 0x355 – SoC / SoH -----
-  // SoC deception only to CAN (we do not touch datalayer)
-  uint16_t spoofed_soc = datalayer.battery.status.reported_soc;  // 0..10000 pptt
-  if (spoofed_soc >= 10000) {
-    spoofed_soc = 9900;  // limit to 99%
-  }
-  SOFAR_355.data.u8[0] = spoofed_soc / 100;                        // %
-  SOFAR_355.data.u8[2] = datalayer.battery.status.soh_pptt / 100;  // %
+  SOFAR_355.data.u8[0] = datalayer.battery.status.reported_soc / 100;  // %
+  SOFAR_355.data.u8[2] = datalayer.battery.status.soh_pptt / 100;      // %
 
   // ----- Frame 0x356 – pack voltage/current/temp -----
   // Voltage (e.g. 370.0V -> 3700 dV), Current in dA, Temperature in dC
@@ -77,12 +72,11 @@ void SofarInverter::
 
   // ===== Frame 0x30F – Remote command / enable (event/keep-alive) =====
   // Charge and discharge consent dependent on SoC with hysteresis at 99% soc
-  uint8_t soc_percent = spoofed_soc / 100;
   uint8_t enable_flags = 0x00;
-  if (soc_percent <= 1) {
-    enable_flags = 0x02;  // Only charging allowed
-  } else if (soc_percent >= 100) {
-    enable_flags = 0x01;  // Only discharge allowed
+  if (datalayer.battery.status.reported_soc <= 100) {
+    enable_flags = 0x02;  // Only charging allowed below 1.00% SOC
+  } else if (datalayer.battery.status.reported_soc >= 10000) {
+    enable_flags = 0x01;  // Only discharge allowed at 100.00% SOC
   } else {
     enable_flags = 0x03;  // Both charge and discharge allowed
   }
