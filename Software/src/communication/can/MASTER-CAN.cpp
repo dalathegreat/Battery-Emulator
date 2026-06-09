@@ -25,8 +25,8 @@ static const uint16_t PREJOIN_PRESSURE_FULL_DIFF_dV = 2u;   // 0.2V — quadrati
 static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
 // Fixed inverter-independent prejoin floor profile:
 // 1500W per joined battery, no cap — scales with system size.
-static const uint16_t PREJOIN_FLOOR_BASE_W = 4000u;
-static const uint16_t PREJOIN_FLOOR_PER_EXTRA_BATTERY_W = 1500u;
+static const uint16_t PREJOIN_FLOOR_BASE_W = 3000u;
+static const uint16_t PREJOIN_FLOOR_PER_EXTRA_BATTERY_W = 3000u;
 // Asymmetric EMA: slow when diff falls (avoids cutting cap prematurely), fast when diff rises (releases cap quickly).
 static const uint8_t PREJOIN_EMA_DEN_FALL = 5u;  // alpha=0.2 — diff falling → pressure would rise → be conservative
 static const uint8_t PREJOIN_EMA_DEN_RISE = 8u;  // alpha=0.125 — diff rising → damped so brief spikes don't crash target
@@ -633,12 +633,16 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
         prejoin_low_power_seconds[idx] = 0;
       }
 
-      if (diff <= PREJOIN_CLOSE_RAW_DIFF_dV && prejoin_applied_pressure_permille >= 1000u) {
-        if (prejoin_raw_stable_seconds[idx] < PREJOIN_CLOSE_DWELL_S) {
-          prejoin_raw_stable_seconds[idx]++;
+      {
+        int16_t signed_diff_dV = (int16_t)node.voltage_dV - (int16_t)reference_voltage_dV;
+        bool close_window = (load_W < 0) ? (signed_diff_dV >= 0 && diff <= 7u) : (diff <= PREJOIN_CLOSE_RAW_DIFF_dV);
+        if (close_window && prejoin_applied_pressure_permille >= 1000u) {
+          if (prejoin_raw_stable_seconds[idx] < PREJOIN_CLOSE_DWELL_S) {
+            prejoin_raw_stable_seconds[idx]++;
+          }
+        } else {
+          prejoin_raw_stable_seconds[idx] = 0;
         }
-      } else if (diff > PREJOIN_CLOSE_RAW_DIFF_dV + 1u || prejoin_applied_pressure_permille < 1000u) {
-        prejoin_raw_stable_seconds[idx] = 0;
       }
 
       if (prejoin_diff_ema_dV[idx] <= PREJOIN_PRESSURE_FULL_DIFF_dV) {
@@ -687,7 +691,21 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
       if (voltage_diff_seconds[idx] >= VOLTAGE_DIFF_SECONDS_LIMIT) {
         bool prejoin_gate_ok = true;
         if (prejoin_active[idx]) {
-          prejoin_gate_ok = (diff <= PREJOIN_CLOSE_RAW_DIFF_dV) &&
+          // Discharge direction check: during discharge, bus voltage is pulled below OCV by IR-drop.
+          // We must only close when slave_voltage > bus (signed_diff >= 0), so precharge current
+          // flows into slave's battery (correct direction for BMW i3 precharge circuit).
+          // During charging, Kostal elevates bus above OCV, so signed_diff is always negative
+          // while approaching — use the existing 0.5V absolute threshold instead.
+          int16_t signed_diff_dV =
+              (int16_t)node.voltage_dV - (int16_t)reference_voltage_dV;
+          bool direction_ok;
+          if (load_W < 0) {
+            // Discharging: require slave > bus within 0.7V window
+            direction_ok = (signed_diff_dV >= 0 && diff <= 7u);
+          } else {
+            direction_ok = (diff <= PREJOIN_CLOSE_RAW_DIFF_dV);
+          }
+          prejoin_gate_ok = direction_ok &&
                             (prejoin_raw_stable_seconds[idx] >= PREJOIN_CLOSE_DWELL_S) &&
                             (prejoin_applied_pressure_permille >= 1000u);
         }
