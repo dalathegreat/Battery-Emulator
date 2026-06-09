@@ -1,7 +1,6 @@
 #include "BMW-IX-HTML.h"
 #include "BMW-IX-BATTERY.h"
 
-
 String BmwIXHtmlRenderer::get_status_html() {
   String content;
 
@@ -263,7 +262,9 @@ String BmwIXHtmlRenderer::get_status_html() {
           String(dtcStr) + "</td>";
       content += "<td style='padding: 12px 15px; border-top: 1px solid #e0e0e0; color: " + statusColor +
                  "; font-weight: 500;'>" + statusStr + "</td>";
-      content += "<td data-dtc-code='" + String(code) + "' style='padding: 12px 15px; border-top: 1px solid #e0e0e0; font-size: 0.95em; color: #ddd;'>Unknown</td>";
+      content +=
+          "<td data-dtc-code='" + String(code) +
+          "' style='padding: 12px 15px; border-top: 1px solid #e0e0e0; font-size: 0.95em; color: #ddd;'>Unknown</td>";
       content += "</tr>";
     }
 
