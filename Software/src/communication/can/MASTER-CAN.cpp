@@ -696,6 +696,7 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
           // flows into slave's battery (correct direction for BMW i3 precharge circuit).
           // During charging, Kostal elevates bus above OCV, so signed_diff is always negative
           // while approaching — use the existing 0.5V absolute threshold instead.
+          int32_t load_W = datalayer.battery.status.active_power_W;
           int16_t signed_diff_dV =
               (int16_t)node.voltage_dV - (int16_t)reference_voltage_dV;
           bool direction_ok;
