@@ -24,7 +24,7 @@ static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 5u;       // 0.5V — hard gat
 static const uint16_t PREJOIN_PRESSURE_FULL_DIFF_dV = 2u;   // 0.2V — quadratic curve reaches 1000 permille here
 static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
 // Fixed inverter-independent prejoin floor profile:
-// 1500W per joined battery, no cap — scales with system size.
+// 3000W per joined battery, no cap — scales with system size.
 static const uint16_t PREJOIN_FLOOR_BASE_W = 3000u;
 static const uint16_t PREJOIN_FLOOR_PER_EXTRA_BATTERY_W = 3000u;
 // Asymmetric EMA: slow when diff falls (avoids cutting cap prematurely), fast when diff rises (releases cap quickly).
@@ -694,7 +694,7 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
           // Discharge direction check: during discharge, bus voltage is pulled below OCV by IR-drop.
           // We must only close when slave_voltage > bus (signed_diff >= 0), so precharge current
           // flows into slave's battery (correct direction for BMW i3 precharge circuit).
-          // During charging, Kostal elevates bus above OCV, so signed_diff is always negative
+          // During charging, inverter elevates bus above OCV, so signed_diff is always negative
           // while approaching — use the existing 0.5V absolute threshold instead.
           int32_t load_W = datalayer.battery.status.active_power_W;
           int16_t signed_diff_dV =
