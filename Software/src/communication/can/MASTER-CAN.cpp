@@ -19,16 +19,14 @@ static const uint8_t MASTER_CONTACTOR_STAGGER_MS = 3;  // master-only inter-fram
 // Pre-join controller constants (master-only):
 // adaptively reduce pack power while an additional blocked slave is preparing to join.
 static const uint16_t PREJOIN_ENTER_DIFF_dV = 18u;          // 1.8V — activate when EMA diff <= this
-static const uint16_t PREJOIN_PRESSURE_START_DIFF_dV = 0u;  // TEST: pressure disabled — full power throughout prejoin
-static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 0u;       // TEST: close at diff = 0V
-static const uint16_t PREJOIN_PRESSURE_FULL_DIFF_dV = 0u;   // TEST: unused (pressure disabled)
+static const uint16_t PREJOIN_PRESSURE_START_DIFF_dV = 6u;  // 0.6V — pressure ramp starts; full power above this
+static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 5u;       // 0.5V — hard gate for contactor close and dwell counter
+static const uint16_t PREJOIN_PRESSURE_FULL_DIFF_dV = 1u;   // 0.1V — quadratic curve reaches 1000 permille here
 static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
 // Fixed inverter-independent prejoin floor profile:
-// 1 joined battery => 1000W, each additional joined battery adds +400W,
-// capped at 3000W.
-static const uint16_t PREJOIN_FLOOR_BASE_W = 1000u;
-static const uint16_t PREJOIN_FLOOR_PER_EXTRA_BATTERY_W = 400u;
-static const uint16_t PREJOIN_FLOOR_MAX_W = 3000u;
+// 1500W per joined battery, no cap — scales with system size.
+static const uint16_t PREJOIN_FLOOR_BASE_W = 3000u;
+static const uint16_t PREJOIN_FLOOR_PER_EXTRA_BATTERY_W = 1500u;
 // Asymmetric EMA: slow when diff falls (avoids cutting cap prematurely), fast when diff rises (releases cap quickly).
 static const uint8_t PREJOIN_EMA_DEN_FALL = 5u;  // alpha=0.2 — diff falling → pressure would rise → be conservative
 static const uint8_t PREJOIN_EMA_DEN_RISE = 8u;  // alpha=0.125 — diff rising → damped so brief spikes don't crash target
@@ -66,6 +64,7 @@ static uint16_t prejoin_applied_pressure_permille = 0;
 static uint32_t prejoin_cap_snapshot_charge_W = 0;
 static uint32_t prejoin_cap_snapshot_discharge_W = 0;
 static bool prejoin_was_active = false;  // edge detector
+static uint8_t prejoin_postclose_log_seconds[MAX_SLAVE_NODES] = {0};
 
 static uint8_t count_joined_slaves() {
   uint8_t joined_count = 0;
@@ -82,9 +81,6 @@ static uint32_t prejoin_floor_w_for_joined(uint8_t joined_count) {
   uint32_t floor_W = PREJOIN_FLOOR_BASE_W;
   if (joined_count > 1u) {
     floor_W += (uint32_t)(joined_count - 1u) * PREJOIN_FLOOR_PER_EXTRA_BATTERY_W;
-  }
-  if (floor_W > PREJOIN_FLOOR_MAX_W) {
-    floor_W = PREJOIN_FLOOR_MAX_W;
   }
   return floor_W;
 }
@@ -637,11 +633,11 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
         prejoin_low_power_seconds[idx] = 0;
       }
 
-      if (diff <= PREJOIN_CLOSE_RAW_DIFF_dV) {
+      if (diff <= PREJOIN_CLOSE_RAW_DIFF_dV && prejoin_applied_pressure_permille >= 1000u) {
         if (prejoin_raw_stable_seconds[idx] < PREJOIN_CLOSE_DWELL_S) {
           prejoin_raw_stable_seconds[idx]++;
         }
-      } else if (diff > PREJOIN_CLOSE_RAW_DIFF_dV + 1u) {
+      } else if (diff > PREJOIN_CLOSE_RAW_DIFF_dV + 1u || prejoin_applied_pressure_permille < 1000u) {
         prejoin_raw_stable_seconds[idx] = 0;
       }
 
@@ -667,6 +663,13 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
     }
   } else if (node.contactor_allowed) {
     reset_prejoin_state(idx);
+    if (prejoin_postclose_log_seconds[idx] > 0) {
+      prejoin_postclose_log_seconds[idx]--;
+      logging.printf("Master CAN: Post-close slave %d: voltage=%u.%uV current=%d.%uA diff=%u.%uV\n", idx + 1,
+                     node.voltage_dV / 10, node.voltage_dV % 10,
+                     (int)node.current_dA / 10, (unsigned)(abs((int)node.current_dA) % 10),
+                     diff / 10, diff % 10);
+    }
   }
 
   if (has_fault) {
@@ -685,12 +688,14 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
         bool prejoin_gate_ok = true;
         if (prejoin_active[idx]) {
           prejoin_gate_ok = (diff <= PREJOIN_CLOSE_RAW_DIFF_dV) &&
-                            (prejoin_raw_stable_seconds[idx] >= PREJOIN_CLOSE_DWELL_S);
+                            (prejoin_raw_stable_seconds[idx] >= PREJOIN_CLOSE_DWELL_S) &&
+                            (prejoin_applied_pressure_permille >= 1000u);
         }
         if (prejoin_gate_ok) {
           node.contactor_allowed = true;
           voltage_diff_seconds[idx] = 0;
           reset_prejoin_state(idx);
+          prejoin_postclose_log_seconds[idx] = 10u;
           logging.printf("Master CAN: Slave %d contactor ALLOWED (voltage OK for %us: %u.%uV)\n", idx + 1,
                          VOLTAGE_DIFF_SECONDS_LIMIT, node.voltage_dV / 10, node.voltage_dV % 10);
         }
