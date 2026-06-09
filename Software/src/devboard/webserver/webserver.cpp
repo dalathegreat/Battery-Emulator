@@ -1384,6 +1384,14 @@ String processor(const String& var) {
         content += "<span style='color: red;'>&#10005; (voltage mismatch)</span>";
       }
     }
+    if (battery3) {
+      content += "<h4>Third battery allowed to join ";
+      if (datalayer.system.status.battery3_allowed_contactor_closing == true) {
+        content += "<span>&#10003;</span>";
+      } else {
+        content += "<span style='color: red;'>&#10005; (voltage mismatch)</span>";
+      }
+    }
 
     if (!contactor_control_enabled) {
       content += "<div class=\"tooltip\">";
