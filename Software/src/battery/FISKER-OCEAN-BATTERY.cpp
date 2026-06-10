@@ -39,25 +39,25 @@ void FiskerOceanBattery::update_values() {
 
 void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
-    case 0x100:
+    case 0x100:  //BBus 10ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x103:
+    case 0x103:  //BBus 10ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x110:
+    case 0x110:  //BBus 10ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x180:
+    case 0x180:  //BBus 50ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x181:
+    case 0x181:  //BBus 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x182:
+    case 0x182:  //BBus 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x310:
+    case 0x310:  //BBus 30ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //frame6 has counter low nibble, 0-F incrementing every frame
       break;
