@@ -598,16 +598,16 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
           (uint16_t)(((uint32_t)prejoin_diff_ema_dV[idx] * (ema_den - 1u) + (uint32_t)diff) / ema_den);
     }
 
-    // Prejoin is only relevant while the inverter is actively working with batteries
-    // that are already online. If the system is idle, fall through to the normal
-    // 1.5 V (VOLTAGE_DIFF_THRESHOLD_dV) path which closes the contactor without capping.
     int32_t load_W = datalayer.battery.status.active_power_W;
     uint32_t abs_load_W = (load_W >= 0) ? (uint32_t)load_W : (uint32_t)(-load_W);
-    // Use the fixed joined-battery floor for prejoin entry gating.
-    // If load <= floor, there is no headroom to apply pressure capping.
     uint8_t joined_count = count_joined_slaves();
     uint32_t pj_floor_W = prejoin_floor_w_for_joined(joined_count);
-    bool inverter_working = (abs_load_W > pj_floor_W);
+    // Prejoin activates when inverter is doing meaningful work (> abort threshold).
+    // Pressure capping is only applied if load exceeds the floor — if the inverter is
+    // already at or below the floor (e.g. floor > inverter max), skip pressure so the
+    // inverter runs at full power while the direction-aware close gate still works.
+    bool inverter_working = (abs_load_W > PREJOIN_LOW_POWER_ABORT_W);
+    bool pressure_headroom = (abs_load_W > pj_floor_W);
 
     if (!prejoin_active[idx] && inverter_working && prejoin_diff_ema_dV[idx] <= PREJOIN_ENTER_DIFF_dV) {
       prejoin_active[idx] = true;
@@ -645,15 +645,20 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
         }
       }
 
-      if (prejoin_diff_ema_dV[idx] <= PREJOIN_PRESSURE_FULL_DIFF_dV) {
+      if (!pressure_headroom) {
+        // Floor >= inverter output: no headroom to cap. Set target to 1000 so the close gate
+        // can open normally — the applied cap will be at floor level which the inverter
+        // cannot exceed anyway, so effective power is unchanged.
+        prejoin_pressure_permille[idx] = 1000u;
+      } else if (prejoin_diff_ema_dV[idx] <= PREJOIN_PRESSURE_FULL_DIFF_dV) {
         prejoin_pressure_permille[idx] = 1000u;
       } else if (prejoin_diff_ema_dV[idx] >= PREJOIN_PRESSURE_START_DIFF_dV) {
-        prejoin_pressure_permille[idx] = 0u;  // full power above 0.6V
+        prejoin_pressure_permille[idx] = 0u;  // full power above start threshold
       } else {
-        uint32_t span = (uint32_t)(PREJOIN_PRESSURE_START_DIFF_dV - PREJOIN_PRESSURE_FULL_DIFF_dV);  // 0.6V–0.3V = 3 dV
+        uint32_t span = (uint32_t)(PREJOIN_PRESSURE_START_DIFF_dV - PREJOIN_PRESSURE_FULL_DIFF_dV);
         uint32_t above_full = (uint32_t)(prejoin_diff_ema_dV[idx] - PREJOIN_PRESSURE_FULL_DIFF_dV);
-        uint32_t norm = (span - above_full) * 1000u / span;  // 0 at PRESSURE_START, 1000 at PRESSURE_FULL
-        prejoin_pressure_permille[idx] = (uint16_t)(norm * norm / 1000u);  // quadratic: steep near 0.3V
+        uint32_t norm = (span - above_full) * 1000u / span;
+        prejoin_pressure_permille[idx] = (uint16_t)(norm * norm / 1000u);  // quadratic
       }
       // Log per-slave state every second while prejoin is active
       logging.printf(
