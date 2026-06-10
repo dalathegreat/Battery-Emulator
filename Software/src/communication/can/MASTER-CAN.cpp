@@ -19,9 +19,9 @@ static const uint8_t MASTER_CONTACTOR_STAGGER_MS = 3;  // master-only inter-fram
 // Pre-join controller constants (master-only):
 // adaptively reduce pack power while an additional blocked slave is preparing to join.
 static const uint16_t PREJOIN_ENTER_DIFF_dV = 18u;          // 1.8V — activate when EMA diff <= this
-static const uint16_t PREJOIN_PRESSURE_START_DIFF_dV = 4u;  // 0.4V — pressure ramp starts; full power above this
+static const uint16_t PREJOIN_PRESSURE_START_DIFF_dV = 6u;  // 0.6V — pressure ramp starts; full power above this
 static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 5u;       // 0.5V — hard gate for contactor close and dwell counter
-static const uint16_t PREJOIN_PRESSURE_FULL_DIFF_dV = 2u;   // 0.2V — quadratic curve reaches 1000 permille here
+static const uint16_t PREJOIN_PRESSURE_FULL_DIFF_dV = 3u;   // 0.3V — quadratic curve reaches 1000 permille here
 static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;
 // Fixed inverter-independent prejoin floor profile:
 // 3000W per joined battery, no cap — scales with system size.
