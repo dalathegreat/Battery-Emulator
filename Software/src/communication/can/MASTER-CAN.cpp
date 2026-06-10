@@ -623,7 +623,7 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
           node.contactor_allowed = true;
           voltage_diff_seconds[idx] = 0;
           reset_prejoin_state(idx);
-          prejoin_postclose_log_seconds[idx] = 10u;
+          prejoin_postclose_log_seconds[idx] = 20u;
           logging.printf("Master CAN: Slave %d contactor ALLOWED (voltage OK for %us: %u.%uV)\n", idx + 1,
                          VOLTAGE_DIFF_SECONDS_LIMIT, node.voltage_dV / 10, node.voltage_dV % 10);
         }
