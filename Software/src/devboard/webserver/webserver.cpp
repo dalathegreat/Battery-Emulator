@@ -1095,19 +1095,36 @@ String processor(const String& var) {
         content += "<div style='background-color: ";
       }
 
-      switch (get_emulator_status()) {
-        case EMULATOR_STATUS::STATUS_OK:
-          content += "#2D3F2F;";
-          break;
-        case EMULATOR_STATUS::STATUS_WARNING:
-          content += "#F5CC00;";
-          break;
-        case EMULATOR_STATUS::STATUS_ERROR:
-          content += "#A70107;";
-          break;
-        case EMULATOR_STATUS::STATUS_UPDATING:
-          content += "#2B35AF;";  // Blue in test mode
-          break;
+      {
+        EMULATOR_STATUS emu_status = get_emulator_status();
+        // In master mode, only show error color if ALL online slaves are faulted
+        if (emu_status == EMULATOR_STATUS::STATUS_ERROR &&
+            datalayer.system.status.node_mode == NODE_MASTER) {
+          int slave_online = 0, slave_error = 0;
+          for (int j = 0; j < MAX_SLAVE_NODES; j++) {
+            const auto& sn = datalayer.system.slave_nodes[j];
+            if (!sn.online) continue;
+            slave_online++;
+            if ((sn.fault_flags & IU_FAULT_ERROR_MASK) != 0) slave_error++;
+          }
+          if (slave_online > 0 && slave_error < slave_online) {
+            emu_status = EMULATOR_STATUS::STATUS_OK;
+          }
+        }
+        switch (emu_status) {
+          case EMULATOR_STATUS::STATUS_OK:
+            content += "#2D3F2F;";
+            break;
+          case EMULATOR_STATUS::STATUS_WARNING:
+            content += "#F5CC00;";
+            break;
+          case EMULATOR_STATUS::STATUS_ERROR:
+            content += "#A70107;";
+            break;
+          case EMULATOR_STATUS::STATUS_UPDATING:
+            content += "#2B35AF;";
+            break;
+        }
       }
 
       // Add the common style properties
@@ -1460,10 +1477,19 @@ String processor(const String& var) {
     // === MASTER MODE: slave status grid ===
     if (datalayer.system.status.node_mode == NODE_MASTER) {
       const char* master_bg;
-      switch (get_emulator_status()) {
-        case EMULATOR_STATUS::STATUS_ERROR:    master_bg = "#A70107"; break;
-        case EMULATOR_STATUS::STATUS_UPDATING: master_bg = "#2B35AF"; break;
-        default:                               master_bg = "#303E47"; break;
+      if (get_emulator_status() == EMULATOR_STATUS::STATUS_UPDATING) {
+        master_bg = "#2B35AF";
+      } else {
+        // Only turn red if ALL online slaves are in fault
+        int slave_online = 0, slave_error = 0;
+        for (int j = 0; j < MAX_SLAVE_NODES; j++) {
+          const auto& sn = datalayer.system.slave_nodes[j];
+          if (!sn.online) continue;
+          slave_online++;
+          if ((sn.fault_flags & IU_FAULT_ERROR_MASK) != 0) slave_error++;
+        }
+        bool all_faulted = (slave_online > 0 && slave_error == slave_online);
+        master_bg = all_faulted ? "#A70107" : "#303E47";
       }
       content +=
           "<div style='background-color:" + String(master_bg) + "; padding:10px; margin-bottom:10px; border-radius:20px;'>"
