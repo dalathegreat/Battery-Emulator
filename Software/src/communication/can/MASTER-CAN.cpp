@@ -578,9 +578,8 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
         prejoin_raw_stable_seconds[idx] = 0;
       }
 
-      logging.printf("Master CAN: Pre-join slave %d: raw=%u.%uV stable=%us current=%d.%uA\n",
-                     idx + 1, diff / 10, diff % 10, prejoin_raw_stable_seconds[idx],
-                     (int)node.current_dA / 10, (unsigned)(abs((int)node.current_dA) % 10));
+      logging.printf("Master CAN: Pre-join slave %d: raw=%u.%uV stable=%us\n",
+                     idx + 1, diff / 10, diff % 10, prejoin_raw_stable_seconds[idx]);
     } else {
       prejoin_raw_stable_seconds[idx] = 0;
     }
