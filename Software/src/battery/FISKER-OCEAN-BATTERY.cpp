@@ -205,7 +205,9 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         default:
           break;
       }
+      break;
     default:
+      logging.printf("Received unexpected CAN frame with ID: 0x%03X\n", rx_frame.ID);
       break;
   }
 }
@@ -224,8 +226,8 @@ void FiskerOceanBattery::transmit_can(unsigned long currentMillis) {
 
     //We do not know which ID the battery needs, so loop thru 30 different combinations each run
     static int offset = 0;
-    offset = (offset + 1) % 30;
-    FISKER_PID_REQUEST.ID = 0x7E0 + offset;
+    offset = (offset + 1) % 256;
+    FISKER_PID_REQUEST.ID = 0x700 + offset;
 
     transmit_can_frame(&FISKER_PID_REQUEST);
   }
