@@ -39,9 +39,30 @@ void FiskerOceanBattery::update_values() {
 
 void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
-    case 0x355:
+    case 0x100:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x7E9:
+    case 0x103:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x110:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x180:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x181:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x182:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x310:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //frame6 has counter low nibble, 0-F incrementing every frame
+      break;
+    case 0x7E9:  //Not confirmed yet
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
       if (rx_frame.data.u8[0] < 0x10) {  //One line response
         incoming_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
@@ -201,6 +222,11 @@ void FiskerOceanBattery::transmit_can(unsigned long currentMillis) {
     FISKER_PID_REQUEST.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
     FISKER_PID_REQUEST.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
+    //We do not know which ID the battery needs, so loop thru 30 different combinations each run
+    static int offset = 0;
+    offset = (offset + 1) % 30;
+    FISKER_PID_REQUEST.ID = 0x7E0 + offset;
+
     transmit_can_frame(&FISKER_PID_REQUEST);
   }
   // Send 1000ms CAN Message
@@ -217,9 +243,10 @@ void FiskerOceanBattery::transmit_can(unsigned long currentMillis) {
 void FiskerOceanBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.max_design_voltage_dV = user_selected_max_pack_voltage_dV;
-  datalayer.battery.info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
-  datalayer.battery.info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
-  datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_113S_DV;  //Startout wide
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_106S_DV;  //Narrow later if we can detect pack size
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
