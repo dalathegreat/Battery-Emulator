@@ -445,6 +445,10 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
     ZOE_POLL_18DADBF1.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
     ZOE_POLL_18DADBF1.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
+    if (UserRequestedDTCReset == true) {
+      UserRequestedDTCReset = false;
+      transmit_can_frame(&ZOE_CLEAR_DTC);  //Send DTC reset command
+    }
     transmit_can_frame(&ZOE_POLL_18DADBF1);
   }
 
