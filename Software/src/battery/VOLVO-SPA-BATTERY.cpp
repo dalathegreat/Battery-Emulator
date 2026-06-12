@@ -255,7 +255,7 @@ void VolvoSpaBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&VOLVO_536);  //Send 0x536 Network managing frame to keep BMS alive
     transmit_can_frame(&VOLVO_372);  //Send 0x372 ECMAmbientTempCalculated
 
-    if ((datalayer.battery.status.bms_status == ACTIVE) && startedUp) {
+    if ((datalayer.system.status.system_status == ACTIVE) && startedUp) {
       datalayer.system.status.battery_allows_contactor_closing = true;
       transmit_can_frame(&VOLVO_140_CLOSE);  //Send 0x140 Close contactors message
     } else {  //datalayer.battery.status.bms_status == FAULT , OR inverter requested opening contactors, OR system not started yet
@@ -276,7 +276,7 @@ void VolvoSpaBattery::transmit_can(unsigned long currentMillis) {
   }
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
-    if (datalayer.battery.status.bms_status == ACTIVE) {
+    if (datalayer.system.status.system_status == ACTIVE) {
       readCellVoltages();
     }
   }

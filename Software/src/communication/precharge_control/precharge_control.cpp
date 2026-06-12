@@ -125,7 +125,7 @@ void handle_precharge_control(unsigned long currentMillis) {
         datalayer.system.info.start_precharging = false;
       } else if ((datalayer.battery.status.real_bms_status != BMS_STANDBY &&
                   datalayer.battery.status.real_bms_status != BMS_ACTIVE) ||
-                 datalayer.battery.status.bms_status != ACTIVE || datalayer.system.info.equipment_stop_active) {
+                 datalayer.system.status.system_status != ACTIVE || datalayer.system.info.equipment_stop_active) {
         pinMode(hia4v1_pin, OUTPUT);
         digitalWrite(hia4v1_pin, LOW);
         digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_ON);
@@ -144,7 +144,7 @@ void handle_precharge_control(unsigned long currentMillis) {
       // If equipment stop is activated, or BE is in a non-active state, or the
       // BMS has gone back to standby (eg, after a BMS reset), then we'll allow
       // the precharge to be restarted.
-      if (datalayer.system.info.equipment_stop_active || datalayer.battery.status.bms_status != ACTIVE ||
+      if (datalayer.system.info.equipment_stop_active || datalayer.system.status.system_status != ACTIVE ||
           datalayer.battery.status.real_bms_status == BMS_STANDBY) {
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
         logging.printf("Precharge: equipment stop activated -> IDLE\n");
@@ -155,7 +155,7 @@ void handle_precharge_control(unsigned long currentMillis) {
       // This is not used anymore?
       if (!datalayer.system.status.battery_allows_contactor_closing ||
           !datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.info.equipment_stop_active ||
-          datalayer.battery.status.bms_status != FAULT) {
+          datalayer.system.status.system_status != FAULT) {
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
         pinMode(hia4v1_pin, OUTPUT);
         digitalWrite(hia4v1_pin, LOW);

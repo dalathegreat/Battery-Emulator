@@ -16,20 +16,30 @@ extern uint16_t user_selected_tesla_GTW_packEnergy;
 class TeslaBattery : public CanBattery {
  public:
   // Use the default constructor to create the first or single battery.
-  TeslaBattery() { allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing; }
+  TeslaBattery() {
+    datalayer_battery = &datalayer.battery;
+    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+    previous_max_percentage = datalayer.battery.settings.max_percentage;
+  }
+  // Use this constructor for the second or third battery.
+  TeslaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
+    datalayer_battery = datalayer_ptr;
+    allows_contactor_closing = nullptr;
+    previous_max_percentage = datalayer_ptr->settings.max_percentage;
+  }
 
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
   bool supports_clear_isolation() { return true; }
-  void clear_isolation() { datalayer.battery.settings.user_requests_tesla_isolation_clear = true; }
+  void clear_isolation() { datalayer_battery->settings.user_requests_tesla_isolation_clear = true; }
 
   bool supports_reset_BMS() { return true; }
-  void reset_BMS() { datalayer.battery.settings.user_requests_tesla_bms_reset = true; }
+  void reset_BMS() { datalayer_battery->settings.user_requests_tesla_bms_reset = true; }
 
   bool supports_reset_SOC() { return true; }
-  void reset_SOC() { datalayer.battery.settings.user_requests_tesla_soc_reset = true; }
+  void reset_SOC() { datalayer_battery->settings.user_requests_tesla_soc_reset = true; }
 
   bool supports_charged_energy() { return true; }
 
@@ -42,14 +52,13 @@ class TeslaBattery : public CanBattery {
 
  protected:
   /* Do not change anything below this line! */
-  static const int RAMPDOWN_SOC = 900;  // 90.0 SOC% to start ramping down from max charge power towards 0 at 100.00%
   static const int RAMPDOWNPOWERALLOWED = 10000;      // What power we ramp down from towards top balancing
   static const int FLOAT_MAX_POWER_W = 200;           // W, what power to allow for top balancing battery
   static const int FLOAT_START_MV = 20;               // mV, how many mV under overvoltage to start float charging
   static const int MAX_PACK_VOLTAGE_SX_NCMA = 4600;   // V+1, if pack voltage goes over this, charge stops
-  static const int MIN_PACK_VOLTAGE_SX_NCMA = 3100;   // V+1, if pack voltage goes over this, charge stops
+  static const int MIN_PACK_VOLTAGE_SX_NCMA = 2850;   // V+1, if pack voltage goes over this, charge stops
   static const int MAX_PACK_VOLTAGE_3Y_NCMA = 4030;   // V+1, if pack voltage goes over this, charge stops
-  static const int MIN_PACK_VOLTAGE_3Y_NCMA = 3100;   // V+1, if pack voltage goes below this, discharge stops
+  static const int MIN_PACK_VOLTAGE_3Y_NCMA = 2850;   // V+1, if pack voltage goes below this, discharge stops
   static const int MAX_PACK_VOLTAGE_3Y_LFP = 3880;    // V+1, if pack voltage goes over this, charge stops
   static const int MIN_PACK_VOLTAGE_3Y_LFP = 2968;    // V+1, if pack voltage goes below this, discharge stops
   static const int MAX_CELL_DEVIATION_NCA_NCM = 500;  //LED turns yellow on the board if mv delta exceeds this value
@@ -60,6 +69,22 @@ class TeslaBattery : public CanBattery {
       2950;                                      //Battery is put into emergency stop if one cell goes below this value
   static const int MAX_CELL_VOLTAGE_LFP = 3650;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_LFP = 2800;  //Battery is put into emergency stop if one cell goes below this value
+
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+
+  // Per-instance state for handle_incoming_can_frame.
+  // These were previously static locals — static locals are shared across all
+  // class instances, which breaks double/triple battery support.
+  uint8_t mux = 0;
+  uint16_t temp = 0;
+  bool mux0_read = false;
+  bool mux1_read = false;
+  uint16_t brick_volts = 0;      // per-brick voltage scratch variable (0x401)
+  uint8_t mux_zero_counter = 0;  // counts mux==0 frames to detect full cell scan
+  uint8_t mux_max = 0;           // highest mux index seen so far
+
+  // Per-instance state for transmit_can.
+  int transmitPhase = -1;
 
   bool operate_contactors = false;
 
@@ -97,7 +122,7 @@ class TeslaBattery : public CanBattery {
   //0x7FF GTW_carConfig, 5 mux tracker
   uint8_t muxNumber_TESLA_7FF = 0;
   //Max percentage charge tracker
-  uint16_t previous_max_percentage = datalayer.battery.settings.max_percentage;
+  uint16_t previous_max_percentage = 0;
 
   //0x082 UI_tripPlanning: "cycle_time" 1000ms
   static constexpr CAN_frame TESLA_082 = {.FD = false,
@@ -892,12 +917,14 @@ class TeslaBattery : public CanBattery {
 
 class TeslaModel3YBattery : public TeslaBattery {
  public:
+  using TeslaBattery::TeslaBattery;
   static constexpr const char* Name = "Tesla Model 3/Y";
   virtual void setup(void);
 };
 
 class TeslaModelSXBattery : public TeslaBattery {
  public:
+  using TeslaBattery::TeslaBattery;
   static constexpr const char* Name = "Tesla Model S/X";
   virtual void setup(void);
 };

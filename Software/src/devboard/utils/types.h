@@ -7,7 +7,7 @@
 using milliseconds = std::chrono::milliseconds;
 using duration = std::chrono::duration<unsigned long, std::ratio<1, 1000>>;
 
-enum bms_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
+enum system_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
 enum real_bms_status_enum { BMS_DISCONNECTED = 0, BMS_STANDBY = 1, BMS_ACTIVE = 2, BMS_FAULT = 3 };
 enum balancing_status_enum {
   BALANCING_STATUS_UNKNOWN = 0,
@@ -114,7 +114,7 @@ typedef struct {
   frameDirection direction;
 } CAN_log_frame;
 
-std::string getBMSStatus(bms_status_enum status);
+std::string getBMSStatus(system_status_enum status);
 
 #ifdef HW_LILYGO2CAN
 /* Configurable GPIO options (device specific) */
@@ -150,7 +150,26 @@ enum class GPIOOPT4 {
   I2C_DISPLAY_SSD1306 = 1,
   Highest
 };
-
+#ifdef HW_STARK
+enum class GPIOOPT5 {
+  // StarkCMR: Default, Gpio23 as BMS power
+  DEFAULT_BMS_POWER_23 = 0,
+  // StarkCMR: Gpio25 as BMS power
+  BMS_POWER_25 = 1,
+  Highest
+};
+extern GPIOOPT5 user_selected_gpioopt5;
+#endif
+#ifdef HW_WAVESHARE
+enum class GPIOOPT6 {
+  // Waveshare: GPIO2 = Status LED (default)
+  DEFAULT_STATUS_LED = 0,
+  // Waveshare: GPIO1 = I2C SDA, GPIO2 = I2C SCL
+  I2C_DISPLAY_SSD1306 = 1,
+  Highest
+};
+extern GPIOOPT6 user_selected_gpioopt6;
+#endif
 extern GPIOOPT2 user_selected_gpioopt2;
 extern GPIOOPT3 user_selected_gpioopt3;
 extern GPIOOPT4 user_selected_gpioopt4;

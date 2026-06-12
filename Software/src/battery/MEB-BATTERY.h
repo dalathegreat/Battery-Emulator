@@ -29,6 +29,8 @@ class MebBattery : public CanBattery {
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
+  /* validate crc for some CAN frames */
+  uint8_t vw_crc_calc(const uint8_t* inputBytes, uint8_t length, uint32_t address);
   MebHtmlRenderer renderer;
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
@@ -180,13 +182,75 @@ class MebBattery : public CanBattery {
   static const int PID_TEMP_POINT_17 = 0x1EBE;
   static const int PID_TEMP_POINT_18 = 0x1EBF;
 
+  /* Define CAN ID messages */
+  static const int OBD_Hybrid_01_Req = 0x18DA05F1;
+  static const int OBD_Hybrid_01_Resp = 0x18DAF105;
+  static const int ISO_Hybrid_01_Req = 0x17FC007B;
+  static const int ISO_Hybrid_01_Resp = 0x17FE007B;
+  static const int ISO_Hybrid_01_Req_FD = 0x1C40007B;
+  static const int ISO_Hybrid_01_Resp_FD = 0x1C42007B;
+  static const int ISO_Functional_Req_FD = 0x1C410000;
+  static const int BMS_04 = 0x5A2;
+  static const int BMS_05 = 0x2AF;
+  static const int BMS_07 = 0x5CA;
+  static const int BMS_11 = 0x16A954A6;
+  static const int BMS_20 = 0xCF;
+  static const int BMS_21 = 0x12DD54D0;
+  static const int BMS_22 = 0x12DD54D1;
+  static const int BMS_23 = 0x12DD54D2;
+  static const int BMS_24 = 0x1A555550;
+  static const int BMS_25 = 0x1A555551;
+  static const int BMS_26 = 0x1A5555B0;
+  static const int BMS_28 = 0x1A5555B1;
+  static const int BMS_29 = 0x16A954F8;
+  static const int BMS_31 = 0x1A5555B2;
+  static const int BMS_34 = 0x0AF95450;
+  static const int BMS_35 = 0x1A555683;
+  static const int BMS_CMC_04 = 0x16A954E8;
+  static const int BMS_DC_01 = 0x578;
+  static const int BMS_HYB_02 = 0x97;
+  static const int BMS_HYB_04 = 0x124;
+  static const int BMS_HYB_06 = 0x6A3;
+  static const int EM_HYB_05 = 0x6A4;
+  static const int MSG_HYB_01 = 0x3A6;
+  static const int DC_HYB_02 = 0x3AF;
+  static const int DCDC_04 = 0xF7;
+  static const int Motor_EV_01 = 0x187;
+  static const int Airbag_01 = 0x40;
+  static const int EM1_01 = 0xC0;
+  static const int ESC_51_Auth = 0xFC;
+  static const int ESP_21 = 0xFD;
+  static const int Diagnose_01 = 0x6B2;
+  static const int Temperaturen_01 = 0x1A5555A6;
+  static const int Systeminfo_01 = 0x585;
+  static const int Reichweite_01 = 0x5F5;
+  static const int Motor_Code_01 = 0x641;
+  static const int Klemmen_Status_01 = 0x3C0;
+  static const int Standklima_01 = 0x16A954FB;
+  static const int ORU_01 = 0x1A555548;
+  static const int Klima_EV_06 = 0x1A55552B;
+  static const int HVEM_04 = 0x569;
+  static const int eTM_01 = 0x16A954B4;
+  static const int NMH_Gateway = 0x1B000010;
+  static const int NMH_Klima = 0x1B000046;
+  static const int NMH_Hybrid_01 = 0x1B00007B;
+  static const int NMH_DCDC_NV = 0x1B0000B9;
+  static const int MSG_HYB_30 = 0x153;
+  static const int Klima_Sensor_02 = 0x5E1;
+  static const int Motor_14 = 0x3BE;
+  static const int Motor_54 = 0x14C;
+  static const int HVLM_14 = 0x272;
+  static const int HVK_01 = 0x503;
+  static const int KN_Hybrid_01 = 0x17F0007B;
+  static const int Kombi_02 = 0x6B7;
+
   unsigned long previousMillis10ms = 0;   // will store last time a 10ms CAN Message was send
   unsigned long previousMillis20ms = 0;   // will store last time a 20ms CAN Message was send
   unsigned long previousMillis40ms = 0;   // will store last time a 40ms CAN Message was send
   unsigned long previousMillis50ms = 0;   // will store last time a 50ms CAN Message was send
   unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200ms = 0;  // will store last time a 200ms CAN Message was send
-  unsigned long previousMillis500ms = 0;  // will store last time a 200ms CAN Message was send
+  unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was send
   unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
 
   bool toggle = false;
@@ -200,6 +264,13 @@ class MebBattery : public CanBattery {
   uint8_t counter_040 = 0;
   uint8_t counter_0F7 = 0;
   uint8_t counter_3b5 = 0;
+  uint8_t BMS_04_counter = 0;
+  uint8_t BMS_07_counter = 0;
+  uint8_t BMS_20_counter = 0;
+  uint8_t EM1_01_counter = 0;
+  uint8_t BMS_DC_01_counter = 0;
+  uint8_t BMS_11_counter = 0;
+  uint8_t BMS_11_CRC = 0;
 
   uint32_t poll_pid = PID_CELLVOLTAGE_CELL_85;  // We start here to quickly determine the cell size of the pack.
   bool nof_cells_determined = false;
@@ -215,13 +286,6 @@ class MebBattery : public CanBattery {
   uint16_t battery_allowed_discharge_power = 0;
   uint16_t cellvoltages_polled[108];
   uint16_t tempval = 0;
-  uint8_t BMS_16A954A6_CRC = 0;
-  uint8_t BMS_5A2_counter = 0;
-  uint8_t BMS_5CA_counter = 0;
-  uint8_t BMS_0CF_counter = 0;
-  uint8_t BMS_0C0_counter = 0;
-  uint8_t BMS_578_counter = 0;
-  uint8_t BMS_16A954A6_counter = 0;
   bool BMS_ext_limits_active =
       false;  //The current current limits of the HV battery are expanded to start the combustion engine / confirmation of the request
   uint8_t BMS_mode =
@@ -342,10 +406,10 @@ class MebBattery : public CanBattery {
   uint8_t bus_knockout_timer = 0;
   uint8_t hybrid_wakeup_reason = 0;
   uint8_t wakeup_type = 0;
-  bool instrumentation_cluster_request = false;
+  bool instrument_cluster_request = false;
   uint8_t seconds = 0;
-  uint32_t first_can_msg = 0;
-  uint32_t last_can_msg_timestamp = 0;
+  unsigned long first_can_msg_timestamp = 0;
+  unsigned long last_can_msg_timestamp = 0;
   bool hv_requested = false;
   int32_t kwh_charge = 0;
   int32_t kwh_discharge = 0;
@@ -372,148 +436,160 @@ class MebBattery : public CanBattery {
   CAN_frame MEB_POLLING_FRAME = {.FD = true,
                                  .ext_ID = true,
                                  .DLC = 8,
-                                 .ID = 0x1C40007B,  // SOC 02 8C
+                                 .ID = ISO_Hybrid_01_Req_FD,  // SOC 02 8C
                                  .data = {0x03, 0x22, 0x02, 0x8C, 0x55, 0x55, 0x55, 0x55}};
   static constexpr CAN_frame MEB_ACK_FRAME = {.FD = true,
                                               .ext_ID = true,
                                               .DLC = 8,
-                                              .ID = 0x1C40007B,  // Ack
+                                              .ID = ISO_Hybrid_01_Req_FD,  // Ack
                                               .data = {0x30, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}};
+  static constexpr CAN_frame OBD_CLEAR_DTC = {.FD = true,
+                                              .ext_ID = true,
+                                              .DLC = 8,
+                                              .ID = ISO_Functional_Req_FD,
+                                              .data = {0x01, 0x04, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55}};
+  // TesterPresent (3E 80) sent to the BMS physical address to keep the extended session alive.
+  // Bit7 of subFunction = 1 suppresses the positive response, so no UDS reply is expected.
+  static constexpr CAN_frame Tester_present_frame = {.FD = true,
+                                                     .ext_ID = true,
+                                                     .DLC = 8,
+                                                     .ID = ISO_Hybrid_01_Req_FD,
+                                                     .data = {0x02, 0x3E, 0x80, 0x55, 0x55, 0x55, 0x55, 0x55}};
   //Messages needed for contactor closing
-  CAN_frame MEB_040 = {.FD = true,  // Airbag
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x040,  //Frame5 has HV deactivate request. Needs to be 0x00
-                       .data = {0x7E, 0x83, 0x00, 0x01, 0x00, 0x00, 0x15, 0x00}};
-  CAN_frame MEB_0C0 = {
+  CAN_frame Airbag_01_frame = {.FD = true,  // Airbag
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = Airbag_01,  //Frame5 has HV deactivate request. Needs to be 0x00
+                               .data = {0x7E, 0x83, 0x00, 0x01, 0x00, 0x00, 0x15, 0x00}};
+  CAN_frame EM1_01_frame = {
       .FD = true,  // EM1 message
       .ext_ID = false,
       .DLC = 32,
-      .ID = 0x0C0,  //Frame 5-6 and maybe 7-8 important (external voltage at inverter)
+      .ID = EM1_01,  //Frame 5-6 and maybe 7-8 important (external voltage at inverter)
       .data = {0x77, 0x0A, 0xFE, 0xE7, 0x7F, 0x10, 0x27, 0x00, 0xE0, 0x7F, 0xFF, 0xF3, 0x3F, 0xFF, 0xF3, 0x3F,
                0xFC, 0x0F, 0x00, 0x00, 0xC0, 0xFF, 0xFE, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame MEB_0FC = {
+  CAN_frame ESC_51_Auth_frame = {
       .FD = true,  //
       .ext_ID = false,
       .DLC = 48,
-      .ID = 0x0FC,  //This message contains emergency regen request?(byte19), battery needs to see this message
+      .ID = ESC_51_Auth,  //This message contains emergency regen request?(byte19), battery needs to see this message
       .data = {0x07, 0x08, 0x00, 0x00, 0x7E, 0x00, 0x40, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                0xFE, 0xFE, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                0x00, 0x00, 0x00, 0xF4, 0x01, 0x40, 0xFF, 0xEB, 0x7F, 0x0A, 0x88, 0xE3, 0x81, 0xAF, 0x42}};
-  CAN_frame MEB_6B2 = {.FD = true,  // Diagnostics
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x6B2,
-                       .data = {0x6A, 0xA7, 0x37, 0x80, 0xC9, 0xBD, 0xF6, 0xC2}};
-  static constexpr CAN_frame MEB_17FC007B_poll = {.FD = true,  // Non period request
-                                                  .ext_ID = true,
-                                                  .DLC = 8,
-                                                  .ID = 0x17FC007B,
-                                                  .data = {0x03, 0x22, 0x1E, 0x3D, 0x55, 0x55, 0x55, 0x55}};
-  CAN_frame MEB_1A5555A6 = {.FD = true,
-                            .ext_ID = true,
-                            .DLC = 8,
-                            .ID = 0x1A5555A6,
-                            .data = {0x00, 0x00, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  static constexpr CAN_frame MEB_585 = {
+  CAN_frame Diagnose_01_frame = {.FD = true,  // Diagnostics
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = Diagnose_01,
+                                 .data = {0x6A, 0xA7, 0x37, 0x80, 0xC9, 0xBD, 0xF6, 0xC2}};
+  CAN_frame Temperaturen_01_frame = {.FD = true,
+                                     .ext_ID = true,
+                                     .DLC = 8,
+                                     .ID = Temperaturen_01,
+                                     .data = {0x00, 0x00, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame Systeminfo_01_frame = {
       .FD = true,
       .ext_ID = false,
       .DLC = 8,
-      .ID = 0x585,
+      .ID = Systeminfo_01,
       .data = {0xCF, 0x38, 0xAF, 0x5B, 0x25, 0x00, 0x00, 0x00}};  // CF 38 AF 5B 25 00 00 00 in start4.log
   //                     .data = {0xCF, 0x38, 0x20, 0x02, 0x25, 0xF7, 0x30, 0x00}}; // CF 38 AF 5B 25 00 00 00 in start4.log
-  static constexpr CAN_frame MEB_5F5 = {.FD = true,
-                                        .ext_ID = false,
-                                        .DLC = 8,
-                                        .ID = 0x5F5,
-                                        .data = {0x23, 0x02, 0x39, 0xC0, 0x1B, 0x8B, 0xC8, 0x1B}};
-  CAN_frame MEB_641 = {.FD = true,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x641,
-                       .data = {0x37, 0x18, 0x00, 0x00, 0xF0, 0x00, 0xAA, 0x70}};
-  CAN_frame MEB_3C0 = {.FD = true,
-                       .ext_ID = false,
-                       .DLC = 4,
-                       .ID = 0x3C0,
-                       .data = {0x66, 0x00, 0x00, 0x00}};  // Klemmen_status_01
-  CAN_frame MEB_0FD = {.FD = true,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x0FD,  //CRC and counter, otherwise static
-                       .data = {0x5F, 0xD0, 0x1F, 0x81, 0x00, 0x00, 0x00, 0x00}};
-  static constexpr CAN_frame MEB_16A954FB = {.FD = true,
+  static constexpr CAN_frame Reichweite_01_frame = {.FD = true,
+                                                    .ext_ID = false,
+                                                    .DLC = 8,
+                                                    .ID = Reichweite_01,
+                                                    .data = {0x23, 0x02, 0x39, 0xC0, 0x1B, 0x8B, 0xC8, 0x1B}};
+  CAN_frame Motor_Code_01_frame = {.FD = true,
+                                   .ext_ID = false,
+                                   .DLC = 8,
+                                   .ID = Motor_Code_01,
+                                   .data = {0x37, 0x18, 0x00, 0x00, 0xF0, 0x00, 0xAA, 0x70}};
+  CAN_frame Klemmen_Status_01_frame = {.FD = true,
+                                       .ext_ID = false,
+                                       .DLC = 4,
+                                       .ID = Klemmen_Status_01,
+                                       .data = {0x66, 0x00, 0x00, 0x00}};  // Klemmen_status_01
+  CAN_frame ESP_21_frame = {.FD = true,
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = ESP_21,  //CRC and counter, otherwise static
+                            .data = {0x5F, 0xD0, 0x1F, 0x81, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame Standklima_01_frame = {.FD = true,
+                                                    .ext_ID = true,
+                                                    .DLC = 8,
+                                                    .ID = Standklima_01,
+                                                    .data = {0x00, 0xC0, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame ORU_01_frame = {.FD = true,
                                              .ext_ID = true,
                                              .DLC = 8,
-                                             .ID = 0x16A954FB,
-                                             .data = {0x00, 0xC0, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  static constexpr CAN_frame MEB_1A555548 = {.FD = true,
-                                             .ext_ID = true,
-                                             .DLC = 8,
-                                             .ID = 0x1A555548,
+                                             .ID = ORU_01,
                                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  static constexpr CAN_frame MEB_1A55552B = {.FD = true,
+  static constexpr CAN_frame Klima_EV_06_frame = {.FD = true,
+                                                  .ext_ID = true,
+                                                  .DLC = 8,
+                                                  .ID = Klima_EV_06,
+                                                  .data = {0x00, 0x00, 0x00, 0xA0, 0x02, 0x04, 0x00, 0x30}};
+  static constexpr CAN_frame HVEM_04_frame = {.FD = true,
+                                              .ext_ID = false,
+                                              .DLC = 8,
+                                              .ID = HVEM_04,  //HVEM
+                                              .data = {0x00, 0x00, 0x01, 0x3A, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame eTM_01_frame = {.FD = true,
                                              .ext_ID = true,
                                              .DLC = 8,
-                                             .ID = 0x1A55552B,
-                                             .data = {0x00, 0x00, 0x00, 0xA0, 0x02, 0x04, 0x00, 0x30}};
-  static constexpr CAN_frame MEB_569 = {.FD = true,
-                                        .ext_ID = false,
-                                        .DLC = 8,
-                                        .ID = 0x569,  //HVEM
-                                        .data = {0x00, 0x00, 0x01, 0x3A, 0x00, 0x00, 0x00, 0x00}};
-  static constexpr CAN_frame MEB_16A954B4 = {.FD = true,
-                                             .ext_ID = true,
-                                             .DLC = 8,
-                                             .ID = 0x16A954B4,  //eTM
+                                             .ID = eTM_01,  //eTM
                                              .data = {0xFE, 0xB6, 0x0D, 0x00, 0x00, 0xD5, 0x48, 0xFD}};
-  static constexpr CAN_frame MEB_1B000046 = {.FD = false,  // Not FD
-                                             .ext_ID = true,
-                                             .DLC = 8,
-                                             .ID = 0x1B000046,  // Klima
-                                             .data = {0x00, 0x40, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00}};
-  static constexpr CAN_frame MEB_1B000010 = {.FD = false,  // Not FD
-                                             .ext_ID = true,
-                                             .DLC = 8,
-                                             .ID = 0x1B000010,  // Gateway
-                                             .data = {0x00, 0x50, 0x08, 0x50, 0x01, 0xFF, 0x30, 0x00}};
-  static constexpr CAN_frame MEB_1B0000B9 = {.FD = false,  // Not FD
-                                             .ext_ID = true,
-                                             .DLC = 8,
-                                             .ID = 0x1B0000B9,  //DC/DC converter
-                                             .data = {0x00, 0x40, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00}};
-  static constexpr CAN_frame MEB_153 = {.FD = true,
-                                        .ext_ID = false,
-                                        .DLC = 8,
-                                        .ID = 0x153,  // content
-                                        .data = {0x00, 0x00, 0x00, 0xFF, 0xEF, 0xFE, 0xFF, 0xFF}};
-  static constexpr CAN_frame MEB_5E1 = {.FD = true,
-                                        .ext_ID = false,
-                                        .DLC = 8,
-                                        .ID = 0x5E1,  // content
-                                        .data = {0x7F, 0x2A, 0x00, 0x60, 0xFE, 0x00, 0x00, 0x00}};
-  CAN_frame MEB_3BE = {.FD = true,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x3BE,  // CRC, otherwise content
-                       .data = {0x57, 0x0D, 0x00, 0x00, 0x00, 0x02, 0x04, 0x40}};
-  CAN_frame MEB_272 = {.FD = true,  //HVLM_14
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x272,  // content
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x48, 0x08, 0x00, 0x94}};
-  CAN_frame MEB_503 = {.FD = true,  //HVK_01
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x503,  // Content varies. Frame1 & 3 has HV req
-                       .data = {0x5D, 0x61, 0x00, 0xFF, 0x7F, 0x80, 0xE3, 0x03}};
-  CAN_frame MEB_14C = {
+  static constexpr CAN_frame NMH_Klima_frame = {.FD = false,  // Not FD
+                                                .ext_ID = true,
+                                                .DLC = 8,
+                                                .ID = NMH_Klima,  // Klima
+                                                .data = {0x00, 0x40, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame NMH_Gateway_frame = {.FD = false,  // Not FD
+                                                  .ext_ID = true,
+                                                  .DLC = 8,
+                                                  .ID = NMH_Gateway,  // Gateway
+                                                  .data = {0x00, 0x50, 0x08, 0x50, 0x01, 0xFF, 0x30, 0x00}};
+  static constexpr CAN_frame NMH_DCDC_NV_frame = {.FD = false,  // Not FD
+                                                  .ext_ID = true,
+                                                  .DLC = 8,
+                                                  .ID = NMH_DCDC_NV,  //DC/DC converter
+                                                  .data = {0x00, 0x40, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame MSG_HYB_30_frame = {.FD = true,
+                                                 .ext_ID = false,
+                                                 .DLC = 8,
+                                                 .ID = MSG_HYB_30,  // content
+                                                 .data = {0x00, 0x00, 0x00, 0xFF, 0xEF, 0xFE, 0xFF, 0xFF}};
+  static constexpr CAN_frame Klima_Sensor_02_frame = {.FD = true,
+                                                      .ext_ID = false,
+                                                      .DLC = 8,
+                                                      .ID = Klima_Sensor_02,  // content
+                                                      .data = {0x7F, 0x2A, 0x00, 0x60, 0xFE, 0x00, 0x00, 0x00}};
+  CAN_frame Motor_14_frame = {.FD = true,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = Motor_14,  // CRC, otherwise content
+                              .data = {0x57, 0x0D, 0x00, 0x00, 0x00, 0x02, 0x04, 0x40}};
+  CAN_frame HVLM_14_frame = {.FD = true,  //HVLM_14
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = HVLM_14,  // content
+                             .data = {0x00, 0x00, 0x00, 0x00, 0x48, 0x08, 0x00, 0x94}};
+  CAN_frame HVK_01_frame = {.FD = true,  //HVK_01
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = HVK_01,  // Content varies. Frame1 & 3 has HV req
+                            .data = {0x5D, 0x61, 0x00, 0xFF, 0x7F, 0x80, 0xE3, 0x03}};
+  CAN_frame Motor_54_frame = {
       .FD = true,  //Motor message
       .ext_ID = false,
       .DLC = 32,
-      .ID = 0x14C,  //CRC needed, content otherwise
+      .ID = Motor_54,  //CRC needed, content otherwise
       .data = {0x38, 0x0A, 0xFF, 0x01, 0x01, 0xFF, 0x01, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE,
                0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0x25, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE}};
+  static constexpr CAN_frame Kombi_02_frame = {.FD = false,
+                                               .ext_ID = false,
+                                               .DLC = 8,
+                                               .ID = Kombi_02,  // content
+                                               .data = {0xFE, 0xFF, 0xEF, 0xFF, 0x3F, 0x1C, 0x02, 0x94}};
 
   uint32_t can_msg_received = 0;
 };

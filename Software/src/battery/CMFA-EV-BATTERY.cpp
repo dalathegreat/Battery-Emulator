@@ -11,8 +11,7 @@ Same goes for low point, when 10% is reached we report 0% */
 
 uint16_t CmfaEvBattery::rescale_raw_SOC(uint32_t raw_SOC) {
 
-  uint32_t calc_soc;
-  calc_soc = (raw_SOC * 0.25);
+  uint32_t calc_soc = raw_SOC / 4;
   if (calc_soc > MAXSOC) {  //Constrain if needed
     calc_soc = MAXSOC;
   }
@@ -32,7 +31,7 @@ void CmfaEvBattery::
 
   datalayer_battery->status.real_soc = rescale_raw_SOC(SOC_raw);
 
-  datalayer_battery->status.current_dA = current * 10;
+  datalayer_battery->status.current_dA = (((int32_t)current_raw * 10) / 4) - 5000;
 
   datalayer_battery->status.voltage_dV = pack_voltage * 5;
 
@@ -42,9 +41,30 @@ void CmfaEvBattery::
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  datalayer_battery->status.max_discharge_power_W = discharge_power_w;
+  //Some packs are locked and do not report allowed charge power, in this case we need to use the user specified override value
+  //instead of the value sent from the BMS
+  if (datalayer.battery.status.override_charge_power_W > 0) {
+    if (datalayer_battery->status.real_soc > 9900) {
+      datalayer_battery->status.max_charge_power_W = 0;
+    } else if (datalayer_battery->status.real_soc >
+               user_set_rampdown_SOC) {  // When real SOC is between 90-99%, ramp the value between Max<->0
+      datalayer_battery->status.max_charge_power_W =
+          datalayer.battery.status.override_charge_power_W *
+          (1 - (datalayer_battery->status.real_soc - user_set_rampdown_SOC) / (10000.0f - user_set_rampdown_SOC));
+    } else {
+      datalayer_battery->status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
+    }
+  } else {
+    datalayer_battery->status.max_charge_power_W = charge_power_w;  //Use value sent from BMS
+  }
 
-  datalayer_battery->status.max_charge_power_W = charge_power_w;
+  //Some packs are locked and do not report allowed discharge power, in this case we need to use the user specified override value
+  //instead of the value sent from the BMS
+  if (datalayer.battery.status.override_discharge_power_W > 0) {
+    datalayer_battery->status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
+  } else {
+    datalayer_battery->status.max_discharge_power_W = discharge_power_w;  //Use value sent from BMS
+  }
 
   datalayer_battery->status.temperature_min_dC = (lowest_cell_temperature * 10);
 
@@ -85,7 +105,7 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //These frames are transmitted by the battery
     case 0x127:           //10ms , Same structure as old Zoe 0x155 message!
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      current = (((((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) * 0.25) - 500);
+      current_raw = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2];
       SOC_raw = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
       pack_voltage = (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[7]);
       break;
@@ -149,13 +169,13 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               (uint32_t)((rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7]));
           break;
         case PID_POLL_HIGHEST_CELL_VOLTAGE:
-          highest_cell_voltage_mv = (uint16_t)(((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.976563);
+          highest_cell_voltage_mv = (uint16_t)(((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.976563f);
           break;
         case PID_POLL_CELL_NUMBER_HIGHEST_VOLTAGE:
           highest_cell_voltage_number = rx_frame.data.u8[4];
           break;
         case PID_POLL_LOWEST_CELL_VOLTAGE:
-          lowest_cell_voltage_mv = (uint16_t)(((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.976563);
+          lowest_cell_voltage_mv = (uint16_t)(((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.976563f);
           break;
         case PID_POLL_CELL_NUMBER_LOWEST_VOLTAGE:
           lowest_cell_voltage_number = rx_frame.data.u8[4];
@@ -232,7 +252,7 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               cellvoltage_reading = 10;
               set_event(EVENT_BATTERY_FUSE, cellnumber);
             }
-            datalayer_battery->status.cell_voltages_mV[cellnumber] = cellvoltage_reading * 0.976563;
+            datalayer_battery->status.cell_voltages_mV[cellnumber] = cellvoltage_reading * 0.976563f;
           }
 
           break;

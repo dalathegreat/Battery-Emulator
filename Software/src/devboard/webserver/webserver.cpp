@@ -31,6 +31,7 @@ bool webserver_auth = false;
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
+AsyncAuthenticationMiddleware web_auth_middleware;
 
 // Measure OTA progress
 unsigned long ota_progress_millis = 0;
@@ -56,6 +57,10 @@ bool isReplayRunning = false;  // Global flag to track replay state
 bool settingsUpdated = false;
 
 CAN_frame currentFrame = {.FD = true, .ext_ID = false, .DLC = 64, .ID = 0x12F, .data = {0}};
+
+bool webserver_auth_is_ready() {
+  return webserver_auth && !http_username.empty() && !http_password.empty();
+}
 
 void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len,
                       bool final) {
@@ -173,14 +178,21 @@ void canReplayTask(void* param) {
 void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethodComposite method,
                          std::function<void(AsyncWebServerRequest*)> handler) {
   serv.on(uri, method, [handler](AsyncWebServerRequest* request) {
-    if (webserver_auth && !request->authenticate(http_username.c_str(), http_password.c_str())) {
-      return request->requestAuthentication();
+    if (webserver_auth_is_ready() && !request->authenticate(http_username.c_str(), http_password.c_str())) {
+      return request->requestAuthentication(AsyncAuthType::AUTH_BASIC, "Battery Emulator");
     }
     handler(request);
   });
 }
 
 void init_webserver() {
+  if (webserver_auth_is_ready()) {
+    web_auth_middleware.setUsername(http_username.c_str());
+    web_auth_middleware.setPassword(http_password.c_str());
+    web_auth_middleware.setRealm("Battery Emulator");
+    web_auth_middleware.setAuthType(AsyncAuthType::AUTH_BASIC);
+    server.addMiddleware(&web_auth_middleware);
+  }
 
   server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(401); });
 
@@ -395,30 +407,56 @@ void init_webserver() {
   });
 
   const char* boolSettingNames[] = {
-      "DBLBTR",        "CNTCTRL",      "CNTCTRLDBL",   "PWMCNTCTRL",    "PERBMSRESET", "SDLOGENABLED", "STATICIP",
-      "REMBMSRESET",   "EXTPRECHARGE", "USBENABLED",   "CANLOGUSB",     "WEBENABLED",  "CANFDASCAN",   "CANLOGSD",
-      "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",    "HADISC",        "MQTTTOPICS",  "MQTTCELLV",    "GTWRHD",
-      "DIGITALHVIL",   "PERFPROFILE",  "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET", "PYLONORDER",   "DEYEBYD",
-      "NCCONTACTOR",   "TRIBTR",       "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",  "CTINVERT",
+      "DBLBTR",        "CNTCTRL",      "CNTCTRLDBL",  "PWMCNTCTRL",   "PERBMSRESET",   "SDLOGENABLED", "STATICIP",
+      "REMBMSRESET",   "EXTPRECHARGE", "USBENABLED",  "CANLOGUSB",    "WEBENABLED",    "CANFDASCAN",   "CANLOGSD",
+      "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",   "HADISC",       "MQTTTOPICS",    "MQTTCELLV",      "GTWRHD",
+      "DIGITALHVIL",  "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET",  "PYLONORDER",     "DEYEBYD",
+      "NCCONTACTOR",  "TRIBTR",      "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",   "CTINVERT", "LOWPASSFILTER",
+      "WEBAUTH",
   };
 
   const char* uintSettingNames[] = {
-      "BATTCVMAX",  "BATTCVMIN",   "MAXPRETIME", "MAXPREFREQ",  "WIFICHANNEL", "DCHGPOWER", "CHGPOWER",  "LOCALIP1",
-      "LOCALIP2",   "LOCALIP3",    "LOCALIP4",   "GATEWAY1",    "GATEWAY2",    "GATEWAY3",  "GATEWAY4",  "SUBNET1",
-      "SUBNET2",    "SUBNET3",     "SUBNET4",    "MQTTPORT",    "MQTTTIMEOUT", "SOFAR_ID",  "PYLONSEND", "INVCELLS",
-      "INVMODULES", "INVCELLSPER", "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "CANFREQ",   "CANFDFREQ", "PRECHGMS",
-      "PWMFREQ",    "PWMHOLD",     "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS",  "GTWPACK",   "LEDMODE",   "GPIOOPT1",
-      "GPIOOPT2",   "GPIOOPT3",    "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",      "CTANOM",    "CTATTEN",   "PYLONBAUD",
-      "PYLONBRAND", "INVICNT",
+      "BATTCVMAX",  "BATTCVMIN",   "MAXPRETIME", "MAXPREFREQ",  "WIFICHANNEL", "DCHGPOWER", "CHGPOWER",    "LOCALIP1",
+      "LOCALIP2",   "LOCALIP3",    "LOCALIP4",   "GATEWAY1",    "GATEWAY2",    "GATEWAY3",  "GATEWAY4",    "SUBNET1",
+      "SUBNET2",    "SUBNET3",     "SUBNET4",    "MQTTPORT",    "MQTTTIMEOUT", "SOFAR_ID",  "PYLONSEND",   "INVCELLS",
+      "INVMODULES", "INVCELLSPER", "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "CANFREQ",   "CANFDFREQ",   "PRECHGMS",
+      "PWMFREQ",    "PWMHOLD",     "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS",  "GTWPACK",   "LEDMODE",     "GPIOOPT1",
+      "GPIOOPT2",   "GPIOOPT3",    "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",      "CTANOM",    "CTATTEN",     "PYLONBAUD",
+      "PYLONBRAND", "DALYPWRPCT",  "DALYPWRDV",  "DALYDVSTART", "DALYPWRDEG",  "DALYPWR0C", "RAMPDOWNSOC", "GPIOOPT5",
+      "GPIOOPT6", "INVICNT",
   };
 
-  const char* stringSettingNames[] = {"APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
-                                      "MQTTPASSWORD", "MQTTTOPIC",  "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID"};
+  const char* stringSettingNames[] = {"APNAME",         "APPASSWORD",   "HOSTNAME",  "MQTTSERVER",
+                                      "MQTTUSER",       "MQTTPASSWORD", "MQTTTOPIC", "MQTTOBJIDPREFIX",
+                                      "MQTTDEVICENAME", "HADEVICEID",   "HTTPUSER",  "HTTPPASS"};
 
   // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST,
             [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
               BatteryEmulatorSettingsStore settings;
+              auto webAuthParam = request->getParam("WEBAUTH", true);
+              auto httpUserParam = request->getParam("HTTPUSER", true);
+              auto httpPassParam = request->getParam("HTTPPASS", true);
+              auto httpPassConfirmParam = request->getParam("HTTPPASSCONFIRM", true);
+
+              bool requestedWebAuth = webAuthParam != nullptr && webAuthParam->value() == "on";
+              String requestedHttpUser =
+                  httpUserParam != nullptr ? httpUserParam->value() : settings.getString("HTTPUSER", "admin");
+              String requestedHttpPass =
+                  httpPassParam != nullptr ? httpPassParam->value() : settings.getString("HTTPPASS");
+              String requestedHttpPassConfirm =
+                  httpPassConfirmParam != nullptr ? httpPassConfirmParam->value() : requestedHttpPass;
+
+              if (requestedHttpPass != requestedHttpPassConfirm) {
+                request->send(400, "text/plain", "Web interface passwords do not match.");
+                return;
+              }
+
+              if (requestedWebAuth && (requestedHttpUser.isEmpty() || requestedHttpPass.isEmpty())) {
+                request->send(400, "text/plain",
+                              "Set a username and password before enabling web interface password protection.");
+                return;
+              }
 
               int numParams = request->params();
               for (int i = 0; i < numParams; i++) {
@@ -580,9 +618,72 @@ void init_webserver() {
     datalayer_extended.bydAtto3.calibrationTargetSOC = static_cast<uint16_t>(value.toFloat());
   });
 
+  // Save auto-calibrate enabled flag to RAM + NVM
+  def_route_with_auth("/editBydAtto3AutoCalEnabled", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      bool enabled = request->getParam("value")->value().toInt() != 0;
+      datalayer_extended.bydAtto3.auto_calibrate_soc_enabled = enabled;
+      Preferences prefs;
+      prefs.begin("batterySettings", false);
+      prefs.putBool("BYDAUTOCALEN", enabled);
+      prefs.end();
+    }
+    request->send(200, "text/plain", "OK");
+  });
+
+  // Save auto-calibrate drift threshold to RAM + NVM
+  def_route_with_auth("/editBydAtto3AutoCalDriftPercent", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      int value = request->getParam("value")->value().toInt();
+      if (value >= 1 && value <= 20) {
+        datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent = (uint8_t)value;
+        Preferences prefs;
+        prefs.begin("batterySettings", false);
+        prefs.putUInt("BYDAUTOCALDRIFT", (uint8_t)value);
+        prefs.end();
+      }
+    }
+    request->send(200, "text/plain", "OK");
+  });
+
   // Route for editing AH Calibration BYD
   update_string_setting("/editCalTargetAH", [](String value) {
     datalayer_extended.bydAtto3.calibrationTargetAH = static_cast<uint16_t>(value.toFloat());
+  });
+
+  // Battery 2 auto-calibration routes
+  update_string_setting("/editCalTargetSOC2", [](String value) {
+    datalayer_extended.bydAtto3_2.calibrationTargetSOC = static_cast<uint16_t>(value.toFloat());
+  });
+
+  update_string_setting("/editCalTargetAH2", [](String value) {
+    datalayer_extended.bydAtto3_2.calibrationTargetAH = static_cast<uint16_t>(value.toFloat());
+  });
+
+  def_route_with_auth("/editBydAtto3AutoCalEnabled2", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      bool enabled = request->getParam("value")->value().toInt() != 0;
+      datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled = enabled;
+      Preferences prefs;
+      prefs.begin("batterySettings", false);
+      prefs.putBool("BYDAUTOCALEN2", enabled);
+      prefs.end();
+    }
+    request->send(200, "text/plain", "OK");
+  });
+
+  def_route_with_auth("/editBydAtto3AutoCalDriftPercent2", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      int value = request->getParam("value")->value().toInt();
+      if (value >= 1 && value <= 20) {
+        datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent = (uint8_t)value;
+        Preferences prefs;
+        prefs.begin("batterySettings", false);
+        prefs.putUInt("BYDAUTOCALDRFT2", (uint8_t)value);
+        prefs.end();
+      }
+    }
+    request->send(200, "text/plain", "OK");
   });
 
   // Route for editing SOCMin
@@ -605,8 +706,8 @@ void init_webserver() {
     server.on(
         route.c_str(), HTTP_PUT,
         [cmd](AsyncWebServerRequest* request) {
-          if (webserver_auth && !request->authenticate(http_username.c_str(), http_password.c_str())) {
-            return request->requestAuthentication();
+          if (webserver_auth_is_ready() && !request->authenticate(http_username.c_str(), http_password.c_str())) {
+            return request->requestAuthentication(AsyncAuthType::AUTH_BASIC, "Battery Emulator");
           }
         },
         nullptr,
@@ -862,6 +963,9 @@ String processor(const String& var) {
 #ifdef HW_STARK
     content += " Hardware: Stark CMR Module";
 #endif  // HW_STARK
+#ifdef HW_WAVESHARE
+    content += " Hardware: Waveshare ESP32-S3-RS485-CAN";
+#endif  // HW_WAVESHARE
     content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
     content += "<h4>Uptime: " + get_uptime() + "</h4>";
     if (datalayer.system.info.performance_measurement_active) {
@@ -1063,29 +1167,6 @@ String processor(const String& var) {
       content += "<h4>Temperature min/max: " + String(tempMinFloat, 1) + " &deg;C / " + String(tempMaxFloat, 1) +
                  " &deg;C</h4>";
 
-      content += "<h4>System status: ";
-      switch (datalayer.battery.status.bms_status) {
-        case ACTIVE:
-          content += String("OK");
-          break;
-        case UPDATING:
-          content += String("UPDATING");
-          break;
-        case FAULT:
-          content += String("FAULT");
-          break;
-        case INACTIVE:
-          content += String("INACTIVE");
-          break;
-        case STANDBY:
-          content += String("STANDBY");
-          break;
-        default:
-          content += String("??");
-          break;
-      }
-      content += "</h4>";
-
       if (battery && battery->supports_real_BMS_status()) {
         content += "<h4>Battery BMS status: ";
         switch (datalayer.battery.status.real_bms_status) {
@@ -1135,12 +1216,36 @@ String processor(const String& var) {
         }
       }
 
+      content += "<h4>System status: ";
+      switch (datalayer.system.status.system_status) {
+        case ACTIVE:
+          content += String("OK");
+          break;
+        case UPDATING:
+          content += String("UPDATING");
+          break;
+        case FAULT:
+          content += String("FAULT ");
+          content += "<button onclick='Events()'>Inspect reason</button> ";
+          break;
+        case INACTIVE:
+          content += String("INACTIVE");
+          break;
+        case STANDBY:
+          content += String("STANDBY");
+          break;
+        default:
+          content += String("??");
+          break;
+      }
+      content += "</h4>";
+
       // Close the block
       content += "</div>";
 
       if (battery2) {
         content += "<div style='flex: 1; background-color: ";
-        switch (datalayer.battery.status.bms_status) {
+        switch (datalayer.system.status.system_status) {
           case ACTIVE:
             content += "#2D3F2F;";
             break;
@@ -1218,13 +1323,6 @@ String processor(const String& var) {
         }
         content += "<h4>Temperature min/max: " + String(tempMinFloat, 1) + " &deg;C / " + String(tempMaxFloat, 1) +
                    " &deg;C</h4>";
-        if (datalayer.battery.status.bms_status == ACTIVE) {
-          content += "<h4>System status: OK </h4>";
-        } else if (datalayer.battery.status.bms_status == UPDATING) {
-          content += "<h4>System status: UPDATING </h4>";
-        } else {
-          content += "<h4>System status: FAULT </h4>";
-        }
         if (datalayer.battery2.status.current_dA == 0) {
           content += "<h4>Battery idle</h4>";
         } else if (datalayer.battery2.status.current_dA < 0) {
@@ -1235,7 +1333,7 @@ String processor(const String& var) {
         content += "</div>";
         if (battery3) {
           content += "<div style='flex: 1; background-color: ";
-          switch (datalayer.battery.status.bms_status) {
+          switch (datalayer.system.status.system_status) {
             case ACTIVE:
               content += "#2D3F2F;";
               break;
@@ -1314,13 +1412,6 @@ String processor(const String& var) {
           }
           content += "<h4>Temperature min/max: " + String(tempMinFloat, 1) + " &deg;C / " + String(tempMaxFloat, 1) +
                      " &deg;C</h4>";
-          if (datalayer.battery.status.bms_status == ACTIVE) {
-            content += "<h4>System status: OK </h4>";
-          } else if (datalayer.battery.status.bms_status == UPDATING) {
-            content += "<h4>System status: UPDATING </h4>";
-          } else {
-            content += "<h4>System status: FAULT </h4>";
-          }
           if (datalayer.battery3.status.current_dA == 0) {
             content += "<h4>Battery idle</h4>";
           } else if (datalayer.battery3.status.current_dA < 0) {
@@ -1345,7 +1436,7 @@ String processor(const String& var) {
     }
 
     content += "<h4>Emulator allows contactor closing: ";
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       content += "<span style='color: red;'>&#10005;</span>";
     } else {
       content += "<span>&#10003;</span>";
@@ -1359,6 +1450,14 @@ String processor(const String& var) {
     if (battery2) {
       content += "<h4>Secondary battery allowed to join ";
       if (datalayer.system.status.battery2_allowed_contactor_closing == true) {
+        content += "<span>&#10003;</span>";
+      } else {
+        content += "<span style='color: red;'>&#10005; (voltage mismatch)</span>";
+      }
+    }
+    if (battery3) {
+      content += "<h4>Third battery allowed to join ";
+      if (datalayer.system.status.battery3_allowed_contactor_closing == true) {
         content += "<span>&#10003;</span>";
       } else {
         content += "<span style='color: red;'>&#10005; (voltage mismatch)</span>";

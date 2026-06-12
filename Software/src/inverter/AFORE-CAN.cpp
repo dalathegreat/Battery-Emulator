@@ -30,17 +30,17 @@ void AforeCanInverter::
   AFORE_351.data.u8[3] = SOCMIN;
   AFORE_351.data.u8[4] = 0x03;  //Bit0 and Bit1 set
   if ((datalayer.battery.status.max_charge_current_dA == 0) || (datalayer.battery.status.reported_soc == 10000) ||
-      (datalayer.battery.status.bms_status == FAULT)) {
+      (datalayer.system.status.system_status == FAULT)) {
     AFORE_351.data.u8[4] &= ~0x01;  // Remove Bit0 (clear) Charge enable flag
   }
   if ((datalayer.battery.status.max_discharge_current_dA == 0) || (datalayer.battery.status.reported_soc == 0) ||
-      (datalayer.battery.status.bms_status == FAULT)) {
+      (datalayer.system.status.system_status == FAULT)) {
     AFORE_351.data.u8[4] &= ~0x02;  // Remove Bit1 (clear) Discharge enable flag
   }
   // Bit5-7 is BMS working status.
   //A value of 0 here is INIT, 1 = Normal operation, 2 = standby/sleep, 3 = warning, 4 = fault, rest is reserved
   AFORE_351.data.u8[4] &= ~(0xE0);  // Clear bits 5, 6, and 7 (11100000)
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     AFORE_351.data.u8[4] |= 0x80;  // Set bits 5-7 to 0b100 (Fault = 4)
   } else {                         // Normal mode
     AFORE_351.data.u8[4] |= 0x20;  // Set Bit5 to 1 (Normal operation)

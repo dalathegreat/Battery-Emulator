@@ -17,24 +17,34 @@
 #define HEARTBEAT_DEVIATION 50  // 0.05 * 1000
 #define SCALE_FACTOR 1000
 
-static LED* led;
+static LED* led = nullptr;
 
 uint16_t map_int(uint16_t x, uint16_t in_min, uint16_t in_max, uint16_t out_min, uint16_t out_max) {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 bool led_init(void) {
-  if (!esp32hal->alloc_pins("LED", esp32hal->LED_PIN())) {
+  gpio_num_t led_pin = esp32hal->LED_PIN();
+
+  if (led_pin == GPIO_NUM_NC) {
+    return true;
+  }
+
+  if (!esp32hal->alloc_pins("LED", led_pin)) {
     DEBUG_PRINTF("LED setup failed\n");
     return false;
   }
 
-  led = new LED(datalayer.battery.status.led_mode, esp32hal->LED_PIN(), esp32hal->LED_MAX_BRIGHTNESS());
+  led = new LED(datalayer.battery.status.led_mode, led_pin, esp32hal->LED_MAX_BRIGHTNESS());
 
   return true;
 }
 
 void led_exe(void) {
+  if (led == nullptr) {
+    return;
+  }
+
   led->exe();
 }
 

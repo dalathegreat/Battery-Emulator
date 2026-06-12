@@ -15,11 +15,11 @@
 #include "src/communication/nvm/comm_nvm.h"
 #include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
-#include "src/core/parallel_safety.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
 #include "src/devboard/espnow/espnow.h"
 #include "src/devboard/mqtt/mqtt.h"
+#include "src/devboard/safety/parallel_safety.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
@@ -34,12 +34,12 @@
 #include "src/inverter/INVERTERS.h"
 
 #if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
-    !defined(HW_DEVKIT)
+    !defined(HW_WAVESHARE) && !defined(HW_DEVKIT)
 #error You must select a target hardware!
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "10.6.dev";
+const char* version_number = "10.11.dev";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -68,7 +68,7 @@ void register_transmitter(Transmitter* transmitter) {
 void init_serial() {
   // Init Serial monitor
   Serial.begin(115200);
-#if (HW_LILYGO2CAN || HW_BECOM)
+#if (HW_LILYGO2CAN || HW_BECOM || HW_WAVESHARE)
   // Wait up to 100ms for Serial to be available. On the ESP32S3 Serial is
   // provided by the USB controller, so will only work if the board is connected
   // to a computer.
@@ -171,10 +171,33 @@ void update_calculated_values(unsigned long currentMillis) {
   /* Calculate allowed charge/discharge currents*/
   if (datalayer.battery.status.voltage_dV > 10) {
     // Only update value when we have voltage available to avoid div0. TODO: This should be based on nominal voltage
-    datalayer.battery.status.max_charge_current_dA =
-        ((datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV);
-    datalayer.battery.status.max_discharge_current_dA =
+    int32_t target_charge = ((datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV);
+    int32_t target_discharge =
         ((datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV);
+
+    // Low pass filter only when increasing values (10% new, 90% old)
+    if (inverter_low_pass_filter) {
+      if (datalayer.battery.status.max_charge_current_dA == 0) {
+        datalayer.battery.status.max_charge_current_dA = target_charge;  // Initialize immediately if 0
+      } else if (target_charge > datalayer.battery.status.max_charge_current_dA) {
+        datalayer.battery.status.max_charge_current_dA =
+            (target_charge * 10 + datalayer.battery.status.max_charge_current_dA * 90) / 100;
+      } else {
+        datalayer.battery.status.max_charge_current_dA = target_charge;
+      }
+
+      if (datalayer.battery.status.max_discharge_current_dA == 0) {
+        datalayer.battery.status.max_discharge_current_dA = target_discharge;  // Initialize immediately if 0
+      } else if (target_discharge > datalayer.battery.status.max_discharge_current_dA) {
+        datalayer.battery.status.max_discharge_current_dA =
+            (target_discharge * 10 + datalayer.battery.status.max_discharge_current_dA * 90) / 100;
+      } else {
+        datalayer.battery.status.max_discharge_current_dA = target_discharge;
+      }
+    } else {
+      datalayer.battery.status.max_charge_current_dA = target_charge;
+      datalayer.battery.status.max_discharge_current_dA = target_discharge;
+    }
   }
 
   /* Apply remote restrictions if set*/
@@ -318,13 +341,30 @@ void update_calculated_values(unsigned long currentMillis) {
 
   } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled SOC & capacity to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh +
-                                                              datalayer.battery2.status.remaining_capacity_Wh +
-                                                              datalayer.battery3.status.remaining_capacity_Wh;
-    datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh +
-                                                        datalayer.battery2.info.total_capacity_Wh +
-                                                        datalayer.battery3.info.total_capacity_Wh;
+
+    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+    datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
+
+    if (battery2) {
+      datalayer.battery.status.reported_remaining_capacity_Wh =
+          datalayer.battery.status.remaining_capacity_Wh + datalayer.battery2.status.remaining_capacity_Wh;
+      datalayer.battery.info.reported_total_capacity_Wh =
+          datalayer.battery.info.total_capacity_Wh + datalayer.battery2.info.total_capacity_Wh;
+    }
+    if (battery3) {
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh +
+                                                                datalayer.battery2.status.remaining_capacity_Wh +
+                                                                datalayer.battery3.status.remaining_capacity_Wh;
+      datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh +
+                                                          datalayer.battery2.info.total_capacity_Wh +
+                                                          datalayer.battery3.info.total_capacity_Wh;
+    }
   }
+
+  datalayer.battery2.status.reported_soc =
+      datalayer.battery2.status.real_soc;  //For screen to display correct SOC of battery 2
+  datalayer.battery3.status.reported_soc =
+      datalayer.battery3.status.real_soc;  //For screen to display correct SOC of battery 3
 
   //Check each extra battery, and if they are at the extremes, report the SOC from these batteries instead
   if (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) {  //Battery2 is in the mix
@@ -399,9 +439,9 @@ void core_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
+  int loopPhase = 0;
 
   while (true) {
-
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
 
@@ -413,7 +453,8 @@ void core_loop(void*) {
 
     // Process
     currentMillis = millis();
-    if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
+    loopPhase = 1 - loopPhase;  // Spread out slower tasks across multiple iterations
+    if (currentMillis - previousMillis10ms >= INTERVAL_10_MS && loopPhase == 0) {
       if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) &&
           (milliseconds(currentMillis) > esp32hal->BOOTUP_TIME())) {
         set_event(EVENT_TASK_OVERRUN, (currentMillis - previousMillis10ms));
@@ -438,7 +479,7 @@ void core_loop(void*) {
       }
     }
 
-    if (currentMillis - previousMillisUpdateVal >= INTERVAL_1_S) {
+    if (currentMillis - previousMillisUpdateVal >= INTERVAL_1_S && loopPhase == 1) {
       previousMillisUpdateVal = currentMillis;  // Order matters on the update_loop!
       if (datalayer.system.info.performance_measurement_active) {
         START_TIME_MEASUREMENT(values);
@@ -553,6 +594,8 @@ void setup() {
 
   init_precharge_control();
 
+  init_rs485();
+
   setup_charger();
   setup_inverter();
   setup_battery();
@@ -560,8 +603,6 @@ void setup() {
 
   // Init CAN only after any CAN receivers have had a chance to register.
   init_CAN();
-
-  init_rs485();
 
   init_equipment_stop_button();
 

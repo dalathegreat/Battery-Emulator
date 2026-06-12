@@ -50,6 +50,27 @@ bool AsyncMiddlewareChain::removeMiddleware(AsyncMiddleware *middleware) {
   return size != _middlewares.size();
 }
 
+void AsyncAuthenticationMiddleware::setUsername(const char *username) {
+  _username = username ? username : "";
+  _hasCreds = _credentials.length() && (_username.length() || _hash);
+}
+
+void AsyncAuthenticationMiddleware::setPassword(const char *password) {
+  _credentials = password ? password : "";
+  _hash = false;
+  _hasCreds = _credentials.length() && _username.length();
+}
+
+void AsyncAuthenticationMiddleware::setPasswordHash(const char *hash) {
+  _credentials = hash ? hash : "";
+  _hash = true;
+  _hasCreds = _credentials.length();
+}
+
+bool AsyncAuthenticationMiddleware::generateHash() {
+  return false;
+}
+
 void AsyncMiddlewareChain::_runChain(AsyncWebServerRequest *request, ArMiddlewareNext finalizer) {
   if (!_middlewares.size()) {
     return finalizer();

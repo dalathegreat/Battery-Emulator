@@ -68,14 +68,13 @@ add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
 # add the executable
 add_executable(tests 
     tests.cpp
-    safety_tests.cpp
     voltage_sync_tests.cpp
     bms_reset_tests.cpp
     battery/NissanLeafTest.cpp 
     battery/still_alive_tests.cpp
     can_log_based/canlog_safety_tests.cpp
     utils/utils.cpp
-    ../Software/src/core/parallel_safety.cpp
+    ../Software/src/devboard/safety/parallel_safety.cpp
     ../Software/src/communication/can/obd.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
@@ -143,6 +142,7 @@ add_executable(tests
     ../Software/src/battery/Shunts.cpp
     ../Software/src/battery/SIMPBMS-BATTERY.cpp
     ../Software/src/battery/SONO-BATTERY.cpp
+    ../Software/src/battery/STELLANTIS-SMALL-WIDE-4x4.cpp
     ../Software/src/battery/TESLA-BATTERY.cpp
     ../Software/src/battery/TESLA-LEGACY-BATTERY.cpp
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
@@ -168,6 +168,7 @@ add_executable(tests
     ../Software/src/inverter/SCHNEIDER-CAN.cpp
     ../Software/src/inverter/SMA-BYD-H-CAN.cpp
     ../Software/src/inverter/SMA-BYD-HVS-CAN.cpp
+    ../Software/src/inverter/SMA-SBS-BYD-CAN.cpp
     ../Software/src/inverter/SMA-LV-CAN.cpp
     ../Software/src/inverter/SOFAR-CAN.cpp
     ../Software/src/inverter/SOL-ARK-LV-CAN.cpp

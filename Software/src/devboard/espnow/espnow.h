@@ -103,8 +103,6 @@ struct BATTERY_STATUS_TYPE {
    * we report the battery as missing entirely on the CAN bus.
    */
   uint8_t CAN_battery_still_alive = CAN_STILL_ALIVE;
-  /** The current system status, which for now still has the name bms_status */
-  bms_status_enum bms_status = ACTIVE;
   /** The current battery status, which for now has the name real_bms_status */
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
   /** LED mode, customizable by user */

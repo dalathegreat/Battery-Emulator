@@ -15,6 +15,7 @@ static bool battery_empty_event_fired = false;
 #define CELL_CRITICAL_MV 100  // If cells go this much outside design voltage, shut battery down!
 #define LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV 2000  //If cells are below this, recovery charge not allowed
 #define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
+#define HYSTERESIS_OFFSET_DV 20
 
 //battery pause status begin
 bool emulator_pause_request_ON = false;
@@ -25,25 +26,16 @@ battery_pause_status emulator_pause_status = NORMAL;
 //battery pause status end
 
 void update_machineryprotection() {
-  /* Check if the ESP32 CPU running the Battery-Emulator is too hot. 
-  We start with a warning, you can start to see Wifi issues if it becomes too hot 
-  If the chip starts to approach the design limit, we perform a graceful shutdown */
-  if (datalayer.system.info.CPU_temperature > 87.0f) {
-    set_event(EVENT_CPU_OVERHEATING, 0);
-  } else {
-    clear_event(EVENT_CPU_OVERHEATING);
-  }
-  if (datalayer.system.info.CPU_temperature > 110.0f) {
-    set_event(EVENT_CPU_OVERHEATED, 0);
-  }
-  if (datalayer.system.info.CPU_temperature < 105.0f) {
-    clear_event(EVENT_CPU_OVERHEATED);  //Hysteresis on the clearing
-  }
-
+  //Check if we start to get low on memory
+  static uint8_t hysteresisHeapSeconds = 0;
   if (datalayer.system.info.CPU_free_heap < 62000) {
-    set_event(EVENT_LOW_HEAP_MEMORY, (datalayer.system.info.CPU_free_heap / 1000));
+    hysteresisHeapSeconds++;
+    if (hysteresisHeapSeconds > 5) {  //Trigger after X seconds of low heap, to prevent false positives during spikes
+      set_event(EVENT_LOW_HEAP_MEMORY, (datalayer.system.info.CPU_free_heap / 1000));
+    }
   } else {
     clear_event(EVENT_LOW_HEAP_MEMORY);
+    hysteresisHeapSeconds = 0;
   }
 
   // Check health status of CAN interfaces
@@ -71,7 +63,7 @@ void update_machineryprotection() {
   if (battery) {
 
     // Pause function is on OR we have a critical fault event active
-    if (emulator_pause_request_ON || (datalayer.battery.status.bms_status == FAULT)) {
+    if (emulator_pause_request_ON || (datalayer.system.status.system_status == FAULT)) {
       datalayer.battery.status.max_discharge_power_W = 0;
       datalayer.battery.status.max_charge_power_W = 0;
     }
@@ -136,6 +128,33 @@ void update_machineryprotection() {
       set_event(EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 0);
     }
 
+    //If user is requesting charge to stop at a specific voltage
+    static bool charge_blocked = false;
+    static bool discharge_blocked = false;
+    if (datalayer.battery.settings.user_set_voltage_limits_active) {
+      // --- Charge limiting with hysteresis ---
+      if (datalayer.battery.status.voltage_dV >= datalayer.battery.settings.max_user_set_charge_voltage_dV) {
+        charge_blocked = true;  // Latch: block charging once target is hit
+      } else if (datalayer.battery.status.voltage_dV <
+                 (datalayer.battery.settings.max_user_set_charge_voltage_dV - HYSTERESIS_OFFSET_DV)) {
+        charge_blocked = false;  // Only release when voltage drops well below target
+      }
+      if (charge_blocked) {
+        datalayer.battery.status.max_charge_power_W = 0;
+      }
+
+      // --- Discharge limiting with hysteresis ---
+      if (datalayer.battery.status.voltage_dV <= datalayer.battery.settings.max_user_set_discharge_voltage_dV) {
+        discharge_blocked = true;
+      } else if (datalayer.battery.status.voltage_dV >
+                 (datalayer.battery.settings.max_user_set_discharge_voltage_dV + HYSTERESIS_OFFSET_DV)) {
+        discharge_blocked = false;
+      }
+      if (discharge_blocked) {
+        datalayer.battery.status.max_discharge_power_W = 0;
+      }
+    }
+
     // Battery is fully charged. Dont allow any more power into it
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
     if (datalayer.battery.status.reported_soc == 10000 ||
@@ -153,7 +172,7 @@ void update_machineryprotection() {
 
     // Battery is empty. Do not allow further discharge.
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
-    if (datalayer.battery.status.bms_status == ACTIVE) {
+    if (datalayer.system.status.system_status == ACTIVE) {
       if (datalayer.battery.status.reported_soc == 0 ||
           datalayer.battery.status.real_soc == 0) {  //Either Scaled OR Real SOC% value is 0.00%, time to stop
         if (!battery_empty_event_fired) {

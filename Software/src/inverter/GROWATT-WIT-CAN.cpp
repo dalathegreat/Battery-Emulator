@@ -77,7 +77,7 @@ void GrowattWitInverter::update_values() {
 
   // Byte 0: BMS Working Status
   // 0=Init, 1=Standby, 2=Charging, 3=Discharging, 4=Shutdown, 5=Fault, 6=Upgrade
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     GROWATT_1AC5.data.u8[0] = 5;  // Fault
   } else if (datalayer.battery.status.current_dA > 5) {
     GROWATT_1AC5.data.u8[0] = 2;  // Charging (current > 0.5A)
@@ -92,7 +92,7 @@ void GrowattWitInverter::update_values() {
   // Bit 1: 0=Force charge OFF, 1=Force charge ON
   uint8_t charge_flag = 0x00;
   if (datalayer.battery.status.max_charge_current_dA == 0 || datalayer.battery.status.reported_soc >= 10000 ||  // 100%
-      datalayer.battery.status.bms_status == FAULT) {
+      datalayer.system.status.system_status == FAULT) {
     charge_flag |= 0x01;  // Prohibit charge
   }
   GROWATT_1AC5.data.u8[1] = charge_flag;
@@ -103,7 +103,7 @@ void GrowattWitInverter::update_values() {
   // Bit 3: 0=Normal, 1=Soft starting
   uint8_t discharge_flag = 0x00;
   if (datalayer.battery.status.max_discharge_current_dA == 0 || datalayer.battery.status.reported_soc == 0 ||
-      datalayer.battery.status.bms_status == FAULT) {
+      datalayer.system.status.system_status == FAULT) {
     discharge_flag |= 0x01;  // Prohibit discharge
   }
   GROWATT_1AC5.data.u8[2] = discharge_flag;
@@ -463,7 +463,7 @@ void GrowattWitInverter::update_values() {
   uint16_t discharge_protection = 0;
 
   // Check for fault conditions and set appropriate bits
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     // Set general fault indicators
     charge_protection |= 0x01;     // Cell overvoltage protection
     discharge_protection |= 0x01;  // Cell undervoltage protection
@@ -523,7 +523,7 @@ void GrowattWitInverter::update_values() {
   uint16_t generic_protection = 0;
 
   // Set fault code if BMS is in fault state
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     fault_code |= 0x01;  // Cell fault
   }
 
