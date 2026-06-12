@@ -131,6 +131,8 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
         content += " In progress</h4>";
       } else if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x02) {
         content += " Successfully</h4>";
+      } else if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x03) {
+        content += " Aborted pack fault</h4>";
       } else {
         content += " " + String(datalayer_extended.fordMachE.pid_maintenance_rebalance_status) + "</h4>";
       }
