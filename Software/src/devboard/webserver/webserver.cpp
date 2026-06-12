@@ -31,6 +31,7 @@ bool webserver_auth = false;
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
+AsyncAuthenticationMiddleware web_auth_middleware;
 
 // Measure OTA progress
 unsigned long ota_progress_millis = 0;
@@ -56,6 +57,10 @@ bool isReplayRunning = false;  // Global flag to track replay state
 bool settingsUpdated = false;
 
 CAN_frame currentFrame = {.FD = true, .ext_ID = false, .DLC = 64, .ID = 0x12F, .data = {0}};
+
+bool webserver_auth_is_ready() {
+  return webserver_auth && !http_username.empty() && !http_password.empty();
+}
 
 void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len,
                       bool final) {
@@ -173,14 +178,21 @@ void canReplayTask(void* param) {
 void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethodComposite method,
                          std::function<void(AsyncWebServerRequest*)> handler) {
   serv.on(uri, method, [handler](AsyncWebServerRequest* request) {
-    if (webserver_auth && !request->authenticate(http_username.c_str(), http_password.c_str())) {
-      return request->requestAuthentication();
+    if (webserver_auth_is_ready() && !request->authenticate(http_username.c_str(), http_password.c_str())) {
+      return request->requestAuthentication(AsyncAuthType::AUTH_BASIC, "Battery Emulator");
     }
     handler(request);
   });
 }
 
 void init_webserver() {
+  if (webserver_auth_is_ready()) {
+    web_auth_middleware.setUsername(http_username.c_str());
+    web_auth_middleware.setPassword(http_password.c_str());
+    web_auth_middleware.setRealm("Battery Emulator");
+    web_auth_middleware.setAuthType(AsyncAuthType::AUTH_BASIC);
+    server.addMiddleware(&web_auth_middleware);
+  }
 
   server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(401); });
 
@@ -395,12 +407,12 @@ void init_webserver() {
   });
 
   const char* boolSettingNames[] = {
-      "DBLBTR",       "CNTCTRL",      "CNTCTRLDBL",    "PWMCNTCTRL",  "PERBMSRESET", "SDLOGENABLED",
-      "STATICIP",     "REMBMSRESET",  "EXTPRECHARGE",  "USBENABLED",  "CANLOGUSB",   "WEBENABLED",
-      "CANFDASCAN",   "CANLOGSD",     "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC",   "HADISC",
-      "MQTTTOPICS",   "MQTTCELLV",    "INVICNT",       "GTWRHD",      "DIGITALHVIL", "PERFPROFILE",
-      "INTERLOCKREQ", "SOCESTIMATED", "PYLONOFFSET",   "PYLONORDER",  "DEYEBYD",     "NCCONTACTOR",
-      "TRIBTR",       "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",  "CTINVERT",    "LOWPASSFILTER",
+      "DBLBTR",        "CNTCTRL",      "CNTCTRLDBL",  "PWMCNTCTRL",   "PERBMSRESET",   "SDLOGENABLED", "STATICIP",
+      "REMBMSRESET",   "EXTPRECHARGE", "USBENABLED",  "CANLOGUSB",    "WEBENABLED",    "CANFDASCAN",   "CANLOGSD",
+      "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",   "HADISC",       "MQTTTOPICS",    "MQTTCELLV",    "INVICNT",
+      "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET",  "PYLONORDER",
+      "DEYEBYD",       "NCCONTACTOR",  "TRIBTR",      "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",   "CTINVERT",
+      "LOWPASSFILTER", "WEBAUTH",
   };
 
   const char* uintSettingNames[] = {
@@ -414,13 +426,37 @@ void init_webserver() {
       "GPIOOPT6",
   };
 
-  const char* stringSettingNames[] = {"APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
-                                      "MQTTPASSWORD", "MQTTTOPIC",  "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID"};
+  const char* stringSettingNames[] = {"APNAME",         "APPASSWORD",   "HOSTNAME",  "MQTTSERVER",
+                                      "MQTTUSER",       "MQTTPASSWORD", "MQTTTOPIC", "MQTTOBJIDPREFIX",
+                                      "MQTTDEVICENAME", "HADEVICEID",   "HTTPUSER",  "HTTPPASS"};
 
   // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST,
             [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
               BatteryEmulatorSettingsStore settings;
+              auto webAuthParam = request->getParam("WEBAUTH", true);
+              auto httpUserParam = request->getParam("HTTPUSER", true);
+              auto httpPassParam = request->getParam("HTTPPASS", true);
+              auto httpPassConfirmParam = request->getParam("HTTPPASSCONFIRM", true);
+
+              bool requestedWebAuth = webAuthParam != nullptr && webAuthParam->value() == "on";
+              String requestedHttpUser =
+                  httpUserParam != nullptr ? httpUserParam->value() : settings.getString("HTTPUSER", "admin");
+              String requestedHttpPass =
+                  httpPassParam != nullptr ? httpPassParam->value() : settings.getString("HTTPPASS");
+              String requestedHttpPassConfirm =
+                  httpPassConfirmParam != nullptr ? httpPassConfirmParam->value() : requestedHttpPass;
+
+              if (requestedHttpPass != requestedHttpPassConfirm) {
+                request->send(400, "text/plain", "Web interface passwords do not match.");
+                return;
+              }
+
+              if (requestedWebAuth && (requestedHttpUser.isEmpty() || requestedHttpPass.isEmpty())) {
+                request->send(400, "text/plain",
+                              "Set a username and password before enabling web interface password protection.");
+                return;
+              }
 
               int numParams = request->params();
               for (int i = 0; i < numParams; i++) {
@@ -670,8 +706,8 @@ void init_webserver() {
     server.on(
         route.c_str(), HTTP_PUT,
         [cmd](AsyncWebServerRequest* request) {
-          if (webserver_auth && !request->authenticate(http_username.c_str(), http_password.c_str())) {
-            return request->requestAuthentication();
+          if (webserver_auth_is_ready() && !request->authenticate(http_username.c_str(), http_password.c_str())) {
+            return request->requestAuthentication(AsyncAuthType::AUTH_BASIC, "Battery Emulator");
           }
         },
         nullptr,
