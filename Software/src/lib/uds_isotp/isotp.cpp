@@ -307,3 +307,7 @@ void IsoTp::isotp_poll() {
       break;
   }
 }
+
+bool IsoTp::isotp_is_busy() const{
+  return _rx.state != ISOTP_IDLE || _tx.state != ISOTP_IDLE;
+}

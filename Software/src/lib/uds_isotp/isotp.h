@@ -54,6 +54,9 @@ class IsoTp {
   /** Must be called every 1 ms to drive timers and retransmissions. */
   void isotp_poll();
 
+  /** Check if the ISO-TP instance is currently busy (transmitting or receiving). */
+  bool isotp_is_busy() const;
+
  protected:
   /** Called by the protocol layer when it needs to emit a raw CAN frame. */
   virtual void on_isotp_can_tx(uint32_t can_id, uint8_t* can_data, uint8_t can_dlc) = 0;
