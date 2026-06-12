@@ -33,7 +33,7 @@ class CanBattery : public Battery, Transmitter, CanReceiver {
 
   void transmit_can_frame(const CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
 
-    // Overload these in subclasses that also inherit IsoTp to receive ISO-TP events.
+  // Overload these in subclasses that also inherit IsoTp to receive ISO-TP events.
   virtual void on_isotp_can_tx(uint32_t /*can_id*/, uint8_t* /*can_data*/, uint8_t /*can_dlc*/) {}
   virtual void on_isotp_rx_complete(uint8_t* /*data*/, int /*len*/, isotp_tatype /*tatype*/) {}
 };
