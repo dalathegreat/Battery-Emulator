@@ -5,6 +5,7 @@
 #include "../../charger/CanCharger.h"
 #include "../../communication/can/comm_can.h"
 #include "../../devboard/mqtt/mqtt.h"
+#include "../../devboard/webserver/webserver.h"
 #include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
@@ -31,6 +32,9 @@ void init_stored_settings() {
 
   ssid = settings.getString("SSID").c_str();
   password = settings.getString("PASSWORD").c_str();
+  http_username = settings.getString("HTTPUSER", "admin").c_str();
+  http_password = settings.getString("HTTPPASS").c_str();
+  webserver_auth = settings.getBool("WEBAUTH", false) && !http_username.empty() && !http_password.empty();
 
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
