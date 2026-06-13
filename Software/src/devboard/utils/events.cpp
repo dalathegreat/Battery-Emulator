@@ -37,11 +37,16 @@ void init_events(void) {
   events.entries[EVENT_THERMAL_RUNAWAY].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_CORRUPTED_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_NATIVE_TX_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_BATTERY_DETECTED].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_CAN_BATTERY2_DETECTED].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_CAN_BATTERY3_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_BATTERY_MISSING].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_BATTERY2_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_BATTERY3_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_CHARGER_MISSING].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_CAN_CHARGER_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN_INVERTER_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CONTACTOR_OPEN].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
@@ -190,14 +195,24 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "High amount of corrupted CAN messages detected. Check CAN wire shielding!";
     case EVENT_CAN_NATIVE_TX_FAILURE:
       return "CAN_NATIVE failed to transmit, or no one on the bus to ACK the message!";
+    case EVENT_CAN_BATTERY_DETECTED:
+      return "Successfully communicating with battery. Battery detected!";
+    case EVENT_CAN_BATTERY2_DETECTED:
+      return "Successfully communicating with secondary battery. Secondary battery detected!";
+    case EVENT_CAN_BATTERY3_DETECTED:
+      return "Successfully communicating with third battery. Third battery detected!";
     case EVENT_CAN_BATTERY_MISSING:
       return "Battery not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CAN_BATTERY2_MISSING:
       return "Secondary battery not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CAN_BATTERY3_MISSING:
       return "Third battery not sending messages via CAN for the last 60 seconds. Check wiring!";
+    case EVENT_CAN_CHARGER_DETECTED:
+      return "Successfully communicating with charger. Charger detected!";
     case EVENT_CAN_CHARGER_MISSING:
       return "Charger not sending messages via CAN for the last 60 seconds. Check wiring!";
+    case EVENT_CAN_INVERTER_DETECTED:
+      return "Successfully communicating with inverter. Inverter detected!";
     case EVENT_CAN_INVERTER_MISSING:
       return "Inverter not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CONTACTOR_WELDED:
