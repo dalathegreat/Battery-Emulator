@@ -378,7 +378,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x344:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       contactor_feedback = rx_frame.data.u8[0];
-      lastContactorFeedbackMillis = (uint32_t)millis64();
+      lastContactorFeedbackMillis = millis();
       discharge_status = (rx_frame.data.u8[1] & 0x0F);
       break;
     case 0x345:
@@ -565,20 +565,23 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 // Software contactor state machine. Steps the transmitted 0x12D frame between the vehicle's
 // payload states and confirms each move against 0x344 feedback. See the header for the states.
 void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
-  // Edge-triggered so the equipment-stop button and advanced-page buttons don't fight. A stop
-  // saved across a reboot holds the active-ack frame (never closes a pack) until 0x344 reports
-  // the pack state.
-  if (!equipmentStopInitialized) {
-    previousEquipmentStop = datalayer.system.info.equipment_stop_active;
-    equipmentStopInitialized = true;
-    if (previousEquipmentStop) {
+  // Hold open on a fault, the equipment stop, or when the inverter withdraws permission (Solax/SMA
+  // gate closing until ready). Edge-trigger on the combined signal so the buttons and inverter
+  // can't fight; a held-open reason at boot keeps active-ack until 0x344 reports state.
+  bool contactorsAllowedClosed = !datalayer.system.info.equipment_stop_active &&
+                                 datalayer.system.status.inverter_allows_contactor_closing &&
+                                 datalayer.system.status.system_status != FAULT;
+  if (!contactorControlInitialized) {
+    previousContactorsAllowedClosed = contactorsAllowedClosed;
+    contactorControlInitialized = true;
+    if (!contactorsAllowedClosed) {
       set_12D_payload(0x50, 0x18, 0x02, 0x20, 0x04, 0x31);  // Active-ack pattern
       contactorState = CONTACTORS_BOOT_ESTOP;
     }
   }
-  if (datalayer.system.info.equipment_stop_active != previousEquipmentStop) {
-    previousEquipmentStop = datalayer.system.info.equipment_stop_active;
-    if (previousEquipmentStop) {
+  if (contactorsAllowedClosed != previousContactorsAllowedClosed) {
+    previousContactorsAllowedClosed = contactorsAllowedClosed;
+    if (!contactorsAllowedClosed) {
       requestContactorOpen = true;
     } else {
       requestContactorClose = true;
@@ -695,8 +698,8 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
     case CONTACTORS_STANDBY:
       break;
     case CONTACTORS_BOOT_ESTOP:
-      // Stop was saved across the reboot. Once the pack reports in: already open -> standby,
-      // still closed -> run the full open sequence
+      // Booted with a held-open reason (fault/stop/inverter). Once the pack reports in: already
+      // open -> standby, still closed -> run the full open sequence
       if (lastContactorFeedbackMillis != 0) {
         if (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) {
           set_event(EVENT_BYD_CONTACTOR_OPEN_REQ, 1);

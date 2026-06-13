@@ -222,8 +222,8 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t CONTACTORS_STANDBY = 4;             // Standby pattern, contactors open
   static const uint8_t CONTACTORS_OPEN_REQUESTED = 5;      // Active-ack held, waiting for the BMS to open
   static const uint8_t CONTACTORS_OPEN_SETTLE = 6;         // Open confirmed, settling before standby
-  static const uint8_t CONTACTORS_BOOT_ESTOP = 7;          // Booted under a saved stop, holding active-ack until
-                                                           // 0x344 tells us the pack state
+  static const uint8_t CONTACTORS_BOOT_ESTOP = 7;          // Booted held open (fault/stop/inverter), holding
+                                                           // active-ack until 0x344 tells us the pack state
 
   // 0x344 byte 0 feedback bits
   static const uint8_t BMS_FEEDBACK_MAIN_CLOSED = 0x80;
@@ -250,8 +250,8 @@ class BydAttoBattery : public CanBattery {
   bool openTimeoutEventSent = false;              // Open-delay warning fired once per attempt
   bool requestContactorOpen = false;
   bool requestContactorClose = false;
-  bool previousEquipmentStop = false;
-  bool equipmentStopInitialized = false;
+  bool previousContactorsAllowedClosed = false;  // Combined fault + equipment-stop + inverter-permission state
+  bool contactorControlInitialized = false;
 
   void set_12D_payload(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5);
   void handle_contactor_control(unsigned long currentMillis);
