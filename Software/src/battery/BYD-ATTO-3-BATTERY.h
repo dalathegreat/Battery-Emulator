@@ -36,6 +36,9 @@ class BydAttoBattery : public CanBattery {
   void reset_crash() { datalayer_bydatto->UserRequestCrashReset = true; }
   bool supports_calibrate_SOC() { return true; }
   void reset_SOC() { datalayer_bydatto->UserRequestCalibrateSOC = true; }
+  bool supports_contactor_close() { return true; }
+  void request_open_contactors() { requestContactorOpen = true; }
+  void request_close_contactors() { requestContactorClose = true; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
@@ -190,10 +193,72 @@ class BydAttoBattery : public CanBattery {
   uint8_t battery_type = NOT_DETERMINED_YET;
   uint8_t stateMachineClearCrash = NOT_RUNNING;
   uint8_t stateMachineCalibrateSOC = NOT_RUNNING;
+
+  /* Software contactor control: step the transmitted 0x12D frame through the same payload
+  states the real VCU uses (taken from CAN logs of two cars). Byte 6 is a rolling counter,
+  byte 7 the 0x441-style checksum over bytes 0-6.
+  0x12D states (bytes 0-5):
+  - standby:      50 14 02 10 04 31  ignition off, pack open
+  - active ack:   50 18 02 20 04 31  ignition off, pack closed (also seen throughout AC charging)
+  - close/active: A0 28 02 A0 0C 71  BMS starts precharge ~60ms later
+  - drive ready:  A0 28 00 22 0C 31  car sends this ~0.4s after the main contactor closes
+  - shutdown:     A0 28 02 60 04 31  BMS drops HV-active ~0.3s later
+  Car power-off: shutdown (~1.4s) -> active ack -> pack opens (instant when driving, waits for
+  charging to finish) -> ~2.5s -> standby. The pack never opens on the shutdown step itself.
+  Logs show another close pattern (50 18 12 20 44 31) for parked aux/DC-DC closes - not used here.
+  0x344 byte 0 reports state, by bit:
+  - bit7 0x80 = main contactor closed
+  - bit6 0x40 = precharge in progress
+  - bit2 0x04 = HV active
+  - bit1 0x02 = drive flag (set when idle/driving, clear while charging)
+  - bit0 0x01 = charge flag
+  Drive close: 02 -> 42 -> 82 -> 86. Charge close: 02 -> 42 -> 82 -> 81. Charge open: 81 -> 80 -> 00.
+  In charge mode the BMS ignores the 0x12D shutdown and opens on charge completion instead.
+  0x84 (closed, HV, no mode flag) also opens and re-closes fine once byte 7 is correct. */
+  static const uint8_t CONTACTORS_CLOSING = 0;             // Close pattern sent, drive-ready transition pending
+  static const uint8_t CONTACTORS_ACTIVE = 1;              // Drive-ready pattern, closed and running
+  static const uint8_t CONTACTORS_AWAIT_ZERO_CURRENT = 2;  // Open asked for, waiting for current to drop
+  static const uint8_t CONTACTORS_OPENING = 3;             // Holding the shutdown pattern (~1.4s like the car)
+  static const uint8_t CONTACTORS_STANDBY = 4;             // Standby pattern, contactors open
+  static const uint8_t CONTACTORS_OPEN_REQUESTED = 5;      // Active-ack held, waiting for the BMS to open
+  static const uint8_t CONTACTORS_OPEN_SETTLE = 6;         // Open confirmed, settling before standby
+  static const uint8_t CONTACTORS_BOOT_ESTOP = 7;          // Booted under a saved stop, holding active-ack until
+                                                           // 0x344 tells us the pack state
+
+  // 0x344 byte 0 feedback bits
+  static const uint8_t BMS_FEEDBACK_MAIN_CLOSED = 0x80;
+  static const uint8_t BMS_FEEDBACK_PRECHARGING = 0x40;
+  static const uint8_t BMS_FEEDBACK_HV_ACTIVE = 0x04;
+  static const uint8_t BMS_FEEDBACK_DRIVE_FLAG = 0x02;
+  static const uint8_t BMS_FEEDBACK_CHARGE_FLAG = 0x01;
+
+  static const int16_t OPEN_MAX_CURRENT_dA = 25;           // Open only below 2.5A
+  static const uint32_t ZERO_CURRENT_MIN_WAIT_MS = 5000;   // Let the inverter settle before trusting current
+  static const uint32_t ZERO_CURRENT_TIMEOUT_MS = 10000;   // Force the open if current never drops
+  static const uint32_t OPEN_SHUTDOWN_HOLD_MS = 1500;      // Hold the shutdown pattern, like the car
+  static const uint32_t OPEN_CONFIRM_TIMEOUT_MS = 6000;    // Warn if the BMS hasn't opened by now
+  static const uint32_t OPEN_TO_STANDBY_DELAY_MS = 2500;   // Car's wait between open and standby
+  static const uint32_t CLOSE_CONFIRM_TIMEOUT_MS = 15000;  // Warn if the BMS hasn't closed by now
+
+  uint8_t contactorState = CONTACTORS_CLOSING;  // Boot default: close right away, as before
+  uint8_t contactor_feedback = 0;               // Raw 0x344 byte 0
+  unsigned long contactorStateEntryMillis = 0;
+  unsigned long closeConfirmStartMillis = 0;
+  unsigned long lastCurrentSampleMillis = 0;
+  unsigned long lastContactorFeedbackMillis = 0;  // 0 = no 0x344 received yet
+  bool closeConfirmPending = false;               // Only for user closes, not the boot default
+  bool openTimeoutEventSent = false;              // Open-delay warning fired once per attempt
+  bool requestContactorOpen = false;
+  bool requestContactorClose = false;
+  bool previousEquipmentStop = false;
+  bool equipmentStopInitialized = false;
+
+  void set_12D_payload(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5);
+  void handle_contactor_control(unsigned long currentMillis);
+
   uint8_t counter_50ms = 0;
   uint8_t counter_100ms = 0;
   uint8_t frame6_counter = 0xB;
-  uint8_t frame7_counter = 0x5;
   uint8_t BMS_SOH = 99;
   uint8_t BMS_min_cell_voltage_number = 0;
   uint8_t BMS_min_temp_module_number = 0;

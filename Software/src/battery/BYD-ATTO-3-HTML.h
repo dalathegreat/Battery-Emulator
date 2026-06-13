@@ -14,7 +14,63 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
     const auto& dl_bat = s.length() ? datalayer.battery2 : datalayer.battery;
     content += "<h4>Detected cells: " + String(dl_bat.info.number_of_cells) + "</h4>";
-    content += "<h4>Charging battery state: ";
+    content += "<h4>Contactor command: ";
+    switch (byd_datalayer->contactor_control_state) {
+      case 0:
+        content += "Closing</h4>";
+        break;
+      case 1:
+        content += "Closed</h4>";
+        break;
+      case 2:
+        content += "Preparing to open</h4>";
+        break;
+      case 3:
+        content += "Opening</h4>";
+        break;
+      case 4:
+        content += "Open</h4>";
+        break;
+      case 5:
+        content += "Opening</h4>";
+        break;
+      case 6:
+        content += "Open</h4>";
+        break;
+      case 7:
+        content += "Checking battery</h4>";
+        break;
+      default:
+        content += "Unknown</h4>";
+    }
+    content += "<h4>Contactor state: ";
+    content +=
+        byd_datalayer->contactor_main_closed ? "Closed &mdash; battery connected" : "Open &mdash; battery disconnected";
+    content += "</h4>";
+    content += "<h4>Contactor precharge: ";
+    content += byd_datalayer->contactor_precharging ? "Precharging" : "No";
+    content += "</h4>";
+    content += "<h4>Contactor HV active: ";
+    content += byd_datalayer->contactor_hv_active ? "Yes" : "No";
+    content += "</h4>";
+    // Which power mode the pack is in - drive vs charge picks how it opens
+    content += "<h4>Contactor mode: ";
+    if (!byd_datalayer->contactor_main_closed) {
+      content += "Disconnected</h4>";
+    } else if (byd_datalayer->contactor_charge_flag) {
+      content += "Charging</h4>";
+    } else if (byd_datalayer->contactor_drive_flag) {
+      content += "Active</h4>";
+    } else {
+      content += "Standby</h4>";
+    }
+    char feedbackStr[5];
+    snprintf(feedbackStr, sizeof(feedbackStr), "0x%02X", byd_datalayer->contactor_feedback);
+    content += "<h4>Contactor diagnostic code: ";
+    content += feedbackStr;
+    content += "</h4>";
+
+    content += "<h4>BMS reported state: ";
     switch (byd_datalayer->discharge_status) {
       case 0:
         content += "Ready</h4>";
