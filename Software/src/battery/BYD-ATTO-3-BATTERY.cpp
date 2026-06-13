@@ -493,7 +493,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           break;
         case POLL_FOR_BATTERY_CURRENT:
           BMS_current = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) - 5000;
-          lastCurrentSampleMillis = (uint32_t)millis64();
+          lastCurrentSampleMillis = millis();
           break;
         case POLL_FOR_LOWEST_TEMP_CELL:
           BMS_lowest_cell_temperature = (rx_frame.data.u8[4] - 40);

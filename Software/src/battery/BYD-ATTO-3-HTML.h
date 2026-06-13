@@ -14,13 +14,13 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
     const auto& dl_bat = s.length() ? datalayer.battery2 : datalayer.battery;
     content += "<h4>Detected cells: " + String(dl_bat.info.number_of_cells) + "</h4>";
-    content += "<h4>Contactor command: ";
+    content += "<h4>BE contactor state: ";
     switch (byd_datalayer->contactor_control_state) {
       case 0:
         content += "Closing</h4>";
         break;
       case 1:
-        content += "Closed</h4>";
+        content += "Closed (live)</h4>";
         break;
       case 2:
         content += "Preparing to open</h4>";
@@ -29,94 +29,88 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
         content += "Opening</h4>";
         break;
       case 4:
-        content += "Open</h4>";
+        content += "Standby / idle</h4>";
         break;
       case 5:
-        content += "Opening</h4>";
+        content += "Open requested</h4>";
         break;
       case 6:
-        content += "Open</h4>";
+        content += "Open (settling)</h4>";
         break;
       case 7:
-        content += "Checking battery</h4>";
+        content += "Held open (fault / e-stop / startup)</h4>";
         break;
       default:
         content += "Unknown</h4>";
     }
-    content += "<h4>Contactor state: ";
+    content += "<h4>Main contactors: ";
     content +=
         byd_datalayer->contactor_main_closed ? "Closed &mdash; battery connected" : "Open &mdash; battery disconnected";
     content += "</h4>";
-    content += "<h4>Contactor precharge: ";
-    content += byd_datalayer->contactor_precharging ? "Precharging" : "No";
+    content += "<h4>Precharge state: ";
+    content += byd_datalayer->contactor_precharging ? "Active" : "Idle";
     content += "</h4>";
-    content += "<h4>Contactor HV active: ";
+    // Bit2 (0x04) = car on/off (clear during car-off AC charging even though HV is live),
+    // not literal HV-bus energisation.
+    content += "<h4>HV active: ";
     content += byd_datalayer->contactor_hv_active ? "Yes" : "No";
     content += "</h4>";
-    // Which power mode the pack is in - drive vs charge picks how it opens
-    content += "<h4>Contactor mode: ";
-    if (!byd_datalayer->contactor_main_closed) {
-      content += "Disconnected</h4>";
-    } else if (byd_datalayer->contactor_charge_flag) {
-      content += "Charging</h4>";
-    } else if (byd_datalayer->contactor_drive_flag) {
-      content += "Active</h4>";
-    } else {
-      content += "Standby</h4>";
+    // Pack mode read straight from the 0x344 byte0 state table (not re-derived per-bit).
+    content += "<h4>BMS pack mode: ";
+    switch (byd_datalayer->contactor_feedback) {
+      case 0x00:
+        content += "Disconnected</h4>";
+        break;
+      case 0x02:
+        content += "Open standby</h4>";
+        break;
+      case 0x42:
+        content += "Precharging</h4>";
+        break;
+      case 0x80:
+        content += "Closed, HV inactive</h4>";
+        break;
+      case 0x84:
+        content += "Closed idle, HV active</h4>";
+        break;
+      case 0x81:
+        content += "Charging, car off</h4>";
+        break;
+      case 0x85:
+        content += "Charging, HV active</h4>";
+        break;
+      case 0x82:
+        content += "Drive-ready pending</h4>";
+        break;
+      case 0x86:
+        content += "Drive ready</h4>";
+        break;
+      default: {
+        if (!(byd_datalayer->contactor_feedback & 0x80)) {
+          content += "Disconnected";
+        } else if (byd_datalayer->contactor_feedback & 0x01) {
+          content += "Charging";
+        } else if (byd_datalayer->contactor_feedback & 0x02) {
+          content += "Drive";
+        } else {
+          content += "Closed idle";
+        }
+        char modeStr[10];
+        snprintf(modeStr, sizeof(modeStr), " (0x%02X)", byd_datalayer->contactor_feedback);
+        content += modeStr;
+        content += "</h4>";
+      }
     }
     char feedbackStr[5];
     snprintf(feedbackStr, sizeof(feedbackStr), "0x%02X", byd_datalayer->contactor_feedback);
-    content += "<h4>Contactor diagnostic code: ";
+    content += "<h4>BMS raw status: mode ";
     content += feedbackStr;
-    content += "</h4>";
+    content += ", state ";
 
-    content += "<h4>BMS reported state: ";
-    switch (byd_datalayer->discharge_status) {
-      case 0:
-        content += "Ready</h4>";
-        break;
-      case 1:
-        content += "Charging</h4>";
-        break;
-      case 2:
-        content += "Charge finished</h4>";
-        break;
-      case 3:
-        content += "Discharging</h4>";
-        break;
-      case 4:
-        content += "Charge terminated</h4>";
-        break;
-      case 5:
-        content += "Breakdown C10</h4>";
-        break;
-      case 6:
-        content += "Breakdown charging plug</h4>";
-        break;
-      case 7:
-        content += "Breakdown charger</h4>";
-        break;
-      case 8:
-        content += "Breakdown AC</h4>";
-        break;
-      case 9:
-        content += "Schedule</h4>";
-        break;
-      case 10:
-        content += "Discharge CBU</h4>";
-        break;
-      case 11:
-        content += "Timeout</h4>";
-        break;
-      case 12:
-        content += "Discharge finish</h4>";
-        break;
-      case 13:
-        content += "Charging pause</h4>";
-        break;
-      default:
-        content += "Unknown</h4>";
-    }
+    // 0x344 byte1 low nibble: a BMS state code whose meaning is unconfirmed (reads 1 in
+    // idle/drive/discharge alike). byte0 is the real charge/drive truth, so show this raw.
+    content += String(byd_datalayer->discharge_status);
+    content += "</h4>";
 
     float soc_measured = static_cast<float>(byd_datalayer->SOC_highprec) * 0.1f;
     float BMS_maxChargePower = static_cast<float>(byd_datalayer->chargePower) * 0.1f;
