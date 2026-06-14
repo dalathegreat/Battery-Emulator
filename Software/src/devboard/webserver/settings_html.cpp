@@ -1239,9 +1239,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-battery, form .if-inverter, form .if-charger, form .if-shunt { display: contents; }
     form[data-battery="0"] .if-battery { display: none; }
-    form[data-battery="53"] .if-battery { display: none; }
+    form[data-battery="54"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
-    form[data-inverter="24"] .if-inverter { display: none; }
+    form[data-inverter="25"] .if-inverter { display: none; }
     form[data-charger="0"] .if-charger { display: none; }
     form[data-shunttype="0"] .if-shunt,
     form[data-shunttype="3"] .if-shunt { 
@@ -1249,10 +1249,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     }
 
     form .if-inter-master { display: none; }
-    form[data-battery="53"] .if-inter-master { display: contents; }
+    form[data-battery="54"] .if-inter-master { display: contents; }
 
     form .if-not-inter-master { display: contents; }
-    form[data-battery="53"] .if-not-inter-master { display: none; }
+    form[data-battery="54"] .if-not-inter-master { display: none; }
     form[data-shunttype="0"] .if-ctclamp,
     form[data-shunttype="1"] .if-ctclamp,
     form[data-shunttype="2"] .if-ctclamp { 
@@ -1337,7 +1337,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     }
 
     form .if-inter-slave { display: none; }
-    form[data-inverter="24"] .if-inter-slave {
+    form[data-inverter="25"] .if-inter-slave {
       display: contents;
     }
 
