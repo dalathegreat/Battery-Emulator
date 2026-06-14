@@ -1245,8 +1245,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
        The Inter-Unit Master (54) also uses can_config.battery (BATTCOMM). */
     form .if-batt-iface { display: contents; }
     form[data-battery="0"] .if-batt-iface { display: none; }
-    form[data-inverter="0"] .if-inverter { display: none; }    
-    form[data-inverter="25"] .if-inverter { display: none; }
+    form[data-inverter="0"] .if-inverter { display: none; }
+    /* Inter-Unit Slave (25) uses the same "Inverter interface" (INVCOMM) select as a
+       normal inverter, so it stays shown. A separate duplicate select would submit a
+       second INVCOMM value and overwrite the choice (falling back to CAN Native). */
     form[data-charger="0"] .if-charger { display: none; }
     form[data-shunttype="0"] .if-shunt,
     form[data-shunttype="3"] .if-shunt { 
@@ -1669,15 +1671,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='number' id='SLAVENODEID' name='SLAVENODEID' value='%SLAVENODEID%'
         min='1' max='24' step='1'
         title="Unique ID for this slave node. Each slave must have a different ID (1-244)." />
-
-        <label for='INVCOMM'>Inter-unit interface: </label><select name='INVCOMM' id='INVCOMM'>
-        %INVCOMM%
-        </select>
         </div>
 
-        <div class="if-inverter">        
-        <label>Inverter interface: </label><select name='INVCOMM'>
-        %INVCOMM%     
+        <div class="if-inverter">
+        <label for='INVCOMM'>Inverter interface: </label><select name='INVCOMM' id='INVCOMM'>
+        %INVCOMM%
         </select>
         </div>
 
