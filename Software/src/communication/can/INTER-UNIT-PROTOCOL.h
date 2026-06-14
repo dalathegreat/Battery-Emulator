@@ -95,6 +95,7 @@
 #define IU_OFFLINE_TIMEOUT_S 60u                           // Seconds without message before marking offline
 #define IU_HEARTBEAT_INTERVAL_MS 1000u                     // Master sends heartbeat every 1s
 #define IU_INFO_INTERVAL_HEARTBEATS 10u                    // Send INFO every 10th heartbeat
+#define IU_MASTER_REBOOT_GAP_MS 5000u  // Heartbeat gap > this => master restarted, re-announce IDENT/IP
 #define IU_STARTUP_GRACE_S \
   20u  // Master holds all contactors OPEN at startup
        // so all slaves can announce at matching voltages

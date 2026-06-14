@@ -33,7 +33,17 @@ void SlaveCan::receive_can_frame(CAN_frame* rx_frame) {
 
   // Master heartbeat broadcast
   if (id == IU_MASTER_HEARTBEAT_ID) {
-    _last_heartbeat_ms = millis();
+    const unsigned long now = millis();
+    // Detect a gap in master heartbeats: the master restarted (e.g. after a
+    // firmware flash) and cleared its RAM, including our IDENT and IP. Our own
+    // _heartbeat_count keeps running across the master outage, so the periodic
+    // re-announce (every 600 heartbeats) could be up to 10 minutes away. Restart
+    // the announce window on any such gap so the master re-learns our FW/battery
+    // type and IP immediately instead of showing "waiting..." for minutes.
+    if (_last_heartbeat_ms != 0 && (now - _last_heartbeat_ms) > IU_MASTER_REBOOT_GAP_MS) {
+      _heartbeat_count = 0;
+    }
+    _last_heartbeat_ms = now;
     _master_online = true;
     datalayer.system.status.master_online = true;
     datalayer.system.status.CAN_master_still_alive = CAN_STILL_ALIVE;  // Reset watchdog
