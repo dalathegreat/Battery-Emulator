@@ -801,8 +801,6 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   bool HeatingStart = false;
   /** Heat request sent*/
   bool HeaterSendRequest = false;
-  /** User requesting SOH reset via WebUI*/
-  bool UserRequestSOHreset = false;
   /** True if the crypto challenge response from BMS is signalling a failed attempt*/
   bool challengeFailed = false;
 

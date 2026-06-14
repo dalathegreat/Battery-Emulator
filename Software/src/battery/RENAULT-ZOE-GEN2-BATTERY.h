@@ -30,8 +30,9 @@ class RenaultZoeGen2Battery : public CanBattery {
   static constexpr const char* Name = "Renault Zoe Gen2 50kWh";
 
   bool supports_reset_NVROL() { return true; }
-
   void reset_NVROL() { datalayer_extended.zoePH2.UserRequestNVROLReset = true; }
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestedDTCReset = true; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
@@ -45,6 +46,8 @@ class RenaultZoeGen2Battery : public CanBattery {
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
+
+  bool UserRequestedDTCReset = false;
 
   bool is_message_corrupt(CAN_frame rx_frame, uint8_t crc_xor);
 
@@ -293,6 +296,11 @@ class RenaultZoeGen2Battery : public CanBattery {
                                      .DLC = 8,
                                      .ID = 0x18DADBF1,
                                      .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ZOE_CLEAR_DTC = {.FD = false,
+                             .ext_ID = true,
+                             .DLC = 8,
+                             .ID = 0x18DADBF1,
+                             .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
   //NVROL Reset
   CAN_frame ZOE_NVROL_1_18DADBF1 = {.FD = false,
                                     .ext_ID = true,

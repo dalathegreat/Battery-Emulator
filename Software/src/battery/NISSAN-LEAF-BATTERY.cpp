@@ -210,12 +210,16 @@ void NissanLeafBattery::
     datalayer_nissan->challengeFailed = challengeFailed;
 
     // Update requests from webserver datalayer
-    if (datalayer_nissan->UserRequestSOHreset) {
+    if (UserRequestSOHreset) {
       stateMachineClearSOH = 0;  //Start the statemachine
-      datalayer_nissan->UserRequestSOHreset = false;
+      UserRequestSOHreset = false;
     }
 
 #endif
+    if (UserRequestDTCreset) {
+      UserRequestDTCreset = false;
+      transmit_can_frame(&LEAF_CLEAR_DTC);
+    }
   }
 }
 
