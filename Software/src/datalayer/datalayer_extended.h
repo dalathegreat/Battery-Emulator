@@ -162,6 +162,22 @@ struct DATALAYER_INFO_BYDATTO3 {
   /** bool */
   /** User requesting SOC calibration via WebUI*/
   bool UserRequestCalibrateSOC = false;
+  /** uint8_t */
+  /** Software contactor control state, mirrors battery class state machine */
+  uint8_t contactor_control_state = 0;
+  /** uint8_t */
+  /** Raw contactor state feedback reported by BMS in 0x344 byte 0 */
+  uint8_t contactor_feedback = 0;
+  /** Decoded from contactor_feedback bit7 */
+  bool contactor_main_closed = false;
+  /** Decoded from contactor_feedback bit6 */
+  bool contactor_precharging = false;
+  /** Decoded from contactor_feedback bit2 */
+  bool contactor_hv_active = false;
+  /** Decoded from contactor_feedback bit1, set in idle/drive states, clear while charging */
+  bool contactor_drive_flag = false;
+  /** Decoded from contactor_feedback bit0, set while AC charging */
+  bool contactor_charge_flag = false;
   /** bool */
   /** Enable automatic SOC calibration to 100% when physically full (taper + low current) */
   bool auto_calibrate_soc_enabled = true;
