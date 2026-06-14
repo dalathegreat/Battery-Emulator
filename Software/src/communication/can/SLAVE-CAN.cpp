@@ -90,7 +90,7 @@ uint8_t SlaveCan::build_fault_flags() {
   const auto& status = datalayer.battery.status;
 
   // BMS fault (set by any ERROR-level event on the slave)
-  if (status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     flags |= IU_FAULT_BMS_FAULT;
   }
   // Any active WARNING on this slave (covers all warning event types)

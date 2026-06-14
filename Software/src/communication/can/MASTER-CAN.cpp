@@ -746,7 +746,7 @@ void MasterCan::update_slave_aggregation() {
       if (node.min_design_voltage_dV > 0) {
         datalayer.battery.info.min_design_voltage_dV = node.min_design_voltage_dV;
       }
-      datalayer.battery.status.bms_status = ACTIVE;
+      datalayer.system.status.system_status = ACTIVE;
       datalayer.battery.status.real_bms_status = BMS_ACTIVE;
       datalayer.system.status.battery_allows_contactor_closing = true;
       break;
@@ -816,7 +816,7 @@ void MasterCan::update_slave_aggregation() {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
   // Keep BMS status active so inverter sees system as alive
-  datalayer.battery.status.bms_status = ACTIVE;
+  datalayer.system.status.system_status = ACTIVE;
   datalayer.battery.status.real_bms_status = BMS_ACTIVE;
 
   // Signal inverter that system allows contactor
