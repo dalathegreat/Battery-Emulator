@@ -325,7 +325,6 @@ struct SLAVE_NODE_TYPE {
   bool contactor_engaged = false;      // Confirmed contactor state from slave
   bool contactor_allowed = false;      // Master decision: is slave allowed to close contactor
   bool online = false;                 // True if slave is responding
-  bool manual_contactor_open = false;  // User-forced contactor open via WebUI
   bool ident_received = false;         // True once IDENT frame has been received from slave
   bool balancing = false;              // True when slave is performing offline balancing (excluded from aggregation)
   bool prejoin_active = false;         // True when master prejoin is running for this slave

@@ -602,22 +602,6 @@ void init_webserver() {
   // Route for editing CAN ID cutoff filter
   update_int_setting("/set_can_id_cutoff", [](int value) { user_selected_CAN_ID_cutoff_filter = value; });
 
-  // Route for manual per-slave contactor stop/resume
-  def_route_with_auth("/slaveStop", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (request->hasParam("node") && request->hasParam("value")) {
-      int node = request->getParam("node")->value().toInt() - 1;
-      bool stop = request->getParam("value")->value() == "true";
-      if (node >= 0 && node < MAX_SLAVE_NODES) {
-        datalayer.system.slave_nodes[node].manual_contactor_open = stop;
-        request->send(200, "text/plain", "OK");
-      } else {
-        request->send(400, "text/plain", "Invalid node");
-      }
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
-  });
-
   // Route for pause/resume Battery emulator
   update_string("/pause", [](String value) { setBatteryPause(value == "true" || value == "1", false); });
 
@@ -1520,36 +1504,17 @@ String processor(const String& var) {
         int cell_delta_mV = (s.cell_max_voltage_mV > 0 && s.cell_min_voltage_mV > 0)
                                 ? (int)s.cell_max_voltage_mV - (int)s.cell_min_voltage_mV
                                 : -1;
-        const char* contactor_state = s.manual_contactor_open ? "Paused"
-                                      : s.contactor_engaged   ? "Engaged"
-                                      : s.prejoin_active      ? "Prejoin"
-                                                              : "Open";
-        const char* contactor_color = s.manual_contactor_open ? "color:#FF8C00;"
-                                      : s.contactor_engaged   ? "color:white;"
-                                      : s.prejoin_active      ? "color:orange;"
-                                                              : "color:gray;";
-        String node_s = String(i + 1);
-        String btn_val = s.manual_contactor_open ? "false" : "true";
-        String btn_col = s.manual_contactor_open ? "color:#FF0000;" : "color:white;";  // red=paused, white=normal
-        String btn_tip =
-            s.manual_contactor_open ? "Resume: reconnect when voltage matches" : "Stop: open contactor manually";
+        const char* contactor_state = s.contactor_engaged ? "Engaged" : (s.prejoin_active ? "Prejoin" : "Open");
+        const char* contactor_color =
+            s.contactor_engaged ? "color:white;" : (s.prejoin_active ? "color:orange;" : "color:gray;");
         content += "<div style='background-color:" + String(bg) + ";padding:10px;border-radius:12px;min-width:160px;'>";
-        content += "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;'>";
         if (s.ip_address != 0) {
           IPAddress ip(s.ip_address);
           content += "<h4 style='color:white;margin:2px 0;'><a href='http://" + ip.toString() +
-                     "' target='_blank' style='color:white;'>Battery " + node_s + " &#8599;</a></h4>";
+                     "' target='_blank' style='color:white;'>Battery " + String(i + 1) + " &#8599;</a></h4>";
         } else {
-          content += "<h4 style='color:white;margin:2px 0;'>Battery " + node_s + "</h4>";
+          content += "<h4 style='color:white;margin:2px 0;'>Battery " + String(i + 1) + "</h4>";
         }
-        content += "<button onclick=\"fetch('/slaveStop?node=" + node_s + "&value=" + btn_val +
-                   "').then(()=>location.reload())\" title=\"" + btn_tip +
-                   "\" "
-                   "style='background:rgba(0,0,0,0.3);border:none;border-radius:6px;" +
-                   btn_col +
-                   "font-size:16px;width:26px;height:26px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;'>"
-                   "&#9211;</button>";
-        content += "</div>";
         content += "<h4 style='margin:2px 0;'>SOC: " + String(soc, 1) + " %</h4>";
         content += "<h4 style='margin:2px 0;'>SOH: " + String(soh, 1) + " %</h4>";
         content += "<h4 style='margin:2px 0;'>Voltage: " + String(v, 1) + " V</h4>";
