@@ -282,10 +282,10 @@ void ChademoBattery::process_vehicle_charging_limits(CAN_frame rx_frame) {
     logStream.clear();
   };
 
-  x200_discharge_limits.MaximumDischargeCurrent = rx_frame.data.u8[0] - 0xFF;
+  x200_discharge_limits.MaximumDischargeCurrent = rx_frame.data.u8[0] - 0xFF;  // could be signed byte along with x208?
   x200_discharge_limits.MinimumDischargeVoltage = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
-  x200_discharge_limits.MinimumBatteryDischargeLevel = rx_frame.data.u8[6] * 100;        // in Wh
-  x200_discharge_limits.MaxRemainingCapacityForDischarging = rx_frame.data.u8[7] * 100;  // in Wh
+  x200_discharge_limits.MinimumBatteryDischargeLevel = rx_frame.data.u8[6] * 100;  // in Wh
+  x200_discharge_limits.MaxCapacityForDischarging = rx_frame.data.u8[7] * 100;     // in Wh
 
   //If discharging and we are at or below the vehicle's minimum discharge levels, stop. This is a safety measure to avoid over-discharging the vehicle battery
   if (x102_chg_session.s.status.StatusVehicleChargingEnabled &&
@@ -577,9 +577,9 @@ void ChademoBattery::update_evse_discharge_estimate(CAN_frame& f) {
 
   //do nothing to alter the default initialized values..this may be unneeded
   /* TODO
-	if (x200_discharge_limits.MaxRemainingCapacityForDischarging = max charge voltage){
+	if (x200_discharge_limits.MaxCapacityForDischarging = max charge voltage){
 	if (x200_discharge_limits.MinimumBatteryDischargeLevel = kwH for v2h<1.0){
-	if (x200_discharge_limits.MaxRemainingCapacityForDischarging = kwH for v2h<1.0){
+	if (x200_discharge_limits.MaxCapacityForDischarging = kwH for v2h<1.0){
 	*/
 
   CHADEMO_209.data.u8[0] = x209_evse_dischg_est.sequence_control_number;
