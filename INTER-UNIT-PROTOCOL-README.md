@@ -20,7 +20,7 @@ A Battery Emulator can be configured as **Master** or **Slave** via the settings
 
 Up to **24 slave nodes** are supported (Node ID 1–24).
 
-CAN bus: MCP2515 addon bus, **500 kbps**.
+CAN bus, **500 kbps**: the master runs the inter-unit protocol on its **battery** interface (`BATTCOMM`), the slave on its **inverter** interface (`INVCOMM`). There is no separate inter-unit bus.
 
 ---
 
@@ -221,26 +221,21 @@ Events are automatically cleared when the fault condition disappears.
 Before the master allows a slave to close its contactor it must verify that the slave's pack voltage is close enough to the already-active slaves. There are two paths depending on how far apart the voltages are.
 
 #### Direct-close path (diff ≤ 1.5 V)
-When the voltage difference is at or below `VOLTAGE_DIFF_THRESHOLD_dV` (1.5 V) the contactor is allowed immediately without any power capping. This is the normal case after a brief disconnection.
+When the voltage difference is at or below `VOLTAGE_DIFF_THRESHOLD_dV` (1.5 V) for `VOLTAGE_DIFF_SECONDS_LIMIT` (10 s) the contactor is allowed — no power capping is applied. This is the normal case after a brief disconnection.
 
-#### Prejoin path (diff ≤ 1.8 V with inverter active)
-When the EMA-filtered voltage difference is between 1.5 V and 1.8 V (`PREJOIN_ENTER_DIFF_dV`) and the inverter is delivering meaningful power, the master enters **prejoin mode** for that slave. The goal is to coax the idle pack's voltage closer to the active pack by capping the inverter power — creating "pressure" on the batteries.
+#### Prejoin path (1.5 V < diff ≤ 1.8 V with inverter active)
+When the raw voltage difference is between 1.5 V and 1.8 V (`PREJOIN_ENTER_DIFF_dV`) and the inverter is delivering meaningful power (absolute load > `PREJOIN_LOW_POWER_ABORT_W`, 300 W), the master enters **prejoin mode** for that slave. Prejoin does **not** cap or reduce inverter power. The ongoing charge/discharge current naturally pulls the idle pack's voltage toward the active pack; prejoin simply monitors that convergence and imposes a stricter, direction-aware close gate so the contactor only closes once the gap has shrunk into a safe window.
 
 How it works:
-1. A snapshot of the current charge/discharge capacity is taken at prejoin entry to avoid a feedback loop.
-2. A **quadratic pressure curve** maps the EMA diff to a 0–1000 ‰ pressure value:
-   - diff ≥ 0.4 V (`PREJOIN_PRESSURE_START_DIFF_dV`) → 0 ‰ pressure (full inverter power)
-   - diff ≤ 0.2 V (`PREJOIN_PRESSURE_FULL_DIFF_dV`) → 1000 ‰ pressure (maximum cap)
-3. The applied pressure ramps toward the target at max `PREJOIN_PRESSURE_STEP_PER_S` (8 ‰/s) and never decreases while any slave is still in prejoin.
-4. A **fixed floor** power is always maintained so the inverter is never starved entirely.
-5. The contactor is allowed when all of the following are true:
-   - The diff is in the close window (0.2–0.4 V range)
-   - Applied pressure has reached 1000 ‰
-   - The slave has remained stable for `PREJOIN_CLOSE_DWELL_S` (2 s)
-   - The discharge-direction gate passes (slave must be discharging to join under discharge load, and vice versa)
-6. Prejoin aborts if the absolute inverter load stays below `PREJOIN_LOW_POWER_ABORT_W` (300 W) for `PREJOIN_LOW_POWER_ABORT_S` (30 s) — e.g. when solar disappears mid-prejoin.
+1. Prejoin activates when the diff first falls to ≤ 1.8 V while the inverter is working.
+2. While active, the master tracks a **close window** that depends on the load direction:
+   - **Charging** (load ≥ 0): close window is diff ≤ `PREJOIN_CLOSE_RAW_DIFF_dV` (0.5 V).
+   - **Discharging** (load < 0): close window requires the slave voltage to be at or above the reference **and** diff ≤ 0.7 V, so the joining pack is never pulled down by an already-loaded bus.
+3. The diff must stay inside the close window for `PREJOIN_CLOSE_DWELL_S` (2 s) of stable dwell.
+4. The contactor is allowed when **both** the standard voltage timer (diff ≤ 1.5 V for 10 s) and the prejoin gate (close window satisfied + dwell met) pass.
+5. Prejoin aborts if the absolute inverter load stays below `PREJOIN_LOW_POWER_ABORT_W` (300 W) for `PREJOIN_LOW_POWER_ABORT_S` (30 s) — e.g. when solar disappears mid-prejoin — and the slave falls back to waiting for the direct-close path.
 
-If neither path can close the contactor (diff > 1.8 V, or inverter not working) the slave remains blocked.
+If neither path can close the contactor (diff > 1.8 V, or the inverter is idle) the slave remains blocked.
 
 The first slave that comes online is used as the reference voltage and is always allowed.  
 All voltage checks are skipped during the startup grace period.
@@ -289,5 +284,8 @@ Settings are applied via the web UI under **Settings**:
 
 | Setting | Description |
 |---------|-------------|
-| `NODE_MODE` | `NODE_MASTER` or `NODE_SLAVE` |
+| Battery type = **Inter-Unit Master** | Selects Master role. The master's `BATTCOMM` interface carries the inter-unit protocol. |
+| Inverter protocol = **Inter-Unit Slave** | Selects Slave role. The slave's `INVCOMM` interface carries the inter-unit protocol. |
 | `SLAVE_NODE_ID` | Node ID for this slave (1–24) |
+
+> The node role is derived from the battery/inverter selection — there is no separate `NODE_MODE` setting.
