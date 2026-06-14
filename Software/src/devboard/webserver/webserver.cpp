@@ -1105,7 +1105,10 @@ String processor(const String& var) {
             if ((sn.fault_flags & IU_FAULT_ERROR_MASK) != 0) slave_error++;
           }
           if (slave_online > 0 && slave_error < slave_online) {
-            emu_status = EMULATOR_STATUS::STATUS_OK;
+            // A single slave fault must not paint the master card red, but the
+            // master's own warning state (e.g. paused) must still show as yellow.
+            emu_status = (emulator_pause_status != NORMAL) ? EMULATOR_STATUS::STATUS_WARNING
+                                                           : EMULATOR_STATUS::STATUS_OK;
           }
         }
         switch (emu_status) {
