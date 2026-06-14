@@ -32,5 +32,9 @@ compile.bat
 # Ignore binary files
 *.bin
 
+# Ignore emulator serial logs
+emulator.log*
+*.log
+
 # Ignore secret file
 USER_SECRETS.h
