@@ -28,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     
     strategy:
+      fail-fast: false
       matrix:
         include:
           - board_name: "LilygoT-CAN485"
