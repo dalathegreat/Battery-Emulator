@@ -76,11 +76,6 @@ void init_stored_settings() {
   if (temp != 0) {
     datalayer.battery.settings.user_set_bms_reset_duration_ms = temp;
   }
-  // Restore fake battery voltage across reboots
-  temp = settings.getUInt("FAKEVOLTAGEDV", 0);
-  if (temp != 0) {
-    datalayer.battery.status.voltage_dV = temp;
-  }
 
   user_selected_battery_type = (BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None);
   user_selected_battery_chemistry =
@@ -285,10 +280,6 @@ void store_settings() {
   settings.saveBool("BYDAUTOCALEN", datalayer_extended.bydAtto3.auto_calibrate_soc_enabled);
   settings.saveUInt("BYDAUTOCALDRFT2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
-  // Save fake battery voltage (only meaningful when using TestFakeBattery)
-  if (datalayer.battery.status.voltage_dV != 0) {
-    settings.saveUInt("FAKEVOLTAGEDV", datalayer.battery.status.voltage_dV);
-  }
 
   // Master/Slave inter-unit protocol settings
   // node_mode is derived from BATTTYPE/INVTYPE at load time — no need to save separately.
