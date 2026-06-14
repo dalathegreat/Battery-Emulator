@@ -73,6 +73,18 @@ class String {
   int length() const { return static_cast<int>(data.length()); }
   const char* c_str() const { return data.c_str(); }
 
+  void remove(unsigned int index) {
+    if (index < data.length()) {
+      data.erase(index);
+    }
+  }
+
+  void remove(unsigned int index, unsigned int count) {
+    if (index < data.length()) {
+      data.erase(index, count);
+    }
+  }
+
   // Friend functions to allow std::string + String
   friend String operator+(const std::string& lhs, const String& rhs) { return String(lhs + rhs.data); }
 
