@@ -61,6 +61,9 @@ class MasterCan : public CanReceiver, public Transmitter {
   void send_contactor_commands(unsigned long currentMillis);
   void update_slave_aggregation();
   void check_slave_voltage_safety(uint8_t slave_idx);
+  /** True only when the slave has reported IDENT and its FW + battery type match.
+   *  An unverified or mismatched slave must never prejoin or close its contactor. */
+  bool node_identity_ok(uint8_t slave_idx) const;
 
   unsigned long _last_heartbeat_ms = 0;
   unsigned long _next_contactor_tx_ms = 0;

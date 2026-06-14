@@ -335,7 +335,7 @@ void MasterCan::update_values() {
       if (reference_found && all_online_slaves_match) {
         for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
           SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
-          if (node.online && !node.balancing && node.voltage_dV > 0) {
+          if (node.online && !node.balancing && node.voltage_dV > 0 && node_identity_ok(i)) {
             node.contactor_allowed = true;
             logging.printf("Master CAN: Grace done — Slave %d contactor ALLOWED together (voltage %u.%uV)\n", i + 1,
                            node.voltage_dV / 10, node.voltage_dV % 10);
@@ -422,24 +422,19 @@ void MasterCan::update_values() {
     // Only check after IDENT has been received from this slave.
     // Runs AFTER voltage safety so it always overrides any re-allow.
     if (node.online && node.ident_received) {
-      bool fw_ok = (node.fw_version_num == (uint16_t)IU_FW_VERSION_NUM);
-      // Battery type must match the first slave that reported one (used as reference).
-      // Find the reference battery_type_id from the first slave that has ident_received.
-      uint16_t ref_btype = 0;
-      bool ref_found = false;
-      for (uint8_t j = 0; j < MAX_SLAVE_NODES; j++) {
-        if (datalayer.system.slave_nodes[j].ident_received) {
-          ref_btype = datalayer.system.slave_nodes[j].battery_type_id;
-          ref_found = true;
-          break;
-        }
-      }
-      bool btype_ok = (!ref_found || node.battery_type_id == ref_btype);
-      if (!fw_ok || !btype_ok) {
+      if (!node_identity_ok(i)) {
         node.contactor_allowed = false;
         set_event(EVENT_SLAVE_IDENT_MISMATCH, i + 1);
         if (!ident_mismatch_logged[i]) {
           ident_mismatch_logged[i] = true;
+          // Reference battery type = first slave that reported IDENT.
+          uint16_t ref_btype = 0;
+          for (uint8_t j = 0; j < MAX_SLAVE_NODES; j++) {
+            if (datalayer.system.slave_nodes[j].ident_received) {
+              ref_btype = datalayer.system.slave_nodes[j].battery_type_id;
+              break;
+            }
+          }
           logging.printf("Master CAN: Slave %d IDENT mismatch (fw=0x%04X exp=0x%04X btype=%u exp=%u)\n", i + 1,
                          node.fw_version_num, IU_FW_VERSION_NUM, node.battery_type_id, ref_btype);
         }
@@ -481,6 +476,25 @@ void MasterCan::update_values() {
   update_slave_aggregation();
 }
 
+bool MasterCan::node_identity_ok(uint8_t idx) const {
+  const SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[idx];
+  // No IDENT received yet -> identity unverified -> treat as blocked.
+  // We must never close a contactor to a slave we have not verified.
+  if (!node.ident_received) {
+    return false;
+  }
+  if (node.fw_version_num != (uint16_t)IU_FW_VERSION_NUM) {
+    return false;
+  }
+  // Battery type must match the first slave that reported one (reference).
+  for (uint8_t j = 0; j < MAX_SLAVE_NODES; j++) {
+    if (datalayer.system.slave_nodes[j].ident_received) {
+      return node.battery_type_id == datalayer.system.slave_nodes[j].battery_type_id;
+    }
+  }
+  return true;
+}
+
 /** Mimics check_interconnect_available() logic from parallel_safety.cpp */
 void MasterCan::check_slave_voltage_safety(uint8_t idx) {
   SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[idx];
@@ -509,6 +523,21 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
   // can announce themselves at matching voltages before the inverter starts.
   if (!_startup_grace_done) {
     reset_prejoin_state(idx);
+    return;
+  }
+
+  // Identity gate: a slave whose FW/battery type does not match (or which has
+  // not yet reported IDENT) must never prejoin or be allowed to close. This is
+  // an entry gate — not just a post-override — so a blocked slave can never even
+  // enter the prejoin state machine (the IDENT-mismatch event is still raised in
+  // update_values()).
+  if (!node_identity_ok(idx)) {
+    voltage_diff_seconds[idx] = 0;
+    reset_prejoin_state(idx);
+    if (node.contactor_allowed) {
+      node.contactor_allowed = false;
+      logging.printf("Master CAN: Slave %d contactor BLOCKED (identity not verified/mismatch)\n", idx + 1);
+    }
     return;
   }
 
