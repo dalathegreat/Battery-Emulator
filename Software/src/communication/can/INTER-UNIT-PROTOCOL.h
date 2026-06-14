@@ -46,7 +46,7 @@
 // Update these when version_number in Software.cpp changes (e.g. "10.11.dev" -> major=10, minor=11)
 #define IU_FW_VERSION_MAJOR 10u
 #define IU_FW_VERSION_MINOR 11u
-#define IU_FW_VERSION_NUM   ((IU_FW_VERSION_MAJOR << 8u) | IU_FW_VERSION_MINOR)  // 0x0A0B
+#define IU_FW_VERSION_NUM ((IU_FW_VERSION_MAJOR << 8u) | IU_FW_VERSION_MINOR)  // 0x0A0B
 
 /* ---- Master → Broadcast ---- */
 #define IU_MASTER_HEARTBEAT_ID 0x300u  // Heartbeat, no payload needed
@@ -56,11 +56,11 @@
 
 /* ---- Slave N → Master ---- */
 #define IU_SLAVE_STATUS_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x00u)  // Status (8 bytes, every 1s)
-#define IU_SLAVE_POWER_ID(n)  (0x100u + ((uint32_t)(n) * 0x10u) + 0x01u)  // Power  (8 bytes, every 1s)
-#define IU_SLAVE_INFO_ID(n)   (0x100u + ((uint32_t)(n) * 0x10u) + 0x02u)  // Info   (8 bytes, every 10s)
-#define IU_SLAVE_IP_ID(n)     (0x100u + ((uint32_t)(n) * 0x10u) + 0x03u)  // IP addr (4 bytes, every 10s)
-#define IU_SLAVE_CELL_ID(n)   (0x100u + ((uint32_t)(n) * 0x10u) + 0x04u)  // Cell info (8 bytes, every 2s)
-#define IU_SLAVE_IDENT_ID(n)  (0x100u + ((uint32_t)(n) * 0x10u) + 0x05u)  // Ident (8 bytes, startup only)
+#define IU_SLAVE_POWER_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x01u)   // Power  (8 bytes, every 1s)
+#define IU_SLAVE_INFO_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x02u)    // Info   (8 bytes, every 10s)
+#define IU_SLAVE_IP_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x03u)      // IP addr (4 bytes, every 10s)
+#define IU_SLAVE_CELL_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x04u)    // Cell info (8 bytes, every 2s)
+#define IU_SLAVE_IDENT_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x05u)   // Ident (8 bytes, startup only)
 
 /* ---- Slave ID range detection ---- */
 #define IU_SLAVE_MSG_MIN_ID 0x110u  // Slave 1, msg 0x00
@@ -68,20 +68,20 @@
 
 /* ---- Contactor command byte (master → slave, data[0]) ---- */
 #define IU_CONTACTOR_ALLOW 0x01u  // Slave may close contactor
-#define IU_CONTACTOR_OPEN  0x00u  // Slave must open contactor
+#define IU_CONTACTOR_OPEN 0x00u   // Slave must open contactor
 
 /* ---- FLAGS byte in STATUS message (data[7]) ---- */
-#define IU_FAULT_BMS_FAULT         0x01u  // bit 0: BMS reports fault
-#define IU_FAULT_CELL_OVERVOLTAGE  0x02u  // bit 1: Cell over-voltage
+#define IU_FAULT_BMS_FAULT 0x01u          // bit 0: BMS reports fault
+#define IU_FAULT_CELL_OVERVOLTAGE 0x02u   // bit 1: Cell over-voltage
 #define IU_FAULT_CELL_UNDERVOLTAGE 0x04u  // bit 2: Cell under-voltage
-#define IU_FAULT_OVERTEMPERATURE   0x08u  // bit 3: Over-temperature
-#define IU_FAULT_CONTACTOR_FAILED  0x10u  // bit 4: Contactor failed to close
-#define IU_FAULT_BATTERY_TIMEOUT   0x20u  // bit 5: Battery CAN timeout on slave
-#define IU_FLAG_CONTACTOR_ENGAGED  0x40u  // bit 6: Contactor is physically engaged (not a fault)
-#define IU_FLAG_STATUS_TOGGLE      0x80u  // bit 7: Alternating toggle bit — flips each STATUS frame for stale detection
+#define IU_FAULT_OVERTEMPERATURE 0x08u    // bit 3: Over-temperature
+#define IU_FAULT_CONTACTOR_FAILED 0x10u   // bit 4: Contactor failed to close
+#define IU_FAULT_BATTERY_TIMEOUT 0x20u    // bit 5: Battery CAN timeout on slave
+#define IU_FLAG_CONTACTOR_ENGAGED 0x40u   // bit 6: Contactor is physically engaged (not a fault)
+#define IU_FLAG_STATUS_TOGGLE 0x80u       // bit 7: Alternating toggle bit — flips each STATUS frame for stale detection
 
 /* ---- Fault classification masks ---- */
-#define IU_FAULT_ERROR_MASK   (IU_FAULT_BMS_FAULT | IU_FAULT_BATTERY_TIMEOUT | IU_FAULT_CONTACTOR_FAILED)
+#define IU_FAULT_ERROR_MASK (IU_FAULT_BMS_FAULT | IU_FAULT_BATTERY_TIMEOUT | IU_FAULT_CONTACTOR_FAILED)
 #define IU_FAULT_WARNING_MASK (IU_FAULT_CELL_OVERVOLTAGE | IU_FAULT_CELL_UNDERVOLTAGE | IU_FAULT_OVERTEMPERATURE)
 
 /* ---- FLAGS byte in POWER message (data[7]) ---- */
@@ -95,9 +95,10 @@
 #define IU_OFFLINE_TIMEOUT_S 60u                           // Seconds without message before marking offline
 #define IU_HEARTBEAT_INTERVAL_MS 1000u                     // Master sends heartbeat every 1s
 #define IU_INFO_INTERVAL_HEARTBEATS 10u                    // Send INFO every 10th heartbeat
-#define IU_STARTUP_GRACE_S 20u                             // Master holds all contactors OPEN at startup
-                                                           // so all slaves can announce at matching voltages
-                                                           // before the inverter starts charging/discharging
+#define IU_STARTUP_GRACE_S \
+  20u  // Master holds all contactors OPEN at startup
+       // so all slaves can announce at matching voltages
+       // before the inverter starts charging/discharging
 
 /*
  * STATUS message layout — IU_SLAVE_STATUS_ID(n), 8 bytes:

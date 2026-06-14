@@ -39,10 +39,8 @@ void TestFakeBattery::
 
   // Mirror contactor status: engaged only if master allows closing AND equipment stop is not active
   datalayer.system.status.contactors_engaged =
-      (datalayer.system.status.inverter_allows_contactor_closing &&
-       !datalayer.system.info.equipment_stop_active)
-          ? 1
-          : 0;
+      (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) ? 1
+                                                                                                                  : 0;
 }
 
 void TestFakeBattery::handle_incoming_can_frame(CAN_frame rx_frame) {

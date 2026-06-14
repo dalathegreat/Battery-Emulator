@@ -41,7 +41,7 @@ class SlaveCan : public CanReceiver, public Transmitter {
   unsigned long _last_heartbeat_ms = 0;  // millis() when last heartbeat was received
   unsigned long _reply_due_ms = 0;       // millis() when we should send our reply
   bool _reply_pending = false;           // True: we have a reply to send
-  uint8_t _heartbeat_count = 0;         // Counts heartbeats to decide when to send INFO
+  uint8_t _heartbeat_count = 0;          // Counts heartbeats to decide when to send INFO
   bool _master_online = false;           // True if master is alive
 };
 

@@ -81,8 +81,8 @@ String InterUnitMasterHtmlRenderer::get_status_html() {
       if (btype_ok) {
         content += " <span class='iu-ok'>&#10003;</span>";
       } else {
-        content += " <span class='iu-err'>&#10007; (ref: " +
-                   String(name_for_battery_type((BatteryType)ref_btype)) + ")</span>";
+        content += " <span class='iu-err'>&#10007; (ref: " + String(name_for_battery_type((BatteryType)ref_btype)) +
+                   ")</span>";
       }
       content += "</h4>";
     } else {
@@ -98,8 +98,7 @@ String InterUnitMasterHtmlRenderer::get_status_html() {
 
     // ---- Total capacity & SOH ------------------------------------
     if (n.total_capacity_Wh > 0) {
-      content +=
-          "<h4 style='margin:2px 0;'>Capacity: " + String(n.total_capacity_Wh / 1000.0f, 1) + " kWh</h4>";
+      content += "<h4 style='margin:2px 0;'>Capacity: " + String(n.total_capacity_Wh / 1000.0f, 1) + " kWh</h4>";
     }
     if (n.soh_pptt > 0) {
       content += "<h4 style='margin:2px 0;'>SOH: " + String(n.soh_pptt / 100.0f, 1) + " %</h4>";
@@ -110,12 +109,18 @@ String InterUnitMasterHtmlRenderer::get_status_html() {
         (uint8_t)(n.fault_flags & (uint8_t)(~(uint8_t)(IU_FLAG_CONTACTOR_ENGAGED | IU_FLAG_STATUS_TOGGLE)));
     if (fault_bits) {
       String faults = "";
-      if (fault_bits & IU_FAULT_BMS_FAULT)         faults += "BMS fault, ";
-      if (fault_bits & IU_FAULT_CELL_OVERVOLTAGE)  faults += "Cell OV, ";
-      if (fault_bits & IU_FAULT_CELL_UNDERVOLTAGE) faults += "Cell UV, ";
-      if (fault_bits & IU_FAULT_OVERTEMPERATURE)   faults += "Over-temp, ";
-      if (fault_bits & IU_FAULT_CONTACTOR_FAILED)  faults += "Contactor fail, ";
-      if (fault_bits & IU_FAULT_BATTERY_TIMEOUT)   faults += "Battery timeout, ";
+      if (fault_bits & IU_FAULT_BMS_FAULT)
+        faults += "BMS fault, ";
+      if (fault_bits & IU_FAULT_CELL_OVERVOLTAGE)
+        faults += "Cell OV, ";
+      if (fault_bits & IU_FAULT_CELL_UNDERVOLTAGE)
+        faults += "Cell UV, ";
+      if (fault_bits & IU_FAULT_OVERTEMPERATURE)
+        faults += "Over-temp, ";
+      if (fault_bits & IU_FAULT_CONTACTOR_FAILED)
+        faults += "Contactor fail, ";
+      if (fault_bits & IU_FAULT_BATTERY_TIMEOUT)
+        faults += "Battery timeout, ";
       if (faults.length() > 2) {
         faults.remove(faults.length() - 2);  // trim trailing ", "
       }

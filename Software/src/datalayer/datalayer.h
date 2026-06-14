@@ -306,15 +306,15 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
 
 /** Per-slave node status maintained by master */
 struct SLAVE_NODE_TYPE {
-  uint16_t voltage_dV = 0;               // Pack voltage in deciVolts
-  uint16_t real_soc = 0;                 // SOC in 0.01% units (9550 = 95.50%)
-  int16_t current_dA = 0;               // Current in deciAmpere
+  uint16_t voltage_dV = 0;             // Pack voltage in deciVolts
+  uint16_t real_soc = 0;               // SOC in 0.01% units (9550 = 95.50%)
+  int16_t current_dA = 0;              // Current in deciAmpere
   int8_t temp_max_dC = 0;              // Max temperature in deci-Celsius divided by 10
   int8_t temp_min_dC = 0;              // Min temperature
-  uint16_t max_charge_W = 0;            // Max allowed charge power in Watts
-  uint16_t max_discharge_W = 0;         // Max allowed discharge power in Watts
+  uint16_t max_charge_W = 0;           // Max allowed charge power in Watts
+  uint16_t max_discharge_W = 0;        // Max allowed discharge power in Watts
   uint16_t remaining_Wh = 0;           // Remaining capacity in Wh
-  uint16_t total_capacity_Wh = 0;       // Total capacity in Wh
+  uint16_t total_capacity_Wh = 0;      // Total capacity in Wh
   uint16_t max_design_voltage_dV = 0;  // Max design voltage in dV
   uint16_t min_design_voltage_dV = 0;  // Min design voltage in dV
   uint16_t soh_pptt = 9900;            // State of health
@@ -322,16 +322,16 @@ struct SLAVE_NODE_TYPE {
   uint16_t cell_min_voltage_mV = 0;    // Lowest cell voltage in pack
   uint8_t fault_flags = 0;             // Bitmask of faults (see INTER-UNIT-PROTOCOL.h)
   uint8_t still_alive = 0;             // Countdown counter: decremented each second, reset on message
-  bool contactor_engaged = false;       // Confirmed contactor state from slave
-  bool contactor_allowed = false;       // Master decision: is slave allowed to close contactor
-  bool online = false;                  // True if slave is responding
-  bool manual_contactor_open = false;   // User-forced contactor open via WebUI
-  bool ident_received = false;          // True once IDENT frame has been received from slave
-  bool balancing = false;               // True when slave is performing offline balancing (excluded from aggregation)
-  bool prejoin_active = false;           // True when master prejoin is running for this slave
+  bool contactor_engaged = false;      // Confirmed contactor state from slave
+  bool contactor_allowed = false;      // Master decision: is slave allowed to close contactor
+  bool online = false;                 // True if slave is responding
+  bool manual_contactor_open = false;  // User-forced contactor open via WebUI
+  bool ident_received = false;         // True once IDENT frame has been received from slave
+  bool balancing = false;              // True when slave is performing offline balancing (excluded from aggregation)
+  bool prejoin_active = false;         // True when master prejoin is running for this slave
   uint32_t ip_address = 0;             // IPv4 address of slave (0 = unknown)
-  uint16_t fw_version_num = 0;          // Firmware version: (major<<8)|minor, e.g. 10.6 -> 0x0A06
-  uint16_t battery_type_id = 0;         // BatteryType enum value reported by slave
+  uint16_t fw_version_num = 0;         // Firmware version: (major<<8)|minor, e.g. 10.6 -> 0x0A06
+  uint16_t battery_type_id = 0;        // BatteryType enum value reported by slave
   uint8_t status_stale_seconds = 0;    // Incremented each second; reset when STATUS toggle bit changes
   uint8_t _last_status_toggle = 0xFF;  // Previous value of STATUS toggle bit (0xFF = never seen)
 };
@@ -404,7 +404,7 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   /** Master/Slave inter-unit protocol */
   node_mode_enum node_mode = NODE_STANDALONE;
   uint8_t slave_node_id = 1;   // 1-8, used when node_mode == NODE_SLAVE
-  bool master_online = false;       // true when master heartbeat received within timeout (slave mode only)
+  bool master_online = false;  // true when master heartbeat received within timeout (slave mode only)
 };
 
 struct DATALAYER_SYSTEM_TYPE {

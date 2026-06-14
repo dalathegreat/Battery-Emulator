@@ -6,8 +6,8 @@
 #include "../../battery/Battery.h"
 #include "../../battery/Shunt.h"
 #include "../../charger/CHARGERS.h"
-#include "../../communication/can/comm_can.h"
 #include "../../communication/can/INTER-UNIT-PROTOCOL.h"
+#include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../../communication/nvm/comm_nvm.h"
@@ -417,13 +417,13 @@ void init_webserver() {
   };
 
   const char* uintSettingNames[] = {
-      "BATTCVMAX",  "BATTCVMIN",   "MAXPRETIME", "MAXPREFREQ",  "WIFICHANNEL", "DCHGPOWER", "CHGPOWER",    "LOCALIP1",
-      "LOCALIP2",   "LOCALIP3",    "LOCALIP4",   "GATEWAY1",    "GATEWAY2",    "GATEWAY3",  "GATEWAY4",    "SUBNET1",
-      "SUBNET2",    "SUBNET3",     "SUBNET4",    "MQTTPORT",    "MQTTTIMEOUT", "SOFAR_ID",  "PYLONSEND",   "INVCELLS",
-      "INVMODULES", "INVCELLSPER", "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "CANFREQ",   "CANFDFREQ",   "PRECHGMS",
-      "PWMFREQ",    "PWMHOLD",     "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS",  "GTWPACK",   "LEDMODE",     "GPIOOPT1",
-      "GPIOOPT2",   "GPIOOPT3",    "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",      "CTANOM",    "CTATTEN",     "PYLONBAUD",
-      "PYLONBRAND", "DALYPWRPCT",  "DALYPWRDV",  "DALYDVSTART", "DALYPWRDEG",  "DALYPWR0C", "RAMPDOWNSOC", "GPIOOPT5",
+      "BATTCVMAX",  "BATTCVMIN",   "MAXPRETIME",  "MAXPREFREQ",  "WIFICHANNEL", "DCHGPOWER", "CHGPOWER",    "LOCALIP1",
+      "LOCALIP2",   "LOCALIP3",    "LOCALIP4",    "GATEWAY1",    "GATEWAY2",    "GATEWAY3",  "GATEWAY4",    "SUBNET1",
+      "SUBNET2",    "SUBNET3",     "SUBNET4",     "MQTTPORT",    "MQTTTIMEOUT", "SOFAR_ID",  "PYLONSEND",   "INVCELLS",
+      "INVMODULES", "INVCELLSPER", "INVVLEVEL",   "INVCAPACITY", "INVBTYPE",    "CANFREQ",   "CANFDFREQ",   "PRECHGMS",
+      "PWMFREQ",    "PWMHOLD",     "GTWCOUNTRY",  "GTWMAPREG",   "GTWCHASSIS",  "GTWPACK",   "LEDMODE",     "GPIOOPT1",
+      "GPIOOPT2",   "GPIOOPT3",    "INVSUNTYPE",  "GPIOOPT4",    "CTVNOM",      "CTANOM",    "CTATTEN",     "PYLONBAUD",
+      "PYLONBRAND", "DALYPWRPCT",  "DALYPWRDV",   "DALYDVSTART", "DALYPWRDEG",  "DALYPWR0C", "RAMPDOWNSOC", "GPIOOPT5",
       "GPIOOPT6",   "INVICNT",     "SLAVENODEID",
   };
 
@@ -1039,10 +1039,9 @@ String processor(const String& var) {
         const char* master_dot = datalayer.system.status.master_online ? "&#10003;" : "&#10060;";
         const char* master_color = datalayer.system.status.master_online ? "color:lightgreen;" : "color:red;";
         const char* contactor_text = datalayer.system.status.inverter_allows_contactor_closing ? "Allowed" : "Blocked";
-        content += "<h4 style='color:white;'>&#9889; Slave Node " +
-                   String(datalayer.system.status.slave_node_id) + " &nbsp;|&nbsp; Master: <span style='" +
-                   String(master_color) + "'>" + String(master_dot) + "</span> &nbsp;|&nbsp; Contactor closing: " +
-                   String(contactor_text) + "</h4>";
+        content += "<h4 style='color:white;'>&#9889; Slave Node " + String(datalayer.system.status.slave_node_id) +
+                   " &nbsp;|&nbsp; Master: <span style='" + String(master_color) + "'>" + String(master_dot) +
+                   "</span> &nbsp;|&nbsp; Contactor closing: " + String(contactor_text) + "</h4>";
       }
       if (inverter) {
         content += "<h4 style='color: white;'>Inverter protocol: ";
@@ -1095,20 +1094,21 @@ String processor(const String& var) {
       {
         EMULATOR_STATUS emu_status = get_emulator_status();
         // In master mode, only show error color if ALL online slaves are faulted
-        if (emu_status == EMULATOR_STATUS::STATUS_ERROR &&
-            datalayer.system.status.node_mode == NODE_MASTER) {
+        if (emu_status == EMULATOR_STATUS::STATUS_ERROR && datalayer.system.status.node_mode == NODE_MASTER) {
           int slave_online = 0, slave_error = 0;
           for (int j = 0; j < MAX_SLAVE_NODES; j++) {
             const auto& sn = datalayer.system.slave_nodes[j];
-            if (!sn.online) continue;
+            if (!sn.online)
+              continue;
             slave_online++;
-            if ((sn.fault_flags & IU_FAULT_ERROR_MASK) != 0) slave_error++;
+            if ((sn.fault_flags & IU_FAULT_ERROR_MASK) != 0)
+              slave_error++;
           }
           if (slave_online > 0 && slave_error < slave_online) {
             // A single slave fault must not paint the master card red, but the
             // master's own warning state (e.g. paused) must still show as yellow.
-            emu_status = (emulator_pause_status != NORMAL) ? EMULATOR_STATUS::STATUS_WARNING
-                                                           : EMULATOR_STATUS::STATUS_OK;
+            emu_status =
+                (emulator_pause_status != NORMAL) ? EMULATOR_STATUS::STATUS_WARNING : EMULATOR_STATUS::STATUS_OK;
           }
         }
         switch (emu_status) {
@@ -1484,17 +1484,19 @@ String processor(const String& var) {
         int slave_online = 0, slave_error = 0;
         for (int j = 0; j < MAX_SLAVE_NODES; j++) {
           const auto& sn = datalayer.system.slave_nodes[j];
-          if (!sn.online) continue;
+          if (!sn.online)
+            continue;
           slave_online++;
-          if ((sn.fault_flags & IU_FAULT_ERROR_MASK) != 0) slave_error++;
+          if ((sn.fault_flags & IU_FAULT_ERROR_MASK) != 0)
+            slave_error++;
         }
         bool all_faulted = (slave_online > 0 && slave_error == slave_online);
         master_bg = all_faulted ? "#A70107" : "#303E47";
       }
-      content +=
-          "<div style='background-color:" + String(master_bg) + "; padding:10px; margin-bottom:10px; border-radius:20px;'>"
-          "<h4 style='color:white;'>Slave Nodes</h4>"
-          "<div style='display:flex; flex-wrap:wrap; gap:8px; justify-content:center;'>";
+      content += "<div style='background-color:" + String(master_bg) +
+                 "; padding:10px; margin-bottom:10px; border-radius:20px;'>"
+                 "<h4 style='color:white;'>Slave Nodes</h4>"
+                 "<div style='display:flex; flex-wrap:wrap; gap:8px; justify-content:center;'>";
 
       bool any_slave = false;
       for (int i = 0; i < MAX_SLAVE_NODES; i++) {
@@ -1503,7 +1505,7 @@ String processor(const String& var) {
           continue;
         }
         any_slave = true;
-        bool is_error   = (s.fault_flags & IU_FAULT_ERROR_MASK) != 0;
+        bool is_error = (s.fault_flags & IU_FAULT_ERROR_MASK) != 0;
         bool is_warning = !is_error && (s.fault_flags & IU_FAULT_WARNING_MASK) != 0;
         const char* bg = is_error ? "#A70107" : (is_warning ? "#F5CC00" : "#2D3F2F");
         float v = s.voltage_dV / 10.0f;
@@ -1518,22 +1520,20 @@ String processor(const String& var) {
         int cell_delta_mV = (s.cell_max_voltage_mV > 0 && s.cell_min_voltage_mV > 0)
                                 ? (int)s.cell_max_voltage_mV - (int)s.cell_min_voltage_mV
                                 : -1;
-        const char* contactor_state = s.manual_contactor_open  ? "Paused"
-                                    : s.contactor_engaged      ? "Engaged"
-                                    : s.prejoin_active         ? "Prejoin"
-                                                               : "Open";
-        const char* contactor_color = s.manual_contactor_open  ? "color:#FF8C00;"
-                                    : s.contactor_engaged      ? "color:white;"
-                                    : s.prejoin_active         ? "color:orange;"
-                                                               : "color:gray;";
-        String node_s    = String(i + 1);
-        String btn_val   = s.manual_contactor_open ? "false" : "true";
-        String btn_col   = s.manual_contactor_open ? "color:#FF0000;" : "color:white;";  // red=paused, white=normal
-        String btn_tip   = s.manual_contactor_open
-                         ? "Resume: reconnect when voltage matches"
-                         : "Stop: open contactor manually";
-        content += "<div style='background-color:" + String(bg) +
-                   ";padding:10px;border-radius:12px;min-width:160px;'>";
+        const char* contactor_state = s.manual_contactor_open ? "Paused"
+                                      : s.contactor_engaged   ? "Engaged"
+                                      : s.prejoin_active      ? "Prejoin"
+                                                              : "Open";
+        const char* contactor_color = s.manual_contactor_open ? "color:#FF8C00;"
+                                      : s.contactor_engaged   ? "color:white;"
+                                      : s.prejoin_active      ? "color:orange;"
+                                                              : "color:gray;";
+        String node_s = String(i + 1);
+        String btn_val = s.manual_contactor_open ? "false" : "true";
+        String btn_col = s.manual_contactor_open ? "color:#FF0000;" : "color:white;";  // red=paused, white=normal
+        String btn_tip =
+            s.manual_contactor_open ? "Resume: reconnect when voltage matches" : "Stop: open contactor manually";
+        content += "<div style='background-color:" + String(bg) + ";padding:10px;border-radius:12px;min-width:160px;'>";
         content += "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;'>";
         if (s.ip_address != 0) {
           IPAddress ip(s.ip_address);
@@ -1543,8 +1543,10 @@ String processor(const String& var) {
           content += "<h4 style='color:white;margin:2px 0;'>Battery " + node_s + "</h4>";
         }
         content += "<button onclick=\"fetch('/slaveStop?node=" + node_s + "&value=" + btn_val +
-                   "').then(()=>location.reload())\" title=\"" + btn_tip + "\" "
-                   "style='background:rgba(0,0,0,0.3);border:none;border-radius:6px;" + btn_col +
+                   "').then(()=>location.reload())\" title=\"" + btn_tip +
+                   "\" "
+                   "style='background:rgba(0,0,0,0.3);border:none;border-radius:6px;" +
+                   btn_col +
                    "font-size:16px;width:26px;height:26px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;'>"
                    "&#9211;</button>";
         content += "</div>";
@@ -1566,13 +1568,13 @@ String processor(const String& var) {
           content += "<h4 style='color:#00FFFF;margin:2px 0;'>&#9863; Offline Balancing</h4>";
         }
         if (is_error || is_warning) {
-          const char* label      = is_error ? "FAULT"   : "WARNING";
-          const char* labelColor = is_error ? "red"     : "#cc8800";
+          const char* label = is_error ? "FAULT" : "WARNING";
+          const char* labelColor = is_error ? "red" : "#cc8800";
           if (s.ip_address != 0) {
             IPAddress faultIp(s.ip_address);
             content += "<h4 style='color:" + String(labelColor) + ";margin:2px 0;'><a href='http://" +
-                       faultIp.toString() + "/events' target='_blank' style='color:" +
-                       String(labelColor) + ";'>&#9888; " + String(label) + "</a></h4>";
+                       faultIp.toString() + "/events' target='_blank' style='color:" + String(labelColor) +
+                       ";'>&#9888; " + String(label) + "</a></h4>";
           } else {
             content += "<h4 style='color:" + String(labelColor) + ";margin:2px 0;'>&#9888; " + String(label) + "</h4>";
           }
@@ -1776,7 +1778,7 @@ String processor(const String& var) {
         "XMLHttpRequest();xhr.onload=function() { "
         "window.location.reload();};xhr.open('GET','/pause?value='+pause,true);xhr.send();";
     content += "}";
-    content += "function estop(stop){"; 
+    content += "function estop(stop){";
     content +=
         "var xhr=new "
         "XMLHttpRequest();xhr.onload=function() { "

@@ -17,9 +17,9 @@ static const uint8_t VOLTAGE_DIFF_SECONDS_LIMIT = 10;  // 10s grace period
 static const uint8_t MASTER_CONTACTOR_STAGGER_MS = 3;  // master-only inter-frame spacing
 
 // Pre-join controller constants (master-only):
-static const uint16_t PREJOIN_ENTER_DIFF_dV = 18u;    // 1.8V — activate when diff <= this
-static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 5u; // 0.5V — close gate (charging); direction window (discharging)
-static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;      // seconds diff must stay in close window before ALLOW
+static const uint16_t PREJOIN_ENTER_DIFF_dV = 18u;     // 1.8V — activate when diff <= this
+static const uint16_t PREJOIN_CLOSE_RAW_DIFF_dV = 5u;  // 0.5V — close gate (charging); direction window (discharging)
+static const uint8_t PREJOIN_CLOSE_DWELL_S = 2u;       // seconds diff must stay in close window before ALLOW
 // Abort an active prejoin if load stays below this for too long (inverter goes idle mid-prejoin)
 static const uint16_t PREJOIN_LOW_POWER_ABORT_W = 300u;
 static const uint8_t PREJOIN_LOW_POWER_ABORT_S = 30u;
@@ -561,8 +561,8 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
     if (!prejoin_active[idx] && inverter_working && diff <= PREJOIN_ENTER_DIFF_dV) {
       prejoin_active[idx] = true;
       prejoin_raw_stable_seconds[idx] = 0;
-      logging.printf("Master CAN: Pre-join START slave %d (raw=%u.%uV load=%dW)\n", idx + 1,
-                     diff / 10, diff % 10, (int)load_W);
+      logging.printf("Master CAN: Pre-join START slave %d (raw=%u.%uV load=%dW)\n", idx + 1, diff / 10, diff % 10,
+                     (int)load_W);
     }
 
     if (prejoin_active[idx]) {
@@ -571,8 +571,8 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
           prejoin_low_power_seconds[idx]++;
         }
         if (prejoin_low_power_seconds[idx] >= PREJOIN_LOW_POWER_ABORT_S) {
-          logging.printf("Master CAN: Pre-join ABORT slave %d — load %dW below %uW for %us\n", idx + 1,
-                         (int)load_W, (unsigned)PREJOIN_LOW_POWER_ABORT_W, (unsigned)PREJOIN_LOW_POWER_ABORT_S);
+          logging.printf("Master CAN: Pre-join ABORT slave %d — load %dW below %uW for %us\n", idx + 1, (int)load_W,
+                         (unsigned)PREJOIN_LOW_POWER_ABORT_W, (unsigned)PREJOIN_LOW_POWER_ABORT_S);
           reset_prejoin_state(idx);
         }
       } else {
@@ -589,8 +589,8 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
         prejoin_raw_stable_seconds[idx] = 0;
       }
 
-      logging.printf("Master CAN: Pre-join slave %d: raw=%u.%uV stable=%us\n",
-                     idx + 1, diff / 10, diff % 10, prejoin_raw_stable_seconds[idx]);
+      logging.printf("Master CAN: Pre-join slave %d: raw=%u.%uV stable=%us\n", idx + 1, diff / 10, diff % 10,
+                     prejoin_raw_stable_seconds[idx]);
     } else {
       prejoin_raw_stable_seconds[idx] = 0;
     }
@@ -599,9 +599,8 @@ void MasterCan::check_slave_voltage_safety(uint8_t idx) {
     if (prejoin_postclose_log_seconds[idx] > 0) {
       prejoin_postclose_log_seconds[idx]--;
       logging.printf("Master CAN: Post-close slave %d: voltage=%u.%uV current=%d.%uA diff=%u.%uV\n", idx + 1,
-                     node.voltage_dV / 10, node.voltage_dV % 10,
-                     (int)node.current_dA / 10, (unsigned)(abs((int)node.current_dA) % 10),
-                     diff / 10, diff % 10);
+                     node.voltage_dV / 10, node.voltage_dV % 10, (int)node.current_dA / 10,
+                     (unsigned)(abs((int)node.current_dA) % 10), diff / 10, diff % 10);
     }
   }
 
