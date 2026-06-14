@@ -12,7 +12,10 @@ static bool battery_full_event_fired = false;
 static bool battery_empty_event_fired = false;
 
 #define MAX_SOH_DEVIATION_PPTT 2500
-#define CELL_CRITICAL_MV 100  // If cells go this much outside design voltage, shut battery down!
+// Some inverters take a while to boot and start sending CAN. Suppress the
+// inverter-missing error during this startup window (measured from power-on).
+#define INVERTER_STARTUP_GRACE_MS 300000  // 300 s
+#define CELL_CRITICAL_MV 100              // If cells go this much outside design voltage, shut battery down!
 #define LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV 2000  //If cells are below this, recovery charge not allowed
 #define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
 #define HYSTERESIS_OFFSET_DV 20
@@ -277,7 +280,10 @@ void update_machineryprotection() {
 
     // Check if the inverter is still sending CAN messages. If we go 60s without messages we raise a warning
     if (!datalayer.system.status.CAN_inverter_still_alive) {
-      set_event(EVENT_CAN_INVERTER_MISSING, can_config.inverter);
+      // Inverters that are slow to boot get a startup grace window before we fault.
+      if (!inverter->needs_can_startup_grace() || millis() > INVERTER_STARTUP_GRACE_MS) {
+        set_event(EVENT_CAN_INVERTER_MISSING, can_config.inverter);
+      }
     } else {
       datalayer.system.status.CAN_inverter_still_alive--;
       clear_event(EVENT_CAN_INVERTER_MISSING);
