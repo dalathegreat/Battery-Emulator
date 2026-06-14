@@ -45,7 +45,19 @@ String InterUnitMasterHtmlRenderer::get_status_html() {
     }
     any_online = true;
 
-    bool is_error = (n.fault_flags & IU_FAULT_ERROR_MASK) != 0;
+    // FW / battery-type identity check. A mismatch blocks the contactor on the
+    // master side but does not set a fault_flag bit, so include it here so the
+    // whole card turns red (not just the per-line ✗). Only meaningful once IDENT
+    // has been received — an un-identified slave shows "waiting", not an error.
+    bool fw_ok = true;
+    bool btype_ok = true;
+    if (n.ident_received) {
+      fw_ok = (n.fw_version_num == (uint16_t)IU_FW_VERSION_NUM);
+      btype_ok = !ref_btype_found || (n.battery_type_id == ref_btype);
+    }
+    bool identity_mismatch = !fw_ok || !btype_ok;
+
+    bool is_error = ((n.fault_flags & IU_FAULT_ERROR_MASK) != 0) || identity_mismatch;
     bool is_warning = !is_error && (n.fault_flags & IU_FAULT_WARNING_MASK) != 0;
     const char* bg = is_error ? "#5A0606" : (is_warning ? "#4A3A00" : "#1E3020");
 
@@ -64,7 +76,6 @@ String InterUnitMasterHtmlRenderer::get_status_html() {
     if (n.ident_received) {
       uint8_t fw_maj = (uint8_t)(n.fw_version_num >> 8);
       uint8_t fw_min = (uint8_t)(n.fw_version_num & 0xFFu);
-      bool fw_ok = (n.fw_version_num == (uint16_t)IU_FW_VERSION_NUM);
       content += "<h4 style='margin:2px 0;'>FW: " + String(fw_maj) + "." + String(fw_min);
       if (fw_ok) {
         content += " <span class='iu-ok'>&#10003;</span>";
@@ -76,7 +87,6 @@ String InterUnitMasterHtmlRenderer::get_status_html() {
 
       // ---- Battery protocol ----------------------------------------
       const char* btype_name = name_for_battery_type((BatteryType)n.battery_type_id);
-      bool btype_ok = !ref_btype_found || (n.battery_type_id == ref_btype);
       content += "<h4 style='margin:2px 0;'>Type: " + String(btype_name);
       if (btype_ok) {
         content += " <span class='iu-ok'>&#10003;</span>";
