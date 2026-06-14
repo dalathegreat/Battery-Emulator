@@ -43,10 +43,10 @@
  */
 
 /* ---- Firmware version encoding ---- */
-// Update these when version_number in Software.cpp changes (e.g. "10.6.0" -> major=10, minor=6)
+// Update these when version_number in Software.cpp changes (e.g. "10.11.dev" -> major=10, minor=11)
 #define IU_FW_VERSION_MAJOR 10u
-#define IU_FW_VERSION_MINOR  6u
-#define IU_FW_VERSION_NUM   ((IU_FW_VERSION_MAJOR << 8u) | IU_FW_VERSION_MINOR)  // 0x0A06
+#define IU_FW_VERSION_MINOR 11u
+#define IU_FW_VERSION_NUM   ((IU_FW_VERSION_MAJOR << 8u) | IU_FW_VERSION_MINOR)  // 0x0A0B
 
 /* ---- Master → Broadcast ---- */
 #define IU_MASTER_HEARTBEAT_ID 0x300u  // Heartbeat, no payload needed
