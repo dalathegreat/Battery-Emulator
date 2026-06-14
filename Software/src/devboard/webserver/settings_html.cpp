@@ -1240,6 +1240,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form .if-battery, form .if-inverter, form .if-charger, form .if-shunt { display: contents; }
     form[data-battery="0"] .if-battery { display: none; }
     form[data-battery="54"] .if-battery { display: none; }
+
+    /* Battery/master CAN interface select: shown for every battery type except None.
+       The Inter-Unit Master (54) also uses can_config.battery (BATTCOMM). */
+    form .if-batt-iface { display: contents; }
+    form[data-battery="0"] .if-batt-iface { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
     form[data-inverter="25"] .if-inverter { display: none; }
     form[data-charger="0"] .if-charger { display: none; }
@@ -1584,11 +1589,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Switch to estimated State of Charge when accurate SOC data is not available from the battery" />
         </div>
 
-        <div class="if-battery">
+        <div class="if-batt-iface">
         <label for='BATTCOMM'>Battery interface: </label><select name='BATTCOMM' id='BATTCOMM'>
         %BATTCOMM%
         </select>
+        </div>
 
+        <div class="if-battery">
         <label>Battery chemistry: </label><select name='BATTCHEM'>
         %BATTCHEM%
         </select>
