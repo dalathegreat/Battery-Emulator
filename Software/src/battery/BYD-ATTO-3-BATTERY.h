@@ -7,11 +7,6 @@
 #include "BYD-ATTO-3-HTML.h"
 #include "CanBattery.h"
 
-// Ramp down settings that are used when SOC is estimated from voltage
-static const int RAMPDOWN_SOC = 100;  // SOC to start ramping down from. Value set here is scaled by 10 (100 = 10.0%)
-static const int RAMPDOWN_POWER_ALLOWED =
-    10000;  // Power to start ramp down from, set a lower value to limit the power even further as SOC decreases
-
 class BydAttoBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
@@ -50,9 +45,17 @@ class BydAttoBattery : public CanBattery {
   DATALAYER_INFO_BYDATTO3* datalayer_bydatto;
   bool* allows_contactor_closing;
 
+  // Ramp down settings that are used when SOC is estimated from voltage
+  static const int RAMPDOWN_SOC = 100;  // SOC to start ramping down from. Value set here is scaled by 10 (100 = 10.0%)
+  static const int RAMPDOWN_POWER_ALLOWED =
+      10000;  // Power to start ramp down from, set a lower value to limit the power even further as SOC decreases
+
   unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
+  uint64_t last_auto_calibrate_ms = 0;  // Cooldown timer for auto-calibration
+  uint32_t autocal_dwell_ms = 0;        // Valid low-current/full time
+  uint32_t autocal_grace_start_ms = 0;  // When current left the valid window
 
   static const int POLL_TIMES_FULL_POWER = 0x0004;  // Using Carscanner name for now.
   static const int POLL_FOR_BATTERY_SOC = 0x0005;
@@ -205,6 +208,7 @@ class BydAttoBattery : public CanBattery {
   uint8_t secondsSinceStartup = 0;
 
   bool BMS_voltage_available = false;
+  bool calibrationAH_seeded = false;
 
   int16_t battery_daughterboard_temperatures[13] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};
   uint16_t battery_cellvoltages[MAX_AMOUNT_CELLS] = {0};
@@ -250,6 +254,8 @@ class BydAttoBattery : public CanBattery {
                                     .DLC = 8,
                                     .ID = 0x7E7,  //This sets SOC to 100.00% (0x27 10) , and AH to 150.00 (0x3A 98)
                                     .data = {0x07, 0x2E, 0x1F, 0xFC, 0x10, 0x27, 0x98, 0x3A}};
+
+  void handle_auto_soc_calibration(bool crit_taper, uint32_t dt_ms, uint32_t now_ms);
 };
 
 #endif

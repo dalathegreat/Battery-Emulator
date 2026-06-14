@@ -127,6 +127,21 @@ void SolaxInverter::transmit_can(unsigned long currentMillis) {
   // No periodic sending used on this protocol, we react only on incoming CAN messages!
 }
 
+// Write 7 uppercase hex ASCII chars (D2..D8) from eFuse MAC, slot index, and frame half (0=1881, 1=1882).
+void solax_pack_identity_ascii(const uint8_t mac[6], uint8_t slot, uint8_t half, uint8_t out[7]) {
+  static const char hex[] = "0123456789ABCDEF";
+  uint8_t mix[4] = {
+      (uint8_t)(mac[0] ^ slot ^ (half * 0x11u)),
+      (uint8_t)(mac[1] ^ slot ^ (half * 0x22u)),
+      (uint8_t)(mac[2] ^ slot ^ (half * 0x33u)),
+      (uint8_t)(mac[3] ^ slot ^ (half * 0x44u)),
+  };
+  for (int i = 0; i < 7; i++) {
+    uint8_t b = mix[i >> 1];
+    out[i] = hex[(b >> ((1 - (i & 1)) * 4)) & 0x0F];
+  }
+}
+
 void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 
   if (rx_frame.ID == 0x1871) {
@@ -217,8 +232,26 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   }
 
   if (rx_frame.ID == 0x1871 && rx_frame.data.u64 == __builtin_bswap64(0x0500010000000000)) {
-    transmit_can_frame(&SOLAX_1881);
-    transmit_can_frame(&SOLAX_1882);
+    uint16_t modules = configured_number_of_modules;
+    if (modules > 254) {
+      modules = 254;
+    }
+    int slot_count = (int)modules + 1;
+
+    uint64_t mac64 = ESP.getEfuseMac();
+    uint8_t mac[6];
+    for (int i = 0; i < 6; i++) {
+      mac[i] = (uint8_t)(mac64 >> (i * 8));
+    }
+
+    for (int slot = 0; slot < slot_count; slot++) {
+      SOLAX_1881.data.u8[0] = (uint8_t)slot;
+      solax_pack_identity_ascii(mac, (uint8_t)slot, 0, &SOLAX_1881.data.u8[1]);
+      SOLAX_1882.data.u8[0] = (uint8_t)slot;
+      solax_pack_identity_ascii(mac, (uint8_t)slot, 1, &SOLAX_1882.data.u8[1]);
+      transmit_can_frame(&SOLAX_1881);
+      transmit_can_frame(&SOLAX_1882);
+    }
     logging.println("1871 05-frame received from inverter");
   }
   if (rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x03)) {

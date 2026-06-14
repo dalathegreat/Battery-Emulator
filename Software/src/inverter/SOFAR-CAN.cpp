@@ -7,6 +7,10 @@
 void SofarInverter::
     update_values() {  // This function maps all the values fetched from battery CAN to the correct CAN messages
 
+  //First, keep feeding the statemachine that CAN is alive. Sofar CAN seems to not send much towards the battery
+  //It only listens periodically. So we keep feeding the datalayer with still alive.
+  datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+
   // ----- Frame 0x351 – limits/voltages -----
   // Maxvoltage (eg 400.0V = 4000 , 16bits long) Charge Cutoff Voltage
   SOFAR_351.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
@@ -91,7 +95,7 @@ void SofarInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x605:
     case 0x705: {
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 2;
 
       // 0x605 format: Byte0=Target(m), Byte1=Inquiry-ID, Byte2=Sub-target(k)
       // 0x705 format: Byte0=Target(m), Byte1=Inquiry-ID, Byte2=Record(n), Byte3=Sub-target(k)

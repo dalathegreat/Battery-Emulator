@@ -34,7 +34,7 @@ void SolxpowInverter::
   }
 
   //In case run into a FAULT state, let inverter know to stop any charge/discharge
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     SOLXPOW_4280.data.u8[0] = 0xAA;  //Charge forbidden
     SOLXPOW_4280.data.u8[1] = 0xAA;  //Discharge forbidden
   }
@@ -62,7 +62,7 @@ void SolxpowInverter::
   SOLXPOW_4210.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
 
   // Status=Bit 0,1,2= 0:Sleep, 1:Charge, 2:Discharge 3:Idle. Bit3 ForceChargeReq. Bit4 Balance charge Request
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     SOLXPOW_4250.data.u8[0] = (0x00);  // Sleep
   } else if (datalayer.battery.status.reported_current_dA < 0) {
     SOLXPOW_4250.data.u8[0] = (0x01);  // Charge

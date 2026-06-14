@@ -4,6 +4,7 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 
 // BYD UDS 0x27 Seed-to-Key Algorithm (Endian-Safe)
 uint16_t byd_generate_key(uint16_t seed, uint32_t keyK) {
@@ -66,7 +67,7 @@ void BydAttoBattery::
   const uint16_t D_TAPER_START_mV = 40;  // begin tapering if delta exceeds this
   const uint16_t D_TAPER_END_mV = 80;    // reach tail current by here
 
-  const uint16_t TAIL_CURRENT_dA = 2;  // 0.2A tail (deci-amps). You can set to 1 for 0.1A.
+  const uint8_t TAIL_CURRENT_dA = 10;  // 1.0A tail (deci-amps). You can set to 1 for 0.1A.
 
   // Slew limits to make taper gradual
   const uint16_t DOWN_RATE_dA_per_s = 2;  // ramp down at 0.2A/s  (change to 5 for 0.5A/s)
@@ -150,10 +151,13 @@ void BydAttoBattery::
     cap_slewed_dA += step;
   }
 
+  const bool crit_taper = (prog >= 0.95f && cap_slewed_dA <= TAIL_CURRENT_dA);
+  handle_auto_soc_calibration(crit_taper, dt_ms, now_ms);
+
   // Convert current cap (dA) -> power cap (W): P = I(dA) * V(dV) / 100
   const uint32_t power_cap_W = (uint32_t(cap_slewed_dA) * uint32_t(datalayer_battery->status.voltage_dV)) / 100;
 
-  // Apply taper by capping the allowed charge power reported to the rest of BE/inverter logic.
+  // Apply taper by capping the allowed charge power reported to the rest of BE/inverter logic
   if (datalayer_battery->status.max_charge_power_W > power_cap_W) {
     datalayer_battery->status.max_charge_power_W = power_cap_W;
   }
@@ -221,6 +225,11 @@ void BydAttoBattery::
     datalayer_bydatto->BMC_SOC_original_calibration = BMC_SOC_original_calibration;
     datalayer_bydatto->BMS_capacity_current_calibration = BMS_capacity_current_calibration;
     datalayer_bydatto->BMC_SOC_current_calibration = BMC_SOC_current_calibration;
+    // Pre-fill from BMS on first read so the web page shows real pack AH, not the 150AH default
+    if (!calibrationAH_seeded && BMS_capacity_current_calibration > 0) {
+      datalayer_bydatto->calibrationTargetAH = BMS_capacity_current_calibration / 100;
+      calibrationAH_seeded = true;
+    }
     datalayer_bydatto->chargePower = BMS_allowed_charge_power;
     datalayer_bydatto->charge_times = BMS_charge_times;
     datalayer_bydatto->dischargePower = BMS_allowed_discharge_power;
@@ -248,6 +257,75 @@ void BydAttoBattery::
       stateMachineCalibrateSOC = STARTED;
       datalayer_bydatto->UserRequestCalibrateSOC = false;
     }
+  }
+}
+
+void BydAttoBattery::handle_auto_soc_calibration(bool crit_taper, uint32_t dt_ms, uint32_t now_ms) {
+  const uint32_t TAIL_DWELL_REQUIRED_MS = 10UL * 60UL * 1000UL;
+  const uint32_t CURRENT_SPIKE_GRACE_MS = 60UL * 1000UL;
+
+  const int16_t current_dA = datalayer_battery->status.current_dA;
+  const bool crit_low_current = (current_dA >= -5 &&  // discharge up to 0.5A
+                                 current_dA <= 30);   // charge up to 3A
+
+  if (!crit_taper) {
+    autocal_dwell_ms = 0;
+    autocal_grace_start_ms = 0;
+  } else if (crit_low_current) {
+    autocal_grace_start_ms = 0;
+    autocal_dwell_ms += dt_ms;
+    if (autocal_dwell_ms > TAIL_DWELL_REQUIRED_MS)
+      autocal_dwell_ms = TAIL_DWELL_REQUIRED_MS;
+  } else {
+    if (autocal_grace_start_ms == 0) {
+      autocal_grace_start_ms = now_ms;
+    }
+    if ((now_ms - autocal_grace_start_ms) >= CURRENT_SPIKE_GRACE_MS) {
+      autocal_dwell_ms = 0;
+      autocal_grace_start_ms = 0;
+    }
+  }
+
+  const uint64_t now64 = millis64();
+
+  const bool crit_dwell = (autocal_dwell_ms >= TAIL_DWELL_REQUIRED_MS);
+  const bool crit_drift =
+      (battery_highprecision_SOC < 1000 &&
+       (1000 - battery_highprecision_SOC) > (uint16_t)(datalayer_bydatto->auto_calibrate_soc_drift_percent * 10));
+  const bool crit_cooldown = ((now64 - last_auto_calibrate_ms) > 3600000ULL);
+  const bool crit_contactors = datalayer.system.status.battery_allows_contactor_closing;
+  uint32_t current_spike_ms = 0;
+  if (crit_taper && !crit_low_current && autocal_grace_start_ms != 0) {
+    current_spike_ms = now_ms - autocal_grace_start_ms;
+  }
+
+  datalayer_bydatto->autocal_crit_taper = crit_taper;
+  datalayer_bydatto->autocal_crit_low_current = crit_low_current;
+  datalayer_bydatto->autocal_dwell_accumulated_ms = autocal_dwell_ms;
+  datalayer_bydatto->autocal_grace_timer_ms = current_spike_ms;
+  datalayer_bydatto->autocal_drift_percent =
+      (battery_highprecision_SOC < 1000) ? (float)(1000 - battery_highprecision_SOC) / 10.0f : 0.0f;
+  datalayer_bydatto->autocal_current_dA = current_dA;
+  datalayer_bydatto->autocal_crit_dwell = crit_dwell;
+  datalayer_bydatto->autocal_crit_drift = crit_drift;
+  datalayer_bydatto->autocal_crit_cooldown_ready = crit_cooldown;
+  datalayer_bydatto->autocal_crit_contactors = crit_contactors;
+
+  if (datalayer_bydatto->auto_calibrate_soc_enabled &&
+      !datalayer_bydatto->UserRequestCalibrateSOC &&  // don't fight manual request
+      stateMachineCalibrateSOC == NOT_RUNNING && crit_contactors && crit_taper && crit_low_current && crit_dwell &&
+      crit_drift && crit_cooldown) {
+
+    set_event(EVENT_BYD_AUTO_SOC_CALIBRATION, (uint8_t)((1000 - battery_highprecision_SOC) / 10));
+
+    datalayer_bydatto->calibrationTargetSOC = 100;
+    if (BMS_capacity_current_calibration > 0) {  // guard against startup zero
+      datalayer_bydatto->calibrationTargetAH = BMS_capacity_current_calibration / 100;
+    }
+    datalayer_bydatto->UserRequestCalibrateSOC = true;
+
+    last_auto_calibrate_ms = now64;
+    autocal_dwell_ms = 0;
   }
 }
 
@@ -462,7 +540,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
 
     // Set close contactors to allowed (Useful for crashed packs, started via contactor control thru GPIO)
     if (allows_contactor_closing) {
-      if (datalayer_battery->status.bms_status == ACTIVE) {
+      if (datalayer.system.status.system_status == ACTIVE) {
         *allows_contactor_closing = true;
       } else {  // Fault state, open contactors!
         *allows_contactor_closing = false;
@@ -717,8 +795,8 @@ void BydAttoBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.chemistry = battery_chemistry_enum::LFP;
-  datalayer_battery->info.max_design_voltage_dV = 5000;  //Startup in extremes
-  datalayer_battery->info.min_design_voltage_dV = 2500;  //We later determine range based on amount of cells
+  datalayer_battery->info.max_design_voltage_dV = 6500;  //Startup in extremes
+  datalayer_battery->info.min_design_voltage_dV = 2000;  //We later determine range based on amount of cells
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;

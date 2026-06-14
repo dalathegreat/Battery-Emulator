@@ -45,7 +45,7 @@ void PylonInverter::
   }
 
   //In case run into a FAULT state, let inverter know to stop any charge/discharge
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     PYLON_428X.data.u8[0] = 0xAA;  //Charge forbidden
     PYLON_428X.data.u8[1] = 0xAA;  //Discharge forbidden
   }
@@ -85,18 +85,30 @@ void PylonInverter::
   PYLON_423X.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
 
   //Max temperature per cell
-  PYLON_424X.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
-  PYLON_424X.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  PYLON_424X.data.u8[0] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+  PYLON_424X.data.u8[1] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
   //Min temperature per cell
-  PYLON_424X.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
-  PYLON_424X.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  PYLON_424X.data.u8[2] = ((datalayer.battery.status.temperature_min_dC + 1000) >> 8);
+  PYLON_424X.data.u8[3] = ((datalayer.battery.status.temperature_min_dC + 1000) & 0x00FF);
+  //Max Battery cell temperature number
+  PYLON_424X.data.u8[4] = 2;  //We do not provide this data
+  PYLON_424X.data.u8[5] = 0;
+  //Min Battery cell temperature number
+  PYLON_424X.data.u8[6] = 1;  //We do not provide this data
+  PYLON_424X.data.u8[7] = 0;
 
   //Max temperature per module
-  PYLON_427X.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
-  PYLON_427X.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  PYLON_427X.data.u8[0] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+  PYLON_427X.data.u8[1] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
   //Min temperature per module
-  PYLON_427X.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
-  PYLON_427X.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  PYLON_427X.data.u8[2] = ((datalayer.battery.status.temperature_min_dC + 1000) >> 8);
+  PYLON_427X.data.u8[3] = ((datalayer.battery.status.temperature_min_dC + 1000) & 0x00FF);
+  //Max Module temperature number
+  PYLON_427X.data.u8[4] = 2;  //We do not provide this data
+  PYLON_427X.data.u8[5] = 0;
+  //Min Module temperature number
+  PYLON_427X.data.u8[6] = 1;  //We do not provide this data
+  PYLON_427X.data.u8[7] = 0;
 
   if (user_selected_pylon_30koffset) {
     apply_30koffset(&PYLON_421X.data.u8[2], &PYLON_421X.data.u8[3]);  // Current (15.0)
@@ -121,7 +133,7 @@ void PylonInverter::
   }
 
   // Status=Bit 0,1,2= 0:Sleep, 1:Charge, 2:Discharge 3:Idle. Bit3 ForceChargeReq. Bit4 Balance charge Request
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     PYLON_425X.data.u8[0] = (0x00);  // Sleep
   } else if (datalayer.battery.status.reported_current_dA < 0) {
     PYLON_425X.data.u8[0] = (0x01);  // Charge

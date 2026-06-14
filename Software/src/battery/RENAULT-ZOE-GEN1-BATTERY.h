@@ -82,7 +82,7 @@ class RenaultZoeGen1Battery : public CanBattery {
   uint32_t LB_Charging_Power_W = 0;
   uint32_t LB_Regen_allowed_W = 0;
   uint32_t LB_Discharge_allowed_W = 0;
-  int16_t LB_Current = 0;
+  int16_t LB_Current_raw = 2000;  // 0x155 raw; 2000 => 0 A
   int16_t LB_Cell_minimum_temperature = 0;
   int16_t LB_Cell_maximum_temperature = 0;
   uint16_t LB_Cell_minimum_voltage = 3700;

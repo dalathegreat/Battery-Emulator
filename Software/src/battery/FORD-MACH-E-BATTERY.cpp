@@ -1,5 +1,6 @@
 #include "FORD-MACH-E-BATTERY.h"
 #include <Arduino.h>
+#include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
@@ -8,7 +9,11 @@ void FordMachEBattery::update_values() {
 
   datalayer.battery.status.real_soc = battery_soc;
 
-  //datalayer.battery.status.soh_pptt; //TODO: Locate
+  if (pid_hvb_soh < 101) {
+    datalayer.battery.status.soh_pptt = pid_hvb_soh * 100;
+  } else if (pid_hvb_soh < 128) {
+    datalayer.battery.status.soh_pptt = 10000;
+  }
 
   datalayer.battery.status.voltage_dV = battery_voltage * 10;
 
@@ -21,16 +26,14 @@ void FordMachEBattery::update_values() {
       datalayer.battery.status.override_discharge_power_W;  //TODO, fix when v alue is found
 
   //We have not found allowed charge power yet. Estimate it for now absed on UI setting. TODO. remove this once found
-  if (battery_soc > 9900) {
-    datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
-  } else if ((battery_soc / 10) >
-             RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+  // Charge power is manually set
+  if (datalayer.battery.status.real_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
+  } else if (datalayer.battery.status.real_soc > user_set_rampdown_SOC) {
+    // When real SOC is between user_set_rampdown_SOC-99%, ramp the value between Max<->0
     datalayer.battery.status.max_charge_power_W =
-        RAMPDOWNPOWERALLOWED * (1 - ((battery_soc / 10) - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
-    //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
-    if (maximum_cellvoltage_mV > (MAX_CELL_VOLTAGE_MV - FLOAT_START_MV)) {
-      datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
-    }
+        datalayer.battery.status.override_charge_power_W *
+        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
   } else {  // No limits, max charging power allowed
     datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
   }
@@ -107,6 +110,26 @@ void FordMachEBattery::update_values() {
   if (polled_12V < 11800) {
     set_event(EVENT_12V_LOW, 0);
   }
+
+  //Update More Battery Info page
+  datalayer_extended.fordMachE.pid_hvb_temp = pid_hvb_temp;
+  datalayer_extended.fordMachE.pid_hvb_voltage = pid_hvb_voltage;
+  datalayer_extended.fordMachE.pid_hvb_soc = pid_hvb_soc;
+  datalayer_extended.fordMachE.pid_hvb_soh = pid_hvb_soh;
+  datalayer_extended.fordMachE.pid_hvb_contactor_status = pid_hvb_contactor_status;
+  datalayer_extended.fordMachE.pid_hvb_contactor_positive_leak_voltage = pid_hvb_contactor_positive_leak_voltage;
+  datalayer_extended.fordMachE.pid_hvb_contactor_negative_leak_voltage = pid_hvb_contactor_negative_leak_voltage;
+  datalayer_extended.fordMachE.pid_hvb_contactor_positive_voltage = pid_hvb_contactor_positive_voltage;
+  datalayer_extended.fordMachE.pid_hvb_contactor_negative_voltage = pid_hvb_contactor_negative_voltage;
+  datalayer_extended.fordMachE.pid_hvb_contactor_positive_bus_leak_resistance =
+      pid_hvb_contactor_positive_bus_leak_resistance;
+  datalayer_extended.fordMachE.pid_hvb_contactor_negative_bus_leak_resistance =
+      pid_hvb_contactor_negative_bus_leak_resistance;
+  datalayer_extended.fordMachE.pid_hvb_contactor_overall_leak_resistance = pid_hvb_contactor_overall_leak_resistance;
+  datalayer_extended.fordMachE.pid_hvb_contactor_open_leak_resistance = pid_hvb_contactor_open_leak_resistance;
+  datalayer_extended.fordMachE.pid_hvb_calendar_age_months = pid_hvb_calendar_age_months;
+  datalayer_extended.fordMachE.pid_battery_capacity_ah = pid_battery_capacity_ah;
+  datalayer_extended.fordMachE.pid_maintenance_rebalance_status = pid_maintenance_rebalance_status;
 }
 
 void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -269,17 +292,110 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x7EC:  //OBD2 diag reply from BMS (Replies to both 7DF and 7E4)
 
       if (rx_frame.data.u8[0] < 0x10) {  //One line response
-        pid_reply = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2];
+        incoming_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       }
 
       if (rx_frame.data.u8[0] == 0x10) {  //Multiframe response, send ACK
         //transmit_can_frame(&FORD_PID_ACK); //Not seen yet
-        //pid_reply = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        //incoming_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
       }
 
-      switch (pid_reply) {
+      switch (incoming_poll) {
         case 0x142:  //12V battery
           polled_12V = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+          break;
+        case PID_HVB_TEMP:
+          pid_hvb_temp = rx_frame.data.u8[4] - 40;
+          break;
+        case PID_HVB_SOC:
+          pid_hvb_soc = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 2;
+          break;
+        case PID_HVB_CONTACTOR_STATUS:
+          pid_hvb_contactor_status = (rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
+                                     (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+          break;
+        case PID_HVB_CONTACTOR_POSITIVE_LEAK_VOLTAGE:
+          pid_hvb_contactor_positive_leak_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case PID_HVB_CONTACTOR_NEGATIVE_LEAK_VOLTAGE:
+          pid_hvb_contactor_negative_leak_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case PID_HVB_CONTACTOR_POSITIVE_VOLTAGE:
+          pid_hvb_contactor_positive_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case PID_HVB_CONTACTOR_NEGATIVE_VOLTAGE:
+          pid_hvb_contactor_negative_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case PID_HVB_CONTACTOR_POSITIVE_BUS_LEAK_RESISTANCE:
+          pid_hvb_contactor_positive_bus_leak_resistance = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case PID_HVB_CONTACTOR_NEGATIVE_BUS_LEAK_RESISTANCE:
+          pid_hvb_contactor_negative_bus_leak_resistance = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case PID_HVB_CONTACTOR_OVERALL_LEAK_RESISTANCE:
+          pid_hvb_contactor_overall_leak_resistance = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case PID_HVB_CONTACTOR_OPEN_LEAK_RESISTANCE:
+          pid_hvb_contactor_open_leak_resistance = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case PID_HVB_ETE:
+          pid_hvb_ete = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case PID_HVB_CURRENT:
+          break;
+        case PID_CHARGER_POWER_LIMIT:
+          break;
+        case PID_HVB_SOH:
+          if (rx_frame.data.u8[4] > 0) {
+            pid_hvb_soh = rx_frame.data.u8[4] / 2;
+          }
+          break;
+        case PID_HVB_VOLTAGE:
+          pid_hvb_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case PID_HVB_CHARGE_VOLTAGE_REQUESTED:
+          break;
+        case PID_HVB_SOC_D:
+          break;
+        case PID_HVB_MAX_CHARGE_CURRENT:
+          break;
+        case PID_HVB_CHARGE_CURRENT_REQUESTED:
+          break;
+        case PID_GEAR_COMMANDED:
+          break;
+        case PID_KEY_STATE:
+          //0x0E = Error
+          break;
+        case PID_CHARGE_PLUG:
+          break;
+        case PID_CHARGER_OUTPUT_VOLTAGE:
+          break;
+        case PID_CHARGER_STATUS:
+          break;
+        case PID_CHARGER_OUTPUT_CURRENT_MEASURED:
+          break;
+        case PID_EVSE_TYPE:
+          break;
+        case PID_CHARGER_MAX_POWER:
+          break;
+        case PID_CHARGING_STATUS:
+          break;
+        case PID_CHARGER_INPUT_POWER_AVAILABLE:
+          break;
+        case PID_TIME:
+          break;
+        case PID_LORES_ODOMETER:
+          break;
+        case PID_ENGINE_RUNTIME:
+          break;
+        case PID_HVB_CALENDAR_AGE_MONTHS:
+          pid_hvb_calendar_age_months = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case PID_BATTERY_CAPACITY:
+          pid_battery_capacity_ah = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case PID_MAINTENANCE_REBALANCE_STATUS:
+          pid_maintenance_rebalance_status = rx_frame.data.u8[4];
           break;
         default:
           break;
@@ -296,7 +412,7 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
 
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       FORD_25B.data.u8[2] = 0x01;
     } else {
       FORD_25B.data.u8[2] = 0x09;
@@ -405,7 +521,16 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis250 >= INTERVAL_250_MS) {
     previousMillis250 = currentMillis;
 
-    transmit_can_frame(&FORD_PID_REQUEST_7DF);
+    //transmit_can_frame(&FORD_PID_REQUEST_7DF); 12V battery voltage request
+
+    // Update current poll from the array
+    currentpoll = poll_commands[poll_index];
+    poll_index = (poll_index + 1) % 36;
+
+    FORD_PID_REQUEST_7E4.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
+    FORD_PID_REQUEST_7E4.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
+
+    transmit_can_frame(&FORD_PID_REQUEST_7E4);
   }
 
   // Send 1s CAN Message
@@ -416,6 +541,11 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&FORD_3C3);
     transmit_can_frame(&FORD_581);
     */
+
+    if (UserRequestDTCreset) {
+      transmit_can_frame(&FORD_DTC_RESET);
+      UserRequestDTCreset = false;  //Reset the flag after sending the DTC reset command
+    }
   }
 }
 

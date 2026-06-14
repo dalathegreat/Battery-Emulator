@@ -37,8 +37,6 @@ class BoltAmperaBattery : public CanBattery {
   DATALAYER_INFO_BOLTAMPERA* datalayer_boltampera;
   bool* allows_contactor_closing;
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
-  static const int RAMPDOWN_SOC =
-      9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
 
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2510;
