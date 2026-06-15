@@ -5,6 +5,18 @@
 /* Do not change code below unless you are sure what you are doing */
 // will store last time a 1s CAN Message was sent
 
+void ChargebyteCCSBattery::setPrechargeVoltage(uint16_t value, bool writeEEPROM) {
+  if (!prechargeDacDev)
+    return;
+
+  uint8_t packet[3];
+  packet[0] = writeEEPROM ? 0x60 : 0x40;
+  packet[1] = value >> 4;
+  packet[2] = (value & 0x0F) << 4;
+
+  i2c_master_transmit(prechargeDacDev, packet, 3, 100 / portTICK_PERIOD_MS);
+}
+
 void ChargebyteCCSBattery::dump_data() {
   logging.print("[CME-CCS] [Status] ");
   logging.print("hasChargebyteError = ");
@@ -47,13 +59,13 @@ void ChargebyteCCSBattery::handle_precharge() {
     if (prechargePos <= 4090)
       prechargePos += 4;
 
-    prechargeDac.setVoltage(prechargePos, false);
+    setPrechargeVoltage(prechargePos);
 
     logging.print("[CME-CCS] setting precharge to ");
     logging.println(prechargePos);
   } else if (prechargePos != 0) {
     prechargePos = 0;
-    prechargeDac.setVoltage(0, false);
+    setPrechargeVoltage(0);
   }
 
   static uint16_t contactorCloseDelay = 0;
@@ -219,11 +231,33 @@ void ChargebyteCCSBattery::setup() {
   datalayer.battery.status.temperature_min_dC = 200;
   datalayer.battery.status.temperature_max_dC = 200;
 
-  prechargeI2C.begin(PRECHARGE_DAC_SDA, PRECHARGE_DAC_SCL, 400000);
-  if (prechargeDac.begin(PRECHARGE_DAC_ADDRESS, &prechargeI2C)) {
-    logging.println("[CME-CCS] successfully initialized I2C DAC");
-  } else {
-    logging.println("[CME-CCS] Failed initializing I2C DAC");
+  i2c_master_bus_config_t bus_config = {
+      .i2c_port = -1,
+      .sda_io_num = (gpio_num_t)PRECHARGE_DAC_SDA,
+      .scl_io_num = (gpio_num_t)PRECHARGE_DAC_SCL,
+      .clk_source = I2C_CLK_SRC_DEFAULT,
+      .glitch_ignore_cnt = 7,
+      .intr_priority = 0,
+      .trans_queue_depth = 0,
+      .flags = {.enable_internal_pullup = true},
+  };
+  if (i2c_new_master_bus(&bus_config, &prechargeI2CBus) != ESP_OK) {
+    logging.println("[CME-CCS] Failed initializing I2C bus for DAC");
+    return;
   }
-  prechargeDac.setVoltage(0, true);  // set 0V output and store in EEPROM
+
+  i2c_device_config_t dev_config = {
+      .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+      .device_address = PRECHARGE_DAC_ADDRESS,
+      .scl_speed_hz = 400000,
+      .scl_wait_us = 0,
+      .flags = {},
+  };
+  if (i2c_master_bus_add_device(prechargeI2CBus, &dev_config, &prechargeDacDev) != ESP_OK) {
+    logging.println("[CME-CCS] Failed adding DAC device");
+    return;
+  }
+
+  logging.println("[CME-CCS] successfully initialized I2C DAC");
+  setPrechargeVoltage(0, true);
 }
