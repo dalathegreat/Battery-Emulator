@@ -63,15 +63,13 @@ void InterUnitMasterBattery::setup() {
 
 void InterUnitMasterBattery::update_values() {
   master_can.update_values();
-  // Only keep alive if at least one slave node is online.
-  // If no slaves respond, let the counter run down so safety.cpp raises EVENT_CAN_BATTERY_MISSING.
-  for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
-    if (datalayer.system.slave_nodes[i].online) {
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      return;
-    }
+  // Keep the master "alive" only while at least one slave is usable (online, identity OK, no
+  // fault, not stale — balancing slaves count as usable). If every slave is offline OR faulted,
+  // let CAN_battery_still_alive run down so safety.cpp raises EVENT_CAN_BATTERY_MISSING — the
+  // single, intended path for propagating a system-wide FAULT to the inverter.
+  if (master_can.any_slave_usable()) {
+    datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   }
-  // No slaves online — do NOT reset the counter
 }
 
 void MasterCan::begin() {
@@ -414,20 +412,23 @@ void MasterCan::update_values() {
     }
 
     // Stale data detection: if STATUS toggle bit has not changed for IU_STATUS_STALE_SECONDS,
-    // the slave is frozen/stuck — block contactor and fire stale event.
-    // This runs AFTER voltage safety so it always overrides any re-allow.
+    // this slave's data is not refreshing — block its contactor and flag it. This is a
+    // per-slave (master-internal) condition raised as a WARNING, not a global ERROR/FAULT:
+    // one stale slave must not fault the whole system. A genuine system-wide fault is raised
+    // only when no slave is usable (see InterUnitMasterBattery::update_values / any_slave_usable).
+    // Runs AFTER voltage safety so it always overrides any re-allow.
     if (node.online && node._last_status_toggle != 0xFF) {
       node.status_stale_seconds++;
       if (node.status_stale_seconds > IU_STATUS_STALE_SECONDS) {
         node.contactor_allowed = false;
-        set_event(EVENT_STALE_VALUE, i + 1);
+        set_event(EVENT_SLAVE_STATUS_STALE, i + 1);
         if (!stale_logged[i]) {
           stale_logged[i] = true;
           logging.printf("Master CAN: Slave %d STATUS is STALE (%u s)\n", i + 1, node.status_stale_seconds);
         }
       } else {
         stale_logged[i] = false;
-        clear_event(EVENT_STALE_VALUE);
+        clear_event(EVENT_SLAVE_STATUS_STALE);
       }
     }
 
@@ -506,6 +507,19 @@ bool MasterCan::node_identity_ok(uint8_t idx) const {
     }
   }
   return true;
+}
+
+bool MasterCan::any_slave_usable() const {
+  for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
+    const SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
+    // Balancing slaves count as usable: they are temporarily idle, not failed, so a slave
+    // that is balancing must not let the whole system fault out.
+    if (node.online && node_identity_ok(i) && node.fault_flags == 0 &&
+        node.status_stale_seconds <= IU_STATUS_STALE_SECONDS) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** Mimics check_interconnect_available() logic from parallel_safety.cpp */
@@ -787,7 +801,8 @@ void MasterCan::update_slave_aggregation() {
       if (node.min_design_voltage_dV > 0) {
         datalayer.battery.info.min_design_voltage_dV = node.min_design_voltage_dV;
       }
-      datalayer.system.status.system_status = ACTIVE;
+      // NOTE: do NOT force system_status here. The event system owns it (default ACTIVE;
+      // FAULT only via a system-wide event). Forcing ACTIVE would mask a genuine FAULT.
       datalayer.battery.status.real_bms_status = BMS_ACTIVE;
       datalayer.system.status.battery_allows_contactor_closing = true;
       break;
@@ -856,8 +871,8 @@ void MasterCan::update_slave_aggregation() {
   // Keep the CAN alive counter refreshed so safety.cpp treats master like a live battery
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
-  // Keep BMS status active so inverter sees system as alive
-  datalayer.system.status.system_status = ACTIVE;
+  // Keep the inverter-facing BMS status active. Do NOT touch system_status — the event
+  // system owns it, so a real system-wide FAULT is not masked by the master.
   datalayer.battery.status.real_bms_status = BMS_ACTIVE;
 
   // Signal inverter that system allows contactor

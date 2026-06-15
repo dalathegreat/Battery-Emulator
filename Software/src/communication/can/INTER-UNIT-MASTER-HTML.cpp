@@ -57,7 +57,11 @@ String InterUnitMasterHtmlRenderer::get_status_html() {
     }
     bool identity_mismatch = !fw_ok || !btype_ok;
 
-    bool is_error = ((n.fault_flags & IU_FAULT_ERROR_MASK) != 0) || identity_mismatch;
+    // A stale slave (STATUS not refreshing) is blocked on the master side but sets no fault_flag
+    // bit, so include it here too so the whole card turns red — it does not raise a global fault.
+    bool is_stale = n.status_stale_seconds > IU_STATUS_STALE_SECONDS;
+
+    bool is_error = ((n.fault_flags & IU_FAULT_ERROR_MASK) != 0) || identity_mismatch || is_stale;
     bool is_warning = !is_error && (n.fault_flags & IU_FAULT_WARNING_MASK) != 0;
     const char* bg = is_error ? "#5A0606" : (is_warning ? "#4A3A00" : "#1E3020");
 

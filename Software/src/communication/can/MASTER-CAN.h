@@ -56,6 +56,12 @@ class MasterCan : public CanReceiver, public Transmitter {
   /** Must be called every 1 second to update aggregation and slave health */
   void update_values();
 
+  /** True if at least one slave is usable for the pack: online, identity verified, no fault
+   *  flags and not stale. Balancing slaves count as usable (temporarily idle, not failed).
+   *  Used to decide whether to keep the master's CAN-alive counter fresh — when NO slave is
+   *  usable the counter expires and safety.cpp raises a system-wide FAULT to the inverter. */
+  bool any_slave_usable() const;
+
  private:
   void send_heartbeat();
   void send_contactor_commands(unsigned long currentMillis);
