@@ -1,0 +1,229 @@
+#include "CHARGEBYTE-CCS.h"
+#include "../datalayer/datalayer.h"
+#include "./Shunt.h"
+
+/* Do not change code below unless you are sure what you are doing */
+// will store last time a 1s CAN Message was sent
+
+void ChargebyteCCSBattery::dump_data() {
+  logging.print("[CME-CCS] [Status] ");
+  logging.print("hasChargebyteError = ");
+  logging.print(hasChargebyteError);
+  logging.print(", hasLowLevelError = ");
+  logging.print(hasLowLevelError);
+  logging.print(", inPrecharge = ");
+  logging.print(inPrecharge);
+  logging.print(", inCharge = ");
+  logging.print(inCharge);
+  logging.println();
+
+  logging.print("[CME-CCS] [Values] ");
+  logging.print("precharge_dV = ");
+  logging.print(precharge_dV);
+  logging.print(", targetVoltage_dV = ");
+  logging.print(targetVoltage_dV);
+  logging.print(", targetCurrent_dA = ");
+  logging.print(targetCurrent_dA);
+  logging.print(", maxVoltage_dV = ");
+  logging.print(maxVoltage_dV);
+  logging.print(", maxCurrent_dA = ");
+  logging.print(maxCurrent_dA);
+  logging.print(", maxPower_W = ");
+  logging.print(maxPower_W);
+  logging.print(", SOC = ");
+  logging.print(soc);
+  logging.print(", energyCapacity_Wh = ");
+  logging.print(energyCapacity_Wh);
+  logging.println();
+}
+
+// this is called every 10ms. We precharge from 1200 to 4095 in 7.24s which refers to 0 to 500V.
+// according to our tests e.g. a Tesla M3 allows 12 seconds of precharging before aborting
+void ChargebyteCCSBattery::handle_precharge() {
+  static uint16_t prechargePos = 0;
+  if (inPrecharge) {
+    if (prechargePos < 1200)
+      prechargePos = 1200;
+    if (prechargePos <= 4090)
+      prechargePos += 4;
+
+    prechargeDac.setVoltage(prechargePos, false);
+
+    logging.print("[CME-CCS] setting precharge to ");
+    logging.println(prechargePos);
+  } else if (prechargePos != 0) {
+    prechargePos = 0;
+    prechargeDac.setVoltage(0, false);
+  }
+
+  static uint16_t contactorCloseDelay = 0;
+  if (inCharge) {
+    if (contactorCloseDelay == 100)  // start precharging after 1s
+      digitalWrite(CCS_PRECHARGE_CONTACTOR_PIN(), HIGH);
+    else if (contactorCloseDelay == 1000)  // fully connect after 10s
+      digitalWrite(CCS_MAIN_CONCTACTOR_PIN(), HIGH);
+    else if (contactorCloseDelay == 1200)  // turn off precharge contactor to reduce coil consumption
+      digitalWrite(CCS_PRECHARGE_CONTACTOR_PIN(), LOW);
+
+    if (contactorCloseDelay <= 1200)
+      contactorCloseDelay++;
+  } else if (contactorCloseDelay != 0) {
+    digitalWrite(CCS_PRECHARGE_CONTACTOR_PIN(), LOW);
+    digitalWrite(CCS_MAIN_CONCTACTOR_PIN(), LOW);
+    contactorCloseDelay = 0;
+  }
+
+  static bool wasInCharge = false;
+  static uint16_t cpPpDisconnectDelay = 0;
+  if (inCharge) {
+    wasInCharge = true;
+    cpPpDisconnectDelay = 0;
+  } else if (wasInCharge && cpPpDisconnectDelay <= 6200) {
+    if (cpPpDisconnectDelay == 0) {
+      logging.println("Detected charge abort, waiting for 60 seconds...");
+    }
+    if (cpPpDisconnectDelay == 6000) {  // disconnect CP and PP after 10s
+      logging.println("Detected charge abort, disconnecting CP and PP...");
+      digitalWrite(CCS_CP_PP_DISCONNECT_PIN(), HIGH);
+    } else if (cpPpDisconnectDelay >= 6199) {  // reconnect after 1.9 more seconds
+      logging.println("Recovering from charge abort, reconnecting CP and PP...");
+      digitalWrite(CCS_CP_PP_DISCONNECT_PIN(), LOW);
+      wasInCharge = false;
+      cpPpDisconnectDelay = 0;
+    }
+    cpPpDisconnectDelay++;
+  }
+}
+
+void ChargebyteCCSBattery::update_values() {
+  dump_data();
+
+  static uint16_t presentVoltage_dV = 0;
+  if (inPrecharge && precharge_dV <= EVSE_MAX_VOLTAGE && precharge_dV > 0)
+    presentVoltage_dV = precharge_dV;
+  else if (inCharge && user_selected_shunt_type != ShuntType::None)
+    presentVoltage_dV = datalayer.shunt.measured_voltage_dV;
+
+  int32_t presentCurrent_dA = 0;
+  if (inCharge && user_selected_shunt_type != ShuntType::None)
+    presentCurrent_dA = datalayer.shunt.measured_amperage_mA / 100;
+
+  CHARGEBYTE_302.data.u8[0] = (presentCurrent_dA + 32500) & 0xff;
+  CHARGEBYTE_302.data.u8[1] = (presentCurrent_dA + 32500) >> 8;
+  CHARGEBYTE_302.data.u8[2] = presentVoltage_dV & 0xff;
+  CHARGEBYTE_302.data.u8[3] = presentVoltage_dV >> 8;
+
+  if (inPrecharge)
+    datalayer.battery.status.real_bms_status = BMS_STANDBY;
+  else if (inCharge)
+    datalayer.battery.status.real_bms_status = BMS_ACTIVE;
+  else if (hasLowLevelError || hasChargebyteError)
+    datalayer.battery.status.real_bms_status = BMS_FAULT;
+  else
+    datalayer.battery.status.real_bms_status = BMS_DISCONNECTED;
+
+  datalayer.battery.status.real_soc = soc;
+  datalayer.battery.status.voltage_dV = presentVoltage_dV;
+  datalayer.battery.status.current_dA = presentCurrent_dA;
+  datalayer.battery.status.remaining_capacity_Wh = energyCapacity_Wh * soc / 10000;
+  datalayer.battery.info.total_capacity_Wh = energyCapacity_Wh;
+  datalayer.battery.info.max_design_voltage_dV = maxVoltage_dV;
+
+  datalayer.battery.status.max_charge_power_W = maxPower_W;
+  datalayer.battery.status.max_discharge_power_W = maxPower_W;
+}
+
+void ChargebyteCCSBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  switch (rx_frame.ID) {
+    case 0x100:
+      if ((rx_frame.data.u8[2] >> 4) >= 3)
+        hasLowLevelError = true;
+      else
+        hasLowLevelError = false;
+
+      inPrecharge = false;
+      inCharge = false;
+      if ((rx_frame.data.u8[1] & 0xf) == 5)
+        inPrecharge = true;
+      else if ((rx_frame.data.u8[1] & 0xf) == 6)
+        inCharge = true;
+      break;
+    case 0x102:
+      if (rx_frame.data.u8[1] == 0)
+        hasChargebyteError = false;
+      else
+        hasChargebyteError = true;
+      break;
+    case 0x202:
+      soc = rx_frame.data.u8[0] * 50;
+      break;
+    case 0x201:
+      targetCurrent_dA = ((uint16_t)rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0];
+      targetVoltage_dV = ((uint16_t)rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2];
+      precharge_dV = ((uint16_t)rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+      break;
+    case 0x200:
+      maxCurrent_dA = ((uint16_t)rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0];
+      maxPower_W = (((uint32_t)rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 100;
+      maxVoltage_dV = ((uint16_t)rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+      break;
+    case 0x203:
+      energyCapacity_Wh = ((uint16_t)rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0];
+      break;
+    default:
+      break;
+  }
+}
+
+void ChargebyteCCSBattery::transmit_can(unsigned long now) {
+  static unsigned long previousTransmit = 0;
+  // Send 100ms CAN Message
+  if (now - previousTransmit >= INTERVAL_100_MS) {
+    previousTransmit = now;
+
+    transmit_can_frame(&CHARGEBYTE_300);
+    transmit_can_frame(&CHARGEBYTE_301);
+    transmit_can_frame(&CHARGEBYTE_302);
+    transmit_can_frame(&CHARGEBYTE_303);
+    transmit_can_frame(&CHARGEBYTE_304);
+    transmit_can_frame(&CHARGEBYTE_305);
+    transmit_can_frame(&CHARGEBYTE_306);
+    transmit_can_frame(&CHARGEBYTE_307);
+  }
+}
+
+void ChargebyteCCSBattery::setup() {
+  pinMode(CCS_PRECHARGE_CONTACTOR_PIN(), OUTPUT);
+  pinMode(CCS_MAIN_CONCTACTOR_PIN(), OUTPUT);
+  pinMode(CCS_CP_PP_DISCONNECT_PIN(), OUTPUT);
+  digitalWrite(CCS_PRECHARGE_CONTACTOR_PIN(), LOW);
+  digitalWrite(CCS_MAIN_CONCTACTOR_PIN(), LOW);
+  digitalWrite(CCS_CP_PP_DISCONNECT_PIN(), LOW);
+
+  strncpy(datalayer.system.info.battery_protocol, "CCS using chargebyte CME/CCF", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
+  datalayer.battery.info.min_design_voltage_dV = 1000;
+  datalayer.battery.info.max_design_voltage_dV = 5000;
+  datalayer.battery.info.max_cell_voltage_mV = 4200;
+  datalayer.battery.info.min_cell_voltage_mV = 3200;
+
+  // fake data
+  datalayer.battery.info.number_of_cells = 4;
+  datalayer.battery.status.cell_voltages_mV[0] = 4000;
+  datalayer.battery.status.cell_voltages_mV[1] = 4000;
+  datalayer.battery.status.cell_voltages_mV[2] = 4000;
+  datalayer.battery.status.cell_voltages_mV[3] = 4000;
+  datalayer.battery.status.cell_min_voltage_mV = 4000;
+  datalayer.battery.status.cell_max_voltage_mV = 4000;
+  datalayer.battery.status.temperature_min_dC = 200;
+  datalayer.battery.status.temperature_max_dC = 200;
+
+  prechargeI2C.begin(PRECHARGE_DAC_SDA, PRECHARGE_DAC_SCL, 400000);
+  if (prechargeDac.begin(PRECHARGE_DAC_ADDRESS, &prechargeI2C)) {
+    logging.println("[CME-CCS] successfully initialized I2C DAC");
+  } else {
+    logging.println("[CME-CCS] Failed initializing I2C DAC");
+  }
+  prechargeDac.setVoltage(0, true);  // set 0V output and store in EEPROM
+}
