@@ -1,3 +1,5 @@
+#ifndef SMALL_FLASH_DEVICE
+
 #include "CHARGEBYTE-CCS.h"
 #include "../datalayer/datalayer.h"
 #include "./Shunt.h"
@@ -261,3 +263,5 @@ void ChargebyteCCSBattery::setup() {
   logging.println("[CME-CCS] successfully initialized I2C DAC");
   setPrechargeVoltage(0, true);
 }
+
+#endif

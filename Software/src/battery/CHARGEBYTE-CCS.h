@@ -1,3 +1,5 @@
+#ifndef SMALL_FLASH_DEVICE
+
 #ifndef CHARGEBYTE_CCS_BATTERY_H
 #define CHARGEBYTE_CCS_BATTERY_H
 #include "../devboard/hal/hal.h"
@@ -123,5 +125,7 @@ class ChargebyteCCSBattery : public CanBattery {
   i2c_master_bus_handle_t prechargeI2CBus = nullptr;
   i2c_master_dev_handle_t prechargeDacDev = nullptr;
 };
+
+#endif
 
 #endif
