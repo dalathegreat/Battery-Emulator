@@ -65,6 +65,7 @@ class MasterCan : public CanReceiver, public Transmitter {
    *  An unverified or mismatched slave must never prejoin or close its contactor. */
   bool node_identity_ok(uint8_t slave_idx) const;
 
+  unsigned long _last_update_values_ms = 0;  // Throttle per-second logic to once/sec (see update_values)
   unsigned long _last_heartbeat_ms = 0;
   unsigned long _next_contactor_tx_ms = 0;
   uint8_t _next_contactor_idx = 0;
