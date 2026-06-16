@@ -265,10 +265,10 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 int code = RS485_RXFRAME[6] + RS485_RXFRAME[7] * 0x100;
                 if (code == 0x44a && info_sent) {
                   //Send cyclic data
-                  // TODO: Probably not a good idea to use the battery object here like this.
-                  if (battery) {
-                    battery->update_values();
-                  }
+                  // NOTE: do NOT call battery->update_values() here. The core loop already runs it
+                  // once per second; calling it again on every cyclic poll runs the battery's
+                  // per-second logic ~twice as fast. No other inverter does this. The inverter reads
+                  // the datalayer as refreshed by the core loop.
                   update_values();
                   if (f2_startup_count < 15) {
                     f2_startup_count++;
