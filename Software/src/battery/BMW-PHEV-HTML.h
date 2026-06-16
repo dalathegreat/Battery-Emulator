@@ -477,6 +477,11 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content +=
         "<h3 style='color: #5e35b1; border-bottom: 2px solid #5e35b1; padding-bottom: 5px;'>⚖️ Balancing Status</h3>";
     content += "<div style='margin-left: 15px;'>";
+    content +=
+        "<p style='color: #bbb; font-style: italic; margin: 0 0 8px 0;'>Balancing can only run while the "
+        "contactors are OPEN and after the cells have settled at rest for ~10 min (see "
+        "\"Inactive - Cells Not at Rest (Wait 10 min)\" below). It is blocked while the contactors are "
+        "closed.</p>";
     content += "<h4>Balancing: ";
     switch (datalayer_extended.bmwphev.balancing_status) {
       case 0:
