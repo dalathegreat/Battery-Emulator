@@ -32,12 +32,14 @@ class BatteryHtmlRenderer {
     s += "<div style='margin-top:15px;padding:12px;background:#1e1e2e;border:1px solid #444;border-radius:8px;'>";
     s += "<p id='dtcJsonStatus' style='margin:0 0 8px 0;color:#aaa;font-size:.95em;'></p>";
     s += "<div id='dtcJsonFileContainer' style='display:none;'>";
-    s += "<p style='margin:4px 0;color:#ccc;font-size:.9em;'><strong>Load DTC descriptions from a local JSON file</strong> ";
+    s += "<p style='margin:4px 0;color:#ccc;font-size:.9em;'><strong>Load DTC descriptions from a local JSON "
+         "file</strong> ";
     s += "(e.g. <em>";
     s += filename;
     s += "</em>):</p>";
     s += "<input type='file' id='dtcJsonFile' accept='.json' "
-         "style='color:#ccc;background:#2a2a3e;border:1px solid #555;border-radius:4px;padding:4px 8px;cursor:pointer;'>";
+         "style='color:#ccc;background:#2a2a3e;border:1px solid #555;border-radius:4px;padding:4px "
+         "8px;cursor:pointer;'>";
     s += "</div>";
     s += "</div>";
 
@@ -153,34 +155,34 @@ class BatteryHtmlRenderer {
     s += "<script>(function(){var u='";
     s += base_url;
     s += filename;
-    s +=
-        "';var k='dtcJson:'+u;"
-        "var S=document.getElementById('dtcJsonStatus');"
-        "var C=document.getElementById('dtcJsonFileContainer');"
-        "var I=document.getElementById('dtcJsonFile');"
-        "function A(a,b){"
-        "var m={};a.forEach(function(e){if(e.code!=null)m[e.code]=e;if(e.dtc)m[e.dtc]=e;});"
-        "var L=document.querySelectorAll('[data-dtc-code]');var n=0;"
-        "L.forEach(function(t){var e=m[t.getAttribute('data-dtc-code')];"
-        "if(e){var d=e.l_dsc;if(e.s_dsc)d+='<br /><em style=\\'color:#aaa;font-size:0.85em\\'>'+e.s_dsc+'</em>';t.innerHTML=d;n++;}});"
-        "S.innerHTML='Loaded '+a.length+' entries, '+n+'/'+L.length+' DTCs matched'+(b?' (cached)':' (fetched)')+"
-        "'. <a href=\\'#\\' id=\\'dtcRefresh\\' style=\\'color:#aaa;font-size:0.85em;\\'>Refresh</a>';"
-        "S.style.color=n>0?'#4CAF50':'#ff9800';"
-        "document.getElementById('dtcRefresh').addEventListener('click',function(e){"
-        "e.preventDefault();try{localStorage.removeItem(k);}catch(x){}F();});}"
-        "function P(msg){S.textContent=msg;S.style.color='#ff9800';C.style.display='';}"
-        "function F(){S.textContent='Fetching DTC descriptions from GitHub...';S.style.color='#aaa';"
-        "fetch(u).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})"
-        ".then(function(t){try{localStorage.setItem(k,t);}catch(x){}A(JSON.parse(t),false);})"
-        ".catch(function(err){P('GitHub unavailable ('+err.message+') - load from local file:');});}"
-        "if(u.length>0){var g=null;try{g=localStorage.getItem(k);}catch(x){}"
-        "if(g){try{A(JSON.parse(g),true);}catch(x){F();}}else{F();}}else{C.style.display='';}"
-        "I.addEventListener('change',function(e){var f=e.target.files[0];if(!f)return;"
-        "S.textContent='Loading...';S.style.color='#aaa';var R=new FileReader();"
-        "R.onload=function(v){try{A(JSON.parse(v.target.result),false);}"
-        "catch(err){S.textContent='Parse error: '+err.message;S.style.color='#d32f2f';}};"
-        "R.onerror=function(){S.textContent='File read error';S.style.color='#d32f2f';};"
-        "R.readAsText(f);});})();</script>";
+    s += "';var k='dtcJson:'+u;"
+         "var S=document.getElementById('dtcJsonStatus');"
+         "var C=document.getElementById('dtcJsonFileContainer');"
+         "var I=document.getElementById('dtcJsonFile');"
+         "function A(a,b){"
+         "var m={};a.forEach(function(e){if(e.code!=null)m[e.code]=e;if(e.dtc)m[e.dtc]=e;});"
+         "var L=document.querySelectorAll('[data-dtc-code]');var n=0;"
+         "L.forEach(function(t){var e=m[t.getAttribute('data-dtc-code')];"
+         "if(e){var d=e.l_dsc;if(e.s_dsc)d+='<br /><em "
+         "style=\\'color:#aaa;font-size:0.85em\\'>'+e.s_dsc+'</em>';t.innerHTML=d;n++;}});"
+         "S.innerHTML='Loaded '+a.length+' entries, '+n+'/'+L.length+' DTCs matched'+(b?' (cached)':' (fetched)')+"
+         "'. <a href=\\'#\\' id=\\'dtcRefresh\\' style=\\'color:#aaa;font-size:0.85em;\\'>Refresh</a>';"
+         "S.style.color=n>0?'#4CAF50':'#ff9800';"
+         "document.getElementById('dtcRefresh').addEventListener('click',function(e){"
+         "e.preventDefault();try{localStorage.removeItem(k);}catch(x){}F();});}"
+         "function P(msg){S.textContent=msg;S.style.color='#ff9800';C.style.display='';}"
+         "function F(){S.textContent='Fetching DTC descriptions from GitHub...';S.style.color='#aaa';"
+         "fetch(u).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})"
+         ".then(function(t){try{localStorage.setItem(k,t);}catch(x){}A(JSON.parse(t),false);})"
+         ".catch(function(err){P('GitHub unavailable ('+err.message+') - load from local file:');});}"
+         "if(u.length>0){var g=null;try{g=localStorage.getItem(k);}catch(x){}"
+         "if(g){try{A(JSON.parse(g),true);}catch(x){F();}}else{F();}}else{C.style.display='';}"
+         "I.addEventListener('change',function(e){var f=e.target.files[0];if(!f)return;"
+         "S.textContent='Loading...';S.style.color='#aaa';var R=new FileReader();"
+         "R.onload=function(v){try{A(JSON.parse(v.target.result),false);}"
+         "catch(err){S.textContent='Parse error: '+err.message;S.style.color='#d32f2f';}};"
+         "R.onerror=function(){S.textContent='File read error';S.style.color='#d32f2f';};"
+         "R.readAsText(f);});})();</script>";
     return s;
   }
 };
