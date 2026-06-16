@@ -251,6 +251,8 @@ static const char* get_balancing_status_text(balancing_status_enum status) {
       return "Ready";
     case BALANCING_STATUS_ACTIVE:
       return "Active";
+    case BALANCING_STATUS_BLOCKED:
+      return "Blocked";
     default:
       return "Unknown";
   }
@@ -301,11 +303,12 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     doc["dc_dc_current" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
     doc["dc_dc_voltage" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625f;
   }
-  if (suffix.length() == 0u && supports_byd_autocal_metrics(::battery)) {
-    doc["autocal_taper" + suffix] = datalayer_extended.bydAtto3.autocal_crit_taper;
-    doc["autocal_dwell_s" + suffix] = datalayer_extended.bydAtto3.autocal_dwell_accumulated_ms / 1000u;
-    doc["autocal_cooldown_ready" + suffix] = datalayer_extended.bydAtto3.autocal_crit_cooldown_ready;
-    doc["autocal_soc_drift" + suffix] = datalayer_extended.bydAtto3.autocal_drift_percent;
+  if (supports_byd_autocal_metrics(::battery)) {
+    const DATALAYER_INFO_BYDATTO3& byd = (suffix == "_2") ? datalayer_extended.bydAtto3_2 : datalayer_extended.bydAtto3;
+    doc["autocal_taper" + suffix] = byd.autocal_crit_taper;
+    doc["autocal_dwell_s" + suffix] = byd.autocal_dwell_accumulated_ms / 1000u;
+    doc["autocal_cooldown_ready" + suffix] = byd.autocal_crit_cooldown_ready;
+    doc["autocal_soc_drift" + suffix] = byd.autocal_drift_percent;
   }
 }
 

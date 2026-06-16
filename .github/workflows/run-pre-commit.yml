@@ -3,8 +3,9 @@
 name: 📝 Run pre-commit
 
 on:
-  - push
-  - pull_request
+  push:
+    branches: [main]
+  pull_request:
 
 jobs:
   pre-commit:

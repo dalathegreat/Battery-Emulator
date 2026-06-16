@@ -85,6 +85,7 @@ add_executable(tests
     ../Software/src/devboard/utils/common_functions.cpp
     ../Software/src/datalayer/datalayer.cpp
     ../Software/src/datalayer/datalayer_extended.cpp
+    ../Software/src/lib/uds_isotp/isotp.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusMessage.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusServer.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusServerRTU.cpp

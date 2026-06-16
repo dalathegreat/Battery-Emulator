@@ -2,6 +2,7 @@
 #define SOLAX_CAN_H
 
 #include "CanInverterProtocol.h"
+#include "INVERTERS.h"
 
 class SolaxInverter : public CanInverterProtocol {
  public:
@@ -29,10 +30,11 @@ class SolaxInverter : public CanInverterProtocol {
 
   uint16_t configured_number_of_modules = 0;
   uint16_t configured_battery_type = 0;
-  // If true, the integration will ignore the inverter's requests to open the
-  // battery contactors. Useful for batteries that can't open contactors on
-  // request.
-  bool configured_ignore_contactors = false;
+  // Contactor workaround mode:
+  // NoWorkaround = normal operation, follow inverter requests
+  // AlwaysClosed = bypass state machine, keep contactors always closed
+  // LockAfterFirstClose = run state machine, wait for first close request, then lock
+  inverter_contactor_mode_enum configured_contactor_mode = inverter_contactor_mode_enum::NoWorkaround;
 
   //CAN message translations from this amazing repository: https://github.com/rand12345/solax_can_bus
 

@@ -14,7 +14,6 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content +=
         "<h3 style='color: #1e88e5; border-bottom: 2px solid #1e88e5; padding-bottom: 5px;'>⚡ Power & Voltage</h3>";
     content += "<div style='margin-left: 15px;'>";
-    content += "<h4>DC Link Voltage: " + String(datalayer_extended.bmwphev.battery_DC_link_voltage) + " V</h4>";
     content +=
         "<h4>Battery Voltage (After Contactor): " + String(datalayer_extended.bmwphev.battery_voltage_after_contactor) +
         " dV</h4>";
@@ -305,6 +304,11 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content +=
         "<h3 style='color: #5e35b1; border-bottom: 2px solid #5e35b1; padding-bottom: 5px;'>⚖️ Balancing Status</h3>";
     content += "<div style='margin-left: 15px;'>";
+    content +=
+        "<p style='color: #bbb; font-style: italic; margin: 0 0 8px 0;'>Balancing can only run while the "
+        "contactors are OPEN and after the cells have settled at rest for ~10 min (see "
+        "\"Inactive - Cells Not at Rest (Wait 10 min)\" below). It is blocked while the contactors are "
+        "closed.</p>";
     content += "<h4>Balancing: ";
     switch (datalayer_extended.bmwphev.balancing_status) {
       case 0:
@@ -325,6 +329,28 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Unknown</h4>");
     }
+    content += "<h4>Balancing Request: ";
+    content += datalayer.battery.settings.user_requests_balancing ? String("<span style='color: #43a047;'>True</span>")
+                                                                  : String("False");
+    content += "</h4>";
+    // Max balancing time before the safety timer auto-cancels the request (shared
+    // balancing_max_time_ms, default 1h). Editable here via the existing /BalTime route, since the
+    // PHEV uses supports_balancing_request() and so doesn't get the Tesla manual-balancing settings UI.
+    content += "<h4>Balancing Max Time: " + String(datalayer.battery.settings.balancing_max_time_ms / 60000.0f, 1) +
+               " min <button onclick='editPhevBalTime()'>Edit</button></h4>";
+    content +=
+        "<script>"
+        "function editPhevBalTime(){"
+        "var v=prompt('Enter new max balancing time in minutes (1-300). Note: not saved across "
+        "reboot for now - resets to the 5h default on restart.');"
+        "if(v===null){return;}"
+        "if(v>=1&&v<=300){"
+        "var x=new XMLHttpRequest();"
+        "x.onload=function(){location.reload();};"
+        "x.open('GET','/BalTime?value='+v,true);x.send();"
+        "}else{alert('Invalid value. Please enter a value between 1 and 300');}"
+        "}"
+        "</script>";
     content += "</div>";
 
     // Diagnostics Section
@@ -343,6 +369,10 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
       content += "<p style='color: #d32f2f;'>⚠ Last DTC read failed or not supported</p>";
     } else if (datalayer_extended.bmwphev.dtc_count == 0) {
       content += "<p style='color: #4CAF50;'>✓ No DTCs present</p>";
+      if (datalayer_extended.bmwix.dtc_last_read_millis > 0) {
+        content += "<p><strong>Last Read:</strong> " +
+                   String((millis() - datalayer_extended.bmwix.dtc_last_read_millis) / 1000) + "s ago</p>";
+      }
     } else {
       content += "<p><strong>DTC Count:</strong> " + String(datalayer_extended.bmwphev.dtc_count) + "</p>";
       content += "<p><strong>Last Read:</strong> " +
