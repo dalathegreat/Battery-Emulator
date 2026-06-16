@@ -24,6 +24,35 @@ CAN bus, **500 kbps**: the master runs the inter-unit protocol on its **battery*
 
 ---
 
+## Hardware Topology
+
+Each unit is a separate ESP32 board (e.g. LilyGo). The master and all slaves share one inter-unit CAN bus. Each slave connects to its own real battery; the master connects to the inverter.
+
+```
+        ┌───────────┐
+        │  Inverter │
+        └─────┬─────┘
+              │ CAN
+        ┌─────┴───────────┐
+        │  MASTER  LilyGo │
+        └─────┬───────────┘
+              │
+   ═══════════╪═══════════════════════════╗   Inter-Unit CAN bus
+              │                            ║   500 kbps
+        ┌─────┴───────────┐   ┌────────────╫────┐
+        │ SLAVE 1 LilyGo  │   │ SLAVE 2 LilyGo   │   ... up to 24 slaves
+        └─────┬───────────┘   └────────────┬────┘
+              │ CAN                         │ CAN
+        ┌─────┴─────┐               ┌───────┴───┐
+        │  Battery  │               │  Battery  │
+        │ (BMW i3)  │               │ (BMW i3)  │
+        └───────────┘               └───────────┘
+```
+
+- All inter-unit nodes share one 500 kbps bus; terminate it with 120 Ω at both physical ends like any CAN bus, and tie all node grounds together.
+
+---
+
 ## CAN ID Allocation
 
 | CAN ID | Direction | Description |
