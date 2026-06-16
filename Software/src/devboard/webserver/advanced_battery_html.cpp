@@ -114,8 +114,9 @@ String advanced_battery_processor(const String& var) {
     }
 
     if (battery2) {
+      content += "<hr>";
       content += "<h4>Values from battery 2</h4>";
-      content += "<h4 style='color: #f39c12;'>⚠️ Advanced detailed info is currently limited to the Main Battery.</h4>";
+      content += battery2->get_status_renderer().get_status_html();
       render_command_buttons(battery2, 1);
     }
 

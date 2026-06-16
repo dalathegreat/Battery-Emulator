@@ -9,10 +9,10 @@
 class RelionBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  RelionBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan)
+  RelionBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan, bool* allows_contactor_closing_ptr)
       : CanBattery(targetCan, CAN_Speed::CAN_SPEED_250KBPS) {
     datalayer_battery = datalayer_ptr;
-    allows_contactor_closing = &datalayer.system.status.battery2_allowed_contactor_closing;
+    allows_contactor_closing = allows_contactor_closing_ptr;
     battery_total_voltage = 0;
   }
 

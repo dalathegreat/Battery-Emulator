@@ -611,7 +611,12 @@ void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
 
     ZOE_POLL_79B.data.u8[2] = current_poll;
 
-    transmit_can_frame(&ZOE_POLL_79B);
+    if (UserRequestedDTCReset == true) {
+      transmit_can_frame(&ZOE_CLEAR_DTC);
+      UserRequestedDTCReset = false;
+    } else {
+      transmit_can_frame(&ZOE_POLL_79B);
+    }
   }
 }
 

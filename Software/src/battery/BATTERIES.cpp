@@ -298,7 +298,7 @@ void setup_battery() {
             new BoltAmperaBattery(&datalayer.battery2, &datalayer_extended.boltampera_2, can_config.battery_double);
         break;
       case BatteryType::BydAtto3:
-        battery2 = new BydAttoBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+        battery2 = new BydAttoBattery(&datalayer.battery2, &datalayer_extended.bydAtto3_2, can_config.battery_double);
         break;
       case BatteryType::NissanLeaf:
         battery2 = new NissanLeafBattery(&datalayer.battery2, nullptr, can_config.battery_double);
@@ -331,7 +331,8 @@ void setup_battery() {
         battery2 = new SantaFePhevBattery(&datalayer.battery2, can_config.battery_double);
         break;
       case BatteryType::RelionBattery:
-        battery2 = new RelionBattery(&datalayer.battery2, can_config.battery_double);
+        battery2 = new RelionBattery(&datalayer.battery2, can_config.battery_double,
+                                     &datalayer.system.status.battery2_allowed_contactor_closing);
         break;
       case BatteryType::RenaultZoe1:
         battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, nullptr, can_config.battery_double);
@@ -358,7 +359,8 @@ void setup_battery() {
         battery3 = new NissanLeafBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
         break;
       case BatteryType::RelionBattery:
-        battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple);
+        battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,
+                                     &datalayer.system.status.battery3_allowed_contactor_closing);
         break;
       default:
         DEBUG_PRINTF("User tried enabling triple battery on non-supported integration!\n");

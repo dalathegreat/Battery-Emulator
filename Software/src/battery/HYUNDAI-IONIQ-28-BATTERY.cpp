@@ -333,7 +333,12 @@ void HyundaiIoniq28Battery::transmit_can(unsigned long currentMillis) {
         break;
     }
 
-    transmit_can_frame(&IONIQ_7E4_POLL);
+    if (UserRequestDTCreset) {
+      transmit_can_frame(&IONIQ_CLEAR_DTC);
+      UserRequestDTCreset = false;
+    } else {
+      transmit_can_frame(&IONIQ_7E4_POLL);
+    }
   }
 
   //Send 100ms message

@@ -69,9 +69,14 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_ISOLATION].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_SOC_RECALIBRATION].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BYD_AUTO_SOC_CALIBRATION].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BYD_CONTACTOR_MISMATCH].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BYD_CONTACTOR_FORCE_OPEN].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_BYD_CONTACTOR_OPEN_REQ].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BYD_CONTACTOR_CLOSE_REQ].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_SOC_RESET_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_SOC_RESET_FAIL].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_VOLTAGE_DIFFERENCE].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_VOLTAGE_DIFFERENCE_BAT2].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_VOLTAGE_DIFFERENCE_BAT3].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_SOH_DIFFERENCE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOH_LOW].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_HVIL_FAILURE].level = EVENT_LEVEL_ERROR;
@@ -257,12 +262,26 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "The BMS updated the HV battery State of Charge (SOC) by more than 3pct based on SocByOcv.";
     case EVENT_BYD_AUTO_SOC_CALIBRATION:
       return "Auto SOC recalibration to 100% triggered. Data column shows drift% below 100%.";
+    case EVENT_BYD_CONTACTOR_MISMATCH:
+      return "Battery did not confirm the contactor command in time. Data: 2 = open not confirmed, 3 = close not "
+             "confirmed.";
+    case EVENT_BYD_CONTACTOR_FORCE_OPEN:
+      return "Contactors force-opened: pack current was not confirmed safe before the timeout. Data: 0 = current "
+             "stayed high, 1 = no fresh current reading. Check the inverter ramped down.";
+    case EVENT_BYD_CONTACTOR_OPEN_REQ:
+      return "Contactor open commanded. Power is set to zero and the contactors open once current stops. Data: 1 = "
+             "from an emergency stop saved across reboot.";
+    case EVENT_BYD_CONTACTOR_CLOSE_REQ:
+      return "Contactor close commanded. The battery precharges and closes its contactors. Data: 1 = cancelled a "
+             "pending open.";
     case EVENT_BATTERY_SOC_RESET_SUCCESS:
       return "SOC reset routine was successful.";
     case EVENT_BATTERY_SOC_RESET_FAIL:
       return "SOC reset routine failed - check SOC is < 15 or > 90, and contactors are open.";
-    case EVENT_VOLTAGE_DIFFERENCE:
+    case EVENT_VOLTAGE_DIFFERENCE_BAT2:
       return "Too large voltage diff between the batteries. Second battery cannot join the DC-link";
+    case EVENT_VOLTAGE_DIFFERENCE_BAT3:
+      return "Too large voltage diff between the batteries. Third battery cannot join the DC-link";
     case EVENT_SOH_DIFFERENCE:
       return "Large deviation in State of health between packs. Inspect battery.";
     case EVENT_SOH_LOW:
