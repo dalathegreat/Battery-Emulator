@@ -191,7 +191,7 @@ This gives all slaves time to announce their voltage before the inverter begins 
 ---
 
 ### 2. Slave Offline Detection
-**Timeout:** 60 seconds (`IU_OFFLINE_TIMEOUT_S`)
+**Timeout:** 60 seconds (`CAN_STILL_ALIVE`, decremented at 1 Hz)
 
 The master maintains a countdown from 60 for each slave, reset on every received message.  
 When the counter reaches 0:

@@ -17,7 +17,7 @@
  *
  * On contactor command received: updates contactor_allowed in datalayer.
  *
- * Safety: if no heartbeat received for IU_OFFLINE_TIMEOUT_S seconds,
+ * Safety: if no heartbeat received for CAN_STILL_ALIVE seconds (60s),
  *         slave opens its own contactors (master is offline).
  */
 class SlaveCan : public CanReceiver, public Transmitter {
@@ -26,7 +26,7 @@ class SlaveCan : public CanReceiver, public Transmitter {
   void receive_can_frame(CAN_frame* rx_frame) override;
   void transmit(unsigned long currentMillis) override;
 
-  /** True if the master has been heard from within the last IU_OFFLINE_TIMEOUT_S seconds */
+  /** True if the master has been heard from within the last CAN_STILL_ALIVE seconds (60s) */
   bool master_online() const { return _master_online; }
 
  private:

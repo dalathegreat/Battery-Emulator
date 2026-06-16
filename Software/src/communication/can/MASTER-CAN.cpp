@@ -118,8 +118,8 @@ void MasterCan::receive_can_frame(CAN_frame* rx_frame) {
 
   SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[node_id - 1];
 
-  // Reset still_alive counter (60s timeout)
-  node.still_alive = IU_OFFLINE_TIMEOUT_S;
+  // Reset still_alive counter (decremented at 1Hz in update_values() => 60s timeout)
+  node.still_alive = CAN_STILL_ALIVE;
   node.online = true;
   // Note: EVENT_SLAVE_BATTERY_MISSING is intentionally NOT cleared here so the
   // event history shows that a slave was offline. Contactor is re-allowed by
@@ -208,7 +208,7 @@ void MasterCan::receive_can_frame(CAN_frame* rx_frame) {
 // ---- CAN TX --------------------------------------------------------
 
 void MasterCan::transmit(unsigned long currentMillis) {
-  if (currentMillis - _last_heartbeat_ms >= IU_HEARTBEAT_INTERVAL_MS) {
+  if (currentMillis - _last_heartbeat_ms >= INTERVAL_1_S) {
     _last_heartbeat_ms = currentMillis;
     send_heartbeat();
 
