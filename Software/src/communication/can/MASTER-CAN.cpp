@@ -73,7 +73,6 @@ void InterUnitMasterBattery::update_values() {
 }
 
 void MasterCan::begin() {
-  _last_update_values_ms = 0;
   _last_heartbeat_ms = 0;
   _next_contactor_tx_ms = 0;
   _next_contactor_idx = 0;
@@ -279,18 +278,6 @@ void MasterCan::send_contactor_commands(unsigned long currentMillis) {
 // ---- Value aggregation (called every 1s) ---------------------------
 
 void MasterCan::update_values() {
-  // This is reached once per second from the main loop (battery->update_values())
-  // AND again whenever the Kostal RS485 inverter polls for cyclic data
-  // (KOSTAL-RS485.cpp calls battery->update_values()). All logic below is
-  // per-second (stale counters, offline/balancing/voltage timers), so running it
-  // more than once a second would make every timer expire twice as fast. Throttle
-  // to at most once per ~second regardless of how many callers invoke us.
-  unsigned long now = millis();
-  if (_last_update_values_ms != 0 && (now - _last_update_values_ms) < 950u) {
-    return;
-  }
-  _last_update_values_ms = now;
-
   bool estop_active = datalayer.system.info.equipment_stop_active;
 
   // Start grace timer the moment the first slave comes online
