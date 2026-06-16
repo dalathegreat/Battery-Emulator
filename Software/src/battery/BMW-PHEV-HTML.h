@@ -12,7 +12,7 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
 #ifndef SMALL_FLASH_DEVICE
       // Contactor & Safety System
       case 0x21F1F6:
-        return "High-voltage battery, switch contactors: Switch-off after a fault";
+        return "High-voltage battery, switching contactors: Switch-off after a fault";
       case 0x21F200:
         return "High-voltage battery, switch contactors: Activation not possible due to overload current";
       case 0x21F18A:
@@ -57,6 +57,8 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
         return "High-voltage battery, cooling system: Activation of coolant pump, line disconnection";
       case 0x21F0F2:
         return "High-voltage battery, cooling system: Activation of refrigerant shutoff valve, line disconnection";
+      case 0x21F00F:
+        return "High-voltage battery, cooling system: Activation of refrigerant shutoff valve, line disconnection";
       case 0x21F05C:
         return "High-voltage battery, cooling circuit: failure";
       case 0x21EFF5:
@@ -99,6 +101,38 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
       case 0x21F04B:
         return "High-voltage battery unit: Internal CAN bus between SME and cell supervision circuit, communication "
                "fault";
+
+      // Missing CAN Messages (SME receiver)
+      case 0xCAD415:
+        return "No message (ETS high-voltage battery specifications, 0x10B), receiver SME, transmitter EME";
+      case 0xCAD408:
+        return "No message (vehicle condition, 0x3A0), receiver SME, transmitter BDC";
+      case 0xCAD426:
+        return "No message (state of charge, 0x3E), receiver SME, transmitter EME";
+      case 0xCAD416:
+        return "Signal (status of electric motor 1, 0x10B) invalid, transmitter EME";
+      case 0xCAD402:
+        return "No message (relative time, 0x328), receiver SME, transmitter KOMBI";
+      case 0xCAD429:
+        return "No message (driving information forecast, 0x3CA), receiver SME, transmitter KOMBI";
+      case 0xCAD413:
+        return "No message (specification high-voltage battery, 0x433), receiver SME, transmitter EME";
+      case 0xCAD401:
+        return "No message (ambient temperature, 0x2CA), receiver SME, transmitter KOMBI";
+      case 0xCAD40A:
+        return "No message (vehicle speed, 0x1A1), receiver SME, transmitter DSC";
+      case 0xCAD409:
+        return "No message (enable, high-voltage battery cooling, 0x37B), receiver SME, transmitter IHKA";
+      case 0xCAD40B:
+        return "No message (km-reading/range, 0x330), receiver SME, transmitter KOMBI";
+      case 0xCAD405:
+        return "No message (OBD diagnosis, engine control, electrical, 0x3E8), receiver SME, transmitter EME";
+      case 0xCAC47C:
+        return "SME, K-CAN9: Communication fault";
+      case 0xCAD404:
+        return "No message (request, high-voltage battery, 0xCC), receiver SME, transmitter EME";
+      case 0xCAD403:
+        return "No message (VCU_FD01, 0xB5), receiver SME, transmitter EDME";
 
       // SME Internal Errors
       case 0x21F178:
@@ -153,7 +187,6 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content +=
         "<h3 style='color: #1e88e5; border-bottom: 2px solid #1e88e5; padding-bottom: 5px;'>⚡ Power & Voltage</h3>";
     content += "<div style='margin-left: 15px;'>";
-    content += "<h4>DC Link Voltage: " + String(datalayer_extended.bmwphev.battery_DC_link_voltage) + " V</h4>";
     content +=
         "<h4>Battery Voltage (After Contactor): " + String(datalayer_extended.bmwphev.battery_voltage_after_contactor) +
         " dV</h4>";
@@ -444,6 +477,11 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content +=
         "<h3 style='color: #5e35b1; border-bottom: 2px solid #5e35b1; padding-bottom: 5px;'>⚖️ Balancing Status</h3>";
     content += "<div style='margin-left: 15px;'>";
+    content +=
+        "<p style='color: #bbb; font-style: italic; margin: 0 0 8px 0;'>Balancing can only run while the "
+        "contactors are OPEN and after the cells have settled at rest for ~10 min (see "
+        "\"Inactive - Cells Not at Rest (Wait 10 min)\" below). It is blocked while the contactors are "
+        "closed.</p>";
     content += "<h4>Balancing: ";
     switch (datalayer_extended.bmwphev.balancing_status) {
       case 0:
@@ -464,6 +502,28 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Unknown</h4>");
     }
+    content += "<h4>Balancing Request: ";
+    content += datalayer.battery.settings.user_requests_balancing ? String("<span style='color: #43a047;'>True</span>")
+                                                                  : String("False");
+    content += "</h4>";
+    // Max balancing time before the safety timer auto-cancels the request (shared
+    // balancing_max_time_ms, default 1h). Editable here via the existing /BalTime route, since the
+    // PHEV uses supports_balancing_request() and so doesn't get the Tesla manual-balancing settings UI.
+    content += "<h4>Balancing Max Time: " + String(datalayer.battery.settings.balancing_max_time_ms / 60000.0f, 1) +
+               " min <button onclick='editPhevBalTime()'>Edit</button></h4>";
+    content +=
+        "<script>"
+        "function editPhevBalTime(){"
+        "var v=prompt('Enter new max balancing time in minutes (1-300). Note: not saved across "
+        "reboot for now - resets to the 5h default on restart.');"
+        "if(v===null){return;}"
+        "if(v>=1&&v<=300){"
+        "var x=new XMLHttpRequest();"
+        "x.onload=function(){location.reload();};"
+        "x.open('GET','/BalTime?value='+v,true);x.send();"
+        "}else{alert('Invalid value. Please enter a value between 1 and 300');}"
+        "}"
+        "</script>";
     content += "</div>";
 
     // Diagnostics Section
@@ -482,6 +542,10 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
       content += "<p style='color: #d32f2f;'>⚠ Last DTC read failed or not supported</p>";
     } else if (datalayer_extended.bmwphev.dtc_count == 0) {
       content += "<p style='color: #4CAF50;'>✓ No DTCs present</p>";
+      if (datalayer_extended.bmwix.dtc_last_read_millis > 0) {
+        content += "<p><strong>Last Read:</strong> " +
+                   String((millis() - datalayer_extended.bmwix.dtc_last_read_millis) / 1000) + "s ago</p>";
+      }
     } else {
       content += "<p><strong>DTC Count:</strong> " + String(datalayer_extended.bmwphev.dtc_count) + "</p>";
       content += "<p><strong>Last Read:</strong> " +

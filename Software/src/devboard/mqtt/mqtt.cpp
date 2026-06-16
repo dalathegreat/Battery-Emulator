@@ -251,6 +251,8 @@ static const char* get_balancing_status_text(balancing_status_enum status) {
       return "Ready";
     case BALANCING_STATUS_ACTIVE:
       return "Active";
+    case BALANCING_STATUS_BLOCKED:
+      return "Blocked";
     default:
       return "Unknown";
   }
