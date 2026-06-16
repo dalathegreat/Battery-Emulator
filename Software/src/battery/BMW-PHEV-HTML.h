@@ -187,7 +187,6 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content +=
         "<h3 style='color: #1e88e5; border-bottom: 2px solid #1e88e5; padding-bottom: 5px;'>⚡ Power & Voltage</h3>";
     content += "<div style='margin-left: 15px;'>";
-    content += "<h4>DC Link Voltage: " + String(datalayer_extended.bmwphev.battery_DC_link_voltage) + " V</h4>";
     content +=
         "<h4>Battery Voltage (After Contactor): " + String(datalayer_extended.bmwphev.battery_voltage_after_contactor) +
         " dV</h4>";
@@ -502,6 +501,24 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
     content += datalayer.battery.settings.user_requests_balancing ? String("<span style='color: #43a047;'>True</span>")
                                                                   : String("False");
     content += "</h4>";
+    // Max balancing time before the safety timer auto-cancels the request (shared
+    // balancing_max_time_ms, default 1h). Editable here via the existing /BalTime route, since the
+    // PHEV uses supports_balancing_request() and so doesn't get the Tesla manual-balancing settings UI.
+    content += "<h4>Balancing Max Time: " + String(datalayer.battery.settings.balancing_max_time_ms / 60000.0f, 1) +
+               " min <button onclick='editPhevBalTime()'>Edit</button></h4>";
+    content +=
+        "<script>"
+        "function editPhevBalTime(){"
+        "var v=prompt('Enter new max balancing time in minutes (1-300). Note: not saved across "
+        "reboot for now - resets to the 5h default on restart.');"
+        "if(v===null){return;}"
+        "if(v>=1&&v<=300){"
+        "var x=new XMLHttpRequest();"
+        "x.onload=function(){location.reload();};"
+        "x.open('GET','/BalTime?value='+v,true);x.send();"
+        "}else{alert('Invalid value. Please enter a value between 1 and 300');}"
+        "}"
+        "</script>";
     content += "</div>";
 
     // Diagnostics Section

@@ -93,7 +93,6 @@ struct DATALAYER_INFO_BMWPHEV {
   uint8_t battery_request_open_contactors_instantly = 0;
   uint8_t battery_request_open_contactors_fast = 0;
   uint8_t battery_charging_condition_delta = 0;
-  uint8_t battery_DC_link_voltage = 0;
   uint8_t dtc_count;                     // Number of DTCs present
   uint8_t iso_safety_ext_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_PLAUS
   uint8_t iso_safety_int_plausible = 0;

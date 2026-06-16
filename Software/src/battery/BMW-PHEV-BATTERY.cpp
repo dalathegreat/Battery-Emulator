@@ -324,6 +324,23 @@ void BmwPhevBattery::HandleIncomingInverterRequest(void) {
   }  // else: do nothing
   InverterContactorCloseRequest.previous = InverterContactorCloseRequest.present;
 }
+
+void BmwPhevBattery::HandleEquipmentStopRequest(void) {
+  // The main-page "Open/Close Contactors" buttons don't call the battery contactor request directly -
+  // they toggle the emulator's equipment-stop flag (/equipmentStop). Mirror that flag onto the PHEV
+  // contactor request (edge detected, like the inverter handler) so those buttons drive the
+  // contactors the same way the Advanced-page Open/Close Contactors buttons do.
+  bool stop_now = datalayer.system.info.equipment_stop_active;
+  if (!phev_last_equipment_stop && stop_now) {
+    logging.println("Equipment stop active - opening contactors");
+    PhevOpenContactors();
+  } else if (phev_last_equipment_stop && !stop_now) {
+    logging.println("Equipment stop cleared - closing contactors");
+    PhevCloseContactors();
+  }
+  phev_last_equipment_stop = stop_now;
+}
+
 void BmwPhevBattery::parseDTCResponse() {
   // Check for negative response
   if (gUDSContext.UDS_buffer[0] == 0x7F) {
@@ -465,6 +482,10 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
   datalayer.battery.status.real_soc = avg_soc_state;
   datalayer.battery.status.voltage_dV = battery_voltage;
   datalayer.battery.status.current_dA = battery_current / 10;  // battery_current is in mA, convert to dA
+  // Pack capacity always comes from the BMS (0x431 energy-content-maximum). The web UI "Battery
+  // capacity" field is not authoritative for this battery - it gets refreshed from the BMS every
+  // cycle. NOTE: battery_energy_content_maximum_kWh is integer kWh (the 0x431 raw value is divided
+  // by 50 at parse, truncating fractional kWh), so this lands on 1000 Wh steps.
   datalayer.battery.info.total_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
   datalayer.battery.status.remaining_capacity_Wh = battery_predicted_energy_charge_condition;
   datalayer.battery.status.soh_pptt = min_soh_state;
@@ -1046,9 +1067,12 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
       //    both at once was triggering an intermittent open->close safety warning.
       //  - the pre-close balancing-stop frames have all been sent (phev_pre_close_stops_remaining==0),
       //    so balancing can't be blocking the close.
+      //  - the emulator is not equipment-stopped. An equipment stop must always force contactors open;
+      //    HandleEquipmentStopRequest already clears contactorCloseReq on the stop edge, this is a belt
+      //    in case the request gets re-set (e.g. by the inverter) while the stop is active.
       bool allow_can_close = (!contactor_control_enabled) && contactorCloseReq && (startup_counter_contactor >= 160) &&
                              (phev_53a_state == PHEV_53A_ESCALATED || phev_53a_state == PHEV_53A_STEADY) &&
-                             (phev_pre_close_stops_remaining == 0);
+                             (phev_pre_close_stops_remaining == 0) && (!datalayer.system.info.equipment_stop_active);
       if (allow_can_close) {
         BMW_10B.data.u8[1] = 0x10;  // Close contactors
         //BMW_10B.data.u8[1] = 0xD0;  // Close contactors v2
@@ -1084,9 +1108,10 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
         alive_counter_100ms = 0;
       }
 
-      // Beta CAN-based contactor close - evaluate inverter/user requests (edge detected)
+      // Beta CAN-based contactor close - evaluate inverter/user/equipment-stop requests (edge detected)
       HandleIncomingInverterRequest();
       HandleIncomingUserRequest();
+      HandleEquipmentStopRequest();
     }
     // Send 200ms CAN Message
     if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -1236,4 +1261,8 @@ void BmwPhevBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
+  // PHEV-specific default max balancing time: 5h (the shared datalayer default is 1h). This is the
+  // ceiling the safety timer uses before it auto-cancels a balancing request. NOTE: a value changed
+  // via the web UI is NOT persisted to NVS yet, so this 5h default is restored on every boot.
+  datalayer.battery.settings.balancing_max_time_ms = 5UL * 60UL * 60UL * 1000UL;  // 5 hours
 }

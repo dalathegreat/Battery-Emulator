@@ -71,6 +71,7 @@ class BmwPhevBattery : public CanBattery {
   // Beta CAN-based contactor close (0x53A) helpers
   void HandleIncomingUserRequest(void);
   void HandleIncomingInverterRequest(void);
+  void HandleEquipmentStopRequest(void);
   void PhevCloseContactors(void);
   void PhevOpenContactors(void);
 
@@ -507,6 +508,9 @@ class BmwPhevBattery : public CanBattery {
   // Beta CAN-based contactor close (0x53A) state
   bool userRequestContactorClose = false;
   bool userRequestContactorOpen = false;
+  // Mirrors the emulator equipment-stop flag onto the contactor request so the main-page
+  // "Open/Close Contactors" buttons (which toggle equipment stop) actually drive the contactors.
+  bool phev_last_equipment_stop = false;
   bool contactorCloseReq = false;              // Desired contactor state: true = stream closing/steady frames
   unsigned long contactor_close_start_ms = 0;  // millis() when a close was last requested
   // Pre-close balancing-stop phase: number of guarded stopRoutine frames still to send before 0x10B
