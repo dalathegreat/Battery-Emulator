@@ -98,10 +98,11 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
 
   /** uint8_t */
   /** A counter set each time a new message comes from battery.
-   * This value then gets decremented every second. Incase we reach 0
-   * we report the battery as missing entirely on the CAN bus.
+   * This value then gets decremented every second. Incase we reach 0 we report the battery as missing entirely on the CAN bus.
+   * Set to CAN_STILL_ALIVE - 1 at startup to allow some time for the first messages to come in before we report the battery as missing
+   * The -1 is important, since the safety code will check if we ever reach full CAN_STILL_ALIVE value to detect if we have ever seen the battery or not.
    */
-  uint8_t CAN_battery_still_alive = CAN_STILL_ALIVE;
+  uint8_t CAN_battery_still_alive = (CAN_STILL_ALIVE - 1);
 
   /** The current battery status, which for now has the name real_bms_status */
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
@@ -225,10 +226,11 @@ struct DATALAYER_CHARGER_TYPE {
   float charger_stat_LVvol = 0;
   /** uint8_t */
   /** A counter set each time a new message comes from charger.
-   * This value then gets decremented every second. Incase we reach 0
-   * we report the battery as missing entirely on the CAN bus.
+   * This value then gets decremented every second. Incase we reach 0 we report the battery as missing entirely on the CAN bus.
+   * Set to CAN_STILL_ALIVE - 1 at startup to allow some time for the first messages to come in before we report the charger as missing
+   * The -1 is important, since the safety code will check if we ever reach full CAN_STILL_ALIVE value to detect if we have ever seen the charger or not.
    */
-  uint8_t CAN_charger_still_alive = CAN_STILL_ALIVE;
+  uint8_t CAN_charger_still_alive = (CAN_STILL_ALIVE - 1);
   /** True if charger is enabled */
   bool charger_HV_enabled = false;
   /** True if the 12V DC/DC output is enabled */
@@ -371,15 +373,11 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
 
   /** uint8_t */
   /** A counter set each time a new message comes from inverter.
-   * This value then gets decremented every second. Incase we reach 0
-   * we report the inverter as missing entirely on the CAN bus.
+   * This value then gets decremented every second. Incase we reach 0 we report the inverter as missing entirely on the CAN bus.
+   * Set to CAN_STILL_ALIVE - 1 at startup to allow some time for the first messages to come in before we report the inverter as missing
+   * The -1 is important, since the safety code will check if we ever reach full CAN_STILL_ALIVE value to detect if we have ever seen the inverter or not.
    */
-  uint8_t CAN_inverter_still_alive = CAN_STILL_ALIVE;
-  /** A counter set each time a heartbeat is received from the controller.
-   * Starts at CAN_STILL_ALIVE so the event fires after 60s even if controller was never seen.
-   * Decremented every second. Reaches 0 => controller is considered offline.
-   */
-  uint8_t CAN_controller_still_alive = CAN_STILL_ALIVE;
+  uint8_t CAN_inverter_still_alive = (CAN_STILL_ALIVE - 1);
   /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
   uint8_t contactors_engaged = 0;
   /** State of automatic precharge sequence */

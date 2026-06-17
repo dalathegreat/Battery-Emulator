@@ -83,6 +83,10 @@ class String {
     if (index < data.length()) {
       data.erase(index, count);
     }
+  // Arduino String::reserve returns bool; pre-allocates capacity.
+  bool reserve(unsigned int size) {
+    data.reserve(size);
+    return true;
   }
 
   // Friend functions to allow std::string + String
