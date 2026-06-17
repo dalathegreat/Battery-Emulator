@@ -1255,9 +1255,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: none; 
     }
 
-    form .if-inter-controller { display: none; }
-    form[data-battery="54"] .if-inter-controller { display: contents; }
-
     form .if-not-inter-controller { display: contents; }
     form[data-battery="54"] .if-not-inter-controller { display: none; }
     form[data-shunttype="0"] .if-ctclamp,
@@ -1601,10 +1598,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Battery chemistry: </label><select name='BATTCHEM'>
         %BATTCHEM%
         </select>
-        </div>
-
-        <div class="if-inter-controller">
-        <p style='color:#FFD700;margin:4px 0;grid-column: span 2;'>&#9888; Inter-Unit Controller: Set Max charge and discharge speed (below) to your inverter&apos;s maximum current (A) for correct prejoin power regulation.</p>
         </div>
 
         <div class="if-pylon-battery">
