@@ -78,7 +78,7 @@ class StarkHal : public Esp32Hal {
     return GPIO_NUM_25;
   }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_19; }
-  virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_5; }
   virtual gpio_num_t BMS_POWER() {
     if (user_selected_gpioopt5 == GPIOOPT5::BMS_POWER_25) {
       return GPIO_NUM_25;

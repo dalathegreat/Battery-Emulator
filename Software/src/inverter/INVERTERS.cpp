@@ -17,6 +17,7 @@ uint16_t user_selected_inverter_battery_type = 0;
 uint16_t user_selected_inverter_sungrow_type = 0;
 uint16_t user_selected_inverter_pylon_type = 0;
 inverter_contactor_mode_enum user_selected_inverter_contactor_mode = inverter_contactor_mode_enum::NoWorkaround;
+bool user_selected_inverter_long_CAN_timeout = false;
 bool user_selected_pylon_30koffset = false;
 bool user_selected_pylon_invert_byteorder = false;
 bool user_selected_inverter_deye_workaround = false;
