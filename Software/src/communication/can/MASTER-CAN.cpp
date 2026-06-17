@@ -709,7 +709,11 @@ void MasterCan::update_slave_aggregation() {
 
   for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
     const SLAVE_NODE_TYPE& node = datalayer.system.slave_nodes[i];
-    if (!node.online || !node.contactor_allowed) {
+    // Only aggregate slaves whose contactor is actually CLOSED (engaged). A slave that is
+    // merely allowed but has not physically closed its contactor is not part of the pack —
+    // it reports max_charge_W/max_discharge_W = 0, which would otherwise trip charge_blocked/
+    // discharge_blocked and zero the whole pack's power even when other slaves are healthy.
+    if (!node.online || !node.contactor_engaged) {
       continue;
     }
     // Exclude slaves performing offline balancing — they are sleeping and not part of the pack
