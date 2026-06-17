@@ -196,12 +196,24 @@ bool init_CAN() {
 
     auto cs_pin = esp32hal->MCP2517_CS();
     auto int_pin = esp32hal->MCP2517_INT();
+    auto int0_pin = esp32hal->MCP2517_INT0();
+    auto int1_pin = esp32hal->MCP2517_INT1();
 
-    if (!esp32hal->alloc_pins("CANFD", cs_pin, int_pin)) {
+    if (!esp32hal->alloc_pins("CANFD", cs_pin)) {
       return false;
     }
+    if (int_pin != GPIO_NUM_NC) {
+      if (!esp32hal->alloc_pins("CANFD", int_pin)) {
+        return false;
+      }
+    } else {
+      if (!esp32hal->alloc_pins("CANFD", int0_pin, int1_pin)) {
+        return false;
+      }
+    }
 
-    canfd = new ACAN2517FD(cs_pin, SPI2517, int_pin);
+    canfd = new ACAN2517FD(cs_pin, SPI2517, int_pin != GPIO_NUM_NC ? int_pin : 255,
+                           int0_pin != GPIO_NUM_NC ? int0_pin : 255, int1_pin != GPIO_NUM_NC ? int1_pin : 255);
 
     logging.println("CAN FD add-on (ESP32+MCP2517) selected");
     auto bitRate = (int)speed * 1000UL;
