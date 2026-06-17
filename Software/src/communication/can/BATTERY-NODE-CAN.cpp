@@ -95,6 +95,11 @@ void BatteryNodeCan::transmit(unsigned long currentMillis) {
   }
 }
 
+static bool node_event_active(EVENTS_ENUM_TYPE e) {
+  const EVENTS_STRUCT_TYPE* p = get_event_pointer(e);
+  return p != nullptr && (p->state == EVENT_STATE_ACTIVE || p->state == EVENT_STATE_ACTIVE_LATCHED);
+}
+
 uint8_t BatteryNodeCan::build_fault_flags() {
   uint8_t flags = 0;
   const auto& status = datalayer.battery.status;
@@ -103,9 +108,21 @@ uint8_t BatteryNodeCan::build_fault_flags() {
   if (datalayer.system.status.system_status == FAULT) {
     flags |= IU_FAULT_BMS_FAULT;
   }
-  // Any active WARNING on this node (covers all warning event types)
-  if (get_event_level() == EVENT_LEVEL_WARNING) {
-    flags |= IU_FAULT_CELL_UNDERVOLTAGE;  // any bit in IU_FAULT_WARNING_MASK is sufficient
+  // Map specific WARNING conditions to their matching warning bit so the controller UI shows
+  // the real cause (OV vs UV vs over-temp) instead of a single placeholder bit.
+  if (node_event_active(EVENT_CELL_OVER_VOLTAGE)) {
+    flags |= IU_FAULT_CELL_OVERVOLTAGE;
+  }
+  if (node_event_active(EVENT_CELL_UNDER_VOLTAGE)) {
+    flags |= IU_FAULT_CELL_UNDERVOLTAGE;
+  }
+  if (status.temperature_max_dC > 550) {  // IU_FAULT_OVERTEMPERATURE is defined as >55°C
+    flags |= IU_FAULT_OVERTEMPERATURE;
+  }
+  // Any other active WARNING (e.g. cell/temp deviation) still needs to surface. If no specific
+  // warning bit was set above, fall back to a generic warning bit so the controller sees it.
+  if (get_event_level() == EVENT_LEVEL_WARNING && (flags & IU_FAULT_WARNING_MASK) == 0) {
+    flags |= IU_FAULT_CELL_UNDERVOLTAGE;  // generic warning placeholder
   }
   // Battery CAN timeout (battery went offline at node)
   if (status.CAN_battery_still_alive == 0) {

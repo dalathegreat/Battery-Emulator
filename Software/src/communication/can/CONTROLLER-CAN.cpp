@@ -501,7 +501,10 @@ bool ControllerCan::any_node_usable() const {
     const BATTERY_NODE_TYPE& node = datalayer.system.battery_nodes[i];
     // Balancing nodes count as usable: they are temporarily idle, not failed, so a node
     // that is balancing must not let the whole system fault out.
-    if (node.online && node_identity_ok(i) && node.fault_flags == 0 &&
+    // A yellow warning (IU_FAULT_WARNING_MASK) does not make a node unusable — only ERROR-level
+    // faults do. Otherwise an advisory warning on every node would let the controller go quiet
+    // and indirectly fault the whole system (EVENT_CAN_BATTERY_MISSING), opening all contactors.
+    if (node.online && node_identity_ok(i) && (node.fault_flags & IU_FAULT_ERROR_MASK) == 0 &&
         node.status_stale_seconds <= IU_STATUS_STALE_SECONDS) {
       return true;
     }
@@ -583,7 +586,12 @@ void ControllerCan::check_node_voltage_safety(uint8_t idx) {
   uint16_t diff = (node.voltage_dV > reference_voltage_dV) ? (node.voltage_dV - reference_voltage_dV)
                                                            : (reference_voltage_dV - node.voltage_dV);
 
-  bool has_fault = (node.fault_flags != 0);
+  // Only ERROR-level faults open the contactor. Yellow warnings (cell over/under-voltage,
+  // over-temperature) are advisory — a standalone BE keeps system_status ACTIVE on a WARNING
+  // and lets the node's charge/discharge power limits derate instead; if the condition were
+  // severe enough to open, the node would already have raised an ERROR and opened its own
+  // contactor. Mirror that here so the controller never opens on a mere warning.
+  bool has_fault = (node.fault_flags & IU_FAULT_ERROR_MASK) != 0;
 
   if (!node.contactor_allowed && !has_fault) {
     int32_t load_W = datalayer.battery.status.active_power_W;
