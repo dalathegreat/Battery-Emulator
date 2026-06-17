@@ -1,6 +1,9 @@
 #include "hal.h"
 
 #include <Arduino.h>
+#ifndef UNIT_TEST
+#include <SPI.h>
+#endif
 
 Esp32Hal* esp32hal = nullptr;
 

@@ -54,19 +54,21 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t RS485_RX_PIN() { return GPIO_NUM_44; }
 
   // Built In MCP2515 CAN_ADDON
-  virtual gpio_num_t MCP2515_SCK() { return GPIO_NUM_12; }
-  virtual gpio_num_t MCP2515_MOSI() { return GPIO_NUM_11; }
-  virtual gpio_num_t MCP2515_MISO() { return GPIO_NUM_13; }
-  virtual gpio_num_t MCP2515_CS() { return GPIO_NUM_10; }
-  virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_8; }
-  virtual gpio_num_t MCP2515_RST() { return GPIO_NUM_9; }
+  virtual gpio_num_t MCP2515_SCK() { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_12; }
+  virtual gpio_num_t MCP2515_MOSI() { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_11; }
+  virtual gpio_num_t MCP2515_MISO() { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_13; }
+  virtual gpio_num_t MCP2515_CS() { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_10; }
+  virtual gpio_num_t MCP2515_INT() { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_8; }
+  virtual gpio_num_t MCP2515_RST() { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_9; }
 
   // CANFD_ADDON defines for MCP2517
-  virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_38; }
-  virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_42; }
-  virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_37; }
-  virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_41; }
-  virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_39; }
+  virtual gpio_num_t MCP2517_SCK() { return is_fd() ? GPIO_NUM_12 : GPIO_NUM_38; }
+  virtual gpio_num_t MCP2517_SDI() { return is_fd() ? GPIO_NUM_11 : GPIO_NUM_42; }
+  virtual gpio_num_t MCP2517_SDO() { return is_fd() ? GPIO_NUM_13 : GPIO_NUM_37; }
+  virtual gpio_num_t MCP2517_CS() { return is_fd() ? GPIO_NUM_10 : GPIO_NUM_41; }
+  virtual gpio_num_t MCP2517_INT() { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_39; }
+  virtual gpio_num_t MCP2517_INT0() { return is_fd() ? GPIO_NUM_9 : GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_INT1() { return is_fd() ? GPIO_NUM_3 : GPIO_NUM_NC; }
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_48; }
@@ -150,9 +152,9 @@ class LilyGo2CANHal : public Esp32Hal {
       case comm_interface::CanFdNative:
         return "";
       case comm_interface::CanAddonMcp2515:
-        return "CAN A (MCP2515)";
+        return is_fd() ? "" : "CAN A (MCP2515)";
       case comm_interface::CanFdAddonMcp2518:
-        return "CAN FD (MCP2518 add-on)";
+        return is_fd() ? "CAN FD A (MCP2518)" : "CAN FD (MCP2518 add-on)";
       case comm_interface::Modbus:
         return "Modbus (Add-on)";
       case comm_interface::RS485:
@@ -162,6 +164,71 @@ class LilyGo2CANHal : public Esp32Hal {
       default:
         return Esp32Hal::name_for_comm_interface(comm);
     }
+  }
+
+  bool is_fd() {
+    // Return true if this is the MCP2518FD variant of the T-2CAN.
+    // Takes 2ms on first call, will be fast thereafter.
+
+    if (have_detected) {
+      return has_mcp2518fd;
+    }
+
+    has_mcp2518fd = detect_fd();
+    have_detected = true;
+    return has_mcp2518fd;
+  }
+
+ private:
+  bool have_detected = false;
+  bool has_mcp2518fd = false;
+
+  bool detect_fd() {
+    // Detect whether this is the T-2CAN with MCP2515 (non-FD) or MCP2518FD (FD)
+    // by assuming it is a MCP2515, attempting to reset and reading CANSTAT.
+
+    const int IO9 = GPIO_NUM_9;
+    const int CS = GPIO_NUM_10;
+    const int MISO = GPIO_NUM_13;
+    const int MOSI = GPIO_NUM_11;
+    const int SCK = GPIO_NUM_12;
+
+    pinMode(IO9, INPUT_PULLDOWN);        // Reset (if MCP2515)
+    vTaskDelay(1 / portTICK_PERIOD_MS);  // Wait for reset
+    pinMode(IO9, INPUT_PULLUP);          // Deassert reset
+
+    pinMode(CS, OUTPUT);
+    digitalWrite(CS, HIGH);              // Ensure CS is high to start with
+    vTaskDelay(1 / portTICK_PERIOD_MS);  // Wait for chip to settle
+
+    SPISettings _settings(100000, MSBFIRST, SPI_MODE0);
+    SPIClass _spi(HSPI);
+    _spi.begin(SCK, MISO, MOSI);
+
+    // Read MCP2515 CANSTAT register
+    const uint8_t tx_data[] = {0x03, 0x0E, 0x00};
+    uint8_t rx_data[3] = {0};
+
+    _spi.beginTransaction(_settings);
+    digitalWrite(CS, LOW);
+    _spi.transferBytes(tx_data, rx_data, 3);
+    digitalWrite(CS, HIGH);
+    _spi.endTransaction();
+
+    pinMode(CS, INPUT);  // Set CS back to high impedance
+
+    _spi.end();
+
+    // MCP2515 will return 0x80, MCP2518FD will return something else.
+    bool detected_fd = rx_data[2] != 0x80;
+
+    if (detected_fd) {
+      logging.printf("2CAN FD detected (ret=%d)\n", rx_data[2]);
+    } else {
+      logging.printf("2CAN non-FD detected (ret=%d)\n", rx_data[2]);
+    }
+
+    return detected_fd;
   }
 };
 
