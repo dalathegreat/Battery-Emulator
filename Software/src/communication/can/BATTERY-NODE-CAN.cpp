@@ -1,4 +1,4 @@
-#include "SLAVE-CAN.h"
+#include "BATTERY-NODE-CAN.h"
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -10,56 +10,56 @@
 #include "../../devboard/utils/logging.h"
 #include "comm_can.h"
 
-SlaveCan slave_can;
+BatteryNodeCan battery_node_can;
 
-void setup_slave_can() {
-  register_can_receiver(&slave_can, can_config.inverter, CAN_Speed::CAN_SPEED_500KBPS);
-  register_transmitter(&slave_can);
-  // Block contactor until master explicitly sends ALLOW command
+void setup_battery_node_can() {
+  register_can_receiver(&battery_node_can, can_config.inverter, CAN_Speed::CAN_SPEED_500KBPS);
+  register_transmitter(&battery_node_can);
+  // Block contactor until controller explicitly sends ALLOW command
   datalayer.system.status.inverter_allows_contactor_closing = false;
-  logging.println("Slave CAN: registered on inverter bus @ 500kbps");
+  logging.println("Battery node CAN: registered on inverter bus @ 500kbps");
 }
 
-void SlaveCan::begin() {
+void BatteryNodeCan::begin() {
   _last_heartbeat_ms = 0;
   _reply_pending = false;
-  _master_online = false;
+  _controller_online = false;
   _heartbeat_count = 0;
 }
 
-void SlaveCan::receive_can_frame(CAN_frame* rx_frame) {
+void BatteryNodeCan::receive_can_frame(CAN_frame* rx_frame) {
   const uint32_t id = rx_frame->ID;
-  const uint8_t node_id = datalayer.system.status.slave_node_id;
+  const uint8_t node_id = datalayer.system.status.battery_node_id;
 
-  // Master heartbeat broadcast
-  if (id == IU_MASTER_HEARTBEAT_ID) {
+  // Controller heartbeat broadcast
+  if (id == IU_CONTROLLER_HEARTBEAT_ID) {
     const unsigned long now = millis();
-    // Detect a gap in master heartbeats: the master restarted (e.g. after a
+    // Detect a gap in controller heartbeats: the controller restarted (e.g. after a
     // firmware flash) and cleared its RAM, including our IDENT and IP. Our own
-    // _heartbeat_count keeps running across the master outage, so the periodic
+    // _heartbeat_count keeps running across the controller outage, so the periodic
     // re-announce (every 600 heartbeats) could be up to 10 minutes away. Restart
-    // the announce window on any such gap so the master re-learns our FW/battery
+    // the announce window on any such gap so the controller re-learns our FW/battery
     // type and IP immediately instead of showing "waiting..." for minutes.
-    if (_last_heartbeat_ms != 0 && (now - _last_heartbeat_ms) > IU_MASTER_REBOOT_GAP_MS) {
+    if (_last_heartbeat_ms != 0 && (now - _last_heartbeat_ms) > IU_CONTROLLER_REBOOT_GAP_MS) {
       _heartbeat_count = 0;
     }
     _last_heartbeat_ms = now;
-    _master_online = true;
-    datalayer.system.status.master_online = true;
-    datalayer.system.status.CAN_master_still_alive = CAN_STILL_ALIVE;  // Reset watchdog
+    _controller_online = true;
+    datalayer.system.status.controller_online = true;
+    datalayer.system.status.CAN_controller_still_alive = CAN_STILL_ALIVE;  // Reset watchdog
     _heartbeat_count++;
 
     // Schedule reply after (node_id * 5ms) to avoid CAN collisions
-    _reply_due_ms = millis() + IU_SLAVE_REPLY_DELAY_MS(node_id);
+    _reply_due_ms = millis() + IU_NODE_REPLY_DELAY_MS(node_id);
     _reply_pending = true;
     return;
   }
 
-  // Contactor command addressed to this slave
-  if (id == IU_MASTER_CONTACTOR_ID(node_id)) {
+  // Contactor command addressed to this node
+  if (id == IU_CONTROLLER_CONTACTOR_ID(node_id)) {
     bool allow = (rx_frame->data.u8[0] & IU_CONTACTOR_ALLOW) != 0;
     if (datalayer.system.status.inverter_allows_contactor_closing != allow) {
-      logging.printf("Slave CAN: contactor command received - %s (raw byte: 0x%02X)\n",
+      logging.printf("Battery node CAN: contactor command received - %s (raw byte: 0x%02X)\n",
                      allow ? "ALLOW CLOSE" : "BLOCK CLOSE", rx_frame->data.u8[0]);
     }
     datalayer.system.status.inverter_allows_contactor_closing = allow;
@@ -67,10 +67,10 @@ void SlaveCan::receive_can_frame(CAN_frame* rx_frame) {
   }
 }
 
-void SlaveCan::transmit(unsigned long currentMillis) {
-  // If master has gone offline, block contactor closing.
+void BatteryNodeCan::transmit(unsigned long currentMillis) {
+  // If controller has gone offline, block contactor closing.
   // contactor control only checks inverter_allows_contactor_closing, so we must set it here.
-  if (!datalayer.system.status.master_online) {
+  if (!datalayer.system.status.controller_online) {
     datalayer.system.status.inverter_allows_contactor_closing = false;
   }
 
@@ -86,7 +86,7 @@ void SlaveCan::transmit(unsigned long currentMillis) {
         0) {  // Every 2s (assuming heartbeat is 1s and info interval is 10)
       send_cell_frame();
     }
-    // Send IP on first 3 heartbeats (so master gets it quickly after boot),
+    // Send IP on first 3 heartbeats (so controller gets it quickly after boot),
     // then only every 10 minutes (600s) since IP rarely changes.
     if (_heartbeat_count <= 3 || _heartbeat_count % 600 == 0) {
       send_ip_frame();
@@ -95,19 +95,19 @@ void SlaveCan::transmit(unsigned long currentMillis) {
   }
 }
 
-uint8_t SlaveCan::build_fault_flags() {
+uint8_t BatteryNodeCan::build_fault_flags() {
   uint8_t flags = 0;
   const auto& status = datalayer.battery.status;
 
-  // BMS fault (set by any ERROR-level event on the slave)
+  // BMS fault (set by any ERROR-level event on the node)
   if (datalayer.system.status.system_status == FAULT) {
     flags |= IU_FAULT_BMS_FAULT;
   }
-  // Any active WARNING on this slave (covers all warning event types)
+  // Any active WARNING on this node (covers all warning event types)
   if (get_event_level() == EVENT_LEVEL_WARNING) {
     flags |= IU_FAULT_CELL_UNDERVOLTAGE;  // any bit in IU_FAULT_WARNING_MASK is sufficient
   }
-  // Battery CAN timeout (battery went offline at slave)
+  // Battery CAN timeout (battery went offline at node)
   if (status.CAN_battery_still_alive == 0) {
     flags |= IU_FAULT_BATTERY_TIMEOUT;
   }
@@ -118,12 +118,12 @@ uint8_t SlaveCan::build_fault_flags() {
   return flags;
 }
 
-void SlaveCan::send_status_frame() {
-  const uint8_t node_id = datalayer.system.status.slave_node_id;
+void BatteryNodeCan::send_status_frame() {
+  const uint8_t node_id = datalayer.system.status.battery_node_id;
   const auto& status = datalayer.battery.status;
 
   CAN_frame frame = {};
-  frame.ID = IU_SLAVE_STATUS_ID(node_id);
+  frame.ID = IU_NODE_STATUS_ID(node_id);
   frame.DLC = 8;
   frame.ext_ID = false;
 
@@ -140,7 +140,7 @@ void SlaveCan::send_status_frame() {
   // [6] temp_max in °C (divide dC by 10, clamp to int8)
   int8_t temp_max = (int8_t)((int16_t)(status.temperature_max_dC / 10));
   frame.data.u8[6] = (uint8_t)temp_max;
-  // [7] flags (bit7 = toggle, alternates each frame so master can detect stale data)
+  // [7] flags (bit7 = toggle, alternates each frame so controller can detect stale data)
   static bool _toggle = false;
   _toggle = !_toggle;
   frame.data.u8[7] = build_fault_flags() | (_toggle ? IU_FLAG_STATUS_TOGGLE : 0u);
@@ -148,12 +148,12 @@ void SlaveCan::send_status_frame() {
   transmit_can_frame_to_interface(&frame, can_config.inverter);
 }
 
-void SlaveCan::send_power_frame() {
-  const uint8_t node_id = datalayer.system.status.slave_node_id;
+void BatteryNodeCan::send_power_frame() {
+  const uint8_t node_id = datalayer.system.status.battery_node_id;
   const auto& status = datalayer.battery.status;
 
   CAN_frame frame = {};
-  frame.ID = IU_SLAVE_POWER_ID(node_id);
+  frame.ID = IU_NODE_POWER_ID(node_id);
   frame.DLC = 8;
   frame.ext_ID = false;
 
@@ -174,19 +174,19 @@ void SlaveCan::send_power_frame() {
   // [6] temp_min in °C
   int8_t temp_min = (int8_t)((int16_t)(status.temperature_min_dC / 10));
   frame.data.u8[6] = (uint8_t)temp_min;
-  // [7] slave_pflags: IU_SLAVE_PFLAG_BALANCING only for offline balancing (battery goes to sleep)
-  // Online balancing (e.g. BMW IX) does NOT set this flag — slave stays in aggregation
-  frame.data.u8[7] = status.offline_balancing ? IU_SLAVE_PFLAG_BALANCING : 0u;
+  // [7] node_pflags: IU_NODE_PFLAG_BALANCING only for offline balancing (battery goes to sleep)
+  // Online balancing (e.g. BMW IX) does NOT set this flag — node stays in aggregation
+  frame.data.u8[7] = status.offline_balancing ? IU_NODE_PFLAG_BALANCING : 0u;
 
   transmit_can_frame_to_interface(&frame, can_config.inverter);
 }
 
-void SlaveCan::send_info_frame() {
-  const uint8_t node_id = datalayer.system.status.slave_node_id;
+void BatteryNodeCan::send_info_frame() {
+  const uint8_t node_id = datalayer.system.status.battery_node_id;
   const auto& info = datalayer.battery.info;
 
   CAN_frame frame = {};
-  frame.ID = IU_SLAVE_INFO_ID(node_id);
+  frame.ID = IU_NODE_INFO_ID(node_id);
   frame.DLC = 8;
   frame.ext_ID = false;
 
@@ -209,11 +209,11 @@ void SlaveCan::send_info_frame() {
   transmit_can_frame_to_interface(&frame, can_config.inverter);
 }
 
-void SlaveCan::send_cell_frame() {
-  const uint8_t node_id = datalayer.system.status.slave_node_id;
+void BatteryNodeCan::send_cell_frame() {
+  const uint8_t node_id = datalayer.system.status.battery_node_id;
 
   CAN_frame frame = {};
-  frame.ID = IU_SLAVE_CELL_ID(node_id);
+  frame.ID = IU_NODE_CELL_ID(node_id);
   frame.DLC = 8;
   frame.ext_ID = false;
 
@@ -232,8 +232,8 @@ void SlaveCan::send_cell_frame() {
   transmit_can_frame_to_interface(&frame, can_config.inverter);
 }
 
-void SlaveCan::send_ip_frame() {
-  const uint8_t node_id = datalayer.system.status.slave_node_id;
+void BatteryNodeCan::send_ip_frame() {
+  const uint8_t node_id = datalayer.system.status.battery_node_id;
 
   uint32_t ip = (uint32_t)WiFi.localIP();
   if (ip == 0) {
@@ -241,7 +241,7 @@ void SlaveCan::send_ip_frame() {
   }
 
   CAN_frame frame = {};
-  frame.ID = IU_SLAVE_IP_ID(node_id);
+  frame.ID = IU_NODE_IP_ID(node_id);
   frame.DLC = 4;
   frame.ext_ID = false;
 
@@ -254,11 +254,11 @@ void SlaveCan::send_ip_frame() {
   transmit_can_frame_to_interface(&frame, can_config.inverter);
 }
 
-void SlaveCan::send_ident_frame() {
-  const uint8_t node_id = datalayer.system.status.slave_node_id;
+void BatteryNodeCan::send_ident_frame() {
+  const uint8_t node_id = datalayer.system.status.battery_node_id;
 
   CAN_frame frame = {};
-  frame.ID = IU_SLAVE_IDENT_ID(node_id);
+  frame.ID = IU_NODE_IDENT_ID(node_id);
   frame.DLC = 8;
   frame.ext_ID = false;
 

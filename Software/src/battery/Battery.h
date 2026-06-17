@@ -58,7 +58,7 @@ enum class BatteryType {
   ThunderstruckBMS = 51,
   EnnoidBMS = 52,
   StellantisSmallWide4x4 = 53,
-  InterUnitMaster = 54,  // This node acts as Master in a multi-unit setup
+  InterUnitController = 54,  // This node acts as Controller in a multi-unit setup
   Highest
 };
 

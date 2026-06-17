@@ -1,5 +1,5 @@
 #include "INVERTERS.h"
-#include "../communication/can/SLAVE-CAN.h"
+#include "../communication/can/BATTERY-NODE-CAN.h"
 
 InverterProtocol* inverter = nullptr;
 
@@ -77,8 +77,8 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::PylonLV485:
       return PylonLV485InverterProtocol::Name;
 
-    case InverterProtocolType::InterUnitSlave:
-      return "Inter-Unit Slave";
+    case InverterProtocolType::InterUnitNode:
+      return "Inter-Unit Node";
 
     case InverterProtocolType::Schneider:
       return SchneiderInverter::Name;
@@ -173,9 +173,9 @@ bool setup_inverter() {
       inverter = new PylonLV485InverterProtocol();
       break;
 
-    case InverterProtocolType::InterUnitSlave:
-      setup_slave_can();
-      return true;  // Slave has no inverter object, but slave CAN is now running
+    case InverterProtocolType::InterUnitNode:
+      setup_battery_node_can();
+      return true;  // Battery node has no inverter object, but node CAN is now running
 
     case InverterProtocolType::Schneider:
       inverter = new SchneiderInverter();

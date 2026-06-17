@@ -239,20 +239,21 @@ void init_stored_settings() {
       constrain(settings.getUInt("BYDAUTOCALDRFT2", 5), 1u, 20u);
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN2", true);
 
-  // Master/Slave inter-unit protocol settings
+  // Controller/Node inter-unit protocol settings
   // Derive node mode from battery/inverter selection — no separate NODEMODE key needed.
-  // InterUnitMaster battery type → this unit is the Master.
-  // InterUnitSlave inverter type  → this unit is a Slave.
-  if (user_selected_battery_type == BatteryType::InterUnitMaster) {
-    datalayer.system.status.node_mode = NODE_MASTER;
-  } else if (user_selected_inverter_protocol == InverterProtocolType::InterUnitSlave) {
-    datalayer.system.status.node_mode = NODE_SLAVE;
+  // InterUnitController battery type → this unit is the Controller.
+  // InterUnitNode inverter type      → this unit is a battery Node.
+  if (user_selected_battery_type == BatteryType::InterUnitController) {
+    datalayer.system.status.node_mode = NODE_CONTROLLER;
+  } else if (user_selected_inverter_protocol == InverterProtocolType::InterUnitNode) {
+    datalayer.system.status.node_mode = NODE_BATTERY;
   } else {
     datalayer.system.status.node_mode = NODE_STANDALONE;
   }
-  datalayer.system.status.slave_node_id = (uint8_t)settings.getUInt("SLAVENODEID", 1);
-  if (datalayer.system.status.slave_node_id < 1 || datalayer.system.status.slave_node_id > MAX_SLAVE_NODES) {
-    datalayer.system.status.slave_node_id = 1;  // Clamp to valid range
+  // NVM key "SLAVENODEID" is kept for backward compatibility with saved settings.
+  datalayer.system.status.battery_node_id = (uint8_t)settings.getUInt("SLAVENODEID", 1);
+  if (datalayer.system.status.battery_node_id < 1 || datalayer.system.status.battery_node_id > MAX_BATTERY_NODES) {
+    datalayer.system.status.battery_node_id = 1;  // Clamp to valid range
   }
 }
 
@@ -280,7 +281,8 @@ void store_settings() {
   settings.saveUInt("BYDAUTOCALDRFT2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
 
-  // Master/Slave inter-unit protocol settings
+  // Controller/Node inter-unit protocol settings
   // node_mode is derived from BATTTYPE/INVTYPE at load time — no need to save separately.
-  settings.saveUInt("SLAVENODEID", datalayer.system.status.slave_node_id);
+  // NVM key "SLAVENODEID" is kept for backward compatibility with saved settings.
+  settings.saveUInt("SLAVENODEID", datalayer.system.status.battery_node_id);
 }

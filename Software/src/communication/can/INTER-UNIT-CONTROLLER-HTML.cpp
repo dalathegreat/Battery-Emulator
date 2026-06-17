@@ -1,4 +1,4 @@
-#include "INTER-UNIT-MASTER-HTML.h"
+#include "INTER-UNIT-CONTROLLER-HTML.h"
 
 #include <Arduino.h>
 #include <IPAddress.h>
@@ -7,7 +7,7 @@
 #include "../../datalayer/datalayer.h"
 #include "INTER-UNIT-PROTOCOL.h"
 
-String InterUnitMasterHtmlRenderer::get_status_html() {
+String InterUnitControllerHtmlRenderer::get_status_html() {
   String content;
 
   content += "<style>";
@@ -21,13 +21,13 @@ String InterUnitMasterHtmlRenderer::get_status_html() {
   content += ".iu-ota:hover{background:#3A4A52;}";
   content += "</style>";
 
-  content += "<h4 style='margin:0.4em 0;'>Inter-Unit Slave Nodes - Extended Info</h4>";
+  content += "<h4 style='margin:0.4em 0;'>Inter-Unit Battery Nodes - Extended Info</h4>";
 
-  // Find the reference battery_type_id (first online slave that has sent IDENT)
+  // Find the reference battery_type_id (first online node that has sent IDENT)
   uint16_t ref_btype = 0;
   bool ref_btype_found = false;
-  for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
-    const SLAVE_NODE_TYPE& n = datalayer.system.slave_nodes[i];
+  for (uint8_t i = 0; i < MAX_BATTERY_NODES; i++) {
+    const BATTERY_NODE_TYPE& n = datalayer.system.battery_nodes[i];
     if (n.online && n.ident_received) {
       ref_btype = n.battery_type_id;
       ref_btype_found = true;
@@ -38,17 +38,17 @@ String InterUnitMasterHtmlRenderer::get_status_html() {
   bool any_online = false;
   content += "<div class='iu-grid'>";
 
-  for (uint8_t i = 0; i < MAX_SLAVE_NODES; i++) {
-    const SLAVE_NODE_TYPE& n = datalayer.system.slave_nodes[i];
+  for (uint8_t i = 0; i < MAX_BATTERY_NODES; i++) {
+    const BATTERY_NODE_TYPE& n = datalayer.system.battery_nodes[i];
     if (!n.online) {
       continue;
     }
     any_online = true;
 
     // FW / battery-type identity check. A mismatch blocks the contactor on the
-    // master side but does not set a fault_flag bit, so include it here so the
+    // controller side but does not set a fault_flag bit, so include it here so the
     // whole card turns red (not just the per-line ✗). Only meaningful once IDENT
-    // has been received — an un-identified slave shows "waiting", not an error.
+    // has been received — an un-identified node shows "waiting", not an error.
     bool fw_ok = true;
     bool btype_ok = true;
     if (n.ident_received) {
@@ -57,7 +57,7 @@ String InterUnitMasterHtmlRenderer::get_status_html() {
     }
     bool identity_mismatch = !fw_ok || !btype_ok;
 
-    // A stale slave (STATUS not refreshing) is blocked on the master side but sets no fault_flag
+    // A stale node (STATUS not refreshing) is blocked on the controller side but sets no fault_flag
     // bit, so include it here too so the whole card turns red — it does not raise a global fault.
     bool is_stale = n.status_stale_seconds > IU_STATUS_STALE_SECONDS;
 
@@ -67,13 +67,13 @@ String InterUnitMasterHtmlRenderer::get_status_html() {
 
     content += "<div class='iu-card' style='background:" + String(bg) + ";'>";
 
-    // Card title — link to slave IP if known
+    // Card title — link to node IP if known
     if (n.ip_address != 0) {
       IPAddress ip(n.ip_address);
       content += "<h4 style='margin:2px 0;color:white;'><a href='http://" + ip.toString() +
-                 "' target='_blank' style='color:white;'>Slave " + String(i + 1) + " &#8599;</a></h4>";
+                 "' target='_blank' style='color:white;'>Node " + String(i + 1) + " &#8599;</a></h4>";
     } else {
-      content += "<h4 style='margin:2px 0;color:white;'>Slave " + String(i + 1) + "</h4>";
+      content += "<h4 style='margin:2px 0;color:white;'>Node " + String(i + 1) + "</h4>";
     }
 
     // ---- Firmware version ----------------------------------------
@@ -152,7 +152,7 @@ String InterUnitMasterHtmlRenderer::get_status_html() {
   }
 
   if (!any_online) {
-    content += "<h4 style='color:gray;'>No slaves online</h4>";
+    content += "<h4 style='color:gray;'>No nodes online</h4>";
   }
 
   content += "</div>";  // end grid

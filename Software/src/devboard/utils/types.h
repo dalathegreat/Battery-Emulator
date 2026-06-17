@@ -50,10 +50,10 @@ enum BMSResetState {
   BMS_RESET_POWERING_ON,
 };
 
-/** Node operating mode for master/slave inter-unit protocol */
-enum node_mode_enum { NODE_STANDALONE = 0, NODE_MASTER = 1, NODE_SLAVE = 2 };
+/** Node operating mode for controller/node inter-unit protocol */
+enum node_mode_enum { NODE_STANDALONE = 0, NODE_CONTROLLER = 1, NODE_BATTERY = 2 };
 
-#define MAX_SLAVE_NODES 24
+#define MAX_BATTERY_NODES 24
 
 #define DISCHARGING 1
 #define CHARGING 2

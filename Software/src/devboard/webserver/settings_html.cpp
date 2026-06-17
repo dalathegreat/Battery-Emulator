@@ -1241,12 +1241,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="0"] .if-battery { display: none; }
     form[data-battery="54"] .if-battery { display: none; }
 
-    /* Battery/master CAN interface select: shown for every battery type except None.
-       The Inter-Unit Master (54) also uses can_config.battery (BATTCOMM). */
+    /* Battery/controller CAN interface select: shown for every battery type except None.
+       The Inter-Unit Controller (54) also uses can_config.battery (BATTCOMM). */
     form .if-batt-iface { display: contents; }
     form[data-battery="0"] .if-batt-iface { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }
-    /* Inter-Unit Slave (25) uses the same "Inverter interface" (INVCOMM) select as a
+    /* Inter-Unit Node (25) uses the same "Inverter interface" (INVCOMM) select as a
        normal inverter, so it stays shown. A separate duplicate select would submit a
        second INVCOMM value and overwrite the choice (falling back to CAN Native). */
     form[data-charger="0"] .if-charger { display: none; }
@@ -1255,11 +1255,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: none; 
     }
 
-    form .if-inter-master { display: none; }
-    form[data-battery="54"] .if-inter-master { display: contents; }
+    form .if-inter-controller { display: none; }
+    form[data-battery="54"] .if-inter-controller { display: contents; }
 
-    form .if-not-inter-master { display: contents; }
-    form[data-battery="54"] .if-not-inter-master { display: none; }
+    form .if-not-inter-controller { display: contents; }
+    form[data-battery="54"] .if-not-inter-controller { display: none; }
     form[data-shunttype="0"] .if-ctclamp,
     form[data-shunttype="1"] .if-ctclamp,
     form[data-shunttype="2"] .if-ctclamp { 
@@ -1343,8 +1343,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
-    form .if-inter-slave { display: none; }
-    form[data-inverter="25"] .if-inter-slave {
+    form .if-inter-node { display: none; }
+    form[data-inverter="25"] .if-inter-node {
       display: contents;
     }
 
@@ -1603,8 +1603,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
-        <div class="if-inter-master">
-        <p style='color:#FFD700;margin:4px 0;grid-column: span 2;'>&#9888; Inter-Unit Master: Set Max charge and discharge speed (below) to your inverter&apos;s maximum current (A) for correct prejoin power regulation.</p>
+        <div class="if-inter-controller">
+        <p style='color:#FFD700;margin:4px 0;grid-column: span 2;'>&#9888; Inter-Unit Controller: Set Max charge and discharge speed (below) to your inverter&apos;s maximum current (A) for correct prejoin power regulation.</p>
         </div>
 
         <div class="if-pylon-battery">
@@ -1630,7 +1630,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Minimum voltage per individual cell in millivolts. Discharge stops if one cell drops to this voltage." />
         </div>
 
-        <div class="if-not-inter-master">
+        <div class="if-not-inter-controller">
         <label>Double battery: </label>
         <input type='checkbox' name='DBLBTR' value='on' %DBLBTR%
         title="Enable this option if you intend to run two batteries in parallel" />
@@ -1666,11 +1666,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         %INVTYPE%
         </select>
 
-        <div class="if-inter-slave">
-        <label for='SLAVENODEID'>Slave node ID (1-24): </label>
+        <div class="if-inter-node">
+        <label for='SLAVENODEID'>Battery node ID (1-24): </label>
         <input type='number' id='SLAVENODEID' name='SLAVENODEID' value='%SLAVENODEID%'
         min='1' max='24' step='1'
-        title="Unique ID for this slave node. Each slave must have a different ID (1-244)." />
+        title="Unique ID for this battery node. Each node must have a different ID (1-24)." />
         </div>
 
         <div class="if-inverter">

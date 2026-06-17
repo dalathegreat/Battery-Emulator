@@ -37,7 +37,7 @@ void TestFakeBattery::
   //Fake that we get CAN messages
   datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
-  // Mirror contactor status: engaged only if master allows closing AND equipment stop is not active
+  // Mirror contactor status: engaged only if controller allows closing AND equipment stop is not active
   datalayer.system.status.contactors_engaged =
       (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) ? 1
                                                                                                                   : 0;

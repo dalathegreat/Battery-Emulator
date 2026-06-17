@@ -109,7 +109,7 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   led_mode_enum led_mode = CLASSIC;
   /** Balancing status */
   balancing_status_enum balancing_status = BALANCING_STATUS_UNKNOWN;
-  /** True when offline balancing is active (battery goes to sleep, excluded from master aggregation) */
+  /** True when offline balancing is active (battery goes to sleep, excluded from controller aggregation) */
   bool offline_balancing = false;
 
   /** All cell voltages currently measured in the pack, in mV.
@@ -304,8 +304,8 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   bool start_precharging = false;      //Is precharge ongoing?
 };
 
-/** Per-slave node status maintained by master */
-struct SLAVE_NODE_TYPE {
+/** Per-node status maintained by the controller */
+struct BATTERY_NODE_TYPE {
   uint16_t voltage_dV = 0;             // Pack voltage in deciVolts
   uint16_t real_soc = 0;               // SOC in 0.01% units (9550 = 95.50%)
   int16_t current_dA = 0;              // Current in deciAmpere
@@ -322,15 +322,15 @@ struct SLAVE_NODE_TYPE {
   uint16_t cell_min_voltage_mV = 0;    // Lowest cell voltage in pack
   uint8_t fault_flags = 0;             // Bitmask of faults (see INTER-UNIT-PROTOCOL.h)
   uint8_t still_alive = 0;             // Countdown counter: decremented each second, reset on message
-  bool contactor_engaged = false;      // Confirmed contactor state from slave
-  bool contactor_allowed = false;      // Master decision: is slave allowed to close contactor
-  bool online = false;                 // True if slave is responding
-  bool ident_received = false;         // True once IDENT frame has been received from slave
-  bool balancing = false;              // True when slave is performing offline balancing (excluded from aggregation)
-  bool prejoin_active = false;         // True when master prejoin is running for this slave
-  uint32_t ip_address = 0;             // IPv4 address of slave (0 = unknown)
+  bool contactor_engaged = false;      // Confirmed contactor state from node
+  bool contactor_allowed = false;      // Controller decision: is node allowed to close contactor
+  bool online = false;                 // True if node is responding
+  bool ident_received = false;         // True once IDENT frame has been received from node
+  bool balancing = false;              // True when node is performing offline balancing (excluded from aggregation)
+  bool prejoin_active = false;         // True when controller prejoin is running for this node
+  uint32_t ip_address = 0;             // IPv4 address of node (0 = unknown)
   uint16_t fw_version_num = 0;         // Firmware version: (major<<8)|minor, e.g. 10.6 -> 0x0A06
-  uint16_t battery_type_id = 0;        // BatteryType enum value reported by slave
+  uint16_t battery_type_id = 0;        // BatteryType enum value reported by node
   uint8_t status_stale_seconds = 0;    // Incremented each second; reset when STATUS toggle bit changes
   uint8_t _last_status_toggle = 0xFF;  // Previous value of STATUS toggle bit (0xFF = never seen)
 };
@@ -375,11 +375,11 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
    * we report the inverter as missing entirely on the CAN bus.
    */
   uint8_t CAN_inverter_still_alive = CAN_STILL_ALIVE;
-  /** A counter set each time a heartbeat is received from the master.
-   * Starts at CAN_STILL_ALIVE so the event fires after 60s even if master was never seen.
-   * Decremented every second. Reaches 0 => master is considered offline.
+  /** A counter set each time a heartbeat is received from the controller.
+   * Starts at CAN_STILL_ALIVE so the event fires after 60s even if controller was never seen.
+   * Decremented every second. Reaches 0 => controller is considered offline.
    */
-  uint8_t CAN_master_still_alive = CAN_STILL_ALIVE;
+  uint8_t CAN_controller_still_alive = CAN_STILL_ALIVE;
   /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
   uint8_t contactors_engaged = 0;
   /** State of automatic precharge sequence */
@@ -400,16 +400,16 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   /** The current system status, determined by which Events are active, usually pending between ACTIVE and FAULT, but there are more enums. Used to signal incase we have a critical fault active, or if we should proceed operating */
   system_status_enum system_status = ACTIVE;
 
-  /** Master/Slave inter-unit protocol */
+  /** Controller/Node inter-unit protocol */
   node_mode_enum node_mode = NODE_STANDALONE;
-  uint8_t slave_node_id = 1;   // 1-8, used when node_mode == NODE_SLAVE
-  bool master_online = false;  // true when master heartbeat received within timeout (slave mode only)
+  uint8_t battery_node_id = 1;     // 1-24, used when node_mode == NODE_BATTERY
+  bool controller_online = false;  // true when controller heartbeat received within timeout (node mode only)
 };
 
 struct DATALAYER_SYSTEM_TYPE {
   DATALAYER_SYSTEM_INFO_TYPE info;
   DATALAYER_SYSTEM_STATUS_TYPE status;
-  SLAVE_NODE_TYPE slave_nodes[MAX_SLAVE_NODES];  // Index 0 = Slave Node ID 1, used by master
+  BATTERY_NODE_TYPE battery_nodes[MAX_BATTERY_NODES];  // Index 0 = Battery Node ID 1, used by controller
 };
 
 class DataLayer {

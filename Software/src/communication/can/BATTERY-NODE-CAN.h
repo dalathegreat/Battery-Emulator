@@ -1,12 +1,12 @@
-#ifndef _SLAVE_CAN_H_
-#define _SLAVE_CAN_H_
+#ifndef _BATTERY_NODE_CAN_H_
+#define _BATTERY_NODE_CAN_H_
 
 #include "../../communication/Transmitter.h"
 #include "CanReceiver.h"
 #include "INTER-UNIT-PROTOCOL.h"
 
 /**
- * SlaveCan — Inter-Unit protocol handler for SLAVE nodes.
+ * BatteryNodeCan — Inter-Unit protocol handler for a BATTERY NODE.
  *
  * Registers on can_config.inverter (configured via INVCOMM setting).
  *
@@ -18,16 +18,16 @@
  * On contactor command received: updates contactor_allowed in datalayer.
  *
  * Safety: if no heartbeat received for CAN_STILL_ALIVE seconds (60s),
- *         slave opens its own contactors (master is offline).
+ *         node opens its own contactors (controller is offline).
  */
-class SlaveCan : public CanReceiver, public Transmitter {
+class BatteryNodeCan : public CanReceiver, public Transmitter {
  public:
   void begin();
   void receive_can_frame(CAN_frame* rx_frame) override;
   void transmit(unsigned long currentMillis) override;
 
-  /** True if the master has been heard from within the last CAN_STILL_ALIVE seconds (60s) */
-  bool master_online() const { return _master_online; }
+  /** True if the controller has been heard from within the last CAN_STILL_ALIVE seconds (60s) */
+  bool controller_online() const { return _controller_online; }
 
  private:
   void send_status_frame();
@@ -42,10 +42,10 @@ class SlaveCan : public CanReceiver, public Transmitter {
   unsigned long _reply_due_ms = 0;       // millis() when we should send our reply
   bool _reply_pending = false;           // True: we have a reply to send
   uint8_t _heartbeat_count = 0;          // Counts heartbeats to decide when to send INFO
-  bool _master_online = false;           // True if master is alive
+  bool _controller_online = false;       // True if controller is alive
 };
 
-extern SlaveCan slave_can;
-void setup_slave_can();
+extern BatteryNodeCan battery_node_can;
+void setup_battery_node_can();
 
-#endif  // _SLAVE_CAN_H_
+#endif  // _BATTERY_NODE_CAN_H_

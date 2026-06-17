@@ -76,9 +76,9 @@ add_executable(tests
     utils/utils.cpp
     ../Software/src/devboard/safety/parallel_safety.cpp
     ../Software/src/communication/can/obd.cpp
-    ../Software/src/communication/can/MASTER-CAN.cpp
-    ../Software/src/communication/can/SLAVE-CAN.cpp
-    ../Software/src/communication/can/INTER-UNIT-MASTER-HTML.cpp
+    ../Software/src/communication/can/CONTROLLER-CAN.cpp
+    ../Software/src/communication/can/BATTERY-NODE-CAN.cpp
+    ../Software/src/communication/can/INTER-UNIT-CONTROLLER-HTML.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
     ../Software/src/devboard/safety/safety.cpp

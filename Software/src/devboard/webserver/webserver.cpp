@@ -1019,13 +1019,14 @@ String processor(const String& var) {
       content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
 
       // Display which components are used
-      if (datalayer.system.status.node_mode == NODE_SLAVE) {
-        const char* master_dot = datalayer.system.status.master_online ? "&#10003;" : "&#10060;";
-        const char* master_color = datalayer.system.status.master_online ? "color:lightgreen;" : "color:red;";
+      if (datalayer.system.status.node_mode == NODE_BATTERY) {
+        const char* controller_dot = datalayer.system.status.controller_online ? "&#10003;" : "&#10060;";
+        const char* controller_color = datalayer.system.status.controller_online ? "color:lightgreen;" : "color:red;";
         const char* contactor_text = datalayer.system.status.inverter_allows_contactor_closing ? "Allowed" : "Blocked";
-        content += "<h4 style='color:white;'>&#9889; Slave Node " + String(datalayer.system.status.slave_node_id) +
-                   " &nbsp;|&nbsp; Master: <span style='" + String(master_color) + "'>" + String(master_dot) +
-                   "</span> &nbsp;|&nbsp; Contactor closing: " + String(contactor_text) + "</h4>";
+        content += "<h4 style='color:white;'>&#9889; Battery Node " + String(datalayer.system.status.battery_node_id) +
+                   " &nbsp;|&nbsp; Controller: <span style='" + String(controller_color) + "'>" +
+                   String(controller_dot) + "</span> &nbsp;|&nbsp; Contactor closing: " + String(contactor_text) +
+                   "</h4>";
       }
       if (inverter) {
         content += "<h4 style='color: white;'>Inverter protocol: ";
@@ -1077,20 +1078,20 @@ String processor(const String& var) {
 
       {
         EMULATOR_STATUS emu_status = get_emulator_status();
-        // In master mode, only show error color if ALL online slaves are faulted
-        if (emu_status == EMULATOR_STATUS::STATUS_ERROR && datalayer.system.status.node_mode == NODE_MASTER) {
-          int slave_online = 0, slave_error = 0;
-          for (int j = 0; j < MAX_SLAVE_NODES; j++) {
-            const auto& sn = datalayer.system.slave_nodes[j];
+        // In controller mode, only show error color if ALL online nodes are faulted
+        if (emu_status == EMULATOR_STATUS::STATUS_ERROR && datalayer.system.status.node_mode == NODE_CONTROLLER) {
+          int node_online = 0, node_error = 0;
+          for (int j = 0; j < MAX_BATTERY_NODES; j++) {
+            const auto& sn = datalayer.system.battery_nodes[j];
             if (!sn.online)
               continue;
-            slave_online++;
+            node_online++;
             if ((sn.fault_flags & IU_FAULT_ERROR_MASK) != 0)
-              slave_error++;
+              node_error++;
           }
-          if (slave_online > 0 && slave_error < slave_online) {
-            // A single slave fault must not paint the master card red, but the
-            // master's own warning state (e.g. paused) must still show as yellow.
+          if (node_online > 0 && node_error < node_online) {
+            // A single node fault must not paint the controller card red, but the
+            // controller's own warning state (e.g. paused) must still show as yellow.
             emu_status =
                 (emulator_pause_status != NORMAL) ? EMULATOR_STATUS::STATUS_WARNING : EMULATOR_STATUS::STATUS_OK;
           }
@@ -1458,37 +1459,37 @@ String processor(const String& var) {
     // Block for Contactor status and component request status
     // Start a new block with gray background color
 
-    // === MASTER MODE: slave status grid ===
-    if (datalayer.system.status.node_mode == NODE_MASTER) {
-      const char* master_bg;
+    // === CONTROLLER MODE: battery node status grid ===
+    if (datalayer.system.status.node_mode == NODE_CONTROLLER) {
+      const char* controller_bg;
       if (get_emulator_status() == EMULATOR_STATUS::STATUS_UPDATING) {
-        master_bg = "#2B35AF";
+        controller_bg = "#2B35AF";
       } else {
-        // Only turn red if ALL online slaves are in fault
-        int slave_online = 0, slave_error = 0;
-        for (int j = 0; j < MAX_SLAVE_NODES; j++) {
-          const auto& sn = datalayer.system.slave_nodes[j];
+        // Only turn red if ALL online nodes are in fault
+        int node_online = 0, node_error = 0;
+        for (int j = 0; j < MAX_BATTERY_NODES; j++) {
+          const auto& sn = datalayer.system.battery_nodes[j];
           if (!sn.online)
             continue;
-          slave_online++;
+          node_online++;
           if ((sn.fault_flags & IU_FAULT_ERROR_MASK) != 0)
-            slave_error++;
+            node_error++;
         }
-        bool all_faulted = (slave_online > 0 && slave_error == slave_online);
-        master_bg = all_faulted ? "#A70107" : "#303E47";
+        bool all_faulted = (node_online > 0 && node_error == node_online);
+        controller_bg = all_faulted ? "#A70107" : "#303E47";
       }
-      content += "<div style='background-color:" + String(master_bg) +
+      content += "<div style='background-color:" + String(controller_bg) +
                  "; padding:10px; margin-bottom:10px; border-radius:20px;'>"
-                 "<h4 style='color:white;'>Slave Nodes</h4>"
+                 "<h4 style='color:white;'>Battery Nodes</h4>"
                  "<div style='display:flex; flex-wrap:wrap; gap:8px; justify-content:center;'>";
 
-      bool any_slave = false;
-      for (int i = 0; i < MAX_SLAVE_NODES; i++) {
-        const auto& s = datalayer.system.slave_nodes[i];
+      bool any_node = false;
+      for (int i = 0; i < MAX_BATTERY_NODES; i++) {
+        const auto& s = datalayer.system.battery_nodes[i];
         if (!s.online) {
           continue;
         }
-        any_slave = true;
+        any_node = true;
         bool is_error = (s.fault_flags & IU_FAULT_ERROR_MASK) != 0;
         bool is_warning = !is_error && (s.fault_flags & IU_FAULT_WARNING_MASK) != 0;
         const char* bg = is_error ? "#A70107" : (is_warning ? "#F5CC00" : "#2D3F2F");
@@ -1546,8 +1547,8 @@ String processor(const String& var) {
         }
         content += "</div>";
       }
-      if (!any_slave) {
-        content += "<h4 style='color:gray;'>No slaves online</h4>";
+      if (!any_node) {
+        content += "<h4 style='color:gray;'>No battery nodes online</h4>";
       }
       content += "</div>";
       content += "</div>";

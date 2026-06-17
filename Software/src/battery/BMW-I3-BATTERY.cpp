@@ -50,7 +50,7 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   if (UserRequestBalancing == EXECUTING) {
     datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
     datalayer.system.status.system_status = STANDBY;
-    // During offline balancing sleep, report contactor as open so slave STATUS
+    // During offline balancing sleep, report contactor as open so the node STATUS
     // does not keep an old engaged state latched.
     datalayer.system.status.contactors_engaged = 0;
   }
@@ -61,7 +61,7 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     datalayer_battery->status.offline_balancing = false;
   } else {
     datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
-    datalayer_battery->status.offline_balancing = true;  // Inter-unit Master/slave balancing is active.
+    datalayer_battery->status.offline_balancing = true;  // Inter-unit Controller/Node balancing is active.
   }
 
   if (!battery_awake) {
