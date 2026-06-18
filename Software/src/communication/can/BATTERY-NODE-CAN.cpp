@@ -280,7 +280,7 @@ void BatteryNodeCan::send_ident_frame() {
   frame.ext_ID = false;
 
   // [0..1] firmware version: (major<<8)|minor
-  uint16_t fw_ver = (uint16_t)IU_FW_VERSION_NUM;
+  uint16_t fw_ver = iu_fw_version_num();
   frame.data.u8[0] = (fw_ver >> 8) & 0xFF;
   frame.data.u8[1] = fw_ver & 0xFF;
   // [2..3] battery type ID (BatteryType enum)

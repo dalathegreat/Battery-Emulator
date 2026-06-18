@@ -216,7 +216,7 @@ The controller monitors whether bit 7 is changing. If it has not changed for 3 s
 
 At startup the node sends an IDENT message containing its firmware version and battery type ID.  
 The controller verifies:
-- **Firmware version** matches the controller's compiled version (`IU_FW_VERSION_NUM`)
+- **Firmware version** matches the controller's compiled version (`iu_fw_version_num()`)
 - **Battery type** matches the first node that reported one (all nodes must use the same battery type)
 
 On mismatch:
@@ -224,7 +224,7 @@ On mismatch:
 - Event `EVENT_BATTERY_NODE_IDENT_MISMATCH` (WARNING) is raised
 - Automatically cleared if subsequent IDENT data matches
 
-> **Note:** `IU_FW_VERSION_MAJOR` and `IU_FW_VERSION_MINOR` in `INTER-UNIT-PROTOCOL.h` must be updated manually whenever the firmware version changes in `Software.cpp`.
+> **Note:** The firmware version is derived automatically from `version_number` in `Software.cpp` via `iu_fw_version_num()` (parses `"10.11.dev"` → `0x0A0B`). There is nothing to update manually — both controller and node compile the same value.
 
 ---
 

@@ -437,7 +437,7 @@ void ControllerCan::update_values() {
             }
           }
           logging.printf("Controller CAN: Node %d IDENT mismatch (fw=0x%04X exp=0x%04X btype=%u exp=%u)\n", i + 1,
-                         node.fw_version_num, IU_FW_VERSION_NUM, node.battery_type_id, ref_btype);
+                         node.fw_version_num, iu_fw_version_num(), node.battery_type_id, ref_btype);
         }
       } else {
         ident_mismatch_logged[i] = false;
@@ -484,7 +484,7 @@ bool ControllerCan::node_identity_ok(uint8_t idx) const {
   if (!node.ident_received) {
     return false;
   }
-  if (node.fw_version_num != (uint16_t)IU_FW_VERSION_NUM) {
+  if (node.fw_version_num != iu_fw_version_num()) {
     return false;
   }
   // Battery type must match the first node that reported one (reference).

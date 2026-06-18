@@ -1,6 +1,8 @@
 #ifndef _INTER_UNIT_PROTOCOL_H_
 #define _INTER_UNIT_PROTOCOL_H_
 
+#include <stdint.h>
+
 /**
  * Inter-Unit CAN Protocol for Controller/Node Battery Emulator Network
  *
@@ -43,10 +45,29 @@
  */
 
 /* ---- Firmware version encoding ---- */
-// Update these when version_number in Software.cpp changes (e.g. "10.11.dev" -> major=10, minor=11)
-#define IU_FW_VERSION_MAJOR 10u
-#define IU_FW_VERSION_MINOR 11u
-#define IU_FW_VERSION_NUM ((IU_FW_VERSION_MAJOR << 8u) | IU_FW_VERSION_MINOR)  // 0x0A0B
+// Single source of truth: parse version_number ("10.11.dev") from Software.cpp at runtime.
+// Both controller and node compile the same firmware, so they derive the same value and can
+// compare versions over the IDENT message without any hardcoded duplicate.
+extern const char* version_number;  // defined in Software.cpp
+
+// Encode "MAJOR.MINOR[.suffix]" as (major << 8) | minor, e.g. "10.11.dev" -> 0x0A0B.
+inline uint16_t iu_fw_version_num() {
+  uint16_t major = 0;
+  uint16_t minor = 0;
+  const char* p = version_number;
+  while (*p >= '0' && *p <= '9') {
+    major = (uint16_t)(major * 10 + (*p - '0'));
+    p++;
+  }
+  if (*p == '.') {
+    p++;
+    while (*p >= '0' && *p <= '9') {
+      minor = (uint16_t)(minor * 10 + (*p - '0'));
+      p++;
+    }
+  }
+  return (uint16_t)(((major & 0xFFu) << 8u) | (minor & 0xFFu));
+}
 
 /* ---- Controller → Broadcast ---- */
 #define IU_CONTROLLER_HEARTBEAT_ID 0x300u  // Heartbeat, no payload needed

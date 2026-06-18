@@ -52,7 +52,7 @@ String InterUnitControllerHtmlRenderer::get_status_html() {
     bool fw_ok = true;
     bool btype_ok = true;
     if (n.ident_received) {
-      fw_ok = (n.fw_version_num == (uint16_t)IU_FW_VERSION_NUM);
+      fw_ok = (n.fw_version_num == iu_fw_version_num());
       btype_ok = !ref_btype_found || (n.battery_type_id == ref_btype);
     }
     bool identity_mismatch = !fw_ok || !btype_ok;
@@ -84,8 +84,9 @@ String InterUnitControllerHtmlRenderer::get_status_html() {
       if (fw_ok) {
         content += " <span class='iu-ok'>&#10003;</span>";
       } else {
-        content += " <span class='iu-err'>&#10007; (exp " + String(IU_FW_VERSION_MAJOR) + "." +
-                   String(IU_FW_VERSION_MINOR) + ")</span>";
+        uint16_t exp_fw = iu_fw_version_num();
+        content += " <span class='iu-err'>&#10007; (exp " + String((uint8_t)(exp_fw >> 8)) + "." +
+                   String((uint8_t)(exp_fw & 0xFFu)) + ")</span>";
       }
       content += "</h4>";
 
