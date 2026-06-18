@@ -83,13 +83,23 @@ class String {
     if (index < data.length()) {
       data.erase(index, count);
     }
-  }
+    // Arduino String::reserve returns bool; pre-allocates capacity.
+    bool reserve(unsigned int size) {
+      data.reserve(size);
+      return true;
+    }
 
-  // Friend functions to allow std::string + String
-  friend String operator+(const std::string& lhs, const String& rhs) { return String(lhs + rhs.data); }
+    // Friend functions to allow std::string + String
+    friend String operator+(const std::string& lhs, const String& rhs) {
+      return String(lhs + rhs.data);
+    }
 
-  friend String operator+(const char* lhs, const String& rhs) { return String(std::string(lhs) + rhs.data); }
+    friend String operator+(const char* lhs, const String& rhs) {
+      return String(std::string(lhs) + rhs.data);
+    }
 
-  friend std::ostream& operator<<(std::ostream& os, const String& s) { return os << s.data; }
-};
+    friend std::ostream& operator<<(std::ostream& os, const String& s) {
+      return os << s.data;
+    }
+  };
 #endif
