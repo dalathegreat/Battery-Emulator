@@ -27,7 +27,7 @@ class TeslaBattery : public CanBattery {
     allows_contactor_closing = nullptr;
     previous_max_percentage = datalayer_ptr->settings.max_percentage;
   }
-
+  virtual void setup();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
@@ -46,6 +46,9 @@ class TeslaBattery : public CanBattery {
   bool supports_manual_balancing() { return true; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
+  static constexpr const char* NameSX = "Tesla Model S/X";
+  static constexpr const char* Name3Y = "Tesla Model 3/Y";
 
  private:
   TeslaHtmlRenderer renderer;
@@ -913,20 +916,6 @@ class TeslaBattery : public CanBattery {
   bool BMS_a174_SW_Charge_Failure = false;
   bool BMS_a179_SW_Hvp_12V_Fault = false;
   bool BMS_a180_SW_ECU_reset_blocked = false;
-};
-
-class TeslaModel3YBattery : public TeslaBattery {
- public:
-  using TeslaBattery::TeslaBattery;
-  static constexpr const char* Name = "Tesla Model 3/Y";
-  virtual void setup(void);
-};
-
-class TeslaModelSXBattery : public TeslaBattery {
- public:
-  using TeslaBattery::TeslaBattery;
-  static constexpr const char* Name = "Tesla Model S/X";
-  virtual void setup(void);
 };
 
 #endif

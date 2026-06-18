@@ -2414,7 +2414,7 @@ void TeslaBattery::printFaultCodesIfActive() {
   printDebugIfActive(BMS_a180_SW_ECU_reset_blocked, "ERROR: BMS_a180_SW_ECU_reset_blocked");
 }
 
-void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
+void TeslaBattery::setup(void) {  // Performs one time setup at startup
 
   if (allows_contactor_closing) {
     *allows_contactor_closing = true;
@@ -2447,34 +2447,30 @@ void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
       break;
   }
 
-  strncpy(datalayer.system.info.battery_protocol, Name, 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
+  //IF 3 / Y
+  if (user_selected_battery_type == BatteryType::TeslaModel3Y) {
+    strncpy(datalayer.system.info.battery_protocol, Name3Y, 63);
+    if (datalayer_battery->info.chemistry == battery_chemistry_enum::LFP) {
+      datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
+      datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
+      datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
+      datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
+      datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
+    } else {
+      datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
+      datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
+      datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+      datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+      datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
+    }
+  } else {  //S/X
 
-  if (datalayer_battery->info.chemistry == battery_chemistry_enum::LFP) {
-    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
-    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
-    datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
-    datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
-    datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
-  } else {
-    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
-    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
+    strncpy(datalayer.system.info.battery_protocol, NameSX, 63);
+    datalayer.system.info.battery_protocol[63] = '\0';
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_SX_NCMA;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_SX_NCMA;
     datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
     datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
     datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
   }
-}
-
-void TeslaModelSXBattery::setup(void) {
-  if (allows_contactor_closing) {
-    *allows_contactor_closing = true;
-  }
-
-  strncpy(datalayer.system.info.battery_protocol, Name, 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_SX_NCMA;
-  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_SX_NCMA;
-  datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
-  datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
-  datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
 }
