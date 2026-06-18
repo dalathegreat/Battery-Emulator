@@ -219,8 +219,10 @@ The controller verifies:
 - **Firmware version** matches the controller's compiled version (`iu_fw_version_num()`)
 - **Battery type** matches the first node that reported one (all nodes must use the same battery type)
 
-On mismatch:
-- Contactor is **blocked**
+On mismatch (applies to **both** the firmware version and the battery type comparison):
+- A not-yet-closed contactor is **blocked from closing** (entry gate)
+- An **already-closed contactor stays closed** — a mismatch never force-opens a live pack,
+  so a momentary IDENT glitch (one corrupted frame) cannot drop the whole system
 - Event `EVENT_BATTERY_NODE_IDENT_MISMATCH` (WARNING) is raised
 - Automatically cleared if subsequent IDENT data matches
 

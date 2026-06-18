@@ -419,12 +419,13 @@ void ControllerCan::update_values() {
       }
     }
 
-    // IDENT mismatch: firmware version or battery type mismatch blocks contactor.
-    // Only check after IDENT has been received from this node.
-    // Runs AFTER voltage safety so it always overrides any re-allow.
+    // IDENT mismatch: firmware version or battery type mismatch blocks a not-yet-closed
+    // contactor from closing (entry gate in check_node_voltage_safety), but must NEVER
+    // force-open an already-closed one. A momentary IDENT glitch (one corrupted fw/btype
+    // frame) must not drop a live pack — mirror the warning philosophy: block new closes,
+    // never open. Only check after IDENT has been received from this node.
     if (node.online && node.ident_received) {
       if (!node_identity_ok(i)) {
-        node.contactor_allowed = false;
         set_event(EVENT_BATTERY_NODE_IDENT_MISMATCH, i + 1);
         if (!ident_mismatch_logged[i]) {
           ident_mismatch_logged[i] = true;
@@ -549,11 +550,12 @@ void ControllerCan::check_node_voltage_safety(uint8_t idx) {
   // enter the prejoin state machine (the IDENT-mismatch event is still raised in
   // update_values()).
   if (!node_identity_ok(idx)) {
-    voltage_diff_seconds[idx] = 0;
-    reset_prejoin_state(idx);
-    if (node.contactor_allowed) {
-      node.contactor_allowed = false;
-      logging.printf("Controller CAN: Node %d contactor BLOCKED (identity not verified/mismatch)\n", idx + 1);
+    // Entry gate only: block a not-yet-closed node from prejoining/closing, but NEVER
+    // force-open an already-closed contactor. A momentary IDENT glitch (one corrupted
+    // fw/btype frame) must not drop a live pack — mirror the warning philosophy.
+    if (!node.contactor_allowed) {
+      voltage_diff_seconds[idx] = 0;
+      reset_prejoin_state(idx);
     }
     return;
   }

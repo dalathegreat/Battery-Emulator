@@ -235,7 +235,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "A battery node is reporting a fault. That node's contactor is blocked; the "
              "system keeps running on the remaining nodes.";
     case EVENT_BATTERY_NODE_IDENT_MISMATCH:
-      return "Battery node firmware version or battery type mismatch detected. Contactor blocked until resolved!";
+      return "Battery node firmware version or battery type mismatch detected. That node is blocked from "
+             "closing until resolved; an already-closed contactor stays closed.";
     case EVENT_BATTERY_NODE_STATUS_STALE:
       return "A battery node's STATUS data stopped refreshing. That node is excluded until it recovers.";
     case EVENT_CONTACTOR_WELDED:
