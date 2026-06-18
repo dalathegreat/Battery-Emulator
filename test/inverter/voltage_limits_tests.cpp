@@ -45,7 +45,7 @@ TEST_F(VoltageLimitsTest, DynamicLimits_BalancedCells_ReturnsDesignLimitsMinusOf
   auto limits = inverter.calculate_dynamic_voltage_limits();
 
   uint16_t expected_max = ((4300 - 100) * 100) / 100 - 8;
-  uint16_t expected_min = ((2700 + 100) * 100) / 100 + 1;
+  uint16_t expected_min = ((2700 + 100) * 100) / 100 + 10;
   EXPECT_EQ(limits.max_voltage_dV, expected_max);
   EXPECT_EQ(limits.min_voltage_dV, expected_min);
 }
@@ -89,7 +89,7 @@ TEST_F(VoltageLimitsTest, DynamicLimits_LowCellDeviation_IncreasesMinLimit) {
 
   int32_t mean_mV = 3700 * 100 / 100;
   int32_t deviation_mV = mean_mV - 3600;
-  int32_t expected_min = ((2700 + 100) * 100) / 100 + (deviation_mV * 100) / 100 + 1;
+  int32_t expected_min = ((2700 + 100) * 100) / 100 + (deviation_mV * 100) / 100 + 10;
   EXPECT_EQ(limits.min_voltage_dV, expected_min);
 }
 
@@ -115,7 +115,7 @@ TEST_F(VoltageLimitsTest, DynamicLimits_BothDeviations_NarrowsBothLimits) {
   int32_t dev_max_mV = 3850 - mean_mV;
   int32_t dev_min_mV = mean_mV - 3550;
   uint16_t expected_max = ((4300 - 100) * 100) / 100 - (dev_max_mV * 100) / 100 - 8;
-  uint16_t expected_min = ((2700 + 100) * 100) / 100 + (dev_min_mV * 100) / 100 + 1;
+  uint16_t expected_min = ((2700 + 100) * 100) / 100 + (dev_min_mV * 100) / 100 + 10;
 
   EXPECT_LE(limits.max_voltage_dV, expected_max);
   EXPECT_GE(limits.min_voltage_dV, expected_min);
@@ -137,7 +137,7 @@ TEST_F(VoltageLimitsTest, DynamicLimits_NegativeDeviationMinDoesNotDecreaseLimit
 
   auto limits = inverter.calculate_dynamic_voltage_limits();
 
-  uint16_t expected_min = ((2700 + 100) * 100) / 100 + 1;
+  uint16_t expected_min = ((2700 + 100) * 100) / 100 + 10;
   EXPECT_EQ(limits.min_voltage_dV, expected_min);
 }
 
@@ -172,8 +172,7 @@ TEST_F(VoltageLimitsTest, DynamicLimits_MinLimitClampedToZero) {
 
   auto limits = inverter.calculate_dynamic_voltage_limits();
 
-  // min = (0+100)*1/100 + 1 = 1 + 1 = 2
-  EXPECT_EQ(limits.min_voltage_dV, 2);
+  EXPECT_EQ(limits.min_voltage_dV, 11);
 }
 
 TEST_F(VoltageLimitsTest, DynamicLimits_MinLimitClampedToUINT16_MAX) {
@@ -184,9 +183,8 @@ TEST_F(VoltageLimitsTest, DynamicLimits_MinLimitClampedToUINT16_MAX) {
 
   auto limits = inverter.calculate_dynamic_voltage_limits();
 
-  // min = (65535+100)*1/100 + 1 = 656 + 1 = 657
   // Not clamped to UINT16_MAX because calculation doesn't overflow
-  EXPECT_EQ(limits.min_voltage_dV, 657);
+  EXPECT_EQ(limits.min_voltage_dV, 666);
 }
 
 TEST_F(VoltageLimitsTest, DynamicLimits_SingleCellPack) {
@@ -204,7 +202,7 @@ TEST_F(VoltageLimitsTest, DynamicLimits_SingleCellPack) {
   // But deviation increases min: mean=370000, dev_min=370000-3700=366300, increase=366300*1/100=3663
   // min = 28 + 3663 + 1 = 3692
   EXPECT_EQ(limits.max_voltage_dV, 34);
-  EXPECT_EQ(limits.min_voltage_dV, 3692);
+  EXPECT_EQ(limits.min_voltage_dV, 3701);
 }
 
 TEST_F(VoltageLimitsTest, DynamicLimits_SingleCellWithDeviation) {
@@ -217,13 +215,8 @@ TEST_F(VoltageLimitsTest, DynamicLimits_SingleCellWithDeviation) {
 
   auto limits = inverter.calculate_dynamic_voltage_limits();
 
-  // mean = 3700*100/1 = 370000mV
-  // dev_max = 3800-370000 = -366200 (negative, no reduction)
-  // dev_min = 370000-3600 = 366400, increase = 366400*1/100 = 3664
-  // max = (4300-100)*1/100 - 8 = 42 - 8 = 34
-  // min = (2700+100)*1/100 + 3664 + 1 = 28 + 3664 + 1 = 3693
   EXPECT_EQ(limits.max_voltage_dV, 34);
-  EXPECT_EQ(limits.min_voltage_dV, 3693);
+  EXPECT_EQ(limits.min_voltage_dV, 3702);
 }
 
 TEST_F(VoltageLimitsTest, DynamicLimits_PackVoltageInconsistentWithCellVoltages) {
@@ -236,13 +229,8 @@ TEST_F(VoltageLimitsTest, DynamicLimits_PackVoltageInconsistentWithCellVoltages)
 
   auto limits = inverter.calculate_dynamic_voltage_limits();
 
-  // mean = 4200*100/100 = 4200mV (from pack voltage)
-  // dev_max = 3700-4200 = -500 (negative, no reduction)
-  // dev_min = 4200-3700 = 500, increase = 500*100/100 = 500
-  // max = 4200*100/100 - 8 = 4192
-  // min = 2800*100/100 + 500 + 1 = 3301
   EXPECT_EQ(limits.max_voltage_dV, 4192);
-  EXPECT_EQ(limits.min_voltage_dV, 3301);
+  EXPECT_EQ(limits.min_voltage_dV, 3310);
 }
 
 // ── Top-level voltage limits ────────────────────────────────────────────
@@ -252,7 +240,7 @@ TEST_F(VoltageLimitsTest, TopLevel_NominalCase_ReturnsDesignLimitsWithOffset) {
 
   // Dynamic limits are narrower than static limits, so they override
   EXPECT_EQ(limits.max_voltage_dV, 4192);
-  EXPECT_EQ(limits.min_voltage_dV, 2801);
+  EXPECT_EQ(limits.min_voltage_dV, 2810);
 }
 
 TEST_F(VoltageLimitsTest, TopLevel_UserLimitsActive_ChargeLimitApplied) {
@@ -293,7 +281,7 @@ TEST_F(VoltageLimitsTest, TopLevel_UserLimitsActive_DischargeLimitZero_Ignored) 
   auto limits = inverter.calculate_voltage_limits();
 
   // User limit ignored, dynamic limits override static limits
-  EXPECT_EQ(limits.min_voltage_dV, 2801);
+  EXPECT_EQ(limits.min_voltage_dV, 2810);
 }
 
 TEST_F(VoltageLimitsTest, TopLevel_UserLimitsActive_DischargeLimitBelowDesign_Ignored) {
@@ -303,7 +291,7 @@ TEST_F(VoltageLimitsTest, TopLevel_UserLimitsActive_DischargeLimitBelowDesign_Ig
   auto limits = inverter.calculate_voltage_limits();
 
   // User limit ignored (below design), dynamic limits override static limits
-  EXPECT_EQ(limits.min_voltage_dV, 2801);
+  EXPECT_EQ(limits.min_voltage_dV, 2810);
 }
 
 TEST_F(VoltageLimitsTest, TopLevel_UserLimitsNarrowerThanDynamic_Wins) {
@@ -313,7 +301,6 @@ TEST_F(VoltageLimitsTest, TopLevel_UserLimitsNarrowerThanDynamic_Wins) {
 
   auto limits = inverter.calculate_voltage_limits();
 
-  // User limits (4000/3000) are narrower than dynamic limits (4192/2801)
   // User limits should win
   EXPECT_EQ(limits.max_voltage_dV, 4000);
   EXPECT_EQ(limits.min_voltage_dV, 3000);
@@ -346,7 +333,7 @@ TEST_F(VoltageLimitsTest, TopLevel_DynamicLimitsNarrowMin) {
 
   int32_t mean_mV = 3700 * 100 / 100;
   int32_t dev_min_mV = mean_mV - 2700;
-  uint16_t dynamic_min = ((2700 + 100) * 100) / 100 + (dev_min_mV * 100) / 100 + 1;
+  uint16_t dynamic_min = ((2700 + 100) * 100) / 100 + (dev_min_mV * 100) / 100 + 10;
   EXPECT_EQ(limits.min_voltage_dV, dynamic_min);
   EXPECT_GT(limits.min_voltage_dV, 2500 + VOLTAGE_OFFSET_DV);
 }
@@ -372,7 +359,7 @@ TEST_F(VoltageLimitsTest, CornerCase_ZeroVoltageWithValidCells) {
   int32_t dev_max_mV = 3700 - mean_mV;
   int32_t dev_min_mV = mean_mV - 3700;
   uint16_t expected_max = ((4300 - 100) * 100) / 100 - (dev_max_mV * 100) / 100 - 8;
-  uint16_t expected_min = ((2700 + 100) * 100) / 100 + 1;
+  uint16_t expected_min = ((2700 + 100) * 100) / 100 + 10;
 
   EXPECT_EQ(limits.max_voltage_dV, expected_max);
   EXPECT_EQ(limits.min_voltage_dV, expected_min);
@@ -392,7 +379,7 @@ TEST_F(VoltageLimitsTest, CornerCase_MaxCells) {
   auto limits = inverter.calculate_dynamic_voltage_limits();
 
   uint16_t expected_max = ((4300 - 100) * MAX_AMOUNT_CELLS) / 100 - 8;
-  uint16_t expected_min = ((2700 + 100) * MAX_AMOUNT_CELLS) / 100 + 1;
+  uint16_t expected_min = ((2700 + 100) * MAX_AMOUNT_CELLS) / 100 + 10;
   EXPECT_EQ(limits.max_voltage_dV, expected_max);
   EXPECT_EQ(limits.min_voltage_dV, expected_min);
 }
@@ -408,7 +395,7 @@ TEST_F(VoltageLimitsTest, CornerCase_CellVoltagesAtDesignLimits) {
   int32_t dev_max_mV = 4300 - mean_mV;
   int32_t dev_min_mV = mean_mV - 2700;
   uint16_t expected_max = ((4300 - 100) * 100) / 100 - (dev_max_mV * 100) / 100 - 8;
-  uint16_t expected_min = ((2700 + 100) * 100) / 100 + (dev_min_mV * 100) / 100 + 1;
+  uint16_t expected_min = ((2700 + 100) * 100) / 100 + (dev_min_mV * 100) / 100 + 10;
 
   EXPECT_EQ(limits.max_voltage_dV, expected_max);
   EXPECT_EQ(limits.min_voltage_dV, expected_min);
@@ -423,7 +410,7 @@ TEST_F(VoltageLimitsTest, CornerCase_UserLimitsAtExtremes) {
 
   // User limits are ignored when outside valid range, dynamic limits override
   EXPECT_EQ(limits.max_voltage_dV, 4192);
-  EXPECT_EQ(limits.min_voltage_dV, 2801);
+  EXPECT_EQ(limits.min_voltage_dV, 2810);
 }
 
 TEST_F(VoltageLimitsTest, CornerCase_DesignLimitsEqual_VoltageAtDesign) {

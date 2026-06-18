@@ -5,6 +5,19 @@
 
 /* Do not change code below unless you are sure what you are doing */
 
+#define MIN(a, b)           \
+  ({                        \
+    __typeof__(a) _a = (a); \
+    __typeof__(b) _b = (b); \
+    _a < _b ? _a : _b;      \
+  })
+#define MAX(a, b)           \
+  ({                        \
+    __typeof__(a) _a = (a); \
+    __typeof__(b) _b = (b); \
+    _a > _b ? _a : _b;      \
+  })
+
 BydVoltageLimits BydCanInverter::calculate_dynamic_voltage_limits() {
   BydVoltageLimits limits = {0, UINT16_MAX};
 
@@ -51,8 +64,8 @@ BydVoltageLimits BydCanInverter::calculate_dynamic_voltage_limits() {
   max_limit_dV -= 8;
   min_limit_dV += 10;
 
-  limits.max_voltage_dV = max(min(max_limit_dV, (int32_t)UINT16_MAX), 0);
-  limits.min_voltage_dV = max(min(min_limit_dV, (int32_t)UINT16_MAX), 0);
+  limits.max_voltage_dV = MAX(MIN(max_limit_dV, UINT16_MAX), 0);
+  limits.min_voltage_dV = MAX(MIN(min_limit_dV, UINT16_MAX), 0);
   return limits;
 }
 
