@@ -49,10 +49,10 @@ BydVoltageLimits BydCanInverter::calculate_dynamic_voltage_limits() {
 
   // Apply offsets
   max_limit_dV -= 8;
-  min_limit_dV += 1;
+  min_limit_dV += 10;
 
-  limits.min_voltage_dV = max(min(min_limit_dV, UINT16_MAX), 0);
-  limits.max_voltage_dV = max(min(max_limit_dV, UINT16_MAX), 0);
+  limits.max_voltage_dV = max(min(max_limit_dV, (int32_t)UINT16_MAX), 0);
+  limits.min_voltage_dV = max(min(min_limit_dV, (int32_t)UINT16_MAX), 0);
   return limits;
 }
 
