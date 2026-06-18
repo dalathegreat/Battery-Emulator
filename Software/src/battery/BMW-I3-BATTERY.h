@@ -97,6 +97,10 @@ class BmwI3Battery : public CanBattery {
     }
   }
 
+  // Contactor-engagement watchdog state for the web UI
+  const char* get_contactor_watchdog_string();
+  uint8_t contactor_recovery_attempt_count() { return cw_recovery_attempts; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
@@ -378,6 +382,22 @@ class BmwI3Battery : public CanBattery {
   bool balancing_mode_active = false;
   bool can_communication_stopped = false;
   unsigned long balancing_start_time = 0;
+
+  // Contactor-engagement watchdog: recovers the battery when it latches "Error precharge
+  // blocked" and refuses to engage despite a close command. After CONTACTOR_ENGAGE_TIMEOUT_MS
+  // without "engaged", it pulses wakeup low (sending open on CAN), then wakeup high and
+  // resumes the close command. Limited to MAX_CONTACTOR_RECOVERY_ATTEMPTS attempts.
+  enum ContactorWatchdogState { CW_MONITOR, CW_RECOVERY_OPEN_LOW };
+  ContactorWatchdogState cw_state = CW_MONITOR;
+  unsigned long cw_close_request_start = 0;   // when the current un-engaged close began
+  unsigned long cw_recovery_phase_start = 0;  // start of the wakeup-low pulse
+  uint8_t cw_recovery_attempts = 0;
+  bool contactor_recovery_force_open = false;        // force BMW_10B open during recovery
+  bool contactor_recovery_force_wakeup_low = false;  // force wakeup pin low during recovery
+  static const unsigned long CONTACTOR_ENGAGE_TIMEOUT_MS = 5000;
+  static const unsigned long RECOVERY_WAKEUP_LOW_MS = 2000;
+  static const uint8_t MAX_CONTACTOR_RECOVERY_ATTEMPTS = 3;
+  void monitor_contactor_engagement(unsigned long currentMillis);
 
   uint8_t startup_counter_contactor = 0;
   uint8_t alive_counter_20ms = 0;
