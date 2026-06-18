@@ -123,6 +123,11 @@ static const std::map<int, String> sungrow_models = {
 
 static const std::map<int, String> pylon_models = {{0, "PYLONTECH"}, {1, "PYLON"}, {2, "DEYE"}};
 
+static const std::map<int, String> contactor_modes = {
+    {0, "No Workaround"},
+    {1, "Keep contactors always closed"},
+    {2, "Lock contactors closed after first close request"}};
+
 const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   switch (behavior) {
     case STOP_BUTTON_BEHAVIOR::LATCHING_SWITCH:
@@ -305,6 +310,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "PYLON_MODEL") {
     return options_from_map(settings.getUInt("PYLONBRAND", 0), pylon_models);
+  }
+
+  if (var == "INVICNT") {
+    return options_from_map(settings.getUInt("INVICNT", 0), contactor_modes);
   }
 
 #ifdef HW_LILYGO2CAN
@@ -877,11 +886,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "INVBTYPE") {
     return String(settings.getUInt("INVBTYPE", 0));
-  }
-
-  if (var == "INVICNT") {
-    uint8_t mode = settings.getUInt("INVICNT", 0);
-    return String(mode);
   }
 
   if (var == "DEYEBYD") {
@@ -1704,9 +1708,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-kostal if-solax">
         <label>Inverter Contactor Workaround: </label>
         <select name='INVICNT'>
-          <option value='0'>No Workaround</option>
-          <option value='1'>Keep contactors always closed</option>
-          <option value='2'>Lock contactors closed after first close request</option>
+          %INVICNT%
         </select>
         </div>
 
