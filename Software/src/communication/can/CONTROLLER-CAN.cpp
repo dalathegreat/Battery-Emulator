@@ -726,10 +726,20 @@ void ControllerCan::update_node_aggregation() {
     if (!node.online || !node.contactor_engaged) {
       continue;
     }
-    // Exclude nodes performing offline balancing — they are sleeping and not part of the pack
-    if (node.balancing) {
-      continue;
-    }
+    // A node entering offline balancing reports max_charge_W = max_discharge_W = 0 (see
+    // BMW-I3-BATTERY.cpp) and keeps reporting its contactor engaged until it actually opens it
+    // (~20-30 s later). We deliberately KEEP such a node in the aggregation while its contactor
+    // is still engaged so that its reported zero is honoured: it trips charge_blocked/
+    // discharge_blocked below, driving the whole-pack limit to 0 and letting the inverter wind
+    // current down BEFORE the node opens its contactor — i.e. a no-load open. Once the node
+    // reports its contactor open (or goes offline) it is dropped by the !contactor_engaged /
+    // !online check above and the remaining healthy nodes resume.
+    //
+    // NOTE: this means the whole pack briefly stops charge/discharge while a node winds down for
+    // balancing. That is intentional and necessary: the packs share one DC bus with passive
+    // current sharing, so the only way to guarantee no current through the leaving node when its
+    // contactor opens is to stop the inverter entirely. (Previously balancing nodes were excluded
+    // here immediately, so their zero was never seen and the contactor could open under load.)
     active_count++;
     if (shared_voltage_dV == 0 && node.voltage_dV > 0) {
       shared_voltage_dV = node.voltage_dV;  // Same for all — take first available
