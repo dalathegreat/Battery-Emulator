@@ -123,10 +123,9 @@ static const std::map<int, String> sungrow_models = {
 
 static const std::map<int, String> pylon_models = {{0, "PYLONTECH"}, {1, "PYLON"}, {2, "DEYE"}};
 
-static const std::map<int, String> contactor_modes = {
-    {0, "No Workaround"},
-    {1, "Keep contactors always closed"},
-    {2, "Lock contactors closed after first close request"}};
+static const std::map<int, String> contactor_modes = {{0, "No Workaround"},
+                                                      {1, "Keep contactors always closed"},
+                                                      {2, "Lock contactors closed after first close request"}};
 
 const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   switch (behavior) {
