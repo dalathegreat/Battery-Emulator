@@ -402,6 +402,9 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   node_mode_enum node_mode = NODE_STANDALONE;
   uint8_t battery_node_id = 1;     // 1-24, used when node_mode == NODE_BATTERY
   bool controller_online = false;  // true when controller heartbeat received within timeout (node mode only)
+  /** Watchdog counter for the controller heartbeat (node mode only). Reset to CAN_STILL_ALIVE on each
+   * heartbeat and decremented every second in safety.cpp; reaching 0 raises EVENT_CAN_CONTROLLER_MISSING. */
+  uint8_t CAN_controller_still_alive = CAN_STILL_ALIVE;
 };
 
 struct DATALAYER_SYSTEM_TYPE {
