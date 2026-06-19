@@ -193,7 +193,12 @@ void ControllerCan::receive_can_frame(CAN_frame* rx_frame) {
     }
     case 0x05:  // IDENT message (startup only)
     {
-      if (rx_frame->DLC >= 4) {
+      // Validate before accepting: a genuine IDENT is exactly 8 bytes with reserved [4..7] == 0.
+      // Rejecting malformed frames stops a single garbled IDENT (CAN glitch, or a mis-framed
+      // non-IDENT frame landing on a 0x_5 ID) from overwriting a known-good fw_version_num and
+      // raising a false EVENT_BATTERY_NODE_IDENT_MISMATCH warning.
+      if (rx_frame->DLC == 8 &&
+          (rx_frame->data.u8[4] | rx_frame->data.u8[5] | rx_frame->data.u8[6] | rx_frame->data.u8[7]) == 0) {
         node.fw_version_num = ((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1];
         node.battery_type_id = ((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
         node.ident_received = true;

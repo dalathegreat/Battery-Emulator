@@ -87,9 +87,16 @@ void BatteryNodeCan::transmit(unsigned long currentMillis) {
       send_cell_frame();
     }
     // Send IP on first 3 heartbeats (so controller gets it quickly after boot),
-    // then only every 10 minutes (600s) since IP rarely changes.
+    // then only every 10 minutes (600s) — IP can change on a DHCP renew without a reboot.
     if (_heartbeat_count <= 3 || _heartbeat_count % 600 == 0) {
       send_ip_frame();
+    }
+    // IDENT (FW version + battery type) only changes across a reboot, and the node already
+    // re-announces on its first 3 heartbeats — including after a controller-reboot gap, since
+    // the heartbeat handler resets _heartbeat_count. Re-sending it every 10 min added nothing
+    // but a recurring window for a single garbled frame to raise a false firmware-mismatch
+    // warning on the controller, so send IDENT at startup only.
+    if (_heartbeat_count <= 3) {
       send_ident_frame();
     }
   }

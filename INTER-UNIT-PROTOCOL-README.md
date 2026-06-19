@@ -80,7 +80,7 @@ Example for Node 1 (N=1): STATUS = `0x110`, POWER = `0x111`, etc.
 | CELL | Node | Every 2nd heartbeat (2s) |
 | INFO | Node | Every 10th heartbeat (10s) |
 | IP | Node | First 3 heartbeats + every 10 minutes |
-| IDENT | Node | First 3 heartbeats + every 10 minutes |
+| IDENT | Node | First 3 heartbeats only (re-announced after a controller-reboot gap) |
 
 **Collision avoidance:** Nodes reply with a delay of `NodeID × 5 ms` after heartbeat.  
 Node 1 = 5 ms, Node 2 = 10 ms, ..., Node 24 = 120 ms.
