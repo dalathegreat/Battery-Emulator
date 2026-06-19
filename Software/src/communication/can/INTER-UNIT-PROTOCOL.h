@@ -3,10 +3,23 @@
 
 #include <stdint.h>
 
+#include "../../devboard/utils/common_functions.h"  // crc8_table_SAE_J1850_ZER0
+
 /**
  * Inter-Unit CAN Protocol for Controller/Node Battery Emulator Network
  *
  * Controller uses can_config.battery (BATTCOMM), node uses can_config.inverter (INVCOMM). Speed: 500 kbps.
+ *
+ * Integrity (protocol v2+):
+ *   Every inter-unit frame carries a 1-byte application CRC in its LAST data byte
+ *   (data[DLC-1]), computed by iu_crc8() over the preceding bytes seeded with the CAN ID's
+ *   low byte. The receiver re-checks it before using any field; a mismatch drops the frame.
+ *   This sits on top of classic CAN's own 15-bit CRC and additionally guards against ID
+ *   aliasing (a foreign device on an IU ID), mis-delivered frames and software/buffer faults.
+ *   Because the three node frames that were already 8 bytes full (STATUS/POWER/INFO) had no
+ *   spare byte, a few fields are packed tighter on the wire to free the CRC byte — see the
+ *   per-message layouts below. All units run the same firmware, so this is a hard cutover:
+ *   a node on an older (CRC-less) firmware is rejected by the controller and stays offline.
  *
  * Timing:
  *   - Controller sends heartbeat every 1 second
@@ -28,20 +41,8 @@
  *   0x115+N*0x10 : Node N -> Controller, IDENT message   (msg 0x05, startup only)
  *   Where N = node ID (1..24)
  *
- * INFO Message Content:
- *   [0..1] : total_capacity_Wh
- *   [2..3] : max_design_voltage_dV
- *   [4..5] : min_design_voltage_dV
- *   [6..7] : soh_pptt (State of Health in 0.01% units, e.g. 9900 = 99.00%)
- *
- * CELL Message Content:
- *   [0..1] : cell_max_voltage_mV
- *   [2..3] : cell_min_voltage_mV
- *
- * IDENT Message Content (sent at startup, same timing as IP frame):
- *   [0..1] : uint16_t  fw_version_num   — (major << 8) | minor, e.g. 10.6 -> 0x0A06
- *   [2..3] : uint16_t  battery_type_id  — BatteryType enum cast to uint16_t
- *   [4..7] : reserved
+ * (Authoritative per-message wire layouts — including the CRC byte — are at the bottom of
+ *  this header. The 0x_2/0x_4/0x_5 frames now carry a CRC in their last data byte.)
  */
 
 /* ---- Firmware version encoding ---- */
@@ -69,6 +70,44 @@ inline uint16_t iu_fw_version_num() {
   return (uint16_t)(((major & 0xFFu) << 8u) | (minor & 0xFFu));
 }
 
+/* ---- Protocol version ---- */
+// Bumped when the on-wire layout changes incompatibly. v2 = per-frame application CRC.
+// Informational/documentation only — all units run the same firmware (hard cutover).
+#define IU_PROTOCOL_VERSION 2u
+
+/* ---- On-wire field scaling (to free a byte for the CRC on full 8-byte frames) ---- */
+// STATUS soc / INFO soh travel as 1 byte in 0.5% steps; receiver multiplies back to 0.01% units.
+#define IU_SOC_WIRE_SCALE 50u  // wire 0..200  <->  real_soc 0..10000 (0.01%)
+#define IU_SOH_WIRE_SCALE 50u  // wire 0..198  <->  soh_pptt 0..9900 (0.01%)
+// POWER remaining_Wh travels as a 15-bit value in 2 Wh steps (bit15 reused as the balancing flag).
+#define IU_REM_WH_WIRE_SCALE 2u  // wire 0..32767  <->  remaining_Wh 0..65534
+
+/* ---- Application CRC ---- */
+// CRC8 (SAE J1850, poly 0x1D) over data[0..len-1], seeded with the CAN ID's low byte so a frame
+// delivered on the wrong ID (aliasing / mis-delivery) fails the check. Stored in data[DLC-1];
+// compute over the first DLC-1 bytes and compare against the last byte on receive.
+inline uint8_t iu_crc8(uint32_t can_id, const uint8_t* data, uint8_t len) {
+  uint8_t crc = (uint8_t)(can_id & 0xFFu);
+  for (uint8_t i = 0; i < len; i++) {
+    crc = crc8_table_SAE_J1850_ZER0[crc ^ data[i]];
+  }
+  return crc;
+}
+
+// Validate a received inter-unit frame: the last data byte must equal the CRC over the rest.
+// dlc must be >= 1. Returns false (reject) for an empty frame.
+inline bool iu_crc_valid(uint32_t can_id, const uint8_t* data, uint8_t dlc) {
+  if (dlc < 1u) {
+    return false;
+  }
+  return iu_crc8(can_id, data, (uint8_t)(dlc - 1u)) == data[dlc - 1u];
+}
+
+// Stamp the CRC into the last data byte of a frame being sent. dlc must be >= 1.
+inline void iu_crc_stamp(uint32_t can_id, uint8_t* data, uint8_t dlc) {
+  data[dlc - 1u] = iu_crc8(can_id, data, (uint8_t)(dlc - 1u));
+}
+
 /* ---- Controller → Broadcast ---- */
 #define IU_CONTROLLER_HEARTBEAT_ID 0x300u  // Heartbeat, no payload needed
 
@@ -79,8 +118,8 @@ inline uint16_t iu_fw_version_num() {
 #define IU_NODE_STATUS_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x00u)  // Status (8 bytes, every 1s)
 #define IU_NODE_POWER_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x01u)   // Power  (8 bytes, every 1s)
 #define IU_NODE_INFO_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x02u)    // Info   (8 bytes, every 10s)
-#define IU_NODE_IP_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x03u)      // IP addr (4 bytes, every 10s)
-#define IU_NODE_CELL_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x04u)    // Cell info (8 bytes, every 2s)
+#define IU_NODE_IP_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x03u)      // IP addr (5 bytes, every 10s)
+#define IU_NODE_CELL_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x04u)    // Cell info (5 bytes, every 2s)
 #define IU_NODE_IDENT_ID(n) (0x100u + ((uint32_t)(n) * 0x10u) + 0x05u)   // Ident (8 bytes, startup only)
 
 /* ---- Node ID range detection ---- */
@@ -105,8 +144,11 @@ inline uint16_t iu_fw_version_num() {
 #define IU_FAULT_ERROR_MASK (IU_FAULT_BMS_FAULT | IU_FAULT_BATTERY_TIMEOUT | IU_FAULT_CONTACTOR_FAILED)
 #define IU_FAULT_WARNING_MASK (IU_FAULT_CELL_OVERVOLTAGE | IU_FAULT_CELL_UNDERVOLTAGE | IU_FAULT_OVERTEMPERATURE)
 
-/* ---- FLAGS byte in POWER message (data[7]) ---- */
-#define IU_NODE_PFLAG_BALANCING 0x01u  // bit 0: Node is performing offline balancing — exclude from aggregation
+/* ---- Balancing flag in POWER message ---- */
+// Node is performing offline balancing — exclude from aggregation. Carried in bit15 of the
+// remaining_Wh word [4..5] (the old dedicated pflags byte was reclaimed for the CRC).
+#define IU_NODE_REM_BALANCING_BIT 0x8000u  // bit15 of [4..5]
+#define IU_NODE_REM_VALUE_MASK 0x7FFFu     // bits0..14 = remaining_Wh / IU_REM_WH_WIRE_SCALE
 
 /* ---- Stale data detection ---- */
 #define IU_STATUS_STALE_SECONDS 3u  // Flag stale if STATUS toggle has not changed for this many seconds
@@ -121,31 +163,52 @@ inline uint16_t iu_fw_version_num() {
        // before the inverter starts charging/discharging
 
 /*
+ * Wire layouts (protocol v2). Every frame's LAST data byte is the iu_crc8() CRC.
+ *
+ * HEARTBEAT — IU_CONTROLLER_HEARTBEAT_ID, 1 byte:
+ *   [0]    : uint8_t   CRC
+ *
+ * CONTACTOR COMMAND — IU_CONTROLLER_CONTACTOR_ID(n), 2 bytes:
+ *   [0]    : uint8_t   command — IU_CONTACTOR_ALLOW or IU_CONTACTOR_OPEN
+ *   [1]    : uint8_t   CRC
+ *
  * STATUS message layout — IU_NODE_STATUS_ID(n), 8 bytes:
  *   [0..1] : uint16_t  voltage_dV        — pack voltage in deciVolts (3700 = 370.0 V)
- *   [2..3] : uint16_t  real_soc          — SOC in 0.01% (9550 = 95.50%)
- *   [4..5] : int16_t   current_dA        — current in deciAmpere (positive = charging)
- *   [6]    : int8_t    temp_max_dC_div10 — max temperature (°C, as int8: 25 = 25°C, -10 = -10°C)
- *   [7]    : uint8_t   flags             — see IU_FAULT_* and IU_FLAG_* above
+ *   [2]    : uint8_t   soc_wire          — SOC / IU_SOC_WIRE_SCALE (0.5% steps; *50 -> 0.01%)
+ *   [3..4] : int16_t   current_dA        — current in deciAmpere (positive = charging)
+ *   [5]    : int8_t    temp_max_dC_div10 — max temperature (°C, as int8: 25 = 25°C, -10 = -10°C)
+ *   [6]    : uint8_t   flags             — see IU_FAULT_* and IU_FLAG_* above
+ *   [7]    : uint8_t   CRC
  *
  * POWER message layout — IU_NODE_POWER_ID(n), 8 bytes:
  *   [0..1] : uint16_t  max_charge_W      — max charge power in Watts
  *   [2..3] : uint16_t  max_discharge_W   — max discharge power in Watts
- *   [4..5] : uint16_t  remaining_Wh      — remaining capacity in Wh (max 65535 Wh)
+ *   [4..5] : uint16_t  rem_word          — bit15 = balancing (IU_NODE_REM_BALANCING_BIT),
+ *                                          bits0..14 = remaining_Wh / IU_REM_WH_WIRE_SCALE (2 Wh)
  *   [6]    : int8_t    temp_min_dC       — min temperature (°C, as int8)
- *   [7]    : uint8_t   node_pflags       — see IU_NODE_PFLAG_* below
+ *   [7]    : uint8_t   CRC
  *
  * INFO message layout — IU_NODE_INFO_ID(n), 8 bytes:
- *   [0..1] : uint16_t  total_capacity_Wh    — total pack capacity in Wh
+ *   [0..1] : uint16_t  total_capacity_Wh     — total pack capacity in Wh
  *   [2..3] : uint16_t  max_design_voltage_dV — max design voltage in dV
  *   [4..5] : uint16_t  min_design_voltage_dV — min design voltage in dV
- *   [6..7] : uint16_t  reserved
+ *   [6]    : uint8_t   soh_wire              — soh_pptt / IU_SOH_WIRE_SCALE (0.5% steps; *50 -> 0.01%)
+ *   [7]    : uint8_t   CRC
  *
- * IP message layout — IU_NODE_IP_ID(n), 4 bytes:
+ * IP message layout — IU_NODE_IP_ID(n), 5 bytes:
  *   [0..3] : uint32_t  IPv4 address (big-endian, e.g. 192.168.1.10 = 0xC0A8010A)
+ *   [4]    : uint8_t   CRC
  *
- * CONTACTOR COMMAND layout — IU_CONTROLLER_CONTACTOR_ID(n), 1 byte:
- *   [0]    : uint8_t   command — IU_CONTACTOR_ALLOW or IU_CONTACTOR_OPEN
+ * CELL message layout — IU_NODE_CELL_ID(n), 5 bytes:
+ *   [0..1] : uint16_t  cell_max_voltage_mV
+ *   [2..3] : uint16_t  cell_min_voltage_mV
+ *   [4]    : uint8_t   CRC
+ *
+ * IDENT message layout — IU_NODE_IDENT_ID(n), 8 bytes (startup only):
+ *   [0..1] : uint16_t  fw_version_num   — (major << 8) | minor, e.g. 10.6 -> 0x0A06
+ *   [2..3] : uint16_t  battery_type_id  — BatteryType enum cast to uint16_t
+ *   [4..6] : reserved (must be 0)
+ *   [7]    : uint8_t   CRC
  */
 
 #endif  // _INTER_UNIT_PROTOCOL_H_

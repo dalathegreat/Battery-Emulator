@@ -89,16 +89,29 @@ Node 1 = 5 ms, Node 2 = 10 ms, ..., Node 24 = 120 ms.
 
 ## Message Layouts
 
-### Heartbeat — `0x300` (0 bytes)
-No payload. Used only to signal that the controller is online.
+> **Integrity (protocol v2):** every frame carries a 1-byte application CRC in its **last data
+> byte**, computed by `iu_crc8()` over the preceding bytes seeded with the CAN ID's low byte. The
+> receiver re-checks it and drops any frame that fails. Because STATUS/POWER/INFO were already 8
+> bytes full, a few fields are packed tighter on the wire (SOC/SOH in 0.5% steps, remaining_Wh in
+> 2 Wh steps) to free the CRC byte; the receiver rescales them back to internal units. See
+> [Frame Integrity (CRC)](#8-frame-integrity-crc) below.
+
+### Heartbeat — `0x300` (1 byte)
+
+| Byte | Content |
+|------|---------|
+| [0] | CRC |
+
+Carries no other payload — used only to signal that the controller is online.
 
 ---
 
-### Contactor Command — `0x300 + N` (1 byte)
+### Contactor Command — `0x300 + N` (2 bytes)
 
 | Byte | Content |
 |------|---------|
 | [0] | `0x01` = allow contactor closing, `0x00` = open contactor |
+| [1] | CRC |
 
 ---
 
@@ -107,12 +120,13 @@ No payload. Used only to signal that the controller is online.
 | Bytes | Type | Content |
 |-------|------|---------|
 | [0–1] | uint16 | Pack voltage in deciVolts (3700 = 370.0 V) |
-| [2–3] | uint16 | SOC in 0.01% units (9550 = 95.50%) |
-| [4–5] | int16 | Current in deciAmpere (positive = charging) |
-| [6] | int8 | Max temperature in °C |
-| [7] | uint8 | Flags — see table below |
+| [2] | uint8 | SOC ÷ 50 (0.5% steps on the wire; receiver ×50 → 0.01%) |
+| [3–4] | int16 | Current in deciAmpere (positive = charging) |
+| [5] | int8 | Max temperature in °C |
+| [6] | uint8 | Flags — see table below |
+| [7] | uint8 | CRC |
 
-#### FLAGS byte (data[7])
+#### FLAGS byte (data[6])
 
 | Bit | Constant | Meaning | Classification |
 |-----|----------|---------|----------------|
@@ -133,9 +147,9 @@ No payload. Used only to signal that the controller is online.
 |-------|------|---------|
 | [0–1] | uint16 | Max charge power in Watts |
 | [2–3] | uint16 | Max discharge power in Watts |
-| [4–5] | uint16 | Remaining capacity in Wh |
+| [4–5] | uint16 | `rem_word`: bit 15 = offline-balancing flag (`IU_NODE_REM_BALANCING_BIT`), bits 0–14 = remaining capacity ÷ 2 (2 Wh steps, receiver ×2 → Wh) |
 | [6] | int8 | Min temperature in °C |
-| [7] | uint8 | Node power flags — see `IU_NODE_PFLAG_*` (bit 0 = offline balancing) |
+| [7] | uint8 | CRC |
 
 ---
 
@@ -146,27 +160,29 @@ No payload. Used only to signal that the controller is online.
 | [0–1] | uint16 | Total pack capacity in Wh |
 | [2–3] | uint16 | Max design voltage in dV |
 | [4–5] | uint16 | Min design voltage in dV |
-| [6–7] | uint16 | State of Health in 0.01% units (9900 = 99.00%) |
+| [6] | uint8 | SOH ÷ 50 (0.5% steps on the wire; receiver ×50 → 0.01%) |
+| [7] | uint8 | CRC |
 
 ---
 
-### IP — `0x113 + N×0x10` (4 bytes)
+### IP — `0x113 + N×0x10` (5 bytes)
 
 | Bytes | Type | Content |
 |-------|------|---------|
 | [0–3] | uint32 | IPv4 address, big-endian (192.168.1.10 = 0xC0A8010A) |
+| [4] | uint8 | CRC |
 
 Only sent if the node is connected to WiFi.
 
 ---
 
-### CELL — `0x114 + N×0x10` (8 bytes)
+### CELL — `0x114 + N×0x10` (5 bytes)
 
 | Bytes | Type | Content |
 |-------|------|---------|
 | [0–1] | uint16 | Highest cell voltage in mV |
 | [2–3] | uint16 | Lowest cell voltage in mV |
-| [4–7] | — | Reserved |
+| [4] | uint8 | CRC |
 
 ---
 
@@ -176,7 +192,8 @@ Only sent if the node is connected to WiFi.
 |-------|------|---------|
 | [0–1] | uint16 | Firmware version: `(major << 8) | minor` — e.g. 10.6 = `0x0A06` |
 | [2–3] | uint16 | Battery type ID (`BatteryType` enum cast to uint16) |
-| [4–7] | — | Reserved |
+| [4–6] | — | Reserved (must be 0) |
+| [7] | uint8 | CRC |
 
 ---
 
@@ -291,6 +308,24 @@ The controller combines data from all online nodes whose contactor is actually *
 | Temperature max/min | Highest max, lowest min across all engaged nodes |
 | Max design voltage | **Lowest** across all engaged nodes (protects against overcharge) |
 | Min design voltage | **Highest** across all engaged nodes (protects against over-discharge) |
+
+---
+
+### 8. Frame Integrity (CRC)
+
+Every inter-unit frame carries a 1-byte application **CRC** in its last data byte (`iu_crc8()`, SAE J1850 poly `0x1D`), computed over the preceding bytes **seeded with the CAN ID's low byte**. This sits on top of classic CAN's own 15-bit CRC and additionally guards against ID aliasing (a foreign device transmitting on an inter-unit ID), mis-delivered frames, and software/buffer corruption.
+
+The receiver re-checks the CRC **before using any field** and drops a frame that fails. The behaviour on a dropped frame is **fail-safe** — a rejected frame never improves the safety state:
+- **Controller** ignores a bad node frame *without* resetting that node's `still_alive`/`online`, so persistent corruption runs the node down to offline and opens its contactor.
+- **Node** ignores a bad heartbeat (watchdog is not refreshed → contactor opens on timeout) and ignores a bad contactor command (keeps the previous state rather than acting on a garbled ALLOW/OPEN).
+
+CRC mismatches are counted and logged on each side.
+
+Because three node frames (STATUS/POWER/INFO) were already 8 bytes full, a few fields are packed tighter on the wire to free the CRC byte — SOC and SOH travel in 0.5% steps (1 byte), `remaining_Wh` in 2 Wh steps (15 bits, with the offline-balancing flag in bit 15). The receiver rescales these back to the internal 0.01%/Wh units, so aggregation and the web UI are unchanged.
+
+> **Hard cutover:** the CRC is `IU_PROTOCOL_VERSION` 2. All units run the same firmware, so there is no mixed-version compatibility: a node on older (CRC-less) firmware fails every CRC check at the controller and stays offline. Flash the controller and all nodes together.
+
+This complements — and does not replace — the toggle-bit stale detection (#3): a CRC-valid frame can still carry frozen data, which only the toggle bit catches.
 
 ---
 

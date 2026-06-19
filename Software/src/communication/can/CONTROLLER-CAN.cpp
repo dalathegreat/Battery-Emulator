@@ -96,11 +96,24 @@ void ControllerCan::begin() {
 
 // ---- CAN RX --------------------------------------------------------
 
+// Count of inter-unit frames dropped because their application CRC did not validate.
+static uint32_t iu_controller_crc_errors = 0;
+
 void ControllerCan::receive_can_frame(CAN_frame* rx_frame) {
   const uint32_t id = rx_frame->ID;
 
   // Only process node messages in the expected range
   if (id < IU_NODE_MSG_MIN_ID || id > IU_NODE_MSG_MAX_ID) {
+    return;
+  }
+
+  // Validate the application CRC (last data byte) BEFORE touching any node state. On mismatch we
+  // return immediately — crucially without resetting still_alive/online — so persistent corruption
+  // lets the node run down to offline and its contactor open (fail-safe).
+  if (!iu_crc_valid(id, rx_frame->data.u8, rx_frame->DLC)) {
+    iu_controller_crc_errors++;
+    logging.printf("Controller CAN: RX CRC mismatch on ID 0x%03X (count=%u) — dropped\n", (unsigned)id,
+                   iu_controller_crc_errors);
     return;
   }
 
@@ -129,10 +142,11 @@ void ControllerCan::receive_can_frame(CAN_frame* rx_frame) {
     case 0x00:  // STATUS message
     {
       uint16_t voltage_dV = ((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1];
-      uint16_t real_soc = ((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
-      int16_t current_dA = (int16_t)(((uint16_t)rx_frame->data.u8[4] << 8) | rx_frame->data.u8[5]);
-      int8_t temp_max_raw = (int8_t)rx_frame->data.u8[6];
-      uint8_t flags = rx_frame->data.u8[7];
+      // soc travels in 0.5% steps in a single byte; rescale to internal 0.01% units
+      uint16_t real_soc = (uint16_t)rx_frame->data.u8[2] * IU_SOC_WIRE_SCALE;
+      int16_t current_dA = (int16_t)(((uint16_t)rx_frame->data.u8[3] << 8) | rx_frame->data.u8[4]);
+      int8_t temp_max_raw = (int8_t)rx_frame->data.u8[5];
+      uint8_t flags = rx_frame->data.u8[6];
 
       node.voltage_dV = voltage_dV;
       node.real_soc = real_soc;
@@ -153,11 +167,12 @@ void ControllerCan::receive_can_frame(CAN_frame* rx_frame) {
     {
       node.max_charge_W = ((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1];
       node.max_discharge_W = ((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
-      node.remaining_Wh = ((uint16_t)rx_frame->data.u8[4] << 8) | rx_frame->data.u8[5];
+      // [4..5] rem_word: bit15 = offline-balancing flag, bits0..14 = remaining_Wh in 2 Wh steps
+      uint16_t rem_word = ((uint16_t)rx_frame->data.u8[4] << 8) | rx_frame->data.u8[5];
+      node.remaining_Wh = (uint16_t)((rem_word & IU_NODE_REM_VALUE_MASK) * IU_REM_WH_WIRE_SCALE);
       node.temp_min_dC = (int8_t)rx_frame->data.u8[6];
-      // [7] node_pflags: check offline balancing flag
       bool was_balancing = node.balancing;
-      node.balancing = (rx_frame->data.u8[7] & IU_NODE_PFLAG_BALANCING) != 0;
+      node.balancing = (rem_word & IU_NODE_REM_BALANCING_BIT) != 0;
       if (!was_balancing && node.balancing) {
         // Balancing just started: start hold timer — BMW I3 opens its own contactor ~20s later.
         // Controller will block contactor_allowed after BALANCING_HOLD_SECONDS (50s).
@@ -172,12 +187,13 @@ void ControllerCan::receive_can_frame(CAN_frame* rx_frame) {
       node.total_capacity_Wh = ((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1];
       node.max_design_voltage_dV = ((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
       node.min_design_voltage_dV = ((uint16_t)rx_frame->data.u8[4] << 8) | rx_frame->data.u8[5];
-      node.soh_pptt = ((uint16_t)rx_frame->data.u8[6] << 8) | rx_frame->data.u8[7];
+      // soh travels in 0.5% steps in a single byte; rescale to internal 0.01% units
+      node.soh_pptt = (uint16_t)rx_frame->data.u8[6] * IU_SOH_WIRE_SCALE;
       break;
     }
     case 0x03:  // IP address message (every 10s)
     {
-      if (rx_frame->DLC >= 4) {
+      if (rx_frame->DLC >= 5) {
         node.ip_address = ((uint32_t)rx_frame->data.u8[0] << 24) | ((uint32_t)rx_frame->data.u8[1] << 16) |
                           ((uint32_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
       }
@@ -185,7 +201,7 @@ void ControllerCan::receive_can_frame(CAN_frame* rx_frame) {
     }
     case 0x04:  // CELL message (every 2s)
     {
-      if (rx_frame->DLC >= 4) {
+      if (rx_frame->DLC >= 5) {
         node.cell_max_voltage_mV = ((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1];
         node.cell_min_voltage_mV = ((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
       }
@@ -193,12 +209,11 @@ void ControllerCan::receive_can_frame(CAN_frame* rx_frame) {
     }
     case 0x05:  // IDENT message (startup only)
     {
-      // Validate before accepting: a genuine IDENT is exactly 8 bytes with reserved [4..7] == 0.
-      // Rejecting malformed frames stops a single garbled IDENT (CAN glitch, or a mis-framed
-      // non-IDENT frame landing on a 0x_5 ID) from overwriting a known-good fw_version_num and
-      // raising a false EVENT_BATTERY_NODE_IDENT_MISMATCH warning.
-      if (rx_frame->DLC == 8 &&
-          (rx_frame->data.u8[4] | rx_frame->data.u8[5] | rx_frame->data.u8[6] | rx_frame->data.u8[7]) == 0) {
+      // Validate before accepting: a genuine IDENT is exactly 8 bytes with reserved [4..6] == 0
+      // ([7] is the CRC, already verified above). Rejecting malformed frames stops a single
+      // garbled IDENT (CAN glitch, or a mis-framed non-IDENT frame landing on a 0x_5 ID) from
+      // overwriting a known-good fw_version_num and raising a false EVENT_BATTERY_NODE_IDENT_MISMATCH.
+      if (rx_frame->DLC == 8 && (rx_frame->data.u8[4] | rx_frame->data.u8[5] | rx_frame->data.u8[6]) == 0) {
         node.fw_version_num = ((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1];
         node.battery_type_id = ((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
         node.ident_received = true;
@@ -230,8 +245,9 @@ void ControllerCan::transmit(unsigned long currentMillis) {
 void ControllerCan::send_heartbeat() {
   CAN_frame frame = {};
   frame.ID = IU_CONTROLLER_HEARTBEAT_ID;
-  frame.DLC = 0;
+  frame.DLC = 1;  // [0] = CRC (no other payload)
   frame.ext_ID = false;
+  iu_crc_stamp(frame.ID, frame.data.u8, frame.DLC);
   transmit_can_frame_to_interface(&frame, can_config.battery);
 }
 
@@ -255,11 +271,12 @@ void ControllerCan::send_contactor_commands(unsigned long currentMillis) {
     uint8_t node_id = i + 1;
     CAN_frame frame = {};
     frame.ID = IU_CONTROLLER_CONTACTOR_ID(node_id);
-    frame.DLC = 1;
+    frame.DLC = 2;  // [0] = command, [1] = CRC
     frame.ext_ID = false;
     bool allow_command = node.contactor_allowed && datalayer.system.status.inverter_allows_contactor_closing &&
                          !datalayer.system.info.equipment_stop_active;
     frame.data.u8[0] = allow_command ? IU_CONTACTOR_ALLOW : IU_CONTACTOR_OPEN;
+    iu_crc_stamp(frame.ID, frame.data.u8, frame.DLC);
 
     if (last_contactor_command[i] != frame.data.u8[0]) {
       last_contactor_command[i] = frame.data.u8[0];

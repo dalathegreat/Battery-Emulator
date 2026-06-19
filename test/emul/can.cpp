@@ -1,7 +1,18 @@
 #include "../../Software/src/communication/Transmitter.h"
 #include "../../Software/src/communication/can/comm_can.h"
 
-void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface) {}
+#include <vector>
+
+// Test hook: every frame handed to the (real) firmware TX path is captured here so tests can
+// inspect what a sender actually put on the wire. Cleared by tests via emul_tx_frames().clear().
+std::vector<CAN_frame>& emul_tx_frames() {
+  static std::vector<CAN_frame> frames;
+  return frames;
+}
+
+void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface) {
+  emul_tx_frames().push_back(*tx_frame);
+}
 
 void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_Speed speed) {}
 
