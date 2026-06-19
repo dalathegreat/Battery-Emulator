@@ -198,9 +198,8 @@ void init_webserver() {
   server
       .on("/logout", HTTP_GET,
           [](AsyncWebServerRequest* request) {
-            AsyncWebServerResponse* response =
-                request->beginResponse(401, "text/plain",
-                                       "Logout requested. Cancel the browser login prompt to finish logging out.");
+            AsyncWebServerResponse* response = request->beginResponse(
+                401, "text/plain", "Logout requested. Cancel the browser login prompt to finish logging out.");
             response->addHeader("WWW-Authenticate", String("Basic realm=\"") + WEB_AUTH_REALM + "\"");
             response->addHeader("Cache-Control", "no-store");
             response->addHeader("Connection", "close");
