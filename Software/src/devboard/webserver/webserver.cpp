@@ -28,6 +28,7 @@ std::string http_username;
 std::string http_password;
 
 bool webserver_auth = false;
+static constexpr const char* WEB_AUTH_REALM = "Battery Emulator";
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -179,7 +180,7 @@ void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethod
                          std::function<void(AsyncWebServerRequest*)> handler) {
   serv.on(uri, method, [handler](AsyncWebServerRequest* request) {
     if (webserver_auth_is_ready() && !request->authenticate(http_username.c_str(), http_password.c_str())) {
-      return request->requestAuthentication(AsyncAuthType::AUTH_BASIC, "Battery Emulator");
+      return request->requestAuthentication(AsyncAuthType::AUTH_BASIC, WEB_AUTH_REALM);
     }
     handler(request);
   });
@@ -189,12 +190,22 @@ void init_webserver() {
   if (webserver_auth_is_ready()) {
     web_auth_middleware.setUsername(http_username.c_str());
     web_auth_middleware.setPassword(http_password.c_str());
-    web_auth_middleware.setRealm("Battery Emulator");
+    web_auth_middleware.setRealm(WEB_AUTH_REALM);
     web_auth_middleware.setAuthType(AsyncAuthType::AUTH_BASIC);
     server.addMiddleware(&web_auth_middleware);
   }
 
-  server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(401); });
+  server
+      .on("/logout", HTTP_GET,
+          [](AsyncWebServerRequest* request) {
+            AsyncWebServerResponse* response = request->beginResponse(
+                401, "text/plain", "Logout requested. Cancel the browser login prompt to finish logging out.");
+            response->addHeader("WWW-Authenticate", String("Basic realm=\"") + WEB_AUTH_REALM + "\"");
+            response->addHeader("Cache-Control", "no-store");
+            response->addHeader("Connection", "close");
+            request->send(response);
+          })
+      .skipServerMiddlewares();
 
   // Route for firmware info from ota update page
   def_route_with_auth("/GetFirmwareInfo", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -707,7 +718,7 @@ void init_webserver() {
         route.c_str(), HTTP_PUT,
         [cmd](AsyncWebServerRequest* request) {
           if (webserver_auth_is_ready() && !request->authenticate(http_username.c_str(), http_password.c_str())) {
-            return request->requestAuthentication(AsyncAuthType::AUTH_BASIC, "Battery Emulator");
+            return request->requestAuthentication(AsyncAuthType::AUTH_BASIC, WEB_AUTH_REALM);
           }
         },
         nullptr,
@@ -1577,7 +1588,7 @@ String processor(const String& var) {
     }
     content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
     content += "<button onclick='Events()'>Events</button> ";
-    content += "<button onclick='askReboot()'>Reboot Emulator</button>";
+    content += "<button onclick='askReboot()'>Reboot Emulator</button> ";
     if (webserver_auth)
       content += "<button onclick='logout()'>Logout</button>";
     if (!datalayer.system.info.equipment_stop_active)
@@ -1606,10 +1617,7 @@ String processor(const String& var) {
     content += "function Events() { window.location.href = '/events'; }";
     if (webserver_auth) {
       content += "function logout() {";
-      content += "  var xhr = new XMLHttpRequest();";
-      content += "  xhr.open('GET', '/logout', true);";
-      content += "  xhr.send();";
-      content += "  setTimeout(function(){ window.open(\"/\",\"_self\"); }, 1000);";
+      content += "  window.location.href = '/logout';";
       content += "}";
     }
     content += "function PauseBattery(pause){";
