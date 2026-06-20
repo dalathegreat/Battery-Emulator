@@ -60,51 +60,6 @@ bool init_CAN();
  */
 void receive_can();
 
-/**
- * @brief Receive CAN messages from CAN tranceiver natively installed on Lilygo hardware
- *
- * @param[in] void
- *
- * @return void
- */
-void receive_frame_can_native();
-
-/**
- * @brief Receive CAN messages from CAN addon chip
- *
- * @param[in] void
- *
- * @return void
- */
-void receive_frame_can_addon();
-
-/**
- * @brief Receive CAN messages from CANFD addon chip
- *
- * @param[in] void
- *
- * @return void
- */
-void receive_frame_canfd_addon();
-
-/**
- * @brief Receive CAN messages from 2nd CANFD addon chip
- *
- * @param[in] void
- *
- * @return void
- */
-void receive_frame_canfd_addon_2();
-
-/**
- * @brief print CAN frames via USB
- *
- * @param[in] void
- *
- * @return void
- */
-void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir);
-
 // Stop/pause CAN communication for all interfaces
 void stop_can();
 

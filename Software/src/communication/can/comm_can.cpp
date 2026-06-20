@@ -29,14 +29,18 @@ struct CanReceiverRegistration {
 
 static std::multimap<CAN_Interface, CanReceiverRegistration> can_receivers;
 
-void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface);
+static void receive_frame_can_native();
+static void receive_frame_can_addon();
+static void receive_frame_canfd_addon();
+static void receive_frame_canfd_addon_2();
+static void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface);
+static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir);
+static uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin);
 
 void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_Speed speed) {
   can_receivers.insert({interface, {receiver, speed}});
   DEBUG_PRINTF("CAN receiver registered, total: %d\n", can_receivers.size());
 }
-
-uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin);
 
 static ACAN_ESP32_Settings* settingsespcan = nullptr;
 
@@ -215,24 +219,7 @@ bool init_CAN() {
 
     const uint32_t errorCode2517 = canfd->begin(*settings2517, [] { canfd->isr(); });
     canfd->poll();
-    if (errorCode2517 == 0) {
-      // logging.print("Bit Rate prescaler: ");
-      // logging.println(settings2517->mBitRatePrescaler);
-      // logging.print("Arbitration Phase segment 1: ");
-      // logging.print(settings2517->mArbitrationPhaseSegment1);
-      // logging.print(" segment 2: ");
-      // logging.print(settings2517->mArbitrationPhaseSegment2);
-      // logging.print(" SJW: ");
-      // logging.println(settings2517->mArbitrationSJW);
-      // logging.print("Actual Arbitration Bit Rate: ");
-      // logging.print(settings2517->actualArbitrationBitRate());
-      // logging.print(" bit/s");
-      // logging.print(" (Exact:");
-      // logging.println(settings2517->exactArbitrationBitRate() ? "yes)" : "no)");
-      // logging.print("Arbitration Sample point: ");
-      // logging.print(settings2517->arbitrationSamplePointFromBitStart());
-      // logging.println("%");
-    } else {
+    if (errorCode2517 != 0) {
       logging.print("CAN-FD Configuration error 0x");
       logging.println(errorCode2517, HEX);
       set_event(EVENT_CANMCP2518FD_INIT_FAILURE, (uint8_t)errorCode2517);
@@ -386,7 +373,8 @@ void receive_can() {
   }
 }
 
-void receive_frame_can_native() {  // This section checks if we have a complete CAN message incoming on native CAN port
+static void
+receive_frame_can_native() {  // This section checks if we have a complete CAN message incoming on native CAN port
   CANMessage frame;
 
   if (ACAN_ESP32::can.available()) {
@@ -406,7 +394,8 @@ void receive_frame_can_native() {  // This section checks if we have a complete 
   }
 }
 
-void receive_frame_can_addon() {  // This section checks if we have a complete CAN message incoming on add-on CAN port
+static void
+receive_frame_can_addon() {  // This section checks if we have a complete CAN message incoming on add-on CAN port
   MCP2515_Lite_Frame rx_frame;
   CAN_frame full_frame;
 
@@ -417,7 +406,7 @@ void receive_frame_can_addon() {  // This section checks if we have a complete C
   }
 }
 
-void receive_frame_canfd_addon() {  // This section checks if we have a complete CAN-FD message incoming
+static void receive_frame_canfd_addon() {  // This section checks if we have a complete CAN-FD message incoming
   CANFDMessage MCP2518frame;
   int count = 0;
   while (canfd->available() && count++ < 16) {
@@ -434,7 +423,8 @@ void receive_frame_canfd_addon() {  // This section checks if we have a complete
   }
 }
 
-void receive_frame_canfd_addon_2() {  // This section checks if we have a complete CAN-FD message incoming on 2nd CAN-FD add-on
+static void
+receive_frame_canfd_addon_2() {  // This section checks if we have a complete CAN-FD message incoming on 2nd CAN-FD add-on
   CANFDMessage MCP2518frame;
   int count = 0;
   while (canfd_2->available() && count++ < 16) {
@@ -451,7 +441,7 @@ void receive_frame_canfd_addon_2() {  // This section checks if we have a comple
 }
 
 // Support functions
-void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir) {
+static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir) {
 
   if (datalayer.system.info.CAN_usb_logging_active) {
     uint8_t i = 0;
@@ -485,7 +475,7 @@ void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection ms
   }
 }
 
-void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
+static void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
   if (interface !=
       CANFD_NATIVE) {  //Avoid printing twice due to receive_frame_canfd_addon sending to both FD interfaces
     //TODO: This check can be removed later when refactored to use inline functions for logging
@@ -576,7 +566,7 @@ void restart_can() {
 // Initialize the native CAN interface with the given speed and pins.
 // This can be called repeatedly to change the interface speed (as some
 // batteries require).
-uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin) {
+static uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin) {
 
   // TODO: check whether this is necessary? It seems to help with
   // reinitialization.
