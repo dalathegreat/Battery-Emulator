@@ -15,16 +15,6 @@
 #include <algorithm>
 #include <map>
 
-// The spare ESP32 SPI buses are called HSPI and VSPI, whereas on a ESP32S3
-// they are called FSPI and HSPI.
-#ifdef CONFIG_IDF_TARGET_ESP32S3
-#define SPI2515_BUS HSPI
-#define SPI2517_BUS FSPI
-#else
-#define SPI2515_BUS VSPI
-#define SPI2517_BUS HSPI
-#endif
-
 volatile CAN_Configuration can_config = {.battery = CAN_NATIVE,
                                          .inverter = CAN_NATIVE,
                                          .battery_double = CAN_ADDON_MCP2515,
@@ -51,19 +41,18 @@ uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin);
 static ACAN_ESP32_Settings* settingsespcan = nullptr;
 
 static uint32_t quartz_frequency;
-uint8_t user_selected_can_addon_crystal_frequency_mhz = 0;
 
 static MCP2515_Lite* can2515;
-static SPIClass SPI2515(SPI2515_BUS);
+static SPIClass* SPI2515;
 
-static ACAN2517FDSettings::Oscillator quartz_fd_frequency;
-static SPIClass SPI2517(SPI2517_BUS);
-uint8_t user_selected_canfd_addon_crystal_frequency_mhz = 0;
+static SPIClass* SPI2517;
 static ACAN2517FD* canfd;
 static ACAN2517FDSettings* settings2517;
+static SPIClass* SPI2517_2;
 static ACAN2517FD* canfd_2;
 static ACAN2517FDSettings* settings2517_2;
 bool use_canfd_as_can = false;
+bool use_canfd2_as_can = false;
 static bool native_can_initialized = false;
 //CAN logging filter settings
 uint16_t user_selected_CAN_ID_cutoff_filter = 0;  //Messages below this ID will not be logged in webserver
@@ -72,12 +61,6 @@ bool init_CAN() {
   // Native CAN (onboard the ESP32)
 
   auto nativeIt = can_receivers.find(CAN_NATIVE);
-
-  if (user_selected_can_addon_crystal_frequency_mhz > 0) {
-    quartz_frequency = user_selected_can_addon_crystal_frequency_mhz * 1000000UL;
-  } else {
-    quartz_frequency = CRYSTAL_FREQUENCY_MHZ * 1000000UL;
-  }
 
   if (nativeIt != can_receivers.end()) {
     auto se_pin = esp32hal->CAN_SE_PIN();
@@ -152,8 +135,15 @@ bool init_CAN() {
       delay(100);
     }
 
-    SPI2515.begin(sck_pin, miso_pin, mosi_pin);
-    can2515 = new MCP2515_Lite(SPI2515, cs_pin, int_pin);
+    SPI2515 = new SPIClass(esp32hal->MCP2515_BUS());
+    SPI2515->begin(sck_pin, miso_pin, mosi_pin);
+    can2515 = new MCP2515_Lite(*SPI2515, cs_pin, int_pin);
+
+    quartz_frequency = esp32hal->MCP2515_FREQ();
+    if (quartz_frequency == 0) {
+      quartz_frequency = can2515->autodetectOscillatorFrequency();
+    }
+
     if (can2515->begin({(int)addonIt->second.speed * 1000UL, quartz_frequency})) {
       logging.println("MCP2515 CAN ok");
     } else {
@@ -169,14 +159,6 @@ bool init_CAN() {
   auto fdAddonIt = can_receivers.find(CANFD_ADDON_MCP2518);
   auto fdAddonIt_2 = can_receivers.find(CANFD_ADDON_MCP2518_2);
 
-  if (user_selected_canfd_addon_crystal_frequency_mhz == 20) {
-    quartz_fd_frequency = ACAN2517FDSettings::OSC_20MHz;
-  } else if (user_selected_canfd_addon_crystal_frequency_mhz == 40) {
-    quartz_fd_frequency = ACAN2517FDSettings::OSC_40MHz;
-  } else {  // Default to 40MHz incase value invalid/not set
-    quartz_fd_frequency = ACAN2517FDSettings::OSC_40MHz;
-  }
-
   if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end() || fdAddonIt_2 != can_receivers.end()) {
     // Initialise SPI bus first
     auto sck_pin = esp32hal->MCP2517_SCK();
@@ -187,7 +169,8 @@ bool init_CAN() {
       return false;
     }
 
-    SPI2517.begin(sck_pin, sdo_pin, sdi_pin);
+    SPI2517 = new SPIClass(esp32hal->MCP2517_BUS());
+    SPI2517->begin(sck_pin, sdo_pin, sdi_pin);
   }
 
   if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end()) {
@@ -196,17 +179,34 @@ bool init_CAN() {
 
     auto cs_pin = esp32hal->MCP2517_CS();
     auto int_pin = esp32hal->MCP2517_INT();
+    auto int0_pin = esp32hal->MCP2517_INT0();
+    auto int1_pin = esp32hal->MCP2517_INT1();
 
-    if (!esp32hal->alloc_pins("CANFD", cs_pin, int_pin)) {
+    if (!esp32hal->alloc_pins("CANFD", cs_pin)) {
       return false;
     }
+    if (int_pin != GPIO_NUM_NC) {
+      if (!esp32hal->alloc_pins("CANFD", int_pin)) {
+        return false;
+      }
+    } else {
+      if (!esp32hal->alloc_pins("CANFD", int0_pin, int1_pin)) {
+        return false;
+      }
+    }
 
-    canfd = new ACAN2517FD(cs_pin, SPI2517, int_pin);
+    canfd = new ACAN2517FD(cs_pin, *SPI2517, int_pin != GPIO_NUM_NC ? int_pin : 255,
+                           int0_pin != GPIO_NUM_NC ? int0_pin : 255, int1_pin != GPIO_NUM_NC ? int1_pin : 255);
 
     logging.println("CAN FD add-on (ESP32+MCP2517) selected");
+
+    const uint32_t freq = esp32hal->MCP2517_FREQ();
+    ACAN2517FDSettings::Oscillator osc_freq =
+        (freq == 0 ? ACAN2517FDSettings::OSC_AUTODETECT
+                   : (freq == 20000000 ? ACAN2517FDSettings::OSC_20MHz : ACAN2517FDSettings::OSC_40MHz));
     auto bitRate = (int)speed * 1000UL;
-    // Arbitration bit rate: 250/500 kbit/s, data bit rate: 1/2 Mbit/s
-    settings2517 = new ACAN2517FDSettings(quartz_fd_frequency, bitRate, DataBitRateFactor::x4);
+    settings2517 = new ACAN2517FDSettings(osc_freq, bitRate, DataBitRateFactor::x4);
+
     // Set up clock output divider (some hardware uses this for the second CAN FD add-on)
     settings2517->mCLKOPin = static_cast<ACAN2517FDSettings::CLKOpin>(esp32hal->MCP2517_CLKODIV());
 
@@ -216,22 +216,22 @@ bool init_CAN() {
     const uint32_t errorCode2517 = canfd->begin(*settings2517, [] { canfd->isr(); });
     canfd->poll();
     if (errorCode2517 == 0) {
-      logging.print("Bit Rate prescaler: ");
-      logging.println(settings2517->mBitRatePrescaler);
-      logging.print("Arbitration Phase segment 1: ");
-      logging.print(settings2517->mArbitrationPhaseSegment1);
-      logging.print(" segment 2: ");
-      logging.print(settings2517->mArbitrationPhaseSegment2);
-      logging.print(" SJW: ");
-      logging.println(settings2517->mArbitrationSJW);
-      logging.print("Actual Arbitration Bit Rate: ");
-      logging.print(settings2517->actualArbitrationBitRate());
-      logging.print(" bit/s");
-      logging.print(" (Exact:");
-      logging.println(settings2517->exactArbitrationBitRate() ? "yes)" : "no)");
-      logging.print("Arbitration Sample point: ");
-      logging.print(settings2517->arbitrationSamplePointFromBitStart());
-      logging.println("%");
+      // logging.print("Bit Rate prescaler: ");
+      // logging.println(settings2517->mBitRatePrescaler);
+      // logging.print("Arbitration Phase segment 1: ");
+      // logging.print(settings2517->mArbitrationPhaseSegment1);
+      // logging.print(" segment 2: ");
+      // logging.print(settings2517->mArbitrationPhaseSegment2);
+      // logging.print(" SJW: ");
+      // logging.println(settings2517->mArbitrationSJW);
+      // logging.print("Actual Arbitration Bit Rate: ");
+      // logging.print(settings2517->actualArbitrationBitRate());
+      // logging.print(" bit/s");
+      // logging.print(" (Exact:");
+      // logging.println(settings2517->exactArbitrationBitRate() ? "yes)" : "no)");
+      // logging.print("Arbitration Sample point: ");
+      // logging.print(settings2517->arbitrationSamplePointFromBitStart());
+      // logging.println("%");
     } else {
       logging.print("CAN-FD Configuration error 0x");
       logging.println(errorCode2517, HEX);
@@ -249,15 +249,39 @@ bool init_CAN() {
       return false;
     }
 
-    canfd_2 = new ACAN2517FD(cs_pin, SPI2517, int_pin);
+    if (esp32hal->MCP2517_BUS() == esp32hal->MCP2517_BUS2()) {
+      // Use the same bus for both CAN FD chips
+      SPI2517_2 = SPI2517;
+    } else {
+      SPI2517_2 = new SPIClass(esp32hal->MCP2517_BUS2());
+
+      auto sck_pin = esp32hal->MCP2517_SCK2();
+      auto sdo_pin = esp32hal->MCP2517_SDO2();
+      auto sdi_pin = esp32hal->MCP2517_SDI2();
+
+      if (!esp32hal->alloc_pins("CANFD2", sck_pin, sdo_pin, sdi_pin)) {
+        return false;
+      }
+
+      SPI2517_2->begin(sck_pin, sdo_pin, sdi_pin);
+    }
+
+    canfd_2 = new ACAN2517FD(cs_pin, *SPI2517_2, int_pin);
 
     logging.println("CAN FD add-on 2 (ESP32+MCP2517) selected");
+
+    const uint32_t freq = esp32hal->MCP2517_FREQ2();
+    ACAN2517FDSettings::Oscillator osc_freq =
+        (freq == 0 ? ACAN2517FDSettings::OSC_AUTODETECT
+                   : (freq == 20000000 ? ACAN2517FDSettings::OSC_20MHz : ACAN2517FDSettings::OSC_40MHz));
+
     auto speed = fdAddonIt_2->second.speed;
     auto bitRate = (int)speed * 1000UL;
-    settings2517_2 = new ACAN2517FDSettings(quartz_fd_frequency, bitRate, DataBitRateFactor::x4);
+    // Crystal setting is ignored (library now autodetects)
+    settings2517_2 = new ACAN2517FDSettings(osc_freq, bitRate, DataBitRateFactor::x4);
     // Arbitration bit rate: 250/500 kbit/s, data bit rate: 1/2 Mbit/s
 
-    settings2517_2->mRequestedMode = use_canfd_as_can ? ACAN2517FDSettings::Normal20B : ACAN2517FDSettings::NormalFD;
+    settings2517_2->mRequestedMode = use_canfd2_as_can ? ACAN2517FDSettings::Normal20B : ACAN2517FDSettings::NormalFD;
 
     const uint32_t errorCode2517_2 = canfd_2->begin(*settings2517_2, [] { canfd_2->isr(); });
     canfd_2->poll();
