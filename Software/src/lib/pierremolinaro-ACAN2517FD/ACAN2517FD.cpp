@@ -8,6 +8,8 @@
 #include "ACAN2517FD.h"
 #include "../../system_settings.h" //Contains task priority
 
+#include "../../devboard/utils/logging.h"
+
 //----------------------------------------------------------------------------------------------------------------------
 
 static const uint8_t TXBWS = 0 ;
@@ -136,6 +138,13 @@ static const uint16_t IOCON_REGISTER_00_07 = 0xE04 ;
 static const uint16_t IOCON_REGISTER_08_15 = 0xE05 ;
 static const uint16_t IOCON_REGISTER_16_23 = 0xE06 ;
 static const uint16_t IOCON_REGISTER_24_31 = 0xE07 ;
+
+//······················································································································
+//   TIMESTAMP/CONTROL REGISTERS
+//······················································································································
+
+static const uint16_t C1TBC_REGISTER = 0x10 ;
+static const uint16_t C1TSCON_REGISTER_16_23 = 0x16 ;
 
 //----------------------------------------------------------------------------------------------------------------------
 //    RECEIVE FIFO INDEX
@@ -267,7 +276,7 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     errorCode |= kISRIsNull ;
   }
 //----------------------------------- Check consistency between ISR and INT pin
-  if ((mINT == 255) && (inInterruptServiceRoutine != NULL)) {
+  if ((mINT == 255) && (mINT0 == 255) && (mINT1 == 255) && (inInterruptServiceRoutine != NULL)) {
     errorCode |= kISRNotNullAndNoIntPin ;
   }
 //----------------------------------- Check TXQ size is <= 32
@@ -348,6 +357,13 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
       errorCode = kReadBackErrorWith1MHzSPIClock ;
     }
   }
+
+  const auto oscillator = inSettings.oscillator() == ACAN2517FDSettings::OSC_AUTODETECT
+    ?  autodetectCrystalFrequency ()
+    : inSettings.oscillator() ;
+  // Create a new settings object with the new frequency (which recalculates the timings)
+  const auto clockSettings = ACAN2517FDSettings(oscillator, inSettings.mDesiredArbitrationBitRate, inSettings.mDataBitRateFactor);
+
 //----------------------------------- Now, set internal clock with OSC register
 //     Bit 0: (rw) 1 --> 10xPLL
 //     Bit 4: (rw) 0 --> SCLK is divided by 1, 1 --> SCLK is divided by 2
@@ -355,7 +371,7 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
   if (errorCode == 0) {
     uint8_t pll = 0 ; // No PLL
     uint8_t osc = 0 ; // Divide by 1
-    switch (inSettings.oscillator ()) {
+    switch (clockSettings.oscillator ()) {
     case ACAN2517FDSettings::OSC_4MHz:
     case ACAN2517FDSettings::OSC_20MHz:
     case ACAN2517FDSettings::OSC_40MHz:
@@ -372,6 +388,8 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     case ACAN2517FDSettings::OSC_4MHz10xPLL :
       pll = 1 ; // Enable 10x PLL
       break ;
+    default:
+      errorCode = kInconsistentBitRateSettings ;
     }
     osc |= pll ;
     if (inSettings.mCLKOPin != ACAN2517FDSettings::SOF) {
@@ -392,7 +410,7 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     }
   }
 //----------------------------------- Set full speed clock
-  mSPISettings = SPISettings ((inSettings.sysClock () * 2) / 5, MSBFIRST, SPI_MODE0) ;
+  mSPISettings = SPISettings ((clockSettings.sysClock () * 2) / 5, MSBFIRST, SPI_MODE0) ;
 //----------------------------------- Checking SPI connection is on (with a full speed clock)
 //    We write and read back 2517 RAM at address 0x400
   for (uint32_t i=1 ; (i != 0) && (errorCode == 0) ; i <<= 1) {
@@ -509,13 +527,13 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
   //  bits 14-8: TSEG2 - 1
   //  bit 7: unused
   //  bits 6-0: SJW - 1
-    uint32_t data = inSettings.mBitRatePrescaler - 1 ;
+    uint32_t data = clockSettings.mBitRatePrescaler - 1 ;
     data <<= 8 ;
-    data |= inSettings.mArbitrationPhaseSegment1 - 1 ;
+    data |= clockSettings.mArbitrationPhaseSegment1 - 1 ;
     data <<= 8 ;
-    data |= inSettings.mArbitrationPhaseSegment2 - 1 ;
+    data |= clockSettings.mArbitrationPhaseSegment2 - 1 ;
     data <<= 8 ;
-    data |= inSettings.mArbitrationSJW - 1 ;
+    data |= clockSettings.mArbitrationSJW - 1 ;
     writeRegister32 (NBTCFG_REGISTER, data);
   //----------------------------------- Program data bit rate (DBTCFG register)
   //  bits 31-24: BRP - 1
@@ -525,15 +543,15 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
   //  bits 11-8: TSEG2 - 1
   //  bits 7-4: unused
   //  bits 3-0: SJW - 1
-    mHasDataBitRate = inSettings.mDataBitRateFactor != ::DataBitRateFactor::x1 ;
+    mHasDataBitRate = clockSettings.mDataBitRateFactor != ::DataBitRateFactor::x1 ;
     if (mHasDataBitRate) {
-      data = inSettings.mBitRatePrescaler - 1 ;
+      data = clockSettings.mBitRatePrescaler - 1 ;
       data <<= 8 ;
-      data |= inSettings.mDataPhaseSegment1 - 1 ;
+      data |= clockSettings.mDataPhaseSegment1 - 1 ;
       data <<= 8 ;
-      data |= inSettings.mDataPhaseSegment2 - 1 ;
+      data |= clockSettings.mDataPhaseSegment2 - 1 ;
       data <<= 8 ;
-      data |= inSettings.mDataSJW - 1 ;
+      data |= clockSettings.mDataSJW - 1 ;
       writeRegister32 (DBTCFG_REGISTER, data) ;
     }
   //----------------------------------- Request mode (CON_REGISTER + 3, DS20005688B, page 24)
@@ -1326,3 +1344,30 @@ void ACAN2517FD::configureGPIO0AsXSTBY (void) {
 }
 
 //----------------------------------------------------------------------------------------------------------------------
+
+
+ACAN2517FDSettings::Oscillator ACAN2517FD::autodetectCrystalFrequency (void) {
+  // Enable TBC (free running counter)
+  writeRegister8 (C1TSCON_REGISTER_16_23, 0x01); 
+
+  // First sample
+  const uint32_t t1 = esp_timer_get_time() & 0xFFFFFFFF;
+  const uint32_t c1 = readRegister32(C1TBC_REGISTER);
+
+  // Wait 10ms (long enough for RTOS noise to not affect the measurement)
+  vTaskDelay(10 / portTICK_PERIOD_MS);
+
+  // Second sample
+  const uint32_t t2 = esp_timer_get_time() & 0xFFFFFFFF;
+  const uint32_t c2 = readRegister32(C1TBC_REGISTER);
+
+  // Calculate frequency in 0.1MHz units
+  const uint32_t freq_times_10 = ((c2 - c1) * 10) / (t2 - t1);
+
+  logging.printf("MCP2518FD autodetected crystal: %ddMHz\n", freq_times_10);
+
+  // Disable TBC again
+  writeRegister8 (C1TSCON_REGISTER_16_23, 0x00);
+
+  return freq_times_10 > 300 ? ACAN2517FDSettings::Oscillator::OSC_40MHz : ACAN2517FDSettings::Oscillator::OSC_20MHz;
+}
