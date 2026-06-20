@@ -7,13 +7,6 @@ class BEComHal : public Esp32Hal {
  public:
   const char* name() { return "BECom"; }
 
-  virtual void set_default_configuration_values() {
-    BatteryEmulatorSettingsStore settings;
-    if (!settings.settingExists("CANFREQ")) {
-      settings.saveUInt("CANFREQ", 40);
-    }
-  }
-
   virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_8; }
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_18; }
 
