@@ -21,11 +21,13 @@ class BEComHal : public Esp32Hal {
   virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_13; }
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_14; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_10; }
+  virtual uint32_t MCP2517_FREQ() { return 40000000; }
 
   // 2nd CANFD Interface: MCP2518
   // SPI Bus is shared with the 1st interface, only INT and CS pins are needed
   virtual gpio_num_t MCP2517_CS2() { return GPIO_NUM_21; }
   virtual gpio_num_t MCP2517_INT2() { return GPIO_NUM_9; }
+  virtual uint32_t MCP2517_FREQ2() { return 40000000; }
 
   // Value for first MCP2517 CLKODIV register (divide by 1)
   virtual int MCP2517_CLKODIV() { return 0b00; }

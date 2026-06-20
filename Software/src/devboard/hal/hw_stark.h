@@ -55,6 +55,7 @@ class StarkHal : public Esp32Hal {
   virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_34; }
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_18; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_35; }
+  virtual uint32_t MCP2517_FREQ() { return 40000000; }
 
   // CAN_ADDON
   // SCK input of MCP2515
