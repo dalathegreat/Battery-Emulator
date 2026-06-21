@@ -112,8 +112,8 @@ void ControllerCan::receive_can_frame(CAN_frame* rx_frame) {
   // lets the node run down to offline and its contactor open (fail-safe).
   if (!iu_crc_valid(id, rx_frame->data.u8, rx_frame->DLC)) {
     iu_controller_crc_errors++;
-    logging.printf("Controller CAN: RX CRC mismatch on ID 0x%03X (count=%u) — dropped\n", (unsigned)id,
-                   iu_controller_crc_errors);
+    logging.printf("Controller CAN: RX CRC mismatch on ID 0x%03X (node %u, count=%u) — dropped\n", (unsigned)id,
+                   (unsigned)((id - 0x100u) >> 4), iu_controller_crc_errors);
     return;
   }
 
