@@ -3511,6 +3511,12 @@
   },
   {
     "code": null,
+    "dtc": "U0073",
+    "s_dsc": null,
+    "l_dsc": "Control Module Communication Bus \"A\" Off (generic SAE)"
+  },
+  {
+    "code": null,
     "dtc": "U011000",
     "s_dsc": null,
     "l_dsc": "Communication with Motor Control Unit Failed"
