@@ -37,3 +37,6 @@ compile.bat
 
 # Ignore secret file
 USER_SECRETS.h
+
+# Ignore auto-generated ESP-IDF component manifest
+idf_component.yml
