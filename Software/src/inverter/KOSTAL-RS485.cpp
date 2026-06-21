@@ -41,15 +41,18 @@ static void dbg_message(const char* msg) {
 }
 
 void setInverterAllowsContactorClosing(bool state) {
+  // AlwaysClosed and LockAfterFirstClose modes: Keep contactors always closed
+  if (user_selected_inverter_contactor_mode == inverter_contactor_mode_enum::AlwaysClosed ||
+      user_selected_inverter_contactor_mode == inverter_contactor_mode_enum::LockAfterFirstClose) {
+    datalayer.system.status.inverter_allows_contactor_closing = true;
+    return;
+  }
+
+  // NoWorkaround mode: Normal operation
   if (state) {
     datalayer.system.status.inverter_allows_contactor_closing = true;
-  } else {  //false, we want to open contactors
-    //Only open contactors if we are configured to allow this
-    if (user_selected_inverter_ignore_contactors) {
-      datalayer.system.status.inverter_allows_contactor_closing = true;
-    } else {
-      datalayer.system.status.inverter_allows_contactor_closing = false;
-    }
+  } else {  // false, we want to open contactors
+    datalayer.system.status.inverter_allows_contactor_closing = false;
   }
 }
 
@@ -262,10 +265,10 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 int code = RS485_RXFRAME[6] + RS485_RXFRAME[7] * 0x100;
                 if (code == 0x44a && info_sent) {
                   //Send cyclic data
-                  // TODO: Probably not a good idea to use the battery object here like this.
-                  if (battery) {
-                    battery->update_values();
-                  }
+                  // NOTE: do NOT call battery->update_values() here. The core loop already runs it
+                  // once per second; calling it again on every cyclic poll runs the battery's
+                  // per-second logic ~twice as fast. No other inverter does this. The inverter reads
+                  // the datalayer as refreshed by the core loop.
                   update_values();
                   if (f2_startup_count < 15) {
                     f2_startup_count++;

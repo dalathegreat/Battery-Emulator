@@ -37,6 +37,12 @@ std::vector<BatteryCommand> battery_commands = {
     {"endBalancing", "Stop Balancing Mode", "end offline balancing?",
      [](Battery* b) { return b && b->supports_balancing() && b->is_balancing_active(); },
      [](Battery* b) { b->end_balancing(); }},
+    {"startBalancingRequest", "Start Balancing", "request the BMS to start cell balancing?",
+     [](Battery* b) { return b && b->supports_balancing_request(); }, [](Battery* b) { b->initiate_balancing(); }},
+    {"stopBalancingRequest", "Stop Balancing", "request the BMS to stop cell balancing?",
+     [](Battery* b) { return b && b->supports_balancing_request(); }, [](Battery* b) { b->end_balancing(); }},
+    {"isolationTest", "Isolation Test", "start an isolation test?",
+     [](Battery* b) { return b && b->supports_isolation_test(); }, [](Battery* b) { b->request_isolation_test(); }},
     {"readDTC", "Read DTC", nullptr, [](Battery* b) { return b && b->supports_read_DTC(); },
      [](Battery* b) { b->read_DTC(); }},
     {"resetBECM", "Restart BECM module", "restart BECM??", [](Battery* b) { return b && b->supports_reset_BECM(); },
@@ -108,8 +114,9 @@ String advanced_battery_processor(const String& var) {
     }
 
     if (battery2) {
+      content += "<hr>";
       content += "<h4>Values from battery 2</h4>";
-      content += "<h4 style='color: #f39c12;'>⚠️ Advanced detailed info is currently limited to the Main Battery.</h4>";
+      content += battery2->get_status_renderer().get_status_html();
       render_command_buttons(battery2, 1);
     }
 

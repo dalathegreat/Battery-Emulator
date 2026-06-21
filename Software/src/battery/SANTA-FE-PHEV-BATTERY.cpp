@@ -313,7 +313,13 @@ void SantaFePhevBattery::transmit_can(unsigned long currentMillis) {
     // PID data is polled after last message sent from battery:
     poll_data_pid = (poll_data_pid % 5) + 1;
     SANTAFE_7E4_poll.data.u8[3] = (uint8_t)poll_data_pid;
-    transmit_can_frame(&SANTAFE_7E4_poll);
+
+    if (UserRequestedDTCReset == true) {
+      transmit_can_frame(&SANTAFE_CLEAR_DTC);
+      UserRequestedDTCReset = false;
+    } else {
+      transmit_can_frame(&SANTAFE_7E4_poll);
+    }
   }
 }
 

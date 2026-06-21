@@ -131,9 +131,9 @@ const char* name_for_battery_type(BatteryType type) {
     case BatteryType::SimpBms:
       return SimpBmsBattery::Name;
     case BatteryType::TeslaModel3Y:
-      return TeslaModel3YBattery::Name;
+      return TeslaBattery::Name3Y;
     case BatteryType::TeslaModelSX:
-      return TeslaModelSXBattery::Name;
+      return TeslaBattery::NameSX;
     case BatteryType::TeslaLegacy:
       return TeslaLegacyBattery::Name;
     case BatteryType::TestFake:
@@ -252,9 +252,8 @@ Battery* create_battery(BatteryType type) {
     case BatteryType::StellantisSmallWide4x4:
       return new StellantisSmallWide4x4Battery();
     case BatteryType::TeslaModel3Y:
-      return new TeslaModel3YBattery();
     case BatteryType::TeslaModelSX:
-      return new TeslaModelSXBattery();
+      return new TeslaBattery();
     case BatteryType::TeslaLegacy:
       return new TeslaLegacyBattery();
     case BatteryType::TestFake:
@@ -331,7 +330,8 @@ void setup_battery() {
         battery2 = new SantaFePhevBattery(&datalayer.battery2, can_config.battery_double);
         break;
       case BatteryType::RelionBattery:
-        battery2 = new RelionBattery(&datalayer.battery2, can_config.battery_double);
+        battery2 = new RelionBattery(&datalayer.battery2, can_config.battery_double,
+                                     &datalayer.system.status.battery2_allowed_contactor_closing);
         break;
       case BatteryType::RenaultZoe1:
         battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, nullptr, can_config.battery_double);
@@ -341,6 +341,10 @@ void setup_battery() {
         break;
       case BatteryType::TestFake:
         battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
+        break;
+      case BatteryType::TeslaModel3Y:
+      case BatteryType::TeslaModelSX:
+        battery2 = new TeslaBattery(&datalayer.battery2, can_config.battery_double);
         break;
       default:
         DEBUG_PRINTF("User tried enabling double battery on non-supported integration!\n");
@@ -358,7 +362,8 @@ void setup_battery() {
         battery3 = new NissanLeafBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
         break;
       case BatteryType::RelionBattery:
-        battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple);
+        battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,
+                                     &datalayer.system.status.battery3_allowed_contactor_closing);
         break;
       default:
         DEBUG_PRINTF("User tried enabling triple battery on non-supported integration!\n");

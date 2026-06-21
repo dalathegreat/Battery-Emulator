@@ -123,6 +123,10 @@ static const std::map<int, String> sungrow_models = {
 
 static const std::map<int, String> pylon_models = {{0, "PYLONTECH"}, {1, "PYLON"}, {2, "DEYE"}};
 
+static const std::map<int, String> contactor_modes = {{0, "No Workaround"},
+                                                      {1, "Keep contactors always closed"},
+                                                      {2, "Lock contactors closed after first close request"}};
+
 const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   switch (behavior) {
     case STOP_BUTTON_BEHAVIOR::LATCHING_SWITCH:
@@ -307,6 +311,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_from_map(settings.getUInt("PYLONBRAND", 0), pylon_models);
   }
 
+  if (var == "INVICNT") {
+    return options_from_map(settings.getUInt("INVICNT", 0), contactor_modes);
+  }
+
 #ifdef HW_LILYGO2CAN
   if (var == "GPIOOPT1") {
     return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
@@ -363,6 +371,18 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "PASSWORD") {
     return settings.getString("PASSWORD");
+  }
+
+  if (var == "WEBAUTH") {
+    return settings.getBool("WEBAUTH") ? "checked" : "";
+  }
+
+  if (var == "HTTPUSER") {
+    return settings.getString("HTTPUSER", "admin");
+  }
+
+  if (var == "HTTPPASS") {
+    return settings.getString("HTTPPASS");
   }
 
   if (var == "SAVEDCLASS") {
@@ -867,10 +887,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("INVBTYPE", 0));
   }
 
-  if (var == "INVICNT") {
-    return settings.getBool("INVICNT") ? "checked" : "";
-  }
-
   if (var == "DEYEBYD") {
     return settings.getBool("DEYEBYD") ? "checked" : "";
   }
@@ -967,6 +983,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         return "Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
       } else {
         return "Add-on CAN-FD via GPIO MCP2518";
+      }
+    case CANFD_ADDON_MCP2518_2:
+      if (use_canfd_as_can) {
+        return "Add-on CAN-FD #2 via GPIO MCP2518 (Classic CAN)";
+      } else {
+        return "Add-on CAN-FD #2 via GPIO MCP2518";
       }
     default:
       return "UNKNOWN";
@@ -1380,8 +1402,37 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   <button onclick='goToMainPage()'>Back to main page</button>
   <button onclick="askFactoryReset()">Factory reset</button>
 
+  <script>
+  function validateWebAuthPassword() {
+    const webAuth = document.querySelector('input[name="WEBAUTH"]');
+    const user = document.querySelector('input[name="HTTPUSER"]');
+    const pass = document.querySelector('input[name="HTTPPASS"]');
+    const confirm = document.querySelector('input[name="HTTPPASSCONFIRM"]');
+
+    if (pass.value !== confirm.value) {
+      alert('Web interface passwords do not match.');
+      confirm.focus();
+      return false;
+    }
+
+    if (webAuth.checked && (!user.value || !pass.value)) {
+      alert('Set a username and password before enabling web interface password protection.');
+      (!user.value ? user : pass).focus();
+      return false;
+    }
+
+    return true;
+  }
+
+  function toggleWebPasswordVisibility(show) {
+    const fieldType = show ? 'text' : 'password';
+    document.querySelector('input[name="HTTPPASS"]').type = fieldType;
+    document.querySelector('input[name="HTTPPASSCONFIRM"]').type = fieldType;
+  }
+  </script>
+
 <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
-        <form action='saveSettings' method='post'>
+        <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword()'>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
           <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
@@ -1399,6 +1450,34 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" 
         pattern="[ -~]{8,63}" 
         title="Password must be 8-63 characters long, printable ASCII only" />
+        </div>
+        </div>
+
+        <div class="settings-card">
+        <h3>Web interface access</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+
+        <label>Enable password protection: </label>
+        <input type='checkbox' name='WEBAUTH' value='on' %WEBAUTH%
+        title="Require HTTP Basic authentication for the web interface and OTA page" />
+
+        <label>Username: </label>
+        <input type='text' name='HTTPUSER' value="%HTTPUSER%"
+        pattern="[ -~]{1,32}"
+        title="Web interface username, printable ASCII only" />
+
+        <label>Web interface password: </label>
+        <input type='password' name='HTTPPASS' value="%HTTPPASS%"
+        pattern="[ -~]{0,63}"
+        title="Set a password before enabling password protection. Printable ASCII only" />
+
+        <label>Repeat web interface password: </label>
+        <input type='password' name='HTTPPASSCONFIRM' value="%HTTPPASS%"
+        pattern="[ -~]{0,63}"
+        title="Repeat the web interface password" />
+
+        <label>Show web interface password: </label>
+        <input type='checkbox' onchange='toggleWebPasswordVisibility(this.checked)' />
         </div>
         </div>
 
@@ -1626,8 +1705,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
         
         <div class="if-kostal if-solax">
-        <label>Prevent inverter opening contactors: </label>
-        <input type='checkbox' name='INVICNT' value='on' %INVICNT% />
+        <label>Inverter Contactor Workaround: </label>
+        <select name='INVICNT'>
+          %INVICNT%
+        </select>
         </div>
 
         </div>

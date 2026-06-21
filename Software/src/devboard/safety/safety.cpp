@@ -16,11 +16,19 @@ static bool battery_empty_event_fired = false;
 #define LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV 2000  //If cells are below this, recovery charge not allowed
 #define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
 #define HYSTERESIS_OFFSET_DV 20
+#define CELL_HYSTERESIS_MV 20  // Re-allow charge only once max cell drops this far below limit (avoids chatter at knee)
 
 //battery pause status begin
 bool emulator_pause_request_ON = false;
 bool emulator_pause_CAN_send_ON = false;
 bool allowed_to_send_CAN = true;
+
+//component detection
+bool battery_detected = false;
+bool battery2_detected = false;
+bool battery3_detected = false;
+bool charger_detected = false;
+bool inverter_detected = false;
 
 battery_pause_status emulator_pause_status = NORMAL;
 //battery pause status end
@@ -107,8 +115,15 @@ void update_machineryprotection() {
     }
 
     // Cell overvoltage, further charging not possible. Battery might be imbalanced.
+    static bool cell_overvoltage_charge_blocked = false;
     if (datalayer.battery.status.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
       set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+      cell_overvoltage_charge_blocked = true;  // Latch at the ceiling
+    } else if (datalayer.battery.status.cell_max_voltage_mV <
+               (datalayer.battery.info.max_cell_voltage_mV - CELL_HYSTERESIS_MV)) {
+      cell_overvoltage_charge_blocked = false;  // Release only once well below the ceiling
+    }
+    if (cell_overvoltage_charge_blocked) {
       datalayer.battery.status.max_charge_power_W = 0;
     }
     // Cell CRITICAL overvoltage, critical latching error without automatic reset. Requires user action to inspect battery.
@@ -234,6 +249,14 @@ void update_machineryprotection() {
       }
     }
 
+    //Check if we have ever seen the Battery
+    if (!battery_detected) {
+      if (datalayer.battery.status.CAN_battery_still_alive == CAN_STILL_ALIVE) {
+        battery_detected = true;
+        set_event(EVENT_CAN_BATTERY_DETECTED, 1);
+      }
+    }
+
     // Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error
     if (!datalayer.battery.status.CAN_battery_still_alive) {
       set_event(EVENT_CAN_BATTERY_MISSING, can_config.battery);
@@ -251,6 +274,15 @@ void update_machineryprotection() {
   }
 
   if (inverter && inverter->interface_type() == InverterInterfaceType::Can) {
+
+    //Check if we have ever seen the inverter
+    if (!inverter_detected) {
+      if (datalayer.system.status.CAN_inverter_still_alive == CAN_STILL_ALIVE) {
+        inverter_detected = true;
+        set_event(EVENT_CAN_INVERTER_DETECTED, 1);
+      }
+    }
+
     // Check if the inverter is still sending CAN messages. If we go 60s without messages we raise a warning
     if (!datalayer.system.status.CAN_inverter_still_alive) {
       set_event(EVENT_CAN_INVERTER_MISSING, can_config.inverter);
@@ -261,6 +293,14 @@ void update_machineryprotection() {
   }
 
   if (charger) {
+    // Check if we have ever seen the charger
+    if (!charger_detected) {
+      if (datalayer.charger.CAN_charger_still_alive == CAN_STILL_ALIVE) {
+        charger_detected = true;
+        set_event(EVENT_CAN_CHARGER_DETECTED, 1);
+      }
+    }
+
     // Assuming chargers are all CAN here.
     // Check if the charger is still sending CAN messages. If we go 60s without messages we raise a warning
     if (!datalayer.charger.CAN_charger_still_alive) {
@@ -279,6 +319,14 @@ void update_machineryprotection() {
     if (emulator_pause_request_ON) {
       datalayer.battery2.status.max_discharge_power_W = 0;
       datalayer.battery2.status.max_charge_power_W = 0;
+    }
+
+    // Check if we have ever seen the Battery 2
+    if (!battery2_detected) {
+      if (datalayer.battery2.status.CAN_battery_still_alive == CAN_STILL_ALIVE) {
+        battery2_detected = true;
+        set_event(EVENT_CAN_BATTERY2_DETECTED, 1);
+      }
     }
 
     if (!datalayer.battery2.status.CAN_battery_still_alive) {
@@ -339,6 +387,14 @@ void update_machineryprotection() {
     if (emulator_pause_request_ON) {
       datalayer.battery3.status.max_discharge_power_W = 0;
       datalayer.battery3.status.max_charge_power_W = 0;
+    }
+
+    // Check if we have ever seen the Battery 3
+    if (!battery3_detected) {
+      if (datalayer.battery3.status.CAN_battery_still_alive == CAN_STILL_ALIVE) {
+        battery3_detected = true;
+        set_event(EVENT_CAN_BATTERY3_DETECTED, 1);
+      }
     }
 
     if (!datalayer.battery3.status.CAN_battery_still_alive) {

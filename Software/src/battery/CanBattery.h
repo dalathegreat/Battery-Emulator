@@ -7,6 +7,7 @@
 #include "../../src/communication/can/CanReceiver.h"
 #include "../../src/communication/can/comm_can.h"
 #include "../../src/devboard/utils/types.h"
+#include "../lib/uds_isotp/isotp.h"
 
 // Abstract base class for batteries using the CAN bus
 class CanBattery : public Battery, Transmitter, CanReceiver {
@@ -31,6 +32,10 @@ class CanBattery : public Battery, Transmitter, CanReceiver {
   void reset_can_speed();
 
   void transmit_can_frame(const CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
+
+  // Overload these in subclasses that also inherit IsoTp to receive ISO-TP events.
+  virtual void on_isotp_can_tx(uint32_t /*can_id*/, uint8_t* /*can_data*/, uint8_t /*can_dlc*/) {}
+  virtual void on_isotp_rx_complete(uint8_t* /*data*/, int /*len*/, isotp_tatype /*tatype*/) {}
 };
 
 #endif

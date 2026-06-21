@@ -42,6 +42,10 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_8; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_9; }
 
+  // Automatic precharging
+  virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_5; }
+  virtual gpio_num_t INVERTER_DISCONNECT_CONTACTOR_PIN() { return GPIO_NUM_3; }
+
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() {
     if (user_selected_gpioopt6 == GPIOOPT6::I2C_DISPLAY_SSD1306) {
