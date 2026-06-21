@@ -16,6 +16,7 @@ static bool battery_empty_event_fired = false;
 #define LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV 2000  //If cells are below this, recovery charge not allowed
 #define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
 #define HYSTERESIS_OFFSET_DV 20
+#define CELL_HYSTERESIS_MV 20  // Re-allow charge only once max cell drops this far below limit (avoids chatter at knee)
 
 //battery pause status begin
 bool emulator_pause_request_ON = false;
@@ -114,8 +115,15 @@ void update_machineryprotection() {
     }
 
     // Cell overvoltage, further charging not possible. Battery might be imbalanced.
+    static bool cell_overvoltage_charge_blocked = false;
     if (datalayer.battery.status.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
       set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+      cell_overvoltage_charge_blocked = true;  // Latch at the ceiling
+    } else if (datalayer.battery.status.cell_max_voltage_mV <
+               (datalayer.battery.info.max_cell_voltage_mV - CELL_HYSTERESIS_MV)) {
+      cell_overvoltage_charge_blocked = false;  // Release only once well below the ceiling
+    }
+    if (cell_overvoltage_charge_blocked) {
       datalayer.battery.status.max_charge_power_W = 0;
     }
     // Cell CRITICAL overvoltage, critical latching error without automatic reset. Requires user action to inspect battery.
