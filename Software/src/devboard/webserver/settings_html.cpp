@@ -999,15 +999,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       %GPIOOPT1%
     </select>
   )rawliteral"
-#define CANFD2ASCAN_SETTING \
-  R"rawliteral(
-    <label>Use CanFD2 as classic CAN: </label>
-    <input type='checkbox' name='CANFD2ASCAN' value='on' %CANFD2ASCAN% 
-    title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
-  )rawliteral"
 #else
 #define GPIOOPT1_SETTING ""
-#define CANFD2ASCAN_SETTING ""
 #endif
 
 #ifdef HW_LILYGO
@@ -1068,6 +1061,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   )rawliteral"
 #else
 #define GPIOOPT6_SETTING ""
+#endif
+
+#if defined(HW_LILYGO2CAN) || defined(HW_STARK)
+#define CANFD2ASCAN_SETTING \
+  R"rawliteral(
+    <label>Use CanFD2 as classic CAN: </label>
+    <input type='checkbox' name='CANFD2ASCAN' value='on' %CANFD2ASCAN% 
+    title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
+  )rawliteral"
+#else
+#define CANFD2ASCAN_SETTING ""
 #endif
 
 #define SETTINGS_HTML_SCRIPTS \
