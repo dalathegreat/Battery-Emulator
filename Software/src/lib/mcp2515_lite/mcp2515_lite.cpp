@@ -14,6 +14,7 @@
 
 #define CANCTRL_REQOP_NORMAL    0x00
 #define CANCTRL_REQOP_CONFIG    0x80
+#define CANCTRL_REQOP_LOOPBACK  0x40
 
 #define REG_CANCTRL     0x0F
 #define REG_CNF1        0x2A
@@ -95,7 +96,42 @@ static bool calculateMCP2515Config(uint32_t f_osc, uint32_t can_rate, uint8_t *c
     return true;
 }
 
-bool MCP2515_Lite::begin(const MCP2515_Lite_Speed& speed) {
+uint32_t MCP2515_Lite::autodetectOscillatorFrequency() {
+    // 7813 baud at 8MHz is 128us per bit
+    if(!begin({7813, 8000000}, true, true)) {
+        return 0;
+    }
+
+    // Set task handle to current task
+    _can_task_handle = xTaskGetCurrentTaskHandle();
+
+    // Send a test frame
+    uint8_t cmd_frame[16];
+    cmd_frame[0] = CMD_LOAD_TX_BUFFER | 0x00; // Load TXB0
+    packExtendedId(&cmd_frame[1], 0x12345678);
+    cmd_frame[5] = 0x08; // DLC
+    spiTransactionBlocking(cmd_frame, nullptr, 14);
+
+    // Set RTS to start transmission
+    cmd_frame[0] = 0x81; // RTS TXB0
+    const uint32_t t1 = esp_timer_get_time() & 0xFFFFFFFF;
+    spiTransactionBlocking(cmd_frame, nullptr, 1);
+
+    // Wait for the frame to be received
+    ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(100));
+    const uint32_t t2 = esp_timer_get_time() & 0xFFFFFFFF;
+
+    uint32_t elapsed_us = (t2 - t1);
+    DEBUG_PRINTF("MCP2515: autodetect=%uus\n", elapsed_us);
+
+    _can_task_handle = nullptr;
+    detachInterrupt(digitalPinToInterrupt(_int_pin));
+    reset();
+    
+    return elapsed_us < 13500 ? 16000000 : 8000000;
+}
+
+bool MCP2515_Lite::begin(const MCP2515_Lite_Speed& speed, bool loopback, bool skip_task_start) {
     // 1. Set up GPIO pins (SCK/MOSI/MISO are already set up)
 
     pinMode(_cs, OUTPUT);
@@ -124,10 +160,12 @@ bool MCP2515_Lite::begin(const MCP2515_Lite_Speed& speed) {
     applySpeedConfig(speed);
 
     // Leave config mode and enter normal mode
-    modifyRegister(REG_CANCTRL, 0xE0, CANCTRL_REQOP_NORMAL);
+    modifyRegister(REG_CANCTRL, 0xE0, loopback ? CANCTRL_REQOP_LOOPBACK : CANCTRL_REQOP_NORMAL);
 
-    // Start the background task
-    xTaskCreate(canTask, "MCP2515_Lite", MCP2515_LITE_TASK_STACK_SIZE, this, MCP2515_LITE_TASK_PRIORITY, &_can_task_handle);
+    if(!skip_task_start) {
+        // Start the background task
+        xTaskCreate(canTask, "MCP2515_Lite", MCP2515_LITE_TASK_STACK_SIZE, this, MCP2515_LITE_TASK_PRIORITY, &_can_task_handle);
+    }
 
     return true;
 }

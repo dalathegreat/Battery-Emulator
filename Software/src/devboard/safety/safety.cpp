@@ -12,10 +12,14 @@ static bool battery_full_event_fired = false;
 static bool battery_empty_event_fired = false;
 
 #define MAX_SOH_DEVIATION_PPTT 2500
-#define CELL_CRITICAL_MV 100  // If cells go this much outside design voltage, shut battery down!
+// Some inverters take a while to boot and start sending CAN. Suppress the
+// inverter-missing error during this startup window (measured from power-on).
+#define INVERTER_STARTUP_GRACE_MS 300000  // 300 s
+#define CELL_CRITICAL_MV 100              // If cells go this much outside design voltage, shut battery down!
 #define LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV 2000  //If cells are below this, recovery charge not allowed
 #define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
 #define HYSTERESIS_OFFSET_DV 20
+#define CELL_HYSTERESIS_MV 20  // Re-allow charge only once max cell drops this far below limit (avoids chatter at knee)
 
 //battery pause status begin
 bool emulator_pause_request_ON = false;
@@ -114,8 +118,15 @@ void update_machineryprotection() {
     }
 
     // Cell overvoltage, further charging not possible. Battery might be imbalanced.
+    static bool cell_overvoltage_charge_blocked = false;
     if (datalayer.battery.status.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
       set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+      cell_overvoltage_charge_blocked = true;  // Latch at the ceiling
+    } else if (datalayer.battery.status.cell_max_voltage_mV <
+               (datalayer.battery.info.max_cell_voltage_mV - CELL_HYSTERESIS_MV)) {
+      cell_overvoltage_charge_blocked = false;  // Release only once well below the ceiling
+    }
+    if (cell_overvoltage_charge_blocked) {
       datalayer.battery.status.max_charge_power_W = 0;
     }
     // Cell CRITICAL overvoltage, critical latching error without automatic reset. Requires user action to inspect battery.
@@ -277,7 +288,10 @@ void update_machineryprotection() {
 
     // Check if the inverter is still sending CAN messages. If we go 60s without messages we raise a warning
     if (!datalayer.system.status.CAN_inverter_still_alive) {
-      set_event(EVENT_CAN_INVERTER_MISSING, can_config.inverter);
+      // Inverters that are slow to boot get a startup grace window before we fault.
+      if (!inverter->needs_can_startup_grace() || millis() > INVERTER_STARTUP_GRACE_MS) {
+        set_event(EVENT_CAN_INVERTER_MISSING, can_config.inverter);
+      }
     } else {
       // If the inverter is a slow starter, only decrement the counter every 2 seconds to give it more time to start up before we report it as missing
       if (user_selected_inverter_long_CAN_timeout) {

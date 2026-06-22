@@ -1,5 +1,7 @@
 #include "ElegantOTA.h"
 
+#include "../../../devboard/safety/safety.h"
+
 ElegantOTAClass::ElegantOTAClass(){}
 
 void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server){
@@ -57,6 +59,8 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server){
         request->send(response);
         // Set reboot flag
         if (!Update.hasError()) {
+            // Stop current flow as the reboot will open contactors
+            setBatteryPause(true, false, false, false);
             _reboot_request_millis = millis();
             _reboot = true;
         }

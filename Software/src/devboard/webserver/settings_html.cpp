@@ -123,6 +123,10 @@ static const std::map<int, String> sungrow_models = {
 
 static const std::map<int, String> pylon_models = {{0, "PYLONTECH"}, {1, "PYLON"}, {2, "DEYE"}};
 
+static const std::map<int, String> contactor_modes = {{0, "No Workaround"},
+                                                      {1, "Keep contactors always closed"},
+                                                      {2, "Lock contactors closed after first close request"}};
+
 const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   switch (behavior) {
     case STOP_BUTTON_BEHAVIOR::LATCHING_SWITCH:
@@ -305,6 +309,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "PYLON_MODEL") {
     return options_from_map(settings.getUInt("PYLONBRAND", 0), pylon_models);
+  }
+
+  if (var == "INVICNT") {
+    return options_from_map(settings.getUInt("INVICNT", 0), contactor_modes);
   }
 
 #ifdef HW_LILYGO2CAN
@@ -503,6 +511,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "CANFDASCAN") {
     return settings.getBool("CANFDASCAN") ? "checked" : "";
+  }
+
+  if (var == "CANFD2ASCAN") {
+    return settings.getBool("CANFD2ASCAN") ? "checked" : "";
   }
 
   if (var == "WIFIAPENABLED") {
@@ -883,25 +895,12 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("INVBTYPE", 0));
   }
 
-  if (var == "INVICNT") {
-    uint8_t mode = settings.getUInt("INVICNT", 0);
-    return String(mode);
-  }
-
   if (var == "DEYEBYD") {
     return settings.getBool("DEYEBYD") ? "checked" : "";
   }
 
   if (var == "PRIMOGEN24") {
     return settings.getBool("PRIMOGEN24") ? "checked" : "";
-  }
-
-  if (var == "CANFREQ") {
-    return String(settings.getUInt("CANFREQ", 8));
-  }
-
-  if (var == "CANFDFREQ") {
-    return String(settings.getUInt("CANFDFREQ", 40));
   }
 
   if (var == "PRECHGMS") {
@@ -986,7 +985,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         return "Add-on CAN-FD via GPIO MCP2518";
       }
     case CANFD_ADDON_MCP2518_2:
-      if (use_canfd_as_can) {
+      if (use_canfd2_as_can) {
         return "Add-on CAN-FD #2 via GPIO MCP2518 (Classic CAN)";
       } else {
         return "Add-on CAN-FD #2 via GPIO MCP2518";
@@ -1066,6 +1065,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   )rawliteral"
 #else
 #define GPIOOPT6_SETTING ""
+#endif
+
+#if defined(HW_LILYGO2CAN) || defined(HW_STARK)
+#define CANFD2ASCAN_SETTING \
+  R"rawliteral(
+    <label>Use CanFD2 as classic CAN: </label>
+    <input type='checkbox' name='CANFD2ASCAN' value='on' %CANFD2ASCAN% 
+    title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
+  )rawliteral"
+#else
+#define CANFD2ASCAN_SETTING ""
 #endif
 
 #define SETTINGS_HTML_SCRIPTS \
@@ -1712,9 +1722,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-kostal if-solax">
         <label>Inverter Contactor Workaround: </label>
         <select name='INVICNT'>
-          <option value='0'>No Workaround</option>
-          <option value='1'>Keep contactors always closed</option>
-          <option value='2'>Lock contactors closed after first close request</option>
+          %INVICNT%
         </select>
         </div>
 
@@ -1782,16 +1790,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='CANFDASCAN' value='on' %CANFDASCAN% 
         title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
 
-        <label>CAN addon crystal (Mhz): </label>
-        <input type='number' name='CANFREQ' value="%CANFREQ%" 
-        min="0" max="1000" step="1"
-        title="Configure this if you are using a custom add-on CAN board. Integers only" />
+        )rawliteral" CANFD2ASCAN_SETTING R"rawliteral(
 
-        <label>CAN-FD-addon crystal (Mhz): </label>
-        <input type='number' name='CANFDFREQ' value="%CANFDFREQ%" 
-        min="0" max="1000" step="1"
-        title="Configure this if you are using a custom add-on CAN board. Integers only" />
-        
         <label>Equipment stop button: </label><select name='EQSTOP'>
         %EQSTOP%  
         </select>

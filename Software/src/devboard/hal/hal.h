@@ -1,6 +1,7 @@
 #ifndef _HAL_H_
 #define _HAL_H_
 
+#include <SPI.h>
 #include <soc/gpio_num.h>
 #include <chrono>
 #include <unordered_map>
@@ -8,6 +9,18 @@
 #include "../../../src/devboard/utils/events.h"
 #include "../../../src/devboard/utils/logging.h"
 #include "../../../src/devboard/utils/types.h"
+
+// We need to use #ifdef trickery since the SPI buses are only defined on the
+// respective architectures.
+// The spare ESP32 SPI buses are called HSPI and VSPI, whereas on a ESP32S3
+// they are called FSPI and HSPI.
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+#define DEFAULT_MCP2515_BUS HSPI
+#define DEFAULT_MCP2517_BUS FSPI
+#else
+#define DEFAULT_MCP2515_BUS VSPI
+#define DEFAULT_MCP2517_BUS HSPI
+#endif
 
 // Hardware Abstraction Layer base class.
 // Derive a class to define board-specific parameters such as GPIO pin numbers
@@ -107,6 +120,8 @@ class Esp32Hal {
   virtual gpio_num_t CAN_SE_PIN() { return GPIO_NUM_NC; }
 
   // CAN_ADDON
+  // SPI bus number of MCP2515
+  virtual uint8_t MCP2515_BUS() { return DEFAULT_MCP2515_BUS; }
   // SCK input of MCP2515
   virtual gpio_num_t MCP2515_SCK() { return GPIO_NUM_NC; }
   // SDI input of MCP2515
@@ -119,17 +134,27 @@ class Esp32Hal {
   virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_NC; }
   // Reset pin for MCP2515
   virtual gpio_num_t MCP2515_RST() { return GPIO_NUM_NC; }
+  virtual uint32_t MCP2515_FREQ() { return 0; }  // 0 means unknown
 
   // CANFD_ADDON defines for MCP2517
+  virtual uint8_t MCP2517_BUS() { return DEFAULT_MCP2517_BUS; }
   virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_INT0() { return GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_INT1() { return GPIO_NUM_NC; }
+  virtual uint32_t MCP2517_FREQ() { return 0; }  // 0 means unknown
 
   // 2nd CANFD Interface: MCP2517/8
+  virtual uint8_t MCP2517_BUS2() { return DEFAULT_MCP2517_BUS; }
+  virtual gpio_num_t MCP2517_SCK2() { return GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_SDI2() { return GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_SDO2() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_CS2() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT2() { return GPIO_NUM_NC; }
+  virtual uint32_t MCP2517_FREQ2() { return 0; }  // 0 means unknown
 
   // Value for first MCP2517 CLKODIV register (default, divide by 10)
   virtual int MCP2517_CLKODIV() { return 0b11; }
