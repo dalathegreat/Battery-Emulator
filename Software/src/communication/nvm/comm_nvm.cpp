@@ -101,8 +101,6 @@ void init_stored_settings() {
   user_selected_inverter_pylon_type = settings.getUInt("PYLONBRAND", 0);
   user_selected_inverter_contactor_mode = (inverter_contactor_mode_enum)settings.getUInt("INVICNT", 0);
   user_selected_inverter_deye_workaround = settings.getBool("DEYEBYD", false);
-  user_selected_can_addon_crystal_frequency_mhz = settings.getUInt("CANFREQ", 8);
-  user_selected_canfd_addon_crystal_frequency_mhz = settings.getUInt("CANFDFREQ", 40);
   user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
   user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
   user_selected_daly_power_per_dV = settings.getUInt("DALYPWRDV", 50);
@@ -163,6 +161,7 @@ void init_stored_settings() {
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
+  use_canfd2_as_can = settings.getBool("CANFD2ASCAN", false);
 #ifdef HW_LILYGO2CAN
   user_selected_gpioopt1 = (GPIOOPT1)settings.getUInt("GPIOOPT1", 0);
 #endif

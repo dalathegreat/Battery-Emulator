@@ -509,6 +509,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CANFDASCAN") ? "checked" : "";
   }
 
+  if (var == "CANFD2ASCAN") {
+    return settings.getBool("CANFD2ASCAN") ? "checked" : "";
+  }
+
   if (var == "WIFIAPENABLED") {
     return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
   }
@@ -895,14 +899,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("PRIMOGEN24") ? "checked" : "";
   }
 
-  if (var == "CANFREQ") {
-    return String(settings.getUInt("CANFREQ", 8));
-  }
-
-  if (var == "CANFDFREQ") {
-    return String(settings.getUInt("CANFDFREQ", 40));
-  }
-
   if (var == "PRECHGMS") {
     return String(settings.getUInt("PRECHGMS", 100));
   }
@@ -985,7 +981,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         return "Add-on CAN-FD via GPIO MCP2518";
       }
     case CANFD_ADDON_MCP2518_2:
-      if (use_canfd_as_can) {
+      if (use_canfd2_as_can) {
         return "Add-on CAN-FD #2 via GPIO MCP2518 (Classic CAN)";
       } else {
         return "Add-on CAN-FD #2 via GPIO MCP2518";
@@ -1003,8 +999,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       %GPIOOPT1%
     </select>
   )rawliteral"
+#define CANFD2ASCAN_SETTING \
+  R"rawliteral(
+    <label>Use CanFD2 as classic CAN: </label>
+    <input type='checkbox' name='CANFD2ASCAN' value='on' %CANFD2ASCAN% 
+    title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
+  )rawliteral"
 #else
 #define GPIOOPT1_SETTING ""
+#define CANFD2ASCAN_SETTING ""
 #endif
 
 #ifdef HW_LILYGO
@@ -1775,16 +1778,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='CANFDASCAN' value='on' %CANFDASCAN% 
         title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
 
-        <label>CAN addon crystal (Mhz): </label>
-        <input type='number' name='CANFREQ' value="%CANFREQ%" 
-        min="0" max="1000" step="1"
-        title="Configure this if you are using a custom add-on CAN board. Integers only" />
+        )rawliteral" CANFD2ASCAN_SETTING R"rawliteral(
 
-        <label>CAN-FD-addon crystal (Mhz): </label>
-        <input type='number' name='CANFDFREQ' value="%CANFDFREQ%" 
-        min="0" max="1000" step="1"
-        title="Configure this if you are using a custom add-on CAN board. Integers only" />
-        
         <label>Equipment stop button: </label><select name='EQSTOP'>
         %EQSTOP%  
         </select>
