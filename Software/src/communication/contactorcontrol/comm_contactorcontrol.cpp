@@ -272,7 +272,7 @@ void handle_contactors_battery2() {
 }
 
 void handle_contactors_battery3() {
-  auto third_contactors = esp32hal->SECOND_BATTERY_CONTACTORS_PIN();
+  auto third_contactors = esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN();
 
   if ((contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing) {
     set(third_contactors, ON);
