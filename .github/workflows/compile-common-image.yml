@@ -37,7 +37,7 @@ jobs:
             artifact_name: "battery-dummy-check"
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       name: Checkout code
 
     - uses: actions/cache@v5
