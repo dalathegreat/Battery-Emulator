@@ -292,6 +292,17 @@ void update_machineryprotection() {
     }
   }
 
+  if (datalayer.system.status.node_mode == NODE_BATTERY) {
+    // Check if the controller is still sending heartbeats. If we go 60s without one we raise a warning
+    if (!datalayer.system.status.CAN_controller_still_alive) {
+      set_event(EVENT_CAN_CONTROLLER_MISSING, can_config.inverter);
+      datalayer.system.status.controller_online = false;
+    } else {
+      datalayer.system.status.CAN_controller_still_alive--;
+      clear_event(EVENT_CAN_CONTROLLER_MISSING);
+    }
+  }
+
   if (charger) {
     // Check if we have ever seen the charger
     if (!charger_detected) {

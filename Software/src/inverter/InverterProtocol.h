@@ -28,6 +28,7 @@ enum class InverterProtocolType {
   VCU = 22,
   PylonLV485 = 23,
   SmaSBSByd = 24,
+  InterUnitNode = 25,  // This node acts as a battery Node in a multi-unit setup
   Highest
 };
 

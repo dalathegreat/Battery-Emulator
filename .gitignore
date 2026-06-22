@@ -32,5 +32,8 @@ compile.bat
 # Ignore binary files
 *.bin
 
+# Ignore log files
+*.log
+
 # Ignore secret file
 USER_SECRETS.h

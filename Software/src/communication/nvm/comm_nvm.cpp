@@ -119,8 +119,8 @@ void init_stored_settings() {
   user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
   user_set_rampdown_SOC = settings.getUInt("RAMPDOWNSOC", 9000);
 
-  auto readIf = [&settings](const char* settingName) {
-    auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
+  auto readIf = [&settings](const char* settingName, comm_interface defaultIf = comm_interface::CanNative) {
+    auto batt1If = (comm_interface)settings.getUInt(settingName, (int)defaultIf);
     switch (batt1If) {
       case comm_interface::CanNative:
         return CAN_Interface::CAN_NATIVE;
@@ -238,6 +238,23 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent =
       constrain(settings.getUInt("BYDAUTOCALDRFT2", 5), 1u, 20u);
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN2", true);
+
+  // Controller/Node inter-unit protocol settings
+  // Derive node mode from battery/inverter selection — no separate NODEMODE key needed.
+  // InterUnitController battery type → this unit is the Controller.
+  // InterUnitNode inverter type      → this unit is a battery Node.
+  if (user_selected_battery_type == BatteryType::InterUnitController) {
+    datalayer.system.status.node_mode = NODE_CONTROLLER;
+  } else if (user_selected_inverter_protocol == InverterProtocolType::InterUnitNode) {
+    datalayer.system.status.node_mode = NODE_BATTERY;
+  } else {
+    datalayer.system.status.node_mode = NODE_STANDALONE;
+  }
+  // NVM key "SLAVENODEID" is kept for backward compatibility with saved settings.
+  datalayer.system.status.battery_node_id = (uint8_t)settings.getUInt("SLAVENODEID", 1);
+  if (datalayer.system.status.battery_node_id < 1 || datalayer.system.status.battery_node_id > MAX_BATTERY_NODES) {
+    datalayer.system.status.battery_node_id = 1;  // Clamp to valid range
+  }
 }
 
 void store_settings_equipment_stop() {
@@ -263,4 +280,9 @@ void store_settings() {
   settings.saveBool("BYDAUTOCALEN", datalayer_extended.bydAtto3.auto_calibrate_soc_enabled);
   settings.saveUInt("BYDAUTOCALDRFT2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
+
+  // Controller/Node inter-unit protocol settings
+  // node_mode is derived from BATTTYPE/INVTYPE at load time — no need to save separately.
+  // NVM key "SLAVENODEID" is kept for backward compatibility with saved settings.
+  settings.saveUInt("SLAVENODEID", datalayer.system.status.battery_node_id);
 }

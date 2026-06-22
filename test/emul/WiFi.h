@@ -2,10 +2,13 @@
 #define WIFI_H
 
 #include <stdint.h>
+#include "IPAddress.h"
 
-class IPAddress {
+class WiFiClass {
  public:
-  IPAddress(uint8_t a, uint8_t b, uint8_t c, uint8_t d) {}
+  IPAddress localIP() { return IPAddress((uint32_t)0); }
 };
+
+inline WiFiClass WiFi;
 
 #endif

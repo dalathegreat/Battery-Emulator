@@ -110,6 +110,8 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   led_mode_enum led_mode = CLASSIC;
   /** Balancing status */
   balancing_status_enum balancing_status = BALANCING_STATUS_UNKNOWN;
+  /** True when offline balancing is active (battery goes to sleep, excluded from controller aggregation) */
+  bool offline_balancing = false;
 
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.
@@ -304,6 +306,37 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   bool start_precharging = false;      //Is precharge ongoing?
 };
 
+/** Per-node status maintained by the controller */
+struct BATTERY_NODE_TYPE {
+  uint16_t voltage_dV = 0;             // Pack voltage in deciVolts
+  uint16_t real_soc = 0;               // SOC in 0.01% units (9550 = 95.50%)
+  int16_t current_dA = 0;              // Current in deciAmpere
+  int8_t temp_max_dC = 0;              // Max temperature in deci-Celsius divided by 10
+  int8_t temp_min_dC = 0;              // Min temperature
+  uint16_t max_charge_W = 0;           // Max allowed charge power in Watts
+  uint16_t max_discharge_W = 0;        // Max allowed discharge power in Watts
+  uint16_t remaining_Wh = 0;           // Remaining capacity in Wh
+  uint16_t total_capacity_Wh = 0;      // Total capacity in Wh
+  uint16_t max_design_voltage_dV = 0;  // Max design voltage in dV
+  uint16_t min_design_voltage_dV = 0;  // Min design voltage in dV
+  uint16_t soh_pptt = 9900;            // State of health
+  uint16_t cell_max_voltage_mV = 0;    // Highest cell voltage in pack
+  uint16_t cell_min_voltage_mV = 0;    // Lowest cell voltage in pack
+  uint8_t fault_flags = 0;             // Bitmask of faults (see INTER-UNIT-PROTOCOL.h)
+  uint8_t still_alive = 0;             // Countdown counter: decremented each second, reset on message
+  bool contactor_engaged = false;      // Confirmed contactor state from node
+  bool contactor_allowed = false;      // Controller decision: is node allowed to close contactor
+  bool online = false;                 // True if node is responding
+  bool ident_received = false;         // True once IDENT frame has been received from node
+  bool balancing = false;              // True when node is performing offline balancing (excluded from aggregation)
+  bool prejoin_active = false;         // True when controller prejoin is running for this node
+  uint32_t ip_address = 0;             // IPv4 address of node (0 = unknown)
+  uint16_t fw_version_num = 0;         // Firmware version: (major<<8)|minor, e.g. 10.6 -> 0x0A06
+  uint16_t battery_type_id = 0;        // BatteryType enum value reported by node
+  uint8_t status_stale_seconds = 0;    // Incremented each second; reset when STATUS toggle bit changes
+  uint8_t _last_status_toggle = 0xFF;  // Previous value of STATUS toggle bit (0xFF = never seen)
+};
+
 struct DATALAYER_SYSTEM_STATUS_TYPE {
   /** Core task measurement variable */
   int64_t core_task_max_us = 0;
@@ -364,11 +397,21 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   BMSResetState bms_reset_status = BMS_RESET_IDLE;
   /** The current system status, determined by which Events are active, usually pending between ACTIVE and FAULT, but there are more enums. Used to signal incase we have a critical fault active, or if we should proceed operating */
   system_status_enum system_status = ACTIVE;
+
+  /** Controller/Node inter-unit protocol */
+  node_mode_enum node_mode = NODE_STANDALONE;
+  uint8_t battery_node_id = 1;     // 1-24, used when node_mode == NODE_BATTERY
+  bool controller_online = false;  // true when controller heartbeat received within timeout (node mode only)
+  /** Watchdog counter for the controller heartbeat (node mode only). Reset to CAN_STILL_ALIVE on each
+   * heartbeat and decremented every second in safety.cpp; reaching 0 raises EVENT_CAN_CONTROLLER_MISSING.
+   * Starts at CAN_STILL_ALIVE - 1 so the first heartbeat has time to arrive before we flag it missing. */
+  uint8_t CAN_controller_still_alive = (CAN_STILL_ALIVE - 1);
 };
 
 struct DATALAYER_SYSTEM_TYPE {
   DATALAYER_SYSTEM_INFO_TYPE info;
   DATALAYER_SYSTEM_STATUS_TYPE status;
+  BATTERY_NODE_TYPE battery_nodes[MAX_BATTERY_NODES];  // Index 0 = Battery Node ID 1, used by controller
 };
 
 class DataLayer {

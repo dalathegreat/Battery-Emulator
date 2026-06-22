@@ -49,16 +49,25 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   // so the safety check (EVENT_CAN_BATTERY_MISSING) does not trigger
   if (UserRequestBalancing == EXECUTING) {
     datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+    datalayer.system.status.system_status = STANDBY;
+    // During offline balancing sleep, report contactor as open so the node STATUS
+    // does not keep an old engaged state latched.
+    datalayer.system.status.contactors_engaged = 0;
   }
 
   // Map internal balancing state to datalayer balancing_status
   if (UserRequestBalancing == NONE) {
     datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
+    datalayer_battery->status.offline_balancing = false;
   } else {
     datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
+    datalayer_battery->status.offline_balancing = true;  // Inter-unit Controller/Node balancing is active.
   }
 
   if (!battery_awake) {
+    if (datalayer_battery->status.offline_balancing) {
+      datalayer.system.status.contactors_engaged = 0;
+    }
     return;
   }
 
@@ -117,6 +126,23 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     set_event(EVENT_CONTACTOR_WELDED, 0);
   } else {
     clear_event(EVENT_CONTACTOR_WELDED);
+  }
+
+  // Map BMW I3 DC switch status to system datalayer
+  // battery_status_disconnecting_switch: 0=open, 1=precharge ongoing, 2=contactors engaged, 3=invalid
+  switch (battery_status_disconnecting_switch) {
+    case 0:  // Contactors open
+      datalayer.system.status.contactors_engaged = 0;
+      break;
+    case 1:  // Precharge ongoing
+      datalayer.system.status.contactors_engaged = 3;
+      break;
+    case 2:  // Contactors engaged
+      datalayer.system.status.contactors_engaged = 1;
+      break;
+    default:  // Invalid signal - treat as open
+      datalayer.system.status.contactors_engaged = 0;
+      break;
   }
 }
 
@@ -322,7 +348,7 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
   if (battery_awake) {
-    //Send 20ms message
+    // Send 20ms message
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
 

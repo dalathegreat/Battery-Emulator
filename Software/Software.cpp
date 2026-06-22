@@ -499,6 +499,7 @@ void core_loop(void*) {
         battery3->update_values();
         check_parallel_battery_safety(3);
       }
+
       update_calculated_values(currentMillis);
       update_machineryprotection();  // Check safeties
 
@@ -597,6 +598,7 @@ void setup() {
   init_rs485();
 
   setup_charger();
+
   setup_inverter();
   setup_battery();
   setup_shunt();

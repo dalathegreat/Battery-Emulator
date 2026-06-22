@@ -2,6 +2,9 @@
 
 #include "../../Software/src/communication/can/comm_can.h"
 
+// Provide the firmware version normally defined in Software.cpp (used by the inter-unit protocol).
+const char* version_number = "10.11.dev";
+
 // Provide the definition that was previously in USER_SETTINGS.cpp
 volatile CAN_Configuration can_config = {.battery = CAN_Interface::CAN_NATIVE,
                                          .inverter = CAN_Interface::CAN_NATIVE,

@@ -1,4 +1,5 @@
 #include "BATTERIES.h"
+#include "../communication/can/CONTROLLER-CAN.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/logging.h"
@@ -64,6 +65,8 @@ const char* name_for_battery_type(BatteryType type) {
       return CmpSmartCarBattery::Name;
     case BatteryType::EnnoidBMS:
       return EnnoidBms::Name;
+    case BatteryType::InterUnitController:
+      return "Inter-Unit Controller";
     case BatteryType::FordMachE:
       return FordMachEBattery::Name;
     case BatteryType::Foxess:
@@ -185,6 +188,8 @@ Battery* create_battery(BatteryType type) {
       return new CmpSmartCarBattery();
     case BatteryType::EnnoidBMS:
       return new EnnoidBms();
+    case BatteryType::InterUnitController:
+      return new InterUnitControllerBattery();
     case BatteryType::FordMachE:
       return new FordMachEBattery();
     case BatteryType::Foxess:

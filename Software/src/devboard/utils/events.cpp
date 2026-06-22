@@ -46,6 +46,12 @@ void init_events(void) {
   events.entries[EVENT_CAN_CHARGER_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_CHARGER_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN_CONTROLLER_MISSING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_NODE_MISSING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_NODE_WARNING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_NODE_FAULT].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_NODE_IDENT_MISMATCH].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_NODE_STATUS_STALE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_INVERTER_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CONTACTOR_OPEN].level = EVENT_LEVEL_WARNING;
@@ -219,6 +225,20 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Successfully communicating with inverter. Inverter detected!";
     case EVENT_CAN_INVERTER_MISSING:
       return "Inverter not sending messages via CAN for the last 60 seconds. Check wiring!";
+    case EVENT_CAN_CONTROLLER_MISSING:
+      return "Controller unit not sending heartbeat via CAN for the last 60 seconds. Check wiring!";
+    case EVENT_BATTERY_NODE_MISSING:
+      return "A battery node stopped responding. Check inter-unit CAN wiring!";
+    case EVENT_BATTERY_NODE_WARNING:
+      return "A battery node is reporting a warning condition (cell voltage or temperature fault).";
+    case EVENT_BATTERY_NODE_FAULT:
+      return "A battery node is reporting a fault. That node's contactor is blocked; the "
+             "system keeps running on the remaining nodes.";
+    case EVENT_BATTERY_NODE_IDENT_MISMATCH:
+      return "Battery node firmware version or battery type mismatch detected. That node is blocked from "
+             "closing until resolved; an already-closed contactor stays closed.";
+    case EVENT_BATTERY_NODE_STATUS_STALE:
+      return "A battery node's STATUS data stopped refreshing. That node is excluded until it recovers.";
     case EVENT_CONTACTOR_WELDED:
       return "Contactors sticking/welded. Inspect battery with caution!";
     case EVENT_CONTACTOR_OPEN:
@@ -492,8 +512,11 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   if ((events.entries[event].state != EVENT_STATE_ACTIVE) &&
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
     events.entries[event].MQTTpublished = false;
-
-    DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
+    if (event == EVENT_BATTERY_NODE_FAULT && data > 0) {
+      DEBUG_PRINTF("Event: Battery node %u is reporting a critical fault. Contactor blocked!\n", data);
+    } else {
+      DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
+    }
   }
 
   // We should set the event, update event info
