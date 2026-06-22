@@ -226,10 +226,9 @@ void init_stored_settings() {
   mqtt_password = settings.getString("MQTTPASSWORD").c_str();
 
   // CT Clamp settings
-  ct_clamp_offset_mV = settings.getString("CTOFFSET", "-1.0").toFloat();
   ct_clamp_nominal_voltage_dV = settings.getUInt("CTVNOM", 40);
   ct_clamp_nominal_current_A = settings.getUInt("CTANOM", 100);
-  ct_clamp_pin_atten = (adc_attenuation_enum)settings.getUInt("CTATTEN", 3);
+  ct_clamp_max_battery_V = settings.getUInt("CTMAXBATT", 400);
   ct_invert_current = settings.getBool("CTINVERT", false);
 
   datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent =

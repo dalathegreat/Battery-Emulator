@@ -15,10 +15,6 @@ class ChademoBattery : public CanBattery {
     pin4 = esp32hal->CHADEMO_PIN_4();
     pin7 = esp32hal->CHADEMO_PIN_7();
     pin_lock = esp32hal->CHADEMO_LOCK();
-
-    // Assuming these are initialized by contactor control module.
-    precharge = esp32hal->PRECHARGE_PIN();
-    positive_contactor = esp32hal->POSITIVE_CONTACTOR_PIN();
   }
 
   virtual void setup(void);
@@ -36,8 +32,9 @@ class ChademoBattery : public CanBattery {
   static constexpr const char* Name = "Chademo V2X mode";
 
  private:
-  gpio_num_t pin2, pin10, pin4, pin7, pin_lock, precharge, positive_contactor;
+  gpio_num_t pin2, pin10, pin4, pin7, pin_lock;
   ChademoBatteryHtmlRenderer renderer;
+  int max_evse_charging_power_W;  // W
 
   void process_vehicle_charging_minimums(CAN_frame rx_frame);
   void process_vehicle_charging_maximums(CAN_frame rx_frame);
@@ -54,21 +51,19 @@ class ChademoBattery : public CanBattery {
   void handle_chademo_sequence();
   float get_voltage_handler();
 
-  static const int MAX_EVSE_POWER_CHARGING = 3300;
-  static const int MAX_EVSE_OUTPUT_VOLTAGE = 410;
-  static const int MAX_EVSE_OUTPUT_CURRENT = 11;
-
-#define CHADEMO_FAULT 0
-#define CHADEMO_STOP 1
-#define CHADEMO_IDLE 2
-#define CHADEMO_CONNECTED 3
-#define CHADEMO_INIT 4  // intermediate state indicating CAN from Vehicle not yet received after connection
-#define CHADEMO_NEGOTIATE 5
-#define CHADEMO_EV_ALLOWED 6
-#define CHADEMO_EVSE_PREPARE 7
-#define CHADEMO_EVSE_START 8
-#define CHADEMO_EVSE_CONTACTORS_ENABLED 9
-#define CHADEMO_POWERFLOW 10
+#define CHADEMO_NONE 0
+#define CHADEMO_FAULT 1
+#define CHADEMO_STOP 2
+#define CHADEMO_IDLE 3
+#define CHADEMO_CONNECTED 4
+#define CHADEMO_INIT 5  // intermediate state indicating CAN from Vehicle not yet received after connection
+#define CHADEMO_NEGOTIATE 6
+#define CHADEMO_EV_ALLOWED 7
+#define CHADEMO_EVSE_PREPARE 8
+#define CHADEMO_EVSE_START 9
+#define CHADEMO_EVSE_CONTACTORS_ENABLED 10
+#define CHADEMO_POWERFLOW 11
+#define CHADEMO_POWERFLOW_SUSPENDED 12
 
   enum Mode { CHADEMO_CHARGE, CHADEMO_DISCHARGE, CHADEMO_BIDIRECTIONAL };
 
@@ -100,7 +95,7 @@ uint8_t CHADEMO_seq = 0x0;
     uint8_t MaxChargingTime10sBit = 0;
     uint8_t MaxChargingTime1minBit = 0;
     uint8_t EstimatedChargingTime = 0;
-    uint16_t RatedBatteryCapacity = 0;
+    uint16_t RatedBatteryCapacity = 0;  // in Wh
   };
 
   //H102 - Vehicle - Charging targets and Status
@@ -110,7 +105,7 @@ uint8_t CHADEMO_seq = 0x0;
   struct x102_Vehicle_Charging_Session {  //Frame byte
     uint8_t ControlProtocolNumberEV = 0;  // 0
     uint16_t TargetBatteryVoltage = 0;    // 1-2
-    uint8_t ChargingCurrentRequest = 0;   // 3	Note: per spec, units for this changed from kWh --> %
+    uint8_t ChargingCurrentRequest = 0;   // 3
 
     union {
       uint8_t faults;
@@ -147,11 +142,11 @@ uint8_t CHADEMO_seq = 0x0;
   };
 
   /* ---------- CHARGING: EVSE Data structures */
-  struct x108_EVSE_Capabilities {                                 // Frame byte
-    bool contactor_weld_detection = 1;                            //  0
-    uint16_t available_output_voltage = MAX_EVSE_OUTPUT_VOLTAGE;  //  1,2
-    uint8_t available_output_current = MAX_EVSE_OUTPUT_CURRENT;   //  3
-    uint16_t threshold_voltage = 297;                             //  4,5	 		voltage that EVSE will stop if car fails to
+  struct x108_EVSE_Capabilities {             // Frame byte
+    bool contactor_weld_detection = 1;        //  0
+    uint16_t available_output_voltage = 400;  //  1,2
+    uint8_t available_output_current = 1;     //  3
+    uint16_t threshold_voltage = 297;         //  4,5	 		voltage that EVSE will stop if car fails to
     //  			perhaps vehicle minus 3%, hardcoded initially to 96*2.95
     //  6,7 = unused
   };
@@ -196,9 +191,9 @@ uint8_t CHADEMO_seq = 0x0;
   //H200 - Vehicle - Discharge limits
   struct x200_Vehicle_Discharge_Limits {
     uint8_t MaximumDischargeCurrent = 0xFF;
-    uint16_t MinimumDischargeVoltage = 260;  //Initialized to a semi-sane value, updates via CAN later
-    uint16_t MinimumBatteryDischargeLevel = 0;
-    uint16_t MaxRemainingCapacityForCharging = 0;
+    uint16_t MinimumDischargeVoltage = 260;     // Initialized to a semi-sane value, updates via CAN later
+    uint16_t MinimumBatteryDischargeLevel = 0;  // in Wh, varies with SOH not with SOC
+    uint16_t MaxCapacityForDischarging = 0;     // in Wh, varies with SOH not with SOC
   };
 
   /* TODO When charge/discharge sequence control number (ID201/209) is not received, the vehicle or the EVSE
@@ -293,20 +288,19 @@ should determine that the other is the EVSE or the vehicle of the model before t
   bool vehicle_permission = false;
   bool evse_permission = false;
 
-  bool precharge_low = false;
-  bool positive_high = false;
   bool contactors_ready = false;
 
   uint8_t framecount = 0;
 
-  uint8_t max_discharge_current = 0;  //TODO not sure on this one, but really influenced by inverter capability
+  uint8_t max_discharge_current = 0;
 
   bool high_current_control_enabled = false;  // set to true when high current control is operating
                                               //  if true, values from 110.1 and 110.2 should be used instead of 102.3
                                               //  and 118 should be used for evse responses
                                               //  permissible rate of change is -20A/s to 20A/s relative to 102.3
 
-  Mode EVSE_mode = CHADEMO_DISCHARGE;
+  Mode EVSE_mode =
+      CHADEMO_BIDIRECTIONAL;  // default to bidirectional for now, but can be set to charge-only or discharge-only depending on use case and vehicle compatibility. Note that discharge and bidirectional modes are only compatible with vehicles that indicate discharge compatibility via 102.5 bit 7
   uint8_t CHADEMO_Status = CHADEMO_IDLE;
 
   /* Charge/discharge sequence, indicating applicable V2H guideline 
