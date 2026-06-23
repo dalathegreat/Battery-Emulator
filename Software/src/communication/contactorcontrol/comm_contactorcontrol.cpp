@@ -207,8 +207,8 @@ void handle_contactors() {
 
     currentTime = millis();
 
-    if (currentTime < INTERVAL_10_S) {
-      // Skip running the state machine before system has started up.
+    if ((currentTime < INTERVAL_10_S) || !battery_detected) {
+      // Skip running the state machine before system has started up. Conditions are 10sec post boot, and battery comms established
       // Gives the system some time to detect any faults from battery before blindly just engaging the contactors
       return;
     }
