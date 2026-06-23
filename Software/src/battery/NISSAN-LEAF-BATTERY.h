@@ -160,15 +160,15 @@ class NissanLeafBattery : public CanBattery {
   uint16_t battery_Wh_Remaining = 0;           //Amount of energy in battery, in Wh
   uint16_t battery_GIDS = 273;                 //Startup in 24kWh mode
   uint16_t battery_MAX = 0;
-  uint16_t battery_Max_GIDS = 273;               //Startup in 24kWh mode
-  uint16_t battery_StateOfHealth = 99;           //State of health %
-  uint16_t battery_Total_Voltage2 = 740;         //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
-  int16_t battery_Current2 = 0;                  //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
-  int16_t battery_HistData_Temperature_MAX = 6;  //-40 to 86*C
-  int16_t battery_HistData_Temperature_MIN = 5;  //-40 to 86*C
-  int16_t battery_AverageTemperature = 6;        //Only available on ZE0, in celcius, -40 to +55
-  uint8_t battery_Relay_Cut_Request = 0;         //battery_FAIL
-  uint8_t battery_Failsafe_Status = 0;           //battery_STATUS
+  uint16_t battery_Max_GIDS = 273;                //Startup in 24kWh mode
+  uint16_t battery_StateOfHealth = 99;            //State of health %
+  uint16_t battery_Total_Voltage2 = 740;          //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
+  int16_t battery_Current2 = 0;                   //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
+  int16_t battery_HistData_Temperature_MAX = 86;  //-40 to 86*C
+  int16_t battery_HistData_Temperature_MIN = 86;  //-40 to 86*C
+  int16_t battery_AverageTemperature = 6;         //Only available on ZE0, in celcius, -40 to +55
+  uint8_t battery_Relay_Cut_Request = 0;          //battery_FAIL
+  uint8_t battery_Failsafe_Status = 0;            //battery_STATUS
   bool battery_Interlock =
       true;  //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
   bool battery_Full_CHARGE_flag = false;  //battery_FCHGEND , Goes to 1 if battery is fully charged

@@ -49,10 +49,13 @@ void NissanLeafBattery::
     datalayer_battery->status.temperature_max_dC = (battery_AverageTemperature * 10);  //Increase range from C to C+1
   } else if (LEAF_battery_Type == AZE0_BATTERY) {
     //Use the value sent constantly via CAN in 5C0 (only available on AZE0)
-    datalayer_battery->status.temperature_min_dC =
-        (battery_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
-    datalayer_battery->status.temperature_max_dC =
-        (battery_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
+    //Only update when both values have been read from the muxed message
+    if ((battery_HistData_Temperature_MIN != 86) && (battery_HistData_Temperature_MAX != 86)) {
+      datalayer_battery->status.temperature_min_dC =
+          (battery_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
+      datalayer_battery->status.temperature_max_dC =
+          (battery_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
+    }
   } else {  // ZE1 (TODO: Once the muxed value in 5C0 becomes known, switch to using that instead of this complicated polled value)
     if (battery_temp_raw_min != 0)  //We have a polled value available
     {
