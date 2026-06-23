@@ -40,11 +40,14 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
 
   // Battery wake up pins
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_8; }
-  virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_9; }
+  virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_9; }  //Collides with SMA contactor input
 
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_5; }
   virtual gpio_num_t INVERTER_DISCONNECT_CONTACTOR_PIN() { return GPIO_NUM_3; }
+
+  // SMA CAN contactor pins (collides with WUP2)
+  virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() { return GPIO_NUM_9; }
 
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() {
