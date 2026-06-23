@@ -1517,6 +1517,25 @@ String processor(const String& var) {
         }  //no PWM_CONTACTOR_CONTROL
         content += "</h4>";
       }
+      if (contactor_control_enabled_triple_battery && battery3) {
+        content += "<h4>Third battery contactor, state: ";
+        if (pwm_contactor_control) {
+          if (datalayer.system.status.contactors_battery3_engaged) {
+            content += "<span style='color: green;'>Economized</span>";
+          } else {
+            content += "<span style='color: red;'>OFF</span>";
+          }
+        } else if (
+            esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN() !=
+            GPIO_NUM_NC) {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
+          if (digitalRead(esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN()) == HIGH) {
+            content += "<span style='color: green;'>ON</span>";
+          } else {
+            content += "<span style='color: red;'>OFF</span>";
+          }
+        }  //no PWM_CONTACTOR_CONTROL
+        content += "</h4>";
+      }
     }
 
     // Close the block
