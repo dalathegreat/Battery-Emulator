@@ -719,8 +719,11 @@ void ControllerCan::update_node_aggregation() {
   // Aggregate online nodes into datalayer.battery
   uint32_t total_capacity_Wh = 0;
   uint32_t total_remaining_Wh = 0;
-  uint32_t total_max_charge_W = 0;
-  uint32_t total_max_discharge_W = 0;
+  // Charge/discharge power is limited by the WEAKEST node: take the lowest per-node limit across
+  // the connected nodes and scale it by the node count (parallel packs). Summing would let a strong
+  // node mask a weak one and overstate what the pack can safely sustain. UINT32_MAX = "no node yet".
+  uint32_t lowest_max_charge_W = 0xFFFFFFFFu;
+  uint32_t lowest_max_discharge_W = 0xFFFFFFFFu;
   int32_t total_current_dA = 0;
   uint16_t lowest_soc = 10001;  // Above max to detect "no data"
   uint16_t highest_soc = 0;
@@ -770,13 +773,13 @@ void ControllerCan::update_node_aggregation() {
     total_remaining_Wh += node.remaining_Wh;
     if (node.max_charge_W == 0) {
       charge_blocked = true;
-    } else {
-      total_max_charge_W += node.max_charge_W;
+    } else if (node.max_charge_W < lowest_max_charge_W) {
+      lowest_max_charge_W = node.max_charge_W;
     }
     if (node.max_discharge_W == 0) {
       discharge_blocked = true;
-    } else {
-      total_max_discharge_W += node.max_discharge_W;
+    } else if (node.max_discharge_W < lowest_max_discharge_W) {
+      lowest_max_discharge_W = node.max_discharge_W;
     }
     total_current_dA += node.current_dA;
 
@@ -869,6 +872,10 @@ void ControllerCan::update_node_aggregation() {
     }
   }
 
+  // Lowest per-node limit × number of connected nodes. If no node reported a non-zero limit
+  // (lowest_* still UINT32_MAX), fall back to 0 — charge_blocked/discharge_blocked also force 0.
+  uint32_t total_max_charge_W = (lowest_max_charge_W == 0xFFFFFFFFu) ? 0u : lowest_max_charge_W * active_count;
+  uint32_t total_max_discharge_W = (lowest_max_discharge_W == 0xFFFFFFFFu) ? 0u : lowest_max_discharge_W * active_count;
   datalayer.battery.status.max_charge_power_W =
       (charge_blocked || datalayer.system.info.equipment_stop_active) ? 0u : total_max_charge_W;
   datalayer.battery.status.max_discharge_power_W =
