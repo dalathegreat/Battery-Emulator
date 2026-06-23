@@ -101,6 +101,7 @@ void init_stored_settings() {
   user_selected_inverter_pylon_type = settings.getUInt("PYLONBRAND", 0);
   user_selected_inverter_contactor_mode = (inverter_contactor_mode_enum)settings.getUInt("INVICNT", 0);
   user_selected_inverter_deye_workaround = settings.getBool("DEYEBYD", false);
+  user_selected_inverter_long_CAN_timeout = settings.getBool("SLOWCANINV", false);
   user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
   user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
   user_selected_daly_power_per_dV = settings.getUInt("DALYPWRDV", 50);

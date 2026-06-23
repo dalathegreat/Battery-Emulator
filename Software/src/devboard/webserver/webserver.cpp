@@ -423,7 +423,7 @@ void init_webserver() {
       "CANLOGSD",      "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC",    "HADISC",        "MQTTTOPICS",   "MQTTCELLV",
       "GTWRHD",        "DIGITALHVIL",   "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET",  "PYLONORDER",
       "DEYEBYD",       "NCCONTACTOR",   "TRIBTR",      "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",   "CTINVERT",
-      "LOWPASSFILTER", "WEBAUTH",
+      "LOWPASSFILTER", "WEBAUTH",       "SLOWCANINV",
   };
 
   const char* uintSettingNames[] = {
