@@ -16,6 +16,8 @@ extern battery_pause_status emulator_pause_status;
 extern bool allowed_to_send_CAN;
 //battery pause status end
 
+extern bool battery_detected;
+
 extern void store_settings_equipment_stop();
 
 void update_machineryprotection();
