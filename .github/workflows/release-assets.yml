@@ -87,15 +87,15 @@ jobs:
         esptool --chip esp32s3 merge-bin -o .pio/build/waveshare_330/factory.bin --flash-mode dio --flash-freq 80m --flash-size 16MB 0x0000 .pio/build/waveshare_330/bootloader.bin 0x8000 .pio/build/waveshare_330/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/waveshare_330/firmware.bin
         mv .pio/build/waveshare_330/factory.bin output/BE_${{ steps.vars.outputs.tag }}_WaveshareESP32S3RS485CAN.factory.bin
 
-    - name: 🛠 Build ota image for BEcom
+    - name: 🛠 Build ota image for BECom
       run: |
-        pio run -e BEcom_330
-        cp .pio/build/BEcom_330/firmware.bin output/BE_${{ steps.vars.outputs.tag }}_BEcom_ES32S3.ota.bin
+        pio run -e BECom_330
+        cp .pio/build/BECom_330/firmware.bin output/BE_${{ steps.vars.outputs.tag }}_BECom_ES32S3.ota.bin
 
-    - name: 🛠 Build factory image for BEcom
+    - name: 🛠 Build factory image for BECom
       run: |
-        esptool --chip esp32s3 merge-bin -o .pio/build/BEcom_330/factory.bin --flash-mode dio --flash-freq 80m --flash-size 16MB 0x0000 .pio/build/BEcom_330/bootloader.bin 0x8000 .pio/build/BEcom_330/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/BEcom_330/firmware.bin
-        mv .pio/build/BEcom_330/factory.bin output/BE_${{ steps.vars.outputs.tag }}_BEcom_ES32S3.factory.bin
+        esptool --chip esp32s3 merge-bin -o .pio/build/BECom_330/factory.bin --flash-mode dio --flash-freq 80m --flash-size 16MB 0x0000 .pio/build/BECom_330/bootloader.bin 0x8000 .pio/build/BECom_330/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/BECom_330/firmware.bin
+        mv .pio/build/BECom_330/factory.bin output/BE_${{ steps.vars.outputs.tag }}_BECom_ES32S3.factory.bin
 
     - name: 🌐 Deploy to Web Installer repo
       env:
