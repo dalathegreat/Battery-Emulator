@@ -22,10 +22,27 @@ Each file is a **JSON array of objects**. Every object describes one DTC:
 
 ```json
 [
-  { "code": 41848, "dtc": "P0C9500", "s_dsc": "Diag_S_Temp_01CM11_ORH", "l_dsc": "Hybrid/EV Battery Temperature Sensor \"K\" Circuit High" },
-  { "code": 41849, "dtc": "P0C9400", "s_dsc": "Diag_S_Temp_01CM11_ORL", "l_dsc": "Hybrid/EV Battery Temperature Sensor \"K\" Circuit Low" }
+  { "code": 41848, "dtc": "P0C9500", "s_dsc": "Diag_S_Temp_01CM11_ORH", "l_dsc": "Temp Sensor \"K\" Circuit High" },
+  { "code": 41849, "dtc": "P0C9400", "l_dsc": "Temp Sensor \"K\" Circuit Low" },
+  { "code": 132864, "l_dsc": "SME: Transport mode active" },
+  { "dtc": "P0A1F00", "s_dsc": "Diag_S_BMS_Internal", "l_dsc": "Hybrid/EV Battery Control Module" },
+  { "code": null, "dtc": "U111300", "l_dsc": "Lost Communication With Hybrid Battery Module" }
 ]
 ```
+
+Every entry above is valid; each shows a different allowed combination:
+
+| Entry | `code` | `dtc` | `s_dsc` | Matched by | Notes |
+|-------|--------|-------|---------|------------|-------|
+| 1 | ✅ | ✅ | ✅ | `code` and `dtc` | Fully specified — works whether the cell carries the decimal or the string. |
+| 2 | ✅ | ✅ | — *(missing)* | `code` and `dtc` | No `s_dsc`; only the `l_dsc` line is shown. |
+| 3 | ✅ | — *(missing)* | — *(missing)* | `code` | Decimal-only entry (e.g. BMW-style file). |
+| 4 | — *(missing)* | ✅ | ✅ | `dtc` | String-only entry — no decimal code available. |
+| 5 | `null` | ✅ | — *(missing)* | `dtc` | Explicit `null` code is treated the same as omitting it; matched by string. |
+
+`code` and `dtc` are each independently optional **as long as at least one is present**; `s_dsc` is
+always optional. Omitting a key and setting it to `null` behave identically for `code`. (Do **not**
+use an empty string `""` for `code` — see the rules below.)
 
 ### Fields
 
