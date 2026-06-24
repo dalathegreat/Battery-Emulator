@@ -110,7 +110,6 @@ class BmwI3Battery : public CanBattery {
   enum BalancingState { NONE, REQUESTED, STARTING, EXECUTING };
   BalancingState UserRequestBalancing = NONE;
   unsigned long UserRequestBalancingMillis = 0;
-  bool currently_in_charge_mode = false;  // Tracks last mode sent in 0x12F (Drive vs Charge/Calibration)
 
   const int MAX_CELL_VOLTAGE_60AH = 4110;   // Battery is put into emergency stop if one cell goes over this value
   const int MIN_CELL_VOLTAGE_60AH = 2700;   // Battery is put into emergency stop if one cell goes below this value
