@@ -51,6 +51,7 @@ void setup_shunt();
 #include "RENAULT-TWIZY.h"
 #include "RENAULT-ZOE-GEN1-BATTERY.h"
 #include "RENAULT-ZOE-GEN2-BATTERY.h"
+#include "SMART-EQ-453-BATTERY.h"
 #include "RIVIAN-BATTERY.h"
 #include "RJXZS-BMS.h"
 #include "SAMSUNG-SDI-LV-BATTERY.h"
