@@ -1,5 +1,29 @@
 #include "INVERTERS.h"
 
+#include "AFORE-CAN.h"
+#include "BYD-CAN.h"
+#include "BYD-MODBUS.h"
+#include "FERROAMP-CAN.h"
+#include "FOXESS-CAN.h"
+#include "GROWATT-HV-CAN.h"
+#include "GROWATT-LV-CAN.h"
+#include "GROWATT-WIT-CAN.h"
+#include "KOSTAL-RS485.h"
+#include "PYLON-CAN.h"
+#include "PYLON-LV-CAN.h"
+#include "PYLON-LV-RS485.h"
+#include "SCHNEIDER-CAN.h"
+#include "SMA-BYD-H-CAN.h"
+#include "SMA-BYD-HVS-CAN.h"
+#include "SMA-LV-CAN.h"
+#include "SMA-SBS-BYD-CAN.h"
+#include "SOFAR-CAN.h"
+#include "SOL-ARK-LV-CAN.h"
+#include "SOLAX-CAN.h"
+#include "SOLXPOW-CAN.h"
+#include "SUNGROW-CAN.h"
+#include "VCU-CAN.h"
+
 InverterProtocol* inverter = nullptr;
 
 InverterProtocolType user_selected_inverter_protocol = InverterProtocolType::BydModbus;
