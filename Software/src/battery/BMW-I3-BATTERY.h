@@ -122,12 +122,14 @@ class BmwI3Battery : public CanBattery {
 
   gpio_num_t wakeup_pin;
 
-  unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
-  unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
-  unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
-  unsigned long previousMillis500 = 0;    // will store last time a 500ms CAN Message was send
-  unsigned long previousMillis640 = 0;    // will store last time a 600ms CAN Message was send
-  unsigned long previousMillis1000 = 0;   // will store last time a 1000ms CAN Message was send
+  unsigned long previousMillis20 = 0;         // will store last time a 20ms CAN Message was send
+  unsigned long previousMillis100 = 0;        // will store last time a 100ms CAN Message was send
+  unsigned long previousMillis200 = 0;        // will store last time a 200ms CAN Message was send
+  unsigned long previousMillis500 = 0;        // will store last time a 500ms CAN Message was send
+  unsigned long previousMillis640 = 0;        // will store last time a 600ms CAN Message was send
+  unsigned long previousMillis1000 = 0;       // will store last time a 1000ms CAN Message was send
+  unsigned long previousMillis1000Part2 = 0;  // will store last time a 1000ms CAN Message was send
+
   unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
   unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 
@@ -138,7 +140,16 @@ class BmwI3Battery : public CanBattery {
   enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
   BatterySize detectedBattery = BATTERY_60AH;
 
-  enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST, CLEAR_DTC, OFF };
+  enum CmdState {
+    SOH,
+    CELL_VOLTAGE_MINMAX,
+    CELL_VOLTAGE_MINMAX2,
+    SOC,
+    CELL_VOLTAGE_CELLNO,
+    CELL_VOLTAGE_CELLNO_LAST,
+    CLEAR_DTC,
+    OFF
+  };
 
   CmdState cmdState = SOC;
 
