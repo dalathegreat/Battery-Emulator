@@ -234,6 +234,8 @@ void set_battery_voltage_attributes(JsonDocument& doc, int i, int cellNumber, co
   doc["state_class"] = "measurement";
   doc["state_topic"] = state_topic;
   doc["unit_of_measurement"] = "V";
+  doc["suggested_display_precision"] = 3;
+  doc["icon"] = "mdi:current-dc";
   doc["value_template"] = "{{ value_json.cell_voltages[" + String(i) + "] }}";
 }
 
@@ -345,6 +347,14 @@ static bool publish_common_info(void) {
       if (strncmp(config.default_entity_id, "balancing_active_cells", strlen("balancing_active_cells")) == 0) {
         doc["state_class"] = "measurement";
         doc["icon"] = "mdi:fuel-cell";
+      }
+      // Cell min/max voltages are reported in volts; show 3 decimals in HA so they don't
+      // round all to the same integer on display. Intentionally not applied to battery_voltage. (strncmp also
+      // covers the "_2" double-battery variants.)
+      if (strncmp(config.default_entity_id, "cell_max_voltage", strlen("cell_max_voltage")) == 0 ||
+          strncmp(config.default_entity_id, "cell_min_voltage", strlen("cell_min_voltage")) == 0) {
+        doc["suggested_display_precision"] = 3;
+        doc["icon"] = "mdi:current-dc";
       }
       set_common_discovery_attributes(doc);
       serializeJson(doc, mqtt_msg);
