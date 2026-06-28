@@ -344,6 +344,7 @@ static bool publish_common_info(void) {
       // records long-term statistics for it. (strncmp also covers the "_2" double-battery variant.)
       if (strncmp(config.default_entity_id, "balancing_active_cells", strlen("balancing_active_cells")) == 0) {
         doc["state_class"] = "measurement";
+        doc["icon"] = "mdi:fuel-cell";
       }
       set_common_discovery_attributes(doc);
       serializeJson(doc, mqtt_msg);
