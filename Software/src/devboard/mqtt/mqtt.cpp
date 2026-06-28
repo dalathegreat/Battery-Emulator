@@ -341,6 +341,13 @@ static bool publish_common_info(void) {
         doc["device_class"] = config.device_class;
         doc["state_class"] = "measurement";
       }
+      // "balancing_active_cells" is a numeric count with no device_class, so it misses the
+      // state_class assignment above. Mark it as a measurement explicitly so Home Assistant
+      // records long-term statistics for it. (strncmp also covers the "_2" double-battery variant.)
+      if (strncmp(config.default_entity_id, "balancing_active_cells", strlen("balancing_active_cells")) == 0) {
+        doc["state_class"] = "measurement";
+        doc["icon"] = "mdi:fuel-cell";
+      }
       // Cell min/max voltages are reported in volts; show 3 decimals in HA so they don't
       // round all to the same integer on display. Intentionally not applied to battery_voltage. (strncmp also
       // covers the "_2" double-battery variants.)
