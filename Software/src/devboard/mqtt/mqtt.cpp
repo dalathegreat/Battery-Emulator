@@ -316,6 +316,43 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
 
 static std::vector<EventData> order_events;
 
+// Returns the MDI icon for an info/global discovery sensor, or nullptr to leave HA's
+// device-class default. Per-entity matches win over device-class matches. strncmp
+// prefixes also cover the "_2" double-battery entity variants.
+static const char* sensor_discovery_icon(const char* entity_id, const char* device_class) {
+  if (entity_id != nullptr) {
+    if (strncmp(entity_id, "balancing_active_cells", strlen("balancing_active_cells")) == 0 ||
+        strncmp(entity_id, "balancing_status", strlen("balancing_status")) == 0) {
+      return "mdi:fuel-cell";
+    }
+    if (strncmp(entity_id, "bms_status", strlen("bms_status")) == 0) {
+      return "mdi:information-box-outline";
+    }
+    if (strncmp(entity_id, "emulator_status", strlen("emulator_status")) == 0 ||
+        strncmp(entity_id, "event_level", strlen("event_level")) == 0) {
+      return "mdi:information-outline";
+    }
+    if (strncmp(entity_id, "pause_status", strlen("pause_status")) == 0) {
+      return "mdi:battery-outline";
+    }
+  }
+  if (device_class != nullptr) {
+    if (strcmp(device_class, "voltage") == 0) return "mdi:current-dc";
+    if (strcmp(device_class, "current") == 0) return "mdi:equal";
+  }
+  return nullptr;
+}
+
+// Returns the MDI icon for a command button, or nullptr.
+static const char* button_discovery_icon(const char* command) {
+  if (strcmp(command, "RESTART") == 0)  return "mdi:restart";
+  if (strcmp(command, "BMSRESET") == 0) return "mdi:star-four-points-box-outline";
+  if (strcmp(command, "PAUSE") == 0)    return "mdi:battery-minus-outline";
+  if (strcmp(command, "RESUME") == 0)   return "mdi:battery-sync-outline";
+  if (strcmp(command, "STOP") == 0)     return "mdi:battery-remove-outline";
+  return nullptr;
+}
+
 static bool publish_common_info(void) {
   static JsonDocument doc;
   static String state_topic = topic_name + "/info";
@@ -346,15 +383,21 @@ static bool publish_common_info(void) {
       // records long-term statistics for it. (strncmp also covers the "_2" double-battery variant.)
       if (strncmp(config.default_entity_id, "balancing_active_cells", strlen("balancing_active_cells")) == 0) {
         doc["state_class"] = "measurement";
-        doc["icon"] = "mdi:fuel-cell";
       }
-      // Cell min/max voltages are reported in volts; show 3 decimals in HA so they don't
-      // round all to the same integer on display. Intentionally not applied to battery_voltage. (strncmp also
-      // covers the "_2" double-battery variants.)
+      // Cell min/max voltages: show 3 decimals in HA so they don't round to the same integer
+      // on display. Precision is intentionally not applied to battery_voltage. (Icons are
+      // handled centrally below.)
       if (strncmp(config.default_entity_id, "cell_max_voltage", strlen("cell_max_voltage")) == 0 ||
           strncmp(config.default_entity_id, "cell_min_voltage", strlen("cell_min_voltage")) == 0) {
         doc["suggested_display_precision"] = 3;
-        doc["icon"] = "mdi:current-dc";
+      }
+      // Entity icons (centralized): status sensors by entity id, all voltage/current sensors
+      // by device_class. This also covers the balancing and cell min/max entities above.
+      {
+        const char* icon = sensor_discovery_icon(config.default_entity_id, config.device_class);
+        if (icon != nullptr) {
+          doc["icon"] = icon;
+        }
       }
       set_common_discovery_attributes(doc);
       serializeJson(doc, mqtt_msg);
@@ -546,6 +589,7 @@ bool publish_events() {
         "}}";
     doc["json_attributes_topic"] = state_topic;
     doc["json_attributes_template"] = "{{ value_json | tojson }}";
+    doc["icon"] = "mdi:information-outline";
     set_common_discovery_attributes(doc);
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(generateEventsAutoConfigTopic("event").c_str(), mqtt_msg, true)) {
@@ -608,6 +652,12 @@ static bool publish_buttons_discovery(void) {
         doc["name"] = config.name;
         doc["unique_id"] = default_entity_id_prefix + config.default_entity_id;
         doc["command_topic"] = generateButtonTopic(config.default_entity_id);
+        {
+          const char* icon = button_discovery_icon(config.default_entity_id);
+          if (icon != nullptr) {
+            doc["icon"] = icon;
+          }
+        }
         set_common_discovery_attributes(doc);
         serializeJson(doc, mqtt_msg);
         if (mqtt_publish(generateButtonAutoConfigTopic(config.default_entity_id).c_str(), mqtt_msg, true)) {
