@@ -34,6 +34,7 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
   virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_4; }
   virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_5; }
   virtual gpio_num_t BMS_POWER() { return GPIO_NUM_6; }
+  virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_8; }
 
   // Equipment stop pin
   virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_7; }
