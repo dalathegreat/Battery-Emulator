@@ -337,19 +337,26 @@ static const char* sensor_discovery_icon(const char* entity_id, const char* devi
     }
   }
   if (device_class != nullptr) {
-    if (strcmp(device_class, "voltage") == 0) return "mdi:current-dc";
-    if (strcmp(device_class, "current") == 0) return "mdi:equal";
+    if (strcmp(device_class, "voltage") == 0)
+      return "mdi:current-dc";
+    if (strcmp(device_class, "current") == 0)
+      return "mdi:equal";
   }
   return nullptr;
 }
 
 // Returns the MDI icon for a command button, or nullptr.
 static const char* button_discovery_icon(const char* command) {
-  if (strcmp(command, "RESTART") == 0)  return "mdi:restart";
-  if (strcmp(command, "BMSRESET") == 0) return "mdi:star-four-points-box-outline";
-  if (strcmp(command, "PAUSE") == 0)    return "mdi:battery-minus-outline";
-  if (strcmp(command, "RESUME") == 0)   return "mdi:battery-sync-outline";
-  if (strcmp(command, "STOP") == 0)     return "mdi:battery-remove-outline";
+  if (strcmp(command, "RESTART") == 0)
+    return "mdi:restart";
+  if (strcmp(command, "BMSRESET") == 0)
+    return "mdi:star-four-points-box-outline";
+  if (strcmp(command, "PAUSE") == 0)
+    return "mdi:battery-minus-outline";
+  if (strcmp(command, "RESUME") == 0)
+    return "mdi:battery-sync-outline";
+  if (strcmp(command, "STOP") == 0)
+    return "mdi:battery-remove-outline";
   return nullptr;
 }
 
