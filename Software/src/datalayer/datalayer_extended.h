@@ -196,6 +196,16 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool autocal_crit_drift = false;
   bool autocal_crit_cooldown_ready = false;
   bool autocal_crit_contactors = false;
+
+  // DTC readout (UDS 0x19 0x02). Codes packed as raw 3 bytes in a uint32, rendered to string in HTML.
+  uint32_t dtc_codes[32] = {0};
+  uint8_t dtc_status[32] = {0};
+  uint8_t dtc_count = 0;
+  unsigned long dtc_last_read_millis = 0;
+  bool dtc_read_in_progress = false;
+  bool dtc_read_failed = false;
+  bool UserRequestDTCreadout = false;  // User requesting DTC readout via WebUI
+  bool UserRequestDTCreset = false;    // User requesting DTC erase via WebUI
 };
 
 struct DATALAYER_INFO_CELLPOWER {

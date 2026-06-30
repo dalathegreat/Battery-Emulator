@@ -28,7 +28,7 @@ std::vector<BatteryCommand> battery_commands = {
     {"resetContactor", "Perform contactor reset", "reset contactors?",
      [](Battery* b) { return b && b->supports_contactor_reset(); }, [](Battery* b) { b->reset_contactor(); }},
     {"resetDTC", "Erase DTC", "erase DTCs?", [](Battery* b) { return b && b->supports_reset_DTC(); },
-     [](Battery* b) { b->reset_DTC(); }},
+     [](Battery* b) { b->reset_DTC(); }, true},
     {"startBalancing", "Balancing",
      "continue? Please charge battery fully for this to work. After a couple of minutes, battery will sleep and do "
      "balancing. It often takes many hours. There will be no progress indication.",
@@ -44,7 +44,7 @@ std::vector<BatteryCommand> battery_commands = {
     {"isolationTest", "Isolation Test", "start an isolation test?",
      [](Battery* b) { return b && b->supports_isolation_test(); }, [](Battery* b) { b->request_isolation_test(); }},
     {"readDTC", "Read DTC", nullptr, [](Battery* b) { return b && b->supports_read_DTC(); },
-     [](Battery* b) { b->read_DTC(); }},
+     [](Battery* b) { b->read_DTC(); }, true},
     {"resetBECM", "Restart BECM module", "restart BECM??", [](Battery* b) { return b && b->supports_reset_BECM(); },
      [](Battery* b) { b->reset_BECM(); }},
     {"contactorClose", "Close Contactors", "a contactor close request?",
@@ -100,6 +100,9 @@ String advanced_battery_processor(const String& var) {
           content += "function " + String(cmd.identifier) + "(batteryNum) {";
           content += "  var xhr = new XMLHttpRequest();";
           content += "  xhr.open('PUT', '/" + String(cmd.identifier) + "', true);";
+          if (cmd.reload_after) {
+            content += "  xhr.onload = function(){ setTimeout(function(){ location.reload(); }, 1500); };";
+          }
           // Send index of the battery as PUT content
           content += "  xhr.send(batteryNum);";
           content += "}";
