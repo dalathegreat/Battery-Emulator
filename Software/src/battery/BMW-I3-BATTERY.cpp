@@ -362,28 +362,28 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
   // Run balancing shutdown sequence (0x12F byte3 transition)
   if (balancing_mode_active && !can_communication_stopped) {
-    unsigned long elapsed = currentMillis - balancing_start_time;
+    unsigned long elapsed_time = currentMillis - balancing_start_time;
 
     // Update 0x12F byte3 based on elapsed time
     BMW_12F.data.u8[3] = BMW_12F_BYTE3_ACTIVE;  // Start value (DD)
     for (int i = BALANCING_12F_STEPS - 1; i >= 0; i--) {
-      if (elapsed >= balancing_12F_times[i]) {
+      if (elapsed_time >= balancing_12F_times[i]) {
         BMW_12F.data.u8[3] = balancing_12F_values[i];
         break;
       }
     }
 
     // Transition states based on elapsed time
-    if (UserRequestBalancing == REQUESTED && elapsed >= 20000) {
+    if (UserRequestBalancing == REQUESTED && elapsed_time >= 20000) {
       UserRequestBalancing = STARTING;
     }
-    if (UserRequestBalancing == STARTING && elapsed >= 30000) {
+    if (UserRequestBalancing == STARTING && elapsed_time >= INTERVAL_30_S) {
       UserRequestBalancing = EXECUTING;
       set_event(EVENT_BALANCING_START, 0);
     }
 
     // Stop all CAN communication after ~96s (battery sleeps), ~42s after contactors open
-    if (elapsed >= BALANCING_CAN_STOP_DELAY_MS) {
+    if (elapsed_time >= BALANCING_CAN_STOP_DELAY_MS) {
       can_communication_stopped = true;
       battery_awake = false;  // Battery is sleeping, must re-detect on wakeup via 0x112
     }
