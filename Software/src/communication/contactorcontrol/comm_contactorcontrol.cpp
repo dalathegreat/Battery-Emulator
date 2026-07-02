@@ -2,6 +2,7 @@
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
+#include "driver/gpio.h"   // gpio_hold_en / gpio_hold_dis / gpio_deep_sleep_hold_en
 
 // TODO: Ensure valid values at run-time
 // User can update all these values via Settings page
@@ -382,6 +383,27 @@ void start_bms_reset() {
 
         datalayer.system.status.bms_reset_status = BMS_RESET_WAITING_FOR_PAUSE;
       }
+    }
+  }
+}
+
+void hold_pins_across_reset() {
+  const auto pins = esp32hal->reset_hold_pins();
+  if (pins.empty()) {
+    return;
+  }
+  for (auto pin : pins) {
+    if (pin != GPIO_NUM_NC) {
+      gpio_hold_en(pin);  // freeze the pad at its current output level
+    }
+  }
+  gpio_deep_sleep_hold_en();  // keep the hold engaged through the reset
+}
+
+void release_pins_across_reset() {
+  for (auto pin : esp32hal->reset_hold_pins()) {
+    if (pin != GPIO_NUM_NC) {
+      gpio_hold_dis(pin);
     }
   }
 }
