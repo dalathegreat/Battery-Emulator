@@ -2,7 +2,7 @@
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
-#include "driver/gpio.h"   // gpio_hold_en / gpio_hold_dis / gpio_deep_sleep_hold_en
+#include "driver/gpio.h"  // gpio_hold_en / gpio_hold_dis / gpio_deep_sleep_hold_en
 
 // TODO: Ensure valid values at run-time
 // User can update all these values via Settings page
