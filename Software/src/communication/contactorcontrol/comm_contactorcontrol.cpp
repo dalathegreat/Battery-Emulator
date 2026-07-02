@@ -2,7 +2,9 @@
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
+#ifndef UNIT_TEST
 #include "driver/gpio.h"  // gpio_hold_en / gpio_hold_dis / gpio_deep_sleep_hold_en
+#endif
 
 // TODO: Ensure valid values at run-time
 // User can update all these values via Settings page
@@ -392,18 +394,22 @@ void hold_pins_across_reset() {
   if (pins.empty()) {
     return;
   }
+#ifndef UNIT_TEST
   for (auto pin : pins) {
     if (pin != GPIO_NUM_NC) {
       gpio_hold_en(pin);  // freeze the pad at its current output level
     }
   }
   gpio_deep_sleep_hold_en();  // keep the hold engaged through the reset
+#endif
 }
 
 void release_pins_across_reset() {
+#ifndef UNIT_TEST
   for (auto pin : esp32hal->reset_hold_pins()) {
     if (pin != GPIO_NUM_NC) {
       gpio_hold_dis(pin);
     }
   }
+#endif
 }
