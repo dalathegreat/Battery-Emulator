@@ -124,8 +124,6 @@ bool init_contactors() {
     set(triple_contactors, OFF);
   }
 
-
-  
   // Init BMS contactor
   if (bms_power_is_active()) {
     auto pin = esp32hal->BMS_POWER();
