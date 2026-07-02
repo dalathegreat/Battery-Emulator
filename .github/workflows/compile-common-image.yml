@@ -57,12 +57,17 @@ jobs:
     - name: Build image for ${{ matrix.board_name }}
       run: pio run -e ${{ matrix.pio_env }}
 
-    #rename firmware.bin to be like firmware-63dd8b.bin for easier location after saved
-    - name: Rename firmware.bin with short SHA
+    #rename firmware.bin to contain pr number and commit short sha for easier location after saved on disk
+    - name: Rename firmware.bin with PR number and commit short SHA
       run: |
-        SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha || github.sha }}" | cut -c1-6)
-        cp .pio/build/${{ matrix.pio_env }}/firmware.bin \
-           .pio/build/${{ matrix.pio_env }}/firmware-${SHORT_SHA}.bin
+          SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha || github.sha }}" | cut -c1-6)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_PART="pr${{ github.event.pull_request.number }}-"
+          else
+            PR_PART=""
+          fi
+          cp .pio/build/${{ matrix.pio_env }}/firmware.bin \
+             .pio/build/${{ matrix.pio_env }}/firmware-${PR_PART}${SHORT_SHA}.bin
 
     - name: Upload artifact for ${{ matrix.board_name }}
       uses: actions/upload-artifact@v7
