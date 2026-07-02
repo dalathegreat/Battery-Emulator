@@ -592,8 +592,10 @@ void setup() {
 
   init_contactors();
 
-  // Release any pins that were latched across the reboot now that init_contactors()
-  // has re-driven them. No-op on boards that don't declare reset-hold pins.
+  // Release any pins latched across the reboot. MUST run after init_contactors(), which
+  // re-drives held pins (e.g. BMS_POWER HIGH) to their intended level while still latched;
+  // releasing then hands that level to the pad with no glitch. Runs unconditionally so a
+  // stale hold from a previous session is always cleared. No-op on boards without hold pins.
   release_pins_across_reset();
 
   init_precharge_control();
