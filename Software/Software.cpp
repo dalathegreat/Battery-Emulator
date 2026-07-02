@@ -592,6 +592,10 @@ void setup() {
 
   init_contactors();
 
+  // Release any pins that were latched across the reboot now that init_contactors()
+  // has re-driven them. No-op on boards that don't declare reset-hold pins.
+  release_pins_across_reset();
+    
   init_precharge_control();
 
   init_rs485();
