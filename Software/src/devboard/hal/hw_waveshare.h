@@ -36,7 +36,7 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
   virtual gpio_num_t BMS_POWER() { return GPIO_NUM_6; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_8; }
 
-  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER is GPIO6 
+  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER is GPIO6
   virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_6}; }
 
   // Equipment stop pin
