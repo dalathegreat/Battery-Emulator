@@ -70,4 +70,8 @@ void handle_contactors_battery2();
  */
 void handle_contactors_battery3();
 
+// Latch/unlatch the board's reset-hold pins (see Esp32Hal::reset_hold_pins()).
+void hold_pins_across_reset();
+void release_pins_across_reset();
+
 #endif
