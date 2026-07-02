@@ -5,7 +5,6 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
-#include "../devboard/utils/logging.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
@@ -259,19 +258,6 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_status_service_disconnection_plug = (rx_frame.data.u8[0] & 0x0F);
       battery_status_measurement_isolation = (rx_frame.data.u8[0] & 0x0C) >> 2;
       battery_request_abort_charging = (rx_frame.data.u8[0] & 0x30) >> 4;
-      // Log the moment the battery reports charge-finished (RQ_ABRT_CHGNG becomes 1 = "Request to
-      // interrupt charging"). This is the signal that ends auto-/manual calibration and drives SOC to
-      // 100%. Only value 1 is a real request - 2 (cooling) and 3 (invalid) are ignored to avoid
-      // spurious stops on transient/invalid frames.
-      if (battery_request_abort_charging == 1 && previous_request_abort_charging != 1) {
-        logging.print("BMW i3: Battery reports charge-finished (abort charging = ");
-        logging.print(battery_request_abort_charging);
-        logging.print("). Reported SOC = ");
-        logging.print(battery_display_SOC *
-                      0.5);  // display SOC * 0.5 = display/reported SOC in percent (display SOC * 50 = 0.01% units)
-        logging.println(" %");
-      }
-      previous_request_abort_charging = battery_request_abort_charging;
       battery_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
       battery_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
       battery_energy_content_maximum_Wh = (((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[5]) * 20;

@@ -449,7 +449,6 @@ class BmwI3Battery : public CanBattery {
   uint8_t battery_status_service_disconnection_plug = 0;
   uint8_t battery_status_measurement_isolation = 0;
   uint8_t battery_request_abort_charging = 0;
-  uint8_t previous_request_abort_charging = 0;  //Edge detection for logging when battery reports charge-finished
   uint8_t battery_prediction_time_end_of_charging_minutes = 0;
   uint8_t battery_request_operating_mode = 0;
   uint8_t battery_request_charging_condition_minimum = 0;
