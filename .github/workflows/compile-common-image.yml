@@ -57,8 +57,15 @@ jobs:
     - name: Build image for ${{ matrix.board_name }}
       run: pio run -e ${{ matrix.pio_env }}
 
+    #rename firmware.bin to be like firmware-63dd8b.bin for easier location after saved
+    - name: Rename firmware.bin with short SHA
+      run: |
+        SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha || github.sha }}" | cut -c1-6)
+        cp .pio/build/${{ matrix.pio_env }}/firmware.bin \
+           .pio/build/${{ matrix.pio_env }}/firmware-${SHORT_SHA}.bin
+
     - name: Upload artifact for ${{ matrix.board_name }}
       uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.artifact_name }}.bin
-        path: .pio/build/${{ matrix.pio_env }}/firmware.bin
+        path: .pio/build/${{ matrix.pio_env }}/firmware-*.bin
