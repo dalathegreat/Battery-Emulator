@@ -833,6 +833,7 @@ void init_webserver() {
     // Max Charge/Discharge = 0; CAN = stop; contactors = open
     setBatteryPause(true, true, true, false);
     delay(1000);
+    hold_pins_across_reset();
     ESP.restart();
   });
 
@@ -1722,6 +1723,7 @@ void onOTAEnd(bool success) {
     setBatteryPause(true, true, true, false);
     // a reboot will be done by the OTA library. no need to do anything here
     logging.println("OTA update finished successfully!");
+    hold_pins_across_reset();
   } else {
     logging.println("There was an error during OTA update!");
     //try to Resume the battery pause and CAN communication
