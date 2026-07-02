@@ -253,13 +253,6 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
                             void (* inInterruptServiceRoutine) (void),
                             const ACAN2517FDFilters & inFilters) {
   uint32_t errorCode = 0 ; // Means no error
-//----------------------------------- If ok, check if settings are correct
-  if (!inSettings.mArbitrationBitRateClosedToDesiredRate) {
-    errorCode |= kTooFarFromDesiredBitRate ;
-  }
-  if (inSettings.CANBitSettingConsistency () != 0) {
-    errorCode |= kInconsistentBitRateSettings ;
-  }
 //----------------------------------- Check mINT has interrupt capability
   const int8_t itPin = digitalPinToInterrupt (mINT) ;
   if ((mINT != 255) && (itPin == NOT_AN_INTERRUPT)) {
@@ -314,10 +307,6 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
   if (inFilters.filterStatus () != ACAN2517FDFilters::kFiltersOk) {
     errorCode |= kFilterDefinitionError ;
   }
-//----------------------------------- Check TDCO value
-  if ((inSettings.mTDCO > 63) || (inSettings.mTDCO < -64)) {
-    errorCode |= kInvalidTDCO ;
-  }
 //----------------------------------- INT, CS pins, reset MCP2517FD
   if (errorCode == 0) {
     if (mINT != 255) { // 255 means interrupt is not used (thanks to Tyler Lewis)
@@ -363,6 +352,18 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     : inSettings.oscillator() ;
   // Create a new settings object with the new frequency (which recalculates the timings)
   const auto clockSettings = ACAN2517FDSettings(oscillator, inSettings.mDesiredArbitrationBitRate, inSettings.mDataBitRateFactor);
+
+  // Check new clock settings for consistency
+  if (!clockSettings.mArbitrationBitRateClosedToDesiredRate) {
+    errorCode |= kTooFarFromDesiredBitRate ;
+  }
+  if (clockSettings.CANBitSettingConsistency () != 0) {
+    errorCode |= kInconsistentBitRateSettings ;
+  }
+  //----------------------------------- Check TDCO value
+  if ((clockSettings.mTDCO > 63) || (clockSettings.mTDCO < -64)) {
+    errorCode |= kInvalidTDCO ;
+  }
 
 //----------------------------------- Now, set internal clock with OSC register
 //     Bit 0: (rw) 1 --> 10xPLL
@@ -455,9 +456,9 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     writeRegister8 (CON_REGISTER, data8) ; // DS20005688B, page 24
   //----------------------------------- Configure DTC (DS20005688B, page 29)
     uint32_t data32 = 1UL << 25 ; // Enable Edge Filtering during Bus Integration state bit (added in 1.1.4)
-    if (inSettings.mTDCO != 0) {
+    if (clockSettings.mTDCO != 0) {
       data32 |= 1UL << 17 ; // Auto TDC
-      const uint32_t TCDO = uint32_t (inSettings.mTDCO) & 0x7F ;
+      const uint32_t TCDO = uint32_t (clockSettings.mTDCO) & 0x7F ;
       data32 |= TCDO << 8 ;
     }
     writeRegister32 (TDC_REGISTER, data32) ;
