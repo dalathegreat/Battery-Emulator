@@ -67,8 +67,12 @@ void RenaultZoeGen2Battery::update_values() {
     datalayer_battery->status.temperature_max_dC = ((battery_max_temp - 640) * 0.625f);
   }
 
-  datalayer_battery->status.cell_min_voltage_mV = battery_minimum_cell_voltage_mV;
-  datalayer_battery->status.cell_max_voltage_mV = battery_maximum_cell_voltage_mV;
+  if (battery_minimum_cell_voltage_mV < 4400) {  // Value is initialized large for some reason
+    datalayer_battery->status.cell_min_voltage_mV = battery_minimum_cell_voltage_mV;
+  }
+  if (battery_maximum_cell_voltage_mV < 4400) {  // Value is initialized large for some reason
+    datalayer_battery->status.cell_max_voltage_mV = battery_maximum_cell_voltage_mV;
+  }
 
   if (battery_12v < 11000) {  //11.000V
     set_event(EVENT_12V_LOW, battery_12v);
@@ -143,10 +147,15 @@ void RenaultZoeGen2Battery::update_values() {
 void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x0F8:
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_interlock = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];  //Expected FF FE
-      battery_pack_voltage_periodic_dV = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) / 8;
-      //battery_pack_current_periodic_dA = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8; //4-5-6 current related
+      //Filter out the first 50 messages to avoid false positives on startup. The battery sends a few messages with wrong data on startup.
+      startup_counter++;
+      if (startup_counter >= 50) {
+        startup_counter = 50;
+        datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+        battery_interlock = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];  //Expected FF FE
+        battery_pack_voltage_periodic_dV = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) / 8;
+        //battery_pack_current_periodic_dA = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8; //4-5-6 current related
+      }
       break;
     case 0x381:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
