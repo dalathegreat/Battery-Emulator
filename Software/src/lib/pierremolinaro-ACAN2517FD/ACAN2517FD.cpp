@@ -8,6 +8,7 @@
 #include "ACAN2517FD.h"
 #include "../../system_settings.h" //Contains task priority
 
+#include "../../devboard/hal/hal.h"
 #include "../../devboard/utils/logging.h"
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -51,8 +52,14 @@ static const uint8_t TXBWS = 0 ;
   static void myESP32Task (void * pData) {
     ACAN2517FD * canDriver = (ACAN2517FD *) pData ;
     while (1) {
-      xSemaphoreTake (canDriver->mISRSemaphore, portMAX_DELAY) ;
-      canDriver->isr_poll_core () ;
+      auto ret = xSemaphoreTake (canDriver->mISRSemaphore, 500 / portTICK_PERIOD_MS) ;
+      bool didSomething = canDriver->isr_poll_core () ;
+      if(ret == pdFALSE && didSomething) {
+        // The semaphore timed out (so no ISR happened), but when polled we
+        // actually found something. Maybe we missed an interrupt?
+
+        canDriver->missedInterruptCount++ ;
+      }
     }
   }
 #endif
@@ -853,6 +860,17 @@ bool ACAN2517FD::available (void) {
 //----------------------------------------------------------------------------------------------------------------------
 
 bool ACAN2517FD::receive (CANFDMessage & outMessage) {
+  auto v = missedInterruptCount.exchange(0);
+  if (v > 0) {
+    int fd = mCS == esp32hal->MCP2517_CS2() ? 2 : 1;
+    logging.printf("FD[%d]: Missed %d interrupts?\n", fd, v);
+  }
+  v = canErrorCount.exchange(0);
+  if (v > 0) {
+    int fd = mCS == esp32hal->MCP2517_CS2() ? 2 : 1;
+    logging.printf("FD[%d]: %d CAN errors\n", fd, v);
+  }
+
   mSPI.beginTransaction (mSPISettings) ;
       turnOffInterrupts () ;
       const bool hasReceivedMessage = mDriverReceiveBuffer.remove (outMessage) ;
@@ -940,7 +958,8 @@ bool ACAN2517FD::dispatchReceivedMessage (const tFilterMatchCallBack inFilterMat
 //   INTERRUPT SERVICE ROUTINES (common)
 //----------------------------------------------------------------------------------------------------------------------
 
-void ACAN2517FD::isr_poll_core (void) {
+bool ACAN2517FD::isr_poll_core (void) {
+  bool didSomething = false ;
   mSPI.beginTransaction (mSPISettings) ;
     #ifdef ARDUINO_ARCH_ESP32
       taskDISABLE_INTERRUPTS () ;
@@ -974,6 +993,11 @@ void ACAN2517FD::isr_poll_core (void) {
           writeRegister8Assume_SPI_transaction (INT_REGISTER + 1, ~ (1 << 4)) ;
           handled = true ;
         }
+        if ((it & (1 << 13)) != 0) { // CERRIF interrupt
+          writeRegister8Assume_SPI_transaction (INT_REGISTER + 1, ~ (1 << 5)) ;
+          canErrorCount++;
+          handled = true ;
+        }
         if ((it & (1 << 11)) != 0) { // RXOVIF interrupt
           handled = true ;
           if (mHardwareReceiveBufferOverflowCount < 255) {
@@ -981,11 +1005,13 @@ void ACAN2517FD::isr_poll_core (void) {
           }
           writeRegister8Assume_SPI_transaction (FIFOSTA_REGISTER (RECEIVE_FIFO_INDEX), ~ (1 << 3)) ;
         }
+        didSomething |= handled ;
       }
     #ifdef ARDUINO_ARCH_ESP32
       taskENABLE_INTERRUPTS () ;
     #endif
   mSPI.endTransaction () ;
+  return didSomething ;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
