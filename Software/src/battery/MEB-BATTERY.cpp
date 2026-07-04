@@ -964,7 +964,8 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
     //HV request and DC/DC control lies in 0x503
 
-    if ((!datalayer.system.info.equipment_stop_active) && datalayer.battery.status.real_bms_status != BMS_FAULT &&
+    if ((!datalayer.system.info.equipment_stop_active) && datalayer.system.status.inverter_allows_contactor_closing &&
+        datalayer.battery.status.real_bms_status != BMS_FAULT &&
         (datalayer.battery.status.real_bms_status == BMS_ACTIVE ||
          (datalayer.battery.status.real_bms_status == BMS_STANDBY &&
           (hv_requested ||
@@ -972,6 +973,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
             labs(((int32_t)datalayer.battery.status.voltage_dV) -
                  ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
       // We are either:
+      //  - Equipment stop is not active, and the inverter allows contactor closing, and the BMS is not in FAULT state, and either:
       //  - in BMS_ACTIVE state (contactors closed, normal operation)
       //  - or in BMS_STANDBY state, ready to request HV from the battery (our precharge is within 20V)
       //  - or in BMS_STANDBY state, having already requested HV (hv_requested = true)
@@ -1003,7 +1005,8 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
       HVK_01_frame.data.u8[5] = 0x82;  // Bordnetz Active
       HVK_01_frame.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
     } else if ((first_can_msg_timestamp > 0 && currentMillis > first_can_msg_timestamp + 1000 && BMS_mode != 7) ||
-               datalayer.system.info.equipment_stop_active) {  //FAULT STATE, open contactors
+               datalayer.system.info.equipment_stop_active ||
+               !datalayer.system.status.inverter_allows_contactor_closing) {  //FAULT STATE, open contactors
 
       if (datalayer.system.status.system_status != FAULT && datalayer.battery.status.real_bms_status == BMS_STANDBY &&
           !datalayer.system.info.equipment_stop_active) {
