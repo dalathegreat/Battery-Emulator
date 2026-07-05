@@ -370,7 +370,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "PASSWORD") {
-    return settings.getString("PASSWORD");
+    return String("");  // never expose the stored password in the served HTML
   }
 
   if (var == "WEBAUTH") {
@@ -382,7 +382,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "HTTPPASS") {
-    return settings.getString("HTTPPASS");
+    return String("");
   }
 
   if (var == "SAVEDCLASS") {
@@ -522,7 +522,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "APPASSWORD") {
-    return settings.getString("APPASSWORD", "123456789");
+    return String("");
   }
 
   if (var == "APNAME") {
@@ -642,7 +642,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "MQTTPASSWORD") {
-    return settings.getString("MQTTPASSWORD");
+    return String("");
   }
 
   if (var == "MQTTTOPICS") {
@@ -1460,7 +1460,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" 
         pattern="[ -~]{8,63}" 
-        title="Password must be 8-63 characters long, printable ASCII only" />
+        title="Password must be 8-63 characters long, printable ASCII only" placeholder='Leave blank to keep unchanged' />
         </div>
         </div>
 
@@ -1480,12 +1480,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Web interface password: </label>
         <input type='password' name='HTTPPASS' value="%HTTPPASS%"
         pattern="[ -~]{0,63}"
-        title="Set a password before enabling password protection. Printable ASCII only" />
+        title="Set a password before enabling password protection. Printable ASCII only" placeholder='Leave blank to keep unchanged' />
 
         <label>Repeat web interface password: </label>
         <input type='password' name='HTTPPASSCONFIRM' value="%HTTPPASS%"
         pattern="[ -~]{0,63}"
-        title="Repeat the web interface password" />
+        title="Repeat the web interface password" placeholder='Leave blank to keep unchanged' />
 
         <label>Show web interface password: </label>
         <input type='checkbox' onchange='toggleWebPasswordVisibility(this.checked)' />
@@ -1881,6 +1881,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
         pattern="[ -~]{8,63}" 
         title="Password must be 8-63 characters long, printable ASCII only"
+        placeholder='Leave blank to keep unchanged'
         required />
 
         <label>Wifi channel 0-14: </label>
@@ -1943,7 +1944,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="MQTT username can only contain printable ASCII" />
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" 
         pattern="[ -~]+"
-        title="MQTT password can only contain printable ASCII" />
+        title="MQTT password can only contain printable ASCII" placeholder='Leave blank to keep unchanged' />
         <label>MQTT timeout ms: </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
         min="1" max="60000" step="1"
