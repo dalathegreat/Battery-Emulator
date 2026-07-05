@@ -524,7 +524,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "APOFFONCONN") {
     return settings.getBool("APOFFONCONN", true) ? "checked" : "";  // default: checked
   }
-  
+
   if (var == "APPASSWORD") {
     return String("");
   }
