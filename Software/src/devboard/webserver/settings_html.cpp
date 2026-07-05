@@ -1426,12 +1426,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       return false;
     }
 
-    if (webAuth.checked && (!user.value || !pass.value)) {
-      alert('Set a username and password before enabling web interface password protection.');
-      (!user.value ? user : pass).focus();
-      return false;
-    }
-
     return true;
   }
 
