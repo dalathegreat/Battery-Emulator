@@ -67,6 +67,7 @@ class Mg4Battery : public UdsCanBattery {
   static const uint16_t POLL_BATTERY_SOC = 0xB046;
   static const uint16_t POLL_MIN_CELL_TEMPERATURE = 0xB057;
   static const uint16_t POLL_MAX_CELL_TEMPERATURE = 0xB056;
+  static const uint16_t POLL_BATTERY_SOH = 0xB061;
 
   CAN_frame MG4_4F3 = {.FD = false,
                        .ext_ID = false,

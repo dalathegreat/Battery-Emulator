@@ -504,24 +504,27 @@ uint32_t Mg4Battery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* dat
   // Currently unused
 
   switch (pid) {
-    case POLL_BATTERY_VOLTAGE:
-      //datalayer.battery.status.voltage_dV = (value * 5) / 2;
-      return POLL_BATTERY_CURRENT;
-    case POLL_BATTERY_CURRENT:
-      //datalayer.battery.status.current_dA = (value - 40000) / -4;
-      return POLL_BATTERY_SOC;
-    case POLL_BATTERY_SOC:
-      // Only use SoC from PIDs if we don't get it from 401 messages.
-      if (!reportsSoC) {
-        //update_soc(value * 10);
-      }
-      return POLL_MIN_CELL_TEMPERATURE;
-    case POLL_MIN_CELL_TEMPERATURE:
-      datalayer.battery.status.temperature_min_dC = ((int32_t)value - 20000) / 50;
-      return POLL_MAX_CELL_TEMPERATURE;
-    case POLL_MAX_CELL_TEMPERATURE:
-      datalayer.battery.status.temperature_max_dC = ((int32_t)value - 20000) / 50;
-      break;  // End of cycle
+    case POLL_BATTERY_SOH:
+      datalayer.battery.status.soh_pptt = value;
+      break;
+      // case POLL_BATTERY_VOLTAGE:
+      //   //datalayer.battery.status.voltage_dV = (value * 5) / 2;
+      //   return POLL_BATTERY_CURRENT;
+      // case POLL_BATTERY_CURRENT:
+      //   //datalayer.battery.status.current_dA = (value - 40000) / -4;
+      //   return POLL_BATTERY_SOC;
+      // case POLL_BATTERY_SOC:
+      //   // Only use SoC from PIDs if we don't get it from 401 messages.
+      //   if (!reportsSoC) {
+      //     //update_soc(value * 10);
+      //   }
+      //   return POLL_MIN_CELL_TEMPERATURE;
+      // case POLL_MIN_CELL_TEMPERATURE:
+      //   datalayer.battery.status.temperature_min_dC = ((int32_t)value - 20000) / 50;
+      //   return POLL_MAX_CELL_TEMPERATURE;
+      // case POLL_MAX_CELL_TEMPERATURE:
+      //   datalayer.battery.status.temperature_max_dC = ((int32_t)value - 20000) / 50;
+      //   break;  // End of cycle
   }
   return 0;  // Continue normal PID cycling
 }
@@ -529,7 +532,7 @@ uint32_t Mg4Battery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* dat
 void Mg4Battery::setup(void) {  // Performs one time setup at startup
   renderer = new Mg4BatteryHtmlRenderer(this);
 
-  setup_uds(0x7E5, 0);  //POLL_BATTERY_VOLTAGE);
+  setup_uds(0x7E5, POLL_BATTERY_SOH);
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
