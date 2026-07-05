@@ -1,0 +1,892 @@
+[
+  {
+    "dtc": "U120088",
+    "s_dsc": "ACANBusOffFlt",
+    "l_dsc": "Bus off"
+  },
+  {
+    "dtc": "U025582",
+    "s_dsc": "ACANComFlt",
+    "l_dsc": "Alive / Sequence Incorrect / Not Updated"
+  },
+  {
+    "dtc": "P11D829",
+    "s_dsc": "AllCurrSensorInvalid",
+    "l_dsc": "Signal Invalid"
+  },
+  {
+    "dtc": "P120516",
+    "s_dsc": "BMSSupplyVolHighFlt",
+    "l_dsc": "Circuit Voltage Above Threshold"
+  },
+  {
+    "dtc": "P12051C",
+    "s_dsc": "BMSSupplyVolLowFlt",
+    "l_dsc": "Circuit Voltage Below Threshold"
+  },
+  {
+    "dtc": "P120D94",
+    "s_dsc": "BMSUnExpectPowerDownFlt",
+    "l_dsc": "Unexpected Power Down"
+  },
+  {
+    "dtc": "P124400",
+    "s_dsc": "BMUCmce2E",
+    "l_dsc": "No Sub Type Information"
+  },
+  {
+    "dtc": "P121674",
+    "s_dsc": "BalCircuitFlt",
+    "l_dsc": "Actuator Slipping"
+  },
+  {
+    "dtc": "P12044B",
+    "s_dsc": "BalCircuitTemHighFlt",
+    "l_dsc": "Over Temperature"
+  },
+  {
+    "dtc": "P120496",
+    "s_dsc": "BalCircuitTemInvalidFlt",
+    "l_dsc": "Component Internal Failure"
+  },
+  {
+    "dtc": "P118964",
+    "s_dsc": "BatteryToG0OpenOrSTGFlt",
+    "l_dsc": "Signal Plausibility Failure"
+  },
+  {
+    "dtc": "P118965",
+    "s_dsc": "BatteryToGoOutOfRangeFlt",
+    "l_dsc": "Signal Has Too Few Transitions / Events"
+  },
+  {
+    "dtc": "P160291",
+    "s_dsc": "CSUResetFlt",
+    "l_dsc": "Parametric"
+  },
+  {
+    "dtc": "P118722",
+    "s_dsc": "CellTempDiffHighLevel1",
+    "l_dsc": "Signal Amplitude > Maximum"
+  },
+  {
+    "dtc": "P160148",
+    "s_dsc": "CellTempHighLevel1",
+    "l_dsc": "Supervision Software Failure"
+  },
+  {
+    "dtc": "P160149",
+    "s_dsc": "CellTempHighLevel2",
+    "l_dsc": "Internal Electronic Failure"
+  },
+  {
+    "dtc": "P119321",
+    "s_dsc": "CellTempLowLevel1",
+    "l_dsc": "Signal Amplitude < Minimum"
+  },
+  {
+    "dtc": "P118522",
+    "s_dsc": "CellUnbalanceFlt",
+    "l_dsc": "Signal Amplitude > Maximum"
+  },
+  {
+    "dtc": "P118822",
+    "s_dsc": "CellVolHighLevel1",
+    "l_dsc": "Signal Amplitude > Maximum"
+  },
+  {
+    "dtc": "P121C01",
+    "s_dsc": "CellVolHighLevel2",
+    "l_dsc": "General Electrical Failure"
+  },
+  {
+    "dtc": "P160123",
+    "s_dsc": "CellVolHighLevel4",
+    "l_dsc": "Signal Stuck Low"
+  },
+  {
+    "dtc": "P160114",
+    "s_dsc": "CellVolLowLowLevel1",
+    "l_dsc": "Circuit Short to Ground or Open"
+  },
+  {
+    "dtc": "P160115",
+    "s_dsc": "CellVolLowLowLevel2",
+    "l_dsc": "Circuit Short To Battery or Open"
+  },
+  {
+    "dtc": "P118E21",
+    "s_dsc": "CellVolLowLevel3",
+    "l_dsc": "Signal Amplitude < Minimum"
+  },
+  {
+    "dtc": "P126004",
+    "s_dsc": "CellVolOverRange",
+    "l_dsc": "System Internal Failure"
+  },
+  {
+    "dtc": "P121229",
+    "s_dsc": "CellVolSampleWireOpenFlt",
+    "l_dsc": "Signal Invalid"
+  },
+  {
+    "dtc": "P160131",
+    "s_dsc": "ChrgCurHighLevel1",
+    "l_dsc": "No Signal"
+  },
+  {
+    "dtc": "P160132",
+    "s_dsc": "ChrgCurHighLevel2",
+    "l_dsc": "Signal Low Time < Minimum"
+  },
+  {
+    "dtc": "P160133",
+    "s_dsc": "ChrgCurHighLevel3",
+    "l_dsc": "Signal Low Time > Maximum"
+  },
+  {
+    "dtc": "P160310",
+    "s_dsc": "CurMeasureMessageCRCFlt",
+    "l_dsc": "ISO/SAE Reserved"
+  },
+  {
+    "dtc": "P160307",
+    "s_dsc": "CurMeasureMessageLostFlt",
+    "l_dsc": "Mechanical Failure"
+  },
+  {
+    "dtc": "P160312",
+    "s_dsc": "CurMesRCFlt",
+    "l_dsc": "Circuit Short To Battery"
+  },
+  {
+    "dtc": "P160128",
+    "s_dsc": "DisChrgCurHighLevel1",
+    "l_dsc": "Signal Bias Level Out of Range / Zero Adjustment Failure"
+  },
+  {
+    "dtc": "P160129",
+    "s_dsc": "DisChrgCurHighLevel2",
+    "l_dsc": "Signal Invalid"
+  },
+  {
+    "dtc": "P118111",
+    "s_dsc": "DisChrgCurHighLevel3",
+    "l_dsc": "Circuit Short To Ground"
+  },
+  {
+    "dtc": "P126031",
+    "s_dsc": "ExtWDEr",
+    "l_dsc": "No Signal"
+  },
+  {
+    "dtc": "P160245",
+    "s_dsc": "GOasDatumPointRefVoltOutOfRangeFlt",
+    "l_dsc": "Program Memory Failure"
+  },
+  {
+    "dtc": "P160243",
+    "s_dsc": "GOasDatumPointSPIFlt",
+    "l_dsc": "Special Memory Failure"
+  },
+  {
+    "dtc": "P126010",
+    "s_dsc": "GIasDatumPointRefVoltOutOfRangeFlt",
+    "l_dsc": "ISO/SAE Reserved"
+  },
+  {
+    "dtc": "P126009",
+    "s_dsc": "GIasDatumPointSPIFlt",
+    "l_dsc": "Component Failure"
+  },
+  {
+    "dtc": "P0A0A94",
+    "s_dsc": "HVILOpenFlt",
+    "l_dsc": "Unexpected Operation"
+  },
+  {
+    "dtc": "P123D12",
+    "s_dsc": "HVILShortToGNDFlt",
+    "l_dsc": "Circuit Short To Battery"
+  },
+  {
+    "dtc": "P123D11",
+    "s_dsc": "HVILShortToVCCFlt",
+    "l_dsc": "Circuit Short To Ground"
+  },
+  {
+    "dtc": "P123D13",
+    "s_dsc": "HVILOpenFlt",
+    "l_dsc": "Circuit Open"
+  },
+  {
+    "dtc": "P123D15",
+    "s_dsc": "HVILShortToGNDFlt",
+    "l_dsc": "Circuit Short To Battery or Open"
+  },
+  {
+    "dtc": "P123D14",
+    "s_dsc": "HVIL2ShortToVCCFlt",
+    "l_dsc": "Circuit Short To Ground or Open"
+  },
+  {
+    "dtc": "P12231A",
+    "s_dsc": "HVPoAndHVNeglsoFlt",
+    "l_dsc": "Circuit Resistance Below Threshold"
+  },
+  {
+    "dtc": "P160102",
+    "s_dsc": "HVRelayCloseFlt1",
+    "l_dsc": "General Signal Failure"
+  },
+  {
+    "dtc": "P0AA61A",
+    "s_dsc": "HVRelayCloseFlt2",
+    "l_dsc": "Circuit Resistance Below Threshold"
+  },
+  {
+    "dtc": "P160103",
+    "s_dsc": "HVRelayOpenFlt1",
+    "l_dsc": "FM (Frequency Modulated) / PWM (Pulse Width Modulated) Failure"
+  },
+  {
+    "dtc": "P120A1A",
+    "s_dsc": "HVRelayOpenFlt2",
+    "l_dsc": "Circuit Resistance Below Threshold"
+  },
+  {
+    "dtc": "P160098",
+    "s_dsc": "InletWaterTempSensorFlt",
+    "l_dsc": "Component or System Over Temperature"
+  },
+  {
+    "dtc": "P126030",
+    "s_dsc": "IntWDError",
+    "l_dsc": "ISO/SAE Reserved"
+  },
+  {
+    "dtc": "P11D729",
+    "s_dsc": "IsoDetectCircuFlt",
+    "l_dsc": "Signal Invalid"
+  },
+  {
+    "dtc": "P126002",
+    "s_dsc": "KL30VolOutOfRangetoHighFlt",
+    "l_dsc": "General Signal Failure"
+  },
+  {
+    "dtc": "P126001",
+    "s_dsc": "KI30VolOutOfRangetoLowFlt",
+    "l_dsc": "General Electrical Failure"
+  },
+  {
+    "dtc": "P126033",
+    "s_dsc": "PCALFlt",
+    "l_dsc": "Signal Low Time > Maximum"
+  },
+  {
+    "dtc": "P126025",
+    "s_dsc": "McAUDCFlt",
+    "l_dsc": "Signal Shape / Waveform Failure"
+  },
+  {
+    "dtc": "P0AA572",
+    "s_dsc": "MainRelayOpenFlt",
+    "l_dsc": "Actuator Stuck Open"
+  },
+  {
+    "dtc": "P0AA473",
+    "s_dsc": "MainNegRelayWeldFlt",
+    "l_dsc": "Actuator Stuck Closed"
+  },
+  {
+    "dtc": "P160212",
+    "s_dsc": "MainNegativeContactorCoilCircuitOpenFlt",
+    "l_dsc": "Circuit Short To Battery"
+  },
+  {
+    "dtc": "P160210",
+    "s_dsc": "MainNegativeContactorCoilCircuitShortToGNDFault",
+    "l_dsc": "ISO/SAE Reserved"
+  },
+  {
+    "dtc": "P160211",
+    "s_dsc": "MainNegativeContactorCoilCircuitShortToPowerFault",
+    "l_dsc": "Circuit Short To Ground"
+  },
+  {
+    "dtc": "P160168",
+    "s_dsc": "MainPosOrPreChrgRelayWeldFlt",
+    "l_dsc": "Event Information"
+  },
+  {
+    "dtc": "P0AA272",
+    "s_dsc": "MainPosRelayOpenFlt",
+    "l_dsc": "Actuator Stuck Open"
+  },
+  {
+    "dtc": "P160254",
+    "s_dsc": "MainPosToG0OpenStGFlt",
+    "l_dsc": "Missing Calibration"
+  },
+  {
+    "dtc": "P160255",
+    "s_dsc": "MainPosToG0OutOfRangeFlt",
+    "l_dsc": "Not Configured"
+  },
+  {
+    "dtc": "P160208",
+    "s_dsc": "MainPositiveContactorCoilCircuitOpenFault",
+    "l_dsc": "Bus Signal / Message Failure"
+  },
+  {
+    "dtc": "P160206",
+    "s_dsc": "MainPositiveContactorCoilCircuitShortToGNDFault",
+    "l_dsc": "Algorithm Based Failure"
+  },
+  {
+    "dtc": "P160207",
+    "s_dsc": "MainPositiveContactorCoilCircuitShortToPowerFault",
+    "l_dsc": "Mechanical Failure"
+  },
+  {
+    "dtc": "P126024",
+    "s_dsc": "McuHwSelfTestFlt",
+    "l_dsc": "Signal Stuck High"
+  },
+  {
+    "dtc": "P126039",
+    "s_dsc": "MemoryInvalidFlt_Level1",
+    "l_dsc": "Signal Has Too Few Pulses"
+  },
+  {
+    "dtc": "P126003",
+    "s_dsc": "ModuleVolDiffHighFlt",
+    "l_dsc": "FM (Frequency Modulated) / PWM (Pulse Width Modulated) Failure"
+  },
+  {
+    "dtc": "P126023",
+    "s_dsc": "NTCImPlusModerateFlt",
+    "l_dsc": "Signal Stuck Low"
+  },
+  {
+    "dtc": "P126029",
+    "s_dsc": "NVRAMError",
+    "l_dsc": "Signal Invalid"
+  },
+  {
+    "dtc": "P0A9513",
+    "s_dsc": "PackHighVolCircuitOpenFlt",
+    "l_dsc": "Circuit Open"
+  },
+  {
+    "dtc": "P160036",
+    "s_dsc": "PackSoCHigh",
+    "l_dsc": "Signal Frequency Too Low"
+  },
+  {
+    "dtc": "P160037",
+    "s_dsc": "PackSoCLow",
+    "l_dsc": "Signal Frequency Too High"
+  },
+  {
+    "dtc": "P122184",
+    "s_dsc": "PackSoCHLowLevel1",
+    "l_dsc": "Signal Below Allowable Range"
+  },
+  {
+    "dtc": "P122284",
+    "s_dsc": "PackSoCHLowLevel2",
+    "l_dsc": "Signal Below Allowable Range"
+  },
+  {
+    "dtc": "P160164",
+    "s_dsc": "PackVolHighLevel1",
+    "l_dsc": "Signal Plausibility Failure"
+  },
+  {
+    "dtc": "P160166",
+    "s_dsc": "PackVolLowLevel1",
+    "l_dsc": "Signal Has Too Many Transitions / Events"
+  },
+  {
+    "dtc": "P160167",
+    "s_dsc": "PackVolLowLevel2",
+    "l_dsc": "Signal Incorrect After Event"
+  },
+  {
+    "dtc": "P122019",
+    "s_dsc": "PreChrgCurHigh",
+    "l_dsc": "Circuit Current Above Threshold"
+  },
+  {
+    "dtc": "P0AE372",
+    "s_dsc": "PreChrgRelayOpenFlt",
+    "l_dsc": "Actuator Stuck Open"
+  },
+  {
+    "dtc": "P122011",
+    "s_dsc": "PreChrgShortCircuit",
+    "l_dsc": "Circuit Short to Ground"
+  },
+  {
+    "dtc": "P122001",
+    "s_dsc": "PreChrgTimeout",
+    "l_dsc": "General Electrical Failure"
+  },
+  {
+    "dtc": "P160216",
+    "s_dsc": "PreChrgContactoilCircuitOpenFault",
+    "l_dsc": "Circuit Voltage Below Threshold"
+  },
+  {
+    "dtc": "P160215",
+    "s_dsc": "PreChrgContactoilCircuitShortTPowerFault",
+    "l_dsc": "Circuit Short to Battery or Open"
+  },
+  {
+    "dtc": "P160214",
+    "s_dsc": "PreChrgContactoilCircuitShortToGNDFault",
+    "l_dsc": "Circuit Short to Ground or Open"
+  },
+  {
+    "dtc": "P122092",
+    "s_dsc": "PreChrge_too_much_in_short_time",
+    "l_dsc": "Performance or Incorrect Operation"
+  },
+  {
+    "dtc": "P126011",
+    "s_dsc": "PrimaryCurMeasureMessageCRCFlt",
+    "l_dsc": "Circuit Short to Ground"
+  },
+  {
+    "dtc": "P120987",
+    "s_dsc": "PrimaryCurMeasureMessageLostFlt",
+    "l_dsc": "Missing Message"
+  },
+  {
+    "dtc": "P118966",
+    "s_dsc": "PrimaryCurSensorFlt",
+    "l_dsc": "Signal Has Too Many Transitions / Events"
+  },
+  {
+    "dtc": "P160524",
+    "s_dsc": "PrimaryCurSensorZeroDriftHighFlt",
+    "l_dsc": "Signal Stuck High"
+  },
+  {
+    "dtc": "P126012",
+    "s_dsc": "PrimaryCurresRCFlt",
+    "l_dsc": "Circuit Short To Battery"
+  },
+  {
+    "dtc": "P126013",
+    "s_dsc": "PrimaryCurOutOfRange",
+    "l_dsc": "Circuit Open"
+  },
+  {
+    "dtc": "P126015",
+    "s_dsc": "PrimaryCurDeviFlt",
+    "l_dsc": "Circuit Short to Battery or Open"
+  },
+  {
+    "dtc": "P126027",
+    "s_dsc": "RAMError",
+    "l_dsc": "Signal Rate of Change Above Threshold"
+  },
+  {
+    "dtc": "P160342",
+    "s_dsc": "RTCChipAbnormalFlt",
+    "l_dsc": "General Memory Failure"
+  },
+  {
+    "dtc": "P160134",
+    "s_dsc": "ReChrCurHighLevel1",
+    "l_dsc": "Signal High Time < Minimum"
+  },
+  {
+    "dtc": "P160135",
+    "s_dsc": "ReChrCurHighLevel2",
+    "l_dsc": "Signal High Time > Maximum"
+  },
+  {
+    "dtc": "P160136",
+    "s_dsc": "ReChrCurHighLevel3",
+    "l_dsc": "Signal Frequency Too Low"
+  },
+  {
+    "dtc": "P126032",
+    "s_dsc": "RegisterError",
+    "l_dsc": "Signal Low Time < Minimum"
+  },
+  {
+    "dtc": "P160013",
+    "s_dsc": "RelaySupplyPowerVolHighFlt",
+    "l_dsc": "Circuit Open"
+  },
+  {
+    "dtc": "P160010",
+    "s_dsc": "RelaySupplyPowerVolLowFlt",
+    "l_dsc": "ISO/SAE Reserved"
+  },
+  {
+    "dtc": "P126037",
+    "s_dsc": "SBCPwrToExtFlt_Level1",
+    "l_dsc": "Signal Frequency Too High"
+  },
+  {
+    "dtc": "P126038",
+    "s_dsc": "SBCPwrToExtFlt_Level2",
+    "l_dsc": "Signal Frequency Incorrect"
+  },
+  {
+    "dtc": "P126035",
+    "s_dsc": "SBCPwrToIntFlt_Level1",
+    "l_dsc": "Signal High Time > Maximum"
+  },
+  {
+    "dtc": "P126036",
+    "s_dsc": "SBCPwrToIntFlt_Level2",
+    "l_dsc": "Signal Frequency Too Low"
+  },
+  {
+    "dtc": "P126034",
+    "s_dsc": "SBCSelfTestFlt",
+    "l_dsc": "Signal High Time < Minimum"
+  },
+  {
+    "dtc": "U120388",
+    "s_dsc": "SCANBusOffFlt",
+    "l_dsc": "Bus off"
+  },
+  {
+    "dtc": "U120308",
+    "s_dsc": "SCANComFlt",
+    "l_dsc": "Bus Signal / Message Failure"
+  },
+  {
+    "dtc": "P26022",
+    "s_dsc": "SampleChipHardwareFlt",
+    "l_dsc": "Signal Amplitude > Maximum"
+  },
+  {
+    "dtc": "P160532",
+    "s_dsc": "SecondaryCurSensorZeroDriftHighFlt",
+    "l_dsc": "Signal Low Time < Minimum"
+  },
+  {
+    "dtc": "P126014",
+    "s_dsc": "SecondaryCurOutOfRange",
+    "l_dsc": "Circuit Short To Ground or Open"
+  },
+  {
+    "dtc": "P126019",
+    "s_dsc": "TempSensorCriticalHighFlt",
+    "l_dsc": "Circuit Current Above Threshold"
+  },
+  {
+    "dtc": "P126020",
+    "s_dsc": "TempSensorCriticalLowFlt",
+    "l_dsc": "ISO/SAE Reserved"
+  },
+  {
+    "dtc": "P21429",
+    "s_dsc": "TempSensorMinorFlt",
+    "l_dsc": "Signal Invalid"
+  },
+  {
+    "dtc": "P126017",
+    "s_dsc": "TempSensorOutofRangeHighFlt",
+    "l_dsc": "Circuit Voltage Above Threshold"
+  },
+  {
+    "dtc": "P126018",
+    "s_dsc": "TempSensorOutofRangeLowFlt",
+    "l_dsc": "Circuit Current Below Threshold"
+  },
+  {
+    "dtc": "P21FA29",
+    "s_dsc": "TempSensorSeriousFlt",
+    "l_dsc": "Signal Invalid"
+  },
+  {
+    "dtc": "P126000",
+    "s_dsc": "TempSensorValueE2Flt",
+    "l_dsc": "No Sub Type Information"
+  },
+  {
+    "dtc": "P160344",
+    "s_dsc": "TempSoftwareExpirationFlt",
+    "l_dsc": "Data Memory Failure"
+  },
+  {
+    "dtc": "P160343",
+    "s_dsc": "TempSoftwareReminderOfDueDate",
+    "l_dsc": "Special Memory Failure"
+  },
+  {
+    "dtc": "P160363",
+    "s_dsc": "ThermalRunawayDetectionCircuitOpnFlt",
+    "l_dsc": "Circuit / Component Protection Time Out"
+  },
+  {
+    "dtc": "P126026",
+    "s_dsc": "UnExpectRestFlt",
+    "l_dsc": "Signal Rate of Change Below Threshold"
+  },
+  {
+    "dtc": "P11D730",
+    "s_dsc": "VCU_EccCoolantdefeat",
+    "l_dsc": "ISO/SAE Reserved"
+  },
+  {
+    "dtc": "P160165",
+    "s_dsc": "PackVolHighLevel2",
+    "l_dsc": "Signal Has Too Few Transitions"
+  },
+  {
+    "dtc": "P126044",
+    "s_dsc": "BMSCalbPSLowPowerParFit",
+    "l_dsc": "Data Memory Failure"
+  },
+  {
+    "dtc": "P160038",
+    "s_dsc": "BMS_SystemError_OmissionOfKL15",
+    "l_dsc": "Signal Frequency Incorrect"
+  },
+  {
+    "dtc": "P126043",
+    "s_dsc": "BPSToBMSHardwareupFault",
+    "l_dsc": "Special Memory Failure"
+  },
+  {
+    "dtc": "P126045",
+    "s_dsc": "BatteryPressureMessageLost",
+    "l_dsc": "Program Memory Failure"
+  },
+  {
+    "dtc": "P126042",
+    "s_dsc": "BatteryPressureSensorFlt",
+    "l_dsc": "General Memory Failure"
+  },
+  {
+    "dtc": "P0A7E22",
+    "s_dsc": "CellTempHighLevel3",
+    "l_dsc": "Signal Amplitude > Maximum"
+  },
+  {
+    "dtc": "P160061",
+    "s_dsc": "CrashFromHardwarePWMFlt",
+    "l_dsc": "Signal Calculation Failure"
+  },
+  {
+    "dtc": "P160062",
+    "s_dsc": "CrashFromHardwarePWMSlightFlt",
+    "l_dsc": "Signal Compare Failure"
+  },
+  {
+    "dtc": "P160065",
+    "s_dsc": "CrashPWMAbnormal",
+    "l_dsc": "Signal Has Too Few Transitions / Events"
+  },
+  {
+    "dtc": "P160066",
+    "s_dsc": "CrashPWMAbnormal",
+    "l_dsc": "Signal Has Too Many Transitions / Events"
+  },
+  {
+    "dtc": "P160064",
+    "s_dsc": "CrashPWMShortToGNDFlt",
+    "l_dsc": "Signal Plausibility Failure"
+  },
+  {
+    "dtc": "P160063",
+    "s_dsc": "CrashPWMShortToVsorOpen",
+    "l_dsc": "Circuit / Component Protection Time-Out"
+  },
+  {
+    "dtc": "P123D16",
+    "s_dsc": "HVIL3OpenFlt",
+    "l_dsc": "Circuit Voltage Below Threshold"
+  },
+  {
+    "dtc": "P123D18",
+    "s_dsc": "HVIL3ShortToGNDFlt",
+    "l_dsc": "Circuit Current Below Threshold"
+  },
+  {
+    "dtc": "P123D17",
+    "s_dsc": "HVIL3ShortToVCCFlt",
+    "l_dsc": "Circuit Voltage Above Threshold"
+  },
+  {
+    "dtc": "P160228",
+    "s_dsc": "MainNegCnctrAgeLevel1Flt",
+    "l_dsc": "Signal Bias Level Out of Range / Zero Adjustment Failure"
+  },
+  {
+    "dtc": "P160229",
+    "s_dsc": "MainNegCnctrAgeLevel2Flt",
+    "l_dsc": "Signal Invalid"
+  },
+  {
+    "dtc": "P160169",
+    "s_dsc": "MainNegRelayWeldFlt",
+    "l_dsc": "ISO/SAE Reserved"
+  },
+  {
+    "dtc": "P160226",
+    "s_dsc": "MainPosCnctrAgeLevel1Flt",
+    "l_dsc": "Signal Rate of Change Below Threshold"
+  },
+  {
+    "dtc": "P160227",
+    "s_dsc": "MainPosCnctrAgeLevel2Flt",
+    "l_dsc": "Signal Rate of Change Above Threshold"
+  },
+  {
+    "dtc": "P160173",
+    "s_dsc": "MainPosOrMainNegRelayWeldFlt",
+    "l_dsc": "Actuator Stuck Closed"
+  },
+  {
+    "dtc": "P160099",
+    "s_dsc": "OutletWaterTemSensorFlt",
+    "l_dsc": "Exceeded Learning Limit"
+  },
+  {
+    "dtc": "P125098",
+    "s_dsc": "OverTempLvl4Flt",
+    "l_dsc": "Component or System Over Temperature"
+  },
+  {
+    "dtc": "P160230",
+    "s_dsc": "PreChrgcCnctrAgeLevel1Flt",
+    "l_dsc": "ISO/SAE Reserved"
+  },
+  {
+    "dtc": "P160231",
+    "s_dsc": "PreChrgcCnctrAgeLevel2Flt",
+    "l_dsc": "No Signal"
+  },
+  {
+    "dtc": "P126028",
+    "s_dsc": "ROMError",
+    "l_dsc": "Signal Bias Level Out of Range / Zero Adjustment Failure"
+  },
+  {
+    "dtc": "P123A24",
+    "s_dsc": "ThermalRunawayFlt",
+    "l_dsc": "Signal Stuck High"
+  },
+  {
+    "dtc": "P120886",
+    "s_dsc": "VCUComCheckFlt",
+    "l_dsc": "Signal Invalid"
+  },
+  {
+    "dtc": "P160290",
+    "s_dsc": "PrimaryCurrSCECCDOUBLEFlt",
+    "l_dsc": "PrimaryCurrSCECCDOUBLEFlt"
+  },
+  {
+    "dtc": "P160522",
+    "s_dsc": "PrimaryCurrSUECCDOUBLEFlt",
+    "l_dsc": "PrimaryCurrSUECCDOUBLEFlt"
+  },
+  {
+    "dtc": "P160509",
+    "s_dsc": "PrimaryCurrStatusMessageLostFlt",
+    "l_dsc": "PrimaryCurrStatusMessageLostFlt"
+  },
+  {
+    "dtc": "P160519",
+    "s_dsc": "PrimaryCurrSTemHighFit",
+    "l_dsc": "PrimaryCurrSTemHighFit"
+  },
+  {
+    "dtc": "P160521",
+    "s_dsc": "PrimaryCurrSTemHighFit2",
+    "l_dsc": "PrimaryCurrSTemHighFit2"
+  },
+  {
+    "dtc": "P160510",
+    "s_dsc": "PrimaryCurrentSensorReportSupplyVoltageFlt",
+    "l_dsc": "PrimaryCurrentSensorReportSupplyVoltageFlt"
+  },
+  {
+    "dtc": "P160531",
+    "s_dsc": "SecondaryCurrentSensorReportSupplyVoltageHighFlt",
+    "l_dsc": "SecondaryCurrentSensorReportSupplyVoltageHighFlt"
+  },
+  {
+    "dtc": "P160530",
+    "s_dsc": "SecondaryCurrentSensorReportSupplyVoltageLowFlt",
+    "l_dsc": "SecondaryCurrentSensorReportSupplyVoltageLowFlt"
+  },
+  {
+    "dtc": "P11D732",
+    "s_dsc": "SbCTCD_PVNegCnctrStuckCloseFlt",
+    "l_dsc": "Signal Low Time < Minimum"
+  },
+  {
+    "dtc": "P11D733",
+    "s_dsc": "SbCTCD_PVPosCnctrStuckCloseFlt",
+    "l_dsc": "Signal Low Time > Maximum"
+  },
+  {
+    "dtc": "P11D731",
+    "s_dsc": "SbCTCD_PVPosCnctrStuckOpenFlt",
+    "l_dsc": "No Signal"
+  },
+  {
+    "dtc": "P160294",
+    "s_dsc": "PVNegCnctrAgeLevel1Flt",
+    "l_dsc": "PVNegCnctrAgeLevel1Flt"
+  },
+  {
+    "dtc": "P160295",
+    "s_dsc": "PVNegCnctrAgeLevel2Flt",
+    "l_dsc": "PVNegCnctrAgeLevel2Flt"
+  },
+  {
+    "dtc": "P160292",
+    "s_dsc": "PVPosCnctrAgeLevel1Flt",
+    "l_dsc": "PVPosCnctrAgeLevel1Flt"
+  },
+  {
+    "dtc": "P160293",
+    "s_dsc": "PVPosCnctrAgeLevel2Flt",
+    "l_dsc": "PVPosCnctrAgeLevel2Flt"
+  },
+  {
+    "dtc": "P125016",
+    "s_dsc": "CellVoltLowLevel4",
+    "l_dsc": "CellVoltLowLevel4"
+  },
+  {
+    "dtc": "P160146",
+    "s_dsc": "OCLevel2_Charge",
+    "l_dsc": "OCLevel2_Charge"
+  },
+  {
+    "dtc": "P160142",
+    "s_dsc": "OCLevel2_Discharge",
+    "l_dsc": "OCLevel2_Discharge"
+  },
+  {
+    "dtc": "U025583",
+    "s_dsc": "VCUComFlt",
+    "l_dsc": "VCUComFlt"
+  },
+  {
+    "dtc": "P160301",
+    "s_dsc": "NTCImPlausMinorFlt",
+    "l_dsc": "NTCImPlausMinorFlt"
+  },
+  {
+    "dtc": "P160303",
+    "s_dsc": "NTCImPlausSeriousFlt",
+    "l_dsc": "NTCImPlausSeriousFlt"
+  }
+]
