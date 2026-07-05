@@ -294,5 +294,5 @@ void init_WiFi_AP() {
   ap_active = true;
   IPAddress IP = WiFi.softAPIP();
 
-  DEBUG_PRINTF("Access Point created.\nIP address: %s\n", IP.toString().c_str());
+  DEBUG_PRINTF("Access Point created. IP address: %s\n", IP.toString().c_str());
 }
