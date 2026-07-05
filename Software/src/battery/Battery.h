@@ -58,6 +58,7 @@ enum class BatteryType {
   ThunderstruckBMS = 51,
   EnnoidBMS = 52,
   StellantisSmallWide4x4 = 53,
+  StellantisProOne = 54,
   Highest
 };
 
