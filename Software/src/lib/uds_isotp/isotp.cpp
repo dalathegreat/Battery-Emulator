@@ -1,6 +1,9 @@
 ﻿#include <string.h>
 #include "isotp.h"
 
+#include "../../devboard/utils/logging.h"
+
+
 /* PCI – Protocol Control Information */
 #define N_PCI_SF 0x00 /* single frame      */
 #define N_PCI_FF 0x10 /* first frame       */
@@ -43,7 +46,7 @@ void IsoTp::send_fc(uint8_t flowstatus) {
   _rxtimer = CONFIG_ISOTP_CR_TIMEOUT;
 }
 
-void IsoTp::rcv_fc(uint8_t* can_data, uint8_t can_dlc) {
+void IsoTp::rcv_fc(const uint8_t* can_data, uint8_t can_dlc) {
   uint8_t off = addr_off();
   if (_tx.state == ISOTP_WAIT_FC || _tx.state == ISOTP_WAIT_FIRST_FC) {
     _txtimer = 0;
@@ -85,7 +88,7 @@ void IsoTp::rcv_fc(uint8_t* can_data, uint8_t can_dlc) {
   }
 }
 
-void IsoTp::rcv_sf(uint8_t* can_data, uint8_t can_dlc) {
+void IsoTp::rcv_sf(const uint8_t* can_data, uint8_t can_dlc) {
   uint8_t off = addr_off();
   uint8_t sf_pci_size = SF_PCI_SZ;
   _rxtimer  = 0;
@@ -105,7 +108,7 @@ void IsoTp::rcv_sf(uint8_t* can_data, uint8_t can_dlc) {
   }
 }
 
-void IsoTp::rcv_ff(uint8_t* can_data, uint8_t can_dlc) {
+void IsoTp::rcv_ff(const uint8_t* can_data, uint8_t can_dlc) {
   uint8_t off = addr_off();
   _rxtimer  = 0;
   _rx.state = ISOTP_IDLE;
@@ -127,7 +130,7 @@ void IsoTp::rcv_ff(uint8_t* can_data, uint8_t can_dlc) {
   }
 }
 
-void IsoTp::rcv_cf(uint8_t* can_data, uint8_t can_dlc) {
+void IsoTp::rcv_cf(const uint8_t* can_data, uint8_t can_dlc) {
   uint8_t off = addr_off();
   if (_rx.state == ISOTP_WAIT_DATA) {
     _rxtimer = 0;
@@ -231,22 +234,29 @@ void IsoTp::isotp_init(uint32_t tx_id, isotp_addrmode addrmode, uint8_t tx_addr,
   _rx_addr    = rx_addr;
 }
 
-void IsoTp::isotp_send(uint8_t* data, int len) {
+bool IsoTp::isotp_send(const uint8_t* data, int len) {
   uint8_t off = addr_off();
   if (_tx.state == ISOTP_IDLE && len <= CONFIG_ISOTP_MAX_MSG_LENGTH) {
     memcpy(_tx.buf, data, len);
     _tx.state = ISOTP_SENDING;
     _tx.len   = len;
     _tx.idx   = 0;
+    // logging.printf("ISOTP SEND: len=%d Data=", len);
+    // for (int i = 0; i < len; i++) {
+    //   logging.printf("%02X ", data[i]);
+    // }
+    // logging.println();
     if (len <= 7 - off) {
       do_send_sf();
     } else {
       do_send_ff();
     }
+    return true;
   }
+  return false;
 }
 
-void IsoTp::isotp_receive(uint8_t* can_data, uint8_t can_dlc, isotp_tatype tatype) {
+void IsoTp::isotp_receive(const uint8_t* can_data, uint8_t can_dlc, isotp_tatype tatype) {
   uint8_t off = addr_off();
   /* in extended mode, silently discard frames not addressed to us */
   if (off && can_data[0] != _rx_addr) return;
@@ -308,6 +318,6 @@ void IsoTp::isotp_poll() {
   }
 }
 
-bool IsoTp::isotp_is_busy() const{
-  return _rx.state != ISOTP_IDLE || _tx.state != ISOTP_IDLE;
+bool IsoTp::isotp_is_busy() const {
+  return _tx.state != ISOTP_IDLE || _rx.state != ISOTP_IDLE;
 }

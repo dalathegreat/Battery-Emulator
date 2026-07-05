@@ -3,351 +3,477 @@
 #include <Arduino.h>
 #include "../devboard/utils/logging.h"
 
+// Timeouts (to wait for a UDS response) in 100ms ticks
+constexpr uint16_t UDS_TIMEOUT_CLEAR_DTC = 25;
+constexpr uint16_t UDS_TIMEOUT_READ_DTC = 20;
+constexpr uint16_t UDS_TIMEOUT_READ_DID = 2;
+constexpr uint16_t UDS_TIMEOUT_CONTINUE = 5;
+constexpr uint16_t UDS_TIMEOUT_SESSION_CONTROL = 10;
+constexpr uint16_t UDS_TIMEOUT_PAUSE = 10;
+constexpr uint16_t UDS_TIMEOUT_RESET = 50;
+constexpr uint16_t UDS_DEFAULT_ACTION_COOLDOWN = 10;
+constexpr uint16_t UDS_PID_SCAN_INTERVAL = 2;
+constexpr uint16_t UDS_PID_MAX_RETRIES = 10;
+
+constexpr uint16_t UDS_POST_BMS_RESET_PAUSE = 5;
+
+// #define UDS_DEBUG 1
+//static constexpr bool UDS_DEBUG = false;
+
 void UdsCanBattery::transmit_uds_can(unsigned long currentMillis) {
-  if (currentMillis - previousUdsMillis200 >= 199) {
-    previousUdsMillis200 = currentMillis;
+  // Called during the CAN transmit phase.
 
-    if (uds_busy_timeout > 0) {
-      // Still busy, do not send new requests
-      uds_busy_timeout--;
-      return;
-    }
+  // Poll the underlying ISO-TP layer (at the native ~1KHz rate).
+  isotp_poll();
 
-    if (user_request_reset) {
-      user_request_reset = false;
+  // Otherwise we do UDS operations every 100ms.
+  if (currentMillis - previousUdsMillis100 < INTERVAL_100_MS) {
+    return;
+  }
+  previousUdsMillis100 = currentMillis;
 
-      resetProgress = SENDING_DIAG;
-    }
+  if (transaction_tick()) {
+    // Transaction still active.
+    return;
+  }
 
-    switch (resetProgress) {
-      case SENDING_DIAG:
-        UDS_DIAG.ID = uds_address;
-        transmit_can_frame(&UDS_DIAG);
-        resetProgress = SENDING_RESET;
-        uds_busy_timeout = 5;
-        return;
-      case SENDING_RESET:
-        UDS_RESET.ID = uds_address;
-        transmit_can_frame(&UDS_RESET);
-        resetProgress = IDLE;
-        uds_busy_timeout = 5;
-        return;
-      // case WAITING_RESET_COMPLETE:
-      //   // Stop UDS sending until reset is complete
-      //   return;
-      default:
-        // do nothing
-        break;
-    }
+  if (isotp_is_busy()) {
+    // ISO-TP transaction in progress, wait for it to finish before sending new requests
+    return;
+  }
 
-    if (user_request_clear_dtc) {
-      UDS_CLEAR_DTCs.ID = uds_address;
-      transmit_can_frame(&UDS_CLEAR_DTCs);
-
-      uds_busy_timeout = 25;  // 2.5s
-      return;
-    }
-
-    if (user_request_read_dtc) {
-      UDS_RQ_DTCs.ID = uds_address;
-      transmit_can_frame(&UDS_RQ_DTCs);
-
-      uds_busy_timeout = 10;  // 1s
-      return;
-    }
-
-    if (next_pid == 0) {
-      // Reset PID cycle
-      next_pid = first_pid;
-    }
-
-    if (next_pid) {
-      // Request the next PID
-      UDS_PID_REQUEST.ID = uds_address;
-      UDS_PID_REQUEST.data.u8[2] = (next_pid >> 8) & 0xFF;
-      UDS_PID_REQUEST.data.u8[3] = next_pid & 0xFF;
-      transmit_can_frame(&UDS_PID_REQUEST);
-
-      uds_busy_timeout = 2;  // 0.2s
-    }
+  if (transmit_uds_action()) {
+    // There's an active action in progress.
+    return;
+  } else if (transmit_uds_pid_scan()) {
+    // We did a PID scan step.
+    return;
   }
 }
 
-void UdsCanBattery::startUDSMultiFrameReception(uint16_t totalLength, uint8_t moduleID) {
-  gUDSContext.UDS_inProgress = true;
-  gUDSContext.UDS_expectedLength = totalLength;
-  gUDSContext.UDS_bytesReceived = 0;
-  gUDSContext.UDS_moduleID = moduleID;
-  gUDSContext.receivedInBatch = 0;
-  memset(gUDSContext.UDS_buffer, 0, sizeof(gUDSContext.UDS_buffer));
-  gUDSContext.UDS_lastFrameMillis = millis();  // if you want to track timeouts
-  uds_busy_timeout = 5;                        // 0.5s
+bool UdsCanBattery::transmit_uds_action() {
+  // Called during the CAN transmit phase, if there is no current UDS
+  // transaction in progress. Will progress the current action (or end it if it
+  // has timed out). Returns true if it did something, false if there is no action to progress.
+
+  if (uds_action_attempts > uds_action_max_retries) {
+    logging.println("UDS action exceeded max retries.");
+    pending_action = UdsAction::NONE;
+    uds_action_attempts = 0;
+  }
+
+  switch (pending_action) {
+    case UdsAction::READ_DTC:
+      uds_send(SID::ReadDTCInformation, (const uint8_t*)"\x02\xFF", 2, UDS_TIMEOUT_READ_DTC);
+      expected_response_sid = UDS_RESPONSE_SID_OF(SID::ReadDTCInformation);
+      uds_action_attempts++;
+      return true;
+    case UdsAction::CLEAR_DTC:
+      uds_send(SID::ClearDiagnosticInformation, (const uint8_t*)"\xFF\xFF\xFF", 3, UDS_TIMEOUT_CLEAR_DTC);
+      expected_response_sid = UDS_RESPONSE_SID_OF(SID::ClearDiagnosticInformation);
+      uds_action_attempts++;
+      return true;
+    case UdsAction::RESET_BMS:
+      uds_send(SID::ECUReset, (const uint8_t*)"\x01", 1, UDS_TIMEOUT_RESET);
+      expected_response_sid = UDS_RESPONSE_SID_OF(SID::ECUReset);
+      uds_action_attempts++;
+      // Reset the PID scanning here, in case the BMS never responds to this request.
+      next_pid = 0;
+      uds_started = false;
+      return true;
+    // case UdsAction::READ_MEMORY: {
+    //   uint32_t size = 4;
+    //   uint32_t address = 0x40000000;
+    //   const uint8_t data[9] = {0x44, (uint8_t)((address >> 24) & 0xFF), (uint8_t)((address >> 16) & 0xFF),
+    //                   (uint8_t)((address >> 8) & 0xFF), (uint8_t)(address & 0xFF), (uint8_t)((size >> 24) & 0xFF),
+    //                   (uint8_t)((size >> 16) & 0xFF), (uint8_t)((size >> 8) & 0xFF), (uint8_t)(size & 0xFF)};
+    //   uds_send(SID::ReadMemoryByAddress,
+    //            data, sizeof(data), UDS_TIMEOUT_READ_DID);
+    //   expected_response_sid = UDS_RESPONSE_SID_OF(SID::ReadMemoryByAddress);
+    //   uds_action_attempts++;
+    //   return true;
+    //}
+    case UdsAction::PAUSE:
+      // Do a dummy transaction.
+      uds_transaction_timeout = UDS_TIMEOUT_PAUSE;
+      uds_action_attempts++;
+      return true;
+    default:
+      break;
+  }
+
+  if (uds_action_cooldown > 0) {
+    // During post-action cooldown
+    uds_action_cooldown--;
+  }
+
+  // Subclasses can override this to send their own custom requests
+  if (uds_action_cooldown <= 0 && transmit_custom_uds()) {
+    return true;
+  }
+
+  // Not within an action right now
+  return false;
 }
 
-bool UdsCanBattery::storeUDSPayload(const uint8_t* payload, uint8_t length) {
-  if (gUDSContext.UDS_bytesReceived + length > sizeof(gUDSContext.UDS_buffer)) {
-    // We have received too many bytes, abort
-    gUDSContext.UDS_inProgress = false;
-#ifdef DEBUG_LOG
-    logging.println("UDS Payload Overflow");
-#endif  // DEBUG_LOG
+bool UdsCanBattery::transaction_tick() {
+  if (uds_transaction_timeout > 0) {
+    uds_transaction_timeout--;
+
+    // Still busy, do not send new requests
+    if (uds_transaction_timeout > 0)
+      return true;
+
+    if (pending_action == UdsAction::NONE && pending_pid != 0) {
+      on_uds_pid_scan_timeout();
+    } else if (pending_action != UdsAction::NONE) {
+      logging.println("UDS transaction timed out.");
+    }
+
+    uds_current_response_address = 0;
+  }
+  return false;
+}
+
+bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx) {
+  if (uds_current_response_address > 0 && rx.ID != uds_current_response_address) {
+    // Not from the address we're mid-transaction with, ignore
+    return false;
+  } else if (uds_response_address > 0 && rx.ID != uds_response_address) {
+    // Not from the address we're expecting responses from, ignore
+    return false;
+  } else if (rx.ID < MIN_UDS_RESPONSE_ID || rx.ID > MAX_UDS_RESPONSE_ID) {
+    // Outside the range of potential UDS response IDs, ignore
     return false;
   }
-  memcpy(&gUDSContext.UDS_buffer[gUDSContext.UDS_bytesReceived], payload, length);
-  gUDSContext.UDS_bytesReceived += length;
-  gUDSContext.UDS_lastFrameMillis = millis();
 
-  // If we’ve reached or exceeded the expected length, mark complete
-  if (gUDSContext.UDS_bytesReceived >= gUDSContext.UDS_expectedLength) {
-    gUDSContext.UDS_inProgress = false;
+#ifdef UDS_DEBUG
+  logging.printf("UDS RX: ID=0x%03X DLC=%d data=", rx.ID, rx.DLC);
+  for (int i = 0; i < rx.DLC; i++) {
+    logging.printf("%02X ", rx.data.u8[i]);
   }
+  logging.println();
+#endif
+
+  // Record the address the current transaction is coming from.
+  uds_current_response_address = rx.ID;
+
+  // Pass down to the ISO-TP layer for reassembly.
+  isotp_receive(rx.data.u8, rx.DLC, ISOTP_TATYPE_PHYSICAL);
+
   return true;
 }
 
-bool UdsCanBattery::isUDSMessageComplete() {
-  return (!gUDSContext.UDS_inProgress && gUDSContext.UDS_bytesReceived > 0);
+void UdsCanBattery::on_isotp_can_tx(uint32_t can_id, const uint8_t* can_data, uint8_t can_dlc) {
+
+#ifdef UDS_DEBUG
+  logging.printf("UDS TX: ID=0x%03X DLC=%d data=", can_id, can_dlc);
+  for (int i = 0; i < can_dlc; i++) {
+    logging.printf("%02X ", can_data[i]);
+  }
+  logging.println();
+#endif
+
+  // This is called by isotp_poll() from transmit_uds_can(..)
+  CAN_frame frame = {};
+  frame.ID = uds_address;  // Ignore the can_id from the ISO-TP layer, use our own.
+  frame.DLC = can_dlc;
+  memcpy(frame.data.u8, can_data, can_dlc);
+  transmit_can_frame(&frame);
 }
 
-void UdsCanBattery::print_formatted_dtc(uint32_t dtc24, uint8_t status) {
-  // DTC bytes: A B C (24 bits). SAE letter from top 2 bits of A.
-  uint8_t A = (dtc24 >> 16) & 0xFF;
-  uint8_t B = (dtc24 >> 8) & 0xFF;
-  // uint8_t C =  dtc24        & 0xFF; // often a failure-type byte; keep if you need it
+void UdsCanBattery::on_isotp_rx_complete(const uint8_t* data, int len, isotp_tatype tatype) {
+  // The ISO-TP layer has reassembled a complete UDS response, pass it on for processing.
+  on_uds_receive(data, len);
+}
 
-  const char sysMap[4] = {'P', 'C', 'B', 'U'};
-  char sys = sysMap[(A & 0xC0) >> 6];
+// Automatic PID scanning support
 
-  // Four digits: D1 D2 D3 D4 from the remaining nibbles of A and B
-  uint8_t d1 = (A & 0x30) >> 4;
-  uint8_t d2 = (A & 0x0F);
-  uint8_t d3 = (B & 0xF0) >> 4;
-  uint8_t d4 = (B & 0x0F);
+static inline uint32_t parseBigEndianValue(const uint8_t* data, uint16_t length) {
+  uint32_t val = 0;
+  for (uint16_t i = 0; i < length && i < 4; i++) {
+    val = (val << 8) | data[i];
+  }
+  return val;
+}
 
-  logging.printf("DTC %c%X%X%X%X  status=0x%X [", sys, d1, d2, d3, d4, status);
+bool UdsCanBattery::transmit_uds_pid_scan() {
+  // Called during the transmit phase if there's nothing else to do. Will send
+  // the next PID request in the scanning cycle.
 
-  const struct {
-    uint8_t bit;
-    const char* label;
-  } statusFlags[] = {
-      {0x08, "Confirmed"}, {0x04, "Pending"},           {0x20, "FailSinceClear"},
-      {0x01, "Fail"},      {0x10, "NotCompSinceClear"}, {0x40, "NotCompThisCycle"},
-      {0x80, "MIL"},       {0x02, "FailThisCycle"},
-  };
-
-  bool first = true;
-  for (size_t i = 0; i < sizeof(statusFlags) / sizeof(statusFlags[0]); i++) {
-    if (status & statusFlags[i].bit) {
-      if (!first) {
-        logging.print(", ");
-      }
-      first = false;
-      logging.print(statusFlags[i].label);
-    }
+  if (next_pid == 0) {
+    // Reset PID cycle
+    next_pid = first_pid;
   }
 
-  if (first)
-    logging.print("NoFlags");
-  logging.println("]");
+  if (next_pid) {
+    if (++pid_age < UDS_PID_SCAN_INTERVAL) {
+      return false;
+    }
+    pid_age = 0;
+
+    // Request the next PID
+
+    pending_pid = next_pid;
+    // uds_send(SID::ReadDataByIdentifier, {(uint8_t)((next_pid >> 8) & 0xFF), (uint8_t)(next_pid & 0xFF)},
+    //          UDS_TIMEOUT_READ_DID);
+    const uint8_t data[2] = {(uint8_t)((next_pid >> 8) & 0xFF), (uint8_t)(next_pid & 0xFF)};
+    uds_send(SID::ReadDataByIdentifier, data, sizeof(data), UDS_TIMEOUT_READ_DID);
+    return true;
+  }
+  return false;
 }
 
-bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx_frame) {
-  if (rx_frame.ID >= MIN_UDS_RESPONSE_ID && rx_frame.ID <= MAX_UDS_RESPONSE_ID) {
-    // logging.printf("Got UDS [%03X] %02X %02X %02X %02X %02X %02X %02X %02X\n", rx_frame.ID,
-    //                rx_frame.data.u8[0], rx_frame.data.u8[1], rx_frame.data.u8[2], rx_frame.data.u8[3],
-    //                rx_frame.data.u8[4], rx_frame.data.u8[5], rx_frame.data.u8[6], rx_frame.data.u8[7]);
+bool UdsCanBattery::on_uds_pid_scan_response(uint8_t sid, const uint8_t* data, uint16_t len) {
+  // Possibly a PID response - if so, handle and return true.
 
-    uint8_t pciByte = rx_frame.data.u8[0];  // 0x10/0x21/etc.
-    uint8_t pciType = pciByte >> 4;         // 0=SF,1=FF,2=CF,3=FC
-    uint8_t pciLower = pciByte & 0x0F;      // length nibble or sequence
-    switch (pciType) {
-      case 0x0: {  // Single Frame (SF)
-        uint8_t sid = rx_frame.data.u8[1];
+  if (sid == UDS_RESPONSE_SID_OF(SID::ReadDataByIdentifier)) {
+    // This is a normal PID response, pass it to the handler
+    uint16_t did = (data[1] << 8) | data[2];
+    // Value starts at data[3]
+    // Decode up to 4 bytes of value, big endian.
+    uint32_t val = len > 3 ? parseBigEndianValue(&data[3], len - 3) : 0;
 
-        // Positive response to Diagnostic Session Control (0x10 -> 0x50)
-        if (sid == 0x50) {
-          uint8_t sub = rx_frame.data.u8[2];  // 0x01=Default, 0x03=Extended, etc.
-
-          if (sub == 0x03 || sub == 0x01) {
-            // logging.print("entered ");
-            // logging.println(sub == 0x03 ? "extended diagnostic session" : "default session");
-
-            // This UDS transaction is done
-            uds_busy_timeout = 0;
-          }
-          break;
-        }
-
-        // Positive response to clear DTC request
-        if (sid == 0x54) {
-          //  [0] PCI
-          //  [1] SID (0x54)
-          //  [2] DTC high byte  (0x02)
-          //  [3] DTC mid byte   (0x93)
-          //  [4] DTC low byte   (0x00)
-          uint8_t b2 = rx_frame.data.u8[2];
-          uint8_t b3 = rx_frame.data.u8[3];
-          uint8_t b4 = rx_frame.data.u8[4];
-
-          bool allDtcCleared = ((b2 == 0xFF && b3 == 0xFF && b4 == 0xFF) || (b2 == 0xAA && b3 == 0xAA && b4 == 0xAA));
-
-          if (allDtcCleared) {
-            logging.println("UDS: positive response, ALL DTCs cleared");
-            user_request_clear_dtc = false;
-          } else {
-            logging.printf("UDS: positive ClearDTC response, group/DTC = %02X %02X %02X\n", b2, b3, b4);
-          }
-
-          uds_busy_timeout = 0;
-          break;
-        }
-
-        // Negative response
-        if (sid == 0x7F) {
-          uint8_t origSid = rx_frame.data.u8[2];
-          uint8_t nrc = rx_frame.data.u8[3];
-
-          logging.printf("UDS negative response to 0x%02X: NRC=0x%02X\n", origSid, nrc);
-
-          if (nrc != 0x78) {  // 0x78 = Response Pending; otherwise we’re done with this tx
-            uds_busy_timeout = 0;
-          }
-          break;
-        }
-
-        if (sid == 0x62) {  // ReadDataByIdentifier response
-          uint16_t did = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-
-          // logging.printf("UDS [%03X] DID 0x%04X: %02X %02X %02X %02X\n", rx_frame.ID, did, rx_frame.data.u8[4],
-          //                rx_frame.data.u8[5], rx_frame.data.u8[6], rx_frame.data.u8[7]);
-
-          // The UDS transaction is now complete
-          uds_busy_timeout = 0;
-
-          // Value is 1-4 bytes (big endian), fit it into a uint32_t
-          uint32_t value = 0;
-          if (pciLower == 4) {
-            value = rx_frame.data.u8[4];
-          } else if (pciLower == 5) {
-            value = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          } else if (pciLower == 6) {
-            value = (rx_frame.data.u8[4] << 16) | (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-          } else if (pciLower == 7) {
-            value = (rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
-                    rx_frame.data.u8[7];
-          }
-
-          next_pid = handle_pid(did, value, &rx_frame.data.u8[4], pciLower - 3, UdsStatus::OK);
-        }
-        break;
-      }
-
-      case 0x1: {  // First Frame (FF)
-        const bool allow_multiframe_pids = (next_pid & SHORT_PID) == 0;
-
-        uint16_t totalLength = (uint16_t(pciLower) << 8) | rx_frame.data.u8[1];
-        if (rx_frame.DLC == 8 && rx_frame.data.u8[2] == 0x62 && !allow_multiframe_pids) {
-          // Multi-frame PID, but we'll only look at the first frame and ignore the rest.
-          // This avoids tying up the BMS with regular multi-frame queries.
-
-          uint16_t did = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-          uint32_t value = (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          next_pid = handle_pid(did, value, &rx_frame.data.u8[5], 3, UdsStatus::OK_SHORT);
-        } else if (rx_frame.DLC >= 4) {  //} && rx_frame.data.u8[2] == 0x59 && rx_frame.data.u8[3] == 0x02) {
-          // Probably a multi-frame DTC response. Start storing it.
-
-          startUDSMultiFrameReception(totalLength - 1, rx_frame.data.u8[2]);
-          // FF payload starts at data[3]
-          uint8_t avail = rx_frame.DLC - 3;
-          uint16_t remain = gUDSContext.UDS_expectedLength - gUDSContext.UDS_bytesReceived;
-          uint8_t toStore = uint8_t(remain < avail ? remain : avail);
-          //uint8_t toStore =
-          if (toStore)
-            storeUDSPayload(&rx_frame.data.u8[3], toStore);
-
-          //logging.printf("Requesting next frames\n");
-
-          // Ask for the next frames in the sequence
-          UDS_RQ_CONTINUE_MULTIFRAME.ID = uds_address;
-          transmit_can_frame(&UDS_RQ_CONTINUE_MULTIFRAME);
-          uds_busy_timeout = 5;  // 0.5s
-        }
-
-        break;
-      }
-      case 0x2: {  // Consecutive Frame (CF)
-        if (!gUDSContext.UDS_inProgress)
-          break;
-        uint8_t avail = (rx_frame.DLC > 1) ? (rx_frame.DLC - 1) : 0;  // CF payload at data[1]
-        uint16_t remain = gUDSContext.UDS_expectedLength - gUDSContext.UDS_bytesReceived;
-        uint8_t toStore = uint8_t(remain < avail ? remain : avail);
-        if (toStore)
-          storeUDSPayload(&rx_frame.data.u8[1], toStore);
-
-        gUDSContext.receivedInBatch++;
-        if (gUDSContext.receivedInBatch == 3) {
-          // After 3 CFs, we send a Flow Control frame to keep things moving
-          UDS_RQ_CONTINUE_MULTIFRAME.ID = uds_address;
-          transmit_can_frame(&UDS_RQ_CONTINUE_MULTIFRAME);
-          gUDSContext.receivedInBatch = 0;
-        }
-
-        if (isUDSMessageComplete()) {
-
-          if (gUDSContext.UDS_moduleID == 0x59) {
-            const uint8_t* p = gUDSContext.UDS_buffer;
-            uint16_t len = gUDSContext.UDS_bytesReceived;
-
-            // moduleID: SID(0x59), 0: subfunc(0x02), 1: status availability mask
-            if (len >= 2 && p[0] == 0x02) {
-              uint16_t off = 2;
-
-              logging.printf("UDS DTC list (%d bytes of data)\n", len - off);
-
-              // entries are 3-byte DTC + 1-byte status
-              while (off + 4 <= len) {
-                uint32_t dtc = (uint32_t(p[off]) << 16) | (uint32_t(p[off + 1]) << 8) | p[off + 2];
-                uint8_t status = p[off + 3];
-
-                print_formatted_dtc(dtc, status);
-                off += 4;
-              }
-            }
-          } else if (gUDSContext.UDS_moduleID == 0x62) {
-            uint16_t did = (gUDSContext.UDS_buffer[0] << 8) | gUDSContext.UDS_buffer[1];
-            // We read a multi-frame PID response
-            //logging.printf("UDS multi-frame response for DID 0x%04X: %d bytes\n", did, gUDSContext.UDS_bytesReceived - 2);
-            next_pid = handle_pid(did,
-                                  ((gUDSContext.UDS_buffer[2] << 24) | (gUDSContext.UDS_buffer[3] << 16) |
-                                   (gUDSContext.UDS_buffer[4] << 8) | gUDSContext.UDS_buffer[5]),
-                                  &gUDSContext.UDS_buffer[2], gUDSContext.UDS_bytesReceived - 2, UdsStatus::OK);
-          }
-
-          user_request_read_dtc = false;
-          uds_busy_timeout = 0;
-
-          // ready for the next transaction
-          gUDSContext.UDS_inProgress = false;
-          gUDSContext.UDS_expectedLength = 0;
-          gUDSContext.UDS_bytesReceived = 0;
-        }
-        break;
-      }
-      case 0x3: {  // Flow Control from ECU (rare)
-        // optional: parse / ignore
-        break;
+    if (!uds_started) {
+      if (val != 0) {
+        // We got a nonzero response, so UDS is working. Start the PID cycle.
+        uds_started = true;
+      } else {
+        // Ignore responses until we get a non-zero value.
+        return true;
       }
     }
 
+    // The handler returns the next PID to query.
+    next_pid = handle_pid(did, val, &data[3], len - 3, UdsStatus::OK);
+    pending_pid = 0;
+    pid_retries = 0;
+    return true;
+  } else if (sid == SID::NegativeResponse && len >= 3 && data[1] == (uint8_t)SID::ReadDataByIdentifier) {
+    if (!uds_started) {
+      // Ignore negative responses until we get a non-zero value.
+      return true;
+    }
+
+    // This is a negative response to a PID request
+    union {
+      uint32_t u32;
+      uint8_t u8[4];
+    } val = {};
+    next_pid = handle_pid(pending_pid, val.u32, val.u8, 4, UdsStatus::NEGATIVE_RESPONSE);
+    pending_pid = 0;
+    pid_retries = 0;
     return true;
   }
 
   return false;
 }
 
-void UdsCanBattery::setup_uds(uint16_t uds_address, uint32_t first_pid) {
+void UdsCanBattery::on_uds_pid_scan_timeout() {
+  // Called when a PID scan request times out.
+
+  pid_retries++;
+  if (pid_retries < UDS_PID_MAX_RETRIES) {
+    // Keep retrying...
+    return;
+  }
+  //logging.printf("UDS PID 0x%04X request timed out after %d retries\n", pending_pid, pid_retries);
+
+  if (!uds_started) {
+    // Ignore timeouts until we get a non-zero value.
+    pid_retries = 0;
+    return;
+  }
+
+  union {
+    uint32_t u32;
+    uint8_t u8[4];
+  } val = {};
+  next_pid = handle_pid(pending_pid, val.u32, val.u8, 4, UdsStatus::TIMEOUT);
+  pending_pid = 0;
+  pid_retries = 0;
+}
+
+void UdsCanBattery::on_uds_receive(const uint8_t* data, uint16_t len) {
+  // We've received a complete UDS response message.
+
+  if (pending_action == UdsAction::PAUSE) {
+    // If we're pausing, ignore any responses we receive until the timeout
+    // expires.
+    return;
+  }
+
+  // The current transaction is now finished
+  uds_transaction_timeout = 0;
+  uds_current_response_address = 0;
+
+  if (len < 1) {
+    return;
+  }
+
+  const SID sid = (SID)data[0];
+
+  if (pending_action == UdsAction::NONE) {
+    // There's no pending action.
+
+    if (on_custom_uds_response(sid, data, len)) {
+      // This was a response for a custom request, and a subclass handled it.
+      return;
+    } else if (pending_pid != 0 && on_uds_pid_scan_response(sid, data, len)) {
+      // This was a PID scan response, and we handled it.
+      return;
+    }
+
+    return;
+  }
+
+  if (sid == SID::NegativeResponse && len >= 3) {
+    SID origSid = (SID)data[1];
+    uint8_t nrc = data[2];
+
+    if (uds_action_attempts > uds_action_max_retries) {
+      // We aren't going to retry, so give up on this action.
+      //logging.printf("UDS negative response to 0x%02X: NRC=0x%02X\n", origSid, nrc);
+      return;
+    }
+
+    switch (nrc) {
+      case NegativeResponseCode::SecurityAccessDenied:
+        // Request security key
+        if (++uds_promotion_attempts < 3) {
+          //logging.printf("UDS service 0x%02X denied, requesting security key\n", origSid);
+          //uds_send(SID::SecurityAccess, {0x01}, UDS_TIMEOUT_SESSION_CONTROL);
+          uds_send(SID::SecurityAccess, (const uint8_t*)"\x01", 1, UDS_TIMEOUT_SESSION_CONTROL);
+        }
+        return;
+
+        // ?
+        //logging.printf("UDS response pending for 0x%02X\n", origSid);
+      //  break;
+      case NegativeResponseCode::ServiceNotSupportedInActiveSession:
+        if (++uds_promotion_attempts < 3) {
+          // logging.printf("UDS service 0x%02X not supported in current session, trying to enter extended session\n",
+          //                origSid);
+          static constexpr uint8_t data[1] = {Session::ExtendedSession};
+          uds_send(SID::DiagnosticSessionControl, data, sizeof(data), UDS_TIMEOUT_SESSION_CONTROL);
+        }
+        return;
+      default:
+        //logging.printf("UDS negative response to 0x%02X: NRC=0x%02X\n", origSid, nrc);
+        break;
+    }
+  }
+
+  if (expected_response_sid != 0 && sid != (SID)expected_response_sid) {
+    // The reply wasn't in response to the original request we sent.
+    if (sid == UDS_RESPONSE_SID_OF(SID::DiagnosticSessionControl)) {
+      // We'll retry the original request in the next tick.
+    } else if (sid == UDS_RESPONSE_SID_OF(SID::SecurityAccess) && len >= 4 && data[1] == 0x02) {
+      // Got a security access seed, calculate the key and send it back.
+      uint16_t seed = (data[2] << 8) | data[3];
+      int32_t solution = calculate_uds_security_key(seed);
+      if (solution < 0) {
+        //logging.printf("Received security access seed 0x%04X, but no solution available\n", seed);
+        return;
+      }
+      //logging.printf("Received seed 0x%04X, sending security access solution 0x%04X\n", seed, solution);
+      uint8_t data[3] = {0x02, (uint8_t)((solution >> 8) & 0xFF), (uint8_t)(solution & 0xFF)};
+      uds_send(SID::SecurityAccess, data, sizeof(data), UDS_TIMEOUT_SESSION_CONTROL);
+    } else {
+      // logging.printf("Received unexpected UDS response SID 0x%02X (expected 0x%02X), bytes: ", sid,
+      //                expected_response_sid);
+      // for (int i = 0; i < len; i++) {
+      //   logging.printf("%02X ", data[i]);
+      // }
+      // logging.println();
+    }
+    return;
+  }
+  expected_response_sid = 0;
+
+  on_uds_action_complete(sid, data, len);
+}
+
+void UdsCanBattery::on_uds_action_complete(uint8_t response_sid, const uint8_t* data, uint16_t len) {
+  switch (response_sid) {
+    case UDS_RESPONSE_SID_OF(SID::ReadDTCInformation):
+      memcpy(dtc_buffer, data, len);
+      dtc_len = len;
+      handle_dtc_response(data, len);
+      break;
+    case UDS_RESPONSE_SID_OF(SID::ECUReset):
+      logging.println("UDS ECUReset successful");
+      // Avoid sending any UDS requests to give a chance to reset.
+      uds_transaction_timeout = UDS_POST_BMS_RESET_PAUSE;
+      // When we come back up we'll restart PID scanning afresh.
+      next_pid = 0;
+      uds_started = false;
+      break;
+    default:
+      //logging.printf("Successful SID response 0x%02X\n", (uint8_t)response_sid);
+      break;
+  }
+
+  pending_action = UdsAction::NONE;
+  uds_action_attempts = 0;  //?
+}
+
+bool UdsCanBattery::perform_uds_action(UdsAction action, int16_t max_retries, uint32_t cooldown) {
+  // Set the pending action and timeout. The transmit_uds_can function will then
+  // trigger this action (and keep retrying until it completes or the timeout
+  // expires).
+
+  if (pending_action != UdsAction::NONE) {
+    // Already an action in progress, ignore this request
+    return false;
+  }
+
+  if (uds_action_cooldown > 0) {
+    // Can't start a new action while we're still in cooldown from the last one
+    return false;
+  }
+
+  pending_action = action;
+  uds_action_max_retries = max_retries;
+  uds_action_attempts = 0;
+  uds_action_cooldown = cooldown;
+  uds_promotion_attempts = 0;
+
+  return true;
+}
+
+void UdsCanBattery::handle_dtc_response(const uint8_t* data, uint16_t len) {}
+
+// Low level UDS send
+
+//void UdsCanBattery::uds_send(SID service_id, const std::string_view data, uint32_t timeout) {
+void UdsCanBattery::uds_send(SID service_id, const uint8_t* data, uint16_t length, uint32_t timeout) {
+  uint8_t payload[256];
+  // if (data.size() >= sizeof(payload)) {
+  //   return;
+  // }
+  // payload[0] = static_cast<uint8_t>(service_id);
+  // memcpy(&payload[1], data.data(), data.size());
+
+  // isotp_send(payload, data.size() + 1);
+
+  if (length >= sizeof(payload)) {
+    return;
+  }
+  payload[0] = static_cast<uint8_t>(service_id);
+  memcpy(&payload[1], data, length);
+  isotp_send(payload, length + 1);
+
+  uds_transaction_timeout = timeout;
+}
+
+void UdsCanBattery::setup_uds(uint16_t uds_address, uint16_t uds_response_address, uint32_t first_pid) {
   this->uds_address = uds_address;
+  isotp_init(uds_address);
+  this->uds_response_address = uds_response_address;
   this->first_pid = first_pid;
   this->next_pid = first_pid;
+  this->pending_pid = 0;
 }
 
 bool UdsCanBattery::supports_read_DTC() {
@@ -363,13 +489,47 @@ bool UdsCanBattery::supports_reset_BMS() {
 }
 
 void UdsCanBattery::read_DTC() {
-  user_request_read_dtc = true;
+  perform_uds_action(UdsAction::READ_DTC, 2, UDS_DEFAULT_ACTION_COOLDOWN);
 }
 
 void UdsCanBattery::reset_DTC() {
-  user_request_clear_dtc = true;
+  perform_uds_action(UdsAction::CLEAR_DTC, 2, UDS_DEFAULT_ACTION_COOLDOWN);
+  //perform_uds_action(UdsAction::CLEAR_DTC, 2, UDS_DEFAULT_ACTION_COOLDOWN);
+  //perform_uds_action(UdsAction::READ_MEMORY, 2, UDS_DEFAULT_ACTION_COOLDOWN);
 }
 
 void UdsCanBattery::reset_BMS() {
-  user_request_reset = true;
+  // We send a long cooldown, to give the BMS time to reset.
+  perform_uds_action(UdsAction::RESET_BMS, 2, 20);
 }
+
+// String UdsCanBattery::getDtcScript() {
+//   String ret;
+//   ret.reserve(500 + dtc_len * 4);
+
+//   // dtc_buffer[0] contains the response SID (0x59)
+//   if (dtc_len > 1 && dtc_buffer[0] == 0x59 && dtc_buffer[1] == 0x02) {
+//     char buf[32];
+//     ret += "<div></div><script>(()=>{var uds = [";
+//     for (int i = 1; i < dtc_len; i++) {
+//       snprintf(buf, sizeof(buf), "%u,", dtc_buffer[i]);
+//       ret += buf;
+//     }
+//     ret +=
+//         "];\n"
+//         "var h='<table>';\n"
+//         "for(let i=2;i<uds.length;i+=4){\n"
+//         "  let a=uds[i],b=uds[i+1],c=uds[i+2],s=uds[i+3],f=[];\n"
+//         "  [[8,'<b>CONFIRMED</b>'],[4,'Pending'],[32,'FailSinceClear'],[1,'<b>FAIL</b>'],   "
+//         "[16,'NotCompSinceClear'],[64,'NotCompThisCycle'],[128,'MIL'],[2,'FailThisCycle']]  "
+//         ".map(x=>{if(s&x[0])f.push(x[1])});\n"
+//         "  let z=(v)=>v.toString(16).padStart(2,'0');\n"
+//         "  let d='PCBU'[a>>6]+z(a&63)+z(b)+(c?'-'+z(c):'');\n"
+//         "  h+=`<tr><td><b>${d.toUpperCase()}</b></td><td>${f.join(', ')||'NoFlags'}</td></tr>`;\n"
+//         "}\n"
+//         "document.currentScript.previousElementSibling.innerHTML = h+'</table>';\n"
+//         "})();</script>\n";
+//   }
+
+//   return ret;
+// }
