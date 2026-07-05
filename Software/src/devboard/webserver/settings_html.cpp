@@ -521,6 +521,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
   }
 
+  if (var == "APOFFONCONN") {
+    return settings.getBool("APOFFONCONN", true) ? "checked" : "";  // default: checked
+  }
+  
   if (var == "APPASSWORD") {
     return String("");
   }
@@ -1880,6 +1884,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
         min="0" max="14" step="1"
         title="Force specific channel. Set to 0 for autodetect" required />
+
+        <label>Disable access point after connecting to local network: </label>
+        <input type='checkbox' name='APOFFONCONN' value='on' %APOFFONCONN% />
 
         <label>Custom Wifi hostname: </label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
