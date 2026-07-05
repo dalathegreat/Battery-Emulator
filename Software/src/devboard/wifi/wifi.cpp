@@ -57,7 +57,7 @@ static uint16_t current_full_reconnect_interval = INIT_WIFI_FULL_RECONNECT_INTER
 static uint16_t current_check_interval = WIFI_CHECK_INTERVAL;
 static bool connected_once = false;
 
-static bool ap_active = false;
+bool ap_active = false;
 static bool ap_button_inited = false;
 static bool ap_button_was_pressed = false;
 static unsigned long ap_button_press_start = 0;
