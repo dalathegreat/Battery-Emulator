@@ -7,6 +7,7 @@
 
 bool wifi_enabled = true;
 bool wifiap_enabled = true;
+bool wifi_ap_disable_after_connect = true;  // If AP broadcast is on, turn it off once STA has an IP
 bool mdns_enabled = true;    //If true, allows battery monitor te be found by .local address
 bool espnow_enabled = true;  //If true, allows battery emulator to send battery status by using ESPNow messages
 uint16_t wifi_channel = 0;
@@ -55,6 +56,7 @@ static uint16_t reconnectAttempts = 0;  // Counter for reconnect attempts
 static uint16_t current_full_reconnect_interval = INIT_WIFI_FULL_RECONNECT_INTERVAL;
 static uint16_t current_check_interval = WIFI_CHECK_INTERVAL;
 static bool connected_once = false;
+static bool ap_active = false;  // true while the soft-AP is running
 
 void init_WiFi() {
   DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
@@ -208,6 +210,15 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   logging.print("Wi-Fi Got IP. ");
   logging.print("IP address: ");
   logging.println(WiFi.localIP().toString());
+
+  // If AP broadcast is enabled and the user opted to drop the AP after connecting,
+  // shut the soft-AP down now that we have a working local-network connection.
+  if (wifiap_enabled && wifi_ap_disable_after_connect && ap_active) {
+    logging.println("Connected to local network, disabling Wi-Fi access point.");
+    WiFi.softAPdisconnect(true);  // stop the AP and free its resources
+    WiFi.mode(WIFI_STA);          // keep station-only mode
+    ap_active = false;
+  }
 }
 
 // Event handler for Wi-Fi disconnection
@@ -250,7 +261,8 @@ void init_WiFi_AP() {
   DEBUG_PRINTF("Access Point password is set (%u characters)\n", (unsigned)passwordAP.length());
 
   WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
+  ap_active = true;
   IPAddress IP = WiFi.softAPIP();
 
-  DEBUG_PRINTF("Access Point created.\nIP address: %s\n", IP.toString().c_str());
+  DEBUG_PRINTF("Access Point created. IP address: %s\n", IP.toString().c_str());
 }
