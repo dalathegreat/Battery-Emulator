@@ -47,6 +47,10 @@ static const uint16_t STEP_WIFI_FULL_RECONNECT_INTERVAL =
 static const uint16_t MAX_RECONNECT_ATTEMPTS =
     3;  // Maximum number of reconnect attempts before forcing a full connection
 
+// Fixed channel for the soft-AP when no STA channel is forced, so the AP stays put
+// instead of being dragged around by STA scans. Used only as the AP's own channel.
+static const uint8_t DEFAULT_AP_CHANNEL = 1;
+
 // State variables
 static unsigned long lastReconnectAttempt = 0;
 static unsigned long lastWiFiCheck = 0;
@@ -147,9 +151,12 @@ void wifi_monitor() {
         // If no previous connection, force a full connection attempt
         if (currentMillis - lastReconnectAttempt > current_full_reconnect_interval) {
           logging.println("No previous OK connection, force a full connection attempt...");
-          wifiap_enabled = true;
-          WiFi.mode(WIFI_AP_STA);
-          init_WiFi_AP();
+          // Ensure the AP is up while we still can't connect, but don't re-create it
+          // or re-assert the mode if it's already running (that dropped AP clients).
+          if (wifiap_enabled && !ap_active) {
+            WiFi.mode(WIFI_AP_STA);
+            init_WiFi_AP();
+          }
 
           FullReconnectToWiFi();
         }
@@ -256,11 +263,20 @@ void init_mDNS() {
 }
 
 void init_WiFi_AP() {
+  // If the AP is already running, don't re-create it — re-calling softAP()/mode()
+  // forces associated clients to re-associate, which is what caused client drops
+  // while the STA kept failing to connect.
+  if (ap_active) {
+    return;
+  }
 
   DEBUG_PRINTF("Creating Access Point: %s\n", ssidAP.c_str());
   DEBUG_PRINTF("Access Point password is set (%u characters)\n", (unsigned)passwordAP.length());
 
-  WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
+  // Pin the AP to the forced Wi-Fi channel if one is set, otherwise a fixed default,
+  // so STA channel changes disturb the AP as little as possible.
+  uint8_t ap_channel = (wifi_channel >= 1 && wifi_channel <= 14) ? (uint8_t)wifi_channel : DEFAULT_AP_CHANNEL;
+  WiFi.softAP(ssidAP.c_str(), passwordAP.c_str(), ap_channel);
   ap_active = true;
   IPAddress IP = WiFi.softAPIP();
 
