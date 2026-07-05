@@ -1,5 +1,4 @@
 #include "MG-4-BATTERY.h"
-#include <soc/soc.h>
 #include <cmath>    //For unit test
 #include <cstring>  //For unit test
 //#include "esp_timer.h"
