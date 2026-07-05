@@ -1867,16 +1867,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Access point name: </label>
         <input type='text' name='APNAME' value="%APNAME%" 
-        pattern="[ -~]{1,63}" 
-        title="Max 63 characters, printable ASCII only"
-        required />
+        pattern="([ -~]{1,63})?"
+        title="Max 63 characters, printable ASCII only" />
 
         <label>Access point password: </label>
         <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
-        pattern="[ -~]{8,63}" 
+        pattern="([ -~]{8,63})?"
         title="Password must be 8-63 characters long, printable ASCII only"
-        placeholder='Leave blank to keep unchanged'
-        required />
+        placeholder='Leave blank to keep unchanged' />
 
         <label>Wifi channel 0-14: </label>
         <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
