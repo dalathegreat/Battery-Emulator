@@ -36,6 +36,7 @@ void init_mDNS();
 
 extern bool wifi_enabled;
 extern bool wifiap_enabled;
+extern bool wifi_ap_disable_after_connect;
 extern bool mdns_enabled;
 extern bool espnow_enabled;
 extern bool static_IP_enabled;
