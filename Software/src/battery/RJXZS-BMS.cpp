@@ -231,7 +231,7 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
           set_event(EVENT_12V_LOW, 0);
         } else if (protecting_historical_logs == 0x09) {
           // Voltage difference protection
-          set_event(EVENT_VOLTAGE_DIFFERENCE, differential_pressure_setting_value);
+          set_event(EVENT_VOLTAGE_DIFFERENCE_BAT2, differential_pressure_setting_value);
         } else if (protecting_historical_logs == 0x0A) {
           // Low temperature protection
           set_event(EVENT_BATTERY_FROZEN, low_temperature_protection_setting_value);

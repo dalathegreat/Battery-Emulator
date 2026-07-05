@@ -59,8 +59,10 @@ class Logging {
   static void print(uint16_t num) { (void)num; }
   static void print(int32_t num) { (void)num; }
   static void print(uint32_t num) { (void)num; }
-  static void print(int64_t num) { (void)num; }
-  static void print(uint64_t num) { (void)num; }
+  static void print(long num) { (void)num; }
+  static void print(unsigned long num) { (void)num; }
+  static void print(long long num) { (void)num; }
+  static void print(unsigned long long num) { (void)num; }
   static void print(float num) { (void)num; }
   static void print(double num) { (void)num; }
   static void print(bool b) { (void)b; }
@@ -93,8 +95,10 @@ class Logging {
   static void println(uint16_t num) { (void)num; }
   static void println(int32_t num) { (void)num; }
   static void println(uint32_t num) { (void)num; }
-  static void println(int64_t num) { (void)num; }
-  static void println(uint64_t num) { (void)num; }
+  static void println(long num) { (void)num; }
+  static void println(unsigned long num) { (void)num; }
+  static void println(long long num) { (void)num; }
+  static void println(unsigned long long num) { (void)num; }
   static void println(float num) { (void)num; }
   static void println(double num) { (void)num; }
   static void println(bool b) { (void)b; }

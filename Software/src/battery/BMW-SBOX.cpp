@@ -76,9 +76,10 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
   } else {
     datalayer.shunt.available = true;
   }
-  // Send 20ms CAN Message
-  if (currentMillis - LastMsgTime >= INTERVAL_20_MS) {
-    LastMsgTime = currentMillis;
+
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    previousMillis10 = currentMillis;
     // First check if we have any active errors, incase we do, turn off the battery
     if (datalayer.system.status.system_status == FAULT) {
       timeSpentInFaultedMode++;

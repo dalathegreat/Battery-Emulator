@@ -24,7 +24,7 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
     if (datalayer_extended.fordMachE.pid_hvb_voltage == 255) {
       content += "N/A</h4>";
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_hvb_voltage) + " mV </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_voltage / 100.0, 2) + " V </h4>";
     }
 
     content += "<h4>State of health:";
@@ -38,7 +38,7 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
     if (datalayer_extended.fordMachE.pid_hvb_soc == 255) {
       content += "N/A</h4>";
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_hvb_soc) + " % </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_soc / 1000.0, 3) + " % </h4>";
     }
 
     content += "<h4>Contactor status:";
@@ -52,7 +52,7 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
       } else if (datalayer_extended.fordMachE.pid_hvb_contactor_status == 0x00000400) {
         content += "Interlock OPEN!</h4>";
       } else {
-        content += "Unknown" + String(datalayer_extended.fordMachE.pid_hvb_contactor_status) + "</h4>";
+        content += "Unknown enumeration: " + String(datalayer_extended.fordMachE.pid_hvb_contactor_status) + "</h4>";
       }
     }
 
@@ -118,7 +118,7 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
     if (datalayer_extended.fordMachE.pid_battery_capacity_ah == 255) {
       content += "N/A</h4>";
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_battery_capacity_ah) + " AH+1 </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_battery_capacity_ah / 10.0, 1) + " Ah </h4>";
     }
 
     content += "<h4>Maintenance rebalance status:";
@@ -127,8 +127,12 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
     } else {
       if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x04) {
         content += " Initializing</h4>";
-      } else if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x03) {
+      } else if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x01) {
+        content += " In progress</h4>";
+      } else if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x02) {
         content += " Successfully</h4>";
+      } else if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x03) {
+        content += " Aborted pack fault</h4>";
       } else {
         content += " " + String(datalayer_extended.fordMachE.pid_maintenance_rebalance_status) + "</h4>";
       }
@@ -138,7 +142,7 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
     if (datalayer_extended.fordMachE.pid_hvb_calendar_age_months == 255) {
       content += "N/A</h4>";
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_hvb_calendar_age_months) + " </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_calendar_age_months / 100.0, 0) + " Months </h4>";
     }
     return content;
   }

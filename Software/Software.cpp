@@ -39,7 +39,7 @@
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "10.10.1";
+const char* version_number = "10.14.dev";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -217,7 +217,7 @@ void update_calculated_values(unsigned long currentMillis) {
 
   /* Apply remote restrictions if set*/
   if (datalayer.battery.settings.remote_settings_limit_discharge) {
-    if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_remote_set_charge_dA) {
+    if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_remote_set_discharge_dA) {
       datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_remote_set_discharge_dA;
     }
   } else {

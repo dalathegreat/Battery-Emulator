@@ -26,10 +26,15 @@ class HyundaiIoniq28Battery : public CanBattery {
   int16_t get_power_relay_temperature() const;
   uint8_t get_battery_management_mode() const;
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+
  private:
   HyundaiIoniq28BatteryHtmlRenderer renderer;
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
+
+  bool UserRequestDTCreset = false;
 
   static const int MAX_PACK_VOLTAGE_DV = 4050;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2880;
@@ -108,6 +113,11 @@ class HyundaiIoniq28Battery : public CanBattery {
                              .DLC = 8,
                              .ID = 0x7E4,
                              .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame IONIQ_CLEAR_DTC = {.FD = false,
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = 0x7E4,
+                               .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
 };
 
 #endif

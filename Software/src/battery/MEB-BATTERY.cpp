@@ -242,11 +242,12 @@ void MebBattery::
   datalayer_battery->status.active_power_W =
       ((datalayer_battery->status.voltage_dV * datalayer_battery->status.current_dA) / 100);
 
-  // datalayer.battery.status.temperature_min_dC = actual_temperature_lowest_C*5 -400;  // We use the value below, because it has better accuracy
-  datalayer_battery->status.temperature_min_dC = (battery_min_temp * 10) / 64;
-
-  // datalayer.battery.status.temperature_max_dC = actual_temperature_highest_C*5 -400;  // We use the value below, because it has better accuracy
-  datalayer_battery->status.temperature_max_dC = (battery_max_temp * 10) / 64;
+  if ((battery_min_temp != 600) && (battery_max_temp != 600)) {  //Only update when both values have been read
+    // datalayer.battery.status.temperature_min_dC = actual_temperature_lowest_C*5 -400;  // We use the value below, because it has better accuracy
+    datalayer_battery->status.temperature_min_dC = (battery_min_temp * 10) / 64;
+    // datalayer.battery.status.temperature_max_dC = actual_temperature_highest_C*5 -400;  // We use the value below, because it has better accuracy
+    datalayer_battery->status.temperature_max_dC = (battery_max_temp * 10) / 64;
+  }
 
   //Map all cell voltages to the global array
   memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages_polled, 108 * sizeof(uint16_t));

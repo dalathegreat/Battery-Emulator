@@ -1,0 +1,140 @@
+[
+  {
+    "code": 132864,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "SME: Transport mode active"
+  },
+  {
+    "code": 132872,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "SME: Control unit is not encoded"
+  },
+  {
+    "code": 132873,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "SME: Encoded data does not match vehicle"
+  },
+  {
+    "code": 132928,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "SME, voltage supply: Undervoltage"
+  },
+  {
+    "code": 132992,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "SME: Certificates (Type 1) not ready"
+  },
+  {
+    "code": 132997,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "SME: Control unit not in field mode"
+  },
+  {
+    "code": 2224129,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "High-voltage battery unit, coolant shutoff valve: Line disconnection"
+  },
+  {
+    "code": 2224143,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "High-voltage battery unit, coolant shutoff valve: Line disconnection"
+  },
+  {
+    "code": 2224417,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "High-voltage battery unit, control unit: internal defective alarm function"
+  },
+  {
+    "code": 2224902,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "High-voltage battery unit, control unit, idle time estimation: Estimation failed"
+  },
+  {
+    "code": 2225022,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "Impact detection: Crash detected due to ACSM signal"
+  },
+  {
+    "code": 2225039,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "SME: internal control unit errors (Group fault software)"
+  },
+  {
+    "code": 2225043,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "High-voltage battery unit, multiple fault: Transport restricting fault memory active"
+  },
+  {
+    "code": 2225136,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "High-voltage battery unit: Expansion of the operating range for the state of charge active"
+  },
+  {
+    "code": 2225206,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "High-voltage battery unit, high-voltage safety battery terminal: High-voltage-minus not disconnected due to unsuccessful actuation"
+  },
+  {
+    "code": 2225231,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "High-voltage battery unit, SME: Pyrofuse ignited or faulty actuation"
+  },
+  {
+    "code": 2225333,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "High-voltage battery unit, voltage and current sensor: Power-down requested"
+  },
+  {
+    "code": 2225389,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "High-voltage battery unit, voltage and current sensor: Line protection, threshold value exceeded"
+  },
+  {
+    "code": 3866650,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "High-voltage battery unit: Multiple faults, high-voltage system cannot be activated"
+  },
+  {
+    "code": 13292624,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "No message (- 0x125), SME receiver, CCU transmitter"
+  },
+  {
+    "code": 13292628,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "No message (- 0x16E), SME receiver, CCU transmitter"
+  },
+  {
+    "code": 13292720,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "No message (vehicle speed, 0x1A1), receiver SME, transmitter DSC"
+  },
+  {
+    "code": 13293272,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "No message (- 0x91), SME receiver, EME transmitter"
+  }
+]

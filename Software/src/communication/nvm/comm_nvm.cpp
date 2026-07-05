@@ -5,6 +5,7 @@
 #include "../../charger/CanCharger.h"
 #include "../../communication/can/comm_can.h"
 #include "../../devboard/mqtt/mqtt.h"
+#include "../../devboard/webserver/webserver.h"
 #include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
@@ -31,6 +32,9 @@ void init_stored_settings() {
 
   ssid = settings.getString("SSID").c_str();
   password = settings.getString("PASSWORD").c_str();
+  http_username = settings.getString("HTTPUSER", "admin").c_str();
+  http_password = settings.getString("HTTPPASS").c_str();
+  webserver_auth = settings.getBool("WEBAUTH", false) && !http_username.empty() && !http_password.empty();
 
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
@@ -95,10 +99,9 @@ void init_stored_settings() {
   user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
   user_selected_inverter_sungrow_type = settings.getUInt("INVSUNTYPE", 0);
   user_selected_inverter_pylon_type = settings.getUInt("PYLONBRAND", 0);
-  user_selected_inverter_ignore_contactors = settings.getBool("INVICNT", false);
+  user_selected_inverter_contactor_mode = (inverter_contactor_mode_enum)settings.getUInt("INVICNT", 0);
   user_selected_inverter_deye_workaround = settings.getBool("DEYEBYD", false);
-  user_selected_can_addon_crystal_frequency_mhz = settings.getUInt("CANFREQ", 8);
-  user_selected_canfd_addon_crystal_frequency_mhz = settings.getUInt("CANFDFREQ", 40);
+  user_selected_inverter_long_CAN_timeout = settings.getBool("SLOWCANINV", false);
   user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
   user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
   user_selected_daly_power_per_dV = settings.getUInt("DALYPWRDV", 50);
@@ -126,6 +129,8 @@ void init_stored_settings() {
         return CAN_Interface::CAN_ADDON_MCP2515;
       case comm_interface::CanFdAddonMcp2518:
         return CAN_Interface::CANFD_ADDON_MCP2518;
+      case comm_interface::CanFdAddonMcp2518_2:
+        return CAN_Interface::CANFD_ADDON_MCP2518_2;
       case comm_interface::RS485:
       case comm_interface::Modbus:
       case comm_interface::Highest:
@@ -157,6 +162,7 @@ void init_stored_settings() {
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
+  use_canfd2_as_can = settings.getBool("CANFD2ASCAN", false);
 #ifdef HW_LILYGO2CAN
   user_selected_gpioopt1 = (GPIOOPT1)settings.getUInt("GPIOOPT1", 0);
 #endif
@@ -165,6 +171,9 @@ void init_stored_settings() {
   user_selected_gpioopt4 = (GPIOOPT4)settings.getUInt("GPIOOPT4", 0);
 #ifdef HW_STARK
   user_selected_gpioopt5 = (GPIOOPT5)settings.getUInt("GPIOOPT5", 0);
+#endif
+#ifdef HW_WAVESHARE
+  user_selected_gpioopt6 = (GPIOOPT6)settings.getUInt("GPIOOPT6", 0);
 #endif
 
   precharge_control_enabled = settings.getBool("EXTPRECHARGE", false);
@@ -226,6 +235,9 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent =
       constrain(settings.getUInt("BYDAUTOCALDRIFT", 5), 1u, 20u);
   datalayer_extended.bydAtto3.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN", true);
+  datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent =
+      constrain(settings.getUInt("BYDAUTOCALDRFT2", 5), 1u, 20u);
+  datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN2", true);
 }
 
 void store_settings_equipment_stop() {
@@ -249,4 +261,6 @@ void store_settings() {
   settings.saveUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms);
   settings.saveUInt("BYDAUTOCALDRIFT", datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN", datalayer_extended.bydAtto3.auto_calibrate_soc_enabled);
+  settings.saveUInt("BYDAUTOCALDRFT2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent);
+  settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
 }

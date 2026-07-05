@@ -28,3 +28,6 @@ GPIOOPT4 user_selected_gpioopt4 = GPIOOPT4::DEFAULT_SD_CARD;
 #ifdef HW_STARK
 GPIOOPT5 user_selected_gpioopt5 = GPIOOPT5::DEFAULT_BMS_POWER_23;
 #endif
+#ifdef HW_WAVESHARE
+GPIOOPT6 user_selected_gpioopt6 = GPIOOPT6::DEFAULT_STATUS_LED;
+#endif

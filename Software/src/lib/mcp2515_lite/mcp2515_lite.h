@@ -51,7 +51,9 @@ public:
     MCP2515_Lite(SPIClass& spi, uint8_t cs, uint8_t int_pin);
     ~MCP2515_Lite();
 
-    bool begin(const MCP2515_Lite_Speed& speed);
+    uint32_t autodetectOscillatorFrequency();
+
+    bool begin(const MCP2515_Lite_Speed& speed, bool loopback = false, bool skip_task_start = false);
     
     // Non-blocking: pushes message to the TX queue
     bool sendFrame(const MCP2515_Lite_Frame& msg);

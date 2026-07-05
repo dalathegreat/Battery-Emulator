@@ -93,7 +93,6 @@ struct DATALAYER_INFO_BMWPHEV {
   uint8_t battery_request_open_contactors_instantly = 0;
   uint8_t battery_request_open_contactors_fast = 0;
   uint8_t battery_charging_condition_delta = 0;
-  uint8_t battery_DC_link_voltage = 0;
   uint8_t dtc_count;                     // Number of DTCs present
   uint8_t iso_safety_ext_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_PLAUS
   uint8_t iso_safety_int_plausible = 0;
@@ -101,9 +100,10 @@ struct DATALAYER_INFO_BMWPHEV {
   uint8_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
   uint8_t balancing_status = 0;
 
-  bool dtc_read_failed = false;     // Indicates last read attempt failed
-  bool UserRequestDTCreset = false; /** User requesting DTC reset via WebUI*/
-  bool UserRequestBMSReset = false; /** User requesting BMS reset via WebUI*/
+  bool dtc_read_failed = false;          // Indicates last read attempt failed
+  bool UserRequestDTCreset = false;      /** User requesting DTC reset via WebUI*/
+  bool UserRequestBMSReset = false;      /** User requesting BMS reset via WebUI*/
+  bool UserRequestIsolationTest = false; /** User requesting isolation test via WebUI*/
 };
 
 struct DATALAYER_INFO_BMWIX {
@@ -162,6 +162,22 @@ struct DATALAYER_INFO_BYDATTO3 {
   /** bool */
   /** User requesting SOC calibration via WebUI*/
   bool UserRequestCalibrateSOC = false;
+  /** uint8_t */
+  /** Software contactor control state, mirrors battery class state machine */
+  uint8_t contactor_control_state = 0;
+  /** uint8_t */
+  /** Raw contactor state feedback reported by BMS in 0x344 byte 0 */
+  uint8_t contactor_feedback = 0;
+  /** Decoded from contactor_feedback bit7 */
+  bool contactor_main_closed = false;
+  /** Decoded from contactor_feedback bit6 */
+  bool contactor_precharging = false;
+  /** Decoded from contactor_feedback bit2 */
+  bool contactor_hv_active = false;
+  /** Decoded from contactor_feedback bit1, set in idle/drive states, clear while charging */
+  bool contactor_drive_flag = false;
+  /** Decoded from contactor_feedback bit0, set while AC charging */
+  bool contactor_charge_flag = false;
   /** bool */
   /** Enable automatic SOC calibration to 100% when physically full (taper + low current) */
   bool auto_calibrate_soc_enabled = true;
@@ -180,6 +196,16 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool autocal_crit_drift = false;
   bool autocal_crit_cooldown_ready = false;
   bool autocal_crit_contactors = false;
+
+  // DTC readout (UDS 0x19 0x02). Codes packed as raw 3 bytes in a uint32, rendered to string in HTML.
+  uint32_t dtc_codes[32] = {0};
+  uint8_t dtc_status[32] = {0};
+  uint8_t dtc_count = 0;
+  unsigned long dtc_last_read_millis = 0;
+  bool dtc_read_in_progress = false;
+  bool dtc_read_failed = false;
+  bool UserRequestDTCreadout = false;  // User requesting DTC readout via WebUI
+  bool UserRequestDTCreset = false;    // User requesting DTC erase via WebUI
 };
 
 struct DATALAYER_INFO_CELLPOWER {
@@ -425,7 +451,7 @@ struct DATALAYER_INFO_FORD_MACH_E {
   uint16_t pid_hvb_contactor_open_leak_resistance = 0;
   uint8_t pid_hvb_soh = 0;
   uint16_t pid_hvb_voltage = 0;
-  uint8_t pid_hvb_calendar_age_months = 0;
+  uint16_t pid_hvb_calendar_age_months = 0;
   uint16_t pid_battery_capacity_ah = 0;
   uint8_t pid_maintenance_rebalance_status = 0;
 };
@@ -785,8 +811,6 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   bool HeatingStart = false;
   /** Heat request sent*/
   bool HeaterSendRequest = false;
-  /** User requesting SOH reset via WebUI*/
-  bool UserRequestSOHreset = false;
   /** True if the crypto challenge response from BMS is signalling a failed attempt*/
   bool challengeFailed = false;
 
@@ -1005,6 +1029,7 @@ class DataLayerExtended {
   DATALAYER_INFO_BMWPHEV bmwphev;
   DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
+  DATALAYER_INFO_BYDATTO3 bydAtto3_2;
   DATALAYER_INFO_CELLPOWER cellpower;
   DATALAYER_INFO_CHADEMO chademo;
   DATALAYER_INFO_CMFAEV CMFAEV;

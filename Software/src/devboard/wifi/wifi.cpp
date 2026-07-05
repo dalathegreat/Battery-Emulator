@@ -57,8 +57,7 @@ static uint16_t current_check_interval = WIFI_CHECK_INTERVAL;
 static bool connected_once = false;
 
 void init_WiFi() {
-  DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s, password=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str(),
-               password.c_str());
+  DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
 
   // Register event handlers BEFORE WiFi.mode() creates the arduino_events task.
   // WiFi events can fire immediately once the task exists, and vector reallocation
@@ -181,8 +180,7 @@ void connectToWiFi() {
     if (wifi_channel > 14) {
       wifi_channel = 0;
     }  //prevent users going out of bounds
-    DEBUG_PRINTF("Connecting to Wi-Fi SSID: %s, password: %s, Channel: %d\n", ssid.c_str(), password.c_str(),
-                 wifi_channel);
+    DEBUG_PRINTF("Connecting to Wi-Fi SSID: %s, Channel: %d\n", ssid.c_str(), wifi_channel);
     WiFi.begin(ssid.c_str(), password.c_str(), wifi_channel);
   } else {
     logging.println("Wi-Fi already connected.");
@@ -249,7 +247,7 @@ void init_mDNS() {
 void init_WiFi_AP() {
 
   DEBUG_PRINTF("Creating Access Point: %s\n", ssidAP.c_str());
-  DEBUG_PRINTF("With password: %s\n", passwordAP.c_str());
+  DEBUG_PRINTF("Access Point password is set (%u characters)\n", (unsigned)passwordAP.length());
 
   WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
   IPAddress IP = WiFi.softAPIP();

@@ -1,121 +1,117 @@
 #ifndef _BYD_ATTO_3_HTML_H
 #define _BYD_ATTO_3_HTML_H
 
+#include <Arduino.h>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
  public:
-  BydAtto3HtmlRenderer(DATALAYER_INFO_BYDATTO3* dl) : byd_datalayer(dl) {}
+  BydAtto3HtmlRenderer(DATALAYER_INFO_BYDATTO3* dl, const String& sfx = "") : byd_datalayer(dl), s(sfx) {}
 
   String get_status_html() {
     String content;
 
-    content += "<script>";
-    content += "function editComplete() {";
-    content += "  alert('Update successful!');";
-    content += "  setTimeout(function() { location.reload(); }, 1000);";
-    content += "}";
-    content += "function editError() {";
-    content += "  alert('Update failed. Please try again.');";
-    content += "}";
-    content += "function editCalTargetSOC(){";
-    content += "  var value=prompt('Enter calibration target SOC (0 to 100):');";
-    content += "  if(value!==null){";
-    content += "    var numValue=parseFloat(value);";
-    content += "    if(!isNaN(numValue) && numValue>=0 && numValue<=100){";
-    content += "      var xhr=new XMLHttpRequest();";
-    content += "      xhr.onload=editComplete;";
-    content += "      xhr.onerror=editError;";
-    content += "      xhr.open('GET','/editCalTargetSOC?value='+numValue,true);";
-    content += "      xhr.send();";
-    content += "    }else{";
-    content += "      alert('Invalid value. Please enter a value between 0 and 100.');";
-    content += "    }";
-    content += "  }";
-    content += "}";
-    content += "function editCalTargetAH(){";
-    content += "  var value=prompt('Enter calibration target AH:');";
-    content += "  if(value!==null){";
-    content += "    var numValue=parseFloat(value);";
-    content += "    if(!isNaN(numValue) && numValue>0){";
-    content += "      var xhr=new XMLHttpRequest();";
-    content += "      xhr.onload=editComplete;";
-    content += "      xhr.onerror=editError;";
-    content += "      xhr.open('GET','/editCalTargetAH?value='+numValue,true);";
-    content += "      xhr.send();";
-    content += "    }else{";
-    content += "      alert('Invalid value. Please enter a positive number.');";
-    content += "    }";
-    content += "  }";
-    content += "}";
-    content += "function toggleAutoCalSOCEnabled(){";
-    content += "  var enabled = document.getElementById('autoCalEnabled').checked ? 1 : 0;";
-    content += "  var xhr=new XMLHttpRequest();";
-    content += "  xhr.onload=editComplete;";
-    content += "  xhr.onerror=editError;";
-    content += "  xhr.open('GET','/editBydAtto3AutoCalEnabled?value='+enabled,true);";
-    content += "  xhr.send();";
-    content += "}";
-    content += "function setAutoCalDriftPercent(){";
-    content += "  var percent = document.getElementById('driftPercent').value;";
-    content += "  var xhr=new XMLHttpRequest();";
-    content += "  xhr.onload=editComplete;";
-    content += "  xhr.onerror=editError;";
-    content += "  xhr.open('GET','/editBydAtto3AutoCalDriftPercent?value='+percent,true);";
-    content += "  xhr.send();";
-    content += "}";
-    content += "</script>";
-
-    content += "<h4>Detected cells: " + String(datalayer.battery.info.number_of_cells) + "</h4>";
-    content += "<h4>Charging battery state: ";
-    switch (byd_datalayer->discharge_status) {
+    const auto& dl_bat = s.length() ? datalayer.battery2 : datalayer.battery;
+    content += "<h4>Detected cells: " + String(dl_bat.info.number_of_cells) + "</h4>";
+    content += "<h4>BE contactor state: ";
+    switch (byd_datalayer->contactor_control_state) {
       case 0:
-        content += "Ready</h4>";
+        content += "Closing</h4>";
         break;
       case 1:
-        content += "Charging</h4>";
+        content += "Closed (live)</h4>";
         break;
       case 2:
-        content += "Charge finished</h4>";
+        content += "Preparing to open</h4>";
         break;
       case 3:
-        content += "Discharging</h4>";
+        content += "Opening</h4>";
         break;
       case 4:
-        content += "Charge terminated</h4>";
+        content += "Standby / idle</h4>";
         break;
       case 5:
-        content += "Breakdown C10</h4>";
+        content += "Open requested</h4>";
         break;
       case 6:
-        content += "Breakdown charging plug</h4>";
+        content += "Open (settling)</h4>";
         break;
       case 7:
-        content += "Breakdown charger</h4>";
-        break;
-      case 8:
-        content += "Breakdown AC</h4>";
-        break;
-      case 9:
-        content += "Schedule</h4>";
-        break;
-      case 10:
-        content += "Discharge CBU</h4>";
-        break;
-      case 11:
-        content += "Timeout</h4>";
-        break;
-      case 12:
-        content += "Discharge finish</h4>";
-        break;
-      case 13:
-        content += "Charging pause</h4>";
+        content += "Held open (fault / e-stop / startup)</h4>";
         break;
       default:
         content += "Unknown</h4>";
     }
+    content += "<h4>Main contactors: ";
+    content +=
+        byd_datalayer->contactor_main_closed ? "Closed &mdash; battery connected" : "Open &mdash; battery disconnected";
+    content += "</h4>";
+    content += "<h4>Precharge state: ";
+    content += byd_datalayer->contactor_precharging ? "Active" : "Idle";
+    content += "</h4>";
+    // Bit2 (0x04) = car on/off (clear during car-off AC charging even though HV is live),
+    // not literal HV-bus energisation.
+    content += "<h4>HV active: ";
+    content += byd_datalayer->contactor_hv_active ? "Yes" : "No";
+    content += "</h4>";
+    // Pack mode read straight from the 0x344 byte0 state table (not re-derived per-bit).
+    content += "<h4>BMS pack mode: ";
+    switch (byd_datalayer->contactor_feedback) {
+      case 0x00:
+        content += "Disconnected</h4>";
+        break;
+      case 0x02:
+        content += "Open standby</h4>";
+        break;
+      case 0x42:
+        content += "Precharging</h4>";
+        break;
+      case 0x80:
+        content += "Closed, HV inactive</h4>";
+        break;
+      case 0x84:
+        content += "Closed idle, HV active</h4>";
+        break;
+      case 0x81:
+        content += "Charging, car off</h4>";
+        break;
+      case 0x85:
+        content += "Charging, HV active</h4>";
+        break;
+      case 0x82:
+        content += "Drive-ready pending</h4>";
+        break;
+      case 0x86:
+        content += "Drive ready</h4>";
+        break;
+      default: {
+        if (!(byd_datalayer->contactor_feedback & 0x80)) {
+          content += "Disconnected";
+        } else if (byd_datalayer->contactor_feedback & 0x01) {
+          content += "Charging";
+        } else if (byd_datalayer->contactor_feedback & 0x02) {
+          content += "Drive";
+        } else {
+          content += "Closed idle";
+        }
+        char modeStr[10];
+        snprintf(modeStr, sizeof(modeStr), " (0x%02X)", byd_datalayer->contactor_feedback);
+        content += modeStr;
+        content += "</h4>";
+      }
+    }
+    char feedbackStr[5];
+    snprintf(feedbackStr, sizeof(feedbackStr), "0x%02X", byd_datalayer->contactor_feedback);
+    content += "<h4>BMS raw status: mode ";
+    content += feedbackStr;
+    content += ", state ";
+
+    // 0x344 byte1 low nibble: a BMS state code whose meaning is unconfirmed (reads 1 in
+    // idle/drive/discharge alike). byte0 is the real charge/drive truth, so show this raw.
+    content += String(byd_datalayer->discharge_status);
+    content += "</h4>";
 
     float soc_measured = static_cast<float>(byd_datalayer->SOC_highprec) * 0.1f;
     float BMS_maxChargePower = static_cast<float>(byd_datalayer->chargePower) * 0.1f;
@@ -189,12 +185,13 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>SOC original: " + String(byd_datalayer->BMC_SOC_original_calibration) + "&percnt;</h4>";
     content += "<h4>SOC current: " + String(byd_datalayer->BMC_SOC_current_calibration) + "&percnt;</h4>";
 
-    content += "<h4>Auto-calibrate SOC to 100% when full: <input type='checkbox' id='autoCalEnabled' ";
+    content += "<h4>Auto-calibrate SOC to 100&percnt; when full: <input type='checkbox' id='autoCalEnabled" + s + "' ";
     content += (byd_datalayer->auto_calibrate_soc_enabled ? "checked" : "");
-    content += " onchange='toggleAutoCalSOCEnabled()'> (default ON)</h4>";
-    content += "<h4>Auto-calibrate trigger drift: <input type='number' id='driftPercent' value='";
+    content += " onchange='toggleAutoCalSOCEnabled" + s + "()'> (default ON)</h4>";
+    content += "<h4>Auto-calibrate trigger drift: <input type='number' id='driftPercent" + s + "' value='";
     content += String(byd_datalayer->auto_calibrate_soc_drift_percent);
-    content += "' min='1' max='20'> % <button onclick='setAutoCalDriftPercent()'>Save Drift %</button></h4>";
+    content += "' min='1' max='20'> &percnt; <button onclick='setAutoCalDriftPercent" + s +
+               "()'>Save Drift &percnt;</button></h4>";
 
     // Auto-calibration live status panel
     {
@@ -268,8 +265,8 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += "SOC drift:</td>";
       content += value_td;
       content += byd_datalayer->autocal_crit_drift ? "<span style='color:#3fb950'>" : "";
-      content += String(byd_datalayer->autocal_drift_percent, 1) + "% / threshold " +
-                 String(byd_datalayer->auto_calibrate_soc_drift_percent) + "%";
+      content += String(byd_datalayer->autocal_drift_percent, 1) + "&percnt; / threshold " +
+                 String(byd_datalayer->auto_calibrate_soc_drift_percent) + "&percnt;";
       content += byd_datalayer->autocal_crit_drift ? "</span>" : "";
       content += "</td></tr>";
 
@@ -286,16 +283,120 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     }
 
     content += "<h4>Calibration target SOC: " + String(byd_datalayer->calibrationTargetSOC) +
-               "&percnt;"
-               " </span><button onclick='editCalTargetSOC()'>Edit</button></h4>";
+               "&percnt; <button onclick='editCalTargetSOC" + s + "()'>Edit</button></h4>";
     content += "<h4>Calibration target capacity: " + String(byd_datalayer->calibrationTargetAH) +
-               " AH</span><button onclick='editCalTargetAH()'>Edit</button></h4>";
+               " AH <button onclick='editCalTargetAH" + s + "()'>Edit</button></h4>";
+
+    content += "<script>";
+    content += "function editComplete() {";
+    content += "  alert('Update successful!');";
+    content += "  setTimeout(function() { location.reload(); }, 1000);";
+    content += "}";
+    content += "function editError() {";
+    content += "  alert('Update failed. Please try again.');";
+    content += "}";
+    content += "function editCalTargetSOC" + s + "(){";
+    content += "  var value=prompt('Enter calibration target SOC (0 to 100):');";
+    content += "  if(value!==null){";
+    content += "    var numValue=parseFloat(value);";
+    content += "    if(!isNaN(numValue) && numValue>=0 && numValue<=100){";
+    content += "      var xhr=new XMLHttpRequest();";
+    content += "      xhr.onload=editComplete;";
+    content += "      xhr.onerror=editError;";
+    content += "      xhr.open('GET','/editCalTargetSOC" + s + "?value='+numValue,true);";
+    content += "      xhr.send();";
+    content += "    }else{";
+    content += "      alert('Invalid value. Please enter a value between 0 and 100.');";
+    content += "    }";
+    content += "  }";
+    content += "}";
+    content += "function editCalTargetAH" + s + "(){";
+    content += "  var value=prompt('Enter calibration target AH:');";
+    content += "  if(value!==null){";
+    content += "    var numValue=parseFloat(value);";
+    content += "    if(!isNaN(numValue) && numValue>0){";
+    content += "      var xhr=new XMLHttpRequest();";
+    content += "      xhr.onload=editComplete;";
+    content += "      xhr.onerror=editError;";
+    content += "      xhr.open('GET','/editCalTargetAH" + s + "?value='+numValue,true);";
+    content += "      xhr.send();";
+    content += "    }else{";
+    content += "      alert('Invalid value. Please enter a positive number.');";
+    content += "    }";
+    content += "  }";
+    content += "}";
+    content += "function toggleAutoCalSOCEnabled" + s + "(){";
+    content += "  var enabled = document.getElementById('autoCalEnabled" + s + "').checked ? 1 : 0;";
+    content += "  var xhr=new XMLHttpRequest();";
+    content += "  xhr.onload=editComplete;";
+    content += "  xhr.onerror=editError;";
+    content += "  xhr.open('GET','/editBydAtto3AutoCalEnabled" + s + "?value='+enabled,true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function setAutoCalDriftPercent" + s + "(){";
+    content += "  var percent = document.getElementById('driftPercent" + s + "').value;";
+    content += "  var xhr=new XMLHttpRequest();";
+    content += "  xhr.onload=editComplete;";
+    content += "  xhr.onerror=editError;";
+    content += "  xhr.open('GET','/editBydAtto3AutoCalDriftPercent" + s + "?value='+percent,true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "</script>";
+
+    // Diagnostic Trouble Codes, populated on demand by the 'Read DTC' button (Advanced page).
+    content +=
+        "<h4 style='margin-top:20px;color:#27b06c;border-bottom:2px solid #27b06c;padding-bottom:5px;'>&#128295; "
+        "Diagnostic Trouble Codes</h4>";
+    if (byd_datalayer->dtc_last_read_millis == 0) {
+      content += "<p style='color:#bbb;'>Not read yet &mdash; use the Read DTC button below to scan.</p>";
+    } else if (byd_datalayer->dtc_read_failed) {
+      content += "<p style='color:#ff8a80;'>&#9888; Last DTC read failed or timed out.</p>";
+    } else if (byd_datalayer->dtc_count == 0) {
+      content += "<p style='color:#69f0ae;'>&#10003; No DTCs present.</p>";
+    } else {
+      unsigned long age_s = (millis() - byd_datalayer->dtc_last_read_millis) / 1000;
+      content += "<p style='color:#bbb;'>" + String(byd_datalayer->dtc_count) + " codes &mdash; read " + String(age_s) +
+                 "s ago</p>";
+      content += "<div style='overflow-x:auto;margin-bottom:12px;'>";
+      content +=
+          "<table style='margin:0 auto;text-align:left;border-collapse:separate;border-spacing:0;"
+          "border:1px solid #4a5a64;border-radius:8px;overflow:hidden;'>";
+      content +=
+          "<thead><tr style='background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;'>"
+          "<th style='padding:10px 18px;text-align:left;'>DTC</th>"
+          "<th style='padding:10px 18px;text-align:left;'>Status</th>"
+          "<th style='padding:10px 18px;text-align:left;'>Description</th></tr></thead><tbody>";
+      // Decode the raw 3-byte code to the string our JSON is keyed by: top 2 bits of byte0 -> P/C/B/U.
+      const char SYS[5] = "PCBU";
+      for (int i = 0; i < byd_datalayer->dtc_count; i++) {
+        uint32_t code = byd_datalayer->dtc_codes[i];
+        uint8_t status = byd_datalayer->dtc_status[i];
+        char dtcStr[8];
+        snprintf(dtcStr, sizeof(dtcStr), "%c%02lX%02lX%02lX", SYS[(code >> 22) & 0x03],
+                 (unsigned long)((code >> 16) & 0x3F), (unsigned long)((code >> 8) & 0xFF),
+                 (unsigned long)(code & 0xFF));
+        bool active = status & 0x01;
+        String statusStr = active ? "Active" : "Stored";
+        String statusColor = active ? "#ff5252" : "#9e9e9e";
+        content +=
+            "<tr><td style='padding:8px 18px;border-top:1px solid #3a4750;font-family:monospace;"
+            "font-weight:600;'>" +
+            String(dtcStr) + "</td>";
+        content += "<td style='padding:8px 18px;border-top:1px solid #3a4750;color:" + statusColor +
+                   ";font-weight:600;'>" + statusStr + "</td>";
+        content += "<td data-dtc-code='" + String(dtcStr) +
+                   "' style='padding:8px 18px;border-top:1px solid #3a4750;'>Unknown</td></tr>";
+      }
+      content += "</tbody></table></div>";
+      content += get_dtc_json_loader_html(GITHUB_RAW_BASE_URL, "byd_atto3_dtc.json");
+    }
 
     return content;
   }
 
  private:
   DATALAYER_INFO_BYDATTO3* byd_datalayer;
+  String s;
 };
 
 #endif

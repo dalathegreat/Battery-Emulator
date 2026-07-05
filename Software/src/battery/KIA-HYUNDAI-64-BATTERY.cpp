@@ -483,6 +483,11 @@ void KiaHyundai64Battery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&KIA64_57F);
       transmit_can_frame(&KIA64_2A1);
     }
+
+    if (UserRequestDTCreset) {
+      UserRequestDTCreset = false;
+      transmit_can_frame(&KIA64_CLEAR_DTC);
+    }
   }
 
   // Send 10ms CAN Message
