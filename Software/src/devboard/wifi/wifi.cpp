@@ -1,6 +1,7 @@
 #include "wifi.h"
 #include "../utils/events.h"
 #include "../utils/logging.h"
+#include "../hal/hal.h"        // esp32hal / AP_BUTTON_PIN()
 #ifndef SMALL_FLASH_DEVICE
 #include <ESPmDNS.h>
 #endif
@@ -56,6 +57,7 @@ static uint16_t current_full_reconnect_interval = INIT_WIFI_FULL_RECONNECT_INTER
 static uint16_t current_check_interval = WIFI_CHECK_INTERVAL;
 static bool connected_once = false;
 
+static bool ap_active = false;
 static bool ap_button_inited = false;
 static bool ap_button_was_pressed = false;
 static unsigned long ap_button_press_start = 0;
@@ -101,6 +103,38 @@ void init_WiFi() {
   connectToWiFi();
 
   DEBUG_PRINTF("init_Wifi complete\n");
+}
+
+// Long-press the board button (usually BOOT/GPIO0) for 5 s to start the AP if it's off.
+static void check_ap_button() {
+  const gpio_num_t pin = esp32hal->AP_BUTTON_PIN();
+  if (pin == GPIO_NUM_NC) {
+    return;  // board has no AP button
+  }
+
+  if (!ap_button_inited) {
+    // Configure lazily, after boot, so we never disturb GPIO0 strapping at reset.
+    pinMode(pin, INPUT_PULLUP);
+    ap_button_inited = true;
+    return;  // let the pull-up settle before the first read
+  }
+
+  const bool pressed = (digitalRead(pin) == LOW);  // active-low (button to GND)
+  const unsigned long now = millis();
+
+  if (pressed && !ap_button_was_pressed) {
+    ap_button_press_start = now;  // press started
+  } else if (pressed && ap_button_was_pressed) {
+    if (now - ap_button_press_start >= AP_BUTTON_HOLD_MS) {
+      if (!ap_active) {
+        logging.println("AP button long-press: starting Wi-Fi access point.");
+        WiFi.mode(WIFI_AP_STA);
+        init_WiFi_AP();  // sets ap_active
+      }
+      ap_button_press_start = now;  // re-arm; won't retrigger until released/re-held
+    }
+  }
+  ap_button_was_pressed = pressed;
 }
 
 // Task to monitor Wi-Fi status and handle reconnections
@@ -257,39 +291,9 @@ void init_WiFi_AP() {
   DEBUG_PRINTF("Access Point password is set (%u characters)\n", (unsigned)passwordAP.length());
 
   WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
+  ap_active = true;
   IPAddress IP = WiFi.softAPIP();
 
   DEBUG_PRINTF("Access Point created.\nIP address: %s\n", IP.toString().c_str());
 }
 
-// Long-press the board button (usually BOOT/GPIO0) for 5 s to start the AP if it's off.
-static void check_ap_button() {
-  const gpio_num_t pin = esp32hal->AP_BUTTON_PIN();
-  if (pin == GPIO_NUM_NC) {
-    return;  // board has no AP button
-  }
-
-  if (!ap_button_inited) {
-    // Configure lazily, after boot, so we never disturb GPIO0's strapping at reset.
-    pinMode(pin, INPUT_PULLUP);
-    ap_button_inited = true;
-    return;  // let the pull-up settle before the first read
-  }
-
-  const bool pressed = (digitalRead(pin) == LOW);  // active-low (button to GND)
-  const unsigned long now = millis();
-
-  if (pressed && !ap_button_was_pressed) {
-    ap_button_press_start = now;  // press started
-  } else if (pressed && ap_button_was_pressed) {
-    if (now - ap_button_press_start >= AP_BUTTON_HOLD_MS) {
-      if (!ap_active) {
-        logging.println("AP button long-press: starting Wi-Fi access point.");
-        WiFi.mode(WIFI_AP_STA);
-        init_WiFi_AP();  // idempotent; sets ap_active
-      }
-      ap_button_press_start = now;  // re-arm; won't retrigger until released/re-held
-    }
-  }
-  ap_button_was_pressed = pressed;
-}
