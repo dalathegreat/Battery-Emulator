@@ -61,16 +61,16 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //frame6 has counter low nibble, 0-F incrementing every frame
       break;
-    case 0x7E9:  //Not confirmed yet
+    case 0x7E9:  //BMS reply
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
       if (rx_frame.data.u8[0] < 0x10) {  //One line response
         incoming_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       }
 
-      if (rx_frame.data.u8[0] == 0x10) {  //Multiframe response, send ACK
-        //transmit_can_frame(&FISKER_PID_ACK); //Not seen yet
-        //incoming_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+      if (rx_frame.data.u8[0] == 0x10) {      //Multiframe response, send ACK
+        transmit_can_frame(&FISKER_PID_ACK);  //Not seen yet
+        incoming_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
       }
 
       switch (incoming_poll) {
@@ -213,7 +213,7 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void FiskerOceanBattery::transmit_can(unsigned long currentMillis) {
-  // Send 250ms CAN Message
+  // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     previousMillis200 = currentMillis;
 
@@ -223,11 +223,6 @@ void FiskerOceanBattery::transmit_can(unsigned long currentMillis) {
 
     FISKER_PID_REQUEST.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
     FISKER_PID_REQUEST.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
-
-    //We do not know which ID the battery needs, so loop thru 30 different combinations each run
-    static int offset = 0;
-    offset = (offset + 1) % 256;
-    FISKER_PID_REQUEST.ID = 0x700 + offset;
 
     transmit_can_frame(&FISKER_PID_REQUEST);
   }

@@ -101,11 +101,21 @@ class FiskerOceanBattery : public CanBattery {
                                   .DLC = 8,
                                   .ID = 0x7E1,
                                   .data = {0x03, 0x22, 0x20, 0x03, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FISKER_PID_ACK = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7E1,
+                              .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame FISKER_DTC_RESET = {.FD = false,
                                 .ext_ID = false,
                                 .DLC = 8,
                                 .ID = 0x7E1,
                                 .data = {0x04, 0x14, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FISKER_EXTENDED_DIAG_SESSION = {.FD = false,
+                                            .ext_ID = false,
+                                            .DLC = 8,
+                                            .ID = 0x7E1,
+                                            .data = {0x02, 0x10, 0x03, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 
   uint16_t currentpoll = PID_BATTERY_SUM_VOLTAGE;
   uint16_t incoming_poll = 0;
