@@ -452,9 +452,9 @@ void init_webserver() {
               bool requestedWebAuth = webAuthParam != nullptr && webAuthParam->value() == "on";
               String requestedHttpUser =
                   httpUserParam != nullptr ? httpUserParam->value() : settings.getString("HTTPUSER", "admin");
-              String requestedHttpPass =
-                  (httpPassParam != nullptr && !httpPassParam->value().isEmpty()) ? httpPassParam->value()
-                                                                                  : settings.getString("HTTPPASS");
+              String requestedHttpPass = (httpPassParam != nullptr && !httpPassParam->value().isEmpty())
+                                             ? httpPassParam->value()
+                                             : settings.getString("HTTPPASS");
 
               String requestedHttpPassConfirm =
                   (httpPassConfirmParam != nullptr && !httpPassConfirmParam->value().isEmpty())
@@ -546,9 +546,9 @@ void init_webserver() {
                 for (auto& stringSetting : stringSettingNames) {
                   if (p->name() == stringSetting) {
                     // Password fields are rendered blank; an empty value means "keep unchanged".
-                    const bool isPasswordField = (std::string(stringSetting) == "APPASSWORD" ||
-                                                  std::string(stringSetting) == "MQTTPASSWORD" ||
-                                                  std::string(stringSetting) == "HTTPPASS");
+                    const bool isPasswordField =
+                        (std::string(stringSetting) == "APPASSWORD" || std::string(stringSetting) == "MQTTPASSWORD" ||
+                         std::string(stringSetting) == "HTTPPASS");
                     if (isPasswordField && p->value().isEmpty()) {
                       continue;  // keep existing stored password
                     }
