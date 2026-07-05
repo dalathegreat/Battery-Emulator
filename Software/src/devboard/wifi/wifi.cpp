@@ -1,7 +1,7 @@
 #include "wifi.h"
+#include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
 #include "../utils/events.h"
 #include "../utils/logging.h"
-#include "../hal/hal.h"        // esp32hal / AP_BUTTON_PIN()
 #ifndef SMALL_FLASH_DEVICE
 #include <ESPmDNS.h>
 #endif
@@ -296,4 +296,3 @@ void init_WiFi_AP() {
 
   DEBUG_PRINTF("Access Point created.\nIP address: %s\n", IP.toString().c_str());
 }
-
