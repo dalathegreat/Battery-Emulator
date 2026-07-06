@@ -1,6 +1,7 @@
 #include "wifi.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
+#include "../utils/led_handler.h"
 #include "../utils/events.h"
 #include "../utils/logging.h"
 #ifndef SMALL_FLASH_DEVICE
@@ -129,8 +130,21 @@ static void check_ap_button() {
 
   if (pressed && !ap_button_was_pressed) {
     ap_button_press_start = now;  // press started
+  } else if (pressed && ap_button_was_pressed) {
+    // Still held: white blink, rate steps up as each tier is reached.
+    const unsigned long held = now - ap_button_press_start;
+    if (held >= AP_BUTTON_FACTORY_RESET_MS) {
+      set_led_override(true, LED_COLOR_WHITE, 100);  // >=30 s
+    } else if (held >= AP_BUTTON_STA_WIPE_MS) {
+      set_led_override(true, LED_COLOR_WHITE, 200);  // >=15 s
+    } else if (held >= AP_BUTTON_AP_MS) {
+      set_led_override(true, LED_COLOR_WHITE, 400);  // >=5 s
+    } else {
+      set_led_override(false, 0, 0);  // <5 s: no feedback yet
+    }
   } else if (!pressed && ap_button_was_pressed) {
     // Released: act based on how long it was held.
+    set_led_override(false, 0, 0);  // released: stop blink feedback
     const unsigned long held = now - ap_button_press_start;
     if (held >= AP_BUTTON_FACTORY_RESET_MS) {
       logging.println("Button held >=30 s: performing factory reset and rebooting.");
