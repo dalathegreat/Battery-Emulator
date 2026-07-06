@@ -150,6 +150,7 @@ class ESPClass {
   }
 
   uint64_t getEfuseMac() { return 0xAABBCCDDEEFFULL; }
+  void restart() {}
 };
 
 extern ESPClass ESP;

@@ -25,6 +25,7 @@ static bool battery_empty_event_fired = false;
 bool emulator_pause_request_ON = false;
 bool emulator_pause_CAN_send_ON = false;
 bool allowed_to_send_CAN = true;
+static uint32_t emulator_restart_request_millis = 0;
 
 //component detection
 bool battery_detected = false;
@@ -606,6 +607,32 @@ void setBatteryPause(bool pause_battery, bool pause_CAN, EquipmentStop equipment
 
   //immediate check if we can send CAN messages
   update_pause_state();
+}
+
+void graceful_restart() {
+  // Pause charge/discharge, and then restart the ESP32 within 5s (as soon as the power stops).
+
+  set_event(EVENT_RESTARTING, 0);
+
+  // Stop charge/discharge so we don't damage the contactors
+  setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
+
+  uint32_t now = millis();
+  emulator_restart_request_millis = now > 0 ? now : 1;
+}
+
+void update_restart_progress() {
+  // If is a restart has been requested, check the time and restart if the
+  // conditions are met.
+
+  if (emulator_restart_request_millis > 0) {
+    uint32_t now = millis();
+    uint32_t elapsed = now - emulator_restart_request_millis;
+    // Restart after 2s if the emulator has paused. Always restart after 5s.
+    if ((elapsed > INTERVAL_2_S && emulator_pause_status == PAUSED) || elapsed > INTERVAL_5_S) {
+      ESP.restart();
+    }
+  }
 }
 
 /// @brief handle emulator pause status and CAN sending allowed
