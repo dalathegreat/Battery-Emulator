@@ -63,6 +63,7 @@ static bool ap_button_inited = false;
 static bool ap_button_was_pressed = false;
 static unsigned long ap_button_press_start = 0;
 static const unsigned long AP_BUTTON_AP_MS = 5000;              // >=5 s: start AP
+static const unsigned long AP_BUTTON_STA_WIPE_MS = 15000;       // >=15 s: wipe STA settings + reboot
 static const unsigned long AP_BUTTON_FACTORY_RESET_MS = 30000;  // >=30 s: factory reset
 
 void init_WiFi() {
@@ -137,6 +138,11 @@ static void check_ap_button() {
       settings.clearAll();
       delay(100);
       ESP.restart();
+    } else if (held >= AP_BUTTON_STA_WIPE_MS) {
+      logging.println("Button held >=15 s: clearing Wi-Fi station settings and rebooting.");
+      clear_wifi_sta_settings();
+      delay(100);
+      ESP.restart();
     } else if (held >= AP_BUTTON_AP_MS) {
       if (!ap_active) {
         logging.println("Button held >=5 s: starting Wi-Fi access point.");
@@ -150,7 +156,7 @@ static void check_ap_button() {
 
 // Task to monitor Wi-Fi status and handle reconnections
 void wifi_monitor() {
-  check_ap_button();
+  ();
 
   if (ssid.empty() || password.empty()) {
     return;
