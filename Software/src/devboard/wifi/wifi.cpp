@@ -148,14 +148,19 @@ static void check_ap_button() {
     const unsigned long held = now - ap_button_press_start;
     if (held >= AP_BUTTON_FACTORY_RESET_MS) {
       logging.println("Button held >=30 s: performing factory reset and rebooting.");
+      // Stop current flow without persisting the equipment state before factory reset as reboot will open contactors
+      // Max Charge/Discharge = 0; CAN = stop; contactors = open
+      setBatteryPause(true, true, true, false);
       BatteryEmulatorSettingsStore settings;
       settings.clearAll();
-      delay(100);
+      delay(1000);
       ESP.restart();
     } else if (held >= AP_BUTTON_STA_WIPE_MS) {
       logging.println("Button held >=15 s: clearing Wi-Fi station settings and rebooting.");
+      // Stop current flow as the reboot will open contactors
+      setBatteryPause(true, false, false, false);
       clear_wifi_sta_settings();
-      delay(100);
+      delay(1000);
       ESP.restart();
     } else if (held >= AP_BUTTON_AP_MS) {
       if (!ap_active) {
