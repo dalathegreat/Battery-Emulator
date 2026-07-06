@@ -36,6 +36,8 @@ void store_settings_equipment_stop();
  */
 void store_settings();
 
+void clear_wifi_sta_settings();
+
 // Wraps the Preferences object begin/end calls, so that the scope of this object
 // runs them automatically (via constructor/destructor).
 class BatteryEmulatorSettingsStore {
@@ -51,6 +53,13 @@ class BatteryEmulatorSettingsStore {
   void clearAll() {
     settings.clear();
     settingsUpdated = true;
+  }
+
+  void removeKey(const char* name) {
+    if (settings.isKey(name)) {
+      settings.remove(name);
+      settingsUpdated = true;
+    }
   }
 
   int32_t getInt(const char* name, int32_t defaultValue) {
