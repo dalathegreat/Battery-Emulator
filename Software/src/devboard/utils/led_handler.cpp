@@ -19,6 +19,19 @@
 
 static LED* led = nullptr;
 
+static bool led_override_active = false;
+static uint32_t led_override_color = 0;
+static uint16_t led_override_period_ms = 0;
+
+void set_led_override(bool active, uint32_t color, uint16_t period_ms) {
+  if (led == nullptr) {
+    return;  // no LED (GPIO unset or used for an OLED) — nothing to drive
+  }
+  led_override_active = active;
+  led_override_color = color;
+  led_override_period_ms = period_ms;
+}
+
 uint16_t map_int(uint16_t x, uint16_t in_min, uint16_t in_max, uint16_t out_min, uint16_t out_max) {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
@@ -49,6 +62,14 @@ void led_exe(void) {
 }
 
 void LED::exe(void) {
+  // Button-hold feedback: square-wave blink at full brightness, ahead of normal state.
+  if (led_override_active && led_override_period_ms > 0) {
+    const bool on = (millis() / (led_override_period_ms / 2)) % 2;
+    pixels.setPixelColor(on ? led_override_color : 0);
+    pixels.show();
+    return;
+  }
+  
   // Update brightness
   switch (datalayer.battery.status.led_mode) {
     case led_mode_enum::FLOW:
