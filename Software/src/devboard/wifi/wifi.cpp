@@ -1,8 +1,8 @@
 #include "wifi.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
-#include "../utils/led_handler.h"
 #include "../utils/events.h"
+#include "../utils/led_handler.h"
 #include "../utils/logging.h"
 #ifndef SMALL_FLASH_DEVICE
 #include <ESPmDNS.h>
