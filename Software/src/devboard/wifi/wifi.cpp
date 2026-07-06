@@ -4,6 +4,7 @@
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/logging.h"
+#include "../safety/safety.h"
 #ifndef SMALL_FLASH_DEVICE
 #include <ESPmDNS.h>
 #endif
@@ -147,7 +148,6 @@ static void check_ap_button() {
     set_led_override(false, 0, 0);  // released: stop blink feedback
     const unsigned long held = now - ap_button_press_start;
     if (held >= AP_BUTTON_FACTORY_RESET_MS) {
-      logging.println("Button held >=30 s: performing factory reset and rebooting.");
       // Stop current flow without persisting the equipment state before factory reset as reboot will open contactors
       // Max Charge/Discharge = 0; CAN = stop; contactors = open
       setBatteryPause(true, true, true, false);
@@ -156,7 +156,6 @@ static void check_ap_button() {
       delay(1000);
       ESP.restart();
     } else if (held >= AP_BUTTON_STA_WIPE_MS) {
-      logging.println("Button held >=15 s: clearing Wi-Fi station settings and rebooting.");
       // Stop current flow as the reboot will open contactors
       setBatteryPause(true, false, false, false);
       clear_wifi_sta_settings();
@@ -164,7 +163,6 @@ static void check_ap_button() {
       ESP.restart();
     } else if (held >= AP_BUTTON_AP_MS) {
       if (!ap_active) {
-        logging.println("Button held >=5 s: starting Wi-Fi access point.");
         WiFi.mode(WIFI_AP_STA);
         init_WiFi_AP();  // sets ap_active
       }
@@ -324,11 +322,11 @@ void init_mDNS() {
 void init_WiFi_AP() {
 
   DEBUG_PRINTF("Creating Access Point: %s\n", ssidAP.c_str());
-  DEBUG_PRINTF("Access Point password is set (%u characters)\n", (unsigned)passwordAP.length());
+  DEBUG_PRINTF("Access Point password set (%u characters)\n", (unsigned)passwordAP.length());
 
   WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
   ap_active = true;
   IPAddress IP = WiFi.softAPIP();
 
-  DEBUG_PRINTF("Access Point created. IP address: %s\n", IP.toString().c_str());
+  DEBUG_PRINTF("Access Point created, IP address: %s\n", IP.toString().c_str());
 }
