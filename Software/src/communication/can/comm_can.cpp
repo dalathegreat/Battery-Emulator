@@ -51,7 +51,7 @@ MCP2515_Lite* can2515;
 static SPIClass* SPI2515;
 
 static SPIClass* SPI2517;
-static ACAN2517FD* canfd;
+ACAN2517FD* canfd;
 static ACAN2517FDSettings* settings2517;
 static SPIClass* SPI2517_2;
 static ACAN2517FD* canfd_2;

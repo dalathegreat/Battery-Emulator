@@ -333,8 +333,7 @@ export function Settings() {
         <div class="panel">
             <h3>Hardware</h3>
             { checkboxField("Use CAN FD as classic CAN", "CANFDASCAN") }
-            { textPatternField("CAN addon crystal (Mhz)", "CANFREQ", "[0-9]{1,2}") }
-            { textPatternField("CAN-FD addon crystal (Mhz)", "CANFDFREQ", "[0-9]{1,2}") }
+            { checkboxField("Use CAN FD 2 as classic CAN", "CANFD2ASCAN") }
             { selectField("Equipment stop button", "EQSTOP", {
                 "0": "Not connected",
                 "1": "Latching switch",

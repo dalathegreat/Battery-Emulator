@@ -251,6 +251,7 @@ const BoolSetting BOOL_SETTINGS[] = {
     {"EXTPRECHARGE", nullptr},
     {"NOINVDISC", nullptr},
     {"CANFDASCAN", nullptr},
+    {"CANFD2ASCAN", nullptr},
     {"WIFIAPENABLED", nullptr},
     {"STATICIP", nullptr},
     {"PERFPROFILE", nullptr},
@@ -321,8 +322,6 @@ TwsRoute settingsRoute = TwsRoute("/api/internal/settings", new TwsJsonRestFunc(
     
     sets["BMSRESETDUR"] = datalayer.battery.settings.user_set_bms_reset_duration_ms;
     sets["PYLONBAUD"] = user_selected_pylon_baudrate;
-    sets["CANFDFREQ"] = user_selected_canfd_addon_crystal_frequency_mhz;
-    sets["CANFREQ"] = user_selected_can_addon_crystal_frequency_mhz;
     sets["DALYPWRPCT"] = user_selected_daly_power_per_percent;
     sets["DALYPWRDV"] = user_selected_daly_power_per_dV;
     sets["DALYDVSTART"] = user_selected_daly_power_per_dV_start;

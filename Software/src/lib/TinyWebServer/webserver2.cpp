@@ -21,6 +21,10 @@
 //#include "esp_task_wdt.h"
 //#include "esp_wifi.h"
 
+std::string http_username;
+std::string http_password;
+bool webserver_auth;
+
 extern TwsRoute settingsRoute;
 extern TwsRoute statusRoute;
 extern TwsRoute cellsRoute;
