@@ -2,6 +2,7 @@
 #include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
 #include "../utils/events.h"
 #include "../utils/logging.h"
+#include "../../communication/nvm/comm_nvm.h"
 #ifndef SMALL_FLASH_DEVICE
 #include <ESPmDNS.h>
 #endif
@@ -61,7 +62,8 @@ bool ap_active = false;
 static bool ap_button_inited = false;
 static bool ap_button_was_pressed = false;
 static unsigned long ap_button_press_start = 0;
-static const unsigned long AP_BUTTON_HOLD_MS = 5000;  // 5-second long-press to start AP
+static const unsigned long AP_BUTTON_AP_MS = 5000;             // >=5 s: start AP
+static const unsigned long AP_BUTTON_FACTORY_RESET_MS = 30000; // >=30 s: factory reset
 
 void init_WiFi() {
   DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
@@ -105,7 +107,9 @@ void init_WiFi() {
   DEBUG_PRINTF("init_Wifi complete\n");
 }
 
-// Long-press the board button (usually BOOT/GPIO0) for 5 s to start the AP if it's off.
+// Board button (usually BOOT/GPIO0):
+//   held >= 30 s then released -> factory reset (clear settings) + reboot
+//   held >=  5 s then released -> start the Wi-Fi AP if it isn't running
 static void check_ap_button() {
   const gpio_num_t pin = esp32hal->AP_BUTTON_PIN();
   if (pin == GPIO_NUM_NC) {
@@ -124,14 +128,21 @@ static void check_ap_button() {
 
   if (pressed && !ap_button_was_pressed) {
     ap_button_press_start = now;  // press started
-  } else if (pressed && ap_button_was_pressed) {
-    if (now - ap_button_press_start >= AP_BUTTON_HOLD_MS) {
+  } else if (!pressed && ap_button_was_pressed) {
+    // Released: act based on how long it was held.
+    const unsigned long held = now - ap_button_press_start;
+    if (held >= AP_BUTTON_FACTORY_RESET_MS) {
+      logging.println("Button held >=30 s: performing factory reset and rebooting.");
+      BatteryEmulatorSettingsStore settings;
+      settings.clearAll();
+      delay(100);
+      ESP.restart();
+    } else if (held >= AP_BUTTON_AP_MS) {
       if (!ap_active) {
-        logging.println("AP button long-press: starting Wi-Fi access point.");
+        logging.println("Button held >=5 s: starting Wi-Fi access point.");
         WiFi.mode(WIFI_AP_STA);
         init_WiFi_AP();  // sets ap_active
       }
-      ap_button_press_start = now;  // re-arm; won't retrigger until released/re-held
     }
   }
   ap_button_was_pressed = pressed;
