@@ -299,6 +299,11 @@ void bms_power_on() {
 }
 
 void handle_BMSpower() {
+  //Skip running the BMS reset state machine if equipment stop is active, as we don't want to powercycle the BMS during that time
+  if (datalayer.system.info.equipment_stop_active) {
+    return;
+  }
+
   if (periodic_bms_reset || remote_bms_reset) {
     currentTime = millis();
 
