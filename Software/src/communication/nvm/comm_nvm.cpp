@@ -243,11 +243,8 @@ void init_stored_settings() {
 void clear_wifi_sta_settings() {
   BatteryEmulatorSettingsStore settings;
   static const char* sta_keys[] = {
-      "SSID",     "PASSWORD",
-      "WIFICHANNEL", "STATICIP",
-      "LOCALIP1", "LOCALIP2", "LOCALIP3", "LOCALIP4",
-      "GATEWAY1", "GATEWAY2", "GATEWAY3", "GATEWAY4",
-      "SUBNET1",  "SUBNET2",  "SUBNET3",  "SUBNET4",
+      "SSID",     "PASSWORD", "WIFICHANNEL", "STATICIP", "LOCALIP1", "LOCALIP2", "LOCALIP3", "LOCALIP4",
+      "GATEWAY1", "GATEWAY2", "GATEWAY3",    "GATEWAY4", "SUBNET1",  "SUBNET2",  "SUBNET3",  "SUBNET4",
   };
   for (auto key : sta_keys) {
     settings.removeKey(key);
