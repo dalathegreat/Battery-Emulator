@@ -246,7 +246,10 @@ void clear_wifi_sta_settings() {
   settings.saveString("PASSWORD", "");
   settings.saveUInt("WIFICHANNEL", 0);
   settings.saveBool("STATICIP", false);
-  // Static-IP octets -> 0 (STATICIP=false already disables their use)
+  // Force the AP on so the device is reachable after the STA settings are cleared,
+  // overriding a user preference that may have disabled it:
+  settings.saveBool("WIFIAPENABLED", true);
+  // Static-IP octets -> 0 (STATICIP=false already disables their use):
   const char* ip_keys[] = {
       "LOCALIP1", "LOCALIP2", "LOCALIP3", "LOCALIP4", "GATEWAY1", "GATEWAY2",
       "GATEWAY3", "GATEWAY4", "SUBNET1",  "SUBNET2",  "SUBNET3",  "SUBNET4",
