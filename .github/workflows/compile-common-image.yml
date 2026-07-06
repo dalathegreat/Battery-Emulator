@@ -60,7 +60,7 @@ jobs:
     #rename firmware.bin to contain pr number and commit short sha for easier location after saved on disk
     - name: Rename firmware.bin with PR number and commit short SHA
       run: |
-          SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha || github.sha }}" | cut -c1-6)
+          SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha || github.sha }}" | cut -c1-7)
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             PR_PART="pr${{ github.event.pull_request.number }}-"
           else
