@@ -1034,6 +1034,12 @@ String processor(const String& var) {
     } else {
       content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
     }
+
+    if (ap_active) {
+      content += "<h4>Wi-Fi access point active &mdash; SSID: " + html_escape(ssidAP.c_str()) + " (" +
+                 WiFi.softAPIP().toString() + ")</h4>";
+    }
+
     // Close the block
     content += "</div>";
 

@@ -43,6 +43,9 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_8; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_9; }  //Collides with SMA contactor input
 
+  // Momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP.
+  virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_0; }
+
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_5; }
   virtual gpio_num_t INVERTER_DISCONNECT_CONTACTOR_PIN() { return GPIO_NUM_3; }

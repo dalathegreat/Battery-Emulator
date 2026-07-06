@@ -1,5 +1,9 @@
 #include "wifi.h"
+#include "../../communication/nvm/comm_nvm.h"
+#include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
+#include "../safety/safety.h"
 #include "../utils/events.h"
+#include "../utils/led_handler.h"
 #include "../utils/logging.h"
 #ifndef SMALL_FLASH_DEVICE
 #include <ESPmDNS.h>
@@ -56,6 +60,14 @@ static uint16_t current_full_reconnect_interval = INIT_WIFI_FULL_RECONNECT_INTER
 static uint16_t current_check_interval = WIFI_CHECK_INTERVAL;
 static bool connected_once = false;
 
+bool ap_active = false;
+static bool ap_button_inited = false;
+static bool ap_button_was_pressed = false;
+static unsigned long ap_button_press_start = 0;
+static const unsigned long AP_BUTTON_AP_MS = 5000;              // >=5 s: start AP
+static const unsigned long AP_BUTTON_STA_WIPE_MS = 15000;       // >=15 s: wipe STA settings + reboot
+static const unsigned long AP_BUTTON_FACTORY_RESET_MS = 30000;  // >=30 s: factory reset
+
 void init_WiFi() {
   DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
 
@@ -98,8 +110,71 @@ void init_WiFi() {
   DEBUG_PRINTF("init_Wifi complete\n");
 }
 
+// Board button (usually BOOT/GPIO0):
+//   held >= 30 s then released -> factory reset (clear settings) + reboot
+//   held >=  5 s then released -> start the Wi-Fi AP if it isn't running
+static void check_ap_button() {
+  const gpio_num_t pin = esp32hal->AP_BUTTON_PIN();
+  if (pin == GPIO_NUM_NC) {
+    return;  // board has no AP button
+  }
+
+  if (!ap_button_inited) {
+    // Configure lazily, after boot, so we never disturb GPIO0 strapping at reset.
+    pinMode(pin, INPUT_PULLUP);
+    ap_button_inited = true;
+    return;  // let the pull-up settle before the first read
+  }
+
+  const bool pressed = (digitalRead(pin) == LOW);  // active-low (button to GND)
+  const unsigned long now = millis();
+
+  if (pressed && !ap_button_was_pressed) {
+    ap_button_press_start = now;  // press started
+  } else if (pressed && ap_button_was_pressed) {
+    // Still held: white blink, rate steps up as each tier is reached.
+    const unsigned long held = now - ap_button_press_start;
+    if (held >= AP_BUTTON_FACTORY_RESET_MS) {
+      set_led_override(true, LED_COLOR_WHITE, 100);  // >=30 s
+    } else if (held >= AP_BUTTON_STA_WIPE_MS) {
+      set_led_override(true, LED_COLOR_WHITE, 200);  // >=15 s
+    } else if (held >= AP_BUTTON_AP_MS) {
+      set_led_override(true, LED_COLOR_WHITE, 400);  // >=5 s
+    } else {
+      set_led_override(false, 0, 0);  // <5 s: no feedback yet
+    }
+  } else if (!pressed && ap_button_was_pressed) {
+    // Released: act based on how long it was held.
+    set_led_override(false, 0, 0);  // released: stop blink feedback
+    const unsigned long held = now - ap_button_press_start;
+    if (held >= AP_BUTTON_FACTORY_RESET_MS) {
+      // Stop current flow without persisting the equipment state before factory reset as reboot will open contactors
+      // Max Charge/Discharge = 0; CAN = stop; contactors = open
+      setBatteryPause(true, true, true, false);
+      BatteryEmulatorSettingsStore settings;
+      settings.clearAll();
+      delay(1000);
+      ESP.restart();
+    } else if (held >= AP_BUTTON_STA_WIPE_MS) {
+      // Stop current flow as the reboot will open contactors
+      setBatteryPause(true, false, false, false);
+      clear_wifi_sta_settings();
+      delay(1000);
+      ESP.restart();
+    } else if (held >= AP_BUTTON_AP_MS) {
+      if (!ap_active) {
+        WiFi.mode(WIFI_AP_STA);
+        init_WiFi_AP();  // sets ap_active
+      }
+    }
+  }
+  ap_button_was_pressed = pressed;
+}
+
 // Task to monitor Wi-Fi status and handle reconnections
 void wifi_monitor() {
+  check_ap_button();
+
   if (ssid.empty() || password.empty()) {
     return;
   }
@@ -247,10 +322,11 @@ void init_mDNS() {
 void init_WiFi_AP() {
 
   DEBUG_PRINTF("Creating Access Point: %s\n", ssidAP.c_str());
-  DEBUG_PRINTF("Access Point password is set (%u characters)\n", (unsigned)passwordAP.length());
+  DEBUG_PRINTF("Access Point password set (%u characters)\n", (unsigned)passwordAP.length());
 
   WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
+  ap_active = true;
   IPAddress IP = WiFi.softAPIP();
 
-  DEBUG_PRINTF("Access Point created.\nIP address: %s\n", IP.toString().c_str());
+  DEBUG_PRINTF("Access Point created, IP address: %s\n", IP.toString().c_str());
 }

@@ -143,6 +143,9 @@ class LilyGo2CANHal : public Esp32Hal {
     return GPIO_NUM_14;
   }
 
+  // Momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP.
+  virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_0; }
+
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,
             comm_interface::CanFdAddonMcp2518};

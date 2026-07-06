@@ -205,6 +205,9 @@ class Esp32Hal {
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_NC; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_NC; }
 
+  // Momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP. Usually the BOOT button on GPIO0.
+  virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_NC; }
+
   // Returns the available comm interfaces on this HW
   virtual std::vector<comm_interface> available_interfaces() = 0;
 

@@ -240,6 +240,25 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN2", true);
 }
 
+void clear_wifi_sta_settings() {
+  BatteryEmulatorSettingsStore settings;
+  settings.saveString("SSID", "");
+  settings.saveString("PASSWORD", "");
+  settings.saveUInt("WIFICHANNEL", 0);
+  settings.saveBool("STATICIP", false);
+  // Force the AP on so the device is reachable after the STA settings are cleared,
+  // overriding a user preference that may have disabled it:
+  settings.saveBool("WIFIAPENABLED", true);
+  // Static-IP octets -> 0 (STATICIP=false already disables their use):
+  const char* ip_keys[] = {
+      "LOCALIP1", "LOCALIP2", "LOCALIP3", "LOCALIP4", "GATEWAY1", "GATEWAY2",
+      "GATEWAY3", "GATEWAY4", "SUBNET1",  "SUBNET2",  "SUBNET3",  "SUBNET4",
+  };
+  for (auto key : ip_keys) {
+    settings.saveUInt(key, 0);
+  }
+}
+
 void store_settings_equipment_stop() {
   BatteryEmulatorSettingsStore settings(false);
   settings.saveBool("EQUIPMENT_STOP", datalayer.system.info.equipment_stop_active);
