@@ -69,7 +69,7 @@ void LED::exe(void) {
     pixels.show();
     return;
   }
-  
+
   // Update brightness
   switch (datalayer.battery.status.led_mode) {
     case led_mode_enum::FLOW:
