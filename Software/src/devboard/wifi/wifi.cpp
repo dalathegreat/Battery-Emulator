@@ -200,7 +200,7 @@ static void check_ap_button() {
 
   if (!ap_button_inited) {
     // Configure lazily, after boot, so we never disturb GPIO0 strapping at reset.
-    pinMode(pin, INPUT_PULLUP);
+    pinMode(pin, (pin < GPIO_NUM_34) ? INPUT_PULLUP : INPUT);
     ap_button_inited = true;
     return;  // let the pull-up settle before the first read
   }
