@@ -7,8 +7,6 @@ std::string getBMSStatus(system_status_enum status) {
       return "STANDBY";
     case INACTIVE:
       return "INACTIVE";
-    case DARKSTART:
-      return "DARKSTART";
     case ACTIVE:
       return "ACTIVE";
     case FAULT:
