@@ -55,13 +55,6 @@ class BatteryEmulatorSettingsStore {
     settingsUpdated = true;
   }
 
-  void removeKey(const char* name) {
-    if (settings.isKey(name)) {
-      settings.remove(name);
-      settingsUpdated = true;
-    }
-  }
-
   int32_t getInt(const char* name, int32_t defaultValue) {
     return settings.isKey(name) ? settings.getInt(name, defaultValue) : defaultValue;
   }
