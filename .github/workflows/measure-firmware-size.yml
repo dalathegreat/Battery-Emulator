@@ -1,0 +1,113 @@
+name: ⚖️ Measure firmware size
+
+on:
+  pull_request:
+
+jobs:
+  measure-firmware-size:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout PR base
+      uses: actions/checkout@v7
+      with:
+        ref: ${{ github.event.pull_request.base.ref }}
+        fetch-depth: 100
+
+    - name: Get platformio.ini hash
+      id: platformio_ini_hash
+      run: |
+        PLATFORMIO_INI_HASH=$(md5sum platformio.ini | awk '{ print $1 }')
+        echo "platformio_ini_hash=$PLATFORMIO_INI_HASH" >> $GITHUB_OUTPUT
+
+    # Broader cache (just the download files)
+    - uses: actions/cache@v6
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio/.cache
+        key: ${{ runner.os }}-pio
+
+    # Tighter cache (of platformio itself)
+    - uses: actions/cache@v6
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio
+        key: ${{ runner.os }}-pio-${{ steps.platformio_ini_hash.outputs.platformio_ini_hash }}
+    
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.13'
+
+    - name: Install PlatformIO Core
+      run: pip install --upgrade platformio
+
+    - name: Build base image for lilygo_330
+      run: pio run -e lilygo_330
+
+    - name: Measure base firmware size for lilygo_330
+      id: measure_base_size
+      run: |
+        pio run -e lilygo_330 -t checkprogsize > base_output.txt
+
+    - name: Checkout PR head
+      run: |
+        git remote add fork https://github.com/${{ github.event.pull_request.head.repo.full_name }}
+        git fetch fork ${{ github.event.pull_request.head.ref }}
+        git checkout FETCH_HEAD
+    
+    - name: Build image for lilygo_330
+      run: pio run -e lilygo_330
+
+    - name: Measure PR firmware size for lilygo_330
+      id: measure_pr_size
+      run: |
+        pio run -e lilygo_330 -t checkprogsize > pr_output.txt
+
+    - name: Compare firmware sizes
+      shell: python -u {0}
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      run: |
+        import os
+
+        base_output = open("base_output.txt").read()
+        pr_output = open("pr_output.txt").read()
+        base_line = base_output.split("\nFlash:")[1].split("\n")[0]
+        pr_line = pr_output.split("\nFlash:")[1].split("\n")[0]
+        base_used = int(base_line.split("used")[1].split("bytes")[0].strip())
+        base_total = int(base_line.split("from")[1].split("bytes")[0].strip())
+        base_percent = "%.2f"%((base_used / base_total) * 100)
+        pr_used = int(pr_line.split("used")[1].split("bytes")[0].strip())
+        pr_total = int(pr_line.split("from")[1].split("bytes")[0].strip())
+        pr_percent = "%.2f"%((pr_used / pr_total) * 100)
+        size_diff = pr_used - base_used
+        size_diff = f"+{size_diff}" if size_diff >= 0 else str(size_diff)
+
+        base_sha = os.environ.get('BASE_SHA', 'unknown')
+        head_sha = os.environ.get('HEAD_SHA', 'unknown')
+
+        # Generate the full markdown table directly into a file
+        markdown = (
+            "## Firmware size (LilyGo T-CAN485 build)\n"
+            "| | Commit | Size | Max | % | Delta |\n"
+            "| - | - | - | - | - | - |\n"
+            f"| Base | {base_sha} | {base_used} | {base_total} | {base_percent}% | |\n"
+            f"| This PR | {head_sha} | {pr_used} | {pr_total} | {pr_percent}% | {size_diff} bytes |\n"
+        )
+
+        with open("comment.md", "w") as f:
+            f.write(markdown)
+
+    - name: Save PR number
+      run: |
+        echo "${{ github.event.pull_request.number }}" > pr_number.txt
+
+    - name: Upload firmware size report
+      uses: actions/upload-artifact@v4
+      with:
+        name: comment-for-pr
+        path: |
+          comment.md
+          pr_number.txt            

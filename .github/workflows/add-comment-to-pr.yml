@@ -1,0 +1,33 @@
+name: 💬 Add comment to PR
+
+on:
+  workflow_run:
+    workflows: ["⚖️ Measure firmware size"]
+    types:
+      - completed
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    # Only run if the building workflow actually succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      pull-requests: write
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: comment-for-pr
+        run-id: ${{ github.event.workflow_run.id }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Read PR number
+      id: pr_number
+      run: |
+        echo "num=$(cat pr_number.txt)" >> $GITHUB_OUTPUT
+
+    - name: Add comment to PR
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        number: ${{ steps.pr_number.outputs.num }}
+        path: comment.md
