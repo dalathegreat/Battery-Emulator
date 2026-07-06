@@ -156,7 +156,7 @@ static void check_ap_button() {
 
 // Task to monitor Wi-Fi status and handle reconnections
 void wifi_monitor() {
-  ();
+  check_ap_button();
 
   if (ssid.empty() || password.empty()) {
     return;
