@@ -248,9 +248,8 @@ void clear_wifi_sta_settings() {
   settings.saveBool("STATICIP", false);
   // Static-IP octets -> 0 (STATICIP=false already disables their use)
   const char* ip_keys[] = {
-      "LOCALIP1", "LOCALIP2", "LOCALIP3", "LOCALIP4",
-      "GATEWAY1", "GATEWAY2", "GATEWAY3", "GATEWAY4",
-      "SUBNET1",  "SUBNET2",  "SUBNET3",  "SUBNET4",
+      "LOCALIP1", "LOCALIP2", "LOCALIP3", "LOCALIP4", "GATEWAY1", "GATEWAY2",
+      "GATEWAY3", "GATEWAY4", "SUBNET1",  "SUBNET2",  "SUBNET3",  "SUBNET4",
   };
   for (auto key : ip_keys) {
     settings.saveUInt(key, 0);
