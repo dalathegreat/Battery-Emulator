@@ -1,8 +1,8 @@
 #include "wifi.h"
+#include "../../communication/nvm/comm_nvm.h"
 #include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
 #include "../utils/events.h"
 #include "../utils/logging.h"
-#include "../../communication/nvm/comm_nvm.h"
 #ifndef SMALL_FLASH_DEVICE
 #include <ESPmDNS.h>
 #endif
@@ -62,8 +62,8 @@ bool ap_active = false;
 static bool ap_button_inited = false;
 static bool ap_button_was_pressed = false;
 static unsigned long ap_button_press_start = 0;
-static const unsigned long AP_BUTTON_AP_MS = 5000;             // >=5 s: start AP
-static const unsigned long AP_BUTTON_FACTORY_RESET_MS = 30000; // >=30 s: factory reset
+static const unsigned long AP_BUTTON_AP_MS = 5000;              // >=5 s: start AP
+static const unsigned long AP_BUTTON_FACTORY_RESET_MS = 30000;  // >=30 s: factory reset
 
 void init_WiFi() {
   DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
