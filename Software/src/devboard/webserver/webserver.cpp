@@ -630,9 +630,10 @@ void init_webserver() {
   // Route for equipment stop/resume
   update_string("/equipmentStop", [](String value) {
     if (value == "true" || value == "1") {
-      setBatteryPause(true, false, true);  //Pause battery, do not pause CAN, equipment stop on (store to flash)
+      setBatteryPause(true, false,
+                      EquipmentStop::STOP);  //Pause battery, do not pause CAN, equipment stop on (store to flash)
     } else {
-      setBatteryPause(false, false, false);
+      setBatteryPause(false, false, EquipmentStop::RESUME);
     }
   });
 
@@ -844,7 +845,7 @@ void init_webserver() {
 
     //Equipment STOP without persisting the equipment state before restart
     // Max Charge/Discharge = 0; CAN = stop; contactors = open
-    setBatteryPause(true, true, true, false);
+    setBatteryPause(true, true, EquipmentStop::STOP, false);
     delay(1000);
     ESP.restart();
   });
@@ -1738,7 +1739,7 @@ void onOTAEnd(bool success) {
   if (success) {
     //Equipment STOP without persisting the equipment state before restart
     // Max Charge/Discharge = 0; CAN = stop; contactors = open
-    setBatteryPause(true, true, true, false);
+    setBatteryPause(true, true, EquipmentStop::STOP, false);
     // a reboot will be done by the OTA library. no need to do anything here
     logging.println("OTA update finished successfully!");
   } else {

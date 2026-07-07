@@ -150,14 +150,14 @@ static void check_ap_button() {
     if (held >= AP_BUTTON_FACTORY_RESET_MS) {
       // Stop current flow without persisting the equipment state before factory reset as reboot will open contactors
       // Max Charge/Discharge = 0; CAN = stop; contactors = open
-      setBatteryPause(true, true, true, false);
+      setBatteryPause(true, true, EquipmentStop::STOP, false);
       BatteryEmulatorSettingsStore settings;
       settings.clearAll();
       delay(1000);
       ESP.restart();
     } else if (held >= AP_BUTTON_STA_WIPE_MS) {
       // Stop current flow as the reboot will open contactors
-      setBatteryPause(true, false, false, false);
+      setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
       clear_wifi_sta_settings();
       delay(1000);
       ESP.restart();

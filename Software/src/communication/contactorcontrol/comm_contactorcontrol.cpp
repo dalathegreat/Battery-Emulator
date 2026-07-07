@@ -350,7 +350,7 @@ void handle_BMSpower() {
       // Wait for BMS to start up before unpausing
       if (currentTime - bmsPowerOnTime >= bmsWarmupDuration) {
         // Unpause the battery
-        setBatteryPause(false, false, false, false);
+        setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
 
         // Reset is complete
 
@@ -369,7 +369,7 @@ void start_bms_reset() {
       lastPowerRemovalTime = millis();
 
       // Issue a pause, which should stop charge/discharge whilst the reset is ongoing
-      setBatteryPause(true, false, false, false);
+      setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
 
       if (contactor_control_enabled) {
         // We power the contactors directly, so we can avoid closing/opening them

@@ -701,17 +701,17 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
   }
 
   if (strcmp(topic, generateButtonTopic("RESUME").c_str()) == 0) {
-    setBatteryPause(false, false, false);
+    setBatteryPause(false, false, EquipmentStop::RESUME);
   }
 
   if (strcmp(topic, generateButtonTopic("RESTART").c_str()) == 0) {
-    setBatteryPause(true, true, true, false);
+    setBatteryPause(true, true, EquipmentStop::STOP, false);
     delay(1000);
     ESP.restart();
   }
 
   if (strcmp(topic, generateButtonTopic("STOP").c_str()) == 0) {
-    setBatteryPause(true, false, true);
+    setBatteryPause(true, false, EquipmentStop::STOP);
   }
 
   if (strcmp(topic, generateButtonTopic("SET_LIMITS").c_str()) == 0) {
