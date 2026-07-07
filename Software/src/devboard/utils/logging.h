@@ -1,4 +1,4 @@
-#ifndef __LOGGING_H__
+f#ifndef __LOGGING_H__
 #define __LOGGING_H__
 
 #include <inttypes.h>
@@ -17,7 +17,9 @@ class Logging : public Print {
   virtual size_t write(const uint8_t* buffer, size_t size);
   virtual size_t write(uint8_t) { return 0; }
   void printf(const char* fmt, ...);
+#ifndef SMALL_FLASH_DEVICE
   void set_next_severity(uint8_t sev);  // syslog severity for the next assembled line
+#endif
   Logging() {}
 };
 
@@ -37,7 +39,11 @@ class Logging : public Print {
       logging.println(str);                                                                     \
     }                                                                                           \
   } while (0)
+#ifndef SMALL_FLASH_DEVICE
 #define LOG_SET_NEXT_SEVERITY(sev) logging.set_next_severity(sev)
+#else
+#define LOG_SET_NEXT_SEVERITY(sev) ((void)0)
+#endif
 
 #else
 // Mock implementation for tests
@@ -122,9 +128,11 @@ class Logging {
 
 extern Logging logging;
 
+#ifndef SMALL_FLASH_DEVICE
 // Remote syslog config (loaded from NVS in comm_nvm.cpp, consumed in logging.cpp)
 extern std::string syslog_ip;
 extern uint16_t syslog_port;
 extern uint8_t syslog_facility;  // 0..23
+#endif
 
 #endif  // __LOGGING_H__
