@@ -270,8 +270,6 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   char inverter_brand[8] = {0};
 
   size_t logged_can_messages_offset = 0;
-  /** ESP32 main CPU temperature, for displaying on webserver and for safeties */
-  float CPU_temperature = 0;
   /** ESP32 free heap amount, for displaying on webserver and for safeties */
   uint32_t CPU_free_heap = 0;
 

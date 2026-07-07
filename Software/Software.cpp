@@ -147,16 +147,6 @@ void logging_loop(void*) {
 }
 
 void update_calculated_values(unsigned long currentMillis) {
-  /* Update CPU temperature*/
-  union {
-    float temp;
-    uint32_t hex;
-  } temp = {.temp = temperatureRead()};
-  if (temp.hex != 0x42555555) {
-    // Ignoring erroneous temperature value that ESP32 sometimes returns
-    datalayer.system.info.CPU_temperature = temp.temp;
-  }
-
   /*Update free heap*/
   datalayer.system.info.CPU_free_heap = ESP.getFreeHeap();
 

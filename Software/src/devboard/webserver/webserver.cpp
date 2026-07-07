@@ -976,21 +976,20 @@ String processor(const String& var) {
 
 // Show hardware used:
 #ifdef HW_LILYGO
-    content += " Hardware: LilyGo T-CAN485";
+    content += " Hardware: LilyGo T-CAN485</h4>";
 #endif  // HW_LILYGO
 #ifdef HW_LILYGO2CAN
-    content += " Hardware: LilyGo T_2CAN";
+    content += " Hardware: LilyGo T_2CAN</h4>";
 #endif  // HW_LILYGO2CAN
 #ifdef HW_BECOM
-    content += " Hardware: BECom";
+    content += " Hardware: BECom</h4>";
 #endif  // HW_BECOM
 #ifdef HW_STARK
-    content += " Hardware: Stark CMR Module";
+    content += " Hardware: Stark CMR Module</h4>";
 #endif  // HW_STARK
 #ifdef HW_WAVESHARE
-    content += " Hardware: Waveshare ESP32-S3-RS485-CAN";
+    content += " Hardware: Waveshare ESP32-S3-RS485-CAN</h4>";
 #endif  // HW_WAVESHARE
-    content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
     content += "<h4>Uptime: " + get_uptime() + "</h4>";
     if (datalayer.system.info.performance_measurement_active) {
       content +=
