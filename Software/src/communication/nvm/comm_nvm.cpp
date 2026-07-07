@@ -187,10 +187,12 @@ void init_stored_settings() {
   datalayer.system.info.web_logging_active = settings.getBool("WEBENABLED", false);
   datalayer.system.info.CAN_SD_logging_active = settings.getBool("CANLOGSD", false);
   datalayer.system.info.SD_logging_active = settings.getBool("SDLOGENABLED", false);
+#ifndef SMALL_FLASH_DEVICE
   datalayer.system.info.syslog_logging_active = settings.getBool("SYSLOGEN", false);
   syslog_ip = settings.getString("SYSLOGIP").c_str();
   syslog_port = settings.getUInt("SYSLOGPORT", 514);
   syslog_facility = settings.getUInt("SYSLOGFAC", 1);
+#endif
   datalayer.battery.status.led_mode = (led_mode_enum)settings.getUInt("LEDMODE", false);
 
   //Some early integrations need manually set allowed charge/discharge power
