@@ -2,10 +2,10 @@
 #define __LOGGING_H__
 
 #include <inttypes.h>
+#include <string>
 #include "../../datalayer/datalayer.h"
 #include "Print.h"
 #include "types.h"
-#include <string>
 
 #ifndef UNIT_TEST
 // Real implementation for production
@@ -106,7 +106,7 @@ class Logging {
   static void println(float num) { (void)num; }
   static void println(double num) { (void)num; }
   static void println(bool b) { (void)b; }
-  static void println() {}  // Empty println
+  static void println() {}                        // Empty println
   void set_next_severity(uint8_t s) { (void)s; }  // no-op for tests
 
   Logging() {}
@@ -123,7 +123,7 @@ extern Logging logging;
 
 // Remote syslog config (loaded from NVS in comm_nvm.cpp, consumed in logging.cpp)
 extern std::string syslog_ip;
-extern uint16_t    syslog_port;
-extern uint8_t     syslog_facility;  // 0..23
+extern uint16_t syslog_port;
+extern uint8_t syslog_facility;  // 0..23
 
 #endif  // __LOGGING_H__

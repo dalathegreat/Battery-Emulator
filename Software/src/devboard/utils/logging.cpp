@@ -1,8 +1,8 @@
 #include "logging.h"
-#include "../../datalayer/datalayer.h"
-#include "../sdcard/sdcard.h"
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include "../../datalayer/datalayer.h"
+#include "../sdcard/sdcard.h"
 #include "../wifi/wifi.h"  // custom_hostname
 
 #define MAX_LINE_LENGTH_PRINTF 128
@@ -12,14 +12,14 @@ bool previous_message_was_newline = true;
 
 // ---- Remote syslog sink ----
 std::string syslog_ip;
-uint16_t    syslog_port     = 514;
-uint8_t     syslog_facility = 1;  // 1 = user-level
+uint16_t syslog_port = 514;
+uint8_t syslog_facility = 1;  // 1 = user-level
 
 static const uint8_t SYSLOG_DEFAULT_SEVERITY = 7;  // debug — for messages without an event level
-static int     syslog_next_severity = -1;          // -1 = use default; set per-line by set_next_severity()
+static int syslog_next_severity = -1;              // -1 = use default; set per-line by set_next_severity()
 static WiFiUDP syslogUdp;
 #define SYSLOG_LINE_MAX 240
-static char   syslogLine[SYSLOG_LINE_MAX];
+static char syslogLine[SYSLOG_LINE_MAX];
 static size_t syslogLineLen = 0;
 
 void Logging::set_next_severity(uint8_t sev) {

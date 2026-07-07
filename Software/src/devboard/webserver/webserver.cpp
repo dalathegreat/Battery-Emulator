@@ -437,10 +437,9 @@ void init_webserver() {
       "SYSLOGPORT", "SYSLOGFAC",
   };
 
-  const char* stringSettingNames[] = {"APNAME",         "APPASSWORD",   "HOSTNAME",  "MQTTSERVER",
-                                      "MQTTUSER",       "MQTTPASSWORD", "MQTTTOPIC", "MQTTOBJIDPREFIX",
-                                      "MQTTDEVICENAME", "HADEVICEID",   "HTTPUSER",  "HTTPPASS",
-                                      "SYSLOGIP"};
+  const char* stringSettingNames[] = {"APNAME",       "APPASSWORD", "HOSTNAME",        "MQTTSERVER",     "MQTTUSER",
+                                      "MQTTPASSWORD", "MQTTTOPIC",  "MQTTOBJIDPREFIX", "MQTTDEVICENAME", "HADEVICEID",
+                                      "HTTPUSER",     "HTTPPASS",   "SYSLOGIP"};
 
   // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST,
