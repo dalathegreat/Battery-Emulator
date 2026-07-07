@@ -20,6 +20,24 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
 static void update_event_level(void);
 static void update_bms_status(void);
 
+// Map a Battery-Emulator event level to an RFC 5424 syslog severity.
+static uint8_t event_level_to_syslog(EVENTS_LEVEL_TYPE lvl) {
+  switch (lvl) {
+    case EVENT_LEVEL_ERROR:
+      return 3;  // err
+    case EVENT_LEVEL_WARNING:
+      return 4;  // warning
+    case EVENT_LEVEL_UPDATE:
+      return 5;  // notice
+    case EVENT_LEVEL_INFO:
+      return 6;  // info
+    case EVENT_LEVEL_DEBUG:
+      return 7;  // debug
+    default:
+      return 6;
+  }
+}
+
 /* Initialization function */
 void init_events(void) {
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
@@ -493,6 +511,7 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
     events.entries[event].MQTTpublished = false;
 
+    logging.set_next_severity(event_level_to_syslog(events.entries[event].level));
     DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
   }
 
