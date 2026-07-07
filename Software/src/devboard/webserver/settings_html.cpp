@@ -2057,10 +2057,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% 
         title="Enable this if you want general logging to be stored to an SD card. Only works on select hardware with SD-card slot" />
 
-        <label>Enable general logging to syslog server: </label>
-        <input type='checkbox' name='SYSLOGEN' value='on' %SYSLOGEN%
-              title="Send general logging as UDP syslog datagrams (RFC 5424) to a remote server. Events use their own severity; other lines are sent as debug." />
-
         )rawliteral" SYSLOG_SETTING_HTML R"rawliteral(
 
         </div>
