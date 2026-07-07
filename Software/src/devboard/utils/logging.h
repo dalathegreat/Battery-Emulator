@@ -107,7 +107,7 @@ class Logging {
   static void println(float num) { (void)num; }
   static void println(double num) { (void)num; }
   static void println(bool b) { (void)b; }
-  static void println() {}                        // Empty println
+  static void println() {}  // Empty println
 
   Logging() {}
 };
