@@ -1,4 +1,4 @@
-f#ifndef __LOGGING_H__
+f #ifndef __LOGGING_H__
 #define __LOGGING_H__
 
 #include <inttypes.h>
@@ -8,9 +8,9 @@ f#ifndef __LOGGING_H__
 #include "types.h"
 
 #ifndef UNIT_TEST
-// Real implementation for production
+    // Real implementation for production
 
-class Logging : public Print {
+    class Logging : public Print {
   void add_timestamp(size_t size);
 
  public:
@@ -50,7 +50,7 @@ class Logging : public Print {
 #include <cstdarg>
 #include <cstdio>
 
-class Logging {
+    class Logging {
  public:
   // Mock methods that do nothing
   size_t write(const uint8_t* buffer, size_t size) { return size; }
