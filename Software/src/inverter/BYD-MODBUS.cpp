@@ -36,7 +36,7 @@ void BydModbusInverter::handle_static_data() {
     }
     i += data_size / sizeof(uint16_t);
   }
-  static uint16_t init_p201[13] = {0, 0, 0, MAX_POWER, MAX_POWER, 0, 0, 53248, 10, 53248, 10, 0, 0};
+  static uint16_t init_p201[13] = {0, 0, 0, 40960, 40960, 0, 0, 53248, 10, 53248, 10, 0, 0};  //40960=MAX power
   for (int i = 0; i < sizeof(init_p201) / sizeof(uint16_t); i++) {
     mbPV[200 + i] = init_p201[i];
   }
