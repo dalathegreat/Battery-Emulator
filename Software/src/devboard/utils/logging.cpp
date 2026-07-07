@@ -54,7 +54,8 @@ static void syslog_emit(const uint8_t* buffer, size_t size) {
   if (!datalayer.system.info.syslog_logging_active) {
     return;
   }
-  if (WiFi.status() != WL_CONNECTED) {
+  // Send when joined to a network (STA) OR when a client is on our SoftAP.
+  if (WiFi.status() != WL_CONNECTED && WiFi.softAPgetStationNum() == 0) {
     return;
   }
   for (size_t i = 0; i < size; i++) {
