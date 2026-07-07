@@ -5,6 +5,7 @@
 #include "../../datalayer/datalayer.h"
 #include "Print.h"
 #include "types.h"
+#include <string>
 
 #ifndef UNIT_TEST
 // Real implementation for production
@@ -16,20 +17,23 @@ class Logging : public Print {
   virtual size_t write(const uint8_t* buffer, size_t size);
   virtual size_t write(uint8_t) { return 0; }
   void printf(const char* fmt, ...);
+  void set_next_severity(uint8_t sev);  // syslog severity for the next assembled line
   Logging() {}
 };
 
 // Production macros
 #define DEBUG_PRINTF(fmt, ...)                                                                  \
   do {                                                                                          \
-    if (datalayer.system.info.web_logging_active || datalayer.system.info.usb_logging_active) { \
+    if (datalayer.system.info.web_logging_active || datalayer.system.info.usb_logging_active || \
+        datalayer.system.info.syslog_logging_active) {                                          \
       logging.printf(fmt, ##__VA_ARGS__);                                                       \
     }                                                                                           \
   } while (0)
 
 #define DEBUG_PRINTLN(str)                                                                      \
   do {                                                                                          \
-    if (datalayer.system.info.web_logging_active || datalayer.system.info.usb_logging_active) { \
+    if (datalayer.system.info.web_logging_active || datalayer.system.info.usb_logging_active || \
+        datalayer.system.info.syslog_logging_active) {                                          \
       logging.println(str);                                                                     \
     }                                                                                           \
   } while (0)
@@ -103,6 +107,7 @@ class Logging {
   static void println(double num) { (void)num; }
   static void println(bool b) { (void)b; }
   static void println() {}  // Empty println
+  void set_next_severity(uint8_t s) { (void)s; }  // no-op for tests
 
   Logging() {}
 };
@@ -115,5 +120,10 @@ class Logging {
 #endif
 
 extern Logging logging;
+
+// Remote syslog config (loaded from NVS in comm_nvm.cpp, consumed in logging.cpp)
+extern std::string syslog_ip;
+extern uint16_t    syslog_port;
+extern uint8_t     syslog_facility;  // 0..23
 
 #endif  // __LOGGING_H__
