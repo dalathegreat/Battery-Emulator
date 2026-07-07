@@ -1,15 +1,19 @@
 #include "logging.h"
-#include <WiFi.h>
-#include <WiFiUdp.h>
 #include "../../datalayer/datalayer.h"
 #include "../sdcard/sdcard.h"
+
+#ifndef SMALL_FLASH_DEVICE
+#include <WiFi.h>
+#include <WiFiUdp.h>
 #include "../wifi/wifi.h"  // custom_hostname
+#endif
 
 #define MAX_LINE_LENGTH_PRINTF 128
 #define MAX_LENGTH_TIME_STR 14
 
 bool previous_message_was_newline = true;
 
+#ifndef SMALL_FLASH_DEVICE
 // ---- Remote syslog sink ----
 std::string syslog_ip;
 uint16_t syslog_port = 514;
@@ -73,6 +77,7 @@ static void syslog_emit(const uint8_t* buffer, size_t size) {
     }
   }
 }
+#endif
 
 void Logging::add_timestamp(size_t size) {
 
@@ -138,7 +143,9 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
     Serial.write(buffer, size);
   }
 
+#ifndef SMALL_FLASH_DEVICE
   syslog_emit(buffer, size);
+#endif
 
   if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
     char* message_string = datalayer.system.info.logged_can_messages;
@@ -204,7 +211,9 @@ void Logging::printf(const char* fmt, ...) {
     Serial.write(message_buffer, size);
   }
 
+#ifndef SMALL_FLASH_DEVICE
   syslog_emit((const uint8_t*)message_buffer, size);
+#endif
 
   if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
     // Data was already added to buffer, just move offset
