@@ -319,12 +319,13 @@ void handle_BMSpower() {
 
       int16_t battery_current_dA = datalayer.battery.status.current_dA;
       int16_t battery2_current_dA = datalayer.battery2.status.current_dA;  // Should be 0 if no battery2
+      int16_t battery3_current_dA = datalayer.battery3.status.current_dA;  // Should be 0 if no battery3
 
       if (
           // No current, safe to cut power
-          (battery_current_dA == 0 && battery2_current_dA == 0)
+          (battery_current_dA == 0 && battery2_current_dA == 0 && battery3_current_dA == 0)
           // or reasonably low current and 5 seconds has passed
-          || (abs(battery_current_dA) < 10 && abs(battery2_current_dA) < 10 &&
+          || (abs(battery_current_dA) < 10 && abs(battery2_current_dA) < 10 && abs(battery3_current_dA) < 10 &&
               currentTime - lastPowerRemovalTime >= 5000)) {
 
         bms_power_off();

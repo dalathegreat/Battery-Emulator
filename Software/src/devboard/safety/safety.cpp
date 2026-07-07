@@ -586,9 +586,14 @@ void update_pause_state() {
     allowed_to_send_CAN = true;
   }
 
+  int16_t battery_current_dA = datalayer.battery.status.current_dA;
+  int16_t battery2_current_dA = datalayer.battery2.status.current_dA;  // Should be 0 if no battery2
+  int16_t battery3_current_dA = datalayer.battery3.status.current_dA;  // Should be 0 if no battery3
+  static const int16_t CURRENT_THRESHOLD_dA = 18;                      // 1.8A in deciAmps
+
   // in some inverters this values are not accurate, so we need to check if we are consider 1.8 amps as the limit
-  if (emulator_pause_request_ON && emulator_pause_status == PAUSING && datalayer.battery.status.current_dA < 18 &&
-      datalayer.battery.status.current_dA > -18) {
+  if (emulator_pause_request_ON && emulator_pause_status == PAUSING && abs(battery_current_dA) < CURRENT_THRESHOLD_dA &&
+      abs(battery2_current_dA) < CURRENT_THRESHOLD_dA && abs(battery3_current_dA) < CURRENT_THRESHOLD_dA) {
     emulator_pause_status = PAUSED;
   }
 
