@@ -290,6 +290,8 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   bool web_logging_active = false;
   /** bool, determines if general logging to SD card should be active */
   bool SD_logging_active = false;
+  /** bool, determines if general logging to a remote syslog server is active */
+  bool syslog_logging_active = false;
   /** bool, determines if CAN replay should loop or not */
   bool loop_playback = false;
   /** bool, Native CAN failed to send flag */
