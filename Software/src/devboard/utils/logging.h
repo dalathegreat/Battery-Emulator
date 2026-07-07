@@ -37,6 +37,7 @@ class Logging : public Print {
       logging.println(str);                                                                     \
     }                                                                                           \
   } while (0)
+#define LOG_SET_NEXT_SEVERITY(sev) logging.set_next_severity(sev)
 
 #else
 // Mock implementation for tests
@@ -107,7 +108,6 @@ class Logging {
   static void println(double num) { (void)num; }
   static void println(bool b) { (void)b; }
   static void println() {}                        // Empty println
-  void set_next_severity(uint8_t s) { (void)s; }  // no-op for tests
 
   Logging() {}
 };
@@ -116,6 +116,7 @@ class Logging {
 #define DEBUG_PRINT(fmt, ...) ((void)0)
 #define DEBUG_PRINTF(fmt, ...) ((void)0)
 #define DEBUG_PRINTLN(str) ((void)0)
+#define LOG_SET_NEXT_SEVERITY(sev) ((void)0)
 
 #endif
 
