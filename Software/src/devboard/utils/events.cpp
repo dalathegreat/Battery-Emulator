@@ -511,7 +511,7 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
     events.entries[event].MQTTpublished = false;
 
-    logging.set_next_severity(event_level_to_syslog(events.entries[event].level));
+    LOG_SET_NEXT_SEVERITY(event_level_to_syslog(events.entries[event].level));
     DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
   }
 
