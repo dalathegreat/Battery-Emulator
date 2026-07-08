@@ -25,6 +25,8 @@ struct DATALAYER_BATTERY_INFO_TYPE {
   uint16_t min_cell_voltage_mV = 2700;
   /** The maxumum allowed deviation between cells, in milliVolt. 500 = 0.500 V */
   uint16_t max_cell_voltage_deviation_mV = 500;
+  /** The target charge voltage, in deciVolt */
+  uint16_t max_charge_voltage_dV = 5000;
 
   /** uint8_t */
   /** Total number of cells in the pack */

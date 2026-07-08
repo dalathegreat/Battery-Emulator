@@ -45,6 +45,8 @@ jobs:
         path: |
           ~/.cache/pip
           ~/.platformio/.cache
+          ~/.platformio/packages
+          ~/.platformio/platforms
         key: ${{ runner.os }}-pio
 
     - uses: actions/setup-python@v6

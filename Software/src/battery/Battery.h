@@ -58,6 +58,7 @@ enum class BatteryType {
   ThunderstruckBMS = 51,
   EnnoidBMS = 52,
   StellantisSmallWide4x4 = 53,
+  Mg4 = 54,
   Highest
 };
 
@@ -134,6 +135,7 @@ class Battery {
   virtual void chademo_stop() {}
   virtual void initiate_balancing() {}
   virtual void end_balancing() {}
+  virtual void action(uint32_t action_id, uint32_t value) {}
 
   virtual void set_fake_voltage(float v) {}
   virtual float get_voltage();

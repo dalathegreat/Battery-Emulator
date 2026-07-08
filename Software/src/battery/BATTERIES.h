@@ -12,6 +12,7 @@ extern Battery* battery3;
 
 void setup_shunt();
 
+#include "BATTERY-SECOND-INTERFACE.h"
 #include "BMW-I3-BATTERY.h"
 #include "BMW-IX-BATTERY.h"
 #include "BMW-PHEV-BATTERY.h"
@@ -40,6 +41,7 @@ void setup_shunt();
 #include "KIA-HYUNDAI-64-BATTERY.h"
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
 #include "MEB-BATTERY.h"
+#include "MG-4-BATTERY.h"
 #include "MG-5-BATTERY.h"
 #include "MG-HS-PHEV-BATTERY.h"
 #include "NISSAN-LEAF-BATTERY.h"

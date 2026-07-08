@@ -15,6 +15,8 @@
 #include "ACAN2517FDFilters.h"
 #include <SPI.h>
 
+#include <atomic>
+
 //----------------------------------------------------------------------------------------------------------------------
 //   Settings
 //----------------------------------------------------------------------------------------------------------------------
@@ -157,6 +159,8 @@ class ACAN2517FD {
   private: uint8_t mReceiveFIFOPayload ; // in byte count
   private: uint8_t mTXBWS_RequestedMode ;
   private: uint8_t mHardwareReceiveBufferOverflowCount ;
+  public: std::atomic<unsigned long> missedInterruptCount = 0 ;
+  public: std::atomic<unsigned long> canErrorCount = 0 ;
 
 //······················································································································
 //    Receive buffer
@@ -218,7 +222,7 @@ class ACAN2517FD {
 //······················································································································
 
   public: void isr (void) ;
-  public: void isr_poll_core (void) ;
+  public: bool isr_poll_core (void) ;
   private: void receiveInterrupt (void) ;
   private: void transmitInterrupt (void) ;
   #ifdef ARDUINO_ARCH_ESP32
