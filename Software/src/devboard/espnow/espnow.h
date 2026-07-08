@@ -190,9 +190,9 @@ struct ESPNOW_EXTENDED {
       uint16_t dcdc_lv_current_raw;  // * 0.1       = Ampere
     } tesla;
     struct {
-      uint32_t autocal_dwell_ms;      // accumulated dwell, milliseconds
-      float autocal_drift_percent;    // SOC drift, percent
-      uint8_t autocal_in_taper;       // bool: currently in critical taper
+      uint32_t autocal_dwell_ms;       // accumulated dwell, milliseconds
+      float autocal_drift_percent;     // SOC drift, percent
+      uint8_t autocal_in_taper;        // bool: currently in critical taper
       uint8_t autocal_cooldown_ready;  // bool: cooldown complete
     } byd;
   } data;
@@ -203,9 +203,9 @@ enum espnow_message_enum {
   BAT_STATUS = 2,
   BAT_BALANCE = 3,
   BAT_CELL_STATUS = 4,
-  BAT_EVENTS = 5,     // [count][ESPNOW_EVENT_RECORD * count]
-  BAT_SYSTEM = 6,     // ESPNOW_SYSTEM_STATUS
-  BAT_EXTENDED = 7    // ESPNOW_EXTENDED
+  BAT_EVENTS = 5,   // [count][ESPNOW_EVENT_RECORD * count]
+  BAT_SYSTEM = 6,   // ESPNOW_SYSTEM_STATUS
+  BAT_EXTENDED = 7  // ESPNOW_EXTENDED
 };
 
 // Largest payload we ever put on the wire: the ESP-NOW v2 limit minus the 4-byte
