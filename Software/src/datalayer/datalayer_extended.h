@@ -755,6 +755,11 @@ struct DATALAYER_INFO_TESLA {
   bool HVP_shuntRefVoltageMismatch = false;
   bool HVP_shuntThermistorMia = false;
 
+  // Alert-matrix (DTC) fault flags for the Faults web page; mapped from tesla-m3-pack-findings (fw 2019.20.4.2)
+  bool BMS_alertMatrixActive[100] = {false};
+  bool PCS_alertMatrixActive[94] = {false};
+  bool CP_alertMatrixActive[96] = {false};
+
   uint8_t BMS_partNumber[12] = {0};        //stores raw HEX values for ASCII chars
   uint8_t battery_serialNumber[15] = {0};  //stores raw HEX values for ASCII chars
   uint8_t battery_partNumber[12] = {0};    //stores raw HEX values for ASCII chars

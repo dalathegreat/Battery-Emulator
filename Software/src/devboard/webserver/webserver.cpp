@@ -43,6 +43,7 @@ unsigned long ota_progress_millis = 0;
 #include "cellmonitor_html.h"
 #include "debug_logging_html.h"
 #include "events_html.h"
+#include "faults_html.h"
 #include "index_html.h"
 #include "settings_html.h"
 
@@ -397,6 +398,11 @@ void init_webserver() {
   // Route for going to event log web page
   def_route_with_auth("/events", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/html", index_html, events_processor);
+  });
+
+  // Route for going to the Tesla CAN/DTC faults web page
+  def_route_with_auth("/faults", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send(200, "text/html", index_html, faults_processor);
   });
 
   // Route for clearing all events
@@ -1626,6 +1632,10 @@ String processor(const String& var) {
     }
     content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
     content += "<button onclick='Events()'>Events</button> ";
+    if (user_selected_battery_type == BatteryType::TeslaModel3Y ||
+        user_selected_battery_type == BatteryType::TeslaModelSX) {
+      content += "<button onclick='Faults()'>Faults</button> ";
+    }
     content += "<button onclick='askReboot()'>Reboot Emulator</button> ";
     if (webserver_auth)
       content += "<button onclick='logout()'>Logout</button>";
@@ -1653,6 +1663,7 @@ String processor(const String& var) {
     content += "function CANreplay() { window.location.href = '/canreplay'; }";
     content += "function Log() { window.location.href = '/log'; }";
     content += "function Events() { window.location.href = '/events'; }";
+    content += "function Faults() { window.location.href = '/faults'; }";
     if (webserver_auth) {
       content += "function logout() {";
       content += "  window.location.href = '/logout';";

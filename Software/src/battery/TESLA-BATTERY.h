@@ -95,6 +95,7 @@ class TeslaBattery : public CanBattery {
   bool* allows_contactor_closing;
 
   void printFaultCodesIfActive();
+  void printFaultCodesPcsCp();  // PCS 0x3A4 + CP 0x31E alert matrices (tesla-m3-pack-findings)
 
   unsigned long previousMillis10 = 0;    // will store last time a 50ms CAN Message was sent
   unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was sent
@@ -163,6 +164,7 @@ class TeslaBattery : public CanBattery {
                          .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x2C}};
 
   //0x213 UI_cruiseControl: "cycle_time" 500ms, UI_speedLimitTick/UI_cruiseControlCounter - different depending on firmware, semi-manual increment for now
+  //Ref tesla-m3-pack-findings (fw 2019.20.4.2): 0x213 UI_cruiseControl DLC 3 (this frame uses DLC 2; likely firmware drift)
   CAN_frame TESLA_213 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x213, .data = {0x00, 0x15}};
 
   //0x221 These frames will/should eventually be migrated to 2 base frames (1 per mux), and then just the relevant bits changed
@@ -327,6 +329,7 @@ class TeslaBattery : public CanBattery {
   uint8_t frame7_3A1[16] = {0x01, 0xCB, 0x21, 0xEB, 0x41, 0x0B, 0x61, 0x2B,
                             0x81, 0x4B, 0xA1, 0x6B, 0xC1, 0x8B, 0xE1, 0xAB};
   //0x313 UI_powertrainControl: "cycle_time" 500ms, UI_powertrainControlChecksum/UI_powertrainControlCounter generated via generateFrameCounterChecksum
+  //Ref tesla-m3-pack-findings (fw 2019.20.4.2): CAN 0x313 = UI_trackModeSettings on that firmware; UI_powertrainControl is 0x334 there (name drift)
   CAN_frame TESLA_313 = {.FD = false,
                          .ext_ID = false,
                          .DLC = 8,
@@ -342,9 +345,11 @@ class TeslaBattery : public CanBattery {
       .data = {0xEC, 0x71, 0xA7, 0x6E, 0x02, 0x6C, 0x00, 0x04}};  // Last 2 bytes are counter and checksum
 
   //0x333 UI_chargeRequest: "cycle_time" 500ms, UI_chargeTerminationPct value = 900 [bit 16, width 10, scale 0.1, min 25, max 100]
+  //Ref tesla-m3-pack-findings (fw 2019.20.4.2): 0x333 UI_chargeRequest DLC 4 (this frame uses DLC 5; likely firmware drift)
   CAN_frame TESLA_333 = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x333, .data = {0x84, 0x30, 0x84, 0x07, 0x02}};
 
   //0x334 UI request: "cycle_time" 500ms, initial frame car sends
+  //Ref tesla-m3-pack-findings (fw 2019.20.4.2): CAN 0x334 = UI_powertrainControl on that firmware
   static constexpr CAN_frame TESLA_334_INITIAL = {.FD = false,
                                                   .ext_ID = false,
                                                   .DLC = 8,
@@ -359,6 +364,7 @@ class TeslaBattery : public CanBattery {
                          .data = {0x3F, 0x3F, 0x00, 0x0F, 0xE2, 0x3F, 0x90, 0x75}};
 
   //0x3B3 UI_vehicleControl2: "cycle_time" 500ms
+  //Ref tesla-m3-pack-findings (fw 2019.20.4.2): 0x3B3 UI_vehicleControl2 DLC 2 (this frame uses DLC 8; likely firmware drift)
   static constexpr CAN_frame TESLA_3B3 = {.FD = false,
                                           .ext_ID = false,
                                           .DLC = 8,
@@ -474,6 +480,7 @@ class TeslaBattery : public CanBattery {
                          .data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  // Define initial UDS request
 
   //0x610 BMS Query UDS request: on demand
+  //Ref tesla-m3-pack-findings (fw 2019.20.4.2): CAN 0x610 = UDS_hvpRequest (HVP). On that firmware the BMS/HVBMS UDS request is 0x602 (UDS_bmsRequest) -> response 0x612. Verify addressing against target firmware.
   static constexpr CAN_frame TESLA_610 = {
       .FD = false,
       .ext_ID = false,
@@ -824,6 +831,15 @@ class TeslaBattery : public CanBattery {
   bool battery_shuntThermistorMia = false;
   //0x320: 800 BMS_alertMatrix
   uint8_t BMS_matrixIndex = 0;  // Changed to bool
+  // Alerts below added from tesla-m3-pack-findings (firmware 2019.20.4.2)
+  bool BMS_a001_Pack_Config_Mismatch = false;
+  bool BMS_a055_SW_HvChain_Model_Fault = false;
+  bool BMS_a126_SW_Thermistor_Failure = false;
+  bool BMS_a135_HW_BMB_Diagnostics_Failure = false;
+  bool BMS_a143_SW_CAC_Change = false;
+  bool BMS_a155_SW_Weak_short_impedence = false;
+  bool BMS_a173_SW_Charge_Component_Fault = false;
+  bool BMS_a178_SW_Uncontrolled_Regen_PwrB = false;
   bool BMS_a061_robinBrickOverVoltage = false;
   bool BMS_a062_SW_BrickV_Imbalance = false;
   bool BMS_a063_SW_ChargePort_Fault = false;
@@ -916,6 +932,202 @@ class TeslaBattery : public CanBattery {
   bool BMS_a174_SW_Charge_Failure = false;
   bool BMS_a179_SW_Hvp_12V_Fault = false;
   bool BMS_a180_SW_ECU_reset_blocked = false;
+  //0x3A4: PCS_alertMatrix — Tesla Model 3/Y, mapped from tesla-m3-pack-findings (fw 2019.20.4.2)
+  // NOTE: findings dictionary (libQtCarCANData.so) lists alt names for a032=excessiveGridTransientsDetected,
+  //       a047=bootloaderCrcMismatch, a048=softwareAssertion, a084=vDropFastInParasiticDiodeRegion.
+  //       Names below follow the extracted bit-map table (dtc_matrices.json).
+  bool PCS_a001_chgHwInputOc = false;
+  bool PCS_a002_chgHwOutputOc = false;
+  bool PCS_a003_chgHwInputOv = false;
+  bool PCS_a004_chgHwIntBusOv = false;
+  bool PCS_a005_chgOutputOv = false;
+  bool PCS_a006_chgPrechargeFailedScr = false;
+  bool PCS_a007_chgPhaseTempHot = false;
+  bool PCS_a008_chgPhaseOverTemp = false;
+  bool PCS_a009_chgPfcCurrentRegulation = false;
+  bool PCS_a010_chgIntBusVRegulation = false;
+  bool PCS_a011_chgLlcCurrentRegulation = false;
+  bool PCS_a012_chgPfcIBandTracerFault = false;
+  bool PCS_a013_chgPrechargeFailedBoost = false;
+  bool PCS_a014_chgTempRationality = false;
+  bool PCS_a015_chg12vUv = false;
+  bool PCS_a016_chgAllPhasesFaulted = false;
+  bool PCS_a017_chgWallPowerRemoval = false;
+  bool PCS_a018_chgUnknownGridConfig = false;
+  bool PCS_a019_acChargePowerLimited = false;
+  bool PCS_a020_chgEnableLineMismatch = false;
+  bool PCS_a021_hvpMia = false;
+  bool PCS_a022_bmsMia = false;
+  bool PCS_a023_cpMia = false;
+  bool PCS_a024_vcfrontMia = false;
+  bool PCS_a025_cpu2Malfunction = false;
+  bool PCS_a026_watchdogAlarmed = false;
+  bool PCS_a027_chgInsufficientCooling = false;
+  bool PCS_a028_chgOutputUv = false;
+  bool PCS_a029_chgPowerRationality = false;
+  bool PCS_a030_canRationality = false;
+  bool PCS_a031_uiMia = false;
+  bool PCS_a032_gtwMia = false;
+  bool PCS_a033_hvBusUv = false;
+  bool PCS_a034_hvBusOv = false;
+  bool PCS_a035_lvBusUv = false;
+  bool PCS_a036_lvBusOv = false;
+  bool PCS_a037_resonantTankOc = false;
+  bool PCS_a038_claFaulted = false;
+  bool PCS_a039_sdModuleClkFault = false;
+  bool PCS_a040_dcdcMaxPowerReached = false;
+  bool PCS_a041_dcdcOverTemp = false;
+  bool PCS_a042_dcdcEnableLineMismatch = false;
+  bool PCS_a043_hvBusPrechargeFailure = false;
+  bool PCS_a044_12vSupportRegulation = false;
+  bool PCS_a045_hvBusLowImpedance = false;
+  bool PCS_a046_hvBusHighImpedence = false;
+  bool PCS_a047_lvBusLowImpedance = false;
+  bool PCS_a048_lvBusHighImpedance = false;
+  bool PCS_a049_dcdcTempRationality = false;
+  bool PCS_a050_dcdc12VsupportFaulted = false;
+  bool PCS_a051_chgIntBusUv = false;
+  bool PCS_a052_acVoltageNotPresent = false;
+  bool PCS_a053_chgInputVDropHigh = false;
+  bool PCS_a054_chgInputVDropTooHigh = false;
+  bool PCS_a055_chgLineImedanceHigh = false;
+  bool PCS_a056_chgLineImedanceTooHigh = false;
+  bool PCS_a057_chgInputOverFreq = false;
+  bool PCS_a058_chgInputUnderFreq = false;
+  bool PCS_a059_chgInputOvRms = false;
+  bool PCS_a060_chgInputOvPeak = false;
+  bool PCS_a061_chgVLineRationality = false;
+  bool PCS_a062_chgILineRationality = false;
+  bool PCS_a063_chgVOutRationality = false;
+  bool PCS_a064_chgIOutRationality = false;
+  bool PCS_a065_chgPllNotLocked = false;
+  bool PCS_a066_dcdcHvRationality = false;
+  bool PCS_a067_dcdcLvRationality = false;
+  bool PCS_a068_dcdcTankvRationality = false;
+  bool PCS_a069_chgPfcLineDidt = false;
+  bool PCS_a070_chgPfcLineDvdt = false;
+  bool PCS_a071_chgPfcILoopRationality = false;
+  bool PCS_a072_cpu2ClaStopped = false;
+  bool PCS_a073_unexpectedAcInputVoltage = false;
+  bool PCS_a074_hvBusDischargeFailure = false;
+  bool PCS_a075_hvBusDischargeTimeout = false;
+  bool PCS_a076_dcdcEnDeassertedErr = false;
+  bool PCS_a077_microGridEnergyLow = false;
+  bool PCS_a078_chgStopDcdcTooHot = false;
+  bool PCS_a079_eepromOperationError = false;
+  bool PCS_a080_damagedPhaseDetected = false;
+  bool PCS_a081_dcdcPchgTimeout = false;
+  bool PCS_a082_dcdcPchgUnsafeDiVoltage = false;
+  bool PCS_a083_triggerOdin = false;
+  bool PCS_a084_dcdcPchgStartVoltages = false;
+  bool PCS_a085_dcdcFetsNotSwitching = false;
+  bool PCS_a086_dcdcInsufficientCooling = false;
+  bool PCS_a087_nvramRecordStatusError = false;
+  bool PCS_a088_pchgParameters = false;
+  bool PCS_a089_hvBusDischargeIrrational = false;
+  bool PCS_a090_expectedAcVoltageSourceMissing = false;
+  bool PCS_a091_chgIntBusRationality = false;
+  bool PCS_a092_chgPowerLimitedByBusRipple = false;
+  bool PCS_a093_powerRailRationality = false;
+  bool PCS_a094_pcsDcdcNeedService = false;
+
+  //0x31E: CP_alertMatrix — Tesla Model 3/Y, mapped from tesla-m3-pack-findings (fw 2019.20.4.2)
+  bool CP_a001_canRx = false;
+  bool CP_a002_canTx = false;
+  bool CP_a003_canError = false;
+  bool CP_a004_proximityRationality = false;
+  bool CP_a005_gbdcLiveDisconnect = false;
+  bool CP_a006_lostCommsBMS = false;
+  bool CP_a007_watchdog = false;
+  bool CP_a008_memoryError = false;
+  bool CP_a009_coverOpen = false;
+  bool CP_a010_pilotRationality = false;
+  bool CP_a011_eeprom = false;
+  bool CP_a012_ledDriver = false;
+  bool CP_a013_lostCommsGTW = false;
+  bool CP_a014_lostCommsCHG = false;
+  bool CP_a015_apsVov = false;
+  bool CP_a016_apsVuv = false;
+  bool CP_a017_fiveVov = false;
+  bool CP_a018_fiveVuv = false;
+  bool CP_a019_threeVov = false;
+  bool CP_a020_threeVuv = false;
+  bool CP_a021_zeroVov = false;
+  bool CP_a022_zeroVuv = false;
+  bool CP_a023_gbdcSessionFailed = false;
+  bool CP_a024_ledsUC = false;
+  bool CP_a025_ledsOC = false;
+  bool CP_a026_networkManagement = false;
+  bool CP_a027_doorSensorOutOfSpec = false;
+  bool CP_a028_insertEnableMismatch = false;
+  bool CP_a029_doorClosedProxPilot = false;
+  bool CP_a030_busOff = false;
+  bool CP_a031_doorClosedCommandedOpen = false;
+  bool CP_a032_doorOpenExpectedClosed = false;
+  bool CP_a033_spiOpen = false;
+  bool CP_a034_calibrationIncomplete = false;
+  bool CP_a035_latchMovement_1 = false;
+  bool CP_a036_latchNotDisengaged = false;
+  bool CP_a037_latchNotEngaged = false;
+  bool CP_a038_latchNotBlocking = false;
+  bool CP_a039_latchMovement_2 = false;
+  bool CP_a040_doNotUse = false;
+  bool CP_a041_doorSensorUnplugged = false;
+  bool CP_a042_doorAssemblyBroken = false;
+  bool CP_a043_doorPotIrrational = false;
+  bool CP_a044_lostCommsHVP = false;
+  bool CP_a045_lostCommsVCSEC = false;
+  bool CP_a046_lostCommsEVSE = false;
+  bool CP_a047_lostCommsVCFRONT = false;
+  bool CP_a048_lostCommsUI = false;
+  bool CP_a049_multipleCablesDetected = false;
+  bool CP_a050_latchNotConnected = false;
+  bool CP_a051_doorInductiveSensorMIA = false;
+  bool CP_a052_evseNotSupported = false;
+  bool CP_a053_proxLatchedNoPilot = false;
+  bool CP_a054_cableNotSecured = false;
+  bool CP_a055_chargeStoppedNoPilot = false;
+  bool CP_a056_proxDisconnected = false;
+  bool CP_a057_evseFaulted = false;
+  bool CP_a058_acChargingBlocked = false;
+  bool CP_a059_swcanError = false;
+  bool CP_a060_lostCommsPCS = false;
+  bool CP_a061_uhfReceiverMIA = false;
+  bool CP_a062_scOutOfService = false;
+  bool CP_a063_scUpdateInProgress = false;
+  bool CP_a064_superchargingBlocked = false;
+  bool CP_a065_selfTestFailed = false;
+  bool CP_a066_proxLatchedIdlePilot = false;
+  bool CP_a067_gbdcConnFault = false;
+  bool CP_a068_doorSensorMismatch = false;
+  bool CP_a069_doorInductiveSensorError = false;
+  bool CP_a070_doorInductiveSensorReset = false;
+  bool CP_a071_exiDecodeFailure = false;
+  bool CP_a072_v2gEvccTimeout = false;
+  bool CP_a073_iecComboShutdown = false;
+  bool CP_a074_failedToEstablishV2gComm = false;
+  bool CP_a075_v2gCommsFailure = false;
+  bool CP_a076_LDC1612errorWatchdog = false;
+  bool CP_a077_invalidMacAddress = false;
+  bool CP_a078_latchNotDisengagedCold = false;
+  bool CP_a079_cableNotSecuredCold = false;
+  bool CP_a080_taskStackOverflow = false;
+  bool CP_a081_swException = false;
+  bool CP_a082_powerOnReset = false;
+  bool CP_a083_watchdogTraceData = false;
+  bool CP_a084_proximityPeDisconnected = false;
+  bool CP_a085_dcPinTempFaulted = false;
+  bool CP_a086_dcPinTempIrrational = false;
+  bool CP_a087_dcTempModelFault = false;
+  bool CP_a088_dcTempModelDeviation = false;
+  bool CP_a089_plcConfigMismatch = false;
+  bool CP_a090_ccsEvseLowIso = false;
+  bool CP_a091_wrongSuperchargerHandle = false;
+  bool CP_a092_modemAppLoadFailed = false;
+  bool CP_a093_modemLoadedWithReset = false;
+  bool CP_a094_inductiveResetSuccessful = false;
+  bool CP_a095_thermalDcLimitActive = false;
+  bool CP_a096_pilotWake = false;
 };
 
 #endif
