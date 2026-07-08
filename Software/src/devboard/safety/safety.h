@@ -1,5 +1,6 @@
 #ifndef SAFETY_H
 #define SAFETY_H
+#include <stdint.h>
 #include <string>
 
 #define MAX_CAN_FAILURES 50
@@ -22,8 +23,11 @@ extern void store_settings_equipment_stop();
 
 void update_machineryprotection();
 
+typedef enum : uint8_t { UNCHANGED = 0, STOP = 1, RESUME = 2 } EquipmentStop;
+
 //battery pause status begin
-void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop = false, bool store_settings = true);
+void setBatteryPause(bool pause_battery, bool pause_CAN, EquipmentStop equipment_stop = UNCHANGED,
+                     bool store_settings = true);
 void update_pause_state();
 std::string get_emulator_pause_status();
 //battery pause status end
