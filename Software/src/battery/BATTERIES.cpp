@@ -361,6 +361,9 @@ void setup_battery() {
       case BatteryType::NissanLeaf:
         battery3 = new NissanLeafBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
         break;
+      case BatteryType::CmfaEv:
+        battery3 = new CmfaEvBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
+        break;
       case BatteryType::RelionBattery:
         battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,
                                      &datalayer.system.status.battery3_allowed_contactor_closing);

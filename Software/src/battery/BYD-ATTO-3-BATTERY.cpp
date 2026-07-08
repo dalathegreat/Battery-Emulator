@@ -281,6 +281,25 @@ void BydAttoBattery::
       stateMachineCalibrateSOC = STARTED;
       datalayer_bydatto->UserRequestCalibrateSOC = false;
     }
+
+    if (datalayer_bydatto->UserRequestDTCreadout && stateMachineReadDTC == NOT_RUNNING) {
+      stateMachineReadDTC = STARTED;
+      datalayer_bydatto->dtc_read_in_progress = true;
+      datalayer_bydatto->dtc_read_failed = false;
+      dtc_request_millis = millis();
+      datalayer_bydatto->UserRequestDTCreadout = false;
+    }
+
+    if (datalayer_bydatto->UserRequestDTCreset && stateMachineEraseDTC == NOT_RUNNING) {
+      stateMachineEraseDTC = STARTED;
+      datalayer_bydatto->UserRequestDTCreset = false;
+    }
+    // Fail the read if the BMS never answers
+    if (datalayer_bydatto->dtc_read_in_progress && (millis() - dtc_request_millis > 2000)) {
+      datalayer_bydatto->dtc_read_in_progress = false;
+      datalayer_bydatto->dtc_read_failed = true;
+      dtc_rx_active = false;
+    }
   }
 }
 
@@ -468,6 +487,30 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EF:  //OBD2 PID reply from battery
+      // DTC reply (0x19 0x02 -> 0x59 0x02) is multi-frame. Reassemble it, ACK the first frame with
+      // our own flow control, and parse once complete. Done before the single-frame PID parsing so
+      // the consecutive frames aren't mistaken for PIDs.
+      if (rx_frame.data.u8[0] == 0x10 && rx_frame.data.u8[2] == 0x59 && rx_frame.data.u8[3] == 0x02) {
+        dtc_rx_expected = ((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
+        dtc_rx_len = 0;
+        for (uint8_t i = 2; i < 8 && dtc_rx_len < sizeof(dtc_buffer); i++) {
+          dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
+        }
+        dtc_rx_active = true;
+        transmit_can_frame(&ATTO_3_7E7_DTC_FC);
+        break;
+      }
+      if (dtc_rx_active && (rx_frame.data.u8[0] & 0xF0) == 0x20) {
+        for (uint8_t i = 1; i < 8 && dtc_rx_len < sizeof(dtc_buffer); i++) {
+          dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
+        }
+        if (dtc_rx_len >= dtc_rx_expected) {
+          dtc_rx_len = dtc_rx_expected;  // Drop ISO-TP padding so it isn't parsed as a DTC
+          parseDTCResponse();
+          dtc_rx_active = false;
+        }
+        break;
+      }
       if ((rx_frame.data.u8[0] == 0x04) && (rx_frame.data.u8[1] == 0x67) && (rx_frame.data.u8[2] == 0x01)) {
         seed = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         solvedKey = byd_generate_key(seed, 0x63);  //For now key can be either 0xbd or 0x63, 50/50 of guessing right
@@ -561,6 +604,53 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     default:
       break;
   }
+}
+
+// Parse a reassembled UDS ReadDTCInformation (0x59 0x02) reply: 3 header bytes (59 02 mask) then
+// 4 bytes per DTC (3-byte code + status). Stores raw codes; HTML decodes them to strings.
+void BydAttoBattery::parseDTCResponse() {
+  if (dtc_buffer[0] != 0x59 || dtc_buffer[1] != 0x02) {
+    datalayer_bydatto->dtc_read_failed = true;
+    datalayer_bydatto->dtc_read_in_progress = false;
+    return;
+  }
+  uint8_t count = 0;
+  for (uint16_t off = 3; (off + 4 <= dtc_rx_len) && (count < MAX_DTC_COUNT); off += 4) {
+    uint32_t code =
+        ((uint32_t)dtc_buffer[off] << 16) | ((uint32_t)dtc_buffer[off + 1] << 8) | (uint32_t)dtc_buffer[off + 2];
+    uint8_t status = dtc_buffer[off + 3];
+    if (code == 0 || status == 0) {  // Empty slot or cleared DTC
+      continue;
+    }
+    datalayer_bydatto->dtc_codes[count] = code;
+    datalayer_bydatto->dtc_status[count] = status;
+    count++;
+  }
+  // Display order: active (status bit0) first, then ascending code.
+  uint32_t* codes = datalayer_bydatto->dtc_codes;
+  uint8_t* sts = datalayer_bydatto->dtc_status;
+  for (uint8_t a = 1; a < count; a++) {
+    uint32_t c = codes[a];
+    uint8_t s = sts[a];
+    int b = a - 1;
+    while (b >= 0) {
+      bool keyActive = (s & 0x01);
+      bool bActive = (sts[b] & 0x01);
+      bool keyFirst = (keyActive != bActive) ? keyActive : (c < codes[b]);
+      if (!keyFirst) {
+        break;
+      }
+      codes[b + 1] = codes[b];
+      sts[b + 1] = sts[b];
+      b--;
+    }
+    codes[b + 1] = c;
+    sts[b + 1] = s;
+  }
+  datalayer_bydatto->dtc_count = count;
+  datalayer_bydatto->dtc_last_read_millis = millis();
+  datalayer_bydatto->dtc_read_failed = false;
+  datalayer_bydatto->dtc_read_in_progress = false;
 }
 
 // Software contactor state machine. Steps the transmitted 0x12D frame between the vehicle's
@@ -805,6 +895,31 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
       default:
         break;
     }
+    switch (stateMachineReadDTC) {
+      case STARTED:
+        transmit_can_frame(&ATTO_3_7E7_READ_DTC);
+        stateMachineReadDTC = NOT_RUNNING;
+        break;
+      default:
+        break;
+    }
+    switch (stateMachineEraseDTC) {
+      case STARTED:
+        // DiagnosticSessionControl, default session
+        ATTO_3_7E7_CLEAR_CRASH.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+        transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
+        stateMachineEraseDTC = RUNNING_STEP_1;
+        break;
+      case RUNNING_STEP_1:
+        // ClearDiagnosticInformation, all groups
+        ATTO_3_7E7_CLEAR_CRASH.data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00};
+        transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH);
+        stateMachineEraseDTC = NOT_RUNNING;
+        datalayer_bydatto->UserRequestDTCreadout = true;  // Re-read so the table reflects the cleared state
+        break;
+      default:
+        break;
+    }
     switch (stateMachineCalibrateSOC) {
       case STARTED:
         // DiagnosticSesssionControl enter extendedDiagnosticSession
@@ -972,8 +1087,9 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         break;
     }
 
-    if ((stateMachineClearCrash == NOT_RUNNING) &&
-        (stateMachineCalibrateSOC == NOT_RUNNING)) {  //Don't poll battery for data if any diag ongoing
+    if ((stateMachineClearCrash == NOT_RUNNING) && (stateMachineCalibrateSOC == NOT_RUNNING) &&
+        (stateMachineReadDTC == NOT_RUNNING) && (stateMachineEraseDTC == NOT_RUNNING) &&
+        !dtc_rx_active) {  //Don't poll battery for data if any diag ongoing
       transmit_can_frame(&ATTO_3_7E7_POLL);
     }
   }

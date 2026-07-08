@@ -31,7 +31,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server){
       if (request->hasParam("hash")) {
         String hash = request->getParam("hash")->value();
         if (!Update.setMD5(hash.c_str())) {
-          return request->send(400, "text/plain", "MD5 param invalid");
+          return request->send(400, "text/plain", "MD5invalid");
         }
       }
 
@@ -60,7 +60,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server){
         // Set reboot flag
         if (!Update.hasError()) {
             // Stop current flow as the reboot will open contactors
-            setBatteryPause(true, false, false, false);
+            setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
             _reboot_request_millis = millis();
             _reboot = true;
         }
@@ -74,7 +74,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server){
         // Write chunked data to the free sketch space
         if(len){
             if (Update.write(data, len) != len) {
-                return request->send(400, "text/plain", "Fail write chunk data");
+                return request->send(400, "text/plain", "FailWrite");
             }
             _current_progress_size += len;
             // Progress update callback

@@ -57,8 +57,20 @@ jobs:
     - name: Build image for ${{ matrix.board_name }}
       run: pio run -e ${{ matrix.pio_env }}
 
+    #rename firmware.bin to contain pr number and commit short sha for easier location after saved on disk
+    - name: Rename firmware.bin with PR number and commit short SHA
+      run: |
+          SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha || github.sha }}" | cut -c1-7)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_PART="pr${{ github.event.pull_request.number }}-"
+          else
+            PR_PART=""
+          fi
+          cp .pio/build/${{ matrix.pio_env }}/firmware.bin \
+             .pio/build/${{ matrix.pio_env }}/firmware-${PR_PART}${SHORT_SHA}.bin
+
     - name: Upload artifact for ${{ matrix.board_name }}
       uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.artifact_name }}.bin
-        path: .pio/build/${{ matrix.pio_env }}/firmware.bin
+        path: .pio/build/${{ matrix.pio_env }}/firmware-*.bin

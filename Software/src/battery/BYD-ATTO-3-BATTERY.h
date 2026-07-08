@@ -39,6 +39,10 @@ class BydAttoBattery : public CanBattery {
   bool supports_contactor_close() { return true; }
   void request_open_contactors() { requestContactorOpen = true; }
   void request_close_contactors() { requestContactorClose = true; }
+  bool supports_read_DTC() { return true; }
+  void read_DTC() { datalayer_bydatto->UserRequestDTCreadout = true; }
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { datalayer_bydatto->UserRequestDTCreset = true; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
@@ -194,6 +198,17 @@ class BydAttoBattery : public CanBattery {
   uint8_t stateMachineClearCrash = NOT_RUNNING;
   uint8_t stateMachineCalibrateSOC = NOT_RUNNING;
 
+  // DTC readout: request 0x19 02 09, reassemble the 0x59 02 ISO-TP reply, parse 4 bytes per DTC.
+  static const int MAX_DTC_COUNT = 30;
+  uint8_t stateMachineReadDTC = NOT_RUNNING;
+  uint8_t stateMachineEraseDTC = NOT_RUNNING;
+  unsigned long dtc_request_millis = 0;
+  uint8_t dtc_buffer[140] = {0};
+  uint16_t dtc_rx_expected = 0;
+  uint16_t dtc_rx_len = 0;
+  bool dtc_rx_active = false;
+  void parseDTCResponse();
+
   /* Software contactor control: step the transmitted 0x12D frame through the same payload
   states the real VCU uses (taken from CAN logs of two cars). Byte 6 is a rolling counter,
   byte 7 the 0x441-style checksum over bytes 0-6.
@@ -319,6 +334,16 @@ class BydAttoBattery : public CanBattery {
                                     .DLC = 8,
                                     .ID = 0x7E7,  //This sets SOC to 100.00% (0x27 10) , and AH to 150.00 (0x3A 98)
                                     .data = {0x07, 0x2E, 0x1F, 0xFC, 0x10, 0x27, 0x98, 0x3A}};
+  CAN_frame ATTO_3_7E7_READ_DTC = {.FD = false,
+                                   .ext_ID = false,
+                                   .DLC = 8,
+                                   .ID = 0x7E7,  //ReadDTCInformation, reportDTCByStatusMask, mask 0x09
+                                   .data = {0x03, 0x19, 0x02, 0x09, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ATTO_3_7E7_DTC_FC = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x7E7,  //Flow control for the DTC reply, BS 0 (send all), STmin 5ms
+                                 .data = {0x30, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
   void handle_auto_soc_calibration(bool crit_taper, uint32_t dt_ms, uint32_t now_ms);
 };

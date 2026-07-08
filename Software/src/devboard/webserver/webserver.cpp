@@ -452,10 +452,14 @@ void init_webserver() {
               bool requestedWebAuth = webAuthParam != nullptr && webAuthParam->value() == "on";
               String requestedHttpUser =
                   httpUserParam != nullptr ? httpUserParam->value() : settings.getString("HTTPUSER", "admin");
-              String requestedHttpPass =
-                  httpPassParam != nullptr ? httpPassParam->value() : settings.getString("HTTPPASS");
+              String requestedHttpPass = (httpPassParam != nullptr && !httpPassParam->value().isEmpty())
+                                             ? httpPassParam->value()
+                                             : settings.getString("HTTPPASS");
+
               String requestedHttpPassConfirm =
-                  httpPassConfirmParam != nullptr ? httpPassConfirmParam->value() : requestedHttpPass;
+                  (httpPassConfirmParam != nullptr && !httpPassConfirmParam->value().isEmpty())
+                      ? httpPassConfirmParam->value()
+                      : requestedHttpPass;
 
               if (requestedHttpPass != requestedHttpPassConfirm) {
                 request->send(400, "text/plain", "Web interface passwords do not match.");
@@ -523,7 +527,9 @@ void init_webserver() {
                   settings.saveString("SSID", p->value().c_str());
                   ssid = settings.getString("SSID", "").c_str();
                 } else if (p->name() == "PASSWORD") {
-                  settings.saveString("PASSWORD", p->value().c_str());
+                  if (!p->value().isEmpty()) {  // blank = keep existing (field is rendered empty)
+                    settings.saveString("PASSWORD", p->value().c_str());
+                  }
                   password = settings.getString("PASSWORD", "").c_str();
                 } else if (p->name() == "MQTTPUBLISHMS") {
                   auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
@@ -539,6 +545,13 @@ void init_webserver() {
 
                 for (auto& stringSetting : stringSettingNames) {
                   if (p->name() == stringSetting) {
+                    // Password fields are rendered blank; an empty value means "keep unchanged".
+                    const bool isPasswordField =
+                        (std::string(stringSetting) == "APPASSWORD" || std::string(stringSetting) == "MQTTPASSWORD" ||
+                         std::string(stringSetting) == "HTTPPASS");
+                    if (isPasswordField && p->value().isEmpty()) {
+                      continue;  // keep existing stored password
+                    }
                     if (settings.getString(stringSetting) != p->value()) {
                       settings.saveString(stringSetting, p->value().c_str());
                     }
@@ -617,9 +630,10 @@ void init_webserver() {
   // Route for equipment stop/resume
   update_string("/equipmentStop", [](String value) {
     if (value == "true" || value == "1") {
-      setBatteryPause(true, false, true);  //Pause battery, do not pause CAN, equipment stop on (store to flash)
+      setBatteryPause(true, false,
+                      EquipmentStop::STOP);  //Pause battery, do not pause CAN, equipment stop on (store to flash)
     } else {
-      setBatteryPause(false, false, false);
+      setBatteryPause(false, false, EquipmentStop::RESUME);
     }
   });
 
@@ -831,7 +845,7 @@ void init_webserver() {
 
     //Equipment STOP without persisting the equipment state before restart
     // Max Charge/Discharge = 0; CAN = stop; contactors = open
-    setBatteryPause(true, true, true, false);
+    setBatteryPause(true, true, EquipmentStop::STOP, false);
     delay(1000);
     hold_pins_across_reset();
     ESP.restart();
@@ -1022,6 +1036,12 @@ String processor(const String& var) {
     } else {
       content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
     }
+
+    if (ap_active) {
+      content += "<h4>Wi-Fi access point active &mdash; SSID: " + html_escape(ssidAP.c_str()) + " (" +
+                 WiFi.softAPIP().toString() + ")</h4>";
+    }
+
     // Close the block
     content += "</div>";
 
@@ -1720,7 +1740,7 @@ void onOTAEnd(bool success) {
   if (success) {
     //Equipment STOP without persisting the equipment state before restart
     // Max Charge/Discharge = 0; CAN = stop; contactors = open
-    setBatteryPause(true, true, true, false);
+    setBatteryPause(true, true, EquipmentStop::STOP, false);
     // a reboot will be done by the OTA library. no need to do anything here
     logging.println("OTA update finished successfully!");
     hold_pins_across_reset();

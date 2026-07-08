@@ -593,6 +593,7 @@
   {"dtc": "U012187", "l_dsc": "Communication with ABS Failed"},
   {"dtc": "U014081", "l_dsc": "Message Data of BCM Abnormal"},
   {"dtc": "U014087", "l_dsc": "Communication with BCM Failed"},
+  {"dtc": "U014100", "l_dsc": "Communication with left domain control unit failed"},
   {"dtc": "U014187", "l_dsc": "Communication fault with the complete bus controller"},
   {"dtc": "U0146", "l_dsc": "Communication between Instrument and Gateway Interrupted"},
   {"dtc": "U014B87", "l_dsc": "Communication with DC Charging Cabinet Failed"},

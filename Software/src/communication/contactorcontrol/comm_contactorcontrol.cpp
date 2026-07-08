@@ -306,6 +306,11 @@ void bms_power_on() {
 }
 
 void handle_BMSpower() {
+  //Skip running the BMS reset state machine if equipment stop is active, as we don't want to powercycle the BMS during that time
+  if (datalayer.system.info.equipment_stop_active) {
+    return;
+  }
+
   if (periodic_bms_reset || remote_bms_reset) {
     currentTime = millis();
 
@@ -321,12 +326,13 @@ void handle_BMSpower() {
 
       int16_t battery_current_dA = datalayer.battery.status.current_dA;
       int16_t battery2_current_dA = datalayer.battery2.status.current_dA;  // Should be 0 if no battery2
+      int16_t battery3_current_dA = datalayer.battery3.status.current_dA;  // Should be 0 if no battery3
 
       if (
           // No current, safe to cut power
-          (battery_current_dA == 0 && battery2_current_dA == 0)
+          (battery_current_dA == 0 && battery2_current_dA == 0 && battery3_current_dA == 0)
           // or reasonably low current and 5 seconds has passed
-          || (abs(battery_current_dA) < 10 && abs(battery2_current_dA) < 10 &&
+          || (abs(battery_current_dA) < 10 && abs(battery2_current_dA) < 10 && abs(battery3_current_dA) < 10 &&
               currentTime - lastPowerRemovalTime >= 5000)) {
 
         bms_power_off();
@@ -352,7 +358,7 @@ void handle_BMSpower() {
       // Wait for BMS to start up before unpausing
       if (currentTime - bmsPowerOnTime >= bmsWarmupDuration) {
         // Unpause the battery
-        setBatteryPause(false, false, false, false);
+        setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
 
         // Reset is complete
 
@@ -371,7 +377,7 @@ void start_bms_reset() {
       lastPowerRemovalTime = millis();
 
       // Issue a pause, which should stop charge/discharge whilst the reset is ongoing
-      setBatteryPause(true, false, false, false);
+      setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
 
       if (contactor_control_enabled) {
         // We power the contactors directly, so we can avoid closing/opening them

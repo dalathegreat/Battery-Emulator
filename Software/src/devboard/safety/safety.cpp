@@ -528,18 +528,18 @@ void update_machineryprotection() {
 }
 
 //battery pause status begin
-void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bool store_settings) {
+void setBatteryPause(bool pause_battery, bool pause_CAN, EquipmentStop equipment_stop, bool store_settings) {
   DEBUG_PRINTF("Battery pause begin %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
 
   // First handle equipment stop / resume
-  if (equipment_stop && !datalayer.system.info.equipment_stop_active) {
+  if (equipment_stop == STOP && !datalayer.system.info.equipment_stop_active) {
     datalayer.system.info.equipment_stop_active = true;
     if (store_settings) {
       store_settings_equipment_stop();
     }
 
     set_event(EVENT_EQUIPMENT_STOP, 1);
-  } else if (!equipment_stop && datalayer.system.info.equipment_stop_active) {
+  } else if (equipment_stop == RESUME && datalayer.system.info.equipment_stop_active) {
     datalayer.system.info.equipment_stop_active = false;
     if (store_settings) {
       store_settings_equipment_stop();
@@ -586,9 +586,14 @@ void update_pause_state() {
     allowed_to_send_CAN = true;
   }
 
+  int16_t battery_current_dA = datalayer.battery.status.current_dA;
+  int16_t battery2_current_dA = datalayer.battery2.status.current_dA;  // Should be 0 if no battery2
+  int16_t battery3_current_dA = datalayer.battery3.status.current_dA;  // Should be 0 if no battery3
+  static const int16_t CURRENT_THRESHOLD_dA = 18;                      // 1.8A in deciAmps
+
   // in some inverters this values are not accurate, so we need to check if we are consider 1.8 amps as the limit
-  if (emulator_pause_request_ON && emulator_pause_status == PAUSING && datalayer.battery.status.current_dA < 18 &&
-      datalayer.battery.status.current_dA > -18) {
+  if (emulator_pause_request_ON && emulator_pause_status == PAUSING && abs(battery_current_dA) < CURRENT_THRESHOLD_dA &&
+      abs(battery2_current_dA) < CURRENT_THRESHOLD_dA && abs(battery3_current_dA) < CURRENT_THRESHOLD_dA) {
     emulator_pause_status = PAUSED;
   }
 

@@ -1,6 +1,7 @@
 #ifndef _BYD_ATTO_3_HTML_H
 #define _BYD_ATTO_3_HTML_H
 
+#include <Arduino.h>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
@@ -341,6 +342,54 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "  xhr.send();";
     content += "}";
     content += "</script>";
+
+    // Diagnostic Trouble Codes, populated on demand by the 'Read DTC' button (Advanced page).
+    content +=
+        "<h4 style='margin-top:20px;color:#27b06c;border-bottom:2px solid #27b06c;padding-bottom:5px;'>&#128295; "
+        "Diagnostic Trouble Codes</h4>";
+    if (byd_datalayer->dtc_last_read_millis == 0) {
+      content += "<p style='color:#bbb;'>Not read yet &mdash; use the Read DTC button below to scan.</p>";
+    } else if (byd_datalayer->dtc_read_failed) {
+      content += "<p style='color:#ff8a80;'>&#9888; Last DTC read failed or timed out.</p>";
+    } else if (byd_datalayer->dtc_count == 0) {
+      content += "<p style='color:#69f0ae;'>&#10003; No DTCs present.</p>";
+    } else {
+      unsigned long age_s = (millis() - byd_datalayer->dtc_last_read_millis) / 1000;
+      content += "<p style='color:#bbb;'>" + String(byd_datalayer->dtc_count) + " codes &mdash; read " + String(age_s) +
+                 "s ago</p>";
+      content += "<div style='overflow-x:auto;margin-bottom:12px;'>";
+      content +=
+          "<table style='margin:0 auto;text-align:left;border-collapse:separate;border-spacing:0;"
+          "border:1px solid #4a5a64;border-radius:8px;overflow:hidden;'>";
+      content +=
+          "<thead><tr style='background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;'>"
+          "<th style='padding:10px 18px;text-align:left;'>DTC</th>"
+          "<th style='padding:10px 18px;text-align:left;'>Status</th>"
+          "<th style='padding:10px 18px;text-align:left;'>Description</th></tr></thead><tbody>";
+      // Decode the raw 3-byte code to the string our JSON is keyed by: top 2 bits of byte0 -> P/C/B/U.
+      const char SYS[5] = "PCBU";
+      for (int i = 0; i < byd_datalayer->dtc_count; i++) {
+        uint32_t code = byd_datalayer->dtc_codes[i];
+        uint8_t status = byd_datalayer->dtc_status[i];
+        char dtcStr[8];
+        snprintf(dtcStr, sizeof(dtcStr), "%c%02lX%02lX%02lX", SYS[(code >> 22) & 0x03],
+                 (unsigned long)((code >> 16) & 0x3F), (unsigned long)((code >> 8) & 0xFF),
+                 (unsigned long)(code & 0xFF));
+        bool active = status & 0x01;
+        String statusStr = active ? "Active" : "Stored";
+        String statusColor = active ? "#ff5252" : "#9e9e9e";
+        content +=
+            "<tr><td style='padding:8px 18px;border-top:1px solid #3a4750;font-family:monospace;"
+            "font-weight:600;'>" +
+            String(dtcStr) + "</td>";
+        content += "<td style='padding:8px 18px;border-top:1px solid #3a4750;color:" + statusColor +
+                   ";font-weight:600;'>" + statusStr + "</td>";
+        content += "<td data-dtc-code='" + String(dtcStr) +
+                   "' style='padding:8px 18px;border-top:1px solid #3a4750;'>Unknown</td></tr>";
+      }
+      content += "</tbody></table></div>";
+      content += get_dtc_json_loader_html(GITHUB_RAW_BASE_URL, "byd_atto3_dtc.json");
+    }
 
     return content;
   }
