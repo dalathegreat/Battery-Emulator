@@ -299,4 +299,3 @@ const char* const TESLA_CP_ALERT_NAMES[96] = {
     "CP_a095_thermalDcLimitActive",
     "CP_a096_pilotWake",
 };
-

@@ -1,12 +1,12 @@
 #include "TESLA-BATTERY.h"
 #include <cstring>  //For unit test
-#include "TESLA-ALERT-NAMES.h"
 #include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For Advanced Battery Insights webpage
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
+#include "TESLA-ALERT-NAMES.h"
 
 /* Credits: */
 /* Some of the original CAN frame parsing code below comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
