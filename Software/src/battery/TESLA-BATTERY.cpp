@@ -1785,21 +1785,24 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x320:  //800 BMS_alertMatrix                                                //BMS_alertMatrix 800 BMS_alertMatrix: 8 VEH
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & (0x0F));
-      if (mux == 0) {                                                               //mux0
-        BMS_matrixIndex = (rx_frame.data.u8[0] & (0x0F));                           // 0|4@1+ (1,0) [0|0] ""  X
-        BMS_a001_Pack_Config_Mismatch = ((rx_frame.data.u8[0] >> 4) & (0x01));  //4  (tesla-m3-pack-findings, fw 2019.20.4.2)
-        BMS_a017_SW_Brick_OV = ((rx_frame.data.u8[2] >> 4) & (0x01));               //20|1@1+ (1,0) [0|0] ""  X
-        BMS_a018_SW_Brick_UV = ((rx_frame.data.u8[2] >> 5) & (0x01));               //21|1@1+ (1,0) [0|0] ""  X
-        BMS_a019_SW_Module_OT = ((rx_frame.data.u8[2] >> 6) & (0x01));              //22|1@1+ (1,0) [0|0] ""  X
-        BMS_a021_SW_Dr_Limits_Regulation = (rx_frame.data.u8[3] & (0x01U));         //24|1@1+ (1,0) [0|0] ""  X
-        BMS_a022_SW_Over_Current = ((rx_frame.data.u8[3] >> 1) & (0x01U));          //25|1@1+ (1,0) [0|0] ""  X
-        BMS_a023_SW_Stack_OV = ((rx_frame.data.u8[3] >> 2) & (0x01U));              //26|1@1+ (1,0) [0|0] ""  X
-        BMS_a024_SW_Islanded_Brick = ((rx_frame.data.u8[3] >> 3) & (0x01U));        //27|1@1+ (1,0) [0|0] ""  X
-        BMS_a025_SW_PwrBalance_Anomaly = ((rx_frame.data.u8[3] >> 4) & (0x01U));    //28|1@1+ (1,0) [0|0] ""  X
-        BMS_a026_SW_HFCurrent_Anomaly = ((rx_frame.data.u8[3] >> 5) & (0x01U));     //29|1@1+ (1,0) [0|0] ""  X
-        BMS_a034_SW_Passive_Isolation = ((rx_frame.data.u8[4] >> 5) & (0x01U));     //37|1@1+ (1,0) [0|0] ""  X ?
-        BMS_a035_SW_Isolation = ((rx_frame.data.u8[4] >> 6) & (0x01U));             //38|1@1+ (1,0) [0|0] ""  X
-        BMS_a036_SW_HvpHvilFault = ((rx_frame.data.u8[4] >> 7) & (0x01U));          //39|1@1+ (1,0) [0|0] ""  X  (corrected byte4 bit6->bit7 per tesla-m3-pack-findings, fw 2019.20.4.2)
+      if (mux == 0) {                                      //mux0
+        BMS_matrixIndex = (rx_frame.data.u8[0] & (0x0F));  // 0|4@1+ (1,0) [0|0] ""  X
+        BMS_a001_Pack_Config_Mismatch =
+            ((rx_frame.data.u8[0] >> 4) & (0x01));                      //4  (tesla-m3-pack-findings, fw 2019.20.4.2)
+        BMS_a017_SW_Brick_OV = ((rx_frame.data.u8[2] >> 4) & (0x01));   //20|1@1+ (1,0) [0|0] ""  X
+        BMS_a018_SW_Brick_UV = ((rx_frame.data.u8[2] >> 5) & (0x01));   //21|1@1+ (1,0) [0|0] ""  X
+        BMS_a019_SW_Module_OT = ((rx_frame.data.u8[2] >> 6) & (0x01));  //22|1@1+ (1,0) [0|0] ""  X
+        BMS_a021_SW_Dr_Limits_Regulation = (rx_frame.data.u8[3] & (0x01U));       //24|1@1+ (1,0) [0|0] ""  X
+        BMS_a022_SW_Over_Current = ((rx_frame.data.u8[3] >> 1) & (0x01U));        //25|1@1+ (1,0) [0|0] ""  X
+        BMS_a023_SW_Stack_OV = ((rx_frame.data.u8[3] >> 2) & (0x01U));            //26|1@1+ (1,0) [0|0] ""  X
+        BMS_a024_SW_Islanded_Brick = ((rx_frame.data.u8[3] >> 3) & (0x01U));      //27|1@1+ (1,0) [0|0] ""  X
+        BMS_a025_SW_PwrBalance_Anomaly = ((rx_frame.data.u8[3] >> 4) & (0x01U));  //28|1@1+ (1,0) [0|0] ""  X
+        BMS_a026_SW_HFCurrent_Anomaly = ((rx_frame.data.u8[3] >> 5) & (0x01U));   //29|1@1+ (1,0) [0|0] ""  X
+        BMS_a034_SW_Passive_Isolation = ((rx_frame.data.u8[4] >> 5) & (0x01U));   //37|1@1+ (1,0) [0|0] ""  X ?
+        BMS_a035_SW_Isolation = ((rx_frame.data.u8[4] >> 6) & (0x01U));           //38|1@1+ (1,0) [0|0] ""  X
+        BMS_a036_SW_HvpHvilFault =
+            ((rx_frame.data.u8[4] >> 7) &
+             (0x01U));  //39|1@1+ (1,0) [0|0] ""  X  (corrected byte4 bit6->bit7 per tesla-m3-pack-findings, fw 2019.20.4.2)
         BMS_a037_SW_Flood_Port_Open = (rx_frame.data.u8[5] & (0x01U));              //40|1@1+ (1,0) [0|0] ""  X
         BMS_a039_SW_DC_Link_Over_Voltage = ((rx_frame.data.u8[5] >> 2) & (0x01U));  //42|1@1+ (1,0) [0|0] ""  X
         BMS_a041_SW_Power_On_Reset = ((rx_frame.data.u8[5] >> 4) & (0x01U));        //44|1@1+ (1,0) [0|0] ""  X
@@ -1815,49 +1818,54 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         BMS_a052_SW_PCS_MIA = ((rx_frame.data.u8[6] >> 7) & (0x01U));               //55|1@1+ (1,0) [0|0] ""  X
         BMS_a053_SW_ThermalModel_Sanity = (rx_frame.data.u8[7] & (0x01U));          //56|1@1+ (1,0) [0|0] ""  X
         BMS_a054_SW_Ver_Supply_Fault = ((rx_frame.data.u8[7] >> 1) & (0x01U));      //57|1@1+ (1,0) [0|0] ""  X
-        BMS_a055_SW_HvChain_Model_Fault = ((rx_frame.data.u8[7] >> 2) & (0x01U));  //58  (tesla-m3-pack-findings, fw 2019.20.4.2)
+        BMS_a055_SW_HvChain_Model_Fault =
+            ((rx_frame.data.u8[7] >> 2) & (0x01U));  //58  (tesla-m3-pack-findings, fw 2019.20.4.2)
         BMS_a059_SW_Pack_Voltage_Sensing = ((rx_frame.data.u8[7] >> 6) & (0x01U));  //62|1@1+ (1,0) [0|0] ""  X
         BMS_a060_SW_Leakage_Test_Failure = ((rx_frame.data.u8[7] >> 7) & (0x01U));  //63|1@1+ (1,0) [0|0] ""  X
       }
-      if (mux == 1) {                                                               //mux1
-        BMS_a061_robinBrickOverVoltage = ((rx_frame.data.u8[0] >> 4) & (0x01U));    //4|1@1+ (1,0) [0|0] ""  X
-        BMS_a062_SW_BrickV_Imbalance = ((rx_frame.data.u8[0] >> 5) & (0x01U));      //5|1@1+ (1,0) [0|0] ""  X
-        BMS_a063_SW_ChargePort_Fault = ((rx_frame.data.u8[0] >> 6) & (0x01U));      //6|1@1+ (1,0) [0|0] ""  X
-        BMS_a064_SW_SOC_Imbalance = ((rx_frame.data.u8[0] >> 7) & (0x01U));         //7|1@1+ (1,0) [0|0] ""  X
-        BMS_a069_SW_Low_Power = ((rx_frame.data.u8[1] >> 4) & (0x01U));             //12|1@1+ (1,0) [0|0] ""  X
-        BMS_a071_SW_SM_TransCon_Not_Met = ((rx_frame.data.u8[1] >> 6) & (0x01U));   //14|1@1+ (1,0) [0|0] ""  X
-        BMS_a075_SW_Chg_Disable_Failure = ((rx_frame.data.u8[2] >> 2) & (0x01U));   //18|1@1+ (1,0) [0|0] ""  X
-        BMS_a076_SW_Dch_While_Charging = ((rx_frame.data.u8[2] >> 3) & (0x01U));    //19|1@1+ (1,0) [0|0] ""  X
-        BMS_a077_SW_Charger_Regulation = ((rx_frame.data.u8[2] >> 4) & (0x01U));    //20|1@1+ (1,0) [0|0] ""  X
-        BMS_a081_SW_Ctr_Close_Blocked = (rx_frame.data.u8[3] & (0x01U));            //24|1@1+ (1,0) [0|0] ""  X
-        BMS_a082_SW_Ctr_Force_Open = ((rx_frame.data.u8[3] >> 1) & (0x01U));        //25|1@1+ (1,0) [0|0] ""  X
-        BMS_a083_SW_Ctr_Close_Failure = ((rx_frame.data.u8[3] >> 2) & (0x01U));     //26|1@1+ (1,0) [0|0] ""  X
-        BMS_a084_SW_Sleep_Wake_Aborted = ((rx_frame.data.u8[3] >> 3) & (0x01U));    //27|1@1+ (1,0) [0|0] ""  X
-        BMS_a087_SW_Feim_Test_Blocked = ((rx_frame.data.u8[3] >> 6) & (0x01U));     //30|1@1+ (1,0) [0|0] ""  X
-        BMS_a088_SW_VcFront_MIA_InDrive = ((rx_frame.data.u8[3] >> 7) & (0x01U));   //31|1@1+ (1,0) [0|0] ""  X
-        BMS_a089_SW_VcFront_MIA = (rx_frame.data.u8[4] & (0x01U));                  //32|1@1+ (1,0) [0|0] ""  X
-        BMS_a090_SW_Gateway_MIA = ((rx_frame.data.u8[4] >> 1) & (0x01U));           //33|1@1+ (1,0) [0|0] ""  X
-        BMS_a091_SW_ChargePort_MIA = ((rx_frame.data.u8[4] >> 2) & (0x01U));        //34|1@1+ (1,0) [0|0] ""  X
-        BMS_a092_SW_ChargePort_Mia_On_Hv = ((rx_frame.data.u8[4] >> 3) & (0x01U));  //35|1@1+ (1,0) [0|0] ""  X  (tesla-m3-pack-findings fw 2019.20.4.2 names this BMS_a092_SW_ChargePort_Mia_On_Hvs)
-        BMS_a094_SW_Drive_Inverter_MIA = ((rx_frame.data.u8[4] >> 5) & (0x01U));    //37|1@1+ (1,0) [0|0] ""  X
-        BMS_a099_SW_BMB_Communication = ((rx_frame.data.u8[5] >> 2) & (0x01U));     //42|1@1+ (1,0) [0|0] ""  X
-        BMS_a105_SW_One_Module_Tsense = (rx_frame.data.u8[6] & (0x01U));            //48|1@1+ (1,0) [0|0] ""  X
-        BMS_a106_SW_All_Module_Tsense = ((rx_frame.data.u8[6] >> 1) & (0x01U));     //49|1@1+ (1,0) [0|0] ""  X
-        BMS_a107_SW_Stack_Voltage_MIA = ((rx_frame.data.u8[6] >> 2) & (0x01U));     //50|1@1+ (1,0) [0|0] ""  X
+      if (mux == 1) {                                                              //mux1
+        BMS_a061_robinBrickOverVoltage = ((rx_frame.data.u8[0] >> 4) & (0x01U));   //4|1@1+ (1,0) [0|0] ""  X
+        BMS_a062_SW_BrickV_Imbalance = ((rx_frame.data.u8[0] >> 5) & (0x01U));     //5|1@1+ (1,0) [0|0] ""  X
+        BMS_a063_SW_ChargePort_Fault = ((rx_frame.data.u8[0] >> 6) & (0x01U));     //6|1@1+ (1,0) [0|0] ""  X
+        BMS_a064_SW_SOC_Imbalance = ((rx_frame.data.u8[0] >> 7) & (0x01U));        //7|1@1+ (1,0) [0|0] ""  X
+        BMS_a069_SW_Low_Power = ((rx_frame.data.u8[1] >> 4) & (0x01U));            //12|1@1+ (1,0) [0|0] ""  X
+        BMS_a071_SW_SM_TransCon_Not_Met = ((rx_frame.data.u8[1] >> 6) & (0x01U));  //14|1@1+ (1,0) [0|0] ""  X
+        BMS_a075_SW_Chg_Disable_Failure = ((rx_frame.data.u8[2] >> 2) & (0x01U));  //18|1@1+ (1,0) [0|0] ""  X
+        BMS_a076_SW_Dch_While_Charging = ((rx_frame.data.u8[2] >> 3) & (0x01U));   //19|1@1+ (1,0) [0|0] ""  X
+        BMS_a077_SW_Charger_Regulation = ((rx_frame.data.u8[2] >> 4) & (0x01U));   //20|1@1+ (1,0) [0|0] ""  X
+        BMS_a081_SW_Ctr_Close_Blocked = (rx_frame.data.u8[3] & (0x01U));           //24|1@1+ (1,0) [0|0] ""  X
+        BMS_a082_SW_Ctr_Force_Open = ((rx_frame.data.u8[3] >> 1) & (0x01U));       //25|1@1+ (1,0) [0|0] ""  X
+        BMS_a083_SW_Ctr_Close_Failure = ((rx_frame.data.u8[3] >> 2) & (0x01U));    //26|1@1+ (1,0) [0|0] ""  X
+        BMS_a084_SW_Sleep_Wake_Aborted = ((rx_frame.data.u8[3] >> 3) & (0x01U));   //27|1@1+ (1,0) [0|0] ""  X
+        BMS_a087_SW_Feim_Test_Blocked = ((rx_frame.data.u8[3] >> 6) & (0x01U));    //30|1@1+ (1,0) [0|0] ""  X
+        BMS_a088_SW_VcFront_MIA_InDrive = ((rx_frame.data.u8[3] >> 7) & (0x01U));  //31|1@1+ (1,0) [0|0] ""  X
+        BMS_a089_SW_VcFront_MIA = (rx_frame.data.u8[4] & (0x01U));                 //32|1@1+ (1,0) [0|0] ""  X
+        BMS_a090_SW_Gateway_MIA = ((rx_frame.data.u8[4] >> 1) & (0x01U));          //33|1@1+ (1,0) [0|0] ""  X
+        BMS_a091_SW_ChargePort_MIA = ((rx_frame.data.u8[4] >> 2) & (0x01U));       //34|1@1+ (1,0) [0|0] ""  X
+        BMS_a092_SW_ChargePort_Mia_On_Hv =
+            ((rx_frame.data.u8[4] >> 3) &
+             (0x01U));  //35|1@1+ (1,0) [0|0] ""  X  (tesla-m3-pack-findings fw 2019.20.4.2 names this BMS_a092_SW_ChargePort_Mia_On_Hvs)
+        BMS_a094_SW_Drive_Inverter_MIA = ((rx_frame.data.u8[4] >> 5) & (0x01U));  //37|1@1+ (1,0) [0|0] ""  X
+        BMS_a099_SW_BMB_Communication = ((rx_frame.data.u8[5] >> 2) & (0x01U));   //42|1@1+ (1,0) [0|0] ""  X
+        BMS_a105_SW_One_Module_Tsense = (rx_frame.data.u8[6] & (0x01U));          //48|1@1+ (1,0) [0|0] ""  X
+        BMS_a106_SW_All_Module_Tsense = ((rx_frame.data.u8[6] >> 1) & (0x01U));   //49|1@1+ (1,0) [0|0] ""  X
+        BMS_a107_SW_Stack_Voltage_MIA = ((rx_frame.data.u8[6] >> 2) & (0x01U));   //50|1@1+ (1,0) [0|0] ""  X
       }
       if (mux == 2) {                                                               //mux2
         BMS_a121_SW_NVRAM_Config_Error = ((rx_frame.data.u8[0] >> 4) & (0x01U));    // 4|1@1+ (1,0) [0|0] ""  X
         BMS_a122_SW_BMS_Therm_Irrational = ((rx_frame.data.u8[0] >> 5) & (0x01U));  //5|1@1+ (1,0) [0|0] ""  X
         BMS_a123_SW_Internal_Isolation = ((rx_frame.data.u8[0] >> 6) & (0x01U));    //6|1@1+ (1,0) [0|0] ""  X
-        BMS_a126_SW_Thermistor_Failure = ((rx_frame.data.u8[1] >> 1) & (0x01U));  //9  (tesla-m3-pack-findings, fw 2019.20.4.2)
-        BMS_a127_SW_shunt_SNA = ((rx_frame.data.u8[1] >> 2) & (0x01U));             //10|1@1+ (1,0) [0|0] ""  X
-        BMS_a128_SW_shunt_MIA = ((rx_frame.data.u8[1] >> 3) & (0x01U));             //11|1@1+ (1,0) [0|0] ""  X
-        BMS_a129_SW_VSH_Failure = ((rx_frame.data.u8[1] >> 4) & (0x01U));           //12|1@1+ (1,0) [0|0] ""  X
-        BMS_a130_IO_CAN_Error = ((rx_frame.data.u8[1] >> 5) & (0x01U));             //13|1@1+ (1,0) [0|0] ""  X
-        BMS_a131_Bleed_FET_Failure = ((rx_frame.data.u8[1] >> 6) & (0x01U));        //14|1@1+ (1,0) [0|0] ""  X
-        BMS_a132_HW_BMB_OTP_Uncorrctbl = ((rx_frame.data.u8[1] >> 7) & (0x01U));    //15|1@1+ (1,0) [0|0] ""  X
-        BMS_a134_SW_Delayed_Ctr_Off = ((rx_frame.data.u8[2] >> 1) & (0x01U));       //17|1@1+ (1,0) [0|0] ""  X
-        BMS_a135_HW_BMB_Diagnostics_Failure = ((rx_frame.data.u8[2] >> 2) & (0x01U));  //18  (tesla-m3-pack-findings, fw 2019.20.4.2)
+        BMS_a126_SW_Thermistor_Failure =
+            ((rx_frame.data.u8[1] >> 1) & (0x01U));                        //9  (tesla-m3-pack-findings, fw 2019.20.4.2)
+        BMS_a127_SW_shunt_SNA = ((rx_frame.data.u8[1] >> 2) & (0x01U));    //10|1@1+ (1,0) [0|0] ""  X
+        BMS_a128_SW_shunt_MIA = ((rx_frame.data.u8[1] >> 3) & (0x01U));    //11|1@1+ (1,0) [0|0] ""  X
+        BMS_a129_SW_VSH_Failure = ((rx_frame.data.u8[1] >> 4) & (0x01U));  //12|1@1+ (1,0) [0|0] ""  X
+        BMS_a130_IO_CAN_Error = ((rx_frame.data.u8[1] >> 5) & (0x01U));    //13|1@1+ (1,0) [0|0] ""  X
+        BMS_a131_Bleed_FET_Failure = ((rx_frame.data.u8[1] >> 6) & (0x01U));      //14|1@1+ (1,0) [0|0] ""  X
+        BMS_a132_HW_BMB_OTP_Uncorrctbl = ((rx_frame.data.u8[1] >> 7) & (0x01U));  //15|1@1+ (1,0) [0|0] ""  X
+        BMS_a134_SW_Delayed_Ctr_Off = ((rx_frame.data.u8[2] >> 1) & (0x01U));     //17|1@1+ (1,0) [0|0] ""  X
+        BMS_a135_HW_BMB_Diagnostics_Failure =
+            ((rx_frame.data.u8[2] >> 2) & (0x01U));  //18  (tesla-m3-pack-findings, fw 2019.20.4.2)
         BMS_a136_SW_Module_OT_Warning = ((rx_frame.data.u8[2] >> 3) & (0x01U));     //19|1@1+ (1,0) [0|0] ""  X
         BMS_a137_SW_Brick_UV_Warning = ((rx_frame.data.u8[2] >> 4) & (0x01U));      //20|1@1+ (1,0) [0|0] ""  X
         BMS_a138_SW_Brick_OV_Warning = ((rx_frame.data.u8[2] >> 5) & (0x01U));      //21|1@1+ (1,0) [0|0] ""  X
@@ -1869,7 +1877,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         BMS_a146_SW_Brick_Overdischarged = ((rx_frame.data.u8[3] >> 5) & (0x01U));  //29|1@1+ (1,0) [0|0] ""  X
         BMS_a149_SW_Missing_Config_Block = (rx_frame.data.u8[4] & (0x01U));         //32|1@1+ (1,0) [0|0] ""  X
         BMS_a151_SW_external_isolation = ((rx_frame.data.u8[4] >> 2) & (0x01U));    //34|1@1+ (1,0) [0|0] ""  X
-        BMS_a155_SW_Weak_short_impedence = ((rx_frame.data.u8[4] >> 6) & (0x01U));  //38  (tesla-m3-pack-findings, fw 2019.20.4.2)
+        BMS_a155_SW_Weak_short_impedence =
+            ((rx_frame.data.u8[4] >> 6) & (0x01U));  //38  (tesla-m3-pack-findings, fw 2019.20.4.2)
         BMS_a156_SW_BMB_Vref_bad = ((rx_frame.data.u8[4] >> 7) & (0x01U));          //39|1@1+ (1,0) [0|0] ""  X
         BMS_a157_SW_HVP_HVS_Comms = (rx_frame.data.u8[5] & (0x01U));                //40|1@1+ (1,0) [0|0] ""  X
         BMS_a158_SW_HVP_HVI_Comms = ((rx_frame.data.u8[5] >> 1) & (0x01U));         //41|1@1+ (1,0) [0|0] ""  X
@@ -1885,12 +1894,14 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         BMS_a169_SW_FC_Pack_Weld = ((rx_frame.data.u8[6] >> 4) & (0x01U));          //52|1@1+ (1,0) [0|0] ""  X
         BMS_a170_SW_Limp_Mode = ((rx_frame.data.u8[6] >> 5) & (0x01U));             //53|1@1+ (1,0) [0|0] ""  X
         BMS_a171_SW_Stack_Voltage_Sense = ((rx_frame.data.u8[6] >> 6) & (0x01U));   //54|1@1+ (1,0) [0|0] ""  X
-        BMS_a173_SW_Charge_Component_Fault = (rx_frame.data.u8[7] & (0x01U));  //56  (tesla-m3-pack-findings, fw 2019.20.4.2)
-        BMS_a174_SW_Charge_Failure = ((rx_frame.data.u8[7] >> 1) & (0x01U));        //57|1@1+ (1,0) [0|0] ""  X
-        BMS_a176_SW_GracefulPowerOff = ((rx_frame.data.u8[7] >> 3) & (0x01U));      //59|1@1+ (1,0) [0|0] ""  X
-        BMS_a178_SW_Uncontrolled_Regen_PwrB = ((rx_frame.data.u8[7] >> 5) & (0x01U));  //61  (tesla-m3-pack-findings, fw 2019.20.4.2)
-        BMS_a179_SW_Hvp_12V_Fault = ((rx_frame.data.u8[7] >> 6) & (0x01U));         //62|1@1+ (1,0) [0|0] ""  X
-        BMS_a180_SW_ECU_reset_blocked = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""  X
+        BMS_a173_SW_Charge_Component_Fault =
+            (rx_frame.data.u8[7] & (0x01U));  //56  (tesla-m3-pack-findings, fw 2019.20.4.2)
+        BMS_a174_SW_Charge_Failure = ((rx_frame.data.u8[7] >> 1) & (0x01U));    //57|1@1+ (1,0) [0|0] ""  X
+        BMS_a176_SW_GracefulPowerOff = ((rx_frame.data.u8[7] >> 3) & (0x01U));  //59|1@1+ (1,0) [0|0] ""  X
+        BMS_a178_SW_Uncontrolled_Regen_PwrB =
+            ((rx_frame.data.u8[7] >> 5) & (0x01U));  //61  (tesla-m3-pack-findings, fw 2019.20.4.2)
+        BMS_a179_SW_Hvp_12V_Fault = ((rx_frame.data.u8[7] >> 6) & (0x01U));      //62|1@1+ (1,0) [0|0] ""  X
+        BMS_a180_SW_ECU_reset_blocked = ((rx_frame.data.u8[7] >> 7) & (0x01U));  //63|1@1+ (1,0) [0|0] ""  X
       }
       break;
     case 0x3a4: {  //932 PCS_alertMatrix — Tesla Model 3/Y
