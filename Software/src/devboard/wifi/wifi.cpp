@@ -91,6 +91,7 @@ void init_WiFi() {
     hostname.toLowerCase();
   }
   WiFi.setHostname(hostname.c_str());
+  ssidAP = std::string(hostname.c_str());  // Access Point SSID now matches the hostname, be consistent with MDNS too
 
   if (wifiap_enabled) {
     WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
@@ -310,7 +311,7 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 // Initialise mDNS (Only available on devices with )
 void init_mDNS() {
 #ifndef SMALL_FLASH_DEVICE
-  // Reuse the network hostname (custom, or the "battery-emulator-<mac>" default set in init_WiFi()).
+  // Reuse the network hostname (custom, or the "battery-emulator-<mac>" default set in init_WiFi()). Be consistent with AP too.
   String mdnsHost = String(WiFi.getHostname());
 
   // Initialize mDNS .local resolution
