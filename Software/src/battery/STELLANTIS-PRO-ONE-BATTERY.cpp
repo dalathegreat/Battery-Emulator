@@ -100,6 +100,16 @@ void StellantisProOneBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
   }
+
+  // Send 1000ms CAN Message
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+    previousMillis1000 = currentMillis;
+
+    if (UserRequestedDTCReset == true) {
+      UserRequestedDTCReset = false;
+      transmit_can_frame(&STELLANTIS_CLEAR_DTC);  //Send DTC reset command
+    }
+  }
 }
 
 void StellantisProOneBattery::setup(void) {  // Performs one time setup at startup
