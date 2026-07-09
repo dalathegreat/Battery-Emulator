@@ -144,8 +144,10 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
   switch (option) {
     case GPIOOPT1::DEFAULT_OPT:
       return "WUP1 / WUP2";
+#ifndef SMALL_FLASH_DEVICE
     case GPIOOPT1::I2C_DISPLAY_SSD1306:
       return "I2C Display (SSD1306)";
+#endif  // SMALL_FLASH_DEVICE
     case GPIOOPT1::ESTOP_BMS_POWER:
       return "E-Stop / BMS Power";
     default:
@@ -178,8 +180,10 @@ const char* name_for_gpioopt4(GPIOOPT4 option) {
   switch (option) {
     case GPIOOPT4::DEFAULT_SD_CARD:
       return "uSD Card";
+#ifndef SMALL_FLASH_DEVICE
     case GPIOOPT4::I2C_DISPLAY_SSD1306:
       return "I2C Display (SSD1306)";
+#endif  // SMALL_FLASH_DEVICE
     default:
       return nullptr;
   }
@@ -202,8 +206,10 @@ const char* name_for_gpioopt6(GPIOOPT6 option) {
   switch (option) {
     case GPIOOPT6::DEFAULT_STATUS_LED:
       return "Status LED (GPIO2)";
+#ifndef SMALL_FLASH_DEVICE
     case GPIOOPT6::I2C_DISPLAY_SSD1306:
       return "I2C Display SSD1306 (GPIO1=SDA, GPIO2=SCL)";
+#endif  // SMALL_FLASH_DEVICE
     default:
       return nullptr;
   }
