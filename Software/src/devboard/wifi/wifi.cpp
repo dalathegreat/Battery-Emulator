@@ -90,7 +90,6 @@ static void check_ap_provisioning_window() {
   if (millis() - ap_started_at < AP_PROVISIONING_WINDOW_MS) {
     return;
   }
-  logging.println("AP provisioning window expired (factory-default AP password), disabling access point.");
   WiFi.softAPdisconnect(true);  // stop the AP and drop the AP bit from the WiFi mode; STA stays up
   ap_active = false;
   ap_provisioning_expired = true;
