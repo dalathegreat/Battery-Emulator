@@ -1833,30 +1833,25 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <h3>Connectivity settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
+        <label>Hostname (applies to Access Point and MQTT topics): </label>
+        <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
+        pattern="[A-Za-z0-9\-]+"
+        title="Optional: Hostname may only contain letters, numbers and '-'" />
+        title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
+    
         <label>Broadcast Wifi access point: </label>
         <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
-
-        <label>Access point name: </label>
-        <input type='text' name='APNAME' value="%APNAME%" 
-        pattern="([ -~]{1,63})?"
-        title="Max 63 characters, printable ASCII only" />
 
         <label>Access point password: </label>
         <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
         pattern="([ -~]{8,63})?"
-        title="Password must be 8-63 characters long, printable ASCII only"
+        title="Password must be 8-63 characters long, printable ASCII only. The Access Point name matches the hostname"
         placeholder='Leave blank to keep unchanged' />
 
         <label>Wifi channel 0-14: </label>
         <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
         min="0" max="14" step="1"
         title="Force specific channel. Set to 0 for autodetect" required />
-
-        <label>Hostname (applies to MQTT topics, if enabled): </label>
-        <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
-        pattern="[A-Za-z0-9\-]+"
-        title="Optional: Hostname may only contain letters, numbers and '-'" />
-        title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
 
         <label>Use static IP address: </label>
         <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
