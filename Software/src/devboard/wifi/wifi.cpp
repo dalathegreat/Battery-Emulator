@@ -300,6 +300,11 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   logging.print("Wi-Fi Got IP. ");
   logging.print("IP address: ");
   logging.println(WiFi.localIP().toString());
+  static bool mdns_started = false;
+  if (mdns_enabled && !mdns_started) {
+    init_mDNS();
+    mdns_started = true;
+  }
 }
 
 // Event handler for Wi-Fi disconnection
