@@ -15,7 +15,7 @@ bool mdns_enabled = true;    //If true, allows battery monitor te be found by .l
 bool espnow_enabled = true;  //If true, allows battery emulator to send battery status by using ESPNow messages
 uint16_t wifi_channel = 0;
 
-std::string custom_hostname;  //If not set, the default naming format 'esp32-XXXXXX' will be used
+std::string custom_hostname;  //If not set, defaults to "battery-emulator-" + last two MAC bytes (see init_WiFi)
 std::string ssid;
 std::string password;
 std::string ssidAP;
@@ -78,9 +78,19 @@ void init_WiFi() {
   WiFi.onEvent(onWifiDisconnect, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   WiFi.onEvent(onWifiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
 
+  // Always set a WiFi hostname: the user's custom one if set, otherwise a default of
+  // "battery-emulator-" + the last two bytes of the MAC address, so every device has a
+  // meaningful, likely-unique hostname even without configuration.
+  String hostname;
   if (!custom_hostname.empty()) {
-    WiFi.setHostname(custom_hostname.c_str());
+    hostname = String(custom_hostname.c_str());
+  } else {
+    String mac = WiFi.macAddress();  // "AA:BB:CC:DD:EE:FF"
+    mac.replace(":", "");
+    hostname = "battery-emulator-" + mac.substring(mac.length() - 4);  // last 2 bytes = 4 hex chars
+    hostname.toLowerCase();
   }
+  WiFi.setHostname(hostname.c_str());
 
   if (wifiap_enabled) {
     WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
@@ -300,14 +310,8 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 // Initialise mDNS (Only available on devices with )
 void init_mDNS() {
 #ifndef SMALL_FLASH_DEVICE
-  // Calulate the host name using the last two chars from the MAC address so each one is likely unique on a network.
-  // e.g batteryemulator8C.local where the mac address is 08:F9:E0:D1:06:8C
-  String mac = WiFi.macAddress();
-  String mdnsHost = "batteryemulator" + mac.substring(mac.length() - 2);
-
-  if (!custom_hostname.empty()) {
-    mdnsHost = String(custom_hostname.c_str());
-  }
+  // Reuse the network hostname (custom, or the "battery-emulator-<mac>" default set in init_WiFi()).
+  String mdnsHost = String(WiFi.getHostname());
 
   // Initialize mDNS .local resolution
   if (!MDNS.begin(mdnsHost)) {
