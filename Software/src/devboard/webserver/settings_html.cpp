@@ -525,10 +525,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String("");
   }
 
-  if (var == "APNAME") {
-    return settings.getString("APNAME", "BatteryEmulator");
-  }
-
   if (var == "STATICIP") {
     return settings.getBool("STATICIP") ? "checked" : "";
   }
