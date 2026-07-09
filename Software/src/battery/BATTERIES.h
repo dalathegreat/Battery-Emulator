@@ -56,6 +56,7 @@ void setup_shunt();
 #include "SAMSUNG-SDI-LV-BATTERY.h"
 #include "SANTA-FE-PHEV-BATTERY.h"
 #include "SIMPBMS-BATTERY.h"
+#include "SMART-EQ-453-BATTERY.h"
 #include "SONO-BATTERY.h"
 #include "STELLANTIS-SMALL-WIDE-4x4.h"
 #include "TESLA-BATTERY.h"

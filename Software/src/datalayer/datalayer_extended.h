@@ -1022,6 +1022,28 @@ struct DATALAYER_INFO_ZOE_PH2 {
   bool UserRequestNVROLReset = false;
 };
 
+struct DATALAYER_INFO_SMART453 {
+  uint8_t vehicle_state_byte = 0x00;
+  uint8_t contactor_state = 0;
+  uint8_t hv_plug_interlock = 0;
+  uint8_t service_disconnect = 0;
+  uint16_t fusi_raw = 0;
+  uint8_t safety_mode = 0;
+  uint8_t relay_status = 0;
+  uint8_t relay_permit = 0;
+  uint8_t vehicle_mode_req = 0;
+  uint8_t bms_12v_supply_raw = 0;
+  int16_t isolation_kohm = 0;
+  uint8_t isolation_flags = 0;
+  uint32_t contactor_counter = 0;
+  bool contactor_counter_valid = false;
+  bool f186_ready = false;
+  uint8_t f1f6_byte1 = 0;
+  // Broadcast-derived diagnostics (informational, not safety-critical)
+  uint8_t precharge_pct = 0xFF;   // 0x090 byte 0: 0-100% DC link / 0xFF=no data
+  uint16_t bcast_dc_link_dV = 0;  // 0x0C6 bytes 4-5: DC link voltage in dV
+};
+
 class DataLayerExtended {
  public:
   DATALAYER_INFO_BOLTAMPERA boltampera;
@@ -1048,6 +1070,7 @@ class DataLayerExtended {
   DATALAYER_INFO_GEELY_SEA GeelySEA;
   DATALAYER_INFO_ZOE zoe;
   DATALAYER_INFO_ZOE_PH2 zoePH2;
+  DATALAYER_INFO_SMART453 smart453;
 };
 
 extern DataLayerExtended datalayer_extended;

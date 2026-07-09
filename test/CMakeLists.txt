@@ -70,7 +70,8 @@ add_executable(tests
     tests.cpp
     voltage_sync_tests.cpp
     bms_reset_tests.cpp
-    battery/NissanLeafTest.cpp 
+    battery/NissanLeafTest.cpp
+    battery/Smart453Test.cpp
     battery/still_alive_tests.cpp
     can_log_based/canlog_safety_tests.cpp
     utils/utils.cpp
@@ -136,6 +137,7 @@ add_executable(tests
     ../Software/src/battery/RENAULT-TWIZY.cpp
     ../Software/src/battery/RENAULT-ZOE-GEN1-BATTERY.cpp
     ../Software/src/battery/RENAULT-ZOE-GEN2-BATTERY.cpp
+    ../Software/src/battery/SMART-EQ-453-BATTERY.cpp
     ../Software/src/battery/RIVIAN-BATTERY.cpp
     ../Software/src/battery/RJXZS-BMS.cpp
     ../Software/src/battery/SAMSUNG-SDI-LV-BATTERY.cpp
