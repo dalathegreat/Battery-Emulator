@@ -90,6 +90,9 @@ static void check_ap_provisioning_window() {
   if (millis() - ap_started_at < AP_PROVISIONING_WINDOW_MS) {
     return;
   }
+  if (WiFi.softAPgetStationNum() > 0) {
+    return;  // a client is connected: don't cut off an active provisioning session
+  }
   WiFi.softAPdisconnect(true);  // stop the AP and drop the AP bit from the WiFi mode; STA stays up
   ap_active = false;
   ap_provisioning_expired = true;
@@ -365,6 +368,7 @@ void init_WiFi_AP() {
   }
 
   WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
+  esp_wifi_set_inactive_time(WIFI_IF_AP, 180);  // deauth silent stations (who walked away without disconnecting) after 180 s (IDF default: 300 s)
   ap_active = true;
   IPAddress IP = WiFi.softAPIP();
 
