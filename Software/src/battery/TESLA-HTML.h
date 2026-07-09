@@ -465,7 +465,7 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
           {"PCS 0x3A4", "PCS", datalayer_extended.tesla.PCS_alertMatrixActive, 94},
           {"CP 0x31E", "CP", datalayer_extended.tesla.CP_alertMatrixActive, 96},
       };
-      
+
       int total_active = 0;
       for (auto& g : groups) {
         for (int i = 0; i < g.count; i++) {
