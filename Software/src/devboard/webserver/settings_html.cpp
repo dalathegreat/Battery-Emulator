@@ -11,6 +11,7 @@
 #include "src/battery/BATTERIES.h"
 #include "src/battery/Shunt.h"
 #include "src/inverter/INVERTERS.h"
+#include "../wifi/wifi.h"
 
 extern bool settingsUpdated;
 
@@ -357,6 +358,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "HOSTNAME") {
     return settings.getString("HOSTNAME");
+  }
+
+  if (var == "DEFAULTHOSTNAME") {
+    return default_hostname();
   }
 
   if (var == "BATTERYINTF") {
@@ -1833,9 +1838,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <h3>Connectivity settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
-        <label>Hostname (applies to Access Point and MQTT topics): </label>
+        <label>Hostname (also Access Point SSID and MQTT topics): </label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
         pattern="[A-Za-z0-9\-]+"
+        placeholder="%DEFAULTHOSTNAME%"
         title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
     
         <label>Broadcast Wifi access point: </label>
