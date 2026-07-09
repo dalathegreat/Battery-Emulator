@@ -368,7 +368,9 @@ void init_WiFi_AP() {
   }
 
   WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
-  esp_wifi_set_inactive_time(WIFI_IF_AP, 180);  // deauth silent stations (who walked away without disconnecting) after 180 s (IDF default: 300 s)
+  esp_wifi_set_inactive_time(
+      WIFI_IF_AP,
+      180);  // deauth silent stations (who walked away without disconnecting) after 180 s (IDF default: 300 s)
   ap_active = true;
   IPAddress IP = WiFi.softAPIP();
 
