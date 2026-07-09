@@ -72,7 +72,7 @@ static const unsigned long AP_BUTTON_FACTORY_RESET_MS = 30000;  // >=30 s: facto
 // Provisioning window: while the AP runs with the factory-default password it is
 // only kept up for a limited time, then shut down. Rebooting or long-pressing the
 // BOOT button (>=5 s) opens a new window. Setting a custom AP password lifts the
-// restriction entirely (AP stays up indefinitely, as before).
+// restriction entirely (AP stays up indefinitely).
 static const unsigned long AP_PROVISIONING_WINDOW_MS = 5UL * 60UL * 1000UL;  // 5 minutes
 static unsigned long ap_started_at = 0;                                      // millis() when the AP was (re)started
 static bool ap_provisioning_expired = false;  // blocks automatic AP re-enable until reboot/button
