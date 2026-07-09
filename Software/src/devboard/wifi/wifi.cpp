@@ -69,6 +69,14 @@ static const unsigned long AP_BUTTON_AP_MS = 5000;              // >=5 s: start 
 static const unsigned long AP_BUTTON_STA_WIPE_MS = 15000;       // >=15 s: wipe STA settings + reboot
 static const unsigned long AP_BUTTON_FACTORY_RESET_MS = 30000;  // >=30 s: factory reset
 
+String default_hostname() {
+  uint8_t mac_bytes[6];
+  esp_read_mac(mac_bytes, ESP_MAC_WIFI_STA);  // reads eFuse directly, valid even before WiFi starts
+  char mac_suffix[5];
+  snprintf(mac_suffix, sizeof(mac_suffix), "%02x%02x", mac_bytes[4], mac_bytes[5]);
+  return "battery-emulator-" + String(mac_suffix);
+}
+
 void init_WiFi() {
   DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
 
@@ -86,12 +94,7 @@ void init_WiFi() {
   if (!custom_hostname.empty()) {
     hostname = String(custom_hostname.c_str());
   } else {
-    uint8_t mac_bytes[6];
-    esp_read_mac(mac_bytes, ESP_MAC_WIFI_STA);  // reads eFuse directly, valid before WiFi is started
-    char mac_suffix[5];
-    snprintf(mac_suffix, sizeof(mac_suffix), "%02x%02x", mac_bytes[4], mac_bytes[5]);
-    hostname = "battery-emulator-" + String(mac_suffix);
-    hostname.toLowerCase();
+    hostname = default_hostname();
   }
   WiFi.setHostname(hostname.c_str());
   ssidAP = std::string(hostname.c_str());  // Access Point SSID now matches the hostname, be consistent with MDNS too
