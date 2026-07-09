@@ -1036,8 +1036,7 @@ String processor(const String& var) {
     }
 
     if (ap_active) {
-      content += "<h4>Wi-Fi access point active &mdash; SSID: " + html_escape(ssidAP.c_str()) + " (" +
-                 WiFi.softAPIP().toString() + ")</h4>";
+      content += "<h4>Access Point active (" + WiFi.softAPIP().toString() + ")</h4>";
     }
 
     // Close the block
