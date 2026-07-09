@@ -1838,7 +1838,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <h3>Connectivity settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
-        <label>Hostname (also Access Point SSID and MQTT topics): </label>
+        <label>Hostname:<br>(also Access Point SSID and MQTT topics)</label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
         pattern="[A-Za-z0-9\-]+"
         placeholder="%DEFAULTHOSTNAME%"
@@ -1850,7 +1850,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Access point password: </label>
         <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
         pattern="([ -~]{8,63})?"
-        title="Password must be 8-63 characters long, printable ASCII only. The Access Point name matches the hostname"
+        title="Password must be 8-63 characters long, printable ASCII only."
         placeholder='Leave blank to keep unchanged' />
 
         <label>Wifi channel 0-14: </label>
@@ -1932,13 +1932,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <h3>Debug options</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
-        <label>Enable performance profiling on main page: </label>
+        <label>Performance profiling on main page: </label>
         <input type='checkbox' name='PERFPROFILE' value='on' %PERFPROFILE%          
-              title="For developers. Enable this to get detailed performance metrics on the front page" />
+              title="For developers. Get detailed performance metrics on the front page" />
 
-        <label>Enable CAN message logging via USB serial: </label>
-        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%  
-              title="WARNING: Causes performance issues. Enable this to get incoming/outgoing CAN messages logged via USB cable. Avoid if possible" />
+        <label>General logging via Webserver: </label>
+        <input type='checkbox' name='WEBENABLED' value='on' %WEBENABLED% 
+              onclick="handleCheckboxSelection(this)"         
+              title="Enable this if you want general logging available in the Webserver." />
+
+        <label>General logging via USB serial: </label>
+        <input type='checkbox' name='USBENABLED' value='on' %USBENABLED% 
+              onclick="handleCheckboxSelection(this)" 
+              title="WARNING: Causes performance issues. Log general messages via USB cable. Avoid if possible!" />
+
         <script> //Make sure user only uses one general logging method, improves performance
         function handleCheckboxSelection(clickedCheckbox) { 
             const usbCheckbox = document.querySelector('input[name="USBENABLED"]');
@@ -1956,26 +1963,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         }
         </script>
 
-        <label>Enable general logging via USB serial: </label>
-        <input type='checkbox' name='USBENABLED' value='on' %USBENABLED% 
-              onclick="handleCheckboxSelection(this)" 
-              title="WARNING: Causes performance issues. Enable this to get general logging via USB cable. Avoid if possible" />
-
-        <label>Enable general logging via Webserver: </label>
-        <input type='checkbox' name='WEBENABLED' value='on' %WEBENABLED% 
-              onclick="handleCheckboxSelection(this)"         
-              title="Enable this if you want general logging available in the Webserver" />
-
-        <label>Enable CAN message logging via SD card: </label>
-        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% 
-        title="Enable this if you want incoming/outgoing CAN messages to be stored to an SD card. Only works on select hardware with SD-card slot" />
-
-        <label>Enable general logging via SD card: </label>
+        <label>General logging to SD card: </label>
         <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% 
-        title="Enable this if you want general logging to be stored to an SD card. Only works on select hardware with SD-card slot" />
+            title="Store logs on an SD card. Only works on hardware with SD-card slot." />
+
+        <label>CAN message logging via USB serial: </label>
+        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%  
+            title="WARNING: Causes performance issues! Log incoming/outgoing CAN messages via USB cable. Avoid if possible!" />
+
+        <label>CAN message logging to SD card: </label>
+        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% 
+            title="Store incoming/outgoing CAN messages on on SD card. Only works on hardware with SD-card slot." />
 
         </div>
-         </div>
+        </div>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button type='submit'>Save</button></div>
 
