@@ -136,6 +136,7 @@ void init_events(void) {
   events.entries[EVENT_PID_FAILED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_DISCONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_WIFI_AP_PROVISION_TIMEOUT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
@@ -409,6 +410,10 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Wifi connected.";
     case EVENT_WIFI_DISCONNECT:
       return "Wifi disconnected.";
+    case EVENT_WIFI_AP_PROVISION_TIMEOUT:
+      return "Wifi access point disabled: the provisioning window expired while the factory-default AP password was "
+             "still in use. Reboot or hold the BOOT button >=5 seconds to re-enable it, or set a custom AP password "
+             "to keep the access point permanently enabled.";
     case EVENT_MQTT_CONNECT:
       return "MQTT connected.";
     case EVENT_MQTT_DISCONNECT:
