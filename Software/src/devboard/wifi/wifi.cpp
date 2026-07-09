@@ -85,9 +85,11 @@ void init_WiFi() {
   if (!custom_hostname.empty()) {
     hostname = String(custom_hostname.c_str());
   } else {
-    String mac = WiFi.macAddress();  // "AA:BB:CC:DD:EE:FF"
-    mac.replace(":", "");
-    hostname = "battery-emulator-" + mac.substring(mac.length() - 4);  // last 2 bytes = 4 hex chars
+    uint8_t mac_bytes[6];
+    esp_read_mac(mac_bytes, ESP_MAC_WIFI_STA);  // reads eFuse directly, valid before WiFi is started
+    char mac_suffix[5];
+    snprintf(mac_suffix, sizeof(mac_suffix), "%02x%02x", mac_bytes[4], mac_bytes[5]);
+    hostname = "battery-emulator-" + String(mac_suffix);
     hostname.toLowerCase();
   }
   WiFi.setHostname(hostname.c_str());
