@@ -89,10 +89,6 @@ void connectivity_loop(void*) {
 
   init_webserver();
 
-  if (mdns_enabled) {
-    init_mDNS();
-  }
-
   init_display();
 
   if (espnow_enabled) {
