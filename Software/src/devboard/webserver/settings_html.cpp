@@ -645,14 +645,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String("");
   }
 
-  if (var == "MQTTTOPICS") {
-    return settings.getBool("MQTTTOPICS") ? "checked" : "";
-  }
-
-  if (var == "MQTTTOPIC") {
-    return settings.getString("MQTTTOPIC");
-  }
-
   if (var == "MQTTTIMEOUT") {
     return String(settings.getUInt("MQTTTIMEOUT", 2000));
   }
@@ -661,20 +653,8 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("MQTTPUBLISHMS", 5000) / 1000);
   }
 
-  if (var == "MQTTOBJIDPREFIX") {
-    return settings.getString("MQTTOBJIDPREFIX");
-  }
-
-  if (var == "MQTTDEVICENAME") {
-    return settings.getString("MQTTDEVICENAME");
-  }
-
   if (var == "MQTTCELLV") {
     return settings.getBool("MQTTCELLV") ? "checked" : "";
-  }
-
-  if (var == "HADEVICEID") {
-    return settings.getString("HADEVICEID");
   }
 
   if (var == "HADISC") {
@@ -1400,11 +1380,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
-    form .if-topics { display: none; }
-    form[data-mqtttopics="true"] .if-topics {
-      display: contents;
-    }
-
     </style>
 )rawliteral"
 
@@ -1881,10 +1856,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         min="0" max="14" step="1"
         title="Force specific channel. Set to 0 for autodetect" required />
 
-        <label>Custom Wifi hostname: </label>
+        <label>Hostname (applies to MQTT topics, if enabled): </label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
         pattern="[A-Za-z0-9\-]+"
         title="Optional: Hostname may only contain letters, numbers and '-'" />
+        title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
 
         <label>Use static IP address: </label>
         <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
@@ -1946,20 +1922,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         min="1" max="300" step="1"
         title="How often to publish MQTT messages in seconds (1-300, step 1). Default: 5" />
         <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
-        <label>Remote BMS reset via MQTT allowed: </label>
+        <label>Allow remote BMS reset via MQTT: </label>
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
-        <label>Customized MQTT topics: </label>
-        <input type='checkbox' name='MQTTTOPICS' value='on' %MQTTTOPICS% />
-
-        <div class='if-topics'>
-
-        <label>MQTT topic name: </label><input type='text' name='MQTTTOPIC' value="%MQTTTOPIC%" />
-        <label>Prefix for MQTT object ID: </label><input type='text' name='MQTTOBJIDPREFIX' value="%MQTTOBJIDPREFIX%" />
-        <label>HA device name: </label><input type='text' name='MQTTDEVICENAME' value="%MQTTDEVICENAME%" />
-        <label>HA device ID: </label><input type='text' name='HADEVICEID' value="%HADEVICEID%" />
-        
-        </div>
-
         <label>Enable Home Assistant auto discovery: </label>
         <input type='checkbox' name='HADISC' value='on' %HADISC% />
 
