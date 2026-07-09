@@ -447,6 +447,66 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     //content += "<h4>HVP_shuntBarTempStatus: " + String(HVP_status[datalayer_extended.tesla.HVP_shuntBarTempStatus]) + "</h4>"; // Not giving useable data
     //content += "<h4>HVP_shuntAsicTempStatus: " + String(HVP_status[datalayer_extended.tesla.HVP_shuntAsicTempStatus]) + "</h4>"; // Not giving useable data
 
+    // ---- Active alert-matrix faults (0x320 BMS / 0x3A4 PCS / 0x31E CP) ----
+    // Only ACTIVE faults are listed, to keep the page small. The human-readable descriptions
+    // are NOT stored on the ESP32; they are loaded from a DTC JSON file on GitHub (or a local
+    // copy) by get_dtc_json_loader_html(), which fills every cell carrying a data-dtc-code.
+    // The code (e.g. "BMS12") is the ECU prefix + the index into the corresponding
+    // *_alertMatrixActive[] array; the JSON is keyed identically (see web_data/dtc/README.md).
+    {
+      struct AlertGroup {
+        const char* label;
+        const char* prefix;
+        const bool* active;
+        int count;
+      };
+      const AlertGroup groups[] = {
+          {"BMS 0x320", "BMS", datalayer_extended.tesla.BMS_alertMatrixActive, 100},
+          {"PCS 0x3A4", "PCS", datalayer_extended.tesla.PCS_alertMatrixActive, 94},
+          {"CP 0x31E", "CP", datalayer_extended.tesla.CP_alertMatrixActive, 96},
+      };
+      
+      int total_active = 0;
+      for (auto& g : groups) {
+        for (int i = 0; i < g.count; i++) {
+          if (g.active[i]) {
+            total_active++;
+          }
+        }
+      }
+
+      content += "<h3>Active Faults: " + String(total_active) + "</h3>";
+      // Only render the table (and fetch the DTC JSON) when something is actually active, so a
+      // healthy device does no network request on every page load.
+      if (total_active > 0) {
+        content +=
+            "<table style='border-collapse: collapse; margin: 0 auto;'>"
+            "<tr><th style='text-align:left;padding:2px 20px 2px 0'>ECU</th>"
+            "<th style='text-align:left;padding:2px 20px 2px 0'>DTC</th>"
+            "<th style='text-align:left;padding:2px 0'>Description</th></tr>";
+        for (auto& g : groups) {
+          for (int i = 0; i < g.count; i++) {
+            if (!g.active[i]) {
+              continue;
+            }
+            String code = String(g.prefix) + String(i);
+            content += "<tr><td style='text-align:left;padding:2px 20px 2px 0'>";
+            content += g.label;
+            content += "</td><td style='text-align:left;padding:2px 20px 2px 0'>";
+            content += code;
+            content += "</td><td style='text-align:left;padding:2px 0' data-dtc-code='";
+            content += code;
+            content += "'>";
+            content += code;  // placeholder shown until the JSON loader fills in the description
+            content += "</td></tr>";
+          }
+        }
+        content += "</table>";
+        // Fetch descriptions from GitHub (falls back to a local-file picker when offline).
+        content += get_dtc_json_loader_html(GITHUB_RAW_BASE_URL, "tesla_model3y_dtc.json");
+      }
+    }
+
     return content;
   }
 };

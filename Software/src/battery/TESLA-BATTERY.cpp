@@ -6,7 +6,6 @@
 #include "../datalayer/datalayer_extended.h"  //For Advanced Battery Insights webpage
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
-#include "TESLA-ALERT-NAMES.h"
 
 /* Credits: */
 /* Some of the original CAN frame parsing code below comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
@@ -850,7 +849,7 @@ void TeslaBattery::
   datalayer_extended.tesla.HVP_shuntBarTempStatus = HVP_shuntBarTempStatus;
   datalayer_extended.tesla.HVP_shuntAsicTempStatus = HVP_shuntAsicTempStatus;
 
-  // Alert-matrix (DTC) fault state -> datalayer for the Faults web page (tesla-m3-pack-findings, fw 2019.20.4.2)
+  // Alert-matrix (DTC) fault state -> datalayer for the Faults web page (fw 2019.20.4.2)
   datalayer_extended.tesla.BMS_alertMatrixActive[0] = BMS_a001_Pack_Config_Mismatch;
   datalayer_extended.tesla.BMS_alertMatrixActive[1] = BMS_a017_SW_Brick_OV;
   datalayer_extended.tesla.BMS_alertMatrixActive[2] = BMS_a018_SW_Brick_UV;
@@ -2953,17 +2952,18 @@ void TeslaBattery::printFaultCodesIfActive() {
 }
 
 void TeslaBattery::printFaultCodesPcsCp() {
-  // Print any active PCS (0x3A4) / CP (0x31E) alerts, keyed off the shared name table
-  // (tesla-m3-pack-findings). Reads the same datalayer arrays that feed the Faults web page,
-  // filled just above in update_values(). Looping avoids duplicating ~190 string literals.
+  // Print any active PCS (0x3A4) / CP (0x31E) alerts by their code (ECU prefix + array index),
+  // reading the same datalayer arrays shown on the "More Battery Info" web page. The
+  // human-readable names are no longer stored on the ESP32 (they live in the GitHub DTC JSON,
+  // web_data/dtc/tesla_model3y_dtc.json); look the printed code up there, e.g. "PCS12" / "CP7".
   for (int i = 0; i < 94; i++) {
     if (datalayer_extended.tesla.PCS_alertMatrixActive[i]) {
-      logging.printf("ERROR: %s\n", TESLA_PCS_ALERT_NAMES[i]);
+      logging.printf("ERROR: Tesla alert PCS%d active\n", i);
     }
   }
   for (int i = 0; i < 96; i++) {
     if (datalayer_extended.tesla.CP_alertMatrixActive[i]) {
-      logging.printf("ERROR: %s\n", TESLA_CP_ALERT_NAMES[i]);
+      logging.printf("ERROR: Tesla alert CP%d active\n", i);
     }
   }
 }
