@@ -411,8 +411,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_WIFI_DISCONNECT:
       return "Wifi disconnected.";
     case EVENT_WIFI_AP_PROVISION_TIMEOUT:
-      return "Wifi access point disabled: the provisioning window expired. Change password or "
-             "hold the BOOT button >=5 seconds or reboot to re-enable it.";
+      return "Wifi AP disabled: the provisioning window expired. Change password or "
+             "hold BOOT button 5 to 15 secs or reboot to re-enable.";
     case EVENT_MQTT_CONNECT:
       return "MQTT connected.";
     case EVENT_MQTT_DISCONNECT:
