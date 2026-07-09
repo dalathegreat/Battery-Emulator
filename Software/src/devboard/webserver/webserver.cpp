@@ -420,7 +420,7 @@ void init_webserver() {
   const char* boolSettingNames[] = {
       "DBLBTR",        "CNTCTRL",       "CNTCTRLDBL",  "PWMCNTCTRL",   "PERBMSRESET",   "SDLOGENABLED", "STATICIP",
       "REMBMSRESET",   "EXTPRECHARGE",  "USBENABLED",  "CANLOGUSB",    "WEBENABLED",    "CANFDASCAN",   "CANFD2ASCAN",
-      "CANLOGSD",      "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC",    "HADISC",        "MQTTTOPICS",   "MQTTCELLV",
+      "CANLOGSD",      "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC",    "HADISC",        "MQTTCELLV",
       "GTWRHD",        "DIGITALHVIL",   "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET",  "PYLONORDER",
       "DEYEBYD",       "NCCONTACTOR",   "TRIBTR",      "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",   "CTINVERT",
       "LOWPASSFILTER", "WEBAUTH",       "SLOWCANINV",
@@ -436,10 +436,9 @@ void init_webserver() {
       "DALYPWRDV",  "DALYDVSTART", "DALYPWRDEG", "DALYPWR0C",   "RAMPDOWNSOC", "GPIOOPT5",  "GPIOOPT6",   "INVICNT",
   };
 
-  const char* stringSettingNames[] = {"APNAME",         "APPASSWORD",   "HOSTNAME",  "MQTTSERVER",
-                                      "MQTTUSER",       "MQTTPASSWORD", "MQTTTOPIC", "MQTTOBJIDPREFIX",
-                                      "MQTTDEVICENAME", "HADEVICEID",   "HTTPUSER",  "HTTPPASS"};
-
+  const char* stringSettingNames[] = {"APNAME",   "APPASSWORD",   "HOSTNAME", "MQTTSERVER",
+                                      "MQTTUSER", "MQTTPASSWORD", "HTTPUSER", "HTTPPASS"};
+  
   // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST,
             [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
