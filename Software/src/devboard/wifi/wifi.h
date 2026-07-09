@@ -29,6 +29,10 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info);
 void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info);
 #endif
 
+// Returns the default hostname ("battery-emulator-" + last two bytes of the MAC, lowercase)
+// used when no custom hostname is configured. Safe to call at any time (reads eFuse directly).
+String default_hostname();
+
 void init_WiFi_AP();
 
 // Initialise mDNS
