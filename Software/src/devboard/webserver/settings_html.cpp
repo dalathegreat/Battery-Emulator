@@ -6,12 +6,12 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "../wifi/wifi.h"
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
 #include "src/battery/Shunt.h"
 #include "src/inverter/INVERTERS.h"
-#include "../wifi/wifi.h"
 
 extern bool settingsUpdated;
 
