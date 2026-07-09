@@ -448,22 +448,23 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     //content += "<h4>HVP_shuntAsicTempStatus: " + String(HVP_status[datalayer_extended.tesla.HVP_shuntAsicTempStatus]) + "</h4>"; // Not giving useable data
 
     // ---- Active alert-matrix faults (0x320 BMS / 0x3A4 PCS / 0x31E CP) ----
-    // Only ACTIVE faults are listed, to keep the page small. The human-readable descriptions
-    // are NOT stored on the ESP32; they are loaded from a DTC JSON file on GitHub (or a local
-    // copy) by get_dtc_json_loader_html(), which fills every cell carrying a data-dtc-code.
-    // The code (e.g. "BMS12") is the ECU prefix + the index into the corresponding
-    // *_alertMatrixActive[] array; the JSON is keyed identically (see web_data/dtc/README.md).
+    // Only ACTIVE faults are listed, to keep the page small. Nothing about the fault names/codes
+    // is stored on the ESP32: each row emits only an integer match key (ECU base + the index into
+    // the corresponding *_alertMatrixActive[] array). get_dtc_json_loader_html() then loads the
+    // DTC JSON from GitHub (or a local copy) and fills the description cell with the readable text
+    // (l_dsc) plus the full Tesla token (s_dsc, which carries the real code e.g. BMS_a036). See
+    // web_data/dtc/README.md; the JSON "code" field must match "base + index" below.
     {
       struct AlertGroup {
         const char* label;
-        const char* prefix;
+        int base;  // integer "code" base for this ECU (BMS 1xx, PCS 2xx, CP 3xx)
         const bool* active;
         int count;
       };
       const AlertGroup groups[] = {
-          {"BMS 0x320", "BMS", datalayer_extended.tesla.BMS_alertMatrixActive, 100},
-          {"PCS 0x3A4", "PCS", datalayer_extended.tesla.PCS_alertMatrixActive, 94},
-          {"CP 0x31E", "CP", datalayer_extended.tesla.CP_alertMatrixActive, 96},
+          {"BMS 0x320", 100, datalayer_extended.tesla.BMS_alertMatrixActive, 100},
+          {"PCS 0x3A4", 200, datalayer_extended.tesla.PCS_alertMatrixActive, 94},
+          {"CP 0x31E", 300, datalayer_extended.tesla.CP_alertMatrixActive, 96},
       };
 
       int total_active = 0;
@@ -482,22 +483,21 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
         content +=
             "<table style='border-collapse: collapse; margin: 0 auto;'>"
             "<tr><th style='text-align:left;padding:2px 20px 2px 0'>ECU</th>"
-            "<th style='text-align:left;padding:2px 20px 2px 0'>DTC</th>"
             "<th style='text-align:left;padding:2px 0'>Description</th></tr>";
         for (auto& g : groups) {
           for (int i = 0; i < g.count; i++) {
             if (!g.active[i]) {
               continue;
             }
-            String code = String(g.prefix) + String(i);
+            String code = String(g.base + i);  // integer match key; JSON maps it to code + description
             content += "<tr><td style='text-align:left;padding:2px 20px 2px 0'>";
             content += g.label;
-            content += "</td><td style='text-align:left;padding:2px 20px 2px 0'>";
-            content += code;
+            // Description cell: the shared loader replaces the placeholder integer with l_dsc + s_dsc
+            // (s_dsc carries the real Tesla code, e.g. BMS_a036_SW_HvpHvilFault).
             content += "</td><td style='text-align:left;padding:2px 0' data-dtc-code='";
             content += code;
             content += "'>";
-            content += code;  // placeholder shown until the JSON loader fills in the description
+            content += code;
             content += "</td></tr>";
           }
         }
