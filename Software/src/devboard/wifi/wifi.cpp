@@ -324,8 +324,8 @@ void init_mDNS() {
   if (!MDNS.begin(mdnsHost)) {
     logging.println("Error setting up MDNS responder!");
   } else {
-    // Advertise via bonjour the service so we can auto discover these battery emulators on the local network.
-    MDNS.addService(mdnsHost, "tcp", 80);
+    // Advertise via bonjour the web inteface so we can auto discover these battery emulators on the local network.
+    MDNS.addService("http", "tcp", 80);
   }
 #endif
 }
