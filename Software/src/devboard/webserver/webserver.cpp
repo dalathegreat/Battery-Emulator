@@ -436,9 +436,9 @@ void init_webserver() {
       "DALYPWRDV",  "DALYDVSTART", "DALYPWRDEG", "DALYPWR0C",   "RAMPDOWNSOC", "GPIOOPT5",  "GPIOOPT6",   "INVICNT",
   };
 
-  const char* stringSettingNames[] = {"APNAME",   "APPASSWORD",   "HOSTNAME", "MQTTSERVER",
+  const char* stringSettingNames[] = {"APPASSWORD",   "HOSTNAME", "MQTTSERVER",
                                       "MQTTUSER", "MQTTPASSWORD", "HTTPUSER", "HTTPPASS"};
-
+  
   // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST,
             [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
