@@ -333,7 +333,6 @@ struct DATALAYER_INFO_CMPSMART {
   bool rcd_line_active = false;
   bool power_auth = false;
   bool battery_balancing_active = false;
-  bool UserRequestDTCreset = false; /** User requesting DTC reset via WebUI*/
 };
 
 struct DATALAYER_INFO_ECMP {
