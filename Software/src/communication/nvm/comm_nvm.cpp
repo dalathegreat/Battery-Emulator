@@ -187,6 +187,12 @@ void init_stored_settings() {
   datalayer.system.info.web_logging_active = settings.getBool("WEBENABLED", false);
   datalayer.system.info.CAN_SD_logging_active = settings.getBool("CANLOGSD", false);
   datalayer.system.info.SD_logging_active = settings.getBool("SDLOGENABLED", false);
+#ifndef SMALL_FLASH_DEVICE
+  datalayer.system.info.syslog_logging_active = settings.getBool("SYSLOGEN", false);
+  syslog_ip = settings.getString("SYSLOGIP").c_str();
+  syslog_port = settings.getUInt("SYSLOGPORT", 514);
+  syslog_facility = settings.getUInt("SYSLOGFAC", 1);
+#endif
   datalayer.battery.status.led_mode = (led_mode_enum)settings.getUInt("LEDMODE", false);
 
   //Some early integrations need manually set allowed charge/discharge power
@@ -197,7 +203,7 @@ void init_stored_settings() {
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
   wifi_channel = settings.getUInt("WIFICHANNEL", 0);
   ssidAP = settings.getString("APNAME", "BatteryEmulator").c_str();
-  passwordAP = settings.getString("APPASSWORD", "123456789").c_str();
+  passwordAP = settings.getString("APPASSWORD", DEFAULT_AP_PASSWORD).c_str();
   espnow_enabled = settings.getBool("ESPNOWENABLED", false);
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
   mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
