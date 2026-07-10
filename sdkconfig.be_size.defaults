@@ -40,15 +40,15 @@ CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
 # CONFIG_MBEDTLS_CERTIFICATE_BUNDLE is not set
 
 # -----------------------------------------------------------------------------
-# HYBRID-MODE BUILD FIX (not optional)
-# arduino-esp32 pulls in the espressif/esp-modbus component transitively. This
-# firmware does NOT use it (it uses the Arduino eModbus library), but hybrid
-# mode compiles it from source, where a _Static_assert requires
-#   FMB_MASTER_MAX_API_BLOCKING_TIME_MS >= FMB_MASTER_TIMEOUT_MS_RESPOND.
-# The merged Arduino base config lands a mismatched pair and fails the build.
-# Pin both to consistent in-range defaults so it compiles. Values are inert
-# here because the component is unused; the real win is excluding esp-modbus
-# entirely (separate follow-up) to also drop its flash.
+# HYBRID-MODE BUILD FIX (fallback / safety net)
+# esp-modbus is now excluded via `custom_component_remove` in platformio.ini,
+# so these two lines normally do nothing. They are kept as a safety net: if
+# removing espressif/esp-modbus ever triggers a dependency error, drop it from
+# the remove list and this pin keeps the from-source build green. The component
+# ships a _Static_assert requiring
+#   FMB_MASTER_MAX_API_BLOCKING_TIME_MS >= FMB_MASTER_TIMEOUT_MS_RESPOND,
+# which the merged Arduino base config otherwise violates. Values are inert for
+# this firmware (it uses the Arduino eModbus library, not espressif/esp-modbus).
 CONFIG_FMB_MASTER_TIMEOUT_MS_RESPOND=5000
 CONFIG_FMB_MASTER_MAX_API_BLOCKING_TIME_MS=6000
 
