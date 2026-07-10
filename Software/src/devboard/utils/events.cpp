@@ -31,12 +31,17 @@ void init_events(void) {
 
   events.entries[EVENT_CANMCP2518FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2515_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_NATIVE_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CAN_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANFD_2_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP2515_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_TASK_OVERRUN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_THERMAL_RUNAWAY].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_CORRUPTED_WARNING].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CAN_NATIVE_TX_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_NATIVE_BUS_ERROR].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP2515_BUS_ERROR].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANFD_BUS_ERROR].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANFD_2_BUS_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_BATTERY_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_BATTERY2_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_BATTERY3_DETECTED].level = EVENT_LEVEL_INFO;
@@ -187,18 +192,22 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
     case EVENT_CANMCP2515_INIT_FAILURE:
       return "CAN-MCP addon initialization failed. Check hardware";
+    case EVENT_CAN_NATIVE_BUFFER_FULL:
+    case EVENT_CANMCP2515_BUFFER_FULL:
     case EVENT_CANFD_BUFFER_FULL:
-      return "MCP2518FD message failed to send. Buffer full or no one on the bus to ACK the message!";
-    case EVENT_CAN_BUFFER_FULL:
-      return "MCP2515 message failed to send. Buffer full or no one on the bus to ACK the message!";
+    case EVENT_CANFD_2_BUFFER_FULL:
+      return "CAN failed to send. Buffer full or no one on the bus to ACK the message!";
     case EVENT_TASK_OVERRUN:
       return "Task took too long to complete. CPU load might be too high. Info message, no action required.";
     case EVENT_THERMAL_RUNAWAY:
       return "THERMAL RUNAWAY! POTENTIAL FIRE OR EXPLOSION IMMINENT!";
     case EVENT_CAN_CORRUPTED_WARNING:
       return "High amount of corrupted CAN messages detected. Check CAN wire shielding!";
-    case EVENT_CAN_NATIVE_TX_FAILURE:
-      return "CAN_NATIVE failed to transmit, or no one on the bus to ACK the message!";
+    case EVENT_CAN_NATIVE_BUS_ERROR:
+    case EVENT_CANMCP2515_BUS_ERROR:
+    case EVENT_CANFD_BUS_ERROR:
+    case EVENT_CANFD_2_BUS_ERROR:
+      return "Multiple CAN TX/RX errors. Check wiring!";
     case EVENT_CAN_BATTERY_DETECTED:
       return "Successfully communicating with battery. Battery detected!";
     case EVENT_CAN_BATTERY2_DETECTED:

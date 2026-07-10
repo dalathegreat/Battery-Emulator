@@ -32,6 +32,10 @@
 #define CANINTF_TX0IF    0x04
 #define CANINTF_TX1IF    0x08
 #define CANINTF_TX2IF    0x10
+#define CANINTF_ERRIF    0x20
+
+#define EFLG_TXBO        0x20
+#define EFLG_EWARN       0x01
 
 
 static inline void packExtendedId(uint8_t* buffer, uint32_t id);
@@ -257,15 +261,21 @@ void MCP2515_Lite::canTask(void* pvParameters) {
 
             // 2. Read the status register to see which interrupts are active
 
-            cmd_frame[0] = CMD_READ_STATUS;
-            self->spiTransactionBlocking(cmd_frame, rx_frame, 2);
-            const uint8_t status = rx_frame[1];
+            // cmd_frame[0] = CMD_READ_STATUS;
+            // self->spiTransactionBlocking(cmd_frame, rx_frame, 2);
+            // const uint8_t status = rx_frame[1];
+
+            cmd_frame[0] = CMD_READ;
+            cmd_frame[1] = REG_CANINTF;
+            self->spiTransactionBlocking(cmd_frame, rx_frame, 4);
+            const uint8_t intf = rx_frame[2];
+            const uint8_t eflag = rx_frame[3];
 
             // 3. Process any RX interrupts sequentially (clears receive flags)
 
             for (int i = 0; i < 2; i++) {
                 // Is there a frame in this slot to read?
-                if (status & (1 << i)) {
+                if (intf & (1 << i)) {
                     cmd_frame[0] = CMD_READ_RX_BUFFER | (i * 4); // 0x90 (RXB0) or 0x94 (RXB1)
                     
                     // Write 1 command byte + 13 payload read bytes
@@ -289,12 +299,21 @@ void MCP2515_Lite::canTask(void* pvParameters) {
                 }
             }
 
-            // 4. Check for free transmit buffers, and clear interrupt flags if needed
+            // 4. Check for free transmit buffers or errors, and clear interrupt flags if needed
 
             int int_clear_mask = 0;
-            if (status & STATUS_TX0IF) { int_clear_mask |= CANINTF_TX0IF; tx_free_mask |= 0x01; } // TXB0 free
-            if (status & STATUS_TX1IF) { int_clear_mask |= CANINTF_TX1IF; tx_free_mask |= 0x02; } // TXB1 free
-            if (status & STATUS_TX2IF) { int_clear_mask |= CANINTF_TX2IF; tx_free_mask |= 0x04; } // TXB2 free
+            if (intf & CANINTF_TX0IF) { int_clear_mask |= CANINTF_TX0IF; tx_free_mask |= 0x01; } // TXB0 free
+            if (intf & CANINTF_TX1IF) { int_clear_mask |= CANINTF_TX1IF; tx_free_mask |= 0x02; } // TXB1 free
+            if (intf & CANINTF_TX2IF) { int_clear_mask |= CANINTF_TX2IF; tx_free_mask |= 0x04; } // TXB2 free
+
+            if(intf & CANINTF_ERRIF) { // ERRIF
+                if(eflag & (EFLG_TXBO | EFLG_EWARN)) {
+                    self->_errors = true;
+                }
+
+                int_clear_mask |= CANINTF_ERRIF;
+            }
+
 
             if (int_clear_mask) {
                 self->modifyRegister(REG_CANINTF, int_clear_mask, 0x00);
