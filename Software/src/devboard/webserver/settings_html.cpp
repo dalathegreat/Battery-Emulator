@@ -1840,7 +1840,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Hostname:<br>(also Access Point SSID, MQTT topics)</label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
-        pattern="[A-Za-z0-9\-]+"
+        pattern="[A-Za-z0-9_\-]+"
         placeholder="%DEFAULTHOSTNAME%"
         title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
     
