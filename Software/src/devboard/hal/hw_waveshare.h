@@ -53,6 +53,7 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
   // SMA CAN contactor pins (collides with WUP2)
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() { return GPIO_NUM_9; }
 
+#ifndef SMALL_FLASH_DEVICE
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() {
     if (user_selected_gpioopt6 == GPIOOPT6::I2C_DISPLAY_SSD1306) {
@@ -66,6 +67,7 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
     }
     return GPIO_NUM_NC;
   }
+#endif  // SMALL_FLASH_DEVICE
 
   // CANFD add-on defines for MCP2517
   virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_10; }
