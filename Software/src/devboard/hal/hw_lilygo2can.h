@@ -105,6 +105,7 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_40; }
   virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_5; }  // ADC1_CH4
 
+#ifndef SMALL_FLASH_DEVICE
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() {
     if (user_selected_gpioopt1 == GPIOOPT1::I2C_DISPLAY_SSD1306) {
@@ -118,6 +119,7 @@ class LilyGo2CANHal : public Esp32Hal {
     }
     return GPIO_NUM_NC;
   }
+#endif  // SMALL_FLASH_DEVICE
 
   // Equipment stop pin
   virtual gpio_num_t EQUIPMENT_STOP_PIN() {
