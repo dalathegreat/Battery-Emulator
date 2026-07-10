@@ -203,7 +203,7 @@ void init_stored_settings() {
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
   wifi_channel = settings.getUInt("WIFICHANNEL", 0);
   ssidAP = settings.getString("APNAME", "BatteryEmulator").c_str();
-  passwordAP = settings.getString("APPASSWORD", "123456789").c_str();
+  passwordAP = settings.getString("APPASSWORD", DEFAULT_AP_PASSWORD).c_str();
   espnow_enabled = settings.getBool("ESPNOWENABLED", false);
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
   mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
