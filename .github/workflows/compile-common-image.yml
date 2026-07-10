@@ -40,12 +40,27 @@ jobs:
     - uses: actions/checkout@v7
       name: Checkout code
 
+    - name: Get platformio.ini hash
+      id: platformio_ini_hash
+      run: |
+        PLATFORMIO_INI_HASH=$(md5sum platformio.ini | awk '{ print $1 }')
+        echo "platformio_ini_hash=$PLATFORMIO_INI_HASH" >> $GITHUB_OUTPUT
+
+    # Broader cache (just the download files)
     - uses: actions/cache@v6
       with:
         path: |
           ~/.cache/pip
           ~/.platformio/.cache
         key: ${{ runner.os }}-pio
+
+    # Tighter cache (of platformio itself)
+    - uses: actions/cache@v6
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio
+        key: ${{ runner.os }}-pio-${{ steps.platformio_ini_hash.outputs.platformio_ini_hash }}
 
     - uses: actions/setup-python@v6
       with:
