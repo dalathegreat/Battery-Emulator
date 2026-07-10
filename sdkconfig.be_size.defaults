@@ -33,11 +33,20 @@ CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
 # No WPA2/WPA3-Enterprise (you use plain PSK). Drops the enterprise supplicant.
 # CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT is not set
 
-# The bundled root-CA store is tens of KB of flash and the firmware does NO
-# outbound TLS verification (the GitHub release check runs in the browser).
-# >>> Caveat: if any user configures a TLS MQTT broker that relies on bundle
-#     verification, this breaks it. See Tier-2 note on secure MQTT.
-# CONFIG_MBEDTLS_CERTIFICATE_BUNDLE is not set
+# Root-CA bundle: the FULL store is tens of KB of flash, and this firmware does
+# NO on-device TLS verification (the GitHub release check runs in the browser).
+# It CANNOT be fully disabled: arduino-esp32's NetworkClientSecure library does
+# an unconditional #include "esp_crt_bundle.h", which only exists when the
+# feature is enabled, and hybrid mode compiles that (unused) library from source.
+# So keep the feature ON but select the empty (NONE) variant: the header/API
+# stay present, but essentially no CA certs are embedded -> nearly all the flash
+# is still reclaimed.
+# >>> Caveat: a TLS MQTT broker relying on bundle verification would need CMN or
+#     FULL here instead of NONE. See the Tier-2 note on secure MQTT.
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_NONE=y
+# CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL is not set
+# CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN is not set
 
 # -----------------------------------------------------------------------------
 # HYBRID-MODE BUILD FIX (fallback / safety net)
