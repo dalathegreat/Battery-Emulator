@@ -89,6 +89,9 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x3ED:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
+    case 0x7EF:  //UDS reply
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
     default:
       break;
   }

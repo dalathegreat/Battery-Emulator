@@ -25,7 +25,7 @@ class StellantisProOneBattery : public CanBattery {
   static constexpr CAN_frame STELLANTIS_CLEAR_DTC = {.FD = false,
                                                      .ext_ID = false,
                                                      .DLC = 5,
-                                                     .ID = 0x6B4,
+                                                     .ID = 0x7E7,
                                                      .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF}};
 
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was send
