@@ -21,6 +21,7 @@ std::string ssid;
 std::string password;
 std::string ssidAP;
 std::string passwordAP;
+const char* DEFAULT_AP_PASSWORD = "123456789";
 
 // Set your Static IP address. Only used incase Static address option is set
 bool static_IP_enabled = false;
@@ -68,6 +69,36 @@ static unsigned long ap_button_press_start = 0;
 static const unsigned long AP_BUTTON_AP_MS = 5000;              // >=5 s: start AP
 static const unsigned long AP_BUTTON_STA_WIPE_MS = 15000;       // >=15 s: wipe STA settings + reboot
 static const unsigned long AP_BUTTON_FACTORY_RESET_MS = 30000;  // >=30 s: factory reset
+
+// Provisioning window: while the AP runs with the factory-default password it is
+// only kept up for a limited time, then shut down. Rebooting or long-pressing the
+// BOOT button (>=5 s) opens a new window. Setting a custom AP password lifts the
+// restriction entirely (AP stays up indefinitely).
+static const unsigned long AP_PROVISIONING_WINDOW_MS = 5UL * 60UL * 1000UL;  // 5 minutes
+static unsigned long ap_started_at = 0;                                      // millis() when the AP was (re)started
+static bool ap_provisioning_expired = false;  // blocks automatic AP re-enable until reboot/button
+
+static bool ap_password_is_default() {
+  return passwordAP == DEFAULT_AP_PASSWORD;
+}
+
+// Shut the AP down once it has been running with the factory-default password
+// for longer than the provisioning window.
+static void check_ap_provisioning_window() {
+  if (!ap_active || !ap_password_is_default()) {
+    return;
+  }
+  if (millis() - ap_started_at < AP_PROVISIONING_WINDOW_MS) {
+    return;
+  }
+  if (WiFi.softAPgetStationNum() > 0) {
+    return;  // a client is connected: don't cut off an active provisioning session
+  }
+  WiFi.softAPdisconnect(true);  // stop the AP and drop the AP bit from the WiFi mode; STA stays up
+  ap_active = false;
+  ap_provisioning_expired = true;
+  set_event(EVENT_WIFI_AP_PROVISION_TIMEOUT, 0);
+}
 
 String default_hostname() {
   uint8_t mac_bytes[6];
@@ -180,8 +211,9 @@ static void check_ap_button() {
       ESP.restart();
     } else if (held >= AP_BUTTON_AP_MS) {
       if (!ap_active) {
+        ap_provisioning_expired = false;  // manual start opens a fresh provisioning window
         WiFi.mode(WIFI_AP_STA);
-        init_WiFi_AP();  // sets ap_active
+        init_WiFi_AP();  // sets ap_active, restarts the provisioning window timer
       }
     }
   }
@@ -191,6 +223,7 @@ static void check_ap_button() {
 // Task to monitor Wi-Fi status and handle reconnections
 void wifi_monitor() {
   check_ap_button();
+  check_ap_provisioning_window();
 
   if (ssid.empty() || password.empty()) {
     return;
@@ -237,9 +270,13 @@ void wifi_monitor() {
         // If no previous connection, force a full connection attempt
         if (currentMillis - lastReconnectAttempt > current_full_reconnect_interval) {
           logging.println("No previous OK connection, force a full connection attempt...");
-          wifiap_enabled = true;
-          WiFi.mode(WIFI_AP_STA);
-          init_WiFi_AP();
+          // Don't resurrect the rescue AP if its provisioning window already
+          // expired with the factory-default password still in place.
+          if (!ap_provisioning_expired) {
+            wifiap_enabled = true;
+            WiFi.mode(WIFI_AP_STA);
+            init_WiFi_AP();
+          }
 
           FullReconnectToWiFi();
         }
@@ -339,6 +376,12 @@ void init_WiFi_AP() {
 
   DEBUG_PRINTF("Creating Access Point: %s\n", ssidAP.c_str());
   DEBUG_PRINTF("Access Point password set (%u characters)\n", (unsigned)passwordAP.length());
+
+  if (!ap_active) {
+    // (Re)start the provisioning window timer only on an off->on transition, so
+    // repeated re-inits from the STA reconnect fallback don't keep extending it.
+    ap_started_at = millis();
+  }
 
   WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
   ap_active = true;

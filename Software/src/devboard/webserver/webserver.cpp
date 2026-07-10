@@ -424,6 +424,9 @@ void init_webserver() {
       "DIGITALHVIL", "PERFPROFILE",   "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET", "PYLONORDER",   "DEYEBYD",
       "NCCONTACTOR", "TRIBTR",        "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",  "CTINVERT",     "LOWPASSFILTER",
       "WEBAUTH",     "SLOWCANINV",
+#ifndef SMALL_FLASH_DEVICE
+      "SYSLOGEN",
+#endif
   };
 
   const char* uintSettingNames[] = {
@@ -434,10 +437,17 @@ void init_webserver() {
       "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS", "GTWPACK",     "LEDMODE",     "GPIOOPT1",  "GPIOOPT2",   "GPIOOPT3",
       "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",     "CTANOM",      "CTATTEN",     "PYLONBAUD", "PYLONBRAND", "DALYPWRPCT",
       "DALYPWRDV",  "DALYDVSTART", "DALYPWRDEG", "DALYPWR0C",   "RAMPDOWNSOC", "GPIOOPT5",  "GPIOOPT6",   "INVICNT",
+#ifndef SMALL_FLASH_DEVICE
+      "SYSLOGPORT", "SYSLOGFAC",
+#endif
   };
 
   const char* stringSettingNames[] = {"APPASSWORD",   "HOSTNAME", "MQTTSERVER", "MQTTUSER",
                                       "MQTTPASSWORD", "HTTPUSER", "HTTPPASS"};
+#ifndef SMALL_FLASH_DEVICE
+                                      "SYSLOGIP"
+#endif
+  };
 
   // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST,

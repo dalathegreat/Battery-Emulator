@@ -9,6 +9,9 @@ extern std::string password;
 extern uint16_t wifi_channel;
 extern std::string ssidAP;
 extern std::string passwordAP;
+// Factory-default AP password. While the AP runs with this password, it is only
+// kept enabled for a limited provisioning window (see wifi.cpp).
+extern const char* DEFAULT_AP_PASSWORD;
 extern std::string custom_hostname;
 
 void init_WiFi();
