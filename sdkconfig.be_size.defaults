@@ -23,12 +23,13 @@ CONFIG_COMPILER_OPTIMIZATION_SIZE=y
 # but assert it so it can never get pulled in.
 # CONFIG_BT_ENABLED is not set
 
-# Trim IDF-component log strings (WiFi, esp-mqtt, lwIP, etc.). Your own
-# logging/remote-syslog layer is separate and unaffected. Use _NONE for the
-# maximum cut if you don't need IDF-level diagnostics.
-CONFIG_LOG_DEFAULT_LEVEL_WARN=y
+# Strip IDF-component log strings (WiFi, esp-mqtt, lwIP, etc.) entirely. Your own
+# logging/remote-syslog layer is separate and unaffected. Drop to _WARN instead
+# of _NONE if you want to keep IDF-level warnings/errors for field diagnostics.
+CONFIG_LOG_DEFAULT_LEVEL_NONE=y
+# CONFIG_LOG_DEFAULT_LEVEL_WARN is not set
 # CONFIG_LOG_DEFAULT_LEVEL_INFO is not set
-CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
+CONFIG_BOOTLOADER_LOG_LEVEL_NONE=y
 
 # No WPA2/WPA3-Enterprise (you use plain PSK). Drops the enterprise supplicant.
 # CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT is not set
@@ -73,9 +74,16 @@ CONFIG_FMB_MASTER_MAX_API_BLOCKING_TIME_MS=6000
 # CONFIG_MBEDTLS_SSL_PROTO_TLS1_3 is not set
 # CONFIG_MBEDTLS_SSL_PROTO_DTLS is not set
 
-# Silence assertion strings (keeps the abort, drops the message text). Modest
-# flash win; makes a crash slightly harder to diagnose from the panic dump.
-CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT=y
+# The ESP32 is never a TLS server (the web UI is plain HTTP over AsyncTCP), so
+# drop the mbedTLS server-side code and keep only the client path.
+# >>> Caveat: same as above - if you ever run an on-device TLS server, revert.
+CONFIG_MBEDTLS_TLS_CLIENT_ONLY=y
+
+# Remove assertion checks outright (not just the message strings). Larger flash
+# win than SILENT. Trade-off: a bug that would have cleanly asserted becomes
+# undefined behaviour instead. Switch back to _SILENT if you want the aborts.
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_DISABLE=y
+# CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT is not set
 
 # -----------------------------------------------------------------------------
 # TIER 3 - measure carefully, board-by-board. May interact with AsyncTCP / mDNS.
