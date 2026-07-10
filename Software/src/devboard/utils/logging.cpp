@@ -2,10 +2,82 @@
 #include "../../datalayer/datalayer.h"
 #include "../sdcard/sdcard.h"
 
+#ifndef SMALL_FLASH_DEVICE
+#include <WiFi.h>
+#include <WiFiUdp.h>
+#include "../wifi/wifi.h"  // custom_hostname
+#endif
+
 #define MAX_LINE_LENGTH_PRINTF 128
 #define MAX_LENGTH_TIME_STR 14
 
 bool previous_message_was_newline = true;
+
+#ifndef SMALL_FLASH_DEVICE
+// ---- Remote syslog sink ----
+std::string syslog_ip;
+uint16_t syslog_port = 514;
+uint8_t syslog_facility = 1;  // 1 = user-level
+
+static const uint8_t SYSLOG_DEFAULT_SEVERITY = 7;  // debug — for messages without an event level
+static int syslog_next_severity = -1;              // -1 = use default; set per-line by set_next_severity()
+static WiFiUDP syslogUdp;
+#define SYSLOG_LINE_MAX 240
+static char syslogLine[SYSLOG_LINE_MAX];
+static size_t syslogLineLen = 0;
+
+void Logging::set_next_severity(uint8_t sev) {
+  syslog_next_severity = (int)sev;
+}
+
+static void syslog_flush_line(void) {
+  int sev_override = syslog_next_severity;
+  syslog_next_severity = -1;  // consume regardless of outcome
+  size_t len = syslogLineLen;
+  syslogLineLen = 0;
+  if (len == 0) {
+    return;
+  }
+  syslogLine[len] = '\0';
+  IPAddress dst;
+  if (!dst.fromString(syslog_ip.c_str())) {  // empty or invalid IP -> skip
+    return;
+  }
+  uint8_t sev = (sev_override >= 0) ? (uint8_t)sev_override : SYSLOG_DEFAULT_SEVERITY;
+  uint8_t pri = (uint8_t)((syslog_facility & 0x1F) * 8 + (sev & 0x07));
+  const char* host = custom_hostname.empty() ? "batteryemulator" : custom_hostname.c_str();
+  if (syslogUdp.beginPacket(dst, syslog_port)) {
+    // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
+    // NILVALUE '-' timestamp -> the syslog server stamps on receipt.
+    syslogUdp.printf("<%u>1 - %s BatteryEmulator - - - %s", pri, host, syslogLine);
+    syslogUdp.endPacket();
+  }
+}
+
+static void syslog_emit(const uint8_t* buffer, size_t size) {
+  if (!datalayer.system.info.syslog_logging_active) {
+    return;
+  }
+  // Send when joined to a network (STA) OR when a client is on our SoftAP.
+  if (WiFi.status() != WL_CONNECTED && WiFi.softAPgetStationNum() == 0) {
+    return;
+  }
+  for (size_t i = 0; i < size; i++) {
+    char c = (char)buffer[i];
+    if (c == '\r') {
+      continue;
+    }
+    if (c == '\n') {
+      syslog_flush_line();
+    } else {
+      syslogLine[syslogLineLen++] = c;
+      if (syslogLineLen >= SYSLOG_LINE_MAX - 1) {
+        syslog_flush_line();
+      }
+    }
+  }
+}
+#endif
 
 void Logging::add_timestamp(size_t size) {
 
@@ -50,7 +122,7 @@ void Logging::add_timestamp(size_t size) {
 size_t Logging::write(const uint8_t* buffer, size_t size) {
   // Check if any logging is enabled at runtime
   if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active &&
-      !datalayer.system.info.SD_logging_active) {
+      !datalayer.system.info.SD_logging_active && !datalayer.system.info.syslog_logging_active) {
     return 0;
   }
 
@@ -70,6 +142,10 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
   if (datalayer.system.info.usb_logging_active) {
     Serial.write(buffer, size);
   }
+
+#ifndef SMALL_FLASH_DEVICE
+  syslog_emit(buffer, size);
+#endif
 
   if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
     char* message_string = datalayer.system.info.logged_can_messages;
@@ -91,7 +167,7 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
 void Logging::printf(const char* fmt, ...) {
   // Check if any logging is enabled at runtime
   if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active &&
-      !datalayer.system.info.SD_logging_active) {
+      !datalayer.system.info.SD_logging_active && !datalayer.system.info.syslog_logging_active) {
     return;
   }
 
@@ -134,6 +210,10 @@ void Logging::printf(const char* fmt, ...) {
   if (datalayer.system.info.usb_logging_active) {
     Serial.write(message_buffer, size);
   }
+
+#ifndef SMALL_FLASH_DEVICE
+  syslog_emit((const uint8_t*)message_buffer, size);
+#endif
 
   if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
     // Data was already added to buffer, just move offset
