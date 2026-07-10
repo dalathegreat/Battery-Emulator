@@ -1081,7 +1081,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #ifndef SMALL_FLASH_DEVICE
 #define SYSLOG_SETTING_HTML \
   R"rawliteral(
-        <label>Enable general logging to syslog server: </label>
+        <label>General logging to syslog server: </label>
         <input type='checkbox' name='SYSLOGEN' value='on' %SYSLOGEN%
               title="Send general logging as UDP syslog datagrams (RFC 5424) to a remote server. Events use their own severity; other lines are sent as debug." />
 
