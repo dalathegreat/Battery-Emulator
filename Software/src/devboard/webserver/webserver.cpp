@@ -445,425 +445,424 @@ void init_webserver() {
   const char* stringSettingNames[] = {"APPASSWORD",   "HOSTNAME", "MQTTSERVER", "MQTTUSER",
                                       "MQTTPASSWORD", "HTTPUSER", "HTTPPASS"};
 #ifndef SMALL_FLASH_DEVICE
-                                      "SYSLOGIP"
+  "SYSLOGIP"
 #endif
-  };
+};
 
-  // Handles the form POST from UI to save settings of the common image
-  server.on("/saveSettings", HTTP_POST,
-            [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
-              BatteryEmulatorSettingsStore settings;
-              auto webAuthParam = request->getParam("WEBAUTH", true);
-              auto httpUserParam = request->getParam("HTTPUSER", true);
-              auto httpPassParam = request->getParam("HTTPPASS", true);
-              auto httpPassConfirmParam = request->getParam("HTTPPASSCONFIRM", true);
+// Handles the form POST from UI to save settings of the common image
+server.on("/saveSettings", HTTP_POST,
+          [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
+            BatteryEmulatorSettingsStore settings;
+            auto webAuthParam = request->getParam("WEBAUTH", true);
+            auto httpUserParam = request->getParam("HTTPUSER", true);
+            auto httpPassParam = request->getParam("HTTPPASS", true);
+            auto httpPassConfirmParam = request->getParam("HTTPPASSCONFIRM", true);
 
-              bool requestedWebAuth = webAuthParam != nullptr && webAuthParam->value() == "on";
-              String requestedHttpUser =
-                  httpUserParam != nullptr ? httpUserParam->value() : settings.getString("HTTPUSER", "admin");
-              String requestedHttpPass = (httpPassParam != nullptr && !httpPassParam->value().isEmpty())
-                                             ? httpPassParam->value()
-                                             : settings.getString("HTTPPASS");
+            bool requestedWebAuth = webAuthParam != nullptr && webAuthParam->value() == "on";
+            String requestedHttpUser =
+                httpUserParam != nullptr ? httpUserParam->value() : settings.getString("HTTPUSER", "admin");
+            String requestedHttpPass = (httpPassParam != nullptr && !httpPassParam->value().isEmpty())
+                                           ? httpPassParam->value()
+                                           : settings.getString("HTTPPASS");
 
-              String requestedHttpPassConfirm =
-                  (httpPassConfirmParam != nullptr && !httpPassConfirmParam->value().isEmpty())
-                      ? httpPassConfirmParam->value()
-                      : requestedHttpPass;
+            String requestedHttpPassConfirm =
+                (httpPassConfirmParam != nullptr && !httpPassConfirmParam->value().isEmpty())
+                    ? httpPassConfirmParam->value()
+                    : requestedHttpPass;
 
-              if (requestedHttpPass != requestedHttpPassConfirm) {
-                request->send(400, "text/plain", "Web interface passwords do not match.");
-                return;
+            if (requestedHttpPass != requestedHttpPassConfirm) {
+              request->send(400, "text/plain", "Web interface passwords do not match.");
+              return;
+            }
+
+            if (requestedWebAuth && (requestedHttpUser.isEmpty() || requestedHttpPass.isEmpty())) {
+              request->send(400, "text/plain",
+                            "Set a username and password before enabling web interface password protection.");
+              return;
+            }
+
+            int numParams = request->params();
+            for (int i = 0; i < numParams; i++) {
+              auto p = request->getParam(i);
+              if (p->name() == "inverter") {
+                auto type = static_cast<InverterProtocolType>(atoi(p->value().c_str()));
+                settings.saveUInt("INVTYPE", (int)type);
+              } else if (p->name() == "INVCOMM") {
+                auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                settings.saveUInt("INVCOMM", (int)type);
+              } else if (p->name() == "battery") {
+                auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
+                settings.saveUInt("BATTTYPE", (int)type);
+              } else if (p->name() == "BATTCHEM") {
+                auto type = static_cast<battery_chemistry_enum>(atoi(p->value().c_str()));
+                settings.saveUInt("BATTCHEM", (int)type);
+              } else if (p->name() == "BATTCOMM") {
+                auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                settings.saveUInt("BATTCOMM", (int)type);
+              } else if (p->name() == "BATTPVMAX") {
+                auto type = p->value().toFloat() * 10.0f;
+                settings.saveUInt("BATTPVMAX", (int)type);
+              } else if (p->name() == "BATTPVMIN") {
+                auto type = p->value().toFloat() * 10.0f;
+                settings.saveUInt("BATTPVMIN", (int)type);
+              } else if (p->name() == "charger") {
+                auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
+                settings.saveUInt("CHGTYPE", (int)type);
+              } else if (p->name() == "CHGCOMM") {
+                auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                settings.saveUInt("CHGCOMM", (int)type);
+              } else if (p->name() == "EQSTOP") {
+                auto type = static_cast<STOP_BUTTON_BEHAVIOR>(atoi(p->value().c_str()));
+                settings.saveUInt("EQSTOP", (int)type);
+              } else if (p->name() == "BATT2COMM") {
+                auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                settings.saveUInt("BATT2COMM", (int)type);
+              } else if (p->name() == "BATT3COMM") {
+                auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                settings.saveUInt("BATT3COMM", (int)type);
+              } else if (p->name() == "shunttype") {
+                auto type = static_cast<ShuntType>(atoi(p->value().c_str()));
+                settings.saveUInt("SHUNTTYPE", (int)type);
+              } else if (p->name() == "SHUNTCOMM") {
+                auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+                settings.saveUInt("SHUNTCOMM", (int)type);
+              } else if (p->name() == "CTOFFSET") {
+                // allow negative offsets so save as string
+                settings.saveString("CTOFFSET", p->value().c_str());
+              } else if (p->name() == "CTATTEN") {
+                auto type = static_cast<adc_attenuation_t>(atoi(p->value().c_str()));
+                settings.saveUInt("CTATTEN", (int)type);
+              } else if (p->name() == "SSID") {
+                settings.saveString("SSID", p->value().c_str());
+                ssid = settings.getString("SSID", "").c_str();
+              } else if (p->name() == "PASSWORD") {
+                if (!p->value().isEmpty()) {  // blank = keep existing (field is rendered empty)
+                  settings.saveString("PASSWORD", p->value().c_str());
+                }
+                password = settings.getString("PASSWORD", "").c_str();
+              } else if (p->name() == "MQTTPUBLISHMS") {
+                auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
+                settings.saveUInt("MQTTPUBLISHMS", interval);
               }
 
-              if (requestedWebAuth && (requestedHttpUser.isEmpty() || requestedHttpPass.isEmpty())) {
-                request->send(400, "text/plain",
-                              "Set a username and password before enabling web interface password protection.");
-                return;
+              for (auto& uintSetting : uintSettingNames) {
+                if (p->name() == uintSetting) {
+                  auto value = atoi(p->value().c_str());
+                  settings.saveUInt(uintSetting, value);
+                }
               }
 
-              int numParams = request->params();
-              for (int i = 0; i < numParams; i++) {
-                auto p = request->getParam(i);
-                if (p->name() == "inverter") {
-                  auto type = static_cast<InverterProtocolType>(atoi(p->value().c_str()));
-                  settings.saveUInt("INVTYPE", (int)type);
-                } else if (p->name() == "INVCOMM") {
-                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-                  settings.saveUInt("INVCOMM", (int)type);
-                } else if (p->name() == "battery") {
-                  auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
-                  settings.saveUInt("BATTTYPE", (int)type);
-                } else if (p->name() == "BATTCHEM") {
-                  auto type = static_cast<battery_chemistry_enum>(atoi(p->value().c_str()));
-                  settings.saveUInt("BATTCHEM", (int)type);
-                } else if (p->name() == "BATTCOMM") {
-                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-                  settings.saveUInt("BATTCOMM", (int)type);
-                } else if (p->name() == "BATTPVMAX") {
-                  auto type = p->value().toFloat() * 10.0f;
-                  settings.saveUInt("BATTPVMAX", (int)type);
-                } else if (p->name() == "BATTPVMIN") {
-                  auto type = p->value().toFloat() * 10.0f;
-                  settings.saveUInt("BATTPVMIN", (int)type);
-                } else if (p->name() == "charger") {
-                  auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
-                  settings.saveUInt("CHGTYPE", (int)type);
-                } else if (p->name() == "CHGCOMM") {
-                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-                  settings.saveUInt("CHGCOMM", (int)type);
-                } else if (p->name() == "EQSTOP") {
-                  auto type = static_cast<STOP_BUTTON_BEHAVIOR>(atoi(p->value().c_str()));
-                  settings.saveUInt("EQSTOP", (int)type);
-                } else if (p->name() == "BATT2COMM") {
-                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-                  settings.saveUInt("BATT2COMM", (int)type);
-                } else if (p->name() == "BATT3COMM") {
-                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-                  settings.saveUInt("BATT3COMM", (int)type);
-                } else if (p->name() == "shunttype") {
-                  auto type = static_cast<ShuntType>(atoi(p->value().c_str()));
-                  settings.saveUInt("SHUNTTYPE", (int)type);
-                } else if (p->name() == "SHUNTCOMM") {
-                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-                  settings.saveUInt("SHUNTCOMM", (int)type);
-                } else if (p->name() == "CTOFFSET") {
-                  // allow negative offsets so save as string
-                  settings.saveString("CTOFFSET", p->value().c_str());
-                } else if (p->name() == "CTATTEN") {
-                  auto type = static_cast<adc_attenuation_t>(atoi(p->value().c_str()));
-                  settings.saveUInt("CTATTEN", (int)type);
-                } else if (p->name() == "SSID") {
-                  settings.saveString("SSID", p->value().c_str());
-                  ssid = settings.getString("SSID", "").c_str();
-                } else if (p->name() == "PASSWORD") {
-                  if (!p->value().isEmpty()) {  // blank = keep existing (field is rendered empty)
-                    settings.saveString("PASSWORD", p->value().c_str());
+              for (auto& stringSetting : stringSettingNames) {
+                if (p->name() == stringSetting) {
+                  // Password fields are rendered blank; an empty value means "keep unchanged".
+                  const bool isPasswordField =
+                      (std::string(stringSetting) == "APPASSWORD" || std::string(stringSetting) == "MQTTPASSWORD" ||
+                       std::string(stringSetting) == "HTTPPASS");
+                  if (isPasswordField && p->value().isEmpty()) {
+                    continue;  // keep existing stored password
                   }
-                  password = settings.getString("PASSWORD", "").c_str();
-                } else if (p->name() == "MQTTPUBLISHMS") {
-                  auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
-                  settings.saveUInt("MQTTPUBLISHMS", interval);
-                }
-
-                for (auto& uintSetting : uintSettingNames) {
-                  if (p->name() == uintSetting) {
-                    auto value = atoi(p->value().c_str());
-                    settings.saveUInt(uintSetting, value);
-                  }
-                }
-
-                for (auto& stringSetting : stringSettingNames) {
-                  if (p->name() == stringSetting) {
-                    // Password fields are rendered blank; an empty value means "keep unchanged".
-                    const bool isPasswordField =
-                        (std::string(stringSetting) == "APPASSWORD" || std::string(stringSetting) == "MQTTPASSWORD" ||
-                         std::string(stringSetting) == "HTTPPASS");
-                    if (isPasswordField && p->value().isEmpty()) {
-                      continue;  // keep existing stored password
-                    }
-                    if (settings.getString(stringSetting) != p->value()) {
-                      settings.saveString(stringSetting, p->value().c_str());
-                    }
+                  if (settings.getString(stringSetting) != p->value()) {
+                    settings.saveString(stringSetting, p->value().c_str());
                   }
                 }
               }
+            }
 
-              for (auto& boolSetting : boolSettingNames) {
-                auto p = request->getParam(boolSetting, true);
-                const bool default_value = (std::string(boolSetting) == std::string("WIFIAPENABLED"));
-                const bool value = p != nullptr && p->value() == "on";
-                if (settings.getBool(boolSetting, default_value) != value) {
-                  settings.saveBool(boolSetting, value);
-                }
+            for (auto& boolSetting : boolSettingNames) {
+              auto p = request->getParam(boolSetting, true);
+              const bool default_value = (std::string(boolSetting) == std::string("WIFIAPENABLED"));
+              const bool value = p != nullptr && p->value() == "on";
+              if (settings.getBool(boolSetting, default_value) != value) {
+                settings.saveBool(boolSetting, value);
               }
+            }
 
-              settingsUpdated = settings.were_settings_updated();
-              request->redirect("/settings");
-            });
+            settingsUpdated = settings.were_settings_updated();
+            request->redirect("/settings");
+          });
 
-  auto update_string = [](const char* route, std::function<void(String)> setter,
-                          std::function<bool(String)> validator = nullptr) {
-    def_route_with_auth(route, server, HTTP_GET, [=](AsyncWebServerRequest* request) {
-      if (request->hasParam("value")) {
-        String value = request->getParam("value")->value();
+auto update_string = [](const char* route, std::function<void(String)> setter,
+                        std::function<bool(String)> validator = nullptr) {
+  def_route_with_auth(route, server, HTTP_GET, [=](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
 
-        if (validator && !validator(value)) {
-          request->send(400, "text/plain", "Invalid value");
-          return;
-        }
-
-        setter(value);
-        request->send(200, "text/plain", "Updated successfully");
-      } else {
-        request->send(400, "text/plain", "Bad Request");
+      if (validator && !validator(value)) {
+        request->send(400, "text/plain", "Invalid value");
+        return;
       }
-    });
-  };
 
-  auto update_string_setting = [=](const char* route, std::function<void(String)> setter,
-                                   std::function<bool(String)> validator = nullptr) {
-    update_string(
-        route,
-        [setter](String value) {
-          setter(value);
-          store_settings();
-        },
-        validator);
-  };
-
-  auto update_int_setting = [=](const char* route, std::function<void(int)> setter) {
-    update_string_setting(route, [setter](String value) { setter(value.toInt()); });
-  };
-
-  // Route for editing Wh
-  update_int_setting("/updateBatterySize", [](int value) { datalayer.battery.info.total_capacity_Wh = value; });
-
-  // Route for editing USE_SCALED_SOC
-  update_int_setting("/updateUseScaledSOC", [](int value) { datalayer.battery.settings.soc_scaling_active = value; });
-
-  // Route for enabling recovery mode charging
-  update_int_setting("/enableRecoveryMode",
-                     [](int value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; });
-
-  // Route for editing SOCMax
-  update_string_setting("/updateSocMax", [](String value) {
-    datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
-  });
-
-  // Route for editing CAN ID cutoff filter
-  update_int_setting("/set_can_id_cutoff", [](int value) { user_selected_CAN_ID_cutoff_filter = value; });
-
-  // Route for pause/resume Battery emulator
-  update_string("/pause", [](String value) { setBatteryPause(value == "true" || value == "1", false); });
-
-  // Route for equipment stop/resume
-  update_string("/equipmentStop", [](String value) {
-    if (value == "true" || value == "1") {
-      setBatteryPause(true, false,
-                      EquipmentStop::STOP);  //Pause battery, do not pause CAN, equipment stop on (store to flash)
+      setter(value);
+      request->send(200, "text/plain", "Updated successfully");
     } else {
-      setBatteryPause(false, false, EquipmentStop::RESUME);
+      request->send(400, "text/plain", "Bad Request");
     }
   });
+};
 
-  // Route for editing SOC Calibration BYD
-  update_string_setting("/editCalTargetSOC", [](String value) {
-    datalayer_extended.bydAtto3.calibrationTargetSOC = static_cast<uint16_t>(value.toFloat());
-  });
+auto update_string_setting = [=](const char* route, std::function<void(String)> setter,
+                                 std::function<bool(String)> validator = nullptr) {
+  update_string(
+      route,
+      [setter](String value) {
+        setter(value);
+        store_settings();
+      },
+      validator);
+};
 
-  // Save auto-calibrate enabled flag to RAM + NVM
-  def_route_with_auth("/editBydAtto3AutoCalEnabled", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (request->hasParam("value")) {
-      bool enabled = request->getParam("value")->value().toInt() != 0;
-      datalayer_extended.bydAtto3.auto_calibrate_soc_enabled = enabled;
+auto update_int_setting = [=](const char* route, std::function<void(int)> setter) {
+  update_string_setting(route, [setter](String value) { setter(value.toInt()); });
+};
+
+// Route for editing Wh
+update_int_setting("/updateBatterySize", [](int value) { datalayer.battery.info.total_capacity_Wh = value; });
+
+// Route for editing USE_SCALED_SOC
+update_int_setting("/updateUseScaledSOC", [](int value) { datalayer.battery.settings.soc_scaling_active = value; });
+
+// Route for enabling recovery mode charging
+update_int_setting("/enableRecoveryMode",
+                   [](int value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; });
+
+// Route for editing SOCMax
+update_string_setting("/updateSocMax", [](String value) {
+  datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
+});
+
+// Route for editing CAN ID cutoff filter
+update_int_setting("/set_can_id_cutoff", [](int value) { user_selected_CAN_ID_cutoff_filter = value; });
+
+// Route for pause/resume Battery emulator
+update_string("/pause", [](String value) { setBatteryPause(value == "true" || value == "1", false); });
+
+// Route for equipment stop/resume
+update_string("/equipmentStop", [](String value) {
+  if (value == "true" || value == "1") {
+    setBatteryPause(true, false,
+                    EquipmentStop::STOP);  //Pause battery, do not pause CAN, equipment stop on (store to flash)
+  } else {
+    setBatteryPause(false, false, EquipmentStop::RESUME);
+  }
+});
+
+// Route for editing SOC Calibration BYD
+update_string_setting("/editCalTargetSOC", [](String value) {
+  datalayer_extended.bydAtto3.calibrationTargetSOC = static_cast<uint16_t>(value.toFloat());
+});
+
+// Save auto-calibrate enabled flag to RAM + NVM
+def_route_with_auth("/editBydAtto3AutoCalEnabled", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+  if (request->hasParam("value")) {
+    bool enabled = request->getParam("value")->value().toInt() != 0;
+    datalayer_extended.bydAtto3.auto_calibrate_soc_enabled = enabled;
+    Preferences prefs;
+    prefs.begin("batterySettings", false);
+    prefs.putBool("BYDAUTOCALEN", enabled);
+    prefs.end();
+  }
+  request->send(200, "text/plain", "OK");
+});
+
+// Save auto-calibrate drift threshold to RAM + NVM
+def_route_with_auth("/editBydAtto3AutoCalDriftPercent", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+  if (request->hasParam("value")) {
+    int value = request->getParam("value")->value().toInt();
+    if (value >= 1 && value <= 20) {
+      datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent = (uint8_t)value;
       Preferences prefs;
       prefs.begin("batterySettings", false);
-      prefs.putBool("BYDAUTOCALEN", enabled);
+      prefs.putUInt("BYDAUTOCALDRIFT", (uint8_t)value);
       prefs.end();
     }
-    request->send(200, "text/plain", "OK");
-  });
+  }
+  request->send(200, "text/plain", "OK");
+});
 
-  // Save auto-calibrate drift threshold to RAM + NVM
-  def_route_with_auth("/editBydAtto3AutoCalDriftPercent", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (request->hasParam("value")) {
-      int value = request->getParam("value")->value().toInt();
-      if (value >= 1 && value <= 20) {
-        datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent = (uint8_t)value;
-        Preferences prefs;
-        prefs.begin("batterySettings", false);
-        prefs.putUInt("BYDAUTOCALDRIFT", (uint8_t)value);
-        prefs.end();
-      }
-    }
-    request->send(200, "text/plain", "OK");
-  });
+// Route for editing AH Calibration BYD
+update_string_setting("/editCalTargetAH", [](String value) {
+  datalayer_extended.bydAtto3.calibrationTargetAH = static_cast<uint16_t>(value.toFloat());
+});
 
-  // Route for editing AH Calibration BYD
-  update_string_setting("/editCalTargetAH", [](String value) {
-    datalayer_extended.bydAtto3.calibrationTargetAH = static_cast<uint16_t>(value.toFloat());
-  });
+// Battery 2 auto-calibration routes
+update_string_setting("/editCalTargetSOC2", [](String value) {
+  datalayer_extended.bydAtto3_2.calibrationTargetSOC = static_cast<uint16_t>(value.toFloat());
+});
 
-  // Battery 2 auto-calibration routes
-  update_string_setting("/editCalTargetSOC2", [](String value) {
-    datalayer_extended.bydAtto3_2.calibrationTargetSOC = static_cast<uint16_t>(value.toFloat());
-  });
+update_string_setting("/editCalTargetAH2", [](String value) {
+  datalayer_extended.bydAtto3_2.calibrationTargetAH = static_cast<uint16_t>(value.toFloat());
+});
 
-  update_string_setting("/editCalTargetAH2", [](String value) {
-    datalayer_extended.bydAtto3_2.calibrationTargetAH = static_cast<uint16_t>(value.toFloat());
-  });
+def_route_with_auth("/editBydAtto3AutoCalEnabled2", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+  if (request->hasParam("value")) {
+    bool enabled = request->getParam("value")->value().toInt() != 0;
+    datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled = enabled;
+    Preferences prefs;
+    prefs.begin("batterySettings", false);
+    prefs.putBool("BYDAUTOCALEN2", enabled);
+    prefs.end();
+  }
+  request->send(200, "text/plain", "OK");
+});
 
-  def_route_with_auth("/editBydAtto3AutoCalEnabled2", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (request->hasParam("value")) {
-      bool enabled = request->getParam("value")->value().toInt() != 0;
-      datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled = enabled;
+def_route_with_auth("/editBydAtto3AutoCalDriftPercent2", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+  if (request->hasParam("value")) {
+    int value = request->getParam("value")->value().toInt();
+    if (value >= 1 && value <= 20) {
+      datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent = (uint8_t)value;
       Preferences prefs;
       prefs.begin("batterySettings", false);
-      prefs.putBool("BYDAUTOCALEN2", enabled);
+      prefs.putUInt("BYDAUTOCALDRFT2", (uint8_t)value);
       prefs.end();
     }
-    request->send(200, "text/plain", "OK");
-  });
-
-  def_route_with_auth("/editBydAtto3AutoCalDriftPercent2", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (request->hasParam("value")) {
-      int value = request->getParam("value")->value().toInt();
-      if (value >= 1 && value <= 20) {
-        datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent = (uint8_t)value;
-        Preferences prefs;
-        prefs.begin("batterySettings", false);
-        prefs.putUInt("BYDAUTOCALDRFT2", (uint8_t)value);
-        prefs.end();
-      }
-    }
-    request->send(200, "text/plain", "OK");
-  });
-
-  // Route for editing SOCMin
-  update_string_setting("/updateSocMin", [](String value) {
-    datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
-  });
-
-  // Route for editing MaxChargeA
-  update_string_setting("/updateMaxChargeA", [](String value) {
-    datalayer.battery.settings.max_user_set_charge_dA = static_cast<uint16_t>(value.toFloat() * 10);
-  });
-
-  // Route for editing MaxDischargeA
-  update_string_setting("/updateMaxDischargeA", [](String value) {
-    datalayer.battery.settings.max_user_set_discharge_dA = static_cast<uint16_t>(value.toFloat() * 10);
-  });
-
-  for (const auto& cmd : battery_commands) {
-    auto route = String("/") + cmd.identifier;
-    server.on(
-        route.c_str(), HTTP_PUT,
-        [cmd](AsyncWebServerRequest* request) {
-          if (webserver_auth_is_ready() && !request->authenticate(http_username.c_str(), http_password.c_str())) {
-            return request->requestAuthentication(AsyncAuthType::AUTH_BASIC, WEB_AUTH_REALM);
-          }
-        },
-        nullptr,
-        [cmd](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-          String battIndex = "";
-          if (len > 0) {
-            battIndex += (char)data[0];
-          }
-          Battery* batt = battery;
-          if (battIndex == "1") {
-            batt = battery2;
-          }
-          if (battIndex == "2") {
-            batt = battery3;
-          }
-          if (batt) {
-            cmd.action(batt);
-          }
-          request->send(200, "text/plain", "Command performed.");
-        });
   }
+  request->send(200, "text/plain", "OK");
+});
 
-  // Route for editing BATTERY_USE_VOLTAGE_LIMITS
-  update_int_setting("/updateUseVoltageLimit",
-                     [](int value) { datalayer.battery.settings.user_set_voltage_limits_active = value; });
+// Route for editing SOCMin
+update_string_setting("/updateSocMin", [](String value) {
+  datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
+});
 
-  // Route for editing MaxChargeVoltage
-  update_string_setting("/updateMaxChargeVoltage", [](String value) {
-    datalayer.battery.settings.max_user_set_charge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
-  });
+// Route for editing MaxChargeA
+update_string_setting("/updateMaxChargeA", [](String value) {
+  datalayer.battery.settings.max_user_set_charge_dA = static_cast<uint16_t>(value.toFloat() * 10);
+});
 
-  // Route for editing MaxDischargeVoltage
-  update_string_setting("/updateMaxDischargeVoltage", [](String value) {
-    datalayer.battery.settings.max_user_set_discharge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
-  });
+// Route for editing MaxDischargeA
+update_string_setting("/updateMaxDischargeA", [](String value) {
+  datalayer.battery.settings.max_user_set_discharge_dA = static_cast<uint16_t>(value.toFloat() * 10);
+});
 
-  // Route for editing BMSresetDuration
-  update_string_setting("/updateBMSresetDuration", [](String value) {
-    datalayer.battery.settings.user_set_bms_reset_duration_ms = static_cast<uint16_t>(value.toFloat() * 1000);
-  });
+for (const auto& cmd : battery_commands) {
+  auto route = String("/") + cmd.identifier;
+  server.on(
+      route.c_str(), HTTP_PUT,
+      [cmd](AsyncWebServerRequest* request) {
+        if (webserver_auth_is_ready() && !request->authenticate(http_username.c_str(), http_password.c_str())) {
+          return request->requestAuthentication(AsyncAuthType::AUTH_BASIC, WEB_AUTH_REALM);
+        }
+      },
+      nullptr,
+      [cmd](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+        String battIndex = "";
+        if (len > 0) {
+          battIndex += (char)data[0];
+        }
+        Battery* batt = battery;
+        if (battIndex == "1") {
+          batt = battery2;
+        }
+        if (battIndex == "2") {
+          batt = battery3;
+        }
+        if (batt) {
+          cmd.action(batt);
+        }
+        request->send(200, "text/plain", "Command performed.");
+      });
+}
 
-  // Route for editing FakeBatteryVoltage
-  update_string_setting("/updateFakeBatteryVoltage", [](String value) { battery->set_fake_voltage(value.toFloat()); });
+// Route for editing BATTERY_USE_VOLTAGE_LIMITS
+update_int_setting("/updateUseVoltageLimit",
+                   [](int value) { datalayer.battery.settings.user_set_voltage_limits_active = value; });
 
-  // Route for editing balancing enabled
-  update_int_setting("/TeslaBalAct", [](int value) { datalayer.battery.settings.user_requests_balancing = value; });
+// Route for editing MaxChargeVoltage
+update_string_setting("/updateMaxChargeVoltage", [](String value) {
+  datalayer.battery.settings.max_user_set_charge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
+});
 
-  // Route for editing balancing max time
-  update_string_setting("/BalTime", [](String value) {
-    datalayer.battery.settings.balancing_max_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);
-  });
+// Route for editing MaxDischargeVoltage
+update_string_setting("/updateMaxDischargeVoltage", [](String value) {
+  datalayer.battery.settings.max_user_set_discharge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
+});
 
-  // Route for editing balancing max power
-  update_string_setting("/BalFloatPower", [](String value) {
-    datalayer.battery.settings.balancing_float_power_W = static_cast<uint16_t>(value.toFloat());
-  });
+// Route for editing BMSresetDuration
+update_string_setting("/updateBMSresetDuration", [](String value) {
+  datalayer.battery.settings.user_set_bms_reset_duration_ms = static_cast<uint16_t>(value.toFloat() * 1000);
+});
 
-  // Route for editing balancing max pack voltage
-  update_string_setting("/BalMaxPackV", [](String value) {
-    datalayer.battery.settings.balancing_max_pack_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
-  });
+// Route for editing FakeBatteryVoltage
+update_string_setting("/updateFakeBatteryVoltage", [](String value) { battery->set_fake_voltage(value.toFloat()); });
 
-  // Route for editing balancing max cell voltage
-  update_string_setting("/BalMaxCellV", [](String value) {
-    datalayer.battery.settings.balancing_max_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
-  });
+// Route for editing balancing enabled
+update_int_setting("/TeslaBalAct", [](int value) { datalayer.battery.settings.user_requests_balancing = value; });
 
-  // Route for editing balancing max cell voltage deviation
-  update_string_setting("/BalMaxDevCellV", [](String value) {
-    datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
-  });
+// Route for editing balancing max time
+update_string_setting("/BalTime", [](String value) {
+  datalayer.battery.settings.balancing_max_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);
+});
 
-  if (charger) {
-    // Route for editing ChargerTargetV
-    update_string_setting(
-        "/updateChargeSetpointV", [](String value) { datalayer.charger.charger_setpoint_HV_VDC = value.toFloat(); },
-        [](String value) {
-          float val = value.toFloat();
-          return (val <= CHARGER_MAX_HV && val >= CHARGER_MIN_HV);
-        });
+// Route for editing balancing max power
+update_string_setting("/BalFloatPower", [](String value) {
+  datalayer.battery.settings.balancing_float_power_W = static_cast<uint16_t>(value.toFloat());
+});
 
-    // Route for editing ChargerTargetA
-    update_string_setting(
-        "/updateChargeSetpointA", [](String value) { datalayer.charger.charger_setpoint_HV_IDC = value.toFloat(); },
-        [](String value) {
-          float val = value.toFloat();
-          return (val <= CHARGER_MAX_A) && (val <= datalayer.battery.settings.max_user_set_charge_dA) &&
-                 (val * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER);
-        });
+// Route for editing balancing max pack voltage
+update_string_setting("/BalMaxPackV", [](String value) {
+  datalayer.battery.settings.balancing_max_pack_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
+});
 
-    // Route for editing ChargerEndA
-    update_string_setting("/updateChargeEndA",
-                          [](String value) { datalayer.charger.charger_setpoint_HV_IDC_END = value.toFloat(); });
+// Route for editing balancing max cell voltage
+update_string_setting("/BalMaxCellV", [](String value) {
+  datalayer.battery.settings.balancing_max_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
+});
 
-    // Route for enabling/disabling HV charger
-    update_int_setting("/updateChargerHvEnabled",
-                       [](int value) { datalayer.charger.charger_HV_enabled = (bool)value; });
+// Route for editing balancing max cell voltage deviation
+update_string_setting("/BalMaxDevCellV", [](String value) {
+  datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
+});
 
-    // Route for enabling/disabling aux12v charger
-    update_int_setting("/updateChargerAux12vEnabled",
-                       [](int value) { datalayer.charger.charger_aux12V_enabled = (bool)value; });
-  }
+if (charger) {
+  // Route for editing ChargerTargetV
+  update_string_setting(
+      "/updateChargeSetpointV", [](String value) { datalayer.charger.charger_setpoint_HV_VDC = value.toFloat(); },
+      [](String value) {
+        float val = value.toFloat();
+        return (val <= CHARGER_MAX_HV && val >= CHARGER_MIN_HV);
+      });
 
-  // Send a GET request to <ESP_IP>/update
-  def_route_with_auth("/debug", server, HTTP_GET,
-                      [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });
+  // Route for editing ChargerTargetA
+  update_string_setting(
+      "/updateChargeSetpointA", [](String value) { datalayer.charger.charger_setpoint_HV_IDC = value.toFloat(); },
+      [](String value) {
+        float val = value.toFloat();
+        return (val <= CHARGER_MAX_A) && (val <= datalayer.battery.settings.max_user_set_charge_dA) &&
+               (val * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER);
+      });
 
-  // Route to handle reboot command
-  def_route_with_auth("/reboot", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/plain", "Rebooting server...");
+  // Route for editing ChargerEndA
+  update_string_setting("/updateChargeEndA",
+                        [](String value) { datalayer.charger.charger_setpoint_HV_IDC_END = value.toFloat(); });
 
-    //Equipment STOP without persisting the equipment state before restart
-    // Max Charge/Discharge = 0; CAN = stop; contactors = open
-    setBatteryPause(true, true, EquipmentStop::STOP, false);
-    delay(1000);
-    ESP.restart();
-  });
+  // Route for enabling/disabling HV charger
+  update_int_setting("/updateChargerHvEnabled", [](int value) { datalayer.charger.charger_HV_enabled = (bool)value; });
 
-  // Initialize ElegantOTA
-  init_ElegantOTA();
+  // Route for enabling/disabling aux12v charger
+  update_int_setting("/updateChargerAux12vEnabled",
+                     [](int value) { datalayer.charger.charger_aux12V_enabled = (bool)value; });
+}
 
-  // Start server
-  server.begin();
+// Send a GET request to <ESP_IP>/update
+def_route_with_auth("/debug", server, HTTP_GET,
+                    [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });
+
+// Route to handle reboot command
+def_route_with_auth("/reboot", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+  request->send(200, "text/plain", "Rebooting server...");
+
+  //Equipment STOP without persisting the equipment state before restart
+  // Max Charge/Discharge = 0; CAN = stop; contactors = open
+  setBatteryPause(true, true, EquipmentStop::STOP, false);
+  delay(1000);
+  ESP.restart();
+});
+
+// Initialize ElegantOTA
+init_ElegantOTA();
+
+// Start server
+server.begin();
 }
 
 String getConnectResultString(wl_status_t status) {
