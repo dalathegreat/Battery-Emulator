@@ -35,18 +35,19 @@ CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
 
 # Root-CA bundle: the FULL store is tens of KB of flash, and this firmware does
 # NO on-device TLS verification (the GitHub release check runs in the browser).
-# It CANNOT be fully disabled: arduino-esp32's NetworkClientSecure library does
-# an unconditional #include "esp_crt_bundle.h", which only exists when the
-# feature is enabled, and hybrid mode compiles that (unused) library from source.
-# So keep the feature ON but select the empty (NONE) variant: the header/API
-# stay present, but essentially no CA certs are embedded -> nearly all the flash
-# is still reclaimed.
-# >>> Caveat: a TLS MQTT broker relying on bundle verification would need CMN or
-#     FULL here instead of NONE. See the Tier-2 note on secure MQTT.
+# It CANNOT be fully removed: arduino-esp32's NetworkClientSecure library does an
+# unconditional #include "esp_crt_bundle.h" (only present when the feature is on),
+# and hybrid mode compiles that unused library from source.
+# NONE doesn't work either: with no certs selected and no custom bundle supplied,
+# the generator emits nothing and the build fails on a missing x509_crt_bundle.S.
+# So use CMN: the common-CA subset. It generates a real (smaller than FULL)
+# bundle, so it links, while still trimming the store vs the default FULL set.
+# >>> If you later supply your own bundle you can switch to NONE + a custom file;
+#     a TLS MQTT broker relying on public-CA verification would want FULL.
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
-CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_NONE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN=y
 # CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL is not set
-# CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN is not set
+# CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_NONE is not set
 
 # -----------------------------------------------------------------------------
 # HYBRID-MODE BUILD FIX (fallback / safety net)
