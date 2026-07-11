@@ -57,13 +57,6 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server){
         response->addHeader("Connection", "close");
         response->addHeader("Access-Control-Allow-Origin", "*");
         request->send(response);
-        // Set reboot flag
-        if (!Update.hasError()) {
-            // Stop current flow as the reboot will open contactors
-            setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
-            _reboot_request_millis = millis();
-            _reboot = true;
-        }
     }, [&](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
         //Upload handler chunks in data
         if (!index) {
@@ -94,14 +87,6 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server){
         }
     });
 
-}
-
-void ElegantOTAClass::loop() {
-  // Check if 2 seconds have passed since _reboot_request_millis was set
-  if (_reboot && millis() - _reboot_request_millis > 2000) {
-    ESP.restart();
-    _reboot = false;
-  }
 }
 
 void ElegantOTAClass::onStart(std::function<void()> callable){
