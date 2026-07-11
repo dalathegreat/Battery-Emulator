@@ -218,7 +218,7 @@ static String generateSensorDefaultEntityId(const String& object_id) {
 void set_common_discovery_attributes(JsonDocument& doc) {
   doc["device"]["identifiers"][0] = device_id;
   doc["device"]["manufacturer"] = "DalaTech";
-  doc["device"]["model"] = "BatteryEmulator";
+  doc["device"]["model"] = "Battery Emulator";
   doc["device"]["name"] = device_name;
   doc["availability"][0]["topic"] = lwt_topic;
   doc["payload_available"] = "online";
