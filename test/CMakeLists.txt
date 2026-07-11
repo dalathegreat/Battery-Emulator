@@ -75,7 +75,6 @@ add_executable(tests
     can_log_based/canlog_safety_tests.cpp
     utils/utils.cpp
     ../Software/src/devboard/safety/parallel_safety.cpp
-    ../Software/src/communication/can/obd.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
     ../Software/src/devboard/safety/safety.cpp
