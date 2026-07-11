@@ -1,12 +1,12 @@
 #include "wifi.h"
-#include <esp_mac.h>  // esp_read_mac()
+#include <esp_mac.h>                                                     // esp_read_mac()
+#include "../../communication/contactorcontrol/comm_contactorcontrol.h"  // hold_pins_across_reset()
 #include "../../communication/nvm/comm_nvm.h"
 #include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
 #include "../safety/safety.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/logging.h"
-#include "../../communication/contactorcontrol/comm_contactorcontrol.h" // hold_pins_across_reset()
 #ifndef SMALL_FLASH_DEVICE
 #include <ESPmDNS.h>
 #endif
