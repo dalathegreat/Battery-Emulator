@@ -146,7 +146,11 @@ def _row_pr_missing(env: str, base: BoardSize | None) -> RowCells:
 
 
 def _row_base_missing(env: str, pr: BoardSize) -> RowCells:
-    """No base report — new board, or base build failed. Mark deltas as (new)."""
+    """No base report to diff against — new env, or its base build produced none.
+
+    We can't tell those two apart (a missing base entry carries no reason), so
+    we don't assert one: show the PR's absolute sizes and leave the deltas as —.
+    """
     return RowCells(
         board=pr.board_name,
         env=f"`{env}`",
@@ -154,9 +158,9 @@ def _row_base_missing(env: str, pr: BoardSize) -> RowCells:
         pr_flash=fmt_bytes(pr.flash.used if pr.flash else None),
         max_flash=fmt_bytes(pr.flash.total if pr.flash else None),
         pr_pct=fmt_pct(pr.flash),
-        delta_flash="(new)",
+        delta_flash="—",
         pr_ram=fmt_bytes(pr.ram.used if pr.ram else None),
-        delta_ram="(new)",
+        delta_ram="—",
     )
 
 
