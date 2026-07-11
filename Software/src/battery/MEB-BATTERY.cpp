@@ -795,7 +795,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     isotp_send(payload, sizeof(payload));
     uds_request_pending = true;
     uds_request_timestamp = currentMillis;
-    datalayer_extended.meb.UserRequestDTCreadout = false;   // consume the request
+    datalayer_extended.meb.UserRequestDTCreadout = false;  // consume the request
     datalayer_extended.meb.dtc_read_in_progress = true;
     datalayer_extended.meb.dtc_read_failed = false;
   }
@@ -806,7 +806,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&OBD_CLEAR_DTC);
     uds_request_pending = true;
     uds_request_timestamp = currentMillis;
-    datalayer_extended.meb.UserRequestDTCreset = false;     // consume the request
+    datalayer_extended.meb.UserRequestDTCreset = false;  // consume the request
     datalayer_extended.meb.dtc_read_in_progress = true;
     datalayer_extended.meb.dtc_read_failed = false;
   }
@@ -930,7 +930,8 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
       HVK_01_frame.data.u8[3] = BMS_TARGET_AC_CHARGING;
       HVK_01_frame.data.u8[5] = 0x82;  // Bordnetz Active
       HVK_01_frame.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
-    } else if ((first_can_msg_timestamp > 0 && currentMillis - first_can_msg_timestamp > 1000 && BMS_mode != BMS_TARGET_INIT) ||
+    } else if ((first_can_msg_timestamp > 0 && currentMillis - first_can_msg_timestamp > 1000 &&
+                BMS_mode != BMS_TARGET_INIT) ||
                datalayer.system.info.equipment_stop_active ||
                !datalayer.system.status.inverter_allows_contactor_closing) {  //FAULT STATE, open contactors
 
@@ -1365,8 +1366,8 @@ void MebBattery::uds_response_handler(uint8_t* data, int len, enum isotp_tatype 
           if (offset + 3 > len)
             break;
           // Combine 3 bytes into a single uint32
-          uint32_t dtcCode = ((uint32_t)data[offset] << 16) | ((uint32_t)data[offset + 1] << 8) |
-                             (uint32_t)data[offset + 2];
+          uint32_t dtcCode =
+              ((uint32_t)data[offset] << 16) | ((uint32_t)data[offset + 1] << 8) | (uint32_t)data[offset + 2];
           uint8_t dtcStatus = data[offset + 3];
           datalayer_extended.meb.dtc_codes[i] = dtcCode;
           datalayer_extended.meb.dtc_status[i] = dtcStatus;
