@@ -541,6 +541,11 @@ struct DATALAYER_INFO_RIVIAN {
 };
 
 struct DATALAYER_INFO_TESLA {
+  // Alert-matrix (DTC) fault flags for the Faults web page; mapped from tesla-m3-pack-findings (fw 2019.20.4.2)
+  bool BMS_alertMatrixActive[100];
+  bool PCS_alertMatrixActive[94];
+  bool CP_alertMatrixActive[96];
+
   uint64_t BMS_info_bootGitHash;
   uint64_t PCS_info_bootGitHash;
   uint64_t HVP_info_bootGitHash;
