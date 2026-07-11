@@ -628,7 +628,7 @@ void update_restart_progress() {
   if (emulator_restart_request_millis > 0) {
     uint32_t now = millis();
     uint32_t elapsed = now - emulator_restart_request_millis;
-    // Restart after 2s if the emulator has paused. Always restart after 5s.
+    // Restart after 5s if the emulator has paused. Always restart after 10s.
     if ((elapsed > INTERVAL_5_S && emulator_pause_status == PAUSED) || elapsed > INTERVAL_10_S) {
       ESP.restart();
     }
