@@ -201,6 +201,7 @@ static void check_ap_button() {
       graceful_restart();
     } else if (held >= AP_BUTTON_STA_WIPE_MS) {
       clear_wifi_sta_settings();
+      hold_pins_across_reset();
       graceful_restart();
     } else if (held >= AP_BUTTON_AP_MS) {
       if (!ap_active) {
