@@ -774,6 +774,8 @@ class TeslaBattery : public CanBattery {
   uint8_t HVP_shuntBarTempStatus = 0;
   uint8_t HVP_shuntAsicTempStatus = 0;
   //0x3aa: HVP_alertMatrix1 Fault codes   // Change to bool
+  //We ignore 0x3AA for now, as on later software/firmware this is a muxed frame so values aren't correct.
+  /*
   bool battery_WatchdogReset = false;           //Warns if the processor has experienced a reset due to watchdog reset.
   bool battery_PowerLossReset = false;          //Warns if the processor has experienced a reset due to power loss.
   bool battery_SwAssertion = false;             //An internal software assertion has failed.
@@ -829,6 +831,7 @@ class TeslaBattery : public CanBattery {
   bool battery_packCtrCloseFailed = false;
   bool battery_fcCtrCloseFailed = false;
   bool battery_shuntThermistorMia = false;
+  */
   //0x320: 800 BMS_alertMatrix
   uint8_t BMS_matrixIndex = 0;  // Changed to bool
   // Alerts below added from tesla-m3-pack-findings (firmware 2019.20.4.2)

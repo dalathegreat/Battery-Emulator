@@ -2768,8 +2768,9 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void printDebugIfActive(uint8_t symbol, const char* message) {
+  //TODO: This function should later be removed in favour of the webserver diagnostics
   if (symbol == 1) {
-    logging.println(message);
+    logging.println("Error: " + String(message));
   }
 }
 
@@ -2789,165 +2790,169 @@ void TeslaBattery::printFaultCodesIfActive() {
   }
   // Check each symbol and print debug information if its value is 1
   // 0X3AA: 938 HVP_alertMatrix1
-  //printDebugIfActive(battery_WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset"); //Uncommented due to not affecting usage
-  printDebugIfActive(battery_PowerLossReset, "ERROR: The processor has experienced a reset due to power loss");
-  printDebugIfActive(battery_SwAssertion, "ERROR: An internal software assertion has failed");
-  printDebugIfActive(battery_CrashEvent, "ERROR: crash signal is detected by HVP");
+  // We ignore 0x3AA for now, as on later software/firmware this is a muxed frame so values aren't correct.
+  /*
+  //printDebugIfActive(battery_WatchdogReset, "The processor has experienced a reset due to watchdog reset"); //Uncommented due to not affecting usage
+  printDebugIfActive(battery_PowerLossReset, "The processor has experienced a reset due to power loss");
+  printDebugIfActive(battery_SwAssertion, "An internal software assertion has failed");
+  printDebugIfActive(battery_CrashEvent, "crash signal is detected by HVP");
   printDebugIfActive(battery_OverDchgCurrentFault,
-                     "ERROR: Pack discharge current is above the safe max discharge current limit!");
+                     "Pack discharge current is above the safe max discharge current limit!");
   printDebugIfActive(battery_OverChargeCurrentFault,
-                     "ERROR: Pack charge current is above the safe max charge current limit!");
-  printDebugIfActive(battery_OverCurrentFault, "ERROR: Pack current (discharge or charge) is above max current limit!");
+                     "Pack charge current is above the safe max charge current limit!");
+  printDebugIfActive(battery_OverCurrentFault, "Pack current (discharge or charge) is above max current limit!");
   printDebugIfActive(battery_OverTemperatureFault,
-                     "ERROR: A pack module temperature is above the max temperature limit!");
-  printDebugIfActive(battery_OverVoltageFault, "ERROR: A brick voltage is above maximum voltage limit");
-  printDebugIfActive(battery_UnderVoltageFault, "ERROR: A brick voltage is below minimum voltage limit");
+                     "A pack module temperature is above the max temperature limit!");
+  printDebugIfActive(battery_OverVoltageFault, "A brick voltage is above maximum voltage limit");
+  printDebugIfActive(battery_UnderVoltageFault, "A brick voltage is below minimum voltage limit");
   printDebugIfActive(battery_PrimaryBmbMiaFault,
-                     "ERROR: Voltage and temperature readings from primary BMB chain are mia");
+                     "Voltage and temperature readings from primary BMB chain are mia");
   printDebugIfActive(battery_SecondaryBmbMiaFault,
-                     "ERROR: Voltage and temperature readings from secondary BMB chain are mia");
+                     "Voltage and temperature readings from secondary BMB chain are mia");
   printDebugIfActive(battery_BmbMismatchFault,
-                     "ERROR: Primary and secondary BMB chain readings don't match with each other");
-  printDebugIfActive(battery_BmsHviMiaFault, "ERROR: BMS node is mia on HVS or HVI CAN");
-  //printDebugIfActive(battery_CpMiaFault, "ERROR: CP node is mia on HVS CAN"); //Uncommented due to not affecting usage
-  printDebugIfActive(battery_PcsMiaFault, "ERROR: PCS node is mia on HVS CAN");
-  //printDebugIfActive(battery_BmsFault, "ERROR: BmsFault is active"); //Uncommented due to not affecting usage
-  printDebugIfActive(battery_PcsFault, "ERROR: PcsFault is active");
-  //printDebugIfActive(battery_CpFault, "ERROR: CpFault is active"); //Uncommented due to not affecting usage
-  printDebugIfActive(battery_ShuntHwMiaFault, "ERROR: Shunt current reading is not available");
-  printDebugIfActive(battery_PyroMiaFault, "ERROR: Pyro squib is not connected");
-  printDebugIfActive(battery_hvsMiaFault, "ERROR: Pack contactor hw fault");
-  printDebugIfActive(battery_hviMiaFault, "ERROR: FC contactor hw fault");
-  printDebugIfActive(battery_Supply12vFault, "ERROR: Low voltage (12V) battery is below minimum voltage threshold");
-  printDebugIfActive(battery_VerSupplyFault, "ERROR: Energy reserve voltage supply is below minimum voltage threshold");
-  printDebugIfActive(battery_HvilFault, "ERROR: High Voltage Inter Lock fault is detected");
-  printDebugIfActive(battery_BmsHvsMiaFault, "ERROR: BMS node is mia on HVS or HVI CAN");
+                     "Primary and secondary BMB chain readings don't match with each other");
+  printDebugIfActive(battery_BmsHviMiaFault, "BMS node is mia on HVS or HVI CAN");
+  //printDebugIfActive(battery_CpMiaFault, "CP node is mia on HVS CAN"); //Uncommented due to not affecting usage
+  printDebugIfActive(battery_PcsMiaFault, "PCS node is mia on HVS CAN");
+  //printDebugIfActive(battery_BmsFault, "BmsFault is active"); //Uncommented due to not affecting usage
+  printDebugIfActive(battery_PcsFault, "PcsFault is active");
+  //printDebugIfActive(battery_CpFault, "CpFault is active"); //Uncommented due to not affecting usage
+  printDebugIfActive(battery_ShuntHwMiaFault, "Shunt current reading is not available");
+  printDebugIfActive(battery_PyroMiaFault, "Pyro squib is not connected");
+  printDebugIfActive(battery_hvsMiaFault, "Pack contactor hw fault");
+  printDebugIfActive(battery_hviMiaFault, "FC contactor hw fault");
+  printDebugIfActive(battery_Supply12vFault, "Low voltage (12V) battery is below minimum voltage threshold");
+  printDebugIfActive(battery_VerSupplyFault, "Energy reserve voltage supply is below minimum voltage threshold");
+  printDebugIfActive(battery_HvilFault, "High Voltage Inter Lock fault is detected");
+  printDebugIfActive(battery_BmsHvsMiaFault, "BMS node is mia on HVS or HVI CAN");
   printDebugIfActive(battery_PackVoltMismatchFault,
-                     "ERROR: Pack voltage doesn't match approximately with sum of brick voltages");
-  //printDebugIfActive(battery_EnsMiaFault, "ERROR: ENS line is not connected to HVC"); //Uncommented due to not affecting usage
-  printDebugIfActive(battery_PackPosCtrArcFault, "ERROR: HVP detectes series arc at pack contactor");
-  printDebugIfActive(battery_packNegCtrArcFault, "ERROR: HVP detectes series arc at FC contactor");
-  printDebugIfActive(battery_ShuntHwAndBmsMiaFault, "ERROR: ShuntHwAndBmsMiaFault is active");
-  printDebugIfActive(battery_fcContHwFault, "ERROR: fcContHwFault is active");
-  printDebugIfActive(battery_robinOverVoltageFault, "ERROR: robinOverVoltageFault is active");
-  printDebugIfActive(battery_packContHwFault, "ERROR: packContHwFault is active");
-  printDebugIfActive(battery_pyroFuseBlown, "ERROR: pyroFuseBlown is active");
-  printDebugIfActive(battery_pyroFuseFailedToBlow, "ERROR: pyroFuseFailedToBlow is active");
-  //printDebugIfActive(battery_CpilFault, "ERROR: CpilFault is active"); //Uncommented due to not affecting usage
-  printDebugIfActive(battery_PackContactorFellOpen, "ERROR: PackContactorFellOpen is active");
-  printDebugIfActive(battery_FcContactorFellOpen, "ERROR: FcContactorFellOpen is active");
-  printDebugIfActive(battery_packCtrCloseBlocked, "ERROR: packCtrCloseBlocked is active");
-  printDebugIfActive(battery_fcCtrCloseBlocked, "ERROR: fcCtrCloseBlocked is active");
-  printDebugIfActive(battery_packContactorForceOpen, "ERROR: packContactorForceOpen is active");
-  printDebugIfActive(battery_fcContactorForceOpen, "ERROR: fcContactorForceOpen is active");
-  printDebugIfActive(battery_dcLinkOverVoltage, "ERROR: dcLinkOverVoltage is active");
-  printDebugIfActive(battery_shuntOverTemperature, "ERROR: shuntOverTemperature is active");
-  printDebugIfActive(battery_passivePyroDeploy, "ERROR: passivePyroDeploy is active");
-  printDebugIfActive(battery_logUploadRequest, "ERROR: logUploadRequest is active");
-  printDebugIfActive(battery_packCtrCloseFailed, "ERROR: packCtrCloseFailed is active");
-  printDebugIfActive(battery_fcCtrCloseFailed, "ERROR: fcCtrCloseFailed is active");
-  printDebugIfActive(battery_shuntThermistorMia, "ERROR: shuntThermistorMia is active");
+                     "Pack voltage doesn't match approximately with sum of brick voltages");
+  //printDebugIfActive(battery_EnsMiaFault, "ENS line is not connected to HVC"); //Uncommented due to not affecting usage
+  printDebugIfActive(battery_PackPosCtrArcFault, "HVP detectes series arc at pack contactor");
+  printDebugIfActive(battery_packNegCtrArcFault, "HVP detectes series arc at FC contactor");
+  printDebugIfActive(battery_ShuntHwAndBmsMiaFault, "ShuntHwAndBmsMiaFault is active");
+  printDebugIfActive(battery_fcContHwFault, "fcContHwFault is active");
+  printDebugIfActive(battery_robinOverVoltageFault, "robinOverVoltageFault is active");
+  printDebugIfActive(battery_packContHwFault, "packContHwFault is active");
+  printDebugIfActive(battery_pyroFuseBlown, "pyroFuseBlown is active");
+  printDebugIfActive(battery_pyroFuseFailedToBlow, "pyroFuseFailedToBlow is active");
+  //printDebugIfActive(battery_CpilFault, "CpilFault is active"); //Uncommented due to not affecting usage
+  printDebugIfActive(battery_PackContactorFellOpen, "PackContactorFellOpen is active");
+  printDebugIfActive(battery_FcContactorFellOpen, "FcContactorFellOpen is active");
+  printDebugIfActive(battery_packCtrCloseBlocked, "packCtrCloseBlocked is active");
+  printDebugIfActive(battery_fcCtrCloseBlocked, "fcCtrCloseBlocked is active");
+  printDebugIfActive(battery_packContactorForceOpen, "packContactorForceOpen is active");
+  printDebugIfActive(battery_fcContactorForceOpen, "fcContactorForceOpen is active");
+  printDebugIfActive(battery_dcLinkOverVoltage, "dcLinkOverVoltage is active");
+  printDebugIfActive(battery_shuntOverTemperature, "shuntOverTemperature is active");
+  printDebugIfActive(battery_passivePyroDeploy, "passivePyroDeploy is active");
+  printDebugIfActive(battery_logUploadRequest, "logUploadRequest is active");
+  printDebugIfActive(battery_packCtrCloseFailed, "packCtrCloseFailed is active");
+  printDebugIfActive(battery_fcCtrCloseFailed, "fcCtrCloseFailed is active");
+  printDebugIfActive(battery_shuntThermistorMia, "shuntThermistorMia is active");
+  */
   // 0x320 800 BMS_alertMatrix
-  printDebugIfActive(BMS_a017_SW_Brick_OV, "ERROR: BMS_a017_SW_Brick_OV");
-  printDebugIfActive(BMS_a018_SW_Brick_UV, "ERROR: BMS_a018_SW_Brick_UV");
-  printDebugIfActive(BMS_a019_SW_Module_OT, "ERROR: BMS_a019_SW_Module_OT");
-  printDebugIfActive(BMS_a021_SW_Dr_Limits_Regulation, "ERROR: BMS_a021_SW_Dr_Limits_Regulation");
-  //printDebugIfActive(BMS_a022_SW_Over_Current, "ERROR: BMS_a022_SW_Over_Current");
-  printDebugIfActive(BMS_a023_SW_Stack_OV, "ERROR: BMS_a023_SW_Stack_OV");
-  printDebugIfActive(BMS_a024_SW_Islanded_Brick, "ERROR: BMS_a024_SW_Islanded_Brick");
-  printDebugIfActive(BMS_a025_SW_PwrBalance_Anomaly, "ERROR: BMS_a025_SW_PwrBalance_Anomaly");
-  printDebugIfActive(BMS_a026_SW_HFCurrent_Anomaly, "ERROR: BMS_a026_SW_HFCurrent_Anomaly");
-  printDebugIfActive(BMS_a034_SW_Passive_Isolation, "ERROR: BMS_a034_SW_Passive_Isolation");
-  printDebugIfActive(BMS_a035_SW_Isolation, "ERROR: BMS_a035_SW_Isolation");
-  printDebugIfActive(BMS_a036_SW_HvpHvilFault, "ERROR: BMS_a036_SW_HvpHvilFault");
-  printDebugIfActive(BMS_a037_SW_Flood_Port_Open, "ERROR: BMS_a037_SW_Flood_Port_Open");
-  printDebugIfActive(BMS_a039_SW_DC_Link_Over_Voltage, "ERROR: BMS_a039_SW_DC_Link_Over_Voltage");
-  printDebugIfActive(BMS_a041_SW_Power_On_Reset, "ERROR: BMS_a041_SW_Power_On_Reset");
-  printDebugIfActive(BMS_a042_SW_MPU_Error, "ERROR: BMS_a042_SW_MPU_Error");
-  printDebugIfActive(BMS_a043_SW_Watch_Dog_Reset, "ERROR: BMS_a043_SW_Watch_Dog_Reset");
-  printDebugIfActive(BMS_a044_SW_Assertion, "ERROR: BMS_a044_SW_Assertion");
-  printDebugIfActive(BMS_a045_SW_Exception, "ERROR: BMS_a045_SW_Exception");
-  printDebugIfActive(BMS_a046_SW_Task_Stack_Usage, "ERROR: BMS_a046_SW_Task_Stack_Usage");
-  printDebugIfActive(BMS_a047_SW_Task_Stack_Overflow, "ERROR: BMS_a047_SW_Task_Stack_Overflow");
-  printDebugIfActive(BMS_a048_SW_Log_Upload_Request, "ERROR: BMS_a048_SW_Log_Upload_Request");
-  //printDebugIfActive(BMS_a050_SW_Brick_Voltage_MIA, "ERROR: BMS_a050_SW_Brick_Voltage_MIA");
-  printDebugIfActive(BMS_a051_SW_HVC_Vref_Bad, "ERROR: BMS_a051_SW_HVC_Vref_Bad");
-  printDebugIfActive(BMS_a052_SW_PCS_MIA, "ERROR: BMS_a052_SW_PCS_MIA");
-  printDebugIfActive(BMS_a053_SW_ThermalModel_Sanity, "ERROR: BMS_a053_SW_ThermalModel_Sanity");
-  printDebugIfActive(BMS_a054_SW_Ver_Supply_Fault, "ERROR: BMS_a054_SW_Ver_Supply_Fault");
-  printDebugIfActive(BMS_a059_SW_Pack_Voltage_Sensing, "ERROR: BMS_a059_SW_Pack_Voltage_Sensing");
-  printDebugIfActive(BMS_a060_SW_Leakage_Test_Failure, "ERROR: BMS_a060_SW_Leakage_Test_Failure");
-  printDebugIfActive(BMS_a061_robinBrickOverVoltage, "ERROR: BMS_a061_robinBrickOverVoltage");
-  printDebugIfActive(BMS_a062_SW_BrickV_Imbalance, "ERROR: BMS_a062_SW_BrickV_Imbalance");
-  //printDebugIfActive(BMS_a063_SW_ChargePort_Fault, "ERROR: BMS_a063_SW_ChargePort_Fault");
-  printDebugIfActive(BMS_a064_SW_SOC_Imbalance, "ERROR: BMS_a064_SW_SOC_Imbalance");
-  printDebugIfActive(BMS_a069_SW_Low_Power, "ERROR: BMS_a069_SW_Low_Power");
-  printDebugIfActive(BMS_a071_SW_SM_TransCon_Not_Met, "ERROR: BMS_a071_SW_SM_TransCon_Not_Met");
-  printDebugIfActive(BMS_a075_SW_Chg_Disable_Failure, "ERROR: BMS_a075_SW_Chg_Disable_Failure");
-  printDebugIfActive(BMS_a076_SW_Dch_While_Charging, "ERROR: BMS_a076_SW_Dch_While_Charging");
-  printDebugIfActive(BMS_a077_SW_Charger_Regulation, "ERROR: BMS_a077_SW_Charger_Regulation");
-  printDebugIfActive(BMS_a081_SW_Ctr_Close_Blocked, "ERROR: BMS_a081_SW_Ctr_Close_Blocked");
-  printDebugIfActive(BMS_a082_SW_Ctr_Force_Open, "ERROR: BMS_a082_SW_Ctr_Force_Open");
-  printDebugIfActive(BMS_a083_SW_Ctr_Close_Failure, "ERROR: BMS_a083_SW_Ctr_Close_Failure");
-  printDebugIfActive(BMS_a084_SW_Sleep_Wake_Aborted, "ERROR: BMS_a084_SW_Sleep_Wake_Aborted");
-  printDebugIfActive(BMS_a087_SW_Feim_Test_Blocked, "ERROR: BMS_a087_SW_Feim_Test_Blocked");
-  printDebugIfActive(BMS_a088_SW_VcFront_MIA_InDrive, "ERROR: BMS_a088_SW_VcFront_MIA_InDrive");
-  printDebugIfActive(BMS_a089_SW_VcFront_MIA, "ERROR: BMS_a089_SW_VcFront_MIA");
-  printDebugIfActive(BMS_a090_SW_Gateway_MIA, "ERROR: BMS_a090_SW_Gateway_MIA");
-  //printDebugIfActive(BMS_a091_SW_ChargePort_MIA, "ERROR: BMS_a091_SW_ChargePort_MIA");
-  //printDebugIfActive(BMS_a092_SW_ChargePort_Mia_On_Hv, "ERROR: BMS_a092_SW_ChargePort_Mia_On_Hv");
-  //printDebugIfActive(BMS_a094_SW_Drive_Inverter_MIA, "ERROR: BMS_a094_SW_Drive_Inverter_MIA");
-  printDebugIfActive(BMS_a099_SW_BMB_Communication, "ERROR: BMS_a099_SW_BMB_Communication");
-  printDebugIfActive(BMS_a105_SW_One_Module_Tsense, "ERROR: BMS_a105_SW_One_Module_Tsense");
-  printDebugIfActive(BMS_a106_SW_All_Module_Tsense, "ERROR: BMS_a106_SW_All_Module_Tsense");
-  printDebugIfActive(BMS_a107_SW_Stack_Voltage_MIA, "ERROR: BMS_a107_SW_Stack_Voltage_MIA");
-  printDebugIfActive(BMS_a121_SW_NVRAM_Config_Error, "ERROR: BMS_a121_SW_NVRAM_Config_Error");
-  printDebugIfActive(BMS_a122_SW_BMS_Therm_Irrational, "ERROR: BMS_a122_SW_BMS_Therm_Irrational");
-  printDebugIfActive(BMS_a123_SW_Internal_Isolation, "ERROR: BMS_a123_SW_Internal_Isolation");
-  printDebugIfActive(BMS_a127_SW_shunt_SNA, "ERROR: BMS_a127_SW_shunt_SNA");
-  printDebugIfActive(BMS_a128_SW_shunt_MIA, "ERROR: BMS_a128_SW_shunt_MIA");
-  printDebugIfActive(BMS_a129_SW_VSH_Failure, "ERROR: BMS_a129_SW_VSH_Failure");
-  printDebugIfActive(BMS_a130_IO_CAN_Error, "ERROR: BMS_a130_IO_CAN_Error");
-  printDebugIfActive(BMS_a131_Bleed_FET_Failure, "ERROR: BMS_a131_Bleed_FET_Failure");
-  printDebugIfActive(BMS_a132_HW_BMB_OTP_Uncorrctbl, "ERROR: BMS_a132_HW_BMB_OTP_Uncorrctbl");
-  printDebugIfActive(BMS_a134_SW_Delayed_Ctr_Off, "ERROR: BMS_a134_SW_Delayed_Ctr_Off");
-  printDebugIfActive(BMS_a136_SW_Module_OT_Warning, "ERROR: BMS_a136_SW_Module_OT_Warning");
-  printDebugIfActive(BMS_a137_SW_Brick_UV_Warning, "ERROR: BMS_a137_SW_Brick_UV_Warning");
-  printDebugIfActive(BMS_a139_SW_DC_Link_V_Irrational, "ERROR: BMS_a139_SW_DC_Link_V_Irrational");
-  printDebugIfActive(BMS_a141_SW_BMB_Status_Warning, "ERROR: BMS_a141_SW_BMB_Status_Warning");
-  printDebugIfActive(BMS_a144_Hvp_Config_Mismatch, "ERROR: BMS_a144_Hvp_Config_Mismatch");
-  printDebugIfActive(BMS_a145_SW_SOC_Change, "INFO: BMS_a145_SW_SOC_Change");
-  printDebugIfActive(BMS_a146_SW_Brick_Overdischarged, "ERROR: BMS_a146_SW_Brick_Overdischarged");
-  printDebugIfActive(BMS_a149_SW_Missing_Config_Block, "ERROR: BMS_a149_SW_Missing_Config_Block");
-  printDebugIfActive(BMS_a151_SW_external_isolation, "ERROR: BMS_a151_SW_external_isolation");
-  printDebugIfActive(BMS_a156_SW_BMB_Vref_bad, "ERROR: BMS_a156_SW_BMB_Vref_bad");
-  printDebugIfActive(BMS_a157_SW_HVP_HVS_Comms, "ERROR: BMS_a157_SW_HVP_HVS_Comms");
-  printDebugIfActive(BMS_a158_SW_HVP_HVI_Comms, "ERROR: BMS_a158_SW_HVP_HVI_Comms");
-  printDebugIfActive(BMS_a159_SW_HVP_ECU_Error, "ERROR: BMS_a159_SW_HVP_ECU_Error");
-  printDebugIfActive(BMS_a161_SW_DI_Open_Request, "ERROR: BMS_a161_SW_DI_Open_Request");
-  printDebugIfActive(BMS_a162_SW_No_Power_For_Support, "ERROR: BMS_a162_SW_No_Power_For_Support");
-  printDebugIfActive(BMS_a163_SW_Contactor_Mismatch, "ERROR: BMS_a163_SW_Contactor_Mismatch");
-  printDebugIfActive(BMS_a164_SW_Uncontrolled_Regen, "ERROR: BMS_a164_SW_Uncontrolled_Regen");
-  printDebugIfActive(BMS_a165_SW_Pack_Partial_Weld, "ERROR: BMS_a165_SW_Pack_Partial_Weld");
-  printDebugIfActive(BMS_a166_SW_Pack_Full_Weld, "ERROR: BMS_a166_SW_Pack_Full_Weld");
-  printDebugIfActive(BMS_a167_SW_FC_Partial_Weld, "ERROR: BMS_a167_SW_FC_Partial_Weld");
-  printDebugIfActive(BMS_a168_SW_FC_Full_Weld, "ERROR: BMS_a168_SW_FC_Full_Weld");
-  printDebugIfActive(BMS_a169_SW_FC_Pack_Weld, "ERROR: BMS_a169_SW_FC_Pack_Weld");
-  //printDebugIfActive(BMS_a170_SW_Limp_Mode, "ERROR: BMS_a170_SW_Limp_Mode");
-  printDebugIfActive(BMS_a171_SW_Stack_Voltage_Sense, "ERROR: BMS_a171_SW_Stack_Voltage_Sense");
-  printDebugIfActive(BMS_a174_SW_Charge_Failure, "ERROR: BMS_a174_SW_Charge_Failure");
-  printDebugIfActive(BMS_a176_SW_GracefulPowerOff, "ERROR: BMS_a176_SW_GracefulPowerOff");
-  printDebugIfActive(BMS_a179_SW_Hvp_12V_Fault, "ERROR: BMS_a179_SW_Hvp_12V_Fault");
-  printDebugIfActive(BMS_a180_SW_ECU_reset_blocked, "ERROR: BMS_a180_SW_ECU_reset_blocked");
+  //TODO: This function should later be removed in favour of the webserver diagnostics
+  printDebugIfActive(BMS_a017_SW_Brick_OV, "BMS_a017");
+  printDebugIfActive(BMS_a018_SW_Brick_UV, "BMS_a018");
+  printDebugIfActive(BMS_a019_SW_Module_OT, "BMS_a019");
+  printDebugIfActive(BMS_a021_SW_Dr_Limits_Regulation, "BMS_a021");
+  printDebugIfActive(BMS_a022_SW_Over_Current, "BMS_a022");
+  printDebugIfActive(BMS_a023_SW_Stack_OV, "BMS_a023");
+  printDebugIfActive(BMS_a024_SW_Islanded_Brick, "BMS_a024");
+  printDebugIfActive(BMS_a025_SW_PwrBalance_Anomaly, "BMS_a025");
+  printDebugIfActive(BMS_a026_SW_HFCurrent_Anomaly, "BMS_a026");
+  printDebugIfActive(BMS_a034_SW_Passive_Isolation, "BMS_a034");
+  printDebugIfActive(BMS_a035_SW_Isolation, "BMS_a035");
+  printDebugIfActive(BMS_a036_SW_HvpHvilFault, "BMS_a036");
+  printDebugIfActive(BMS_a037_SW_Flood_Port_Open, "BMS_a037");
+  printDebugIfActive(BMS_a039_SW_DC_Link_Over_Voltage, "BMS_a039");
+  printDebugIfActive(BMS_a041_SW_Power_On_Reset, "BMS_a041");
+  printDebugIfActive(BMS_a042_SW_MPU_Error, "BMS_a042");
+  printDebugIfActive(BMS_a043_SW_Watch_Dog_Reset, "BMS_a043");
+  printDebugIfActive(BMS_a044_SW_Assertion, "BMS_a044");
+  printDebugIfActive(BMS_a045_SW_Exception, "BMS_a045");
+  printDebugIfActive(BMS_a046_SW_Task_Stack_Usage, "BMS_a046");
+  printDebugIfActive(BMS_a047_SW_Task_Stack_Overflow, "BMS_a047");
+  printDebugIfActive(BMS_a048_SW_Log_Upload_Request, "BMS_a048");
+  printDebugIfActive(BMS_a050_SW_Brick_Voltage_MIA, "BMS_a050");
+  printDebugIfActive(BMS_a051_SW_HVC_Vref_Bad, "BMS_a051");
+  printDebugIfActive(BMS_a052_SW_PCS_MIA, "BMS_a052");
+  printDebugIfActive(BMS_a053_SW_ThermalModel_Sanity, "BMS_a053");
+  printDebugIfActive(BMS_a054_SW_Ver_Supply_Fault, "BMS_a054");
+  printDebugIfActive(BMS_a059_SW_Pack_Voltage_Sensing, "BMS_a059");
+  printDebugIfActive(BMS_a060_SW_Leakage_Test_Failure, "BMS_a060");
+  printDebugIfActive(BMS_a061_robinBrickOverVoltage, "BMS_a061");
+  printDebugIfActive(BMS_a062_SW_BrickV_Imbalance, "BMS_a062");
+  printDebugIfActive(BMS_a063_SW_ChargePort_Fault, "BMS_a063");
+  printDebugIfActive(BMS_a064_SW_SOC_Imbalance, "BMS_a064");
+  printDebugIfActive(BMS_a069_SW_Low_Power, "BMS_a069");
+  printDebugIfActive(BMS_a071_SW_SM_TransCon_Not_Met, "BMS_a071");
+  printDebugIfActive(BMS_a075_SW_Chg_Disable_Failure, "BMS_a075");
+  printDebugIfActive(BMS_a076_SW_Dch_While_Charging, "BMS_a076");
+  printDebugIfActive(BMS_a077_SW_Charger_Regulation, "BMS_a077");
+  printDebugIfActive(BMS_a081_SW_Ctr_Close_Blocked, "BMS_a081");
+  printDebugIfActive(BMS_a082_SW_Ctr_Force_Open, "BMS_a082");
+  printDebugIfActive(BMS_a083_SW_Ctr_Close_Failure, "BMS_a083");
+  printDebugIfActive(BMS_a084_SW_Sleep_Wake_Aborted, "BMS_a084");
+  printDebugIfActive(BMS_a087_SW_Feim_Test_Blocked, "BMS_a087");
+  printDebugIfActive(BMS_a088_SW_VcFront_MIA_InDrive, "BMS_a088");
+  printDebugIfActive(BMS_a089_SW_VcFront_MIA, "BMS_a089");
+  printDebugIfActive(BMS_a090_SW_Gateway_MIA, "BMS_a090");
+  printDebugIfActive(BMS_a091_SW_ChargePort_MIA, "BMS_a091");
+  printDebugIfActive(BMS_a092_SW_ChargePort_Mia_On_Hv, "BMS_a092");
+  printDebugIfActive(BMS_a094_SW_Drive_Inverter_MIA, "BMS_a094");
+  printDebugIfActive(BMS_a099_SW_BMB_Communication, "BMS_a099");
+  printDebugIfActive(BMS_a105_SW_One_Module_Tsense, "BMS_a105");
+  printDebugIfActive(BMS_a106_SW_All_Module_Tsense, "BMS_a106");
+  printDebugIfActive(BMS_a107_SW_Stack_Voltage_MIA, "BMS_a107");
+  printDebugIfActive(BMS_a121_SW_NVRAM_Config_Error, "BMS_a121");
+  printDebugIfActive(BMS_a122_SW_BMS_Therm_Irrational, "BMS_a122");
+  printDebugIfActive(BMS_a123_SW_Internal_Isolation, "BMS_a123");
+  printDebugIfActive(BMS_a127_SW_shunt_SNA, "BMS_a127");
+  printDebugIfActive(BMS_a128_SW_shunt_MIA, "BMS_a128");
+  printDebugIfActive(BMS_a129_SW_VSH_Failure, "BMS_a129");
+  printDebugIfActive(BMS_a130_IO_CAN_Error, "BMS_a130");
+  printDebugIfActive(BMS_a131_Bleed_FET_Failure, "BMS_a131");
+  printDebugIfActive(BMS_a132_HW_BMB_OTP_Uncorrctbl, "BMS_a132");
+  printDebugIfActive(BMS_a134_SW_Delayed_Ctr_Off, "BMS_a134");
+  printDebugIfActive(BMS_a136_SW_Module_OT_Warning, "BMS_a136");
+  printDebugIfActive(BMS_a137_SW_Brick_UV_Warning, "BMS_a137");
+  printDebugIfActive(BMS_a139_SW_DC_Link_V_Irrational, "BMS_a139");
+  printDebugIfActive(BMS_a141_SW_BMB_Status_Warning, "BMS_a141");
+  printDebugIfActive(BMS_a144_Hvp_Config_Mismatch, "BMS_a144");
+  printDebugIfActive(BMS_a145_SW_SOC_Change, "INFO: BMS_a145");
+  printDebugIfActive(BMS_a146_SW_Brick_Overdischarged, "BMS_a146");
+  printDebugIfActive(BMS_a149_SW_Missing_Config_Block, "BMS_a149");
+  printDebugIfActive(BMS_a151_SW_external_isolation, "BMS_a151");
+  printDebugIfActive(BMS_a156_SW_BMB_Vref_bad, "BMS_a156");
+  printDebugIfActive(BMS_a157_SW_HVP_HVS_Comms, "BMS_a157");
+  printDebugIfActive(BMS_a158_SW_HVP_HVI_Comms, "BMS_a158");
+  printDebugIfActive(BMS_a159_SW_HVP_ECU_Error, "BMS_a159");
+  printDebugIfActive(BMS_a161_SW_DI_Open_Request, "BMS_a161");
+  printDebugIfActive(BMS_a162_SW_No_Power_For_Support, "BMS_a162");
+  printDebugIfActive(BMS_a163_SW_Contactor_Mismatch, "BMS_a163");
+  printDebugIfActive(BMS_a164_SW_Uncontrolled_Regen, "BMS_a164");
+  printDebugIfActive(BMS_a165_SW_Pack_Partial_Weld, "BMS_a165");
+  printDebugIfActive(BMS_a166_SW_Pack_Full_Weld, "BMS_a166");
+  printDebugIfActive(BMS_a167_SW_FC_Partial_Weld, "BMS_a167");
+  printDebugIfActive(BMS_a168_SW_FC_Full_Weld, "BMS_a168");
+  printDebugIfActive(BMS_a169_SW_FC_Pack_Weld, "BMS_a169");
+  printDebugIfActive(BMS_a170_SW_Limp_Mode, "BMS_a170");
+  printDebugIfActive(BMS_a171_SW_Stack_Voltage_Sense, "BMS_a171");
+  printDebugIfActive(BMS_a174_SW_Charge_Failure, "BMS_a174");
+  printDebugIfActive(BMS_a176_SW_GracefulPowerOff, "BMS_a176");
+  printDebugIfActive(BMS_a179_SW_Hvp_12V_Fault, "BMS_a179");
+  printDebugIfActive(BMS_a180_SW_ECU_reset_blocked, "BMS_a180");
   // BMS alerts added from tesla-m3-pack-findings (firmware 2019.20.4.2)
-  printDebugIfActive(BMS_a001_Pack_Config_Mismatch, "ERROR: BMS_a001_Pack_Config_Mismatch");
-  printDebugIfActive(BMS_a055_SW_HvChain_Model_Fault, "ERROR: BMS_a055_SW_HvChain_Model_Fault");
-  printDebugIfActive(BMS_a126_SW_Thermistor_Failure, "ERROR: BMS_a126_SW_Thermistor_Failure");
-  printDebugIfActive(BMS_a135_HW_BMB_Diagnostics_Failure, "ERROR: BMS_a135_HW_BMB_Diagnostics_Failure");
-  printDebugIfActive(BMS_a143_SW_CAC_Change, "ERROR: BMS_a143_SW_CAC_Change");
-  printDebugIfActive(BMS_a155_SW_Weak_short_impedence, "ERROR: BMS_a155_SW_Weak_short_impedence");
-  printDebugIfActive(BMS_a173_SW_Charge_Component_Fault, "ERROR: BMS_a173_SW_Charge_Component_Fault");
-  printDebugIfActive(BMS_a178_SW_Uncontrolled_Regen_PwrB, "ERROR: BMS_a178_SW_Uncontrolled_Regen_PwrB");
+  printDebugIfActive(BMS_a001_Pack_Config_Mismatch, "BMS_a001");
+  printDebugIfActive(BMS_a055_SW_HvChain_Model_Fault, "BMS_a055");
+  printDebugIfActive(BMS_a126_SW_Thermistor_Failure, "BMS_a126");
+  printDebugIfActive(BMS_a135_HW_BMB_Diagnostics_Failure, "BMS_a135");
+  printDebugIfActive(BMS_a143_SW_CAC_Change, "BMS_a143");
+  printDebugIfActive(BMS_a155_SW_Weak_short_impedence, "BMS_a155");
+  printDebugIfActive(BMS_a173_SW_Charge_Component_Fault, "BMS_a173");
+  printDebugIfActive(BMS_a178_SW_Uncontrolled_Regen_PwrB, "BMS_a178");
   printFaultCodesPcsCp();
 }
 
