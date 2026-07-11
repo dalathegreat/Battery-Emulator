@@ -10,8 +10,16 @@ jobs:
     - name: Checkout PR base
       uses: actions/checkout@v7
       with:
-        ref: ${{ github.event.pull_request.base.ref }}
-        fetch-depth: 100
+        fetch-depth: 200
+
+    - name: Find true base Commit
+      id: get_base
+      run: |
+        # Find the common ancestor between the two parents of the merge commit
+        TRUE_BASE_SHA=$(git merge-base ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+        echo "PR base commit is: $TRUE_BASE_SHA"
+        git checkout $TRUE_BASE_SHA
+        echo "base_sha=$TRUE_BASE_SHA" >> $GITHUB_OUTPUT
 
     - name: Get platformio.ini hash
       id: platformio_ini_hash
@@ -52,9 +60,8 @@ jobs:
 
     - name: Checkout PR head
       run: |
-        git remote add fork https://github.com/${{ github.event.pull_request.head.repo.full_name }}
-        git fetch fork ${{ github.event.pull_request.head.ref }}
-        git checkout FETCH_HEAD
+        git fetch origin refs/pull/${{ github.event.number }}/head
+        git checkout ${{ github.event.pull_request.head.sha }}
     
     - name: Build image for lilygo_330
       run: pio run -e lilygo_330
@@ -67,7 +74,7 @@ jobs:
     - name: Compare firmware sizes
       shell: python -u {0}
       env:
-        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        BASE_SHA: ${{ steps.get_base.outputs.base_sha }}
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       run: |
         import os

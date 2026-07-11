@@ -43,6 +43,7 @@ void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_S
 }
 
 static ACAN_ESP32_Settings* settingsespcan = nullptr;
+static CAN_Speed native_can_speed;
 
 static uint32_t quartz_frequency;
 
@@ -345,7 +346,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       memcpy(MCP2518Frame.data, tx_frame->data.u8, std::min(tx_frame->DLC, (uint8_t)sizeof(MCP2518Frame.data)));
 
       if (!canfd_2->tryToSend(MCP2518Frame)) {
-        datalayer.system.info.can_2518_send_fail = true;
+        datalayer.system.info.can_2518_2_send_fail = true;
       }
     } break;
     default:
@@ -392,6 +393,16 @@ receive_frame_can_native() {  // This section checks if we have a complete CAN m
       map_can_frame_to_variable(&rx_frame, CAN_NATIVE);
     }
   }
+
+  auto flags = ACAN_ESP32::can.statusRegister();
+  if ((flags & TWAI_BUS_OFF_ST) != 0) {
+    // Bus off, reset the CAN controller
+    change_can_speed(CAN_Interface::CAN_NATIVE, native_can_speed);
+    datalayer.system.info.can_native_bus_error = true;
+  }
+  if ((flags & TWAI_ERR_ST) != 0) {
+    datalayer.system.info.can_native_bus_error = true;
+  }
 }
 
 static void
@@ -404,9 +415,13 @@ receive_frame_can_addon() {  // This section checks if we have a complete CAN me
     copy_mcp2515_lite_frame_to_can_frame(rx_frame, full_frame);
     map_can_frame_to_variable(&full_frame, CAN_ADDON_MCP2515);
   }
+
+  if (can2515->hasErrors()) {
+    datalayer.system.info.can_2515_bus_error = true;
+  }
 }
 
-static void receive_frame_canfd_addon() {  // This section checks if we have a complete CAN-FD message incoming
+static void _receive_frame_canfd(ACAN2517FD* canfd, bool first) {
   CANFDMessage MCP2518frame;
   int count = 0;
   while (canfd->available() && count++ < 16) {
@@ -418,26 +433,29 @@ static void receive_frame_canfd_addon() {  // This section checks if we have a c
     rx_frame.DLC = MCP2518frame.len;
     memcpy(rx_frame.data.u8, MCP2518frame.data, std::min(rx_frame.DLC, (uint8_t)sizeof(rx_frame.data.u8)));
     //message incoming, pass it on to the handler
-    map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518);
-    map_can_frame_to_variable(&rx_frame, CANFD_NATIVE);
+    if (first) {
+      map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518);
+      map_can_frame_to_variable(&rx_frame, CANFD_NATIVE);
+    } else {
+      map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518_2);
+    }
+  }
+
+  if (canfd->hasCanErrors()) {
+    if (first) {
+      datalayer.system.info.can_2518_bus_error = true;
+    } else {
+      datalayer.system.info.can_2518_2_bus_error = true;
+    }
   }
 }
 
-static void
-receive_frame_canfd_addon_2() {  // This section checks if we have a complete CAN-FD message incoming on 2nd CAN-FD add-on
-  CANFDMessage MCP2518frame;
-  int count = 0;
-  while (canfd_2->available() && count++ < 16) {
-    canfd_2->receive(MCP2518frame);
+static void receive_frame_canfd_addon() {
+  _receive_frame_canfd(canfd, true);
+}
 
-    CAN_frame rx_frame;
-    rx_frame.ID = MCP2518frame.id;
-    rx_frame.ext_ID = MCP2518frame.ext;
-    rx_frame.DLC = MCP2518frame.len;
-    memcpy(rx_frame.data.u8, MCP2518frame.data, std::min(rx_frame.DLC, (uint8_t)sizeof(rx_frame.data.u8)));
-    //message incoming, pass it on to the handler
-    map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518_2);
-  }
+static void receive_frame_canfd_addon_2() {
+  _receive_frame_canfd(canfd_2, false);
 }
 
 // Support functions
@@ -575,6 +593,8 @@ static uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t r
   if (settingsespcan != nullptr) {
     delete settingsespcan;
   }
+
+  native_can_speed = speed;
 
   // Create a new settings object (as it does the bitrate calcs in the constructor)
   settingsespcan = new ACAN_ESP32_Settings((int)speed * 1000UL);

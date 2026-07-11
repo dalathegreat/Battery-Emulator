@@ -93,7 +93,9 @@ void connectivity_loop(void*) {
     init_mDNS();
   }
 
+#ifndef SMALL_FLASH_DEVICE
   init_display();
+#endif
 
   if (espnow_enabled) {
     init_espnow();
@@ -103,7 +105,9 @@ void connectivity_loop(void*) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
 
+#ifndef SMALL_FLASH_DEVICE
     update_display();
+#endif
 
     if (espnow_enabled) {
       update_espnow();

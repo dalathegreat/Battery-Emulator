@@ -20,6 +20,26 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
 static void update_event_level(void);
 static void update_bms_status(void);
 
+#ifndef SMALL_FLASH_DEVICE
+// Map a Battery-Emulator event level to an RFC 5424 syslog severity.
+static uint8_t event_level_to_syslog(EVENTS_LEVEL_TYPE lvl) {
+  switch (lvl) {
+    case EVENT_LEVEL_ERROR:
+      return 3;  // err
+    case EVENT_LEVEL_WARNING:
+      return 4;  // warning
+    case EVENT_LEVEL_UPDATE:
+      return 5;  // notice
+    case EVENT_LEVEL_INFO:
+      return 6;  // info
+    case EVENT_LEVEL_DEBUG:
+      return 7;  // debug
+    default:
+      return 6;
+  }
+}
+#endif
+
 /* Initialization function */
 void init_events(void) {
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
@@ -31,12 +51,17 @@ void init_events(void) {
 
   events.entries[EVENT_CANMCP2518FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2515_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_NATIVE_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CAN_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANFD_2_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP2515_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_TASK_OVERRUN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_THERMAL_RUNAWAY].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_CORRUPTED_WARNING].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CAN_NATIVE_TX_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_NATIVE_BUS_ERROR].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP2515_BUS_ERROR].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANFD_BUS_ERROR].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANFD_2_BUS_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_BATTERY_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_BATTERY2_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_BATTERY3_DETECTED].level = EVENT_LEVEL_INFO;
@@ -136,6 +161,7 @@ void init_events(void) {
   events.entries[EVENT_PID_FAILED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_DISCONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_WIFI_AP_PROVISION_TIMEOUT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
@@ -187,18 +213,22 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
     case EVENT_CANMCP2515_INIT_FAILURE:
       return "CAN-MCP addon initialization failed. Check hardware";
+    case EVENT_CAN_NATIVE_BUFFER_FULL:
+    case EVENT_CANMCP2515_BUFFER_FULL:
     case EVENT_CANFD_BUFFER_FULL:
-      return "MCP2518FD message failed to send. Buffer full or no one on the bus to ACK the message!";
-    case EVENT_CAN_BUFFER_FULL:
-      return "MCP2515 message failed to send. Buffer full or no one on the bus to ACK the message!";
+    case EVENT_CANFD_2_BUFFER_FULL:
+      return "CAN failed to send. Buffer full or no one on the bus to ACK the message!";
     case EVENT_TASK_OVERRUN:
       return "Task took too long to complete. CPU load might be too high. Info message, no action required.";
     case EVENT_THERMAL_RUNAWAY:
       return "THERMAL RUNAWAY! POTENTIAL FIRE OR EXPLOSION IMMINENT!";
     case EVENT_CAN_CORRUPTED_WARNING:
       return "High amount of corrupted CAN messages detected. Check CAN wire shielding!";
-    case EVENT_CAN_NATIVE_TX_FAILURE:
-      return "CAN_NATIVE failed to transmit, or no one on the bus to ACK the message!";
+    case EVENT_CAN_NATIVE_BUS_ERROR:
+    case EVENT_CANMCP2515_BUS_ERROR:
+    case EVENT_CANFD_BUS_ERROR:
+    case EVENT_CANFD_2_BUS_ERROR:
+      return "Multiple CAN TX/RX errors. Check wiring!";
     case EVENT_CAN_BATTERY_DETECTED:
       return "Successfully communicating with battery. Battery detected!";
     case EVENT_CAN_BATTERY2_DETECTED:
@@ -409,6 +439,9 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Wifi connected.";
     case EVENT_WIFI_DISCONNECT:
       return "Wifi disconnected.";
+    case EVENT_WIFI_AP_PROVISION_TIMEOUT:
+      return "Wifi AP disabled due to cybersecurity concern. Change default password to keep AP "
+             "constantly on! Reboot/Hold BOOT button 5-15 seconds to re-enable AP temporarily.";
     case EVENT_MQTT_CONNECT:
       return "MQTT connected.";
     case EVENT_MQTT_DISCONNECT:
@@ -493,6 +526,7 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
     events.entries[event].MQTTpublished = false;
 
+    LOG_SET_NEXT_SEVERITY(event_level_to_syslog(events.entries[event].level));
     DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
   }
 
