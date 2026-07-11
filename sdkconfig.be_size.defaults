@@ -26,10 +26,12 @@ CONFIG_COMPILER_OPTIMIZATION_SIZE=y
 # Strip IDF-component log strings (WiFi, esp-mqtt, lwIP, etc.) entirely. Your own
 # logging/remote-syslog layer is separate and unaffected. Drop to _WARN instead
 # of _NONE if you want to keep IDF-level warnings/errors for field diagnostics.
+# NOTE: application log level only. The bootloader is deliberately NOT touched
+# here (no CONFIG_BOOTLOADER_* overrides), so it stays at the framework default,
+# identical to a pre-patch build.
 CONFIG_LOG_DEFAULT_LEVEL_NONE=y
 # CONFIG_LOG_DEFAULT_LEVEL_WARN is not set
 # CONFIG_LOG_DEFAULT_LEVEL_INFO is not set
-CONFIG_BOOTLOADER_LOG_LEVEL_NONE=y
 
 # No WPA2/WPA3-Enterprise (you use plain PSK). Drops the enterprise supplicant.
 # CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT is not set
