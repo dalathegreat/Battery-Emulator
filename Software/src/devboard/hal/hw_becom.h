@@ -39,6 +39,10 @@ class BEComHal : public Esp32Hal {
   // BMS Power Pin is inverted, High Value shuts down the Battery
   // TODO: Adapt the rest of the code to invert the power control
   virtual gpio_num_t BMS_POWER() { return GPIO_NUM_1; }
+  
+  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER is GPIO1
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_1}; }
+
   // SECOND_BATTERY_CONTACTORS_PIN mapped to the Battery 2 Negative Contactor Pin
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_37; }
 
