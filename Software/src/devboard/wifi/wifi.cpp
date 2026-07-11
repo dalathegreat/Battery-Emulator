@@ -6,6 +6,7 @@
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/logging.h"
+#include "../../communication/contactorcontrol/comm_contactorcontrol.h" // hold_pins_across_reset()
 #ifndef SMALL_FLASH_DEVICE
 #include <ESPmDNS.h>
 #endif
