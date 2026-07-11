@@ -12,7 +12,7 @@ import pathlib
 import sys
 from dataclasses import dataclass
 
-from size_report import BoardSize, MemoryBytes
+from size_report import BoardSize, MemoryBytes, Toolchain
 
 
 STICKY_MARKER = "<!-- firmware-size-report -->"
@@ -211,6 +211,24 @@ def render(
     else:
         lines.append(
             f"Base: `{short(base_sha)}` on `{base_branch}` · This PR: `{short(head_sha)}`"
+        )
+        lines.append("")
+
+    # Every report feeding one comparison should have been built with the same
+    # toolchain. If more than one shows up — base vs PR, or board vs board on
+    # either side — the deltas below may reflect the toolchain change rather
+    # than this PR's code, so warn and list the distinct toolchains.
+    all_reports = list(base.values()) + list(pr.values())
+    toolchains = {report.toolchain for report in all_reports}
+    if len(toolchains) > 1:
+        labels = "  \n".join(
+            f"> - {t.label()}"
+            for t in sorted(toolchains, key=lambda t: (t.pio_core, t.platform))
+        )
+        lines.append(
+            "> ⚠️ **Builds used more than one toolchain** — size deltas below "
+            "may reflect the toolchain change, not this PR's code.  \n"
+            f"{labels}"
         )
         lines.append("")
 

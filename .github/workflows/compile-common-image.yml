@@ -79,7 +79,9 @@ jobs:
         cat checkprogsize.txt | python .github/scripts/parse_size.py \
           --pio-env "${{ matrix.pio_env }}" \
           --board-name "${{ matrix.board_name }}" \
-          --sha "${{ github.event.pull_request.head.sha || github.sha }}"
+          --sha "${{ github.event.pull_request.head.sha || github.sha }}" \
+          --pio-system-info "$(pio system info --json-output)" \
+          --platform-json "$(cat "$HOME"/.platformio/platforms/espressif32*/platform.json)"
 
     #rename firmware.bin to contain pr number and commit short sha for easier location after saved on disk
     - name: Rename firmware.bin with PR number and commit short SHA

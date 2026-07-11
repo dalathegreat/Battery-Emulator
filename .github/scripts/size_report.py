@@ -22,6 +22,24 @@ class MemoryBytes:
         return cls(used=d["used"], total=d["total"])
 
 
+@dataclass(frozen=True)
+class Toolchain:
+    """Identity of the toolchain a board was built with.
+
+    Frozen so instances are hashable — the consumer collects the distinct
+    toolchains across a comparison into a set and warns if there's more than one.
+    """
+    pio_core: str          # PlatformIO Core version, e.g. "6.1.18"
+    platform: str          # resolved platform-espressif32, e.g. "55.03.39"
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Toolchain":
+        return cls(pio_core=d["pio_core"], platform=d["platform"])
+
+    def label(self) -> str:
+        return f"PlatformIO Core {self.pio_core} · platform-espressif32 {self.platform}"
+
+
 @dataclass
 class BoardSize:
     schema_version: int
@@ -30,6 +48,7 @@ class BoardSize:
     sha: str
     flash: MemoryBytes | None
     ram: MemoryBytes | None
+    toolchain: Toolchain
 
     @classmethod
     def from_dict(cls, d: dict) -> "BoardSize":
@@ -40,4 +59,5 @@ class BoardSize:
             sha=d["sha"],
             flash=MemoryBytes.from_dict(d.get("flash")),
             ram=MemoryBytes.from_dict(d.get("ram")),
+            toolchain=Toolchain.from_dict(d["toolchain"]),
         )

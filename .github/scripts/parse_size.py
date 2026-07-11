@@ -15,7 +15,7 @@ import re
 import sys
 from dataclasses import asdict
 
-from size_report import BoardSize, MemoryBytes
+from size_report import BoardSize, MemoryBytes, Toolchain
 
 
 RAM_RE = re.compile(r"^RAM:.*used\s+(\d+)\s+bytes\s+from\s+(\d+)\s+bytes", re.MULTILINE)
@@ -34,6 +34,16 @@ def main() -> int:
     ap.add_argument("--pio-env", required=True)
     ap.add_argument("--board-name", required=True)
     ap.add_argument("--sha", required=True)
+    ap.add_argument(
+        "--pio-system-info",
+        required=True,
+        help="raw JSON from `pio system info --json-output`",
+    )
+    ap.add_argument(
+        "--platform-json",
+        required=True,
+        help="contents of the installed platform.json",
+    )
     args = ap.parse_args()
 
     text = sys.stdin.read()
@@ -46,6 +56,11 @@ def main() -> int:
         print("parse_size: no Flash: or RAM: lines found on stdin", file=sys.stderr)
         return 2
 
+    toolchain = Toolchain(
+        pio_core=json.loads(args.pio_system_info)["core_version"]["value"],
+        platform=json.loads(args.platform_json)["version"],
+    )
+
     doc = BoardSize(
         schema_version=1,
         pio_env=args.pio_env,
@@ -53,6 +68,7 @@ def main() -> int:
         sha=args.sha,
         flash=flash,
         ram=ram,
+        toolchain=toolchain,
     )
     with open(f"{args.pio_env}.size.json", "w", encoding="utf-8") as f:
         json.dump(asdict(doc), f, indent=2)
