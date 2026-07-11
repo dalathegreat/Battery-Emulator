@@ -1069,22 +1069,12 @@ class DataLayerExtended {
     auto initBydAtto3 = [](auto& data) {
       data.calibrationTargetSOC = 100;
       data.calibrationTargetAH = 150;
-      for (int i = 0; i < 13; i++)
-        data.battery_temperatures[i] = -40;
       data.discharge_status = 14;
       data.auto_calibrate_soc_enabled = true;
       data.auto_calibrate_soc_drift_percent = 5;
     };
     initBydAtto3(bydAtto3);
     initBydAtto3(bydAtto3_2);
-
-    rivian.pre_contactor_voltage = 3700;
-
-    VolvoPolestar.BECMsupplyVoltage = 12000;
-
-    GeelySEA.Interlock = 255;
-
-    zoePH2.battery_temporisation = 255;
   }
 };
 
