@@ -202,7 +202,6 @@ void init_stored_settings() {
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
   wifi_channel = settings.getUInt("WIFICHANNEL", 0);
-  ssidAP = settings.getString("APNAME", "BatteryEmulator").c_str();
   passwordAP = settings.getString("APPASSWORD", DEFAULT_AP_PASSWORD).c_str();
   espnow_enabled = settings.getBool("ESPNOWENABLED", false);
   mqtt_enabled = settings.getBool("MQTTENABLED", false);

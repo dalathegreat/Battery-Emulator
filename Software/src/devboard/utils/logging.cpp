@@ -45,7 +45,7 @@ static void syslog_flush_line(void) {
   }
   uint8_t sev = (sev_override >= 0) ? (uint8_t)sev_override : SYSLOG_DEFAULT_SEVERITY;
   uint8_t pri = (uint8_t)((syslog_facility & 0x1F) * 8 + (sev & 0x07));
-  const char* host = custom_hostname.empty() ? "batteryemulator" : custom_hostname.c_str();
+  const char* host = WiFi.getHostname();
   if (syslogUdp.beginPacket(dst, syslog_port)) {
     // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
     // NILVALUE '-' timestamp -> the syslog server stamps on receipt.

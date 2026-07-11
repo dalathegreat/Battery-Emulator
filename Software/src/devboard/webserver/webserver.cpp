@@ -418,12 +418,12 @@ void init_webserver() {
   });
 
   const char* boolSettingNames[] = {
-      "DBLBTR",        "CNTCTRL",       "CNTCTRLDBL",  "PWMCNTCTRL",   "PERBMSRESET",   "SDLOGENABLED", "STATICIP",
-      "REMBMSRESET",   "EXTPRECHARGE",  "USBENABLED",  "CANLOGUSB",    "WEBENABLED",    "CANFDASCAN",   "CANFD2ASCAN",
-      "CANLOGSD",      "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC",    "HADISC",        "MQTTTOPICS",   "MQTTCELLV",
-      "GTWRHD",        "DIGITALHVIL",   "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET",  "PYLONORDER",
-      "DEYEBYD",       "NCCONTACTOR",   "TRIBTR",      "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",   "CTINVERT",
-      "LOWPASSFILTER", "WEBAUTH",       "SLOWCANINV",
+      "DBLBTR",      "CNTCTRL",       "CNTCTRLDBL",   "PWMCNTCTRL",    "PERBMSRESET", "SDLOGENABLED", "STATICIP",
+      "REMBMSRESET", "EXTPRECHARGE",  "USBENABLED",   "CANLOGUSB",     "WEBENABLED",  "CANFDASCAN",   "CANFD2ASCAN",
+      "CANLOGSD",    "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",     "HADISC",      "MQTTCELLV",    "GTWRHD",
+      "DIGITALHVIL", "PERFPROFILE",   "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET", "PYLONORDER",   "DEYEBYD",
+      "NCCONTACTOR", "TRIBTR",        "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",  "CTINVERT",     "LOWPASSFILTER",
+      "WEBAUTH",     "SLOWCANINV",
 #ifndef SMALL_FLASH_DEVICE
       "SYSLOGEN",
 #endif
@@ -442,9 +442,8 @@ void init_webserver() {
 #endif
   };
 
-  const char* stringSettingNames[] = {"APNAME",         "APPASSWORD",   "HOSTNAME",  "MQTTSERVER",
-                                      "MQTTUSER",       "MQTTPASSWORD", "MQTTTOPIC", "MQTTOBJIDPREFIX",
-                                      "MQTTDEVICENAME", "HADEVICEID",   "HTTPUSER",  "HTTPPASS",
+  const char* stringSettingNames[] = {"APPASSWORD",   "HOSTNAME", "MQTTSERVER", "MQTTUSER",
+                                      "MQTTPASSWORD", "HTTPUSER", "HTTPPASS",
 #ifndef SMALL_FLASH_DEVICE
                                       "SYSLOGIP"
 #endif
@@ -1047,8 +1046,7 @@ String processor(const String& var) {
     }
 
     if (ap_active) {
-      content += "<h4>Wi-Fi access point active &mdash; SSID: " + html_escape(ssidAP.c_str()) + " (" +
-                 WiFi.softAPIP().toString() + ")</h4>";
+      content += "<h4>Access Point active: " + WiFi.softAPIP().toString() + "</h4>";
     }
 
     // Close the block
