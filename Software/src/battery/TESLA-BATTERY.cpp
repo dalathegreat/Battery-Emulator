@@ -2770,7 +2770,8 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
 void printDebugIfActive(uint8_t symbol, const char* message) {
   //TODO: This function should later be removed in favour of the webserver diagnostics
   if (symbol == 1) {
-    logging.println("Error: " + String(message));
+    logging.print("Error: ");
+    logging.println(message);
   }
 }
 
