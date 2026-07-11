@@ -691,9 +691,7 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
   }
 
   if (strcmp(topic, generateButtonTopic("RESTART").c_str()) == 0) {
-    setBatteryPause(true, true, EquipmentStop::STOP, false);
-    delay(1000);
-    ESP.restart();
+    graceful_restart();
   }
 
   if (strcmp(topic, generateButtonTopic("STOP").c_str()) == 0) {

@@ -851,12 +851,7 @@ void init_webserver() {
   // Route to handle reboot command
   def_route_with_auth("/reboot", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/plain", "Rebooting server...");
-
-    //Equipment STOP without persisting the equipment state before restart
-    // Max Charge/Discharge = 0; CAN = stop; contactors = open
-    setBatteryPause(true, true, EquipmentStop::STOP, false);
-    delay(1000);
-    ESP.restart();
+    graceful_restart();
   });
 
   // Initialize ElegantOTA
@@ -890,9 +885,6 @@ String getConnectResultString(wl_status_t status) {
 }
 
 void ota_monitor() {
-
-  ElegantOTA.loop();
-
   if (ota_active && ota_timeout_timer.elapsed()) {
     // OTA timeout, try to restore can and clear the update event
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
@@ -1716,7 +1708,7 @@ String processor(const String& var) {
 
 void onOTAStart() {
   //try to Pause the battery
-  setBatteryPause(true, true);
+  setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
 
   // Log when OTA has started
   set_event(EVENT_OTA_UPDATE, 0);
@@ -1745,15 +1737,12 @@ void onOTAEnd(bool success) {
 
   // Log when OTA has finished
   if (success) {
-    //Equipment STOP without persisting the equipment state before restart
-    // Max Charge/Discharge = 0; CAN = stop; contactors = open
-    setBatteryPause(true, true, EquipmentStop::STOP, false);
-    // a reboot will be done by the OTA library. no need to do anything here
     logging.println("OTA update finished successfully!");
+    graceful_restart();
   } else {
     logging.println("There was an error during OTA update!");
-    //try to Resume the battery pause and CAN communication
-    setBatteryPause(false, false);
+    // Unpause battery (preserving equipment stop if set)
+    setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
   }
 }
 

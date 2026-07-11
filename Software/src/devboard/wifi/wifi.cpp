@@ -196,19 +196,12 @@ static void check_ap_button() {
     set_led_override(false, 0, 0);  // released: stop blink feedback
     const unsigned long held = now - ap_button_press_start;
     if (held >= AP_BUTTON_FACTORY_RESET_MS) {
-      // Stop current flow without persisting the equipment state before factory reset as reboot will open contactors
-      // Max Charge/Discharge = 0; CAN = stop; contactors = open
-      setBatteryPause(true, true, EquipmentStop::STOP, false);
       BatteryEmulatorSettingsStore settings;
       settings.clearAll();
-      delay(1000);
-      ESP.restart();
+      graceful_restart();
     } else if (held >= AP_BUTTON_STA_WIPE_MS) {
-      // Stop current flow as the reboot will open contactors
-      setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
       clear_wifi_sta_settings();
-      delay(1000);
-      ESP.restart();
+      graceful_restart();
     } else if (held >= AP_BUTTON_AP_MS) {
       if (!ap_active) {
         ap_provisioning_expired = false;  // manual start opens a fresh provisioning window
