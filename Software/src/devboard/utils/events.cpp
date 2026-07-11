@@ -127,6 +127,7 @@ void init_events(void) {
   events.entries[EVENT_UNKNOWN_EVENT_SET].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_OTA_UPDATE].level = EVENT_LEVEL_UPDATE;
   events.entries[EVENT_OTA_UPDATE_TIMEOUT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RESTARTING].level = EVENT_LEVEL_UPDATE;  // Stops Fronius erroring out during restarts
   events.entries[EVENT_DUMMY_INFO].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DUMMY_DEBUG].level = EVENT_LEVEL_DEBUG;
   events.entries[EVENT_DUMMY_WARNING].level = EVENT_LEVEL_WARNING;
@@ -427,6 +428,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "The board was reset due to a detected power glitch";
     case EVENT_RESET_CPU_LOCKUP:
       return "The board was reset due to CPU lockup. Inform developers!";
+    case EVENT_RESTARTING:
+      return "The emulator is restarting.";
     case EVENT_RJXZS_LOG:
       return "Error code active in RJXZS BMS. Clear via their smartphone app!";
     case EVENT_PAUSE_BEGIN:

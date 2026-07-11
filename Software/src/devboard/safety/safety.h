@@ -22,6 +22,8 @@ extern bool battery_detected;
 extern void store_settings_equipment_stop();
 
 void update_machineryprotection();
+void graceful_restart();
+void update_restart_progress();
 
 typedef enum : uint8_t { UNCHANGED = 0, STOP = 1, RESUME = 2 } EquipmentStop;
 
