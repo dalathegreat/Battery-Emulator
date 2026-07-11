@@ -34,21 +34,25 @@ CONFIG_BOOTLOADER_LOG_LEVEL_NONE=y
 # No WPA2/WPA3-Enterprise (you use plain PSK). Drops the enterprise supplicant.
 # CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT is not set
 
-# Root-CA bundle: the FULL store is tens of KB of flash, and this firmware does
-# NO on-device TLS verification (the GitHub release check runs in the browser).
-# It CANNOT be fully removed: arduino-esp32's NetworkClientSecure library does an
+# Root-CA bundle: the FULL store is ~69 KB and this firmware does NO on-device
+# TLS verification (the GitHub release check runs in the browser). The feature
+# CANNOT be fully disabled: arduino-esp32's NetworkClientSecure library does an
 # unconditional #include "esp_crt_bundle.h" (only present when the feature is on),
-# and hybrid mode compiles that unused library from source.
-# NONE doesn't work either: with no certs selected and no custom bundle supplied,
-# the generator emits nothing and the build fails on a missing x509_crt_bundle.S.
-# So use CMN: the common-CA subset. It generates a real (smaller than FULL)
-# bundle, so it links, while still trimming the store vs the default FULL set.
-# >>> If you later supply your own bundle you can switch to NONE + a custom file;
-#     a TLS MQTT broker relying on public-CA verification would want FULL.
+# and hybrid mode compiles that unused library from source. Plain NONE also fails
+# to build (empty generation -> missing x509_crt_bundle.S).
+# So: keep the feature ON, select NONE, and supply a custom bundle holding a
+# single self-signed placeholder CA (Software/src/lib/dummy.pem). The generated
+# blob is ~162 B instead of ~69 KB FULL / ~18 KB CMN. Path is relative to the
+# project root (where platformio.ini lives).
+# >>> Caveat: this dummy is the ONLY trusted root, so any real on-device TLS
+#     verification (secure MQTT / a TLS client) would reject everything. If you
+#     ever need that, switch back to CMN/FULL or point the path at your real CA.
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
-CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_NONE=y
 # CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL is not set
-# CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_NONE is not set
+# CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN is not set
+CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE_PATH="Software/src/lib/dummy.pem"
 
 # -----------------------------------------------------------------------------
 # HYBRID-MODE BUILD FIX (fallback / safety net)
