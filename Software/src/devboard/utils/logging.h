@@ -2,6 +2,7 @@
 #define __LOGGING_H__
 
 #include <inttypes.h>
+#include <string>
 #include "../../datalayer/datalayer.h"
 #include "Print.h"
 #include "types.h"
@@ -16,23 +17,33 @@ class Logging : public Print {
   virtual size_t write(const uint8_t* buffer, size_t size);
   virtual size_t write(uint8_t) { return 0; }
   void printf(const char* fmt, ...);
+#ifndef SMALL_FLASH_DEVICE
+  void set_next_severity(uint8_t sev);  // syslog severity for the next assembled line
+#endif
   Logging() {}
 };
 
 // Production macros
 #define DEBUG_PRINTF(fmt, ...)                                                                  \
   do {                                                                                          \
-    if (datalayer.system.info.web_logging_active || datalayer.system.info.usb_logging_active) { \
+    if (datalayer.system.info.web_logging_active || datalayer.system.info.usb_logging_active || \
+        datalayer.system.info.syslog_logging_active) {                                          \
       logging.printf(fmt, ##__VA_ARGS__);                                                       \
     }                                                                                           \
   } while (0)
 
 #define DEBUG_PRINTLN(str)                                                                      \
   do {                                                                                          \
-    if (datalayer.system.info.web_logging_active || datalayer.system.info.usb_logging_active) { \
+    if (datalayer.system.info.web_logging_active || datalayer.system.info.usb_logging_active || \
+        datalayer.system.info.syslog_logging_active) {                                          \
       logging.println(str);                                                                     \
     }                                                                                           \
   } while (0)
+#ifndef SMALL_FLASH_DEVICE
+#define LOG_SET_NEXT_SEVERITY(sev) logging.set_next_severity(sev)
+#else
+#define LOG_SET_NEXT_SEVERITY(sev) ((void)0)
+#endif
 
 #else
 // Mock implementation for tests
@@ -111,9 +122,17 @@ class Logging {
 #define DEBUG_PRINT(fmt, ...) ((void)0)
 #define DEBUG_PRINTF(fmt, ...) ((void)0)
 #define DEBUG_PRINTLN(str) ((void)0)
+#define LOG_SET_NEXT_SEVERITY(sev) ((void)0)
 
 #endif
 
 extern Logging logging;
+
+#ifndef SMALL_FLASH_DEVICE
+// Remote syslog config (loaded from NVS in comm_nvm.cpp, consumed in logging.cpp)
+extern std::string syslog_ip;
+extern uint16_t syslog_port;
+extern uint8_t syslog_facility;  // 0..23
+#endif
 
 #endif  // __LOGGING_H__

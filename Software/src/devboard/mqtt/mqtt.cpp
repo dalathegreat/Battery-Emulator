@@ -32,20 +32,6 @@ const char* mqtt_server_default = "";
 int mqtt_port = mqtt_port_default;
 std::string mqtt_server = mqtt_server_default;
 
-bool mqtt_manual_topic_object_name =
-    true;  //TODO: should this be configurable from webserver? Or legacy option removed?
-// If this is not true, the previous default naming format 'battery-emulator_esp32-XXXXXX' (based on hardware ID) will be used.
-// This naming convention was in place until version 7.5.0. Users should check the version from which they are updating, as this change
-// may break compatibility with previous versions of MQTT naming
-const char* mqtt_topic_name =
-    "BE";  // Custom MQTT topic name. Previously, the name was automatically set to "battery-emulator_esp32-XXXXXX"
-const char* mqtt_default_entity_id_prefix =
-    "be_";  // Custom prefix for MQTT object ID. Previously, the prefix was automatically set to "esp32-XXXXXX_"
-const char* mqtt_device_name =
-    "Battery Emulator";  // Custom device name in Home Assistant. Previously, the name was automatically set to "BatteryEmulator_esp32-XXXXXX"
-const char* ha_device_id =
-    "battery-emulator";  // Custom device ID in Home Assistant. Previously, the ID was always "battery-emulator"
-
 #define MQTT_QOS 0  // MQTT Quality of Service (0, 1, or 2) //TODO: Should this be configurable?
 
 esp_mqtt_client_config_t mqtt_cfg;
@@ -705,10 +691,8 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
   }
 
   if (strcmp(topic, generateButtonTopic("RESTART").c_str()) == 0) {
-    setBatteryPause(true, true, EquipmentStop::STOP, false);
-    delay(1000);
     hold_pins_across_reset();
-    ESP.restart();
+    graceful_restart();
   }
 
   if (strcmp(topic, generateButtonTopic("STOP").c_str()) == 0) {
@@ -806,37 +790,11 @@ bool init_mqtt(void) {
     create_global_sensor_configs();
   }
 
-  if (mqtt_manual_topic_object_name) {
-
-    BatteryEmulatorSettingsStore settings;
-    topic_name = settings.getString("MQTTTOPIC", mqtt_topic_name);
-    default_entity_id_prefix = settings.getString("MQTTOBJIDPREFIX", mqtt_default_entity_id_prefix);
-    device_name = settings.getString("MQTTDEVICENAME", mqtt_device_name);
-    device_id = settings.getString("HADEVICEID", ha_device_id);
-
-    if (topic_name.length() == 0) {
-      topic_name = mqtt_topic_name;
-    }
-
-    if (default_entity_id_prefix.length() == 0) {
-      default_entity_id_prefix = mqtt_default_entity_id_prefix;
-    }
-
-    if (device_name.length() == 0) {
-      device_name = mqtt_device_name;
-    }
-
-    if (device_id.length() == 0) {
-      device_id = ha_device_id;
-    }
-
-  } else {
-    // Use default naming based on WiFi hostname for topic, object ID prefix, and device name
-    topic_name = "battery-emulator_" + String(WiFi.getHostname());
-    default_entity_id_prefix = String(WiFi.getHostname()) + String("_");
-    device_name = "BatteryEmulator_" + String(WiFi.getHostname());
-    device_id = "battery-emulator";
-  }
+  String hostname = String(WiFi.getHostname());
+  topic_name = hostname;
+  default_entity_id_prefix = hostname + "_";
+  device_name = hostname;
+  device_id = hostname;
 
   String clientId = String("BatteryEmulatorClient-") + WiFi.getHostname();
 

@@ -12,7 +12,7 @@ void VolvoSpaBattery::
   // Update webserver datalayer
   datalayer_extended.VolvoPolestar.BECMUDynMaxLim = MAX_U;
   datalayer_extended.VolvoPolestar.BECMUDynMinLim = MIN_U;
-
+  datalayer_extended.VolvoPolestar.BECMsupplyVoltage = BECMsupplyVoltage;
   datalayer_extended.VolvoPolestar.HvBattPwrLimDcha1 = HvBattPwrLimDcha1;
   datalayer_extended.VolvoPolestar.HvBattPwrLimDchaSoft = HvBattPwrLimDchaSoft;
   datalayer_extended.VolvoPolestar.HvBattPwrLimDchaSlowAgi = HvBattPwrLimDchaSlowAgi;
@@ -68,9 +68,9 @@ void VolvoSpaBattery::
   }
 
   //Check safeties
-  if (datalayer_extended.VolvoPolestar.BECMsupplyVoltage < 10700) {  //10.7V,
+  if (BECMsupplyVoltage < 10700) {  //10.7V,
     //If 12V voltage goes under this, latch battery OFF to prevent contactors from swinging between on/off
-    set_event(EVENT_12V_LOW, (datalayer_extended.VolvoPolestar.BECMsupplyVoltage / 100));
+    set_event(EVENT_12V_LOW, (BECMsupplyVoltage / 100));
     set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0);
   }
 }
@@ -183,7 +183,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0xF4) &&
                  (rx_frame.data.u8[3] == 0x42))  // BECM module voltage supply
       {
-        datalayer_extended.VolvoPolestar.BECMsupplyVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+        BECMsupplyVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
         transmit_can_frame(&VOLVO_BECM_HVIL_Status_Req);  //Send HVIL status readout command
       } else if ((rx_frame.data.u8[0] == 0x04) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
                  (rx_frame.data.u8[3] == 0x1A))  // BECM HVIL status

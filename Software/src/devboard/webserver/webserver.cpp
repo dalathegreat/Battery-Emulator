@@ -418,12 +418,15 @@ void init_webserver() {
   });
 
   const char* boolSettingNames[] = {
-      "DBLBTR",        "CNTCTRL",       "CNTCTRLDBL",  "PWMCNTCTRL",   "PERBMSRESET",   "SDLOGENABLED", "STATICIP",
-      "REMBMSRESET",   "EXTPRECHARGE",  "USBENABLED",  "CANLOGUSB",    "WEBENABLED",    "CANFDASCAN",   "CANFD2ASCAN",
-      "CANLOGSD",      "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC",    "HADISC",        "MQTTTOPICS",   "MQTTCELLV",
-      "GTWRHD",        "DIGITALHVIL",   "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET",  "PYLONORDER",
-      "DEYEBYD",       "NCCONTACTOR",   "TRIBTR",      "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",   "CTINVERT",
-      "LOWPASSFILTER", "WEBAUTH",       "SLOWCANINV",
+      "DBLBTR",      "CNTCTRL",       "CNTCTRLDBL",   "PWMCNTCTRL",    "PERBMSRESET", "SDLOGENABLED", "STATICIP",
+      "REMBMSRESET", "EXTPRECHARGE",  "USBENABLED",   "CANLOGUSB",     "WEBENABLED",  "CANFDASCAN",   "CANFD2ASCAN",
+      "CANLOGSD",    "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",     "HADISC",      "MQTTCELLV",    "GTWRHD",
+      "DIGITALHVIL", "PERFPROFILE",   "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET", "PYLONORDER",   "DEYEBYD",
+      "NCCONTACTOR", "TRIBTR",        "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",  "CTINVERT",     "LOWPASSFILTER",
+      "WEBAUTH",     "SLOWCANINV",
+#ifndef SMALL_FLASH_DEVICE
+      "SYSLOGEN",
+#endif
   };
 
   const char* uintSettingNames[] = {
@@ -434,11 +437,17 @@ void init_webserver() {
       "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS", "GTWPACK",     "LEDMODE",     "GPIOOPT1",  "GPIOOPT2",   "GPIOOPT3",
       "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",     "CTANOM",      "CTATTEN",     "PYLONBAUD", "PYLONBRAND", "DALYPWRPCT",
       "DALYPWRDV",  "DALYDVSTART", "DALYPWRDEG", "DALYPWR0C",   "RAMPDOWNSOC", "GPIOOPT5",  "GPIOOPT6",   "INVICNT",
+#ifndef SMALL_FLASH_DEVICE
+      "SYSLOGPORT", "SYSLOGFAC",
+#endif
   };
 
-  const char* stringSettingNames[] = {"APNAME",         "APPASSWORD",   "HOSTNAME",  "MQTTSERVER",
-                                      "MQTTUSER",       "MQTTPASSWORD", "MQTTTOPIC", "MQTTOBJIDPREFIX",
-                                      "MQTTDEVICENAME", "HADEVICEID",   "HTTPUSER",  "HTTPPASS"};
+  const char* stringSettingNames[] = {"APPASSWORD",   "HOSTNAME", "MQTTSERVER", "MQTTUSER",
+                                      "MQTTPASSWORD", "HTTPUSER", "HTTPPASS",
+#ifndef SMALL_FLASH_DEVICE
+                                      "SYSLOGIP"
+#endif
+  };
 
   // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST,
@@ -842,13 +851,8 @@ void init_webserver() {
   // Route to handle reboot command
   def_route_with_auth("/reboot", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/plain", "Rebooting server...");
-
-    //Equipment STOP without persisting the equipment state before restart
-    // Max Charge/Discharge = 0; CAN = stop; contactors = open
-    setBatteryPause(true, true, EquipmentStop::STOP, false);
-    delay(1000);
     hold_pins_across_reset();
-    ESP.restart();
+    graceful_restart();
   });
 
   // Initialize ElegantOTA
@@ -882,9 +886,6 @@ String getConnectResultString(wl_status_t status) {
 }
 
 void ota_monitor() {
-
-  ElegantOTA.loop();
-
   if (ota_active && ota_timeout_timer.elapsed()) {
     // OTA timeout, try to restore can and clear the update event
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
@@ -1038,8 +1039,7 @@ String processor(const String& var) {
     }
 
     if (ap_active) {
-      content += "<h4>Wi-Fi access point active &mdash; SSID: " + html_escape(ssidAP.c_str()) + " (" +
-                 WiFi.softAPIP().toString() + ")</h4>";
+      content += "<h4>Access Point active: " + WiFi.softAPIP().toString() + "</h4>";
     }
 
     // Close the block
@@ -1709,7 +1709,7 @@ String processor(const String& var) {
 
 void onOTAStart() {
   //try to Pause the battery
-  setBatteryPause(true, true);
+  setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
 
   // Log when OTA has started
   set_event(EVENT_OTA_UPDATE, 0);
@@ -1738,16 +1738,13 @@ void onOTAEnd(bool success) {
 
   // Log when OTA has finished
   if (success) {
-    //Equipment STOP without persisting the equipment state before restart
-    // Max Charge/Discharge = 0; CAN = stop; contactors = open
-    setBatteryPause(true, true, EquipmentStop::STOP, false);
-    // a reboot will be done by the OTA library. no need to do anything here
     logging.println("OTA update finished successfully!");
     hold_pins_across_reset();
+    graceful_restart();
   } else {
     logging.println("There was an error during OTA update!");
-    //try to Resume the battery pause and CAN communication
-    setBatteryPause(false, false);
+    // Unpause battery (preserving equipment stop if set)
+    setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
   }
 }
 
