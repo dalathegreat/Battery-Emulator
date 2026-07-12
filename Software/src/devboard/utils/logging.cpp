@@ -26,15 +26,17 @@ static WiFiUDP syslogUdp;
 static char syslogLine[SYSLOG_LINE_MAX];
 static size_t syslogLineLen = 0;
 
+// ---- Pre-connectivity backlog ----
 // Lines logged before we can send are buffered here and replayed on connect.
-// Heap-allocated on first use, freed after the flush -> no permanent RAM cost.
-// Record layout: [uint8 severity][text\0]
+// Heap-allocated on first use, freed once drained. Record layout: [uint8 severity][text\0]
 #define SYSLOG_BACKLOG_MAX 4096
+#define SYSLOG_BACKLOG_BURST 4  // records per flush call — keeps the core task inside its 10 ms budget 
 static char* syslogBacklog = nullptr;
 static size_t syslogBacklogLen = 0;
+static size_t syslogBacklogPos = 0;
 
 // Same rule as init_WiFi(): custom hostname if set, otherwise the MAC-derived default.
-// Cached — default_hostname() re-reads eFuse and heap-allocates a String on every call.
+// Cached — default_hostname() re-reads eFuse and allocates a String on every call.
 static const char* syslog_hostname(void) {
   if (!custom_hostname.empty()) {
     return custom_hostname.c_str();
@@ -52,11 +54,10 @@ static void syslog_send(uint8_t sev, const char* msg) {
     return;
   }
   uint8_t pri = (uint8_t)((syslog_facility & 0x1F) * 8 + (sev & 0x07));
-  const char* host = syslog_hostname();
   if (syslogUdp.beginPacket(dst, syslog_port)) {
     // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
     // NILVALUE '-' timestamp -> the syslog server stamps on receipt.
-    syslogUdp.printf("<%u>1 - %s BatteryEmulator - - - %s", pri, host, msg);
+    syslogUdp.printf("<%u>1 - %s BatteryEmulator - - - %s", pri, syslog_hostname(), msg);
     syslogUdp.endPacket();
   }
 }
@@ -64,7 +65,7 @@ static void syslog_send(uint8_t sev, const char* msg) {
 static void syslog_backlog_push(uint8_t sev, const char* msg) {
   char rec[SYSLOG_LINE_MAX + 24];
   unsigned long ms = millis();
-  // No clock at boot: carry the uptime in MSG, else replayed lines all look simultaneous.
+  // No wall clock at boot: carry the uptime in MSG, else replayed lines all look simultaneous.
   int n = snprintf(rec, sizeof(rec), "[boot +%lu.%03lus] %s", ms / 1000, ms % 1000, msg);
   if (n < 0) {
     return;
@@ -76,7 +77,7 @@ static void syslog_backlog_push(uint8_t sev, const char* msg) {
     }
     syslogBacklog = (char*)malloc(SYSLOG_BACKLOG_MAX);
     if (syslogBacklog == nullptr) {
-      return;  // out of heap -> just drop, logging must never be fatal
+      return;  // out of heap -> drop; logging must never be fatal
     }
   }
   if (syslogBacklogLen + 1 + (size_t)n + 1 > SYSLOG_BACKLOG_MAX) {
@@ -94,16 +95,20 @@ void syslog_backlog_flush(void) {
   if (WiFi.status() != WL_CONNECTED && WiFi.softAPgetStationNum() == 0) {
     return;
   }
-  size_t i = 0;
-  while (i < syslogBacklogLen) {
-    uint8_t sev = (uint8_t)syslogBacklog[i++];
-    const char* msg = &syslogBacklog[i];
+  uint8_t sent = 0;
+  while (syslogBacklogPos < syslogBacklogLen && sent < SYSLOG_BACKLOG_BURST) {
+    uint8_t sev = (uint8_t)syslogBacklog[syslogBacklogPos++];
+    const char* msg = &syslogBacklog[syslogBacklogPos];
     syslog_send(sev, msg);
-    i += strlen(msg) + 1;
+    syslogBacklogPos += strlen(msg) + 1;
+    sent++;
   }
-  free(syslogBacklog);
-  syslogBacklog = nullptr;
-  syslogBacklogLen = 0;
+  if (syslogBacklogPos >= syslogBacklogLen) {  // drained -> give the RAM back
+    free(syslogBacklog);
+    syslogBacklog = nullptr;
+    syslogBacklogLen = 0;
+    syslogBacklogPos = 0;
+  }
 }
 
 void Logging::set_next_severity(uint8_t sev) {
