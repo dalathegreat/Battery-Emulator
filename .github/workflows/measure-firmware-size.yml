@@ -1,13 +1,23 @@
 name: ⚖️ Measure firmware size
 
-# Runs as a consumer of the compile workflow's per-board size reports
-# (${{ matrix.pio_env }}.size.json inside each per-board artifact).
+# Reusable workflow called by "🔋 Compile Common Images" on pull_request.
 # No PlatformIO, no rebuilds — just download, diff, and comment.
 
 on:
-  workflow_run:
-    workflows: ["🔋 Compile Common Images"]
-    types: [completed]
+  workflow_call:
+    inputs:
+      pr_number:
+        description: "Number of the PR being measured."
+        required: true
+        type: string
+      base_ref:
+        description: "Base branch the PR targets (e.g. main)."
+        required: true
+        type: string
+      base_sha:
+        description: "Base branch tip SHA, for the comment header."
+        required: true
+        type: string
 
 permissions:
   actions: read       # list workflow runs; cross-run artifact download
@@ -15,64 +25,64 @@ permissions:
 
 jobs:
   measure:
-    # Only when the triggering compile run was itself started by a PR,
-    # and it didn't get cancelled outright. Individual board failures
-    # are tolerated — the render script handles missing size reports.
-    if: >
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion != 'cancelled'
     runs-on: ubuntu-latest
     steps:
+    - name: Check PR context
+      if: inputs.pr_number == '' || inputs.base_ref == ''
+      run: |
+        echo "::error::measure was called without a PR number / base ref." >&2
+        exit 1
+
     - name: Checkout scripts
       uses: actions/checkout@v7
       with:
         sparse-checkout: .github/scripts
 
-    - name: Download PR-side artifacts from triggering run
-      uses: actions/download-artifact@v4
+    - name: Download PR-side size reports from this run
+      uses: actions/download-artifact@v8
       with:
         path: ./pr
-        run-id: ${{ github.event.workflow_run.id }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
         pattern: "battery-emulator-*"
         merge-multiple: true
 
-    - name: Resolve PR context and base compile run
+    - name: Resolve base compile run
       id: ctx
-      uses: actions/github-script@v7
+      uses: actions/github-script@v9
       with:
         script: |
-          const head_sha = context.payload.workflow_run.head_sha;
           const { owner, repo } = context.repo;
 
-          // commits/{sha}/pulls works for fork PRs too, unlike workflow_run.pull_requests.
-          const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-            owner, repo, commit_sha: head_sha,
-          });
-          const pr = prs[0];
-          if (!pr) {
-            core.info(`No PR found for head SHA ${head_sha}; nothing to comment on.`);
-            return;
-          }
-
-          // Most recent successful push-triggered compile run on the PR's base branch.
+          // Find every compile run for the PRs EXACT base commit
           const { data: runs } = await github.rest.actions.listWorkflowRuns({
             owner, repo,
             workflow_id: 'compile-common-image.yml',
-            branch: pr.base.ref,
             event: 'push',
-            status: 'success',
-            per_page: 1,
+            head_sha: '${{ inputs.base_sha }}',
+            per_page: 20,
           });
 
-          core.setOutput('pr_number',   pr.number);
-          core.setOutput('base_branch', pr.base.ref);
-          core.setOutput('base_sha',    pr.base.sha);
-          core.setOutput('run_id',      runs.workflow_runs[0]?.id ?? '');
+          // Retrieve the number of usable (non-expired) artifacts
+          const scored = [];
+          for (const run of runs.workflow_runs) {
+            const { data: arts } =
+              await github.rest.actions.listWorkflowRunArtifacts({
+                owner, repo, run_id: run.id, per_page: 100,
+              });
+            const usable = arts.artifacts.filter(a => !a.expired).length;
+            if (usable > 0) {
+              scored.push({ id: run.id, usable, created: run.created_at });
+            }
+          }
+          // Find the run with the most artifacts, or the newest
+          scored.sort((a, b) =>
+            b.usable - a.usable || b.created.localeCompare(a.created)
+          );
+
+          core.setOutput('run_id', scored[0]?.id ?? '');
 
     - name: Download base-branch artifacts
-      if: steps.ctx.outputs.pr_number != '' && steps.ctx.outputs.run_id != ''
-      uses: actions/download-artifact@v4
+      if: steps.ctx.outputs.run_id != ''
+      uses: actions/download-artifact@v8
       with:
         path: ./base
         run-id: ${{ steps.ctx.outputs.run_id }}
@@ -81,20 +91,18 @@ jobs:
         merge-multiple: true
 
     - name: Render comment
-      if: steps.ctx.outputs.pr_number != ''
       run: |
         python .github/scripts/render_size_comment.py \
           --pr-dir ./pr \
           --base-dir ./base \
-          --base-branch "${{ steps.ctx.outputs.base_branch }}" \
-          --base-sha    "${{ steps.ctx.outputs.base_sha }}" \
-          --head-sha    "${{ github.event.workflow_run.head_sha }}" \
+          --base-branch "${{ inputs.base_ref }}" \
+          --base-sha    "${{ inputs.base_sha }}" \
+          --head-sha    "${{ github.event.pull_request.head.sha }}" \
           > comment.md
-        echo "${{ steps.ctx.outputs.pr_number }}" > pr_number.txt
+        echo "${{ inputs.pr_number }}" > pr_number.txt
 
     - name: Upload firmware size report
-      if: steps.ctx.outputs.pr_number != ''
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: comment-for-pr
         if-no-files-found: error

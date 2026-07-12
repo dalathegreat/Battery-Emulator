@@ -104,3 +104,15 @@ jobs:
           firmware-*.bin
           ${{ matrix.pio_env }}.size.json
         if-no-files-found: warn
+
+  measure-size:
+    needs: build
+    if: always() && github.event_name == 'pull_request' # Continue on compile failures
+    permissions:
+      actions: read
+      contents: read
+    uses: ./.github/workflows/measure-firmware-size.yml
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref:  ${{ github.event.pull_request.base.ref }}
+      base_sha:  ${{ github.event.pull_request.base.sha }}
