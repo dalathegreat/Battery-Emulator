@@ -62,30 +62,43 @@ static void syslog_send(uint8_t sev, const char* msg) {
   }
 }
 
-static void syslog_backlog_push(uint8_t sev, const char* msg) {
+static bool syslog_backlog_push(uint8_t sev, const char* msg, bool stamp) {
   char rec[SYSLOG_LINE_MAX + 24];
-  unsigned long ms = millis();
-  // No wall clock at boot: carry the uptime in MSG, else replayed lines all look simultaneous.
-  int n = snprintf(rec, sizeof(rec), "[boot +%lu.%03lus] %s", ms / 1000, ms % 1000, msg);
+  int n;
+  if (stamp) {
+    // No wall clock at boot: carry the uptime in MSG, else replayed lines all look simultaneous.
+    unsigned long ms = millis();
+    n = snprintf(rec, sizeof(rec), "[boot +%lu.%03lus] %s", ms / 1000, ms % 1000, msg);
+  } else {
+    n = snprintf(rec, sizeof(rec), "%s", msg);  // already online, no prefix
+  }
   if (n < 0) {
-    return;
+    return false;
   }
   if (syslogBacklog == nullptr) {
     IPAddress dst;
     if (!dst.fromString(syslog_ip.c_str())) {
-      return;  // no syslog server configured -> never allocate
+      return false;  // no syslog server configured -> never allocate
     }
     syslogBacklog = (char*)malloc(SYSLOG_BACKLOG_MAX);
     if (syslogBacklog == nullptr) {
-      return;  // out of heap -> drop; logging must never be fatal
+      return false;  // out of heap -> drop; logging must never be fatal
     }
   }
-  if (syslogBacklogLen + 1 + (size_t)n + 1 > SYSLOG_BACKLOG_MAX) {
-    return;  // full -> keep the earliest lines, they are the point of buffering
+  size_t need = 1 + (size_t)n + 1;
+  if (syslogBacklogLen + need > SYSLOG_BACKLOG_MAX && syslogBacklogPos > 0) {
+    // Tail hit the cap but the head is already sent: slide the pending region down.
+    memmove(syslogBacklog, syslogBacklog + syslogBacklogPos, syslogBacklogLen - syslogBacklogPos);
+    syslogBacklogLen -= syslogBacklogPos;
+    syslogBacklogPos = 0;
+  }
+  if (syslogBacklogLen + need > SYSLOG_BACKLOG_MAX) {
+    return false;  // genuinely full
   }
   syslogBacklog[syslogBacklogLen++] = (char)sev;
   memcpy(syslogBacklog + syslogBacklogLen, rec, n + 1);
   syslogBacklogLen += n + 1;
+  return true;
 }
 
 void syslog_backlog_flush(void) {
@@ -125,11 +138,17 @@ static void syslog_flush_line(void) {
   }
   syslogLine[len] = '\0';
   uint8_t sev = (sev_override >= 0) ? (uint8_t)sev_override : SYSLOG_DEFAULT_SEVERITY;
-  if (WiFi.status() == WL_CONNECTED || WiFi.softAPgetStationNum() > 0) {
-    syslog_backlog_flush();  // replay buffered lines first, keeps ordering
-    syslog_send(sev, syslogLine);
+  bool online = (WiFi.status() == WL_CONNECTED || WiFi.softAPgetStationNum() > 0);
+  if (!online) {
+    syslog_backlog_push(sev, syslogLine, true);
+  } else if (syslogBacklog != nullptr) {
+    // Still draining: queue behind it so the server sees strict FIFO order.
+    if (!syslog_backlog_push(sev, syslogLine, false)) {
+      syslog_send(sev, syslogLine);  // backlog full -> send now rather than lose the line
+    }
+    syslog_backlog_flush();  // drains SYSLOG_BACKLOG_BURST records
   } else {
-    syslog_backlog_push(sev, syslogLine);
+    syslog_send(sev, syslogLine);
   }
 }
 
