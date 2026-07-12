@@ -1,9 +1,9 @@
 #include "precharge_control.h"
-#include "precharge_control_i2c_g05.h"
 #include <Arduino.h>
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/hal/hal.h"
+#include "precharge_control_i2c_g05.h"
 #include "src/battery/BATTERIES.h"
 
 // Parameters adjustable by user in Settings page
@@ -51,7 +51,6 @@ static float g05_target_to_tps_voltage(int32_t target_dV) {
 
   return tps;
 }
-
 
 static void disable_precharge_output(gpio_num_t hia4v1_pin) {
   if (is_precharge_control_i2c_g05_enabled()) {
@@ -232,8 +231,7 @@ void handle_precharge_control(unsigned long currentMillis) {
         datalayer.system.info.start_precharging = false;
       } else if ((datalayer.battery.status.real_bms_status != BMS_STANDBY &&
                   datalayer.battery.status.real_bms_status != BMS_ACTIVE) ||
-                 datalayer.system.status.system_status != ACTIVE ||
-                 datalayer.system.info.equipment_stop_active ||
+                 datalayer.system.status.system_status != ACTIVE || datalayer.system.info.equipment_stop_active ||
                  !datalayer.system.status.inverter_allows_contactor_closing) {
         disable_precharge_output(hia4v1_pin);
         digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_ON);
@@ -262,8 +260,7 @@ void handle_precharge_control(unsigned long currentMillis) {
     case AUTO_PRECHARGE_OFF:
       // This is not used anymore?
       if (!datalayer.system.status.battery_allows_contactor_closing ||
-          !datalayer.system.status.inverter_allows_contactor_closing ||
-          datalayer.system.info.equipment_stop_active ||
+          !datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.info.equipment_stop_active ||
           datalayer.system.status.system_status != FAULT) {
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
         disable_precharge_output(hia4v1_pin);
