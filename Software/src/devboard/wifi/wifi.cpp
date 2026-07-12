@@ -28,18 +28,10 @@ const char* DEFAULT_AP_PASSWORD = "123456789";
 
 // Set your Static IP address. Only used incase Static address option is set
 bool static_IP_enabled = false;
-uint8_t static_local_IP1 = 0;
-uint8_t static_local_IP2 = 0;
-uint8_t static_local_IP3 = 0;
-uint8_t static_local_IP4 = 0;
-uint8_t static_gateway1 = 0;
-uint8_t static_gateway2 = 0;
-uint8_t static_gateway3 = 0;
-uint8_t static_gateway4 = 0;
-uint8_t static_subnet1 = 0;
-uint8_t static_subnet2 = 0;
-uint8_t static_subnet3 = 0;
-uint8_t static_subnet4 = 0;
+std::string static_local_IP;
+std::string static_gateway;
+std::string static_subnet;
+std::string static_dns;
 
 // Configuration Parameters
 static const uint16_t WIFI_CHECK_INTERVAL = 2000;       // 1 seconds normal check interval when last connected
@@ -144,14 +136,21 @@ void init_WiFi() {
   WiFi.setAutoReconnect(true);
 
   if (static_IP_enabled) {
-    // Set static IP
-    IPAddress local_IP((uint8_t)static_local_IP1, (uint8_t)static_local_IP2, (uint8_t)static_local_IP3,
-                       (uint8_t)static_local_IP4);
-    IPAddress gateway((uint8_t)static_gateway1, (uint8_t)static_gateway2, (uint8_t)static_gateway3,
-                      (uint8_t)static_gateway4);
-    IPAddress subnet((uint8_t)static_subnet1, (uint8_t)static_subnet2, (uint8_t)static_subnet3,
-                     (uint8_t)static_subnet4);
-    WiFi.config(local_IP, gateway, subnet);
+    IPAddress local_IP, gateway, subnet, dns;
+    if (local_IP.fromString(static_local_IP.c_str()) && gateway.fromString(static_gateway.c_str()) &&
+        subnet.fromString(static_subnet.c_str())) {
+      // WiFi.config() stops the DHCP client and unconditionally overwrites the DNS server. Passing no DNS
+      // therefore leaves the resolver at 0.0.0.0 and breaks MQTT-by-hostname/release checks. Default to
+      // the gateway, which is the resolver on virtually every home network.
+      if (!dns.fromString(static_dns.c_str())) {
+        dns = gateway;
+      }
+      if (!WiFi.config(local_IP, gateway, subnet, dns)) {
+        logging.println("Static IP configuration rejected, falling back to DHCP");
+      }
+    } else {
+      logging.println("Static IP settings are invalid, falling back to DHCP");
+    }
   }
 
   // Start Wi-Fi connection

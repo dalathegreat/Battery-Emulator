@@ -79,6 +79,13 @@ class BatteryEmulatorSettingsStore {
 
   bool settingExists(const char* name) { return settings.isKey(name); }
 
+  void removeKey(const char* name) {
+    if (settings.isKey(name)) {
+      settings.remove(name);
+      settingsUpdated = true;
+    }
+  }
+
   bool getBool(const char* name, bool defaultValue = false) {
     return settings.isKey(name) ? settings.getBool(name, defaultValue) : defaultValue;
   }
