@@ -179,6 +179,20 @@ void NissanLeafBattery::
     }
   }
 
+  // Derive aggregate balancing status from the per-cell shunt bits polled from group 0x06.
+  // Recomputed every cycle in both directions.
+  if (balancing_data_received) {
+    bool any_shunt_active = false;
+    for (uint8_t i = 0; i < 96; i++) {
+      if (battery_balancing_shunts[i]) {
+        any_shunt_active = true;
+        break;
+      }
+    }
+    datalayer_battery->status.balancing_status =
+        any_shunt_active ? BALANCING_STATUS_ACTIVE : BALANCING_STATUS_READY;
+  }
+
   // Update webserver datalayer
   if (datalayer_nissan) {
     memcpy(datalayer_nissan->BatterySerialNumber, BatterySerialNumber, sizeof(BatterySerialNumber));
@@ -504,6 +518,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             battery_balancing_shunts[88 + i] = (rx_frame.data.u8[1] & (1 << i)) >> i;
           }
           memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
+          balancing_data_received = true;
         }
 
         if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23 FF FF FF FF FF FF FF)
