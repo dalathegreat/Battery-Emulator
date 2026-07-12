@@ -1,0 +1,1742 @@
+[
+  {
+    "code": 100,
+    "dtc": "BMS_a001",
+    "s_dsc": "BMS_a001_Pack_Config_Mismatch",
+    "l_dsc": "Pack Config Mismatch"
+  },
+  {
+    "code": 101,
+    "dtc": "BMS_a017",
+    "s_dsc": "BMS_a017_SW_Brick_OV",
+    "l_dsc": "Brick OV"
+  },
+  {
+    "code": 102,
+    "dtc": "BMS_a018",
+    "s_dsc": "BMS_a018_SW_Brick_UV",
+    "l_dsc": "Brick UV"
+  },
+  {
+    "code": 103,
+    "dtc": "BMS_a019",
+    "s_dsc": "BMS_a019_SW_Module_OT",
+    "l_dsc": "Module OT"
+  },
+  {
+    "code": 104,
+    "dtc": "BMS_a021",
+    "s_dsc": "BMS_a021_SW_Dr_Limits_Regulation",
+    "l_dsc": "Dr Limits Regulation"
+  },
+  {
+    "code": 105,
+    "dtc": "BMS_a022",
+    "s_dsc": "BMS_a022_SW_Over_Current",
+    "l_dsc": "Over Current"
+  },
+  {
+    "code": 106,
+    "dtc": "BMS_a023",
+    "s_dsc": "BMS_a023_SW_Stack_OV",
+    "l_dsc": "Stack OV"
+  },
+  {
+    "code": 107,
+    "dtc": "BMS_a024",
+    "s_dsc": "BMS_a024_SW_Islanded_Brick",
+    "l_dsc": "Islanded Brick"
+  },
+  {
+    "code": 108,
+    "dtc": "BMS_a025",
+    "s_dsc": "BMS_a025_SW_PwrBalance_Anomaly",
+    "l_dsc": "Pwr Balance Anomaly"
+  },
+  {
+    "code": 109,
+    "dtc": "BMS_a026",
+    "s_dsc": "BMS_a026_SW_HFCurrent_Anomaly",
+    "l_dsc": "HF Current Anomaly"
+  },
+  {
+    "code": 110,
+    "dtc": "BMS_a034",
+    "s_dsc": "BMS_a034_SW_Passive_Isolation",
+    "l_dsc": "Passive Isolation"
+  },
+  {
+    "code": 111,
+    "dtc": "BMS_a035",
+    "s_dsc": "BMS_a035_SW_Isolation",
+    "l_dsc": "Isolation"
+  },
+  {
+    "code": 112,
+    "dtc": "BMS_a036",
+    "s_dsc": "BMS_a036_SW_HvpHvilFault",
+    "l_dsc": "Hvp Hvil Fault"
+  },
+  {
+    "code": 113,
+    "dtc": "BMS_a037",
+    "s_dsc": "BMS_a037_SW_Flood_Port_Open",
+    "l_dsc": "Flood Port Open"
+  },
+  {
+    "code": 114,
+    "dtc": "BMS_a039",
+    "s_dsc": "BMS_a039_SW_DC_Link_Over_Voltage",
+    "l_dsc": "DC Link Over Voltage"
+  },
+  {
+    "code": 115,
+    "dtc": "BMS_a041",
+    "s_dsc": "BMS_a041_SW_Power_On_Reset",
+    "l_dsc": "Power On Reset"
+  },
+  {
+    "code": 116,
+    "dtc": "BMS_a042",
+    "s_dsc": "BMS_a042_SW_MPU_Error",
+    "l_dsc": "MPU Error"
+  },
+  {
+    "code": 117,
+    "dtc": "BMS_a043",
+    "s_dsc": "BMS_a043_SW_Watch_Dog_Reset",
+    "l_dsc": "Watch Dog Reset"
+  },
+  {
+    "code": 118,
+    "dtc": "BMS_a044",
+    "s_dsc": "BMS_a044_SW_Assertion",
+    "l_dsc": "Assertion"
+  },
+  {
+    "code": 119,
+    "dtc": "BMS_a045",
+    "s_dsc": "BMS_a045_SW_Exception",
+    "l_dsc": "Exception"
+  },
+  {
+    "code": 120,
+    "dtc": "BMS_a046",
+    "s_dsc": "BMS_a046_SW_Task_Stack_Usage",
+    "l_dsc": "Task Stack Usage"
+  },
+  {
+    "code": 121,
+    "dtc": "BMS_a047",
+    "s_dsc": "BMS_a047_SW_Task_Stack_Overflow",
+    "l_dsc": "Task Stack Overflow"
+  },
+  {
+    "code": 122,
+    "dtc": "BMS_a048",
+    "s_dsc": "BMS_a048_SW_Log_Upload_Request",
+    "l_dsc": "Log Upload Request"
+  },
+  {
+    "code": 123,
+    "dtc": "BMS_a050",
+    "s_dsc": "BMS_a050_SW_Brick_Voltage_MIA",
+    "l_dsc": "Brick Voltage MIA"
+  },
+  {
+    "code": 124,
+    "dtc": "BMS_a051",
+    "s_dsc": "BMS_a051_SW_HVC_Vref_Bad",
+    "l_dsc": "HVC Vref Bad"
+  },
+  {
+    "code": 125,
+    "dtc": "BMS_a052",
+    "s_dsc": "BMS_a052_SW_PCS_MIA",
+    "l_dsc": "PCS MIA"
+  },
+  {
+    "code": 126,
+    "dtc": "BMS_a053",
+    "s_dsc": "BMS_a053_SW_ThermalModel_Sanity",
+    "l_dsc": "Thermal Model Sanity"
+  },
+  {
+    "code": 127,
+    "dtc": "BMS_a054",
+    "s_dsc": "BMS_a054_SW_Ver_Supply_Fault",
+    "l_dsc": "Ver Supply Fault"
+  },
+  {
+    "code": 128,
+    "dtc": "BMS_a055",
+    "s_dsc": "BMS_a055_SW_HvChain_Model_Fault",
+    "l_dsc": "Hv Chain Model Fault"
+  },
+  {
+    "code": 129,
+    "dtc": "BMS_a059",
+    "s_dsc": "BMS_a059_SW_Pack_Voltage_Sensing",
+    "l_dsc": "Pack Voltage Sensing"
+  },
+  {
+    "code": 130,
+    "dtc": "BMS_a060",
+    "s_dsc": "BMS_a060_SW_Leakage_Test_Failure",
+    "l_dsc": "Leakage Test Failure"
+  },
+  {
+    "code": 131,
+    "dtc": "BMS_a061",
+    "s_dsc": "BMS_a061_robinBrickOverVoltage",
+    "l_dsc": "Robin Brick Over Voltage"
+  },
+  {
+    "code": 132,
+    "dtc": "BMS_a062",
+    "s_dsc": "BMS_a062_SW_BrickV_Imbalance",
+    "l_dsc": "Brick V Imbalance"
+  },
+  {
+    "code": 133,
+    "dtc": "BMS_a063",
+    "s_dsc": "BMS_a063_SW_ChargePort_Fault",
+    "l_dsc": "Charge Port Fault"
+  },
+  {
+    "code": 134,
+    "dtc": "BMS_a064",
+    "s_dsc": "BMS_a064_SW_SOC_Imbalance",
+    "l_dsc": "SOC Imbalance"
+  },
+  {
+    "code": 135,
+    "dtc": "BMS_a069",
+    "s_dsc": "BMS_a069_SW_Low_Power",
+    "l_dsc": "Low Power"
+  },
+  {
+    "code": 136,
+    "dtc": "BMS_a071",
+    "s_dsc": "BMS_a071_SW_SM_TransCon_Not_Met",
+    "l_dsc": "SM Trans Con Not Met"
+  },
+  {
+    "code": 137,
+    "dtc": "BMS_a075",
+    "s_dsc": "BMS_a075_SW_Chg_Disable_Failure",
+    "l_dsc": "Chg Disable Failure"
+  },
+  {
+    "code": 138,
+    "dtc": "BMS_a076",
+    "s_dsc": "BMS_a076_SW_Dch_While_Charging",
+    "l_dsc": "Dch While Charging"
+  },
+  {
+    "code": 139,
+    "dtc": "BMS_a077",
+    "s_dsc": "BMS_a077_SW_Charger_Regulation",
+    "l_dsc": "Charger Regulation"
+  },
+  {
+    "code": 140,
+    "dtc": "BMS_a081",
+    "s_dsc": "BMS_a081_SW_Ctr_Close_Blocked",
+    "l_dsc": "Ctr Close Blocked"
+  },
+  {
+    "code": 141,
+    "dtc": "BMS_a082",
+    "s_dsc": "BMS_a082_SW_Ctr_Force_Open",
+    "l_dsc": "Ctr Force Open"
+  },
+  {
+    "code": 142,
+    "dtc": "BMS_a083",
+    "s_dsc": "BMS_a083_SW_Ctr_Close_Failure",
+    "l_dsc": "Ctr Close Failure"
+  },
+  {
+    "code": 143,
+    "dtc": "BMS_a084",
+    "s_dsc": "BMS_a084_SW_Sleep_Wake_Aborted",
+    "l_dsc": "Sleep Wake Aborted"
+  },
+  {
+    "code": 144,
+    "dtc": "BMS_a087",
+    "s_dsc": "BMS_a087_SW_Feim_Test_Blocked",
+    "l_dsc": "Feim Test Blocked"
+  },
+  {
+    "code": 145,
+    "dtc": "BMS_a088",
+    "s_dsc": "BMS_a088_SW_VcFront_MIA_InDrive",
+    "l_dsc": "Vc Front MIA In Drive"
+  },
+  {
+    "code": 146,
+    "dtc": "BMS_a089",
+    "s_dsc": "BMS_a089_SW_VcFront_MIA",
+    "l_dsc": "Vc Front MIA"
+  },
+  {
+    "code": 147,
+    "dtc": "BMS_a090",
+    "s_dsc": "BMS_a090_SW_Gateway_MIA",
+    "l_dsc": "Gateway MIA"
+  },
+  {
+    "code": 148,
+    "dtc": "BMS_a091",
+    "s_dsc": "BMS_a091_SW_ChargePort_MIA",
+    "l_dsc": "Charge Port MIA"
+  },
+  {
+    "code": 149,
+    "dtc": "BMS_a092",
+    "s_dsc": "BMS_a092_SW_ChargePort_Mia_On_Hvs",
+    "l_dsc": "Charge Port Mia On Hvs"
+  },
+  {
+    "code": 150,
+    "dtc": "BMS_a094",
+    "s_dsc": "BMS_a094_SW_Drive_Inverter_MIA",
+    "l_dsc": "Drive Inverter MIA"
+  },
+  {
+    "code": 151,
+    "dtc": "BMS_a099",
+    "s_dsc": "BMS_a099_SW_BMB_Communication",
+    "l_dsc": "BMB Communication"
+  },
+  {
+    "code": 152,
+    "dtc": "BMS_a105",
+    "s_dsc": "BMS_a105_SW_One_Module_Tsense",
+    "l_dsc": "One Module Tsense"
+  },
+  {
+    "code": 153,
+    "dtc": "BMS_a106",
+    "s_dsc": "BMS_a106_SW_All_Module_Tsense",
+    "l_dsc": "All Module Tsense"
+  },
+  {
+    "code": 154,
+    "dtc": "BMS_a107",
+    "s_dsc": "BMS_a107_SW_Stack_Voltage_MIA",
+    "l_dsc": "Stack Voltage MIA"
+  },
+  {
+    "code": 155,
+    "dtc": "BMS_a121",
+    "s_dsc": "BMS_a121_SW_NVRAM_Config_Error",
+    "l_dsc": "NVRAM Config Error"
+  },
+  {
+    "code": 156,
+    "dtc": "BMS_a122",
+    "s_dsc": "BMS_a122_SW_BMS_Therm_Irrational",
+    "l_dsc": "BMS Therm Irrational"
+  },
+  {
+    "code": 157,
+    "dtc": "BMS_a123",
+    "s_dsc": "BMS_a123_SW_Internal_Isolation",
+    "l_dsc": "Internal Isolation"
+  },
+  {
+    "code": 158,
+    "dtc": "BMS_a126",
+    "s_dsc": "BMS_a126_SW_Thermistor_Failure",
+    "l_dsc": "Thermistor Failure"
+  },
+  {
+    "code": 159,
+    "dtc": "BMS_a127",
+    "s_dsc": "BMS_a127_SW_shunt_SNA",
+    "l_dsc": "Shunt SNA"
+  },
+  {
+    "code": 160,
+    "dtc": "BMS_a128",
+    "s_dsc": "BMS_a128_SW_shunt_MIA",
+    "l_dsc": "Shunt MIA"
+  },
+  {
+    "code": 161,
+    "dtc": "BMS_a129",
+    "s_dsc": "BMS_a129_SW_VSH_Failure",
+    "l_dsc": "VSH Failure"
+  },
+  {
+    "code": 162,
+    "dtc": "BMS_a130",
+    "s_dsc": "BMS_a130_IO_CAN_Error",
+    "l_dsc": "CAN Error"
+  },
+  {
+    "code": 163,
+    "dtc": "BMS_a131",
+    "s_dsc": "BMS_a131_Bleed_FET_Failure",
+    "l_dsc": "Bleed FET Failure"
+  },
+  {
+    "code": 164,
+    "dtc": "BMS_a132",
+    "s_dsc": "BMS_a132_HW_BMB_OTP_Uncorrctbl",
+    "l_dsc": "BMB OTP Uncorrctbl"
+  },
+  {
+    "code": 165,
+    "dtc": "BMS_a134",
+    "s_dsc": "BMS_a134_SW_Delayed_Ctr_Off",
+    "l_dsc": "Delayed Ctr Off"
+  },
+  {
+    "code": 166,
+    "dtc": "BMS_a135",
+    "s_dsc": "BMS_a135_HW_BMB_Diagnostics_Failure",
+    "l_dsc": "BMB Diagnostics Failure"
+  },
+  {
+    "code": 167,
+    "dtc": "BMS_a136",
+    "s_dsc": "BMS_a136_SW_Module_OT_Warning",
+    "l_dsc": "Module OT Warning"
+  },
+  {
+    "code": 168,
+    "dtc": "BMS_a137",
+    "s_dsc": "BMS_a137_SW_Brick_UV_Warning",
+    "l_dsc": "Brick UV Warning"
+  },
+  {
+    "code": 169,
+    "dtc": "BMS_a138",
+    "s_dsc": "BMS_a138_SW_Brick_OV_Warning",
+    "l_dsc": "Brick OV Warning"
+  },
+  {
+    "code": 170,
+    "dtc": "BMS_a139",
+    "s_dsc": "BMS_a139_SW_DC_Link_V_Irrational",
+    "l_dsc": "DC Link V Irrational"
+  },
+  {
+    "code": 171,
+    "dtc": "BMS_a141",
+    "s_dsc": "BMS_a141_SW_BMB_Status_Warning",
+    "l_dsc": "BMB Status Warning"
+  },
+  {
+    "code": 172,
+    "dtc": "BMS_a143",
+    "s_dsc": "BMS_a143_SW_CAC_Change",
+    "l_dsc": "CAC Change"
+  },
+  {
+    "code": 173,
+    "dtc": "BMS_a144",
+    "s_dsc": "BMS_a144_Hvp_Config_Mismatch",
+    "l_dsc": "Hvp Config Mismatch"
+  },
+  {
+    "code": 174,
+    "dtc": "BMS_a145",
+    "s_dsc": "BMS_a145_SW_SOC_Change",
+    "l_dsc": "SOC Change"
+  },
+  {
+    "code": 175,
+    "dtc": "BMS_a146",
+    "s_dsc": "BMS_a146_SW_Brick_Overdischarged",
+    "l_dsc": "Brick Overdischarged"
+  },
+  {
+    "code": 176,
+    "dtc": "BMS_a149",
+    "s_dsc": "BMS_a149_SW_Missing_Config_Block",
+    "l_dsc": "Missing Config Block"
+  },
+  {
+    "code": 177,
+    "dtc": "BMS_a151",
+    "s_dsc": "BMS_a151_SW_external_isolation",
+    "l_dsc": "External isolation"
+  },
+  {
+    "code": 178,
+    "dtc": "BMS_a155",
+    "s_dsc": "BMS_a155_SW_Weak_short_impedence",
+    "l_dsc": "Weak short impedence"
+  },
+  {
+    "code": 179,
+    "dtc": "BMS_a156",
+    "s_dsc": "BMS_a156_SW_BMB_Vref_bad",
+    "l_dsc": "BMB Vref bad"
+  },
+  {
+    "code": 180,
+    "dtc": "BMS_a157",
+    "s_dsc": "BMS_a157_SW_HVP_HVS_Comms",
+    "l_dsc": "HVP HVS Comms"
+  },
+  {
+    "code": 181,
+    "dtc": "BMS_a158",
+    "s_dsc": "BMS_a158_SW_HVP_HVI_Comms",
+    "l_dsc": "HVP HVI Comms"
+  },
+  {
+    "code": 182,
+    "dtc": "BMS_a159",
+    "s_dsc": "BMS_a159_SW_HVP_ECU_Error",
+    "l_dsc": "HVP ECU Error"
+  },
+  {
+    "code": 183,
+    "dtc": "BMS_a161",
+    "s_dsc": "BMS_a161_SW_DI_Open_Request",
+    "l_dsc": "DI Open Request"
+  },
+  {
+    "code": 184,
+    "dtc": "BMS_a162",
+    "s_dsc": "BMS_a162_SW_No_Power_For_Support",
+    "l_dsc": "No Power For Support"
+  },
+  {
+    "code": 185,
+    "dtc": "BMS_a163",
+    "s_dsc": "BMS_a163_SW_Contactor_Mismatch",
+    "l_dsc": "Contactor Mismatch"
+  },
+  {
+    "code": 186,
+    "dtc": "BMS_a164",
+    "s_dsc": "BMS_a164_SW_Uncontrolled_Regen",
+    "l_dsc": "Uncontrolled Regen"
+  },
+  {
+    "code": 187,
+    "dtc": "BMS_a165",
+    "s_dsc": "BMS_a165_SW_Pack_Partial_Weld",
+    "l_dsc": "Pack Partial Weld"
+  },
+  {
+    "code": 188,
+    "dtc": "BMS_a166",
+    "s_dsc": "BMS_a166_SW_Pack_Full_Weld",
+    "l_dsc": "Pack Full Weld"
+  },
+  {
+    "code": 189,
+    "dtc": "BMS_a167",
+    "s_dsc": "BMS_a167_SW_FC_Partial_Weld",
+    "l_dsc": "FC Partial Weld"
+  },
+  {
+    "code": 190,
+    "dtc": "BMS_a168",
+    "s_dsc": "BMS_a168_SW_FC_Full_Weld",
+    "l_dsc": "FC Full Weld"
+  },
+  {
+    "code": 191,
+    "dtc": "BMS_a169",
+    "s_dsc": "BMS_a169_SW_FC_Pack_Weld",
+    "l_dsc": "FC Pack Weld"
+  },
+  {
+    "code": 192,
+    "dtc": "BMS_a170",
+    "s_dsc": "BMS_a170_SW_Limp_Mode",
+    "l_dsc": "Limp Mode"
+  },
+  {
+    "code": 193,
+    "dtc": "BMS_a171",
+    "s_dsc": "BMS_a171_SW_Stack_Voltage_Sense",
+    "l_dsc": "Stack Voltage Sense"
+  },
+  {
+    "code": 194,
+    "dtc": "BMS_a173",
+    "s_dsc": "BMS_a173_SW_Charge_Component_Fault",
+    "l_dsc": "Charge Component Fault"
+  },
+  {
+    "code": 195,
+    "dtc": "BMS_a174",
+    "s_dsc": "BMS_a174_SW_Charge_Failure",
+    "l_dsc": "Charge Failure"
+  },
+  {
+    "code": 196,
+    "dtc": "BMS_a176",
+    "s_dsc": "BMS_a176_SW_GracefulPowerOff",
+    "l_dsc": "Graceful Power Off"
+  },
+  {
+    "code": 197,
+    "dtc": "BMS_a178",
+    "s_dsc": "BMS_a178_SW_Uncontrolled_Regen_PwrB",
+    "l_dsc": "Uncontrolled Regen Pwr B"
+  },
+  {
+    "code": 198,
+    "dtc": "BMS_a179",
+    "s_dsc": "BMS_a179_SW_Hvp_12V_Fault",
+    "l_dsc": "Hvp 12 V Fault"
+  },
+  {
+    "code": 199,
+    "dtc": "BMS_a180",
+    "s_dsc": "BMS_a180_SW_ECU_reset_blocked",
+    "l_dsc": "ECU reset blocked"
+  },
+  {
+    "code": 200,
+    "dtc": "PCS_a001",
+    "s_dsc": "PCS_a001_chgHwInputOc",
+    "l_dsc": "Chg Hw Input Oc"
+  },
+  {
+    "code": 201,
+    "dtc": "PCS_a002",
+    "s_dsc": "PCS_a002_chgHwOutputOc",
+    "l_dsc": "Chg Hw Output Oc"
+  },
+  {
+    "code": 202,
+    "dtc": "PCS_a003",
+    "s_dsc": "PCS_a003_chgHwInputOv",
+    "l_dsc": "Chg Hw Input Ov"
+  },
+  {
+    "code": 203,
+    "dtc": "PCS_a004",
+    "s_dsc": "PCS_a004_chgHwIntBusOv",
+    "l_dsc": "Chg Hw Int Bus Ov"
+  },
+  {
+    "code": 204,
+    "dtc": "PCS_a005",
+    "s_dsc": "PCS_a005_chgOutputOv",
+    "l_dsc": "Chg Output Ov"
+  },
+  {
+    "code": 205,
+    "dtc": "PCS_a006",
+    "s_dsc": "PCS_a006_chgPrechargeFailedScr",
+    "l_dsc": "Chg Precharge Failed Scr"
+  },
+  {
+    "code": 206,
+    "dtc": "PCS_a007",
+    "s_dsc": "PCS_a007_chgPhaseTempHot",
+    "l_dsc": "Chg Phase Temp Hot"
+  },
+  {
+    "code": 207,
+    "dtc": "PCS_a008",
+    "s_dsc": "PCS_a008_chgPhaseOverTemp",
+    "l_dsc": "Chg Phase Over Temp"
+  },
+  {
+    "code": 208,
+    "dtc": "PCS_a009",
+    "s_dsc": "PCS_a009_chgPfcCurrentRegulation",
+    "l_dsc": "Chg Pfc Current Regulation"
+  },
+  {
+    "code": 209,
+    "dtc": "PCS_a010",
+    "s_dsc": "PCS_a010_chgIntBusVRegulation",
+    "l_dsc": "Chg Int Bus V Regulation"
+  },
+  {
+    "code": 210,
+    "dtc": "PCS_a011",
+    "s_dsc": "PCS_a011_chgLlcCurrentRegulation",
+    "l_dsc": "Chg Llc Current Regulation"
+  },
+  {
+    "code": 211,
+    "dtc": "PCS_a012",
+    "s_dsc": "PCS_a012_chgPfcIBandTracerFault",
+    "l_dsc": "Chg Pfc I Band Tracer Fault"
+  },
+  {
+    "code": 212,
+    "dtc": "PCS_a013",
+    "s_dsc": "PCS_a013_chgPrechargeFailedBoost",
+    "l_dsc": "Chg Precharge Failed Boost"
+  },
+  {
+    "code": 213,
+    "dtc": "PCS_a014",
+    "s_dsc": "PCS_a014_chgTempRationality",
+    "l_dsc": "Chg Temp Rationality"
+  },
+  {
+    "code": 214,
+    "dtc": "PCS_a015",
+    "s_dsc": "PCS_a015_chg12vUv",
+    "l_dsc": "Chg12v Uv"
+  },
+  {
+    "code": 215,
+    "dtc": "PCS_a016",
+    "s_dsc": "PCS_a016_chgAllPhasesFaulted",
+    "l_dsc": "Chg All Phases Faulted"
+  },
+  {
+    "code": 216,
+    "dtc": "PCS_a017",
+    "s_dsc": "PCS_a017_chgWallPowerRemoval",
+    "l_dsc": "Chg Wall Power Removal"
+  },
+  {
+    "code": 217,
+    "dtc": "PCS_a018",
+    "s_dsc": "PCS_a018_chgUnknownGridConfig",
+    "l_dsc": "Chg Unknown Grid Config"
+  },
+  {
+    "code": 218,
+    "dtc": "PCS_a019",
+    "s_dsc": "PCS_a019_acChargePowerLimited",
+    "l_dsc": "Ac Charge Power Limited"
+  },
+  {
+    "code": 219,
+    "dtc": "PCS_a020",
+    "s_dsc": "PCS_a020_chgEnableLineMismatch",
+    "l_dsc": "Chg Enable Line Mismatch"
+  },
+  {
+    "code": 220,
+    "dtc": "PCS_a021",
+    "s_dsc": "PCS_a021_hvpMia",
+    "l_dsc": "Hvp Mia"
+  },
+  {
+    "code": 221,
+    "dtc": "PCS_a022",
+    "s_dsc": "PCS_a022_bmsMia",
+    "l_dsc": "Bms Mia"
+  },
+  {
+    "code": 222,
+    "dtc": "PCS_a023",
+    "s_dsc": "PCS_a023_cpMia",
+    "l_dsc": "Cp Mia"
+  },
+  {
+    "code": 223,
+    "dtc": "PCS_a024",
+    "s_dsc": "PCS_a024_vcfrontMia",
+    "l_dsc": "Vcfront Mia"
+  },
+  {
+    "code": 224,
+    "dtc": "PCS_a025",
+    "s_dsc": "PCS_a025_cpu2Malfunction",
+    "l_dsc": "Cpu2 Malfunction"
+  },
+  {
+    "code": 225,
+    "dtc": "PCS_a026",
+    "s_dsc": "PCS_a026_watchdogAlarmed",
+    "l_dsc": "Watchdog Alarmed"
+  },
+  {
+    "code": 226,
+    "dtc": "PCS_a027",
+    "s_dsc": "PCS_a027_chgInsufficientCooling",
+    "l_dsc": "Chg Insufficient Cooling"
+  },
+  {
+    "code": 227,
+    "dtc": "PCS_a028",
+    "s_dsc": "PCS_a028_chgOutputUv",
+    "l_dsc": "Chg Output Uv"
+  },
+  {
+    "code": 228,
+    "dtc": "PCS_a029",
+    "s_dsc": "PCS_a029_chgPowerRationality",
+    "l_dsc": "Chg Power Rationality"
+  },
+  {
+    "code": 229,
+    "dtc": "PCS_a030",
+    "s_dsc": "PCS_a030_canRationality",
+    "l_dsc": "Can Rationality"
+  },
+  {
+    "code": 230,
+    "dtc": "PCS_a031",
+    "s_dsc": "PCS_a031_uiMia",
+    "l_dsc": "Ui Mia"
+  },
+  {
+    "code": 231,
+    "dtc": "PCS_a032",
+    "s_dsc": "PCS_a032_gtwMia",
+    "l_dsc": "Gtw Mia"
+  },
+  {
+    "code": 232,
+    "dtc": "PCS_a033",
+    "s_dsc": "PCS_a033_hvBusUv",
+    "l_dsc": "Hv Bus Uv"
+  },
+  {
+    "code": 233,
+    "dtc": "PCS_a034",
+    "s_dsc": "PCS_a034_hvBusOv",
+    "l_dsc": "Hv Bus Ov"
+  },
+  {
+    "code": 234,
+    "dtc": "PCS_a035",
+    "s_dsc": "PCS_a035_lvBusUv",
+    "l_dsc": "Lv Bus Uv"
+  },
+  {
+    "code": 235,
+    "dtc": "PCS_a036",
+    "s_dsc": "PCS_a036_lvBusOv",
+    "l_dsc": "Lv Bus Ov"
+  },
+  {
+    "code": 236,
+    "dtc": "PCS_a037",
+    "s_dsc": "PCS_a037_resonantTankOc",
+    "l_dsc": "Resonant Tank Oc"
+  },
+  {
+    "code": 237,
+    "dtc": "PCS_a038",
+    "s_dsc": "PCS_a038_claFaulted",
+    "l_dsc": "Cla Faulted"
+  },
+  {
+    "code": 238,
+    "dtc": "PCS_a039",
+    "s_dsc": "PCS_a039_sdModuleClkFault",
+    "l_dsc": "Sd Module Clk Fault"
+  },
+  {
+    "code": 239,
+    "dtc": "PCS_a040",
+    "s_dsc": "PCS_a040_dcdcMaxPowerReached",
+    "l_dsc": "Dcdc Max Power Reached"
+  },
+  {
+    "code": 240,
+    "dtc": "PCS_a041",
+    "s_dsc": "PCS_a041_dcdcOverTemp",
+    "l_dsc": "Dcdc Over Temp"
+  },
+  {
+    "code": 241,
+    "dtc": "PCS_a042",
+    "s_dsc": "PCS_a042_dcdcEnableLineMismatch",
+    "l_dsc": "Dcdc Enable Line Mismatch"
+  },
+  {
+    "code": 242,
+    "dtc": "PCS_a043",
+    "s_dsc": "PCS_a043_hvBusPrechargeFailure",
+    "l_dsc": "Hv Bus Precharge Failure"
+  },
+  {
+    "code": 243,
+    "dtc": "PCS_a044",
+    "s_dsc": "PCS_a044_12vSupportRegulation",
+    "l_dsc": "12v Support Regulation"
+  },
+  {
+    "code": 244,
+    "dtc": "PCS_a045",
+    "s_dsc": "PCS_a045_hvBusLowImpedance",
+    "l_dsc": "Hv Bus Low Impedance"
+  },
+  {
+    "code": 245,
+    "dtc": "PCS_a046",
+    "s_dsc": "PCS_a046_hvBusHighImpedence",
+    "l_dsc": "Hv Bus High Impedence"
+  },
+  {
+    "code": 246,
+    "dtc": "PCS_a047",
+    "s_dsc": "PCS_a047_lvBusLowImpedance",
+    "l_dsc": "Lv Bus Low Impedance"
+  },
+  {
+    "code": 247,
+    "dtc": "PCS_a048",
+    "s_dsc": "PCS_a048_lvBusHighImpedance",
+    "l_dsc": "Lv Bus High Impedance"
+  },
+  {
+    "code": 248,
+    "dtc": "PCS_a049",
+    "s_dsc": "PCS_a049_dcdcTempRationality",
+    "l_dsc": "Dcdc Temp Rationality"
+  },
+  {
+    "code": 249,
+    "dtc": "PCS_a050",
+    "s_dsc": "PCS_a050_dcdc12VsupportFaulted",
+    "l_dsc": "Dcdc12 Vsupport Faulted"
+  },
+  {
+    "code": 250,
+    "dtc": "PCS_a051",
+    "s_dsc": "PCS_a051_chgIntBusUv",
+    "l_dsc": "Chg Int Bus Uv"
+  },
+  {
+    "code": 251,
+    "dtc": "PCS_a052",
+    "s_dsc": "PCS_a052_acVoltageNotPresent",
+    "l_dsc": "Ac Voltage Not Present"
+  },
+  {
+    "code": 252,
+    "dtc": "PCS_a053",
+    "s_dsc": "PCS_a053_chgInputVDropHigh",
+    "l_dsc": "Chg Input V Drop High"
+  },
+  {
+    "code": 253,
+    "dtc": "PCS_a054",
+    "s_dsc": "PCS_a054_chgInputVDropTooHigh",
+    "l_dsc": "Chg Input V Drop Too High"
+  },
+  {
+    "code": 254,
+    "dtc": "PCS_a055",
+    "s_dsc": "PCS_a055_chgLineImedanceHigh",
+    "l_dsc": "Chg Line Imedance High"
+  },
+  {
+    "code": 255,
+    "dtc": "PCS_a056",
+    "s_dsc": "PCS_a056_chgLineImedanceTooHigh",
+    "l_dsc": "Chg Line Imedance Too High"
+  },
+  {
+    "code": 256,
+    "dtc": "PCS_a057",
+    "s_dsc": "PCS_a057_chgInputOverFreq",
+    "l_dsc": "Chg Input Over Freq"
+  },
+  {
+    "code": 257,
+    "dtc": "PCS_a058",
+    "s_dsc": "PCS_a058_chgInputUnderFreq",
+    "l_dsc": "Chg Input Under Freq"
+  },
+  {
+    "code": 258,
+    "dtc": "PCS_a059",
+    "s_dsc": "PCS_a059_chgInputOvRms",
+    "l_dsc": "Chg Input Ov Rms"
+  },
+  {
+    "code": 259,
+    "dtc": "PCS_a060",
+    "s_dsc": "PCS_a060_chgInputOvPeak",
+    "l_dsc": "Chg Input Ov Peak"
+  },
+  {
+    "code": 260,
+    "dtc": "PCS_a061",
+    "s_dsc": "PCS_a061_chgVLineRationality",
+    "l_dsc": "Chg V Line Rationality"
+  },
+  {
+    "code": 261,
+    "dtc": "PCS_a062",
+    "s_dsc": "PCS_a062_chgILineRationality",
+    "l_dsc": "Chg I Line Rationality"
+  },
+  {
+    "code": 262,
+    "dtc": "PCS_a063",
+    "s_dsc": "PCS_a063_chgVOutRationality",
+    "l_dsc": "Chg V Out Rationality"
+  },
+  {
+    "code": 263,
+    "dtc": "PCS_a064",
+    "s_dsc": "PCS_a064_chgIOutRationality",
+    "l_dsc": "Chg I Out Rationality"
+  },
+  {
+    "code": 264,
+    "dtc": "PCS_a065",
+    "s_dsc": "PCS_a065_chgPllNotLocked",
+    "l_dsc": "Chg Pll Not Locked"
+  },
+  {
+    "code": 265,
+    "dtc": "PCS_a066",
+    "s_dsc": "PCS_a066_dcdcHvRationality",
+    "l_dsc": "Dcdc Hv Rationality"
+  },
+  {
+    "code": 266,
+    "dtc": "PCS_a067",
+    "s_dsc": "PCS_a067_dcdcLvRationality",
+    "l_dsc": "Dcdc Lv Rationality"
+  },
+  {
+    "code": 267,
+    "dtc": "PCS_a068",
+    "s_dsc": "PCS_a068_dcdcTankvRationality",
+    "l_dsc": "Dcdc Tankv Rationality"
+  },
+  {
+    "code": 268,
+    "dtc": "PCS_a069",
+    "s_dsc": "PCS_a069_chgPfcLineDidt",
+    "l_dsc": "Chg Pfc Line Didt"
+  },
+  {
+    "code": 269,
+    "dtc": "PCS_a070",
+    "s_dsc": "PCS_a070_chgPfcLineDvdt",
+    "l_dsc": "Chg Pfc Line Dvdt"
+  },
+  {
+    "code": 270,
+    "dtc": "PCS_a071",
+    "s_dsc": "PCS_a071_chgPfcILoopRationality",
+    "l_dsc": "Chg Pfc I Loop Rationality"
+  },
+  {
+    "code": 271,
+    "dtc": "PCS_a072",
+    "s_dsc": "PCS_a072_cpu2ClaStopped",
+    "l_dsc": "Cpu2 Cla Stopped"
+  },
+  {
+    "code": 272,
+    "dtc": "PCS_a073",
+    "s_dsc": "PCS_a073_unexpectedAcInputVoltage",
+    "l_dsc": "Unexpected Ac Input Voltage"
+  },
+  {
+    "code": 273,
+    "dtc": "PCS_a074",
+    "s_dsc": "PCS_a074_hvBusDischargeFailure",
+    "l_dsc": "Hv Bus Discharge Failure"
+  },
+  {
+    "code": 274,
+    "dtc": "PCS_a075",
+    "s_dsc": "PCS_a075_hvBusDischargeTimeout",
+    "l_dsc": "Hv Bus Discharge Timeout"
+  },
+  {
+    "code": 275,
+    "dtc": "PCS_a076",
+    "s_dsc": "PCS_a076_dcdcEnDeassertedErr",
+    "l_dsc": "Dcdc En Deasserted Err"
+  },
+  {
+    "code": 276,
+    "dtc": "PCS_a077",
+    "s_dsc": "PCS_a077_microGridEnergyLow",
+    "l_dsc": "Micro Grid Energy Low"
+  },
+  {
+    "code": 277,
+    "dtc": "PCS_a078",
+    "s_dsc": "PCS_a078_chgStopDcdcTooHot",
+    "l_dsc": "Chg Stop Dcdc Too Hot"
+  },
+  {
+    "code": 278,
+    "dtc": "PCS_a079",
+    "s_dsc": "PCS_a079_eepromOperationError",
+    "l_dsc": "Eeprom Operation Error"
+  },
+  {
+    "code": 279,
+    "dtc": "PCS_a080",
+    "s_dsc": "PCS_a080_damagedPhaseDetected",
+    "l_dsc": "Damaged Phase Detected"
+  },
+  {
+    "code": 280,
+    "dtc": "PCS_a081",
+    "s_dsc": "PCS_a081_dcdcPchgTimeout",
+    "l_dsc": "Dcdc Pchg Timeout"
+  },
+  {
+    "code": 281,
+    "dtc": "PCS_a082",
+    "s_dsc": "PCS_a082_dcdcPchgUnsafeDiVoltage",
+    "l_dsc": "Dcdc Pchg Unsafe Di Voltage"
+  },
+  {
+    "code": 282,
+    "dtc": "PCS_a083",
+    "s_dsc": "PCS_a083_triggerOdin",
+    "l_dsc": "Trigger Odin"
+  },
+  {
+    "code": 283,
+    "dtc": "PCS_a084",
+    "s_dsc": "PCS_a084_dcdcPchgStartVoltages",
+    "l_dsc": "Dcdc Pchg Start Voltages"
+  },
+  {
+    "code": 284,
+    "dtc": "PCS_a085",
+    "s_dsc": "PCS_a085_dcdcFetsNotSwitching",
+    "l_dsc": "Dcdc Fets Not Switching"
+  },
+  {
+    "code": 285,
+    "dtc": "PCS_a086",
+    "s_dsc": "PCS_a086_dcdcInsufficientCooling",
+    "l_dsc": "Dcdc Insufficient Cooling"
+  },
+  {
+    "code": 286,
+    "dtc": "PCS_a087",
+    "s_dsc": "PCS_a087_nvramRecordStatusError",
+    "l_dsc": "Nvram Record Status Error"
+  },
+  {
+    "code": 287,
+    "dtc": "PCS_a088",
+    "s_dsc": "PCS_a088_pchgParameters",
+    "l_dsc": "Pchg Parameters"
+  },
+  {
+    "code": 288,
+    "dtc": "PCS_a089",
+    "s_dsc": "PCS_a089_hvBusDischargeIrrational",
+    "l_dsc": "Hv Bus Discharge Irrational"
+  },
+  {
+    "code": 289,
+    "dtc": "PCS_a090",
+    "s_dsc": "PCS_a090_expectedAcVoltageSourceMissing",
+    "l_dsc": "Expected Ac Voltage Source Missing"
+  },
+  {
+    "code": 290,
+    "dtc": "PCS_a091",
+    "s_dsc": "PCS_a091_chgIntBusRationality",
+    "l_dsc": "Chg Int Bus Rationality"
+  },
+  {
+    "code": 291,
+    "dtc": "PCS_a092",
+    "s_dsc": "PCS_a092_chgPowerLimitedByBusRipple",
+    "l_dsc": "Chg Power Limited By Bus Ripple"
+  },
+  {
+    "code": 292,
+    "dtc": "PCS_a093",
+    "s_dsc": "PCS_a093_powerRailRationality",
+    "l_dsc": "Power Rail Rationality"
+  },
+  {
+    "code": 293,
+    "dtc": "PCS_a094",
+    "s_dsc": "PCS_a094_pcsDcdcNeedService",
+    "l_dsc": "Pcs Dcdc Need Service"
+  },
+  {
+    "code": 300,
+    "dtc": "CP_a001",
+    "s_dsc": "CP_a001_canRx",
+    "l_dsc": "Can Rx"
+  },
+  {
+    "code": 301,
+    "dtc": "CP_a002",
+    "s_dsc": "CP_a002_canTx",
+    "l_dsc": "Can Tx"
+  },
+  {
+    "code": 302,
+    "dtc": "CP_a003",
+    "s_dsc": "CP_a003_canError",
+    "l_dsc": "Can Error"
+  },
+  {
+    "code": 303,
+    "dtc": "CP_a004",
+    "s_dsc": "CP_a004_proximityRationality",
+    "l_dsc": "Proximity Rationality"
+  },
+  {
+    "code": 304,
+    "dtc": "CP_a005",
+    "s_dsc": "CP_a005_gbdcLiveDisconnect",
+    "l_dsc": "Gbdc Live Disconnect"
+  },
+  {
+    "code": 305,
+    "dtc": "CP_a006",
+    "s_dsc": "CP_a006_lostCommsBMS",
+    "l_dsc": "Lost Comms BMS"
+  },
+  {
+    "code": 306,
+    "dtc": "CP_a007",
+    "s_dsc": "CP_a007_watchdog",
+    "l_dsc": "Watchdog"
+  },
+  {
+    "code": 307,
+    "dtc": "CP_a008",
+    "s_dsc": "CP_a008_memoryError",
+    "l_dsc": "Memory Error"
+  },
+  {
+    "code": 308,
+    "dtc": "CP_a009",
+    "s_dsc": "CP_a009_coverOpen",
+    "l_dsc": "Cover Open"
+  },
+  {
+    "code": 309,
+    "dtc": "CP_a010",
+    "s_dsc": "CP_a010_pilotRationality",
+    "l_dsc": "Pilot Rationality"
+  },
+  {
+    "code": 310,
+    "dtc": "CP_a011",
+    "s_dsc": "CP_a011_eeprom",
+    "l_dsc": "Eeprom"
+  },
+  {
+    "code": 311,
+    "dtc": "CP_a012",
+    "s_dsc": "CP_a012_ledDriver",
+    "l_dsc": "Led Driver"
+  },
+  {
+    "code": 312,
+    "dtc": "CP_a013",
+    "s_dsc": "CP_a013_lostCommsGTW",
+    "l_dsc": "Lost Comms GTW"
+  },
+  {
+    "code": 313,
+    "dtc": "CP_a014",
+    "s_dsc": "CP_a014_lostCommsCHG",
+    "l_dsc": "Lost Comms CHG"
+  },
+  {
+    "code": 314,
+    "dtc": "CP_a015",
+    "s_dsc": "CP_a015_apsVov",
+    "l_dsc": "Aps Vov"
+  },
+  {
+    "code": 315,
+    "dtc": "CP_a016",
+    "s_dsc": "CP_a016_apsVuv",
+    "l_dsc": "Aps Vuv"
+  },
+  {
+    "code": 316,
+    "dtc": "CP_a017",
+    "s_dsc": "CP_a017_fiveVov",
+    "l_dsc": "Five Vov"
+  },
+  {
+    "code": 317,
+    "dtc": "CP_a018",
+    "s_dsc": "CP_a018_fiveVuv",
+    "l_dsc": "Five Vuv"
+  },
+  {
+    "code": 318,
+    "dtc": "CP_a019",
+    "s_dsc": "CP_a019_threeVov",
+    "l_dsc": "Three Vov"
+  },
+  {
+    "code": 319,
+    "dtc": "CP_a020",
+    "s_dsc": "CP_a020_threeVuv",
+    "l_dsc": "Three Vuv"
+  },
+  {
+    "code": 320,
+    "dtc": "CP_a021",
+    "s_dsc": "CP_a021_zeroVov",
+    "l_dsc": "Zero Vov"
+  },
+  {
+    "code": 321,
+    "dtc": "CP_a022",
+    "s_dsc": "CP_a022_zeroVuv",
+    "l_dsc": "Zero Vuv"
+  },
+  {
+    "code": 322,
+    "dtc": "CP_a023",
+    "s_dsc": "CP_a023_gbdcSessionFailed",
+    "l_dsc": "Gbdc Session Failed"
+  },
+  {
+    "code": 323,
+    "dtc": "CP_a024",
+    "s_dsc": "CP_a024_ledsUC",
+    "l_dsc": "Leds UC"
+  },
+  {
+    "code": 324,
+    "dtc": "CP_a025",
+    "s_dsc": "CP_a025_ledsOC",
+    "l_dsc": "Leds OC"
+  },
+  {
+    "code": 325,
+    "dtc": "CP_a026",
+    "s_dsc": "CP_a026_networkManagement",
+    "l_dsc": "Network Management"
+  },
+  {
+    "code": 326,
+    "dtc": "CP_a027",
+    "s_dsc": "CP_a027_doorSensorOutOfSpec",
+    "l_dsc": "Door Sensor Out Of Spec"
+  },
+  {
+    "code": 327,
+    "dtc": "CP_a028",
+    "s_dsc": "CP_a028_insertEnableMismatch",
+    "l_dsc": "Insert Enable Mismatch"
+  },
+  {
+    "code": 328,
+    "dtc": "CP_a029",
+    "s_dsc": "CP_a029_doorClosedProxPilot",
+    "l_dsc": "Door Closed Prox Pilot"
+  },
+  {
+    "code": 329,
+    "dtc": "CP_a030",
+    "s_dsc": "CP_a030_busOff",
+    "l_dsc": "Bus Off"
+  },
+  {
+    "code": 330,
+    "dtc": "CP_a031",
+    "s_dsc": "CP_a031_doorClosedCommandedOpen",
+    "l_dsc": "Door Closed Commanded Open"
+  },
+  {
+    "code": 331,
+    "dtc": "CP_a032",
+    "s_dsc": "CP_a032_doorOpenExpectedClosed",
+    "l_dsc": "Door Open Expected Closed"
+  },
+  {
+    "code": 332,
+    "dtc": "CP_a033",
+    "s_dsc": "CP_a033_spiOpen",
+    "l_dsc": "Spi Open"
+  },
+  {
+    "code": 333,
+    "dtc": "CP_a034",
+    "s_dsc": "CP_a034_calibrationIncomplete",
+    "l_dsc": "Calibration Incomplete"
+  },
+  {
+    "code": 334,
+    "dtc": "CP_a035",
+    "s_dsc": "CP_a035_latchMovement_1",
+    "l_dsc": "Latch Movement 1"
+  },
+  {
+    "code": 335,
+    "dtc": "CP_a036",
+    "s_dsc": "CP_a036_latchNotDisengaged",
+    "l_dsc": "Latch Not Disengaged"
+  },
+  {
+    "code": 336,
+    "dtc": "CP_a037",
+    "s_dsc": "CP_a037_latchNotEngaged",
+    "l_dsc": "Latch Not Engaged"
+  },
+  {
+    "code": 337,
+    "dtc": "CP_a038",
+    "s_dsc": "CP_a038_latchNotBlocking",
+    "l_dsc": "Latch Not Blocking"
+  },
+  {
+    "code": 338,
+    "dtc": "CP_a039",
+    "s_dsc": "CP_a039_latchMovement_2",
+    "l_dsc": "Latch Movement 2"
+  },
+  {
+    "code": 339,
+    "dtc": "CP_a040",
+    "s_dsc": "CP_a040_doNotUse",
+    "l_dsc": "Do Not Use"
+  },
+  {
+    "code": 340,
+    "dtc": "CP_a041",
+    "s_dsc": "CP_a041_doorSensorUnplugged",
+    "l_dsc": "Door Sensor Unplugged"
+  },
+  {
+    "code": 341,
+    "dtc": "CP_a042",
+    "s_dsc": "CP_a042_doorAssemblyBroken",
+    "l_dsc": "Door Assembly Broken"
+  },
+  {
+    "code": 342,
+    "dtc": "CP_a043",
+    "s_dsc": "CP_a043_doorPotIrrational",
+    "l_dsc": "Door Pot Irrational"
+  },
+  {
+    "code": 343,
+    "dtc": "CP_a044",
+    "s_dsc": "CP_a044_lostCommsHVP",
+    "l_dsc": "Lost Comms HVP"
+  },
+  {
+    "code": 344,
+    "dtc": "CP_a045",
+    "s_dsc": "CP_a045_lostCommsVCSEC",
+    "l_dsc": "Lost Comms VCSEC"
+  },
+  {
+    "code": 345,
+    "dtc": "CP_a046",
+    "s_dsc": "CP_a046_lostCommsEVSE",
+    "l_dsc": "Lost Comms EVSE"
+  },
+  {
+    "code": 346,
+    "dtc": "CP_a047",
+    "s_dsc": "CP_a047_lostCommsVCFRONT",
+    "l_dsc": "Lost Comms VCFRONT"
+  },
+  {
+    "code": 347,
+    "dtc": "CP_a048",
+    "s_dsc": "CP_a048_lostCommsUI",
+    "l_dsc": "Lost Comms UI"
+  },
+  {
+    "code": 348,
+    "dtc": "CP_a049",
+    "s_dsc": "CP_a049_multipleCablesDetected",
+    "l_dsc": "Multiple Cables Detected"
+  },
+  {
+    "code": 349,
+    "dtc": "CP_a050",
+    "s_dsc": "CP_a050_latchNotConnected",
+    "l_dsc": "Latch Not Connected"
+  },
+  {
+    "code": 350,
+    "dtc": "CP_a051",
+    "s_dsc": "CP_a051_doorInductiveSensorMIA",
+    "l_dsc": "Door Inductive Sensor MIA"
+  },
+  {
+    "code": 351,
+    "dtc": "CP_a052",
+    "s_dsc": "CP_a052_evseNotSupported",
+    "l_dsc": "Evse Not Supported"
+  },
+  {
+    "code": 352,
+    "dtc": "CP_a053",
+    "s_dsc": "CP_a053_proxLatchedNoPilot",
+    "l_dsc": "Prox Latched No Pilot"
+  },
+  {
+    "code": 353,
+    "dtc": "CP_a054",
+    "s_dsc": "CP_a054_cableNotSecured",
+    "l_dsc": "Cable Not Secured"
+  },
+  {
+    "code": 354,
+    "dtc": "CP_a055",
+    "s_dsc": "CP_a055_chargeStoppedNoPilot",
+    "l_dsc": "Charge Stopped No Pilot"
+  },
+  {
+    "code": 355,
+    "dtc": "CP_a056",
+    "s_dsc": "CP_a056_proxDisconnected",
+    "l_dsc": "Prox Disconnected"
+  },
+  {
+    "code": 356,
+    "dtc": "CP_a057",
+    "s_dsc": "CP_a057_evseFaulted",
+    "l_dsc": "Evse Faulted"
+  },
+  {
+    "code": 357,
+    "dtc": "CP_a058",
+    "s_dsc": "CP_a058_acChargingBlocked",
+    "l_dsc": "Ac Charging Blocked"
+  },
+  {
+    "code": 358,
+    "dtc": "CP_a059",
+    "s_dsc": "CP_a059_swcanError",
+    "l_dsc": "Swcan Error"
+  },
+  {
+    "code": 359,
+    "dtc": "CP_a060",
+    "s_dsc": "CP_a060_lostCommsPCS",
+    "l_dsc": "Lost Comms PCS"
+  },
+  {
+    "code": 360,
+    "dtc": "CP_a061",
+    "s_dsc": "CP_a061_uhfReceiverMIA",
+    "l_dsc": "Uhf Receiver MIA"
+  },
+  {
+    "code": 361,
+    "dtc": "CP_a062",
+    "s_dsc": "CP_a062_scOutOfService",
+    "l_dsc": "Sc Out Of Service"
+  },
+  {
+    "code": 362,
+    "dtc": "CP_a063",
+    "s_dsc": "CP_a063_scUpdateInProgress",
+    "l_dsc": "Sc Update In Progress"
+  },
+  {
+    "code": 363,
+    "dtc": "CP_a064",
+    "s_dsc": "CP_a064_superchargingBlocked",
+    "l_dsc": "Supercharging Blocked"
+  },
+  {
+    "code": 364,
+    "dtc": "CP_a065",
+    "s_dsc": "CP_a065_selfTestFailed",
+    "l_dsc": "Self Test Failed"
+  },
+  {
+    "code": 365,
+    "dtc": "CP_a066",
+    "s_dsc": "CP_a066_proxLatchedIdlePilot",
+    "l_dsc": "Prox Latched Idle Pilot"
+  },
+  {
+    "code": 366,
+    "dtc": "CP_a067",
+    "s_dsc": "CP_a067_gbdcConnFault",
+    "l_dsc": "Gbdc Conn Fault"
+  },
+  {
+    "code": 367,
+    "dtc": "CP_a068",
+    "s_dsc": "CP_a068_doorSensorMismatch",
+    "l_dsc": "Door Sensor Mismatch"
+  },
+  {
+    "code": 368,
+    "dtc": "CP_a069",
+    "s_dsc": "CP_a069_doorInductiveSensorError",
+    "l_dsc": "Door Inductive Sensor Error"
+  },
+  {
+    "code": 369,
+    "dtc": "CP_a070",
+    "s_dsc": "CP_a070_doorInductiveSensorReset",
+    "l_dsc": "Door Inductive Sensor Reset"
+  },
+  {
+    "code": 370,
+    "dtc": "CP_a071",
+    "s_dsc": "CP_a071_exiDecodeFailure",
+    "l_dsc": "Exi Decode Failure"
+  },
+  {
+    "code": 371,
+    "dtc": "CP_a072",
+    "s_dsc": "CP_a072_v2gEvccTimeout",
+    "l_dsc": "V2g Evcc Timeout"
+  },
+  {
+    "code": 372,
+    "dtc": "CP_a073",
+    "s_dsc": "CP_a073_iecComboShutdown",
+    "l_dsc": "Iec Combo Shutdown"
+  },
+  {
+    "code": 373,
+    "dtc": "CP_a074",
+    "s_dsc": "CP_a074_failedToEstablishV2gComm",
+    "l_dsc": "Failed To Establish V2g Comm"
+  },
+  {
+    "code": 374,
+    "dtc": "CP_a075",
+    "s_dsc": "CP_a075_v2gCommsFailure",
+    "l_dsc": "V2g Comms Failure"
+  },
+  {
+    "code": 375,
+    "dtc": "CP_a076",
+    "s_dsc": "CP_a076_LDC1612errorWatchdog",
+    "l_dsc": "LDC1612error Watchdog"
+  },
+  {
+    "code": 376,
+    "dtc": "CP_a077",
+    "s_dsc": "CP_a077_invalidMacAddress",
+    "l_dsc": "Invalid Mac Address"
+  },
+  {
+    "code": 377,
+    "dtc": "CP_a078",
+    "s_dsc": "CP_a078_latchNotDisengagedCold",
+    "l_dsc": "Latch Not Disengaged Cold"
+  },
+  {
+    "code": 378,
+    "dtc": "CP_a079",
+    "s_dsc": "CP_a079_cableNotSecuredCold",
+    "l_dsc": "Cable Not Secured Cold"
+  },
+  {
+    "code": 379,
+    "dtc": "CP_a080",
+    "s_dsc": "CP_a080_taskStackOverflow",
+    "l_dsc": "Task Stack Overflow"
+  },
+  {
+    "code": 380,
+    "dtc": "CP_a081",
+    "s_dsc": "CP_a081_swException",
+    "l_dsc": "Sw Exception"
+  },
+  {
+    "code": 381,
+    "dtc": "CP_a082",
+    "s_dsc": "CP_a082_powerOnReset",
+    "l_dsc": "Power On Reset"
+  },
+  {
+    "code": 382,
+    "dtc": "CP_a083",
+    "s_dsc": "CP_a083_watchdogTraceData",
+    "l_dsc": "Watchdog Trace Data"
+  },
+  {
+    "code": 383,
+    "dtc": "CP_a084",
+    "s_dsc": "CP_a084_proximityPeDisconnected",
+    "l_dsc": "Proximity Pe Disconnected"
+  },
+  {
+    "code": 384,
+    "dtc": "CP_a085",
+    "s_dsc": "CP_a085_dcPinTempFaulted",
+    "l_dsc": "Dc Pin Temp Faulted"
+  },
+  {
+    "code": 385,
+    "dtc": "CP_a086",
+    "s_dsc": "CP_a086_dcPinTempIrrational",
+    "l_dsc": "Dc Pin Temp Irrational"
+  },
+  {
+    "code": 386,
+    "dtc": "CP_a087",
+    "s_dsc": "CP_a087_dcTempModelFault",
+    "l_dsc": "Dc Temp Model Fault"
+  },
+  {
+    "code": 387,
+    "dtc": "CP_a088",
+    "s_dsc": "CP_a088_dcTempModelDeviation",
+    "l_dsc": "Dc Temp Model Deviation"
+  },
+  {
+    "code": 388,
+    "dtc": "CP_a089",
+    "s_dsc": "CP_a089_plcConfigMismatch",
+    "l_dsc": "Plc Config Mismatch"
+  },
+  {
+    "code": 389,
+    "dtc": "CP_a090",
+    "s_dsc": "CP_a090_ccsEvseLowIso",
+    "l_dsc": "Ccs Evse Low Iso"
+  },
+  {
+    "code": 390,
+    "dtc": "CP_a091",
+    "s_dsc": "CP_a091_wrongSuperchargerHandle",
+    "l_dsc": "Wrong Supercharger Handle"
+  },
+  {
+    "code": 391,
+    "dtc": "CP_a092",
+    "s_dsc": "CP_a092_modemAppLoadFailed",
+    "l_dsc": "Modem App Load Failed"
+  },
+  {
+    "code": 392,
+    "dtc": "CP_a093",
+    "s_dsc": "CP_a093_modemLoadedWithReset",
+    "l_dsc": "Modem Loaded With Reset"
+  },
+  {
+    "code": 393,
+    "dtc": "CP_a094",
+    "s_dsc": "CP_a094_inductiveResetSuccessful",
+    "l_dsc": "Inductive Reset Successful"
+  },
+  {
+    "code": 394,
+    "dtc": "CP_a095",
+    "s_dsc": "CP_a095_thermalDcLimitActive",
+    "l_dsc": "Thermal Dc Limit Active"
+  },
+  {
+    "code": 395,
+    "dtc": "CP_a096",
+    "s_dsc": "CP_a096_pilotWake",
+    "l_dsc": "Pilot Wake"
+  }
+]

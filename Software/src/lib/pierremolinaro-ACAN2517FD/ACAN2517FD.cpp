@@ -51,7 +51,7 @@ static const uint8_t TXBWS = 0 ;
   static void myESP32Task (void * pData) {
     ACAN2517FD * canDriver = (ACAN2517FD *) pData ;
     while (1) {
-      xSemaphoreTake (canDriver->mISRSemaphore, portMAX_DELAY) ;
+      xSemaphoreTake (canDriver->mISRSemaphore, 500 / portTICK_PERIOD_MS) ;
       canDriver->isr_poll_core () ;
     }
   }
@@ -972,6 +972,11 @@ void ACAN2517FD::isr_poll_core (void) {
         }
         if ((it & (1 << 12)) != 0) { // SERRIF interrupt
           writeRegister8Assume_SPI_transaction (INT_REGISTER + 1, ~ (1 << 4)) ;
+          handled = true ;
+        }
+        if ((it & (1 << 13)) != 0) { // CERRIF interrupt
+          writeRegister8Assume_SPI_transaction (INT_REGISTER + 1, ~ (1 << 5)) ;
+          canErrors = true ;
           handled = true ;
         }
         if ((it & (1 << 11)) != 0) { // RXOVIF interrupt

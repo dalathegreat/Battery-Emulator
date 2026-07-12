@@ -1,4 +1,5 @@
 #include "wifi.h"
+#include <esp_mac.h>  // esp_read_mac()
 #include "../../communication/nvm/comm_nvm.h"
 #include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
 #include "../safety/safety.h"
@@ -15,11 +16,12 @@ bool mdns_enabled = true;    //If true, allows battery monitor te be found by .l
 bool espnow_enabled = true;  //If true, allows battery emulator to send battery status by using ESPNow messages
 uint16_t wifi_channel = 0;
 
-std::string custom_hostname;  //If not set, the default naming format 'esp32-XXXXXX' will be used
+std::string custom_hostname;  //If not set, defaults to "battery-emulator-" + last two MAC bytes (see init_WiFi)
 std::string ssid;
 std::string password;
 std::string ssidAP;
 std::string passwordAP;
+const char* DEFAULT_AP_PASSWORD = "123456789";
 
 // Set your Static IP address. Only used incase Static address option is set
 bool static_IP_enabled = false;
@@ -68,6 +70,44 @@ static const unsigned long AP_BUTTON_AP_MS = 5000;              // >=5 s: start 
 static const unsigned long AP_BUTTON_STA_WIPE_MS = 15000;       // >=15 s: wipe STA settings + reboot
 static const unsigned long AP_BUTTON_FACTORY_RESET_MS = 30000;  // >=30 s: factory reset
 
+// Provisioning window: while the AP runs with the factory-default password it is
+// only kept up for a limited time, then shut down. Rebooting or long-pressing the
+// BOOT button (>=5 s) opens a new window. Setting a custom AP password lifts the
+// restriction entirely (AP stays up indefinitely).
+static const unsigned long AP_PROVISIONING_WINDOW_MS = 5UL * 60UL * 1000UL;  // 5 minutes
+static unsigned long ap_started_at = 0;                                      // millis() when the AP was (re)started
+static bool ap_provisioning_expired = false;  // blocks automatic AP re-enable until reboot/button
+
+static bool ap_password_is_default() {
+  return passwordAP == DEFAULT_AP_PASSWORD;
+}
+
+// Shut the AP down once it has been running with the factory-default password
+// for longer than the provisioning window.
+static void check_ap_provisioning_window() {
+  if (!ap_active || !ap_password_is_default()) {
+    return;
+  }
+  if (millis() - ap_started_at < AP_PROVISIONING_WINDOW_MS) {
+    return;
+  }
+  if (WiFi.softAPgetStationNum() > 0) {
+    return;  // a client is connected: don't cut off an active provisioning session
+  }
+  WiFi.softAPdisconnect(true);  // stop the AP and drop the AP bit from the WiFi mode; STA stays up
+  ap_active = false;
+  ap_provisioning_expired = true;
+  set_event(EVENT_WIFI_AP_PROVISION_TIMEOUT, 0);
+}
+
+String default_hostname() {
+  uint8_t mac_bytes[6];
+  esp_read_mac(mac_bytes, ESP_MAC_WIFI_STA);  // reads eFuse directly, valid even before WiFi starts
+  char mac_suffix[5];
+  snprintf(mac_suffix, sizeof(mac_suffix), "%02x%02x", mac_bytes[4], mac_bytes[5]);
+  return "battery-emulator-" + String(mac_suffix);
+}
+
 void init_WiFi() {
   DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
 
@@ -78,9 +118,17 @@ void init_WiFi() {
   WiFi.onEvent(onWifiDisconnect, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   WiFi.onEvent(onWifiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
 
+  // Always set a WiFi hostname: the user's custom one if set, otherwise a default of
+  // "battery-emulator-" + the last two bytes of the MAC address, so every device has a
+  // meaningful, likely-unique hostname even without configuration.
+  String hostname;
   if (!custom_hostname.empty()) {
-    WiFi.setHostname(custom_hostname.c_str());
+    hostname = String(custom_hostname.c_str());
+  } else {
+    hostname = default_hostname();
   }
+  WiFi.setHostname(hostname.c_str());
+  ssidAP = std::string(hostname.c_str());  // Access Point SSID now matches the hostname, be consistent with MDNS too
 
   if (wifiap_enabled) {
     WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
@@ -148,23 +196,17 @@ static void check_ap_button() {
     set_led_override(false, 0, 0);  // released: stop blink feedback
     const unsigned long held = now - ap_button_press_start;
     if (held >= AP_BUTTON_FACTORY_RESET_MS) {
-      // Stop current flow without persisting the equipment state before factory reset as reboot will open contactors
-      // Max Charge/Discharge = 0; CAN = stop; contactors = open
-      setBatteryPause(true, true, EquipmentStop::STOP, false);
       BatteryEmulatorSettingsStore settings;
       settings.clearAll();
-      delay(1000);
-      ESP.restart();
+      graceful_restart();
     } else if (held >= AP_BUTTON_STA_WIPE_MS) {
-      // Stop current flow as the reboot will open contactors
-      setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
       clear_wifi_sta_settings();
-      delay(1000);
-      ESP.restart();
+      graceful_restart();
     } else if (held >= AP_BUTTON_AP_MS) {
       if (!ap_active) {
+        ap_provisioning_expired = false;  // manual start opens a fresh provisioning window
         WiFi.mode(WIFI_AP_STA);
-        init_WiFi_AP();  // sets ap_active
+        init_WiFi_AP();  // sets ap_active, restarts the provisioning window timer
       }
     }
   }
@@ -174,6 +216,7 @@ static void check_ap_button() {
 // Task to monitor Wi-Fi status and handle reconnections
 void wifi_monitor() {
   check_ap_button();
+  check_ap_provisioning_window();
 
   if (ssid.empty() || password.empty()) {
     return;
@@ -220,9 +263,13 @@ void wifi_monitor() {
         // If no previous connection, force a full connection attempt
         if (currentMillis - lastReconnectAttempt > current_full_reconnect_interval) {
           logging.println("No previous OK connection, force a full connection attempt...");
-          wifiap_enabled = true;
-          WiFi.mode(WIFI_AP_STA);
-          init_WiFi_AP();
+          // Don't resurrect the rescue AP if its provisioning window already
+          // expired with the factory-default password still in place.
+          if (!ap_provisioning_expired) {
+            wifiap_enabled = true;
+            WiFi.mode(WIFI_AP_STA);
+            init_WiFi_AP();
+          }
 
           FullReconnectToWiFi();
         }
@@ -283,6 +330,11 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   logging.print("Wi-Fi Got IP. ");
   logging.print("IP address: ");
   logging.println(WiFi.localIP().toString());
+  static bool mdns_started = false;
+  if (mdns_enabled && !mdns_started) {
+    init_mDNS();
+    mdns_started = true;
+  }
 }
 
 // Event handler for Wi-Fi disconnection
@@ -300,21 +352,15 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 // Initialise mDNS (Only available on devices with )
 void init_mDNS() {
 #ifndef SMALL_FLASH_DEVICE
-  // Calulate the host name using the last two chars from the MAC address so each one is likely unique on a network.
-  // e.g batteryemulator8C.local where the mac address is 08:F9:E0:D1:06:8C
-  String mac = WiFi.macAddress();
-  String mdnsHost = "batteryemulator" + mac.substring(mac.length() - 2);
-
-  if (!custom_hostname.empty()) {
-    mdnsHost = String(custom_hostname.c_str());
-  }
+  // Reuse the network hostname (custom, or the "battery-emulator-<mac>" default set in init_WiFi()). Be consistent with AP too.
+  String mdnsHost = String(WiFi.getHostname());
 
   // Initialize mDNS .local resolution
   if (!MDNS.begin(mdnsHost)) {
     logging.println("Error setting up MDNS responder!");
   } else {
-    // Advertise via bonjour the service so we can auto discover these battery emulators on the local network.
-    MDNS.addService(mdnsHost, "tcp", 80);
+    // Advertise via bonjour the web inteface so we can auto discover these battery emulators on the local network.
+    MDNS.addService("http", "tcp", 80);
   }
 #endif
 }
@@ -323,6 +369,12 @@ void init_WiFi_AP() {
 
   DEBUG_PRINTF("Creating Access Point: %s\n", ssidAP.c_str());
   DEBUG_PRINTF("Access Point password set (%u characters)\n", (unsigned)passwordAP.length());
+
+  if (!ap_active) {
+    // (Re)start the provisioning window timer only on an off->on transition, so
+    // repeated re-inits from the STA reconnect fallback don't keep extending it.
+    ap_started_at = millis();
+  }
 
   WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
   ap_active = true;

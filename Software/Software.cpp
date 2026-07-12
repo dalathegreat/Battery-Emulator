@@ -39,7 +39,7 @@
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "10.14.dev";
+const char* version_number = "11.1.dev";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -510,6 +510,8 @@ void core_loop(void*) {
       if (inverter) {
         inverter->update_values();
       }
+
+      update_restart_progress();  // Check if we need to restart the ESP32
 
       if (datalayer.system.info.performance_measurement_active) {
         END_TIME_MEASUREMENT_MAX(values, datalayer.system.status.time_values_us);
