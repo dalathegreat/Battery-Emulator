@@ -218,9 +218,6 @@ static void check_ap_button() {
 
 // Task to monitor Wi-Fi status and handle reconnections
 void wifi_monitor() {
-#ifndef SMALL_FLASH_DEVICE
-  syslog_backlog_flush();  // keep draining even when nothing is logging
-#endif
   check_ap_button();
   check_ap_provisioning_window();
 
@@ -332,7 +329,7 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 // Event handler for Wi-Fi Got IP
 void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
 #ifndef SMALL_FLASH_DEVICE
-  syslog_backlog_flush();  // replay lines logged before we had an IP
+  syslog_start();  
 #endif
 
   //clear disconnects events if we got a IP
