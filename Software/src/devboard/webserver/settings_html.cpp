@@ -1494,6 +1494,61 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" 
         pattern="[ -~]{8,63}" 
         title="Password must be 8-63 characters long, printable ASCII only" placeholder='Leave blank to keep unchanged' />
+
+        <label>Hostname:<br>(also Access Point SSID, MQTT topics)</label>
+        <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
+        pattern="[A-Za-z0-9_\-]+"
+        placeholder="%DEFAULTHOSTNAME%"
+        title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
+
+        <label>Use static IP address: </label>
+        <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
+
+        <div class='if-staticip'>
+        <label>Local IP: </label>
+        <input type='text' name='LOCALIP' value="%LOCALIP%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%LOCALIPPH%" title="IPv4 address of this device" />
+
+        <label>Gateway: </label>
+        <input type='text' name='GATEWAY' value="%GATEWAY%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%GATEWAYPH%" title="IPv4 address of your router" />
+
+        <label>Subnet mask: </label>
+        <input type='text' name='SUBNET' value="%SUBNET%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%SUBNETPH%" title="Subnet mask of your network" />
+
+        <label>DNS server: </label>
+        <input type='text' name='DNS' value="%DNS%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%DNSPH%"
+              title="DNS resolver. Leave blank to use the gateway, which is correct on most home networks." />
+        </div>
+
+        <script> //Ticking static IP with empty fields adopts the addresses currently in use (the DHCP lease)
+        document.querySelector('input[name="STATICIP"]').addEventListener('change', function() {
+          if (!this.checked) return;
+          ['LOCALIP', 'GATEWAY', 'SUBNET', 'DNS'].forEach(function(name) {
+            const field = document.querySelector('input[name="' + name + '"]');
+            if (field && !field.value && field.placeholder.includes('.')) {
+              field.value = field.placeholder;
+            }
+          });
+        });
+        </script>
+
+        <label>Broadcast Wi-Fi Access Point: </label>
+        <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
+
+        <label>Access Point password: </label>
+        <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
+        pattern="([ -~]{8,63})?"
+        title="Password must be 8-63 characters long, printable ASCII only."
+        placeholder='Leave blank to keep unchanged' />
+
+        <label>Wifi channel 0-14: </label>
+        <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
+        min="0" max="14" step="1"
+        title="Force specific channel. Set to 0 for autodetect" required />
+
         </div>
         </div>
 
@@ -1912,59 +1967,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <h3>Connectivity settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
-        <label>Hostname:<br>(also Access Point SSID, MQTT topics)</label>
-        <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
-        pattern="[A-Za-z0-9_\-]+"
-        placeholder="%DEFAULTHOSTNAME%"
-        title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
     
-        <label>Broadcast Wi-Fi Access Point: </label>
-        <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
 
-        <label>Access Point password: </label>
-        <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
-        pattern="([ -~]{8,63})?"
-        title="Password must be 8-63 characters long, printable ASCII only."
-        placeholder='Leave blank to keep unchanged' />
-
-        <label>Wifi channel 0-14: </label>
-        <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
-        min="0" max="14" step="1"
-        title="Force specific channel. Set to 0 for autodetect" required />
-
-        <label>Use static IP address: </label>
-        <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
-
-        <div class='if-staticip'>
-        <label>Local IP: </label>
-        <input type='text' name='LOCALIP' value="%LOCALIP%" pattern="%IPPATTERN%"
-              inputmode="decimal" placeholder="%LOCALIPPH%" title="IPv4 address of this device" />
-
-        <label>Gateway: </label>
-        <input type='text' name='GATEWAY' value="%GATEWAY%" pattern="%IPPATTERN%"
-              inputmode="decimal" placeholder="%GATEWAYPH%" title="IPv4 address of your router" />
-
-        <label>Subnet mask: </label>
-        <input type='text' name='SUBNET' value="%SUBNET%" pattern="%IPPATTERN%"
-              inputmode="decimal" placeholder="%SUBNETPH%" title="Subnet mask of your network" />
-
-        <label>DNS server: </label>
-        <input type='text' name='DNS' value="%DNS%" pattern="%IPPATTERN%"
-              inputmode="decimal" placeholder="%DNSPH%"
-              title="DNS resolver. Leave blank to use the gateway, which is correct on most home networks." />
-        </div>
-
-        <script> //Ticking static IP with empty fields adopts the addresses currently in use (the DHCP lease)
-        document.querySelector('input[name="STATICIP"]').addEventListener('change', function() {
-          if (!this.checked) return;
-          ['LOCALIP', 'GATEWAY', 'SUBNET', 'DNS'].forEach(function(name) {
-            const field = document.querySelector('input[name="' + name + '"]');
-            if (field && !field.value && field.placeholder.includes('.')) {
-              field.value = field.placeholder;
-            }
-          });
-        });
-        </script>
 
         <label>Enable ESPNow: </label>
         <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED% />

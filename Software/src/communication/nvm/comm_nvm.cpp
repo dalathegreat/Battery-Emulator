@@ -5,6 +5,7 @@
 #include "../../charger/CanCharger.h"
 #include "../../communication/can/comm_can.h"
 #include "../../devboard/mqtt/mqtt.h"
+#include "../../devboard/utils/logging.h"
 #include "../../devboard/webserver/webserver.h"
 #include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
@@ -33,6 +34,7 @@ static void migrate_static_ip_settings(BatteryEmulatorSettingsStore& settings) {
       }
       settings.saveString(STATIC_IP_KEYS[i], value.c_str());
     }
+    DEBUG_PRINTLN("Static IPv4 settings migrated successfully");
   }
 
   for (auto key : legacy_keys) {
