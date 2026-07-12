@@ -285,7 +285,7 @@ void BydAttoBattery::
     if (datalayer_bydatto->UserRequestDTCreadout && stateMachineReadDTC == NOT_RUNNING) {
       stateMachineReadDTC = STARTED;
       datalayer_bydatto->dtc_read_in_progress = true;
-      datalayer_bydatto->dtc_read_failed = false;
+      datalayer_battery->dtc.dtc_read_failed = false;
       dtc_request_millis = millis();
       datalayer_bydatto->UserRequestDTCreadout = false;
     }
@@ -297,7 +297,7 @@ void BydAttoBattery::
     // Fail the read if the BMS never answers
     if (datalayer_bydatto->dtc_read_in_progress && (millis() - dtc_request_millis > 2000)) {
       datalayer_bydatto->dtc_read_in_progress = false;
-      datalayer_bydatto->dtc_read_failed = true;
+      datalayer_battery->dtc.dtc_read_failed = true;
       dtc_rx_active = false;
     }
   }
@@ -610,7 +610,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 // 4 bytes per DTC (3-byte code + status). Stores raw codes; HTML decodes them to strings.
 void BydAttoBattery::parseDTCResponse() {
   if (dtc_buffer[0] != 0x59 || dtc_buffer[1] != 0x02) {
-    datalayer_bydatto->dtc_read_failed = true;
+    datalayer_battery->dtc.dtc_read_failed = true;
     datalayer_bydatto->dtc_read_in_progress = false;
     return;
   }
@@ -622,13 +622,13 @@ void BydAttoBattery::parseDTCResponse() {
     if (code == 0 || status == 0) {  // Empty slot or cleared DTC
       continue;
     }
-    datalayer_bydatto->dtc_codes[count] = code;
-    datalayer_bydatto->dtc_status[count] = status;
+    datalayer_battery->dtc.dtc_codes[count] = code;
+    datalayer_battery->dtc.dtc_status[count] = status;
     count++;
   }
   // Display order: active (status bit0) first, then ascending code.
-  uint32_t* codes = datalayer_bydatto->dtc_codes;
-  uint8_t* sts = datalayer_bydatto->dtc_status;
+  uint32_t* codes = datalayer_battery->dtc.dtc_codes;
+  uint8_t* sts = datalayer_battery->dtc.dtc_status;
   for (uint8_t a = 1; a < count; a++) {
     uint32_t c = codes[a];
     uint8_t s = sts[a];
@@ -647,9 +647,9 @@ void BydAttoBattery::parseDTCResponse() {
     codes[b + 1] = c;
     sts[b + 1] = s;
   }
-  datalayer_bydatto->dtc_count = count;
-  datalayer_bydatto->dtc_last_read_millis = millis();
-  datalayer_bydatto->dtc_read_failed = false;
+  datalayer_battery->dtc.dtc_count = count;
+  datalayer_battery->dtc.dtc_last_read_millis = millis();
+  datalayer_battery->dtc.dtc_read_failed = false;
   datalayer_bydatto->dtc_read_in_progress = false;
 }
 

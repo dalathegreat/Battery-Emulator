@@ -98,6 +98,11 @@ String options_from_map(int selected, const TMap& value_name_map) {
   }
   return options;
 }
+
+// Shared IPv4 validation regex for every IP input on the settings page. Injected via the %IPPATTERN%
+// placeholder rather than repeated in the HTML template, so it only occupies flash once.
+static const char* const IPV4_PATTERN = R"(((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d))";
+
 #ifdef HW_LILYGO2CAN
 static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy Flow"},     {2, "Heartbeat"},
                                                 {3, "GRB Classic"}, {4, "GRB Energy Flow"}, {5, "GRB Heartbeat"}};
@@ -556,52 +561,45 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("RAMPDOWNSOC", 9000));
   }
 
-  if (var == "LOCALIP1") {
-    return String(settings.getUInt("LOCALIP1", 0));
+  if (var == "LOCALIP") {
+    return settings.getString("LOCALIP");
   }
 
-  if (var == "LOCALIP2") {
-    return String(settings.getUInt("LOCALIP2", 0));
+  if (var == "GATEWAY") {
+    return settings.getString("GATEWAY");
   }
 
-  if (var == "LOCALIP3") {
-    return String(settings.getUInt("LOCALIP3", 0));
+  if (var == "SUBNET") {
+    return settings.getString("SUBNET");
   }
 
-  if (var == "LOCALIP4") {
-    return String(settings.getUInt("LOCALIP4", 0));
+  if (var == "DNS") {
+    return settings.getString("DNS");
   }
 
-  if (var == "GATEWAY1") {
-    return String(settings.getUInt("GATEWAY1", 0));
+  // Placeholders for the static IP fields: the addresses currently in use, so pinning an existing DHCP
+  // lease is a matter of ticking the checkbox. Empty when there is no station link (AP-only mode) - we
+  // have nothing meaningful to suggest and made-up examples would only invite copying them verbatim.
+  if (var == "LOCALIPPH") {
+    return WiFi.isConnected() ? WiFi.localIP().toString() : String();
   }
 
-  if (var == "GATEWAY2") {
-    return String(settings.getUInt("GATEWAY2", 0));
+  if (var == "GATEWAYPH") {
+    return WiFi.isConnected() ? WiFi.gatewayIP().toString() : String();
   }
 
-  if (var == "GATEWAY3") {
-    return String(settings.getUInt("GATEWAY3", 0));
+  if (var == "SUBNETPH") {
+    return WiFi.isConnected() ? WiFi.subnetMask().toString() : String();
   }
 
-  if (var == "GATEWAY4") {
-    return String(settings.getUInt("GATEWAY4", 0));
+  if (var == "DNSPH") {
+    IPAddress dns = WiFi.dnsIP();
+    return (WiFi.isConnected() && dns != IPAddress(0, 0, 0, 0)) ? dns.toString() : String();
   }
 
-  if (var == "SUBNET1") {
-    return String(settings.getUInt("SUBNET1", 0));
-  }
-
-  if (var == "SUBNET2") {
-    return String(settings.getUInt("SUBNET2", 0));
-  }
-
-  if (var == "SUBNET3") {
-    return String(settings.getUInt("SUBNET3", 0));
-  }
-
-  if (var == "SUBNET4") {
-    return String(settings.getUInt("SUBNET4", 0));
+  // Emitted once per use so the regex is stored in flash a single time, not once per input field.
+  if (var == "IPPATTERN") {
+    return IPV4_PATTERN;
   }
 
   if (var == "PERFPROFILE") {
@@ -963,6 +961,18 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("DALYPWR0C", 800));
   }
 
+  if (var == "FOXESSTYPE") {
+    return String(settings.getUInt("FOXESSTYPE", 0));
+  }
+
+  if (var == "FOXESSSUBTYPE") {
+    return String(settings.getUInt("FOXESSSUBTYPE", 0));
+  }
+
+  if (var == "FOXESSMODULES") {
+    return String(settings.getUInt("FOXESSMODULES", 0));
+  }
+
   return String();
 }
 
@@ -1087,9 +1097,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class='if-syslogen'>
         <label>Syslog server IP: </label>
-        <input type='text' name='SYSLOGIP' value="%SYSLOGIP%"
-              pattern="((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)"
-              title="IPv4 address of the syslog server" />
+        <input type='text' name='SYSLOGIP' value="%SYSLOGIP%" pattern="%IPPATTERN%"
+              inputmode="decimal" title="IPv4 address of the syslog server" />
         <label>Syslog UDP port: </label>
         <input type='number' name='SYSLOGPORT' value="%SYSLOGPORT%"
               min="1" max="65535" step="1" title="UDP port (default 514)" />
@@ -1404,6 +1413,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-inverter="18"] .if-solax {
       display: contents;
     }
+
+    form .if-foxess { display: none; }
+    form[data-inverter="5"] .if-foxess {
+      display: contents;
+    }
       
     form .if-sungrow { display: none; }
     form[data-inverter="21"] .if-sungrow {
@@ -1480,6 +1494,61 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" 
         pattern="[ -~]{8,63}" 
         title="Password must be 8-63 characters long, printable ASCII only" placeholder='Leave blank to keep unchanged' />
+
+        <label>Hostname:<br>(also Access Point SSID, MQTT topics)</label>
+        <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
+        pattern="[A-Za-z0-9_\-]+"
+        placeholder="%DEFAULTHOSTNAME%"
+        title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
+
+        <label>Use static IP address: </label>
+        <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
+
+        <div class='if-staticip'>
+        <label>Local IP: </label>
+        <input type='text' name='LOCALIP' value="%LOCALIP%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%LOCALIPPH%" title="IPv4 address of this device" />
+
+        <label>Gateway: </label>
+        <input type='text' name='GATEWAY' value="%GATEWAY%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%GATEWAYPH%" title="IPv4 address of your router" />
+
+        <label>Subnet mask: </label>
+        <input type='text' name='SUBNET' value="%SUBNET%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%SUBNETPH%" title="Subnet mask of your network" />
+
+        <label>DNS server: </label>
+        <input type='text' name='DNS' value="%DNS%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%DNSPH%"
+              title="DNS resolver. Leave blank to use the gateway, which is correct on most home networks." />
+        </div>
+
+        <script> //Ticking static IP with empty fields adopts the addresses currently in use (the DHCP lease)
+        document.querySelector('input[name="STATICIP"]').addEventListener('change', function() {
+          if (!this.checked) return;
+          ['LOCALIP', 'GATEWAY', 'SUBNET', 'DNS'].forEach(function(name) {
+            const field = document.querySelector('input[name="' + name + '"]');
+            if (field && !field.value && field.placeholder.includes('.')) {
+              field.value = field.placeholder;
+            }
+          });
+        });
+        </script>
+
+        <label>Broadcast Wi-Fi Access Point: </label>
+        <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
+
+        <label>Access Point password: </label>
+        <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
+        pattern="([ -~]{8,63})?"
+        title="Password must be 8-63 characters long, printable ASCII only."
+        placeholder='Leave blank to keep unchanged' />
+
+        <label>Wifi channel 0-14: </label>
+        <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
+        min="0" max="14" step="1"
+        title="Force specific channel. Set to 0 for autodetect" required />
+
         </div>
         </div>
 
@@ -1733,6 +1802,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input name='INVBTYPE' type='text' value="%INVBTYPE%" pattern="[0-9]+" />
         </div>
 
+        <div class="if-foxess">
+        <label>FoxESS battery type (0 for default): </label>
+        <input name='FOXESSTYPE' type='text' value="%FOXESSTYPE%" pattern="[0-9]+" />
+
+        <label>FoxESS battery subtype (0 for default): </label>
+        <input name='FOXESSSUBTYPE' type='text' value="%FOXESSSUBTYPE%" pattern="[0-9]+" />
+
+        <label>FoxESS module count (0 for default): </label>
+        <input name='FOXESSMODULES' type='text' value="%FOXESSMODULES%" pattern="[0-9]+" />
+        </div>
+
         <div class="if-sungrow">
         <label>Battery model: </label>
         <select name='INVSUNTYPE'>%SUNGROW_MODEL%</select>
@@ -1884,58 +1964,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="settings-card">
-        <h3>Connectivity settings</h3>
+        <h3>Integration settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
-
-        <label>Hostname:<br>(also Access Point SSID, MQTT topics)</label>
-        <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
-        pattern="[A-Za-z0-9_\-]+"
-        placeholder="%DEFAULTHOSTNAME%"
-        title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
-    
-        <label>Broadcast Wi-Fi Access Point: </label>
-        <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
-
-        <label>Access Point password: </label>
-        <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
-        pattern="([ -~]{8,63})?"
-        title="Password must be 8-63 characters long, printable ASCII only."
-        placeholder='Leave blank to keep unchanged' />
-
-        <label>Wifi channel 0-14: </label>
-        <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
-        min="0" max="14" step="1"
-        title="Force specific channel. Set to 0 for autodetect" required />
-
-        <label>Use static IP address: </label>
-        <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
-
-        <div class='if-staticip'>
-        <div>
-          <div>Local IP:</div>
-          <input type="number" name="LOCALIP1" min="0" max="255" size="3" value="%LOCALIP1%">.
-          <input type="number" name="LOCALIP2" min="0" max="255" size="3" value="%LOCALIP2%">.
-          <input type="number" name="LOCALIP3" min="0" max="255" size="3" value="%LOCALIP3%">.
-          <input type="number" name="LOCALIP4" min="0" max="255" size="3" value="%LOCALIP4%">
-        </div>
-            
-        <div>
-            <div>Gateway:</div>
-            <input type="number" name="GATEWAY1" min="0" max="255" size="3" value="%GATEWAY1%">.
-            <input type="number" name="GATEWAY2" min="0" max="255" size="3" value="%GATEWAY2%">.
-            <input type="number" name="GATEWAY3" min="0" max="255" size="3" value="%GATEWAY3%">.
-            <input type="number" name="GATEWAY4" min="0" max="255" size="3" value="%GATEWAY4%">
-        </div>
-    
-        <div>
-          <div>Subnet:</div>
-          <input type="number" name="SUBNET1" min="0" max="255" size="3" value="%SUBNET1%">.
-          <input type="number" name="SUBNET2" min="0" max="255" size="3" value="%SUBNET2%">.
-          <input type="number" name="SUBNET3" min="0" max="255" size="3" value="%SUBNET3%">.
-          <input type="number" name="SUBNET4" min="0" max="255" size="3" value="%SUBNET4%">
-        </div>
-        <div></div>
-        </div>
 
         <label>Enable ESPNow: </label>
         <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED% />

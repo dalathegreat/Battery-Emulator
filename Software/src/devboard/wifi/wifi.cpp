@@ -16,6 +16,9 @@ bool wifiap_enabled = true;
 bool mdns_enabled = true;    //If true, allows battery monitor te be found by .local address
 bool espnow_enabled = true;  //If true, allows battery emulator to send battery status by using ESPNow messages
 uint16_t wifi_channel = 0;
+#ifndef SMALL_FLASH_DEVICE
+extern const char* version_number;
+#endif
 
 std::string custom_hostname;  //If not set, defaults to "battery-emulator-" + last two MAC bytes (see init_WiFi)
 std::string ssid;
@@ -26,18 +29,10 @@ const char* DEFAULT_AP_PASSWORD = "123456789";
 
 // Set your Static IP address. Only used incase Static address option is set
 bool static_IP_enabled = false;
-uint8_t static_local_IP1 = 0;
-uint8_t static_local_IP2 = 0;
-uint8_t static_local_IP3 = 0;
-uint8_t static_local_IP4 = 0;
-uint8_t static_gateway1 = 0;
-uint8_t static_gateway2 = 0;
-uint8_t static_gateway3 = 0;
-uint8_t static_gateway4 = 0;
-uint8_t static_subnet1 = 0;
-uint8_t static_subnet2 = 0;
-uint8_t static_subnet3 = 0;
-uint8_t static_subnet4 = 0;
+std::string static_local_IP;
+std::string static_gateway;
+std::string static_subnet;
+std::string static_dns;
 
 // Configuration Parameters
 static const uint16_t WIFI_CHECK_INTERVAL = 2000;       // 1 seconds normal check interval when last connected
@@ -142,14 +137,21 @@ void init_WiFi() {
   WiFi.setAutoReconnect(true);
 
   if (static_IP_enabled) {
-    // Set static IP
-    IPAddress local_IP((uint8_t)static_local_IP1, (uint8_t)static_local_IP2, (uint8_t)static_local_IP3,
-                       (uint8_t)static_local_IP4);
-    IPAddress gateway((uint8_t)static_gateway1, (uint8_t)static_gateway2, (uint8_t)static_gateway3,
-                      (uint8_t)static_gateway4);
-    IPAddress subnet((uint8_t)static_subnet1, (uint8_t)static_subnet2, (uint8_t)static_subnet3,
-                     (uint8_t)static_subnet4);
-    WiFi.config(local_IP, gateway, subnet);
+    IPAddress local_IP, gateway, subnet, dns;
+    if (local_IP.fromString(static_local_IP.c_str()) && gateway.fromString(static_gateway.c_str()) &&
+        subnet.fromString(static_subnet.c_str())) {
+      // WiFi.config() stops the DHCP client and unconditionally overwrites the DNS server. Passing no DNS
+      // therefore leaves the resolver at 0.0.0.0 and breaks MQTT-by-hostname/release checks. Default to
+      // the gateway, which is the resolver on virtually every home network.
+      if (!dns.fromString(static_dns.c_str())) {
+        dns = gateway;
+      }
+      if (!WiFi.config(local_IP, gateway, subnet, dns)) {
+        logging.println("Static IP configuration rejected, falling back to DHCP");
+      }
+    } else {
+      logging.println("Static IP settings are invalid, falling back to DHCP");
+    }
   }
 
   // Start Wi-Fi connection
@@ -327,11 +329,26 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 
 // Event handler for Wi-Fi Got IP
 void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
+#ifndef SMALL_FLASH_DEVICE
+  syslog_start();
+#endif
+
   //clear disconnects events if we got a IP
   clear_event(EVENT_WIFI_DISCONNECT);
   logging.print("Wi-Fi Got IP. ");
   logging.print("IP address: ");
   logging.println(WiFi.localIP().toString());
+
+#ifndef SMALL_FLASH_DEVICE
+  // One-shot boot notice — fires once per boot, not on every reconnect.
+  static bool boot_logged = false;
+  if (!boot_logged) {
+    boot_logged = true;
+    LOG_SET_NEXT_SEVERITY(5);  // RFC 5424 severity 5 = Notice
+    logging.printf("Bootup complete, running version %s\n", version_number);
+  }
+#endif
+
   static bool mdns_started = false;
   if (mdns_enabled && !mdns_started) {
     init_mDNS();
@@ -359,10 +376,11 @@ void init_mDNS() {
 
   // Initialize mDNS .local resolution
   if (!MDNS.begin(mdnsHost)) {
-    logging.println("Error setting up MDNS responder!");
+    logging.println("Error setting up mDNS responder!");
   } else {
     // Advertise via bonjour the web inteface so we can auto discover these battery emulators on the local network.
     MDNS.addService("http", "tcp", 80);
+    logging.println("mDNS responder started.");
   }
 #endif
 }
