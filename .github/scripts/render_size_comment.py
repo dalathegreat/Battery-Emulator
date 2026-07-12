@@ -197,6 +197,15 @@ def _row_normal(env: str, base: BoardSize, pr: BoardSize, artifact_url: str | No
     )
 
 
+def find_artifact_url(board_name: str, artifact_urls: dict[str, str]) -> str | None:
+    """Return the .ota.bin artifact URL for a board, or None."""
+    artifact_suffix = "".join(board_name.split()) + ".ota.bin"
+    for artifact_name, url in artifact_urls.items():
+        if artifact_name.endswith(artifact_suffix):
+            return url
+    return None
+
+
 def render_row(env: str, base: BoardSize | None, pr: BoardSize | None, artifact_url: str | None) -> str:
     """Dispatch to the right case builder and format the resulting row."""
     if pr is None:
@@ -273,15 +282,16 @@ def render(
     lines.append(sep)
 
     for env in envs:
-        artifact_url = artifact_urls.get(pr.get(env, base.get(env)).get_artifact_slug(), None)
+        board = pr.get(env, base.get(env))
+        artifact_url = find_artifact_url(board.board_name, artifact_urls)
         lines.append(render_row(env, base.get(env), pr.get(env), artifact_url))
 
     lines.append("")
     lines.append("### To test this firmware on your device:")
     lines.append("1. Make sure you're logged into GitHub")
     lines.append("2. Click the link above corresponding to your hardware type")
-    lines.append("3. Download and unzip it , and grab the file ending `.bin`")
-    lines.append("4. Upload the `.bin` to your board via OTA")
+    lines.append("3. Download the `.ota.bin` file for your board")
+    lines.append("4. Upload the `.ota.bin` via OTA")
 
     return "\n".join(lines)
 

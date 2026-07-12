@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
+    inputs:
+      release_version:
+        description: "Release version in the format v1.2.3"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -19,25 +25,18 @@ jobs:
         include:
           - board_name: "Lilygo T-CAN485"
             pio_env: "lilygo_330"
-            artifact_name: "battery-emulator-lilygo-t-can485"
           - board_name: "Stark CMR"
             pio_env: "stark_330"
-            artifact_name: "battery-emulator-stark-cmr"
           - board_name: "Lilygo T-2CAN"
             pio_env: "lilygo_2CAN_330"
-            artifact_name: "battery-emulator-lilygo-t-2can"
           - board_name: "ESP32 DevKit V1"
             pio_env: "esp32devkit_330"
-            artifact_name: "battery-emulator-esp32-devkit-v1"
-          - board_name: "BECom"
+          - board_name: "BECom ES32S3"
             pio_env: "BECom_330"
-            artifact_name: "battery-emulator-becom"
-          - board_name: "Waveshare RS485CAN"
+          - board_name: "Waveshare ESP32S3RS485CAN"
             pio_env: "waveshare_330"
-            artifact_name: "battery-emulator-waveshare-rs485can"
           - board_name: "Compiler warning check"
             pio_env: "compiler_warning_check"
-            artifact_name: "battery-dummy-check"
 
     steps:
     - uses: actions/checkout@v7
@@ -86,27 +85,66 @@ jobs:
           --pio-system-info "$(pio system info --json-output)" \
           --platform-json "$(cat "$HOME"/.platformio/platforms/espressif32*/platform.json)"
 
-    #rename firmware.bin to contain pr number and commit short sha for easier location after saved on disk
-    - name: Rename firmware.bin with PR number and commit short SHA
-      run: |
-          SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha || github.sha }}" | cut -c1-7)
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            PR_PART="pr${{ github.event.pull_request.number }}-"
-          else
-            PR_PART=""
-          fi
-          cp .pio/build/${{ matrix.pio_env }}/firmware.bin \
-             firmware-${PR_PART}${SHORT_SHA}.bin
+    - name: Compute artifact prefix
+      id: name
+      if: matrix.pio_env != 'compiler_warning_check'
+      uses: actions/github-script@v9
+      env:
+        RELEASE_VERSION: ${{ inputs.release_version }}
+        BOARD_NAME: ${{ matrix.board_name }}
+      with:
+        script: |
+          const releaseVersion = process.env.RELEASE_VERSION || '';
+          const board = process.env.BOARD_NAME.replace(/\s+/g, '');
 
-    - name: Upload artifact for ${{ matrix.board_name }}
+          const sanitize = (s) => s.replace(/[":<>|*?\\/\r\n]/g, '-');
+
+          let context_seg;
+          if (releaseVersion) {
+            context_seg = releaseVersion;
+          } else if (context.eventName === 'pull_request') {
+            const sha = context.payload.pull_request.head.sha.slice(0, 7);
+            context_seg = `pr${context.payload.pull_request.number}-${sha}`;
+          } else { // push
+            const sha = context.sha.slice(0, 7);
+            context_seg = `${sanitize(process.env.GITHUB_REF_NAME)}-${sha}`;
+          }
+
+          core.setOutput('prefix', `BE_${context_seg}_${board}`);
+
+    - name: Rename release artifacts for ${{ matrix.board_name }}
+      if: matrix.pio_env != 'compiler_warning_check'
+      env:
+        PREFIX: ${{ steps.name.outputs.prefix }}
+        PIO_ENV: ${{ matrix.pio_env }}
+      run: |
+        mv "${PIO_ENV}.size.json"                       "${PREFIX}.size.json"
+        mv ".pio/build/${PIO_ENV}/firmware.factory.bin" "${PREFIX}.factory.bin"
+        mv ".pio/build/${PIO_ENV}/firmware.bin"         "${PREFIX}.ota.bin"
+
+    - name: Upload factory image for ${{ matrix.board_name }}
       if: matrix.pio_env != 'compiler_warning_check'
       uses: actions/upload-artifact@v7
       with:
-        name: ${{ matrix.artifact_name }}
-        path: |
-          firmware-*.bin
-          ${{ matrix.pio_env }}.size.json
-        if-no-files-found: warn
+        path: ${{ steps.name.outputs.prefix }}.factory.bin
+        archive: false
+        if-no-files-found: error
+
+    - name: Upload OTA image for ${{ matrix.board_name }}
+      if: matrix.pio_env != 'compiler_warning_check'
+      uses: actions/upload-artifact@v7
+      with:
+        path: ${{ steps.name.outputs.prefix }}.ota.bin
+        archive: false
+        if-no-files-found: error
+
+    - name: Upload size report for ${{ matrix.board_name }}
+      if: matrix.pio_env != 'compiler_warning_check'
+      uses: actions/upload-artifact@v7
+      with:
+        path: ${{ steps.name.outputs.prefix }}.size.json
+        archive: false
+        if-no-files-found: error
 
   measure-size:
     needs: build
