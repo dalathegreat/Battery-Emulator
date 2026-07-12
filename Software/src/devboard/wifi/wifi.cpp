@@ -137,7 +137,7 @@ void init_WiFi() {
     if (local_IP.fromString(static_local_IP.c_str()) && gateway.fromString(static_gateway.c_str()) &&
         subnet.fromString(static_subnet.c_str())) {
       // WiFi.config() stops the DHCP client and unconditionally overwrites the DNS server. Passing no DNS
-      // therefore leaves the resolver at 0.0.0.0 and breaks NTP/MQTT-by-hostname/release checks. Default to
+      // therefore leaves the resolver at 0.0.0.0 and breaks MQTT-by-hostname/release checks. Default to
       // the gateway, which is the resolver on virtually every home network.
       if (!dns.fromString(static_dns.c_str())) {
         dns = gateway;
