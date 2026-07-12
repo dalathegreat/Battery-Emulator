@@ -144,8 +144,7 @@ static void syslog_task(void* arg) {
   for (;;) {
     bool have = false;
 
-    if (syslog_online() && syslogMutex != nullptr &&
-        xSemaphoreTake(syslogMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+    if (syslog_online() && syslogMutex != nullptr && xSemaphoreTake(syslogMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
       if (syslogQueue != nullptr && syslogQueuePos < syslogQueueLen) {
         sev = (uint8_t)syslogQueue[syslogQueuePos++];
         const char* rec = &syslogQueue[syslogQueuePos];
