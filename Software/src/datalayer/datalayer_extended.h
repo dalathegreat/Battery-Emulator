@@ -890,6 +890,17 @@ struct DATALAYER_INFO_MEB {
 
   float temp_points[18];
   int16_t celltemperature_dC[56];
+
+  // DTC readout (UDS 0x19 0x02) and clear (OBD service 0x04). Codes stored as raw 3 bytes
+  // packed in a uint32, rendered to string in HTML.
+  uint32_t dtc_codes[32] = {0};
+  uint8_t dtc_status[32] = {0};
+  uint8_t dtc_count = 0;
+  unsigned long dtc_last_read_millis = 0;  // Timestamp of last successful read
+  bool dtc_read_in_progress = false;       // Flag to prevent concurrent reads
+  bool dtc_read_failed = false;            // Indicates last read attempt failed
+  bool UserRequestDTCreset = false;        // User requesting DTC erase via WebUI
+  bool UserRequestDTCreadout = false;      // User requesting DTC readout via WebUI
 };
 
 struct DATALAYER_INFO_VOLVO_POLESTAR {
