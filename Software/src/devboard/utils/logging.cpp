@@ -67,7 +67,7 @@ static bool syslog_online(void) {
 }
 
 // Called ONLY from syslog_task, and never with the mutex held.
-static void syslog_send(uint8_t sev, const char* msg) {
+static void syslog_send(uint8_t sev, const char* proc, const char* msg) {
   IPAddress dst;
   if (!dst.fromString(syslog_ip.c_str())) {  // empty or invalid IP -> skip
     return;
@@ -76,13 +76,20 @@ static void syslog_send(uint8_t sev, const char* msg) {
   if (syslogUdp.beginPacket(dst, syslog_port)) {
     // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
     // NILVALUE '-' timestamp -> the syslog server stamps on receipt.
-    syslogUdp.printf("<%u>1 - %s BatteryEmulator - - - %s", pri, syslog_hostname(), msg);
+    syslogUdp.printf("<%u>1 - %s BatteryEmulator %s - - %s", pri, syslog_hostname(), proc, msg);
     syslogUdp.endPacket();
   }
 }
 
 // Called from the logging path, in whatever task did the logging. Does no I/O.
 static void syslog_queue_push(uint8_t sev, const char* msg) {
+  // MUST be read here: we are in the caller's task. Reading it in syslog_task
+  // would label every line "syslog".
+  const char* proc = pcTaskGetName(nullptr);
+  if (proc == nullptr || proc[0] == '\0') {
+    proc = "-";  // NILVALUE
+  }
+  size_t plen = strlen(proc);
   char rec[SYSLOG_MSG_MAX];
   int n;
   if (syslog_online()) {
@@ -114,7 +121,7 @@ static void syslog_queue_push(uint8_t sev, const char* msg) {
     }
   }
 
-  size_t need = 1 + (size_t)n + 1;
+  size_t need = 1 + plen + 1 + (size_t)n + 1;
   if (syslogQueueLen + need > SYSLOG_QUEUE_MAX && syslogQueuePos > 0) {
     // Tail hit the cap but the head is already sent: slide the pending region down.
     memmove(syslogQueue, syslogQueue + syslogQueuePos, syslogQueueLen - syslogQueuePos);
@@ -130,6 +137,8 @@ static void syslog_queue_push(uint8_t sev, const char* msg) {
   }
 
   syslogQueue[syslogQueueLen++] = (char)sev;
+  memcpy(syslogQueue + syslogQueueLen, proc, plen + 1);
+  syslogQueueLen += plen + 1;
   memcpy(syslogQueue + syslogQueueLen, rec, n + 1);
   syslogQueueLen += n + 1;
   xSemaphoreGive(syslogMutex);
@@ -138,6 +147,7 @@ static void syslog_queue_push(uint8_t sev, const char* msg) {
 // Pops one record under the lock, then sends it with the lock released.
 static void syslog_task(void* arg) {
   char msg[SYSLOG_MSG_MAX];
+  char proc[configMAX_TASK_NAME_LEN];
   uint8_t sev = 0;
   uint16_t dropped = 0;
 
@@ -148,9 +158,11 @@ static void syslog_task(void* arg) {
       if (syslogQueue != nullptr && syslogQueuePos < syslogQueueLen) {
         sev = (uint8_t)syslogQueue[syslogQueuePos++];
         const char* rec = &syslogQueue[syslogQueuePos];
-        snprintf(msg, sizeof(msg), "%s", rec);  // copy out, so we can send unlocked
+        snprintf(proc, sizeof(proc), "%s", rec);  // task name
         syslogQueuePos += strlen(rec) + 1;
-        have = true;
+        rec = &syslogQueue[syslogQueuePos];
+        snprintf(msg, sizeof(msg), "%s", rec);  // message; copy out so we can send unlocked
+        syslogQueuePos += strlen(rec) + 1;        have = true;
 
         if (syslogQueuePos >= syslogQueueLen) {  // drained -> rewind
           syslogQueuePos = 0;
@@ -163,12 +175,12 @@ static void syslog_task(void* arg) {
     }
 
     if (have) {
-      syslog_send(sev, msg);  // UDP happens OUTSIDE the lock
+      syslog_send(sev, proc, msg);  // UDP happens OUTSIDE the lock
     }
     if (dropped) {
       char note[64];
       snprintf(note, sizeof(note), "syslog queue was full, %u line(s) dropped", dropped);
-      syslog_send(4, note);  // severity 4 = warning
+      syslog_send(4, "syslog", note);  // severity 4 = warning
       dropped = 0;
     }
 
