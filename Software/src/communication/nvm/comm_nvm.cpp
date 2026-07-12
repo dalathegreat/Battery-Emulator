@@ -16,7 +16,8 @@
 static const char* const STATIC_IP_KEYS[] = {"LOCALIP", "GATEWAY", "SUBNET", "DNS"};
 
 // Releases <= 10.x stored the static IP configuration as twelve separate octet keys. Fold them into the
-// dotted-quad string keys once, then drop the old keys. Can be removed a couple of releases from now.
+// dotted-quad string keys once, then drop the old keys. 
+// Added in 2026.07. Can be removed couple of releases from now (suggested after 2027.01)
 static void migrate_static_ip_settings(BatteryEmulatorSettingsStore& settings) {
   static const char* const legacy_keys[] = {"LOCALIP1", "LOCALIP2", "LOCALIP3", "LOCALIP4", "GATEWAY1", "GATEWAY2",
                                             "GATEWAY3", "GATEWAY4", "SUBNET1",  "SUBNET2",  "SUBNET3",  "SUBNET4"};
