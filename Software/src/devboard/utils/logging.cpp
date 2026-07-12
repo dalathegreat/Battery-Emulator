@@ -27,9 +27,10 @@ static char syslogLine[SYSLOG_LINE_MAX];
 static size_t syslogLineLen = 0;
 
 // Lines logged before we can send are buffered here and replayed on connect.
+// Heap-allocated on first use, freed after the flush -> no permanent RAM cost.
 // Record layout: [uint8 severity][text\0]
 #define SYSLOG_BACKLOG_MAX 4096
-static char syslogBacklog[SYSLOG_BACKLOG_MAX];
+static char* syslogBacklog = nullptr;
 static size_t syslogBacklogLen = 0;
 
 static void syslog_send(uint8_t sev, const char* msg) {
@@ -38,10 +39,7 @@ static void syslog_send(uint8_t sev, const char* msg) {
     return;
   }
   uint8_t pri = (uint8_t)((syslog_facility & 0x1F) * 8 + (sev & 0x07));
-  const char* host = WiFi.getHostname();
-  if (host == nullptr || host[0] == '\0') {
-    host = "batteryemulator";  // STA netif not up yet
-  }
+  const char* host = get_hostname();
   if (syslogUdp.beginPacket(dst, syslog_port)) {
     // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
     // NILVALUE '-' timestamp -> the syslog server stamps on receipt.
@@ -55,7 +53,20 @@ static void syslog_backlog_push(uint8_t sev, const char* msg) {
   unsigned long ms = millis();
   // No clock at boot: carry the uptime in MSG, else replayed lines all look simultaneous.
   int n = snprintf(rec, sizeof(rec), "[boot +%lu.%03lus] %s", ms / 1000, ms % 1000, msg);
-  if (n < 0 || syslogBacklogLen + 1 + (size_t)n + 1 > SYSLOG_BACKLOG_MAX) {
+  if (n < 0) {
+    return;
+  }
+  if (syslogBacklog == nullptr) {
+    IPAddress dst;
+    if (!dst.fromString(syslog_ip.c_str())) {
+      return;  // no syslog server configured -> never allocate
+    }
+    syslogBacklog = (char*)malloc(SYSLOG_BACKLOG_MAX);
+    if (syslogBacklog == nullptr) {
+      return;  // out of heap -> just drop, logging must never be fatal
+    }
+  }
+  if (syslogBacklogLen + 1 + (size_t)n + 1 > SYSLOG_BACKLOG_MAX) {
     return;  // full -> keep the earliest lines, they are the point of buffering
   }
   syslogBacklog[syslogBacklogLen++] = (char)sev;
@@ -64,7 +75,7 @@ static void syslog_backlog_push(uint8_t sev, const char* msg) {
 }
 
 void syslog_backlog_flush(void) {
-  if (syslogBacklogLen == 0) {
+  if (syslogBacklog == nullptr) {
     return;
   }
   if (WiFi.status() != WL_CONNECTED && WiFi.softAPgetStationNum() == 0) {
@@ -77,6 +88,8 @@ void syslog_backlog_flush(void) {
     syslog_send(sev, msg);
     i += strlen(msg) + 1;
   }
+  free(syslogBacklog);
+  syslogBacklog = nullptr;
   syslogBacklogLen = 0;
 }
 
