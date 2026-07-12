@@ -26,6 +26,60 @@ static WiFiUDP syslogUdp;
 static char syslogLine[SYSLOG_LINE_MAX];
 static size_t syslogLineLen = 0;
 
+// Lines logged before we can send are buffered here and replayed on connect.
+// Record layout: [uint8 severity][text\0]
+#define SYSLOG_BACKLOG_MAX 4096
+static char syslogBacklog[SYSLOG_BACKLOG_MAX];
+static size_t syslogBacklogLen = 0;
+
+static void syslog_send(uint8_t sev, const char* msg) {
+  IPAddress dst;
+  if (!dst.fromString(syslog_ip.c_str())) {  // empty or invalid IP -> skip
+    return;
+  }
+  uint8_t pri = (uint8_t)((syslog_facility & 0x1F) * 8 + (sev & 0x07));
+  const char* host = WiFi.getHostname();
+  if (host == nullptr || host[0] == '\0') {
+    host = "batteryemulator";  // STA netif not up yet
+  }
+  if (syslogUdp.beginPacket(dst, syslog_port)) {
+    // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
+    // NILVALUE '-' timestamp -> the syslog server stamps on receipt.
+    syslogUdp.printf("<%u>1 - %s BatteryEmulator - - - %s", pri, host, msg);
+    syslogUdp.endPacket();
+  }
+}
+
+static void syslog_backlog_push(uint8_t sev, const char* msg) {
+  char rec[SYSLOG_LINE_MAX + 24];
+  unsigned long ms = millis();
+  // No clock at boot: carry the uptime in MSG, else replayed lines all look simultaneous.
+  int n = snprintf(rec, sizeof(rec), "[boot +%lu.%03lus] %s", ms / 1000, ms % 1000, msg);
+  if (n < 0 || syslogBacklogLen + 1 + (size_t)n + 1 > SYSLOG_BACKLOG_MAX) {
+    return;  // full -> keep the earliest lines, they are the point of buffering
+  }
+  syslogBacklog[syslogBacklogLen++] = (char)sev;
+  memcpy(syslogBacklog + syslogBacklogLen, rec, n + 1);
+  syslogBacklogLen += n + 1;
+}
+
+void syslog_backlog_flush(void) {
+  if (syslogBacklogLen == 0) {
+    return;
+  }
+  if (WiFi.status() != WL_CONNECTED && WiFi.softAPgetStationNum() == 0) {
+    return;
+  }
+  size_t i = 0;
+  while (i < syslogBacklogLen) {
+    uint8_t sev = (uint8_t)syslogBacklog[i++];
+    const char* msg = &syslogBacklog[i];
+    syslog_send(sev, msg);
+    i += strlen(msg) + 1;
+  }
+  syslogBacklogLen = 0;
+}
+
 void Logging::set_next_severity(uint8_t sev) {
   syslog_next_severity = (int)sev;
 }
@@ -39,27 +93,17 @@ static void syslog_flush_line(void) {
     return;
   }
   syslogLine[len] = '\0';
-  IPAddress dst;
-  if (!dst.fromString(syslog_ip.c_str())) {  // empty or invalid IP -> skip
-    return;
-  }
   uint8_t sev = (sev_override >= 0) ? (uint8_t)sev_override : SYSLOG_DEFAULT_SEVERITY;
-  uint8_t pri = (uint8_t)((syslog_facility & 0x1F) * 8 + (sev & 0x07));
-  const char* host = WiFi.getHostname();
-  if (syslogUdp.beginPacket(dst, syslog_port)) {
-    // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
-    // NILVALUE '-' timestamp -> the syslog server stamps on receipt.
-    syslogUdp.printf("<%u>1 - %s BatteryEmulator - - - %s", pri, host, syslogLine);
-    syslogUdp.endPacket();
+  if (WiFi.status() == WL_CONNECTED || WiFi.softAPgetStationNum() > 0) {
+    syslog_backlog_flush();  // replay buffered lines first, keeps ordering
+    syslog_send(sev, syslogLine);
+  } else {
+    syslog_backlog_push(sev, syslogLine);
   }
 }
 
 static void syslog_emit(const uint8_t* buffer, size_t size) {
   if (!datalayer.system.info.syslog_logging_active) {
-    return;
-  }
-  // Send when joined to a network (STA) OR when a client is on our SoftAP.
-  if (WiFi.status() != WL_CONNECTED && WiFi.softAPgetStationNum() == 0) {
     return;
   }
   for (size_t i = 0; i < size; i++) {
