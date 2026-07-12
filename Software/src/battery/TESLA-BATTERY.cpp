@@ -1549,10 +1549,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                     //Brick1 m0 : 32|16@1+ (0.0001,0) [0|0] "V"
                                     //Brick2 m0 : 48|16@1+ (0.0001,0) [0|0] "V"
       // brick_volts, mux_zero_counter, mux_max are instance member variables (TESLA-BATTERY.h)
-
-      if (rx_frame.data.u8[1] == 0x2A)  // status byte must be 0x2A to read cellvoltages
+      if (rx_frame.data.u8[1] == 0x2A)  // full frame, 3 cell voltages
       {
-        // Example, frame3=0x89,frame2=0x1D = 35101 / 10 = 3510mV
         brick_volts = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 10;
         datalayer_battery->status.cell_voltages_mV[mux * 3] = brick_volts;
         brick_volts = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) / 10;
@@ -1560,18 +1558,21 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         brick_volts = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) / 10;
         datalayer_battery->status.cell_voltages_mV[2 + mux * 3] = brick_volts;
 
-        // Track the max value of mux. If we've seen two 0 values for mux, we've probably gathered all
-        // cell voltages. Then, 2 + mux_max * 3 + 1 is the number of cell voltages.
         mux_max = (mux > mux_max) ? mux : mux_max;
         if (mux_zero_counter < 2 && mux == 0u) {
           mux_zero_counter++;
           if (mux_zero_counter == 2u) {
-            // The max index will be 2 + mux_max * 3 (see above), so "+ 1" for the number of cells
             datalayer_battery->info.number_of_cells = 2 + 3 * mux_max + 1;
-            // Increase the counter arbitrarily another time to make the initial if-statement evaluate to false
             mux_zero_counter++;
           }
         }
+      } else if (rx_frame.data.u8[1] == 0x02)  // final, partial frame: only 1 cell voltage present
+      {
+        brick_volts = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 10;
+        datalayer_battery->status.cell_voltages_mV[mux * 3] = brick_volts;
+
+        // This is always the last frame in the sequence, so total cells = mux*3 + 1
+        datalayer_battery->info.number_of_cells = mux * 3 + 1;
       }
       break;
     case 0x2d2:  //BMSVAlimits:  (tesla-m3-pack-findings fw 2019.20.4.2 names 0x2D2 = BMS_driveLimits)
