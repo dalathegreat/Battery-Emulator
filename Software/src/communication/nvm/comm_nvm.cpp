@@ -99,6 +99,9 @@ void init_stored_settings() {
   user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
   user_selected_inverter_sungrow_type = settings.getUInt("INVSUNTYPE", 0);
   user_selected_inverter_pylon_type = settings.getUInt("PYLONBRAND", 0);
+  user_selected_inverter_foxess_type = settings.getUInt("FOXESSTYPE", 0);
+  user_selected_inverter_foxess_subtype = settings.getUInt("FOXESSSUBTYPE", 0);
+  user_selected_inverter_foxess_modules = settings.getUInt("FOXESSMODULES", 0);
   user_selected_inverter_contactor_mode = (inverter_contactor_mode_enum)settings.getUInt("INVICNT", 0);
   user_selected_inverter_deye_workaround = settings.getBool("DEYEBYD", false);
   user_selected_inverter_long_CAN_timeout = settings.getBool("SLOWCANINV", false);
