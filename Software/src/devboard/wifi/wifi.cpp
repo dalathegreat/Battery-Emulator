@@ -106,6 +106,13 @@ String default_hostname() {
 void init_WiFi() {
   DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
 
+  // Keep the WiFi driver's mode/config changes in RAM instead of NVS. Credentials
+  // are stored in our own Preferences and reapplied at boot, so driver-level
+  // persistence is redundant. Without this, esp_wifi_set_config()/set_mode() (e.g.
+  // softAPdisconnect() on AP provisioning timeout) write to NVS, and the flash
+  // erase suspends the cache, stalling tasks on BOTH cores for up to ~45 ms.
+  WiFi.persistent(false);
+
   // Register event handlers BEFORE WiFi.mode() creates the arduino_events task.
   // WiFi events can fire immediately once the task exists, and vector reallocation
   // during concurrent emplace_back() would corrupt the iterator in _checkForEvent().
