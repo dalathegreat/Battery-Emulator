@@ -287,8 +287,8 @@ def render(
     lines.append("### To test this firmware on your device:")
     lines.append("1. Make sure you're logged into GitHub")
     lines.append("2. Click the link above corresponding to your hardware type")
-    lines.append("3. Download and unzip it , and grab the file ending `.bin`")
-    lines.append("4. Upload the `.bin` to your board via OTA")
+    lines.append("3. Download and unzip it , and grab the file ending `.ota.bin`")
+    lines.append("4. Upload the `.ota.bin` to your board via OTA")
 
     return "\n".join(lines)
 

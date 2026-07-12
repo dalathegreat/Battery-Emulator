@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
@@ -20,21 +21,27 @@ jobs:
           - board_name: "Lilygo T-CAN485"
             pio_env: "lilygo_330"
             artifact_name: "battery-emulator-lilygo-t-can485"
+            release_label: "LilygoT-CAN485"
           - board_name: "Stark CMR"
             pio_env: "stark_330"
             artifact_name: "battery-emulator-stark-cmr"
+            release_label: "StarkCMR"
           - board_name: "Lilygo T-2CAN"
             pio_env: "lilygo_2CAN_330"
             artifact_name: "battery-emulator-lilygo-t-2can"
+            release_label: "LilygoT-2CAN"
           - board_name: "ESP32 DevKit V1"
             pio_env: "esp32devkit_330"
             artifact_name: "battery-emulator-esp32-devkit-v1"
+            release_label: "ESP32DevKitV1"
           - board_name: "BECom"
             pio_env: "BECom_330"
             artifact_name: "battery-emulator-becom"
+            release_label: "BECom_ES32S3"
           - board_name: "Waveshare RS485CAN"
             pio_env: "waveshare_330"
             artifact_name: "battery-emulator-waveshare-rs485can"
+            release_label: "WaveshareESP32S3RS485CAN"
           - board_name: "Compiler warning check"
             pio_env: "compiler_warning_check"
             artifact_name: "battery-dummy-check"
@@ -86,26 +93,23 @@ jobs:
           --pio-system-info "$(pio system info --json-output)" \
           --platform-json "$(cat "$HOME"/.platformio/platforms/espressif32*/platform.json)"
 
-    #rename firmware.bin to contain pr number and commit short sha for easier location after saved on disk
-    - name: Rename firmware.bin with PR number and commit short SHA
+    - name: Stage release artifacts for ${{ matrix.board_name }}
+      if: matrix.release_label
       run: |
-          SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha || github.sha }}" | cut -c1-7)
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            PR_PART="pr${{ github.event.pull_request.number }}-"
-          else
-            PR_PART=""
-          fi
-          cp .pio/build/${{ matrix.pio_env }}/firmware.bin \
-             firmware-${PR_PART}${SHORT_SHA}.bin
+        mkdir fw
+        cp "${{ matrix.pio_env }}.size.json" fw
+        BUILD=.pio/build/${{ matrix.pio_env }}
+        SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+        SHORT_SHA="${SHA:0:7}"
+        cp "$BUILD/firmware.factory.bin" "fw/BE_${SHORT_SHA}_${{ matrix.release_label }}.factory.bin"
+        cp "$BUILD/firmware.bin"         "fw/BE_${SHORT_SHA}_${{ matrix.release_label }}.ota.bin"
 
     - name: Upload artifact for ${{ matrix.board_name }}
-      if: matrix.pio_env != 'compiler_warning_check'
+      if: matrix.release_label
       uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.artifact_name }}
-        path: |
-          firmware-*.bin
-          ${{ matrix.pio_env }}.size.json
+        path: fw
         if-no-files-found: warn
 
   measure-size:
