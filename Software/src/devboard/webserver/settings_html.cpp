@@ -963,6 +963,18 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("DALYPWR0C", 800));
   }
 
+  if (var == "FOXESSTYPE") {
+    return String(settings.getUInt("FOXESSTYPE", 0));
+  }
+
+  if (var == "FOXESSSUBTYPE") {
+    return String(settings.getUInt("FOXESSSUBTYPE", 0));
+  }
+
+  if (var == "FOXESSMODULES") {
+    return String(settings.getUInt("FOXESSMODULES", 0));
+  }
+
   return String();
 }
 
@@ -1404,6 +1416,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-inverter="18"] .if-solax {
       display: contents;
     }
+
+    form .if-foxess { display: none; }
+    form[data-inverter="5"] .if-foxess {
+      display: contents;
+    }
       
     form .if-sungrow { display: none; }
     form[data-inverter="21"] .if-sungrow {
@@ -1731,6 +1748,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-solax">
         <label>Reported battery type (in decimal): </label>
         <input name='INVBTYPE' type='text' value="%INVBTYPE%" pattern="[0-9]+" />
+        </div>
+
+        <div class="if-foxess">
+        <label>FoxESS battery type (0 for default): </label>
+        <input name='FOXESSTYPE' type='text' value="%FOXESSTYPE%" pattern="[0-9]+" />
+
+        <label>FoxESS battery subtype (0 for default): </label>
+        <input name='FOXESSSUBTYPE' type='text' value="%FOXESSSUBTYPE%" pattern="[0-9]+" />
+
+        <label>FoxESS module count (0 for default): </label>
+        <input name='FOXESSMODULES' type='text' value="%FOXESSMODULES%" pattern="[0-9]+" />
         </div>
 
         <div class="if-sungrow">
