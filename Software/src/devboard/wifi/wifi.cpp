@@ -89,9 +89,15 @@ static void check_ap_provisioning_window() {
   if (WiFi.softAPgetStationNum() > 0) {
     return;  // a client is connected: don't cut off an active provisioning session
   }
+  // Direct log so EVERY expiry produces a log/syslog line, not just the first per
+  // boot (set_event only emits its log line on the inactive->active transition).
+  LOG_SET_NEXT_SEVERITY(6);  // info
+  logging.println("AP provisioning window expired (factory-default AP password), disabling access point.");
   WiFi.softAPdisconnect(true);  // stop the AP and drop the AP bit from the WiFi mode; STA stays up
   ap_active = false;
   ap_provisioning_expired = true;
+  // The advance warning is about a *running* AP; the timeout event below takes over from here.
+  clear_event(EVENT_WIFI_AP_PASSWORD_DEFAULT);
   set_event(EVENT_WIFI_AP_PROVISION_TIMEOUT, 0);
 }
 
@@ -402,7 +408,17 @@ void init_WiFi_AP() {
   }
 
   WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
+  bool ap_was_active = ap_active;
   ap_active = true;
+
+  if (!ap_was_active && ap_password_is_default()) {
+    // Warn in advance that the provisioning window is ticking. Direct log fires on
+    // every AP start; the event additionally shows on the web UI / MQTT (set_event
+    // emits its own log line only on the first inactive->active transition per boot).
+    LOG_SET_NEXT_SEVERITY(6);  // info
+    logging.println("AP using default password.");
+    set_event(EVENT_WIFI_AP_PASSWORD_DEFAULT, 0);
+  }
   IPAddress IP = WiFi.softAPIP();
 
   DEBUG_PRINTF("Access Point created, IP address: %s\n", IP.toString().c_str());
