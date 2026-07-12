@@ -430,20 +430,20 @@ void init_webserver() {
   };
 
   const char* uintSettingNames[] = {
-      "BATTCVMAX",  "BATTCVMIN",   "MAXPRETIME", "MAXPREFREQ",  "WIFICHANNEL", "DCHGPOWER", "CHGPOWER",   "LOCALIP1",
-      "LOCALIP2",   "LOCALIP3",    "LOCALIP4",   "GATEWAY1",    "GATEWAY2",    "GATEWAY3",  "GATEWAY4",   "SUBNET1",
-      "SUBNET2",    "SUBNET3",     "SUBNET4",    "MQTTPORT",    "MQTTTIMEOUT", "SOFAR_ID",  "PYLONSEND",  "INVCELLS",
-      "INVMODULES", "INVCELLSPER", "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "PRECHGMS",  "PWMFREQ",    "PWMHOLD",
-      "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS", "GTWPACK",     "LEDMODE",     "GPIOOPT1",  "GPIOOPT2",   "GPIOOPT3",
-      "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",     "CTANOM",      "CTATTEN",     "PYLONBAUD", "PYLONBRAND", "DALYPWRPCT",
-      "DALYPWRDV",  "DALYDVSTART", "DALYPWRDEG", "DALYPWR0C",   "RAMPDOWNSOC", "GPIOOPT5",  "GPIOOPT6",   "INVICNT",
+      "BATTCVMAX",  "BATTCVMIN",   "MAXPRETIME",  "MAXPREFREQ",    "WIFICHANNEL",   "DCHGPOWER",   "CHGPOWER",
+      "MQTTPORT",   "MQTTTIMEOUT", "SOFAR_ID",    "PYLONSEND",     "INVCELLS",      "INVMODULES",  "INVCELLSPER",
+      "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "PRECHGMS",      "PWMFREQ",       "PWMHOLD",     "GTWCOUNTRY",
+      "GTWMAPREG",  "GTWCHASSIS",  "GTWPACK",     "LEDMODE",       "GPIOOPT1",      "GPIOOPT2",    "GPIOOPT3",
+      "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",      "CTANOM",        "CTATTEN",       "PYLONBAUD",   "PYLONBRAND",
+      "DALYPWRPCT", "DALYPWRDV",   "DALYDVSTART", "DALYPWRDEG",    "DALYPWR0C",     "RAMPDOWNSOC", "GPIOOPT5",
+      "GPIOOPT6",   "INVICNT",     "FOXESSTYPE",  "FOXESSSUBTYPE", "FOXESSMODULES",
 #ifndef SMALL_FLASH_DEVICE
       "SYSLOGPORT", "SYSLOGFAC",
 #endif
   };
 
-  const char* stringSettingNames[] = {"APPASSWORD",   "HOSTNAME", "MQTTSERVER", "MQTTUSER",
-                                      "MQTTPASSWORD", "HTTPUSER", "HTTPPASS",
+  const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME", "MQTTSERVER", "MQTTUSER", "MQTTPASSWORD", "HTTPUSER",
+                                      "HTTPPASS",   "LOCALIP",  "GATEWAY",    "SUBNET",   "DNS",
 #ifndef SMALL_FLASH_DEVICE
                                       "SYSLOGIP"
 #endif
@@ -851,6 +851,7 @@ void init_webserver() {
   // Route to handle reboot command
   def_route_with_auth("/reboot", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/plain", "Rebooting server...");
+    hold_pins_across_reset();
     graceful_restart();
   });
 
@@ -1738,6 +1739,7 @@ void onOTAEnd(bool success) {
   // Log when OTA has finished
   if (success) {
     logging.println("OTA update finished successfully!");
+    hold_pins_across_reset();
     graceful_restart();
   } else {
     logging.println("There was an error during OTA update!");
