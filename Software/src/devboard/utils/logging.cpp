@@ -30,7 +30,7 @@ static size_t syslogLineLen = 0;
 // Lines logged before we can send are buffered here and replayed on connect.
 // Heap-allocated on first use, freed once drained. Record layout: [uint8 severity][text\0]
 #define SYSLOG_BACKLOG_MAX 4096
-#define SYSLOG_BACKLOG_BURST 4  // records per flush call — keeps the core task inside its 10 ms budget 
+#define SYSLOG_BACKLOG_BURST 4  // records per flush call — keeps the core task inside its 10 ms budget
 static char* syslogBacklog = nullptr;
 static size_t syslogBacklogLen = 0;
 static size_t syslogBacklogPos = 0;
