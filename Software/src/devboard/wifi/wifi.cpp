@@ -218,6 +218,9 @@ static void check_ap_button() {
 
 // Task to monitor Wi-Fi status and handle reconnections
 void wifi_monitor() {
+#ifndef SMALL_FLASH_DEVICE
+  syslog_backlog_flush();  // keep draining even when nothing is logging
+#endif
   check_ap_button();
   check_ap_provisioning_window();
 
