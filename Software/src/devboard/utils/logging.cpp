@@ -33,13 +33,26 @@ static size_t syslogLineLen = 0;
 static char* syslogBacklog = nullptr;
 static size_t syslogBacklogLen = 0;
 
+// Same rule as init_WiFi(): custom hostname if set, otherwise the MAC-derived default.
+// Cached — default_hostname() re-reads eFuse and heap-allocates a String on every call.
+static const char* syslog_hostname(void) {
+  if (!custom_hostname.empty()) {
+    return custom_hostname.c_str();
+  }
+  static String fallback;
+  if (fallback.isEmpty()) {
+    fallback = default_hostname();
+  }
+  return fallback.c_str();
+}
+
 static void syslog_send(uint8_t sev, const char* msg) {
   IPAddress dst;
   if (!dst.fromString(syslog_ip.c_str())) {  // empty or invalid IP -> skip
     return;
   }
   uint8_t pri = (uint8_t)((syslog_facility & 0x1F) * 8 + (sev & 0x07));
-  const char* host = get_hostname();
+  const char* host = syslog_hostname();
   if (syslogUdp.beginPacket(dst, syslog_port)) {
     // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
     // NILVALUE '-' timestamp -> the syslog server stamps on receipt.
