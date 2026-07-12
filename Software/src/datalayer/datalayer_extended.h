@@ -450,11 +450,16 @@ struct DATALAYER_INFO_FORD_MACH_E {
   uint16_t pid_hvb_contactor_negative_bus_leak_resistance;
   uint16_t pid_hvb_contactor_overall_leak_resistance;
   uint16_t pid_hvb_contactor_open_leak_resistance;
-  uint8_t pid_hvb_soh;
   uint16_t pid_hvb_voltage;
+  uint16_t pid_hvb_max_charge_current;
+  uint16_t discharge_power_cand2;
+  uint16_t discharge_power_cand1;
+  uint16_t charge_power_cand2;
+  uint16_t charge_power_cand1;
   uint16_t pid_hvb_calendar_age_months;
   uint16_t pid_battery_capacity_ah;
   uint8_t pid_maintenance_rebalance_status;
+  uint8_t pid_hvb_soh;
 };
 
 struct DATALAYER_INFO_GEELY_GEOMETRY_C {
