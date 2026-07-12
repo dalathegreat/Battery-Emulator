@@ -6,6 +6,22 @@
 
 /*Note when editing this file. Order of datatypes matter heavily to keep padding and flash size in check*/
 
+// Per-battery DTC storage to allow common display code
+struct DATALAYER_BATTERY_DTC_TYPE {
+  static constexpr int MAX_DTC_COUNT = 32;
+  // Raw 3-byte DTC codes packed into a uint32, one per slot. Can either
+  // rendered in the standard SAE format, or as a raw 6-digit hex code.
+  uint32_t dtc_codes[MAX_DTC_COUNT];
+  // Status for each DTC
+  uint8_t dtc_status[MAX_DTC_COUNT];
+  // Number of DTCs stored
+  uint8_t dtc_count;
+  // Last successful read (0 = never read)
+  unsigned long dtc_last_read_millis;
+  // Indicates that the last read failed
+  bool dtc_read_failed = false;
+};
+
 struct DATALAYER_BATTERY_INFO_TYPE {
   /** uint32_t */
   /** Total energy capacity in Watt-hours 
@@ -201,6 +217,7 @@ typedef struct {
   DATALAYER_BATTERY_INFO_TYPE info;
   DATALAYER_BATTERY_STATUS_TYPE status;
   DATALAYER_BATTERY_SETTINGS_TYPE settings;
+  DATALAYER_BATTERY_DTC_TYPE dtc;
 } DATALAYER_BATTERY_TYPE;
 
 struct DATALAYER_CHARGER_TYPE {
