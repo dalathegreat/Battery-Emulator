@@ -5,7 +5,7 @@
 #ifndef SMALL_FLASH_DEVICE
 #include <WiFi.h>
 #include <WiFiUdp.h>
-#include "../wifi/wifi.h"  // custom_hostname
+#include "../wifi/wifi.h"  // custom_hostname, default_hostname()
 #endif
 
 #define MAX_LINE_LENGTH_PRINTF 128
@@ -26,32 +26,30 @@ static WiFiUDP syslogUdp;
 static char syslogLine[SYSLOG_LINE_MAX];
 static size_t syslogLineLen = 0;
 
-// ---- Pre-connectivity backlog ----
-// Lines logged before we can send are buffered here and replayed on connect.
-// Heap-allocated on first use, freed once drained. Record layout: [uint8 severity][text\0]
-// syslog statics + the WiFiUDP object are touched from several tasks (core, arduino_events, MQTT).
-// Global ctor runs before any task starts, so this is safe to initialise here.
-static SemaphoreHandle_t syslogMutex = xSemaphoreCreateRecursiveMutex();
+// ---- Syslog queue + sender task ----
+// Every assembled line is queued; a dedicated low-priority task does ALL of the UDP sending.
+//
+// The logging path (which runs in the core task, the MQTT task, arduino_events, ...) therefore
+// never touches the network and never blocks -> it cannot cause EVENT_TASK_OVERRUN.
+// A single consumer draining a single FIFO also guarantees that lines arrive in order and that
+// two tasks can never interleave inside syslogUdp (which produced corrupted packets before).
+//
+// Lines logged before we have connectivity simply wait in the queue and are sent once the sender
+// task sees the link come up. Record layout: [uint8 severity][text\0]
+#define SYSLOG_QUEUE_MAX 4096
+#define SYSLOG_MSG_MAX (SYSLOG_LINE_MAX + 24)  // room for the "[boot +N.NNNs] " prefix
+static char* syslogQueue = nullptr;
+static size_t syslogQueueLen = 0;  // write cursor
+static size_t syslogQueuePos = 0;  // read cursor
+static uint16_t syslogDropped = 0;
 
-static bool syslog_lock(void) {
-  if (syslogMutex == nullptr) {
-    return false;
-  }
-  return xSemaphoreTakeRecursive(syslogMutex, pdMS_TO_TICKS(5)) == pdTRUE;
-}
-
-static void syslog_unlock(void) {
-  xSemaphoreGiveRecursive(syslogMutex);
-}
-
-#define SYSLOG_BACKLOG_MAX 4096
-#define SYSLOG_BACKLOG_BURST 4  // records per flush call — keeps the core task inside its 10 ms budget
-static char* syslogBacklog = nullptr;
-static size_t syslogBacklogLen = 0;
-static size_t syslogBacklogPos = 0;
+// Guards syslogQueue/Len/Pos only. It is NEVER held while sending, so it is only ever
+// owned for a few microseconds (a memcpy) and contention is effectively zero.
+static SemaphoreHandle_t syslogMutex = xSemaphoreCreateMutex();
 
 // Same rule as init_WiFi(): custom hostname if set, otherwise the MAC-derived default.
 // Cached — default_hostname() re-reads eFuse and allocates a String on every call.
+// Only the default is cached, so a call made before settings are loaded cannot freeze a wrong name in.
 static const char* syslog_hostname(void) {
   if (!custom_hostname.empty()) {
     return custom_hostname.c_str();
@@ -63,6 +61,12 @@ static const char* syslog_hostname(void) {
   return fallback.c_str();
 }
 
+static bool syslog_online(void) {
+  // Sendable when joined to a network (STA) OR when a client is on our SoftAP.
+  return (WiFi.status() == WL_CONNECTED) || (WiFi.softAPgetStationNum() > 0);
+}
+
+// Called ONLY from syslog_task, and never with the mutex held.
 static void syslog_send(uint8_t sev, const char* msg) {
   IPAddress dst;
   if (!dst.fromString(syslog_ip.c_str())) {  // empty or invalid IP -> skip
@@ -77,70 +81,110 @@ static void syslog_send(uint8_t sev, const char* msg) {
   }
 }
 
-static bool syslog_backlog_push(uint8_t sev, const char* msg, bool stamp) {
-  char rec[SYSLOG_LINE_MAX + 24];
+// Called from the logging path, in whatever task did the logging. Does no I/O.
+static void syslog_queue_push(uint8_t sev, const char* msg) {
+  char rec[SYSLOG_MSG_MAX];
   int n;
-  if (stamp) {
-    // No wall clock at boot: carry the uptime in MSG, else replayed lines all look simultaneous.
+  if (syslog_online()) {
+    n = snprintf(rec, sizeof(rec), "%s", msg);
+  } else {
+    // No wall clock this early and the server stamps on receipt, so carry the uptime in MSG.
+    // Without this, everything logged before the link came up looks simultaneous.
     unsigned long ms = millis();
     n = snprintf(rec, sizeof(rec), "[boot +%lu.%03lus] %s", ms / 1000, ms % 1000, msg);
-  } else {
-    n = snprintf(rec, sizeof(rec), "%s", msg);  // already online, no prefix
   }
-  if (n < 0) {
-    return false;
+  if (n < 0 || syslogMutex == nullptr) {
+    return;
   }
-  if (syslogBacklog == nullptr) {
+  // Short timeout: the holder only ever does a memcpy, so this never actually waits.
+  if (xSemaphoreTake(syslogMutex, pdMS_TO_TICKS(2)) != pdTRUE) {
+    return;
+  }
+
+  if (syslogQueue == nullptr) {
     IPAddress dst;
     if (!dst.fromString(syslog_ip.c_str())) {
-      return false;  // no syslog server configured -> never allocate
+      xSemaphoreGive(syslogMutex);  // no syslog server configured -> never allocate
+      return;
     }
-    syslogBacklog = (char*)malloc(SYSLOG_BACKLOG_MAX);
-    if (syslogBacklog == nullptr) {
-      return false;  // out of heap -> drop; logging must never be fatal
+    syslogQueue = (char*)malloc(SYSLOG_QUEUE_MAX);
+    if (syslogQueue == nullptr) {
+      xSemaphoreGive(syslogMutex);  // out of heap -> drop; logging must never be fatal
+      return;
     }
   }
+
   size_t need = 1 + (size_t)n + 1;
-  if (syslogBacklogLen + need > SYSLOG_BACKLOG_MAX && syslogBacklogPos > 0) {
+  if (syslogQueueLen + need > SYSLOG_QUEUE_MAX && syslogQueuePos > 0) {
     // Tail hit the cap but the head is already sent: slide the pending region down.
-    memmove(syslogBacklog, syslogBacklog + syslogBacklogPos, syslogBacklogLen - syslogBacklogPos);
-    syslogBacklogLen -= syslogBacklogPos;
-    syslogBacklogPos = 0;
+    memmove(syslogQueue, syslogQueue + syslogQueuePos, syslogQueueLen - syslogQueuePos);
+    syslogQueueLen -= syslogQueuePos;
+    syslogQueuePos = 0;
   }
-  if (syslogBacklogLen + need > SYSLOG_BACKLOG_MAX) {
-    return false;  // genuinely full
+  if (syslogQueueLen + need > SYSLOG_QUEUE_MAX) {
+    if (syslogDropped < UINT16_MAX) {
+      syslogDropped++;  // genuinely full -> keep the earliest lines
+    }
+    xSemaphoreGive(syslogMutex);
+    return;
   }
-  syslogBacklog[syslogBacklogLen++] = (char)sev;
-  memcpy(syslogBacklog + syslogBacklogLen, rec, n + 1);
-  syslogBacklogLen += n + 1;
-  return true;
+
+  syslogQueue[syslogQueueLen++] = (char)sev;
+  memcpy(syslogQueue + syslogQueueLen, rec, n + 1);
+  syslogQueueLen += n + 1;
+  xSemaphoreGive(syslogMutex);
 }
 
-void syslog_backlog_flush(void) {
-  if (!syslog_lock()) {
-    return;
+// Pops one record under the lock, then sends it with the lock released.
+static void syslog_task(void* arg) {
+  char msg[SYSLOG_MSG_MAX];
+  uint8_t sev = 0;
+  uint16_t dropped = 0;
+
+  for (;;) {
+    bool have = false;
+
+    if (syslog_online() && syslogMutex != nullptr &&
+        xSemaphoreTake(syslogMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+      if (syslogQueue != nullptr && syslogQueuePos < syslogQueueLen) {
+        sev = (uint8_t)syslogQueue[syslogQueuePos++];
+        const char* rec = &syslogQueue[syslogQueuePos];
+        snprintf(msg, sizeof(msg), "%s", rec);  // copy out, so we can send unlocked
+        syslogQueuePos += strlen(rec) + 1;
+        have = true;
+
+        if (syslogQueuePos >= syslogQueueLen) {  // drained -> rewind
+          syslogQueuePos = 0;
+          syslogQueueLen = 0;
+          dropped = syslogDropped;
+          syslogDropped = 0;
+        }
+      }
+      xSemaphoreGive(syslogMutex);
+    }
+
+    if (have) {
+      syslog_send(sev, msg);  // UDP happens OUTSIDE the lock
+    }
+    if (dropped) {
+      char note[64];
+      snprintf(note, sizeof(note), "syslog queue was full, %u line(s) dropped", dropped);
+      syslog_send(4, note);  // severity 4 = warning
+      dropped = 0;
+    }
+
+    // 2 ms between packets paces the boot replay without touching the core loop.
+    vTaskDelay(pdMS_TO_TICKS(have ? 2 : 50));
   }
-  if (syslogBacklog == nullptr) {
-    return;
+}
+
+// Starts the sender task. Safe to call more than once.
+void syslog_start(void) {
+  static bool started = false;
+  if (!started) {
+    started = true;
+    xTaskCreate(syslog_task, "syslog", 3072, nullptr, tskIDLE_PRIORITY + 1, nullptr);
   }
-  if (WiFi.status() != WL_CONNECTED && WiFi.softAPgetStationNum() == 0) {
-    return;
-  }
-  uint8_t sent = 0;
-  while (syslogBacklogPos < syslogBacklogLen && sent < SYSLOG_BACKLOG_BURST) {
-    uint8_t sev = (uint8_t)syslogBacklog[syslogBacklogPos++];
-    const char* msg = &syslogBacklog[syslogBacklogPos];
-    syslog_send(sev, msg);
-    syslogBacklogPos += strlen(msg) + 1;
-    sent++;
-  }
-  if (syslogBacklogPos >= syslogBacklogLen) {  // drained -> give the RAM back
-    free(syslogBacklog);
-    syslogBacklog = nullptr;
-    syslogBacklogLen = 0;
-    syslogBacklogPos = 0;
-  }
-  syslog_unlock();
 }
 
 void Logging::set_next_severity(uint8_t sev) {
@@ -157,27 +201,14 @@ static void syslog_flush_line(void) {
   }
   syslogLine[len] = '\0';
   uint8_t sev = (sev_override >= 0) ? (uint8_t)sev_override : SYSLOG_DEFAULT_SEVERITY;
-  bool online = (WiFi.status() == WL_CONNECTED || WiFi.softAPgetStationNum() > 0);
-  if (!online) {
-    syslog_backlog_push(sev, syslogLine, true);
-  } else if (syslogBacklog != nullptr) {
-    // Still draining: queue behind it so the server sees strict FIFO order.
-    if (!syslog_backlog_push(sev, syslogLine, false)) {
-      syslog_send(sev, syslogLine);  // backlog full -> send now rather than lose the line
-    }
-    syslog_backlog_flush();  // drains SYSLOG_BACKLOG_BURST records
-  } else {
-    syslog_send(sev, syslogLine);
-  }
+  syslog_queue_push(sev, syslogLine);
 }
 
 static void syslog_emit(const uint8_t* buffer, size_t size) {
   if (!datalayer.system.info.syslog_logging_active) {
     return;
   }
-  if (!syslog_lock()) {
-    return;  // busy -> drop this chunk rather than stall the caller
-  }
+  // No connectivity check: lines logged before the link is up are queued and sent later.
   for (size_t i = 0; i < size; i++) {
     char c = (char)buffer[i];
     if (c == '\r') {
@@ -192,7 +223,6 @@ static void syslog_emit(const uint8_t* buffer, size_t size) {
       }
     }
   }
-  syslog_unlock();
 }
 #endif
 
