@@ -29,6 +29,21 @@ static size_t syslogLineLen = 0;
 // ---- Pre-connectivity backlog ----
 // Lines logged before we can send are buffered here and replayed on connect.
 // Heap-allocated on first use, freed once drained. Record layout: [uint8 severity][text\0]
+// syslog statics + the WiFiUDP object are touched from several tasks (core, arduino_events, MQTT).
+// Global ctor runs before any task starts, so this is safe to initialise here.
+static SemaphoreHandle_t syslogMutex = xSemaphoreCreateRecursiveMutex();
+
+static bool syslog_lock(void) {
+  if (syslogMutex == nullptr) {
+    return false;
+  }
+  return xSemaphoreTakeRecursive(syslogMutex, pdMS_TO_TICKS(5)) == pdTRUE;
+}
+
+static void syslog_unlock(void) {
+  xSemaphoreGiveRecursive(syslogMutex);
+}
+
 #define SYSLOG_BACKLOG_MAX 4096
 #define SYSLOG_BACKLOG_BURST 4  // records per flush call — keeps the core task inside its 10 ms budget
 static char* syslogBacklog = nullptr;
@@ -102,6 +117,9 @@ static bool syslog_backlog_push(uint8_t sev, const char* msg, bool stamp) {
 }
 
 void syslog_backlog_flush(void) {
+  if (!syslog_lock()) {
+    return;
+  }
   if (syslogBacklog == nullptr) {
     return;
   }
@@ -122,6 +140,7 @@ void syslog_backlog_flush(void) {
     syslogBacklogLen = 0;
     syslogBacklogPos = 0;
   }
+  syslog_unlock();
 }
 
 void Logging::set_next_severity(uint8_t sev) {
@@ -156,6 +175,9 @@ static void syslog_emit(const uint8_t* buffer, size_t size) {
   if (!datalayer.system.info.syslog_logging_active) {
     return;
   }
+  if (!syslog_lock()) {
+    return;  // busy -> drop this chunk rather than stall the caller
+  }
   for (size_t i = 0; i < size; i++) {
     char c = (char)buffer[i];
     if (c == '\r') {
@@ -170,6 +192,7 @@ static void syslog_emit(const uint8_t* buffer, size_t size) {
       }
     }
   }
+  syslog_unlock();
 }
 #endif
 
