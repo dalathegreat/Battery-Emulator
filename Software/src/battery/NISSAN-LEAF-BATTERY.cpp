@@ -180,7 +180,7 @@ void NissanLeafBattery::
   }
 
   // Derive aggregate balancing status from the per-cell shunt bits polled from group 0x06.
-  // Recomputed every cycle in both directions.
+  // Recomputed every cycle in both directions; events fire on transitions only.
   if (balancing_data_received) {
     bool any_shunt_active = false;
     for (uint8_t i = 0; i < 96; i++) {
@@ -189,8 +189,15 @@ void NissanLeafBattery::
         break;
       }
     }
-    datalayer_battery->status.balancing_status =
-        any_shunt_active ? BALANCING_STATUS_ACTIVE : BALANCING_STATUS_READY;
+    balancing_status_enum new_status = any_shunt_active ? BALANCING_STATUS_ACTIVE : BALANCING_STATUS_READY;
+    if (new_status != datalayer_battery->status.balancing_status) {
+      if (new_status == BALANCING_STATUS_ACTIVE) {
+        set_event_latched(EVENT_BALANCING_START, 0);
+      } else if (datalayer_battery->status.balancing_status == BALANCING_STATUS_ACTIVE) {
+        set_event(EVENT_BALANCING_END, 0);  // only on ACTIVE -> READY, not on the initial UNKNOWN -> READY
+      }
+    }
+    datalayer_battery->status.balancing_status = new_status;
   }
 
   // Update webserver datalayer
