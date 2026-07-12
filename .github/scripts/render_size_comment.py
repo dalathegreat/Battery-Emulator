@@ -204,6 +204,15 @@ def _row_normal(env: str, base: BoardSize, pr: BoardSize, artifact_url: str | No
     )
 
 
+def find_artifact_url(board_name: str, artifact_urls: dict[str, str]) -> str | None:
+    """Return the artifact URL for a board, or None if there isn't one."""
+    release_label = board_name.lower().replace(" ", "-").replace("_", "-")
+    for artifact_name, url in artifact_urls.items():
+        if release_label in artifact_name:
+            return url
+    return None
+
+
 def render_row(env: str, base: BoardSize | None, pr: BoardSize | None, artifact_url: str | None) -> str:
     """Dispatch to the right case builder and format the resulting row."""
     if pr is None:
@@ -280,7 +289,8 @@ def render(
     lines.append(sep)
 
     for env in envs:
-        artifact_url = artifact_urls.get(pr.get(env, base.get(env)).get_artifact_slug(), None)
+        board = pr.get(env, base.get(env))
+        artifact_url = find_artifact_url(board.board_name, artifact_urls)
         lines.append(render_row(env, base.get(env), pr.get(env), artifact_url))
 
     lines.append("")

@@ -41,9 +41,16 @@ jobs:
     - name: Download PR-side size reports from this run
       uses: actions/download-artifact@v8
       with:
-        path: ./pr
+        path: ./pr-archives
         pattern: "battery-emulator-*"
         merge-multiple: true
+
+    - name: Extract PR-side size reports
+      run: |
+        mkdir -p ./pr
+        for p in ./pr-archives/*.tar.xz; do
+          tar -C ./pr -xf "$p" --wildcards '*.size.json'
+        done
 
     - name: Resolve base compile run
       id: ctx
@@ -84,11 +91,19 @@ jobs:
       if: steps.ctx.outputs.run_id != ''
       uses: actions/download-artifact@v8
       with:
-        path: ./base
+        path: ./base-archives
         run-id: ${{ steps.ctx.outputs.run_id }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
         pattern: "battery-emulator-*"
         merge-multiple: true
+
+    - name: Extract base-branch size reports
+      if: steps.ctx.outputs.run_id != ''
+      run: |
+        mkdir -p ./base
+        for b in ./base-archives/*.tar.xz; do
+          tar -C ./base -xf "$b" --wildcards '*.size.json'
+        done
 
     - name: Get Artifact URLs JSON Map
       if: steps.ctx.outputs.run_id != ''
@@ -99,7 +114,7 @@ jobs:
         # Creates a single JSON object mapping names to URLs
         JSON_MAP=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
           --jq '[.artifacts[] | select(.name | startswith("battery-emulator-")) | {key: .name, value: ("${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/" + (.id | tostring))}] | from_entries')
-        
+
         echo "JSON_MAP=$JSON_MAP" >> $GITHUB_OUTPUT
 
     - name: Render comment

@@ -37,8 +37,15 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         pattern: battery-emulator-*
-        path: ./firmware
+        path: ./archives
         merge-multiple: true
+
+    - name: Extract firmware archives
+      run: |
+        mkdir -p ./firmware
+        for p in ./archives/*.tar.xz; do
+          tar -C ./firmware -xf "$p"
+        done
 
     - name: Rename firmware images
       run: |

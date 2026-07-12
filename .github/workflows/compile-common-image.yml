@@ -103,13 +103,16 @@ jobs:
         SHORT_SHA="${SHA:0:7}"
         cp "$BUILD/firmware.factory.bin" "fw/BE_${SHORT_SHA}_${{ matrix.release_label }}.factory.bin"
         cp "$BUILD/firmware.bin"         "fw/BE_${SHORT_SHA}_${{ matrix.release_label }}.ota.bin"
+        cd fw
+        tar -cJf "../${{ matrix.artifact_name }}.tar.xz" *
 
     - name: Upload artifact for ${{ matrix.board_name }}
       if: matrix.release_label
       uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.artifact_name }}
-        path: fw
+        path: ${{ matrix.artifact_name }}.tar.xz
+        archive: false # No additional zip compression
         if-no-files-found: warn
 
   measure-size:
