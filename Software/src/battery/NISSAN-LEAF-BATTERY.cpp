@@ -203,9 +203,8 @@ void NissanLeafBattery::
       balancing_idle_polls++;
     }
 
-    balancing_status_enum new_status = (balancing_idle_polls < BALANCING_IDLE_POLLS_TO_END)
-                                           ? BALANCING_STATUS_ACTIVE
-                                           : BALANCING_STATUS_READY;
+    balancing_status_enum new_status =
+        (balancing_idle_polls < BALANCING_IDLE_POLLS_TO_END) ? BALANCING_STATUS_ACTIVE : BALANCING_STATUS_READY;
 
     if (new_status != datalayer_battery->status.balancing_status) {
       if (new_status == BALANCING_STATUS_ACTIVE) {
