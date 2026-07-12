@@ -1,13 +1,100 @@
 #ifndef _BATTERY_HTML_RENDERER_H
 #define _BATTERY_HTML_RENDERER_H
 
+#include "../../datalayer/datalayer.h"
+
+#include <Arduino.h>
 #include <WString.h>
+#include <stdio.h>
 
 // Each battery can implement this interface to render more battery specific HTML
 // content
 class BatteryHtmlRenderer {
  public:
   virtual String get_status_html() = 0;
+
+  static String render_dtc_section_html(DATALAYER_BATTERY_DTC_TYPE& dtc, const char* json_filename,
+                                        bool standard_code_string) {
+    String content;
+
+    // Reserve enough space to avoid reallocs
+    content.reserve(3300 + dtc.dtc_count * 320);
+    content +=
+        "<h4 style='margin-top:20px;color:#27b06c;border-bottom:2px solid #27b06c;padding-bottom:5px;'>&#128295; "
+        "Diagnostic Trouble Codes</h4>";
+    if (dtc.dtc_last_read_millis == 0) {
+      content += "<p style='color:#bbb;'>Not read yet &mdash; use the Read DTC button below to scan.</p>";
+    } else if (dtc.dtc_read_failed) {
+      content += "<p style='color:#ff8a80;'>&#9888; Last DTC read failed or timed out.</p>";
+    } else if (dtc.dtc_count == 0) {
+      content += "<p style='color:#69f0ae;'>&#10003; No DTCs present.</p>";
+    } else {
+      unsigned long age_s = (millis() - dtc.dtc_last_read_millis) / 1000;
+      content +=
+          "<p style='color:#bbb;'>" + String(dtc.dtc_count) + " codes &mdash; read " + String(age_s) + "s ago</p>";
+      content += "<div style='overflow-x:auto;margin-bottom:12px;'>";
+      content +=
+          "<table style='margin:0 auto;text-align:left;border-collapse:separate;border-spacing:0;"
+          "border:1px solid #4a5a64;border-radius:8px;overflow:hidden;'>";
+      content +=
+          "<thead><tr style='background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;'>"
+          "<th style='padding:10px 18px;text-align:left;'>DTC</th>"
+          "<th style='padding:10px 18px;text-align:left;'>Status</th>"
+          "<th style='padding:10px 18px;text-align:left;'>Description</th></tr></thead><tbody>";
+
+      const char SYS[5] = "PCBU";
+      for (int i = 0; i < dtc.dtc_count; i++) {
+        uint32_t code = dtc.dtc_codes[i];
+        uint8_t status = dtc.dtc_status[i];
+
+        char dtcStr[12];
+        String matchKey;
+        if (standard_code_string) {
+          // SAE format (P0C9500, B1B4E12, etc.)
+          snprintf(dtcStr, sizeof(dtcStr), "%c%02lX%02lX%02lX", SYS[(code >> 22) & 0x03],
+                   (unsigned long)((code >> 16) & 0x3F), (unsigned long)((code >> 8) & 0xFF),
+                   (unsigned long)(code & 0xFF));
+          matchKey = String(dtcStr);
+        } else {
+          // Raw 6-digit hex code (9B4E12, DB4E12, etc.)
+          snprintf(dtcStr, sizeof(dtcStr), "%06lX", (unsigned long)code);
+          matchKey = String(code);
+        }
+
+        // Status precedence: Active (bit 0x01) > Confirmed (bit 0x08) > Stored.
+        const char* statusStr = "Stored";
+        const char* statusColor = "#9e9e9e";
+        if (status & 0x08) {
+          statusStr = "Confirmed";
+          statusColor = "#d29922";
+        }
+        if (status & 0x01) {
+          statusStr = "Active";
+          statusColor = "#ff5252";
+        }
+
+        content +=
+            "<tr><td style='padding:8px 18px;border-top:1px solid #3a4750;font-family:monospace;"
+            "font-weight:600;'>";
+        content += dtcStr;
+        content +=
+            "</td>"
+            "<td style='padding:8px 18px;border-top:1px solid #3a4750;color:";
+        content += statusColor;
+        content += ";font-weight:600;'>";
+        content += statusStr;
+        content +=
+            "</td>"
+            "<td data-dtc-code='";
+        content += matchKey;
+        content += "' style='padding:8px 18px;border-top:1px solid #3a4750;'>Unknown</td></tr>";
+      }
+      content += "</tbody></table></div>";
+      content += get_dtc_json_loader_html(GITHUB_RAW_BASE_URL, json_filename);
+    }
+
+    return content;
+  }
 
   // Base URL for the upstream GitHub repository's data folder.
   // Battery renderers can pass this to get_dtc_json_loader_html() directly,

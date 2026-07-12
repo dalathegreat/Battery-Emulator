@@ -47,17 +47,10 @@ extern bool ap_active;
 extern bool mdns_enabled;
 extern bool espnow_enabled;
 extern bool static_IP_enabled;
-extern uint8_t static_local_IP1;
-extern uint8_t static_local_IP2;
-extern uint8_t static_local_IP3;
-extern uint8_t static_local_IP4;
-extern uint8_t static_gateway1;
-extern uint8_t static_gateway2;
-extern uint8_t static_gateway3;
-extern uint8_t static_gateway4;
-extern uint8_t static_subnet1;
-extern uint8_t static_subnet2;
-extern uint8_t static_subnet3;
-extern uint8_t static_subnet4;
+// Stored as dotted-quad strings; parsed with IPAddress::fromString() when the interface is brought up.
+extern std::string static_local_IP;
+extern std::string static_gateway;
+extern std::string static_subnet;
+extern std::string static_dns;  // Empty = use the gateway as resolver
 
 #endif
