@@ -157,6 +157,9 @@ class ACAN2517FD {
   private: uint8_t mReceiveFIFOPayload ; // in byte count
   private: uint8_t mTXBWS_RequestedMode ;
   private: uint8_t mHardwareReceiveBufferOverflowCount ;
+  private: bool canErrors = false;
+
+  public: inline bool hasCanErrors() { auto ret = canErrors; canErrors = false; return ret; }
 
 //······················································································································
 //    Receive buffer

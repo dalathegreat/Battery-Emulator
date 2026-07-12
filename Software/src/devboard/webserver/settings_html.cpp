@@ -6,6 +6,7 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "../wifi/wifi.h"
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
@@ -144,8 +145,10 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
   switch (option) {
     case GPIOOPT1::DEFAULT_OPT:
       return "WUP1 / WUP2";
+#ifndef SMALL_FLASH_DEVICE
     case GPIOOPT1::I2C_DISPLAY_SSD1306:
       return "I2C Display (SSD1306)";
+#endif  // SMALL_FLASH_DEVICE
     case GPIOOPT1::ESTOP_BMS_POWER:
       return "E-Stop / BMS Power";
     default:
@@ -177,9 +180,11 @@ const char* name_for_gpioopt3(GPIOOPT3 option) {
 const char* name_for_gpioopt4(GPIOOPT4 option) {
   switch (option) {
     case GPIOOPT4::DEFAULT_SD_CARD:
-      return "uSD Card";
+      return "µSD Card";
+#ifndef SMALL_FLASH_DEVICE
     case GPIOOPT4::I2C_DISPLAY_SSD1306:
       return "I2C Display (SSD1306)";
+#endif  // SMALL_FLASH_DEVICE
     default:
       return nullptr;
   }
@@ -202,8 +207,10 @@ const char* name_for_gpioopt6(GPIOOPT6 option) {
   switch (option) {
     case GPIOOPT6::DEFAULT_STATUS_LED:
       return "Status LED (GPIO2)";
+#ifndef SMALL_FLASH_DEVICE
     case GPIOOPT6::I2C_DISPLAY_SSD1306:
       return "I2C Display SSD1306 (GPIO1=SDA, GPIO2=SCL)";
+#endif  // SMALL_FLASH_DEVICE
     default:
       return nullptr;
   }
@@ -357,6 +364,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "HOSTNAME") {
     return settings.getString("HOSTNAME");
+  }
+
+  if (var == "DEFAULTHOSTNAME") {
+    return default_hostname();
   }
 
   if (var == "BATTERYINTF") {
@@ -525,10 +536,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String("");
   }
 
-  if (var == "APNAME") {
-    return settings.getString("APNAME", "BatteryEmulator");
-  }
-
   if (var == "STATICIP") {
     return settings.getBool("STATICIP") ? "checked" : "";
   }
@@ -620,7 +627,20 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "SDLOGENABLED") {
     return settings.getBool("SDLOGENABLED") ? "checked" : "";
   }
-
+#ifndef SMALL_FLASH_DEVICE
+  if (var == "SYSLOGEN") {
+    return settings.getBool("SYSLOGEN") ? "checked" : "";
+  }
+  if (var == "SYSLOGIP") {
+    return settings.getString("SYSLOGIP");
+  }
+  if (var == "SYSLOGPORT") {
+    return String(settings.getUInt("SYSLOGPORT", 514));
+  }
+  if (var == "SYSLOGFAC") {
+    return String(settings.getUInt("SYSLOGFAC", 1));
+  }
+#endif
   if (var == "ESPNOWENABLED") {
     return settings.getBool("ESPNOWENABLED") ? "checked" : "";
   }
@@ -645,14 +665,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String("");
   }
 
-  if (var == "MQTTTOPICS") {
-    return settings.getBool("MQTTTOPICS") ? "checked" : "";
-  }
-
-  if (var == "MQTTTOPIC") {
-    return settings.getString("MQTTTOPIC");
-  }
-
   if (var == "MQTTTIMEOUT") {
     return String(settings.getUInt("MQTTTIMEOUT", 2000));
   }
@@ -661,20 +673,8 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("MQTTPUBLISHMS", 5000) / 1000);
   }
 
-  if (var == "MQTTOBJIDPREFIX") {
-    return settings.getString("MQTTOBJIDPREFIX");
-  }
-
-  if (var == "MQTTDEVICENAME") {
-    return settings.getString("MQTTDEVICENAME");
-  }
-
   if (var == "MQTTCELLV") {
     return settings.getBool("MQTTCELLV") ? "checked" : "";
-  }
-
-  if (var == "HADEVICEID") {
-    return settings.getString("HADEVICEID");
   }
 
   if (var == "HADISC") {
@@ -1046,7 +1046,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #ifdef HW_LILYGO
 #define GPIOOPT4_SETTING \
   R"rawliteral(
-    <label for="GPIOOPT4">uSD Slot:</label>
+    <label for="GPIOOPT4">µSD Slot:</label>
     <select id="GPIOOPT4" name="GPIOOPT4">
       %GPIOOPT4%
     </select>
@@ -1088,6 +1088,31 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   )rawliteral"
 #else
 #define CANFD2ASCAN_SETTING ""
+#endif
+
+#ifndef SMALL_FLASH_DEVICE
+#define SYSLOG_SETTING_HTML \
+  R"rawliteral(
+        <label>General logging to syslog server: </label>
+        <input type='checkbox' name='SYSLOGEN' value='on' %SYSLOGEN%
+              title="Send general logging as UDP syslog datagrams (RFC 5424) to a remote server. Events use their own severity; other lines are sent as debug." />
+
+        <div class='if-syslogen'>
+        <label>Syslog server IP: </label>
+        <input type='text' name='SYSLOGIP' value="%SYSLOGIP%"
+              pattern="((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)"
+              title="IPv4 address of the syslog server" />
+        <label>Syslog UDP port: </label>
+        <input type='number' name='SYSLOGPORT' value="%SYSLOGPORT%"
+              min="1" max="65535" step="1" title="UDP port (default 514)" />
+        <label>Syslog facility: </label>
+        <input type='number' name='SYSLOGFAC' value="%SYSLOGFAC%"
+              min="0" max="23" step="1"
+              title="0=kern, 1=user, 3=daemon, 16-23=local0-7 (default 1)" />
+        </div>
+  )rawliteral"
+#else
+#define SYSLOG_SETTING_HTML ""
 #endif
 
 #define SETTINGS_HTML_SCRIPTS \
@@ -1417,8 +1442,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
-    form .if-topics { display: none; }
-    form[data-mqtttopics="true"] .if-topics {
+    form .if-syslogen { display: none; }
+    form[data-syslogen="true"] .if-syslogen {
       display: contents;
     }
 
@@ -1890,29 +1915,25 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <h3>Connectivity settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
-        <label>Broadcast Wifi access point: </label>
+        <label>Hostname:<br>(also Access Point SSID, MQTT topics)</label>
+        <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
+        pattern="[A-Za-z0-9_\-]+"
+        placeholder="%DEFAULTHOSTNAME%"
+        title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
+    
+        <label>Broadcast Wi-Fi Access Point: </label>
         <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
 
-        <label>Access point name: </label>
-        <input type='text' name='APNAME' value="%APNAME%" 
-        pattern="([ -~]{1,63})?"
-        title="Max 63 characters, printable ASCII only" />
-
-        <label>Access point password: </label>
+        <label>Access Point password: </label>
         <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
         pattern="([ -~]{8,63})?"
-        title="Password must be 8-63 characters long, printable ASCII only"
+        title="Password must be 8-63 characters long, printable ASCII only."
         placeholder='Leave blank to keep unchanged' />
 
         <label>Wifi channel 0-14: </label>
         <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
         min="0" max="14" step="1"
         title="Force specific channel. Set to 0 for autodetect" required />
-
-        <label>Custom Wifi hostname: </label>
-        <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
-        pattern="[A-Za-z0-9\-]+"
-        title="Optional: Hostname may only contain letters, numbers and '-'" />
 
         <label>Use static IP address: </label>
         <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
@@ -1974,20 +1995,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         min="1" max="300" step="1"
         title="How often to publish MQTT messages in seconds (1-300, step 1). Default: 5" />
         <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
-        <label>Remote BMS reset via MQTT allowed: </label>
+        <label>Allow remote BMS reset via MQTT: </label>
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
-        <label>Customized MQTT topics: </label>
-        <input type='checkbox' name='MQTTTOPICS' value='on' %MQTTTOPICS% />
-
-        <div class='if-topics'>
-
-        <label>MQTT topic name: </label><input type='text' name='MQTTTOPIC' value="%MQTTTOPIC%" />
-        <label>Prefix for MQTT object ID: </label><input type='text' name='MQTTOBJIDPREFIX' value="%MQTTOBJIDPREFIX%" />
-        <label>HA device name: </label><input type='text' name='MQTTDEVICENAME' value="%MQTTDEVICENAME%" />
-        <label>HA device ID: </label><input type='text' name='HADEVICEID' value="%HADEVICEID%" />
-        
-        </div>
-
         <label>Enable Home Assistant auto discovery: </label>
         <input type='checkbox' name='HADISC' value='on' %HADISC% />
 
@@ -2000,13 +2009,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <h3>Debug options</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
-        <label>Enable performance profiling on main page: </label>
+        <label>Performance profiling on main page: </label>
         <input type='checkbox' name='PERFPROFILE' value='on' %PERFPROFILE%          
-              title="For developers. Enable this to get detailed performance metrics on the front page" />
+              title="For developers. Get detailed performance metrics on the front page" />
 
-        <label>Enable CAN message logging via USB serial: </label>
-        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%  
-              title="WARNING: Causes performance issues. Enable this to get incoming/outgoing CAN messages logged via USB cable. Avoid if possible" />
+        <label>General logging via Webserver: </label>
+        <input type='checkbox' name='WEBENABLED' value='on' %WEBENABLED% 
+              onclick="handleCheckboxSelection(this)"         
+              title="Enable this if you want general logging available in the Webserver." />
+
+        <label>General logging via USB serial: </label>
+        <input type='checkbox' name='USBENABLED' value='on' %USBENABLED% 
+              onclick="handleCheckboxSelection(this)" 
+              title="WARNING: Causes performance issues. Log general messages via USB cable. Avoid if possible!" />
+
         <script> //Make sure user only uses one general logging method, improves performance
         function handleCheckboxSelection(clickedCheckbox) { 
             const usbCheckbox = document.querySelector('input[name="USBENABLED"]');
@@ -2024,26 +2040,22 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         }
         </script>
 
-        <label>Enable general logging via USB serial: </label>
-        <input type='checkbox' name='USBENABLED' value='on' %USBENABLED% 
-              onclick="handleCheckboxSelection(this)" 
-              title="WARNING: Causes performance issues. Enable this to get general logging via USB cable. Avoid if possible" />
-
-        <label>Enable general logging via Webserver: </label>
-        <input type='checkbox' name='WEBENABLED' value='on' %WEBENABLED% 
-              onclick="handleCheckboxSelection(this)"         
-              title="Enable this if you want general logging available in the Webserver" />
-
-        <label>Enable CAN message logging via SD card: </label>
-        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% 
-        title="Enable this if you want incoming/outgoing CAN messages to be stored to an SD card. Only works on select hardware with SD-card slot" />
-
-        <label>Enable general logging via SD card: </label>
+        <label>General logging to SD card: </label>
         <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% 
-        title="Enable this if you want general logging to be stored to an SD card. Only works on select hardware with SD-card slot" />
+            title="Store logs on an SD card. Only works on hardware with SD-card slot." />
+
+        <label>CAN message logging via USB serial: </label>
+        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%  
+            title="WARNING: Causes performance issues! Log incoming/outgoing CAN messages via USB cable. Avoid if possible!" />
+
+        <label>CAN message logging to SD card: </label>
+        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% 
+            title="Store incoming/outgoing CAN messages on on SD card. Only works on hardware with SD-card slot." />
+
+        )rawliteral" SYSLOG_SETTING_HTML R"rawliteral(
 
         </div>
-         </div>
+        </div>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button type='submit'>Save</button></div>
 

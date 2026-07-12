@@ -25,6 +25,7 @@ static bool battery_empty_event_fired = false;
 bool emulator_pause_request_ON = false;
 bool emulator_pause_CAN_send_ON = false;
 bool allowed_to_send_CAN = true;
+static uint32_t emulator_restart_request_millis = 0;
 
 //component detection
 bool battery_detected = false;
@@ -51,22 +52,52 @@ void update_machineryprotection() {
 
   // Check health status of CAN interfaces
   if (datalayer.system.info.can_native_send_fail) {
-    set_event(EVENT_CAN_NATIVE_TX_FAILURE, 0);
+    set_event(EVENT_CAN_NATIVE_BUFFER_FULL, 0);
     datalayer.system.info.can_native_send_fail = false;
   } else {
-    clear_event(EVENT_CAN_NATIVE_TX_FAILURE);
+    clear_event(EVENT_CAN_NATIVE_BUFFER_FULL);
+  }
+  if (datalayer.system.info.can_native_bus_error) {
+    set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
+    datalayer.system.info.can_native_bus_error = false;
+  } else {
+    clear_event(EVENT_CAN_NATIVE_BUS_ERROR);
   }
   if (datalayer.system.info.can_2515_send_fail) {
-    set_event(EVENT_CAN_BUFFER_FULL, 0);
+    set_event(EVENT_CANMCP2515_BUFFER_FULL, 0);
     datalayer.system.info.can_2515_send_fail = false;
   } else {
-    clear_event(EVENT_CAN_BUFFER_FULL);
+    clear_event(EVENT_CANMCP2515_BUFFER_FULL);
+  }
+  if (datalayer.system.info.can_2515_bus_error) {
+    set_event(EVENT_CANMCP2515_BUS_ERROR, 0);
+    datalayer.system.info.can_2515_bus_error = false;
+  } else {
+    clear_event(EVENT_CANMCP2515_BUS_ERROR);
   }
   if (datalayer.system.info.can_2518_send_fail) {
     set_event(EVENT_CANFD_BUFFER_FULL, 0);
     datalayer.system.info.can_2518_send_fail = false;
   } else {
     clear_event(EVENT_CANFD_BUFFER_FULL);
+  }
+  if (datalayer.system.info.can_2518_bus_error) {
+    set_event(EVENT_CANFD_BUS_ERROR, 0);
+    datalayer.system.info.can_2518_bus_error = false;
+  } else {
+    clear_event(EVENT_CANFD_BUS_ERROR);
+  }
+  if (datalayer.system.info.can_2518_2_send_fail) {
+    set_event(EVENT_CANFD_2_BUFFER_FULL, 0);
+    datalayer.system.info.can_2518_2_send_fail = false;
+  } else {
+    clear_event(EVENT_CANFD_2_BUFFER_FULL);
+  }
+  if (datalayer.system.info.can_2518_2_bus_error) {
+    set_event(EVENT_CANFD_2_BUS_ERROR, 0);
+    datalayer.system.info.can_2518_2_bus_error = false;
+  } else {
+    clear_event(EVENT_CANFD_2_BUS_ERROR);
   }
 
   // Start checking that the battery is within reason. Incase we see any funny business, raise an event!
@@ -576,6 +607,32 @@ void setBatteryPause(bool pause_battery, bool pause_CAN, EquipmentStop equipment
 
   //immediate check if we can send CAN messages
   update_pause_state();
+}
+
+void graceful_restart() {
+  // Pause charge/discharge, and then restart the ESP32 within 5s (as soon as the power stops).
+
+  set_event(EVENT_RESTARTING, 0);
+
+  // Stop charge/discharge so we don't damage the contactors
+  setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
+
+  uint32_t now = millis();
+  emulator_restart_request_millis = now > 0 ? now : 1;
+}
+
+void update_restart_progress() {
+  // If is a restart has been requested, check the time and restart if the
+  // conditions are met.
+
+  if (emulator_restart_request_millis > 0) {
+    uint32_t now = millis();
+    uint32_t elapsed = now - emulator_restart_request_millis;
+    // Restart after 5s if the emulator has paused. Always restart after 10s.
+    if ((elapsed > INTERVAL_5_S && emulator_pause_status == PAUSED) || elapsed > INTERVAL_10_S) {
+      ESP.restart();
+    }
+  }
 }
 
 /// @brief handle emulator pause status and CAN sending allowed

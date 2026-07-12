@@ -9,6 +9,9 @@ extern std::string password;
 extern uint16_t wifi_channel;
 extern std::string ssidAP;
 extern std::string passwordAP;
+// Factory-default AP password. While the AP runs with this password, it is only
+// kept enabled for a limited provisioning window (see wifi.cpp).
+extern const char* DEFAULT_AP_PASSWORD;
 extern std::string custom_hostname;
 
 void init_WiFi();
@@ -28,6 +31,10 @@ typedef int WiFiEventInfo_t;
 void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info);
 void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info);
 #endif
+
+// Returns the default hostname ("battery-emulator-" + last two bytes of the MAC, lowercase)
+// used when no custom hostname is configured. Safe to call at any time (reads eFuse directly).
+String default_hostname();
 
 void init_WiFi_AP();
 

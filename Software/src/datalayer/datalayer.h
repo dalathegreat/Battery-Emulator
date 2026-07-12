@@ -290,14 +290,26 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   bool web_logging_active = false;
   /** bool, determines if general logging to SD card should be active */
   bool SD_logging_active = false;
+  /** bool, determines if general logging to a remote syslog server is active */
+  bool syslog_logging_active = false;
   /** bool, determines if CAN replay should loop or not */
   bool loop_playback = false;
   /** bool, Native CAN failed to send flag */
   bool can_native_send_fail = false;
+  /** bool, Native CAN experienced repeated tx/rx errors flag */
+  bool can_native_bus_error = false;
   /** bool, MCP2515 CAN failed to send flag */
   bool can_2515_send_fail = false;
+  /** bool, MCP2515 CAN experienced repeated tx/rx errors flag */
+  bool can_2515_bus_error = false;
   /** bool, MCP2518 CANFD failed to send flag */
   bool can_2518_send_fail = false;
+  /** bool, MCP2518 CANFD experienced repeated tx/rx errors flag */
+  bool can_2518_bus_error = false;
+  /** bool, MCP2518 CANFD 2nd interface failed to send flag */
+  bool can_2518_2_send_fail = false;
+  /** bool, MCP2518 CANFD 2nd interface experienced repeated tx/rx errors flag */
+  bool can_2518_2_bus_error = false;
   /** bool, determines if detailed performance measurement should be shown on webserver */
   bool performance_measurement_active = false;
   bool equipment_stop_active = false;  //Has user enabled equipment stop?

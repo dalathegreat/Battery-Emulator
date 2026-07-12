@@ -40,12 +40,27 @@ jobs:
     - uses: actions/checkout@v7
       name: Checkout code
 
+    - name: Get platformio.ini hash
+      id: platformio_ini_hash
+      run: |
+        PLATFORMIO_INI_HASH=$(md5sum platformio.ini | awk '{ print $1 }')
+        echo "platformio_ini_hash=$PLATFORMIO_INI_HASH" >> $GITHUB_OUTPUT
+
+    # Broader cache (just the download files)
     - uses: actions/cache@v6
       with:
         path: |
           ~/.cache/pip
           ~/.platformio/.cache
         key: ${{ runner.os }}-pio
+
+    # Tighter cache (of platformio itself)
+    - uses: actions/cache@v6
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio
+        key: ${{ runner.os }}-pio-${{ steps.platformio_ini_hash.outputs.platformio_ini_hash }}
 
     - uses: actions/setup-python@v6
       with:
@@ -56,6 +71,17 @@ jobs:
 
     - name: Build image for ${{ matrix.board_name }}
       run: pio run -e ${{ matrix.pio_env }}
+
+    - name: Capture size report for ${{ matrix.board_name }}
+      if: matrix.pio_env != 'compiler_warning_check'
+      run: |
+        pio run -e ${{ matrix.pio_env }} -t checkprogsize 2>&1 | tee checkprogsize.txt
+        cat checkprogsize.txt | python .github/scripts/parse_size.py \
+          --pio-env "${{ matrix.pio_env }}" \
+          --board-name "${{ matrix.board_name }}" \
+          --sha "${{ github.event.pull_request.head.sha || github.sha }}" \
+          --pio-system-info "$(pio system info --json-output)" \
+          --platform-json "$(cat "$HOME"/.platformio/platforms/espressif32*/platform.json)"
 
     #rename firmware.bin to contain pr number and commit short sha for easier location after saved on disk
     - name: Rename firmware.bin with PR number and commit short SHA
@@ -70,7 +96,11 @@ jobs:
              .pio/build/${{ matrix.pio_env }}/firmware-${PR_PART}${SHORT_SHA}.bin
 
     - name: Upload artifact for ${{ matrix.board_name }}
+      if: matrix.pio_env != 'compiler_warning_check'
       uses: actions/upload-artifact@v7
       with:
-        name: ${{ matrix.artifact_name }}.bin
-        path: .pio/build/${{ matrix.pio_env }}/firmware-*.bin
+        name: ${{ matrix.artifact_name }}
+        path: |
+          .pio/build/${{ matrix.pio_env }}/firmware-*.bin
+          ${{ matrix.pio_env }}.size.json
+        if-no-files-found: warn

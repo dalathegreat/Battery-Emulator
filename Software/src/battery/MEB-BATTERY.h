@@ -3,7 +3,7 @@
 #include "CanBattery.h"
 #include "MEB-HTML.h"
 
-class MebBattery : public CanBattery {
+class MebBattery : public CanBattery, public IsoTp {
  public:
   // Use this constructor for the second battery.
   MebBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_MEB* extended, CAN_Interface targetCan)
@@ -24,6 +24,10 @@ class MebBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   bool supports_real_BMS_status() { return true; }
   bool supports_charged_energy() { return true; }
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { datalayer_extended.meb.UserRequestDTCreset = true; }
+  bool supports_read_DTC() { return true; }
+  void read_DTC() { datalayer_extended.meb.UserRequestDTCreadout = true; }
   static constexpr const char* Name = "Volkswagen Group MEB platform via CAN-FD";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
@@ -31,6 +35,14 @@ class MebBattery : public CanBattery {
  private:
   /* validate crc for some CAN frames */
   uint8_t vw_crc_calc(const uint8_t* inputBytes, uint8_t length, uint32_t address);
+  /* send a UDS ReadDataByIdentifier request for did via ISO-TP */
+  void uds_read_data_by_id(uint16_t did, unsigned long currentMillis);
+  /* handle a UDS response assembled by the ISO-TP layer */
+  void uds_response_handler(uint8_t* data, int len, enum isotp_tatype type);
+  /* IsoTp override: send a raw CAN frame */
+  void on_isotp_can_tx(uint32_t can_id, uint8_t* can_data, uint8_t can_dlc) override;
+  /* IsoTp override: process an assembled ISO-TP message */
+  void on_isotp_rx_complete(uint8_t* data, int len, isotp_tatype tatype) override;
   MebHtmlRenderer renderer;
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
@@ -275,6 +287,14 @@ class MebBattery : public CanBattery {
   uint32_t poll_pid = PID_CELLVOLTAGE_CELL_85;  // We start here to quickly determine the cell size of the pack.
   bool nof_cells_determined = false;
   uint32_t pid_reply = 0;
+
+  // ISO-TP / UDS request serialization. Only one UDS transaction (PID poll, DTC read) is
+  // outstanding at a time; the next request waits until a response arrives or the timeout expires.
+  static const int MAX_DTC_COUNT = 32;  // matches dtc_codes[] size in DATALAYER_INFO_MEB
+  static constexpr unsigned long UDS_REQUEST_TIMEOUT_MS = 1000;
+  bool uds_request_pending = false;
+  unsigned long uds_request_timestamp = 0;
+
   uint16_t battery_soc_polled = 0;
   uint16_t battery_voltage_polled = 1480;
   int16_t battery_current_polled = 0;
@@ -433,16 +453,8 @@ class MebBattery : public CanBattery {
 #define DC_FASTCHARGE_LS1 0x80
 #define DC_FASTCHARGE_LS2 0xC0
 
-  CAN_frame MEB_POLLING_FRAME = {.FD = true,
-                                 .ext_ID = true,
-                                 .DLC = 8,
-                                 .ID = ISO_Hybrid_01_Req_FD,  // SOC 02 8C
-                                 .data = {0x03, 0x22, 0x02, 0x8C, 0x55, 0x55, 0x55, 0x55}};
-  static constexpr CAN_frame MEB_ACK_FRAME = {.FD = true,
-                                              .ext_ID = true,
-                                              .DLC = 8,
-                                              .ID = ISO_Hybrid_01_Req_FD,  // Ack
-                                              .data = {0x30, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}};
+  // PID polling and multi-frame reassembly are handled by the inherited IsoTp layer
+  // (see uds_read_data_by_id() / on_isotp_rx_complete()).
   static constexpr CAN_frame OBD_CLEAR_DTC = {.FD = true,
                                               .ext_ID = true,
                                               .DLC = 8,

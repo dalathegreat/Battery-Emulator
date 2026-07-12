@@ -112,6 +112,7 @@ class LilyGoHal : public Esp32Hal {
   // Momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP.
   virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_0; }
 
+#ifndef SMALL_FLASH_DEVICE
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() {
     if (user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306) {
@@ -125,6 +126,7 @@ class LilyGoHal : public Esp32Hal {
     }
     return GPIO_NUM_NC;
   }
+#endif  // SMALL_FLASH_DEVICE
 
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,
