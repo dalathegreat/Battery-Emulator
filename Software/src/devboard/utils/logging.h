@@ -133,6 +133,7 @@ extern Logging logging;
 extern std::string syslog_ip;
 extern uint16_t syslog_port;
 extern uint8_t syslog_facility;  // 0..23
+void syslog_start(void);         // starts the syslog sender task; safe to call more than once
 #endif
 
 #endif  // __LOGGING_H__
