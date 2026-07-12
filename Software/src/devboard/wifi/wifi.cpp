@@ -325,6 +325,7 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 
 // Event handler for Wi-Fi Got IP
 void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
+  syslog_backlog_flush();  // replay lines logged before we had an IP
   //clear disconnects events if we got a IP
   clear_event(EVENT_WIFI_DISCONNECT);
   logging.print("Wi-Fi Got IP. ");
