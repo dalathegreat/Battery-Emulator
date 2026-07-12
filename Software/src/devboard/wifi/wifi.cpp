@@ -1,5 +1,6 @@
 #include "wifi.h"
-#include <esp_mac.h>  // esp_read_mac()
+#include <esp_mac.h>                                                     // esp_read_mac()
+#include "../../communication/contactorcontrol/comm_contactorcontrol.h"  // hold_pins_across_reset()
 #include "../../communication/nvm/comm_nvm.h"
 #include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
 #include "../safety/safety.h"
@@ -216,6 +217,7 @@ static void check_ap_button() {
       graceful_restart();
     } else if (held >= AP_BUTTON_STA_WIPE_MS) {
       clear_wifi_sta_settings();
+      hold_pins_across_reset();
       graceful_restart();
     } else if (held >= AP_BUTTON_AP_MS) {
       if (!ap_active) {

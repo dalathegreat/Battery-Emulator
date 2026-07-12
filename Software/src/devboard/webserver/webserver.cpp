@@ -851,6 +851,7 @@ void init_webserver() {
   // Route to handle reboot command
   def_route_with_auth("/reboot", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/plain", "Rebooting server...");
+    hold_pins_across_reset();
     graceful_restart();
   });
 
@@ -1738,6 +1739,7 @@ void onOTAEnd(bool success) {
   // Log when OTA has finished
   if (success) {
     logging.println("OTA update finished successfully!");
+    hold_pins_across_reset();
     graceful_restart();
   } else {
     logging.println("There was an error during OTA update!");
