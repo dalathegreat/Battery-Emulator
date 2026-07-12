@@ -286,74 +286,7 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Total discharged: " + String(datalayer.battery.status.total_discharged_battery_Wh / 1000.0, 1) +
                " kWh</h4>";
 
-    // Diagnostic Trouble Codes section. Populated by the "Read DTC" button (UDS 0x19 0x02) and
-    // cleared by "Erase DTC" (OBD service 0x04). Descriptions are fetched at runtime by the
-    // shared get_dtc_json_loader_html() JavaScript from the JSON on GitHub.
-    content +=
-        "<h3 style='color:#27b06c;border-bottom:2px solid #27b06c;padding-bottom:5px;'>🔧 Diagnostic Trouble "
-        "Codes</h3>";
-    content += "<div style='margin-left:15px;margin-right:15px;'>";
-
-    if (datalayer_extended.meb.dtc_last_read_millis == 0) {
-      content +=
-          "<p style='color:#ff9800;'>ℹ DTCs have not been read yet. Click 'Read DTC' to scan for fault codes.</p>";
-    } else if (datalayer_extended.meb.dtc_read_failed) {
-      content += "<p style='color:#d32f2f;'>⚠ Last DTC read failed or not supported</p>";
-    } else if (datalayer_extended.meb.dtc_count == 0) {
-      content += "<p style='color:#4CAF50;'>✓ No DTCs present</p>";
-    } else {
-      content += "<p><strong>DTC Count:</strong> " + String(datalayer_extended.meb.dtc_count) + "</p>";
-
-      // Shared cell styles defined once, then referenced by class on every row.
-      content +=
-          "<style>.dh,.dc{padding:12px 15px}.dh{text-align:left;font-weight:600}"
-          ".dc{border-top:1px solid #e0e0e0}.dm{font-family:monospace;font-size:1.1em;font-weight:600}"
-          ".dd{font-size:.95em;color:#ddd}.dse{font-weight:500}</style>";
-      content += "<div style='overflow-x:auto;margin-top:10px;margin-bottom:15px;'>";
-      content +=
-          "<table style='width:auto;margin:0 auto;border-collapse:separate;border-spacing:0;border:1px solid "
-          "#ddd;border-radius:8px;overflow:hidden;'>";
-      content += "<thead>";
-      content += "<tr style='background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;'>";
-      content += "<th class='dh'>DTC Code</th>";
-      content += "<th class='dh'>Status</th>";
-      content += "<th class='dh'>Description</th>";
-      content += "</tr>";
-      content += "</thead>";
-      content += "<tbody>";
-
-      for (int i = 0; i < datalayer_extended.meb.dtc_count; i++) {
-        uint32_t code = datalayer_extended.meb.dtc_codes[i];
-        uint8_t status = datalayer_extended.meb.dtc_status[i];
-
-        char dtcStr[12];
-        sprintf(dtcStr, "%06lX", (unsigned long)code);
-
-        String statusStr = "Stored";
-        String statusColor = "#757575";
-        if (status & 0x08) {
-          statusStr = "Confirmed";
-          statusColor = "#ff6f00";
-        }
-        if (status & 0x01) {
-          statusStr = "Active";
-          statusColor = "#d32f2f";
-        }
-
-        content += "<tr>";
-        content += "<td class='dc dm'>" + String(dtcStr) + "</td>";
-        content += "<td class='dc dse' style='color:" + statusColor + "'>" + statusStr + "</td>";
-        content += "<td class='dc dd' data-dtc-code='" + String(code) + "'>Unknown</td>";
-        content += "</tr>";
-      }
-
-      content += "</tbody>";
-      content += "</table>";
-      content += "</div>";
-
-      content += get_dtc_json_loader_html(GITHUB_RAW_BASE_URL, "vag_meb_dtc.json");
-    }
-    content += "</div>";
+    content += BatteryHtmlRenderer::render_dtc_section_html(datalayer.battery.dtc, "vag_meb_dtc.json", false);
 
     return content;
   }

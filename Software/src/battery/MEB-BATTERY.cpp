@@ -797,7 +797,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     uds_request_timestamp = currentMillis;
     datalayer_extended.meb.UserRequestDTCreadout = false;  // consume the request
     datalayer_extended.meb.dtc_read_in_progress = true;
-    datalayer_extended.meb.dtc_read_failed = false;
+    datalayer_battery->dtc.dtc_read_failed = false;
   }
 
   // DTC clear requested via WebUI: OBD service 0x04 (ClearDiagnosticInformation) sent to the
@@ -808,7 +808,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     uds_request_timestamp = currentMillis;
     datalayer_extended.meb.UserRequestDTCreset = false;  // consume the request
     datalayer_extended.meb.dtc_read_in_progress = true;
-    datalayer_extended.meb.dtc_read_failed = false;
+    datalayer_battery->dtc.dtc_read_failed = false;
   }
 
   if (currentMillis - last_can_msg_timestamp > 500) {
@@ -1338,17 +1338,17 @@ void MebBattery::uds_response_handler(uint8_t* data, int len, enum isotp_tatype 
       break;
     case (0x04 + kPositiveResponseOffset):  // clear DTCs (OBD service 0x04) positive response
       uds_request_pending = false;
-      datalayer_extended.meb.dtc_read_failed = false;
-      datalayer_extended.meb.dtc_count = 0;  // Clear any existing DTCs after a successful erase
-      datalayer_extended.meb.dtc_last_read_millis = 0;
+      datalayer_battery->dtc.dtc_read_failed = false;
+      datalayer_battery->dtc.dtc_count = 0;  // Clear any existing DTCs after a successful erase
+      datalayer_battery->dtc.dtc_last_read_millis = 0;
       datalayer_extended.meb.dtc_read_in_progress = false;
       break;
     case (UDS_RESPONSE_SID_OF(ReadDTCInformation)):  // DTC read positive response (0x59)
       if (data[1] != 0x02) {
         // Unexpected report type — treat as a failed readout.
-        datalayer_extended.meb.dtc_read_failed = true;
+        datalayer_battery->dtc.dtc_read_failed = true;
       } else {
-        datalayer_extended.meb.dtc_read_failed = false;
+        datalayer_battery->dtc.dtc_read_failed = false;
         int dtcStartIndex = 3;  // Skip 59 02 <statusAvailabilityMask>
         int availableBytes = len - dtcStartIndex;
         int maxDtcCount = availableBytes / 4;
@@ -1369,14 +1369,14 @@ void MebBattery::uds_response_handler(uint8_t* data, int len, enum isotp_tatype 
           uint32_t dtcCode =
               ((uint32_t)data[offset] << 16) | ((uint32_t)data[offset + 1] << 8) | (uint32_t)data[offset + 2];
           uint8_t dtcStatus = data[offset + 3];
-          datalayer_extended.meb.dtc_codes[i] = dtcCode;
-          datalayer_extended.meb.dtc_status[i] = dtcStatus;
+          datalayer_battery->dtc.dtc_codes[i] = dtcCode;
+          datalayer_battery->dtc.dtc_status[i] = dtcStatus;
         }
-        datalayer_extended.meb.dtc_count = maxDtcCount;
+        datalayer_battery->dtc.dtc_count = maxDtcCount;
       }
       uds_request_pending = false;
+      datalayer_battery->dtc.dtc_last_read_millis = millis();
       datalayer_extended.meb.dtc_read_in_progress = false;
-      datalayer_extended.meb.dtc_last_read_millis = millis();
       break;
     case (ServiceNotSupportedInActiveSession):  // Negative response (0x7F)
       // data[1] = original request service id, data[2] = NRC
@@ -1388,7 +1388,7 @@ void MebBattery::uds_response_handler(uint8_t* data, int len, enum isotp_tatype 
         // DTC read was rejected — the transaction is complete, allow the next request.
         uds_request_pending = false;
         datalayer_extended.meb.dtc_read_in_progress = false;
-        datalayer_extended.meb.dtc_read_failed = true;
+        datalayer_battery->dtc.dtc_read_failed = true;
       } else {
         // Any other NRC: the transaction is complete (rejected), allow the next request.
         uds_request_pending = false;
