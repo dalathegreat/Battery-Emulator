@@ -989,6 +989,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&Klemmen_Status_01_frame);
     transmit_can_frame(&Motor_14_frame);
     transmit_can_frame(&Motor_54_frame);
+    transmit_can_frame(&Klima_EV_07_frame);  //PTC / EKK voltage free or not
   }
   //Send 200ms message
   if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {

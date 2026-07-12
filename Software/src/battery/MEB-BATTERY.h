@@ -241,6 +241,7 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int Standklima_01 = 0x16A954FB;
   static const int ORU_01 = 0x1A555548;
   static const int Klima_EV_06 = 0x1A55552B;
+  static const int Klima_EV_07 = 0x12DD5513;
   static const int HVEM_04 = 0x569;
   static const int eTM_01 = 0x16A954B4;
   static const int NMH_Gateway = 0x1B000010;
@@ -540,6 +541,11 @@ class MebBattery : public CanBattery, public IsoTp {
                                                   .DLC = 8,
                                                   .ID = Klima_EV_06,
                                                   .data = {0x00, 0x00, 0x00, 0xA0, 0x02, 0x04, 0x00, 0x30}};
+  static constexpr CAN_frame Klima_EV_07_frame = {.FD = true,
+                                                  .ext_ID = true,
+                                                  .DLC = 8,
+                                                  .ID = Klima_EV_07,
+                                                  .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   static constexpr CAN_frame HVEM_04_frame = {.FD = true,
                                               .ext_ID = false,
                                               .DLC = 8,
