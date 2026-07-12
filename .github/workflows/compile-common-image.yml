@@ -93,7 +93,7 @@ jobs:
             PR_PART=""
           fi
           cp .pio/build/${{ matrix.pio_env }}/firmware.bin \
-             .pio/build/${{ matrix.pio_env }}/firmware-${PR_PART}${SHORT_SHA}.bin
+             firmware-${PR_PART}${SHORT_SHA}.bin
 
     - name: Upload artifact for ${{ matrix.board_name }}
       if: matrix.pio_env != 'compiler_warning_check'
@@ -101,6 +101,6 @@ jobs:
       with:
         name: ${{ matrix.artifact_name }}
         path: |
-          .pio/build/${{ matrix.pio_env }}/firmware-*.bin
+          firmware-*.bin
           ${{ matrix.pio_env }}.size.json
         if-no-files-found: warn
