@@ -329,7 +329,7 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 // Event handler for Wi-Fi Got IP
 void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
 #ifndef SMALL_FLASH_DEVICE
-  syslog_start();  
+  syslog_start();
 #endif
 
   //clear disconnects events if we got a IP
