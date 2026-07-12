@@ -162,7 +162,8 @@ static void syslog_task(void* arg) {
         syslogQueuePos += strlen(rec) + 1;
         rec = &syslogQueue[syslogQueuePos];
         snprintf(msg, sizeof(msg), "%s", rec);  // message; copy out so we can send unlocked
-        syslogQueuePos += strlen(rec) + 1;        have = true;
+        syslogQueuePos += strlen(rec) + 1;
+        have = true;
 
         if (syslogQueuePos >= syslogQueueLen) {  // drained -> rewind
           syslogQueuePos = 0;
