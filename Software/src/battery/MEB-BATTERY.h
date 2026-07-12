@@ -252,6 +252,7 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int Klima_Sensor_02 = 0x5E1;
   static const int Motor_14 = 0x3BE;
   static const int Motor_54 = 0x14C;
+  static const int HVLM_13 = 0x271;
   static const int HVLM_14 = 0x272;
   static const int HVK_01 = 0x503;
   static const int KN_Hybrid_01 = 0x17F0007B;
@@ -586,6 +587,11 @@ class MebBattery : public CanBattery, public IsoTp {
                               .DLC = 8,
                               .ID = Motor_14,  // CRC, otherwise content
                               .data = {0x57, 0x0D, 0x00, 0x00, 0x00, 0x02, 0x04, 0x40}};
+  CAN_frame HVLM_13_frame = {.FD = true,  //HVLM_13
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = HVLM_13,  // content still TODO
+                             .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame HVLM_14_frame = {.FD = true,  //HVLM_14
                              .ext_ID = false,
                              .DLC = 8,

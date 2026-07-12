@@ -839,6 +839,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
     transmit_can_frame(&ESC_51_Auth_frame);  // Required for contactor closing
+    transmit_can_frame(&HVLM_13_frame);      // Some newer packs throw "00A767" DTC incase this message is missing
   }
   // Send 20ms CAN Message
   if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
