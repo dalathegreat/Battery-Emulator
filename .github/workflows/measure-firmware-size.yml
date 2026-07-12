@@ -34,7 +34,7 @@ jobs:
         path: ./pr
         run-id: ${{ github.event.workflow_run.id }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        pattern: "*.bin"
+        pattern: "battery-emulator-*"
         merge-multiple: true
 
     - name: Resolve PR context and base compile run
@@ -77,7 +77,7 @@ jobs:
         path: ./base
         run-id: ${{ steps.ctx.outputs.run_id }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        pattern: "*.bin"
+        pattern: "battery-emulator-*"
         merge-multiple: true
 
     - name: Render comment
