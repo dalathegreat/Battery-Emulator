@@ -681,6 +681,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("HADISC") ? "checked" : "";
   }
 
+  if (var == "HADISCTOPIC") {
+    return settings.getString("HADISCTOPIC", "homeassistant");
+  }
+
   if (var == "MANUAL_BAL_CLASS") {
     if (battery && battery->supports_manual_balancing()) {
       return "";
@@ -1999,6 +2003,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
         <label>Enable Home Assistant auto discovery: </label>
         <input type='checkbox' name='HADISC' value='on' %HADISC% />
+        <label>Home Assistant auto discovery topic: </label>
+        <input type='text' name='HADISCTOPIC' value="%HADISCTOPIC%"
+        pattern="[A-Za-z0-9_\-]+"
+        title="MQTT auto discovery base topic (letters, numbers, '_', '-')" />
 
         </div>
 

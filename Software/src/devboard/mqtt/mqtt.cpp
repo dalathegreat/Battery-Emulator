@@ -22,6 +22,7 @@ std::string mqtt_password;
 
 bool mqtt_enabled = false;
 bool ha_autodiscovery_enabled = false;
+std::string ha_autodiscovery_topic = "homeassistant";
 bool mqtt_transmit_all_cellvoltages = false;
 uint16_t mqtt_timeout_ms = 2000;
 uint16_t mqtt_publish_interval_ms = 5000;
@@ -180,19 +181,20 @@ SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, null
                                 {"STOP", "Open Contactors", nullptr, nullptr, nullptr, nullptr}};
 
 static String generateCommonInfoAutoConfigTopic(const char* default_entity_id) {
-  return "homeassistant/sensor/" + topic_name + "/" + String(default_entity_id) + "/config";
+  return String(ha_autodiscovery_topic.c_str()) + "/sensor/" + topic_name + "/" + String(default_entity_id) + "/config";
 }
 
 static String generateCellVoltageAutoConfigTopic(int cell_number, String battery_suffix) {
-  return "homeassistant/sensor/" + topic_name + "/cell_voltage" + battery_suffix + String(cell_number) + "/config";
+  return String(ha_autodiscovery_topic.c_str()) + "/sensor/" + topic_name + "/cell_voltage" + battery_suffix +
+         String(cell_number) + "/config";
 }
 
 static String generateEventsAutoConfigTopic(const char* default_entity_id) {
-  return "homeassistant/sensor/" + topic_name + "/" + String(default_entity_id) + "/config";
+  return String(ha_autodiscovery_topic.c_str()) + "/sensor/" + topic_name + "/" + String(default_entity_id) + "/config";
 }
 
 static String generateButtonAutoConfigTopic(const char* subtype) {
-  return "homeassistant/button/" + topic_name + "/" + String(subtype) + "/config";
+  return String(ha_autodiscovery_topic.c_str()) + "/button/" + topic_name + "/" + String(subtype) + "/config";
 }
 
 static String generateSensorDefaultEntityId(const String& object_id) {

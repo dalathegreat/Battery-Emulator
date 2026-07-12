@@ -445,7 +445,7 @@ void init_webserver() {
   };
 
   const char* stringSettingNames[] = {"APPASSWORD",   "HOSTNAME", "MQTTSERVER", "MQTTUSER",
-                                      "MQTTPASSWORD", "HTTPUSER", "HTTPPASS",
+                                      "MQTTPASSWORD", "HTTPUSER", "HTTPPASS",   "HADISCTOPIC",
 #ifndef SMALL_FLASH_DEVICE
                                       "SYSLOGIP"
 #endif
