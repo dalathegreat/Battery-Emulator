@@ -1964,11 +1964,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="settings-card">
-        <h3>Connectivity settings</h3>
+        <h3>Integration settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
-
-    
-
 
         <label>Enable ESPNow: </label>
         <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED% />
