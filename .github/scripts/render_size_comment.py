@@ -106,15 +106,17 @@ def sort_key(env: str, pr: BoardSize | None) -> tuple[float, str]:
 
 
 def flash_delta_cell(base: MemoryBytes | None, pr: MemoryBytes | None) -> str:
-    """Signed flash delta. ⚠️ if tight (>90%) and grew; ⬇️ if the board shrank."""
+    """Signed flash delta. ⚠️ if tight (>90%) and grew; ⬆️ if grew; ⬇️ if shrank."""
     if base is None or pr is None:
         return "—"
     delta = pr.used - base.used
     cell = fmt_delta(delta)
     if delta > 0 and pr.total and (pr.used / pr.total) > WARN_FILL_THRESHOLD:
-        cell += " ⚠️"
+        return "⚠️ " + cell
+    elif delta > 0:
+        return "⬆️ " + cell
     elif delta < 0:
-        cell += " ⬇️"
+        return "⬇️ " + cell
     return cell
 
 
@@ -126,7 +128,13 @@ def ram_delta_cell(base: MemoryBytes | None, pr: MemoryBytes | None) -> str:
     """
     if base is None or pr is None:
         return "—"
-    return fmt_delta(pr.used - base.used)
+    delta = pr.used - base.used
+    cell = fmt_delta(delta)
+    if delta > 0:
+        return "⬆️ " + cell
+    elif delta < 0:
+        return "⬇️ " + cell
+    return cell
 
 
 def _row_pr_missing(env: str, base: BoardSize | None) -> RowCells:
