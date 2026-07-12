@@ -124,6 +124,7 @@
   XX(EVENT_PID_FAILED)                  \
   XX(EVENT_WIFI_CONNECT)                \
   XX(EVENT_WIFI_DISCONNECT)             \
+  XX(EVENT_WIFI_AP_PASSWORD_DEFAULT)    \
   XX(EVENT_WIFI_AP_PROVISION_TIMEOUT)   \
   XX(EVENT_MQTT_CONNECT)                \
   XX(EVENT_MQTT_DISCONNECT)             \
