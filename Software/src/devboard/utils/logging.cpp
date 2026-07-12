@@ -76,7 +76,8 @@ static void syslog_send(uint8_t sev, const char* proc, const char* msg) {
   if (syslogUdp.beginPacket(dst, syslog_port)) {
     // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
     // NILVALUE '-' timestamp -> the syslog server stamps on receipt.
-    syslogUdp.printf("<%u>1 - %s BatteryEmulator %s - - %s", pri, syslog_hostname(), proc, msg);
+    // APP-NAME carries the FreeRTOS task that produced the line.
+    syslogUdp.printf("<%u>1 - %s %s - - - %s", pri, syslog_hostname(), proc, msg);
     syslogUdp.endPacket();
   }
 }
