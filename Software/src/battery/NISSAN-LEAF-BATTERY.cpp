@@ -179,9 +179,16 @@ void NissanLeafBattery::
     }
   }
 
-  // Derive aggregate balancing status from the per-cell shunt bits polled from group 0x06.
-  // Recomputed every cycle in both directions; events fire on transitions only.
-  if (balancing_data_received) {
+  // Derive aggregate balancing status from the per-cell shunt bits polled from LBC group 0x06.
+  // The LBC duty-cycles its bleed resistors (and disables them while sampling cell voltages), and we
+  // only see one snapshot per ~70s poll rotation, so a single all-clear poll is not proof that the
+  // balancing phase has ended. Require BALANCING_IDLE_POLLS_TO_END consecutive idle polls before
+  // dropping back to READY. Evaluated only on fresh group 0x06 data, never on the 1s update tick.
+  static constexpr uint8_t BALANCING_IDLE_POLLS_TO_END = 3;  // ~3.5 minutes of quiet
+
+  if (balancing_data_received && balancing_data_fresh) {
+    balancing_data_fresh = false;
+
     bool any_shunt_active = false;
     for (uint8_t i = 0; i < 96; i++) {
       if (battery_balancing_shunts[i]) {
@@ -189,12 +196,22 @@ void NissanLeafBattery::
         break;
       }
     }
-    balancing_status_enum new_status = any_shunt_active ? BALANCING_STATUS_ACTIVE : BALANCING_STATUS_READY;
+
+    if (any_shunt_active) {
+      balancing_idle_polls = 0;
+    } else if (balancing_idle_polls < BALANCING_IDLE_POLLS_TO_END) {
+      balancing_idle_polls++;
+    }
+
+    balancing_status_enum new_status = (balancing_idle_polls < BALANCING_IDLE_POLLS_TO_END)
+                                           ? BALANCING_STATUS_ACTIVE
+                                           : BALANCING_STATUS_READY;
+
     if (new_status != datalayer_battery->status.balancing_status) {
       if (new_status == BALANCING_STATUS_ACTIVE) {
         set_event_latched(EVENT_BALANCING_START, 0);
       } else if (datalayer_battery->status.balancing_status == BALANCING_STATUS_ACTIVE) {
-        set_event(EVENT_BALANCING_END, 0);  // only on ACTIVE -> READY, not on the initial UNKNOWN -> READY
+        set_event(EVENT_BALANCING_END, 0);  // only ACTIVE -> READY, not the initial UNKNOWN -> READY
       }
     }
     datalayer_battery->status.balancing_status = new_status;
@@ -526,6 +543,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
           memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
           balancing_data_received = true;
+          balancing_data_fresh = true;
         }
 
         if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23 FF FF FF FF FF FF FF)
