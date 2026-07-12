@@ -60,6 +60,8 @@ class LilyGoHal : public Esp32Hal {
 
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_25; }
+  virtual gpio_num_t I2C_G05_SDA_PIN() { return GPIO_NUM_32; }
+  virtual gpio_num_t I2C_G05_SCL_PIN() { return GPIO_NUM_33; }
   virtual gpio_num_t INVERTER_DISCONNECT_CONTACTOR_PIN() { return GPIO_NUM_32; }
   virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
 

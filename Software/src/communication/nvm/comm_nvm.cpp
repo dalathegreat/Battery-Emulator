@@ -176,7 +176,8 @@ void init_stored_settings() {
   user_selected_gpioopt6 = (GPIOOPT6)settings.getUInt("GPIOOPT6", 0);
 #endif
 
-  precharge_control_enabled = settings.getBool("EXTPRECHARGE", false);
+  precharge_control_mode = static_cast<PrechargeControlMode>(settings.getUInt("EXTPREMODE", 0));
+
   precharge_inverter_normally_open_contactor = settings.getBool("NOINVDISC", false);
   precharge_max_precharge_time_before_fault = settings.getUInt("MAXPRETIME", 15000);
   Precharge_max_PWM_Freq = settings.getUInt("MAXPREFREQ", 34000);

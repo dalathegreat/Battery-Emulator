@@ -177,6 +177,8 @@ class Esp32Hal {
 
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t I2C_G05_SDA_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t I2C_G05_SCL_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t INVERTER_DISCONNECT_CONTACTOR_PIN() { return GPIO_NUM_NC; }
 
   // SMA CAN contactor pins
