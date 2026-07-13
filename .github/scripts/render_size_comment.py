@@ -42,15 +42,15 @@ class RowCells:
     def header() -> tuple[str, str]:
         """Return (header row, alignment row) for the markdown table."""
         return (
-            "| Board | Env | Base flash | PR flash | Max | PR % | Δ flash | PR RAM | Δ RAM |",
-            "| - | - | -: | -: | -: | -: | -: | -: | -: |",
+            "| Board | New flash | Max | PR % | Δ flash | PR RAM | Δ RAM |",
+            "| - | -: | -: | -: | -: | -: | -: |",
         )
 
     def render(self) -> str:
         """Format as a single markdown table row."""
         return (
-            f"| {self.board} | {self.env} "
-            f"| {self.base_flash} | {self.pr_flash} | {self.max_flash} "
+            f"| [{self.board}]({self.artifact_url}) " if self.artifact_url else f"| {self.board} "
+            f"| {self.pr_flash} | {self.max_flash} "
             f"| {self.pr_pct} | {self.delta_flash} "
             f"| {self.pr_ram} | {self.delta_ram} |"
         )
@@ -145,7 +145,7 @@ def ram_delta_cell(base: MemoryBytes | None, pr: MemoryBytes | None) -> str:
     return cell
 
 
-def _row_pr_missing(env: str, base: BoardSize | None) -> RowCells:
+def _row_pr_missing(env: str, base: BoardSize | None, artifact_url: str | None) -> RowCells:
     """PR-side build failed for this env — show base numbers, blank PR side."""
     flash = base.flash if base else None
     return RowCells(
@@ -158,10 +158,11 @@ def _row_pr_missing(env: str, base: BoardSize | None) -> RowCells:
         delta_flash="—",
         pr_ram="—",
         delta_ram="—",
+        artifact_url=artifact_url
     )
 
 
-def _row_base_missing(env: str, pr: BoardSize) -> RowCells:
+def _row_base_missing(env: str, pr: BoardSize, artifact_url: str | None) -> RowCells:
     """No base report to diff against — new env, or its base build produced none.
 
     We can't tell those two apart (a missing base entry carries no reason), so
@@ -177,10 +178,11 @@ def _row_base_missing(env: str, pr: BoardSize) -> RowCells:
         delta_flash="—",
         pr_ram=fmt_bytes(pr.ram.used if pr.ram else None),
         delta_ram="—",
+        artifact_url=artifact_url
     )
 
 
-def _row_normal(env: str, base: BoardSize, pr: BoardSize) -> RowCells:
+def _row_normal(env: str, base: BoardSize, pr: BoardSize, artifact_url: str | None) -> RowCells:
     """Both builds succeeded — show sizes, deltas, and flag if tight+growing."""
     return RowCells(
         board=pr.board_name,
@@ -192,17 +194,18 @@ def _row_normal(env: str, base: BoardSize, pr: BoardSize) -> RowCells:
         delta_flash=flash_delta_cell(base.flash, pr.flash),
         pr_ram=fmt_bytes(pr.ram.used if pr.ram else None),
         delta_ram=ram_delta_cell(base.ram, pr.ram),
+        artifact_url=artifact_url
     )
 
 
-def render_row(env: str, base: BoardSize | None, pr: BoardSize | None) -> str:
+def render_row(env: str, base: BoardSize | None, pr: BoardSize | None, artifact_url: str | None) -> str:
     """Dispatch to the right case builder and format the resulting row."""
     if pr is None:
-        cells = _row_pr_missing(env, base)
+        cells = _row_pr_missing(env, base, artifact_url)
     elif base is None:
-        cells = _row_base_missing(env, pr)
+        cells = _row_base_missing(env, pr, artifact_url)
     else:
-        cells = _row_normal(env, base, pr)
+        cells = _row_normal(env, base, pr, artifact_url)
     return cells.render()
 
 
@@ -212,6 +215,7 @@ def render(
     base_branch: str,
     base_sha: str,
     head_sha: str,
+    artifact_urls: dict[str, str]
 ) -> str:
     envs = sorted(set(base) | set(pr), key=lambda e: sort_key(e, pr.get(e)))
 
@@ -230,7 +234,7 @@ def render(
         lines.append("")
     else:
         lines.append(
-            f"Base: `{short(base_sha)}` on `{base_branch}` · This PR: `{short(head_sha)}`"
+            f"Base: {base_sha} on `{base_branch}` · This PR: {head_sha}"
         )
         lines.append("")
 
@@ -270,7 +274,8 @@ def render(
     lines.append(sep)
 
     for env in envs:
-        lines.append(render_row(env, base.get(env), pr.get(env)))
+        artifact_url = artifact_urls.get(base.get(env, pr.get(env)).get_artifact_slug(), None)
+        lines.append(render_row(env, base.get(env), pr.get(env), artifact_url))
 
     lines.append("")
     lines.append(
@@ -288,7 +293,14 @@ def main() -> int:
     ap.add_argument("--base-branch", required=True)
     ap.add_argument("--base-sha", required=True)
     ap.add_argument("--head-sha", required=True)
+    ap.add_argument(
+        "--artifact-urls",
+        required=True,
+        help="JSON mapping {slug: artifact_url} for all size reports",
+    )
     args = ap.parse_args()
+
+    print('artifact URLs is', args.artifact_urls, file=sys.stderr)
 
     base = load_size_reports(args.base_dir)
     pr = load_size_reports(args.pr_dir)
@@ -302,7 +314,7 @@ def main() -> int:
             "> No size reports found in either the PR build or the base build.\n"
         )
     else:
-        body = render(base, pr, args.base_branch, args.base_sha, args.head_sha)
+        body = render(base, pr, args.base_branch, args.base_sha, args.head_sha, json.loads(args.artifact_urls))
 
     sys.stdout.buffer.write(body.encode("utf-8"))
     return 0
