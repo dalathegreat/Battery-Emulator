@@ -148,6 +148,10 @@ const char* name_for_battery_type(BatteryType type) {
       return VolvoSpaBattery::Name;
     case BatteryType::VolvoSpaHybrid:
       return VolvoSpaHybridBattery::Name;
+#ifndef SMALL_FLASH_DEVICE
+    case BatteryType::ChargebyteCCSBattery:
+      return ChargebyteCCSBattery::Name;
+#endif
     default:
       return nullptr;
   }
@@ -268,6 +272,10 @@ Battery* create_battery(BatteryType type) {
       return new VolvoSpaBattery();
     case BatteryType::VolvoSpaHybrid:
       return new VolvoSpaHybridBattery();
+#ifndef SMALL_FLASH_DEVICE
+    case BatteryType::ChargebyteCCSBattery:
+      return new ChargebyteCCSBattery();
+#endif
     default:
       return nullptr;
   }
