@@ -18,7 +18,7 @@ std::string getBMSStatus(system_status_enum status) {
   }
 }
 const char* get_charging_status_text(int32_t current_dA, bool inverter_limits_charge, bool inverter_limits_discharge,
-                                      bool user_settings_limit_charge, bool user_settings_limit_discharge) {
+                                     bool user_settings_limit_charge, bool user_settings_limit_discharge) {
   if (current_dA == 0) {
     return "Battery idle";
   }

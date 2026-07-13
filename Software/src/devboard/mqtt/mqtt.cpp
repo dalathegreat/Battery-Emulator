@@ -304,10 +304,9 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   }
   doc["balancing_active_cells" + suffix] = active_cells;
   doc["balancing_status" + suffix] = get_balancing_status_text(battery.status.balancing_status);
-  doc["charging_status" + suffix] =
-      get_charging_status_text(battery.status.current_dA, battery.settings.inverter_limits_charge,
-                                battery.settings.inverter_limits_discharge, battery.settings.user_settings_limit_charge,
-                                battery.settings.user_settings_limit_discharge);
+  doc["charging_status" + suffix] = get_charging_status_text(
+      battery.status.current_dA, battery.settings.inverter_limits_charge, battery.settings.inverter_limits_discharge,
+      battery.settings.user_settings_limit_charge, battery.settings.user_settings_limit_discharge);
   if (suffix.length() == 0u && supports_tesla_dcdc_metrics(::battery)) {
     doc["dc_dc_current" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
     doc["dc_dc_voltage" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625f;
