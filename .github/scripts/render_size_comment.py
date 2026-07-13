@@ -98,6 +98,14 @@ def fmt_pct(usage: MemoryBytes | None) -> str:
     return f"{(usage.used / usage.total) * 100:.2f}%"
 
 
+def check_sha_consistency(reports: dict[str, BoardSize], expected_sha: str, label: str) -> list[str]:
+    warnings = []
+    for env, r in reports.items():
+        if r.sha != expected_sha:
+            warnings.append(f"`{env}` ({label}): retrieved `{r.sha[:7]}`, expected `{expected_sha[:7]}`")
+    return warnings
+
+
 def sort_key(env: str, pr: BoardSize | None) -> tuple[float, str]:
     """Sort by PR-side flash fill % desc; envs without PR data go last."""
     if pr and pr.flash and pr.flash.total:
@@ -223,6 +231,19 @@ def render(
     else:
         lines.append(
             f"Base: `{short(base_sha)}` on `{base_branch}` · This PR: `{short(head_sha)}`"
+        )
+        lines.append("")
+
+    sha_warnings = (
+        check_sha_consistency(pr, head_sha, "PR")
+        + check_sha_consistency(base, base_sha, "Base")
+    )
+    if sha_warnings:
+        joined = "  \n".join(f"> - {w}" for w in sha_warnings)
+        lines.append(
+            "> ⚠️ **SHA mismatch** — one or more artifacts were not built from "
+            "the expected commit. Size numbers may be stale or wrong.  \n"
+            f"{joined}"
         )
         lines.append("")
 
