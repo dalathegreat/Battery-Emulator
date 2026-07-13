@@ -148,7 +148,7 @@ void ChargebyteCCSBattery::update_values() {
 }
 
 void ChargebyteCCSBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  bool isChargebyteFrame = true;
   switch (rx_frame.ID) {
     case 0x100:
       if ((rx_frame.data.u8[2] >> 4) >= 3)
@@ -186,8 +186,12 @@ void ChargebyteCCSBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       energyCapacity_Wh = ((uint16_t)rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0];
       break;
     default:
+      isChargebyteFrame = false;
       break;
   }
+
+  if (isChargebyteFrame)
+    datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 }
 
 void ChargebyteCCSBattery::transmit_can(unsigned long now) {
