@@ -27,6 +27,8 @@ void init_stored_settings();
  */
 void store_settings_equipment_stop();
 
+void erase_phy_cal_data();
+
 /**
  * @brief Store settings
  *

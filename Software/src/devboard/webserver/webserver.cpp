@@ -413,7 +413,8 @@ void init_webserver() {
     // Reset all settings to factory defaults
     BatteryEmulatorSettingsStore settings;
     settings.clearAll();
-
+    erase_phy_cal_data();
+    logging.println("Factory reset performed from the web interface.");
     request->send(200, "text/html", "OK");
   });
 
