@@ -793,6 +793,7 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
   }
 
   if (strcmp(topic, generateButtonTopic("RESTART").c_str()) == 0) {
+    hold_pins_across_reset();
     graceful_restart();
   }
 

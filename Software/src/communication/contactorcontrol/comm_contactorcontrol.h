@@ -70,4 +70,13 @@ void handle_contactors_battery2();
  */
 void handle_contactors_battery3();
 
+// True when init_contactors() drives BMS_POWER (i.e. the pin is actively controlled).
+bool bms_power_is_active();
+
+// Latch/unlatch reset-hold pins (see Esp32Hal::reset_hold_pins()).
+// hold: only pins currently driven by the firmware are latched.
+// release: every candidate pin is released unconditionally (clears any stale hold).
+void hold_pins_across_reset();
+void release_pins_across_reset();
+
 #endif
