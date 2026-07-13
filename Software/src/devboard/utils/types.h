@@ -122,9 +122,18 @@ typedef struct {
 
 std::string getBMSStatus(system_status_enum status);
 
-/** Human readable battery status, e.g. "Battery charging (Inverter limiting)". Used for the web UI and MQTT. */
+enum class ChargingState { Idle, Charging, Discharging };
+enum class LimitingFactor { None, Inverter, Emulator, Battery };
+
+ChargingState get_charging_state(int32_t current_dA);
+LimitingFactor get_limiting_factor(ChargingState state, bool inverter_limits_charge, bool inverter_limits_discharge,
+                                   bool user_settings_limit_charge, bool user_settings_limit_discharge);
+const char* charging_state_to_text(ChargingState state);
+const char* limiting_factor_to_text(LimitingFactor factor);
+
+/** Human readable battery status, e.g. "Battery charging (Inverter limiting)". Used for the web UI. */
 const char* get_charging_status_text(int32_t current_dA, bool inverter_limits_charge, bool inverter_limits_discharge,
-                                      bool user_settings_limit_charge, bool user_settings_limit_discharge);
+                                     bool user_settings_limit_charge, bool user_settings_limit_discharge);
 
 #ifdef HW_LILYGO2CAN
 /* Configurable GPIO options (device specific) */
