@@ -27,7 +27,7 @@ jobs:
         echo "num=$(cat pr_number.txt)" >> $GITHUB_OUTPUT
 
     - name: Add comment to PR
-      uses: marocchino/sticky-pull-request-comment@v2
+      uses: marocchino/sticky-pull-request-comment@v3
       with:
         number: ${{ steps.pr_number.outputs.num }}
         path: comment.md
