@@ -6,6 +6,8 @@ import { EvaluateParams, pathToRegExpAndGroups } from "./path_to_regexp";
 declare global {
 	interface Window {
 		__litRouter: LitRouter;
+		ctrouter: LitRouter;
+		href: typeof href;
 	}
 }
 export interface Page {

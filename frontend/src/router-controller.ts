@@ -17,7 +17,7 @@ export class BatteryEmulatorRouterController implements ReactiveController {
 		if (this.litRouter) return;
 		let pages: Page[] = [
 			{
-				path: `${this.prefix}/dashboard`,
+				path: `${this.prefix}/`,
 				element: html` <app-dashboard></app-dashboard> `,
 				from: () => import("./components/app-dashboard.js"),
 				auth: true,

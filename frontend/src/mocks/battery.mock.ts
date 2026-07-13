@@ -3,22 +3,23 @@ import type {
   BatteryStatusResponse,
   CellMonitorResponse,
 } from "../types/battery.types.js";
+import { TESLA_MODEL_3Y_TYPE } from "../components/cellmonitor/tesla-3y-layout.js";
 
 function pack(partial: Partial<import("../types/battery.types.js").BatteryPackStatus>) {
   return {
     present: true,
-    voltage_V: 384.2,
+    voltage_V: 353.8122,
     current_A: -12.4,
     reported_current_A: -12.4,
     power_W: -4760,
     soc_reported_pct: 72.5,
     soc_real_pct: 74.0,
     soh_pct: 98.2,
-    temp_min_C: 18.5,
-    temp_max_C: 22.1,
-    cell_max_mV: 3350,
-    cell_min_mV: 3310,
-    cell_delta_mV: 40,
+    temp_min_C: 19.0,
+    temp_max_C: 20.0,
+    cell_max_mV: 3704,
+    cell_min_mV: 3040,
+    cell_delta_mV: 664,
     remaining_Wh: 21000,
     reported_remaining_Wh: 20500,
     total_Wh: 30000,
@@ -43,6 +44,7 @@ export function mockBatteryStatus(): BatteryStatusResponse {
       power_W: 0,
       soc_reported_pct: 0,
       soc_real_pct: 0,
+      number_of_cells: 0,
     }),
     battery3: pack({
       present: false,
@@ -51,6 +53,7 @@ export function mockBatteryStatus(): BatteryStatusResponse {
       power_W: 0,
       soc_reported_pct: 0,
       soc_real_pct: 0,
+      number_of_cells: 0,
     }),
     system: {
       bms_status: "ACTIVE",
@@ -71,16 +74,24 @@ export function mockBatteryStatus(): BatteryStatusResponse {
   };
 }
 
+/** 96 bricks with a dramatic min (#2) and max (#26) like ScanMyTesla demos. */
 export function mockCellMonitor(): CellMonitorResponse {
-  const n = 16;
-  const cells = Array.from({ length: n }, (_, i) => ({
-    voltage_mV: 3300 + i * 3 + (i % 5) * 2,
-    balancing: i === 3 || i === 12,
-  }));
+  const n = 96;
+  const cells = Array.from({ length: n }, (_, i) => {
+    let voltage_mV = 3690 + ((i * 7) % 17) - 8;
+    if (i === 1) voltage_mV = 3040; // min
+    if (i === 25) voltage_mV = 3704; // max
+    if (i === 44) voltage_mV = 3655;
+    return {
+      voltage_mV,
+      balancing: i === 44 || i === 72,
+      capacity_Ah: 110 + ((i * 3) % 9) / 10,
+    };
+  });
   const emptyPack = {
     present: false,
     number_of_cells: 0,
-    cells: [] as { voltage_mV: number; balancing: boolean }[],
+    cells: [] as { voltage_mV: number; balancing: boolean; capacity_Ah?: number }[],
   };
   return {
     packs: [
@@ -109,3 +120,6 @@ export function mockBatteryCommands(): BatteryCommandsResponse {
     ],
   };
 }
+
+/** Re-export for settings mock. */
+export { TESLA_MODEL_3Y_TYPE };

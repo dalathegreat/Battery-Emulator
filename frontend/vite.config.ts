@@ -1,10 +1,37 @@
 import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, Plugin } from "vite";
 import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+export const svgLoader: () => Plugin = () => {
+	// TODO: find better parser/tokenizer
+	var regexSequences: [RegExp, string][] = [
+		// Remove XML stuffs and comments
+		[/<\?xml[\s\S]*?>/gi, ""],
+		[/<!doctype[\s\S]*?>/gi, ""],
+		[/<!--.*-->/gi, ""],
+
+		// SVG XML -> HTML5
+		[/\<([A-Za-z]+)([^\>]*)\/\>/g, "<$1$2></$1>"], // convert self-closing XML SVG nodes to explicitly closed HTML5 SVG nodes
+		[/\s+/g, " "], // replace whitespace sequences with a single space
+		[/\> \</g, "><"] // remove whitespace between tags
+	];
+	const getExtractedSVG = (svgStr: string) => regexSequences.reduce((prev, regexSequence) => prev.replace(regexSequence[0], regexSequence[1]), svgStr).trim();
+	return {
+		name: "vite-svg-patch-plugin",
+		transform: function (code, id) {
+			if (id.endsWith(".svg")) {
+				const extractedSvg = readFileSync(id, "utf8");
+				return `export const value = '${getExtractedSVG(extractedSvg)}'\n;export default value`;
+			}
+			return code;
+		}
+	};
+};
 
 export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, __dirname, "");
@@ -38,6 +65,7 @@ export default defineConfig(({ mode }) => {
 			}
 		},
 		plugins: [
+			svgLoader(),
 			cssInjectedByJsPlugin(),
 			{
 				name: "generate-app-bundle-cpp",

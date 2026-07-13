@@ -50,6 +50,8 @@ export interface BatteryStatusResponse {
 export interface CellEntry {
   voltage_mV: number;
   balancing: boolean;
+  /** Optional calculated actual capacity (Tesla CAC), Ah. */
+  capacity_Ah?: number;
 }
 
 export interface BatteryCellGroup {
