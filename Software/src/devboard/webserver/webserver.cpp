@@ -1,7 +1,6 @@
 #include "webserver.h"
 #include <Preferences.h>
 #include <ctime>
-#include <esp_phy_init.h>  // esp_phy_erase_cal_data_in_nvs()
 #include <vector>
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
@@ -414,16 +413,8 @@ void init_webserver() {
     // Reset all settings to factory defaults
     BatteryEmulatorSettingsStore settings;
     settings.clearAll();
-
-    // Also erase RF PHY calibration data ("phy" NVS namespace, untouched by
-    // clearAll) so a full RF calibration runs on the next boot.
-    esp_err_t phy_err = esp_phy_erase_cal_data_in_nvs();
-    if (phy_err == ESP_OK) {
-      logging.println("Factory reset and erased RF PHY calibration data (full RF calibration on next boot).");
-    } else {
-      logging.printf("Factory reset: RF PHY calibration data erase failed (err %d)\n", phy_err);
-    }
-
+    erase_phy_cal_data();
+    logging.println("Factory reset performed from the web interface.");
     request->send(200, "text/html", "OK");
   });
 
