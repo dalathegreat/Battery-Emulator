@@ -112,7 +112,7 @@ jobs:
         echo "${{ github.event.pull_request.number }}" > pr_number.txt
 
     - name: Upload firmware size report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: comment-for-pr
         path: |
