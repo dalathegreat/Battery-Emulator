@@ -29,7 +29,6 @@ class RowCells:
     a field, a header entry, an alignment entry, and a render entry
     """
     board: str
-    env: str
     base_flash: str
     pr_flash: str
     max_flash: str
@@ -150,7 +149,6 @@ def _row_pr_missing(env: str, base: BoardSize | None, artifact_url: str | None) 
     flash = base.flash if base else None
     return RowCells(
         board=(base.board_name if base else env),
-        env=f"`{env}`",
         base_flash=fmt_bytes(flash.used if flash else None),
         pr_flash="build failed",
         max_flash=fmt_bytes(flash.total if flash else None),
@@ -170,7 +168,6 @@ def _row_base_missing(env: str, pr: BoardSize, artifact_url: str | None) -> RowC
     """
     return RowCells(
         board=pr.board_name,
-        env=f"`{env}`",
         base_flash="—",
         pr_flash=fmt_bytes(pr.flash.used if pr.flash else None),
         max_flash=fmt_bytes(pr.flash.total if pr.flash else None),
@@ -186,7 +183,6 @@ def _row_normal(env: str, base: BoardSize, pr: BoardSize, artifact_url: str | No
     """Both builds succeeded — show sizes, deltas, and flag if tight+growing."""
     return RowCells(
         board=pr.board_name,
-        env=f"`{env}`",
         base_flash=fmt_bytes(base.flash.used if base.flash else None),
         pr_flash=fmt_bytes(pr.flash.used if pr.flash else None),
         max_flash=fmt_bytes(pr.flash.total if pr.flash else None),
