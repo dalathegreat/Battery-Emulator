@@ -2,20 +2,20 @@ name: 💬 Add comment to PR
 
 on:
   workflow_run:
-    workflows: ["⚖️ Measure firmware size"]
+    workflows: ["🔋 Compile Common Images"] # "Measure firmware size" is embedded here
     types:
       - completed
 
 jobs:
   comment:
     runs-on: ubuntu-latest
-    # Only run if the building workflow actually succeeded
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Only for PR-triggered compile runs
+    if: github.event.workflow_run.event == 'pull_request'
     permissions:
       pull-requests: write
     steps:
     - name: Download artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: comment-for-pr
         run-id: ${{ github.event.workflow_run.id }}
@@ -27,7 +27,7 @@ jobs:
         echo "num=$(cat pr_number.txt)" >> $GITHUB_OUTPUT
 
     - name: Add comment to PR
-      uses: marocchino/sticky-pull-request-comment@v2
+      uses: marocchino/sticky-pull-request-comment@v3
       with:
         number: ${{ steps.pr_number.outputs.num }}
         path: comment.md
