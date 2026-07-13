@@ -102,7 +102,7 @@ class MgHsPHEVBattery : public CanBattery {
                                                .ext_ID = false,
                                                .DLC = 8,
                                                .ID = 0x7E5,
-                                               .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                                               .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01}};
 
   // BMS hard reset
   static constexpr CAN_frame MG_HS_7E5_RESET = {.FD = false,
