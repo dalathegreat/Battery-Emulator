@@ -17,6 +17,29 @@ std::string getBMSStatus(system_status_enum status) {
       return "UNKNOWN";
   }
 }
+const char* get_charging_status_text(int32_t current_dA, bool inverter_limits_charge, bool inverter_limits_discharge,
+                                      bool user_settings_limit_charge, bool user_settings_limit_discharge) {
+  if (current_dA == 0) {
+    return "Battery idle";
+  }
+  if (current_dA < 0) {
+    if (inverter_limits_discharge) {
+      return "Battery discharging! (Inverter limiting)";
+    }
+    if (user_settings_limit_discharge) {
+      return "Battery discharging! (Settings limiting)";
+    }
+    return "Battery discharging! (Battery limiting)";
+  }
+  if (inverter_limits_charge) {
+    return "Battery charging! (Inverter limiting)";
+  }
+  if (user_settings_limit_charge) {
+    return "Battery charging! (Settings limiting)";
+  }
+  return "Battery charging! (Battery limiting)";
+}
+
 #ifdef HW_LILYGO2CAN
 GPIOOPT1 user_selected_gpioopt1 = GPIOOPT1::DEFAULT_OPT;
 #endif

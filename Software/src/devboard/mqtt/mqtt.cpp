@@ -130,6 +130,7 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged},
     {"balancing_active_cells", "Balancing Active Cells", "", "", "", always},
     {"balancing_status", "Balancing Status", "", "", "", always},
+    {"charging_status", "Charging Status", "", "", "", always},
     {"dc_dc_current", "DC-DC Current", "", "A", "current", supports_tesla_dcdc_metrics},
     {"dc_dc_voltage", "DC-DC Voltage", "", "V", "voltage", supports_tesla_dcdc_metrics},
     {"autocal_taper", "BYD Auto-cal: In Taper", "", "", "", supports_byd_autocal_metrics},
@@ -303,6 +304,10 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   }
   doc["balancing_active_cells" + suffix] = active_cells;
   doc["balancing_status" + suffix] = get_balancing_status_text(battery.status.balancing_status);
+  doc["charging_status" + suffix] =
+      get_charging_status_text(battery.status.current_dA, battery.settings.inverter_limits_charge,
+                                battery.settings.inverter_limits_discharge, battery.settings.user_settings_limit_charge,
+                                battery.settings.user_settings_limit_discharge);
   if (suffix.length() == 0u && supports_tesla_dcdc_metrics(::battery)) {
     doc["dc_dc_current" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
     doc["dc_dc_voltage" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625f;
