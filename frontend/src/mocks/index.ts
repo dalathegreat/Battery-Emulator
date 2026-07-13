@@ -113,6 +113,12 @@ window.fetch = async (input, init) => {
   if (path === "/stop_can_logging" && method === "GET") {
     return textResponse("Logging stopped (mock)");
   }
+  if (path === "/enableNewWebUI" && method === "GET") {
+    return textResponse("New web UI setting saved. Reboot to apply. (mock)");
+  }
+  if (path === "/reboot" && method === "GET") {
+    return textResponse("Rebooting server... (mock)");
+  }
 
   return origFetch(input, init);
 };

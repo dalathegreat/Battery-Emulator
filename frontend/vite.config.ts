@@ -1,3 +1,5 @@
+import minifyHTML from "@lit-labs/rollup-plugin-minify-html-literals";
+import { transformSync } from "esbuild";
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -37,18 +39,39 @@ export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, __dirname, "");
 	const proxyTarget = env.VITE_DEV_PROXY_TARGET || "http://192.168.4.1";
 
+	// Every backend route the SPA talks to. Plain prefixes plus two regex
+	// entries: the advanced-battery commands (PUT /{cmd}) and the legacy
+	// live-edit GET routes (/update*, /Bal*, ...).
+	const proxyPaths = [
+		"/api",
+		"/GetFirmwareInfo",
+		"/startReplay",
+		"/stopReplay",
+		"/setCANInterface",
+		"/stop_can_logging",
+		"/import_can_log",
+		"/export_can_log",
+		"/export_log",
+		"/set_can_id_cutoff",
+		"/saveSettings",
+		"/factoryReset",
+		"/pause",
+		"/equipmentStop",
+		"/enableRecoveryMode",
+		"/enableNewWebUI",
+		"/reboot",
+		"/logout",
+		// PUT /{cmd} battery commands (see battery_commands in advanced_battery_html.cpp)
+		"^/(clearIsolation|calibrateSOC|chademoRestart|chademoStop|resetBMS|resetSOC|resetCrash|resetNVROL|resetContactor|resetDTC|startBalancing|endBalancing|startBalancingRequest|stopBalancingRequest|isolationTest|readDTC|resetBECM|contactorClose|contactorOpen|resetSOH|setFactoryMode|toggleSOC|resetEnergySavingMode)$",
+		// Live-edit GET routes registered by init_webserver()
+		"^/(updateBatterySize|updateUseScaledSOC|updateSocMax|updateSocMin|updateMaxChargeA|updateMaxDischargeA|updateUseVoltageLimit|updateMaxChargeVoltage|updateMaxDischargeVoltage|updateBMSresetDuration|updateFakeBatteryVoltage|updateChargeSetpointV|updateChargeSetpointA|updateChargeEndA|updateChargerHvEnabled|updateChargerAux12vEnabled|TeslaBalAct|BalTime|BalFloatPower|BalMaxPackV|BalMaxCellV|BalMaxDevCellV)$"
+	];
+
 	return {
 		root: __dirname,
 		server: {
 			port: 5173,
-			proxy: {
-				"/api": { target: proxyTarget, changeOrigin: true },
-				"/GetFirmwareInfo": { target: proxyTarget, changeOrigin: true },
-				"/startReplay": { target: proxyTarget, changeOrigin: true },
-				"/stopReplay": { target: proxyTarget, changeOrigin: true },
-				"/setCANInterface": { target: proxyTarget, changeOrigin: true },
-				"/stop_can_logging": { target: proxyTarget, changeOrigin: true }
-			}
+			proxy: Object.fromEntries(proxyPaths.map((p) => [p, { target: proxyTarget, changeOrigin: true }]))
 		},
 		build: {
 			outDir: "dist",
@@ -66,6 +89,29 @@ export default defineConfig(({ mode }) => {
 		},
 		plugins: [
 			svgLoader(),
+			minifyHTML({
+				// "options" se pasa directamente a minify-literals
+				options: {
+					minifyOptions: {
+						// Reemplazamos el motor de clean-css por esbuild mediante una función
+						minifyCSS: (text: string) => {
+							try {
+								// esbuild SÍ entiende el Nesting nativo (.actions-td { ct-icon { ... } })
+								const result = transformSync(text, {
+									loader: "css",
+									minify: true
+								});
+								return result.code;
+							} catch (err) {
+								// Si esbuild falla por algún motivo, devolvemos el CSS original
+								// Esto evita que todo el proceso de construcción (build) de Vite se caiga.
+								console.warn("\n⚠️ Advertencia: No se pudo minificar un bloque CSS:", (err as Error).message);
+								return text;
+							}
+						}
+					}
+				}
+			}),
 			cssInjectedByJsPlugin(),
 			{
 				name: "generate-app-bundle-cpp",

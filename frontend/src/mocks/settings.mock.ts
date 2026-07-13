@@ -6,7 +6,8 @@ export function mockSettings(): SettingsResponse {
 			MQTTENABLED: false,
 			WEBENABLED: true,
 			WIFIAPENABLED: false,
-			SDLOGENABLED: false
+			SDLOGENABLED: false,
+			NEWWEBUI: true
 		},
 		uint: {
 			MQTTPORT: 1883,

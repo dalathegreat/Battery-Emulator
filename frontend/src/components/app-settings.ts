@@ -9,7 +9,7 @@ import restartSvg from "../icons/restart.svg";
 import saveSvg from "../icons/save.svg";
 import { sharedStyles } from "../styles/shared-styles.js";
 import type { SettingsResponse, SettingsSelectOption } from "../types/settings.types.js";
-import { xhttp } from "../xFetch.js";
+import { xget, xhttp } from "../xFetch.js";
 
 @customElement("app-settings")
 export class AppSettings extends LitElement {
@@ -119,6 +119,31 @@ export class AppSettings extends LitElement {
 		this.msg = err ? String(err.error_msg || err) : "Factory reset OK — reboot device.";
 	}
 
+	/** Toggle between the new SPA and the legacy HTML UI (applies after reboot). */
+	private async toggleNewWebUI() {
+		const current = this.data?.bool?.NEWWEBUI ?? true;
+		const next = current ? 0 : 1;
+		const label = next ? "new web UI" : "legacy web UI";
+		if (!confirm(`Switch to the ${label}? A reboot is required to apply the change.`)) return;
+		this.busy = true;
+		const [, err] = await xget<string>("/enableNewWebUI", { value: next });
+		this.busy = false;
+		if (err) {
+			this.msg = String(err.error_msg || err);
+			return;
+		}
+		this.msg = `Switched to ${label}. Reboot to apply.`;
+		void this.load();
+	}
+
+	private async reboot() {
+		if (!confirm("Reboot the emulator? If it is handling contactors, they will open during reboot.")) return;
+		this.busy = true;
+		const [, err] = await xget<string>("/reboot", undefined, { retries: 1 });
+		this.busy = false;
+		this.msg = err ? String(err.error_msg || err) : "Rebooting… the device will be back in a few seconds.";
+	}
+
 	/** Renders a &lt;select&gt; when the API provides `select_options`; otherwise a number field. */
 	private renderSelect(name: string, caption: string, current: number, options: SettingsSelectOption[] | undefined) {
 		if (!options?.length) {
@@ -144,7 +169,11 @@ export class AppSettings extends LitElement {
 				<ct-button raised @click=${this.load}>Retry</ct-button>
 			</div>`;
 		const d = this.data!;
-		const boolKeys = Object.keys(d.bool).sort();
+		// NEWWEBUI has its own toggle (via /enableNewWebUI); keep it out of the generic form
+		const boolKeys = Object.keys(d.bool)
+			.filter((k) => k !== "NEWWEBUI")
+			.sort();
+		const newWebUI = d.bool.NEWWEBUI ?? true;
 		const uintKeys = Object.keys(d.uint)
 			.filter((k) => k !== "BATTPVMAX" && k !== "BATTPVMIN")
 			.sort();
@@ -213,6 +242,11 @@ export class AppSettings extends LitElement {
 					<ct-button gap flat ?disabled=${this.busy} @click=${this.load}>
 						<ct-icon slot="prefix" .svg=${refreshSvg}></ct-icon>
 						Reload
+					</ct-button>
+					<ct-button gap light ?disabled=${this.busy} @click=${this.toggleNewWebUI}> ${newWebUI ? "Switch to legacy web UI" : "Use new web UI"} </ct-button>
+					<ct-button gap light ?disabled=${this.busy} @click=${this.reboot}>
+						<ct-icon slot="prefix" .svg=${restartSvg}></ct-icon>
+						Reboot
 					</ct-button>
 					<ct-button gap light style="--color-primary: var(--color-error)" ?disabled=${this.busy} @click=${this.factoryReset}>
 						<ct-icon slot="prefix" .svg=${restartSvg}></ct-icon>

@@ -19,6 +19,7 @@
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
+#include "api/api_routes.h"
 #include "esp_task_wdt.h"
 #include "html_escape.h"
 
@@ -195,6 +196,10 @@ void init_webserver() {
     server.addMiddleware(&web_auth_middleware);
   }
 
+  // New JSON API + optional SPA shell. Registered before the legacy routes so
+  // the SPA takes precedence on shared paths when the new UI mode is active.
+  init_api_routes(server);
+
   server
       .on("/logout", HTTP_GET,
           [](AsyncWebServerRequest* request) {
@@ -212,12 +217,19 @@ void init_webserver() {
     request->send(200, "application/json", get_firmware_info_html, get_firmware_info_processor);
   });
 
-  // Route for root / web page
-  def_route_with_auth("/", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    // Clear OTA active flag as a safeguard in case onOTAEnd() wasn't called
-    ota_active = false;
-    request->send(200, "text/html", index_html, processor);
-  });
+// NEW_WEBUI_ONLY builds don't register any legacy HTML page routes. The
+// processors and page templates become unreferenced, so the linker drops
+// them (-ffunction-sections/-fdata-sections + --gc-sections), freeing the
+// flash needed to embed the SPA bundle on 4 MB devices.
+#ifndef NEW_WEBUI_ONLY
+  // Route for root / web page (legacy UI; in new-UI mode "/" is served by the API module)
+  if (!new_webui_enabled()) {
+    def_route_with_auth("/", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+      // Clear OTA active flag as a safeguard in case onOTAEnd() wasn't called
+      ota_active = false;
+      request->send(200, "text/html", index_html, processor);
+    });
+  }
 
   // Route for going to settings web page
   def_route_with_auth("/settings", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -242,6 +254,7 @@ void init_webserver() {
   def_route_with_auth("/canreplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(request->beginResponse(200, "text/html", can_replay_processor()));
   });
+#endif  // NEW_WEBUI_ONLY
 
   def_route_with_auth("/startReplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     // Prevent multiple replay tasks from being created
@@ -283,6 +296,7 @@ void init_webserver() {
     }
   });
 
+#ifndef NEW_WEBUI_ONLY
   if (datalayer.system.info.web_logging_active || datalayer.system.info.SD_logging_active) {
     // Route for going to debug logging web page
     server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -290,6 +304,7 @@ void init_webserver() {
       request->send(response);
     });
   }
+#endif  // NEW_WEBUI_ONLY
 
   // Define the handler to stop can logging
   server.on("/stop_can_logging", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -389,6 +404,7 @@ void init_webserver() {
     });
   }
 
+#ifndef NEW_WEBUI_ONLY
   // Route for going to cellmonitor web page
   def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/html", index_html, cellmonitor_processor);
@@ -408,6 +424,7 @@ void init_webserver() {
     response += "</body></html>";
     request->send(200, "text/html", response);
   });
+#endif  // NEW_WEBUI_ONLY
 
   def_route_with_auth("/factoryReset", server, HTTP_POST, [](AsyncWebServerRequest* request) {
     // Reset all settings to factory defaults

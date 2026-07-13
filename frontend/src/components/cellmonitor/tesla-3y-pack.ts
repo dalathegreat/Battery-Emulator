@@ -4,15 +4,8 @@ import { classMap } from "lit/directives/class-map.js";
 import { repeat } from "lit/directives/repeat.js";
 import { styleMap } from "lit/directives/style-map.js";
 import packImg from "../../../res/batteries/tesla-model-3.webp";
-import type { BatteryCellGroup, CellEntry } from "../../types/battery.types.js";
-import type { BatteryPackStatus } from "../../types/battery.types.js";
-import {
-	TESLA_3Y_MODULES,
-	modeVoltage_mV,
-	moduleBrickCount,
-	moduleIdForBrick,
-	splitIntoModules
-} from "./tesla-3y-layout.js";
+import type { BatteryCellGroup, BatteryPackStatus, CellEntry } from "../../types/battery.types.js";
+import { TESLA_3Y_MODULES, modeVoltage_mV, moduleBrickCount, moduleIdForBrick, splitIntoModules } from "./tesla-3y-layout.js";
 
 @customElement("tesla-3y-pack")
 export class Tesla3yPack extends LitElement {
@@ -432,7 +425,9 @@ export class Tesla3yPack extends LitElement {
 
 		.bar-col.selected .bar {
 			filter: brightness(1.35);
-			box-shadow: 0 0 0 2px #38bdf8, 0 0 10px #38bdf866;
+			box-shadow:
+				0 0 0 2px #38bdf8,
+				0 0 10px #38bdf866;
 		}
 
 		.bar-col.mod-start::before {
@@ -452,7 +447,10 @@ export class Tesla3yPack extends LitElement {
 			min-height: 2px;
 			border-radius: 2px 2px 0 0;
 			background: #22c55e;
-			transition: height 280ms ease, filter 120ms ease, box-shadow 120ms ease;
+			transition:
+				height 280ms ease,
+				filter 120ms ease,
+				box-shadow 120ms ease;
 		}
 
 		.bar-col.min .bar {
@@ -466,7 +464,9 @@ export class Tesla3yPack extends LitElement {
 
 		.bar-col.max.selected .bar,
 		.bar-col.bal.selected .bar {
-			box-shadow: 0 0 0 2px #38bdf8, inset 0 0 0 1.5px #f59e0b;
+			box-shadow:
+				0 0 0 2px #38bdf8,
+				inset 0 0 0 1.5px #f59e0b;
 		}
 
 		.bar-col.bal .bar {
@@ -613,23 +613,16 @@ export class Tesla3yPack extends LitElement {
 		const delta = cell.voltage_mV - minV;
 
 		return html`
-			<div
-				class="tip"
-				style=${styleMap({ left: `${clamped}%` })}
-				role="tooltip"
-			>
+			<div class="tip" style=${styleMap({ left: `${clamped}%` })} role="tooltip">
 				<div class="tip-title">Brick #${i + 1}</div>
 				<div class="tip-row"><span>Module</span><b>${mod || "—"}</b></div>
 				<div class="tip-row"><span>Voltage</span><b>${(cell.voltage_mV / 1000).toFixed(4)} V</b></div>
 				<div class="tip-row"><span>Raw</span><b>${cell.voltage_mV} mV</b></div>
 				<div class="tip-row"><span>Δ vs min</span><b>+${delta} mV</b></div>
-				${cell.capacity_Ah != null
-					? html`<div class="tip-row"><span>CAC</span><b>${cell.capacity_Ah.toFixed(1)} Ah</b></div>`
-					: nothing}
+				${cell.capacity_Ah != null ? html`<div class="tip-row"><span>CAC</span><b>${cell.capacity_Ah.toFixed(1)} Ah</b></div>` : nothing}
 				${isMin || isMax || cell.balancing
 					? html`<div class="tip-flags">
-							${isMin ? html`<span class="flag min">MIN</span>` : nothing}
-							${isMax ? html`<span class="flag max">MAX</span>` : nothing}
+							${isMin ? html`<span class="flag min">MIN</span>` : nothing} ${isMax ? html`<span class="flag max">MAX</span>` : nothing}
 							${cell.balancing ? html`<span class="flag bal">BALANCING</span>` : nothing}
 						</div>`
 					: nothing}
@@ -637,13 +630,7 @@ export class Tesla3yPack extends LitElement {
 		`;
 	}
 
-	private renderBrick(
-		cell: CellEntry | undefined,
-		index: number,
-		minV: number,
-		maxV: number,
-		hasCac: boolean
-	) {
+	private renderBrick(cell: CellEntry | undefined, index: number, minV: number, maxV: number, hasCac: boolean) {
 		if (!cell) {
 			return html`<div class="brick empty" aria-hidden="true"></div>`;
 		}
@@ -658,14 +645,13 @@ export class Tesla3yPack extends LitElement {
 			low: isLow,
 			selected: this.selectedIndex === index || this.hoverIndex === index
 		};
-		const mark =
-			isMin
-				? html`<span class="mark down" title="Min"></span>`
-				: isMax
-					? html`<span class="mark up" title="Max"></span>`
-					: cell.balancing
-						? html`<span class="mark" title="Balancing"></span>`
-						: nothing;
+		const mark = isMin
+			? html`<span class="mark down" title="Min"></span>`
+			: isMax
+				? html`<span class="mark up" title="Max"></span>`
+				: cell.balancing
+					? html`<span class="mark" title="Balancing"></span>`
+					: nothing;
 
 		const cac =
 			this.showCac && hasCac && cell.capacity_Ah != null
@@ -700,14 +686,7 @@ export class Tesla3yPack extends LitElement {
 		`;
 	}
 
-	private renderModule(
-		modIndex: number,
-		cells: (CellEntry | undefined)[],
-		startIndex: number,
-		minV: number,
-		maxV: number,
-		hasCac: boolean
-	) {
+	private renderModule(modIndex: number, cells: (CellEntry | undefined)[], startIndex: number, minV: number, maxV: number, hasCac: boolean) {
 		const mod = TESLA_3Y_MODULES[modIndex];
 		let offset = 0;
 		return html`
@@ -819,9 +798,7 @@ export class Tesla3yPack extends LitElement {
 								(_, i) => `t${i}`,
 								(_, i) => {
 									const show = i === 0 || starts.has(i) || i === cells.length - 1 || (i + 1) % 8 === 0;
-									return html`<span class="tick ${starts.has(i) ? "mod-start" : ""}"
-										>${show ? i + 1 : ""}</span
-									>`;
+									return html`<span class="tick ${starts.has(i) ? "mod-start" : ""}">${show ? i + 1 : ""}</span>`;
 								}
 							)}
 						</div>
@@ -834,7 +811,9 @@ export class Tesla3yPack extends LitElement {
 	render() {
 		const pack = this.pack;
 		if (!pack?.present || pack.cells.length === 0) {
-			return html`<div class="panel"><div class="stats"><span class="title">Brick data</span><span class="stat">No cells</span></div></div>`;
+			return html`<div class="panel">
+				<div class="stats"><span class="title">Brick data</span><span class="stat">No cells</span></div>
+			</div>`;
 		}
 
 		const voltages = pack.cells.map((c) => c.voltage_mV);
@@ -844,13 +823,10 @@ export class Tesla3yPack extends LitElement {
 		const variance = maxV - minV;
 		const hasCac = pack.cells.some((c) => c.capacity_Ah != null);
 
-		const packV =
-			this.status?.voltage_V ??
-			pack.cells.reduce((s, c) => s + c.voltage_mV, 0) / 1000;
+		const packV = this.status?.voltage_V ?? pack.cells.reduce((s, c) => s + c.voltage_mV, 0) / 1000;
 		const tMin = this.status?.temp_min_C;
 		const tMax = this.status?.temp_max_C;
-		const tMean =
-			tMin != null && tMax != null ? (tMin + tMax) / 2 : undefined;
+		const tMean = tMin != null && tMax != null ? (tMin + tMax) / 2 : undefined;
 
 		const modules = splitIntoModules(pack.cells);
 		const starts: number[] = [];
@@ -869,15 +845,9 @@ export class Tesla3yPack extends LitElement {
 					<span class="stat">Mode: <b>${(modeV / 1000).toFixed(3)}V</b></span>
 					<span class="stat">Variance: <b>${variance.toFixed(2)} mV</b></span>
 					<span class="stat">Full Pack: <b>${packV.toFixed(4)}V</b></span>
-					${tMin != null
-						? html`<span class="stat">Cell Temp Min: <b>${tMin.toFixed(1)}°C</b></span>`
-						: nothing}
-					${tMax != null
-						? html`<span class="stat">Cell Temp Max: <b>${tMax.toFixed(1)}°C</b></span>`
-						: nothing}
-					${tMean != null
-						? html`<span class="stat">Cell Temp Mean: <b>${tMean.toFixed(1)}°C</b></span>`
-						: nothing}
+					${tMin != null ? html`<span class="stat">Cell Temp Min: <b>${tMin.toFixed(1)}°C</b></span>` : nothing}
+					${tMax != null ? html`<span class="stat">Cell Temp Max: <b>${tMax.toFixed(1)}°C</b></span>` : nothing}
+					${tMean != null ? html`<span class="stat">Cell Temp Mean: <b>${tMean.toFixed(1)}°C</b></span>` : nothing}
 					<span class="spacer"></span>
 					${hasCac
 						? html`<label class="toggle">
@@ -888,11 +858,7 @@ export class Tesla3yPack extends LitElement {
 				</div>
 				<div class="pack-stage">
 					<img class="pack-bg" src=${packImg} alt="Tesla Model 3/Y battery pack" draggable="false" />
-					<div class="modules">
-						${TESLA_3Y_MODULES.map((_, i) =>
-							this.renderModule(i, modules[i] ?? [], starts[i], minV, maxV, hasCac)
-						)}
-					</div>
+					<div class="modules">${TESLA_3Y_MODULES.map((_, i) => this.renderModule(i, modules[i] ?? [], starts[i], minV, maxV, hasCac))}</div>
 				</div>
 				${this.renderBarChart(pack.cells, minV, maxV)}
 			</div>
