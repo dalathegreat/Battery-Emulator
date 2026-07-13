@@ -127,7 +127,7 @@ void init_stored_settings() {
   user_selected_inverter_cells_per_module = settings.getUInt("INVCELLSPER", 0);
   user_selected_inverter_voltage_level = settings.getUInt("INVVLEVEL", 0);
   user_selected_inverter_ah_capacity = settings.getUInt("INVCAPACITY", 0);
-  user_selected_inverter_battery_type = settings.getUInt(#include <esp_phy_init.h>  // esp_phy_erase_cal_data_in_nvs()"INVBTYPE", 0);
+  user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
   user_selected_inverter_sungrow_type = settings.getUInt("INVSUNTYPE", 0);
   user_selected_inverter_pylon_type = settings.getUInt("PYLONBRAND", 0);
   user_selected_inverter_foxess_type = settings.getUInt("FOXESSTYPE", 0);
