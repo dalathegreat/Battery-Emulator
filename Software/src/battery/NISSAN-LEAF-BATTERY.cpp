@@ -114,6 +114,32 @@ void NissanLeafBattery::
     datalayer_battery->status.max_charge_power_W = 0;
   }
 
+  //Taper charge power as the highest cell approaches the CV setpoint.
+  //
+  //The LBC reports a near-binary charge limit: full power, or 0 W. On an imbalanced pack the weakest cell
+  //group reaches the LBC's internal ceiling under load long before the pack is actually full. The LBC then
+  //cuts the limit to 0, current stops, the cell relaxes within seconds, the LBC re-opens at full power, the
+  //inverter slams current back in, and the same cell spikes again. The result is a 0 <-> full square wave on
+  //the allowed charge power, and repeated EVENT_CHARGE_LIMIT_EXCEEDED, since the inverter cannot unwind its
+  //ramp within one 1s update tick.
+  //
+  //Ramping our own ceiling down smoothly keeps the inverter in a CV-like trickle. The weak cell is never
+  //driven hard enough to spike, so the LBC never has cause to cut, and charging continues gently instead of
+  //in bursts. This only ever lowers the ceiling, never raises it, so every zeroing path above still wins.
+  if (datalayer_battery->status.cell_max_voltage_mV > (CHARGE_TAPER_TARGET_MV - CHARGE_TAPER_BAND_MV)) {
+    uint32_t tapered_W = 0;
+    if (datalayer_battery->status.cell_max_voltage_mV < CHARGE_TAPER_TARGET_MV) {
+      uint32_t headroom_mV = CHARGE_TAPER_TARGET_MV - datalayer_battery->status.cell_max_voltage_mV;
+      tapered_W = (datalayer_battery->status.max_charge_power_W * headroom_mV) / CHARGE_TAPER_BAND_MV;
+      if (tapered_W < CHARGE_TAPER_MIN_W) {
+        tapered_W = CHARGE_TAPER_MIN_W;  //Keep a usable trickle while still below the setpoint
+      }
+    }  //At or above the setpoint, tapered_W stays 0: hold here and let the cell settle
+    if (tapered_W < datalayer_battery->status.max_charge_power_W) {
+      datalayer_battery->status.max_charge_power_W = tapered_W;  //Only ever lower, never raise
+    }
+  }
+
   if (battery_Failsafe_Status > 0)  // 0 is normal, start charging/discharging
   {
     switch (battery_Failsafe_Status) {
