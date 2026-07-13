@@ -30,6 +30,7 @@ const int RX_BMS_04 = 0x0400;
 const int RX_BMS_07 = 0x0800;
 const int RX_BMS_20 = 0x1000;
 const int RX_DEFAULT = 0xE000;
+const int RX_ALL = 0xFFFF;
 
 // VAG PDU constants tables
 static const uint8_t Airbag_01_PDU_CONST[16] = {0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40,
@@ -773,13 +774,19 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     default:
       break;
   }
-  if (can_msg_received == 0xFFFF && nof_cells_determined) {
+  if (can_msg_received == RX_ALL && nof_cells_determined) {
     if (datalayer.battery.status.real_bms_status == BMS_DISCONNECTED)
       datalayer.battery.status.real_bms_status = BMS_STANDBY;
   }
 }
 
 void MebBattery::transmit_can(unsigned long currentMillis) {
+  // If we haven't detected the BMS yet, don't transmit anything. This avoids
+  // CAN errors whilst the BMS is still booting.
+  if (datalayer.battery.status.real_bms_status == BMS_DISCONNECTED) {
+    return;
+  }
+
   // Drive the ISO-TP timers/retransmissions. Should be called ~every 1 ms.
   IsoTp::isotp_poll();
 
