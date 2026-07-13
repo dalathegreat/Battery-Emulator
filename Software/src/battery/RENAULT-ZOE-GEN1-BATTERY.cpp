@@ -18,7 +18,7 @@ void RenaultZoeGen1Battery::
   datalayer_battery->status.real_soc = SOC_polled;
   //datalayer_battery->status.real_soc = LB_Display_SOC; //Alternative would be to use Dash SOC%
 
-  datalayer_battery->status.current_dA = LB_Current * 10;  //Convert A to dA
+  datalayer_battery->status.current_dA = (((int32_t)LB_Current_raw * 10) / 4) - 5000;
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
@@ -49,8 +49,14 @@ void RenaultZoeGen1Battery::
     }
   }
 
-  datalayer_battery->status.cell_min_voltage_mV = LB_Cell_minimum_voltage;
-  datalayer_battery->status.cell_max_voltage_mV = LB_Cell_maximum_voltage;
+  if (LB_Cell_minimum_voltage < 4400) {  //Value is initialized large for some reason
+    datalayer_battery->status.cell_min_voltage_mV = LB_Cell_minimum_voltage;
+  }
+
+  if (LB_Cell_maximum_voltage < 4400) {  //Value is initialized large for some reason
+    datalayer_battery->status.cell_max_voltage_mV = LB_Cell_maximum_voltage;
+  }
+
   datalayer_battery->status.voltage_dV = ((calculated_total_pack_voltage_mV / 100));  // mV to dV
 
   //Update extended datalayer
@@ -73,7 +79,7 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x155:  //10ms - Charging power, current and SOC - Confirmed sent by: Fluence ZE40, Zoe 22/41kWh, Kangoo 33kWh
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Charging_Power_W = rx_frame.data.u8[0] * 300;
-      LB_Current = (((((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) * 0.25) - 500);
+      LB_Current_raw = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2];
       LB_Display_SOC = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
       break;
 
@@ -84,6 +90,11 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x424:  //100ms - Charge limits, Temperatures, SOH - Confirmed sent by: Fluence ZE40, Zoe 22/41kWh, Kangoo 33kWh
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      LB_Heartbeat = rx_frame.data.u8[6];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
+      if ((LB_Heartbeat != 0x55) && (LB_Heartbeat != 0xAA)) {
+        datalayer.battery.status.CAN_error_counter++;
+        break;
+      }
       LB_CUV = (rx_frame.data.u8[0] & 0x03);
       LB_HVBIR = (rx_frame.data.u8[0] & 0x0C) >> 2;
       LB_HVBUV = (rx_frame.data.u8[0] & 0x30) >> 4;
@@ -96,10 +107,9 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       LB_Discharge_allowed_W = rx_frame.data.u8[3] * 500;
       LB_Cell_minimum_temperature = (rx_frame.data.u8[4] - 40);
       LB_SOH = rx_frame.data.u8[5];
-      LB_Heartbeat = rx_frame.data.u8[6];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
       LB_Cell_maximum_temperature = (rx_frame.data.u8[7] - 40);
       break;
-    case 0x425:  //100ms Cellvoltages and kWh remaining - Confirmed sent by: Fluence ZE40
+    case 0x425:  //100ms Cellvoltages and kWh remaining - Confirmed sent by: Fluence ZE40 & Zoe Gen1
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Cell_maximum_voltage = (((((rx_frame.data.u8[4] & 0x03) << 7) | (rx_frame.data.u8[5] >> 1)) * 10) + 1000);
       LB_Cell_minimum_voltage = (((((rx_frame.data.u8[6] & 0x01) << 8) | rx_frame.data.u8[7]) * 10) + 1000);
@@ -108,14 +118,19 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_kWh_Remaining = (((((rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7])) >> 6) & 0x3ff) * 0.1);
       break;
-    case 0x445:  //100ms - Confirmed sent by: Fluence ZE40
+    case 0x445:  //100ms - Confirmed sent by: Fluence ZE40 & Zoe Gen1
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      LB_Heartbeat = rx_frame.data.u8[2];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
+      if ((LB_Heartbeat != 0x55) && (LB_Heartbeat != 0xAA)) {
+        datalayer.battery.status.CAN_error_counter++;
+        break;
+      }
       break;
-    case 0x4AE:  //3000ms
+    case 0x4AE:  //3000ms Zoe Gen1
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
       break;
-    case 0x4AF:  //100ms
+    case 0x4AF:  //100ms Zoe Gen1
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
       break;
@@ -127,7 +142,7 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //LB_SOH = (rx_frame.data.u8[4] & 0x7F);
       break;
-    case 0x659:  //3000ms - Confirmed sent by: Fluence ZE40
+    case 0x659:  //3000ms - Confirmed sent by: Fluence ZE40 & Zoe Gen1
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7BB:  //Reply from active polling
@@ -596,7 +611,12 @@ void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
 
     ZOE_POLL_79B.data.u8[2] = current_poll;
 
-    transmit_can_frame(&ZOE_POLL_79B);
+    if (UserRequestedDTCReset == true) {
+      transmit_can_frame(&ZOE_CLEAR_DTC);
+      UserRequestedDTCReset = false;
+    } else {
+      transmit_can_frame(&ZOE_POLL_79B);
+    }
   }
 }
 

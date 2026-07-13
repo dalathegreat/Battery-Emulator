@@ -286,6 +286,8 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Total discharged: " + String(datalayer.battery.status.total_discharged_battery_Wh / 1000.0, 1) +
                " kWh</h4>";
 
+    content += BatteryHtmlRenderer::render_dtc_section_html(datalayer.battery.dtc, "vag_meb_dtc.json", false);
+
     return content;
   }
 };

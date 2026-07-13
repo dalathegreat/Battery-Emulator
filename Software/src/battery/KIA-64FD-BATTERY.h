@@ -13,7 +13,11 @@ class Kia64FDBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Kia 64kWh FD battery";
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+
  private:
+  bool UserRequestDTCreset = false;
   uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps);
   uint16_t estimateSOCFromCell(uint16_t cellVoltage);
   uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value);
@@ -24,8 +28,6 @@ class Kia64FDBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2950;  //Battery is put into emergency stop if one cell goes below this value
-  static const int RAMPDOWN_SOC = 9000;  // 90.00 SOC% to start ramping down from max charge power towards 0 at 100.00%
-  static const int RAMPDOWNPOWERALLOWED = 10000;  // What power we ramp down from towards top balancing
 
   // Used for SoC compensation - Define internal resistance value in milliohms for the entire pack
   // How to calculate: voltage_drop_under_known_load [Volts] / load [Amps] = Resistance
@@ -607,6 +609,11 @@ class Kia64FDBattery : public CanBattery {
       .DLC = 8,
       .ID = 0x7E4,
       .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Ack frame, correct PID is returned
+  CAN_frame KIA64FD_CLEAR_DTC = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x7E4,
+                                 .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
 };
 
 #endif

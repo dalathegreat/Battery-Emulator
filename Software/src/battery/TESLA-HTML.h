@@ -6,6 +6,15 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
+static void appendFault(String& string, const char* name, bool faultActive) {
+  if (!faultActive) {
+    return;
+  }
+  string += "<h4>";
+  string += name;
+  string += ": ACTIVE</h4>";
+}
+
 class TeslaHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
@@ -182,7 +191,6 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     static const char* HVP_contactor[] = {"NOT_ACTIVE", "ACTIVE", "COMPLETED"};
     static const char* falseTrue[] = {"False", "True"};
     static const char* noYes[] = {"No", "Yes"};
-    static const char* Fault[] = {"NOT_ACTIVE", "ACTIVE"};
 
     //Main battery info
     char readableBatterySerialNumber[15];  // One extra space for null terminator
@@ -270,7 +278,7 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>BMS_buildConfigId: " + String(datalayer_extended.tesla.BMS_info_buildConfigId) + "</h4>";
     content += "<h4>BMS_hardwareId: " + String(datalayer_extended.tesla.BMS_info_hardwareId) + "</h4>";
     content += "<h4>BMS_componentId: " + String(datalayer_extended.tesla.BMS_info_componentId) + "</h4>";
-    content += "<h4>BMS PCS PWM Enabled: " + String(Fault[datalayer_extended.tesla.BMS_pcsPwmEnabled]) + "</h4>";
+    appendFault(content, "BMS PCS PWM Enabled", datalayer_extended.tesla.BMS_pcsPwmEnabled);
     //0x292 658 BMS_socStates
     content += "<h4>Battery Beginning of Life: " + String(beginning_of_life) + " kWh</h4>";
     content += "<h4>Battery SOC UI: " + String(soc_ui) + " </h4>";
@@ -323,8 +331,8 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Inlet Active Heat Target Temp: " + String(BMS_inletActiveHeatTargetT) + " DegC</h4>";
     content += "<h4>Pack Temp Min: " + String(BMS_packTMin) + " DegC</h4>";
     content += "<h4>Pack Temp Max: " + String(BMS_packTMax) + " DegC</h4>";
-    content += "<h4>PCS No Flow Request: " + String(Fault[datalayer_extended.tesla.BMS_pcsNoFlowRequest]) + "</h4>";
-    content += "<h4>BMS No Flow Request: " + String(Fault[datalayer_extended.tesla.BMS_noFlowRequest]) + "</h4>";
+    appendFault(content, "PCS No Flow Request", datalayer_extended.tesla.BMS_pcsNoFlowRequest);
+    appendFault(content, "BMS No Flow Request", datalayer_extended.tesla.BMS_noFlowRequest);
     //0x224 548 PCS_dcdcStatus
     content +=
         "<h4>Precharge Status: " + String(PCS_dcdcStatus[datalayer_extended.tesla.PCS_dcdcPrechargeStatus]) + "</h4>";
@@ -334,8 +342,8 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
                String(PCS_dcdcStatus[datalayer_extended.tesla.PCS_dcdcHvBusDischargeStatus]) + "</h4>";
     content += "<h4>Main State: " + String(PCS_dcdcMainState[datalayer_extended.tesla.PCS_dcdcMainState]) + "</h4>";
     content += "<h4>Sub State: " + String(PCS_dcdcSubState[datalayer_extended.tesla.PCS_dcdcSubState]) + "</h4>";
-    content += "<h4>PCS Faulted: " + String(Fault[datalayer_extended.tesla.PCS_dcdcFaulted]) + "</h4>";
-    content += "<h4>Output Is Limited: " + String(Fault[datalayer_extended.tesla.PCS_dcdcOutputIsLimited]) + "</h4>";
+    appendFault(content, "PCS Faulted", datalayer_extended.tesla.PCS_dcdcFaulted);
+    appendFault(content, "Output Is Limited", datalayer_extended.tesla.PCS_dcdcOutputIsLimited);
     content += "<h4>Max Output Current Allowed: " + String(PCS_dcdcMaxOutputCurrentAllowed) + " A</h4>";
     content +=
         "<h4>Precharge Rty Cnt: " + String(falseTrue[datalayer_extended.tesla.PCS_dcdcPrechargeRtyCnt]) + "</h4>";
@@ -343,10 +351,8 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
         "<h4>12V Support Rty Cnt: " + String(falseTrue[datalayer_extended.tesla.PCS_dcdc12VSupportRtyCnt]) + "</h4>";
     content +=
         "<h4>Discharge Rty Cnt: " + String(falseTrue[datalayer_extended.tesla.PCS_dcdcDischargeRtyCnt]) + "</h4>";
-    content += "<h4>PWM Enable Line: " + String(Fault[datalayer_extended.tesla.PCS_dcdcPwmEnableLine]) + "</h4>";
-    content +=
-        "<h4>Supporting Fixed LV Target: " + String(Fault[datalayer_extended.tesla.PCS_dcdcSupportingFixedLvTarget]) +
-        "</h4>";
+    appendFault(content, "PWM Enable Line", datalayer_extended.tesla.PCS_dcdcPwmEnableLine);
+    appendFault(content, "Supporting Fixed LV Target", datalayer_extended.tesla.PCS_dcdcSupportingFixedLvTarget);
     content += "<h4>Precharge Restart Cnt: " + String(falseTrue[datalayer_extended.tesla.PCS_dcdcPrechargeRestartCnt]) +
                "</h4>";
     content += "<h4>Initial Precharge Substate: " +
@@ -390,38 +396,30 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>HVP_hvp1v5Ref: " + String(HVP_hvp1v5Ref) + " V</h4>";
     content += "<h4>HVP_hvilInVoltage: " + String(HVP_hvilInVoltage) + " V</h4>";
     content += "<h4>HVP_hvilOutVoltage: " + String(HVP_hvilOutVoltage) + " V</h4>";
-    content +=
-        "<h4>HVP_gpioPassivePyroDepl: " + String(Fault[datalayer_extended.tesla.HVP_gpioPassivePyroDepl]) + "</h4>";
-    content += "<h4>HVP_gpioPyroIsoEn: " + String(Fault[datalayer_extended.tesla.HVP_gpioPyroIsoEn]) + "</h4>";
-    content += "<h4>HVP_gpioCpFaultIn: " + String(Fault[datalayer_extended.tesla.HVP_gpioCpFaultIn]) + "</h4>";
-    content +=
-        "<h4>HVP_gpioPackContPowerEn: " + String(Fault[datalayer_extended.tesla.HVP_gpioPackContPowerEn]) + "</h4>";
-    content += "<h4>HVP_gpioHvCablesOk: " + String(Fault[datalayer_extended.tesla.HVP_gpioHvCablesOk]) + "</h4>";
-    content += "<h4>HVP_gpioHvpSelfEnable: " + String(Fault[datalayer_extended.tesla.HVP_gpioHvpSelfEnable]) + "</h4>";
-    content += "<h4>HVP_gpioLed: " + String(Fault[datalayer_extended.tesla.HVP_gpioLed]) + "</h4>";
-    content += "<h4>HVP_gpioCrashSignal: " + String(Fault[datalayer_extended.tesla.HVP_gpioCrashSignal]) + "</h4>";
-    content +=
-        "<h4>HVP_gpioShuntDataReady: " + String(Fault[datalayer_extended.tesla.HVP_gpioShuntDataReady]) + "</h4>";
-    content += "<h4>HVP_gpioFcContPosAux: " + String(Fault[datalayer_extended.tesla.HVP_gpioFcContPosAux]) + "</h4>";
-    content += "<h4>HVP_gpioFcContNegAux: " + String(Fault[datalayer_extended.tesla.HVP_gpioFcContNegAux]) + "</h4>";
-    content += "<h4>HVP_gpioBmsEout: " + String(Fault[datalayer_extended.tesla.HVP_gpioBmsEout]) + "</h4>";
-    content += "<h4>HVP_gpioCpFaultOut: " + String(Fault[datalayer_extended.tesla.HVP_gpioCpFaultOut]) + "</h4>";
-    content += "<h4>HVP_gpioPyroPor: " + String(Fault[datalayer_extended.tesla.HVP_gpioPyroPor]) + "</h4>";
-    content += "<h4>HVP_gpioShuntEn: " + String(Fault[datalayer_extended.tesla.HVP_gpioShuntEn]) + "</h4>";
-    content += "<h4>HVP_gpioHvpVerEn: " + String(Fault[datalayer_extended.tesla.HVP_gpioHvpVerEn]) + "</h4>";
-    content +=
-        "<h4>HVP_gpioPackCoontPosFlywheel: " + String(Fault[datalayer_extended.tesla.HVP_gpioPackCoontPosFlywheel]) +
-        "</h4>";
-    content += "<h4>HVP_gpioCpLatchEnable: " + String(Fault[datalayer_extended.tesla.HVP_gpioCpLatchEnable]) + "</h4>";
-    content += "<h4>HVP_gpioPcsEnable: " + String(Fault[datalayer_extended.tesla.HVP_gpioPcsEnable]) + "</h4>";
-    content +=
-        "<h4>HVP_gpioPcsDcdcPwmEnable: " + String(Fault[datalayer_extended.tesla.HVP_gpioPcsDcdcPwmEnable]) + "</h4>";
-    content += "<h4>HVP_gpioPcsChargePwmEnable: " + String(Fault[datalayer_extended.tesla.HVP_gpioPcsChargePwmEnable]) +
-               "</h4>";
-    content +=
-        "<h4>HVP_gpioFcContPowerEnable: " + String(Fault[datalayer_extended.tesla.HVP_gpioFcContPowerEnable]) + "</h4>";
-    content += "<h4>HVP_gpioHvilEnable: " + String(Fault[datalayer_extended.tesla.HVP_gpioHvilEnable]) + "</h4>";
-    content += "<h4>HVP_gpioSecDrdy: " + String(Fault[datalayer_extended.tesla.HVP_gpioSecDrdy]) + "</h4>";
+    appendFault(content, "HVP_gpioPassivePyroDepl", datalayer_extended.tesla.HVP_gpioPassivePyroDepl);
+    appendFault(content, "HVP_gpioPyroIsoEn", datalayer_extended.tesla.HVP_gpioPyroIsoEn);
+    appendFault(content, "HVP_gpioCpFaultIn", datalayer_extended.tesla.HVP_gpioCpFaultIn);
+    appendFault(content, "HVP_gpioPackContPowerEn", datalayer_extended.tesla.HVP_gpioPackContPowerEn);
+    appendFault(content, "HVP_gpioHvCablesOk", datalayer_extended.tesla.HVP_gpioHvCablesOk);
+    appendFault(content, "HVP_gpioHvpSelfEnable", datalayer_extended.tesla.HVP_gpioHvpSelfEnable);
+    appendFault(content, "HVP_gpioLed", datalayer_extended.tesla.HVP_gpioLed);
+    appendFault(content, "HVP_gpioCrashSignal", datalayer_extended.tesla.HVP_gpioCrashSignal);
+    appendFault(content, "HVP_gpioShuntDataReady", datalayer_extended.tesla.HVP_gpioShuntDataReady);
+    appendFault(content, "HVP_gpioFcContPosAux", datalayer_extended.tesla.HVP_gpioFcContPosAux);
+    appendFault(content, "HVP_gpioFcContNegAux", datalayer_extended.tesla.HVP_gpioFcContNegAux);
+    appendFault(content, "HVP_gpioBmsEout", datalayer_extended.tesla.HVP_gpioBmsEout);
+    appendFault(content, "HVP_gpioCpFaultOut", datalayer_extended.tesla.HVP_gpioCpFaultOut);
+    appendFault(content, "HVP_gpioPyroPor", datalayer_extended.tesla.HVP_gpioPyroPor);
+    appendFault(content, "HVP_gpioShuntEn", datalayer_extended.tesla.HVP_gpioShuntEn);
+    appendFault(content, "HVP_gpioHvpVerEn", datalayer_extended.tesla.HVP_gpioHvpVerEn);
+    appendFault(content, "HVP_gpioPackCoontPosFlywheel", datalayer_extended.tesla.HVP_gpioPackCoontPosFlywheel);
+    appendFault(content, "HVP_gpioCpLatchEnable", datalayer_extended.tesla.HVP_gpioCpLatchEnable);
+    appendFault(content, "HVP_gpioPcsEnable", datalayer_extended.tesla.HVP_gpioPcsEnable);
+    appendFault(content, "HVP_gpioPcsDcdcPwmEnable", datalayer_extended.tesla.HVP_gpioPcsDcdcPwmEnable);
+    appendFault(content, "HVP_gpioPcsChargePwmEnable", datalayer_extended.tesla.HVP_gpioPcsChargePwmEnable);
+    appendFault(content, "HVP_gpioFcContPowerEnable", datalayer_extended.tesla.HVP_gpioFcContPowerEnable);
+    appendFault(content, "HVP_gpioHvilEnable", datalayer_extended.tesla.HVP_gpioHvilEnable);
+    appendFault(content, "HVP_gpioSecDrdy", datalayer_extended.tesla.HVP_gpioSecDrdy);
     content += "<h4>HVP_shuntCurrentDebug: " + String(HVP_shuntCurrentDebug) + " A</h4>";
     content += "<h4>HVP_packCurrentMia: " + String(noYes[datalayer_extended.tesla.HVP_packCurrentMia]) + "</h4>";
     content += "<h4>HVP_auxCurrentMia: " + String(noYes[datalayer_extended.tesla.HVP_auxCurrentMia]) + "</h4>";
@@ -448,6 +446,66 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     //content += "<h4>HVP_shuntAuxCurrentStatus: " + String(HVP_status[datalayer_extended.tesla.HVP_shuntAuxCurrentStatus]) + "</h4>"; // Not giving useable data
     //content += "<h4>HVP_shuntBarTempStatus: " + String(HVP_status[datalayer_extended.tesla.HVP_shuntBarTempStatus]) + "</h4>"; // Not giving useable data
     //content += "<h4>HVP_shuntAsicTempStatus: " + String(HVP_status[datalayer_extended.tesla.HVP_shuntAsicTempStatus]) + "</h4>"; // Not giving useable data
+
+    // ---- Active alert-matrix faults (0x320 BMS / 0x3A4 PCS / 0x31E CP) ----
+    // Only ACTIVE faults are listed, to keep the page small. Nothing about the fault names/codes
+    // is stored on the ESP32: each row emits only an integer match key (ECU base + the index into
+    // the corresponding *_alertMatrixActive[] array). get_dtc_json_loader_html() then loads the
+    // DTC JSON from GitHub (or a local copy) and fills the description cell with the readable text
+    // (l_dsc) plus the full Tesla token (s_dsc, which carries the real code e.g. BMS_a036). See
+    // web_data/dtc/README.md; the JSON "code" field must match "base + index" below.
+    {
+      struct AlertGroup {
+        const char* label;
+        int base;  // integer "code" base for this ECU (BMS 1xx, PCS 2xx, CP 3xx)
+        const bool* active;
+        int count;
+      };
+      const AlertGroup groups[] = {
+          {"BMS 0x320", 100, datalayer_extended.tesla.BMS_alertMatrixActive, 100},
+          {"PCS 0x3A4", 200, datalayer_extended.tesla.PCS_alertMatrixActive, 94},
+          {"CP 0x31E", 300, datalayer_extended.tesla.CP_alertMatrixActive, 96},
+      };
+
+      int total_active = 0;
+      for (auto& g : groups) {
+        for (int i = 0; i < g.count; i++) {
+          if (g.active[i]) {
+            total_active++;
+          }
+        }
+      }
+
+      content += "<h3>Active Faults: " + String(total_active) + "</h3>";
+      // Only render the table (and fetch the DTC JSON) when something is actually active, so a
+      // healthy device does no network request on every page load.
+      if (total_active > 0) {
+        content +=
+            "<table style='border-collapse: collapse; margin: 0 auto;'>"
+            "<tr><th style='text-align:left;padding:2px 20px 2px 0'>ECU</th>"
+            "<th style='text-align:left;padding:2px 0'>Description</th></tr>";
+        for (auto& g : groups) {
+          for (int i = 0; i < g.count; i++) {
+            if (!g.active[i]) {
+              continue;
+            }
+            String code = String(g.base + i);  // integer match key; JSON maps it to code + description
+            content += "<tr><td style='text-align:left;padding:2px 20px 2px 0'>";
+            content += g.label;
+            // Description cell: the shared loader replaces the placeholder integer with l_dsc + s_dsc
+            // (s_dsc carries the real Tesla code, e.g. BMS_a036_SW_HvpHvilFault).
+            content += "</td><td style='text-align:left;padding:2px 0' data-dtc-code='";
+            content += code;
+            content += "'>";
+            content += code;
+            content += "</td></tr>";
+          }
+        }
+        content += "</table>";
+        // Fetch descriptions from GitHub (falls back to a local-file picker when offline).
+        content += get_dtc_json_loader_html(GITHUB_RAW_BASE_URL, "tesla_model3y_dtc.json");
+      }
+    }
 
     return content;
   }

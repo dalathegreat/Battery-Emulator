@@ -20,6 +20,26 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
 static void update_event_level(void);
 static void update_bms_status(void);
 
+#ifndef SMALL_FLASH_DEVICE
+// Map a Battery-Emulator event level to an RFC 5424 syslog severity.
+static uint8_t event_level_to_syslog(EVENTS_LEVEL_TYPE lvl) {
+  switch (lvl) {
+    case EVENT_LEVEL_ERROR:
+      return 3;  // err
+    case EVENT_LEVEL_WARNING:
+      return 4;  // warning
+    case EVENT_LEVEL_UPDATE:
+      return 5;  // notice
+    case EVENT_LEVEL_INFO:
+      return 6;  // info
+    case EVENT_LEVEL_DEBUG:
+      return 7;  // debug
+    default:
+      return 6;
+  }
+}
+#endif
+
 /* Initialization function */
 void init_events(void) {
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
@@ -31,21 +51,29 @@ void init_events(void) {
 
   events.entries[EVENT_CANMCP2518FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2515_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_NATIVE_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CAN_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANFD_2_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP2515_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_TASK_OVERRUN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_THERMAL_RUNAWAY].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_CORRUPTED_WARNING].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CAN_NATIVE_TX_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_NATIVE_BUS_ERROR].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP2515_BUS_ERROR].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANFD_BUS_ERROR].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANFD_2_BUS_ERROR].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_BATTERY_DETECTED].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_CAN_BATTERY2_DETECTED].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_CAN_BATTERY3_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_BATTERY_MISSING].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_BATTERY2_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_BATTERY3_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_CHARGER_MISSING].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_CHARGER_DETECTED].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN_INVERTER_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CONTACTOR_OPEN].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CPU_OVERHEATING].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CPU_OVERHEATED].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DISCHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
@@ -70,9 +98,15 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_VALUE_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_ISOLATION].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_SOC_RECALIBRATION].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BYD_AUTO_SOC_CALIBRATION].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BYD_CONTACTOR_MISMATCH].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BYD_CONTACTOR_FORCE_OPEN].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_BYD_CONTACTOR_OPEN_REQ].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BYD_CONTACTOR_CLOSE_REQ].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_SOC_RESET_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_SOC_RESET_FAIL].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_VOLTAGE_DIFFERENCE].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_VOLTAGE_DIFFERENCE_BAT2].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_VOLTAGE_DIFFERENCE_BAT3].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_SOH_DIFFERENCE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOH_LOW].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_HVIL_FAILURE].level = EVENT_LEVEL_ERROR;
@@ -82,7 +116,7 @@ void init_events(void) {
   events.entries[EVENT_INTERNAL_OPEN_FAULT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_INVERTER_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_INTERFACE_MISSING].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_MODBUS_INVERTER_MISSING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_MODBUS_INVERTER_MISSING].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_NO_ENABLE_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_ERROR_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CELL_CRITICAL_UNDER_VOLTAGE].level = EVENT_LEVEL_ERROR;
@@ -93,6 +127,7 @@ void init_events(void) {
   events.entries[EVENT_UNKNOWN_EVENT_SET].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_OTA_UPDATE].level = EVENT_LEVEL_UPDATE;
   events.entries[EVENT_OTA_UPDATE_TIMEOUT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RESTARTING].level = EVENT_LEVEL_UPDATE;  // Stops Fronius erroring out during restarts
   events.entries[EVENT_DUMMY_INFO].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DUMMY_DEBUG].level = EVENT_LEVEL_DEBUG;
   events.entries[EVENT_DUMMY_WARNING].level = EVENT_LEVEL_WARNING;
@@ -127,6 +162,8 @@ void init_events(void) {
   events.entries[EVENT_PID_FAILED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_DISCONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_WIFI_AP_PASSWORD_DEFAULT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_WIFI_AP_PROVISION_TIMEOUT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
@@ -178,36 +215,46 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
     case EVENT_CANMCP2515_INIT_FAILURE:
       return "CAN-MCP addon initialization failed. Check hardware";
+    case EVENT_CAN_NATIVE_BUFFER_FULL:
+    case EVENT_CANMCP2515_BUFFER_FULL:
     case EVENT_CANFD_BUFFER_FULL:
-      return "MCP2518FD message failed to send. Buffer full or no one on the bus to ACK the message!";
-    case EVENT_CAN_BUFFER_FULL:
-      return "MCP2515 message failed to send. Buffer full or no one on the bus to ACK the message!";
+    case EVENT_CANFD_2_BUFFER_FULL:
+      return "CAN failed to send. Buffer full or no one on the bus to ACK the message!";
     case EVENT_TASK_OVERRUN:
       return "Task took too long to complete. CPU load might be too high. Info message, no action required.";
     case EVENT_THERMAL_RUNAWAY:
       return "THERMAL RUNAWAY! POTENTIAL FIRE OR EXPLOSION IMMINENT!";
     case EVENT_CAN_CORRUPTED_WARNING:
       return "High amount of corrupted CAN messages detected. Check CAN wire shielding!";
-    case EVENT_CAN_NATIVE_TX_FAILURE:
-      return "CAN_NATIVE failed to transmit, or no one on the bus to ACK the message!";
+    case EVENT_CAN_NATIVE_BUS_ERROR:
+    case EVENT_CANMCP2515_BUS_ERROR:
+    case EVENT_CANFD_BUS_ERROR:
+    case EVENT_CANFD_2_BUS_ERROR:
+      return "Multiple CAN TX/RX errors. Check wiring!";
+    case EVENT_CAN_BATTERY_DETECTED:
+      return "Successfully communicating with battery. Battery detected!";
+    case EVENT_CAN_BATTERY2_DETECTED:
+      return "Successfully communicating with secondary battery. Secondary battery detected!";
+    case EVENT_CAN_BATTERY3_DETECTED:
+      return "Successfully communicating with third battery. Third battery detected!";
     case EVENT_CAN_BATTERY_MISSING:
       return "Battery not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CAN_BATTERY2_MISSING:
       return "Secondary battery not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CAN_BATTERY3_MISSING:
       return "Third battery not sending messages via CAN for the last 60 seconds. Check wiring!";
+    case EVENT_CAN_CHARGER_DETECTED:
+      return "Successfully communicating with charger. Charger detected!";
     case EVENT_CAN_CHARGER_MISSING:
       return "Charger not sending messages via CAN for the last 60 seconds. Check wiring!";
+    case EVENT_CAN_INVERTER_DETECTED:
+      return "Successfully communicating with inverter. Inverter detected!";
     case EVENT_CAN_INVERTER_MISSING:
       return "Inverter not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CONTACTOR_WELDED:
       return "Contactors sticking/welded. Inspect battery with caution!";
     case EVENT_CONTACTOR_OPEN:
       return "Battery decided to open contactors. Inspect battery!";
-    case EVENT_CPU_OVERHEATING:
-      return "Battery-Emulator CPU overheating! Increase airflow/cooling to increase hardware lifespan!";
-    case EVENT_CPU_OVERHEATED:
-      return "Battery-Emulator CPU melting! Performing controlled shutdown until temperature drops!";
     case EVENT_CHARGE_LIMIT_EXCEEDED:
       return "Inverter is charging faster than battery is allowing.";
     case EVENT_DISCHARGE_LIMIT_EXCEEDED:
@@ -260,12 +307,28 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
     case EVENT_BATTERY_SOC_RECALIBRATION:
       return "The BMS updated the HV battery State of Charge (SOC) by more than 3pct based on SocByOcv.";
+    case EVENT_BYD_AUTO_SOC_CALIBRATION:
+      return "Auto SOC recalibration to 100% triggered. Data column shows drift% below 100%.";
+    case EVENT_BYD_CONTACTOR_MISMATCH:
+      return "Battery did not confirm the contactor command in time. Data: 2 = open not confirmed, 3 = close not "
+             "confirmed.";
+    case EVENT_BYD_CONTACTOR_FORCE_OPEN:
+      return "Contactors force-opened: pack current was not confirmed safe before the timeout. Data: 0 = current "
+             "stayed high, 1 = no fresh current reading. Check the inverter ramped down.";
+    case EVENT_BYD_CONTACTOR_OPEN_REQ:
+      return "Contactor open commanded. Power is set to zero and the contactors open once current stops. Data: 1 = "
+             "from an emergency stop saved across reboot.";
+    case EVENT_BYD_CONTACTOR_CLOSE_REQ:
+      return "Contactor close commanded. The battery precharges and closes its contactors. Data: 1 = cancelled a "
+             "pending open.";
     case EVENT_BATTERY_SOC_RESET_SUCCESS:
       return "SOC reset routine was successful.";
     case EVENT_BATTERY_SOC_RESET_FAIL:
       return "SOC reset routine failed - check SOC is < 15 or > 90, and contactors are open.";
-    case EVENT_VOLTAGE_DIFFERENCE:
+    case EVENT_VOLTAGE_DIFFERENCE_BAT2:
       return "Too large voltage diff between the batteries. Second battery cannot join the DC-link";
+    case EVENT_VOLTAGE_DIFFERENCE_BAT3:
+      return "Too large voltage diff between the batteries. Third battery cannot join the DC-link";
     case EVENT_SOH_DIFFERENCE:
       return "Large deviation in State of health between packs. Inspect battery.";
     case EVENT_SOH_LOW:
@@ -366,6 +429,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "The board was reset due to a detected power glitch";
     case EVENT_RESET_CPU_LOCKUP:
       return "The board was reset due to CPU lockup. Inform developers!";
+    case EVENT_RESTARTING:
+      return "The emulator is restarting.";
     case EVENT_RJXZS_LOG:
       return "Error code active in RJXZS BMS. Clear via their smartphone app!";
     case EVENT_PAUSE_BEGIN:
@@ -378,6 +443,11 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Wifi connected.";
     case EVENT_WIFI_DISCONNECT:
       return "Wifi disconnected.";
+    case EVENT_WIFI_AP_PASSWORD_DEFAULT:
+      return "The AP will be disabled after 5 idle minutes. Change default password to keep AP constantly on!";
+    case EVENT_WIFI_AP_PROVISION_TIMEOUT:
+      return "Wifi AP disabled due to cybersecurity concern. Change default password to keep AP "
+             "constantly on! Reboot/Hold BOOT button 5-15 seconds to re-enable AP temporarily.";
     case EVENT_MQTT_CONNECT:
       return "MQTT connected.";
     case EVENT_MQTT_DISCONNECT:
@@ -462,6 +532,7 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
     events.entries[event].MQTTpublished = false;
 
+    LOG_SET_NEXT_SEVERITY(event_level_to_syslog(events.entries[event].level));
     DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
   }
 
@@ -483,17 +554,17 @@ static void update_bms_status(void) {
     case EVENT_LEVEL_INFO:
     case EVENT_LEVEL_WARNING:
     case EVENT_LEVEL_DEBUG:
-      datalayer.battery.status.bms_status = ACTIVE;
+      datalayer.system.status.system_status = ACTIVE;
       break;
     case EVENT_LEVEL_UPDATE:
-      datalayer.battery.status.bms_status = UPDATING;
+      datalayer.system.status.system_status = UPDATING;
       break;
     case EVENT_LEVEL_ERROR:
       // Normally FAULT mode is set if a catastrophic event has triggered, but incase user has forced a recovery charge, we override any FAULT and continue temporarily in active mode
       if (datalayer.battery.settings.user_requests_forced_charging_recovery_mode) {
-        datalayer.battery.status.bms_status = ACTIVE;  //Edge case which is active for 30min max
+        datalayer.system.status.system_status = ACTIVE;  //Edge case which is active for 30min max
       } else {
-        datalayer.battery.status.bms_status = FAULT;  //We will in 99.999% of the time go here
+        datalayer.system.status.system_status = FAULT;  //We will in 99.999% of the time go here
       }
       break;
     default:

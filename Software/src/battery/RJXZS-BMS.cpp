@@ -36,11 +36,11 @@ void RjxzsBms::update_values() {
   // Charge power is manually set
   if (datalayer.battery.status.real_soc > 9900) {
     datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
-  } else if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
-    // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+  } else if (datalayer.battery.status.real_soc > user_set_rampdown_SOC) {
+    // When real SOC is between user_set_rampdown_SOC-99%, ramp the value between Max<->0
     datalayer.battery.status.max_charge_power_W =
         datalayer.battery.status.override_charge_power_W *
-        (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
+        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
   } else {  // No limits, max charging power allowed
     datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
   }
@@ -121,8 +121,10 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
         equalization_starting_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
         if ((status_accounting & 0x020) >> 5) {  //balancing active
           datalayer.battery.status.balancing_status = BALANCING_STATUS_ACTIVE;
+          set_event_latched(EVENT_BALANCING_START, 0);
         } else {  //balancing off
           datalayer.battery.status.balancing_status = BALANCING_STATUS_READY;
+          set_event(EVENT_BALANCING_END, 0);
         }
         if ((rx_frame.data.u8[4] & 0x40) >> 6) {
           charging_active = true;
@@ -229,7 +231,7 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
           set_event(EVENT_12V_LOW, 0);
         } else if (protecting_historical_logs == 0x09) {
           // Voltage difference protection
-          set_event(EVENT_VOLTAGE_DIFFERENCE, differential_pressure_setting_value);
+          set_event(EVENT_VOLTAGE_DIFFERENCE_BAT2, differential_pressure_setting_value);
         } else if (protecting_historical_logs == 0x0A) {
           // Low temperature protection
           set_event(EVENT_BATTERY_FROZEN, low_temperature_protection_setting_value);
@@ -251,7 +253,7 @@ void RjxzsBms::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
 
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       // Incase we loose BMS comms, resend CAN start
       setup_completed = false;
     }

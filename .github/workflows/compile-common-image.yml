@@ -1,33 +1,17 @@
 name: 🔋 Compile Common Images
 
 on:
-  # The workflow is run when a commit is pushed or for a
-  # Pull Request.
-  - push
-  - pull_request
+  push:
+    branches: [main]
+  pull_request:
 
 # This is the list of jobs that will be run concurrently.
 jobs:
-  # This pre-job is run to skip workflows in case a workflow is already run, i.e. because the workflow is triggered by both push and pull_request
-  skip-duplicate-actions:
-    runs-on: ubuntu-latest
-    # Map a step output to a job output
-    outputs:
-      should_skip: ${{ steps.skip_check.outputs.should_skip }}
-    steps:
-      - id: skip_check
-        uses: fkirc/skip-duplicate-actions@v5
-        with:
-          concurrent_skipping: 'never'
-          skip_after_successful_duplicate: 'true'
-          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
-
   build:
-    needs: skip-duplicate-actions
-    if: needs.skip-duplicate-actions.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     
     strategy:
+      fail-fast: false
       matrix:
         include:
           - board_name: "LilygoT-CAN485"
@@ -45,24 +29,42 @@ jobs:
           - board_name: "BECom"
             pio_env: "BECom_330"
             artifact_name: "battery-emulator-becom"
+          - board_name: "Waveshare ESP32S3RS485CAN"
+            pio_env: "waveshare_330"
+            artifact_name: "battery-emulator-waveshareRS485CAN"
           - board_name: "Compiler warning check"
             pio_env: "compiler_warning_check"
             artifact_name: "battery-dummy-check"
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       name: Checkout code
 
-    - uses: actions/cache@v5
+    - name: Get platformio.ini hash
+      id: platformio_ini_hash
+      run: |
+        PLATFORMIO_INI_HASH=$(md5sum platformio.ini | awk '{ print $1 }')
+        echo "platformio_ini_hash=$PLATFORMIO_INI_HASH" >> $GITHUB_OUTPUT
+
+    # Broader cache (just the download files)
+    - uses: actions/cache@v6
       with:
         path: |
           ~/.cache/pip
           ~/.platformio/.cache
         key: ${{ runner.os }}-pio
 
+    # Tighter cache (of platformio itself)
+    - uses: actions/cache@v6
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio
+        key: ${{ runner.os }}-pio-${{ steps.platformio_ini_hash.outputs.platformio_ini_hash }}
+
     - uses: actions/setup-python@v6
       with:
-        python-version: '3.11'
+        python-version: '3.13'
 
     - name: Install PlatformIO Core
       run: pip install --upgrade platformio
@@ -70,8 +72,20 @@ jobs:
     - name: Build image for ${{ matrix.board_name }}
       run: pio run -e ${{ matrix.pio_env }}
 
+    #rename firmware.bin to contain pr number and commit short sha for easier location after saved on disk
+    - name: Rename firmware.bin with PR number and commit short SHA
+      run: |
+          SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha || github.sha }}" | cut -c1-7)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_PART="pr${{ github.event.pull_request.number }}-"
+          else
+            PR_PART=""
+          fi
+          cp .pio/build/${{ matrix.pio_env }}/firmware.bin \
+             .pio/build/${{ matrix.pio_env }}/firmware-${PR_PART}${SHORT_SHA}.bin
+
     - name: Upload artifact for ${{ matrix.board_name }}
       uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.artifact_name }}.bin
-        path: .pio/build/${{ matrix.pio_env }}/firmware.bin
+        path: .pio/build/${{ matrix.pio_env }}/firmware-*.bin

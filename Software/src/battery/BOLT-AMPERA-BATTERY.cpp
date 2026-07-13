@@ -1,5 +1,6 @@
 #include "BOLT-AMPERA-BATTERY.h"
 #include <cstring>  //For unit test
+#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
@@ -93,11 +94,11 @@ void BoltAmperaBattery::update_values() {  //This function maps all the values f
   // Charge power is set in .h file (TODO: Remove this estimation when real value has been found)
   if (datalayer_battery->status.real_soc > 9900) {
     datalayer_battery->status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
-  } else if (datalayer_battery->status.real_soc > RAMPDOWN_SOC) {
+  } else if (datalayer_battery->status.real_soc > user_set_rampdown_SOC) {
     // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
     datalayer_battery->status.max_charge_power_W =
         datalayer_battery->status.override_charge_power_W *
-        (1 - (datalayer_battery->status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
+        (1 - (datalayer_battery->status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
   } else {  // No limits, max charging power allowed
     datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
   }
@@ -430,7 +431,12 @@ void BoltAmperaBattery::transmit_can(unsigned long currentMillis) {
     BOLT_POLL_7E7.data.u8[2] = (uint8_t)((currentpoll_7E7 & 0xFF00) >> 8);
     BOLT_POLL_7E7.data.u8[3] = (uint8_t)(currentpoll_7E7 & 0x00FF);
 
-    transmit_can_frame(&BOLT_POLL_7E7);
+    if (UserRequestDTCreset) {
+      transmit_can_frame(&BOLT_CLEAR_DTC);
+      UserRequestDTCreset = false;
+    } else {  //Normal poll
+      transmit_can_frame(&BOLT_POLL_7E7);
+    }
   }
 
   //Send 120ms message

@@ -27,6 +27,7 @@ enum class InverterProtocolType {
   Sungrow = 21,
   VCU = 22,
   PylonLV485 = 23,
+  SmaSBSByd = 24,
   Highest
 };
 
@@ -57,6 +58,9 @@ class InverterProtocol {
 
   virtual bool provides_shunt() { return false; }
   virtual void enable_shunt() {}
+
+  // Some inverters are slow to boot; suppress the CAN-missing fault during a startup grace window.
+  virtual bool needs_can_startup_grace() { return false; }
 };
 
 extern InverterProtocol* inverter;

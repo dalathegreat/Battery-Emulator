@@ -18,6 +18,29 @@ class BmwPhevBattery : public CanBattery {
   bool supports_reset_BMS() { return true; }
   void reset_BMS() { datalayer_extended.bmwphev.UserRequestBMSReset = true; }
 
+  // Beta CAN-based contactor close support via 0x53A (see INFO section in .cpp)
+  bool supports_contactor_close() { return true; }
+  void request_open_contactors() { userRequestContactorOpen = true; }
+  void request_close_contactors() { userRequestContactorClose = true; }
+
+  // Online balancing via the SME UDS routine (0xAD6B). Drives the user_requests_balancing flag the
+  // transmit loop reads: when set it sends startRoutine, otherwise stopRoutine (cancels any latched
+  // balancing). Renders independent, always-visible Start and Stop Balancing buttons on the advanced page.
+  //
+  // IMPORTANT (SME behaviour):
+  //  - Balancing is ONLY possible while the contactors are OPEN. The SME will not balance with the
+  //    pack connected/closed.
+  //  - While balancing is ACTIVE the SME BLOCKS contactor close (precharge is inhibited until
+  //    balancing finishes / is stopped). So requesting balancing prevents the pack from going online.
+  bool supports_balancing_request() { return true; }
+  bool is_balancing_active() { return datalayer.battery.settings.user_requests_balancing; }
+  void initiate_balancing() { datalayer.battery.settings.user_requests_balancing = true; }
+  void end_balancing() { datalayer.battery.settings.user_requests_balancing = false; }
+
+  // Isolation test - one-shot UDS startRoutine (0xAD61). Same one-shot pattern as DTC/BMS reset.
+  bool supports_isolation_test() { return true; }
+  void request_isolation_test() { datalayer_extended.bmwphev.UserRequestIsolationTest = true; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
@@ -32,8 +55,6 @@ class BmwPhevBattery : public CanBattery {
   static const int MAX_CHARGE_POWER_ALLOWED_W = 10000;
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
   static const int MAX_DTC_COUNT = 20;  // Maximum number of DTCs to store/display
-  static const int RAMPDOWN_SOC =
-      9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
   static const int STALE_PERIOD_CONFIG =
       3600000;  //Number of milliseconds before critical values are classed as stale/stuck 1800000 = 3600 seconds / 60mins
 
@@ -46,6 +67,13 @@ class BmwPhevBattery : public CanBattery {
   void wake_battery_via_canbus();
   uint8_t increment_alive_counter(uint8_t counter);
   const char* getUDSRequestName(CAN_frame* frame);
+
+  // Beta CAN-based contactor close (0x53A) helpers
+  void HandleIncomingUserRequest(void);
+  void HandleIncomingInverterRequest(void);
+  void HandleEquipmentStopRequest(void);
+  void PhevCloseContactors(void);
+  void PhevOpenContactors(void);
 
   unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
@@ -78,6 +106,14 @@ class BmwPhevBattery : public CanBattery {
   // A single global UDS context, since only one module can respond at a time
   UDS_RxContext gUDSContext;
 
+  // Max time to wait for the next frame of a multi-frame UDS response before abandoning it,
+  // so a lost frame can't wedge polling permanently (see UDS poll guards in transmit_can).
+  static const unsigned long UDS_REASSEMBLY_TIMEOUT_MS = 500;
+  // How long to silence the timed UDS polls after a one-shot command (Clear DTC, BMS Reset)
+  // so the response has time to arrive before the next request is sent.
+  static const unsigned long UDS_ONE_SHOT_SILENCE_MS = 1000;
+  unsigned long uds_one_shot_sent_ms = 0;  // millis() when last one-shot command was sent
+
   //Vehicle CAN START
   CAN_frame BMW_12F = {
       .FD = false,
@@ -90,6 +126,60 @@ class BmwPhevBattery : public CanBattery {
                        .DLC = 3,
                        .ID = 0x10B,
                        .data = {0xCD, 0x00, 0xFC}};  // Contactor closing command
+  // Beta CAN-based contactor control - streamed at 200ms. data[5]/data[6] select the state:
+  //   STATE A idle 0x00/0x01, STATE B closing 0x80/0x01, STATE D steady 0x84/0x00
+  // See CONTACTOR CLOSE notes in the INFO section of the .cpp
+  CAN_frame BMW_53A = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x53A,
+                       .data = {0x40, 0x3A, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00}};  // STATE A - idle / contactors off
+
+  // --- Vehicle environment / status frames the SME expects (silences CAD4xx "No message" DTCs).
+  //     Sample payloads captured on the bus; see VEHICLE TX MAP in the INFO section of the .cpp.
+  //     STATIC frames (0x3A0, 0x3CA, 0x3E8) and 0x2CA (simple byte1 LSB toggle) are transmitted.
+  //     The frames marked NEEDS COUNTER below carry a rolling counter on the real bus and are NOT
+  //     transmitted yet - sending them frozen risks a "signal invalid" DTC. Kept here for reference.
+  CAN_frame BMW_1A1 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 5,
+                       .ID = 0x1A1,
+                       .data = {0x00, 0xC0, 0x00, 0x00,
+                                0x8A}};  // Vehicle speed (DSC), standstill. NEEDS COUNTER: byte1 lo-nibble rolls 0..E
+  CAN_frame BMW_3A0 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x3A0,
+                       .data = {0xFF, 0xFF, 0xCF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFD}};  // Vehicle condition (BDC) - static
+  CAN_frame BMW_328 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 6,
+      .ID = 0x328,
+      .data = {0x27, 0x58, 0xDC, 0x0D, 0x7A,
+               0x25}};  // Relative time / clock (KOMBI). Sent 1000ms w/ live counter: bytes0-3=seconds, 4-5=days
+  CAN_frame BMW_3CA = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x3CA,
+      .data = {0xB7, 0x60, 0x01, 0x0F, 0x0F, 0x31, 0xFF, 0xFF}};  // Driving-info forecast (KOMBI) - static
+  CAN_frame BMW_433 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 4,
+      .ID = 0x433,
+      .data = {0xFF, 0x0C, 0x0C, 0xF1}};  // HV-battery specification (EME). NEEDS COUNTER: byte1 toggles 0x0C<->0x0D
+  CAN_frame BMW_2CA = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 2,
+                       .ID = 0x2CA,
+                       .data = {0x6E, 0x6F}};  // Ambient temperature (KOMBI). SENT static: byte0=(T+40)*2 (0x6E=15C)
+  CAN_frame BMW_3E8 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 2,
+                       .ID = 0x3E8,
+                       .data = {0xF1, 0xFF}};  // OBD diagnosis, engine control (EME) - static, diag idle
   //Vehicle CAN END
 
   //Request Data CAN START
@@ -148,29 +238,13 @@ class BmwPhevBattery : public CanBattery {
                                               .ID = 0x6F1,
                                               .data = {0x07, 0x03, 0x22, 0xF1, 0x90}};  //  SME Paired VIN
 
-  CAN_frame BMWPHEV_6F1_REQUEST_ISO_READING1 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 5,
-      .ID = 0x6F1,
-      .data = {
-          0x07, 0x03, 0x22, 0xDD,
-          0x6A}};  // MULTI FRAME ISOLATIONSWIDERSTAND 62 DD 6A [07 D0] [07 D0] [07 D0] [01] [01] [01] 00 00 00 00 00   [EXT Reading] [INT reading] [ EXT - 0 not plausible, 1 plausible]
-
-  CAN_frame BMWPHEV_6F1_REQUEST_ISO_READING2 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 5,
-      .ID = 0x6F1,
-      .data = {0x07, 0x03, 0x22, 0xD6,
-               0xD9}};  //  R_ISO_ROH 62 D6 D9 [07 FF] [13] (2047kohm) quality of reading 0-21 (19)
-
   CAN_frame BMWPHEV_6F1_REQUEST_PACK_INFO = {
       .FD = false,
       .ext_ID = false,
       .DLC = 5,
       .ID = 0x6F1,
-      .data = {0x07, 0x03, 0x22, 0xDF, 0x71}};  //   62 DF 71 00 60 1C 25 1C? Cell Count, Module Count
+      .data = {0x07, 0x03, 0x22, 0xDF,
+               0x71}};  //   62 DF 71 00 60 1C 25 1C? Cell Count,  (byte 4 0x60 = 96)  - Module count assumed here too
 
   CAN_frame BMWPHEV_6F1_REQUEST_CURRENT_LIMITS = {
       .FD = false,
@@ -229,7 +303,7 @@ class BmwPhevBattery : public CanBattery {
                                           .ext_ID = false,
                                           .DLC = 4,
                                           .ID = 0x6F1,
-                                          .data = {0x07, 0x03, 0x11, 0x01}};  // Reset BMS - TBC
+                                          .data = {0x07, 0x02, 0x11, 0x01}};  // UDS ECU hard reset (0x11 0x01)
 
   CAN_frame BMWPHEV_6F1_REQUEST_CONTACTORS_CLOSE = {
       .FD = false,
@@ -259,6 +333,43 @@ class BmwPhevBattery : public CanBattery {
       .ID = 0x6F1,
       .data = {0x07, 0x04, 0x31, 0x01, 0xAD, 0x61, 0x00, 0x00}};  // Start Isolation Test
 
+  // --- Isolation test: requestRoutineResults (UDS $31 sub 0x03) on RID 0xAD61.
+  //     Send AFTER starting the routine (0x31 0x01 0xAD 0x61). Poll this until the SME
+  //     reports the measurement finished. Response layout (positive, 0x71):
+  //       71 03 AD 61 [B5 STAT_MESSUNG_ERFOLGREICH] [B6 STAT_MESSUNG_ISOLATIONSFEHLER]
+  //       B5: 0x00 = Isolationsmessung NICHT erfolgreich (failed / no valid result)
+  //           0x01 = Isolationsmessung erfolgreich (measurement valid - read iso kohm values)
+  //           0x02 = Isolationsmessung laeuft (IN PROGRESS - keep polling, result not ready)
+  //       B6: 0x00 = kein Fehler (no isolation fault)
+  //           0xFF = nicht definiert (undefined - typical while result not yet valid)
+  //     Observed:
+  //       71 03 AD 61 00 FF  -> measurement not successful, fault undefined
+  //       71 03 AD 61 02 00  -> measurement in progress (running), no fault yet
+  //       71 03 AD 61 01 00  -> measurement successful, no isolation fault
+  CAN_frame BMWPHEV_6F1_REQUEST_ISOLATION_RESULT = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x6F1,
+      .data = {0x07, 0x04, 0x31, 0x03, 0xAD, 0x61, 0x00, 0x00}};  // requestRoutineResults - Isolation Test
+
+  CAN_frame BMWPHEV_6F1_REQUEST_ISO_READING1 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 5,
+      .ID = 0x6F1,
+      .data = {
+          0x07, 0x03, 0x22, 0xDD,
+          0x6A}};  // MULTI FRAME ISOLATIONSWIDERSTAND 62 DD 6A [07 D0] [07 D0] [07 D0] [01] [01] [01] 00 00 00 00 00   [EXT Reading] [INT reading] [ EXT - 0 not plausible, 1 plausible]
+
+  CAN_frame BMWPHEV_6F1_REQUEST_ISO_READING2 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 5,
+      .ID = 0x6F1,
+      .data = {0x07, 0x03, 0x22, 0xD6,
+               0xD9}};  //  R_ISO_ROH 62 D6 D9 [07 FF] [13] (2047kohm) quality of reading 0-21 (19)
+
   CAN_frame BMWPHEV_6F1_REQUEST_BALANCING_START = {
       .FD = false,
       .ext_ID = false,
@@ -287,8 +398,8 @@ class BmwPhevBattery : public CanBattery {
   //Request Data CAN End
 
   //Setup Fast UDS values to poll for
-  CAN_frame* UDS_REQUESTS_FAST[5] = {&BMWPHEV_6F1_REQUEST_CELLSUMMARY, &BMWPHEV_6F1_REQUEST_SOC,
-                                     &BMWPHEV_6F1_REQUEST_VOLTAGE_LIMITS, &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_PRECONTACTOR,
+  CAN_frame* UDS_REQUESTS_FAST[4] = {&BMWPHEV_6F1_REQUEST_CELLSUMMARY, &BMWPHEV_6F1_REQUEST_SOC,
+                                     &BMWPHEV_6F1_REQUEST_VOLTAGE_LIMITS,
                                      &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR};
   int numFastUDSreqs =
       sizeof(UDS_REQUESTS_FAST) / sizeof(UDS_REQUESTS_FAST[0]);  //Store Number of elements in the array
@@ -377,15 +488,64 @@ class BmwPhevBattery : public CanBattery {
   uint8_t iso_safety_ext_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_PLAUS
   uint8_t iso_safety_int_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_WERT
   uint8_t iso_safety_trg_plausible = 0;
-  uint8_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
-  uint8_t balancing_status = 0;         //4 = not active
+  uint8_t iso_safety_kohm_quality = 0;    //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
+  uint8_t balancing_status = 0;           //4 = not active
+  bool phev_balancing_stop_sent = false;  // One-shot: send UDS stopRoutine(0xAD6B) at boot to clear
+                                          // any balancing routine left latched in the SME from a prior run.
   uint8_t uds_fast_req_id_counter = 0;
   uint8_t uds_slow_req_id_counter = 0;
   uint8_t alive_counter_100ms = 0;
+  // 0x328 relative-time clock counters (ported from i3). Seconds since system start (T_SEC_COU_REL,
+  // bytes 0-3 LE) and absolute day counter (T_DAY_COU_ABSL, bytes 4-5 LE, day 1 = 1.1.2000).
+  uint32_t BMW_328_seconds = 243785948;  // Seeded so the SME thinks the vehicle was made ~7.7 years ago
+  uint16_t BMW_328_days = 9244;          // ~23rd April 2025 (days since 1.1.2000)
+  uint32_t BMW_328_seconds_to_day = 0;   // Rolls into a day at 86400
   uint8_t paired_vin[17] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //17 Byte array for paired VIN
   bool pack_limit_info_available = false;
   bool battery_awake = false;
+
+  // Beta CAN-based contactor close (0x53A) state
+  bool userRequestContactorClose = false;
+  bool userRequestContactorOpen = false;
+  // Mirrors the emulator equipment-stop flag onto the contactor request so the main-page
+  // "Open/Close Contactors" buttons (which toggle equipment stop) actually drive the contactors.
+  bool phev_last_equipment_stop = false;
+  bool contactorCloseReq = false;              // Desired contactor state: true = stream closing/steady frames
+  unsigned long contactor_close_start_ms = 0;  // millis() when a close was last requested
+  // Pre-close balancing-stop phase: number of guarded stopRoutine frames still to send before 0x10B
+  // is allowed to close (balancing blocks contactor close in the SME), and the timestamp of the last
+  // one sent (0 = send immediately).
+  uint8_t phev_pre_close_stops_remaining = 0;
+  unsigned long phev_pre_close_stop_last_ms = 0;
+  static const uint8_t PHEV_PRE_CLOSE_STOP_COUNT = 3;                 // Number of stops to send before close
+  static const unsigned long PHEV_PRE_CLOSE_STOP_INTERVAL_MS = 1000;  // One per UDS-guard window
+  // Balancing start/stop is sent as a guarded burst on request CHANGE (like the pre-close burst),
+  // not continuously in a timed loop - a single periodic send was getting missed by the SME.
+  bool phev_last_balancing_request = false;     // Tracks user_requests_balancing to detect edges
+  bool phev_balancing_burst_start = false;      // true = burst START frames, false = burst STOP frames
+  uint8_t phev_balancing_bursts_remaining = 0;  // Guarded balancing frames still to send
+  unsigned long phev_balancing_burst_last_ms = 0;
+  static const uint8_t PHEV_BALANCING_BURST_COUNT = 3;                 // Frames to send per request change
+  static const unsigned long PHEV_BALANCING_BURST_INTERVAL_MS = 1000;  // One per UDS-guard window
+  // How long to stream the STATE B closing frame before settling to STATE D steady (observed ~3.5s)
+  static const unsigned long CONTACTOR_CLOSE_REQUEST_DURATION_MS = 1000;
+
+  // 0x53A contactor-announce state machine. Replays the OEM open->close handshake observed on the
+  // vehicle bus so the SME sees STATE B (close requested) announced for ~3.5s BEFORE 0x10B drives
+  // the contactors closed. Jumping straight to closed (STATE D + 0x10B close at once) was
+  // triggering an intermittent open->close safety warning.
+  // Sequence: A IDLE -> B CLOSE_REQ (held) -> C ESCALATED (single transient) -> D STEADY.
+  //   0x10B is held open until the state machine reaches ESCALATED/STEADY (i.e. after the B hold).
+  // See "0x53A STATE SEQUENCE" in the CONTACTOR CLOSE notes of the .cpp.
+  enum Phev53AState { PHEV_53A_IDLE, PHEV_53A_CLOSE_REQ, PHEV_53A_ESCALATED, PHEV_53A_STEADY };
+  Phev53AState phev_53a_state = PHEV_53A_IDLE;
+
+  struct InverterContactorCloseRequestStruct {
+    bool previous;
+    bool present;
+  };
+  InverterContactorCloseRequestStruct InverterContactorCloseRequest = {false, false};
 };
 
 #endif

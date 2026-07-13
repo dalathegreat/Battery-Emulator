@@ -6,6 +6,22 @@
 
 /*Note when editing this file. Order of datatypes matter heavily to keep padding and flash size in check*/
 
+// Per-battery DTC storage to allow common display code
+struct DATALAYER_BATTERY_DTC_TYPE {
+  static constexpr int MAX_DTC_COUNT = 32;
+  // Raw 3-byte DTC codes packed into a uint32, one per slot. Can either
+  // rendered in the standard SAE format, or as a raw 6-digit hex code.
+  uint32_t dtc_codes[MAX_DTC_COUNT];
+  // Status for each DTC
+  uint8_t dtc_status[MAX_DTC_COUNT];
+  // Number of DTCs stored
+  uint8_t dtc_count;
+  // Last successful read (0 = never read)
+  unsigned long dtc_last_read_millis;
+  // Indicates that the last read failed
+  bool dtc_read_failed = false;
+};
+
 struct DATALAYER_BATTERY_INFO_TYPE {
   /** uint32_t */
   /** Total energy capacity in Watt-hours 
@@ -98,12 +114,12 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
 
   /** uint8_t */
   /** A counter set each time a new message comes from battery.
-   * This value then gets decremented every second. Incase we reach 0
-   * we report the battery as missing entirely on the CAN bus.
+   * This value then gets decremented every second. Incase we reach 0 we report the battery as missing entirely on the CAN bus.
+   * Set to CAN_STILL_ALIVE - 1 at startup to allow some time for the first messages to come in before we report the battery as missing
+   * The -1 is important, since the safety code will check if we ever reach full CAN_STILL_ALIVE value to detect if we have ever seen the battery or not.
    */
-  uint8_t CAN_battery_still_alive = CAN_STILL_ALIVE;
-  /** The current system status, which for now still has the name bms_status */
-  bms_status_enum bms_status = ACTIVE;
+  uint8_t CAN_battery_still_alive = (CAN_STILL_ALIVE - 1);
+
   /** The current battery status, which for now has the name real_bms_status */
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
   /** LED mode, customizable by user */
@@ -201,6 +217,7 @@ typedef struct {
   DATALAYER_BATTERY_INFO_TYPE info;
   DATALAYER_BATTERY_STATUS_TYPE status;
   DATALAYER_BATTERY_SETTINGS_TYPE settings;
+  DATALAYER_BATTERY_DTC_TYPE dtc;
 } DATALAYER_BATTERY_TYPE;
 
 struct DATALAYER_CHARGER_TYPE {
@@ -224,10 +241,11 @@ struct DATALAYER_CHARGER_TYPE {
   float charger_stat_LVvol = 0;
   /** uint8_t */
   /** A counter set each time a new message comes from charger.
-   * This value then gets decremented every second. Incase we reach 0
-   * we report the battery as missing entirely on the CAN bus.
+   * This value then gets decremented every second. Incase we reach 0 we report the battery as missing entirely on the CAN bus.
+   * Set to CAN_STILL_ALIVE - 1 at startup to allow some time for the first messages to come in before we report the charger as missing
+   * The -1 is important, since the safety code will check if we ever reach full CAN_STILL_ALIVE value to detect if we have ever seen the charger or not.
    */
-  uint8_t CAN_charger_still_alive = CAN_STILL_ALIVE;
+  uint8_t CAN_charger_still_alive = (CAN_STILL_ALIVE - 1);
   /** True if charger is enabled */
   bool charger_HV_enabled = false;
   /** True if the 12V DC/DC output is enabled */
@@ -289,14 +307,26 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   bool web_logging_active = false;
   /** bool, determines if general logging to SD card should be active */
   bool SD_logging_active = false;
+  /** bool, determines if general logging to a remote syslog server is active */
+  bool syslog_logging_active = false;
   /** bool, determines if CAN replay should loop or not */
   bool loop_playback = false;
   /** bool, Native CAN failed to send flag */
   bool can_native_send_fail = false;
+  /** bool, Native CAN experienced repeated tx/rx errors flag */
+  bool can_native_bus_error = false;
   /** bool, MCP2515 CAN failed to send flag */
   bool can_2515_send_fail = false;
+  /** bool, MCP2515 CAN experienced repeated tx/rx errors flag */
+  bool can_2515_bus_error = false;
   /** bool, MCP2518 CANFD failed to send flag */
   bool can_2518_send_fail = false;
+  /** bool, MCP2518 CANFD experienced repeated tx/rx errors flag */
+  bool can_2518_bus_error = false;
+  /** bool, MCP2518 CANFD 2nd interface failed to send flag */
+  bool can_2518_2_send_fail = false;
+  /** bool, MCP2518 CANFD 2nd interface experienced repeated tx/rx errors flag */
+  bool can_2518_2_bus_error = false;
   /** bool, determines if detailed performance measurement should be shown on webserver */
   bool performance_measurement_active = false;
   bool equipment_stop_active = false;  //Has user enabled equipment stop?
@@ -339,10 +369,11 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
 
   /** uint8_t */
   /** A counter set each time a new message comes from inverter.
-   * This value then gets decremented every second. Incase we reach 0
-   * we report the inverter as missing entirely on the CAN bus.
+   * This value then gets decremented every second. Incase we reach 0 we report the inverter as missing entirely on the CAN bus.
+   * Set to CAN_STILL_ALIVE - 1 at startup to allow some time for the first messages to come in before we report the inverter as missing
+   * The -1 is important, since the safety code will check if we ever reach full CAN_STILL_ALIVE value to detect if we have ever seen the inverter or not.
    */
-  uint8_t CAN_inverter_still_alive = CAN_STILL_ALIVE;
+  uint8_t CAN_inverter_still_alive = (CAN_STILL_ALIVE - 1);
   /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
   uint8_t contactors_engaged = 0;
   /** State of automatic precharge sequence */
@@ -360,6 +391,8 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   bool contactors_battery3_engaged = false;
   /** State of BMS reset sequence */
   BMSResetState bms_reset_status = BMS_RESET_IDLE;
+  /** The current system status, determined by which Events are active, usually pending between ACTIVE and FAULT, but there are more enums. Used to signal incase we have a critical fault active, or if we should proceed operating */
+  system_status_enum system_status = ACTIVE;
 };
 
 struct DATALAYER_SYSTEM_TYPE {

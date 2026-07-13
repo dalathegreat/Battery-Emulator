@@ -1,5 +1,6 @@
 #include "KOSTAL-RS485.h"
 #include "../battery/BATTERIES.h"
+#include "../communication/rs485/comm_rs485.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
@@ -40,15 +41,18 @@ static void dbg_message(const char* msg) {
 }
 
 void setInverterAllowsContactorClosing(bool state) {
+  // AlwaysClosed and LockAfterFirstClose modes: Keep contactors always closed
+  if (user_selected_inverter_contactor_mode == inverter_contactor_mode_enum::AlwaysClosed ||
+      user_selected_inverter_contactor_mode == inverter_contactor_mode_enum::LockAfterFirstClose) {
+    datalayer.system.status.inverter_allows_contactor_closing = true;
+    return;
+  }
+
+  // NoWorkaround mode: Normal operation
   if (state) {
     datalayer.system.status.inverter_allows_contactor_closing = true;
-  } else {  //false, we want to open contactors
-    //Only open contactors if we are configured to allow this
-    if (user_selected_inverter_ignore_contactors) {
-      datalayer.system.status.inverter_allows_contactor_closing = true;
-    } else {
-      datalayer.system.status.inverter_allows_contactor_closing = false;
-    }
+  } else {  // false, we want to open contactors
+    datalayer.system.status.inverter_allows_contactor_closing = false;
   }
 }
 
@@ -261,10 +265,10 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
                 int code = RS485_RXFRAME[6] + RS485_RXFRAME[7] * 0x100;
                 if (code == 0x44a && info_sent) {
                   //Send cyclic data
-                  // TODO: Probably not a good idea to use the battery object here like this.
-                  if (battery) {
-                    battery->update_values();
-                  }
+                  // NOTE: do NOT call battery->update_values() here. The core loop already runs it
+                  // once per second; calling it again on every cyclic poll runs the battery's
+                  // per-second logic ~twice as fast. No other inverter does this. The inverter reads
+                  // the datalayer as refreshed by the core loop.
                   update_values();
                   if (f2_startup_count < 15) {
                     f2_startup_count++;
@@ -316,14 +320,5 @@ bool KostalInverterProtocol::setup(void) {  // Performs one time setup at startu
   setInverterAllowsContactorClosing(false);
   dbg_message("inverter_allows_contactor_closing -> false");
 
-  auto rx_pin = esp32hal->RS485_RX_PIN();
-  auto tx_pin = esp32hal->RS485_TX_PIN();
-
-  if (!esp32hal->alloc_pins(Name, rx_pin, tx_pin)) {
-    return false;
-  }
-
-  Serial2.begin(baud_rate(), SERIAL_8N1, rx_pin, tx_pin);
-
-  return true;
+  return rs485_begin(Name, Serial2, baud_rate(), SERIAL_8N1);
 }

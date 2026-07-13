@@ -9,6 +9,9 @@ extern std::string password;
 extern uint16_t wifi_channel;
 extern std::string ssidAP;
 extern std::string passwordAP;
+// Factory-default AP password. While the AP runs with this password, it is only
+// kept enabled for a limited provisioning window (see wifi.cpp).
+extern const char* DEFAULT_AP_PASSWORD;
 extern std::string custom_hostname;
 
 void init_WiFi();
@@ -29,6 +32,10 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info);
 void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info);
 #endif
 
+// Returns the default hostname ("battery-emulator-" + last two bytes of the MAC, lowercase)
+// used when no custom hostname is configured. Safe to call at any time (reads eFuse directly).
+String default_hostname();
+
 void init_WiFi_AP();
 
 // Initialise mDNS
@@ -36,20 +43,14 @@ void init_mDNS();
 
 extern bool wifi_enabled;
 extern bool wifiap_enabled;
+extern bool ap_active;
 extern bool mdns_enabled;
 extern bool espnow_enabled;
 extern bool static_IP_enabled;
-extern uint8_t static_local_IP1;
-extern uint8_t static_local_IP2;
-extern uint8_t static_local_IP3;
-extern uint8_t static_local_IP4;
-extern uint8_t static_gateway1;
-extern uint8_t static_gateway2;
-extern uint8_t static_gateway3;
-extern uint8_t static_gateway4;
-extern uint8_t static_subnet1;
-extern uint8_t static_subnet2;
-extern uint8_t static_subnet3;
-extern uint8_t static_subnet4;
+// Stored as dotted-quad strings; parsed with IPAddress::fromString() when the interface is brought up.
+extern std::string static_local_IP;
+extern std::string static_gateway;
+extern std::string static_subnet;
+extern std::string static_dns;  // Empty = use the gateway as resolver
 
 #endif

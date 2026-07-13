@@ -8,6 +8,8 @@
 #include "ACAN2517FD.h"
 #include "../../system_settings.h" //Contains task priority
 
+#include "../../devboard/utils/logging.h"
+
 //----------------------------------------------------------------------------------------------------------------------
 
 static const uint8_t TXBWS = 0 ;
@@ -49,7 +51,7 @@ static const uint8_t TXBWS = 0 ;
   static void myESP32Task (void * pData) {
     ACAN2517FD * canDriver = (ACAN2517FD *) pData ;
     while (1) {
-      xSemaphoreTake (canDriver->mISRSemaphore, portMAX_DELAY) ;
+      xSemaphoreTake (canDriver->mISRSemaphore, 500 / portTICK_PERIOD_MS) ;
       canDriver->isr_poll_core () ;
     }
   }
@@ -137,6 +139,13 @@ static const uint16_t IOCON_REGISTER_08_15 = 0xE05 ;
 static const uint16_t IOCON_REGISTER_16_23 = 0xE06 ;
 static const uint16_t IOCON_REGISTER_24_31 = 0xE07 ;
 
+//······················································································································
+//   TIMESTAMP/CONTROL REGISTERS
+//······················································································································
+
+static const uint16_t C1TBC_REGISTER = 0x10 ;
+static const uint16_t C1TSCON_REGISTER_16_23 = 0x16 ;
+
 //----------------------------------------------------------------------------------------------------------------------
 //    RECEIVE FIFO INDEX
 //----------------------------------------------------------------------------------------------------------------------
@@ -201,11 +210,15 @@ static inline void turnOnInterrupts() {
 
 ACAN2517FD::ACAN2517FD (const uint8_t inCS, // CS input of MCP2517FD
                         SPIClass & inSPI, // Hardware SPI object
-                        const uint8_t inINT) : // INT output of MCP2517FD
+                        const uint8_t inINT, // INT output of MCP2517FD
+                        const uint8_t inINT0,
+                        const uint8_t inINT1) :
 mSPISettings (),
 mSPI (inSPI),
 mCS (inCS),
 mINT (inINT),
+mINT0 (inINT0),
+mINT1 (inINT1),
 mUsesTXQ (false),
 mHardwareTxFIFOFull (false),
 mRxInterruptEnabled (true),
@@ -240,24 +253,23 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
                             void (* inInterruptServiceRoutine) (void),
                             const ACAN2517FDFilters & inFilters) {
   uint32_t errorCode = 0 ; // Means no error
-//----------------------------------- If ok, check if settings are correct
-  if (!inSettings.mArbitrationBitRateClosedToDesiredRate) {
-    errorCode |= kTooFarFromDesiredBitRate ;
-  }
-  if (inSettings.CANBitSettingConsistency () != 0) {
-    errorCode |= kInconsistentBitRateSettings ;
-  }
 //----------------------------------- Check mINT has interrupt capability
   const int8_t itPin = digitalPinToInterrupt (mINT) ;
   if ((mINT != 255) && (itPin == NOT_AN_INTERRUPT)) {
     errorCode = kINTPinIsNotAnInterrupt ;
   }
+  const int8_t itPin0 = digitalPinToInterrupt (mINT0) ;
+  const int8_t itPin1 = digitalPinToInterrupt (mINT1) ;
+  if((mINT0 != 255 && itPin0 == NOT_AN_INTERRUPT) || (mINT1 != 255 && itPin1 == NOT_AN_INTERRUPT)) {
+    errorCode = kINTPinIsNotAnInterrupt ;
+  }
+
 //----------------------------------- Check interrupt service routine is not null
-  if ((mINT != 255) && (inInterruptServiceRoutine == NULL)) {
+  if ((mINT != 255 || mINT0 != 255 || mINT1 != 255) && (inInterruptServiceRoutine == NULL)) {
     errorCode |= kISRIsNull ;
   }
 //----------------------------------- Check consistency between ISR and INT pin
-  if ((mINT == 255) && (inInterruptServiceRoutine != NULL)) {
+  if ((mINT == 255) && (mINT0 == 255) && (mINT1 == 255) && (inInterruptServiceRoutine != NULL)) {
     errorCode |= kISRNotNullAndNoIntPin ;
   }
 //----------------------------------- Check TXQ size is <= 32
@@ -295,14 +307,16 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
   if (inFilters.filterStatus () != ACAN2517FDFilters::kFiltersOk) {
     errorCode |= kFilterDefinitionError ;
   }
-//----------------------------------- Check TDCO value
-  if ((inSettings.mTDCO > 63) || (inSettings.mTDCO < -64)) {
-    errorCode |= kInvalidTDCO ;
-  }
 //----------------------------------- INT, CS pins, reset MCP2517FD
   if (errorCode == 0) {
     if (mINT != 255) { // 255 means interrupt is not used (thanks to Tyler Lewis)
       pinMode (mINT, INPUT_PULLUP) ;
+    }
+    if (mINT0 != 255) {
+      pinMode (mINT0, INPUT_PULLUP) ;
+    }
+    if (mINT1 != 255) {
+      pinMode (mINT1, INPUT_PULLUP) ;
     }
     initCS () ;
   //----------------------------------- Set SPI clock to 800 kHz
@@ -332,6 +346,25 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
       errorCode = kReadBackErrorWith1MHzSPIClock ;
     }
   }
+
+  const auto oscillator = inSettings.oscillator() == ACAN2517FDSettings::OSC_AUTODETECT
+    ?  autodetectCrystalFrequency ()
+    : inSettings.oscillator() ;
+  // Create a new settings object with the new frequency (which recalculates the timings)
+  const auto clockSettings = ACAN2517FDSettings(oscillator, inSettings.mDesiredArbitrationBitRate, inSettings.mDataBitRateFactor);
+
+  // Check new clock settings for consistency
+  if (!clockSettings.mArbitrationBitRateClosedToDesiredRate) {
+    errorCode |= kTooFarFromDesiredBitRate ;
+  }
+  if (clockSettings.CANBitSettingConsistency () != 0) {
+    errorCode |= kInconsistentBitRateSettings ;
+  }
+  //----------------------------------- Check TDCO value
+  if ((clockSettings.mTDCO > 63) || (clockSettings.mTDCO < -64)) {
+    errorCode |= kInvalidTDCO ;
+  }
+
 //----------------------------------- Now, set internal clock with OSC register
 //     Bit 0: (rw) 1 --> 10xPLL
 //     Bit 4: (rw) 0 --> SCLK is divided by 1, 1 --> SCLK is divided by 2
@@ -339,7 +372,7 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
   if (errorCode == 0) {
     uint8_t pll = 0 ; // No PLL
     uint8_t osc = 0 ; // Divide by 1
-    switch (inSettings.oscillator ()) {
+    switch (clockSettings.oscillator ()) {
     case ACAN2517FDSettings::OSC_4MHz:
     case ACAN2517FDSettings::OSC_20MHz:
     case ACAN2517FDSettings::OSC_40MHz:
@@ -356,6 +389,8 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     case ACAN2517FDSettings::OSC_4MHz10xPLL :
       pll = 1 ; // Enable 10x PLL
       break ;
+    default:
+      errorCode = kInconsistentBitRateSettings ;
     }
     osc |= pll ;
     if (inSettings.mCLKOPin != ACAN2517FDSettings::SOF) {
@@ -376,7 +411,7 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     }
   }
 //----------------------------------- Set full speed clock
-  mSPISettings = SPISettings ((inSettings.sysClock () * 2) / 5, MSBFIRST, SPI_MODE0) ;
+  mSPISettings = SPISettings ((clockSettings.sysClock () * 2) / 5, MSBFIRST, SPI_MODE0) ;
 //----------------------------------- Checking SPI connection is on (with a full speed clock)
 //    We write and read back 2517 RAM at address 0x400
   for (uint32_t i=1 ; (i != 0) && (errorCode == 0) ; i <<= 1) {
@@ -406,6 +441,12 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     if (inSettings.mINTIsOpenDrain) {
       data8 |= 1 << 6 ; // INTOD
     }
+    if (mINT0 != 255) {
+      data8 &= ~(1 << 0) ; // PM0
+    }
+    if (mINT1 != 255) {
+      data8 &= ~(1 << 1) ; // PM1
+    }
     writeRegister8 (IOCON_REGISTER_24_31, data8) ; // DS20005688B, page 24
   //----------------------------------- Configure ISO CRC Enable bit
     data8 = 1 << 6 ; // PXEDIS <-- 1
@@ -415,9 +456,9 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     writeRegister8 (CON_REGISTER, data8) ; // DS20005688B, page 24
   //----------------------------------- Configure DTC (DS20005688B, page 29)
     uint32_t data32 = 1UL << 25 ; // Enable Edge Filtering during Bus Integration state bit (added in 1.1.4)
-    if (inSettings.mTDCO != 0) {
+    if (clockSettings.mTDCO != 0) {
       data32 |= 1UL << 17 ; // Auto TDC
-      const uint32_t TCDO = uint32_t (inSettings.mTDCO) & 0x7F ;
+      const uint32_t TCDO = uint32_t (clockSettings.mTDCO) & 0x7F ;
       data32 |= TCDO << 8 ;
     }
     writeRegister32 (TDC_REGISTER, data32) ;
@@ -487,13 +528,13 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
   //  bits 14-8: TSEG2 - 1
   //  bit 7: unused
   //  bits 6-0: SJW - 1
-    uint32_t data = inSettings.mBitRatePrescaler - 1 ;
+    uint32_t data = clockSettings.mBitRatePrescaler - 1 ;
     data <<= 8 ;
-    data |= inSettings.mArbitrationPhaseSegment1 - 1 ;
+    data |= clockSettings.mArbitrationPhaseSegment1 - 1 ;
     data <<= 8 ;
-    data |= inSettings.mArbitrationPhaseSegment2 - 1 ;
+    data |= clockSettings.mArbitrationPhaseSegment2 - 1 ;
     data <<= 8 ;
-    data |= inSettings.mArbitrationSJW - 1 ;
+    data |= clockSettings.mArbitrationSJW - 1 ;
     writeRegister32 (NBTCFG_REGISTER, data);
   //----------------------------------- Program data bit rate (DBTCFG register)
   //  bits 31-24: BRP - 1
@@ -503,15 +544,15 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
   //  bits 11-8: TSEG2 - 1
   //  bits 7-4: unused
   //  bits 3-0: SJW - 1
-    mHasDataBitRate = inSettings.mDataBitRateFactor != ::DataBitRateFactor::x1 ;
+    mHasDataBitRate = clockSettings.mDataBitRateFactor != ::DataBitRateFactor::x1 ;
     if (mHasDataBitRate) {
-      data = inSettings.mBitRatePrescaler - 1 ;
+      data = clockSettings.mBitRatePrescaler - 1 ;
       data <<= 8 ;
-      data |= inSettings.mDataPhaseSegment1 - 1 ;
+      data |= clockSettings.mDataPhaseSegment1 - 1 ;
       data <<= 8 ;
-      data |= inSettings.mDataPhaseSegment2 - 1 ;
+      data |= clockSettings.mDataPhaseSegment2 - 1 ;
       data <<= 8 ;
-      data |= inSettings.mDataSJW - 1 ;
+      data |= clockSettings.mDataSJW - 1 ;
       writeRegister32 (DBTCFG_REGISTER, data) ;
     }
   //----------------------------------- Request mode (CON_REGISTER + 3, DS20005688B, page 24)
@@ -540,6 +581,15 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
         attachInterrupt (itPin, inInterruptServiceRoutine, LOW) ; // Thank to Flole998
         mSPI.usingInterrupt (itPin) ; // usingInterrupt is not implemented in Arduino ESP32
       #endif
+    } else if( mINT0 != 255 && mINT1 != 255 ) {
+      const int8_t itPin0 = digitalPinToInterrupt (mINT0) ;
+      const int8_t itPin1 = digitalPinToInterrupt (mINT1) ;
+      #ifdef ARDUINO_ARCH_ESP32
+        attachInterrupt (itPin0, inInterruptServiceRoutine, FALLING) ;
+        attachInterrupt (itPin1, inInterruptServiceRoutine, FALLING) ;
+      #else
+        #error Unsupported
+      #endif
     }
   // If you begin() multiple times without constructor,
   // mHardwareTxFIFOFull = true will block the transmitter.
@@ -561,6 +611,11 @@ bool ACAN2517FD::end (void) {
     if (mINT != 255) { // 255 means interrupt is not used
       const int8_t itPin = digitalPinToInterrupt (mINT) ;
       detachInterrupt (itPin) ; // Available for ESP32 and Arduino
+    } else if( mINT0 != 255 && mINT1 != 255 ) {
+      const int8_t itPin0 = digitalPinToInterrupt (mINT0) ;
+      const int8_t itPin1 = digitalPinToInterrupt (mINT1) ;
+      detachInterrupt (itPin0) ;
+      detachInterrupt (itPin1) ;
     }
   //--- Request configuration mode
     bool wait = true ;
@@ -802,7 +857,7 @@ bool ACAN2517FD::receive (CANFDMessage & outMessage) {
       turnOffInterrupts () ;
       const bool hasReceivedMessage = mDriverReceiveBuffer.remove (outMessage) ;
     //--- If receive interrupt is disabled, enable it (added in release 2.17)
-      if (mINT == 255) { // No interrupt pin
+      if (mINT == 255 && mINT0 == 255 && mINT1 == 255) { // No interrupt is used
         mRxInterruptEnabled = true ;
         isr_poll_core () ; // Perform polling
       }else if (!mRxInterruptEnabled) {
@@ -919,6 +974,11 @@ void ACAN2517FD::isr_poll_core (void) {
           writeRegister8Assume_SPI_transaction (INT_REGISTER + 1, ~ (1 << 4)) ;
           handled = true ;
         }
+        if ((it & (1 << 13)) != 0) { // CERRIF interrupt
+          writeRegister8Assume_SPI_transaction (INT_REGISTER + 1, ~ (1 << 5)) ;
+          canErrors = true ;
+          handled = true ;
+        }
         if ((it & (1 << 11)) != 0) { // RXOVIF interrupt
           handled = true ;
           if (mHardwareReceiveBufferOverflowCount < 255) {
@@ -999,7 +1059,7 @@ void ACAN2517FD::receiveInterrupt (void) {
 //--- If mDriverReceiveBuffer is full, disable receive interrupt (added in release 2.17)
   if (mDriverReceiveBuffer.isFull ()) {
     mRxInterruptEnabled = false ;
-    if (mINT != 255) {
+    if (mINT != 255 || mINT0 != 255 || mINT1 != 255) {
       uint8_t data8 = readRegister8Assume_SPI_transaction (INT_REGISTER + 2) ;
       data8 &= ~ (1 << 1) ; // Receive FIFO Interrupt disable
       writeRegister8Assume_SPI_transaction (INT_REGISTER + 2, data8) ;
@@ -1290,3 +1350,30 @@ void ACAN2517FD::configureGPIO0AsXSTBY (void) {
 }
 
 //----------------------------------------------------------------------------------------------------------------------
+
+
+ACAN2517FDSettings::Oscillator ACAN2517FD::autodetectCrystalFrequency (void) {
+  // Enable TBC (free running counter)
+  writeRegister8 (C1TSCON_REGISTER_16_23, 0x01); 
+
+  // First sample
+  const uint32_t t1 = esp_timer_get_time() & 0xFFFFFFFF;
+  const uint32_t c1 = readRegister32(C1TBC_REGISTER);
+
+  // Wait 10ms (long enough for RTOS noise to not affect the measurement)
+  vTaskDelay(10 / portTICK_PERIOD_MS);
+
+  // Second sample
+  const uint32_t t2 = esp_timer_get_time() & 0xFFFFFFFF;
+  const uint32_t c2 = readRegister32(C1TBC_REGISTER);
+
+  // Calculate frequency in 0.1MHz units
+  const uint32_t freq_times_10 = ((c2 - c1) * 10) / (t2 - t1);
+
+  logging.printf("MCP2518FD autodetected crystal: %ddMHz\n", freq_times_10);
+
+  // Disable TBC again
+  writeRegister8 (C1TSCON_REGISTER_16_23, 0x00);
+
+  return freq_times_10 > 300 ? ACAN2517FDSettings::Oscillator::OSC_40MHz : ACAN2517FDSettings::Oscillator::OSC_20MHz;
+}

@@ -7,13 +7,6 @@ class BEComHal : public Esp32Hal {
  public:
   const char* name() { return "BECom"; }
 
-  virtual void set_default_configuration_values() {
-    BatteryEmulatorSettingsStore settings;
-    if (!settings.settingExists("CANFREQ")) {
-      settings.saveUInt("CANFREQ", 40);
-    }
-  }
-
   virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_8; }
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_18; }
 
@@ -28,11 +21,16 @@ class BEComHal : public Esp32Hal {
   virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_13; }
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_14; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_10; }
+  virtual uint32_t MCP2517_FREQ() { return 40000000; }
 
   // 2nd CANFD Interface: MCP2518
   // SPI Bus is shared with the 1st interface, only INT and CS pins are needed
   virtual gpio_num_t MCP2517_CS2() { return GPIO_NUM_21; }
   virtual gpio_num_t MCP2517_INT2() { return GPIO_NUM_9; }
+  virtual uint32_t MCP2517_FREQ2() { return 40000000; }
+
+  // Value for first MCP2517 CLKODIV register (divide by 1)
+  virtual int MCP2517_CLKODIV() { return 0b00; }
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_47; }
@@ -41,6 +39,10 @@ class BEComHal : public Esp32Hal {
   // BMS Power Pin is inverted, High Value shuts down the Battery
   // TODO: Adapt the rest of the code to invert the power control
   virtual gpio_num_t BMS_POWER() { return GPIO_NUM_1; }
+
+  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER is GPIO1
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_1}; }
+
   // SECOND_BATTERY_CONTACTORS_PIN mapped to the Battery 2 Negative Contactor Pin
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_37; }
 
@@ -65,8 +67,12 @@ class BEComHal : public Esp32Hal {
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_2; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_41; }
 
+  // Momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP.
+  virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_0; }
+
   std::vector<comm_interface> available_interfaces() {
-    return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanFdNative};
+    return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanFdAddonMcp2518,
+            comm_interface::CanFdAddonMcp2518_2};
   }
 
   virtual const char* name_for_comm_interface(comm_interface comm) {
@@ -74,19 +80,22 @@ class BEComHal : public Esp32Hal {
       case comm_interface::CanNative:
         return "Inverter CAN (Native)";
       case comm_interface::CanFdNative:
-        return "Battery CANFD (Native)";
+        return "";
       case comm_interface::CanAddonMcp2515:
         return "";
       case comm_interface::CanFdAddonMcp2518:
-        return "CAN FD (MCP2518 add-on)";
+        return "CAN FD Battery 1 (MCP2518)";
+      case comm_interface::CanFdAddonMcp2518_2:
+        return "CAN FD Battery 2 (MCP2518)";
       case comm_interface::Modbus:
         return "Modbus";
       case comm_interface::RS485:
         return "RS485";
       case comm_interface::Highest:
         return "";
+      default:
+        return Esp32Hal::name_for_comm_interface(comm);
     }
-    return Esp32Hal::name_for_comm_interface(comm);
   }
 };
 

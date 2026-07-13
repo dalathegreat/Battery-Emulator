@@ -2,6 +2,9 @@
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
+#ifndef UNIT_TEST
+#include "driver/gpio.h"  // gpio_hold_en / gpio_hold_dis / gpio_deep_sleep_hold_en
+#endif
 
 // TODO: Ensure valid values at run-time
 // User can update all these values via Settings page
@@ -62,6 +65,10 @@ void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
   }
 }
 
+bool bms_power_is_active() {
+  return periodic_bms_reset || remote_bms_reset || esp32hal->always_enable_bms_power();
+}
+
 // Initialization functions
 
 const char* contactors = "Contactors";
@@ -118,7 +125,7 @@ bool init_contactors() {
   }
 
   // Init BMS contactor
-  if (periodic_bms_reset || remote_bms_reset || esp32hal->always_enable_bms_power()) {
+  if (bms_power_is_active()) {
     auto pin = esp32hal->BMS_POWER();
     if (!esp32hal->alloc_pins("BMS power", pin)) {
       DEBUG_PRINTF("BMS power setup failed\n");
@@ -163,7 +170,7 @@ void handle_contactors() {
 
   if (contactor_control_enabled) {
     // First check if we have any active errors, incase we do, turn off the battery
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       timeSpentInFaultedMode++;
     } else {
       timeSpentInFaultedMode = 0;
@@ -207,8 +214,8 @@ void handle_contactors() {
 
     currentTime = millis();
 
-    if (currentTime < INTERVAL_10_S) {
-      // Skip running the state machine before system has started up.
+    if ((currentTime < INTERVAL_10_S) || !battery_detected) {
+      // Skip running the state machine before system has started up. Conditions are 10sec post boot, and battery comms established
       // Gives the system some time to detect any faults from battery before blindly just engaging the contactors
       return;
     }
@@ -272,7 +279,7 @@ void handle_contactors_battery2() {
 }
 
 void handle_contactors_battery3() {
-  auto third_contactors = esp32hal->SECOND_BATTERY_CONTACTORS_PIN();
+  auto third_contactors = esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN();
 
   if ((contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing) {
     set(third_contactors, ON);
@@ -299,6 +306,11 @@ void bms_power_on() {
 }
 
 void handle_BMSpower() {
+  //Skip running the BMS reset state machine if equipment stop is active, as we don't want to powercycle the BMS during that time
+  if (datalayer.system.info.equipment_stop_active) {
+    return;
+  }
+
   if (periodic_bms_reset || remote_bms_reset) {
     currentTime = millis();
 
@@ -314,12 +326,13 @@ void handle_BMSpower() {
 
       int16_t battery_current_dA = datalayer.battery.status.current_dA;
       int16_t battery2_current_dA = datalayer.battery2.status.current_dA;  // Should be 0 if no battery2
+      int16_t battery3_current_dA = datalayer.battery3.status.current_dA;  // Should be 0 if no battery3
 
       if (
           // No current, safe to cut power
-          (battery_current_dA == 0 && battery2_current_dA == 0)
+          (battery_current_dA == 0 && battery2_current_dA == 0 && battery3_current_dA == 0)
           // or reasonably low current and 5 seconds has passed
-          || (abs(battery_current_dA) < 10 && abs(battery2_current_dA) < 10 &&
+          || (abs(battery_current_dA) < 10 && abs(battery2_current_dA) < 10 && abs(battery3_current_dA) < 10 &&
               currentTime - lastPowerRemovalTime >= 5000)) {
 
         bms_power_off();
@@ -345,7 +358,7 @@ void handle_BMSpower() {
       // Wait for BMS to start up before unpausing
       if (currentTime - bmsPowerOnTime >= bmsWarmupDuration) {
         // Unpause the battery
-        setBatteryPause(false, false, false, false);
+        setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
 
         // Reset is complete
 
@@ -364,7 +377,7 @@ void start_bms_reset() {
       lastPowerRemovalTime = millis();
 
       // Issue a pause, which should stop charge/discharge whilst the reset is ongoing
-      setBatteryPause(true, false, false, false);
+      setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
 
       if (contactor_control_enabled) {
         // We power the contactors directly, so we can avoid closing/opening them
@@ -384,4 +397,49 @@ void start_bms_reset() {
       }
     }
   }
+}
+
+// Decide whether a specific candidate pin should be latched. Only latch pins the firmware
+// is actively driving to a defined level — otherwise there's nothing meaningful to preserve,
+// and latching a floating/undriven pin could freeze it in an unwanted state.
+static bool should_hold_pin(gpio_num_t pin) {
+  if (pin == GPIO_NUM_NC) {
+    return false;
+  }
+  if (pin == esp32hal->BMS_POWER()) {
+    return bms_power_is_active();
+  }
+  return false;  // unknown pins are not held until explicitly supported
+}
+
+void hold_pins_across_reset() {
+  const auto pins = esp32hal->reset_hold_pins();
+  if (pins.empty()) {
+    return;
+  }
+#ifndef UNIT_TEST
+  bool any_held = false;
+  for (auto pin : pins) {
+    if (should_hold_pin(pin)) {
+      gpio_hold_en(pin);  // freeze the pad at its current (driven) level
+      any_held = true;
+    }
+  }
+  if (any_held) {
+    gpio_deep_sleep_hold_en();  // keep the hold(s) engaged through the reset
+  }
+#endif
+}
+
+void release_pins_across_reset() {
+#ifndef UNIT_TEST
+  // Release every candidate pin unconditionally. gpio_hold_dis() is a no-op on a pin that
+  // isn't held, so this also clears a stale hold left over from a previous session in which
+  // the feature was enabled but is now disabled.
+  for (auto pin : esp32hal->reset_hold_pins()) {
+    if (pin != GPIO_NUM_NC) {
+      gpio_hold_dis(pin);
+    }
+  }
+#endif
 }

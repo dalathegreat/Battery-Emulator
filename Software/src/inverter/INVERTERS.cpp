@@ -15,13 +15,19 @@ uint16_t user_selected_inverter_voltage_level = 0;
 uint16_t user_selected_inverter_ah_capacity = 0;
 uint16_t user_selected_inverter_battery_type = 0;
 uint16_t user_selected_inverter_sungrow_type = 0;
+uint16_t user_selected_inverter_foxess_type = 0;
+uint16_t user_selected_inverter_foxess_subtype = 0;
+uint16_t user_selected_inverter_foxess_modules = 0;
 uint16_t user_selected_inverter_pylon_type = 0;
-bool user_selected_inverter_ignore_contactors = false;
+inverter_contactor_mode_enum user_selected_inverter_contactor_mode = inverter_contactor_mode_enum::NoWorkaround;
+bool user_selected_inverter_long_CAN_timeout = false;
 bool user_selected_pylon_30koffset = false;
 bool user_selected_pylon_invert_byteorder = false;
 bool user_selected_inverter_deye_workaround = false;
 bool user_selected_primo_gen24 =
     false;  //Used by BYD-Modbus (Fronius Primo Gen24) inverters to determine if we should cap voltage to 450V or not
+
+bool inverter_low_pass_filter = false;  //Should the charge/discharge limits be filtered with a low pass filter?
 
 std::vector<InverterProtocolType> supported_inverter_protocols() {
   std::vector<InverterProtocolType> types;
@@ -85,6 +91,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
 
     case InverterProtocolType::SmaBydHvs:
       return SmaBydHvsInverter::Name;
+
+    case InverterProtocolType::SmaSBSByd:
+      return SmaSBSBydHvsInverter::Name;
 
     case InverterProtocolType::Sofar:
       return SofarInverter::Name;
@@ -170,6 +179,10 @@ bool setup_inverter() {
 
     case InverterProtocolType::SmaBydH:
       inverter = new SmaBydHInverter();
+      break;
+
+    case InverterProtocolType::SmaSBSByd:
+      inverter = new SmaSBSBydHvsInverter();
       break;
 
     case InverterProtocolType::SmaLv:

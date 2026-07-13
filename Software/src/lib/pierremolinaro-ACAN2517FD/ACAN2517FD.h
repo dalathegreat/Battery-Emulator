@@ -37,7 +37,9 @@ class ACAN2517FD {
 
   public: ACAN2517FD (const uint8_t inCS, // CS input of MCP2517FD
                       SPIClass & inSPI, // Hardware SPI object
-                      const uint8_t inINT) ; // INT output of MCP2517FD
+                      const uint8_t inINT,
+                      const uint8_t inINT0 = 255,
+                      const uint8_t inINT1 = 255);
 
 //······················································································································
 //   begin method (returns 0 if no error)
@@ -144,6 +146,8 @@ class ACAN2517FD {
   private: SPIClass & mSPI ;
   private: const uint8_t mCS ;
   private: const uint8_t mINT ;
+  private: const uint8_t mINT0 ;
+  private: const uint8_t mINT1 ;
   private: bool mUsesTXQ ;
   private: bool mHardwareTxFIFOFull ;
   private: bool mRxInterruptEnabled ; // Added in 2.1.7
@@ -153,6 +157,9 @@ class ACAN2517FD {
   private: uint8_t mReceiveFIFOPayload ; // in byte count
   private: uint8_t mTXBWS_RequestedMode ;
   private: uint8_t mHardwareReceiveBufferOverflowCount ;
+  private: bool canErrors = false;
+
+  public: inline bool hasCanErrors() { auto ret = canErrors; canErrors = false; return ret; }
 
 //······················································································································
 //    Receive buffer
@@ -190,6 +197,7 @@ class ACAN2517FD {
   private: uint16_t readRegister16Assume_SPI_transaction (const uint16_t inRegisterAddress) ;
 
   private: void reset2517FD (void) ;
+  private: ACAN2517FDSettings::Oscillator autodetectCrystalFrequency (void) ;
 
   private: void writeRegister8 (const uint16_t inRegisterAddress, const uint8_t inValue) ;
   private: void writeRegister32 (const uint16_t inAddress, const uint32_t inValue) ;

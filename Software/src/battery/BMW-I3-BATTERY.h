@@ -1,6 +1,7 @@
 #ifndef BMW_I3_BATTERY_H
 #define BMW_I3_BATTERY_H
 
+#include <Arduino.h>
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "BMW-I3-HTML.h"
@@ -85,6 +86,19 @@ class BmwI3Battery : public CanBattery {
   uint8_t ST_cold_shutoff_valve() { return battery_status_cold_shutoff_valve; }
   // Status balancing
   uint8_t ST_balancing_status() { return UserRequestBalancing; }
+  // Charge-abort request from the battery via 0x431 RQ_ABRT_CHGNG
+  const char* get_abort_charging_string() {
+    switch (battery_request_abort_charging) {
+      case 0:
+        return "None";
+      case 1:
+        return "Abort requested (charge finished)";
+      case 2:
+        return "Reserved";
+      default:
+        return "Signal invalid";
+    }
+  }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
@@ -143,8 +157,8 @@ class BmwI3Battery : public CanBattery {
   CmdState cmdState = SOC;
 
   /* CAN messages from PT-CAN2 not needed to operate the battery
-     0AA 105 13D 0BB 0AD 0A5 150 100 1A1 10E 153 197 429 1AA 12F 59A 2E3 2BE 211 2b3 3FD 2E8 2B7 108 29D 29C 29B 2C0 330
-     3E9 32F 19E 326 55E 515 509 50A 51A 2F5 3A4 432 3C9 
+     0AA 105 13D 0BB 0AD 0A5 150 100 1A1 10E 153 197 429 1AA 12F 59A 2E3 2BE 211 2b3 3FD 2E8 2B7 29D 29C 29B 2C0 330
+     32F 326 55E 515 509 50A 51A 2F5 3A4 432 3C9
      */
 
   CAN_frame BMW_10B = {.FD = false,
@@ -152,6 +166,12 @@ class BmwI3Battery : public CanBattery {
                        .DLC = 3,
                        .ID = 0x10B,
                        .data = {0xCD, 0x00, 0xFC}};  // Contactor closing command
+  static constexpr CAN_frame BMW_108 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x108,
+      .data = {0x00, 0x7D, 0xFF, 0xFF, 0x07, 0xF1, 0xFF, 0xFF}};  // Actual Charging Electronics Data
   CAN_frame BMW_12F = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
@@ -172,6 +192,12 @@ class BmwI3Battery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x19B,
                        .data = {0x20, 0x40, 0x40, 0x55, 0xFD, 0xFF, 0xFF, 0xFF}};
+  static constexpr CAN_frame BMW_19E = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x19E,
+      .data = {0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF}};  // Subsystems Control
   CAN_frame BMW_1D0 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
@@ -331,6 +357,20 @@ class BmwI3Battery : public CanBattery {
 
   //The above CAN messages need to be sent towards the battery to keep it alive
 
+  // Balancing shutdown sequence constants (mirrors real car discharge log).
+  // Timing is measured from the moment 0x3E9 byte2 -> 0x41 (charge-finished signal),
+  // which coincides with balancing_start_time.
+  static const uint8_t BMW_12F_BYTE3_ACTIVE = 0xDD;       // Normal operation value for byte3
+  static const int BALANCING_CONTACTOR_DELAY_MS = 54000;  // Open contactors ~54s after charge-finished
+  static const int BALANCING_CAN_STOP_DELAY_MS = 96000;   // Stop all CAN ~96s after charge-finished (battery sleeps)
+  static const int BALANCING_12F_STEPS = 9;
+  const unsigned long balancing_12F_times[BALANCING_12F_STEPS] = {0, 625, 1250, 1875, 2500, 3125, 3750, 4375, 5000};
+  const uint8_t balancing_12F_values[BALANCING_12F_STEPS] = {0xDD, 0x6D, 0x5D, 0x5C, 0x4C, 0x3C, 0x2C, 0x1C, 0x1A};
+
+  bool balancing_mode_active = false;
+  bool can_communication_stopped = false;
+  unsigned long balancing_start_time = 0;
+
   uint8_t startup_counter_contactor = 0;
   uint8_t alive_counter_20ms = 0;
   uint8_t alive_counter_100ms = 0;
@@ -362,8 +402,9 @@ class BmwI3Battery : public CanBattery {
   uint32_t battery_BEV_available_power_longterm_charge = 0;
   uint32_t battery_BEV_available_power_longterm_discharge = 0;
   uint16_t battery_energy_content_maximum_Wh = 0;
-  uint16_t battery_display_SOC = 0;
-  uint16_t battery_volts = 0;
+  uint16_t battery_display_SOC = 100;
+  uint16_t battery_volts = 3700;
+  uint16_t temp_voltage = 0;
   uint16_t battery_HVBatt_SOC = 0;
   uint16_t battery_DC_link_voltage = 0;
   uint16_t battery_max_charge_voltage = 0;

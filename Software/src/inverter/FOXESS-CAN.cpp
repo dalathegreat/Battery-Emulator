@@ -6,22 +6,8 @@
 
 /* Based on info from this excellent repo: https://github.com/FozzieUK/FoxESS-Canbus-Protocol */
 /* The FoxESS protocol emulates the stackable (1-8) 48V towers found in the HV2600 / ECS4100 batteries
-We emulate a full tower setup by default (8*50V=400V) to be more suitable for an EV pack. There are settings
-below that you can customize, incase you use a lower voltage battery with this protocol */
-
-#define STATUS_OPERATIONAL_PACKS \
-  0b11111111  //0x1875 b2 contains status for operational packs (responding) in binary so 01111111 is pack 8 not operational, 11101101 is pack 5 & 2 not operational
-#define NUMBER_OF_PACKS 8         //1-8
-#define BATTERY_TYPE_MASTER 0x52  //0x52 is HV2600 V2 BMS master
-#define BATTERY_TYPE_SLAVE 0x84   //0x82 is HV2600 V1, 0x83 is ECS4100 v1, 0x84 is HV2600 V2
-#define FIRMWARE_VERSION_MASTER 0x12
-#define FIRMWARE_VERSION_SLAVE 0x1F
-//for the PACK_ID (b7 =10,20,30,40,50,60,70,80) then FIRMWARE_VERSION 0x1F = 0001 1111, version is v1.15, and if FIRMWARE_VERSION was 0x20 = 0010 0000 then = v2.0
-#define MASTER 0
-#define MAX_AC_VOLTAGE 2567              //256.7VAC max
-#define TOTAL_LIFETIME_WH_ACCUMULATED 0  //We dont have this value in the emulator
-
-/* Do not change code below unless you are sure what you are doing */
+We emulate a full tower setup by default (8*50V=400V) to be more suitable for an EV pack. 
+The user can customize the number of modules from the webserver, incase they use a lower voltage battery with this protocol */
 
 void FoxessCanInverter::
     update_values() {  //This function maps all the CAN values fetched from battery. It also checks some safeties.
@@ -59,7 +45,7 @@ void FoxessCanInverter::
       (int8_t)datalayer.battery.status.reported_current_dA;  // OK, Signed (Active current in Amps x 10)
   FOXESS_1873.data.u8[3] = (datalayer.battery.status.reported_current_dA >> 8);
   FOXESS_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (0-100%)
-  FOXESS_1873.data.u8[5] = 0x00;
+  FOXESS_1873.data.u8[5] = 0x00;  //SOC, but not used since SOC cannot go higher than 100
   FOXESS_1873.data.u8[6] = (uint8_t)(datalayer.battery.status.reported_remaining_capacity_Wh / 10);
   FOXESS_1873.data.u8[7] = ((datalayer.battery.status.reported_remaining_capacity_Wh / 10) >> 8);
 
@@ -77,18 +63,18 @@ void FoxessCanInverter::
   FOXESS_1875.data.u8[0] = (uint8_t)temperature_average;
   FOXESS_1875.data.u8[1] = (temperature_average >> 8);
   FOXESS_1875.data.u8[2] = (uint8_t)STATUS_OPERATIONAL_PACKS;
-  FOXESS_1875.data.u8[3] = (uint8_t)NUMBER_OF_PACKS;
+  FOXESS_1875.data.u8[3] = (uint8_t)configured_number_of_modules;
   FOXESS_1875.data.u8[4] = (uint8_t)1;     // Contactor Status 0=off, 1=on.
-  FOXESS_1875.data.u8[5] = (uint8_t)0;     //Unused
-  FOXESS_1875.data.u8[6] = (uint8_t)0x8E;  //Cycle count
-  FOXESS_1875.data.u8[7] = (uint8_t)0;     //Cycle count
+  FOXESS_1875.data.u8[5] = (uint8_t)0;     //0 Confirmed Unused in Battery Details page
+  FOXESS_1875.data.u8[6] = (uint8_t)0x8E;  //Cycle count LSB (Hardcoded to 142 cycles)
+  FOXESS_1875.data.u8[7] = (uint8_t)0;     //Cycle count MSB
 
   //BMS_PackTemps
   // 0x1876 b0 bit 0 appears to be 1 when at maxsoc and BMS says charge is not allowed -
   // when at 0 indicates charge is possible - additional note there is something more to it than this,
   // it's not as straight forward - needs more testing to find what sets/unsets bit0 of byte0
   if ((datalayer.battery.status.max_charge_current_dA == 0) || (datalayer.battery.status.reported_soc == 10000) ||
-      (datalayer.battery.status.bms_status == FAULT)) {
+      (datalayer.system.status.system_status == FAULT)) {
     FOXESS_1876.data.u8[0] = 0x01;
   } else {  //continue using battery
     FOXESS_1876.data.u8[0] = 0x00;
@@ -104,7 +90,7 @@ void FoxessCanInverter::
 
   //BMS_ErrorsBrand
   //0x1877 b0 appears to be an error code, 0x02 when pack is in error.
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     FOXESS_1877.data.u8[0] = (uint8_t)0x02;
   } else {
     FOXESS_1877.data.u8[0] = (uint8_t)0;
@@ -113,21 +99,21 @@ void FoxessCanInverter::
   FOXESS_1877.data.u8[2] = (uint8_t)0;  //Unused
   FOXESS_1877.data.u8[3] = (uint8_t)0;  //Unused
   FOXESS_1877.data.u8[5] = (uint8_t)0;  //Unused
-  if (current_pack_info == MASTER) {
-    FOXESS_1877.data.u8[4] = (uint8_t)BATTERY_TYPE_MASTER;
-    FOXESS_1877.data.u8[6] = (uint8_t)FIRMWARE_VERSION_MASTER;
+  if (current_pack_info == MAIN) {
+    FOXESS_1877.data.u8[4] = (uint8_t)configured_battery_type;
+    FOXESS_1877.data.u8[6] = (uint8_t)FIRMWARE_VERSION_MAIN_BMS;
     FOXESS_1877.data.u8[7] = (uint8_t)0x01;
   } else {  // 1-8
-    FOXESS_1877.data.u8[4] = (uint8_t)BATTERY_TYPE_SLAVE;
-    FOXESS_1877.data.u8[6] = (uint8_t)FIRMWARE_VERSION_SLAVE;
+    FOXESS_1877.data.u8[4] = (uint8_t)configured_battery_subtype;
+    FOXESS_1877.data.u8[6] = (uint8_t)FIRMWARE_VERSION_SUBSTACKS;
     FOXESS_1877.data.u8[7] = (uint8_t)(current_pack_info << 4);
   }
 
   //BMS_PackStats
   FOXESS_1878.data.u8[0] = (uint8_t)(MAX_AC_VOLTAGE);
   FOXESS_1878.data.u8[1] = ((MAX_AC_VOLTAGE) >> 8);
-  FOXESS_1878.data.u8[2] = (uint8_t)0;  //Unused
-  FOXESS_1878.data.u8[3] = (uint8_t)0;  //Unused
+  FOXESS_1878.data.u8[2] = (uint8_t)0;  //Confirmed Unused in Battery Details page
+  FOXESS_1878.data.u8[3] = (uint8_t)0;  //Confirmed Unused in Battery Details page
   FOXESS_1878.data.u8[4] = (uint8_t)TOTAL_LIFETIME_WH_ACCUMULATED;
   FOXESS_1878.data.u8[5] = (TOTAL_LIFETIME_WH_ACCUMULATED >> 8);
   FOXESS_1878.data.u8[6] = (TOTAL_LIFETIME_WH_ACCUMULATED >> 16);
@@ -143,14 +129,14 @@ void FoxessCanInverter::
   }
 
   current_pack_info = (current_pack_info + 1);
-  if (current_pack_info > NUMBER_OF_PACKS) {
+  if (current_pack_info > configured_number_of_modules) {
     current_pack_info = 0;
   }
 
-  if (NUMBER_OF_PACKS > 0) {  //div0 safeguard
+  if (configured_number_of_modules > 0) {  //div0 safeguard
     //We calculate how much each emulated pack should show
-    voltage_per_pack = (datalayer.battery.status.voltage_dV / NUMBER_OF_PACKS) * 10;
-    current_per_pack = (datalayer.battery.status.reported_current_dA / NUMBER_OF_PACKS);
+    voltage_per_pack = (datalayer.battery.status.voltage_dV / configured_number_of_modules) * 10;
+    current_per_pack = (datalayer.battery.status.reported_current_dA / configured_number_of_modules);
     if (datalayer.battery.status.temperature_max_dC >= 0) {
       temperature_max_per_pack = (uint8_t)((datalayer.battery.status.temperature_max_dC / 10) + 40);
     } else {  // negative values, cap to 0*C for now. Most LFPs are not allowed to go below 0*C.
@@ -352,7 +338,7 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
           transmit_can_frame(&FOXESS_1883);
           break;
         case 1:
-          if (NUMBER_OF_PACKS > 0) {
+          if (configured_number_of_modules > 0) {
             FOXESS_1881.data.u8[0] = 1;
             FOXESS_1882.data.u8[0] = 1;
             FOXESS_1883.data.u8[0] = 1;
@@ -362,7 +348,7 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
           }
           break;
         case 2:
-          if (NUMBER_OF_PACKS > 1) {
+          if (configured_number_of_modules > 1) {
             FOXESS_1881.data.u8[0] = 2;
             FOXESS_1882.data.u8[0] = 2;
             FOXESS_1883.data.u8[0] = 2;
@@ -372,7 +358,7 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
           }
           break;
         case 3:
-          if (NUMBER_OF_PACKS > 2) {
+          if (configured_number_of_modules > 2) {
             FOXESS_1881.data.u8[0] = 3;
             FOXESS_1882.data.u8[0] = 3;
             FOXESS_1883.data.u8[0] = 3;
@@ -382,7 +368,7 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
           }
           break;
         case 4:
-          if (NUMBER_OF_PACKS > 3) {
+          if (configured_number_of_modules > 3) {
             FOXESS_1881.data.u8[0] = 4;
             FOXESS_1882.data.u8[0] = 4;
             FOXESS_1883.data.u8[0] = 4;
@@ -392,7 +378,7 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
           }
           break;
         case 5:
-          if (NUMBER_OF_PACKS > 4) {
+          if (configured_number_of_modules > 4) {
             FOXESS_1881.data.u8[0] = 5;
             FOXESS_1882.data.u8[0] = 5;
             FOXESS_1883.data.u8[0] = 5;
@@ -402,7 +388,7 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
           }
           break;
         case 6:
-          if (NUMBER_OF_PACKS > 5) {
+          if (configured_number_of_modules > 5) {
             FOXESS_1881.data.u8[0] = 6;
             FOXESS_1882.data.u8[0] = 6;
             FOXESS_1883.data.u8[0] = 6;
@@ -412,7 +398,7 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
           }
           break;
         case 7:
-          if (NUMBER_OF_PACKS > 6) {
+          if (configured_number_of_modules > 6) {
             FOXESS_1881.data.u8[0] = 7;
             FOXESS_1882.data.u8[0] = 7;
             FOXESS_1883.data.u8[0] = 7;
@@ -422,7 +408,7 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
           }
           break;
         case 8:
-          if (NUMBER_OF_PACKS > 7) {
+          if (configured_number_of_modules > 7) {
             FOXESS_1881.data.u8[0] = 8;
             FOXESS_1882.data.u8[0] = 8;
             FOXESS_1883.data.u8[0] = 8;
@@ -454,65 +440,110 @@ void FoxessCanInverter::transmit_can(unsigned long currentMillis) {
       // Send a subset of messages per iteration to avoid overloading the CAN bus / transmit buffer
       switch (can_message_cellvolt_index) {
         case 0:
-          transmit_can_frame(&FOXESS_0C1D);
-          transmit_can_frame(&FOXESS_0C21);
-          transmit_can_frame(&FOXESS_0C29);
-          transmit_can_frame(&FOXESS_0C2D);
-          transmit_can_frame(&FOXESS_0C31);
+          FOXESS_CELLVOLTAGES.ID = 0x0C1D;  //Cell 1-4
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C21;  //Cell 5-8
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C25;  //Cell 9-12
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C29;  //Cell 13-16
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C2D;  //Cell 17-20
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C31;  //Cell 21-24
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
           break;
         case 1:
-          transmit_can_frame(&FOXESS_0C35);
-          transmit_can_frame(&FOXESS_0C39);
-          transmit_can_frame(&FOXESS_0C3D);
-          transmit_can_frame(&FOXESS_0C41);
-          transmit_can_frame(&FOXESS_0C45);
+          FOXESS_CELLVOLTAGES.ID = 0x0C35;  //Cell 25-28
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C39;  //Cell 29-32
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C3D;  //Cell 33-36
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C41;  //Cell 37-40
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C45;  //Cell 41-44
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
           break;
         case 2:
-          transmit_can_frame(&FOXESS_0C49);
-          transmit_can_frame(&FOXESS_0C4D);
-          transmit_can_frame(&FOXESS_0C51);
-          transmit_can_frame(&FOXESS_0C55);
-          transmit_can_frame(&FOXESS_0C59);
+          FOXESS_CELLVOLTAGES.ID = 0x0C49;  //Cell 45-48
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C4D;  //Cell 49-52
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C51;  //Cell 53-56
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C55;  //Cell 57-60
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C59;  //Cell 61-64
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
           break;
         case 3:
-          transmit_can_frame(&FOXESS_0C5D);
-          transmit_can_frame(&FOXESS_0C61);
-          transmit_can_frame(&FOXESS_0C65);
-          transmit_can_frame(&FOXESS_0C69);
-          transmit_can_frame(&FOXESS_0C6D);
+          FOXESS_CELLVOLTAGES.ID = 0x0C5D;  //Cell 65-68
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C61;  //Cell 69-72
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C65;  //Cell 73-76
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C69;  //Cell 77-80
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C6D;  //Cell 81-84
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
           break;
         case 4:
-          transmit_can_frame(&FOXESS_0C71);
-          transmit_can_frame(&FOXESS_0C75);
-          transmit_can_frame(&FOXESS_0C79);
-          transmit_can_frame(&FOXESS_0C7D);
-          transmit_can_frame(&FOXESS_0C81);
+          FOXESS_CELLVOLTAGES.ID = 0x0C71;  //Cell 85-88
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C75;  //Cell 89-92
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C79;  //Cell 93-96
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C7D;  //Cell 97-100
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C81;  //Cell 101-104
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
           break;
         case 5:
-          transmit_can_frame(&FOXESS_0C85);
-          transmit_can_frame(&FOXESS_0C89);
-          transmit_can_frame(&FOXESS_0C8D);
-          transmit_can_frame(&FOXESS_0C91);
-          transmit_can_frame(&FOXESS_0C95);
+          FOXESS_CELLVOLTAGES.ID = 0x0C85;  //Cell 105-108
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C89;  //Cell 109-112
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C8D;  //Cell 113-116
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C91;  //Cell 117-120
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C95;  //Cell 121-124
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
           break;
         case 6:
-          transmit_can_frame(&FOXESS_0C99);
-          transmit_can_frame(&FOXESS_0C9D);
-          transmit_can_frame(&FOXESS_0CA1);
-          transmit_can_frame(&FOXESS_0CA5);
-          transmit_can_frame(&FOXESS_0CA9);
+          FOXESS_CELLVOLTAGES.ID = 0x0C99;  //Cell 125-128
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0C9D;  //Cell 129-132
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0CA1;  //Cell 133-136
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0CA5;  //Cell 137-140
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
+          FOXESS_CELLVOLTAGES.ID = 0x0CA9;  //Cell 141-144
+          transmit_can_frame(&FOXESS_CELLVOLTAGES);
           break;
-        case 7:  //Celltemperatures
-          transmit_can_frame(&FOXESS_0D21);
-          transmit_can_frame(&FOXESS_0D29);
-          transmit_can_frame(&FOXESS_0D31);
-          transmit_can_frame(&FOXESS_0D39);
+        case 7:                                 //Celltemperatures
+          FOXESS_CELLTEMPERATURES.ID = 0x0D21;  //Pack 1
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
+          FOXESS_CELLTEMPERATURES.ID = 0x0D29;  //Pack 2
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
+          FOXESS_CELLTEMPERATURES.ID = 0x0D31;  //Pack 3
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
+          FOXESS_CELLTEMPERATURES.ID = 0x0D39;  //Pack 4
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
           break;
-        case 8:  //Celltemperatures
-          transmit_can_frame(&FOXESS_0D41);
-          transmit_can_frame(&FOXESS_0D49);
-          transmit_can_frame(&FOXESS_0D51);
-          transmit_can_frame(&FOXESS_0D59);
+        case 8:                                 //Celltemperatures
+          FOXESS_CELLTEMPERATURES.ID = 0x0D41;  //Pack 5
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
+          FOXESS_CELLTEMPERATURES.ID = 0x0D49;  //Pack 6
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
+          FOXESS_CELLTEMPERATURES.ID = 0x0D51;  //Pack 7
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
+          FOXESS_CELLTEMPERATURES.ID = 0x0D59;  //Pack 8
+          transmit_can_frame(&FOXESS_CELLTEMPERATURES);
           send_cellvoltages = false;
           break;
         default:
@@ -554,4 +585,28 @@ void FoxessCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       send_serial_numbers = true;
     }
   }
+}
+
+bool FoxessCanInverter::setup(void) {  // Performs one time setup at startup
+  // Use user selected values if nonzero, otherwise use defaults like before
+  if (user_selected_inverter_foxess_modules > 0 &&
+      user_selected_inverter_foxess_modules <= 8) {  //Ensure we get between 1 and 8 modules, otherwise use default
+    configured_number_of_modules = user_selected_inverter_foxess_modules;
+  } else {
+    configured_number_of_modules = DEFAULT_NUMBER_OF_MODULES;
+  }
+
+  if (user_selected_inverter_foxess_type > 0) {
+    configured_battery_type = user_selected_inverter_foxess_type;
+  } else {
+    configured_battery_type = DEFAULT_BATTERY_TYPE;
+  }
+
+  if (user_selected_inverter_foxess_subtype > 0) {
+    configured_battery_subtype = user_selected_inverter_foxess_subtype;
+  } else {
+    configured_battery_subtype = DEFAULT_BATTERY_SUBTYPE;
+  }
+
+  return true;
 }

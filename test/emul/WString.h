@@ -20,10 +20,11 @@ class String {
   String(String&& other) = default;
 
   // Numeric constructors (Arduino-style)
-  String(uint64_t value) { data = std::to_string(value); }
   String(int value) { data = std::to_string(value); }
   String(unsigned int value) { data = std::to_string(value); }
   String(long value) { data = std::to_string(value); }
+  String(unsigned long value) { data = std::to_string(value); }
+  String(unsigned long long value) { data = std::to_string(value); }
   String(float value) { data = std::to_string(value); }
   String(double value) { data = std::to_string(value); }
 
@@ -72,6 +73,12 @@ class String {
   // Arduino-like methods (example)
   int length() const { return static_cast<int>(data.length()); }
   const char* c_str() const { return data.c_str(); }
+
+  // Arduino String::reserve returns bool; pre-allocates capacity.
+  bool reserve(unsigned int size) {
+    data.reserve(size);
+    return true;
+  }
 
   // Friend functions to allow std::string + String
   friend String operator+(const std::string& lhs, const String& rhs) { return String(lhs + rhs.data); }

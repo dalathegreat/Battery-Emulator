@@ -1,7 +1,10 @@
 name: ⚙️ Run Unit Tests
 
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 jobs:
   build:
@@ -9,7 +12,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Configure and build with CMake
       run: |

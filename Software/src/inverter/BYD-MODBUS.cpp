@@ -1,5 +1,6 @@
 #include "BYD-MODBUS.h"
 #include "../battery/BATTERIES.h"
+#include "../communication/rs485/comm_rs485.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/events.h"
@@ -35,7 +36,7 @@ void BydModbusInverter::handle_static_data() {
     }
     i += data_size / sizeof(uint16_t);
   }
-  static uint16_t init_p201[13] = {0, 0, 0, MAX_POWER, MAX_POWER, 0, 0, 53248, 10, 53248, 10, 0, 0};
+  static uint16_t init_p201[13] = {0, 0, 0, 40960, 40960, 0, 0, 53248, 10, 53248, 10, 0, 0};  //40960=MAX power
   for (int i = 0; i < sizeof(init_p201) / sizeof(uint16_t); i++) {
     mbPV[200 + i] = init_p201[i];
   }
@@ -78,12 +79,12 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   // Use the smaller value, battery reported value OR user configured value
   max_charge_W = std::min(datalayer.battery.status.max_charge_power_W, user_configured_max_charge_W);
 
-  if (datalayer.battery.status.bms_status == ACTIVE) {
+  if (datalayer.system.status.system_status == ACTIVE) {
     mbPV[308] = datalayer.battery.status.voltage_dV;
   } else {
     mbPV[308] = 0;
   }
-  mbPV[300] = datalayer.battery.status.bms_status;
+  mbPV[300] = datalayer.system.status.system_status;
   mbPV[302] = 128 + bms_char_dis_status;
   if (datalayer.battery.status.reported_soc < 100) {
     mbPV[303] = 100;  //Force SOC to never go below 1% to avoid overdischarge
@@ -136,7 +137,7 @@ void BydModbusInverter::verify_temperature() {
 
 void BydModbusInverter::verify_inverter_modbus() {
   // Every 60 seconds, the Gen24 writes to this 401 register, alternating between 00FF and FF00.
-  // We sample the register every 60 seconds. Incase the value has not changed for 3 minutes, we raise an event
+  // We sample the register every 60 seconds. Incase the value has not changed for 5 minutes, we raise an event
   unsigned long currentMillis = millis();
 
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
@@ -169,14 +170,9 @@ bool BydModbusInverter::setup(void) {  // Performs one time setup at startup ove
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
 
-  auto rx_pin = esp32hal->RS485_RX_PIN();
-  auto tx_pin = esp32hal->RS485_TX_PIN();
-
-  if (!esp32hal->alloc_pins(Name, rx_pin, tx_pin)) {
+  if (!rs485_begin(Name, Serial2, 9600, SERIAL_8N1)) {
     return false;
   }
-
-  Serial2.begin(9600, SERIAL_8N1, rx_pin, tx_pin);
 
   // Start ModbusRTU background task
   MBserver.begin(Serial2, esp32hal->MODBUS_CORE());
