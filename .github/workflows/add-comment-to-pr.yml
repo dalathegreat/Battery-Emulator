@@ -6,13 +6,15 @@ on:
     types:
       - completed
 
+permissions:
+  actions: read          # cross-run artifact download
+  pull-requests: write   # post the comment
+
 jobs:
   comment:
     runs-on: ubuntu-latest
     # Only for PR-triggered compile runs
     if: github.event.workflow_run.event == 'pull_request'
-    permissions:
-      pull-requests: write
     steps:
     - name: Download artifact
       uses: actions/download-artifact@v8
