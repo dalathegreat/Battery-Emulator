@@ -1,4 +1,5 @@
 #include "comm_nvm.h"
+#include <esp_phy_init.h>  // esp_phy_erase_cal_data_in_nvs()
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../battery/Shunt.h"
@@ -289,6 +290,18 @@ void clear_wifi_sta_settings() {
 void store_settings_equipment_stop() {
   BatteryEmulatorSettingsStore settings(false);
   settings.saveBool("EQUIPMENT_STOP", datalayer.system.info.equipment_stop_active);
+}
+
+// Erase RF PHY calibration data (the "phy" NVS namespace — untouched by
+// clearAll(), which only clears our own settings namespace). A full RF
+// calibration runs on the next boot (~100 ms extra WiFi/RF init).
+void erase_phy_cal_data() {
+  esp_err_t err = esp_phy_erase_cal_data_in_nvs();
+  if (err == ESP_OK) {
+    logging.println("RF PHY calibration data erased, full RF calibration will run on next boot.");
+  } else {
+    logging.printf("RF PHY calibration data erase failed (err %d)\n", err);
+  }
 }
 
 void store_settings() {
