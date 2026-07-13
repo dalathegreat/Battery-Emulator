@@ -9,11 +9,12 @@ on:
         description: 'Release tag (e.g. v1.0.0)'
         required: true
 
+permissions:
+  contents: write
+
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
     - name: Set release tag
       id: vars
