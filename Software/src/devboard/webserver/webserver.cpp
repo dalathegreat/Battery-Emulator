@@ -1224,10 +1224,10 @@ String processor(const String& var) {
 
       content += "<h4>" +
                  String(get_charging_status_text(datalayer.battery.status.current_dA,
-                                                  datalayer.battery.settings.inverter_limits_charge,
-                                                  datalayer.battery.settings.inverter_limits_discharge,
-                                                  datalayer.battery.settings.user_settings_limit_charge,
-                                                  datalayer.battery.settings.user_settings_limit_discharge)) +
+                                                 datalayer.battery.settings.inverter_limits_charge,
+                                                 datalayer.battery.settings.inverter_limits_discharge,
+                                                 datalayer.battery.settings.user_settings_limit_charge,
+                                                 datalayer.battery.settings.user_settings_limit_discharge)) +
                  "</h4>";
 
       content += "<h4>System status: ";
