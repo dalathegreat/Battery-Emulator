@@ -214,13 +214,13 @@ static void check_ap_button() {
     if (held >= AP_BUTTON_FACTORY_RESET_MS) {
       BatteryEmulatorSettingsStore settings;
       settings.clearAll();
-      erase_phy_cal_data();
       logging.println("Factory reset performed from the board button.");
+      erase_phy_cal_data();
       graceful_restart();
     } else if (held >= AP_BUTTON_STA_WIPE_MS) {
       clear_wifi_sta_settings();
-      erase_phy_cal_data();
       logging.println("Network settings wiped from the board button.");
+      erase_phy_cal_data();
       hold_pins_across_reset();
       graceful_restart();
     } else if (held >= AP_BUTTON_AP_MS) {
