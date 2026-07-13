@@ -27,6 +27,8 @@ void init_stored_settings();
  */
 void store_settings_equipment_stop();
 
+void erase_phy_cal_data();
+
 /**
  * @brief Store settings
  *
@@ -78,6 +80,13 @@ class BatteryEmulatorSettingsStore {
   }
 
   bool settingExists(const char* name) { return settings.isKey(name); }
+
+  void removeKey(const char* name) {
+    if (settings.isKey(name)) {
+      settings.remove(name);
+      settingsUpdated = true;
+    }
+  }
 
   bool getBool(const char* name, bool defaultValue = false) {
     return settings.isKey(name) ? settings.getBool(name, defaultValue) : defaultValue;

@@ -1,5 +1,6 @@
 #include "wifi.h"
-#include <esp_mac.h>  // esp_read_mac()
+#include <esp_mac.h>                                                     // esp_read_mac()
+#include "../../communication/contactorcontrol/comm_contactorcontrol.h"  // hold_pins_across_reset()
 #include "../../communication/nvm/comm_nvm.h"
 #include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
 #include "../safety/safety.h"
@@ -15,6 +16,9 @@ bool wifiap_enabled = true;
 bool mdns_enabled = true;    //If true, allows battery monitor te be found by .local address
 bool espnow_enabled = true;  //If true, allows battery emulator to send battery status by using ESPNow messages
 uint16_t wifi_channel = 0;
+#ifndef SMALL_FLASH_DEVICE
+extern const char* version_number;
+#endif
 
 std::string custom_hostname;  //If not set, defaults to "battery-emulator-" + last two MAC bytes (see init_WiFi)
 std::string ssid;
@@ -25,18 +29,10 @@ const char* DEFAULT_AP_PASSWORD = "123456789";
 
 // Set your Static IP address. Only used incase Static address option is set
 bool static_IP_enabled = false;
-uint8_t static_local_IP1 = 0;
-uint8_t static_local_IP2 = 0;
-uint8_t static_local_IP3 = 0;
-uint8_t static_local_IP4 = 0;
-uint8_t static_gateway1 = 0;
-uint8_t static_gateway2 = 0;
-uint8_t static_gateway3 = 0;
-uint8_t static_gateway4 = 0;
-uint8_t static_subnet1 = 0;
-uint8_t static_subnet2 = 0;
-uint8_t static_subnet3 = 0;
-uint8_t static_subnet4 = 0;
+std::string static_local_IP;
+std::string static_gateway;
+std::string static_subnet;
+std::string static_dns;
 
 // Configuration Parameters
 static const uint16_t WIFI_CHECK_INTERVAL = 2000;       // 1 seconds normal check interval when last connected
@@ -94,9 +90,15 @@ static void check_ap_provisioning_window() {
   if (WiFi.softAPgetStationNum() > 0) {
     return;  // a client is connected: don't cut off an active provisioning session
   }
+  // Direct log so EVERY expiry produces a log/syslog line, not just the first per
+  // boot (set_event only emits its log line on the inactive->active transition).
+  LOG_SET_NEXT_SEVERITY(6);  // info
+  logging.println("AP provisioning window expired (factory-default AP password), disabling access point.");
   WiFi.softAPdisconnect(true);  // stop the AP and drop the AP bit from the WiFi mode; STA stays up
   ap_active = false;
   ap_provisioning_expired = true;
+  // The advance warning is about a *running* AP; the timeout event below takes over from here.
+  clear_event(EVENT_WIFI_AP_PASSWORD_DEFAULT);
   set_event(EVENT_WIFI_AP_PROVISION_TIMEOUT, 0);
 }
 
@@ -110,6 +112,13 @@ String default_hostname() {
 
 void init_WiFi() {
   DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
+
+  // Keep the WiFi driver's mode/config changes in RAM instead of NVS. Credentials
+  // are stored in our own Preferences and reapplied at boot, so driver-level
+  // persistence is redundant. Without this, esp_wifi_set_config()/set_mode() (e.g.
+  // softAPdisconnect() on AP provisioning timeout) write to NVS, and the flash
+  // erase suspends the cache, stalling tasks on BOTH cores for up to ~45 ms.
+  WiFi.persistent(false);
 
   // Register event handlers BEFORE WiFi.mode() creates the arduino_events task.
   // WiFi events can fire immediately once the task exists, and vector reallocation
@@ -141,14 +150,21 @@ void init_WiFi() {
   WiFi.setAutoReconnect(true);
 
   if (static_IP_enabled) {
-    // Set static IP
-    IPAddress local_IP((uint8_t)static_local_IP1, (uint8_t)static_local_IP2, (uint8_t)static_local_IP3,
-                       (uint8_t)static_local_IP4);
-    IPAddress gateway((uint8_t)static_gateway1, (uint8_t)static_gateway2, (uint8_t)static_gateway3,
-                      (uint8_t)static_gateway4);
-    IPAddress subnet((uint8_t)static_subnet1, (uint8_t)static_subnet2, (uint8_t)static_subnet3,
-                     (uint8_t)static_subnet4);
-    WiFi.config(local_IP, gateway, subnet);
+    IPAddress local_IP, gateway, subnet, dns;
+    if (local_IP.fromString(static_local_IP.c_str()) && gateway.fromString(static_gateway.c_str()) &&
+        subnet.fromString(static_subnet.c_str())) {
+      // WiFi.config() stops the DHCP client and unconditionally overwrites the DNS server. Passing no DNS
+      // therefore leaves the resolver at 0.0.0.0 and breaks MQTT-by-hostname/release checks. Default to
+      // the gateway, which is the resolver on virtually every home network.
+      if (!dns.fromString(static_dns.c_str())) {
+        dns = gateway;
+      }
+      if (!WiFi.config(local_IP, gateway, subnet, dns)) {
+        logging.println("Static IP configuration rejected, falling back to DHCP");
+      }
+    } else {
+      logging.println("Static IP settings are invalid, falling back to DHCP");
+    }
   }
 
   // Start Wi-Fi connection
@@ -198,15 +214,21 @@ static void check_ap_button() {
     if (held >= AP_BUTTON_FACTORY_RESET_MS) {
       BatteryEmulatorSettingsStore settings;
       settings.clearAll();
+      logging.println("Factory reset performed from the board button.");
+      erase_phy_cal_data();
       graceful_restart();
     } else if (held >= AP_BUTTON_STA_WIPE_MS) {
       clear_wifi_sta_settings();
+      logging.println("Network settings wiped from the board button.");
+      erase_phy_cal_data();
+      hold_pins_across_reset();
       graceful_restart();
     } else if (held >= AP_BUTTON_AP_MS) {
       if (!ap_active) {
         ap_provisioning_expired = false;  // manual start opens a fresh provisioning window
         WiFi.mode(WIFI_AP_STA);
         init_WiFi_AP();  // sets ap_active, restarts the provisioning window timer
+        logging.println("AP started from the board button.");
       }
     }
   }
@@ -325,11 +347,26 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 
 // Event handler for Wi-Fi Got IP
 void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
+#ifndef SMALL_FLASH_DEVICE
+  syslog_start();
+#endif
+
   //clear disconnects events if we got a IP
   clear_event(EVENT_WIFI_DISCONNECT);
   logging.print("Wi-Fi Got IP. ");
   logging.print("IP address: ");
   logging.println(WiFi.localIP().toString());
+
+#ifndef SMALL_FLASH_DEVICE
+  // One-shot boot notice — fires once per boot, not on every reconnect.
+  static bool boot_logged = false;
+  if (!boot_logged) {
+    boot_logged = true;
+    LOG_SET_NEXT_SEVERITY(5);  // RFC 5424 severity 5 = Notice
+    logging.printf("Bootup complete, running version %s\n", version_number);
+  }
+#endif
+
   static bool mdns_started = false;
   if (mdns_enabled && !mdns_started) {
     init_mDNS();
@@ -357,10 +394,11 @@ void init_mDNS() {
 
   // Initialize mDNS .local resolution
   if (!MDNS.begin(mdnsHost)) {
-    logging.println("Error setting up MDNS responder!");
+    logging.println("Error setting up mDNS responder!");
   } else {
     // Advertise via bonjour the web inteface so we can auto discover these battery emulators on the local network.
     MDNS.addService("http", "tcp", 80);
+    logging.println("mDNS responder started.");
   }
 #endif
 }
@@ -377,7 +415,17 @@ void init_WiFi_AP() {
   }
 
   WiFi.softAP(ssidAP.c_str(), passwordAP.c_str());
+  bool ap_was_active = ap_active;
   ap_active = true;
+
+  if (!ap_was_active && ap_password_is_default()) {
+    // Warn in advance that the provisioning window is ticking. Direct log fires on
+    // every AP start; the event additionally shows on the web UI / MQTT (set_event
+    // emits its own log line only on the first inactive->active transition per boot).
+    LOG_SET_NEXT_SEVERITY(6);  // info
+    logging.println("AP using default password.");
+    set_event(EVENT_WIFI_AP_PASSWORD_DEFAULT, 0);
+  }
   IPAddress IP = WiFi.softAPIP();
 
   DEBUG_PRINTF("Access Point created, IP address: %s\n", IP.toString().c_str());

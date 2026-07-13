@@ -1,16 +1,47 @@
 #include "comm_nvm.h"
+#include <esp_phy_init.h>  // esp_phy_erase_cal_data_in_nvs()
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../battery/Shunt.h"
 #include "../../charger/CanCharger.h"
 #include "../../communication/can/comm_can.h"
 #include "../../devboard/mqtt/mqtt.h"
+#include "../../devboard/utils/logging.h"
 #include "../../devboard/webserver/webserver.h"
 #include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
 #include "../equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../precharge_control/precharge_control.h"
+
+// Keys holding the static IP configuration, as dotted-quad strings.
+static const char* const STATIC_IP_KEYS[] = {"LOCALIP", "GATEWAY", "SUBNET", "DNS"};
+
+// Releases <= 10.x stored the static IP configuration as twelve separate octet keys. Fold them into the
+// dotted-quad string keys once, then drop the old keys.
+// Added in 2026.07. Can be removed couple of releases from now (suggested after 2027.01)
+static void migrate_static_ip_settings(BatteryEmulatorSettingsStore& settings) {
+  static const char* const legacy_keys[] = {"LOCALIP1", "LOCALIP2", "LOCALIP3", "LOCALIP4", "GATEWAY1", "GATEWAY2",
+                                            "GATEWAY3", "GATEWAY4", "SUBNET1",  "SUBNET2",  "SUBNET3",  "SUBNET4"};
+
+  if (settings.settingExists("LOCALIP1")) {
+    for (int i = 0; i < 3; i++) {  // LOCALIP, GATEWAY, SUBNET - DNS did not exist before, leave it empty
+      String value;
+      for (int octet = 0; octet < 4; octet++) {
+        value += settings.getUInt(legacy_keys[i * 4 + octet], 0);
+        if (octet < 3) {
+          value += '.';
+        }
+      }
+      settings.saveString(STATIC_IP_KEYS[i], value.c_str());
+    }
+    DEBUG_PRINTLN("Static IPv4 settings migrated successfully");
+  }
+
+  for (auto key : legacy_keys) {
+    settings.removeKey(key);
+  }
+}
 
 // Initialization functions
 
@@ -214,19 +245,12 @@ void init_stored_settings() {
   mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();
 
+  migrate_static_ip_settings(settings);
   static_IP_enabled = settings.getBool("STATICIP", false);
-  static_local_IP1 = settings.getUInt("LOCALIP1", 192);
-  static_local_IP2 = settings.getUInt("LOCALIP2", 168);
-  static_local_IP3 = settings.getUInt("LOCALIP3", 10);
-  static_local_IP4 = settings.getUInt("LOCALIP4", 150);
-  static_gateway1 = settings.getUInt("GATEWAY1", 192);
-  static_gateway2 = settings.getUInt("GATEWAY2", 168);
-  static_gateway3 = settings.getUInt("GATEWAY3", 10);
-  static_gateway4 = settings.getUInt("GATEWAY4", 1);
-  static_subnet1 = settings.getUInt("SUBNET1", 255);
-  static_subnet2 = settings.getUInt("SUBNET2", 255);
-  static_subnet3 = settings.getUInt("SUBNET3", 255);
-  static_subnet4 = settings.getUInt("SUBNET4", 0);
+  static_local_IP = settings.getString("LOCALIP").c_str();
+  static_gateway = settings.getString("GATEWAY").c_str();
+  static_subnet = settings.getString("SUBNET").c_str();
+  static_dns = settings.getString("DNS").c_str();
 
   mqtt_server = settings.getString("MQTTSERVER").c_str();
   mqtt_port = settings.getUInt("MQTTPORT", 0);
@@ -257,19 +281,27 @@ void clear_wifi_sta_settings() {
   // Force the AP on so the device is reachable after the STA settings are cleared,
   // overriding a user preference that may have disabled it:
   settings.saveBool("WIFIAPENABLED", true);
-  // Static-IP octets -> 0 (STATICIP=false already disables their use):
-  const char* ip_keys[] = {
-      "LOCALIP1", "LOCALIP2", "LOCALIP3", "LOCALIP4", "GATEWAY1", "GATEWAY2",
-      "GATEWAY3", "GATEWAY4", "SUBNET1",  "SUBNET2",  "SUBNET3",  "SUBNET4",
-  };
-  for (auto key : ip_keys) {
-    settings.saveUInt(key, 0);
+  // Clear the static IP settings (STATICIP=false already disables their use):
+  for (auto key : STATIC_IP_KEYS) {
+    settings.saveString(key, "");
   }
 }
 
 void store_settings_equipment_stop() {
   BatteryEmulatorSettingsStore settings(false);
   settings.saveBool("EQUIPMENT_STOP", datalayer.system.info.equipment_stop_active);
+}
+
+// Erase RF PHY calibration data (the "phy" NVS namespace — untouched by
+// clearAll(), which only clears our own settings namespace). A full RF
+// calibration runs on the next boot (~100 ms extra WiFi/RF init).
+void erase_phy_cal_data() {
+  esp_err_t err = esp_phy_erase_cal_data_in_nvs();
+  if (err == ESP_OK) {
+    logging.println("RF PHY calibration data erased, full RF calibration will run on next boot.");
+  } else {
+    logging.printf("RF PHY calibration data erase failed (err %d)\n", err);
+  }
 }
 
 void store_settings() {
