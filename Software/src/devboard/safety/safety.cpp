@@ -20,6 +20,8 @@ static bool battery_empty_event_fired = false;
 #define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
 #define HYSTERESIS_OFFSET_DV 20
 #define CELL_HYSTERESIS_MV 20  // Re-allow charge only once max cell drops this far below limit (avoids chatter at knee)
+#define SOC_HYSTERESIS_PPTT \
+  100  // Re-allow charge only once SOC drops this far below 100.00% (avoids chatter at the SOC ceiling)
 
 //battery pause status begin
 bool emulator_pause_request_ON = false;
@@ -206,9 +208,19 @@ void update_machineryprotection() {
 
     // Battery is fully charged. Dont allow any more power into it
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
-    if (datalayer.battery.status.reported_soc == 10000 ||
-        datalayer.battery.status.real_soc == 10000)  //Either Scaled OR Real SOC% value is 100.00%
+    // Latched with hysteresis: without it, a single-LSB dip below 100.00% re-opens the charge gate
+    // for one cycle. The BMS then offers full power again, the inverter ramps, and the gate slams
+    // shut on the next tick while the inverter is still mid-ramp -> EVENT_CHARGE_LIMIT_EXCEEDED.
+    static bool soc_full_charge_blocked = false;
+    if (datalayer.battery.status.reported_soc >= 10000 ||
+        datalayer.battery.status.real_soc >= 10000)  //Either Scaled OR Real SOC% value is 100.00%
     {
+      soc_full_charge_blocked = true;  // Latch at the ceiling
+    } else if (datalayer.battery.status.reported_soc < (10000 - SOC_HYSTERESIS_PPTT) &&
+               datalayer.battery.status.real_soc < (10000 - SOC_HYSTERESIS_PPTT)) {
+      soc_full_charge_blocked = false;  // Release only once both SOCs are well below the ceiling
+    }
+    if (soc_full_charge_blocked) {
       if (!battery_full_event_fired) {
         set_event(EVENT_BATTERY_FULL, 0);
         battery_full_event_fired = true;
@@ -221,9 +233,17 @@ void update_machineryprotection() {
 
     // Battery is empty. Do not allow further discharge.
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
+    // Latched with hysteresis, mirroring the fully-charged gate above.
+    static bool soc_empty_discharge_blocked = false;
     if (datalayer.system.status.system_status == ACTIVE) {
       if (datalayer.battery.status.reported_soc == 0 ||
           datalayer.battery.status.real_soc == 0) {  //Either Scaled OR Real SOC% value is 0.00%, time to stop
+        soc_empty_discharge_blocked = true;          // Latch at the floor
+      } else if (datalayer.battery.status.reported_soc > SOC_HYSTERESIS_PPTT &&
+                 datalayer.battery.status.real_soc > SOC_HYSTERESIS_PPTT) {
+        soc_empty_discharge_blocked = false;  // Release only once both SOCs are well above the floor
+      }
+      if (soc_empty_discharge_blocked) {
         if (!battery_empty_event_fired) {
           set_event(EVENT_BATTERY_EMPTY, 0);
           battery_empty_event_fired = true;
