@@ -20,8 +20,12 @@ static bool battery_empty_event_fired = false;
 #define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
 #define HYSTERESIS_OFFSET_DV 20
 #define CELL_HYSTERESIS_MV 20  // Re-allow charge only once max cell drops this far below limit (avoids chatter at knee)
-#define SOC_HYSTERESIS_PPTT \
-  100  // Re-allow charge only once SOC drops this far below 100.00% (avoids chatter at the SOC ceiling)
+// --- Charge power taper (CC-CV style) ---
+// TARGET is the cell voltage we want to approach asymptotically, i.e. the constant-voltage setpoint.
+// It is deliberately well below info.max_cell_voltage_mV, which is an emergency-stop threshold, not a charge target.
+#define CHARGE_TAPER_TARGET_MV 4115  // CV setpoint. Tune to just below where the BMS starts cutting charge power
+#define CHARGE_TAPER_BAND_MV 150     // Start derating this far below TARGET. Wider band = gentler approach
+#define CHARGE_TAPER_MIN_W 250       // Floor while still below TARGET. Below inverter's min charge power it idles
 
 //battery pause status begin
 bool emulator_pause_request_ON = false;
@@ -162,6 +166,33 @@ void update_machineryprotection() {
     if (cell_overvoltage_charge_blocked) {
       datalayer.battery.status.max_charge_power_W = 0;
     }
+
+    // Taper charge power as the highest cell approaches the CV setpoint.
+    //
+    // Many BMSes (notably the Nissan Leaf LBC) report a near-binary charge limit: full power, or 0 W.
+    // On an imbalanced pack the weakest cell group reaches its internal ceiling under load long before
+    // the pack is actually full. The BMS then cuts the limit to 0, current stops, the cell relaxes within
+    // seconds, the BMS re-opens at full power, the inverter slams current back in, and the same cell
+    // spikes again. The result is a 0 <-> full square wave on the allowed charge power, and repeated
+    // EVENT_CHARGE_LIMIT_EXCEEDED as the inverter cannot unwind its ramp within one INTERVAL_1_S tick.
+    //
+    // Ramping our own ceiling down smoothly keeps the inverter in a CV-like trickle. The weak cell is
+    // never driven hard enough to spike, so the BMS never has cause to cut, and charging continues
+    // gently instead of in bursts. This only ever lowers the ceiling, never raises it above what the
+    // BMS allows, so it cannot override a genuine BMS-commanded stop.
+    if (datalayer.battery.status.cell_max_voltage_mV > (CHARGE_TAPER_TARGET_MV - CHARGE_TAPER_BAND_MV)) {
+      uint32_t tapered_W = 0;
+      if (datalayer.battery.status.cell_max_voltage_mV < CHARGE_TAPER_TARGET_MV) {
+        uint32_t headroom_mV = CHARGE_TAPER_TARGET_MV - datalayer.battery.status.cell_max_voltage_mV;
+        tapered_W = (datalayer.battery.status.max_charge_power_W * headroom_mV) / CHARGE_TAPER_BAND_MV;
+        if (tapered_W < CHARGE_TAPER_MIN_W) {
+          tapered_W = CHARGE_TAPER_MIN_W;  // Keep a usable trickle while still below the setpoint
+        }
+      }  // At or above TARGET, tapered_W stays 0: hold here and let the cell settle
+      if (tapered_W < datalayer.battery.status.max_charge_power_W) {
+        datalayer.battery.status.max_charge_power_W = tapered_W;  // Only ever lower, never raise
+      }
+    }
     // Cell CRITICAL overvoltage, critical latching error without automatic reset. Requires user action to inspect battery.
     if (datalayer.battery.status.cell_max_voltage_mV >=
         (datalayer.battery.info.max_cell_voltage_mV + CELL_CRITICAL_MV)) {
@@ -208,19 +239,9 @@ void update_machineryprotection() {
 
     // Battery is fully charged. Dont allow any more power into it
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
-    // Latched with hysteresis: without it, a single-LSB dip below 100.00% re-opens the charge gate
-    // for one cycle. The BMS then offers full power again, the inverter ramps, and the gate slams
-    // shut on the next tick while the inverter is still mid-ramp -> EVENT_CHARGE_LIMIT_EXCEEDED.
-    static bool soc_full_charge_blocked = false;
-    if (datalayer.battery.status.reported_soc >= 10000 ||
-        datalayer.battery.status.real_soc >= 10000)  //Either Scaled OR Real SOC% value is 100.00%
+    if (datalayer.battery.status.reported_soc == 10000 ||
+        datalayer.battery.status.real_soc == 10000)  //Either Scaled OR Real SOC% value is 100.00%
     {
-      soc_full_charge_blocked = true;  // Latch at the ceiling
-    } else if (datalayer.battery.status.reported_soc < (10000 - SOC_HYSTERESIS_PPTT) &&
-               datalayer.battery.status.real_soc < (10000 - SOC_HYSTERESIS_PPTT)) {
-      soc_full_charge_blocked = false;  // Release only once both SOCs are well below the ceiling
-    }
-    if (soc_full_charge_blocked) {
       if (!battery_full_event_fired) {
         set_event(EVENT_BATTERY_FULL, 0);
         battery_full_event_fired = true;
@@ -233,17 +254,9 @@ void update_machineryprotection() {
 
     // Battery is empty. Do not allow further discharge.
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
-    // Latched with hysteresis, mirroring the fully-charged gate above.
-    static bool soc_empty_discharge_blocked = false;
     if (datalayer.system.status.system_status == ACTIVE) {
       if (datalayer.battery.status.reported_soc == 0 ||
           datalayer.battery.status.real_soc == 0) {  //Either Scaled OR Real SOC% value is 0.00%, time to stop
-        soc_empty_discharge_blocked = true;          // Latch at the floor
-      } else if (datalayer.battery.status.reported_soc > SOC_HYSTERESIS_PPTT &&
-                 datalayer.battery.status.real_soc > SOC_HYSTERESIS_PPTT) {
-        soc_empty_discharge_blocked = false;  // Release only once both SOCs are well above the floor
-      }
-      if (soc_empty_discharge_blocked) {
         if (!battery_empty_event_fired) {
           set_event(EVENT_BATTERY_EMPTY, 0);
           battery_empty_event_fired = true;
