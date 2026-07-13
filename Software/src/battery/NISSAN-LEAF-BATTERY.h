@@ -56,12 +56,12 @@ class NissanLeafBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+
   // --- Charge power taper (CC-CV style) ---
-  // The LBC reports a near-binary charge limit. On an imbalanced pack this makes it oscillate between
-  // full power and 0 W near the top of charge. Tapering our own ceiling as the weakest cell group
+  // The LBC reports a near-binary charge limit. On SOH resetted pack this makes it oscillate between
+  // max charge power and 0 W near the top of charge. Tapering our own ceiling as the weakest cell group
   // approaches its setpoint keeps charging smooth instead of bursty. See update_values().
-  static const int CHARGE_TAPER_TARGET_MV =
-      4150;  //CV setpoint. Deliberately below MAX_CELL_VOLTAGE_MV, which is an emergency stop, not a charge target
+  static const int CHARGE_TAPER_TARGET_MV = 4115;  //CV setpoint. Below MAX_CELL_VOLTAGE_MV, which is an emergency stop
   static const int CHARGE_TAPER_BAND_MV = 150;  //Start derating this far below the setpoint. Wider = gentler approach
   static const int CHARGE_TAPER_MIN_W = 200;    //Floor while still below the setpoint, so the inverter keeps trickling
 
