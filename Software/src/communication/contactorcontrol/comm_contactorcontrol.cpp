@@ -5,6 +5,7 @@
 #ifndef UNIT_TEST
 #include "driver/gpio.h"  // gpio_hold_en / gpio_hold_dis / gpio_deep_sleep_hold_en
 #endif
+#include <Arduino.h>
 
 // TODO: Ensure valid values at run-time
 // User can update all these values via Settings page

@@ -13,6 +13,8 @@
 #include "src/battery/Shunt.h"
 #include "src/inverter/INVERTERS.h"
 
+#include <map>
+
 extern bool settingsUpdated;
 
 template <typename E>

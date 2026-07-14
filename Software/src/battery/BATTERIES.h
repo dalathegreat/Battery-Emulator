@@ -1,8 +1,8 @@
 #ifndef BATTERIES_H
 #define BATTERIES_H
-#include "Shunt.h"
 
-class Battery;
+#include "Battery.h"
+#include "Shunt.h"
 
 // Currently initialized objects for primary/secondary/tertiary battery.
 // Null value indicates that battery is not configured/initialized
@@ -11,61 +11,6 @@ extern Battery* battery2;
 extern Battery* battery3;
 
 void setup_shunt();
-
-#include "BMW-I3-BATTERY.h"
-#include "BMW-IX-BATTERY.h"
-#include "BMW-PHEV-BATTERY.h"
-#include "BMW-SBOX.h"
-#include "BOLT-AMPERA-BATTERY.h"
-#include "BYD-ATTO-3-BATTERY.h"
-#include "CELLPOWER-BMS.h"
-#include "CHADEMO-BATTERY.h"
-#include "CHADEMO-CT.h"
-#include "CHADEMO-SHUNTS.h"
-#include "CHARGEBYTE-CCS.h"
-#include "CMFA-EV-BATTERY.h"
-#include "CMP-SMART-CAR-BATTERY.h"
-#include "DALY-BMS.h"
-#include "ECMP-BATTERY.h"
-#include "ENNOID-BMS.h"
-#include "FORD-MACH-E-BATTERY.h"
-#include "FOXESS-BATTERY.h"
-#include "GEELY-GEOMETRY-C-BATTERY.h"
-#include "GEELY-SEA-BATTERY.h"
-#include "GROWATT-HV-ARK-BATTERY.h"
-#include "HYUNDAI-IONIQ-28-BATTERY.h"
-#include "IMIEV-CZERO-ION-BATTERY.h"
-#include "JAGUAR-IPACE-BATTERY.h"
-#include "KIA-64FD-BATTERY.h"
-#include "KIA-E-GMP-BATTERY.h"
-#include "KIA-HYUNDAI-64-BATTERY.h"
-#include "KIA-HYUNDAI-HYBRID-BATTERY.h"
-#include "MEB-BATTERY.h"
-#include "MG-5-BATTERY.h"
-#include "MG-HS-PHEV-BATTERY.h"
-#include "NISSAN-LEAF-BATTERY.h"
-#include "ORION-BMS.h"
-#include "PYLON-BATTERY.h"
-#include "RANGE-ROVER-PHEV-BATTERY.h"
-#include "RELION-LV-BATTERY.h"
-#include "RENAULT-KANGOO-BATTERY.h"
-#include "RENAULT-TWIZY.h"
-#include "RENAULT-ZOE-GEN1-BATTERY.h"
-#include "RENAULT-ZOE-GEN2-BATTERY.h"
-#include "RIVIAN-BATTERY.h"
-#include "RJXZS-BMS.h"
-#include "SAMSUNG-SDI-LV-BATTERY.h"
-#include "SANTA-FE-PHEV-BATTERY.h"
-#include "SIMPBMS-BATTERY.h"
-#include "SONO-BATTERY.h"
-#include "STELLANTIS-SMALL-WIDE-4x4.h"
-#include "TESLA-BATTERY.h"
-#include "TESLA-LEGACY-BATTERY.h"
-#include "TEST-FAKE-BATTERY.h"
-#include "THINK-BATTERY.h"
-#include "THUNDERSTRUCK-BMS.h"
-#include "VOLVO-SPA-BATTERY.h"
-#include "VOLVO-SPA-HYBRID-BATTERY.h"
 
 void setup_battery(void);
 Battery* create_battery(BatteryType type);
