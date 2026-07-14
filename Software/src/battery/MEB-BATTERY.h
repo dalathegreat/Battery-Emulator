@@ -58,7 +58,7 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
   static const int PID_SOC = 0x028C;
-  static const int PID_SOH = 0x50CE; // This isn't available on older firmware versions, 1141 and higher only.
+  static const int PID_SOH = 0x50CE;  // This isn't available on older firmware versions, 1141 and higher only.
   static const int PID_VOLTAGE = 0x1E3B;
   static const int PID_CURRENT = 0x1E3D;
   static const int PID_MAX_TEMP = 0x1E0E;

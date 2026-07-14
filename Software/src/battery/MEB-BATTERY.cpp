@@ -223,7 +223,7 @@ void MebBattery::
     // 0.935 and 0.9025 are the different conversions for different battery sizes to go from design capacity to
     // total_capacity_Wh calculated above.
 
-    if ( battery_soh_polled > 0) {
+    if (battery_soh_polled > 0) {
       datalayer_battery->status.soh_pptt = battery_soh_polled;
     } else {
       int Wh_max = 61832 * 0.935f;  // 108 cells
@@ -1233,7 +1233,8 @@ void MebBattery::uds_response_handler(uint8_t* data, int len, enum isotp_tatype 
           battery_soc_polled = data[3] * 4;  // 135*4 = 54.0%
           break;
         case PID_SOH:
-          if (len < 5) break;
+          if (len < 5)
+            break;
           battery_soh_polled = ((data[3] << 8) | data[4]);
           break;
         case PID_VOLTAGE:
