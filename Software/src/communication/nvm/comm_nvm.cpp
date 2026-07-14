@@ -151,6 +151,9 @@ void init_stored_settings() {
   user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", 0);
   user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
   user_set_rampdown_SOC = settings.getUInt("RAMPDOWNSOC", 9000);
+  user_set_leaf_taper_active = settings.getBool("LEAFTAPER", false);
+  user_set_leaf_taper_target_mV = settings.getUInt("LEAFTAPERMV", 4115);
+  user_set_leaf_taper_band_mV = settings.getUInt("LEAFTAPERBAND", 150);
 
   auto readIf = [&settings](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
