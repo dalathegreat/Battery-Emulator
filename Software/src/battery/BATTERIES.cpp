@@ -407,6 +407,11 @@ bool user_selected_use_estimated_SOC = false;
 uint16_t user_selected_pylon_baudrate = 500;
 /* For custom BMS which need rampdown. SOC% to start ramping down from max charge power towards 0 at 100.00%*/
 uint16_t user_set_rampdown_SOC = 9000;  //9000 = 90.00%
+
+/* Nissan Leaf charge taper settings. See NISSAN-LEAF-BATTERY.cpp update_values() */
+bool user_set_leaf_taper_active = false;
+uint16_t user_set_leaf_taper_target_mV = 4115;  //CV setpoint. Well below MAX_CELL_VOLTAGE_MV (4250), an e-stop level
+uint16_t user_set_leaf_taper_band_mV = 150;     //Start derating this far below the setpoint
 // Use 0V for user selected cell/pack voltage defaults (On boot will be replaced with saved values from NVM)
 uint16_t user_selected_max_pack_voltage_dV = 0;
 uint16_t user_selected_min_pack_voltage_dV = 0;

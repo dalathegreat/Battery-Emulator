@@ -85,6 +85,12 @@ extern uint16_t user_selected_tesla_GTW_packEnergy;
 extern uint16_t user_selected_pylon_baudrate;
 extern uint16_t user_set_rampdown_SOC;
 
+/* Nissan Leaf charge taper. The LBC reports a near-binary charge limit, which oscillates on imbalanced packs.
+   Tapering charge power as the highest cell nears a CV setpoint keeps charging smooth instead of bursty. */
+extern bool user_set_leaf_taper_active;
+extern uint16_t user_set_leaf_taper_target_mV;
+extern uint16_t user_set_leaf_taper_band_mV;
+
 /* User-selected DALY BMS settings */
 extern int user_selected_daly_power_per_percent;
 extern int user_selected_daly_power_per_dV;
