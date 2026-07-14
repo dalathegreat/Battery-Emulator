@@ -1,4 +1,5 @@
 #include "wifi.h"
+#include <Arduino.h>
 #include <esp_mac.h>                                                     // esp_read_mac()
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"  // hold_pins_across_reset()
 #include "../../communication/nvm/comm_nvm.h"
@@ -7,7 +8,6 @@
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/logging.h"
-#include <Arduino.h>
 #ifndef SMALL_FLASH_DEVICE
 #include <ESPmDNS.h>
 #endif
