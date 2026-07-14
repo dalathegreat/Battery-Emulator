@@ -409,23 +409,21 @@ TwsRoute eventsClearRoute("/api/events/clear", new TwsRequestHandlerFunc([](TwsR
 TwsRoute rebootRoute("/api/reboot", new TwsRequestHandlerFunc([](TwsRequest& request) {
     if(!request.is_post()) { request.write_or_abort(HTTP_405); request.finish(); return; }
     request.write_or_abort("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nRebooting server...\n");
-    setBatteryPause(true, true, true, false);
-    delay(1000);
-    ESP.restart();
+    graceful_restart();
     request.finish();
 }));
 
 TwsRoute pauseRoute("/api/pause", new TwsRawPostFunc([](TwsRequest& request, size_t index, uint8_t *data, size_t len, size_t total) -> int {
-    if(len==1 && data[0]=='1') setBatteryPause(true, false, datalayer.system.info.equipment_stop_active);
-    else if(len==1 && data[0]=='0') setBatteryPause(false, false, datalayer.system.info.equipment_stop_active);
+    if(len==1 && data[0]=='1') setBatteryPause(true, false, EquipmentStop::UNCHANGED);
+    else if(len==1 && data[0]=='0') setBatteryPause(false, false, EquipmentStop::UNCHANGED);
     request.write_or_abort(HTTP_204);
     request.finish();
     return len;
 }));
 
 TwsRoute estopRoute("/api/estop", new TwsRawPostFunc([](TwsRequest& request, size_t index, uint8_t *data, size_t len, size_t total) -> int {
-    if(len==1 && data[0]=='1') setBatteryPause(true, false, true);
-    else if(len==1 && data[0]=='0') setBatteryPause(false, false, false);
+    if(len==1 && data[0]=='1') setBatteryPause(true, false, EquipmentStop::STOP);
+    else if(len==1 && data[0]=='0') setBatteryPause(false, false, EquipmentStop::RESUME);
     request.write_or_abort(HTTP_204);
     request.finish();
     return len;

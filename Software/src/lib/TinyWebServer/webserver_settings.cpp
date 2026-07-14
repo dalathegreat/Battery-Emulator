@@ -69,18 +69,6 @@ const UintSetting UINT_SETTINGS[] = {
     {"WIFICHANNEL", 0, 14, nullptr},
     {"DCHGPOWER", 0, 100000, nullptr},
     {"CHGPOWER", 0, 100000, nullptr},
-    {"LOCALIP1", 0, 255, nullptr},
-    {"LOCALIP2", 0, 255, nullptr},
-    {"LOCALIP3", 0, 255, nullptr},
-    {"LOCALIP4", 0, 255, nullptr},
-    {"GATEWAY1", 0, 255, nullptr},
-    {"GATEWAY2", 0, 255, nullptr},
-    {"GATEWAY3", 0, 255, nullptr},
-    {"GATEWAY4", 0, 255, nullptr},
-    {"SUBNET1", 0, 255, nullptr},
-    {"SUBNET2", 0, 255, nullptr},
-    {"SUBNET3", 0, 255, nullptr},
-    {"SUBNET4", 0, 255, nullptr},
     {"MQTTPORT", 0, 65535, nullptr},
     {"MQTTTIMEOUT", 0, 30000, nullptr},
     {"MQTTPUBLISHMS", 0, 3600000, nullptr},
@@ -228,10 +216,11 @@ const StringSetting STRING_SETTINGS[] = {
     {"MQTTSERVER", 64, false},
     {"MQTTUSER", 64, false},
     {"MQTTPASSWORD", 64, true},
-    {"MQTTTOPIC", 64, false},
-    {"MQTTOBJIDPREFIX", 64, false},
-    {"MQTTDEVICENAME", 64, false},
-    {"HADEVICEID", 64, false},
+    {"HTTPPASS", 64, true},
+    {"LOCALIP", 15, false},
+    {"GATEWAY", 15, false},
+    {"SUBNET", 15, false},
+    {"DNS", 15, false},
     {"CTOFFSET", 16, false},
     {nullptr, 0, false},
 };
@@ -339,18 +328,10 @@ TwsRoute settingsRoute = TwsRoute("/api/internal/settings", new TwsJsonRestFunc(
     sets["MQTTPUBLISHMS"] = mqtt_publish_interval_ms;
     sets["WIFIAPENABLED"] = wifiap_enabled;
     sets["APNAME"] = ssidAP;
-    sets["LOCALIP1"] = static_local_IP1;
-    sets["LOCALIP2"] = static_local_IP2;
-    sets["LOCALIP3"] = static_local_IP3;
-    sets["LOCALIP4"] = static_local_IP4;
-    sets["GATEWAY1"] = static_gateway1;
-    sets["GATEWAY2"] = static_gateway2;
-    sets["GATEWAY3"] = static_gateway3;
-    sets["GATEWAY4"] = static_gateway4;
-    sets["SUBNET1"] = static_subnet1;
-    sets["SUBNET2"] = static_subnet2;
-    sets["SUBNET3"] = static_subnet3;
-    sets["SUBNET4"] = static_subnet4;
+    sets["LOCALIP"] = static_local_IP;
+    sets["GATEWAY"] = static_gateway;
+    sets["SUBNET"] = static_subnet;
+    sets["DNS"] = static_dns;
     sets["CTOFFSET"] = ct_clamp_offset_mV;
     sets["CTVNOM"] = ct_clamp_nominal_voltage_dV;
     sets["CTANOM"] = ct_clamp_nominal_current_A;
