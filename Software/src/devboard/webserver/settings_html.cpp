@@ -1612,13 +1612,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
             <label>Charge taper enabled: </label>
             <input type='checkbox' name='LEAFTAPER' value='on' %LEAFTAPER%
-            title="Taper charge power as the highest cell approaches the setpoint, instead of letting the LBC oscillate between full power and 0W near the top of charge." />
+            title="Taper charge power as the highest cell approaches the setpoint, preventing oscillation of the BMS between full power and 0W near the top of charge. SOC if rescaled, max should be 100%!" />
 
             <div class="if-leaftaper">
               <label>Charge taper setpoint, mV: </label>
               <input type='number' name='LEAFTAPERMV' value="%LEAFTAPERMV%" placeholder="4115"
               min="3600" max="4200" step="1"
-              title="Cell voltage to approach asymptotically. Set just below the cell voltage at which the LBC starts cutting charge power. Must stay below the 4250mV emergency stop level." />
+              title="Cell voltage to approach asymptotically. Set just below the cell voltage at which the BMS starts cutting charge power. Must stay below the 4250mV emergency stop level." />
 
               <label>Charge taper band, mV: </label>
               <input type='number' name='LEAFTAPERBAND' value="%LEAFTAPERBAND%" placeholder="150"
