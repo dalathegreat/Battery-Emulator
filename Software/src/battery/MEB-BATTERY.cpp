@@ -223,13 +223,17 @@ void MebBattery::
     // 0.935 and 0.9025 are the different conversions for different battery sizes to go from design capacity to
     // total_capacity_Wh calculated above.
 
-    int Wh_max = 61832 * 0.935f;  // 108 cells
-    if (datalayer_battery->info.number_of_cells <= 84)
-      Wh_max = 48091 * 0.9025f;
-    else if (datalayer_battery->info.number_of_cells <= 96)
-      Wh_max = 82442 * 0.9025f;
-    if (BMS_capacity_ah > 0)
-      datalayer_battery->status.soh_pptt = 10000 * datalayer_battery->info.total_capacity_Wh / (Wh_max * 1.02564f);
+    if ( battery_soh_polled > 0) {
+      datalayer_battery->status.soh_pptt = battery_soh_polled;
+    } else {
+      int Wh_max = 61832 * 0.935f;  // 108 cells
+      if (datalayer_battery->info.number_of_cells <= 84)
+        Wh_max = 48091 * 0.9025f;
+      else if (datalayer_battery->info.number_of_cells <= 96)
+        Wh_max = 82442 * 0.9025f;
+      if (BMS_capacity_ah > 0)
+        datalayer_battery->status.soh_pptt = 10000 * datalayer_battery->info.total_capacity_Wh / (Wh_max * 1.02564f);
+    }
   }
 
   datalayer_battery->status.remaining_capacity_Wh = usable_energy_amount_Wh * 5;
@@ -1058,6 +1062,9 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
         poll_pid = PID_ALLOWED_DISCHARGE_POWER;
         break;
       case PID_ALLOWED_DISCHARGE_POWER:
+        poll_pid = PID_SOH;
+        break;
+      case PID_SOH:
         poll_pid = PID_CELLVOLTAGE_CELL_1;  // Start polling cell voltages
         break;
       // Cell Voltage Cases.
@@ -1224,6 +1231,10 @@ void MebBattery::uds_response_handler(uint8_t* data, int len, enum isotp_tatype 
           if (len < 4)
             break;
           battery_soc_polled = data[3] * 4;  // 135*4 = 54.0%
+          break;
+        case PID_SOH:
+          if (len < 5) break;
+          battery_soh_polled = ((data[3] << 8) | data[4]);
           break;
         case PID_VOLTAGE:
           if (len < 5)
