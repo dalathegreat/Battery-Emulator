@@ -95,8 +95,6 @@ def fmt_bytes(n: int | None) -> str:
 def fmt_delta(delta: int | None) -> str:
     if delta is None:
         return ""
-    if delta == 0:
-        return "0"
     return f"{delta:+,}"
 
 
@@ -130,9 +128,7 @@ def flash_delta_cell(base: MemoryBytes | None, pr: MemoryBytes | None) -> str:
     delta = pr.used - base.used
     cell = fmt_delta(delta)
     if delta > 0 and pr.total and (pr.used / pr.total) > WARN_FILL_THRESHOLD:
-        return "**+" + cell + "**"
-    elif delta >= 0:
-        return "+" + cell
+        return "**" + cell + "**"
     return cell
 
 
@@ -145,10 +141,7 @@ def ram_delta_cell(base: MemoryBytes | None, pr: MemoryBytes | None) -> str:
     if base is None or pr is None:
         return "—"
     delta = pr.used - base.used
-    cell = fmt_delta(delta)
-    if delta >= 0:
-        return "+" + cell
-    return cell
+    return fmt_delta(delta)
 
 
 def _row_pr_missing(env: str, base: BoardSize | None, artifact_url: str | None) -> RowCells:
