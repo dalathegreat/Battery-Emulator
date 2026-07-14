@@ -481,6 +481,18 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("LOWPASSFILTER") ? "checked" : "";
   }
 
+  if (var == "LEAFTAPER") {
+    return settings.getBool("LEAFTAPER") ? "checked" : "";
+  }
+
+  if (var == "LEAFTAPERMV") {
+    return String(settings.getUInt("LEAFTAPERMV", 4115));
+  }
+
+  if (var == "LEAFTAPERBAND") {
+    return String(settings.getUInt("LEAFTAPERBAND", 150));
+  }
+
   if (var == "SLOWCANINV") {
     return settings.getBool("SLOWCANINV") ? "checked" : "";
   }
@@ -1346,6 +1358,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-leaftaper { display: none; }
+    form[data-leaftaper="true"] .if-leaftaper {
+      display: contents;
+    }
+
     form .if-dblbtr { display: none; }
     form[data-dblbtr="true"] .if-dblbtr {
       display: contents;
@@ -1592,6 +1609,22 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-nissan">
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
+
+            <label>Charge taper enabled: </label>
+            <input type='checkbox' name='LEAFTAPER' value='on' %LEAFTAPER%
+            title="Taper charge power as the highest cell approaches the setpoint, instead of letting the LBC oscillate between full power and 0W near the top of charge." />
+
+            <div class="if-leaftaper">
+              <label>Charge taper setpoint, mV: </label>
+              <input type='number' name='LEAFTAPERMV' value="%LEAFTAPERMV%" placeholder="4115"
+              min="3600" max="4200" step="1"
+              title="Cell voltage to approach asymptotically. Set just below the cell voltage at which the LBC starts cutting charge power. Must stay below the 4250mV emergency stop level." />
+
+              <label>Charge taper band, mV: </label>
+              <input type='number' name='LEAFTAPERBAND' value="%LEAFTAPERBAND%" placeholder="150"
+              min="20" max="400" step="1"
+              title="Start derating this far below the setpoint. Wider band gives a gentler, slower approach." />
+            </div>
         </div>
 
         <div class="if-daly">
