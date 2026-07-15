@@ -55,9 +55,9 @@ class NissanLeafBattery : public CanBattery {
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2600;
   static const int MAX_CELL_DEVIATION_MV = 150;
-  static const int LEAF_TAPER_MIN_W = 200;      //Charge taper floor while still below the setpoint, see update_values()
-  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
+  static const int MAX_CELL_VOLTAGE_MV = 4220;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+  static const int LEAF_TAPER_MIN_W = 200;      //Charge taper floor while still below the setpoint, see update_values()
 
   NissanLeafHtmlRenderer renderer;
 
