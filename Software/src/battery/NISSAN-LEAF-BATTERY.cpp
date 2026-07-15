@@ -131,6 +131,11 @@ void NissanLeafBattery::
                                    ? (user_set_leaf_taper_target_mV - user_set_leaf_taper_band_mV)
                                    : 0;
     if (datalayer_battery->status.cell_max_voltage_mV > taper_engage_mV) {
+      if (!taper_engaged) {
+        taper_engaged = true;
+        logging.printf("Nissan LEAF Charge taper engaging at %u.%u SOC (real)\n",
+                       datalayer_battery->status.real_soc / 100, (datalayer_battery->status.real_soc % 100) / 10);
+      }
       uint32_t tapered_W = 0;
       if (datalayer_battery->status.cell_max_voltage_mV < user_set_leaf_taper_target_mV) {
         uint32_t headroom_mV = user_set_leaf_taper_target_mV - datalayer_battery->status.cell_max_voltage_mV;
@@ -141,6 +146,9 @@ void NissanLeafBattery::
       }  //At or above the setpoint, tapered_W stays 0: hold here and let the cell settle
       if (tapered_W < datalayer_battery->status.max_charge_power_W) {
         datalayer_battery->status.max_charge_power_W = tapered_W;  //Only ever lower, never raise
+      } else if (taper_engaged && datalayer_battery->status.cell_max_voltage_mV + (user_set_leaf_taper_band_mV / 2) 
+                                    taper_engage_mV) {
+        taper_engaged = false;  //Cell dropped half a band below the engage point, re-arm the notification
       }
     }
   }
