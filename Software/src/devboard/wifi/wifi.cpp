@@ -110,7 +110,7 @@ String default_hostname() {
   return "battery-emulator-" + String(mac_suffix);
 }
 
-// Initialise mDNS 
+// Initialise mDNS
 static void init_mDNS() {
 #ifndef SMALL_FLASH_DEVICE
   // Reuse the network hostname (custom, or the "battery-emulator-<mac>" default set in init_WiFi()). Be consistent with AP too.
@@ -402,7 +402,6 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   //too many events received when the connection is lost
   //normal reconnect retry start at first 2 seconds
 }
-
 
 void init_WiFi_AP() {
 
