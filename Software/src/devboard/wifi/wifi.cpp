@@ -110,6 +110,23 @@ String default_hostname() {
   return "battery-emulator-" + String(mac_suffix);
 }
 
+// Initialise mDNS 
+static void init_mDNS() {
+#ifndef SMALL_FLASH_DEVICE
+  // Reuse the network hostname (custom, or the "battery-emulator-<mac>" default set in init_WiFi()). Be consistent with AP too.
+  String mdnsHost = String(WiFi.getHostname());
+
+  // Initialize mDNS .local resolution
+  if (!MDNS.begin(mdnsHost)) {
+    logging.println("Error setting up mDNS responder!");
+  } else {
+    // Advertise via bonjour the web inteface so we can auto discover these battery emulators on the local network.
+    MDNS.addService("http", "tcp", 80);
+    logging.println("mDNS responder started.");
+  }
+#endif
+}
+
 void init_WiFi() {
   DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
 
@@ -386,22 +403,6 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   //normal reconnect retry start at first 2 seconds
 }
 
-// Initialise mDNS (Only available on devices with )
-void init_mDNS() {
-#ifndef SMALL_FLASH_DEVICE
-  // Reuse the network hostname (custom, or the "battery-emulator-<mac>" default set in init_WiFi()). Be consistent with AP too.
-  String mdnsHost = String(WiFi.getHostname());
-
-  // Initialize mDNS .local resolution
-  if (!MDNS.begin(mdnsHost)) {
-    logging.println("Error setting up mDNS responder!");
-  } else {
-    // Advertise via bonjour the web inteface so we can auto discover these battery emulators on the local network.
-    MDNS.addService("http", "tcp", 80);
-    logging.println("mDNS responder started.");
-  }
-#endif
-}
 
 void init_WiFi_AP() {
 
