@@ -51,6 +51,7 @@ class NissanLeafBattery : public CanBattery {
  private:
   bool UserRequestDTCreset = false;
   bool UserRequestSOHreset = false;
+  bool taper_engaged = false;  //Tracks if charge taper has announced itself, see update_values()
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2600;
   static const int MAX_CELL_DEVIATION_MV = 150;
