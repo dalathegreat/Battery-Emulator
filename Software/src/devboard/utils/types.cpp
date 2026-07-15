@@ -31,7 +31,7 @@ LimitingFactor get_limiting_factor(ChargingState state, bool inverter_limits_cha
       return LimitingFactor::Inverter;
     }
     if (user_settings_limit_discharge) {
-      return LimitingFactor::Emulator;
+      return LimitingFactor::UserSetting;
     }
     return LimitingFactor::Battery;
   }
@@ -40,7 +40,7 @@ LimitingFactor get_limiting_factor(ChargingState state, bool inverter_limits_cha
       return LimitingFactor::Inverter;
     }
     if (user_settings_limit_charge) {
-      return LimitingFactor::Emulator;
+      return LimitingFactor::UserSetting;
     }
     return LimitingFactor::Battery;
   }
@@ -62,8 +62,8 @@ const char* limiting_factor_to_text(LimitingFactor factor) {
   switch (factor) {
     case LimitingFactor::Inverter:
       return "Inverter";
-    case LimitingFactor::Emulator:
-      return "Emulator";
+    case LimitingFactor::UserSetting:
+      return "UserSetting";
     case LimitingFactor::Battery:
       return "Battery";
     default:
@@ -83,7 +83,7 @@ const char* get_charging_status_text(int32_t current_dA, bool inverter_limits_ch
     switch (factor) {
       case LimitingFactor::Inverter:
         return "Battery discharging! (Inverter limiting)";
-      case LimitingFactor::Emulator:
+      case LimitingFactor::UserSetting:
         return "Battery discharging! (Settings limiting)";
       default:
         return "Battery discharging! (Battery limiting)";
@@ -92,7 +92,7 @@ const char* get_charging_status_text(int32_t current_dA, bool inverter_limits_ch
   switch (factor) {
     case LimitingFactor::Inverter:
       return "Battery charging! (Inverter limiting)";
-    case LimitingFactor::Emulator:
+    case LimitingFactor::UserSetting:
       return "Battery charging! (Settings limiting)";
     default:
       return "Battery charging! (Battery limiting)";

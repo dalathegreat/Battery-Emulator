@@ -123,7 +123,7 @@ typedef struct {
 std::string getBMSStatus(system_status_enum status);
 
 enum class ChargingState { Idle, Charging, Discharging };
-enum class LimitingFactor { None, Inverter, Emulator, Battery };
+enum class LimitingFactor { None, Inverter, UserSetting, Battery };
 
 ChargingState get_charging_state(int32_t current_dA);
 LimitingFactor get_limiting_factor(ChargingState state, bool inverter_limits_charge, bool inverter_limits_discharge,
