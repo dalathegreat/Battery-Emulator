@@ -168,36 +168,47 @@ void update_calculated_values(unsigned long currentMillis) {
     datalayer.battery.settings.max_remote_set_discharge_dA = 0;
   }
 
+  /* Low pass filter the battery power limits (only when increasing, 10% new / 90% old).
+     Decreases take effect immediately for safety. Filtering is done on the power values so that
+     both power-based inverters (e.g. BYD-Modbus reading max_charge_power_W directly) and
+     current-based inverters (via the derived _dA values below) benefit from it.
+     Filter state is kept locally, since battery drivers overwrite the datalayer values every update. */
+  if (inverter_low_pass_filter) {
+    static uint32_t charge_power_W_filtered = 0;
+    static uint32_t discharge_power_W_filtered = 0;
+    static bool power_filter_initialized = false;
+
+    if (!power_filter_initialized) {
+      charge_power_W_filtered = datalayer.battery.status.max_charge_power_W;
+      discharge_power_W_filtered = datalayer.battery.status.max_discharge_power_W;
+      power_filter_initialized = true;
+    } else {
+      if (datalayer.battery.status.max_charge_power_W > charge_power_W_filtered) {
+        charge_power_W_filtered =
+            (datalayer.battery.status.max_charge_power_W * 10 + charge_power_W_filtered * 90) / 100;
+      } else {
+        charge_power_W_filtered = datalayer.battery.status.max_charge_power_W;
+      }
+
+      if (datalayer.battery.status.max_discharge_power_W > discharge_power_W_filtered) {
+        discharge_power_W_filtered =
+            (datalayer.battery.status.max_discharge_power_W * 10 + discharge_power_W_filtered * 90) / 100;
+      } else {
+        discharge_power_W_filtered = datalayer.battery.status.max_discharge_power_W;
+      }
+    }
+    datalayer.battery.status.max_charge_power_W = charge_power_W_filtered;
+    datalayer.battery.status.max_discharge_power_W = discharge_power_W_filtered;
+  }
+
   /* Calculate allowed charge/discharge currents*/
   if (datalayer.battery.status.voltage_dV > 10) {
     // Only update value when we have voltage available to avoid div0. TODO: This should be based on nominal voltage
-    int32_t target_charge = ((datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV);
-    int32_t target_discharge =
+    // Power limits are already low pass filtered above (if enabled), so the derived currents are too
+    datalayer.battery.status.max_charge_current_dA =
+        ((datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV);
+    datalayer.battery.status.max_discharge_current_dA =
         ((datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV);
-
-    // Low pass filter only when increasing values (10% new, 90% old)
-    if (inverter_low_pass_filter) {
-      if (datalayer.battery.status.max_charge_current_dA == 0) {
-        datalayer.battery.status.max_charge_current_dA = target_charge;  // Initialize immediately if 0
-      } else if (target_charge > datalayer.battery.status.max_charge_current_dA) {
-        datalayer.battery.status.max_charge_current_dA =
-            (target_charge * 10 + datalayer.battery.status.max_charge_current_dA * 90) / 100;
-      } else {
-        datalayer.battery.status.max_charge_current_dA = target_charge;
-      }
-
-      if (datalayer.battery.status.max_discharge_current_dA == 0) {
-        datalayer.battery.status.max_discharge_current_dA = target_discharge;  // Initialize immediately if 0
-      } else if (target_discharge > datalayer.battery.status.max_discharge_current_dA) {
-        datalayer.battery.status.max_discharge_current_dA =
-            (target_discharge * 10 + datalayer.battery.status.max_discharge_current_dA * 90) / 100;
-      } else {
-        datalayer.battery.status.max_discharge_current_dA = target_discharge;
-      }
-    } else {
-      datalayer.battery.status.max_charge_current_dA = target_charge;
-      datalayer.battery.status.max_discharge_current_dA = target_discharge;
-    }
   }
 
   /* Apply remote restrictions if set*/
