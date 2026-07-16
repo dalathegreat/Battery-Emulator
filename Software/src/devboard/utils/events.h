@@ -39,6 +39,7 @@
   XX(EVENT_12V_LOW)                     \
   XX(EVENT_SOC_PLAUSIBILITY_ERROR)      \
   XX(EVENT_SOC_UNAVAILABLE)             \
+  XX(EVENT_VOLTAGE_SOC_GUARD)           \
   XX(EVENT_STALE_VALUE)                 \
   XX(EVENT_KWH_PLAUSIBILITY_ERROR)      \
   XX(EVENT_BALANCING_START)             \

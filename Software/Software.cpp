@@ -28,6 +28,7 @@
 #include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/types.h"
 #include "src/devboard/utils/value_mapping.h"
+#include "src/devboard/utils/voltage_soc_guard.h"
 #include "src/devboard/utils/watchdog.h"
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"
@@ -281,6 +282,10 @@ void update_calculated_values(unsigned long currentMillis) {
     datalayer.battery3.status.active_power_W =
         (datalayer.battery3.status.current_dA * (datalayer.battery3.status.voltage_dV / 100));
   }
+
+  /* Voltage-based SOC plausibility guard: clamp real_soc before any scaling,
+   * so that both reported_soc and capacity calculations use the corrected value */
+  apply_voltage_soc_guard();
 
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling

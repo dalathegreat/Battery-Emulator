@@ -705,6 +705,18 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("BATTCVMIN", 0));
   }
 
+  if (var == "VSOCGUARD") {
+    return settings.getBool("VSOCGUARD") ? "checked" : "";
+  }
+
+  if (var == "VSOCIR") {
+    return String(settings.getUInt("VSOCIR", 5));
+  }
+
+  if (var == "VSOCBAND") {
+    return String(settings.getUInt("VSOCBAND", 1000));
+  }
+
   if (var == "BATTERY_WH_MAX") {
     return String(datalayer.battery.info.total_capacity_Wh);
   }
@@ -1623,8 +1635,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Maximum voltage per individual cell in millivolts. Charging stops if one cell reaches this voltage." />
 
         <label>Cell min design voltage (mV): </label>
-        <input name='BATTCVMIN' pattern="[0-9]+$" type='text' value='%BATTCVMIN%' 
+        <input name='BATTCVMIN' pattern="[0-9]+$" type='text' value='%BATTCVMIN%'
         title="Minimum voltage per individual cell in millivolts. Discharge stops if one cell drops to this voltage." />
+
+        <label>Voltage based SOC guard (NMC only): </label>
+        <input type='checkbox' name='VSOCGUARD' value='on' %VSOCGUARD%
+        title="Clamps the SOC sent to the inverter into a plausibility band derived from min/max cell voltage via an NMC OCV table. Protects against BMS SOC drift. Only active when battery chemistry is NMC." />
+
+        <label>SOC guard: cell internal resistance (0.1 mOhm units): </label>
+        <input name='VSOCIR' pattern="[0-9]+" type='text' value='%VSOCIR%'
+        title="Per-cell internal resistance used to compensate cell voltage for IR drop while current is flowing. In tenths of milliohm, e.g. 5 = 0.5 mOhm. Set higher if SOC estimate swings too much with load." />
+
+        <label>SOC guard: allowed deviation band (0.01% units): </label>
+        <input name='VSOCBAND' pattern="[0-9]+" type='text' value='%VSOCBAND%'
+        title="How far the BMS SOC may deviate from the voltage-derived estimate before being clamped. In integer-percent x 100, e.g. 1000 = 10.00%. Smaller = stricter." />
         </div>
 
         <label>Double battery: </label>

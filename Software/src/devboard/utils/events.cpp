@@ -80,6 +80,7 @@ void init_events(void) {
   events.entries[EVENT_12V_LOW].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOC_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_VOLTAGE_SOC_GUARD].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_STALE_VALUE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BALANCING_START].level = EVENT_LEVEL_INFO;
@@ -266,6 +267,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "SOC reported by battery not plausible. Restart battery!";
     case EVENT_SOC_UNAVAILABLE:
       return "SOC not sent by BMS. Calibrate BMS via app.";
+    case EVENT_VOLTAGE_SOC_GUARD:
+      return "BMS SOC deviates from cell-voltage estimate. SOC sent to inverter has been clamped. Data = deviation in %";
     case EVENT_STALE_VALUE:
       return "Important values detected as stale. System might have locked up!";
     case EVENT_KWH_PLAUSIBILITY_ERROR:
