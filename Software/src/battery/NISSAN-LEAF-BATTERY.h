@@ -34,6 +34,20 @@ class NissanLeafBattery : public CanBattery {
 
   bool supports_reset_SOH();
   void reset_SOH() { UserRequestSOHreset = true; }
+
+  // Graceful BMS (LBC) shut-down sequence performed before BMS power is removed
+  // during a BMS reset (both 24h periodic and MQTT-triggered). Implements the
+  // CAN transmissions of the "Shut down sequence" from the Nissan LEAF battery
+  // control specification (GEN4 spec, chapter 3-1):
+  //   1. "CHG_STA_RQ=11b" (Charge stop request) transmitted in 0x1F2
+  //   2. "BTONFN=0b" (HV power supply off) transmitted in 0x1D4
+  //   3. "RLYP=0b" (Main relay plus off) transmitted in 0x1D4
+  //   4. "VCM_WakeUpSleepCommand=00b" (GoToSleep) transmitted in 0x50B
+  //   5. CAN transmission stopped >1s after the LBC stops its own CAN
+  //   6. Wait more than 1 min before power (BAT line) may be removed
+  bool supports_bms_shutdown_sequence() { return true; }
+  void request_bms_shutdown_sequence();
+  bool bms_shutdown_sequence_completed() { return shutdownState == SHUTDOWN_COMPLETED; }
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
 
@@ -61,6 +75,35 @@ class NissanLeafBattery : public CanBattery {
 
   bool is_message_corrupt(CAN_frame rx_frame);
   void clearSOH(void);
+  uint8_t calculate_checksum_nibble(CAN_frame& frame);
+  void update_shutdown_sequence(unsigned long currentMillis);
+
+  // Shut-down sequence state machine. States are ordered so that >= comparisons
+  // can be used, since signal values changed by earlier steps must be kept in
+  // all later steps.
+  enum ShutdownSequenceState {
+    SHUTDOWN_INACTIVE = 0,         //Normal operation
+    SHUTDOWN_CHG_STOP,             //"CHG_STA_RQ=11b" transmitted in 0x1F2
+    SHUTDOWN_BTONFN_OFF,           //+ "BTONFN=0b" transmitted in 0x1D4
+    SHUTDOWN_RLYP_OFF,             //+ "RLYP=0b" transmitted in 0x1D4
+    SHUTDOWN_GOTOSLEEP,            //+ "VCM_WakeUpSleepCommand=00b" transmitted in 0x50B
+    SHUTDOWN_WAIT_BEFORE_BAT_OFF,  //CAN transmission stopped, waiting before power removal is OK
+    SHUTDOWN_COMPLETED             //Sequence done, BMS power can be cut
+  };
+  //Time to keep transmitting the charge stop request before "opening the main relays"
+  static const unsigned long SHUTDOWN_CHG_STOP_DURATION_MS = 500;
+  //Time between the BTONFN=0b and RLYP=0b steps (relays are switched off in sequence)
+  static const unsigned long SHUTDOWN_RELAY_STEP_DURATION_MS = 100;
+  //Spec: our CAN stop must happen more than 1s after the LBC stops its own CAN transmission
+  static const unsigned long SHUTDOWN_BMS_CAN_SILENT_MS = 1100;
+  //Safety net: proceed with the sequence even if the LBC never goes silent (e.g. LeafSpy on bus)
+  static const unsigned long SHUTDOWN_GOTOSLEEP_TIMEOUT_MS = 10000;
+  //Spec: "Wait (more than 1min)" between CAN stop and BAT OFF (power removal)
+  static const unsigned long SHUTDOWN_BAT_OFF_DELAY_MS = 61000;
+
+  ShutdownSequenceState shutdownState = SHUTDOWN_INACTIVE;
+  unsigned long shutdownPhaseStartMillis = 0;
+  unsigned long lastCanFrameReceivedMillis = 0;
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_NISSAN_LEAF* datalayer_nissan;

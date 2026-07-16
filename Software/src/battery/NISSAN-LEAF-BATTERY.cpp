@@ -264,6 +264,7 @@ void NissanLeafBattery::
 }
 
 void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  lastCanFrameReceivedMillis = millis();  //Used by the shut-down sequence to detect "BMS CAN stop"
   switch (rx_frame.ID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
@@ -618,11 +619,21 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
-    // Transmitting towards battery is halted while BMS is being reset
-    previousMillis10 = currentMillis;
-    previousMillis100 = currentMillis;
-    previousMillis10s = currentMillis;
-    return;
+    update_shutdown_sequence(currentMillis);
+
+    if (shutdownState == SHUTDOWN_INACTIVE || shutdownState >= SHUTDOWN_WAIT_BEFORE_BAT_OFF) {
+      // Transmitting towards battery is halted while BMS is being reset, and once
+      // the shut-down sequence has reached the "CAN stop" step
+      previousMillis10 = currentMillis;
+      previousMillis100 = currentMillis;
+      previousMillis10s = currentMillis;
+      return;
+    }
+    // While the shut-down sequence is in an active phase, the periodic messages below
+    // keep being transmitted, with signal contents modified according to the sequence
+  } else if (shutdownState != SHUTDOWN_INACTIVE) {
+    // BMS reset has finished (power was cycled), resume normal message contents
+    shutdownState = SHUTDOWN_INACTIVE;
   }
 
   if (battery_can_alive) {
@@ -649,6 +660,17 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           LEAF_1D4.data.u8[7] = 0xDE;
           break;
       }
+
+      // Shut down sequence: "At the same time of MAIN RLY P OFF, BTONFN=0b transmit" and
+      // "At the same time of MAIN RLY N OFF, RLYP=0b transmit"
+      LEAF_1D4.data.u8[5] = (shutdownState >= SHUTDOWN_RLYP_OFF) ? 0x06 : 0x46;  //RLYP is bit 6 of byte 5
+      if (shutdownState != SHUTDOWN_INACTIVE) {
+        if (shutdownState >= SHUTDOWN_BTONFN_OFF) {
+          LEAF_1D4.data.u8[4] &= ~0x04;  //BTONFN=0b (bit 2 of byte 4)
+        }
+        LEAF_1D4.data.u8[7] = calculate_crc(LEAF_1D4);  //Contents changed, recalculate CRC
+      }
+
       //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
       if (!charger || charger->type() != ChargerType::NissanLeaf) {
@@ -744,6 +766,14 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           break;
       }
 
+      // Shut down sequence: "CHG_STA_RQ=11b transmit" (charge status transition stop request,
+      // bits 5-6 of byte 2). Kept at 11b during the whole sequence.
+      LEAF_1F2.data.u8[2] = (shutdownState != SHUTDOWN_INACTIVE) ? 0x60 : 0x00;
+      if (shutdownState != SHUTDOWN_INACTIVE) {
+        //Contents changed, recalculate the nibble checksum in the low nibble of byte 7
+        LEAF_1F2.data.u8[7] = (LEAF_1F2.data.u8[7] & 0xF0) | calculate_checksum_nibble(LEAF_1F2);
+      }
+
       //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
       if (!charger || charger->type() != ChargerType::NissanLeaf) {
@@ -795,6 +825,8 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       }
 
       // VCM message, containing info if battery should sleep or stay awake
+      // Shut down sequence: "VCM_WakeUpSleepCommand=00b transmit" (GoToSleep, bits 6-7 of byte 3)
+      LEAF_50B.data.u8[3] = (shutdownState >= SHUTDOWN_GOTOSLEEP) ? 0x00 : 0xC0;
       transmit_can_frame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
       LEAF_50C.data.u8[3] = mprun100;
@@ -858,6 +890,100 @@ uint8_t NissanLeafBattery::calculate_crc(CAN_frame& rx_frame) {
     crc = crctable_nissan_leaf[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
   }
   return crc;
+}
+
+/* Nissan nibble checksum, used on e.g. 0x1F2: all message nibbles summed together
+(except the checksum nibble itself, located in the low nibble of the last byte),
+plus 2, and the result is anded with 0xF */
+uint8_t NissanLeafBattery::calculate_checksum_nibble(CAN_frame& frame) {
+  uint8_t sum = 0;
+  for (uint8_t j = 0; j < 7; j++) {
+    sum += (frame.data.u8[j] >> 4) + (frame.data.u8[j] & 0x0F);
+  }
+  sum += (frame.data.u8[7] >> 4);  //High nibble of last byte is part of the checksum input
+  return (sum + 2) & 0x0F;
+}
+
+/* Graceful shut-down sequence towards the LBC, performed before BMS power is removed
+during a BMS reset. Implements the CAN transmissions of the "Shut down sequence" from
+the Nissan battery control specification (see chapter 3-1 of the GEN4 spec):
+
+  IGN OFF
+    "CHG_STA_RQ=11b" transmit          (0x1F2, charge stop request)
+  MAIN RLY P(+) OFF
+    "BTONFN=0b" transmit               (0x1D4, HV power supply off)
+  MAIN RLY N(-) OFF
+    "RLYP=0b" transmit                 (0x1D4, main relay plus off)
+    "VCM_WakeUpSleepCommand=00b"       (0x50B, GoToSleep)
+  CAN stop (LBC stops transmitting)
+  Wait (more than 1s from BMS CAN stop)
+  CAN stop (we stop transmitting)
+  Wait (more than 1min)
+  (BAT OFF) -> power may now be removed by the BMS reset state machine
+
+The signal value changes are applied by transmit_can() while this state machine keeps
+track of which phase the sequence is in. */
+void NissanLeafBattery::request_bms_shutdown_sequence() {
+  if (shutdownState == SHUTDOWN_INACTIVE) {
+#ifdef DEBUG_LOG
+    logging.println("LEAF: Starting BMS shut-down sequence");
+#endif
+    shutdownState = SHUTDOWN_CHG_STOP;
+    shutdownPhaseStartMillis = millis();
+  }
+}
+
+void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
+  switch (shutdownState) {
+    case SHUTDOWN_INACTIVE:
+    case SHUTDOWN_COMPLETED:
+      break;
+    case SHUTDOWN_CHG_STOP:
+      //"CHG_STA_RQ=11b" is being transmitted in 0x1F2
+      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_CHG_STOP_DURATION_MS) {
+        shutdownState = SHUTDOWN_BTONFN_OFF;
+        shutdownPhaseStartMillis = currentMillis;
+      }
+      break;
+    case SHUTDOWN_BTONFN_OFF:
+      //"BTONFN=0b" is being transmitted in 0x1D4 (spec: at the same time as MAIN RLY P(+) OFF)
+      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_RELAY_STEP_DURATION_MS) {
+        shutdownState = SHUTDOWN_RLYP_OFF;
+        shutdownPhaseStartMillis = currentMillis;
+      }
+      break;
+    case SHUTDOWN_RLYP_OFF:
+      //"RLYP=0b" is being transmitted in 0x1D4 (spec: at the same time as MAIN RLY N(-) OFF)
+      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_RELAY_STEP_DURATION_MS) {
+        shutdownState = SHUTDOWN_GOTOSLEEP;
+        shutdownPhaseStartMillis = currentMillis;
+      }
+      break;
+    case SHUTDOWN_GOTOSLEEP:
+      //"VCM_WakeUpSleepCommand=00b" (GoToSleep) is being transmitted in 0x50B. Keep
+      //transmitting until the LBC has stopped its own CAN transmissions for more than 1s
+      //(spec: "Wait more than 1s from BMS CAN stop" before our own CAN stop), with a
+      //timeout in case the LBC never goes silent
+      if ((currentMillis - lastCanFrameReceivedMillis >= SHUTDOWN_BMS_CAN_SILENT_MS) ||
+          (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_GOTOSLEEP_TIMEOUT_MS)) {
+#ifdef DEBUG_LOG
+        logging.println("LEAF: Shut-down sequence CAN stop, waiting before power removal is OK");
+#endif
+        shutdownState = SHUTDOWN_WAIT_BEFORE_BAT_OFF;
+        shutdownPhaseStartMillis = currentMillis;
+      }
+      break;
+    case SHUTDOWN_WAIT_BEFORE_BAT_OFF:
+      //All CAN transmission towards the battery is now stopped.
+      //Spec: "Wait (more than 1min)" before BAT OFF (power removal)
+      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_BAT_OFF_DELAY_MS) {
+#ifdef DEBUG_LOG
+        logging.println("LEAF: BMS shut-down sequence completed, power can be removed");
+#endif
+        shutdownState = SHUTDOWN_COMPLETED;
+      }
+      break;
+  }
 }
 
 bool NissanLeafBattery::is_message_corrupt(CAN_frame rx_frame) {

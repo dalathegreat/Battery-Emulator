@@ -49,6 +49,7 @@ enum BMSResetState {
   BMS_RESET_WAITING_FOR_PAUSE,
   BMS_RESET_POWERED_OFF,
   BMS_RESET_POWERING_ON,
+  BMS_RESET_SHUTDOWN_SEQUENCE,  //Battery specific CAN shut-down sequence is running before power is cut
 };
 
 #define DISCHARGING 1

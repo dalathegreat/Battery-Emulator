@@ -114,6 +114,16 @@ class Battery {
   virtual bool supports_balancing_request() { return false; }
   virtual bool supports_isolation_test() { return false; }
 
+  // BMS shut-down sequence support. Batteries where the BMS expects a graceful
+  // CAN shut-down sequence before its 12V power is removed (BMS reset feature)
+  // can override these. The BMS reset state machine in comm_contactorcontrol
+  // calls request_bms_shutdown_sequence() after pausing charge/discharge, keeps
+  // the emulator running while the battery class performs the sequence, and
+  // only cuts BMS power once bms_shutdown_sequence_completed() returns true.
+  virtual bool supports_bms_shutdown_sequence() { return false; }
+  virtual void request_bms_shutdown_sequence() {}
+  virtual bool bms_shutdown_sequence_completed() { return true; }
+
   virtual void request_isolation_test() {}
   virtual void clear_isolation() {}
   virtual void calibrate_SOC() {}
