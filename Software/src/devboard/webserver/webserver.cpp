@@ -1149,14 +1149,14 @@ String processor(const String& var) {
                  " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
       content += formatPowerValue("Power", powerFloat, "", 1);
 
-      if (datalayer.battery.settings.soc_scaling_active)
+      if (datalayer.battery.settings.soc_scaling_active && datalayer.battery.settings.min_percentage >= 0)
         content += "<h4 style='color: white;'>Scaled total capacity: " +
                    formatPowerValue(datalayer.battery.info.reported_total_capacity_Wh, "h", 1) +
                    " (real: " + formatPowerValue(datalayer.battery.info.total_capacity_Wh, "h", 1) + ")</h4>";
       else
         content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 1);
 
-      if (datalayer.battery.settings.soc_scaling_active)
+      if (datalayer.battery.settings.soc_scaling_active && datalayer.battery.settings.min_percentage >= 0)
         content += "<h4 style='color: white;'>Scaled remaining capacity: " +
                    formatPowerValue(datalayer.battery.status.reported_remaining_capacity_Wh, "h", 1) +
                    " (real: " + formatPowerValue(datalayer.battery.status.remaining_capacity_Wh, "h", 1) + ")</h4>";
