@@ -201,7 +201,7 @@ void update_calculated_values(unsigned long currentMillis) {
     datalayer.battery.status.max_discharge_power_W = discharge_power_W_filtered;
   }
 
- /* Calculate allowed charge/discharge currents. Prefer live pack voltage for the conversion.
+  /* Calculate allowed charge/discharge currents. Prefer live pack voltage for the conversion.
      If unavailable (some drivers report 0 before battery comms are up), fall back to the design
      max voltage - conservative, since it under-estimates current for a given power. If that is
      also 0 (generic BMS drivers with no user-configured pack voltage, or BMS-reported cutoff
