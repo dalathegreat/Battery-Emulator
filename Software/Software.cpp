@@ -201,14 +201,21 @@ void update_calculated_values(unsigned long currentMillis) {
     datalayer.battery.status.max_discharge_power_W = discharge_power_W_filtered;
   }
 
-  /* Calculate allowed charge/discharge currents*/
-  if (datalayer.battery.status.voltage_dV > 10) {
-    // Only update value when we have voltage available to avoid div0. TODO: This should be based on nominal voltage
+ /* Calculate allowed charge/discharge currents. Prefer live pack voltage for the conversion.
+     If unavailable (some drivers report 0 before battery comms are up), fall back to the design
+     max voltage - conservative, since it under-estimates current for a given power. If that is
+     also 0 (generic BMS drivers with no user-configured pack voltage, or BMS-reported cutoff
+     values before first frame), keep the previous values to avoid div0. */
+  uint16_t conversion_voltage_dV = datalayer.battery.status.voltage_dV;
+  if (conversion_voltage_dV <= 10) {
+    conversion_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  }
+  if (conversion_voltage_dV > 10) {
     // Power limits are already low pass filtered above (if enabled), so the derived currents are too
     datalayer.battery.status.max_charge_current_dA =
-        ((datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV);
+        ((datalayer.battery.status.max_charge_power_W * 100) / conversion_voltage_dV);
     datalayer.battery.status.max_discharge_current_dA =
-        ((datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV);
+        ((datalayer.battery.status.max_discharge_power_W * 100) / conversion_voltage_dV);
   }
 
   /* Apply remote restrictions if set*/
