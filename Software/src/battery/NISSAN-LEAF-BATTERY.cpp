@@ -925,9 +925,7 @@ The signal value changes are applied by transmit_can() while this state machine 
 track of which phase the sequence is in. */
 void NissanLeafBattery::request_bms_shutdown_sequence() {
   if (shutdownState == SHUTDOWN_INACTIVE) {
-#ifdef DEBUG_LOG
     logging.println("LEAF: Starting BMS shut-down sequence");
-#endif
     shutdownState = SHUTDOWN_CHG_STOP;
     shutdownPhaseStartMillis = millis();
   }
