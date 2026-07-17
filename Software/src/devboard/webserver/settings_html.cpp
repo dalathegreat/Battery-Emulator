@@ -479,8 +479,8 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
 
-  if (var == "LOWPASSFILTER") {
-    return settings.getBool("LOWPASSFILTER") ? "checked" : "";
+  if (var == "LOWPASS") {
+    return settings.getBool("LOWPASS") ? "checked" : "";
   }
 
   if (var == "SLOWCANINV") {
@@ -1737,9 +1737,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         %INVCOMM%     
         </select>
 
-        <label>Inverter limits low pass filter: </label>
+        <label>Ramp up charge limits gradually:</label>
         <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
-        title="Applies a low pass filter to charge/discharge rates to prevent oscillation." />
+        title="Smooths sudden increases in the battery's charge power limits before sending them to the inverter to prevent oscillation, using a low pass filter." />
 
         <label>Allow longer CAN timeout: </label>
         <input type='checkbox' name='SLOWCANINV' value='on' %SLOWCANINV% 
