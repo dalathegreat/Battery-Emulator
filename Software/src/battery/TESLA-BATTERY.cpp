@@ -1549,10 +1549,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                     //Brick1 m0 : 32|16@1+ (0.0001,0) [0|0] "V"
                                     //Brick2 m0 : 48|16@1+ (0.0001,0) [0|0] "V"
       // brick_volts, mux_zero_counter, mux_max are instance member variables (TESLA-BATTERY.h)
-
-      if (rx_frame.data.u8[1] == 0x2A)  // status byte must be 0x2A to read cellvoltages
+      if (rx_frame.data.u8[1] == 0x2A)  // full frame, 3 cell voltages
       {
-        // Example, frame3=0x89,frame2=0x1D = 35101 / 10 = 3510mV
         brick_volts = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 10;
         datalayer_battery->status.cell_voltages_mV[mux * 3] = brick_volts;
         brick_volts = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) / 10;
@@ -1560,18 +1558,21 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         brick_volts = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) / 10;
         datalayer_battery->status.cell_voltages_mV[2 + mux * 3] = brick_volts;
 
-        // Track the max value of mux. If we've seen two 0 values for mux, we've probably gathered all
-        // cell voltages. Then, 2 + mux_max * 3 + 1 is the number of cell voltages.
         mux_max = (mux > mux_max) ? mux : mux_max;
         if (mux_zero_counter < 2 && mux == 0u) {
           mux_zero_counter++;
           if (mux_zero_counter == 2u) {
-            // The max index will be 2 + mux_max * 3 (see above), so "+ 1" for the number of cells
             datalayer_battery->info.number_of_cells = 2 + 3 * mux_max + 1;
-            // Increase the counter arbitrarily another time to make the initial if-statement evaluate to false
             mux_zero_counter++;
           }
         }
+      } else if (rx_frame.data.u8[1] == 0x02)  // final, partial frame: only 1 cell voltage present
+      {
+        brick_volts = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 10;
+        datalayer_battery->status.cell_voltages_mV[mux * 3] = brick_volts;
+
+        // This is always the last frame in the sequence, so total cells = mux*3 + 1
+        datalayer_battery->info.number_of_cells = mux * 3 + 1;
       }
       break;
     case 0x2d2:  //BMSVAlimits:  (tesla-m3-pack-findings fw 2019.20.4.2 names 0x2D2 = BMS_driveLimits)
@@ -2353,34 +2354,6 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 
-static constexpr CAN_frame can_msg_1CF[] = {
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x1CF, .data = {0x01, 0x00, 0x00, 0x1A, 0x1C, 0x02, 0x60, 0x69}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x1CF, .data = {0x01, 0x00, 0x00, 0x1A, 0x1C, 0x02, 0x80, 0x89}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x1CF, .data = {0x01, 0x00, 0x00, 0x1A, 0x1C, 0x02, 0xA0, 0xA9}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x1CF, .data = {0x01, 0x00, 0x00, 0x1A, 0x1C, 0x02, 0xC0, 0xC9}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x1CF, .data = {0x01, 0x00, 0x00, 0x1A, 0x1C, 0x02, 0xE0, 0xE9}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x1CF, .data = {0x01, 0x00, 0x00, 0x1A, 0x1C, 0x02, 0x00, 0x09}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x1CF, .data = {0x01, 0x00, 0x00, 0x1A, 0x1C, 0x02, 0x20, 0x29}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x1CF, .data = {0x01, 0x00, 0x00, 0x1A, 0x1C, 0x02, 0x40, 0x49}}};
-
-static constexpr CAN_frame can_msg_118[] = {
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x61, 0x80, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x62, 0x81, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x63, 0x82, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x64, 0x83, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x65, 0x84, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x66, 0x85, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x67, 0x86, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x68, 0x87, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x69, 0x88, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x6A, 0x89, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x6B, 0x8A, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x6C, 0x8B, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x6D, 0x8C, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x6E, 0x8D, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x6F, 0x8E, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}},
-    {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x118, .data = {0x70, 0x8F, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}}};
-
 void TeslaBattery::transmit_can(unsigned long currentMillis) {
   // Ensure we only send one message branch at a time, to reduce worst-case
   // runtime.
@@ -2396,9 +2369,13 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     if (user_selected_tesla_digital_HVIL) {  //Special Digital HVIL mode for S/X 2024+ batteries
       if ((datalayer.system.status.inverter_allows_contactor_closing) &&
           (datalayer.system.status.system_status != FAULT)) {
-        transmit_can_frame(&can_msg_1CF[index_1CF]);
+        TESLA_1CF_digital_hvil.data.u8[6] = ((content_1CF_digital_hvil[index_1CF] & 0xFF00) >> 8);
+        TESLA_1CF_digital_hvil.data.u8[7] = (content_1CF_digital_hvil[index_1CF] & 0x00FF);
+        transmit_can_frame(&TESLA_1CF_digital_hvil);
         index_1CF = (index_1CF + 1) % 8;
-        transmit_can_frame(&can_msg_118[index_118]);
+        TESLA_118_digital_hvil.data.u8[0] = ((content_118_digital_hvil[index_118] & 0xFF00) >> 8);
+        TESLA_118_digital_hvil.data.u8[1] = (content_118_digital_hvil[index_118] & 0x00FF);
+        transmit_can_frame(&TESLA_118_digital_hvil);
         index_118 = (index_118 + 1) % 16;
       }
     } else {  //Normal handling of 118 message (Non digital HVIL version)
