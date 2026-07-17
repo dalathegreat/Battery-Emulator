@@ -10,6 +10,10 @@ artifact deserialises back into a `BoardSize` via `BoardSize.from_dict`.
 from dataclasses import dataclass
 
 
+def slugify(s):
+    return s.lower().replace(" ", "-").replace("_", "-")
+
+
 @dataclass
 class MemoryBytes:
     used: int
@@ -61,3 +65,10 @@ class BoardSize:
             ram=MemoryBytes.from_dict(d.get("ram")),
             toolchain=Toolchain.from_dict(d["toolchain"]),
         )
+
+    def get_artifact_slug(self) -> str:
+        """Return the slug used to name the artifact for this board.
+
+        This is used to look up the artifact URL in the consumer.
+        """
+        return "battery-emulator-" + slugify(self.board_name)

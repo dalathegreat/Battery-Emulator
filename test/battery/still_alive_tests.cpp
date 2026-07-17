@@ -3,6 +3,8 @@
 #include "../utils/utils.h"
 
 #include "../../Software/src/battery/BATTERIES.h"
+#include "../../Software/src/battery/CanBattery.h"
+#include "../../Software/src/devboard/hal/hal.h"
 #include "../../Software/src/devboard/utils/events.h"
 
 class BatteryTestFixture : public testing::Test {

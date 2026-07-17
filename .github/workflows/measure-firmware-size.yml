@@ -90,7 +90,21 @@ jobs:
         pattern: "battery-emulator-*"
         merge-multiple: true
 
+    - name: Get Artifact URLs JSON Map
+      if: steps.ctx.outputs.run_id != ''
+      id: artifact_json
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Creates a single JSON object mapping names to URLs
+        JSON_MAP=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
+          --jq '[.artifacts[] | select(.name | startswith("battery-emulator-")) | {key: .name, value: ("${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/" + (.id | tostring))}] | from_entries')
+        
+        echo "JSON_MAP=$JSON_MAP" >> $GITHUB_OUTPUT
+
     - name: Render comment
+      env:
+        ARTIFACT_URLS_JSON: ${{ steps.artifact_json.outputs.JSON_MAP }}
       run: |
         python .github/scripts/render_size_comment.py \
           --pr-dir ./pr \
@@ -98,6 +112,7 @@ jobs:
           --base-branch "${{ inputs.base_ref }}" \
           --base-sha    "${{ inputs.base_sha }}" \
           --head-sha    "${{ github.event.pull_request.head.sha }}" \
+          --artifact-urls "$ARTIFACT_URLS_JSON" \
           > comment.md
         echo "${{ inputs.pr_number }}" > pr_number.txt
 
