@@ -161,22 +161,44 @@ static void filter_inverter_limits(void) {
   static uint32_t discharge_power_W_filtered = 0;
   static bool power_filter_initialized = false;
 
+  /* Apply user current caps to the filter INPUT, so the ramp time constant acts on the
+     effective range instead of being accelerated by headroom above the cap. Also makes
+     runtime cap increases ramp instead of jump. BYD-Modbus applies the same min() again
+     driver-side, which is now idempotent. */
+  uint32_t charge_in = datalayer.battery.status.max_charge_power_W;
+  uint32_t discharge_in = datalayer.battery.status.max_discharge_power_W;
+  uint16_t cap_voltage_dV = datalayer.battery.status.voltage_dV;
+  if (cap_voltage_dV <= 10) {
+    cap_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  }
+  if (cap_voltage_dV > 10) {
+    uint32_t user_charge_cap_W =
+        ((uint32_t)datalayer.battery.settings.max_user_set_charge_dA * cap_voltage_dV) / 100;
+    uint32_t user_discharge_cap_W =
+        ((uint32_t)datalayer.battery.settings.max_user_set_discharge_dA * cap_voltage_dV) / 100;
+    if (charge_in > user_charge_cap_W) {
+      charge_in = user_charge_cap_W;
+    }
+    if (discharge_in > user_discharge_cap_W) {
+      discharge_in = user_discharge_cap_W;
+    }
+  }
+
   if (!power_filter_initialized) {
-    charge_power_W_filtered = datalayer.battery.status.max_charge_power_W;
-    discharge_power_W_filtered = datalayer.battery.status.max_discharge_power_W;
+    charge_power_W_filtered = charge_in;
+    discharge_power_W_filtered = discharge_in;
     power_filter_initialized = true;
   } else {
-    if (datalayer.battery.status.max_charge_power_W > charge_power_W_filtered) {
-      charge_power_W_filtered = (datalayer.battery.status.max_charge_power_W * 10 + charge_power_W_filtered * 90) / 100;
+    if (charge_in > charge_power_W_filtered) {
+      charge_power_W_filtered = (charge_in * 10 + charge_power_W_filtered * 90) / 100;
     } else {
-      charge_power_W_filtered = datalayer.battery.status.max_charge_power_W;
+      charge_power_W_filtered = charge_in;
     }
 
-    if (datalayer.battery.status.max_discharge_power_W > discharge_power_W_filtered) {
-      discharge_power_W_filtered =
-          (datalayer.battery.status.max_discharge_power_W * 10 + discharge_power_W_filtered * 90) / 100;
+    if (discharge_in > discharge_power_W_filtered) {
+      discharge_power_W_filtered = (discharge_in * 10 + discharge_power_W_filtered * 90) / 100;
     } else {
-      discharge_power_W_filtered = datalayer.battery.status.max_discharge_power_W;
+      discharge_power_W_filtered = discharge_in;
     }
   }
   datalayer.battery.status.max_charge_power_W = charge_power_W_filtered;
