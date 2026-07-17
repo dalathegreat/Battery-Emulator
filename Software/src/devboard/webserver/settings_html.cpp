@@ -479,8 +479,8 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
 
-  if (var == "LOWPASS") {
-    return settings.getBool("LOWPASS") ? "checked" : "";
+  if (var == "LOWPASSFILTER") {
+    return settings.getBool("LOWPASSFILTER") ? "checked" : "";
   }
 
   if (var == "SLOWCANINV") {
